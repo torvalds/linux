@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 
 #include "hdmi.h"
 
@@ -725,7 +718,7 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 
 	pll->mmio_qserdes_com = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
 	if (IS_ERR(pll->mmio_qserdes_com)) {
-		dev_err(dev, "failed to map pll base\n");
+		DRM_DEV_ERROR(dev, "failed to map pll base\n");
 		return -ENOMEM;
 	}
 
@@ -737,7 +730,7 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 
 		pll->mmio_qserdes_tx[i] = msm_ioremap(pdev, name, label);
 		if (IS_ERR(pll->mmio_qserdes_tx[i])) {
-			dev_err(dev, "failed to map pll base\n");
+			DRM_DEV_ERROR(dev, "failed to map pll base\n");
 			return -ENOMEM;
 		}
 	}
@@ -745,7 +738,7 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 
 	clk = devm_clk_register(dev, &pll->clk_hw);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to register pll clock\n");
+		DRM_DEV_ERROR(dev, "failed to register pll clock\n");
 		return -EINVAL;
 	}
 

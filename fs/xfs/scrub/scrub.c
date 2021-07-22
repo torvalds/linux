@@ -9,37 +9,19 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
-#include "xfs_icache.h"
-#include "xfs_itable.h"
-#include "xfs_alloc.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_bmap.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_refcount.h"
-#include "xfs_refcount_btree.h"
-#include "xfs_rmap.h"
-#include "xfs_rmap_btree.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
-#include "xfs_log.h"
-#include "xfs_trans_priv.h"
-#include "scrub/xfs_scrub.h"
+#include "xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
-#include "scrub/btree.h"
 #include "scrub/repair.h"
+#include "scrub/health.h"
 
 /*
  * Online Scrub and Repair
@@ -167,9 +149,10 @@ xchk_probe(
 STATIC int
 xchk_teardown(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip_in,
 	int			error)
 {
+	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
+
 	xchk_ag_free(sc, &sc->sa);
 	if (sc->tp) {
 		if (error == 0 && (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
@@ -186,8 +169,14 @@ xchk_teardown(
 			xfs_irele(sc->ip);
 		sc->ip = NULL;
 	}
-	if (sc->has_quotaofflock)
+	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		mnt_drop_write_file(sc->file);
+	if (sc->flags & XCHK_REAPING_DISABLED)
+		xchk_start_reaping(sc);
+	if (sc->flags & XCHK_HAS_QUOTAOFFLOCK) {
 		mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
+		sc->flags &= ~XCHK_HAS_QUOTAOFFLOCK;
+	}
 	if (sc->buf) {
 		kmem_free(sc->buf);
 		sc->buf = NULL;
@@ -347,6 +336,12 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.scrub	= xchk_quota,
 		.repair	= xrep_notsupported,
 	},
+	[XFS_SCRUB_TYPE_FSCOUNTERS] = {	/* fs summary counters */
+		.type	= ST_FS,
+		.setup	= xchk_setup_fscounters,
+		.scrub	= xchk_fscounters,
+		.repair	= xrep_notsupported,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */
@@ -463,19 +458,25 @@ static inline void xchk_postmortem(struct xfs_scrub *sc)
 /* Dispatch metadata scrubbing. */
 int
 xfs_scrub_metadata(
-	struct xfs_inode		*ip,
+	struct file			*file,
 	struct xfs_scrub_metadata	*sm)
 {
-	struct xfs_scrub		sc;
-	struct xfs_mount		*mp = ip->i_mount;
-	bool				try_harder = false;
-	bool				already_fixed = false;
+	struct xfs_scrub		sc = {
+		.file			= file,
+		.sm			= sm,
+		.sa			= {
+			.agno		= NULLAGNUMBER,
+		},
+	};
+	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
 	int				error = 0;
+
+	sc.mp = mp;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
 		(sizeof(struct xchk_meta_ops) * XFS_SCRUB_TYPE_NR));
 
-	trace_xchk_start(ip, sm, error);
+	trace_xchk_start(XFS_I(file_inode(file)), sm, error);
 
 	/* Forbidden if we are shut down or mounted norecovery. */
 	error = -ESHUTDOWN;
@@ -491,35 +492,44 @@ xfs_scrub_metadata(
 
 	xchk_experimental_warning(mp);
 
-retry_op:
-	/* Set up for the operation. */
-	memset(&sc, 0, sizeof(sc));
-	sc.mp = ip->i_mount;
-	sc.sm = sm;
 	sc.ops = &meta_scrub_ops[sm->sm_type];
-	sc.try_harder = try_harder;
-	sc.sa.agno = NULLAGNUMBER;
-	error = sc.ops->setup(&sc, ip);
+	sc.sick_mask = xchk_health_mask_for_scrub_type(sm->sm_type);
+retry_op:
+	/*
+	 * When repairs are allowed, prevent freezing or readonly remount while
+	 * scrub is running with a real transaction.
+	 */
+	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) {
+		error = mnt_want_write_file(sc.file);
+		if (error)
+			goto out;
+	}
+
+	/* Set up for the operation. */
+	error = sc.ops->setup(&sc);
 	if (error)
 		goto out_teardown;
 
 	/* Scrub for errors. */
 	error = sc.ops->scrub(&sc);
-	if (!try_harder && error == -EDEADLOCK) {
+	if (!(sc.flags & XCHK_TRY_HARDER) && error == -EDEADLOCK) {
 		/*
 		 * Scrubbers return -EDEADLOCK to mean 'try harder'.
 		 * Tear down everything we hold, then set up again with
 		 * preparation for worst-case scenarios.
 		 */
-		error = xchk_teardown(&sc, ip, 0);
+		error = xchk_teardown(&sc, 0);
 		if (error)
 			goto out;
-		try_harder = true;
+		sc.flags |= XCHK_TRY_HARDER;
 		goto retry_op;
-	} else if (error)
+	} else if (error || (sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE))
 		goto out_teardown;
 
-	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) && !already_fixed) {
+	xchk_update_health(&sc);
+
+	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
+	    !(sc.flags & XREP_ALREADY_FIXED)) {
 		bool needs_fix;
 
 		/* Let debug users force us into the repair routines. */
@@ -542,11 +552,14 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xrep_attempt(ip, &sc, &already_fixed);
+		error = xrep_attempt(&sc);
 		if (error == -EAGAIN) {
-			if (sc.try_harder)
-				try_harder = true;
-			error = xchk_teardown(&sc, ip, 0);
+			/*
+			 * Either the repair function succeeded or it couldn't
+			 * get all the resources it needs; either way, we go
+			 * back to the beginning and call the scrub function.
+			 */
+			error = xchk_teardown(&sc, 0);
 			if (error) {
 				xrep_failure(mp);
 				goto out;
@@ -558,9 +571,9 @@ retry_op:
 out_nofix:
 	xchk_postmortem(&sc);
 out_teardown:
-	error = xchk_teardown(&sc, ip, error);
+	error = xchk_teardown(&sc, error);
 out:
-	trace_xchk_done(ip, sm, error);
+	trace_xchk_done(XFS_I(file_inode(file)), sm, error);
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC) {
 		sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 		error = 0;

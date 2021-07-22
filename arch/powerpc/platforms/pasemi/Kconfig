@@ -3,7 +3,7 @@ config PPC_PASEMI
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	bool "PA Semi SoC-based platforms"
 	select MPIC
-	select PCI
+	select FORCE_PCI
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select MPIC_BROKEN_REGREAD

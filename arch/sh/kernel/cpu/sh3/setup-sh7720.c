@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Setup code for SH7720, SH7721.
  *
@@ -8,10 +9,6 @@
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2006  Jamie Lenehan
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -22,6 +19,7 @@
 #include <linux/sh_intc.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 #include <cpu/serial.h>
 
 static struct resource rtc_resources[] = {
@@ -214,7 +212,7 @@ static struct platform_device *sh7720_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7720_early_devices,
+	sh_early_platform_add_devices(sh7720_early_devices,
 				   ARRAY_SIZE(sh7720_early_devices));
 }
 

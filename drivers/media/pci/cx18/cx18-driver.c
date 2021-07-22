@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 driver initialization and card probing
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -241,7 +232,6 @@ MODULE_PARM_DESC(cx18_first_minor,
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
-MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
@@ -685,7 +675,7 @@ done:
 			 cx->pci_dev->subsystem_device);
 		CX18_ERR("Defaulting to %s card\n", cx->card->name);
 		CX18_ERR("Please mail the vendor/device and subsystem vendor/device IDs and what kind of\n");
-		CX18_ERR("card you have to the ivtv-devel mailinglist (www.ivtvdriver.org)\n");
+		CX18_ERR("card you have to the linux-media mailinglist (www.linuxtv.org)\n");
 		CX18_ERR("Prefix your subject line with [UNKNOWN CX18 CARD].\n");
 	}
 	cx->v4l2_cap = cx->card->v4l2_capabilities;
@@ -947,7 +937,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
-	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
+	cx->enc_mem = ioremap(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
 		CX18_ERR("ioremap failed. Can't get a window into CX23418 memory and register space\n");

@@ -1,32 +1,16 @@
-/******************************************************************************
- *
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * James P. Ketrenos <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
- *****************************************************************************
- *
  * Few modifications for Realtek's Wi-Fi drivers by
  * Andrea Merello <andrea.merello@gmail.com>
  *
  * A special thanks goes to Realtek for their support !
- *
- *****************************************************************************/
-
+ */
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
@@ -257,7 +241,7 @@ static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 		return 0;
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("rtllib_classify(): ", DUMP_PREFIX_NONE, skb->data,
+	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif
 	ip = ip_hdr(skb);
@@ -313,7 +297,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 			netdev_info(ieee->dev, "%s: can't get TS\n", __func__);
 			return;
 		}
-		if (pTxTs->TxAdmittedBARecord.bValid == false) {
+		if (!pTxTs->TxAdmittedBARecord.b_valid) {
 			if (ieee->wpa_ie_len && (ieee->pairwise_key_type ==
 			    KEY_TYPE_NA)) {
 				;
@@ -323,8 +307,8 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 				TsStartAddBaProcess(ieee, pTxTs);
 			}
 			goto FORCED_AGG_SETTING;
-		} else if (pTxTs->bUsingBa == false) {
-			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum,
+		} else if (!pTxTs->bUsingBa) {
+			if (SN_LESS(pTxTs->TxAdmittedBARecord.ba_start_seq_ctrl.field.seq_num,
 			   (pTxTs->TxCurSeq+1)%4096))
 				pTxTs->bUsingBa = true;
 			else
@@ -355,7 +339,7 @@ FORCED_AGG_SETTING:
 	}
 }
 
-static void rtllib_qurey_ShortPreambleMode(struct rtllib_device *ieee,
+static void rtllib_query_ShortPreambleMode(struct rtllib_device *ieee,
 					   struct cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
@@ -381,9 +365,9 @@ static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 		return;
 	}
 
-	if ((pHTInfo->bCurBW40MHz == true) && pHTInfo->bCurShortGI40MHz)
+	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurShortGI40MHz)
 		tcb_desc->bUseShortGI = true;
-	else if ((pHTInfo->bCurBW40MHz == false) && pHTInfo->bCurShortGI20MHz)
+	else if (!pHTInfo->bCurBW40MHz && pHTInfo->bCurShortGI20MHz)
 		tcb_desc->bUseShortGI = true;
 }
 
@@ -875,7 +859,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if (ieee->seq_ctrl[0] == 0xFFF)
 				ieee->seq_ctrl[0] = 0;
 			else
-					ieee->seq_ctrl[0]++;
+				ieee->seq_ctrl[0]++;
 		}
 	} else {
 		if (unlikely(skb->len < sizeof(struct rtllib_hdr_3addr))) {
@@ -897,7 +881,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
  success:
 	if (txb) {
-		struct cb_desc *tcb_desc = (struct cb_desc *)
+		tcb_desc = (struct cb_desc *)
 				(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		tcb_desc->priority = skb->priority;
@@ -944,7 +928,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				tcb_desc->bdhcp = 1;
 			}
 
-			rtllib_qurey_ShortPreambleMode(ieee, tcb_desc);
+			rtllib_query_ShortPreambleMode(ieee, tcb_desc);
 			rtllib_tx_query_agg_cap(ieee, txb->fragments[0],
 						tcb_desc);
 			rtllib_query_HTCapShortGI(ieee, tcb_desc);

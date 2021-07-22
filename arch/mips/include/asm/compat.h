@@ -26,8 +26,6 @@ typedef s32		compat_caddr_t;
 typedef struct {
 	s32	val[2];
 } compat_fsid_t;
-typedef s64		compat_s64;
-typedef u64		compat_u64;
 
 struct compat_stat {
 	compat_dev_t	st_dev;
@@ -99,24 +97,6 @@ typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 typedef u32		compat_sigset_word;
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
-
-/*
- * A pointer passed in from user mode. This should not
- * be used for syscall parameters, just declare them
- * as pointers because the syscall entry code will have
- * appropriately converted them already.
- */
-
-static inline void __user *compat_ptr(compat_uptr_t uptr)
-{
-	/* cast to a __user pointer via "unsigned long" makes sparse happy */
-	return (void __user *)(unsigned long)(long)uptr;
-}
-
-static inline compat_uptr_t ptr_to_compat(void __user *uptr)
-{
-	return (u32)(unsigned long)uptr;
-}
 
 static inline void __user *arch_compat_alloc_user_space(long len)
 {

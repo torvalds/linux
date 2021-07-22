@@ -32,7 +32,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		return -EINVAL;
 	if (!is_compat_task() && psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)
 		return -EINVAL;
-	clear_pt_regs_flag(regs, PIF_PER_TRAP);
+	clear_thread_flag(TIF_PER_TRAP);
 	auprobe->saved_per = psw_bits(regs->psw).per;
 	auprobe->saved_int_code = regs->int_code;
 	regs->int_code = UPROBE_TRAP_NR;
@@ -103,7 +103,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		/* fix per address */
 		current->thread.per_event.address = utask->vaddr;
 		/* trigger per event */
-		set_pt_regs_flag(regs, PIF_PER_TRAP);
+		set_thread_flag(TIF_PER_TRAP);
 	}
 	return 0;
 }
@@ -126,6 +126,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 	case DIE_SSTEP:
 		if (uprobe_post_sstep_notifier(regs))
 			return NOTIFY_STOP;
+		break;
 	default:
 		break;
 	}
@@ -259,7 +260,7 @@ static void sim_stor_event(struct pt_regs *regs, void *addr, int len)
 		return;
 	current->thread.per_event.address = regs->psw.addr;
 	current->thread.per_event.cause = PER_EVENT_STORE >> 16;
-	set_pt_regs_flag(regs, PIF_PER_TRAP);
+	set_thread_flag(TIF_PER_TRAP);
 }
 
 /*

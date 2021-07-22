@@ -54,6 +54,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",
@@ -78,6 +81,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",
@@ -254,10 +260,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967296 cookie 12345",
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967296 cookie 123456",
         "expExitCode": "255",
         "verifyCmd": "$TC action ls action bpf",
-        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*cookie 12345",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*cookie 123456",
         "matchCount": "0",
         "teardown": [
             "$TC action flush action bpf"
@@ -282,6 +288,31 @@
         "expExitCode": "0",
         "verifyCmd": "$TC action list action bpf",
         "matchPattern": "action order [0-9]*: bpf.*cookie d0d0d0d0d0d0d0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "b8a1",
+        "name": "Replace bpf action with invalid goto_chain control",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action bpf bytecode '1,6 0 0 4294967295' pass index 90"
+        ],
+        "cmdUnderTest": "$TC action replace action bpf bytecode '1,6 0 0 4294967295' goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action list action bpf",
+        "matchPattern": "action order [0-9]*: bpf.* default-action pass.*index 90",
         "matchCount": "1",
         "teardown": [
             "$TC action flush action bpf"

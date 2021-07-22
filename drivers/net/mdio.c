@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mdio.c: Generic support for MDIO-compatible transceivers
  * Copyright 2006-2009 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/kernel.h>
@@ -86,7 +83,7 @@ int mdio_set_flag(const struct mdio_if_info *mdio,
 EXPORT_SYMBOL(mdio_set_flag);
 
 /**
- * mdio_link_ok - is link status up/OK
+ * mdio45_links_ok - is link status up/OK
  * @mdio: MDIO interface
  * @mmd_mask: Mask for MMDs to check
  *

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sony NFC Port-100 Series driver
  * Copyright (c) 2013, Intel Corporation.
  *
  * Partly based/Inspired by Stephen Tiedemann's nfcpy
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/module.h>
@@ -103,7 +94,7 @@ struct port100;
 typedef void (*port100_send_async_complete_t)(struct port100 *dev, void *arg,
 					      struct sk_buff *resp);
 
-/**
+/*
  * Setting sets structure for in_set_rf command
  *
  * @in_*_set_number: Represent the entry indexes in the port-100 RF Base Table.
@@ -154,7 +145,7 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 };
 
 /**
- * Setting sets structure for tg_set_rf command
+ * struct port100_tg_rf_setting - Setting sets structure for tg_set_rf command
  *
  * @tg_set_number: Represents the entry index in the port-100 RF Base Table.
  *                 This table contains multiple RF setting sets required for RF
@@ -574,7 +565,7 @@ static void port100_tx_update_payload_len(void *_frame, int len)
 {
 	struct port100_frame *frame = _frame;
 
-	frame->datalen = cpu_to_le16(le16_to_cpu(frame->datalen) + len);
+	le16_add_cpu(&frame->datalen, len);
 }
 
 static bool port100_rx_frame_is_valid(void *_frame)
@@ -792,7 +783,7 @@ static int port100_send_frame_async(struct port100 *dev, struct sk_buff *out,
 
 	rc = port100_submit_urb_for_ack(dev, GFP_KERNEL);
 	if (rc)
-		usb_unlink_urb(dev->out_urb);
+		usb_kill_urb(dev->out_urb);
 
 exit:
 	mutex_unlock(&dev->out_urb_lock);

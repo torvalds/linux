@@ -72,8 +72,9 @@ ENTRY(__cpu_suspend)
 	ldr	r3, =sleep_save_sp
 	stmfd	sp!, {r0, r1}		@ save suspend func arg and pointer
 	ldr	r3, [r3, #SLEEP_SAVE_SP_VIRT]
-	ALT_SMP(ldr r0, =mpidr_hash)
+	ALT_SMP(W(nop))			@ don't use adr_l inside ALT_SMP()
 	ALT_UP_B(1f)
+	adr_l	r0, mpidr_hash
 	/* This ldmia relies on the memory layout of the mpidr_hash struct */
 	ldmia	r0, {r1, r6-r8}	@ r1 = mpidr mask (r6,r7,r8) = l[0,1,2] shifts
 	compute_mpidr_hash	r0, r6, r7, r8, r2, r1
@@ -120,6 +121,14 @@ ENDPROC(cpu_resume_after_mmu)
 	.text
 	.align
 
+#ifdef CONFIG_MCPM
+	.arm
+THUMB(	.thumb			)
+ENTRY(cpu_resume_no_hyp)
+ARM_BE8(setend be)			@ ensure we are in BE mode
+	b	no_hyp
+#endif
+
 #ifdef CONFIG_MMU
 	.arm
 ENTRY(cpu_resume_arm)
@@ -135,12 +144,12 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	bl	__hyp_stub_install_secondary
 #endif
 	safe_svcmode_maskall r1
+no_hyp:
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
-	adr	r2, mpidr_hash_ptr
-	ldr	r3, [r2]
-	add	r2, r2, r3		@ r2 = struct mpidr_hash phys address
+	adr_l	r2, mpidr_hash		@ r2 = struct mpidr_hash phys address
+
 	/*
 	 * This ldmia relies on the memory layout of the mpidr_hash
 	 * struct mpidr_hash.
@@ -148,10 +157,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	ldmia	r2, { r3-r6 }	@ r3 = mpidr mask (r4,r5,r6) = l[0,1,2] shifts
 	compute_mpidr_hash	r1, r4, r5, r6, r0, r3
 1:
-	adr	r0, _sleep_save_sp
-	ldr	r2, [r0]
-	add	r0, r0, r2
-	ldr	r0, [r0, #SLEEP_SAVE_SP_PHYS]
+	ldr_l	r0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	r0, [r0, r1, lsl #2]
 
 	@ load phys pgd, stack, resume fn
@@ -164,12 +170,9 @@ ENDPROC(cpu_resume)
 #ifdef CONFIG_MMU
 ENDPROC(cpu_resume_arm)
 #endif
-
-	.align 2
-_sleep_save_sp:
-	.long	sleep_save_sp - .
-mpidr_hash_ptr:
-	.long	mpidr_hash - .			@ mpidr_hash struct offset
+#ifdef CONFIG_MCPM
+ENDPROC(cpu_resume_no_hyp)
+#endif
 
 	.data
 	.align	2

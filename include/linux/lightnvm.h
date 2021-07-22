@@ -88,9 +88,8 @@ typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
 typedef int (nvm_get_chk_meta_fn)(struct nvm_dev *, sector_t, int,
 							struct nvm_chk_meta *);
-typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvm_submit_io_sync_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
+typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *, void *);
+typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *, int);
 typedef void (nvm_destroy_dma_pool_fn)(void *);
 typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
 								dma_addr_t *);
@@ -104,7 +103,6 @@ struct nvm_dev_ops {
 	nvm_get_chk_meta_fn	*get_chk_meta;
 
 	nvm_submit_io_fn	*submit_io;
-	nvm_submit_io_sync_fn	*submit_io_sync;
 
 	nvm_create_dma_pool_fn	*create_dma_pool;
 	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
@@ -114,10 +112,8 @@ struct nvm_dev_ops {
 
 #ifdef CONFIG_NVM
 
-#include <linux/blkdev.h>
 #include <linux/file.h>
 #include <linux/dmapool.h>
-#include <uapi/linux/lightnvm.h>
 
 enum {
 	/* HW Responsibilities */
@@ -357,6 +353,8 @@ struct nvm_geo {
 	u32	clba;		/* sectors per chunk */
 	u16	csecs;		/* sector size */
 	u16	sos;		/* out-of-band area size */
+	bool	ext;		/* metadata in extended data buffer */
+	u32	mdts;		/* Max data transfer size*/
 
 	/* device write constrains */
 	u32	ws_min;		/* minimum write size */
@@ -426,6 +424,7 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 	void *private_data;
 
+	struct kref ref;
 	void *rmap;
 
 	struct mutex mlock;
@@ -630,7 +629,6 @@ static inline int nvm_next_ppa_in_chk(struct nvm_tgt_dev *dev,
 	return last;
 }
 
-typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
 typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *,
 				int flags);
@@ -649,7 +647,7 @@ struct nvm_tgt_type {
 	int flags;
 
 	/* target entry points */
-	nvm_tgt_make_rq_fn *make_rq;
+	const struct block_device_operations *bops;
 	nvm_tgt_capacity_fn *capacity;
 
 	/* module-specific init/teardown */
@@ -679,8 +677,8 @@ extern int nvm_get_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr,
 			      int, struct nvm_chk_meta *);
 extern int nvm_set_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
-extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
-extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *);
+extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *, void *);
+extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *, void *);
 extern void nvm_end_io(struct nvm_rq *);
 
 #else /* CONFIG_NVM */

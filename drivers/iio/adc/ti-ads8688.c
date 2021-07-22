@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Prevas A/S
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -41,6 +38,7 @@
 
 #define ADS8688_VREF_MV			4096
 #define ADS8688_REALBITS		16
+#define ADS8688_MAX_CHANNELS		8
 
 /*
  * enum ads8688_range - ADS8688 reference voltage range
@@ -385,7 +383,8 @@ static irqreturn_t ads8688_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	u16 buffer[8];
+	/* Ensure naturally aligned timestamp */
+	u16 buffer[ADS8688_MAX_CHANNELS + sizeof(s64)/sizeof(u16)] __aligned(8);
 	int i, j = 0;
 
 	for (i = 0; i < indio_dev->masklength; i++) {
@@ -396,7 +395,7 @@ static irqreturn_t ads8688_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-			pf->timestamp);
+			iio_get_time_ns(indio_dev));
 
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -451,8 +450,6 @@ static int ads8688_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
@@ -522,6 +519,6 @@ static struct spi_driver ads8688_driver = {
 };
 module_spi_driver(ads8688_driver);
 
-MODULE_AUTHOR("Sean Nyekjaer <sean.nyekjaer@prevas.dk>");
+MODULE_AUTHOR("Sean Nyekjaer <sean@geanix.dk>");
 MODULE_DESCRIPTION("Texas Instruments ADS8688 driver");
 MODULE_LICENSE("GPL v2");

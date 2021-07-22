@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -176,6 +165,15 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
+	if (test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags)) {
+		/*
+		 * This is special case for ieee80211_restart_hw(), otherwise
+		 * mac80211 never call start() two times in row without stop();
+		 */
+		set_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+		rt2x00dev->ops->lib->pre_reset_hw(rt2x00dev);
+		rt2x00lib_stop(rt2x00dev);
+	}
 	return rt2x00lib_start(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
@@ -190,6 +188,17 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 	rt2x00lib_stop(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
+
+void
+rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
+			    enum ieee80211_reconfig_type reconfig_type)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		clear_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_reconfig_complete);
 
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif)
@@ -399,8 +408,7 @@ static void rt2x00mac_set_tim_iter(void *data, u8 *mac,
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT &&
-	    vif->type != NL80211_IFTYPE_WDS)
+	    vif->type != NL80211_IFTYPE_MESH_POINT)
 		return;
 
 	set_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags);
@@ -459,7 +467,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (!rt2x00_has_cap_hw_crypto(rt2x00dev))
+	/* The hardware can't do MFP */
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || (sta && sta->mfp))
 		return -EOPNOTSUPP;
 
 	/*
@@ -642,17 +651,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 			rt2x00dev->intf_associated--;
 
 		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
-
-		clear_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags);
 	}
-
-	/*
-	 * Check for access point which do not support 802.11e . We have to
-	 * generate data frames sequence number in S/W for such AP, because
-	 * of H/W bug.
-	 */
-	if (changes & BSS_CHANGED_QOS && !bss_conf->qos)
-		set_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags);
 
 	/*
 	 * When the erp information has changed, we should perform

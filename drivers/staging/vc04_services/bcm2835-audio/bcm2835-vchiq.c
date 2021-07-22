@@ -9,7 +9,7 @@
 
 struct bcm2835_audio_instance {
 	struct device *dev;
-	VCHI_SERVICE_HANDLE_T vchi_handle;
+	unsigned int service_handle;
 	struct completion msg_avail_comp;
 	struct mutex vchi_mutex;
 	struct bcm2835_alsa_stream *alsa_stream;
@@ -25,12 +25,12 @@ MODULE_PARM_DESC(force_bulk, "Force use of vchiq bulk for audio");
 static void bcm2835_audio_lock(struct bcm2835_audio_instance *instance)
 {
 	mutex_lock(&instance->vchi_mutex);
-	vchi_service_use(instance->vchi_handle);
+	vchiq_use_service(instance->service_handle);
 }
 
 static void bcm2835_audio_unlock(struct bcm2835_audio_instance *instance)
 {
-	vchi_service_release(instance->vchi_handle);
+	vchiq_release_service(instance->service_handle);
 	mutex_unlock(&instance->vchi_mutex);
 }
 
@@ -44,8 +44,8 @@ static int bcm2835_audio_send_msg_locked(struct bcm2835_audio_instance *instance
 		init_completion(&instance->msg_avail_comp);
 	}
 
-	status = vchi_queue_kernel_message(instance->vchi_handle,
-					   m, sizeof(*m));
+	status = vchiq_queue_kernel_message(instance->service_handle,
+					    m, sizeof(*m));
 	if (status) {
 		dev_err(instance->dev,
 			"vchi message queue failed: %d, msg=%d\n",
@@ -89,66 +89,61 @@ static int bcm2835_audio_send_simple(struct bcm2835_audio_instance *instance,
 	return bcm2835_audio_send_msg(instance, &m, wait);
 }
 
-static const u32 BCM2835_AUDIO_WRITE_COOKIE1 = ('B' << 24 | 'C' << 16 |
-						'M' << 8  | 'A');
-static const u32 BCM2835_AUDIO_WRITE_COOKIE2 = ('D' << 24 | 'A' << 16 |
-						'T' << 8  | 'A');
-
-static void audio_vchi_callback(void *param,
-				const VCHI_CALLBACK_REASON_T reason,
-				void *msg_handle)
+static enum vchiq_status audio_vchi_callback(enum vchiq_reason reason,
+					     struct vchiq_header *header,
+					     unsigned int handle, void *userdata)
 {
-	struct bcm2835_audio_instance *instance = param;
-	int status;
-	int msg_len;
-	struct vc_audio_msg m;
+	struct bcm2835_audio_instance *instance = vchiq_get_service_userdata(handle);
+	struct vc_audio_msg *m;
 
-	if (reason != VCHI_CALLBACK_MSG_AVAILABLE)
-		return;
+	if (reason != VCHIQ_MESSAGE_AVAILABLE)
+		return VCHIQ_SUCCESS;
 
-	status = vchi_msg_dequeue(instance->vchi_handle,
-				  &m, sizeof(m), &msg_len, VCHI_FLAGS_NONE);
-	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
-		instance->result = m.u.result.success;
+	m = (void *)header->data;
+	if (m->type == VC_AUDIO_MSG_TYPE_RESULT) {
+		instance->result = m->result.success;
 		complete(&instance->msg_avail_comp);
-	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
-		if (m.u.complete.cookie1 != BCM2835_AUDIO_WRITE_COOKIE1 ||
-		    m.u.complete.cookie2 != BCM2835_AUDIO_WRITE_COOKIE2)
+	} else if (m->type == VC_AUDIO_MSG_TYPE_COMPLETE) {
+		if (m->complete.cookie1 != VC_AUDIO_WRITE_COOKIE1 ||
+		    m->complete.cookie2 != VC_AUDIO_WRITE_COOKIE2)
 			dev_err(instance->dev, "invalid cookie\n");
 		else
 			bcm2835_playback_fifo(instance->alsa_stream,
-					      m.u.complete.count);
+					      m->complete.count);
 	} else {
-		dev_err(instance->dev, "unexpected callback type=%d\n", m.type);
+		dev_err(instance->dev, "unexpected callback type=%d\n", m->type);
 	}
+
+	vchiq_release_message(handle, header);
+	return VCHIQ_SUCCESS;
 }
 
 static int
-vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
+vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 		   struct bcm2835_audio_instance *instance)
 {
-	SERVICE_CREATION_T params = {
-		.version		= VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
-		.service_id		= VC_AUDIO_SERVER_NAME,
+	struct vchiq_service_params_kernel params = {
+		.version		= VC_AUDIOSERV_VER,
+		.version_min		= VC_AUDIOSERV_MIN_VER,
+		.fourcc			= VCHIQ_MAKE_FOURCC('A', 'U', 'D', 'S'),
 		.callback		= audio_vchi_callback,
-		.callback_param		= instance,
+		.userdata		= instance,
 	};
 	int status;
 
 	/* Open the VCHI service connections */
-	status = vchi_service_open(vchi_instance, &params,
-				   &instance->vchi_handle);
+	status = vchiq_open_service(vchiq_instance, &params,
+				    &instance->service_handle);
 
 	if (status) {
 		dev_err(instance->dev,
 			"failed to open VCHI service connection (status=%d)\n",
 			status);
-		kfree(instance);
 		return -EPERM;
 	}
 
 	/* Finished with the service for now */
-	vchi_service_release(instance->vchi_handle);
+	vchiq_release_service(instance->service_handle);
 
 	return 0;
 }
@@ -158,10 +153,10 @@ static void vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	int status;
 
 	mutex_lock(&instance->vchi_mutex);
-	vchi_service_use(instance->vchi_handle);
+	vchiq_use_service(instance->service_handle);
 
 	/* Close all VCHI service connections */
-	status = vchi_service_close(instance->vchi_handle);
+	status = vchiq_close_service(instance->service_handle);
 	if (status) {
 		dev_err(instance->dev,
 			"failed to close VCHI service connection (status=%d)\n",
@@ -176,20 +171,20 @@ int bcm2835_new_vchi_ctx(struct device *dev, struct bcm2835_vchi_ctx *vchi_ctx)
 	int ret;
 
 	/* Initialize and create a VCHI connection */
-	ret = vchi_initialise(&vchi_ctx->vchi_instance);
+	ret = vchiq_initialise(&vchi_ctx->instance);
 	if (ret) {
 		dev_err(dev, "failed to initialise VCHI instance (ret=%d)\n",
 			ret);
 		return -EIO;
 	}
 
-	ret = vchi_connect(vchi_ctx->vchi_instance);
+	ret = vchiq_connect(vchi_ctx->instance);
 	if (ret) {
 		dev_dbg(dev, "failed to connect VCHI instance (ret=%d)\n",
 			ret);
 
-		kfree(vchi_ctx->vchi_instance);
-		vchi_ctx->vchi_instance = NULL;
+		kfree(vchi_ctx->instance);
+		vchi_ctx->instance = NULL;
 
 		return -EIO;
 	}
@@ -199,10 +194,10 @@ int bcm2835_new_vchi_ctx(struct device *dev, struct bcm2835_vchi_ctx *vchi_ctx)
 
 void bcm2835_free_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
 {
-	/* Close the VCHI connection - it will also free vchi_instance */
-	WARN_ON(vchi_disconnect(vchi_ctx->vchi_instance));
+	/* Close the VCHI connection - it will also free vchi_ctx->instance */
+	WARN_ON(vchiq_shutdown(vchi_ctx->instance));
 
-	vchi_ctx->vchi_instance = NULL;
+	vchi_ctx->instance = NULL;
 }
 
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
@@ -220,7 +215,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	instance->alsa_stream = alsa_stream;
 	alsa_stream->instance = instance;
 
-	err = vc_vchi_audio_init(vchi_ctx->vchi_instance,
+	err = vc_vchi_audio_init(vchi_ctx->instance,
 				 instance);
 	if (err < 0)
 		goto free_instance;
@@ -231,7 +226,8 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 		goto deinit;
 
 	bcm2835_audio_lock(instance);
-	vchi_get_peer_version(instance->vchi_handle, &instance->peer_version);
+	vchiq_get_peer_version(instance->service_handle,
+			       &instance->peer_version);
 	bcm2835_audio_unlock(instance);
 	if (instance->peer_version < 2 || force_bulk)
 		instance->max_packet = 0; /* bulk transfer */
@@ -254,11 +250,11 @@ int bcm2835_audio_set_ctls(struct bcm2835_alsa_stream *alsa_stream)
 	struct vc_audio_msg m = {};
 
 	m.type = VC_AUDIO_MSG_TYPE_CONTROL;
-	m.u.control.dest = chip->dest;
+	m.control.dest = chip->dest;
 	if (!chip->mute)
-		m.u.control.volume = CHIP_MIN_VOLUME;
+		m.control.volume = CHIP_MIN_VOLUME;
 	else
-		m.u.control.volume = alsa2chip(chip->volume);
+		m.control.volume = alsa2chip(chip->volume);
 
 	return bcm2835_audio_send_msg(alsa_stream->instance, &m, true);
 }
@@ -269,9 +265,9 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 {
 	struct vc_audio_msg m = {
 		 .type = VC_AUDIO_MSG_TYPE_CONFIG,
-		 .u.config.channels = channels,
-		 .u.config.samplerate = samplerate,
-		 .u.config.bps = bps,
+		 .config.channels = channels,
+		 .config.samplerate = samplerate,
+		 .config.bps = bps,
 	};
 	int err;
 
@@ -295,11 +291,12 @@ int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 					 VC_AUDIO_MSG_TYPE_STOP, false);
 }
 
+/* FIXME: this doesn't seem working as expected for "draining" */
 int bcm2835_audio_drain(struct bcm2835_alsa_stream *alsa_stream)
 {
 	struct vc_audio_msg m = {
 		.type = VC_AUDIO_MSG_TYPE_STOP,
-		.u.stop.draining = 1,
+		.stop.draining = 1,
 	};
 
 	return bcm2835_audio_send_msg(alsa_stream->instance, &m, false);
@@ -327,10 +324,10 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	struct vc_audio_msg m = {
 		.type = VC_AUDIO_MSG_TYPE_WRITE,
-		.u.write.count = size,
-		.u.write.max_packet = instance->max_packet,
-		.u.write.cookie1 = BCM2835_AUDIO_WRITE_COOKIE1,
-		.u.write.cookie2 = BCM2835_AUDIO_WRITE_COOKIE2,
+		.write.count = size,
+		.write.max_packet = instance->max_packet,
+		.write.cookie1 = VC_AUDIO_WRITE_COOKIE1,
+		.write.cookie2 = VC_AUDIO_WRITE_COOKIE2,
 	};
 	unsigned int count;
 	int err, status;
@@ -346,16 +343,15 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	count = size;
 	if (!instance->max_packet) {
 		/* Send the message to the videocore */
-		status = vchi_bulk_queue_transmit(instance->vchi_handle,
-						  src, count,
-						  VCHI_FLAGS_BLOCK_UNTIL_DATA_READ,
-						  NULL);
+		status = vchiq_bulk_transmit(instance->service_handle, src,
+					     count, NULL,
+					     VCHIQ_BULK_MODE_BLOCKING);
 	} else {
 		while (count > 0) {
 			int bytes = min(instance->max_packet, count);
 
-			status = vchi_queue_kernel_message(instance->vchi_handle,
-							   src, bytes);
+			status = vchiq_queue_kernel_message(instance->service_handle,
+							    src, bytes);
 			src += bytes;
 			count -= bytes;
 		}

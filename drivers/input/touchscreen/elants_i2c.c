@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Elan Microelectronics touch panels with I2C interface
  *
@@ -10,7 +11,6 @@
  *  Copyright (c) 2010-2012 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  *  Copyright (c) 2010-2012 Ecole Nationale de l'Aviation Civile, France
  *
- *
  * This code is partly based on i2c-hid.c:
  *
  * Copyright (c) 2012 Benjamin Tissoires <benjamin.tissoires@gmail.com>
@@ -18,12 +18,8 @@
  * Copyright (c) 2012 Red Hat, Inc
  */
 
-/*
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- */
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -37,10 +33,12 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/uuid.h>
 #include <asm/unaligned.h>
 
 /* Device, Driver information */
@@ -59,30 +57,35 @@
 #define QUEUE_HEADER_SINGLE	0x62
 #define QUEUE_HEADER_NORMAL	0X63
 #define QUEUE_HEADER_WAIT	0x64
+#define QUEUE_HEADER_NORMAL2	0x66
 
 /* Command header definition */
 #define CMD_HEADER_WRITE	0x54
 #define CMD_HEADER_READ		0x53
 #define CMD_HEADER_6B_READ	0x5B
+#define CMD_HEADER_ROM_READ	0x96
 #define CMD_HEADER_RESP		0x52
 #define CMD_HEADER_6B_RESP	0x9B
+#define CMD_HEADER_ROM_RESP	0x95
 #define CMD_HEADER_HELLO	0x55
 #define CMD_HEADER_REK		0x66
 
 /* FW position data */
+#define PACKET_SIZE_OLD		40
 #define PACKET_SIZE		55
 #define MAX_CONTACT_NUM		10
 #define FW_POS_HEADER		0
 #define FW_POS_STATE		1
 #define FW_POS_TOTAL		2
 #define FW_POS_XY		3
+#define FW_POS_TOOL_TYPE	33
 #define FW_POS_CHECKSUM		34
 #define FW_POS_WIDTH		35
 #define FW_POS_PRESSURE		45
 
 #define HEADER_REPORT_10_FINGER	0x62
 
-/* Header (4 bytes) plus 3 fill 10-finger packets */
+/* Header (4 bytes) plus 3 full 10-finger packets */
 #define MAX_PACKET_SIZE		169
 
 #define BOOT_TIME_DELAY_MS	50
@@ -90,11 +93,18 @@
 /* FW read command, 0x53 0x?? 0x0, 0x01 */
 #define E_ELAN_INFO_FW_VER	0x00
 #define E_ELAN_INFO_BC_VER	0x10
+#define E_ELAN_INFO_X_RES	0x60
+#define E_ELAN_INFO_Y_RES	0x63
+#define E_ELAN_INFO_REK		0xD0
 #define E_ELAN_INFO_TEST_VER	0xE0
 #define E_ELAN_INFO_FW_ID	0xF0
 #define E_INFO_OSR		0xD6
 #define E_INFO_PHY_SCAN		0xD7
 #define E_INFO_PHY_DRIVER	0xD8
+
+/* FW write command, 0x54 0x?? 0x0, 0x01 */
+#define E_POWER_STATE_SLEEP	0x50
+#define E_POWER_STATE_RESUME	0x58
 
 #define MAX_RETRIES		3
 #define MAX_FW_UPDATE_RETRIES	30
@@ -106,6 +116,11 @@
 
 #define ELAN_POWERON_DELAY_USEC	500
 #define ELAN_RESET_DELAY_MSEC	20
+
+enum elants_chip_id {
+	EKTH3500,
+	EKTF3624,
+};
 
 enum elants_state {
 	ELAN_STATE_NORMAL,
@@ -133,12 +148,17 @@ struct elants_data {
 	u8 bc_version;
 	u8 iap_version;
 	u16 hw_version;
+	u8 major_res;
 	unsigned int x_res;	/* resolution in units/mm */
 	unsigned int y_res;
 	unsigned int x_max;
 	unsigned int y_max;
+	unsigned int phy_x;
+	unsigned int phy_y;
+	struct touchscreen_properties prop;
 
 	enum elants_state state;
+	enum elants_chip_id chip_id;
 	enum elants_iap_mode iap_mode;
 
 	/* Guards against concurrent access to the device via sysfs */
@@ -190,7 +210,8 @@ static int elants_i2c_read(struct i2c_client *client, void *data, size_t size)
 
 static int elants_i2c_execute_command(struct i2c_client *client,
 				      const u8 *cmd, size_t cmd_size,
-				      u8 *resp, size_t resp_size)
+				      u8 *resp, size_t resp_size,
+				      int retries, const char *cmd_name)
 {
 	struct i2c_msg msgs[2];
 	int ret;
@@ -205,39 +226,68 @@ static int elants_i2c_execute_command(struct i2c_client *client,
 		expected_response = CMD_HEADER_6B_RESP;
 		break;
 
+	case CMD_HEADER_ROM_READ:
+		expected_response = CMD_HEADER_ROM_RESP;
+		break;
+
 	default:
-		dev_err(&client->dev, "%s: invalid command %*ph\n",
-			__func__, (int)cmd_size, cmd);
+		dev_err(&client->dev, "(%s): invalid command: %*ph\n",
+			cmd_name, (int)cmd_size, cmd);
 		return -EINVAL;
 	}
 
-	msgs[0].addr = client->addr;
-	msgs[0].flags = client->flags & I2C_M_TEN;
-	msgs[0].len = cmd_size;
-	msgs[0].buf = (u8 *)cmd;
+	for (;;) {
+		msgs[0].addr = client->addr;
+		msgs[0].flags = client->flags & I2C_M_TEN;
+		msgs[0].len = cmd_size;
+		msgs[0].buf = (u8 *)cmd;
 
-	msgs[1].addr = client->addr;
-	msgs[1].flags = client->flags & I2C_M_TEN;
-	msgs[1].flags |= I2C_M_RD;
-	msgs[1].len = resp_size;
-	msgs[1].buf = resp;
+		msgs[1].addr = client->addr;
+		msgs[1].flags = (client->flags & I2C_M_TEN) | I2C_M_RD;
+		msgs[1].flags |= I2C_M_RD;
+		msgs[1].len = resp_size;
+		msgs[1].buf = resp;
 
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		return ret;
+		ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+		if (ret < 0) {
+			if (--retries > 0) {
+				dev_dbg(&client->dev,
+					"(%s) I2C transfer failed: %pe (retrying)\n",
+					cmd_name, ERR_PTR(ret));
+				continue;
+			}
 
-	if (ret != ARRAY_SIZE(msgs) || resp[FW_HDR_TYPE] != expected_response)
-		return -EIO;
+			dev_err(&client->dev,
+				"(%s) I2C transfer failed: %pe\n",
+				cmd_name, ERR_PTR(ret));
+			return ret;
+		}
 
-	return 0;
+		if (ret != ARRAY_SIZE(msgs) ||
+		    resp[FW_HDR_TYPE] != expected_response) {
+			if (--retries > 0) {
+				dev_dbg(&client->dev,
+					"(%s) unexpected response: %*ph (retrying)\n",
+					cmd_name, ret, resp);
+				continue;
+			}
+
+			dev_err(&client->dev,
+				"(%s) unexpected response: %*ph\n",
+				cmd_name, ret, resp);
+			return -EIO;
+		}
+
+		return 0;
+	}
 }
 
 static int elants_i2c_calibrate(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	int ret, error;
-	static const u8 w_flashkey[] = { 0x54, 0xC0, 0xE1, 0x5A };
-	static const u8 rek[] = { 0x54, 0x29, 0x00, 0x01 };
+	static const u8 w_flashkey[] = { CMD_HEADER_WRITE, 0xC0, 0xE1, 0x5A };
+	static const u8 rek[] = { CMD_HEADER_WRITE, 0x29, 0x00, 0x01 };
 	static const u8 rek_resp[] = { CMD_HEADER_REK, 0x66, 0x66, 0x66 };
 
 	disable_irq(client->irq);
@@ -302,27 +352,21 @@ static u16 elants_i2c_parse_version(u8 *buf)
 static int elants_i2c_query_hw_version(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
-	int error, retry_cnt;
+	int retry_cnt = MAX_RETRIES;
 	const u8 cmd[] = { CMD_HEADER_READ, E_ELAN_INFO_FW_ID, 0x00, 0x01 };
 	u8 resp[HEADER_SIZE];
+	int error;
 
-	for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
+	while (retry_cnt--) {
 		error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
-						   resp, sizeof(resp));
-		if (!error) {
-			ts->hw_version = elants_i2c_parse_version(resp);
-			if (ts->hw_version != 0xffff)
-				return 0;
-		}
+						   resp, sizeof(resp), 1,
+						   "read fw id");
+		if (error)
+			return error;
 
-		dev_dbg(&client->dev, "read fw id error=%d, buf=%*phC\n",
-			error, (int)sizeof(resp), resp);
-	}
-
-	if (error) {
-		dev_err(&client->dev,
-			"Failed to read fw id: %d\n", error);
-		return error;
+		ts->hw_version = elants_i2c_parse_version(resp);
+		if (ts->hw_version != 0xffff)
+			return 0;
 	}
 
 	dev_err(&client->dev, "Invalid fw id: %#04x\n", ts->hw_version);
@@ -333,26 +377,27 @@ static int elants_i2c_query_hw_version(struct elants_data *ts)
 static int elants_i2c_query_fw_version(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
-	int error, retry_cnt;
+	int retry_cnt = MAX_RETRIES;
 	const u8 cmd[] = { CMD_HEADER_READ, E_ELAN_INFO_FW_VER, 0x00, 0x01 };
 	u8 resp[HEADER_SIZE];
+	int error;
 
-	for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
+	while (retry_cnt--) {
 		error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
-						   resp, sizeof(resp));
-		if (!error) {
-			ts->fw_version = elants_i2c_parse_version(resp);
-			if (ts->fw_version != 0x0000 &&
-			    ts->fw_version != 0xffff)
-				return 0;
-		}
+						   resp, sizeof(resp), 1,
+						   "read fw version");
+		if (error)
+			return error;
 
-		dev_dbg(&client->dev, "read fw version error=%d, buf=%*phC\n",
-			error, (int)sizeof(resp), resp);
+		ts->fw_version = elants_i2c_parse_version(resp);
+		if (ts->fw_version != 0x0000 && ts->fw_version != 0xffff)
+			return 0;
+
+		dev_dbg(&client->dev, "(read fw version) resp %*phC\n",
+			(int)sizeof(resp), resp);
 	}
 
-	dev_err(&client->dev,
-		"Failed to read fw version or fw version is invalid\n");
+	dev_err(&client->dev, "Invalid fw ver: %#04x\n", ts->fw_version);
 
 	return -EINVAL;
 }
@@ -360,30 +405,24 @@ static int elants_i2c_query_fw_version(struct elants_data *ts)
 static int elants_i2c_query_test_version(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
-	int error, retry_cnt;
+	int error;
 	u16 version;
 	const u8 cmd[] = { CMD_HEADER_READ, E_ELAN_INFO_TEST_VER, 0x00, 0x01 };
 	u8 resp[HEADER_SIZE];
 
-	for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
-		error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
-						   resp, sizeof(resp));
-		if (!error) {
-			version = elants_i2c_parse_version(resp);
-			ts->test_version = version >> 8;
-			ts->solution_version = version & 0xff;
-
-			return 0;
-		}
-
-		dev_dbg(&client->dev,
-			"read test version error rc=%d, buf=%*phC\n",
-			error, (int)sizeof(resp), resp);
+	error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
+					   resp, sizeof(resp), MAX_RETRIES,
+					   "read test version");
+	if (error) {
+		dev_err(&client->dev, "Failed to read test version\n");
+		return error;
 	}
 
-	dev_err(&client->dev, "Failed to read test version\n");
+	version = elants_i2c_parse_version(resp);
+	ts->test_version = version >> 8;
+	ts->solution_version = version & 0xff;
 
-	return -EINVAL;
+	return 0;
 }
 
 static int elants_i2c_query_bc_version(struct elants_data *ts)
@@ -395,13 +434,10 @@ static int elants_i2c_query_bc_version(struct elants_data *ts)
 	int error;
 
 	error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
-					   resp, sizeof(resp));
-	if (error) {
-		dev_err(&client->dev,
-			"read BC version error=%d, buf=%*phC\n",
-			error, (int)sizeof(resp), resp);
+					   resp, sizeof(resp), 1,
+					   "read BC version");
+	if (error)
 		return error;
-	}
 
 	version = elants_i2c_parse_version(resp);
 	ts->bc_version = version >> 8;
@@ -410,7 +446,51 @@ static int elants_i2c_query_bc_version(struct elants_data *ts)
 	return 0;
 }
 
-static int elants_i2c_query_ts_info(struct elants_data *ts)
+static int elants_i2c_query_ts_info_ektf(struct elants_data *ts)
+{
+	struct i2c_client *client = ts->client;
+	int error;
+	u8 resp[4];
+	u16 phy_x, phy_y;
+	const u8 get_xres_cmd[] = {
+		CMD_HEADER_READ, E_ELAN_INFO_X_RES, 0x00, 0x00
+	};
+	const u8 get_yres_cmd[] = {
+		CMD_HEADER_READ, E_ELAN_INFO_Y_RES, 0x00, 0x00
+	};
+
+	/* Get X/Y size in mm */
+	error = elants_i2c_execute_command(client, get_xres_cmd,
+					   sizeof(get_xres_cmd),
+					   resp, sizeof(resp), 1,
+					   "get X size");
+	if (error)
+		return error;
+
+	phy_x = resp[2] | ((resp[3] & 0xF0) << 4);
+
+	error = elants_i2c_execute_command(client, get_yres_cmd,
+					   sizeof(get_yres_cmd),
+					   resp, sizeof(resp), 1,
+					   "get Y size");
+	if (error)
+		return error;
+
+	phy_y = resp[2] | ((resp[3] & 0xF0) << 4);
+
+	dev_dbg(&client->dev, "phy_x=%d, phy_y=%d\n", phy_x, phy_y);
+
+	ts->phy_x = phy_x;
+	ts->phy_y = phy_y;
+
+	/* eKTF doesn't report max size, set it to default values */
+	ts->x_max = 2240 - 1;
+	ts->y_max = 1408 - 1;
+
+	return 0;
+}
+
+static int elants_i2c_query_ts_info_ekth(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	int error;
@@ -433,49 +513,43 @@ static int elants_i2c_query_ts_info(struct elants_data *ts)
 	error = elants_i2c_execute_command(client,
 					   get_resolution_cmd,
 					   sizeof(get_resolution_cmd),
-					   resp, sizeof(resp));
-	if (error) {
-		dev_err(&client->dev, "get resolution command failed: %d\n",
-			error);
+					   resp, sizeof(resp), 1,
+					   "get resolution");
+	if (error)
 		return error;
-	}
 
 	rows = resp[2] + resp[6] + resp[10];
 	cols = resp[3] + resp[7] + resp[11];
 
+	/* Get report resolution value of ABS_MT_TOUCH_MAJOR */
+	ts->major_res = resp[16];
+
 	/* Process mm_to_pixel information */
 	error = elants_i2c_execute_command(client,
 					   get_osr_cmd, sizeof(get_osr_cmd),
-					   resp, sizeof(resp));
-	if (error) {
-		dev_err(&client->dev, "get osr command failed: %d\n",
-			error);
+					   resp, sizeof(resp), 1, "get osr");
+	if (error)
 		return error;
-	}
 
 	osr = resp[3];
 
 	error = elants_i2c_execute_command(client,
 					   get_physical_scan_cmd,
 					   sizeof(get_physical_scan_cmd),
-					   resp, sizeof(resp));
-	if (error) {
-		dev_err(&client->dev, "get physical scan command failed: %d\n",
-			error);
+					   resp, sizeof(resp), 1,
+					   "get physical scan");
+	if (error)
 		return error;
-	}
 
 	phy_x = get_unaligned_be16(&resp[2]);
 
 	error = elants_i2c_execute_command(client,
 					   get_physical_drive_cmd,
 					   sizeof(get_physical_drive_cmd),
-					   resp, sizeof(resp));
-	if (error) {
-		dev_err(&client->dev, "get physical drive command failed: %d\n",
-			error);
+					   resp, sizeof(resp), 1,
+					   "get physical drive");
+	if (error)
 		return error;
-	}
 
 	phy_y = get_unaligned_be16(&resp[2]);
 
@@ -491,6 +565,8 @@ static int elants_i2c_query_ts_info(struct elants_data *ts)
 		ts->x_res = DIV_ROUND_CLOSEST(ts->x_max, phy_x);
 		ts->y_max = ELAN_TS_RESOLUTION(cols, osr);
 		ts->y_res = DIV_ROUND_CLOSEST(ts->y_max, phy_y);
+		ts->phy_x = phy_x;
+		ts->phy_y = phy_y;
 	}
 
 	return 0;
@@ -561,6 +637,8 @@ static int elants_i2c_initialize(struct elants_data *ts)
 
 	/* hw version is available even if device in recovery state */
 	error2 = elants_i2c_query_hw_version(ts);
+	if (!error2)
+		error2 = elants_i2c_query_bc_version(ts);
 	if (!error)
 		error = error2;
 
@@ -568,10 +646,19 @@ static int elants_i2c_initialize(struct elants_data *ts)
 		error = elants_i2c_query_fw_version(ts);
 	if (!error)
 		error = elants_i2c_query_test_version(ts);
-	if (!error)
-		error = elants_i2c_query_bc_version(ts);
-	if (!error)
-		error = elants_i2c_query_ts_info(ts);
+
+	switch (ts->chip_id) {
+	case EKTH3500:
+		if (!error)
+			error = elants_i2c_query_ts_info_ekth(ts);
+		break;
+	case EKTF3624:
+		if (!error)
+			error = elants_i2c_query_ts_info_ektf(ts);
+		break;
+	default:
+		BUG();
+	}
 
 	if (error)
 		ts->iap_mode = ELAN_IAP_RECOVERY;
@@ -618,39 +705,93 @@ static int elants_i2c_fw_write_page(struct i2c_client *client,
 	return error;
 }
 
+static int elants_i2c_validate_remark_id(struct elants_data *ts,
+					 const struct firmware *fw)
+{
+	struct i2c_client *client = ts->client;
+	int error;
+	const u8 cmd[] = { CMD_HEADER_ROM_READ, 0x80, 0x1F, 0x00, 0x00, 0x21 };
+	u8 resp[6] = { 0 };
+	u16 ts_remark_id = 0;
+	u16 fw_remark_id = 0;
+
+	/* Compare TS Remark ID and FW Remark ID */
+	error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
+					   resp, sizeof(resp),
+					   1, "read Remark ID");
+	if (error)
+		return error;
+
+	ts_remark_id = get_unaligned_be16(&resp[3]);
+
+	fw_remark_id = get_unaligned_le16(&fw->data[fw->size - 4]);
+
+	if (fw_remark_id != ts_remark_id) {
+		dev_err(&client->dev,
+			"Remark ID Mismatched: ts_remark_id=0x%04x, fw_remark_id=0x%04x.\n",
+			ts_remark_id, fw_remark_id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int elants_i2c_do_update_firmware(struct i2c_client *client,
 					 const struct firmware *fw,
 					 bool force)
 {
+	struct elants_data *ts = i2c_get_clientdata(client);
 	const u8 enter_iap[] = { 0x45, 0x49, 0x41, 0x50 };
 	const u8 enter_iap2[] = { 0x54, 0x00, 0x12, 0x34 };
 	const u8 iap_ack[] = { 0x55, 0xaa, 0x33, 0xcc };
-	const u8 close_idle[] = {0x54, 0x2c, 0x01, 0x01};
+	const u8 close_idle[] = { 0x54, 0x2c, 0x01, 0x01 };
 	u8 buf[HEADER_SIZE];
 	u16 send_id;
 	int page, n_fw_pages;
 	int error;
+	bool check_remark_id = ts->iap_version >= 0x60;
 
 	/* Recovery mode detection! */
 	if (force) {
 		dev_dbg(&client->dev, "Recovery mode procedure\n");
+
+		if (check_remark_id) {
+			error = elants_i2c_validate_remark_id(ts, fw);
+			if (error)
+				return error;
+		}
+
 		error = elants_i2c_send(client, enter_iap2, sizeof(enter_iap2));
+		if (error) {
+			dev_err(&client->dev, "failed to enter IAP mode: %d\n",
+				error);
+			return error;
+		}
 	} else {
 		/* Start IAP Procedure */
 		dev_dbg(&client->dev, "Normal IAP procedure\n");
+
 		/* Close idle mode */
 		error = elants_i2c_send(client, close_idle, sizeof(close_idle));
 		if (error)
 			dev_err(&client->dev, "Failed close idle: %d\n", error);
 		msleep(60);
+
 		elants_i2c_sw_reset(client);
 		msleep(20);
-		error = elants_i2c_send(client, enter_iap, sizeof(enter_iap));
-	}
 
-	if (error) {
-		dev_err(&client->dev, "failed to enter IAP mode: %d\n", error);
-		return error;
+		if (check_remark_id) {
+			error = elants_i2c_validate_remark_id(ts, fw);
+			if (error)
+				return error;
+		}
+
+		error = elants_i2c_send(client, enter_iap, sizeof(enter_iap));
+		if (error) {
+			dev_err(&client->dev, "failed to enter IAP mode: %d\n",
+				error);
+			return error;
+		}
 	}
 
 	msleep(20);
@@ -782,10 +923,12 @@ out:
  * Event reporting.
  */
 
-static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
+static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf,
+				size_t packet_size)
 {
 	struct input_dev *input = ts->input;
 	unsigned int n_fingers;
+	unsigned int tool_type;
 	u16 finger_state;
 	int i;
 
@@ -796,6 +939,10 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
 	dev_dbg(&ts->client->dev,
 		"n_fingers: %u, state: %04x\n",  n_fingers, finger_state);
 
+	/* Note: all fingers have the same tool type */
+	tool_type = buf[FW_POS_TOOL_TYPE] & BIT(0) ?
+			MT_TOOL_FINGER : MT_TOOL_PALM;
+
 	for (i = 0; i < MAX_CONTACT_NUM && n_fingers; i++) {
 		if (finger_state & 1) {
 			unsigned int x, y, p, w;
@@ -804,16 +951,31 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
 			pos = &buf[FW_POS_XY + i * 3];
 			x = (((u16)pos[0] & 0xf0) << 4) | pos[1];
 			y = (((u16)pos[0] & 0x0f) << 8) | pos[2];
-			p = buf[FW_POS_PRESSURE + i];
-			w = buf[FW_POS_WIDTH + i];
+
+			/*
+			 * eKTF3624 may have use "old" touch-report format,
+			 * depending on a device and TS firmware version.
+			 * For example, ASUS Transformer devices use the "old"
+			 * format, while ASUS Nexus 7 uses the "new" formant.
+			 */
+			if (packet_size == PACKET_SIZE_OLD &&
+			    ts->chip_id == EKTF3624) {
+				w = buf[FW_POS_WIDTH + i / 2];
+				w >>= 4 * (~i & 1);
+				w |= w << 4;
+				w |= !w;
+				p = w;
+			} else {
+				p = buf[FW_POS_PRESSURE + i];
+				w = buf[FW_POS_WIDTH + i];
+			}
 
 			dev_dbg(&ts->client->dev, "i=%d x=%d y=%d p=%d w=%d\n",
 				i, x, y, p, w);
 
 			input_mt_slot(input, i);
-			input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
-			input_event(input, EV_ABS, ABS_MT_POSITION_X, x);
-			input_event(input, EV_ABS, ABS_MT_POSITION_Y, y);
+			input_mt_report_slot_state(input, tool_type, true);
+			touchscreen_report_pos(input, &ts->prop, x, y, true);
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, p);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, w);
 
@@ -838,7 +1000,8 @@ static u8 elants_i2c_calculate_checksum(u8 *buf)
 	return checksum;
 }
 
-static void elants_i2c_event(struct elants_data *ts, u8 *buf)
+static void elants_i2c_event(struct elants_data *ts, u8 *buf,
+			     size_t packet_size)
 {
 	u8 checksum = elants_i2c_calculate_checksum(buf);
 
@@ -852,7 +1015,7 @@ static void elants_i2c_event(struct elants_data *ts, u8 *buf)
 			 "%s: unknown packet type: %02x\n",
 			 __func__, buf[FW_POS_HEADER]);
 	else
-		elants_i2c_mt_event(ts, buf);
+		elants_i2c_mt_event(ts, buf, packet_size);
 }
 
 static irqreturn_t elants_i2c_irq(int irq, void *_dev)
@@ -888,14 +1051,13 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			break;
 
 		ts->state = ELAN_STATE_NORMAL;
-		/* fall through */
+		fallthrough;
 
 	case ELAN_STATE_NORMAL:
 
 		switch (ts->buf[FW_HDR_TYPE]) {
 		case CMD_HEADER_HELLO:
 		case CMD_HEADER_RESP:
-		case CMD_HEADER_REK:
 			break;
 
 		case QUEUE_HEADER_WAIT:
@@ -910,8 +1072,23 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			break;
 
 		case QUEUE_HEADER_SINGLE:
-			elants_i2c_event(ts, &ts->buf[HEADER_SIZE]);
+			elants_i2c_event(ts, &ts->buf[HEADER_SIZE],
+					 ts->buf[FW_HDR_LENGTH]);
 			break;
+
+		case QUEUE_HEADER_NORMAL2: /* CMD_HEADER_REK */
+			/*
+			 * Depending on firmware version, eKTF3624 touchscreens
+			 * may utilize one of these opcodes for the touch events:
+			 * 0x63 (NORMAL) and 0x66 (NORMAL2).  The 0x63 is used by
+			 * older firmware version and differs from 0x66 such that
+			 * touch pressure value needs to be adjusted.  The 0x66
+			 * opcode of newer firmware is equal to 0x63 of eKTH3500.
+			 */
+			if (ts->chip_id != EKTF3624)
+				break;
+
+			fallthrough;
 
 		case QUEUE_HEADER_NORMAL:
 			report_count = ts->buf[FW_HDR_COUNT];
@@ -923,7 +1100,12 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			}
 
 			report_len = ts->buf[FW_HDR_LENGTH] / report_count;
-			if (report_len != PACKET_SIZE) {
+
+			if (report_len == PACKET_SIZE_OLD &&
+			    ts->chip_id == EKTF3624) {
+				dev_dbg_once(&client->dev,
+					     "using old report format\n");
+			} else if (report_len != PACKET_SIZE) {
 				dev_err(&client->dev,
 					"mismatching report length: %*ph\n",
 					HEADER_SIZE, ts->buf);
@@ -932,8 +1114,8 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 
 			for (i = 0; i < report_count; i++) {
 				u8 *buf = ts->buf + HEADER_SIZE +
-							i * PACKET_SIZE;
-				elants_i2c_event(ts, buf);
+							i * report_len;
+				elants_i2c_event(ts, buf, report_len);
 			}
 			break;
 
@@ -954,7 +1136,7 @@ out:
  */
 static ssize_t calibrate_store(struct device *dev,
 			       struct device_attribute *attr,
-			      const char *buf, size_t count)
+			       const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elants_data *ts = i2c_get_clientdata(client);
@@ -1000,8 +1182,28 @@ static ssize_t show_iap_mode(struct device *dev,
 				"Normal" : "Recovery");
 }
 
+static ssize_t show_calibration_count(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	const u8 cmd[] = { CMD_HEADER_READ, E_ELAN_INFO_REK, 0x00, 0x01 };
+	u8 resp[HEADER_SIZE];
+	u16 rek_count;
+	int error;
+
+	error = elants_i2c_execute_command(client, cmd, sizeof(cmd),
+					   resp, sizeof(resp), 1,
+					   "read ReK status");
+	if (error)
+		return sprintf(buf, "%d\n", error);
+
+	rek_count = get_unaligned_be16(&resp[2]);
+	return sprintf(buf, "0x%04x\n", rek_count);
+}
+
 static DEVICE_ATTR_WO(calibrate);
 static DEVICE_ATTR(iap_mode, S_IRUGO, show_iap_mode, NULL);
+static DEVICE_ATTR(calibration_count, S_IRUGO, show_calibration_count, NULL);
 static DEVICE_ATTR(update_fw, S_IWUSR, NULL, write_update_fw);
 
 struct elants_version_attribute {
@@ -1057,6 +1259,7 @@ static struct attribute *elants_attributes[] = {
 	&dev_attr_calibrate.attr,
 	&dev_attr_update_fw.attr,
 	&dev_attr_iap_mode.attr,
+	&dev_attr_calibration_count.attr,
 
 	&elants_ver_attr_fw_version.dattr.attr,
 	&elants_ver_attr_hw_version.dattr.attr,
@@ -1132,17 +1335,55 @@ static void elants_i2c_power_off(void *_data)
 	}
 }
 
-static int elants_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id i2c_hid_ids[] = {
+	{"ACPI0C50", 0 },
+	{"PNP0C50", 0 },
+	{ },
+};
+
+static const guid_t i2c_hid_guid =
+	GUID_INIT(0x3CDFF6F7, 0x4267, 0x4555,
+		  0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE);
+
+static bool elants_acpi_is_hid_device(struct device *dev)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	union acpi_object *obj;
+
+	if (acpi_match_device_ids(ACPI_COMPANION(dev), i2c_hid_ids))
+		return false;
+
+	obj = acpi_evaluate_dsm_typed(handle, &i2c_hid_guid, 1, 1, NULL, ACPI_TYPE_INTEGER);
+	if (obj) {
+		ACPI_FREE(obj);
+		return true;
+	}
+
+	return false;
+}
+#else
+static bool elants_acpi_is_hid_device(struct device *dev)
+{
+	return false;
+}
+#endif
+
+static int elants_i2c_probe(struct i2c_client *client)
 {
 	union i2c_smbus_data dummy;
 	struct elants_data *ts;
 	unsigned long irqflags;
 	int error;
 
+	/* Don't bind to i2c-hid compatible devices, these are handled by the i2c-hid drv. */
+	if (elants_acpi_is_hid_device(&client->dev)) {
+		dev_warn(&client->dev, "This device appears to be an I2C-HID device, not binding\n");
+		return -ENODEV;
+	}
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev,
-			"%s: i2c check functionality error\n", DEVICE_NAME);
+		dev_err(&client->dev, "I2C check functionality error\n");
 		return -ENXIO;
 	}
 
@@ -1154,6 +1395,7 @@ static int elants_i2c_probe(struct i2c_client *client,
 	init_completion(&ts->cmd_done);
 
 	ts->client = client;
+	ts->chip_id = (enum elants_chip_id)(uintptr_t)device_get_match_data(&client->dev);
 	i2c_set_clientdata(client, ts);
 
 	ts->vcc33 = devm_regulator_get(&client->dev, "vcc33");
@@ -1227,18 +1469,27 @@ static int elants_i2c_probe(struct i2c_client *client,
 	ts->input->name = "Elan Touchscreen";
 	ts->input->id.bustype = BUS_I2C;
 
-	__set_bit(BTN_TOUCH, ts->input->keybit);
-	__set_bit(EV_ABS, ts->input->evbit);
-	__set_bit(EV_KEY, ts->input->evbit);
-
-	/* Single touch input params setup */
-	input_set_abs_params(ts->input, ABS_X, 0, ts->x_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_Y, 0, ts->y_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_PRESSURE, 0, 255, 0, 0);
-	input_abs_set_res(ts->input, ABS_X, ts->x_res);
-	input_abs_set_res(ts->input, ABS_Y, ts->y_res);
-
 	/* Multitouch input params setup */
+
+	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_TOOL_TYPE,
+			     0, MT_TOOL_PALM, 0, 0);
+
+	touchscreen_parse_properties(ts->input, true, &ts->prop);
+
+	if (ts->chip_id == EKTF3624 && ts->phy_x && ts->phy_y) {
+		/* calculate resolution from size */
+		ts->x_res = DIV_ROUND_CLOSEST(ts->prop.max_x, ts->phy_x);
+		ts->y_res = DIV_ROUND_CLOSEST(ts->prop.max_y, ts->phy_y);
+	}
+
+	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
+	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
+	input_abs_set_res(ts->input, ABS_MT_TOUCH_MAJOR, ts->major_res);
+
 	error = input_mt_init_slots(ts->input, MAX_CONTACT_NUM,
 				    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 	if (error) {
@@ -1246,13 +1497,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 			"failed to initialize MT slots: %d\n", error);
 		return error;
 	}
-
-	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
-	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
-	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
 
 	error = input_register_device(ts->input);
 	if (error) {
@@ -1300,7 +1544,9 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elants_data *ts = i2c_get_clientdata(client);
-	const u8 set_sleep_cmd[] = { 0x54, 0x50, 0x00, 0x01 };
+	const u8 set_sleep_cmd[] = {
+		CMD_HEADER_WRITE, E_POWER_STATE_SLEEP, 0x00, 0x01
+	};
 	int retry_cnt;
 	int error;
 
@@ -1337,7 +1583,9 @@ static int __maybe_unused elants_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elants_data *ts = i2c_get_clientdata(client);
-	const u8 set_active_cmd[] = { 0x54, 0x58, 0x00, 0x01 };
+	const u8 set_active_cmd[] = {
+		CMD_HEADER_WRITE, E_POWER_STATE_RESUME, 0x00, 0x01
+	};
 	int retry_cnt;
 	int error;
 
@@ -1370,14 +1618,16 @@ static SIMPLE_DEV_PM_OPS(elants_i2c_pm_ops,
 			 elants_i2c_suspend, elants_i2c_resume);
 
 static const struct i2c_device_id elants_i2c_id[] = {
-	{ DEVICE_NAME, 0 },
+	{ DEVICE_NAME, EKTH3500 },
+	{ "ekth3500", EKTH3500 },
+	{ "ektf3624", EKTF3624 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, elants_i2c_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id elants_acpi_id[] = {
-	{ "ELAN0001", 0 },
+	{ "ELAN0001", EKTH3500 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, elants_acpi_id);
@@ -1385,14 +1635,15 @@ MODULE_DEVICE_TABLE(acpi, elants_acpi_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id elants_of_match[] = {
-	{ .compatible = "elan,ekth3500" },
+	{ .compatible = "elan,ekth3500", .data = (void *)EKTH3500 },
+	{ .compatible = "elan,ektf3624", .data = (void *)EKTF3624 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, elants_of_match);
 #endif
 
 static struct i2c_driver elants_i2c_driver = {
-	.probe = elants_i2c_probe,
+	.probe_new = elants_i2c_probe,
 	.id_table = elants_i2c_id,
 	.driver = {
 		.name = DEVICE_NAME,

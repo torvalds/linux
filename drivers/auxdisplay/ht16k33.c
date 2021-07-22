@@ -74,7 +74,7 @@ struct ht16k33_priv {
 	struct ht16k33_fbdev fbdev;
 };
 
-static struct fb_fix_screeninfo ht16k33_fb_fix = {
+static const struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.id		= DRIVER_NAME,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_MONO10,
@@ -85,7 +85,7 @@ static struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo ht16k33_fb_var = {
+static const struct fb_var_screeninfo ht16k33_fb_var = {
 	.xres = HT16K33_MATRIX_LED_MAX_ROWS,
 	.yres = HT16K33_MATRIX_LED_MAX_COLS,
 	.xres_virtual = HT16K33_MATRIX_LED_MAX_ROWS,
@@ -117,8 +117,7 @@ static void ht16k33_fb_queue(struct ht16k33_priv *priv)
 {
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
 
-	schedule_delayed_work(&fbdev->work,
-			      msecs_to_jiffies(HZ / fbdev->refresh_rate));
+	schedule_delayed_work(&fbdev->work, HZ / fbdev->refresh_rate);
 }
 
 /*
@@ -223,12 +222,12 @@ static const struct backlight_ops ht16k33_bl_ops = {
 static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct ht16k33_priv *priv = info->par;
+	struct page *pages = virt_to_page(priv->fbdev.buffer);
 
-	return vm_insert_page(vma, vma->vm_start,
-			      virt_to_page(priv->fbdev.buffer));
+	return vm_map_pages_zero(vma, &pages, 1);
 }
 
-static struct fb_ops ht16k33_fb_ops = {
+static const struct fb_ops ht16k33_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_read = fb_sys_read,
 	.fb_write = fb_sys_write,
@@ -402,11 +401,6 @@ static int ht16k33_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	if (client->irq <= 0) {
-		dev_err(&client->dev, "No IRQ specified\n");
-		return -EINVAL;
-	}
-
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -459,9 +453,12 @@ static int ht16k33_probe(struct i2c_client *client,
 	if (err)
 		goto err_fbdev_info;
 
-	err = ht16k33_keypad_probe(client, &priv->keypad);
-	if (err)
-		goto err_fbdev_unregister;
+	/* Keypad */
+	if (client->irq > 0) {
+		err = ht16k33_keypad_probe(client, &priv->keypad);
+		if (err)
+			goto err_fbdev_unregister;
+	}
 
 	/* Backlight */
 	memset(&bl_props, 0, sizeof(struct backlight_properties));
@@ -509,7 +506,7 @@ static int ht16k33_remove(struct i2c_client *client)
 	struct ht16k33_priv *priv = i2c_get_clientdata(client);
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
 
-	cancel_delayed_work(&fbdev->work);
+	cancel_delayed_work_sync(&fbdev->work);
 	unregister_framebuffer(fbdev->info);
 	framebuffer_release(fbdev->info);
 	free_page((unsigned long) fbdev->buffer);

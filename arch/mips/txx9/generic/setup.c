@@ -26,13 +26,13 @@
 #include <linux/leds.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
-#include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
@@ -338,15 +338,6 @@ void __init prom_init(void)
 	strcpy(txx9_system_type, txx9_board_vec->system);
 
 	txx9_board_vec->prom_init();
-}
-
-void __init prom_free_prom_memory(void)
-{
-	unsigned long saddr = PAGE_SIZE;
-	unsigned long eaddr = __pa_symbol(&_text);
-
-	if (saddr < eaddr)
-		free_init_pages("prom memory", saddr, eaddr);
 }
 
 const char *get_system_type(void)

@@ -176,7 +176,7 @@
 #define CLK_AVS			152
 #define CLK_HDMI		153
 #define CLK_HDMI_SLOW		154
-
+#define CLK_MBUS		155
 #define CLK_DSI_DPHY		156
 #define CLK_TVE0		157
 #define CLK_TVE1		158

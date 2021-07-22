@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Beomho Seo <beomho.seo@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General Public License version 2, as published
- * by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -535,7 +532,7 @@ static int cm36651_write_prox_event_config(struct iio_dev *indio_dev,
 					int state)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
-	int cmd, ret = -EINVAL;
+	int cmd, ret;
 
 	mutex_lock(&cm36651->lock);
 
@@ -649,23 +646,22 @@ static int cm36651_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 
 	cm36651->client = client;
-	cm36651->ps_client = i2c_new_dummy(client->adapter,
+	cm36651->ps_client = i2c_new_dummy_device(client->adapter,
 						     CM36651_I2C_ADDR_PS);
-	if (!cm36651->ps_client) {
+	if (IS_ERR(cm36651->ps_client)) {
 		dev_err(&client->dev, "%s: new i2c device failed\n", __func__);
-		ret = -ENODEV;
+		ret = PTR_ERR(cm36651->ps_client);
 		goto error_disable_reg;
 	}
 
-	cm36651->ara_client = i2c_new_dummy(client->adapter, CM36651_ARA);
-	if (!cm36651->ara_client) {
+	cm36651->ara_client = i2c_new_dummy_device(client->adapter, CM36651_ARA);
+	if (IS_ERR(cm36651->ara_client)) {
 		dev_err(&client->dev, "%s: new i2c device failed\n", __func__);
-		ret = -ENODEV;
+		ret = PTR_ERR(cm36651->ara_client);
 		goto error_i2c_unregister_ps;
 	}
 
 	mutex_init(&cm36651->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm36651_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm36651_channels);
 	indio_dev->info = &cm36651_info;

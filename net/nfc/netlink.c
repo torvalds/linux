@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
  *
@@ -10,19 +11,6 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -44,6 +32,7 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_DEVICE_NAME] = { .type = NLA_STRING,
 				.len = NFC_DEVICE_NAME_MAXSIZE },
 	[NFC_ATTR_PROTOCOLS] = { .type = NLA_U32 },
+	[NFC_ATTR_TARGET_INDEX] = { .type = NLA_U32 },
 	[NFC_ATTR_COMM_MODE] = { .type = NLA_U8 },
 	[NFC_ATTR_RF_MODE] = { .type = NLA_U8 },
 	[NFC_ATTR_DEVICE_POWERED] = { .type = NLA_U8 },
@@ -55,7 +44,10 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_LLC_SDP] = { .type = NLA_NESTED },
 	[NFC_ATTR_FIRMWARE_NAME] = { .type = NLA_STRING,
 				     .len = NFC_FIRMWARE_NAME_MAXSIZE },
+	[NFC_ATTR_SE_INDEX] = { .type = NLA_U32 },
 	[NFC_ATTR_SE_APDU] = { .type = NLA_BINARY },
+	[NFC_ATTR_VENDOR_ID] = { .type = NLA_U32 },
+	[NFC_ATTR_VENDOR_SUBCMD] = { .type = NLA_U32 },
 	[NFC_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
 
 };
@@ -114,21 +106,14 @@ nla_put_failure:
 
 static struct nfc_dev *__get_device_from_cb(struct netlink_callback *cb)
 {
-	struct nlattr **attrbuf = genl_family_attrbuf(&nfc_genl_family);
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct nfc_dev *dev;
-	int rc;
 	u32 idx;
 
-	rc = nlmsg_parse(cb->nlh, GENL_HDRLEN + nfc_genl_family.hdrsize,
-			 attrbuf, nfc_genl_family.maxattr, nfc_genl_policy,
-			 NULL);
-	if (rc < 0)
-		return ERR_PTR(rc);
-
-	if (!attrbuf[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return ERR_PTR(-EINVAL);
 
-	idx = nla_get_u32(attrbuf[NFC_ATTR_DEVICE_INDEX]);
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
 
 	dev = nfc_get_device(idx);
 	if (!dev)
@@ -392,7 +377,7 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 	if (nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx))
 		goto nla_put_failure;
 
-	sdp_attr = nla_nest_start(msg, NFC_ATTR_LLC_SDP);
+	sdp_attr = nla_nest_start_noflag(msg, NFC_ATTR_LLC_SDP);
 	if (sdp_attr == NULL) {
 		rc = -ENOMEM;
 		goto nla_put_failure;
@@ -402,7 +387,7 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 	hlist_for_each_entry_safe(sdres, n, sdres_list, node) {
 		pr_debug("uri: %s, sap: %d\n", sdres->uri, sdres->sap);
 
-		uri_attr = nla_nest_start(msg, i++);
+		uri_attr = nla_nest_start_noflag(msg, i++);
 		if (uri_attr == NULL) {
 			rc = -ENOMEM;
 			goto nla_put_failure;
@@ -867,6 +852,7 @@ static int nfc_genl_stop_poll(struct sk_buff *skb, struct genl_info *info)
 
 	if (!dev->polling) {
 		device_unlock(&dev->dev);
+		nfc_put_device(dev);
 		return -EINVAL;
 	}
 
@@ -922,7 +908,8 @@ static int nfc_genl_deactivate_target(struct sk_buff *skb,
 	u32 device_idx, target_idx;
 	int rc;
 
-	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_TARGET_INDEX])
 		return -EINVAL;
 
 	device_idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
@@ -980,7 +967,8 @@ static int nfc_genl_dep_link_down(struct sk_buff *skb, struct genl_info *info)
 	int rc;
 	u32 idx;
 
-	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_TARGET_INDEX])
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
@@ -1028,7 +1016,8 @@ static int nfc_genl_llc_get_params(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *msg = NULL;
 	u32 idx;
 
-	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_FIRMWARE_NAME])
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
@@ -1107,7 +1096,6 @@ static int nfc_genl_llc_set_params(struct sk_buff *skb, struct genl_info *info)
 
 	local = nfc_llcp_find_local(dev);
 	if (!local) {
-		nfc_put_device(dev);
 		rc = -ENODEV;
 		goto exit;
 	}
@@ -1167,7 +1155,6 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 	local = nfc_llcp_find_local(dev);
 	if (!local) {
-		nfc_put_device(dev);
 		rc = -ENODEV;
 		goto exit;
 	}
@@ -1177,8 +1164,9 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 	tlvs_len = 0;
 
 	nla_for_each_nested(attr, info->attrs[NFC_ATTR_LLC_SDP], rem) {
-		rc = nla_parse_nested(sdp_attrs, NFC_SDP_ATTR_MAX, attr,
-				      nfc_sdp_genl_policy, info->extack);
+		rc = nla_parse_nested_deprecated(sdp_attrs, NFC_SDP_ATTR_MAX,
+						 attr, nfc_sdp_genl_policy,
+						 info->extack);
 
 		if (rc != 0) {
 			rc = -EINVAL;
@@ -1230,7 +1218,7 @@ static int nfc_genl_fw_download(struct sk_buff *skb, struct genl_info *info)
 	u32 idx;
 	char firmware_name[NFC_FIRMWARE_NAME_MAXSIZE + 1];
 
-	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] || !info->attrs[NFC_ATTR_FIRMWARE_NAME])
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
@@ -1239,7 +1227,7 @@ static int nfc_genl_fw_download(struct sk_buff *skb, struct genl_info *info)
 	if (!dev)
 		return -ENODEV;
 
-	nla_strlcpy(firmware_name, info->attrs[NFC_ATTR_FIRMWARE_NAME],
+	nla_strscpy(firmware_name, info->attrs[NFC_ATTR_FIRMWARE_NAME],
 		    sizeof(firmware_name));
 
 	rc = nfc_fw_download(dev, firmware_name);
@@ -1667,102 +1655,103 @@ EXPORT_SYMBOL(nfc_vendor_cmd_reply);
 static const struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_get_device,
 		.dumpit = nfc_genl_dump_devices,
 		.done = nfc_genl_dump_devices_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEV_UP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dev_up,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEV_DOWN,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dev_down,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_START_POLL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_start_poll,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_STOP_POLL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_stop_poll,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_UP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dep_link_up,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_DOWN,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dep_link_down,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_GET_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT |
+			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit = nfc_genl_dump_targets,
 		.done = nfc_genl_dump_targets_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_GET_PARAMS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_get_params,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SET_PARAMS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_set_params,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SDREQ,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_sdreq,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_FW_DOWNLOAD,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_fw_download,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_ENABLE_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_enable_se,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DISABLE_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_disable_se,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_GET_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit = nfc_genl_dump_ses,
 		.done = nfc_genl_dump_ses_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_SE_IO,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_se_io,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_ACTIVATE_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_activate_target,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_VENDOR,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_vendor_cmd,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEACTIVATE_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_deactivate_target,
-		.policy = nfc_genl_policy,
 	},
 };
 
@@ -1771,6 +1760,7 @@ static struct genl_family nfc_genl_family __ro_after_init = {
 	.name = NFC_GENL_NAME,
 	.version = NFC_GENL_VERSION,
 	.maxattr = NFC_ATTR_MAX,
+	.policy = nfc_genl_policy,
 	.module = THIS_MODULE,
 	.ops = nfc_genl_ops,
 	.n_ops = ARRAY_SIZE(nfc_genl_ops),
@@ -1830,9 +1820,9 @@ static int nfc_genl_rcv_nl_event(struct notifier_block *this,
 
 	w = kmalloc(sizeof(*w), GFP_ATOMIC);
 	if (w) {
-		INIT_WORK((struct work_struct *) w, nfc_urelease_event_work);
+		INIT_WORK(&w->w, nfc_urelease_event_work);
 		w->portid = n->portid;
-		schedule_work((struct work_struct *) w);
+		schedule_work(&w->w);
 	}
 
 out:

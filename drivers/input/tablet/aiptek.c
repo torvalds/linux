@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Native support for the Aiptek HyperPen USB Tablets
  *  (4000U/5000U/6000U/8000U/12000U)
@@ -54,20 +55,6 @@
  *      so therefore it's easier to document them all as one subsystem.
  *      Please visit the project's "home page", located at,
  *      http://aiptektablet.sourceforge.net.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/jiffies.h>
@@ -1049,9 +1036,9 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%dx%d\n",
-			input_abs_get_max(aiptek->inputdev, ABS_X) + 1,
-			input_abs_get_max(aiptek->inputdev, ABS_Y) + 1);
+	return sysfs_emit(buf, "%dx%d\n",
+			  input_abs_get_max(aiptek->inputdev, ABS_X) + 1,
+			  input_abs_get_max(aiptek->inputdev, ABS_Y) + 1);
 }
 
 /* These structs define the sysfs files, param #1 is the name of the
@@ -1077,9 +1064,8 @@ static ssize_t show_tabletPointerMode(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(pointer_mode_map,
-					aiptek->curSetting.pointerMode));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(pointer_mode_map,
+						      aiptek->curSetting.pointerMode));
 }
 
 static ssize_t
@@ -1114,9 +1100,8 @@ static ssize_t show_tabletCoordinateMode(struct device *dev, struct device_attri
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(coordinate_mode_map,
-					aiptek->curSetting.coordinateMode));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(coordinate_mode_map,
+						      aiptek->curSetting.coordinateMode));
 }
 
 static ssize_t
@@ -1156,9 +1141,8 @@ static ssize_t show_tabletToolMode(struct device *dev, struct device_attribute *
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(tool_mode_map,
-					aiptek->curSetting.toolMode));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(tool_mode_map,
+						      aiptek->curSetting.toolMode));
 }
 
 static ssize_t
@@ -1187,10 +1171,9 @@ static ssize_t show_tabletXtilt(struct device *dev, struct device_attribute *att
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
 	if (aiptek->curSetting.xTilt == AIPTEK_TILT_DISABLE) {
-		return snprintf(buf, PAGE_SIZE, "disable\n");
+		return sysfs_emit(buf, "disable\n");
 	} else {
-		return snprintf(buf, PAGE_SIZE, "%d\n",
-				aiptek->curSetting.xTilt);
+		return sysfs_emit(buf, "%d\n", aiptek->curSetting.xTilt);
 	}
 }
 
@@ -1229,10 +1212,9 @@ static ssize_t show_tabletYtilt(struct device *dev, struct device_attribute *att
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
 	if (aiptek->curSetting.yTilt == AIPTEK_TILT_DISABLE) {
-		return snprintf(buf, PAGE_SIZE, "disable\n");
+		return sysfs_emit(buf, "disable\n");
 	} else {
-		return snprintf(buf, PAGE_SIZE, "%d\n",
-				aiptek->curSetting.yTilt);
+		return sysfs_emit(buf, "%d\n", aiptek->curSetting.yTilt);
 	}
 }
 
@@ -1270,7 +1252,7 @@ static ssize_t show_tabletJitterDelay(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", aiptek->curSetting.jitterDelay);
+	return sysfs_emit(buf, "%d\n", aiptek->curSetting.jitterDelay);
 }
 
 static ssize_t
@@ -1299,8 +1281,7 @@ static ssize_t show_tabletProgrammableDelay(struct device *dev, struct device_at
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			aiptek->curSetting.programmableDelay);
+	return sysfs_emit(buf, "%d\n", aiptek->curSetting.programmableDelay);
 }
 
 static ssize_t
@@ -1329,7 +1310,7 @@ static ssize_t show_tabletEventsReceived(struct device *dev, struct device_attri
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%ld\n", aiptek->eventCount);
+	return sysfs_emit(buf, "%ld\n", aiptek->eventCount);
 }
 
 static DEVICE_ATTR(event_count, S_IRUGO, show_tabletEventsReceived, NULL);
@@ -1368,7 +1349,7 @@ static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_at
 	default:
 		return 0;
 	}
-	return snprintf(buf, PAGE_SIZE, retMsg);
+	return sysfs_emit(buf, retMsg);
 }
 
 static DEVICE_ATTR(diagnostic, S_IRUGO, show_tabletDiagnosticMessage, NULL);
@@ -1388,9 +1369,8 @@ static ssize_t show_tabletStylusUpper(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(stylus_button_map,
-					aiptek->curSetting.stylusButtonUpper));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(stylus_button_map,
+						      aiptek->curSetting.stylusButtonUpper));
 }
 
 static ssize_t
@@ -1419,9 +1399,8 @@ static ssize_t show_tabletStylusLower(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(stylus_button_map,
-					aiptek->curSetting.stylusButtonLower));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(stylus_button_map,
+						      aiptek->curSetting.stylusButtonLower));
 }
 
 static ssize_t
@@ -1457,9 +1436,8 @@ static ssize_t show_tabletMouseLeft(struct device *dev, struct device_attribute 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(mouse_button_map,
-					aiptek->curSetting.mouseButtonLeft));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(mouse_button_map,
+						      aiptek->curSetting.mouseButtonLeft));
 }
 
 static ssize_t
@@ -1487,9 +1465,8 @@ static ssize_t show_tabletMouseMiddle(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(mouse_button_map,
-					aiptek->curSetting.mouseButtonMiddle));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(mouse_button_map,
+						      aiptek->curSetting.mouseButtonMiddle));
 }
 
 static ssize_t
@@ -1517,9 +1494,8 @@ static ssize_t show_tabletMouseRight(struct device *dev, struct device_attribute
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			map_val_to_str(mouse_button_map,
-					aiptek->curSetting.mouseButtonRight));
+	return sysfs_emit(buf, "%s\n", map_val_to_str(mouse_button_map,
+						      aiptek->curSetting.mouseButtonRight));
 }
 
 static ssize_t
@@ -1548,10 +1524,9 @@ static ssize_t show_tabletWheel(struct device *dev, struct device_attribute *att
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
 	if (aiptek->curSetting.wheel == AIPTEK_WHEEL_DISABLE) {
-		return snprintf(buf, PAGE_SIZE, "disable\n");
+		return sysfs_emit(buf, "disable\n");
 	} else {
-		return snprintf(buf, PAGE_SIZE, "%d\n",
-				aiptek->curSetting.wheel);
+		return sysfs_emit(buf, "%d\n", aiptek->curSetting.wheel);
 	}
 }
 
@@ -1581,8 +1556,7 @@ static ssize_t show_tabletExecute(struct device *dev, struct device_attribute *a
 	/* There is nothing useful to display, so a one-line manual
 	 * is in order...
 	 */
-	return snprintf(buf, PAGE_SIZE,
-			"Write anything to this file to program your tablet.\n");
+	return sysfs_emit(buf, "Write anything to this file to program your tablet.\n");
 }
 
 static ssize_t
@@ -1613,7 +1587,7 @@ static ssize_t show_tabletODMCode(struct device *dev, struct device_attribute *a
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->features.odmCode);
+	return sysfs_emit(buf, "0x%04x\n", aiptek->features.odmCode);
 }
 
 static DEVICE_ATTR(odm_code, S_IRUGO, show_tabletODMCode, NULL);
@@ -1626,7 +1600,7 @@ static ssize_t show_tabletModelCode(struct device *dev, struct device_attribute 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->features.modelCode);
+	return sysfs_emit(buf, "0x%04x\n", aiptek->features.modelCode);
 }
 
 static DEVICE_ATTR(model_code, S_IRUGO, show_tabletModelCode, NULL);
@@ -1639,8 +1613,7 @@ static ssize_t show_firmwareCode(struct device *dev, struct device_attribute *at
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%04x\n",
-			aiptek->features.firmwareCode);
+	return sysfs_emit(buf, "%04x\n", aiptek->features.firmwareCode);
 }
 
 static DEVICE_ATTR(firmware_code, S_IRUGO, show_firmwareCode, NULL);
@@ -1726,7 +1699,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	aiptek->inputdev = inputdev;
 	aiptek->intf = intf;
-	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;
+	aiptek->ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 	aiptek->inDelay = 0;
 	aiptek->endDelay = 0;
 	aiptek->previousJitterable = 0;
@@ -1815,14 +1788,14 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	input_set_abs_params(inputdev, ABS_WHEEL, AIPTEK_WHEEL_MIN, AIPTEK_WHEEL_MAX - 1, 0, 0);
 
 	/* Verify that a device really has an endpoint */
-	if (intf->altsetting[0].desc.bNumEndpoints < 1) {
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1) {
 		dev_err(&intf->dev,
 			"interface has %d endpoints, but must have minimum 1\n",
-			intf->altsetting[0].desc.bNumEndpoints);
+			intf->cur_altsetting->desc.bNumEndpoints);
 		err = -EINVAL;
 		goto fail3;
 	}
-	endpoint = &intf->altsetting[0].endpoint[0].desc;
+	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
 	/* Go set up our URB, which is called when the tablet receives
 	 * input.

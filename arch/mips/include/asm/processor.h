@@ -22,34 +22,21 @@
 #include <asm/dsemul.h>
 #include <asm/mipsregs.h>
 #include <asm/prefetch.h>
-
-/*
- * Return current * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
+#include <asm/vdso/processor.h>
 
 /*
  * System setup and hardware flags..
  */
 
 extern unsigned int vced_count, vcei_count;
-
-/*
- * MIPS does have an arch_pick_mmap_layout()
- */
-#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
+extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
 #ifdef CONFIG_32BIT
-#ifdef CONFIG_KVM_GUEST
-/* User space process size is limited to 1GB in KVM Guest Mode */
-#define TASK_SIZE	0x3fff8000UL
-#else
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x80000000UL
-#endif
 
 #define STACK_TOP_MAX	TASK_SIZE
 
@@ -234,10 +221,6 @@ struct nlm_cop2_state {
 #define COP2_INIT
 #endif
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 #ifdef CONFIG_CPU_HAS_MSA
 # define ARCH_MIN_TASKALIGN	16
 # define FPU_ALIGN		__aligned(16)
@@ -260,6 +243,7 @@ struct thread_struct {
 	/* Saved cp0 stuff. */
 	unsigned long cp0_status;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	/* Saved fpu/fpu emulator stuff. */
 	struct mips_fpu_struct fpu FPU_ALIGN;
 	/* Assigned branch delay slot 'emulation' frame */
@@ -268,6 +252,7 @@ struct thread_struct {
 	unsigned long bd_emu_branch_pc;
 	/* PC to continue from following a branch delay slot 'emulation' */
 	unsigned long bd_emu_cont_pc;
+#endif
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* Emulated instruction count */
 	unsigned long emulated_fp;
@@ -304,6 +289,21 @@ struct thread_struct {
 #define FPAFF_INIT
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+# define FPU_INIT						\
+	.fpu			= {				\
+		.fpr		= {{{0,},},},			\
+		.fcr31		= 0,				\
+		.msacsr		= 0,				\
+	},							\
+	/* Delay slot emulation */				\
+	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
+	.bd_emu_branch_pc = 0,					\
+	.bd_emu_cont_pc = 0,
+#else
+# define FPU_INIT
+#endif
+
 #define INIT_THREAD  {						\
 	/*							\
 	 * Saved main processor registers			\
@@ -326,19 +326,11 @@ struct thread_struct {
 	/*							\
 	 * Saved FPU/FPU emulator stuff				\
 	 */							\
-	.fpu			= {				\
-		.fpr		= {{{0,},},},			\
-		.fcr31		= 0,				\
-		.msacsr		= 0,				\
-	},							\
+	FPU_INIT						\
 	/*							\
 	 * FPU affinity state (null if not FPAFF)		\
 	 */							\
 	FPAFF_INIT						\
-	/* Delay slot emulation */				\
-	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
-	.bd_emu_branch_pc = 0,					\
-	.bd_emu_cont_pc = 0,					\
 	/*							\
 	 * Saved DSP stuff					\
 	 */							\
@@ -385,21 +377,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk) (task_pt_regs(tsk)->cp0_epc)
 #define KSTK_ESP(tsk) (task_pt_regs(tsk)->regs[29])
 #define KSTK_STATUS(tsk) (task_pt_regs(tsk)->cp0_status)
-
-#ifdef CONFIG_CPU_LOONGSON3
-/*
- * Loongson-3's SFB (Store-Fill-Buffer) may buffer writes indefinitely when a
- * tight read loop is executed, because reads take priority over writes & the
- * hardware (incorrectly) doesn't ensure that writes will eventually occur.
- *
- * Since spin loops of any kind should have a cpu_relax() in them, force an SFB
- * flush from cpu_relax() such that any pending writes will become visible as
- * expected.
- */
-#define cpu_relax()	smp_mb()
-#else
-#define cpu_relax()	barrier()
-#endif
 
 /*
  * Return_address is a replacement for __builtin_return_address(count)

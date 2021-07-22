@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux network driver for QLogic BR-series Converged Network Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
@@ -90,7 +82,7 @@ bfa_cee_get_attr_isr(struct bfa_cee *cee, enum bfa_status status)
 }
 
 /**
- * bfa_cee_get_attr_isr - CEE ISR for get-stats responses from f/w
+ * bfa_cee_get_stats_isr - CEE ISR for get-stats responses from f/w
  *
  * @cee: Pointer to the CEE module
  * @status: Return status from the f/w
@@ -110,14 +102,10 @@ bfa_cee_get_stats_isr(struct bfa_cee *cee, enum bfa_status status)
 }
 
 /**
- * bfa_cee_get_attr_isr()
+ * bfa_cee_reset_stats_isr - CEE ISR for reset-stats responses from f/w
  *
- * @brief CEE ISR for reset-stats responses from f/w
- *
- * @param[in] cee - Pointer to the CEE module
- *            status - Return status from the f/w
- *
- * @return void
+ * @cee: Input Pointer to the CEE module
+ * @status: Return status from the f/w
  */
 static void
 bfa_cee_reset_stats_isr(struct bfa_cee *cee, enum bfa_status status)
@@ -156,9 +144,12 @@ bfa_nw_cee_mem_claim(struct bfa_cee *cee, u8 *dma_kva, u64 dma_pa)
 }
 
 /**
- * bfa_cee_get_attr - Send the request to the f/w to fetch CEE attributes.
+ * bfa_nw_cee_get_attr - Send the request to the f/w to fetch CEE attributes.
  *
  * @cee: Pointer to the CEE module data structure.
+ * @attr: attribute requested
+ * @cbfn: function pointer
+ * @cbarg: function pointer arguments
  *
  * Return: status
  */
@@ -189,7 +180,9 @@ bfa_nw_cee_get_attr(struct bfa_cee *cee, struct bfa_cee_attr *attr,
 }
 
 /**
- * bfa_cee_isrs - Handles Mail-box interrupts for CEE module.
+ * bfa_cee_isr - Handles Mail-box interrupts for CEE module.
+ * @cbarg: argument passed containing pointer to the CEE module data structure.
+ * @m: message pointer
  */
 
 static void
@@ -218,6 +211,7 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg *m)
 /**
  * bfa_cee_notify - CEE module heart-beat failure handler.
  *
+ * @arg: argument passed containing pointer to the CEE module data structure.
  * @event: IOC event type
  */
 

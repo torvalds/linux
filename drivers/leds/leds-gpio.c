@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LEDs driver for GPIOs
  *
  * Copyright (C) 2007 8D Technologies inc.
  * Raphael Assenat <raph@8d.com>
  * Copyright (C) 2008 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -77,11 +73,11 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 
 static int create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
-	struct device_node *np, gpio_blink_set_t blink_set)
+	struct fwnode_handle *fwnode, gpio_blink_set_t blink_set)
 {
+	struct led_init_data init_data = {};
 	int ret, state;
 
-	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
 	if (!led_dat->can_sleep)
@@ -100,7 +96,8 @@ static int create_gpio_led(const struct gpio_led *template,
 	} else {
 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
 	}
-	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
+	led_dat->cdev.brightness = state;
+	led_dat->cdev.max_brightness = 1;
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	if (template->panic_indicator)
@@ -112,19 +109,22 @@ static int create_gpio_led(const struct gpio_led *template,
 	if (ret < 0)
 		return ret;
 
-	return devm_of_led_classdev_register(parent, np, &led_dat->cdev);
+	if (template->name) {
+		led_dat->cdev.name = template->name;
+		ret = devm_led_classdev_register(parent, &led_dat->cdev);
+	} else {
+		init_data.fwnode = fwnode;
+		ret = devm_led_classdev_register_ext(parent, &led_dat->cdev,
+						     &init_data);
+	}
+
+	return ret;
 }
 
 struct gpio_leds_priv {
 	int num_leds;
 	struct gpio_led_data leds[];
 };
-
-static inline int sizeof_gpio_leds_priv(int num_leds)
-{
-	return sizeof(struct gpio_leds_priv) +
-		(sizeof(struct gpio_led_data) * num_leds);
-}
 
 static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 {
@@ -137,7 +137,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 	if (!count)
 		return ERR_PTR(-ENODEV);
 
-	priv = devm_kzalloc(dev, sizeof_gpio_leds_priv(count), GFP_KERNEL);
+	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
@@ -145,28 +145,21 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
 		struct gpio_led led = {};
 		const char *state = NULL;
-		struct device_node *np = to_of_node(child);
 
-		ret = fwnode_property_read_string(child, "label", &led.name);
-		if (ret && IS_ENABLED(CONFIG_OF) && np)
-			led.name = np->name;
-		if (!led.name) {
-			fwnode_handle_put(child);
-			return ERR_PTR(-EINVAL);
-		}
-
+		/*
+		 * Acquire gpiod from DT with uninitialized label, which
+		 * will be updated after LED class device is registered,
+		 * Only then the final LED name is known.
+		 */
 		led.gpiod = devm_fwnode_get_gpiod_from_child(dev, NULL, child,
 							     GPIOD_ASIS,
-							     led.name);
+							     NULL);
 		if (IS_ERR(led.gpiod)) {
 			fwnode_handle_put(child);
 			return ERR_CAST(led.gpiod);
 		}
 
 		led_dat->gpiod = led.gpiod;
-
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led.default_trigger);
 
 		if (!fwnode_property_read_string(child, "default-state",
 						 &state)) {
@@ -185,12 +178,14 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		if (fwnode_property_present(child, "panic-indicator"))
 			led.panic_indicator = 1;
 
-		ret = create_gpio_led(&led, led_dat, dev, np, NULL);
+		ret = create_gpio_led(&led, led_dat, dev, child, NULL);
 		if (ret < 0) {
 			fwnode_handle_put(child);
 			return ERR_PTR(ret);
 		}
-		led_dat->cdev.dev->of_node = np;
+		/* Set gpiod label to match the corresponding LED name. */
+		gpiod_set_consumer_name(led_dat->gpiod,
+					led_dat->cdev.dev->kobj.name);
 		priv->num_leds++;
 	}
 
@@ -217,7 +212,7 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	 * device, this will hit the board file, if any and get
 	 * the GPIO from there.
 	 */
-	gpiod = devm_gpiod_get_index(dev, NULL, idx, flags);
+	gpiod = devm_gpiod_get_index(dev, NULL, idx, GPIOD_OUT_LOW);
 	if (!IS_ERR(gpiod)) {
 		gpiod_set_consumer_name(gpiod, template->name);
 		return gpiod;
@@ -257,9 +252,8 @@ static int gpio_led_probe(struct platform_device *pdev)
 	int i, ret = 0;
 
 	if (pdata && pdata->num_leds) {
-		priv = devm_kzalloc(&pdev->dev,
-				sizeof_gpio_leds_priv(pdata->num_leds),
-					GFP_KERNEL);
+		priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, pdata->num_leds),
+				    GFP_KERNEL);
 		if (!priv)
 			return -ENOMEM;
 

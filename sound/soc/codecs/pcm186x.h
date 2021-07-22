@@ -2,7 +2,7 @@
 /*
  * Texas Instruments PCM186x Universal Audio ADC
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com
  *	Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */
@@ -139,7 +139,7 @@ enum pcm186x_type {
 #define PCM186X_MAX_REGISTER		PCM186X_CURR_TRIM_CTRL
 
 /* PCM186X_PAGE */
-#define PCM186X_RESET			0xff
+#define PCM186X_RESET			0xfe
 
 /* PCM186X_ADCX_INPUT_SEL_X */
 #define PCM186X_ADC_INPUT_SEL_POL	BIT(7)

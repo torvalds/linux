@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CRAMFS
 	tristate "Compressed ROM file system support (cramfs)"
 	select ZLIB_INFLATE
@@ -8,7 +9,7 @@ config CRAMFS
 	  limited to 256MB file systems (with 16MB files), and doesn't support
 	  16/32 bits uid/gid, hard links and timestamps.
 
-	  See <file:Documentation/filesystems/cramfs.txt> and
+	  See <file:Documentation/filesystems/cramfs.rst> and
 	  <file:fs/cramfs/README> for further information.
 
 	  To compile this as a module, choose M here: the module will be called

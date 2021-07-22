@@ -1,15 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) Hans Alblas PE1AYX <hans@esrac.ele.tue.nl>
  * Copyright (C) 2004, 05 Ralf Baechle DL5RB <ralf@linux-mips.org>
@@ -35,6 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/jiffies.h>
+#include <linux/refcount.h>
 
 #include <net/ax25.h>
 
@@ -80,8 +71,8 @@ struct mkiss {
 #define CRC_MODE_FLEX_TEST	3
 #define CRC_MODE_SMACK_TEST	4
 
-	atomic_t		refcnt;
-	struct semaphore	dead_sem;
+	refcount_t		refcnt;
+	struct completion	dead;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -285,7 +276,7 @@ static void ax_bump(struct mkiss *ax)
 			 */
 			*ax->rbuff &= ~0x20;
 		}
- 	}
+	}
 
 	count = ax->rcount;
 
@@ -491,7 +482,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_SMACK_TEST:
 			ax->crcmode  = CRC_MODE_FLEX_TEST;
 			printk(KERN_INFO "mkiss: %s: Trying crc-smack\n", ax->dev->name);
-			// fall through
+			fallthrough;
 		case CRC_MODE_SMACK:
 			*p |= 0x80;
 			crc = swab16(crc16(0, p, len));
@@ -500,7 +491,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_FLEX_TEST:
 			ax->crcmode = CRC_MODE_NONE;
 			printk(KERN_INFO "mkiss: %s: Trying crc-flexnet\n", ax->dev->name);
-			// fall through
+			fallthrough;
 		case CRC_MODE_FLEX:
 			*p |= 0x20;
 			crc = calc_crc_flex(p, len);
@@ -510,7 +501,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		default:
 			count = kiss_esc(p, ax->xbuff, len);
 		}
-  	}
+	}
 	spin_unlock_bh(&ax->buflock);
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &ax->tty->flags);
@@ -678,7 +669,7 @@ static struct mkiss *mkiss_get(struct tty_struct *tty)
 	read_lock(&disc_data_lock);
 	ax = tty->disc_data;
 	if (ax)
-		atomic_inc(&ax->refcnt);
+		refcount_inc(&ax->refcnt);
 	read_unlock(&disc_data_lock);
 
 	return ax;
@@ -686,8 +677,8 @@ static struct mkiss *mkiss_get(struct tty_struct *tty)
 
 static void mkiss_put(struct mkiss *ax)
 {
-	if (atomic_dec_and_test(&ax->refcnt))
-		up(&ax->dead_sem);
+	if (refcount_dec_and_test(&ax->refcnt))
+		complete(&ax->dead);
 }
 
 static int crc_force = 0;	/* Can be overridden with insmod */
@@ -714,8 +705,8 @@ static int mkiss_open(struct tty_struct *tty)
 	ax->dev = dev;
 
 	spin_lock_init(&ax->buflock);
-	atomic_set(&ax->refcnt, 1);
-	sema_init(&ax->dead_sem, 0);
+	refcount_set(&ax->refcnt, 1);
+	init_completion(&ax->dead);
 
 	ax->tty = tty;
 	tty->disc_data = ax;
@@ -753,7 +744,6 @@ static int mkiss_open(struct tty_struct *tty)
 		       ax->dev->name);
 		break;
 	case 0:
-		/* fall through */
 	default:
 		crc_force = 0;
 		printk(KERN_INFO "mkiss: %s: crc mode is auto.\n",
@@ -782,10 +772,10 @@ static void mkiss_close(struct tty_struct *tty)
 {
 	struct mkiss *ax;
 
-	write_lock_bh(&disc_data_lock);
+	write_lock_irq(&disc_data_lock);
 	ax = tty->disc_data;
 	tty->disc_data = NULL;
-	write_unlock_bh(&disc_data_lock);
+	write_unlock_irq(&disc_data_lock);
 
 	if (!ax)
 		return;
@@ -794,8 +784,8 @@ static void mkiss_close(struct tty_struct *tty)
 	 * We have now ensured that nobody can start using ap from now on, but
 	 * we have to wait for all existing users to finish.
 	 */
-	if (!atomic_dec_and_test(&ax->refcnt))
-		down(&ax->dead_sem);
+	if (!refcount_dec_and_test(&ax->refcnt))
+		wait_for_completion(&ax->dead);
 	/*
 	 * Halt the transmit queue so that a new transmit cannot scribble
 	 * on our buffers
@@ -809,6 +799,7 @@ static void mkiss_close(struct tty_struct *tty)
 	ax->tty = NULL;
 
 	unregister_netdev(ax->dev);
+	free_netdev(ax->dev);
 }
 
 /* Perform I/O control on an active ax25 channel. */
@@ -825,7 +816,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 	dev = ax->dev;
 
 	switch (cmd) {
- 	case SIOCGIFNAME:
+	case SIOCGIFNAME:
 		err = copy_to_user((void __user *) arg, ax->dev->name,
 		                   strlen(ax->dev->name) + 1) ? -EFAULT : 0;
 		break;
@@ -881,7 +872,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-	char *fp, int count)
+	const char *fp, int count)
 {
 	struct mkiss *ax = mkiss_get(tty);
 
@@ -943,7 +934,7 @@ out:
 
 static struct tty_ldisc_ops ax_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
+	.num		= N_AX25,
 	.name		= "mkiss",
 	.open		= mkiss_open,
 	.close		= mkiss_close,
@@ -963,22 +954,16 @@ static int __init mkiss_init_driver(void)
 
 	printk(banner);
 
-	status = tty_register_ldisc(N_AX25, &ax_ldisc);
+	status = tty_register_ldisc(&ax_ldisc);
 	if (status != 0)
 		printk(msg_regfail, status);
 
 	return status;
 }
 
-static const char msg_unregfail[] = KERN_ERR \
-	"mkiss: can't unregister line discipline (err = %d)\n";
-
 static void __exit mkiss_exit_driver(void)
 {
-	int ret;
-
-	if ((ret = tty_unregister_ldisc(N_AX25)))
-		printk(msg_unregfail, ret);
+	tty_unregister_ldisc(&ax_ldisc);
 }
 
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");

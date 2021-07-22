@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP zc1751-xm019-dc5
  *
- * (C) Copyright 2015 - 2018, Xilinx, Inc.
+ * (C) Copyright 2015 - 2019, Xilinx, Inc.
  *
  * Siva Durga Prasad <siva.durga.paladugu@xilinx.com>
  * Michal Simek <michal.simek@xilinx.com>
@@ -11,7 +11,7 @@
 /dts-v1/;
 
 #include "zynqmp.dtsi"
-#include "zynqmp-clk.dtsi"
+#include "zynqmp-clk-ccf.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
@@ -74,7 +74,7 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	phy0: phy@0 {
+	phy0: ethernet-phy@0 {
 		reg = <0>;
 	};
 };

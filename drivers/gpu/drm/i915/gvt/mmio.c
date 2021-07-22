@@ -57,7 +57,7 @@ int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 	(reg >= gvt->device_info.gtt_start_offset \
 	 && reg < gvt->device_info.gtt_start_offset + gvt_ggtt_sz(gvt))
 
-static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
+static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes, bool read)
 {
 	struct intel_gvt *gvt = NULL;
@@ -99,10 +99,11 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *i915 = gvt->gt->i915;
 	unsigned int offset = 0;
 	int ret = -EINVAL;
 
@@ -114,15 +115,17 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
-	if (WARN_ON(bytes > 8))
+	if (drm_WARN_ON(&i915->drm, bytes > 8))
 		goto err;
 
 	if (reg_is_gtt(gvt, offset)) {
-		if (WARN_ON(!IS_ALIGNED(offset, 4) && !IS_ALIGNED(offset, 8)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4) &&
+				!IS_ALIGNED(offset, 8)))
 			goto err;
-		if (WARN_ON(bytes != 4 && bytes != 8))
+		if (drm_WARN_ON(&i915->drm, bytes != 4 && bytes != 8))
 			goto err;
-		if (WARN_ON(!reg_is_gtt(gvt, offset + bytes - 1)))
+		if (drm_WARN_ON(&i915->drm,
+				!reg_is_gtt(gvt, offset + bytes - 1)))
 			goto err;
 
 		ret = intel_vgpu_emulate_ggtt_mmio_read(vgpu, offset,
@@ -132,16 +135,16 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		goto out;
 	}
 
-	if (WARN_ON_ONCE(!reg_is_mmio(gvt, offset))) {
+	if (drm_WARN_ON_ONCE(&i915->drm, !reg_is_mmio(gvt, offset))) {
 		ret = intel_gvt_hypervisor_read_gpa(vgpu, pa, p_data, bytes);
 		goto out;
 	}
 
-	if (WARN_ON(!reg_is_mmio(gvt, offset + bytes - 1)))
+	if (drm_WARN_ON(&i915->drm, !reg_is_mmio(gvt, offset + bytes - 1)))
 		goto err;
 
 	if (!intel_gvt_mmio_is_unalign(gvt, offset)) {
-		if (WARN_ON(!IS_ALIGNED(offset, bytes)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, bytes)))
 			goto err;
 	}
 
@@ -171,10 +174,11 @@ out:
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *i915 = gvt->gt->i915;
 	unsigned int offset = 0;
 	int ret = -EINVAL;
 
@@ -187,15 +191,17 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
-	if (WARN_ON(bytes > 8))
+	if (drm_WARN_ON(&i915->drm, bytes > 8))
 		goto err;
 
 	if (reg_is_gtt(gvt, offset)) {
-		if (WARN_ON(!IS_ALIGNED(offset, 4) && !IS_ALIGNED(offset, 8)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4) &&
+				!IS_ALIGNED(offset, 8)))
 			goto err;
-		if (WARN_ON(bytes != 4 && bytes != 8))
+		if (drm_WARN_ON(&i915->drm, bytes != 4 && bytes != 8))
 			goto err;
-		if (WARN_ON(!reg_is_gtt(gvt, offset + bytes - 1)))
+		if (drm_WARN_ON(&i915->drm,
+				!reg_is_gtt(gvt, offset + bytes - 1)))
 			goto err;
 
 		ret = intel_vgpu_emulate_ggtt_mmio_write(vgpu, offset,
@@ -205,7 +211,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 		goto out;
 	}
 
-	if (WARN_ON_ONCE(!reg_is_mmio(gvt, offset))) {
+	if (drm_WARN_ON_ONCE(&i915->drm, !reg_is_mmio(gvt, offset))) {
 		ret = intel_gvt_hypervisor_write_gpa(vgpu, pa, p_data, bytes);
 		goto out;
 	}
@@ -239,14 +245,16 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 
 	if (dmlr) {
 		memcpy(vgpu->mmio.vreg, mmio, info->mmio_size);
-		memcpy(vgpu->mmio.sreg, mmio, info->mmio_size);
 
 		vgpu_vreg_t(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
 
 		/* set the bit 0:2(Core C-State ) to C0 */
 		vgpu_vreg_t(vgpu, GEN6_GT_CORE_STATUS) = 0;
 
-		if (IS_BROXTON(vgpu->gvt->dev_priv)) {
+		/* uc reset hw expect GS_MIA_IN_RESET */
+		vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
+
+		if (IS_BROXTON(vgpu->gvt->gt->i915)) {
 			vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) &=
 				    ~(BIT(0) | BIT(1));
 			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY0)) &=
@@ -272,6 +280,11 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_C)) |=
 				    BXT_PHY_CMNLANE_POWERDOWN_ACK |
 				    BXT_PHY_LANE_POWERDOWN_ACK;
+			vgpu_vreg_t(vgpu, SKL_FUSE_STATUS) |=
+				SKL_FUSE_DOWNLOAD_STATUS |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG0) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG1) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG2);
 		}
 	} else {
 #define GVT_GEN8_MMIO_RESET_OFFSET		(0x44200)
@@ -280,7 +293,6 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 		 * touched
 		 */
 		memcpy(vgpu->mmio.vreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
-		memcpy(vgpu->mmio.sreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
 	}
 
 }
@@ -296,11 +308,9 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(array_size(info->mmio_size, 2));
+	vgpu->mmio.vreg = vzalloc(info->mmio_size);
 	if (!vgpu->mmio.vreg)
 		return -ENOMEM;
-
-	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
 
 	intel_vgpu_reset_mmio(vgpu, true);
 
@@ -315,5 +325,5 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu)
 {
 	vfree(vgpu->mmio.vreg);
-	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
+	vgpu->mmio.vreg = NULL;
 }

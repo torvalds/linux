@@ -1,18 +1,9 @@
-/******************************************************************************
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- *****************************************************************************/
-
+ * Contact Information: wlanfae <wlanfae@realtek.com>
+ */
 #include "rtl_core.h"
 #include "r8192E_phyreg.h"
 #include "r8192E_phy.h"
@@ -55,7 +46,6 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 			netdev_err(dev, "%s(): Unknown bandwidth: %#X\n",
 				   __func__, Bandwidth);
 			break;
-
 		}
 	}
 }
@@ -81,7 +71,6 @@ bool rtl92e_config_rf(struct net_device *dev)
 			continue;
 
 		pPhyReg = &priv->PHYRegDef[eRFPath];
-
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
@@ -152,7 +141,6 @@ bool rtl92e_config_rf(struct net_device *dev)
 				   __func__, eRFPath);
 			goto fail;
 		}
-
 	}
 
 	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
@@ -178,7 +166,6 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 		TxAGC = 0x24;
 	rtl92e_set_bb_reg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
 }
-
 
 void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 {
@@ -224,5 +211,4 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 				   (byte1 << 8) | byte0;
 		rtl92e_set_bb_reg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
-
 }

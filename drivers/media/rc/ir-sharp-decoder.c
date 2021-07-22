@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-sharp-decoder.c - handle Sharp IR Pulse/Space protocol
  *
  * Copyright (C) 2013-2014 Imagination Technologies Ltd.
  *
  * Based on NEC decoder:
  * Copyright (C) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
@@ -20,7 +12,7 @@
 #include "rc-core-priv.h"
 
 #define SHARP_NBITS		15
-#define SHARP_UNIT		40000  /* ns */
+#define SHARP_UNIT		40  /* us */
 #define SHARP_BIT_PULSE		(8    * SHARP_UNIT) /* 320us */
 #define SHARP_BIT_0_PERIOD	(25   * SHARP_UNIT) /* 1ms (680us space) */
 #define SHARP_BIT_1_PERIOD	(50   * SHARP_UNIT) /* 2ms (1680ms space) */
@@ -55,7 +47,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "Sharp decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -167,7 +159,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "Sharp decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->count, data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

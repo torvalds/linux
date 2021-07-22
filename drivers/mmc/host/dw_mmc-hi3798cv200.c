@@ -66,7 +66,7 @@ static void dw_mci_hi3798cv200_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 static int dw_mci_hi3798cv200_execute_tuning(struct dw_mci_slot *slot,
 					     u32 opcode)
 {
-	int degrees[] = { 0, 45, 90, 135, 180, 225, 270, 315 };
+	static const int degrees[] = { 0, 45, 90, 135, 180, 225, 270, 315 };
 	struct dw_mci *host = slot->host;
 	struct hi3798cv200_priv *priv = host->priv;
 	int raise_point = -1, fall_point = -1;
@@ -200,6 +200,7 @@ static struct platform_driver dw_mci_hi3798cv200_driver = {
 	.remove = dw_mci_hi3798cv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798cv200",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = dw_mci_hi3798cv200_match,
 	},
 };

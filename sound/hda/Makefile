@@ -13,3 +13,10 @@ obj-$(CONFIG_SND_HDA_CORE) += snd-hda-core.o
 
 #extended hda
 obj-$(CONFIG_SND_HDA_EXT_CORE) += ext/
+
+snd-intel-dspcfg-objs := intel-dsp-config.o
+snd-intel-dspcfg-$(CONFIG_SND_INTEL_NHLT) += intel-nhlt.o
+obj-$(CONFIG_SND_INTEL_DSP_CONFIG) += snd-intel-dspcfg.o
+
+snd-intel-sdw-acpi-objs := intel-sdw-acpi.o
+obj-$(CONFIG_SND_INTEL_SOUNDWIRE_ACPI) += snd-intel-sdw-acpi.o

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tcs3472.c - Support for TAOS TCS3472 color light-to-digital converter
  *
  * Copyright (c) 2013 Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Color light sensor with 16-bit channels for red, green, blue, clear);
  * 7-bit I2C slave address 0x39 (TCS34721, TCS34723) or 0x29 (TCS34725,
@@ -67,7 +64,11 @@ struct tcs3472_data {
 	u8 control;
 	u8 atime;
 	u8 apers;
-	u16 buffer[8]; /* 4 16-bit channels + 64-bit timestamp */
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		u16 chans[4];
+		s64 timestamp __aligned(8);
+	} scan;
 };
 
 static const struct iio_event_spec tcs3472_events[] = {
@@ -389,10 +390,10 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 		if (ret < 0)
 			goto done;
 
-		data->buffer[j++] = ret;
+		data->scan.chans[j++] = ret;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 		iio_get_time_ns(indio_dev));
 
 done:
@@ -457,7 +458,6 @@ static int tcs3472_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tcs3472_info;
 	indio_dev->name = TCS3472_DRV_NAME;
 	indio_dev->channels = tcs3472_channels;
@@ -535,7 +535,8 @@ static int tcs3472_probe(struct i2c_client *client,
 	return 0;
 
 free_irq:
-	free_irq(client->irq, indio_dev);
+	if (client->irq)
+		free_irq(client->irq, indio_dev);
 buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 	return ret;
@@ -563,7 +564,8 @@ static int tcs3472_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
-	free_irq(client->irq, indio_dev);
+	if (client->irq)
+		free_irq(client->irq, indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	tcs3472_powerdown(iio_priv(indio_dev));
 

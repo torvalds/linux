@@ -77,9 +77,9 @@ static void c8sectpfe_timer_interrupt(struct timer_list *t)
 	add_timer(&fei->timer);
 }
 
-static void channel_swdemux_tsklet(unsigned long data)
+static void channel_swdemux_tsklet(struct tasklet_struct *t)
 {
-	struct channel_info *channel = (struct channel_info *)data;
+	struct channel_info *channel = from_tasklet(channel, t, tsklet);
 	struct c8sectpfei *fei;
 	unsigned long wp, rp;
 	int pos, num_packets, n, size;
@@ -208,8 +208,7 @@ static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 		dev_dbg(fei->dev, "Starting channel=%p\n", channel);
 
-		tasklet_init(&channel->tsklet, channel_swdemux_tsklet,
-			     (unsigned long) channel);
+		tasklet_setup(&channel->tsklet, channel_swdemux_tsklet);
 
 		/* Reset the internal inputblock sram pointers */
 		writel(channel->fifo,
@@ -638,8 +637,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	writel(tsin->back_buffer_busaddr, tsin->irec + DMA_PRDS_BUSRP_TP(0));
 
 	/* initialize tasklet */
-	tasklet_init(&tsin->tsklet, channel_swdemux_tsklet,
-		(unsigned long) tsin);
+	tasklet_setup(&tsin->tsklet, channel_swdemux_tsklet);
 
 	return 0;
 
@@ -657,7 +655,7 @@ static irqreturn_t c8sectpfe_error_irq_handler(int irq, void *priv)
 
 	/*
 	 * TODO FIXME we should detect some error conditions here
-	 * and ideally so something about them!
+	 * and ideally do something about them!
 	 */
 
 	return IRQ_HANDLED;
@@ -693,16 +691,12 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	fei->sram_size = resource_size(res);
 
 	fei->idle_irq = platform_get_irq_byname(pdev, "c8sectpfe-idle-irq");
-	if (fei->idle_irq < 0) {
-		dev_err(dev, "Can't get c8sectpfe-idle-irq\n");
+	if (fei->idle_irq < 0)
 		return fei->idle_irq;
-	}
 
 	fei->error_irq = platform_get_irq_byname(pdev, "c8sectpfe-error-irq");
-	if (fei->error_irq < 0) {
-		dev_err(dev, "Can't get c8sectpfe-error-irq\n");
+	if (fei->error_irq < 0)
 		return fei->error_irq;
-	}
 
 	platform_set_drvdata(pdev, fei);
 
@@ -771,7 +765,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 
 		if (!fei->channel_data[index]) {
 			ret = -ENOMEM;
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 
 		tsin = fei->channel_data[index];
@@ -781,7 +775,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(child, "tsin-num", &tsin->tsin_id);
 		if (ret) {
 			dev_err(&pdev->dev, "No tsin_num found\n");
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 
 		/* sanity check value */
@@ -790,7 +784,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 				"tsin-num %d specified greater than number\n\tof input block hw in SoC! (%d)",
 				tsin->tsin_id, fei->hw_stats.num_ib);
 			ret = -EINVAL;
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 
 		tsin->invert_ts_clk = of_property_read_bool(child,
@@ -806,14 +800,14 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 					&tsin->dvb_card);
 		if (ret) {
 			dev_err(&pdev->dev, "No dvb-card found\n");
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 
 		i2c_bus = of_parse_phandle(child, "i2c-bus", 0);
 		if (!i2c_bus) {
 			dev_err(&pdev->dev, "No i2c-bus found\n");
 			ret = -ENODEV;
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 		tsin->i2c_adapter =
 			of_find_i2c_adapter_by_node(i2c_bus);
@@ -821,7 +815,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "No i2c adapter found\n");
 			of_node_put(i2c_bus);
 			ret = -ENODEV;
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 		of_node_put(i2c_bus);
 
@@ -832,7 +826,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 			dev_err(dev,
 				"reset gpio for tsin%d not valid (gpio=%d)\n",
 				tsin->tsin_id, tsin->rst_gpio);
-			goto err_clk_disable;
+			ret = -EINVAL;
+			goto err_node_put;
 		}
 
 		ret = devm_gpio_request_one(dev, tsin->rst_gpio,
@@ -840,7 +835,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		if (ret && ret != -EBUSY) {
 			dev_err(dev, "Can't request tsin%d reset gpio\n"
 				, fei->channel_data[index]->tsin_id);
-			goto err_clk_disable;
+			goto err_node_put;
 		}
 
 		if (!ret) {
@@ -883,6 +878,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_node_put:
+	of_node_put(child);
 err_clk_disable:
 	clk_disable_unprepare(fei->c8sectpfeclk);
 	return ret;
@@ -1038,9 +1035,8 @@ static void load_imem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 
 	dev_dbg(fei->dev,
 		"Loading IMEM segment %d 0x%08x\n\t (0x%x bytes) -> 0x%p (0x%x bytes)\n",
-seg_num,
-		phdr->p_paddr, phdr->p_filesz,
-		dest, phdr->p_memsz + phdr->p_memsz / 3);
+		seg_num, phdr->p_paddr, phdr->p_filesz, dest,
+		phdr->p_memsz + phdr->p_memsz / 3);
 
 	for (i = 0; i < phdr->p_filesz; i++) {
 

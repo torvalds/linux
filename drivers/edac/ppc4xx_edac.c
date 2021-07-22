@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008 Nuovation System Designs, LLC
  *   Grant Erickson <gerickson@nuovations.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/edac.h>
@@ -1063,7 +1058,7 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	/* Initialize strings */
 
 	mci->mod_name		= PPC4XX_EDAC_MODULE_NAME;
-	mci->ctl_name		= ppc4xx_edac_match->compatible,
+	mci->ctl_name		= ppc4xx_edac_match->compatible;
 	mci->dev_name		= np->full_name;
 
 	/* Initialize callbacks */

@@ -10,66 +10,6 @@
 #include "igc.h"
 
 /**
- * igc_set_pcie_completion_timeout - set pci-e completion timeout
- * @hw: pointer to the HW structure
- */
-static s32 igc_set_pcie_completion_timeout(struct igc_hw *hw)
-{
-	u32 gcr = rd32(IGC_GCR);
-	u16 pcie_devctl2;
-	s32 ret_val = 0;
-
-	/* only take action if timeout value is defaulted to 0 */
-	if (gcr & IGC_GCR_CMPL_TMOUT_MASK)
-		goto out;
-
-	/* if capabilities version is type 1 we can write the
-	 * timeout of 10ms to 200ms through the GCR register
-	 */
-	if (!(gcr & IGC_GCR_CAP_VER2)) {
-		gcr |= IGC_GCR_CMPL_TMOUT_10ms;
-		goto out;
-	}
-
-	/* for version 2 capabilities we need to write the config space
-	 * directly in order to set the completion timeout value for
-	 * 16ms to 55ms
-	 */
-	ret_val = igc_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-					&pcie_devctl2);
-	if (ret_val)
-		goto out;
-
-	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
-
-	ret_val = igc_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-					 &pcie_devctl2);
-out:
-	/* disable completion timeout resend */
-	gcr &= ~IGC_GCR_CMPL_TMOUT_RESEND;
-
-	wr32(IGC_GCR, gcr);
-
-	return ret_val;
-}
-
-/**
- * igc_check_for_link_base - Check for link
- * @hw: pointer to the HW structure
- *
- * If sgmii is enabled, then use the pcs register to determine link, otherwise
- * use the generic interface for determining link.
- */
-static s32 igc_check_for_link_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_check_for_copper_link(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_reset_hw_base - Reset hardware
  * @hw: pointer to the HW structure
  *
@@ -86,12 +26,7 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	 */
 	ret_val = igc_disable_pcie_master(hw);
 	if (ret_val)
-		hw_dbg("PCI-E Master disable polling has failed.\n");
-
-	/* set the completion timeout for interface */
-	ret_val = igc_set_pcie_completion_timeout(hw);
-	if (ret_val)
-		hw_dbg("PCI-E Set completion timeout has failed.\n");
+		hw_dbg("PCI-E Master disable polling has failed\n");
 
 	hw_dbg("Masking off all interrupts\n");
 	wr32(IGC_IMC, 0xffffffff);
@@ -105,7 +40,7 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	ctrl = rd32(IGC_CTRL);
 
 	hw_dbg("Issuing a global reset to MAC\n");
-	wr32(IGC_CTRL, ctrl | IGC_CTRL_RST);
+	wr32(IGC_CTRL, ctrl | IGC_CTRL_DEV_RST);
 
 	ret_val = igc_get_auto_rd_done(hw);
 	if (ret_val) {
@@ -119,22 +54,6 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	/* Clear any pending interrupt events. */
 	wr32(IGC_IMC, 0xffffffff);
 	rd32(IGC_ICR);
-
-	return ret_val;
-}
-
-/**
- * igc_get_phy_id_base - Retrieve PHY addr and id
- * @hw: pointer to the HW structure
- *
- * Retrieves the PHY address and ID for both PHY's which do and do not use
- * sgmi interface.
- */
-static s32 igc_get_phy_id_base(struct igc_hw *hw)
-{
-	s32  ret_val = 0;
-
-	ret_val = igc_get_phy_id(hw);
 
 	return ret_val;
 }
@@ -163,6 +82,7 @@ static s32 igc_init_nvm_params_base(struct igc_hw *hw)
 	if (size > 15)
 		size = 15;
 
+	nvm->type = igc_nvm_eeprom_spi;
 	nvm->word_size = BIT(size);
 	nvm->opcode_bits = 8;
 	nvm->delay_usec = 1;
@@ -237,7 +157,6 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
 	s32 ret_val = 0;
-	u32 ctrl_ext;
 
 	if (hw->phy.media_type != igc_media_type_copper) {
 		phy->type = igc_phy_none;
@@ -246,8 +165,6 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 
 	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT_2500;
 	phy->reset_delay_us	= 100;
-
-	ctrl_ext = rd32(IGC_CTRL_EXT);
 
 	/* set lan id */
 	hw->bus.func = (rd32(IGC_STATUS) & IGC_STATUS_FUNC_MASK) >>
@@ -260,15 +177,15 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 	 */
 	ret_val = hw->phy.ops.reset(hw);
 	if (ret_val) {
-		hw_dbg("Error resetting the PHY.\n");
+		hw_dbg("Error resetting the PHY\n");
 		goto out;
 	}
 
-	ret_val = igc_get_phy_id_base(hw);
+	ret_val = igc_get_phy_id(hw);
 	if (ret_val)
 		return ret_val;
 
-	igc_check_for_link_base(hw);
+	igc_check_for_copper_link(hw);
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
@@ -287,13 +204,24 @@ out:
 static s32 igc_get_invariants_base(struct igc_hw *hw)
 {
 	struct igc_mac_info *mac = &hw->mac;
-	u32 link_mode = 0;
-	u32 ctrl_ext = 0;
 	s32 ret_val = 0;
 
 	switch (hw->device_id) {
 	case IGC_DEV_ID_I225_LM:
 	case IGC_DEV_ID_I225_V:
+	case IGC_DEV_ID_I225_I:
+	case IGC_DEV_ID_I220_V:
+	case IGC_DEV_ID_I225_K:
+	case IGC_DEV_ID_I225_K2:
+	case IGC_DEV_ID_I226_K:
+	case IGC_DEV_ID_I225_LMVP:
+	case IGC_DEV_ID_I225_IT:
+	case IGC_DEV_ID_I226_LM:
+	case IGC_DEV_ID_I226_V:
+	case IGC_DEV_ID_I226_IT:
+	case IGC_DEV_ID_I221_V:
+	case IGC_DEV_ID_I226_BLANK_NVM:
+	case IGC_DEV_ID_I225_BLANK_NVM:
 		mac->type = igc_i225;
 		break;
 	default:
@@ -301,9 +229,6 @@ static s32 igc_get_invariants_base(struct igc_hw *hw)
 	}
 
 	hw->phy.media_type = igc_media_type_copper;
-
-	ctrl_ext = rd32(IGC_CTRL_EXT);
-	link_mode = ctrl_ext & IGC_CTRL_EXT_LINK_MODE_MASK;
 
 	/* mac initialization and operations */
 	ret_val = igc_init_mac_params_base(hw);
@@ -358,26 +283,6 @@ static void igc_release_phy_base(struct igc_hw *hw)
 }
 
 /**
- * igc_get_link_up_info_base - Get link speed/duplex info
- * @hw: pointer to the HW structure
- * @speed: stores the current speed
- * @duplex: stores the current duplex
- *
- * This is a wrapper function, if using the serial gigabit media independent
- * interface, use PCS to retrieve the link speed and duplex information.
- * Otherwise, use the generic function to get the link speed and duplex info.
- */
-static s32 igc_get_link_up_info_base(struct igc_hw *hw, u16 *speed,
-				     u16 *duplex)
-{
-	s32 ret_val;
-
-	ret_val = igc_get_speed_and_duplex_copper(hw, speed, duplex);
-
-	return ret_val;
-}
-
-/**
  * igc_init_hw_base - Initialize hardware
  * @hw: pointer to the HW structure
  *
@@ -411,19 +316,6 @@ static s32 igc_init_hw_base(struct igc_hw *hw)
 	 * is no link.
 	 */
 	igc_clear_hw_cntrs_base(hw);
-
-	return ret_val;
-}
-
-/**
- * igc_read_mac_addr_base - Read device MAC address
- * @hw: pointer to the HW structure
- */
-static s32 igc_read_mac_addr_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_read_mac_addr(hw);
 
 	return ret_val;
 }
@@ -481,7 +373,7 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 	}
 
 	if (ms_wait == 10)
-		pr_debug("Queue disable timed out after 10ms\n");
+		hw_dbg("Queue disable timed out after 10ms\n");
 
 	/* Clear RLPML, RCTL.SBP, RFCTL.LEF, and set RCTL.LPE so that all
 	 * incoming packets are rejected.  Set enable and wait 2ms so that
@@ -520,10 +412,10 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 
 static struct igc_mac_operations igc_mac_ops_base = {
 	.init_hw		= igc_init_hw_base,
-	.check_for_link		= igc_check_for_link_base,
+	.check_for_link		= igc_check_for_copper_link,
 	.rar_set		= igc_rar_set,
-	.read_mac_addr		= igc_read_mac_addr_base,
-	.get_speed_and_duplex	= igc_get_link_up_info_base,
+	.read_mac_addr		= igc_read_mac_addr,
+	.get_speed_and_duplex	= igc_get_speed_and_duplex_copper,
 };
 
 static const struct igc_phy_operations igc_phy_ops_base = {

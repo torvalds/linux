@@ -17,7 +17,7 @@
 
 #include "internal.h"
 
-char *migrate_reason_names[MR_TYPES] = {
+const char *migrate_reason_names[MR_TYPES] = {
 	"compaction",
 	"memory_failure",
 	"memory_hotplug",
@@ -42,19 +42,39 @@ const struct trace_print_flags vmaflag_names[] = {
 	{0, NULL}
 };
 
-void __dump_page(struct page *page, const char *reason)
+static void __dump_page(struct page *page)
 {
-	bool page_poisoned = PagePoisoned(page);
-	int mapcount;
-
+	struct page *head = compound_head(page);
+	struct address_space *mapping;
+	bool compound = PageCompound(page);
 	/*
-	 * If struct page is poisoned don't access Page*() functions as that
-	 * leads to recursive loop. Page*() check for poisoned pages, and calls
-	 * dump_page() when detected.
+	 * Accessing the pageblock without the zone lock. It could change to
+	 * "isolate" again in the meantime, but since we are just dumping the
+	 * state for debugging, it should be fine to accept a bit of
+	 * inaccuracy here due to racing.
 	 */
-	if (page_poisoned) {
-		pr_emerg("page:%px is uninitialized and poisoned", page);
-		goto hex_only;
+	bool page_cma = is_migrate_cma_page(page);
+	int mapcount;
+	char *type = "";
+
+	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
+		/*
+		 * Corrupt page, so we cannot call page_mapping. Instead, do a
+		 * safe subset of the steps that page_mapping() does. Caution:
+		 * this will be misleading for tail pages, PageSwapCache pages,
+		 * and potentially other situations. (See the page_mapping()
+		 * implementation for what's missing here.)
+		 */
+		unsigned long tmp = (unsigned long)page->mapping;
+
+		if (tmp & PAGE_MAPPING_ANON)
+			mapping = NULL;
+		else
+			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
+		head = page;
+		compound = false;
+	} else {
+		mapping = page_mapping(page);
 	}
 
 	/*
@@ -62,35 +82,103 @@ void __dump_page(struct page *page, const char *reason)
 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
 	 * encode own info.
 	 */
-	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	pr_emerg("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
-		  page, page_ref_count(page), mapcount,
-		  page->mapping, page_to_pgoff(page));
-	if (PageCompound(page))
-		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
-	pr_cont("\n");
-	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
-
-	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
-
-hex_only:
-	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
-			sizeof(unsigned long), page,
-			sizeof(struct page), false);
-
-	if (reason)
-		pr_alert("page dumped because: %s\n", reason);
+	pr_warn("page:%p refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
+			page, page_ref_count(head), mapcount, mapping,
+			page_to_pgoff(page), page_to_pfn(page));
+	if (compound) {
+		if (hpage_pincount_available(page)) {
+			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
+					head, compound_order(head),
+					head_compound_mapcount(head),
+					head_compound_pincount(head));
+		} else {
+			pr_warn("head:%p order:%u compound_mapcount:%d\n",
+					head, compound_order(head),
+					head_compound_mapcount(head));
+		}
+	}
 
 #ifdef CONFIG_MEMCG
-	if (!page_poisoned && page->mem_cgroup)
-		pr_alert("page->mem_cgroup:%px\n", page->mem_cgroup);
+	if (head->memcg_data)
+		pr_warn("memcg:%lx\n", head->memcg_data);
 #endif
+	if (PageKsm(page))
+		type = "ksm ";
+	else if (PageAnon(page))
+		type = "anon ";
+	else if (mapping) {
+		struct inode *host;
+		const struct address_space_operations *a_ops;
+		struct hlist_node *dentry_first;
+		struct dentry *dentry_ptr;
+		struct dentry dentry;
+		unsigned long ino;
+
+		/*
+		 * mapping can be invalid pointer and we don't want to crash
+		 * accessing it, so probe everything depending on it carefully
+		 */
+		if (get_kernel_nofault(host, &mapping->host) ||
+		    get_kernel_nofault(a_ops, &mapping->a_ops)) {
+			pr_warn("failed to read mapping contents, not a valid kernel address?\n");
+			goto out_mapping;
+		}
+
+		if (!host) {
+			pr_warn("aops:%ps\n", a_ops);
+			goto out_mapping;
+		}
+
+		if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
+		    get_kernel_nofault(ino, &host->i_ino)) {
+			pr_warn("aops:%ps with invalid host inode %px\n",
+					a_ops, host);
+			goto out_mapping;
+		}
+
+		if (!dentry_first) {
+			pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
+			goto out_mapping;
+		}
+
+		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
+		if (get_kernel_nofault(dentry, dentry_ptr)) {
+			pr_warn("aops:%ps ino:%lx with invalid dentry %px\n",
+					a_ops, ino, dentry_ptr);
+		} else {
+			/*
+			 * if dentry is corrupted, the %pd handler may still
+			 * crash, but it's unlikely that we reach here with a
+			 * corrupted struct page
+			 */
+			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
+					a_ops, ino, &dentry);
+		}
+	}
+out_mapping:
+	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+
+	pr_warn("%sflags: %#lx(%pGp)%s\n", type, head->flags, &head->flags,
+		page_cma ? " CMA" : "");
+	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
+			sizeof(unsigned long), page,
+			sizeof(struct page), false);
+	if (head != page)
+		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
+			sizeof(unsigned long), head,
+			sizeof(struct page), false);
 }
 
 void dump_page(struct page *page, const char *reason)
 {
-	__dump_page(page, reason);
+	if (PagePoisoned(page))
+		pr_warn("page:%p is uninitialized and poisoned", page);
+	else
+		__dump_page(page);
+	if (reason)
+		pr_warn("page dumped because: %s\n", reason);
 	dump_page_owner(page);
 }
 EXPORT_SYMBOL(dump_page);
@@ -122,7 +210,7 @@ void dump_mm(const struct mm_struct *mm)
 		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
-		"pinned_vm %lx data_vm %lx exec_vm %lx stack_vm %lx\n"
+		"pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
 		"start_brk %lx brk %lx start_stack %lx\n"
 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
@@ -135,7 +223,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		"exe_file %px\n"
 #ifdef CONFIG_MMU_NOTIFIER
-		"mmu_notifier_mm %px\n"
+		"notifier_subscriptions %px\n"
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
@@ -153,7 +241,8 @@ void dump_mm(const struct mm_struct *mm)
 		mm_pgtables_bytes(mm),
 		mm->map_count,
 		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
-		mm->pinned_vm, mm->data_vm, mm->exec_vm, mm->stack_vm,
+		(u64)atomic64_read(&mm->pinned_vm),
+		mm->data_vm, mm->exec_vm, mm->stack_vm,
 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
 		mm->start_brk, mm->brk, mm->start_stack,
 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
@@ -166,7 +255,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		mm->exe_file,
 #ifdef CONFIG_MMU_NOTIFIER
-		mm->mmu_notifier_mm,
+		mm->notifier_subscriptions,
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,

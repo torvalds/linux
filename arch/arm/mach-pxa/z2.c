@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/z2.c
  *
@@ -7,10 +8,6 @@
  *
  *  Based on research and code by: Ken McGuire
  *  Based on mainstone.c as modified for the Zipit Z2.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -23,10 +20,10 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/spi/libertas_spi.h>
-#include <linux/spi/lms283gf05.h>
 #include <linux/power_supply.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
@@ -212,13 +209,11 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		/* Keypad Backlight */
 		.max_brightness	= 1023,
 		.dft_brightness	= 0,
-		.enable_gpio	= -1,
 	},
 	[1] = {
 		/* LCD Backlight */
 		.max_brightness	= 1023,
 		.dft_brightness	= 512,
-		.enable_gpio	= -1,
 	},
 };
 
@@ -290,14 +285,21 @@ static inline void z2_lcd_init(void) {}
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data z2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO96_ZIPITZ2_SD_DETECT,
-	.gpio_power		= -1,
-	.gpio_card_ro		= -1,
 	.detect_delay_ms	= 200,
+};
+
+static struct gpiod_lookup_table z2_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO96_ZIPITZ2_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init z2_mmc_init(void)
 {
+	gpiod_add_lookup_table(&z2_mci_gpio_table);
 	pxa_set_mci_info(&z2_mci_platform_data);
 }
 #else
@@ -485,7 +487,6 @@ static struct z2_battery_info batt_chip_info = {
 	.batt_I2C_bus	= 0,
 	.batt_I2C_addr	= 0x55,
 	.batt_I2C_reg	= 2,
-	.charge_gpio	= GPIO0_ZIPITZ2_AC_DETECT,
 	.min_voltage	= 3475000,
 	.max_voltage	= 4190000,
 	.batt_div	= 59,
@@ -494,9 +495,19 @@ static struct z2_battery_info batt_chip_info = {
 	.batt_name	= "Z2",
 };
 
+static struct gpiod_lookup_table z2_battery_gpio_table = {
+	.dev_id = "aer915",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO0_ZIPITZ2_AC_DETECT,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct i2c_board_info __initdata z2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("aer915", 0x55),
+		.dev_name = "aer915",
 		.platform_data	= &batt_chip_info,
 	}, {
 		I2C_BOARD_INFO("wm8750", 0x1b),
@@ -507,6 +518,7 @@ static struct i2c_board_info __initdata z2_i2c_board_info[] = {
 static void __init z2_i2c_init(void)
 {
 	pxa_set_i2c_info(NULL);
+	gpiod_add_lookup_table(&z2_battery_gpio_table);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(z2_i2c_board_info));
 }
 #else
@@ -575,8 +587,13 @@ static struct pxa2xx_spi_chip lms283_chip_info = {
 	.gpio_cs	= GPIO88_ZIPITZ2_LCD_CS,
 };
 
-static const struct lms283gf05_pdata lms283_pdata = {
-	.reset_gpio	= GPIO19_ZIPITZ2_LCD_RESET,
+static struct gpiod_lookup_table lms283_gpio_table = {
+	.dev_id = "spi2.0", /* SPI bus 2 chip select 0 */
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO19_ZIPITZ2_LCD_RESET,
+			    "reset", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -592,19 +609,18 @@ static struct spi_board_info spi_board_info[] __initdata = {
 {
 	.modalias		= "lms283gf05",
 	.controller_data	= &lms283_chip_info,
-	.platform_data		= &lms283_pdata,
 	.max_speed_hz		= 400000,
 	.bus_num		= 2,
 	.chip_select		= 0,
 },
 };
 
-static struct pxa2xx_spi_master pxa_ssp1_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp1_master_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp2_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 	.num_chipselect	= 1,
 };
 
@@ -612,6 +628,7 @@ static void __init z2_spi_init(void)
 {
 	pxa2xx_set_spi_info(1, &pxa_ssp1_master_info);
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
+	gpiod_add_lookup_table(&lms283_gpio_table);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 }
 #else

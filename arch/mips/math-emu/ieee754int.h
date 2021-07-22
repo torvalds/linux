@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE754 floating point
  * common internal header file
@@ -5,19 +6,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 #ifndef __IEEE754INT_H
 #define __IEEE754INT_H
@@ -28,6 +16,7 @@
 
 enum maddf_flags {
 	MADDF_NEGATE_PRODUCT	= 1 << 0,
+	MADDF_NEGATE_ADDITION	= 1 << 1,
 };
 
 static inline void ieee754_clearcx(void)

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Scalar AES core transform
  *
  * Copyright (C) 2017 Linaro Ltd.
  * Author: Ard Biesheuvel <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <crypto/aes.h>
@@ -14,12 +11,9 @@
 #include <linux/module.h>
 
 asmlinkage void __aes_arm_encrypt(u32 *rk, int rounds, const u8 *in, u8 *out);
-EXPORT_SYMBOL(__aes_arm_encrypt);
-
 asmlinkage void __aes_arm_decrypt(u32 *rk, int rounds, const u8 *in, u8 *out);
-EXPORT_SYMBOL(__aes_arm_decrypt);
 
-static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void aes_arm_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	int rounds = 6 + ctx->key_length / 4;
@@ -27,7 +21,7 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	__aes_arm_encrypt(ctx->key_enc, rounds, in, out);
 }
 
-static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void aes_arm_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	int rounds = 6 + ctx->key_length / 4;
@@ -47,8 +41,8 @@ static struct crypto_alg aes_alg = {
 	.cra_cipher.cia_min_keysize	= AES_MIN_KEY_SIZE,
 	.cra_cipher.cia_max_keysize	= AES_MAX_KEY_SIZE,
 	.cra_cipher.cia_setkey		= crypto_aes_set_key,
-	.cra_cipher.cia_encrypt		= aes_encrypt,
-	.cra_cipher.cia_decrypt		= aes_decrypt,
+	.cra_cipher.cia_encrypt		= aes_arm_encrypt,
+	.cra_cipher.cia_decrypt		= aes_arm_decrypt,
 
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	.cra_alignmask			= 3,

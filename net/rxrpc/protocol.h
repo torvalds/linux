@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* packet.h: Rx packet layout and definitions
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _LINUX_RXRPC_PACKET_H
@@ -92,6 +88,15 @@ struct rxrpc_jumbo_header {
 
 #define RXRPC_JUMBO_DATALEN	1412	/* non-terminal jumbo packet data length */
 #define RXRPC_JUMBO_SUBPKTLEN	(RXRPC_JUMBO_DATALEN + sizeof(struct rxrpc_jumbo_header))
+
+/*
+ * The maximum number of subpackets that can possibly fit in a UDP packet is:
+ *
+ *	((max_IP - IP_hdr - UDP_hdr) / RXRPC_JUMBO_SUBPKTLEN) + 1
+ *	= ((65535 - 28 - 28) / 1416) + 1
+ *	= 46 non-terminal packets and 1 terminal packet.
+ */
+#define RXRPC_MAX_NR_JUMBO	47
 
 /*****************************************************************************/
 /*

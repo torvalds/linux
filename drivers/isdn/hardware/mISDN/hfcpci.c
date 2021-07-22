@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * hfcpci.c     low level driver for CCD's hfc-pci based cards
@@ -8,20 +9,6 @@
  *
  * Copyright 1999  by Werner Cornelius (werner@isdn-development.de)
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Module options:
  *
@@ -41,7 +28,6 @@
  *	If kernel uses a frequency of 1000 Hz, steps of 8 samples are possible.
  *	If the kernel uses 100 Hz, steps of 80 samples are possible.
  *	If the kernel uses 300 Hz, steps of about 26 samples are possible.
- *
  */
 
 #include <linux/interrupt.h>
@@ -172,7 +158,8 @@ release_io_hfcpci(struct hfc_pci *hc)
 	/* disable memory mapped ports + busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, 0);
 	del_timer(&hc->hw.timer);
-	pci_free_consistent(hc->pdev, 0x8000, hc->hw.fifos, hc->hw.dmahandle);
+	dma_free_coherent(&hc->pdev->dev, 0x8000, hc->hw.fifos,
+			  hc->hw.dmahandle);
 	iounmap(hc->hw.pci_io);
 }
 
@@ -580,8 +567,7 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 	}
 	maxlen = bchannel_get_rxbuf(bch, fcnt_rx);
 	if (maxlen < 0) {
-		pr_warning("B%d: No bufferspace for %d bytes\n",
-			   bch->nr, fcnt_rx);
+		pr_warn("B%d: No bufferspace for %d bytes\n", bch->nr, fcnt_rx);
 	} else {
 		ptr = skb_put(bch->rx_skb, fcnt_rx);
 		if (le16_to_cpu(*z2r) + fcnt_rx <= B_FIFO_SIZE + B_SUB_VAL)
@@ -1133,8 +1119,7 @@ tx_birq(struct bchannel *bch)
 	if (bch->tx_skb && bch->tx_idx < bch->tx_skb->len)
 		hfcpci_fill_fifo(bch);
 	else {
-		if (bch->tx_skb)
-			dev_kfree_skb(bch->tx_skb);
+		dev_kfree_skb(bch->tx_skb);
 		if (get_next_bframe(bch))
 			hfcpci_fill_fifo(bch);
 	}
@@ -1146,8 +1131,7 @@ tx_dirq(struct dchannel *dch)
 	if (dch->tx_skb && dch->tx_idx < dch->tx_skb->len)
 		hfcpci_fill_dfifo(dch->hw);
 	else {
-		if (dch->tx_skb)
-			dev_kfree_skb(dch->tx_skb);
+		dev_kfree_skb(dch->tx_skb);
 		if (get_next_dframe(dch))
 			hfcpci_fill_dfifo(dch->hw);
 	}
@@ -1296,7 +1280,7 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 	case (-1): /* used for init */
 		bch->state = -1;
 		bch->nr = bc;
-		/* fall through */
+		fallthrough;
 	case (ISDN_P_NONE):
 		if (bch->state == ISDN_P_NONE)
 			return 0;
@@ -2021,8 +2005,9 @@ setup_hw(struct hfc_pci *hc)
 	}
 	/* Allocate memory for FIFOS */
 	/* the memory needs to be on a 32k boundary within the first 4G */
-	pci_set_dma_mask(hc->pdev, 0xFFFF8000);
-	buffer = pci_alloc_consistent(hc->pdev, 0x8000, &hc->hw.dmahandle);
+	dma_set_mask(&hc->pdev->dev, 0xFFFF8000);
+	buffer = dma_alloc_coherent(&hc->pdev->dev, 0x8000, &hc->hw.dmahandle,
+				    GFP_KERNEL);
 	/* We silently assume the address is okay if nonzero */
 	if (!buffer) {
 		printk(KERN_WARNING
@@ -2032,10 +2017,19 @@ setup_hw(struct hfc_pci *hc)
 	hc->hw.fifos = buffer;
 	pci_write_config_dword(hc->pdev, 0x80, hc->hw.dmahandle);
 	hc->hw.pci_io = ioremap((ulong) hc->hw.pci_io, 256);
+	if (unlikely(!hc->hw.pci_io)) {
+		printk(KERN_WARNING
+		       "HFC-PCI: Error in ioremap for PCI!\n");
+		dma_free_coherent(&hc->pdev->dev, 0x8000, hc->hw.fifos,
+				  hc->hw.dmahandle);
+		return 1;
+	}
+
 	printk(KERN_INFO
-	       "HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
-	       (u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
-	       (u_long) hc->hw.dmahandle, hc->irq, HZ);
+	       "HFC-PCI: defined at mem %#lx fifo %p(%pad) IRQ %d HZ %d\n",
+	       (u_long) hc->hw.pci_io, hc->hw.fifos,
+	       &hc->hw.dmahandle, hc->irq, HZ);
+
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
 	hc->hw.int_m2 = 0;
@@ -2348,7 +2342,7 @@ static void __exit
 HFC_cleanup(void)
 {
 	if (timer_pending(&hfc_tl))
-		del_timer(&hfc_tl);
+		del_timer_sync(&hfc_tl);
 
 	pci_unregister_driver(&hfc_driver);
 }

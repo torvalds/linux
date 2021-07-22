@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -239,9 +213,8 @@ out_post1:
 	buffer->phys_addr = new_phys_addr;
 
 out_post:
-	rc = qed_ll2_post_rx_buffer(QED_LEADING_HWFN(cdev), cdev->ll2->handle,
-				    buffer->phys_addr, 0,  buffer, 1);
-
+	rc = qed_ll2_post_rx_buffer(p_hwfn, cdev->ll2->handle,
+				    buffer->phys_addr, 0, buffer, 1);
 	if (rc)
 		qed_ll2_dealloc_buffer(cdev, buffer);
 }
@@ -926,16 +899,15 @@ static int qed_ll2_lb_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	return 0;
 }
 
-static void qed_ll2_stop_ooo(struct qed_dev *cdev)
+static void qed_ll2_stop_ooo(struct qed_hwfn *p_hwfn)
 {
-	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
-	u8 *handle = &hwfn->pf_params.iscsi_pf_params.ll2_ooo_queue_id;
+	u8 *handle = &p_hwfn->pf_params.iscsi_pf_params.ll2_ooo_queue_id;
 
-	DP_VERBOSE(cdev, QED_MSG_STORAGE, "Stopping LL2 OOO queue [%02x]\n",
-		   *handle);
+	DP_VERBOSE(p_hwfn, (QED_MSG_STORAGE | QED_MSG_LL2),
+		   "Stopping LL2 OOO queue [%02x]\n", *handle);
 
-	qed_ll2_terminate_connection(hwfn, *handle);
-	qed_ll2_release_connection(hwfn, *handle);
+	qed_ll2_terminate_connection(p_hwfn, *handle);
+	qed_ll2_release_connection(p_hwfn, *handle);
 	*handle = QED_LL2_UNUSED_HANDLE;
 }
 
@@ -964,7 +936,7 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.core_rx_queue_start;
-
+	memset(p_ramrod, 0, sizeof(*p_ramrod));
 	p_ramrod->sb_id = cpu_to_le16(qed_int_get_sp_sb_id(p_hwfn));
 	p_ramrod->sb_index = p_rx->rx_sb_index;
 	p_ramrod->complete_event_flg = 1;
@@ -988,7 +960,8 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 
 	if (test_bit(QED_MF_LL2_NON_UNICAST, &p_hwfn->cdev->mf_bits) &&
 	    p_ramrod->main_func_queue && conn_type != QED_LL2_TYPE_ROCE &&
-	    conn_type != QED_LL2_TYPE_IWARP) {
+	    conn_type != QED_LL2_TYPE_IWARP &&
+		(!QED_IS_NVMETCP_PERSONALITY(p_hwfn))) {
 		p_ramrod->mf_si_bcast_accept_all = 1;
 		p_ramrod->mf_si_mcast_accept_all = 1;
 	} else {
@@ -998,6 +971,8 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->action_on_error.error_type = action_on_error;
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
+	p_ramrod->zero_prod_flg = 1;
+
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
@@ -1063,8 +1038,8 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	case QED_LL2_TYPE_FCOE:
 		p_ramrod->conn_type = PROTOCOLID_FCOE;
 		break;
-	case QED_LL2_TYPE_ISCSI:
-		p_ramrod->conn_type = PROTOCOLID_ISCSI;
+	case QED_LL2_TYPE_TCP_ULP:
+		p_ramrod->conn_type = PROTOCOLID_TCP_ULP;
 		break;
 	case QED_LL2_TYPE_ROCE:
 		p_ramrod->conn_type = PROTOCOLID_ROCE;
@@ -1073,8 +1048,9 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->conn_type = PROTOCOLID_IWARP;
 		break;
 	case QED_LL2_TYPE_OOO:
-		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
-			p_ramrod->conn_type = PROTOCOLID_ISCSI;
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+		    p_hwfn->hw_info.personality == QED_PCI_NVMETCP)
+			p_ramrod->conn_type = PROTOCOLID_TCP_ULP;
 		else
 			p_ramrod->conn_type = PROTOCOLID_IWARP;
 		break;
@@ -1085,7 +1061,14 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
 
-	return qed_spq_post(p_hwfn, p_ent, NULL);
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		return rc;
+
+	rc = qed_db_recovery_add(p_hwfn->cdev, p_tx->doorbell_addr,
+				 &p_tx->db_msg, DB_REC_WIDTH_32B,
+				 DB_REC_KERNEL);
+	return rc;
 }
 
 static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
@@ -1119,9 +1102,11 @@ static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
 static int qed_sp_ll2_tx_queue_stop(struct qed_hwfn *p_hwfn,
 				    struct qed_ll2_info *p_ll2_conn)
 {
+	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+	qed_db_recovery_del(p_hwfn->cdev, p_tx->doorbell_addr, &p_tx->db_msg);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1142,6 +1127,12 @@ static int
 qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 			      struct qed_ll2_info *p_ll2_info)
 {
+	struct qed_chain_init_params params = {
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= p_ll2_info->input.rx_num_desc,
+	};
+	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_ll2_rx_packet *p_descq;
 	u32 capacity;
 	int rc = 0;
@@ -1149,13 +1140,10 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	if (!p_ll2_info->input.rx_num_desc)
 		goto out;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_NEXT_PTR,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.rx_num_desc,
-			     sizeof(struct core_rx_bd),
-			     &p_ll2_info->rx_queue.rxq_chain, NULL);
+	params.mode = QED_CHAIN_MODE_NEXT_PTR;
+	params.elem_size = sizeof(struct core_rx_bd);
+
+	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rxq_chain, &params);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rxq chain\n");
 		goto out;
@@ -1171,13 +1159,10 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	}
 	p_ll2_info->rx_queue.descq_array = p_descq;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.rx_num_desc,
-			     sizeof(struct core_rx_fast_path_cqe),
-			     &p_ll2_info->rx_queue.rcq_chain, NULL);
+	params.mode = QED_CHAIN_MODE_PBL;
+	params.elem_size = sizeof(struct core_rx_fast_path_cqe);
+
+	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rcq_chain, &params);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rcq chain\n");
 		goto out;
@@ -1194,29 +1179,30 @@ out:
 static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 					 struct qed_ll2_info *p_ll2_info)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= p_ll2_info->input.tx_num_desc,
+		.elem_size	= sizeof(struct core_tx_bd),
+	};
 	struct qed_ll2_tx_packet *p_descq;
-	u32 desc_size;
+	size_t desc_size;
 	u32 capacity;
 	int rc = 0;
 
 	if (!p_ll2_info->input.tx_num_desc)
 		goto out;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.tx_num_desc,
-			     sizeof(struct core_tx_bd),
-			     &p_ll2_info->tx_queue.txq_chain, NULL);
+	rc = qed_chain_alloc(p_hwfn->cdev, &p_ll2_info->tx_queue.txq_chain,
+			     &params);
 	if (rc)
 		goto out;
 
 	capacity = qed_chain_get_capacity(&p_ll2_info->tx_queue.txq_chain);
-	/* First element is part of the packet, rest are flexibly added */
-	desc_size = (sizeof(*p_descq) +
-		     (p_ll2_info->input.tx_max_bds_per_packet - 1) *
-		     sizeof(p_descq->bds_set));
+	/* All bds_set elements are flexibily added. */
+	desc_size = struct_size(p_descq, bds_set,
+				p_ll2_info->input.tx_max_bds_per_packet);
 
 	p_descq = kcalloc(capacity, desc_size, GFP_KERNEL);
 	if (!p_descq) {
@@ -1310,6 +1296,25 @@ qed_ll2_set_cbs(struct qed_ll2_info *p_ll2_info, const struct qed_ll2_cbs *cbs)
 	return 0;
 }
 
+static void _qed_ll2_calc_allowed_conns(struct qed_hwfn *p_hwfn,
+					struct qed_ll2_acquire_data *data,
+					u8 *start_idx, u8 *last_idx)
+{
+	/* LL2 queues handles will be split as follows:
+	 * First will be the legacy queues, and then the ctx based.
+	 */
+	if (data->input.rx_conn_type == QED_LL2_RX_TYPE_LEGACY) {
+		*start_idx = QED_LL2_LEGACY_CONN_BASE_PF;
+		*last_idx = *start_idx +
+			QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF;
+	} else {
+		/* QED_LL2_RX_TYPE_CTX */
+		*start_idx = QED_LL2_CTX_CONN_BASE_PF;
+		*last_idx = *start_idx +
+			QED_MAX_NUM_OF_CTX_LL2_CONNS_PF;
+	}
+}
+
 static enum core_error_handle
 qed_ll2_get_error_choice(enum qed_ll2_error_handle err)
 {
@@ -1330,14 +1335,16 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 	struct qed_hwfn *p_hwfn = cxt;
 	qed_int_comp_cb_t comp_rx_cb, comp_tx_cb;
 	struct qed_ll2_info *p_ll2_info = NULL;
-	u8 i, *p_tx_max;
+	u8 i, first_idx, last_idx, *p_tx_max;
 	int rc;
 
 	if (!data->p_connection_handle || !p_hwfn->p_ll2_info)
 		return -EINVAL;
 
+	_qed_ll2_calc_allowed_conns(p_hwfn, data, &first_idx, &last_idx);
+
 	/* Find a free connection to be used */
-	for (i = 0; (i < QED_MAX_NUM_OF_LL2_CONNECTIONS); i++) {
+	for (i = first_idx; i < last_idx; i++) {
 		mutex_lock(&p_hwfn->p_ll2_info[i].mutex);
 		if (p_hwfn->p_ll2_info[i].b_active) {
 			mutex_unlock(&p_hwfn->p_ll2_info[i].mutex);
@@ -1441,6 +1448,7 @@ static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
 	enum qed_ll2_error_handle error_input;
 	enum core_error_handle error_mode;
 	u8 action_on_error = 0;
+	int rc;
 
 	if (!QED_LL2_RX_REGISTERED(p_ll2_conn))
 		return 0;
@@ -1454,7 +1462,18 @@ static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
 	error_mode = qed_ll2_get_error_choice(error_input);
 	SET_FIELD(action_on_error, CORE_RX_ACTION_ON_ERROR_NO_BUFF, error_mode);
 
-	return qed_sp_ll2_rx_queue_start(p_hwfn, p_ll2_conn, action_on_error);
+	rc = qed_sp_ll2_rx_queue_start(p_hwfn, p_ll2_conn, action_on_error);
+	if (rc)
+		return rc;
+
+	if (p_ll2_conn->rx_queue.ctx_based) {
+		rc = qed_db_recovery_add(p_hwfn->cdev,
+					 p_ll2_conn->rx_queue.set_prod_addr,
+					 &p_ll2_conn->rx_queue.db_data,
+					 DB_REC_WIDTH_64B, DB_REC_KERNEL);
+	}
+
+	return rc;
 }
 
 static void
@@ -1468,17 +1487,45 @@ qed_ll2_establish_connection_ooo(struct qed_hwfn *p_hwfn,
 	qed_ooo_submit_rx_buffers(p_hwfn, p_ll2_conn);
 }
 
+static inline u8 qed_ll2_handle_to_queue_id(struct qed_hwfn *p_hwfn,
+					    u8 handle,
+					    u8 ll2_queue_type)
+{
+	u8 qid;
+
+	if (ll2_queue_type == QED_LL2_RX_TYPE_LEGACY)
+		return p_hwfn->hw_info.resc_start[QED_LL2_RAM_QUEUE] + handle;
+
+	/* QED_LL2_RX_TYPE_CTX
+	 * FW distinguishes between the legacy queues (ram based) and the
+	 * ctx based queues by the queue_id.
+	 * The first MAX_NUM_LL2_RX_RAM_QUEUES queues are legacy
+	 * and the queue ids above that are ctx base.
+	 */
+	qid = p_hwfn->hw_info.resc_start[QED_LL2_CTX_QUEUE] +
+	      MAX_NUM_LL2_RX_RAM_QUEUES;
+
+	/* See comment on the acquire connection for how the ll2
+	 * queues handles are divided.
+	 */
+	qid += (handle - QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF);
+
+	return qid;
+}
+
 int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 {
-	struct qed_hwfn *p_hwfn = cxt;
-	struct qed_ll2_info *p_ll2_conn;
+	struct e4_core_conn_context *p_cxt;
 	struct qed_ll2_tx_packet *p_pkt;
+	struct qed_ll2_info *p_ll2_conn;
+	struct qed_hwfn *p_hwfn = cxt;
 	struct qed_ll2_rx_queue *p_rx;
 	struct qed_ll2_tx_queue *p_tx;
+	struct qed_cxt_info cxt_info;
 	struct qed_ptt *p_ptt;
 	int rc = -EINVAL;
 	u32 i, capacity;
-	u32 desc_size;
+	size_t desc_size;
 	u8 qid;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
@@ -1512,10 +1559,9 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	INIT_LIST_HEAD(&p_tx->sending_descq);
 	spin_lock_init(&p_tx->lock);
 	capacity = qed_chain_get_capacity(&p_tx->txq_chain);
-	/* First element is part of the packet, rest are flexibly added */
-	desc_size = (sizeof(*p_pkt) +
-		     (p_ll2_conn->input.tx_max_bds_per_packet - 1) *
-		     sizeof(p_pkt->bds_set));
+	/* All bds_set elements are flexibily added. */
+	desc_size = struct_size(p_pkt, bds_set,
+				p_ll2_conn->input.tx_max_bds_per_packet);
 
 	for (i = 0; i < capacity; i++) {
 		p_pkt = p_tx->descq_mem + desc_size * i;
@@ -1532,16 +1578,55 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_ll2_conn->cid);
 	if (rc)
 		goto out;
+	cxt_info.iid = p_ll2_conn->cid;
+	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
+	if (rc) {
+		DP_NOTICE(p_hwfn, "Cannot find context info for cid=%d\n",
+			  p_ll2_conn->cid);
+		goto out;
+	}
 
-	qid = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] + connection_handle;
+	p_cxt = cxt_info.p_cxt;
+
+	memset(p_cxt, 0, sizeof(*p_cxt));
+
+	qid = qed_ll2_handle_to_queue_id(p_hwfn, connection_handle,
+					 p_ll2_conn->input.rx_conn_type);
 	p_ll2_conn->queue_id = qid;
 	p_ll2_conn->tx_stats_id = qid;
-	p_rx->set_prod_addr = (u8 __iomem *)p_hwfn->regview +
-					    GTT_BAR0_MAP_REG_TSDM_RAM +
-					    TSTORM_LL2_RX_PRODS_OFFSET(qid);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_LL2,
+		   "Establishing ll2 queue. PF %d ctx_based=%d abs qid=%d\n",
+		   p_hwfn->rel_pf_id, p_ll2_conn->input.rx_conn_type, qid);
+
+	if (p_ll2_conn->input.rx_conn_type == QED_LL2_RX_TYPE_LEGACY) {
+		p_rx->set_prod_addr = p_hwfn->regview +
+		    GTT_BAR0_MAP_REG_TSDM_RAM + TSTORM_LL2_RX_PRODS_OFFSET(qid);
+	} else {
+		/* QED_LL2_RX_TYPE_CTX - using doorbell */
+		p_rx->ctx_based = 1;
+
+		p_rx->set_prod_addr = p_hwfn->doorbells +
+			p_hwfn->dpi_start_offset +
+			DB_ADDR_SHIFT(DQ_PWM_OFFSET_TCM_LL2_PROD_UPDATE);
+
+		/* prepare db data */
+		p_rx->db_data.icid = cpu_to_le16((u16)p_ll2_conn->cid);
+		SET_FIELD(p_rx->db_data.params,
+			  CORE_PWM_PROD_UPDATE_DATA_AGG_CMD, DB_AGG_CMD_SET);
+		SET_FIELD(p_rx->db_data.params,
+			  CORE_PWM_PROD_UPDATE_DATA_RESERVED1, 0);
+	}
+
 	p_tx->doorbell_addr = (u8 __iomem *)p_hwfn->doorbells +
 					    qed_db_addr(p_ll2_conn->cid,
 							DQ_DEMS_LEGACY);
+	/* prepare db data */
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_TX_BD_PROD_CMD);
+	p_tx->db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
 
 	rc = qed_ll2_establish_connection_rx(p_hwfn, p_ll2_conn);
 	if (rc)
@@ -1551,19 +1636,20 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	if (rc)
 		goto out;
 
-	if (!QED_IS_RDMA_PERSONALITY(p_hwfn))
+	if (!QED_IS_RDMA_PERSONALITY(p_hwfn) &&
+	    !QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		qed_wr(p_hwfn, p_ptt, PRS_REG_USE_LIGHT_L2, 1);
 
 	qed_ll2_establish_connection_ooo(p_hwfn, p_ll2_conn);
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
 		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
-			qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-						    ETH_P_FCOE, 0,
-						    QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-					    ETH_P_FIP, 0,
-					    QED_LLH_FILTER_ETHERTYPE);
+			qed_llh_add_protocol_filter(p_hwfn->cdev, 0,
+						    QED_LLH_FILTER_ETHERTYPE,
+						    ETH_P_FCOE, 0);
+		qed_llh_add_protocol_filter(p_hwfn->cdev, 0,
+					    QED_LLH_FILTER_ETHERTYPE,
+					    ETH_P_FIP, 0);
 	}
 
 out:
@@ -1576,7 +1662,7 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 					     struct qed_ll2_rx_packet *p_curp)
 {
 	struct qed_ll2_rx_packet *p_posting_packet = NULL;
-	struct core_ll2_rx_prod rx_prod = { 0, 0, 0 };
+	struct core_ll2_rx_prod rx_prod = { 0, 0 };
 	bool b_notify_fw = false;
 	u16 bd_prod, cq_prod;
 
@@ -1601,9 +1687,27 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 
 	bd_prod = qed_chain_get_prod_idx(&p_rx->rxq_chain);
 	cq_prod = qed_chain_get_prod_idx(&p_rx->rcq_chain);
-	rx_prod.bd_prod = cpu_to_le16(bd_prod);
-	rx_prod.cqe_prod = cpu_to_le16(cq_prod);
-	DIRECT_REG_WR(p_rx->set_prod_addr, *((u32 *)&rx_prod));
+	if (p_rx->ctx_based) {
+		/* update producer by giving a doorbell */
+		p_rx->db_data.prod.bd_prod = cpu_to_le16(bd_prod);
+		p_rx->db_data.prod.cqe_prod = cpu_to_le16(cq_prod);
+		/* Make sure chain element is updated before ringing the
+		 * doorbell
+		 */
+		dma_wmb();
+		DIRECT_REG_WR64(p_rx->set_prod_addr,
+				*((u64 *)&p_rx->db_data));
+	} else {
+		rx_prod.bd_prod = cpu_to_le16(bd_prod);
+		rx_prod.cqe_prod = cpu_to_le16(cq_prod);
+
+		/* Make sure chain element is updated before ringing the
+		 * doorbell
+		 */
+		dma_wmb();
+
+		DIRECT_REG_WR(p_rx->set_prod_addr, *((u32 *)&rx_prod));
+	}
 }
 
 int qed_ll2_post_rx_buffer(void *cxt,
@@ -1697,6 +1801,7 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	enum core_roce_flavor_type roce_flavor;
 	enum core_tx_dest tx_dest;
 	u16 bd_data = 0, frag_idx;
+	u16 bitfield1;
 
 	roce_flavor = (pkt->qed_roce_flavor == QED_LL2_ROCE) ? CORE_ROCE
 							     : CORE_RROCE;
@@ -1728,9 +1833,11 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 			pkt->remove_stag = true;
 	}
 
-	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
-		  cpu_to_le16(pkt->l4_hdr_offset_w));
-	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
+	bitfield1 = le16_to_cpu(start_bd->bitfield1);
+	SET_FIELD(bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W, pkt->l4_hdr_offset_w);
+	SET_FIELD(bitfield1, CORE_TX_BD_TX_DST, tx_dest);
+	start_bd->bitfield1 = cpu_to_le16(bitfield1);
+
 	bd_data |= pkt->bd_flags;
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_START_BD, 0x1);
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, pkt->num_of_bds);
@@ -1780,7 +1887,6 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 	bool b_notify = p_ll2_conn->tx_queue.cur_send_packet->notify_fw;
 	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_ll2_tx_packet *p_pkt = NULL;
-	struct core_db_data db_msg = { 0, 0, 0 };
 	u16 bd_prod;
 
 	/* If there are missing BDs, don't do anything now */
@@ -1809,24 +1915,19 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 		list_move_tail(&p_pkt->list_entry, &p_tx->active_descq);
 	}
 
-	SET_FIELD(db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
-		  DQ_XCM_CORE_TX_BD_PROD_CMD);
-	db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db_msg.spq_prod = cpu_to_le16(bd_prod);
+	p_tx->db_msg.spq_prod = cpu_to_le16(bd_prod);
 
 	/* Make sure the BDs data is updated before ringing the doorbell */
 	wmb();
 
-	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&db_msg));
+	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&p_tx->db_msg));
 
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
 		   "LL2 [q 0x%02x cid 0x%08x type 0x%08x] Doorbelled [producer 0x%04x]\n",
 		   p_ll2_conn->queue_id,
 		   p_ll2_conn->cid,
-		   p_ll2_conn->input.conn_type, db_msg.spq_prod);
+		   p_ll2_conn->input.conn_type, p_tx->db_msg.spq_prod);
 }
 
 int qed_ll2_prepare_tx_packet(void *cxt,
@@ -1953,6 +2054,12 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
 		p_ll2_conn->rx_queue.b_cb_registered = false;
 		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
+
+		if (p_ll2_conn->rx_queue.ctx_based)
+			qed_db_recovery_del(p_hwfn->cdev,
+					    p_ll2_conn->rx_queue.set_prod_addr,
+					    &p_ll2_conn->rx_queue.db_data);
+
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
 			goto out;
@@ -1966,12 +2073,12 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
 		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
-			qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-						       ETH_P_FCOE, 0,
-						      QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-					       ETH_P_FIP, 0,
-					       QED_LLH_FILTER_ETHERTYPE);
+			qed_llh_remove_protocol_filter(p_hwfn->cdev, 0,
+						       QED_LLH_FILTER_ETHERTYPE,
+						       ETH_P_FCOE, 0);
+		qed_llh_remove_protocol_filter(p_hwfn->cdev, 0,
+					       QED_LLH_FILTER_ETHERTYPE,
+					       ETH_P_FIP, 0);
 	}
 
 out:
@@ -2072,12 +2179,12 @@ static void _qed_ll2_get_port_stats(struct qed_hwfn *p_hwfn,
 			TSTORM_LL2_PORT_STAT_OFFSET(MFW_PORT(p_hwfn)),
 			sizeof(port_stats));
 
-	p_stats->gsi_invalid_hdr = HILO_64_REGPAIR(port_stats.gsi_invalid_hdr);
-	p_stats->gsi_invalid_pkt_length =
+	p_stats->gsi_invalid_hdr += HILO_64_REGPAIR(port_stats.gsi_invalid_hdr);
+	p_stats->gsi_invalid_pkt_length +=
 	    HILO_64_REGPAIR(port_stats.gsi_invalid_pkt_length);
-	p_stats->gsi_unsupported_pkt_typ =
+	p_stats->gsi_unsupported_pkt_typ +=
 	    HILO_64_REGPAIR(port_stats.gsi_unsupported_pkt_typ);
-	p_stats->gsi_crcchksm_error =
+	p_stats->gsi_crcchksm_error +=
 	    HILO_64_REGPAIR(port_stats.gsi_crcchksm_error);
 }
 
@@ -2095,9 +2202,9 @@ static void _qed_ll2_get_tstats(struct qed_hwfn *p_hwfn,
 		      CORE_LL2_TSTORM_PER_QUEUE_STAT_OFFSET(qid);
 	qed_memcpy_from(p_hwfn, p_ptt, &tstats, tstats_addr, sizeof(tstats));
 
-	p_stats->packet_too_big_discard =
+	p_stats->packet_too_big_discard +=
 			HILO_64_REGPAIR(tstats.packet_too_big_discard);
-	p_stats->no_buff_discard = HILO_64_REGPAIR(tstats.no_buff_discard);
+	p_stats->no_buff_discard += HILO_64_REGPAIR(tstats.no_buff_discard);
 }
 
 static void _qed_ll2_get_ustats(struct qed_hwfn *p_hwfn,
@@ -2114,12 +2221,12 @@ static void _qed_ll2_get_ustats(struct qed_hwfn *p_hwfn,
 		      CORE_LL2_USTORM_PER_QUEUE_STAT_OFFSET(qid);
 	qed_memcpy_from(p_hwfn, p_ptt, &ustats, ustats_addr, sizeof(ustats));
 
-	p_stats->rcv_ucast_bytes = HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
-	p_stats->rcv_mcast_bytes = HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
-	p_stats->rcv_bcast_bytes = HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
-	p_stats->rcv_ucast_pkts = HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
-	p_stats->rcv_mcast_pkts = HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
-	p_stats->rcv_bcast_pkts = HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
+	p_stats->rcv_ucast_bytes += HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
+	p_stats->rcv_mcast_bytes += HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
+	p_stats->rcv_bcast_bytes += HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
+	p_stats->rcv_ucast_pkts += HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
+	p_stats->rcv_mcast_pkts += HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
+	p_stats->rcv_bcast_pkts += HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
 }
 
 static void _qed_ll2_get_pstats(struct qed_hwfn *p_hwfn,
@@ -2136,22 +2243,20 @@ static void _qed_ll2_get_pstats(struct qed_hwfn *p_hwfn,
 		      CORE_LL2_PSTORM_PER_QUEUE_STAT_OFFSET(stats_id);
 	qed_memcpy_from(p_hwfn, p_ptt, &pstats, pstats_addr, sizeof(pstats));
 
-	p_stats->sent_ucast_bytes = HILO_64_REGPAIR(pstats.sent_ucast_bytes);
-	p_stats->sent_mcast_bytes = HILO_64_REGPAIR(pstats.sent_mcast_bytes);
-	p_stats->sent_bcast_bytes = HILO_64_REGPAIR(pstats.sent_bcast_bytes);
-	p_stats->sent_ucast_pkts = HILO_64_REGPAIR(pstats.sent_ucast_pkts);
-	p_stats->sent_mcast_pkts = HILO_64_REGPAIR(pstats.sent_mcast_pkts);
-	p_stats->sent_bcast_pkts = HILO_64_REGPAIR(pstats.sent_bcast_pkts);
+	p_stats->sent_ucast_bytes += HILO_64_REGPAIR(pstats.sent_ucast_bytes);
+	p_stats->sent_mcast_bytes += HILO_64_REGPAIR(pstats.sent_mcast_bytes);
+	p_stats->sent_bcast_bytes += HILO_64_REGPAIR(pstats.sent_bcast_bytes);
+	p_stats->sent_ucast_pkts += HILO_64_REGPAIR(pstats.sent_ucast_pkts);
+	p_stats->sent_mcast_pkts += HILO_64_REGPAIR(pstats.sent_mcast_pkts);
+	p_stats->sent_bcast_pkts += HILO_64_REGPAIR(pstats.sent_bcast_pkts);
 }
 
-int qed_ll2_get_stats(void *cxt,
-		      u8 connection_handle, struct qed_ll2_stats *p_stats)
+static int __qed_ll2_get_stats(void *cxt, u8 connection_handle,
+			       struct qed_ll2_stats *p_stats)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct qed_ll2_info *p_ll2_conn = NULL;
 	struct qed_ptt *p_ptt;
-
-	memset(p_stats, 0, sizeof(*p_stats));
 
 	if ((connection_handle >= QED_MAX_NUM_OF_LL2_CONNECTIONS) ||
 	    !p_hwfn->p_ll2_info)
@@ -2167,13 +2272,24 @@ int qed_ll2_get_stats(void *cxt,
 
 	if (p_ll2_conn->input.gsi_enable)
 		_qed_ll2_get_port_stats(p_hwfn, p_ptt, p_stats);
+
 	_qed_ll2_get_tstats(p_hwfn, p_ptt, p_ll2_conn, p_stats);
+
 	_qed_ll2_get_ustats(p_hwfn, p_ptt, p_ll2_conn, p_stats);
+
 	if (p_ll2_conn->tx_stats_en)
 		_qed_ll2_get_pstats(p_hwfn, p_ptt, p_ll2_conn, p_stats);
 
 	qed_ptt_release(p_hwfn, p_ptt);
+
 	return 0;
+}
+
+int qed_ll2_get_stats(void *cxt,
+		      u8 connection_handle, struct qed_ll2_stats *p_stats)
+{
+	memset(p_stats, 0, sizeof(*p_stats));
+	return __qed_ll2_get_stats(cxt, connection_handle, p_stats);
 }
 
 static void qed_ll2b_release_rx_packet(void *cxt,
@@ -2195,14 +2311,14 @@ static void qed_ll2_register_cb_ops(struct qed_dev *cdev,
 	cdev->ll2->cb_cookie = cookie;
 }
 
-struct qed_ll2_cbs ll2_cbs = {
+static struct qed_ll2_cbs ll2_cbs = {
 	.rx_comp_cb = &qed_ll2b_complete_rx_packet,
 	.rx_release_cb = &qed_ll2b_release_rx_packet,
 	.tx_comp_cb = &qed_ll2b_complete_tx_packet,
 	.tx_release_cb = &qed_ll2b_complete_tx_packet,
 };
 
-static void qed_ll2_set_conn_data(struct qed_dev *cdev,
+static void qed_ll2_set_conn_data(struct qed_hwfn *p_hwfn,
 				  struct qed_ll2_acquire_data *data,
 				  struct qed_ll2_params *params,
 				  enum qed_ll2_conn_type conn_type,
@@ -2218,7 +2334,7 @@ static void qed_ll2_set_conn_data(struct qed_dev *cdev,
 	data->input.tx_num_desc = QED_LL2_TX_SIZE;
 	data->p_connection_handle = handle;
 	data->cbs = &ll2_cbs;
-	ll2_cbs.cookie = QED_LEADING_HWFN(cdev);
+	ll2_cbs.cookie = p_hwfn;
 
 	if (lb) {
 		data->input.tx_tc = PKT_LB_TC;
@@ -2229,111 +2345,144 @@ static void qed_ll2_set_conn_data(struct qed_dev *cdev,
 	}
 }
 
-static int qed_ll2_start_ooo(struct qed_dev *cdev,
+static int qed_ll2_start_ooo(struct qed_hwfn *p_hwfn,
 			     struct qed_ll2_params *params)
 {
-	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
-	u8 *handle = &hwfn->pf_params.iscsi_pf_params.ll2_ooo_queue_id;
+	u8 *handle = &p_hwfn->pf_params.iscsi_pf_params.ll2_ooo_queue_id;
 	struct qed_ll2_acquire_data data;
 	int rc;
 
-	qed_ll2_set_conn_data(cdev, &data, params,
+	qed_ll2_set_conn_data(p_hwfn, &data, params,
 			      QED_LL2_TYPE_OOO, handle, true);
 
-	rc = qed_ll2_acquire_connection(hwfn, &data);
+	rc = qed_ll2_acquire_connection(p_hwfn, &data);
 	if (rc) {
-		DP_INFO(cdev, "Failed to acquire LL2 OOO connection\n");
+		DP_INFO(p_hwfn, "Failed to acquire LL2 OOO connection\n");
 		goto out;
 	}
 
-	rc = qed_ll2_establish_connection(hwfn, *handle);
+	rc = qed_ll2_establish_connection(p_hwfn, *handle);
 	if (rc) {
-		DP_INFO(cdev, "Failed to establist LL2 OOO connection\n");
+		DP_INFO(p_hwfn, "Failed to establish LL2 OOO connection\n");
 		goto fail;
 	}
 
 	return 0;
 
 fail:
-	qed_ll2_release_connection(hwfn, *handle);
+	qed_ll2_release_connection(p_hwfn, *handle);
 out:
 	*handle = QED_LL2_UNUSED_HANDLE;
 	return rc;
 }
 
-static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
+static bool qed_ll2_is_storage_eng1(struct qed_dev *cdev)
 {
-	struct qed_ll2_buffer *buffer, *tmp_buffer;
-	enum qed_ll2_conn_type conn_type;
-	struct qed_ll2_acquire_data data;
-	struct qed_ptt *p_ptt;
-	int rc, i;
+	return (QED_IS_FCOE_PERSONALITY(QED_LEADING_HWFN(cdev)) ||
+		QED_IS_ISCSI_PERSONALITY(QED_LEADING_HWFN(cdev)) ||
+		QED_IS_NVMETCP_PERSONALITY(QED_LEADING_HWFN(cdev))) &&
+		(QED_AFFIN_HWFN(cdev) != QED_LEADING_HWFN(cdev));
+}
 
+static int __qed_ll2_stop(struct qed_hwfn *p_hwfn)
+{
+	struct qed_dev *cdev = p_hwfn->cdev;
+	int rc;
 
-	/* Initialize LL2 locks & lists */
-	INIT_LIST_HEAD(&cdev->ll2->list);
-	spin_lock_init(&cdev->ll2->lock);
-	cdev->ll2->rx_size = NET_SKB_PAD + ETH_HLEN +
-			     L1_CACHE_BYTES + params->mtu;
+	rc = qed_ll2_terminate_connection(p_hwfn, cdev->ll2->handle);
+	if (rc)
+		DP_INFO(cdev, "Failed to terminate LL2 connection\n");
 
-	/*Allocate memory for LL2 */
-	DP_INFO(cdev, "Allocating LL2 buffers of size %08x bytes\n",
-		cdev->ll2->rx_size);
-	for (i = 0; i < QED_LL2_RX_SIZE; i++) {
-		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-		if (!buffer) {
-			DP_INFO(cdev, "Failed to allocate LL2 buffers\n");
-			goto fail;
-		}
+	qed_ll2_release_connection(p_hwfn, cdev->ll2->handle);
 
-		rc = qed_ll2_alloc_buffer(cdev, (u8 **)&buffer->data,
-					  &buffer->phys_addr);
-		if (rc) {
-			kfree(buffer);
-			goto fail;
-		}
+	return rc;
+}
 
-		list_add_tail(&buffer->list, &cdev->ll2->list);
+static int qed_ll2_stop(struct qed_dev *cdev)
+{
+	bool b_is_storage_eng1 = qed_ll2_is_storage_eng1(cdev);
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
+	int rc = 0, rc2 = 0;
+
+	if (cdev->ll2->handle == QED_LL2_UNUSED_HANDLE)
+		return 0;
+	if (!QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		qed_llh_remove_mac_filter(cdev, 0, cdev->ll2_mac_address);
+
+	qed_llh_remove_mac_filter(cdev, 0, cdev->ll2_mac_address);
+	eth_zero_addr(cdev->ll2_mac_address);
+
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		qed_ll2_stop_ooo(p_hwfn);
+
+	/* In CMT mode, LL2 is always started on engine 0 for a storage PF */
+	if (b_is_storage_eng1) {
+		rc2 = __qed_ll2_stop(QED_LEADING_HWFN(cdev));
+		if (rc2)
+			DP_NOTICE(QED_LEADING_HWFN(cdev),
+				  "Failed to stop LL2 on engine 0\n");
 	}
 
-	switch (QED_LEADING_HWFN(cdev)->hw_info.personality) {
+	rc = __qed_ll2_stop(p_hwfn);
+	if (rc)
+		DP_NOTICE(p_hwfn, "Failed to stop LL2\n");
+
+	qed_ll2_kill_buffers(cdev);
+
+	cdev->ll2->handle = QED_LL2_UNUSED_HANDLE;
+
+	return rc | rc2;
+}
+
+static int __qed_ll2_start(struct qed_hwfn *p_hwfn,
+			   struct qed_ll2_params *params)
+{
+	struct qed_ll2_buffer *buffer, *tmp_buffer;
+	struct qed_dev *cdev = p_hwfn->cdev;
+	enum qed_ll2_conn_type conn_type;
+	struct qed_ll2_acquire_data data;
+	int rc, rx_cnt;
+
+	switch (p_hwfn->hw_info.personality) {
 	case QED_PCI_FCOE:
 		conn_type = QED_LL2_TYPE_FCOE;
 		break;
 	case QED_PCI_ISCSI:
-		conn_type = QED_LL2_TYPE_ISCSI;
+	case QED_PCI_NVMETCP:
+		conn_type = QED_LL2_TYPE_TCP_ULP;
 		break;
 	case QED_PCI_ETH_ROCE:
 		conn_type = QED_LL2_TYPE_ROCE;
 		break;
 	default:
+
 		conn_type = QED_LL2_TYPE_TEST;
 	}
 
-	qed_ll2_set_conn_data(cdev, &data, params, conn_type,
+	qed_ll2_set_conn_data(p_hwfn, &data, params, conn_type,
 			      &cdev->ll2->handle, false);
 
-	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &data);
+	rc = qed_ll2_acquire_connection(p_hwfn, &data);
 	if (rc) {
-		DP_INFO(cdev, "Failed to acquire LL2 connection\n");
-		goto fail;
+		DP_INFO(p_hwfn, "Failed to acquire LL2 connection\n");
+		return rc;
 	}
 
-	rc = qed_ll2_establish_connection(QED_LEADING_HWFN(cdev),
-					  cdev->ll2->handle);
+	rc = qed_ll2_establish_connection(p_hwfn, cdev->ll2->handle);
 	if (rc) {
-		DP_INFO(cdev, "Failed to establish LL2 connection\n");
-		goto release_fail;
+		DP_INFO(p_hwfn, "Failed to establish LL2 connection\n");
+		goto release_conn;
 	}
 
 	/* Post all Rx buffers to FW */
 	spin_lock_bh(&cdev->ll2->lock);
+	rx_cnt = cdev->ll2->rx_cnt;
 	list_for_each_entry_safe(buffer, tmp_buffer, &cdev->ll2->list, list) {
-		rc = qed_ll2_post_rx_buffer(QED_LEADING_HWFN(cdev),
+		rc = qed_ll2_post_rx_buffer(p_hwfn,
 					    cdev->ll2->handle,
 					    buffer->phys_addr, 0, buffer, 1);
 		if (rc) {
-			DP_INFO(cdev,
+			DP_INFO(p_hwfn,
 				"Failed to post an Rx buffer; Deleting it\n");
 			dma_unmap_single(&cdev->pdev->dev, buffer->phys_addr,
 					 cdev->ll2->rx_size, DMA_FROM_DEVICE);
@@ -2341,115 +2490,150 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 			list_del(&buffer->list);
 			kfree(buffer);
 		} else {
-			cdev->ll2->rx_cnt++;
+			rx_cnt++;
 		}
 	}
 	spin_unlock_bh(&cdev->ll2->lock);
 
-	if (!cdev->ll2->rx_cnt) {
-		DP_INFO(cdev, "Failed passing even a single Rx buffer\n");
-		goto release_terminate;
+	if (rx_cnt == cdev->ll2->rx_cnt) {
+		DP_NOTICE(p_hwfn, "Failed passing even a single Rx buffer\n");
+		goto terminate_conn;
 	}
+	cdev->ll2->rx_cnt = rx_cnt;
+
+	return 0;
+
+terminate_conn:
+	qed_ll2_terminate_connection(p_hwfn, cdev->ll2->handle);
+release_conn:
+	qed_ll2_release_connection(p_hwfn, cdev->ll2->handle);
+	return rc;
+}
+
+static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
+{
+	bool b_is_storage_eng1 = qed_ll2_is_storage_eng1(cdev);
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
+	struct qed_ll2_buffer *buffer;
+	int rx_num_desc, i, rc;
 
 	if (!is_valid_ether_addr(params->ll2_mac_address)) {
-		DP_INFO(cdev, "Invalid Ethernet address\n");
-		goto release_terminate;
+		DP_NOTICE(cdev, "Invalid Ethernet address\n");
+		return -EINVAL;
 	}
 
-	if (QED_LEADING_HWFN(cdev)->hw_info.personality == QED_PCI_ISCSI) {
-		DP_VERBOSE(cdev, QED_MSG_STORAGE, "Starting OOO LL2 queue\n");
-		rc = qed_ll2_start_ooo(cdev, params);
+	WARN_ON(!cdev->ll2->cbs);
+
+	/* Initialize LL2 locks & lists */
+	INIT_LIST_HEAD(&cdev->ll2->list);
+	spin_lock_init(&cdev->ll2->lock);
+
+	cdev->ll2->rx_size = NET_SKB_PAD + ETH_HLEN +
+			     L1_CACHE_BYTES + params->mtu;
+
+	/* Allocate memory for LL2.
+	 * In CMT mode, in case of a storage PF which is affintized to engine 1,
+	 * LL2 is started also on engine 0 and thus we need twofold buffers.
+	 */
+	rx_num_desc = QED_LL2_RX_SIZE * (b_is_storage_eng1 ? 2 : 1);
+	DP_INFO(cdev, "Allocating %d LL2 buffers of size %08x bytes\n",
+		rx_num_desc, cdev->ll2->rx_size);
+	for (i = 0; i < rx_num_desc; i++) {
+		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+		if (!buffer) {
+			DP_INFO(cdev, "Failed to allocate LL2 buffers\n");
+			rc = -ENOMEM;
+			goto err0;
+		}
+
+		rc = qed_ll2_alloc_buffer(cdev, (u8 **)&buffer->data,
+					  &buffer->phys_addr);
 		if (rc) {
-			DP_INFO(cdev,
-				"Failed to initialize the OOO LL2 queue\n");
-			goto release_terminate;
+			kfree(buffer);
+			goto err0;
+		}
+
+		list_add_tail(&buffer->list, &cdev->ll2->list);
+	}
+
+	rc = __qed_ll2_start(p_hwfn, params);
+	if (rc) {
+		DP_NOTICE(cdev, "Failed to start LL2\n");
+		goto err0;
+	}
+
+	/* In CMT mode, always need to start LL2 on engine 0 for a storage PF,
+	 * since broadcast/mutlicast packets are routed to engine 0.
+	 */
+	if (b_is_storage_eng1) {
+		rc = __qed_ll2_start(QED_LEADING_HWFN(cdev), params);
+		if (rc) {
+			DP_NOTICE(QED_LEADING_HWFN(cdev),
+				  "Failed to start LL2 on engine 0\n");
+			goto err1;
 		}
 	}
 
-	p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
-	if (!p_ptt) {
-		DP_INFO(cdev, "Failed to acquire PTT\n");
-		goto release_terminate;
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn)) {
+		DP_VERBOSE(cdev, QED_MSG_STORAGE, "Starting OOO LL2 queue\n");
+		rc = qed_ll2_start_ooo(p_hwfn, params);
+		if (rc) {
+			DP_NOTICE(cdev, "Failed to start OOO LL2\n");
+			goto err2;
+		}
 	}
 
-	rc = qed_llh_add_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
-				    params->ll2_mac_address);
-	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
-	if (rc) {
-		DP_ERR(cdev, "Failed to allocate LLH filter\n");
-		goto release_terminate_all;
+	if (!QED_IS_NVMETCP_PERSONALITY(p_hwfn)) {
+		rc = qed_llh_add_mac_filter(cdev, 0, params->ll2_mac_address);
+		if (rc) {
+			DP_NOTICE(cdev, "Failed to add an LLH filter\n");
+			goto err3;
+		}
+
 	}
 
 	ether_addr_copy(cdev->ll2_mac_address, params->ll2_mac_address);
+
 	return 0;
 
-release_terminate_all:
-
-release_terminate:
-	qed_ll2_terminate_connection(QED_LEADING_HWFN(cdev), cdev->ll2->handle);
-release_fail:
-	qed_ll2_release_connection(QED_LEADING_HWFN(cdev), cdev->ll2->handle);
-fail:
+err3:
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn) || QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		qed_ll2_stop_ooo(p_hwfn);
+err2:
+	if (b_is_storage_eng1)
+		__qed_ll2_stop(QED_LEADING_HWFN(cdev));
+err1:
+	__qed_ll2_stop(p_hwfn);
+err0:
 	qed_ll2_kill_buffers(cdev);
 	cdev->ll2->handle = QED_LL2_UNUSED_HANDLE;
-	return -EINVAL;
-}
-
-static int qed_ll2_stop(struct qed_dev *cdev)
-{
-	struct qed_ptt *p_ptt;
-	int rc;
-
-	if (cdev->ll2->handle == QED_LL2_UNUSED_HANDLE)
-		return 0;
-
-	p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
-	if (!p_ptt) {
-		DP_INFO(cdev, "Failed to acquire PTT\n");
-		goto fail;
-	}
-
-	qed_llh_remove_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
-				  cdev->ll2_mac_address);
-	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
-	eth_zero_addr(cdev->ll2_mac_address);
-
-	if (QED_LEADING_HWFN(cdev)->hw_info.personality == QED_PCI_ISCSI)
-		qed_ll2_stop_ooo(cdev);
-
-	rc = qed_ll2_terminate_connection(QED_LEADING_HWFN(cdev),
-					  cdev->ll2->handle);
-	if (rc)
-		DP_INFO(cdev, "Failed to terminate LL2 connection\n");
-
-	qed_ll2_kill_buffers(cdev);
-
-	qed_ll2_release_connection(QED_LEADING_HWFN(cdev), cdev->ll2->handle);
-	cdev->ll2->handle = QED_LL2_UNUSED_HANDLE;
-
 	return rc;
-fail:
-	return -EINVAL;
 }
 
 static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 			      unsigned long xmit_flags)
 {
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
 	struct qed_ll2_tx_pkt_info pkt;
 	const skb_frag_t *frag;
+	u8 flags = 0, nr_frags;
 	int rc = -EINVAL, i;
 	dma_addr_t mapping;
 	u16 vlan = 0;
-	u8 flags = 0;
 
 	if (unlikely(skb->ip_summed != CHECKSUM_NONE)) {
 		DP_INFO(cdev, "Cannot transmit a checksummed packet\n");
 		return -EINVAL;
 	}
 
-	if (1 + skb_shinfo(skb)->nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET) {
+	/* Cache number of fragments from SKB since SKB may be freed by
+	 * the completion routine after calling qed_ll2_prepare_tx_packet()
+	 */
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	if (1 + nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET) {
 		DP_ERR(cdev, "Cannot transmit a packet with %d fragments\n",
-		       1 + skb_shinfo(skb)->nr_frags);
+		       1 + nr_frags);
 		return -EINVAL;
 	}
 
@@ -2471,7 +2655,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	}
 
 	memset(&pkt, 0, sizeof(pkt));
-	pkt.num_of_bds = 1 + skb_shinfo(skb)->nr_frags;
+	pkt.num_of_bds = 1 + nr_frags;
 	pkt.vlan = vlan;
 	pkt.bd_flags = flags;
 	pkt.tx_dest = QED_LL2_TX_DEST_NW;
@@ -2482,12 +2666,17 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	    test_bit(QED_LL2_XMIT_FLAGS_FIP_DISCOVERY, &xmit_flags))
 		pkt.remove_stag = true;
 
-	rc = qed_ll2_prepare_tx_packet(&cdev->hwfns[0], cdev->ll2->handle,
+	/* qed_ll2_prepare_tx_packet() may actually send the packet if
+	 * there are no fragments in the skb and subsequently the completion
+	 * routine may run and free the SKB, so no dereferencing the SKB
+	 * beyond this point unless skb has any fragments.
+	 */
+	rc = qed_ll2_prepare_tx_packet(p_hwfn, cdev->ll2->handle,
 				       &pkt, 1);
 	if (rc)
 		goto err;
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+	for (i = 0; i < nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
 
 		mapping = skb_frag_dma_map(&cdev->pdev->dev, frag, 0,
@@ -2496,16 +2685,17 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 		if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
 			DP_NOTICE(cdev,
 				  "Unable to map frag - dropping packet\n");
+			rc = -ENOMEM;
 			goto err;
 		}
 
-		rc = qed_ll2_set_fragment_of_tx_packet(QED_LEADING_HWFN(cdev),
+		rc = qed_ll2_set_fragment_of_tx_packet(p_hwfn,
 						       cdev->ll2->handle,
 						       mapping,
 						       skb_frag_size(frag));
 
 		/* if failed not much to do here, partial packet has been posted
-		 * we can't free memory, will need to wait for completion.
+		 * we can't free memory, will need to wait for completion
 		 */
 		if (rc)
 			goto err2;
@@ -2515,18 +2705,37 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 
 err:
 	dma_unmap_single(&cdev->pdev->dev, mapping, skb->len, DMA_TO_DEVICE);
-
 err2:
 	return rc;
 }
 
 static int qed_ll2_stats(struct qed_dev *cdev, struct qed_ll2_stats *stats)
 {
+	bool b_is_storage_eng1 = qed_ll2_is_storage_eng1(cdev);
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
+	int rc;
+
 	if (!cdev->ll2)
 		return -EINVAL;
 
-	return qed_ll2_get_stats(QED_LEADING_HWFN(cdev),
-				 cdev->ll2->handle, stats);
+	rc = qed_ll2_get_stats(p_hwfn, cdev->ll2->handle, stats);
+	if (rc) {
+		DP_NOTICE(p_hwfn, "Failed to get LL2 stats\n");
+		return rc;
+	}
+
+	/* In CMT mode, LL2 is always started on engine 0 for a storage PF */
+	if (b_is_storage_eng1) {
+		rc = __qed_ll2_get_stats(QED_LEADING_HWFN(cdev),
+					 cdev->ll2->handle, stats);
+		if (rc) {
+			DP_NOTICE(QED_LEADING_HWFN(cdev),
+				  "Failed to get LL2 stats on engine 0\n");
+			return rc;
+		}
+	}
+
+	return 0;
 }
 
 const struct qed_ll2_ops qed_ll2_ops_pass = {

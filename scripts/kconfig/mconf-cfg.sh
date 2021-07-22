@@ -33,7 +33,9 @@ if [ -f /usr/include/ncurses/ncurses.h ]; then
 	exit 0
 fi
 
-if [ -f /usr/include/ncurses.h ]; then
+# As a final fallback before giving up, check if $HOSTCC knows of a default
+# ncurses installation (e.g. from a vendor-specific sysroot).
+if echo '#include <ncurses.h>' | ${HOSTCC} -E - >/dev/null 2>&1; then
 	echo cflags=\"-D_GNU_SOURCE\"
 	echo libs=\"-lncurses\"
 	exit 0
@@ -43,5 +45,8 @@ echo >&2 "*"
 echo >&2 "* Unable to find the ncurses package."
 echo >&2 "* Install ncurses (ncurses-devel or libncurses-dev"
 echo >&2 "* depending on your distribution)."
+echo >&2 "*"
+echo >&2 "* You may also need to install pkg-config to find the"
+echo >&2 "* ncurses installed in a non-default location."
 echo >&2 "*"
 exit 1

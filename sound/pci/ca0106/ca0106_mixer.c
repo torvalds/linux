@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
@@ -44,21 +45,6 @@
  *
  *  This code was initially based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -564,7 +550,7 @@ static int spi_mute_put(struct snd_kcontrol *kcontrol,
 	.private_value = ((chid) << 8) | (reg)			\
 }
 
-static struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
+static const struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
 	CA_VOLUME("Analog Front Playback Volume",
 		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2),
         CA_VOLUME("Analog Rear Playback Volume",
@@ -645,7 +631,7 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_ca0106_volume_i2c_adc_ctls[] = {
+static const struct snd_kcontrol_new snd_ca0106_volume_i2c_adc_ctls[] = {
         I2C_VOLUME("Phone Capture Volume", 0),
         I2C_VOLUME("Mic Capture Volume", 1),
         I2C_VOLUME("Line in Capture Volume", 2),
@@ -668,7 +654,7 @@ static const int spi_dmute_bit[] = {
 };
 
 static struct snd_kcontrol_new
-snd_ca0106_volume_spi_dac_ctl(struct snd_ca0106_details *details,
+snd_ca0106_volume_spi_dac_ctl(const struct snd_ca0106_details *details,
 			      int channel_id)
 {
 	struct snd_kcontrol_new spi_switch = {0};
@@ -753,7 +739,7 @@ static int rename_ctl(struct snd_card *card, const char *src, const char *dst)
 static
 DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 25, 1);
 
-static char *slave_vols[] = {
+static const char * const follower_vols[] = {
 	"Analog Front Playback Volume",
         "Analog Rear Playback Volume",
 	"Analog Center/LFE Playback Volume",
@@ -766,7 +752,7 @@ static char *slave_vols[] = {
 	NULL
 };
 
-static char *slave_sws[] = {
+static const char * const follower_sws[] = {
 	"Analog Front Playback Switch",
 	"Analog Rear Playback Switch",
 	"Analog Center/LFE Playback Switch",
@@ -775,13 +761,13 @@ static char *slave_sws[] = {
 	NULL
 };
 
-static void add_slaves(struct snd_card *card,
-				 struct snd_kcontrol *master, char **list)
+static void add_followers(struct snd_card *card,
+			  struct snd_kcontrol *master, const char * const *list)
 {
 	for (; *list; list++) {
-		struct snd_kcontrol *slave = ctl_find(card, *list);
-		if (slave)
-			snd_ctl_add_slave(master, slave);
+		struct snd_kcontrol *follower = ctl_find(card, *list);
+		if (follower)
+			snd_ctl_add_follower(master, follower);
 	}
 }
 
@@ -789,9 +775,9 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
 	int err;
         struct snd_card *card = emu->card;
-	char **c;
+	const char * const *c;
 	struct snd_kcontrol *vmaster;
-	static char *ca0106_remove_ctls[] = {
+	static const char * const ca0106_remove_ctls[] = {
 		"Master Mono Playback Switch",
 		"Master Mono Playback Volume",
 		"3D Control - Switch",
@@ -815,7 +801,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		"Surround Phase Inversion Playback Switch",
 		NULL
 	};
-	static char *ca0106_rename_ctls[] = {
+	static const char * const ca0106_rename_ctls[] = {
 		"Master Playback Switch", "Capture Switch",
 		"Master Playback Volume", "Capture Volume",
 		"Line Playback Switch", "AC97 Line Capture Switch",
@@ -866,7 +852,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 	err = snd_ctl_add(card, vmaster);
 	if (err < 0)
 		return err;
-	add_slaves(card, vmaster, slave_vols);
+	add_followers(card, vmaster, follower_vols);
 
 	if (emu->details->spi_dac) {
 		vmaster = snd_ctl_make_virtual_master("Master Playback Switch",
@@ -876,7 +862,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		err = snd_ctl_add(card, vmaster);
 		if (err < 0)
 			return err;
-		add_slaves(card, vmaster, slave_sws);
+		add_followers(card, vmaster, follower_sws);
 	}
 
 	strcpy(card->mixername, "CA0106");
@@ -889,7 +875,7 @@ struct ca0106_vol_tbl {
 	unsigned int reg;
 };
 
-static struct ca0106_vol_tbl saved_volumes[NUM_SAVED_VOLUMES] = {
+static const struct ca0106_vol_tbl saved_volumes[NUM_SAVED_VOLUMES] = {
 	{ CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2 },
 	{ CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME2 },
 	{ CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME2 },

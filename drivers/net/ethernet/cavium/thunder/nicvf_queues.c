@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/pci.h>
@@ -59,7 +56,7 @@ static int nicvf_alloc_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem,
 	dmem->q_len = q_len;
 	dmem->size = (desc_size * q_len) + align_bytes;
 	/* Save address, need it while freeing */
-	dmem->unalign_base = dma_zalloc_coherent(&nic->pdev->dev, dmem->size,
+	dmem->unalign_base = dma_alloc_coherent(&nic->pdev->dev, dmem->size,
 						&dmem->dma, GFP_KERNEL);
 	if (!dmem->unalign_base)
 		return -ENOMEM;
@@ -105,20 +102,19 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 	/* Check if page can be recycled */
 	if (page) {
 		ref_count = page_ref_count(page);
-		/* Check if this page has been used once i.e 'put_page'
-		 * called after packet transmission i.e internal ref_count
-		 * and page's ref_count are equal i.e page can be recycled.
+		/* This page can be recycled if internal ref_count and page's
+		 * ref_count are equal, indicating that the page has been used
+		 * once for packet transmission. For non-XDP mode, internal
+		 * ref_count is always '1'.
 		 */
-		if (rbdr->is_xdp && (ref_count == pgcache->ref_count))
-			pgcache->ref_count--;
-		else
+		if (rbdr->is_xdp) {
+			if (ref_count == pgcache->ref_count)
+				pgcache->ref_count--;
+			else
+				page = NULL;
+		} else if (ref_count != 1) {
 			page = NULL;
-
-		/* In non-XDP mode, page's ref_count needs to be '1' for it
-		 * to be recycled.
-		 */
-		if (!rbdr->is_xdp && (ref_count != 1))
-			page = NULL;
+		}
 	}
 
 	if (!page) {
@@ -365,11 +361,10 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	while (head < rbdr->pgcnt) {
 		pgcache = &rbdr->pgcache[head];
 		if (pgcache->page && page_ref_count(pgcache->page) != 0) {
-			if (!rbdr->is_xdp) {
-				put_page(pgcache->page);
-				continue;
+			if (rbdr->is_xdp) {
+				page_ref_sub(pgcache->page,
+					     pgcache->ref_count - 1);
 			}
-			page_ref_sub(pgcache->page, pgcache->ref_count - 1);
 			put_page(pgcache->page);
 		}
 		head++;
@@ -465,9 +460,9 @@ void nicvf_rbdr_work(struct work_struct *work)
 }
 
 /* In Softirq context, alloc rcv buffers in atomic mode */
-void nicvf_rbdr_task(unsigned long data)
+void nicvf_rbdr_task(struct tasklet_struct *t)
 {
-	struct nicvf *nic = (struct nicvf *)data;
+	struct nicvf *nic = from_tasklet(nic, t, rbdr_task);
 
 	nicvf_refill_rbdr(nic, GFP_ATOMIC);
 	if (nic->rb_alloc_fail) {
@@ -585,10 +580,12 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 	if (!sq->dmem.base)
 		return;
 
-	if (sq->tso_hdrs)
+	if (sq->tso_hdrs) {
 		dma_free_coherent(&nic->pdev->dev,
 				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
+		sq->tso_hdrs = NULL;
+	}
 
 	/* Free pending skbs in the queue */
 	smp_rmb();
@@ -773,13 +770,13 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	rq->caching = 1;
 
 	/* Driver have no proper error path for failed XDP RX-queue info reg */
-	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx) < 0);
+	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx, 0) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_CFG;
 	mbx.rq.qs_num = qs->vnic_id;
 	mbx.rq.rq_num = qidx;
-	mbx.rq.cfg = (rq->caching << 26) | (rq->cq_qs << 19) |
+	mbx.rq.cfg = ((u64)rq->caching << 26) | (rq->cq_qs << 19) |
 			  (rq->cq_idx << 16) | (rq->cont_rbdr_qs << 9) |
 			  (rq->cont_qs_rbdr_idx << 8) |
 			  (rq->start_rbdr_qs << 1) | (rq->start_qs_rbdr_idx);
@@ -1182,13 +1179,12 @@ void nicvf_sq_disable(struct nicvf *nic, int qidx)
 void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			      int qidx)
 {
-	u64 head, tail;
+	u64 head;
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct sq_hdr_subdesc *hdr;
 
 	head = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_HEAD, qidx) >> 4;
-	tail = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_TAIL, qidx) >> 4;
 	while (sq->head != head) {
 		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
 		if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER) {
@@ -1493,9 +1489,10 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	int seg_subdescs = 0, desc_cnt = 0;
 	int seg_len, total_len, data_left;
 	int hdr_qentry = qentry;
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int hdr_len;
 
-	tso_start(skb, &tso);
+	hdr_len = tso_start(skb, &tso);
+
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
 		char *hdr;
@@ -1591,15 +1588,13 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 		goto doorbell;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 		size = skb_frag_size(frag);
 		dma_addr = dma_map_page_attrs(&nic->pdev->dev,
 					      skb_frag_page(frag),
-					      frag->page_offset, size,
+					      skb_frag_off(frag), size,
 					      DMA_TO_DEVICE,
 					      DMA_ATTR_SKIP_CPU_SYNC);
 		if (dma_mapping_error(&nic->pdev->dev, dma_addr)) {

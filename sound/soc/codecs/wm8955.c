@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8955.c  --  WM8955 ALSA SoC Audio driver
  *
  * Copyright 2009 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -143,7 +140,7 @@ struct pll_factors {
  * to allow rounding later */
 #define FIXED_FLL_SIZE ((1 << 22) * 10)
 
-static int wm8995_pll_factors(struct device *dev,
+static int wm8955_pll_factors(struct device *dev,
 			      int Fref, int Fout, struct pll_factors *pll)
 {
 	u64 Kpart;
@@ -282,7 +279,7 @@ static int wm8955_configure_clocking(struct snd_soc_component *component)
 
 		/* Use the last divider configuration we saw for the
 		 * sample rate. */
-		ret = wm8995_pll_factors(component->dev, wm8955->mclk_rate,
+		ret = wm8955_pll_factors(component->dev, wm8955->mclk_rate,
 					 clock_cfgs[sr].mclk, &pll);
 		if (ret != 0) {
 			dev_err(component->dev,
@@ -622,7 +619,7 @@ static int wm8955_hw_params(struct snd_pcm_substream *substream,
 	/* If the chip is clocked then disable the clocks and force a
 	 * reconfiguration, otherwise DAPM will power up the
 	 * clocks for us later. */
-	ret = snd_soc_component_read32(component, WM8955_POWER_MANAGEMENT_1);
+	ret = snd_soc_component_read(component, WM8955_POWER_MANAGEMENT_1);
 	if (ret < 0)
 		return ret;
 	if (ret & WM8955_DIGENB) {
@@ -686,7 +683,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif |= WM8955_LRP;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif |= 0x3;
 		break;
@@ -748,7 +745,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 
-static int wm8955_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8955_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int val;
@@ -851,7 +848,8 @@ static const struct snd_soc_dai_ops wm8955_dai_ops = {
 	.set_sysclk = wm8955_set_sysclk,
 	.set_fmt = wm8955_set_fmt,
 	.hw_params = wm8955_hw_params,
-	.digital_mute = wm8955_digital_mute,
+	.mute_stream = wm8955_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8955_dai = {

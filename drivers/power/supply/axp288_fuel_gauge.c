@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * axp288_fuel_gauge.c - Xpower AXP288 PMIC Fuel Gauge Driver
  *
@@ -5,16 +6,6 @@
  * Copyright (C) 2014 Intel Corporation
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/dmi.h>
@@ -151,9 +142,7 @@ static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
 
 	for (i = 0; i < NR_RETRY_CNT; i++) {
 		ret = regmap_read(info->regmap, reg, &val);
-		if (ret == -EBUSY)
-			continue;
-		else
+		if (ret != -EBUSY)
 			break;
 	}
 
@@ -307,22 +296,12 @@ static int fuel_gauge_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fuel_gauge_debug_show, inode->i_private);
-}
-
-static const struct file_operations fg_debug_fops = {
-	.open       = debug_open,
-	.read       = seq_read,
-	.llseek     = seq_lseek,
-	.release    = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fuel_gauge_debug);
 
 static void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
 {
 	info->debug_file = debugfs_create_file("fuelgauge", 0666, NULL,
-		info, &fg_debug_fops);
+		info, &fuel_gauge_debug_fops);
 }
 
 static void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
@@ -693,35 +672,75 @@ intr_failed:
 /*
  * Some devices have no battery (HDMI sticks) and the axp288 battery's
  * detection reports one despite it not being there.
+ * Please keep this listed sorted alphabetically.
  */
-static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
+static const struct dmi_system_id axp288_no_battery_list[] = {
 	{
-		/* Intel Cherry Trail Compute Stick, Windows version */
+		/* ACEPC T8 Cherry Trail Z8350 mini PC */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "To be filled by O.E.M."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "T8"),
+			/* also match on somewhat unique bios-version */
+			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
 	},
 	{
-		/* Intel Cherry Trail Compute Stick, version without an OS */
+		/* ACEPC T11 Cherry Trail Z8350 mini PC */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
-		},
-	},
-	{
-		/* Meegopad T08 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
-			DMI_MATCH(DMI_BOARD_VENDOR, "To be filled by OEM."),
-			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
-			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "To be filled by O.E.M."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "T11"),
+			/* also match on somewhat unique bios-version */
+			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
 	},
 	{
 		/* ECS EF20EA */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Intel Cherry Trail Compute Stick, Windows version */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
+		},
+	},
+	{
+		/* Intel Cherry Trail Compute Stick, version without an OS */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
+		},
+	},
+	{
+		/* Meegopad T02 */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "MEEGOPAD T02"),
+		},
+	},
+	{	/* Mele PCG03 Mini PC */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Mini PC"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Mini PC"),
+		},
+	},
+	{
+		/* Minix Neo Z83-4 mini PC */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		}
+	},
+	{
+		/* Various Ace PC/Meegopad/MinisForum/Wintel Mini-PCs/HDMI-sticks */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_CHASSIS_TYPE, "3"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
+			DMI_MATCH(DMI_BIOS_VERSION, "5.11"),
 		},
 	},
 	{}
@@ -743,7 +762,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	};
 	unsigned int val;
 
-	if (dmi_check_system(axp288_fuel_gauge_blacklist))
+	if (dmi_check_system(axp288_no_battery_list))
 		return -ENODEV;
 
 	/*

@@ -1,36 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Universal Flash Storage Host controller Platform bus based glue driver
- *
- * This code is based on drivers/scsi/ufs/ufshcd-pltfrm.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
  *	Vinayak Holikatti <h.vinayak@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * See the COPYING file in the top-level directory or visit
- * <http://www.gnu.org/licenses/gpl-2.0.html>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This program is provided "AS IS" and "WITH ALL FAULTS" and
- * without warranty of any kind. You are solely responsible for
- * determining the appropriateness of using and distributing
- * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
- * to infringement of third party rights, the risks and costs of
- * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
- * circumstances will the contributor of this Program be liable for
- * any damages of any kind arising from your use or distribution of
- * this program.
  */
 
 #include <linux/platform_device.h>
@@ -39,6 +14,7 @@
 
 #include "ufshcd.h"
 #include "ufshcd-pltfrm.h"
+#include "unipro.h"
 
 #define UFSHCD_DEFAULT_LANES_PER_DIRECTION		2
 
@@ -116,6 +92,8 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 		clki->min_freq = clkfreq[i];
 		clki->max_freq = clkfreq[i+1];
 		clki->name = kstrdup(name, GFP_KERNEL);
+		if (!strcmp(name, "ref_clk"))
+			clki->keep_link_active = true;
 		dev_dbg(dev, "%s: min %u max %u name %s\n", "freq-table-hz",
 				clki->min_freq, clki->max_freq, clki->name);
 		list_add_tail(&clki->list, &hba->clk_list_head);
@@ -128,7 +106,6 @@ out:
 static int ufshcd_populate_vreg(struct device *dev, const char *name,
 		struct ufs_vreg **out_vreg)
 {
-	int ret = 0;
 	char prop_name[MAX_PROP_SIZE];
 	struct ufs_vreg *vreg = NULL;
 	struct device_node *np = dev->of_node;
@@ -151,42 +128,14 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 
 	vreg->name = kstrdup(name, GFP_KERNEL);
 
-	/* if fixed regulator no need further initialization */
-	snprintf(prop_name, MAX_PROP_SIZE, "%s-fixed-regulator", name);
-	if (of_property_read_bool(np, prop_name))
-		goto out;
-
 	snprintf(prop_name, MAX_PROP_SIZE, "%s-max-microamp", name);
-	ret = of_property_read_u32(np, prop_name, &vreg->max_uA);
-	if (ret) {
-		dev_err(dev, "%s: unable to find %s err %d\n",
-				__func__, prop_name, ret);
-		goto out;
+	if (of_property_read_u32(np, prop_name, &vreg->max_uA)) {
+		dev_info(dev, "%s: unable to find %s\n", __func__, prop_name);
+		vreg->max_uA = 0;
 	}
-
-	vreg->min_uA = 0;
-	if (!strcmp(name, "vcc")) {
-		if (of_property_read_bool(np, "vcc-supply-1p8")) {
-			vreg->min_uV = UFS_VREG_VCC_1P8_MIN_UV;
-			vreg->max_uV = UFS_VREG_VCC_1P8_MAX_UV;
-		} else {
-			vreg->min_uV = UFS_VREG_VCC_MIN_UV;
-			vreg->max_uV = UFS_VREG_VCC_MAX_UV;
-		}
-	} else if (!strcmp(name, "vccq")) {
-		vreg->min_uV = UFS_VREG_VCCQ_MIN_UV;
-		vreg->max_uV = UFS_VREG_VCCQ_MAX_UV;
-	} else if (!strcmp(name, "vccq2")) {
-		vreg->min_uV = UFS_VREG_VCCQ2_MIN_UV;
-		vreg->max_uV = UFS_VREG_VCCQ2_MAX_UV;
-	}
-
-	goto out;
-
 out:
-	if (!ret)
-		*out_vreg = vreg;
-	return ret;
+	*out_vreg = vreg;
+	return 0;
 }
 
 /**
@@ -290,6 +239,120 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 }
 
 /**
+ * ufshcd_get_pwr_dev_param - get finally agreed attributes for
+ *                            power mode change
+ * @pltfrm_param: pointer to platform parameters
+ * @dev_max: pointer to device attributes
+ * @agreed_pwr: returned agreed attributes
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_get_pwr_dev_param(struct ufs_dev_params *pltfrm_param,
+			     struct ufs_pa_layer_attr *dev_max,
+			     struct ufs_pa_layer_attr *agreed_pwr)
+{
+	int min_pltfrm_gear;
+	int min_dev_gear;
+	bool is_dev_sup_hs = false;
+	bool is_pltfrm_max_hs = false;
+
+	if (dev_max->pwr_rx == FAST_MODE)
+		is_dev_sup_hs = true;
+
+	if (pltfrm_param->desired_working_mode == UFS_HS_MODE) {
+		is_pltfrm_max_hs = true;
+		min_pltfrm_gear = min_t(u32, pltfrm_param->hs_rx_gear,
+					pltfrm_param->hs_tx_gear);
+	} else {
+		min_pltfrm_gear = min_t(u32, pltfrm_param->pwm_rx_gear,
+					pltfrm_param->pwm_tx_gear);
+	}
+
+	/*
+	 * device doesn't support HS but
+	 * pltfrm_param->desired_working_mode is HS,
+	 * thus device and pltfrm_param don't agree
+	 */
+	if (!is_dev_sup_hs && is_pltfrm_max_hs) {
+		pr_info("%s: device doesn't support HS\n",
+			__func__);
+		return -ENOTSUPP;
+	} else if (is_dev_sup_hs && is_pltfrm_max_hs) {
+		/*
+		 * since device supports HS, it supports FAST_MODE.
+		 * since pltfrm_param->desired_working_mode is also HS
+		 * then final decision (FAST/FASTAUTO) is done according
+		 * to pltfrm_params as it is the restricting factor
+		 */
+		agreed_pwr->pwr_rx = pltfrm_param->rx_pwr_hs;
+		agreed_pwr->pwr_tx = agreed_pwr->pwr_rx;
+	} else {
+		/*
+		 * here pltfrm_param->desired_working_mode is PWM.
+		 * it doesn't matter whether device supports HS or PWM,
+		 * in both cases pltfrm_param->desired_working_mode will
+		 * determine the mode
+		 */
+		agreed_pwr->pwr_rx = pltfrm_param->rx_pwr_pwm;
+		agreed_pwr->pwr_tx = agreed_pwr->pwr_rx;
+	}
+
+	/*
+	 * we would like tx to work in the minimum number of lanes
+	 * between device capability and vendor preferences.
+	 * the same decision will be made for rx
+	 */
+	agreed_pwr->lane_tx = min_t(u32, dev_max->lane_tx,
+				    pltfrm_param->tx_lanes);
+	agreed_pwr->lane_rx = min_t(u32, dev_max->lane_rx,
+				    pltfrm_param->rx_lanes);
+
+	/* device maximum gear is the minimum between device rx and tx gears */
+	min_dev_gear = min_t(u32, dev_max->gear_rx, dev_max->gear_tx);
+
+	/*
+	 * if both device capabilities and vendor pre-defined preferences are
+	 * both HS or both PWM then set the minimum gear to be the chosen
+	 * working gear.
+	 * if one is PWM and one is HS then the one that is PWM get to decide
+	 * what is the gear, as it is the one that also decided previously what
+	 * pwr the device will be configured to.
+	 */
+	if ((is_dev_sup_hs && is_pltfrm_max_hs) ||
+	    (!is_dev_sup_hs && !is_pltfrm_max_hs)) {
+		agreed_pwr->gear_rx =
+			min_t(u32, min_dev_gear, min_pltfrm_gear);
+	} else if (!is_dev_sup_hs) {
+		agreed_pwr->gear_rx = min_dev_gear;
+	} else {
+		agreed_pwr->gear_rx = min_pltfrm_gear;
+	}
+	agreed_pwr->gear_tx = agreed_pwr->gear_rx;
+
+	agreed_pwr->hs_rate = pltfrm_param->hs_rate;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
+
+void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
+{
+	dev_param->tx_lanes = 2;
+	dev_param->rx_lanes = 2;
+	dev_param->hs_rx_gear = UFS_HS_G3;
+	dev_param->hs_tx_gear = UFS_HS_G3;
+	dev_param->pwm_rx_gear = UFS_PWM_G4;
+	dev_param->pwm_tx_gear = UFS_PWM_G4;
+	dev_param->rx_pwr_pwm = SLOW_MODE;
+	dev_param->tx_pwr_pwm = SLOW_MODE;
+	dev_param->rx_pwr_hs = FAST_MODE;
+	dev_param->tx_pwr_hs = FAST_MODE;
+	dev_param->hs_rate = PA_HS_MODE_B;
+	dev_param->desired_working_mode = UFS_HS_MODE;
+}
+EXPORT_SYMBOL_GPL(ufshcd_init_pwr_dev_param);
+
+/**
  * ufshcd_pltfrm_init - probe routine of the driver
  * @pdev: pointer to Platform device handle
  * @vops: pointer to variant ops
@@ -297,16 +360,14 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
  * Returns 0 on success, non-zero value on failure
  */
 int ufshcd_pltfrm_init(struct platform_device *pdev,
-		       struct ufs_hba_variant_ops *vops)
+		       const struct ufs_hba_variant_ops *vops)
 {
 	struct ufs_hba *hba;
 	void __iomem *mmio_base;
-	struct resource *mem_res;
 	int irq, err;
 	struct device *dev = &pdev->dev;
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio_base = devm_ioremap_resource(dev, mem_res);
+	mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio_base)) {
 		err = PTR_ERR(mmio_base);
 		goto out;
@@ -314,8 +375,7 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "IRQ resource not available\n");
-		err = -ENODEV;
+		err = irq;
 		goto out;
 	}
 
@@ -340,24 +400,21 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 		goto dealloc_host;
 	}
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-
 	ufshcd_init_lanes_per_dir(hba);
 
 	err = ufshcd_init(hba, mmio_base, irq);
 	if (err) {
 		dev_err(dev, "Initialization failed\n");
-		goto out_disable_rpm;
+		goto dealloc_host;
 	}
 
 	platform_set_drvdata(pdev, hba);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 
-out_disable_rpm:
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
 dealloc_host:
 	ufshcd_dealloc_host(hba);
 out:

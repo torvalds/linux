@@ -89,7 +89,7 @@ static inline int nla_put_u64_0pad(struct sk_buff *skb, int attrtype, u64 value)
 			nla_get_u64, nla_put_u64_0pad, false)
 #define __str_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
-			nla_strlcpy, nla_put, false)
+			nla_strscpy, nla_put, false)
 #define __bin_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_BINARY, char, maxlen, \
 			nla_memcpy, nla_put, false)
@@ -191,6 +191,7 @@ static inline void ct_assert_unique_operations(void)
 {
 	switch (0) {
 #include GENL_MAGIC_INCLUDE_FILE
+	case 0:
 		;
 	}
 }
@@ -209,6 +210,7 @@ static inline void ct_assert_unique_top_level_attributes(void)
 {
 	switch (0) {
 #include GENL_MAGIC_INCLUDE_FILE
+	case 0:
 		;
 	}
 }
@@ -218,7 +220,8 @@ static inline void ct_assert_unique_top_level_attributes(void)
 static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
 {									\
 	switch (0) {							\
-		s_fields						\
+	s_fields							\
+	case 0:								\
 			;						\
 	}								\
 }
@@ -280,4 +283,3 @@ enum {									\
 
 /* }}}1 */
 #endif /* GENL_MAGIC_STRUCT_H */
-/* vim: set foldmethod=marker nofoldenable : */

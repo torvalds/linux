@@ -17,6 +17,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include "extcon-intel.h"
+
 #define CHT_WC_PHYCTRL			0x5e07
 
 #define CHT_WC_CHGRCTRL0		0x5e16
@@ -29,7 +31,15 @@
 #define CHT_WC_CHGRCTRL0_DBPOFF		BIT(6)
 #define CHT_WC_CHGRCTRL0_CHR_WDT_NOKICK	BIT(7)
 
-#define CHT_WC_CHGRCTRL1		0x5e17
+#define CHT_WC_CHGRCTRL1			0x5e17
+#define CHT_WC_CHGRCTRL1_FUSB_INLMT_100		BIT(0)
+#define CHT_WC_CHGRCTRL1_FUSB_INLMT_150		BIT(1)
+#define CHT_WC_CHGRCTRL1_FUSB_INLMT_500		BIT(2)
+#define CHT_WC_CHGRCTRL1_FUSB_INLMT_900		BIT(3)
+#define CHT_WC_CHGRCTRL1_FUSB_INLMT_1500	BIT(4)
+#define CHT_WC_CHGRCTRL1_FTEMP_EVENT		BIT(5)
+#define CHT_WC_CHGRCTRL1_OTGMODE		BIT(6)
+#define CHT_WC_CHGRCTRL1_DBPEN			BIT(7)
 
 #define CHT_WC_USBSRC			0x5e29
 #define CHT_WC_USBSRC_STS_MASK		GENMASK(1, 0)
@@ -48,6 +58,13 @@
 #define CHT_WC_USBSRC_TYPE_OTHER	8
 #define CHT_WC_USBSRC_TYPE_DCP_EXTPHY	9
 
+#define CHT_WC_CHGDISCTRL		0x5e2f
+#define CHT_WC_CHGDISCTRL_OUT		BIT(0)
+/* 0 - open drain, 1 - regular push-pull output */
+#define CHT_WC_CHGDISCTRL_DRV		BIT(4)
+/* 0 - pin is controlled by SW, 1 - by HW */
+#define CHT_WC_CHGDISCTRL_FN		BIT(6)
+
 #define CHT_WC_PWRSRC_IRQ		0x6e03
 #define CHT_WC_PWRSRC_IRQ_MASK		0x6e0f
 #define CHT_WC_PWRSRC_STS		0x6e1e
@@ -64,15 +81,6 @@
 #define CHT_WC_VBUS_GPIO_CTLO_OUTPUT	BIT(0)
 #define CHT_WC_VBUS_GPIO_CTLO_DRV_OD	BIT(4)
 #define CHT_WC_VBUS_GPIO_CTLO_DIR_OUT	BIT(5)
-
-enum cht_wc_usb_id {
-	USB_ID_OTG,
-	USB_ID_GND,
-	USB_ID_FLOAT,
-	USB_RID_A,
-	USB_RID_B,
-	USB_RID_C,
-};
 
 enum cht_wc_mux_select {
 	MUX_SEL_PMIC = 0,
@@ -101,9 +109,9 @@ static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 {
 	switch ((pwrsrc_sts & CHT_WC_PWRSRC_USBID_MASK) >> CHT_WC_PWRSRC_USBID_SHIFT) {
 	case CHT_WC_PWRSRC_RID_GND:
-		return USB_ID_GND;
+		return INTEL_USB_ID_GND;
 	case CHT_WC_PWRSRC_RID_FLOAT:
-		return USB_ID_FLOAT;
+		return INTEL_USB_ID_FLOAT;
 	case CHT_WC_PWRSRC_RID_ACA:
 	default:
 		/*
@@ -111,7 +119,7 @@ static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 		 * the USBID GPADC channel here and determine ACA role
 		 * based on that.
 		 */
-		return USB_ID_FLOAT;
+		return INTEL_USB_ID_FLOAT;
 	}
 }
 
@@ -198,6 +206,30 @@ static void cht_wc_extcon_set_5v_boost(struct cht_wc_extcon_data *ext,
 		dev_err(ext->dev, "Error writing Vbus GPIO CTLO: %d\n", ret);
 }
 
+static void cht_wc_extcon_set_otgmode(struct cht_wc_extcon_data *ext,
+				      bool enable)
+{
+	unsigned int val = enable ? CHT_WC_CHGRCTRL1_OTGMODE : 0;
+	int ret;
+
+	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGRCTRL1,
+				 CHT_WC_CHGRCTRL1_OTGMODE, val);
+	if (ret)
+		dev_err(ext->dev, "Error updating CHGRCTRL1 reg: %d\n", ret);
+}
+
+static void cht_wc_extcon_enable_charging(struct cht_wc_extcon_data *ext,
+					  bool enable)
+{
+	unsigned int val = enable ? 0 : CHT_WC_CHGDISCTRL_OUT;
+	int ret;
+
+	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGDISCTRL,
+				 CHT_WC_CHGDISCTRL_OUT, val);
+	if (ret)
+		dev_err(ext->dev, "Error updating CHGDISCTRL reg: %d\n", ret);
+}
+
 /* Small helper to sync EXTCON_CHG_USB_SDP and EXTCON_USB state */
 static void cht_wc_extcon_set_state(struct cht_wc_extcon_data *ext,
 				    unsigned int cable, bool state)
@@ -221,10 +253,16 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 	}
 
 	id = cht_wc_extcon_get_id(ext, pwrsrc_sts);
-	if (id == USB_ID_GND) {
+	if (id == INTEL_USB_ID_GND) {
+		cht_wc_extcon_enable_charging(ext, false);
+		cht_wc_extcon_set_otgmode(ext, true);
+
 		/* The 5v boost causes a false VBUS / SDP detect, skip */
 		goto charger_det_done;
 	}
+
+	cht_wc_extcon_set_otgmode(ext, false);
+	cht_wc_extcon_enable_charging(ext, true);
 
 	/* Plugged into a host/charger or not connected? */
 	if (!(pwrsrc_sts & CHT_WC_PWRSRC_VBUS)) {
@@ -248,7 +286,7 @@ set_state:
 		ext->previous_cable = cable;
 	}
 
-	ext->usb_host = ((id == USB_ID_GND) || (id == USB_RID_A));
+	ext->usb_host = ((id == INTEL_USB_ID_GND) || (id == INTEL_USB_RID_A));
 	extcon_set_state_sync(ext->edev, EXTCON_USB_HOST, ext->usb_host);
 }
 
@@ -278,6 +316,14 @@ static int cht_wc_extcon_sw_control(struct cht_wc_extcon_data *ext, bool enable)
 {
 	int ret, mask, val;
 
+	val = enable ? 0 : CHT_WC_CHGDISCTRL_FN;
+	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGDISCTRL,
+				 CHT_WC_CHGDISCTRL_FN, val);
+	if (ret)
+		dev_err(ext->dev,
+			"Error setting sw control for CHGDIS pin: %d\n",
+			ret);
+
 	mask = CHT_WC_CHGRCTRL0_SWCONTROL | CHT_WC_CHGRCTRL0_CCSM_OFF;
 	val = enable ? mask : 0;
 	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGRCTRL0, mask, val);
@@ -292,6 +338,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
 	struct cht_wc_extcon_data *ext;
 	unsigned long mask = ~(CHT_WC_PWRSRC_VBUS | CHT_WC_PWRSRC_USBID_MASK);
+	int pwrsrc_sts, id;
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
@@ -329,7 +376,10 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	/* Enable sw control */
 	ret = cht_wc_extcon_sw_control(ext, true);
 	if (ret)
-		return ret;
+		goto disable_sw_control;
+
+	/* Disable charging by external battery charger */
+	cht_wc_extcon_enable_charging(ext, false);
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(ext->dev, ext->edev);
@@ -338,8 +388,19 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 		goto disable_sw_control;
 	}
 
-	/* Route D+ and D- to PMIC for initial charger detection */
-	cht_wc_extcon_set_phymux(ext, MUX_SEL_PMIC);
+	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_STS, &pwrsrc_sts);
+	if (ret) {
+		dev_err(ext->dev, "Error reading pwrsrc status: %d\n", ret);
+		goto disable_sw_control;
+	}
+
+	/*
+	 * If no USB host or device connected, route D+ and D- to PMIC for
+	 * initial charger detection
+	 */
+	id = cht_wc_extcon_get_id(ext, pwrsrc_sts);
+	if (id != INTEL_USB_ID_GND)
+		cht_wc_extcon_set_phymux(ext, MUX_SEL_PMIC);
 
 	/* Get initial state */
 	cht_wc_extcon_pwrsrc_event(ext);

@@ -35,14 +35,14 @@ Pins on the device (for linking into audio routes):
 
 Example:
 
-alc5631: alc5631@1a {
+alc5631: audio-codec@1a {
 	compatible = "realtek,alc5631";
 	reg = <0x1a>;
 };
 
 or
 
-rt5631: rt5631@1a {
+rt5631: audio-codec@1a {
 	compatible = "realtek,rt5631";
 	reg = <0x1a>;
 };

@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/rhashtable-types.h>
 #include <linux/xfrm.h>
 #include <net/dst_ops.h>
 
@@ -41,6 +42,7 @@ struct netns_xfrm {
 	struct hlist_head	__rcu *state_bydst;
 	struct hlist_head	__rcu *state_bysrc;
 	struct hlist_head	__rcu *state_byspi;
+	struct hlist_head	__rcu *state_byseq;
 	unsigned int		state_hmask;
 	unsigned int		state_num;
 	struct work_struct	state_hash_work;
@@ -53,6 +55,7 @@ struct netns_xfrm {
 	unsigned int		policy_count[XFRM_POLICY_MAX * 2];
 	struct work_struct	policy_hash_work;
 	struct xfrm_policy_hthresh policy_hthresh;
+	struct list_head	inexact_bins;
 
 
 	struct sock		*nlsk;
@@ -70,7 +73,9 @@ struct netns_xfrm {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct dst_ops		xfrm6_dst_ops;
 #endif
-	spinlock_t xfrm_state_lock;
+	spinlock_t		xfrm_state_lock;
+	seqcount_spinlock_t	xfrm_state_hash_generation;
+
 	spinlock_t xfrm_policy_lock;
 	struct mutex xfrm_cfg_mutex;
 };

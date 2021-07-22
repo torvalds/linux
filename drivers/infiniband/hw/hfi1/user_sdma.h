@@ -1,6 +1,7 @@
 #ifndef _HFI1_USER_SDMA_H
 #define _HFI1_USER_SDMA_H
 /*
+ * Copyright(c) 2020 - Cornelis Networks, Inc.
  * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -52,6 +53,7 @@
 #include "common.h"
 #include "iowait.h"
 #include "user_exp_rcv.h"
+#include "mmu_rb.h"
 
 /* The maximum number of Data io vectors per message/request */
 #define MAX_VECTORS_PER_REQ 8
@@ -110,12 +112,6 @@ enum pkt_q_sdma_state {
 	SDMA_PKT_Q_DEFERRED,
 };
 
-/*
- * Maximum retry attempts to submit a TX request
- * before putting the process to sleep.
- */
-#define MAX_DEFER_RETRY_COUNT 1
-
 #define SDMA_IOWAIT_TIMEOUT 1000 /* in milliseconds */
 
 #define SDMA_DBG(req, fmt, ...)				     \
@@ -139,7 +135,6 @@ struct hfi1_user_sdma_pkt_q {
 	unsigned long unpinned;
 	struct mmu_rb_handler *handler;
 	atomic_t n_locked;
-	struct mm_struct *mm;
 };
 
 struct hfi1_user_sdma_comp_q {
@@ -245,7 +240,6 @@ struct user_sdma_txreq {
 	struct list_head list;
 	struct user_sdma_request *req;
 	u16 flags;
-	unsigned int busycount;
 	u16 seqnum;
 };
 
@@ -256,5 +250,10 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 				   struct iovec *iovec, unsigned long dim,
 				   unsigned long *count);
+
+static inline struct mm_struct *mm_from_sdma_node(struct sdma_mmu_node *node)
+{
+	return node->rb.handler->mn.mm;
+}
 
 #endif /* _HFI1_USER_SDMA_H */

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright 2004 Jens Maurer <Jens.Maurer@gmx.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/netdevice.h>
@@ -127,10 +115,11 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 			buf->size = MGMT_FRAME_SIZE;
 		}
 		if (buf->pci_addr == 0) {
-			buf->pci_addr = pci_map_single(priv->pdev, buf->mem,
+			buf->pci_addr = dma_map_single(&priv->pdev->dev,
+						       buf->mem,
 						       MGMT_FRAME_SIZE,
-						       PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(priv->pdev, buf->pci_addr)) {
+						       DMA_FROM_DEVICE);
+			if (dma_mapping_error(&priv->pdev->dev, buf->pci_addr)) {
 				printk(KERN_WARNING
 				       "Failed to make memory DMA'able.\n");
 				return -ENOMEM;
@@ -215,9 +204,9 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 #endif
 
 	err = -ENOMEM;
-	buf.pci_addr = pci_map_single(priv->pdev, buf.mem, frag_len,
-				      PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(priv->pdev, buf.pci_addr)) {
+	buf.pci_addr = dma_map_single(&priv->pdev->dev, buf.mem, frag_len,
+				      DMA_TO_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, buf.pci_addr)) {
 		printk(KERN_WARNING "%s: cannot map PCI memory for mgmt\n",
 		       ndev->name);
 		goto error_free;
@@ -314,8 +303,8 @@ islpci_mgt_receive(struct net_device *ndev)
 		}
 
 		/* Ensure the results of device DMA are visible to the CPU. */
-		pci_dma_sync_single_for_cpu(priv->pdev, buf->pci_addr,
-					    buf->size, PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&priv->pdev->dev, buf->pci_addr,
+					buf->size, DMA_FROM_DEVICE);
 
 		/* Perform endianess conversion for PIMFOR header in-place. */
 		header = pimfor_decode_header(buf->mem, frag_len);
@@ -426,8 +415,8 @@ islpci_mgt_cleanup_transmit(struct net_device *ndev)
 	for (; priv->index_mgmt_tx < curr_frag; priv->index_mgmt_tx++) {
 		int index = priv->index_mgmt_tx % ISL38XX_CB_MGMT_QSIZE;
 		struct islpci_membuf *buf = &priv->mgmt_tx[index];
-		pci_unmap_single(priv->pdev, buf->pci_addr, buf->size,
-				 PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, buf->pci_addr, buf->size,
+				 DMA_TO_DEVICE);
 		buf->pci_addr = 0;
 		kfree(buf->mem);
 		buf->mem = NULL;

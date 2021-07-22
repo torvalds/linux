@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/bond/bond_options.h - bonding options
  * Copyright (c) 2013 Nikolay Aleksandrov <nikolay@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _NET_BOND_OPTIONS_H
@@ -67,6 +63,7 @@ enum {
 	BOND_OPT_AD_ACTOR_SYSTEM,
 	BOND_OPT_AD_USER_PORT_KEY,
 	BOND_OPT_NUM_PEER_NOTIF_ALIAS,
+	BOND_OPT_PEER_NOTIF_DELAY,
 	BOND_OPT_LAST
 };
 

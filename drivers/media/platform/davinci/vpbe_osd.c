@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010 Texas Instruments Inc
  * Copyright (C) 2007 MontaVista Software, Inc.
@@ -6,16 +7,6 @@
  * - Initial version
  * Murali Karicheri (mkaricheri@gmail.com), Texas Instruments Ltd.
  * - ported to sub device interface
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -24,11 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include <mach/cputype.h>
-#include <mach/hardware.h>
-#endif
 
 #include <media/davinci/vpss.h>
 #include <media/v4l2-device.h>

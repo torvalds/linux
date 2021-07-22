@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/slab.h>
@@ -363,13 +359,6 @@ int snd_line6_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto error;
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0) {
-		line6_buffer_release(line6pcm, pstr, LINE6_STREAM_PCM);
-		goto error;
-	}
-
 	pstr->period = params_period_bytes(hw_params);
  error:
 	mutex_unlock(&line6pcm->state_mutex);
@@ -385,7 +374,7 @@ int snd_line6_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&line6pcm->state_mutex);
 	line6_buffer_release(line6pcm, pstr, LINE6_STREAM_PCM);
 	mutex_unlock(&line6pcm->state_mutex);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 
@@ -505,10 +494,8 @@ static int snd_line6_new_pcm(struct usb_line6 *line6, struct snd_pcm **pcm_ret)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_line6_capture_ops);
 
 	/* pre-allocation of buffers */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data
-					      (GFP_KERNEL), 64 * 1024,
-					      128 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 64 * 1024, 128 * 1024);
 	return 0;
 }
 
@@ -554,13 +541,6 @@ int line6_init_pcm(struct usb_line6 *line6,
 	line6pcm->volume_monitor = 255;
 	line6pcm->line6 = line6;
 
-	line6pcm->max_packet_size_in =
-		usb_maxpacket(line6->usbdev,
-			usb_rcvisocpipe(line6->usbdev, ep_read), 0);
-	line6pcm->max_packet_size_out =
-		usb_maxpacket(line6->usbdev,
-			usb_sndisocpipe(line6->usbdev, ep_write), 1);
-
 	spin_lock_init(&line6pcm->out.lock);
 	spin_lock_init(&line6pcm->in.lock);
 	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
@@ -569,6 +549,18 @@ int line6_init_pcm(struct usb_line6 *line6,
 
 	pcm->private_data = line6pcm;
 	pcm->private_free = line6_cleanup_pcm;
+
+	line6pcm->max_packet_size_in =
+		usb_maxpacket(line6->usbdev,
+			usb_rcvisocpipe(line6->usbdev, ep_read), 0);
+	line6pcm->max_packet_size_out =
+		usb_maxpacket(line6->usbdev,
+			usb_sndisocpipe(line6->usbdev, ep_write), 1);
+	if (!line6pcm->max_packet_size_in || !line6pcm->max_packet_size_out) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot get proper max packet size\n");
+		return -EINVAL;
+	}
 
 	err = line6_create_audio_out_urbs(line6pcm);
 	if (err < 0)

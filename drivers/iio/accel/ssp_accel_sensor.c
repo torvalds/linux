@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/iio/common/ssp_sensors.h>
@@ -106,7 +96,6 @@ static int ssp_accel_probe(struct platform_device *pdev)
 	int ret;
 	struct iio_dev *indio_dev;
 	struct ssp_sensor_data *spd;
-	struct iio_buffer *buffer;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*spd));
 	if (!indio_dev)
@@ -118,21 +107,16 @@ static int ssp_accel_probe(struct platform_device *pdev)
 	spd->type = SSP_ACCELEROMETER_SENSOR;
 
 	indio_dev->name = ssp_accel_device_name;
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &ssp_accel_iio_info;
-	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = ssp_acc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ssp_acc_channels);
 	indio_dev->available_scan_masks = ssp_accel_scan_mask;
 
-	buffer = devm_iio_kfifo_allocate(&pdev->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	indio_dev->setup_ops = &ssp_accel_buffer_ops;
+	ret = devm_iio_kfifo_buffer_setup(&pdev->dev, indio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &ssp_accel_buffer_ops);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, indio_dev);
 

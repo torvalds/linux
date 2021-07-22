@@ -19,11 +19,11 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 	else if (AntPower >= 0)
 		return	100;
 	else
-		return	(100+AntPower);
+		return 100 + AntPower;
 
 }
 
-static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
+s32 odm_SignalScaleMapping(struct dm_odm_t *pDM_Odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
 
@@ -49,11 +49,6 @@ static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
 	return RetSig;
 }
 
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
-{
-	return odm_SignalScaleMapping_92CSeries(pDM_Odm, CurrSig);
-}
-
 static u8 odm_EVMdbToPercentage(s8 Value)
 {
 	/*  */
@@ -63,9 +58,6 @@ static u8 odm_EVMdbToPercentage(s8 Value)
 
 	ret_val = Value;
 	ret_val /= 2;
-
-	/* DbgPrint("Value =%d\n", Value); */
-	/* ODM_RT_DISP(FRX, RX_PHY_SQ, ("EVMdbToPercentage92C Value =%d / %x\n", ret_val, ret_val)); */
 
 	if (ret_val >= 0)
 		ret_val = 0;
@@ -82,7 +74,7 @@ static u8 odm_EVMdbToPercentage(s8 Value)
 }
 
 static void odm_RxPhyStatus92CSeries_Parsing(
-	PDM_ODM_T pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -94,9 +86,8 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	u8 RSSI, total_rssi = 0;
 	bool isCCKrate = false;
 	u8 rf_rx_num = 0;
-	u8 cck_highpwr = 0;
 	u8 LNA_idx, VGA_idx;
-	PPHY_STATUS_RPT_8192CD_T pPhyStaRpt = (PPHY_STATUS_RPT_8192CD_T)pPhyStatus;
+	struct phy_status_rpt_8192cd_t *pPhyStaRpt = (struct phy_status_rpt_8192cd_t *)pPhyStatus;
 
 	isCCKrate = pPktinfo->data_rate <= DESC_RATE11M;
 	pPhyInfo->rx_mimo_signal_quality[ODM_RF_PATH_A] = -1;
@@ -109,19 +100,13 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		pDM_Odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 		/*  */
 		/*  (1)Hardware does not provide RSSI for CCK */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 
-		/* if (pHalData->eRFPowerState == eRfOn) */
-		cck_highpwr = pDM_Odm->bCckHighPower;
-		/* else */
-		/* cck_highpwr = false; */
-
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt = pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
-		/* In 88E, cck_highpwr is always set to 1 */
 		LNA_idx = ((cck_agc_rpt & 0xE0)>>5);
 		VGA_idx = (cck_agc_rpt & 0x1F);
 		rx_pwr_all = odm_CCKRSSI_8723B(LNA_idx, VGA_idx);
@@ -153,7 +138,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 
 			}
 
-			/* DbgPrint("cck SQ = %d\n", SQ); */
 			pPhyInfo->signal_quality = SQ;
 			pPhyInfo->rx_mimo_signal_quality[ODM_RF_PATH_A] = SQ;
 			pPhyInfo->rx_mimo_signal_quality[ODM_RF_PATH_B] = -1;
@@ -180,7 +164,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 			/* Translate DBM to percentage. */
 			RSSI = odm_QueryRxPwrPercentage(rx_pwr[i]);
 			total_rssi += RSSI;
-			/* RT_DISP(FRX, RX_PHY_SS, ("RF-%d RXPWR =%x RSSI =%d\n", i, rx_pwr[i], RSSI)); */
 
 			pPhyInfo->rx_mimo_signal_strength[i] = (u8) RSSI;
 
@@ -190,15 +173,13 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 
 
 		/*  */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1)&0x7f)-110;
 
 		PWDB_ALL_BT = PWDB_ALL = odm_QueryRxPwrPercentage(rx_pwr_all);
-		/* RT_DISP(FRX, RX_PHY_SS, ("PWDB_ALL =%d\n", PWDB_ALL)); */
 
 		pPhyInfo->rx_pwd_ba11 = PWDB_ALL;
-		/* ODM_RT_TRACE(pDM_Odm, ODM_COMP_RSSI_MONITOR, ODM_DBG_LOUD, ("ODM OFDM RSSI =%d\n", pPhyInfo->rx_pwd_ba11)); */
 		pPhyInfo->bt_rx_rssi_percentage = PWDB_ALL_BT;
 		pPhyInfo->rx_power = rx_pwr_all;
 		pPhyInfo->recv_signal_power = rx_pwr_all;
@@ -218,9 +199,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 				/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
 				EVM = odm_EVMdbToPercentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
 
-				/* RT_DISP(FRX, RX_PHY_SQ, ("RXRATE =%x RXEVM =%x EVM =%s%d\n", */
-				/* GET_RX_STATUS_DESC_RX_MCS(pDesc), pDrvInfo->rxevm[i], "%", EVM)); */
-
 				/* if (pPktinfo->bPacketMatchBSSID) */
 				{
 					if (i == ODM_RF_PATH_A) /*  Fill value in RFD, Get the first spatial stream only */
@@ -238,28 +216,16 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	/* UI BSS List signal strength(in percentage), make it good looking, from 0~100. */
 	/* It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp(). */
 	if (isCCKrate) {
-#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-		pPhyInfo->SignalStrength = (u8)PWDB_ALL;
-#else
 		pPhyInfo->signal_strength = (u8)(odm_SignalScaleMapping(pDM_Odm, PWDB_ALL));/* PWDB_ALL; */
-#endif
 	} else {
 		if (rf_rx_num != 0) {
-#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-			total_rssi /= rf_rx_num;
-			pPhyInfo->signal_strength = (u8)total_rssi;
-#else
 			pPhyInfo->signal_strength = (u8)(odm_SignalScaleMapping(pDM_Odm, total_rssi /= rf_rx_num));
-#endif
 		}
 	}
-
-	/* DbgPrint("isCCKrate = %d, pPhyInfo->rx_pwd_ba11 = %d, pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a = 0x%x\n", */
-		/* isCCKrate, pPhyInfo->rx_pwd_ba11, pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a); */
 }
 
 static void odm_Process_RSSIForDM(
-	PDM_ODM_T pDM_Odm, struct odm_phy_info *pPhyInfo, struct odm_packet_info *pPktinfo
+	struct dm_odm_t *pDM_Odm, struct odm_phy_info *pPhyInfo, struct odm_packet_info *pPktinfo
 )
 {
 
@@ -307,8 +273,6 @@ static void odm_Process_RSSIForDM(
 				pDM_Odm->RSSI_A = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
 				pDM_Odm->RSSI_B = 0;
 			} else {
-				/* DbgPrint("pRfd->Status.rx_mimo_signal_strength[0] = %d, pRfd->Status.rx_mimo_signal_strength[1] = %d\n", */
-					/* pRfd->Status.rx_mimo_signal_strength[0], pRfd->Status.rx_mimo_signal_strength[1]); */
 				pDM_Odm->RSSI_A =  pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
 				pDM_Odm->RSSI_B = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B];
 
@@ -398,11 +362,6 @@ static void odm_Process_RSSIForDM(
 			pEntry->rssi_stat.UndecoratedSmoothedCCK = UndecoratedSmoothedCCK;
 			pEntry->rssi_stat.UndecoratedSmoothedOFDM = UndecoratedSmoothedOFDM;
 			pEntry->rssi_stat.UndecoratedSmoothedPWDB = UndecoratedSmoothedPWDB;
-
-			/* DbgPrint("OFDM_pkt =%d, Weighting =%d\n", OFDM_pkt, Weighting); */
-			/* DbgPrint("UndecoratedSmoothedOFDM =%d, UndecoratedSmoothedPWDB =%d, UndecoratedSmoothedCCK =%d\n", */
-			/* UndecoratedSmoothedOFDM, UndecoratedSmoothedPWDB, UndecoratedSmoothedCCK); */
-
 		}
 
 	}
@@ -413,7 +372,7 @@ static void odm_Process_RSSIForDM(
 /*  Endianness before calling this API */
 /*  */
 static void ODM_PhyStatusQuery_92CSeries(
-	PDM_ODM_T pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -427,7 +386,7 @@ static void ODM_PhyStatusQuery_92CSeries(
 }
 
 void ODM_PhyStatusQuery(
-	PDM_ODM_T pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -442,18 +401,12 @@ void ODM_PhyStatusQuery(
 /*  */
 /*  */
 
-HAL_STATUS ODM_ConfigRFWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_RF_Config_Type ConfigType,
-	ODM_RF_RADIO_PATH_E eRFPath
+enum hal_status ODM_ConfigRFWithHeaderFile(
+	struct dm_odm_t *pDM_Odm,
+	enum ODM_RF_Config_Type ConfigType,
+	enum odm_rf_radio_path_e eRFPath
 )
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				("===>ODM_ConfigRFWithHeaderFile (%s)\n", (pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				("pDM_Odm->SupportPlatform: 0x%X, pDM_Odm->SupportInterface: 0x%X, pDM_Odm->BoardType: 0x%X\n",
-				pDM_Odm->SupportPlatform, pDM_Odm->SupportInterface, pDM_Odm->BoardType));
-
 	if (ConfigType == CONFIG_RF_RADIO)
 		READ_AND_CONFIG(8723B, _RadioA);
 	else if (ConfigType == CONFIG_RF_TXPWR_LMT)
@@ -462,30 +415,18 @@ HAL_STATUS ODM_ConfigRFWithHeaderFile(
 	return HAL_STATUS_SUCCESS;
 }
 
-HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm)
+enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm)
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				 ("===>ODM_ConfigRFWithTxPwrTrackHeaderFile (%s)\n", (pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				 ("pDM_Odm->SupportPlatform: 0x%X, pDM_Odm->SupportInterface: 0x%X, pDM_Odm->BoardType: 0x%X\n",
-				 pDM_Odm->SupportPlatform, pDM_Odm->SupportInterface, pDM_Odm->BoardType));
-
 	if (pDM_Odm->SupportInterface == ODM_ITRF_SDIO)
 		READ_AND_CONFIG(8723B, _TxPowerTrack_SDIO);
 
 	return HAL_STATUS_SUCCESS;
 }
 
-HAL_STATUS ODM_ConfigBBWithHeaderFile(
-	PDM_ODM_T pDM_Odm, ODM_BB_Config_Type ConfigType
+enum hal_status ODM_ConfigBBWithHeaderFile(
+	struct dm_odm_t *pDM_Odm, enum ODM_BB_Config_Type ConfigType
 )
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				("===>ODM_ConfigBBWithHeaderFile (%s)\n", (pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-				("pDM_Odm->SupportPlatform: 0x%X, pDM_Odm->SupportInterface: 0x%X, pDM_Odm->BoardType: 0x%X\n",
-				pDM_Odm->SupportPlatform, pDM_Odm->SupportInterface, pDM_Odm->BoardType));
-
 	if (ConfigType == CONFIG_BB_PHY_REG)
 		READ_AND_CONFIG(8723B, _PHY_REG);
 	else if (ConfigType == CONFIG_BB_AGC_TAB)
@@ -496,32 +437,3 @@ HAL_STATUS ODM_ConfigBBWithHeaderFile(
 	return HAL_STATUS_SUCCESS;
 }
 
-HAL_STATUS ODM_ConfigMACWithHeaderFile(PDM_ODM_T pDM_Odm)
-{
-	u8 result = HAL_STATUS_SUCCESS;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		(
-			"===>ODM_ConfigMACWithHeaderFile (%s)\n",
-			(pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		(
-			"pDM_Odm->SupportPlatform: 0x%X, pDM_Odm->SupportInterface: 0x%X, pDM_Odm->BoardType: 0x%X\n",
-			pDM_Odm->SupportPlatform,
-			pDM_Odm->SupportInterface,
-			pDM_Odm->BoardType
-		)
-	);
-
-	READ_AND_CONFIG(8723B, _MAC_REG);
-
-	return result;
-}

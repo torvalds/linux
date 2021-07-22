@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018, Intel Corporation.
 
 /*
- * soc-apci-intel-hda-match.c - tables and support for HDA+ACPI enumeration.
+ * soc-acpi-intel-hda-match.c - tables and support for HDA+ACPI enumeration.
  *
  */
 
@@ -23,7 +23,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
 
 		/* .sof_fw_filename is dynamically set in sof/intel driver */
 
-		.sof_tplg_filename = "intel/sof-hda-generic.tplg",
+		.sof_tplg_filename = "sof-hda-generic.tplg",
 
 		/*
 		 * .machine_quirk and .quirk_data are not used here but

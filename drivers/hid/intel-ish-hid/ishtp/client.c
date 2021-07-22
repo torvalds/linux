@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ISHTP client logic
  *
  * Copyright (c) 2003-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/slab.h>
@@ -19,6 +10,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
 #include "hbm.h"
 #include "client.h"
 
@@ -120,13 +112,13 @@ static void ishtp_cl_init(struct ishtp_cl *cl, struct ishtp_device *dev)
 
 /**
  * ishtp_cl_allocate() - allocates client structure and sets it up.
- * @dev: ishtp device
+ * @cl_device: ishtp client device
  *
  * Allocate memory for new client device and call to initialize each field.
  *
  * Return: The allocated client instance or NULL on failure
  */
-struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
+struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *cl;
 
@@ -134,7 +126,7 @@ struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
 	if (!cl)
 		return NULL;
 
-	ishtp_cl_init(cl, dev);
+	ishtp_cl_init(cl, cl_device->ishtp_dev);
 	return cl;
 }
 EXPORT_SYMBOL(ishtp_cl_allocate);
@@ -168,9 +160,6 @@ EXPORT_SYMBOL(ishtp_cl_free);
 /**
  * ishtp_cl_link() - Reserve a host id and link the client instance
  * @cl: client device instance
- * @id: host client id to use. It can be ISHTP_HOST_CLIENT_ID_ANY if any
- *	id from the available can be used
- *
  *
  * This allocates a single bit in the hostmap. This function will make sure
  * that not many client sessions are opened at the same time. Once allocated
@@ -179,11 +168,11 @@ EXPORT_SYMBOL(ishtp_cl_free);
  *
  * Return: 0 or error code on failure
  */
-int ishtp_cl_link(struct ishtp_cl *cl, int id)
+int ishtp_cl_link(struct ishtp_cl *cl)
 {
 	struct ishtp_device *dev;
-	unsigned long	flags, flags_cl;
-	int	ret = 0;
+	unsigned long flags, flags_cl;
+	int id, ret = 0;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -197,10 +186,7 @@ int ishtp_cl_link(struct ishtp_cl *cl, int id)
 		goto unlock_dev;
 	}
 
-	/* If Id is not assigned get one*/
-	if (id == ISHTP_HOST_CLIENT_ID_ANY)
-		id = find_first_zero_bit(dev->host_clients_map,
-			ISHTP_CLIENTS_MAX);
+	id = find_first_zero_bit(dev->host_clients_map, ISHTP_CLIENTS_MAX);
 
 	if (id >= ISHTP_CLIENTS_MAX) {
 		spin_unlock_irqrestore(&dev->device_lock, flags);
@@ -278,7 +264,6 @@ EXPORT_SYMBOL(ishtp_cl_unlink);
 int ishtp_cl_disconnect(struct ishtp_cl *cl)
 {
 	struct ishtp_device *dev;
-	int err;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -298,7 +283,7 @@ int ishtp_cl_disconnect(struct ishtp_cl *cl)
 		return -ENODEV;
 	}
 
-	err = wait_event_interruptible_timeout(cl->wait_ctrl_res,
+	wait_event_interruptible_timeout(cl->wait_ctrl_res,
 			(dev->dev_state != ISHTP_DEV_ENABLED ||
 			cl->state == ISHTP_CL_DISCONNECTED),
 			ishtp_secs_to_jiffies(ISHTP_CL_CONNECT_TIMEOUT));
@@ -788,6 +773,14 @@ static void ishtp_cl_send_msg_dma(struct ishtp_device *dev,
 	/* write msg to dma buf */
 	memcpy(msg_addr, cl_msg->send_buf.data, cl_msg->send_buf.size);
 
+	/*
+	 * if current fw don't support cache snooping, driver have to
+	 * flush the cache manually.
+	 */
+	if (dev->ops->dma_no_cache_snooping &&
+		dev->ops->dma_no_cache_snooping(dev))
+		clflush_cache_range(msg_addr, cl_msg->send_buf.size);
+
 	/* send dma_xfer hbm msg */
 	off = msg_addr - (unsigned char *)dev->ishtp_host_dma_tx_buf;
 	ishtp_hbm_hdr(&hdr, sizeof(struct dma_xfer_hbm));
@@ -1012,6 +1005,15 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 		}
 
 		buffer = rb->buffer.data;
+
+		/*
+		 * if current fw don't support cache snooping, driver have to
+		 * flush the cache manually.
+		 */
+		if (dev->ops->dma_no_cache_snooping &&
+			dev->ops->dma_no_cache_snooping(dev))
+			clflush_cache_range(msg, hbm->msg_length);
+
 		memcpy(buffer, msg, hbm->msg_length);
 		rb->buf_idx = hbm->msg_length;
 
@@ -1069,3 +1071,45 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 eoi:
 	return;
 }
+
+void *ishtp_get_client_data(struct ishtp_cl *cl)
+{
+	return cl->client_data;
+}
+EXPORT_SYMBOL(ishtp_get_client_data);
+
+void ishtp_set_client_data(struct ishtp_cl *cl, void *data)
+{
+	cl->client_data = data;
+}
+EXPORT_SYMBOL(ishtp_set_client_data);
+
+struct ishtp_device *ishtp_get_ishtp_device(struct ishtp_cl *cl)
+{
+	return cl->dev;
+}
+EXPORT_SYMBOL(ishtp_get_ishtp_device);
+
+void ishtp_set_tx_ring_size(struct ishtp_cl *cl, int size)
+{
+	cl->tx_ring_size = size;
+}
+EXPORT_SYMBOL(ishtp_set_tx_ring_size);
+
+void ishtp_set_rx_ring_size(struct ishtp_cl *cl, int size)
+{
+	cl->rx_ring_size = size;
+}
+EXPORT_SYMBOL(ishtp_set_rx_ring_size);
+
+void ishtp_set_connection_state(struct ishtp_cl *cl, int state)
+{
+	cl->state = state;
+}
+EXPORT_SYMBOL(ishtp_set_connection_state);
+
+void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id)
+{
+	cl->fw_client_id = fw_client_id;
+}
+EXPORT_SYMBOL(ishtp_cl_set_fw_client_id);

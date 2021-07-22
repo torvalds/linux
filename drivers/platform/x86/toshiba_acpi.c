@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  toshiba_acpi.c - Toshiba Laptop ACPI Extras
  *
@@ -5,19 +6,6 @@
  *  Copyright (C) 2008 Philip Langdale
  *  Copyright (C) 2010 Pierre Ducroquet
  *  Copyright (C) 2014-2016 Azael Avalos
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  *
  *  The devolpment page for this driver is located at
  *  http://memebeam.org/toys/ToshibaAcpiDriver.
@@ -217,9 +205,6 @@ struct toshiba_acpi_dev {
 	unsigned int special_functions;
 
 	bool kbd_event_generated;
-	bool kbd_led_registered;
-	bool illumination_led_registered;
-	bool eco_led_registered;
 	bool killswitch;
 };
 
@@ -470,7 +455,6 @@ static void toshiba_illumination_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->illumination_supported = 0;
-	dev->illumination_led_registered = false;
 
 	if (!sci_open(dev))
 		return;
@@ -540,7 +524,6 @@ static void toshiba_kbd_illum_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->kbd_illum_supported = 0;
-	dev->kbd_led_registered = false;
 	dev->kbd_event_generated = false;
 
 	if (!sci_open(dev))
@@ -685,7 +668,6 @@ static void toshiba_eco_mode_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->eco_supported = 0;
-	dev->eco_led_registered = false;
 
 	status = tci_raw(dev, in, out);
 	if (ACPI_FAILURE(status)) {
@@ -1444,13 +1426,12 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations lcd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= lcd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= lcd_proc_write,
+static const struct proc_ops lcd_proc_ops = {
+	.proc_open	= lcd_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= lcd_proc_write,
 };
 
 /* Video-Out */
@@ -1497,7 +1478,7 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
 	char *buffer;
 	char *cmd;
-	int lcd_out, crt_out, tv_out;
+	int lcd_out = -1, crt_out = -1, tv_out = -1;
 	int remain = count;
 	int value;
 	int ret;
@@ -1529,7 +1510,6 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 
 	kfree(cmd);
 
-	lcd_out = crt_out = tv_out = -1;
 	ret = get_video_status(dev, &video_out);
 	if (!ret) {
 		unsigned int new_video_out = video_out;
@@ -1551,13 +1531,12 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	return ret ? -EIO : count;
 }
 
-static const struct file_operations video_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= video_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= video_proc_write,
+static const struct proc_ops video_proc_ops = {
+	.proc_open	= video_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= video_proc_write,
 };
 
 /* Fan status */
@@ -1629,13 +1608,12 @@ static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations fan_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= fan_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= fan_proc_write,
+static const struct proc_ops fan_proc_ops = {
+	.proc_open	= fan_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= fan_proc_write,
 };
 
 static int keys_proc_show(struct seq_file *m, void *v)
@@ -1674,13 +1652,12 @@ static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations keys_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= keys_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= keys_proc_write,
+static const struct proc_ops keys_proc_ops = {
+	.proc_open	= keys_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= keys_proc_write,
 };
 
 static int __maybe_unused version_proc_show(struct seq_file *m, void *v)
@@ -1700,16 +1677,16 @@ static void create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
 	if (dev->backlight_dev)
 		proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &lcd_proc_fops, dev);
+				 &lcd_proc_ops, dev);
 	if (dev->video_supported)
 		proc_create_data("video", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &video_proc_fops, dev);
+				 &video_proc_ops, dev);
 	if (dev->fan_supported)
 		proc_create_data("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &fan_proc_fops, dev);
+				 &fan_proc_ops, dev);
 	if (dev->hotkey_dev)
 		proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &keys_proc_fops, dev);
+				 &keys_proc_ops, dev);
 	proc_create_single_data("version", S_IRUGO, toshiba_proc_dir,
 			version_proc_show, dev);
 }
@@ -2770,7 +2747,7 @@ static void toshiba_acpi_process_hotkeys(struct toshiba_acpi_dev *dev)
 				result = hci_write(dev, HCI_SYSTEM_EVENT, 1);
 				if (result == TOS_SUCCESS)
 					pr_notice("Re-enabled hotkeys\n");
-				/* Fall through */
+				fallthrough;
 			default:
 				retries--;
 				break;
@@ -2854,6 +2831,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 
 	if (!dev->info_supported && !dev->system_event_supported) {
 		pr_warn("No hotkey query interface found\n");
+		error = -EINVAL;
 		goto err_remove_filter;
 	}
 
@@ -3009,14 +2987,9 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 
 	backlight_device_unregister(dev->backlight_dev);
 
-	if (dev->illumination_led_registered)
-		led_classdev_unregister(&dev->led_dev);
-
-	if (dev->kbd_led_registered)
-		led_classdev_unregister(&dev->kbd_led);
-
-	if (dev->eco_led_registered)
-		led_classdev_unregister(&dev->eco_led);
+	led_classdev_unregister(&dev->led_dev);
+	led_classdev_unregister(&dev->kbd_led);
+	led_classdev_unregister(&dev->eco_led);
 
 	if (dev->wwan_rfk) {
 		rfkill_unregister(dev->wwan_rfk);
@@ -3108,8 +3081,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->led_dev.max_brightness = 1;
 		dev->led_dev.brightness_set = toshiba_illumination_set;
 		dev->led_dev.brightness_get = toshiba_illumination_get;
-		if (!led_classdev_register(&acpi_dev->dev, &dev->led_dev))
-			dev->illumination_led_registered = true;
+		led_classdev_register(&acpi_dev->dev, &dev->led_dev);
 	}
 
 	toshiba_eco_mode_available(dev);
@@ -3118,8 +3090,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->eco_led.max_brightness = 1;
 		dev->eco_led.brightness_set = toshiba_eco_mode_set_status;
 		dev->eco_led.brightness_get = toshiba_eco_mode_get_status;
-		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led))
-			dev->eco_led_registered = true;
+		led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led);
 	}
 
 	toshiba_kbd_illum_available(dev);
@@ -3135,8 +3106,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->kbd_led.max_brightness = 1;
 		dev->kbd_led.brightness_set = toshiba_kbd_backlight_set;
 		dev->kbd_led.brightness_get = toshiba_kbd_backlight_get;
-		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->kbd_led))
-			dev->kbd_led_registered = true;
+		led_classdev_register(&dev->acpi_dev->dev, &dev->kbd_led);
 	}
 
 	ret = toshiba_touchpad_get(dev, &dummy);
@@ -3144,7 +3114,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	toshiba_accelerometer_available(dev);
 	if (dev->accelerometer_supported) {
-		dev->indio_dev = iio_device_alloc(sizeof(*dev));
+		dev->indio_dev = iio_device_alloc(&acpi_dev->dev, sizeof(*dev));
 		if (!dev->indio_dev) {
 			pr_err("Unable to allocate iio device\n");
 			goto iio_error;
@@ -3154,7 +3124,6 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 		dev->indio_dev->info = &toshiba_iio_accel_info;
 		dev->indio_dev->name = "Toshiba accelerometer";
-		dev->indio_dev->dev.parent = &acpi_dev->dev;
 		dev->indio_dev->modes = INDIO_DIRECT_MODE;
 		dev->indio_dev->channels = toshiba_iio_accel_channels;
 		dev->indio_dev->num_channels =

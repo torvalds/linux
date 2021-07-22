@@ -3,7 +3,7 @@
 #include <linux/version.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /*
  * The CPU number, cstate number and pstate number are based
@@ -51,28 +51,28 @@ static int cpu_opps[] = { 208000, 432000, 729000, 960000, 1200000 };
 #define MAP_OFF_PSTATE_IDX	3
 #define MAP_OFF_NUM		4
 
-struct bpf_map_def SEC("maps") my_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_CPU * MAP_OFF_NUM,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u64);
+	__uint(max_entries, MAX_CPU * MAP_OFF_NUM);
+} my_map SEC(".maps");
 
 /* cstate_duration records duration time for every idle state per CPU */
-struct bpf_map_def SEC("maps") cstate_duration = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_CPU * MAX_CSTATE_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u64);
+	__uint(max_entries, MAX_CPU * MAX_CSTATE_ENTRIES);
+} cstate_duration SEC(".maps");
 
 /* pstate_duration records duration time for every operating point per CPU */
-struct bpf_map_def SEC("maps") pstate_duration = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_CPU * MAX_PSTATE_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u64);
+	__uint(max_entries, MAX_CPU * MAX_PSTATE_ENTRIES);
+} pstate_duration SEC(".maps");
 
 /*
  * The trace events for cpu_idle and cpu_frequency are taken from:

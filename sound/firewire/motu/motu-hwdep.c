@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-hwdep.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 /*
@@ -87,7 +86,7 @@ static int hwdep_get_info(struct snd_motu *motu, void __user *arg)
 	info.card = dev->card->index;
 	*(__be32 *)&info.guid[0] = cpu_to_be32(dev->config_rom[3]);
 	*(__be32 *)&info.guid[4] = cpu_to_be32(dev->config_rom[4]);
-	strlcpy(info.device_name, dev_name(&dev->device),
+	strscpy(info.device_name, dev_name(&dev->device),
 		sizeof(info.device_name));
 
 	if (copy_to_user(arg, &info, sizeof(info)))

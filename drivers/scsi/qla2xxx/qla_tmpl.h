@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #ifndef __QLA_DMP27_H__
@@ -11,23 +10,23 @@
 #define IOBASE_ADDR	offsetof(struct device_reg_24xx, iobase_addr)
 
 struct __packed qla27xx_fwdt_template {
-	uint32_t template_type;
-	uint32_t entry_offset;
-	uint32_t template_size;
-	uint32_t reserved_1;
+	__le32 template_type;
+	__le32 entry_offset;
+	__le32 template_size;
+	uint32_t count;		/* borrow field for running/residual count */
 
-	uint32_t entry_count;
+	__le32 entry_count;
 	uint32_t template_version;
-	uint32_t capture_timestamp;
+	__le32 capture_timestamp;
 	uint32_t template_checksum;
 
 	uint32_t reserved_2;
-	uint32_t driver_info[3];
+	__le32 driver_info[3];
 
 	uint32_t saved_state[16];
 
 	uint32_t reserved_3[8];
-	uint32_t firmware_version[5];
+	__le32 firmware_version[5];
 };
 
 #define TEMPLATE_TYPE_FWDUMP		99
@@ -54,6 +53,9 @@ struct __packed qla27xx_fwdt_template {
 #define ENTRY_TYPE_PCICFG		273
 #define ENTRY_TYPE_GET_SHADOW		274
 #define ENTRY_TYPE_WRITE_BUF		275
+#define ENTRY_TYPE_CONDITIONAL		276
+#define ENTRY_TYPE_RDPEPREG		277
+#define ENTRY_TYPE_WRPEPREG		278
 
 #define CAPTURE_FLAG_PHYS_ONLY		BIT_0
 #define CAPTURE_FLAG_PHYS_VIRT		BIT_1
@@ -62,8 +64,8 @@ struct __packed qla27xx_fwdt_template {
 
 struct __packed qla27xx_fwdt_entry {
 	struct __packed {
-		uint32_t entry_type;
-		uint32_t entry_size;
+		__le32 type;
+		__le32 size;
 		uint32_t reserved_1;
 
 		uint8_t  capture_flags;
@@ -78,36 +80,36 @@ struct __packed qla27xx_fwdt_entry {
 		} t255;
 
 		struct __packed {
-			uint32_t base_addr;
+			__le32 base_addr;
 			uint8_t  reg_width;
-			uint16_t reg_count;
+			__le16 reg_count;
 			uint8_t  pci_offset;
 		} t256;
 
 		struct __packed {
-			uint32_t base_addr;
-			uint32_t write_data;
+			__le32 base_addr;
+			__le32 write_data;
 			uint8_t  pci_offset;
 			uint8_t  reserved[3];
 		} t257;
 
 		struct __packed {
-			uint32_t base_addr;
+			__le32 base_addr;
 			uint8_t  reg_width;
-			uint16_t reg_count;
+			__le16 reg_count;
 			uint8_t  pci_offset;
 			uint8_t  banksel_offset;
 			uint8_t  reserved[3];
-			uint32_t bank;
+			__le32 bank;
 		} t258;
 
 		struct __packed {
-			uint32_t base_addr;
-			uint32_t write_data;
+			__le32 base_addr;
+			__le32 write_data;
 			uint8_t  reserved[2];
 			uint8_t  pci_offset;
 			uint8_t  banksel_offset;
-			uint32_t bank;
+			__le32 bank;
 		} t259;
 
 		struct __packed {
@@ -118,14 +120,14 @@ struct __packed qla27xx_fwdt_entry {
 		struct __packed {
 			uint8_t pci_offset;
 			uint8_t reserved[3];
-			uint32_t write_data;
+			__le32 write_data;
 		} t261;
 
 		struct __packed {
 			uint8_t  ram_area;
 			uint8_t  reserved[3];
-			uint32_t start_addr;
-			uint32_t end_addr;
+			__le32 start_addr;
+			__le32 end_addr;
 		} t262;
 
 		struct __packed {
@@ -155,7 +157,7 @@ struct __packed qla27xx_fwdt_entry {
 		struct __packed {
 			uint8_t  pci_offset;
 			uint8_t  reserved[3];
-			uint32_t data;
+			__le32 data;
 		} t267;
 
 		struct __packed {
@@ -170,23 +172,23 @@ struct __packed qla27xx_fwdt_entry {
 		} t269;
 
 		struct __packed {
-			uint32_t addr;
-			uint32_t count;
+			__le32 addr;
+			__le32 count;
 		} t270;
 
 		struct __packed {
-			uint32_t addr;
-			uint32_t data;
+			__le32 addr;
+			__le32 data;
 		} t271;
 
 		struct __packed {
-			uint32_t addr;
-			uint32_t count;
+			__le32 addr;
+			__le32 count;
 		} t272;
 
 		struct __packed {
-			uint32_t addr;
-			uint32_t count;
+			__le32 addr;
+			__le32 count;
 		} t273;
 
 		struct __packed {
@@ -196,9 +198,27 @@ struct __packed qla27xx_fwdt_entry {
 		} t274;
 
 		struct __packed {
-			uint32_t length;
+			__le32 length;
 			uint8_t  buffer[];
 		} t275;
+
+		struct __packed {
+			__le32 cond1;
+			__le32 cond2;
+		} t276;
+
+		struct __packed {
+			__le32 cmd_addr;
+			__le32 wr_cmd_data;
+			__le32 data_addr;
+		} t277;
+
+		struct __packed {
+			__le32 cmd_addr;
+			__le32 wr_cmd_data;
+			__le32 data_addr;
+			__le32 wr_data;
+		} t278;
 	};
 };
 
@@ -206,6 +226,7 @@ struct __packed qla27xx_fwdt_entry {
 #define T262_RAM_AREA_EXTERNAL_RAM	2
 #define T262_RAM_AREA_SHARED_RAM	3
 #define T262_RAM_AREA_DDR_RAM		4
+#define T262_RAM_AREA_MISC		5
 
 #define T263_QUEUE_TYPE_REQ		1
 #define T263_QUEUE_TYPE_RSP		2

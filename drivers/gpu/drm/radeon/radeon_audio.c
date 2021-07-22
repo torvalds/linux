@@ -23,85 +23,23 @@
  */
 
 #include <linux/gcd.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc.h>
+#include "dce6_afmt.h"
+#include "evergreen_hdmi.h"
 #include "radeon.h"
 #include "atom.h"
+#include "r600.h"
 #include "radeon_audio.h"
 
-void r600_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
-		u8 enable_mask);
-void dce4_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
-		u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
-u32 dce6_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg);
-void dce6_endpoint_wreg(struct radeon_device *rdev,
-		u32 offset, u32 reg, u32 v);
-void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder,
-		struct cea_sad *sads, int sad_count);
-void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
-		struct cea_sad *sads, int sad_count);
-void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,
-		struct cea_sad *sads, int sad_count);
-void dce3_2_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce3_2_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce4_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce4_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce6_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce6_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce4_afmt_write_latency_fields(struct drm_encoder *encoder,
-		struct drm_connector *connector, struct drm_display_mode *mode);
-void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
-		struct drm_connector *connector, struct drm_display_mode *mode);
 struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
-void dce6_afmt_select_pin(struct drm_encoder *encoder);
-void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce3_2_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce4_dp_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce6_dp_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void r600_set_avi_packet(struct radeon_device *rdev, u32 offset,
-	unsigned char *buffer, size_t size);
-void evergreen_set_avi_packet(struct radeon_device *rdev, u32 offset,
-	unsigned char *buffer, size_t size);
-void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
-	const struct radeon_hdmi_acr *acr);
-void dce3_2_hdmi_update_acr(struct drm_encoder *encoder, long offset,
-	const struct radeon_hdmi_acr *acr);
-void evergreen_hdmi_update_acr(struct drm_encoder *encoder, long offset,
-	const struct radeon_hdmi_acr *acr);
-void r600_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
-void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
-void dce4_hdmi_set_color_depth(struct drm_encoder *encoder,
-	u32 offset, int bpc);
-void r600_set_audio_packet(struct drm_encoder *encoder, u32 offset);
-void dce3_2_set_audio_packet(struct drm_encoder *encoder, u32 offset);
-void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset);
-void r600_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
-void dce3_2_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
-void dce4_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
 static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
-void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
-void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
-void evergreen_dp_enable(struct drm_encoder *encoder, bool enable);
 
 static const u32 pin_offsets[7] =
 {
@@ -288,7 +226,7 @@ static void radeon_audio_interface_init(struct radeon_device *rdev)
 	} else {
 		rdev->audio.funcs = &r600_funcs;
 		rdev->audio.hdmi_funcs = &r600_hdmi_funcs;
-		rdev->audio.dp_funcs = 0;
+		rdev->audio.dp_funcs = NULL;
 	}
 }
 
@@ -367,10 +305,10 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 		return;
 
 	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
-	if (sad_count <= 0) {
+	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+	if (sad_count <= 0)
 		return;
-	}
 	BUG_ON(!sads);
 
 	if (radeon_encoder->audio && radeon_encoder->audio->write_sad_regs)
@@ -516,21 +454,17 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 	if (!connector)
 		return -EINVAL;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
 		return err;
 	}
 
 	if (radeon_encoder->output_csc != RADEON_OUTPUT_CSC_BYPASS) {
-		if (drm_rgb_quant_range_selectable(radeon_connector_edid(connector))) {
-			if (radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB)
-				frame.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
-			else
-				frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
-		} else {
-			frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-		}
+		drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
+						   radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB ?
+						   HDMI_QUANTIZATION_RANGE_LIMITED :
+						   HDMI_QUANTIZATION_RANGE_FULL);
 	}
 
 	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));

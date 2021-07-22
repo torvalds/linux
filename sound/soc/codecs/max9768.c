@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MAX9768 AMP driver
  *
  * Copyright (C) 2011, 2012 by Wolfram Sang, Pengutronix e.K.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/init.h>
@@ -223,6 +220,6 @@ static struct i2c_driver max9768_i2c_driver = {
 };
 module_i2c_driver(max9768_i2c_driver);
 
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("ASoC MAX9768 amplifier driver");
 MODULE_LICENSE("GPL v2");

@@ -68,8 +68,6 @@ int ipmi_si_port_setup(struct si_sm_io *io)
 	if (!addr)
 		return -ENODEV;
 
-	io->io_cleanup = port_cleanup;
-
 	/*
 	 * Figure out the actual inb/inw/inl/etc routine to use based
 	 * upon the register size.
@@ -101,7 +99,7 @@ int ipmi_si_port_setup(struct si_sm_io *io)
 	 */
 	for (idx = 0; idx < io->io_size; idx++) {
 		if (request_region(addr + idx * io->regspacing,
-				   io->regsize, DEVICE_NAME) == NULL) {
+				   io->regsize, SI_DEVICE_NAME) == NULL) {
 			/* Undo allocations */
 			while (idx--)
 				release_region(addr + idx * io->regspacing,
@@ -109,5 +107,8 @@ int ipmi_si_port_setup(struct si_sm_io *io)
 			return -EIO;
 		}
 	}
+
+	io->io_cleanup = port_cleanup;
+
 	return 0;
 }

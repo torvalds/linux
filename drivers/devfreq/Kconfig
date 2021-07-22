@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig PM_DEVFREQ
 	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
 	select SRCU
@@ -61,7 +62,7 @@ config DEVFREQ_GOV_USERSPACE
 	help
 	  Sets the frequency at the user specified one.
 	  This governor returns the user configured frequency if there
-	  has been an input to /sys/devices/.../power/devfreq_set_freq.
+	  has been an input to /sys/devices/.../userspace/set_freq.
 	  Otherwise, the governor does not change the frequency
 	  given at the initialization.
 
@@ -76,13 +77,12 @@ config DEVFREQ_GOV_PASSIVE
 comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS_BUS_DEVFREQ
-	tristate "ARM EXYNOS Generic Memory Bus DEVFREQ Driver"
+	tristate "ARM Exynos Generic Memory Bus DEVFREQ Driver"
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DEVFREQ_GOV_PASSIVE
 	select DEVFREQ_EVENT_EXYNOS_PPMU
 	select PM_DEVFREQ_EVENT
-	select PM_OPP
 	help
 	  This adds the common DEVFREQ driver for Exynos Memory bus. Exynos
 	  Memory bus has one more group of memory bus (e.g, MIF and INT block).
@@ -91,11 +91,30 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	  and adjusts the operating frequencies and voltages with OPP support.
 	  This does not yet operate with optimal voltages.
 
+config ARM_IMX_BUS_DEVFREQ
+	tristate "i.MX Generic Bus DEVFREQ Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select DEVFREQ_GOV_USERSPACE
+	help
+	  This adds the generic DEVFREQ driver for i.MX interconnects. It
+	  allows adjusting NIC/NOC frequency.
+
+config ARM_IMX8M_DDRC_DEVFREQ
+	tristate "i.MX8M DDRC DEVFREQ Driver"
+	depends on (ARCH_MXC && HAVE_ARM_SMCCC) || \
+		(COMPILE_TEST && HAVE_ARM_SMCCC)
+	select DEVFREQ_GOV_USERSPACE
+	help
+	  This adds the DEVFREQ driver for the i.MX8M DDR Controller. It allows
+	  adjusting DRAM frequency.
+
 config ARM_TEGRA_DEVFREQ
-	tristate "Tegra DEVFREQ Driver"
-	depends on ARCH_TEGRA_124_SOC
-	select DEVFREQ_GOV_SIMPLE_ONDEMAND
-	select PM_OPP
+	tristate "NVIDIA Tegra30/114/124/210 DEVFREQ Driver"
+	depends on ARCH_TEGRA_3x_SOC || ARCH_TEGRA_114_SOC || \
+		ARCH_TEGRA_132_SOC || ARCH_TEGRA_124_SOC || \
+		ARCH_TEGRA_210_SOC || \
+		COMPILE_TEST
+	depends on COMMON_CLK
 	help
 	  This adds the DEVFREQ driver for the Tegra family of SoCs.
 	  It reads ACTMON counters of memory controllers and adjusts the
@@ -103,15 +122,15 @@ config ARM_TEGRA_DEVFREQ
 
 config ARM_RK3399_DMC_DEVFREQ
 	tristate "ARM RK3399 DMC DEVFREQ Driver"
-	depends on ARCH_ROCKCHIP
+	depends on (ARCH_ROCKCHIP && HAVE_ARM_SMCCC) || \
+		(COMPILE_TEST && HAVE_ARM_SMCCC)
 	select DEVFREQ_EVENT_ROCKCHIP_DFI
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_DEVFREQ_EVENT
-	select PM_OPP
 	help
-          This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
-          It sets the frequency for the memory controller and reads the usage counts
-          from hardware.
+	  This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
+	  It sets the frequency for the memory controller and reads the usage counts
+	  from hardware.
 
 source "drivers/devfreq/event/Kconfig"
 

@@ -118,7 +118,7 @@ static int setup_frame_32(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
@@ -160,7 +160,7 @@ asmlinkage void sys32_rt_sigreturn(void)
 
 	regs = current_pt_regs();
 	frame = (struct rt_sigframe32 __user *)regs->regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
@@ -171,7 +171,7 @@ asmlinkage void sys32_rt_sigreturn(void)
 	if (sig < 0)
 		goto badframe;
 	else if (sig)
-		force_sig(sig, current);
+		force_sig(sig);
 
 	if (compat_restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
@@ -187,7 +187,7 @@ asmlinkage void sys32_rt_sigreturn(void)
 	/* Unreached */
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }
 
 static int setup_rt_frame_32(void *sig_return, struct ksignal *ksig,
@@ -197,7 +197,7 @@ static int setup_rt_frame_32(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
@@ -262,7 +262,7 @@ asmlinkage void sys32_sigreturn(void)
 
 	regs = current_pt_regs();
 	frame = (struct sigframe32 __user *)regs->regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_conv_sigset_from_user(&blocked, &frame->sf_mask))
 		goto badframe;
@@ -273,7 +273,7 @@ asmlinkage void sys32_sigreturn(void)
 	if (sig < 0)
 		goto badframe;
 	else if (sig)
-		force_sig(sig, current);
+		force_sig(sig);
 
 	/*
 	 * Don't let your children do this ...
@@ -286,5 +286,5 @@ asmlinkage void sys32_sigreturn(void)
 	/* Unreached */
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }

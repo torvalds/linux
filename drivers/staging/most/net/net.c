@@ -15,7 +15,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/kobject.h>
-#include "most/core.h"
+#include <linux/most.h>
 
 #define MEP_HDR_LEN 8
 #define MDP_HDR_LEN 16
@@ -68,9 +68,9 @@ struct net_dev_context {
 };
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
-static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
-static struct spinlock list_lock; /* list_head, ch->linked = false, dev_hold */
-static struct core_component comp;
+static DEFINE_MUTEX(probe_disc_mt); /* ch->linked = true, most_nd_open */
+static DEFINE_SPINLOCK(list_lock); /* list_head, ch->linked = false, dev_hold */
+static struct most_component comp;
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
@@ -80,6 +80,11 @@ static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 	const u8 *eth_type = skb->data + 12;
 	unsigned int payload_len = skb->len - ETH_HLEN;
 	unsigned int mdp_len = payload_len + MDP_HDR_LEN;
+
+	if (mdp_len < skb->len) {
+		pr_err("drop: too large packet! (%u)\n", skb->len);
+		return -EINVAL;
+	}
 
 	if (mbo->buffer_length < mdp_len) {
 		pr_err("drop: too small buffer! (%d for %d)\n",
@@ -127,6 +132,11 @@ static int skb_to_mep(const struct sk_buff *skb, struct mbo *mbo)
 {
 	u8 *buff = mbo->virt_address;
 	unsigned int mep_len = skb->len + MEP_HDR_LEN;
+
+	if (mep_len < skb->len) {
+		pr_err("drop: too large packet! (%u)\n", skb->len);
+		return -EINVAL;
+	}
 
 	if (mbo->buffer_length < mep_len) {
 		pr_err("drop: too small buffer! (%d for %d)\n",
@@ -293,7 +303,8 @@ static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 }
 
 static int comp_probe_channel(struct most_interface *iface, int channel_idx,
-			      struct most_channel_config *ccfg, char *name)
+			      struct most_channel_config *ccfg, char *name,
+			      char *args)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
@@ -496,7 +507,8 @@ put_nd:
 	return ret;
 }
 
-static struct core_component comp = {
+static struct most_component comp = {
+	.mod = THIS_MODULE,
 	.name = "net",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,
@@ -506,21 +518,30 @@ static struct core_component comp = {
 
 static int __init most_net_init(void)
 {
-	spin_lock_init(&list_lock);
-	mutex_init(&probe_disc_mt);
-	return most_register_component(&comp);
+	int err;
+
+	err = most_register_component(&comp);
+	if (err)
+		return err;
+	err = most_register_configfs_subsys(&comp);
+	if (err) {
+		most_deregister_component(&comp);
+		return err;
+	}
+	return 0;
 }
 
 static void __exit most_net_exit(void)
 {
+	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 }
 
 /**
  * on_netinfo - callback for HDM to be informed about HW's MAC
- * @param iface - most interface instance
- * @param link_stat - link status
- * @param mac_addr - MAC address
+ * @iface: most interface instance
+ * @link_stat: link status
+ * @mac_addr: MAC address
  */
 static void on_netinfo(struct most_interface *iface,
 		       unsigned char link_stat, unsigned char *mac_addr)
@@ -542,13 +563,11 @@ static void on_netinfo(struct most_interface *iface,
 
 	if (m && is_valid_ether_addr(m)) {
 		if (!is_valid_ether_addr(dev->dev_addr)) {
-			netdev_info(dev, "set mac %02x-%02x-%02x-%02x-%02x-%02x\n",
-				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			netdev_info(dev, "set mac %pM\n", m);
 			ether_addr_copy(dev->dev_addr, m);
 			netif_dormant_off(dev);
 		} else if (!ether_addr_equal(dev->dev_addr, m)) {
-			netdev_warn(dev, "reject mac %02x-%02x-%02x-%02x-%02x-%02x\n",
-				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			netdev_warn(dev, "reject mac %pM\n", m);
 		}
 	}
 

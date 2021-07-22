@@ -12,7 +12,6 @@
 #include <asm/bcache.h>
 #include <asm/cacheops.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/r4kcache.h>
 #include <asm/mips-cps.h>
@@ -147,7 +146,7 @@ static inline int mips_sc_is_activated(struct cpuinfo_mips *c)
 	return 1;
 }
 
-static int __init mips_sc_probe_cm3(void)
+static int mips_sc_probe_cm3(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned long cfg = read_gcr_l2_config();
@@ -181,7 +180,7 @@ static int __init mips_sc_probe_cm3(void)
 	return 0;
 }
 
-static inline int __init mips_sc_probe(void)
+static inline int mips_sc_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config1, config2;
@@ -194,9 +193,10 @@ static inline int __init mips_sc_probe(void)
 		return mips_sc_probe_cm3();
 
 	/* Ignore anything but MIPSxx processors */
-	if (!(c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
-			      MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R1 |
-			      MIPS_CPU_ISA_M64R2 | MIPS_CPU_ISA_M64R6)))
+	if (!(c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
+			      MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			      MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
+			      MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)))
 		return 0;
 
 	/* Does this MIPS32/MIPS64 CPU have a config2 register? */
@@ -221,13 +221,28 @@ static inline int __init mips_sc_probe(void)
 	else
 		return 0;
 
-	/*
-	 * According to config2 it would be 5-ways, but that is contradicted
-	 * by all documentation.
-	 */
-	if (current_cpu_type() == CPU_JZRISC &&
-				mips_machtype == MACH_INGENIC_JZ4770)
-		c->scache.ways = 4;
+	if (current_cpu_type() == CPU_XBURST) {
+		switch (mips_machtype) {
+		/*
+		 * According to config2 it would be 5-ways, but that is
+		 * contradicted by all documentation.
+		 */
+		case MACH_INGENIC_JZ4770:
+		case MACH_INGENIC_JZ4775:
+			c->scache.ways = 4;
+			break;
+
+		/*
+		 * According to config2 it would be 5-ways and 512-sets,
+		 * but that is contradicted by all documentation.
+		 */
+		case MACH_INGENIC_X1000:
+		case MACH_INGENIC_X1000E:
+			c->scache.sets = 256;
+			c->scache.ways = 4;
+			break;
+		}
+	}
 
 	c->scache.waysize = c->scache.sets * c->scache.linesz;
 	c->scache.waybit = __ffs(c->scache.waysize);

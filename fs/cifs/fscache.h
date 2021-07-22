@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/fscache.h - CIFS filesystem cache interface definitions
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Authors(s): Suresh Jayaraman (sjayaraman@suse.de>
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _CIFS_FSCACHE_H
 #define _CIFS_FSCACHE_H
@@ -26,6 +14,15 @@
 #include "cifsglob.h"
 
 #ifdef CONFIG_CIFS_FSCACHE
+
+/*
+ * Auxiliary data attached to CIFS superblock within the cache
+ */
+struct cifs_fscache_super_auxdata {
+	u64	resource_id;		/* unique server resource id */
+	__le64	vol_create_time;
+	u32	vol_serial_number;
+} __packed;
 
 /*
  * Auxiliary data attached to CIFS inode within the cache
@@ -48,7 +45,6 @@ extern const struct fscache_cookie_def cifs_fscache_inode_object_def;
 
 extern int cifs_fscache_register(void);
 extern void cifs_fscache_unregister(void);
-extern char *extract_sharename(const char *);
 
 /*
  * fscache.c

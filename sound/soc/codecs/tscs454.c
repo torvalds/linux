@@ -22,7 +22,6 @@
 
 #include "tscs454.h"
 
-static const unsigned int PLL_48K_RATE = (48000 * 256);
 static const unsigned int PLL_44_1K_RATE = (44100 * 256);
 
 #define COEFF_SIZE 3
@@ -178,7 +177,7 @@ static bool tscs454_volatile(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tscs454_writable(struct device *dev, unsigned int reg)
@@ -198,7 +197,7 @@ static bool tscs454_writable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_readable(struct device *dev, unsigned int reg)
@@ -218,7 +217,7 @@ static bool tscs454_readable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_precious(struct device *dev, unsigned int reg)
@@ -247,7 +246,7 @@ static bool tscs454_precious(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_range_cfg tscs454_regmap_range_cfg = {
@@ -354,12 +353,7 @@ static int write_coeff_ram(struct snd_soc_component *component, u8 *coeff_ram,
 	for (cnt = 0; cnt < coeff_cnt; cnt++, coeff_addr++) {
 
 		for (trys = 0; trys < DACCRSTAT_MAX_TRYS; trys++) {
-			ret = snd_soc_component_read(component, r_stat, &val);
-			if (ret < 0) {
-				dev_err(component->dev,
-					"Failed to read stat (%d)\n", ret);
-				return ret;
-			}
+			val = snd_soc_component_read(component, r_stat);
 			if (!val)
 				break;
 		}
@@ -445,12 +439,7 @@ static int coeff_ram_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&tscs454->pll1.lock);
 	mutex_lock(&tscs454->pll2.lock);
 
-	ret = snd_soc_component_read(component, R_PLLSTAT, &val);
-	if (ret < 0) {
-		dev_err(component->dev, "Failed to read PLL status (%d)\n",
-				ret);
-		goto exit;
-	}
+	val = snd_soc_component_read(component, R_PLLSTAT);
 	if (val) { /* PLLs locked */
 		ret = write_coeff_ram(component, coeff_ram,
 			r_stat, r_addr, r_wr,
@@ -738,7 +727,12 @@ static int pll_power_event(struct snd_soc_dapm_widget *w,
 	if (enable)
 		val = pll1 ? FV_PLL1CLKEN_ENABLE : FV_PLL2CLKEN_ENABLE;
 	else
-		val = pll1 ? FV_PLL1CLKEN_DISABLE : FV_PLL2CLKEN_DISABLE;
+		/*
+		 * FV_PLL1CLKEN_DISABLE and FV_PLL2CLKEN_DISABLE are
+		 * identical zero vzalues, there is no need to test
+		 * the PLL index
+		 */
+		val = FV_PLL1CLKEN_DISABLE;
 
 	ret = snd_soc_component_update_bits(component, R_PLLCTL, msk, val);
 	if (ret < 0) {
@@ -2643,13 +2637,10 @@ static int tscs454_set_sysclk(struct snd_soc_dai *dai,
 	struct tscs454 *tscs454 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 	int bclk_dai;
-	int ret;
 
 	dev_dbg(component->dev, "%s(): freq = %u\n", __func__, freq);
 
-	ret = snd_soc_component_read(component, R_PLLCTL, &val);
-	if (ret < 0)
-		return ret;
+	val = snd_soc_component_read(component, R_PLLCTL);
 
 	bclk_dai = (val & FM_PLLCTL_BCLKSEL) >> FB_PLLCTL_BCLKSEL;
 	if (bclk_dai != dai->id)
@@ -3205,10 +3196,7 @@ static int tscs454_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!aifs_active(&tscs454->aifs_status)) { /* First active aif */
-		ret = snd_soc_component_read(component, R_ISRC, &val);
-		if (ret < 0)
-			goto exit;
-
+		val = snd_soc_component_read(component, R_ISRC);
 		if ((val & FM_ISRC_IBR) == FV_IBR_48)
 			tscs454->internal_rate.pll = &tscs454->pll1;
 		else
@@ -3363,9 +3351,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai1_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai2",
@@ -3383,9 +3371,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai3",
@@ -3403,9 +3391,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 };
 

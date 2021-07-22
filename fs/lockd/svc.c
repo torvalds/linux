@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/lockd/svc.c
  *
@@ -188,28 +189,31 @@ lockd(void *vrqstp)
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
 				 struct net *net, const int family,
-				 const unsigned short port)
+				 const unsigned short port,
+				 const struct cred *cred)
 {
 	struct svc_xprt *xprt;
 
 	xprt = svc_find_xprt(serv, name, net, family, 0);
 	if (xprt == NULL)
 		return svc_create_xprt(serv, name, net, family, port,
-						SVC_SOCK_DEFAULTS);
+						SVC_SOCK_DEFAULTS, cred);
 	svc_xprt_put(xprt);
 	return 0;
 }
 
 static int create_lockd_family(struct svc_serv *serv, struct net *net,
-			       const int family)
+			       const int family, const struct cred *cred)
 {
 	int err;
 
-	err = create_lockd_listener(serv, "udp", net, family, nlm_udpport);
+	err = create_lockd_listener(serv, "udp", net, family, nlm_udpport,
+			cred);
 	if (err < 0)
 		return err;
 
-	return create_lockd_listener(serv, "tcp", net, family, nlm_tcpport);
+	return create_lockd_listener(serv, "tcp", net, family, nlm_tcpport,
+			cred);
 }
 
 /*
@@ -222,16 +226,17 @@ static int create_lockd_family(struct svc_serv *serv, struct net *net,
  * Returns zero if all listeners are available; otherwise a
  * negative errno value is returned.
  */
-static int make_socks(struct svc_serv *serv, struct net *net)
+static int make_socks(struct svc_serv *serv, struct net *net,
+		const struct cred *cred)
 {
 	static int warned;
 	int err;
 
-	err = create_lockd_family(serv, net, PF_INET);
+	err = create_lockd_family(serv, net, PF_INET, cred);
 	if (err < 0)
 		goto out_err;
 
-	err = create_lockd_family(serv, net, PF_INET6);
+	err = create_lockd_family(serv, net, PF_INET6, cred);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_err;
 
@@ -246,7 +251,8 @@ out_err:
 	return err;
 }
 
-static int lockd_up_net(struct svc_serv *serv, struct net *net)
+static int lockd_up_net(struct svc_serv *serv, struct net *net,
+		const struct cred *cred)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 	int error;
@@ -258,7 +264,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	if (error)
 		goto err_bind;
 
-	error = make_socks(serv, net);
+	error = make_socks(serv, net, cred);
 	if (error < 0)
 		goto err_bind;
 	set_grace_period(net);
@@ -461,7 +467,7 @@ static struct svc_serv *lockd_create_svc(void)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int lockd_up(struct net *net)
+int lockd_up(struct net *net, const struct cred *cred)
 {
 	struct svc_serv *serv;
 	int error;
@@ -474,7 +480,7 @@ int lockd_up(struct net *net)
 		goto err_create;
 	}
 
-	error = lockd_up_net(serv, net);
+	error = lockd_up_net(serv, net, cred);
 	if (error < 0) {
 		lockd_unregister_notifiers();
 		goto err_put;
@@ -760,6 +766,46 @@ static void __exit exit_nlm(void)
 module_init(init_nlm);
 module_exit(exit_nlm);
 
+/**
+ * nlmsvc_dispatch - Process an NLM Request
+ * @rqstp: incoming request
+ * @statp: pointer to location of accept_stat field in RPC Reply buffer
+ *
+ * Return values:
+ *  %0: Processing complete; do not send a Reply
+ *  %1: Processing complete; send Reply in rqstp->rq_res
+ */
+static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+{
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+	struct kvec *argv = rqstp->rq_arg.head;
+	struct kvec *resv = rqstp->rq_res.head;
+
+	svcxdr_init_decode(rqstp);
+	if (!procp->pc_decode(rqstp, argv->iov_base))
+		goto out_decode_err;
+
+	*statp = procp->pc_func(rqstp);
+	if (*statp == rpc_drop_reply)
+		return 0;
+	if (*statp != rpc_success)
+		return 1;
+
+	svcxdr_init_encode(rqstp);
+	if (!procp->pc_encode(rqstp, resv->iov_base + resv->iov_len))
+		goto out_encode_err;
+
+	return 1;
+
+out_decode_err:
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_encode_err:
+	*statp = rpc_system_err;
+	return 1;
+}
+
 /*
  * Define NLM program and procedures
  */
@@ -769,6 +815,7 @@ static const struct svc_version	nlmsvc_version1 = {
 	.vs_nproc	= 17,
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version1_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 static unsigned int nlmsvc_version3_count[24];
@@ -777,6 +824,7 @@ static const struct svc_version	nlmsvc_version3 = {
 	.vs_nproc	= 24,
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version3_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #ifdef CONFIG_LOCKD_V4
@@ -786,6 +834,7 @@ static const struct svc_version	nlmsvc_version4 = {
 	.vs_nproc	= 24,
 	.vs_proc	= nlmsvc_procedures4,
 	.vs_count	= nlmsvc_version4_count,
+	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
@@ -807,5 +856,7 @@ static struct svc_program	nlmsvc_program = {
 	.pg_name		= "lockd",		/* service name */
 	.pg_class		= "nfsd",		/* share authentication with nfsd */
 	.pg_stats		= &nlmsvc_stats,	/* stats table */
-	.pg_authenticate = &lockd_authenticate	/* export authentication */
+	.pg_authenticate	= &lockd_authenticate,	/* export authentication */
+	.pg_init_request	= svc_generic_init_request,
+	.pg_rpcbind_set		= svc_generic_rpcbind_set,
 };

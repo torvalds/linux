@@ -51,7 +51,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = vmw_overlay_num_free_overlays(dev_priv);
 		break;
 	case DRM_VMW_PARAM_3D:
-		param->value = vmw_fifo_have_3d(dev_priv) ? 1 : 0;
+		param->value = vmw_supports_3d(dev_priv) ? 1 : 0;
 		break;
 	case DRM_VMW_PARAM_HW_CAPS:
 		param->value = dev_priv->capabilities;
@@ -60,27 +60,24 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = dev_priv->capabilities2;
 		break;
 	case DRM_VMW_PARAM_FIFO_CAPS:
-		param->value = dev_priv->fifo.capabilities;
+		param->value = vmw_fifo_caps(dev_priv);
 		break;
 	case DRM_VMW_PARAM_MAX_FB_SIZE:
 		param->value = dev_priv->prim_bb_mem;
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
-		u32 *fifo_mem = dev_priv->mmio_virt;
-		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
-
 		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS)) {
 			param->value = SVGA3D_HWVERSION_WS8_B1;
 			break;
 		}
 
 		param->value =
-			vmw_mmio_read(fifo_mem +
-				      ((fifo->capabilities &
-					SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
-				       SVGA_FIFO_3D_HWVERSION_REVISED :
-				       SVGA_FIFO_3D_HWVERSION));
+			vmw_fifo_mem_read(dev_priv,
+					  ((vmw_fifo_caps(dev_priv) &
+					    SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+						   SVGA_FIFO_3D_HWVERSION_REVISED :
+						   SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
 	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
@@ -114,10 +111,13 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			(dev_priv->active_display_unit == vmw_du_screen_target);
 		break;
 	case DRM_VMW_PARAM_DX:
-		param->value = dev_priv->has_dx;
+		param->value = has_sm4_context(dev_priv);
 		break;
 	case DRM_VMW_PARAM_SM4_1:
-		param->value = dev_priv->has_sm4_1;
+		param->value = has_sm4_1_context(dev_priv);
+		break;
+	case DRM_VMW_PARAM_SM5:
+		param->value = has_sm5_context(dev_priv);
 		break;
 	default:
 		return -EINVAL;
@@ -126,14 +126,17 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static u32 vmw_mask_multisample(unsigned int cap, u32 fmt_value)
+static u32 vmw_mask_legacy_multisample(unsigned int cap, u32 fmt_value)
 {
 	/*
 	 * A version of user-space exists which use MULTISAMPLE_MASKABLESAMPLES
 	 * to check the sample count supported by virtual device. Since there
 	 * never was support for multisample count for backing MOB return 0.
+	 *
+	 * MULTISAMPLE_MASKABLESAMPLES devcap is marked as deprecated by virtual
+	 * device.
 	 */
-	if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
+	if (cap == SVGA3D_DEVCAP_DEAD5)
 		return 0;
 
 	return fmt_value;
@@ -164,7 +167,7 @@ static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
 	for (i = 0; i < max_size; ++i) {
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
 		compat_cap->pairs[i][0] = i;
-		compat_cap->pairs[i][1] = vmw_mask_multisample
+		compat_cap->pairs[i][1] = vmw_mask_legacy_multisample
 			(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 	}
 	spin_unlock(&dev_priv->cap_lock);
@@ -188,7 +191,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 
 	if (unlikely(arg->pad64 != 0 || arg->max_size == 0)) {
-		DRM_ERROR("Illegal GET_3D_CAP argument.\n");
+		VMW_DEBUG_USER("Illegal GET_3D_CAP argument.\n");
 		return -EINVAL;
 	}
 
@@ -220,7 +223,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {
 			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-			*bounce32++ = vmw_mask_multisample
+			*bounce32++ = vmw_mask_legacy_multisample
 				(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 		}
 		spin_unlock(&dev_priv->cap_lock);
@@ -229,7 +232,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		if (unlikely(ret != 0))
 			goto out_err;
 	} else {
-		fifo_mem = dev_priv->mmio_virt;
+		fifo_mem = dev_priv->fifo_mem;
 		memcpy(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
 	}
 
@@ -268,7 +271,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (clips_ptr == NULL) {
-		DRM_ERROR("Variable clips_ptr must be specified.\n");
+		VMW_DEBUG_USER("Variable clips_ptr must be specified.\n");
 		ret = -EINVAL;
 		goto out_clips;
 	}
@@ -291,15 +294,11 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 
 	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
-		DRM_ERROR("Invalid framebuffer id.\n");
+		VMW_DEBUG_USER("Invalid framebuffer id.\n");
 		ret = -ENOENT;
 		goto out_no_fb;
 	}
 	vfb = vmw_framebuffer_to_vfb(fb);
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
 
 	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg->sid,
 					      user_surface_converter,
@@ -317,8 +316,6 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	vmw_surface_unreference(&surface);
 
 out_no_surface:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-out_no_ttm_lock:
 	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
@@ -351,7 +348,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (clips_ptr == NULL) {
-		DRM_ERROR("Argument clips_ptr must be specified.\n");
+		VMW_DEBUG_USER("Argument clips_ptr must be specified.\n");
 		ret = -EINVAL;
 		goto out_clips;
 	}
@@ -374,27 +371,22 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
-		DRM_ERROR("Invalid framebuffer id.\n");
+		VMW_DEBUG_USER("Invalid framebuffer id.\n");
 		ret = -ENOENT;
 		goto out_no_fb;
 	}
 
 	vfb = vmw_framebuffer_to_vfb(fb);
 	if (!vfb->bo) {
-		DRM_ERROR("Framebuffer not buffer backed.\n");
+		VMW_DEBUG_USER("Framebuffer not buffer backed.\n");
 		ret = -EINVAL;
 		goto out_no_ttm_lock;
 	}
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
 
 	ret = vmw_kms_readback(dev_priv, file_priv,
 			       vfb, user_fence_rep,
 			       clips, num_clips);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
 	drm_framebuffer_put(fb);
 out_no_fb:
@@ -403,47 +395,4 @@ out_no_copy:
 	kfree(clips);
 out_clips:
 	return ret;
-}
-
-
-/**
- * vmw_fops_poll - wrapper around the drm_poll function
- *
- * @filp: See the linux fops poll documentation.
- * @wait: See the linux fops poll documentation.
- *
- * Wrapper around the drm_poll function that makes sure the device is
- * processing the fifo if drm_poll decides to wait.
- */
-__poll_t vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct vmw_private *dev_priv =
-		vmw_priv(file_priv->minor->dev);
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
-	return drm_poll(filp, wait);
-}
-
-
-/**
- * vmw_fops_read - wrapper around the drm_read function
- *
- * @filp: See the linux fops read documentation.
- * @buffer: See the linux fops read documentation.
- * @count: See the linux fops read documentation.
- * offset: See the linux fops read documentation.
- *
- * Wrapper around the drm_read function that makes sure the device is
- * processing the fifo if drm_read decides to wait.
- */
-ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
-		      size_t count, loff_t *offset)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct vmw_private *dev_priv =
-		vmw_priv(file_priv->minor->dev);
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
-	return drm_read(filp, buffer, count, offset);
 }

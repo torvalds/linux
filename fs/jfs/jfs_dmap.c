@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
  *   Portions Copyright (C) Tino Reichardt, 2012
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/fs.h>
@@ -681,7 +668,7 @@ unlock:
  *		this does not succeed, we finally try to allocate anywhere
  *		within the aggregate.
  *
- *		we also try to allocate anywhere within the aggregate for
+ *		we also try to allocate anywhere within the aggregate
  *		for allocation requests larger than the allocation group
  *		size or requests that specify no hint value.
  *
@@ -1669,7 +1656,7 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
 		} else if (rc == -ENOSPC) {
 			/* search for next smaller log2 block */
 			l2nb = BLKSTOL2(nblocks) - 1;
-			nblocks = 1 << l2nb;
+			nblocks = 1LL << l2nb;
 		} else {
 			/* Trim any already allocated blocks */
 			jfs_error(bmp->db_ipbmap->i_sb, "-EIO\n");
@@ -2562,15 +2549,19 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 		 */
 		if (oldval == NOFREE) {
 			rc = dbBackSplit((dmtree_t *) dcp, leafno);
-			if (rc)
+			if (rc) {
+				release_metapage(mp);
 				return rc;
+			}
 			oldval = dcp->stree[ti];
 		}
 		dbSplit((dmtree_t *) dcp, leafno, dcp->budmin, newval);
 	} else {
 		rc = dbJoin((dmtree_t *) dcp, leafno, newval);
-		if (rc)
+		if (rc) {
+			release_metapage(mp);
 			return rc;
+		}
 	}
 
 	/* check if the root of the current dmap control page changed due
@@ -3669,7 +3660,7 @@ void dbFinalizeBmap(struct inode *ipbmap)
 	 * (the leftmost ag with average free space in it);
 	 */
 //agpref:
-	/* get the number of active ags and inacitve ags */
+	/* get the number of active ags and inactive ags */
 	actags = bmp->db_maxag + 1;
 	inactags = bmp->db_numag - actags;
 	ag_rem = bmp->db_mapsize & (bmp->db_agsize - 1);	/* ??? */
@@ -4040,7 +4031,6 @@ static int dbGetL2AGSize(s64 nblocks)
  */
 #define MAXL0PAGES	(1 + LPERCTL)
 #define MAXL1PAGES	(1 + LPERCTL * MAXL0PAGES)
-#define MAXL2PAGES	(1 + LPERCTL * MAXL1PAGES)
 
 /*
  * convert number of map pages to the zero origin top dmapctl level

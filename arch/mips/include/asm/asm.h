@@ -20,10 +20,27 @@
 #include <asm/sgidefs.h>
 #include <asm/asm-eva.h>
 
+#ifndef __VDSO__
+/*
+ * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+ * We don't do DWARF unwinding at runtime, so only the offline DWARF
+ * information is useful to anyone. Note we should change this if we
+ * ever decide to enable DWARF unwinding at runtime.
+ */
+#define CFI_SECTIONS	.cfi_sections .debug_frame
+#else
+ /*
+  * For the vDSO, emit both runtime unwind information and debug
+  * symbols for the .dbg file.
+  */
+#define CFI_SECTIONS
+#endif
+
 /*
  * LEAF - declare leaf routine
  */
 #define LEAF(symbol)					\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -36,6 +53,7 @@ symbol:		.frame	sp, 0, ra;			\
  * NESTED - declare nested routine entry point
  */
 #define NESTED(symbol, framesize, rpc)			\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -74,10 +92,15 @@ symbol:		.insn
 		.globl	symbol;				\
 symbol		=	value
 
-#define PANIC(msg)					\
+#define TEXT(msg)					\
+		.pushsection .data;			\
+8:		.asciiz msg;				\
+		.popsection;
+
+#define ASM_PANIC(msg)					\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	panic;				\
 9:		b	9b;				\
 		.set	pop;				\
@@ -87,21 +110,16 @@ symbol		=	value
  * Print formatted string
  */
 #ifdef CONFIG_PRINTK
-#define PRINT(string)					\
+#define ASM_PRINT(string)				\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	printk;				\
 		.set	pop;				\
 		TEXT(string)
 #else
-#define PRINT(string)
+#define ASM_PRINT(string)
 #endif
-
-#define TEXT(msg)					\
-		.pushsection .data;			\
-8:		.asciiz msg;				\
-		.popsection;
 
 /*
  * Stack alignment
@@ -202,7 +220,9 @@ symbol		=	value
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
 
+#ifdef __ASSEMBLY__
 #define LONG		.word
+#endif
 #define LONGSIZE	4
 #define LONGMASK	3
 #define LONGLOG		2
@@ -225,7 +245,9 @@ symbol		=	value
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
 
+#ifdef __ASSEMBLY__
 #define LONG		.dword
+#endif
 #define LONGSIZE	8
 #define LONGMASK	7
 #define LONGLOG		3

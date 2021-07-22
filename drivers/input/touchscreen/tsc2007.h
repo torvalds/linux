@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Copyright (c) 2008 MtekVision Co., Ltd.
@@ -13,14 +14,12 @@
  *	Copyright (C) 2002 MontaVista Software
  *	Copyright (C) 2004 Texas Instruments
  *	Copyright (C) 2005 Dirk Behme
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #ifndef _TSC2007_H
 #define _TSC2007_H
+
+struct gpio_desc;
 
 #define TSC2007_MEASURE_TEMP0		(0x0 << 4)
 #define TSC2007_MEASURE_AUX		(0x2 << 4)
@@ -72,7 +71,7 @@ struct tsc2007 {
 	int			fuzzy;
 	int			fuzzz;
 
-	unsigned int		gpio;
+	struct gpio_desc	*gpiod;
 	int			irq;
 
 	wait_queue_head_t	wait;

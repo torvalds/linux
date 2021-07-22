@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_M5MOLS
 	tristate "Fujitsu M-5MOLS 8MP sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	---help---
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
 	  This driver supports Fujitsu M-5MOLS camera sensor with ISP

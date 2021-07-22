@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * v4l2-event.h
  *
@@ -6,15 +7,6 @@
  * Copyright (C) 2009--2010 Nokia Corporation.
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef V4L2_EVENT_H
@@ -34,11 +26,13 @@ struct video_device;
  * @list:	List node for the v4l2_fh->available list.
  * @sev:	Pointer to parent v4l2_subscribed_event.
  * @event:	The event itself.
+ * @ts:		The timestamp of the event.
  */
 struct v4l2_kevent {
 	struct list_head	list;
 	struct v4l2_subscribed_event *sev;
 	struct v4l2_event	event;
+	u64			ts;
 };
 
 /**
@@ -107,7 +101,7 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
  *
  * .. note::
  *    The driver's only responsibility is to fill in the type and the data
- *    fields.The other fields will be filled in by  V4L2.
+ *    fields. The other fields will be filled in by V4L2.
  */
 void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev);
 
@@ -122,9 +116,18 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev);
  *
  * .. note::
  *    The driver's only responsibility is to fill in the type and the data
- *    fields.The other fields will be filled in by  V4L2.
+ *    fields. The other fields will be filled in by V4L2.
  */
 void v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev);
+
+/**
+ * v4l2_event_wake_all - Wake all filehandles.
+ *
+ * Used when unregistering a video device.
+ *
+ * @vdev: pointer to &struct video_device
+ */
+void v4l2_event_wake_all(struct video_device *vdev);
 
 /**
  * v4l2_event_pending - Check if an event is available

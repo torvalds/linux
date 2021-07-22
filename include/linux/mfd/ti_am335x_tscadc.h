@@ -4,7 +4,7 @@
 /*
  * TI Touch Screen / ADC MFD driver
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -78,6 +78,8 @@
 #define STEPCONFIG_YNN		BIT(8)
 #define STEPCONFIG_XNP		BIT(9)
 #define STEPCONFIG_YPN		BIT(10)
+#define STEPCONFIG_RFP(val)	((val) << 12)
+#define STEPCONFIG_RFP_VREFP	(0x3 << 12)
 #define STEPCONFIG_INM_MASK	(0xF << 15)
 #define STEPCONFIG_INM(val)	((val) << 15)
 #define STEPCONFIG_INM_ADCREFM	STEPCONFIG_INM(8)
@@ -86,6 +88,8 @@
 #define STEPCONFIG_INP_AN4	STEPCONFIG_INP(4)
 #define STEPCONFIG_INP_ADCREFM	STEPCONFIG_INP(8)
 #define STEPCONFIG_FIFO1	BIT(26)
+#define STEPCONFIG_RFM(val)	((val) << 23)
+#define STEPCONFIG_RFM_VREFN	(0x3 << 23)
 
 /* Delay register */
 #define STEPDELAY_OPEN_MASK	(0x3FFFF << 0)

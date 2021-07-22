@@ -122,31 +122,36 @@ static void histb_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base,
 	histb_pcie_dbi_w_mode(&pci->pp, false);
 }
 
-static int histb_pcie_rd_own_conf(struct pcie_port *pp, int where,
-				  int size, u32 *val)
+static int histb_pcie_rd_own_conf(struct pci_bus *bus, unsigned int devfn,
+				  int where, int size, u32 *val)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	int ret;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
-	histb_pcie_dbi_r_mode(pp, true);
-	ret = dw_pcie_read(pci->dbi_base + where, size, val);
-	histb_pcie_dbi_r_mode(pp, false);
+	if (PCI_SLOT(devfn)) {
+		*val = ~0;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
 
-	return ret;
+	*val = dw_pcie_read_dbi(pci, where, size);
+	return PCIBIOS_SUCCESSFUL;
 }
 
-static int histb_pcie_wr_own_conf(struct pcie_port *pp, int where,
-				  int size, u32 val)
+static int histb_pcie_wr_own_conf(struct pci_bus *bus, unsigned int devfn,
+				  int where, int size, u32 val)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	int ret;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
-	histb_pcie_dbi_w_mode(pp, true);
-	ret = dw_pcie_write(pci->dbi_base + where, size, val);
-	histb_pcie_dbi_w_mode(pp, false);
+	if (PCI_SLOT(devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	return ret;
+	dw_pcie_write_dbi(pci, where, size, val);
+	return PCIBIOS_SUCCESSFUL;
 }
+
+static struct pci_ops histb_pci_ops = {
+	.read = histb_pcie_rd_own_conf,
+	.write = histb_pcie_wr_own_conf,
+};
 
 static int histb_pcie_link_up(struct dw_pcie *pci)
 {
@@ -164,16 +169,26 @@ static int histb_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static int histb_pcie_establish_link(struct pcie_port *pp)
+static int histb_pcie_start_link(struct dw_pcie *pci)
+{
+	struct histb_pcie *hipcie = to_histb_pcie(pci);
+	u32 regval;
+
+	/* assert LTSSM enable */
+	regval = histb_pcie_readl(hipcie, PCIE_SYS_CTRL7);
+	regval |= PCIE_APP_LTSSM_ENABLE;
+	histb_pcie_writel(hipcie, PCIE_SYS_CTRL7, regval);
+
+	return 0;
+}
+
+static int histb_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
 	u32 regval;
 
-	if (dw_pcie_link_up(pci)) {
-		dev_info(pci->dev, "Link already up\n");
-		return 0;
-	}
+	pp->bridge->ops = &histb_pci_ops;
 
 	/* PCIe RC work mode */
 	regval = histb_pcie_readl(hipcie, PCIE_SYS_CTRL0);
@@ -181,30 +196,10 @@ static int histb_pcie_establish_link(struct pcie_port *pp)
 	regval |= PCIE_WM_RC;
 	histb_pcie_writel(hipcie, PCIE_SYS_CTRL0, regval);
 
-	/* setup root complex */
-	dw_pcie_setup_rc(pp);
-
-	/* assert LTSSM enable */
-	regval = histb_pcie_readl(hipcie, PCIE_SYS_CTRL7);
-	regval |= PCIE_APP_LTSSM_ENABLE;
-	histb_pcie_writel(hipcie, PCIE_SYS_CTRL7, regval);
-
-	return dw_pcie_wait_for_link(pci);
-}
-
-static int histb_pcie_host_init(struct pcie_port *pp)
-{
-	histb_pcie_establish_link(pp);
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
-
 	return 0;
 }
 
-static struct dw_pcie_host_ops histb_pcie_host_ops = {
-	.rd_own_conf = histb_pcie_rd_own_conf,
-	.wr_own_conf = histb_pcie_wr_own_conf,
+static const struct dw_pcie_host_ops histb_pcie_host_ops = {
 	.host_init = histb_pcie_host_init,
 };
 
@@ -297,6 +292,7 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 	.read_dbi = histb_pcie_read_dbi,
 	.write_dbi = histb_pcie_write_dbi,
 	.link_up = histb_pcie_link_up,
+	.start_link = histb_pcie_start_link,
 };
 
 static int histb_pcie_probe(struct platform_device *pdev)
@@ -304,7 +300,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	struct histb_pcie *hipcie;
 	struct dw_pcie *pci;
 	struct pcie_port *pp;
-	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	enum of_gpio_flags of_flags;
@@ -324,15 +319,13 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "control");
-	hipcie->ctrl = devm_ioremap_resource(dev, res);
+	hipcie->ctrl = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(hipcie->ctrl)) {
 		dev_err(dev, "cannot get control reg base\n");
 		return PTR_ERR(hipcie->ctrl);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc-dbi");
-	pci->dbi_base = devm_ioremap_resource(dev, res);
+	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "rc-dbi");
 	if (IS_ERR(pci->dbi_base)) {
 		dev_err(dev, "cannot get rc-dbi base\n");
 		return PTR_ERR(pci->dbi_base);
@@ -340,8 +333,8 @@ static int histb_pcie_probe(struct platform_device *pdev)
 
 	hipcie->vpcie = devm_regulator_get_optional(dev, "vpcie");
 	if (IS_ERR(hipcie->vpcie)) {
-		if (PTR_ERR(hipcie->vpcie) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+		if (PTR_ERR(hipcie->vpcie) != -ENODEV)
+			return PTR_ERR(hipcie->vpcie);
 		hipcie->vpcie = NULL;
 	}
 
@@ -398,14 +391,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(hipcie->bus_reset)) {
 		dev_err(dev, "couldn't get bus reset\n");
 		return PTR_ERR(hipcie->bus_reset);
-	}
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq < 0) {
-			dev_err(dev, "Failed to get MSI IRQ\n");
-			return pp->msi_irq;
-		}
 	}
 
 	hipcie->phy = devm_phy_get(dev, "phy");

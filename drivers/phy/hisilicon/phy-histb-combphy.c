@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * COMBPHY driver for HiSilicon STB SoCs
  *
  * Copyright (C) 2016-2017 HiSilicon Co., Ltd. http://www.hisilicon.com
  *
  * Authors: Jianguo Sun <sunjianguo1@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -198,7 +195,6 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	struct histb_combphy_priv *priv;
 	struct device_node *np = dev->of_node;
 	struct histb_combphy_mode *mode;
-	struct resource *res;
 	u32 vals[3];
 	int ret;
 
@@ -206,8 +202,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->mmio = devm_ioremap_resource(dev, res);
+	priv->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmio)) {
 		ret = PTR_ERR(priv->mmio);
 		return ret;

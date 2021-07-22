@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Freescale QUICC Engine HDLC Device Driver
  *
  * Copyright 2016 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -77,7 +73,7 @@ static struct ucc_tdm_info utdm_primary_info = {
 	},
 };
 
-static struct ucc_tdm_info utdm_info[MAX_HDLC_NUM];
+static struct ucc_tdm_info utdm_info[UCC_MAX_NUM];
 
 static int uhdlc_init(struct ucc_hdlc_private *priv)
 {
@@ -88,8 +84,8 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	int ret, i;
 	void *bd_buffer;
 	dma_addr_t bd_dma_addr;
-	u32 riptr;
-	u32 tiptr;
+	s32 riptr;
+	s32 tiptr;
 	u32 gumr;
 
 	ut_info = priv->ut_info;
@@ -199,7 +195,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	priv->ucc_pram_offset = qe_muram_alloc(sizeof(struct ucc_hdlc_param),
 				ALIGNMENT_OF_UCC_HDLC_PRAM);
 
-	if (IS_ERR_VALUE(priv->ucc_pram_offset)) {
+	if (priv->ucc_pram_offset < 0) {
 		dev_err(priv->dev, "Can not allocate MURAM for hdlc parameter.\n");
 		ret = -ENOMEM;
 		goto free_tx_bd;
@@ -208,14 +204,18 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	priv->rx_skbuff = kcalloc(priv->rx_ring_size,
 				  sizeof(*priv->rx_skbuff),
 				  GFP_KERNEL);
-	if (!priv->rx_skbuff)
+	if (!priv->rx_skbuff) {
+		ret = -ENOMEM;
 		goto free_ucc_pram;
+	}
 
 	priv->tx_skbuff = kcalloc(priv->tx_ring_size,
 				  sizeof(*priv->tx_skbuff),
 				  GFP_KERNEL);
-	if (!priv->tx_skbuff)
+	if (!priv->tx_skbuff) {
+		ret = -ENOMEM;
 		goto free_rx_skbuff;
+	}
 
 	priv->skb_curtx = 0;
 	priv->skb_dirtytx = 0;
@@ -237,17 +237,22 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 
 	/* Alloc riptr, tiptr */
 	riptr = qe_muram_alloc(32, 32);
-	if (IS_ERR_VALUE(riptr)) {
+	if (riptr < 0) {
 		dev_err(priv->dev, "Cannot allocate MURAM mem for Receive internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_tx_skbuff;
 	}
 
 	tiptr = qe_muram_alloc(32, 32);
-	if (IS_ERR_VALUE(tiptr)) {
+	if (tiptr < 0) {
 		dev_err(priv->dev, "Cannot allocate MURAM mem for Transmit internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_riptr;
+	}
+	if (riptr != (u16)riptr || tiptr != (u16)tiptr) {
+		dev_err(priv->dev, "MURAM allocation out of addressable range\n");
+		ret = -ENOMEM;
+		goto free_tiptr;
 	}
 
 	/* Set RIPTR, TIPTR */
@@ -279,10 +284,9 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	iowrite16be(DEFAULT_HDLC_ADDR, &priv->ucc_pram->haddr4);
 
 	/* Get BD buffer */
-	bd_buffer = dma_zalloc_coherent(priv->dev,
-					(RX_BD_RING_LEN + TX_BD_RING_LEN) *
-					MAX_RX_BUF_LENGTH,
-					&bd_dma_addr, GFP_KERNEL);
+	bd_buffer = dma_alloc_coherent(priv->dev,
+				       (RX_BD_RING_LEN + TX_BD_RING_LEN) * MAX_RX_BUF_LENGTH,
+				       &bd_dma_addr, GFP_KERNEL);
 
 	if (!bd_buffer) {
 		dev_err(priv->dev, "Could not allocate buffer descriptors\n");
@@ -391,6 +395,7 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
+	netdev_sent_queue(dev, skb->len);
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Start from the next BD that should be filled */
@@ -447,6 +452,8 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 {
 	/* Start from the next BD that should be filled */
 	struct net_device *dev = priv->ndev;
+	unsigned int bytes_sent = 0;
+	int howmany = 0;
 	struct qe_bd *bd;		/* BD pointer */
 	u16 bd_status;
 	int tx_restart = 0;
@@ -474,11 +481,13 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 		skb = priv->tx_skbuff[priv->skb_dirtytx];
 		if (!skb)
 			break;
+		howmany++;
+		bytes_sent += skb->len;
 		dev->stats.tx_packets++;
 		memset(priv->tx_buffer +
 		       (be32_to_cpu(bd->buf) - priv->dma_tx_addr),
 		       0, skb->len);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 
 		priv->tx_skbuff[priv->skb_dirtytx] = NULL;
 		priv->skb_dirtytx =
@@ -501,6 +510,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 	if (tx_restart)
 		hdlc_tx_restart(priv);
 
+	netdev_completed_queue(dev, howmany, bytes_sent);
 	return 0;
 }
 
@@ -622,8 +632,8 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 
 	if (howmany < budget) {
 		napi_complete_done(napi, howmany);
-		qe_setbits32(priv->uccf->p_uccm,
-			     (UCCE_HDLC_RX_EVENTS | UCCE_HDLC_TX_EVENTS) << 16);
+		qe_setbits_be32(priv->uccf->p_uccm,
+				(UCCE_HDLC_RX_EVENTS | UCCE_HDLC_TX_EVENTS) << 16);
 	}
 
 	return howmany;
@@ -634,11 +644,9 @@ static irqreturn_t ucc_hdlc_irq_handler(int irq, void *dev_id)
 	struct ucc_hdlc_private *priv = (struct ucc_hdlc_private *)dev_id;
 	struct net_device *dev = priv->ndev;
 	struct ucc_fast_private *uccf;
-	struct ucc_tdm_info *ut_info;
 	u32 ucce;
 	u32 uccm;
 
-	ut_info = priv->ut_info;
 	uccf = priv->uccf;
 
 	ucce = ioread32be(uccf->p_ucce);
@@ -721,6 +729,7 @@ static int uhdlc_open(struct net_device *dev)
 		priv->hdlc_busy = 1;
 		netif_device_attach(priv->ndev);
 		napi_enable(&priv->napi);
+		netdev_reset_queue(dev);
 		netif_start_queue(dev);
 		hdlc_open(dev);
 	}
@@ -730,8 +739,8 @@ static int uhdlc_open(struct net_device *dev)
 
 static void uhdlc_memclean(struct ucc_hdlc_private *priv)
 {
-	qe_muram_free(priv->ucc_pram->riptr);
-	qe_muram_free(priv->ucc_pram->tiptr);
+	qe_muram_free(ioread16be(&priv->ucc_pram->riptr));
+	qe_muram_free(ioread16be(&priv->ucc_pram->tiptr));
 
 	if (priv->rx_bd_base) {
 		dma_free_coherent(priv->dev,
@@ -812,6 +821,7 @@ static int uhdlc_close(struct net_device *dev)
 
 	free_irq(priv->ut_info->uf_info.irq, priv);
 	netif_stop_queue(dev);
+	netdev_reset_queue(dev);
 	priv->hdlc_busy = 0;
 
 	return 0;
@@ -869,7 +879,6 @@ static void resume_clk_config(struct ucc_hdlc_private *priv)
 static int uhdlc_suspend(struct device *dev)
 {
 	struct ucc_hdlc_private *priv = dev_get_drvdata(dev);
-	struct ucc_tdm_info *ut_info;
 	struct ucc_fast __iomem *uf_regs;
 
 	if (!priv)
@@ -881,7 +890,6 @@ static int uhdlc_suspend(struct device *dev)
 	netif_device_detach(priv->ndev);
 	napi_disable(&priv->napi);
 
-	ut_info = priv->ut_info;
 	uf_regs = priv->uf_regs;
 
 	/* backup gumr guemr*/
@@ -914,7 +922,7 @@ static int uhdlc_resume(struct device *dev)
 	struct ucc_fast __iomem *uf_regs;
 	struct ucc_fast_private *uccf;
 	struct ucc_fast_info *uf_info;
-	int ret, i;
+	int i;
 	u32 cecr_subblock;
 	u16 bd_status;
 
@@ -959,16 +967,16 @@ static int uhdlc_resume(struct device *dev)
 
 	/* Write to QE CECR, UCCx channel to Stop Transmission */
 	cecr_subblock = ucc_fast_get_qe_cr_subblock(uf_info->ucc_num);
-	ret = qe_issue_cmd(QE_STOP_TX, cecr_subblock,
-			   (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
+	qe_issue_cmd(QE_STOP_TX, cecr_subblock,
+		     (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
 
 	/* Set UPSMR normal mode */
 	iowrite32be(0, &uf_regs->upsmr);
 
 	/* init parameter base */
 	cecr_subblock = ucc_fast_get_qe_cr_subblock(uf_info->ucc_num);
-	ret = qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, cecr_subblock,
-			   QE_CR_PROTOCOL_UNSPECIFIED, priv->ucc_pram_offset);
+	qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, cecr_subblock,
+		     QE_CR_PROTOCOL_UNSPECIFIED, priv->ucc_pram_offset);
 
 	priv->ucc_pram = (struct ucc_hdlc_param __iomem *)
 				qe_muram_addr(priv->ucc_pram_offset);
@@ -1036,7 +1044,7 @@ static const struct dev_pm_ops uhdlc_pm_ops = {
 #define HDLC_PM_OPS NULL
 
 #endif
-static void uhdlc_tx_timeout(struct net_device *ndev)
+static void uhdlc_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	netdev_err(ndev, "%s\n", __func__);
 }
@@ -1048,6 +1056,54 @@ static const struct net_device_ops uhdlc_ops = {
 	.ndo_do_ioctl   = uhdlc_ioctl,
 	.ndo_tx_timeout	= uhdlc_tx_timeout,
 };
+
+static int hdlc_map_iomem(char *name, int init_flag, void __iomem **ptr)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct resource *res;
+	static int siram_init_flag;
+	int ret = 0;
+
+	np = of_find_compatible_node(NULL, NULL, name);
+	if (!np)
+		return -EINVAL;
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		pr_err("%pOFn: failed to lookup pdev\n", np);
+		of_node_put(np);
+		return -EINVAL;
+	}
+
+	of_node_put(np);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -EINVAL;
+		goto error_put_device;
+	}
+	*ptr = ioremap(res->start, resource_size(res));
+	if (!*ptr) {
+		ret = -ENOMEM;
+		goto error_put_device;
+	}
+
+	/* We've remapped the addresses, and we don't need the device any
+	 * more, so we should release it.
+	 */
+	put_device(&pdev->dev);
+
+	if (init_flag && siram_init_flag == 0) {
+		memset_io(*ptr, 0, resource_size(res));
+		siram_init_flag = 1;
+	}
+	return  0;
+
+error_put_device:
+	put_device(&pdev->dev);
+
+	return ret;
+}
 
 static int ucc_hdlc_probe(struct platform_device *pdev)
 {
@@ -1115,9 +1171,8 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ut_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
 	uhdlc_priv = kzalloc(sizeof(*uhdlc_priv), GFP_KERNEL);
-	if (!uhdlc_priv) {
+	if (!uhdlc_priv)
 		return -ENOMEM;
-	}
 
 	dev_set_drvdata(&pdev->dev, uhdlc_priv);
 	uhdlc_priv->dev = &pdev->dev;
@@ -1143,6 +1198,15 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 		ret = ucc_of_parse_tdm(np, utdm, ut_info);
 		if (ret)
 			goto free_utdm;
+
+		ret = hdlc_map_iomem("fsl,t1040-qe-si", 0,
+				     (void __iomem **)&utdm->si_regs);
+		if (ret)
+			goto free_utdm;
+		ret = hdlc_map_iomem("fsl,t1040-qe-siram", 1,
+				     (void __iomem **)&utdm->siram);
+		if (ret)
+			goto unmap_si_regs;
 	}
 
 	if (of_property_read_u16(np, "fsl,hmask", &uhdlc_priv->hmask))
@@ -1151,7 +1215,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ret = uhdlc_init(uhdlc_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to init uhdlc\n");
-		goto free_utdm;
+		goto undo_uhdlc_init;
 	}
 
 	dev = alloc_hdlcdev(uhdlc_priv);
@@ -1172,7 +1236,6 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	if (register_hdlc_device(dev)) {
 		ret = -ENOBUFS;
 		pr_err("ucc_hdlc: unable to register hdlc device\n");
-		free_netdev(dev);
 		goto free_dev;
 	}
 
@@ -1181,6 +1244,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 free_dev:
 	free_netdev(dev);
 undo_uhdlc_init:
+	iounmap(utdm->siram);
+unmap_si_regs:
+	iounmap(utdm->si_regs);
 free_utdm:
 	if (uhdlc_priv->tsa)
 		kfree(utdm);
@@ -1232,3 +1298,4 @@ static struct platform_driver ucc_hdlc_driver = {
 
 module_platform_driver(ucc_hdlc_driver);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION(DRV_DESC);

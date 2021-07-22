@@ -15,12 +15,6 @@
 #define  PCI_VPD_ROM_SZ	7L<<14	/* VPD ROM size 0=256, 1=512, ... */
 #define  PCI_REV_DESC	1<<2	/* Reverse Descriptor bytes */
 
-#define PCI_STATUS_ERROR_BITS (PCI_STATUS_DETECTED_PARITY | \
-			       PCI_STATUS_SIG_SYSTEM_ERROR | \
-			       PCI_STATUS_REC_MASTER_ABORT | \
-			       PCI_STATUS_REC_TARGET_ABORT | \
-			       PCI_STATUS_PARITY)
-
 enum csr_regs {
 	B0_RAP	= 0x0000,
 	B0_CTST	= 0x0004,
@@ -269,7 +263,7 @@ enum {
 	CHIP_ID_YUKON_LP   = 0xb2, /* Chip ID for YUKON-LP */
 	CHIP_ID_YUKON_XL   = 0xb3, /* Chip ID for YUKON-2 XL */
 	CHIP_ID_YUKON_EC   = 0xb6, /* Chip ID for YUKON-2 EC */
- 	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
+	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
 
 	CHIP_REV_YU_LITE_A1  = 3,	/* Chip Rev. for YUKON-Lite A1,A2 */
 	CHIP_REV_YU_LITE_A3  = 7,	/* Chip Rev. for YUKON-Lite A3 */
@@ -2426,7 +2420,7 @@ struct skge_hw {
 	spinlock_t	     phy_lock;
 	struct tasklet_struct phy_task;
 
-	char		     irq_name[0]; /* skge@pci:000:04:00.0 */
+	char		     irq_name[]; /* skge@pci:000:04:00.0 */
 };
 
 enum pause_control {

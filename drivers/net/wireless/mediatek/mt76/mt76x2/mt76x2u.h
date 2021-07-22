@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef __MT76x2U_H
@@ -29,25 +18,19 @@
 
 extern const struct ieee80211_ops mt76x2u_ops;
 
-struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev);
 int mt76x2u_register_device(struct mt76x02_dev *dev);
 int mt76x2u_init_hardware(struct mt76x02_dev *dev);
 void mt76x2u_cleanup(struct mt76x02_dev *dev);
 void mt76x2u_stop_hw(struct mt76x02_dev *dev);
 
 int mt76x2u_mac_reset(struct mt76x02_dev *dev);
-void mt76x2u_mac_resume(struct mt76x02_dev *dev);
-int mt76x2u_mac_start(struct mt76x02_dev *dev);
 int mt76x2u_mac_stop(struct mt76x02_dev *dev);
 
 int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x2u_phy_calibrate(struct work_struct *work);
-void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
-				bool ext, int rssi, u32 false_cca);
 int mt76x2u_mcu_init(struct mt76x02_dev *dev);
 int mt76x2u_mcu_fw_init(struct mt76x02_dev *dev);
 

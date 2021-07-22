@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006-2010, 2012-2013 Freescale Semiconductor, Inc.
  * All rights reserved.
@@ -10,11 +11,6 @@
  *
  * Description:
  * MPC85xx MDS board specific routines.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>
@@ -47,9 +43,7 @@
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include <sysdev/simple_gpio.h>
 #include <soc/fsl/qe/qe.h>
-#include <soc/fsl/qe/qe_ic.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
 #include "smp.h"
@@ -242,7 +236,6 @@ static void __init mpc85xx_mds_qe_init(void)
 {
 	struct device_node *np;
 
-	mpc85xx_qe_init();
 	mpc85xx_qe_par_io_init();
 	mpc85xx_mds_reset_ucc_phys();
 
@@ -274,33 +267,8 @@ static void __init mpc85xx_mds_qe_init(void)
 	}
 }
 
-static void __init mpc85xx_mds_qeic_init(void)
-{
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return;
-	}
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
-	if (!np) {
-		np = of_find_node_by_type(NULL, "qeic");
-		if (!np)
-			return;
-	}
-
-	if (machine_is(p1021_mds))
-		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
-				qe_ic_cascade_high_mpic);
-	else
-		qe_ic_init(np, 0, qe_ic_cascade_muxed_mpic, NULL);
-	of_node_put(np);
-}
 #else
 static void __init mpc85xx_mds_qe_init(void) { }
-static void __init mpc85xx_mds_qeic_init(void) { }
 #endif	/* CONFIG_QUICC_ENGINE */
 
 static void __init mpc85xx_mds_setup_arch(void)
@@ -355,21 +323,12 @@ machine_arch_initcall(mpc8569_mds, board_fixups);
 
 static int __init mpc85xx_publish_devices(void)
 {
-	if (machine_is(mpc8568_mds))
-		simple_gpiochip_init("fsl,mpc8568mds-bcsr-gpio");
-	if (machine_is(mpc8569_mds))
-		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
-
 	return mpc85xx_common_publish_devices();
 }
 
 machine_arch_initcall(mpc8568_mds, mpc85xx_publish_devices);
 machine_arch_initcall(mpc8569_mds, mpc85xx_publish_devices);
 machine_arch_initcall(p1021_mds, mpc85xx_common_publish_devices);
-
-machine_arch_initcall(mpc8568_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(mpc8569_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(p1021_mds, swiotlb_setup_bus_notifier);
 
 static void __init mpc85xx_mds_pic_init(void)
 {
@@ -379,7 +338,6 @@ static void __init mpc85xx_mds_pic_init(void)
 	BUG_ON(mpic == NULL);
 
 	mpic_init(mpic);
-	mpc85xx_mds_qeic_init();
 }
 
 static int __init mpc85xx_mds_probe(void)

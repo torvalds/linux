@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <linux/bpf.h>
 #include <string.h>
 #include <linux/perf_event.h>
 #include <errno.h>
-#include <assert.h>
-#include <stdbool.h>
 #include <sys/resource.h>
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
 
 /* This program verifies bpf attachment to tracepoint sys_enter_* and sys_exit_*.
  * This requires kernel CONFIG_FTRACE_SYSCALLS to be set.
@@ -52,16 +45,44 @@ static void verify_map(int map_id)
 
 static int test(char *filename, int num_progs)
 {
-	int i, fd, map0_fds[num_progs], map1_fds[num_progs];
+	int map0_fds[num_progs], map1_fds[num_progs], fd, i, j = 0;
+	struct bpf_link *links[num_progs * 4];
+	struct bpf_object *objs[num_progs];
+	struct bpf_program *prog;
 
 	for (i = 0; i < num_progs; i++) {
-		if (load_bpf_file(filename)) {
-			fprintf(stderr, "%s", bpf_log_buf);
-			return 1;
+		objs[i] = bpf_object__open_file(filename, NULL);
+		if (libbpf_get_error(objs[i])) {
+			fprintf(stderr, "opening BPF object file failed\n");
+			objs[i] = NULL;
+			goto cleanup;
 		}
-		printf("prog #%d: map ids %d %d\n", i, map_fd[0], map_fd[1]);
-		map0_fds[i] = map_fd[0];
-		map1_fds[i] = map_fd[1];
+
+		/* load BPF program */
+		if (bpf_object__load(objs[i])) {
+			fprintf(stderr, "loading BPF object file failed\n");
+			goto cleanup;
+		}
+
+		map0_fds[i] = bpf_object__find_map_fd_by_name(objs[i],
+							      "enter_open_map");
+		map1_fds[i] = bpf_object__find_map_fd_by_name(objs[i],
+							      "exit_open_map");
+		if (map0_fds[i] < 0 || map1_fds[i] < 0) {
+			fprintf(stderr, "finding a map in obj file failed\n");
+			goto cleanup;
+		}
+
+		bpf_object__for_each_program(prog, objs[i]) {
+			links[j] = bpf_program__attach(prog);
+			if (libbpf_get_error(links[j])) {
+				fprintf(stderr, "bpf_program__attach failed\n");
+				links[j] = NULL;
+				goto cleanup;
+			}
+			j++;
+		}
+		printf("prog #%d: map ids %d %d\n", i, map0_fds[i], map1_fds[i]);
 	}
 
 	/* current load_bpf_file has perf_event_open default pid = -1
@@ -83,12 +104,17 @@ static int test(char *filename, int num_progs)
 		verify_map(map1_fds[i]);
 	}
 
+cleanup:
+	for (j--; j >= 0; j--)
+		bpf_link__destroy(links[j]);
+
+	for (i--; i >= 0; i--)
+		bpf_object__close(objs[i]);
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int opt, num_progs = 1;
 	char filename[256];
 
@@ -104,7 +130,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
 	return test(filename, num_progs);

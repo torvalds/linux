@@ -60,7 +60,7 @@ static DEFINE_MUTEX(misc_mtx);
 /*
  * Assigned numbers, used for dynamic minors
  */
-#define DYNAMIC_MINORS 64 /* like dynamic majors */
+#define DYNAMIC_MINORS 128 /* like dynamic majors */
 static DECLARE_BITMAP(misc_minors, DYNAMIC_MINORS);
 
 #ifdef CONFIG_PROC_FS
@@ -226,6 +226,7 @@ int misc_register(struct miscdevice *misc)
 	mutex_unlock(&misc_mtx);
 	return err;
 }
+EXPORT_SYMBOL(misc_register);
 
 /**
  *	misc_deregister - unregister a miscellaneous device
@@ -249,8 +250,6 @@ void misc_deregister(struct miscdevice *misc)
 		clear_bit(i, misc_minors);
 	mutex_unlock(&misc_mtx);
 }
-
-EXPORT_SYMBOL(misc_register);
 EXPORT_SYMBOL(misc_deregister);
 
 static char *misc_devnode(struct device *dev, umode_t *mode)

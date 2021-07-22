@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch Global (1) Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_GLOBAL1_H
@@ -26,6 +22,7 @@
 #define MV88E6185_G1_STS_PPU_STATE_DISABLED		0x8000
 #define MV88E6185_G1_STS_PPU_STATE_POLLING		0xc000
 #define MV88E6XXX_G1_STS_INIT_READY			0x0800
+#define MV88E6393X_G1_STS_IRQ_DEVICE_2			9
 #define MV88E6XXX_G1_STS_IRQ_AVB			8
 #define MV88E6XXX_G1_STS_IRQ_DEVICE			7
 #define MV88E6XXX_G1_STS_IRQ_STATS			6
@@ -63,6 +60,7 @@
 #define MV88E6185_G1_CTL1_SCHED_PRIO		0x0800
 #define MV88E6185_G1_CTL1_MAX_FRAME_1632	0x0400
 #define MV88E6185_G1_CTL1_RELOAD_EEPROM		0x0200
+#define MV88E6393X_G1_CTL1_DEVICE2_EN		0x0200
 #define MV88E6XXX_G1_CTL1_DEVICE_EN		0x0080
 #define MV88E6XXX_G1_CTL1_STATS_DONE_EN		0x0040
 #define MV88E6XXX_G1_CTL1_VTU_PROBLEM_EN	0x0020
@@ -113,6 +111,7 @@
 /* Offset 0x0A: ATU Control Register */
 #define MV88E6XXX_G1_ATU_CTL		0x0a
 #define MV88E6XXX_G1_ATU_CTL_LEARN2ALL	0x0008
+#define MV88E6161_G1_ATU_CTL_HASH_MASK	0x0003
 
 /* Offset 0x0B: ATU Operation Register */
 #define MV88E6XXX_G1_ATU_OP				0x0b
@@ -132,19 +131,36 @@
 #define MV88E6XXX_G1_ATU_OP_FULL_VIOLATION		BIT(4)
 
 /* Offset 0x0C: ATU Data Register */
-#define MV88E6XXX_G1_ATU_DATA				0x0c
-#define MV88E6XXX_G1_ATU_DATA_TRUNK			0x8000
-#define MV88E6XXX_G1_ATU_DATA_TRUNK_ID_MASK		0x00f0
-#define MV88E6XXX_G1_ATU_DATA_PORT_VECTOR_MASK		0x3ff0
-#define MV88E6XXX_G1_ATU_DATA_STATE_MASK		0x000f
-#define MV88E6XXX_G1_ATU_DATA_STATE_UNUSED		0x0000
-#define MV88E6XXX_G1_ATU_DATA_STATE_UC_MGMT		0x000d
-#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC		0x000e
-#define MV88E6XXX_G1_ATU_DATA_STATE_UC_PRIO_OVER	0x000f
-#define MV88E6XXX_G1_ATU_DATA_STATE_MC_NONE_RATE	0x0005
-#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC		0x0007
-#define MV88E6XXX_G1_ATU_DATA_STATE_MC_MGMT		0x000e
-#define MV88E6XXX_G1_ATU_DATA_STATE_MC_PRIO_OVER	0x000f
+#define MV88E6XXX_G1_ATU_DATA					0x0c
+#define MV88E6XXX_G1_ATU_DATA_TRUNK				0x8000
+#define MV88E6XXX_G1_ATU_DATA_TRUNK_ID_MASK			0x00f0
+#define MV88E6XXX_G1_ATU_DATA_PORT_VECTOR_MASK			0x3ff0
+#define MV88E6XXX_G1_ATU_DATA_STATE_MASK			0x000f
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_UNUSED			0x0000
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_1_OLDEST		0x0001
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_2			0x0002
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_3			0x0003
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_4			0x0004
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_5			0x0005
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_6			0x0006
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_AGE_7_NEWEST		0x0007
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_POLICY		0x0008
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_POLICY_PO		0x0009
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_AVB_NRL		0x000a
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_AVB_NRL_PO	0x000b
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_DA_MGMT		0x000c
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_DA_MGMT_PO	0x000d
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC			0x000e
+#define MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_PO		0x000f
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_UNUSED			0x0000
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_POLICY		0x0004
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_AVB_NRL		0x0005
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_DA_MGMT		0x0006
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC			0x0007
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_POLICY_PO		0x000c
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_AVB_NRL_PO	0x000d
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_DA_MGMT_PO	0x000e
+#define MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_PO		0x000f
 
 /* Offset 0x0D: ATU MAC Address Register Bytes 0 & 1
  * Offset 0x0E: ATU MAC Address Register Bytes 2 & 3
@@ -190,13 +206,14 @@
 #define MV88E6390_G1_MONITOR_MGMT_CTL				0x1a
 #define MV88E6390_G1_MONITOR_MGMT_CTL_UPDATE			0x8000
 #define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_MASK			0x3f00
-#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XLO	0x0000
-#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XHI	0x0100
-#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XLO	0x0200
-#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XHI	0x0300
+#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200000XLO	0x0000
+#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200000XHI	0x0100
+#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200002XLO	0x0200
+#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200002XHI	0x0300
 #define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_INGRESS_DEST		0x2000
 #define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_EGRESS_DEST		0x2100
 #define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST		0x3000
+#define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST_MGMTPRI	0x00e0
 #define MV88E6390_G1_MONITOR_MGMT_CTL_DATA_MASK			0x00ff
 
 /* Offset 0x1C: Global Control 2 */
@@ -253,17 +270,23 @@
 
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
-int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
+int mv88e6xxx_g1_wait_bit(struct mv88e6xxx_chip *chip, int reg, int
+			  bit, int val);
+int mv88e6xxx_g1_wait_mask(struct mv88e6xxx_chip *chip, int reg,
+			   u16 mask, u16 val);
 
 int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr);
 
 int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip);
 int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip);
+int mv88e6250_g1_reset(struct mv88e6xxx_chip *chip);
+void mv88e6xxx_g1_wait_eeprom_done(struct mv88e6xxx_chip *chip);
 
 int mv88e6185_g1_ppu_enable(struct mv88e6xxx_chip *chip);
 int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip);
 
-int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip);
+int mv88e6185_g1_set_max_frame_size(struct mv88e6xxx_chip *chip, int mtu);
+
 int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
@@ -271,14 +294,20 @@ int mv88e6095_g1_stats_set_histogram(struct mv88e6xxx_chip *chip);
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val);
 int mv88e6xxx_g1_stats_clear(struct mv88e6xxx_chip *chip);
-int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
-int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
+int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip,
+				 enum mv88e6xxx_egress_direction direction,
+				 int port);
+int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip,
+				 enum mv88e6xxx_egress_direction direction,
+				 int port);
 int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
 int mv88e6085_g1_ip_pri_map(struct mv88e6xxx_chip *chip);
+
 int mv88e6085_g1_ieee_pri_map(struct mv88e6xxx_chip *chip);
+int mv88e6250_g1_ieee_pri_map(struct mv88e6xxx_chip *chip);
 
 int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port);
 
@@ -300,7 +329,11 @@ int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
 			    bool all);
 int mv88e6xxx_g1_atu_prob_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_atu_prob_irq_free(struct mv88e6xxx_chip *chip);
+int mv88e6165_g1_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash);
+int mv88e6165_g1_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash);
 
+int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
@@ -316,5 +349,6 @@ int mv88e6390_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_vtu_prob_irq_free(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_g1_atu_get_next(struct mv88e6xxx_chip *chip, u16 fid);
 
 #endif /* _MV88E6XXX_GLOBAL1_H */

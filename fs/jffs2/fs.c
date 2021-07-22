@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/list.h>
 #include <linux/mtd/mtd.h>
 #include <linux/pagemap.h>
@@ -184,23 +185,24 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
 		truncate_setsize(inode, iattr->ia_size);
 		inode->i_blocks = (inode->i_size + 511) >> 9;
-	}	
+	}
 
 	return 0;
 }
 
-int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
+int jffs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
-	rc = setattr_prepare(dentry, iattr);
+	rc = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (rc)
 		return rc;
 
 	rc = jffs2_do_setattr(inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = posix_acl_chmod(inode, inode->i_mode);
+		rc = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 
 	return rc;
 }
@@ -340,6 +342,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 			rdev = old_decode_dev(je16_to_cpu(jdev.old_id));
 		else
 			rdev = new_decode_dev(je32_to_cpu(jdev.new_id));
+		fallthrough;
 
 	case S_IFSOCK:
 	case S_IFIFO:
@@ -390,7 +393,7 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 	jffs2_do_setattr(inode, &iattr);
 }
 
-int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
+int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
@@ -408,10 +411,10 @@ int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 		mutex_unlock(&c->alloc_sem);
 	}
 
-	if (!(*flags & SB_RDONLY))
+	if (!(fc->sb_flags & SB_RDONLY))
 		jffs2_start_garbage_collect_thread(c);
 
-	*flags |= SB_NOATIME;
+	fc->sb_flags |= SB_NOATIME;
 	return 0;
 }
 
@@ -508,7 +511,7 @@ static int calculate_inocache_hashsize(uint32_t flash_size)
 	return hashsize;
 }
 
-int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
+int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct jffs2_sb_info *c;
 	struct inode *root_i;
@@ -523,11 +526,11 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
-		pr_err("Cannot operate on NAND flash unless jffs2 NAND support is compiled in\n");
+		errorf(fc, "Cannot operate on NAND flash unless jffs2 NAND support is compiled in");
 		return -EINVAL;
 	}
 	if (c->mtd->type == MTD_DATAFLASH) {
-		pr_err("Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in\n");
+		errorf(fc, "Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in");
 		return -EINVAL;
 	}
 #endif
@@ -541,12 +544,12 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	if ((c->sector_size * blocks) != c->flash_size) {
 		c->flash_size = c->sector_size * blocks;
-		pr_info("Flash size not aligned to erasesize, reducing to %dKiB\n",
-			c->flash_size / 1024);
+		infof(fc, "Flash size not aligned to erasesize, reducing to %dKiB",
+		      c->flash_size / 1024);
 	}
 
 	if (c->flash_size < 5*c->sector_size) {
-		pr_err("Too few erase blocks (%d)\n",
+		errorf(fc, "Too few erase blocks (%d)",
 		       c->flash_size / c->sector_size);
 		return -EINVAL;
 	}
@@ -589,6 +592,9 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = JFFS2_SUPER_MAGIC;
+	sb->s_time_min = 0;
+	sb->s_time_max = U32_MAX;
+
 	if (!sb_rdonly(sb))
 		jffs2_start_garbage_collect_thread(c);
 	return 0;
@@ -675,33 +681,6 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 	}
 
 	return JFFS2_INODE_INFO(inode);
-}
-
-unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
-				   struct jffs2_inode_info *f,
-				   unsigned long offset,
-				   unsigned long *priv)
-{
-	struct inode *inode = OFNI_EDONI_2SFFJ(f);
-	struct page *pg;
-
-	pg = read_cache_page(inode->i_mapping, offset >> PAGE_SHIFT,
-			     (void *)jffs2_do_readpage_unlock, inode);
-	if (IS_ERR(pg))
-		return (void *)pg;
-
-	*priv = (unsigned long)pg;
-	return kmap(pg);
-}
-
-void jffs2_gc_release_page(struct jffs2_sb_info *c,
-			   unsigned char *ptr,
-			   unsigned long *priv)
-{
-	struct page *pg = (void *)*priv;
-
-	kunmap(pg);
-	put_page(pg);
 }
 
 static int jffs2_flash_setup(struct jffs2_sb_info *c) {

@@ -115,7 +115,7 @@ static int palmas_clks_is_prepared(struct clk_hw *hw)
 	return !!(val & cinfo->clk_desc->enable_mask);
 }
 
-static struct clk_ops palmas_clks_ops = {
+static const struct clk_ops palmas_clks_ops = {
 	.prepare	= palmas_clks_prepare,
 	.unprepare	= palmas_clks_unprepare,
 	.is_prepared	= palmas_clks_is_prepared,
@@ -195,8 +195,8 @@ static void palmas_clks_get_clk_data(struct platform_device *pdev,
 		prop = PALMAS_EXT_CONTROL_NSLEEP;
 		break;
 	default:
-		dev_warn(&pdev->dev, "%s: Invalid ext control option: %u\n",
-			 node->name, prop);
+		dev_warn(&pdev->dev, "%pOFn: Invalid ext control option: %u\n",
+			 node, prop);
 		prop = 0;
 		break;
 	}

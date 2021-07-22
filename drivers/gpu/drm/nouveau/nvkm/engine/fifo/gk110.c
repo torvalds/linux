@@ -43,10 +43,13 @@ gk110_fifo_runlist = {
 	.size = 8,
 	.cgrp = gk110_fifo_runlist_cgrp,
 	.chan = gk104_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
 static const struct gk104_fifo_func
 gk110_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
+	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
@@ -57,7 +60,8 @@ gk110_fifo = {
 };
 
 int
-gk110_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gk110_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk110_fifo, device, index, 4096, pfifo);
+	return gk104_fifo_new_(&gk110_fifo, device, type, inst, 4096, pfifo);
 }

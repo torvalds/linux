@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/media/rockchip-vpu.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Hantro G1 VPU codecs implemented on Rockchip SoCs
+
+maintainers:
+  - Ezequiel Garcia <ezequiel@collabora.com>
+
+description:
+  Hantro G1 video encode and decode accelerators present on Rockchip SoCs.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - rockchip,rk3036-vpu
+          - rockchip,rk3066-vpu
+          - rockchip,rk3288-vpu
+          - rockchip,rk3328-vpu
+          - rockchip,rk3399-vpu
+      - items:
+          - const: rockchip,rk3188-vpu
+          - const: rockchip,rk3066-vpu
+      - items:
+          - const: rockchip,rk3228-vpu
+          - const: rockchip,rk3399-vpu
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    oneOf:
+      - const: vdpu
+      - items:
+          - const: vepu
+          - const: vdpu
+
+  clocks:
+    oneOf:
+      - maxItems: 2
+      - maxItems: 4
+
+  clock-names:
+    oneOf:
+      - items:
+          - const: aclk
+          - const: hclk
+      - items:
+          - const: aclk_vdpu
+          - const: hclk_vdpu
+          - const: aclk_vepu
+          - const: hclk_vepu
+
+  power-domains:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+        #include <dt-bindings/clock/rk3288-cru.h>
+        #include <dt-bindings/interrupt-controller/arm-gic.h>
+        #include <dt-bindings/power/rk3288-power.h>
+
+        vpu: video-codec@ff9a0000 {
+                compatible = "rockchip,rk3288-vpu";
+                reg = <0xff9a0000 0x800>;
+                interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+                interrupt-names = "vepu", "vdpu";
+                clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+                clock-names = "aclk", "hclk";
+                power-domains = <&power RK3288_PD_VIDEO>;
+                iommus = <&vpu_mmu>;
+        };

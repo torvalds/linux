@@ -8,12 +8,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "debug.h"
+#include "event.h"
 #include "tests.h"
 #include "machine.h"
 #include "thread_map.h"
+#include "map.h"
 #include "symbol.h"
+#include "util/synthetic-events.h"
 #include "thread.h"
-#include "util.h"
+#include <internal/lib.h> // page_size
 
 #define THREADS 4
 
@@ -52,7 +55,7 @@ static void *thread_fn(void *arg)
 {
 	struct thread_data *td = arg;
 	ssize_t ret;
-	int go;
+	int go = 0;
 
 	if (thread_init(td))
 		return NULL;
@@ -132,21 +135,21 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0, 500, 1);
+					      machine, 0, 1);
 }
 
 static int synth_process(struct machine *machine)
 {
-	struct thread_map *map;
+	struct perf_thread_map *map;
 	int err;
 
 	map = thread_map__new_by_pid(getpid());
 
 	err = perf_event__synthesize_thread_map(NULL, map,
 						perf_event__process,
-						machine, 0, 500);
+						machine, 0);
 
-	thread_map__put(map);
+	perf_thread_map__put(map);
 	return err;
 }
 

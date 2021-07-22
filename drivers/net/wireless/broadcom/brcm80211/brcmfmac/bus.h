@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef BRCMFMAC_BUS_H
@@ -90,6 +79,8 @@ struct brcmf_bus_ops {
 	int (*get_memdump)(struct device *dev, void *data, size_t len);
 	int (*get_fwname)(struct device *dev, const char *ext,
 			  unsigned char *fw_name);
+	void (*debugfs_create)(struct device *dev);
+	int (*reset)(struct device *dev);
 };
 
 
@@ -235,23 +226,46 @@ int brcmf_bus_get_fwname(struct brcmf_bus *bus, const char *ext,
 	return bus->ops->get_fwname(bus->dev, ext, fw_name);
 }
 
+static inline
+void brcmf_bus_debugfs_create(struct brcmf_bus *bus)
+{
+	if (!bus->ops->debugfs_create)
+		return;
+
+	return bus->ops->debugfs_create(bus->dev);
+}
+
+static inline
+int brcmf_bus_reset(struct brcmf_bus *bus)
+{
+	if (!bus->ops->reset)
+		return -EOPNOTSUPP;
+
+	return bus->ops->reset(bus->dev);
+}
+
 /*
  * interface functions from common layer
  */
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp, bool handle_event);
+void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp, bool handle_event,
+		    bool inirq);
 /* Receive async event packet from firmware. Callee disposes of rxp. */
 void brcmf_rx_event(struct device *dev, struct sk_buff *rxp);
 
+int brcmf_alloc(struct device *dev, struct brcmf_mp_device *settings);
 /* Indication from bus module regarding presence/insertion of dongle. */
-int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings);
+int brcmf_attach(struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
 void brcmf_detach(struct device *dev);
+void brcmf_free(struct device *dev);
 /* Indication from bus module that dongle should be reset */
 void brcmf_dev_reset(struct device *dev);
 /* Request from bus module to initiate a coredump */
 void brcmf_dev_coredump(struct device *dev);
+/* Indication that firmware has halted or crashed */
+void brcmf_fw_crashed(struct device *dev);
 
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
@@ -261,11 +275,26 @@ void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 void brcmf_sdio_exit(void);
-void brcmf_sdio_register(void);
+int brcmf_sdio_register(void);
+#else
+static inline void brcmf_sdio_exit(void) { }
+static inline int brcmf_sdio_register(void) { return 0; }
 #endif
+
 #ifdef CONFIG_BRCMFMAC_USB
 void brcmf_usb_exit(void);
-void brcmf_usb_register(void);
+int brcmf_usb_register(void);
+#else
+static inline void brcmf_usb_exit(void) { }
+static inline int brcmf_usb_register(void) { return 0; }
+#endif
+
+#ifdef CONFIG_BRCMFMAC_PCIE
+void brcmf_pcie_exit(void);
+int brcmf_pcie_register(void);
+#else
+static inline void brcmf_pcie_exit(void) { }
+static inline int brcmf_pcie_register(void) { return 0; }
 #endif
 
 #endif /* BRCMFMAC_BUS_H */

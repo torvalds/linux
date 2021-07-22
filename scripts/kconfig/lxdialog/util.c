@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  util.c
  *
  *  ORIGINAL AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *  MODIFIED FOR LINUX KERNEL CONFIG BY: William Roadcap (roadcap@cfw.com)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <stdarg.h>
@@ -376,7 +363,7 @@ void print_title(WINDOW *dialog, const char *title, int width)
 /*
  * Print a string of text in a window, automatically wrap around to the
  * next line if the string is too long to fit on one line. Newline
- * characters '\n' are propperly processed.  We start on a new line
+ * characters '\n' are properly processed.  We start on a new line
  * if there is no room for at least 4 nonblanks following a double-space.
  */
 void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x)
@@ -554,7 +541,7 @@ int first_alpha(const char *string, const char *exempt)
  * lxdialog suggest <ESC> <ESC> which is correctly translated to two
  * times esc. But then we need to ignore the second esc to avoid stepping
  * out one menu too much. Filter away all escaped key sequences since
- * keypad(FALSE) turn off ncurses support for escape sequences - and thats
+ * keypad(FALSE) turn off ncurses support for escape sequences - and that's
  * needed to make notimeout() do as expected.
  */
 int on_key_esc(WINDOW *win)

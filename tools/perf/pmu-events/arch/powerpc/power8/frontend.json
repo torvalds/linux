@@ -1,470 +1,470 @@
 [
-  {,
+  {
     "EventCode": "0x2505e",
     "EventName": "PM_BACK_BR_CMPL",
     "BriefDescription": "Branch instruction completed with a target address less than current instruction address",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10068",
     "EventName": "PM_BRU_FIN",
     "BriefDescription": "Branch Instruction Finished",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x20036",
     "EventName": "PM_BR_2PATH",
     "BriefDescription": "two path branch",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x40060",
     "EventName": "PM_BR_CMPL",
     "BriefDescription": "Branch Instruction completed",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x400f6",
     "EventName": "PM_BR_MPRED_CMPL",
     "BriefDescription": "Number of Branch Mispredicts",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x200fa",
     "EventName": "PM_BR_TAKEN_CMPL",
     "BriefDescription": "New event for Branch Taken",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10018",
     "EventName": "PM_IC_DEMAND_CYC",
     "BriefDescription": "Cycles when a demand ifetch was pending",
     "PublicDescription": "Demand ifetch pending"
   },
-  {,
+  {
     "EventCode": "0x100f6",
     "EventName": "PM_IERAT_RELOAD",
     "BriefDescription": "Number of I-ERAT reloads",
     "PublicDescription": "IERAT Reloaded (Miss)"
   },
-  {,
+  {
     "EventCode": "0x4006a",
     "EventName": "PM_IERAT_RELOAD_16M",
     "BriefDescription": "IERAT Reloaded (Miss) for a 16M page",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x20064",
     "EventName": "PM_IERAT_RELOAD_4K",
     "BriefDescription": "IERAT Miss (Not implemented as DI on POWER6)",
     "PublicDescription": "IERAT Reloaded (Miss) for a 4k page"
   },
-  {,
+  {
     "EventCode": "0x3006a",
     "EventName": "PM_IERAT_RELOAD_64K",
     "BriefDescription": "IERAT Reloaded (Miss) for a 64k page",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x14050",
     "EventName": "PM_INST_CHIP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was chip pump (prediction=correct) for an instruction fetch",
     "PublicDescription": "Initial and Final Pump Scope and data sourced across this scope was chip pump (prediction=correct) for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x2",
     "EventName": "PM_INST_CMPL",
     "BriefDescription": "Number of PowerPC Instructions that completed",
     "PublicDescription": "PPC Instructions Finished (completed)"
   },
-  {,
+  {
     "EventCode": "0x200f2",
     "EventName": "PM_INST_DISP",
     "BriefDescription": "PPC Dispatched",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x44048",
     "EventName": "PM_INST_FROM_DL2L3_MOD",
     "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x34048",
     "EventName": "PM_INST_FROM_DL2L3_SHR",
     "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x3404c",
     "EventName": "PM_INST_FROM_DL4",
     "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x4404c",
     "EventName": "PM_INST_FROM_DMEM",
     "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x14042",
     "EventName": "PM_INST_FROM_L2",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x1404e",
     "EventName": "PM_INST_FROM_L2MISS",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a localtion other than the local core's L2 due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded from a localtion other than the local core's L2 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to an instruction fetch (not prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x34040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_LDHITST",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x44040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_OTHER",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x24040",
     "EventName": "PM_INST_FROM_L2_MEPF",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x14040",
     "EventName": "PM_INST_FROM_L2_NO_CONFLICT",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x44042",
     "EventName": "PM_INST_FROM_L3",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x300fa",
     "EventName": "PM_INST_FROM_L3MISS",
     "BriefDescription": "Marked instruction was reloaded from a location beyond the local chiplet",
     "PublicDescription": "Inst from L3 miss"
   },
-  {,
+  {
     "EventCode": "0x4404e",
     "EventName": "PM_INST_FROM_L3MISS_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a localtion other than the local core's L3 due to a instruction fetch",
-    "PublicDescription": "The processor's Instruction cache was reloaded from a localtion other than the local core's L3 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L3 due to a instruction fetch",
+    "PublicDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L3 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x34042",
     "EventName": "PM_INST_FROM_L3_DISP_CONFLICT",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x24042",
     "EventName": "PM_INST_FROM_L3_MEPF",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x14044",
     "EventName": "PM_INST_FROM_L3_NO_CONFLICT",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x1404c",
     "EventName": "PM_INST_FROM_LL4",
     "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x24048",
     "EventName": "PM_INST_FROM_LMEM",
     "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's Memory due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from the local chip's Memory due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x2404c",
     "EventName": "PM_INST_FROM_MEMORY",
     "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x4404a",
     "EventName": "PM_INST_FROM_OFF_CHIP_CACHE",
     "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x14048",
     "EventName": "PM_INST_FROM_ON_CHIP_CACHE",
     "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x24046",
     "EventName": "PM_INST_FROM_RL2L3_MOD",
     "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x1404a",
     "EventName": "PM_INST_FROM_RL2L3_SHR",
     "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x2404a",
     "EventName": "PM_INST_FROM_RL4",
     "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x3404a",
     "EventName": "PM_INST_FROM_RMEM",
     "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
-  {,
+  {
     "EventCode": "0x24050",
     "EventName": "PM_INST_GRP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was group pump (prediction=correct) for an instruction fetch",
     "PublicDescription": "Initial and Final Pump Scope and data sourced across this scope was group pump for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x24052",
     "EventName": "PM_INST_GRP_PUMP_MPRED",
     "BriefDescription": "Final Pump Scope (Group) ended up either larger or smaller than Initial Pump Scope for an instruction fetch",
     "PublicDescription": "Final Pump Scope(Group) to get data sourced, ended up larger than Initial Pump Scope OR Final Pump Scope(Group) got data from source that was at smaller scope(Chip) Final pump was group pump and initial pump was chip or final and initial pump was gro"
   },
-  {,
+  {
     "EventCode": "0x14052",
     "EventName": "PM_INST_GRP_PUMP_MPRED_RTY",
     "BriefDescription": "Final Pump Scope (Group) ended up larger than Initial Pump Scope (Chip) for an instruction fetch",
     "PublicDescription": "Final Pump Scope(Group) to get data sourced, ended up larger than Initial Pump Scope (Chip) Final pump was group pump and initial pump was chip pumpfor an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x1003a",
     "EventName": "PM_INST_IMC_MATCH_CMPL",
     "BriefDescription": "IMC Match Count ( Not architected in P8)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x14054",
     "EventName": "PM_INST_PUMP_CPRED",
     "BriefDescription": "Pump prediction correct. Counts across all types of pumps for an instruction fetch",
     "PublicDescription": "Pump prediction correct. Counts across all types of pumpsfor an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x44052",
     "EventName": "PM_INST_PUMP_MPRED",
     "BriefDescription": "Pump misprediction. Counts across all types of pumps for an instruction fetch",
     "PublicDescription": "Pump Mis prediction Counts across all types of pumpsfor an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x34050",
     "EventName": "PM_INST_SYS_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was system pump (prediction=correct) for an instruction fetch",
     "PublicDescription": "Initial and Final Pump Scope and data sourced across this scope was system pump for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x34052",
     "EventName": "PM_INST_SYS_PUMP_MPRED",
     "BriefDescription": "Final Pump Scope (system) mispredicted. Either the original scope was too small (Chip/Group) or the original scope was System and it should have been smaller. Counts for an instruction fetch",
     "PublicDescription": "Final Pump Scope(system) to get data sourced, ended up larger than Initial Pump Scope(Chip/Group) OR Final Pump Scope(system) got data from source that was at smaller scope(Chip/group) Final pump was system pump and initial pump was chip or group or"
   },
-  {,
+  {
     "EventCode": "0x44050",
     "EventName": "PM_INST_SYS_PUMP_MPRED_RTY",
     "BriefDescription": "Final Pump Scope (system) ended up larger than Initial Pump Scope (Chip/Group) for an instruction fetch",
     "PublicDescription": "Final Pump Scope(system) to get data sourced, ended up larger than Initial Pump Scope (Chip or Group) for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x45048",
     "EventName": "PM_IPTEG_FROM_DL2L3_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x35048",
     "EventName": "PM_IPTEG_FROM_DL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x3504c",
     "EventName": "PM_IPTEG_FROM_DL4",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4504c",
     "EventName": "PM_IPTEG_FROM_DMEM",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x15042",
     "EventName": "PM_IPTEG_FROM_L2",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x1504e",
     "EventName": "PM_IPTEG_FROM_L2MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L2 due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L2 due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x25040",
     "EventName": "PM_IPTEG_FROM_L2_MEPF",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 hit without dispatch conflicts on Mepf state. due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x15040",
     "EventName": "PM_IPTEG_FROM_L2_NO_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x45042",
     "EventName": "PM_IPTEG_FROM_L3",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4504e",
     "EventName": "PM_IPTEG_FROM_L3MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L3 due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L3 due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x35042",
     "EventName": "PM_IPTEG_FROM_L3_DISP_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 with dispatch conflict due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x25042",
     "EventName": "PM_IPTEG_FROM_L3_MEPF",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without dispatch conflicts hit on Mepf state. due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x15044",
     "EventName": "PM_IPTEG_FROM_L3_NO_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x1504c",
     "EventName": "PM_IPTEG_FROM_LL4",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's L4 cache due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x25048",
     "EventName": "PM_IPTEG_FROM_LMEM",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's Memory due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x2504c",
     "EventName": "PM_IPTEG_FROM_MEMORY",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from a memory location including L4 from local remote or distant due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4504a",
     "EventName": "PM_IPTEG_FROM_OFF_CHIP_CACHE",
     "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x15048",
     "EventName": "PM_IPTEG_FROM_ON_CHIP_CACHE",
     "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x25046",
     "EventName": "PM_IPTEG_FROM_RL2L3_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x1504a",
     "EventName": "PM_IPTEG_FROM_RL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x2504a",
     "EventName": "PM_IPTEG_FROM_RL4",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x3504a",
     "EventName": "PM_IPTEG_FROM_RMEM",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a instruction side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0xd096",
     "EventName": "PM_ISLB_MISS",
     "BriefDescription": "I SLB Miss",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x400fc",
     "EventName": "PM_ITLB_MISS",
     "BriefDescription": "ITLB Reloaded (always zero on POWER6)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x200fd",
     "EventName": "PM_L1_ICACHE_MISS",
     "BriefDescription": "Demand iCache Miss",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x40012",
     "EventName": "PM_L1_ICACHE_RELOADED_ALL",
     "BriefDescription": "Counts all Icache reloads includes demand, prefetchm prefetch turned into demand and demand turned into prefetch",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x30068",
     "EventName": "PM_L1_ICACHE_RELOADED_PREF",
     "BriefDescription": "Counts all Icache prefetch reloads ( includes demand turned into prefetch)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x300f4",
     "EventName": "PM_THRD_CONC_RUN_INST",
     "BriefDescription": "PPC Instructions Finished when both threads in run_cycles",
     "PublicDescription": "Concurrent Run Instructions"
   },
-  {,
+  {
     "EventCode": "0x30060",
     "EventName": "PM_TM_TRANS_RUN_INST",
     "BriefDescription": "Instructions completed in transactional state",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4e014",
     "EventName": "PM_TM_TX_PASS_RUN_INST",
     "BriefDescription": "run instructions spent in successful transactions",
     "PublicDescription": ""
-  },
+  }
 ]

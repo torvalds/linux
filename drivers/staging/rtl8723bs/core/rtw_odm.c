@@ -90,18 +90,19 @@ static const char * const odm_dbg_level_str[] = {
 
 #define RTW_ODM_DBG_LEVEL_NUM 6
 
-void rtw_odm_dbg_comp_msg(void *sel, struct adapter *adapter)
+void rtw_odm_dbg_comp_msg(struct adapter *adapter)
 {
 	u64 dbg_comp;
 	int i;
 
 	rtw_hal_get_def_var(adapter, HW_DEF_ODM_DBG_FLAG, &dbg_comp);
-	DBG_871X_SEL_NL(sel, "odm.DebugComponents = 0x%016llx\n", dbg_comp);
+	netdev_dbg(adapter->pnetdev, "odm.DebugComponents = 0x%016llx\n",
+		   dbg_comp);
 	for (i = 0; i < RTW_ODM_COMP_MAX; i++) {
 		if (odm_comp_str[i])
-			DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
-					(BIT0 << i) & dbg_comp ? '+' : ' ',
-					i, odm_comp_str[i]);
+			netdev_dbg(adapter->pnetdev, "%cBIT%-2d %s\n",
+				   (BIT0 << i) & dbg_comp ? '+' : ' ', i,
+				   odm_comp_str[i]);
 	}
 }
 
@@ -116,11 +117,11 @@ void rtw_odm_dbg_level_msg(void *sel, struct adapter *adapter)
 	int i;
 
 	rtw_hal_get_def_var(adapter, HW_DEF_ODM_DBG_LEVEL, &dbg_level);
-	DBG_871X_SEL_NL(sel, "odm.DebugLevel = %u\n", dbg_level);
+	netdev_dbg(adapter->pnetdev, "odm.DebugLevel = %u\n", dbg_level);
 	for (i = 0; i < RTW_ODM_DBG_LEVEL_NUM; i++) {
 		if (odm_dbg_level_str[i])
-			DBG_871X_SEL_NL(sel, "%u %s\n",
-					i, odm_dbg_level_str[i]);
+			netdev_dbg(adapter->pnetdev, "%u %s\n", i,
+				   odm_dbg_level_str[i]);
 	}
 }
 
@@ -135,12 +136,12 @@ void rtw_odm_ability_msg(void *sel, struct adapter *adapter)
 	int i;
 
 	rtw_hal_get_hwreg(adapter, HW_VAR_DM_FLAG, (u8 *)&ability);
-	DBG_871X_SEL_NL(sel, "odm.SupportAbility = 0x%08x\n", ability);
+	netdev_dbg(adapter->pnetdev, "odm.SupportAbility = 0x%08x\n", ability);
 	for (i = 0; i < RTW_ODM_ABILITY_MAX; i++) {
 		if (odm_ability_str[i])
-			DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
-					(BIT0 << i) & ability ? '+' : ' ', i,
-					odm_ability_str[i]);
+			netdev_dbg(adapter->pnetdev, "%cBIT%-2d %s\n",
+				   (BIT0 << i) & ability ? '+' : ' ', i,
+				   odm_ability_str[i]);
 	}
 }
 
@@ -152,19 +153,19 @@ inline void rtw_odm_ability_set(struct adapter *adapter, u32 ability)
 void rtw_odm_adaptivity_parm_msg(void *sel, struct adapter *adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct dm_odm_t *odm = &pHalData->odmpriv;
 
-	DBG_871X_SEL_NL(sel, "%10s %16s %8s %10s %11s %14s\n",
-			"TH_L2H_ini", "TH_EDCCA_HL_diff", "IGI_Base",
-			"ForceEDCCA", "AdapEn_RSSI", "IGI_LowerBound");
-	DBG_871X_SEL_NL(sel, "0x%-8x %-16d 0x%-6x %-10d %-11u %-14u\n",
-			(u8)odm->TH_L2H_ini,
-			odm->TH_EDCCA_HL_diff,
-			odm->IGI_Base,
-			odm->ForceEDCCA,
-			odm->AdapEn_RSSI,
-			odm->IGI_LowerBound
-	);
+	netdev_dbg(adapter->pnetdev, "%10s %16s %8s %10s %11s %14s\n",
+		   "TH_L2H_ini", "TH_EDCCA_HL_diff", "IGI_Base", "ForceEDCCA",
+		   "AdapEn_RSSI", "IGI_LowerBound");
+	netdev_dbg(adapter->pnetdev,
+		   "0x%-8x %-16d 0x%-6x %-10d %-11u %-14u\n",
+		   (u8)odm->TH_L2H_ini,
+		   odm->TH_EDCCA_HL_diff,
+		   odm->IGI_Base,
+		   odm->ForceEDCCA,
+		   odm->AdapEn_RSSI,
+		   odm->IGI_LowerBound);
 }
 
 void rtw_odm_adaptivity_parm_set(struct adapter *adapter, s8 TH_L2H_ini,
@@ -173,7 +174,7 @@ void rtw_odm_adaptivity_parm_set(struct adapter *adapter, s8 TH_L2H_ini,
 				 u8 IGI_LowerBound)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct dm_odm_t *odm = &pHalData->odmpriv;
 
 	odm->TH_L2H_ini = TH_L2H_ini;
 	odm->TH_EDCCA_HL_diff = TH_EDCCA_HL_diff;
@@ -186,8 +187,9 @@ void rtw_odm_adaptivity_parm_set(struct adapter *adapter, s8 TH_L2H_ini,
 void rtw_odm_get_perpkt_rssi(void *sel, struct adapter *adapter)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &hal_data->odmpriv;
+	struct dm_odm_t *odm = &hal_data->odmpriv;
 
-	DBG_871X_SEL_NL(sel, "RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
-			HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);
+	netdev_dbg(adapter->pnetdev,
+		   "RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
+		   HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);
 }

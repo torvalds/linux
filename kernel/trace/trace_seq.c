@@ -16,7 +16,7 @@
  * The buffer size is currently PAGE_SIZE, although it may become dynamic
  * in the future.
  *
- * A write to the buffer will either succed or fail. That is, unlike
+ * A write to the buffer will either succeed or fail. That is, unlike
  * sprintf() there will not be a partial write (well it may write into
  * the buffer but it wont update the pointers). This allows users to
  * try to write something into the trace_seq buffer and if it fails
@@ -29,9 +29,6 @@
 
 /* How much buffer is left on the trace_seq? */
 #define TRACE_SEQ_BUF_LEFT(s) seq_buf_buffer_left(&(s)->seq)
-
-/* How much buffer is written? */
-#define TRACE_SEQ_BUF_USED(s) seq_buf_used(&(s)->seq)
 
 /*
  * trace_seq should work with being initialized with 0s.
@@ -76,7 +73,7 @@ int trace_print_seq(struct seq_file *m, struct trace_seq *s)
  * @fmt: printf format string
  *
  * The tracer may use either sequence operations or its own
- * copy to user routines. To simplify formating of a trace
+ * copy to user routines. To simplify formatting of a trace
  * trace_seq_printf() is used to store strings into a special
  * buffer (@s). Then the output may be either used by
  * the sequencer or pulled into another buffer.
@@ -136,7 +133,7 @@ EXPORT_SYMBOL_GPL(trace_seq_bitmask);
  * @fmt: printf format string
  *
  * The tracer may use either sequence operations or its own
- * copy to user routines. To simplify formating of a trace
+ * copy to user routines. To simplify formatting of a trace
  * trace_seq_printf is used to store strings into a special
  * buffer (@s). Then the output may be either used by
  * the sequencer or pulled into another buffer.
@@ -229,7 +226,7 @@ EXPORT_SYMBOL_GPL(trace_seq_puts);
  * @c: simple character to record
  *
  * The tracer may use either the sequence operations or its own
- * copy to user routines. This function records a simple charater
+ * copy to user routines. This function records a simple character
  * into a special buffer (@s) for later retrieval by a sequencer
  * or other mechanism.
  */
@@ -351,7 +348,7 @@ int trace_seq_path(struct trace_seq *s, const struct path *path)
 EXPORT_SYMBOL_GPL(trace_seq_path);
 
 /**
- * trace_seq_to_user - copy the squence buffer to user space
+ * trace_seq_to_user - copy the sequence buffer to user space
  * @s: trace sequence descriptor
  * @ubuf: The userspace memory location to copy to
  * @cnt: The amount to copy
@@ -366,7 +363,7 @@ EXPORT_SYMBOL_GPL(trace_seq_path);
  *
  * On failure it returns -EBUSY if all of the content in the
  * sequence has been already read, which includes nothing in the
- * sequenc (@s->len == @s->readpos).
+ * sequence (@s->len == @s->readpos).
  *
  * Returns -EFAULT if the copy to userspace fails.
  */
@@ -376,3 +373,33 @@ int trace_seq_to_user(struct trace_seq *s, char __user *ubuf, int cnt)
 	return seq_buf_to_user(&s->seq, ubuf, cnt);
 }
 EXPORT_SYMBOL_GPL(trace_seq_to_user);
+
+int trace_seq_hex_dump(struct trace_seq *s, const char *prefix_str,
+		       int prefix_type, int rowsize, int groupsize,
+		       const void *buf, size_t len, bool ascii)
+{
+	unsigned int save_len = s->seq.len;
+
+	if (s->full)
+		return 0;
+
+	__trace_seq_init(s);
+
+	if (TRACE_SEQ_BUF_LEFT(s) < 1) {
+		s->full = 1;
+		return 0;
+	}
+
+	seq_buf_hex_dump(&(s->seq), prefix_str,
+		   prefix_type, rowsize, groupsize,
+		   buf, len, ascii);
+
+	if (unlikely(seq_buf_has_overflowed(&s->seq))) {
+		s->seq.len = save_len;
+		s->full = 1;
+		return 0;
+	}
+
+	return 1;
+}
+EXPORT_SYMBOL(trace_seq_hex_dump);

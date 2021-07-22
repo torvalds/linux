@@ -48,6 +48,9 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/screen_info.h>
+#include <linux/vt.h>
+#include <linux/console.h>
+#include <linux/acpi.h>
 
 #include <linux/uaccess.h>
 
@@ -167,6 +170,53 @@ void vga_set_default_device(struct pci_dev *pdev)
 	pci_dev_put(vga_default);
 	vga_default = pci_dev_get(pdev);
 }
+
+/**
+ * vga_remove_vgacon - deactivete vga console
+ *
+ * Unbind and unregister vgacon in case pdev is the default vga
+ * device.  Can be called by gpu drivers on initialization to make
+ * sure vga register access done by vgacon will not disturb the
+ * device.
+ *
+ * @pdev: pci device.
+ */
+#if !defined(CONFIG_VGA_CONSOLE)
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return 0;
+}
+#elif !defined(CONFIG_DUMMY_CONSOLE)
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return -ENODEV;
+}
+#else
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	int ret = 0;
+
+	if (pdev != vga_default)
+		return 0;
+	vgaarb_info(&pdev->dev, "deactivate vga console\n");
+
+	console_lock();
+	if (con_is_bound(&vga_con))
+		ret = do_take_over_console(&dummy_con, 0,
+					   MAX_NR_CONSOLES - 1, 1);
+	if (ret == 0) {
+		ret = do_unregister_con_driver(&vga_con);
+
+		/* Ignore "already unregistered". */
+		if (ret == -ENODEV)
+			ret = 0;
+	}
+	console_unlock();
+
+	return ret;
+}
+#endif
+EXPORT_SYMBOL(vga_remove_vgacon);
 
 static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 {
@@ -480,7 +530,7 @@ EXPORT_SYMBOL(vga_get);
  *
  * 0 on success, negative error code on failure.
  */
-int vga_tryget(struct pci_dev *pdev, unsigned int rsrc)
+static int vga_tryget(struct pci_dev *pdev, unsigned int rsrc)
 {
 	struct vga_device *vgadev;
 	unsigned long flags;
@@ -505,7 +555,6 @@ bail:
 	spin_unlock_irqrestore(&vga_lock, flags);
 	return rc;
 }
-EXPORT_SYMBOL(vga_tryget);
 
 /**
  * vga_put - release lock on legacy VGA resources
@@ -676,7 +725,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	vga_arbiter_check_bridge_sharing(vgadev);
 
 	/* Add to the list */
-	list_add(&vgadev->list, &vga_list);
+	list_add_tail(&vgadev->list, &vga_list);
 	vga_count++;
 	vgaarb_info(&pdev->dev, "VGA device added: decodes=%s,owns=%s,locks=%s\n",
 		vga_iostate_to_str(vgadev->decodes),
@@ -1402,12 +1451,38 @@ static struct miscdevice vga_arb_device = {
 	MISC_DYNAMIC_MINOR, "vga_arbiter", &vga_arb_device_fops
 };
 
+#if defined(CONFIG_ACPI)
+static bool vga_arb_integrated_gpu(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	return adev && !strcmp(acpi_device_hid(adev), ACPI_VIDEO_HID);
+}
+#else
+static bool vga_arb_integrated_gpu(struct device *dev)
+{
+	return false;
+}
+#endif
+
 static void __init vga_arb_select_default_device(void)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found = NULL;
 	struct vga_device *vgadev;
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
+	u64 base = screen_info.lfb_base;
+	u64 size = screen_info.lfb_size;
+	u64 limit;
+	resource_size_t start, end;
+	unsigned long flags;
+	int i;
+
+	if (screen_info.capabilities & VIDEO_CAPABILITY_64BIT_BASE)
+		base |= (u64)screen_info.ext_lfb_base << 32;
+
+	limit = base + size;
+
 	list_for_each_entry(vgadev, &vga_list, list) {
 		struct device *dev = &vgadev->pdev->dev;
 		/*
@@ -1418,11 +1493,6 @@ static void __init vga_arb_select_default_device(void)
 		 * Select the device owning the boot framebuffer if there is
 		 * one.
 		 */
-		resource_size_t start, end, limit;
-		unsigned long flags;
-		int i;
-
-		limit = screen_info.lfb_base + screen_info.lfb_size;
 
 		/* Does firmware framebuffer belong to us? */
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -1437,7 +1507,7 @@ static void __init vga_arb_select_default_device(void)
 			if (!start || !end)
 				continue;
 
-			if (screen_info.lfb_base < start || limit >= end)
+			if (base < start || limit >= end)
 				continue;
 
 			if (!vga_default_device())
@@ -1450,18 +1520,24 @@ static void __init vga_arb_select_default_device(void)
 #endif
 
 	if (!vga_default_device()) {
-		list_for_each_entry(vgadev, &vga_list, list) {
+		list_for_each_entry_reverse(vgadev, &vga_list, list) {
 			struct device *dev = &vgadev->pdev->dev;
 			u16 cmd;
 
 			pdev = vgadev->pdev;
 			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 			if (cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-				vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
-				vga_set_default_device(pdev);
-				break;
+				found = pdev;
+				if (vga_arb_integrated_gpu(dev))
+					break;
 			}
 		}
+	}
+
+	if (found) {
+		vgaarb_info(&found->dev, "setting as boot device (VGA legacy resources not available)\n");
+		vga_set_default_device(found);
+		return;
 	}
 
 	if (!vga_default_device()) {

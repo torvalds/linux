@@ -59,7 +59,7 @@ is at most 263 bytes long, though on disk you'll need to reference
      - File name.
 
 Since file names cannot be longer than 255 bytes, the new directory
-entry format shortens the rec\_len field and uses the space for a file
+entry format shortens the name\_len field and uses the space for a file
 type flag, probably to avoid having to load every inode during directory
 tree traversal. This format is ``ext4_dir_entry_2``, which is at most
 263 bytes long, though on disk you'll need to reference
@@ -120,6 +120,31 @@ The directory file type is one of the following values:
      - Socket.
    * - 0x7
      - Symbolic link.
+
+To support directories that are both encrypted and casefolded directories, we
+must also include hash information in the directory entry. We append
+``ext4_extended_dir_entry_2`` to ``ext4_dir_entry_2`` except for the entries
+for dot and dotdot, which are kept the same. The structure follows immediately
+after ``name`` and is included in the size listed by ``rec_len`` If a directory
+entry uses this extension, it may be up to 271 bytes.
+
+.. list-table::
+   :widths: 8 8 24 40
+   :header-rows: 1
+
+   * - Offset
+     - Size
+     - Name
+     - Description
+   * - 0x0
+     - \_\_le32
+     - hash
+     - The hash of the directory name
+   * - 0x4
+     - \_\_le32
+     - minor\_hash
+     - The minor hash of the directory name
+
 
 In order to add checksums to these classic directory blocks, a phony
 ``struct ext4_dir_entry`` is placed at the end of each leaf block to
@@ -322,6 +347,8 @@ The directory hash is one of the following values:
      - Half MD4, unsigned.
    * - 0x5
      - Tea, unsigned.
+   * - 0x6
+     - Siphash.
 
 Interior nodes of an htree are recorded as ``struct dx_node``, which is
 also the full length of a data block:

@@ -25,10 +25,8 @@
 #define MLXSW_PCI_CIR_CTRL_STATUS_SHIFT		24
 #define MLXSW_PCI_CIR_TIMEOUT_MSECS		1000
 
-#define MLXSW_PCI_SW_RESET			0xF0010
-#define MLXSW_PCI_SW_RESET_RST_BIT		BIT(0)
-#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	5000
-#define MLXSW_PCI_SW_RESET_WAIT_MSECS		100
+#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	900000
+#define MLXSW_PCI_SW_RESET_WAIT_MSECS		200
 #define MLXSW_PCI_FW_READY			0xA1844
 #define MLXSW_PCI_FW_READY_MASK			0xFFFF
 #define MLXSW_PCI_FW_READY_MAGIC		0x5E
@@ -43,16 +41,25 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
+#define MLXSW_PCI_FREE_RUNNING_CLOCK_H(offset)	(offset)
+#define MLXSW_PCI_FREE_RUNNING_CLOCK_L(offset)	((offset) + 4)
+
 #define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
 #define MLXSW_PCI_EQ_COMP_NUM	1
+
+#define MLXSW_PCI_SDQS_MIN	2 /* EMAD and control traffic */
+#define MLXSW_PCI_SDQ_EMAD_INDEX	0
+#define MLXSW_PCI_SDQ_EMAD_TC	0
+#define MLXSW_PCI_SDQ_CTL_TC	3
 
 #define MLXSW_PCI_AQ_PAGES	8
 #define MLXSW_PCI_AQ_SIZE	(MLXSW_PCI_PAGE_SIZE * MLXSW_PCI_AQ_PAGES)
 #define MLXSW_PCI_WQE_SIZE	32 /* 32 bytes per element */
 #define MLXSW_PCI_CQE01_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_CQE2_SIZE	32 /* 32 bytes per element */
+#define MLXSW_PCI_CQE_SIZE_MAX	MLXSW_PCI_CQE2_SIZE
 #define MLXSW_PCI_EQE_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_WQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_WQE_SIZE)
 #define MLXSW_PCI_CQE01_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE01_SIZE)
@@ -166,10 +173,19 @@ MLXSW_ITEM32(pci, cqe, wqe_counter, 0x04, 16, 16);
  */
 MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
 
+#define MLXSW_PCI_CQE2_MIRROR_CONG_INVALID	0xFFFF
+
+/* pci_cqe_mirror_cong_high
+ * Congestion level in units of 8KB of the egress traffic class of the original
+ * packet that does mirroring to the CPU. Value of 0xFFFF means that the
+ * congestion level is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_cong_high, 0x08, 16, 4);
+
 /* pci_cqe_trap_id
  * Trap ID that captured the packet.
  */
-MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
+MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 10);
 
 /* pci_cqe_crc
  * Length include CRC. Indicates the length field includes
@@ -200,6 +216,78 @@ mlxsw_pci_cqe_item_helpers(sr, 0, 12, 12);
 MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
 MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
 mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
+
+#define MLXSW_PCI_CQE2_MIRROR_TCLASS_INVALID	0x1F
+
+/* pci_cqe_mirror_tclass
+ * The egress traffic class of the original packet that does mirroring to the
+ * CPU. Value of 0x1F means that the traffic class is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_tclass, 0x10, 27, 5);
+
+/* pci_cqe_tx_lag
+ * The Tx port of a packet that is mirrored / sampled to the CPU is a LAG.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag, 0x10, 24, 1);
+
+/* pci_cqe_tx_lag_subport
+ * The port index within the LAG of a packet that is mirrored / sampled to the
+ * CPU. Reserved when tx_lag is 0.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag_subport, 0x10, 16, 8);
+
+#define MLXSW_PCI_CQE2_TX_PORT_MULTI_PORT	0xFFFE
+#define MLXSW_PCI_CQE2_TX_PORT_INVALID		0xFFFF
+
+/* pci_cqe_tx_lag_id
+ * The Tx LAG ID of the original packet that is mirrored / sampled to the CPU.
+ * Value of 0xFFFE means multi-port. Value fo 0xFFFF means that the Tx LAG ID
+ * is invalid. Reserved when tx_lag is 0.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag_id, 0x10, 0, 16);
+
+/* pci_cqe_tx_system_port
+ * The Tx port of the original packet that is mirrored / sampled to the CPU.
+ * Value of 0xFFFE means multi-port. Value fo 0xFFFF means that the Tx port is
+ * invalid. Reserved when tx_lag is 1.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_system_port, 0x10, 0, 16);
+
+/* pci_cqe_mirror_cong_low
+ * Congestion level in units of 8KB of the egress traffic class of the original
+ * packet that does mirroring to the CPU. Value of 0xFFFF means that the
+ * congestion level is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_cong_low, 0x14, 20, 12);
+
+#define MLXSW_PCI_CQE2_MIRROR_CONG_SHIFT	13	/* Units of 8KB. */
+
+static inline u16 mlxsw_pci_cqe2_mirror_cong_get(const char *cqe)
+{
+	u16 cong_high = mlxsw_pci_cqe2_mirror_cong_high_get(cqe);
+	u16 cong_low = mlxsw_pci_cqe2_mirror_cong_low_get(cqe);
+
+	return cong_high << 12 | cong_low;
+}
+
+/* pci_cqe_user_def_val_orig_pkt_len
+ * When trap_id is an ACL: User defined value from policy engine action.
+ */
+MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
+
+/* pci_cqe_mirror_reason
+ * Mirror reason.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_reason, 0x18, 24, 8);
+
+#define MLXSW_PCI_CQE2_MIRROR_LATENCY_INVALID	0xFFFFFF
+
+/* pci_cqe_mirror_latency
+ * End-to-end latency of the original packet that does mirroring to the CPU.
+ * Value of 0xFFFFFF means that the latency is invalid. Units are according to
+ * MOGCR.mirror_latency_units.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_latency, 0x1C, 8, 24);
 
 /* pci_cqe_owner
  * Ownership bit.

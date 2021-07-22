@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-vexpress/dcscb.c - Dual Cluster System Configuration Block
  *
  * Created by:	Nicolas Pitre, May 2012
  * Copyright:	(C) 2012-2013  Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -23,6 +20,7 @@
 #include <asm/cputype.h>
 #include <asm/cp15.h>
 
+#include "core.h"
 
 #define RST_HOLD0	0x0
 #define RST_HOLD1	0x4

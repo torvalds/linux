@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7269 Setup
  *
  * Copyright (C) 2012  Renesas Electronics Europe Ltd
  * Copyright (C) 2012  Phil Edworthy
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -15,6 +12,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/sh_timer.h>
 #include <linux/io.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,
@@ -565,6 +563,6 @@ static struct platform_device *sh7269_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7269_early_devices,
+	sh_early_platform_add_devices(sh7269_early_devices,
 				   ARRAY_SIZE(sh7269_early_devices));
 }

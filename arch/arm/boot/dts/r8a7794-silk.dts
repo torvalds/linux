@@ -31,10 +31,12 @@
 		serial0 = &scif2;
 		i2c9 = &gpioi2c1;
 		i2c10 = &i2chdmi;
+		mmc0 = &mmcif0;
+		mmc1 = &sdhi1;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -43,8 +45,11 @@
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
-	gpio-keys {
+	keyboard {
 		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keyboard_pins>;
+		pinctrl-names = "default";
 
 		key-3 {
 			gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
@@ -126,8 +131,7 @@
 
 		gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vga-encoder {
@@ -237,7 +241,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180";
 			reg = <0x20>;
-			remote = <&vin0>;
 
 			port {
 				adv7180: endpoint {
@@ -256,8 +259,6 @@
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
 			adi,input-clock = "1x";
-			adi,input-style = <1>;
-			adi,input-justification = "evenly";
 
 			ports {
 				#address-cells = <1>;
@@ -360,6 +361,11 @@
 		function = "du1";
 	};
 
+	keyboard_pins: keyboard {
+		pins = "GP_3_9", "GP_3_10", "GP_3_11", "GP_3_12";
+		bias-pull-up;
+	};
+
 	ssi_pins: sound {
 		groups = "ssi0129_ctrl", "ssi0_data", "ssi1_data";
 		function = "ssi";
@@ -383,7 +389,7 @@
 };
 
 &ether {
-	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-0 = <&ether_pins>, <&phy1_pins>;
 	pinctrl-names = "default";
 
 	phy-handle = <&phy1>;
@@ -395,6 +401,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -521,7 +528,7 @@
 };
 
 &du {
-	pinctrl-0 = <&du0_pins &du1_pins>;
+	pinctrl-0 = <&du0_pins>, <&du1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
@@ -544,7 +551,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&ssi_pins &audio_clk_pins>;
+	pinctrl-0 = <&ssi_pins>, <&audio_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 

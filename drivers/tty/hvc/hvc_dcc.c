@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2010, 2014 The Linux Foundation. All rights reserved.  */
 
+#include <linux/console.h>
 #include <linux/init.h>
+#include <linux/serial.h>
+#include <linux/serial_core.h>
 
 #include <asm/dcc.h>
 #include <asm/processor.h>
@@ -11,6 +14,31 @@
 /* DCC Status Bits */
 #define DCC_STATUS_RX		(1 << 30)
 #define DCC_STATUS_TX		(1 << 29)
+
+static void dcc_uart_console_putchar(struct uart_port *port, int ch)
+{
+	while (__dcc_getstatus() & DCC_STATUS_TX)
+		cpu_relax();
+
+	__dcc_putchar(ch);
+}
+
+static void dcc_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, dcc_uart_console_putchar);
+}
+
+static int __init dcc_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	device->con->write = dcc_early_write;
+
+	return 0;
+}
+
+EARLYCON_DECLARE(dcc, dcc_early_console_setup);
 
 static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)
 {

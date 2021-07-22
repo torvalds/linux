@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8804.c  --  WM8804 S/PDIF transceiver driver
  *
  * Copyright 2010-11 Wolfson Microelectronics plc
  *
  * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -175,7 +172,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 
 	if (snd_soc_component_test_bits(component, e->reg, mask, val)) {
 		/* save the current power state of the transmitter */
-		txpwr = snd_soc_component_read32(component, WM8804_PWRDN) & 0x4;
+		txpwr = snd_soc_component_read(component, WM8804_PWRDN) & 0x4;
 
 		/* power down the transmitter */
 		snd_soc_component_update_bits(component, WM8804_PWRDN, 0x4, 0x4);
@@ -539,7 +536,7 @@ static struct snd_soc_dai_driver wm8804_dai = {
 		.formats = WM8804_FORMATS,
 	},
 	.ops = &wm8804_dai_ops,
-	.symmetric_rates = 1
+	.symmetric_rate = 1
 };
 
 static const struct snd_soc_component_driver soc_component_dev_wm8804 = {

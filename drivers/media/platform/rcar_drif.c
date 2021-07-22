@@ -185,7 +185,6 @@ struct rcar_drif_frame_buf {
 /* OF graph endpoint's V4L2 async data */
 struct rcar_drif_graph_ep {
 	struct v4l2_subdev *subdev;	/* Async matched subdev */
-	struct v4l2_async_subdev asd;	/* Async sub-device descriptor */
 };
 
 /* DMA buffer */
@@ -275,10 +274,14 @@ static int rcar_drif_alloc_dmachannels(struct rcar_drif_sdr *sdr)
 	for_each_rcar_drif_channel(i, &sdr->cur_ch_mask) {
 		struct rcar_drif *ch = sdr->ch[i];
 
-		ch->dmach = dma_request_slave_channel(&ch->pdev->dev, "rx");
-		if (!ch->dmach) {
-			rdrif_err(sdr, "ch%u: dma channel req failed\n", i);
-			ret = -ENODEV;
+		ch->dmach = dma_request_chan(&ch->pdev->dev, "rx");
+		if (IS_ERR(ch->dmach)) {
+			ret = PTR_ERR(ch->dmach);
+			if (ret != -EPROBE_DEFER)
+				rdrif_err(sdr,
+					  "ch%u: dma channel req failed: %pe\n",
+					  i, ch->dmach);
+			ch->dmach = NULL;
 			goto dmach_error;
 		}
 
@@ -1104,12 +1107,6 @@ static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 	struct rcar_drif_sdr *sdr =
 		container_of(notifier, struct rcar_drif_sdr, notifier);
 
-	if (sdr->ep.asd.match.fwnode !=
-	    of_fwnode_handle(subdev->dev->of_node)) {
-		rdrif_err(sdr, "subdev %s cannot bind\n", subdev->name);
-		return -EINVAL;
-	}
-
 	v4l2_set_subdev_hostdata(subdev, sdr);
 	sdr->ep.subdev = subdev;
 	rdrif_dbg(sdr, "bound asd %s\n", subdev->name);
@@ -1164,7 +1161,7 @@ static int rcar_drif_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	ret = v4l2_ctrl_add_handler(&sdr->ctrl_hdl,
-				    sdr->ep.subdev->ctrl_handler, NULL);
+				    sdr->ep.subdev->ctrl_handler, NULL, true);
 	if (ret) {
 		rdrif_err(sdr, "failed: ctrl add hdlr ret %d\n", ret);
 		goto error;
@@ -1213,7 +1210,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 {
 	struct v4l2_async_notifier *notifier = &sdr->notifier;
 	struct fwnode_handle *fwnode, *ep;
-	int ret;
+	struct v4l2_async_subdev *asd;
 
 	v4l2_async_notifier_init(notifier);
 
@@ -1222,26 +1219,21 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 	if (!ep)
 		return 0;
 
-	fwnode = fwnode_graph_get_remote_port_parent(ep);
-	if (!fwnode) {
-		dev_warn(sdr->dev, "bad remote port parent\n");
-		fwnode_handle_put(ep);
-		return -EINVAL;
-	}
-
-	sdr->ep.asd.match.fwnode = fwnode;
-	sdr->ep.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	ret = v4l2_async_notifier_add_subdev(notifier, &sdr->ep.asd);
-	if (ret) {
-		fwnode_handle_put(fwnode);
-		return ret;
-	}
-
 	/* Get the endpoint properties */
 	rcar_drif_get_ep_properties(sdr, ep);
 
-	fwnode_handle_put(fwnode);
+	fwnode = fwnode_graph_get_remote_port_parent(ep);
 	fwnode_handle_put(ep);
+	if (!fwnode) {
+		dev_warn(sdr->dev, "bad remote port parent\n");
+		return -EINVAL;
+	}
+
+	asd = v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode,
+						    struct v4l2_async_subdev);
+	fwnode_handle_put(fwnode);
+	if (IS_ERR(asd))
+		return PTR_ERR(asd);
 
 	return 0;
 }
@@ -1405,11 +1397,9 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	/* Register map */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ch->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ch->base)) {
-		ret = PTR_ERR(ch->base);
-		dev_err(&pdev->dev, "ioremap failed (%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(ch->base))
+		return PTR_ERR(ch->base);
+
 	ch->start = res->start;
 	platform_set_drvdata(pdev, ch);
 

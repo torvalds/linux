@@ -35,8 +35,6 @@
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -91,7 +89,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -108,7 +106,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return rval;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -159,14 +157,12 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
 	unsigned long address = 0;
-#ifdef CONFIG_MMU
 	pmd_t *pmdp;
 	pte_t *ptep;
-#endif
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
@@ -194,10 +190,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->r15 = ((unsigned long)frame->tramp)-8;
 
 	address = ((unsigned long)frame->tramp);
-#ifdef CONFIG_MMU
-	pmdp = pmd_offset(pud_offset(
-			pgd_offset(current->mm, address),
-					address), address);
+	pmdp = pmd_off(current->mm, address);
 
 	preempt_disable();
 	ptep = pte_offset_map(pmdp, address);
@@ -212,10 +205,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	}
 	pte_unmap(ptep);
 	preempt_enable();
-#else
-	flush_icache_range(address, address + 8);
-	flush_dcache_range(address, address + 8);
-#endif
 	if (err)
 		return -EFAULT;
 
@@ -253,7 +242,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 			regs->r3 = -EINTR;
 			break;
 	}
-	/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		/* offset of 4 bytes to re-execute trap (brki) instruction */
@@ -317,9 +306,10 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs, in_syscall);
 
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
 }

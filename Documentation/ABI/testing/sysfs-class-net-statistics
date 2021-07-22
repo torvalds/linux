@@ -51,6 +51,14 @@ Description:
 		packet processing. See the network driver for the exact
 		meaning of this value.
 
+What:		/sys/class/<iface>/statistics/rx_errors
+Date:		April 2005
+KernelVersion:	2.6.12
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the number of receive errors on this network device.
+		See the network driver for the exact meaning of this value.
+
 What:		/sys/class/<iface>/statistics/rx_fifo_errors
 Date:		April 2005
 KernelVersion:	2.6.12
@@ -87,6 +95,14 @@ Description:
 		Indicates the number of received packets that have been missed
 		due to lack of capacity in the receive side. See the network
 		driver for the exact meaning of this value.
+
+What:		/sys/class/<iface>/statistics/rx_nohandler
+Date:		February 2016
+KernelVersion:	4.6
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the number of received packets that were dropped on
+		an inactive device by the network core.
 
 What:		/sys/class/<iface>/statistics/rx_over_errors
 Date:		April 2005

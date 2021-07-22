@@ -50,6 +50,13 @@
 #include <linux/page-flags.h>
 #include <linux/kernel.h>
 
+/*
+ * Technically there's no reliably invalid grant reference or grant handle,
+ * so pick the value that is the most unlikely one to be observed valid.
+ */
+#define INVALID_GRANT_REF          ((grant_ref_t)-1)
+#define INVALID_GRANT_HANDLE       ((grant_handle_t)-1)
+
 #define GNTTAB_RESERVED_XENSTORE 1
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
@@ -157,6 +164,7 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
 	map->flags = flags;
 	map->ref = ref;
 	map->dom = domid;
+	map->status = 1; /* arbitrary positive value */
 }
 
 static inline void
@@ -197,6 +205,23 @@ void gnttab_free_auto_xlat_frames(void);
 
 int gnttab_alloc_pages(int nr_pages, struct page **pages);
 void gnttab_free_pages(int nr_pages, struct page **pages);
+
+struct gnttab_page_cache {
+	spinlock_t		lock;
+#ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	struct page		*pages;
+#else
+	struct list_head	pages;
+#endif
+	unsigned int		num_pages;
+};
+
+void gnttab_page_cache_init(struct gnttab_page_cache *cache);
+int gnttab_page_cache_get(struct gnttab_page_cache *cache, struct page **page);
+void gnttab_page_cache_put(struct gnttab_page_cache *cache, struct page **page,
+			   unsigned int num);
+void gnttab_page_cache_shrink(struct gnttab_page_cache *cache,
+			      unsigned int num);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 struct gnttab_dma_alloc_args {

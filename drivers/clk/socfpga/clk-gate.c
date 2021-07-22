@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright 2011-2012 Calxeda, Inc.
  *  Copyright (C) 2012-2013 Altera Corporation <www.altera.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Based from clk-highbank.c
- *
  */
 #include <linux/slab.h>
 #include <linux/clk-provider.h>
@@ -40,22 +30,23 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 {
 	u32 l4_src;
 	u32 perpll_src;
+	const char *name = clk_hw_get_name(hwclk);
 
-	if (streq(hwclk->init->name, SOCFPGA_L4_MP_CLK)) {
+	if (streq(name, SOCFPGA_L4_MP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		return l4_src &= 0x1;
 	}
-	if (streq(hwclk->init->name, SOCFPGA_L4_SP_CLK)) {
+	if (streq(name, SOCFPGA_L4_SP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		return !!(l4_src & 2);
 	}
 
 	perpll_src = readl(clk_mgr_base_addr + CLKMGR_PERPLL_SRC);
-	if (streq(hwclk->init->name, SOCFPGA_MMC_CLK))
+	if (streq(name, SOCFPGA_MMC_CLK))
 		return perpll_src &= 0x3;
-	if (streq(hwclk->init->name, SOCFPGA_NAND_CLK) ||
-			streq(hwclk->init->name, SOCFPGA_NAND_X_CLK))
-			return (perpll_src >> 2) & 3;
+	if (streq(name, SOCFPGA_NAND_CLK) ||
+	    streq(name, SOCFPGA_NAND_X_CLK))
+		return (perpll_src >> 2) & 3;
 
 	/* QSPI clock */
 	return (perpll_src >> 4) & 3;
@@ -65,24 +56,25 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 static int socfpga_clk_set_parent(struct clk_hw *hwclk, u8 parent)
 {
 	u32 src_reg;
+	const char *name = clk_hw_get_name(hwclk);
 
-	if (streq(hwclk->init->name, SOCFPGA_L4_MP_CLK)) {
+	if (streq(name, SOCFPGA_L4_MP_CLK)) {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		src_reg &= ~0x1;
 		src_reg |= parent;
 		writel(src_reg, clk_mgr_base_addr + CLKMGR_L4SRC);
-	} else if (streq(hwclk->init->name, SOCFPGA_L4_SP_CLK)) {
+	} else if (streq(name, SOCFPGA_L4_SP_CLK)) {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		src_reg &= ~0x2;
 		src_reg |= (parent << 1);
 		writel(src_reg, clk_mgr_base_addr + CLKMGR_L4SRC);
 	} else {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_PERPLL_SRC);
-		if (streq(hwclk->init->name, SOCFPGA_MMC_CLK)) {
+		if (streq(name, SOCFPGA_MMC_CLK)) {
 			src_reg &= ~0x3;
 			src_reg |= parent;
-		} else if (streq(hwclk->init->name, SOCFPGA_NAND_CLK) ||
-			streq(hwclk->init->name, SOCFPGA_NAND_X_CLK)) {
+		} else if (streq(name, SOCFPGA_NAND_CLK) ||
+			streq(name, SOCFPGA_NAND_X_CLK)) {
 			src_reg &= ~0xC;
 			src_reg |= (parent << 2);
 		} else {/* QSPI clock */
@@ -107,7 +99,7 @@ static unsigned long socfpga_clk_recalc_rate(struct clk_hw *hwclk,
 		val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
 		val &= GENMASK(socfpgaclk->width - 1, 0);
 		/* Check for GPIO_DB_CLK by its offset */
-		if ((int) socfpgaclk->div_reg & SOCFPGA_GPIO_DB_CLK_OFFSET)
+		if ((uintptr_t) socfpgaclk->div_reg & SOCFPGA_GPIO_DB_CLK_OFFSET)
 			div = val + 1;
 		else
 			div = (1 << val);
@@ -176,22 +168,27 @@ static struct clk_ops gateclk_ops = {
 	.set_parent = socfpga_clk_set_parent,
 };
 
-static void __init __socfpga_gate_init(struct device_node *node,
-	const struct clk_ops *ops)
+void __init socfpga_gate_init(struct device_node *node)
 {
 	u32 clk_gate[2];
 	u32 div_reg[3];
 	u32 clk_phase[2];
 	u32 fixed_div;
-	struct clk *clk;
+	struct clk_hw *hw_clk;
 	struct socfpga_gate_clk *socfpga_clk;
 	const char *clk_name = node->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
+	struct clk_ops *ops;
 	int rc;
+	int err;
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (WARN_ON(!socfpga_clk))
+		return;
+
+	ops = kmemdup(&gateclk_ops, sizeof(gateclk_ops), GFP_KERNEL);
+	if (WARN_ON(!ops))
 		return;
 
 	rc = of_property_read_u32_array(node, "clk-gate", clk_gate, 2);
@@ -202,8 +199,8 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		socfpga_clk->hw.reg = clk_mgr_base_addr + clk_gate[0];
 		socfpga_clk->hw.bit_idx = clk_gate[1];
 
-		gateclk_ops.enable = clk_gate_ops.enable;
-		gateclk_ops.disable = clk_gate_ops.disable;
+		ops->enable = clk_gate_ops.enable;
+		ops->disable = clk_gate_ops.disable;
 	}
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
@@ -234,20 +231,22 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	init.flags = 0;
 
 	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	if (init.num_parents < 2) {
+		ops->get_parent = NULL;
+		ops->set_parent = NULL;
+	}
+
 	init.parent_names = parent_name;
 	socfpga_clk->hw.hw.init = &init;
 
-	clk = clk_register(NULL, &socfpga_clk->hw.hw);
-	if (WARN_ON(IS_ERR(clk))) {
+	hw_clk = &socfpga_clk->hw.hw;
+
+	err = clk_hw_register(NULL, hw_clk);
+	if (err) {
 		kfree(socfpga_clk);
 		return;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	rc = of_clk_add_provider(node, of_clk_src_simple_get, hw_clk);
 	if (WARN_ON(rc))
 		return;
-}
-
-void __init socfpga_gate_init(struct device_node *node)
-{
-	__socfpga_gate_init(node, &gateclk_ops);
 }

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
  * Driver for the PA Semi PWRficient onchip 1G/10G Ethernet MACs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -401,9 +390,9 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	if (pasemi_dma_alloc_ring(&ring->chan, RX_RING_SIZE))
 		goto out_ring_desc;
 
-	ring->buffers = dma_zalloc_coherent(&mac->dma_pdev->dev,
-					    RX_RING_SIZE * sizeof(u64),
-					    &ring->buf_dma, GFP_KERNEL);
+	ring->buffers = dma_alloc_coherent(&mac->dma_pdev->dev,
+					   RX_RING_SIZE * sizeof(u64),
+					   &ring->buf_dma, GFP_KERNEL);
 	if (!ring->buffers)
 		goto out_ring_desc;
 
@@ -1053,7 +1042,6 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 
 	dn = pci_device_to_OF_node(mac->pdev);
 	phy_dn = of_parse_phandle(dn, "phy-handle", 0);
-	of_node_put(phy_dn);
 
 	mac->link = 0;
 	mac->speed = 0;
@@ -1062,6 +1050,7 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
 				PHY_INTERFACE_MODE_SGMII);
 
+	of_node_put(phy_dn);
 	if (!phydev) {
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
 		return -ENODEV;
@@ -1089,16 +1078,20 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	mac->tx = pasemi_mac_setup_tx_resources(dev);
 
-	if (!mac->tx)
+	if (!mac->tx) {
+		ret = -ENOMEM;
 		goto out_tx_ring;
+	}
 
 	/* We might already have allocated rings in case mtu was changed
 	 * before interface was brought up.
 	 */
 	if (dev->mtu > 1500 && !mac->num_cs) {
 		pasemi_mac_setup_csrings(mac);
-		if (!mac->num_cs)
+		if (!mac->num_cs) {
+			ret = -ENOMEM;
 			goto out_tx_ring;
+		}
 	}
 
 	/* Zero out rmon counters */
@@ -1355,7 +1348,7 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 	const int nh_off = skb_network_offset(skb);
 	const int nh_len = skb_network_header_len(skb);
 	const int nfrags = skb_shinfo(skb)->nr_frags;
-	int cs_size, i, fill, hdr, cpyhdr, evt;
+	int cs_size, i, fill, hdr, evt;
 	dma_addr_t csdma;
 
 	fund = XCT_FUN_ST | XCT_FUN_RR_8BRES |
@@ -1396,7 +1389,6 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 		fill++;
 
 	/* Copy the result into the TCP packet */
-	cpyhdr = fill;
 	CS_DESC(csring, fill++) = XCT_FUN_O | XCT_FUN_FUN(csring->fun) |
 				  XCT_FUN_LLEN(2) | XCT_FUN_SE;
 	CS_DESC(csring, fill++) = XCT_PTR_LEN(2) | XCT_PTR_ADDR(cs_dest) | XCT_PTR_T;
@@ -1716,6 +1708,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENODEV;
 		goto out;
 	}
+	dma_set_mask(&mac->dma_pdev->dev, DMA_BIT_MASK(64));
 
 	mac->iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
 	if (!mac->iob_pdev) {
@@ -1838,7 +1831,7 @@ static void __exit pasemi_mac_cleanup_module(void)
 	pci_unregister_driver(&pasemi_mac_driver);
 }
 
-int pasemi_mac_init_module(void)
+static int pasemi_mac_init_module(void)
 {
 	int err;
 

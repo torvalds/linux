@@ -12,15 +12,12 @@ obj-$(CONFIG_CPU_PXA910)	+= pxa910.o
 obj-$(CONFIG_CPU_MMP2)		+= mmp2.o
 obj-$(CONFIG_MMP_SRAM)		+= sram.o
 
-ifeq ($(CONFIG_COMMON_CLK), )
-obj-y				+= clock.o
-obj-$(CONFIG_CPU_PXA168)	+= clock-pxa168.o
-obj-$(CONFIG_CPU_PXA910)	+= clock-pxa910.o
-obj-$(CONFIG_CPU_MMP2)		+= clock-mmp2.o
-endif
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_CPU_PXA910)	+= pm-pxa910.o
 obj-$(CONFIG_CPU_MMP2)		+= pm-mmp2.o
+endif
+ifeq ($(CONFIG_SMP),y)
+obj-$(CONFIG_MACH_MMP3_DT)	+= platsmp.o
 endif
 
 # board support
@@ -34,5 +31,6 @@ obj-$(CONFIG_MACH_FLINT)	+= flint.o
 obj-$(CONFIG_MACH_MARVELL_JASPER) += jasper.o
 obj-$(CONFIG_MACH_MMP_DT)	+= mmp-dt.o
 obj-$(CONFIG_MACH_MMP2_DT)	+= mmp2-dt.o
+obj-$(CONFIG_MACH_MMP3_DT)	+= mmp3.o
 obj-$(CONFIG_MACH_TETON_BGA)	+= teton_bga.o
 obj-$(CONFIG_MACH_GPLUGD)	+= gplugd.o

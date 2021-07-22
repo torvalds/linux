@@ -1,22 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * ROHM BD9571MWV-M regulator driver
+ * ROHM BD9571MWV-M and BD9574MWF-M regulator driver
  *
  * Copyright (C) 2017 Marek Vasut <marek.vasut+renesas@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  *
  * Based on the TPS65086 driver
  *
  * NOTE: VD09 is missing
  */
 
+#include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -25,7 +18,7 @@
 #include <linux/mfd/bd9571mwv.h>
 
 struct bd9571mwv_reg {
-	struct bd9571mwv *bd;
+	struct regmap *regmap;
 
 	/* DDR Backup Power */
 	u8 bkup_mode_cnt_keepon;	/* from "rohm,ddr-backup-power" */
@@ -108,7 +101,7 @@ static int bd9571mwv_reg_set_voltage_sel_regmap(struct regulator_dev *rdev,
 }
 
 /* Operations permitted on AVS voltage regulator */
-static struct regulator_ops avs_ops = {
+static const struct regulator_ops avs_ops = {
 	.set_voltage_sel	= bd9571mwv_avs_set_voltage_sel_regmap,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= bd9571mwv_avs_get_voltage_sel_regmap,
@@ -116,7 +109,7 @@ static struct regulator_ops avs_ops = {
 };
 
 /* Operations permitted on voltage regulators */
-static struct regulator_ops reg_ops = {
+static const struct regulator_ops reg_ops = {
 	.set_voltage_sel	= bd9571mwv_reg_set_voltage_sel_regmap,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -124,15 +117,15 @@ static struct regulator_ops reg_ops = {
 };
 
 /* Operations permitted on voltage monitors */
-static struct regulator_ops vid_ops = {
+static const struct regulator_ops vid_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	BD9571MWV_REG("VD09", "vd09", VD09, avs_ops, 0, 0x7f,
-		      0x80, 600000, 10000, 0x3c),
+		      0x6f, 600000, 10000, 0x3c),
 	BD9571MWV_REG("VD18", "vd18", VD18, vid_ops, BD9571MWV_VD18_VID, 0xf,
 		      16, 1625000, 25000, 0),
 	BD9571MWV_REG("VD25", "vd25", VD25, vid_ops, BD9571MWV_VD25_VID, 0xf,
@@ -141,30 +134,34 @@ static struct regulator_desc regulators[] = {
 		      11, 2800000, 100000, 0),
 	BD9571MWV_REG("DVFS", "dvfs", DVFS, reg_ops,
 		      BD9571MWV_DVFS_MONIVDAC, 0x7f,
-		      0x80, 600000, 10000, 0x3c),
+		      0x6f, 600000, 10000, 0x3c),
 };
 
 #ifdef CONFIG_PM_SLEEP
-static int bd9571mwv_bkup_mode_read(struct bd9571mwv *bd, unsigned int *mode)
+static int bd9571mwv_bkup_mode_read(struct bd9571mwv_reg *bdreg,
+				    unsigned int *mode)
 {
 	int ret;
 
-	ret = regmap_read(bd->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
+	ret = regmap_read(bdreg->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
 	if (ret) {
-		dev_err(bd->dev, "failed to read backup mode (%d)\n", ret);
+		dev_err(regmap_get_device(bdreg->regmap),
+			"failed to read backup mode (%d)\n", ret);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int bd9571mwv_bkup_mode_write(struct bd9571mwv *bd, unsigned int mode)
+static int bd9571mwv_bkup_mode_write(struct bd9571mwv_reg *bdreg,
+				     unsigned int mode)
 {
 	int ret;
 
-	ret = regmap_write(bd->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
+	ret = regmap_write(bdreg->regmap, BD9571MWV_BKUP_MODE_CNT, mode);
 	if (ret) {
-		dev_err(bd->dev, "failed to configure backup mode 0x%x (%d)\n",
+		dev_err(regmap_get_device(bdreg->regmap),
+			"failed to configure backup mode 0x%x (%d)\n",
 			mode, ret);
 		return ret;
 	}
@@ -177,7 +174,7 @@ static ssize_t backup_mode_show(struct device *dev,
 {
 	struct bd9571mwv_reg *bdreg = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", bdreg->bkup_mode_enabled ? "on" : "off");
+	return sysfs_emit(buf, "%s\n", bdreg->bkup_mode_enabled ? "on" : "off");
 }
 
 static ssize_t backup_mode_store(struct device *dev,
@@ -202,7 +199,7 @@ static ssize_t backup_mode_store(struct device *dev,
 	 * Configure DDR Backup Mode, to change the role of the accessory power
 	 * switch from a power switch to a wake-up switch, or vice versa
 	 */
-	ret = bd9571mwv_bkup_mode_read(bdreg->bd, &mode);
+	ret = bd9571mwv_bkup_mode_read(bdreg, &mode);
 	if (ret)
 		return ret;
 
@@ -210,7 +207,7 @@ static ssize_t backup_mode_store(struct device *dev,
 	if (bdreg->bkup_mode_enabled)
 		mode |= bdreg->bkup_mode_cnt_keepon;
 
-	ret = bd9571mwv_bkup_mode_write(bdreg->bd, mode);
+	ret = bd9571mwv_bkup_mode_write(bdreg, mode);
 	if (ret)
 		return ret;
 
@@ -229,7 +226,7 @@ static int bd9571mwv_suspend(struct device *dev)
 		return 0;
 
 	/* Save DDR Backup Mode */
-	ret = bd9571mwv_bkup_mode_read(bdreg->bd, &mode);
+	ret = bd9571mwv_bkup_mode_read(bdreg, &mode);
 	if (ret)
 		return ret;
 
@@ -243,7 +240,7 @@ static int bd9571mwv_suspend(struct device *dev)
 	mode |= bdreg->bkup_mode_cnt_keepon;
 
 	if (mode != bdreg->bkup_mode_cnt_saved)
-		return bd9571mwv_bkup_mode_write(bdreg->bd, mode);
+		return bd9571mwv_bkup_mode_write(bdreg, mode);
 
 	return 0;
 }
@@ -256,7 +253,7 @@ static int bd9571mwv_resume(struct device *dev)
 		return 0;
 
 	/* Restore DDR Backup Mode */
-	return bd9571mwv_bkup_mode_write(bdreg->bd, bdreg->bkup_mode_cnt_saved);
+	return bd9571mwv_bkup_mode_write(bdreg, bdreg->bkup_mode_cnt_saved);
 }
 
 static const struct dev_pm_ops bd9571mwv_pm  = {
@@ -276,51 +273,54 @@ static int bd9571mwv_regulator_remove(struct platform_device *pdev)
 
 static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 {
-	struct bd9571mwv *bd = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct bd9571mwv_reg *bdreg;
 	struct regulator_dev *rdev;
 	unsigned int val;
 	int i;
+	enum rohm_chip_type chip = platform_get_device_id(pdev)->driver_data;
 
 	bdreg = devm_kzalloc(&pdev->dev, sizeof(*bdreg), GFP_KERNEL);
 	if (!bdreg)
 		return -ENOMEM;
 
-	bdreg->bd = bd;
+	bdreg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 
 	platform_set_drvdata(pdev, bdreg);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = bd->dev->of_node;
-	config.driver_data = bd;
-	config.regmap = bd->regmap;
+	config.dev->of_node = pdev->dev.parent->of_node;
+	config.driver_data = bdreg;
+	config.regmap = bdreg->regmap;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
+		/* BD9574MWF supports DVFS only */
+		if (chip == ROHM_CHIP_TYPE_BD9574 && regulators[i].id != DVFS)
+			continue;
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
 					       &config);
 		if (IS_ERR(rdev)) {
-			dev_err(bd->dev, "failed to register %s regulator\n",
-				pdev->name);
+			dev_err(&pdev->dev, "failed to register %s regulator\n",
+				regulators[i].name);
 			return PTR_ERR(rdev);
 		}
 	}
 
 	val = 0;
-	of_property_read_u32(bd->dev->of_node, "rohm,ddr-backup-power", &val);
+	of_property_read_u32(config.dev->of_node, "rohm,ddr-backup-power", &val);
 	if (val & ~BD9571MWV_BKUP_MODE_CNT_KEEPON_MASK) {
-		dev_err(bd->dev, "invalid %s mode %u\n",
+		dev_err(&pdev->dev, "invalid %s mode %u\n",
 			"rohm,ddr-backup-power", val);
 		return -EINVAL;
 	}
 	bdreg->bkup_mode_cnt_keepon = val;
 
-	bdreg->rstbmode_level = of_property_read_bool(bd->dev->of_node,
+	bdreg->rstbmode_level = of_property_read_bool(config.dev->of_node,
 						      "rohm,rstbmode-level");
-	bdreg->rstbmode_pulse = of_property_read_bool(bd->dev->of_node,
+	bdreg->rstbmode_pulse = of_property_read_bool(config.dev->of_node,
 						      "rohm,rstbmode-pulse");
 	if (bdreg->rstbmode_level && bdreg->rstbmode_pulse) {
-		dev_err(bd->dev, "only one rohm,rstbmode-* may be specified");
+		dev_err(&pdev->dev, "only one rohm,rstbmode-* may be specified");
 		return -EINVAL;
 	}
 
@@ -344,7 +344,8 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id bd9571mwv_regulator_id_table[] = {
-	{ "bd9571mwv-regulator", },
+	{ "bd9571mwv-regulator", ROHM_CHIP_TYPE_BD9571 },
+	{ "bd9574mwf-regulator", ROHM_CHIP_TYPE_BD9574 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, bd9571mwv_regulator_id_table);

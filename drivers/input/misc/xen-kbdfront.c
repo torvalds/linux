@@ -124,7 +124,7 @@ static void xenkbd_handle_mt_event(struct xenkbd_info *info,
 	switch (mtouch->event_type) {
 	case XENKBD_MT_EV_DOWN:
 		input_mt_report_slot_state(info->mtouch, MT_TOOL_FINGER, true);
-		/* fall through */
+		fallthrough;
 
 	case XENKBD_MT_EV_MOTION:
 		input_report_abs(info->mtouch, ABS_MT_POSITION_X,
@@ -146,7 +146,7 @@ static void xenkbd_handle_mt_event(struct xenkbd_info *info,
 		break;
 
 	case XENKBD_MT_EV_UP:
-		input_mt_report_slot_state(info->mtouch, MT_TOOL_FINGER, false);
+		input_mt_report_slot_inactive(info->mtouch);
 		break;
 
 	case XENKBD_MT_EV_SYN:
@@ -524,7 +524,7 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 	case XenbusStateClosed:
 		if (dev->state == XenbusStateClosed)
 			break;
-		/* fall through - Missed the backend's CLOSING state */
+		fallthrough;	/* Missed the backend's CLOSING state */
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;

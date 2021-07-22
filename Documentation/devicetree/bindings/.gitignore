@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
+*.example.dts
+/processed-schema*.yaml
+/processed-schema*.json

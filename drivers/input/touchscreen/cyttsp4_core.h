@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cyttsp4_core.h
  * Cypress TrueTouch(TM) Standard Product V4 Core driver module.
@@ -8,18 +9,7 @@
  *
  * Copyright (C) 2012 Cypress Semiconductor
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, and only version 2, as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Contact Cypress Semiconductor at www.cypress.com <ttdrivers@cypress.com>
- *
  */
 
 #ifndef _LINUX_CYTTSP4_CORE_H
@@ -241,20 +231,6 @@ enum cyttsp4_tch_abs {	/* for ordering within the extracted touch data array */
 	CY_TCH_MIN,	/* TOUCH_MINOR */
 	CY_TCH_OR,	/* ORIENTATION */
 	CY_TCH_NUM_ABS
-};
-
-static const char * const cyttsp4_tch_abs_string[] = {
-	[CY_TCH_X]	= "X",
-	[CY_TCH_Y]	= "Y",
-	[CY_TCH_P]	= "P",
-	[CY_TCH_T]	= "T",
-	[CY_TCH_E]	= "E",
-	[CY_TCH_O]	= "O",
-	[CY_TCH_W]	= "W",
-	[CY_TCH_MAJ]	= "MAJ",
-	[CY_TCH_MIN]	= "MIN",
-	[CY_TCH_OR]	= "OR",
-	[CY_TCH_NUM_ABS] = "INVALID"
 };
 
 struct cyttsp4_touch {

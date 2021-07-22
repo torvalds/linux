@@ -28,9 +28,10 @@ Required properties :
   See ../reset/reset.txt for details.
 - reset-names : Must include the following entries:
   - soctherm
-- #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description
-    of this property. See <dt-bindings/thermal/tegra124-soctherm.h> for a
-    list of valid values when referring to thermal sensors.
+- #thermal-sensor-cells : Should be 1. For a description of this property, see
+     Documentation/devicetree/bindings/thermal/thermal-sensor.yaml.
+    See <dt-bindings/thermal/tegra124-soctherm.h> for a list of valid values
+    when referring to thermal sensors.
 - throttle-cfgs: A sub-node which is a container of configuration for each
     hardware throttle events. These events can be set as cooling devices.
   * throttle events: Sub-nodes must be named as "light" or "heavy".
@@ -52,13 +53,48 @@ Required properties :
         Must set as following values:
         TEGRA_SOCTHERM_THROT_LEVEL_LOW, TEGRA_SOCTHERM_THROT_LEVEL_MED
         TEGRA_SOCTHERM_THROT_LEVEL_HIGH, TEGRA_SOCTHERM_THROT_LEVEL_NONE
+      - nvidia,gpu-throt-level: This property is for Tegra124 and Tegra210.
+        It is the level of pulse skippers, which used to throttle clock
+        frequencies. It indicates gpu clock throttling depth and can be
+        programmed to any of the following values which represent a throttling
+        percentage:
+        TEGRA_SOCTHERM_THROT_LEVEL_NONE (0%)
+        TEGRA_SOCTHERM_THROT_LEVEL_LOW (50%),
+        TEGRA_SOCTHERM_THROT_LEVEL_MED (75%),
+        TEGRA_SOCTHERM_THROT_LEVEL_HIGH (85%).
       - #cooling-cells: Should be 1. This cooling device only support on/off state.
-        See ./thermal.txt for a description of this property.
+        For a description of this property see:
+	Documentation/devicetree/bindings/thermal/thermal-cooling-devices.yaml
+
+      Optional properties: The following properties are T210 specific and
+      valid only for OCx throttle events.
+      - nvidia,count-threshold: Specifies the number of OC events that are
+        required for triggering an interrupt. Interrupts are not triggered if
+        the property is missing. A value of 0 will interrupt on every OC alarm.
+      - nvidia,polarity-active-low: Configures the polarity of the OC alaram
+        signal. If present, this means assert low, otherwise assert high.
+      - nvidia,alarm-filter: Number of clocks to filter event. When the filter
+        expires (which means the OC event has not occurred for a long time),
+        the counter is cleared and filter is rearmed. Default value is 0.
+      - nvidia,throttle-period-us: Specifies the number of uSec for which
+        throttling is engaged after the OC event is deasserted. Default value
+        is 0.
+
+Optional properties:
+- nvidia,thermtrips : When present, this property specifies the temperature at
+  which the soctherm hardware will assert the thermal trigger signal to the
+  Power Management IC, which can be configured to reset or shutdown the device.
+  It is an array of pairs where each pair represents a tsensor id followed by a
+  temperature in milli Celcius. In the absence of this property the critical
+  trip point will be used for thermtrip temperature.
 
 Note:
-- the "critical" type trip points will be set to SOC_THERM hardware as the
-shut down temperature. Once the temperature of this thermal zone is higher
-than it, the system will be shutdown or reset by hardware.
+- the "critical" type trip points will be used to set the temperature at which
+the SOC_THERM hardware will assert a thermal trigger if the "nvidia,thermtrips"
+property is missing. When the thermtrips property is present, the breach of a
+critical trip point is reported back to the thermal framework to implement
+software shutdown.
+
 - the "hot" type trip points will be set to SOC_THERM hardware as the throttle
 temperature. Once the the temperature of this thermal zone is higher
 than it, it will trigger the HW throttle event.
@@ -79,25 +115,32 @@ Example :
 
 		#thermal-sensor-cells = <1>;
 
+		nvidia,thermtrips = <TEGRA124_SOCTHERM_SENSOR_CPU 102500
+				     TEGRA124_SOCTHERM_SENSOR_GPU 103000>;
+
 		throttle-cfgs {
 			/*
 			 * When the "heavy" cooling device triggered,
-			 * the HW will skip cpu clock's pulse in 85% depth
+			 * the HW will skip cpu clock's pulse in 85% depth,
+			 * skip gpu clock's pulse in 85% level
 			 */
 			throttle_heavy: heavy {
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
 
 				#cooling-cells = <1>;
 			};
 
 			/*
 			 * When the "light" cooling device triggered,
-			 * the HW will skip cpu clock's pulse in 50% depth
+			 * the HW will skip cpu clock's pulse in 50% depth,
+			 * skip gpu clock's pulse in 50% level
 			 */
 			throttle_light: light {
 				nvidia,priority = <80>;
 				nvidia,cpu-throt-percent = <50>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_LOW>;
 
 				#cooling-cells = <1>;
 			};
@@ -107,6 +150,17 @@ Example :
 			 * arbiter will select the highest priority as the final throttle
 			 * settings to skip cpu pulse.
 			 */
+
+			throttle_oc1: oc1 {
+				nvidia,priority = <50>;
+				nvidia,polarity-active-low;
+				nvidia,count-threshold = <100>;
+				nvidia,alarm-filter = <5100000>;
+				nvidia,throttle-period-us = <0>;
+				nvidia,cpu-throt-percent = <75>;
+				nvidia,gpu-throt-level =
+						<TEGRA_SOCTHERM_THROT_LEVEL_MED>;
+                        };
 		};
 	};
 

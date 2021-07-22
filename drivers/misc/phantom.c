@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2005-2007 Jiri Slaby <jirislaby@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  *
  *  You need a userspace library to cooperate with this driver. It (and other
  *  info) may be obtained here:
@@ -461,31 +457,26 @@ static void phantom_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int phantom_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused phantom_suspend(struct device *dev_d)
 {
-	struct phantom_device *dev = pci_get_drvdata(pdev);
+	struct phantom_device *dev = dev_get_drvdata(dev_d);
 
 	iowrite32(0, dev->caddr + PHN_IRQCTL);
 	ioread32(dev->caddr + PHN_IRQCTL); /* PCI posting */
 
-	synchronize_irq(pdev->irq);
+	synchronize_irq(to_pci_dev(dev_d)->irq);
 
 	return 0;
 }
 
-static int phantom_resume(struct pci_dev *pdev)
+static int __maybe_unused phantom_resume(struct device *dev_d)
 {
-	struct phantom_device *dev = pci_get_drvdata(pdev);
+	struct phantom_device *dev = dev_get_drvdata(dev_d);
 
 	iowrite32(0, dev->caddr + PHN_IRQCTL);
 
 	return 0;
 }
-#else
-#define phantom_suspend	NULL
-#define phantom_resume	NULL
-#endif
 
 static struct pci_device_id phantom_pci_tbl[] = {
 	{ .vendor = PCI_VENDOR_ID_PLX, .device = PCI_DEVICE_ID_PLX_9050,
@@ -495,13 +486,14 @@ static struct pci_device_id phantom_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, phantom_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(phantom_pm_ops, phantom_suspend, phantom_resume);
+
 static struct pci_driver phantom_pci_driver = {
 	.name = "phantom",
 	.id_table = phantom_pci_tbl,
 	.probe = phantom_probe,
 	.remove = phantom_remove,
-	.suspend = phantom_suspend,
-	.resume = phantom_resume
+	.driver.pm = &phantom_pm_ops,
 };
 
 static CLASS_ATTR_STRING(version, 0444, PHANTOM_VERSION);

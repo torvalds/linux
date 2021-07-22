@@ -1,0 +1,148 @@
+Kernel driver adm1275
+=====================
+
+Supported chips:
+
+  * Analog Devices ADM1075
+
+    Prefix: 'adm1075'
+
+    Addresses scanned: -
+
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1075.pdf
+
+  * Analog Devices ADM1272
+
+    Prefix: 'adm1272'
+
+    Addresses scanned: -
+
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1272.pdf
+
+  * Analog Devices ADM1275
+
+    Prefix: 'adm1275'
+
+    Addresses scanned: -
+
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1275.pdf
+
+  * Analog Devices ADM1276
+
+    Prefix: 'adm1276'
+
+    Addresses scanned: -
+
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1276.pdf
+
+  * Analog Devices ADM1278
+
+    Prefix: 'adm1278'
+
+    Addresses scanned: -
+
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1278.pdf
+
+  * Analog Devices ADM1293/ADM1294
+
+    Prefix: 'adm1293', 'adm1294'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADM1293_1294.pdf
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices ADM1075, ADM1272,
+ADM1275, ADM1276, ADM1278, ADM1293, and ADM1294 Hot-Swap Controller and
+Digital Power Monitors.
+
+ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1293, and ADM1294 are hot-swap
+controllers that allow a circuit board to be removed from or inserted into
+a live backplane. They also feature current and voltage readback via an
+integrated 12 bit analog-to-digital converter (ADC), accessed using a
+PMBus interface.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+The ADM1075, unlike many other PMBus devices, does not support internal voltage
+or current scaling. Reported voltages, currents, and power are raw measurements,
+and will typically have to be scaled.
+
+The shunt value in micro-ohms can be set via device tree at compile-time. Please
+refer to the Documentation/devicetree/bindings/hwmon/adi,adm1275.yaml for bindings
+if the device tree is used.
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data. Please see
+Documentation/hwmon/pmbus.rst for details.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported. Limits are read-write, history reset
+attributes are write-only, all other attributes are read-only.
+
+======================= =======================================================
+inX_label		"vin1" or "vout1" depending on chip variant and
+			configuration. On ADM1075, ADM1293, and ADM1294,
+			vout1 reports the voltage on the VAUX pin.
+inX_input		Measured voltage.
+inX_min			Minimum Voltage.
+inX_max			Maximum voltage.
+inX_min_alarm		Voltage low alarm.
+inX_max_alarm		Voltage high alarm.
+inX_highest		Historical maximum voltage.
+inX_reset_history	Write any value to reset history.
+
+curr1_label		"iout1"
+curr1_input		Measured current.
+curr1_max		Maximum current.
+curr1_max_alarm		Current high alarm.
+curr1_lcrit		Critical minimum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_lcrit_alarm	Critical current low alarm.
+curr1_crit		Critical maximum current. Depending on the chip
+			configuration, either curr1_lcrit or curr1_crit is
+			supported, but not both.
+curr1_crit_alarm	Critical current high alarm.
+curr1_highest		Historical maximum current.
+curr1_reset_history	Write any value to reset history.
+
+power1_label		"pin1"
+power1_input		Input power.
+power1_input_lowest	Lowest observed input power. ADM1293 and ADM1294 only.
+power1_input_highest	Highest observed input power.
+power1_reset_history	Write any value to reset history.
+
+			Power attributes are supported on ADM1075, ADM1272,
+			ADM1276, ADM1293, and ADM1294.
+
+temp1_input		Chip temperature.
+temp1_max		Maximum chip temperature.
+temp1_max_alarm		Temperature alarm.
+temp1_crit		Critical chip temperature.
+temp1_crit_alarm	Critical temperature high alarm.
+temp1_highest		Highest observed temperature.
+temp1_reset_history	Write any value to reset history.
+
+			Temperature attributes are supported on ADM1272 and
+			ADM1278.
+======================= =======================================================

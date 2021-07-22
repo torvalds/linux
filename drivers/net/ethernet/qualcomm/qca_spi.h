@@ -74,6 +74,8 @@ struct qcaspi_stats {
 	u64 ring_full;
 	u64 spi_err;
 	u64 write_verify_failed;
+	u64 buf_avail_err;
+	u64 bad_signature;
 };
 
 struct qcaspi {
@@ -93,6 +95,7 @@ struct qcaspi {
 
 	unsigned int intr_req;
 	unsigned int intr_svc;
+	u16 reset_count;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *device_root;

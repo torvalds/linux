@@ -215,7 +215,6 @@ static int uniphier_u3ssphy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uniphier_u3ssphy_priv *priv;
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	struct phy *phy;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -228,8 +227,7 @@ static int uniphier_u3ssphy_probe(struct platform_device *pdev)
 		    priv->data->nparams > MAX_PHY_PARAMS))
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -238,13 +236,9 @@ static int uniphier_u3ssphy_probe(struct platform_device *pdev)
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);
 
-		priv->clk_ext = devm_clk_get(dev, "phy-ext");
-		if (IS_ERR(priv->clk_ext)) {
-			if (PTR_ERR(priv->clk_ext) == -ENOENT)
-				priv->clk_ext = NULL;
-			else
-				return PTR_ERR(priv->clk_ext);
-		}
+		priv->clk_ext = devm_clk_get_optional(dev, "phy-ext");
+		if (IS_ERR(priv->clk_ext))
+			return PTR_ERR(priv->clk_ext);
 
 		priv->rst = devm_reset_control_get_shared(dev, "phy");
 		if (IS_ERR(priv->rst))
@@ -316,6 +310,10 @@ static const struct uniphier_u3ssphy_soc_data uniphier_ld20_data = {
 static const struct of_device_id uniphier_u3ssphy_match[] = {
 	{
 		.compatible = "socionext,uniphier-pro4-usb3-ssphy",
+		.data = &uniphier_pro4_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-usb3-ssphy",
 		.data = &uniphier_pro4_data,
 	},
 	{

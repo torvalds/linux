@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant linux driver for Technotrend DVB USB boxes and clones
  * (e.g. Pinnacle 400e DVB-S USB2.0).
  *
@@ -16,11 +17,7 @@
  * Copyright (c) 2003 Felix Domke <tmbinc@elitedvb.net>
  * Copyright (C) 2005-6 Patrick Boettcher <pb@linuxtv.org>
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #define DVB_USB_LOG_PREFIX "ttusb2"
 #include "dvb-usb.h"
@@ -470,9 +467,10 @@ static int tt3650_rc_query(struct dvb_usb_device *d)
 
 
 /* Callbacks for DVB USB */
-static int ttusb2_identify_state (struct usb_device *udev, struct
-		dvb_usb_device_properties *props, struct dvb_usb_device_description **desc,
-		int *cold)
+static int ttusb2_identify_state(struct usb_device *udev,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
+				 int *cold)
 {
 	*cold = udev->descriptor.iManufacturer == 0 && udev->descriptor.iProduct == 0;
 	return 0;

@@ -9,8 +9,6 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -25,20 +23,9 @@
 #define BYT_CRC_HRV		2
 #define CHT_CRC_HRV		3
 
-/* Lookup table for the Panel Enable/Disable line as GPIO signals */
-static struct gpiod_lookup_table panel_gpio_table = {
-	/* Intel GFX is consumer */
-	.dev_id = "0000:00:02.0",
-	.table = {
-		/* Panel EN/DISABLE */
-		GPIO_LOOKUP("gpio_crystalcove", 94, "panel", GPIO_ACTIVE_HIGH),
-		{ },
-	},
-};
-
 /* PWM consumed by the Intel GFX */
 static struct pwm_lookup crc_pwm_lookup[] = {
-	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_backlight", 0, PWM_POLARITY_NORMAL),
+	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
 };
 
 static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
@@ -96,9 +83,6 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		dev_warn(dev, "Can't enable IRQ as wake source: %d\n", ret);
 
-	/* Add lookup table binding for Panel Control to the GPIO Chip */
-	gpiod_add_lookup_table(&panel_gpio_table);
-
 	/* Add lookup table for crc-pwm */
 	pwm_add_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
 
@@ -120,9 +104,6 @@ static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 	struct intel_soc_pmic *pmic = dev_get_drvdata(&i2c->dev);
 
 	regmap_del_irq_chip(pmic->irq, pmic->irq_chip_data);
-
-	/* Remove lookup table for Panel Control from the GPIO Chip */
-	gpiod_remove_lookup_table(&panel_gpio_table);
 
 	/* remove crc-pwm lookup table */
 	pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));

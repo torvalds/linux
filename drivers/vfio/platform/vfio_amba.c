@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 - Virtual Open Systems
  * Author: Antonios Motakis <a.motakis@virtualopensystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -67,30 +59,26 @@ static int vfio_amba_probe(struct amba_device *adev, const struct amba_id *id)
 	vdev->flags = VFIO_DEVICE_FLAGS_AMBA;
 	vdev->get_resource = get_amba_resource;
 	vdev->get_irq = get_amba_irq;
-	vdev->parent_module = THIS_MODULE;
 	vdev->reset_required = false;
 
 	ret = vfio_platform_probe_common(vdev, &adev->dev);
 	if (ret) {
 		kfree(vdev->name);
 		kfree(vdev);
+		return ret;
 	}
 
-	return ret;
+	dev_set_drvdata(&adev->dev, vdev);
+	return 0;
 }
 
-static int vfio_amba_remove(struct amba_device *adev)
+static void vfio_amba_remove(struct amba_device *adev)
 {
-	struct vfio_platform_device *vdev;
+	struct vfio_platform_device *vdev = dev_get_drvdata(&adev->dev);
 
-	vdev = vfio_platform_remove_common(&adev->dev);
-	if (vdev) {
-		kfree(vdev->name);
-		kfree(vdev);
-		return 0;
-	}
-
-	return -EINVAL;
+	vfio_platform_remove_common(vdev);
+	kfree(vdev->name);
+	kfree(vdev);
 }
 
 static const struct amba_id pl330_ids[] = {

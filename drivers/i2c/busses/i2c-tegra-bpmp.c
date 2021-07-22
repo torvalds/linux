@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/i2c/busses/i2c-tegra-bpmp.c
  *
  * Copyright (c) 2016 NVIDIA Corporation.  All rights reserved.
  *
  * Author: Shardar Shariff Md <smohammed@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/err.h>
@@ -49,52 +38,34 @@ struct tegra_bpmp_i2c {
  * firmware I2C driver to avoid any issues in future if Linux I2C flags are
  * changed.
  */
-static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
+static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 {
-	if (flags & I2C_M_TEN) {
+	if (flags & I2C_M_TEN)
 		*out |= SERIALI2C_TEN;
-		flags &= ~I2C_M_TEN;
-	}
 
-	if (flags & I2C_M_RD) {
+	if (flags & I2C_M_RD)
 		*out |= SERIALI2C_RD;
-		flags &= ~I2C_M_RD;
-	}
 
-	if (flags & I2C_M_STOP) {
+	if (flags & I2C_M_STOP)
 		*out |= SERIALI2C_STOP;
-		flags &= ~I2C_M_STOP;
-	}
 
-	if (flags & I2C_M_NOSTART) {
+	if (flags & I2C_M_NOSTART)
 		*out |= SERIALI2C_NOSTART;
-		flags &= ~I2C_M_NOSTART;
-	}
 
-	if (flags & I2C_M_REV_DIR_ADDR) {
+	if (flags & I2C_M_REV_DIR_ADDR)
 		*out |= SERIALI2C_REV_DIR_ADDR;
-		flags &= ~I2C_M_REV_DIR_ADDR;
-	}
 
-	if (flags & I2C_M_IGNORE_NAK) {
+	if (flags & I2C_M_IGNORE_NAK)
 		*out |= SERIALI2C_IGNORE_NAK;
-		flags &= ~I2C_M_IGNORE_NAK;
-	}
 
-	if (flags & I2C_M_NO_RD_ACK) {
+	if (flags & I2C_M_NO_RD_ACK)
 		*out |= SERIALI2C_NO_RD_ACK;
-		flags &= ~I2C_M_NO_RD_ACK;
-	}
 
-	if (flags & I2C_M_RECV_LEN) {
+	if (flags & I2C_M_RECV_LEN)
 		*out |= SERIALI2C_RECV_LEN;
-		flags &= ~I2C_M_RECV_LEN;
-	}
-
-	return (flags != 0) ? -EINVAL : 0;
 }
 
-/**
+/*
  * The serialized I2C format is simply the following:
  * [addr little-endian][flags little-endian][len little-endian][data if write]
  * [addr little-endian][flags little-endian][len little-endian][data if write]
@@ -108,22 +79,19 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
-static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
+static void tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 					struct mrq_i2c_request *request,
 					struct i2c_msg *msgs,
 					unsigned int num)
 {
 	char *buf = request->xfer.data_buf;
 	unsigned int i, j, pos = 0;
-	int err;
 
 	for (i = 0; i < num; i++) {
 		struct i2c_msg *msg = &msgs[i];
 		u16 flags = 0;
 
-		err = tegra_bpmp_xlate_flags(msg->flags, &flags);
-		if (err < 0)
-			return err;
+		tegra_bpmp_xlate_flags(msg->flags, &flags);
 
 		buf[pos++] = msg->addr & 0xff;
 		buf[pos++] = (msg->addr & 0xff00) >> 8;
@@ -139,11 +107,9 @@ static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 	}
 
 	request->xfer.data_size = pos;
-
-	return 0;
 }
 
-/**
+/*
  * The data in the BPMP -> CPU direction is composed of sequential blocks for
  * those messages that have I2C_M_RD. So, for example, if you have:
  *
@@ -207,7 +173,8 @@ static int tegra_bpmp_i2c_msg_len_check(struct i2c_msg *msgs, unsigned int num)
 
 static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 				   struct mrq_i2c_request *request,
-				   struct mrq_i2c_response *response)
+				   struct mrq_i2c_response *response,
+				   bool atomic)
 {
 	struct tegra_bpmp_message msg;
 	int err;
@@ -222,16 +189,42 @@ static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 	msg.rx.data = response;
 	msg.rx.size = sizeof(*response);
 
-	if (irqs_disabled())
+	if (atomic)
 		err = tegra_bpmp_transfer_atomic(i2c->bpmp, &msg);
 	else
 		err = tegra_bpmp_transfer(i2c->bpmp, &msg);
 
-	return err;
+	if (err < 0) {
+		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
+		return err;
+	}
+
+	if (msg.rx.ret != 0) {
+		if (msg.rx.ret == -BPMP_EAGAIN) {
+			dev_dbg(i2c->dev, "arbitration lost\n");
+			return -EAGAIN;
+		}
+
+		if (msg.rx.ret == -BPMP_ETIMEDOUT) {
+			dev_dbg(i2c->dev, "timeout\n");
+			return -ETIMEDOUT;
+		}
+
+		if (msg.rx.ret == -BPMP_ENXIO) {
+			dev_dbg(i2c->dev, "NAK\n");
+			return -ENXIO;
+		}
+
+		dev_err(i2c->dev, "transaction failed: %d\n", msg.rx.ret);
+		return -EIO;
+	}
+
+	return 0;
 }
 
-static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
-			       struct i2c_msg *msgs, int num)
+static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
+				      struct i2c_msg *msgs, int num,
+				      bool atomic)
 {
 	struct tegra_bpmp_i2c *i2c = i2c_get_adapdata(adapter);
 	struct mrq_i2c_response response;
@@ -247,13 +240,8 @@ static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
 	memset(&request, 0, sizeof(request));
 	memset(&response, 0, sizeof(response));
 
-	err = tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
-	if (err < 0) {
-		dev_err(i2c->dev, "failed to serialize message: %d\n", err);
-		return err;
-	}
-
-	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response);
+	tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
+	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response, atomic);
 	if (err < 0) {
 		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
 		return err;
@@ -268,6 +256,18 @@ static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
 	return num;
 }
 
+static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
+			       struct i2c_msg *msgs, int num)
+{
+	return tegra_bpmp_i2c_xfer_common(adapter, msgs, num, false);
+}
+
+static int tegra_bpmp_i2c_xfer_atomic(struct i2c_adapter *adapter,
+				      struct i2c_msg *msgs, int num)
+{
+	return tegra_bpmp_i2c_xfer_common(adapter, msgs, num, true);
+}
+
 static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
@@ -276,6 +276,7 @@ static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 
 static const struct i2c_algorithm tegra_bpmp_i2c_algo = {
 	.master_xfer = tegra_bpmp_i2c_xfer,
+	.master_xfer_atomic = tegra_bpmp_i2c_xfer_atomic,
 	.functionality = tegra_bpmp_i2c_func,
 };
 

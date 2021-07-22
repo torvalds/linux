@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ts5500_flash.c -- MTD map driver for Technology Systems TS-5500 board
  *
  * Copyright (C) 2004 Sean Young <sean@mess.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *
  * Note:
  * - In order for detection to work, jumper 3 must be set.
@@ -69,10 +56,10 @@ static int __init init_ts5500_map(void)
 {
 	int rc = 0;
 
-	ts5500_map.virt = ioremap_nocache(ts5500_map.phys, ts5500_map.size);
+	ts5500_map.virt = ioremap(ts5500_map.phys, ts5500_map.size);
 
 	if (!ts5500_map.virt) {
-		printk(KERN_ERR "Failed to ioremap_nocache\n");
+		printk(KERN_ERR "Failed to ioremap\n");
 		rc = -EIO;
 		goto err2;
 	}

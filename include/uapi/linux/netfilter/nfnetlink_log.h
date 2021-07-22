@@ -33,6 +33,15 @@ struct nfulnl_msg_packet_timestamp {
 	__aligned_be64	usec;
 };
 
+enum nfulnl_vlan_attr {
+	NFULA_VLAN_UNSPEC,
+	NFULA_VLAN_PROTO,		/* __be16 skb vlan_proto */
+	NFULA_VLAN_TCI,			/* __be16 skb htons(vlan_tci) */
+	__NFULA_VLAN_MAX,
+};
+
+#define NFULA_VLAN_MAX (__NFULA_VLAN_MAX + 1)
+
 enum nfulnl_attr_type {
 	NFULA_UNSPEC,
 	NFULA_PACKET_HDR,
@@ -52,8 +61,10 @@ enum nfulnl_attr_type {
 	NFULA_HWTYPE,			/* hardware type */
 	NFULA_HWHEADER,			/* hardware header */
 	NFULA_HWLEN,			/* hardware header length */
-	NFULA_CT,                       /* nf_conntrack_netlink.h */
+	NFULA_CT,                       /* nfnetlink_conntrack.h */
 	NFULA_CT_INFO,                  /* enum ip_conntrack_info */
+	NFULA_VLAN,			/* nested attribute: packet vlan info */
+	NFULA_L2HDR,			/* full L2 header */
 
 	__NFULA_MAX
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
  *
@@ -5,10 +6,6 @@
  *
  * Authors: Sylwester Nawrocki <s.nawrocki@samsung.com>
  *          Younghwan Joo <yhwan.joo@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef FIMC_ISP_H_
 #define FIMC_ISP_H_
@@ -113,16 +110,20 @@ struct isp_video_buf {
 
 /**
  * struct fimc_is_video - fimc-is video device structure
- * @vdev: video_device structure
+ * @ve: video_device structure and media pipeline
  * @type: video device type (CAPTURE/OUTPUT)
  * @pad: video device media (sink) pad
  * @pending_buf_q: pending buffers queue head
  * @active_buf_q: a queue head of buffers scheduled in hardware
  * @vb_queue: vb2 buffer queue
- * @active_buf_count: number of video buffers scheduled in hardware
+ * @reqbufs_count: the number of buffers requested in REQBUFS ioctl
+ * @buf_count: number of video buffers scheduled in hardware
+ * @buf_mask: bitmask of the queued video buffer indices
  * @frame_count: counter of frames dequeued to user space
- * @reqbufs_count: number of buffers requested with REQBUFS ioctl
- * @format: current pixel format
+ * @streaming: is streaming in progress?
+ * @buffers: buffer info
+ * @format: current fimc pixel format
+ * @pixfmt: current pixel format
  */
 struct fimc_is_video {
 	struct exynos_video_entity ve;
@@ -150,9 +151,12 @@ struct fimc_is_video {
  * @pdev: pointer to FIMC-IS platform device
  * @subdev: ISP v4l2_subdev
  * @subdev_pads: the ISP subdev media pads
+ * @src_fmt: source mediabus format
+ * @sink_fmt: sink mediabus format
  * @test_pattern: test pattern controls
  * @ctrls: v4l2 controls structure
- * @video_lock: mutex serializing video device and the subdev operations
+ * @video_lock: mutex serializing video device operations
+ * @subdev_lock: mutex serializing subdev operations
  * @cac_margin_x: horizontal CAC margin in pixels
  * @cac_margin_y: vertical CAC margin in pixels
  * @state: driver state flags

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IIO driver for the 3-axis accelerometer Domintech DMARD09.
  *
  * Copyright (c) 2016, Jelle van der Waa <jelle@vdwaa.nl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <asm/unaligned.h>
@@ -124,7 +116,6 @@ static int dmard09_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, indio_dev);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = DMARD09_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dmard09_channels;

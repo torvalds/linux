@@ -13,12 +13,13 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	chipcommonA {
+	chipcommonA@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
 		#address-cells = <1>;
@@ -37,11 +38,13 @@
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1>;
 			status = "disabled";
 		};
 	};
 
-	mpcore {
+	mpcore@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -145,7 +148,7 @@
 		};
 	};
 
-	usb2_phy: usb2-phy {
+	usb2_phy: usb2-phy@1800c000 {
 		compatible = "brcm,ns-usb2-phy";
 		reg = <0x1800c000 0x1000>;
 		reg-names = "dmu";
@@ -249,6 +252,10 @@
 			reg = <0x00013000 0x1000>;
 		};
 
+		pcie2: pcie@14000 {
+			reg = <0x00014000 0x1000>;
+		};
+
 		usb2: usb2@21000 {
 			reg = <0x00021000 0x1000>;
 
@@ -258,7 +265,7 @@
 
 			interrupt-parent = <&gic>;
 
-			ehci: ehci@21000 {
+			ehci: usb@21000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ehci";
@@ -280,7 +287,7 @@
 				};
 			};
 
-			ohci: ohci@22000 {
+			ohci: usb@22000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ohci";
@@ -311,7 +318,7 @@
 
 			interrupt-parent = <&gic>;
 
-			xhci: xhci@23000 {
+			xhci: usb@23000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-xhci";
@@ -347,14 +354,22 @@
 		};
 	};
 
+	pwm: pwm@18002000 {
+		compatible = "brcm,iproc-pwm";
+		reg = <0x18002000 0x28>;
+		clocks = <&osc>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
-		#size-cells = <1>;
-		#address-cells = <0>;
+		#size-cells = <0>;
+		#address-cells = <1>;
 	};
 
-	mdio-bus-mux {
+	mdio-bus-mux@18003000 {
 		compatible = "mdio-mux-mmioreg";
 		mdio-parent-bus = <&mdio>;
 		#address-cells = <1>;
@@ -381,6 +396,15 @@
 		reg = <0x18105000 0x1000>;
 	};
 
+	uart2: serial@18008000 {
+		compatible = "ns16550a";
+		reg = <0x18008000 0x20>;
+		clocks = <&iprocslow>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		status = "disabled";
+	};
+
 	i2c0: i2c@18009000 {
 		compatible = "brcm,iproc-i2c";
 		reg = <0x18009000 0x50>;
@@ -391,40 +415,85 @@
 		status = "disabled";
 	};
 
-	lcpll0: lcpll0@1800c100 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-lcpll0";
-		reg = <0x1800c100 0x14>;
-		clocks = <&osc>;
-		clock-output-names = "lcpll0", "pcie_phy", "sdio",
-				     "ddr_phy";
-	};
-
-	genpll: genpll@1800c140 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-genpll";
-		reg = <0x1800c140 0x24>;
-		clocks = <&osc>;
-		clock-output-names = "genpll", "phy", "ethernetclk",
-				     "usbclk", "iprocfast", "sata1",
-				     "sata2";
-	};
-
-	thermal: thermal@1800c2c0 {
-		compatible = "brcm,ns-thermal";
-		reg = <0x1800c2c0 0x10>;
-		#thermal-sensor-cells = <0>;
-	};
-
-	srab: srab@18007000 {
-		compatible = "brcm,bcm5301x-srab";
-		reg = <0x18007000 0x1000>;
+	dmu@1800c000 {
+		compatible = "simple-bus";
+		ranges = <0 0x1800c000 0x1000>;
 		#address-cells = <1>;
-		#size-cells = <0>;
+		#size-cells = <1>;
+
+		cru@100 {
+			compatible = "simple-bus";
+			reg = <0x100 0x1a4>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			lcpll0: lcpll0@100 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-lcpll0";
+				reg = <0x100 0x14>;
+				clocks = <&osc>;
+				clock-output-names = "lcpll0", "pcie_phy",
+						     "sdio", "ddr_phy";
+			};
+
+			genpll: genpll@140 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-genpll";
+				reg = <0x140 0x24>;
+				clocks = <&osc>;
+				clock-output-names = "genpll", "phy",
+						     "ethernetclk",
+						     "usbclk", "iprocfast",
+						     "sata1", "sata2";
+			};
+
+			pinctrl: pin-controller@1c0 {
+				compatible = "brcm,bcm4708-pinmux";
+				reg = <0x1c0 0x24>;
+				reg-names = "cru_gpio_control";
+
+				spi-pins {
+					groups = "spi_grp";
+					function = "spi";
+				};
+
+				pinmux_i2c: i2c-pins {
+					groups = "i2c_grp";
+					function = "i2c";
+				};
+
+				pinmux_pwm: pwm-pins {
+					groups = "pwm0_grp", "pwm1_grp",
+						 "pwm2_grp", "pwm3_grp";
+					function = "pwm";
+				};
+
+				pinmux_uart1: uart1-pins {
+					groups = "uart1_grp";
+					function = "uart1";
+				};
+			};
+
+			thermal: thermal@2c0 {
+				compatible = "brcm,ns-thermal";
+				reg = <0x2c0 0x10>;
+				#thermal-sensor-cells = <0>;
+			};
+		};
+	};
+
+	srab: ethernet-switch@18007000 {
+		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
+		reg = <0x18007000 0x1000>;
 
 		status = "disabled";
 
 		/* ports are defined in board DTS */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	rng: rng@18004000 {
@@ -432,7 +501,7 @@
 		reg = <0x18004000 0x14>;
 	};
 
-	nand: nand@18028000 {
+	nand_controller: nand-controller@18028000 {
 		compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1", "brcm,brcmnand";
 		reg = <0x18028000 0x600>, <0x1811a408 0x600>, <0x18028f00 0x20>;
 		reg-names = "nand", "iproc-idm", "iproc-ext";
@@ -445,33 +514,33 @@
 	};
 
 	spi@18029200 {
-		compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
+		compatible = "brcm,spi-nsp-qspi", "brcm,spi-bcm-qspi";
 		reg = <0x18029200 0x184>,
 		      <0x18029000 0x124>,
 		      <0x1811b408 0x004>,
 		      <0x180293a0 0x01c>;
 		reg-names = "mspi", "bspi", "intr_regs", "intr_status_reg";
-		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "spi_lr_fullness_reached",
+			     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mspi_done",
+				  "mspi_halted",
+				  "spi_lr_fullness_reached",
 				  "spi_lr_session_aborted",
 				  "spi_lr_impatient",
 				  "spi_lr_session_done",
-				  "spi_lr_overhead",
-				  "mspi_done",
-				  "mspi_halted";
+				  "spi_lr_overread";
 		clocks = <&iprocmed>;
 		clock-names = "iprocmed";
 		num-cs = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		spi_nor: spi-nor@0 {
+		spi_nor: flash@0 {
 			compatible = "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;

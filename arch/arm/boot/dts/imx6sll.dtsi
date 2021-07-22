@@ -36,6 +36,8 @@
 		spi1 = &ecspi2;
 		spi3 = &ecspi3;
 		spi4 = &ecspi4;
+		usb0 = &usbotg1;
+		usb1 = &usbotg2;
 		usbphy0 = &usbphy1;
 		usbphy1 = &usbphy2;
 	};
@@ -64,6 +66,7 @@
 				198000		1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			clocks = <&clks IMX6SLL_CLK_ARM>,
 				 <&clks IMX6SLL_CLK_PLL2_PFD2>,
 				 <&clks IMX6SLL_CLK_STEP>,
@@ -71,16 +74,9 @@
 				 <&clks IMX6SLL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys";
+			nvmem-cells = <&cpu_speed_grade>;
+			nvmem-cell-names = "speed_grade";
 		};
-	};
-
-	intc: interrupt-controller@a01000 {
-		compatible = "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		interrupt-controller;
-		reg = <0x00a01000 0x1000>,
-		      <0x00a00100 0x100>;
-		interrupt-parent = <&intc>;
 	};
 
 	ckil: clock-ckil {
@@ -111,16 +107,6 @@
 		clock-output-names = "ipp_di1";
 	};
 
-	tempmon: temperature-sensor {
-		compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
-		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-parent = <&gpc>;
-		fsl,tempmon = <&anatop>;
-		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-		nvmem-cell-names = "calib", "temp_grade";
-		clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -133,7 +119,16 @@
 			reg = <0x00900000 0x20000>;
 		};
 
-		L2: l2-cache@a02000 {
+		intc: interrupt-controller@a01000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x00a01000 0x1000>,
+			      <0x00a00100 0x100>;
+			interrupt-parent = <&intc>;
+		};
+
+		L2: cache-controller@a02000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a02000 0x1000>;
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -143,7 +138,7 @@
 			arm,data-latency = <4 2 3>;
 		};
 
-		aips1: aips-bus@2000000 {
+		aips1: bus@2000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -233,7 +228,7 @@
 					compatible = "fsl,imx6sl-uart", "fsl,imx6q-uart",
 						     "fsl,imx21-uart";
 					reg = <0x02018000 0x4000>;
-					interrupts =<GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 31 4 0>, <&sdma 32 4 0>;
 					dma-names = "rx", "tx";
 					clocks = <&clks IMX6SLL_CLK_UART4_IPG>,
@@ -268,7 +263,7 @@
 					status = "disabled";
 				};
 
-				ssi1: ssi-controller@2028000 {
+				ssi1: ssi@2028000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -281,7 +276,7 @@
 					status = "disabled";
 				};
 
-				ssi2: ssi-controller@202c000 {
+				ssi2: ssi@202c000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -294,7 +289,7 @@
 					status = "disabled";
 				};
 
-				ssi3: ssi-controller@2030000 {
+				ssi3: ssi@2030000 {
 					compatible = "fsl,imx6sl-ssi", "fsl,imx51-ssi";
 					reg = <0x02030000 0x4000>;
 					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
@@ -328,7 +323,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM1>,
 					 <&clks IMX6SLL_CLK_PWM1>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm2: pwm@2084000 {
@@ -338,7 +333,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM2>,
 					 <&clks IMX6SLL_CLK_PWM2>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm3: pwm@2088000 {
@@ -348,7 +343,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM3>,
 					 <&clks IMX6SLL_CLK_PWM3>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm4: pwm@208c000 {
@@ -358,7 +353,7 @@
 				clocks = <&clks IMX6SLL_CLK_PWM4>,
 					 <&clks IMX6SLL_CLK_PWM4>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			gpt1: timer@2098000 {
@@ -506,7 +501,7 @@
 			anatop: anatop@20c8000 {
 				compatible = "fsl,imx6sll-anatop",
 					     "fsl,imx6q-anatop",
-					     "syscon", "simple-bus";
+					     "syscon", "simple-mfd";
 				reg = <0x020c8000 0x4000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
@@ -527,6 +522,16 @@
 					anatop-min-voltage = <2625000>;
 					anatop-max-voltage = <3400000>;
 					anatop-enable-bit = <0>;
+				};
+
+				tempmon: temperature-sensor {
+					compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
+					interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-parent = <&gpc>;
+					fsl,tempmon = <&anatop>;
+					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+					nvmem-cell-names = "calib", "temp_grade";
+					clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
 				};
 			};
 
@@ -567,6 +572,7 @@
 					regmap = <&snvs>;
 					offset = <0x38>;
 					mask = <0x61>;
+					status = "disabled";
 				};
 
 				snvs_pwrkey: snvs-powerkey {
@@ -575,6 +581,7 @@
 					interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 					linux,keycode = <KEY_POWER>;
 					wakeup-source;
+					status = "disabled";
 				};
 			};
 
@@ -593,7 +600,6 @@
 				#interrupt-cells = <3>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
-				fsl,mf-mix-wakeup-irq = <0x7c00000 0x7d00 0x0 0x1400640>;
 			};
 
 			iomuxc: pinctrl@20e0000 {
@@ -619,15 +625,24 @@
 			};
 
 			sdma: dma-controller@20ec000 {
-				compatible = "fsl,imx6sll-sdma", "fsl,imx35-sdma";
+				compatible = "fsl,imx6sll-sdma", "fsl,imx6ul-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_SDMA>,
+				clocks = <&clks IMX6SLL_CLK_IPG>,
 					 <&clks IMX6SLL_CLK_SDMA>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				iram = <&ocram>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q.bin";
+			};
+
+			pxp: pxp@20f0000 {
+				compatible = "fsl,imx6sll-pxp", "fsl,imx6ull-pxp";
+				reg = <0x20f0000 0x4000>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_PXP>;
+				clock-names = "axi";
 			};
 
 			lcdif: lcd-controller@20f8000 {
@@ -641,7 +656,7 @@
 				status = "disabled";
 			};
 
-			dcp: dcp@20fc000 {
+			dcp: crypto@20fc000 {
 				compatible = "fsl,imx28-dcp";
 				reg = <0x020fc000 0x4000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
@@ -652,7 +667,7 @@
 			};
 		};
 
-		aips2: aips-bus@2100000 {
+		aips2: bus@2100000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -740,7 +755,7 @@
 			i2c1: i2c@21a0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fs,imx6sll-i2c", "fsl,imx21-i2c";
+				compatible = "fsl,imx6sll-i2c", "fsl,imx21-i2c";
 				reg = <0x021a0000 0x4000>;
 				interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_I2C1>;
@@ -770,14 +785,26 @@
 			mmdc: memory-controller@21b0000 {
 				compatible = "fsl,imx6sll-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+				clocks = <&clks IMX6SLL_CLK_MMDC_P0_IPG>;
 			};
 
-			ocotp: ocotp-ctrl@21bc000 {
+			rngb: rng@21b4000 {
+				compatible = "fsl,imx6sll-rngb", "fsl,imx25-rngb";
+				reg = <0x021b4000 0x4000>;
+				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_DUMMY>;
+			};
+
+			ocotp: efuse@21bc000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				compatible = "fsl,imx6sll-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6SLL_CLK_OCOTP>;
+
+				cpu_speed_grade: speed-grade@10 {
+					reg = <0x10 4>;
+				};
 
 				tempmon_calib: calib@38 {
 					reg = <0x38 4>;
@@ -798,7 +825,7 @@
 				compatible = "fsl,imx6sll-uart", "fsl,imx6q-uart",
 					     "fsl,imx21-uart";
 				reg = <0x021f4000 0x4000>;
-				interrupts =<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 				dmas = <&sdma 33 4 0>, <&sdma 34 4 0>;
 				dma-names = "rx", "tx";
 				clocks = <&clks IMX6SLL_CLK_UART5_IPG>,

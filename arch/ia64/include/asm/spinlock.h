@@ -26,7 +26,7 @@
  * the queue, and the other indicating the current tail. The lock is acquired
  * by atomically noting the tail and incrementing it by one (thus adding
  * ourself to the queue and noting our position), then waiting until the head
- * becomes equal to the the initial value of the tail.
+ * becomes equal to the initial value of the tail.
  * The pad bits in the middle are used to prevent the next_ticket number
  * overflowing into the now_serving number.
  *
@@ -73,6 +73,8 @@ static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 {
 	unsigned short	*p = (unsigned short *)&lock->lock + 1, tmp;
 
+	/* This could be optimised with ARCH_HAS_MMIOWB */
+	mmiowb();
 	asm volatile ("ld2.bias %0=[%1]" : "=r"(tmp) : "r"(p));
 	WRITE_ONCE(*p, (tmp + 2) & ~1);
 }

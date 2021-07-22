@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 * Filename: core.c
-*
 *
 * Authors: Joshua Morris <josh.h.morris@us.ibm.com>
 *	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
 *
 * (C) Copyright 2013 IBM Corporation
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; either version 2 of the
-* License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include <linux/kernel.h>
@@ -179,15 +165,17 @@ static ssize_t rsxx_cram_read(struct file *fp, char __user *ubuf,
 {
 	struct rsxx_cardinfo *card = file_inode(fp)->i_private;
 	char *buf;
-	ssize_t st;
+	int st;
 
 	buf = kzalloc(cnt, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	st = rsxx_creg_read(card, CREG_ADD_CRAM + (u32)*ppos, cnt, buf, 1);
-	if (!st)
-		st = copy_to_user(ubuf, buf, cnt);
+	if (!st) {
+		if (copy_to_user(ubuf, buf, cnt))
+			st = -EFAULT;
+	}
 	kfree(buf);
 	if (st)
 		return st;
@@ -404,7 +392,7 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 }
 
 /*----------------- Card Event Handler -------------------*/
-static const char * const rsxx_card_state_to_str(unsigned int state)
+static const char *rsxx_card_state_to_str(unsigned int state)
 {
 	static const char * const state_strings[] = {
 		"Unknown", "Shutdown", "Starting", "Formatting",
@@ -439,6 +427,7 @@ static void card_state_change(struct rsxx_cardinfo *card,
 		 * Fall through so the DMA devices can be attached and
 		 * the user can attempt to pull off their data.
 		 */
+		fallthrough;
 	case CARD_STATE_GOOD:
 		st = rsxx_get_card_size8(card, &card->size8);
 		if (st)
@@ -452,7 +441,7 @@ static void card_state_change(struct rsxx_cardinfo *card,
 	case CARD_STATE_FAULT:
 		dev_crit(CARD_TO_DEV(card),
 			"Hardware Fault reported!\n");
-		/* Fall through. */
+		fallthrough;
 
 	/* Everything else, detach DMA interface if it's attached. */
 	case CARD_STATE_SHUTDOWN:
@@ -575,13 +564,15 @@ static int rsxx_eeh_frozen(struct pci_dev *dev)
 
 	for (i = 0; i < card->n_targets; i++) {
 		if (card->ctrl[i].status.buf)
-			pci_free_consistent(card->dev, STATUS_BUFFER_SIZE8,
-					    card->ctrl[i].status.buf,
-					    card->ctrl[i].status.dma_addr);
+			dma_free_coherent(&card->dev->dev,
+					  STATUS_BUFFER_SIZE8,
+					  card->ctrl[i].status.buf,
+					  card->ctrl[i].status.dma_addr);
 		if (card->ctrl[i].cmd.buf)
-			pci_free_consistent(card->dev, COMMAND_BUFFER_SIZE8,
-					    card->ctrl[i].cmd.buf,
-					    card->ctrl[i].cmd.dma_addr);
+			dma_free_coherent(&card->dev->dev,
+					  COMMAND_BUFFER_SIZE8,
+					  card->ctrl[i].cmd.buf,
+					  card->ctrl[i].cmd.dma_addr);
 	}
 
 	return 0;
@@ -638,7 +629,7 @@ static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)
 }
 
 static pci_ers_result_t rsxx_error_detected(struct pci_dev *dev,
-					    enum pci_channel_state error)
+					    pci_channel_state_t error)
 {
 	int st;
 
@@ -724,15 +715,15 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 failed_hw_buffers_init:
 	for (i = 0; i < card->n_targets; i++) {
 		if (card->ctrl[i].status.buf)
-			pci_free_consistent(card->dev,
-					STATUS_BUFFER_SIZE8,
-					card->ctrl[i].status.buf,
-					card->ctrl[i].status.dma_addr);
+			dma_free_coherent(&card->dev->dev,
+					  STATUS_BUFFER_SIZE8,
+					  card->ctrl[i].status.buf,
+					  card->ctrl[i].status.dma_addr);
 		if (card->ctrl[i].cmd.buf)
-			pci_free_consistent(card->dev,
-					COMMAND_BUFFER_SIZE8,
-					card->ctrl[i].cmd.buf,
-					card->ctrl[i].cmd.dma_addr);
+			dma_free_coherent(&card->dev->dev,
+					  COMMAND_BUFFER_SIZE8,
+					  card->ctrl[i].cmd.buf,
+					  card->ctrl[i].cmd.dma_addr);
 	}
 failed_hw_setup:
 	rsxx_eeh_failure(dev);
@@ -780,7 +771,6 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 		goto failed_enable;
 
 	pci_set_master(dev);
-	dma_set_max_seg_size(&dev->dev, RSXX_HW_BLK_SIZE);
 
 	st = dma_set_mask(&dev->dev, DMA_BIT_MASK(64));
 	if (st) {
@@ -881,6 +871,7 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	card->event_wq = create_singlethread_workqueue(DRIVER_NAME"_event");
 	if (!card->event_wq) {
 		dev_err(CARD_TO_DEV(card), "Failed card event setup.\n");
+		st = -ENOMEM;
 		goto failed_event_handler;
 	}
 
@@ -1014,8 +1005,10 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 
 	cancel_work_sync(&card->event_work);
 
+	destroy_workqueue(card->event_wq);
 	rsxx_destroy_dev(card);
 	rsxx_dma_destroy(card);
+	destroy_workqueue(card->creg_ctrl.creg_wq);
 
 	spin_lock_irqsave(&card->irq_lock, flags);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);

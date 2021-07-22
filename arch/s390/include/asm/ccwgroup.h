@@ -11,8 +11,7 @@ struct ccw_driver;
  * @count: number of attached slave devices
  * @dev: embedded device structure
  * @cdev: variable number of slave devices, allocated as needed
- * @ungroup_work: work to be done when a ccwgroup notifier has action
- *	type %BUS_NOTIFY_UNBIND_DRIVER
+ * @ungroup_work: used to ungroup the ccwgroup device
  */
 struct ccwgroup_device {
 	enum {
@@ -36,11 +35,6 @@ struct ccwgroup_device {
  * @set_online: function called when device is set online
  * @set_offline: function called when device is set offline
  * @shutdown: function called when device is shut down
- * @prepare: prepare for pm state transition
- * @complete: undo work done in @prepare
- * @freeze: callback for freezing during hibernation snapshotting
- * @thaw: undo work done in @freeze
- * @restore: callback for restoring after hibernation
  * @driver: embedded driver structure
  * @ccw_driver: supported ccw_driver (optional)
  */
@@ -50,11 +44,6 @@ struct ccwgroup_driver {
 	int (*set_online) (struct ccwgroup_device *);
 	int (*set_offline) (struct ccwgroup_device *);
 	void (*shutdown)(struct ccwgroup_device *);
-	int (*prepare) (struct ccwgroup_device *);
-	void (*complete) (struct ccwgroup_device *);
-	int (*freeze)(struct ccwgroup_device *);
-	int (*thaw) (struct ccwgroup_device *);
-	int (*restore)(struct ccwgroup_device *);
 
 	struct device_driver driver;
 	struct ccw_driver *ccw_driver;

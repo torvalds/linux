@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 init/start/stop/exit stream functions
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -57,19 +48,19 @@ static struct {
 } cx18_stream_info[] = {
 	{	/* CX18_ENC_STREAM_TYPE_MPG */
 		"encoder MPEG",
-		VFL_TYPE_GRABBER, 0,
+		VFL_TYPE_VIDEO, 0,
 		PCI_DMA_FROMDEVICE,
 		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		V4L2_CAP_AUDIO | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_TS */
 		"TS",
-		VFL_TYPE_GRABBER, -1,
+		VFL_TYPE_VIDEO, -1,
 		PCI_DMA_FROMDEVICE,
 	},
 	{	/* CX18_ENC_STREAM_TYPE_YUV */
 		"encoder YUV",
-		VFL_TYPE_GRABBER, CX18_V4L2_ENC_YUV_OFFSET,
+		VFL_TYPE_VIDEO, CX18_V4L2_ENC_YUV_OFFSET,
 		PCI_DMA_FROMDEVICE,
 		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING | V4L2_CAP_AUDIO | V4L2_CAP_TUNER
@@ -83,13 +74,13 @@ static struct {
 	},
 	{	/* CX18_ENC_STREAM_TYPE_PCM */
 		"encoder PCM audio",
-		VFL_TYPE_GRABBER, CX18_V4L2_ENC_PCM_OFFSET,
+		VFL_TYPE_VIDEO, CX18_V4L2_ENC_PCM_OFFSET,
 		PCI_DMA_FROMDEVICE,
 		V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 	},
 	{	/* CX18_ENC_STREAM_TYPE_IDX */
 		"encoder IDX",
-		VFL_TYPE_GRABBER, -1,
+		VFL_TYPE_VIDEO, -1,
 		PCI_DMA_FROMDEVICE,
 	},
 	{	/* CX18_ENC_STREAM_TYPE_RAD */
@@ -420,6 +411,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		return 0;
 
 	num = s->video_dev.num;
+	s->video_dev.device_caps = s->v4l2_dev_caps;	/* device capabilities */
 	/* card number + user defined offset + device offset */
 	if (type != CX18_ENC_STREAM_TYPE_MPG) {
 		struct cx18_stream *s_mpg = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
@@ -442,7 +434,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	name = video_device_node_name(&s->video_dev);
 
 	switch (vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		CX18_INFO("Registered device %s for %s (%d x %d.%02d kB)\n",
 			  name, s->name, cx->stream_buffers[type],
 			  cx->stream_buf_size[type] / 1024,
@@ -853,7 +845,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 		/*
 		 * Audio related reset according to
-		 * Documentation/media/v4l-drivers/cx2341x.rst
+		 * Documentation/driver-api/media/drivers/cx2341x-devel.rst
 		 */
 		if (atomic_read(&cx->ana_capturing) == 0)
 			cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2,
@@ -861,7 +853,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 		/*
 		 * Number of lines for Field 1 & Field 2 according to
-		 * Documentation/media/v4l-drivers/cx2341x.rst
+		 * Documentation/driver-api/media/drivers/cx2341x-devel.rst
 		 * Field 1 is 312 for 625 line systems in BT.656
 		 * Field 2 is 313 for 625 line systems in BT.656
 		 */

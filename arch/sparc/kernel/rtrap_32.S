@@ -75,7 +75,7 @@ signal_p:
 	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 
 	mov	%g2, %o2
-	mov	%l5, %o1
+	mov	%l6, %o1
 	call	do_notify_resume
 	 add	%sp, STACKFRAME_SZ, %o0	! pt_regs ptr
 

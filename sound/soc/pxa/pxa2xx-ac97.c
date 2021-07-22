@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/pxa2xx-ac97.c -- AC97 support for the Intel PXA2xx chip.
  *
  * Author:	Nicolas Pitre
  * Created:	Dec 02, 2004
  * Copyright:	MontaVista Software Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -160,7 +157,6 @@ static const struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
 static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 {
 	.name = "pxa2xx-ac97",
-	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
@@ -177,7 +173,6 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 },
 {
 	.name = "pxa2xx-ac97-aux",
-	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Aux Playback",
 		.channels_min = 1,
@@ -194,7 +189,6 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 },
 {
 	.name = "pxa2xx-ac97-mic",
-	.bus_control = true,
 	.capture = {
 		.stream_name = "AC97 Mic Capture",
 		.channels_min = 1,
@@ -207,9 +201,16 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 
 static const struct snd_soc_component_driver pxa_ac97_component = {
 	.name		= "pxa-ac97",
-	.ops		= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_soc_pcm_new,
-	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
+	.pcm_construct	= pxa2xx_soc_pcm_new,
+	.pcm_destruct	= pxa2xx_soc_pcm_free,
+	.open		= pxa2xx_soc_pcm_open,
+	.close		= pxa2xx_soc_pcm_close,
+	.hw_params	= pxa2xx_soc_pcm_hw_params,
+	.hw_free	= pxa2xx_soc_pcm_hw_free,
+	.prepare	= pxa2xx_soc_pcm_prepare,
+	.trigger	= pxa2xx_soc_pcm_trigger,
+	.pointer	= pxa2xx_soc_pcm_pointer,
+	.mmap		= pxa2xx_soc_pcm_mmap,
 };
 
 #ifdef CONFIG_OF
@@ -253,7 +254,7 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 	 * driver to do interesting things with the clocking to get us up
 	 * and running.
 	 */
-	return snd_soc_register_component(&pdev->dev, &pxa_ac97_component,
+	return devm_snd_soc_register_component(&pdev->dev, &pxa_ac97_component,
 					  pxa_ac97_dai_driver, ARRAY_SIZE(pxa_ac97_dai_driver));
 }
 
@@ -261,7 +262,6 @@ static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
 	struct ac97_controller *ctrl = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_component(&pdev->dev);
 	snd_ac97_controller_unregister(ctrl);
 	pxa2xx_ac97_hw_remove(pdev);
 	return 0;

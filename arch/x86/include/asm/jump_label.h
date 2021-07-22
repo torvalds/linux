@@ -2,13 +2,7 @@
 #ifndef _ASM_X86_JUMP_LABEL_H
 #define _ASM_X86_JUMP_LABEL_H
 
-#define JUMP_LABEL_NOP_SIZE 5
-
-#ifdef CONFIG_X86_64
-# define STATIC_KEY_INIT_NOP P6_NOP5_ATOMIC
-#else
-# define STATIC_KEY_INIT_NOP GENERIC_NOP5_ATOMIC
-#endif
+#define HAVE_JUMP_LABEL_BATCH
 
 #include <asm/asm.h>
 #include <asm/nops.h>
@@ -18,20 +12,35 @@
 #include <linux/stringify.h>
 #include <linux/types.h>
 
+#define JUMP_TABLE_ENTRY				\
+	".pushsection __jump_table,  \"aw\" \n\t"	\
+	_ASM_ALIGN "\n\t"				\
+	".long 1b - . \n\t"				\
+	".long %l[l_yes] - . \n\t"			\
+	_ASM_PTR "%c0 + %c1 - .\n\t"			\
+	".popsection \n\t"
+
+#ifdef CONFIG_STACK_VALIDATION
+
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("STATIC_BRANCH_NOP l_yes=\"%l[l_yes]\" key=\"%c0\" "
-			  "branch=\"%c1\""
-			: :  "i" (key), "i" (branch) : : l_yes);
+	asm_volatile_goto("1:"
+		"jmp %l[l_yes] # objtool NOPs this \n\t"
+		JUMP_TABLE_ENTRY
+		: :  "i" (key), "i" (2 | branch) : : l_yes);
+
 	return false;
 l_yes:
 	return true;
 }
 
-static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
+#else
+
+static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)
 {
-	asm_volatile_goto("STATIC_BRANCH_JMP l_yes=\"%l[l_yes]\" key=\"%c0\" "
-			  "branch=\"%c1\""
+	asm_volatile_goto("1:"
+		".byte " __stringify(BYTES_NOP5) "\n\t"
+		JUMP_TABLE_ENTRY
 		: :  "i" (key), "i" (branch) : : l_yes);
 
 	return false;
@@ -39,30 +48,21 @@ l_yes:
 	return true;
 }
 
-#else	/* __ASSEMBLY__ */
+#endif /* STACK_VALIDATION */
 
-.macro STATIC_BRANCH_NOP l_yes:req key:req branch:req
-.Lstatic_branch_nop_\@:
-	.byte STATIC_KEY_INIT_NOP
-.Lstatic_branch_no_after_\@:
-	.pushsection __jump_table, "aw"
-	_ASM_ALIGN
-	.long		.Lstatic_branch_nop_\@ - ., \l_yes - .
-	_ASM_PTR        \key + \branch - .
-	.popsection
-.endm
+static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
+{
+	asm_volatile_goto("1:"
+		"jmp %l[l_yes]\n\t"
+		JUMP_TABLE_ENTRY
+		: :  "i" (key), "i" (branch) : : l_yes);
 
-.macro STATIC_BRANCH_JMP l_yes:req key:req branch:req
-.Lstatic_branch_jmp_\@:
-	.byte 0xe9
-	.long \l_yes - .Lstatic_branch_jmp_after_\@
-.Lstatic_branch_jmp_after_\@:
-	.pushsection __jump_table, "aw"
-	_ASM_ALIGN
-	.long		.Lstatic_branch_jmp_\@ - ., \l_yes - .
-	_ASM_PTR	\key + \branch - .
-	.popsection
-.endm
+	return false;
+l_yes:
+	return true;
+}
+
+extern int arch_jump_entry_size(struct jump_entry *entry);
 
 #endif	/* __ASSEMBLY__ */
 

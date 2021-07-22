@@ -1648,10 +1648,10 @@ static const struct imx319_reg mode_1280x720_regs[] = {
 
 static const char * const imx319_test_pattern_menu[] = {
 	"Disabled",
-	"100% color bars",
-	"Solid color",
-	"Fade to gray color bars",
-	"PN9"
+	"Solid Colour",
+	"Eight Vertical Colour Bars",
+	"Colour Bars With Fade to Grey",
+	"Pseudorandom Sequence (PN9)",
 };
 
 /* supported link frequencies */
@@ -1860,7 +1860,7 @@ static int imx319_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	mutex_lock(&imx319->mutex);
 
@@ -1947,7 +1947,7 @@ static const struct v4l2_ctrl_ops imx319_ctrl_ops = {
 };
 
 static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -1963,7 +1963,7 @@ static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx319_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -1997,14 +1997,14 @@ static void imx319_update_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_do_get_pad_format(struct imx319 *imx319,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
 	struct v4l2_subdev *sd = &imx319->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx319_update_pad_format(imx319, imx319->cur_mode, fmt);
@@ -2014,14 +2014,14 @@ static int imx319_do_get_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
 
 	mutex_lock(&imx319->mutex);
-	ret = imx319_do_get_pad_format(imx319, cfg, fmt);
+	ret = imx319_do_get_pad_format(imx319, sd_state, fmt);
 	mutex_unlock(&imx319->mutex);
 
 	return ret;
@@ -2029,7 +2029,7 @@ static int imx319_get_pad_format(struct v4l2_subdev *sd,
 
 static int
 imx319_set_pad_format(struct v4l2_subdev *sd,
-		      struct v4l2_subdev_pad_config *cfg,
+		      struct v4l2_subdev_state *sd_state,
 		      struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -2055,7 +2055,7 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	imx319_update_pad_format(imx319, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx319->cur_mode = mode;
@@ -2141,11 +2141,9 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values
@@ -2179,8 +2177,7 @@ err_unlock:
 
 static int __maybe_unused imx319_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 
 	if (imx319->streaming)
@@ -2191,8 +2188,7 @@ static int __maybe_unused imx319_suspend(struct device *dev)
 
 static int __maybe_unused imx319_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
 
@@ -2488,7 +2484,7 @@ static int imx319_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx319->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
 	if (ret < 0)
 		goto error_media_entity;
 
@@ -2535,7 +2531,7 @@ static const struct dev_pm_ops imx319_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(imx319_suspend, imx319_resume)
 };
 
-static const struct acpi_device_id imx319_acpi_ids[] = {
+static const struct acpi_device_id imx319_acpi_ids[] __maybe_unused = {
 	{ "SONY319A" },
 	{ /* sentinel */ }
 };

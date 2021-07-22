@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Free Electrons
  * Copyright (C) 2017 NextThing Co
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "internals.h"
@@ -23,14 +14,68 @@
 /* Recommended to rewrite for BENAND */
 #define TOSHIBA_NAND_STATUS_REWRITE_RECOMMENDED	BIT(3)
 
+/* ECC Status Read Command for BENAND */
+#define TOSHIBA_NAND_CMD_ECC_STATUS_READ	0x7A
+
+/* ECC Status Mask for BENAND */
+#define TOSHIBA_NAND_ECC_STATUS_MASK		0x0F
+
+/* Uncorrectable Error for BENAND */
+#define TOSHIBA_NAND_ECC_STATUS_UNCORR		0x0F
+
+/* Max ECC Steps for BENAND */
+#define TOSHIBA_NAND_MAX_ECC_STEPS		8
+
+static int toshiba_nand_benand_read_eccstatus_op(struct nand_chip *chip,
+						 u8 *buf)
+{
+	u8 *ecc_status = buf;
+
+	if (nand_has_exec_op(chip)) {
+		const struct nand_sdr_timings *sdr =
+			nand_get_sdr_timings(nand_get_interface_config(chip));
+		struct nand_op_instr instrs[] = {
+			NAND_OP_CMD(TOSHIBA_NAND_CMD_ECC_STATUS_READ,
+				    PSEC_TO_NSEC(sdr->tADL_min)),
+			NAND_OP_8BIT_DATA_IN(chip->ecc.steps, ecc_status, 0),
+		};
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
+	return -ENOTSUPP;
+}
+
 static int toshiba_nand_benand_eccstatus(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 	unsigned int max_bitflips = 0;
-	u8 status;
+	u8 status, ecc_status[TOSHIBA_NAND_MAX_ECC_STEPS];
 
 	/* Check Status */
+	ret = toshiba_nand_benand_read_eccstatus_op(chip, ecc_status);
+	if (!ret) {
+		unsigned int i, bitflips = 0;
+
+		for (i = 0; i < chip->ecc.steps; i++) {
+			bitflips = ecc_status[i] & TOSHIBA_NAND_ECC_STATUS_MASK;
+			if (bitflips == TOSHIBA_NAND_ECC_STATUS_UNCORR) {
+				mtd->ecc_stats.failed++;
+			} else {
+				mtd->ecc_stats.corrected += bitflips;
+				max_bitflips = max(max_bitflips, bitflips);
+			}
+		}
+
+		return max_bitflips;
+	}
+
+	/*
+	 * Fallback to regular status check if
+	 * toshiba_nand_benand_read_eccstatus_op() failed.
+	 */
 	ret = nand_status_op(chip, &status);
 	if (ret)
 		return ret;
@@ -95,12 +140,17 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 
 	chip->options |= NAND_SUBPAGE_READ;
 
-	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
+	mtd_set_ooblayout(mtd, nand_get_large_page_ooblayout());
 }
 
 static void toshiba_nand_decode_id(struct nand_chip *chip)
 {
+	struct nand_device *base = &chip->base;
+	struct nand_ecc_props requirements = {};
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	nand_decode_ext_id(chip);
 
@@ -114,8 +164,10 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	 */
 	if (chip->id.len >= 6 && nand_is_slc(chip) &&
 	    (chip->id.data[5] & 0x7) == 0x6 /* 24nm */ &&
-	    !(chip->id.data[4] & 0x80) /* !BENAND */)
-		mtd->oobsize = 32 * mtd->writesize >> 9;
+	    !(chip->id.data[4] & TOSHIBA_NAND_ID4_IS_BENAND) /* !BENAND */) {
+		memorg->oobsize = 32 * memorg->pagesize >> 9;
+		mtd->oobsize = memorg->oobsize;
+	}
 
 	/*
 	 * Extract ECC requirements from 6th id byte.
@@ -125,34 +177,119 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	 *  - 24nm: 8 bit ECC for each 512Byte is required.
 	 */
 	if (chip->id.len >= 6 && nand_is_slc(chip)) {
-		chip->ecc_step_ds = 512;
+		requirements.step_size = 512;
 		switch (chip->id.data[5] & 0x7) {
 		case 0x4:
-			chip->ecc_strength_ds = 1;
+			requirements.strength = 1;
 			break;
 		case 0x5:
-			chip->ecc_strength_ds = 4;
+			requirements.strength = 4;
 			break;
 		case 0x6:
-			chip->ecc_strength_ds = 8;
+			requirements.strength = 8;
 			break;
 		default:
 			WARN(1, "Could not get ECC info");
-			chip->ecc_step_ds = 0;
+			requirements.step_size = 0;
 			break;
 		}
 	}
+
+	nanddev_set_ecc_requirements(base, &requirements);
+}
+
+static int
+tc58teg5dclta00_choose_interface_config(struct nand_chip *chip,
+					struct nand_interface_config *iface)
+{
+	onfi_fill_interface_config(chip, iface, NAND_SDR_IFACE, 5);
+
+	return nand_choose_best_sdr_timings(chip, iface, NULL);
+}
+
+static int
+tc58nvg0s3e_choose_interface_config(struct nand_chip *chip,
+				    struct nand_interface_config *iface)
+{
+	onfi_fill_interface_config(chip, iface, NAND_SDR_IFACE, 2);
+
+	return nand_choose_best_sdr_timings(chip, iface, NULL);
+}
+
+static int
+th58nvg2s3hbai4_choose_interface_config(struct nand_chip *chip,
+					struct nand_interface_config *iface)
+{
+	struct nand_sdr_timings *sdr = &iface->timings.sdr;
+
+	/* Start with timings from the closest timing mode, mode 4. */
+	onfi_fill_interface_config(chip, iface, NAND_SDR_IFACE, 4);
+
+	/* Patch timings that differ from mode 4. */
+	sdr->tALS_min = 12000;
+	sdr->tCHZ_max = 20000;
+	sdr->tCLS_min = 12000;
+	sdr->tCOH_min = 0;
+	sdr->tDS_min = 12000;
+	sdr->tRHOH_min = 25000;
+	sdr->tRHW_min = 30000;
+	sdr->tRHZ_max = 60000;
+	sdr->tWHR_min = 60000;
+
+	/* Patch timings not part of onfi timing mode. */
+	sdr->tPROG_max = 700000000;
+	sdr->tBERS_max = 5000000000;
+
+	return nand_choose_best_sdr_timings(chip, iface, sdr);
+}
+
+static int tc58teg5dclta00_init(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	chip->ops.choose_interface_config =
+		&tc58teg5dclta00_choose_interface_config;
+	chip->options |= NAND_NEED_SCRAMBLING;
+	mtd_set_pairing_scheme(mtd, &dist3_pairing_scheme);
+
+	return 0;
+}
+
+static int tc58nvg0s3e_init(struct nand_chip *chip)
+{
+	chip->ops.choose_interface_config =
+		&tc58nvg0s3e_choose_interface_config;
+
+	return 0;
+}
+
+static int th58nvg2s3hbai4_init(struct nand_chip *chip)
+{
+	chip->ops.choose_interface_config =
+		&th58nvg2s3hbai4_choose_interface_config;
+
+	return 0;
 }
 
 static int toshiba_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	/* Check that chip is BENAND and ECC mode is on-die */
-	if (nand_is_slc(chip) && chip->ecc.mode == NAND_ECC_ON_DIE &&
+	if (nand_is_slc(chip) &&
+	    chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_DIE &&
 	    chip->id.data[4] & TOSHIBA_NAND_ID4_IS_BENAND)
 		toshiba_nand_benand_init(chip);
+
+	if (!strcmp("TC58TEG5DCLTA00", chip->parameters.model))
+		tc58teg5dclta00_init(chip);
+	if (!strncmp("TC58NVG0S3E", chip->parameters.model,
+		     sizeof("TC58NVG0S3E") - 1))
+		tc58nvg0s3e_init(chip);
+	if (!strncmp("TH58NVG2S3HBAI4", chip->parameters.model,
+		     sizeof("TH58NVG2S3HBAI4") - 1))
+		th58nvg2s3hbai4_init(chip);
 
 	return 0;
 }

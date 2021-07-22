@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
     card-ad1816a.c - driver for ADI SoundPort AD1816A based soundcards.
     Copyright (C) 2000 by Massimo Piccioni <dafastidio@libero.it>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/init.h>
@@ -34,13 +22,6 @@
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("AD1816A, AD1815");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Highscreen,Sound-Boostar 16 3D},"
-		"{Analog Devices,AD1815},"
-		"{Analog Devices,AD1816A},"
-		"{TerraTec,Base 64},"
-		"{TerraTec,AudioSystem EWS64S},"
-		"{Aztech/Newcom SC-16 3D},"
-		"{Shark Predator ISA}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 1-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -66,7 +47,7 @@ MODULE_PARM_DESC(clockfreq, "Clock frequency for ad1816a driver (default = 0).")
 static const struct pnp_card_device_id snd_ad1816a_pnpids[] = {
 	/* Analog Devices AD1815 */
 	{ .id = "ADS7150", .devs = { { .id = "ADS7150" }, { .id = "ADS7151" } } },
-	/* Analog Device AD1816? */
+	/* Analog Devices AD1816? */
 	{ .id = "ADS7180", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
 	/* Analog Devices AD1816A - added by Kenneth Platz <kxp@atl.hp.com> */
 	{ .id = "ADS7181", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
@@ -150,16 +131,18 @@ static int snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard,
 		return error;
 	chip = card->private_data;
 
-	if ((error = snd_card_ad1816a_pnp(dev, pcard, pid))) {
+	error = snd_card_ad1816a_pnp(dev, pcard, pid);
+	if (error) {
 		snd_card_free(card);
 		return error;
 	}
 
-	if ((error = snd_ad1816a_create(card, port[dev],
-					irq[dev],
-					dma1[dev],
-					dma2[dev],
-					chip)) < 0) {
+	error = snd_ad1816a_create(card, port[dev],
+				   irq[dev],
+				   dma1[dev],
+				   dma2[dev],
+				   chip);
+	if (error) {
 		snd_card_free(card);
 		return error;
 	}
@@ -171,12 +154,14 @@ static int snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard,
 	sprintf(card->longname, "%s, SS at 0x%lx, irq %d, dma %d&%d",
 		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
 
-	if ((error = snd_ad1816a_pcm(chip, 0)) < 0) {
+	error = snd_ad1816a_pcm(chip, 0);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
 
-	if ((error = snd_ad1816a_mixer(chip)) < 0) {
+	error = snd_ad1816a_mixer(chip);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
@@ -208,7 +193,8 @@ static int snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard,
 		}
 	}
 
-	if ((error = snd_card_register(card)) < 0) {
+	error = snd_card_register(card);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}

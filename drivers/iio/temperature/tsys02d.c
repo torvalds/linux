@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tsys02d.c - Support for Measurement-Specialties tsys02d temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
- *
- * Licensed under the GPL-2.
  *
  * (7-bit I2C slave address 0x40)
  *
@@ -150,7 +149,6 @@ static int tsys02d_probe(struct i2c_client *client,
 
 	indio_dev->info = &tsys02d_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = tsys02d_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsys02d_channels);

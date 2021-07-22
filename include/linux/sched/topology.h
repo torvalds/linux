@@ -7,31 +7,33 @@
 #include <linux/sched/idle.h>
 
 /*
- * Increase resolution of cpu_capacity calculations
- */
-#define SCHED_CAPACITY_SHIFT	SCHED_FIXEDPOINT_SHIFT
-#define SCHED_CAPACITY_SCALE	(1L << SCHED_CAPACITY_SHIFT)
-
-/*
  * sched-domains (multiprocessor balancing) declarations:
  */
 #ifdef CONFIG_SMP
 
-#define SD_LOAD_BALANCE		0x0001	/* Do load balancing on this domain. */
-#define SD_BALANCE_NEWIDLE	0x0002	/* Balance when about to become idle */
-#define SD_BALANCE_EXEC		0x0004	/* Balance on exec */
-#define SD_BALANCE_FORK		0x0008	/* Balance on fork, clone */
-#define SD_BALANCE_WAKE		0x0010  /* Balance on wakeup */
-#define SD_WAKE_AFFINE		0x0020	/* Wake task to waking CPU */
-#define SD_ASYM_CPUCAPACITY	0x0040  /* Domain members have different CPU capacities */
-#define SD_SHARE_CPUCAPACITY	0x0080	/* Domain members share CPU capacity */
-#define SD_SHARE_POWERDOMAIN	0x0100	/* Domain members share power domain */
-#define SD_SHARE_PKG_RESOURCES	0x0200	/* Domain members share CPU pkg resources */
-#define SD_SERIALIZE		0x0400	/* Only a single load balancing instance */
-#define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
-#define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
-#define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-#define SD_NUMA			0x4000	/* cross-node balancing */
+/* Generate SD flag indexes */
+#define SD_FLAG(name, mflags) __##name,
+enum {
+	#include <linux/sched/sd_flags.h>
+	__SD_FLAG_CNT,
+};
+#undef SD_FLAG
+/* Generate SD flag bits */
+#define SD_FLAG(name, mflags) name = 1 << __##name,
+enum {
+	#include <linux/sched/sd_flags.h>
+};
+#undef SD_FLAG
+
+#ifdef CONFIG_SCHED_DEBUG
+
+struct sd_flag_debug {
+	unsigned int meta_flags;
+	char *name;
+};
+extern const struct sd_flag_debug sd_flag_debug[];
+
+#endif
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
@@ -76,20 +78,14 @@ struct sched_domain_shared {
 
 struct sched_domain {
 	/* These fields must be setup */
-	struct sched_domain *parent;	/* top domain must be null terminated */
-	struct sched_domain *child;	/* bottom domain must be null terminated */
+	struct sched_domain __rcu *parent;	/* top domain must be null terminated */
+	struct sched_domain __rcu *child;	/* bottom domain must be null terminated */
 	struct sched_group *groups;	/* the balancing groups of the domain */
 	unsigned long min_interval;	/* Minimum balance interval ms */
 	unsigned long max_interval;	/* Maximum balance interval ms */
 	unsigned int busy_factor;	/* less balancing by factor if busy */
 	unsigned int imbalance_pct;	/* No balance until over watermark */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
-	unsigned int busy_idx;
-	unsigned int idle_idx;
-	unsigned int newidle_idx;
-	unsigned int wake_idx;
-	unsigned int forkexec_idx;
-	unsigned int smt_gain;
 
 	int nohz_idle;			/* NOHZ IDLE status */
 	int flags;			/* See SD_* */
@@ -154,13 +150,17 @@ struct sched_domain {
 	 * by attaching extra space to the end of the structure,
 	 * depending on how many CPUs the kernel has booted up with)
 	 */
-	unsigned long span[0];
+	unsigned long span[];
 };
 
 static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
 {
 	return to_cpumask(sd->span);
 }
+
+extern void partition_sched_domains_locked(int ndoms_new,
+					   cpumask_var_t doms_new[],
+					   struct sched_domain_attr *dattr_new);
 
 extern void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 				    struct sched_domain_attr *dattr_new);
@@ -177,10 +177,10 @@ typedef int (*sched_domain_flags_f)(void);
 #define SDTL_OVERLAP	0x01
 
 struct sd_data {
-	struct sched_domain **__percpu sd;
-	struct sched_domain_shared **__percpu sds;
-	struct sched_group **__percpu sg;
-	struct sched_group_capacity **__percpu sgc;
+	struct sched_domain *__percpu *sd;
+	struct sched_domain_shared *__percpu *sds;
+	struct sched_group *__percpu *sg;
+	struct sched_group_capacity *__percpu *sgc;
 };
 
 struct sched_domain_topology_level {
@@ -207,6 +207,12 @@ extern void set_sched_topology(struct sched_domain_topology_level *tl);
 struct sched_domain_attr;
 
 static inline void
+partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
+			       struct sched_domain_attr *dattr_new)
+{
+}
+
+static inline void
 partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 			struct sched_domain_attr *dattr_new)
 {
@@ -218,6 +224,47 @@ static inline bool cpus_share_cache(int this_cpu, int that_cpu)
 }
 
 #endif	/* !CONFIG_SMP */
+
+#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
+extern void rebuild_sched_domains_energy(void);
+#else
+static inline void rebuild_sched_domains_energy(void)
+{
+}
+#endif
+
+#ifndef arch_scale_cpu_capacity
+/**
+ * arch_scale_cpu_capacity - get the capacity scale factor of a given CPU.
+ * @cpu: the CPU in question.
+ *
+ * Return: the CPU scale factor normalized against SCHED_CAPACITY_SCALE, i.e.
+ *
+ *             max_perf(cpu)
+ *      ----------------------------- * SCHED_CAPACITY_SCALE
+ *      max(max_perf(c) : c \in CPUs)
+ */
+static __always_inline
+unsigned long arch_scale_cpu_capacity(int cpu)
+{
+	return SCHED_CAPACITY_SCALE;
+}
+#endif
+
+#ifndef arch_scale_thermal_pressure
+static __always_inline
+unsigned long arch_scale_thermal_pressure(int cpu)
+{
+	return 0;
+}
+#endif
+
+#ifndef arch_set_thermal_pressure
+static __always_inline
+void arch_set_thermal_pressure(const struct cpumask *cpus,
+			       unsigned long th_pressure)
+{ }
+#endif
 
 static inline int task_node(const struct task_struct *p)
 {

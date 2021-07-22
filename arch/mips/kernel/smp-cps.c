@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/cpu.h>
@@ -16,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
+#include <linux/irq.h>
 
 #include <asm/bcache.h>
 #include <asm/mips-cps.h>
@@ -454,9 +451,6 @@ static int cps_cpu_disable(void)
 	unsigned cpu = smp_processor_id();
 	struct core_boot_config *core_cfg;
 
-	if (!cpu)
-		return -EBUSY;
-
 	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
 		return -EINVAL;
 
@@ -465,6 +459,7 @@ static int cps_cpu_disable(void)
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
+	irq_migrate_all_off_this_cpu();
 
 	return 0;
 }

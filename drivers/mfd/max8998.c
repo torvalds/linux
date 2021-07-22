@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
@@ -155,11 +156,8 @@ static struct max8998_platform_data *max8998_i2c_parse_dt_pdata(
 static inline unsigned long max8998_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
-	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(max8998_dt_match, i2c->dev.of_node);
-		return (unsigned long)match->data;
-	}
+	if (i2c->dev.of_node)
+		return (unsigned long)of_device_get_match_data(&i2c->dev);
 
 	return id->driver_data;
 }
@@ -195,10 +193,10 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	}
 	mutex_init(&max8998->iolock);
 
-	max8998->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
-	if (!max8998->rtc) {
+	max8998->rtc = i2c_new_dummy_device(i2c->adapter, RTC_I2C_ADDR);
+	if (IS_ERR(max8998->rtc)) {
 		dev_err(&i2c->dev, "Failed to allocate I2C device for RTC\n");
-		return -ENODEV;
+		return PTR_ERR(max8998->rtc);
 	}
 	i2c_set_clientdata(max8998->rtc, max8998);
 

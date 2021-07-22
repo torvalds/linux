@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Driver for Philips webcam
    Functions that send various control messages to the webcam, including
    video modes.
@@ -15,19 +16,6 @@
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 /*
@@ -242,14 +230,14 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
-	pChoose = NULL;
-	while (*compression <= 3) {
+	do {
 		pChoose = &Timon_table[size][fps][*compression];
 		if (pChoose->alternate != 0)
 			break;
 		(*compression)++;
-	}
-	if (pChoose == NULL || pChoose->alternate == 0)
+	} while (*compression <= 3);
+
+	if (pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
 	if (send_to_cam)
@@ -279,7 +267,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 				int frames, int *compression, int send_to_cam)
 {
-	const struct Kiara_table_entry *pChoose = NULL;
+	const struct Kiara_table_entry *pChoose;
 	int fps, ret = 0;
 
 	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
@@ -293,13 +281,14 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
-	while (*compression <= 3) {
+	do {
 		pChoose = &Kiara_table[size][fps][*compression];
 		if (pChoose->alternate != 0)
 			break;
 		(*compression)++;
-	}
-	if (pChoose == NULL || pChoose->alternate == 0)
+	} while (*compression <= 3);
+
+	if (pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
@@ -534,7 +523,7 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 #ifdef CONFIG_USB_PWC_DEBUG
 int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
-	int ret = -1, request;
+	int ret, request;
 
 	if (pdev->type < 675)
 		request = SENSOR_TYPE_FORMATTER1;

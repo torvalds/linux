@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
-#define pr_fmt(fmt) "persistent_ram: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -29,11 +20,21 @@
 #include <linux/vmalloc.h>
 #include <asm/page.h>
 
+/**
+ * struct persistent_ram_buffer - persistent circular RAM buffer
+ *
+ * @sig:
+ *	signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
+ * @start:
+ *	offset into @data where the beginning of the stored bytes begin
+ * @size:
+ *	number of valid bytes stored in @data
+ */
 struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
 	atomic_t    size;
-	uint8_t     data[0];
+	uint8_t     data[];
 };
 
 #define PERSISTENT_RAM_SIG (0x43474244) /* DBGC */
@@ -245,7 +246,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 		pr_info("error in header, %d\n", numerr);
 		prz->corrected_bytes += numerr;
 	} else if (numerr < 0) {
-		pr_info("uncorrectable error in header\n");
+		pr_info_ratelimited("uncorrectable error in header\n");
 		prz->bad_blocks++;
 	}
 
@@ -282,7 +283,7 @@ static int notrace persistent_ram_update_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
-	int ret = unlikely(__copy_from_user(buffer->data + start, s, count)) ?
+	int ret = unlikely(copy_from_user(buffer->data + start, s, count)) ?
 		-EFAULT : 0;
 	persistent_ram_update_ecc(prz, start, count);
 	return ret;
@@ -347,8 +348,6 @@ int notrace persistent_ram_write_user(struct persistent_ram_zone *prz,
 	int rem, ret = 0, c = count;
 	size_t start;
 
-	if (unlikely(!access_ok(VERIFY_READ, s, count)))
-		return -EFAULT;
 	if (unlikely(c > prz->buffer_size)) {
 		s += c - prz->buffer_size;
 		c = prz->buffer_size;
@@ -397,6 +396,10 @@ void persistent_ram_zap(struct persistent_ram_zone *prz)
 	persistent_ram_update_header_ecc(prz);
 }
 
+#define MEM_TYPE_WCOMBINE	0
+#define MEM_TYPE_NONCACHED	1
+#define MEM_TYPE_NORMAL		2
+
 static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 		unsigned int memtype)
 {
@@ -410,10 +413,20 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 	page_start = start - offset_in_page(start);
 	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
 
-	if (memtype)
+	switch (memtype) {
+	case MEM_TYPE_NORMAL:
+		prot = PAGE_KERNEL;
+		break;
+	case MEM_TYPE_NONCACHED:
 		prot = pgprot_noncached(PAGE_KERNEL);
-	else
+		break;
+	case MEM_TYPE_WCOMBINE:
 		prot = pgprot_writecombine(PAGE_KERNEL);
+		break;
+	default:
+		pr_err("invalid mem_type=%d\n", memtype);
+		return NULL;
+	}
 
 	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
@@ -443,7 +456,8 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 	void *va;
 
 	if (!request_mem_region(start, size, label ?: "ramoops")) {
-		pr_err("request mem region (0x%llx@0x%llx) failed\n",
+		pr_err("request mem region (%s 0x%llx@0x%llx) failed\n",
+			label ?: "ramoops",
 			(unsigned long long)size, (unsigned long long)start);
 		return NULL;
 	}
@@ -489,32 +503,42 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 				    struct persistent_ram_ecc_info *ecc_info)
 {
 	int ret;
+	bool zap = !!(prz->flags & PRZ_FLAG_ZAP_OLD);
 
 	ret = persistent_ram_init_ecc(prz, ecc_info);
-	if (ret)
+	if (ret) {
+		pr_warn("ECC failed %s\n", prz->label);
 		return ret;
+	}
 
 	sig ^= PERSISTENT_RAM_SIG;
 
 	if (prz->buffer->sig == sig) {
+		if (buffer_size(prz) == 0) {
+			pr_debug("found existing empty buffer\n");
+			return 0;
+		}
+
 		if (buffer_size(prz) > prz->buffer_size ||
-		    buffer_start(prz) > buffer_size(prz))
+		    buffer_start(prz) > buffer_size(prz)) {
 			pr_info("found existing invalid buffer, size %zu, start %zu\n",
 				buffer_size(prz), buffer_start(prz));
-		else {
+			zap = true;
+		} else {
 			pr_debug("found existing buffer, size %zu, start %zu\n",
 				 buffer_size(prz), buffer_start(prz));
 			persistent_ram_save_old(prz);
-			return 0;
 		}
 	} else {
 		pr_debug("no valid data in buffer (sig = 0x%08x)\n",
 			 prz->buffer->sig);
+		prz->buffer->sig = sig;
+		zap = true;
 	}
 
-	/* Rewind missing or invalid memory area. */
-	prz->buffer->sig = sig;
-	persistent_ram_zap(prz);
+	/* Reset missing, invalid, or single-use memory area. */
+	if (zap)
+		persistent_ram_zap(prz);
 
 	return 0;
 }
@@ -562,7 +586,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	/* Initialize general buffer state. */
 	raw_spin_lock_init(&prz->buffer_lock);
 	prz->flags = flags;
-	prz->label = label;
+	prz->label = kstrdup(label, GFP_KERNEL);
 
 	ret = persistent_ram_buffer_map(start, size, prz, memtype);
 	if (ret)
@@ -571,6 +595,12 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	ret = persistent_ram_post_init(prz, sig, ecc_info);
 	if (ret)
 		goto err;
+
+	pr_debug("attached %s 0x%zx@0x%llx: %zu header, %zu data, %zu ecc (%d/%d)\n",
+		prz->label, prz->size, (unsigned long long)prz->paddr,
+		sizeof(*prz->buffer), prz->buffer_size,
+		prz->size - sizeof(*prz->buffer) - prz->buffer_size,
+		prz->ecc_info.ecc_size, prz->ecc_info.block_size);
 
 	return prz;
 err:

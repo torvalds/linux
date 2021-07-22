@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARC Cache Management
  *
  * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -113,10 +110,24 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	}
 
 	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c)
+	if (cbcr.c) {
 		ioc_exists = 1;
-	else
+
+		/*
+		 * As for today we don't support both IOC and ZONE_HIGHMEM enabled
+		 * simultaneously. This happens because as of today IOC aperture covers
+		 * only ZONE_NORMAL (low mem) and any dma transactions outside this
+		 * region won't be HW coherent.
+		 * If we want to use both IOC and ZONE_HIGHMEM we can use
+		 * bounce_buffer to handle dma transactions to HIGHMEM.
+		 * Also it is possible to modify dma_direct cache ops or increase IOC
+		 * aperture size if we are planning to use HIGHMEM without PAE.
+		 */
+		if (IS_ENABLED(CONFIG_HIGHMEM) || is_pae40_enabled())
+			ioc_enable = 0;
+	} else {
 		ioc_enable = 0;
+	}
 
 	/* HS 2.0 didn't have AUX_VOL */
 	if (cpuinfo_arc700[cpu].core.family > 0x51) {
@@ -1145,17 +1156,18 @@ noinline void __init arc_ioc_setup(void)
 	unsigned int ioc_base, mem_sz;
 
 	/*
-	 * As for today we don't support both IOC and ZONE_HIGHMEM enabled
-	 * simultaneously. This happens because as of today IOC aperture covers
-	 * only ZONE_NORMAL (low mem) and any dma transactions outside this
-	 * region won't be HW coherent.
-	 * If we want to use both IOC and ZONE_HIGHMEM we can use
-	 * bounce_buffer to handle dma transactions to HIGHMEM.
-	 * Also it is possible to modify dma_direct cache ops or increase IOC
-	 * aperture size if we are planning to use HIGHMEM without PAE.
+	 * If IOC was already enabled (due to bootloader) it technically needs to
+	 * be reconfigured with aperture base,size corresponding to Linux memory map
+	 * which will certainly be different than uboot's. But disabling and
+	 * reenabling IOC when DMA might be potentially active is tricky business.
+	 * To avoid random memory issues later, just panic here and ask user to
+	 * upgrade bootloader to one which doesn't enable IOC
 	 */
-	if (IS_ENABLED(CONFIG_HIGHMEM))
-		panic("IOC and HIGHMEM can't be used simultaneously");
+	if (read_aux_reg(ARC_REG_IO_COH_ENABLE) & ARC_IO_COH_ENABLE_BIT)
+		panic("IOC already enabled, please upgrade bootloader!\n");
+
+	if (!ioc_enable)
+		return;
 
 	/* Flush + invalidate + disable L1 dcache */
 	__dc_disable();
@@ -1187,8 +1199,8 @@ noinline void __init arc_ioc_setup(void)
 		panic("IOC Aperture start must be aligned to the size of the aperture");
 
 	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, ioc_base >> 12);
-	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
-	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+	write_aux_reg(ARC_REG_IO_COH_PARTIAL, ARC_IO_COH_PARTIAL_BIT);
+	write_aux_reg(ARC_REG_IO_COH_ENABLE, ARC_IO_COH_ENABLE_BIT);
 
 	/* Re-enable L1 dcache */
 	__dc_enable();
@@ -1265,7 +1277,7 @@ void __init arc_cache_init_master(void)
 	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
 		arc_slc_disable();
 
-	if (is_isa_arcv2() && ioc_enable)
+	if (is_isa_arcv2() && ioc_exists)
 		arc_ioc_setup();
 
 	if (is_isa_arcv2() && l2_line_sz && slc_enable) {
@@ -1280,7 +1292,7 @@ void __init arc_cache_init_master(void)
 	/*
 	 * In case of IOC (say IOC+SLC case), pointers above could still be set
 	 * but end up not being relevant as the first function in chain is not
-	 * called at all for @dma_direct_ops
+	 * called at all for devices using coherent DMA.
 	 *     arch_sync_dma_for_cpu() -> dma_cache_*() -> __dma_cache_*()
 	 */
 }

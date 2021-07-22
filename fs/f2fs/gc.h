@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fs/f2fs/gc.h
  *
@@ -14,6 +14,14 @@
 #define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
 #define DEF_GC_THREAD_MAX_SLEEP_TIME	60000
 #define DEF_GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
+
+/* choose candidates from sections which has age of more than 7 days */
+#define DEF_GC_THREAD_AGE_THRESHOLD		(60 * 60 * 24 * 7)
+#define DEF_GC_THREAD_CANDIDATE_RATIO		20	/* select 20% oldest sections as candidates */
+#define DEF_GC_THREAD_MAX_CANDIDATE_COUNT	10	/* select at most 10 sections as candidates */
+#define DEF_GC_THREAD_AGE_WEIGHT		60	/* age weight */
+#define DEFAULT_ACCURACY_CLASS			10000	/* accuracy class */
+
 #define LIMIT_INVALID_BLOCK	40 /* percentage over total user space */
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
@@ -34,6 +42,12 @@ struct f2fs_gc_kthread {
 
 	/* for changing gc mode */
 	unsigned int gc_wake;
+
+	/* for GC_MERGE mount option */
+	wait_queue_head_t fggc_wq;		/*
+						 * caller of f2fs_balance_fs()
+						 * will wait on this wait queue.
+						 */
 };
 
 struct gc_inode_list {
@@ -41,16 +55,69 @@ struct gc_inode_list {
 	struct radix_tree_root iroot;
 };
 
+struct victim_info {
+	unsigned long long mtime;	/* mtime of section */
+	unsigned int segno;		/* section No. */
+};
+
+struct victim_entry {
+	struct rb_node rb_node;		/* rb node located in rb-tree */
+	union {
+		struct {
+			unsigned long long mtime;	/* mtime of section */
+			unsigned int segno;		/* segment No. */
+		};
+		struct victim_info vi;	/* victim info */
+	};
+	struct list_head list;
+};
+
 /*
  * inline functions
  */
+
+/*
+ * On a Zoned device zone-capacity can be less than zone-size and if
+ * zone-capacity is not aligned to f2fs segment size(2MB), then the segment
+ * starting just before zone-capacity has some blocks spanning across the
+ * zone-capacity, these blocks are not usable.
+ * Such spanning segments can be in free list so calculate the sum of usable
+ * blocks in currently free segments including normal and spanning segments.
+ */
+static inline block_t free_segs_blk_count_zoned(struct f2fs_sb_info *sbi)
+{
+	block_t free_seg_blks = 0;
+	struct free_segmap_info *free_i = FREE_I(sbi);
+	int j;
+
+	spin_lock(&free_i->segmap_lock);
+	for (j = 0; j < MAIN_SEGS(sbi); j++)
+		if (!test_bit(j, free_i->free_segmap))
+			free_seg_blks += f2fs_usable_blks_in_seg(sbi, j);
+	spin_unlock(&free_i->segmap_lock);
+
+	return free_seg_blks;
+}
+
+static inline block_t free_segs_blk_count(struct f2fs_sb_info *sbi)
+{
+	if (f2fs_sb_has_blkzoned(sbi))
+		return free_segs_blk_count_zoned(sbi);
+
+	return free_segments(sbi) << sbi->log_blocks_per_seg;
+}
+
 static inline block_t free_user_blocks(struct f2fs_sb_info *sbi)
 {
-	if (free_segments(sbi) < overprovision_segments(sbi))
+	block_t free_blks, ovp_blks;
+
+	free_blks = free_segs_blk_count(sbi);
+	ovp_blks = overprovision_segments(sbi) << sbi->log_blocks_per_seg;
+
+	if (free_blks < ovp_blks)
 		return 0;
-	else
-		return (free_segments(sbi) - overprovision_segments(sbi))
-			<< sbi->log_blocks_per_seg;
+
+	return free_blks - ovp_blks;
 }
 
 static inline block_t limit_invalid_user_blocks(struct f2fs_sb_info *sbi)

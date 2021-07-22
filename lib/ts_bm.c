@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lib/ts_bm.c		Boyer-Moore text search implementation
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Pablo Neira Ayuso <pablo@eurodev.net>
  *
@@ -15,7 +11,7 @@
  *   [1] A Fast String Searching Algorithm, R.S. Boyer and Moore.
  *       Communications of the Association for Computing Machinery, 
  *       20(10), 1977, pp. 762-772.
- *       http://www.cs.utexas.edu/users/moore/publications/fstrpos.pdf
+ *       https://www.cs.utexas.edu/users/moore/publications/fstrpos.pdf
  *
  *   [2] Handbook of Exact String Matching Algorithms, Thierry Lecroq, 2004
  *       http://www-igm.univ-mlv.fr/~lecroq/string/string.pdf
@@ -56,7 +52,7 @@ struct ts_bm
 	u8 *		pattern;
 	unsigned int	patlen;
 	unsigned int 	bad_shift[ASIZE];
-	unsigned int	good_shift[0];
+	unsigned int	good_shift[];
 };
 
 static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)

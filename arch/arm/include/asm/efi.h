@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARM_EFI_H
@@ -16,7 +13,6 @@
 #include <asm/highmem.h>
 #include <asm/mach/map.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_EFI
@@ -53,19 +49,8 @@ void efi_virtmap_unload(void);
 
 /* arch specific definitions used by the stub code */
 
-#define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
-#define __efi_call_early(f, ...)	f(__VA_ARGS__)
-#define efi_call_runtime(f, ...)	sys_table_arg->runtime->f(__VA_ARGS__)
-#define efi_is_64bit()			(false)
-
-#define efi_table_attr(table, attr, instance)				\
-	((table##_t *)instance)->attr
-
-#define efi_call_proto(protocol, f, instance, ...)			\
-	((protocol##_t *)instance)->f(instance, ##__VA_ARGS__)
-
-struct screen_info *alloc_screen_info(efi_system_table_t *sys_table_arg);
-void free_screen_info(efi_system_table_t *sys_table, struct screen_info *si);
+struct screen_info *alloc_screen_info(void);
+void free_screen_info(struct screen_info *si);
 
 static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {
@@ -81,25 +66,29 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 #define MAX_UNCOMP_KERNEL_SIZE	SZ_32M
 
 /*
- * The kernel zImage should preferably be located between 32 MB and 128 MB
- * from the base of DRAM. The min address leaves space for a maximal size
- * uncompressed image, and the max address is due to how the zImage decompressor
- * picks a destination address.
+ * phys-to-virt patching requires that the physical to virtual offset is a
+ * multiple of 2 MiB. However, using an alignment smaller than TEXT_OFFSET
+ * here throws off the memory allocation logic, so let's use the lowest power
+ * of two greater than 2 MiB and greater than TEXT_OFFSET.
  */
-#define ZIMAGE_OFFSET_LIMIT	SZ_128M
-#define MIN_ZIMAGE_OFFSET	MAX_UNCOMP_KERNEL_SIZE
-
-/* on ARM, the FDT should be located in the first 128 MB of RAM */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
-{
-	return dram_base + ZIMAGE_OFFSET_LIMIT;
-}
+#define EFI_PHYS_ALIGN		max(UL(SZ_2M), roundup_pow_of_two(TEXT_OFFSET))
 
 /* on ARM, the initrd should be loaded in a lowmem region */
-static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
-						    unsigned long image_addr)
+static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
-	return dram_base + SZ_512M;
+	return round_down(image_addr, SZ_4M) + SZ_512M;
+}
+
+struct efi_arm_entry_state {
+	u32	cpsr_before_ebs;
+	u32	sctlr_before_ebs;
+	u32	cpsr_after_ebs;
+	u32	sctlr_after_ebs;
+};
+
+static inline void efi_capsule_flush_cache_range(void *addr, int size)
+{
+	__cpuc_flush_dcache_area(addr, size);
 }
 
 #endif /* _ASM_ARM_EFI_H */

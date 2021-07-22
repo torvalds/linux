@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Hardware accelerated Matrox Millennium I, II, Mystique, G100, G200 and G400
@@ -111,12 +112,12 @@
 #include "matroxfb_g450.h"
 #include <linux/matroxfb.h>
 #include <linux/interrupt.h>
+#include <linux/nvram.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
-unsigned char nvram_read_byte(int);
 static int default_vmode = VMODE_NVRAM;
 static int default_cmode = CMODE_NVRAM;
 #endif
@@ -1375,6 +1376,12 @@ static struct video_board vbG200 = {
 	.accelID = FB_ACCEL_MATROX_MGAG200,
 	.lowlevel = &matrox_G100
 };
+static struct video_board vbG200eW = {
+	.maxvram = 0x800000,
+	.maxdisplayable = 0x800000,
+	.accelID = FB_ACCEL_MATROX_MGAG200,
+	.lowlevel = &matrox_G100
+};
 /* from doc it looks like that accelerator can draw only to low 16MB :-( Direct accesses & displaying are OK for
    whole 32MB */
 static struct video_board vbG400 = {
@@ -1493,6 +1500,13 @@ static struct board {
 		MGA_G200,
 		&vbG200,
 		"MGA-G200 (PCI)"},
+	{PCI_VENDOR_ID_MATROX,	0x0532,	0xFF,
+		0,			0,
+		DEVF_G200,
+		250000,
+		MGA_G200,
+		&vbG200eW,
+		"MGA-G200eW (PCI)"},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200_AGP,	0xFF,
 		PCI_SS_VENDOR_ID_MATROX,	PCI_SS_ID_MATROX_GENERIC,
 		DEVF_G200,
@@ -1709,7 +1723,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		memsize = mem;
 	err = -ENOMEM;
 
-	minfo->mmio.vbase.vaddr = ioremap_nocache(ctrlptr_phys, 16384);
+	minfo->mmio.vbase.vaddr = ioremap(ctrlptr_phys, 16384);
 	if (!minfo->mmio.vbase.vaddr) {
 		printk(KERN_ERR "matroxfb: cannot ioremap(%lX, 16384), matroxfb disabled\n", ctrlptr_phys);
 		goto failVideoMR;
@@ -1872,10 +1886,11 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 #ifndef MODULE
 	if (machine_is(powermac)) {
 		struct fb_var_screeninfo var;
+
 		if (default_vmode <= 0 || default_vmode > VMODE_MAX)
 			default_vmode = VMODE_640_480_60;
-#ifdef CONFIG_NVRAM
-		if (default_cmode == CMODE_NVRAM)
+#if defined(CONFIG_PPC32)
+		if (IS_REACHABLE(CONFIG_NVRAM) && default_cmode == CMODE_NVRAM)
 			default_cmode = nvram_read_byte(NV_CMODE);
 #endif
 		if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
@@ -1955,9 +1970,7 @@ int matroxfb_register_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
 	list_add(&drv->node, &matroxfb_driver_list);
-	for (minfo = matroxfb_l(matroxfb_list.next);
-	     minfo != matroxfb_l(&matroxfb_list);
-	     minfo = matroxfb_l(minfo->next_fb.next)) {
+	list_for_each_entry(minfo, &matroxfb_list, next_fb) {
 		void* p;
 
 		if (minfo->drivers_count == MATROXFB_MAX_FB_DRIVERS)
@@ -1975,9 +1988,7 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
 	list_del(&drv->node);
-	for (minfo = matroxfb_l(matroxfb_list.next);
-	     minfo != matroxfb_l(&matroxfb_list);
-	     minfo = matroxfb_l(minfo->next_fb.next)) {
+	list_for_each_entry(minfo, &matroxfb_list, next_fb) {
 		int i;
 
 		for (i = 0; i < minfo->drivers_count; ) {
@@ -2133,6 +2144,8 @@ static const struct pci_device_id matroxfb_devices[] = {
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G100_AGP,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200_PCI,
+		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
+	{PCI_VENDOR_ID_MATROX,	0x0532,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200_AGP,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
@@ -2473,8 +2486,6 @@ static int __init matroxfb_init(void)
 	return err;
 }
 
-module_init(matroxfb_init);
-
 #else
 
 /* *************************** init module code **************************** */
@@ -2500,7 +2511,7 @@ MODULE_PARM_DESC(nobios, "Disables ROM BIOS (0 or 1=disabled) (default=do not ch
 module_param(noinit, int, 0);
 MODULE_PARM_DESC(noinit, "Disables W/SG/SD-RAM and bus interface initialization (0 or 1=do not initialize) (default=0)");
 module_param(memtype, int, 0);
-MODULE_PARM_DESC(memtype, "Memory type for G200/G400 (see Documentation/fb/matroxfb.txt for explanation) (default=3 for G200, 0 for G400)");
+MODULE_PARM_DESC(memtype, "Memory type for G200/G400 (see Documentation/fb/matroxfb.rst for explanation) (default=3 for G200, 0 for G400)");
 module_param(mtrr, int, 0);
 MODULE_PARM_DESC(mtrr, "This speeds up video memory accesses (0=disabled or 1) (default=1)");
 module_param(sgram, int, 0);
@@ -2559,7 +2570,7 @@ module_param_named(cmode, default_cmode, int, 0);
 MODULE_PARM_DESC(cmode, "Specify the video depth that should be used (8bit default)");
 #endif
 
-int __init init_module(void){
+static int __init matroxfb_init(void){
 
 	DBG(__func__)
 
@@ -2590,17 +2601,9 @@ int __init init_module(void){
 }
 #endif	/* MODULE */
 
+module_init(matroxfb_init);
 module_exit(matrox_done);
 EXPORT_SYMBOL(matroxfb_register_driver);
 EXPORT_SYMBOL(matroxfb_unregister_driver);
 EXPORT_SYMBOL(matroxfb_wait_for_sync);
 EXPORT_SYMBOL(matroxfb_enable_irq);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

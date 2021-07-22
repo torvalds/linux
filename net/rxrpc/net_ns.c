@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* rxrpc network namespace handling.
  *
  * Copyright (C) 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/proc_fs.h>
@@ -66,13 +62,10 @@ static __net_init int rxrpc_init_net(struct net *net)
 	timer_setup(&rxnet->service_conn_reap_timer,
 		    rxrpc_service_conn_reap_timeout, 0);
 
-	rxnet->nr_client_conns = 0;
-	rxnet->nr_active_client_conns = 0;
+	atomic_set(&rxnet->nr_client_conns, 0);
 	rxnet->kill_all_client_conns = false;
 	spin_lock_init(&rxnet->client_conn_cache_lock);
 	spin_lock_init(&rxnet->client_conn_discard_lock);
-	INIT_LIST_HEAD(&rxnet->waiting_client_conns);
-	INIT_LIST_HEAD(&rxnet->active_client_conns);
 	INIT_LIST_HEAD(&rxnet->idle_client_conns);
 	INIT_WORK(&rxnet->client_conn_reaper,
 		  rxrpc_discard_expired_client_conns);

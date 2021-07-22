@@ -7,12 +7,17 @@
 #define _ASM_MMZONE_H_
 
 #include <asm/page.h>
-#include <mmzone.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
+# include <mmzone.h>
+#endif
 
-#define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
+#ifndef pa_to_nid
+#define pa_to_nid(addr) 0
+#endif
 
-#endif /* CONFIG_DISCONTIGMEM */
+#ifndef nid_to_addrbase
+#define nid_to_addrbase(nid) 0
+#endif
 
 #endif /* _ASM_MMZONE_H_ */

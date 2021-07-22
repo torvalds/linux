@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Nicira, Inc.
  * Copyright (c) 2013 Cisco Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #include <linux/kernel.h>
@@ -43,7 +30,7 @@ static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
 	if (vxlan->cfg.flags & VXLAN_F_GBP) {
 		struct nlattr *exts;
 
-		exts = nla_nest_start(skb, OVS_TUNNEL_ATTR_EXTENSION);
+		exts = nla_nest_start_noflag(skb, OVS_TUNNEL_ATTR_EXTENSION);
 		if (!exts)
 			return -EMSGSIZE;
 
@@ -70,8 +57,8 @@ static int vxlan_configure_exts(struct vport *vport, struct nlattr *attr,
 	if (nla_len(attr) < sizeof(struct nlattr))
 		return -EINVAL;
 
-	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(exts, OVS_VXLAN_EXT_MAX, attr,
+					  exts_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -131,7 +118,7 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 		return ERR_CAST(dev);
 	}
 
-	err = dev_change_flags(dev, dev->flags | IFF_UP);
+	err = dev_change_flags(dev, dev->flags | IFF_UP, NULL);
 	if (err < 0) {
 		rtnl_delete_link(dev);
 		rtnl_unlock();

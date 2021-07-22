@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/cryptohash.h>
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/random.h>

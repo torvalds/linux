@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Tomasz Figa <t.figa@samsung.com>
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Padmavathi Venna <padma.v@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Driver for Audio Subsystem Clock Controller of S5PV210-compatible SoCs.
 */
@@ -75,10 +72,8 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(reg_base)) {
-		dev_err(&pdev->dev, "failed to map audss registers\n");
+	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
-	}
 
 	clk_data = devm_kzalloc(&pdev->dev,
 				struct_size(clk_data, hws, AUDSS_MAX_CLKS),

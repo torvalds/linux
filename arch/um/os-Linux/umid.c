@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <stdio.h>
@@ -97,7 +97,7 @@ static int remove_files_and_dir(char *dir)
 	while ((ent = readdir(directory)) != NULL) {
 		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
 			continue;
-		len = strlen(dir) + sizeof("/") + strlen(ent->d_name) + 1;
+		len = strlen(dir) + strlen("/") + strlen(ent->d_name) + 1;
 		if (len > sizeof(file)) {
 			ret = -E2BIG;
 			goto out;
@@ -135,16 +135,15 @@ out:
  */
 static inline int is_umdir_used(char *dir)
 {
-	char file[strlen(uml_dir) + UMID_LEN + sizeof("/pid\0")];
-	char pid[sizeof("nnnnn\0")], *end;
+	char pid[sizeof("nnnnnnnnn")], *end, *file;
 	int dead, fd, p, n, err;
+	size_t filelen = strlen(dir) + sizeof("/pid") + 1;
 
-	n = snprintf(file, sizeof(file), "%s/pid", dir);
-	if (n >= sizeof(file)) {
-		printk(UM_KERN_ERR "is_umdir_used - pid filename too long\n");
-		err = -E2BIG;
-		goto out;
-	}
+	file = malloc(filelen);
+	if (!file)
+		return -ENOMEM;
+
+	snprintf(file, filelen, "%s/pid", dir);
 
 	dead = 0;
 	fd = open(file, O_RDONLY);
@@ -185,6 +184,7 @@ static inline int is_umdir_used(char *dir)
 out_close:
 	close(fd);
 out:
+	free(file);
 	return 0;
 }
 
@@ -210,18 +210,22 @@ static int umdir_take_if_dead(char *dir)
 
 static void __init create_pid_file(void)
 {
-	char file[strlen(uml_dir) + UMID_LEN + sizeof("/pid\0")];
-	char pid[sizeof("nnnnn\0")];
+	char pid[sizeof("nnnnnnnnn")], *file;
 	int fd, n;
 
-	if (umid_file_name("pid", file, sizeof(file)))
+	n = strlen(uml_dir) + UMID_LEN + sizeof("/pid");
+	file = malloc(n);
+	if (!file)
 		return;
+
+	if (umid_file_name("pid", file, n))
+		goto out;
 
 	fd = open(file, O_RDWR | O_CREAT | O_EXCL, 0644);
 	if (fd < 0) {
 		printk(UM_KERN_ERR "Open of machine pid file \"%s\" failed: "
 		       "%s\n", file, strerror(errno));
-		return;
+		goto out;
 	}
 
 	snprintf(pid, sizeof(pid), "%d\n", getpid());
@@ -231,6 +235,8 @@ static void __init create_pid_file(void)
 		       errno);
 
 	close(fd);
+out:
+	free(file);
 }
 
 int __init set_umid(char *name)
@@ -385,13 +391,19 @@ __uml_setup("uml_dir=", set_uml_dir,
 
 static void remove_umid_dir(void)
 {
-	char dir[strlen(uml_dir) + UMID_LEN + 1], err;
+	char *dir, err;
+
+	dir = malloc(strlen(uml_dir) + UMID_LEN + 1);
+	if (!dir)
+		return;
 
 	sprintf(dir, "%s%s", uml_dir, umid);
 	err = remove_files_and_dir(dir);
 	if (err)
 		os_warn("%s - remove_files_and_dir failed with err = %d\n",
 			__func__, err);
+
+	free(dir);
 }
 
 __uml_exitcall(remove_umid_dir);

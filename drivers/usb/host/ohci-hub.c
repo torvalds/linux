@@ -58,7 +58,7 @@ __acquires(ohci->lock)
 		ohci->hc_control |= OHCI_USB_RESET;
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 		(void) ohci_readl (ohci, &ohci->regs->control);
-		/* FALL THROUGH */
+		fallthrough;
 	case OHCI_USB_RESET:
 		status = -EBUSY;
 		ohci_dbg (ohci, "needs reinit!\n");
@@ -692,6 +692,7 @@ int ohci_hub_control(
 		case C_HUB_OVER_CURRENT:
 			ohci_writel (ohci, RH_HS_OCIC,
 					&ohci->regs->roothub.status);
+			break;
 		case C_HUB_LOCAL_POWER:
 			break;
 		default:

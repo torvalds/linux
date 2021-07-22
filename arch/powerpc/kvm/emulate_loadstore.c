@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
  * Copyright 2011 Freescale Semiconductor, Inc.
@@ -82,9 +71,7 @@ static bool kvmppc_check_altivec_disabled(struct kvm_vcpu *vcpu)
  */
 int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
 	u32 inst;
-	int ra, rs, rt;
 	enum emulation_result emulated = EMULATE_FAIL;
 	int advance = 1;
 	struct instruction_op op;
@@ -96,16 +83,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	if (emulated != EMULATE_DONE)
 		return emulated;
 
-	ra = get_ra(inst);
-	rs = get_rs(inst);
-	rt = get_rt(inst);
-
-	/*
-	 * if mmio_vsx_tx_sx_enabled == 0, copy data between
-	 * VSR[0..31] and memory
-	 * if mmio_vsx_tx_sx_enabled == 1, copy data between
-	 * VSR[32..63] and memory
-	 */
 	vcpu->arch.mmio_vsx_copy_nums = 0;
 	vcpu->arch.mmio_vsx_offset = 0;
 	vcpu->arch.mmio_copy_type = KVMPPC_VSX_COPY_NONE;
@@ -117,7 +94,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 	emulated = EMULATE_FAIL;
 	vcpu->arch.regs.msr = vcpu->arch.shared->msr;
-	if (analyse_instr(&op, &vcpu->arch.regs, inst) == 0) {
+	if (analyse_instr(&op, &vcpu->arch.regs, ppc_inst(inst)) == 0) {
 		int type = op.type & INSTR_TYPE_MASK;
 		int size = GETSIZE(op.type);
 
@@ -126,10 +103,10 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			int instr_byte_swap = op.type & BYTEREV;
 
 			if (op.type & SIGNEXT)
-				emulated = kvmppc_handle_loads(run, vcpu,
+				emulated = kvmppc_handle_loads(vcpu,
 						op.reg, size, !instr_byte_swap);
 			else
-				emulated = kvmppc_handle_load(run, vcpu,
+				emulated = kvmppc_handle_load(vcpu,
 						op.reg, size, !instr_byte_swap);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
@@ -146,10 +123,10 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				vcpu->arch.mmio_sp64_extend = 1;
 
 			if (op.type & SIGNEXT)
-				emulated = kvmppc_handle_loads(run, vcpu,
+				emulated = kvmppc_handle_loads(vcpu,
 					     KVM_MMIO_REG_FPR|op.reg, size, 1);
 			else
-				emulated = kvmppc_handle_load(run, vcpu,
+				emulated = kvmppc_handle_load(vcpu,
 					     KVM_MMIO_REG_FPR|op.reg, size, 1);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
@@ -186,12 +163,12 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			if (size == 16) {
 				vcpu->arch.mmio_vmx_copy_nums = 2;
-				emulated = kvmppc_handle_vmx_load(run,
-						vcpu, KVM_MMIO_REG_VMX|op.reg,
+				emulated = kvmppc_handle_vmx_load(vcpu,
+						KVM_MMIO_REG_VMX|op.reg,
 						8, 1);
 			} else {
 				vcpu->arch.mmio_vmx_copy_nums = 1;
-				emulated = kvmppc_handle_vmx_load(run, vcpu,
+				emulated = kvmppc_handle_vmx_load(vcpu,
 						KVM_MMIO_REG_VMX|op.reg,
 						size, 1);
 			}
@@ -239,7 +216,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				io_size_each = op.element_size;
 			}
 
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
+			emulated = kvmppc_handle_vsx_load(vcpu,
 					KVM_MMIO_REG_VSX|op.reg, io_size_each,
 					1, op.type & SIGNEXT);
 			break;
@@ -249,8 +226,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			/* if need byte reverse, op.val has been reversed by
 			 * analyse_instr().
 			 */
-			emulated = kvmppc_handle_store(run, vcpu, op.val,
-					size, 1);
+			emulated = kvmppc_handle_store(vcpu, op.val, size, 1);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
 				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
@@ -272,7 +248,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			if (op.type & FPCONV)
 				vcpu->arch.mmio_sp64_extend = 1;
 
-			emulated = kvmppc_handle_store(run, vcpu,
+			emulated = kvmppc_handle_store(vcpu,
 					VCPU_FPR(vcpu, op.reg), size, 1);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
@@ -312,12 +288,12 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			if (size == 16) {
 				vcpu->arch.mmio_vmx_copy_nums = 2;
-				emulated = kvmppc_handle_vmx_store(run,
-						vcpu, op.reg, 8, 1);
+				emulated = kvmppc_handle_vmx_store(vcpu,
+						op.reg, 8, 1);
 			} else {
 				vcpu->arch.mmio_vmx_copy_nums = 1;
-				emulated = kvmppc_handle_vmx_store(run,
-						vcpu, op.reg, size, 1);
+				emulated = kvmppc_handle_vmx_store(vcpu,
+						op.reg, size, 1);
 			}
 
 			break;
@@ -360,7 +336,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				io_size_each = op.element_size;
 			}
 
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
+			emulated = kvmppc_handle_vsx_store(vcpu,
 					op.reg, io_size_each, 1);
 			break;
 		}

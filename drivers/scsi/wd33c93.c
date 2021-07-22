@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 1996 John Shifflett, GeoLog Consulting
  *    john@geolog.com
  *    jshiffle@netcom.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -744,7 +735,7 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
  * source or destination for THIS transfer.
  */
 	if (!cmd->SCp.this_residual && cmd->SCp.buffers_residual) {
-		++cmd->SCp.buffer;
+		cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
 		--cmd->SCp.buffers_residual;
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
@@ -1185,13 +1176,13 @@ wd33c93_intr(struct Scsi_Host *instance)
 			if (cmd->SCp.Status == ILLEGAL_STATUS_BYTE)
 				cmd->SCp.Status = lun;
 			if (cmd->cmnd[0] == REQUEST_SENSE
-			    && cmd->SCp.Status != GOOD)
-				cmd->result =
-				    (cmd->
-				     result & 0x00ffff) | (DID_ERROR << 16);
-			else
-				cmd->result =
-				    cmd->SCp.Status | (cmd->SCp.Message << 8);
+			    && cmd->SCp.Status != SAM_STAT_GOOD) {
+				set_host_byte(cmd, DID_ERROR);
+			} else {
+				set_host_byte(cmd, DID_OK);
+				scsi_msg_to_host_byte(cmd, cmd->SCp.Message);
+				set_status_byte(cmd, cmd->SCp.Status);
+			}
 			cmd->scsi_done(cmd);
 
 /* We are no longer  connected to a target - check to see if
@@ -1271,11 +1262,14 @@ wd33c93_intr(struct Scsi_Host *instance)
 		    hostdata->connected = NULL;
 		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
-		if (cmd->cmnd[0] == REQUEST_SENSE && cmd->SCp.Status != GOOD)
-			cmd->result =
-			    (cmd->result & 0x00ffff) | (DID_ERROR << 16);
-		else
-			cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8);
+		if (cmd->cmnd[0] == REQUEST_SENSE &&
+		    cmd->SCp.Status != SAM_STAT_GOOD) {
+			set_host_byte(cmd, DID_ERROR);
+		} else {
+			set_host_byte(cmd, DID_OK);
+			scsi_msg_to_host_byte(cmd, cmd->SCp.Message);
+			set_status_byte(cmd, cmd->SCp.Status);
+		}
 		cmd->scsi_done(cmd);
 
 /* We are no longer connected to a target - check to see if
@@ -1304,14 +1298,14 @@ wd33c93_intr(struct Scsi_Host *instance)
 			hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 			hostdata->state = S_UNCONNECTED;
 			DB(DB_INTR, printk(":%d", cmd->SCp.Status))
-			    if (cmd->cmnd[0] == REQUEST_SENSE
-				&& cmd->SCp.Status != GOOD)
-				cmd->result =
-				    (cmd->
-				     result & 0x00ffff) | (DID_ERROR << 16);
-			else
-				cmd->result =
-				    cmd->SCp.Status | (cmd->SCp.Message << 8);
+			if (cmd->cmnd[0] == REQUEST_SENSE
+			    && cmd->SCp.Status != SAM_STAT_GOOD) {
+				set_host_byte(cmd, DID_ERROR);
+			} else {
+				set_host_byte(cmd, DID_OK);
+				scsi_msg_to_host_byte(cmd, cmd->SCp.Message);
+				set_status_byte(cmd, cmd->SCp.Status);
+			}
 			cmd->scsi_done(cmd);
 			break;
 		case S_PRE_TMP_DISC:
@@ -1863,6 +1857,7 @@ round_4(unsigned int x)
 		case 1: --x;
 			break;
 		case 2: ++x;
+			fallthrough;
 		case 3: ++x;
 	}
 	return x;

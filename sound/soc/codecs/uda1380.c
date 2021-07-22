@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * uda1380.c - Philips UDA1380 ALSA SoC audio driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Copyright (c) 2007-2009 Philipp Zabel <philipp.zabel@gmail.com>
  *
@@ -113,7 +110,7 @@ static int uda1380_write(struct snd_soc_component *component, unsigned int reg,
 	/* the interpolator & decimator regs must only be written when the
 	 * codec DAI is active.
 	 */
-	if (!snd_soc_component_is_active(component) && (reg >= UDA1380_MVOL))
+	if (!snd_soc_component_active(component) && (reg >= UDA1380_MVOL))
 		return 0;
 	pr_debug("uda1380: hw write %x val %x\n", reg, value);
 	if (i2c_master_send(uda1380->i2c, data, 3) == 3) {

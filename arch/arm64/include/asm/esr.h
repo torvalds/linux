@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ASM_ESR_H
@@ -29,23 +18,27 @@
 #define ESR_ELx_EC_CP14_MR	(0x05)
 #define ESR_ELx_EC_CP14_LS	(0x06)
 #define ESR_ELx_EC_FP_ASIMD	(0x07)
-#define ESR_ELx_EC_CP10_ID	(0x08)
-/* Unallocated EC: 0x09 - 0x0B */
+#define ESR_ELx_EC_CP10_ID	(0x08)	/* EL2 only */
+#define ESR_ELx_EC_PAC		(0x09)	/* EL2 and above */
+/* Unallocated EC: 0x0A - 0x0B */
 #define ESR_ELx_EC_CP14_64	(0x0C)
-/* Unallocated EC: 0x0d */
+#define ESR_ELx_EC_BTI		(0x0D)
 #define ESR_ELx_EC_ILL		(0x0E)
 /* Unallocated EC: 0x0F - 0x10 */
 #define ESR_ELx_EC_SVC32	(0x11)
-#define ESR_ELx_EC_HVC32	(0x12)
-#define ESR_ELx_EC_SMC32	(0x13)
+#define ESR_ELx_EC_HVC32	(0x12)	/* EL2 only */
+#define ESR_ELx_EC_SMC32	(0x13)	/* EL2 and above */
 /* Unallocated EC: 0x14 */
 #define ESR_ELx_EC_SVC64	(0x15)
-#define ESR_ELx_EC_HVC64	(0x16)
-#define ESR_ELx_EC_SMC64	(0x17)
+#define ESR_ELx_EC_HVC64	(0x16)	/* EL2 and above */
+#define ESR_ELx_EC_SMC64	(0x17)	/* EL2 and above */
 #define ESR_ELx_EC_SYS64	(0x18)
 #define ESR_ELx_EC_SVE		(0x19)
-/* Unallocated EC: 0x1A - 0x1E */
-#define ESR_ELx_EC_IMP_DEF	(0x1f)
+#define ESR_ELx_EC_ERET		(0x1a)	/* EL2 only */
+/* Unallocated EC: 0x1B */
+#define ESR_ELx_EC_FPAC		(0x1C)	/* EL1 and above */
+/* Unallocated EC: 0x1D - 0x1E */
+#define ESR_ELx_EC_IMP_DEF	(0x1f)	/* EL3 only */
 #define ESR_ELx_EC_IABT_LOW	(0x20)
 #define ESR_ELx_EC_IABT_CUR	(0x21)
 #define ESR_ELx_EC_PC_ALIGN	(0x22)
@@ -68,8 +61,8 @@
 /* Unallocated EC: 0x36 - 0x37 */
 #define ESR_ELx_EC_BKPT32	(0x38)
 /* Unallocated EC: 0x39 */
-#define ESR_ELx_EC_VECTOR32	(0x3A)
-/* Unallocted EC: 0x3B */
+#define ESR_ELx_EC_VECTOR32	(0x3A)	/* EL2 only */
+/* Unallocated EC: 0x3B */
 #define ESR_ELx_EC_BRK64	(0x3C)
 /* Unallocated EC: 0x3D - 0x3F */
 #define ESR_ELx_EC_MAX		(0x3F)
@@ -111,7 +104,9 @@
 /* Shared ISS fault status code(IFSC/DFSC) for Data/Instruction aborts */
 #define ESR_ELx_FSC		(0x3F)
 #define ESR_ELx_FSC_TYPE	(0x3C)
+#define ESR_ELx_FSC_LEVEL	(0x03)
 #define ESR_ELx_FSC_EXTABT	(0x10)
+#define ESR_ELx_FSC_MTE		(0x11)
 #define ESR_ELx_FSC_SERROR	(0x11)
 #define ESR_ELx_FSC_ACCESS	(0x08)
 #define ESR_ELx_FSC_FAULT	(0x04)
@@ -155,9 +150,7 @@
 				 ESR_ELx_WFx_ISS_WFI)
 
 /* BRK instruction trap from AArch64 state */
-#define ESR_ELx_VAL_BRK64(imm)					\
-	((ESR_ELx_EC_BRK64 << ESR_ELx_EC_SHIFT) | ESR_ELx_IL |	\
-	 ((imm) & 0xffff))
+#define ESR_ELx_BRK64_ISS_COMMENT_MASK	0xffff
 
 /* ISS field definitions for System instruction traps */
 #define ESR_ELx_SYS64_ISS_RES0_SHIFT	22
@@ -197,9 +190,10 @@
 /*
  * User space cache operations have the following sysreg encoding
  * in System instructions.
- * op0=1, op1=3, op2=1, crn=7, crm={ 5, 10, 11, 12, 14 }, WRITE (L=0)
+ * op0=1, op1=3, op2=1, crn=7, crm={ 5, 10, 11, 12, 13, 14 }, WRITE (L=0)
  */
 #define ESR_ELx_SYS64_ISS_CRM_DC_CIVAC	14
+#define ESR_ELx_SYS64_ISS_CRM_DC_CVADP	13
 #define ESR_ELx_SYS64_ISS_CRM_DC_CVAP	12
 #define ESR_ELx_SYS64_ISS_CRM_DC_CVAU	11
 #define ESR_ELx_SYS64_ISS_CRM_DC_CVAC	10

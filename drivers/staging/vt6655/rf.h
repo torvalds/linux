@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
@@ -61,23 +61,14 @@
 
 bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData);
 bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, u16 byChannel);
-bool RFbInit(
-	struct vnt_private *priv
-);
+bool RFbInit(struct vnt_private *priv);
 bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, u16 uChannel);
 bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH);
-bool RFbRawSetPower(
-	struct vnt_private *priv,
-	unsigned char byPwr,
-	unsigned int rate
-);
+bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
+		    unsigned int rate);
 
-void
-RFvRSSITodBm(
-	struct vnt_private *priv,
-	unsigned char byCurrRSSI,
-	long    *pldBm
-);
+void RFvRSSITodBm(struct vnt_private *priv, unsigned char byCurrRSSI,
+		  long *pldBm);
 
 /* {{ RobertYu: 20050104 */
 bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv, u16 byOldChannel, u16 byNewChannel);

@@ -1,16 +1,7 @@
-/*
- * Copyright (c) 2017 MediaTek Inc.
- * Author: Chenglin Xu <chenglin.xu@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2017 MediaTek Inc.
+// Author: Chenglin Xu <chenglin.xu@mediatek.com>
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -161,31 +152,31 @@ struct mt6380_regulator_info {
 	.modeset_mask = _modeset_mask,					\
 }
 
-static const struct regulator_linear_range buck_volt_range1[] = {
+static const struct linear_range buck_volt_range1[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0xfe, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range2[] = {
+static const struct linear_range buck_volt_range2[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0xfe, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range3[] = {
+static const struct linear_range buck_volt_range3[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0, 0x3c, 25000),
 };
 
-static const u32 ldo_volt_table1[] = {
+static const unsigned int ldo_volt_table1[] = {
 	1400000, 1350000, 1300000, 1250000, 1200000, 1150000, 1100000, 1050000,
 };
 
-static const u32 ldo_volt_table2[] = {
+static const unsigned int ldo_volt_table2[] = {
 	2200000, 3300000,
 };
 
-static const u32 ldo_volt_table3[] = {
+static const unsigned int ldo_volt_table3[] = {
 	1240000, 1390000, 1540000, 1840000,
 };
 
-static const u32 ldo_volt_table4[] = {
+static const unsigned int ldo_volt_table4[] = {
 	2200000, 3300000,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * f75375s.c - driver for the Fintek F75375/SP, F75373 and
  *             F75387SG/RG hardware monitoring features
@@ -13,21 +14,6 @@
  *
  * f75387:
  * http://www.fintek.com.tw/files/productfiles/F75387_V027P.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -127,8 +113,7 @@ struct f75375_data {
 
 static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
-static int f75375_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
+static int f75375_probe(struct i2c_client *client);
 static int f75375_remove(struct i2c_client *client);
 
 static const struct i2c_device_id f75375_id[] = {
@@ -144,7 +129,7 @@ static struct i2c_driver f75375_driver = {
 	.driver = {
 		.name = "f75375",
 	},
-	.probe = f75375_probe,
+	.probe_new = f75375_probe,
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
@@ -828,8 +813,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 
 }
 
-static int f75375_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int f75375_probe(struct i2c_client *client)
 {
 	struct f75375_data *data;
 	struct f75375s_platform_data *f75375s_pdata =
@@ -846,7 +830,7 @@ static int f75375_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-	data->kind = id->driver_data;
+	data->kind = i2c_match_id(f75375_id, client)->driver_data;
 
 	err = sysfs_create_group(&client->dev.kobj, &f75375_group);
 	if (err)

@@ -191,9 +191,9 @@
 				 STS2_AC12BSYTO | STS2_RSPBSYTO |	\
 				 STS2_AC12RSPTO | STS2_RSPTO)
 
-#define CLKDEV_EMMC_DATA	52000000 /* 52MHz */
-#define CLKDEV_MMC_DATA		20000000 /* 20MHz */
-#define CLKDEV_INIT		400000   /* 400 KHz */
+#define CLKDEV_EMMC_DATA	52000000 /* 52 MHz */
+#define CLKDEV_MMC_DATA		20000000 /* 20 MHz */
+#define CLKDEV_INIT		400000   /* 400 kHz */
 
 enum sh_mmcif_state {
 	STATE_IDLE,
@@ -432,8 +432,12 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 		host->chan_rx = sh_mmcif_request_dma_pdata(host,
 							pdata->slave_id_rx);
 	} else {
-		host->chan_tx = dma_request_slave_channel(dev, "tx");
-		host->chan_rx = dma_request_slave_channel(dev, "rx");
+		host->chan_tx = dma_request_chan(dev, "tx");
+		if (IS_ERR(host->chan_tx))
+			host->chan_tx = NULL;
+		host->chan_rx = dma_request_chan(dev, "rx");
+		if (IS_ERR(host->chan_rx))
+			host->chan_rx = NULL;
 	}
 	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
 		host->chan_rx);
@@ -1388,19 +1392,15 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	struct sh_mmcif_host *host;
 	struct device *dev = &pdev->dev;
 	struct sh_mmcif_plat_data *pd = dev->platform_data;
-	struct resource *res;
 	void __iomem *reg;
 	const char *name;
 
 	irq[0] = platform_get_irq(pdev, 0);
-	irq[1] = platform_get_irq(pdev, 1);
-	if (irq[0] < 0) {
-		dev_err(dev, "Get irq error\n");
+	irq[1] = platform_get_irq_optional(pdev, 1);
+	if (irq[0] < 0)
 		return -ENXIO;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -1562,6 +1562,7 @@ static struct platform_driver sh_mmcif_driver = {
 	.remove		= sh_mmcif_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &sh_mmcif_dev_pm_ops,
 		.of_match_table = sh_mmcif_of_match,
 	},

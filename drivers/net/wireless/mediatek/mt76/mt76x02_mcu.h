@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef __MT76x02_MCU_H
@@ -97,16 +86,14 @@ struct mt76x02_patch_header {
 };
 
 int mt76x02_mcu_cleanup(struct mt76x02_dev *dev);
-int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
-			  u32 param, bool wait);
-struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len);
-int mt76x02_mcu_msg_send(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp);
-int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
-				enum mcu_function func,
-				u32 val, bool wait_resp);
-int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
-				bool wait_resp);
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param);
+int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
+			 int len, bool wait_resp);
+int mt76x02_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			       struct sk_buff *skb, int seq);
+int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
+				u32 val);
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on);
 void mt76x02_set_ethtool_fwver(struct mt76x02_dev *dev,
 			       const struct mt76x02_fw_header *h);
 

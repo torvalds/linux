@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Transparent proxy support for Linux/iptables
  *
  * Copyright (c) 2006-2010 BalaBit IT Ltd.
  * Author: Balazs Scheidler, Krisztian Kovacs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -204,6 +200,11 @@ static int tproxy_tg6_check(const struct xt_tgchk_param *par)
 	pr_info_ratelimited("Can be used only with -p tcp or -p udp\n");
 	return -EINVAL;
 }
+
+static void tproxy_tg6_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_defrag_ipv6_disable(par->net);
+}
 #endif
 
 static int tproxy_tg4_check(const struct xt_tgchk_param *par)
@@ -223,6 +224,11 @@ static int tproxy_tg4_check(const struct xt_tgchk_param *par)
 	return -EINVAL;
 }
 
+static void tproxy_tg4_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_defrag_ipv4_disable(par->net);
+}
+
 static struct xt_target tproxy_tg_reg[] __read_mostly = {
 	{
 		.name		= "TPROXY",
@@ -232,6 +238,7 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 		.revision	= 0,
 		.targetsize	= sizeof(struct xt_tproxy_target_info),
 		.checkentry	= tproxy_tg4_check,
+		.destroy	= tproxy_tg4_destroy,
 		.hooks		= 1 << NF_INET_PRE_ROUTING,
 		.me		= THIS_MODULE,
 	},
@@ -243,6 +250,7 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 		.revision	= 1,
 		.targetsize	= sizeof(struct xt_tproxy_target_info_v1),
 		.checkentry	= tproxy_tg4_check,
+		.destroy	= tproxy_tg4_destroy,
 		.hooks		= 1 << NF_INET_PRE_ROUTING,
 		.me		= THIS_MODULE,
 	},
@@ -255,6 +263,7 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 		.revision	= 1,
 		.targetsize	= sizeof(struct xt_tproxy_target_info_v1),
 		.checkentry	= tproxy_tg6_check,
+		.destroy	= tproxy_tg6_destroy,
 		.hooks		= 1 << NF_INET_PRE_ROUTING,
 		.me		= THIS_MODULE,
 	},

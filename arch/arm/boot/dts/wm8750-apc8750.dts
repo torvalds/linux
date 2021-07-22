@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8750-apc8750.dts
  *  - Device tree file for VIA APC8750
  *
  * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
- *
- * Licensed under GPLv2 or later
  */
 
 /dts-v1/;

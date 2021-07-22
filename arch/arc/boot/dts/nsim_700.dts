@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -17,11 +14,11 @@
 	interrupt-parent = <&core_intc>;
 
 	chosen {
-		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8 print-fatal-signals=1";
+		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=ttyS0,115200n8 print-fatal-signals=1";
 	};
 
 	aliases {
-		serial0 = &arcuart0;
+		serial0 = &uart0;
 	};
 
 	fpga {
@@ -44,29 +41,15 @@
 			#interrupt-cells = <1>;
 		};
 
-		arcuart0: serial@c0fc1000 {
-			compatible = "snps,arc-uart";
-			reg = <0xc0fc1000 0x100>;
-			interrupts = <5>;
-			clock-frequency = <80000000>;
-			current-speed = <115200>;
-			status = "okay";
-		};
-
-		ethernet@c0fc2000 {
-			compatible = "snps,arc-emac";
-			reg = <0xc0fc2000 0x3c>;
-			interrupts = <6>;
-			mac-address = [ 00 11 22 33 44 55 ];
-			clock-frequency = <80000000>;
-			max-speed = <100>;
-			phy = <&phy0>;
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-			phy0: ethernet-phy@0 {
-				reg = <1>;
-			};
+		uart0: serial@f0000000 {
+			compatible = "ns16550a";
+			reg = <0xf0000000 0x2000>;
+			interrupts = <24>;
+			clock-frequency = <50000000>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			no-loopback-test = <1>;
 		};
 
 		arcpct0: pct {

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic qlcnic NIC Driver
  * Copyright (c) 2009-2013 QLogic Corporation
- *
- * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include "qlcnic.h"
@@ -181,7 +180,7 @@ static int qlcnic_83xx_init_non_privileged_vnic(struct qlcnic_adapter *adapter)
 }
 
 /**
- * qlcnic_83xx_vnic_opmode
+ * qlcnic_83xx_config_vnic_opmode
  *
  * @adapter: adapter structure
  * Identify virtual NIC operational modes.

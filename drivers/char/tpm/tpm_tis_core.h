@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2005, 2006 IBM Corporation
  * Copyright (C) 2014, 2015 Intel Corporation
@@ -13,11 +14,6 @@
  *
  * This device driver implements the TPM interface as defined in
  * the TCG TPM Interface Spec version 1.2, revision 1.0.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __TPM_TIS_CORE_H__
@@ -38,6 +34,7 @@ enum tis_status {
 	TPM_STS_GO = 0x20,
 	TPM_STS_DATA_AVAIL = 0x10,
 	TPM_STS_DATA_EXPECT = 0x08,
+	TPM_STS_READ_ZERO = 0x23, /* bits that must be zero on read */
 };
 
 enum tis_int_flags {
@@ -86,6 +83,7 @@ enum tis_defaults {
 
 enum tpm_tis_flags {
 	TPM_TIS_ITPM_WORKAROUND		= BIT(0),
+	TPM_TIS_INVALID_STATUS		= BIT(1),
 };
 
 struct tpm_tis_data {
@@ -93,7 +91,7 @@ struct tpm_tis_data {
 	int locality;
 	int irq;
 	bool irq_tested;
-	unsigned int flags;
+	unsigned long flags;
 	void __iomem *ilb_base_addr;
 	u16 clkrun_enabled;
 	wait_queue_head_t int_queue;

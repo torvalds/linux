@@ -11,6 +11,7 @@
 
 / {
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -182,7 +183,7 @@
 		IOVDD-supply = <&reg_3p3v>;
 		DVDD-supply = <&reg_3p3v>;
 		ai3x-ocmv = <0>;
-		gpio-reset = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
 	};
 };
 

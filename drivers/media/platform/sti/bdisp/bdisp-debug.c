@@ -315,7 +315,7 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 	seq_puts(s, "Unknown conversion\n");
 }
 
-static int bdisp_dbg_last_nodes(struct seq_file *s, void *data)
+static int last_nodes_show(struct seq_file *s, void *data)
 {
 	/* Not dumping all fields, focusing on significant ones */
 	struct bdisp_dev *bdisp = s->private;
@@ -388,7 +388,7 @@ static int bdisp_dbg_last_nodes(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int bdisp_dbg_last_nodes_raw(struct seq_file *s, void *data)
+static int last_nodes_raw_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_node *node;
@@ -437,7 +437,7 @@ static const char *bdisp_fmt_to_str(struct bdisp_frame frame)
 	}
 }
 
-static int bdisp_dbg_last_request(struct seq_file *s, void *data)
+static int last_request_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_request *request = &bdisp->dbg.copy_request;
@@ -474,13 +474,13 @@ static int bdisp_dbg_last_request(struct seq_file *s, void *data)
 
 #define DUMP(reg) seq_printf(s, #reg " \t0x%08X\n", readl(bdisp->regs + reg))
 
-static int bdisp_dbg_regs(struct seq_file *s, void *data)
+static int regs_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	int ret;
 	unsigned int i;
 
-	ret = pm_runtime_get_sync(bdisp->dev);
+	ret = pm_runtime_resume_and_get(bdisp->dev);
 	if (ret < 0) {
 		seq_puts(s, "Cannot wake up IP\n");
 		return 0;
@@ -582,7 +582,7 @@ static int bdisp_dbg_regs(struct seq_file *s, void *data)
 
 #define SECOND 1000000
 
-static int bdisp_dbg_perf(struct seq_file *s, void *data)
+static int perf_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_request *request = &bdisp->dbg.copy_request;
@@ -627,57 +627,28 @@ static int bdisp_dbg_perf(struct seq_file *s, void *data)
 	return 0;
 }
 
-#define bdisp_dbg_declare(name) \
-	static int bdisp_dbg_##name##_open(struct inode *i, struct file *f) \
-	{ \
-		return single_open(f, bdisp_dbg_##name, i->i_private); \
-	} \
-	static const struct file_operations bdisp_dbg_##name##_fops = { \
-		.open           = bdisp_dbg_##name##_open, \
-		.read           = seq_read, \
-		.llseek         = seq_lseek, \
-		.release        = single_release, \
-	}
-
 #define bdisp_dbg_create_entry(name) \
 	debugfs_create_file(#name, S_IRUGO, bdisp->dbg.debugfs_entry, bdisp, \
-			    &bdisp_dbg_##name##_fops)
+			    &name##_fops)
 
-bdisp_dbg_declare(regs);
-bdisp_dbg_declare(last_nodes);
-bdisp_dbg_declare(last_nodes_raw);
-bdisp_dbg_declare(last_request);
-bdisp_dbg_declare(perf);
+DEFINE_SHOW_ATTRIBUTE(regs);
+DEFINE_SHOW_ATTRIBUTE(last_nodes);
+DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
+DEFINE_SHOW_ATTRIBUTE(last_request);
+DEFINE_SHOW_ATTRIBUTE(perf);
 
-int bdisp_debugfs_create(struct bdisp_dev *bdisp)
+void bdisp_debugfs_create(struct bdisp_dev *bdisp)
 {
 	char dirname[16];
 
 	snprintf(dirname, sizeof(dirname), "%s%d", BDISP_NAME, bdisp->id);
 	bdisp->dbg.debugfs_entry = debugfs_create_dir(dirname, NULL);
-	if (!bdisp->dbg.debugfs_entry)
-		goto err;
 
-	if (!bdisp_dbg_create_entry(regs))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_nodes))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_nodes_raw))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_request))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(perf))
-		goto err;
-
-	return 0;
-
-err:
-	bdisp_debugfs_remove(bdisp);
-	return -ENOMEM;
+	bdisp_dbg_create_entry(regs);
+	bdisp_dbg_create_entry(last_nodes);
+	bdisp_dbg_create_entry(last_nodes_raw);
+	bdisp_dbg_create_entry(last_request);
+	bdisp_dbg_create_entry(perf);
 }
 
 void bdisp_debugfs_remove(struct bdisp_dev *bdisp)

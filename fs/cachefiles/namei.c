@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* CacheFiles path walking and related routines
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -20,7 +16,6 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/slab.h>
-#include <linux/xattr.h>
 #include "internal.h"
 
 #define CACHEFILES_KEYBUF_SIZE 512
@@ -244,11 +239,13 @@ wait_for_old_object:
 
 	ASSERT(!test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags));
 
-	cache->cache.ops->put_object(&xobject->fscache, cachefiles_obj_put_wait_retry);
+	cache->cache.ops->put_object(&xobject->fscache,
+		(enum fscache_obj_ref_trace)cachefiles_obj_put_wait_retry);
 	goto try_again;
 
 requeue:
-	cache->cache.ops->put_object(&xobject->fscache, cachefiles_obj_put_wait_timeo);
+	cache->cache.ops->put_object(&xobject->fscache,
+		(enum fscache_obj_ref_trace)cachefiles_obj_put_wait_timeo);
 	_leave(" = -ETIMEDOUT");
 	return -ETIMEDOUT;
 }
@@ -314,7 +311,8 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 			cachefiles_io_error(cache, "Unlink security error");
 		} else {
 			trace_cachefiles_unlink(object, rep, why);
-			ret = vfs_unlink(d_inode(dir), rep, NULL);
+			ret = vfs_unlink(&init_user_ns, d_inode(dir), rep,
+					 NULL);
 
 			if (preemptive)
 				cachefiles_mark_object_buried(cache, rep, why);
@@ -336,7 +334,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 try_again:
 	/* first step is to make up a grave dentry in the graveyard */
 	sprintf(nbuffer, "%08x%08x",
-		(uint32_t) get_seconds(),
+		(uint32_t) ktime_get_real_seconds(),
 		(uint32_t) atomic_inc_return(&cache->gravecounter));
 
 	/* do the multiway lock magic */
@@ -415,9 +413,16 @@ try_again:
 	if (ret < 0) {
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
+		struct renamedata rd = {
+			.old_mnt_userns	= &init_user_ns,
+			.old_dir	= d_inode(dir),
+			.old_dentry	= rep,
+			.new_mnt_userns	= &init_user_ns,
+			.new_dir	= d_inode(cache->graveyard),
+			.new_dentry	= grave,
+		};
 		trace_cachefiles_rename(object, rep, grave, why);
-		ret = vfs_rename(d_inode(dir), rep,
-				 d_inode(cache->graveyard), grave, NULL, 0);
+		ret = vfs_rename(&rd);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
@@ -564,7 +569,7 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_mkdir(d_inode(dir), next, 0);
+			ret = vfs_mkdir(&init_user_ns, d_inode(dir), next, 0);
 			cachefiles_hist(cachefiles_mkdir_histogram, start);
 			if (!key)
 				trace_cachefiles_mkdir(object, next, ret);
@@ -600,7 +605,8 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_create(d_inode(dir), next, S_IFREG, true);
+			ret = vfs_create(&init_user_ns, d_inode(dir), next,
+					 S_IFREG, true);
 			cachefiles_hist(cachefiles_create_histogram, start);
 			trace_cachefiles_create(object, next, ret);
 			if (ret < 0)
@@ -794,7 +800,7 @@ retry:
 		ret = security_path_mkdir(&path, subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
-		ret = vfs_mkdir(d_inode(dir), subdir, 0700);
+		ret = vfs_mkdir(&init_user_ns, d_inode(dir), subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
 

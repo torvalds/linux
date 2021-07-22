@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/mm.h>
@@ -10,7 +10,6 @@
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
 #include <asm/current.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <arch.h>
 #include <as-layout.h>
@@ -19,7 +18,7 @@
 #include <skas.h>
 
 /*
- * Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by
+ * Note this is constrained to return 0, -EFAULT, -EACCES, -ENOMEM by
  * segv().
  */
 int handle_page_fault(unsigned long address, unsigned long ip,
@@ -27,12 +26,10 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	pgd_t *pgd;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	int err = -EFAULT;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	*code_out = SEGV_MAPERR;
 
@@ -46,7 +43,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	if (is_user)
 		flags |= FAULT_FLAG_USER;
 retry:
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto out;
@@ -74,7 +71,7 @@ good_area:
 	do {
 		vm_fault_t fault;
 
-		fault = handle_mm_fault(vma, address, flags);
+		fault = handle_mm_fault(vma, address, flags, NULL);
 
 		if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 			goto out_nosemaphore;
@@ -91,21 +88,14 @@ good_area:
 			BUG();
 		}
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-			if (fault & VM_FAULT_MAJOR)
-				current->maj_flt++;
-			else
-				current->min_flt++;
 			if (fault & VM_FAULT_RETRY) {
-				flags &= ~FAULT_FLAG_ALLOW_RETRY;
 				flags |= FAULT_FLAG_TRIED;
 
 				goto retry;
 			}
 		}
 
-		pgd = pgd_offset(mm, address);
-		pud = pud_offset(pgd, address);
-		pmd = pmd_offset(pud, address);
+		pmd = pmd_off(mm, address);
 		pte = pte_offset_kernel(pmd, address);
 	} while (!pte_present(*pte));
 	err = 0;
@@ -122,7 +112,7 @@ good_area:
 #endif
 	flush_tlb_page(vma, address);
 out:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 out_nosemaphore:
 	return err;
 
@@ -131,7 +121,7 @@ out_of_memory:
 	 * We ran out of memory, call the OOM killer, and return the userspace
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (!is_user)
 		goto out_nosemaphore;
 	pagefault_out_of_memory();
@@ -163,13 +153,12 @@ static void show_segv_info(struct uml_pt_regs *regs)
 static void bad_segv(struct faultinfo fi, unsigned long ip)
 {
 	current->thread.arch.faultinfo = fi;
-	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi),
-			current);
+	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi));
 }
 
 void fatal_sigsegv(void)
 {
-	force_sigsegv(SIGSEGV, current);
+	force_sigsegv(SIGSEGV);
 	do_signal(&current->thread.regs);
 	/*
 	 * This is to tell gcc that we're not returning - do_signal
@@ -268,13 +257,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	if (err == -EACCES) {
 		current->thread.arch.faultinfo = fi;
-		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address,
-				current);
+		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 	} else {
 		BUG_ON(err != -EFAULT);
 		current->thread.arch.faultinfo = fi;
-		force_sig_fault(SIGSEGV, si_code, (void __user *) address,
-				current);
+		force_sig_fault(SIGSEGV, si_code, (void __user *) address);
 	}
 
 out:
@@ -304,12 +291,11 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 	if ((err == 0) && (siginfo_layout(sig, code) == SIL_FAULT)) {
 		struct faultinfo *fi = UPT_FAULTINFO(regs);
 		current->thread.arch.faultinfo = *fi;
-		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi),
-				current);
+		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi));
 	} else {
 		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d) with errno %d\n",
 		       sig, code, err);
-		force_sig(sig, current);
+		force_sig(sig);
 	}
 }
 

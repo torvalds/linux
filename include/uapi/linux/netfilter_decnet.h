@@ -15,16 +15,6 @@
 
 #include <limits.h> /* for INT_MIN, INT_MAX */
 
-/* IP Cache bits. */
-/* Src IP address. */
-#define NFC_DN_SRC		0x0001
-/* Dest IP address. */
-#define NFC_DN_DST		0x0002
-/* Input device. */
-#define NFC_DN_IF_IN		0x0004
-/* Output device. */
-#define NFC_DN_IF_OUT		0x0008
-
 /* kernel define is in netfilter_defs.h */
 #define NF_DN_NUMHOOKS		7
 #endif /* ! __KERNEL__ */

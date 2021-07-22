@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industry-pack bus support functions.
  *
  * Copyright (C) 2011-2012 CERN (www.cern.ch)
  * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
  */
 
 #include <linux/module.h>
@@ -67,9 +64,6 @@ static int ipack_bus_probe(struct device *device)
 	struct ipack_device *dev = to_ipack_dev(device);
 	struct ipack_driver *drv = to_ipack_driver(device->driver);
 
-	if (!drv->ops->probe)
-		return -EINVAL;
-
 	return drv->ops->probe(dev);
 }
 
@@ -78,10 +72,9 @@ static int ipack_bus_remove(struct device *device)
 	struct ipack_device *dev = to_ipack_dev(device);
 	struct ipack_driver *drv = to_ipack_driver(device->driver);
 
-	if (!drv->ops->remove)
-		return -EINVAL;
+	if (drv->ops->remove)
+		drv->ops->remove(dev);
 
-	drv->ops->remove(dev);
 	return 0;
 }
 
@@ -255,6 +248,9 @@ EXPORT_SYMBOL_GPL(ipack_bus_unregister);
 int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
 			  const char *name)
 {
+	if (!edrv->ops->probe)
+		return -EINVAL;
+
 	edrv->driver.owner = owner;
 	edrv->driver.name = name;
 	edrv->driver.bus = &ipack_bus_type;

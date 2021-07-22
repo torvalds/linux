@@ -244,7 +244,7 @@
 
 			rs5c372: rs5c372@32 {
 				status = "disabled";
-				compatible = "ricoh,rs5c372";
+				compatible = "ricoh,rs5c372a";
 				reg = <0x32>;
 			};
 

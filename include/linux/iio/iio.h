@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* The industrial I/O core
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef _INDUSTRIAL_IO_H_
 #define _INDUSTRIAL_IO_H_
@@ -130,8 +127,7 @@ struct iio_mount_matrix {
 
 ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
 			      const struct iio_chan_spec *chan, char *buf);
-int of_iio_read_mount_matrix(const struct device *dev, const char *propname,
-			     struct iio_mount_matrix *matrix);
+int iio_read_mount_matrix(struct device *dev, struct iio_mount_matrix *matrix);
 
 typedef const struct iio_mount_matrix *
 	(iio_get_mount_matrix_t)(const struct iio_dev *indio_dev,
@@ -365,6 +361,8 @@ struct iio_trigger; /* forward declaration */
  *			and max. For lists, all possible values are enumerated.
  * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
+ * @read_label:		function to request label name for a specified label,
+ *			for better channel identification.
  * @write_raw_get_fmt:	callback function to query the expected
  *			format/precision. If not set by the driver, write_raw
  *			returns IIO_VAL_INT_PLUS_MICRO.
@@ -422,6 +420,10 @@ struct iio_info {
 			 int val,
 			 int val2,
 			 long mask);
+
+	int (*read_label)(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan,
+			 char *label);
 
 	int (*write_raw_get_fmt)(struct iio_dev *indio_dev,
 			 struct iio_chan_spec const *chan,
@@ -485,58 +487,38 @@ struct iio_buffer_setup_ops {
 
 /**
  * struct iio_dev - industrial I/O device
- * @id:			[INTERN] used to identify device internally
- * @driver_module:	[INTERN] used to make it harder to undercut users
  * @modes:		[DRIVER] operating modes supported by device
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
- * @event_interface:	[INTERN] event chrdevs associated with interrupt lines
  * @buffer:		[DRIVER] any buffer present
- * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
- * @mlock:		[DRIVER] lock used to prevent simultaneous device state
+ * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
  *			channels
  * @active_scan_mask:	[INTERN] union of all scan masks requested by buffers
  * @scan_timestamp:	[INTERN] set if any buffers have requested timestamp
- * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
- * @trig_readonly:	[INTERN] mark the current trigger immutable
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of channels specified in @channels.
- * @channel_attr_list:	[INTERN] keep track of automatically created channel
- *			attributes
- * @chan_attr_group:	[INTERN] group for all attrs in base directory
  * @name:		[DRIVER] name of the device.
+ * @label:              [DRIVER] unique name to identify which device this is
  * @info:		[DRIVER] callbacks and constant info from driver
- * @clock_id:		[INTERN] timestamping clock posix identifier
- * @info_exist_lock:	[INTERN] lock to prevent use during removal
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
- * @chrdev:		[INTERN] associated character device
- * @groups:		[INTERN] attribute groups
- * @groupcounter:	[INTERN] index of next attribute group
- * @flags:		[INTERN] file ops related flags including busy flag.
- * @debugfs_dentry:	[INTERN] device specific debugfs dentry.
- * @cached_reg_addr:	[INTERN] cached register address for debugfs reads.
+ * @priv:		[DRIVER] reference to driver's private information
+ *			**MUST** be accessed **ONLY** via iio_priv() helper
  */
 struct iio_dev {
-	int				id;
-	struct module			*driver_module;
-
 	int				modes;
 	int				currentmode;
 	struct device			dev;
 
-	struct iio_event_interface	*event_interface;
-
 	struct iio_buffer		*buffer;
-	struct list_head		buffer_list;
 	int				scan_bytes;
 	struct mutex			mlock;
 
@@ -544,33 +526,22 @@ struct iio_dev {
 	unsigned			masklength;
 	const unsigned long		*active_scan_mask;
 	bool				scan_timestamp;
-	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
-	bool				trig_readonly;
 	struct iio_poll_func		*pollfunc;
 	struct iio_poll_func		*pollfunc_event;
 
 	struct iio_chan_spec const	*channels;
 	int				num_channels;
 
-	struct list_head		channel_attr_list;
-	struct attribute_group		chan_attr_group;
 	const char			*name;
+	const char			*label;
 	const struct iio_info		*info;
-	clockid_t			clock_id;
-	struct mutex			info_exist_lock;
 	const struct iio_buffer_setup_ops	*setup_ops;
-	struct cdev			chrdev;
-#define IIO_MAX_GROUPS 6
-	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];
-	int				groupcounter;
 
-	unsigned long			flags;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*debugfs_dentry;
-	unsigned			cached_reg_addr;
-#endif
+	void				*priv;
 };
+
+int iio_device_id(struct iio_dev *indio_dev);
 
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
@@ -592,17 +563,13 @@ void iio_device_unregister(struct iio_dev *indio_dev);
  * calls iio_device_register() internally. Refer to that function for more
  * information.
  *
- * If an iio_dev registered with this function needs to be unregistered
- * separately, devm_iio_device_unregister() must be used.
- *
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
 #define devm_iio_device_register(dev, indio_dev) \
-	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE);
+	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE)
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod);
-void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
 void iio_device_release_direct_mode(struct iio_dev *indio_dev);
@@ -619,14 +586,8 @@ static inline void iio_device_put(struct iio_dev *indio_dev)
 		put_device(&indio_dev->dev);
 }
 
-/**
- * iio_device_get_clock() - Retrieve current timestamping clock for the device
- * @indio_dev: IIO device structure containing the device
- */
-static inline clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
-{
-	return indio_dev->clock_id;
-}
+clockid_t iio_device_get_clock(const struct iio_dev *indio_dev);
+int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id);
 
 /**
  * dev_to_iio_dev() - Get IIO device struct from a device struct
@@ -650,6 +611,26 @@ static inline struct iio_dev *iio_device_get(struct iio_dev *indio_dev)
 	return indio_dev ? dev_to_iio_dev(get_device(&indio_dev->dev)) : NULL;
 }
 
+/**
+ * iio_device_set_parent() - assign parent device to the IIO device object
+ * @indio_dev: 		IIO device structure
+ * @parent:		reference to parent device object
+ *
+ * This utility must be called between IIO device allocation
+ * (via devm_iio_device_alloc()) & IIO device registration
+ * (via iio_device_register() and devm_iio_device_register())).
+ * By default, the device allocation will also assign a parent device to
+ * the IIO device object. In cases where devm_iio_device_alloc() is used,
+ * sometimes the parent device must be different than the device used to
+ * manage the allocation.
+ * In that case, this helper should be used to change the parent, hence the
+ * requirement to call this between allocation & registration.
+ **/
+static inline void iio_device_set_parent(struct iio_dev *indio_dev,
+					 struct device *parent)
+{
+	indio_dev->dev.parent = parent;
+}
 
 /**
  * iio_device_set_drvdata() - Set device driver data
@@ -670,34 +651,26 @@ static inline void iio_device_set_drvdata(struct iio_dev *indio_dev, void *data)
  *
  * Returns the data previously set with iio_device_set_drvdata()
  */
-static inline void *iio_device_get_drvdata(struct iio_dev *indio_dev)
+static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
 {
 	return dev_get_drvdata(&indio_dev->dev);
 }
 
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
-struct iio_dev *iio_device_alloc(int sizeof_priv);
+struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 
+/* The information at the returned address is guaranteed to be cacheline aligned */
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return (char *)indio_dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
-}
-
-static inline struct iio_dev *iio_priv_to_dev(void *priv)
-{
-	return (struct iio_dev *)((char *)priv -
-				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
+	return indio_dev->priv;
 }
 
 void iio_device_free(struct iio_dev *indio_dev);
-int devm_iio_device_match(struct device *dev, void *res, void *data);
-struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
-void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
-struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
-						const char *fmt, ...);
-void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig);
-
+struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
+__printf(2, 3)
+struct iio_trigger *devm_iio_trigger_alloc(struct device *parent,
+					   const char *fmt, ...);
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @indio_dev:		IIO device structure for device
@@ -714,10 +687,7 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
  * @indio_dev:		IIO device structure for device
  **/
 #if defined(CONFIG_DEBUG_FS)
-static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
-{
-	return indio_dev->debugfs_dentry;
-}
+struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev);
 #else
 static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 {

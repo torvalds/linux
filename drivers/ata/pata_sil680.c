@@ -57,6 +57,7 @@ static unsigned long sil680_selreg(struct ata_port *ap, int r)
 /**
  *	sil680_seldev		-	return register base
  *	@ap: ATA interface
+ *	@adev: ATA device
  *	@r: config offset
  *
  *	Turn a config register offset into the right address in PCI space
@@ -244,6 +245,7 @@ static struct ata_port_operations sil680_port_ops = {
 /**
  *	sil680_init_chip		-	chip setup
  *	@pdev: PCI device
+ *	@try_mmio: Indicates to caller whether MMIO should be attempted
  *
  *	Perform all the chip setup which must be done both when the device
  *	is powered up on boot and when we resume in case we resumed from RAM.
@@ -374,10 +376,7 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->iomap = pcim_iomap_table(pdev);
 
 	/* Setup DMA masks */
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
+	rc = dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 	pci_set_master(pdev);

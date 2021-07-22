@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_pscsi.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -46,8 +33,6 @@
 #include "target_core_alua.h"
 #include "target_core_internal.h"
 #include "target_core_pscsi.h"
-
-#define ISPRINT(a)  ((a >= ' ') && (a <= '~'))
 
 static inline struct pscsi_dev_virt *PSCSI_DEV(struct se_device *dev)
 {
@@ -179,20 +164,20 @@ out_free:
 static void
 pscsi_set_inquiry_info(struct scsi_device *sdev, struct t10_wwn *wwn)
 {
-	unsigned char *buf;
-
 	if (sdev->inquiry_len < INQUIRY_LEN)
 		return;
-
-	buf = sdev->inquiry;
-	if (!buf)
-		return;
 	/*
-	 * Use sdev->inquiry from drivers/scsi/scsi_scan.c:scsi_alloc_sdev()
+	 * Use sdev->inquiry data from drivers/scsi/scsi_scan.c:scsi_add_lun()
 	 */
-	memcpy(&wwn->vendor[0], &buf[8], sizeof(wwn->vendor));
-	memcpy(&wwn->model[0], &buf[16], sizeof(wwn->model));
-	memcpy(&wwn->revision[0], &buf[32], sizeof(wwn->revision));
+	BUILD_BUG_ON(sizeof(wwn->vendor) != INQUIRY_VENDOR_LEN + 1);
+	snprintf(wwn->vendor, sizeof(wwn->vendor),
+		 "%." __stringify(INQUIRY_VENDOR_LEN) "s", sdev->vendor);
+	BUILD_BUG_ON(sizeof(wwn->model) != INQUIRY_MODEL_LEN + 1);
+	snprintf(wwn->model, sizeof(wwn->model),
+		 "%." __stringify(INQUIRY_MODEL_LEN) "s", sdev->model);
+	BUILD_BUG_ON(sizeof(wwn->revision) != INQUIRY_REVISION_LEN + 1);
+	snprintf(wwn->revision, sizeof(wwn->revision),
+		 "%." __stringify(INQUIRY_REVISION_LEN) "s", sdev->rev);
 }
 
 static int
@@ -633,8 +618,9 @@ static void pscsi_complete_cmd(struct se_cmd *cmd, u8 scsi_status,
 			unsigned char *buf;
 
 			buf = transport_kmap_data_sg(cmd);
-			if (!buf)
+			if (!buf) {
 				; /* XXX: TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE */
+			}
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -811,7 +797,6 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 	struct scsi_device *sd = pdv->pdv_sd;
 	unsigned char host_id[16];
 	ssize_t bl;
-	int i;
 
 	if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
 		snprintf(host_id, 16, "%d", pdv->pdv_host_id);
@@ -824,29 +809,12 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 		host_id);
 
 	if (sd) {
-		bl += sprintf(b + bl, "        ");
-		bl += sprintf(b + bl, "Vendor: ");
-		for (i = 0; i < 8; i++) {
-			if (ISPRINT(sd->vendor[i]))   /* printable character? */
-				bl += sprintf(b + bl, "%c", sd->vendor[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, " Model: ");
-		for (i = 0; i < 16; i++) {
-			if (ISPRINT(sd->model[i]))   /* printable character ? */
-				bl += sprintf(b + bl, "%c", sd->model[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, " Rev: ");
-		for (i = 0; i < 4; i++) {
-			if (ISPRINT(sd->rev[i]))   /* printable character ? */
-				bl += sprintf(b + bl, "%c", sd->rev[i]);
-			else
-				bl += sprintf(b + bl, " ");
-		}
-		bl += sprintf(b + bl, "\n");
+		bl += sprintf(b + bl, "        Vendor: %."
+			__stringify(INQUIRY_VENDOR_LEN) "s", sd->vendor);
+		bl += sprintf(b + bl, " Model: %."
+			__stringify(INQUIRY_MODEL_LEN) "s", sd->model);
+		bl += sprintf(b + bl, " Rev: %."
+			__stringify(INQUIRY_REVISION_LEN) "s\n", sd->rev);
 	}
 	return bl;
 }
@@ -912,8 +880,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 			if (!bio) {
 new_bio:
-				nr_vecs = min_t(int, BIO_MAX_PAGES, nr_pages);
-				nr_pages -= nr_vecs;
+				nr_vecs = bio_max_segs(nr_pages);
 				/*
 				 * Calls bio_kmalloc() and sets bio->bi_end_io()
 				 */
@@ -942,7 +909,7 @@ new_bio:
 					" %d i: %d bio: %p, allocating another"
 					" bio\n", bio->bi_vcnt, i, bio);
 
-				rc = blk_rq_append_bio(req, &bio);
+				rc = blk_rq_append_bio(req, bio);
 				if (rc) {
 					pr_err("pSCSI: failed to append bio\n");
 					goto fail;
@@ -961,7 +928,7 @@ new_bio:
 	}
 
 	if (bio) {
-		rc = blk_rq_append_bio(req, &bio);
+		rc = blk_rq_append_bio(req, bio);
 		if (rc) {
 			pr_err("pSCSI: failed to append bio\n");
 			goto fail;
@@ -970,6 +937,14 @@ new_bio:
 
 	return 0;
 fail:
+	if (bio)
+		bio_put(bio);
+	while (req->bio) {
+		bio = req->bio;
+		req->bio = bio->bi_next;
+		bio_put(bio);
+	}
+	req->biotail = NULL;
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
 
@@ -1007,7 +982,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	req = blk_get_request(pdv->pdv_sd->request_queue,
 			cmd->data_direction == DMA_TO_DEVICE ?
-			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
+			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req)) {
 		pr_err("PSCSI: blk_get_request() failed\n");
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1031,8 +1006,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		req->timeout = PS_TIMEOUT_OTHER;
 	scsi_req(req)->retries = PS_RETRY;
 
-	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, req,
-			(cmd->sam_task_attr == TCM_HEAD_TAG),
+	blk_execute_rq_nowait(NULL, req, (cmd->sam_task_attr == TCM_HEAD_TAG),
 			pscsi_req_done);
 
 	return 0;
@@ -1060,9 +1034,8 @@ static sector_t pscsi_get_blocks(struct se_device *dev)
 {
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
 
-	if (pdv->pdv_bd && pdv->pdv_bd->bd_part)
-		return pdv->pdv_bd->bd_part->nr_sects;
-
+	if (pdv->pdv_bd)
+		return bdev_nr_sectors(pdv->pdv_bd);
 	return 0;
 }
 
@@ -1071,9 +1044,9 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 	struct se_cmd *cmd = req->end_io_data;
 	struct pscsi_plugin_task *pt = cmd->priv;
 	int result = scsi_req(req)->result;
-	u8 scsi_status = status_byte(result) << 1;
+	enum sam_status scsi_status = result & 0xff;
 
-	if (scsi_status) {
+	if (scsi_status != SAM_STAT_GOOD) {
 		pr_debug("PSCSI Status Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
 			result);
@@ -1094,16 +1067,16 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 		break;
 	}
 
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 	kfree(pt);
 }
 
 static const struct target_backend_ops pscsi_ops = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
-	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH |
-				  TRANSPORT_FLAG_PASSTHROUGH_ALUA |
-				  TRANSPORT_FLAG_PASSTHROUGH_PGR,
+	.transport_flags_default = TRANSPORT_FLAG_PASSTHROUGH |
+				   TRANSPORT_FLAG_PASSTHROUGH_ALUA |
+				   TRANSPORT_FLAG_PASSTHROUGH_PGR,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,

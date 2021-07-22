@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Driver for USB Mass Storage compliant devices
  * Debugging Functions Header File
@@ -28,8 +28,6 @@
 #define _DEBUG_H_
 
 #include <linux/kernel.h>
-
-#define USB_STORAGE "usb-storage: "
 
 #ifdef CONFIG_USB_STORAGE_DEBUG
 void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb);

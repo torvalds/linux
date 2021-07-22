@@ -24,7 +24,9 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_mode.h>
+#include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
 /**
@@ -50,9 +52,17 @@ bool drm_rect_intersect(struct drm_rect *r1, const struct drm_rect *r2)
 }
 EXPORT_SYMBOL(drm_rect_intersect);
 
-static u32 clip_scaled(u32 src, u32 dst, u32 clip)
+static u32 clip_scaled(int src, int dst, int *clip)
 {
-	u64 tmp = mul_u32_u32(src, dst - clip);
+	u64 tmp;
+
+	if (dst == 0)
+		return 0;
+
+	/* Only clip what we have. Keeps the result bounded. */
+	*clip = min(*clip, dst);
+
+	tmp = mul_u32_u32(src, dst - *clip);
 
 	/*
 	 * Round toward 1.0 when clipping so that we don't accidentally
@@ -71,11 +81,13 @@ static u32 clip_scaled(u32 src, u32 dst, u32 clip)
  * @clip: clip rectangle
  *
  * Clip rectangle @dst by rectangle @clip. Clip rectangle @src by the
- * same amounts multiplied by @hscale and @vscale.
+ * the corresponding amounts, retaining the vertical and horizontal scaling
+ * factors from @src to @dst.
  *
  * RETURNS:
+ *
  * %true if rectangle @dst is still visible after being clipped,
- * %false otherwise
+ * %false otherwise.
  */
 bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 			  const struct drm_rect *clip)
@@ -85,34 +97,34 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 	diff = clip->x1 - dst->x1;
 	if (diff > 0) {
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
-					    drm_rect_width(dst), diff);
+					    drm_rect_width(dst), &diff);
 
-		src->x1 = clamp_t(int64_t, src->x2 - new_src_w, INT_MIN, INT_MAX);
-		dst->x1 = clip->x1;
+		src->x1 = src->x2 - new_src_w;
+		dst->x1 += diff;
 	}
 	diff = clip->y1 - dst->y1;
 	if (diff > 0) {
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
-					    drm_rect_height(dst), diff);
+					    drm_rect_height(dst), &diff);
 
-		src->y1 = clamp_t(int64_t, src->y2 - new_src_h, INT_MIN, INT_MAX);
-		dst->y1 = clip->y1;
+		src->y1 = src->y2 - new_src_h;
+		dst->y1 += diff;
 	}
 	diff = dst->x2 - clip->x2;
 	if (diff > 0) {
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
-					    drm_rect_width(dst), diff);
+					    drm_rect_width(dst), &diff);
 
-		src->x2 = clamp_t(int64_t, src->x1 + new_src_w, INT_MIN, INT_MAX);
-		dst->x2 = clip->x2;
+		src->x2 = src->x1 + new_src_w;
+		dst->x2 -= diff;
 	}
 	diff = dst->y2 - clip->y2;
 	if (diff > 0) {
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
-					    drm_rect_height(dst), diff);
+					    drm_rect_height(dst), &diff);
 
-		src->y2 = clamp_t(int64_t, src->y1 + new_src_h, INT_MIN, INT_MAX);
-		dst->y2 = clip->y2;
+		src->y2 = src->y1 + new_src_h;
+		dst->y2 -= diff;
 	}
 
 	return drm_rect_visible(dst);
@@ -206,114 +218,6 @@ int drm_rect_calc_vscale(const struct drm_rect *src,
 	return vscale;
 }
 EXPORT_SYMBOL(drm_rect_calc_vscale);
-
-/**
- * drm_calc_hscale_relaxed - calculate the horizontal scaling factor
- * @src: source window rectangle
- * @dst: destination window rectangle
- * @min_hscale: minimum allowed horizontal scaling factor
- * @max_hscale: maximum allowed horizontal scaling factor
- *
- * Calculate the horizontal scaling factor as
- * (@src width) / (@dst width).
- *
- * If the calculated scaling factor is below @min_vscale,
- * decrease the height of rectangle @dst to compensate.
- *
- * If the calculated scaling factor is above @max_vscale,
- * decrease the height of rectangle @src to compensate.
- *
- * If the scale is below 1 << 16, round down. If the scale is above
- * 1 << 16, round up. This will calculate the scale with the most
- * pessimistic limit calculation.
- *
- * RETURNS:
- * The horizontal scaling factor.
- */
-int drm_rect_calc_hscale_relaxed(struct drm_rect *src,
-				 struct drm_rect *dst,
-				 int min_hscale, int max_hscale)
-{
-	int src_w = drm_rect_width(src);
-	int dst_w = drm_rect_width(dst);
-	int hscale = drm_calc_scale(src_w, dst_w);
-
-	if (hscale < 0 || dst_w == 0)
-		return hscale;
-
-	if (hscale < min_hscale) {
-		int max_dst_w = src_w / min_hscale;
-
-		drm_rect_adjust_size(dst, max_dst_w - dst_w, 0);
-
-		return min_hscale;
-	}
-
-	if (hscale > max_hscale) {
-		int max_src_w = dst_w * max_hscale;
-
-		drm_rect_adjust_size(src, max_src_w - src_w, 0);
-
-		return max_hscale;
-	}
-
-	return hscale;
-}
-EXPORT_SYMBOL(drm_rect_calc_hscale_relaxed);
-
-/**
- * drm_rect_calc_vscale_relaxed - calculate the vertical scaling factor
- * @src: source window rectangle
- * @dst: destination window rectangle
- * @min_vscale: minimum allowed vertical scaling factor
- * @max_vscale: maximum allowed vertical scaling factor
- *
- * Calculate the vertical scaling factor as
- * (@src height) / (@dst height).
- *
- * If the calculated scaling factor is below @min_vscale,
- * decrease the height of rectangle @dst to compensate.
- *
- * If the calculated scaling factor is above @max_vscale,
- * decrease the height of rectangle @src to compensate.
- *
- * If the scale is below 1 << 16, round down. If the scale is above
- * 1 << 16, round up. This will calculate the scale with the most
- * pessimistic limit calculation.
- *
- * RETURNS:
- * The vertical scaling factor.
- */
-int drm_rect_calc_vscale_relaxed(struct drm_rect *src,
-				 struct drm_rect *dst,
-				 int min_vscale, int max_vscale)
-{
-	int src_h = drm_rect_height(src);
-	int dst_h = drm_rect_height(dst);
-	int vscale = drm_calc_scale(src_h, dst_h);
-
-	if (vscale < 0 || dst_h == 0)
-		return vscale;
-
-	if (vscale < min_vscale) {
-		int max_dst_h = src_h / min_vscale;
-
-		drm_rect_adjust_size(dst, 0, max_dst_h - dst_h);
-
-		return min_vscale;
-	}
-
-	if (vscale > max_vscale) {
-		int max_src_h = dst_h * max_vscale;
-
-		drm_rect_adjust_size(src, 0, max_src_h - src_h);
-
-		return max_vscale;
-	}
-
-	return vscale;
-}
-EXPORT_SYMBOL(drm_rect_calc_vscale_relaxed);
 
 /**
  * drm_rect_debug_print - print the rectangle information

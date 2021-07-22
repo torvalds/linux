@@ -36,34 +36,6 @@
 #include "dce/dce_8_0_d.h"
 #include "dce/dce_8_0_sh_mask.h"
 
-struct dce80_hw_seq_reg_offsets {
-	uint32_t crtc;
-};
-
-static const struct dce80_hw_seq_reg_offsets reg_offsets[] = {
-{
-	.crtc = (mmCRTC0_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC1_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC2_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC3_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC4_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC5_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-}
-};
-
-#define HW_REG_CRTC(reg, id)\
-	(reg + reg_offsets[id].crtc)
-
 /*******************************************************************************
  * Private definitions
  ******************************************************************************/
@@ -74,8 +46,9 @@ void dce80_hw_sequencer_construct(struct dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 
-	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
+	dc->hwseq->funcs.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.pipe_control_lock = dce_pipe_control_lock;
-	dc->hwss.set_bandwidth = dce100_set_bandwidth;
+	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
+	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 }
 

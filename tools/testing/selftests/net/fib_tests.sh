@@ -9,11 +9,15 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics"
+TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle"
+
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
 IP="ip -netns ns1"
+NS_EXEC="ip netns exec ns1"
+
+which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
 log_test()
 {
@@ -48,6 +52,7 @@ setup()
 {
 	set -e
 	ip netns add ns1
+	ip netns set ns1 auto
 	$IP link set dev lo up
 	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ns1 sysctl -qw net.ipv6.conf.all.forwarding=1
@@ -388,6 +393,7 @@ fib_carrier_unicast_test()
 
 	set -e
 	$IP link set dev dummy0 carrier off
+	sleep 1
 	set +e
 
 	echo "    Carrier down"
@@ -428,6 +434,37 @@ fib_carrier_test()
 {
 	fib_carrier_local_test
 	fib_carrier_unicast_test
+}
+
+fib_rp_filter_test()
+{
+	echo
+	echo "IPv4 rp_filter tests"
+
+	setup
+
+	set -e
+	$IP link set dev lo address 52:54:00:6a:c7:5e
+	$IP link set dummy0 address 52:54:00:6a:c7:5e
+	$IP link add dummy1 type dummy
+	$IP link set dummy1 address 52:54:00:6a:c7:5e
+	$IP link set dev dummy1 up
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.rp_filter=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.accept_local=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.route_localnet=1
+
+	$NS_EXEC tc qd add dev dummy1 parent root handle 1: fq_codel
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol arp basic action mirred egress redirect dev lo
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol ip basic action mirred egress redirect dev lo
+	set +e
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 198.51.100.1"
+	log_test $? 0 "rp_filter passes local packets"
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 127.0.0.1"
+	log_test $? 0 "rp_filter passes loopback packets"
+
+	cleanup
 }
 
 ################################################################################
@@ -579,6 +616,26 @@ fib_nexthop_test()
 	cleanup
 }
 
+fib_suppress_test()
+{
+	echo
+	echo "FIB rule with suppress_prefixlength"
+	setup
+
+	$IP link add dummy1 type dummy
+	$IP link set dummy1 up
+	$IP -6 route add default dev dummy1
+	$IP -6 rule add table main suppress_prefixlength 0
+	ping -f -c 1000 -W 1 1234::1 >/dev/null 2>&1
+	$IP -6 rule del table main suppress_prefixlength 0
+	$IP link del dummy1
+
+	# If we got here without crashing, we're good.
+	log_test 0 0 "FIB rule suppress test"
+
+	cleanup
+}
+
 ################################################################################
 # Tests on route add and replace
 
@@ -600,6 +657,39 @@ run_cmd()
 	fi
 
 	[ "$VERBOSE" = "1" ] && echo
+
+	return $rc
+}
+
+check_expected()
+{
+	local out="$1"
+	local expected="$2"
+	local rc=0
+
+	[ "${out}" = "${expected}" ] && return 0
+
+	if [ -z "${out}" ]; then
+		if [ "$VERBOSE" = "1" ]; then
+			printf "\nNo route entry found\n"
+			printf "Expected:\n"
+			printf "    ${expected}\n"
+		fi
+		return 1
+	fi
+
+	# tricky way to convert output to 1-line without ip's
+	# messy '\'; this drops all extra white space
+	out=$(echo ${out})
+	if [ "${out}" != "${expected}" ]; then
+		rc=1
+		if [ "${VERBOSE}" = "1" ]; then
+			printf "    Unexpected route entry. Have:\n"
+			printf "        ${out}\n"
+			printf "    Expected:\n"
+			printf "        ${expected}\n\n"
+		fi
+	fi
 
 	return $rc
 }
@@ -651,31 +741,7 @@ check_route6()
 	pfx=$1
 
 	out=$($IP -6 ro ls match ${pfx} | sed -e 's/ pref medium//')
-	[ "${out}" = "${expected}" ] && return 0
-
-	if [ -z "${out}" ]; then
-		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo route entry found\n"
-			printf "Expected:\n"
-			printf "    ${expected}\n"
-		fi
-		return 1
-	fi
-
-	# tricky way to convert output to 1-line without ip's
-	# messy '\'; this drops all extra white space
-	out=$(echo ${out})
-	if [ "${out}" != "${expected}" ]; then
-		rc=1
-		if [ "${VERBOSE}" = "1" ]; then
-			printf "    Unexpected route entry. Have:\n"
-			printf "        ${out}\n"
-			printf "    Expected:\n"
-			printf "        ${expected}\n\n"
-		fi
-	fi
-
-	return $rc
+	check_expected "${out}" "${expected}"
 }
 
 route_cleanup()
@@ -697,6 +763,7 @@ route_setup()
 	set -e
 
 	ip netns add ns2
+	ip netns set ns2 auto
 	ip -netns ns2 link set dev lo up
 	ip netns exec ns2 sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ns2 sysctl -qw net.ipv6.conf.all.forwarding=1
@@ -724,7 +791,7 @@ route_setup()
 	ip -netns ns2 addr add 172.16.103.2/24 dev veth4
 	ip -netns ns2 addr add 172.16.104.1/24 dev dummy1
 
-	set +ex
+	set +e
 }
 
 # assumption is that basic add of a single path route works
@@ -849,6 +916,12 @@ ipv6_rt_replace_mpath()
 	check_route6 "2001:db8:104::/64 via 2001:db8:101::3 dev veth1 metric 1024"
 	log_test $? 0 "Multipath with single path via multipath attribute"
 
+	# multipath with dev-only
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 dev veth1"
+	check_route6 "2001:db8:104::/64 dev veth1 metric 1024"
+	log_test $? 0 "Multipath with dev-only"
+
 	# route replace fails - invalid nexthop 1
 	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
 	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:111::3 nexthop via 2001:db8:103::3"
@@ -959,7 +1032,8 @@ ipv6_addr_metric_test()
 	run_cmd "$IP li set dev dummy2 down"
 	rc=$?
 	if [ $rc -eq 0 ]; then
-		check_route6 ""
+		out=$($IP -6 ro ls match 2001:db8:104::/64)
+		check_expected "${out}" ""
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route removed on link down"
@@ -972,6 +1046,26 @@ ipv6_addr_metric_test()
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route with metric on link up"
+
+	# verify peer metric added correctly
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy2"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::1 peer 2001:db8:104::2 metric 260"
+	set +e
+
+	check_route6 "2001:db8:104::1 dev dummy2 proto kernel metric 260"
+	log_test $? 0 "Set metric with peer route on local side"
+	check_route6 "2001:db8:104::2 dev dummy2 proto kernel metric 260"
+	log_test $? 0 "Set metric with peer route on peer side"
+
+	set -e
+	run_cmd "$IP -6 addr change dev dummy2 2001:db8:104::1 peer 2001:db8:104::3 metric 261"
+	set +e
+
+	check_route6 "2001:db8:104::1 dev dummy2 proto kernel metric 261"
+	log_test $? 0 "Modify metric and peer address on local side"
+	check_route6 "2001:db8:104::3 dev dummy2 proto kernel metric 261"
+	log_test $? 0 "Modify metric and peer address on peer side"
 
 	$IP li del dummy1
 	$IP li del dummy2
@@ -1040,7 +1134,7 @@ ipv6_route_metrics_test()
 	log_test $rc 0 "Multipath route with mtu metric"
 
 	$IP -6 ro add 2001:db8:104::/64 via 2001:db8:101::2 mtu 1300
-	run_cmd "ip netns exec ns1 ping6 -w1 -c1 -s 1500 2001:db8:104::1"
+	run_cmd "ip netns exec ns1 ${ping6} -w1 -c1 -s 1500 2001:db8:104::1"
 	log_test $? 0 "Using route with mtu metric"
 
 	run_cmd "$IP -6 ro add 2001:db8:114::/64 via  2001:db8:101::2  congctl lock foo"
@@ -1090,38 +1184,13 @@ check_route()
 	local pfx
 	local expected="$1"
 	local out
-	local rc=0
 
 	set -- $expected
 	pfx=$1
 	[ "${pfx}" = "unreachable" ] && pfx=$2
 
 	out=$($IP ro ls match ${pfx})
-	[ "${out}" = "${expected}" ] && return 0
-
-	if [ -z "${out}" ]; then
-		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo route entry found\n"
-			printf "Expected:\n"
-			printf "    ${expected}\n"
-		fi
-		return 1
-	fi
-
-	# tricky way to convert output to 1-line without ip's
-	# messy '\'; this drops all extra white space
-	out=$(echo ${out})
-	if [ "${out}" != "${expected}" ]; then
-		rc=1
-		if [ "${VERBOSE}" = "1" ]; then
-			printf "    Unexpected route entry. Have:\n"
-			printf "        ${out}\n"
-			printf "    Expected:\n"
-			printf "        ${expected}\n\n"
-		fi
-	fi
-
-	return $rc
+	check_expected "${out}" "${expected}"
 }
 
 # assumption is that basic add of a single path route works
@@ -1315,12 +1384,37 @@ ipv4_rt_replace()
 	ipv4_rt_replace_mpath
 }
 
+# checks that cached input route on VRF port is deleted
+# when VRF is deleted
+ipv4_local_rt_cache()
+{
+	run_cmd "ip addr add 10.0.0.1/32 dev lo"
+	run_cmd "ip netns add test-ns"
+	run_cmd "ip link add veth-outside type veth peer name veth-inside"
+	run_cmd "ip link add vrf-100 type vrf table 1100"
+	run_cmd "ip link set veth-outside master vrf-100"
+	run_cmd "ip link set veth-inside netns test-ns"
+	run_cmd "ip link set veth-outside up"
+	run_cmd "ip link set vrf-100 up"
+	run_cmd "ip route add 10.1.1.1/32 dev veth-outside table 1100"
+	run_cmd "ip netns exec test-ns ip link set veth-inside up"
+	run_cmd "ip netns exec test-ns ip addr add 10.1.1.1/32 dev veth-inside"
+	run_cmd "ip netns exec test-ns ip route add 10.0.0.1/32 dev veth-inside"
+	run_cmd "ip netns exec test-ns ip route add default via 10.0.0.1"
+	run_cmd "ip netns exec test-ns ping 10.0.0.1 -c 1 -i 1"
+	run_cmd "ip link delete vrf-100"
+
+	# if we do not hang test is a success
+	log_test $? 0 "Cached route removed from VRF port device"
+}
+
 ipv4_route_test()
 {
 	route_setup
 
 	ipv4_rt_add
 	ipv4_rt_replace
+	ipv4_local_rt_cache
 
 	route_cleanup
 }
@@ -1386,7 +1480,8 @@ ipv4_addr_metric_test()
 	run_cmd "$IP li set dev dummy2 down"
 	rc=$?
 	if [ $rc -eq 0 ]; then
-		check_route ""
+		out=$($IP ro ls match 172.16.104.0/24)
+		check_expected "${out}" ""
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route removed on link down"
@@ -1399,6 +1494,34 @@ ipv4_addr_metric_test()
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route with metric on link up"
+
+	# explicitly check for metric changes on edge scenarios
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.0/24 metric 259"
+	run_cmd "$IP addr change dev dummy2 172.16.104.0/24 metric 260"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.0 metric 260"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of .0/24 address"
+
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.1/32 peer 172.16.104.2 metric 260"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.2 dev dummy2 proto kernel scope link src 172.16.104.1 metric 260"
+		rc=$?
+	fi
+	log_test $rc 0 "Set metric of address with peer route"
+
+	run_cmd "$IP addr change dev dummy2 172.16.104.1/32 peer 172.16.104.3 metric 261"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.3 dev dummy2 proto kernel scope link src 172.16.104.1 metric 261"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric and peer address for peer route"
 
 	$IP li del dummy1
 	$IP li del dummy2
@@ -1441,6 +1564,267 @@ ipv4_route_metrics_test()
 	route_cleanup
 }
 
+ipv4_del_addr_test()
+{
+	echo
+	echo "IPv4 delete address route tests"
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li set dummy1 up
+	$IP li add dummy2 type dummy
+	$IP li set dummy2 up
+	$IP li add red type vrf table 1111
+	$IP li set red up
+	$IP ro add vrf red unreachable default
+	$IP li set dummy2 vrf red
+
+	$IP addr add dev dummy1 172.16.104.1/24
+	$IP addr add dev dummy1 172.16.104.11/24
+	$IP addr add dev dummy2 172.16.104.1/24
+	$IP addr add dev dummy2 172.16.104.11/24
+	$IP route add 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	set +e
+
+	# removing address from device in vrf should only remove route from vrf table
+	$IP addr del dev dummy2 172.16.104.11/24
+	$IP ro ls vrf red | grep -q 172.16.105.0/24
+	log_test $? 1 "Route removed from VRF when source address deleted"
+
+	$IP ro ls | grep -q 172.16.105.0/24
+	log_test $? 0 "Route in default VRF not removed"
+
+	$IP addr add dev dummy2 172.16.104.11/24
+	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+
+	$IP addr del dev dummy1 172.16.104.11/24
+	$IP ro ls | grep -q 172.16.105.0/24
+	log_test $? 1 "Route removed in default VRF when source address deleted"
+
+	$IP ro ls vrf red | grep -q 172.16.105.0/24
+	log_test $? 0 "Route in VRF is not removed by address delete"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
+
+ipv4_route_v6_gw_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 route with IPv6 gateway tests"
+
+	route_setup
+	sleep 2
+
+	#
+	# single path route
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route with IPv6 gateway"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 via inet6 2001:db8:101::2 dev veth1"
+	fi
+
+	run_cmd "ip netns exec ns1 ping -w1 -c1 172.16.104.1"
+	log_test $rc 0 "Single path route with IPv6 gateway - ping"
+
+	run_cmd "$IP ro del 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route delete"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.112.0/24"
+	fi
+
+	#
+	# multipath - v6 then v4
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v6 nexthop then v4"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	#
+	# multipath - v4 then v6
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v4 nexthop then v6"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 weight 1 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	route_cleanup
+}
+
+socat_check()
+{
+	if [ ! -x "$(command -v socat)" ]; then
+		echo "socat command not found. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+iptables_check()
+{
+	iptables -t mangle -L OUTPUT &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "iptables configuration not supported. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ip6tables_check()
+{
+	ip6tables -t mangle -L OUTPUT &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "ip6tables configuration not supported. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv4_mangle_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 mangling tests"
+
+	socat_check || return 1
+	iptables_check || return 1
+
+	route_setup
+	sleep 2
+
+	local tmp_file=$(mktemp)
+	ip netns exec ns2 socat UDP4-LISTEN:54321,fork $tmp_file &
+
+	# Add a FIB rule and a route that will direct our connection to the
+	# listening server.
+	$IP rule add pref 100 ipproto udp sport 12345 dport 54321 table 123
+	$IP route add table 123 172.16.101.0/24 dev veth1
+
+	# Add an unreachable route to the main table that will block our
+	# connection in case the FIB rule is not hit.
+	$IP route add unreachable 172.16.101.2/32
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters"
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=11111"
+	log_test $? 1 "    Connection with incorrect parameters"
+
+	# Add a mangling rule and make sure connection is still successful.
+	$NS_EXEC iptables -t mangle -A OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - mangling"
+
+	# Delete the mangling rule and make sure connection is still
+	# successful.
+	$NS_EXEC iptables -t mangle -D OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP4:172.16.101.2:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - no mangling"
+
+	# Verify connections were indeed successful on server side.
+	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
+	log_test $? 0 "    Connection check - server side"
+
+	$IP route del unreachable 172.16.101.2/32
+	$IP route del table 123 172.16.101.0/24 dev veth1
+	$IP rule del pref 100
+
+	{ kill %% && wait %%; } 2>/dev/null
+	rm $tmp_file
+
+	route_cleanup
+}
+
+ipv6_mangle_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 mangling tests"
+
+	socat_check || return 1
+	ip6tables_check || return 1
+
+	route_setup
+	sleep 2
+
+	local tmp_file=$(mktemp)
+	ip netns exec ns2 socat UDP6-LISTEN:54321,fork $tmp_file &
+
+	# Add a FIB rule and a route that will direct our connection to the
+	# listening server.
+	$IP -6 rule add pref 100 ipproto udp sport 12345 dport 54321 table 123
+	$IP -6 route add table 123 2001:db8:101::/64 dev veth1
+
+	# Add an unreachable route to the main table that will block our
+	# connection in case the FIB rule is not hit.
+	$IP -6 route add unreachable 2001:db8:101::2/128
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters"
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=11111"
+	log_test $? 1 "    Connection with incorrect parameters"
+
+	# Add a mangling rule and make sure connection is still successful.
+	$NS_EXEC ip6tables -t mangle -A OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - mangling"
+
+	# Delete the mangling rule and make sure connection is still
+	# successful.
+	$NS_EXEC ip6tables -t mangle -D OUTPUT -j MARK --set-mark 1
+
+	run_cmd "echo a | $NS_EXEC socat STDIN UDP6:[2001:db8:101::2]:54321,sourceport=12345"
+	log_test $? 0 "    Connection with correct parameters - no mangling"
+
+	# Verify connections were indeed successful on server side.
+	[[ $(cat $tmp_file | wc -l) -eq 3 ]]
+	log_test $? 0 "    Connection check - server side"
+
+	$IP -6 route del unreachable 2001:db8:101::2/128
+	$IP -6 route del table 123 2001:db8:101::/64 dev veth1
+	$IP -6 rule del pref 100
+
+	{ kill %% && wait %%; } 2>/dev/null
+	rm $tmp_file
+
+	route_cleanup
+}
 
 ################################################################################
 # usage
@@ -1503,13 +1887,19 @@ do
 	fib_unreg_test|unregister)	fib_unreg_test;;
 	fib_down_test|down)		fib_down_test;;
 	fib_carrier_test|carrier)	fib_carrier_test;;
+	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
+	fib_suppress_test|suppress)	fib_suppress_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
 	ipv6_addr_metric)		ipv6_addr_metric_test;;
 	ipv4_addr_metric)		ipv4_addr_metric_test;;
+	ipv4_del_addr)			ipv4_del_addr_test;;
 	ipv6_route_metrics)		ipv6_route_metrics_test;;
 	ipv4_route_metrics)		ipv4_route_metrics_test;;
+	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
+	ipv4_mangle)			ipv4_mangle_test;;
+	ipv6_mangle)			ipv6_mangle_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

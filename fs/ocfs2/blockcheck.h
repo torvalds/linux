@@ -1,20 +1,10 @@
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
  * blockcheck.h
  *
  * Checksum and ECC codes for the OCFS2 userspace library.
  *
  * Copyright (C) 2004, 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License, version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef OCFS2_BLOCKCHECK_H
@@ -33,9 +23,6 @@ struct ocfs2_blockcheck_stats {
 	 * ocfs2_blockcheck_stats_debugfs_install()
 	 */
 	struct dentry *b_debug_dir;	/* Parent of the debugfs  files */
-	struct dentry *b_debug_check;	/* Exposes b_check_count */
-	struct dentry *b_debug_failure;	/* Exposes b_failure_count */
-	struct dentry *b_debug_recover;	/* Exposes b_recover_count */
 };
 
 
@@ -64,8 +51,8 @@ int ocfs2_block_check_validate_bhs(struct buffer_head **bhs, int nr,
 				   struct ocfs2_blockcheck_stats *stats);
 
 /* Debug Initialization */
-int ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
-					   struct dentry *parent);
+void ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
+					    struct dentry *parent);
 void ocfs2_blockcheck_stats_debugfs_remove(struct ocfs2_blockcheck_stats *stats);
 
 /*

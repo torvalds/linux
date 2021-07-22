@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Use DWARF Debug information to skip unnecessary callchain entries.
  *
  * Copyright (C) 2014 Sukadev Bhattiprolu, IBM Corporation.
  * Copyright (C) 2014 Ulrich Weigand, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <inttypes.h>
 #include <dwarf.h>
@@ -16,6 +12,10 @@
 #include "util/thread.h"
 #include "util/callchain.h"
 #include "util/debug.h"
+#include "util/dso.h"
+#include "util/event.h" // struct ip_callchain
+#include "util/map.h"
+#include "util/symbol.h"
 
 /*
  * When saving the callchain on Power, the kernel conservatively saves

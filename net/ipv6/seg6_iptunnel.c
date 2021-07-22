@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SR-IPv6 implementation
  *
  *  Author:
  *  David Lebrun <david.lebrun@uclouvain.be>
- *
- *
- *  This program is free software; you can redistribute it and/or
- *        modify it under the terms of the GNU General Public License
- *        as published by the Free Software Foundation; either version
- *        2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>
@@ -32,9 +27,26 @@
 #include <net/seg6_hmac.h>
 #endif
 
+static size_t seg6_lwt_headroom(struct seg6_iptunnel_encap *tuninfo)
+{
+	int head = 0;
+
+	switch (tuninfo->mode) {
+	case SEG6_IPTUN_MODE_INLINE:
+		break;
+	case SEG6_IPTUN_MODE_ENCAP:
+		head = sizeof(struct ipv6hdr);
+		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
+		return 0;
+	}
+
+	return ((tuninfo->srh->hdrlen + 1) << 3) + head;
+}
+
 struct seg6_lwt {
 	struct dst_cache cache;
-	struct seg6_iptunnel_encap tuninfo[0];
+	struct seg6_iptunnel_encap tuninfo[];
 };
 
 static inline struct seg6_lwt *seg6_lwt_lwtunnel(struct lwtunnel_state *lwt)
@@ -146,6 +158,8 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 	} else {
 		ip6_flow_hdr(hdr, 0, flowlabel);
 		hdr->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
+
+		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
 	}
 
 	hdr->nexthdr = NEXTHDR_ROUTING;
@@ -271,7 +285,7 @@ static int seg6_do_srh(struct sk_buff *skb)
 		skb_mac_header_rebuild(skb);
 		skb_push(skb, skb->mac_len);
 
-		err = seg6_do_srh_encap(skb, tinfo->srh, NEXTHDR_NONE);
+		err = seg6_do_srh_encap(skb, tinfo->srh, IPPROTO_ETHERNET);
 		if (err)
 			return err;
 
@@ -347,6 +361,7 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
 		struct flowi6 fl6;
 
+		memset(&fl6, 0, sizeof(fl6));
 		fl6.daddr = hdr->daddr;
 		fl6.saddr = hdr->saddr;
 		fl6.flowlabel = ip6_flowinfo(hdr);
@@ -378,7 +393,7 @@ drop:
 	return err;
 }
 
-static int seg6_build_state(struct nlattr *nla,
+static int seg6_build_state(struct net *net, struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts,
 			    struct netlink_ext_ack *extack)
@@ -393,8 +408,8 @@ static int seg6_build_state(struct nlattr *nla,
 	if (family != AF_INET && family != AF_INET6)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy, extack);
+	err = nla_parse_nested_deprecated(tb, SEG6_IPTUNNEL_MAX, nla,
+					  seg6_iptunnel_policy, extack);
 
 	if (err < 0)
 		return err;
@@ -428,7 +443,7 @@ static int seg6_build_state(struct nlattr *nla,
 	}
 
 	/* verify that SRH is consistent */
-	if (!seg6_validate_srh(tuninfo->srh, tuninfo_len - sizeof(*tuninfo)))
+	if (!seg6_validate_srh(tuninfo->srh, tuninfo_len - sizeof(*tuninfo), false))
 		return -EINVAL;
 
 	newts = lwtunnel_state_alloc(tuninfo_len + sizeof(*slwt));

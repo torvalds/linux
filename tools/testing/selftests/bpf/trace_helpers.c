@@ -4,11 +4,14 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 #include <linux/perf_event.h>
 #include <sys/mman.h>
 #include "trace_helpers.h"
+
+#define DEBUGFS "/sys/kernel/debug/tracing/"
 
 #define MAX_SYMS 300000
 static struct ksym syms[MAX_SYMS];
@@ -30,9 +33,7 @@ int load_kallsyms(void)
 	if (!f)
 		return -ENOENT;
 
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
+	while (fgets(buf, sizeof(buf), f)) {
 		if (sscanf(buf, "%p %c %s", &addr, &symbol, func) != 3)
 			break;
 		if (!addr)
@@ -51,6 +52,10 @@ struct ksym *ksym_search(long key)
 {
 	int start = 0, end = sym_cnt;
 	int result;
+
+	/* kallsyms not loaded. return NULL */
+	if (sym_cnt <= 0)
+		return NULL;
 
 	while (start < end) {
 		size_t mid = start + (end - start) / 2;
@@ -85,127 +90,49 @@ long ksym_get_addr(const char *name)
 	return 0;
 }
 
-static int page_size;
-static int page_cnt = 8;
-static struct perf_event_mmap_page *header;
-
-int perf_event_mmap_header(int fd, struct perf_event_mmap_page **header)
+/* open kallsyms and read symbol addresses on the fly. Without caching all symbols,
+ * this is faster than load + find.
+ */
+int kallsyms_find(const char *sym, unsigned long long *addr)
 {
-	void *base;
-	int mmap_size;
+	char type, name[500];
+	unsigned long long value;
+	int err = 0;
+	FILE *f;
 
-	page_size = getpagesize();
-	mmap_size = page_size * (page_cnt + 1);
+	f = fopen("/proc/kallsyms", "r");
+	if (!f)
+		return -EINVAL;
 
-	base = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (base == MAP_FAILED) {
-		printf("mmap err\n");
-		return -1;
-	}
-
-	*header = base;
-	return 0;
-}
-
-int perf_event_mmap(int fd)
-{
-	return perf_event_mmap_header(fd, &header);
-}
-
-static int perf_event_poll(int fd)
-{
-	struct pollfd pfd = { .fd = fd, .events = POLLIN };
-
-	return poll(&pfd, 1, 1000);
-}
-
-struct perf_event_sample {
-	struct perf_event_header header;
-	__u32 size;
-	char data[];
-};
-
-static enum bpf_perf_event_ret
-bpf_perf_event_print(struct perf_event_header *hdr, void *private_data)
-{
-	struct perf_event_sample *e = (struct perf_event_sample *)hdr;
-	perf_event_print_fn fn = private_data;
-	int ret;
-
-	if (e->header.type == PERF_RECORD_SAMPLE) {
-		ret = fn(e->data, e->size);
-		if (ret != LIBBPF_PERF_EVENT_CONT)
-			return ret;
-	} else if (e->header.type == PERF_RECORD_LOST) {
-		struct {
-			struct perf_event_header header;
-			__u64 id;
-			__u64 lost;
-		} *lost = (void *) e;
-		printf("lost %lld events\n", lost->lost);
-	} else {
-		printf("unknown event type=%d size=%d\n",
-		       e->header.type, e->header.size);
-	}
-
-	return LIBBPF_PERF_EVENT_CONT;
-}
-
-int perf_event_poller(int fd, perf_event_print_fn output_fn)
-{
-	enum bpf_perf_event_ret ret;
-	void *buf = NULL;
-	size_t len = 0;
-
-	for (;;) {
-		perf_event_poll(fd);
-		ret = bpf_perf_event_read_simple(header, page_cnt * page_size,
-						 page_size, &buf, &len,
-						 bpf_perf_event_print,
-						 output_fn);
-		if (ret != LIBBPF_PERF_EVENT_CONT)
-			break;
-	}
-	free(buf);
-
-	return ret;
-}
-
-int perf_event_poller_multi(int *fds, struct perf_event_mmap_page **headers,
-			    int num_fds, perf_event_print_fn output_fn)
-{
-	enum bpf_perf_event_ret ret;
-	struct pollfd *pfds;
-	void *buf = NULL;
-	size_t len = 0;
-	int i;
-
-	pfds = calloc(num_fds, sizeof(*pfds));
-	if (!pfds)
-		return LIBBPF_PERF_EVENT_ERROR;
-
-	for (i = 0; i < num_fds; i++) {
-		pfds[i].fd = fds[i];
-		pfds[i].events = POLLIN;
-	}
-
-	for (;;) {
-		poll(pfds, num_fds, 1000);
-		for (i = 0; i < num_fds; i++) {
-			if (!pfds[i].revents)
-				continue;
-
-			ret = bpf_perf_event_read_simple(headers[i],
-							 page_cnt * page_size,
-							 page_size, &buf, &len,
-							 bpf_perf_event_print,
-							 output_fn);
-			if (ret != LIBBPF_PERF_EVENT_CONT)
-				break;
+	while (fscanf(f, "%llx %c %499s%*[^\n]\n", &value, &type, name) > 0) {
+		if (strcmp(name, sym) == 0) {
+			*addr = value;
+			goto out;
 		}
 	}
-	free(buf);
-	free(pfds);
+	err = -ENOENT;
 
-	return ret;
+out:
+	fclose(f);
+	return err;
+}
+
+void read_trace_pipe(void)
+{
+	int trace_fd;
+
+	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
+	if (trace_fd < 0)
+		return;
+
+	while (1) {
+		static char buf[4096];
+		ssize_t sz;
+
+		sz = read(trace_fd, buf, sizeof(buf) - 1);
+		if (sz > 0) {
+			buf[sz] = 0;
+			puts(buf);
+		}
+	}
 }

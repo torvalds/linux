@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: AP specific command handling
+ * NXP Wireless LAN device driver: AP specific command handling
  *
- * Copyright (C) 2012-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -108,6 +108,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
 				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
 								CIPHER_AES_CCMP;
+			break;
 		default:
 			break;
 		}
@@ -265,6 +266,8 @@ mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 
 	rate_ie = (void *)cfg80211_find_ie(WLAN_EID_SUPP_RATES, var_pos, len);
 	if (rate_ie) {
+		if (rate_ie->len > MWIFIEX_SUPPORTED_RATES)
+			return;
 		memcpy(bss_cfg->rates, rate_ie + 1, rate_ie->len);
 		rate_len = rate_ie->len;
 	}
@@ -272,8 +275,11 @@ mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 	rate_ie = (void *)cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES,
 					   params->beacon.tail,
 					   params->beacon.tail_len);
-	if (rate_ie)
+	if (rate_ie) {
+		if (rate_ie->len > MWIFIEX_SUPPORTED_RATES - rate_len)
+			return;
 		memcpy(bss_cfg->rates + rate_len, rate_ie + 1, rate_ie->len);
+	}
 
 	return;
 }
@@ -391,6 +397,8 @@ mwifiex_set_wmm_params(struct mwifiex_private *priv,
 					    params->beacon.tail_len);
 	if (vendor_ie) {
 		wmm_ie = vendor_ie;
+		if (*(wmm_ie + 1) > sizeof(struct mwifiex_types_wmm_info))
+			return;
 		memcpy(&bss_cfg->wmm_info, wmm_ie +
 		       sizeof(struct ieee_types_header), *(wmm_ie + 1));
 		priv->wmm_enabled = 1;

@@ -54,6 +54,17 @@ const struct bnxt_qplib_gid bnxt_qplib_gid_zero = {{ 0, 0, 0, 0, 0, 0, 0, 0,
 
 /* Device */
 
+static bool bnxt_qplib_is_atomic_cap(struct bnxt_qplib_rcfw *rcfw)
+{
+	u16 pcie_ctl2 = 0;
+
+	if (!bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
+		return false;
+
+	pcie_capability_read_word(rcfw->pdev, PCI_EXP_DEVCTL2, &pcie_ctl2);
+	return (pcie_ctl2 & PCI_EXP_DEVCTL2_ATOMIC_REQ);
+}
+
 static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 				     char *fw_ver)
 {
@@ -118,8 +129,9 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	 * 128 WQEs needs to be reserved for the HW (8916). Prevent
 	 * reporting the max number
 	 */
-	attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS;
-	attr->max_qp_sges = sb->max_sge;
+	attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS + 1;
+	attr->max_qp_sges = bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx) ?
+			    6 : sb->max_sge;
 	attr->max_cq = le32_to_cpu(sb->max_cq);
 	attr->max_cq_wqes = le32_to_cpu(sb->max_cqe);
 	attr->max_cq_sges = attr->max_qp_sges;
@@ -130,9 +142,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_pd = 64 * 1024;
 	attr->max_raw_ethy_qp = le32_to_cpu(sb->max_raw_eth_qp);
 	attr->max_ah = le32_to_cpu(sb->max_ah);
-
-	attr->max_fmr = le32_to_cpu(sb->max_fmr);
-	attr->max_map_per_fmr = sb->max_map_per_fmr;
 
 	attr->max_srq = le16_to_cpu(sb->max_srq);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
@@ -151,7 +160,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_inline_data = le32_to_cpu(sb->max_inline_data);
 	attr->l2_db_size = (sb->l2_db_space_size + 1) *
 			    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
-	attr->max_sgid = le32_to_cpu(sb->max_gid);
+	attr->max_sgid = BNXT_QPLIB_NUM_GIDS_SUPPORTED;
 
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
 
@@ -164,7 +173,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 		attr->tqm_alloc_reqs[i * 4 + 3] = *(++tqm_alloc);
 	}
 
-	attr->is_atomic = false;
+	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
 	return rc;
@@ -212,12 +221,12 @@ int bnxt_qplib_get_sgid(struct bnxt_qplib_res *res,
 			index, sgid_tbl->max);
 		return -EINVAL;
 	}
-	memcpy(gid, &sgid_tbl->tbl[index], sizeof(*gid));
+	memcpy(gid, &sgid_tbl->tbl[index].gid, sizeof(*gid));
 	return 0;
 }
 
 int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
-			struct bnxt_qplib_gid *gid, bool update)
+			struct bnxt_qplib_gid *gid, u16 vlan_id, bool update)
 {
 	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
 						   struct bnxt_qplib_res,
@@ -235,7 +244,8 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		return -ENOMEM;
 	}
 	for (index = 0; index < sgid_tbl->max; index++) {
-		if (!memcmp(&sgid_tbl->tbl[index], gid, sizeof(*gid)))
+		if (!memcmp(&sgid_tbl->tbl[index].gid, gid, sizeof(*gid)) &&
+		    vlan_id == sgid_tbl->tbl[index].vlan_id)
 			break;
 	}
 	if (index == sgid_tbl->max) {
@@ -261,8 +271,9 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		if (rc)
 			return rc;
 	}
-	memcpy(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
+	memcpy(&sgid_tbl->tbl[index].gid, &bnxt_qplib_gid_zero,
 	       sizeof(bnxt_qplib_gid_zero));
+	sgid_tbl->tbl[index].vlan_id = 0xFFFF;
 	sgid_tbl->vlan[index] = 0;
 	sgid_tbl->active--;
 	dev_dbg(&res->pdev->dev,
@@ -295,7 +306,8 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	free_idx = sgid_tbl->max;
 	for (i = 0; i < sgid_tbl->max; i++) {
-		if (!memcmp(&sgid_tbl->tbl[i], gid, sizeof(*gid))) {
+		if (!memcmp(&sgid_tbl->tbl[i], gid, sizeof(*gid)) &&
+		    sgid_tbl->tbl[i].vlan_id == vlan_id) {
 			dev_dbg(&res->pdev->dev,
 				"SGID entry already exist in entry %d!\n", i);
 			*index = i;
@@ -350,6 +362,7 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	/* Add GID to the sgid_tbl */
 	memcpy(&sgid_tbl->tbl[free_idx], gid, sizeof(*gid));
+	sgid_tbl->tbl[free_idx].vlan_id = vlan_id;
 	sgid_tbl->active++;
 	if (vlan_id != 0xFFFF)
 		sgid_tbl->vlan[free_idx] = 1;
@@ -488,7 +501,8 @@ int bnxt_qplib_add_pkey(struct bnxt_qplib_res *res,
 }
 
 /* AH */
-int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah)
+int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			 bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_create_ah req;
@@ -522,7 +536,7 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah)
 	req.dest_mac[2] = cpu_to_le16(temp16[2]);
 
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, 1);
+					  NULL, block);
 	if (rc)
 		return rc;
 
@@ -530,24 +544,21 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah)
 	return 0;
 }
 
-int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah)
+void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			   bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_ah req;
 	struct creq_destroy_ah_resp resp;
 	u16 cmd_flags = 0;
-	int rc;
 
 	/* Clean up the AH table in the device */
 	RCFW_CMD_PREP(req, DESTROY_AH, cmd_flags);
 
 	req.ah_cid = cpu_to_le32(ah->id);
 
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, 1);
-	if (rc)
-		return rc;
-	return 0;
+	bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp, NULL,
+				     block);
 }
 
 /* MRW */
@@ -582,7 +593,7 @@ int bnxt_qplib_free_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw)
 
 	/* Free the qplib's MRW memory */
 	if (mrw->hwq.max_elements)
-		bnxt_qplib_free_hwq(res->pdev, &mrw->hwq);
+		bnxt_qplib_free_hwq(res, &mrw->hwq);
 
 	return 0;
 }
@@ -643,58 +654,48 @@ int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,
 	if (mrw->hwq.max_elements) {
 		mrw->va = 0;
 		mrw->total_size = 0;
-		bnxt_qplib_free_hwq(res->pdev, &mrw->hwq);
+		bnxt_qplib_free_hwq(res, &mrw->hwq);
 	}
 
 	return 0;
 }
 
 int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
-		      u64 *pbl_tbl, int num_pbls, bool block, u32 buf_pg_size)
+		      struct ib_umem *umem, int num_pbls, u32 buf_pg_size)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct cmdq_register_mr req;
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
 	struct creq_register_mr_resp resp;
+	struct cmdq_register_mr req;
 	u16 cmd_flags = 0, level;
-	int pg_ptrs, pages, i, rc;
-	dma_addr_t **pbl_ptr;
+	int pages, rc;
 	u32 pg_size;
 
 	if (num_pbls) {
+		pages = roundup_pow_of_two(num_pbls);
 		/* Allocate memory for the non-leaf pages to store buf ptrs.
 		 * Non-leaf pages always uses system PAGE_SIZE
 		 */
-		pg_ptrs = roundup_pow_of_two(num_pbls);
-		pages = pg_ptrs >> MAX_PBL_LVL_1_PGS_SHIFT;
-		if (!pages)
-			pages++;
-
-		if (pages > MAX_PBL_LVL_1_PGS) {
-			dev_err(&res->pdev->dev,
-				"SP: Reg MR pages requested (0x%x) exceeded max (0x%x)\n",
-				pages, MAX_PBL_LVL_1_PGS);
-			return -ENOMEM;
-		}
 		/* Free the hwq if it already exist, must be a rereg */
 		if (mr->hwq.max_elements)
-			bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
-
-		mr->hwq.max_elements = pages;
+			bnxt_qplib_free_hwq(res, &mr->hwq);
 		/* Use system PAGE_SIZE */
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL, 0,
-					       &mr->hwq.max_elements,
-					       PAGE_SIZE, 0, PAGE_SIZE,
-					       HWQ_TYPE_CTX);
+		hwq_attr.res = res;
+		hwq_attr.depth = pages;
+		hwq_attr.stride = buf_pg_size;
+		hwq_attr.type = HWQ_TYPE_MR;
+		hwq_attr.sginfo = &sginfo;
+		hwq_attr.sginfo->umem = umem;
+		hwq_attr.sginfo->npages = pages;
+		hwq_attr.sginfo->pgsize = PAGE_SIZE;
+		hwq_attr.sginfo->pgshft = PAGE_SHIFT;
+		rc = bnxt_qplib_alloc_init_hwq(&mr->hwq, &hwq_attr);
 		if (rc) {
 			dev_err(&res->pdev->dev,
 				"SP: Reg MR memory allocation failed\n");
 			return -ENOMEM;
 		}
-		/* Write to the hwq */
-		pbl_ptr = (dma_addr_t **)mr->hwq.pbl_ptr;
-		for (i = 0; i < num_pbls; i++)
-			pbl_ptr[PTR_PG(i)][PTR_IDX(i)] =
-				(pbl_tbl[i] & PAGE_MASK) | PTU_PTE_VALID;
 	}
 
 	RCFW_CMD_PREP(req, REGISTER_MR, cmd_flags);
@@ -706,7 +707,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 		req.pbl = 0;
 		pg_size = PAGE_SIZE;
 	} else {
-		level = mr->hwq.level + 1;
+		level = mr->hwq.level;
 		req.pbl = cpu_to_le64(mr->hwq.pbl[PBL_LVL_0].pg_map_arr[0]);
 	}
 	pg_size = buf_pg_size ? buf_pg_size : PAGE_SIZE;
@@ -723,7 +724,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	req.mr_size = cpu_to_le64(mr->total_size);
 
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-					  (void *)&resp, NULL, block);
+					  (void *)&resp, NULL, false);
 	if (rc)
 		goto fail;
 
@@ -731,7 +732,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 fail:
 	if (mr->hwq.max_elements)
-		bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
+		bnxt_qplib_free_hwq(res, &mr->hwq);
 	return rc;
 }
 
@@ -739,6 +740,8 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 					struct bnxt_qplib_frpl *frpl,
 					int max_pg_ptrs)
 {
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
 	int pg_ptrs, pages, rc;
 
 	/* Re-calculate the max to fit the HWQ allocation model */
@@ -750,10 +753,15 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 	if (pages > MAX_PBL_LVL_1_PGS)
 		return -ENOMEM;
 
-	frpl->hwq.max_elements = pages;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL, 0,
-				       &frpl->hwq.max_elements, PAGE_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	sginfo.pgsize = PAGE_SIZE;
+	sginfo.nopte = true;
+
+	hwq_attr.res = res;
+	hwq_attr.depth = pg_ptrs;
+	hwq_attr.stride = PAGE_SIZE;
+	hwq_attr.sginfo = &sginfo;
+	hwq_attr.type = HWQ_TYPE_CTX;
+	rc = bnxt_qplib_alloc_init_hwq(&frpl->hwq, &hwq_attr);
 	if (!rc)
 		frpl->max_pg_ptrs = pg_ptrs;
 
@@ -763,7 +771,7 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 int bnxt_qplib_free_fast_reg_page_list(struct bnxt_qplib_res *res,
 				       struct bnxt_qplib_frpl *frpl)
 {
-	bnxt_qplib_free_hwq(res->pdev, &frpl->hwq);
+	bnxt_qplib_free_hwq(res, &frpl->hwq);
 	return 0;
 }
 
@@ -778,9 +786,8 @@ int bnxt_qplib_map_tc2cos(struct bnxt_qplib_res *res, u16 *cids)
 	req.cos0 = cpu_to_le16(cids[0]);
 	req.cos1 = cpu_to_le16(cids[1]);
 
-	bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp, NULL,
-				     0);
-	return 0;
+	return bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
+						NULL, 0);
 }
 
 int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,

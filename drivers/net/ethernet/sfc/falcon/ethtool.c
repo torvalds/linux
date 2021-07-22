@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/netdevice.h>
@@ -517,7 +514,7 @@ static void ef4_ethtool_self_test(struct net_device *net_dev,
 	/* We need rx buffers and interrupts. */
 	already_up = (efx->net_dev->flags & IFF_UP);
 	if (!already_up) {
-		rc = dev_open(efx->net_dev);
+		rc = dev_open(efx->net_dev, NULL);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "failed opening device.\n");
@@ -605,9 +602,6 @@ static int ef4_ethtool_set_coalesce(struct net_device *net_dev,
 	unsigned int tx_usecs, rx_usecs;
 	bool adaptive, rx_may_override_tx;
 	int rc;
-
-	if (coalesce->use_adaptive_tx_coalesce)
-		return -EINVAL;
 
 	ef4_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
 
@@ -963,7 +957,7 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 		switch (info->flow_type) {
 		case TCP_V4_FLOW:
 			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* Fall through */
+			fallthrough;
 		case UDP_V4_FLOW:
 		case SCTP_V4_FLOW:
 		case AH_ESP_V4_FLOW:
@@ -1314,6 +1308,9 @@ static int ef4_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops ef4_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USECS_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= ef4_ethtool_get_drvinfo,
 	.get_regs_len		= ef4_ethtool_get_regs_len,
 	.get_regs		= ef4_ethtool_get_regs,

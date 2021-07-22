@@ -52,7 +52,6 @@
 #endif
 #include <linux/uaccess.h>
 
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_PCI
@@ -1962,7 +1961,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 			this = &txbase[elem];
 		}
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		dev->stats.tx_packets++;
 	}
 	hp->tx_old = elem;
@@ -2246,7 +2245,7 @@ static int happy_meal_close(struct net_device *dev)
 #define SXD(x)
 #endif
 
-static void happy_meal_tx_timeout(struct net_device *dev)
+static void happy_meal_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct happy_meal *hp = netdev_priv(dev);
 
@@ -2287,8 +2286,8 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
- 	int entry;
- 	u32 tx_flags;
+	int entry;
+	u32 tx_flags;
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -2302,7 +2301,7 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irq(&hp->happy_lock);
 
- 	if (TX_BUFFS_AVAIL(hp) <= (skb_shinfo(skb)->nr_frags + 1)) {
+	if (TX_BUFFS_AVAIL(hp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irq(&hp->happy_lock);
 		printk(KERN_ERR "%s: BUG! Tx Ring full when queue awake!\n",
@@ -2691,7 +2690,7 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 	sbus_dp = op->dev.parent->of_node;
 
 	/* We can match PCI devices too, do not accept those here. */
-	if (strcmp(sbus_dp->name, "sbus") && strcmp(sbus_dp->name, "sbi"))
+	if (!of_node_name_eq(sbus_dp, "sbus") && !of_node_name_eq(sbus_dp, "sbi"))
 		return err;
 
 	if (is_qfe) {

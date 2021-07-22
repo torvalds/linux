@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ECRYPT_FS
 	tristate "eCrypt filesystem layer support"
 	depends on KEYS && CRYPTO && (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
@@ -6,7 +7,7 @@ config ECRYPT_FS
 	select CRYPTO_MD5
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
-	  <file:Documentation/filesystems/ecryptfs.txt> to learn more about
+	  <file:Documentation/filesystems/ecryptfs.rst> to learn more about
 	  eCryptfs.  Userspace components are required and can be
 	  obtained from <http://ecryptfs.sf.net>.
 

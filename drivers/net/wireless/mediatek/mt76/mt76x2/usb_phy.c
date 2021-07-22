@@ -1,80 +1,42 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x2u.h"
 #include "eeprom.h"
 #include "../mt76x02_phy.h"
 
-void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
+static void
+mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
+
+	if (dev->cal.channel_cal_done)
+		return;
 
 	if (mt76x2_channel_silent(dev))
 		return;
 
-	mt76x2u_mac_stop(dev);
+	if (!mac_stopped)
+		mt76x2u_mac_stop(dev);
 
 	if (is_5ghz)
-		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0);
 
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
 
-	mt76x2u_mac_resume(dev);
-}
+	if (!mac_stopped)
+		mt76x2_mac_resume(dev);
+	mt76x2_apply_gain_adj(dev);
+	mt76x02_edcca_init(dev);
 
-static void
-mt76x2u_phy_update_channel_gain(struct mt76x02_dev *dev)
-{
-	u8 channel = dev->mt76.chandef.chan->hw_value;
-	int freq, freq1;
-	u32 false_cca;
-
-	freq = dev->mt76.chandef.chan->center_freq;
-	freq1 = dev->mt76.chandef.center_freq1;
-
-	switch (dev->mt76.chandef.width) {
-	case NL80211_CHAN_WIDTH_80: {
-		int ch_group_index;
-
-		ch_group_index = (freq - freq1 + 30) / 20;
-		if (WARN_ON(ch_group_index < 0 || ch_group_index > 3))
-			ch_group_index = 0;
-		channel += 6 - ch_group_index * 4;
-		break;
-	}
-	case NL80211_CHAN_WIDTH_40:
-		if (freq1 > freq)
-			channel += 2;
-		else
-			channel -= 2;
-		break;
-	default:
-		break;
-	}
-
-	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
-	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
-			      mt76_rr(dev, MT_RX_STAT_1));
-
-	mt76x2u_mcu_set_dynamic_vga(dev, channel, false, false,
-				    dev->cal.avg_rssi_all, false_cca);
+	dev->cal.channel_cal_done = true;
 }
 
 void mt76x2u_phy_calibrate(struct work_struct *work)
@@ -82,8 +44,14 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
-	mt76x2_phy_tssi_compensate(dev, false);
-	mt76x2u_phy_update_channel_gain(dev);
+
+	mutex_lock(&dev->mt76.mutex);
+
+	mt76x2u_phy_channel_calibrate(dev, false);
+	mt76x2_phy_tssi_compensate(dev);
+	mt76x2_phy_update_channel_gain(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
@@ -114,7 +82,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA3, 0) |
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA_MASK, BIT(3)),
 	};
-	bool scan = test_bit(MT76_SCANNING, &dev->mt76.state);
+	bool scan = test_bit(MT76_SCANNING, &dev->mphy.state);
 	struct ieee80211_channel *chan = chandef->chan;
 	u8 channel = chan->hw_value, bw, bw_index;
 	int ch_group_index, freq, freq1, ret;
@@ -180,14 +148,14 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		u8 val = mt76x02_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
-			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0);
 	}
 
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel);
 
 	/* Rx LPF calibration */
 	if (!dev->cal.init_cal_done)
-		mt76x02_mcu_calibrate(dev, MCU_CAL_RC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_RC, 0);
 	dev->cal.init_cal_done = true;
 
 	mt76_wr(dev, MT_BBP(AGC, 61), 0xff64a4e2);
@@ -202,6 +170,9 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
+	mt76x2u_phy_channel_calibrate(dev, true);
+	mt76x02_init_agc_gain(dev);
+
 	if (mt76x2_tssi_enabled(dev)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
@@ -214,12 +185,12 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			struct ieee80211_channel *chan;
 			u32 flag = 0;
 
-			chan = dev->mt76.chandef.chan;
+			chan = dev->mphy.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
 			if (mt76x02_ext_pa_enabled(dev, chan->band))
 				flag |= BIT(8);
-			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag);
 			dev->cal.tssi_cal_done = true;
 		}
 	}

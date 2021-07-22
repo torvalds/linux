@@ -36,6 +36,8 @@ extern "C" {
 #define DRM_V3D_MMAP_BO                           0x03
 #define DRM_V3D_GET_PARAM                         0x04
 #define DRM_V3D_GET_BO_OFFSET                     0x05
+#define DRM_V3D_SUBMIT_TFU                        0x06
+#define DRM_V3D_SUBMIT_CSD                        0x07
 
 #define DRM_IOCTL_V3D_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CL, struct drm_v3d_submit_cl)
 #define DRM_IOCTL_V3D_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_WAIT_BO, struct drm_v3d_wait_bo)
@@ -43,6 +45,10 @@ extern "C" {
 #define DRM_IOCTL_V3D_MMAP_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_MMAP_BO, struct drm_v3d_mmap_bo)
 #define DRM_IOCTL_V3D_GET_PARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_GET_PARAM, struct drm_v3d_get_param)
 #define DRM_IOCTL_V3D_GET_BO_OFFSET       DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_GET_BO_OFFSET, struct drm_v3d_get_bo_offset)
+#define DRM_IOCTL_V3D_SUBMIT_TFU          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_TFU, struct drm_v3d_submit_tfu)
+#define DRM_IOCTL_V3D_SUBMIT_CSD          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CSD, struct drm_v3d_submit_csd)
+
+#define DRM_V3D_SUBMIT_CL_FLUSH_CACHE             0x01
 
 /**
  * struct drm_v3d_submit_cl - ioctl argument for submitting commands to the 3D
@@ -50,6 +56,14 @@ extern "C" {
  *
  * This asks the kernel to have the GPU execute an optional binner
  * command list, and a render command list.
+ *
+ * The L1T, slice, L2C, L2T, and GCA caches will be flushed before
+ * each CL executes.  The VCD cache should be flushed (if necessary)
+ * by the submitted CLs.  The TLB writes are guaranteed to have been
+ * flushed by the time the render done IRQ happens, which is the
+ * trigger for out_sync.  Any dirtying of cachelines by the job (only
+ * possible using TMU writes) must be flushed by the caller using the
+ * DRM_V3D_SUBMIT_CL_FLUSH_CACHE_FLAG flag.
  */
 struct drm_v3d_submit_cl {
 	/* Pointer to the binner command list.
@@ -58,10 +72,15 @@ struct drm_v3d_submit_cl {
 	 * coordinate shader to determine where primitives land on the screen,
 	 * then writes out the state updates and draw calls necessary per tile
 	 * to the tile allocation BO.
+	 *
+	 * This BCL will block on any previous BCL submitted on the
+	 * same FD, but not on any RCL or BCLs submitted by other
+	 * clients -- that is left up to the submitter to control
+	 * using in_sync_bcl if necessary.
 	 */
 	__u32 bcl_start;
 
-	 /** End address of the BCL (first byte after the BCL) */
+	/** End address of the BCL (first byte after the BCL) */
 	__u32 bcl_end;
 
 	/* Offset of the render command list.
@@ -69,10 +88,15 @@ struct drm_v3d_submit_cl {
 	 * This is the second set of commands executed, which will either
 	 * execute the tiles that have been set up by the BCL, or a fixed set
 	 * of tiles (in the case of RCL-only blits).
+	 *
+	 * This RCL will block on this submit's BCL, and any previous
+	 * RCL submitted on the same FD, but not on any RCL or BCLs
+	 * submitted by other clients -- that is left up to the
+	 * submitter to control using in_sync_rcl if necessary.
 	 */
 	__u32 rcl_start;
 
-	 /** End address of the RCL (first byte after the RCL) */
+	/** End address of the RCL (first byte after the RCL) */
 	__u32 rcl_end;
 
 	/** An optional sync object to wait on before starting the BCL. */
@@ -102,8 +126,7 @@ struct drm_v3d_submit_cl {
 	/* Number of BO handles passed in (size is that times 4). */
 	__u32 bo_handle_count;
 
-	/* Pad, must be zero-filled. */
-	__u32 pad;
+	__u32 flags;
 };
 
 /**
@@ -169,6 +192,9 @@ enum drm_v3d_param {
 	DRM_V3D_PARAM_V3D_CORE0_IDENT0,
 	DRM_V3D_PARAM_V3D_CORE0_IDENT1,
 	DRM_V3D_PARAM_V3D_CORE0_IDENT2,
+	DRM_V3D_PARAM_SUPPORTS_TFU,
+	DRM_V3D_PARAM_SUPPORTS_CSD,
+	DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH,
 };
 
 struct drm_v3d_get_param {
@@ -185,6 +211,53 @@ struct drm_v3d_get_param {
 struct drm_v3d_get_bo_offset {
 	__u32 handle;
 	__u32 offset;
+};
+
+struct drm_v3d_submit_tfu {
+	__u32 icfg;
+	__u32 iia;
+	__u32 iis;
+	__u32 ica;
+	__u32 iua;
+	__u32 ioa;
+	__u32 ios;
+	__u32 coef[4];
+	/* First handle is the output BO, following are other inputs.
+	 * 0 for unused.
+	 */
+	__u32 bo_handles[4];
+	/* sync object to block on before running the TFU job.  Each TFU
+	 * job will execute in the order submitted to its FD.  Synchronization
+	 * against rendering jobs requires using sync objects.
+	 */
+	__u32 in_sync;
+	/* Sync object to signal when the TFU job is done. */
+	__u32 out_sync;
+};
+
+/* Submits a compute shader for dispatch.  This job will block on any
+ * previous compute shaders submitted on this fd, and any other
+ * synchronization must be performed with in_sync/out_sync.
+ */
+struct drm_v3d_submit_csd {
+	__u32 cfg[7];
+	__u32 coef[4];
+
+	/* Pointer to a u32 array of the BOs that are referenced by the job.
+	 */
+	__u64 bo_handles;
+
+	/* Number of BO handles passed in (size is that times 4). */
+	__u32 bo_handle_count;
+
+	/* sync object to block on before running the CSD job.  Each
+	 * CSD job will execute in the order submitted to its FD.
+	 * Synchronization against rendering/TFU jobs or CSD from
+	 * other fds requires using sync objects.
+	 */
+	__u32 in_sync;
+	/* Sync object to signal when the CSD job is done. */
+	__u32 out_sync;
 };
 
 #if defined(__cplusplus)

@@ -20,17 +20,17 @@ int main(int argc, char **argv)
 		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, not used */
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_get_local_storage),
-		BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_0, 0),
+		BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_0, 0),
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 0x1),
-		BPF_STX_MEM(BPF_W, BPF_REG_0, BPF_REG_3, 0),
+		BPF_STX_MEM(BPF_DW, BPF_REG_0, BPF_REG_3, 0),
 
 		BPF_LD_MAP_FD(BPF_REG_1, 0), /* map fd */
 		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, not used */
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_get_local_storage),
 		BPF_MOV64_IMM(BPF_REG_1, 1),
-		BPF_STX_XADD(BPF_DW, BPF_REG_0, BPF_REG_1, 0),
-		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_0, 0),
+		BPF_ATOMIC_OP(BPF_DW, BPF_ADD, BPF_REG_0, BPF_REG_1, 0),
+		BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, 0),
 		BPF_ALU64_IMM(BPF_AND, BPF_REG_1, 0x1),
 		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
 		BPF_EXIT_INSN(),
@@ -74,22 +74,7 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	if (setup_cgroup_environment()) {
-		printf("Failed to setup cgroup environment\n");
-		goto err;
-	}
-
-	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (!cgroup_fd) {
-		printf("Failed to create test cgroup\n");
-		goto err;
-	}
-
-	if (join_cgroup(TEST_CGROUP)) {
-		printf("Failed to join cgroup\n");
-		goto err;
-	}
+	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
 
 	/* Attach the bpf program */
 	if (bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0)) {

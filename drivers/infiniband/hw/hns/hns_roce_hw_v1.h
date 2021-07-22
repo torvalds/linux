@@ -68,13 +68,13 @@
 #define HNS_ROCE_V1_COMP_EQE_NUM			0x8000
 #define HNS_ROCE_V1_ASYNC_EQE_NUM			0x400
 
-#define HNS_ROCE_V1_QPC_ENTRY_SIZE			256
+#define HNS_ROCE_V1_QPC_SIZE				256
 #define HNS_ROCE_V1_IRRL_ENTRY_SIZE			8
 #define HNS_ROCE_V1_CQC_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTPT_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTT_ENTRY_SIZE			64
 
-#define HNS_ROCE_V1_CQE_ENTRY_SIZE			32
+#define HNS_ROCE_V1_CQE_SIZE				32
 #define HNS_ROCE_V1_PAGE_SIZE_SUPPORT			0xFFFFF000
 
 #define HNS_ROCE_V1_TABLE_CHUNK_SIZE			(1 << 17)
@@ -110,11 +110,6 @@
 #define HNS_ROCE_V1_EXT_ODB_ALFUL	\
 	(HNS_ROCE_V1_EXT_ODB_DEPTH - HNS_ROCE_V1_DB_RSVD)
 
-#define HNS_ROCE_V1_DB_WAIT_OK				0
-#define HNS_ROCE_V1_DB_STAGE1				1
-#define HNS_ROCE_V1_DB_STAGE2				2
-#define HNS_ROCE_V1_CHECK_DB_TIMEOUT_MSECS		10000
-#define HNS_ROCE_V1_CHECK_DB_SLEEP_MSECS		20
 #define HNS_ROCE_V1_FREE_MR_TIMEOUT_MSECS		50000
 #define HNS_ROCE_V1_RECREATE_LP_QP_TIMEOUT_MSECS	10000
 #define HNS_ROCE_V1_FREE_MR_WAIT_VALUE			5
@@ -162,7 +157,6 @@
 #define SQ_PSN_SHIFT					8
 #define QKEY_VAL					0x80010000
 #define SDB_INV_CNT_OFFSET				8
-#define SDB_ST_CMP_VAL					8
 
 #define HNS_ROCE_CEQ_DEFAULT_INTERVAL			0x10
 #define HNS_ROCE_CEQ_DEFAULT_BURST_NUM			0x10
@@ -198,6 +192,49 @@
 
 #define HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_S 0
 #define HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_M GENMASK(4, 0)
+
+/* Local Work Queue Catastrophic Error,SUBTYPE 0x5 */
+enum {
+	HNS_ROCE_LWQCE_QPC_ERROR = 1,
+	HNS_ROCE_LWQCE_MTU_ERROR,
+	HNS_ROCE_LWQCE_WQE_BA_ADDR_ERROR,
+	HNS_ROCE_LWQCE_WQE_ADDR_ERROR,
+	HNS_ROCE_LWQCE_SQ_WQE_SHIFT_ERROR,
+	HNS_ROCE_LWQCE_SL_ERROR,
+	HNS_ROCE_LWQCE_PORT_ERROR,
+};
+
+/* Local Access Violation Work Queue Error,SUBTYPE 0x7 */
+enum {
+	HNS_ROCE_LAVWQE_R_KEY_VIOLATION = 1,
+	HNS_ROCE_LAVWQE_LENGTH_ERROR,
+	HNS_ROCE_LAVWQE_VA_ERROR,
+	HNS_ROCE_LAVWQE_PD_ERROR,
+	HNS_ROCE_LAVWQE_RW_ACC_ERROR,
+	HNS_ROCE_LAVWQE_KEY_STATE_ERROR,
+	HNS_ROCE_LAVWQE_MR_OPERATION_ERROR,
+};
+
+/* DOORBELL overflow subtype */
+enum {
+	HNS_ROCE_DB_SUBTYPE_SDB_OVF = 1,
+	HNS_ROCE_DB_SUBTYPE_SDB_ALM_OVF,
+	HNS_ROCE_DB_SUBTYPE_ODB_OVF,
+	HNS_ROCE_DB_SUBTYPE_ODB_ALM_OVF,
+	HNS_ROCE_DB_SUBTYPE_SDB_ALM_EMP,
+	HNS_ROCE_DB_SUBTYPE_ODB_ALM_EMP,
+};
+
+enum {
+	/* RQ&SRQ related operations */
+	HNS_ROCE_OPCODE_SEND_DATA_RECEIVE = 0x06,
+	HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE,
+};
+
+enum {
+	HNS_ROCE_PORT_DOWN = 0,
+	HNS_ROCE_PORT_UP,
+};
 
 struct hns_roce_cq_context {
 	__le32 cqc_byte_4;
@@ -425,7 +462,7 @@ struct hns_roce_wqe_data_seg {
 
 struct hns_roce_wqe_raddr_seg {
 	__le32 rkey;
-	__le32 len;/* reserved */
+	__le32 len; /* reserved */
 	__le64 raddr;
 };
 
@@ -1048,6 +1085,11 @@ struct hns_roce_db_table {
 	struct hns_roce_ext_db *ext_db;
 };
 
+#define HW_SYNC_SLEEP_TIME_INTERVAL 20
+#define HW_SYNC_TIMEOUT_MSECS (25 * HW_SYNC_SLEEP_TIME_INTERVAL)
+#define BT_CMD_SYNC_SHIFT 31
+#define HNS_ROCE_BA_SIZE (32 * 4096)
+
 struct hns_roce_bt_table {
 	struct hns_roce_buf_list qpc_buf;
 	struct hns_roce_buf_list mtpt_buf;
@@ -1066,11 +1108,6 @@ struct hns_roce_qp_work {
 	u32	sdb_issue_ptr;
 	u32	sdb_inv_cnt;
 	u32	sche_cnt;
-};
-
-struct hns_roce_des_qp {
-	struct workqueue_struct	*qp_wq;
-	int	requeue_flag;
 };
 
 struct hns_roce_mr_free_work {
@@ -1100,12 +1137,11 @@ struct hns_roce_v1_priv {
 	struct hns_roce_raq_table raq_table;
 	struct hns_roce_bt_table  bt_table;
 	struct hns_roce_tptr_table tptr_table;
-	struct hns_roce_des_qp des_qp;
 	struct hns_roce_free_mr free_mr;
 };
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp);
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
 #endif

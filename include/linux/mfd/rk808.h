@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Register definitions for Rockchip's RK808/RK818 PMIC
  *
@@ -9,15 +10,6 @@
  * Copyright (C) 2016 PHYTEC Messtechnik GmbH
  *
  * Author: Wadim Egorov <w.egorov@phytec.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __LINUX_REGULATOR_RK808_H
@@ -382,6 +374,7 @@ enum rk805_reg {
 #define SWITCH1_EN	BIT(5)
 #define DEV_OFF_RST	BIT(3)
 #define DEV_OFF		BIT(0)
+#define RTC_STOP	BIT(0)
 
 #define VB_LO_ACT		BIT(4)
 #define VB_LO_SEL_3500MV	(7 << 0)
@@ -395,7 +388,260 @@ enum rk805_reg {
 #define SHUTDOWN_FUN			(0x2 << 2)
 #define SLEEP_FUN			(0x1 << 2)
 #define RK8XX_ID_MSK			0xfff0
+#define PWM_MODE_MSK			BIT(7)
 #define FPWM_MODE			BIT(7)
+#define AUTO_PWM_MODE			0
+
+enum rk817_reg_id {
+	RK817_ID_DCDC1 = 0,
+	RK817_ID_DCDC2,
+	RK817_ID_DCDC3,
+	RK817_ID_DCDC4,
+	RK817_ID_LDO1,
+	RK817_ID_LDO2,
+	RK817_ID_LDO3,
+	RK817_ID_LDO4,
+	RK817_ID_LDO5,
+	RK817_ID_LDO6,
+	RK817_ID_LDO7,
+	RK817_ID_LDO8,
+	RK817_ID_LDO9,
+	RK817_ID_BOOST,
+	RK817_ID_BOOST_OTG_SW,
+	RK817_NUM_REGULATORS
+};
+
+enum rk809_reg_id {
+	RK809_ID_DCDC5 = RK817_ID_BOOST,
+	RK809_ID_SW1,
+	RK809_ID_SW2,
+	RK809_NUM_REGULATORS
+};
+
+#define RK817_SECONDS_REG		0x00
+#define RK817_MINUTES_REG		0x01
+#define RK817_HOURS_REG			0x02
+#define RK817_DAYS_REG			0x03
+#define RK817_MONTHS_REG		0x04
+#define RK817_YEARS_REG			0x05
+#define RK817_WEEKS_REG			0x06
+#define RK817_ALARM_SECONDS_REG		0x07
+#define RK817_ALARM_MINUTES_REG		0x08
+#define RK817_ALARM_HOURS_REG		0x09
+#define RK817_ALARM_DAYS_REG		0x0a
+#define RK817_ALARM_MONTHS_REG		0x0b
+#define RK817_ALARM_YEARS_REG		0x0c
+#define RK817_RTC_CTRL_REG		0xd
+#define RK817_RTC_STATUS_REG		0xe
+#define RK817_RTC_INT_REG		0xf
+#define RK817_RTC_COMP_LSB_REG		0x10
+#define RK817_RTC_COMP_MSB_REG		0x11
+
+/* RK817 Codec Registers */
+#define RK817_CODEC_DTOP_VUCTL		0x12
+#define RK817_CODEC_DTOP_VUCTIME	0x13
+#define RK817_CODEC_DTOP_LPT_SRST	0x14
+#define RK817_CODEC_DTOP_DIGEN_CLKE	0x15
+#define RK817_CODEC_AREF_RTCFG0		0x16
+#define RK817_CODEC_AREF_RTCFG1		0x17
+#define RK817_CODEC_AADC_CFG0		0x18
+#define RK817_CODEC_AADC_CFG1		0x19
+#define RK817_CODEC_DADC_VOLL		0x1a
+#define RK817_CODEC_DADC_VOLR		0x1b
+#define RK817_CODEC_DADC_SR_ACL0	0x1e
+#define RK817_CODEC_DADC_ALC1		0x1f
+#define RK817_CODEC_DADC_ALC2		0x20
+#define RK817_CODEC_DADC_NG		0x21
+#define RK817_CODEC_DADC_HPF		0x22
+#define RK817_CODEC_DADC_RVOLL		0x23
+#define RK817_CODEC_DADC_RVOLR		0x24
+#define RK817_CODEC_AMIC_CFG0		0x27
+#define RK817_CODEC_AMIC_CFG1		0x28
+#define RK817_CODEC_DMIC_PGA_GAIN	0x29
+#define RK817_CODEC_DMIC_LMT1		0x2a
+#define RK817_CODEC_DMIC_LMT2		0x2b
+#define RK817_CODEC_DMIC_NG1		0x2c
+#define RK817_CODEC_DMIC_NG2		0x2d
+#define RK817_CODEC_ADAC_CFG0		0x2e
+#define RK817_CODEC_ADAC_CFG1		0x2f
+#define RK817_CODEC_DDAC_POPD_DACST	0x30
+#define RK817_CODEC_DDAC_VOLL		0x31
+#define RK817_CODEC_DDAC_VOLR		0x32
+#define RK817_CODEC_DDAC_SR_LMT0	0x35
+#define RK817_CODEC_DDAC_LMT1		0x36
+#define RK817_CODEC_DDAC_LMT2		0x37
+#define RK817_CODEC_DDAC_MUTE_MIXCTL	0x38
+#define RK817_CODEC_DDAC_RVOLL		0x39
+#define RK817_CODEC_DDAC_RVOLR		0x3a
+#define RK817_CODEC_AHP_ANTI0		0x3b
+#define RK817_CODEC_AHP_ANTI1		0x3c
+#define RK817_CODEC_AHP_CFG0		0x3d
+#define RK817_CODEC_AHP_CFG1		0x3e
+#define RK817_CODEC_AHP_CP		0x3f
+#define RK817_CODEC_ACLASSD_CFG1	0x40
+#define RK817_CODEC_ACLASSD_CFG2	0x41
+#define RK817_CODEC_APLL_CFG0		0x42
+#define RK817_CODEC_APLL_CFG1		0x43
+#define RK817_CODEC_APLL_CFG2		0x44
+#define RK817_CODEC_APLL_CFG3		0x45
+#define RK817_CODEC_APLL_CFG4		0x46
+#define RK817_CODEC_APLL_CFG5		0x47
+#define RK817_CODEC_DI2S_CKM		0x48
+#define RK817_CODEC_DI2S_RSD		0x49
+#define RK817_CODEC_DI2S_RXCR1		0x4a
+#define RK817_CODEC_DI2S_RXCR2		0x4b
+#define RK817_CODEC_DI2S_RXCMD_TSD	0x4c
+#define RK817_CODEC_DI2S_TXCR1		0x4d
+#define RK817_CODEC_DI2S_TXCR2		0x4e
+#define RK817_CODEC_DI2S_TXCR3_TXCMD	0x4f
+
+/* RK817_CODEC_DI2S_CKM */
+#define RK817_I2S_MODE_MASK		(0x1 << 0)
+#define RK817_I2S_MODE_MST		(0x1 << 0)
+#define RK817_I2S_MODE_SLV		(0x0 << 0)
+
+/* RK817_CODEC_DDAC_MUTE_MIXCTL */
+#define DACMT_MASK			(0x1 << 0)
+#define DACMT_ENABLE			(0x1 << 0)
+#define DACMT_DISABLE			(0x0 << 0)
+
+/* RK817_CODEC_DI2S_RXCR2 */
+#define VDW_RX_24BITS			(0x17)
+#define VDW_RX_16BITS			(0x0f)
+
+/* RK817_CODEC_DI2S_TXCR2 */
+#define VDW_TX_24BITS			(0x17)
+#define VDW_TX_16BITS			(0x0f)
+
+/* RK817_CODEC_AMIC_CFG0 */
+#define MIC_DIFF_MASK			(0x1 << 7)
+#define MIC_DIFF_DIS			(0x0 << 7)
+#define MIC_DIFF_EN			(0x1 << 7)
+
+#define RK817_POWER_EN_REG(i)		(0xb1 + (i))
+#define RK817_POWER_SLP_EN_REG(i)	(0xb5 + (i))
+
+#define RK817_POWER_CONFIG		(0xb9)
+
+#define RK817_BUCK_CONFIG_REG(i)	(0xba + (i) * 3)
+
+#define RK817_BUCK1_ON_VSEL_REG		0xBB
+#define RK817_BUCK1_SLP_VSEL_REG	0xBC
+
+#define RK817_BUCK2_CONFIG_REG		0xBD
+#define RK817_BUCK2_ON_VSEL_REG		0xBE
+#define RK817_BUCK2_SLP_VSEL_REG	0xBF
+
+#define RK817_BUCK3_CONFIG_REG		0xC0
+#define RK817_BUCK3_ON_VSEL_REG		0xC1
+#define RK817_BUCK3_SLP_VSEL_REG	0xC2
+
+#define RK817_BUCK4_CONFIG_REG		0xC3
+#define RK817_BUCK4_ON_VSEL_REG		0xC4
+#define RK817_BUCK4_SLP_VSEL_REG	0xC5
+
+#define RK817_LDO_ON_VSEL_REG(idx)	(0xcc + (idx) * 2)
+#define RK817_BOOST_OTG_CFG		(0xde)
+
+#define RK817_ID_MSB			0xed
+#define RK817_ID_LSB			0xee
+
+#define RK817_SYS_STS			0xf0
+#define RK817_SYS_CFG(i)		(0xf1 + (i))
+
+#define RK817_ON_SOURCE_REG		0xf5
+#define RK817_OFF_SOURCE_REG		0xf6
+
+/* INTERRUPT REGISTER */
+#define RK817_INT_STS_REG0		0xf8
+#define RK817_INT_STS_MSK_REG0		0xf9
+#define RK817_INT_STS_REG1		0xfa
+#define RK817_INT_STS_MSK_REG1		0xfb
+#define RK817_INT_STS_REG2		0xfc
+#define RK817_INT_STS_MSK_REG2		0xfd
+#define RK817_GPIO_INT_CFG		0xfe
+
+/* IRQ Definitions */
+#define RK817_IRQ_PWRON_FALL		0
+#define RK817_IRQ_PWRON_RISE		1
+#define RK817_IRQ_PWRON			2
+#define RK817_IRQ_PWMON_LP		3
+#define RK817_IRQ_HOTDIE		4
+#define RK817_IRQ_RTC_ALARM		5
+#define RK817_IRQ_RTC_PERIOD		6
+#define RK817_IRQ_VB_LO			7
+#define RK817_IRQ_PLUG_IN		8
+#define RK817_IRQ_PLUG_OUT		9
+#define RK817_IRQ_CHRG_TERM		10
+#define RK817_IRQ_CHRG_TIME		11
+#define RK817_IRQ_CHRG_TS		12
+#define RK817_IRQ_USB_OV		13
+#define RK817_IRQ_CHRG_IN_CLMP		14
+#define RK817_IRQ_BAT_DIS_ILIM		15
+#define RK817_IRQ_GATE_GPIO		16
+#define RK817_IRQ_TS_GPIO		17
+#define RK817_IRQ_CODEC_PD		18
+#define RK817_IRQ_CODEC_PO		19
+#define RK817_IRQ_CLASSD_MUTE_DONE	20
+#define RK817_IRQ_CLASSD_OCP		21
+#define RK817_IRQ_BAT_OVP               22
+#define RK817_IRQ_CHRG_BAT_HI		23
+#define RK817_IRQ_END			(RK817_IRQ_CHRG_BAT_HI + 1)
+
+/*
+ * rtc_ctrl 0xd
+ * same as 808, except bit4
+ */
+#define RK817_RTC_CTRL_RSV4		BIT(4)
+
+/* power config 0xb9 */
+#define RK817_BUCK3_FB_RES_MSK		BIT(6)
+#define RK817_BUCK3_FB_RES_INTER	BIT(6)
+#define RK817_BUCK3_FB_RES_EXT		0
+
+/* buck config 0xba */
+#define RK817_RAMP_RATE_OFFSET		6
+#define RK817_RAMP_RATE_MASK		(0x3 << RK817_RAMP_RATE_OFFSET)
+#define RK817_RAMP_RATE_3MV_PER_US	(0x0 << RK817_RAMP_RATE_OFFSET)
+#define RK817_RAMP_RATE_6_3MV_PER_US	(0x1 << RK817_RAMP_RATE_OFFSET)
+#define RK817_RAMP_RATE_12_5MV_PER_US	(0x2 << RK817_RAMP_RATE_OFFSET)
+#define RK817_RAMP_RATE_25MV_PER_US	(0x3 << RK817_RAMP_RATE_OFFSET)
+
+/* sys_cfg1 0xf2 */
+#define RK817_HOTDIE_TEMP_MSK		(0x3 << 4)
+#define RK817_HOTDIE_85			(0x0 << 4)
+#define RK817_HOTDIE_95			(0x1 << 4)
+#define RK817_HOTDIE_105		(0x2 << 4)
+#define RK817_HOTDIE_115		(0x3 << 4)
+
+#define RK817_TSD_TEMP_MSK		BIT(6)
+#define RK817_TSD_140			0
+#define RK817_TSD_160			BIT(6)
+
+#define RK817_CLK32KOUT2_EN		BIT(7)
+
+/* sys_cfg3 0xf4 */
+#define RK817_SLPPIN_FUNC_MSK		(0x3 << 3)
+#define SLPPIN_NULL_FUN			(0x0 << 3)
+#define SLPPIN_SLP_FUN			(0x1 << 3)
+#define SLPPIN_DN_FUN			(0x2 << 3)
+#define SLPPIN_RST_FUN			(0x3 << 3)
+
+#define RK817_RST_FUNC_MSK		(0x3 << 6)
+#define RK817_RST_FUNC_SFT		(6)
+#define RK817_RST_FUNC_CNT		(3)
+#define RK817_RST_FUNC_DEV		(0) /* reset the dev */
+#define RK817_RST_FUNC_REG		(0x1 << 6) /* reset the reg only */
+
+#define RK817_SLPPOL_MSK		BIT(5)
+#define RK817_SLPPOL_H			BIT(5)
+#define RK817_SLPPOL_L			(0)
+
+/* gpio&int 0xfe */
+#define RK817_INT_POL_MSK		BIT(1)
+#define RK817_INT_POL_H			BIT(1)
+#define RK817_INT_POL_L			0
+#define RK809_BUCK5_CONFIG(i)		(RK817_BOOST_OTG_CFG + (i) * 1)
 
 enum {
 	BUCK_ILMIN_50MA,
@@ -443,7 +689,9 @@ enum {
 enum {
 	RK805_ID = 0x8050,
 	RK808_ID = 0x0000,
-	RK818_ID = 0x8181,
+	RK809_ID = 0x8090,
+	RK817_ID = 0x8170,
+	RK818_ID = 0x8180,
 };
 
 struct rk808 {

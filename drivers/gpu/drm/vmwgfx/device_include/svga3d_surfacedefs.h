@@ -131,6 +131,8 @@ enum svga3d_block_desc {
 	SVGA3DBLOCKDESC_BC3         = 1 << 26,
 	SVGA3DBLOCKDESC_BC4         = 1 << 27,
 	SVGA3DBLOCKDESC_BC5         = 1 << 28,
+	SVGA3DBLOCKDESC_BC6H        = 1 << 29,
+	SVGA3DBLOCKDESC_BC7         = 1 << 30,
 
 	SVGA3DBLOCKDESC_A_UINT    = SVGA3DBLOCKDESC_ALPHA |
 				    SVGA3DBLOCKDESC_UINT |
@@ -290,6 +292,18 @@ enum svga3d_block_desc {
 					 SVGA3DBLOCKDESC_COMP_UNORM,
 	SVGA3DBLOCKDESC_BC5_COMP_SNORM = SVGA3DBLOCKDESC_BC5 |
 					 SVGA3DBLOCKDESC_COMP_SNORM,
+	SVGA3DBLOCKDESC_BC6H_COMP_TYPELESS = SVGA3DBLOCKDESC_BC6H |
+					     SVGA3DBLOCKDESC_COMP_TYPELESS,
+	SVGA3DBLOCKDESC_BC6H_COMP_UF16 = SVGA3DBLOCKDESC_BC6H |
+					 SVGA3DBLOCKDESC_COMPRESSED,
+	SVGA3DBLOCKDESC_BC6H_COMP_SF16 = SVGA3DBLOCKDESC_BC6H |
+					 SVGA3DBLOCKDESC_COMPRESSED,
+	SVGA3DBLOCKDESC_BC7_COMP_TYPELESS = SVGA3DBLOCKDESC_BC7 |
+					    SVGA3DBLOCKDESC_COMP_TYPELESS,
+	SVGA3DBLOCKDESC_BC7_COMP_UNORM = SVGA3DBLOCKDESC_BC7 |
+					 SVGA3DBLOCKDESC_COMP_UNORM,
+	SVGA3DBLOCKDESC_BC7_COMP_UNORM_SRGB = SVGA3DBLOCKDESC_BC7_COMP_UNORM |
+					      SVGA3DBLOCKDESC_SRGB,
 
 	SVGA3DBLOCKDESC_NV12       = SVGA3DBLOCKDESC_YUV_VIDEO |
 				     SVGA3DBLOCKDESC_PLANAR_YUV |
@@ -494,7 +508,7 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {{8}, {8}, {8}, {0}},
       {{16}, {8}, {0}, {0}}},
 
-   {SVGA3D_FORMAT_DEAD1, SVGA3DBLOCKDESC_UVL,
+   {SVGA3D_FORMAT_DEAD1, SVGA3DBLOCKDESC_NONE,
       {1, 1, 1},  3, 3,
       {{8}, {8}, {8}, {0}},
       {{16}, {8}, {0}, {0}}},
@@ -604,7 +618,7 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {{0}, {0}, {48}, {0}},
       {{0}, {0}, {0}, {0}}},
 
-   {SVGA3D_AYUV, SVGA3DBLOCKDESC_AYUV,
+   {SVGA3D_FORMAT_DEAD2, SVGA3DBLOCKDESC_NONE,
       {1, 1, 1},  4, 4,
       {{8}, {8}, {8}, {8}},
       {{0}, {8}, {16}, {24}}},
@@ -1103,6 +1117,46 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {4, 4, 1},  16, 16,
       {{0}, {0}, {128}, {0}},
       {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_B4G4R4A4_UNORM, SVGA3DBLOCKDESC_RGBA_UNORM,
+      {1, 1, 1},  2, 2,
+      {{4}, {4}, {4}, {4}},
+      {{0}, {4}, {8}, {12}}},
+
+   {SVGA3D_BC6H_TYPELESS, SVGA3DBLOCKDESC_BC6H_COMP_TYPELESS,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC6H_UF16, SVGA3DBLOCKDESC_BC6H_COMP_UF16,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC6H_SF16, SVGA3DBLOCKDESC_BC6H_COMP_SF16,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_TYPELESS, SVGA3DBLOCKDESC_BC7_COMP_TYPELESS,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_UNORM, SVGA3DBLOCKDESC_BC7_COMP_UNORM,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_UNORM_SRGB, SVGA3DBLOCKDESC_BC7_COMP_UNORM_SRGB,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_AYUV, SVGA3DBLOCKDESC_AYUV,
+      {1, 1, 1},  4, 4,
+      {{8}, {8}, {8}, {8}},
+      {{0}, {8}, {16}, {24}}},
 };
 
 static inline u32 clamped_umul32(u32 a, u32 b)
@@ -1280,7 +1334,6 @@ svga3dsurface_get_pixel_offset(SVGA3dSurfaceFormat format,
 	return offset;
 }
 
-
 static inline u32
 svga3dsurface_get_image_offset(SVGA3dSurfaceFormat format,
 			       surf_size_struct baseLevelSize,
@@ -1373,6 +1426,242 @@ svga3dsurface_is_screen_target_format(SVGA3dSurfaceFormat format)
 		return true;
 	}
 	return svga3dsurface_is_dx_screen_target_format(format);
+}
+
+/**
+ * struct svga3dsurface_mip - Mimpmap level information
+ * @bytes: Bytes required in the backing store of this mipmap level.
+ * @img_stride: Byte stride per image.
+ * @row_stride: Byte stride per block row.
+ * @size: The size of the mipmap.
+ */
+struct svga3dsurface_mip {
+	size_t bytes;
+	size_t img_stride;
+	size_t row_stride;
+	struct drm_vmw_size size;
+
+};
+
+/**
+ * struct svga3dsurface_cache - Cached surface information
+ * @desc: Pointer to the surface descriptor
+ * @mip: Array of mipmap level information. Valid size is @num_mip_levels.
+ * @mip_chain_bytes: Bytes required in the backing store for the whole chain
+ * of mip levels.
+ * @sheet_bytes: Bytes required in the backing store for a sheet
+ * representing a single sample.
+ * @num_mip_levels: Valid size of the @mip array. Number of mipmap levels in
+ * a chain.
+ * @num_layers: Number of slices in an array texture or number of faces in
+ * a cubemap texture.
+ */
+struct svga3dsurface_cache {
+	const struct svga3d_surface_desc *desc;
+	struct svga3dsurface_mip mip[DRM_VMW_MAX_MIP_LEVELS];
+	size_t mip_chain_bytes;
+	size_t sheet_bytes;
+	u32 num_mip_levels;
+	u32 num_layers;
+};
+
+/**
+ * struct svga3dsurface_loc - Surface location
+ * @sheet: The multisample sheet.
+ * @sub_resource: Surface subresource. Defined as layer * num_mip_levels +
+ * mip_level.
+ * @x: X coordinate.
+ * @y: Y coordinate.
+ * @z: Z coordinate.
+ */
+struct svga3dsurface_loc {
+	u32 sheet;
+	u32 sub_resource;
+	u32 x, y, z;
+};
+
+/**
+ * svga3dsurface_subres - Compute the subresource from layer and mipmap.
+ * @cache: Surface layout data.
+ * @mip_level: The mipmap level.
+ * @layer: The surface layer (face or array slice).
+ *
+ * Return: The subresource.
+ */
+static inline u32 svga3dsurface_subres(const struct svga3dsurface_cache *cache,
+				       u32 mip_level, u32 layer)
+{
+	return cache->num_mip_levels * layer + mip_level;
+}
+
+/**
+ * svga3dsurface_setup_cache - Build a surface cache entry
+ * @size: The surface base level dimensions.
+ * @format: The surface format.
+ * @num_mip_levels: Number of mipmap levels.
+ * @num_layers: Number of layers.
+ * @cache: Pointer to a struct svga3dsurface_cach object to be filled in.
+ *
+ * Return: Zero on success, -EINVAL on invalid surface layout.
+ */
+static inline int svga3dsurface_setup_cache(const struct drm_vmw_size *size,
+					    SVGA3dSurfaceFormat format,
+					    u32 num_mip_levels,
+					    u32 num_layers,
+					    u32 num_samples,
+					    struct svga3dsurface_cache *cache)
+{
+	const struct svga3d_surface_desc *desc;
+	u32 i;
+
+	memset(cache, 0, sizeof(*cache));
+	cache->desc = desc = svga3dsurface_get_desc(format);
+	cache->num_mip_levels = num_mip_levels;
+	cache->num_layers = num_layers;
+	for (i = 0; i < cache->num_mip_levels; i++) {
+		struct svga3dsurface_mip *mip = &cache->mip[i];
+
+		mip->size = svga3dsurface_get_mip_size(*size, i);
+		mip->bytes = svga3dsurface_get_image_buffer_size
+			(desc, &mip->size, 0);
+		mip->row_stride =
+			__KERNEL_DIV_ROUND_UP(mip->size.width,
+					      desc->block_size.width) *
+			desc->bytes_per_block * num_samples;
+		if (!mip->row_stride)
+			goto invalid_dim;
+
+		mip->img_stride =
+			__KERNEL_DIV_ROUND_UP(mip->size.height,
+					      desc->block_size.height) *
+			mip->row_stride;
+		if (!mip->img_stride)
+			goto invalid_dim;
+
+		cache->mip_chain_bytes += mip->bytes;
+	}
+	cache->sheet_bytes = cache->mip_chain_bytes * num_layers;
+	if (!cache->sheet_bytes)
+		goto invalid_dim;
+
+	return 0;
+
+invalid_dim:
+	VMW_DEBUG_USER("Invalid surface layout for dirty tracking.\n");
+	return -EINVAL;
+}
+
+/**
+ * svga3dsurface_get_loc - Get a surface location from an offset into the
+ * backing store
+ * @cache: Surface layout data.
+ * @loc: Pointer to a struct svga3dsurface_loc to be filled in.
+ * @offset: Offset into the surface backing store.
+ */
+static inline void
+svga3dsurface_get_loc(const struct svga3dsurface_cache *cache,
+		      struct svga3dsurface_loc *loc,
+		      size_t offset)
+{
+	const struct svga3dsurface_mip *mip = &cache->mip[0];
+	const struct svga3d_surface_desc *desc = cache->desc;
+	u32 layer;
+	int i;
+
+	loc->sheet = offset / cache->sheet_bytes;
+	offset -= loc->sheet * cache->sheet_bytes;
+
+	layer = offset / cache->mip_chain_bytes;
+	offset -= layer * cache->mip_chain_bytes;
+	for (i = 0; i < cache->num_mip_levels; ++i, ++mip) {
+		if (mip->bytes > offset)
+			break;
+		offset -= mip->bytes;
+	}
+
+	loc->sub_resource = svga3dsurface_subres(cache, i, layer);
+	loc->z = offset / mip->img_stride;
+	offset -= loc->z * mip->img_stride;
+	loc->z *= desc->block_size.depth;
+	loc->y = offset / mip->row_stride;
+	offset -= loc->y * mip->row_stride;
+	loc->y *= desc->block_size.height;
+	loc->x = offset / desc->bytes_per_block;
+	loc->x *= desc->block_size.width;
+}
+
+/**
+ * svga3dsurface_inc_loc - Clamp increment a surface location with one block
+ * size
+ * in each dimension.
+ * @loc: Pointer to a struct svga3dsurface_loc to be incremented.
+ *
+ * When computing the size of a range as size = end - start, the range does not
+ * include the end element. However a location representing the last byte
+ * of a touched region in the backing store *is* included in the range.
+ * This function modifies such a location to match the end definition
+ * given as start + size which is the one used in a SVGA3dBox.
+ */
+static inline void
+svga3dsurface_inc_loc(const struct svga3dsurface_cache *cache,
+		      struct svga3dsurface_loc *loc)
+{
+	const struct svga3d_surface_desc *desc = cache->desc;
+	u32 mip = loc->sub_resource % cache->num_mip_levels;
+	const struct drm_vmw_size *size = &cache->mip[mip].size;
+
+	loc->sub_resource++;
+	loc->x += desc->block_size.width;
+	if (loc->x > size->width)
+		loc->x = size->width;
+	loc->y += desc->block_size.height;
+	if (loc->y > size->height)
+		loc->y = size->height;
+	loc->z += desc->block_size.depth;
+	if (loc->z > size->depth)
+		loc->z = size->depth;
+}
+
+/**
+ * svga3dsurface_min_loc - The start location in a subresource
+ * @cache: Surface layout data.
+ * @sub_resource: The subresource.
+ * @loc: Pointer to a struct svga3dsurface_loc to be filled in.
+ */
+static inline void
+svga3dsurface_min_loc(const struct svga3dsurface_cache *cache,
+		      u32 sub_resource,
+		      struct svga3dsurface_loc *loc)
+{
+	loc->sheet = 0;
+	loc->sub_resource = sub_resource;
+	loc->x = loc->y = loc->z = 0;
+}
+
+/**
+ * svga3dsurface_min_loc - The end location in a subresource
+ * @cache: Surface layout data.
+ * @sub_resource: The subresource.
+ * @loc: Pointer to a struct svga3dsurface_loc to be filled in.
+ *
+ * Following the end definition given in svga3dsurface_inc_loc(),
+ * Compute the end location of a surface subresource.
+ */
+static inline void
+svga3dsurface_max_loc(const struct svga3dsurface_cache *cache,
+		      u32 sub_resource,
+		      struct svga3dsurface_loc *loc)
+{
+	const struct drm_vmw_size *size;
+	u32 mip;
+
+	loc->sheet = 0;
+	loc->sub_resource = sub_resource + 1;
+	mip = sub_resource % cache->num_mip_levels;
+	size = &cache->mip[mip].size;
+	loc->x = size->width;
+	loc->y = size->height;
+	loc->z = size->depth;
 }
 
 #endif /* _SVGA3D_SURFACEDEFS_H_ */

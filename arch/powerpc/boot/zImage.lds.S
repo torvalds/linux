@@ -34,6 +34,17 @@ SECTIONS
     __dynamic_start = .;
     *(.dynamic)
   }
+
+#ifdef CONFIG_PPC64_BOOT_WRAPPER
+  . = ALIGN(256);
+  .got :
+  {
+    __toc_start = .;
+    *(.got)
+    *(.toc)
+  }
+#endif
+
   .hash : { *(.hash) }
   .interp : { *(.interp) }
   .rela.dyn :
@@ -68,15 +79,13 @@ SECTIONS
     _initrd_end =  .;
   }
 
-#ifdef CONFIG_PPC64_BOOT_WRAPPER
-  . = ALIGN(256);
-  .got :
+  . = ALIGN(4096);
+  .kernel:esm_blob :
   {
-    __toc_start = .;
-    *(.got)
-    *(.toc)
+    _esm_blob_start =  .;
+    *(.kernel:esm_blob)
+    _esm_blob_end =  .;
   }
-#endif
 
   . = ALIGN(4096);
   .bss       :

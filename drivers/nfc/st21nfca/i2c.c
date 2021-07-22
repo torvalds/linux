@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C Link Layer for ST21NFCA HCI based Driver
  * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -513,9 +502,6 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	struct st21nfca_i2c_phy *phy;
 	int r;
 
-	dev_dbg(&client->dev, "%s\n", __func__);
-	dev_dbg(&client->dev, "IRQ: %d\n", client->irq);
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
 		return -ENODEV;
@@ -579,8 +565,6 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 
-	dev_dbg(&client->dev, "%s\n", __func__);
-
 	st21nfca_hci_remove(phy->hdev);
 
 	if (phy->powered)
@@ -595,13 +579,13 @@ static const struct i2c_device_id st21nfca_hci_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, st21nfca_hci_i2c_id_table);
 
-static const struct acpi_device_id st21nfca_hci_i2c_acpi_match[] = {
+static const struct acpi_device_id st21nfca_hci_i2c_acpi_match[] __maybe_unused = {
 	{"SMO2100", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, st21nfca_hci_i2c_acpi_match);
 
-static const struct of_device_id of_st21nfca_i2c_match[] = {
+static const struct of_device_id of_st21nfca_i2c_match[] __maybe_unused = {
 	{ .compatible = "st,st21nfca-i2c", },
 	{ .compatible = "st,st21nfca_i2c", },
 	{}

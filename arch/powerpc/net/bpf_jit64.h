@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * bpf_jit64.h: BPF JIT compiler for PPC64
  *
  * Copyright 2016 Naveen N. Rao <naveen.n.rao@linux.vnet.ibm.com>
  *		  IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #ifndef _BPF_JIT64_H
 #define _BPF_JIT64_H
@@ -43,7 +39,7 @@
 #define TMP_REG_2	(MAX_BPF_JIT_REG + 1)
 
 /* BPF to ppc register mappings */
-static const int b2p[] = {
+const int b2p[MAX_BPF_JIT_REG + 2] = {
 	/* function return value */
 	[BPF_REG_0] = 8,
 	/* function arguments */
@@ -68,24 +64,27 @@ static const int b2p[] = {
 /* PPC NVR range -- update this if we ever use NVRs below r27 */
 #define BPF_PPC_NVR_MIN		27
 
-#define SEEN_FUNC	0x1000 /* might call external helpers */
-#define SEEN_STACK	0x2000 /* uses BPF stack */
-#define SEEN_TAILCALL	0x4000 /* uses tail calls */
-
-struct codegen_context {
-	/*
-	 * This is used to track register usage as well
-	 * as calls to external helpers.
-	 * - register usage is tracked with corresponding
-	 *   bits (r3-r10 and r27-r31)
-	 * - rest of the bits can be used to track other
-	 *   things -- for now, we use bits 16 to 23
-	 *   encoded in SEEN_* macros above
-	 */
-	unsigned int seen;
-	unsigned int idx;
-	unsigned int stack_size;
-};
+/*
+ * WARNING: These can use TMP_REG_2 if the offset is not at word boundary,
+ * so ensure that it isn't in use already.
+ */
+#define PPC_BPF_LL(r, base, i) do {					      \
+				if ((i) % 4) {				      \
+					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
+					EMIT(PPC_RAW_LDX(r, base,	      \
+							b2p[TMP_REG_2]));     \
+				} else					      \
+					EMIT(PPC_RAW_LD(r, base, i));	      \
+				} while(0)
+#define PPC_BPF_STL(r, base, i) do {					      \
+				if ((i) % 4) {				      \
+					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
+					EMIT(PPC_RAW_STDX(r, base,	      \
+							b2p[TMP_REG_2]));     \
+				} else					      \
+					EMIT(PPC_RAW_STD(r, base, i));	      \
+				} while(0)
+#define PPC_BPF_STLU(r, base, i) do { EMIT(PPC_RAW_STDU(r, base, i)); } while(0)
 
 #endif /* !__ASSEMBLY__ */
 

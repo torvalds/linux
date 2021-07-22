@@ -4,7 +4,7 @@
  * generic one.
  *
  * The function 'LIBUNWIND__ARCH_REG_ID' name is set according to arch
- * name and the defination of this function is included directly from
+ * name and the definition of this function is included directly from
  * 'arch/x86/util/unwind-libunwind.c', to make sure that this function
  * is defined no matter what arch the host is.
  *
@@ -22,7 +22,6 @@
 #define LIBUNWIND__ARCH_REG_SP PERF_REG_X86_SP
 
 #include "unwind.h"
-#include "debug.h"
 #include "libunwind-x86.h"
 #include <../../../../arch/x86/include/uapi/asm/perf_regs.h>
 

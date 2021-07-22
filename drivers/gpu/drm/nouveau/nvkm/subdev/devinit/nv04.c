@@ -119,11 +119,11 @@ powerctrl_1_shift(int chip_version, int reg)
 
 	switch (reg) {
 	case 0x680520:
-		shift += 4; /* fall through */
+		shift += 4; fallthrough;
 	case 0x680508:
-		shift += 4; /* fall through */
+		shift += 4; fallthrough;
 	case 0x680504:
-		shift += 4; /* fall through */
+		shift += 4; fallthrough;
 	case 0x680500:
 		shift += 4;
 	}
@@ -245,11 +245,11 @@ setPLL_double_highregs(struct nvkm_devinit *init, u32 reg1,
 
 		switch (reg1) {
 		case 0x680504:
-			shift_c040 += 2; /* fall through */
+			shift_c040 += 2; fallthrough;
 		case 0x680500:
-			shift_c040 += 2; /* fall through */
+			shift_c040 += 2; fallthrough;
 		case 0x680520:
-			shift_c040 += 2; /* fall through */
+			shift_c040 += 2; fallthrough;
 		case 0x680508:
 			shift_c040 += 2;
 		}
@@ -434,9 +434,8 @@ nv04_devinit_dtor(struct nvkm_devinit *base)
 }
 
 int
-nv04_devinit_new_(const struct nvkm_devinit_func *func,
-		  struct nvkm_device *device, int index,
-		  struct nvkm_devinit **pinit)
+nv04_devinit_new_(const struct nvkm_devinit_func *func, struct nvkm_device *device,
+		  enum nvkm_subdev_type type, int inst, struct nvkm_devinit **pinit)
 {
 	struct nv04_devinit *init;
 
@@ -444,7 +443,7 @@ nv04_devinit_new_(const struct nvkm_devinit_func *func,
 		return -ENOMEM;
 	*pinit = &init->base;
 
-	nvkm_devinit_ctor(func, device, index, &init->base);
+	nvkm_devinit_ctor(func, device, type, inst, &init->base);
 	init->owner = -1;
 	return 0;
 }
@@ -459,8 +458,8 @@ nv04_devinit = {
 };
 
 int
-nv04_devinit_new(struct nvkm_device *device, int index,
+nv04_devinit_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_devinit **pinit)
 {
-	return nv04_devinit_new_(&nv04_devinit, device, index, pinit);
+	return nv04_devinit_new_(&nv04_devinit, device, type, inst, pinit);
 }

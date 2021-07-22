@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mt65xx pinctrl driver based on Allwinner A1X pinctrl driver.
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Hongzhou.Yang <hongzhou.yang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -41,7 +33,6 @@
 #include "mtk-eint.h"
 #include "pinctrl-mtk-common.h"
 
-#define MAX_GPIO_MODE_PER_REG 5
 #define GPIO_MODE_BITS        3
 #define GPIO_MODE_PREFIX "GPIO"
 
@@ -69,7 +60,7 @@ static struct regmap *mtk_get_regmap(struct mtk_pinctrl *pctl,
 static unsigned int mtk_get_port(struct mtk_pinctrl *pctl, unsigned long pin)
 {
 	/* Different SoC has different mask and port shift. */
-	return ((pin >> 4) & pctl->devdata->port_mask)
+	return ((pin >> pctl->devdata->mode_shf) & pctl->devdata->port_mask)
 			<< pctl->devdata->port_shf;
 }
 
@@ -82,7 +73,7 @@ static int mtk_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
 	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
-	bit = BIT(offset & 0xf);
+	bit = BIT(offset & pctl->devdata->mode_mask);
 
 	if (pctl->devdata->spec_dir_set)
 		pctl->devdata->spec_dir_set(&reg_addr, offset);
@@ -104,7 +95,7 @@ static void mtk_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->dout_offset;
-	bit = BIT(offset & 0xf);
+	bit = BIT(offset & pctl->devdata->mode_mask);
 
 	if (value)
 		reg_addr = SET_ADDR(reg_addr, pctl);
@@ -143,12 +134,12 @@ static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 			pin, pctl->devdata->port_align, value, arg);
 	}
 
-	bit = BIT(pin & 0xf);
-
 	if (arg == PIN_CONFIG_INPUT_ENABLE)
 		offset = pctl->devdata->ies_offset;
 	else
 		offset = pctl->devdata->smt_offset;
+
+	bit = BIT(offset & pctl->devdata->mode_mask);
 
 	if (value)
 		reg_addr = SET_ADDR(mtk_get_port(pctl, pin) + offset, pctl);
@@ -319,7 +310,7 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 		return -EINVAL;
 	}
 
-	bit = BIT(pin & 0xf);
+	bit = BIT(pin & pctl->devdata->mode_mask);
 	if (enable)
 		reg_pullen = SET_ADDR(mtk_get_port(pctl, pin) +
 			pctl->devdata->pullen_offset, pctl);
@@ -691,11 +682,11 @@ static int mtk_pmx_set_mode(struct pinctrl_dev *pctldev,
 		pctl->devdata->spec_pinmux_set(mtk_get_regmap(pctl, pin),
 					pin, mode);
 
-	reg_addr = ((pin / MAX_GPIO_MODE_PER_REG) << pctl->devdata->port_shf)
+	reg_addr = ((pin / pctl->devdata->mode_per_reg) << pctl->devdata->port_shf)
 			+ pctl->devdata->pinmux_offset;
 
 	mode &= mask;
-	bit = pin % MAX_GPIO_MODE_PER_REG;
+	bit = pin % pctl->devdata->mode_per_reg;
 	mask <<= (GPIO_MODE_BITS * bit);
 	val = (mode << (GPIO_MODE_BITS * bit));
 	return regmap_update_bits(mtk_get_regmap(pctl, pin),
@@ -806,13 +797,16 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
-	bit = BIT(offset & 0xf);
+	bit = BIT(offset & pctl->devdata->mode_mask);
 
 	if (pctl->devdata->spec_dir_set)
 		pctl->devdata->spec_dir_set(&reg_addr, offset);
 
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
-	return !(read_val & bit);
+	if (read_val & bit)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -825,7 +819,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 	reg_addr = mtk_get_port(pctl, offset) +
 		pctl->devdata->din_offset;
 
-	bit = BIT(offset & 0xf);
+	bit = BIT(offset & pctl->devdata->mode_mask);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
 	return !!(read_val & bit);
 }
@@ -990,7 +984,6 @@ static const struct mtk_eint_xt mtk_eint_xt = {
 static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *res;
 
 	if (!of_property_read_bool(np, "interrupt-controller"))
 		return -ENODEV;
@@ -999,8 +992,7 @@ static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 	if (!pctl->eint)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctl->eint->base = devm_ioremap_resource(&pdev->dev, res);
+	pctl->eint->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->eint->base))
 		return PTR_ERR(pctl->eint->base);
 

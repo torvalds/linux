@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl1271
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/interrupt.h>
@@ -200,7 +186,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	spi_sync(to_spi_device(glue->dev), &m);
 
-	/* Restore chip select configration to normal */
+	/* Restore chip select configuration to normal */
 	spi->mode ^= SPI_CS_HIGH;
 	kfree(cmd);
 }
@@ -405,7 +391,7 @@ static int wl12xx_spi_set_power(struct device *child, bool enable)
 	return ret;
 }
 
-/**
+/*
  * wl12xx_spi_set_block_size
  *
  * This function is not needed for spi mode, but need to be present.
@@ -445,7 +431,6 @@ MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 /**
  * wlcore_probe_of - DT node parsing.
  * @spi: SPI slave device parameters.
- * @res: resource parameters.
  * @glue: wl12xx SPI bus to slave device glue parameters.
  * @pdev_data: wlcore device parameters
  */

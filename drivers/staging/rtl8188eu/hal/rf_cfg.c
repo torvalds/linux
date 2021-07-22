@@ -15,7 +15,7 @@ static bool check_condition(struct adapter *adapt, const u32  condition)
 	u32 _board = odm->BoardType;
 	u32 _platform = odm->SupportPlatform;
 	u32 _interface = odm->SupportInterface;
-	u32 cond = condition;
+	u32 cond;
 
 	if (condition == 0xCDCDCDCD)
 		return true;
@@ -143,7 +143,7 @@ static u32 Array_RadioA_1T_8188E[] = {
 #define READ_NEXT_PAIR(v1, v2, i)	\
 do {								\
 	i += 2; v1 = array[i];			\
-	v2 = array[i+1];				\
+	v2 = array[i + 1];				\
 } while (0)
 
 #define RFREG_OFFSET_MASK 0xfffff
@@ -171,8 +171,7 @@ static void rtl_rfreg_delay(struct adapter *adapt, enum rf_radio_path rfpath, u3
 	}
 }
 
-static void rtl8188e_config_rf_reg(struct adapter *adapt,
-	u32 addr, u32 data)
+static void rtl8188e_config_rf_reg(struct adapter *adapt, u32 addr, u32 data)
 {
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
 	u32 maskforphyset = content & 0xE000;
@@ -190,7 +189,7 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 
 	for (i = 0; i < array_len; i += 2) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
+		u32 v2 = array[i + 1];
 
 		if (v1 < 0xCDCDCDCD) {
 			rtl8188e_config_rf_reg(adapt, v1, v2);
@@ -206,8 +205,8 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < array_len - 2) {
-						rtl8188e_config_rf_reg(adapt, v1, v2);
-						READ_NEXT_PAIR(v1, v2, i);
+					rtl8188e_config_rf_reg(adapt, v1, v2);
+					READ_NEXT_PAIR(v1, v2, i);
 				}
 
 				while (v2 != 0xDEAD && i < array_len - 2)
@@ -218,11 +217,11 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 	return true;
 }
 
-static bool rf6052_conf_para(struct adapter *adapt)
+bool rtl88eu_phy_rf_config(struct adapter *adapt)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	u32 u4val = 0;
-	bool rtstatus = true;
+	bool rtstatus;
 	struct bb_reg_def *pphyreg;
 
 	pphyreg = &hal_data->PHYRegDef[RF90_PATH_A];
@@ -245,14 +244,4 @@ static bool rf6052_conf_para(struct adapter *adapt)
 	phy_set_bb_reg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
 
 	return rtstatus;
-}
-
-static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
-{
-	return rf6052_conf_para(adapt);
-}
-
-bool rtl88eu_phy_rf_config(struct adapter *adapt)
-{
-	return rtl88e_phy_rf6052_config(adapt);
 }

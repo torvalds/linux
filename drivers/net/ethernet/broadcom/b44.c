@@ -40,7 +40,6 @@
 #include "b44.h"
 
 #define DRV_MODULE_NAME		"b44"
-#define DRV_MODULE_VERSION	"2.0"
 #define DRV_DESCRIPTION		"Broadcom 44xx/47xx 10/100 PCI ethernet driver"
 
 #define B44_DEF_MSG_ENABLE	  \
@@ -97,7 +96,6 @@
 MODULE_AUTHOR("Felix Fietkau, Florian Schirmer, Pekka Pietikainen, David S. Miller");
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 
 static int b44_debug = -1;	/* -1 == use B44_DEF_MSG_ENABLE as value */
 module_param(b44_debug, int, 0);
@@ -511,9 +509,6 @@ static void b44_stats_update(struct b44 *bp)
 		*val++ += br32(bp, reg);
 	}
 
-	/* Pad */
-	reg += 8*4UL;
-
 	for (reg = B44_RX_GOOD_O; reg <= B44_RX_NPAUSE; reg += 4UL) {
 		*val++ += br32(bp, reg);
 	}
@@ -638,7 +633,7 @@ static void b44_tx(struct b44 *bp)
 		bytes_compl += skb->len;
 		pkts_compl++;
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 
 	netdev_completed_queue(bp->dev, pkts_compl, bytes_compl);
@@ -951,7 +946,7 @@ irq_ack:
 	return IRQ_RETVAL(handled);
 }
 
-static void b44_tx_timeout(struct net_device *dev)
+static void b44_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct b44 *bp = netdev_priv(dev);
 
@@ -1012,7 +1007,7 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		skb_copy_from_linear_data(skb, skb_put(bounce_skb, len), len);
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = bounce_skb;
 	}
 
@@ -1519,8 +1514,10 @@ static int b44_magic_pattern(u8 *macaddr, u8 *ppattern, u8 *pmask, int offset)
 	int ethaddr_bytes = ETH_ALEN;
 
 	memset(ppattern + offset, 0xff, magicsync);
-	for (j = 0; j < magicsync; j++)
-		set_bit(len++, (unsigned long *) pmask);
+	for (j = 0; j < magicsync; j++) {
+		pmask[len >> 3] |= BIT(len & 7);
+		len++;
+	}
 
 	for (j = 0; j < B44_MAX_PATTERNS; j++) {
 		if ((B44_PATTERN_SIZE - len) >= ETH_ALEN)
@@ -1532,7 +1529,8 @@ static int b44_magic_pattern(u8 *macaddr, u8 *ppattern, u8 *pmask, int offset)
 		for (k = 0; k< ethaddr_bytes; k++) {
 			ppattern[offset + magicsync +
 				(j * ETH_ALEN) + k] = macaddr[k];
-			set_bit(len++, (unsigned long *) pmask);
+			pmask[len >> 3] |= BIT(len & 7);
+			len++;
 		}
 	}
 	return len - 1;
@@ -1558,8 +1556,8 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 	plen0 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
 				  B44_ETHIPV4UDP_HLEN);
 
-   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE, B44_PATTERN_BASE);
-   	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE, B44_PMASK_BASE);
+	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE, B44_PATTERN_BASE);
+	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE, B44_PMASK_BASE);
 
 	/* Raw ethernet II magic packet pattern - pattern 1 */
 	memset(pwol_pattern, 0, B44_PATTERN_SIZE);
@@ -1567,9 +1565,9 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 	plen1 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
 				  ETH_HLEN);
 
-   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
+	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
 		       B44_PATTERN_BASE + B44_PATTERN_SIZE);
-  	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
+	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
 		       B44_PMASK_BASE + B44_PMASK_SIZE);
 
 	/* Ipv6 magic packet pattern - pattern 2 */
@@ -1578,9 +1576,9 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 	plen2 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
 				  B44_ETHIPV6UDP_HLEN);
 
-   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
+	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
 		       B44_PATTERN_BASE + B44_PATTERN_SIZE + B44_PATTERN_SIZE);
-  	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
+	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
 		       B44_PMASK_BASE + B44_PMASK_SIZE + B44_PMASK_SIZE);
 
 	kfree(pwol_pattern);
@@ -1633,9 +1631,9 @@ static void b44_setup_wol(struct b44 *bp)
 		val = br32(bp, B44_DEVCTRL);
 		bw32(bp, B44_DEVCTRL, val | DEVCTRL_MPM | DEVCTRL_PFE);
 
- 	} else {
- 		b44_setup_pseudo_magicp(bp);
- 	}
+	} else {
+		b44_setup_pseudo_magicp(bp);
+	}
 	b44_setup_wol_pci(bp);
 }
 
@@ -1759,7 +1757,7 @@ static void __b44_set_rx_mode(struct net_device *dev)
 			__b44_cam_write(bp, zero, i);
 
 		bw32(bp, B44_RXCONFIG, val);
-        	val = br32(bp, B44_CAM_CTRL);
+		val = br32(bp, B44_CAM_CTRL);
 	        bw32(bp, B44_CAM_CTRL, val | CAM_CTRL_ENABLE);
 	}
 }
@@ -1791,7 +1789,6 @@ static void b44_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *inf
 	struct ssb_bus *bus = bp->sdev->bus;
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	switch (bus->bustype) {
 	case SSB_BUSTYPE_PCI:
 		strlcpy(info->bus_info, pci_name(bus->host_pci), sizeof(info->bus_info));
@@ -2213,12 +2210,12 @@ static void b44_adjust_link(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	bool status_changed = 0;
+	bool status_changed = false;
 
 	BUG_ON(!phydev);
 
 	if (bp->old_link != phydev->link) {
-		status_changed = 1;
+		status_changed = true;
 		bp->old_link = phydev->link;
 	}
 
@@ -2226,11 +2223,11 @@ static void b44_adjust_link(struct net_device *dev)
 	if (phydev->link) {
 		if ((phydev->duplex == DUPLEX_HALF) &&
 		    (bp->flags & B44_FLAG_FULL_DUPLEX)) {
-			status_changed = 1;
+			status_changed = true;
 			bp->flags &= ~B44_FLAG_FULL_DUPLEX;
 		} else if ((phydev->duplex == DUPLEX_FULL) &&
 			   !(bp->flags & B44_FLAG_FULL_DUPLEX)) {
-			status_changed = 1;
+			status_changed = true;
 			bp->flags |= B44_FLAG_FULL_DUPLEX;
 		}
 	}
@@ -2248,6 +2245,7 @@ static void b44_adjust_link(struct net_device *dev)
 
 static int b44_register_phy_one(struct b44 *bp)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct mii_bus *mii_bus;
 	struct ssb_device *sdev = bp->sdev;
 	struct phy_device *phydev;
@@ -2303,11 +2301,12 @@ static int b44_register_phy_one(struct b44 *bp)
 	}
 
 	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_Autoneg |
-			      SUPPORTED_MII);
-	phydev->advertising = phydev->supported;
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, mask);
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	bp->old_link = 0;
 	bp->phy_addr = phydev->mdio.addr;
@@ -2344,8 +2343,6 @@ static int b44_init_one(struct ssb_device *sdev,
 	int err;
 
 	instance++;
-
-	pr_info_once("%s version %s\n", DRV_DESCRIPTION, DRV_MODULE_VERSION);
 
 	dev = alloc_etherdev(sizeof(*bp));
 	if (!dev) {
@@ -2386,7 +2383,8 @@ static int b44_init_one(struct ssb_device *sdev,
 		goto err_out_free_dev;
 	}
 
-	if (dma_set_mask_and_coherent(sdev->dma_dev, DMA_BIT_MASK(30))) {
+	err = dma_set_mask_and_coherent(sdev->dma_dev, DMA_BIT_MASK(30));
+	if (err) {
 		dev_err(sdev->dev,
 			"Required 30BIT DMA mask unsupported by the system\n");
 		goto err_out_powerdown;

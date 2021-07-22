@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2007 Jiri Kosina
  */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
@@ -114,6 +102,7 @@ struct hid_item {
 #define HID_COLLECTION_PHYSICAL		0
 #define HID_COLLECTION_APPLICATION	1
 #define HID_COLLECTION_LOGICAL		2
+#define HID_COLLECTION_NAMED_ARRAY	4
 
 /*
  * HID report descriptor global item tags
@@ -165,6 +154,7 @@ struct hid_item {
 #define HID_UP_CONSUMER		0x000c0000
 #define HID_UP_DIGITIZER	0x000d0000
 #define HID_UP_PID		0x000f0000
+#define HID_UP_BATTERY		0x00850000
 #define HID_UP_HPVENDOR         0xff7f0000
 #define HID_UP_HPVENDOR2        0xff010000
 #define HID_UP_MSVENDOR		0xff000000
@@ -175,6 +165,7 @@ struct hid_item {
 #define HID_UP_LNVENDOR		0xffa00000
 #define HID_UP_SENSOR		0x00200000
 #define HID_UP_ASUSVENDOR	0xff310000
+#define HID_UP_GOOGLEVENDOR	0xffd10000
 
 #define HID_USAGE		0x0000ffff
 
@@ -219,6 +210,7 @@ struct hid_item {
 #define HID_GD_VBRZ		0x00010045
 #define HID_GD_VNO		0x00010046
 #define HID_GD_FEATURE		0x00010047
+#define HID_GD_RESOLUTION_MULTIPLIER	0x00010048
 #define HID_GD_SYSTEM_CONTROL	0x00010080
 #define HID_GD_UP		0x00010090
 #define HID_GD_DOWN		0x00010091
@@ -232,12 +224,14 @@ struct hid_item {
 #define HID_DC_BATTERYSTRENGTH	0x00060020
 
 #define HID_CP_CONSUMER_CONTROL	0x000c0001
+#define HID_CP_AC_PAN		0x000c0238
 
 #define HID_DG_DIGITIZER	0x000d0001
 #define HID_DG_PEN		0x000d0002
 #define HID_DG_LIGHTPEN		0x000d0003
 #define HID_DG_TOUCHSCREEN	0x000d0004
 #define HID_DG_TOUCHPAD		0x000d0005
+#define HID_DG_WHITEBOARD	0x000d0006
 #define HID_DG_STYLUS		0x000d0020
 #define HID_DG_PUCK		0x000d0021
 #define HID_DG_FINGER		0x000d0022
@@ -270,6 +264,8 @@ struct hid_item {
 #define HID_CP_SELECTION	0x000c0080
 #define HID_CP_MEDIASELECTION	0x000c0087
 #define HID_CP_SELECTDISC	0x000c00ba
+#define HID_CP_VOLUMEUP		0x000c00e9
+#define HID_CP_VOLUMEDOWN	0x000c00ea
 #define HID_CP_PLAYBACKSPEED	0x000c00f1
 #define HID_CP_PROXIMITY	0x000c0109
 #define HID_CP_SPEAKERSYSTEM	0x000c0160
@@ -304,6 +300,8 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH2	0x000d005a
 #define HID_DG_TOOLSERIALNUMBER	0x000d005b
 #define HID_DG_LATENCYMODE	0x000d0060
+
+#define HID_BAT_ABSOLUTESTATEOFCHARGE	0x00850065
 
 #define HID_VD_ASUS_CUSTOM_MEDIA_KEYS	0xff310076
 /*
@@ -379,6 +377,8 @@ struct hid_item {
 #define HID_GROUP_WACOM				0x0101
 #define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
 #define HID_GROUP_STEAM				0x0103
+#define HID_GROUP_LOGITECH_27MHZ_DEVICE		0x0104
+#define HID_GROUP_VIVALDI			0x0105
 
 /*
  * HID protocol status
@@ -414,6 +414,7 @@ struct hid_global {
 
 struct hid_local {
 	unsigned usage[HID_MAX_USAGES]; /* usage array */
+	u8 usage_size[HID_MAX_USAGES]; /* usage size array */
 	unsigned collection_index[HID_MAX_USAGES]; /* collection index array */
 	unsigned usage_index;
 	unsigned usage_minimum;
@@ -427,6 +428,7 @@ struct hid_local {
  */
 
 struct hid_collection {
+	int parent_idx; /* device->collection */
 	unsigned type;
 	unsigned usage;
 	unsigned level;
@@ -436,12 +438,16 @@ struct hid_usage {
 	unsigned  hid;			/* hid usage code */
 	unsigned  collection_index;	/* index into collection array */
 	unsigned  usage_index;		/* index into usage array */
+	__s8	  resolution_multiplier;/* Effective Resolution Multiplier
+					   (HUT v1.12, 4.3.1), default: 1 */
 	/* hidinput data */
+	__s8	  wheel_factor;		/* 120/resolution_multiplier */
 	__u16     code;			/* input driver code */
 	__u8      type;			/* input driver type */
 	__s8	  hat_min;		/* hat switch fun */
 	__s8	  hat_max;		/* ditto */
 	__s8	  hat_dir;		/* ditto */
+	__s16	  wheel_accumulated;	/* hi-res wheel */
 };
 
 struct hid_input;
@@ -494,7 +500,7 @@ struct hid_report_enum {
 };
 
 #define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space */
-#define HID_MAX_BUFFER_SIZE	4096		/* 4kb */
+#define HID_MAX_BUFFER_SIZE	16384		/* 16kb */
 #define HID_CONTROL_FIFO_SIZE	256		/* to init devices with >100 reports */
 #define HID_OUTPUT_FIFO_SIZE	64
 
@@ -585,6 +591,7 @@ struct hid_device {							/* device report descriptor */
 	__s32 battery_report_id;
 	enum hid_battery_status battery_status;
 	bool battery_avoid_query;
+	ktime_t battery_ratelimit_time;
 #endif
 
 	unsigned long status;						/* see STAT flags above */
@@ -722,8 +729,8 @@ struct hid_usage_id {
  * input will not be passed to raw_event unless hid_device_io_start is
  * called.
  *
- * raw_event and event should return 0 on no action performed, 1 when no
- * further processing should be done and negative on error
+ * raw_event and event should return negative on error, any other value will
+ * pass the event on to .event() typically return 0 for success.
  *
  * input_mapping shall return a negative value to completely ignore this usage
  * (e.g. doubled or invalid usage), zero to continue with parsing of this
@@ -794,6 +801,7 @@ struct hid_driver {
  * @raw_request: send raw report request to device (e.g. feature report)
  * @output_report: send output report to device
  * @idle: send idle request to device
+ * @may_wakeup: return if device may act as a wakeup source during system-suspend
  */
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
@@ -818,6 +826,7 @@ struct hid_ll_driver {
 	int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len);
 
 	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
+	bool (*may_wakeup)(struct hid_device *hdev);
 };
 
 extern struct hid_ll_driver i2c_hid_ll_driver;
@@ -836,7 +845,11 @@ static inline bool hid_is_using_ll_driver(struct hid_device *hdev,
 
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
-#define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001) || ((a >= 0x000d0002) && (a <= 0x000d0006)))
+#define IS_INPUT_APPLICATION(a) \
+		(((a >= HID_UP_GENDESK) && (a <= HID_GD_MULTIAXIS)) \
+		|| ((a >= HID_DG_PEN) && (a <= HID_DG_WHITEBOARD)) \
+		|| (a == HID_GD_SYSTEM_CONTROL) || (a == HID_CP_CONSUMER_CONTROL) \
+		|| (a == HID_GD_WIRELESS_RADIO_CTLS))
 
 /* HID core API */
 
@@ -881,7 +894,7 @@ struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
 __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
 void hid_output_report(struct hid_report *report, __u8 *data);
-void __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
+int __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
 u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags);
 struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device,
@@ -892,6 +905,8 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 				       unsigned int type, unsigned int id,
 				       unsigned int field_index,
 				       unsigned int report_counts);
+
+void hid_setup_resolution_multiplier(struct hid_device *hid);
 int hid_open_report(struct hid_device *device);
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
@@ -911,7 +926,7 @@ __u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
 /**
  * hid_device_io_start - enable HID input during probe, remove
  *
- * @hid - the device
+ * @hid: the device
  *
  * This should only be called during probe or remove and only be
  * called by the thread calling probe or remove. It will allow
@@ -929,7 +944,7 @@ static inline void hid_device_io_start(struct hid_device *hid) {
 /**
  * hid_device_io_stop - disable HID input during probe, remove
  *
- * @hid - the device
+ * @hid: the device
  *
  * Should only be called after hid_device_io_start. It will prevent
  * incoming packets from going to the driver for the duration of
@@ -955,38 +970,60 @@ static inline void hid_device_io_stop(struct hid_device *hid) {
  * @max: maximal valid usage->code to consider later (out parameter)
  * @type: input event type (EV_KEY, EV_REL, ...)
  * @c: code which corresponds to this usage and type
+ *
+ * The value pointed to by @bit will be set to NULL if either @type is
+ * an unhandled event type, or if @c is out of range for @type. This
+ * can be used as an error condition.
  */
 static inline void hid_map_usage(struct hid_input *hidinput,
 		struct hid_usage *usage, unsigned long **bit, int *max,
-		__u8 type, __u16 c)
+		__u8 type, unsigned int c)
 {
 	struct input_dev *input = hidinput->input;
-
-	usage->type = type;
-	usage->code = c;
+	unsigned long *bmap = NULL;
+	unsigned int limit = 0;
 
 	switch (type) {
 	case EV_ABS:
-		*bit = input->absbit;
-		*max = ABS_MAX;
+		bmap = input->absbit;
+		limit = ABS_MAX;
 		break;
 	case EV_REL:
-		*bit = input->relbit;
-		*max = REL_MAX;
+		bmap = input->relbit;
+		limit = REL_MAX;
 		break;
 	case EV_KEY:
-		*bit = input->keybit;
-		*max = KEY_MAX;
+		bmap = input->keybit;
+		limit = KEY_MAX;
 		break;
 	case EV_LED:
-		*bit = input->ledbit;
-		*max = LED_MAX;
+		bmap = input->ledbit;
+		limit = LED_MAX;
 		break;
 	}
+
+	if (unlikely(c > limit || !bmap)) {
+		pr_warn_ratelimited("%s: Invalid code %d type %d\n",
+				    input->name, c, type);
+		*bit = NULL;
+		return;
+	}
+
+	usage->type = type;
+	usage->code = c;
+	*max = limit;
+	*bit = bmap;
 }
 
 /**
  * hid_map_usage_clear - map usage input bits and clear the input bit
+ *
+ * @hidinput: hidinput which we are interested in
+ * @usage: usage to fill in
+ * @bit: pointer to input->{}bit (out parameter)
+ * @max: maximal valid usage->code to consider later (out parameter)
+ * @type: input event type (EV_KEY, EV_REL, ...)
+ * @c: code which corresponds to this usage and type
  *
  * The same as hid_map_usage, except the @c bit is also cleared in supported
  * bits (@bit).
@@ -996,7 +1033,8 @@ static inline void hid_map_usage_clear(struct hid_input *hidinput,
 		__u8 type, __u16 c)
 {
 	hid_map_usage(hidinput, usage, bit, max, type, c);
-	clear_bit(c, *bit);
+	if (*bit)
+		clear_bit(usage->code, *bit);
 }
 
 /**
@@ -1061,7 +1099,7 @@ static inline void hid_hw_request(struct hid_device *hdev,
  * @rtype: HID report type
  * @reqtype: HID_REQ_GET_REPORT or HID_REQ_SET_REPORT
  *
- * @return: count of data transfered, negative if error
+ * Return: count of data transferred, negative if error
  *
  * Same behavior as hid_hw_request, but with raw buffers instead.
  */
@@ -1083,7 +1121,7 @@ static inline int hid_hw_raw_request(struct hid_device *hdev,
  * @buf: raw data to transfer
  * @len: length of buf
  *
- * @return: count of data transfered, negative if error
+ * Return: count of data transferred, negative if error
  */
 static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
 					size_t len)
@@ -1115,6 +1153,22 @@ static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
 }
 
 /**
+ * hid_may_wakeup - return if the hid device may act as a wakeup source during system-suspend
+ *
+ * @hdev: hid device
+ */
+static inline bool hid_hw_may_wakeup(struct hid_device *hdev)
+{
+	if (hdev->ll_driver->may_wakeup)
+		return hdev->ll_driver->may_wakeup(hdev);
+
+	if (hdev->dev.parent)
+		return device_may_wakeup(hdev->dev.parent);
+
+	return false;
+}
+
+/**
  * hid_hw_wait - wait for buffered io to complete
  *
  * @hdev: hid device
@@ -1132,40 +1186,11 @@ static inline void hid_hw_wait(struct hid_device *hdev)
  */
 static inline u32 hid_report_len(struct hid_report *report)
 {
-	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
-	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+	return DIV_ROUND_UP(report->size, 8) + (report->id > 0);
 }
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 		int interrupt);
-
-
-/**
- * struct hid_scroll_counter - Utility class for processing high-resolution
- *                             scroll events.
- * @dev: the input device for which events should be reported.
- * @microns_per_hi_res_unit: the amount moved by the user's finger for each
- *                           high-resolution unit reported by the mouse, in
- *                           microns.
- * @resolution_multiplier: the wheel's resolution in high-resolution mode as a
- *                         multiple of its lower resolution. For example, if
- *                         moving the wheel by one "notch" would result in a
- *                         value of 1 in low-resolution mode but 8 in
- *                         high-resolution, the multiplier is 8.
- * @remainder: counts the number of high-resolution units moved since the last
- *             low-resolution event (REL_WHEEL or REL_HWHEEL) was sent. Should
- *             only be used by class methods.
- */
-struct hid_scroll_counter {
-	struct input_dev *dev;
-	int microns_per_hi_res_unit;
-	int resolution_multiplier;
-
-	int remainder;
-};
-
-void hid_scroll_counter_handle_scroll(struct hid_scroll_counter *counter,
-				      int hi_res_value);
 
 /* HID quirks API */
 unsigned long hid_lookup_quirk(const struct hid_device *hdev);
@@ -1178,29 +1203,32 @@ int hid_pidff_init(struct hid_device *hid);
 #define hid_pidff_init NULL
 #endif
 
-#define dbg_hid(format, arg...)						\
+#define dbg_hid(fmt, ...)						\
 do {									\
 	if (hid_debug)							\
-		printk(KERN_DEBUG "%s: " format, __FILE__, ##arg);	\
+		printk(KERN_DEBUG "%s: " fmt, __FILE__, ##__VA_ARGS__);	\
 } while (0)
 
-#define hid_printk(level, hid, fmt, arg...)		\
-	dev_printk(level, &(hid)->dev, fmt, ##arg)
-#define hid_emerg(hid, fmt, arg...)			\
-	dev_emerg(&(hid)->dev, fmt, ##arg)
-#define hid_crit(hid, fmt, arg...)			\
-	dev_crit(&(hid)->dev, fmt, ##arg)
-#define hid_alert(hid, fmt, arg...)			\
-	dev_alert(&(hid)->dev, fmt, ##arg)
-#define hid_err(hid, fmt, arg...)			\
-	dev_err(&(hid)->dev, fmt, ##arg)
-#define hid_notice(hid, fmt, arg...)			\
-	dev_notice(&(hid)->dev, fmt, ##arg)
-#define hid_warn(hid, fmt, arg...)			\
-	dev_warn(&(hid)->dev, fmt, ##arg)
-#define hid_info(hid, fmt, arg...)			\
-	dev_info(&(hid)->dev, fmt, ##arg)
-#define hid_dbg(hid, fmt, arg...)			\
-	dev_dbg(&(hid)->dev, fmt, ##arg)
+#define hid_err(hid, fmt, ...)				\
+	dev_err(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_notice(hid, fmt, ...)			\
+	dev_notice(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_warn(hid, fmt, ...)				\
+	dev_warn(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_info(hid, fmt, ...)				\
+	dev_info(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_dbg(hid, fmt, ...)				\
+	dev_dbg(&(hid)->dev, fmt, ##__VA_ARGS__)
+
+#define hid_err_once(hid, fmt, ...)			\
+	dev_err_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_notice_once(hid, fmt, ...)			\
+	dev_notice_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_warn_once(hid, fmt, ...)			\
+	dev_warn_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_info_once(hid, fmt, ...)			\
+	dev_info_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_dbg_once(hid, fmt, ...)			\
+	dev_dbg_once(&(hid)->dev, fmt, ##__VA_ARGS__)
 
 #endif

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 10G controller driver for Samsung SoCs
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Siva Reddy Kallam <siva.kallam@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -28,17 +25,18 @@
 
 #ifdef CONFIG_OF
 static int sxgbe_probe_config_dt(struct platform_device *pdev,
-				 struct sxgbe_plat_data *plat,
-				 const char **mac)
+				 struct sxgbe_plat_data *plat)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct sxgbe_dma_cfg *dma_cfg;
+	int err;
 
 	if (!np)
 		return -ENODEV;
 
-	*mac = of_get_mac_address(np);
-	plat->interface = of_get_phy_mode(np);
+	err = of_get_phy_mode(np, &plat->interface);
+	if (err && err != -ENODEV)
+		return err;
 
 	plat->bus_id = of_alias_get_id(np, "ethernet");
 	if (plat->bus_id < 0)
@@ -63,8 +61,7 @@ static int sxgbe_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int sxgbe_probe_config_dt(struct platform_device *pdev,
-				 struct sxgbe_plat_data *plat,
-				 const char **mac)
+				 struct sxgbe_plat_data *plat)
 {
 	return -ENOSYS;
 }
@@ -81,18 +78,15 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 {
 	int ret;
 	int i, chan;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	void __iomem *addr;
 	struct sxgbe_priv_data *priv = NULL;
 	struct sxgbe_plat_data *plat_dat = NULL;
-	const char *mac = NULL;
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct device_node *node = dev->of_node;
 
 	/* Get memory resource */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(dev, res);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
@@ -103,7 +97,7 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 		if (!plat_dat)
 			return  -ENOMEM;
 
-		ret = sxgbe_probe_config_dt(pdev, plat_dat, &mac);
+		ret = sxgbe_probe_config_dt(pdev, plat_dat);
 		if (ret) {
 			pr_err("%s: main dt probe failed\n", __func__);
 			return ret;
@@ -124,8 +118,7 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 	}
 
 	/* Get MAC address if available (DT) */
-	if (mac)
-		ether_addr_copy(priv->dev->dev_addr, mac);
+	of_get_mac_address(node, priv->dev->dev_addr);
 
 	/* Get the TX/RX IRQ numbers */
 	for (i = 0, chan = 1; i < SXGBE_TX_QUEUES; i++) {

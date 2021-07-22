@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP3 Power Management Routines
  *
@@ -12,10 +13,6 @@
  * Richard Woodruff <r-woodruff2@ti.com>
  *
  * Based on pm.c for omap1
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu_pm.h>
@@ -28,7 +25,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/omap-dma.h>
+#include <linux/of.h>
 #include <linux/omap-gpmc.h>
 
 #include <trace/events/power.h>
@@ -88,7 +85,6 @@ static void omap3_core_save_context(void)
 	omap3_gpmc_save_context();
 	/* Save the system control module context, padconf already save above*/
 	omap3_control_save_context();
-	omap_dma_global_context_save();
 }
 
 static void omap3_core_restore_context(void)
@@ -99,7 +95,6 @@ static void omap3_core_restore_context(void)
 	omap3_gpmc_restore_context();
 	/* Restore the interrupt controller context */
 	omap_intc_restore_context();
-	omap_dma_global_context_restore();
 }
 
 /*
@@ -197,6 +192,7 @@ void omap_sram_idle(void)
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
 	u32 sdrc_pwr = 0;
+	int error;
 
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
 	switch (mpu_next_state) {
@@ -225,8 +221,11 @@ void omap_sram_idle(void)
 	pwrdm_pre_transition(NULL);
 
 	/* PER */
-	if (per_next_state == PWRDM_POWER_OFF)
-		cpu_cluster_pm_enter();
+	if (per_next_state == PWRDM_POWER_OFF) {
+		error = cpu_cluster_pm_enter();
+		if (error)
+			return;
+	}
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
@@ -300,11 +299,7 @@ static void omap3_pm_idle(void)
 	if (omap_irq_pending())
 		return;
 
-	trace_cpu_idle_rcuidle(1, smp_processor_id());
-
 	omap_sram_idle();
-
-	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 }
 
 #ifdef CONFIG_SUSPEND
@@ -416,7 +411,12 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	if (!pwrst)
 		return -ENOMEM;
 	pwrst->pwrdm = pwrdm;
-	pwrst->next_state = PWRDM_POWER_RET;
+
+	if (enable_off_mode)
+		pwrst->next_state = PWRDM_POWER_OFF;
+	else
+		pwrst->next_state = PWRDM_POWER_RET;
+
 	list_add(&pwrst->node, &pwrst_list);
 
 	if (pwrdm_has_hdwr_sar(pwrdm))
@@ -447,6 +447,22 @@ static void __init pm_errata_configure(void)
 					  PM_PER_MEMORIES_ERRATUM_i582);
 	} else if (cpu_is_omap34xx()) {
 		pm34xx_errata |= PM_PER_MEMORIES_ERRATUM_i582;
+	}
+}
+
+static void __init omap3_pm_check_pmic(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "ti,twl4030-power-idle");
+	if (!np)
+		np = of_find_compatible_node(NULL, NULL, "ti,twl4030-power-idle-osc-off");
+
+	if (np) {
+		of_node_put(np);
+		enable_off_mode = 1;
+	} else {
+		enable_off_mode = 0;
 	}
 }
 
@@ -482,6 +498,8 @@ int __init omap3_pm_init(void)
 		pr_err("pm: Failed to request pm_io irq\n");
 		goto err2;
 	}
+
+	omap3_pm_check_pmic();
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
@@ -550,9 +568,7 @@ int __init omap3_pm_init(void)
 
 		local_irq_disable();
 
-		omap_dma_global_context_save();
 		omap3_save_secure_ram_context();
-		omap_dma_global_context_restore();
 
 		local_irq_enable();
 	}

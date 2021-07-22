@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * inftlcore.c -- Linux driver for Inverse Flash Translation Layer (INFTL)
  *
@@ -6,20 +7,6 @@
  * Based heavily on the nftlcore.c code which is:
  * Copyright © 1999 Machine Vision Holdings, Inc.
  * Copyright © 1999 David Woodhouse <dwmw2@infradead.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -950,18 +937,7 @@ static struct mtd_blktrans_ops inftl_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init init_inftl(void)
-{
-	return register_mtd_blktrans(&inftl_tr);
-}
-
-static void __exit cleanup_inftl(void)
-{
-	deregister_mtd_blktrans(&inftl_tr);
-}
-
-module_init(init_inftl);
-module_exit(cleanup_inftl);
+module_mtd_blktrans(inftl_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Ungerer <gerg@snapgear.com>, David Woodhouse <dwmw2@infradead.org>, Fabrice Bellard <fabrice.bellard@netgem.com> et al.");

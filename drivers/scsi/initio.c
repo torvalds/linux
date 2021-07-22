@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**************************************************************************
  * Initio 9100 device driver for Linux.
  *
@@ -5,21 +6,6 @@
  * Copyright (c) 1998 Bas Vermeulen <bvermeul@blackstar.xs4all.nl>
  * Copyright (c) 2004 Christoph Hellwig <hch@lst.de>
  * Copyright (c) 2007 Red Hat
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *
  *************************************************************************
  *
@@ -560,7 +546,6 @@ static int initio_reset_scsi(struct initio_host * host, int seconds)
 /**
  *	initio_init		-	set up an InitIO host adapter
  *	@host: InitIO host adapter
- *	@num_scbs: Number of SCBS
  *	@bios_addr: BIOS address
  *
  *	Set up the host adapter and devices according to the configuration
@@ -880,17 +865,16 @@ static void initio_unlink_busy_scb(struct initio_host * host, struct scsi_ctrl_b
 
 struct scsi_ctrl_blk *initio_find_busy_scb(struct initio_host * host, u16 tarlun)
 {
-	struct scsi_ctrl_blk *tmp, *prev;
+	struct scsi_ctrl_blk *tmp;
 	u16 scbp_tarlun;
 
 
-	prev = tmp = host->first_busy;
+	tmp = host->first_busy;
 	while (tmp != NULL) {
 		scbp_tarlun = (tmp->lun << 8) | (tmp->target);
 		if (scbp_tarlun == tarlun) {	/* Unlink this SCB              */
 			break;
 		}
-		prev = tmp;
 		tmp = tmp->next;
 	}
 #if DEBUG_QUEUE
@@ -1329,15 +1313,15 @@ static int initio_state_1(struct initio_host * host)
 		}
 		if ((active_tc->flags & (TCF_WDTR_DONE | TCF_NO_WDTR)) == 0) {
 			active_tc->flags |= TCF_WDTR_DONE;
-			outb(MSG_EXTEND, host->addr + TUL_SFifo);
+			outb(EXTENDED_MESSAGE, host->addr + TUL_SFifo);
 			outb(2, host->addr + TUL_SFifo);	/* Extended msg length */
-			outb(3, host->addr + TUL_SFifo);	/* Sync request */
+			outb(EXTENDED_SDTR, host->addr + TUL_SFifo);	/* Sync request */
 			outb(1, host->addr + TUL_SFifo);	/* Start from 16 bits */
 		} else if ((active_tc->flags & (TCF_SYNC_DONE | TCF_NO_SYNC_NEGO)) == 0) {
 			active_tc->flags |= TCF_SYNC_DONE;
-			outb(MSG_EXTEND, host->addr + TUL_SFifo);
+			outb(EXTENDED_MESSAGE, host->addr + TUL_SFifo);
 			outb(3, host->addr + TUL_SFifo);	/* extended msg length */
-			outb(1, host->addr + TUL_SFifo);	/* sync request */
+			outb(EXTENDED_SDTR, host->addr + TUL_SFifo);	/* sync request */
 			outb(initio_rate_tbl[active_tc->flags & TCF_SCSI_RATE], host->addr + TUL_SFifo);
 			outb(MAX_OFFSET, host->addr + TUL_SFifo);	/* REQ/ACK offset */
 		}
@@ -1423,16 +1407,16 @@ static int initio_state_3(struct initio_host * host)
 
 		case MSG_OUT:	/* Message out phase            */
 			if (active_tc->flags & (TCF_SYNC_DONE | TCF_NO_SYNC_NEGO)) {
-				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+				outb(NOP, host->addr + TUL_SFifo);		/* msg nop */
 				outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 				if (wait_tulip(host) == -1)
 					return -1;
 			} else {
 				active_tc->flags |= TCF_SYNC_DONE;
 
-				outb(MSG_EXTEND, host->addr + TUL_SFifo);
+				outb(EXTENDED_MESSAGE, host->addr + TUL_SFifo);
 				outb(3, host->addr + TUL_SFifo);	/* ext. msg len */
-				outb(1, host->addr + TUL_SFifo);	/* sync request */
+				outb(EXTENDED_SDTR, host->addr + TUL_SFifo);	/* sync request */
 				outb(initio_rate_tbl[active_tc->flags & TCF_SCSI_RATE], host->addr + TUL_SFifo);
 				outb(MAX_OFFSET, host->addr + TUL_SFifo);	/* REQ/ACK offset */
 				outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
@@ -1493,7 +1477,7 @@ static int initio_state_4(struct initio_host * host)
 					return -1;
 				return 6;
 			} else {
-				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+				outb(NOP, host->addr + TUL_SFifo);		/* msg nop */
 				outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 				if (wait_tulip(host) == -1)
 					return -1;
@@ -1630,7 +1614,7 @@ static int initio_state_6(struct initio_host * host)
 			break;
 
 		case MSG_OUT:	/* Message out phase            */
-			outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+			outb(NOP, host->addr + TUL_SFifo);		/* msg nop */
 			outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 			if (wait_tulip(host) == -1)
 				return -1;
@@ -1654,7 +1638,7 @@ static int initio_state_6(struct initio_host * host)
  *
  */
 
-int initio_state_7(struct initio_host * host)
+static int initio_state_7(struct initio_host * host)
 {
 	int cnt, i;
 
@@ -1803,9 +1787,9 @@ int initio_status_msg(struct initio_host * host)
 
 	if (host->phase == MSG_OUT) {
 		if (host->jsstatus0 & TSS_PAR_ERROR)
-			outb(MSG_PARITY, host->addr + TUL_SFifo);
+			outb(MSG_PARITY_ERROR, host->addr + TUL_SFifo);
 		else
-			outb(MSG_NOP, host->addr + TUL_SFifo);
+			outb(NOP, host->addr + TUL_SFifo);
 		outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 		return wait_tulip(host);
 	}
@@ -1816,7 +1800,7 @@ int initio_status_msg(struct initio_host * host)
 				return -1;
 			if (host->phase != MSG_OUT)
 				return initio_bad_seq(host);
-			outb(MSG_PARITY, host->addr + TUL_SFifo);
+			outb(MSG_PARITY_ERROR, host->addr + TUL_SFifo);
 			outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 			return wait_tulip(host);
 		}
@@ -1829,7 +1813,8 @@ int initio_status_msg(struct initio_host * host)
 			return initio_wait_done_disc(host);
 
 		}
-		if (msg == MSG_LINK_COMP || msg == MSG_LINK_FLAG) {
+		if (msg == LINKED_CMD_COMPLETE ||
+		    msg == LINKED_FLG_CMD_COMPLETE) {
 			if ((scb->tastat & 0x18) == 0x10)
 				return initio_msgin_accept(host);
 		}
@@ -1901,7 +1886,7 @@ static int int_initio_scsi_rst(struct initio_host * host)
 }
 
 /**
- *	int_initio_scsi_resel	-	Reselection occurred
+ *	int_initio_resel	-	Reselection occurred
  *	@host: InitIO host adapter
  *
  *	A SCSI reselection event has been signalled and the interrupt
@@ -1944,7 +1929,8 @@ int int_initio_resel(struct initio_host * host)
 			return -1;
 		msg = inb(host->addr + TUL_SFifo);	/* Read Tag Message    */
 
-		if (msg < MSG_STAG || msg > MSG_OTAG)		/* Is simple Tag      */
+		if (msg < SIMPLE_QUEUE_TAG || msg > ORDERED_QUEUE_TAG)
+			/* Is simple Tag      */
 			goto no_tag;
 
 		if (initio_msgin_accept(host) == -1)
@@ -2024,7 +2010,7 @@ static int initio_msgout_abort_targ(struct initio_host * host)
 	if (host->phase != MSG_OUT)
 		return initio_bad_seq(host);
 
-	outb(MSG_ABORT, host->addr + TUL_SFifo);
+	outb(ABORT_TASK_SET, host->addr + TUL_SFifo);
 	outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 
 	return initio_wait_disc(host);
@@ -2047,7 +2033,7 @@ static int initio_msgout_abort_tag(struct initio_host * host)
 	if (host->phase != MSG_OUT)
 		return initio_bad_seq(host);
 
-	outb(MSG_ABORT_TAG, host->addr + TUL_SFifo);
+	outb(ABORT_TASK, host->addr + TUL_SFifo);
 	outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 
 	return initio_wait_disc(host);
@@ -2073,15 +2059,15 @@ static int initio_msgin(struct initio_host * host)
 			return -1;
 
 		switch (inb(host->addr + TUL_SFifo)) {
-		case MSG_DISC:	/* Disconnect msg */
+		case DISCONNECT:	/* Disconnect msg */
 			outb(TSC_MSG_ACCEPT, host->addr + TUL_SCmd);
 			return initio_wait_disc(host);
-		case MSG_SDP:
-		case MSG_RESTORE:
-		case MSG_NOP:
+		case SAVE_POINTERS:
+		case RESTORE_POINTERS:
+		case NOP:
 			initio_msgin_accept(host);
 			break;
-		case MSG_REJ:	/* Clear ATN first              */
+		case MESSAGE_REJECT:	/* Clear ATN first              */
 			outb((inb(host->addr + TUL_SSignal) & (TSC_SET_ACK | 7)),
 				host->addr + TUL_SSignal);
 			active_tc = host->active_tc;
@@ -2090,13 +2076,13 @@ static int initio_msgin(struct initio_host * host)
 					host->addr + TUL_SSignal);
 			initio_msgin_accept(host);
 			break;
-		case MSG_EXTEND:	/* extended msg */
+		case EXTENDED_MESSAGE:	/* extended msg */
 			initio_msgin_extend(host);
 			break;
-		case MSG_IGNOREWIDE:
+		case IGNORE_WIDE_RESIDUE:
 			initio_msgin_accept(host);
 			break;
-		case MSG_COMP:
+		case COMMAND_COMPLETE:
 			outb(TSC_FLUSH_FIFO, host->addr + TUL_SCtrl0);
 			outb(TSC_MSG_ACCEPT, host->addr + TUL_SCmd);
 			return initio_wait_done_disc(host);
@@ -2118,7 +2104,7 @@ static int initio_msgout_reject(struct initio_host * host)
 		return -1;
 
 	if (host->phase == MSG_OUT) {
-		outb(MSG_REJ, host->addr + TUL_SFifo);		/* Msg reject           */
+		outb(MESSAGE_REJECT, host->addr + TUL_SFifo);		/* Msg reject           */
 		outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 		return wait_tulip(host);
 	}
@@ -2127,7 +2113,7 @@ static int initio_msgout_reject(struct initio_host * host)
 
 static int initio_msgout_ide(struct initio_host * host)
 {
-	outb(MSG_IDE, host->addr + TUL_SFifo);		/* Initiator Detected Error */
+	outb(INITIATOR_ERROR, host->addr + TUL_SFifo);		/* Initiator Detected Error */
 	outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 	return wait_tulip(host);
 }
@@ -2181,9 +2167,9 @@ static int initio_msgin_extend(struct initio_host * host)
 
 		initio_sync_done(host);
 
-		outb(MSG_EXTEND, host->addr + TUL_SFifo);
+		outb(EXTENDED_MESSAGE, host->addr + TUL_SFifo);
 		outb(3, host->addr + TUL_SFifo);
-		outb(1, host->addr + TUL_SFifo);
+		outb(EXTENDED_SDTR, host->addr + TUL_SFifo);
 		outb(host->msg[2], host->addr + TUL_SFifo);
 		outb(host->msg[3], host->addr + TUL_SFifo);
 		outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
@@ -2213,9 +2199,9 @@ static int initio_msgin_extend(struct initio_host * host)
 	if (initio_msgin_accept(host) != MSG_OUT)
 		return host->phase;
 	/* WDTR msg out                 */
-	outb(MSG_EXTEND, host->addr + TUL_SFifo);
+	outb(EXTENDED_MESSAGE, host->addr + TUL_SFifo);
 	outb(2, host->addr + TUL_SFifo);
-	outb(3, host->addr + TUL_SFifo);
+	outb(EXTENDED_WDTR, host->addr + TUL_SFifo);
 	outb(host->msg[2], host->addr + TUL_SFifo);
 	outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 	return wait_tulip(host);
@@ -2405,7 +2391,7 @@ int initio_bus_device_reset(struct initio_host * host)
 		}
 		tmp = tmp->next;
 	}
-	outb(MSG_DEVRST, host->addr + TUL_SFifo);
+	outb(TARGET_RESET, host->addr + TUL_SFifo);
 	outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 	return initio_wait_disc(host);
 
@@ -2614,7 +2600,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 }
 
 /**
- *	i91u_queuecommand	-	Queue a new command if possible
+ *	i91u_queuecommand_lck	-	Queue a new command if possible
  *	@cmd: SCSI command block from the mid layer
  *	@done: Completion handler
  *
@@ -2663,9 +2649,9 @@ static int i91u_bus_reset(struct scsi_cmnd * cmnd)
 }
 
 /**
- *	i91u_biospararm			-	return the "logical geometry
+ *	i91u_biosparam			-	return the "logical geometry
  *	@sdev: SCSI device
- *	@dev; Matching block device
+ *	@dev: Matching block device
  *	@capacity: Sector size of drive
  *	@info_array: Return space for BIOS geometry
  *
@@ -2740,10 +2726,8 @@ static void i91u_unmap_scb(struct pci_dev *pci_dev, struct scsi_cmnd *cmnd)
 	}
 }
 
-/**
+/*
  *	i91uSCBPost		-	SCSI callback
- *	@host: Pointer to host adapter control block.
- *	@cmnd: Pointer to SCSI control block.
  *
  *	This is callback routine be called when tulip finish one
  *	SCSI command.
@@ -2817,7 +2801,6 @@ static struct scsi_host_template initio_template = {
 	.can_queue		= MAX_TARGETS * i91u_MAXQUEUE,
 	.this_id		= 1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int initio_probe_one(struct pci_dev *pdev,
@@ -2840,7 +2823,7 @@ static int initio_probe_one(struct pci_dev *pdev,
 		reg = 0;
 	bios_seg = (bios_seg << 8) + ((u16) ((reg & 0xFF00) >> 8));
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING  "i91u: Could not set 32 bit DMA mask\n");
 		error = -ENODEV;
 		goto out_disable_device;
@@ -2977,20 +2960,8 @@ static struct pci_driver initio_pci_driver = {
 	.probe		= initio_probe_one,
 	.remove		= initio_remove_one,
 };
-
-static int __init initio_init_driver(void)
-{
-	return pci_register_driver(&initio_pci_driver);
-}
-
-static void __exit initio_exit_driver(void)
-{
-	pci_unregister_driver(&initio_pci_driver);
-}
+module_pci_driver(initio_pci_driver);
 
 MODULE_DESCRIPTION("Initio INI-9X00U/UW SCSI device driver");
 MODULE_AUTHOR("Initio Corporation");
 MODULE_LICENSE("GPL");
-
-module_init(initio_init_driver);
-module_exit(initio_exit_driver);

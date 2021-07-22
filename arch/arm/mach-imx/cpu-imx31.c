@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MX31 CPU type detection
  *
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 
 #include "common.h"
@@ -36,10 +33,16 @@ static struct {
 
 static int mx31_read_cpu_rev(void)
 {
+	void __iomem *iim_base;
+	struct device_node *np;
 	u32 i, srev;
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-iim");
+	iim_base = of_iomap(np, 0);
+	BUG_ON(!iim_base);
+
 	/* read SREV register from IIM module */
-	srev = imx_readl(MX31_IO_ADDRESS(MX31_IIM_BASE_ADDR + MXC_IIMSREV));
+	srev = imx_readl(iim_base + MXC_IIMSREV);
 	srev &= 0xff;
 
 	for (i = 0; i < ARRAY_SIZE(mx31_cpu_type); i++)

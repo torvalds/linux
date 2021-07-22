@@ -25,12 +25,14 @@
  *
  * Send feedback to <colpatch@us.ibm.com>
  */
+#include <linux/interrupt.h>
 #include <linux/nodemask.h>
 #include <linux/export.h>
 #include <linux/mmzone.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <asm/io_apic.h>
 #include <asm/cpu.h>
 
 static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
@@ -59,38 +61,28 @@ __setup("cpu0_hotplug", enable_cpu0_hotplug);
  */
 int _debug_hotplug_cpu(int cpu, int action)
 {
-	struct device *dev = get_cpu_device(cpu);
 	int ret;
 
 	if (!cpu_is_hotpluggable(cpu))
 		return -EINVAL;
 
-	lock_device_hotplug();
-
 	switch (action) {
 	case 0:
-		ret = cpu_down(cpu);
-		if (!ret) {
-			pr_info("CPU %u is now offline\n", cpu);
-			dev->offline = true;
-			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
-		} else
+		ret = remove_cpu(cpu);
+		if (!ret)
+			pr_info("DEBUG_HOTPLUG_CPU0: CPU %u is now offline\n", cpu);
+		else
 			pr_debug("Can't offline CPU%d.\n", cpu);
 		break;
 	case 1:
-		ret = cpu_up(cpu);
-		if (!ret) {
-			dev->offline = false;
-			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
-		} else {
+		ret = add_cpu(cpu);
+		if (ret)
 			pr_debug("Can't online CPU%d.\n", cpu);
-		}
+
 		break;
 	default:
 		ret = -EINVAL;
 	}
-
-	unlock_device_hotplug();
 
 	return ret;
 }
@@ -121,7 +113,7 @@ int arch_register_cpu(int num)
 	 * Two known BSP/CPU0 dependencies: Resume from suspend/hibernate
 	 * depends on BSP. PIC interrupts depend on BSP.
 	 *
-	 * If the BSP depencies are under control, one can tell kernel to
+	 * If the BSP dependencies are under control, one can tell kernel to
 	 * enable BSP hotplug. This basically adds a control file and
 	 * one can attempt to offline BSP.
 	 */

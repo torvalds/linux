@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License version 2 as published
- *   by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
  *
  *   Copyright (C) 2011 John Crispin <john@phrozen.org>
  */
@@ -23,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <lantiq_soc.h>
 #include <xway_dma.h>
@@ -129,9 +119,9 @@ ltq_dma_alloc(struct ltq_dma_channel *ch)
 	unsigned long flags;
 
 	ch->desc = 0;
-	ch->desc_base = dma_zalloc_coherent(ch->dev,
-				LTQ_DESC_NUM * LTQ_DESC_SIZE,
-				&ch->phys, GFP_ATOMIC);
+	ch->desc_base = dma_alloc_coherent(ch->dev,
+					   LTQ_DESC_NUM * LTQ_DESC_SIZE,
+					   &ch->phys, GFP_ATOMIC);
 
 	spin_lock_irqsave(&ltq_dma_lock, flags);
 	ltq_dma_w32(ch->nr, LTQ_DMA_CS);

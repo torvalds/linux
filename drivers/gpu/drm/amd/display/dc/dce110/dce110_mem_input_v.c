@@ -34,6 +34,7 @@
 #include "inc/dce_calcs.h"
 
 #include "dce/dce_mem_input.h"
+#include "dce110_mem_input_v.h"
 
 static void set_flip_control(
 	struct dce_mem_input *mem_input110,
@@ -229,26 +230,26 @@ static void program_tiling(
 static void program_size_and_rotation(
 	struct dce_mem_input *mem_input110,
 	enum dc_rotation_angle rotation,
-	const union plane_size *plane_size)
+	const struct plane_size *plane_size)
 {
 	uint32_t value = 0;
-	union plane_size local_size = *plane_size;
+	struct plane_size local_size = *plane_size;
 
 	if (rotation == ROTATION_ANGLE_90 ||
 		rotation == ROTATION_ANGLE_270) {
 
-		swap(local_size.video.luma_size.x,
-		     local_size.video.luma_size.y);
-		swap(local_size.video.luma_size.width,
-		     local_size.video.luma_size.height);
-		swap(local_size.video.chroma_size.x,
-		     local_size.video.chroma_size.y);
-		swap(local_size.video.chroma_size.width,
-		     local_size.video.chroma_size.height);
+		swap(local_size.surface_size.x,
+		     local_size.surface_size.y);
+		swap(local_size.surface_size.width,
+		     local_size.surface_size.height);
+		swap(local_size.chroma_size.x,
+		     local_size.chroma_size.y);
+		swap(local_size.chroma_size.width,
+		     local_size.chroma_size.height);
 	}
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.luma_pitch,
+	set_reg_field_value(value, local_size.surface_pitch,
 			UNP_GRPH_PITCH_L, GRPH_PITCH_L);
 
 	dm_write_reg(
@@ -257,7 +258,7 @@ static void program_size_and_rotation(
 		value);
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.chroma_pitch,
+	set_reg_field_value(value, local_size.chroma_pitch,
 			UNP_GRPH_PITCH_C, GRPH_PITCH_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
@@ -297,8 +298,8 @@ static void program_size_and_rotation(
 		value);
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.luma_size.x +
-			local_size.video.luma_size.width,
+	set_reg_field_value(value, local_size.surface_size.x +
+			local_size.surface_size.width,
 			UNP_GRPH_X_END_L, GRPH_X_END_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
@@ -306,8 +307,8 @@ static void program_size_and_rotation(
 		value);
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.chroma_size.x +
-			local_size.video.chroma_size.width,
+	set_reg_field_value(value, local_size.chroma_size.x +
+			local_size.chroma_size.width,
 			UNP_GRPH_X_END_C, GRPH_X_END_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
@@ -315,8 +316,8 @@ static void program_size_and_rotation(
 		value);
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.luma_size.y +
-			local_size.video.luma_size.height,
+	set_reg_field_value(value, local_size.surface_size.y +
+			local_size.surface_size.height,
 			UNP_GRPH_Y_END_L, GRPH_Y_END_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
@@ -324,8 +325,8 @@ static void program_size_and_rotation(
 		value);
 
 	value = 0;
-	set_reg_field_value(value, local_size.video.chroma_size.y +
-			local_size.video.chroma_size.height,
+	set_reg_field_value(value, local_size.chroma_size.y +
+			local_size.chroma_size.height,
 			UNP_GRPH_Y_END_C, GRPH_Y_END_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
@@ -392,6 +393,7 @@ static void program_pixel_format(
 			grph_format = 1;
 			break;
 		case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+		case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 		case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 			grph_depth = 3;
@@ -468,7 +470,7 @@ static void program_pixel_format(
 	}
 }
 
-bool dce_mem_input_v_is_surface_pending(struct mem_input *mem_input)
+static bool dce_mem_input_v_is_surface_pending(struct mem_input *mem_input)
 {
 	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
 	uint32_t value;
@@ -483,7 +485,7 @@ bool dce_mem_input_v_is_surface_pending(struct mem_input *mem_input)
 	return false;
 }
 
-bool dce_mem_input_v_program_surface_flip_and_addr(
+static bool dce_mem_input_v_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
@@ -560,7 +562,7 @@ static const unsigned int *get_dvmm_hw_setting(
 	}
 }
 
-void dce_mem_input_v_program_pte_vm(
+static void dce_mem_input_v_program_pte_vm(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
@@ -633,11 +635,11 @@ void dce_mem_input_v_program_pte_vm(
 	dm_write_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_ARB_CONTROL_C, value);
 }
 
-void dce_mem_input_v_program_surface_config(
+static void dce_mem_input_v_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizotal_mirror)
@@ -919,7 +921,7 @@ static void program_nbp_watermark_c(
 			marks);
 }
 
-void dce_mem_input_v_program_display_marks(
+static void dce_mem_input_v_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -942,7 +944,7 @@ void dce_mem_input_v_program_display_marks(
 
 }
 
-void dce_mem_input_program_chroma_display_marks(
+static void dce_mem_input_program_chroma_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -963,7 +965,7 @@ void dce_mem_input_program_chroma_display_marks(
 		stutter);
 }
 
-void dce110_allocate_mem_input_v(
+static void dce110_allocate_mem_input_v(
 	struct mem_input *mi,
 	uint32_t h_total,/* for current stream */
 	uint32_t v_total,/* for current stream */
@@ -1005,7 +1007,7 @@ void dce110_allocate_mem_input_v(
 
 }
 
-void dce110_free_mem_input_v(
+static void dce110_free_mem_input_v(
 	struct mem_input *mi,
 	uint32_t total_stream_num)
 {

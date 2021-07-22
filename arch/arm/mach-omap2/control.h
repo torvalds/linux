@@ -195,6 +195,7 @@
 #define OMAP44XX_CONTROL_FUSE_MPU_OPP100	0x243
 #define OMAP44XX_CONTROL_FUSE_MPU_OPPTURBO	0x246
 #define OMAP44XX_CONTROL_FUSE_MPU_OPPNITRO	0x249
+#define OMAP44XX_CONTROL_FUSE_MPU_OPPNITROSB	0x24C
 #define OMAP44XX_CONTROL_FUSE_CORE_OPP50	0x254
 #define OMAP44XX_CONTROL_FUSE_CORE_OPP100	0x257
 #define OMAP44XX_CONTROL_FUSE_CORE_OPP100OV	0x25A
@@ -527,7 +528,6 @@ extern int omap3_ctrl_save_padconf(void);
 void omap3_ctrl_init(void);
 int omap2_control_base_init(void);
 int omap_control_init(void);
-void omap2_set_globals_control(void __iomem *ctrl);
 void __init omap3_control_legacy_iomap_init(void);
 #else
 #define omap_ctrl_readb(x)		0

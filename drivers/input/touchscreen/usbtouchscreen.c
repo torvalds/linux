@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  * usbtouchscreen.c
  * Driver for USB Touchscreens, supporting those devices:
@@ -21,20 +22,6 @@
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Driver is based on touchkitusb.c
  * - ITM parts are from itmtouch.c
@@ -195,6 +182,7 @@ static const struct usb_device_id usbtouch_devices[] = {
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+	{USB_DEVICE(0x255e, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0012), .driver_info = DEVTYPE_IRTOUCH_HIRES},
@@ -263,7 +251,7 @@ static int e2i_init(struct usbtouch_usb *usbtouch)
 	int ret;
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
-	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 	                      0x01, 0x02, 0x0000, 0x0081,
 	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
 
@@ -543,7 +531,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	if (ret)
 		return ret;
 
-	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 	                      MTOUCHUSB_RESET,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      1, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -555,7 +543,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	msleep(150);
 
 	for (i = 0; i < 3; i++) {
-		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+		ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				      MTOUCHUSB_ASYNC_REPORT,
 				      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				      1, 1, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -734,7 +722,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	}
 
 	/* start sending data */
-	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 	                      TSC10_CMD_DATA1,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -1056,6 +1044,7 @@ static void nexio_exit(struct usbtouch_usb *usbtouch)
 
 static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 {
+	struct device *dev = &usbtouch->interface->dev;
 	struct nexio_touch_packet *packet = (void *) pkt;
 	struct nexio_priv *priv = usbtouch->priv;
 	unsigned int data_len = be16_to_cpu(packet->data_len);
@@ -1074,6 +1063,8 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 
 	/* send ACK */
 	ret = usb_submit_urb(priv->ack, GFP_ATOMIC);
+	if (ret)
+		dev_warn(dev, "Failed to submit ACK URB: %d\n", ret);
 
 	if (!usbtouch->type->max_xc) {
 		usbtouch->type->max_xc = 2 * x_len;
@@ -1671,6 +1662,8 @@ static int usbtouch_probe(struct usb_interface *intf,
 	input_dev = input_allocate_device();
 	if (!usbtouch || !input_dev)
 		goto out_free;
+
+	mutex_init(&usbtouch->pm_mutex);
 
 	type = &usbtouch_dev_info[id->driver_info];
 	usbtouch->type = type;

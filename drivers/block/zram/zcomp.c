@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Sergey Senozhatsky.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -19,7 +15,10 @@
 #include "zcomp.h"
 
 static const char * const backends[] = {
+#if IS_ENABLED(CONFIG_CRYPTO_LZO)
 	"lzo",
+	"lzo-rle",
+#endif
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
 #endif
@@ -32,7 +31,6 @@ static const char * const backends[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
 	"zstd",
 #endif
-	NULL
 };
 
 static void zcomp_strm_free(struct zcomp_strm *zstrm)
@@ -40,19 +38,16 @@ static void zcomp_strm_free(struct zcomp_strm *zstrm)
 	if (!IS_ERR_OR_NULL(zstrm->tfm))
 		crypto_free_comp(zstrm->tfm);
 	free_pages((unsigned long)zstrm->buffer, 1);
-	kfree(zstrm);
+	zstrm->tfm = NULL;
+	zstrm->buffer = NULL;
 }
 
 /*
- * allocate new zcomp_strm structure with ->tfm initialized by
- * backend, return NULL on error
+ * Initialize zcomp_strm structure with ->tfm initialized by backend, and
+ * ->buffer. Return a negative value on error.
  */
-static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp)
+static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
 {
-	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), GFP_KERNEL);
-	if (!zstrm)
-		return NULL;
-
 	zstrm->tfm = crypto_alloc_comp(comp->name, 0, 0);
 	/*
 	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
@@ -61,16 +56,16 @@ static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp)
 	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
 	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->buffer) {
 		zcomp_strm_free(zstrm);
-		zstrm = NULL;
+		return -ENOMEM;
 	}
-	return zstrm;
+	return 0;
 }
 
 bool zcomp_available_algorithm(const char *comp)
 {
 	int i;
 
-	i = __sysfs_match_string(backends, -1, comp);
+	i = sysfs_match_string(backends, comp);
 	if (i >= 0)
 		return true;
 
@@ -89,9 +84,9 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 {
 	bool known_algorithm = false;
 	ssize_t sz = 0;
-	int i = 0;
+	int i;
 
-	for (; backends[i]; i++) {
+	for (i = 0; i < ARRAY_SIZE(backends); i++) {
 		if (!strcmp(comp, backends[i])) {
 			known_algorithm = true;
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
@@ -116,12 +111,13 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 
 struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
 {
-	return *get_cpu_ptr(comp->stream);
+	local_lock(&comp->stream->lock);
+	return this_cpu_ptr(comp->stream);
 }
 
 void zcomp_stream_put(struct zcomp *comp)
 {
-	put_cpu_ptr(comp->stream);
+	local_unlock(&comp->stream->lock);
 }
 
 int zcomp_compress(struct zcomp_strm *zstrm,
@@ -162,17 +158,15 @@ int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 {
 	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
 	struct zcomp_strm *zstrm;
+	int ret;
 
-	if (WARN_ON(*per_cpu_ptr(comp->stream, cpu)))
-		return 0;
+	zstrm = per_cpu_ptr(comp->stream, cpu);
+	local_lock_init(&zstrm->lock);
 
-	zstrm = zcomp_strm_alloc(comp);
-	if (IS_ERR_OR_NULL(zstrm)) {
+	ret = zcomp_strm_init(zstrm, comp);
+	if (ret)
 		pr_err("Can't allocate a compression stream\n");
-		return -ENOMEM;
-	}
-	*per_cpu_ptr(comp->stream, cpu) = zstrm;
-	return 0;
+	return ret;
 }
 
 int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
@@ -180,10 +174,8 @@ int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
 	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
 	struct zcomp_strm *zstrm;
 
-	zstrm = *per_cpu_ptr(comp->stream, cpu);
-	if (!IS_ERR_OR_NULL(zstrm))
-		zcomp_strm_free(zstrm);
-	*per_cpu_ptr(comp->stream, cpu) = NULL;
+	zstrm = per_cpu_ptr(comp->stream, cpu);
+	zcomp_strm_free(zstrm);
 	return 0;
 }
 
@@ -191,7 +183,7 @@ static int zcomp_init(struct zcomp *comp)
 {
 	int ret;
 
-	comp->stream = alloc_percpu(struct zcomp_strm *);
+	comp->stream = alloc_percpu(struct zcomp_strm);
 	if (!comp->stream)
 		return -ENOMEM;
 

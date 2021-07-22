@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -59,9 +57,12 @@ struct dlm_header;
 struct dlm_message;
 struct dlm_rcom;
 struct dlm_mhandle;
+struct dlm_msg;
 
 #define log_print(fmt, args...) \
 	printk(KERN_ERR "dlm: "fmt"\n" , ##args)
+#define log_print_ratelimited(fmt, args...) \
+	printk_ratelimited(KERN_ERR "dlm: "fmt"\n", ##args)
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
 
@@ -99,7 +100,6 @@ do { \
                __LINE__, __FILE__, #x, jiffies); \
     {do} \
     printk("\n"); \
-    BUG(); \
     panic("DLM:  Record message above and reboot.\n"); \
   } \
 }
@@ -371,22 +371,32 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 /* dlm_header is first element of all structs sent between nodes */
 
 #define DLM_HEADER_MAJOR	0x00030000
-#define DLM_HEADER_MINOR	0x00000001
+#define DLM_HEADER_MINOR	0x00000002
+
+#define DLM_VERSION_3_1		0x00030001
+#define DLM_VERSION_3_2		0x00030002
 
 #define DLM_HEADER_SLOTS	0x00000001
 
 #define DLM_MSG			1
 #define DLM_RCOM		2
+#define DLM_OPTS		3
+#define DLM_ACK			4
+#define DLM_FIN			5
 
 struct dlm_header {
 	uint32_t		h_version;
-	uint32_t		h_lockspace;
+	union {
+		/* for DLM_MSG and DLM_RCOM */
+		uint32_t	h_lockspace;
+		/* for DLM_ACK and DLM_OPTS */
+		uint32_t	h_seq;
+	} u;
 	uint32_t		h_nodeid;	/* nodeid of sender */
 	uint16_t		h_length;
 	uint8_t			h_cmd;		/* DLM_MSG, DLM_RCOM */
 	uint8_t			h_pad;
 };
-
 
 #define DLM_MSG_REQUEST		1
 #define DLM_MSG_CONVERT		2
@@ -423,7 +433,7 @@ struct dlm_message {
 	int			m_bastmode;
 	int			m_asts;
 	int			m_result;	/* 0 or -EXXX */
-	char			m_extra[0];	/* name or lvb */
+	char			m_extra[];	/* name or lvb */
 };
 
 
@@ -452,13 +462,32 @@ struct dlm_rcom {
 	uint64_t		rc_id;		/* match reply with request */
 	uint64_t		rc_seq;		/* sender's ls_recover_seq */
 	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
-	char			rc_buf[0];
+	char			rc_buf[];
+};
+
+struct dlm_opt_header {
+	uint16_t	t_type;
+	uint16_t	t_length;
+	uint32_t	o_pad;
+	/* need to be 8 byte aligned */
+	char		t_value[];
+};
+
+/* encapsulation header */
+struct dlm_opts {
+	struct dlm_header	o_header;
+	uint8_t			o_nextcmd;
+	uint8_t			o_pad;
+	uint16_t		o_optlen;
+	uint32_t		o_pad2;
+	char			o_opts[];
 };
 
 union dlm_packet {
 	struct dlm_header	header;		/* common to other two */
 	struct dlm_message	message;
 	struct dlm_rcom		rcom;
+	struct dlm_opts		opts;
 };
 
 #define DLM_RSF_NEED_SLOTS	0x00000001
@@ -508,7 +537,7 @@ struct rcom_lock {
 	__le16			rl_wait_type;
 	__le16			rl_namelen;
 	char			rl_name[DLM_RESNAME_MAXLEN];
-	char			rl_lvb[0];
+	char			rl_lvb[];
 };
 
 /*
@@ -721,15 +750,19 @@ int dlm_plock_init(void);
 void dlm_plock_exit(void);
 
 #ifdef CONFIG_DLM_DEBUG
-int dlm_register_debugfs(void);
+void dlm_register_debugfs(void);
 void dlm_unregister_debugfs(void);
-int dlm_create_debug_file(struct dlm_ls *ls);
+void dlm_create_debug_file(struct dlm_ls *ls);
 void dlm_delete_debug_file(struct dlm_ls *ls);
+void *dlm_create_debug_comms_file(int nodeid, void *data);
+void dlm_delete_debug_comms_file(void *ctx);
 #else
-static inline int dlm_register_debugfs(void) { return 0; }
+static inline void dlm_register_debugfs(void) { }
 static inline void dlm_unregister_debugfs(void) { }
-static inline int dlm_create_debug_file(struct dlm_ls *ls) { return 0; }
+static inline void dlm_create_debug_file(struct dlm_ls *ls) { }
 static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
+static inline void *dlm_create_debug_comms_file(int nodeid, void *data) { return NULL; }
+static inline void dlm_delete_debug_comms_file(void *ctx) { }
 #endif
 
 #endif				/* __DLM_INTERNAL_DOT_H__ */

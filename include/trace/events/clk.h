@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM clk
@@ -124,6 +116,50 @@ DEFINE_EVENT(clk_rate, clk_set_rate_complete,
 	TP_PROTO(struct clk_core *core, unsigned long rate),
 
 	TP_ARGS(core, rate)
+);
+
+DEFINE_EVENT(clk_rate, clk_set_min_rate,
+
+	TP_PROTO(struct clk_core *core, unsigned long rate),
+
+	TP_ARGS(core, rate)
+);
+
+DEFINE_EVENT(clk_rate, clk_set_max_rate,
+
+	TP_PROTO(struct clk_core *core, unsigned long rate),
+
+	TP_ARGS(core, rate)
+);
+
+DECLARE_EVENT_CLASS(clk_rate_range,
+
+	TP_PROTO(struct clk_core *core, unsigned long min, unsigned long max),
+
+	TP_ARGS(core, min, max),
+
+	TP_STRUCT__entry(
+		__string(        name,           core->name                )
+		__field(unsigned long,           min                       )
+		__field(unsigned long,           max                       )
+	),
+
+	TP_fast_assign(
+		__assign_str(name, core->name);
+		__entry->min = min;
+		__entry->max = max;
+	),
+
+	TP_printk("%s min %lu max %lu", __get_str(name),
+		  (unsigned long)__entry->min,
+		  (unsigned long)__entry->max)
+);
+
+DEFINE_EVENT(clk_rate_range, clk_set_rate_range,
+
+	TP_PROTO(struct clk_core *core, unsigned long min, unsigned long max),
+
+	TP_ARGS(core, min, max)
 );
 
 DECLARE_EVENT_CLASS(clk_parent,

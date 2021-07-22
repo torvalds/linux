@@ -27,13 +27,44 @@ used by the apr service device.
 	Value type: <u32>
 	Definition: Must be 1
 
-= EXAMPLE
+== ASM DAI is subnode of "dais" and represent a dai, it includes board specific
+configuration of each dai. Must contain the following properties.
 
-q6asm@7 {
+- reg
+	Usage: required
+	Value type: <u32>
+	Definition: Must be dai id
+
+- direction:
+	Usage: Required for Compress offload dais
+	Value type: <u32>
+	Definition: Specifies the direction of the dai stream
+			Q6ASM_DAI_TX_RX (0) for both tx and rx
+			Q6ASM_DAI_TX (1) for only tx (Capture/Encode)
+			Q6ASM_DAI_RX (2) for only rx (Playback/Decode)
+
+- is-compress-dai:
+	Usage: Required for Compress offload dais
+	Value type: <boolean>
+	Definition: present for Compress offload dais
+
+
+= EXAMPLE
+#include <dt-bindings/sound/qcom,q6asm.h>
+
+apr-service@7 {
 	compatible = "qcom,q6asm";
 	reg = <APR_SVC_ASM>;
 	q6asmdai: dais {
 		compatible = "qcom,q6asm-dais";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		#sound-dai-cells = <1>;
+
+		dai@0 {
+			reg = <0>;
+			direction = <Q6ASM_DAI_RX>;
+			is-compress-dai;
+		};
 	};
 };

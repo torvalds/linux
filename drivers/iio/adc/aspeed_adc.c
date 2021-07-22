@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aspeed AST2400/2500 ADC
  *
  * Copyright (C) 2017 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
@@ -177,7 +173,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct aspeed_adc_data *data;
 	const struct aspeed_adc_model_data *model_data;
-	struct resource *res;
 	const char *clk_parent_name;
 	int ret;
 	u32 adc_engine_control_reg_val;
@@ -189,8 +184,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	data = iio_priv(indio_dev);
 	data->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
@@ -258,7 +252,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = aspeed_adc_iio_channels;

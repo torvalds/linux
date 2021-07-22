@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
@@ -26,7 +26,7 @@ struct cflayer *cfdbgl_create(u8 channel_id, struct dev_info *dev_info)
 	cfsrvl_init(dbg, channel_id, dev_info, false);
 	dbg->layer.receive = cfdbgl_receive;
 	dbg->layer.transmit = cfdbgl_transmit;
-	snprintf(dbg->layer.name, CAIF_LAYER_NAME_SZ - 1, "dbg%d", channel_id);
+	snprintf(dbg->layer.name, CAIF_LAYER_NAME_SZ, "dbg%d", channel_id);
 	return &dbg->layer;
 }
 

@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
 #include "dpu_hwio.h"
 #include "dpu_hw_ctl.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
+#include "dpu_trace.h"
 
 #define   CTL_LAYER(lm)                 \
 	(((lm) == LM_5) ? (0x024) : (((lm) - LM_0) * 0x004))
@@ -30,14 +22,27 @@
 #define   CTL_PREPARE                   0x0d0
 #define   CTL_SW_RESET                  0x030
 #define   CTL_LAYER_EXTN_OFFSET         0x40
+#define   CTL_MERGE_3D_ACTIVE           0x0E4
+#define   CTL_INTF_ACTIVE               0x0F4
+#define   CTL_MERGE_3D_FLUSH            0x100
+#define   CTL_INTF_FLUSH                0x110
+#define   CTL_INTF_MASTER               0x134
+#define   CTL_FETCH_PIPE_ACTIVE         0x0FC
 
 #define CTL_MIXER_BORDER_OUT            BIT(24)
 #define CTL_FLUSH_MASK_CTL              BIT(17)
 
 #define DPU_REG_RESET_TIMEOUT_US        2000
+#define  MERGE_3D_IDX   23
+#define  INTF_IDX       31
+#define CTL_INVALID_BIT                 0xffff
 
-static struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
-		struct dpu_mdss_cfg *m,
+static const u32 fetch_tbl[SSPP_MAX] = {CTL_INVALID_BIT, 16, 17, 18, 19,
+	CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, 0,
+	1, 2, 3, CTL_INVALID_BIT, CTL_INVALID_BIT};
+
+static const struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -72,41 +77,6 @@ static int _mixer_stages(const struct dpu_lm_cfg *mixer, int count,
 	return stages;
 }
 
-static inline void dpu_hw_ctl_trigger_start(struct dpu_hw_ctl *ctx)
-{
-	DPU_REG_WRITE(&ctx->hw, CTL_START, 0x1);
-}
-
-static inline void dpu_hw_ctl_trigger_pending(struct dpu_hw_ctl *ctx)
-{
-	DPU_REG_WRITE(&ctx->hw, CTL_PREPARE, 0x1);
-}
-
-static inline void dpu_hw_ctl_clear_pending_flush(struct dpu_hw_ctl *ctx)
-{
-	ctx->pending_flush_mask = 0x0;
-}
-
-static inline void dpu_hw_ctl_update_pending_flush(struct dpu_hw_ctl *ctx,
-		u32 flushbits)
-{
-	ctx->pending_flush_mask |= flushbits;
-}
-
-static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
-{
-	if (!ctx)
-		return 0x0;
-
-	return ctx->pending_flush_mask;
-}
-
-static inline void dpu_hw_ctl_trigger_flush(struct dpu_hw_ctl *ctx)
-{
-
-	DPU_REG_WRITE(&ctx->hw, CTL_FLUSH, ctx->pending_flush_mask);
-}
-
 static inline u32 dpu_hw_ctl_get_flush_register(struct dpu_hw_ctl *ctx)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
@@ -114,7 +84,61 @@ static inline u32 dpu_hw_ctl_get_flush_register(struct dpu_hw_ctl *ctx)
 	return DPU_REG_READ(c, CTL_FLUSH);
 }
 
-static inline uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
+static inline void dpu_hw_ctl_trigger_start(struct dpu_hw_ctl *ctx)
+{
+	trace_dpu_hw_ctl_trigger_start(ctx->pending_flush_mask,
+				       dpu_hw_ctl_get_flush_register(ctx));
+	DPU_REG_WRITE(&ctx->hw, CTL_START, 0x1);
+}
+
+static inline void dpu_hw_ctl_trigger_pending(struct dpu_hw_ctl *ctx)
+{
+	trace_dpu_hw_ctl_trigger_prepare(ctx->pending_flush_mask,
+					 dpu_hw_ctl_get_flush_register(ctx));
+	DPU_REG_WRITE(&ctx->hw, CTL_PREPARE, 0x1);
+}
+
+static inline void dpu_hw_ctl_clear_pending_flush(struct dpu_hw_ctl *ctx)
+{
+	trace_dpu_hw_ctl_clear_pending_flush(ctx->pending_flush_mask,
+				     dpu_hw_ctl_get_flush_register(ctx));
+	ctx->pending_flush_mask = 0x0;
+}
+
+static inline void dpu_hw_ctl_update_pending_flush(struct dpu_hw_ctl *ctx,
+		u32 flushbits)
+{
+	trace_dpu_hw_ctl_update_pending_flush(flushbits,
+					      ctx->pending_flush_mask);
+	ctx->pending_flush_mask |= flushbits;
+}
+
+static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
+{
+	return ctx->pending_flush_mask;
+}
+
+static inline void dpu_hw_ctl_trigger_flush_v1(struct dpu_hw_ctl *ctx)
+{
+
+	if (ctx->pending_flush_mask & BIT(MERGE_3D_IDX))
+		DPU_REG_WRITE(&ctx->hw, CTL_MERGE_3D_FLUSH,
+				ctx->pending_merge_3d_flush_mask);
+	if (ctx->pending_flush_mask & BIT(INTF_IDX))
+		DPU_REG_WRITE(&ctx->hw, CTL_INTF_FLUSH,
+				ctx->pending_intf_flush_mask);
+
+	DPU_REG_WRITE(&ctx->hw, CTL_FLUSH, ctx->pending_flush_mask);
+}
+
+static inline void dpu_hw_ctl_trigger_flush(struct dpu_hw_ctl *ctx)
+{
+	trace_dpu_hw_ctl_trigger_pending_flush(ctx->pending_flush_mask,
+				     dpu_hw_ctl_get_flush_register(ctx));
+	DPU_REG_WRITE(&ctx->hw, CTL_FLUSH, ctx->pending_flush_mask);
+}
+
+static uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
 	enum dpu_sspp sspp)
 {
 	uint32_t flushbits = 0;
@@ -169,7 +193,7 @@ static inline uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
 	return flushbits;
 }
 
-static inline uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
+static uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
 	enum dpu_lm lm)
 {
 	uint32_t flushbits = 0;
@@ -202,26 +226,64 @@ static inline uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
 	return flushbits;
 }
 
-static inline int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_intf intf)
+static void dpu_hw_ctl_update_pending_flush_intf(struct dpu_hw_ctl *ctx,
+		enum dpu_intf intf)
 {
 	switch (intf) {
 	case INTF_0:
-		*flushbits |= BIT(31);
+		ctx->pending_flush_mask |= BIT(31);
 		break;
 	case INTF_1:
-		*flushbits |= BIT(30);
+		ctx->pending_flush_mask |= BIT(30);
 		break;
 	case INTF_2:
-		*flushbits |= BIT(29);
+		ctx->pending_flush_mask |= BIT(29);
 		break;
 	case INTF_3:
-		*flushbits |= BIT(28);
+		ctx->pending_flush_mask |= BIT(28);
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-	return 0;
+}
+
+static void dpu_hw_ctl_update_pending_flush_intf_v1(struct dpu_hw_ctl *ctx,
+		enum dpu_intf intf)
+{
+	ctx->pending_intf_flush_mask |= BIT(intf - INTF_0);
+	ctx->pending_flush_mask |= BIT(INTF_IDX);
+}
+
+static void dpu_hw_ctl_update_pending_flush_merge_3d_v1(struct dpu_hw_ctl *ctx,
+		enum dpu_merge_3d merge_3d)
+{
+	ctx->pending_merge_3d_flush_mask |= BIT(merge_3d - MERGE_3D_0);
+	ctx->pending_flush_mask |= BIT(MERGE_3D_IDX);
+}
+
+static uint32_t dpu_hw_ctl_get_bitmask_dspp(struct dpu_hw_ctl *ctx,
+	enum dpu_dspp dspp)
+{
+	uint32_t flushbits = 0;
+
+	switch (dspp) {
+	case DSPP_0:
+		flushbits = BIT(13);
+		break;
+	case DSPP_1:
+		flushbits = BIT(14);
+		break;
+	case DSPP_2:
+		flushbits = BIT(15);
+		break;
+	case DSPP_3:
+		flushbits = BIT(21);
+		break;
+	default:
+		return 0;
+	}
+
+	return flushbits;
 }
 
 static u32 dpu_hw_ctl_poll_reset_status(struct dpu_hw_ctl *ctx, u32 timeout_us)
@@ -288,6 +350,8 @@ static void dpu_hw_ctl_clear_all_blendstages(struct dpu_hw_ctl *ctx)
 		DPU_REG_WRITE(c, CTL_LAYER_EXT2(LM_0 + i), 0);
 		DPU_REG_WRITE(c, CTL_LAYER_EXT3(LM_0 + i), 0);
 	}
+
+	DPU_REG_WRITE(c, CTL_FETCH_PIPE_ACTIVE, 0);
 }
 
 static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
@@ -424,6 +488,27 @@ exit:
 	DPU_REG_WRITE(c, CTL_LAYER_EXT3(lm), mixercfg_ext3);
 }
 
+
+static void dpu_hw_ctl_intf_cfg_v1(struct dpu_hw_ctl *ctx,
+		struct dpu_hw_intf_cfg *cfg)
+{
+	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+	u32 intf_active = 0;
+	u32 mode_sel = 0;
+
+	if (cfg->intf_mode_sel == DPU_CTL_MODE_SEL_CMD)
+		mode_sel |= BIT(17);
+
+	intf_active = DPU_REG_READ(c, CTL_INTF_ACTIVE);
+	intf_active |= BIT(cfg->intf - INTF_0);
+
+	DPU_REG_WRITE(c, CTL_TOP, mode_sel);
+	DPU_REG_WRITE(c, CTL_INTF_ACTIVE, intf_active);
+	if (cfg->merge_3d)
+		DPU_REG_WRITE(c, CTL_MERGE_3D_ACTIVE,
+			      BIT(cfg->merge_3d - MERGE_3D_0));
+}
+
 static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
 		struct dpu_hw_intf_cfg *cfg)
 {
@@ -454,38 +539,62 @@ static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
 	DPU_REG_WRITE(c, CTL_TOP, intf_cfg);
 }
 
+static void dpu_hw_ctl_set_fetch_pipe_active(struct dpu_hw_ctl *ctx,
+	unsigned long *fetch_active)
+{
+	int i;
+	u32 val = 0;
+
+	if (fetch_active) {
+		for (i = 0; i < SSPP_MAX; i++) {
+			if (test_bit(i, fetch_active) &&
+				fetch_tbl[i] != CTL_INVALID_BIT)
+				val |= BIT(fetch_tbl[i]);
+		}
+	}
+
+	DPU_REG_WRITE(&ctx->hw, CTL_FETCH_PIPE_ACTIVE, val);
+}
+
 static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 		unsigned long cap)
 {
+	if (cap & BIT(DPU_CTL_ACTIVE_CFG)) {
+		ops->trigger_flush = dpu_hw_ctl_trigger_flush_v1;
+		ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg_v1;
+		ops->update_pending_flush_intf =
+			dpu_hw_ctl_update_pending_flush_intf_v1;
+		ops->update_pending_flush_merge_3d =
+			dpu_hw_ctl_update_pending_flush_merge_3d_v1;
+	} else {
+		ops->trigger_flush = dpu_hw_ctl_trigger_flush;
+		ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg;
+		ops->update_pending_flush_intf =
+			dpu_hw_ctl_update_pending_flush_intf;
+	}
 	ops->clear_pending_flush = dpu_hw_ctl_clear_pending_flush;
 	ops->update_pending_flush = dpu_hw_ctl_update_pending_flush;
 	ops->get_pending_flush = dpu_hw_ctl_get_pending_flush;
-	ops->trigger_flush = dpu_hw_ctl_trigger_flush;
 	ops->get_flush_register = dpu_hw_ctl_get_flush_register;
 	ops->trigger_start = dpu_hw_ctl_trigger_start;
 	ops->trigger_pending = dpu_hw_ctl_trigger_pending;
-	ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg;
 	ops->reset = dpu_hw_ctl_reset_control;
 	ops->wait_reset_status = dpu_hw_ctl_wait_reset_status;
 	ops->clear_all_blendstages = dpu_hw_ctl_clear_all_blendstages;
 	ops->setup_blendstage = dpu_hw_ctl_setup_blendstage;
 	ops->get_bitmask_sspp = dpu_hw_ctl_get_bitmask_sspp;
 	ops->get_bitmask_mixer = dpu_hw_ctl_get_bitmask_mixer;
-	ops->get_bitmask_intf = dpu_hw_ctl_get_bitmask_intf;
-};
-
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
+	ops->get_bitmask_dspp = dpu_hw_ctl_get_bitmask_dspp;
+	if (cap & BIT(DPU_CTL_FETCH_ACTIVE))
+		ops->set_active_pipes = dpu_hw_ctl_set_fetch_pipe_active;
 };
 
 struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_ctl *c;
-	struct dpu_ctl_cfg *cfg;
-	int rc;
+	const struct dpu_ctl_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -504,23 +613,10 @@ struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 	c->mixer_count = m->mixer_count;
 	c->mixer_hw_caps = m->mixer;
 
-	rc = dpu_hw_blk_init(&c->base, DPU_HW_BLK_CTL, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
-
 	return c;
-
-blk_init_error:
-	kzfree(c);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_ctl_destroy(struct dpu_hw_ctl *ctx)
 {
-	if (ctx)
-		dpu_hw_blk_destroy(&ctx->base);
 	kfree(ctx);
 }

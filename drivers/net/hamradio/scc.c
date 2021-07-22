@@ -7,7 +7,7 @@
  *            ------------------
  *
  * You can find a subset of the documentation in 
- * Documentation/networking/z8530drv.txt.
+ * Documentation/networking/device_drivers/hamradio/z8530drv.rst.
  */
 
 /*
@@ -1192,18 +1192,18 @@ static void t_tail(struct timer_list *t)
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags); 
- 	del_timer(&scc->tx_wdog);	
- 	scc_key_trx(scc, TX_OFF);
+	del_timer(&scc->tx_wdog);
+	scc_key_trx(scc, TX_OFF);
 	spin_unlock_irqrestore(&scc->lock, flags);
 
- 	if (scc->stat.tx_state == TXS_TIMEOUT)		/* we had a timeout? */
- 	{
- 		scc->stat.tx_state = TXS_WAIT;
+	if (scc->stat.tx_state == TXS_TIMEOUT)		/* we had a timeout? */
+	{
+		scc->stat.tx_state = TXS_WAIT;
 		scc_start_tx_timer(scc, t_dwait, scc->kiss.mintime*100);
- 		return;
- 	}
- 	
- 	scc->stat.tx_state = TXS_IDLE;
+		return;
+	}
+
+	scc->stat.tx_state = TXS_IDLE;
 	netif_wake_queue(scc->dev);
 }
 
@@ -1580,7 +1580,7 @@ static int scc_net_open(struct net_device *dev)
 {
 	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 
- 	if (!scc->init)
+	if (!scc->init)
 		return -EINVAL;
 
 	scc->tx_buff = NULL;
@@ -2167,7 +2167,6 @@ static void __exit scc_cleanup_driver(void)
 
 MODULE_AUTHOR("Joerg Reuter <jreuter@yaina.de>");
 MODULE_DESCRIPTION("AX.25 Device Driver for Z8530 based HDLC cards");
-MODULE_SUPPORTED_DEVICE("Z8530 based SCC cards for Amateur Radio");
 MODULE_LICENSE("GPL");
 module_init(scc_init_driver);
 module_exit(scc_cleanup_driver);

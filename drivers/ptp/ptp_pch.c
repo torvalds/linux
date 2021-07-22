@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PTP 1588 clock using the EG20T PCH
  *
@@ -5,19 +6,6 @@
  * Copyright (C) 2011-2012 LAPIS SEMICONDUCTOR Co., LTD.
  *
  * This code was derived from the IXP46X driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/device.h>
@@ -30,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_pch.h>
 #include <linux/slab.h>
 
 #define STATION_ADDR_LEN	20
@@ -48,7 +37,8 @@ enum pch_status {
 	PCH_FAILED,
 	PCH_UNSUPPORTED,
 };
-/**
+
+/*
  * struct pch_ts_regs - IEEE 1588 registers
  */
 struct pch_ts_regs {
@@ -114,7 +104,8 @@ struct pch_ts_regs {
 
 #define PCH_IEEE1588_ETH	(1 << 0)
 #define PCH_IEEE1588_CAN	(1 << 1)
-/**
+
+/*
  * struct pch_dev - Driver private data
  */
 struct pch_dev {
@@ -131,7 +122,7 @@ struct pch_dev {
 	spinlock_t register_lock;
 };
 
-/**
+/*
  * struct pch_params - 1588 module parameter
  */
 struct pch_params {
@@ -190,17 +181,6 @@ static inline void pch_block_reset(struct pch_dev *chip)
 	val = val & ~PCH_TSC_RESET;
 	iowrite32(val, (&chip->regs->control));
 }
-
-u32 pch_ch_control_read(struct pci_dev *pdev)
-{
-	struct pch_dev *chip = pci_get_drvdata(pdev);
-	u32 val;
-
-	val = ioread32(&chip->regs->ch_control);
-
-	return val;
-}
-EXPORT_SYMBOL(pch_ch_control_read);
 
 void pch_ch_control_write(struct pci_dev *pdev, u32 val)
 {
@@ -308,6 +288,7 @@ static void pch_reset(struct pch_dev *chip)
  *				    IEEE 1588 hardware when looking at PTP
  *				    traffic on the  ethernet interface
  * @addr:	dress which contain the column separated address to be used.
+ * @pdev:	PCI device.
  */
 int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 {
@@ -520,40 +501,8 @@ static const struct ptp_clock_info ptp_pch_caps = {
 	.enable		= ptp_pch_enable,
 };
 
-
-#ifdef CONFIG_PM
-static s32 pch_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	pci_disable_device(pdev);
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-
-	if (pci_save_state(pdev) != 0) {
-		dev_err(&pdev->dev, "could not save PCI config state\n");
-		return -ENOMEM;
-	}
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return 0;
-}
-
-static s32 pch_resume(struct pci_dev *pdev)
-{
-	s32 ret;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_enable_device failed\n");
-		return ret;
-	}
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	return 0;
-}
-#else
 #define pch_suspend NULL
 #define pch_resume NULL
-#endif
 
 static void pch_remove(struct pci_dev *pdev)
 {
@@ -696,13 +645,14 @@ static const struct pci_device_id pch_ieee1588_pcidev_id[] = {
 	{0}
 };
 
+static SIMPLE_DEV_PM_OPS(pch_pm_ops, pch_suspend, pch_resume);
+
 static struct pci_driver pch_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_ieee1588_pcidev_id,
 	.probe = pch_probe,
 	.remove = pch_remove,
-	.suspend = pch_suspend,
-	.resume = pch_resume,
+	.driver.pm = &pch_pm_ops,
 };
 
 static void __exit ptp_pch_exit(void)

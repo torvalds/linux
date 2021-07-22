@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Omnivision OV9650/OV9652 CMOS Image Sensor driver
  *
@@ -6,10 +7,6 @@
  * Register definitions and initial settings based on a driver written
  * by Vladimir Fonov.
  * Copyright (c) 2010, Vladimir Fonov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -45,8 +42,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
  * OV9650/OV9652 register definitions
  */
 #define REG_GAIN		0x00	/* Gain control, AGC[7:0] */
-#define REG_BLUE		0x01	/* AWB - Blue chanel gain */
-#define REG_RED			0x02	/* AWB - Red chanel gain */
+#define REG_BLUE		0x01	/* AWB - Blue channel gain */
+#define REG_RED			0x02	/* AWB - Red channel gain */
 #define REG_VREF		0x03	/* [7:6] - AGC[9:8], [5:3]/[2:0] */
 #define  VREF_GAIN_MASK		0xc0	/* - VREF end/start low 3 bits */
 #define REG_COM1		0x04
@@ -706,6 +703,11 @@ static int ov965x_set_gain(struct ov965x *ov965x, int auto_gain)
 		for (m = 6; m >= 0; m--)
 			if (gain >= (1 << m) * 16)
 				break;
+
+		/* Sanity check: don't adjust the gain with a negative value */
+		if (m < 0)
+			return -EINVAL;
+
 		rgain = (gain - ((1 << m) * 16)) / (1 << m);
 		rgain |= (((1 << m) - 1) << 4);
 
@@ -1068,7 +1070,7 @@ static void ov965x_get_default_format(struct v4l2_mbus_framefmt *mf)
 }
 
 static int ov965x_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(ov965x_formats))
@@ -1079,7 +1081,7 @@ static int ov965x_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov965x_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	int i = ARRAY_SIZE(ov965x_formats);
@@ -1165,14 +1167,14 @@ static int ov965x_s_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int ov965x_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct ov965x *ov965x = to_ov965x(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1210,7 +1212,7 @@ static void __ov965x_try_frame_size(struct v4l2_mbus_framefmt *mf,
 }
 
 static int ov965x_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	unsigned int index = ARRAY_SIZE(ov965x_formats);
@@ -1232,8 +1234,9 @@ static int ov965x_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov965x->lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (cfg) {
-			mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		if (sd_state) {
+			mf = v4l2_subdev_get_try_format(sd, sd_state,
+							fmt->pad);
 			*mf = fmt->format;
 		}
 	} else {
@@ -1362,7 +1365,7 @@ static int ov965x_s_stream(struct v4l2_subdev *sd, int on)
 static int ov965x_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	ov965x_get_default_format(mf);
 	return 0;
@@ -1477,8 +1480,8 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 		if (ov965x->id == OV9650_ID || ov965x->id == OV9652_ID) {
 			v4l2_info(sd, "Found OV%04X sensor\n", ov965x->id);
 		} else {
-			v4l2_err(sd, "Sensor detection failed (%04X, %d)\n",
-				 ov965x->id, ret);
+			v4l2_err(sd, "Sensor detection failed (%04X)\n",
+				 ov965x->id);
 			ret = -ENODEV;
 		}
 	}
@@ -1488,8 +1491,7 @@ out:
 	return ret;
 }
 
-static int ov965x_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov965x_probe(struct i2c_client *client)
 {
 	const struct ov9650_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_subdev *sd;
@@ -1616,7 +1618,7 @@ static struct i2c_driver ov965x_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ov965x_of_match),
 	},
-	.probe		= ov965x_probe,
+	.probe_new	= ov965x_probe,
 	.remove		= ov965x_remove,
 	.id_table	= ov965x_id,
 };

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (c) 2013, Intel Corporation.
+ *
  * MEI Library for mei bus nfc device access
- *
- * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -110,8 +98,6 @@ static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 	size_t if_version_length;
 	int bytes_recv, r;
 
-	pr_info("%s\n", __func__);
-
 	memset(&cmd, 0, sizeof(struct mei_nfc_cmd));
 	cmd.hdr.cmd = MEI_NFC_CMD_MAINTENANCE;
 	cmd.hdr.data_size = 1;
@@ -157,8 +143,6 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 	struct mei_nfc_connect_resp *connect_resp;
 	size_t connect_length, connect_resp_length;
 	int bytes_recv, r;
-
-	pr_info("%s\n", __func__);
 
 	connect_length = sizeof(struct mei_nfc_cmd) +
 			sizeof(struct mei_nfc_connect);
@@ -332,8 +316,6 @@ static int nfc_mei_phy_enable(void *phy_id)
 	int r;
 	struct nfc_mei_phy *phy = phy_id;
 
-	pr_info("%s\n", __func__);
-
 	if (phy->powered == 1)
 		return 0;
 
@@ -374,8 +356,6 @@ err:
 static void nfc_mei_phy_disable(void *phy_id)
 {
 	struct nfc_mei_phy *phy = phy_id;
-
-	pr_info("%s\n", __func__);
 
 	mei_cldev_disable(phy->cldev);
 

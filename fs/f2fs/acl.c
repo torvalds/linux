@@ -29,6 +29,7 @@ static inline size_t f2fs_acl_size(int count)
 static inline int f2fs_acl_count(size_t size)
 {
 	ssize_t s;
+
 	size -= sizeof(struct f2fs_acl_header);
 	s = size - 4 * sizeof(struct f2fs_acl_entry_short);
 	if (s < 0) {
@@ -200,6 +201,27 @@ struct posix_acl *f2fs_get_acl(struct inode *inode, int type)
 	return __f2fs_get_acl(inode, type, NULL);
 }
 
+static int f2fs_acl_update_mode(struct inode *inode, umode_t *mode_p,
+			  struct posix_acl **acl)
+{
+	umode_t mode = inode->i_mode;
+	int error;
+
+	if (is_inode_flag_set(inode, FI_ACL_MODE))
+		mode = F2FS_I(inode)->i_acl_mode;
+
+	error = posix_acl_equiv_mode(*acl, &mode);
+	if (error < 0)
+		return error;
+	if (error == 0)
+		*acl = NULL;
+	if (!in_group_p(i_gid_into_mnt(&init_user_ns, inode)) &&
+	    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID))
+		mode &= ~S_ISGID;
+	*mode_p = mode;
+	return 0;
+}
+
 static int __f2fs_set_acl(struct inode *inode, int type,
 			struct posix_acl *acl, struct page *ipage)
 {
@@ -213,7 +235,7 @@ static int __f2fs_set_acl(struct inode *inode, int type,
 	case ACL_TYPE_ACCESS:
 		name_index = F2FS_XATTR_INDEX_POSIX_ACL_ACCESS;
 		if (acl && !ipage) {
-			error = posix_acl_update_mode(inode, &mode, &acl);
+			error = f2fs_acl_update_mode(inode, &mode, &acl);
 			if (error)
 				return error;
 			set_acl_inode(inode, mode);
@@ -248,7 +270,8 @@ static int __f2fs_set_acl(struct inode *inode, int type,
 	return error;
 }
 
-int f2fs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int f2fs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
@@ -285,7 +308,7 @@ static int f2fs_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 	/* assert(atomic_read(acl->a_refcount) == 1); */
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
-		switch(pa->e_tag) {
+		switch (pa->e_tag) {
 		case ACL_USER_OBJ:
 			pa->e_perm &= (mode >> 6) | ~S_IRWXO;
 			mode &= (pa->e_perm << 6) | ~S_IRWXU;
@@ -326,7 +349,7 @@ static int f2fs_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 	}
 
 	*mode_p = (*mode_p & ~S_IRWXUGO) | mode;
-        return not_equiv;
+	return not_equiv;
 }
 
 static int f2fs_acl_create(struct inode *dir, umode_t *mode,
@@ -352,12 +375,14 @@ static int f2fs_acl_create(struct inode *dir, umode_t *mode,
 		return PTR_ERR(p);
 
 	clone = f2fs_acl_clone(p, GFP_NOFS);
-	if (!clone)
-		goto no_mem;
+	if (!clone) {
+		ret = -ENOMEM;
+		goto release_acl;
+	}
 
 	ret = f2fs_acl_create_masq(clone, mode);
 	if (ret < 0)
-		goto no_mem_clone;
+		goto release_clone;
 
 	if (ret == 0)
 		posix_acl_release(clone);
@@ -371,18 +396,18 @@ static int f2fs_acl_create(struct inode *dir, umode_t *mode,
 
 	return 0;
 
-no_mem_clone:
+release_clone:
 	posix_acl_release(clone);
-no_mem:
+release_acl:
 	posix_acl_release(p);
-	return -ENOMEM;
+	return ret;
 }
 
 int f2fs_init_acl(struct inode *inode, struct inode *dir, struct page *ipage,
 							struct page *dpage)
 {
 	struct posix_acl *default_acl = NULL, *acl = NULL;
-	int error = 0;
+	int error;
 
 	error = f2fs_acl_create(dir, &inode->i_mode, &default_acl, &acl, dpage);
 	if (error)

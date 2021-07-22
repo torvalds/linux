@@ -99,7 +99,7 @@ static struct {
 } ivtv_stream_info[] = {
 	{	/* IVTV_ENC_STREAM_TYPE_MPG */
 		"encoder MPG",
-		VFL_TYPE_GRABBER, 0,
+		VFL_TYPE_VIDEO, 0,
 		PCI_DMA_FROMDEVICE, 0,
 		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
 			V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
@@ -107,7 +107,7 @@ static struct {
 	},
 	{	/* IVTV_ENC_STREAM_TYPE_YUV */
 		"encoder YUV",
-		VFL_TYPE_GRABBER, IVTV_V4L2_ENC_YUV_OFFSET,
+		VFL_TYPE_VIDEO, IVTV_V4L2_ENC_YUV_OFFSET,
 		PCI_DMA_FROMDEVICE, 0,
 		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
 			V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
@@ -123,7 +123,7 @@ static struct {
 	},
 	{	/* IVTV_ENC_STREAM_TYPE_PCM */
 		"encoder PCM",
-		VFL_TYPE_GRABBER, IVTV_V4L2_ENC_PCM_OFFSET,
+		VFL_TYPE_VIDEO, IVTV_V4L2_ENC_PCM_OFFSET,
 		PCI_DMA_FROMDEVICE, 0,
 		V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 		&ivtv_v4l2_enc_fops
@@ -137,10 +137,9 @@ static struct {
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_MPG */
 		"decoder MPG",
-		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_MPG_OFFSET,
+		VFL_TYPE_VIDEO, IVTV_V4L2_DEC_MPG_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 		&ivtv_v4l2_dec_fops
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_VBI */
@@ -159,10 +158,9 @@ static struct {
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_YUV */
 		"decoder YUV",
-		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_YUV_OFFSET,
+		VFL_TYPE_VIDEO, IVTV_V4L2_DEC_YUV_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 		&ivtv_v4l2_dec_fops
 	}
 };
@@ -301,6 +299,14 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 		if (s_mpg->vdev.v4l2_dev)
 			num = s_mpg->vdev.num + ivtv_stream_info[type].num_offset;
 	}
+	s->vdev.device_caps = s->caps;
+	if (itv->osd_video_pbase) {
+		itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps |=
+			V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps |=
+			V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->v4l2_cap |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+	}
 	video_set_drvdata(&s->vdev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
@@ -312,7 +318,7 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	name = video_device_node_name(&s->vdev);
 
 	switch (vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		IVTV_INFO("Registered device %s for %s (%d kB)\n",
 			name, s->name, itv->options.kilobytes[type]);
 		break;

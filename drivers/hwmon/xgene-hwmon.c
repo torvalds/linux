@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * APM X-Gene SoC Hardware Monitoring Driver
  *
  * Copyright (c) 2016, Applied Micro Circuits Corporation
  * Author: Loc Ho <lho@apm.com>
  *         Hoan Tran <hotran@apm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * This driver provides the following features:
  *  - Retrieve CPU total power (uW)
@@ -341,14 +329,14 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	temp = sign_extend32(val, TEMP_NEGATIVE_BIT);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", CELSIUS_TO_mCELSIUS(temp));
+	return sysfs_emit(buf, "%d\n", CELSIUS_TO_mCELSIUS(temp));
 }
 
 static ssize_t temp1_label_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "SoC Temperature\n");
+	return sysfs_emit(buf, "SoC Temperature\n");
 }
 
 static ssize_t temp1_critical_alarm_show(struct device *dev,
@@ -357,21 +345,21 @@ static ssize_t temp1_critical_alarm_show(struct device *dev,
 {
 	struct xgene_hwmon_dev *ctx = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ctx->temp_critical_alarm);
+	return sysfs_emit(buf, "%d\n", ctx->temp_critical_alarm);
 }
 
 static ssize_t power1_label_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "CPU power\n");
+	return sysfs_emit(buf, "CPU power\n");
 }
 
 static ssize_t power2_label_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "IO power\n");
+	return sysfs_emit(buf, "IO power\n");
 }
 
 static ssize_t power1_input_show(struct device *dev,
@@ -386,7 +374,7 @@ static ssize_t power1_input_show(struct device *dev,
 	if (rc < 0)
 		return rc;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mWATT_TO_uWATT(val));
+	return sysfs_emit(buf, "%u\n", mWATT_TO_uWATT(val));
 }
 
 static ssize_t power2_input_show(struct device *dev,
@@ -401,7 +389,7 @@ static ssize_t power2_input_show(struct device *dev,
 	if (rc < 0)
 		return rc;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mWATT_TO_uWATT(val));
+	return sysfs_emit(buf, "%u\n", mWATT_TO_uWATT(val));
 }
 
 static DEVICE_ATTR_RO(temp1_label);
@@ -796,7 +784,7 @@ static const struct of_device_id xgene_hwmon_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xgene_hwmon_of_match);
 
-static struct platform_driver xgene_hwmon_driver __refdata = {
+static struct platform_driver xgene_hwmon_driver = {
 	.probe = xgene_hwmon_probe,
 	.remove = xgene_hwmon_remove,
 	.driver = {

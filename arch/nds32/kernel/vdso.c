@@ -130,7 +130,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	vdso_mapping_len += L1_cache_info[DCACHE].aliasing_num - 1;
 #endif
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	addr = vdso_random_addr(vdso_mapping_len);
@@ -185,12 +185,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		goto up_fail;
 	}
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return 0;
 
 up_fail:
 	mm->context.vdso = NULL;
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 
@@ -220,6 +220,7 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->xtime_coarse_sec = tk->xtime_sec;
 	vdso_data->xtime_coarse_nsec = tk->tkr_mono.xtime_nsec >>
 	    tk->tkr_mono.shift;
+	vdso_data->hrtimer_res = hrtimer_resolution;
 	vdso_write_end(vdso_data);
 }
 

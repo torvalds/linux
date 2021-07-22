@@ -7,6 +7,12 @@
 
 #include <linux/tracepoint.h>
 
+#ifdef CONFIG_RCU_TRACE
+#define TRACE_EVENT_RCU TRACE_EVENT
+#else
+#define TRACE_EVENT_RCU TRACE_EVENT_NOP
+#endif
+
 /*
  * Tracepoint for start/end markers used for utilization calculations.
  * By convention, the string is of the following forms:
@@ -35,16 +41,14 @@ TRACE_EVENT(rcu_utilization,
 	TP_printk("%s", __entry->s)
 );
 
-#ifdef CONFIG_RCU_TRACE
-
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
+#if defined(CONFIG_TREE_RCU)
 
 /*
  * Tracepoint for grace-period events.  Takes a string identifying the
  * RCU flavor, the grace-period number, and a string identifying the
  * grace-period-related event as follows:
  *
- *	"AccReadyCB": CPU acclerates new callbacks to RCU_NEXT_READY_TAIL.
+ *	"AccReadyCB": CPU accelerates new callbacks to RCU_NEXT_READY_TAIL.
  *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
  *	"newreq": Request a new grace period.
  *	"start": Start a grace period.
@@ -62,7 +66,7 @@ TRACE_EVENT(rcu_utilization,
  *	"end": End a grace period.
  *	"cpuend": CPU first notices a grace-period end.
  */
-TRACE_EVENT(rcu_grace_period,
+TRACE_EVENT_RCU(rcu_grace_period,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq, const char *gpevent),
 
@@ -70,17 +74,17 @@ TRACE_EVENT(rcu_grace_period,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(const char *, gpevent)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->gpevent = gpevent;
 	),
 
-	TP_printk("%s %lu %s",
+	TP_printk("%s %ld %s",
 		  __entry->rcuname, __entry->gp_seq, __entry->gpevent)
 );
 
@@ -89,19 +93,18 @@ TRACE_EVENT(rcu_grace_period,
  * the data from the rcu_node structure, other than rcuname, which comes
  * from the rcu_state structure, and event, which is one of the following:
  *
- * "Startleaf": Request a grace period based on leaf-node data.
+ * "Cleanup": Clean up rcu_node structure after previous GP.
+ * "CleanupMore": Clean up, and another GP is needed.
+ * "EndWait": Complete wait.
+ * "NoGPkthread": The RCU grace-period kthread has not yet started.
  * "Prestarted": Someone beat us to the request
  * "Startedleaf": Leaf node marked for future GP.
  * "Startedleafroot": All nodes from leaf to root marked for future GP.
  * "Startedroot": Requested a nocb grace period based on root-node data.
- * "NoGPkthread": The RCU grace-period kthread has not yet started.
+ * "Startleaf": Request a grace period based on leaf-node data.
  * "StartWait": Start waiting for the requested grace period.
- * "ResumeWait": Resume waiting after signal.
- * "EndWait": Complete wait.
- * "Cleanup": Clean up rcu_node structure after previous GP.
- * "CleanupMore": Clean up, and another GP is needed.
  */
-TRACE_EVENT(rcu_future_grace_period,
+TRACE_EVENT_RCU(rcu_future_grace_period,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq,
 		 unsigned long gp_seq_req, u8 level, int grplo, int grphi,
@@ -111,8 +114,8 @@ TRACE_EVENT(rcu_future_grace_period,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
-		__field(unsigned long, gp_seq_req)
+		__field(long, gp_seq)
+		__field(long, gp_seq_req)
 		__field(u8, level)
 		__field(int, grplo)
 		__field(int, grphi)
@@ -121,16 +124,16 @@ TRACE_EVENT(rcu_future_grace_period,
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
-		__entry->gp_seq_req = gp_seq_req;
+		__entry->gp_seq = (long)gp_seq;
+		__entry->gp_seq_req = (long)gp_seq_req;
 		__entry->level = level;
 		__entry->grplo = grplo;
 		__entry->grphi = grphi;
 		__entry->gpevent = gpevent;
 	),
 
-	TP_printk("%s %lu %lu %u %d %d %s",
-		  __entry->rcuname, __entry->gp_seq, __entry->gp_seq_req, __entry->level,
+	TP_printk("%s %ld %ld %u %d %d %s",
+		  __entry->rcuname, (long)__entry->gp_seq, (long)__entry->gp_seq_req, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->gpevent)
 );
 
@@ -141,7 +144,7 @@ TRACE_EVENT(rcu_future_grace_period,
  * rcu_node structure, and the mask of CPUs that will be waited for.
  * All but the type of RCU are extracted from the rcu_node structure.
  */
-TRACE_EVENT(rcu_grace_period_init,
+TRACE_EVENT_RCU(rcu_grace_period_init,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq, u8 level,
 		 int grplo, int grphi, unsigned long qsmask),
@@ -150,7 +153,7 @@ TRACE_EVENT(rcu_grace_period_init,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(u8, level)
 		__field(int, grplo)
 		__field(int, grphi)
@@ -159,14 +162,14 @@ TRACE_EVENT(rcu_grace_period_init,
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->level = level;
 		__entry->grplo = grplo;
 		__entry->grphi = grphi;
 		__entry->qsmask = qsmask;
 	),
 
-	TP_printk("%s %lu %u %d %d %lx",
+	TP_printk("%s %ld %u %d %d %lx",
 		  __entry->rcuname, __entry->gp_seq, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->qsmask)
 );
@@ -186,7 +189,7 @@ TRACE_EVENT(rcu_grace_period_init,
  *	"endwake": Woke piggybackers up.
  *	"done": Someone else did the expedited grace period for us.
  */
-TRACE_EVENT(rcu_exp_grace_period,
+TRACE_EVENT_RCU(rcu_exp_grace_period,
 
 	TP_PROTO(const char *rcuname, unsigned long gpseq, const char *gpevent),
 
@@ -194,17 +197,17 @@ TRACE_EVENT(rcu_exp_grace_period,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gpseq)
+		__field(long, gpseq)
 		__field(const char *, gpevent)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gpseq = gpseq;
+		__entry->gpseq = (long)gpseq;
 		__entry->gpevent = gpevent;
 	),
 
-	TP_printk("%s %lu %s",
+	TP_printk("%s %ld %s",
 		  __entry->rcuname, __entry->gpseq, __entry->gpevent)
 );
 
@@ -218,7 +221,7 @@ TRACE_EVENT(rcu_exp_grace_period,
  *	"nxtlvl": Advance to next level of rcu_node funnel
  *	"wait": Wait for someone else to do expedited GP
  */
-TRACE_EVENT(rcu_exp_funnel_lock,
+TRACE_EVENT_RCU(rcu_exp_funnel_lock,
 
 	TP_PROTO(const char *rcuname, u8 level, int grplo, int grphi,
 		 const char *gpevent),
@@ -255,21 +258,30 @@ TRACE_EVENT(rcu_exp_funnel_lock,
  * the number of the offloaded CPU are extracted.  The third and final
  * argument is a string as follows:
  *
- *	"WakeEmpty": Wake rcuo kthread, first CB to empty list.
- *	"WakeEmptyIsDeferred": Wake rcuo kthread later, first CB to empty list.
- *	"WakeOvf": Wake rcuo kthread, CB list is huge.
- *	"WakeOvfIsDeferred": Wake rcuo kthread later, CB list is huge.
- *	"WakeNot": Don't wake rcuo kthread.
- *	"WakeNotPoll": Don't wake rcuo kthread because it is polling.
- *	"DeferredWake": Carried out the "IsDeferred" wakeup.
- *	"Poll": Start of new polling cycle for rcu_nocb_poll.
- *	"Sleep": Sleep waiting for CBs for !rcu_nocb_poll.
- *	"WokeEmpty": rcuo kthread woke to find empty list.
- *	"WokeNonEmpty": rcuo kthread woke to find non-empty list.
- *	"WaitQueue": Enqueue partially done, timed wait for it to complete.
- *	"WokeQueue": Partial enqueue now complete.
+ * "AlreadyAwake": The to-be-awakened rcuo kthread is already awake.
+ * "Bypass": rcuo GP kthread sees non-empty ->nocb_bypass.
+ * "CBSleep": rcuo CB kthread sleeping waiting for CBs.
+ * "Check": rcuo GP kthread checking specified CPU for work.
+ * "DeferredWake": Timer expired or polled check, time to wake.
+ * "DoWake": The to-be-awakened rcuo kthread needs to be awakened.
+ * "EndSleep": Done waiting for GP for !rcu_nocb_poll.
+ * "FirstBQ": New CB to empty ->nocb_bypass (->cblist maybe non-empty).
+ * "FirstBQnoWake": FirstBQ plus rcuo kthread need not be awakened.
+ * "FirstBQwake": FirstBQ plus rcuo kthread must be awakened.
+ * "FirstQ": New CB to empty ->cblist (->nocb_bypass maybe non-empty).
+ * "NeedWaitGP": rcuo GP kthread must wait on a grace period.
+ * "Poll": Start of new polling cycle for rcu_nocb_poll.
+ * "Sleep": Sleep waiting for GP for !rcu_nocb_poll.
+ * "Timer": Deferred-wake timer expired.
+ * "WakeEmptyIsDeferred": Wake rcuo kthread later, first CB to empty list.
+ * "WakeEmpty": Wake rcuo kthread, first CB to empty list.
+ * "WakeNot": Don't wake rcuo kthread.
+ * "WakeNotPoll": Don't wake rcuo kthread because it is polling.
+ * "WakeOvfIsDeferred": Wake rcuo kthread later, CB list is huge.
+ * "WakeBypassIsDeferred": Wake rcuo kthread later, bypass list is contended.
+ * "WokeEmpty": rcuo CB kthread woke to find empty list.
  */
-TRACE_EVENT(rcu_nocb_wake,
+TRACE_EVENT_RCU(rcu_nocb_wake,
 
 	TP_PROTO(const char *rcuname, int cpu, const char *reason),
 
@@ -297,7 +309,7 @@ TRACE_EVENT(rcu_nocb_wake,
  * include SRCU), the grace-period number that the task is blocking
  * (the current or the next), and the task's PID.
  */
-TRACE_EVENT(rcu_preempt_task,
+TRACE_EVENT_RCU(rcu_preempt_task,
 
 	TP_PROTO(const char *rcuname, int pid, unsigned long gp_seq),
 
@@ -305,17 +317,17 @@ TRACE_EVENT(rcu_preempt_task,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(int, pid)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->pid = pid;
 	),
 
-	TP_printk("%s %lu %d",
+	TP_printk("%s %ld %d",
 		  __entry->rcuname, __entry->gp_seq, __entry->pid)
 );
 
@@ -324,7 +336,7 @@ TRACE_EVENT(rcu_preempt_task,
  * read-side critical section exiting that critical section.  Track the
  * type of RCU (which one day might include SRCU) and the task's PID.
  */
-TRACE_EVENT(rcu_unlock_preempted_task,
+TRACE_EVENT_RCU(rcu_unlock_preempted_task,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq, int pid),
 
@@ -332,17 +344,17 @@ TRACE_EVENT(rcu_unlock_preempted_task,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(int, pid)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->pid = pid;
 	),
 
-	TP_printk("%s %lu %d", __entry->rcuname, __entry->gp_seq, __entry->pid)
+	TP_printk("%s %ld %d", __entry->rcuname, __entry->gp_seq, __entry->pid)
 );
 
 /*
@@ -353,7 +365,7 @@ TRACE_EVENT(rcu_unlock_preempted_task,
  * whether there are any blocked tasks blocking the current grace period.
  * All but the type of RCU are extracted from the rcu_node structure.
  */
-TRACE_EVENT(rcu_quiescent_state_report,
+TRACE_EVENT_RCU(rcu_quiescent_state_report,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq,
 		 unsigned long mask, unsigned long qsmask,
@@ -363,7 +375,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(unsigned long, mask)
 		__field(unsigned long, qsmask)
 		__field(u8, level)
@@ -374,7 +386,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->mask = mask;
 		__entry->qsmask = qsmask;
 		__entry->level = level;
@@ -383,7 +395,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
 		__entry->gp_tasks = gp_tasks;
 	),
 
-	TP_printk("%s %lu %lx>%lx %u %d %d %u",
+	TP_printk("%s %ld %lx>%lx %u %d %d %u",
 		  __entry->rcuname, __entry->gp_seq,
 		  __entry->mask, __entry->qsmask, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->gp_tasks)
@@ -396,7 +408,7 @@ TRACE_EVENT(rcu_quiescent_state_report,
  * state, which can be "dti" for dyntick-idle mode or "kick" when kicking
  * a CPU that has been in dyntick-idle mode for too long.
  */
-TRACE_EVENT(rcu_fqs,
+TRACE_EVENT_RCU(rcu_fqs,
 
 	TP_PROTO(const char *rcuname, unsigned long gp_seq, int cpu, const char *qsevent),
 
@@ -404,31 +416,60 @@ TRACE_EVENT(rcu_fqs,
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(unsigned long, gp_seq)
+		__field(long, gp_seq)
 		__field(int, cpu)
 		__field(const char *, qsevent)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->gp_seq = gp_seq;
+		__entry->gp_seq = (long)gp_seq;
 		__entry->cpu = cpu;
 		__entry->qsevent = qsevent;
 	),
 
-	TP_printk("%s %lu %d %s",
+	TP_printk("%s %ld %d %s",
 		  __entry->rcuname, __entry->gp_seq,
 		  __entry->cpu, __entry->qsevent)
 );
 
-#endif /* #if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU) */
+/*
+ * Tracepoint for RCU stall events. Takes a string identifying the RCU flavor
+ * and a string identifying which function detected the RCU stall as follows:
+ *
+ *	"StallDetected": Scheduler-tick detects other CPU's stalls.
+ *	"SelfDetected": Scheduler-tick detects a current CPU's stall.
+ *	"ExpeditedStall": Expedited grace period detects stalls.
+ */
+TRACE_EVENT(rcu_stall_warning,
+
+	TP_PROTO(const char *rcuname, const char *msg),
+
+	TP_ARGS(rcuname, msg),
+
+	TP_STRUCT__entry(
+		__field(const char *, rcuname)
+		__field(const char *, msg)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->msg = msg;
+	),
+
+	TP_printk("%s %s",
+		  __entry->rcuname, __entry->msg)
+);
+
+#endif /* #if defined(CONFIG_TREE_RCU) */
 
 /*
- * Tracepoint for dyntick-idle entry/exit events.  These take a string
- * as argument: "Start" for entering dyntick-idle mode, "Startirq" for
- * entering it from irq/NMI, "End" for leaving it, "Endirq" for leaving it
- * to irq/NMI, "--=" for events moving towards idle, and "++=" for events
- * moving away from idle.
+ * Tracepoint for dyntick-idle entry/exit events.  These take 2 strings
+ * as argument:
+ * polarity: "Start", "End", "StillNonIdle" for entering, exiting or still not
+ *            being in dyntick-idle mode.
+ * context: "USER" or "IDLE" or "IRQ".
+ * NMIs nested in IRQs are inferred with dynticks_nesting > 1 in IRQ context.
  *
  * These events also take a pair of numbers, which indicate the nesting
  * depth before and after the event of interest, and a third number that is
@@ -436,9 +477,9 @@ TRACE_EVENT(rcu_fqs,
  * events use two separate counters, and that the "++=" and "--=" events
  * for irq/NMI will change the counter by two, otherwise by one.
  */
-TRACE_EVENT(rcu_dyntick,
+TRACE_EVENT_RCU(rcu_dyntick,
 
-	TP_PROTO(const char *polarity, long oldnesting, long newnesting, atomic_t dynticks),
+	TP_PROTO(const char *polarity, long oldnesting, long newnesting, int dynticks),
 
 	TP_ARGS(polarity, oldnesting, newnesting, dynticks),
 
@@ -453,7 +494,7 @@ TRACE_EVENT(rcu_dyntick,
 		__entry->polarity = polarity;
 		__entry->oldnesting = oldnesting;
 		__entry->newnesting = newnesting;
-		__entry->dynticks = atomic_read(&dynticks);
+		__entry->dynticks = dynticks;
 	),
 
 	TP_printk("%s %lx %lx %#3x", __entry->polarity,
@@ -468,18 +509,16 @@ TRACE_EVENT(rcu_dyntick,
  * number of lazy callbacks queued, and the fourth element is the
  * total number of callbacks queued.
  */
-TRACE_EVENT(rcu_callback,
+TRACE_EVENT_RCU(rcu_callback,
 
-	TP_PROTO(const char *rcuname, struct rcu_head *rhp, long qlen_lazy,
-		 long qlen),
+	TP_PROTO(const char *rcuname, struct rcu_head *rhp, long qlen),
 
-	TP_ARGS(rcuname, rhp, qlen_lazy, qlen),
+	TP_ARGS(rcuname, rhp, qlen),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(void *, func)
-		__field(long, qlen_lazy)
 		__field(long, qlen)
 	),
 
@@ -487,35 +526,59 @@ TRACE_EVENT(rcu_callback,
 		__entry->rcuname = rcuname;
 		__entry->rhp = rhp;
 		__entry->func = rhp->func;
-		__entry->qlen_lazy = qlen_lazy;
 		__entry->qlen = qlen;
 	),
 
-	TP_printk("%s rhp=%p func=%pf %ld/%ld",
+	TP_printk("%s rhp=%p func=%ps %ld",
 		  __entry->rcuname, __entry->rhp, __entry->func,
-		  __entry->qlen_lazy, __entry->qlen)
+		  __entry->qlen)
+);
+
+TRACE_EVENT_RCU(rcu_segcb_stats,
+
+		TP_PROTO(struct rcu_segcblist *rs, const char *ctx),
+
+		TP_ARGS(rs, ctx),
+
+		TP_STRUCT__entry(
+			__field(const char *, ctx)
+			__array(unsigned long, gp_seq, RCU_CBLIST_NSEGS)
+			__array(long, seglen, RCU_CBLIST_NSEGS)
+		),
+
+		TP_fast_assign(
+			__entry->ctx = ctx;
+			memcpy(__entry->seglen, rs->seglen, RCU_CBLIST_NSEGS * sizeof(long));
+			memcpy(__entry->gp_seq, rs->gp_seq, RCU_CBLIST_NSEGS * sizeof(unsigned long));
+
+		),
+
+		TP_printk("%s seglen: (DONE=%ld, WAIT=%ld, NEXT_READY=%ld, NEXT=%ld) "
+			  "gp_seq: (DONE=%lu, WAIT=%lu, NEXT_READY=%lu, NEXT=%lu)", __entry->ctx,
+			  __entry->seglen[0], __entry->seglen[1], __entry->seglen[2], __entry->seglen[3],
+			  __entry->gp_seq[0], __entry->gp_seq[1], __entry->gp_seq[2], __entry->gp_seq[3])
+
 );
 
 /*
  * Tracepoint for the registration of a single RCU callback of the special
- * kfree() form.  The first argument is the RCU type, the second argument
+ * kvfree() form.  The first argument is the RCU type, the second argument
  * is a pointer to the RCU callback, the third argument is the offset
  * of the callback within the enclosing RCU-protected data structure,
  * the fourth argument is the number of lazy callbacks queued, and the
  * fifth argument is the total number of callbacks queued.
  */
-TRACE_EVENT(rcu_kfree_callback,
+TRACE_EVENT_RCU(rcu_kvfree_callback,
 
 	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset,
-		 long qlen_lazy, long qlen),
+		 long qlen),
 
-	TP_ARGS(rcuname, rhp, offset, qlen_lazy, qlen),
+	TP_ARGS(rcuname, rhp, offset, qlen),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
 		__field(void *, rhp)
 		__field(unsigned long, offset)
-		__field(long, qlen_lazy)
 		__field(long, qlen)
 	),
 
@@ -523,13 +586,12 @@ TRACE_EVENT(rcu_kfree_callback,
 		__entry->rcuname = rcuname;
 		__entry->rhp = rhp;
 		__entry->offset = offset;
-		__entry->qlen_lazy = qlen_lazy;
 		__entry->qlen = qlen;
 	),
 
-	TP_printk("%s rhp=%p func=%ld %ld/%ld",
+	TP_printk("%s rhp=%p func=%ld %ld",
 		  __entry->rcuname, __entry->rhp, __entry->offset,
-		  __entry->qlen_lazy, __entry->qlen)
+		  __entry->qlen)
 );
 
 /*
@@ -539,29 +601,26 @@ TRACE_EVENT(rcu_kfree_callback,
  * the total number of callbacks queued, and the fourth argument is
  * the current RCU-callback batch limit.
  */
-TRACE_EVENT(rcu_batch_start,
+TRACE_EVENT_RCU(rcu_batch_start,
 
-	TP_PROTO(const char *rcuname, long qlen_lazy, long qlen, long blimit),
+	TP_PROTO(const char *rcuname, long qlen, long blimit),
 
-	TP_ARGS(rcuname, qlen_lazy, qlen, blimit),
+	TP_ARGS(rcuname, qlen, blimit),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
-		__field(long, qlen_lazy)
 		__field(long, qlen)
 		__field(long, blimit)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
-		__entry->qlen_lazy = qlen_lazy;
 		__entry->qlen = qlen;
 		__entry->blimit = blimit;
 	),
 
-	TP_printk("%s CBs=%ld/%ld bl=%ld",
-		  __entry->rcuname, __entry->qlen_lazy, __entry->qlen,
-		  __entry->blimit)
+	TP_printk("%s CBs=%ld bl=%ld",
+		  __entry->rcuname, __entry->qlen, __entry->blimit)
 );
 
 /*
@@ -569,7 +628,7 @@ TRACE_EVENT(rcu_batch_start,
  * The first argument is the type of RCU, and the second argument is
  * a pointer to the RCU callback itself.
  */
-TRACE_EVENT(rcu_invoke_callback,
+TRACE_EVENT_RCU(rcu_invoke_callback,
 
 	TP_PROTO(const char *rcuname, struct rcu_head *rhp),
 
@@ -587,18 +646,18 @@ TRACE_EVENT(rcu_invoke_callback,
 		__entry->func = rhp->func;
 	),
 
-	TP_printk("%s rhp=%p func=%pf",
+	TP_printk("%s rhp=%p func=%ps",
 		  __entry->rcuname, __entry->rhp, __entry->func)
 );
 
 /*
  * Tracepoint for the invocation of a single RCU callback of the special
- * kfree() form.  The first argument is the RCU flavor, the second
+ * kvfree() form.  The first argument is the RCU flavor, the second
  * argument is a pointer to the RCU callback, and the third argument
  * is the offset of the callback within the enclosing RCU-protected
  * data structure.
  */
-TRACE_EVENT(rcu_invoke_kfree_callback,
+TRACE_EVENT_RCU(rcu_invoke_kvfree_callback,
 
 	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset),
 
@@ -621,6 +680,34 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
 );
 
 /*
+ * Tracepoint for the invocation of a single RCU callback of the special
+ * kfree_bulk() form. The first argument is the RCU flavor, the second
+ * argument is a number of elements in array to free, the third is an
+ * address of the array holding nr_records entries.
+ */
+TRACE_EVENT_RCU(rcu_invoke_kfree_bulk_callback,
+
+	TP_PROTO(const char *rcuname, unsigned long nr_records, void **p),
+
+	TP_ARGS(rcuname, nr_records, p),
+
+	TP_STRUCT__entry(
+		__field(const char *, rcuname)
+		__field(unsigned long, nr_records)
+		__field(void **, p)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->nr_records = nr_records;
+		__entry->p = p;
+	),
+
+	TP_printk("%s bulk=0x%p nr_records=%lu",
+		__entry->rcuname, __entry->p, __entry->nr_records)
+);
+
+/*
  * Tracepoint for exiting rcu_do_batch after RCU callbacks have been
  * invoked.  The first argument is the name of the RCU flavor,
  * the second argument is number of callbacks actually invoked,
@@ -631,7 +718,7 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
  * and the sixth argument (risk) is the return value from
  * rcu_is_callbacks_kthread().
  */
-TRACE_EVENT(rcu_batch_end,
+TRACE_EVENT_RCU(rcu_batch_end,
 
 	TP_PROTO(const char *rcuname, int callbacks_invoked,
 		 char cb, char nr, char iit, char risk),
@@ -673,7 +760,7 @@ TRACE_EVENT(rcu_batch_end,
  * callback address can be NULL.
  */
 #define RCUTORTURENAME_LEN 8
-TRACE_EVENT(rcu_torture_read,
+TRACE_EVENT_RCU(rcu_torture_read,
 
 	TP_PROTO(const char *rcutorturename, struct rcu_head *rhp,
 		 unsigned long secs, unsigned long c_old, unsigned long c),
@@ -709,8 +796,7 @@ TRACE_EVENT(rcu_torture_read,
  *	"Begin": rcu_barrier() started.
  *	"EarlyExit": rcu_barrier() piggybacked, thus early exit.
  *	"Inc1": rcu_barrier() piggyback check counter incremented.
- *	"OfflineNoCB": rcu_barrier() found callback on never-online CPU
- *	"OnlineNoCB": rcu_barrier() found online no-CBs CPU.
+ *	"OfflineNoCBQ": rcu_barrier() found offline no-CBs CPU with callbacks.
  *	"OnlineQ": rcu_barrier() found online CPU with callbacks.
  *	"OnlineNQ": rcu_barrier() found online CPU, no callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.
@@ -721,7 +807,7 @@ TRACE_EVENT(rcu_torture_read,
  * The "cpu" argument is the CPU or -1 if meaningless, the "cnt" argument
  * is the count of remaining callbacks, and "done" is the piggybacking count.
  */
-TRACE_EVENT(rcu_barrier,
+TRACE_EVENT_RCU(rcu_barrier,
 
 	TP_PROTO(const char *rcuname, const char *s, int cpu, int cnt, unsigned long done),
 
@@ -747,41 +833,6 @@ TRACE_EVENT(rcu_barrier,
 		  __entry->rcuname, __entry->s, __entry->cpu, __entry->cnt,
 		  __entry->done)
 );
-
-#else /* #ifdef CONFIG_RCU_TRACE */
-
-#define trace_rcu_grace_period(rcuname, gp_seq, gpevent) do { } while (0)
-#define trace_rcu_future_grace_period(rcuname, gp_seq, gp_seq_req, \
-				      level, grplo, grphi, event) \
-				      do { } while (0)
-#define trace_rcu_grace_period_init(rcuname, gp_seq, level, grplo, grphi, \
-				    qsmask) do { } while (0)
-#define trace_rcu_exp_grace_period(rcuname, gqseq, gpevent) \
-	do { } while (0)
-#define trace_rcu_exp_funnel_lock(rcuname, level, grplo, grphi, gpevent) \
-	do { } while (0)
-#define trace_rcu_nocb_wake(rcuname, cpu, reason) do { } while (0)
-#define trace_rcu_preempt_task(rcuname, pid, gp_seq) do { } while (0)
-#define trace_rcu_unlock_preempted_task(rcuname, gp_seq, pid) do { } while (0)
-#define trace_rcu_quiescent_state_report(rcuname, gp_seq, mask, qsmask, level, \
-					 grplo, grphi, gp_tasks) do { } \
-	while (0)
-#define trace_rcu_fqs(rcuname, gp_seq, cpu, qsevent) do { } while (0)
-#define trace_rcu_dyntick(polarity, oldnesting, newnesting, dyntick) do { } while (0)
-#define trace_rcu_callback(rcuname, rhp, qlen_lazy, qlen) do { } while (0)
-#define trace_rcu_kfree_callback(rcuname, rhp, offset, qlen_lazy, qlen) \
-	do { } while (0)
-#define trace_rcu_batch_start(rcuname, qlen_lazy, qlen, blimit) \
-	do { } while (0)
-#define trace_rcu_invoke_callback(rcuname, rhp) do { } while (0)
-#define trace_rcu_invoke_kfree_callback(rcuname, rhp, offset) do { } while (0)
-#define trace_rcu_batch_end(rcuname, callbacks_invoked, cb, nr, iit, risk) \
-	do { } while (0)
-#define trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
-	do { } while (0)
-#define trace_rcu_barrier(name, s, cpu, cnt, done) do { } while (0)
-
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 #endif /* _TRACE_RCU_H */
 

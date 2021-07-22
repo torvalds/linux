@@ -12,19 +12,37 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
-#include <linux/llist.h>
+#include <linux/smp_types.h>
 
 typedef void (*smp_call_func_t)(void *info);
+typedef bool (*smp_cond_func_t)(int cpu, void *info);
+
+/*
+ * structure shares (partial) layout with struct irq_work
+ */
 struct __call_single_data {
-	struct llist_node llist;
+	struct __call_single_node node;
 	smp_call_func_t func;
 	void *info;
-	unsigned int flags;
 };
+
+#define CSD_INIT(_func, _info) \
+	(struct __call_single_data){ .func = (_func), .info = (_info), }
 
 /* Use __aligned() to avoid to use 2 cache lines for 1 csd */
 typedef struct __call_single_data call_single_data_t
 	__aligned(sizeof(struct __call_single_data));
+
+#define INIT_CSD(_csd, _func, _info)		\
+do {						\
+	*(_csd) = CSD_INIT((_func), (_info));	\
+} while (0)
+
+/*
+ * Enqueue a llist_node on the call_single_queue; be very careful, read
+ * flush_smp_call_function_queue() in detail.
+ */
+extern void __smp_call_single_queue(int cpu, struct llist_node *node);
 
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
@@ -32,32 +50,60 @@ extern unsigned int total_cpus;
 int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
 			     int wait);
 
+void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
+			   void *info, bool wait, const struct cpumask *mask);
+
+int smp_call_function_single_async(int cpu, struct __call_single_data *csd);
+
+/*
+ * Cpus stopping functions in panic. All have default weak definitions.
+ * Architecture-dependent code may override them.
+ */
+void panic_smp_self_stop(void);
+void nmi_panic_self_stop(struct pt_regs *regs);
+void crash_smp_send_stop(void);
+
 /*
  * Call a function on all processors
  */
-int on_each_cpu(smp_call_func_t func, void *info, int wait);
+static inline void on_each_cpu(smp_call_func_t func, void *info, int wait)
+{
+	on_each_cpu_cond_mask(NULL, func, info, wait, cpu_online_mask);
+}
 
-/*
- * Call a function on processors specified by mask, which might include
- * the local one.
+/**
+ * on_each_cpu_mask(): Run a function on processors specified by
+ * cpumask, which may include the local processor.
+ * @mask: The set of cpus to run on (only runs on online subset).
+ * @func: The function to run. This must be fast and non-blocking.
+ * @info: An arbitrary pointer to pass to the function.
+ * @wait: If true, wait (atomically) until function has completed
+ *        on other CPUs.
+ *
+ * If @wait is true, then returns once @func has returned.
+ *
+ * You must not call this function with disabled interrupts or from a
+ * hardware interrupt handler or from a bottom half handler.  The
+ * exception is that it may be used during early boot while
+ * early_boot_irqs_disabled is set.
  */
-void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
-		void *info, bool wait);
+static inline void on_each_cpu_mask(const struct cpumask *mask,
+				    smp_call_func_t func, void *info, bool wait)
+{
+	on_each_cpu_cond_mask(NULL, func, info, wait, mask);
+}
 
 /*
  * Call a function on each processor for which the supplied function
  * cond_func returns a positive value. This may include the local
- * processor.
+ * processor.  May be used during early boot while early_boot_irqs_disabled is
+ * set. Use local_irq_save/restore() instead of local_irq_disable/enable().
  */
-void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
-		smp_call_func_t func, void *info, bool wait,
-		gfp_t gfp_flags);
-
-void on_each_cpu_cond_mask(bool (*cond_func)(int cpu, void *info),
-		smp_call_func_t func, void *info, bool wait,
-		gfp_t gfp_flags, const struct cpumask *mask);
-
-int smp_call_function_single_async(int cpu, call_single_data_t *csd);
+static inline void on_each_cpu_cond(smp_cond_func_t cond_func,
+				    smp_call_func_t func, void *info, bool wait)
+{
+	on_each_cpu_cond_mask(cond_func, func, info, wait, cpu_online_mask);
+}
 
 #ifdef CONFIG_SMP
 
@@ -101,7 +147,7 @@ extern void smp_cpus_done(unsigned int max_cpus);
 /*
  * Call a function on all other processors
  */
-int smp_call_function(smp_call_func_t func, void *info, int wait);
+void smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
 			    smp_call_func_t func, void *info, bool wait);
 
@@ -144,9 +190,8 @@ static inline void smp_send_stop(void) { }
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-static inline int up_smp_call_function(smp_call_func_t func, void *info)
+static inline void up_smp_call_function(smp_call_func_t func, void *info)
 {
-	return 0;
 }
 #define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
@@ -181,29 +226,46 @@ static inline int get_boot_cpu_id(void)
 
 #endif /* !SMP */
 
-/*
- * smp_processor_id(): get the current CPU ID.
+/**
+ * raw_processor_id() - get the current (unstable) CPU id
  *
- * if DEBUG_PREEMPT is enabled then we check whether it is
- * used in a preemption-safe way. (smp_processor_id() is safe
- * if it's used in a preemption-off critical section, or in
- * a thread that is bound to the current CPU.)
- *
- * NOTE: raw_smp_processor_id() is for internal use only
- * (smp_processor_id() is the preferred variant), but in rare
- * instances it might also be used to turn off false positives
- * (i.e. smp_processor_id() use that the debugging code reports but
- * which use for some reason is legal). Don't use this to hack around
- * the warning message, as your code might not work under PREEMPT.
+ * For then you know what you are doing and need an unstable
+ * CPU id.
  */
+
+/**
+ * smp_processor_id() - get the current (stable) CPU id
+ *
+ * This is the normal accessor to the CPU id and should be used
+ * whenever possible.
+ *
+ * The CPU id is stable when:
+ *
+ *  - IRQs are disabled;
+ *  - preemption is disabled;
+ *  - the task is CPU affine.
+ *
+ * When CONFIG_DEBUG_PREEMPT; we verify these assumption and WARN
+ * when smp_processor_id() is used when the CPU id is not stable.
+ */
+
+/*
+ * Allow the architecture to differentiate between a stable and unstable read.
+ * For example, x86 uses an IRQ-safe asm-volatile read for the unstable but a
+ * regular asm read for the stable.
+ */
+#ifndef __smp_processor_id
+#define __smp_processor_id(x) raw_smp_processor_id(x)
+#endif
+
 #ifdef CONFIG_DEBUG_PREEMPT
   extern unsigned int debug_smp_processor_id(void);
 # define smp_processor_id() debug_smp_processor_id()
 #else
-# define smp_processor_id() raw_smp_processor_id()
+# define smp_processor_id() __smp_processor_id()
 #endif
 
-#define get_cpu()		({ preempt_disable(); smp_processor_id(); })
+#define get_cpu()		({ preempt_disable(); __smp_processor_id(); })
 #define put_cpu()		preempt_enable()
 
 /*
@@ -212,8 +274,8 @@ static inline int get_boot_cpu_id(void)
  */
 extern void arch_disable_smp_support(void);
 
-extern void arch_enable_nonboot_cpus_begin(void);
-extern void arch_enable_nonboot_cpus_end(void);
+extern void arch_thaw_secondary_cpus_begin(void);
+extern void arch_thaw_secondary_cpus_end(void);
 
 void smp_setup_processor_id(void);
 

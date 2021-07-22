@@ -42,7 +42,6 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <asm/pgtable.h>
 
 #ifdef CONFIG_ZORRO
 #include <linux/zorro.h>
@@ -532,7 +531,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 {
 	int yres;
 	/* memory size in pixels */
-	unsigned pixels = info->screen_size * 8 / var->bits_per_pixel;
+	unsigned int pixels;
 	struct cirrusfb_info *cinfo = info->par;
 
 	switch (var->bits_per_pixel) {
@@ -574,6 +573,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
+	pixels = info->screen_size * 8 / var->bits_per_pixel;
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 	/* use highest possible virtual resolution */
@@ -1477,11 +1477,11 @@ static void init_vgachip(struct fb_info *info)
 		mdelay(100);
 		/* mode */
 		vga_wgfx(cinfo->regbase, CL_GR31, 0x00);
-		/* fall through */
+		fallthrough;
 	case BT_GD5480:
 		/* from Klaus' NetBSD driver: */
 		vga_wgfx(cinfo->regbase, CL_GR2F, 0x00);
-		/* fall through */
+		fallthrough;
 	case BT_ALPINE:
 		/* put blitter into 542x compat */
 		vga_wgfx(cinfo->regbase, CL_GR33, 0x00);
@@ -1956,7 +1956,7 @@ static void cirrusfb_zorro_unmap(struct fb_info *info)
 #endif /* CONFIG_ZORRO */
 
 /* function table of the above functions */
-static struct fb_ops cirrusfb_ops = {
+static const struct fb_ops cirrusfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= cirrusfb_open,
 	.fb_release	= cirrusfb_release,
@@ -2093,7 +2093,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
 		ret = -ENOMEM;
 		goto err_out;
 	}
@@ -2206,10 +2205,8 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	struct cirrusfb_info *cinfo;
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &z->dev);
-	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	zcl = (const struct zorrocl *)ent->driver_data;
 	btype = zcl->type;
@@ -2466,8 +2463,6 @@ static void AttrOn(const struct cirrusfb_info *cinfo)
  */
 static void WHDR(const struct cirrusfb_info *cinfo, unsigned char val)
 {
-	unsigned char dummy;
-
 	if (is_laguna(cinfo))
 		return;
 	if (cinfo->btype == BT_PICASSO) {
@@ -2476,18 +2471,18 @@ static void WHDR(const struct cirrusfb_info *cinfo, unsigned char val)
 		WGen(cinfo, VGA_PEL_MSK, 0x00);
 		udelay(200);
 		/* next read dummy from pixel address (3c8) */
-		dummy = RGen(cinfo, VGA_PEL_IW);
+		RGen(cinfo, VGA_PEL_IW);
 		udelay(200);
 	}
 	/* now do the usual stuff to access the HDR */
 
-	dummy = RGen(cinfo, VGA_PEL_MSK);
+	RGen(cinfo, VGA_PEL_MSK);
 	udelay(200);
-	dummy = RGen(cinfo, VGA_PEL_MSK);
+	RGen(cinfo, VGA_PEL_MSK);
 	udelay(200);
-	dummy = RGen(cinfo, VGA_PEL_MSK);
+	RGen(cinfo, VGA_PEL_MSK);
 	udelay(200);
-	dummy = RGen(cinfo, VGA_PEL_MSK);
+	RGen(cinfo, VGA_PEL_MSK);
 	udelay(200);
 
 	WGen(cinfo, VGA_PEL_MSK, val);
@@ -2495,7 +2490,7 @@ static void WHDR(const struct cirrusfb_info *cinfo, unsigned char val)
 
 	if (cinfo->btype == BT_PICASSO) {
 		/* now first reset HDR access counter */
-		dummy = RGen(cinfo, VGA_PEL_IW);
+		RGen(cinfo, VGA_PEL_IW);
 		udelay(200);
 
 		/* and at the end, restore the mask value */
@@ -2803,9 +2798,9 @@ static void bestclock(long freq, int *nom, int *den, int *div)
 
 #ifdef CIRRUSFB_DEBUG
 
-/**
+/*
  * cirrusfb_dbg_print_regs
- * @base: If using newmmio, the newmmio base address, otherwise %NULL
+ * @regbase: If using newmmio, the newmmio base address, otherwise %NULL
  * @reg_class: type of registers to read: %CRT, or %SEQ
  *
  * DESCRIPTION:
@@ -2850,7 +2845,7 @@ static void cirrusfb_dbg_print_regs(struct fb_info *info,
 	va_end(list);
 }
 
-/**
+/*
  * cirrusfb_dbg_reg_dump
  * @base: If using newmmio, the newmmio base address, otherwise %NULL
  *

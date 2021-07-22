@@ -25,15 +25,23 @@
  *	Ben Widawsky <ben@bwidawsk.net>
  */
 
-/**
+/*
  * This is vgem, a (non-hardware-backed) GEM service.  This is used by Mesa's
  * software renderer and the X server for efficient buffer sharing.
  */
 
-#include <linux/module.h>
-#include <linux/ramfs.h>
-#include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_prime.h>
+
 #include "vgem_drv.h"
 
 #define DRIVER_NAME	"vgem"
@@ -41,6 +49,8 @@
 #define DRIVER_DATE	"20120112"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+
+static const struct drm_gem_object_funcs vgem_gem_object_funcs;
 
 static struct vgem_device {
 	struct drm_device drm;
@@ -159,6 +169,8 @@ static struct drm_vgem_gem_object *__vgem_gem_create(struct drm_device *dev,
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
+	obj->base.funcs = &vgem_gem_object_funcs;
+
 	ret = drm_gem_object_init(dev, &obj->base, roundup(size, PAGE_SIZE));
 	if (ret) {
 		kfree(obj);
@@ -189,15 +201,12 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	ret = drm_gem_handle_create(file, &obj->base, handle);
-	drm_gem_object_put_unlocked(&obj->base);
-	if (ret)
-		goto err;
+	if (ret) {
+		drm_gem_object_put(&obj->base);
+		return ERR_PTR(ret);
+	}
 
 	return &obj->base;
-
-err:
-	__vgem_gem_destroy(obj);
-	return ERR_PTR(ret);
 }
 
 static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
@@ -218,40 +227,16 @@ static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_object->size;
 	args->pitch = pitch;
 
-	DRM_DEBUG_DRIVER("Created object of size %lld\n", size);
+	drm_gem_object_put(gem_object);
+
+	DRM_DEBUG("Created object of size %llu\n", args->size);
 
 	return 0;
 }
 
-static int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
-			     uint32_t handle, uint64_t *offset)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = drm_gem_object_lookup(file, handle);
-	if (!obj)
-		return -ENOENT;
-
-	if (!obj->filp) {
-		ret = -EINVAL;
-		goto unref;
-	}
-
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto unref;
-
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-unref:
-	drm_gem_object_put_unlocked(obj);
-
-	return ret;
-}
-
 static struct drm_ioctl_desc vgem_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(VGEM_FENCE_ATTACH, vgem_fence_attach_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(VGEM_FENCE_SIGNAL, vgem_fence_signal_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_ATTACH, vgem_fence_attach_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_SIGNAL, vgem_fence_signal_ioctl, DRM_RENDER_ALLOW),
 };
 
 static int vgem_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -340,7 +325,7 @@ static struct sg_table *vgem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 
-	return drm_prime_pages_to_sg(bo->pages, bo->base.size >> PAGE_SHIFT);
+	return drm_prime_pages_to_sg(obj->dev, bo->pages, bo->base.size >> PAGE_SHIFT);
 }
 
 static struct drm_gem_object* vgem_prime_import(struct drm_device *dev,
@@ -371,29 +356,34 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 	}
 
 	obj->pages_pin_count++; /* perma-pinned */
-	drm_prime_sg_to_page_addr_arrays(obj->table, obj->pages, NULL,
-					npages);
+	drm_prime_sg_to_page_array(obj->table, obj->pages, npages);
 	return &obj->base;
 }
 
-static void *vgem_prime_vmap(struct drm_gem_object *obj)
+static int vgem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
+	void *vaddr;
 
 	pages = vgem_pin_pages(bo);
 	if (IS_ERR(pages))
-		return NULL;
+		return PTR_ERR(pages);
 
-	return vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	vaddr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void vgem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+static void vgem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 	vgem_unpin_pages(bo);
 }
 
@@ -412,48 +402,37 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	if (ret)
 		return ret;
 
-	fput(vma->vm_file);
-	vma->vm_file = get_file(obj->filp);
+	vma_set_file(vma, obj->filp);
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 
 	return 0;
 }
 
-static void vgem_release(struct drm_device *dev)
-{
-	struct vgem_device *vgem = container_of(dev, typeof(*vgem), drm);
+static const struct drm_gem_object_funcs vgem_gem_object_funcs = {
+	.free = vgem_gem_free_object,
+	.pin = vgem_prime_pin,
+	.unpin = vgem_prime_unpin,
+	.get_sg_table = vgem_prime_get_sg_table,
+	.vmap = vgem_prime_vmap,
+	.vunmap = vgem_prime_vunmap,
+	.vm_ops = &vgem_gem_vm_ops,
+};
 
-	platform_device_unregister(vgem->platform);
-	drm_dev_fini(&vgem->drm);
-
-	kfree(vgem);
-}
-
-static struct drm_driver vgem_driver = {
-	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
-	.release			= vgem_release,
+static const struct drm_driver vgem_driver = {
+	.driver_features		= DRIVER_GEM | DRIVER_RENDER,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,
-	.gem_free_object_unlocked	= vgem_gem_free_object,
-	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
 	.num_ioctls 			= ARRAY_SIZE(vgem_ioctls),
 	.fops				= &vgem_driver_fops,
 
 	.dumb_create			= vgem_gem_dumb_create,
-	.dumb_map_offset		= vgem_gem_dumb_map,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_pin = vgem_prime_pin,
-	.gem_prime_unpin = vgem_prime_unpin,
 	.gem_prime_import = vgem_prime_import,
-	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import_sg_table = vgem_prime_import_sg_table,
-	.gem_prime_get_sg_table = vgem_prime_get_sg_table,
-	.gem_prime_vmap = vgem_prime_vmap,
-	.gem_prime_vunmap = vgem_prime_vunmap,
 	.gem_prime_mmap = vgem_prime_mmap,
 
 	.name	= DRIVER_NAME,
@@ -466,45 +445,49 @@ static struct drm_driver vgem_driver = {
 static int __init vgem_init(void)
 {
 	int ret;
+	struct platform_device *pdev;
 
-	vgem_device = kzalloc(sizeof(*vgem_device), GFP_KERNEL);
-	if (!vgem_device)
-		return -ENOMEM;
+	pdev = platform_device_register_simple("vgem", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
-	ret = drm_dev_init(&vgem_device->drm, &vgem_driver, NULL);
-	if (ret)
-		goto out_free;
-
-	vgem_device->platform =
-		platform_device_register_simple("vgem", -1, NULL, 0);
-	if (IS_ERR(vgem_device->platform)) {
-		ret = PTR_ERR(vgem_device->platform);
-		goto out_fini;
+	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto out_unregister;
 	}
 
-	dma_coerce_mask_and_coherent(&vgem_device->platform->dev,
+	dma_coerce_mask_and_coherent(&pdev->dev,
 				     DMA_BIT_MASK(64));
 
+	vgem_device = devm_drm_dev_alloc(&pdev->dev, &vgem_driver,
+					 struct vgem_device, drm);
+	if (IS_ERR(vgem_device)) {
+		ret = PTR_ERR(vgem_device);
+		goto out_devres;
+	}
+	vgem_device->platform = pdev;
+
 	/* Final step: expose the device/driver to userspace */
-	ret  = drm_dev_register(&vgem_device->drm, 0);
+	ret = drm_dev_register(&vgem_device->drm, 0);
 	if (ret)
-		goto out_unregister;
+		goto out_devres;
 
 	return 0;
 
+out_devres:
+	devres_release_group(&pdev->dev, NULL);
 out_unregister:
-	platform_device_unregister(vgem_device->platform);
-out_fini:
-	drm_dev_fini(&vgem_device->drm);
-out_free:
-	kfree(vgem_device);
+	platform_device_unregister(pdev);
 	return ret;
 }
 
 static void __exit vgem_exit(void)
 {
+	struct platform_device *pdev = vgem_device->platform;
+
 	drm_dev_unregister(&vgem_device->drm);
-	drm_dev_put(&vgem_device->drm);
+	devres_release_group(&pdev->dev, NULL);
+	platform_device_unregister(pdev);
 }
 
 module_init(vgem_init);

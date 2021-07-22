@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Register interface file for EXYNOS FIMC-LITE (camera interface) driver
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/bitops.h>
@@ -275,9 +272,9 @@ void flite_hw_set_dma_buffer(struct fimc_lite *dev, struct flite_buffer *buf)
 		index = buf->index;
 
 	if (index == 0)
-		writel(buf->paddr, dev->regs + FLITE_REG_CIOSA);
+		writel(buf->addr, dev->regs + FLITE_REG_CIOSA);
 	else
-		writel(buf->paddr, dev->regs + FLITE_REG_CIOSAN(index - 1));
+		writel(buf->addr, dev->regs + FLITE_REG_CIOSAN(index - 1));
 
 	cfg = readl(dev->regs + FLITE_REG_CIFCNTSEQ);
 	cfg |= BIT(index);

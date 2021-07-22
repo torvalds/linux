@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * compat ioctls for control API
  *
  *   Copyright (c) by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /* this file included from control.c */
@@ -35,24 +22,22 @@ struct snd_ctl_elem_list32 {
 static int snd_ctl_elem_list_compat(struct snd_card *card,
 				    struct snd_ctl_elem_list32 __user *data32)
 {
-	struct snd_ctl_elem_list __user *data;
+	struct snd_ctl_elem_list data = {};
 	compat_caddr_t ptr;
 	int err;
 
-	data = compat_alloc_user_space(sizeof(*data));
-
 	/* offset, space, used, count */
-	if (copy_in_user(data, data32, 4 * sizeof(u32)))
+	if (copy_from_user(&data, data32, 4 * sizeof(u32)))
 		return -EFAULT;
 	/* pids */
-	if (get_user(ptr, &data32->pids) ||
-	    put_user(compat_ptr(ptr), &data->pids))
+	if (get_user(ptr, &data32->pids))
 		return -EFAULT;
-	err = snd_ctl_elem_list(card, data);
+	data.pids = compat_ptr(ptr);
+	err = snd_ctl_elem_list(card, &data);
 	if (err < 0)
 		return err;
 	/* copy the result */
-	if (copy_in_user(data32, data, 4 * sizeof(u32)))
+	if (copy_to_user(data32, &data, 4 * sizeof(u32)))
 		return -EFAULT;
 	return 0;
 }
@@ -111,9 +96,6 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	if (get_user(data->value.enumerated.item, &data32->value.enumerated.item))
 		goto error;
 
-	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
-	if (err < 0)
-		goto error;
 	err = snd_ctl_elem_info(ctl, data);
 	if (err < 0)
 		goto error;
@@ -202,7 +184,10 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 		return -ENOMEM;
 	}
 	info->id = *id;
-	err = kctl->info(kctl, info);
+	err = snd_power_ref_and_wait(card);
+	if (!err)
+		err = kctl->info(kctl, info);
+	snd_power_unref(card);
 	up_read(&card->controls_rwsem);
 	if (err >= 0) {
 		err = info->type;
@@ -236,7 +221,7 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 {
 	struct snd_ctl_elem_value32 __user *data32 = userdata;
 	int i, type, size;
-	int uninitialized_var(count);
+	int count;
 	unsigned int indirect;
 
 	if (copy_from_user(&data->id, &data32->id, sizeof(data->id)))
@@ -313,9 +298,6 @@ static int ctl_elem_read_user(struct snd_card *card,
 	if (err < 0)
 		goto error;
 
-	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err < 0)
-		goto error;
 	err = snd_ctl_elem_read(card, data);
 	if (err < 0)
 		goto error;
@@ -341,9 +323,6 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 	if (err < 0)
 		goto error;
 
-	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err < 0)
-		goto error;
 	err = snd_ctl_elem_write(card, file, data);
 	if (err < 0)
 		goto error;

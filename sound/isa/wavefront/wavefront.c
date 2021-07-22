@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ALSA card-level driver for Turtle Beach Wavefront cards 
  *						(Maui,Tropez,Tropez+)
  *
  *  Copyright (c) 1997-1999 by Paul Barton-Davis <pbd@op.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -34,7 +21,6 @@
 MODULE_AUTHOR("Paul Barton-Davis <pbd@op.net>");
 MODULE_DESCRIPTION("Turtle Beach Wavefront");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Turtle Beach,Maui/Tropez/Tropez+}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	    /* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	    /* ID for this card */
@@ -422,6 +408,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	}
 	
 	acard->wavefront.irq = ics2115_irq[dev];
+	card->sync_irq = acard->wavefront.irq;
 	acard->wavefront.base = ics2115_port[dev];
 
 	wavefront_synth = snd_wavefront_new_synth(card, hw_dev, acard);
@@ -568,7 +555,8 @@ static int snd_wavefront_isa_probe(struct device *pdev,
 	err = snd_wavefront_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	if ((err = snd_wavefront_probe(card, dev)) < 0) {
+	err = snd_wavefront_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -577,11 +565,10 @@ static int snd_wavefront_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int snd_wavefront_isa_remove(struct device *devptr,
+static void snd_wavefront_isa_remove(struct device *devptr,
 				    unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	return 0;
 }
 
 #define DEV_NAME "wavefront"
@@ -624,7 +611,8 @@ static int snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 		}
 	}
 
-	if ((res = snd_wavefront_probe(card, dev)) < 0)
+	res = snd_wavefront_probe(card, dev);
+	if (res < 0)
 		return res;
 
 	pnp_set_card_drvdata(pcard, card);

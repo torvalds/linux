@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/sound/soc/pxa/ttc_dkb.c
  *
  * Copyright (C) 2012 Marvell International Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -75,7 +61,7 @@ static const struct snd_soc_dapm_route ttc_audio_map[] = {
 
 static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 
 	/* Headset jack detection */
 	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE |
@@ -94,17 +80,19 @@ static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* ttc/td-dkb digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(i2s,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa-ssp-dai.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("88pm860x-codec", "88pm860x-i2s")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("mmp-pcm-audio")));
+
 static struct snd_soc_dai_link ttc_pm860x_hifi_dai[] = {
 {
 	 .name = "88pm860x i2s",
 	 .stream_name = "audio playback",
-	 .codec_name = "88pm860x-codec",
-	 .platform_name = "mmp-pcm-audio",
-	 .cpu_dai_name = "pxa-ssp-dai.1",
-	 .codec_dai_name = "88pm860x-i2s",
 	 .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBM_CFM,
 	 .init = ttc_pm860x_init,
+	 SND_SOC_DAILINK_REG(i2s),
 },
 };
 

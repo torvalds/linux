@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PC-Speaker driver for Linux
  *
@@ -21,7 +22,6 @@
 MODULE_AUTHOR("Stas Sergeev <stsp@users.sourceforge.net>");
 MODULE_DESCRIPTION("PC-Speaker driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{PC-Speaker, pcsp}}");
 MODULE_ALIAS("platform:pcspkr");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
@@ -42,7 +42,7 @@ struct snd_pcsp pcsp_chip;
 
 static int snd_pcsp_create(struct snd_card *card)
 {
-	static struct snd_device_ops ops = { };
+	static const struct snd_device_ops ops = { };
 	unsigned int resolution = hrtimer_resolution;
 	int err, div, min_div, order;
 
@@ -197,7 +197,6 @@ static int pcsp_suspend(struct device *dev)
 {
 	struct snd_pcsp *chip = dev_get_drvdata(dev);
 	pcsp_stop_beep(chip);
-	snd_pcm_suspend_all(chip->pcm);
 	return 0;
 }
 

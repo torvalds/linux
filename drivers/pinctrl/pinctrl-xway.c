@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/pinctrl/pinmux-xway.c
  *  based on linux/drivers/pinctrl/pinmux-pxa910.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  publishhed by the Free Software Foundation.
  *
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  *  Copyright (C) 2015 Martin Schiller <mschiller@tdt.de>
@@ -1708,12 +1705,10 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct pinctrl_xway_soc *xway_soc;
-	struct resource *res;
 	int ret, i;
 
 	/* get and remap our register range */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xway_info.membase[0] = devm_ioremap_resource(&pdev->dev, res);
+	xway_info.membase[0] = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xway_info.membase[0]))
 		return PTR_ERR(xway_info.membase[0]);
 
@@ -1734,25 +1729,15 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < xway_chip.ngpio; i++) {
-		/* strlen("ioXY") + 1 = 5 */
-		char *name = devm_kzalloc(&pdev->dev, 5, GFP_KERNEL);
+		char *name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "io%d", i);
 
 		if (!name)
 			return -ENOMEM;
 
-		snprintf(name, 5, "io%d", i);
 		xway_info.pads[i].number = GPIO0 + i;
 		xway_info.pads[i].name = name;
 	}
 	xway_pctrl_desc.pins = xway_info.pads;
-
-	/* register the gpio chip */
-	xway_chip.parent = &pdev->dev;
-	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register gpio chip\n");
-		return ret;
-	}
 
 	/* setup the data needed by pinctrl */
 	xway_pctrl_desc.name	= dev_name(&pdev->dev);
@@ -1775,10 +1760,33 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* finish with registering the gpio range in pinctrl */
-	xway_gpio_range.npins = xway_chip.ngpio;
-	xway_gpio_range.base = xway_chip.base;
-	pinctrl_add_gpio_range(xway_info.pctrl, &xway_gpio_range);
+	/* register the gpio chip */
+	xway_chip.parent = &pdev->dev;
+	xway_chip.owner = THIS_MODULE;
+	xway_chip.of_node = pdev->dev.of_node;
+	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register gpio chip\n");
+		return ret;
+	}
+
+	/*
+	 * For DeviceTree-supported systems, the gpio core checks the
+	 * pinctrl's device node for the "gpio-ranges" property.
+	 * If it is present, it takes care of adding the pin ranges
+	 * for the driver. In this case the driver can skip ahead.
+	 *
+	 * In order to remain compatible with older, existing DeviceTree
+	 * files which don't set the "gpio-ranges" property or systems that
+	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
+	 */
+	if (!of_property_read_bool(pdev->dev.of_node, "gpio-ranges")) {
+		/* finish with registering the gpio range in pinctrl */
+		xway_gpio_range.npins = xway_chip.ngpio;
+		xway_gpio_range.base = xway_chip.base;
+		pinctrl_add_gpio_range(xway_info.pctrl, &xway_gpio_range);
+	}
+
 	dev_info(&pdev->dev, "Init done\n");
 	return 0;
 }

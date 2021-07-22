@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91rm9200ek.dts - Device Tree file for Atmel AT91RM9200 evaluation kit
  *
  *  Copyright (C) 2012 Joachim Eastwood <manabian@gmail.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91rm9200.dtsi"
@@ -16,7 +15,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 

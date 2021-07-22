@@ -14,6 +14,7 @@ struct device;
 #define SYS_POWER_OFF	0x0003	/* Notify of system power off */
 
 enum reboot_mode {
+	REBOOT_UNDEFINED = -1,
 	REBOOT_COLD = 0,
 	REBOOT_WARM,
 	REBOOT_HARD,
@@ -21,6 +22,7 @@ enum reboot_mode {
 	REBOOT_GPIO,
 };
 extern enum reboot_mode reboot_mode;
+extern enum reboot_mode panic_reboot_mode;
 
 enum reboot_type {
 	BOOT_TRIPLE	= 't',
@@ -77,6 +79,7 @@ extern char poweroff_cmd[POWEROFF_CMD_PATH_LEN];
 
 extern void orderly_poweroff(bool force);
 extern void orderly_reboot(void);
+void hw_protection_shutdown(const char *reason, int ms_until_forced);
 
 /*
  * Emergency restart, callable from an interrupt handler.

@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,bcm4708.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM4708 device tree bindings
+
+description:
+  Broadcom BCM4708/47081/4709/47094/53012 Wi-Fi/network SoCs based
+  on the iProc architecture (Northstar).
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Hauke Mehrtens <hauke@hauke-m.de>
+  - Rafal Milecki <zajec5@gmail.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: BCM4708 based boards
+        items:
+          - enum:
+              - asus,rt-ac56u
+              - asus,rt-ac68u
+              - buffalo,wzr-1750dhp
+              - linksys,ea6300-v1
+              - linksys,ea6500-v2
+              - luxul,xap-1510v1
+              - luxul,xwc-1000
+              - netgear,r6250v1
+              - netgear,r6300v2
+              - smartrg,sr400ac
+              - brcm,bcm94708
+          - const: brcm,bcm4708
+
+      - description: BCM47081 based boards
+        items:
+          - enum:
+              - asus,rt-n18u
+              - buffalo,wzr-600dhp2
+              - buffalo,wzr-900dhp
+              - luxul,xap-1410v1
+              - luxul,xwr-1200v1
+              - tplink,archer-c5-v2
+          - const: brcm,bcm47081
+          - const: brcm,bcm4708
+
+      - description: BCM4709 based boards
+        items:
+          - enum:
+              - asus,rt-ac87u
+              - buffalo,wxr-1900dhp
+              - linksys,ea9200
+              - netgear,r7000
+              - netgear,r8000
+              - tplink,archer-c9-v1
+              - brcm,bcm94709
+          - const: brcm,bcm4709
+          - const: brcm,bcm4708
+
+      - description: BCM47094 based boards
+        items:
+          - enum:
+              - dlink,dir-885l
+              - linksys,panamera
+              - luxul,abr-4500-v1
+              - luxul,xap-1610-v1
+              - luxul,xbr-4500-v1
+              - luxul,xwc-2000-v1
+              - luxul,xwr-3100v1
+              - luxul,xwr-3150-v1
+              - netgear,r8500
+              - phicomm,k3
+          - const: brcm,bcm47094
+          - const: brcm,bcm4708
+
+      - description: BCM53012 based boards
+        items:
+          - enum:
+              - brcm,bcm953012er
+              - brcm,bcm953012hr
+              - brcm,bcm953012k
+              - meraki,mr32
+          - const: brcm,brcm53012
+          - const: brcm,brcm53016
+          - const: brcm,bcm4708
+
+additionalProperties: true
+
+...

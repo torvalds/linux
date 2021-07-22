@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for voltage controller regulators
  *
  * Copyright (C) 2017 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -19,9 +11,12 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/regulator/coupler.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/sort.h>
+
+#include "internal.h"
 
 struct vctrl_voltage_range {
 	int min_uV;
@@ -87,7 +82,7 @@ static int vctrl_calc_output_voltage(struct vctrl_data *vctrl, int ctrl_uV)
 static int vctrl_get_voltage(struct regulator_dev *rdev)
 {
 	struct vctrl_data *vctrl = rdev_get_drvdata(rdev);
-	int ctrl_uV = regulator_get_voltage(vctrl->ctrl_reg);
+	int ctrl_uV = regulator_get_voltage_rdev(vctrl->ctrl_reg->rdev);
 
 	return vctrl_calc_output_voltage(vctrl, ctrl_uV);
 }
@@ -98,16 +93,16 @@ static int vctrl_set_voltage(struct regulator_dev *rdev,
 {
 	struct vctrl_data *vctrl = rdev_get_drvdata(rdev);
 	struct regulator *ctrl_reg = vctrl->ctrl_reg;
-	int orig_ctrl_uV = regulator_get_voltage(ctrl_reg);
+	int orig_ctrl_uV = regulator_get_voltage_rdev(ctrl_reg->rdev);
 	int uV = vctrl_calc_output_voltage(vctrl, orig_ctrl_uV);
 	int ret;
 
 	if (req_min_uV >= uV || !vctrl->ovp_threshold)
 		/* voltage rising or no OVP */
-		return regulator_set_voltage(
-			ctrl_reg,
+		return regulator_set_voltage_rdev(ctrl_reg->rdev,
 			vctrl_calc_ctrl_voltage(vctrl, req_min_uV),
-			vctrl_calc_ctrl_voltage(vctrl, req_max_uV));
+			vctrl_calc_ctrl_voltage(vctrl, req_max_uV),
+			PM_SUSPEND_ON);
 
 	while (uV > req_min_uV) {
 		int max_drop_uV = (uV * vctrl->ovp_threshold) / 100;
@@ -122,9 +117,10 @@ static int vctrl_set_voltage(struct regulator_dev *rdev,
 		next_uV = max_t(int, req_min_uV, uV - max_drop_uV);
 		next_ctrl_uV = vctrl_calc_ctrl_voltage(vctrl, next_uV);
 
-		ret = regulator_set_voltage(ctrl_reg,
+		ret = regulator_set_voltage_rdev(ctrl_reg->rdev,
 					    next_ctrl_uV,
-					    next_ctrl_uV);
+					    next_ctrl_uV,
+					    PM_SUSPEND_ON);
 		if (ret)
 			goto err;
 
@@ -138,7 +134,8 @@ static int vctrl_set_voltage(struct regulator_dev *rdev,
 
 err:
 	/* Try to go back to original voltage */
-	regulator_set_voltage(ctrl_reg, orig_ctrl_uV, orig_ctrl_uV);
+	regulator_set_voltage_rdev(ctrl_reg->rdev, orig_ctrl_uV, orig_ctrl_uV,
+				   PM_SUSPEND_ON);
 
 	return ret;
 }
@@ -163,9 +160,10 @@ static int vctrl_set_voltage_sel(struct regulator_dev *rdev,
 
 	if (selector >= vctrl->sel || !vctrl->ovp_threshold) {
 		/* voltage rising or no OVP */
-		ret = regulator_set_voltage(ctrl_reg,
+		ret = regulator_set_voltage_rdev(ctrl_reg->rdev,
 					    vctrl->vtable[selector].ctrl,
-					    vctrl->vtable[selector].ctrl);
+					    vctrl->vtable[selector].ctrl,
+					    PM_SUSPEND_ON);
 		if (!ret)
 			vctrl->sel = selector;
 
@@ -181,9 +179,10 @@ static int vctrl_set_voltage_sel(struct regulator_dev *rdev,
 		else
 			next_sel = vctrl->vtable[vctrl->sel].ovp_min_sel;
 
-		ret = regulator_set_voltage(ctrl_reg,
+		ret = regulator_set_voltage_rdev(ctrl_reg->rdev,
 					    vctrl->vtable[next_sel].ctrl,
-					    vctrl->vtable[next_sel].ctrl);
+					    vctrl->vtable[next_sel].ctrl,
+					    PM_SUSPEND_ON);
 		if (ret) {
 			dev_err(&rdev->dev,
 				"failed to set control voltage to %duV\n",
@@ -203,9 +202,10 @@ static int vctrl_set_voltage_sel(struct regulator_dev *rdev,
 err:
 	if (vctrl->sel != orig_sel) {
 		/* Try to go back to original voltage */
-		if (!regulator_set_voltage(ctrl_reg,
+		if (!regulator_set_voltage_rdev(ctrl_reg->rdev,
 					   vctrl->vtable[orig_sel].ctrl,
-					   vctrl->vtable[orig_sel].ctrl))
+					   vctrl->vtable[orig_sel].ctrl,
+					   PM_SUSPEND_ON))
 			vctrl->sel = orig_sel;
 		else
 			dev_warn(&rdev->dev,
@@ -334,10 +334,8 @@ static int vctrl_init_vtable(struct platform_device *pdev)
 		ctrl_uV = regulator_list_voltage(ctrl_reg, i);
 
 		if (ctrl_uV < vrange_ctrl->min_uV ||
-		    ctrl_uV > vrange_ctrl->max_uV) {
+		    ctrl_uV > vrange_ctrl->max_uV)
 			rdesc->n_voltages--;
-			continue;
-		}
 	}
 
 	if (rdesc->n_voltages == 0) {
@@ -492,7 +490,7 @@ static int vctrl_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		ctrl_uV = regulator_get_voltage(vctrl->ctrl_reg);
+		ctrl_uV = regulator_get_voltage_rdev(vctrl->ctrl_reg->rdev);
 		if (ctrl_uV < 0) {
 			dev_err(&pdev->dev, "failed to get control voltage\n");
 			return ctrl_uV;

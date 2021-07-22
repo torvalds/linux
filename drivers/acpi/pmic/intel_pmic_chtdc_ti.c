@@ -102,6 +102,7 @@ static struct intel_pmic_opregion_data chtdc_ti_pmic_opregion_data = {
 	.power_table_count = ARRAY_SIZE(chtdc_ti_power_table),
 	.thermal_table = chtdc_ti_thermal_table,
 	.thermal_table_count = ARRAY_SIZE(chtdc_ti_thermal_table),
+	.pmic_i2c_address = 0x5e,
 };
 
 static int chtdc_ti_pmic_opregion_probe(struct platform_device *pdev)
@@ -116,7 +117,7 @@ static int chtdc_ti_pmic_opregion_probe(struct platform_device *pdev)
 		return err;
 
 	/* Re-enumerate devices depending on PMIC */
-	acpi_walk_dep_device_list(ACPI_HANDLE(pdev->dev.parent));
+	acpi_dev_clear_dependencies(ACPI_COMPANION(pdev->dev.parent));
 	return 0;
 }
 

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -17,7 +9,6 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/vmalloc.h>
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/i2c.h>
@@ -108,16 +99,7 @@ static int go7007_snd_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	struct go7007 *go = snd_pcm_substream_chip(substream);
-	unsigned int bytes;
 
-	bytes = params_buffer_bytes(hw_params);
-	if (substream->runtime->dma_bytes > 0)
-		vfree(substream->runtime->dma_area);
-	substream->runtime->dma_bytes = 0;
-	substream->runtime->dma_area = vmalloc(bytes);
-	if (substream->runtime->dma_area == NULL)
-		return -ENOMEM;
-	substream->runtime->dma_bytes = bytes;
 	go->audio_deliver = parse_audio_stream_data;
 	return 0;
 }
@@ -127,9 +109,6 @@ static int go7007_snd_hw_free(struct snd_pcm_substream *substream)
 	struct go7007 *go = snd_pcm_substream_chip(substream);
 
 	go->audio_deliver = NULL;
-	if (substream->runtime->dma_bytes > 0)
-		vfree(substream->runtime->dma_area);
-	substream->runtime->dma_bytes = 0;
 	return 0;
 }
 
@@ -193,22 +172,14 @@ static snd_pcm_uframes_t go7007_snd_pcm_pointer(struct snd_pcm_substream *substr
 	return gosnd->hw_ptr;
 }
 
-static struct page *go7007_snd_pcm_page(struct snd_pcm_substream *substream,
-					unsigned long offset)
-{
-	return vmalloc_to_page(substream->runtime->dma_area + offset);
-}
-
 static const struct snd_pcm_ops go7007_snd_capture_ops = {
 	.open		= go7007_snd_capture_open,
 	.close		= go7007_snd_capture_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= go7007_snd_hw_params,
 	.hw_free	= go7007_snd_hw_free,
 	.prepare	= go7007_snd_pcm_prepare,
 	.trigger	= go7007_snd_pcm_trigger,
 	.pointer	= go7007_snd_pcm_pointer,
-	.page		= go7007_snd_pcm_page,
 };
 
 static int go7007_snd_free(struct snd_device *device)
@@ -244,37 +215,32 @@ int go7007_snd_init(struct go7007 *go)
 	gosnd->capturing = 0;
 	ret = snd_card_new(go->dev, index[dev], id[dev], THIS_MODULE, 0,
 			   &gosnd->card);
-	if (ret < 0) {
-		kfree(gosnd);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_snd;
+
 	ret = snd_device_new(gosnd->card, SNDRV_DEV_LOWLEVEL, go,
 			&go7007_snd_device_ops);
-	if (ret < 0) {
-		kfree(gosnd);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_card;
+
 	ret = snd_pcm_new(gosnd->card, "go7007", 0, 0, 1, &gosnd->pcm);
-	if (ret < 0) {
-		snd_card_free(gosnd->card);
-		kfree(gosnd);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_card;
+
 	strscpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
-	strscpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
+	strscpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->shortname));
 	strscpy(gosnd->card->longname, gosnd->card->shortname,
 		sizeof(gosnd->card->longname));
 
 	gosnd->pcm->private_data = go;
 	snd_pcm_set_ops(gosnd->pcm, SNDRV_PCM_STREAM_CAPTURE,
 			&go7007_snd_capture_ops);
+	snd_pcm_set_managed_buffer_all(gosnd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+				       NULL, 0, 0);
 
 	ret = snd_card_register(gosnd->card);
-	if (ret < 0) {
-		snd_card_free(gosnd->card);
-		kfree(gosnd);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_card;
 
 	gosnd->substream = NULL;
 	go->snd_context = gosnd;
@@ -282,6 +248,12 @@ int go7007_snd_init(struct go7007 *go)
 	++dev;
 
 	return 0;
+
+free_card:
+	snd_card_free(gosnd->card);
+free_snd:
+	kfree(gosnd);
+	return ret;
 }
 EXPORT_SYMBOL(go7007_snd_init);
 

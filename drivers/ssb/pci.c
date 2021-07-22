@@ -305,7 +305,6 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		else if (i % 2)
 			pr_cont(".");
 		writew(sprom[i], bus->mmio + bus->sprom_offset + (i * 2));
-		mmiowb();
 		msleep(20);
 	}
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
@@ -596,7 +595,7 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 o;
-	u16 pwr_info_offset[] = {
+	static const u16 pwr_info_offset[] = {
 		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
 		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
 	};
@@ -1118,9 +1117,9 @@ const struct ssb_bus_ops ssb_pci_ops = {
 #endif
 };
 
-static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
-				       struct device_attribute *attr,
-				       char *buf)
+static ssize_t ssb_sprom_show(struct device *pcidev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
@@ -1132,9 +1131,9 @@ static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 	return ssb_attr_sprom_show(bus, buf, sprom_do_read);
 }
 
-static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t ssb_sprom_store(struct device *pcidev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
@@ -1147,9 +1146,7 @@ static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
 				    sprom_check_crc, sprom_do_write);
 }
 
-static DEVICE_ATTR(ssb_sprom, 0600,
-		   ssb_pci_attr_sprom_show,
-		   ssb_pci_attr_sprom_store);
+static DEVICE_ATTR_ADMIN_RW(ssb_sprom);
 
 void ssb_pci_exit(struct ssb_bus *bus)
 {
@@ -1165,17 +1162,12 @@ void ssb_pci_exit(struct ssb_bus *bus)
 int ssb_pci_init(struct ssb_bus *bus)
 {
 	struct pci_dev *pdev;
-	int err;
 
 	if (bus->bustype != SSB_BUSTYPE_PCI)
 		return 0;
 
 	pdev = bus->host_pci;
 	mutex_init(&bus->sprom_mutex);
-	err = device_create_file(&pdev->dev, &dev_attr_ssb_sprom);
-	if (err)
-		goto out;
 
-out:
-	return err;
+	return device_create_file(&pdev->dev, &dev_attr_ssb_sprom);
 }

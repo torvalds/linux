@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013 Armadeus Systems - <support@armadeus.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /* APF51Dev is a docking board for the APF51 SOM */
@@ -80,8 +74,8 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>,
-		   <&gpio4 25 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>,
+		   <&gpio4 25 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

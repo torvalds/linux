@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2015 Anton Altaparmakov and Tuxera Inc.
- *
- * This program/include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program/include file is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program (in the main directory of the Linux-NTFS
- * distribution in the file COPYING); if not, write to the Free Software
- * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/backing-dev.h>
@@ -337,7 +323,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	unsigned long flags;
 	struct file *file = iocb->ki_filp;
 	struct inode *vi = file_inode(file);
-	ntfs_inode *base_ni, *ni = NTFS_I(vi);
+	ntfs_inode *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
@@ -379,9 +365,6 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-	base_ni = ni;
-	if (NInoAttr(ni))
-		base_ni = ni->ext.base_ntfs_ino;
 	err = file_remove_privs(file);
 	if (unlikely(err))
 		goto out;
@@ -1701,20 +1684,17 @@ static size_t ntfs_copy_from_user_iter(struct page **pages, unsigned nr_pages,
 {
 	struct page **last_page = pages + nr_pages;
 	size_t total = 0;
-	struct iov_iter data = *i;
 	unsigned len, copied;
 
 	do {
 		len = PAGE_SIZE - ofs;
 		if (len > bytes)
 			len = bytes;
-		copied = iov_iter_copy_from_user_atomic(*pages, &data, ofs,
-				len);
+		copied = copy_page_from_iter_atomic(*pages, ofs, len, i);
 		total += copied;
 		bytes -= copied;
 		if (!bytes)
 			break;
-		iov_iter_advance(&data, copied);
 		if (copied < len)
 			goto err;
 		ofs = 0;
@@ -1883,34 +1863,24 @@ again:
 		if (likely(copied == bytes)) {
 			status = ntfs_commit_pages_after_write(pages, do_pages,
 					pos, bytes);
-			if (!status)
-				status = bytes;
 		}
 		do {
 			unlock_page(pages[--do_pages]);
 			put_page(pages[do_pages]);
 		} while (do_pages);
-		if (unlikely(status < 0))
+		if (unlikely(status < 0)) {
+			iov_iter_revert(i, copied);
 			break;
-		copied = status;
+		}
 		cond_resched();
-		if (unlikely(!copied)) {
-			size_t sc;
-
-			/*
-			 * We failed to copy anything.  Fall back to single
-			 * segment length write.
-			 *
-			 * This is needed to avoid possible livelock in the
-			 * case that all segments in the iov cannot be copied
-			 * at once without a pagefault.
-			 */
-			sc = iov_iter_single_seg_count(i);
-			if (bytes > sc)
-				bytes = sc;
+		if (unlikely(copied < bytes)) {
+			iov_iter_revert(i, copied);
+			if (copied)
+				bytes = copied;
+			else if (bytes > PAGE_SIZE - ofs)
+				bytes = PAGE_SIZE - ofs;
 			goto again;
 		}
-		iov_iter_advance(i, copied);
 		pos += copied;
 		written += copied;
 		balance_dirty_pages_ratelimited(mapping);

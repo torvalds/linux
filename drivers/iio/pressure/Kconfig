@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Pressure drivers
 #
@@ -52,10 +53,32 @@ config IIO_CROS_EC_BARO
 	  To compile this driver as a module, choose M here: the module
 	  will be called cros_ec_baro.
 
+config DLHL60D
+	tristate "All Sensors DLHL60D and DLHL60G low voltage digital pressure sensors"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the All Sensors DLH series
+	  pressure sensors driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dlhl60d.
+
+config DPS310
+	tristate "Infineon DPS310 pressure and temperature sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Infineon DPS310 digital barometric pressure sensor.
+	  It can be accessed over I2C bus.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called dps310.
+
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID PRESS"
@@ -76,6 +99,17 @@ config HP03
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called hp03.
+
+config ICP10100
+	tristate "InvenSense ICP-101xx pressure and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say yes here to build support for InvenSense ICP-101xx barometric
+	  pressure and temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called icp10100.
 
 config MPL115
 	tristate
@@ -165,7 +199,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB.
+	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB, LPS22HH.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -34,7 +23,6 @@
 #include <linux/leds.h>
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
-#include <linux/input-polldev.h>
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
 #include <linux/average.h>
@@ -69,10 +57,10 @@
 	printk(KERN_ERR KBUILD_MODNAME ": %s: Error - " fmt,		\
 	       __func__, ##__VA_ARGS__)
 #define rt2x00_err(dev, fmt, ...)					\
-	wiphy_err((dev)->hw->wiphy, "%s: Error - " fmt,			\
+	wiphy_err_ratelimited((dev)->hw->wiphy, "%s: Error - " fmt,	\
 		  __func__, ##__VA_ARGS__)
 #define rt2x00_warn(dev, fmt, ...)					\
-	wiphy_warn((dev)->hw->wiphy, "%s: Warning - " fmt,		\
+	wiphy_warn_ratelimited((dev)->hw->wiphy, "%s: Warning - " fmt,	\
 		   __func__, ##__VA_ARGS__)
 #define rt2x00_info(dev, fmt, ...)					\
 	wiphy_info((dev)->hw->wiphy, "%s: Info - " fmt,			\
@@ -191,6 +179,15 @@ struct rf_channel {
 	u32 rf2;
 	u32 rf3;
 	u32 rf4;
+};
+
+/*
+ * Information structure for channel survey.
+ */
+struct rt2x00_chan_survey {
+	u64 time_idle;
+	u64 time_busy;
+	u64 time_ext_busy;
 };
 
 /*
@@ -336,6 +333,8 @@ struct link {
 	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
+	unsigned int watchdog_interval;
+	bool watchdog_disabled;
 
 	/*
 	 * Work structure for scheduling periodic AGC adjustments.
@@ -528,11 +527,11 @@ struct rt2x00lib_ops {
 	/*
 	 * TX status tasklet handler.
 	 */
-	void (*txstatus_tasklet) (unsigned long data);
-	void (*pretbtt_tasklet) (unsigned long data);
-	void (*tbtt_tasklet) (unsigned long data);
-	void (*rxdone_tasklet) (unsigned long data);
-	void (*autowake_tasklet) (unsigned long data);
+	void (*txstatus_tasklet) (struct tasklet_struct *t);
+	void (*pretbtt_tasklet) (struct tasklet_struct *t);
+	void (*tbtt_tasklet) (struct tasklet_struct *t);
+	void (*rxdone_tasklet) (struct tasklet_struct *t);
+	void (*autowake_tasklet) (struct tasklet_struct *t);
 
 	/*
 	 * Device init handlers.
@@ -626,6 +625,7 @@ struct rt2x00lib_ops {
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
 			const unsigned int changed_flags);
+	void (*pre_reset_hw) (struct rt2x00_dev *rt2x00dev);
 	int (*sta_add) (struct rt2x00_dev *rt2x00dev,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
@@ -666,6 +666,7 @@ enum rt2x00_state_flags {
 	DEVICE_STATE_ENABLED_RADIO,
 	DEVICE_STATE_SCANNING,
 	DEVICE_STATE_FLUSHING,
+	DEVICE_STATE_RESET,
 
 	/*
 	 * Driver configuration
@@ -673,7 +674,6 @@ enum rt2x00_state_flags {
 	CONFIG_CHANNEL_HT40,
 	CONFIG_POWERSAVING,
 	CONFIG_HT_DISABLED,
-	CONFIG_QOS_DISABLED,
 	CONFIG_MONITORING,
 
 	/*
@@ -722,6 +722,7 @@ enum rt2x00_capability_flags {
 	CAPABILITY_VCO_RECALIBRATION,
 	CAPABILITY_EXTERNAL_PA_TX0,
 	CAPABILITY_EXTERNAL_PA_TX1,
+	CAPABILITY_RESTART_HW,
 };
 
 /*
@@ -760,6 +761,7 @@ struct rt2x00_dev {
 	 */
 	struct ieee80211_hw *hw;
 	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
+	struct rt2x00_chan_survey *chan_survey;
 	enum nl80211_band curr_band;
 	int curr_freq;
 
@@ -981,8 +983,6 @@ struct rt2x00_dev {
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
 
-	unsigned long last_nostatus_check;
-
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).
 	 */
@@ -1017,6 +1017,7 @@ struct rt2x00_dev {
 	unsigned int extra_tx_headroom;
 
 	struct usb_anchor *anchor;
+	unsigned int num_proto_errs;
 
 	/* Clock for System On Chip devices. */
 	struct clk *clk;
@@ -1279,6 +1280,12 @@ rt2x00_has_cap_vco_recalibration(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_VCO_RECALIBRATION);
 }
 
+static inline bool
+rt2x00_has_cap_restart_hw(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_RESTART_HW);
+}
+
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
@@ -1442,6 +1449,8 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 		  struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
+void rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
+				 enum ieee80211_reconfig_type reconfig_type);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif);
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
@@ -1488,9 +1497,8 @@ bool rt2x00mac_tx_frames_pending(struct ieee80211_hw *hw);
  */
 int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev);
-#ifdef CONFIG_PM
-int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state);
+
+int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev);
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev);
-#endif /* CONFIG_PM */
 
 #endif /* RT2X00_H */

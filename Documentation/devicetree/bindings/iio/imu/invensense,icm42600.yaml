@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/imu/invensense,icm42600.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: InvenSense ICM-426xx Inertial Measurement Unit
+
+maintainers:
+  - Jean-Baptiste Maneyrol <jmaneyrol@invensense.com>
+
+description: |
+  6-axis MotionTracking device that combines a 3-axis gyroscope and a 3-axis
+  accelerometer.
+
+  It has a configurable host interface that supports I3C, I2C and SPI serial
+  communication, features a 2kB FIFO and 2 programmable interrupts with
+  ultra-low-power wake-on-motion support to minimize system power consumption.
+
+  Other industry-leading features include InvenSense on-chip APEX Motion
+  Processing engine for gesture recognition, activity classification, and
+  pedometer, along with programmable digital filters, and an embedded
+  temperature sensor.
+
+  https://invensense.tdk.com/wp-content/uploads/2020/03/DS-000292-ICM-42605-v1.4.pdf
+
+properties:
+  compatible:
+    enum:
+      - invensense,icm42600
+      - invensense,icm42602
+      - invensense,icm42605
+      - invensense,icm42622
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  drive-open-drain:
+    type: boolean
+
+  vdd-supply:
+    description: Regulator that provides power to the sensor
+
+  vddio-supply:
+    description: Regulator that provides power to the bus
+
+  spi-max-frequency: true
+  spi-cpha: true
+  spi-cpol: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        icm42605@68 {
+          compatible = "invensense,icm42605";
+          reg = <0x68>;
+          interrupt-parent = <&gpio2>;
+          interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+          vdd-supply = <&vdd>;
+          vddio-supply = <&vddio>;
+        };
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        icm42602@0 {
+          compatible = "invensense,icm42602";
+          reg = <0>;
+          spi-max-frequency = <24000000>;
+          spi-cpha;
+          spi-cpol;
+          interrupt-parent = <&gpio1>;
+          interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+          vdd-supply = <&vdd>;
+          vddio-supply = <&vddio>;
+        };
+    };

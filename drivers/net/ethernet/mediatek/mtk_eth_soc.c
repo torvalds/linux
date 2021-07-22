@@ -1,11 +1,5 @@
-/*   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; version 2 of the License
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  *
  *   Copyright (C) 2009-2016 John Crispin <blogic@openwrt.org>
  *   Copyright (C) 2009-2016 Felix Fietkau <nbd@openwrt.org>
@@ -24,6 +18,9 @@
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
 #include <linux/pinctrl/devinfo.h>
+#include <linux/phylink.h>
+#include <linux/jhash.h>
+#include <net/dsa.h>
 
 #include "mtk_eth_soc.h"
 
@@ -54,8 +51,10 @@ static const struct mtk_ethtool_stats {
 };
 
 static const char * const mtk_clks_source_name[] = {
-	"ethif", "esw", "gp0", "gp1", "gp2", "trgpll", "sgmii_tx250m",
-	"sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck", "eth2pll"
+	"ethif", "sgmiitop", "esw", "gp0", "gp1", "gp2", "fe", "trgpll",
+	"sgmii_tx250m", "sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb",
+	"sgmii2_tx250m", "sgmii2_rx250m", "sgmii2_cdr_ref", "sgmii2_cdr_fb",
+	"sgmii_ck", "eth2pll",
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
@@ -68,6 +67,17 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
 	return __raw_readl(eth->base + reg);
 }
 
+static u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
+{
+	u32 val;
+
+	val = mtk_r32(eth, reg);
+	val &= ~mask;
+	val |= set;
+	mtk_w32(eth, val, reg);
+	return reg;
+}
+
 static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 {
 	unsigned long t_start = jiffies;
@@ -77,7 +87,7 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 			return 0;
 		if (time_after(jiffies, t_start + PHY_IAC_TIMEOUT))
 			break;
-		usleep_range(10, 20);
+		cond_resched();
 	}
 
 	dev_err(eth->dev, "mdio: MDIO timeout\n");
@@ -138,10 +148,45 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	return _mtk_mdio_read(eth, phy_addr, phy_reg);
 }
 
-static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth, int speed)
+static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
+				     phy_interface_t interface)
+{
+	u32 val;
+
+	/* Check DDR memory type.
+	 * Currently TRGMII mode with DDR2 memory is not supported.
+	 */
+	regmap_read(eth->ethsys, ETHSYS_SYSCFG, &val);
+	if (interface == PHY_INTERFACE_MODE_TRGMII &&
+	    val & SYSCFG_DRAM_TYPE_DDR2) {
+		dev_err(eth->dev,
+			"TRGMII mode with DDR2 memory is not supported!\n");
+		return -EOPNOTSUPP;
+	}
+
+	val = (interface == PHY_INTERFACE_MODE_TRGMII) ?
+		ETHSYS_TRGMII_MT7621_DDR_PLL : 0;
+
+	regmap_update_bits(eth->ethsys, ETHSYS_CLKCFG0,
+			   ETHSYS_TRGMII_MT7621_MASK, val);
+
+	return 0;
+}
+
+static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
+				   phy_interface_t interface, int speed)
 {
 	u32 val;
 	int ret;
+
+	if (interface == PHY_INTERFACE_MODE_TRGMII) {
+		mtk_w32(eth, TRGMII_MODE, INTF_MODE);
+		val = 500000000;
+		ret = clk_set_rate(eth->clks[MTK_CLK_TRGPLL], val);
+		if (ret)
+			dev_err(eth->dev, "Failed to set trgmii pll: %d\n", ret);
+		return;
+	}
 
 	val = (speed == SPEED_1000) ?
 		INTF_MODE_RGMII_1000 : INTF_MODE_RGMII_10_100;
@@ -165,209 +210,353 @@ static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth, int speed)
 	mtk_w32(eth, val, TRGMII_TCK_CTRL);
 }
 
-static void mtk_gmac_sgmii_hw_setup(struct mtk_eth *eth, int mac_id)
+static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
+			   const struct phylink_link_state *state)
 {
-	u32 val;
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
+	u32 mcr_cur, mcr_new, sid, i;
+	int val, ge_mode, err;
 
-	/* Setup the link timer and QPHY power up inside SGMIISYS */
-	regmap_write(eth->sgmiisys, SGMSYS_PCS_LINK_TIMER,
-		     SGMII_LINK_TIMER_DEFAULT);
+	/* MT76x8 has no hardware settings between for the MAC */
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) &&
+	    mac->interface != state->interface) {
+		/* Setup soc pin functions */
+		switch (state->interface) {
+		case PHY_INTERFACE_MODE_TRGMII:
+			if (mac->id)
+				goto err_phy;
+			if (!MTK_HAS_CAPS(mac->hw->soc->caps,
+					  MTK_GMAC1_TRGMII))
+				goto err_phy;
+			fallthrough;
+		case PHY_INTERFACE_MODE_RGMII_TXID:
+		case PHY_INTERFACE_MODE_RGMII_RXID:
+		case PHY_INTERFACE_MODE_RGMII_ID:
+		case PHY_INTERFACE_MODE_RGMII:
+		case PHY_INTERFACE_MODE_MII:
+		case PHY_INTERFACE_MODE_REVMII:
+		case PHY_INTERFACE_MODE_RMII:
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RGMII)) {
+				err = mtk_gmac_rgmii_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
+		case PHY_INTERFACE_MODE_1000BASEX:
+		case PHY_INTERFACE_MODE_2500BASEX:
+		case PHY_INTERFACE_MODE_SGMII:
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
+				err = mtk_gmac_sgmii_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
+		case PHY_INTERFACE_MODE_GMII:
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_GEPHY)) {
+				err = mtk_gmac_gephy_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
+		default:
+			goto err_phy;
+		}
 
-	regmap_read(eth->sgmiisys, SGMSYS_SGMII_MODE, &val);
-	val |= SGMII_REMOTE_FAULT_DIS;
-	regmap_write(eth->sgmiisys, SGMSYS_SGMII_MODE, val);
+		/* Setup clock for 1st gmac */
+		if (!mac->id && state->interface != PHY_INTERFACE_MODE_SGMII &&
+		    !phy_interface_mode_is_8023z(state->interface) &&
+		    MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GMAC1_TRGMII)) {
+			if (MTK_HAS_CAPS(mac->hw->soc->caps,
+					 MTK_TRGMII_MT7621_CLK)) {
+				if (mt7621_gmac0_rgmii_adjust(mac->hw,
+							      state->interface))
+					goto err_phy;
+			} else {
+				mtk_gmac0_rgmii_adjust(mac->hw,
+						       state->interface,
+						       state->speed);
 
-	regmap_read(eth->sgmiisys, SGMSYS_PCS_CONTROL_1, &val);
-	val |= SGMII_AN_RESTART;
-	regmap_write(eth->sgmiisys, SGMSYS_PCS_CONTROL_1, val);
+				/* mt7623_pad_clk_setup */
+				for (i = 0 ; i < NUM_TRGMII_CTRL; i++)
+					mtk_w32(mac->hw,
+						TD_DM_DRVP(8) | TD_DM_DRVN(8),
+						TRGMII_TD_ODT(i));
 
-	regmap_read(eth->sgmiisys, SGMSYS_QPHY_PWR_STATE_CTRL, &val);
-	val &= ~SGMII_PHYA_PWD;
-	regmap_write(eth->sgmiisys, SGMSYS_QPHY_PWR_STATE_CTRL, val);
+				/* Assert/release MT7623 RXC reset */
+				mtk_m32(mac->hw, 0, RXC_RST | RXC_DQSISEL,
+					TRGMII_RCK_CTRL);
+				mtk_m32(mac->hw, RXC_RST, 0, TRGMII_RCK_CTRL);
+			}
+		}
 
-	/* Determine MUX for which GMAC uses the SGMII interface */
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_DUAL_GMAC_SHARED_SGMII)) {
+		ge_mode = 0;
+		switch (state->interface) {
+		case PHY_INTERFACE_MODE_MII:
+		case PHY_INTERFACE_MODE_GMII:
+			ge_mode = 1;
+			break;
+		case PHY_INTERFACE_MODE_REVMII:
+			ge_mode = 2;
+			break;
+		case PHY_INTERFACE_MODE_RMII:
+			if (mac->id)
+				goto err_phy;
+			ge_mode = 3;
+			break;
+		default:
+			break;
+		}
+
+		/* put the gmac into the right mode */
 		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
-		val &= ~SYSCFG0_SGMII_MASK;
-		val |= !mac_id ? SYSCFG0_SGMII_GMAC1 : SYSCFG0_SGMII_GMAC2;
+		val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, mac->id);
+		val |= SYSCFG0_GE_MODE(ge_mode, mac->id);
 		regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
-		dev_info(eth->dev, "setup shared sgmii for gmac=%d\n",
-			 mac_id);
+		mac->interface = state->interface;
 	}
 
-	/* Setup the GMAC1 going through SGMII path when SoC also support
-	 * ESW on GMAC1
-	 */
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC1_ESW | MTK_GMAC1_SGMII) &&
-	    !mac_id) {
-		mtk_w32(eth, 0, MTK_MAC_MISC);
-		dev_info(eth->dev, "setup gmac1 going through sgmii");
+	/* SGMII */
+	if (state->interface == PHY_INTERFACE_MODE_SGMII ||
+	    phy_interface_mode_is_8023z(state->interface)) {
+		/* The path GMAC to SGMII will be enabled once the SGMIISYS is
+		 * being setup done.
+		 */
+		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
+
+		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
+				   SYSCFG0_SGMII_MASK,
+				   ~(u32)SYSCFG0_SGMII_MASK);
+
+		/* Decide how GMAC and SGMIISYS be mapped */
+		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
+		       0 : mac->id;
+
+		/* Setup SGMIISYS with the determined property */
+		if (state->interface != PHY_INTERFACE_MODE_SGMII)
+			err = mtk_sgmii_setup_mode_force(eth->sgmii, sid,
+							 state);
+		else if (phylink_autoneg_inband(mode))
+			err = mtk_sgmii_setup_mode_an(eth->sgmii, sid);
+
+		if (err)
+			goto init_err;
+
+		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
+				   SYSCFG0_SGMII_MASK, val);
+	} else if (phylink_autoneg_inband(mode)) {
+		dev_err(eth->dev,
+			"In-band mode not supported in non SGMII mode!\n");
+		return;
 	}
+
+	/* Setup gmac */
+	mcr_cur = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+	mcr_new = mcr_cur;
+	mcr_new |= MAC_MCR_IPG_CFG | MAC_MCR_FORCE_MODE |
+		   MAC_MCR_BACKOFF_EN | MAC_MCR_BACKPR_EN | MAC_MCR_FORCE_LINK;
+
+	/* Only update control register when needed! */
+	if (mcr_new != mcr_cur)
+		mtk_w32(mac->hw, mcr_new, MTK_MAC_MCR(mac->id));
+
+	return;
+
+err_phy:
+	dev_err(eth->dev, "%s: GMAC%d mode %s not supported!\n", __func__,
+		mac->id, phy_modes(state->interface));
+	return;
+
+init_err:
+	dev_err(eth->dev, "%s: GMAC%d mode %s err: %d!\n", __func__,
+		mac->id, phy_modes(state->interface), err);
 }
 
-static void mtk_phy_link_adjust(struct net_device *dev)
+static void mtk_mac_pcs_get_state(struct phylink_config *config,
+				  struct phylink_link_state *state)
 {
-	struct mtk_mac *mac = netdev_priv(dev);
-	u16 lcl_adv = 0, rmt_adv = 0;
-	u8 flowctrl;
-	u32 mcr = MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG |
-		  MAC_MCR_FORCE_MODE | MAC_MCR_TX_EN |
-		  MAC_MCR_RX_EN | MAC_MCR_BACKOFF_EN |
-		  MAC_MCR_BACKPR_EN;
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	u32 pmsr = mtk_r32(mac->hw, MTK_MAC_MSR(mac->id));
 
-	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
-		return;
+	state->link = (pmsr & MAC_MSR_LINK);
+	state->duplex = (pmsr & MAC_MSR_DPX) >> 1;
 
-	switch (dev->phydev->speed) {
+	switch (pmsr & (MAC_MSR_SPEED_1000 | MAC_MSR_SPEED_100)) {
+	case 0:
+		state->speed = SPEED_10;
+		break;
+	case MAC_MSR_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case MAC_MSR_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	default:
+		state->speed = SPEED_UNKNOWN;
+		break;
+	}
+
+	state->pause &= (MLO_PAUSE_RX | MLO_PAUSE_TX);
+	if (pmsr & MAC_MSR_RX_FC)
+		state->pause |= MLO_PAUSE_RX;
+	if (pmsr & MAC_MSR_TX_FC)
+		state->pause |= MLO_PAUSE_TX;
+}
+
+static void mtk_mac_an_restart(struct phylink_config *config)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+
+	mtk_sgmii_restart_an(mac->hw, mac->id);
+}
+
+static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
+			      phy_interface_t interface)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	u32 mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+
+	mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN);
+	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
+}
+
+static void mtk_mac_link_up(struct phylink_config *config,
+			    struct phy_device *phy,
+			    unsigned int mode, phy_interface_t interface,
+			    int speed, int duplex, bool tx_pause, bool rx_pause)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	u32 mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+
+	mcr &= ~(MAC_MCR_SPEED_100 | MAC_MCR_SPEED_1000 |
+		 MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_TX_FC |
+		 MAC_MCR_FORCE_RX_FC);
+
+	/* Configure speed */
+	switch (speed) {
+	case SPEED_2500:
 	case SPEED_1000:
 		mcr |= MAC_MCR_SPEED_1000;
 		break;
 	case SPEED_100:
 		mcr |= MAC_MCR_SPEED_100;
 		break;
-	};
+	}
 
-	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GMAC1_TRGMII) &&
-	    !mac->id && !mac->trgmii)
-		mtk_gmac0_rgmii_adjust(mac->hw, dev->phydev->speed);
-
-	if (dev->phydev->link)
-		mcr |= MAC_MCR_FORCE_LINK;
-
-	if (dev->phydev->duplex) {
+	/* Configure duplex */
+	if (duplex == DUPLEX_FULL)
 		mcr |= MAC_MCR_FORCE_DPX;
 
-		if (dev->phydev->pause)
-			rmt_adv = LPA_PAUSE_CAP;
-		if (dev->phydev->asym_pause)
-			rmt_adv |= LPA_PAUSE_ASYM;
+	/* Configure pause modes - phylink will avoid these for half duplex */
+	if (tx_pause)
+		mcr |= MAC_MCR_FORCE_TX_FC;
+	if (rx_pause)
+		mcr |= MAC_MCR_FORCE_RX_FC;
 
-		lcl_adv = ethtool_adv_to_lcl_adv_t(dev->phydev->advertising);
-		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
-
-		if (flowctrl & FLOW_CTRL_TX)
-			mcr |= MAC_MCR_FORCE_TX_FC;
-		if (flowctrl & FLOW_CTRL_RX)
-			mcr |= MAC_MCR_FORCE_RX_FC;
-
-		netif_dbg(mac->hw, link, dev, "rx pause %s, tx pause %s\n",
-			  flowctrl & FLOW_CTRL_RX ? "enabled" : "disabled",
-			  flowctrl & FLOW_CTRL_TX ? "enabled" : "disabled");
-	}
-
+	mcr |= MAC_MCR_TX_EN | MAC_MCR_RX_EN;
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
-
-	if (dev->phydev->link)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
-
-	if (!of_phy_is_fixed_link(mac->of_node))
-		phy_print_status(dev->phydev);
 }
 
-static int mtk_phy_connect_node(struct mtk_eth *eth, struct mtk_mac *mac,
-				struct device_node *phy_node)
+static void mtk_validate(struct phylink_config *config,
+			 unsigned long *supported,
+			 struct phylink_link_state *state)
 {
-	struct phy_device *phydev;
-	int phy_mode;
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	phy_mode = of_get_phy_mode(phy_node);
-	if (phy_mode < 0) {
-		dev_err(eth->dev, "incorrect phy-mode %d\n", phy_mode);
-		return -EINVAL;
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != PHY_INTERFACE_MODE_MII &&
+	    state->interface != PHY_INTERFACE_MODE_GMII &&
+	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII) &&
+	      phy_interface_mode_is_rgmii(state->interface)) &&
+	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_TRGMII) &&
+	      !mac->id && state->interface == PHY_INTERFACE_MODE_TRGMII) &&
+	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII) &&
+	      (state->interface == PHY_INTERFACE_MODE_SGMII ||
+	       phy_interface_mode_is_8023z(state->interface)))) {
+		linkmode_zero(supported);
+		return;
 	}
 
-	phydev = of_phy_connect(eth->netdev[mac->id], phy_node,
-				mtk_phy_link_adjust, 0, phy_mode);
-	if (!phydev) {
-		dev_err(eth->dev, "could not connect to PHY\n");
-		return -ENODEV;
-	}
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
 
-	dev_info(eth->dev,
-		 "connected mac %d to PHY at %s [uid=%08x, driver=%s]\n",
-		 mac->id, phydev_name(phydev), phydev->phy_id,
-		 phydev->drv->name);
-
-	return 0;
-}
-
-static int mtk_phy_connect(struct net_device *dev)
-{
-	struct mtk_mac *mac = netdev_priv(dev);
-	struct mtk_eth *eth;
-	struct device_node *np;
-	u32 val;
-
-	eth = mac->hw;
-	np = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!np && of_phy_is_fixed_link(mac->of_node))
-		if (!of_phy_register_fixed_link(mac->of_node))
-			np = of_node_get(mac->of_node);
-	if (!np)
-		return -ENODEV;
-
-	mac->ge_mode = 0;
-	switch (of_get_phy_mode(np)) {
+	switch (state->interface) {
 	case PHY_INTERFACE_MODE_TRGMII:
-		mac->trgmii = true;
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_ID:
+		phylink_set(mask, 1000baseT_Full);
+		break;
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		phylink_set(mask, 1000baseX_Full);
+		phylink_set(mask, 2500baseX_Full);
+		break;
+	case PHY_INTERFACE_MODE_GMII:
 	case PHY_INTERFACE_MODE_RGMII:
-		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		phylink_set(mask, 1000baseT_Half);
+		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII))
-			mtk_gmac_sgmii_hw_setup(eth, mac->id);
-		break;
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+		fallthrough;
 	case PHY_INTERFACE_MODE_MII:
-		mac->ge_mode = 1;
-		break;
-	case PHY_INTERFACE_MODE_REVMII:
-		mac->ge_mode = 2;
-		break;
 	case PHY_INTERFACE_MODE_RMII:
-		if (!mac->id)
-			goto err_phy;
-		mac->ge_mode = 3;
-		break;
+	case PHY_INTERFACE_MODE_REVMII:
+	case PHY_INTERFACE_MODE_NA:
 	default:
-		goto err_phy;
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+		break;
 	}
 
-	/* put the gmac into the right mode */
-	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
-	val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, mac->id);
-	val |= SYSCFG0_GE_MODE(mac->ge_mode, mac->id);
-	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
+	if (state->interface == PHY_INTERFACE_MODE_NA) {
+		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII)) {
+			phylink_set(mask, 1000baseT_Full);
+			phylink_set(mask, 1000baseX_Full);
+			phylink_set(mask, 2500baseX_Full);
+		}
+		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII)) {
+			phylink_set(mask, 1000baseT_Full);
+			phylink_set(mask, 1000baseT_Half);
+			phylink_set(mask, 1000baseX_Full);
+		}
+		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GEPHY)) {
+			phylink_set(mask, 1000baseT_Full);
+			phylink_set(mask, 1000baseT_Half);
+		}
+	}
 
-	/* couple phydev to net_device */
-	if (mtk_phy_connect_node(eth, mac, np))
-		goto err_phy;
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
 
-	dev->phydev->autoneg = AUTONEG_ENABLE;
-	dev->phydev->speed = 0;
-	dev->phydev->duplex = 0;
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 
-	phy_set_max_speed(dev->phydev, SPEED_1000);
-	phy_support_asym_pause(dev->phydev);
-	dev->phydev->advertising = dev->phydev->supported |
-				    ADVERTISED_Autoneg;
-	phy_start_aneg(dev->phydev);
-
-	of_node_put(np);
-
-	return 0;
-
-err_phy:
-	if (of_phy_is_fixed_link(mac->of_node))
-		of_phy_deregister_fixed_link(mac->of_node);
-	of_node_put(np);
-	dev_err(eth->dev, "%s: invalid phy\n", __func__);
-	return -EINVAL;
+	/* We can only operate at 2500BaseX or 1000BaseX. If requested
+	 * to advertise both, only report advertising at 2500BaseX.
+	 */
+	phylink_helper_basex_speed(state);
 }
+
+static const struct phylink_mac_ops mtk_phylink_ops = {
+	.validate = mtk_validate,
+	.mac_pcs_get_state = mtk_mac_pcs_get_state,
+	.mac_an_restart = mtk_mac_an_restart,
+	.mac_config = mtk_mac_config,
+	.mac_link_down = mtk_mac_link_down,
+	.mac_link_up = mtk_mac_link_up,
+};
 
 static int mtk_mdio_init(struct mtk_eth *eth)
 {
@@ -419,8 +608,8 @@ static inline void mtk_tx_irq_disable(struct mtk_eth *eth, u32 mask)
 	u32 val;
 
 	spin_lock_irqsave(&eth->tx_irq_lock, flags);
-	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
-	mtk_w32(eth, val & ~mask, MTK_QDMA_INT_MASK);
+	val = mtk_r32(eth, eth->tx_int_mask_reg);
+	mtk_w32(eth, val & ~mask, eth->tx_int_mask_reg);
 	spin_unlock_irqrestore(&eth->tx_irq_lock, flags);
 }
 
@@ -430,8 +619,8 @@ static inline void mtk_tx_irq_enable(struct mtk_eth *eth, u32 mask)
 	u32 val;
 
 	spin_lock_irqsave(&eth->tx_irq_lock, flags);
-	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
-	mtk_w32(eth, val | mask, MTK_QDMA_INT_MASK);
+	val = mtk_r32(eth, eth->tx_int_mask_reg);
+	mtk_w32(eth, val | mask, eth->tx_int_mask_reg);
 	spin_unlock_irqrestore(&eth->tx_irq_lock, flags);
 }
 
@@ -461,6 +650,7 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 {
 	int ret = eth_mac_addr(dev, p);
 	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
 	const char *macaddr = dev->dev_addr;
 
 	if (ret)
@@ -470,11 +660,19 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 		return -EBUSY;
 
 	spin_lock_bh(&mac->hw->page_lock);
-	mtk_w32(mac->hw, (macaddr[0] << 8) | macaddr[1],
-		MTK_GDMA_MAC_ADRH(mac->id));
-	mtk_w32(mac->hw, (macaddr[2] << 24) | (macaddr[3] << 16) |
-		(macaddr[4] << 8) | macaddr[5],
-		MTK_GDMA_MAC_ADRL(mac->id));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		mtk_w32(mac->hw, (macaddr[0] << 8) | macaddr[1],
+			MT7628_SDM_MAC_ADRH);
+		mtk_w32(mac->hw, (macaddr[2] << 24) | (macaddr[3] << 16) |
+			(macaddr[4] << 8) | macaddr[5],
+			MT7628_SDM_MAC_ADRL);
+	} else {
+		mtk_w32(mac->hw, (macaddr[0] << 8) | macaddr[1],
+			MTK_GDMA_MAC_ADRH(mac->id));
+		mtk_w32(mac->hw, (macaddr[2] << 24) | (macaddr[3] << 16) |
+			(macaddr[4] << 8) | macaddr[5],
+			MTK_GDMA_MAC_ADRL(mac->id));
+	}
 	spin_unlock_bh(&mac->hw->page_lock);
 
 	return 0;
@@ -483,32 +681,53 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 void mtk_stats_update_mac(struct mtk_mac *mac)
 {
 	struct mtk_hw_stats *hw_stats = mac->hw_stats;
-	unsigned int base = MTK_GDM1_TX_GBCNT;
-	u64 stats;
-
-	base += hw_stats->reg_offset;
+	struct mtk_eth *eth = mac->hw;
 
 	u64_stats_update_begin(&hw_stats->syncp);
 
-	hw_stats->rx_bytes += mtk_r32(mac->hw, base);
-	stats =  mtk_r32(mac->hw, base + 0x04);
-	if (stats)
-		hw_stats->rx_bytes += (stats << 32);
-	hw_stats->rx_packets += mtk_r32(mac->hw, base + 0x08);
-	hw_stats->rx_overflow += mtk_r32(mac->hw, base + 0x10);
-	hw_stats->rx_fcs_errors += mtk_r32(mac->hw, base + 0x14);
-	hw_stats->rx_short_errors += mtk_r32(mac->hw, base + 0x18);
-	hw_stats->rx_long_errors += mtk_r32(mac->hw, base + 0x1c);
-	hw_stats->rx_checksum_errors += mtk_r32(mac->hw, base + 0x20);
-	hw_stats->rx_flow_control_packets +=
-					mtk_r32(mac->hw, base + 0x24);
-	hw_stats->tx_skip += mtk_r32(mac->hw, base + 0x28);
-	hw_stats->tx_collisions += mtk_r32(mac->hw, base + 0x2c);
-	hw_stats->tx_bytes += mtk_r32(mac->hw, base + 0x30);
-	stats =  mtk_r32(mac->hw, base + 0x34);
-	if (stats)
-		hw_stats->tx_bytes += (stats << 32);
-	hw_stats->tx_packets += mtk_r32(mac->hw, base + 0x38);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		hw_stats->tx_packets += mtk_r32(mac->hw, MT7628_SDM_TPCNT);
+		hw_stats->tx_bytes += mtk_r32(mac->hw, MT7628_SDM_TBCNT);
+		hw_stats->rx_packets += mtk_r32(mac->hw, MT7628_SDM_RPCNT);
+		hw_stats->rx_bytes += mtk_r32(mac->hw, MT7628_SDM_RBCNT);
+		hw_stats->rx_checksum_errors +=
+			mtk_r32(mac->hw, MT7628_SDM_CS_ERR);
+	} else {
+		unsigned int offs = hw_stats->reg_offset;
+		u64 stats;
+
+		hw_stats->rx_bytes += mtk_r32(mac->hw,
+					      MTK_GDM1_RX_GBCNT_L + offs);
+		stats = mtk_r32(mac->hw, MTK_GDM1_RX_GBCNT_H + offs);
+		if (stats)
+			hw_stats->rx_bytes += (stats << 32);
+		hw_stats->rx_packets +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_GPCNT + offs);
+		hw_stats->rx_overflow +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_OERCNT + offs);
+		hw_stats->rx_fcs_errors +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_FERCNT + offs);
+		hw_stats->rx_short_errors +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_SERCNT + offs);
+		hw_stats->rx_long_errors +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_LENCNT + offs);
+		hw_stats->rx_checksum_errors +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_CERCNT + offs);
+		hw_stats->rx_flow_control_packets +=
+			mtk_r32(mac->hw, MTK_GDM1_RX_FCCNT + offs);
+		hw_stats->tx_skip +=
+			mtk_r32(mac->hw, MTK_GDM1_TX_SKIPCNT + offs);
+		hw_stats->tx_collisions +=
+			mtk_r32(mac->hw, MTK_GDM1_TX_COLCNT + offs);
+		hw_stats->tx_bytes +=
+			mtk_r32(mac->hw, MTK_GDM1_TX_GBCNT_L + offs);
+		stats =  mtk_r32(mac->hw, MTK_GDM1_TX_GBCNT_H + offs);
+		if (stats)
+			hw_stats->tx_bytes += (stats << 32);
+		hw_stats->tx_packets +=
+			mtk_r32(mac->hw, MTK_GDM1_TX_GPCNT + offs);
+	}
+
 	u64_stats_update_end(&hw_stats->syncp);
 }
 
@@ -563,8 +782,8 @@ static void mtk_get_stats64(struct net_device *dev,
 static inline int mtk_max_frag_size(int mtu)
 {
 	/* make sure buf_size will be at least MTK_MAX_RX_LENGTH */
-	if (mtu + MTK_RX_ETH_HLEN < MTK_MAX_RX_LENGTH)
-		mtu = MTK_MAX_RX_LENGTH - MTK_RX_ETH_HLEN;
+	if (mtu + MTK_RX_ETH_HLEN < MTK_MAX_RX_LENGTH_2K)
+		mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
 
 	return SKB_DATA_ALIGN(MTK_RX_HLEN + mtu) +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
@@ -575,18 +794,23 @@ static inline int mtk_max_buf_size(int frag_size)
 	int buf_size = frag_size - NET_SKB_PAD - NET_IP_ALIGN -
 		       SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	WARN_ON(buf_size < MTK_MAX_RX_LENGTH);
+	WARN_ON(buf_size < MTK_MAX_RX_LENGTH_2K);
 
 	return buf_size;
 }
 
-static inline void mtk_rx_get_desc(struct mtk_rx_dma *rxd,
+static inline bool mtk_rx_get_desc(struct mtk_rx_dma *rxd,
 				   struct mtk_rx_dma *dma_rxd)
 {
-	rxd->rxd1 = READ_ONCE(dma_rxd->rxd1);
 	rxd->rxd2 = READ_ONCE(dma_rxd->rxd2);
+	if (!(rxd->rxd2 & RX_DMA_DONE))
+		return false;
+
+	rxd->rxd1 = READ_ONCE(dma_rxd->rxd1);
 	rxd->rxd3 = READ_ONCE(dma_rxd->rxd3);
 	rxd->rxd4 = READ_ONCE(dma_rxd->rxd4);
+
+	return true;
 }
 
 /* the qdma core needs scratch memory to be setup */
@@ -597,10 +821,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_zalloc_coherent(eth->dev,
-						cnt * sizeof(struct mtk_tx_dma),
-						&eth->phy_scratch_ring,
-						GFP_ATOMIC);
+	eth->scratch_ring = dma_alloc_coherent(eth->dev,
+					       cnt * sizeof(struct mtk_tx_dma),
+					       &eth->phy_scratch_ring,
+					       GFP_ATOMIC);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -650,24 +874,80 @@ static inline struct mtk_tx_buf *mtk_desc_to_tx_buf(struct mtk_tx_ring *ring,
 	return &ring->buf[idx];
 }
 
-static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf)
+static struct mtk_tx_dma *qdma_to_pdma(struct mtk_tx_ring *ring,
+				       struct mtk_tx_dma *dma)
 {
-	if (tx_buf->flags & MTK_TX_FLAGS_SINGLE0) {
-		dma_unmap_single(eth->dev,
-				 dma_unmap_addr(tx_buf, dma_addr0),
-				 dma_unmap_len(tx_buf, dma_len0),
-				 DMA_TO_DEVICE);
-	} else if (tx_buf->flags & MTK_TX_FLAGS_PAGE0) {
-		dma_unmap_page(eth->dev,
-			       dma_unmap_addr(tx_buf, dma_addr0),
-			       dma_unmap_len(tx_buf, dma_len0),
-			       DMA_TO_DEVICE);
+	return ring->dma_pdma - ring->dma + dma;
+}
+
+static int txd_to_idx(struct mtk_tx_ring *ring, struct mtk_tx_dma *dma)
+{
+	return ((void *)dma - (void *)ring->dma) / sizeof(*dma);
+}
+
+static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
+			 bool napi)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		if (tx_buf->flags & MTK_TX_FLAGS_SINGLE0) {
+			dma_unmap_single(eth->dev,
+					 dma_unmap_addr(tx_buf, dma_addr0),
+					 dma_unmap_len(tx_buf, dma_len0),
+					 DMA_TO_DEVICE);
+		} else if (tx_buf->flags & MTK_TX_FLAGS_PAGE0) {
+			dma_unmap_page(eth->dev,
+				       dma_unmap_addr(tx_buf, dma_addr0),
+				       dma_unmap_len(tx_buf, dma_len0),
+				       DMA_TO_DEVICE);
+		}
+	} else {
+		if (dma_unmap_len(tx_buf, dma_len0)) {
+			dma_unmap_page(eth->dev,
+				       dma_unmap_addr(tx_buf, dma_addr0),
+				       dma_unmap_len(tx_buf, dma_len0),
+				       DMA_TO_DEVICE);
+		}
+
+		if (dma_unmap_len(tx_buf, dma_len1)) {
+			dma_unmap_page(eth->dev,
+				       dma_unmap_addr(tx_buf, dma_addr1),
+				       dma_unmap_len(tx_buf, dma_len1),
+				       DMA_TO_DEVICE);
+		}
 	}
+
 	tx_buf->flags = 0;
 	if (tx_buf->skb &&
-	    (tx_buf->skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC))
-		dev_kfree_skb_any(tx_buf->skb);
+	    (tx_buf->skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC)) {
+		if (napi)
+			napi_consume_skb(tx_buf->skb, napi);
+		else
+			dev_kfree_skb_any(tx_buf->skb);
+	}
 	tx_buf->skb = NULL;
+}
+
+static void setup_tx_buf(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
+			 struct mtk_tx_dma *txd, dma_addr_t mapped_addr,
+			 size_t size, int idx)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
+		dma_unmap_len_set(tx_buf, dma_len0, size);
+	} else {
+		if (idx & 1) {
+			txd->txd3 = mapped_addr;
+			txd->txd2 |= TX_DMA_PLEN1(size);
+			dma_unmap_addr_set(tx_buf, dma_addr1, mapped_addr);
+			dma_unmap_len_set(tx_buf, dma_len1, size);
+		} else {
+			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
+			txd->txd1 = mapped_addr;
+			txd->txd2 = TX_DMA_PLEN0(size);
+			dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
+			dma_unmap_len_set(tx_buf, dma_len0, size);
+		}
+	}
 }
 
 static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
@@ -676,13 +956,16 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma *itxd, *txd;
+	struct mtk_tx_dma *itxd_pdma, *txd_pdma;
 	struct mtk_tx_buf *itx_buf, *tx_buf;
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
 	u32 txd4 = 0, fport;
+	int k = 0;
 
 	itxd = ring->next_free;
+	itxd_pdma = qdma_to_pdma(ring, itxd);
 	if (itxd == ring->last_free)
 		return -ENOMEM;
 
@@ -713,26 +996,37 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	itx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
 	itx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 			  MTK_TX_FLAGS_FPORT1;
-	dma_unmap_addr_set(itx_buf, dma_addr0, mapped_addr);
-	dma_unmap_len_set(itx_buf, dma_len0, skb_headlen(skb));
+	setup_tx_buf(eth, itx_buf, itxd_pdma, mapped_addr, skb_headlen(skb),
+		     k++);
 
 	/* TX SG offload */
 	txd = itxd;
+	txd_pdma = qdma_to_pdma(ring, txd);
 	nr_frags = skb_shinfo(skb)->nr_frags;
+
 	for (i = 0; i < nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		unsigned int offset = 0;
 		int frag_size = skb_frag_size(frag);
 
 		while (frag_size) {
 			bool last_frag = false;
 			unsigned int frag_map_size;
+			bool new_desc = true;
 
-			txd = mtk_qdma_phys_to_virt(ring, txd->txd2);
-			if (txd == ring->last_free)
-				goto err_dma;
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA) ||
+			    (i & 0x1)) {
+				txd = mtk_qdma_phys_to_virt(ring, txd->txd2);
+				txd_pdma = qdma_to_pdma(ring, txd);
+				if (txd == ring->last_free)
+					goto err_dma;
 
-			n_desc++;
+				n_desc++;
+			} else {
+				new_desc = false;
+			}
+
+
 			frag_map_size = min(frag_size, MTK_TX_DMA_BUF_LEN);
 			mapped_addr = skb_frag_dma_map(eth->dev, frag, offset,
 						       frag_map_size,
@@ -751,14 +1045,16 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd4, fport);
 
 			tx_buf = mtk_desc_to_tx_buf(ring, txd);
-			memset(tx_buf, 0, sizeof(*tx_buf));
+			if (new_desc)
+				memset(tx_buf, 0, sizeof(*tx_buf));
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
 			tx_buf->flags |= MTK_TX_FLAGS_PAGE0;
 			tx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 					 MTK_TX_FLAGS_FPORT1;
 
-			dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
-			dma_unmap_len_set(tx_buf, dma_len0, frag_map_size);
+			setup_tx_buf(eth, tx_buf, txd_pdma, mapped_addr,
+				     frag_map_size, k++);
+
 			frag_size -= frag_map_size;
 			offset += frag_map_size;
 		}
@@ -770,6 +1066,12 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	WRITE_ONCE(itxd->txd4, txd4);
 	WRITE_ONCE(itxd->txd3, (TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
 				(!nr_frags * TX_DMA_LS0)));
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		if (k & 0x1)
+			txd_pdma->txd2 |= TX_DMA_LS0;
+		else
+			txd_pdma->txd2 |= TX_DMA_LS1;
+	}
 
 	netdev_sent_queue(dev, skb->len);
 	skb_tx_timestamp(skb);
@@ -782,8 +1084,15 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	 */
 	wmb();
 
-	if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) || !skb->xmit_more)
-		mtk_w32(eth, txd->txd2, MTK_QTX_CTX_PTR);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) ||
+		    !netdev_xmit_more())
+			mtk_w32(eth, txd->txd2, MTK_QTX_CTX_PTR);
+	} else {
+		int next_idx = NEXT_DESP_IDX(txd_to_idx(ring, txd),
+					     ring->dma_size);
+		mtk_w32(eth, next_idx, MT7628_TX_CTX_IDX0);
+	}
 
 	return 0;
 
@@ -792,10 +1101,14 @@ err_dma:
 		tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 
 		/* unmap dma */
-		mtk_tx_unmap(eth, tx_buf);
+		mtk_tx_unmap(eth, tx_buf, false);
 
 		itxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+			itxd_pdma->txd2 = TX_DMA_DESP2_DEF;
+
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
+		itxd_pdma = qdma_to_pdma(ring, itxd);
 	} while (itxd != txd);
 
 	return -ENOMEM;
@@ -804,13 +1117,14 @@ err_dma:
 static inline int mtk_cal_txd_req(struct sk_buff *skb)
 {
 	int i, nfrags;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 
 	nfrags = 1;
 	if (skb_is_gso(skb)) {
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			frag = &skb_shinfo(skb)->frags[i];
-			nfrags += DIV_ROUND_UP(frag->size, MTK_TX_DMA_BUF_LEN);
+			nfrags += DIV_ROUND_UP(skb_frag_size(frag),
+						MTK_TX_DMA_BUF_LEN);
 		}
 	} else {
 		nfrags += skb_shinfo(skb)->nr_frags;
@@ -844,18 +1158,7 @@ static void mtk_wake_queue(struct mtk_eth *eth)
 	}
 }
 
-static void mtk_stop_queue(struct mtk_eth *eth)
-{
-	int i;
-
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i])
-			continue;
-		netif_stop_queue(eth->netdev[i]);
-	}
-}
-
-static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
@@ -875,7 +1178,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_num = mtk_cal_txd_req(skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
-		mtk_stop_queue(eth);
+		netif_stop_queue(dev);
 		netif_err(eth, tx_queued, dev,
 			  "Tx Ring full when queue awake!\n");
 		spin_unlock(&eth->page_lock);
@@ -901,7 +1204,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	if (unlikely(atomic_read(&ring->free_count) <= ring->thresh))
-		mtk_stop_queue(eth);
+		netif_stop_queue(dev);
 
 	spin_unlock(&eth->page_lock);
 
@@ -925,7 +1228,7 @@ static struct mtk_rx_ring *mtk_get_rx_ring(struct mtk_eth *eth)
 
 	for (i = 0; i < MTK_MAX_RX_RING_NUM; i++) {
 		ring = &eth->rx_ring[i];
-		idx = NEXT_RX_DESP_IDX(ring->calc_idx, ring->dma_size);
+		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		if (ring->dma[idx].rxd2 & RX_DMA_DONE) {
 			ring->calc_idx_update = true;
 			return ring;
@@ -957,35 +1260,39 @@ static void mtk_update_rx_cpu_idx(struct mtk_eth *eth)
 static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		       struct mtk_eth *eth)
 {
+	struct dim_sample dim_sample = {};
 	struct mtk_rx_ring *ring;
 	int idx;
 	struct sk_buff *skb;
 	u8 *data, *new_data;
 	struct mtk_rx_dma *rxd, trxd;
-	int done = 0;
+	int done = 0, bytes = 0;
 
 	while (done < budget) {
 		struct net_device *netdev;
 		unsigned int pktlen;
 		dma_addr_t dma_addr;
-		int mac = 0;
+		u32 hash;
+		int mac;
 
 		ring = mtk_get_rx_ring(eth);
 		if (unlikely(!ring))
 			goto rx_done;
 
-		idx = NEXT_RX_DESP_IDX(ring->calc_idx, ring->dma_size);
+		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		rxd = &ring->dma[idx];
 		data = ring->data[idx];
 
-		mtk_rx_get_desc(&trxd, rxd);
-		if (!(trxd.rxd2 & RX_DMA_DONE))
+		if (!mtk_rx_get_desc(&trxd, rxd))
 			break;
 
 		/* find out which mac the packet come from. values start at 1 */
-		mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
-		      RX_DMA_FPORT_MASK;
-		mac--;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) ||
+		    (trxd.rxd4 & RX_DMA_SPECIAL_TAG))
+			mac = 0;
+		else
+			mac = ((trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
+			       RX_DMA_FPORT_MASK) - 1;
 
 		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
 			     !eth->netdev[mac]))
@@ -1003,7 +1310,8 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto release_desc;
 		}
 		dma_addr = dma_map_single(eth->dev,
-					  new_data + NET_SKB_PAD,
+					  new_data + NET_SKB_PAD +
+					  eth->ip_align,
 					  ring->buf_size,
 					  DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(eth->dev, dma_addr))) {
@@ -1012,38 +1320,50 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto release_desc;
 		}
 
+		dma_unmap_single(eth->dev, trxd.rxd1,
+				 ring->buf_size, DMA_FROM_DEVICE);
+
 		/* receive data */
 		skb = build_skb(data, ring->frag_size);
 		if (unlikely(!skb)) {
-			skb_free_frag(new_data);
+			skb_free_frag(data);
 			netdev->stats.rx_dropped++;
-			goto release_desc;
+			goto skip_rx;
 		}
 		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 
-		dma_unmap_single(eth->dev, trxd.rxd1,
-				 ring->buf_size, DMA_FROM_DEVICE);
 		pktlen = RX_DMA_GET_PLEN0(trxd.rxd2);
 		skb->dev = netdev;
 		skb_put(skb, pktlen);
-		if (trxd.rxd4 & RX_DMA_L4_VALID)
+		if (trxd.rxd4 & eth->rx_dma_l4_valid)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb_checksum_none_assert(skb);
 		skb->protocol = eth_type_trans(skb, netdev);
+		bytes += pktlen;
+
+		hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
+		if (hash != MTK_RXD4_FOE_ENTRY) {
+			hash = jhash_1word(hash, 0);
+			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
+		}
 
 		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX &&
-		    RX_DMA_VID(trxd.rxd3))
+		    (trxd.rxd2 & RX_DMA_VTAG))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       RX_DMA_VID(trxd.rxd3));
 		skb_record_rx_queue(skb, 0);
 		napi_gro_receive(napi, skb);
 
+skip_rx:
 		ring->data[idx] = new_data;
 		rxd->rxd1 = (unsigned int)dma_addr;
 
 release_desc:
-		rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+			rxd->rxd2 = RX_DMA_LSO;
+		else
+			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
 
 		ring->calc_idx = idx;
 
@@ -1059,24 +1379,25 @@ rx_done:
 		mtk_update_rx_cpu_idx(eth);
 	}
 
+	eth->rx_packets += done;
+	eth->rx_bytes += bytes;
+	dim_update_sample(eth->rx_events, eth->rx_packets, eth->rx_bytes,
+			  &dim_sample);
+	net_dim(&eth->rx_dim, dim_sample);
+
 	return done;
 }
 
-static int mtk_poll_tx(struct mtk_eth *eth, int budget)
+static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
+			    unsigned int *done, unsigned int *bytes)
 {
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct mtk_tx_dma *desc;
 	struct sk_buff *skb;
 	struct mtk_tx_buf *tx_buf;
-	unsigned int done[MTK_MAX_DEVS];
-	unsigned int bytes[MTK_MAX_DEVS];
 	u32 cpu, dma;
-	int total = 0, i;
 
-	memset(done, 0, sizeof(done));
-	memset(bytes, 0, sizeof(bytes));
-
-	cpu = mtk_r32(eth, MTK_QTX_CRX_PTR);
+	cpu = ring->last_free_ptr;
 	dma = mtk_r32(eth, MTK_QTX_DRX_PTR);
 
 	desc = mtk_qdma_phys_to_virt(ring, cpu);
@@ -1102,7 +1423,7 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 			done[mac]++;
 			budget--;
 		}
-		mtk_tx_unmap(eth, tx_buf);
+		mtk_tx_unmap(eth, tx_buf, true);
 
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
@@ -1110,14 +1431,78 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 		cpu = next_cpu;
 	}
 
+	ring->last_free_ptr = cpu;
 	mtk_w32(eth, cpu, MTK_QTX_CRX_PTR);
+
+	return budget;
+}
+
+static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
+			    unsigned int *done, unsigned int *bytes)
+{
+	struct mtk_tx_ring *ring = &eth->tx_ring;
+	struct mtk_tx_dma *desc;
+	struct sk_buff *skb;
+	struct mtk_tx_buf *tx_buf;
+	u32 cpu, dma;
+
+	cpu = ring->cpu_idx;
+	dma = mtk_r32(eth, MT7628_TX_DTX_IDX0);
+
+	while ((cpu != dma) && budget) {
+		tx_buf = &ring->buf[cpu];
+		skb = tx_buf->skb;
+		if (!skb)
+			break;
+
+		if (skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC) {
+			bytes[0] += skb->len;
+			done[0]++;
+			budget--;
+		}
+
+		mtk_tx_unmap(eth, tx_buf, true);
+
+		desc = &ring->dma[cpu];
+		ring->last_free = desc;
+		atomic_inc(&ring->free_count);
+
+		cpu = NEXT_DESP_IDX(cpu, ring->dma_size);
+	}
+
+	ring->cpu_idx = cpu;
+
+	return budget;
+}
+
+static int mtk_poll_tx(struct mtk_eth *eth, int budget)
+{
+	struct mtk_tx_ring *ring = &eth->tx_ring;
+	struct dim_sample dim_sample = {};
+	unsigned int done[MTK_MAX_DEVS];
+	unsigned int bytes[MTK_MAX_DEVS];
+	int total = 0, i;
+
+	memset(done, 0, sizeof(done));
+	memset(bytes, 0, sizeof(bytes));
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		budget = mtk_poll_tx_qdma(eth, budget, done, bytes);
+	else
+		budget = mtk_poll_tx_pdma(eth, budget, done, bytes);
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i] || !done[i])
 			continue;
 		netdev_completed_queue(eth->netdev[i], done[i], bytes[i]);
 		total += done[i];
+		eth->tx_packets += done[i];
+		eth->tx_bytes += bytes[i];
 	}
+
+	dim_update_sample(eth->tx_events, eth->tx_packets, eth->tx_bytes,
+			  &dim_sample);
+	net_dim(&eth->tx_dim, dim_sample);
 
 	if (mtk_queue_stopped(eth) &&
 	    (atomic_read(&ring->free_count) > ring->thresh))
@@ -1140,30 +1525,28 @@ static void mtk_handle_status_irq(struct mtk_eth *eth)
 static int mtk_napi_tx(struct napi_struct *napi, int budget)
 {
 	struct mtk_eth *eth = container_of(napi, struct mtk_eth, tx_napi);
-	u32 status, mask;
 	int tx_done = 0;
 
-	mtk_handle_status_irq(eth);
-	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QMTK_INT_STATUS);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_handle_status_irq(eth);
+	mtk_w32(eth, MTK_TX_DONE_INT, eth->tx_int_status_reg);
 	tx_done = mtk_poll_tx(eth, budget);
 
 	if (unlikely(netif_msg_intr(eth))) {
-		status = mtk_r32(eth, MTK_QMTK_INT_STATUS);
-		mask = mtk_r32(eth, MTK_QDMA_INT_MASK);
 		dev_info(eth->dev,
-			 "done tx %d, intr 0x%08x/0x%x\n",
-			 tx_done, status, mask);
+			 "done tx %d, intr 0x%08x/0x%x\n", tx_done,
+			 mtk_r32(eth, eth->tx_int_status_reg),
+			 mtk_r32(eth, eth->tx_int_mask_reg));
 	}
 
 	if (tx_done == budget)
 		return budget;
 
-	status = mtk_r32(eth, MTK_QMTK_INT_STATUS);
-	if (status & MTK_TX_DONE_INT)
+	if (mtk_r32(eth, eth->tx_int_status_reg) & MTK_TX_DONE_INT)
 		return budget;
 
-	napi_complete(napi);
-	mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
+	if (napi_complete_done(napi, tx_done))
+		mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
 
 	return tx_done;
 }
@@ -1171,35 +1554,33 @@ static int mtk_napi_tx(struct napi_struct *napi, int budget)
 static int mtk_napi_rx(struct napi_struct *napi, int budget)
 {
 	struct mtk_eth *eth = container_of(napi, struct mtk_eth, rx_napi);
-	u32 status, mask;
-	int rx_done = 0;
-	int remain_budget = budget;
+	int rx_done_total = 0;
 
 	mtk_handle_status_irq(eth);
 
-poll_again:
-	mtk_w32(eth, MTK_RX_DONE_INT, MTK_PDMA_INT_STATUS);
-	rx_done = mtk_poll_rx(napi, remain_budget, eth);
+	do {
+		int rx_done;
 
-	if (unlikely(netif_msg_intr(eth))) {
-		status = mtk_r32(eth, MTK_PDMA_INT_STATUS);
-		mask = mtk_r32(eth, MTK_PDMA_INT_MASK);
-		dev_info(eth->dev,
-			 "done rx %d, intr 0x%08x/0x%x\n",
-			 rx_done, status, mask);
-	}
-	if (rx_done == remain_budget)
-		return budget;
+		mtk_w32(eth, MTK_RX_DONE_INT, MTK_PDMA_INT_STATUS);
+		rx_done = mtk_poll_rx(napi, budget - rx_done_total, eth);
+		rx_done_total += rx_done;
 
-	status = mtk_r32(eth, MTK_PDMA_INT_STATUS);
-	if (status & MTK_RX_DONE_INT) {
-		remain_budget -= rx_done;
-		goto poll_again;
-	}
-	napi_complete(napi);
-	mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
+		if (unlikely(netif_msg_intr(eth))) {
+			dev_info(eth->dev,
+				 "done rx %d, intr 0x%08x/0x%x\n", rx_done,
+				 mtk_r32(eth, MTK_PDMA_INT_STATUS),
+				 mtk_r32(eth, MTK_PDMA_INT_MASK));
+		}
 
-	return rx_done + budget - remain_budget;
+		if (rx_done_total == budget)
+			return budget;
+
+	} while (mtk_r32(eth, MTK_PDMA_INT_STATUS) & MTK_RX_DONE_INT);
+
+	if (napi_complete_done(napi, rx_done_total))
+		mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
+
+	return rx_done_total;
 }
 
 static int mtk_tx_alloc(struct mtk_eth *eth)
@@ -1212,8 +1593,8 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_zalloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		goto no_tx_mem;
 
@@ -1225,9 +1606,28 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 		ring->dma[i].txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 	}
 
+	/* On MT7688 (PDMA only) this driver uses the ring->dma structs
+	 * only as the framework. The real HW descriptors are the PDMA
+	 * descriptors in ring->dma_pdma.
+	 */
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		ring->dma_pdma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+						    &ring->phys_pdma,
+						    GFP_ATOMIC);
+		if (!ring->dma_pdma)
+			goto no_tx_mem;
+
+		for (i = 0; i < MTK_DMA_SIZE; i++) {
+			ring->dma_pdma[i].txd2 = TX_DMA_DESP2_DEF;
+			ring->dma_pdma[i].txd4 = 0;
+		}
+	}
+
+	ring->dma_size = MTK_DMA_SIZE;
 	atomic_set(&ring->free_count, MTK_DMA_SIZE - 2);
 	ring->next_free = &ring->dma[0];
 	ring->last_free = &ring->dma[MTK_DMA_SIZE - 1];
+	ring->last_free_ptr = (u32)(ring->phys + ((MTK_DMA_SIZE - 1) * sz));
 	ring->thresh = MAX_SKB_FRAGS;
 
 	/* make sure that all changes to the dma ring are flushed before we
@@ -1235,15 +1635,21 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	 */
 	wmb();
 
-	mtk_w32(eth, ring->phys, MTK_QTX_CTX_PTR);
-	mtk_w32(eth, ring->phys, MTK_QTX_DTX_PTR);
-	mtk_w32(eth,
-		ring->phys + ((MTK_DMA_SIZE - 1) * sz),
-		MTK_QTX_CRX_PTR);
-	mtk_w32(eth,
-		ring->phys + ((MTK_DMA_SIZE - 1) * sz),
-		MTK_QTX_DRX_PTR);
-	mtk_w32(eth, (QDMA_RES_THRES << 8) | QDMA_RES_THRES, MTK_QTX_CFG(0));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		mtk_w32(eth, ring->phys, MTK_QTX_CTX_PTR);
+		mtk_w32(eth, ring->phys, MTK_QTX_DTX_PTR);
+		mtk_w32(eth,
+			ring->phys + ((MTK_DMA_SIZE - 1) * sz),
+			MTK_QTX_CRX_PTR);
+		mtk_w32(eth, ring->last_free_ptr, MTK_QTX_DRX_PTR);
+		mtk_w32(eth, (QDMA_RES_THRES << 8) | QDMA_RES_THRES,
+			MTK_QTX_CFG(0));
+	} else {
+		mtk_w32(eth, ring->phys_pdma, MT7628_TX_BASE_PTR0);
+		mtk_w32(eth, MTK_DMA_SIZE, MT7628_TX_MAX_CNT0);
+		mtk_w32(eth, 0, MT7628_TX_CTX_IDX0);
+		mtk_w32(eth, MT7628_PST_DTX_IDX0, MTK_PDMA_RST_IDX);
+	}
 
 	return 0;
 
@@ -1258,7 +1664,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 	if (ring->buf) {
 		for (i = 0; i < MTK_DMA_SIZE; i++)
-			mtk_tx_unmap(eth, &ring->buf[i]);
+			mtk_tx_unmap(eth, &ring->buf[i], false);
 		kfree(ring->buf);
 		ring->buf = NULL;
 	}
@@ -1269,6 +1675,14 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 				  ring->dma,
 				  ring->phys);
 		ring->dma = NULL;
+	}
+
+	if (ring->dma_pdma) {
+		dma_free_coherent(eth->dev,
+				  MTK_DMA_SIZE * sizeof(*ring->dma_pdma),
+				  ring->dma_pdma,
+				  ring->phys_pdma);
+		ring->dma_pdma = NULL;
 	}
 }
 
@@ -1309,22 +1723,25 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			return -ENOMEM;
 	}
 
-	ring->dma = dma_zalloc_coherent(eth->dev,
-					rx_dma_size * sizeof(*ring->dma),
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev,
+				       rx_dma_size * sizeof(*ring->dma),
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		return -ENOMEM;
 
 	for (i = 0; i < rx_dma_size; i++) {
 		dma_addr_t dma_addr = dma_map_single(eth->dev,
-				ring->data[i] + NET_SKB_PAD,
+				ring->data[i] + NET_SKB_PAD + eth->ip_align,
 				ring->buf_size,
 				DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
 			return -ENOMEM;
 		ring->dma[i].rxd1 = (unsigned int)dma_addr;
 
-		ring->dma[i].rxd2 = RX_DMA_PLEN0(ring->buf_size);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+			ring->dma[i].rxd2 = RX_DMA_LSO;
+		else
+			ring->dma[i].rxd2 = RX_DMA_PLEN0(ring->buf_size);
 	}
 	ring->dma_size = rx_dma_size;
 	ring->calc_idx_update = false;
@@ -1637,18 +2054,22 @@ static int mtk_set_features(struct net_device *dev, netdev_features_t features)
 /* wait for DMA to finish whatever it is doing before we start using it again */
 static int mtk_dma_busy_wait(struct mtk_eth *eth)
 {
-	unsigned long t_start = jiffies;
+	unsigned int reg;
+	int ret;
+	u32 val;
 
-	while (1) {
-		if (!(mtk_r32(eth, MTK_QDMA_GLO_CFG) &
-		      (MTK_RX_DMA_BUSY | MTK_TX_DMA_BUSY)))
-			return 0;
-		if (time_after(jiffies, t_start + MTK_DMA_BUSY_TIMEOUT))
-			break;
-	}
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		reg = MTK_QDMA_GLO_CFG;
+	else
+		reg = MTK_PDMA_GLO_CFG;
 
-	dev_err(eth->dev, "DMA init timeout\n");
-	return -1;
+	ret = readx_poll_timeout_atomic(__raw_readl, eth->base + reg, val,
+					!(val & (MTK_RX_DMA_BUSY | MTK_TX_DMA_BUSY)),
+					5, MTK_DMA_BUSY_TIMEOUT_US);
+	if (ret)
+		dev_err(eth->dev, "DMA init timeout\n");
+
+	return ret;
 }
 
 static int mtk_dma_init(struct mtk_eth *eth)
@@ -1659,20 +2080,24 @@ static int mtk_dma_init(struct mtk_eth *eth)
 	if (mtk_dma_busy_wait(eth))
 		return -EBUSY;
 
-	/* QDMA needs scratch memory for internal reordering of the
-	 * descriptors
-	 */
-	err = mtk_init_fq_dma(eth);
-	if (err)
-		return err;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		/* QDMA needs scratch memory for internal reordering of the
+		 * descriptors
+		 */
+		err = mtk_init_fq_dma(eth);
+		if (err)
+			return err;
+	}
 
 	err = mtk_tx_alloc(eth);
 	if (err)
 		return err;
 
-	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_QDMA);
-	if (err)
-		return err;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_QDMA);
+		if (err)
+			return err;
+	}
 
 	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_NORMAL);
 	if (err)
@@ -1689,10 +2114,14 @@ static int mtk_dma_init(struct mtk_eth *eth)
 			return err;
 	}
 
-	/* Enable random early drop and set drop threshold automatically */
-	mtk_w32(eth, FC_THRES_DROP_MODE | FC_THRES_DROP_EN | FC_THRES_MIN,
-		MTK_QDMA_FC_THRES);
-	mtk_w32(eth, 0x0, MTK_QDMA_HRED2);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		/* Enable random early drop and set drop threshold
+		 * automatically
+		 */
+		mtk_w32(eth, FC_THRES_DROP_MODE | FC_THRES_DROP_EN |
+			FC_THRES_MIN, MTK_QDMA_FC_THRES);
+		mtk_w32(eth, 0x0, MTK_QDMA_HRED2);
+	}
 
 	return 0;
 }
@@ -1725,7 +2154,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	kfree(eth->scratch_head);
 }
 
-static void mtk_tx_timeout(struct net_device *dev)
+static void mtk_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
@@ -1740,6 +2169,7 @@ static irqreturn_t mtk_handle_irq_rx(int irq, void *_eth)
 {
 	struct mtk_eth *eth = _eth;
 
+	eth->rx_events++;
 	if (likely(napi_schedule_prep(&eth->rx_napi))) {
 		__napi_schedule(&eth->rx_napi);
 		mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
@@ -1752,9 +2182,26 @@ static irqreturn_t mtk_handle_irq_tx(int irq, void *_eth)
 {
 	struct mtk_eth *eth = _eth;
 
+	eth->tx_events++;
 	if (likely(napi_schedule_prep(&eth->tx_napi))) {
 		__napi_schedule(&eth->tx_napi);
 		mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t mtk_handle_irq(int irq, void *_eth)
+{
+	struct mtk_eth *eth = _eth;
+
+	if (mtk_r32(eth, MTK_PDMA_INT_MASK) & MTK_RX_DONE_INT) {
+		if (mtk_r32(eth, MTK_PDMA_INT_STATUS) & MTK_RX_DONE_INT)
+			mtk_handle_irq_rx(irq, _eth);
+	}
+	if (mtk_r32(eth, eth->tx_int_mask_reg) & MTK_TX_DONE_INT) {
+		if (mtk_r32(eth, eth->tx_int_status_reg) & MTK_TX_DONE_INT)
+			mtk_handle_irq_tx(irq, _eth);
 	}
 
 	return IRQ_HANDLED;
@@ -1776,6 +2223,7 @@ static void mtk_poll_controller(struct net_device *dev)
 
 static int mtk_start_dma(struct mtk_eth *eth)
 {
+	u32 rx_2b_offset = (NET_IP_ALIGN == 2) ? MTK_RX_2B_OFFSET : 0;
 	int err;
 
 	err = mtk_dma_init(eth);
@@ -1784,32 +2232,81 @@ static int mtk_start_dma(struct mtk_eth *eth)
 		return err;
 	}
 
-	mtk_w32(eth,
-		MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
-		MTK_DMA_SIZE_16DWORDS | MTK_NDP_CO_PRO |
-		MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
-		MTK_RX_BT_32DWORDS,
-		MTK_QDMA_GLO_CFG);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		mtk_w32(eth,
+			MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
+			MTK_TX_BT_32DWORDS | MTK_NDP_CO_PRO |
+			MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
+			MTK_RX_BT_32DWORDS,
+			MTK_QDMA_GLO_CFG);
 
-	mtk_w32(eth,
-		MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
-		MTK_RX_BT_32DWORDS | MTK_MULTI_EN,
-		MTK_PDMA_GLO_CFG);
+		mtk_w32(eth,
+			MTK_RX_DMA_EN | rx_2b_offset |
+			MTK_RX_BT_32DWORDS | MTK_MULTI_EN,
+			MTK_PDMA_GLO_CFG);
+	} else {
+		mtk_w32(eth, MTK_TX_WB_DDONE | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
+			MTK_MULTI_EN | MTK_PDMA_SIZE_8DWORDS,
+			MTK_PDMA_GLO_CFG);
+	}
 
 	return 0;
+}
+
+static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
+{
+	int i;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		return;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
+
+		/* default setup the forward port to send frame to PDMA */
+		val &= ~0xffff;
+
+		/* Enable RX checksum */
+		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
+
+		val |= config;
+
+		if (!i && eth->netdev[0] && netdev_uses_dsa(eth->netdev[0]))
+			val |= MTK_GDMA_SPECIAL_TAG;
+
+		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
+	}
+	/* Reset and enable PSE */
+	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
+	mtk_w32(eth, 0, MTK_RST_GL);
 }
 
 static int mtk_open(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
+	int err;
+
+	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
+	if (err) {
+		netdev_err(dev, "%s: could not attach PHY: %d\n", __func__,
+			   err);
+		return err;
+	}
 
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
 	if (!refcount_read(&eth->dma_refcnt)) {
-		int err = mtk_start_dma(eth);
+		u32 gdm_config = MTK_GDMA_TO_PDMA;
+		int err;
 
+		err = mtk_start_dma(eth);
 		if (err)
 			return err;
+
+		if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
+			gdm_config = MTK_GDMA_TO_PPE;
+
+		mtk_gdm_config(eth, gdm_config);
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
@@ -1820,9 +2317,8 @@ static int mtk_open(struct net_device *dev)
 	else
 		refcount_inc(&eth->dma_refcnt);
 
-	phy_start(dev->phydev);
+	phylink_start(mac->phylink);
 	netif_start_queue(dev);
-
 	return 0;
 }
 
@@ -1854,22 +2350,34 @@ static int mtk_stop(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
+	phylink_stop(mac->phylink);
+
 	netif_tx_disable(dev);
-	phy_stop(dev->phydev);
+
+	phylink_disconnect_phy(mac->phylink);
 
 	/* only shutdown DMA if this is the last user */
 	if (!refcount_dec_and_test(&eth->dma_refcnt))
 		return 0;
+
+	mtk_gdm_config(eth, MTK_GDMA_DROP_ALL);
 
 	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
 	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
 	napi_disable(&eth->tx_napi);
 	napi_disable(&eth->rx_napi);
 
-	mtk_stop_dma(eth, MTK_QDMA_GLO_CFG);
+	cancel_work_sync(&eth->rx_dim.work);
+	cancel_work_sync(&eth->tx_dim.work);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_stop_dma(eth, MTK_QDMA_GLO_CFG);
 	mtk_stop_dma(eth, MTK_PDMA_GLO_CFG);
 
 	mtk_dma_free(eth);
+
+	if (eth->soc->offload_version)
+		mtk_ppe_stop(&eth->ppe);
 
 	return 0;
 }
@@ -1914,6 +2422,66 @@ err_disable_clks:
 	return ret;
 }
 
+static void mtk_dim_rx(struct work_struct *work)
+{
+	struct dim *dim = container_of(work, struct dim, work);
+	struct mtk_eth *eth = container_of(dim, struct mtk_eth, rx_dim);
+	struct dim_cq_moder cur_profile;
+	u32 val, cur;
+
+	cur_profile = net_dim_get_rx_moderation(eth->rx_dim.mode,
+						dim->profile_ix);
+	spin_lock_bh(&eth->dim_lock);
+
+	val = mtk_r32(eth, MTK_PDMA_DELAY_INT);
+	val &= MTK_PDMA_DELAY_TX_MASK;
+	val |= MTK_PDMA_DELAY_RX_EN;
+
+	cur = min_t(u32, DIV_ROUND_UP(cur_profile.usec, 20), MTK_PDMA_DELAY_PTIME_MASK);
+	val |= cur << MTK_PDMA_DELAY_RX_PTIME_SHIFT;
+
+	cur = min_t(u32, cur_profile.pkts, MTK_PDMA_DELAY_PINT_MASK);
+	val |= cur << MTK_PDMA_DELAY_RX_PINT_SHIFT;
+
+	mtk_w32(eth, val, MTK_PDMA_DELAY_INT);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
+
+	spin_unlock_bh(&eth->dim_lock);
+
+	dim->state = DIM_START_MEASURE;
+}
+
+static void mtk_dim_tx(struct work_struct *work)
+{
+	struct dim *dim = container_of(work, struct dim, work);
+	struct mtk_eth *eth = container_of(dim, struct mtk_eth, tx_dim);
+	struct dim_cq_moder cur_profile;
+	u32 val, cur;
+
+	cur_profile = net_dim_get_tx_moderation(eth->tx_dim.mode,
+						dim->profile_ix);
+	spin_lock_bh(&eth->dim_lock);
+
+	val = mtk_r32(eth, MTK_PDMA_DELAY_INT);
+	val &= MTK_PDMA_DELAY_RX_MASK;
+	val |= MTK_PDMA_DELAY_TX_EN;
+
+	cur = min_t(u32, DIV_ROUND_UP(cur_profile.usec, 20), MTK_PDMA_DELAY_PTIME_MASK);
+	val |= cur << MTK_PDMA_DELAY_TX_PTIME_SHIFT;
+
+	cur = min_t(u32, cur_profile.pkts, MTK_PDMA_DELAY_PINT_MASK);
+	val |= cur << MTK_PDMA_DELAY_TX_PINT_SHIFT;
+
+	mtk_w32(eth, val, MTK_PDMA_DELAY_INT);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
+
+	spin_unlock_bh(&eth->dim_lock);
+
+	dim->state = DIM_START_MEASURE;
+}
+
 static int mtk_hw_init(struct mtk_eth *eth)
 {
 	int i, val, ret;
@@ -1928,17 +2496,27 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	if (ret)
 		goto err_disable_pm;
 
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		ret = device_reset(eth->dev);
+		if (ret) {
+			dev_err(eth->dev, "MAC reset failed!\n");
+			goto err_disable_pm;
+		}
+
+		/* set interrupt delays based on current Net DIM sample */
+		mtk_dim_rx(&eth->rx_dim.work);
+		mtk_dim_tx(&eth->tx_dim.work);
+
+		/* disable delay and normal interrupt */
+		mtk_tx_irq_disable(eth, ~0);
+		mtk_rx_irq_disable(eth, ~0);
+
+		return 0;
+	}
+
+	/* Non-MT7628 handling... */
 	ethsys_reset(eth, RSTCTRL_FE);
 	ethsys_reset(eth, RSTCTRL_PPE);
-
-	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->mac[i])
-			continue;
-		val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, eth->mac[i]->id);
-		val |= SYSCFG0_GE_MODE(eth->mac[i]->ge_mode, eth->mac[i]->id);
-	}
-	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
 	if (eth->pctl) {
 		/* Set GE2 driving and slew rate */
@@ -1952,11 +2530,11 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	}
 
 	/* Set linkdown as the default for each GMAC. Its own MCR would be set
-	 * up with the more appropriate value when mtk_phy_link_adjust call is
-	 * being invoked.
+	 * up with the more appropriate value when mtk_mac_config call is being
+	 * invoked.
 	 */
 	for (i = 0; i < MTK_MAC_COUNT; i++)
-		mtk_w32(eth, 0, MTK_MAC_MCR(i));
+		mtk_w32(eth, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(i));
 
 	/* Indicates CDM to parse the MTK special tag from CPU
 	 * which also is working out for untag packets.
@@ -1967,15 +2545,13 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	/* Enable RX VLan Offloading */
 	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
 
-	/* enable interrupt delay for RX */
-	mtk_w32(eth, MTK_PDMA_DELAY_RX_DELAY, MTK_PDMA_DELAY_INT);
+	/* set interrupt delays based on current Net DIM sample */
+	mtk_dim_rx(&eth->rx_dim.work);
+	mtk_dim_tx(&eth->tx_dim.work);
 
 	/* disable delay and normal interrupt */
-	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
 	mtk_tx_irq_disable(eth, ~0);
 	mtk_rx_irq_disable(eth, ~0);
-	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
-	mtk_w32(eth, 0, MTK_RST_GL);
 
 	/* FE int grouping */
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_PDMA_INT_GRP1);
@@ -1983,19 +2559,6 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_GRP1);
 	mtk_w32(eth, MTK_RX_DONE_INT, MTK_QDMA_INT_GRP2);
 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
-
-	for (i = 0; i < 2; i++) {
-		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
-
-		/* setup the forward port to send frame to PDMA */
-		val &= ~0xffff;
-
-		/* Enable RX checksum */
-		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
-
-		/* setup the mac dma */
-		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
-	}
 
 	return 0;
 
@@ -2023,20 +2586,17 @@ static int __init mtk_init(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
-	const char *mac_addr;
+	int ret;
 
-	mac_addr = of_get_mac_address(mac->of_node);
-	if (mac_addr)
-		ether_addr_copy(dev->dev_addr, mac_addr);
-
-	/* If the mac address is invalid, use random mac address  */
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	ret = of_get_mac_address(mac->of_node, dev->dev_addr);
+	if (ret) {
+		/* If the mac address is invalid, use random mac address */
 		eth_hw_addr_random(dev);
 		dev_err(eth->dev, "generated random MAC address %pM\n",
 			dev->dev_addr);
 	}
 
-	return mtk_phy_connect(dev);
+	return 0;
 }
 
 static void mtk_uninit(struct net_device *dev)
@@ -2044,20 +2604,49 @@ static void mtk_uninit(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
-	phy_disconnect(dev->phydev);
-	if (of_phy_is_fixed_link(mac->of_node))
-		of_phy_deregister_fixed_link(mac->of_node);
+	phylink_disconnect_phy(mac->phylink);
 	mtk_tx_irq_disable(eth, ~0);
 	mtk_rx_irq_disable(eth, ~0);
 }
 
+static int mtk_change_mtu(struct net_device *dev, int new_mtu)
+{
+	int length = new_mtu + MTK_RX_ETH_HLEN;
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	u32 mcr_cur, mcr_new;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		mcr_cur = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+		mcr_new = mcr_cur & ~MAC_MCR_MAX_RX_MASK;
+
+		if (length <= 1518)
+			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1518);
+		else if (length <= 1536)
+			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1536);
+		else if (length <= 1552)
+			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1552);
+		else
+			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_2048);
+
+		if (mcr_new != mcr_cur)
+			mtk_w32(mac->hw, mcr_new, MTK_MAC_MCR(mac->id));
+	}
+
+	dev->mtu = new_mtu;
+
+	return 0;
+}
+
 static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	struct mtk_mac *mac = netdev_priv(dev);
+
 	switch (cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		return phy_mii_ioctl(dev->phydev, ifr, cmd);
+		return phylink_mii_ioctl(mac->phylink, ifr, cmd);
 	default:
 		break;
 	}
@@ -2097,16 +2686,6 @@ static void mtk_pending_work(struct work_struct *work)
 		pinctrl_select_state(eth->dev->pins->p,
 				     eth->dev->pins->default_state);
 	mtk_hw_init(eth);
-
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->mac[i] ||
-		    of_phy_is_fixed_link(eth->mac[i]->of_node))
-			continue;
-		err = phy_init_hw(eth->netdev[i]->phydev);
-		if (err)
-			dev_err(eth->dev, "%s: PHY init failed.\n",
-				eth->netdev[i]->name);
-	}
 
 	/* restart DMA and enable IRQs */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -2170,9 +2749,7 @@ static int mtk_get_link_ksettings(struct net_device *ndev,
 	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
 		return -EBUSY;
 
-	phy_ethtool_ksettings_get(ndev->phydev, cmd);
-
-	return 0;
+	return phylink_ethtool_ksettings_get(mac->phylink, cmd);
 }
 
 static int mtk_set_link_ksettings(struct net_device *ndev,
@@ -2183,7 +2760,7 @@ static int mtk_set_link_ksettings(struct net_device *ndev,
 	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
 		return -EBUSY;
 
-	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
+	return phylink_ethtool_ksettings_set(mac->phylink, cmd);
 }
 
 static void mtk_get_drvinfo(struct net_device *dev,
@@ -2217,22 +2794,10 @@ static int mtk_nway_reset(struct net_device *dev)
 	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
 		return -EBUSY;
 
-	return genphy_restart_aneg(dev->phydev);
-}
+	if (!mac->phylink)
+		return -ENOTSUPP;
 
-static u32 mtk_get_link(struct net_device *dev)
-{
-	struct mtk_mac *mac = netdev_priv(dev);
-	int err;
-
-	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
-		return -EBUSY;
-
-	err = genphy_update_link(dev->phydev);
-	if (err)
-		return ethtool_op_get_link(dev);
-
-	return dev->phydev->link;
+	return phylink_ethtool_nway_reset(mac->phylink);
 }
 
 static void mtk_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -2296,13 +2861,13 @@ static int mtk_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		if (dev->features & NETIF_F_LRO) {
+		if (dev->hw_features & NETIF_F_LRO) {
 			cmd->data = MTK_MAX_RX_RING_NUM;
 			ret = 0;
 		}
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
-		if (dev->features & NETIF_F_LRO) {
+		if (dev->hw_features & NETIF_F_LRO) {
 			struct mtk_mac *mac = netdev_priv(dev);
 
 			cmd->rule_cnt = mac->hwlro_ip_cnt;
@@ -2310,11 +2875,11 @@ static int mtk_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		}
 		break;
 	case ETHTOOL_GRXCLSRULE:
-		if (dev->features & NETIF_F_LRO)
+		if (dev->hw_features & NETIF_F_LRO)
 			ret = mtk_hwlro_get_fdir_entry(dev, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		if (dev->features & NETIF_F_LRO)
+		if (dev->hw_features & NETIF_F_LRO)
 			ret = mtk_hwlro_get_fdir_all(dev, cmd,
 						     rule_locs);
 		break;
@@ -2331,11 +2896,11 @@ static int mtk_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
-		if (dev->features & NETIF_F_LRO)
+		if (dev->hw_features & NETIF_F_LRO)
 			ret = mtk_hwlro_add_ipaddr(dev, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
-		if (dev->features & NETIF_F_LRO)
+		if (dev->hw_features & NETIF_F_LRO)
 			ret = mtk_hwlro_del_ipaddr(dev, cmd);
 		break;
 	default:
@@ -2352,7 +2917,7 @@ static const struct ethtool_ops mtk_ethtool_ops = {
 	.get_msglevel		= mtk_get_msglevel,
 	.set_msglevel		= mtk_set_msglevel,
 	.nway_reset		= mtk_nway_reset,
-	.get_link		= mtk_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_strings		= mtk_get_strings,
 	.get_sset_count		= mtk_get_sset_count,
 	.get_ethtool_stats	= mtk_get_ethtool_stats,
@@ -2369,6 +2934,7 @@ static const struct net_device_ops mtk_netdev_ops = {
 	.ndo_set_mac_address	= mtk_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= mtk_do_ioctl,
+	.ndo_change_mtu		= mtk_change_mtu,
 	.ndo_tx_timeout		= mtk_tx_timeout,
 	.ndo_get_stats64        = mtk_get_stats64,
 	.ndo_fix_features	= mtk_fix_features,
@@ -2376,12 +2942,15 @@ static const struct net_device_ops mtk_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mtk_poll_controller,
 #endif
+	.ndo_setup_tc		= mtk_eth_setup_tc,
 };
 
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 {
-	struct mtk_mac *mac;
 	const __be32 *_id = of_get_property(np, "reg", NULL);
+	phy_interface_t phy_mode;
+	struct phylink *phylink;
+	struct mtk_mac *mac;
 	int id, err;
 
 	if (!_id) {
@@ -2426,22 +2995,52 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	u64_stats_init(&mac->hw_stats->syncp);
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
+	/* phylink create */
+	err = of_get_phy_mode(np, &phy_mode);
+	if (err) {
+		dev_err(eth->dev, "incorrect phy-mode\n");
+		goto free_netdev;
+	}
+
+	/* mac config is not set */
+	mac->interface = PHY_INTERFACE_MODE_NA;
+	mac->mode = MLO_AN_PHY;
+	mac->speed = SPEED_UNKNOWN;
+
+	mac->phylink_config.dev = &eth->netdev[id]->dev;
+	mac->phylink_config.type = PHYLINK_NETDEV;
+
+	phylink = phylink_create(&mac->phylink_config,
+				 of_fwnode_handle(mac->of_node),
+				 phy_mode, &mtk_phylink_ops);
+	if (IS_ERR(phylink)) {
+		err = PTR_ERR(phylink);
+		goto free_netdev;
+	}
+
+	mac->phylink = phylink;
+
 	SET_NETDEV_DEV(eth->netdev[id], eth->dev);
 	eth->netdev[id]->watchdog_timeo = 5 * HZ;
 	eth->netdev[id]->netdev_ops = &mtk_netdev_ops;
 	eth->netdev[id]->base_addr = (unsigned long)eth->base;
 
-	eth->netdev[id]->hw_features = MTK_HW_FEATURES;
+	eth->netdev[id]->hw_features = eth->soc->hw_features;
 	if (eth->hwlro)
 		eth->netdev[id]->hw_features |= NETIF_F_LRO;
 
-	eth->netdev[id]->vlan_features = MTK_HW_FEATURES &
+	eth->netdev[id]->vlan_features = eth->soc->hw_features &
 		~(NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
-	eth->netdev[id]->features |= MTK_HW_FEATURES;
+	eth->netdev[id]->features |= eth->soc->hw_features;
 	eth->netdev[id]->ethtool_ops = &mtk_ethtool_ops;
 
 	eth->netdev[id]->irq = eth->irq[0];
 	eth->netdev[id]->dev.of_node = np;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		eth->netdev[id]->max_mtu = MTK_MAX_RX_LENGTH - MTK_RX_ETH_HLEN;
+	else
+		eth->netdev[id]->max_mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
 
 	return 0;
 
@@ -2452,11 +3051,9 @@ free_netdev:
 
 static int mtk_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device_node *mac_np;
 	struct mtk_eth *eth;
-	int err;
-	int i;
+	int err, i;
 
 	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
 	if (!eth)
@@ -2465,29 +3062,65 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->soc = of_device_get_match_data(&pdev->dev);
 
 	eth->dev = &pdev->dev;
-	eth->base = devm_ioremap_resource(&pdev->dev, res);
+	eth->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(eth->base))
 		return PTR_ERR(eth->base);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		eth->tx_int_mask_reg = MTK_QDMA_INT_MASK;
+		eth->tx_int_status_reg = MTK_QDMA_INT_STATUS;
+	} else {
+		eth->tx_int_mask_reg = MTK_PDMA_INT_MASK;
+		eth->tx_int_status_reg = MTK_PDMA_INT_STATUS;
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		eth->rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA;
+		eth->ip_align = NET_IP_ALIGN;
+	} else {
+		eth->rx_dma_l4_valid = RX_DMA_L4_VALID;
+	}
 
 	spin_lock_init(&eth->page_lock);
 	spin_lock_init(&eth->tx_irq_lock);
 	spin_lock_init(&eth->rx_irq_lock);
+	spin_lock_init(&eth->dim_lock);
 
-	eth->ethsys = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "mediatek,ethsys");
-	if (IS_ERR(eth->ethsys)) {
-		dev_err(&pdev->dev, "no ethsys regmap found\n");
-		return PTR_ERR(eth->ethsys);
+	eth->rx_dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	INIT_WORK(&eth->rx_dim.work, mtk_dim_rx);
+
+	eth->tx_dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	INIT_WORK(&eth->tx_dim.work, mtk_dim_tx);
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		eth->ethsys = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							      "mediatek,ethsys");
+		if (IS_ERR(eth->ethsys)) {
+			dev_err(&pdev->dev, "no ethsys regmap found\n");
+			return PTR_ERR(eth->ethsys);
+		}
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_INFRA)) {
+		eth->infra = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							     "mediatek,infracfg");
+		if (IS_ERR(eth->infra)) {
+			dev_err(&pdev->dev, "no infracfg regmap found\n");
+			return PTR_ERR(eth->infra);
+		}
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
-		eth->sgmiisys =
-		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						"mediatek,sgmiisys");
-		if (IS_ERR(eth->sgmiisys)) {
-			dev_err(&pdev->dev, "no sgmiisys regmap found\n");
-			return PTR_ERR(eth->sgmiisys);
-		}
+		eth->sgmii = devm_kzalloc(eth->dev, sizeof(*eth->sgmii),
+					  GFP_KERNEL);
+		if (!eth->sgmii)
+			return -ENOMEM;
+
+		err = mtk_sgmii_init(eth->sgmii, pdev->dev.of_node,
+				     eth->soc->ana_rgc3);
+
+		if (err)
+			return err;
 	}
 
 	if (eth->soc->required_pctl) {
@@ -2500,7 +3133,10 @@ static int mtk_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < 3; i++) {
-		eth->irq[i] = platform_get_irq(pdev, i);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT) && i > 0)
+			eth->irq[i] = eth->irq[0];
+		else
+			eth->irq[i] = platform_get_irq(pdev, i);
 		if (eth->irq[i] < 0) {
 			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
 			return -ENXIO;
@@ -2539,23 +3175,47 @@ static int mtk_probe(struct platform_device *pdev)
 			continue;
 
 		err = mtk_add_mac(eth, mac_np);
-		if (err)
+		if (err) {
+			of_node_put(mac_np);
 			goto err_deinit_hw;
+		}
 	}
 
-	err = devm_request_irq(eth->dev, eth->irq[1], mtk_handle_irq_tx, 0,
-			       dev_name(eth->dev), eth);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT)) {
+		err = devm_request_irq(eth->dev, eth->irq[0],
+				       mtk_handle_irq, 0,
+				       dev_name(eth->dev), eth);
+	} else {
+		err = devm_request_irq(eth->dev, eth->irq[1],
+				       mtk_handle_irq_tx, 0,
+				       dev_name(eth->dev), eth);
+		if (err)
+			goto err_free_dev;
+
+		err = devm_request_irq(eth->dev, eth->irq[2],
+				       mtk_handle_irq_rx, 0,
+				       dev_name(eth->dev), eth);
+	}
 	if (err)
 		goto err_free_dev;
 
-	err = devm_request_irq(eth->dev, eth->irq[2], mtk_handle_irq_rx, 0,
-			       dev_name(eth->dev), eth);
-	if (err)
-		goto err_free_dev;
+	/* No MT7628/88 support yet */
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
+		err = mtk_mdio_init(eth);
+		if (err)
+			goto err_free_dev;
+	}
 
-	err = mtk_mdio_init(eth);
-	if (err)
-		goto err_free_dev;
+	if (eth->soc->offload_version) {
+		err = mtk_ppe_init(&eth->ppe, eth->dev,
+				   eth->base + MTK_ETH_PPE_BASE, 2);
+		if (err)
+			goto err_free_dev;
+
+		err = mtk_eth_offload_init(eth);
+		if (err)
+			goto err_free_dev;
+	}
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
 		if (!eth->netdev[i])
@@ -2597,6 +3257,7 @@ err_deinit_hw:
 static int mtk_remove(struct platform_device *pdev)
 {
 	struct mtk_eth *eth = platform_get_drvdata(pdev);
+	struct mtk_mac *mac;
 	int i;
 
 	/* stop all devices to make sure that dma is properly shut down */
@@ -2604,6 +3265,8 @@ static int mtk_remove(struct platform_device *pdev)
 		if (!eth->netdev[i])
 			continue;
 		mtk_stop(eth->netdev[i]);
+		mac = netdev_priv(eth->netdev[i]);
+		phylink_disconnect_phy(mac->phylink);
 	}
 
 	mtk_hw_deinit(eth);
@@ -2617,27 +3280,59 @@ static int mtk_remove(struct platform_device *pdev)
 }
 
 static const struct mtk_soc_data mt2701_data = {
-	.caps = MTK_GMAC1_TRGMII | MTK_HWLRO,
+	.caps = MT7623_CAPS | MTK_HWLRO,
+	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
+};
+
+static const struct mtk_soc_data mt7621_data = {
+	.caps = MT7621_CAPS,
+	.hw_features = MTK_HW_FEATURES,
+	.required_clks = MT7621_CLKS_BITMAP,
+	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7622_data = {
-	.caps = MTK_DUAL_GMAC_SHARED_SGMII | MTK_GMAC1_ESW | MTK_HWLRO,
+	.ana_rgc3 = 0x2028,
+	.caps = MT7622_CAPS | MTK_HWLRO,
+	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
+	.offload_version = 2,
 };
 
 static const struct mtk_soc_data mt7623_data = {
-	.caps = MTK_GMAC1_TRGMII | MTK_HWLRO,
+	.caps = MT7623_CAPS | MTK_HWLRO,
+	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
+	.offload_version = 2,
+};
+
+static const struct mtk_soc_data mt7629_data = {
+	.ana_rgc3 = 0x128,
+	.caps = MT7629_CAPS | MTK_HWLRO,
+	.hw_features = MTK_HW_FEATURES,
+	.required_clks = MT7629_CLKS_BITMAP,
+	.required_pctl = false,
+};
+
+static const struct mtk_soc_data rt5350_data = {
+	.caps = MT7628_CAPS,
+	.hw_features = MTK_HW_FEATURES_MT7628,
+	.required_clks = MT7628_CLKS_BITMAP,
+	.required_pctl = false,
 };
 
 const struct of_device_id of_mtk_match[] = {
 	{ .compatible = "mediatek,mt2701-eth", .data = &mt2701_data},
+	{ .compatible = "mediatek,mt7621-eth", .data = &mt7621_data},
 	{ .compatible = "mediatek,mt7622-eth", .data = &mt7622_data},
 	{ .compatible = "mediatek,mt7623-eth", .data = &mt7623_data},
+	{ .compatible = "mediatek,mt7629-eth", .data = &mt7629_data},
+	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_mtk_match);

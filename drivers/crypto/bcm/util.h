@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #ifndef _UTIL_H
@@ -69,12 +58,26 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len);
 
 #else /* !DEBUG_ON */
 
-#define flow_log(...) do {} while (0)
-#define flow_dump(msg, var, var_len) do {} while (0)
-#define packet_log(...) do {} while (0)
-#define packet_dump(msg, var, var_len) do {} while (0)
+static inline void flow_log(const char *format, ...)
+{
+}
 
-#define dump_sg(sg, skip, len) do {} while (0)
+static inline void flow_dump(const char *msg, const void *var, size_t var_len)
+{
+}
+
+static inline void packet_log(const char *format, ...)
+{
+}
+
+static inline void packet_dump(const char *msg, const void *var, size_t var_len)
+{
+}
+
+static inline void dump_sg(struct scatterlist *sg, unsigned int skip,
+			   unsigned int len)
+{
+}
 
 #endif /* DEBUG_ON */
 
@@ -94,12 +97,6 @@ u32 spu_msg_sg_add(struct scatterlist **to_sg,
 		   u8 from_nents, u32 tot_len);
 
 void add_to_ctr(u8 *ctr_pos, unsigned int increment);
-
-/* do a synchronous decrypt operation */
-int do_decrypt(char *alg_name,
-	       void *key_ptr, unsigned int key_len,
-	       void *iv_ptr, void *src_ptr, void *dst_ptr,
-	       unsigned int block_len);
 
 /* produce a message digest from data of length n bytes */
 int do_shash(unsigned char *name, unsigned char *result,

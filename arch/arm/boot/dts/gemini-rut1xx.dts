@@ -28,7 +28,7 @@
 		compatible = "gpio-keys";
 
 		button-setup {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Reset to defaults";
@@ -56,7 +56,7 @@
 		};
 	};
 
-	mdio0: ethernet-phy {
+	mdio0: mdio {
 		compatible = "virtual,mdio-gpio";
 		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
 			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
@@ -123,6 +123,14 @@
 			ethernet-port@1 {
 				/* Not used in this platform */
 			};
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
 		};
 	};
 };

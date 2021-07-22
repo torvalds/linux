@@ -25,12 +25,17 @@
 #define __AMDGPU_SDMA_H__
 
 /* max number of IP instances */
-#define AMDGPU_MAX_SDMA_INSTANCES		2
+#define AMDGPU_MAX_SDMA_INSTANCES		8
 
 enum amdgpu_sdma_irq {
-	AMDGPU_SDMA_IRQ_TRAP0 = 0,
-	AMDGPU_SDMA_IRQ_TRAP1,
-
+	AMDGPU_SDMA_IRQ_INSTANCE0  = 0,
+	AMDGPU_SDMA_IRQ_INSTANCE1,
+	AMDGPU_SDMA_IRQ_INSTANCE2,
+	AMDGPU_SDMA_IRQ_INSTANCE3,
+	AMDGPU_SDMA_IRQ_INSTANCE4,
+	AMDGPU_SDMA_IRQ_INSTANCE5,
+	AMDGPU_SDMA_IRQ_INSTANCE6,
+	AMDGPU_SDMA_IRQ_INSTANCE7,
 	AMDGPU_SDMA_IRQ_LAST
 };
 
@@ -41,15 +46,34 @@ struct amdgpu_sdma_instance {
 	uint32_t		feature_version;
 
 	struct amdgpu_ring	ring;
+	struct amdgpu_ring	page;
 	bool			burst_nop;
+};
+
+struct amdgpu_sdma_ras_funcs {
+	int (*ras_late_init)(struct amdgpu_device *adev,
+			void *ras_ih_info);
+	void (*ras_fini)(struct amdgpu_device *adev);
+	int (*query_ras_error_count)(struct amdgpu_device *adev,
+			uint32_t instance, void *ras_error_status);
+	void (*reset_ras_error_count)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
+	struct amdgpu_irq_src	ecc_irq;
+	struct amdgpu_irq_src	vm_hole_irq;
+	struct amdgpu_irq_src	doorbell_invalid_irq;
+	struct amdgpu_irq_src	pool_timeout_irq;
+	struct amdgpu_irq_src	srbm_write_irq;
+
 	int			num_instances;
 	uint32_t                    srbm_soft_reset;
+	bool			has_page_queue;
+	struct ras_common_if	*ras_if;
+	const struct amdgpu_sdma_ras_funcs	*funcs;
 };
 
 /*
@@ -70,7 +94,8 @@ struct amdgpu_buffer_funcs {
 				 /* dst addr in bytes */
 				 uint64_t dst_offset,
 				 /* number of byte to transfer */
-				 uint32_t byte_count);
+				 uint32_t byte_count,
+				 bool tmz);
 
 	/* maximum bytes in a single operation */
 	uint32_t	fill_max_bytes;
@@ -88,10 +113,20 @@ struct amdgpu_buffer_funcs {
 				 uint32_t byte_count);
 };
 
-#define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
+#define amdgpu_emit_copy_buffer(adev, ib, s, d, b, t) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b), (t))
 #define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
 
 struct amdgpu_sdma_instance *
-amdgpu_get_sdma_instance(struct amdgpu_ring *ring);
-
+amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring);
+int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index);
+uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring, unsigned vmid);
+int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
+			      void *ras_ih_info);
+void amdgpu_sdma_ras_fini(struct amdgpu_device *adev);
+int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry);
+int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry);
 #endif

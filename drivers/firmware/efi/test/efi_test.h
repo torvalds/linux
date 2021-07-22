@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * EFI Test driver Header
  *
@@ -117,5 +117,8 @@ struct efi_resetsystem {
 
 #define EFI_RUNTIME_RESET_SYSTEM \
 	_IOW('p', 0x0B, struct efi_resetsystem)
+
+#define EFI_RUNTIME_GET_SUPPORTED_MASK \
+	_IOR('p', 0x0C, unsigned int)
 
 #endif /* _DRIVERS_FIRMWARE_EFI_TEST_H_ */

@@ -69,12 +69,6 @@ static const struct fixed31_32 dc_fixpt_epsilon = { 1LL };
 static const struct fixed31_32 dc_fixpt_half = { 0x80000000LL };
 static const struct fixed31_32 dc_fixpt_one = { 0x100000000LL };
 
-static const struct fixed31_32 dc_fixpt_pi = { 13493037705LL };
-static const struct fixed31_32 dc_fixpt_two_pi = { 26986075409LL };
-static const struct fixed31_32 dc_fixpt_e = { 11674931555LL };
-static const struct fixed31_32 dc_fixpt_ln2 = { 2977044471LL };
-static const struct fixed31_32 dc_fixpt_ln2_div_2 = { 1488522236LL };
-
 /*
  * @brief
  * Initialization routines
@@ -431,6 +425,9 @@ struct fixed31_32 dc_fixpt_log(struct fixed31_32 arg);
  */
 static inline struct fixed31_32 dc_fixpt_pow(struct fixed31_32 arg1, struct fixed31_32 arg2)
 {
+	if (arg1.value == 0)
+		return arg2.value == 0 ? dc_fixpt_one : dc_fixpt_zero;
+
 	return dc_fixpt_exp(
 		dc_fixpt_mul(
 			dc_fixpt_log(arg1),
@@ -502,6 +499,8 @@ static inline int dc_fixpt_ceil(struct fixed31_32 arg)
  * part. The same applies for u0d19, 0 bits from integer part and 19 bits from
  * fractional
  */
+
+unsigned int dc_fixpt_u4d19(struct fixed31_32 arg);
 
 unsigned int dc_fixpt_u3d19(struct fixed31_32 arg);
 

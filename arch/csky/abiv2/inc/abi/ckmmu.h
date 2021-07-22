@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_CKMMUV2_H
 #define __ASM_CSKY_CKMMUV2_H
@@ -42,6 +41,26 @@ static inline void write_mmu_entryhi(int value)
 	mtcr("cr<4, 15>", value);
 }
 
+static inline unsigned long read_mmu_msa0(void)
+{
+	return mfcr("cr<30, 15>");
+}
+
+static inline void write_mmu_msa0(unsigned long value)
+{
+	mtcr("cr<30, 15>", value);
+}
+
+static inline unsigned long read_mmu_msa1(void)
+{
+	return mfcr("cr<31, 15>");
+}
+
+static inline void write_mmu_msa1(unsigned long value)
+{
+	mtcr("cr<31, 15>", value);
+}
+
 /*
  * TLB operations.
  */
@@ -58,10 +77,30 @@ static inline void tlb_read(void)
 static inline void tlb_invalid_all(void)
 {
 #ifdef CONFIG_CPU_HAS_TLBI
-	asm volatile("tlbi.alls\n":::"memory");
 	sync_is();
+	asm volatile(
+		"tlbi.alls	\n"
+		"sync.i		\n"
+		:
+		:
+		: "memory");
 #else
 	mtcr("cr<8, 15>", 0x04000000);
+#endif
+}
+
+static inline void local_tlb_invalid_all(void)
+{
+#ifdef CONFIG_CPU_HAS_TLBI
+	sync_is();
+	asm volatile(
+		"tlbi.all	\n"
+		"sync.i		\n"
+		:
+		:
+		: "memory");
+#else
+	tlb_invalid_all();
 #endif
 }
 
@@ -70,18 +109,31 @@ static inline void tlb_invalid_indexed(void)
 	mtcr("cr<8, 15>", 0x02000000);
 }
 
-/* setup hardrefil pgd */
-static inline unsigned long get_pgd(void)
+#define NOP32 ".long 0x4820c400\n"
+
+static inline void setup_pgd(pgd_t *pgd, int asid)
 {
-	return mfcr("cr<29, 15>");
+#ifdef CONFIG_CPU_HAS_TLBI
+	sync_is();
+#else
+	mb();
+#endif
+	asm volatile(
+#ifdef CONFIG_CPU_HAS_TLBI
+		"mtcr %1, cr<28, 15>	\n"
+#endif
+		"mtcr %1, cr<29, 15>	\n"
+		"mtcr %0, cr< 4, 15>	\n"
+		".rept 64		\n"
+		NOP32
+		".endr			\n"
+		:
+		:"r"(asid), "r"(__pa(pgd) | BIT(0))
+		:"memory");
 }
 
-static inline void setup_pgd(unsigned long pgd, bool kernel)
+static inline pgd_t *get_pgd(void)
 {
-	if (kernel)
-		mtcr("cr<28, 15>", pgd);
-	else
-		mtcr("cr<29, 15>", pgd);
+	return __va(mfcr("cr<29, 15>") & ~BIT(0));
 }
-
 #endif /* __ASM_CSKY_CKMMUV2_H */

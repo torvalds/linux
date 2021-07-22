@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/cpu/shmobile/cpuidle.c
  *
  * Cpuidle support code for SuperH Mobile
  *
  *  Copyright (C) 2009 Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -70,7 +67,7 @@ static struct cpuidle_driver cpuidle_driver = {
 			.enter = cpuidle_sleep_enter,
 			.name = "C2",
 			.desc = "SuperH Sleep Mode [SF]",
-			.disabled = true,
+			.flags = CPUIDLE_FLAG_UNUSABLE,
 		},
 		{
 			.exit_latency = 2300,
@@ -79,7 +76,7 @@ static struct cpuidle_driver cpuidle_driver = {
 			.enter = cpuidle_sleep_enter,
 			.name = "C3",
 			.desc = "SuperH Mobile Standby Mode [SF]",
-			.disabled = true,
+			.flags = CPUIDLE_FLAG_UNUSABLE,
 		},
 	},
 	.safe_state_index = 0,
@@ -89,10 +86,10 @@ static struct cpuidle_driver cpuidle_driver = {
 int __init sh_mobile_setup_cpuidle(void)
 {
 	if (sh_mobile_sleep_supported & SUSP_SH_SF)
-		cpuidle_driver.states[1].disabled = false;
+		cpuidle_driver.states[1].flags = CPUIDLE_FLAG_NONE;
 
 	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY)
-		cpuidle_driver.states[2].disabled = false;
+		cpuidle_driver.states[2].flags = CPUIDLE_FLAG_NONE;
 
 	return cpuidle_register(&cpuidle_driver, NULL);
 }

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap3-n9.dts - Device Tree file for Nokia N9
  *
  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -15,7 +12,7 @@
 
 / {
 	model = "Nokia N9";
-	compatible = "nokia,omap3-n9", "ti,omap36xx", "ti,omap3";
+	compatible = "nokia,omap3-n9", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 };
 
 &i2c2 {
@@ -26,7 +23,6 @@
 		vana-supply = <&vaux3>;
 		clocks = <&isp 0>;
 		clock-frequency = <9600000>;
-		nokia,nvm-size = <(16 * 64)>;
 		flash-leds = <&as3645a_flash &as3645a_indicator>;
 		port {
 			smia_1_1: endpoint {

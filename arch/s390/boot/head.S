@@ -28,6 +28,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include "boot.h"
 
 #define ARCH_OFFSET	4
 
@@ -60,8 +61,14 @@ __HEAD
 	.long	0x02000690,0x60000050
 	.long	0x020006e0,0x20000050
 
-	.org	0x1a0
+	.org	__LC_RST_NEW_PSW		# 0x1a0
 	.quad	0,iplstart
+	.org	__LC_EXT_NEW_PSW		# 0x1b0
+	.quad	0x0002000180000000,0x1b0	# disabled wait
+	.org	__LC_PGM_NEW_PSW		# 0x1d0
+	.quad	0x0000000180000000,startup_pgm_check_handler
+	.org	__LC_IO_NEW_PSW			# 0x1f0
+	.quad	0x0002000180000000,0x1f0	# disabled wait
 
 	.org	0x200
 
@@ -273,8 +280,8 @@ iplstart:
 # or linload or SALIPL
 #
 	.org	0x10000
-ENTRY(startup)
-	j	.Lep_startup_normal
+SYM_CODE_START(startup)
+	j	startup_normal
 	.org	EP_OFFSET
 #
 # This is a list of s390 kernel entry points. At address 0x1000f the number of
@@ -288,9 +295,9 @@ ENTRY(startup)
 # kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
 #
 	.org	0x10010
-ENTRY(startup_kdump)
-	j	.Lep_startup_kdump
-.Lep_startup_normal:
+	j	startup_kdump
+SYM_CODE_END(startup)
+SYM_CODE_START_LOCAL(startup_normal)
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
@@ -301,11 +308,14 @@ ENTRY(startup_kdump)
 	sam64				# switch to 64 bit addressing mode
 	basr	%r13,0			# get base
 .LPG0:
+	mvc	__LC_EXT_NEW_PSW(16),.Lext_new_psw-.LPG0(%r13)
+	mvc	__LC_PGM_NEW_PSW(16),.Lpgm_new_psw-.LPG0(%r13)
+	mvc	__LC_IO_NEW_PSW(16),.Lio_new_psw-.LPG0(%r13)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
-	lctlg	%c0,%c15,0x200(%r0)	# initialize control registers
+	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
@@ -313,26 +323,99 @@ ENTRY(startup_kdump)
 	l	%r15,.Lstack-.LPG0(%r13)
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
+SYM_CODE_END(startup_normal)
 
 .Lstack:
-	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
+	.long	BOOT_STACK_OFFSET + BOOT_STACK_SIZE - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
+.Lext_new_psw:
+	.quad	0x0002000180000000,0x1b0	# disabled wait
+.Lpgm_new_psw:
+	.quad	0x0000000180000000,startup_pgm_check_handler
+.Lio_new_psw:
+	.quad	0x0002000180000000,0x1f0	# disabled wait
+.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
+	.quad	0			# cr1: primary space segment table
+	.quad	.Lduct			# cr2: dispatchable unit control table
+	.quad	0			# cr3: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
+	.quad	.Lduct			# cr5: primary-aste origin
+	.quad	0			# cr6:	I/O interrupts
+	.quad	0			# cr7:	secondary space segment table
+	.quad	0x0000000000008000	# cr8:	access registers translation
+	.quad	0			# cr9:	tracing off
+	.quad	0			# cr10: tracing off
+	.quad	0			# cr11: tracing off
+	.quad	0			# cr12: tracing off
+	.quad	0			# cr13: home space segment table
+	.quad	0xc0000000		# cr14: machine check handling off
+	.quad	.Llinkage_stack		# cr15: linkage stack operations
+
+	.section .dma.data,"aw",@progbits
+.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
+	.long	0,0,0,0,0,0,0,0
+.Llinkage_stack:
+	.long	0,0,0x89000000,0,0,0,0x8a000000,0
+	.align 64
+.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
+	.align	128
+.Lduald:.rept	8
+	.long	0x80000000,0,0,0	# invalid access-list entries
+	.endr
+	.previous
 
 #include "head_kdump.S"
 
 #
+# This program check is active immediately after kernel start
+# and until early_pgm_check_handler is set in kernel/early.c
+# It simply saves general/control registers and psw in
+# the save area and does disabled wait with a faulty address.
+#
+SYM_CODE_START_LOCAL(startup_pgm_check_handler)
+	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
+	la	%r8,4095
+	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r8)
+	stmg	%r0,%r7,__LC_GPREGS_SAVE_AREA-4095(%r8)
+	mvc	__LC_GPREGS_SAVE_AREA-4095+64(64,%r8),__LC_SAVE_AREA_SYNC
+	mvc	__LC_PSW_SAVE_AREA-4095(16,%r8),__LC_PGM_OLD_PSW
+	mvc	__LC_RETURN_PSW(16),__LC_PGM_OLD_PSW
+	ni	__LC_RETURN_PSW,0xfc	# remove IO and EX bits
+	ni	__LC_RETURN_PSW+1,0xfb	# remove MCHK bit
+	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
+	larl	%r9,.Lold_psw_disabled_wait
+	stg	%r9,__LC_PGM_NEW_PSW+8
+	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r9)
+	brasl	%r14,print_pgm_check_info
+.Lold_psw_disabled_wait:
+	la	%r8,4095
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
+	lpswe	__LC_RETURN_PSW		# disabled wait
+SYM_CODE_END(startup_pgm_check_handler)
+.Ldump_info_stack:
+	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
+
+#
 # params at 10400 (setup.h)
+# Must be keept in sync with struct parmarea in setup.h
 #
 	.org	PARMAREA
-	.long	0,0			# IPL_DEVICE
-	.long	0,0			# INITRD_START
-	.long	0,0			# INITRD_SIZE
-	.long	0,0			# OLDMEM_BASE
-	.long	0,0			# OLDMEM_SIZE
+SYM_DATA_START(parmarea)
+	.quad	0			# IPL_DEVICE
+	.quad	0			# INITRD_START
+	.quad	0			# INITRD_SIZE
+	.quad	0			# OLDMEM_BASE
+	.quad	0			# OLDMEM_SIZE
+	.quad	kernel_version		# points to kernel version string
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
+	.org	PARMAREA+__PARMAREA_SIZE
+SYM_DATA_END(parmarea)
 
-	.org	0x11000
+	.org	EARLY_SCCB_OFFSET
+	.fill	4096
+
+	.org	HEAD_END

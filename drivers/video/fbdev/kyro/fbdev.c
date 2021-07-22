@@ -648,7 +648,7 @@ static struct pci_driver kyrofb_pci_driver = {
 	.remove		= kyrofb_remove,
 };
 
-static struct fb_ops kyrofb_ops = {
+static const struct fb_ops kyrofb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= kyrofb_check_var,
 	.fb_set_par	= kyrofb_set_par,
@@ -683,7 +683,7 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	kyro_fix.mmio_len   = pci_resource_len(pdev, 1);
 
 	currentpar->regbase = deviceInfo.pSTGReg =
-		ioremap_nocache(kyro_fix.mmio_start, kyro_fix.mmio_len);
+		ioremap(kyro_fix.mmio_start, kyro_fix.mmio_len);
 	if (!currentpar->regbase)
 		goto out_free_fb;
 

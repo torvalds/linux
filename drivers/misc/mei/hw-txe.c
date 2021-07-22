@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2013-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/pci.h>
@@ -670,14 +660,16 @@ static int mei_txe_fw_status(struct mei_device *dev,
 }
 
 /**
- *  mei_txe_hw_config - configure hardware at the start of the devices
+ * mei_txe_hw_config - configure hardware at the start of the devices
  *
  * @dev: the device structure
  *
  * Configure hardware at the start of the device should be done only
  *   once at the device probe time
+ *
+ * Return: always 0
  */
-static void mei_txe_hw_config(struct mei_device *dev)
+static int mei_txe_hw_config(struct mei_device *dev)
 {
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
@@ -687,6 +679,8 @@ static void mei_txe_hw_config(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "aliveness_resp = 0x%08x, readiness = 0x%08x.\n",
 		hw->aliveness, hw->readiness);
+
+	return 0;
 }
 
 /**
@@ -1207,8 +1201,7 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
-			   sizeof(struct mei_txe_hw), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev) + sizeof(*hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 

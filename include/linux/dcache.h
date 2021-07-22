@@ -4,6 +4,7 @@
 
 #include <linux/atomic.h>
 #include <linux/list.h>
+#include <linux/math.h>
 #include <linux/rculist.h>
 #include <linux/rculist_bl.h>
 #include <linux/spinlock.h>
@@ -58,13 +59,15 @@ struct qstr {
 
 extern const struct qstr empty_name;
 extern const struct qstr slash_name;
+extern const struct qstr dotdot_name;
 
 struct dentry_stat_t {
 	long nr_dentry;
 	long nr_unused;
-	long age_limit;          /* age in seconds */
-	long want_pages;         /* pages requested by system */
-	long dummy[2];
+	long age_limit;		/* age in seconds */
+	long want_pages;	/* pages requested by system */
+	long nr_negative;	/* # of unused negative dentries */
+	long dummy;		/* Reserved for future use */
 };
 extern struct dentry_stat_t dentry_stat;
 
@@ -88,7 +91,7 @@ extern struct dentry_stat_t dentry_stat;
 struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
-	seqcount_t d_seq;		/* per dentry seqlock */
+	seqcount_spinlock_t d_seq;	/* per dentry seqlock */
 	struct hlist_bl_node d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */
 	struct qstr d_name;
@@ -150,9 +153,9 @@ struct dentry_operations {
 
 /*
  * Locking rules for dentry_operations callbacks are to be found in
- * Documentation/filesystems/Locking. Keep it updated!
+ * Documentation/filesystems/locking.rst. Keep it updated!
  *
- * FUrther descriptions are found in Documentation/filesystems/vfs.txt.
+ * FUrther descriptions are found in Documentation/filesystems/vfs.rst.
  * Keep it updated too!
  */
 
@@ -175,7 +178,8 @@ struct dentry_operations {
       * typically using d_splice_alias. */
 
 #define DCACHE_REFERENCED		0x00000040 /* Recently used, don't discard. */
-#define DCACHE_RCUACCESS		0x00000080 /* Entry has ever been RCU-visible */
+
+#define DCACHE_DONTCACHE		0x00000080 /* Purge from memory on final dput() */
 
 #define DCACHE_CANT_MOUNT		0x00000100
 #define DCACHE_GENOCIDE			0x00000200
@@ -211,11 +215,12 @@ struct dentry_operations {
 
 #define DCACHE_MAY_FREE			0x00800000
 #define DCACHE_FALLTHRU			0x01000000 /* Fall through to lower layer */
-#define DCACHE_ENCRYPTED_WITH_KEY	0x02000000 /* dir is encrypted with a valid key */
+#define DCACHE_NOKEY_NAME		0x02000000 /* Encrypted name encoded without key */
 #define DCACHE_OP_REAL			0x04000000
 
 #define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
 #define DCACHE_DENTRY_CURSOR		0x20000000
+#define DCACHE_NORCU			0x40000000 /* No RCU delay for freeing */
 
 extern seqlock_t rename_lock;
 
@@ -234,7 +239,6 @@ extern void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op
 /* allocate/de-allocate */
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_anon(struct super_block *);
-extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *,
 					wait_queue_head_t *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
@@ -258,6 +262,8 @@ extern void d_tmpfile(struct dentry *, struct inode *);
 
 extern struct dentry *d_find_alias(struct inode *);
 extern void d_prune_aliases(struct inode *);
+
+extern struct dentry *d_find_alias_rcu(struct inode *);
 
 /* test whether we have any submounts in a subdir tree */
 extern int path_has_submounts(const struct path *);
@@ -291,13 +297,12 @@ static inline unsigned d_count(const struct dentry *dentry)
  */
 extern __printf(4, 5)
 char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
-extern char *simple_dname(struct dentry *, char *, int);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
 extern char *d_path(const struct path *, char *, int);
-extern char *dentry_path_raw(struct dentry *, char *, int);
-extern char *dentry_path(struct dentry *, char *, int);
+extern char *dentry_path_raw(const struct dentry *, char *, int);
+extern char *dentry_path(const struct dentry *, char *, int);
 
 /* Allocation counts.. */
 
@@ -441,6 +446,11 @@ static inline bool d_is_negative(const struct dentry *dentry)
 	return d_is_miss(dentry);
 }
 
+static inline bool d_flags_negative(unsigned flags)
+{
+	return (flags & DCACHE_ENTRY_TYPE) == DCACHE_MISS_TYPE;
+}
+
 static inline bool d_is_positive(const struct dentry *dentry)
 {
 	return !d_is_negative(dentry);
@@ -568,7 +578,7 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
  * If dentry is on a union/overlay, then return the underlying, real dentry.
  * Otherwise return the dentry itself.
  *
- * See also: Documentation/filesystems/vfs.txt
+ * See also: Documentation/filesystems/vfs.rst
  */
 static inline struct dentry *d_real(struct dentry *dentry,
 				    const struct inode *inode)
@@ -593,7 +603,7 @@ static inline struct inode *d_real_inode(const struct dentry *dentry)
 }
 
 struct name_snapshot {
-	const unsigned char *name;
+	struct qstr name;
 	unsigned char inline_name[DNAME_INLINE_LEN];
 };
 void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);

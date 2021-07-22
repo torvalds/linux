@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * soc-apci-intel-kbl-match.c - tables and support for KBL ACPI enumeration.
+ * soc-acpi-intel-kbl-match.c - tables and support for KBL ACPI enumeration.
  *
  * Copyright (c) 2018, Intel Corporation.
  *
@@ -35,6 +35,11 @@ static struct snd_soc_acpi_codecs kbl_7219_98357_codecs = {
 static struct snd_soc_acpi_codecs kbl_7219_98927_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98927"}
+};
+
+static struct snd_soc_acpi_codecs kbl_7219_98373_codecs = {
+	.num_codecs = 1,
+	.codecs = {"MX98373"}
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[] = {
@@ -96,9 +101,30 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[] = {
 		.quirk_data = &kbl_7219_98927_codecs,
 		.pdata = &skl_dmic_data
 	},
+	{
+		.id = "10EC5660",
+		.drv_name = "kbl_rt5660",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+	},
+	{
+		.id = "10EC3277",
+		.drv_name = "kbl_rt5660",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+	},
+	{
+		.id = "DLGS7219",
+		.drv_name = "kbl_da7219_mx98373",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &kbl_7219_98373_codecs,
+		.pdata = &skl_dmic_data
+	},
+	{
+		.id = "MX98373",
+		.drv_name = "kbl_max98373",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.pdata = &skl_dmic_data
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_kbl_machines);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");

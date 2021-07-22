@@ -46,7 +46,7 @@ TRACE_EVENT(pblk_chunk_reset,
 	TP_STRUCT__entry(
 		__string(name, name)
 		__field(u64, ppa)
-		__field(int, state);
+		__field(int, state)
 	),
 
 	TP_fast_assign(
@@ -72,7 +72,7 @@ TRACE_EVENT(pblk_chunk_state,
 	TP_STRUCT__entry(
 		__string(name, name)
 		__field(u64, ppa)
-		__field(int, state);
+		__field(int, state)
 	),
 
 	TP_fast_assign(
@@ -98,7 +98,7 @@ TRACE_EVENT(pblk_line_state,
 	TP_STRUCT__entry(
 		__string(name, name)
 		__field(int, line)
-		__field(int, state);
+		__field(int, state)
 	),
 
 	TP_fast_assign(
@@ -121,7 +121,7 @@ TRACE_EVENT(pblk_state,
 
 	TP_STRUCT__entry(
 		__string(name, name)
-		__field(int, state);
+		__field(int, state)
 	),
 
 	TP_fast_assign(
@@ -139,7 +139,7 @@ TRACE_EVENT(pblk_state,
 /* This part must be outside protection */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../../drivers/lightnvm
+#define TRACE_INCLUDE_PATH ../../drivers/lightnvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE pblk-trace
 #include <trace/define_trace.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * uda134x.c  --  UDA134X ALSA SoC Codec driver
  *
@@ -7,10 +8,6 @@
  * Author: Zoltan Devai
  *
  * Based on the WM87xx drivers by Liam Girdwood and Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -120,7 +117,7 @@ static inline void uda134x_reset(struct snd_soc_component *component)
 	regmap_update_bits(uda134x->regmap, UDA134X_STATUS0, mask, 0);
 }
 
-static int uda134x_mute(struct snd_soc_dai *dai, int mute)
+static int uda134x_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(dai->component);
 	unsigned int mask = 1<<2;
@@ -419,9 +416,10 @@ static const struct snd_soc_dai_ops uda134x_dai_ops = {
 	.startup	= uda134x_startup,
 	.shutdown	= uda134x_shutdown,
 	.hw_params	= uda134x_hw_params,
-	.digital_mute	= uda134x_mute,
+	.mute_stream	= uda134x_mute,
 	.set_sysclk	= uda134x_set_dai_sysclk,
 	.set_fmt	= uda134x_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver uda134x_dai = {

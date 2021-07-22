@@ -154,26 +154,19 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 static void microblaze_unwind_inner(struct task_struct *task,
 				    unsigned long pc, unsigned long fp,
 				    unsigned long leaf_return,
-				    struct stack_trace *trace);
+				    struct stack_trace *trace,
+				    const char *loglvl);
 
 /**
  * unwind_trap - Unwind through a system trap, that stored previous state
  *		 on the stack.
  */
-#ifdef CONFIG_MMU
 static inline void unwind_trap(struct task_struct *task, unsigned long pc,
-				unsigned long fp, struct stack_trace *trace)
+				unsigned long fp, struct stack_trace *trace,
+				const char *loglvl)
 {
 	/* To be implemented */
 }
-#else
-static inline void unwind_trap(struct task_struct *task, unsigned long pc,
-				unsigned long fp, struct stack_trace *trace)
-{
-	const struct pt_regs *regs = (const struct pt_regs *) fp;
-	microblaze_unwind_inner(task, regs->pc, regs->r1, regs->r15, trace);
-}
-#endif
 
 /**
  * microblaze_unwind_inner - Unwind the stack from the specified point
@@ -184,11 +177,13 @@ static inline void unwind_trap(struct task_struct *task, unsigned long pc,
  *				  the caller's return address.
  * @trace : Where to store stack backtrace (PC values).
  *	    NULL == print backtrace to kernel log
+ * @loglvl : Used for printk log level if (trace == NULL).
  */
 static void microblaze_unwind_inner(struct task_struct *task,
 			     unsigned long pc, unsigned long fp,
 			     unsigned long leaf_return,
-			     struct stack_trace *trace)
+			     struct stack_trace *trace,
+			     const char *loglvl)
 {
 	int ofs = 0;
 
@@ -210,16 +205,7 @@ static void microblaze_unwind_inner(struct task_struct *task,
 			 * HW exception handler doesn't save all registers,
 			 * so we open-code a special case of unwind_trap()
 			 */
-#ifndef CONFIG_MMU
-			const struct pt_regs *regs =
-				(const struct pt_regs *) fp;
-#endif
-			pr_info("HW EXCEPTION\n");
-#ifndef CONFIG_MMU
-			microblaze_unwind_inner(task, regs->r17 - 4,
-						fp + EX_HANDLER_STACK_SIZ,
-						regs->r15, trace);
-#endif
+			printk("%sHW EXCEPTION\n", loglvl);
 			return;
 		}
 
@@ -228,8 +214,8 @@ static void microblaze_unwind_inner(struct task_struct *task,
 			if ((return_to >= handler->start_addr)
 			    && (return_to <= handler->end_addr)) {
 				if (!trace)
-					pr_info("%s\n", handler->trap_name);
-				unwind_trap(task, pc, fp, trace);
+					printk("%s%s\n", loglvl, handler->trap_name);
+				unwind_trap(task, pc, fp, trace, loglvl);
 				return;
 			}
 		}
@@ -248,13 +234,13 @@ static void microblaze_unwind_inner(struct task_struct *task,
 		} else {
 			/* Have we reached userland? */
 			if (unlikely(pc == task_pt_regs(task)->pc)) {
-				pr_info("[<%p>] PID %lu [%s]\n",
-					(void *) pc,
+				printk("%s[<%p>] PID %lu [%s]\n",
+					loglvl, (void *) pc,
 					(unsigned long) task->pid,
 					task->comm);
 				break;
 			} else
-				print_ip_sym(pc);
+				print_ip_sym(loglvl, pc);
 		}
 
 		/* Stop when we reach anything not part of the kernel */
@@ -282,14 +268,16 @@ static void microblaze_unwind_inner(struct task_struct *task,
  * @task  : Task whose stack we are to unwind (NULL == current)
  * @trace : Where to store stack backtrace (PC values).
  *	    NULL == print backtrace to kernel log
+ * @loglvl : Used for printk log level if (trace == NULL).
  */
-void microblaze_unwind(struct task_struct *task, struct stack_trace *trace)
+void microblaze_unwind(struct task_struct *task, struct stack_trace *trace,
+		       const char *loglvl)
 {
 	if (task) {
 		if (task == current) {
 			const struct pt_regs *regs = task_pt_regs(task);
 			microblaze_unwind_inner(task, regs->pc, regs->r1,
-						regs->r15, trace);
+						regs->r15, trace, loglvl);
 		} else {
 			struct thread_info *thread_info =
 				(struct thread_info *)(task->stack);
@@ -299,7 +287,8 @@ void microblaze_unwind(struct task_struct *task, struct stack_trace *trace)
 			microblaze_unwind_inner(task,
 						(unsigned long) &_switch_to,
 						cpu_context->r1,
-						cpu_context->r15, trace);
+						cpu_context->r15,
+						trace, loglvl);
 		}
 	} else {
 		unsigned long pc, fp;
@@ -314,7 +303,7 @@ void microblaze_unwind(struct task_struct *task, struct stack_trace *trace)
 		);
 
 		/* Since we are not a leaf function, use leaf_return = 0 */
-		microblaze_unwind_inner(current, pc, fp, 0, trace);
+		microblaze_unwind_inner(current, pc, fp, 0, trace, loglvl);
 	}
 }
 

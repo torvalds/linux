@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/ceph/acl.c
  *
  * Copyright (C) 2013 Guangliang Zhao, <lucienchao@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/ceph/ceph_debug.h>
@@ -35,7 +22,7 @@ static inline void ceph_set_cached_acl(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	spin_lock(&ci->i_ceph_lock);
-	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 0))
+	if (__ceph_caps_issued_mask_metric(ci, CEPH_CAP_XATTR_SHARED, 0))
 		set_cached_acl(inode, type, acl);
 	else
 		forget_cached_acl(inode, type);
@@ -95,7 +82,8 @@ retry:
 	return acl;
 }
 
-int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ceph_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
 	const char *name = NULL;
@@ -104,11 +92,17 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	struct timespec64 old_ctime = inode->i_ctime;
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 
+	if (ceph_snap(inode) != CEPH_NOSNAP) {
+		ret = -EROFS;
+		goto out;
+	}
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			ret = posix_acl_update_mode(inode, &new_mode, &acl);
+			ret = posix_acl_update_mode(&init_user_ns, inode,
+						    &new_mode, &acl);
 			if (ret)
 				goto out;
 		}
@@ -136,11 +130,6 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		ret = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (ret < 0)
 			goto out_free;
-	}
-
-	if (ceph_snap(inode) != CEPH_NOSNAP) {
-		ret = -EROFS;
-		goto out_free;
 	}
 
 	if (new_mode != old_mode) {
@@ -172,7 +161,7 @@ out:
 }
 
 int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-		       struct ceph_acls_info *info)
+		       struct ceph_acl_sec_ctx *as_ctx)
 {
 	struct posix_acl *acl, *default_acl;
 	size_t val_size1 = 0, val_size2 = 0;
@@ -206,10 +195,9 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 	tmp_buf = kmalloc(max(val_size1, val_size2), GFP_KERNEL);
 	if (!tmp_buf)
 		goto out_err;
-	pagelist = kmalloc(sizeof(struct ceph_pagelist), GFP_KERNEL);
+	pagelist = ceph_pagelist_alloc(GFP_KERNEL);
 	if (!pagelist)
 		goto out_err;
-	ceph_pagelist_init(pagelist);
 
 	err = ceph_pagelist_reserve(pagelist, PAGE_SIZE);
 	if (err)
@@ -236,8 +224,8 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 		err = ceph_pagelist_reserve(pagelist, len + val_size2 + 8);
 		if (err)
 			goto out_err;
-		err = ceph_pagelist_encode_string(pagelist,
-						  XATTR_NAME_POSIX_ACL_DEFAULT, len);
+		ceph_pagelist_encode_string(pagelist,
+					  XATTR_NAME_POSIX_ACL_DEFAULT, len);
 		err = posix_acl_to_xattr(&init_user_ns, default_acl,
 					 tmp_buf, val_size2);
 		if (err < 0)
@@ -248,9 +236,9 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 
 	kfree(tmp_buf);
 
-	info->acl = acl;
-	info->default_acl = default_acl;
-	info->pagelist = pagelist;
+	as_ctx->acl = acl;
+	as_ctx->default_acl = default_acl;
+	as_ctx->pagelist = pagelist;
 	return 0;
 
 out_err:
@@ -262,18 +250,10 @@ out_err:
 	return err;
 }
 
-void ceph_init_inode_acls(struct inode* inode, struct ceph_acls_info *info)
+void ceph_init_inode_acls(struct inode *inode, struct ceph_acl_sec_ctx *as_ctx)
 {
 	if (!inode)
 		return;
-	ceph_set_cached_acl(inode, ACL_TYPE_ACCESS, info->acl);
-	ceph_set_cached_acl(inode, ACL_TYPE_DEFAULT, info->default_acl);
-}
-
-void ceph_release_acls_info(struct ceph_acls_info *info)
-{
-	posix_acl_release(info->acl);
-	posix_acl_release(info->default_acl);
-	if (info->pagelist)
-		ceph_pagelist_release(info->pagelist);
+	ceph_set_cached_acl(inode, ACL_TYPE_ACCESS, as_ctx->acl);
+	ceph_set_cached_acl(inode, ACL_TYPE_DEFAULT, as_ctx->default_acl);
 }

@@ -40,10 +40,10 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
-#include <asm/pgtable.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/uio.h>
+#include <linux/pgtable.h>
 
 #include <rdma/ib.h>
 
@@ -343,7 +343,7 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 
 	/* virtual address of first page in transfer */
 	vaddr = ti->tidvaddr;
-	if (!access_ok(VERIFY_WRITE, (void __user *) vaddr,
+	if (!access_ok((void __user *) vaddr,
 		       cnt * PAGE_SIZE)) {
 		ret = -EFAULT;
 		goto done;
@@ -1142,7 +1142,7 @@ static __poll_t qib_poll(struct file *fp, struct poll_table_struct *pt)
 static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 {
 	struct qib_filedata *fd = fp->private_data;
-	const unsigned int weight = cpumask_weight(&current->cpus_allowed);
+	const unsigned int weight = current->nr_cpus_allowed;
 	const struct cpumask *local_mask = cpumask_of_pcibus(dd->pcidev->bus);
 	int local_cpu;
 
@@ -1623,9 +1623,8 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 		ret = find_free_ctxt(i_minor - 1, fp, uinfo);
 	else {
 		int unit;
-		const unsigned int cpu = cpumask_first(&current->cpus_allowed);
-		const unsigned int weight =
-			cpumask_weight(&current->cpus_allowed);
+		const unsigned int cpu = cpumask_first(current->cpus_ptr);
+		const unsigned int weight = current->nr_cpus_allowed;
 
 		if (weight == 1 && !test_bit(cpu, qib_cpulist))
 			if (!find_hca(cpu, &unit) && unit >= 0)
@@ -1759,7 +1758,8 @@ bail:
 }
 
 /**
- * unlock_exptid - unlock any expected TID entries context still had in use
+ * unlock_expected_tids - unlock any expected TID entries context still had
+ * in use
  * @rcd: ctxt
  *
  * We don't actually update the chip here, because we do a bulk update
@@ -1790,7 +1790,6 @@ static void unlock_expected_tids(struct qib_ctxtdata *rcd)
 
 static int qib_close(struct inode *in, struct file *fp)
 {
-	int ret = 0;
 	struct qib_filedata *fd;
 	struct qib_ctxtdata *rcd;
 	struct qib_devdata *dd;
@@ -1874,7 +1873,7 @@ static int qib_close(struct inode *in, struct file *fp)
 
 bail:
 	kfree(fd);
-	return ret;
+	return 0;
 }
 
 static int qib_ctxt_info(struct file *fp, struct qib_ctxt_info __user *uinfo)
@@ -2249,7 +2248,7 @@ static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (!iter_is_iovec(from) || !from->nr_segs || !pq)
 		return -EINVAL;
-			 
+
 	return qib_user_sdma_writev(rcd, pq, from->iov, from->nr_segs);
 }
 

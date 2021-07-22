@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* sun_esp.c: ESP front-end for Sparc SBUS systems.
  *
  * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)
@@ -529,11 +530,10 @@ static int esp_sbus_probe(struct platform_device *op)
 	int hme = 0;
 	int ret;
 
-	if (dp->parent &&
-	    (!strcmp(dp->parent->name, "espdma") ||
-	     !strcmp(dp->parent->name, "dma")))
+	if (of_node_name_eq(dp->parent, "espdma") ||
+	    of_node_name_eq(dp->parent, "dma"))
 		dma_node = dp->parent;
-	else if (!strcmp(dp->name, "SUNW,fas")) {
+	else if (of_node_name_eq(dp, "SUNW,fas")) {
 		dma_node = op->dev.of_node;
 		hme = 1;
 	}
@@ -606,21 +606,9 @@ static struct platform_driver esp_sbus_driver = {
 	.probe		= esp_sbus_probe,
 	.remove		= esp_sbus_remove,
 };
-
-static int __init sunesp_init(void)
-{
-	return platform_driver_register(&esp_sbus_driver);
-}
-
-static void __exit sunesp_exit(void)
-{
-	platform_driver_unregister(&esp_sbus_driver);
-}
+module_platform_driver(esp_sbus_driver);
 
 MODULE_DESCRIPTION("Sun ESP SCSI driver");
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sunesp_init);
-module_exit(sunesp_exit);

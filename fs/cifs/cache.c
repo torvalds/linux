@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/cache.c - CIFS filesystem cache index structure definitions
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Authors(s): Suresh Jayaraman (sjayaraman@suse.de>
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include "fscache.h"
 #include "cifs_debug.h"
@@ -53,37 +41,6 @@ const struct fscache_cookie_def cifs_fscache_server_index_def = {
 	.type = FSCACHE_COOKIE_TYPE_INDEX,
 };
 
-/*
- * Auxiliary data attached to CIFS superblock within the cache
- */
-struct cifs_fscache_super_auxdata {
-	u64	resource_id;		/* unique server resource id */
-};
-
-char *extract_sharename(const char *treename)
-{
-	const char *src;
-	char *delim, *dst;
-	int len;
-
-	/* skip double chars at the beginning */
-	src = treename + 2;
-
-	/* share name is always preceded by '\\' now */
-	delim = strchr(src, '\\');
-	if (!delim)
-		return ERR_PTR(-EINVAL);
-	delim++;
-	len = strlen(delim);
-
-	/* caller has to free the memory */
-	dst = kstrndup(delim, len, GFP_KERNEL);
-	if (!dst)
-		return ERR_PTR(-ENOMEM);
-
-	return dst;
-}
-
 static enum
 fscache_checkaux cifs_fscache_super_check_aux(void *cookie_netfs_data,
 					      const void *data,
@@ -98,6 +55,8 @@ fscache_checkaux cifs_fscache_super_check_aux(void *cookie_netfs_data,
 
 	memset(&auxdata, 0, sizeof(auxdata));
 	auxdata.resource_id = tcon->resource_id;
+	auxdata.vol_create_time = tcon->vol_create_time;
+	auxdata.vol_serial_number = tcon->vol_serial_number;
 
 	if (memcmp(data, &auxdata, datalen) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;

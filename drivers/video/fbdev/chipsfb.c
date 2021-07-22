@@ -79,7 +79,7 @@ static int chipsfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info);
 static int chipsfb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops chipsfb_ops = {
+static const struct fb_ops chipsfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= chipsfb_check_var,
 	.fb_set_par	= chipsfb_set_par,
@@ -349,7 +349,7 @@ static void init_chips(struct fb_info *p, unsigned long addr)
 static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 {
 	struct fb_info *p;
-	unsigned long addr, size;
+	unsigned long addr;
 	unsigned short cmd;
 	int rc = -ENODEV;
 
@@ -361,13 +361,11 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
 		goto err_disable;
 	addr = pci_resource_start(dp, 0);
-	size = pci_resource_len(dp, 0);
 	if (addr == 0)
 		goto err_disable;
 
 	p = framebuffer_alloc(0, &dp->dev);
 	if (p == NULL) {
-		dev_err(&dp->dev, "Cannot allocate framebuffer structure\n");
 		rc = -ENOMEM;
 		goto err_disable;
 	}

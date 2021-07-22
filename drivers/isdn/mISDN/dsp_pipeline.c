@@ -1,27 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dsp_pipeline.c: pipelined audio processing
  *
  * Copyright (C) 2007, Nadi Sarrar
  *
  * Nadi Sarrar <nadi@beronet.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
  */
 
 #include <linux/kernel.h>
@@ -33,9 +16,6 @@
 #include <linux/export.h>
 #include "dsp.h"
 #include "dsp_hwec.h"
-
-/* uncomment for debugging */
-/*#define PIPELINE_DEBUG*/
 
 struct dsp_pipeline_entry {
 	struct mISDN_dsp_element *elem;
@@ -121,10 +101,6 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 		}
 	}
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: %s registered\n", __func__, elem->name);
-#endif
-
 	return 0;
 
 err2:
@@ -146,10 +122,6 @@ void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem)
 	list_for_each_entry_safe(entry, n, &dsp_elements, list)
 		if (entry->elem == elem) {
 			device_unregister(&entry->dev);
-#ifdef PIPELINE_DEBUG
-			printk(KERN_DEBUG "%s: %s unregistered\n",
-			       __func__, elem->name);
-#endif
 			return;
 		}
 	printk(KERN_ERR "%s: element %s not in list.\n", __func__, elem->name);
@@ -161,10 +133,6 @@ int dsp_pipeline_module_init(void)
 	elements_class = class_create(THIS_MODULE, "dsp_pipeline");
 	if (IS_ERR(elements_class))
 		return PTR_ERR(elements_class);
-
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline module initialized\n", __func__);
-#endif
 
 	dsp_hwec_init();
 
@@ -185,10 +153,6 @@ void dsp_pipeline_module_exit(void)
 		       __func__, entry->elem->name);
 		kfree(entry);
 	}
-
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline module exited\n", __func__);
-#endif
 }
 
 int dsp_pipeline_init(struct dsp_pipeline *pipeline)
@@ -197,10 +161,6 @@ int dsp_pipeline_init(struct dsp_pipeline *pipeline)
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&pipeline->list);
-
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline ready\n", __func__);
-#endif
 
 	return 0;
 }
@@ -227,15 +187,11 @@ void dsp_pipeline_destroy(struct dsp_pipeline *pipeline)
 		return;
 
 	_dsp_pipeline_destroy(pipeline);
-
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline destroyed\n", __func__);
-#endif
 }
 
 int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 {
-	int incomplete = 0, found = 0;
+	int found = 0;
 	char *dup, *tok, *name, *args;
 	struct dsp_element_entry *entry, *n;
 	struct dsp_pipeline_entry *pipeline_entry;
@@ -268,7 +224,6 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 					printk(KERN_ERR "%s: failed to add "
 					       "entry to pipeline: %s (out of "
 					       "memory)\n", __func__, elem->name);
-					incomplete = 1;
 					goto _out;
 				}
 				pipeline_entry->elem = elem;
@@ -285,20 +240,12 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 					if (pipeline_entry->p) {
 						list_add_tail(&pipeline_entry->
 							      list, &pipeline->list);
-#ifdef PIPELINE_DEBUG
-						printk(KERN_DEBUG "%s: created "
-						       "instance of %s%s%s\n",
-						       __func__, name, args ?
-						       " with args " : "", args ?
-						       args : "");
-#endif
 					} else {
 						printk(KERN_ERR "%s: failed "
 						       "to add entry to pipeline: "
 						       "%s (new() returned NULL)\n",
 						       __func__, elem->name);
 						kfree(pipeline_entry);
-						incomplete = 1;
 					}
 				}
 				found = 1;
@@ -307,11 +254,9 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 
 		if (found)
 			found = 0;
-		else {
+		else
 			printk(KERN_ERR "%s: element not found, skipping: "
 			       "%s\n", __func__, name);
-			incomplete = 1;
-		}
 	}
 
 _out:
@@ -320,10 +265,6 @@ _out:
 	else
 		pipeline->inuse = 0;
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline built%s: %s\n",
-	       __func__, incomplete ? " incomplete" : "", cfg);
-#endif
 	kfree(dup);
 	return 0;
 }

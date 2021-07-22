@@ -27,7 +27,13 @@ else:
     import linux.modules
     import linux.dmesg
     import linux.tasks
+    import linux.config
     import linux.cpus
     import linux.lists
+    import linux.rbtree
     import linux.proc
     import linux.constants
+    import linux.timerlist
+    import linux.clk
+    import linux.genpd
+    import linux.device

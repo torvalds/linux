@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Peer event handling, typically ICMP messages.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -151,32 +147,44 @@ void rxrpc_error_report(struct sock *sk)
 {
 	struct sock_exterr_skb *serr;
 	struct sockaddr_rxrpc srx;
-	struct rxrpc_local *local = sk->sk_user_data;
+	struct rxrpc_local *local;
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
 
+	rcu_read_lock();
+	local = rcu_dereference_sk_user_data(sk);
+	if (unlikely(!local)) {
+		rcu_read_unlock();
+		return;
+	}
 	_enter("%p{%d}", sk, local->debug_id);
+
+	/* Clear the outstanding error value on the socket so that it doesn't
+	 * cause kernel_sendmsg() to return it later.
+	 */
+	sock_error(sk);
 
 	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
+		rcu_read_unlock();
 		_leave("UDP socket errqueue empty");
 		return;
 	}
-	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
+	rxrpc_new_skb(skb, rxrpc_skb_received);
 	serr = SKB_EXT_ERR(skb);
 	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rcu_read_unlock();
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		return;
 	}
 
-	rcu_read_lock();
 	peer = rxrpc_lookup_peer_icmp_rcu(local, skb, &srx);
 	if (peer && !rxrpc_get_peer_maybe(peer))
 		peer = NULL;
 	if (!peer) {
 		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		_leave(" [no peer]");
 		return;
 	}
@@ -188,7 +196,7 @@ void rxrpc_error_report(struct sock *sk)
 	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
 		rxrpc_adjust_mtu(peer, serr);
 		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		rxrpc_put_peer(peer);
 		_leave(" [MTU update]");
 		return;
@@ -196,7 +204,7 @@ void rxrpc_error_report(struct sock *sk)
 
 	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
-	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
 	rxrpc_put_peer(peer);
 
 	_leave("");
@@ -263,6 +271,9 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 		break;
 
 	case SO_EE_ORIGIN_ICMP6:
+		if (err == EACCES)
+			err = EHOSTUNREACH;
+		fallthrough;
 	default:
 		_proto("Rx Received error report { orig=%u }", ee->ee_origin);
 		break;
@@ -281,56 +292,8 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 
 	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
 		rxrpc_see_call(call);
-		if (call->state < RXRPC_CALL_COMPLETE &&
-		    rxrpc_set_call_completion(call, compl, 0, -error))
-			rxrpc_notify_socket(call);
+		rxrpc_set_call_completion(call, compl, 0, -error);
 	}
-}
-
-/*
- * Add RTT information to cache.  This is called in softirq mode and has
- * exclusive access to the peer RTT data.
- */
-void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
-			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
-			ktime_t send_time, ktime_t resp_time)
-{
-	struct rxrpc_peer *peer = call->peer;
-	s64 rtt;
-	u64 sum = peer->rtt_sum, avg;
-	u8 cursor = peer->rtt_cursor, usage = peer->rtt_usage;
-
-	rtt = ktime_to_ns(ktime_sub(resp_time, send_time));
-	if (rtt < 0)
-		return;
-
-	spin_lock(&peer->rtt_input_lock);
-
-	/* Replace the oldest datum in the RTT buffer */
-	sum -= peer->rtt_cache[cursor];
-	sum += rtt;
-	peer->rtt_cache[cursor] = rtt;
-	peer->rtt_cursor = (cursor + 1) & (RXRPC_RTT_CACHE_SIZE - 1);
-	peer->rtt_sum = sum;
-	if (usage < RXRPC_RTT_CACHE_SIZE) {
-		usage++;
-		peer->rtt_usage = usage;
-	}
-
-	spin_unlock(&peer->rtt_input_lock);
-
-	/* Now recalculate the average */
-	if (usage == RXRPC_RTT_CACHE_SIZE) {
-		avg = sum / RXRPC_RTT_CACHE_SIZE;
-	} else {
-		avg = sum;
-		do_div(avg, usage);
-	}
-
-	/* Don't need to update this under lock */
-	peer->rtt = avg;
-	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
-			   usage, avg);
 }
 
 /*
@@ -356,28 +319,32 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 		if (!rxrpc_get_peer_maybe(peer))
 			continue;
 
-		spin_unlock_bh(&rxnet->peer_hash_lock);
+		if (__rxrpc_use_local(peer->local)) {
+			spin_unlock_bh(&rxnet->peer_hash_lock);
 
-		keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
-		slot = keepalive_at - base;
-		_debug("%02x peer %u t=%d {%pISp}",
-		       cursor, peer->debug_id, slot, &peer->srx.transport);
+			keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
+			slot = keepalive_at - base;
+			_debug("%02x peer %u t=%d {%pISp}",
+			       cursor, peer->debug_id, slot, &peer->srx.transport);
 
-		if (keepalive_at <= base ||
-		    keepalive_at > base + RXRPC_KEEPALIVE_TIME) {
-			rxrpc_send_keepalive(peer);
-			slot = RXRPC_KEEPALIVE_TIME;
+			if (keepalive_at <= base ||
+			    keepalive_at > base + RXRPC_KEEPALIVE_TIME) {
+				rxrpc_send_keepalive(peer);
+				slot = RXRPC_KEEPALIVE_TIME;
+			}
+
+			/* A transmission to this peer occurred since last we
+			 * examined it so put it into the appropriate future
+			 * bucket.
+			 */
+			slot += cursor;
+			slot &= mask;
+			spin_lock_bh(&rxnet->peer_hash_lock);
+			list_add_tail(&peer->keepalive_link,
+				      &rxnet->peer_keepalive[slot & mask]);
+			rxrpc_unuse_local(peer->local);
 		}
-
-		/* A transmission to this peer occurred since last we examined
-		 * it so put it into the appropriate future bucket.
-		 */
-		slot += cursor;
-		slot &= mask;
-		spin_lock_bh(&rxnet->peer_hash_lock);
-		list_add_tail(&peer->keepalive_link,
-			      &rxnet->peer_keepalive[slot & mask]);
-		rxrpc_put_peer(peer);
+		rxrpc_put_peer_locked(peer);
 	}
 
 	spin_unlock_bh(&rxnet->peer_hash_lock);

@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
- *
  */
 
 #ifndef __FSL_PAMU_H
@@ -395,18 +383,10 @@ struct ome {
 int pamu_domain_init(void);
 int pamu_enable_liodn(int liodn);
 int pamu_disable_liodn(int liodn);
-void pamu_free_subwins(int liodn);
-int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
-		       u32 omi, unsigned long rpn, u32 snoopid, uint32_t stashid,
-		       u32 subwin_cnt, int prot);
-int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin_addr,
-		       phys_addr_t subwin_size, u32 omi, unsigned long rpn,
-		       uint32_t snoopid, u32 stashid, int enable, int prot);
+int pamu_config_ppaace(int liodn, u32 omi, uint32_t stashid, int prot);
 
 u32 get_stash_id(u32 stash_dest_hint, u32 vcpu);
 void get_ome_index(u32 *omi_index, struct device *dev);
-int  pamu_update_paace_stash(int liodn, u32 subwin, u32 value);
-int pamu_disable_spaace(int liodn, u32 subwin);
-u32 pamu_get_max_subwin_cnt(void);
+int  pamu_update_paace_stash(int liodn, u32 value);
 
 #endif  /* __FSL_PAMU_H */

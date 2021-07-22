@@ -2,8 +2,11 @@
 #ifndef __DRM_GEM_CMA_HELPER_H__
 #define __DRM_GEM_CMA_HELPER_H__
 
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_gem.h>
+
+struct drm_mode_create_dumb;
 
 /**
  * struct drm_gem_cma_object - GEM object backed by CMA memory allocations
@@ -13,6 +16,7 @@
  *       more than one entry but they are guaranteed to have contiguous
  *       DMA addresses.
  * @vaddr: kernel virtual address of the backing memory
+ * @map_noncoherent: if true, the GEM object is backed by non-coherent memory
  */
 struct drm_gem_cma_object {
 	struct drm_gem_object base;
@@ -21,6 +25,8 @@ struct drm_gem_cma_object {
 
 	/* For objects with DMA memory allocated by GEM CMA */
 	void *vaddr;
+
+	bool map_noncoherent;
 };
 
 #define to_drm_gem_cma_obj(gem_obj) \
@@ -56,7 +62,7 @@ struct drm_gem_cma_object {
 		.poll		= drm_poll,\
 		.read		= drm_read,\
 		.llseek		= noop_llseek,\
-		.mmap		= drm_gem_cma_mmap,\
+		.mmap		= drm_gem_mmap,\
 		DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
 	}
 
@@ -72,9 +78,6 @@ int drm_gem_cma_dumb_create_internal(struct drm_file *file_priv,
 int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *drm,
 			    struct drm_mode_create_dumb *args);
-
-/* set vm_flags and we can change the VM attribute to other one at here */
-int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* allocate physical memory */
 struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
@@ -93,14 +96,93 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *obj);
 
-struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
+struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 				  struct dma_buf_attachment *attach,
 				  struct sg_table *sgt);
-int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
-			   struct vm_area_struct *vma);
-void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj);
-void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+
+/**
+ * DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE - CMA GEM driver operations
+ * @dumb_create_func: callback function for .dumb_create
+ *
+ * This macro provides a shortcut for setting the default GEM operations in the
+ * &drm_driver structure.
+ *
+ * This macro is a variant of DRM_GEM_CMA_DRIVER_OPS for drivers that
+ * override the default implementation of &struct rm_driver.dumb_create. Use
+ * DRM_GEM_CMA_DRIVER_OPS if possible. Drivers that require a virtual address
+ * on imported buffers should use
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE() instead.
+ */
+#define DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(dumb_create_func) \
+	.dumb_create		= (dumb_create_func), \
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table, \
+	.gem_prime_mmap		= drm_gem_prime_mmap
+
+/**
+ * DRM_GEM_CMA_DRIVER_OPS - CMA GEM driver operations
+ *
+ * This macro provides a shortcut for setting the default GEM operations in the
+ * &drm_driver structure.
+ *
+ * Drivers that come with their own implementation of
+ * &struct drm_driver.dumb_create should use
+ * DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE() instead. Use
+ * DRM_GEM_CMA_DRIVER_OPS if possible. Drivers that require a virtual address
+ * on imported buffers should use DRM_GEM_CMA_DRIVER_OPS_VMAP instead.
+ */
+#define DRM_GEM_CMA_DRIVER_OPS \
+	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_gem_cma_dumb_create)
+
+/**
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE - CMA GEM driver operations
+ *                                                ensuring a virtual address
+ *                                                on the buffer
+ * @dumb_create_func: callback function for .dumb_create
+ *
+ * This macro provides a shortcut for setting the default GEM operations in the
+ * &drm_driver structure for drivers that need the virtual address also on
+ * imported buffers.
+ *
+ * This macro is a variant of DRM_GEM_CMA_DRIVER_OPS_VMAP for drivers that
+ * override the default implementation of &struct drm_driver.dumb_create. Use
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP if possible. Drivers that do not require a
+ * virtual address on imported buffers should use
+ * DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE() instead.
+ */
+#define DRM_GEM_CMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE(dumb_create_func) \
+	.dumb_create		= dumb_create_func, \
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table_vmap, \
+	.gem_prime_mmap		= drm_gem_prime_mmap
+
+/**
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP - CMA GEM driver operations ensuring a virtual
+ *                               address on the buffer
+ *
+ * This macro provides a shortcut for setting the default GEM operations in the
+ * &drm_driver structure for drivers that need the virtual address also on
+ * imported buffers.
+ *
+ * Drivers that come with their own implementation of
+ * &struct drm_driver.dumb_create should use
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE() instead. Use
+ * DRM_GEM_CMA_DRIVER_OPS_VMAP if possible. Drivers that do not require a
+ * virtual address on imported buffers should use DRM_GEM_CMA_DRIVER_OPS
+ * instead.
+ */
+#define DRM_GEM_CMA_DRIVER_OPS_VMAP \
+	DRM_GEM_CMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE(drm_gem_cma_dumb_create)
+
+struct drm_gem_object *
+drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *drm,
+				       struct dma_buf_attachment *attach,
+				       struct sg_table *sgt);
 
 #endif /* __DRM_GEM_CMA_HELPER_H__ */

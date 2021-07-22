@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Structure dynamic extension infrastructure
  * Copyright (C) 2004 Rusty Russell IBM Corporation
  * Copyright (C) 2007 Netfilter Core Team <coreteam@netfilter.org>
  * Copyright (C) 2007 USAGI/WIDE Project <http://www.linux-ipv6.org>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
@@ -38,21 +34,23 @@ void nf_ct_ext_destroy(struct nf_conn *ct)
 			t->destroy(ct);
 		rcu_read_unlock();
 	}
+
+	kfree(ct->ext);
 }
-EXPORT_SYMBOL(nf_ct_ext_destroy);
 
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 {
 	unsigned int newlen, newoff, oldlen, alloc;
-	struct nf_ct_ext *old, *new;
 	struct nf_ct_ext_type *t;
+	struct nf_ct_ext *new;
 
 	/* Conntrack must not be confirmed to avoid races on reallocation. */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
-	old = ct->ext;
 
-	if (old) {
+	if (ct->ext) {
+		const struct nf_ct_ext *old = ct->ext;
+
 		if (__nf_ct_ext_exist(old, id))
 			return NULL;
 		oldlen = old->len;
@@ -72,22 +70,18 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	rcu_read_unlock();
 
 	alloc = max(newlen, NF_CT_EXT_PREALLOC);
-	kmemleak_not_leak(old);
-	new = __krealloc(old, alloc, gfp);
+	new = krealloc(ct->ext, alloc, gfp);
 	if (!new)
 		return NULL;
 
-	if (!old) {
+	if (!ct->ext)
 		memset(new->offset, 0, sizeof(new->offset));
-		ct->ext = new;
-	} else if (new != old) {
-		kfree_rcu(old, rcu);
-		rcu_assign_pointer(ct->ext, new);
-	}
 
 	new->offset[id] = newoff;
 	new->len = newlen;
 	memset((void *)new + newoff, 0, newlen - newoff);
+
+	ct->ext = new;
 	return (void *)new + newoff;
 }
 EXPORT_SYMBOL(nf_ct_ext_add);

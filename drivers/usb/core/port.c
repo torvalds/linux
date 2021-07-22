@@ -155,7 +155,7 @@ static struct attribute *port_dev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group port_dev_attr_grp = {
+static const struct attribute_group port_dev_attr_grp = {
 	.attrs = port_dev_attrs,
 };
 
@@ -169,7 +169,7 @@ static struct attribute *port_dev_usb3_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group port_dev_usb3_attr_grp = {
+static const struct attribute_group port_dev_usb3_attr_grp = {
 	.attrs = port_dev_usb3_attrs,
 };
 
@@ -213,7 +213,10 @@ static int usb_port_runtime_resume(struct device *dev)
 	if (!port_dev->is_superspeed && peer)
 		pm_runtime_get_sync(&peer->dev);
 
-	usb_autopm_get_interface(intf);
+	retval = usb_autopm_get_interface(intf);
+	if (retval < 0)
+		return retval;
+
 	retval = usb_hub_set_port_power(hdev, hub, port1, true);
 	msleep(hub_power_on_good_delay(hub));
 	if (udev && !retval) {
@@ -266,7 +269,10 @@ static int usb_port_runtime_suspend(struct device *dev)
 	if (usb_port_block_power_off)
 		return -EBUSY;
 
-	usb_autopm_get_interface(intf);
+	retval = usb_autopm_get_interface(intf);
+	if (retval < 0)
+		return retval;
+
 	retval = usb_hub_set_port_power(hdev, hub, port1, false);
 	usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_CONNECTION);
 	if (!port_dev->is_superspeed)
@@ -285,6 +291,14 @@ static int usb_port_runtime_suspend(struct device *dev)
 }
 #endif
 
+static void usb_port_shutdown(struct device *dev)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+
+	if (port_dev->child)
+		usb_disable_usb2_hardware_lpm(port_dev->child);
+}
+
 static const struct dev_pm_ops usb_port_pm_ops = {
 #ifdef CONFIG_PM
 	.runtime_suspend =	usb_port_runtime_suspend,
@@ -301,6 +315,7 @@ struct device_type usb_port_device_type = {
 static struct device_driver usb_port_driver = {
 	.name = "usb",
 	.owner = THIS_MODULE,
+	.shutdown = usb_port_shutdown,
 };
 
 static int link_peers(struct usb_port *left, struct usb_port *right)

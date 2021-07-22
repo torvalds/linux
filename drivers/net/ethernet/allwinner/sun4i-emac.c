@@ -33,7 +33,6 @@
 #include "sun4i-emac.h"
 
 #define DRV_NAME		"sun4i-emac"
-#define DRV_VERSION		"1.02"
 
 #define EMAC_MAX_FRAME_LEN	0x0600
 
@@ -207,25 +206,11 @@ static void emac_inblk_32bit(void __iomem *reg, void *data, int count)
 	readsl(reg, data, round_up(count, 4) / 4);
 }
 
-static int emac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(phydev, rq, cmd);
-}
-
 /* ethtool ops */
 static void emac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(DRV_NAME));
-	strlcpy(info->version, DRV_VERSION, sizeof(DRV_VERSION));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->bus_info, dev_name(&dev->dev), sizeof(info->bus_info));
 }
 
@@ -407,7 +392,7 @@ static void emac_init_device(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void emac_timeout(struct net_device *dev)
+static void emac_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct emac_board_info *db = netdev_priv(dev);
 	unsigned long flags;
@@ -432,7 +417,7 @@ static void emac_timeout(struct net_device *dev)
 /* Hardware start transmission.
  * Send a packet to media from the upper layer.
  */
-static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct emac_board_info *db = netdev_priv(dev);
 	unsigned long channel;
@@ -440,7 +425,7 @@ static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	channel = db->tx_fifo_stat & 3;
 	if (channel == 3)
-		return 1;
+		return NETDEV_TX_BUSY;
 
 	channel = (channel == 1 ? 1 : 0);
 
@@ -655,13 +640,11 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct emac_board_info *db = netdev_priv(dev);
 	int int_status;
-	unsigned long flags;
 	unsigned int reg_val;
 
 	/* A real interrupt coming */
 
-	/* holders of db->lock must always block IRQs */
-	spin_lock_irqsave(&db->lock, flags);
+	spin_lock(&db->lock);
 
 	/* Disable all interrupts */
 	writel(0, db->membase + EMAC_INT_CTL_REG);
@@ -695,7 +678,7 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 		reg_val |= (0xf << 0) | (0x01 << 8);
 		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 	}
-	spin_unlock_irqrestore(&db->lock, flags);
+	spin_unlock(&db->lock);
 
 	return IRQ_HANDLED;
 }
@@ -791,7 +774,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_start_xmit		= emac_start_xmit,
 	.ndo_tx_timeout		= emac_timeout,
 	.ndo_set_rx_mode	= emac_set_rx_mode,
-	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -807,7 +790,6 @@ static int emac_probe(struct platform_device *pdev)
 	struct emac_board_info *db;
 	struct net_device *ndev;
 	int ret = 0;
-	const char *mac_addr;
 
 	ndev = alloc_etherdev(sizeof(struct emac_board_info));
 	if (!ndev) {
@@ -818,7 +800,6 @@ static int emac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	db = netdev_priv(ndev);
-	memset(db, 0, sizeof(*db));
 
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
@@ -846,13 +827,13 @@ static int emac_probe(struct platform_device *pdev)
 	db->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(db->clk)) {
 		ret = PTR_ERR(db->clk);
-		goto out_iounmap;
+		goto out_dispose_mapping;
 	}
 
 	ret = clk_prepare_enable(db->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Error couldn't enable clock (%d)\n", ret);
-		goto out_iounmap;
+		goto out_dispose_mapping;
 	}
 
 	ret = sunxi_sram_claim(&pdev->dev);
@@ -861,7 +842,9 @@ static int emac_probe(struct platform_device *pdev)
 		goto out_clk_disable_unprepare;
 	}
 
-	db->phy_node = of_parse_phandle(np, "phy", 0);
+	db->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (!db->phy_node)
+		db->phy_node = of_parse_phandle(np, "phy", 0);
 	if (!db->phy_node) {
 		dev_err(&pdev->dev, "no associated PHY\n");
 		ret = -ENODEV;
@@ -869,12 +852,9 @@ static int emac_probe(struct platform_device *pdev)
 	}
 
 	/* Read MAC-address from DT */
-	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
-
-	/* Check if the MAC address is valid, if not get a random one */
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
+	ret = of_get_mac_address(np, ndev->dev_addr);
+	if (ret) {
+		/* if the MAC address is invalid get a random one */
 		eth_hw_addr_random(ndev);
 		dev_warn(&pdev->dev, "using random MAC address %pM\n",
 			 ndev->dev_addr);
@@ -909,6 +889,8 @@ out_release_sram:
 	sunxi_sram_release(&pdev->dev);
 out_clk_disable_unprepare:
 	clk_disable_unprepare(db->clk);
+out_dispose_mapping:
+	irq_dispose_mapping(ndev->irq);
 out_iounmap:
 	iounmap(db->membase);
 out:
@@ -927,6 +909,7 @@ static int emac_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	sunxi_sram_release(&pdev->dev);
 	clk_disable_unprepare(db->clk);
+	irq_dispose_mapping(ndev->irq);
 	iounmap(db->membase);
 	free_netdev(ndev);
 

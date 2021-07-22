@@ -26,6 +26,13 @@ static int (*orig_bus_suspend)(struct usb_hcd *hcd);
 
 struct ehci_ci_priv {
 	struct regulator *reg_vbus;
+	bool enabled;
+};
+
+struct ci_hdrc_dma_aligned_buffer {
+	void *kmalloc_ptr;
+	void *old_xfer_buffer;
+	u8 data[];
 };
 
 static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
@@ -37,7 +44,7 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 	int ret = 0;
 	int port = HCS_N_PORTS(ehci->hcs_params);
 
-	if (priv->reg_vbus) {
+	if (priv->reg_vbus && enable != priv->enabled) {
 		if (port > 1) {
 			dev_warn(dev,
 				"Not support multi-port regulator control\n");
@@ -53,6 +60,7 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 				enable ? "enable" : "disable", ret);
 			return ret;
 		}
+		priv->enabled = enable;
 	}
 
 	if (enable && (ci->platdata->phy_mode == USBPHY_INTERFACE_MODE_HSIC)) {
@@ -158,18 +166,24 @@ static int host_start(struct ci_hdrc *ci)
 		pinctrl_select_state(ci->platdata->pctl,
 				     ci->platdata->pins_host);
 
+	ci->hcd = hcd;
+
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
+		ci->hcd = NULL;
 		goto disable_reg;
 	} else {
 		struct usb_otg *otg = &ci->otg;
-
-		ci->hcd = hcd;
 
 		if (ci_otg_is_fsm_mode(ci)) {
 			otg->host = &hcd->self;
 			hcd->self.otg_port = 1;
 		}
+
+		if (ci->platdata->notify_event &&
+			(ci->platdata->flags & CI_HDRC_IMX_IS_HSIC))
+			ci->platdata->notify_event
+				(ci, CI_HDRC_IMX_HSIC_ACTIVE_EVENT);
 	}
 
 	return ret;
@@ -215,9 +229,93 @@ void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 		host_stop(ci);
 }
 
+/* The below code is based on tegra ehci driver */
+static int ci_ehci_hub_control(
+	struct usb_hcd	*hcd,
+	u16		typeReq,
+	u16		wValue,
+	u16		wIndex,
+	char		*buf,
+	u16		wLength
+)
+{
+	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+	u32 __iomem	*status_reg;
+	u32		temp;
+	unsigned long	flags;
+	int		retval = 0;
+	bool		done = false;
+	struct device *dev = hcd->self.controller;
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	status_reg = &ehci->regs->port_status[(wIndex & 0xff) - 1];
+
+	spin_lock_irqsave(&ehci->lock, flags);
+
+	if (ci->platdata->hub_control) {
+		retval = ci->platdata->hub_control(ci, typeReq, wValue, wIndex,
+						   buf, wLength, &done, &flags);
+		if (done)
+			goto done;
+	}
+
+	if (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_SUSPEND) {
+		temp = ehci_readl(ehci, status_reg);
+		if ((temp & PORT_PE) == 0 || (temp & PORT_RESET) != 0) {
+			retval = -EPIPE;
+			goto done;
+		}
+
+		temp &= ~(PORT_RWC_BITS | PORT_WKCONN_E);
+		temp |= PORT_WKDISC_E | PORT_WKOC_E;
+		ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
+
+		/*
+		 * If a transaction is in progress, there may be a delay in
+		 * suspending the port. Poll until the port is suspended.
+		 */
+		if (ehci_handshake(ehci, status_reg, PORT_SUSPEND,
+			PORT_SUSPEND, 5000))
+			ehci_err(ehci, "timeout waiting for SUSPEND\n");
+
+		if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC) {
+			if (ci->platdata->notify_event)
+				ci->platdata->notify_event(ci,
+					CI_HDRC_IMX_HSIC_SUSPEND_EVENT);
+
+			temp = ehci_readl(ehci, status_reg);
+			temp &= ~(PORT_WKDISC_E | PORT_WKCONN_E);
+			ehci_writel(ehci, temp, status_reg);
+		}
+
+		set_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
+		goto done;
+	}
+
+	/*
+	 * After resume has finished, it needs do some post resume
+	 * operation for some SoCs.
+	 */
+	else if (typeReq == ClearPortFeature &&
+		wValue == USB_PORT_FEAT_C_SUSPEND) {
+		/* Make sure the resume has finished, it should be finished */
+		if (ehci_handshake(ehci, status_reg, PORT_RESUME, 0, 25000))
+			ehci_err(ehci, "timeout waiting for resume\n");
+	}
+
+	spin_unlock_irqrestore(&ehci->lock, flags);
+
+	/* Handle the hub control events here */
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+done:
+	spin_unlock_irqrestore(&ehci->lock, flags);
+	return retval;
+}
 static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct device *dev = hcd->self.controller;
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
 	int port;
 	u32 tmp;
 
@@ -249,11 +347,101 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 			 * It needs a short delay between set RS bit and PHCD.
 			 */
 			usleep_range(150, 200);
+			/*
+			 * Need to clear WKCN and WKOC for imx HSIC,
+			 * otherwise, there will be wakeup event.
+			 */
+			if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC) {
+				tmp = ehci_readl(ehci, reg);
+				tmp &= ~(PORT_WKDISC_E | PORT_WKCONN_E);
+				ehci_writel(ehci, tmp, reg);
+			}
+
 			break;
 		}
 	}
 
 	return 0;
+}
+
+static void ci_hdrc_free_dma_aligned_buffer(struct urb *urb)
+{
+	struct ci_hdrc_dma_aligned_buffer *temp;
+	size_t length;
+
+	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
+		return;
+
+	temp = container_of(urb->transfer_buffer,
+			    struct ci_hdrc_dma_aligned_buffer, data);
+
+	if (usb_urb_dir_in(urb)) {
+		if (usb_pipeisoc(urb->pipe))
+			length = urb->transfer_buffer_length;
+		else
+			length = urb->actual_length;
+
+		memcpy(temp->old_xfer_buffer, temp->data, length);
+	}
+	urb->transfer_buffer = temp->old_xfer_buffer;
+	kfree(temp->kmalloc_ptr);
+
+	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
+}
+
+static int ci_hdrc_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
+{
+	struct ci_hdrc_dma_aligned_buffer *temp, *kmalloc_ptr;
+	const unsigned int ci_hdrc_usb_dma_align = 32;
+	size_t kmalloc_size;
+
+	if (urb->num_sgs || urb->sg || urb->transfer_buffer_length == 0 ||
+	    !((uintptr_t)urb->transfer_buffer & (ci_hdrc_usb_dma_align - 1)))
+		return 0;
+
+	/* Allocate a buffer with enough padding for alignment */
+	kmalloc_size = urb->transfer_buffer_length +
+		       sizeof(struct ci_hdrc_dma_aligned_buffer) +
+		       ci_hdrc_usb_dma_align - 1;
+
+	kmalloc_ptr = kmalloc(kmalloc_size, mem_flags);
+	if (!kmalloc_ptr)
+		return -ENOMEM;
+
+	/* Position our struct dma_aligned_buffer such that data is aligned */
+	temp = PTR_ALIGN(kmalloc_ptr + 1, ci_hdrc_usb_dma_align) - 1;
+	temp->kmalloc_ptr = kmalloc_ptr;
+	temp->old_xfer_buffer = urb->transfer_buffer;
+	if (usb_urb_dir_out(urb))
+		memcpy(temp->data, urb->transfer_buffer,
+		       urb->transfer_buffer_length);
+	urb->transfer_buffer = temp->data;
+
+	urb->transfer_flags |= URB_ALIGNED_TEMP_BUFFER;
+
+	return 0;
+}
+
+static int ci_hdrc_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
+				   gfp_t mem_flags)
+{
+	int ret;
+
+	ret = ci_hdrc_alloc_dma_aligned_buffer(urb, mem_flags);
+	if (ret)
+		return ret;
+
+	ret = usb_hcd_map_urb_for_dma(hcd, urb, mem_flags);
+	if (ret)
+		ci_hdrc_free_dma_aligned_buffer(urb);
+
+	return ret;
+}
+
+static void ci_hdrc_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
+{
+	usb_hcd_unmap_urb_for_dma(hcd, urb);
+	ci_hdrc_free_dma_aligned_buffer(urb);
 }
 
 int ci_hdrc_host_init(struct ci_hdrc *ci)
@@ -273,6 +461,11 @@ int ci_hdrc_host_init(struct ci_hdrc *ci)
 	rdrv->name	= "host";
 	ci->roles[CI_ROLE_HOST] = rdrv;
 
+	if (ci->platdata->flags & CI_HDRC_REQUIRES_ALIGNED_DMA) {
+		ci_ehci_hc_driver.map_urb_for_dma = ci_hdrc_map_urb_for_dma;
+		ci_ehci_hc_driver.unmap_urb_for_dma = ci_hdrc_unmap_urb_for_dma;
+	}
+
 	return 0;
 }
 
@@ -281,4 +474,5 @@ void ci_hdrc_host_driver_init(void)
 	ehci_init_driver(&ci_ehci_hc_driver, &ehci_ci_overrides);
 	orig_bus_suspend = ci_ehci_hc_driver.bus_suspend;
 	ci_ehci_hc_driver.bus_suspend = ci_ehci_bus_suspend;
+	ci_ehci_hc_driver.hub_control = ci_ehci_hub_control;
 }

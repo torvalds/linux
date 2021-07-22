@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * omap_cf.c -- OMAP 16xx CompactFlash controller driver
  *
  * Copyright (c) 2005 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -22,7 +18,7 @@
 
 #include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/mux.h>
 #include <mach/tc.h>
@@ -256,11 +252,15 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	/* pcmcia layer only remaps "real" memory */
 	cf->socket.io_offset = (unsigned long)
 			ioremap(cf->phys_cf + SZ_4K, SZ_2K);
-	if (!cf->socket.io_offset)
+	if (!cf->socket.io_offset) {
+		status = -ENOMEM;
 		goto fail1;
+	}
 
-	if (!request_mem_region(cf->phys_cf, SZ_8K, driver_name))
+	if (!request_mem_region(cf->phys_cf, SZ_8K, driver_name)) {
+		status = -ENXIO;
 		goto fail1;
+	}
 
 	/* NOTE:  CF conflicts with MMC1 */
 	omap_cfg_reg(W11_1610_CF_CD1);
@@ -333,7 +333,7 @@ static int __exit omap_cf_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_cf_driver = {
 	.driver = {
-		.name	= (char *) driver_name,
+		.name	= driver_name,
 	},
 	.remove		= __exit_p(omap_cf_remove),
 };

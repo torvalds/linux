@@ -120,6 +120,7 @@
 			reg = <0x1010000 0x10000>,
 			      <0x1030000 0x10000>,
 			      <0x1080000 0x100>,
+			      <0x10e0000 0x10000>,
 			      <0x11e0000 0x100>,
 			      <0x11f0000 0x100>,
 			      <0x1200000 0x100>,
@@ -132,13 +133,16 @@
 			      <0x1270000 0x100>,
 			      <0x1280000 0x100>,
 			      <0x1800000 0x80000>,
-			      <0x1880000 0x10000>;
-			reg-names = "sys", "rew", "qs", "port0", "port1",
+			      <0x1880000 0x10000>,
+			      <0x1040000 0x10000>,
+			      <0x1050000 0x10000>,
+			      <0x1060000 0x10000>;
+			reg-names = "sys", "rew", "qs", "ptp", "port0", "port1",
 				    "port2", "port3", "port4", "port5", "port6",
 				    "port7", "port8", "port9", "port10", "qsys",
-				    "ana";
-			interrupts = <21 22>;
-			interrupt-names = "xtr", "inj";
+				    "ana", "s0", "s1", "s2";
+			interrupts = <18 21 22>;
+			interrupt-names = "ptp_rdy", "xtr", "inj";
 
 			ethernet-ports {
 				#address-cells = <1>;
@@ -212,7 +216,7 @@
 
 			miim1: miim1 {
 				pins = "GPIO_14", "GPIO_15";
-				function = "miim1";
+				function = "miim";
 			};
 
 		};

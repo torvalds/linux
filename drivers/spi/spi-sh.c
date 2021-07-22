@@ -290,8 +290,8 @@ static void spi_sh_work(struct work_struct *work)
 		list_for_each_entry(t, &mesg->transfers, transfer_list) {
 			pr_debug("tx_buf = %p, rx_buf = %p\n",
 					t->tx_buf, t->rx_buf);
-			pr_debug("len = %d, delay_usecs = %d\n",
-					t->len, t->delay_usecs);
+			pr_debug("len = %d, delay.value = %d\n",
+					t->len, t->delay.value);
 
 			if (t->tx_buf) {
 				ret = spi_sh_send(ss, mesg, t);
@@ -437,12 +437,10 @@ static int spi_sh_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "platform_get_irq error: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_sh_data));
+	master = devm_spi_alloc_master(&pdev->dev, sizeof(struct spi_sh_data));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "spi_alloc_master error.\n");
 		return -ENOMEM;
@@ -460,16 +458,14 @@ static int spi_sh_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "No support width\n");
-		ret = -ENODEV;
-		goto error1;
+		return -ENODEV;
 	}
 	ss->irq = irq;
 	ss->master = master;
 	ss->addr = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (ss->addr == NULL) {
 		dev_err(&pdev->dev, "ioremap error.\n");
-		ret = -ENOMEM;
-		goto error1;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&ss->queue);
 	spin_lock_init(&ss->lock);
@@ -479,7 +475,7 @@ static int spi_sh_probe(struct platform_device *pdev)
 	ret = request_irq(irq, spi_sh_irq, 0, "spi_sh", ss);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq error\n");
-		goto error1;
+		return ret;
 	}
 
 	master->num_chipselect = 2;
@@ -498,9 +494,6 @@ static int spi_sh_probe(struct platform_device *pdev)
 
  error3:
 	free_irq(irq, ss);
- error1:
-	spi_master_put(master);
-
 	return ret;
 }
 

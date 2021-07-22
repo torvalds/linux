@@ -64,10 +64,8 @@ static inline void DBF_DEV_HEX(struct qdio_irq *dev, void *addr,
 	debug_event(dev->debug_area, level, addr, len);
 }
 
-int qdio_allocate_dbf(struct qdio_initialize *init_data,
-		       struct qdio_irq *irq_ptr);
-void qdio_setup_debug_entries(struct qdio_irq *irq_ptr,
-			      struct ccw_device *cdev);
+int qdio_allocate_dbf(struct qdio_irq *irq_ptr);
+void qdio_setup_debug_entries(struct qdio_irq *irq_ptr);
 void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr);
 int qdio_debug_init(void);
 void qdio_debug_exit(void);

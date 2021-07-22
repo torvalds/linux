@@ -1,35 +1,5 @@
-/**
- * Copyright (c) 2010-2012 Broadcom. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/* Copyright (c) 2010-2012 Broadcom. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -42,13 +12,13 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #define TOTAL_SLOTS (VCHIQ_SLOT_ZERO_SLOTS + 2 * 32)
 
 #include "vchiq_arm.h"
 #include "vchiq_connected.h"
-#include "vchiq_killable.h"
 #include "vchiq_pagelist.h"
 
 #define MAX_FRAGMENTS (VCHIQ_NUM_CURRENT_BULKS * 2)
@@ -59,13 +29,15 @@
 #define BELL0	0x00
 #define BELL2	0x08
 
+#define ARM_DS_ACTIVE	BIT(2)
+
 struct vchiq_2835_state {
 	int inited;
-	VCHIQ_ARM_STATE_T arm_state;
+	struct vchiq_arm_state arm_state;
 };
 
 struct vchiq_pagelist_info {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	size_t pagelist_buffer_size;
 	dma_addr_t dma_addr;
 	enum dma_data_direction dma_dir;
@@ -100,19 +72,18 @@ static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id);
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type);
+create_pagelist(char *buf, char __user *ubuf, size_t count, unsigned short type);
 
 static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual);
 
-int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
+int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 {
 	struct device *dev = &pdev->dev;
 	struct vchiq_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct rpi_firmware *fw = drvdata->fw;
-	VCHIQ_SLOT_ZERO_T *vchiq_slot_zero;
-	struct resource *res;
+	struct vchiq_slot_zero *vchiq_slot_zero;
 	void *slot_mem;
 	dma_addr_t slot_phys;
 	u32 channelbase;
@@ -163,19 +134,17 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 	*(char **)&g_fragments_base[i * g_fragments_size] = NULL;
 	sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
 
-	if (vchiq_init_state(state, vchiq_slot_zero, 0) != VCHIQ_SUCCESS)
-		return -EINVAL;
+	err = vchiq_init_state(state, vchiq_slot_zero);
+	if (err)
+		return err;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	g_regs = devm_ioremap_resource(&pdev->dev, res);
+	g_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(g_regs))
 		return PTR_ERR(g_regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "failed to get IRQ\n");
+	if (irq <= 0)
 		return irq;
-	}
 
 	err = devm_request_irq(dev, irq, vchiq_doorbell_irq, IRQF_IRQPOLL,
 			       "VCHIQ doorbell", state);
@@ -203,26 +172,25 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 	return 0;
 }
 
-VCHIQ_STATUS_T
-vchiq_platform_init_state(VCHIQ_STATE_T *state)
+int
+vchiq_platform_init_state(struct vchiq_state *state)
 {
-	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
 	struct vchiq_2835_state *platform_state;
 
 	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
+	if (!state->platform_state)
+		return -ENOMEM;
+
 	platform_state = (struct vchiq_2835_state *)state->platform_state;
 
 	platform_state->inited = 1;
-	status = vchiq_arm_init_state(state, &platform_state->arm_state);
+	vchiq_arm_init_state(state, &platform_state->arm_state);
 
-	if (status != VCHIQ_SUCCESS)
-		platform_state->inited = 0;
-
-	return status;
+	return 0;
 }
 
-VCHIQ_ARM_STATE_T*
-vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
+struct vchiq_arm_state*
+vchiq_platform_get_arm_state(struct vchiq_state *state)
 {
 	struct vchiq_2835_state *platform_state;
 
@@ -234,7 +202,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 }
 
 void
-remote_event_signal(REMOTE_EVENT_T *event)
+remote_event_signal(struct remote_event *event)
 {
 	wmb();
 
@@ -246,24 +214,21 @@ remote_event_signal(REMOTE_EVENT_T *event)
 		writel(0, g_regs + BELL2); /* trigger vc interrupt */
 }
 
-VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
-	void *offset, int size, int dir)
+int
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset,
+			void __user *uoffset, int size, int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
 
-	WARN_ON(memhandle != VCHI_MEM_HANDLE_INVALID);
-
-	pagelistinfo = create_pagelist((char __user *)offset, size,
+	pagelistinfo = create_pagelist(offset, uoffset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
 				       ? PAGELIST_READ
 				       : PAGELIST_WRITE);
 
 	if (!pagelistinfo)
-		return VCHIQ_ERROR;
+		return -ENOMEM;
 
-	bulk->handle = memhandle;
-	bulk->data = (void *)(unsigned long)pagelistinfo->dma_addr;
+	bulk->data = pagelistinfo->dma_addr;
 
 	/*
 	 * Store the pagelistinfo address in remote_data,
@@ -271,81 +236,27 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	 */
 	bulk->remote_data = pagelistinfo;
 
-	return VCHIQ_SUCCESS;
+	return 0;
 }
 
 void
-vchiq_complete_bulk(VCHIQ_BULK_T *bulk)
+vchiq_complete_bulk(struct vchiq_bulk *bulk)
 {
 	if (bulk && bulk->remote_data && bulk->actual)
 		free_pagelist((struct vchiq_pagelist_info *)bulk->remote_data,
 			      bulk->actual);
 }
 
-void
-vchiq_transfer_bulk(VCHIQ_BULK_T *bulk)
-{
-	/*
-	 * This should only be called on the master (VideoCore) side, but
-	 * provide an implementation to avoid the need for ifdefery.
-	 */
-	BUG();
-}
-
-void
-vchiq_dump_platform_state(void *dump_context)
+int vchiq_dump_platform_state(void *dump_context)
 {
 	char buf[80];
 	int len;
 
 	len = snprintf(buf, sizeof(buf),
 		"  Platform: 2835 (VC master)");
-	vchiq_dump(dump_context, buf, len + 1);
+	return vchiq_dump(dump_context, buf, len + 1);
 }
 
-VCHIQ_STATUS_T
-vchiq_platform_suspend(VCHIQ_STATE_T *state)
-{
-	return VCHIQ_ERROR;
-}
-
-VCHIQ_STATUS_T
-vchiq_platform_resume(VCHIQ_STATE_T *state)
-{
-	return VCHIQ_SUCCESS;
-}
-
-void
-vchiq_platform_paused(VCHIQ_STATE_T *state)
-{
-}
-
-void
-vchiq_platform_resumed(VCHIQ_STATE_T *state)
-{
-}
-
-int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state)
-{
-	return 1; // autosuspend not supported - videocore always wanted
-}
-
-int
-vchiq_platform_use_suspend_timer(void)
-{
-	return 0;
-}
-void
-vchiq_dump_platform_use_state(VCHIQ_STATE_T *state)
-{
-	vchiq_log_info(vchiq_arm_log_level, "Suspend timer not in use");
-}
-void
-vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
-{
-	(void)state;
-}
 /*
  * Local functions
  */
@@ -353,14 +264,14 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
 static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id)
 {
-	VCHIQ_STATE_T *state = dev_id;
+	struct vchiq_state *state = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int status;
 
 	/* Read (and clear) the doorbell */
 	status = readl(g_regs + BELL0);
 
-	if (status & 0x4) {  /* Was the doorbell rung? */
+	if (status & ARM_DS_ACTIVE) {  /* Was the doorbell rung? */
 		remote_event_pollall(state);
 		ret = IRQ_HANDLED;
 	}
@@ -376,12 +287,8 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 			     pagelistinfo->num_pages, pagelistinfo->dma_dir);
 	}
 
-	if (pagelistinfo->pages_need_release) {
-		unsigned int i;
-
-		for (i = 0; i < pagelistinfo->num_pages; i++)
-			put_page(pagelistinfo->pages[i]);
-	}
+	if (pagelistinfo->pages_need_release)
+		unpin_user_pages(pagelistinfo->pages, pagelistinfo->num_pages);
 
 	dma_free_coherent(g_dev, pagelistinfo->pagelist_buffer_size,
 			  pagelistinfo->pagelist, pagelistinfo->dma_addr);
@@ -396,9 +303,10 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
  */
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type)
+create_pagelist(char *buf, char __user *ubuf,
+		size_t count, unsigned short type)
 {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
 	struct page **pages;
 	u32 *addrs;
@@ -409,10 +317,22 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	int dma_buffers;
 	dma_addr_t dma_addr;
 
-	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
+	if (count >= INT_MAX - PAGE_SIZE)
+		return NULL;
+
+	if (buf)
+		offset = (uintptr_t)buf & (PAGE_SIZE - 1);
+	else
+		offset = (uintptr_t)ubuf & (PAGE_SIZE - 1);
 	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
-	pagelist_size = sizeof(PAGELIST_T) +
+	if (num_pages > (SIZE_MAX - sizeof(struct pagelist) -
+			 sizeof(struct vchiq_pagelist_info)) /
+			(sizeof(u32) + sizeof(pages[0]) +
+			 sizeof(struct scatterlist)))
+		return NULL;
+
+	pagelist_size = sizeof(struct pagelist) +
 			(num_pages * sizeof(u32)) +
 			(num_pages * sizeof(pages[0]) +
 			(num_pages * sizeof(struct scatterlist))) +
@@ -421,10 +341,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	/* Allocate enough storage to hold the page pointers and the page
 	 * list
 	 */
-	pagelist = dma_zalloc_coherent(g_dev,
-				       pagelist_size,
-				       &dma_addr,
-				       GFP_KERNEL);
+	pagelist = dma_alloc_coherent(g_dev, pagelist_size, &dma_addr,
+				      GFP_KERNEL);
 
 	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK", __func__, pagelist);
 
@@ -453,14 +371,15 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	pagelistinfo->scatterlist = scatterlist;
 	pagelistinfo->scatterlist_mapped = 0;
 
-	if (is_vmalloc_addr(buf)) {
+	if (buf) {
 		unsigned long length = count;
 		unsigned int off = offset;
 
 		for (actual_pages = 0; actual_pages < num_pages;
 		     actual_pages++) {
-			struct page *pg = vmalloc_to_page(buf + (actual_pages *
-								 PAGE_SIZE));
+			struct page *pg =
+				vmalloc_to_page((buf +
+						 (actual_pages * PAGE_SIZE)));
 			size_t bytes = PAGE_SIZE - off;
 
 			if (!pg) {
@@ -476,8 +395,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 		}
 		/* do not try and release vmalloc pages */
 	} else {
-		actual_pages = get_user_pages_fast(
-					  (unsigned long)buf & PAGE_MASK,
+		actual_pages = pin_user_pages_fast(
+					  (unsigned long)ubuf & PAGE_MASK,
 					  num_pages,
 					  type == PAGELIST_READ,
 					  pages);
@@ -488,10 +407,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 				       __func__, actual_pages, num_pages);
 
 			/* This is probably due to the process being killed */
-			while (actual_pages > 0) {
-				actual_pages--;
-				put_page(pages[actual_pages]);
-			}
+			if (actual_pages > 0)
+				unpin_user_pages(pages, actual_pages);
 			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
@@ -557,16 +474,16 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 		(g_cache_line_size - 1)))) {
 		char *fragments;
 
-		if (down_interruptible(&g_free_fragments_sema) != 0) {
+		if (down_interruptible(&g_free_fragments_sema)) {
 			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
 
-		WARN_ON(g_free_fragments == NULL);
+		WARN_ON(!g_free_fragments);
 
 		down(&g_free_fragments_mutex);
 		fragments = g_free_fragments;
-		WARN_ON(fragments == NULL);
+		WARN_ON(!fragments);
 		g_free_fragments = *(char **) g_free_fragments;
 		up(&g_free_fragments_mutex);
 		pagelist->type = PAGELIST_READ_WITH_FRAGMENTS +
@@ -580,8 +497,8 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual)
 {
-	PAGELIST_T *pagelist   = pagelistinfo->pagelist;
-	struct page **pages    = pagelistinfo->pages;
+	struct pagelist *pagelist = pagelistinfo->pagelist;
+	struct page **pages = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
 
 	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK, %d",

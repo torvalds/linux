@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* arch/sparc64/kernel/traps.c
  *
  * Copyright (C) 1995,1997,2008,2009,2012 David S. Miller (davem@davemloft.net)
@@ -17,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/kallsyms.h>
 #include <linux/kdebug.h>
 #include <linux/ftrace.h>
 #include <linux/reboot.h>
@@ -28,7 +30,6 @@
 #include <asm/ptrace.h>
 #include <asm/oplib.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <linux/uaccess.h>
 #include <asm/fpumacro.h>
@@ -107,7 +108,7 @@ void bad_trap(struct pt_regs *regs, long lvl)
 		regs->tnpc &= 0xffffffff;
 	}
 	force_sig_fault(SIGILL, ILL_ILLTRP,
-			(void __user *)regs->tpc, lvl, current);
+			(void __user *)regs->tpc, lvl);
 }
 
 void bad_trap_tl1(struct pt_regs *regs, long lvl)
@@ -201,7 +202,7 @@ void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 		regs->tnpc &= 0xffffffff;
 	}
 	force_sig_fault(SIGSEGV, SEGV_MAPERR,
-			(void __user *)regs->tpc, 0, current);
+			(void __user *)regs->tpc, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -236,7 +237,7 @@ void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-	force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *) addr, 0, current);
+	force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *) addr, 0);
 }
 
 void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
@@ -274,14 +275,13 @@ bool is_no_fault_exception(struct pt_regs *regs)
 			asi = (regs->tstate >> 24); /* saved %asi       */
 		else
 			asi = (insn >> 5);	    /* immediate asi    */
-		if ((asi & 0xf2) == ASI_PNF) {
-			if (insn & 0x1000000) {     /* op3[5:4]=3       */
-				handle_ldf_stq(insn, regs);
-				return true;
-			} else if (insn & 0x200000) { /* op3[2], stores */
+		if ((asi & 0xf6) == ASI_PNF) {
+			if (insn & 0x200000)        /* op3[2], stores   */
 				return false;
-			}
-			handle_ld_nf(insn, regs);
+			if (insn & 0x1000000)       /* op3[5:4]=3 (fp)  */
+				handle_ldf_stq(insn, regs);
+			else
+				handle_ld_nf(insn, regs);
 			return true;
 		}
 	}
@@ -321,7 +321,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 	if (is_no_fault_exception(regs))
 		return;
 
-	force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)sfar, 0, current);
+	force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)sfar, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -385,16 +385,13 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	 */
 	switch (type) {
 	case HV_FAULT_TYPE_INV_ASI:
-		force_sig_fault(SIGILL, ILL_ILLADR, (void __user *)addr, 0,
-				current);
+		force_sig_fault(SIGILL, ILL_ILLADR, (void __user *)addr, 0);
 		break;
 	case HV_FAULT_TYPE_MCD_DIS:
-		force_sig_fault(SIGSEGV, SEGV_ACCADI, (void __user *)addr, 0,
-				current);
+		force_sig_fault(SIGSEGV, SEGV_ACCADI, (void __user *)addr, 0);
 		break;
 	default:
-		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)addr, 0,
-				current);
+		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)addr, 0);
 		break;
 	}
 }
@@ -571,7 +568,7 @@ static void spitfire_ue_log(unsigned long afsr, unsigned long afar, unsigned lon
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-	force_sig_fault(SIGBUS, BUS_OBJERR, (void *)0, 0, current);
+	force_sig_fault(SIGBUS, BUS_OBJERR, (void *)0, 0);
 }
 
 void spitfire_access_error(struct pt_regs *regs, unsigned long status_encoded, unsigned long afar)
@@ -2073,7 +2070,7 @@ void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 	 * code
 	 */
 	force_sig_fault(SIGSEGV, SEGV_ADIDERR, (void __user *)ent.err_raddr,
-			0, current);
+			0);
 }
 
 /* We run with %pil set to PIL_NORMAL_MAX and PSTATE_IE enabled in %pstate.
@@ -2181,13 +2178,13 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 				addr += PAGE_SIZE;
 			}
 		}
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 
 		return true;
 	}
 	if (attrs & SUN4V_ERR_ATTRS_PIO) {
 		force_sig_fault(SIGBUS, BUS_ADRERR,
-				(void __user *)sun4v_get_vaddr(regs), 0, current);
+				(void __user *)sun4v_get_vaddr(regs), 0);
 		return true;
 	}
 
@@ -2344,7 +2341,7 @@ static void do_fpe_common(struct pt_regs *regs)
 				code = FPE_FLTRES;
 		}
 		force_sig_fault(SIGFPE, code,
-				(void __user *)regs->tpc, 0, current);
+				(void __user *)regs->tpc, 0);
 	}
 }
 
@@ -2399,7 +2396,7 @@ void do_tof(struct pt_regs *regs)
 		regs->tnpc &= 0xffffffff;
 	}
 	force_sig_fault(SIGEMT, EMT_TAGOVF,
-			(void __user *)regs->tpc, 0, current);
+			(void __user *)regs->tpc, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -2419,7 +2416,7 @@ void do_div0(struct pt_regs *regs)
 		regs->tnpc &= 0xffffffff;
 	}
 	force_sig_fault(SIGFPE, FPE_INTDIV,
-			(void __user *)regs->tpc, 0, current);
+			(void __user *)regs->tpc, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -2454,7 +2451,7 @@ static void user_instruction_dump(unsigned int __user *pc)
 	printk("\n");
 }
 
-void show_stack(struct task_struct *tsk, unsigned long *_ksp)
+void show_stack(struct task_struct *tsk, unsigned long *_ksp, const char *loglvl)
 {
 	unsigned long fp, ksp;
 	struct thread_info *tp;
@@ -2478,7 +2475,7 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 
 	fp = ksp + STACK_BIAS;
 
-	printk("Call Trace:\n");
+	printk("%sCall Trace:\n", loglvl);
 	do {
 		struct sparc_stackf *sf;
 		struct pt_regs *regs;
@@ -2499,13 +2496,14 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
 
-		printk(" [%016lx] %pS\n", pc, (void *) pc);
+		print_ip_sym(loglvl, pc);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
-			int index = tsk->curr_ret_stack;
-			if (tsk->ret_stack && index >= graph) {
-				pc = tsk->ret_stack[index - graph].ret;
-				printk(" [%016lx] %pS\n", pc, (void *) pc);
+			struct ftrace_ret_stack *ret_stack;
+			ret_stack = ftrace_graph_get_ret_stack(tsk, graph);
+			if (ret_stack) {
+				pc = ret_stack->ret;
+				print_ip_sym(loglvl, pc);
 				graph++;
 			}
 		}
@@ -2614,7 +2612,7 @@ void do_illegal_instruction(struct pt_regs *regs)
 			}
 		}
 	}
-	force_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)pc, 0, current);
+	force_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)pc, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -2634,7 +2632,7 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 	if (is_no_fault_exception(regs))
 		return;
 
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)sfar, 0, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)sfar, 0);
 out:
 	exception_exit(prev_state);
 }
@@ -2652,7 +2650,7 @@ void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_c
 	if (is_no_fault_exception(regs))
 		return;
 
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) addr, 0, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) addr, 0);
 }
 
 /* sun4v_mem_corrupt_detect_precise() - Handle precise exception on an ADI
@@ -2699,7 +2697,7 @@ void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs, unsigned long addr,
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-	force_sig_fault(SIGSEGV, SEGV_ADIPERR, (void __user *)addr, 0, current);
+	force_sig_fault(SIGSEGV, SEGV_ADIPERR, (void __user *)addr, 0);
 }
 
 void do_privop(struct pt_regs *regs)
@@ -2715,7 +2713,7 @@ void do_privop(struct pt_regs *regs)
 		regs->tnpc &= 0xffffffff;
 	}
 	force_sig_fault(SIGILL, ILL_PRVOPC,
-			(void __user *)regs->tpc, 0, current);
+			(void __user *)regs->tpc, 0);
 out:
 	exception_exit(prev_state);
 }

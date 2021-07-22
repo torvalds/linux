@@ -124,45 +124,17 @@ struct fb_cursor_user {
  * Register/unregister for framebuffer events
  */
 
-/*	The resolution of the passed in fb_info about to change */ 
+/*	The resolution of the passed in fb_info about to change */
 #define FB_EVENT_MODE_CHANGE		0x01
-/*	The display on this fb_info is being suspended, no access to the
- *	framebuffer is allowed any more after that call returns
- */
-#define FB_EVENT_SUSPEND		0x02
-/*	The display on this fb_info was resumed, you can restore the display
- *	if you own it
- */
-#define FB_EVENT_RESUME			0x03
-/*      An entry from the modelist was removed */
-#define FB_EVENT_MODE_DELETE            0x04
-/*      A driver registered itself */
+
+#ifdef CONFIG_GUMSTIX_AM200EPD
+/* only used by mach-pxa/am200epd.c */
 #define FB_EVENT_FB_REGISTERED          0x05
-/*      A driver unregistered itself */
 #define FB_EVENT_FB_UNREGISTERED        0x06
-/*      CONSOLE-SPECIFIC: get console to framebuffer mapping */
-#define FB_EVENT_GET_CONSOLE_MAP        0x07
-/*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
-#define FB_EVENT_SET_CONSOLE_MAP        0x08
-/*      A hardware display blank change occurred */
+#endif
+
+/*      A display blank is requested       */
 #define FB_EVENT_BLANK                  0x09
-/*      Private modelist is to be replaced */
-#define FB_EVENT_NEW_MODELIST           0x0A
-/*	The resolution of the passed in fb_info about to change and
-        all vc's should be changed         */
-#define FB_EVENT_MODE_CHANGE_ALL	0x0B
-/*	A software display blank change occurred */
-#define FB_EVENT_CONBLANK               0x0C
-/*      Get drawing requirements        */
-#define FB_EVENT_GET_REQ                0x0D
-/*      Unbind from the console if possible */
-#define FB_EVENT_FB_UNBIND              0x0E
-/*      CONSOLE-SPECIFIC: remap all consoles to new fb - for vga_switcheroo */
-#define FB_EVENT_REMAP_ALL_CONSOLE      0x0F
-/*      A hardware display blank early change occurred */
-#define FB_EARLY_EVENT_BLANK		0x10
-/*      A hardware display blank revert early change occurred */
-#define FB_R_EARLY_EVENT_BLANK		0x11
 
 struct fb_event {
 	struct fb_info *info;
@@ -428,8 +400,6 @@ struct fb_tile_ops {
 #define FBINFO_HWACCEL_YPAN		0x2000 /* optional */
 #define FBINFO_HWACCEL_YWRAP		0x4000 /* optional */
 
-#define FBINFO_MISC_USEREVENT          0x10000 /* event request
-						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
 
 /* A driver may set this flag to indicate that it does want a set_par to be
@@ -485,14 +455,14 @@ struct fb_info {
 	struct list_head modelist;      /* mode list */
 	struct fb_videomode *mode;	/* current mode */
 
-#ifdef CONFIG_FB_BACKLIGHT
+#if IS_ENABLED(CONFIG_FB_BACKLIGHT)
 	/* assigned backlight device */
-	/* set before framebuffer registration, 
+	/* set before framebuffer registration,
 	   remove after unregister */
 	struct backlight_device *bl_dev;
 
 	/* Backlight level curve */
-	struct mutex bl_curve_mutex;	
+	struct mutex bl_curve_mutex;
 	u8 bl_curve[FB_BACKLIGHT_LEVELS];
 #endif
 #ifdef CONFIG_FB_DEFERRED_IO
@@ -500,7 +470,7 @@ struct fb_info {
 	struct fb_deferred_io *fbdefio;
 #endif
 
-	struct fb_ops *fbops;
+	const struct fb_ops *fbops;
 	struct device *device;		/* This is the parent */
 	struct device *dev;		/* This is this fb device */
 	int class_flag;                    /* private sysfs flags */
@@ -511,8 +481,8 @@ struct fb_info {
 		char __iomem *screen_base;	/* Virtual address */
 		char *screen_buffer;
 	};
-	unsigned long screen_size;	/* Amount of ioremapped VRAM or 0 */ 
-	void *pseudo_palette;		/* Fake palette of 16 colors */ 
+	unsigned long screen_size;	/* Amount of ioremapped VRAM or 0 */
+	void *pseudo_palette;		/* Fake palette of 16 colors */
 #define FBINFO_STATE_RUNNING	0
 #define FBINFO_STATE_SUSPENDED	1
 	u32 state;			/* Hardware state i.e suspend */
@@ -534,8 +504,9 @@ struct fb_info {
 };
 
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
-	struct apertures_struct *a = kzalloc(sizeof(struct apertures_struct)
-			+ max_num * sizeof(struct aperture), GFP_KERNEL);
+	struct apertures_struct *a;
+
+	a = kzalloc(struct_size(a, ranges, max_num), GFP_KERNEL);
 	if (!a)
 		return NULL;
 	a->count = max_num;
@@ -614,11 +585,11 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
      *  `Generic' versions of the frame buffer device operations
      */
 
-extern int fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var); 
-extern int fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var); 
+extern int fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var);
+extern int fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var);
 extern int fb_blank(struct fb_info *info, int blank);
-extern void cfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect); 
-extern void cfb_copyarea(struct fb_info *info, const struct fb_copyarea *area); 
+extern void cfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+extern void cfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
 /*
  * Drawing operations where framebuffer is in system RAM
@@ -633,9 +604,8 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 
 /* drivers/video/fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
-extern int unregister_framebuffer(struct fb_info *fb_info);
-extern int unlink_framebuffer(struct fb_info *fb_info);
-extern int remove_conflicting_pci_framebuffers(struct pci_dev *pdev, int res_id,
+extern void unregister_framebuffer(struct fb_info *fb_info);
+extern int remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
 					       const char *name);
 extern int remove_conflicting_framebuffers(struct apertures_struct *a,
 					   const char *name, bool primary);
@@ -653,13 +623,18 @@ extern int fb_new_modelist(struct fb_info *info);
 
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;
+extern bool fb_center_logo;
+extern int fb_logo_count;
 extern struct class *fb_class;
 
 #define for_each_registered_fb(i)		\
 	for (i = 0; i < FB_MAX; i++)		\
 		if (!registered_fb[i]) {} else
 
-extern int lock_fb_info(struct fb_info *info);
+static inline void lock_fb_info(struct fb_info *info)
+{
+	mutex_lock(&info->lock);
+}
 
 static inline void unlock_fb_info(struct fb_info *info)
 {
@@ -741,8 +716,6 @@ extern int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var);
 extern const unsigned char *fb_firmware_edid(struct device *device);
 extern void fb_edid_to_monspecs(unsigned char *edid,
 				struct fb_monspecs *specs);
-extern void fb_edid_add_monspecs(unsigned char *edid,
-				 struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
 extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 extern unsigned char *fb_ddc_read(struct i2c_adapter *adapter);
@@ -816,7 +789,6 @@ struct dmt_videomode {
 
 extern const char *fb_mode_option;
 extern const struct fb_videomode vesa_modes[];
-extern const struct fb_videomode cea_modes[65];
 extern const struct dmt_videomode dmt_modes[];
 
 struct fb_modelist {

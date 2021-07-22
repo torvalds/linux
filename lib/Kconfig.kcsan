@@ -1,0 +1,227 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config HAVE_ARCH_KCSAN
+	bool
+
+config HAVE_KCSAN_COMPILER
+	def_bool (CC_IS_CLANG && $(cc-option,-fsanitize=thread -mllvm -tsan-distinguish-volatile=1)) || \
+		 (CC_IS_GCC && $(cc-option,-fsanitize=thread --param tsan-distinguish-volatile=1))
+	help
+	  For the list of compilers that support KCSAN, please see
+	  <file:Documentation/dev-tools/kcsan.rst>.
+
+config KCSAN_KCOV_BROKEN
+	def_bool KCOV && CC_HAS_SANCOV_TRACE_PC
+	depends on CC_IS_CLANG
+	depends on !$(cc-option,-Werror=unused-command-line-argument -fsanitize=thread -fsanitize-coverage=trace-pc)
+	help
+	  Some versions of clang support either KCSAN and KCOV but not the
+	  combination of the two.
+	  See https://bugs.llvm.org/show_bug.cgi?id=45831 for the status
+	  in newer releases.
+
+menuconfig KCSAN
+	bool "KCSAN: dynamic data race detector"
+	depends on HAVE_ARCH_KCSAN && HAVE_KCSAN_COMPILER
+	depends on DEBUG_KERNEL && !KASAN
+	depends on !KCSAN_KCOV_BROKEN
+	select STACKTRACE
+	help
+	  The Kernel Concurrency Sanitizer (KCSAN) is a dynamic
+	  data-race detector that relies on compile-time instrumentation.
+	  KCSAN uses a watchpoint-based sampling approach to detect races.
+
+	  While KCSAN's primary purpose is to detect data races, it
+	  also provides assertions to check data access constraints.
+	  These assertions can expose bugs that do not manifest as
+	  data races.
+
+	  See <file:Documentation/dev-tools/kcsan.rst> for more details.
+
+if KCSAN
+
+# Compiler capabilities that should not fail the test if they are unavailable.
+config CC_HAS_TSAN_COMPOUND_READ_BEFORE_WRITE
+	def_bool (CC_IS_CLANG && $(cc-option,-fsanitize=thread -mllvm -tsan-compound-read-before-write=1)) || \
+		 (CC_IS_GCC && $(cc-option,-fsanitize=thread --param tsan-compound-read-before-write=1))
+
+config KCSAN_VERBOSE
+	bool "Show verbose reports with more information about system state"
+	depends on PROVE_LOCKING
+	help
+	  If enabled, reports show more information about the system state that
+	  may help better analyze and debug races. This includes held locks and
+	  IRQ trace events.
+
+	  While this option should generally be benign, we call into more
+	  external functions on report generation; if a race report is
+	  generated from any one of them, system stability may suffer due to
+	  deadlocks or recursion.  If in doubt, say N.
+
+config KCSAN_DEBUG
+	bool "Debugging of KCSAN internals"
+
+config KCSAN_SELFTEST
+	bool "Perform short selftests on boot"
+	default y
+	help
+	  Run KCSAN selftests on boot. On test failure, causes the kernel to
+	  panic. Recommended to be enabled, ensuring critical functionality
+	  works as intended.
+
+config KCSAN_KUNIT_TEST
+	tristate "KCSAN test for integrated runtime behaviour" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	depends on TRACEPOINTS && KUNIT
+	select TORTURE_TEST
+	help
+	  KCSAN test focusing on behaviour of the integrated runtime. Tests
+	  various race scenarios, and verifies the reports generated to
+	  console. Makes use of KUnit for test organization, and the Torture
+	  framework for test thread control.
+
+	  Each test case may run at least up to KCSAN_REPORT_ONCE_IN_MS
+	  milliseconds. Test run duration may be optimized by building the
+	  kernel and KCSAN test with KCSAN_REPORT_ONCE_IN_MS set to a lower
+	  than default value.
+
+	  Say Y here if you want the test to be built into the kernel and run
+	  during boot; say M if you want the test to build as a module; say N
+	  if you are unsure.
+
+config KCSAN_EARLY_ENABLE
+	bool "Early enable during boot"
+	default y
+	help
+	  If KCSAN should be enabled globally as soon as possible. KCSAN can
+	  later be enabled/disabled via debugfs.
+
+config KCSAN_NUM_WATCHPOINTS
+	int "Number of available watchpoints"
+	default 64
+	help
+	  Total number of available watchpoints. An address range maps into a
+	  specific watchpoint slot as specified in kernel/kcsan/encoding.h.
+	  Although larger number of watchpoints may not be usable due to
+	  limited number of CPUs, a larger value helps to improve performance
+	  due to reducing cache-line contention. The chosen default is a
+	  conservative value; we should almost never observe "no_capacity"
+	  events (see /sys/kernel/debug/kcsan).
+
+config KCSAN_UDELAY_TASK
+	int "Delay in microseconds (for tasks)"
+	default 80
+	help
+	  For tasks, the microsecond delay after setting up a watchpoint.
+
+config KCSAN_UDELAY_INTERRUPT
+	int "Delay in microseconds (for interrupts)"
+	default 20
+	help
+	  For interrupts, the microsecond delay after setting up a watchpoint.
+	  Interrupts have tighter latency requirements, and their delay should
+	  be lower than for tasks.
+
+config KCSAN_DELAY_RANDOMIZE
+	bool "Randomize above delays"
+	default y
+	help
+	  If delays should be randomized, where the maximum is KCSAN_UDELAY_*.
+	  If false, the chosen delays are always the KCSAN_UDELAY_* values
+	  as defined above.
+
+config KCSAN_SKIP_WATCH
+	int "Skip instructions before setting up watchpoint"
+	default 4000
+	help
+	  The number of per-CPU memory operations to skip, before another
+	  watchpoint is set up, i.e. one in KCSAN_WATCH_SKIP per-CPU
+	  memory operations are used to set up a watchpoint. A smaller value
+	  results in more aggressive race detection, whereas a larger value
+	  improves system performance at the cost of missing some races.
+
+config KCSAN_SKIP_WATCH_RANDOMIZE
+	bool "Randomize watchpoint instruction skip count"
+	default y
+	help
+	  If instruction skip count should be randomized, where the maximum is
+	  KCSAN_WATCH_SKIP. If false, the chosen value is always
+	  KCSAN_WATCH_SKIP.
+
+config KCSAN_INTERRUPT_WATCHER
+	bool "Interruptible watchers"
+	help
+	  If enabled, a task that set up a watchpoint may be interrupted while
+	  delayed. This option will allow KCSAN to detect races between
+	  interrupted tasks and other threads of execution on the same CPU.
+
+	  Currently disabled by default, because not all safe per-CPU access
+	  primitives and patterns may be accounted for, and therefore could
+	  result in false positives.
+
+config KCSAN_REPORT_ONCE_IN_MS
+	int "Duration in milliseconds, in which any given race is only reported once"
+	default 3000
+	help
+	  Any given race is only reported once in the defined time window.
+	  Different races may still generate reports within a duration that is
+	  smaller than the duration defined here. This allows rate limiting
+	  reporting to avoid flooding the console with reports.  Setting this
+	  to 0 disables rate limiting.
+
+# The main purpose of the below options is to control reported data races (e.g.
+# in fuzzer configs), and are not expected to be switched frequently by other
+# users. We could turn some of them into boot parameters, but given they should
+# not be switched normally, let's keep them here to simplify configuration.
+#
+# The defaults below are chosen to be very conservative, and may miss certain
+# bugs.
+
+config KCSAN_REPORT_RACE_UNKNOWN_ORIGIN
+	bool "Report races of unknown origin"
+	default y
+	help
+	  If KCSAN should report races where only one access is known, and the
+	  conflicting access is of unknown origin. This type of race is
+	  reported if it was only possible to infer a race due to a data value
+	  change while an access is being delayed on a watchpoint.
+
+config KCSAN_REPORT_VALUE_CHANGE_ONLY
+	bool "Only report races where watcher observed a data value change"
+	default y
+	help
+	  If enabled and a conflicting write is observed via a watchpoint, but
+	  the data value of the memory location was observed to remain
+	  unchanged, do not report the data race.
+
+config KCSAN_ASSUME_PLAIN_WRITES_ATOMIC
+	bool "Assume that plain aligned writes up to word size are atomic"
+	default y
+	help
+	  Assume that plain aligned writes up to word size are atomic by
+	  default, and also not subject to other unsafe compiler optimizations
+	  resulting in data races. This will cause KCSAN to not report data
+	  races due to conflicts where the only plain accesses are aligned
+	  writes up to word size: conflicts between marked reads and plain
+	  aligned writes up to word size will not be reported as data races;
+	  notice that data races between two conflicting plain aligned writes
+	  will also not be reported.
+
+config KCSAN_IGNORE_ATOMICS
+	bool "Do not instrument marked atomic accesses"
+	help
+	  Never instrument marked atomic accesses. This option can be used for
+	  additional filtering. Conflicting marked atomic reads and plain
+	  writes will never be reported as a data race, however, will cause
+	  plain reads and marked writes to result in "unknown origin" reports.
+	  If combined with CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN=n, data
+	  races where at least one access is marked atomic will never be
+	  reported.
+
+	  Similar to KCSAN_ASSUME_PLAIN_WRITES_ATOMIC, but including unaligned
+	  accesses, conflicting marked atomic reads and plain writes will not
+	  be reported as data races; however, unlike that option, data races
+	  due to two conflicting plain writes will be reported (aligned and
+	  unaligned, if CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n).
+
+endif # KCSAN

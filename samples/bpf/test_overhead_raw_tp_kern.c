@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018 Facebook */
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 SEC("raw_tracepoint/task_rename")
 int prog(struct bpf_raw_tracepoint_args *ctx)

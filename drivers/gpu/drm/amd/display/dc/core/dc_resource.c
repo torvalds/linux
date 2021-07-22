@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "resource.h"
@@ -31,20 +34,32 @@
 #include "opp.h"
 #include "timing_generator.h"
 #include "transform.h"
+#include "dccg.h"
+#include "dchubbub.h"
 #include "dpp.h"
 #include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#include "dce60/dce60_resource.h"
+#endif
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-#include "dcn10/dcn10_resource.h"
-#endif
 #include "dce120/dce120_resource.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#include "dcn10/dcn10_resource.h"
+#include "dcn20/dcn20_resource.h"
+#include "dcn21/dcn21_resource.h"
+#include "dcn30/dcn30_resource.h"
+#include "dcn301/dcn301_resource.h"
+#include "dcn302/dcn302_resource.h"
+#include "dcn303/dcn303_resource.h"
+#include "dcn31/dcn31_resource.h"
+#endif
 
 #define DC_LOGGER_INIT(logger)
 
@@ -53,6 +68,18 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	switch (asic_id.chip_family) {
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case FAMILY_SI:
+		if (ASIC_REV_IS_TAHITI_P(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_PITCAIRN_PM(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_CAPEVERDE_M(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_6_0;
+		else if (ASIC_REV_IS_OLAND_M(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_6_4;
+		else
+			dc_version = DCE_VERSION_6_1;
+		break;
+#endif
 	case FAMILY_CI:
 		dc_version = DCE_VERSION_8_0;
 		break;
@@ -83,17 +110,42 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCE_VERSION_11_22;
 		break;
 	case FAMILY_AI:
-		dc_version = DCE_VERSION_12_0;
+		if (ASICREV_IS_VEGA20_P(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_12_1;
+		else
+			dc_version = DCE_VERSION_12_0;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_1_01;
-#endif
+		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_2_1;
+		if (ASICREV_IS_GREEN_SARDINE(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_2_1;
+		break;
+
+	case FAMILY_NV:
+		dc_version = DCN_VERSION_2_0;
+		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_0;
+		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_02;
+		if (ASICREV_IS_BEIGE_GOBY_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_03;
+		break;
+
+	case FAMILY_VGH:
+		dc_version = DCN_VERSION_3_01;
+		break;
+
+	case FAMILY_YELLOW_CARP:
+		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_1;
 		break;
 #endif
+
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -101,67 +153,106 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	return dc_version;
 }
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc  *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id)
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version)
 {
 	struct resource_pool *res_pool = NULL;
 
 	switch (dc_version) {
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case DCE_VERSION_6_0:
+		res_pool = dce60_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_1:
+		res_pool = dce61_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_4:
+		res_pool = dce64_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+#endif
 	case DCE_VERSION_8_0:
 		res_pool = dce80_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_8_1:
 		res_pool = dce81_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_8_3:
 		res_pool = dce83_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_10_0:
 		res_pool = dce100_create_resource_pool(
-				num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_11_0:
 		res_pool = dce110_create_resource_pool(
-			num_virtual_links, dc, asic_id);
+				init_data->num_virtual_links, dc,
+				init_data->asic_id);
 		break;
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 		res_pool = dce112_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_12_0:
+	case DCE_VERSION_12_1:
 		res_pool = dce120_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case DCN_VERSION_1_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	case DCN_VERSION_1_01:
-#endif
-		res_pool = dcn10_create_resource_pool(
-				num_virtual_links, dc);
+		res_pool = dcn10_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_2_0:
+		res_pool = dcn20_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_2_1:
+		res_pool = dcn21_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_0:
+		res_pool = dcn30_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_01:
+		res_pool = dcn301_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_02:
+		res_pool = dcn302_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_03:
+		res_pool = dcn303_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_1:
+		res_pool = dcn31_create_resource_pool(init_data, dc);
 		break;
 #endif
-
-
 	default:
 		break;
 	}
-	if (res_pool != NULL) {
-		struct dc_firmware_info fw_info = { { 0 } };
 
-		if (dc->ctx->dc_bios->funcs->get_firmware_info(
-				dc->ctx->dc_bios, &fw_info) == BP_RESULT_OK) {
-				res_pool->ref_clock_inKhz = fw_info.pll_info.crystal_frequency;
-			} else
-				ASSERT_CRITICAL(false);
+	if (res_pool != NULL) {
+		if (dc->ctx->dc_bios->fw_info_valid) {
+			res_pool->ref_clocks.xtalin_clock_inKhz =
+				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
+			/* initialize with firmware data first, no all
+			 * ASIC have DCCG SW component. FPGA or
+			 * simulation need initialization of
+			 * dccg_ref_clock_inKhz, dchub_ref_clock_inKhz
+			 * with xtalin_clock_inKhz
+			 */
+			res_pool->ref_clocks.dccg_ref_clock_inKhz =
+				res_pool->ref_clocks.xtalin_clock_inKhz;
+			res_pool->ref_clocks.dchub_ref_clock_inKhz =
+				res_pool->ref_clocks.xtalin_clock_inKhz;
+		} else
+			ASSERT_CRITICAL(false);
 	}
 
 	return res_pool;
@@ -229,19 +320,17 @@ bool resource_construct(
 		 * PORT_CONNECTIVITY == 1 (as instructed by HW team).
 		 */
 		update_num_audio(&straps, &num_audio, &pool->audio_support);
-		for (i = 0; i < pool->pipe_count && i < num_audio; i++) {
+		for (i = 0; i < caps->num_audio; i++) {
 			struct audio *aud = create_funcs->create_audio(ctx, i);
 
 			if (aud == NULL) {
 				DC_ERR("DC: failed to create audio!\n");
 				return false;
 			}
-
 			if (!aud->funcs->endpoint_valid(aud)) {
 				aud->funcs->destroy(&aud);
 				break;
 			}
-
 			pool->audios[i] = aud;
 			pool->audio_count++;
 		}
@@ -256,6 +345,17 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	for (i = 0; i < caps->num_mpc_3dlut; i++) {
+		pool->mpc_lut[i] = dc_create_3dlut_func();
+		if (pool->mpc_lut[i] == NULL)
+			DC_ERR("DC: failed to create MPC 3dlut!\n");
+		pool->mpc_shaper[i] = dc_create_transfer_func();
+		if (pool->mpc_shaper[i] == NULL)
+			DC_ERR("DC: failed to create MPC shaper!\n");
+	}
+#endif
 	dc->caps.dynamic_audio = false;
 	if (pool->audio_count < pool->stream_enc_count) {
 		dc->caps.dynamic_audio = true;
@@ -333,6 +433,49 @@ int resource_get_clock_source_reference(
 	return -1;
 }
 
+bool resource_are_vblanks_synchronizable(
+	struct dc_stream_state *stream1,
+	struct dc_stream_state *stream2)
+{
+	uint32_t base60_refresh_rates[] = {10, 20, 5};
+	uint8_t i;
+	uint8_t rr_count = ARRAY_SIZE(base60_refresh_rates);
+	uint64_t frame_time_diff;
+
+	if (stream1->ctx->dc->config.vblank_alignment_dto_params &&
+		stream1->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0 &&
+		dc_is_dp_signal(stream1->signal) &&
+		dc_is_dp_signal(stream2->signal) &&
+		false == stream1->has_non_synchronizable_pclk &&
+		false == stream2->has_non_synchronizable_pclk &&
+		stream1->timing.flags.VBLANK_SYNCHRONIZABLE &&
+		stream2->timing.flags.VBLANK_SYNCHRONIZABLE) {
+		/* disable refresh rates higher than 60Hz for now */
+		if (stream1->timing.pix_clk_100hz*100/stream1->timing.h_total/
+				stream1->timing.v_total > 60)
+			return false;
+		if (stream2->timing.pix_clk_100hz*100/stream2->timing.h_total/
+				stream2->timing.v_total > 60)
+			return false;
+		frame_time_diff = (uint64_t)10000 *
+			stream1->timing.h_total *
+			stream1->timing.v_total *
+			stream2->timing.pix_clk_100hz;
+		frame_time_diff = div_u64(frame_time_diff, stream1->timing.pix_clk_100hz);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.h_total);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.v_total);
+		for (i = 0; i < rr_count; i++) {
+			int64_t diff = (int64_t)div_u64(frame_time_diff * base60_refresh_rates[i], 10) - 10000;
+
+			if (diff < 0)
+				diff = -diff;
+			if (diff < stream1->ctx->dc->config.vblank_alignment_max_frame_time_diff)
+				return true;
+		}
+	}
+	return false;
+}
+
 bool resource_are_streams_timing_synchronizable(
 	struct dc_stream_state *stream1,
 	struct dc_stream_state *stream2)
@@ -351,8 +494,12 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.v_addressable)
 		return false;
 
-	if (stream1->timing.pix_clk_khz
-				!= stream2->timing.pix_clk_khz)
+	if (stream1->timing.v_front_porch
+				!= stream2->timing.v_front_porch)
+		return false;
+
+	if (stream1->timing.pix_clk_100hz
+				!= stream2->timing.pix_clk_100hz)
 		return false;
 
 	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
@@ -364,6 +511,9 @@ bool resource_are_streams_timing_synchronizable(
 		return false;
 
 	if (stream1->view_format != stream2->view_format)
+		return false;
+
+	if (stream1->ignore_msa_timing_param || stream2->ignore_msa_timing_param)
 		return false;
 
 	return true;
@@ -471,6 +621,7 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 		dal_pixel_format = PIXEL_FORMAT_420BPP10;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	default:
 		dal_pixel_format = PIXEL_FORMAT_UNKNOWN;
 		break;
@@ -478,231 +629,180 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 	return dal_pixel_format;
 }
 
-static void rect_swap_helper(struct rect *rect)
+static inline void get_vp_scan_direction(
+	enum dc_rotation_angle rotation,
+	bool horizontal_mirror,
+	bool *orthogonal_rotation,
+	bool *flip_vert_scan_dir,
+	bool *flip_horz_scan_dir)
 {
-	swap(rect->height, rect->width);
-	swap(rect->x, rect->y);
+	*orthogonal_rotation = false;
+	*flip_vert_scan_dir = false;
+	*flip_horz_scan_dir = false;
+	if (rotation == ROTATION_ANGLE_180) {
+		*flip_vert_scan_dir = true;
+		*flip_horz_scan_dir = true;
+	} else if (rotation == ROTATION_ANGLE_90) {
+		*orthogonal_rotation = true;
+		*flip_horz_scan_dir = true;
+	} else if (rotation == ROTATION_ANGLE_270) {
+		*orthogonal_rotation = true;
+		*flip_vert_scan_dir = true;
+	}
+
+	if (horizontal_mirror)
+		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
-static void calculate_viewport(struct pipe_ctx *pipe_ctx)
+int get_num_mpc_splits(struct pipe_ctx *pipe)
+{
+	int mpc_split_count = 0;
+	struct pipe_ctx *other_pipe = pipe->bottom_pipe;
+
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->bottom_pipe;
+	}
+	other_pipe = pipe->top_pipe;
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->top_pipe;
+	}
+
+	return mpc_split_count;
+}
+
+int get_num_odm_splits(struct pipe_ctx *pipe)
+{
+	int odm_split_count = 0;
+	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
+	while (next_pipe) {
+		odm_split_count++;
+		next_pipe = next_pipe->next_odm_pipe;
+	}
+	pipe = pipe->prev_odm_pipe;
+	while (pipe) {
+		odm_split_count++;
+		pipe = pipe->prev_odm_pipe;
+	}
+	return odm_split_count;
+}
+
+static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *split_count, int *split_idx)
+{
+	*split_count = get_num_odm_splits(pipe_ctx);
+	*split_idx = 0;
+	if (*split_count == 0) {
+		/*Check for mpc split*/
+		struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
+
+		*split_count = get_num_mpc_splits(pipe_ctx);
+		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
+			(*split_idx)++;
+			split_pipe = split_pipe->top_pipe;
+		}
+	} else {
+		/*Get odm split index*/
+		struct pipe_ctx *split_pipe = pipe_ctx->prev_odm_pipe;
+
+		while (split_pipe) {
+			(*split_idx)++;
+			split_pipe = split_pipe->prev_odm_pipe;
+		}
+	}
+}
+
+/*
+ * This is a preliminary vp size calculation to allow us to check taps support.
+ * The result is completely overridden afterwards.
+ */
+static void calculate_viewport_size(struct pipe_ctx *pipe_ctx)
+{
+	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
+
+	data->viewport.width = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.horz, data->recout.width));
+	data->viewport.height = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.vert, data->recout.height));
+	data->viewport_c.width = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.horz_c, data->recout.width));
+	data->viewport_c.height = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.vert_c, data->recout.height));
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
+		swap(data->viewport.width, data->viewport.height);
+		swap(data->viewport_c.width, data->viewport_c.height);
+	}
+}
+
+static void calculate_recout(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
-	struct rect surf_src = plane_state->src_rect;
-	struct rect clip = { 0 };
-	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
-			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
-	bool pri_split = pipe_ctx->bottom_pipe &&
-			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
-	bool sec_split = pipe_ctx->top_pipe &&
-			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
-	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+	struct rect surf_clip = plane_state->clip_rect;
+	bool split_tb = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
+	int split_count, split_idx;
+
+	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
+	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
+		split_idx = 0;
 
 	/*
-	 * Need to calculate the scan direction for viewport to properly determine offset
+	 * Only the leftmost ODM pipe should be offset by a nonzero distance
 	 */
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
-		flip_vert_scan_dir = true;
-		flip_horz_scan_dir = true;
-	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
-		flip_vert_scan_dir = true;
-	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		flip_horz_scan_dir = true;
-
-	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
-		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-		pri_split = false;
-		sec_split = false;
-	}
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
-
-	/* The actual clip is an intersection between stream
-	 * source and surface clip
-	 */
-	clip.x = stream->src.x > plane_state->clip_rect.x ?
-			stream->src.x : plane_state->clip_rect.x;
-
-	clip.width = stream->src.x + stream->src.width <
-			plane_state->clip_rect.x + plane_state->clip_rect.width ?
-			stream->src.x + stream->src.width - clip.x :
-			plane_state->clip_rect.x + plane_state->clip_rect.width - clip.x ;
-
-	clip.y = stream->src.y > plane_state->clip_rect.y ?
-			stream->src.y : plane_state->clip_rect.y;
-
-	clip.height = stream->src.y + stream->src.height <
-			plane_state->clip_rect.y + plane_state->clip_rect.height ?
-			stream->src.y + stream->src.height - clip.y :
-			plane_state->clip_rect.y + plane_state->clip_rect.height - clip.y ;
-
-	/* offset = surf_src.ofs + (clip.ofs - surface->dst_rect.ofs) * scl_ratio
-	 * num_pixels = clip.num_pix * scl_ratio
-	 */
-	data->viewport.x = surf_src.x + (clip.x - plane_state->dst_rect.x) *
-			surf_src.width / plane_state->dst_rect.width;
-	data->viewport.width = clip.width *
-			surf_src.width / plane_state->dst_rect.width;
-
-	data->viewport.y = surf_src.y + (clip.y - plane_state->dst_rect.y) *
-			surf_src.height / plane_state->dst_rect.height;
-	data->viewport.height = clip.height *
-			surf_src.height / plane_state->dst_rect.height;
-
-	/* To transfer the x, y to correct coordinate on mirror image (camera).
-	 * deg  0 : transfer x,
-	 * deg 90 : don't need to transfer,
-	 * deg180 : transfer y,
-	 * deg270 : transfer x and y.
-	 * To transfer the x, y to correct coordinate on non-mirror image (video).
-	 * deg  0 : don't need to transfer,
-	 * deg 90 : transfer y,
-	 * deg180 : transfer x and y,
-	 * deg270 : transfer x.
-	 */
-	if (pipe_ctx->plane_state->horizontal_mirror) {
-		if (flip_horz_scan_dir && !flip_vert_scan_dir) {
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		} else if (flip_horz_scan_dir && flip_vert_scan_dir)
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-		else {
-			if (!flip_horz_scan_dir && !flip_vert_scan_dir)
-				data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		}
-	} else {
-		if (flip_horz_scan_dir)
-			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		if (flip_vert_scan_dir)
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-	}
-
-	/* Round down, compensate in init */
-	data->viewport_c.x = data->viewport.x / vpc_div;
-	data->viewport_c.y = data->viewport.y / vpc_div;
-	data->inits.h_c = (data->viewport.x % vpc_div) != 0 ?
-			dc_fixpt_half : dc_fixpt_zero;
-	data->inits.v_c = (data->viewport.y % vpc_div) != 0 ?
-			dc_fixpt_half : dc_fixpt_zero;
-	/* Round up, assume original video size always even dimensions */
-	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
-	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
-
-	/* Handle hsplit */
-	if (sec_split) {
-		data->viewport.x +=  data->viewport.width / 2;
-		data->viewport_c.x +=  data->viewport_c.width / 2;
-		/* Ceil offset pipe */
-		data->viewport.width = (data->viewport.width + 1) / 2;
-		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
-	} else if (pri_split) {
-		if (data->viewport.width > 1)
-			data->viewport.width /= 2;
-		if (data->viewport_c.width > 1)
-			data->viewport_c.width /= 2;
-	}
-
-	if (plane_state->rotation == ROTATION_ANGLE_90 ||
-			plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
-	}
-}
-
-static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
-{
-	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct rect surf_src = plane_state->src_rect;
-	struct rect surf_clip = plane_state->clip_rect;
-	bool pri_split = pipe_ctx->bottom_pipe &&
-			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
-	bool sec_split = pipe_ctx->top_pipe &&
-			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
-	bool top_bottom_split = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
-
-	pipe_ctx->plane_res.scl_data.recout.x = stream->dst.x;
-	if (stream->src.x < surf_clip.x)
-		pipe_ctx->plane_res.scl_data.recout.x += (surf_clip.x
-			- stream->src.x) * stream->dst.width
+	if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
+		data->recout.x = stream->dst.x;
+		if (stream->src.x < surf_clip.x)
+			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
 						/ stream->src.width;
+	} else
+		data->recout.x = 0;
 
-	pipe_ctx->plane_res.scl_data.recout.width = surf_clip.width *
-			stream->dst.width / stream->src.width;
-	if (pipe_ctx->plane_res.scl_data.recout.width + pipe_ctx->plane_res.scl_data.recout.x >
-			stream->dst.x + stream->dst.width)
-		pipe_ctx->plane_res.scl_data.recout.width =
-			stream->dst.x + stream->dst.width
-						- pipe_ctx->plane_res.scl_data.recout.x;
+	if (stream->src.x > surf_clip.x)
+		surf_clip.width -= stream->src.x - surf_clip.x;
+	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
+	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
+		data->recout.width = stream->dst.x + stream->dst.width - data->recout.x;
 
-	pipe_ctx->plane_res.scl_data.recout.y = stream->dst.y;
+	data->recout.y = stream->dst.y;
 	if (stream->src.y < surf_clip.y)
-		pipe_ctx->plane_res.scl_data.recout.y += (surf_clip.y
-			- stream->src.y) * stream->dst.height
+		data->recout.y += (surf_clip.y - stream->src.y) * stream->dst.height
 						/ stream->src.height;
+	else if (stream->src.y > surf_clip.y)
+		surf_clip.height -= stream->src.y - surf_clip.y;
 
-	pipe_ctx->plane_res.scl_data.recout.height = surf_clip.height *
-			stream->dst.height / stream->src.height;
-	if (pipe_ctx->plane_res.scl_data.recout.height + pipe_ctx->plane_res.scl_data.recout.y >
-			stream->dst.y + stream->dst.height)
-		pipe_ctx->plane_res.scl_data.recout.height =
-			stream->dst.y + stream->dst.height
-						- pipe_ctx->plane_res.scl_data.recout.y;
+	data->recout.height = surf_clip.height * stream->dst.height / stream->src.height;
+	if (data->recout.height + data->recout.y > stream->dst.y + stream->dst.height)
+		data->recout.height = stream->dst.y + stream->dst.height - data->recout.y;
 
-	/* Handle h & vsplit */
-	if (sec_split && top_bottom_split) {
-		pipe_ctx->plane_res.scl_data.recout.y +=
-				pipe_ctx->plane_res.scl_data.recout.height / 2;
-		/* Floor primary pipe, ceil 2ndary pipe */
-		pipe_ctx->plane_res.scl_data.recout.height =
-				(pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
-	} else if (pri_split && top_bottom_split)
-		pipe_ctx->plane_res.scl_data.recout.height /= 2;
-	else if (pri_split || sec_split) {
-		/* HMirror XOR Secondary_pipe XOR Rotation_180 */
-		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
-					(plane_state->rotation == ROTATION_ANGLE_180);
+	/* Handle h & v split */
+	if (split_tb) {
+		ASSERT(data->recout.height % 2 == 0);
+		data->recout.height /= 2;
+	} else if (split_count) {
+		if (!pipe_ctx->next_odm_pipe && !pipe_ctx->prev_odm_pipe) {
+			/* extra pixels in the division remainder need to go to pipes after
+			 * the extra pixel index minus one(epimo) defined here as:
+			 */
+			int epimo = split_count - data->recout.width % (split_count + 1);
 
-		if (plane_state->rotation == ROTATION_ANGLE_90
-				|| plane_state->rotation == ROTATION_ANGLE_270)
-			/* Secondary_pipe XOR Rotation_270 */
-			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
-
-		if (right_view) {
-			pipe_ctx->plane_res.scl_data.recout.x +=
-					pipe_ctx->plane_res.scl_data.recout.width / 2;
-			/* Ceil offset pipe */
-			pipe_ctx->plane_res.scl_data.recout.width =
-					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
+			data->recout.x += (data->recout.width / (split_count + 1)) * split_idx;
+			if (split_idx > epimo)
+				data->recout.x += split_idx - epimo - 1;
+			ASSERT(stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE || data->recout.width % 2 == 0);
+			data->recout.width = data->recout.width / (split_count + 1) + (split_idx > epimo ? 1 : 0);
 		} else {
-			if (pipe_ctx->plane_res.scl_data.recout.width > 1)
-				pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			/* odm */
+			if (split_idx == split_count) {
+				/* rightmost pipe is the remainder recout */
+				data->recout.width -= data->h_active * split_count - data->recout.x;
+
+				/* ODM combine cases with MPO we can get negative widths */
+				if (data->recout.width < 0)
+					data->recout.width = 0;
+
+				data->recout.x = 0;
+			} else
+				data->recout.width = data->h_active - data->recout.x;
 		}
 	}
-	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
-	 *			* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
-	 *			ratio)
-	 */
-	recout_full->x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
-					* stream->dst.width / stream->src.width -
-			surf_src.x * plane_state->dst_rect.width / surf_src.width
-					* stream->dst.width / stream->src.width;
-	recout_full->y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
-					* stream->dst.height / stream->src.height -
-			surf_src.y * plane_state->dst_rect.height / surf_src.height
-					* stream->dst.height / stream->src.height;
-
-	recout_full->width = plane_state->dst_rect.width
-					* stream->dst.width / stream->src.width;
-	recout_full->height = plane_state->dst_rect.height
-					* stream->dst.height / stream->src.height;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -715,9 +815,10 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 	const int out_w = stream->dst.width;
 	const int out_h = stream->dst.height;
 
+	/*Swap surf_src height and width since scaling ratios are in recout rotation*/
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
+		swap(surf_src.height, surf_src.width);
 
 	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_from_fraction(
 					surf_src.width,
@@ -754,395 +855,220 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
-static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
+
+/*
+ * We completely calculate vp offset, size and inits here based entirely on scaling
+ * ratios and recout for pixel perfect pipe combine.
+ */
+static void calculate_init_and_vp(
+		bool flip_scan_dir,
+		int recout_offset_within_recout_full,
+		int recout_size,
+		int src_size,
+		int taps,
+		struct fixed31_32 ratio,
+		struct fixed31_32 *init,
+		int *vp_offset,
+		int *vp_size)
 {
-	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
-	struct rect src = pipe_ctx->plane_state->src_rect;
-	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
-			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
-	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+	struct fixed31_32 temp;
+	int int_part;
 
 	/*
-	 * Need to calculate the scan direction for viewport to make adjustments
-	 */
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
-		flip_vert_scan_dir = true;
-		flip_horz_scan_dir = true;
-	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
-		flip_vert_scan_dir = true;
-	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		flip_horz_scan_dir = true;
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&src);
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
-
-		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270 &&
-			pipe_ctx->plane_state->horizontal_mirror) {
-			flip_vert_scan_dir = true;
-		}
-		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 &&
-			pipe_ctx->plane_state->horizontal_mirror) {
-			flip_vert_scan_dir = false;
-		}
-	} else if (pipe_ctx->plane_state->horizontal_mirror)
-			flip_horz_scan_dir = !flip_horz_scan_dir;
-
-	/*
+	 * First of the taps starts sampling pixel number <init_int_part> corresponding to recout
+	 * pixel 1. Next recout pixel samples int part of <init + scaling ratio> and so on.
+	 * All following calculations are based on this logic.
+	 *
 	 * Init calculated according to formula:
 	 * 	init = (scaling_ratio + number_of_taps + 1) / 2
 	 * 	init_bot = init + scaling_ratio
-	 * 	init_c = init + truncated_vp_c_offset(from calculate viewport)
+	 * 	to get pixel perfect combine add the fraction from calculating vp offset
 	 */
-	data->inits.h = dc_fixpt_truncate(dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.horz, data->taps.h_taps + 1), 2), 19);
-
-	data->inits.h_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.h_c, dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2)), 19);
-
-	data->inits.v = dc_fixpt_truncate(dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.vert, data->taps.v_taps + 1), 2), 19);
-
-	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
-			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
-
-	if (!flip_horz_scan_dir) {
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
-			int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h, data->ratios.horz));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
-		}
-		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
-			int vp_clip = (src.x + src.width) / vpc_div -
-					data->viewport_c.width - data->viewport_c.x;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
-		}
-
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.x) {
-			int int_part;
-
-			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
-					data->ratios.horz, data->recout.x - recout_full->x));
-			int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
-			if (int_part < data->taps.h_taps) {
-				int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
-							(data->taps.h_taps - int_part) : data->viewport.x;
-				data->viewport.x -= int_adj;
-				data->viewport.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps) {
-				data->viewport.x += int_part - data->taps.h_taps;
-				data->viewport.width -= int_part - data->taps.h_taps;
-				int_part = data->taps.h_taps;
-			}
-			data->inits.h.value &= 0xffffffff;
-			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
-		}
-
-		if (data->viewport_c.x) {
-			int int_part;
-
-			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
-					data->ratios.horz_c, data->recout.x - recout_full->x));
-			int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
-			if (int_part < data->taps.h_taps_c) {
-				int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
-						(data->taps.h_taps_c - int_part) : data->viewport_c.x;
-				data->viewport_c.x -= int_adj;
-				data->viewport_c.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps_c) {
-				data->viewport_c.x += int_part - data->taps.h_taps_c;
-				data->viewport_c.width -= int_part - data->taps.h_taps_c;
-				int_part = data->taps.h_taps_c;
-			}
-			data->inits.h_c.value &= 0xffffffff;
-			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
-		}
-	} else {
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.x) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h, data->ratios.horz));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.width += int_part < data->viewport.x ? int_part : data->viewport.x;
-			data->viewport.x -= int_part < data->viewport.x ? int_part : data->viewport.x;
-		}
-		if (data->viewport_c.x) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.width += int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
-			data->viewport_c.x -= int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
-		}
-
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
-			int int_part;
-			int end_offset = src.x + src.width
-					- data->viewport.x - data->viewport.width;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
-					data->ratios.horz, data->recout.x - recout_full->x));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, takning into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.h) - end_offset;
-			if (int_part < data->taps.h_taps) {
-				int int_adj = end_offset >= (data->taps.h_taps - int_part) ?
-							(data->taps.h_taps - int_part) : end_offset;
-				data->viewport.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps) {
-				data->viewport.width += int_part - data->taps.h_taps;
-				int_part = data->taps.h_taps;
-			}
-			data->inits.h.value &= 0xffffffff;
-			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
-		}
-
-		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
-			int int_part;
-			int end_offset = (src.x + src.width) / vpc_div
-					- data->viewport_c.x - data->viewport_c.width;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
-					data->ratios.horz_c, data->recout.x - recout_full->x));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, takning into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.h_c) - end_offset;
-			if (int_part < data->taps.h_taps_c) {
-				int int_adj = end_offset >= (data->taps.h_taps_c - int_part) ?
-							(data->taps.h_taps_c - int_part) : end_offset;
-				data->viewport_c.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps_c) {
-				data->viewport_c.width += int_part - data->taps.h_taps_c;
-				int_part = data->taps.h_taps_c;
-			}
-			data->inits.h_c.value &= 0xffffffff;
-			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
-		}
-
+	temp = dc_fixpt_mul_int(ratio, recout_offset_within_recout_full);
+	*vp_offset = dc_fixpt_floor(temp);
+	temp.value &= 0xffffffff;
+	*init = dc_fixpt_truncate(dc_fixpt_add(dc_fixpt_div_int(
+			dc_fixpt_add_int(ratio, taps + 1), 2), temp), 19);
+	/*
+	 * If viewport has non 0 offset and there are more taps than covered by init then
+	 * we should decrease the offset and increase init so we are never sampling
+	 * outside of viewport.
+	 */
+	int_part = dc_fixpt_floor(*init);
+	if (int_part < taps) {
+		int_part = taps - int_part;
+		if (int_part > *vp_offset)
+			int_part = *vp_offset;
+		*vp_offset -= int_part;
+		*init = dc_fixpt_add_int(*init, int_part);
 	}
-	if (!flip_vert_scan_dir) {
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
-			int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v, data->ratios.vert));
+	/*
+	 * If taps are sampling outside of viewport at end of recout and there are more pixels
+	 * available in the surface we should increase the viewport size, regardless set vp to
+	 * only what is used.
+	 */
+	temp = dc_fixpt_add(*init, dc_fixpt_mul_int(ratio, recout_size - 1));
+	*vp_size = dc_fixpt_floor(temp);
+	if (*vp_size + *vp_offset > src_size)
+		*vp_size = src_size - *vp_offset;
 
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
-		}
-		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
-			int vp_clip = (src.y + src.height) / vpc_div -
-					data->viewport_c.height - data->viewport_c.y;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
+	/* We did all the math assuming we are scanning same direction as display does,
+	 * however mirror/rotation changes how vp scans vs how it is offset. If scan direction
+	 * is flipped we simply need to calculate offset from the other side of plane.
+	 * Note that outside of viewport all scaling hardware works in recout space.
+	 */
+	if (flip_scan_dir)
+		*vp_offset = src_size - *vp_offset - *vp_size;
+}
 
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
-		}
+static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
+	struct rect src = plane_state->src_rect;
+	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
+				|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
+	int split_count, split_idx, ro_lb, ro_tb, recout_full_x, recout_full_y;
+	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.y) {
-			int int_part;
+	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
+	/*
+	 * recout full is what the recout would have been if we didnt clip
+	 * the source plane at all. We only care about left(ro_lb) and top(ro_tb)
+	 * offsets of recout within recout full because those are the directions
+	 * we scan from and therefore the only ones that affect inits.
+	 */
+	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+			* stream->dst.width / stream->src.width;
+	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
+			* stream->dst.height / stream->src.height;
+	if (pipe_ctx->prev_odm_pipe && split_idx)
+		ro_lb = data->h_active * split_idx - recout_full_x;
+	else
+		ro_lb = data->recout.x - recout_full_x;
+	ro_tb = data->recout.y - recout_full_y;
+	ASSERT(ro_lb >= 0 && ro_tb >= 0);
 
-			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
-					data->ratios.vert, data->recout.y - recout_full->y));
-			int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
-			if (int_part < data->taps.v_taps) {
-				int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
-							(data->taps.v_taps - int_part) : data->viewport.y;
-				data->viewport.y -= int_adj;
-				data->viewport.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps) {
-				data->viewport.y += int_part - data->taps.v_taps;
-				data->viewport.height -= int_part - data->taps.v_taps;
-				int_part = data->taps.v_taps;
-			}
-			data->inits.v.value &= 0xffffffff;
-			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
-		}
+	/*
+	 * Work in recout rotation since that requires less transformations
+	 */
+	get_vp_scan_direction(
+			plane_state->rotation,
+			plane_state->horizontal_mirror,
+			&orthogonal_rotation,
+			&flip_vert_scan_dir,
+			&flip_horz_scan_dir);
 
-		if (data->viewport_c.y) {
-			int int_part;
-
-			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
-					data->ratios.vert_c, data->recout.y - recout_full->y));
-			int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
-			if (int_part < data->taps.v_taps_c) {
-				int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
-						(data->taps.v_taps_c - int_part) : data->viewport_c.y;
-				data->viewport_c.y -= int_adj;
-				data->viewport_c.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps_c) {
-				data->viewport_c.y += int_part - data->taps.v_taps_c;
-				data->viewport_c.height -= int_part - data->taps.v_taps_c;
-				int_part = data->taps.v_taps_c;
-			}
-			data->inits.v_c.value &= 0xffffffff;
-			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
-		}
-	} else {
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.y) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v, data->ratios.vert));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.height += int_part < data->viewport.y ? int_part : data->viewport.y;
-			data->viewport.y -= int_part < data->viewport.y ? int_part : data->viewport.y;
-		}
-		if (data->viewport_c.y) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.height += int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
-			data->viewport_c.y -= int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
-		}
-
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
-			int int_part;
-			int end_offset = src.y + src.height
-					- data->viewport.y - data->viewport.height;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
-					data->ratios.vert, data->recout.y - recout_full->y));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, taking into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.v) - end_offset;
-			if (int_part < data->taps.v_taps) {
-				int int_adj = end_offset >= (data->taps.v_taps - int_part) ?
-							(data->taps.v_taps - int_part) : end_offset;
-				data->viewport.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps) {
-				data->viewport.height += int_part - data->taps.v_taps;
-				int_part = data->taps.v_taps;
-			}
-			data->inits.v.value &= 0xffffffff;
-			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
-		}
-
-		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
-			int int_part;
-			int end_offset = (src.y + src.height) / vpc_div
-					- data->viewport_c.y - data->viewport_c.height;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
-					data->ratios.vert_c, data->recout.y - recout_full->y));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, taking into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.v_c) - end_offset;
-			if (int_part < data->taps.v_taps_c) {
-				int int_adj = end_offset >= (data->taps.v_taps_c - int_part) ?
-							(data->taps.v_taps_c - int_part) : end_offset;
-				data->viewport_c.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps_c) {
-				data->viewport_c.height += int_part - data->taps.v_taps_c;
-				int_part = data->taps.v_taps_c;
-			}
-			data->inits.v_c.value &= 0xffffffff;
-			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
-		}
+	if (orthogonal_rotation) {
+		swap(src.width, src.height);
+		swap(flip_vert_scan_dir, flip_horz_scan_dir);
 	}
 
-	/* Interlaced inits based on final vert inits */
-	data->inits.v_bot = dc_fixpt_add(data->inits.v, data->ratios.vert);
-	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
+	calculate_init_and_vp(
+			flip_horz_scan_dir,
+			ro_lb,
+			data->recout.width,
+			src.width,
+			data->taps.h_taps,
+			data->ratios.horz,
+			&data->inits.h,
+			&data->viewport.x,
+			&data->viewport.width);
+	calculate_init_and_vp(
+			flip_horz_scan_dir,
+			ro_lb,
+			data->recout.width,
+			src.width / vpc_div,
+			data->taps.h_taps_c,
+			data->ratios.horz_c,
+			&data->inits.h_c,
+			&data->viewport_c.x,
+			&data->viewport_c.width);
+	calculate_init_and_vp(
+			flip_vert_scan_dir,
+			ro_tb,
+			data->recout.height,
+			src.height,
+			data->taps.v_taps,
+			data->ratios.vert,
+			&data->inits.v,
+			&data->viewport.y,
+			&data->viewport.height);
+	calculate_init_and_vp(
+			flip_vert_scan_dir,
+			ro_tb,
+			data->recout.height,
+			src.height / vpc_div,
+			data->taps.v_taps_c,
+			data->ratios.vert_c,
+			&data->inits.v_c,
+			&data->viewport_c.y,
+			&data->viewport_c.height);
+	if (orthogonal_rotation) {
+		swap(data->viewport.x, data->viewport.y);
+		swap(data->viewport.width, data->viewport.height);
+		swap(data->viewport_c.x, data->viewport_c.y);
+		swap(data->viewport_c.width, data->viewport_c.height);
 	}
+	data->viewport.x += src.x;
+	data->viewport.y += src.y;
+	ASSERT(src.x % vpc_div == 0 && src.y % vpc_div == 0);
+	data->viewport_c.x += src.x / vpc_div;
+	data->viewport_c.y += src.y / vpc_div;
 }
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct rect recout_full = { 0 };
 	bool res = false;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
-	/* Important: scaling ratio calculation requires pixel format,
-	 * lb depth calculation requires recout and taps require scaling ratios.
-	 * Inits require viewport, taps, ratios and recout of split pipe
-	 */
+
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
-	if (pipe_ctx->stream->timing.flags.INTERLACE)
-		pipe_ctx->stream->dst.height *= 2;
-
-	calculate_scaling_ratios(pipe_ctx);
-
-	calculate_viewport(pipe_ctx);
-
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
-		return false;
-
-	calculate_recout(pipe_ctx, &recout_full);
-
-	/**
-	 * Setting line buffer pixel depth to 24bpp yields banding
-	 * on certain displays, such as the Sharp 4k
+	/* Timing borders are part of vactive that we are also supposed to skip in addition
+	 * to any stream dst offset. Since dm logic assumes dst is in addressable
+	 * space we need to add the the left and top borders to dst offsets temporarily.
+	 * TODO: fix in DM, stream dst is supposed to be in vactive
 	 */
-	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+	pipe_ctx->stream->dst.x += timing->h_border_left;
+	pipe_ctx->stream->dst.y += timing->v_border_top;
 
-	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
-	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
+	/* Calculate H and V active size */
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
+			timing->h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
+		timing->v_border_top + timing->v_border_bottom;
+	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe)
+		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx) + 1;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
-	if (pipe_ctx->stream->timing.flags.INTERLACE)
-		pipe_ctx->plane_res.scl_data.v_active *= 2;
+	/* depends on h_active */
+	calculate_recout(pipe_ctx);
+	/* depends on pixel format */
+	calculate_scaling_ratios(pipe_ctx);
+	/* depends on scaling ratios and recout, does not calculate offset yet */
+	calculate_viewport_size(pipe_ctx);
 
+	/*
+	 * LB calculations depend on vp size, h/v_active and scaling ratios
+	 * Setting line buffer pixel depth to 24bpp yields banding
+	 * on certain displays, such as the Sharp 4k. 36bpp is needed
+	 * to support SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 and
+	 * SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616 with actual > 10 bpc
+	 * precision on at least DCN display engines. However, at least
+	 * Carrizo with DCE_VERSION_11_0 does not like 36 bpp lb depth,
+	 * so use only 30 bpp on DCE_VERSION_11_0. Testing with DCE 11.2 and 8.3
+	 * did not show such problems, so this seems to be the exception.
+	 */
+	if (plane_state->ctx->dce_version != DCE_VERSION_11_0)
+		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_36BPP;
+	else
+		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
-	/* Taps calculations */
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
+
 	if (pipe_ctx->plane_res.xfm != NULL)
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
@@ -1150,6 +1076,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.dpp != NULL)
 		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+
 	if (!res) {
 		/* Try 24 bpp linebuffer */
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
@@ -1167,26 +1095,61 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 					&plane_state->scaling_quality);
 	}
 
+	/*
+	 * Depends on recout, scaling ratios, h_active and taps
+	 * May need to re-check lb size after this in some obscure scenario
+	 */
 	if (res)
-		/* May need to re-check lb size after this in some obscure scenario */
-		calculate_inits_and_adj_vp(pipe_ctx, &recout_full);
+		calculate_inits_and_viewports(pipe_ctx);
 
-	DC_LOG_SCALER(
-				"%s: Viewport:\nheight:%d width:%d x:%d "
-				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
-				"y:%d\n",
-				__func__,
-				pipe_ctx->plane_res.scl_data.viewport.height,
-				pipe_ctx->plane_res.scl_data.viewport.width,
-				pipe_ctx->plane_res.scl_data.viewport.x,
-				pipe_ctx->plane_res.scl_data.viewport.y,
-				plane_state->dst_rect.height,
-				plane_state->dst_rect.width,
-				plane_state->dst_rect.x,
-				plane_state->dst_rect.y);
+	/*
+	 * Handle side by side and top bottom 3d recout offsets after vp calculation
+	 * since 3d is special and needs to calculate vp as if there is no recout offset
+	 * This may break with rotation, good thing we aren't mixing hw rotation and 3d
+	 */
+	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state == plane_state) {
+		ASSERT(plane_state->rotation == ROTATION_ANGLE_0 ||
+			(pipe_ctx->stream->view_format != VIEW_3D_FORMAT_TOP_AND_BOTTOM &&
+				pipe_ctx->stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE));
+		if (pipe_ctx->stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
+			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height;
+		else if (pipe_ctx->stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
+			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
+	}
 
-	if (pipe_ctx->stream->timing.flags.INTERLACE)
-		pipe_ctx->stream->dst.height /= 2;
+	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
+			pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+		res = false;
+
+	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
+			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
+			__func__,
+			pipe_ctx->pipe_idx,
+			pipe_ctx->plane_res.scl_data.viewport.height,
+			pipe_ctx->plane_res.scl_data.viewport.width,
+			pipe_ctx->plane_res.scl_data.viewport.x,
+			pipe_ctx->plane_res.scl_data.viewport.y,
+			pipe_ctx->plane_res.scl_data.recout.height,
+			pipe_ctx->plane_res.scl_data.recout.width,
+			pipe_ctx->plane_res.scl_data.recout.x,
+			pipe_ctx->plane_res.scl_data.recout.y,
+			pipe_ctx->plane_res.scl_data.h_active,
+			pipe_ctx->plane_res.scl_data.v_active,
+			plane_state->src_rect.height,
+			plane_state->src_rect.width,
+			plane_state->src_rect.x,
+			plane_state->src_rect.y,
+			plane_state->dst_rect.height,
+			plane_state->dst_rect.width,
+			plane_state->dst_rect.x,
+			plane_state->dst_rect.y,
+			plane_state->clip_rect.height,
+			plane_state->clip_rect.width,
+			plane_state->clip_rect.x,
+			plane_state->clip_rect.y);
+
+	pipe_ctx->stream->dst.x -= timing->h_border_left;
+	pipe_ctx->stream->dst.y -= timing->v_border_top;
 
 	return res;
 }
@@ -1210,24 +1173,60 @@ enum dc_status resource_build_scaling_params_for_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool)
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe)
 {
 	int i;
 	struct pipe_ctx *secondary_pipe = NULL;
 
 	/*
-	 * search backwards for the second pipe to keep pipe
-	 * assignment more consistent
+	 * We add a preferred pipe mapping to avoid the chance that
+	 * MPCCs already in use will need to be reassigned to other trees.
+	 * For example, if we went with the strict, assign backwards logic:
+	 *
+	 * (State 1)
+	 * Display A on, no surface, top pipe = 0
+	 * Display B on, no surface, top pipe = 1
+	 *
+	 * (State 2)
+	 * Display A on, no surface, top pipe = 0
+	 * Display B on, surface enable, top pipe = 1, bottom pipe = 5
+	 *
+	 * (State 3)
+	 * Display A on, surface enable, top pipe = 0, bottom pipe = 5
+	 * Display B on, surface enable, top pipe = 1, bottom pipe = 4
+	 *
+	 * The state 2->3 transition requires remapping MPCC 5 from display B
+	 * to display A.
+	 *
+	 * However, with the preferred pipe logic, state 2 would look like:
+	 *
+	 * (State 2)
+	 * Display A on, no surface, top pipe = 0
+	 * Display B on, surface enable, top pipe = 1, bottom pipe = 4
+	 *
+	 * This would then cause 2->3 to not require remapping any MPCCs.
 	 */
-
-	for (i = pool->pipe_count - 1; i >= 0; i--) {
-		if (res_ctx->pipe_ctx[i].stream == NULL) {
-			secondary_pipe = &res_ctx->pipe_ctx[i];
-			secondary_pipe->pipe_idx = i;
-			break;
+	if (primary_pipe) {
+		int preferred_pipe_idx = (pool->pipe_count - 1) - primary_pipe->pipe_idx;
+		if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
+			secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+			secondary_pipe->pipe_idx = preferred_pipe_idx;
 		}
 	}
 
+	/*
+	 * search backwards for the second pipe to keep pipe
+	 * assignment more consistent
+	 */
+	if (!secondary_pipe)
+		for (i = pool->pipe_count - 1; i >= 0; i--) {
+			if (res_ctx->pipe_ctx[i].stream == NULL) {
+				secondary_pipe = &res_ctx->pipe_ctx[i];
+				secondary_pipe->pipe_idx = i;
+				break;
+			}
+		}
 
 	return secondary_pipe;
 }
@@ -1237,25 +1236,21 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct dc_stream_state *stream)
 {
 	int i;
+
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (res_ctx->pipe_ctx[i].stream == stream &&
-				!res_ctx->pipe_ctx[i].top_pipe) {
+		if (res_ctx->pipe_ctx[i].stream == stream
+				&& !res_ctx->pipe_ctx[i].top_pipe
+				&& !res_ctx->pipe_ctx[i].prev_odm_pipe)
 			return &res_ctx->pipe_ctx[i];
-			break;
-		}
 	}
 	return NULL;
 }
 
-static struct pipe_ctx *resource_get_tail_pipe_for_stream(
+static struct pipe_ctx *resource_get_tail_pipe(
 		struct resource_context *res_ctx,
-		struct dc_stream_state *stream)
+		struct pipe_ctx *head_pipe)
 {
-	struct pipe_ctx *head_pipe, *tail_pipe;
-	head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
-
-	if (!head_pipe)
-		return NULL;
+	struct pipe_ctx *tail_pipe;
 
 	tail_pipe = head_pipe->bottom_pipe;
 
@@ -1271,31 +1266,20 @@ static struct pipe_ctx *resource_get_tail_pipe_for_stream(
  * A free_pipe for a stream is defined here as a pipe
  * that has no surface attached yet
  */
-static struct pipe_ctx *acquire_free_pipe_for_stream(
+static struct pipe_ctx *acquire_free_pipe_for_head(
 		struct dc_state *context,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
+		struct pipe_ctx *head_pipe)
 {
 	int i;
 	struct resource_context *res_ctx = &context->res_ctx;
-
-	struct pipe_ctx *head_pipe = NULL;
-
-	/* Find head pipe, which has the back end set up*/
-
-	head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
-
-	if (!head_pipe) {
-		ASSERT(0);
-		return NULL;
-	}
 
 	if (!head_pipe->plane_state)
 		return head_pipe;
 
 	/* Re-use pipe already acquired for this stream if available*/
 	for (i = pool->pipe_count - 1; i >= 0; i--) {
-		if (res_ctx->pipe_ctx[i].stream == stream &&
+		if (res_ctx->pipe_ctx[i].stream == head_pipe->stream &&
 				!res_ctx->pipe_ctx[i].plane_state) {
 			return &res_ctx->pipe_ctx[i];
 		}
@@ -1309,11 +1293,10 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 	if (!pool->funcs->acquire_idle_pipe_for_layer)
 		return NULL;
 
-	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, stream);
-
+	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -1322,24 +1305,27 @@ static int acquire_first_split_pipe(
 	int i;
 
 	for (i = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+		struct pipe_ctx *split_pipe = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->top_pipe &&
-				pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state) {
-			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
-			if (pipe_ctx->bottom_pipe)
-				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+		if (split_pipe->top_pipe &&
+				split_pipe->top_pipe->plane_state == split_pipe->plane_state) {
+			split_pipe->top_pipe->bottom_pipe = split_pipe->bottom_pipe;
+			if (split_pipe->bottom_pipe)
+				split_pipe->bottom_pipe->top_pipe = split_pipe->top_pipe;
 
-			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.hubp = pool->hubps[i];
-			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.dpp = pool->dpps[i];
-			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			pipe_ctx->pipe_idx = i;
+			if (split_pipe->top_pipe->plane_state)
+				resource_build_scaling_params(split_pipe->top_pipe);
 
-			pipe_ctx->stream = stream;
+			memset(split_pipe, 0, sizeof(*split_pipe));
+			split_pipe->stream_res.tg = pool->timing_generators[i];
+			split_pipe->plane_res.hubp = pool->hubps[i];
+			split_pipe->plane_res.ipp = pool->ipps[i];
+			split_pipe->plane_res.dpp = pool->dpps[i];
+			split_pipe->stream_res.opp = pool->opps[i];
+			split_pipe->plane_res.mpcc_inst = pool->dpps[i]->inst;
+			split_pipe->pipe_idx = i;
+
+			split_pipe->stream = stream;
 			return i;
 		}
 	}
@@ -1382,37 +1368,48 @@ bool dc_add_plane_to_context(
 		return false;
 	}
 
-	free_pipe = acquire_free_pipe_for_stream(context, pool, stream);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (!free_pipe) {
-		int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
-		if (pipe_idx >= 0)
-			free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
-	}
-#endif
-	if (!free_pipe)
-		return false;
-
-	/* retain new surfaces */
+	/* retain new surface, but only once per stream */
 	dc_plane_state_retain(plane_state);
-	free_pipe->plane_state = plane_state;
 
-	if (head_pipe != free_pipe) {
+	while (head_pipe) {
+		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
 
-		tail_pipe = resource_get_tail_pipe_for_stream(&context->res_ctx, stream);
-		ASSERT(tail_pipe);
+	#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (!free_pipe) {
+			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+			if (pipe_idx >= 0)
+				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
+		}
+	#endif
+		if (!free_pipe) {
+			dc_plane_state_release(plane_state);
+			return false;
+		}
 
-		free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-		free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-		free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-		free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-		free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-		free_pipe->clock_source = tail_pipe->clock_source;
-		free_pipe->top_pipe = tail_pipe;
-		tail_pipe->bottom_pipe = free_pipe;
+		free_pipe->plane_state = plane_state;
+
+		if (head_pipe != free_pipe) {
+			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
+			ASSERT(tail_pipe);
+			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
+			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
+			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
+			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
+			free_pipe->clock_source = tail_pipe->clock_source;
+			free_pipe->top_pipe = tail_pipe;
+			tail_pipe->bottom_pipe = free_pipe;
+			if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+				free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
+				tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
+			}
+			if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+			}
+		}
+		head_pipe = head_pipe->next_odm_pipe;
 	}
-
 	/* assign new surfaces*/
 	stream_status->plane_states[stream_status->plane_count] = plane_state;
 
@@ -1444,11 +1441,9 @@ bool dc_remove_plane_from_context(
 
 	/* release pipe for plane*/
 	for (i = pool->pipe_count - 1; i >= 0; i--) {
-		struct pipe_ctx *pipe_ctx;
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (context->res_ctx.pipe_ctx[i].plane_state == plane_state) {
-			pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
+		if (pipe_ctx->plane_state == plane_state) {
 			if (pipe_ctx->top_pipe)
 				pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
 
@@ -1463,12 +1458,10 @@ bool dc_remove_plane_from_context(
 			 * For head pipe detach surfaces from pipe for tail
 			 * pipe just zero it out
 			 */
-			if (!pipe_ctx->top_pipe) {
+			if (!pipe_ctx->top_pipe)
 				pipe_ctx->plane_state = NULL;
-				pipe_ctx->bottom_pipe = NULL;
-			} else  {
+			else
 				memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			}
 		}
 	}
 
@@ -1573,45 +1566,10 @@ bool dc_add_all_planes_for_stream(
 	return add_all_planes_for_stream(dc, stream, &set, 1, context);
 }
 
-
-static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
-	struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->hdr_static_metadata,
-			&new_stream->hdr_static_metadata,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
-static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
-		struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->vsc_infopacket,
-			&new_stream->vsc_infopacket,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
 {
 	if (cur_stream == NULL)
-		return true;
-
-	/* If sink pointer changed, it means this is a hotplug, we should do
-	 * full hw setting.
-	 */
-	if (cur_stream->sink != new_stream->sink)
 		return true;
 
 	/* If output color space is changed, need to reprogram info frames */
@@ -1636,18 +1594,20 @@ static bool are_stream_backends_same(
 	if (is_timing_changed(stream_a, stream_b))
 		return false;
 
-	if (is_hdr_static_meta_changed(stream_a, stream_b))
-		return false;
-
 	if (stream_a->dpms_off != stream_b->dpms_off)
-		return false;
-
-	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
 }
 
+/*
+ * dc_is_stream_unchanged() - Compare two stream states for equivalence.
+ *
+ * Checks if there a difference between the two states
+ * that would require a mode change.
+ *
+ * Does not compare cursor position or attributes.
+ */
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
@@ -1655,9 +1615,15 @@ bool dc_is_stream_unchanged(
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
 
+	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
+		return false;
+
 	return true;
 }
 
+/*
+ * dc_is_stream_scaling_unchanged() - Compare scaling rectangles of two streams.
+ */
 bool dc_is_stream_scaling_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
@@ -1738,63 +1704,31 @@ static int acquire_first_free_pipe(
 	return -1;
 }
 
-static struct stream_encoder *find_first_free_match_stream_enc_for_link(
-		struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
-{
-	int i;
-	int j = -1;
-	struct dc_link *link = stream->sink->link;
-
-	for (i = 0; i < pool->stream_enc_count; i++) {
-		if (!res_ctx->is_stream_enc_acquired[i] &&
-				pool->stream_enc[i]) {
-			/* Store first available for MST second display
-			 * in daisy chain use case */
-			j = i;
-			if (pool->stream_enc[i]->id ==
-					link->link_enc->preferred_engine)
-				return pool->stream_enc[i];
-		}
-	}
-
-	/*
-	 * below can happen in cases when stream encoder is acquired:
-	 * 1) for second MST display in chain, so preferred engine already
-	 * acquired;
-	 * 2) for another link, which preferred engine already acquired by any
-	 * MST configuration.
-	 *
-	 * If signal is of DP type and preferred engine not found, return last available
-	 *
-	 * TODO - This is just a patch up and a generic solution is
-	 * required for non DP connectors.
-	 */
-
-	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
-		return pool->stream_enc[j];
-
-	return NULL;
-}
-
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		enum engine_id id)
+		enum engine_id id,
+		enum dce_version dc_version)
 {
-	int i;
-	for (i = 0; i < pool->audio_count; i++) {
+	int i, available_audio_count;
+
+	available_audio_count = pool->audio_count;
+
+	for (i = 0; i < available_audio_count; i++) {
 		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
 			/*we have enough audio endpoint, find the matching inst*/
 			if (id != i)
 				continue;
-
 			return pool->audios[i];
 		}
 	}
+
+	/* use engine id to find free audio */
+	if ((id < available_audio_count) && (res_ctx->is_audio_acquired[id] == false)) {
+		return pool->audios[id];
+	}
 	/*not found the matching one, first come first serve*/
-	for (i = 0; i < pool->audio_count; i++) {
+	for (i = 0; i < available_audio_count; i++) {
 		if (res_ctx->is_audio_acquired[i] == false) {
 			return pool->audios[i];
 		}
@@ -1802,31 +1736,19 @@ static struct audio *find_first_free_audio(
 	return 0;
 }
 
-bool resource_is_stream_unchanged(
-	struct dc_state *old_context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < old_context->stream_count; i++) {
-		struct dc_stream_state *old_stream = old_context->streams[i];
-
-		if (are_stream_backends_same(old_stream, stream))
-				return true;
-	}
-
-	return false;
-}
-
+/*
+ * dc_add_stream_to_ctx() - Add a new dc_stream_state to a dc_state.
+ */
 enum dc_status dc_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream)
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
-		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
+		DC_LOG_WARNING("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1836,11 +1758,14 @@ enum dc_status dc_add_stream_to_ctx(
 
 	res = dc->res_pool->funcs->add_stream_to_ctx(dc, new_ctx, stream);
 	if (res != DC_OK)
-		DC_ERROR("Adding stream %p to context failed with err %d!\n", stream, res);
+		DC_LOG_WARNING("Adding stream %p to context failed with err %d!\n", stream, res);
 
 	return res;
 }
 
+/*
+ * dc_remove_stream_from_ctx() - Remove a stream from a dc_state.
+ */
 enum dc_status dc_remove_stream_from_ctx(
 			struct dc *dc,
 			struct dc_state *new_ctx,
@@ -1848,45 +1773,48 @@ enum dc_status dc_remove_stream_from_ctx(
 {
 	int i;
 	struct dc_context *dc_ctx = dc->ctx;
-	struct pipe_ctx *del_pipe = NULL;
-
-	/* Release primary pipe */
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (new_ctx->res_ctx.pipe_ctx[i].stream == stream &&
-				!new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
-			del_pipe = &new_ctx->res_ctx.pipe_ctx[i];
-
-			ASSERT(del_pipe->stream_res.stream_enc);
-			update_stream_engine_usage(
-					&new_ctx->res_ctx,
-						dc->res_pool,
-					del_pipe->stream_res.stream_enc,
-					false);
-
-			if (del_pipe->stream_res.audio)
-				update_audio_usage(
-					&new_ctx->res_ctx,
-					dc->res_pool,
-					del_pipe->stream_res.audio,
-					false);
-
-			resource_unreference_clock_source(&new_ctx->res_ctx,
-							  dc->res_pool,
-							  del_pipe->clock_source);
-
-			if (dc->res_pool->funcs->remove_stream_from_ctx)
-				dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
-
-			memset(del_pipe, 0, sizeof(*del_pipe));
-
-			break;
-		}
-	}
+	struct pipe_ctx *del_pipe = resource_get_head_pipe_for_stream(&new_ctx->res_ctx, stream);
+	struct pipe_ctx *odm_pipe;
 
 	if (!del_pipe) {
 		DC_ERROR("Pipe not found for stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	odm_pipe = del_pipe->next_odm_pipe;
+
+	/* Release primary pipe */
+	ASSERT(del_pipe->stream_res.stream_enc);
+	update_stream_engine_usage(
+			&new_ctx->res_ctx,
+				dc->res_pool,
+			del_pipe->stream_res.stream_enc,
+			false);
+	/* Release link encoder from stream in new dc_state. */
+	if (dc->res_pool->funcs->link_enc_unassign)
+		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
+
+	if (del_pipe->stream_res.audio)
+		update_audio_usage(
+			&new_ctx->res_ctx,
+			dc->res_pool,
+			del_pipe->stream_res.audio,
+			false);
+
+	resource_unreference_clock_source(&new_ctx->res_ctx,
+					  dc->res_pool,
+					  del_pipe->clock_source);
+
+	if (dc->res_pool->funcs->remove_stream_from_ctx)
+		dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
+
+	while (odm_pipe) {
+		struct pipe_ctx *next_odm_pipe = odm_pipe->next_odm_pipe;
+
+		memset(odm_pipe, 0, sizeof(*odm_pipe));
+		odm_pipe = next_odm_pipe;
+	}
+	memset(del_pipe, 0, sizeof(*del_pipe));
 
 	for (i = 0; i < new_ctx->stream_count; i++)
 		if (new_ctx->streams[i] == stream)
@@ -1928,7 +1856,7 @@ static struct dc_stream_state *find_pll_sharable_stream(
 		if (resource_are_streams_timing_synchronizable(
 			stream_needs_pll, stream_has_pll)
 			&& !dc_is_dp_signal(stream_has_pll->signal)
-			&& stream_has_pll->sink->link->connector_signal
+			&& stream_has_pll->link->connector_signal
 			!= SIGNAL_TYPE_VIRTUAL)
 			return stream_has_pll;
 
@@ -1939,13 +1867,14 @@ static struct dc_stream_state *find_pll_sharable_stream(
 
 static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 {
-	uint32_t pix_clk = timing->pix_clk_khz;
+	uint32_t pix_clk = timing->pix_clk_100hz;
 	uint32_t normalized_pix_clk = pix_clk;
 
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pix_clk /= 2;
 	if (timing->pixel_encoding != PIXEL_ENCODING_YCBCR422) {
 		switch (timing->display_color_depth) {
+		case COLOR_DEPTH_666:
 		case COLOR_DEPTH_888:
 			normalized_pix_clk = pix_clk;
 			break;
@@ -1971,13 +1900,99 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
 		stream->phy_pix_clk = get_norm_pix_clk(
-			&stream->timing);
+			&stream->timing) / 10;
 	else
 		stream->phy_pix_clk =
-			stream->timing.pix_clk_khz;
+			stream->timing.pix_clk_100hz / 10;
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		stream->phy_pix_clk *= 2;
+}
+
+static int acquire_resource_from_hw_enabled_state(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	struct dc_link *link = stream->link;
+	unsigned int i, inst, tg_inst = 0;
+
+	/* Check for enabled DIG to identify enabled display */
+	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		return -1;
+
+	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
+
+	if (inst == ENGINE_ID_UNKNOWN)
+		return -1;
+
+	for (i = 0; i < pool->stream_enc_count; i++) {
+		if (pool->stream_enc[i]->id == inst) {
+			tg_inst = pool->stream_enc[i]->funcs->dig_source_otg(
+				pool->stream_enc[i]);
+			break;
+		}
+	}
+
+	// tg_inst not found
+	if (i == pool->stream_enc_count)
+		return -1;
+
+	if (tg_inst >= pool->timing_generator_count)
+		return -1;
+
+	if (!res_ctx->pipe_ctx[tg_inst].stream) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
+
+		pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
+		pipe_ctx->plane_res.mi = pool->mis[tg_inst];
+		pipe_ctx->plane_res.hubp = pool->hubps[tg_inst];
+		pipe_ctx->plane_res.ipp = pool->ipps[tg_inst];
+		pipe_ctx->plane_res.xfm = pool->transforms[tg_inst];
+		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
+		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
+
+		if (pool->dpps[tg_inst]) {
+			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+
+			// Read DPP->MPCC->OPP Pipe from HW State
+			if (pool->mpc->funcs->read_mpcc_state) {
+				struct mpcc_state s = {0};
+
+				pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+
+				if (s.dpp_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id = s.dpp_id;
+
+				if (s.bot_mpcc_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
+							&pool->mpc->mpcc_array[s.bot_mpcc_id];
+
+				if (s.opp_id < MAX_OPP)
+					pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+			}
+		}
+		pipe_ctx->pipe_idx = tg_inst;
+
+		pipe_ctx->stream = stream;
+		return tg_inst;
+	}
+
+	return -1;
+}
+
+static void mark_seamless_boot_stream(
+		const struct dc  *dc,
+		struct dc_stream_state *stream)
+{
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+
+	/* TODO: Check Linux */
+	if (dc->config.allow_seamless_boot_optimization &&
+			!dcb->funcs->is_accelerated_mode(dcb)) {
+		if (dc_validate_seamless_boot_timing(dc, stream->sink, &stream->timing))
+			stream->apply_seamless_boot_optimization = true;
+	}
 }
 
 enum dc_status resource_map_pool_resources(
@@ -1991,21 +2006,25 @@ enum dc_status resource_map_pool_resources(
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
 
-	/* TODO Check if this is needed */
-	/*if (!resource_is_stream_unchanged(old_context, stream)) {
-			if (stream != NULL && old_context->streams[i] != NULL) {
-				stream->bit_depth_params =
-						old_context->streams[i]->bit_depth_params;
-				stream->clamping = old_context->streams[i]->clamping;
-				continue;
-			}
-		}
-	*/
+	calculate_phy_pix_clks(stream);
 
-	/* acquire new resources */
-	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
+	mark_seamless_boot_stream(dc, stream);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	if (stream->apply_seamless_boot_optimization) {
+		pipe_idx = acquire_resource_from_hw_enabled_state(
+				&context->res_ctx,
+				pool,
+				stream);
+		if (pipe_idx < 0)
+			/* hw resource was assigned to other stream */
+			stream->apply_seamless_boot_optimization = false;
+	}
+
+	if (pipe_idx < 0)
+		/* acquire new resources */
+		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
+
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	if (pipe_idx < 0)
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
@@ -2016,11 +2035,11 @@ enum dc_status resource_map_pool_resources(
 	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
 	pipe_ctx->stream_res.stream_enc =
-		find_first_free_match_stream_enc_for_link(
+		dc->res_pool->funcs->find_first_free_match_stream_enc_for_link(
 			&context->res_ctx, pool, stream);
 
 	if (!pipe_ctx->stream_res.stream_enc)
-		return DC_NO_STREAM_ENG_RESOURCE;
+		return DC_NO_STREAM_ENC_RESOURCE;
 
 	update_stream_engine_usage(
 		&context->res_ctx, pool,
@@ -2028,11 +2047,11 @@ enum dc_status resource_map_pool_resources(
 		true);
 
 	/* TODO: Add check if ASIC support and EDID audio */
-	if (!stream->sink->converter_disable_audio &&
+	if (!stream->converter_disable_audio &&
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
-	    stream->audio_info.mode_count) {
+	    stream->audio_info.mode_count && stream->audio_info.flags.all) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
-		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id);
+		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id, dc_ctx->dce_version);
 
 		/*
 		 * Audio assigned in order first come first get.
@@ -2045,13 +2064,24 @@ enum dc_status resource_map_pool_resources(
 	}
 
 	/* Add ABM to the resource if on EDP */
-	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (pool->abm)
+			pipe_ctx->stream_res.abm = pool->abm;
+		else
+			pipe_ctx->stream_res.abm = pool->multiple_abms[pipe_ctx->stream_res.tg->inst];
+#else
 		pipe_ctx->stream_res.abm = pool->abm;
+#endif
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
 			context->stream_status[i].primary_otg_inst = pipe_ctx->stream_res.tg->inst;
-			context->stream_status[i].stream_enc_inst = pipe_ctx->stream_res.stream_enc->id;
+			context->stream_status[i].stream_enc_inst = pipe_ctx->stream_res.stream_enc->stream_enc_inst;
+			context->stream_status[i].audio_inst =
+				pipe_ctx->stream_res.audio ? pipe_ctx->stream_res.audio->inst : -1;
+
 			return DC_OK;
 		}
 
@@ -2059,6 +2089,12 @@ enum dc_status resource_map_pool_resources(
 	return DC_ERROR_UNEXPECTED;
 }
 
+/**
+ * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
+ * Is a shallow copy.  Increments refcounts on existing streams and planes.
+ * @dc: copy out of dc->current_state
+ * @dst_ctx: copy into this
+ */
 void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
@@ -2071,18 +2107,45 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->dis_clk = dc->res_pool->dccg;
+	dst_ctx->clk_mgr = dc->clk_mgr;
 }
 
+
+bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
+{
+	return dc->res_pool->res_cap->num_dsc > 0;
+}
+
+
+/**
+ * dc_validate_global_state() - Determine if HW can support a given state
+ * Checks HW resource availability and bandwidth requirement.
+ * @dc: dc struct for this driver
+ * @new_ctx: state to be validated
+ * @fast_validate: set to true if only yes/no to support matters
+ *
+ * Return: DC_OK if the result can be programmed.  Otherwise, an error code.
+ */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
-		struct dc_state *new_ctx)
+		struct dc_state *new_ctx,
+		bool fast_validate)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
 
 	if (!new_ctx)
 		return DC_ERROR_UNEXPECTED;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+
+	/*
+	 * Update link encoder to stream assignment.
+	 * TODO: Split out reason allocation from validation.
+	 */
+	if (dc->res_pool->funcs->link_encs_assign)
+		dc->res_pool->funcs->link_encs_assign(
+			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
+#endif
 
 	if (dc->res_pool->funcs->validate_global) {
 		result = dc->res_pool->funcs->validate_global(dc, new_ctx);
@@ -2099,10 +2162,10 @@ enum dc_status dc_validate_global_state(
 			if (pipe_ctx->stream != stream)
 				continue;
 
-			if (dc->res_pool->funcs->get_default_swizzle_mode &&
+			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
 					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
-				result = dc->res_pool->funcs->get_default_swizzle_mode(pipe_ctx->plane_state);
+				result = dc->res_pool->funcs->patch_unknown_plane_state(pipe_ctx->plane_state);
 				if (result != DC_OK)
 					return result;
 			}
@@ -2131,7 +2194,7 @@ enum dc_status dc_validate_global_state(
 	result = resource_build_scaling_params_for_context(dc, new_ctx);
 
 	if (result == DC_OK)
-		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx))
+		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
@@ -2276,7 +2339,7 @@ static void set_avi_info_frame(
 	itc = true;
 	itc_value = 1;
 
-	support = stream->sink->edid_caps.content_support;
+	support = stream->content_support;
 
 	if (itc) {
 		if (!support.bits.valid_content_type) {
@@ -2313,26 +2376,31 @@ static void set_avi_info_frame(
 		hdmi_info.bits.ITC = itc_value;
 	}
 
+	if (stream->qs_bit == 1) {
+		if (color_space == COLOR_SPACE_SRGB ||
+			color_space == COLOR_SPACE_2020_RGB_FULLRANGE)
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
+		else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
+					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE)
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+		else
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+	} else
+		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+
 	/* TODO : We should handle YCC quantization */
 	/* but we do not have matrix calculation */
-	if (stream->sink->edid_caps.qs_bit == 1 &&
-			stream->sink->edid_caps.qy_bit == 1) {
+	if (stream->qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
-			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
-		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
-					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+			color_space == COLOR_SPACE_2020_RGB_FULLRANGE)
 			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
-		} else {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+		else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
+					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE)
 			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
-		}
-	} else {
-		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-		hdmi_info.bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
-	}
+		else
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
+	} else
+		hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 
 	///VIC
 	format = stream->timing.timing_3d_format;
@@ -2356,7 +2424,18 @@ static void set_avi_info_frame(
 			break;
 		}
 	}
+	/* If VIC >= 128, the Source shall use AVI InfoFrame Version 3*/
 	hdmi_info.bits.VIC0_VIC7 = vic;
+	if (vic >= 128)
+		hdmi_info.bits.header.version = 3;
+	/* If (C1, C0)=(1, 1) and (EC2, EC1, EC0)=(1, 1, 1),
+	 * the Source shall use 20 AVI InfoFrame Version 4
+	 */
+	if (hdmi_info.bits.C0_C1 == COLORIMETRY_EXTENDED &&
+			hdmi_info.bits.EC0_EC2 == COLORIMETRYEX_RESERVED) {
+		hdmi_info.bits.header.version = 4;
+		hdmi_info.bits.header.length = 14;
+	}
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
@@ -2375,12 +2454,19 @@ static void set_avi_info_frame(
 	hdmi_info.bits.bar_right = (stream->timing.h_total
 			- stream->timing.h_border_right + 1);
 
+    /* Additional Colorimetry Extension
+     * Used in conduction with C0-C1 and EC0-EC2
+     * 0 = DCI-P3 RGB (D65)
+     * 1 = DCI-P3 RGB (theater)
+     */
+	hdmi_info.bits.ACE0_ACE3 = 0;
+
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
 	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
-	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
+	*check_sum = HDMI_INFOFRAME_TYPE_AVI + hdmi_info.bits.header.length + hdmi_info.bits.header.version;
 
-	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
+	for (byte_index = 1; byte_index <= hdmi_info.bits.header.length; byte_index++)
 		*check_sum += hdmi_info.packet_raw_data.sb[byte_index];
 
 	/* one byte complement */
@@ -2401,113 +2487,15 @@ static void set_vendor_info_packet(
 		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	uint32_t length = 0;
-	bool hdmi_vic_mode = false;
-	uint8_t checksum = 0;
-	uint32_t i = 0;
-	enum dc_timing_3d_format format;
-	// Can be different depending on packet content /*todo*/
-	// unsigned int length = pPathMode->dolbyVision ? 24 : 5;
+	/* SPD info packet for FreeSync */
 
-	info_packet->valid = false;
-
-	format = stream->timing.timing_3d_format;
-	if (stream->view_format == VIEW_3D_FORMAT_NONE)
-		format = TIMING_3D_FORMAT_NONE;
-
-	/* Can be different depending on packet content */
-	length = 5;
-
-	if (stream->timing.hdmi_vic != 0
-			&& stream->timing.h_total >= 3840
-			&& stream->timing.v_total >= 2160)
-		hdmi_vic_mode = true;
-
-	/* According to HDMI 1.4a CTS, VSIF should be sent
-	 * for both 3D stereo and HDMI VIC modes.
-	 * For all other modes, there is no VSIF sent.  */
-
-	if (format == TIMING_3D_FORMAT_NONE && !hdmi_vic_mode)
+	/* Check if Freesync is supported. Return if false. If true,
+	 * set the corresponding bit in the info packet
+	 */
+	if (!stream->vsp_infopacket.valid)
 		return;
 
-	/* 24bit IEEE Registration identifier (0x000c03). LSB first. */
-	info_packet->sb[1] = 0x03;
-	info_packet->sb[2] = 0x0C;
-	info_packet->sb[3] = 0x00;
-
-	/*PB4: 5 lower bytes = 0 (reserved). 3 higher bits = HDMI_Video_Format.
-	 * The value for HDMI_Video_Format are:
-	 * 0x0 (0b000) - No additional HDMI video format is presented in this
-	 * packet
-	 * 0x1 (0b001) - Extended resolution format present. 1 byte of HDMI_VIC
-	 * parameter follows
-	 * 0x2 (0b010) - 3D format indication present. 3D_Structure and
-	 * potentially 3D_Ext_Data follows
-	 * 0x3..0x7 (0b011..0b111) - reserved for future use */
-	if (format != TIMING_3D_FORMAT_NONE)
-		info_packet->sb[4] = (2 << 5);
-	else if (hdmi_vic_mode)
-		info_packet->sb[4] = (1 << 5);
-
-	/* PB5: If PB4 claims 3D timing (HDMI_Video_Format = 0x2):
-	 * 4 lower bites = 0 (reserved). 4 higher bits = 3D_Structure.
-	 * The value for 3D_Structure are:
-	 * 0x0 - Frame Packing
-	 * 0x1 - Field Alternative
-	 * 0x2 - Line Alternative
-	 * 0x3 - Side-by-Side (full)
-	 * 0x4 - L + depth
-	 * 0x5 - L + depth + graphics + graphics-depth
-	 * 0x6 - Top-and-Bottom
-	 * 0x7 - Reserved for future use
-	 * 0x8 - Side-by-Side (Half)
-	 * 0x9..0xE - Reserved for future use
-	 * 0xF - Not used */
-	switch (format) {
-	case TIMING_3D_FORMAT_HW_FRAME_PACKING:
-	case TIMING_3D_FORMAT_SW_FRAME_PACKING:
-		info_packet->sb[5] = (0x0 << 4);
-		break;
-
-	case TIMING_3D_FORMAT_SIDE_BY_SIDE:
-	case TIMING_3D_FORMAT_SBS_SW_PACKED:
-		info_packet->sb[5] = (0x8 << 4);
-		length = 6;
-		break;
-
-	case TIMING_3D_FORMAT_TOP_AND_BOTTOM:
-	case TIMING_3D_FORMAT_TB_SW_PACKED:
-		info_packet->sb[5] = (0x6 << 4);
-		break;
-
-	default:
-		break;
-	}
-
-	/*PB5: If PB4 is set to 0x1 (extended resolution format)
-	 * fill PB5 with the correct HDMI VIC code */
-	if (hdmi_vic_mode)
-		info_packet->sb[5] = stream->timing.hdmi_vic;
-
-	/* Header */
-	info_packet->hb0 = HDMI_INFOFRAME_TYPE_VENDOR; /* VSIF packet type. */
-	info_packet->hb1 = 0x01; /* Version */
-
-	/* 4 lower bits = Length, 4 higher bits = 0 (reserved) */
-	info_packet->hb2 = (uint8_t) (length);
-
-	/* Calculate checksum */
-	checksum = 0;
-	checksum += info_packet->hb0;
-	checksum += info_packet->hb1;
-	checksum += info_packet->hb2;
-
-	for (i = 1; i <= length; i++)
-		checksum += info_packet->sb[i];
-
-	info_packet->sb[0] = (uint8_t) (0x100 - checksum);
-
-	info_packet->valid = true;
+	*info_packet = stream->vsp_infopacket;
 }
 
 static void set_spd_info_packet(
@@ -2561,12 +2549,9 @@ void dc_resource_state_destruct(struct dc_state *context)
 		dc_stream_release(context->streams[i]);
 		context->streams[i] = NULL;
 	}
+	context->stream_count = 0;
 }
 
-/*
- * Copy src_ctx into dst_ctx and retain all surfaces and streams referenced
- * by the src_ctx
- */
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx)
@@ -2585,6 +2570,11 @@ void dc_resource_state_copy_construct(
 		if (cur_pipe->bottom_pipe)
 			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
 
+		if (cur_pipe->next_odm_pipe)
+			cur_pipe->next_odm_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
+
+		if (cur_pipe->prev_odm_pipe)
+			cur_pipe->prev_odm_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
 	}
 
 	for (i = 0; i < dst_ctx->stream_count; i++) {
@@ -2721,13 +2711,18 @@ bool pipe_need_reprogram(
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
-	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
-		return true;
-
 	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
 		return true;
 
-	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+	if (false == pipe_ctx_old->stream->link->link_state_valid &&
+		false == pipe_ctx_old->stream->dpms_off)
+		return true;
+
+	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
+		return true;
+
+	/* DIG link encoder resource assignment for stream changed. */
+	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
 		return true;
 
 	return false;
@@ -2861,9 +2856,8 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
-	struct dc  *core_dc = dc;
-	struct dc_link *link = stream->sink->link;
-	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
+	struct dc_link *link = stream->link;
+	struct timing_generator *tg = dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;
 
 	calculate_phy_pix_clks(stream);
@@ -2871,10 +2865,11 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	if (!tg->funcs->validate_timing(tg, &stream->timing))
 		res = DC_FAIL_CONTROLLER_VALIDATE;
 
-	if (res == DC_OK)
+	if (res == DC_OK) {
 		if (!link->link_enc->funcs->validate_output_with_stream(
 						link->link_enc, stream))
 			res = DC_FAIL_ENC_VALIDATE;
+	}
 
 	/* TODO: validate audio ASIC caps, encoder */
 
@@ -2915,8 +2910,13 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+#endif
 		return 32;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		return 64;
@@ -2925,3 +2925,48 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return -1;
 	}
 }
+static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)
+{
+	if (modes) {
+		if (modes->sample_rates.rate.RATE_192)
+			return 192000;
+		if (modes->sample_rates.rate.RATE_176_4)
+			return 176400;
+		if (modes->sample_rates.rate.RATE_96)
+			return 96000;
+		if (modes->sample_rates.rate.RATE_88_2)
+			return 88200;
+		if (modes->sample_rates.rate.RATE_48)
+			return 48000;
+		if (modes->sample_rates.rate.RATE_44_1)
+			return 44100;
+		if (modes->sample_rates.rate.RATE_32)
+			return 32000;
+	}
+	/*original logic when no audio info*/
+	return 441000;
+}
+
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *audio_chk)
+{
+	unsigned int i;
+	unsigned int max_sample_rate = 0;
+
+	if (aud_modes) {
+		audio_chk->audio_packet_type = 0x2;/*audio sample packet AP = .25 for layout0, 1 for layout1*/
+
+		audio_chk->max_audiosample_rate = 0;
+		for (i = 0; i < aud_modes->mode_count; i++) {
+			max_sample_rate = get_max_audio_sample_rate(&aud_modes->modes[i]);
+			if (audio_chk->max_audiosample_rate < max_sample_rate)
+				audio_chk->max_audiosample_rate = max_sample_rate;
+			/*dts takes the same as type 2: AP = 0.25*/
+		}
+		/*check which one take more bandwidth*/
+		if (audio_chk->max_audiosample_rate > 192000)
+			audio_chk->audio_packet_type = 0x9;/*AP =1*/
+		audio_chk->acat = 0;/*not support*/
+	}
+}
+

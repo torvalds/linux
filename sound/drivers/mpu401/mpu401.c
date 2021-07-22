@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for generic MPU-401 boards (UART mode only)
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) 2004 by Castet Matthieu <castet.matthieu@free.fr>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -119,7 +104,8 @@ static int snd_mpu401_probe(struct platform_device *devptr)
 	err = snd_mpu401_create(&devptr->dev, dev, &card);
 	if (err < 0)
 		return err;
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -197,7 +183,8 @@ static int snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 		err = snd_mpu401_create(&pnp_dev->dev, dev, &card);
 		if (err < 0)
 			return err;
-		if ((err = snd_card_register(card)) < 0) {
+		err = snd_card_register(card);
+		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
@@ -242,7 +229,8 @@ static int __init alsa_card_mpu401_init(void)
 {
 	int i, err;
 
-	if ((err = platform_driver_register(&snd_mpu401_driver)) < 0)
+	err = platform_driver_register(&snd_mpu401_driver);
+	if (err < 0)
 		return err;
 
 	for (i = 0; i < SNDRV_CARDS; i++) {

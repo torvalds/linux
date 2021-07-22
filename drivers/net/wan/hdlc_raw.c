@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic HDLC support routines for Linux
  * HDLC support
  *
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
@@ -93,7 +90,7 @@ static int raw_ioctl(struct net_device *dev, struct ifreq *ifr)
 }
 
 
-static int __init mod_init(void)
+static int __init hdlc_raw_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
@@ -101,14 +98,14 @@ static int __init mod_init(void)
 
 
 
-static void __exit mod_exit(void)
+static void __exit hdlc_raw_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
 
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(hdlc_raw_init);
+module_exit(hdlc_raw_exit);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("Raw HDLC protocol support for generic HDLC");

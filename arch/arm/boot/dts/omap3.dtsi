@@ -1,13 +1,14 @@
 /*
  * Device Tree Source for OMAP3 SoC
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/omap.h>
@@ -23,6 +24,9 @@
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
+		mmc0 = &mmc1;
+		mmc1 = &mmc2;
+		mmc2 = &mmc3;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -156,13 +160,56 @@
 			};
 		};
 
-		aes: aes@480c5000 {
-			compatible = "ti,omap3-aes";
-			ti,hwmods = "aes";
-			reg = <0x480c5000 0x50>;
-			interrupts = <0>;
-			dmas = <&sdma 65 &sdma 66>;
-			dma-names = "tx", "rx";
+		aes1_target: target-module@480a6000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480a6044 0x4>,
+			      <0x480a6048 0x4>,
+			      <0x480a604c 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&aes1_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480a6000 0x2000>;
+
+			aes1: aes1@0 {
+				compatible = "ti,omap3-aes";
+				reg = <0 0x50>;
+				interrupts = <0>;
+				dmas = <&sdma 9 &sdma 10>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		aes2_target: target-module@480c5000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480c5044 0x4>,
+			      <0x480c5048 0x4>,
+			      <0x480c504c 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&aes2_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480c5000 0x2000>;
+
+			aes2: aes2@0 {
+				compatible = "ti,omap3-aes";
+				reg = <0 0x50>;
+				interrupts = <0>;
+				dmas = <&sdma 65 &sdma 66>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		prm: prm@48306000 {
@@ -192,10 +239,23 @@
 			};
 		};
 
-		counter32k: counter@48320000 {
-			compatible = "ti,omap-counter32k";
-			reg = <0x48320000 0x20>;
-			ti,hwmods = "counter_32k";
+		target-module@48320000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x48320000 0x4>,
+			      <0x48320004 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			clocks = <&wkup_32k_fck>, <&omap_32ksync_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48320000 0x1000>;
+
+			counter32k: counter@0 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x0 0x20>;
+			};
 		};
 
 		intc: interrupt-controller@48200000 {
@@ -205,17 +265,41 @@
 			reg = <0x48200000 0x1000>;
 		};
 
-		sdma: dma-controller@48056000 {
-			compatible = "ti,omap3630-sdma", "ti,omap3430-sdma";
-			reg = <0x48056000 0x1000>;
-			interrupts = <12>,
-				     <13>,
-				     <14>,
-				     <15>;
-			#dma-cells = <1>;
-			dma-channels = <32>;
-			dma-requests = <96>;
-			ti,hwmods = "dma";
+		target-module@48056000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x48056000 0x4>,
+			      <0x4805602c 0x4>,
+			      <0x48056028 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, core_l3_clkdm */
+			clocks = <&core_l3_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48056000 0x1000>;
+
+			sdma: dma-controller@0 {
+				compatible = "ti,omap3430-sdma", "ti,omap-sdma";
+				reg = <0x0 0x1000>;
+				interrupts = <12>,
+					     <13>,
+					     <14>,
+					     <15>;
+				#dma-cells = <1>;
+				dma-channels = <32>;
+				dma-requests = <96>;
+			};
 		};
 
 		gpio1: gpio@48310000 {
@@ -319,8 +403,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48070000 0x80>;
 			interrupts = <56>;
-			dmas = <&sdma 27 &sdma 28>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c1";
@@ -330,8 +412,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48072000 0x80>;
 			interrupts = <57>;
-			dmas = <&sdma 29 &sdma 30>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c2";
@@ -341,8 +421,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48060000 0x80>;
 			interrupts = <61>;
-			dmas = <&sdma 25 &sdma 26>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c3";
@@ -356,7 +434,7 @@
 			#mbox-cells = <1>;
 			ti,mbox-num-users = <2>;
 			ti,mbox-num-fifos = <2>;
-			mbox_dsp: dsp {
+			mbox_dsp: mbox-dsp {
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <1 0 0>;
 			};
@@ -502,6 +580,30 @@
 			status = "disabled";
 		};
 
+		/* Likely needs to be tagged disabled on HS devices */
+		rng_target: target-module@480a0000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480a003c 0x4>,
+			      <0x480a0040 0x4>,
+			      <0x480a0044 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			ti,syss-mask = <1>;
+			clocks = <&rng_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480a0000 0x2000>;
+
+			rng: rng@0 {
+				compatible = "ti,omap2-rng";
+				reg = <0x0 0x2000>;
+				interrupts = <52>;
+			};
+		};
+
 		mcbsp2: mcbsp@49022000 {
 			compatible = "ti,omap3-mcbsp";
 			reg = <0x49022000 0xff>,
@@ -588,19 +690,63 @@
 			dma-names = "rx";
 		};
 
-		timer1: timer@48318000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x48318000 0x400>;
-			interrupts = <37>;
-			ti,hwmods = "timer1";
-			ti,timer-alwon;
+		timer1_target: target-module@48318000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x48318000 0x4>,
+			      <0x48318010 0x4>,
+			      <0x48318014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt1_fck>, <&gpt1_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48318000 0x1000>;
+
+			timer1: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&gpt1_fck>;
+				clock-names = "fck";
+				interrupts = <37>;
+				ti,timer-alwon;
+			};
 		};
 
-		timer2: timer@49032000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x49032000 0x400>;
-			interrupts = <38>;
-			ti,hwmods = "timer2";
+		timer2_target: target-module@49032000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x49032000 0x4>,
+			      <0x49032010 0x4>,
+			      <0x49032014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt2_fck>, <&gpt2_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49032000 0x1000>;
+
+			timer2: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0 0x400>;
+				interrupts = <38>;
+			};
 		};
 
 		timer3: timer@49034000 {
@@ -674,13 +820,34 @@
 			ti,timer-pwm;
 		};
 
-		timer12: timer@48304000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x48304000 0x400>;
-			interrupts = <95>;
-			ti,hwmods = "timer12";
-			ti,timer-alwon;
-			ti,timer-secure;
+		timer12_target: target-module@48304000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x48304000 0x4>,
+			      <0x48304010 0x4>,
+			      <0x48304014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt12_fck>, <&gpt12_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48304000 0x1000>;
+
+			timer12: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0 0x400>;
+				interrupts = <95>;
+				ti,timer-alwon;
+				ti,timer-secure;
+			};
 		};
 
 		usbhstll: usbhstll@48062000 {
@@ -771,6 +938,9 @@
 				ti,hwmods = "dss_dsi1";
 				clocks = <&dss1_alwon_fck>, <&dss2_alwon_fck>;
 				clock-names = "fck", "sys_clk";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 
 			rfbi: encoder@48050800 {
@@ -837,4 +1007,14 @@
 	};
 };
 
-/include/ "omap3xxx-clocks.dtsi"
+#include "omap3xxx-clocks.dtsi"
+
+/* Preferred always-on timer for clockevent. Some boards must use dmtimer12 */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&omap_32k_fck>;
+	};
+};

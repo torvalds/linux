@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -47,6 +36,7 @@
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
 #define OP_31_XOP_SLBMFEE	915
+#define OP_31_XOP_SLBFEE	979
 
 #define OP_31_XOP_TBEGIN	654
 #define OP_31_XOP_TABORT	910
@@ -70,10 +60,6 @@
 #define SPRN_GQR5		917
 #define SPRN_GQR6		918
 #define SPRN_GQR7		919
-
-/* Book3S_32 defines mfsrin(v) - but that messes up our abstract
- * function pointers, so let's just disable the define. */
-#undef mfsrin
 
 enum priv_level {
 	PRIV_PROBLEM = 0,
@@ -245,7 +231,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 
 #endif
 
-int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_core_emulate_op_pr(struct kvm_vcpu *vcpu,
 			      unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
@@ -381,13 +367,13 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE)
 				break;
 
-			run->papr_hcall.nr = cmd;
+			vcpu->run->papr_hcall.nr = cmd;
 			for (i = 0; i < 9; ++i) {
 				ulong gpr = kvmppc_get_gpr(vcpu, 4 + i);
-				run->papr_hcall.args[i] = gpr;
+				vcpu->run->papr_hcall.args[i] = gpr;
 			}
 
-			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->run->exit_reason = KVM_EXIT_PAPR_HCALL;
 			vcpu->arch.hcall_needed = 1;
 			emulated = EMULATE_EXIT_USER;
 			break;
@@ -415,6 +401,23 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				return EMULATE_FAIL;
 
 			vcpu->arch.mmu.slbia(vcpu);
+			break;
+		case OP_31_XOP_SLBFEE:
+			if (!(inst & 1) || !vcpu->arch.mmu.slbfee) {
+				return EMULATE_FAIL;
+			} else {
+				ulong b, t;
+				ulong cr = kvmppc_get_cr(vcpu) & ~CR0_MASK;
+
+				b = kvmppc_get_gpr(vcpu, rb);
+				if (!vcpu->arch.mmu.slbfee(vcpu, b, &t))
+					cr |= 2 << CR0_SHIFT;
+				kvmppc_set_gpr(vcpu, rt, t);
+				/* copy XER[SO] bit to CR0[SO] */
+				cr |= (vcpu->arch.regs.xer & 0x80000000) >>
+					(31 - CR0_SHIFT);
+				kvmppc_set_cr(vcpu, cr);
+			}
 			break;
 		case OP_31_XOP_SLBMFEE:
 			if (!vcpu->arch.mmu.slbmfee) {
@@ -622,7 +625,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	if (emulated == EMULATE_FAIL)
-		emulated = kvmppc_emulate_paired_single(run, vcpu);
+		emulated = kvmppc_emulate_paired_single(vcpu);
 
 	return emulated;
 }
@@ -833,6 +836,9 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_MMCR1:
 	case SPRN_MMCR2:
 	case SPRN_UMMCR2:
+	case SPRN_UAMOR:
+	case SPRN_IAMR:
+	case SPRN_AMR:
 #endif
 		break;
 unprivileged:
@@ -997,6 +1003,9 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_MMCR2:
 	case SPRN_UMMCR2:
 	case SPRN_TIR:
+	case SPRN_UAMOR:
+	case SPRN_IAMR:
+	case SPRN_AMR:
 #endif
 		*spr_val = 0;
 		break;

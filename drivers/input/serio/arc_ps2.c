@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Driver is originally developed by Pavel Sokolov <psokolov@synopsys.com>
  */
@@ -190,10 +187,8 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	int error, id, i;
 
 	irq = platform_get_irq_byname(pdev, "arc_ps2_irq");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ defined\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	arc_ps2 = devm_kzalloc(&pdev->dev, sizeof(struct arc_ps2_data),
 				GFP_KERNEL);

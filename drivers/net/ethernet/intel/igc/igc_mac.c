@@ -7,10 +7,6 @@
 #include "igc_mac.h"
 #include "igc_hw.h"
 
-/* forward declaration */
-static s32 igc_set_default_fc(struct igc_hw *hw);
-static s32 igc_set_fc_watermarks(struct igc_hw *hw);
-
 /**
  * igc_disable_pcie_master - Disables PCI-express master access
  * @hw: pointer to the HW structure
@@ -76,6 +72,41 @@ void igc_init_rx_addrs(struct igc_hw *hw, u16 rar_count)
 }
 
 /**
+ * igc_set_fc_watermarks - Set flow control high/low watermarks
+ * @hw: pointer to the HW structure
+ *
+ * Sets the flow control high/low threshold (watermark) registers.  If
+ * flow control XON frame transmission is enabled, then set XON frame
+ * transmission as well.
+ */
+static s32 igc_set_fc_watermarks(struct igc_hw *hw)
+{
+	u32 fcrtl = 0, fcrth = 0;
+
+	/* Set the flow control receive threshold registers.  Normally,
+	 * these registers will be set to a default threshold that may be
+	 * adjusted later by the driver's runtime code.  However, if the
+	 * ability to transmit pause frames is not enabled, then these
+	 * registers will be set to 0.
+	 */
+	if (hw->fc.current_mode & igc_fc_tx_pause) {
+		/* We need to set up the Receive Threshold high and low water
+		 * marks as well as (optionally) enabling the transmission of
+		 * XON frames.
+		 */
+		fcrtl = hw->fc.low_water;
+		if (hw->fc.send_xon)
+			fcrtl |= IGC_FCRTL_XONE;
+
+		fcrth = hw->fc.high_water;
+	}
+	wr32(IGC_FCRTL, fcrtl);
+	wr32(IGC_FCRTH, fcrth);
+
+	return 0;
+}
+
+/**
  * igc_setup_link - Setup flow control and link settings
  * @hw: pointer to the HW structure
  *
@@ -96,13 +127,10 @@ s32 igc_setup_link(struct igc_hw *hw)
 		goto out;
 
 	/* If requested flow control is set to default, set flow control
-	 * based on the EEPROM flow control settings.
+	 * to the both 'rx' and 'tx' pause frames.
 	 */
-	if (hw->fc.requested_mode == igc_fc_default) {
-		ret_val = igc_set_default_fc(hw);
-		if (ret_val)
-			goto out;
-	}
+	if (hw->fc.requested_mode == igc_fc_default)
+		hw->fc.requested_mode = igc_fc_full;
 
 	/* We want to save off the original Flow Control configuration just
 	 * in case we get disconnected and then reconnected into a different
@@ -133,19 +161,6 @@ s32 igc_setup_link(struct igc_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- * igc_set_default_fc - Set flow control default values
- * @hw: pointer to the HW structure
- *
- * Read the EEPROM for the default values for flow control and store the
- * values.
- */
-static s32 igc_set_default_fc(struct igc_hw *hw)
-{
-	hw->fc.requested_mode = igc_fc_full;
-	return 0;
 }
 
 /**
@@ -212,41 +227,6 @@ out:
 }
 
 /**
- * igc_set_fc_watermarks - Set flow control high/low watermarks
- * @hw: pointer to the HW structure
- *
- * Sets the flow control high/low threshold (watermark) registers.  If
- * flow control XON frame transmission is enabled, then set XON frame
- * transmission as well.
- */
-static s32 igc_set_fc_watermarks(struct igc_hw *hw)
-{
-	u32 fcrtl = 0, fcrth = 0;
-
-	/* Set the flow control receive threshold registers.  Normally,
-	 * these registers will be set to a default threshold that may be
-	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames is not enabled, then these
-	 * registers will be set to 0.
-	 */
-	if (hw->fc.current_mode & igc_fc_tx_pause) {
-		/* We need to set up the Receive Threshold high and low water
-		 * marks as well as (optionally) enabling the transmission of
-		 * XON frames.
-		 */
-		fcrtl = hw->fc.low_water;
-		if (hw->fc.send_xon)
-			fcrtl |= IGC_FCRTL_XONE;
-
-		fcrth = hw->fc.high_water;
-	}
-	wr32(IGC_FCRTL, fcrtl);
-	wr32(IGC_FCRTH, fcrth);
-
-	return 0;
-}
-
-/**
  * igc_clear_hw_cntrs_base - Clear base hardware counters
  * @hw: pointer to the HW structure
  *
@@ -255,15 +235,14 @@ static s32 igc_set_fc_watermarks(struct igc_hw *hw)
 void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 {
 	rd32(IGC_CRCERRS);
-	rd32(IGC_SYMERRS);
 	rd32(IGC_MPC);
 	rd32(IGC_SCC);
 	rd32(IGC_ECOL);
 	rd32(IGC_MCC);
 	rd32(IGC_LATECOL);
 	rd32(IGC_COLC);
+	rd32(IGC_RERC);
 	rd32(IGC_DC);
-	rd32(IGC_SEC);
 	rd32(IGC_RLEC);
 	rd32(IGC_XONRXC);
 	rd32(IGC_XONTXC);
@@ -308,31 +287,20 @@ void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 	rd32(IGC_ALGNERRC);
 	rd32(IGC_RXERRC);
 	rd32(IGC_TNCRS);
-	rd32(IGC_CEXTERR);
+	rd32(IGC_HTDPMC);
 	rd32(IGC_TSCTC);
-	rd32(IGC_TSCTFC);
 
 	rd32(IGC_MGTPRC);
 	rd32(IGC_MGTPDC);
 	rd32(IGC_MGTPTC);
 
 	rd32(IGC_IAC);
-	rd32(IGC_ICRXOC);
 
-	rd32(IGC_ICRXPTC);
-	rd32(IGC_ICRXATC);
-	rd32(IGC_ICTXPTC);
-	rd32(IGC_ICTXATC);
-	rd32(IGC_ICTXQEC);
-	rd32(IGC_ICTXQMTC);
-	rd32(IGC_ICRXDMTC);
-
-	rd32(IGC_CBTMPC);
-	rd32(IGC_HTDPMC);
-	rd32(IGC_CBRMPC);
 	rd32(IGC_RPTHC);
+	rd32(IGC_TLPIC);
+	rd32(IGC_RLPIC);
 	rd32(IGC_HGPTC);
-	rd32(IGC_HTCBDPC);
+	rd32(IGC_RXDMTC);
 	rd32(IGC_HGORCL);
 	rd32(IGC_HGORCH);
 	rd32(IGC_HGOTCL);
@@ -387,8 +355,8 @@ void igc_rar_set(struct igc_hw *hw, u8 *addr, u32 index)
 s32 igc_check_for_copper_link(struct igc_hw *hw)
 {
 	struct igc_mac_info *mac = &hw->mac;
+	bool link = false;
 	s32 ret_val;
-	bool link;
 
 	/* We only want to go out to the PHY registers to see if Auto-Neg
 	 * has completed and/or if our link status has changed.  The
@@ -442,6 +410,11 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 		hw_dbg("Error configuring flow control\n");
 
 out:
+	/* Now that we are aware of our link settings, we can set the LTR
+	 * thresholds.
+	 */
+	ret_val = igc_set_ltr_i225(hw, link);
+
 	return ret_val;
 }
 
@@ -487,10 +460,8 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 	 * so we had to force link.  In this case, we need to force the
 	 * configuration of the MAC to match the "fc" parameter.
 	 */
-	if (mac->autoneg_failed) {
-		if (hw->phy.media_type == igc_media_type_copper)
-			ret_val = igc_force_mac_fc(hw);
-	}
+	if (mac->autoneg_failed)
+		ret_val = igc_force_mac_fc(hw);
 
 	if (ret_val) {
 		hw_dbg("Error forcing flow control settings\n");
@@ -502,7 +473,7 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 	 * has completed, and if so, how the PHY and link partner has
 	 * flow control configured.
 	 */
-	if (hw->phy.media_type == igc_media_type_copper && mac->autoneg) {
+	if (mac->autoneg) {
 		/* Read the MII Status Register and check to see if AutoNeg
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
@@ -667,7 +638,7 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 	}
 
 out:
-	return 0;
+	return ret_val;
 }
 
 /**
@@ -803,4 +774,108 @@ bool igc_enable_mng_pass_thru(struct igc_hw *hw)
 
 out:
 	return ret_val;
+}
+
+/**
+ *  igc_hash_mc_addr - Generate a multicast hash value
+ *  @hw: pointer to the HW structure
+ *  @mc_addr: pointer to a multicast address
+ *
+ *  Generates a multicast address hash value which is used to determine
+ *  the multicast filter table array address and new table value.  See
+ *  igc_mta_set()
+ **/
+static u32 igc_hash_mc_addr(struct igc_hw *hw, u8 *mc_addr)
+{
+	u32 hash_value, hash_mask;
+	u8 bit_shift = 0;
+
+	/* Register count multiplied by bits per register */
+	hash_mask = (hw->mac.mta_reg_count * 32) - 1;
+
+	/* For a mc_filter_type of 0, bit_shift is the number of left-shifts
+	 * where 0xFF would still fall within the hash mask.
+	 */
+	while (hash_mask >> bit_shift != 0xFF)
+		bit_shift++;
+
+	/* The portion of the address that is used for the hash table
+	 * is determined by the mc_filter_type setting.
+	 * The algorithm is such that there is a total of 8 bits of shifting.
+	 * The bit_shift for a mc_filter_type of 0 represents the number of
+	 * left-shifts where the MSB of mc_addr[5] would still fall within
+	 * the hash_mask.  Case 0 does this exactly.  Since there are a total
+	 * of 8 bits of shifting, then mc_addr[4] will shift right the
+	 * remaining number of bits. Thus 8 - bit_shift.  The rest of the
+	 * cases are a variation of this algorithm...essentially raising the
+	 * number of bits to shift mc_addr[5] left, while still keeping the
+	 * 8-bit shifting total.
+	 *
+	 * For example, given the following Destination MAC Address and an
+	 * MTA register count of 128 (thus a 4096-bit vector and 0xFFF mask),
+	 * we can see that the bit_shift for case 0 is 4.  These are the hash
+	 * values resulting from each mc_filter_type...
+	 * [0] [1] [2] [3] [4] [5]
+	 * 01  AA  00  12  34  56
+	 * LSB                 MSB
+	 *
+	 * case 0: hash_value = ((0x34 >> 4) | (0x56 << 4)) & 0xFFF = 0x563
+	 * case 1: hash_value = ((0x34 >> 3) | (0x56 << 5)) & 0xFFF = 0xAC6
+	 * case 2: hash_value = ((0x34 >> 2) | (0x56 << 6)) & 0xFFF = 0x163
+	 * case 3: hash_value = ((0x34 >> 0) | (0x56 << 8)) & 0xFFF = 0x634
+	 */
+	switch (hw->mac.mc_filter_type) {
+	default:
+	case 0:
+		break;
+	case 1:
+		bit_shift += 1;
+		break;
+	case 2:
+		bit_shift += 2;
+		break;
+	case 3:
+		bit_shift += 4;
+		break;
+	}
+
+	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
+				  (((u16)mc_addr[5]) << bit_shift)));
+
+	return hash_value;
+}
+
+/**
+ *  igc_update_mc_addr_list - Update Multicast addresses
+ *  @hw: pointer to the HW structure
+ *  @mc_addr_list: array of multicast addresses to program
+ *  @mc_addr_count: number of multicast addresses to program
+ *
+ *  Updates entire Multicast Table Array.
+ *  The caller must have a packed mc_addr_list of multicast addresses.
+ **/
+void igc_update_mc_addr_list(struct igc_hw *hw,
+			     u8 *mc_addr_list, u32 mc_addr_count)
+{
+	u32 hash_value, hash_bit, hash_reg;
+	int i;
+
+	/* clear mta_shadow */
+	memset(&hw->mac.mta_shadow, 0, sizeof(hw->mac.mta_shadow));
+
+	/* update mta_shadow from mc_addr_list */
+	for (i = 0; (u32)i < mc_addr_count; i++) {
+		hash_value = igc_hash_mc_addr(hw, mc_addr_list);
+
+		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
+		hash_bit = hash_value & 0x1F;
+
+		hw->mac.mta_shadow[hash_reg] |= BIT(hash_bit);
+		mc_addr_list += ETH_ALEN;
+	}
+
+	/* replace the entire MTA table */
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
+		array_wr32(IGC_MTA, i, hw->mac.mta_shadow[i]);
+	wrfl();
 }

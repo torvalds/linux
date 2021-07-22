@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Intel HID event & 5 button array driver
  *
  *  Copyright (C) 2015 Alex Hung <alex.hung@canonical.com>
  *  Copyright (C) 2015 Andrew Lutomirski <luto@kernel.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/acpi.h>
@@ -25,13 +15,19 @@
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 
+/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+#define TABLET_MODE_FLAG BIT(6)
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 
 static const struct acpi_device_id intel_hid_ids[] = {
 	{"INT33D5", 0},
+	{"INTC1051", 0},
+	{"INTC1054", 0},
 	{"", 0},
 };
+MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
 
 /* In theory, these are HID usages. */
 static const struct key_entry intel_hid_keymap[] = {
@@ -87,12 +83,43 @@ static const struct dmi_system_id button_array_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 16"),
 		},
 	},
+	{
+		.ident = "HP Spectre x2 (2015)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x2 Detachable"),
+		},
+	},
+	{
+		.ident = "Lenovo ThinkPad X1 Tablet Gen 2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Tablet Gen 2"),
+		},
+	},
+	{ }
+};
+
+/*
+ * Some convertible use the intel-hid ACPI interface to report SW_TABLET_MODE,
+ * these need to be compared via a DMI based authorization list because some
+ * models have unreliable VGBS return which could cause incorrect
+ * SW_TABLET_MODE report.
+ */
+static const struct dmi_system_id dmi_vgbs_allow_list[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x360 Convertible 15-df0xxx"),
+		},
+	},
 	{ }
 };
 
 struct intel_hid_priv {
 	struct input_dev *input_dev;
 	struct input_dev *array;
+	struct input_dev *switches;
 	bool wakeup_mode;
 };
 
@@ -142,7 +169,7 @@ static bool intel_hid_execute_method(acpi_handle handle,
 
 	method_name = (char *)intel_hid_dsm_fn_to_method[fn_index];
 
-	if (!(intel_hid_dsm_fn_mask & fn_index))
+	if (!(intel_hid_dsm_fn_mask & BIT(fn_index)))
 		goto skip_dsm_exec;
 
 	/* All methods expects a package with one integer element */
@@ -215,7 +242,19 @@ static void intel_hid_init_dsm(acpi_handle handle)
 	obj = acpi_evaluate_dsm_typed(handle, &intel_dsm_guid, 1, 0, NULL,
 				      ACPI_TYPE_BUFFER);
 	if (obj) {
-		intel_hid_dsm_fn_mask = *obj->buffer.pointer;
+		switch (obj->buffer.length) {
+		default:
+		case 2:
+			intel_hid_dsm_fn_mask = *(u16 *)obj->buffer.pointer;
+			break;
+		case 1:
+			intel_hid_dsm_fn_mask = *obj->buffer.pointer;
+			break;
+		case 0:
+			acpi_handle_warn(handle, "intel_hid_dsm_fn_mask length is zero\n");
+			intel_hid_dsm_fn_mask = 0;
+			break;
+		}
 		ACPI_FREE(obj);
 	}
 
@@ -263,35 +302,45 @@ static void intel_button_array_enable(struct device *device, bool enable)
 
 static int intel_hid_pm_prepare(struct device *device)
 {
+	if (device_may_wakeup(device)) {
+		struct intel_hid_priv *priv = dev_get_drvdata(device);
+
+		priv->wakeup_mode = true;
+	}
+	return 0;
+}
+
+static void intel_hid_pm_complete(struct device *device)
+{
 	struct intel_hid_priv *priv = dev_get_drvdata(device);
 
-	priv->wakeup_mode = true;
-	return 0;
+	priv->wakeup_mode = false;
 }
 
 static int intel_hid_pl_suspend_handler(struct device *device)
 {
-	if (pm_suspend_via_firmware()) {
+	intel_button_array_enable(device, false);
+
+	if (!pm_suspend_no_platform())
 		intel_hid_set_enable(device, false);
-		intel_button_array_enable(device, false);
-	}
+
 	return 0;
 }
 
 static int intel_hid_pl_resume_handler(struct device *device)
 {
-	struct intel_hid_priv *priv = dev_get_drvdata(device);
+	intel_hid_pm_complete(device);
 
-	priv->wakeup_mode = false;
-	if (pm_resume_via_firmware()) {
+	if (!pm_suspend_no_platform())
 		intel_hid_set_enable(device, true);
-		intel_button_array_enable(device, true);
-	}
+
+	intel_button_array_enable(device, true);
 	return 0;
 }
 
 static const struct dev_pm_ops intel_hid_pl_pm_ops = {
 	.prepare = intel_hid_pm_prepare,
+	.complete = intel_hid_pm_complete,
 	.freeze  = intel_hid_pl_suspend_handler,
 	.thaw  = intel_hid_pl_resume_handler,
 	.restore  = intel_hid_pl_resume_handler,
@@ -338,11 +387,90 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	return input_register_device(priv->array);
 }
 
+static int intel_hid_switches_setup(struct platform_device *device)
+{
+	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
+
+	/* Setup input device for switches */
+	priv->switches = devm_input_allocate_device(&device->dev);
+	if (!priv->switches)
+		return -ENOMEM;
+
+	__set_bit(EV_SW, priv->switches->evbit);
+	__set_bit(SW_TABLET_MODE, priv->switches->swbit);
+
+	priv->switches->name = "Intel HID switches";
+	priv->switches->id.bustype = BUS_HOST;
+	return input_register_device(priv->switches);
+}
+
+static void report_tablet_mode_state(struct platform_device *device)
+{
+	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long vgbs;
+	int m;
+
+	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_VGBS_FN, &vgbs))
+		return;
+
+	m = !(vgbs & TABLET_MODE_FLAG);
+	input_report_switch(priv->switches, SW_TABLET_MODE, m);
+	input_sync(priv->switches);
+}
+
+static bool report_tablet_mode_event(struct input_dev *input_dev, u32 event)
+{
+	if (!input_dev)
+		return false;
+
+	switch (event) {
+	case 0xcc:
+		input_report_switch(input_dev, SW_TABLET_MODE, 1);
+		input_sync(input_dev);
+		return true;
+	case 0xcd:
+		input_report_switch(input_dev, SW_TABLET_MODE, 0);
+		input_sync(input_dev);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void notify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned long long ev_index;
+	int err;
+
+	/*
+	 * Some convertible have unreliable VGBS return which could cause incorrect
+	 * SW_TABLET_MODE report, in these cases we enable support when receiving
+	 * the first event instead of during driver setup.
+	 *
+	 * Some 360 degree hinges (yoga) style 2-in-1 devices use 2 accelerometers
+	 * to allow the OS to determine the angle between the display and the base
+	 * of the device. On Windows these are read by a special HingeAngleService
+	 * process which calls an ACPI DSM (Device Specific Method) on the
+	 * ACPI KIOX010A device node for the sensor in the display, to let the
+	 * firmware know if the 2-in-1 is in tablet- or laptop-mode so that it can
+	 * disable the kbd and touchpad to avoid spurious input in tablet-mode.
+	 *
+	 * The linux kxcjk1013 driver calls the DSM for this once at probe time
+	 * to ensure that the builtin kbd and touchpad work. On some devices this
+	 * causes a "spurious" 0xcd event on the intel-hid ACPI dev. In this case
+	 * there is not a functional tablet-mode switch, so we should not register
+	 * the tablet-mode switch device.
+	 */
+	if (!priv->switches && (event == 0xcc || event == 0xcd) &&
+	    !acpi_dev_present("KIOX010A", NULL, -1)) {
+		dev_info(&device->dev, "switch event received, enable switches supports\n");
+		err = intel_hid_switches_setup(device);
+		if (err)
+			pr_err("Failed to setup Intel HID switches\n");
+	}
 
 	if (priv->wakeup_mode) {
 		/*
@@ -353,6 +481,18 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		 */
 		if (event == 0xce)
 			goto wakeup;
+
+		/*
+		 * Some devices send (duplicate) tablet-mode events when moved
+		 * around even though the mode has not changed; and they do this
+		 * even when suspended.
+		 * Update the switch state in case it changed and then return
+		 * without waking up to avoid spurious wakeups.
+		 */
+		if (event == 0xcc || event == 0xcd) {
+			report_tablet_mode_event(priv->switches, event);
+			return;
+		}
 
 		/* Wake up on 5-button array events only. */
 		if (event == 0xc0 || !priv->array)
@@ -365,6 +505,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 wakeup:
 		pm_wakeup_hard_event(&device->dev);
+
 		return;
 	}
 
@@ -373,7 +514,7 @@ wakeup:
 	 * the 5-button array, but still send notifies with power button
 	 * event code to this device object on power button actions.
 	 *
-	 * Report the power button press; catch and ignore the button release.
+	 * Report the power button press and release.
 	 */
 	if (!priv->array) {
 		if (event == 0xce) {
@@ -382,9 +523,15 @@ wakeup:
 			return;
 		}
 
-		if (event == 0xcf)
+		if (event == 0xcf) {
+			input_report_key(priv->input_dev, KEY_POWER, 0);
+			input_sync(priv->input_dev);
 			return;
+		}
 	}
+
+	if (report_tablet_mode_event(priv->switches, event))
+		return;
 
 	/* 0xC0 is for HID events, other values are for 5 button array */
 	if (event != 0xc0) {
@@ -473,6 +620,16 @@ static int intel_hid_probe(struct platform_device *device)
 			pr_err("Failed to setup Intel 5 button array hotkeys\n");
 	}
 
+	/* Setup switches for devices that we know VGBS return correctly */
+	if (dmi_check_system(dmi_vgbs_allow_list)) {
+		dev_info(&device->dev, "platform supports switches\n");
+		err = intel_hid_switches_setup(device);
+		if (err)
+			pr_err("Failed to setup Intel HID switches\n");
+		else
+			report_tablet_mode_state(device);
+	}
+
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
 					     notify_handler,
@@ -498,6 +655,12 @@ static int intel_hid_probe(struct platform_device *device)
 	}
 
 	device_init_wakeup(&device->dev, true);
+	/*
+	 * In order for system wakeup to work, the EC GPE has to be marked as
+	 * a wakeup one, so do that here (this setting will persist, but it has
+	 * no effect until the wakeup mask is set for the EC GPE).
+	 */
+	acpi_ec_mark_gpe_for_wake();
 	return 0;
 
 err_remove_notify:
@@ -531,7 +694,6 @@ static struct platform_driver intel_hid_pl_driver = {
 	.probe = intel_hid_probe,
 	.remove = intel_hid_remove,
 };
-MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
 
 /*
  * Unfortunately, some laptops provide a _HID="INT33D5" device with
@@ -554,7 +716,7 @@ check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 
 	if (acpi_match_device_ids(dev, ids) == 0)
-		if (acpi_create_platform_device(dev, NULL))
+		if (!IS_ERR_OR_NULL(acpi_create_platform_device(dev, NULL)))
 			dev_info(&dev->dev,
 				 "intel-hid: created platform device\n");
 

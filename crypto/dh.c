@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Diffie-Hellman Key Agreement Method [RFC2631]
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
+#include <linux/fips.h>
 #include <linux/mpi.h>
 
 struct dh_ctx {
@@ -183,6 +180,43 @@ static int dh_compute_value(struct kpp_request *req)
 	if (ret)
 		goto err_free_base;
 
+	if (fips_enabled) {
+		/* SP800-56A rev3 5.7.1.1 check: Validation of shared secret */
+		if (req->src) {
+			MPI pone;
+
+			/* z <= 1 */
+			if (mpi_cmp_ui(val, 1) < 1) {
+				ret = -EBADMSG;
+				goto err_free_base;
+			}
+
+			/* z == p - 1 */
+			pone = mpi_alloc(0);
+
+			if (!pone) {
+				ret = -ENOMEM;
+				goto err_free_base;
+			}
+
+			ret = mpi_sub_ui(pone, ctx->p, 1);
+			if (!ret && !mpi_cmp(pone, val))
+				ret = -EBADMSG;
+
+			mpi_free(pone);
+
+			if (ret)
+				goto err_free_base;
+
+		/* SP800-56A rev 3 5.6.2.1.3 key check */
+		} else {
+			if (dh_is_pubkey_valid(ctx, val)) {
+				ret = -EAGAIN;
+				goto err_free_val;
+			}
+		}
+	}
+
 	ret = mpi_write_to_sgl(val, req->dst, req->dst_len, &sign);
 	if (ret)
 		goto err_free_base;
@@ -236,7 +270,7 @@ static void dh_exit(void)
 	crypto_unregister_kpp(&dh);
 }
 
-module_init(dh_init);
+subsys_initcall(dh_init);
 module_exit(dh_exit);
 MODULE_ALIAS_CRYPTO("dh");
 MODULE_LICENSE("GPL");

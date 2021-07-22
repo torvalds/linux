@@ -77,7 +77,7 @@ struct mthca_cq_context {
 	__be32 ci_db;		/* Arbel only */
 	__be32 state_db;	/* Arbel only */
 	u32    reserved;
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_CQ_STATUS_OK          ( 0 << 28)
 #define MTHCA_CQ_STATUS_OVERFLOW    ( 9 << 28)
@@ -211,11 +211,6 @@ static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
 		mthca_write64(MTHCA_TAVOR_CQ_DB_INC_CI | cq->cqn, incr - 1,
 			      dev->kar + MTHCA_CQ_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
-		/*
-		 * Make sure doorbells don't leak out of CQ spinlock
-		 * and reach the HCA out of order:
-		 */
-		mmiowb();
 	}
 }
 
@@ -609,7 +604,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
 		default:
-			entry->opcode    = MTHCA_OPCODE_INVALID;
+			entry->opcode = 0xFF;
 			break;
 		}
 	} else {
@@ -808,8 +803,10 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	}
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
-	if (IS_ERR(mailbox))
+	if (IS_ERR(mailbox)) {
+		err = PTR_ERR(mailbox);
 		goto err_out_arm;
+	}
 
 	cq_context = mailbox->buf;
 
@@ -851,9 +848,9 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	}
 
 	spin_lock_irq(&dev->cq_table.lock);
-	if (mthca_array_set(&dev->cq_table.cq,
-			    cq->cqn & (dev->limits.num_cqs - 1),
-			    cq)) {
+	err = mthca_array_set(&dev->cq_table.cq,
+			      cq->cqn & (dev->limits.num_cqs - 1), cq);
+	if (err) {
 		spin_unlock_irq(&dev->cq_table.lock);
 		goto err_out_free_mr;
 	}

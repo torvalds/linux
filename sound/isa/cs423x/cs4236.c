@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for generic CS4232/CS4235/CS4236/CS4236B/CS4237B/CS4238B/CS4239 chips
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -33,40 +18,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic CS4232-9");
-MODULE_SUPPORTED_DEVICE("{{Turtle Beach,TBS-2000},"
-		"{Turtle Beach,Tropez Plus},"
-		"{SIC CrystalWave 32},"
-		"{Hewlett Packard,Omnibook 5500},"
-		"{TerraTec,Maestro 32/96},"
-		"{Philips,PCA70PS}},"
-		"{{Crystal Semiconductors,CS4235},"
-		"{Crystal Semiconductors,CS4236},"
-		"{Crystal Semiconductors,CS4237},"
-		"{Crystal Semiconductors,CS4238},"
-		"{Crystal Semiconductors,CS4239},"
-		"{Acer,AW37},"
-		"{Acer,AW35/Pro},"
-		"{Crystal,3D},"
-		"{Crystal Computer,TidalWave128},"
-		"{Dell,Optiplex GX1},"
-		"{Dell,Workstation 400 sound},"
-		"{EliteGroup,P5TX-LA sound},"
-		"{Gallant,SC-70P},"
-		"{Gateway,E1000 Onboard CS4236B},"
-		"{Genius,Sound Maker 3DJ},"
-		"{Hewlett Packard,HP6330 sound},"
-		"{IBM,PC 300PL sound},"
-		"{IBM,Aptiva 2137 E24},"
-		"{IBM,IntelliStation M Pro},"
-		"{Intel,Marlin Spike Mobo CS4235},"
-		"{Intel PR440FX Onboard},"
-		"{Guillemot,MaxiSound 16 PnP},"
-		"{NewClear,3D},"
-		"{TerraTec,AudioSystem EWS64L/XL},"
-		"{Typhoon Soundsystem,CS4236B},"
-		"{Turtle Beach,Malibu},"
-		"{Unknown,Digital PC 5000 Onboard}}");
-
 MODULE_ALIAS("snd_cs4232");
 
 #define IDENT "CS4232+"
@@ -293,7 +244,8 @@ static int snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
 	} else {
 		mpu_port[dev] = pnp_port_start(pdev, 0);
 		if (mpu_irq[dev] >= 0 &&
-		    pnp_irq_valid(pdev, 0) && pnp_irq(pdev, 0) >= 0) {
+		    pnp_irq_valid(pdev, 0) &&
+		    pnp_irq(pdev, 0) != (resource_size_t)-1) {
 			mpu_irq[dev] = pnp_irq(pdev, 0);
 		} else {
 			mpu_irq[dev] = -1;	/* disable interrupt */
@@ -387,11 +339,13 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	int err;
 
 	acard = card->private_data;
-	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT)
-		if ((acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB")) == NULL) {
+	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT) {
+		acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB");
+		if (!acard->res_sb_port) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
 			return -EBUSY;
 		}
+	}
 
 	err = snd_cs4236_create(card, port[dev], cport[dev],
 			     irq[dev],
@@ -419,8 +373,8 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	}
-	strlcpy(card->driver, chip->pcm->name, sizeof(card->driver));
-	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
+	strscpy(card->driver, chip->pcm->name, sizeof(card->driver));
+	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 	if (dma2[dev] < 0)
 		snprintf(card->longname, sizeof(card->longname),
 			 "%s at 0x%lx, irq %i, dma %i",
@@ -441,7 +395,8 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 				    OPL3_HW_OPL3_CS, 0, &opl3) < 0) {
 			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
 		} else {
-			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (err < 0)
 				return err;
 		}
 	}
@@ -492,7 +447,8 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	err = snd_cs423x_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -501,11 +457,10 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int snd_cs423x_isa_remove(struct device *pdev,
+static void snd_cs423x_isa_remove(struct device *pdev,
 				 unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -587,7 +542,8 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -641,13 +597,15 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	res = snd_cs423x_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
-	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
+	res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid);
+	if (res < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
 		       " is not supported\n");
 		snd_card_free(card);
 		return res;
 	}
-	if ((res = snd_cs423x_probe(card, dev)) < 0) {
+	res = snd_cs423x_probe(card, dev);
+	if (res < 0) {
 		snd_card_free(card);
 		return res;
 	}

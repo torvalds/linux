@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file contains the major functions in WLAN
  * driver. It includes init, exit, open, close and main
@@ -720,7 +721,7 @@ EXPORT_SYMBOL_GPL(lbs_resume);
  * lbs_cmd_timeout_handler - handles the timeout of command sending.
  * It will re-send the same command again.
  *
- * @data: &struct lbs_private pointer
+ * @t: Context from which to retrieve a &struct lbs_private pointer
  */
 static void lbs_cmd_timeout_handler(struct timer_list *t)
 {
@@ -754,7 +755,7 @@ out:
  * to the hardware. This is known to frequently happen with SD8686 when
  * waking up after a Wake-on-WLAN-triggered resume.
  *
- * @data: &struct lbs_private pointer
+ * @t: Context from which to retrieve a &struct lbs_private pointer
  */
 static void lbs_tx_lockup_handler(struct timer_list *t)
 {
@@ -776,7 +777,7 @@ static void lbs_tx_lockup_handler(struct timer_list *t)
 /**
  * auto_deepsleep_timer_fn - put the device back to deep sleep mode when
  * timer expires and no activity (command, event, data etc.) is detected.
- * @data:	&struct lbs_private pointer
+ * @t: Context from which to retrieve a &struct lbs_private pointer
  * returns:	N/A
  */
 static void auto_deepsleep_timer_fn(struct timer_list *t)
@@ -940,7 +941,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	wdev->netdev = dev;
 	priv->dev = dev;
 
- 	dev->netdev_ops = &lbs_netdev_ops;
+	dev->netdev_ops = &lbs_netdev_ops;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->ethtool_ops = &lbs_ethtool_ops;
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
@@ -1045,7 +1046,7 @@ int lbs_rtap_supported(struct lbs_private *priv)
 int lbs_start_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
-	int ret = -1;
+	int ret;
 
 	/* poke the firmware */
 	ret = lbs_setup_firmware(priv);

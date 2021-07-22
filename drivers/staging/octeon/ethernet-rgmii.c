@@ -12,18 +12,10 @@
 #include <linux/ratelimit.h>
 #include <net/dst.h>
 
-#include <asm/octeon/octeon.h>
-
-#include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-defines.h"
 #include "ethernet-util.h"
 #include "ethernet-mdio.h"
-
-#include <asm/octeon/cvmx-helper.h>
-
-#include <asm/octeon/cvmx-ipd-defs.h>
-#include <asm/octeon/cvmx-npi-defs.h>
-#include <asm/octeon/cvmx-gmxx-defs.h>
 
 static DEFINE_SPINLOCK(global_register_lock);
 
@@ -61,7 +53,7 @@ static void cvm_oct_set_hw_preamble(struct octeon_ethernet *priv, bool enable)
 static void cvm_oct_check_preamble_errors(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	cvmx_helper_link_info_t link_info;
+	union cvmx_helper_link_info link_info;
 	unsigned long flags;
 
 	link_info.u64 = priv->link_info;
@@ -111,7 +103,7 @@ static void cvm_oct_check_preamble_errors(struct net_device *dev)
 static void cvm_oct_rgmii_poll(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	cvmx_helper_link_info_t link_info;
+	union cvmx_helper_link_info link_info;
 	bool status_change;
 
 	link_info = cvmx_helper_link_get(priv->port);

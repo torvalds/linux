@@ -1,13 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 
 #include "drm.h"
@@ -19,7 +17,6 @@ struct gr2d_soc {
 };
 
 struct gr2d {
-	struct iommu_group *group;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct clk *clk;
@@ -37,12 +34,12 @@ static inline struct gr2d *to_gr2d(struct tegra_drm_client *client)
 static int gr2d_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
 
-	gr2d->channel = host1x_channel_request(client->dev);
+	gr2d->channel = host1x_channel_request(client);
 	if (!gr2d->channel)
 		return -ENOMEM;
 
@@ -53,9 +50,8 @@ static int gr2d_init(struct host1x_client *client)
 		goto put;
 	}
 
-	gr2d->group = host1x_client_iommu_attach(client, false);
-	if (IS_ERR(gr2d->group)) {
-		err = PTR_ERR(gr2d->group);
+	err = host1x_client_iommu_attach(client);
+	if (err < 0) {
 		dev_err(client->dev, "failed to attach to domain: %d\n", err);
 		goto free;
 	}
@@ -69,9 +65,9 @@ static int gr2d_init(struct host1x_client *client)
 	return 0;
 
 detach:
-	host1x_client_iommu_detach(client, gr2d->group);
+	host1x_client_iommu_detach(client);
 free:
-	host1x_syncpt_free(client->syncpts[0]);
+	host1x_syncpt_put(client->syncpts[0]);
 put:
 	host1x_channel_put(gr2d->channel);
 	return err;
@@ -80,7 +76,7 @@ put:
 static int gr2d_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
@@ -89,8 +85,8 @@ static int gr2d_exit(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
-	host1x_client_iommu_detach(client, gr2d->group);
-	host1x_syncpt_free(client->syncpts[0]);
+	host1x_client_iommu_detach(client);
+	host1x_syncpt_put(client->syncpts[0]);
 	host1x_channel_put(gr2d->channel);
 
 	return 0;
@@ -165,9 +161,14 @@ static const struct gr2d_soc tegra30_gr2d_soc = {
 	.version = 0x30,
 };
 
+static const struct gr2d_soc tegra114_gr2d_soc = {
+	.version = 0x35,
+};
+
 static const struct of_device_id gr2d_match[] = {
-	{ .compatible = "nvidia,tegra30-gr2d", .data = &tegra20_gr2d_soc },
-	{ .compatible = "nvidia,tegra20-gr2d", .data = &tegra30_gr2d_soc },
+	{ .compatible = "nvidia,tegra114-gr2d", .data = &tegra114_gr2d_soc },
+	{ .compatible = "nvidia,tegra30-gr2d", .data = &tegra30_gr2d_soc },
+	{ .compatible = "nvidia,tegra20-gr2d", .data = &tegra20_gr2d_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, gr2d_match);
@@ -181,6 +182,7 @@ static const u32 gr2d_addr_regs[] = {
 	GR2D_DSTC_BASE_ADDR,
 	GR2D_SRCA_BASE_ADDR,
 	GR2D_SRCB_BASE_ADDR,
+	GR2D_PATBASE_ADDR,
 	GR2D_SRC_BASE_ADDR_SB,
 	GR2D_DSTA_BASE_ADDR_SB,
 	GR2D_DSTB_BASE_ADDR_SB,

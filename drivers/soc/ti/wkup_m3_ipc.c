@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMx3 Wkup M3 IPC driver
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
  * Dave Gerlach <d-gerlach@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -57,6 +49,7 @@
 static struct wkup_m3_ipc *m3_ipc_state;
 
 static const struct wkup_m3_wakeup_src wakeups[] = {
+	{.irq_nr = 16,	.src = "PRCM"},
 	{.irq_nr = 35,	.src = "USB0_PHY"},
 	{.irq_nr = 36,	.src = "USB1_PHY"},
 	{.irq_nr = 40,	.src = "I2C0"},
@@ -225,6 +218,7 @@ static int wkup_m3_is_available(struct wkup_m3_ipc *m3_ipc)
 /* Public functions */
 /**
  * wkup_m3_set_mem_type - Pass wkup_m3 which type of memory is in use
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @mem_type: memory type value read directly from emif
  *
  * wkup_m3 must know what memory type is in use to properly suspend
@@ -237,6 +231,7 @@ static void wkup_m3_set_mem_type(struct wkup_m3_ipc *m3_ipc, int mem_type)
 
 /**
  * wkup_m3_set_resume_address - Pass wkup_m3 resume address
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @addr: Physical address from which resume code should execute
  */
 static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
@@ -246,6 +241,7 @@ static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
 
 /**
  * wkup_m3_request_pm_status - Retrieve wkup_m3 status code after suspend
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns code representing the status of a low power mode transition.
  *	0 - Successful transition
@@ -267,6 +263,7 @@ static int wkup_m3_request_pm_status(struct wkup_m3_ipc *m3_ipc)
 /**
  * wkup_m3_prepare_low_power - Request preparation for transition to
  *			       low power state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @state: A kernel suspend state to enter, either MEM or STANDBY
  *
  * Returns 0 if preparation was successful, otherwise returns error code
@@ -322,6 +319,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 
 /**
  * wkup_m3_finish_low_power - Return m3 to reset state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns 0 if reset was successful, otherwise returns error code
  */
@@ -369,8 +367,7 @@ static const char *wkup_m3_request_wake_src(struct wkup_m3_ipc *m3_ipc)
 
 /**
  * wkup_m3_set_rtc_only - Set the rtc_only flag
- * @wkup_m3_wakeup: struct wkup_m3_wakeup_src * gets assigned the
- *                  wakeup src value
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  */
 static void wkup_m3_set_rtc_only(struct wkup_m3_ipc *m3_ipc)
 {
@@ -426,6 +423,8 @@ static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
 	ret = rproc_boot(m3_ipc->rproc);
 	if (ret)
 		dev_err(dev, "rproc_boot failed\n");
+	else
+		m3_ipc_state = m3_ipc;
 
 	do_exit(0);
 }
@@ -446,10 +445,8 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	m3_ipc->ipc_mem_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(m3_ipc->ipc_mem_base)) {
-		dev_err(dev, "could not ioremap ipc_mem\n");
+	if (IS_ERR(m3_ipc->ipc_mem_base))
 		return PTR_ERR(m3_ipc->ipc_mem_base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
@@ -511,8 +508,6 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(task);
 		goto err_put_rproc;
 	}
-
-	m3_ipc_state = m3_ipc;
 
 	return 0;
 

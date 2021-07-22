@@ -247,4 +247,7 @@ void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 
 bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
 
+struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
+struct ni_ps *ni_get_ps(struct radeon_ps *rps);
+
 #endif

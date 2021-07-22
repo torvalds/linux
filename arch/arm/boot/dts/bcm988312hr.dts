@@ -39,15 +39,11 @@
 	model = "NorthStar Plus SVK (BCM988312HR)";
 	compatible = "brcm,bcm88312", "brcm,nsp";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x80000000>;
 	};
@@ -78,8 +74,8 @@
 	status = "okay";
 };
 
-&nand {
-	nandcs@0 {
+&nand_controller {
+	nand@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;
 		nand-on-flash-bbt;
@@ -188,9 +184,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			label = "port0";
 			reg = <0>;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * slip.c	This module implements the SLIP protocol for kernel-based
  *		devices like TTY.  It interfaces between a raw TTY, and the
@@ -451,12 +452,16 @@ static void slip_transmit(struct work_struct *work)
  */
 static void slip_write_wakeup(struct tty_struct *tty)
 {
-	struct slip *sl = tty->disc_data;
+	struct slip *sl;
 
-	schedule_work(&sl->tx_work);
+	rcu_read_lock();
+	sl = rcu_dereference(tty->disc_data);
+	if (sl)
+		schedule_work(&sl->tx_work);
+	rcu_read_unlock();
 }
 
-static void sl_tx_timeout(struct net_device *dev)
+static void sl_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct slip *sl = netdev_priv(dev);
 
@@ -680,7 +685,7 @@ static void sl_setup(struct net_device *dev)
  */
 
 static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-							char *fp, int count)
+		const char *fp, int count)
 {
 	struct slip *sl = tty->disc_data;
 
@@ -854,6 +859,11 @@ err_free_chan:
 	sl->tty = NULL;
 	tty->disc_data = NULL;
 	clear_bit(SLF_INUSE, &sl->flags);
+	sl_free_netdev(sl->dev);
+	/* do not call free_netdev before rtnl_unlock */
+	rtnl_unlock();
+	free_netdev(sl->dev);
+	return err;
 
 err_exit:
 	rtnl_unlock();
@@ -879,10 +889,11 @@ static void slip_close(struct tty_struct *tty)
 		return;
 
 	spin_lock_bh(&sl->lock);
-	tty->disc_data = NULL;
+	rcu_assign_pointer(tty->disc_data, NULL);
 	sl->tty = NULL;
 	spin_unlock_bh(&sl->lock);
 
+	synchronize_rcu();
 	flush_work(&sl->tx_work);
 
 	/* VSV = very important to remove timers */
@@ -1252,7 +1263,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static struct tty_ldisc_ops sl_ldisc = {
 	.owner 		= THIS_MODULE,
-	.magic 		= TTY_LDISC_MAGIC,
+	.num		= N_SLIP,
 	.name 		= "slip",
 	.open 		= slip_open,
 	.close	 	= slip_close,
@@ -1288,7 +1299,7 @@ static int __init slip_init(void)
 		return -ENOMEM;
 
 	/* Fill in our line protocol discipline, and register it */
-	status = tty_register_ldisc(N_SLIP, &sl_ldisc);
+	status = tty_register_ldisc(&sl_ldisc);
 	if (status != 0) {
 		printk(KERN_ERR "SLIP: can't register line discipline (err = %d)\n", status);
 		kfree(slip_devs);
@@ -1349,9 +1360,7 @@ static void __exit slip_exit(void)
 	kfree(slip_devs);
 	slip_devs = NULL;
 
-	i = tty_unregister_ldisc(N_SLIP);
-	if (i != 0)
-		printk(KERN_ERR "SLIP: can't unregister line discipline (err = %d)\n", i);
+	tty_unregister_ldisc(&sl_ldisc);
 }
 
 module_init(slip_init);

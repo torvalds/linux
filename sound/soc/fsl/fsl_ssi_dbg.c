@@ -78,7 +78,7 @@ void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *dbg, u32 sisr)
 		dbg->stats.tfe0++;
 }
 
-/**
+/*
  * Show the statistics of a flag only if its interrupt is enabled
  *
  * Compilers will optimize it to a no-op if the interrupt is disabled
@@ -90,7 +90,7 @@ void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *dbg, u32 sisr)
 	} while (0)
 
 
-/**
+/*
  * Display the statistics for the current SSI device
  *
  * To avoid confusion, only show those counts that are enabled
@@ -124,37 +124,17 @@ static int fsl_ssi_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int fsl_ssi_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fsl_ssi_stats_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(fsl_ssi_stats);
 
-static const struct file_operations fsl_ssi_stats_ops = {
-	.open = fsl_ssi_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev)
+void fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev)
 {
 	ssi_dbg->dbg_dir = debugfs_create_dir(dev_name(dev), NULL);
-	if (!ssi_dbg->dbg_dir)
-		return -ENOMEM;
 
-	ssi_dbg->dbg_stats = debugfs_create_file("stats", 0444,
-						 ssi_dbg->dbg_dir, ssi_dbg,
-						 &fsl_ssi_stats_ops);
-	if (!ssi_dbg->dbg_stats) {
-		debugfs_remove(ssi_dbg->dbg_dir);
-		return -ENOMEM;
-	}
-
-	return 0;
+	debugfs_create_file("stats", 0444, ssi_dbg->dbg_dir, ssi_dbg,
+			    &fsl_ssi_stats_fops);
 }
 
 void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
 {
-	debugfs_remove(ssi_dbg->dbg_stats);
-	debugfs_remove(ssi_dbg->dbg_dir);
+	debugfs_remove_recursive(ssi_dbg->dbg_dir);
 }

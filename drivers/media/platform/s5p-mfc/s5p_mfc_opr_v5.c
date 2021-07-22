@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/platform/samsung/mfc5/s5p_mfc_opr_v5.c
  *
@@ -6,10 +7,6 @@
  *
  * Kamil Debski, Copyright (c) 2011 Samsung Electronics
  * http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "s5p_mfc_common.h"
@@ -695,9 +692,9 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
 	mfc_write(dev, p->slice_mode, S5P_FIMV_ENC_MSLICE_CTRL);
-	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
+	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) {
 		mfc_write(dev, p->slice_mb, S5P_FIMV_ENC_MSLICE_MB);
-	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) {
 		mfc_write(dev, p->slice_bit, S5P_FIMV_ENC_MSLICE_BIT);
 	} else {
 		mfc_write(dev, 0, S5P_FIMV_ENC_MSLICE_MB);
@@ -714,7 +711,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	reg = mfc_read(dev, S5P_FIMV_ENC_PADDING_CTRL);
 	if (p->pad) {
 		/** enable */
-		reg |= (1 << 31);
+		reg |= (1UL << 31);
 		/** cr value */
 		reg &= ~(0xFF << 16);
 		reg |= (p->pad_cr << 16);
@@ -958,7 +955,7 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 				S5P_FIMV_ENC_RC_FRAME_RATE);
 			shm = s5p_mfc_read_info_v5(ctx, RC_VOP_TIMING);
 			shm &= ~(0xFFFFFFFF);
-			shm |= (1 << 31);
+			shm |= (1UL << 31);
 			shm |= ((p->rc_framerate_num & 0x7FFF) << 16);
 			shm |= (p->rc_framerate_denom & 0xFFFF);
 			s5p_mfc_write_info_v5(ctx, shm, RC_VOP_TIMING);
@@ -1293,7 +1290,7 @@ static int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 	 * First set the output frame buffers
 	 */
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
-		mfc_err("It seems that not all destination buffers were mmaped\nMFC requires that all destination are mmaped before starting processing\n");
+		mfc_err("It seems that not all destination buffers were mmapped\nMFC requires that all destination are mmapped before starting processing\n");
 		return -EAGAIN;
 	}
 	if (list_empty(&ctx->src_queue)) {

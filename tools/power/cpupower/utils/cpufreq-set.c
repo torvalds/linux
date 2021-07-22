@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  */
 
 
@@ -100,13 +99,17 @@ static unsigned long string_to_frequency(const char *str)
 		continue;
 
 	if (str[cp] == '.') {
-		while (power > -1 && isdigit(str[cp+1]))
-			cp++, power--;
+		while (power > -1 && isdigit(str[cp+1])) {
+			cp++;
+			power--;
+		}
 	}
-	if (power >= -1)	/* not enough => pad */
+	if (power >= -1) {		/* not enough => pad */
 		pad = power + 1;
-	else			/* to much => strip */
-		pad = 0, cp += power + 1;
+	} else {			/* too much => strip */
+		pad = 0;
+		cp += power + 1;
+	}
 	/* check bounds */
 	if (cp <= 0 || cp + pad > NORM_FREQ_LEN - 1)
 		return 0;
@@ -306,10 +309,13 @@ int cmd_freq_set(int argc, char **argv)
 				bitmask_setbit(cpus_chosen, cpus->cpu);
 				cpus = cpus->next;
 			}
+			/* Set the last cpu in related cpus list */
+			bitmask_setbit(cpus_chosen, cpus->cpu);
 			cpufreq_put_related_cpus(cpus);
 		}
 	}
 
+	get_cpustate();
 
 	/* loop over CPUs */
 	for (cpu = bitmask_first(cpus_chosen);
@@ -326,6 +332,8 @@ int cmd_freq_set(int argc, char **argv)
 			return ret;
 		}
 	}
+
+	print_offline_cpus();
 
 	return 0;
 }

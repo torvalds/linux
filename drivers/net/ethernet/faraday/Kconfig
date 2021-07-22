@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Faraday device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_FARADAY
 	bool "Faraday devices"
 	default y
 	depends on ARM || NDS32 || COMPILE_TEST
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +22,7 @@ config FTMAC100
 	depends on ARM || NDS32 || COMPILE_TEST
 	depends on !64BIT || BROKEN
 	select MII
-	---help---
+	help
 	  This driver supports the FTMAC100 10/100 Ethernet controller
 	  from Faraday. It is used on Faraday A320, Andes AG101 and some
 	  other ARM/NDS32 SoC's.
@@ -31,7 +32,9 @@ config FTGMAC100
 	depends on ARM || NDS32 || COMPILE_TEST
 	depends on !64BIT || BROKEN
 	select PHYLIB
-	---help---
+	select MDIO_ASPEED if MACH_ASPEED_G6
+	select CRC32
+	help
 	  This driver supports the FTGMAC100 Gigabit Ethernet controller
 	  from Faraday. It is used on Faraday A369, Andes AG102 and some
 	  other ARM/NDS32 SoC's.

@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2005
  *   Portions Copyright (C) Christoph Hellwig, 2001-2002
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
@@ -118,7 +105,7 @@ static DEFINE_SPINLOCK(jfsTxnLock);
 #define TXN_LOCK()		spin_lock(&jfsTxnLock)
 #define TXN_UNLOCK()		spin_unlock(&jfsTxnLock)
 
-#define LAZY_LOCK_INIT()	spin_lock_init(&TxAnchor.LazyLock);
+#define LAZY_LOCK_INIT()	spin_lock_init(&TxAnchor.LazyLock)
 #define LAZY_LOCK(flags)	spin_lock_irqsave(&TxAnchor.LazyLock, flags)
 #define LAZY_UNLOCK(flags) spin_unlock_irqrestore(&TxAnchor.LazyLock, flags)
 
@@ -161,10 +148,10 @@ static struct {
 /*
  * forward references
  */
-static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		struct tlock * tlck, struct commit * cd);
-static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		struct tlock * tlck);
+static void diLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		struct tlock *tlck, struct commit *cd);
+static void dataLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		struct tlock *tlck);
 static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		struct tlock * tlck);
 static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
@@ -172,8 +159,8 @@ static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 		struct tblock * tblk);
 static void txForce(struct tblock * tblk);
-static int txLog(struct jfs_log * log, struct tblock * tblk,
-		struct commit * cd);
+static void txLog(struct jfs_log *log, struct tblock *tblk,
+		struct commit *cd);
 static void txUpdateMap(struct tblock * tblk);
 static void txRelease(struct tblock * tblk);
 static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
@@ -1269,8 +1256,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	 *
 	 * txUpdateMap() resets XAD_NEW in XAD.
 	 */
-	if ((rc = txLog(log, tblk, &cd)))
-		goto TheEnd;
+	txLog(log, tblk, &cd);
 
 	/*
 	 * Ensure that inode isn't reused before
@@ -1378,9 +1364,8 @@ int txCommit(tid_t tid,		/* transaction identifier */
  *
  * RETURN :
  */
-static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
+static void txLog(struct jfs_log *log, struct tblock *tblk, struct commit *cd)
 {
-	int rc = 0;
 	struct inode *ip;
 	lid_t lid;
 	struct tlock *tlck;
@@ -1427,7 +1412,7 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 		}
 	}
 
-	return rc;
+	return;
 }
 
 /*
@@ -1435,10 +1420,9 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
  *
  * function:	log inode tlock and format maplock to update bmap;
  */
-static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		 struct tlock * tlck, struct commit * cd)
+static void diLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		 struct tlock *tlck, struct commit *cd)
 {
-	int rc = 0;
 	struct metapage *mp;
 	pxd_t *pxd;
 	struct pxd_lock *pxdlock;
@@ -1487,7 +1471,7 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * For the LOG_NOREDOINOEXT record, we need
 		 * to pass the IAG number and inode extent
 		 * index (within that IAG) from which the
-		 * the extent being released.  These have been
+		 * extent is being released.  These have been
 		 * passed to us in the iplist[1] and iplist[2].
 		 */
 		lrd->log.noredoinoext.iagnum =
@@ -1540,7 +1524,7 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	}
 #endif				/* _JFS_WIP */
 
-	return rc;
+	return;
 }
 
 /*
@@ -1548,8 +1532,8 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  *
  * function:	log data tlock
  */
-static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-	    struct tlock * tlck)
+static void dataLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+	    struct tlock *tlck)
 {
 	struct metapage *mp;
 	pxd_t *pxd;
@@ -1575,7 +1559,7 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		metapage_homeok(mp);
 		discard_metapage(mp);
 		tlck->mp = NULL;
-		return 0;
+		return;
 	}
 
 	PXDaddress(pxd, mp->index);
@@ -1586,7 +1570,7 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	/* mark page as homeward bound */
 	tlck->flag |= tlckWRITEPAGE;
 
-	return 0;
+	return;
 }
 
 /*
@@ -1928,8 +1912,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	 * header ?
 	 */
 	if (tlck->type & tlckTRUNCATE) {
-		/* This odd declaration suppresses a bogus gcc warning */
-		pxd_t pxd = pxd;	/* truncated extent of xad */
+		pxd_t pxd;	/* truncated extent of xad */
 		int twm;
 
 		/*

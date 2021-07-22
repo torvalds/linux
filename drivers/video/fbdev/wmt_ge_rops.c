@@ -1,24 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/video/wmt_ge_rops.c
  *
  *  Accelerators for raster operations using WonderMedia Graphics Engine
  *
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include "core/fb_draw.h"
+#include "wmt_ge_rops.h"
 
 #define GE_COMMAND_OFF		0x00
 #define GE_DEPTH_OFF		0x04

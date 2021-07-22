@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AXP20x pinctrl and GPIO driver
  *
  * Copyright (C) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  * Copyright (C) 2017 Quentin Schulz <quentin.schulz@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under  the terms of the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/bitops.h>
@@ -153,13 +149,16 @@ static int axp20x_gpio_get_direction(struct gpio_chip *chip,
 	 * going to change the value soon anyway. Default to output.
 	 */
 	if ((val & AXP20X_GPIO_FUNCTIONS) > 2)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	/*
 	 * The GPIO directions are the three lowest values.
 	 * 2 is input, 0 and 1 are output
 	 */
-	return val & 2;
+	if (val & 2)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int axp20x_gpio_output(struct gpio_chip *chip, unsigned int offset,
@@ -366,6 +365,8 @@ static int axp20x_build_funcs_groups(struct platform_device *pdev)
 		pctl->funcs[i].groups = devm_kcalloc(&pdev->dev,
 						     npins, sizeof(char *),
 						     GFP_KERNEL);
+		if (!pctl->funcs[i].groups)
+			return -ENOMEM;
 		for (pin = 0; pin < npins; pin++)
 			pctl->funcs[i].groups[pin] = pctl->desc->pins[pin].name;
 	}

@@ -30,6 +30,12 @@ Bind to IPv6. Default is both.
 .PP
 
 .HP
+\fB\-e\fR, \fB\-\-device\fR
+.IP
+Run in device mode. Rather than drive an attached device, create a virtual UDC to bind gadgets to.
+.PP
+
+.HP
 \fB\-D\fR, \fB\-\-daemon\fR
 .IP
 Run as a daemon process.
@@ -73,7 +79,7 @@ USB/IP client can connect and use exported devices.
 
 .SH EXAMPLES
 
-    server:# modprobe usbip
+    server:# modprobe usbip-host
 
     server:# usbipd -D
         - Start usbip daemon.
@@ -85,6 +91,26 @@ USB/IP client can connect and use exported devices.
         - Bind usbip-host.ko to the device of busid 1-2.
         - A usb device 1-2 is now exportable to other hosts!
         - Use 'usbip unbind --busid=1-2' when you want to shutdown exporting and use the device locally.
+
+The following example shows the usage of device mode
+
+    server:# modprobe usbip-vudc
+        - Use /sys/class/udc/ interface.
+        - usbip-host is independent of this module.
+
+    server:# usbipd -e -D
+        - Start usbip daemon in device mode.
+
+    server:# modprobe g_mass_storage file=/tmp/tmp.img
+        - Bind a gadget to usbip-vudc.
+        - in this example, a mass storage gadget is bound.
+
+    server:# usbip list --device
+        - List gadgets exported by local usbipd server.
+
+    server:# modprobe -r g_mass_storage
+        - Unbind a gadget from usbip-vudc.
+        - in this example, the previous mass storage gadget is unbound.
 
 .SH "SEE ALSO"
 \fBusbip\fP\fB(8)\fB\fP

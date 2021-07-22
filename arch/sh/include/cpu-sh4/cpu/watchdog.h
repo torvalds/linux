@@ -1,13 +1,10 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * include/asm-sh/cpu-sh4/watchdog.h
  *
  * Copyright (C) 2002, 2003 Paul Mundt
  * Copyright (C) 2009 Siemens AG
  * Copyright (C) 2009 Sitdikov Valentin
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #ifndef __ASM_CPU_SH4_WATCHDOG_H
 #define __ASM_CPU_SH4_WATCHDOG_H

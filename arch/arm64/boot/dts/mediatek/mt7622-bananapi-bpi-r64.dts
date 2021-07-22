@@ -16,8 +16,13 @@
 	model = "Bananapi BPI-R64";
 	compatible = "bananapi,bpi-r64", "mediatek,mt7622";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200n1 swiotlb=512";
+		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x11002000 swiotlb=512";
 	};
 
 	cpus {
@@ -110,24 +115,84 @@
 };
 
 &eth {
-	pinctrl-names = "default";
-	pinctrl-0 = <&eth_pins>;
 	status = "okay";
+	gmac0: mac@0 {
+		compatible = "mediatek,eth-mac";
+		reg = <0>;
+		phy-mode = "2500base-x";
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+			pause;
+		};
+	};
 
 	gmac1: mac@1 {
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
-		phy-handle = <&phy5>;
+		phy-mode = "rgmii";
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+			pause;
+		};
 	};
 
-	mdio-bus {
+	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy5: ethernet-phy@5 {
-			reg = <5>;
-			phy-mode = "sgmii";
+		switch@0 {
+			compatible = "mediatek,mt7531";
+			reg = <0>;
+			reset-gpios = <&pio 54 0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "wan";
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "lan0";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "lan1";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "lan2";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "lan3";
+				};
+
+				port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "2500base-x";
+
+					fixed-link {
+						speed = <2500>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
 		};
+
 	};
 };
 
@@ -347,10 +412,15 @@
 		};
 	};
 
-	pwm7_pins: pwm1-2-pins {
+	pwm_pins: pwm-pins {
 		mux {
 			function = "pwm";
-			groups = "pwm_ch7_2";
+			groups = "pwm_ch1_0", /* mt7622_pwm_ch1_0_pins[] = { 51, }; */
+				 "pwm_ch2_0", /* mt7622_pwm_ch2_0_pins[] = { 52, }; */
+				 "pwm_ch3_2", /* mt7622_pwm_ch3_2_pins[] = { 97, }; */
+				 "pwm_ch4_1", /* mt7622_pwm_ch4_1_pins[] = { 67, }; */
+				 "pwm_ch5_0", /* mt7622_pwm_ch5_0_pins[] = { 68, }; */
+				 "pwm_ch6_0"; /* mt7622_pwm_ch6_0_pins[] = { 69, }; */
 		};
 	};
 
@@ -470,7 +540,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm7_pins>;
+	pinctrl-0 = <&pwm_pins>;
 	status = "okay";
 };
 
@@ -498,7 +568,6 @@
 &spi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spic1_pins>;
-	status = "okay";
 };
 
 &ssusb {
@@ -520,11 +589,14 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "okay";
 };
 
 &watchdog {
 	pinctrl-names = "default";
 	pinctrl-0 = <&watchdog_pins>;
+	status = "okay";
+};
+
+&wmac {
 	status = "okay";
 };

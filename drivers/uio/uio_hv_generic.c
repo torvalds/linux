@@ -204,9 +204,11 @@ hv_uio_open(struct uio_info *info, struct inode *inode)
 	if (atomic_inc_return(&pdata->refcnt) != 1)
 		return 0;
 
+	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
+	vmbus_set_sc_create_callback(dev->channel, hv_uio_new_channel);
+
 	ret = vmbus_connect_ring(dev->channel,
 				 hv_uio_channel_cb, dev->channel);
-
 	if (ret == 0)
 		dev->channel->inbound.ring_buffer->interrupt_mask = 1;
 	else
@@ -245,14 +247,14 @@ hv_uio_probe(struct hv_device *dev,
 		return -ENOTSUPP;
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&dev->device, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
 	ret = vmbus_alloc_ring(channel, HV_RING_SIZE * PAGE_SIZE,
 			       HV_RING_SIZE * PAGE_SIZE);
 	if (ret)
-		goto fail;
+		return ret;
 
 	set_channel_read_mode(channel, HV_CALL_ISR);
 
@@ -289,13 +291,15 @@ hv_uio_probe(struct hv_device *dev,
 	pdata->recv_buf = vzalloc(RECV_BUFFER_SIZE);
 	if (pdata->recv_buf == NULL) {
 		ret = -ENOMEM;
-		goto fail_close;
+		goto fail_free_ring;
 	}
 
 	ret = vmbus_establish_gpadl(channel, pdata->recv_buf,
 				    RECV_BUFFER_SIZE, &pdata->recv_gpadl);
-	if (ret)
+	if (ret) {
+		vfree(pdata->recv_buf);
 		goto fail_close;
+	}
 
 	/* put Global Physical Address Label in name */
 	snprintf(pdata->recv_name, sizeof(pdata->recv_name),
@@ -314,8 +318,10 @@ hv_uio_probe(struct hv_device *dev,
 
 	ret = vmbus_establish_gpadl(channel, pdata->send_buf,
 				    SEND_BUFFER_SIZE, &pdata->send_gpadl);
-	if (ret)
+	if (ret) {
+		vfree(pdata->send_buf);
 		goto fail_close;
+	}
 
 	snprintf(pdata->send_name, sizeof(pdata->send_name),
 		 "send:%u", pdata->send_gpadl);
@@ -334,9 +340,6 @@ hv_uio_probe(struct hv_device *dev,
 		goto fail_close;
 	}
 
-	vmbus_set_chn_rescind_callback(channel, hv_uio_rescind);
-	vmbus_set_sc_create_callback(channel, hv_uio_new_channel);
-
 	ret = sysfs_create_bin_file(&channel->kobj, &ring_buffer_bin_attr);
 	if (ret)
 		dev_notice(&dev->device,
@@ -348,8 +351,8 @@ hv_uio_probe(struct hv_device *dev,
 
 fail_close:
 	hv_uio_cleanup(dev, pdata);
-fail:
-	kfree(pdata);
+fail_free_ring:
+	vmbus_free_ring(dev->channel);
 
 	return ret;
 }
@@ -362,12 +365,11 @@ hv_uio_remove(struct hv_device *dev)
 	if (!pdata)
 		return 0;
 
+	sysfs_remove_bin_file(&dev->channel->kobj, &ring_buffer_bin_attr);
 	uio_unregister_device(&pdata->info);
 	hv_uio_cleanup(dev, pdata);
-	hv_set_drvdata(dev, NULL);
 
 	vmbus_free_ring(dev->channel);
-	kfree(pdata);
 	return 0;
 }
 

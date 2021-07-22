@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
  * Authors:
  *	Srinivas Kandagatla <srinivas.kandagatla@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -15,8 +12,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
+#include <linux/of_gpio.h> /* of_get_named_gpio() */
 #include <linux/of_address.h>
+#include <linux/gpio/driver.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -543,7 +541,6 @@ static void st_pinconf_set_retime_packed(struct st_pinctrl *info,
 	st_regmap_field_bit_set_clear_pin(rt_p->delay_0, delay & 0x1, pin);
 	/* 2 bit delay, msb */
 	st_regmap_field_bit_set_clear_pin(rt_p->delay_1, delay & 0x2, pin);
-
 }
 
 static void st_pinconf_set_retime_dedicated(struct st_pinctrl *info,
@@ -748,7 +745,10 @@ static int st_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	function = st_pctl_get_pin_function(&pc, offset);
 	if (function) {
 		st_pinconf_get_direction(&pc, offset, &config);
-		return !ST_PINCONF_UNPACK_OE(config);
+		if (ST_PINCONF_UNPACK_OE(config))
+			return GPIO_LINE_DIRECTION_OUT;
+
+		return GPIO_LINE_DIRECTION_IN;
 	}
 
 	/*
@@ -760,7 +760,10 @@ static int st_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		direction |= ((value >> offset) & 0x1) << i;
 	}
 
-	return (direction == ST_GPIO_DIRECTION_IN);
+	if (direction == ST_GPIO_DIRECTION_IN)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 /* Pinctrl Groups */
@@ -998,6 +1001,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	unsigned int function;
 	int offset = st_gpio_pin(pin_id);
 	char f[16];
+	int oe;
 
 	mutex_unlock(&pctldev->mutex);
 	pc = st_get_pio_control(pctldev, pin_id);
@@ -1010,10 +1014,11 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	else
 		snprintf(f, 5, "GPIO");
 
+	oe = st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset);
 	seq_printf(s, "[OE:%d,PU:%ld,OD:%ld]\t%s\n"
 		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
-		!st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset),
+		(oe == GPIO_LINE_DIRECTION_OUT),
 		ST_PINCONF_UNPACK_PU(config),
 		ST_PINCONF_UNPACK_OD(config),
 		f,
@@ -1170,7 +1175,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	struct property *pp;
 	struct st_pinconf *conf;
 	struct device_node *pins;
-	int i = 0, npins = 0, nr_props;
+	int i = 0, npins = 0, nr_props, ret = 0;
 
 	pins = of_get_child_by_name(np, "st,pins");
 	if (!pins)
@@ -1185,7 +1190,8 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 			npins++;
 		} else {
 			pr_warn("Invalid st,pins in %pOFn node\n", np);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out_put_node;
 		}
 	}
 
@@ -1195,8 +1201,10 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	grp->pin_conf = devm_kcalloc(info->dev,
 					npins, sizeof(*conf), GFP_KERNEL);
 
-	if (!grp->pins || !grp->pin_conf)
-		return -ENOMEM;
+	if (!grp->pins || !grp->pin_conf) {
+		ret = -ENOMEM;
+		goto out_put_node;
+	}
 
 	/* <bank offset mux direction rt_type rt_delay rt_clk> */
 	for_each_property_of_node(pins, pp) {
@@ -1229,9 +1237,11 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		}
 		i++;
 	}
+
+out_put_node:
 	of_node_put(pins);
 
-	return 0;
+	return ret;
 }
 
 static int st_pctl_parse_functions(struct device_node *np,
@@ -1260,8 +1270,10 @@ static int st_pctl_parse_functions(struct device_node *np,
 		grp = &info->groups[*grp_index];
 		*grp_index += 1;
 		ret = st_pctl_dt_parse_groups(child, grp, info, i++);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 	dev_info(info->dev, "Function[%d\t name:%s,\tgroups:%d]\n",
 				index, func->name, func->ngroups);
@@ -1472,7 +1484,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	struct device *dev = info->dev;
 	int bank_num = of_alias_get_id(np, "gpio");
 	struct resource res, irq_res;
-	int gpio_irq = 0, err;
+	int err;
 
 	if (of_address_to_resource(np, 0, &res))
 		return -ENODEV;
@@ -1495,12 +1507,6 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	range->pin_base = range->base = range->id * ST_GPIO_PINS_PER_BANK;
 	range->npins = bank->gpio_chip.ngpio;
 	range->gc = &bank->gpio_chip;
-	err  = gpiochip_add_data(&bank->gpio_chip, bank);
-	if (err) {
-		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_num);
-		return err;
-	}
-	dev_info(dev, "%s bank added.\n", range->name);
 
 	/**
 	 * GPIO bank can have one of the two possible types of
@@ -1522,23 +1528,40 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	 */
 
 	if (of_irq_to_resource(np, 0, &irq_res) > 0) {
-		gpio_irq = irq_res.start;
-		gpiochip_set_chained_irqchip(&bank->gpio_chip, &st_gpio_irqchip,
-					     gpio_irq, st_gpio_irq_handler);
+		struct gpio_irq_chip *girq;
+		int gpio_irq = irq_res.start;
+
+		/* This is not a valid IRQ */
+		if (gpio_irq <= 0) {
+			dev_err(dev, "invalid IRQ for %pOF bank\n", np);
+			goto skip_irq;
+		}
+		/* We need to have a mux as well */
+		if (!info->irqmux_base) {
+			dev_err(dev, "no irqmux for %pOF bank\n", np);
+			goto skip_irq;
+		}
+
+		girq = &bank->gpio_chip.irq;
+		girq->chip = &st_gpio_irqchip;
+		girq->parent_handler = st_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = gpio_irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
 	}
 
-	if (info->irqmux_base || gpio_irq > 0) {
-		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
-					   0, handle_simple_irq,
-					   IRQ_TYPE_NONE);
-		if (err) {
-			gpiochip_remove(&bank->gpio_chip);
-			dev_info(dev, "could not add irqchip\n");
-			return err;
-		}
-	} else {
-		dev_info(dev, "No IRQ support for %pOF bank\n", np);
+skip_irq:
+	err  = gpiochip_add_data(&bank->gpio_chip, bank);
+	if (err) {
+		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_num);
+		return err;
 	}
+	dev_info(dev, "%s bank added.\n", range->name);
 
 	return 0;
 }
@@ -1621,8 +1644,10 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 		if (of_property_read_bool(child, "gpio-controller")) {
 			const char *bank_name = NULL;
 			ret = st_gpiolib_register_bank(info, bank, child);
-			if (ret)
+			if (ret) {
+				of_node_put(child);
 				return ret;
+			}
 
 			k = info->banks[bank].range.pin_base;
 			bank_name = info->banks[bank].range.name;
@@ -1639,6 +1664,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 							i++, &grp_index);
 			if (ret) {
 				dev_err(&pdev->dev, "No functions found.\n");
+				of_node_put(child);
 				return ret;
 			}
 		}

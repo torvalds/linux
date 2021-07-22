@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This implements the various checks for CONFIG_HARDENED_USERCOPY*,
  * which are designed to protect kernel memory from needless exposure
@@ -6,15 +7,11 @@
  *
  * Copyright (C) 2001-2016 PaX Team, Bradley Spengler, Open Source
  * Security Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/mm.h>
+#include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -46,7 +43,7 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 
 	/*
 	 * Reject: object partially overlaps the stack (passing the
-	 * the check above means at least one end is within the stack,
+	 * check above means at least one end is within the stack,
 	 * so if this check fails, the other end is outside the stack).
 	 */
 	if (obj < stack || stackend < obj + len)
@@ -151,7 +148,7 @@ static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
 				       bool to_user)
 {
 	/* Reject if object wraps past end of memory. */
-	if (ptr + n < ptr)
+	if (ptr + (n - 1) < ptr)
 		usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
 
 	/* Reject if NULL or ZERO-allocation. */
@@ -231,7 +228,12 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	if (!virt_addr_valid(ptr))
 		return;
 
-	page = virt_to_head_page(ptr);
+	/*
+	 * When CONFIG_HIGHMEM=y, kmap_to_page() will give either the
+	 * highmem page or fallback to virt_to_page(). The following
+	 * is effectively a highmem-aware virt_to_head_page().
+	 */
+	page = compound_head(kmap_to_page((void *)ptr));
 
 	if (PageSlab(page)) {
 		/* Check slab allocator for flags and size. */
@@ -247,7 +249,8 @@ static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
 /*
  * Validates that the given object is:
  * - not bogus address
- * - known-safe heap or stack object
+ * - fully contained by stack (or stack frame, when available)
+ * - fully within SLAB object (or object whitelist area, when available)
  * - not in kernel text
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
@@ -261,9 +264,6 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 
 	/* Check for invalid addresses. */
 	check_bogus_address((const unsigned long)ptr, n, to_user);
-
-	/* Check for bad heap object. */
-	check_heap_object(ptr, n, to_user);
 
 	/* Check for bad stack object. */
 	switch (check_stack_object(ptr, n)) {
@@ -281,6 +281,9 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 	default:
 		usercopy_abort("process stack", NULL, to_user, 0, n);
 	}
+
+	/* Check for bad heap object. */
+	check_heap_object(ptr, n, to_user);
 
 	/* Check for object in kernel to avoid text exposure. */
 	check_kernel_text_object((const unsigned long)ptr, n, to_user);

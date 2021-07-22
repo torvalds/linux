@@ -70,7 +70,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			clocks = <&infracfg CLK_INFRA_MUX1_SEL>,
 				 <&apmixedsys CLK_APMIXED_MAIN_CORE_EN>;
@@ -84,7 +84,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			clocks = <&infracfg CLK_INFRA_MUX1_SEL>,
 				 <&apmixedsys CLK_APMIXED_MAIN_CORE_EN>;
@@ -170,17 +170,20 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_passive>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 
 				map1 {
 					trip = <&cpu_active>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 
 				map2 {
 					trip = <&cpu_hot>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -227,17 +230,7 @@
 		#reset-cells = <1>;
 	};
 
-	timer: timer@10004000 {
-		compatible = "mediatek,mt7622-timer",
-			     "mediatek,mt6577-timer";
-		reg = <0 0x10004000 0 0x80>;
-		interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&infracfg CLK_INFRA_APXGPT_PD>,
-			 <&topckgen CLK_TOP_RTC>;
-		clock-names = "system-clk", "rtc-clk";
-	};
-
-	scpsys: scpsys@10006000 {
+	scpsys: power-controller@10006000 {
 		compatible = "mediatek,mt7622-scpsys",
 			     "syscon";
 		#power-domain-cells = <1>;
@@ -693,6 +686,8 @@
 		clocks = <&pericfg CLK_PERI_MSDC30_0_PD>,
 			 <&topckgen CLK_TOP_MSDC50_0_SEL>;
 		clock-names = "source", "hclk";
+		resets = <&pericfg MT7622_PERI_MSDC0_SW_RST>;
+		reset-names = "hrst";
 		status = "disabled";
 	};
 
@@ -703,7 +698,20 @@
 		clocks = <&pericfg CLK_PERI_MSDC30_1_PD>,
 			 <&topckgen CLK_TOP_AXI_SEL>;
 		clock-names = "source", "hclk";
+		resets = <&pericfg MT7622_PERI_MSDC1_SW_RST>;
+		reset-names = "hrst";
 		status = "disabled";
+	};
+
+	wmac: wmac@18000000 {
+		compatible = "mediatek,mt7622-wmac";
+		reg = <0 0x18000000 0 0x100000>;
+		interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_LOW>;
+
+		mediatek,infracfg = <&infracfg>;
+		status = "disabled";
+
+		power-domains = <&scpsys MT7622_POWER_DOMAIN_WB>;
 	};
 
 	ssusbsys: ssusbsys@1a000000 {
@@ -734,8 +742,8 @@
 		status = "disabled";
 	};
 
-	u3phy: usb-phy@1a0c4000 {
-		compatible = "mediatek,mt7622-u3phy",
+	u3phy: t-phy@1a0c4000 {
+		compatible = "mediatek,mt7622-tphy",
 			     "mediatek,generic-tphy-v1";
 		reg = <0 0x1a0c4000 0 0x700>;
 		#address-cells = <2>;
@@ -812,7 +820,6 @@
 			ranges;
 			status = "disabled";
 
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
 					<0 0 0 2 &pcie_intc0 1>,
@@ -833,7 +840,6 @@
 			ranges;
 			status = "disabled";
 
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
 					<0 0 0 2 &pcie_intc1 1>,
@@ -871,8 +877,9 @@
 		status = "disabled";
 	};
 
-	sata_phy: sata-phy@1a243000 {
-		compatible = "mediatek,generic-tphy-v1";
+	sata_phy: t-phy@1a243000 {
+		compatible = "mediatek,mt7622-tphy",
+			     "mediatek,generic-tphy-v1";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -938,7 +945,7 @@
 	sgmiisys: sgmiisys@1b128000 {
 		compatible = "mediatek,mt7622-sgmiisys",
 			     "syscon";
-		reg = <0 0x1b128000 0 0x1000>;
+		reg = <0 0x1b128000 0 0x3000>;
 		#clock-cells = <1>;
 	};
 };

@@ -65,6 +65,14 @@ Required properties:
   - afi
   - pcie_x
 
+Optional properties:
+- pinctrl-names: A list of pinctrl state names. Must contain the following
+  entries:
+  - "default": active state, puts PCIe I/O out of deep power down state
+  - "idle": puts PCIe I/O into deep power down state
+- pinctrl-0: phandle for the default/active state of pin configurations.
+- pinctrl-1: phandle for the idle state of pin configurations.
+
 Required properties on Tegra124 and later (deprecated):
 - phys: Must contain an entry for each entry in phy-names.
 - phy-names: Must include the following entries:
@@ -104,28 +112,16 @@ Power supplies for Tegra124:
 - Required:
   - avddio-pex-supply: Power supply for analog PCIe logic. Must supply 1.05 V.
   - dvddio-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
-  - avdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
-    supply 1.05 V.
   - hvdd-pex-supply: High-voltage supply for PCIe I/O and PCIe output clocks.
-    Must supply 3.3 V.
-  - hvdd-pex-pll-e-supply: High-voltage supply for PLLE (shared with USB3).
     Must supply 3.3 V.
   - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
     supply 2.8-3.3 V.
-  - avdd-pll-erefe-supply: Power supply for PLLE (shared with USB3). Must
-    supply 1.05 V.
 
 Power supplies for Tegra210:
 - Required:
-  - avdd-pll-uerefe-supply: Power supply for PLLE (shared with USB3). Must
-    supply 1.05 V.
   - hvddio-pex-supply: High-voltage supply for PCIe I/O and PCIe output
     clocks. Must supply 1.8 V.
   - dvddio-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
-  - dvdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
-    supply 1.05 V.
-  - hvdd-pex-pll-e-supply: High-voltage supply for PLLE (shared with USB3).
-    Must supply 3.3 V.
   - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
     supply 1.8 V.
 

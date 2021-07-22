@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2010 Joonas Lahtinen <joonas.lahtinen@gmail.com>
@@ -20,7 +18,6 @@
 #include "common.h"
 
 struct ralink_soc_info soc_info;
-struct rt2880_pmx_group *rt2880_pinmux_data = NULL;
 
 enum ralink_soc_type ralink_soc;
 EXPORT_SYMBOL_GPL(ralink_soc);
@@ -67,8 +64,4 @@ void __init prom_init(void)
 	pr_info("SoC Type: %s\n", get_system_type());
 
 	prom_init_cmdline();
-}
-
-void __init prom_free_prom_memory(void)
-{
 }

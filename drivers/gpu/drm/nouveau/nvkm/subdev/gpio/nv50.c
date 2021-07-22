@@ -126,7 +126,8 @@ nv50_gpio = {
 };
 
 int
-nv50_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+nv50_gpio_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_gpio **pgpio)
 {
-	return nvkm_gpio_new_(&nv50_gpio, device, index, pgpio);
+	return nvkm_gpio_new_(&nv50_gpio, device, type, inst, pgpio);
 }

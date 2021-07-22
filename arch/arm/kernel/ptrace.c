@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/ptrace.c
  *
  *  By Ross Biro 1/23/92
  * edited by Linus Torvalds
  * ARM modifications Copyright (C) 2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
@@ -28,7 +25,6 @@
 #include <linux/tracehook.h>
 #include <linux/unistd.h>
 
-#include <asm/pgtable.h>
 #include <asm/traps.h>
 
 #define CREATE_TRACE_POINTS
@@ -201,15 +197,15 @@ void ptrace_disable(struct task_struct *child)
 /*
  * Handle hitting a breakpoint.
  */
-void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
+void ptrace_break(struct pt_regs *regs)
 {
 	force_sig_fault(SIGTRAP, TRAP_BRKPT,
-			(void __user *)instruction_pointer(regs), tsk);
+			(void __user *)instruction_pointer(regs));
 }
 
 static int break_trap(struct pt_regs *regs, unsigned int instr)
 {
-	ptrace_break(current, regs);
+	ptrace_break(regs);
 	return 0;
 }
 
@@ -222,8 +218,8 @@ static struct undef_hook arm_break_hook = {
 };
 
 static struct undef_hook thumb_break_hook = {
-	.instr_mask	= 0xffff,
-	.instr_val	= 0xde01,
+	.instr_mask	= 0xffffffff,
+	.instr_val	= 0x0000de01,
 	.cpsr_mask	= PSR_T_BIT,
 	.cpsr_val	= PSR_T_BIT,
 	.fn		= break_trap,
@@ -573,14 +569,9 @@ out:
 
 static int gpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	struct pt_regs *regs = task_pt_regs(target);
-
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   regs,
-				   0, sizeof(*regs));
+	return membuf_write(&to, task_pt_regs(target), sizeof(struct pt_regs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -606,12 +597,10 @@ static int gpr_set(struct task_struct *target,
 
 static int fpa_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &task_thread_info(target)->fpstate,
-				   0, sizeof(struct user_fp));
+	return membuf_write(&to, &task_thread_info(target)->fpstate,
+				 sizeof(struct user_fp));
 }
 
 static int fpa_set(struct task_struct *target,
@@ -646,41 +635,20 @@ static int fpa_set(struct task_struct *target,
  *	vfp_set() ignores this chunk
  *
  * 1 word for the FPSCR
- *
- * The bounds-checking logic built into user_regset_copyout and friends
- * means that we can make a simple sequence of calls to map the relevant data
- * to/from the specified slice of the user regset structure.
  */
 static int vfp_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	int ret;
 	struct thread_info *thread = task_thread_info(target);
 	struct vfp_hard_struct const *vfp = &thread->vfpstate.hard;
-	const size_t user_fpregs_offset = offsetof(struct user_vfp, fpregs);
 	const size_t user_fpscr_offset = offsetof(struct user_vfp, fpscr);
 
 	vfp_sync_hwstate(thread);
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &vfp->fpregs,
-				  user_fpregs_offset,
-				  user_fpregs_offset + sizeof(vfp->fpregs));
-	if (ret)
-		return ret;
-
-	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-				       user_fpregs_offset + sizeof(vfp->fpregs),
-				       user_fpscr_offset);
-	if (ret)
-		return ret;
-
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &vfp->fpscr,
-				   user_fpscr_offset,
-				   user_fpscr_offset + sizeof(vfp->fpscr));
+	membuf_write(&to, vfp->fpregs, sizeof(vfp->fpregs));
+	membuf_zero(&to, user_fpscr_offset - sizeof(vfp->fpregs));
+	return membuf_store(&to, vfp->fpscr);
 }
 
 /*
@@ -743,7 +711,7 @@ static const struct user_regset arm_regsets[] = {
 		.n = ELF_NGREG,
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = gpr_get,
+		.regset_get = gpr_get,
 		.set = gpr_set
 	},
 	[REGSET_FPR] = {
@@ -755,7 +723,7 @@ static const struct user_regset arm_regsets[] = {
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = fpa_get,
+		.regset_get = fpa_get,
 		.set = fpa_set
 	},
 #ifdef CONFIG_VFP
@@ -768,7 +736,7 @@ static const struct user_regset arm_regsets[] = {
 		.n = ARM_VFPREGS_SIZE / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = vfp_get,
+		.regset_get = vfp_get,
 		.set = vfp_set
 	},
 #endif /* CONFIG_VFP */
@@ -926,7 +894,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 
 	/* Do seccomp after ptrace; syscall may have changed. */
 #ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		return -1;
 #else
 	/* XXX: remove this once OABI gets fixed */

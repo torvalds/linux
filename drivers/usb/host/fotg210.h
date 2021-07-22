@@ -184,9 +184,6 @@ struct fotg210_hcd {			/* one per controller */
 
 	/* silicon clock */
 	struct clk		*pclk;
-
-	/* debug files */
-	struct dentry		*debug_dir;
 };
 
 /* convert between an HCD pointer and the corresponding FOTG210_HCD */
@@ -490,7 +487,7 @@ struct fotg210_iso_packet {
 struct fotg210_iso_sched {
 	struct list_head	td_list;
 	unsigned		span;
-	struct fotg210_iso_packet	packet[0];
+	struct fotg210_iso_packet	packet[];
 };
 
 /*

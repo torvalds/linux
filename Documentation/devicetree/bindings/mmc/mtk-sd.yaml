@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/mtk-sd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MTK MSDC Storage Host Controller Binding
+
+maintainers:
+  - Chaotian Jing <chaotian.jing@mediatek.com>
+  - Wenbin Mei <wenbin.mei@mediatek.com>
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - mediatek,mt2701-mmc
+          - mediatek,mt2712-mmc
+          - mediatek,mt6779-mmc
+          - mediatek,mt7620-mmc
+          - mediatek,mt7622-mmc
+          - mediatek,mt8135-mmc
+          - mediatek,mt8173-mmc
+          - mediatek,mt8183-mmc
+          - mediatek,mt8516-mmc
+      - items:
+          - const: mediatek,mt7623-mmc
+          - const: mediatek,mt2701-mmc
+      - items:
+          - const: mediatek,mt8192-mmc
+          - const: mediatek,mt8183-mmc
+      - items:
+          - const: mediatek,mt8195-mmc
+          - const: mediatek,mt8183-mmc
+
+  clocks:
+    description:
+      Should contain phandle for the clock feeding the MMC controller.
+    minItems: 2
+    items:
+      - description: source clock (required).
+      - description: HCLK which used for host (required).
+      - description: independent source clock gate (required for MT2712).
+      - description: bus clock used for internal register access (required for MT2712 MSDC0/3).
+      - description: msdc subsys clock gate (required for MT8192).
+      - description: peripheral bus clock gate (required for MT8192).
+      - description: AXI bus clock gate (required for MT8192).
+      - description: AHB bus clock gate (required for MT8192).
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: source
+      - const: hclk
+      - const: source_cg
+      - const: bus_clk
+      - const: sys_cg
+      - const: pclk_cg
+      - const: axi_cg
+      - const: ahb_cg
+
+  pinctrl-names:
+    items:
+      - const: default
+      - const: state_uhs
+
+  pinctrl-0:
+    description:
+      should contain default/high speed pin ctrl.
+    maxItems: 1
+
+  pinctrl-1:
+    description:
+      should contain uhs mode pin ctrl.
+    maxItems: 1
+
+  assigned-clocks:
+    description:
+      PLL of the source clock.
+    maxItems: 1
+
+  assigned-clock-parents:
+    description:
+      parent of source clock, used for HS400 mode to get 400Mhz source clock.
+    maxItems: 1
+
+  hs400-ds-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      HS400 DS delay setting.
+    minimum: 0
+    maximum: 0xffffffff
+
+  mediatek,hs200-cmd-int-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      HS200 command internal delay setting.
+      This field has total 32 stages.
+      The value is an integer from 0 to 31.
+    minimum: 0
+    maximum: 31
+
+  mediatek,hs400-cmd-int-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      HS400 command internal delay setting.
+      This field has total 32 stages.
+      The value is an integer from 0 to 31.
+    minimum: 0
+    maximum: 31
+
+  mediatek,hs400-cmd-resp-sel-rising:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      HS400 command response sample selection.
+      If present, HS400 command responses are sampled on rising edges.
+      If not present, HS400 command responses are sampled on falling edges.
+
+  mediatek,latch-ck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Some SoCs do not support enhance_rx, need set correct latch-ck to avoid
+      data crc error caused by stop clock(fifo full) Valid range = [0:0x7].
+      if not present, default value is 0.
+      applied to compatible "mediatek,mt2701-mmc".
+    minimum: 0
+    maximum: 7
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: hrst
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - pinctrl-names
+  - pinctrl-0
+  - pinctrl-1
+  - vmmc-supply
+  - vqmmc-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8173-clk.h>
+    mmc0: mmc@11230000 {
+        compatible = "mediatek,mt8173-mmc";
+        reg = <0x11230000 0x1000>;
+        interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_LOW>;
+        vmmc-supply = <&mt6397_vemc_3v3_reg>;
+        vqmmc-supply = <&mt6397_vio18_reg>;
+        clocks = <&pericfg CLK_PERI_MSDC30_0>,
+                 <&topckgen CLK_TOP_MSDC50_0_H_SEL>;
+        clock-names = "source", "hclk";
+        pinctrl-names = "default", "state_uhs";
+        pinctrl-0 = <&mmc0_pins_default>;
+        pinctrl-1 = <&mmc0_pins_uhs>;
+        assigned-clocks = <&topckgen CLK_TOP_MSDC50_0_SEL>;
+        assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
+        hs400-ds-delay = <0x14015>;
+        mediatek,hs200-cmd-int-delay = <26>;
+        mediatek,hs400-cmd-int-delay = <14>;
+        mediatek,hs400-cmd-resp-sel-rising;
+    };
+
+...

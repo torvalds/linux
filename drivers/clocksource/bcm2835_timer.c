@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012 Simon Arlott
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/bitops.h>
@@ -44,7 +31,6 @@ struct bcm2835_timer {
 	void __iomem *compare;
 	int match_mask;
 	struct clock_event_device evt;
-	struct irqaction act;
 };
 
 static void __iomem *system_clock __read_mostly;
@@ -126,15 +112,12 @@ static int __init bcm2835_timer_init(struct device_node *node)
 	timer->evt.features = CLOCK_EVT_FEAT_ONESHOT;
 	timer->evt.set_next_event = bcm2835_time_set_next_event;
 	timer->evt.cpumask = cpumask_of(0);
-	timer->act.name = node->name;
-	timer->act.flags = IRQF_TIMER | IRQF_SHARED;
-	timer->act.dev_id = timer;
-	timer->act.handler = bcm2835_time_interrupt;
 
-	ret = setup_irq(irq, &timer->act);
+	ret = request_irq(irq, bcm2835_time_interrupt, IRQF_TIMER | IRQF_SHARED,
+			  node->name, timer);
 	if (ret) {
 		pr_err("Can't set up timer IRQ\n");
-		goto err_iounmap;
+		goto err_timer_free;
 	}
 
 	clockevents_config_and_register(&timer->evt, freq, 0xf, 0xffffffff);
@@ -142,6 +125,9 @@ static int __init bcm2835_timer_init(struct device_node *node)
 	pr_info("bcm2835: system timer (irq = %d)\n", irq);
 
 	return 0;
+
+err_timer_free:
+	kfree(timer);
 
 err_iounmap:
 	iounmap(base);

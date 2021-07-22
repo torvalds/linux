@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <linux/console.h>
 
@@ -43,7 +44,7 @@
 
 /* O32 stack has to be 8-byte aligned. */
 static u64 o32_stk[4096];
-#define O32_STK	  &o32_stk[sizeof(o32_stk)]
+#define O32_STK	  (&o32_stk[ARRAY_SIZE(o32_stk)])
 
 #define __PROM_O32(fun, arg) fun arg __asm__(#fun); \
 				     __asm__(#fun " = call_o32")
@@ -84,10 +85,6 @@ void *prom_get_hwconf(void)
 		return NULL;
 
 	return (void *)CKSEG1ADDR(hwconf);
-}
-
-void __init prom_free_prom_memory(void)
-{
 }
 
 /*
@@ -131,8 +128,7 @@ static void __init sni_mem_init(void)
 		}
 		pr_debug("Bank%d: %08x @ %08x\n", i,
 			memconf[i].size, memconf[i].base);
-		add_memory_region(memconf[i].base, memconf[i].size,
-				  BOOT_MEM_RAM);
+		memblock_add(memconf[i].base, memconf[i].size);
 	}
 }
 

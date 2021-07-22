@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/traps.c
  *
  *  Copyright (C) 1995-2009 Russell King
  *  Fragments that appear the same as linux/arch/i386/kernel/traps.c (C) Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state in
  *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably
@@ -65,19 +62,24 @@ __setup("user_debug=", user_debug_setup);
 
 static void dump_mem(const char *, const char *, unsigned long, unsigned long);
 
-void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
+void dump_backtrace_entry(unsigned long where, unsigned long from,
+			  unsigned long frame, const char *loglvl)
 {
+	unsigned long end = frame + 4 + sizeof(struct pt_regs);
+
 #ifdef CONFIG_KALLSYMS
-	printk("[<%08lx>] (%ps) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
+	printk("%s[<%08lx>] (%ps) from [<%08lx>] (%pS)\n",
+		loglvl, where, (void *)where, from, (void *)from);
 #else
-	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
+	printk("%sFunction entered at [<%08lx>] from [<%08lx>]\n",
+		loglvl, where, from);
 #endif
 
-	if (in_entry_text(from))
-		dump_mem("", "Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
+	if (in_entry_text(from) && end <= ALIGN(frame, THREAD_SIZE))
+		dump_mem(loglvl, "Exception stack", frame + 4, end);
 }
 
-void dump_backtrace_stm(u32 *stack, u32 instruction)
+void dump_backtrace_stm(u32 *stack, u32 instruction, const char *loglvl)
 {
 	char str[80], *p;
 	unsigned int x;
@@ -89,12 +91,12 @@ void dump_backtrace_stm(u32 *stack, u32 instruction)
 			if (++x == 6) {
 				x = 0;
 				p = str;
-				printk("%s\n", str);
+				printk("%s%s\n", loglvl, str);
 			}
 		}
 	}
 	if (p != str)
-		printk("%s\n", str);
+		printk("%s%s\n", loglvl, str);
 }
 
 #ifndef CONFIG_ARM_UNWIND
@@ -202,17 +204,19 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_ARM_UNWIND
-static inline void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+static inline void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+				  const char *loglvl)
 {
-	unwind_backtrace(regs, tsk);
+	unwind_backtrace(regs, tsk, loglvl);
 }
 #else
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+			   const char *loglvl)
 {
 	unsigned int fp, mode;
 	int ok = 1;
 
-	printk("Backtrace: ");
+	printk("%sBacktrace: ", loglvl);
 
 	if (!tsk)
 		tsk = current;
@@ -239,18 +243,20 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	pr_cont("\n");
 
 	if (ok)
-		c_backtrace(fp, mode);
+		c_backtrace(fp, mode, loglvl);
 }
 #endif
 
-void show_stack(struct task_struct *tsk, unsigned long *sp)
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
-	dump_backtrace(NULL, tsk);
+	dump_backtrace(NULL, tsk, loglvl);
 	barrier();
 }
 
 #ifdef CONFIG_PREEMPT
 #define S_PREEMPT " PREEMPT"
+#elif defined(CONFIG_PREEMPT_RT)
+#define S_PREEMPT " PREEMPT_RT"
 #else
 #define S_PREEMPT ""
 #endif
@@ -281,13 +287,14 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 
 	print_modules();
 	__show_regs(regs);
+	__show_regs_alloc_free(regs);
 	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
 		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
-		dump_backtrace(regs, tsk);
+		dump_backtrace(regs, tsk, KERN_EMERG);
 		dump_instr(KERN_EMERG, regs);
 	}
 
@@ -372,7 +379,7 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_fault(signo, si_code, addr, current);
+		force_sig_fault(signo, si_code, addr);
 	} else {
 		die(str, regs, err);
 	}
@@ -390,7 +397,7 @@ int is_valid_bugaddr(unsigned long pc)
 	u32 insn = __opcode_to_mem_arm(BUG_INSTR_VALUE);
 #endif
 
-	if (probe_kernel_address((unsigned *)pc, bkpt))
+	if (get_kernel_nofault(bkpt, (void *)pc))
 		return 0;
 
 	return bkpt == insn;
@@ -565,7 +572,7 @@ __do_cache_op(unsigned long start, unsigned long end)
 		if (fatal_signal_pending(current))
 			return 0;
 
-		ret = flush_cache_user_range(start, start + chunk);
+		ret = flush_icache_user_range(start, start + chunk);
 		if (ret)
 			return ret;
 
@@ -582,7 +589,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 	if (end < start || flags)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, start, end - start))
+	if (!access_ok(start, end - start))
 		return -EFAULT;
 
 	return __do_cache_op(start, end);
@@ -606,7 +613,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	case NR(breakpoint): /* SWI BREAK_POINT */
 		regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
-		ptrace_break(current, regs);
+		ptrace_break(regs);
 		return regs->ARM_r0;
 
 	/*
@@ -662,10 +669,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	if (user_debug & UDBG_SYSCALL) {
 		pr_err("[%d] %s: arm syscall %d\n",
 		       task_pid_nr(current), current->comm, no);
-		dump_instr("", regs);
+		dump_instr(KERN_ERR, regs);
 		if (user_mode(regs)) {
 			__show_regs(regs);
-			c_backtrace(frame_pointer(regs), processor_mode(regs));
+			c_backtrace(frame_pointer(regs), processor_mode(regs), KERN_ERR);
 		}
 	}
 #endif
@@ -725,10 +732,11 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_BADABORT) {
+		pr_err("8<--- cut here ---\n");
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
-		show_pte(current->mm, addr);
+		show_pte(KERN_ERR, current->mm, addr);
 	}
 #endif
 

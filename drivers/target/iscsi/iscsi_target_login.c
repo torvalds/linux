@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the login functions used by the iSCSI Target driver.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <crypto/hash.h>
@@ -23,6 +15,7 @@
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
 #include <linux/tcp.h>        /* TCP_NODELAY */
+#include <net/ip.h>
 #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
@@ -164,6 +157,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 		spin_lock(&sess_p->conn_lock);
 		if (atomic_read(&sess_p->session_fall_back_to_erl0) ||
 		    atomic_read(&sess_p->session_logout) ||
+		    atomic_read(&sess_p->session_close) ||
 		    (sess_p->time2retain_timer_flags & ISCSI_TF_EXPIRED)) {
 			spin_unlock(&sess_p->conn_lock);
 			continue;
@@ -174,6 +168,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 		   (sess_p->sess_ops->SessionType == sessiontype))) {
 			atomic_set(&sess_p->session_reinstatement, 1);
 			atomic_set(&sess_p->session_fall_back_to_erl0, 1);
+			atomic_set(&sess_p->session_close, 1);
 			spin_unlock(&sess_p->conn_lock);
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
@@ -198,7 +193,6 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	if (sess->session_state == TARG_SESS_STATE_FAILED) {
 		spin_unlock_bh(&sess->conn_lock);
 		iscsit_dec_session_usage_count(sess);
-		iscsit_close_session(sess);
 		return 0;
 	}
 	spin_unlock_bh(&sess->conn_lock);
@@ -206,7 +200,6 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	iscsit_stop_session(sess, 1, 1);
 	iscsit_dec_session_usage_count(sess);
 
-	iscsit_close_session(sess);
 	return 0;
 }
 
@@ -494,6 +487,7 @@ static int iscsi_login_non_zero_tsih_s2(
 		sess_p = (struct iscsi_session *)se_sess->fabric_sess_ptr;
 		if (atomic_read(&sess_p->session_fall_back_to_erl0) ||
 		    atomic_read(&sess_p->session_logout) ||
+		    atomic_read(&sess_p->session_close) ||
 		   (sess_p->time2retain_timer_flags & ISCSI_TF_EXPIRED))
 			continue;
 		if (!memcmp(sess_p->isid, pdu->isid, 6) &&
@@ -862,7 +856,7 @@ int iscsit_setup_np(
 	struct sockaddr_storage *sockaddr)
 {
 	struct socket *sock = NULL;
-	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
+	int backlog = ISCSIT_TCP_BACKLOG, ret, len;
 
 	switch (np->np_network_transport) {
 	case ISCSI_TCP:
@@ -883,9 +877,6 @@ int iscsit_setup_np(
 		return -EINVAL;
 	}
 
-	np->np_ip_proto = IPPROTO_TCP;
-	np->np_sock_type = SOCK_STREAM;
-
 	ret = sock_create(sockaddr->ss_family, np->np_sock_type,
 			np->np_ip_proto, &sock);
 	if (ret < 0) {
@@ -905,36 +896,12 @@ int iscsit_setup_np(
 	else
 		len = sizeof(struct sockaddr_in);
 	/*
-	 * Set SO_REUSEADDR, and disable Nagel Algorithm with TCP_NODELAY.
+	 * Set SO_REUSEADDR, and disable Nagle Algorithm with TCP_NODELAY.
 	 */
-	/* FIXME: Someone please explain why this is endian-safe */
-	opt = 1;
-	if (np->np_network_transport == ISCSI_TCP) {
-		ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-				(char *)&opt, sizeof(opt));
-		if (ret < 0) {
-			pr_err("kernel_setsockopt() for TCP_NODELAY"
-				" failed: %d\n", ret);
-			goto fail;
-		}
-	}
-
-	/* FIXME: Someone please explain why this is endian-safe */
-	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-			(char *)&opt, sizeof(opt));
-	if (ret < 0) {
-		pr_err("kernel_setsockopt() for SO_REUSEADDR"
-			" failed\n");
-		goto fail;
-	}
-
-	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
-			(char *)&opt, sizeof(opt));
-	if (ret < 0) {
-		pr_err("kernel_setsockopt() for IP_FREEBIND"
-			" failed\n");
-		goto fail;
-	}
+	if (np->np_network_transport == ISCSI_TCP)
+		tcp_sock_set_nodelay(sock->sk);
+	sock_set_reuseaddr(sock->sk);
+	ip_sock_set_freebind(sock->sk);
 
 	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
 	if (ret < 0) {
@@ -1159,13 +1126,13 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 
 	if (!zalloc_cpumask_var(&conn->conn_cpumask, GFP_KERNEL)) {
 		pr_err("Unable to allocate conn->conn_cpumask\n");
-		goto free_mask;
+		goto free_conn_ops;
 	}
 
 	return conn;
 
-free_mask:
-	free_cpumask_var(conn->conn_cpumask);
+free_conn_ops:
+	kfree(conn->conn_ops);
 put_transport:
 	iscsit_put_transport(conn->conn_transport);
 free_conn:
@@ -1182,7 +1149,7 @@ void iscsit_free_conn(struct iscsi_conn *conn)
 }
 
 void iscsi_target_login_sess_out(struct iscsi_conn *conn,
-		struct iscsi_np *np, bool zero_tsih, bool new_sess)
+				 bool zero_tsih, bool new_sess)
 {
 	if (!new_sess)
 		goto old_sess_out;
@@ -1200,7 +1167,6 @@ void iscsi_target_login_sess_out(struct iscsi_conn *conn,
 	conn->sess = NULL;
 
 old_sess_out:
-	iscsi_stop_login_thread_timer(np);
 	/*
 	 * If login negotiation fails check if the Time2Retain timer
 	 * needs to be restarted.
@@ -1440,8 +1406,9 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 new_sess_out:
 	new_sess = true;
 old_sess_out:
+	iscsi_stop_login_thread_timer(np);
 	tpg_np = conn->tpg_np;
-	iscsi_target_login_sess_out(conn, np, zero_tsih, new_sess);
+	iscsi_target_login_sess_out(conn, zero_tsih, new_sess);
 	new_sess = false;
 
 	if (tpg) {

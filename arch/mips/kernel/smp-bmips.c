@@ -28,10 +28,8 @@
 #include <linux/kexec.h>
 
 #include <asm/time.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/bootinfo.h>
-#include <asm/pmon.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/mipsregs.h>
@@ -136,17 +134,24 @@ static void __init bmips_smp_setup(void)
 	if (!board_ebase_setup)
 		board_ebase_setup = &bmips_ebase_setup;
 
-	__cpu_number_map[boot_cpu] = 0;
-	__cpu_logical_map[0] = boot_cpu;
+	if (max_cpus > 1) {
+		__cpu_number_map[boot_cpu] = 0;
+		__cpu_logical_map[0] = boot_cpu;
 
-	for (i = 0; i < max_cpus; i++) {
-		if (i != boot_cpu) {
-			__cpu_number_map[i] = cpu;
-			__cpu_logical_map[cpu] = i;
-			cpu++;
+		for (i = 0; i < max_cpus; i++) {
+			if (i != boot_cpu) {
+				__cpu_number_map[i] = cpu;
+				__cpu_logical_map[cpu] = i;
+				cpu++;
+			}
+			set_cpu_possible(i, 1);
+			set_cpu_present(i, 1);
 		}
-		set_cpu_possible(i, 1);
-		set_cpu_present(i, 1);
+	} else {
+		__cpu_number_map[0] = boot_cpu;
+		__cpu_logical_map[0] = 0;
+		set_cpu_possible(0, 1);
+		set_cpu_present(0, 1);
 	}
 }
 
@@ -241,6 +246,8 @@ static int bmips_boot_secondary(int cpu, struct task_struct *idle)
  */
 static void bmips_init_secondary(void)
 {
+	bmips_cpu_setup();
+
 	switch (current_cpu_type()) {
 	case CPU_BMIPS4350:
 	case CPU_BMIPS4380:
@@ -362,9 +369,6 @@ static int bmips_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	if (cpu == 0)
-		return -EBUSY;
-
 	pr_info("SMP: CPU%d is offline\n", cpu);
 
 	set_cpu_online(cpu, false);
@@ -464,10 +468,10 @@ static void bmips_wr_vec(unsigned long dst, char *start, char *end)
 
 static inline void bmips_nmi_handler_setup(void)
 {
-	bmips_wr_vec(BMIPS_NMI_RESET_VEC, &bmips_reset_nmi_vec,
-		&bmips_reset_nmi_vec_end);
-	bmips_wr_vec(BMIPS_WARM_RESTART_VEC, &bmips_smp_int_vec,
-		&bmips_smp_int_vec_end);
+	bmips_wr_vec(BMIPS_NMI_RESET_VEC, bmips_reset_nmi_vec,
+		bmips_reset_nmi_vec_end);
+	bmips_wr_vec(BMIPS_WARM_RESTART_VEC, bmips_smp_int_vec,
+		bmips_smp_int_vec_end);
 }
 
 struct reset_vec_info {

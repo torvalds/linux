@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #ifndef __REQUEST_MANAGER_H
@@ -65,6 +62,8 @@ struct cpt_request_info {
 	union ctrl_info ctrl; /* User control information */
 	struct cptvf_request req; /* Request Information (Core specific) */
 
+	bool may_sleep;
+
 	struct buf_ptr in[MAX_BUF_CNT];
 	struct buf_ptr out[MAX_BUF_CNT];
 
@@ -76,16 +75,16 @@ struct sglist_component {
 	union {
 		u64 len;
 		struct {
-			u16 len0;
-			u16 len1;
-			u16 len2;
-			u16 len3;
+			__be16 len0;
+			__be16 len1;
+			__be16 len2;
+			__be16 len3;
 		} s;
 	} u;
-	u64 ptr0;
-	u64 ptr1;
-	u64 ptr2;
-	u64 ptr3;
+	__be64 ptr0;
+	__be64 ptr1;
+	__be64 ptr2;
+	__be64 ptr3;
 };
 
 struct cpt_info_buffer {
@@ -115,10 +114,10 @@ struct cpt_info_buffer {
 union vq_cmd_word0 {
 	u64 u64;
 	struct {
-		u16 opcode;
-		u16 param1;
-		u16 param2;
-		u16 dlen;
+		__be16 opcode;
+		__be16 param1;
+		__be16 param2;
+		__be16 dlen;
 	} s;
 };
 

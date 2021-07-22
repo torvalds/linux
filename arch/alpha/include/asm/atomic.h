@@ -16,22 +16,21 @@
 
 /*
  * To ensure dependency ordering is preserved for the _relaxed and
- * _release atomics, an smp_read_barrier_depends() is unconditionally
- * inserted into the _relaxed variants, which are used to build the
- * barriered versions. Avoid redundant back-to-back fences in the
- * _acquire and _fence versions.
+ * _release atomics, an smp_mb() is unconditionally inserted into the
+ * _relaxed variants, which are used to build the barriered versions.
+ * Avoid redundant back-to-back fences in the _acquire and _fence
+ * versions.
  */
 #define __atomic_acquire_fence()
 #define __atomic_post_full_fence()
 
-#define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
 
-#define atomic_read(v)		READ_ONCE((v)->counter)
-#define atomic64_read(v)	READ_ONCE((v)->counter)
+#define arch_atomic_read(v)	READ_ONCE((v)->counter)
+#define arch_atomic64_read(v)	READ_ONCE((v)->counter)
 
-#define atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
-#define atomic64_set(v,i)	WRITE_ONCE((v)->counter, (i))
+#define arch_atomic_set(v,i)	WRITE_ONCE((v)->counter, (i))
+#define arch_atomic64_set(v,i)	WRITE_ONCE((v)->counter, (i))
 
 /*
  * To get proper branch prediction for the main line, we must branch
@@ -40,7 +39,7 @@
  */
 
 #define ATOMIC_OP(op, asm_op)						\
-static __inline__ void atomic_##op(int i, atomic_t * v)			\
+static __inline__ void arch_atomic_##op(int i, atomic_t * v)		\
 {									\
 	unsigned long temp;						\
 	__asm__ __volatile__(						\
@@ -56,7 +55,7 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			\
 }									\
 
 #define ATOMIC_OP_RETURN(op, asm_op)					\
-static inline int atomic_##op##_return_relaxed(int i, atomic_t *v)	\
+static inline int arch_atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 {									\
 	long temp, result;						\
 	__asm__ __volatile__(						\
@@ -70,12 +69,12 @@ static inline int atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
-	smp_read_barrier_depends();					\
+	smp_mb();							\
 	return result;							\
 }
 
 #define ATOMIC_FETCH_OP(op, asm_op)					\
-static inline int atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
+static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 {									\
 	long temp, result;						\
 	__asm__ __volatile__(						\
@@ -88,14 +87,14 @@ static inline int atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
-	smp_read_barrier_depends();					\
+	smp_mb();							\
 	return result;							\
 }
 
 #define ATOMIC64_OP(op, asm_op)						\
-static __inline__ void atomic64_##op(long i, atomic64_t * v)		\
+static __inline__ void arch_atomic64_##op(s64 i, atomic64_t * v)	\
 {									\
-	unsigned long temp;						\
+	s64 temp;							\
 	__asm__ __volatile__(						\
 	"1:	ldq_l %0,%1\n"						\
 	"	" #asm_op " %0,%2,%0\n"					\
@@ -109,9 +108,10 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)		\
 }									\
 
 #define ATOMIC64_OP_RETURN(op, asm_op)					\
-static __inline__ long atomic64_##op##_return_relaxed(long i, atomic64_t * v)	\
+static __inline__ s64							\
+arch_atomic64_##op##_return_relaxed(s64 i, atomic64_t * v)		\
 {									\
-	long temp, result;						\
+	s64 temp, result;						\
 	__asm__ __volatile__(						\
 	"1:	ldq_l %0,%1\n"						\
 	"	" #asm_op " %0,%3,%2\n"					\
@@ -123,14 +123,15 @@ static __inline__ long atomic64_##op##_return_relaxed(long i, atomic64_t * v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
-	smp_read_barrier_depends();					\
+	smp_mb();							\
 	return result;							\
 }
 
 #define ATOMIC64_FETCH_OP(op, asm_op)					\
-static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)	\
+static __inline__ s64							\
+arch_atomic64_fetch_##op##_relaxed(s64 i, atomic64_t * v)		\
 {									\
-	long temp, result;						\
+	s64 temp, result;						\
 	__asm__ __volatile__(						\
 	"1:	ldq_l %2,%1\n"						\
 	"	" #asm_op " %2,%3,%0\n"					\
@@ -141,7 +142,7 @@ static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)	\
 	".previous"							\
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)		\
 	:"Ir" (i), "m" (v->counter) : "memory");			\
-	smp_read_barrier_depends();					\
+	smp_mb();							\
 	return result;							\
 }
 
@@ -156,18 +157,18 @@ static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)	\
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
-#define atomic_add_return_relaxed	atomic_add_return_relaxed
-#define atomic_sub_return_relaxed	atomic_sub_return_relaxed
-#define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
-#define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
+#define arch_atomic_add_return_relaxed		arch_atomic_add_return_relaxed
+#define arch_atomic_sub_return_relaxed		arch_atomic_sub_return_relaxed
+#define arch_atomic_fetch_add_relaxed		arch_atomic_fetch_add_relaxed
+#define arch_atomic_fetch_sub_relaxed		arch_atomic_fetch_sub_relaxed
 
-#define atomic64_add_return_relaxed	atomic64_add_return_relaxed
-#define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
-#define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
-#define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
+#define arch_atomic64_add_return_relaxed	arch_atomic64_add_return_relaxed
+#define arch_atomic64_sub_return_relaxed	arch_atomic64_sub_return_relaxed
+#define arch_atomic64_fetch_add_relaxed		arch_atomic64_fetch_add_relaxed
+#define arch_atomic64_fetch_sub_relaxed		arch_atomic64_fetch_sub_relaxed
 
-#define atomic_andnot atomic_andnot
-#define atomic64_andnot atomic64_andnot
+#define arch_atomic_andnot			arch_atomic_andnot
+#define arch_atomic64_andnot			arch_atomic64_andnot
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, asm)						\
@@ -181,15 +182,15 @@ ATOMIC_OPS(andnot, bic)
 ATOMIC_OPS(or, bis)
 ATOMIC_OPS(xor, xor)
 
-#define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
-#define atomic_fetch_andnot_relaxed	atomic_fetch_andnot_relaxed
-#define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
-#define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
+#define arch_atomic_fetch_and_relaxed		arch_atomic_fetch_and_relaxed
+#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
+#define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
+#define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
-#define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
-#define atomic64_fetch_andnot_relaxed	atomic64_fetch_andnot_relaxed
-#define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
-#define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
+#define arch_atomic64_fetch_and_relaxed		arch_atomic64_fetch_and_relaxed
+#define arch_atomic64_fetch_andnot_relaxed	arch_atomic64_fetch_andnot_relaxed
+#define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
+#define arch_atomic64_fetch_xor_relaxed		arch_atomic64_fetch_xor_relaxed
 
 #undef ATOMIC_OPS
 #undef ATOMIC64_FETCH_OP
@@ -199,14 +200,18 @@ ATOMIC_OPS(xor, xor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define atomic64_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
-#define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic64_cmpxchg(v, old, new) \
+	(arch_cmpxchg(&((v)->counter), old, new))
+#define arch_atomic64_xchg(v, new) \
+	(arch_xchg(&((v)->counter), new))
 
-#define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_cmpxchg(v, old, new) \
+	(arch_cmpxchg(&((v)->counter), old, new))
+#define arch_atomic_xchg(v, new) \
+	(arch_xchg(&((v)->counter), new))
 
 /**
- * atomic_fetch_add_unless - add unless the number is a given value
+ * arch_atomic_fetch_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
@@ -214,7 +219,7 @@ ATOMIC_OPS(xor, xor)
  * Atomically adds @a to @v, so long as it was not @u.
  * Returns the old value of @v.
  */
-static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
+static __inline__ int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
 	int c, new, old;
 	smp_mb();
@@ -235,10 +240,10 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	smp_mb();
 	return old;
 }
-#define atomic_fetch_add_unless atomic_fetch_add_unless
+#define arch_atomic_fetch_add_unless arch_atomic_fetch_add_unless
 
 /**
- * atomic64_fetch_add_unless - add unless the number is a given value
+ * arch_atomic64_fetch_add_unless - add unless the number is a given value
  * @v: pointer of type atomic64_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
@@ -246,9 +251,9 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
  * Atomically adds @a to @v, so long as it was not @u.
  * Returns the old value of @v.
  */
-static __inline__ long atomic64_fetch_add_unless(atomic64_t *v, long a, long u)
+static __inline__ s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
-	long c, new, old;
+	s64 c, new, old;
 	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l	%[old],%[mem]\n"
@@ -267,18 +272,18 @@ static __inline__ long atomic64_fetch_add_unless(atomic64_t *v, long a, long u)
 	smp_mb();
 	return old;
 }
-#define atomic64_fetch_add_unless atomic64_fetch_add_unless
+#define arch_atomic64_fetch_add_unless arch_atomic64_fetch_add_unless
 
 /*
- * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic_t
  *
  * The function returns the old value of *v minus 1, even if
  * the atomic variable, v, was not decremented.
  */
-static inline long atomic64_dec_if_positive(atomic64_t *v)
+static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {
-	long old, tmp;
+	s64 old, tmp;
 	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l	%[old],%[mem]\n"
@@ -296,6 +301,6 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	smp_mb();
 	return old - 1;
 }
-#define atomic64_dec_if_positive atomic64_dec_if_positive
+#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 
 #endif /* _ALPHA_ATOMIC_H */

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Trap handling definitions.
  *
  *	Copyright (C) 2002, 2003  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_TRAPS_H
 #define _ASM_TRAPS_H
@@ -28,6 +24,10 @@ extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
+extern void reserve_exception_space(phys_addr_t addr, unsigned long size);
+extern char except_vec_nmi[];
+
+#define VECTORSPACING 0x100	/* for EI/VI mode */
 
 #define nmi_notifier(fn, pri)						\
 ({									\

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc driver for the Dallas DS1511
  *
  * Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>
  * Copyright (C) 2007 Andrew Sharp <andy.sharp@lsi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Real time clock driver for the Dallas 1511 chip, which also
  * contains a watchdog timer.  There is a tiny amount of code that
@@ -105,12 +102,6 @@ static noinline void
 rtc_write(uint8_t val, uint32_t reg)
 {
 	writeb(val, ds1511_base + (reg * reg_spacing));
-}
-
-static inline void
-rtc_write_alarm(uint8_t val, enum ds1511reg reg)
-{
-	rtc_write((val | 0x80), reg);
 }
 
 static noinline uint8_t
@@ -417,7 +408,6 @@ static int ds1511_nvram_write(void *priv, unsigned int pos, void *buf,
 
 static int ds1511_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct rtc_plat_data *pdata;
 	int ret = 0;
 	struct nvmem_config ds1511_nvmem_cfg = {
@@ -434,8 +424,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ds1511_base = devm_ioremap_resource(&pdev->dev, res);
+	ds1511_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ds1511_base))
 		return PTR_ERR(ds1511_base);
 	pdata->ioaddr = ds1511_base;
@@ -471,13 +460,11 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc->ops = &ds1511_rtc_ops;
 
-	pdata->rtc->nvram_old_abi = true;
-
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret)
 		return ret;
 
-	rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
+	devm_rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
 
 	/*
 	 * if the platform has an interrupt in mind for this device,

@@ -7,11 +7,14 @@
  */
 
 #include <linux/component.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "sti_compositor.h"
 #include "sti_crtc.h"
@@ -39,8 +42,8 @@ static const struct sti_compositor_data stih407_compositor_data = {
 	},
 };
 
-int sti_compositor_debugfs_init(struct sti_compositor *compo,
-				struct drm_minor *minor)
+void sti_compositor_debugfs_init(struct sti_compositor *compo,
+				 struct drm_minor *minor)
 {
 	unsigned int i;
 
@@ -51,8 +54,6 @@ int sti_compositor_debugfs_init(struct sti_compositor *compo,
 	for (i = 0; i < STI_MAX_MIXER; i++)
 		if (compo->mixer[i])
 			sti_mixer_debugfs_init(compo->mixer[i], minor);
-
-	return 0;
 }
 
 static int sti_compositor_bind(struct device *dev,

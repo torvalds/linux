@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
+ * Copyright (C) 2019 - 2020 Intel Corporation
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -161,7 +151,7 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 {}
 #endif
 
-/**
+/*
  * The following tables contain the expected throughput metrics for all rates
  *
  *	1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
@@ -328,7 +318,7 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-/**
+/*
  * Program the device to use fixed rate for frame transmit
  * This is for debugging/testing only
  * once the device start use fixed rate, we need to reload the module
@@ -450,7 +440,7 @@ static s32 get_expected_tpt(struct iwl_scale_tbl_info *tbl, int rs_index)
 	return 0;
 }
 
-/**
+/*
  * rs_collect_tx_data - Update the success/failure sliding window
  *
  * We keep a sliding window of the last 62 packets transmitted
@@ -683,7 +673,7 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/**
+/*
  * Green-field mode is valid if the station supports it and
  * there are no non-GF stations present in the BSS.
  */
@@ -699,7 +689,7 @@ static bool rs_use_green(struct ieee80211_sta *sta)
 	return false;
 }
 
-/**
+/*
  * rs_get_supported_rates - get the available rates
  *
  * if management frame or broadcast frame only return
@@ -857,16 +847,6 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	struct iwl_scale_tbl_info *tbl;
 	bool full_concurrent = priv->bt_full_concurrent;
 
-	if (priv->bt_ant_couple_ok) {
-		/*
-		 * Is there a need to switch between
-		 * full concurrency and 3-wire?
-		 */
-		if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
-			full_concurrent = true;
-		else
-			full_concurrent = false;
-	}
 	if ((priv->bt_traffic_load != priv->last_bt_traffic_load) ||
 	    (priv->bt_full_concurrent != full_concurrent)) {
 		priv->bt_full_concurrent = full_concurrent;
@@ -2632,7 +2612,7 @@ out:
 	lq_sta->last_txrate_idx = index;
 }
 
-/**
+/*
  * rs_initialize_lq - Initialize a station's hardware rate table
  *
  * The uCode's station table contains a table of fallback rates
@@ -2730,10 +2710,6 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 		IWL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
 		priv_sta = NULL;
 	}
-
-	/* Send management frames and NO_ACK data using lowest rate. */
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
 
 	rate_idx  = lq_sta->last_txrate_idx;
 
@@ -3034,7 +3010,7 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 			cpu_to_le16(priv->lib->bt_params->agg_time_limit);
 }
 
-static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }
@@ -3271,28 +3247,16 @@ static void rs_add_debugfs(void *priv, void *priv_sta,
 					struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = priv_sta;
-	lq_sta->rs_sta_dbgfs_scale_table_file =
-		debugfs_create_file("rate_scale_table", 0600, dir,
-				    lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	lq_sta->rs_sta_dbgfs_stats_table_file =
-		debugfs_create_file("rate_stats_table", 0400, dir,
-				    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	lq_sta->rs_sta_dbgfs_rate_scale_data_file =
-		debugfs_create_file("rate_scale_data", 0400, dir,
-				    lq_sta, &rs_sta_dbgfs_rate_scale_data_ops);
-	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
-		debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
-				  &lq_sta->tx_agg_tid_en);
 
-}
+	debugfs_create_file("rate_scale_table", 0600, dir, lq_sta,
+			    &rs_sta_dbgfs_scale_table_ops);
+	debugfs_create_file("rate_stats_table", 0400, dir, lq_sta,
+			    &rs_sta_dbgfs_stats_table_ops);
+	debugfs_create_file("rate_scale_data", 0400, dir, lq_sta,
+			    &rs_sta_dbgfs_rate_scale_data_ops);
+	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
+			  &lq_sta->tx_agg_tid_en);
 
-static void rs_remove_debugfs(void *priv, void *priv_sta)
-{
-	struct iwl_lq_sta *lq_sta = priv_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
 }
 #endif
 
@@ -3318,7 +3282,6 @@ static const struct rate_control_ops rs_ops = {
 	.free_sta = rs_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = rs_add_debugfs,
-	.remove_sta_debugfs = rs_remove_debugfs,
 #endif
 };
 

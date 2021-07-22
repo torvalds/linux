@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -87,7 +87,7 @@ static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 
 	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
 	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
-		rds_conn_drop(ic->conn);
+		rds_conn_path_drop(&ic->conn->c_path[0], true);
 	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
 }
 
@@ -125,34 +125,42 @@ void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 		queue_work(rds_wq, &rds_ibdev->free_work);
 }
 
-static void rds_ib_add_one(struct ib_device *device)
+static int rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
-	bool has_fr, has_fmr;
+	int ret;
 
 	/* Only handle IB (no iWARP) devices */
 	if (device->node_type != RDMA_NODE_IB_CA)
-		return;
+		return -EOPNOTSUPP;
+
+	/* Device must support FRWR */
+	if (!(device->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
+		return -EOPNOTSUPP;
 
 	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
 				 ibdev_to_node(device));
 	if (!rds_ibdev)
-		return;
+		return -ENOMEM;
 
 	spin_lock_init(&rds_ibdev->spinlock);
 	refcount_set(&rds_ibdev->refcount, 1);
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
+	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
+	INIT_LIST_HEAD(&rds_ibdev->conn_list);
+
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
 	rds_ibdev->max_sge = min(device->attrs.max_send_sge, RDS_IB_MAX_SGE);
 
-	has_fr = (device->attrs.device_cap_flags &
-		  IB_DEVICE_MEM_MGT_EXTENSIONS);
-	has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-		   device->map_phys_fmr && device->unmap_fmr);
-	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
+	rds_ibdev->odp_capable =
+		!!(device->attrs.device_cap_flags &
+		   IB_DEVICE_ON_DEMAND_PAGING) &&
+		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &
+		   IB_ODP_SUPPORT_WRITE) &&
+		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &
+		   IB_ODP_SUPPORT_READ);
 
-	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
 	rds_ibdev->max_1m_mrs = device->attrs.max_mr ?
 		min_t(unsigned int, (device->attrs.max_mr / 2),
 		      rds_ib_mr_1m_pool_size) : rds_ib_mr_1m_pool_size;
@@ -170,12 +178,14 @@ static void rds_ib_add_one(struct ib_device *device)
 	if (!rds_ibdev->vector_load) {
 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
 			__func__);
+		ret = -ENOMEM;
 		goto put_dev;
 	}
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(rds_ibdev->pd)) {
+		ret = PTR_ERR(rds_ibdev->pd);
 		rds_ibdev->pd = NULL;
 		goto put_dev;
 	}
@@ -183,6 +193,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->mr_1m_pool =
 		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_1M_POOL);
 	if (IS_ERR(rds_ibdev->mr_1m_pool)) {
+		ret = PTR_ERR(rds_ibdev->mr_1m_pool);
 		rds_ibdev->mr_1m_pool = NULL;
 		goto put_dev;
 	}
@@ -190,21 +201,16 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->mr_8k_pool =
 		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_8K_POOL);
 	if (IS_ERR(rds_ibdev->mr_8k_pool)) {
+		ret = PTR_ERR(rds_ibdev->mr_8k_pool);
 		rds_ibdev->mr_8k_pool = NULL;
 		goto put_dev;
 	}
 
-	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, fmr_max_remaps = %d, max_1m_mrs = %d, max_8k_mrs = %d\n",
-		 device->attrs.max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
-		 rds_ibdev->fmr_max_remaps, rds_ibdev->max_1m_mrs,
-		 rds_ibdev->max_8k_mrs);
+	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, max_1m_mrs = %d, max_8k_mrs = %d\n",
+		 device->attrs.max_mr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
+		 rds_ibdev->max_1m_mrs, rds_ibdev->max_8k_mrs);
 
-	pr_info("RDS/IB: %s: %s supported and preferred\n",
-		device->name,
-		rds_ibdev->use_fastreg ? "FRMR" : "FMR");
-
-	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
-	INIT_LIST_HEAD(&rds_ibdev->conn_list);
+	pr_info("RDS/IB: %s: added\n", device->name);
 
 	down_write(&rds_ib_devices_lock);
 	list_add_tail_rcu(&rds_ibdev->list, &rds_ib_devices);
@@ -212,12 +218,13 @@ static void rds_ib_add_one(struct ib_device *device)
 	refcount_inc(&rds_ibdev->refcount);
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
-	refcount_inc(&rds_ibdev->refcount);
 
 	rds_ib_nodev_connect();
+	return 0;
 
 put_dev:
 	rds_ib_dev_put(rds_ibdev);
+	return ret;
 }
 
 /*
@@ -259,9 +266,6 @@ static void rds_ib_remove_one(struct ib_device *device, void *client_data)
 {
 	struct rds_ib_device *rds_ibdev = client_data;
 
-	if (!rds_ibdev)
-		return;
-
 	rds_ib_dev_shutdown(rds_ibdev);
 
 	/* stop connection attempts from getting a reference to this device. */
@@ -291,7 +295,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 				    void *buffer)
 {
 	struct rds_info_rdma_connection *iinfo = buffer;
-	struct rds_ib_connection *ic;
+	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
@@ -301,13 +305,15 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
 	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
+	if (ic) {
+		iinfo->tos = conn->c_tos;
+		iinfo->sl = ic->i_sl;
+	}
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
-
-		ic = conn->c_transport_data;
 
 		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo->src_gid,
 			       (union ib_gid *)&iinfo->dst_gid);
@@ -317,6 +323,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 		iinfo->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo->max_send_sge = rds_ibdev->max_sge;
 		rds_ib_get_mr_info(rds_ibdev, iinfo);
+		iinfo->cache_allocs = atomic_read(&ic->i_cache_allocs);
 	}
 	return 1;
 }
@@ -327,7 +334,7 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 				     void *buffer)
 {
 	struct rds6_info_rdma_connection *iinfo6 = buffer;
-	struct rds_ib_connection *ic;
+	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
@@ -335,6 +342,10 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo6->src_addr = conn->c_laddr;
 	iinfo6->dst_addr = conn->c_faddr;
+	if (ic) {
+		iinfo6->tos = conn->c_tos;
+		iinfo6->sl = ic->i_sl;
+	}
 
 	memset(&iinfo6->src_gid, 0, sizeof(iinfo6->src_gid));
 	memset(&iinfo6->dst_gid, 0, sizeof(iinfo6->dst_gid));
@@ -342,7 +353,6 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
 
-		ic = conn->c_transport_data;
 		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo6->src_gid,
 			       (union ib_gid *)&iinfo6->dst_gid);
 		rds_ibdev = ic->rds_ibdev;
@@ -350,6 +360,7 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 		iinfo6->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo6->max_send_sge = rds_ibdev->max_sge;
 		rds6_ib_get_mr_info(rds_ibdev, iinfo6);
+		iinfo6->cache_allocs = atomic_read(&ic->i_cache_allocs);
 	}
 	return 1;
 }
@@ -514,6 +525,15 @@ void rds_ib_exit(void)
 	rds_ib_mr_exit();
 }
 
+static u8 rds_ib_get_tos_map(u8 tos)
+{
+	/* 1:1 user to transport map for RDMA transport.
+	 * In future, if custom map is desired, hook can export
+	 * user configurable map.
+	 */
+	return tos;
+}
+
 struct rds_transport rds_ib_transport = {
 	.laddr_check		= rds_ib_laddr_check,
 	.xmit_path_complete	= rds_ib_xmit_path_complete,
@@ -536,6 +556,7 @@ struct rds_transport rds_ib_transport = {
 	.sync_mr		= rds_ib_sync_mr,
 	.free_mr		= rds_ib_free_mr,
 	.flush_mrs		= rds_ib_flush_mrs,
+	.get_tos_map		= rds_ib_get_tos_map,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
 	.t_unloading		= rds_ib_is_unloading,

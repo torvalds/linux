@@ -1,7 +1,7 @@
 /*
  * DaVinci GPIO Platform Related Defines
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,6 +17,8 @@
 #define __DAVINCI_GPIO_PLATFORM_H
 
 struct davinci_gpio_platform_data {
+	bool	no_auto_base;
+	u32	base;
 	u32	ngpio;
 	u32	gpio_unbanked;
 };

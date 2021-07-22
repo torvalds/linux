@@ -10,6 +10,7 @@
 #define NFSCACHE_H
 
 #include <linux/sunrpc/svc.h>
+#include "netns.h"
 
 /*
  * Representation of a reply cache entry.
@@ -19,18 +20,22 @@
  * is much larger than a sockaddr_in6.
  */
 struct svc_cacherep {
-	struct list_head	c_lru;
+	struct {
+		/* Keep often-read xid, csum in the same cache line: */
+		__be32			k_xid;
+		__wsum			k_csum;
+		u32			k_proc;
+		u32			k_prot;
+		u32			k_vers;
+		unsigned int		k_len;
+		struct sockaddr_in6	k_addr;
+	} c_key;
 
+	struct rb_node		c_node;
+	struct list_head	c_lru;
 	unsigned char		c_state,	/* unused, inprog, done */
 				c_type,		/* status, buffer */
 				c_secure : 1;	/* req came from port < 1024 */
-	struct sockaddr_in6	c_addr;
-	__be32			c_xid;
-	u32			c_prot;
-	u32			c_proc;
-	u32			c_vers;
-	unsigned int		c_len;
-	__wsum			c_csum;
 	unsigned long		c_timestamp;
 	union {
 		struct kvec	u_vec;
@@ -73,8 +78,10 @@ enum {
 /* Checksum this amount of the request */
 #define RC_CSUMLEN		(256U)
 
-int	nfsd_reply_cache_init(void);
-void	nfsd_reply_cache_shutdown(void);
+int	nfsd_drc_slab_create(void);
+void	nfsd_drc_slab_free(void);
+int	nfsd_reply_cache_init(struct nfsd_net *);
+void	nfsd_reply_cache_shutdown(struct nfsd_net *);
 int	nfsd_cache_lookup(struct svc_rqst *);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
 int	nfsd_reply_cache_stats_open(struct inode *, struct file *);

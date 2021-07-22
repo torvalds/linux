@@ -1701,7 +1701,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 
 /**
  * qib_setup_7220_setextled - set the state of the two external LEDs
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @on: whether the link is up or not
  *
  * The exact combo of LEDs if on is true is determined by looking
@@ -2146,7 +2146,7 @@ bail:
  * qib_7220_put_tid - write a TID to the chip
  * @dd: the qlogic_ib device
  * @tidptr: pointer to the expected TID (in chip) to update
- * @tidtype: 0 for eager, 1 for expected
+ * @type: 0 for eager, 1 for expected
  * @pa: physical address of in memory buffer; tidinvalid if freeing
  */
 static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
@@ -2175,13 +2175,12 @@ static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
  * qib_7220_clear_tids - clear all TID entries for a ctxt, expected and eager
  * @dd: the qlogic_ib device
- * @ctxt: the ctxt
+ * @rcd: the ctxt
  *
  * clear all TID entries for a ctxt, expected and eager.
  * Used from qib_close().  On this chip, TIDs are only 32 bits,
@@ -2237,9 +2236,9 @@ static void qib_7220_tidtemplate(struct qib_devdata *dd)
 }
 
 /**
- * qib_init_7220_get_base_info - set chip-specific flags for user code
+ * qib_7220_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
- * @kbase: qib_base_info pointer
+ * @kinfo: qib_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
  * HyperTransport can affect some user packet algorithims.
@@ -2704,9 +2703,7 @@ static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 {
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7220_hdrqempty(struct qib_ctxtdata *rcd)
@@ -2899,8 +2896,8 @@ static void sendctrl_7220_mod(struct qib_pportdata *ppd, u32 op)
 
 /**
  * qib_portcntr_7220 - read a per-port counter
- * @dd: the qlogic_ib device
- * @creg: the counter to snapshot
+ * @ppd: the qlogic_ib device
+ * @reg: the counter to snapshot
  */
 static u64 qib_portcntr_7220(struct qib_pportdata *ppd, u32 reg)
 {
@@ -3235,7 +3232,7 @@ done:
 
 /**
  * qib_get_7220_faststats - get word counters from chip before they overflow
- * @opaque - contains a pointer to the qlogic_ib device qib_devdata
+ * @t: contains a pointer to the qlogic_ib device qib_devdata
  *
  * This needs more work; in particular, decision on whether we really
  * need traffic_wds done the way it is
@@ -3589,11 +3586,11 @@ static u32 qib_7220_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7220_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7220_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7220_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;
@@ -4043,7 +4040,6 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
-	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
 	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7220_tidtemplate(dd);
@@ -4252,7 +4248,6 @@ static int init_sdma_7220_regs(struct qib_pportdata *ppd)
 		unsigned word = i / 64;
 		unsigned bit = i & 63;
 
-		BUG_ON(word >= 3);
 		senddmabufmask[word] |= 1ULL << bit;
 	}
 	qib_write_kreg(dd, kr_senddmabufmask0, senddmabufmask[0]);
@@ -4416,7 +4411,7 @@ static void writescratch(struct qib_devdata *dd, u32 val)
 
 #define VALID_TS_RD_REG_MASK 0xBF
 /**
- * qib_7220_tempsense_read - read register of temp sensor via TWSI
+ * qib_7220_tempsense_rd - read register of temp sensor via TWSI
  * @dd: the qlogic_ib device
  * @regnum: register to read from
  *
@@ -4473,7 +4468,7 @@ static int qib_7220_eeprom_wen(struct qib_devdata *dd, int wen)
 
 /**
  * qib_init_iba7220_funcs - set up the chip-specific function pointers
- * @dev: the pci_dev for qlogic_ib device
+ * @pdev: the pci_dev for qlogic_ib device
  * @ent: pci_device_id struct for this dev
  *
  * This is global, and is called directly at init to set up the

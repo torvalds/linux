@@ -62,7 +62,7 @@ Timer node:
 
 Syscon reboot node:
 
-See Documentation/devicetree/bindings/power/reset/syscon-reboot.txt for the
+See Documentation/devicetree/bindings/power/reset/syscon-reboot.yaml for the
 detailed list of properties, the two values defined below are specific to the
 BCM6328-style timer:
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
  * of PCI-SCSI IO processors.
@@ -22,20 +23,6 @@
  * Copyright (C) 1997 Richard Waltham <dormouse@farsrobt.demon.co.uk>
  *
  *-----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/slab.h>
@@ -3072,6 +3059,7 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 			sym_print_addr(cp->cmd, "%s\n",
 			        s_status == S_BUSY ? "BUSY" : "QUEUE FULL\n");
 		}
+		fallthrough;
 	default:	/* S_INT, S_INT_COND_MET, S_CONFLICT */
 		sym_complete_error (np, cp);
 		break;
@@ -4608,7 +4596,6 @@ static void sym_int_sir(struct sym_hcb *np)
 					scr_to_cpu(np->lastmsg), np->msgout[0]);
 			}
 			goto out_clrack;
-			break;
 		default:
 			goto out_reject;
 		}
@@ -4632,6 +4619,7 @@ static void sym_int_sir(struct sym_hcb *np)
 	 *  Negotiation failed.
 	 *  Target does not want answer message.
 	 */
+		fallthrough;
 	case SIR_NEGO_PROTO:
 		sym_nego_default(np, tp, cp);
 		goto out;
@@ -5363,8 +5351,10 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 {
 	struct scsi_device *sdev;
 	struct scsi_cmnd *cmd;
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	struct sym_tcb *tp;
 	struct sym_lcb *lp;
+#endif
 	int resid;
 	int i;
 
@@ -5381,11 +5371,13 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 			cp->host_status, cp->ssss_status, cp->host_flags);
 	}
 
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
 	 *  Get target and lun pointers.
 	 */
 	tp = &np->target[cp->target];
 	lp = sym_lp(tp, sdev->lun);
+#endif
 
 	/*
 	 *  Check for extended errors.
@@ -5492,8 +5484,10 @@ finish:
  */
 void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 {
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	struct sym_tcb *tp;
 	struct sym_lcb *lp;
+#endif
 	struct scsi_cmnd *cmd;
 	int resid;
 
@@ -5509,11 +5503,13 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 	 */
 	cmd = cp->cmd;
 
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
 	 *  Get target and lun pointers.
 	 */
 	tp = &np->target[cp->target];
 	lp = sym_lp(tp, cp->lun);
+#endif
 
 	/*
 	 *  If all data have been transferred, given than no
@@ -5659,7 +5655,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	/*
 	 *  Allocate the array of lists of CCBs hashed by DSA.
 	 */
-	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(struct sym_ccb **), GFP_KERNEL);
+	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(*np->ccbh), GFP_KERNEL);
 	if (!np->ccbh)
 		goto attach_failed;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  pSeries firmware setup code.
  *
@@ -14,11 +15,6 @@
  *    Copyright (C) 2005 Stephen Rothwell, IBM Corporation
  *
  *  Copyright 2006 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -26,6 +22,7 @@
 #include <asm/firmware.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
+#include <asm/svm.h>
 
 #include "pseries.h"
 
@@ -59,7 +56,8 @@ hypertas_fw_features_table[] = {
 	{FW_FEATURE_LLAN,		"hcall-lLAN"},
 	{FW_FEATURE_BULK_REMOVE,	"hcall-bulk"},
 	{FW_FEATURE_XDABR,		"hcall-xdabr"},
-	{FW_FEATURE_MULTITCE,		"hcall-multi-tce"},
+	{FW_FEATURE_PUT_TCE_IND | FW_FEATURE_STUFF_TCE,
+					"hcall-multi-tce"},
 	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
 	{FW_FEATURE_VPHN,		"hcall-vphn"},
 	{FW_FEATURE_SET_MODE,		"hcall-set-mode"},
@@ -67,6 +65,7 @@ hypertas_fw_features_table[] = {
 	{FW_FEATURE_HPT_RESIZE,		"hcall-hpt-resize"},
 	{FW_FEATURE_BLOCK_REMOVE,	"hcall-block-remove"},
 	{FW_FEATURE_PAPR_SCM,		"hcall-scm"},
+	{FW_FEATURE_RPT_INVALIDATE,	"hcall-rpt-invalidate"},
 };
 
 /* Build up the firmware features bitmask using the contents of
@@ -102,6 +101,12 @@ static void __init fw_hypertas_feature_init(const char *hypertas,
 				hypertas_fw_features_table[i].val;
 			break;
 		}
+	}
+
+	if (is_secure_guest() &&
+	    (powerpc_firmware_features & FW_FEATURE_PUT_TCE_IND)) {
+		powerpc_firmware_features &= ~FW_FEATURE_PUT_TCE_IND;
+		pr_debug("SVM: disabling PUT_TCE_IND firmware feature\n");
 	}
 
 	pr_debug(" <- fw_hypertas_feature_init()\n");

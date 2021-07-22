@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC driver for the Micro Crystal RV8803
  *
  * Copyright (C) 2015 Micro Crystal SA
- *
- * Alexandre Belloni <alexandre.belloni@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Alexandre Belloni <alexandre.belloni@bootlin.com>
  *
  */
 
@@ -236,9 +232,6 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	u8 date[7];
 	int ctrl, flags, ret;
 
-	if ((tm->tm_year < 100) || (tm->tm_year > 199))
-		return -EINVAL;
-
 	ctrl = rv8803_read_reg(rv8803->client, RV8803_CTRL);
 	if (ctrl < 0)
 		return ctrl;
@@ -418,6 +411,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
+	unsigned int vl = 0;
 	int flags, ret = 0;
 
 	switch (cmd) {
@@ -426,18 +420,15 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (flags < 0)
 			return flags;
 
-		if (flags & RV8803_FLAG_V1F)
+		if (flags & RV8803_FLAG_V1F) {
 			dev_warn(&client->dev, "Voltage low, temperature compensation stopped.\n");
+			vl = RTC_VL_ACCURACY_LOW;
+		}
 
 		if (flags & RV8803_FLAG_V2F)
-			dev_warn(&client->dev, "Voltage low, data loss detected.\n");
+			vl |= RTC_VL_DATA_INVALID;
 
-		flags &= RV8803_FLAG_V1F | RV8803_FLAG_V2F;
-
-		if (copy_to_user((void __user *)arg, &flags, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		return put_user(vl, (unsigned int __user *)arg);
 
 	case RTC_VL_CLR:
 		mutex_lock(&rv8803->flags_lock);
@@ -447,7 +438,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 			return flags;
 		}
 
-		flags &= ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F);
+		flags &= ~RV8803_FLAG_V1F;
 		ret = rv8803_write_reg(client, RV8803_FLAG, flags);
 		mutex_unlock(&rv8803->flags_lock);
 		if (ret)
@@ -463,13 +454,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	int ret;
-
-	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
 }
 
 static int rv8803_nvram_read(void *priv, unsigned int offset,
@@ -486,10 +471,13 @@ static int rv8803_nvram_read(void *priv, unsigned int offset,
 	return 0;
 }
 
-static struct rtc_class_ops rv8803_rtc_ops = {
+static const struct rtc_class_ops rv8803_rtc_ops = {
 	.read_time = rv8803_get_time,
 	.set_time = rv8803_set_time,
 	.ioctl = rv8803_ioctl,
+	.read_alarm = rv8803_get_alarm,
+	.set_alarm = rv8803_set_alarm,
+	.alarm_irq_enable = rv8803_alarm_irq_enable,
 };
 
 static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
@@ -524,7 +512,7 @@ static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 static int rv8803_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct rv8803_data *rv8803;
 	int err, flags;
 	struct nvmem_config nvmem_cfg = {
@@ -571,9 +559,8 @@ static int rv8803_probe(struct i2c_client *client,
 		dev_warn(&client->dev, "An alarm maybe have been missed.\n");
 
 	rv8803->rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rv8803->rtc)) {
+	if (IS_ERR(rv8803->rtc))
 		return PTR_ERR(rv8803->rtc);
-	}
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -583,12 +570,10 @@ static int rv8803_probe(struct i2c_client *client,
 		if (err) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv8803_rtc_ops.read_alarm = rv8803_get_alarm;
-			rv8803_rtc_ops.set_alarm = rv8803_set_alarm;
-			rv8803_rtc_ops.alarm_irq_enable = rv8803_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
 	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
 	if (err)
@@ -601,12 +586,13 @@ static int rv8803_probe(struct i2c_client *client,
 	}
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
-	rv8803->rtc->nvram_old_abi = true;
-	err = rtc_register_device(rv8803->rtc);
+	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rv8803->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	err = devm_rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
 
-	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
 	rv8803->rtc->max_user_freq = 1;
 
@@ -621,7 +607,7 @@ static const struct i2c_device_id rv8803_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
 
-static const struct of_device_id rv8803_of_match[] = {
+static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "microcrystal,rv8803",
 		.data = (void *)rv_8803
@@ -648,6 +634,6 @@ static struct i2c_driver rv8803_driver = {
 };
 module_i2c_driver(rv8803_driver);
 
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
+MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@bootlin.com>");
 MODULE_DESCRIPTION("Micro Crystal RV8803 RTC driver");
 MODULE_LICENSE("GPL v2");

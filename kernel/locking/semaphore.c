@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008 Intel Corporation
  * Author: Matthew Wilcox <willy@linux.intel.com>
- *
- * Distributed under the terms of the GNU GPL, version 2
  *
  * This file implements counting semaphores.
  * A counting semaphore may be acquired 'n' times before sleeping.
@@ -120,7 +119,7 @@ EXPORT_SYMBOL(down_killable);
  * @sem: the semaphore to be acquired
  *
  * Try to acquire the semaphore atomically.  Returns 0 if the semaphore has
- * been acquired successfully or 1 if it it cannot be acquired.
+ * been acquired successfully or 1 if it cannot be acquired.
  *
  * NOTE: This return value is inverted from both spin_trylock and
  * mutex_trylock!  Be careful about this when converting code.

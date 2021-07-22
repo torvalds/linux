@@ -531,7 +531,7 @@ struct adm8211_eeprom {
 	u8	lpf_cutoff[14];		/* 0x62 */
 	u8	lnags_threshold[14];	/* 0x70 */
 	__le16	checksum;		/* 0x7E */
-	u8	cis_data[0];		/* 0x80, 384 bytes */
+	u8	cis_data[];		/* 0x80, 384 bytes */
 } __packed;
 
 struct adm8211_priv {

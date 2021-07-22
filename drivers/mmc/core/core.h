@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/drivers/mmc/core/core.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *  Copyright 2007 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _MMC_CORE_CORE_H
 #define _MMC_CORE_CORE_H
@@ -32,6 +29,8 @@ struct mmc_bus_ops {
 	int (*shutdown)(struct mmc_host *);
 	int (*hw_reset)(struct mmc_host *);
 	int (*sw_reset)(struct mmc_host *);
+	bool (*cache_enabled)(struct mmc_host *);
+	int (*flush_cache)(struct mmc_host *);
 };
 
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
@@ -59,6 +58,7 @@ void mmc_power_up(struct mmc_host *host, u32 ocr);
 void mmc_power_off(struct mmc_host *host);
 void mmc_power_cycle(struct mmc_host *host, u32 ocr);
 void mmc_set_initial_state(struct mmc_host *host);
+u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
 
 static inline void mmc_delay(unsigned int ms)
 {
@@ -72,6 +72,8 @@ void mmc_rescan(struct work_struct *work);
 void mmc_start_host(struct mmc_host *host);
 void mmc_stop_host(struct mmc_host *host);
 
+void _mmc_detect_change(struct mmc_host *host, unsigned long delay,
+			bool cd_irq);
 int _mmc_detect_card_removed(struct mmc_host *host);
 int mmc_detect_card_removed(struct mmc_host *host);
 
@@ -93,14 +95,6 @@ int mmc_execute_tuning(struct mmc_card *card);
 int mmc_hs200_to_hs400(struct mmc_card *card);
 int mmc_hs400_to_hs200(struct mmc_card *card);
 
-#ifdef CONFIG_PM_SLEEP
-void mmc_register_pm_notifier(struct mmc_host *host);
-void mmc_unregister_pm_notifier(struct mmc_host *host);
-#else
-static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
-static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
-#endif
-
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 
@@ -118,8 +112,6 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 unsigned int mmc_calc_max_discard(struct mmc_card *card);
 
 int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
-int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			bool is_rel_write);
 
 int __mmc_claim_host(struct mmc_host *host, struct mmc_ctx *ctx,
 		     atomic_t *abort);
@@ -171,6 +163,22 @@ static inline void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 {
 	if (host->ops->post_req)
 		host->ops->post_req(host, mrq, err);
+}
+
+static inline bool mmc_cache_enabled(struct mmc_host *host)
+{
+	if (host->bus_ops->cache_enabled)
+		return host->bus_ops->cache_enabled(host);
+
+	return false;
+}
+
+static inline int mmc_flush_cache(struct mmc_host *host)
+{
+	if (host->bus_ops->flush_cache)
+		return host->bus_ops->flush_cache(host);
+
+	return 0;
 }
 
 #endif

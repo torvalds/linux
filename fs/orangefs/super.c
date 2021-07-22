@@ -10,6 +10,7 @@
 #include "orangefs-bufmap.h"
 
 #include <linux/parser.h>
+#include <linux/hashtable.h>
 
 /* a cache for orangefs-inode objects (i.e. orangefs inode private data) */
 static struct kmem_cache *orangefs_inode_cache;
@@ -124,10 +125,18 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	return &orangefs_inode->vfs_inode;
 }
 
-static void orangefs_i_callback(struct rcu_head *head)
+static void orangefs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_cached_xattr *cx;
+	struct hlist_node *tmp;
+	int i;
+
+	hash_for_each_safe(orangefs_inode->xattr_cache, i, tmp, cx, node) {
+		hlist_del(&cx->node);
+		kfree(cx);
+	}
+
 	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
 }
 
@@ -138,8 +147,13 @@ static void orangefs_destroy_inode(struct inode *inode)
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 			"%s: deallocated %p destroying inode %pU\n",
 			__func__, orangefs_inode, get_khandle_from_ino(inode));
+}
 
-	call_rcu(&inode->i_rcu, orangefs_i_callback);
+static int orangefs_write_inode(struct inode *inode,
+				struct writeback_control *wbc)
+{
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_write_inode\n");
+	return orangefs_inode_setattr(inode);
 }
 
 /*
@@ -195,7 +209,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = (sector_t) new_op->downcall.resp.statfs.blocks_avail;
 	buf->f_files = (sector_t) new_op->downcall.resp.statfs.files_total;
 	buf->f_ffree = (sector_t) new_op->downcall.resp.statfs.files_avail;
-	buf->f_frsize = sb->s_blocksize;
+	buf->f_frsize = 0;
 
 out_op_release:
 	op_release(new_op);
@@ -299,7 +313,9 @@ void fsid_key_table_finalize(void)
 
 static const struct super_operations orangefs_s_ops = {
 	.alloc_inode = orangefs_alloc_inode,
+	.free_inode = orangefs_free_inode,
 	.destroy_inode = orangefs_destroy_inode,
+	.write_inode = orangefs_write_inode,
 	.drop_inode = generic_delete_inode,
 	.statfs = orangefs_statfs,
 	.remount_fs = orangefs_remount_fs,
@@ -397,15 +413,11 @@ static int orangefs_fill_sb(struct super_block *sb,
 		struct orangefs_fs_mount_response *fs_mount,
 		void *data, int silent)
 {
-	int ret = -EINVAL;
-	struct inode *root = NULL;
-	struct dentry *root_dentry = NULL;
+	int ret;
+	struct inode *root;
+	struct dentry *root_dentry;
 	struct orangefs_object_kref root_object;
 
-	/* alloc and init our private orangefs sb info */
-	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
-	if (!ORANGEFS_SB(sb))
-		return -ENOMEM;
 	ORANGEFS_SB(sb)->sb = sb;
 
 	ORANGEFS_SB(sb)->root_khandle = fs_mount->root_khandle;
@@ -427,6 +439,10 @@ static int orangefs_fill_sb(struct super_block *sb,
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+
+	ret = super_setup_bdi(sb);
+	if (ret)
+		return ret;
 
 	root_object.khandle = ORANGEFS_SB(sb)->root_khandle;
 	root_object.fs_id = ORANGEFS_SB(sb)->fs_id;
@@ -503,6 +519,13 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		d = ERR_CAST(sb);
 		orangefs_unmount(new_op->downcall.resp.fs_mount.id,
 		    new_op->downcall.resp.fs_mount.fs_id, devname);
+		goto free_op;
+	}
+
+	/* alloc and init our private orangefs sb info */
+	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
+	if (!ORANGEFS_SB(sb)) {
+		d = ERR_PTR(-ENOMEM);
 		goto free_op;
 	}
 

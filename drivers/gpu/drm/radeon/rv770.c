@@ -25,16 +25,21 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "avivod.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
-#include <drm/radeon_drm.h>
 #include "rv770d.h"
-#include "atom.h"
-#include "avivod.h"
+#include "rv770.h"
 
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360
@@ -1699,7 +1704,7 @@ static void rv770_uvd_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
-		rdev->has_uvd = 0;
+		rdev->has_uvd = false;
 		return;
 	}
 	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
@@ -1936,9 +1941,7 @@ int rv770_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 	/* initialize AGP */
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);

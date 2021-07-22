@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/xfrm.h>

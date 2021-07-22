@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* 
  *  Copyright 10/16/2005 Tilman Kranz <tilde@tk-sls.de>
  *  Creative Audio MIDI, for the CA0106 Driver
@@ -8,22 +9,6 @@
  *    tested with ca0106.
  *    mpu401: Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *    emu10k1x: Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *
  */
 
 #include <linux/spinlock.h>
@@ -291,7 +276,8 @@ int ca_midi_init(void *dev_id, struct snd_ca_midi *midi, int device, char *name)
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if ((err = snd_rawmidi_new(midi->get_dev_id_card(midi->dev_id), name, device, 1, 1, &rmidi)) < 0)
+	err = snd_rawmidi_new(midi->get_dev_id_card(midi->dev_id), name, device, 1, 1, &rmidi);
+	if (err < 0)
 		return err;
 
 	midi->dev_id = dev_id;

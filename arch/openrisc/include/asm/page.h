@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC Linux
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __ASM_OPENRISC_PAGE_H
@@ -89,11 +85,6 @@ typedef struct page *pgtable_t;
 #define virt_addr_valid(kaddr)	(pfn_valid(virt_to_pfn(kaddr)))
 
 #endif /* __ASSEMBLY__ */
-
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

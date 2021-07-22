@@ -24,13 +24,13 @@ String Conversions
 .. kernel-doc:: lib/vsprintf.c
    :export:
 
-.. kernel-doc:: include/linux/kernel.h
-   :functions: kstrtol
-
-.. kernel-doc:: include/linux/kernel.h
-   :functions: kstrtoul
+.. kernel-doc:: include/linux/kstrtox.h
+   :functions: kstrtol kstrtoul
 
 .. kernel-doc:: lib/kstrtox.c
+   :export:
+
+.. kernel-doc:: lib/string_helpers.c
    :export:
 
 String Manipulation
@@ -38,6 +38,9 @@ String Manipulation
 
 .. kernel-doc:: lib/string.c
    :export:
+
+.. kernel-doc:: include/linux/string.h
+   :internal:
 
 .. kernel-doc:: mm/util.c
    :functions: kstrdup kstrdup_const kstrndup kmemdup kmemdup_nul memdup_user
@@ -51,7 +54,13 @@ The Linux kernel provides more basic utility functions.
 Bit Operations
 --------------
 
-.. kernel-doc:: arch/x86/include/asm/bitops.h
+.. kernel-doc:: include/asm-generic/bitops/instrumented-atomic.h
+   :internal:
+
+.. kernel-doc:: include/asm-generic/bitops/instrumented-non-atomic.h
+   :internal:
+
+.. kernel-doc:: include/asm-generic/bitops/instrumented-lock.h
    :internal:
 
 Bitmap Operations
@@ -138,6 +147,15 @@ Base 2 log and power Functions
 .. kernel-doc:: include/linux/log2.h
    :internal:
 
+Integer power Functions
+-----------------------
+
+.. kernel-doc:: lib/math/int_pow.c
+   :export:
+
+.. kernel-doc:: lib/math/int_sqrt.c
+   :export:
+
 Division Functions
 ------------------
 
@@ -147,10 +165,10 @@ Division Functions
 .. kernel-doc:: include/linux/math64.h
    :internal:
 
-.. kernel-doc:: lib/div64.c
+.. kernel-doc:: lib/math/div64.c
    :functions: div_s64_rem div64_u64_rem div64_u64 div64_s64
 
-.. kernel-doc:: lib/gcd.c
+.. kernel-doc:: lib/math/gcd.c
    :export:
 
 UUID/GUID
@@ -209,12 +227,6 @@ Refer to the file kernel/module.c for more information.
 
 Hardware Interfaces
 ===================
-
-Interrupt Handling
-------------------
-
-.. kernel-doc:: kernel/irq/manage.c
-   :export:
 
 DMA Channels
 ------------
@@ -291,12 +303,6 @@ Block Devices
 .. kernel-doc:: block/blk-lib.c
    :export:
 
-.. kernel-doc:: block/blk-tag.c
-   :export:
-
-.. kernel-doc:: block/blk-tag.c
-   :internal:
-
 .. kernel-doc:: block/blk-integrity.c
    :export:
 
@@ -362,13 +368,7 @@ Read-Copy Update (RCU)
 
 .. kernel-doc:: include/linux/rcupdate.h
 
-.. kernel-doc:: include/linux/rcupdate_wait.h
-
-.. kernel-doc:: include/linux/rcutree.h
-
 .. kernel-doc:: kernel/rcu/tree.c
-
-.. kernel-doc:: kernel/rcu/tree_plugin.h
 
 .. kernel-doc:: kernel/rcu/tree_exp.h
 

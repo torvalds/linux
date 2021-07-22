@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015-2016 Vladimir Zapolskiy <vz@mleia.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -147,7 +141,7 @@ static void lpc32xx_sic_handler(struct irq_desc *desc)
 	while (hwirq) {
 		irq = __ffs(hwirq);
 		hwirq &= ~BIT(irq);
-		generic_handle_irq(irq_find_mapping(ic->domain, irq));
+		generic_handle_domain_irq(ic->domain, irq);
 	}
 
 	chained_irq_exit(chip, desc);

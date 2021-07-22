@@ -1,19 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /***************************************************************************
                           dpti_ioctl.h  -  description
                              -------------------
     begin                : Thu Sep 7 2000
     copyright            : (C) 2001 by Adaptec
 
-    See Documentation/scsi/dpti.txt for history, notes, license info
+    See Documentation/scsi/dpti.rst for history, notes, license info
     and credits
  ***************************************************************************/
 
 /***************************************************************************
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
 

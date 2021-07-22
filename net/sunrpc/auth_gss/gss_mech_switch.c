@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /*
  *  linux/net/sunrpc/gss_mech_switch.c
  *
@@ -5,32 +6,6 @@
  *  All rights reserved.
  *
  *  J. Bruce Fields   <bfields@umich.edu>
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <linux/types.h>
@@ -45,6 +20,7 @@
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/clnt.h>
+#include <trace/events/rpcgss.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
@@ -61,6 +37,8 @@ gss_mech_free(struct gss_api_mech *gm)
 
 	for (i = 0; i < gm->gm_pf_num; i++) {
 		pf = &gm->gm_pfs[i];
+		if (pf->domain)
+			auth_domain_put(pf->domain);
 		kfree(pf->auth_domain_name);
 		pf->auth_domain_name = NULL;
 	}
@@ -83,6 +61,7 @@ make_auth_domain_name(char *name)
 static int
 gss_mech_svc_setup(struct gss_api_mech *gm)
 {
+	struct auth_domain *dom;
 	struct pf_desc *pf;
 	int i, status;
 
@@ -92,10 +71,13 @@ gss_mech_svc_setup(struct gss_api_mech *gm)
 		status = -ENOMEM;
 		if (pf->auth_domain_name == NULL)
 			goto out;
-		status = svcauth_gss_register_pseudoflavor(pf->pseudoflavor,
-							pf->auth_domain_name);
-		if (status)
+		dom = svcauth_gss_register_pseudoflavor(
+			pf->pseudoflavor, pf->auth_domain_name);
+		if (IS_ERR(dom)) {
+			status = PTR_ERR(dom);
 			goto out;
+		}
+		pf->domain = dom;
 	}
 	return 0;
 out:
@@ -183,7 +165,6 @@ struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 
 	if (sprint_oid(obj->data, obj->len, buf, sizeof(buf)) < 0)
 		return NULL;
-	dprintk("RPC:       %s(%s)\n", __func__, buf);
 	request_module("rpc-auth-gss-%s", buf);
 
 	rcu_read_lock();
@@ -197,6 +178,8 @@ struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 		}
 	}
 	rcu_read_unlock();
+	if (!gm)
+		trace_rpcgss_oid_to_mech(buf);
 	return gm;
 }
 
@@ -240,35 +223,6 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 		gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
 	}
 	return gm;
-}
-
-/**
- * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
- * @array: array to fill in
- * @size: size of "array"
- *
- * Returns the number of array items filled in, or a negative errno.
- *
- * The returned array is not sorted by any policy.  Callers should not
- * rely on the order of the items in the returned array.
- */
-int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
-{
-	struct gss_api_mech *pos = NULL;
-	int j, i = 0;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		for (j = 0; j < pos->gm_pf_num; j++) {
-			if (i >= size) {
-				spin_unlock(&registered_mechs_lock);
-				return -ENOMEM;
-			}
-			array_ptr[i++] = pos->gm_pfs[j].pseudoflavor;
-		}
-	}
-	rcu_read_unlock();
-	return i;
 }
 
 /**
@@ -399,7 +353,7 @@ int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
 		       struct gss_ctx		**ctx_id,
-		       time_t			*endtime,
+		       time64_t			*endtime,
 		       gfp_t gfp_mask)
 {
 	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))
@@ -463,10 +417,11 @@ gss_wrap(struct gss_ctx	*ctx_id,
 u32
 gss_unwrap(struct gss_ctx	*ctx_id,
 	   int			offset,
+	   int			len,
 	   struct xdr_buf	*buf)
 {
 	return ctx_id->mech_type->gm_ops
-		->gss_unwrap(ctx_id, offset, buf);
+		->gss_unwrap(ctx_id, offset, len, buf);
 }
 
 

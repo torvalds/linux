@@ -191,10 +191,8 @@ static int spear_kbd_probe(struct platform_device *pdev)
 	int error;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "not able to get irq for the device\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	kbd = devm_kzalloc(&pdev->dev, sizeof(*kbd), GFP_KERNEL);
 	if (!kbd) {
@@ -320,7 +318,7 @@ static int __maybe_unused spear_kbd_suspend(struct device *dev)
 		writel_relaxed(val, kbd->io_base + MODE_CTL_REG);
 
 	} else {
-		if (input_dev->users) {
+		if (input_device_enabled(input_dev)) {
 			writel_relaxed(mode_ctl_reg & ~MODE_CTL_START_SCAN,
 					kbd->io_base + MODE_CTL_REG);
 			clk_disable(kbd->clk);
@@ -328,7 +326,7 @@ static int __maybe_unused spear_kbd_suspend(struct device *dev)
 	}
 
 	/* store current configuration */
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		kbd->mode_ctl_reg = mode_ctl_reg;
 
 	/* restore previous clk state */
@@ -353,12 +351,12 @@ static int __maybe_unused spear_kbd_resume(struct device *dev)
 			disable_irq_wake(kbd->irq);
 		}
 	} else {
-		if (input_dev->users)
+		if (input_device_enabled(input_dev))
 			clk_enable(kbd->clk);
 	}
 
 	/* restore current configuration */
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		writel_relaxed(kbd->mode_ctl_reg, kbd->io_base + MODE_CTL_REG);
 
 	mutex_unlock(&input_dev->mutex);

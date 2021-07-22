@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC TLV320AIC23 codec driver I2C interface
  *
@@ -5,10 +6,6 @@
  * Copyright:   (C) 2008 Mistral Solutions Pvt Ltd.,
  *
  * Based on sound/soc/codecs/wm8731.c by Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -38,11 +35,13 @@ static const struct i2c_device_id tlv320aic23_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, tlv320aic23_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id tlv320aic23_of_match[] = {
 	{ .compatible = "ti,tlv320aic23", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tlv320aic23_of_match);
+#endif
 
 static struct i2c_driver tlv320aic23_i2c_driver = {
 	.driver = {

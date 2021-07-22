@@ -365,7 +365,6 @@ static struct scsi_host_template ips_driver_template = {
 	.this_id		= -1,
 	.sg_tablesize		= IPS_MAX_SG,
 	.cmd_per_lun		= 3,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.no_write_same		= 1,
 };
 
@@ -499,7 +498,7 @@ ips_setup(char *ips_str)
 	int i;
 	char *key;
 	char *value;
-	IPS_OPTION options[] = {
+	static const IPS_OPTION options[] = {
 		{"noi2o", &ips_force_i2o, 0},
 		{"nommap", &ips_force_memio, 0},
 		{"ioctlsize", &ips_ioctlsize, IPS_IOCTL_SIZE},
@@ -1046,10 +1045,10 @@ static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *)
 	ha = (ips_ha_t *) SC->device->host->hostdata;
 
 	if (!ha)
-		return (1);
+		goto out_error;
 
 	if (!ha->active)
-		return (DID_ERROR);
+		goto out_error;
 
 	if (ips_is_passthru(SC)) {
 		if (ha->copp_waitlist.count == IPS_MAX_IOCTL_QUEUE) {
@@ -1123,6 +1122,11 @@ static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *)
 	}
 
 	ips_next(ha, IPS_INTR_IORL);
+
+	return (0);
+out_error:
+	SC->result = DID_ERROR << 16;
+	done(SC);
 
 	return (0);
 }
@@ -1801,13 +1805,13 @@ ips_fill_scb_sg_single(ips_ha_t * ha, dma_addr_t busaddr,
 	}
 	if (IPS_USE_ENH_SGLIST(ha)) {
 		scb->sg_list.enh_list[indx].address_lo =
-		    cpu_to_le32(pci_dma_lo32(busaddr));
+		    cpu_to_le32(lower_32_bits(busaddr));
 		scb->sg_list.enh_list[indx].address_hi =
-		    cpu_to_le32(pci_dma_hi32(busaddr));
+		    cpu_to_le32(upper_32_bits(busaddr));
 		scb->sg_list.enh_list[indx].length = cpu_to_le32(e_len);
 	} else {
 		scb->sg_list.std_list[indx].address =
-		    cpu_to_le32(pci_dma_lo32(busaddr));
+		    cpu_to_le32(lower_32_bits(busaddr));
 		scb->sg_list.std_list[indx].length = cpu_to_le32(e_len);
 	}
 
@@ -2240,7 +2244,7 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	major = 0;
 	minor = 0;
 
-	strncpy(ha->bios_version, "       ?", 8);
+	memcpy(ha->bios_version, "       ?", 8);
 
 	if (ha->pcidev->device == IPS_DEVICEID_COPPERHEAD) {
 		if (IPS_USE_MEMIO(ha)) {
@@ -3340,13 +3344,15 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 					IPS_CMD_EXTENDED_DCDB_SG)) {
 					tapeDCDB =
 					    (IPS_DCDB_TABLE_TAPE *) & scb->dcdb;
-					memcpy(scb->scsi_cmd->sense_buffer,
+					memcpy_and_pad(scb->scsi_cmd->sense_buffer,
+					       SCSI_SENSE_BUFFERSIZE,
 					       tapeDCDB->sense_info,
-					       SCSI_SENSE_BUFFERSIZE);
+					       sizeof(tapeDCDB->sense_info), 0);
 				} else {
-					memcpy(scb->scsi_cmd->sense_buffer,
+					memcpy_and_pad(scb->scsi_cmd->sense_buffer,
+					       SCSI_SENSE_BUFFERSIZE,
 					       scb->dcdb.sense_info,
-					       SCSI_SENSE_BUFFERSIZE);
+					       sizeof(scb->dcdb.sense_info), 0);
 				}
 				device_error = 2;	/* check condition */
 			}
@@ -3516,11 +3522,11 @@ ips_send_cmd(ips_ha_t * ha, ips_scb_t * scb)
 					inquiry.Flags[1] =
 					    IPS_SCSI_INQ_WBus16 |
 					    IPS_SCSI_INQ_Sync;
-					strncpy(inquiry.VendorId, "IBM     ",
+					memcpy(inquiry.VendorId, "IBM     ",
 						8);
-					strncpy(inquiry.ProductId,
+					memcpy(inquiry.ProductId,
 						"SERVERAID       ", 16);
-					strncpy(inquiry.ProductRevisionLevel,
+					memcpy(inquiry.ProductRevisionLevel,
 						"1.00", 4);
 
 					ips_scmd_buf_write(scb->scsi_cmd,
@@ -4037,9 +4043,9 @@ ips_inquiry(ips_ha_t * ha, ips_scb_t * scb)
 	inquiry.Flags[0] = IPS_SCSI_INQ_Address16;
 	inquiry.Flags[1] =
 	    IPS_SCSI_INQ_WBus16 | IPS_SCSI_INQ_Sync | IPS_SCSI_INQ_CmdQue;
-	strncpy(inquiry.VendorId, "IBM     ", 8);
-	strncpy(inquiry.ProductId, "SERVERAID       ", 16);
-	strncpy(inquiry.ProductRevisionLevel, "1.00", 4);
+	memcpy(inquiry.VendorId, "IBM     ", 8);
+	memcpy(inquiry.ProductId, "SERVERAID       ", 16);
+	memcpy(inquiry.ProductRevisionLevel, "1.00", 4);
 
 	ips_scmd_buf_write(scb->scsi_cmd, &inquiry, sizeof (inquiry));
 
@@ -4698,7 +4704,6 @@ ips_init_copperhead(ips_ha_t * ha)
 	uint8_t Isr;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead", 1);
@@ -4743,7 +4748,7 @@ ips_init_copperhead(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = inb(ha->io_addr + IPS_REG_ISPR);
+		inb(ha->io_addr + IPS_REG_ISPR);
 		outb(Isr, ha->io_addr + IPS_REG_HISR);
 	}
 
@@ -4792,7 +4797,6 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 	uint8_t Isr = 0;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead_memio", 1);
@@ -4837,7 +4841,7 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = readb(ha->mem_ptr + IPS_REG_ISPR);
+		readb(ha->mem_ptr + IPS_REG_ISPR);
 		writeb(Isr, ha->mem_ptr + IPS_REG_HISR);
 	}
 
@@ -5623,10 +5627,10 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 	/* change values (as needed) */
 	ha->nvram->operating_system = IPS_OS_LINUX;
 	ha->nvram->adapter_type = ha->ad_type;
-	strncpy((char *) ha->nvram->driver_high, IPS_VERSION_HIGH, 4);
-	strncpy((char *) ha->nvram->driver_low, IPS_VERSION_LOW, 4);
-	strncpy((char *) ha->nvram->bios_high, ha->bios_version, 4);
-	strncpy((char *) ha->nvram->bios_low, ha->bios_version + 4, 4);
+	memcpy((char *) ha->nvram->driver_high, IPS_VERSION_HIGH, 4);
+	memcpy((char *) ha->nvram->driver_low, IPS_VERSION_LOW, 4);
+	memcpy((char *) ha->nvram->bios_high, ha->bios_version, 4);
+	memcpy((char *) ha->nvram->bios_low, ha->bios_version + 4, 4);
 
 	ha->nvram->versioning = 0;	/* Indicate the Driver Does Not Support Versioning */
 
@@ -6678,7 +6682,6 @@ ips_register_scsi(int index)
 	sh->sg_tablesize = sh->hostt->sg_tablesize;
 	sh->can_queue = sh->hostt->can_queue;
 	sh->cmd_per_lun = sh->hostt->cmd_per_lun;
-	sh->use_clustering = sh->hostt->use_clustering;
 	sh->max_sectors = 128;
 
 	sh->max_id = ha->ntargets;
@@ -6837,8 +6840,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	uint32_t mem_addr;
 	uint32_t io_len;
 	uint32_t mem_len;
-	uint8_t bus;
-	uint8_t func;
 	int j;
 	int index;
 	dma_addr_t dma_address;
@@ -6857,10 +6858,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 
 	if (index >= IPS_MAX_ADAPTERS)
 		return -1;
-
-	/* stuff that we get in dev */
-	bus = pci_dev->bus->number;
-	func = pci_dev->devfn;
 
 	/* Init MEM/IO addresses to 0 */
 	mem_addr = 0;
@@ -6926,7 +6923,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	 * it!  Also, don't use 64bit addressing if dma addresses
 	 * are guaranteed to be < 4G.
 	 */
-	if (IPS_ENABLE_DMA64 && IPS_HAS_ENH_SGLIST(ha) &&
+	if (sizeof(dma_addr_t) > 4 && IPS_HAS_ENH_SGLIST(ha) &&
 	    !dma_set_mask(&ha->pcidev->dev, DMA_BIT_MASK(64))) {
 		(ha)->flags |= IPS_HA_ENH_SG;
 	} else {
@@ -7104,23 +7101,3 @@ ips_init_phase2(int index)
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IBM ServeRAID Adapter Driver " IPS_VER_STRING);
 MODULE_VERSION(IPS_VER_STRING);
-
-
-/*
- * Overrides for Emacs so that we almost follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 2
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -2
- * c-argdecl-indent: 2
- * c-label-offset: -2
- * c-continued-statement-offset: 2
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */

@@ -1,3 +1,4 @@
+#!/bin/sh
 # Use vfs_getname probe to get syscall args filenames
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
@@ -5,6 +6,7 @@
 # checks that that was captured by the vfs_getname probe in the generated
 # perf.data file, with the temp file name as the pathname argument.
 
+# SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh
@@ -18,13 +20,13 @@ file=$(mktemp /tmp/temporary_file.XXXXX)
 
 record_open_file() {
 	echo "Recording open file:"
-	perf record -o ${perfdata} -e probe:vfs_getname touch $file
+	perf record -o ${perfdata} -e probe:vfs_getname\* touch $file
 }
 
 perf_script_filenames() {
 	echo "Looking at perf.data file for vfs_getname records for the file we touched:"
 	perf script -i ${perfdata} | \
-	egrep " +touch +[0-9]+ +\[[0-9]+\] +[0-9]+\.[0-9]+: +probe:vfs_getname: +\([[:xdigit:]]+\) +pathname=\"${file}\""
+	egrep " +touch +[0-9]+ +\[[0-9]+\] +[0-9]+\.[0-9]+: +probe:vfs_getname[_0-9]*: +\([[:xdigit:]]+\) +pathname=\"${file}\""
 }
 
 add_probe_vfs_getname || skip_if_no_debuginfo

@@ -45,9 +45,9 @@
 #include <linux/mm.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
+#include <linux/semaphore.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/hypervisor.h>
 #include <xen/xenbus.h>
@@ -180,6 +180,12 @@ static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type,
 	return err;
 }
 
+static bool frontend_will_handle(struct xenbus_watch *watch,
+				 const char *path, const char *token)
+{
+	return watch->nr_pending == 0;
+}
+
 static void frontend_changed(struct xenbus_watch *watch,
 			     const char *path, const char *token)
 {
@@ -191,6 +197,7 @@ static struct xen_bus_type xenbus_backend = {
 	.levels = 3,		/* backend/type/<frontend>/<id> */
 	.get_bus_id = backend_bus_id,
 	.probe = xenbus_probe_backend,
+	.otherend_will_handle = frontend_will_handle,
 	.otherend_changed = frontend_changed,
 	.bus = {
 		.name		= "xen-backend",
@@ -198,7 +205,6 @@ static struct xen_bus_type xenbus_backend = {
 		.uevent		= xenbus_uevent_backend,
 		.probe		= xenbus_dev_probe,
 		.remove		= xenbus_dev_remove,
-		.shutdown	= xenbus_dev_shutdown,
 		.dev_groups	= xenbus_dev_groups,
 	},
 };
@@ -248,6 +254,41 @@ static int backend_probe_and_watch(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
+static int backend_reclaim_memory(struct device *dev, void *data)
+{
+	const struct xenbus_driver *drv;
+	struct xenbus_device *xdev;
+
+	if (!dev->driver)
+		return 0;
+	drv = to_xenbus_driver(dev->driver);
+	if (drv && drv->reclaim_memory) {
+		xdev = to_xenbus_device(dev);
+		if (down_trylock(&xdev->reclaim_sem))
+			return 0;
+		drv->reclaim_memory(xdev);
+		up(&xdev->reclaim_sem);
+	}
+	return 0;
+}
+
+/*
+ * Returns 0 always because we are using shrinker to only detect memory
+ * pressure.
+ */
+static unsigned long backend_shrink_memory_count(struct shrinker *shrinker,
+				struct shrink_control *sc)
+{
+	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL,
+			backend_reclaim_memory);
+	return 0;
+}
+
+static struct shrinker backend_memory_shrinker = {
+	.count_objects = backend_shrink_memory_count,
+	.seeks = DEFAULT_SEEKS,
+};
+
 static int __init xenbus_probe_backend_init(void)
 {
 	static struct notifier_block xenstore_notifier = {
@@ -263,6 +304,9 @@ static int __init xenbus_probe_backend_init(void)
 		return err;
 
 	register_xenstore_notifier(&xenstore_notifier);
+
+	if (register_shrinker(&backend_memory_shrinker))
+		pr_warn("shrinker registration failed\n");
 
 	return 0;
 }

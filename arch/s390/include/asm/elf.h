@@ -107,6 +107,10 @@
 #define HWCAP_S390_VXRS_BCD	4096
 #define HWCAP_S390_VXRS_EXT	8192
 #define HWCAP_S390_GS		16384
+#define HWCAP_S390_VXRS_EXT2	32768
+#define HWCAP_S390_VXRS_PDE	65536
+#define HWCAP_S390_SORT		131072
+#define HWCAP_S390_DFLT		262144
 
 /* Internal bits, not exposed via elf */
 #define HWCAP_INT_SIE		1UL
@@ -140,10 +144,6 @@ typedef s390_compat_regs compat_elf_gregset_t;
 #include <linux/sched/mm.h>	/* for task_struct */
 #include <asm/mmu_context.h>
 
-#include <asm/vdso.h>
-
-extern unsigned int vdso_enabled;
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -172,7 +172,7 @@ struct arch_elf_state {
 	    !current->mm->context.alloc_pgste) {		\
 		set_thread_flag(TIF_PGSTE);			\
 		set_pt_regs_flag(task_pt_regs(current),		\
-				 PIF_SYSCALL_RESTART);		\
+				 PIF_EXECVE_PGSTE_RESTART);	\
 		_state->rc = -EAGAIN;				\
 	}							\
 	_state->rc;						\
@@ -229,8 +229,7 @@ extern char elf_platform[];
 do {								\
 	set_personality(PER_LINUX |				\
 		(current->personality & (~PER_MASK)));		\
-	current->thread.sys_call_table =			\
-		(unsigned long) &sys_call_table;		\
+	current->thread.sys_call_table = sys_call_table;	\
 } while (0)
 #else /* CONFIG_COMPAT */
 #define SET_PERSONALITY(ex)					\
@@ -241,32 +240,34 @@ do {								\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
 		set_thread_flag(TIF_31BIT);			\
 		current->thread.sys_call_table =		\
-			(unsigned long)	&sys_call_table_emu;	\
+			sys_call_table_emu;			\
 	} else {						\
 		clear_thread_flag(TIF_31BIT);			\
 		current->thread.sys_call_table =		\
-			(unsigned long) &sys_call_table;	\
+			sys_call_table;				\
 	}							\
 } while (0)
 #endif /* CONFIG_COMPAT */
 
 /*
  * Cache aliasing on the latest machines calls for a mapping granularity
- * of 512KB. For 64-bit processes use a 512KB alignment and a randomization
- * of up to 1GB. For 31-bit processes the virtual address space is limited,
- * use no alignment and limit the randomization to 8MB.
+ * of 512KB for the anonymous mapping base. For 64-bit processes use a
+ * 512KB alignment and a randomization of up to 1GB. For 31-bit processes
+ * the virtual address space is limited, use no alignment and limit the
+ * randomization to 8MB.
+ * For the additional randomization of the program break use 32MB for
+ * 64-bit and 8MB for 31-bit.
  */
-#define BRK_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ffffUL)
+#define BRK_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x1fffUL)
 #define MMAP_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ff80UL)
 #define MMAP_ALIGN_MASK	(is_compat_task() ? 0 : 0x7fUL)
 #define STACK_RND_MASK	MMAP_RND_MASK
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
-#define ARCH_DLINFO							    \
-do {									    \
-	if (vdso_enabled)						    \
-		NEW_AUX_ENT(AT_SYSINFO_EHDR,				    \
-			    (unsigned long)current->mm->context.vdso_base); \
+#define ARCH_DLINFO							\
+do {									\
+	NEW_AUX_ENT(AT_SYSINFO_EHDR,					\
+		    (unsigned long)current->mm->context.vdso_base);	\
 } while (0)
 
 struct linux_binprm;

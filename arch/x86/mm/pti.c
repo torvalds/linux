@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  *
  * This code is based in part on work published here:
  *
@@ -35,17 +27,17 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/cpu.h>
 
 #include <asm/cpufeature.h>
 #include <asm/hypervisor.h>
 #include <asm/vsyscall.h>
 #include <asm/cmdline.h>
 #include <asm/pti.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/sections.h>
+#include <asm/set_memory.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "Kernel/User page tables isolation: " fmt
@@ -77,7 +69,7 @@ static void __init pti_print_if_secure(const char *reason)
 		pr_info("%s\n", reason);
 }
 
-enum pti_mode {
+static enum pti_mode {
 	PTI_AUTO = 0,
 	PTI_FORCE_OFF,
 	PTI_FORCE_ON
@@ -115,7 +107,8 @@ void __init pti_check_boottime_disable(void)
 		}
 	}
 
-	if (cmdline_find_option_bool(boot_command_line, "nopti")) {
+	if (cmdline_find_option_bool(boot_command_line, "nopti") ||
+	    cpu_mitigations_off()) {
 		pti_mode = PTI_FORCE_OFF;
 		pti_print_if_insecure("disabled on command line.");
 		return;
@@ -336,13 +329,15 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 
 		pud = pud_offset(p4d, addr);
 		if (pud_none(*pud)) {
-			addr += PUD_SIZE;
+			WARN_ON_ONCE(addr & ~PUD_MASK);
+			addr = round_up(addr + 1, PUD_SIZE);
 			continue;
 		}
 
 		pmd = pmd_offset(pud, addr);
 		if (pmd_none(*pmd)) {
-			addr += PMD_SIZE;
+			WARN_ON_ONCE(addr & ~PMD_MASK);
+			addr = round_up(addr + 1, PMD_SIZE);
 			continue;
 		}
 
@@ -366,7 +361,7 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 			 * global, so set it as global in both copies.  Note:
 			 * the X86_FEATURE_PGE check is not _required_ because
 			 * the CPU ignores _PAGE_GLOBAL when PGE is not
-			 * supported.  The check keeps consistentency with
+			 * supported.  The check keeps consistency with
 			 * code that only set this bit when supported.
 			 */
 			if (boot_cpu_has(X86_FEATURE_PGE))
@@ -445,19 +440,12 @@ static void __init pti_clone_user_shared(void)
 
 	for_each_possible_cpu(cpu) {
 		/*
-		 * The SYSCALL64 entry code needs to be able to find the
-		 * thread stack and needs one word of scratch space in which
-		 * to spill a register.  All of this lives in the TSS, in
-		 * the sp1 and sp2 slots.
+		 * The SYSCALL64 entry code needs one word of scratch space
+		 * in which to spill a register.  It lives in the sp2 slot
+		 * of the CPU's TSS.
 		 *
 		 * This is done for all possible CPUs during boot to ensure
-		 * that it's propagated to all mms.  If we were to add one of
-		 * these mappings during CPU hotplug, we would need to take
-		 * some measure to make sure that every mm that subsequently
-		 * ran on that CPU would have the relevant PGD entry in its
-		 * pagetables.  The usual vmalloc_fault() mechanism would not
-		 * work for page faults taken in entry_SYSCALL_64 before RSP
-		 * is set up.
+		 * that it's propagated to all mms.
 		 */
 
 		unsigned long va = (unsigned long)&per_cpu(cpu_tss_rw, cpu);
@@ -502,12 +490,12 @@ static void __init pti_setup_espfix64(void)
 }
 
 /*
- * Clone the populated PMDs of the entry and irqentry text and force it RO.
+ * Clone the populated PMDs of the entry text and force it RO.
  */
 static void pti_clone_entry_text(void)
 {
 	pti_clone_pgtable((unsigned long) __entry_text_start,
-			  (unsigned long) __irqentry_text_end,
+			  (unsigned long) __entry_text_end,
 			  PTI_CLONE_PMD);
 }
 
@@ -523,7 +511,7 @@ static void pti_clone_entry_text(void)
 static inline bool pti_kernel_image_global_ok(void)
 {
 	/*
-	 * Systems with PCIDs get litlle benefit from global
+	 * Systems with PCIDs get little benefit from global
 	 * kernel text and are not worth the downsides.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_PCID))
@@ -559,13 +547,6 @@ static inline bool pti_kernel_image_global_ok(void)
 }
 
 /*
- * This is the only user for these and it is not arch-generic
- * like the other set_memory.h functions.  Just extern them.
- */
-extern int set_memory_nonglobal(unsigned long addr, int numpages);
-extern int set_memory_global(unsigned long addr, int numpages);
-
-/*
  * For some configurations, map all of kernel text into the user page
  * tables.  This reduces TLB misses, especially on non-PCID systems.
  */
@@ -578,7 +559,7 @@ static void pti_clone_kernel_text(void)
 	 */
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long end_clone  = (unsigned long)__end_rodata_aligned;
-	unsigned long end_global = PFN_ALIGN((unsigned long)__stop___ex_table);
+	unsigned long end_global = PFN_ALIGN((unsigned long)_etext);
 
 	if (!pti_kernel_image_global_ok())
 		return;
@@ -602,7 +583,7 @@ static void pti_clone_kernel_text(void)
 	set_memory_global(start, (end_global - start) >> PAGE_SHIFT);
 }
 
-void pti_set_kernel_image_nonglobal(void)
+static void pti_set_kernel_image_nonglobal(void)
 {
 	/*
 	 * The identity map is created with PMDs, regardless of the
@@ -626,7 +607,7 @@ void pti_set_kernel_image_nonglobal(void)
  */
 void __init pti_init(void)
 {
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!boot_cpu_has(X86_FEATURE_PTI))
 		return;
 
 	pr_info("enabled\n");
@@ -672,6 +653,8 @@ void __init pti_init(void)
  */
 void pti_finalize(void)
 {
+	if (!boot_cpu_has(X86_FEATURE_PTI))
+		return;
 	/*
 	 * We need to clone everything (again) that maps parts of the
 	 * kernel image.

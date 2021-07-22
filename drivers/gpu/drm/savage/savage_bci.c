@@ -22,8 +22,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <drm/drmP.h>
+
+#include <linux/delay.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/savage_drm.h>
+
 #include "savage_drv.h"
 
 /* Need a long timeout for shadow status updates can take a while
@@ -53,7 +62,7 @@ savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 		status = dev_priv->status_ptr[0];
 		if ((status & mask) < threshold)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if SAVAGE_BCI_DEBUG
@@ -74,7 +83,7 @@ savage_bci_wait_fifo_s3d(drm_savage_private_t * dev_priv, unsigned int n)
 		status = SAVAGE_READ(SAVAGE_STATUS_WORD0);
 		if ((status & SAVAGE_FIFO_USED_MASK_S3D) <= maxUsed)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if SAVAGE_BCI_DEBUG
@@ -95,7 +104,7 @@ savage_bci_wait_fifo_s4(drm_savage_private_t * dev_priv, unsigned int n)
 		status = SAVAGE_READ(SAVAGE_ALT_STATUS_WORD0);
 		if ((status & SAVAGE_FIFO_USED_MASK_S4) <= maxUsed)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if SAVAGE_BCI_DEBUG
@@ -128,7 +137,7 @@ savage_bci_wait_event_shadow(drm_savage_private_t * dev_priv, uint16_t e)
 		if ((((status & 0xffff) - e) & 0xffff) <= 0x7fff ||
 		    (status & 0xffff) == 0)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if SAVAGE_BCI_DEBUG
@@ -150,7 +159,7 @@ savage_bci_wait_event_reg(drm_savage_private_t * dev_priv, uint16_t e)
 		if ((((status & 0xffff) - e) & 0xffff) <= 0x7fff ||
 		    (status & 0xffff) == 0)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if SAVAGE_BCI_DEBUG
@@ -538,6 +547,7 @@ static void savage_fake_dma_flush(drm_savage_private_t * dev_priv)
 
 int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	drm_savage_private_t *dev_priv;
 
 	dev_priv = kzalloc(sizeof(drm_savage_private_t), GFP_KERNEL);
@@ -548,7 +558,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->chipset = (enum savage_family)chipset;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	return 0;
 }
@@ -563,23 +573,17 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 int savage_driver_firstopen(struct drm_device *dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long mmio_base, fb_base, fb_size, aperture_base;
-	/* fb_rsrc and aper_rsrc aren't really used currently, but still exist
-	 * in case we decide we need information on the BAR for BSD in the
-	 * future.
-	 */
-	unsigned int fb_rsrc, aper_rsrc;
 	int ret = 0;
 
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
-		fb_rsrc = 0;
-		fb_base = pci_resource_start(dev->pdev, 0);
+		fb_base = pci_resource_start(pdev, 0);
 		fb_size = SAVAGE_FB_SIZE_S3;
 		mmio_base = fb_base + SAVAGE_FB_SIZE_S3;
-		aper_rsrc = 0;
 		aperture_base = fb_base + SAVAGE_APERTURE_OFFSET;
 		/* this should always be true */
-		if (pci_resource_len(dev->pdev, 0) == 0x08000000) {
+		if (pci_resource_len(pdev, 0) == 0x08000000) {
 			/* Don't make MMIO write-cobining! We need 3
 			 * MTRRs. */
 			dev_priv->mtrr_handles[0] =
@@ -593,18 +597,16 @@ int savage_driver_firstopen(struct drm_device *dev)
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
-				  pci_resource_len(dev->pdev, 0));
+				  pci_resource_len(pdev, 0));
 		}
 	} else if (dev_priv->chipset != S3_SUPERSAVAGE &&
 		   dev_priv->chipset != S3_SAVAGE2000) {
-		mmio_base = pci_resource_start(dev->pdev, 0);
-		fb_rsrc = 1;
-		fb_base = pci_resource_start(dev->pdev, 1);
+		mmio_base = pci_resource_start(pdev, 0);
+		fb_base = pci_resource_start(pdev, 1);
 		fb_size = SAVAGE_FB_SIZE_S4;
-		aper_rsrc = 1;
 		aperture_base = fb_base + SAVAGE_APERTURE_OFFSET;
 		/* this should always be true */
-		if (pci_resource_len(dev->pdev, 1) == 0x08000000) {
+		if (pci_resource_len(pdev, 1) == 0x08000000) {
 			/* Can use one MTRR to cover both fb and
 			 * aperture. */
 			dev_priv->mtrr_handles[0] =
@@ -613,15 +615,13 @@ int savage_driver_firstopen(struct drm_device *dev)
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
-				  pci_resource_len(dev->pdev, 1));
+				  pci_resource_len(pdev, 1));
 		}
 	} else {
-		mmio_base = pci_resource_start(dev->pdev, 0);
-		fb_rsrc = 1;
-		fb_base = pci_resource_start(dev->pdev, 1);
-		fb_size = pci_resource_len(dev->pdev, 1);
-		aper_rsrc = 2;
-		aperture_base = pci_resource_start(dev->pdev, 2);
+		mmio_base = pci_resource_start(pdev, 0);
+		fb_base = pci_resource_start(pdev, 1);
+		fb_size = pci_resource_len(pdev, 1);
+		aperture_base = pci_resource_start(pdev, 2);
 		/* Automatic MTRR setup will do the right thing. */
 	}
 
@@ -1014,7 +1014,7 @@ int savage_bci_buffers(struct drm_device *dev, void *data, struct drm_file *file
 	 */
 	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d->send_count);
+			  task_pid_nr(current), d->send_count);
 		return -EINVAL;
 	}
 
@@ -1022,7 +1022,7 @@ int savage_bci_buffers(struct drm_device *dev, void *data, struct drm_file *file
 	 */
 	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d->request_count, dma->buf_count);
+			  task_pid_nr(current), d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 

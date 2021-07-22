@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PS3 BD/DVD/CD-ROM Storage Driver
  *
  * Copyright (C) 2007 Sony Computer Entertainment Inc.
  * Copyright 2007 Sony Corp.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published
- * by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/cdrom.h>
@@ -246,10 +234,8 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	}
 
 	if (res) {
-		memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+		scsi_build_sense(cmd, 0, ILLEGAL_REQUEST, 0, 0);
 		cmd->result = res;
-		cmd->sense_buffer[0] = 0x70;
-		cmd->sense_buffer[2] = ILLEGAL_REQUEST;
 		priv->curr_cmd = NULL;
 		cmd->scsi_done(cmd);
 	}
@@ -331,8 +317,7 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 		goto done;
 	}
 
-	scsi_build_sense_buffer(0, cmd->sense_buffer, sense_key, asc, ascq);
-	cmd->result = SAM_STAT_CHECK_CONDITION;
+	scsi_build_sense(cmd, 0, sense_key, asc, ascq);
 
 done:
 	priv->curr_cmd = NULL;
@@ -349,7 +334,6 @@ static struct scsi_host_template ps3rom_host_template = {
 	.sg_tablesize =		SG_ALL,
 	.emulated =             1,		/* only sg driver uses this */
 	.max_sectors =		PS3ROM_MAX_SECTORS,
-	.use_clustering =	ENABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };
 
@@ -415,7 +399,7 @@ fail_free_bounce:
 	return error;
 }
 
-static int ps3rom_remove(struct ps3_system_bus_device *_dev)
+static void ps3rom_remove(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct Scsi_Host *host = ps3_system_bus_get_drvdata(&dev->sbd);
@@ -425,7 +409,6 @@ static int ps3rom_remove(struct ps3_system_bus_device *_dev)
 	scsi_host_put(host);
 	ps3_system_bus_set_drvdata(&dev->sbd, NULL);
 	kfree(dev->bounce_buf);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3rom = {

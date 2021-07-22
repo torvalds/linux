@@ -70,6 +70,16 @@ enum rfkill_operation {
 };
 
 /**
+ * enum rfkill_hard_block_reasons - hard block reasons
+ * @RFKILL_HARD_BLOCK_SIGNAL: the hardware rfkill signal is active
+ * @RFKILL_HARD_BLOCK_NOT_OWNER: the NIC is not owned by the host
+ */
+enum rfkill_hard_block_reasons {
+	RFKILL_HARD_BLOCK_SIGNAL	= 1 << 0,
+	RFKILL_HARD_BLOCK_NOT_OWNER	= 1 << 1,
+};
+
+/**
  * struct rfkill_event - events for userspace on /dev/rfkill
  * @idx: index of dev rfkill
  * @type: type of the rfkill struct
@@ -84,22 +94,82 @@ struct rfkill_event {
 	__u32 idx;
 	__u8  type;
 	__u8  op;
-	__u8  soft, hard;
+	__u8  soft;
+	__u8  hard;
 } __attribute__((packed));
 
-/*
- * We are planning to be backward and forward compatible with changes
- * to the event struct, by adding new, optional, members at the end.
- * When reading an event (whether the kernel from userspace or vice
- * versa) we need to accept anything that's at least as large as the
- * version 1 event size, but might be able to accept other sizes in
- * the future.
+/**
+ * struct rfkill_event_ext - events for userspace on /dev/rfkill
+ * @idx: index of dev rfkill
+ * @type: type of the rfkill struct
+ * @op: operation code
+ * @hard: hard state (0/1)
+ * @soft: soft state (0/1)
+ * @hard_block_reasons: valid if hard is set. One or several reasons from
+ *	&enum rfkill_hard_block_reasons.
  *
- * One exception is the kernel -- we already have two event sizes in
- * that we've made the 'hard' member optional since our only option
- * is to ignore it anyway.
+ * Structure used for userspace communication on /dev/rfkill,
+ * used for events from the kernel and control to the kernel.
+ *
+ * See the extensibility docs below.
  */
-#define RFKILL_EVENT_SIZE_V1	8
+struct rfkill_event_ext {
+	__u32 idx;
+	__u8  type;
+	__u8  op;
+	__u8  soft;
+	__u8  hard;
+
+	/*
+	 * older kernels will accept/send only up to this point,
+	 * and if extended further up to any chunk marked below
+	 */
+
+	__u8  hard_block_reasons;
+} __attribute__((packed));
+
+/**
+ * DOC: Extensibility
+ *
+ * Originally, we had planned to allow backward and forward compatible
+ * changes by just adding fields at the end of the structure that are
+ * then not reported on older kernels on read(), and not written to by
+ * older kernels on write(), with the kernel reporting the size it did
+ * accept as the result.
+ *
+ * This would have allowed userspace to detect on read() and write()
+ * which kernel structure version it was dealing with, and if was just
+ * recompiled it would have gotten the new fields, but obviously not
+ * accessed them, but things should've continued to work.
+ *
+ * Unfortunately, while actually exercising this mechanism to add the
+ * hard block reasons field, we found that userspace (notably systemd)
+ * did all kinds of fun things not in line with this scheme:
+ *
+ * 1. treat the (expected) short writes as an error;
+ * 2. ask to read sizeof(struct rfkill_event) but then compare the
+ *    actual return value to RFKILL_EVENT_SIZE_V1 and treat any
+ *    mismatch as an error.
+ *
+ * As a consequence, just recompiling with a new struct version caused
+ * things to no longer work correctly on old and new kernels.
+ *
+ * Hence, we've rolled back &struct rfkill_event to the original version
+ * and added &struct rfkill_event_ext. This effectively reverts to the
+ * old behaviour for all userspace, unless it explicitly opts in to the
+ * rules outlined here by using the new &struct rfkill_event_ext.
+ *
+ * Userspace using &struct rfkill_event_ext must adhere to the following
+ * rules
+ *
+ * 1. accept short writes, optionally using them to detect that it's
+ *    running on an older kernel;
+ * 2. accept short reads, knowing that this means it's running on an
+ *    older kernel;
+ * 3. treat reads that are as long as requested as acceptable, not
+ *    checking against RFKILL_EVENT_SIZE_V1 or such.
+ */
+#define RFKILL_EVENT_SIZE_V1	sizeof(struct rfkill_event)
 
 /* ioctl for turning off rfkill-input (if present) */
 #define RFKILL_IOC_MAGIC	'R'

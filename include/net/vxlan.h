@@ -7,6 +7,9 @@
 #include <net/dst_metadata.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
+#include <net/nexthop.h>
+
+#define IANA_VXLAN_UDP_PORT     4789
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -118,6 +121,9 @@ struct vxlanhdr_gbp {
 #define VXLAN_GBP_POLICY_APPLIED	(BIT(3) << 16)
 #define VXLAN_GBP_ID_MASK		(0xFFFF)
 
+#define VXLAN_GBP_MASK (VXLAN_GBP_DONT_LEARN | VXLAN_GBP_POLICY_APPLIED | \
+			VXLAN_GBP_ID_MASK)
+
 /*
  * VXLAN Generic Protocol Extension (VXLAN_F_GPE):
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -195,6 +201,7 @@ struct vxlan_rdst {
 	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
+	struct net_device	 *remote_dev;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
 	struct dst_cache	 dst_cache;
@@ -216,6 +223,7 @@ struct vxlan_config {
 	unsigned long		age_interval;
 	unsigned int		addrmax;
 	bool			no_share;
+	enum ifla_vxlan_df	df;
 };
 
 struct vxlan_dev_node {
@@ -239,7 +247,7 @@ struct vxlan_dev {
 	struct vxlan_rdst default_dst;	/* default destination */
 
 	struct timer_list age_timer;
-	spinlock_t	  hash_lock;
+	spinlock_t	  hash_lock[FDB_HASH_SIZE];
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
 
@@ -388,7 +396,7 @@ static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 	if (ipa->sa.sa_family == AF_INET6)
 		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
 	else
-		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+		return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #else /* !IS_ENABLED(CONFIG_IPV6) */
@@ -400,7 +408,7 @@ static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
 
 static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 {
-	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+	return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #endif /* IS_ENABLED(CONFIG_IPV6) */
@@ -420,11 +428,17 @@ struct switchdev_notifier_vxlan_fdb_info {
 	u8 eth_addr[ETH_ALEN];
 	__be32 vni;
 	bool offloaded;
+	bool added_by_user;
 };
 
 #if IS_ENABLED(CONFIG_VXLAN)
 int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+		     struct notifier_block *nb,
+		     struct netlink_ext_ack *extack);
+void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni);
+
 #else
 static inline int
 vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
@@ -432,6 +446,73 @@ vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 {
 	return -ENOENT;
 }
+
+static inline int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+				   struct notifier_block *nb,
+				   struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void
+vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni)
+{
+}
 #endif
+
+static inline void vxlan_flag_attr_error(int attrtype,
+					 struct netlink_ext_ack *extack)
+{
+#define VXLAN_FLAG(flg) \
+	case IFLA_VXLAN_##flg: \
+		NL_SET_ERR_MSG_MOD(extack, \
+				   "cannot change " #flg " flag"); \
+		break
+	switch (attrtype) {
+	VXLAN_FLAG(TTL_INHERIT);
+	VXLAN_FLAG(LEARNING);
+	VXLAN_FLAG(PROXY);
+	VXLAN_FLAG(RSC);
+	VXLAN_FLAG(L2MISS);
+	VXLAN_FLAG(L3MISS);
+	VXLAN_FLAG(COLLECT_METADATA);
+	VXLAN_FLAG(UDP_ZERO_CSUM6_TX);
+	VXLAN_FLAG(UDP_ZERO_CSUM6_RX);
+	VXLAN_FLAG(REMCSUM_TX);
+	VXLAN_FLAG(REMCSUM_RX);
+	VXLAN_FLAG(GBP);
+	VXLAN_FLAG(GPE);
+	VXLAN_FLAG(REMCSUM_NOPARTIAL);
+	default:
+		NL_SET_ERR_MSG_MOD(extack, \
+				   "cannot change flag");
+		break;
+	}
+#undef VXLAN_FLAG
+}
+
+static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
+					    int hash,
+					    struct vxlan_rdst *rdst)
+{
+	struct fib_nh_common *nhc;
+
+	nhc = nexthop_path_fdb_result(nh, hash);
+	if (unlikely(!nhc))
+		return false;
+
+	switch (nhc->nhc_gw_family) {
+	case AF_INET:
+		rdst->remote_ip.sin.sin_addr.s_addr = nhc->nhc_gw.ipv4;
+		rdst->remote_ip.sa.sa_family = AF_INET;
+		break;
+	case AF_INET6:
+		rdst->remote_ip.sin6.sin6_addr = nhc->nhc_gw.ipv6;
+		rdst->remote_ip.sa.sa_family = AF_INET6;
+		break;
+	}
+
+	return true;
+}
 
 #endif

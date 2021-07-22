@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 
     AudioScience HPI driver
     Copyright (C) 1997-2014  AudioScience Inc. <support@audioscience.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of version 2 of the GNU General Public License as
-    published by the Free Software Foundation;
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 \file hpicmn.c
 
@@ -39,10 +28,12 @@ struct hpi_adapters_list {
 static struct hpi_adapters_list adapters;
 
 /**
-* Given an HPI Message that was sent out and a response that was received,
-* validate that the response has the correct fields filled in,
-* i.e ObjectType, Function etc
-**/
+ * hpi_validate_response - Given an HPI Message that was sent out and
+ * a response that was received, validate that the response has the
+ * correct fields filled in, i.e ObjectType, Function etc
+ * @phm: message
+ * @phr: response
+ */
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr)
 {
 	if (phr->type != HPI_TYPE_RESPONSE) {
@@ -117,10 +108,11 @@ void hpi_delete_adapter(struct hpi_adapter_obj *pao)
 }
 
 /**
-* FindAdapter returns a pointer to the struct hpi_adapter_obj with
-* index wAdapterIndex in an HPI_ADAPTERS_LIST structure.
-*
-*/
+ * hpi_find_adapter - FindAdapter returns a pointer to the struct
+ * hpi_adapter_obj with index wAdapterIndex in an HPI_ADAPTERS_LIST
+ * structure.
+ * @adapter_index: value in [0, HPI_MAX_ADAPTERS[
+ */
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 {
 	struct hpi_adapter_obj *pao = NULL;
@@ -148,10 +140,9 @@ struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 }
 
 /**
-*
-* wipe an HPI_ADAPTERS_LIST structure.
-*
-**/
+ * wipe_adapter_list - wipe an HPI_ADAPTERS_LIST structure.
+ *
+ */
 static void wipe_adapter_list(void)
 {
 	memset(&adapters, 0, sizeof(adapters));

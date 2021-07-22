@@ -8,13 +8,13 @@
  * Copyright (C) 2018 MIPS Tech, LLC
  */
 
-#include <linux/unaligned/access_ok.h>
 #include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/mipsregs.h>
+#include <asm/unaligned.h>
 
 #include <crypto/internal/hash.h>
 
@@ -177,10 +177,8 @@ static int chksum_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct chksum_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (keylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = get_unaligned_le32(key);
 	return 0;
 }

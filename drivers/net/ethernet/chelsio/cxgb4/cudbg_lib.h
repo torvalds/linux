@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2017 Chelsio Communications.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #ifndef __CUDBG_LIB_H__
@@ -174,7 +162,11 @@ int cudbg_collect_hma_meminfo(struct cudbg_init *pdbg_init,
 int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *dbg_buff,
 			struct cudbg_error *cudbg_err);
+int cudbg_collect_flash(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err);
 
+u32 cudbg_get_entity_length(struct adapter *adap, u32 entity);
 struct cudbg_entity_hdr *cudbg_get_entity_hdr(void *outbuf, int i);
 void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
 			      struct cudbg_entity_hdr *entity_hdr);

@@ -32,7 +32,7 @@ There are helpers to lock/unlock a table and other accessor functions:
 
 Split page table lock for PTE tables is enabled compile-time if
 CONFIG_SPLIT_PTLOCK_CPUS (usually 4) is less or equal to NR_CPUS.
-If split lock is disabled, all tables guaded by mm->page_table_lock.
+If split lock is disabled, all tables are guarded by mm->page_table_lock.
 
 Split page table lock for PMD tables is enabled, if it's enabled for PTE
 tables and the architecture supports it (see below).
@@ -54,9 +54,9 @@ Hugetlb-specific helpers:
 Support of split page table lock by an architecture
 ===================================================
 
-There's no need in special enabling of PTE split page table lock:
-everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
-which must be called on PTE table allocation / freeing.
+There's no need in special enabling of PTE split page table lock: everything
+required is done by pgtable_pte_page_ctor() and pgtable_pte_page_dtor(), which
+must be called on PTE table allocation / freeing.
 
 Make sure the architecture doesn't use slab allocator for page table
 allocation: slab uses page->slab_cache for its pages.
@@ -74,7 +74,7 @@ paths: i.e X86_PAE preallocate few PMDs on pgd_alloc().
 
 With everything in place you can set CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK.
 
-NOTE: pgtable_page_ctor() and pgtable_pmd_page_ctor() can fail -- it must
+NOTE: pgtable_pte_page_ctor() and pgtable_pmd_page_ctor() can fail -- it must
 be handled properly.
 
 page->ptl
@@ -94,7 +94,7 @@ trick:
    split lock with enabled DEBUG_SPINLOCK or DEBUG_LOCK_ALLOC, but costs
    one more cache line for indirect access;
 
-The spinlock_t allocated in pgtable_page_ctor() for PTE table and in
+The spinlock_t allocated in pgtable_pte_page_ctor() for PTE table and in
 pgtable_pmd_page_ctor() for PMD table.
 
 Please, never access page->ptl directly -- use appropriate helper.

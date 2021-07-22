@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9P031 CMOS Image Sensor from Aptina
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2011, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  *
  * Based on the MT9V032 driver and Bastian Hecht's code.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -349,8 +346,7 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 	regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
 			       mt9p031->regulators);
 
-	if (mt9p031->clk)
-		clk_disable_unprepare(mt9p031->clk);
+	clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
@@ -474,7 +470,7 @@ static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 }
 
 static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -487,7 +483,7 @@ static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -505,12 +501,14 @@ static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static struct v4l2_mbus_framefmt *
-__mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
+__mt9p031_get_pad_format(struct mt9p031 *mt9p031,
+			 struct v4l2_subdev_state *sd_state,
 			 unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9p031->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&mt9p031->subdev, sd_state,
+						  pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->format;
 	default:
@@ -519,12 +517,14 @@ __mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config 
 }
 
 static struct v4l2_rect *
-__mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
-		     unsigned int pad, u32 which)
+__mt9p031_get_pad_crop(struct mt9p031 *mt9p031,
+		       struct v4l2_subdev_state *sd_state,
+		       unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9p031->subdev, cfg, pad);
+		return v4l2_subdev_get_try_crop(&mt9p031->subdev, sd_state,
+						pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->crop;
 	default:
@@ -533,18 +533,18 @@ __mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *c
 }
 
 static int mt9p031_get_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
-	fmt->format = *__mt9p031_get_pad_format(mt9p031, cfg, fmt->pad,
+	fmt->format = *__mt9p031_get_pad_format(mt9p031, sd_state, fmt->pad,
 						fmt->which);
 	return 0;
 }
 
 static int mt9p031_set_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -555,7 +555,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, format->pad,
+	__crop = __mt9p031_get_pad_crop(mt9p031, sd_state, format->pad,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
@@ -571,7 +571,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
 	vratio = DIV_ROUND_CLOSEST(__crop->height, height);
 
-	__format = __mt9p031_get_pad_format(mt9p031, cfg, format->pad,
+	__format = __mt9p031_get_pad_format(mt9p031, sd_state, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
@@ -582,7 +582,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_get_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -590,12 +590,13 @@ static int mt9p031_get_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
+	sel->r = *__mt9p031_get_pad_crop(mt9p031, sd_state, sel->pad,
+					 sel->which);
 	return 0;
 }
 
 static int mt9p031_set_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -625,13 +626,15 @@ static int mt9p031_set_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
+	__crop = __mt9p031_get_pad_crop(mt9p031, sd_state, sel->pad,
+					sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9p031_get_pad_format(mt9p031, cfg, sel->pad,
+		__format = __mt9p031_get_pad_format(mt9p031, sd_state,
+						    sel->pad,
 						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
@@ -946,13 +949,13 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(subdev, fh->pad, 0);
+	crop = v4l2_subdev_get_try_crop(subdev, fh->state, 0);
 	crop->left = MT9P031_COLUMN_START_DEF;
 	crop->top = MT9P031_ROW_START_DEF;
 	crop->width = MT9P031_WINDOW_WIDTH_DEF;
 	crop->height = MT9P031_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(subdev, fh->pad, 0);
+	format = v4l2_subdev_get_try_format(subdev, fh->state, 0);
 
 	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		format->code = MEDIA_BUS_FMT_Y12_1X12;
@@ -1034,7 +1037,7 @@ static int mt9p031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9p031_platform_data *pdata = mt9p031_get_pdata(client);
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct mt9p031 *mt9p031;
 	unsigned int i;
 	int ret;

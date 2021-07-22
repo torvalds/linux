@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/cpufreq/cpufreq_powersave.c
  *
  * Copyright (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -26,17 +21,8 @@ static struct cpufreq_governor cpufreq_gov_powersave = {
 	.name		= "powersave",
 	.limits		= cpufreq_gov_powersave_limits,
 	.owner		= THIS_MODULE,
+	.flags		= CPUFREQ_GOV_STRICT_TARGET,
 };
-
-static int __init cpufreq_gov_powersave_init(void)
-{
-	return cpufreq_register_governor(&cpufreq_gov_powersave);
-}
-
-static void __exit cpufreq_gov_powersave_exit(void)
-{
-	cpufreq_unregister_governor(&cpufreq_gov_powersave);
-}
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION("CPUfreq policy governor 'powersave'");
@@ -47,9 +33,7 @@ struct cpufreq_governor *cpufreq_default_governor(void)
 {
 	return &cpufreq_gov_powersave;
 }
-
-fs_initcall(cpufreq_gov_powersave_init);
-#else
-module_init(cpufreq_gov_powersave_init);
 #endif
-module_exit(cpufreq_gov_powersave_exit);
+
+cpufreq_governor_init(cpufreq_gov_powersave);
+cpufreq_governor_exit(cpufreq_gov_powersave);

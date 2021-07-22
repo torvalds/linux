@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Conexant Digicolor General Purpose Pin Mapping
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
  * Copyright (C) 2015 Paradox Innovation Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * TODO:
  * - GPIO interrupt support
@@ -274,7 +270,6 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 static int dc_pinctrl_probe(struct platform_device *pdev)
 {
 	struct dc_pinmap *pmap;
-	struct resource *r;
 	struct pinctrl_pin_desc *pins;
 	struct pinctrl_desc *pctl_desc;
 	char *pin_names;
@@ -285,8 +280,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	if (!pmap)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmap->regs = devm_ioremap_resource(&pdev->dev, r);
+	pmap->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmap->regs))
 		return PTR_ERR(pmap->regs);
 

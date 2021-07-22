@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig FUSION
 	bool "Fusion MPT device support"
 	depends on PCI
-	---help---
+	help
 	Say Y here to get to see options for Fusion Message
 	Passing Technology (MPT) drivers.
 	This option alone does not add any kernel code.
@@ -15,7 +16,7 @@ config FUSION_SPI
 	tristate "Fusion MPT ScsiHost drivers for SPI"
 	depends on PCI && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  SCSI HOST support for a parallel SCSI host adapters.
 
 	  List of supported controllers:
@@ -30,7 +31,7 @@ config FUSION_FC
 	tristate "Fusion MPT ScsiHost drivers for FC"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
-	---help---
+	help
 	  SCSI HOST support for a Fiber Channel host adapters.
 
 	  List of supported controllers:
@@ -49,7 +50,7 @@ config FUSION_SAS
 	tristate "Fusion MPT ScsiHost drivers for SAS"
 	depends on PCI && SCSI
 	select SCSI_SAS_ATTRS
-	---help---
+	help
 	  SCSI HOST support for a SAS host adapters.
 
 	  List of supported controllers:
@@ -74,7 +75,7 @@ config FUSION_MAX_SGE
 config FUSION_CTL
 	tristate "Fusion MPT misc device (ioctl) driver"
 	depends on FUSION_SPI || FUSION_FC || FUSION_SAS
-	---help---
+	help
 	  The Fusion MPT misc device driver provides specialized control
 	  of MPT adapters via system ioctl calls.  Use of ioctl calls to
 	  the MPT driver requires that you create and use a misc device
@@ -93,7 +94,7 @@ config FUSION_CTL
 config FUSION_LAN
 	tristate "Fusion MPT LAN driver"
 	depends on FUSION_FC && NET_FC
-	---help---
+	help
 	  This module supports LAN IP traffic over Fibre Channel port(s)
 	  on Fusion MPT compatible hardware (LSIFC9xx chips).
 	  The physical interface used is defined in RFC 2625.
@@ -109,7 +110,7 @@ config FUSION_LAN
 
 config FUSION_LOGGING
 	bool "Fusion MPT logging facility"
-	---help---
+	help
 	  This turns on a logging facility that can be used to debug a number
 	  of Fusion MPT related problems.
 

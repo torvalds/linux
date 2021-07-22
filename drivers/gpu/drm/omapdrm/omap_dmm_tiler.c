@@ -1,7 +1,7 @@
 /*
  * DMM IOMMU driver support functions for TI OMAP processors.
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *         Andy Gross <andy.gross@ti.com>
  *
@@ -82,12 +82,11 @@ static const u32 reg[][4] = {
 
 static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
 {
-	struct dma_device *dma_dev = dmm->wa_dma_chan->device;
 	struct dma_async_tx_descriptor *tx;
 	enum dma_status status;
 	dma_cookie_t cookie;
 
-	tx = dma_dev->device_prep_dma_memcpy(dmm->wa_dma_chan, dst, src, 4, 0);
+	tx = dmaengine_prep_dma_memcpy(dmm->wa_dma_chan, dst, src, 4, 0);
 	if (!tx) {
 		dev_err(dmm->dev, "Failed to prepare DMA memcpy\n");
 		return -EIO;
@@ -99,7 +98,6 @@ static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
 		return -EIO;
 	}
 
-	dma_async_issue_pending(dmm->wa_dma_chan);
 	status = dma_sync_wait(dmm->wa_dma_chan, cookie);
 	if (status != DMA_COMPLETE)
 		dev_err(dmm->dev, "i878 wa DMA copy failure\n");
@@ -308,7 +306,7 @@ static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Get a handle for a DMM transaction
  */
 static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
@@ -346,7 +344,7 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	return txn;
 }
 
-/**
+/*
  * Add region to DMM transaction.  If pages or pages[i] is NULL, then the
  * corresponding slot is cleared (ie. dummy_pa is programmed)
  */
@@ -394,7 +392,7 @@ static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	return;
 }
 
-/**
+/*
  * Commit the DMM transaction.
  */
 static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
@@ -891,6 +889,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 					   &omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
 		dev_err(&dev->dev, "could not allocate refill memory\n");
+		ret = -ENOMEM;
 		goto fail;
 	}
 

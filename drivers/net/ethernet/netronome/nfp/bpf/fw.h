@@ -6,6 +6,7 @@
 
 #include <linux/bitops.h>
 #include <linux/types.h>
+#include "../ccm.h"
 
 /* Kernel's enum bpf_reg_type is not uABI so people may change it breaking
  * our FW ABI.  In that case we will do translation in the driver.
@@ -23,6 +24,7 @@ enum bpf_cap_tlv_type {
 	NFP_BPF_CAP_TYPE_QUEUE_SELECT	= 5,
 	NFP_BPF_CAP_TYPE_ADJUST_TAIL	= 6,
 	NFP_BPF_CAP_TYPE_ABI_VERSION	= 7,
+	NFP_BPF_CAP_TYPE_CMSG_MULTI_ENT	= 8,
 };
 
 struct nfp_bpf_cap_tlv_func {
@@ -52,22 +54,6 @@ struct nfp_bpf_cap_tlv_maps {
 /*
  * Types defined for map related control messages
  */
-#define CMSG_MAP_ABI_VERSION		1
-
-enum nfp_bpf_cmsg_type {
-	CMSG_TYPE_MAP_ALLOC	= 1,
-	CMSG_TYPE_MAP_FREE	= 2,
-	CMSG_TYPE_MAP_LOOKUP	= 3,
-	CMSG_TYPE_MAP_UPDATE	= 4,
-	CMSG_TYPE_MAP_DELETE	= 5,
-	CMSG_TYPE_MAP_GETNEXT	= 6,
-	CMSG_TYPE_MAP_GETFIRST	= 7,
-	CMSG_TYPE_BPF_EVENT	= 8,
-	__CMSG_TYPE_MAP_MAX,
-};
-
-#define CMSG_TYPE_MAP_REPLY_BIT		7
-#define __CMSG_REPLY(req)		(BIT(CMSG_TYPE_MAP_REPLY_BIT) | (req))
 
 /* BPF ABIv2 fixed-length control message fields */
 #define CMSG_MAP_KEY_LW			16
@@ -84,19 +70,13 @@ enum nfp_bpf_cmsg_status {
 	CMSG_RC_ERR_MAP_E2BIG		= 7,
 };
 
-struct cmsg_hdr {
-	u8 type;
-	u8 ver;
-	__be16 tag;
-};
-
 struct cmsg_reply_map_simple {
-	struct cmsg_hdr hdr;
+	struct nfp_ccm_hdr hdr;
 	__be32 rc;
 };
 
 struct cmsg_req_map_alloc_tbl {
-	struct cmsg_hdr hdr;
+	struct nfp_ccm_hdr hdr;
 	__be32 key_size;		/* in bytes */
 	__be32 value_size;		/* in bytes */
 	__be32 max_entries;
@@ -110,7 +90,7 @@ struct cmsg_reply_map_alloc_tbl {
 };
 
 struct cmsg_req_map_free_tbl {
-	struct cmsg_hdr hdr;
+	struct nfp_ccm_hdr hdr;
 	__be32 tid;
 };
 
@@ -120,26 +100,26 @@ struct cmsg_reply_map_free_tbl {
 };
 
 struct cmsg_req_map_op {
-	struct cmsg_hdr hdr;
+	struct nfp_ccm_hdr hdr;
 	__be32 tid;
 	__be32 count;
 	__be32 flags;
-	u8 data[0];
+	u8 data[];
 };
 
 struct cmsg_reply_map_op {
 	struct cmsg_reply_map_simple reply_hdr;
 	__be32 count;
 	__be32 resv;
-	u8 data[0];
+	u8 data[];
 };
 
 struct cmsg_bpf_event {
-	struct cmsg_hdr hdr;
+	struct nfp_ccm_hdr hdr;
 	__be32 cpu_id;
 	__be64 map_ptr;
 	__be32 data_size;
 	__be32 pkt_size;
-	u8 data[0];
+	u8 data[];
 };
 #endif

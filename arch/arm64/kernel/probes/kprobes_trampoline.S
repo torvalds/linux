@@ -25,7 +25,7 @@
 	stp x24, x25, [sp, #S_X24]
 	stp x26, x27, [sp, #S_X26]
 	stp x28, x29, [sp, #S_X28]
-	add x0, sp, #S_FRAME_SIZE
+	add x0, sp, #PT_REGS_SIZE
 	stp lr, x0, [sp, #S_LR]
 	/*
 	 * Construct a useful saved PSTATE
@@ -61,8 +61,8 @@
 	ldp x28, x29, [sp, #S_X28]
 	.endm
 
-ENTRY(kretprobe_trampoline)
-	sub sp, sp, #S_FRAME_SIZE
+SYM_CODE_START(kretprobe_trampoline)
+	sub sp, sp, #PT_REGS_SIZE
 
 	save_all_base_regs
 
@@ -76,7 +76,7 @@ ENTRY(kretprobe_trampoline)
 
 	restore_all_base_regs
 
-	add sp, sp, #S_FRAME_SIZE
+	add sp, sp, #PT_REGS_SIZE
 	ret
 
-ENDPROC(kretprobe_trampoline)
+SYM_CODE_END(kretprobe_trampoline)

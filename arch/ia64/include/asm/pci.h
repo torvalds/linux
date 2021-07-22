@@ -39,9 +39,9 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 				      struct vm_area_struct *vma,
 				      enum pci_mmap_state mmap_state);
 
-#define pci_get_legacy_mem platform_pci_get_legacy_mem
-#define pci_legacy_read platform_pci_legacy_read
-#define pci_legacy_write platform_pci_legacy_write
+char *pci_get_legacy_mem(struct pci_bus *bus);
+int pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size);
+int pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size);
 
 struct pci_controller {
 	struct acpi_device *companion;
@@ -69,7 +69,4 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return channel ? isa_irq_to_vector(15) : isa_irq_to_vector(14);
 }
 
-#ifdef CONFIG_INTEL_IOMMU
-extern void pci_iommu_alloc(void);
-#endif
 #endif /* _ASM_IA64_PCI_H */

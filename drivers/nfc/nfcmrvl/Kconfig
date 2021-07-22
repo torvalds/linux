@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NFC_MRVL
 	tristate
 	help
@@ -14,7 +15,7 @@ config NFC_MRVL_USB
 	  Marvell NFC-over-USB driver.
 
 	  This driver provides support for Marvell NFC-over-USB devices:
-          8897.
+	  8897.
 
 	  Say Y here to compile support for Marvell NFC-over-USB driver
 	  into the kernel or say M to compile it as module.

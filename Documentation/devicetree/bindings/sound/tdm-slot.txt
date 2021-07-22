@@ -14,8 +14,8 @@ For instance:
 	dai-tdm-slot-tx-mask = <0 1>;
 	dai-tdm-slot-rx-mask = <1 0>;
 
-And for each spcified driver, there could be one .of_xlate_tdm_slot_mask()
-to specify a explicit mapping of the channels and the slots. If it's absent
+And for each specified driver, there could be one .of_xlate_tdm_slot_mask()
+to specify an explicit mapping of the channels and the slots. If it's absent
 the default snd_soc_of_xlate_tdm_slot_mask() will be used to generating the
 tx and rx masks.
 

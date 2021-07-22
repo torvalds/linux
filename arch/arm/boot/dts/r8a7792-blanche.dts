@@ -21,7 +21,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -111,6 +111,9 @@
 
 	keyboard {
 		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keyboard_pins>;
+		pinctrl-names = "default";
 
 		key-1 {
 			linux,code = <KEY_1>;
@@ -234,6 +237,16 @@
 		groups = "du1_rgb666", "du1_sync", "du1_disp";
 		function = "du1";
 	};
+
+	keyboard_pins: keyboard {
+		pins = "GP_3_10", "GP_3_11", "GP_3_12", "GP_3_15", "GP_11_02";
+		bias-pull-up;
+	};
+
+	pmic_irq_pins: pmicirq {
+		groups = "intc_irq2";
+		function = "intc";
+	};
 };
 
 &rwdt {
@@ -284,8 +297,6 @@
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
@@ -308,8 +319,30 @@
 	};
 };
 
+&iic3 {
+	status = "okay";
+
+	pmic@58 {
+		compatible = "dlg,da9063";
+		reg = <0x58>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_irq_pins>;
+		interrupt-parent = <&irqc>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+
+		rtc {
+			compatible = "dlg,da9063-rtc";
+		};
+
+		wdt {
+			compatible = "dlg,da9063-watchdog";
+		};
+	};
+};
+
 &du {
-	pinctrl-0 = <&du0_pins &du1_pins>;
+	pinctrl-0 = <&du0_pins>, <&du1_pins>;
 	pinctrl-names = "default";
 
 	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&x1_clk>, <&x2_clk>;

@@ -87,7 +87,6 @@ static int n_adapters_found;
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 /* This needs to be adjusted when brcms_firmwares changes */
 MODULE_FIRMWARE("brcm/bcm43xx-0.fw");
@@ -275,14 +274,13 @@ static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
 	}
 }
 
-/**
+/*
  * This function frees the WL per-device resources.
  *
  * This function frees resources owned by the WL device pointed to
  * by the wl parameter.
  *
  * precondition: can both be called locked and unlocked
- *
  */
 static void brcms_free(struct brcms_info *wl)
 {
@@ -846,12 +844,11 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		status = brcms_c_aggregatable(wl->wlc, tid);
 		spin_unlock_bh(&wl->lock);
 		if (!status) {
-			brcms_err(wl->wlc->hw->d11core,
-				  "START: tid %d is not agg\'able\n", tid);
+			brcms_dbg_ht(wl->wlc->hw->d11core,
+				     "START: tid %d is not agg\'able\n", tid);
 			return -EINVAL;
 		}
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
+		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
 
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
@@ -983,11 +980,11 @@ static const struct ieee80211_ops brcms_ops = {
 	.set_tim = brcms_ops_beacon_set_tim,
 };
 
-void brcms_dpc(unsigned long data)
+void brcms_dpc(struct tasklet_struct *t)
 {
 	struct brcms_info *wl;
 
-	wl = (struct brcms_info *) data;
+	wl = from_tasklet(wl, t, tasklet);
 
 	spin_lock_bh(&wl->lock);
 
@@ -1116,7 +1113,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	return ieee_hw_rate_init(hw);
 }
 
-/**
+/*
  * attach to the WL device.
  *
  * Attach to the WL device identified by vendor and device parameters.
@@ -1150,7 +1147,7 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	init_waitqueue_head(&wl->tx_flush_wq);
 
 	/* setup the bottom half handler */
-	tasklet_init(&wl->tasklet, brcms_dpc, (unsigned long) wl);
+	tasklet_setup(&wl->tasklet, brcms_dpc);
 
 	spin_lock_init(&wl->lock);
 	spin_lock_init(&wl->isr_lock);
@@ -1211,7 +1208,7 @@ fail:
 
 
 
-/**
+/*
  * determines if a device is a WL device, and if so, attaches it.
  *
  * This function determines if a device pointed to by pdev is a WL device,
@@ -1223,6 +1220,7 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 {
 	struct brcms_info *wl;
 	struct ieee80211_hw *hw;
+	int ret;
 
 	dev_info(&pdev->dev, "mfg %x core %x rev %d class %d irq %d\n",
 		 pdev->id.manuf, pdev->id.id, pdev->id.rev, pdev->id.class,
@@ -1247,11 +1245,16 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 	wl = brcms_attach(pdev);
 	if (!wl) {
 		pr_err("%s: brcms_attach failed!\n", __func__);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_free_ieee80211;
 	}
 	brcms_led_register(wl);
 
 	return 0;
+
+err_free_ieee80211:
+	ieee80211_free_hw(hw);
+	return ret;
 }
 
 static int brcms_suspend(struct bcma_device *pdev)
@@ -1291,7 +1294,7 @@ static struct bcma_driver brcms_bcma_driver = {
 	.id_table = brcms_coreid_table,
 };
 
-/**
+/*
  * This is the main entry point for the brcmsmac driver.
  *
  * This function is scheduled upon module initialization and
@@ -1318,7 +1321,7 @@ static int __init brcms_module_init(void)
 	return 0;
 }
 
-/**
+/*
  * This function unloads the brcmsmac driver from the system.
  *
  * This function unconditionally unloads the brcmsmac driver module from the
@@ -1432,6 +1435,7 @@ int brcms_up(struct brcms_info *wl)
  * precondition: perimeter lock has been acquired
  */
 void brcms_down(struct brcms_info *wl)
+	__must_hold(&wl->lock)
 {
 	uint callbacks, ret_val = 0;
 
@@ -1718,6 +1722,7 @@ int brcms_check_firmwares(struct brcms_info *wl)
  * precondition: perimeter lock has been acquired
  */
 bool brcms_rfkill_set_hw_state(struct brcms_info *wl)
+	__must_hold(&wl->lock)
 {
 	bool blocked = brcms_c_check_radio_disabled(wl->wlc);
 

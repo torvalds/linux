@@ -16,7 +16,7 @@
  * to local caches without needing to acquire swap_info
  * lock.  We do not reuse the returned slots directly but
  * move them back to the global pool in a batch.  This
- * allows the slots to coaellesce and reduce fragmentation.
+ * allows the slots to coalesce and reduce fragmentation.
  *
  * The swap entry allocated is marked with SWAP_HAS_CACHE
  * flag in map_count that prevents it from being allocated
@@ -43,11 +43,8 @@ static DEFINE_MUTEX(swap_slots_cache_mutex);
 static DEFINE_MUTEX(swap_slots_cache_enable_mutex);
 
 static void __drain_swap_slots_cache(unsigned int type);
-static void deactivate_swap_slots_cache(void);
-static void reactivate_swap_slots_cache(void);
 
-#define use_swap_slot_cache (swap_slot_cache_active && \
-		swap_slot_cache_enabled && swap_slot_cache_initialized)
+#define use_swap_slot_cache (swap_slot_cache_active && swap_slot_cache_enabled)
 #define SLOTS_CACHE 0x1
 #define SLOTS_CACHE_RET 0x2
 
@@ -94,7 +91,7 @@ static bool check_cache_active(void)
 {
 	long pages;
 
-	if (!swap_slot_cache_enabled || !swap_slot_cache_initialized)
+	if (!swap_slot_cache_enabled)
 		return false;
 
 	pages = get_nr_swap_pages();
@@ -136,9 +133,16 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 
 	mutex_lock(&swap_slots_cache_mutex);
 	cache = &per_cpu(swp_slots, cpu);
-	if (cache->slots || cache->slots_ret)
+	if (cache->slots || cache->slots_ret) {
 		/* cache already allocated */
-		goto out;
+		mutex_unlock(&swap_slots_cache_mutex);
+
+		kvfree(slots);
+		kvfree(slots_ret);
+
+		return 0;
+	}
+
 	if (!cache->lock_initialized) {
 		mutex_init(&cache->alloc_lock);
 		spin_lock_init(&cache->free_lock);
@@ -155,15 +159,8 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	 */
 	mb();
 	cache->slots = slots;
-	slots = NULL;
 	cache->slots_ret = slots_ret;
-	slots_ret = NULL;
-out:
 	mutex_unlock(&swap_slots_cache_mutex);
-	if (slots)
-		kvfree(slots);
-	if (slots_ret)
-		kvfree(slots_ret);
 	return 0;
 }
 
@@ -194,8 +191,7 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
 			cache->slots_ret = NULL;
 		}
 		spin_unlock_irq(&cache->free_lock);
-		if (slots)
-			kvfree(slots);
+		kvfree(slots);
 	}
 }
 
@@ -238,27 +234,24 @@ static int free_slot_cache(unsigned int cpu)
 	return 0;
 }
 
-int enable_swap_slots_cache(void)
+void enable_swap_slots_cache(void)
 {
-	int ret = 0;
-
 	mutex_lock(&swap_slots_cache_enable_mutex);
-	if (swap_slot_cache_initialized) {
-		__reenable_swap_slots_cache();
-		goto out_unlock;
+	if (!swap_slot_cache_initialized) {
+		int ret;
+
+		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "swap_slots_cache",
+					alloc_swap_slot_cache, free_slot_cache);
+		if (WARN_ONCE(ret < 0, "Cache allocation failed (%s), operating "
+				       "without swap slots cache.\n", __func__))
+			goto out_unlock;
+
+		swap_slot_cache_initialized = true;
 	}
 
-	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "swap_slots_cache",
-				alloc_swap_slot_cache, free_slot_cache);
-	if (WARN_ONCE(ret < 0, "Cache allocation failed (%s), operating "
-			       "without swap slots cache.\n", __func__))
-		goto out_unlock;
-
-	swap_slot_cache_initialized = true;
 	__reenable_swap_slots_cache();
 out_unlock:
 	mutex_unlock(&swap_slots_cache_enable_mutex);
-	return 0;
 }
 
 /* called with swap slot cache's alloc lock held */
@@ -309,7 +302,7 @@ direct_free:
 
 swp_entry_t get_swap_page(struct page *page)
 {
-	swp_entry_t entry, *pentry;
+	swp_entry_t entry;
 	struct swap_slots_cache *cache;
 
 	entry.val = 0;
@@ -336,13 +329,11 @@ swp_entry_t get_swap_page(struct page *page)
 		if (cache->slots) {
 repeat:
 			if (cache->nr) {
-				pentry = &cache->slots[cache->cur++];
-				entry = *pentry;
-				pentry->val = 0;
+				entry = cache->slots[cache->cur];
+				cache->slots[cache->cur++].val = 0;
 				cache->nr--;
-			} else {
-				if (refill_swap_slots_cache(cache))
-					goto repeat;
+			} else if (refill_swap_slots_cache(cache)) {
+				goto repeat;
 			}
 		}
 		mutex_unlock(&cache->alloc_lock);

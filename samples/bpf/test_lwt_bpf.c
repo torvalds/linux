@@ -20,7 +20,7 @@
 #include <linux/udp.h>
 #include <linux/icmpv6.h>
 #include <linux/if_ether.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include <string.h>
 
 # define printk(fmt, ...)						\

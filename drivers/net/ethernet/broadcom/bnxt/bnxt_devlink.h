@@ -38,8 +38,12 @@ static inline void bnxt_link_bp_to_dl(struct bnxt *bp, struct devlink *dl)
 #define NVM_OFF_IGNORE_ARI		164
 #define NVM_OFF_DIS_GRE_VER_CHECK	171
 #define NVM_OFF_ENABLE_SRIOV		401
+#define NVM_OFF_NVM_CFG_VER		602
 
-#define BNXT_MSIX_VEC_MAX	1280
+#define BNXT_NVM_CFG_VER_BITS		24
+#define BNXT_NVM_CFG_VER_BYTES		4
+
+#define BNXT_MSIX_VEC_MAX	512
 #define BNXT_MSIX_VEC_MIN_MAX	128
 
 enum bnxt_nvm_dir_type {
@@ -52,9 +56,21 @@ struct bnxt_dl_nvm_param {
 	u16 id;
 	u16 offset;
 	u16 dir_type;
-	u16 num_bits;
+	u16 nvm_num_bits;
+	u8 dl_num_bytes;
 };
 
+enum bnxt_dl_version_type {
+	BNXT_VERSION_FIXED,
+	BNXT_VERSION_RUNNING,
+	BNXT_VERSION_STORED,
+};
+
+void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event);
+void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy);
+void bnxt_dl_health_recovery_done(struct bnxt *bp);
+void bnxt_dl_fw_reporters_create(struct bnxt *bp);
+void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all);
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

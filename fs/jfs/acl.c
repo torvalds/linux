@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines  Corp., 2002-2004
  *   Copyright (C) Andreas Gruenbacher, 2001
  *   Copyright (C) Linus Torvalds, 1991, 1992
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/sched.h>
@@ -104,7 +91,8 @@ out:
 	return rc;
 }
 
-int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int jfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		struct posix_acl *acl, int type)
 {
 	int rc;
 	tid_t tid;
@@ -114,10 +102,11 @@ int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&JFS_IP(inode)->commit_mutex);
 	if (type == ACL_TYPE_ACCESS && acl) {
-		rc = posix_acl_update_mode(inode, &mode, &acl);
+		rc = posix_acl_update_mode(&init_user_ns, inode, &mode, &acl);
 		if (rc)
 			goto end_tx;
-		update_mode = 1;
+		if (mode != inode->i_mode)
+			update_mode = 1;
 	}
 	rc = __jfs_set_acl(tid, inode, type, acl);
 	if (!rc) {

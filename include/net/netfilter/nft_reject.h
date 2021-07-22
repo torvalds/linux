@@ -2,6 +2,11 @@
 #ifndef _NFT_REJECT_H_
 #define _NFT_REJECT_H_
 
+#include <linux/types.h>
+#include <net/netlink.h>
+#include <net/netfilter/nf_tables.h>
+#include <uapi/linux/netfilter/nf_tables.h>
+
 struct nft_reject {
 	enum nft_reject_types	type:8;
 	u8			icmp_code;

@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2015,2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _BMI_H_
@@ -52,6 +41,15 @@
 
 /* len = cmd + addr + length */
 #define BMI_MAX_CMDBUF_SIZE (BMI_MAX_DATA_SIZE + \
+			sizeof(u32) + \
+			sizeof(u32) + \
+			sizeof(u32))
+
+/* Maximum data size used for large BMI transfers */
+#define BMI_MAX_LARGE_DATA_SIZE	2048
+
+/* len = cmd + addr + length */
+#define BMI_MAX_LARGE_CMDBUF_SIZE (BMI_MAX_LARGE_DATA_SIZE + \
 			sizeof(u32) + \
 			sizeof(u32) + \
 			sizeof(u32))
@@ -269,6 +267,7 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result);
 int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
+
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,
 			     const void *buffer, u32 length);
 int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val);

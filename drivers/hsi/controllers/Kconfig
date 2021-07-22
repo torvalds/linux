@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HSI controllers configuration
 #
@@ -7,7 +8,7 @@ config OMAP_SSI
 	tristate "OMAP SSI hardware driver"
 	depends on HSI && OF && ARM && COMMON_CLK
 	depends on ARCH_OMAP3 || COMPILE_TEST
-	---help---
+	help
 	  SSI is a legacy version of HSI. It is usually used to connect
 	  an application engine with a cellular modem.
 	  If you say Y here, you will enable the OMAP SSI hardware driver.

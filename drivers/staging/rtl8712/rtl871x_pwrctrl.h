@@ -17,7 +17,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-
 #define CMD_ALIVE	BIT(2)
 
 enum Power_Mgnt {
@@ -63,11 +62,9 @@ enum Power_Mgnt {
 #define		PS_STATE_S3		(PS_ALL_ON)
 #define	PS_STATE_S4		((PS_ST_ACTIVE) | (PS_ALL_ON))
 
-
 #define		PS_IS_RF_ON(x)		((x) & (PS_ALL_ON))
 #define		PS_IS_ACTIVE(x)		((x) & (PS_ST_ACTIVE))
 #define		CLR_PS_STATE(x)	((x) = ((x) & (0xF0)))
-
 
 struct reportpwrstate_parm {
 	unsigned char mode;
@@ -104,7 +101,7 @@ struct	pwrctrl_priv {
 };
 
 void r8712_init_pwrctrl_priv(struct _adapter *adapter);
-sint r8712_register_cmd_alive(struct _adapter *padapter);
+int r8712_register_cmd_alive(struct _adapter *padapter);
 void r8712_unregister_cmd_alive(struct _adapter *padapter);
 void r8712_cpwm_int_hdl(struct _adapter *padapter,
 			struct reportpwrstate_parm *preportpwrstate);

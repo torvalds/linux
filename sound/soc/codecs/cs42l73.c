@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs42l73.c  --  CS42L73 ALSA Soc Audio driver
  *
@@ -5,11 +6,6 @@
  *
  * Authors: Georgi Vlaev, Nucleus Systems Ltd, <joe@nucleusys.com>
  *	    Brian Austin, Cirrus Logic Inc, <brian.austin@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -31,6 +27,7 @@
 #include <sound/tlv.h>
 #include <sound/cs42l73.h>
 #include "cs42l73.h"
+#include "cirrus_legacy.h"
 
 struct sp_config {
 	u8 spc, mmcc, spfs;
@@ -276,12 +273,6 @@ static SOC_ENUM_SINGLE_DECL(vsp_output_mux_enum,
 static SOC_ENUM_SINGLE_DECL(xsp_output_mux_enum,
 			    CS42L73_MIXERCTL, 4,
 			    cs42l73_spo_mixer_text);
-
-static const struct snd_kcontrol_new vsp_output_mux =
-	SOC_DAPM_ENUM("Route", vsp_output_mux_enum);
-
-static const struct snd_kcontrol_new xsp_output_mux =
-	SOC_DAPM_ENUM("Route", xsp_output_mux_enum);
 
 static const struct snd_kcontrol_new hp_amp_ctl =
 	SOC_DAPM_SINGLE("Switch", CS42L73_PWRCTL3, 0, 1, 1);
@@ -948,8 +939,8 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	unsigned int inv, format;
 	u8 spc, mmcc;
 
-	spc = snd_soc_component_read32(component, CS42L73_SPC(id));
-	mmcc = snd_soc_component_read32(component, CS42L73_MMCC(id));
+	spc = snd_soc_component_read(component, CS42L73_SPC(id));
+	mmcc = snd_soc_component_read(component, CS42L73_MMCC(id));
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1191,7 +1182,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-asp",
@@ -1211,7 +1202,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-vsp",
@@ -1231,7 +1222,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 }
 };
 
@@ -1278,6 +1269,9 @@ static const struct regmap_config cs42l73_regmap = {
 	.volatile_reg = cs42l73_volatile_register,
 	.readable_reg = cs42l73_readable_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
@@ -1285,8 +1279,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 {
 	struct cs42l73_private *cs42l73;
 	struct cs42l73_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
-	int ret;
-	unsigned int devid = 0;
+	int ret, devid;
 	unsigned int reg;
 	u32 val32;
 
@@ -1336,27 +1329,25 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	/* initialize codec */
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_AB, &reg);
-	devid = (reg & 0xFF) << 12;
-
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs42l73->regmap, CS42L73_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_reset;
+	}
 
 	if (devid != CS42L73_DEVID) {
 		ret = -ENODEV;
 		dev_err(&i2c_client->dev,
 			"CS42L73 Device ID (%X). Expected %X\n",
 			devid, CS42L73_DEVID);
-		return ret;
+		goto err_reset;
 	}
 
 	ret = regmap_read(cs42l73->regmap, CS42L73_REVID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		return ret;
+		goto err_reset;
 	}
 
 	dev_info(&i2c_client->dev,
@@ -1366,8 +1357,14 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 			&soc_component_dev_cs42l73, cs42l73_dai,
 			ARRAY_SIZE(cs42l73_dai));
 	if (ret < 0)
-		return ret;
+		goto err_reset;
+
 	return 0;
+
+err_reset:
+	gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
+
+	return ret;
 }
 
 static const struct of_device_id cs42l73_of_match[] = {

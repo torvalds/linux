@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-ixp4xx/include/mach/ixp4xx-regs.h
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2002 Intel Corporation.
  * Copyright (C) 2003-2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _ASM_ARM_IXP4XX_H_
@@ -43,29 +39,27 @@
  * Queue Manager
  */
 #define IXP4XX_QMGR_BASE_PHYS		0x60000000
-#define IXP4XX_QMGR_BASE_VIRT		IOMEM(0xFEF15000)
-#define IXP4XX_QMGR_REGION_SIZE		0x00004000
 
 /*
  * Peripheral space, including debug UART. Must be section-aligned so that
  * it can be used with the low-level debug code.
  */
 #define IXP4XX_PERIPHERAL_BASE_PHYS	0xC8000000
-#define IXP4XX_PERIPHERAL_BASE_VIRT	IOMEM(0xFEF00000)
+#define IXP4XX_PERIPHERAL_BASE_VIRT	IOMEM(0xFEC00000)
 #define IXP4XX_PERIPHERAL_REGION_SIZE	0x00013000
 
 /*
  * PCI Config registers
  */
 #define IXP4XX_PCI_CFG_BASE_PHYS	0xC0000000
-#define IXP4XX_PCI_CFG_BASE_VIRT	IOMEM(0xFEF13000)
+#define IXP4XX_PCI_CFG_BASE_VIRT	IOMEM(0xFEC13000)
 #define IXP4XX_PCI_CFG_REGION_SIZE	0x00001000
 
 /*
  * Expansion BUS Configuration registers
  */
 #define IXP4XX_EXP_CFG_BASE_PHYS	0xC4000000
-#define IXP4XX_EXP_CFG_BASE_VIRT	0xFEF14000
+#define IXP4XX_EXP_CFG_BASE_VIRT	0xFEC14000
 #define IXP4XX_EXP_CFG_REGION_SIZE	0x00001000
 
 #define IXP4XX_EXP_CS0_OFFSET	0x00
@@ -126,15 +120,13 @@
 #define IXP4XX_SSP_BASE_PHYS		(IXP4XX_PERIPHERAL_BASE_PHYS + 0x12000)
 
 
+/* The UART is explicitly put in the beginning of fixmap */
 #define IXP4XX_UART1_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x0000)
 #define IXP4XX_UART2_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x1000)
 #define IXP4XX_PMU_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x2000)
 #define IXP4XX_INTC_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x3000)
 #define IXP4XX_GPIO_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x4000)
 #define IXP4XX_TIMER_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x5000)
-#define IXP4XX_NPEA_BASE_VIRT   	(IXP4XX_PERIPHERAL_BASE_VIRT + 0x6000)
-#define IXP4XX_NPEB_BASE_VIRT   	(IXP4XX_PERIPHERAL_BASE_VIRT + 0x7000)
-#define IXP4XX_NPEC_BASE_VIRT   	(IXP4XX_PERIPHERAL_BASE_VIRT + 0x8000)
 #define IXP4XX_EthB_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x9000)
 #define IXP4XX_EthC_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0xA000)
 #define IXP4XX_USB_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0xB000)
@@ -146,95 +138,6 @@
 #define IXP4XX_TIMESYNC_BASE_VIRT	(IXP4XX_PERIPHERAL_BASE_VIRT + 0x10000)
 #define IXP4XX_I2C_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x11000)
 #define IXP4XX_SSP_BASE_VIRT		(IXP4XX_PERIPHERAL_BASE_VIRT + 0x12000)
-
-/*
- * Constants to make it easy to access  Interrupt Controller registers
- */
-#define IXP4XX_ICPR_OFFSET	0x00 /* Interrupt Status */
-#define IXP4XX_ICMR_OFFSET	0x04 /* Interrupt Enable */
-#define IXP4XX_ICLR_OFFSET	0x08 /* Interrupt IRQ/FIQ Select */
-#define IXP4XX_ICIP_OFFSET      0x0C /* IRQ Status */
-#define IXP4XX_ICFP_OFFSET	0x10 /* FIQ Status */
-#define IXP4XX_ICHR_OFFSET	0x14 /* Interrupt Priority */
-#define IXP4XX_ICIH_OFFSET	0x18 /* IRQ Highest Pri Int */
-#define IXP4XX_ICFH_OFFSET	0x1C /* FIQ Highest Pri Int */
-
-/*
- * IXP465-only
- */
-#define	IXP4XX_ICPR2_OFFSET	0x20 /* Interrupt Status 2 */
-#define	IXP4XX_ICMR2_OFFSET	0x24 /* Interrupt Enable 2 */
-#define	IXP4XX_ICLR2_OFFSET	0x28 /* Interrupt IRQ/FIQ Select 2 */
-#define IXP4XX_ICIP2_OFFSET     0x2C /* IRQ Status */
-#define IXP4XX_ICFP2_OFFSET	0x30 /* FIQ Status */
-#define IXP4XX_ICEEN_OFFSET	0x34 /* Error High Pri Enable */
-
-
-/*
- * Interrupt Controller Register Definitions.
- */
-
-#define IXP4XX_INTC_REG(x) ((volatile u32 *)(IXP4XX_INTC_BASE_VIRT+(x)))
-
-#define IXP4XX_ICPR	IXP4XX_INTC_REG(IXP4XX_ICPR_OFFSET)
-#define IXP4XX_ICMR     IXP4XX_INTC_REG(IXP4XX_ICMR_OFFSET)
-#define IXP4XX_ICLR     IXP4XX_INTC_REG(IXP4XX_ICLR_OFFSET)
-#define IXP4XX_ICIP     IXP4XX_INTC_REG(IXP4XX_ICIP_OFFSET)
-#define IXP4XX_ICFP     IXP4XX_INTC_REG(IXP4XX_ICFP_OFFSET)
-#define IXP4XX_ICHR     IXP4XX_INTC_REG(IXP4XX_ICHR_OFFSET)
-#define IXP4XX_ICIH     IXP4XX_INTC_REG(IXP4XX_ICIH_OFFSET) 
-#define IXP4XX_ICFH     IXP4XX_INTC_REG(IXP4XX_ICFH_OFFSET)
-#define IXP4XX_ICPR2	IXP4XX_INTC_REG(IXP4XX_ICPR2_OFFSET)
-#define IXP4XX_ICMR2    IXP4XX_INTC_REG(IXP4XX_ICMR2_OFFSET)
-#define IXP4XX_ICLR2    IXP4XX_INTC_REG(IXP4XX_ICLR2_OFFSET)
-#define IXP4XX_ICIP2    IXP4XX_INTC_REG(IXP4XX_ICIP2_OFFSET)
-#define IXP4XX_ICFP2    IXP4XX_INTC_REG(IXP4XX_ICFP2_OFFSET)
-#define IXP4XX_ICEEN    IXP4XX_INTC_REG(IXP4XX_ICEEN_OFFSET)
-                                                                                
-/*
- * Constants to make it easy to access GPIO registers
- */
-#define IXP4XX_GPIO_GPOUTR_OFFSET       0x00
-#define IXP4XX_GPIO_GPOER_OFFSET        0x04
-#define IXP4XX_GPIO_GPINR_OFFSET        0x08
-#define IXP4XX_GPIO_GPISR_OFFSET        0x0C
-#define IXP4XX_GPIO_GPIT1R_OFFSET	0x10
-#define IXP4XX_GPIO_GPIT2R_OFFSET	0x14
-#define IXP4XX_GPIO_GPCLKR_OFFSET	0x18
-#define IXP4XX_GPIO_GPDBSELR_OFFSET	0x1C
-
-/* 
- * GPIO Register Definitions.
- * [Only perform 32bit reads/writes]
- */
-#define IXP4XX_GPIO_REG(x) ((volatile u32 *)(IXP4XX_GPIO_BASE_VIRT+(x)))
-
-#define IXP4XX_GPIO_GPOUTR	IXP4XX_GPIO_REG(IXP4XX_GPIO_GPOUTR_OFFSET)
-#define IXP4XX_GPIO_GPOER       IXP4XX_GPIO_REG(IXP4XX_GPIO_GPOER_OFFSET)
-#define IXP4XX_GPIO_GPINR       IXP4XX_GPIO_REG(IXP4XX_GPIO_GPINR_OFFSET)
-#define IXP4XX_GPIO_GPISR       IXP4XX_GPIO_REG(IXP4XX_GPIO_GPISR_OFFSET)
-#define IXP4XX_GPIO_GPIT1R      IXP4XX_GPIO_REG(IXP4XX_GPIO_GPIT1R_OFFSET)
-#define IXP4XX_GPIO_GPIT2R      IXP4XX_GPIO_REG(IXP4XX_GPIO_GPIT2R_OFFSET)
-#define IXP4XX_GPIO_GPCLKR      IXP4XX_GPIO_REG(IXP4XX_GPIO_GPCLKR_OFFSET)
-#define IXP4XX_GPIO_GPDBSELR    IXP4XX_GPIO_REG(IXP4XX_GPIO_GPDBSELR_OFFSET)
-
-/*
- * GPIO register bit definitions
- */
-
-/* Interrupt styles
- */
-#define IXP4XX_GPIO_STYLE_ACTIVE_HIGH	0x0
-#define IXP4XX_GPIO_STYLE_ACTIVE_LOW	0x1
-#define IXP4XX_GPIO_STYLE_RISING_EDGE	0x2
-#define IXP4XX_GPIO_STYLE_FALLING_EDGE	0x3
-#define IXP4XX_GPIO_STYLE_TRANSITIONAL	0x4
-
-/* 
- * Mask used to clear interrupt styles 
- */
-#define IXP4XX_GPIO_STYLE_CLEAR		0x7
-#define IXP4XX_GPIO_STYLE_SIZE		3
 
 /*
  * Constants to make it easy to access Timer Control/Status registers
@@ -396,59 +299,5 @@
 #define CRP_AD_CBE_WRITE	0x00010000
 
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
-
-/* "fuse" bits of IXP_EXP_CFG2 */
-/* All IXP4xx CPUs */
-#define IXP4XX_FEATURE_RCOMP		(1 << 0)
-#define IXP4XX_FEATURE_USB_DEVICE	(1 << 1)
-#define IXP4XX_FEATURE_HASH		(1 << 2)
-#define IXP4XX_FEATURE_AES		(1 << 3)
-#define IXP4XX_FEATURE_DES		(1 << 4)
-#define IXP4XX_FEATURE_HDLC		(1 << 5)
-#define IXP4XX_FEATURE_AAL		(1 << 6)
-#define IXP4XX_FEATURE_HSS		(1 << 7)
-#define IXP4XX_FEATURE_UTOPIA		(1 << 8)
-#define IXP4XX_FEATURE_NPEB_ETH0	(1 << 9)
-#define IXP4XX_FEATURE_NPEC_ETH		(1 << 10)
-#define IXP4XX_FEATURE_RESET_NPEA	(1 << 11)
-#define IXP4XX_FEATURE_RESET_NPEB	(1 << 12)
-#define IXP4XX_FEATURE_RESET_NPEC	(1 << 13)
-#define IXP4XX_FEATURE_PCI		(1 << 14)
-#define IXP4XX_FEATURE_UTOPIA_PHY_LIMIT	(3 << 16)
-#define IXP4XX_FEATURE_XSCALE_MAX_FREQ	(3 << 22)
-#define IXP42X_FEATURE_MASK		(IXP4XX_FEATURE_RCOMP            | \
-					 IXP4XX_FEATURE_USB_DEVICE       | \
-					 IXP4XX_FEATURE_HASH             | \
-					 IXP4XX_FEATURE_AES              | \
-					 IXP4XX_FEATURE_DES              | \
-					 IXP4XX_FEATURE_HDLC             | \
-					 IXP4XX_FEATURE_AAL              | \
-					 IXP4XX_FEATURE_HSS              | \
-					 IXP4XX_FEATURE_UTOPIA           | \
-					 IXP4XX_FEATURE_NPEB_ETH0        | \
-					 IXP4XX_FEATURE_NPEC_ETH         | \
-					 IXP4XX_FEATURE_RESET_NPEA       | \
-					 IXP4XX_FEATURE_RESET_NPEB       | \
-					 IXP4XX_FEATURE_RESET_NPEC       | \
-					 IXP4XX_FEATURE_PCI              | \
-					 IXP4XX_FEATURE_UTOPIA_PHY_LIMIT | \
-					 IXP4XX_FEATURE_XSCALE_MAX_FREQ)
-
-
-/* IXP43x/46x CPUs */
-#define IXP4XX_FEATURE_ECC_TIMESYNC	(1 << 15)
-#define IXP4XX_FEATURE_USB_HOST		(1 << 18)
-#define IXP4XX_FEATURE_NPEA_ETH		(1 << 19)
-#define IXP43X_FEATURE_MASK		(IXP42X_FEATURE_MASK             | \
-					 IXP4XX_FEATURE_ECC_TIMESYNC     | \
-					 IXP4XX_FEATURE_USB_HOST         | \
-					 IXP4XX_FEATURE_NPEA_ETH)
-
-/* IXP46x CPU (including IXP455) only */
-#define IXP4XX_FEATURE_NPEB_ETH_1_TO_3	(1 << 20)
-#define IXP4XX_FEATURE_RSA		(1 << 21)
-#define IXP46X_FEATURE_MASK		(IXP43X_FEATURE_MASK             | \
-					 IXP4XX_FEATURE_NPEB_ETH_1_TO_3  | \
-					 IXP4XX_FEATURE_RSA)
 
 #endif

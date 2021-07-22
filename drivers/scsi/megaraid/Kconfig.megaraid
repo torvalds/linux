@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MEGARAID_NEWGEN
 	bool "LSI Logic New Generation RAID Device Drivers"
 	depends on PCI && SCSI
@@ -78,6 +79,7 @@ config MEGARAID_LEGACY
 config MEGARAID_SAS
 	tristate "LSI Logic MegaRAID SAS RAID Module"
 	depends on PCI && SCSI
+	select IRQ_POLL
 	help
 	Module for LSI Logic's SAS based RAID controllers.
 	To compile this driver as a module, choose 'm' here.

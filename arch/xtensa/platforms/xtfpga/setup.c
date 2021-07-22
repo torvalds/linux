@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * arch/xtensa/platform/xtavnet/setup.c
@@ -8,16 +9,11 @@
  *		Joe Taylor <joe@tensilica.com>
  *
  * Copyright 2001 - 2006 Tensilica Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/reboot.h>
 #include <linux/kdev_t.h>
@@ -28,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 #include <asm/timex.h>
 #include <asm/processor.h>
@@ -58,22 +55,6 @@ void platform_restart(void)
 	 * jump to the reset vector. */
 	cpu_reset();
 	/* control never gets here */
-}
-
-void __init platform_setup(char **cmdline)
-{
-}
-
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
-/* Heartbeat. */
-
-void platform_heartbeat(void)
-{
 }
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT

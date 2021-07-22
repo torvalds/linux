@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV setup code.
  *
  * Copyright 2011 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -28,6 +24,7 @@
 #include <linux/bug.h>
 #include <linux/pci.h>
 #include <linux/cpufreq.h>
+#include <linux/memblock.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -101,7 +98,7 @@ static void init_fw_feat_flags(struct device_node *np)
 		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
 }
 
-static void pnv_setup_rfi_flush(void)
+static void pnv_setup_security_mitigations(void)
 {
 	struct device_node *np, *fw_features;
 	enum l1d_flush_type type;
@@ -125,26 +122,63 @@ static void pnv_setup_rfi_flush(void)
 			type = L1D_FLUSH_ORI;
 	}
 
+	/*
+	 * If we are non-Power9 bare metal, we don't need to flush on kernel
+	 * entry or after user access: they fix a P9 specific vulnerability.
+	 */
+	if (!pvr_version_is(PVR_POWER9)) {
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_ENTRY);
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_UACCESS);
+	}
+
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) && \
 		 (security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR)   || \
 		  security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV));
 
 	setup_rfi_flush(type, enable);
 	setup_count_cache_flush();
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_ENTRY);
+	setup_entry_flush(enable);
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_UACCESS);
+	setup_uaccess_flush(enable);
+
+	setup_stf_barrier();
+}
+
+static void __init pnv_check_guarded_cores(void)
+{
+	struct device_node *dn;
+	int bad_count = 0;
+
+	for_each_node_by_type(dn, "cpu") {
+		if (of_property_match_string(dn, "status", "bad") >= 0)
+			bad_count++;
+	}
+
+	if (bad_count) {
+		printk("  _     _______________\n");
+		pr_cont(" | |   /               \\\n");
+		pr_cont(" | |   |    WARNING!   |\n");
+		pr_cont(" | |   |               |\n");
+		pr_cont(" | |   | It looks like |\n");
+		pr_cont(" |_|   |  you have %*d |\n", 3, bad_count);
+		pr_cont("  _    | guarded cores |\n");
+		pr_cont(" (_)   \\_______________/\n");
+	}
 }
 
 static void __init pnv_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
-	pnv_setup_rfi_flush();
-	setup_stf_barrier();
+	pnv_setup_security_mitigations();
 
 	/* Initialize SMP */
 	pnv_smp_init();
-
-	/* Setup PCI */
-	pnv_pci_init();
 
 	/* Setup RTC and NVRAM callbacks */
 	if (firmware_has_feature(FW_FEATURE_OPAL))
@@ -152,6 +186,8 @@ static void __init pnv_setup_arch(void)
 
 	/* Enable NAP mode */
 	powersave_nap = 1;
+
+	pnv_check_guarded_cores();
 
 	/* XXX PMCS */
 }
@@ -170,6 +206,19 @@ static void __init pnv_init(void)
 	else
 #endif
 		add_preferred_console("hvc", 0, NULL);
+
+	if (!radix_enabled()) {
+		size_t size = sizeof(struct slb_entry) * mmu_slb_size;
+		int i;
+
+		/* Allocate per cpu area to save old slb contents during MCE */
+		for_each_possible_cpu(i) {
+			paca_ptrs[i]->mce_faulty_slbs =
+					memblock_alloc_node(size,
+						__alignof__(struct slb_entry),
+						cpu_to_node(i));
+		}
+	}
 }
 
 static void __init pnv_init_IRQ(void)
@@ -224,10 +273,16 @@ static void  __noreturn pnv_restart(char *cmd)
 	pnv_prepare_going_down();
 
 	do {
-		if (!cmd)
+		if (!cmd || !strlen(cmd))
 			rc = opal_cec_reboot();
 		else if (strcmp(cmd, "full") == 0)
 			rc = opal_cec_reboot2(OPAL_REBOOT_FULL_IPL, NULL);
+		else if (strcmp(cmd, "mpipl") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_MPIPL, NULL);
+		else if (strcmp(cmd, "error") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR, NULL);
+		else if (strcmp(cmd, "fast") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_FAST, NULL);
 		else
 			rc = OPAL_UNSUPPORTED;
 
@@ -388,7 +443,15 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static unsigned long pnv_memory_block_size(void)
 {
-	return 256UL * 1024 * 1024;
+	/*
+	 * We map the kernel linear region with 1GB large pages on radix. For
+	 * memory hot unplug to work our memory block size must be at least
+	 * this size.
+	 */
+	if (radix_enabled())
+		return radix_mem_block_size;
+	else
+		return 256UL * 1024 * 1024;
 }
 #endif
 
@@ -401,7 +464,10 @@ static void __init pnv_setup_machdep_opal(void)
 	/* ppc_md.system_reset_exception gets filled in by pnv_smp_init() */
 	ppc_md.machine_check_exception = opal_machine_check;
 	ppc_md.mce_check_early_recovery = opal_mce_check_early_recovery;
-	ppc_md.hmi_exception_early = opal_hmi_exception_early;
+	if (opal_check_token(OPAL_HANDLE_HMI2))
+		ppc_md.hmi_exception_early = opal_hmi_exception_early2;
+	else
+		ppc_md.hmi_exception_early = opal_hmi_exception_early;
 	ppc_md.handle_hmi_exception = opal_handle_hmi_exception;
 }
 
@@ -478,6 +544,7 @@ define_machine(powernv) {
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
 	.get_proc_freq          = pnv_get_proc_freq,
+	.discover_phbs		= pnv_pci_init,
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,

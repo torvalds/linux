@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for SoundBlaster 1.0/2.0/Pro soundcards and compatible
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -32,7 +17,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Sound Blaster 1.0/2.0/Pro");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB 1.0/SB 2.0/SB Pro}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -109,20 +93,22 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	acard = card->private_data;
 	card->private_free = snd_sb8_free;
 
-	/* block the 0x388 port to avoid PnP conflicts */
+	/*
+	 * Block the 0x388 port to avoid PnP conflicts.
+	 * No need to check this value after request_region,
+	 * as we never do anything with it.
+	 */
 	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
 
 	if (port[dev] != SNDRV_AUTO_PORT) {
-		if ((err = snd_sbdsp_create(card, port[dev], irq[dev],
-					    snd_sb8_interrupt,
-					    dma8[dev],
-					    -1,
-					    SB_HW_AUTO,
-					    &chip)) < 0)
+		err = snd_sbdsp_create(card, port[dev], irq[dev],
+				       snd_sb8_interrupt, dma8[dev],
+				       -1, SB_HW_AUTO, &chip);
+		if (err < 0)
 			goto _err;
 	} else {
 		/* auto-probe legacy ports */
-		static unsigned long possible_ports[] = {
+		static const unsigned long possible_ports[] = {
 			0x220, 0x240, 0x260,
 		};
 		int i;
@@ -157,32 +143,35 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 	}
 
-	if ((err = snd_sb8dsp_pcm(chip, 0)) < 0)
+	err = snd_sb8dsp_pcm(chip, 0);
+	if (err < 0)
 		goto _err;
 
-	if ((err = snd_sbmixer_new(chip)) < 0)
+	err = snd_sbmixer_new(chip);
+	if (err < 0)
 		goto _err;
 
 	if (chip->hardware == SB_HW_10 || chip->hardware == SB_HW_20) {
-		if ((err = snd_opl3_create(card, chip->port + 8, 0,
-					   OPL3_HW_AUTO, 1,
-					   &opl3)) < 0) {
+		err = snd_opl3_create(card, chip->port + 8, 0,
+				      OPL3_HW_AUTO, 1, &opl3);
+		if (err < 0)
 			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
-		}
 	} else {
-		if ((err = snd_opl3_create(card, chip->port, chip->port + 2,
-					   OPL3_HW_AUTO, 1,
-					   &opl3)) < 0) {
+		err = snd_opl3_create(card, chip->port, chip->port + 2,
+				      OPL3_HW_AUTO, 1, &opl3);
+		if (err < 0) {
 			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}
 	if (err >= 0) {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+		if (err < 0)
 			goto _err;
 	}
 
-	if ((err = snd_sb8dsp_midi(chip, 0)) < 0)
+	err = snd_sb8dsp_midi(chip, 0);
+	if (err < 0)
 		goto _err;
 
 	strcpy(card->driver, chip->hardware == SB_HW_PRO ? "SB Pro" : "SB8");
@@ -192,7 +181,8 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		chip->port,
 		irq[dev], dma8[dev]);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		goto _err;
 
 	dev_set_drvdata(pdev, card);
@@ -203,10 +193,9 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	return err;
 }
 
-static int snd_sb8_remove(struct device *pdev, unsigned int dev)
+static void snd_sb8_remove(struct device *pdev, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -218,7 +207,6 @@ static int snd_sb8_suspend(struct device *dev, unsigned int n,
 	struct snd_sb *chip = acard->chip;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_sbmixer_suspend(chip);
 	return 0;
 }

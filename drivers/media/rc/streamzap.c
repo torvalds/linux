@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Streamzap Remote Control driver
  *
@@ -15,16 +16,6 @@
  *
  * This driver is based on the USB skeleton driver packaged with the
  * kernel; copyright (C) 2001-2003 Greg Kroah-Hartman (greg@kroah.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -146,7 +137,6 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 		} else {
 			rawir.duration = delta;
 			rawir.duration -= sz->sum;
-			rawir.duration = US_TO_NS(rawir.duration);
 			rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
 					 IR_MAX_DURATION : rawir.duration;
 		}
@@ -160,7 +150,6 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 	rawir.duration = ((int) value) * SZ_RESOLUTION;
 	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
-	rawir.duration = US_TO_NS(rawir.duration);
 	rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
 			 IR_MAX_DURATION : rawir.duration;
 	sz_push(sz, rawir);
@@ -181,7 +170,6 @@ static void sz_push_full_space(struct streamzap_ir *sz,
 	rawir.duration = ((int) value) * SZ_RESOLUTION;
 	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
-	rawir.duration = US_TO_NS(rawir.duration);
 	sz_push(sz, rawir);
 }
 
@@ -412,13 +400,12 @@ static int streamzap_probe(struct usb_interface *intf,
 	sz->decoder_state = PulseSpace;
 	/* FIXME: don't yet have a way to set this */
 	sz->timeout_enabled = true;
-	sz->rdev->timeout = ((US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION) &
-				IR_MAX_DURATION) | 0x03000000);
+	sz->rdev->timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	#if 0
 	/* not yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
-	sz->min_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
-	sz->max_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
+	sz->min_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
+	sz->max_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	#endif
 
 	sz->signal_start = ktime_get_real();

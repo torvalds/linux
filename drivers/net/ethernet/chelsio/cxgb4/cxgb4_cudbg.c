@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2017 Chelsio Communications.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #include "t4_regs.h"
@@ -78,249 +66,9 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_HMA_INDIRECT, cudbg_collect_hma_indirect },
 };
 
-static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
-{
-	struct cudbg_tcam tcam_region = { 0 };
-	u32 value, n = 0, len = 0;
-
-	switch (entity) {
-	case CUDBG_REG_DUMP:
-		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
-		case CHELSIO_T4:
-			len = T4_REGMAP_SIZE;
-			break;
-		case CHELSIO_T5:
-		case CHELSIO_T6:
-			len = T5_REGMAP_SIZE;
-			break;
-		default:
-			break;
-		}
-		break;
-	case CUDBG_DEV_LOG:
-		len = adap->params.devlog.size;
-		break;
-	case CUDBG_CIM_LA:
-		if (is_t6(adap->params.chip)) {
-			len = adap->params.cim_la_size / 10 + 1;
-			len *= 10 * sizeof(u32);
-		} else {
-			len = adap->params.cim_la_size / 8;
-			len *= 8 * sizeof(u32);
-		}
-		len += sizeof(u32); /* for reading CIM LA configuration */
-		break;
-	case CUDBG_CIM_MA_LA:
-		len = 2 * CIM_MALA_SIZE * 5 * sizeof(u32);
-		break;
-	case CUDBG_CIM_QCFG:
-		len = sizeof(struct cudbg_cim_qcfg);
-		break;
-	case CUDBG_CIM_IBQ_TP0:
-	case CUDBG_CIM_IBQ_TP1:
-	case CUDBG_CIM_IBQ_ULP:
-	case CUDBG_CIM_IBQ_SGE0:
-	case CUDBG_CIM_IBQ_SGE1:
-	case CUDBG_CIM_IBQ_NCSI:
-		len = CIM_IBQ_SIZE * 4 * sizeof(u32);
-		break;
-	case CUDBG_CIM_OBQ_ULP0:
-		len = cudbg_cim_obq_size(adap, 0);
-		break;
-	case CUDBG_CIM_OBQ_ULP1:
-		len = cudbg_cim_obq_size(adap, 1);
-		break;
-	case CUDBG_CIM_OBQ_ULP2:
-		len = cudbg_cim_obq_size(adap, 2);
-		break;
-	case CUDBG_CIM_OBQ_ULP3:
-		len = cudbg_cim_obq_size(adap, 3);
-		break;
-	case CUDBG_CIM_OBQ_SGE:
-		len = cudbg_cim_obq_size(adap, 4);
-		break;
-	case CUDBG_CIM_OBQ_NCSI:
-		len = cudbg_cim_obq_size(adap, 5);
-		break;
-	case CUDBG_CIM_OBQ_RXQ0:
-		len = cudbg_cim_obq_size(adap, 6);
-		break;
-	case CUDBG_CIM_OBQ_RXQ1:
-		len = cudbg_cim_obq_size(adap, 7);
-		break;
-	case CUDBG_EDC0:
-		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-		if (value & EDRAM0_ENABLE_F) {
-			value = t4_read_reg(adap, MA_EDRAM0_BAR_A);
-			len = EDRAM0_SIZE_G(value);
-		}
-		len = cudbg_mbytes_to_bytes(len);
-		break;
-	case CUDBG_EDC1:
-		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-		if (value & EDRAM1_ENABLE_F) {
-			value = t4_read_reg(adap, MA_EDRAM1_BAR_A);
-			len = EDRAM1_SIZE_G(value);
-		}
-		len = cudbg_mbytes_to_bytes(len);
-		break;
-	case CUDBG_MC0:
-		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-		if (value & EXT_MEM0_ENABLE_F) {
-			value = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
-			len = EXT_MEM0_SIZE_G(value);
-		}
-		len = cudbg_mbytes_to_bytes(len);
-		break;
-	case CUDBG_MC1:
-		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-		if (value & EXT_MEM1_ENABLE_F) {
-			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
-			len = EXT_MEM1_SIZE_G(value);
-		}
-		len = cudbg_mbytes_to_bytes(len);
-		break;
-	case CUDBG_RSS:
-		len = t4_chip_rss_size(adap) * sizeof(u16);
-		break;
-	case CUDBG_RSS_VF_CONF:
-		len = adap->params.arch.vfcount *
-		      sizeof(struct cudbg_rss_vf_conf);
-		break;
-	case CUDBG_PATH_MTU:
-		len = NMTUS * sizeof(u16);
-		break;
-	case CUDBG_PM_STATS:
-		len = sizeof(struct cudbg_pm_stats);
-		break;
-	case CUDBG_HW_SCHED:
-		len = sizeof(struct cudbg_hw_sched);
-		break;
-	case CUDBG_TP_INDIRECT:
-		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
-		case CHELSIO_T5:
-			n = sizeof(t5_tp_pio_array) +
-			    sizeof(t5_tp_tm_pio_array) +
-			    sizeof(t5_tp_mib_index_array);
-			break;
-		case CHELSIO_T6:
-			n = sizeof(t6_tp_pio_array) +
-			    sizeof(t6_tp_tm_pio_array) +
-			    sizeof(t6_tp_mib_index_array);
-			break;
-		default:
-			break;
-		}
-		n = n / (IREG_NUM_ELEM * sizeof(u32));
-		len = sizeof(struct ireg_buf) * n;
-		break;
-	case CUDBG_SGE_INDIRECT:
-		len = sizeof(struct ireg_buf) * 2 +
-		      sizeof(struct sge_qbase_reg_field);
-		break;
-	case CUDBG_ULPRX_LA:
-		len = sizeof(struct cudbg_ulprx_la);
-		break;
-	case CUDBG_TP_LA:
-		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
-		break;
-	case CUDBG_MEMINFO:
-		len = sizeof(struct cudbg_ver_hdr) +
-		      sizeof(struct cudbg_meminfo);
-		break;
-	case CUDBG_CIM_PIF_LA:
-		len = sizeof(struct cudbg_cim_pif_la);
-		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
-		break;
-	case CUDBG_CLK:
-		len = sizeof(struct cudbg_clk_info);
-		break;
-	case CUDBG_PCIE_INDIRECT:
-		n = sizeof(t5_pcie_pdbg_array) / (IREG_NUM_ELEM * sizeof(u32));
-		len = sizeof(struct ireg_buf) * n * 2;
-		break;
-	case CUDBG_PM_INDIRECT:
-		n = sizeof(t5_pm_rx_array) / (IREG_NUM_ELEM * sizeof(u32));
-		len = sizeof(struct ireg_buf) * n * 2;
-		break;
-	case CUDBG_TID_INFO:
-		len = sizeof(struct cudbg_tid_info_region_rev1);
-		break;
-	case CUDBG_PCIE_CONFIG:
-		len = sizeof(u32) * CUDBG_NUM_PCIE_CONFIG_REGS;
-		break;
-	case CUDBG_DUMP_CONTEXT:
-		len = cudbg_dump_context_size(adap);
-		break;
-	case CUDBG_MPS_TCAM:
-		len = sizeof(struct cudbg_mps_tcam) *
-		      adap->params.arch.mps_tcam_size;
-		break;
-	case CUDBG_VPD_DATA:
-		len = sizeof(struct cudbg_vpd_data);
-		break;
-	case CUDBG_LE_TCAM:
-		cudbg_fill_le_tcam_info(adap, &tcam_region);
-		len = sizeof(struct cudbg_tcam) +
-		      sizeof(struct cudbg_tid_data) * tcam_region.max_tid;
-		break;
-	case CUDBG_CCTRL:
-		len = sizeof(u16) * NMTUS * NCCTRL_WIN;
-		break;
-	case CUDBG_MA_INDIRECT:
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
-			n = sizeof(t6_ma_ireg_array) /
-			    (IREG_NUM_ELEM * sizeof(u32));
-			len = sizeof(struct ireg_buf) * n * 2;
-		}
-		break;
-	case CUDBG_ULPTX_LA:
-		len = sizeof(struct cudbg_ver_hdr) +
-		      sizeof(struct cudbg_ulptx_la);
-		break;
-	case CUDBG_UP_CIM_INDIRECT:
-		n = 0;
-		if (is_t5(adap->params.chip))
-			n = sizeof(t5_up_cim_reg_array) /
-			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
-		else if (is_t6(adap->params.chip))
-			n = sizeof(t6_up_cim_reg_array) /
-			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
-		len = sizeof(struct ireg_buf) * n;
-		break;
-	case CUDBG_PBT_TABLE:
-		len = sizeof(struct cudbg_pbt_tables);
-		break;
-	case CUDBG_MBOX_LOG:
-		len = sizeof(struct cudbg_mbox_log) * adap->mbox_log->size;
-		break;
-	case CUDBG_HMA_INDIRECT:
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
-			n = sizeof(t6_hma_ireg_array) /
-			    (IREG_NUM_ELEM * sizeof(u32));
-			len = sizeof(struct ireg_buf) * n;
-		}
-		break;
-	case CUDBG_HMA:
-		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-		if (value & HMA_MUX_F) {
-			/* In T6, there's no MC1.  So, HMA shares MC1
-			 * address space.
-			 */
-			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
-			len = EXT_MEM1_SIZE_G(value);
-		}
-		len = cudbg_mbytes_to_bytes(len);
-		break;
-	case CUDBG_QDESC:
-		cudbg_fill_qdesc_num_and_size(adap, NULL, &len);
-		break;
-	default:
-		break;
-	}
-
-	return len;
-}
+static const struct cxgb4_collect_entity cxgb4_collect_flash_dump[] = {
+	{ CUDBG_FLASH, cudbg_collect_flash },
+};
 
 u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 {
@@ -331,16 +79,19 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 	if (flag & CXGB4_ETH_DUMP_HW) {
 		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_hw_dump); i++) {
 			entity = cxgb4_collect_hw_dump[i].entity;
-			len += cxgb4_get_entity_length(adap, entity);
+			len += cudbg_get_entity_length(adap, entity);
 		}
 	}
 
 	if (flag & CXGB4_ETH_DUMP_MEM) {
 		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_mem_dump); i++) {
 			entity = cxgb4_collect_mem_dump[i].entity;
-			len += cxgb4_get_entity_length(adap, entity);
+			len += cudbg_get_entity_length(adap, entity);
 		}
 	}
+
+	if (flag & CXGB4_ETH_DUMP_FLASH)
+		len += adap->params.sf_size;
 
 	/* If compression is enabled, a smaller destination buffer is enough */
 	wsize = cudbg_get_workspace_size();
@@ -406,8 +157,7 @@ static int cudbg_alloc_compress_buff(struct cudbg_init *pdbg_init)
 
 static void cudbg_free_compress_buff(struct cudbg_init *pdbg_init)
 {
-	if (pdbg_init->compress_buff)
-		vfree(pdbg_init->compress_buff);
+	vfree(pdbg_init->compress_buff);
 }
 
 int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
@@ -477,6 +227,13 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
 					   cxgb4_collect_mem_dump,
 					   ARRAY_SIZE(cxgb4_collect_mem_dump),
+					   buf,
+					   &total_size);
+
+	if (flag & CXGB4_ETH_DUMP_FLASH)
+		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
+					   cxgb4_collect_flash_dump,
+					   ARRAY_SIZE(cxgb4_collect_flash_dump),
 					   buf,
 					   &total_size);
 

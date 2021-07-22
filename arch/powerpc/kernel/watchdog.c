@@ -24,9 +24,12 @@
 #include <linux/kdebug.h>
 #include <linux/sched/debug.h>
 #include <linux/delay.h>
+#include <linux/processor.h>
 #include <linux/smp.h>
 
+#include <asm/interrupt.h>
 #include <asm/paca.h>
+#include <asm/nmi.h>
 
 /*
  * The powerpc watchdog ensures that each CPU is able to service timers.
@@ -77,7 +80,7 @@ static u64 wd_smp_panic_timeout_tb __read_mostly; /* panic other CPUs */
 
 static u64 wd_timer_period_ms __read_mostly;  /* interval between heartbeat */
 
-static DEFINE_PER_CPU(struct timer_list, wd_timer);
+static DEFINE_PER_CPU(struct hrtimer, wd_hrtimer);
 static DEFINE_PER_CPU(u64, wd_timer_tb);
 
 /* SMP checker bits */
@@ -247,16 +250,17 @@ static void watchdog_timer_interrupt(int cpu)
 		watchdog_smp_panic(cpu, tb);
 }
 
-void soft_nmi_interrupt(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_NMI(soft_nmi_interrupt)
 {
 	unsigned long flags;
 	int cpu = raw_smp_processor_id();
 	u64 tb;
 
-	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
-		return;
+	/* should only arrive from kernel, with irqs disabled */
+	WARN_ON_ONCE(!arch_irq_disabled_regs(regs));
 
-	nmi_enter();
+	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
+		return 0;
 
 	__this_cpu_inc(irq_stat.soft_nmi_irqs);
 
@@ -265,7 +269,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		wd_smp_lock(&flags);
 		if (cpumask_test_cpu(cpu, &wd_smp_cpus_stuck)) {
 			wd_smp_unlock(&flags);
-			goto out;
+			return 0;
 		}
 		set_cpu_stuck(cpu, tb);
 
@@ -289,25 +293,24 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 	if (wd_panic_timeout_tb < 0x7fffffff)
 		mtspr(SPRN_DEC, wd_panic_timeout_tb);
 
-out:
-	nmi_exit();
+	return 0;
 }
 
-static void wd_timer_reset(unsigned int cpu, struct timer_list *t)
-{
-	t->expires = jiffies + msecs_to_jiffies(wd_timer_period_ms);
-	if (wd_timer_period_ms > 1000)
-		t->expires = __round_jiffies_up(t->expires, cpu);
-	add_timer_on(t, cpu);
-}
-
-static void wd_timer_fn(struct timer_list *t)
+static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 {
 	int cpu = smp_processor_id();
 
+	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
+		return HRTIMER_NORESTART;
+
+	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
+		return HRTIMER_NORESTART;
+
 	watchdog_timer_interrupt(cpu);
 
-	wd_timer_reset(cpu, t);
+	hrtimer_forward_now(hrtimer, ms_to_ktime(wd_timer_period_ms));
+
+	return HRTIMER_RESTART;
 }
 
 void arch_touch_nmi_watchdog(void)
@@ -323,37 +326,22 @@ void arch_touch_nmi_watchdog(void)
 }
 EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
-static void start_watchdog_timer_on(unsigned int cpu)
+static void start_watchdog(void *arg)
 {
-	struct timer_list *t = per_cpu_ptr(&wd_timer, cpu);
-
-	per_cpu(wd_timer_tb, cpu) = get_tb();
-
-	timer_setup(t, wd_timer_fn, TIMER_PINNED);
-	wd_timer_reset(cpu, t);
-}
-
-static void stop_watchdog_timer_on(unsigned int cpu)
-{
-	struct timer_list *t = per_cpu_ptr(&wd_timer, cpu);
-
-	del_timer_sync(t);
-}
-
-static int start_wd_on_cpu(unsigned int cpu)
-{
+	struct hrtimer *hrtimer = this_cpu_ptr(&wd_hrtimer);
+	int cpu = smp_processor_id();
 	unsigned long flags;
 
 	if (cpumask_test_cpu(cpu, &wd_cpus_enabled)) {
 		WARN_ON(1);
-		return 0;
+		return;
 	}
 
 	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		return 0;
+		return;
 
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
-		return 0;
+		return;
 
 	wd_smp_lock(&flags);
 	cpumask_set_cpu(cpu, &wd_cpus_enabled);
@@ -363,27 +351,40 @@ static int start_wd_on_cpu(unsigned int cpu)
 	}
 	wd_smp_unlock(&flags);
 
-	start_watchdog_timer_on(cpu);
+	*this_cpu_ptr(&wd_timer_tb) = get_tb();
 
-	return 0;
+	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer->function = watchdog_timer_fn;
+	hrtimer_start(hrtimer, ms_to_ktime(wd_timer_period_ms),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
-static int stop_wd_on_cpu(unsigned int cpu)
+static int start_watchdog_on_cpu(unsigned int cpu)
 {
+	return smp_call_function_single(cpu, start_watchdog, NULL, true);
+}
+
+static void stop_watchdog(void *arg)
+{
+	struct hrtimer *hrtimer = this_cpu_ptr(&wd_hrtimer);
+	int cpu = smp_processor_id();
 	unsigned long flags;
 
 	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
-		return 0; /* Can happen in CPU unplug case */
+		return; /* Can happen in CPU unplug case */
 
-	stop_watchdog_timer_on(cpu);
+	hrtimer_cancel(hrtimer);
 
 	wd_smp_lock(&flags);
 	cpumask_clear_cpu(cpu, &wd_cpus_enabled);
 	wd_smp_unlock(&flags);
 
 	wd_smp_clear_cpu_pending(cpu, get_tb());
+}
 
-	return 0;
+static int stop_watchdog_on_cpu(unsigned int cpu)
+{
+	return smp_call_function_single(cpu, stop_watchdog, NULL, true);
 }
 
 static void watchdog_calc_timeouts(void)
@@ -402,7 +403,7 @@ void watchdog_nmi_stop(void)
 	int cpu;
 
 	for_each_cpu(cpu, &wd_cpus_enabled)
-		stop_wd_on_cpu(cpu);
+		stop_watchdog_on_cpu(cpu);
 }
 
 void watchdog_nmi_start(void)
@@ -411,7 +412,7 @@ void watchdog_nmi_start(void)
 
 	watchdog_calc_timeouts();
 	for_each_cpu_and(cpu, cpu_online_mask, &watchdog_cpumask)
-		start_wd_on_cpu(cpu);
+		start_watchdog_on_cpu(cpu);
 }
 
 /*
@@ -423,7 +424,8 @@ int __init watchdog_nmi_probe(void)
 
 	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
 					"powerpc/watchdog:online",
-					start_wd_on_cpu, stop_wd_on_cpu);
+					start_watchdog_on_cpu,
+					stop_watchdog_on_cpu);
 	if (err < 0) {
 		pr_warn("could not be initialized");
 		return err;

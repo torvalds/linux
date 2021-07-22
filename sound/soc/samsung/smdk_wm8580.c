@@ -1,14 +1,7 @@
-/*
- *  smdk_wm8580.c
- *
- *  Copyright (c) 2009 Samsung Electronics Co. Ltd
- *  Author: Jaswinder Singh <jassisinghbrar@gmail.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (c) 2009 Samsung Electronics Co. Ltd
+// Author: Jaswinder Singh <jassisinghbrar@gmail.com>
 
 #include <linux/module.h>
 #include <sound/soc.h>
@@ -29,8 +22,8 @@
 static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	unsigned int pll_out;
 	int rfs, ret;
 
@@ -147,27 +140,31 @@ enum {
 #define SMDK_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
 	SND_SOC_DAIFMT_CBM_CFM)
 
+SND_SOC_DAILINK_DEFS(paif_rx,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8580.0-001b", "wm8580-hifi-playback")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(paif_tx,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8580.0-001b", "wm8580-hifi-capture")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 static struct snd_soc_dai_link smdk_dai[] = {
 	[PRI_PLAYBACK] = { /* Primary Playback i/f */
 		.name = "WM8580 PAIF RX",
 		.stream_name = "Playback",
-		.cpu_dai_name = "samsung-i2s.2",
-		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8580.0-001b",
 		.dai_fmt = SMDK_DAI_FMT,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(paif_rx),
 	},
 	[PRI_CAPTURE] = { /* Primary Capture i/f */
 		.name = "WM8580 PAIF TX",
 		.stream_name = "Capture",
-		.cpu_dai_name = "samsung-i2s.2",
-		.codec_dai_name = "wm8580-hifi-capture",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8580.0-001b",
 		.dai_fmt = SMDK_DAI_FMT,
 		.init = smdk_wm8580_init_paiftx,
 		.ops = &smdk_ops,
+		SND_SOC_DAILINK_REG(paif_tx),
 	},
 };
 

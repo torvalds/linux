@@ -96,7 +96,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
  * Interface used by the world
  */
 
-static struct fb_ops platinumfb_ops = {
+static const struct fb_ops platinumfb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_check_var	= platinumfb_check_var,
 	.fb_set_par	= platinumfb_set_par,
@@ -345,23 +345,18 @@ static int platinum_init_fb(struct fb_info *info)
 
 	sense = read_platinum_sense(pinfo);
 	printk(KERN_INFO "platinumfb: Monitor sense value = 0x%x, ", sense);
-	if (default_vmode == VMODE_NVRAM) {
-#ifdef CONFIG_NVRAM
+
+	if (IS_REACHABLE(CONFIG_NVRAM) && default_vmode == VMODE_NVRAM)
 		default_vmode = nvram_read_byte(NV_VMODE);
-		if (default_vmode <= 0 || default_vmode > VMODE_MAX ||
-		    !platinum_reg_init[default_vmode-1])
-#endif
-			default_vmode = VMODE_CHOOSE;
-	}
-	if (default_vmode == VMODE_CHOOSE) {
+	if (default_vmode <= 0 || default_vmode > VMODE_MAX ||
+	    !platinum_reg_init[default_vmode - 1]) {
 		default_vmode = mac_map_monitor_sense(sense);
+		if (!platinum_reg_init[default_vmode - 1])
+			default_vmode = VMODE_640_480_60;
 	}
-	if (default_vmode <= 0 || default_vmode > VMODE_MAX)
-		default_vmode = VMODE_640_480_60;
-#ifdef CONFIG_NVRAM
-	if (default_cmode == CMODE_NVRAM)
+
+	if (IS_REACHABLE(CONFIG_NVRAM) && default_cmode == CMODE_NVRAM)
 		default_cmode = nvram_read_byte(NV_CMODE);
-#endif
 	if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
 		default_cmode = CMODE_8;
 	/*
@@ -543,10 +538,9 @@ static int platinumfb_probe(struct platform_device* odev)
 	dev_info(&odev->dev, "Found Apple Platinum video hardware\n");
 
 	info = framebuffer_alloc(sizeof(*pinfo), &odev->dev);
-	if (info == NULL) {
-		dev_err(&odev->dev, "Failed to allocate fbdev !\n");
+	if (!info)
 		return -ENOMEM;
-	}
+
 	pinfo = info->par;
 
 	if (of_address_to_resource(dp, 0, &pinfo->rsrc_reg) ||

@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/iopoll.h>
@@ -16,7 +8,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_pingpong.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
 
@@ -32,13 +23,24 @@
 #define PP_WR_PTR_IRQ                   0x024
 #define PP_OUT_LINE_COUNT               0x028
 #define PP_LINE_COUNT                   0x02C
+#define PP_AUTOREFRESH_CONFIG           0x030
 
 #define PP_FBC_MODE                     0x034
 #define PP_FBC_BUDGET_CTL               0x038
 #define PP_FBC_LOSSY_MODE               0x03C
 
-static struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
-		struct dpu_mdss_cfg *m,
+#define PP_DITHER_EN			0x000
+#define PP_DITHER_BITDEPTH		0x004
+#define PP_DITHER_MATRIX		0x008
+
+#define DITHER_DEPTH_MAP_INDEX 9
+
+static u32 dither_depth_map[DITHER_DEPTH_MAP_INDEX] = {
+	0, 0, 0, 0, 0, 0, 0, 1, 2
+};
+
+static const struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -56,6 +58,37 @@ static struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
 	}
 
 	return ERR_PTR(-EINVAL);
+}
+
+static void dpu_hw_pp_setup_dither(struct dpu_hw_pingpong *pp,
+				    struct dpu_hw_dither_cfg *cfg)
+{
+	struct dpu_hw_blk_reg_map *c;
+	u32 i, base, data = 0;
+
+	c = &pp->hw;
+	base = pp->caps->sblk->dither.base;
+	if (!cfg) {
+		DPU_REG_WRITE(c, base + PP_DITHER_EN, 0);
+		return;
+	}
+
+	data = dither_depth_map[cfg->c0_bitdepth] & REG_MASK(2);
+	data |= (dither_depth_map[cfg->c1_bitdepth] & REG_MASK(2)) << 2;
+	data |= (dither_depth_map[cfg->c2_bitdepth] & REG_MASK(2)) << 4;
+	data |= (dither_depth_map[cfg->c3_bitdepth] & REG_MASK(2)) << 6;
+	data |= (cfg->temporal_en) ? (1 << 8) : 0;
+
+	DPU_REG_WRITE(c, base + PP_DITHER_BITDEPTH, data);
+
+	for (i = 0; i < DITHER_MATRIX_SZ - 3; i += 4) {
+		data = (cfg->matrix[i] & REG_MASK(4)) |
+			((cfg->matrix[i + 1] & REG_MASK(4)) << 4) |
+			((cfg->matrix[i + 2] & REG_MASK(4)) << 8) |
+			((cfg->matrix[i + 3] & REG_MASK(4)) << 12);
+		DPU_REG_WRITE(c, base + PP_DITHER_MATRIX + i, data);
+	}
+	DPU_REG_WRITE(c, base + PP_DITHER_EN, 1);
 }
 
 static int dpu_hw_pp_setup_te_config(struct dpu_hw_pingpong *pp,
@@ -86,6 +119,29 @@ static int dpu_hw_pp_setup_te_config(struct dpu_hw_pingpong *pp,
 			(te->start_pos + te->sync_threshold_start + 1));
 
 	return 0;
+}
+
+static void dpu_hw_pp_setup_autorefresh_config(struct dpu_hw_pingpong *pp,
+					       u32 frame_count, bool enable)
+{
+	DPU_REG_WRITE(&pp->hw, PP_AUTOREFRESH_CONFIG,
+		      enable ? (BIT(31) | frame_count) : 0);
+}
+
+/*
+ * dpu_hw_pp_get_autorefresh_config - Get autorefresh config from HW
+ * @pp:          DPU pingpong structure
+ * @frame_count: Used to return the current frame count from hw
+ *
+ * Returns: True if autorefresh enabled, false if disabled.
+ */
+static bool dpu_hw_pp_get_autorefresh_config(struct dpu_hw_pingpong *pp,
+					     u32 *frame_count)
+{
+	u32 val = DPU_REG_READ(&pp->hw, PP_AUTOREFRESH_CONFIG);
+	if (frame_count != NULL)
+		*frame_count = val & 0xffff;
+	return !!((val & BIT(31)) >> 31);
 }
 
 static int dpu_hw_pp_poll_timeout_wr_ptr(struct dpu_hw_pingpong *pp,
@@ -177,7 +233,7 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	height = DPU_REG_READ(c, PP_SYNC_CONFIG_HEIGHT) & 0xFFFF;
 
 	if (height < init)
-		goto line_count_exit;
+		return line;
 
 	line = DPU_REG_READ(c, PP_INT_COUNT_VAL) & 0xFFFF;
 
@@ -186,33 +242,31 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	else
 		line -= init;
 
-line_count_exit:
 	return line;
 }
 
-static void _setup_pingpong_ops(struct dpu_hw_pingpong_ops *ops,
-	const struct dpu_pingpong_cfg *hw_cap)
+static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
+				unsigned long features)
 {
-	ops->setup_tearcheck = dpu_hw_pp_setup_te_config;
-	ops->enable_tearcheck = dpu_hw_pp_enable_te;
-	ops->connect_external_te = dpu_hw_pp_connect_external_te;
-	ops->get_vsync_info = dpu_hw_pp_get_vsync_info;
-	ops->poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
-	ops->get_line_count = dpu_hw_pp_get_line_count;
-};
+	c->ops.setup_tearcheck = dpu_hw_pp_setup_te_config;
+	c->ops.enable_tearcheck = dpu_hw_pp_enable_te;
+	c->ops.connect_external_te = dpu_hw_pp_connect_external_te;
+	c->ops.get_vsync_info = dpu_hw_pp_get_vsync_info;
+	c->ops.setup_autorefresh = dpu_hw_pp_setup_autorefresh_config;
+	c->ops.get_autorefresh = dpu_hw_pp_get_autorefresh_config;
+	c->ops.poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
+	c->ops.get_line_count = dpu_hw_pp_get_line_count;
 
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
+	if (test_bit(DPU_PINGPONG_DITHER, &features))
+		c->ops.setup_dither = dpu_hw_pp_setup_dither;
 };
 
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_pingpong *c;
-	struct dpu_pingpong_cfg *cfg;
-	int rc;
+	const struct dpu_pingpong_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -226,25 +280,12 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 
 	c->idx = idx;
 	c->caps = cfg;
-	_setup_pingpong_ops(&c->ops, c->caps);
-
-	rc = dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
+	_setup_pingpong_ops(c, c->caps->features);
 
 	return c;
-
-blk_init_error:
-	kzfree(c);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_pingpong_destroy(struct dpu_hw_pingpong *pp)
 {
-	if (pp)
-		dpu_hw_blk_destroy(&pp->base);
 	kfree(pp);
 }

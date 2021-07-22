@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Keystone SOC SMP platform code
  *
@@ -6,20 +7,16 @@
  *	Santosh Shilimkar <santosh.shillimkar@ti.com>
  *
  * Based on platsmp.c, Copyright (C) 2002 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/pgtable.h>
 
 #include <asm/smp_plat.h>
 #include <asm/prom.h>
 #include <asm/tlbflush.h>
-#include <asm/pgtable.h>
 
 #include "keystone.h"
 

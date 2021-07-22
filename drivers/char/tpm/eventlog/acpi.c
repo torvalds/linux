@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2005 IBM Corporation
  *
@@ -11,12 +12,6 @@
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
  * Access to the event log extended by the TCG BIOS of PC platform
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/seq_file.h>
@@ -46,6 +41,27 @@ struct acpi_tcpa {
 	};
 };
 
+/* Check that the given log is indeed a TPM2 log. */
+static bool tpm_is_tpm2_log(void *bios_event_log, u64 len)
+{
+	struct tcg_efi_specid_event_head *efispecid;
+	struct tcg_pcr_event *event_header;
+	int n;
+
+	if (len < sizeof(*event_header))
+		return false;
+	len -= sizeof(*event_header);
+	event_header = bios_event_log;
+
+	if (len < sizeof(*efispecid))
+		return false;
+	efispecid = (struct tcg_efi_specid_event_head *)event_header->event;
+
+	n = memcmp(efispecid->signature, TCG_SPECID_SIG,
+		   sizeof(TCG_SPECID_SIG));
+	return n == 0;
+}
+
 /* read binary bios log */
 int tpm_read_log_acpi(struct tpm_chip *chip)
 {
@@ -54,9 +70,10 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	void __iomem *virt;
 	u64 len, start;
 	struct tpm_bios_log *log;
-
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return -ENODEV;
+	struct acpi_table_tpm2 *tbl;
+	struct acpi_tpm2_phy *tpm2_phy;
+	int format;
+	int ret;
 
 	log = &chip->log;
 
@@ -66,23 +83,44 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	if (!chip->acpi_dev_handle)
 		return -ENODEV;
 
-	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
-	status = acpi_get_table(ACPI_SIG_TCPA, 1,
-				(struct acpi_table_header **)&buff);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		status = acpi_get_table("TPM2", 1,
+					(struct acpi_table_header **)&tbl);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
 
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		if (tbl->header.length <
+				sizeof(*tbl) + sizeof(struct acpi_tpm2_phy))
+			return -ENODEV;
 
-	switch(buff->platform_class) {
-	case BIOS_SERVER:
-		len = buff->server.log_max_len;
-		start = buff->server.log_start_addr;
-		break;
-	case BIOS_CLIENT:
-	default:
-		len = buff->client.log_max_len;
-		start = buff->client.log_start_addr;
-		break;
+		tpm2_phy = (void *)tbl + sizeof(*tbl);
+		len = tpm2_phy->log_area_minimum_length;
+
+		start = tpm2_phy->log_area_start_address;
+		if (!start || !len)
+			return -ENODEV;
+
+		format = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
+	} else {
+		/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
+		status = acpi_get_table(ACPI_SIG_TCPA, 1,
+					(struct acpi_table_header **)&buff);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+
+		switch (buff->platform_class) {
+		case BIOS_SERVER:
+			len = buff->server.log_max_len;
+			start = buff->server.log_start_addr;
+			break;
+		case BIOS_CLIENT:
+		default:
+			len = buff->client.log_max_len;
+			start = buff->client.log_start_addr;
+			break;
+		}
+
+		format = EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
 	}
 	if (!len) {
 		dev_warn(&chip->dev, "%s: TCPA log area empty\n", __func__);
@@ -96,6 +134,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 
 	log->bios_event_log_end = log->bios_event_log + len;
 
+	ret = -EIO;
 	virt = acpi_os_map_iomem(start, len);
 	if (!virt)
 		goto err;
@@ -103,11 +142,19 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	memcpy_fromio(log->bios_event_log, virt, len);
 
 	acpi_os_unmap_iomem(virt, len);
-	return EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2 &&
+	    !tpm_is_tpm2_log(log->bios_event_log, len)) {
+		/* try EFI log next */
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return format;
 
 err:
 	kfree(log->bios_event_log);
 	log->bios_event_log = NULL;
-	return -EIO;
+	return ret;
 
 }

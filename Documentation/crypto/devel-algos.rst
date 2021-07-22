@@ -31,33 +31,23 @@ The counterparts to those functions are listed below.
 
 ::
 
-       int crypto_unregister_alg(struct crypto_alg *alg);
-       int crypto_unregister_algs(struct crypto_alg *algs, int count);
+       void crypto_unregister_alg(struct crypto_alg *alg);
+       void crypto_unregister_algs(struct crypto_alg *algs, int count);
 
 
-Notice that both registration and unregistration functions do return a
-value, so make sure to handle errors. A return code of zero implies
-success. Any return code < 0 implies an error.
+The registration functions return 0 on success, or a negative errno
+value on failure.  crypto_register_algs() succeeds only if it
+successfully registered all the given algorithms; if it fails partway
+through, then any changes are rolled back.
 
-The bulk registration/unregistration functions register/unregister each
-transformation in the given array of length count. They handle errors as
-follows:
-
--  crypto_register_algs() succeeds if and only if it successfully
-   registers all the given transformations. If an error occurs partway
-   through, then it rolls back successful registrations before returning
-   the error code. Note that if a driver needs to handle registration
-   errors for individual transformations, then it will need to use the
-   non-bulk function crypto_register_alg() instead.
-
--  crypto_unregister_algs() tries to unregister all the given
-   transformations, continuing on error. It logs errors and always
-   returns zero.
+The unregistration functions always succeed, so they don't have a
+return value.  Don't try to unregister algorithms that aren't
+currently registered.
 
 Single-Block Symmetric Ciphers [CIPHER]
 ---------------------------------------
 
-Example of transformations: aes, arc4, ...
+Example of transformations: aes, serpent, ...
 
 This section describes the simplest of all transformation
 implementations, that being the CIPHER type used for symmetric ciphers.
@@ -108,7 +98,7 @@ is also valid:
 Multi-Block Ciphers
 -------------------
 
-Example of transformations: cbc(aes), ecb(arc4), ...
+Example of transformations: cbc(aes), chacha20, ...
 
 This section describes the multi-block cipher transformation
 implementations. The multi-block ciphers are used for transformations
@@ -128,25 +118,20 @@ process requests that are unaligned. This implies, however, additional
 overhead as the kernel crypto API needs to perform the realignment of
 the data which may imply moving of data.
 
-Cipher Definition With struct blkcipher_alg and ablkcipher_alg
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cipher Definition With struct skcipher_alg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Struct blkcipher_alg defines a synchronous block cipher whereas struct
-ablkcipher_alg defines an asynchronous block cipher.
+Struct skcipher_alg defines a multi-block cipher, or more generally, a
+length-preserving symmetric cipher algorithm.
 
-Please refer to the single block cipher description for schematics of
-the block cipher usage.
+Scatterlist handling
+~~~~~~~~~~~~~~~~~~~~
 
-Specifics Of Asynchronous Multi-Block Cipher
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-There are a couple of specifics to the asynchronous interface.
-
-First of all, some of the drivers will want to use the Generic
-ScatterWalk in case the hardware needs to be fed separate chunks of the
-scatterlist which contains the plaintext and will contain the
-ciphertext. Please refer to the ScatterWalk interface offered by the
-Linux kernel scatter / gather list implementation.
+Some drivers will want to use the Generic ScatterWalk in case the
+hardware needs to be fed separate chunks of the scatterlist which
+contains the plaintext and will contain the ciphertext. Please refer
+to the ScatterWalk interface offered by the Linux kernel scatter /
+gather list implementation.
 
 Hashing [HASH]
 --------------
@@ -174,10 +159,10 @@ are as follows:
 
 ::
 
-       int crypto_unregister_ahash(struct ahash_alg *alg);
+       void crypto_unregister_ahash(struct ahash_alg *alg);
 
-       int crypto_unregister_shash(struct shash_alg *alg);
-       int crypto_unregister_shashes(struct shash_alg *algs, int count);
+       void crypto_unregister_shash(struct shash_alg *alg);
+       void crypto_unregister_shashes(struct shash_alg *algs, int count);
 
 
 Cipher Definition With struct shash_alg and ahash_alg

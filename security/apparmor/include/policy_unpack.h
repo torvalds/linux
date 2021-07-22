@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __POLICY_INTERFACE_H
@@ -45,6 +41,7 @@ enum {
 	AAFS_LOADDATA_REVISION,
 	AAFS_LOADDATA_HASH,
 	AAFS_LOADDATA_DATA,
+	AAFS_LOADDATA_COMPRESSED_SIZE,
 	AAFS_LOADDATA_DIR,		/* must be last actual entry */
 	AAFS_LOADDATA_NDENTS		/* count of entries */
 };
@@ -65,11 +62,16 @@ struct aa_loaddata {
 	struct dentry *dents[AAFS_LOADDATA_NDENTS];
 	struct aa_ns *ns;
 	char *name;
-	size_t size;
+	size_t size;			/* the original size of the payload */
+	size_t compressed_size;		/* the compressed size of the payload */
 	long revision;			/* the ns policy revision this caused */
 	int abi;
 	unsigned char *hash;
 
+	/* Pointer to payload. If @compressed_size > 0, then this is the
+	 * compressed version of the payload, else it is the uncompressed
+	 * version (with the size indicated by @size).
+	 */
 	char *data;
 };
 

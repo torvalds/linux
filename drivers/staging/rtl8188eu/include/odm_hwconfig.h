@@ -93,18 +93,9 @@ struct phy_status_rpt {
 #endif
 };
 
-void odm_Init_RSSIForDM(struct odm_dm_struct *pDM_Odm);
-
-void ODM_PhyStatusQuery(struct odm_dm_struct *pDM_Odm,
-			struct odm_phy_status_info *pPhyInfo,
-			u8 *pPhyStatus,
-			struct odm_per_pkt_info *pPktinfo);
-
-void ODM_MacStatusQuery(struct odm_dm_struct *pDM_Odm,
-			u8 *pMacStatus,
-			u8	MacID,
-			bool	bPacketMatchBSSID,
-			bool	bPacketToSelf,
-			bool	bPacketBeacon);
+void odm_phy_status_query(struct odm_dm_struct *dm_odm,
+			  struct odm_phy_status_info *phy_info,
+			  u8 *phy_status,
+			  struct odm_per_pkt_info *pkt_info);
 
 #endif

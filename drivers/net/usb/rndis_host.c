@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Host Side support for RNDIS Networking Links
  * Copyright (C) 2005 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -213,7 +201,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 			dev_dbg(&info->control->dev,
 				"rndis response error, code %d\n", retval);
 		}
-		msleep(20);
+		msleep(40);
 	}
 	dev_dbg(&info->control->dev, "rndis response timeout\n");
 	return -ETIMEDOUT;
@@ -291,7 +279,7 @@ static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -336,7 +324,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	 * For RX we handle drivers that zero-pad to end-of-packet.
 	 * Don't let userspace change these settings.
 	 *
-	 * NOTE: there still seems to be wierdness here, as if we need
+	 * NOTE: there still seems to be weirdness here, as if we need
 	 * to do some more things to make sure WinCE targets accept this.
 	 * They default to jumbograms of 8KB or 16KB, which is absurd
 	 * for such low data rates and which is also more than Linux
@@ -399,7 +387,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	reply_len = sizeof *phym;
 	retval = rndis_query(dev, intf, u.buf,
 			     RNDIS_OID_GEN_PHYSICAL_MEDIUM,
-			     0, (void **) &phym, &reply_len);
+			     reply_len, (void **)&phym, &reply_len);
 	if (retval != 0 || !phym) {
 		/* OID is optional so don't fail here. */
 		phym_unspec = cpu_to_le32(RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED);

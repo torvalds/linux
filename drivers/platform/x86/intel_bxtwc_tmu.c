@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_bxtwc_tmu.c - Intel BXT Whiskey Cove PMIC TMU driver
+ * Intel BXT Whiskey Cove PMIC TMU driver
  *
  * Copyright (C) 2016 Intel Corporation. All rights reserved.
  *
  * This driver adds TMU (Time Management Unit) support for Intel BXT platform.
  * It enables the alarm wake-up functionality in the TMU unit of Whiskey Cove
  * PMIC.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -69,11 +60,8 @@ static int bxt_wcove_tmu_probe(struct platform_device *pdev)
 	wctmu->regmap = pmic->regmap;
 
 	irq = platform_get_irq(pdev, 0);
-
-	if (irq < 0) {
-		dev_err(&pdev->dev, "invalid irq %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	regmap_irq_chip = pmic->irq_chip_data_tmu;
 	virq = regmap_irq_get_virq(regmap_irq_chip, irq);

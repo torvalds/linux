@@ -29,16 +29,20 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	aliases {
 		serial0 = &scif2;
 		serial1 = &hscif1;
 		ethernet0 = &avb;
+		mmc0 = &sdhi2;
+		mmc1 = &sdhi0;
+		mmc2 = &sdhi3;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -86,6 +90,85 @@
 		};
 	};
 
+	hdmi0-out {
+		compatible = "hdmi-connector";
+		label = "HDMI0 OUT";
+		type = "a";
+
+		port {
+			hdmi0_con: endpoint {
+			};
+		};
+	};
+
+	hdmi1-out {
+		compatible = "hdmi-connector";
+		label = "HDMI1 OUT";
+		type = "a";
+
+		port {
+			hdmi1_con: endpoint {
+			};
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keys_pins>;
+		pinctrl-names = "default";
+
+		key-1 {
+			gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW4-1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio5 20 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW4-2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW4-3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio5 23 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW4-4";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-a {
+			gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_A>;
+			label = "TSW0";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-b {
+			gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_B>;
+			label = "TSW1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-c {
+			gpios = <&gpio6 13 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_C>;
+			label = "TSW2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
+
 	reg_1p8v: regulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -118,7 +201,8 @@
 
 		label = "rcar-sound";
 
-		dais = <&rsnd_port0>;
+		dais = <&rsnd_port0	/* ak4613 */
+			&rsnd_port1>;	/* HDMI0  */
 	};
 
 	vbus0_usb2: regulator-vbus0-usb2 {
@@ -152,8 +236,7 @@
 
 		gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi3: regulator-vcc-sdhi3 {
@@ -176,30 +259,7 @@
 
 		gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
-	};
-
-	hdmi0-out {
-		compatible = "hdmi-connector";
-		label = "HDMI0 OUT";
-		type = "a";
-
-		port {
-			hdmi0_con: endpoint {
-			};
-		};
-	};
-
-	hdmi1-out {
-		compatible = "hdmi-connector";
-		label = "HDMI1 OUT";
-		type = "a";
-
-		port {
-			hdmi1_con: endpoint {
-			};
-		};
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vga {
@@ -260,6 +320,10 @@
 	};
 };
 
+&a57_0 {
+	cpu-supply = <&dvfs>;
+};
+
 &audio_clk_a {
 	clock-frequency = <22579200>;
 };
@@ -268,7 +332,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-txid";
+	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -285,7 +349,6 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			csi20_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1>;
@@ -300,8 +363,6 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
-
 			csi40_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
@@ -336,6 +397,29 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
+};
+
+&hdmi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			rcar_dw_hdmi0_out: endpoint {
+				remote-endpoint = <&hdmi0_con>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_endpoint1>;
+			};
+		};
+	};
+};
+
+&hdmi0_con {
+	remote-endpoint = <&rcar_dw_hdmi0_out>;
 };
 
 &hscif1 {
@@ -404,20 +488,6 @@
 		#gpio-cells = <2>;
 	};
 
-	csa_vdd: adc@7c {
-		compatible = "maxim,max9611";
-		reg = <0x7c>;
-
-		shunt-resistor-micro-ohms = <5000>;
-	};
-
-	csa_dvfs: adc@7f {
-		compatible = "maxim,max9611";
-		reg = <0x7f>;
-
-		shunt-resistor-micro-ohms = <5000>;
-	};
-
 	video-receiver@70 {
 		compatible = "adi,adv7482";
 		reg = <0x70 0x71 0x72 0x73 0x74 0x75
@@ -468,6 +538,20 @@
 				remote-endpoint = <&csi20_in>;
 			};
 		};
+	};
+
+	csa_vdd: adc@7c {
+		compatible = "maxim,max9611";
+		reg = <0x7c>;
+
+		shunt-resistor-micro-ohms = <5000>;
+	};
+
+	csa_dvfs: adc@7f {
+		compatible = "maxim,max9611";
+		reg = <0x7f>;
+
+		shunt-resistor-micro-ohms = <5000>;
 	};
 };
 
@@ -572,6 +656,11 @@
 		function = "intc_ex";
 	};
 
+	keys_pins: keys {
+		pins = "GP_5_17", "GP_5_20", "GP_5_22";
+		bias-pull-up;
+	};
+
 	pwm1_pins: pwm1 {
 		groups = "pwm1_a";
 		function = "pwm1";
@@ -605,12 +694,6 @@
 	};
 
 	sdhi2_pins: sd2 {
-		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
-		function = "sdhi2";
-		power-source = <3300>;
-	};
-
-	sdhi2_pins_uhs: sd2_uhs {
 		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
 		function = "sdhi2";
 		power-source = <1800>;
@@ -675,7 +758,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
 	/* Single DAI */
@@ -707,7 +790,10 @@
 		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		rsnd_port0: port@0 {
+			reg = <0>;
 			rsnd_endpoint0: endpoint {
 				remote-endpoint = <&ak4613_endpoint>;
 
@@ -715,11 +801,29 @@
 				bitclock-master = <&rsnd_endpoint0>;
 				frame-master = <&rsnd_endpoint0>;
 
-				playback = <&ssi0 &src0 &dvc0>;
-				capture  = <&ssi1 &src1 &dvc1>;
+				playback = <&ssi0>, <&src0>, <&dvc0>;
+				capture  = <&ssi1>, <&src1>, <&dvc1>;
+			};
+		};
+
+		rsnd_port1: port@1 {
+			reg = <1>;
+			rsnd_endpoint1: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint1>;
+				frame-master = <&rsnd_endpoint1>;
+
+				playback = <&ssi2>;
 			};
 		};
 	};
+};
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
 };
 
 &scif1 {
@@ -760,15 +864,19 @@
 &sdhi2 {
 	/* used for on-board 8bit eMMC */
 	pinctrl-0 = <&sdhi2_pins>;
-	pinctrl-1 = <&sdhi2_pins_uhs>;
+	pinctrl-1 = <&sdhi2_pins>;
 	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	no-sd;
+	no-sdio;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 
@@ -814,6 +922,8 @@
 	phys = <&usb3_phy0>;
 	phy-names = "usb";
 
+	companion = <&xhci0>;
+
 	status = "okay";
 };
 
@@ -854,11 +964,6 @@
 };
 
 &vin7 {
-	status = "okay";
-};
-
-&rwdt {
-	timeout-sec = <60>;
 	status = "okay";
 };
 

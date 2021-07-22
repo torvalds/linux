@@ -7,7 +7,6 @@
 #ifndef __RTL8188E_HAL_H__
 #define __RTL8188E_HAL_H__
 
-
 /* include HAL Related header after HAL Related compiling flags */
 #include "rtl8188e_spec.h"
 #include "hal8188e_phy_reg.h"
@@ -21,19 +20,6 @@
 #include "rtw_sreset.h"
 #include "odm_precomp.h"
 
-/*  Fw Array */
-#define Rtl8188E_FwImageArray		Rtl8188EFwImgArray
-#define Rtl8188E_FWImgArrayLength	Rtl8188EFWImgArrayLength
-
-#define RTL8188E_FW_UMC_IMG			"rtl8188E\\rtl8188efw.bin"
-#define RTL8188E_PHY_REG			"rtl8188E\\PHY_REG_1T.txt"
-#define RTL8188E_PHY_RADIO_A			"rtl8188E\\radio_a_1T.txt"
-#define RTL8188E_PHY_RADIO_B			"rtl8188E\\radio_b_1T.txt"
-#define RTL8188E_AGC_TAB			"rtl8188E\\AGC_TAB_1T.txt"
-#define RTL8188E_PHY_MACREG			"rtl8188E\\MAC_REG.txt"
-#define RTL8188E_PHY_REG_PG			"rtl8188E\\PHY_REG_PG.txt"
-#define RTL8188E_PHY_REG_MP			"rtl8188E\\PHY_REG_MP.txt"
-
 /* RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
 #define Rtl8188E_NIC_RF_OFF_FLOW		rtl8188E_radio_off_flow
@@ -46,7 +32,7 @@
 #define Rtl8188E_NIC_LPS_LEAVE_FLOW		rtl8188E_leave_lps_flow
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
-#define PageNum_128(_Len)	(u32)(((_Len)>>7) + ((_Len) & 0x7F ? 1 : 0))
+#define PageNum_128(_Len)	(u32)(((_Len) >> 7) + ((_Len) & 0x7F ? 1 : 0))
 
 /*  download firmware related data structure */
 #define FW_8188E_SIZE			0x4000 /* 16384,16k */
@@ -55,11 +41,11 @@
 
 #define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
 
-#define IS_FW_HEADER_EXIST(_pFwHdr)				\
-	((le16_to_cpu(_pFwHdr->signature)&0xFFF0) == 0x92C0 ||	\
-	(le16_to_cpu(_pFwHdr->signature)&0xFFF0) == 0x88C0 ||	\
-	(le16_to_cpu(_pFwHdr->signature)&0xFFF0) == 0x2300 ||	\
-	(le16_to_cpu(_pFwHdr->signature)&0xFFF0) == 0x88E0)
+#define IS_FW_HEADER_EXIST(_pFwHdr)				 \
+	((le16_to_cpu(_pFwHdr->signature) & 0xFFF0) == 0x92C0 || \
+	(le16_to_cpu(_pFwHdr->signature) & 0xFFF0) == 0x88C0 ||  \
+	(le16_to_cpu(_pFwHdr->signature) & 0xFFF0) == 0x2300 ||  \
+	(le16_to_cpu(_pFwHdr->signature) & 0xFFF0) == 0x88E0)
 
 #define DRIVER_EARLY_INT_TIME		0x05
 #define BCN_DMA_ATIME_INT_TIME		0x02
@@ -77,7 +63,6 @@ enum usb_rx_agg_mode {
 	      */
 
 #define MAX_TX_REPORT_BUFFER_SIZE		0x0400 /*  1k */
-
 
 /*  BK, BE, VI, VO, HCCA, MANAGEMENT, COMMAND, HIGH, BEACON. */
 #define MAX_TX_QUEUE			9
@@ -106,7 +91,7 @@ enum usb_rx_agg_mode {
 	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) /* 0xA9 */
 
 /* Chip specific */
-#define CHIP_BONDING_IDENTIFIER(_value)	(((_value)>>22)&0x3)
+#define CHIP_BONDING_IDENTIFIER(_value)	(((_value) >> 22) & 0x3)
 #define CHIP_BONDING_92C_1T2R	0x1
 #define CHIP_BONDING_88C_USB_MCARD	0x2
 #define CHIP_BONDING_88C_USB_HP	0x1
@@ -210,13 +195,8 @@ struct hal_data_8188e {
 
 	u8	bTXPowerDataReadFromEEPORM;
 	u8	EEPROMThermalMeter;
-	u8	bAPKThermalMeterIgnore;
 
 	bool	EepromOrEfuse;
-	/* 92C:256bytes, 88E:512bytes, we use union set (512bytes) */
-	u8	EfuseMap[2][HWSET_MAX_SIZE_512];
-	u8	EfuseUsedPercentage;
-	struct efuse_hal	EfuseHal;
 
 	u8	Index24G_CCK_Base[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
 	u8	Index24G_BW40_Base[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
@@ -239,22 +219,10 @@ struct hal_data_8188e {
 	u8	PwrGroupHT20[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 	u8	PwrGroupHT40[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 
-	u8	LegacyHTTxPowerDiff;/*  Legacy to HT rate power diff */
-	/*  The current Tx Power Level */
-	u8	CurrentCckTxPwrIdx;
-	u8	CurrentOfdm24GTxPwrIdx;
-	u8	CurrentBW2024GTxPwrIdx;
-	u8	CurrentBW4024GTxPwrIdx;
-
-
 	/*  Read/write are allow for following hardware information variables */
 	u8	framesync;
-	u32	framesyncC34;
-	u8	framesyncMonitor;
-	u8	DefaultInitialGain[4];
 	u8	pwrGroupCnt;
 	u32	MCSTxPowerLevelOriginalOffset[MAX_PG_GROUP][16];
-	u32	CCKTxPowerLevelOriginalOffset;
 
 	u8	CrystalCap;
 
@@ -285,15 +253,8 @@ struct hal_data_8188e {
 	u8	AntDivCfg;
 	u8	TRxAntDivType;
 
-
 	u8	bDumpRxPkt;/* for debug */
 	u8	bDumpTxPkt;/* for debug */
-	u8	FwRsvdPageStartOffset; /* Reserve page start offset except
-					*  beacon in TxQ.
-					*/
-
-	/*  2010/08/09 MH Add CU power down mode. */
-	bool		pwrdown;
 
 	/*  Add for dual MAC  0--Mac0 1--Mac1 */
 	u32	interfaceIndex;
@@ -317,7 +278,6 @@ struct hal_data_8188e {
 	u8	UsbTxAggMode;
 	u8	UsbTxAggDescNum;
 	u16	HwRxPageSize;		/*  Hardware setting */
-	u32	MaxUsbRxAggBlock;
 
 	enum usb_rx_agg_mode UsbRxAggMode;
 	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is
@@ -329,10 +289,11 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageTimeout;
 };
 
+void Hal_GetChnlGroup88E(u8 chnl, u8 *group);
+
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter);
-
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
 

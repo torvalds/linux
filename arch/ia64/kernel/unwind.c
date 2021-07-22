@@ -28,7 +28,7 @@
  *	  acquired, then the read-write lock must be acquired first.
  */
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -324,7 +324,7 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 							return 0;
 						}
 					}
-					/* fall through */
+					fallthrough;
 				      case UNW_NAT_NONE:
 					dummy_nat = 0;
 					nat_addr = &dummy_nat;

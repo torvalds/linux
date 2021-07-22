@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * spu management operations for of based platforms
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  * Copyright 2006 Sony Corp.
  * (C) Copyright 2007 TOSHIBA CORPORATION
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/interrupt.h>
@@ -458,7 +446,6 @@ static void init_affinity_node(int cbe)
 	struct device_node *vic_dn, *last_spu_dn;
 	phandle avoid_ph;
 	const phandle *vic_handles;
-	const char *name;
 	int lenp, i, added;
 
 	last_spu = list_first_entry(&cbe_spu_info[cbe].spus, struct spu,
@@ -480,12 +467,7 @@ static void init_affinity_node(int cbe)
 			if (!vic_dn)
 				continue;
 
-			/* a neighbour might be spe, mic-tm, or bif0 */
-			name = of_get_property(vic_dn, "name", NULL);
-			if (!name)
-				continue;
-
-			if (strcmp(name, "spe") == 0) {
+			if (of_node_name_eq(vic_dn, "spe") ) {
 				spu = devnode_spu(cbe, vic_dn);
 				avoid_ph = last_spu_dn->phandle;
 			} else {
@@ -498,7 +480,7 @@ static void init_affinity_node(int cbe)
 				spu = neighbour_spu(cbe, vic_dn, last_spu_dn);
 				if (!spu)
 					continue;
-				if (!strcmp(name, "mic-tm")) {
+				if (of_node_name_eq(vic_dn, "mic-tm")) {
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}

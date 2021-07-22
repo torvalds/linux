@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/powerpc/boot/dts/wii.dts
  *
  * Nintendo Wii platform device tree source
  * Copyright (C) 2008-2009 The GameCube Linux Team
  * Copyright (C) 2008,2009 Albert Herranz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
  */
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 /*
  * This is commented-out for now.
@@ -187,6 +183,11 @@
 				"DEBUG0", "DEBUG1", "DEBUG2", "DEBUG3",
 				"DEBUG4", "DEBUG5", "DEBUG6", "DEBUG7";
 
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <10>;
+			interrupt-parent = <&PIC1>;
+
 			/*
 			 * This is commented out while a standard binding
 			 * for i2c over gpio is defined.
@@ -233,6 +234,22 @@
 			label = "wii:blue:drive_slot";
 			gpios = <&GPIO 5 GPIO_ACTIVE_HIGH>;
 			panic-indicator;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power Button";
+			gpios = <&GPIO 0 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_POWER>;
+		};
+
+		eject {
+			label = "Eject Button";
+			gpios = <&GPIO 6 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_EJECTCD>;
 		};
 	};
 };

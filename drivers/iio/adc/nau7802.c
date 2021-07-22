@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Nuvoton NAU7802 ADC
  *
  * Copyright 2013 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/delay.h>
@@ -431,8 +430,6 @@ static int nau7802_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &nau7802_info;
@@ -501,7 +498,8 @@ static int nau7802_probe(struct i2c_client *client,
 		ret = request_threaded_irq(client->irq,
 				NULL,
 				nau7802_eoc_trigger,
-				IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+				IRQF_NO_AUTOEN,
 				client->dev.driver->name,
 				indio_dev);
 		if (ret) {
@@ -516,8 +514,7 @@ static int nau7802_probe(struct i2c_client *client,
 			dev_info(&client->dev,
 				"Failed to allocate IRQ, using polling mode\n");
 			client->irq = 0;
-		} else
-			disable_irq(client->irq);
+		}
 	}
 
 	if (!client->irq) {

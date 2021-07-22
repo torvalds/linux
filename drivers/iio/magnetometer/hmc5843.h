@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header file for hmc5843 driver
  *
  * Split from hmc5843.c
  * Copyright (C) Josef Gajdusek <atx@atx.name>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef HMC5843_CORE_H
@@ -36,14 +33,19 @@ enum hmc5843_ids {
  * @lock:		update and read regmap data
  * @regmap:		hardware access register maps
  * @variant:		describe chip variants
- * @buffer:		3x 16-bit channels + padding + 64-bit timestamp
+ * @scan:		buffer to pack data for passing to
+ *			iio_push_to_buffers_with_timestamp()
  */
 struct hmc5843_data {
 	struct device *dev;
 	struct mutex lock;
 	struct regmap *regmap;
 	const struct hmc5843_chip_info *variant;
-	__be16 buffer[8];
+	struct iio_mount_matrix orientation;
+	struct {
+		__be16 chans[3];
+		s64 timestamp __aligned(8);
+	} scan;
 };
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
@@ -54,9 +56,9 @@ int hmc5843_common_suspend(struct device *dev);
 int hmc5843_common_resume(struct device *dev);
 
 #ifdef CONFIG_PM_SLEEP
-static SIMPLE_DEV_PM_OPS(hmc5843_pm_ops,
-		hmc5843_common_suspend,
-		hmc5843_common_resume);
+static __maybe_unused SIMPLE_DEV_PM_OPS(hmc5843_pm_ops,
+					hmc5843_common_suspend,
+					hmc5843_common_resume);
 #define HMC5843_PM_OPS (&hmc5843_pm_ops)
 #else
 #define HMC5843_PM_OPS NULL

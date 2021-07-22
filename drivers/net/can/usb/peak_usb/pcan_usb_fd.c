@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAN driver for PEAK System PCAN-USB FD / PCAN-USB Pro FD adapter
  *
  * Copyright (C) 2013-2014 Stephane Grosjean <s.grosjean@peak-system.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published
- * by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/ethtool.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -23,9 +16,6 @@
 
 #include "pcan_usb_core.h"
 #include "pcan_usb_pro.h"
-
-MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB FD adapter");
-MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB Pro FD adapter");
 
 #define PCAN_USBPROFD_CHANNEL_COUNT	2
 #define PCAN_USBFD_CHANNEL_COUNT	1
@@ -43,7 +33,7 @@ MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB Pro FD adapter");
 #define PCAN_UFD_RX_BUFFER_SIZE		2048
 #define PCAN_UFD_TX_BUFFER_SIZE		512
 
-/* read some versions info from the hw devcie */
+/* read some versions info from the hw device */
 struct __packed pcan_ufd_fw_info {
 	__le16	size_of;	/* sizeof this */
 	__le16	type;		/* type of this structure */
@@ -476,11 +466,17 @@ static int pcan_usb_fd_decode_canmsg(struct pcan_usb_fd_if *usb_if,
 				     struct pucan_msg *rx_msg)
 {
 	struct pucan_rx_msg *rm = (struct pucan_rx_msg *)rx_msg;
-	struct peak_usb_device *dev = usb_if->dev[pucan_msg_get_channel(rm)];
-	struct net_device *netdev = dev->netdev;
+	struct peak_usb_device *dev;
+	struct net_device *netdev;
 	struct canfd_frame *cfd;
 	struct sk_buff *skb;
 	const u16 rx_msg_flags = le16_to_cpu(rm->flags);
+
+	if (pucan_msg_get_channel(rm) >= ARRAY_SIZE(usb_if->dev))
+		return -ENOMEM;
+
+	dev = usb_if->dev[pucan_msg_get_channel(rm)];
+	netdev = dev->netdev;
 
 	if (rx_msg_flags & PUCAN_MSG_EXT_DATA_LEN) {
 		/* CANFD frame case */
@@ -494,14 +490,16 @@ static int pcan_usb_fd_decode_canmsg(struct pcan_usb_fd_if *usb_if,
 		if (rx_msg_flags & PUCAN_MSG_ERROR_STATE_IND)
 			cfd->flags |= CANFD_ESI;
 
-		cfd->len = can_dlc2len(get_canfd_dlc(pucan_msg_get_dlc(rm)));
+		cfd->len = can_fd_dlc2len(pucan_msg_get_dlc(rm));
 	} else {
 		/* CAN 2.0 frame case */
 		skb = alloc_can_skb(netdev, (struct can_frame **)&cfd);
 		if (!skb)
 			return -ENOMEM;
 
-		cfd->len = get_can_dlc(pucan_msg_get_dlc(rm));
+		can_frame_set_cc_len((struct can_frame *)cfd,
+				     pucan_msg_get_dlc(rm),
+				     dev->can.ctrlmode);
 	}
 
 	cfd->can_id = le32_to_cpu(rm->can_id);
@@ -514,10 +512,10 @@ static int pcan_usb_fd_decode_canmsg(struct pcan_usb_fd_if *usb_if,
 	else
 		memcpy(cfd->data, rm->d, cfd->len);
 
-	peak_usb_netif_rx(skb, &usb_if->time_ref, le32_to_cpu(rm->ts_low));
-
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += cfd->len;
+
+	peak_usb_netif_rx(skb, &usb_if->time_ref, le32_to_cpu(rm->ts_low));
 
 	return 0;
 }
@@ -527,14 +525,20 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 				     struct pucan_msg *rx_msg)
 {
 	struct pucan_status_msg *sm = (struct pucan_status_msg *)rx_msg;
-	struct peak_usb_device *dev = usb_if->dev[pucan_stmsg_get_channel(sm)];
-	struct pcan_usb_fd_device *pdev =
-			container_of(dev, struct pcan_usb_fd_device, dev);
+	struct pcan_usb_fd_device *pdev;
 	enum can_state new_state = CAN_STATE_ERROR_ACTIVE;
 	enum can_state rx_state, tx_state;
-	struct net_device *netdev = dev->netdev;
+	struct peak_usb_device *dev;
+	struct net_device *netdev;
 	struct can_frame *cf;
 	struct sk_buff *skb;
+
+	if (pucan_stmsg_get_channel(sm) >= ARRAY_SIZE(usb_if->dev))
+		return -ENOMEM;
+
+	dev = usb_if->dev[pucan_stmsg_get_channel(sm)];
+	pdev = container_of(dev, struct pcan_usb_fd_device, dev);
+	netdev = dev->netdev;
 
 	/* nothing should be sent while in BUS_OFF state */
 	if (dev->can.state == CAN_STATE_BUS_OFF)
@@ -574,10 +578,10 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 	if (!skb)
 		return -ENOMEM;
 
-	peak_usb_netif_rx(skb, &usb_if->time_ref, le32_to_cpu(sm->ts_low));
-
 	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += cf->can_dlc;
+	netdev->stats.rx_bytes += cf->len;
+
+	peak_usb_netif_rx(skb, &usb_if->time_ref, le32_to_cpu(sm->ts_low));
 
 	return 0;
 }
@@ -587,9 +591,14 @@ static int pcan_usb_fd_decode_error(struct pcan_usb_fd_if *usb_if,
 				    struct pucan_msg *rx_msg)
 {
 	struct pucan_error_msg *er = (struct pucan_error_msg *)rx_msg;
-	struct peak_usb_device *dev = usb_if->dev[pucan_ermsg_get_channel(er)];
-	struct pcan_usb_fd_device *pdev =
-			container_of(dev, struct pcan_usb_fd_device, dev);
+	struct pcan_usb_fd_device *pdev;
+	struct peak_usb_device *dev;
+
+	if (pucan_ermsg_get_channel(er) >= ARRAY_SIZE(usb_if->dev))
+		return -EINVAL;
+
+	dev = usb_if->dev[pucan_ermsg_get_channel(er)];
+	pdev = container_of(dev, struct pcan_usb_fd_device, dev);
 
 	/* keep a trace of tx and rx error counters for later use */
 	pdev->bec.txerr = er->tx_err_cnt;
@@ -603,10 +612,16 @@ static int pcan_usb_fd_decode_overrun(struct pcan_usb_fd_if *usb_if,
 				      struct pucan_msg *rx_msg)
 {
 	struct pcan_ufd_ovr_msg *ov = (struct pcan_ufd_ovr_msg *)rx_msg;
-	struct peak_usb_device *dev = usb_if->dev[pufd_omsg_get_channel(ov)];
-	struct net_device *netdev = dev->netdev;
+	struct peak_usb_device *dev;
+	struct net_device *netdev;
 	struct can_frame *cf;
 	struct sk_buff *skb;
+
+	if (pufd_omsg_get_channel(ov) >= ARRAY_SIZE(usb_if->dev))
+		return -EINVAL;
+
+	dev = usb_if->dev[pufd_omsg_get_channel(ov)];
+	netdev = dev->netdev;
 
 	/* allocate an skb to store the error frame */
 	skb = alloc_can_err_skb(netdev, &cf);
@@ -722,7 +737,10 @@ static int pcan_usb_fd_encode_msg(struct peak_usb_device *dev,
 	struct pucan_tx_msg *tx_msg = (struct pucan_tx_msg *)obuf;
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	u16 tx_msg_size, tx_msg_flags;
-	u8 can_dlc;
+	u8 dlc;
+
+	if (cfd->len > CANFD_MAX_DLEN)
+		return -EINVAL;
 
 	tx_msg_size = ALIGN(sizeof(struct pucan_tx_msg) + cfd->len, 4);
 	tx_msg->size = cpu_to_le16(tx_msg_size);
@@ -738,7 +756,7 @@ static int pcan_usb_fd_encode_msg(struct peak_usb_device *dev,
 
 	if (can_is_canfd_skb(skb)) {
 		/* considering a CANFD frame */
-		can_dlc = can_len2dlc(cfd->len);
+		dlc = can_fd_len2dlc(cfd->len);
 
 		tx_msg_flags |= PUCAN_MSG_EXT_DATA_LEN;
 
@@ -749,14 +767,19 @@ static int pcan_usb_fd_encode_msg(struct peak_usb_device *dev,
 			tx_msg_flags |= PUCAN_MSG_ERROR_STATE_IND;
 	} else {
 		/* CAND 2.0 frames */
-		can_dlc = cfd->len;
+		dlc = can_get_cc_dlc((struct can_frame *)cfd,
+				     dev->can.ctrlmode);
 
 		if (cfd->can_id & CAN_RTR_FLAG)
 			tx_msg_flags |= PUCAN_MSG_RTR;
 	}
 
+	/* Single-Shot frame */
+	if (dev->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
+		tx_msg_flags |= PUCAN_MSG_SINGLE_SHOT;
+
 	tx_msg->flags = cpu_to_le16(tx_msg_flags);
-	tx_msg->channel_dlc = PUCAN_MSG_CHANNEL_DLC(dev->ctrl_idx, can_dlc);
+	tx_msg->channel_dlc = PUCAN_MSG_CHANNEL_DLC(dev->ctrl_idx, dlc);
 	memcpy(tx_msg->d, cfd->data, cfd->len);
 
 	/* add null size message to tag the end (messages are 32-bits aligned)
@@ -804,7 +827,7 @@ static int pcan_usb_fd_start(struct peak_usb_device *dev)
 	return err;
 }
 
-/* socket callback used to copy berr counters values receieved through USB */
+/* socket callback used to copy berr counters values received through USB */
 static int pcan_usb_fd_get_berr_counter(const struct net_device *netdev,
 					struct can_berr_counter *bec)
 {
@@ -849,7 +872,7 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 			goto err_out;
 
 		/* allocate command buffer once for all for the interface */
-		pdev->cmd_buffer_addr = kmalloc(PCAN_UFD_CMD_BUFFER_SIZE,
+		pdev->cmd_buffer_addr = kzalloc(PCAN_UFD_CMD_BUFFER_SIZE,
 						GFP_KERNEL);
 		if (!pdev->cmd_buffer_addr)
 			goto err_out_1;
@@ -988,6 +1011,31 @@ static void pcan_usb_fd_free(struct peak_usb_device *dev)
 	}
 }
 
+/* blink LED's */
+static int pcan_usb_fd_set_phys_id(struct net_device *netdev,
+				   enum ethtool_phys_id_state state)
+{
+	struct peak_usb_device *dev = netdev_priv(netdev);
+	int err = 0;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		err = pcan_usb_fd_set_can_led(dev, PCAN_UFD_LED_FAST);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		err = pcan_usb_fd_set_can_led(dev, PCAN_UFD_LED_DEF);
+		break;
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static const struct ethtool_ops pcan_usb_fd_ethtool_ops = {
+	.set_phys_id = pcan_usb_fd_set_phys_id,
+};
+
 /* describes the PCAN-USB FD adapter */
 static const struct can_bittiming_const pcan_usb_fd_const = {
 	.name = "pcan_usb_fd",
@@ -1018,7 +1066,8 @@ const struct peak_usb_adapter pcan_usb_fd = {
 	.device_id = PCAN_USBFD_PRODUCT_ID,
 	.ctrl_count = PCAN_USBFD_CHANNEL_COUNT,
 	.ctrlmode_supported = CAN_CTRLMODE_FD |
-			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
+			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
+			CAN_CTRLMODE_ONE_SHOT | CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
@@ -1028,9 +1077,10 @@ const struct peak_usb_adapter pcan_usb_fd = {
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
 
+	.ethtool_ops = &pcan_usb_fd_ethtool_ops,
+
 	/* timestamps usage */
 	.ts_used_bits = 32,
-	.ts_period = 1000000, /* calibration period in ts. */
 	.us_per_ts_scale = 1, /* us = (ts * scale) >> shift */
 	.us_per_ts_shift = 0,
 
@@ -1090,7 +1140,8 @@ const struct peak_usb_adapter pcan_usb_chip = {
 	.device_id = PCAN_USBCHIP_PRODUCT_ID,
 	.ctrl_count = PCAN_USBFD_CHANNEL_COUNT,
 	.ctrlmode_supported = CAN_CTRLMODE_FD |
-		CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
+		CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
+		CAN_CTRLMODE_ONE_SHOT | CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
@@ -1100,9 +1151,10 @@ const struct peak_usb_adapter pcan_usb_chip = {
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
 
+	.ethtool_ops = &pcan_usb_fd_ethtool_ops,
+
 	/* timestamps usage */
 	.ts_used_bits = 32,
-	.ts_period = 1000000, /* calibration period in ts. */
 	.us_per_ts_scale = 1, /* us = (ts * scale) >> shift */
 	.us_per_ts_shift = 0,
 
@@ -1162,7 +1214,8 @@ const struct peak_usb_adapter pcan_usb_pro_fd = {
 	.device_id = PCAN_USBPROFD_PRODUCT_ID,
 	.ctrl_count = PCAN_USBPROFD_CHANNEL_COUNT,
 	.ctrlmode_supported = CAN_CTRLMODE_FD |
-			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
+			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
+			CAN_CTRLMODE_ONE_SHOT | CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
@@ -1172,9 +1225,10 @@ const struct peak_usb_adapter pcan_usb_pro_fd = {
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
 
+	.ethtool_ops = &pcan_usb_fd_ethtool_ops,
+
 	/* timestamps usage */
 	.ts_used_bits = 32,
-	.ts_period = 1000000, /* calibration period in ts. */
 	.us_per_ts_scale = 1, /* us = (ts * scale) >> shift */
 	.us_per_ts_shift = 0,
 
@@ -1234,7 +1288,8 @@ const struct peak_usb_adapter pcan_usb_x6 = {
 	.device_id = PCAN_USBX6_PRODUCT_ID,
 	.ctrl_count = PCAN_USBPROFD_CHANNEL_COUNT,
 	.ctrlmode_supported = CAN_CTRLMODE_FD |
-			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
+			CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
+			CAN_CTRLMODE_ONE_SHOT | CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
 		.freq = PCAN_UFD_CRYSTAL_HZ,
 	},
@@ -1244,9 +1299,10 @@ const struct peak_usb_adapter pcan_usb_x6 = {
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_fd_device),
 
+	.ethtool_ops = &pcan_usb_fd_ethtool_ops,
+
 	/* timestamps usage */
 	.ts_used_bits = 32,
-	.ts_period = 1000000, /* calibration period in ts. */
 	.us_per_ts_scale = 1, /* us = (ts * scale) >> shift */
 	.us_per_ts_shift = 0,
 

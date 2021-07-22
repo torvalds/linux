@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Verifone Int.
  *
  * Author: Nicolas Saenz Julienne <nicolassaenzj@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify i t
- * under  the terms of the GNU General  Public License as published by th e
- * Free Software Foundation;  either version 2 of the License, or (at you r
- * option) any later version.
  *
  * This driver is based on the gpio-tps65912 implementation.
  */
@@ -191,7 +187,6 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 {
 	struct tps65218 *tps65218 = dev_get_drvdata(pdev->dev.parent);
 	struct tps65218_gpio *tps65218_gpio;
-	int ret;
 
 	tps65218_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps65218_gpio),
 				     GFP_KERNEL);
@@ -205,16 +200,8 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	tps65218_gpio->gpio_chip.of_node = pdev->dev.of_node;
 #endif
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &tps65218_gpio->gpio_chip,
-				     tps65218_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, tps65218_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &tps65218_gpio->gpio_chip,
+				      tps65218_gpio);
 }
 
 static const struct of_device_id tps65218_dt_match[] = {

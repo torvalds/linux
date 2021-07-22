@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio codec driver binding
  * Copyright (c) Takashi Iwai <tiwai@suse.de>
@@ -41,6 +42,14 @@ static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
+
+	/* ignore unsol events during shutdown */
+	if (codec->bus->shutdown)
+		return;
+
+	/* ignore unsol events during system suspend/resume */
+	if (codec->core.dev.power.power_state.event != PM_EVENT_ON)
+		return;
 
 	if (codec->patch_ops.unsol_event)
 		codec->patch_ops.unsol_event(codec, ev);
@@ -115,7 +124,8 @@ static int hda_codec_driver_probe(struct device *dev)
 	err = snd_hda_codec_build_controls(codec);
 	if (err < 0)
 		goto error_module;
-	if (codec->card->registered) {
+	/* only register after the bus probe finished; otherwise it's racy */
+	if (!codec->bus->bus_probing && codec->card->registered) {
 		err = snd_card_register(codec->card);
 		if (err < 0)
 			goto error_module;
@@ -157,8 +167,11 @@ static void hda_codec_driver_shutdown(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 
-	if (!pm_runtime_suspended(dev) && codec->patch_ops.reboot_notify)
-		codec->patch_ops.reboot_notify(codec);
+	if (!pm_runtime_suspended(dev)) {
+		if (codec->patch_ops.reboot_notify)
+			codec->patch_ops.reboot_notify(codec);
+		snd_hda_codec_display_power(codec, false);
+	}
 }
 
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,

@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: Channel, Frequence and Power
+ * NXP Wireless LAN device driver: Channel, Frequence and Power
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -530,6 +530,9 @@ u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 	else
 		rate_index = (rx_rate > MWIFIEX_RATE_INDEX_OFDM0) ?
 			      rx_rate - 1 : rx_rate;
+
+	if (rate_index >= MWIFIEX_MAX_AC_RX_RATES)
+		rate_index = MWIFIEX_MAX_AC_RX_RATES - 1;
 
 	return rate_index;
 }

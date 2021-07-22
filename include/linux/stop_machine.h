@@ -24,6 +24,7 @@ typedef int (*cpu_stop_fn_t)(void *arg);
 struct cpu_stop_work {
 	struct list_head	list;		/* cpu_stopper->works */
 	cpu_stop_fn_t		fn;
+	unsigned long		caller;
 	void			*arg;
 	struct cpu_stop_done	*done;
 };
@@ -32,10 +33,11 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
 int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
 bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
-int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
-int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
 void stop_machine_park(int cpu);
 void stop_machine_unpark(int cpu);
+void stop_machine_yield(const struct cpumask *cpumask);
+
+extern void print_stop_info(const char *log_lvl, struct task_struct *task);
 
 #else	/* CONFIG_SMP */
 
@@ -81,19 +83,7 @@ static inline bool stop_one_cpu_nowait(unsigned int cpu,
 	return false;
 }
 
-static inline int stop_cpus(const struct cpumask *cpumask,
-			    cpu_stop_fn_t fn, void *arg)
-{
-	if (cpumask_test_cpu(raw_smp_processor_id(), cpumask))
-		return stop_one_cpu(raw_smp_processor_id(), fn, arg);
-	return -ENOENT;
-}
-
-static inline int try_stop_cpus(const struct cpumask *cpumask,
-				cpu_stop_fn_t fn, void *arg)
-{
-	return stop_cpus(cpumask, fn, arg);
-}
+static inline void print_stop_info(const char *log_lvl, struct task_struct *task) { }
 
 #endif	/* CONFIG_SMP */
 
@@ -138,7 +128,7 @@ int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				   const struct cpumask *cpus);
 #else	/* CONFIG_SMP || CONFIG_HOTPLUG_CPU */
 
-static inline int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
+static __always_inline int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
 					  const struct cpumask *cpus)
 {
 	unsigned long flags;
@@ -149,14 +139,15 @@ static inline int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
 	return ret;
 }
 
-static inline int stop_machine(cpu_stop_fn_t fn, void *data,
-			       const struct cpumask *cpus)
+static __always_inline int
+stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 	return stop_machine_cpuslocked(fn, data, cpus);
 }
 
-static inline int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
-						 const struct cpumask *cpus)
+static __always_inline int
+stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
+			       const struct cpumask *cpus)
 {
 	return stop_machine(fn, data, cpus);
 }

@@ -73,6 +73,8 @@ number as described in MAX8998 datasheet.
 	- ESAFEOUT1: (ldo19)
 	- ESAFEOUT2: (ld020)
 
+	- CHARGER: main battery charger current control
+
 Standard regulator bindings are used inside regulator subnodes. Check
   Documentation/devicetree/bindings/regulator/regulator.txt
 for more details.
@@ -112,6 +114,12 @@ Example:
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-boot-on;
+			};
+
+			charger_reg: CHARGER {
+				regulator-name = "CHARGER";
+				regulator-min-microamp = <90000>;
+				regulator-max-microamp = <800000>;
 			};
 		};
 	};

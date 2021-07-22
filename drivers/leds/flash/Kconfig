@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+
+if LEDS_CLASS_FLASH
+
+config LEDS_RT4505
+	tristate "LED support for RT4505 flashlight controller"
+	depends on I2C && OF
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	select REGMAP_I2C
+	help
+	  This option enables support for the RT4505 flash LED controller.
+	  RT4505 includes torch and flash functions with programmable current.
+	  And it's commonly used to compensate the illuminance for the camera
+	  inside the mobile product like as phones or tablets.
+
+config LEDS_RT8515
+	tristate "LED support for Richtek RT8515 flash/torch LED"
+	depends on GPIOLIB
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the Richtek RT8515 flash
+	  and torch LEDs found on some mobile phones.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-rt8515.
+
+endif # LEDS_CLASS_FLASH

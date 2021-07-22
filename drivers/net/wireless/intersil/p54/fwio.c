@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Firmware I/O code for mac80211 Prism54 drivers
  *
@@ -10,10 +11,6 @@
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -135,7 +132,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	if (priv->fw_var < 0x500)
 		wiphy_info(priv->hw->wiphy,
 			   "you are using an obsolete firmware. "
-			   "visit http://wireless.kernel.org/en/users/Drivers/p54 "
+			   "visit http://wireless.wiki.kernel.org/en/users/Drivers/p54 "
 			   "and grab one for \"kernel >= 2.6.28\"!\n");
 
 	if (priv->fw_var >= 0x300) {

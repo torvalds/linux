@@ -1,15 +1,10 @@
-/**
- * ipoctal.c
- *
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * driver for the GE IP-OCTAL boards
  *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)
  * Author: Nicolas Serafini, EIC2 SA
  * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
  */
 
 #include <linux/device.h>
@@ -279,7 +274,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->board_id = ipoctal->dev->id_device;
 
 	region = &ipoctal->dev->region[IPACK_IO_SPACE];
-	addr = devm_ioremap_nocache(&ipoctal->dev->dev,
+	addr = devm_ioremap(&ipoctal->dev->dev,
 				    region->start, region->size);
 	if (!addr) {
 		dev_err(&ipoctal->dev->dev,
@@ -295,7 +290,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	region = &ipoctal->dev->region[IPACK_INT_SPACE];
 	ipoctal->int_space =
-		devm_ioremap_nocache(&ipoctal->dev->dev,
+		devm_ioremap(&ipoctal->dev->dev,
 				     region->start, region->size);
 	if (!ipoctal->int_space) {
 		dev_err(&ipoctal->dev->dev,
@@ -306,7 +301,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	region = &ipoctal->dev->region[IPACK_MEM8_SPACE];
 	ipoctal->mem8_space =
-		devm_ioremap_nocache(&ipoctal->dev->dev,
+		devm_ioremap(&ipoctal->dev->dev,
 				     region->start, 0x8000);
 	if (!ipoctal->mem8_space) {
 		dev_err(&ipoctal->dev->dev,
@@ -463,14 +458,14 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 	return char_copied;
 }
 
-static int ipoctal_write_room(struct tty_struct *tty)
+static unsigned int ipoctal_write_room(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 
 	return PAGE_SIZE - channel->nb_bytes;
 }
 
-static int ipoctal_chars_in_buffer(struct tty_struct *tty)
+static unsigned int ipoctal_chars_in_buffer(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 
@@ -547,7 +542,6 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		break;
 	default:
 		return;
-		break;
 	}
 
 	baud = tty_get_baud_rate(tty);

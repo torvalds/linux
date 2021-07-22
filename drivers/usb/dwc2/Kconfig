@@ -1,8 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config USB_DWC2
 	tristate "DesignWare USB2 DRD Core Support"
 	depends on HAS_DMA
 	depends on USB || USB_GADGET
 	depends on HAS_IOMEM
+	select USB_ROLE_SWITCH
 	help
 	  Say Y here if your system has a Dual Role Hi-Speed USB
 	  controller based on the DesignWare HSOTG IP Core.
@@ -56,7 +59,6 @@ config USB_DWC2_PCI
 	tristate "DWC2 PCI"
 	depends on USB_PCI
 	depends on USB_GADGET || !USB_GADGET
-	default n
 	select NOP_USB_XCEIV
 	help
 	  The Designware USB2.0 PCI interface module for controllers

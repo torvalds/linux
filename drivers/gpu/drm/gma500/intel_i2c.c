@@ -1,25 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2006-2007 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
+
+#include <linux/delay.h>
 #include <linux/export.h>
-#include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
 
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
@@ -95,7 +85,6 @@ static void set_data(void *data, int state_high)
 /**
  * psb_intel_i2c_create - instantiate an Intel i2c bus using the specified GPIO reg
  * @dev: DRM device
- * @output: driver specific output device
  * @reg: GPIO reg to use
  * @name: name for this bus
  *
@@ -127,7 +116,7 @@ struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
 	snprintf(chan->adapter.name, I2C_NAME_SIZE, "intel drm %s", name);
 	chan->adapter.owner = THIS_MODULE;
 	chan->adapter.algo_data = &chan->algo;
-	chan->adapter.dev.parent = &dev->pdev->dev;
+	chan->adapter.dev.parent = dev->dev;
 	chan->algo.setsda = set_data;
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
@@ -155,7 +144,7 @@ out_free:
 
 /**
  * psb_intel_i2c_destroy - unregister and free i2c bus resources
- * @output: channel to free
+ * @chan: channel to free
  *
  * Unregister the adapter from the i2c layer, then free the structure.
  */

@@ -8,10 +8,9 @@
 #ifndef _LINUX_SUNRPC_XPRTSOCK_H
 #define _LINUX_SUNRPC_XPRTSOCK_H
 
-#ifdef __KERNEL__
-
 int		init_socket_xprt(void);
 void		cleanup_socket_xprt(void);
+unsigned short	get_srcport(struct rpc_xprt *);
 
 #define RPC_MIN_RESVPORT	(1U)
 #define RPC_MAX_RESVPORT	(65535U)
@@ -26,6 +25,7 @@ struct sock_xprt {
 	 */
 	struct socket *		sock;
 	struct sock *		inet;
+	struct file *		file;
 
 	/*
 	 * State of TCP reply receive
@@ -55,10 +55,12 @@ struct sock_xprt {
 	 */
 	unsigned long		sock_state;
 	struct delayed_work	connect_worker;
+	struct work_struct	error_worker;
 	struct work_struct	recv_worker;
 	struct mutex		recv_mutex;
 	struct sockaddr_storage	srcaddr;
 	unsigned short		srcport;
+	int			xprt_err;
 
 	/*
 	 * UDP socket buffer size parameters
@@ -83,7 +85,9 @@ struct sock_xprt {
 #define XPRT_SOCK_CONNECTING	1U
 #define XPRT_SOCK_DATA_READY	(2)
 #define XPRT_SOCK_UPD_TIMEOUT	(3)
-
-#endif /* __KERNEL__ */
+#define XPRT_SOCK_WAKE_ERROR	(4)
+#define XPRT_SOCK_WAKE_WRITE	(5)
+#define XPRT_SOCK_WAKE_PENDING	(6)
+#define XPRT_SOCK_WAKE_DISCONNECT	(7)
 
 #endif /* _LINUX_SUNRPC_XPRTSOCK_H */

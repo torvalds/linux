@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  * Copyright 2001-2006 Ian Kent <raven@themaw.net>
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  */
 
 #include <linux/sched/signal.h>
@@ -20,20 +17,20 @@ void autofs_catatonic_mode(struct autofs_sb_info *sbi)
 	struct autofs_wait_queue *wq, *nwq;
 
 	mutex_lock(&sbi->wq_mutex);
-	if (sbi->catatonic) {
+	if (sbi->flags & AUTOFS_SBI_CATATONIC) {
 		mutex_unlock(&sbi->wq_mutex);
 		return;
 	}
 
 	pr_debug("entering catatonic mode\n");
 
-	sbi->catatonic = 1;
+	sbi->flags |= AUTOFS_SBI_CATATONIC;
 	wq = sbi->queues;
 	sbi->queues = NULL;	/* Erase all wait queues */
 	while (wq) {
 		nwq = wq->next;
 		wq->status = -ENOENT; /* Magic is gone - report failure */
-		kfree(wq->name.name);
+		kfree(wq->name.name - wq->offset);
 		wq->name.name = NULL;
 		wq->wait_ctr--;
 		wake_up_interruptible(&wq->queue);
@@ -56,7 +53,7 @@ static int autofs_write(struct autofs_sb_info *sbi,
 
 	mutex_lock(&sbi->pipe_mutex);
 	while (bytes) {
-		wr = __kernel_write(file, data, bytes, &file->f_pos);
+		wr = __kernel_write(file, data, bytes, NULL);
 		if (wr <= 0)
 			break;
 		data += wr;
@@ -178,51 +175,6 @@ static void autofs_notify_daemon(struct autofs_sb_info *sbi,
 	fput(pipe);
 }
 
-static int autofs_getpath(struct autofs_sb_info *sbi,
-			  struct dentry *dentry, char *name)
-{
-	struct dentry *root = sbi->sb->s_root;
-	struct dentry *tmp;
-	char *buf;
-	char *p;
-	int len;
-	unsigned seq;
-
-rename_retry:
-	buf = name;
-	len = 0;
-
-	seq = read_seqbegin(&rename_lock);
-	rcu_read_lock();
-	spin_lock(&sbi->fs_lock);
-	for (tmp = dentry ; tmp != root ; tmp = tmp->d_parent)
-		len += tmp->d_name.len + 1;
-
-	if (!len || --len > NAME_MAX) {
-		spin_unlock(&sbi->fs_lock);
-		rcu_read_unlock();
-		if (read_seqretry(&rename_lock, seq))
-			goto rename_retry;
-		return 0;
-	}
-
-	*(buf + len) = '\0';
-	p = buf + len - dentry->d_name.len;
-	strncpy(p, dentry->d_name.name, dentry->d_name.len);
-
-	for (tmp = dentry->d_parent; tmp != root ; tmp = tmp->d_parent) {
-		*(--p) = '/';
-		p -= tmp->d_name.len;
-		strncpy(p, tmp->d_name.name, tmp->d_name.len);
-	}
-	spin_unlock(&sbi->fs_lock);
-	rcu_read_unlock();
-	if (read_seqretry(&rename_lock, seq))
-		goto rename_retry;
-
-	return len;
-}
-
 static struct autofs_wait_queue *
 autofs_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
 {
@@ -255,7 +207,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 	struct autofs_wait_queue *wq;
 	struct autofs_info *ino;
 
-	if (sbi->catatonic)
+	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -ENOENT;
 
 	/* Wait in progress, continue; */
@@ -290,7 +242,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 			if (mutex_lock_interruptible(&sbi->wq_mutex))
 				return -EINTR;
 
-			if (sbi->catatonic)
+			if (sbi->flags & AUTOFS_SBI_CATATONIC)
 				return -ENOENT;
 
 			wq = autofs_find_wait(sbi, qstr);
@@ -355,11 +307,12 @@ int autofs_wait(struct autofs_sb_info *sbi,
 	struct qstr qstr;
 	char *name;
 	int status, ret, type;
+	unsigned int offset = 0;
 	pid_t pid;
 	pid_t tgid;
 
 	/* In catatonic mode, we don't wait for nobody */
-	if (sbi->catatonic)
+	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -ENOENT;
 
 	/*
@@ -392,20 +345,23 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		return -ENOMEM;
 
 	/* If this is a direct mount request create a dummy name */
-	if (IS_ROOT(dentry) && autofs_type_trigger(sbi->type))
+	if (IS_ROOT(dentry) && autofs_type_trigger(sbi->type)) {
+		qstr.name = name;
 		qstr.len = sprintf(name, "%p", dentry);
-	else {
-		qstr.len = autofs_getpath(sbi, dentry, name);
-		if (!qstr.len) {
+	} else {
+		char *p = dentry_path_raw(dentry, name, NAME_MAX);
+		if (IS_ERR(p)) {
 			kfree(name);
 			return -ENOENT;
 		}
+		qstr.name = ++p; // skip the leading slash
+		qstr.len = strlen(p);
+		offset = p - name;
 	}
-	qstr.name = name;
 	qstr.hash = full_name_hash(dentry, name, qstr.len);
 
 	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
-		kfree(qstr.name);
+		kfree(name);
 		return -EINTR;
 	}
 
@@ -413,7 +369,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 	if (ret <= 0) {
 		if (ret != -EINTR)
 			mutex_unlock(&sbi->wq_mutex);
-		kfree(qstr.name);
+		kfree(name);
 		return ret;
 	}
 
@@ -421,7 +377,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		/* Create a new wait queue */
 		wq = kmalloc(sizeof(struct autofs_wait_queue), GFP_KERNEL);
 		if (!wq) {
-			kfree(qstr.name);
+			kfree(name);
 			mutex_unlock(&sbi->wq_mutex);
 			return -ENOMEM;
 		}
@@ -433,6 +389,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		sbi->queues = wq;
 		init_waitqueue_head(&wq->queue);
 		memcpy(&wq->name, &qstr, sizeof(struct qstr));
+		wq->offset = offset;
 		wq->dev = autofs_get_dev(sbi);
 		wq->ino = autofs_get_ino(sbi);
 		wq->uid = current_uid();
@@ -472,7 +429,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 			 (unsigned long) wq->wait_queue_token, wq->name.len,
 			 wq->name.name, notify);
 		mutex_unlock(&sbi->wq_mutex);
-		kfree(qstr.name);
+		kfree(name);
 	}
 
 	/*
@@ -543,7 +500,7 @@ int autofs_wait_release(struct autofs_sb_info *sbi,
 	}
 
 	*wql = wq->next;	/* Unlink from chain */
-	kfree(wq->name.name);
+	kfree(wq->name.name - wq->offset);
 	wq->name.name = NULL;	/* Do not wait on this queue */
 	wq->status = status;
 	wake_up(&wq->queue);

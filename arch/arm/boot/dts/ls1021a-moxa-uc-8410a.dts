@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Moxa Inc. - https://www.moxa.com/
  *
  * Author: Harry YJ Jhou (周亞諄) <harryyj.jhou@moxa.com>
  *         Jimmy Chen (陳永達)    <jimmy.chen@moxa.com>
  *         SZ Lin (林上智)        <sz.lin@moxa.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -18,6 +15,7 @@
 
 / {
 	model = "Moxa UC-8410A";
+	compatible = "fsl,ls1021a-moxa-uc-8410a", "fsl,ls1021a";
 
 	aliases {
 		enet0_rgmii_phy = &rgmii_phy0;
@@ -203,10 +201,6 @@
 };
 
 &qspi {
-	bus-num = <0>;
-	fsl,spi-num-chipselects = <2>;
-	fsl,spi-flash-chipselects = <0>;
-	fsl,qspi-has-second-chip;
 	status = "okay";
 
 	flash: flash@0 {
@@ -214,6 +208,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <0>;
 
 		partitions@0 {

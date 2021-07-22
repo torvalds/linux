@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 3-axis magnetometer driver supporting following I2C Bosch-Sensortec chips:
  *  - BMC150
@@ -5,15 +6,6 @@
  *  - BMM150
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
@@ -66,7 +58,8 @@ MODULE_DEVICE_TABLE(i2c, bmc150_magn_i2c_id);
 static const struct of_device_id bmc150_magn_of_match[] = {
 	{ .compatible = "bosch,bmc150_magn" },
 	{ .compatible = "bosch,bmc156_magn" },
-	{ .compatible = "bosch,bmm150_magn" },
+	{ .compatible = "bosch,bmm150_magn" }, /* deprecated compatible */
+	{ .compatible = "bosch,bmm150" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bmc150_magn_of_match);

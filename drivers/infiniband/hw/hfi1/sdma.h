@@ -382,6 +382,7 @@ struct sdma_engine {
 	u64                     progress_int_cnt;
 
 	/* private: */
+	seqlock_t            waitlock;
 	struct list_head      dmawait;
 
 	/* CONFIG SDMA for now, just blindly duplicate */
@@ -906,24 +907,6 @@ static inline unsigned sdma_progress(struct sdma_engine *sde, unsigned seq,
 	return 0;
 }
 
-/**
- * sdma_iowait_schedule() - initialize wait structure
- * @sde: sdma_engine to schedule
- * @wait: wait struct to schedule
- *
- * This function initializes the iowait
- * structure embedded in the QP or PQ.
- *
- */
-static inline void sdma_iowait_schedule(
-	struct sdma_engine *sde,
-	struct iowait *wait)
-{
-	struct hfi1_pportdata *ppd = sde->dd->pport;
-
-	iowait_schedule(wait, ppd->hfi1_wq, sde->cpu);
-}
-
 /* for use by interrupt handling */
 void sdma_engine_error(struct sdma_engine *sde, u64 status);
 void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
@@ -1001,7 +984,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
  */
 struct sdma_map_elem {
 	u32 mask;
-	struct sdma_engine *sde[0];
+	struct sdma_engine *sde[];
 };
 
 /**
@@ -1023,7 +1006,7 @@ struct sdma_vl_map {
 	u32 mask;
 	u8 actual_vls;
 	u8 vls;
-	struct sdma_map_elem *map[0];
+	struct sdma_map_elem *map[];
 };
 
 int sdma_map_init(

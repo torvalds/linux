@@ -39,7 +39,7 @@ struct xfs_buf_log_item;
  * locked, and which 128 byte chunks of the buffer are dirty.
  */
 struct xfs_buf_log_item {
-	xfs_log_item_t		bli_item;	/* common item structure */
+	struct xfs_log_item	bli_item;	/* common item structure */
 	struct xfs_buf		*bli_buf;	/* real buffer pointer */
 	unsigned int		bli_flags;	/* misc flags */
 	unsigned int		bli_recur;	/* lock recursion count */
@@ -50,17 +50,26 @@ struct xfs_buf_log_item {
 };
 
 int	xfs_buf_item_init(struct xfs_buf *, struct xfs_mount *);
+void	xfs_buf_item_done(struct xfs_buf *bp);
 void	xfs_buf_item_relse(struct xfs_buf *);
 bool	xfs_buf_item_put(struct xfs_buf_log_item *);
 void	xfs_buf_item_log(struct xfs_buf_log_item *, uint, uint);
 bool	xfs_buf_item_dirty_format(struct xfs_buf_log_item *);
-void	xfs_buf_attach_iodone(struct xfs_buf *,
-			      void(*)(struct xfs_buf *, xfs_log_item_t *),
-			      xfs_log_item_t *);
-void	xfs_buf_iodone_callbacks(struct xfs_buf *);
-void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
-bool	xfs_buf_resubmit_failed_buffers(struct xfs_buf *,
-					struct list_head *);
+void	xfs_buf_inode_iodone(struct xfs_buf *);
+void	xfs_buf_inode_io_fail(struct xfs_buf *bp);
+#ifdef CONFIG_XFS_QUOTA
+void	xfs_buf_dquot_iodone(struct xfs_buf *);
+void	xfs_buf_dquot_io_fail(struct xfs_buf *bp);
+#else
+static inline void xfs_buf_dquot_iodone(struct xfs_buf *bp)
+{
+}
+static inline void xfs_buf_dquot_io_fail(struct xfs_buf *bp)
+{
+}
+#endif /* CONFIG_XFS_QUOTA */
+void	xfs_buf_iodone(struct xfs_buf *);
+bool	xfs_buf_log_check_iovec(struct xfs_log_iovec *iovec);
 
 extern kmem_zone_t	*xfs_buf_item_zone;
 

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung SATA SerDes(PHY) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Authors: Girish K S <ks.giri@samsung.com>
  *         Yuvaraj Kumar C D <yuvaraj.cd@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -165,7 +162,6 @@ static int exynos_sata_phy_probe(struct platform_device *pdev)
 {
 	struct exynos_sata_phy *sata_phy;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct device_node *node;
 	int ret = 0;
@@ -174,9 +170,7 @@ static int exynos_sata_phy_probe(struct platform_device *pdev)
 	if (!sata_phy)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	sata_phy->regs = devm_ioremap_resource(dev, res);
+	sata_phy->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sata_phy->regs))
 		return PTR_ERR(sata_phy->regs);
 
@@ -240,6 +234,7 @@ static struct platform_driver exynos_sata_phy_driver = {
 	.driver = {
 		.of_match_table	= exynos_sata_phy_of_match,
 		.name  = "samsung,sata-phy",
+		.suppress_bind_attrs = true,
 	}
 };
 module_platform_driver(exynos_sata_phy_driver);

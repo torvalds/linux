@@ -1,7 +1,7 @@
 /*
- * Hisilicon thermal sensor driver
+ * HiSilicon thermal sensor driver
  *
- * Copyright (c) 2014-2015 Hisilicon Limited.
+ * Copyright (c) 2014-2015 HiSilicon Limited.
  * Copyright (c) 2014-2015 Linaro Limited.
  *
  * Xinwei Kong <kong.kongxinwei@hisilicon.com>
@@ -424,7 +424,7 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 	struct platform_device *pdev = data->pdev;
 	struct device *dev = &pdev->dev;
 
-	data->nr_sensors = 2;
+	data->nr_sensors = 1;
 
 	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor) *
 				    data->nr_sensors, GFP_KERNEL);
@@ -549,8 +549,10 @@ static void hisi_thermal_toggle_sensor(struct hisi_thermal_sensor *sensor,
 {
 	struct thermal_zone_device *tzd = sensor->tzd;
 
-	tzd->ops->set_mode(tzd,
-		on ? THERMAL_DEVICE_ENABLED : THERMAL_DEVICE_DISABLED);
+	if (on)
+		thermal_zone_device_enable(tzd);
+	else
+		thermal_zone_device_disable(tzd);
 }
 
 static int hisi_thermal_probe(struct platform_device *pdev)
@@ -570,10 +572,8 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs)) {
-		dev_err(dev, "failed to get io address\n");
+	if (IS_ERR(data->regs))
 		return PTR_ERR(data->regs);
-	}
 
 	ret = data->ops->probe(data);
 	if (ret)
@@ -589,7 +589,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		ret = platform_get_irq_byname(pdev, sensor->irq_name);
+		ret = platform_get_irq(pdev, 0);
 		if (ret < 0)
 			return ret;
 
@@ -670,5 +670,5 @@ module_platform_driver(hisi_thermal_driver);
 
 MODULE_AUTHOR("Xinwei Kong <kong.kongxinwei@hisilicon.com>");
 MODULE_AUTHOR("Leo Yan <leo.yan@linaro.org>");
-MODULE_DESCRIPTION("Hisilicon thermal driver");
+MODULE_DESCRIPTION("HiSilicon thermal driver");
 MODULE_LICENSE("GPL v2");

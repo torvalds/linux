@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ChipOne icn8318 i2c touchscreen controller
  *
  * Copyright (c) 2015 Red Hat Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Red Hat authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -158,7 +154,7 @@ static int icn8318_suspend(struct device *dev)
 	struct icn8318_data *data = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&data->input->mutex);
-	if (data->input->users)
+	if (input_device_enabled(data->input))
 		icn8318_stop(data->input);
 	mutex_unlock(&data->input->mutex);
 
@@ -170,7 +166,7 @@ static int icn8318_resume(struct device *dev)
 	struct icn8318_data *data = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&data->input->mutex);
-	if (data->input->users)
+	if (input_device_enabled(data->input))
 		icn8318_start(data->input);
 	mutex_unlock(&data->input->mutex);
 

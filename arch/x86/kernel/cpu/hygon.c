@@ -10,14 +10,14 @@
 
 #include <asm/cpu.h>
 #include <asm/smp.h>
+#include <asm/numa.h>
 #include <asm/cacheinfo.h>
 #include <asm/spec-ctrl.h>
 #include <asm/delay.h>
-#ifdef CONFIG_X86_64
-# include <asm/set_memory.h>
-#endif
 
 #include "cpu.h"
+
+#define APICID_SOCKET_ID_BIT 6
 
 /*
  * nodes_per_socket: Stores the number of nodes per socket.
@@ -62,7 +62,6 @@ static void hygon_get_topology_early(struct cpuinfo_x86 *c)
  */
 static void hygon_get_topology(struct cpuinfo_x86 *c)
 {
-	u8 node_id;
 	int cpu = smp_processor_id();
 
 	/* get information required for multi-node processors */
@@ -72,7 +71,7 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
 
-		node_id  = ecx & 0xff;
+		c->cpu_die_id  = ecx & 0xff;
 
 		c->cpu_core_id = ebx & 0xff;
 
@@ -87,14 +86,17 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 		if (!err)
 			c->x86_coreid_bits = get_count_order(c->x86_max_cores);
 
-		cacheinfo_hygon_init_llc_id(c, cpu, node_id);
+		/* Socket ID is ApicId[6] for these processors. */
+		c->phys_proc_id = c->apicid >> APICID_SOCKET_ID_BIT;
+
+		cacheinfo_hygon_init_llc_id(c, cpu);
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		node_id = value & 7;
+		c->cpu_die_id = value & 7;
 
-		per_cpu(cpu_llc_id, cpu) = node_id;
+		per_cpu(cpu_llc_id, cpu) = c->cpu_die_id;
 	} else
 		return;
 
@@ -117,7 +119,7 @@ static void hygon_detect_cmp(struct cpuinfo_x86 *c)
 	/* Convert the initial APIC ID into the socket ID */
 	c->phys_proc_id = c->initial_apicid >> bits;
 	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
+	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->phys_proc_id;
 }
 
 static void srat_detect_node(struct cpuinfo_x86 *c)
@@ -198,23 +200,6 @@ static void early_init_hygon_mc(struct cpuinfo_x86 *c)
 
 static void bsp_init_hygon(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_64
-	unsigned long long tseg;
-
-	/*
-	 * Split up direct mapping around the TSEG SMM area.
-	 * Don't do it for gbpages because there seems very little
-	 * benefit in doing so.
-	 */
-	if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
-		unsigned long pfn = tseg >> PAGE_SHIFT;
-
-		pr_debug("tseg: %010llx\n", tseg);
-		if (pfn_range_is_mapped(pfn, pfn + 1))
-			set_memory_4k((unsigned long)__va(tseg), 1);
-	}
-#endif
-
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		u64 val;
 
@@ -230,12 +215,12 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 		u32 ecx;
 
 		ecx = cpuid_ecx(0x8000001e);
-		nodes_per_socket = ((ecx >> 8) & 7) + 1;
+		__max_die_per_package = nodes_per_socket = ((ecx >> 8) & 7) + 1;
 	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		nodes_per_socket = ((value >> 3) & 7) + 1;
+		__max_die_per_package = nodes_per_socket = ((value >> 3) & 7) + 1;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
@@ -274,6 +259,10 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
 	if (c->x86_power & BIT(12))
 		set_cpu_cap(c, X86_FEATURE_ACC_POWER);
+
+	/* Bit 14 indicates the Runtime Average Power Limit interface. */
+	if (c->x86_power & BIT(14))
+		set_cpu_cap(c, X86_FEATURE_RAPL);
 
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
@@ -325,12 +314,8 @@ static void init_hygon(struct cpuinfo_x86 *c)
 	init_hygon_cacheinfo(c);
 
 	if (cpu_has(c, X86_FEATURE_XMM2)) {
-		unsigned long long val;
-		int ret;
-
 		/*
-		 * A serializing LFENCE has less overhead than MFENCE, so
-		 * use it for execution serialization.  On families which
+		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
 		 * is not present.
@@ -338,19 +323,8 @@ static void init_hygon(struct cpuinfo_x86 *c)
 		msr_set_bit(MSR_F10H_DECFG,
 			    MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT);
 
-		/*
-		 * Verify that the MSR write was successful (could be running
-		 * under a hypervisor) and only then assume that LFENCE is
-		 * serializing.
-		 */
-		ret = rdmsrl_safe(MSR_F10H_DECFG, &val);
-		if (!ret && (val & MSR_F10H_DECFG_LFENCE_SERIALIZE)) {
-			/* A serializing LFENCE stops RDTSC speculation */
-			set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
-		} else {
-			/* MFENCE stops RDTSC speculation */
-			set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
-		}
+		/* A serializing LFENCE stops RDTSC speculation */
+		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 	}
 
 	/*

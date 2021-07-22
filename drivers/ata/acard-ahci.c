@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  *  acard-ahci.c - ACard AHCI SATA support
@@ -8,29 +9,12 @@
  *
  *  Copyright 2010 Red Hat, Inc.
  *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
  * libata documentation is available via 'make {ps|pdf}docs',
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
  * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
- *
  */
 
 #include <linux/kernel.h>
@@ -72,7 +56,7 @@ struct acard_sg {
 	__le32			size;	 /* bit 31 (EOT) max==0x10000 (64k) */
 };
 
-static void acard_ahci_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors acard_ahci_qc_prep(struct ata_queued_cmd *qc);
 static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int acard_ahci_port_start(struct ata_port *ap);
 static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -176,37 +160,6 @@ static int acard_ahci_pci_device_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int acard_ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
-{
-	int rc;
-
-	if (using_dac &&
-	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (rc) {
-			rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-			if (rc) {
-				dev_err(&pdev->dev,
-					   "64-bit DMA enable failed\n");
-				return rc;
-			}
-		}
-	} else {
-		rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
-			return rc;
-		}
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(&pdev->dev,
-				"32-bit consistent DMA enable failed\n");
-			return rc;
-		}
-	}
-	return 0;
-}
-
 static void acard_ahci_pci_print_info(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
@@ -257,7 +210,7 @@ static unsigned int acard_ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 	return si;
 }
 
-static void acard_ahci_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ahci_port_priv *pp = ap->private_data;
@@ -265,7 +218,6 @@ static void acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 	void *cmd_tbl;
 	u32 opts;
 	const u32 cmd_fis_len = 5; /* five dwords */
-	unsigned int n_elem;
 
 	/*
 	 * Fill in command table information.  First, the header,
@@ -279,9 +231,8 @@ static void acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 		memcpy(cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb, qc->dev->cdb_len);
 	}
 
-	n_elem = 0;
 	if (qc->flags & ATA_QCFLAG_DMAMAP)
-		n_elem = acard_ahci_fill_sg(qc, cmd_tbl);
+		acard_ahci_fill_sg(qc, cmd_tbl);
 
 	/*
 	 * Fill in command slot information.
@@ -295,6 +246,8 @@ static void acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 		opts |= AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH;
 
 	ahci_fill_cmd_slot(pp, qc->hw_tag, opts);
+
+	return AC_ERR_OK;
 }
 
 static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
@@ -360,7 +313,6 @@ static int acard_ahci_port_start(struct ata_port *ap)
 	mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
-	memset(mem, 0, dma_sz);
 
 	/*
 	 * First item in chunk of DMA memory: 32-slot command table,
@@ -488,9 +440,12 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	}
 
 	/* initialize adapter */
-	rc = acard_ahci_configure_dma_masks(pdev, hpriv->cap & HOST_CAP_64);
-	if (rc)
+	rc = dma_set_mask_and_coherent(&pdev->dev,
+			DMA_BIT_MASK((hpriv->cap & HOST_CAP_64) ? 64 : 32));
+	if (rc) {
+		dev_err(&pdev->dev, "DMA enable failed\n");
 		return rc;
+	}
 
 	rc = ahci_reset_controller(host);
 	if (rc)

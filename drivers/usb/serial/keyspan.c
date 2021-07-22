@@ -41,27 +41,7 @@
 #define DRIVER_AUTHOR "Hugh Blemings <hugh@misc.nu"
 #define DRIVER_DESC "Keyspan USB to Serial Converter Driver"
 
-/* Function prototypes for Keyspan serial converter */
-static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port);
-static void keyspan_close(struct usb_serial_port *port);
-static void keyspan_dtr_rts(struct usb_serial_port *port, int on);
-static int keyspan_startup(struct usb_serial *serial);
-static void keyspan_disconnect(struct usb_serial *serial);
-static void keyspan_release(struct usb_serial *serial);
-static int keyspan_port_probe(struct usb_serial_port *port);
-static int keyspan_port_remove(struct usb_serial_port *port);
-static int keyspan_write_room(struct tty_struct *tty);
-static int keyspan_write(struct tty_struct *tty, struct usb_serial_port *port,
-			 const unsigned char *buf, int count);
 static void keyspan_send_setup(struct usb_serial_port *port, int reset_port);
-static void keyspan_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old);
-static void keyspan_break_ctl(struct tty_struct *tty, int break_state);
-static int keyspan_tiocmget(struct tty_struct *tty);
-static int keyspan_tiocmset(struct tty_struct *tty, unsigned int set,
-			    unsigned int clear);
-static int keyspan_fake_startup(struct usb_serial *serial);
 
 static int keyspan_usa19_calc_baud(struct usb_serial_port *port,
 				   u32 baud_rate, u32 baudclk,
@@ -1058,6 +1038,8 @@ static void	usa49_glocont_callback(struct urb *urb)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		p_priv = usb_get_serial_port_data(port);
+		if (!p_priv)
+			continue;
 
 		if (p_priv->resend_cont) {
 			dev_dbg(&port->dev, "%s - sending setup\n", __func__);
@@ -1459,6 +1441,8 @@ static void usa67_glocont_callback(struct urb *urb)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		p_priv = usb_get_serial_port_data(port);
+		if (!p_priv)
+			continue;
 
 		if (p_priv->resend_cont) {
 			dev_dbg(&port->dev, "%s - sending setup\n", __func__);
@@ -1469,13 +1453,13 @@ static void usa67_glocont_callback(struct urb *urb)
 	}
 }
 
-static int keyspan_write_room(struct tty_struct *tty)
+static unsigned int keyspan_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_port_private	*p_priv;
 	const struct keyspan_device_details	*d_details;
 	int				flip;
-	int				data_len;
+	unsigned int			data_len;
 	struct urb			*this_urb;
 
 	p_priv = usb_get_serial_port_data(port);
@@ -1741,8 +1725,8 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 
 	ep_desc = find_ep(serial, endpoint);
 	if (!ep_desc) {
-		/* leak the urb, something's wrong and the callers don't care */
-		return urb;
+		usb_free_urb(urb);
+		return NULL;
 	}
 	if (usb_endpoint_xfer_int(ep_desc)) {
 		ep_type_name = "INT";
@@ -2981,7 +2965,7 @@ err_in_buffer:
 	return -ENOMEM;
 }
 
-static int keyspan_port_remove(struct usb_serial_port *port)
+static void keyspan_port_remove(struct usb_serial_port *port)
 {
 	struct keyspan_port_private *p_priv;
 	int i;
@@ -3010,8 +2994,6 @@ static int keyspan_port_remove(struct usb_serial_port *port)
 		kfree(p_priv->in_buffer[i]);
 
 	kfree(p_priv);
-
-	return 0;
 }
 
 /* Structs for the devices, pre and post renumeration. */

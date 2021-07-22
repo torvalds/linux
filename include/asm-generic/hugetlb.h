@@ -122,8 +122,15 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 #ifndef __HAVE_ARCH_HUGE_PTEP_GET
 static inline pte_t huge_ptep_get(pte_t *ptep)
 {
-	return *ptep;
+	return ptep_get(ptep);
 }
 #endif
+
+#ifndef __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED
+static inline bool gigantic_page_runtime_supported(void)
+{
+	return IS_ENABLED(CONFIG_ARCH_HAS_GIGANTIC_PAGE);
+}
+#endif /* __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED */
 
 #endif /* _ASM_GENERIC_HUGETLB_H */

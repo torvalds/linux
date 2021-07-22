@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-tse850-3.dts - Device Tree file for the Axentia TSE-850 3.0 board
  *
  * Copyright (C) 2017 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>

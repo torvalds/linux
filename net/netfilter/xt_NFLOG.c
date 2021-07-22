@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -82,3 +79,4 @@ static void __exit nflog_tg_exit(void)
 
 module_init(nflog_tg_init);
 module_exit(nflog_tg_exit);
+MODULE_SOFTDEP("pre: nfnetlink_log");

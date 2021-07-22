@@ -27,13 +27,8 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fourcc.h>
-
-static char printable_char(int c)
-{
-	return isascii(c) && isprint(c) ? c : '?';
-}
 
 /**
  * drm_mode_legacy_fb_format - compute drm fourcc code from legacy description
@@ -97,14 +92,14 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
 
 /**
  * drm_driver_legacy_fb_format - compute drm fourcc code from legacy description
+ * @dev: DRM device
  * @bpp: bits per pixels
  * @depth: bit depth per pixel
- * @native: use host native byte order
  *
  * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
  * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,
- * and depending on the quirk_addfb_prefer_host_byte_order flag it returns
- * little endian byte order or host byte order framebuffer formats.
+ * and depending on the &drm_mode_config.quirk_addfb_prefer_host_byte_order flag
+ * it returns little endian byte order or host byte order framebuffer formats.
  */
 uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 				     uint32_t bpp, uint32_t depth)
@@ -129,26 +124,6 @@ uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 	return fmt;
 }
 EXPORT_SYMBOL(drm_driver_legacy_fb_format);
-
-/**
- * drm_get_format_name - fill a string with a drm fourcc format's name
- * @format: format to compute name of
- * @buf: caller-supplied buffer
- */
-const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf)
-{
-	snprintf(buf->str, sizeof(buf->str),
-		 "%c%c%c%c %s-endian (0x%08x)",
-		 printable_char(format & 0xff),
-		 printable_char((format >> 8) & 0xff),
-		 printable_char((format >> 16) & 0xff),
-		 printable_char((format >> 24) & 0x7f),
-		 format & DRM_FORMAT_BIG_ENDIAN ? "big" : "little",
-		 format);
-
-	return buf->str;
-}
-EXPORT_SYMBOL(drm_get_format_name);
 
 /*
  * Internal function to query information for a given format. See
@@ -198,6 +173,15 @@ const struct drm_format_info *__drm_format_info(u32 format)
 		{ .format = DRM_FORMAT_ABGR8888,	.depth = 32, .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
 		{ .format = DRM_FORMAT_RGBA8888,	.depth = 32, .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
 		{ .format = DRM_FORMAT_BGRA8888,	.depth = 32, .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+		{ .format = DRM_FORMAT_XRGB16161616F,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1 },
+		{ .format = DRM_FORMAT_XBGR16161616F,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1 },
+		{ .format = DRM_FORMAT_ARGB16161616F,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+		{ .format = DRM_FORMAT_ABGR16161616F,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+		{ .format = DRM_FORMAT_AXBXGXRX106106106106, .depth = 0, .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+		{ .format = DRM_FORMAT_XRGB16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1 },
+		{ .format = DRM_FORMAT_XBGR16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1 },
+		{ .format = DRM_FORMAT_ARGB16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+		{ .format = DRM_FORMAT_ABGR16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
 		{ .format = DRM_FORMAT_RGB888_A8,	.depth = 32, .num_planes = 2, .cpp = { 3, 1, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
 		{ .format = DRM_FORMAT_BGR888_A8,	.depth = 32, .num_planes = 2, .cpp = { 3, 1, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
 		{ .format = DRM_FORMAT_XRGB8888_A8,	.depth = 32, .num_planes = 2, .cpp = { 4, 1, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
@@ -224,7 +208,64 @@ const struct drm_format_info *__drm_format_info(u32 format)
 		{ .format = DRM_FORMAT_YVYU,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_UYVY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_VYUY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_XYUV8888,	.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_VUY888,          .depth = 0,  .num_planes = 1, .cpp = { 3, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_AYUV,		.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y210,            .depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y212,            .depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y216,            .depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y410,            .depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y412,            .depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y416,            .depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_XVYU2101010,	.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_XVYU12_16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_XVYU16161616,	.depth = 0,  .num_planes = 1, .cpp = { 8, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_P010,            .depth = 0,  .num_planes = 2,
+		  .char_per_block = { 2, 4, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true},
+		{ .format = DRM_FORMAT_P012,		.depth = 0,  .num_planes = 2,
+		  .char_per_block = { 2, 4, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+		   .hsub = 2, .vsub = 2, .is_yuv = true},
+		{ .format = DRM_FORMAT_P016,		.depth = 0,  .num_planes = 2,
+		  .char_per_block = { 2, 4, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true},
+		{ .format = DRM_FORMAT_P210,		.depth = 0,
+		  .num_planes = 2, .char_per_block = { 2, 4, 0 },
+		  .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 }, .hsub = 2,
+		  .vsub = 1, .is_yuv = true },
+		{ .format = DRM_FORMAT_VUY101010,	.depth = 0,
+		  .num_planes = 1, .cpp = { 0, 0, 0 }, .hsub = 1, .vsub = 1,
+		  .is_yuv = true },
+		{ .format = DRM_FORMAT_YUV420_8BIT,     .depth = 0,
+		  .num_planes = 1, .cpp = { 0, 0, 0 }, .hsub = 2, .vsub = 2,
+		  .is_yuv = true },
+		{ .format = DRM_FORMAT_YUV420_10BIT,    .depth = 0,
+		  .num_planes = 1, .cpp = { 0, 0, 0 }, .hsub = 2, .vsub = 2,
+		  .is_yuv = true },
+		{ .format = DRM_FORMAT_NV15,		.depth = 0,
+		  .num_planes = 2, .char_per_block = { 5, 5, 0 },
+		  .block_w = { 4, 2, 0 }, .block_h = { 1, 1, 0 }, .hsub = 2,
+		  .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_Q410,		.depth = 0,
+		  .num_planes = 3, .char_per_block = { 2, 2, 2 },
+		  .block_w = { 1, 1, 1 }, .block_h = { 1, 1, 1 }, .hsub = 0,
+		  .vsub = 0, .is_yuv = true },
+		{ .format = DRM_FORMAT_Q401,		.depth = 0,
+		  .num_planes = 3, .char_per_block = { 2, 2, 2 },
+		  .block_w = { 1, 1, 1 }, .block_h = { 1, 1, 1 }, .hsub = 0,
+		  .vsub = 0, .is_yuv = true },
 	};
 
 	unsigned int i;
@@ -284,119 +325,63 @@ drm_get_format_info(struct drm_device *dev,
 EXPORT_SYMBOL(drm_get_format_info);
 
 /**
- * drm_format_num_planes - get the number of planes for format
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The number of planes used by the specified pixel format.
- */
-int drm_format_num_planes(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->num_planes : 1;
-}
-EXPORT_SYMBOL(drm_format_num_planes);
-
-/**
- * drm_format_plane_cpp - determine the bytes per pixel value
- * @format: pixel format (DRM_FORMAT_*)
+ * drm_format_info_block_width - width in pixels of block.
+ * @info: pixel format info
  * @plane: plane index
  *
  * Returns:
- * The bytes per pixel value for the specified plane.
+ * The width in pixels of a block, depending on the plane index.
  */
-int drm_format_plane_cpp(uint32_t format, int plane)
+unsigned int drm_format_info_block_width(const struct drm_format_info *info,
+					 int plane)
 {
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	if (!info || plane >= info->num_planes)
+	if (!info || plane < 0 || plane >= info->num_planes)
 		return 0;
 
-	return info->cpp[plane];
+	if (!info->block_w[plane])
+		return 1;
+	return info->block_w[plane];
 }
-EXPORT_SYMBOL(drm_format_plane_cpp);
+EXPORT_SYMBOL(drm_format_info_block_width);
 
 /**
- * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The horizontal chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_horz_chroma_subsampling(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->hsub : 1;
-}
-EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
-
-/**
- * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The vertical chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_vert_chroma_subsampling(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->vsub : 1;
-}
-EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
-
-/**
- * drm_format_plane_width - width of the plane given the first plane
- * @width: width of the first plane
- * @format: pixel format
+ * drm_format_info_block_height - height in pixels of a block
+ * @info: pixel format info
  * @plane: plane index
  *
  * Returns:
- * The width of @plane, given that the width of the first plane is @width.
+ * The height in pixels of a block, depending on the plane index.
  */
-int drm_format_plane_width(int width, uint32_t format, int plane)
+unsigned int drm_format_info_block_height(const struct drm_format_info *info,
+					  int plane)
 {
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	if (!info || plane >= info->num_planes)
+	if (!info || plane < 0 || plane >= info->num_planes)
 		return 0;
 
-	if (plane == 0)
-		return width;
-
-	return width / info->hsub;
+	if (!info->block_h[plane])
+		return 1;
+	return info->block_h[plane];
 }
-EXPORT_SYMBOL(drm_format_plane_width);
+EXPORT_SYMBOL(drm_format_info_block_height);
 
 /**
- * drm_format_plane_height - height of the plane given the first plane
- * @height: height of the first plane
- * @format: pixel format
+ * drm_format_info_min_pitch - computes the minimum required pitch in bytes
+ * @info: pixel format info
  * @plane: plane index
+ * @buffer_width: buffer width in pixels
  *
  * Returns:
- * The height of @plane, given that the height of the first plane is @height.
+ * The minimum required pitch in bytes for a buffer by taking into consideration
+ * the pixel format information and the buffer width.
  */
-int drm_format_plane_height(int height, uint32_t format, int plane)
+uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
+				   int plane, unsigned int buffer_width)
 {
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	if (!info || plane >= info->num_planes)
+	if (!info || plane < 0 || plane >= info->num_planes)
 		return 0;
 
-	if (plane == 0)
-		return height;
-
-	return height / info->vsub;
+	return DIV_ROUND_UP_ULL((u64)buffer_width * info->char_per_block[plane],
+			    drm_format_info_block_width(info, plane) *
+			    drm_format_info_block_height(info, plane));
 }
-EXPORT_SYMBOL(drm_format_plane_height);
+EXPORT_SYMBOL(drm_format_info_min_pitch);

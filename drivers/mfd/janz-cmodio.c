@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Janz CMOD-IO MODULbus Carrier Board PCI Driver
  *
  * Copyright (c) 2010 Ira W. Snyder <iws@ovro.caltech.edu>
  *
  * Lots of inspiration and code was copied from drivers/mfd/sm501.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -153,15 +149,15 @@ static int cmodio_probe_submodules(struct cmodio_device *priv)
  * SYSFS Attributes
  */
 
-static ssize_t mbus_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t modulbus_number_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct cmodio_device *priv = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", priv->hex);
 }
 
-static DEVICE_ATTR(modulbus_number, S_IRUGO, mbus_show, NULL);
+static DEVICE_ATTR_RO(modulbus_number);
 
 static struct attribute *cmodio_sysfs_attrs[] = {
 	&dev_attr_modulbus_number.attr,

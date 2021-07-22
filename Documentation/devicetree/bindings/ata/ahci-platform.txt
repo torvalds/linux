@@ -9,8 +9,6 @@ PHYs.
 
 Required properties:
 - compatible        : compatible string, one of:
-  - "allwinner,sun4i-a10-ahci"
-  - "allwinner,sun8i-r40-ahci"
   - "brcm,iproc-ahci"
   - "hisilicon,hisi-ahci"
   - "cavium,octeon-7130-ahci"
@@ -45,8 +43,6 @@ Required properties when using sub-nodes:
 - #address-cells    : number of cells to encode an address
 - #size-cells       : number of cells representing the size of an address
 
-For allwinner,sun8i-r40-ahci, the reset propertie must be present.
-
 Sub-nodes required properties:
 - reg		    : the port number
 And at least one of the following properties:
@@ -59,14 +55,6 @@ Examples:
 		reg = <0xffe08000 0x1000>;
 		interrupts = <115>;
         };
-
-	ahci: sata@1c18000 {
-		compatible = "allwinner,sun4i-a10-ahci";
-		reg = <0x01c18000 0x1000>;
-		interrupts = <56>;
-		clocks = <&pll6 0>, <&ahb_gates 25>;
-		target-supply = <&reg_ahci_5v>;
-	};
 
 With sub-nodes:
 	sata@f7e90000 {

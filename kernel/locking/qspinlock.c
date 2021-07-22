@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Queued spinlock
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * (C) Copyright 2013-2015 Hewlett-Packard Development Company, L.P.
  * (C) Copyright 2013-2014,2018 Red Hat, Inc.
@@ -40,14 +31,15 @@
 /*
  * The basic principle of a queue-based spinlock can best be understood
  * by studying a classic queue-based spinlock implementation called the
- * MCS lock. The paper below provides a good description for this kind
- * of lock.
+ * MCS lock. A copy of the original MCS lock paper ("Algorithms for Scalable
+ * Synchronization on Shared-Memory Multiprocessors by Mellor-Crummey and
+ * Scott") is available at
  *
- * http://www.cise.ufl.edu/tr/DOC/REP-1992-71.pdf
+ * https://bugzilla.kernel.org/show_bug.cgi?id=206115
  *
- * This queued spinlock implementation is based on the MCS lock, however to make
- * it fit the 4 bytes we assume spinlock_t to be, and preserve its existing
- * API, we must modify it somehow.
+ * This queued spinlock implementation is based on the MCS lock, however to
+ * make it fit the 4 bytes we assume spinlock_t to be, and preserve its
+ * existing API, we must modify it somehow.
  *
  * In particular; where the traditional MCS lock consists of a tail pointer
  * (8 bytes) and needs the next pointer (another 8 bytes) of its own node to
@@ -124,9 +116,6 @@ static inline __pure u32 encode_tail(int cpu, int idx)
 {
 	u32 tail;
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-	BUG_ON(idx > 3);
-#endif
 	tail  = (cpu + 1) << _Q_TAIL_CPU_OFFSET;
 	tail |= idx << _Q_TAIL_IDX_OFFSET; /* assume < 4 */
 
@@ -398,7 +387,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * 0,1,0 -> 0,0,1
 	 */
 	clear_pending_set_locked(lock);
-	qstat_inc(qstat_lock_pending, true);
+	lockevent_inc(lock_pending);
 	return;
 
 	/*
@@ -406,18 +395,34 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * queuing.
 	 */
 queue:
-	qstat_inc(qstat_lock_slowpath, true);
+	lockevent_inc(lock_slowpath);
 pv_queue:
 	node = this_cpu_ptr(&qnodes[0].mcs);
 	idx = node->count++;
 	tail = encode_tail(smp_processor_id(), idx);
+
+	/*
+	 * 4 nodes are allocated based on the assumption that there will
+	 * not be nested NMIs taking spinlocks. That may not be true in
+	 * some architectures even though the chance of needing more than
+	 * 4 nodes will still be extremely unlikely. When that happens,
+	 * we fall back to spinning on the lock directly without using
+	 * any MCS node. This is not the most elegant solution, but is
+	 * simple enough.
+	 */
+	if (unlikely(idx >= MAX_NODES)) {
+		lockevent_inc(lock_no_node);
+		while (!queued_spin_trylock(lock))
+			cpu_relax();
+		goto release;
+	}
 
 	node = grab_mcs_node(node, idx);
 
 	/*
 	 * Keep counts of non-zero index values:
 	 */
-	qstat_inc(qstat_lock_idx1 + idx - 1, idx);
+	lockevent_cond_inc(lock_use_node2 + idx - 1, idx);
 
 	/*
 	 * Ensure that we increment the head node->count before initialising
@@ -576,4 +581,11 @@ EXPORT_SYMBOL(queued_spin_lock_slowpath);
 #include "qspinlock_paravirt.h"
 #include "qspinlock.c"
 
+bool nopvspin __initdata;
+static __init int parse_nopvspin(char *arg)
+{
+	nopvspin = true;
+	return 0;
+}
+early_param("nopvspin", parse_nopvspin);
 #endif

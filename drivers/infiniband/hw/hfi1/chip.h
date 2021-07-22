@@ -1,7 +1,7 @@
 #ifndef _CHIP_H
 #define _CHIP_H
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -358,6 +358,8 @@
 #define MAX_EAGER_BUFFER       (256 * 1024)
 #define MAX_EAGER_BUFFER_TOTAL (64 * (1 << 20)) /* max per ctxt 64MB */
 #define MAX_EXPECTED_BUFFER    (2048 * 1024)
+#define HFI1_MIN_HDRQ_EGRBUF_CNT 32
+#define HFI1_MAX_HDRQ_EGRBUF_CNT 16352
 
 /*
  * Receive expected base and count and eager base and count increment -
@@ -699,6 +701,10 @@ static inline u32 chip_rcv_array_count(struct hfi1_devdata *dd)
 	return read_csr(dd, RCV_ARRAY_CNT);
 }
 
+u8 encode_rcv_header_entry_size(u8 size);
+int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt);
+void set_hdrq_regs(struct hfi1_devdata *dd, u8 ctxt, u8 entsize, u16 hdrcnt);
+
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 	       u32 dw_len);
 
@@ -804,6 +810,7 @@ void clear_linkup_counters(struct hfi1_devdata *dd);
 u32 hdrqempty(struct hfi1_ctxtdata *rcd);
 int is_ax(struct hfi1_devdata *dd);
 int is_bx(struct hfi1_devdata *dd);
+bool is_urg_masked(struct hfi1_ctxtdata *rcd);
 u32 read_physical_state(struct hfi1_devdata *dd);
 u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate);
 const char *opa_lstate_name(u32 lstate);
@@ -815,11 +822,6 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
 int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
 #define LCB_START DC_LCB_CSRS
 #define LCB_END   DC_8051_CSRS /* next block is 8051 */
-static inline int is_lcb_offset(u32 offset)
-{
-	return (offset >= LCB_START && offset < LCB_END);
-}
-
 extern uint num_vls;
 
 extern uint disable_integrity;
@@ -857,6 +859,10 @@ static inline int idx_from_vl(int vl)
 /* Per device counter indexes */
 enum {
 	C_RCV_OVF = 0,
+	C_RX_LEN_ERR,
+	C_RX_SHORT_ERR,
+	C_RX_ICRC_ERR,
+	C_RX_EBP,
 	C_RX_TID_FULL,
 	C_RX_TID_INVALID,
 	C_RX_TID_FLGMS,
@@ -922,10 +928,12 @@ enum {
 	C_DC_PG_STS_TX_MBE_CNT,
 	C_SW_CPU_INTR,
 	C_SW_CPU_RCV_LIM,
+	C_SW_CTX0_SEQ_DROP,
 	C_SW_VTX_WAIT,
 	C_SW_PIO_WAIT,
 	C_SW_PIO_DRAIN,
 	C_SW_KMEM_WAIT,
+	C_SW_TID_WAIT,
 	C_SW_SEND_SCHED,
 	C_SDMA_DESC_FETCHED_CNT,
 	C_SDMA_INT_CNT,
@@ -1240,6 +1248,7 @@ enum {
 	C_SW_IBP_RDMA_SEQ,
 	C_SW_IBP_UNALIGNED,
 	C_SW_IBP_SEQ_NAK,
+	C_SW_IBP_RC_CRWAITS,
 	C_SW_CPU_RC_ACKS,
 	C_SW_CPU_RC_QACKS,
 	C_SW_CPU_RC_DELAYED_COMP,
@@ -1433,6 +1442,7 @@ irqreturn_t general_interrupt(int irq, void *data);
 irqreturn_t sdma_interrupt(int irq, void *data);
 irqreturn_t receive_context_interrupt(int irq, void *data);
 irqreturn_t receive_context_thread(int irq, void *data);
+irqreturn_t receive_context_interrupt_napi(int irq, void *data);
 
 int set_intr_bits(struct hfi1_devdata *dd, u16 first, u16 last, bool set);
 void init_qsfp_int(struct hfi1_devdata *dd);
@@ -1440,6 +1450,9 @@ void clear_all_interrupts(struct hfi1_devdata *dd);
 void remap_intr(struct hfi1_devdata *dd, int isrc, int msix_intr);
 void remap_sdma_interrupts(struct hfi1_devdata *dd, int engine, int msix_intr);
 void reset_interrupts(struct hfi1_devdata *dd);
+u8 hfi1_get_qp_map(struct hfi1_devdata *dd, u8 idx);
+void hfi1_init_aip_rsm(struct hfi1_devdata *dd);
+void hfi1_deinit_aip_rsm(struct hfi1_devdata *dd);
 
 /*
  * Interrupt source table.

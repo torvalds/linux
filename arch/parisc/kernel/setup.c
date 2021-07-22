@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Initial setup-routines for HP 9000 based hardware.
  *
@@ -9,21 +10,6 @@
  *    Modifications copyright 2001 Ryan Bradetich <rbradetich@uswest.net>
  *
  *    Initial PA-RISC Version: 04-23-1999 by Helge Deller
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -40,6 +26,7 @@
 #include <linux/sched/clock.h>
 #include <linux/start_kernel.h>
 
+#include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/pdc.h>
@@ -99,10 +86,6 @@ void __init dma_ops_init(void)
 
 	case pcxl2:
 		pa7300lc_init();
-	case pcxl: /* falls through */
-	case pcxs:
-	case pcxt:
-		hppa_dma_ops = &dma_direct_ops;
 		break;
 	default:
 		break;
@@ -166,10 +149,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PA11
 	dma_ops_init();
-#endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 	clear_sched_clock_stable();
@@ -289,7 +268,7 @@ static int __init parisc_init_resources(void)
 	result = request_resource(&iomem_resource, &local_broadcast);
 	if (result < 0) {
 		printk(KERN_ERR 
-		       "%s: failed to claim %saddress space!\n", 
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, local_broadcast.name);
 		return result;
 	}
@@ -304,86 +283,6 @@ static int __init parisc_init_resources(void)
 
 	return 0;
 }
-
-static int no_alternatives __initdata;
-static int __init setup_no_alternatives(char *str)
-{
-	no_alternatives = 1;
-	return 1;
-}
-__setup("no-alternatives", setup_no_alternatives);
-
-static void __init apply_alternatives_all(void)
-{
-	struct alt_instr *entry;
-	int index = 0, applied = 0;
-
-
-	pr_info("alternatives: %spatching kernel code\n",
-		no_alternatives ? "NOT " : "");
-	if (no_alternatives)
-		return;
-
-	set_kernel_text_rw(1);
-
-	for (entry = (struct alt_instr *) &__alt_instructions;
-		entry < (struct alt_instr *) &__alt_instructions_end;
-		entry++, index++) {
-
-		u32 *from, len, cond, replacement;
-
-		from = (u32 *)((ulong)&entry->orig_offset + entry->orig_offset);
-		len = entry->len;
-		cond = entry->cond;
-		replacement = entry->replacement;
-
-		WARN_ON(!cond);
-		pr_debug("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
-			index, cond, len, from, replacement);
-
-		if ((cond & ALT_COND_NO_SMP) && (num_online_cpus() != 1))
-			continue;
-		if ((cond & ALT_COND_NO_DCACHE) && (cache_info.dc_size != 0))
-			continue;
-		if ((cond & ALT_COND_NO_ICACHE) && (cache_info.ic_size != 0))
-			continue;
-
-		/*
-		 * If the PDC_MODEL capabilities has Non-coherent IO-PDIR bit
-		 * set (bit #61, big endian), we have to flush and sync every
-		 * time IO-PDIR is changed in Ike/Astro.
-		 */
-		if ((cond & ALT_COND_NO_IOC_FDC) &&
-			(boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC))
-			continue;
-
-		/* Want to replace pdtlb by a pdtlb,l instruction? */
-		if (replacement == INSN_PxTLB) {
-			replacement = *from;
-			if (boot_cpu_data.cpu_type >= pcxu) /* >= pa2.0 ? */
-				replacement |= (1 << 10); /* set el bit */
-		}
-
-		/*
-		 * Replace instruction with NOPs?
-		 * For long distance insert a branch instruction instead.
-		 */
-		if (replacement == INSN_NOP && len > 1)
-			replacement = 0xe8000002 + (len-2)*8; /* "b,n .+8" */
-
-		pr_debug("Do    %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
-			index, cond, len, from, replacement);
-
-		/* Replace instruction */
-		*from = replacement;
-		applied++;
-	}
-
-	pr_info("alternatives: applied %d out of %d patches\n", applied, index);
-
-	set_kernel_text_rw(0);
-}
-
 
 extern void gsc_init(void);
 extern void processor_init(void);
@@ -425,6 +324,12 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_name,
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
+
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	/* Don't serialize TLB flushes if we run on one CPU only. */
+	if (num_online_cpus() == 1)
+		pa_serialize_tlb_flushes = 0;
+#endif
 
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
@@ -479,6 +384,9 @@ void __init start_parisc(void)
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
+
+	/* check QEMU/SeaBIOS marker in PAGE0 */
+	running_on_qemu = (memcmp(&PAGE0->pad0, "SeaBIOS", 8) == 0);
 
 	cpunum = smp_processor_id();
 

@@ -8,16 +8,61 @@
 
 #include <linux/types.h>
 #include <linux/bvec.h>
+#include <linux/device.h>
 #include <linux/ktime.h>
 
 struct bio_set;
 struct bio;
 struct bio_integrity_payload;
 struct page;
-struct block_device;
 struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
+struct bio_crypt_ctx;
+
+struct block_device {
+	sector_t		bd_start_sect;
+	struct disk_stats __percpu *bd_stats;
+	unsigned long		bd_stamp;
+	bool			bd_read_only;	/* read-only policy */
+	dev_t			bd_dev;
+	int			bd_openers;
+	struct inode *		bd_inode;	/* will die */
+	struct super_block *	bd_super;
+	void *			bd_claiming;
+	struct device		bd_device;
+	void *			bd_holder;
+	int			bd_holders;
+	bool			bd_write_holder;
+#ifdef CONFIG_SYSFS
+	struct list_head	bd_holder_disks;
+#endif
+	struct kobject		*bd_holder_dir;
+	u8			bd_partno;
+	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
+	struct gendisk *	bd_disk;
+	struct backing_dev_info *bd_bdi;
+
+	/* The counter of freeze processes */
+	int			bd_fsfreeze_count;
+	/* Mutex for freeze */
+	struct mutex		bd_fsfreeze_mutex;
+	struct super_block	*bd_fsfreeze_sb;
+
+	struct partition_meta_info *bd_meta_info;
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	bool			bd_make_it_fail;
+#endif
+} __randomize_layout;
+
+#define bdev_whole(_bdev) \
+	((_bdev)->bd_disk->part0)
+
+#define dev_to_bdev(device) \
+	container_of((device), struct block_device, bd_device)
+
+#define bdev_kobj(_bdev) \
+	(&((_bdev)->bd_device.kobj))
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
@@ -62,6 +107,36 @@ typedef u8 __bitwise blk_status_t;
  * any other system wide resources.
  */
 #define BLK_STS_DEV_RESOURCE	((__force blk_status_t)13)
+
+/*
+ * BLK_STS_ZONE_RESOURCE is returned from the driver to the block layer if zone
+ * related resources are unavailable, but the driver can guarantee the queue
+ * will be rerun in the future once the resources become available again.
+ *
+ * This is different from BLK_STS_DEV_RESOURCE in that it explicitly references
+ * a zone specific resource and IO to a different zone on the same device could
+ * still be served. Examples of that are zones that are write-locked, but a read
+ * to the same zone could be served.
+ */
+#define BLK_STS_ZONE_RESOURCE	((__force blk_status_t)14)
+
+/*
+ * BLK_STS_ZONE_OPEN_RESOURCE is returned from the driver in the completion
+ * path if the device returns a status indicating that too many zone resources
+ * are currently open. The same command should be successful if resubmitted
+ * after the number of open zones decreases below the device's limits, which is
+ * reported in the request_queue's max_open_zones.
+ */
+#define BLK_STS_ZONE_OPEN_RESOURCE	((__force blk_status_t)15)
+
+/*
+ * BLK_STS_ZONE_ACTIVE_RESOURCE is returned from the driver in the completion
+ * path if the device returns a status indicating that too many zone resources
+ * are currently active. The same command should be successful if resubmitted
+ * after the number of active zones decreases below the device's limits, which
+ * is reported in the request_queue's max_active_zones.
+ */
+#define BLK_STS_ZONE_ACTIVE_RESOURCE	((__force blk_status_t)16)
 
 /**
  * blk_path_error - returns true if error may be path related
@@ -143,44 +218,40 @@ static inline void bio_issue_init(struct bio_issue *issue,
  */
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
-	struct gendisk		*bi_disk;
+	struct block_device	*bi_bdev;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.
 						 */
-	unsigned short		bi_flags;	/* status, etc and bvec pool number */
+	unsigned short		bi_flags;	/* BIO_* below */
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
-	u8			bi_partno;
-
-	/* Number of segments in this BIO after
-	 * physical address coalescing is performed.
-	 */
-	unsigned int		bi_phys_segments;
-
-	/*
-	 * To keep track of the max segment size, we account for the
-	 * sizes of the first and last mergeable segments in this bio.
-	 */
-	unsigned int		bi_seg_front_size;
-	unsigned int		bi_seg_back_size;
+	atomic_t		__bi_remaining;
 
 	struct bvec_iter	bi_iter;
 
-	atomic_t		__bi_remaining;
 	bio_end_io_t		*bi_end_io;
 
 	void			*bi_private;
 #ifdef CONFIG_BLK_CGROUP
 	/*
-	 * Optional ioc and css associated with this bio.  Put on bio
-	 * release.  Read comment on top of bio_associate_current().
+	 * Represents the association of the css and request_queue for the bio.
+	 * If a bio goes direct to device, it will not have a blkg as it will
+	 * not have a request_queue associated with it.  The reference is put
+	 * on release of the bio.
 	 */
-	struct io_context	*bi_ioc;
 	struct blkcg_gq		*bi_blkg;
 	struct bio_issue	bi_issue;
+#ifdef CONFIG_BLK_CGROUP_IOCOST
+	u64			bi_iocost_cost;
 #endif
+#endif
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	struct bio_crypt_ctx	*bi_crypt_context;
+#endif
+
 	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 		struct bio_integrity_payload *bi_integrity; /* data integrity */
@@ -206,7 +277,7 @@ struct bio {
 	 * double allocations for a small number of bio_vecs. This member
 	 * MUST obviously be kept at the very end of the bio.
 	 */
-	struct bio_vec		bi_inline_vecs[0];
+	struct bio_vec		bi_inline_vecs[];
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
@@ -214,46 +285,24 @@ struct bio {
 /*
  * bio flags
  */
-#define BIO_SEG_VALID	1	/* bi_phys_segments valid */
-#define BIO_CLONED	2	/* doesn't own data */
-#define BIO_BOUNCED	3	/* bio is a bounce bio */
-#define BIO_USER_MAPPED 4	/* contains user pages */
-#define BIO_NULL_MAPPED 5	/* contains invalid user pages */
-#define BIO_QUIET	6	/* Make BIO Quiet */
-#define BIO_CHAIN	7	/* chained bio, ->bi_remaining in effect */
-#define BIO_REFFED	8	/* bio has elevated ->bi_cnt */
-#define BIO_THROTTLED	9	/* This bio has already been subjected to
+enum {
+	BIO_NO_PAGE_REF,	/* don't put release vec pages */
+	BIO_CLONED,		/* doesn't own data */
+	BIO_BOUNCED,		/* bio is a bounce bio */
+	BIO_WORKINGSET,		/* contains userspace workingset pages */
+	BIO_QUIET,		/* Make BIO Quiet */
+	BIO_CHAIN,		/* chained bio, ->bi_remaining in effect */
+	BIO_REFFED,		/* bio has elevated ->bi_cnt */
+	BIO_THROTTLED,		/* This bio has already been subjected to
 				 * throttling rules. Don't do it again. */
-#define BIO_TRACE_COMPLETION 10	/* bio_endio() should trace the final completion
+	BIO_TRACE_COMPLETION,	/* bio_endio() should trace the final completion
 				 * of this bio. */
-#define BIO_QUEUE_ENTERED 11	/* can use blk_queue_enter_live() */
-
-/* See BVEC_POOL_OFFSET below before adding new flags */
-
-/*
- * We support 6 different bvec pools, the last one is magic in that it
- * is backed by a mempool.
- */
-#define BVEC_POOL_NR		6
-#define BVEC_POOL_MAX		(BVEC_POOL_NR - 1)
-
-/*
- * Top 3 bits of bio flags indicate the pool the bvecs came from.  We add
- * 1 to the actual index so that 0 indicates that there are no bvecs to be
- * freed.
- */
-#define BVEC_POOL_BITS		(3)
-#define BVEC_POOL_OFFSET	(16 - BVEC_POOL_BITS)
-#define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
-#if (1<< BVEC_POOL_BITS) < (BVEC_POOL_NR+1)
-# error "BVEC_POOL_BITS is too small"
-#endif
-
-/*
- * Flags starting here get preserved by bio_reset() - this includes
- * only BVEC_POOL_IDX()
- */
-#define BIO_RESET_BITS	BVEC_POOL_OFFSET
+	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
+	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_REMAPPED,
+	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
+	BIO_FLAG_LAST
+};
 
 typedef __u32 __bitwise blk_mq_req_flags_t;
 
@@ -285,16 +334,23 @@ enum req_opf {
 	REQ_OP_DISCARD		= 3,
 	/* securely erase sectors */
 	REQ_OP_SECURE_ERASE	= 5,
-	/* seset a zone write pointer */
-	REQ_OP_ZONE_RESET	= 6,
 	/* write the same sector many times */
 	REQ_OP_WRITE_SAME	= 7,
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 9,
+	/* Open a zone */
+	REQ_OP_ZONE_OPEN	= 10,
+	/* Close a zone */
+	REQ_OP_ZONE_CLOSE	= 11,
+	/* Transition a zone to full */
+	REQ_OP_ZONE_FINISH	= 12,
+	/* write data at the current zone write pointer */
+	REQ_OP_ZONE_APPEND	= 13,
+	/* reset a zone write pointer */
+	REQ_OP_ZONE_RESET	= 15,
+	/* reset all the zone present on the device */
+	REQ_OP_ZONE_RESET_ALL	= 17,
 
-	/* SCSI passthrough using struct scsi_request */
-	REQ_OP_SCSI_IN		= 32,
-	REQ_OP_SCSI_OUT		= 33,
 	/* Driver private requests */
 	REQ_OP_DRV_IN		= 34,
 	REQ_OP_DRV_OUT		= 35,
@@ -318,9 +374,19 @@ enum req_flag_bits {
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
 	__REQ_BACKGROUND,	/* background IO */
 	__REQ_NOWAIT,           /* Don't wait if request will block */
+	/*
+	 * When a shared kthread needs to issue a bio for a cgroup, doing
+	 * so synchronously can lead to priority inversions as the kthread
+	 * can be trapped waiting for that cgroup.  CGROUP_PUNT flag makes
+	 * submit_bio() punt the actual issuing to a dedicated per-blkcg
+	 * work item to avoid such priority inversions.
+	 */
+	__REQ_CGROUP_PUNT,
 
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
+
+	__REQ_HIPRI,
 
 	/* for driver use */
 	__REQ_DRV,
@@ -342,8 +408,10 @@ enum req_flag_bits {
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 #define REQ_BACKGROUND		(1ULL << __REQ_BACKGROUND)
 #define REQ_NOWAIT		(1ULL << __REQ_NOWAIT)
+#define REQ_CGROUP_PUNT		(1ULL << __REQ_CGROUP_PUNT)
 
 #define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
+#define REQ_HIPRI		(1ULL << __REQ_HIPRI)
 
 #define REQ_DRV			(1ULL << __REQ_DRV)
 #define REQ_SWAP		(1ULL << __REQ_SWAP)
@@ -358,6 +426,7 @@ enum stat_group {
 	STAT_READ,
 	STAT_WRITE,
 	STAT_DISCARD,
+	STAT_FLUSH,
 
 	NR_STAT_GROUPS
 };
@@ -404,6 +473,25 @@ static inline bool op_is_discard(unsigned int op)
 	return (op & REQ_OP_MASK) == REQ_OP_DISCARD;
 }
 
+/*
+ * Check if a bio or request operation is a zone management operation, with
+ * the exception of REQ_OP_ZONE_RESET_ALL which is treated as a special case
+ * due to its different handling in the block layer and device response in
+ * case of command failure.
+ */
+static inline bool op_is_zone_mgmt(enum req_opf op)
+{
+	switch (op & REQ_OP_MASK) {
+	case REQ_OP_ZONE_RESET:
+	case REQ_OP_ZONE_OPEN:
+	case REQ_OP_ZONE_CLOSE:
+	case REQ_OP_ZONE_FINISH:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline int op_stat_group(unsigned int op)
 {
 	if (op_is_discard(op))
@@ -419,17 +507,6 @@ typedef unsigned int blk_qc_t;
 static inline bool blk_qc_t_valid(blk_qc_t cookie)
 {
 	return cookie != BLK_QC_T_NONE;
-}
-
-static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num,
-				       bool internal)
-{
-	blk_qc_t ret = tag | (queue_num << BLK_QC_T_SHIFT);
-
-	if (internal)
-		ret |= BLK_QC_T_INTERNAL;
-
-	return ret;
 }
 
 static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)

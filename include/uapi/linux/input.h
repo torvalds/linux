@@ -26,13 +26,18 @@
  */
 
 struct input_event {
-#if (__BITS_PER_LONG != 32 || !defined(__USE_TIME_BITS64)) && !defined(__KERNEL)
+#if (__BITS_PER_LONG != 32 || !defined(__USE_TIME_BITS64)) && !defined(__KERNEL__)
 	struct timeval time;
 #define input_event_sec time.tv_sec
 #define input_event_usec time.tv_usec
 #else
 	__kernel_ulong_t __sec;
+#if defined(__sparc__) && defined(__arch64__)
+	unsigned int __usec;
+	unsigned int __pad;
+#else
 	__kernel_ulong_t __usec;
+#endif
 #define input_event_sec  __sec
 #define input_event_usec __usec
 #endif
@@ -79,7 +84,7 @@ struct input_id {
  * in units per radian.
  * When INPUT_PROP_ACCELEROMETER is set the resolution changes.
  * The main axes (ABS_X, ABS_Y, ABS_Z) are then reported in
- * in units per g (units/g) and in units per degree per second
+ * units per g (units/g) and in units per degree per second
  * (units/deg/s) for rotational axes (ABS_RX, ABS_RY, ABS_RZ).
  */
 struct input_absinfo {

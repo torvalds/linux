@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Layer Two Tunneling Protocol (L2TP)
 #
@@ -7,7 +8,7 @@ menuconfig L2TP
 	depends on (IPV6 || IPV6=n)
 	depends on INET
 	select NET_UDP_TUNNEL
-	---help---
+	help
 	  Layer Two Tunneling Protocol
 
 	  From RFC 2661 <http://www.ietf.org/rfc/rfc2661.txt>.

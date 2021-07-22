@@ -115,19 +115,14 @@ bl_submit_bio(struct bio *bio)
 	return NULL;
 }
 
-static struct bio *
-bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
+static struct bio *bl_alloc_init_bio(unsigned int npg,
+		struct block_device *bdev, sector_t disk_sector,
 		bio_end_io_t end_io, struct parallel_io *par)
 {
 	struct bio *bio;
 
-	npg = min(npg, BIO_MAX_PAGES);
+	npg = bio_max_segs(npg);
 	bio = bio_alloc(GFP_NOIO, npg);
-	if (!bio && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (npg /= 2))
-			bio = bio_alloc(GFP_NOIO, npg);
-	}
-
 	if (bio) {
 		bio->bi_iter.bi_sector = disk_sector;
 		bio_set_dev(bio, bdev);
@@ -476,7 +471,7 @@ static void bl_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	err = ext_tree_remove(bl, true, 0, LLONG_MAX);
 	WARN_ON(err);
 
-	kfree(bl);
+	kfree_rcu(bl, bl_layout.plh_rcu);
 }
 
 static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct inode *inode,
@@ -584,7 +579,7 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 
 static struct nfs4_deviceid_node *
 bl_find_get_deviceid(struct nfs_server *server,
-		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		const struct nfs4_deviceid *id, const struct cred *cred,
 		gfp_t gfp_mask)
 {
 	struct nfs4_deviceid_node *node;
@@ -697,7 +692,7 @@ bl_alloc_lseg(struct pnfs_layout_hdr *lo, struct nfs4_layoutget_res *lgr,
 
 	xdr_init_decode_pages(&xdr, &buf,
 			lgr->layoutp->pages, lgr->layoutp->len);
-	xdr_set_scratch_buffer(&xdr, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&xdr, scratch);
 
 	status = -EIO;
 	p = xdr_inline_decode(&xdr, 4);
@@ -753,7 +748,7 @@ out:
 	case -ENODEV:
 		/* Our extent block devices are unavailable */
 		set_bit(NFS_LSEG_UNAVAILABLE, &lseg->pls_flags);
-		/* Fall through */
+		fallthrough;
 	case 0:
 		return lseg;
 	default:

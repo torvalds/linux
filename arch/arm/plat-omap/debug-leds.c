@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/plat-omap/debug-leds.c
  *
  * Copyright 2011 by Bryan Wu <bryan.wu@canonical.com>
  * Copyright 2003 by Texas Instruments Incorporated
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

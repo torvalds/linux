@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sample kfifo int type implementation
  *
  * Copyright (C) 2010 Stefani Seibold <stefani@seibold.net>
- *
- * Released under the GPL version 2 only.
- *
  */
 
 #include <linux/init.h>
@@ -117,8 +115,10 @@ static ssize_t fifo_write(struct file *file, const char __user *buf,
 	ret = kfifo_from_user(&test, buf, count, &copied);
 
 	mutex_unlock(&write_lock);
+	if (ret)
+		return ret;
 
-	return ret ? ret : copied;
+	return copied;
 }
 
 static ssize_t fifo_read(struct file *file, char __user *buf,
@@ -133,15 +133,16 @@ static ssize_t fifo_read(struct file *file, char __user *buf,
 	ret = kfifo_to_user(&test, buf, count, &copied);
 
 	mutex_unlock(&read_lock);
+	if (ret)
+		return ret;
 
-	return ret ? ret : copied;
+	return copied;
 }
 
-static const struct file_operations fifo_fops = {
-	.owner		= THIS_MODULE,
-	.read		= fifo_read,
-	.write		= fifo_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops fifo_proc_ops = {
+	.proc_read	= fifo_read,
+	.proc_write	= fifo_write,
+	.proc_lseek	= noop_llseek,
 };
 
 static int __init example_init(void)
@@ -162,7 +163,7 @@ static int __init example_init(void)
 		return -EIO;
 	}
 
-	if (proc_create(PROC_FIFO, 0, NULL, &fifo_fops) == NULL) {
+	if (proc_create(PROC_FIFO, 0, NULL, &fifo_proc_ops) == NULL) {
 #ifdef DYNAMIC
 		kfifo_free(&test);
 #endif

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Abilis Systems MODULE DESCRIPTION
  *
  * Copyright (C) Abilis Systems 2013
  *
  * Authors: Sascha Leuenberger <sascha.leuenberger@abilis.com>
  *          Christian Ruppert <christian.ruppert@abilis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -120,7 +108,6 @@ static irqreturn_t tb10x_gpio_irq_cascade(int irq, void *data)
 static int tb10x_gpio_probe(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio;
-	struct resource *mem;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	int ret = -EBUSY;
@@ -136,8 +123,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tb10x_gpio->base = devm_ioremap_resource(dev, mem);
+	tb10x_gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
 
@@ -185,10 +171,8 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		struct irq_chip_generic *gc;
 
 		ret = platform_get_irq(pdev, 0);
-		if (ret < 0) {
-			dev_err(dev, "No interrupt specified.\n");
+		if (ret < 0)
 			return ret;
-		}
 
 		tb10x_gpio->gc.to_irq	= tb10x_gpio_to_irq;
 		tb10x_gpio->irq		= ret;
@@ -259,4 +243,3 @@ static struct platform_driver tb10x_gpio_driver = {
 module_platform_driver(tb10x_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("tb10x gpio.");
-MODULE_VERSION("0.0.1");

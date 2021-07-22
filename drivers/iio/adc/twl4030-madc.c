@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * TWL4030 MADC module driver-This driver monitors the real time
  * conversion of analog signals like battery temperature,
  * battery type, battery level etc.
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * J Keerthy <j-keerthy@ti.com>
  *
  * Based on twl4030-madc.c
@@ -12,21 +13,6 @@
  * Mikko Ylinen <mikko.k.ylinen@nokia.com>
  *
  * Amit Kucheria <amit.kucheria@canonical.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/device.h>
@@ -167,7 +153,7 @@ enum sample_type {
  * struct twl4030_madc_data - a container for madc info
  * @dev:		Pointer to device structure for madc
  * @lock:		Mutex protecting this data structure
- * @regulator:		Pointer to bias regulator for madc
+ * @usb3v1:		Pointer to bias regulator for madc
  * @requests:		Array of request struct corresponding to SW1, SW2 and RT
  * @use_second_irq:	IRQ selection (main or co-processor)
  * @imr:		Interrupt mask register of MADC
@@ -175,7 +161,7 @@ enum sample_type {
  */
 struct twl4030_madc_data {
 	struct device *dev;
-	struct mutex lock;	/* mutex protecting this data structure */
+	struct mutex lock;
 	struct regulator *usb3v1;
 	struct twl4030_madc_request requests[TWL4030_MADC_NUM_METHODS];
 	bool use_second_irq;
@@ -486,7 +472,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 	struct twl4030_madc_data *madc = _madc;
 	const struct twl4030_madc_conversion_method *method;
 	u8 isr_val, imr_val;
-	int i, len, ret;
+	int i, ret;
 	struct twl4030_madc_request *r;
 
 	mutex_lock(&madc->lock);
@@ -509,7 +495,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		ret = twl4030_madc_disable_irq(madc, i);
 		if (ret < 0)
 			dev_dbg(madc->dev, "Disable interrupt failed %d\n", i);
-		madc->requests[i].result_pending = 1;
+		madc->requests[i].result_pending = true;
 	}
 	for (i = 0; i < TWL4030_MADC_NUM_METHODS; i++) {
 		r = &madc->requests[i];
@@ -518,11 +504,11 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 			continue;
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
-		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf, r->raw);
+		twl4030_madc_read_channels(madc, method->rbase,
+					   r->channels, r->rbuf, r->raw);
 		/* Free request */
-		r->result_pending = 0;
-		r->active = 0;
+		r->result_pending = false;
+		r->active = false;
 	}
 	mutex_unlock(&madc->lock);
 
@@ -535,15 +521,15 @@ err_i2c:
 	 */
 	for (i = 0; i < TWL4030_MADC_NUM_METHODS; i++) {
 		r = &madc->requests[i];
-		if (r->active == 0)
+		if (!r->active)
 			continue;
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
-		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf, r->raw);
+		twl4030_madc_read_channels(madc, method->rbase,
+					   r->channels, r->rbuf, r->raw);
 		/* Free request */
-		r->result_pending = 0;
-		r->active = 0;
+		r->result_pending = false;
+		r->active = false;
 	}
 	mutex_unlock(&madc->lock);
 
@@ -666,16 +652,16 @@ static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 	ret = twl4030_madc_start_conversion(twl4030_madc, req->method);
 	if (ret < 0)
 		goto out;
-	twl4030_madc->requests[req->method].active = 1;
+	twl4030_madc->requests[req->method].active = true;
 	/* Wait until conversion is ready (ctrl register returns EOC) */
 	ret = twl4030_madc_wait_conversion_ready(twl4030_madc, 5, method->ctrl);
 	if (ret) {
-		twl4030_madc->requests[req->method].active = 0;
+		twl4030_madc->requests[req->method].active = false;
 		goto out;
 	}
 	ret = twl4030_madc_read_channels(twl4030_madc, method->rbase,
 					 req->channels, req->rbuf, req->raw);
-	twl4030_madc->requests[req->method].active = 0;
+	twl4030_madc->requests[req->method].active = false;
 
 out:
 	mutex_unlock(&twl4030_madc->lock);
@@ -786,8 +772,6 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	madc->dev = &pdev->dev;
 
 	iio_dev->name = dev_name(&pdev->dev);
-	iio_dev->dev.parent = &pdev->dev;
-	iio_dev->dev.of_node = pdev->dev.of_node;
 	iio_dev->info = &twl4030_madc_iio_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = twl4030_madc_iio_channels;

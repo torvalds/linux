@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PLL clock driver for Keystone devices
  *
  * Copyright (C) 2013 Texas Instruments Inc.
  *	Murali Karicheri <m-karicheri2@ti.com>
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/clk-provider.h>
 #include <linux/err.h>
@@ -219,7 +215,7 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 	}
 
 out:
-	pr_err("%s: error initializing pll %s\n", __func__, node->name);
+	pr_err("%s: error initializing pll %pOFn\n", __func__, node);
 	kfree(pll_data);
 }
 
@@ -338,3 +334,8 @@ static void __init of_pll_mux_clk_init(struct device_node *node)
 		pr_err("%s: error registering mux %s\n", __func__, clk_name);
 }
 CLK_OF_DECLARE(pll_mux_clock, "ti,keystone,pll-mux-clock", of_pll_mux_clk_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("PLL clock driver for Keystone devices");
+MODULE_AUTHOR("Murali Karicheri <m-karicheri2@ti.com>");
+MODULE_AUTHOR("Santosh Shilimkar <santosh.shilimkar@ti.com>");

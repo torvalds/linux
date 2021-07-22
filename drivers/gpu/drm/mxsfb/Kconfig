@@ -1,19 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_MXS
 	bool
 	help
 	  Choose this option to select drivers for MXS FB devices
 
 config DRM_MXSFB
-	tristate "i.MX23/i.MX28/i.MX6SX MXSFB LCD controller"
+	tristate "i.MX (e)LCDIF LCD controller"
 	depends on DRM && OF
 	depends on COMMON_CLK
 	select DRM_MXS
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_PANEL
+	select DRM_PANEL_BRIDGE
 	help
-	  Choose this option if you have an i.MX23/i.MX28/i.MX6SX MXSFB
-	  LCD controller.
+	  Choose this option if you have an LCDIF or eLCDIF LCD controller.
+	  Those devices are found in various i.MX SoC (including i.MX23,
+	  i.MX28, i.MX6SX, i.MX7 and i.MX8M).
 
 	  If M is selected the module will be called mxsfb.

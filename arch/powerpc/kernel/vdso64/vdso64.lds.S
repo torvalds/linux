@@ -4,6 +4,8 @@
  * library
  */
 #include <asm/vdso.h>
+#include <asm/page.h>
+#include <asm-generic/vmlinux.lds.h>
 
 #ifdef __LITTLE_ENDIAN__
 OUTPUT_FORMAT("elf64-powerpcle", "elf64-powerpcle", "elf64-powerpcle")
@@ -15,7 +17,8 @@ ENTRY(_start)
 
 SECTIONS
 {
-	. = VDSO64_LBASE + SIZEOF_HEADERS;
+	PROVIDE(_vdso_datapage = . - 2 * PAGE_SIZE);
+	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
 	.gnu.hash	: { *(.gnu.hash) }
@@ -37,16 +40,24 @@ SECTIONS
 	PROVIDE(etext = .);
 
 	. = ALIGN(8);
+	VDSO_ftr_fixup_start = .;
 	__ftr_fixup	: { *(__ftr_fixup) }
+	VDSO_ftr_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_mmu_ftr_fixup_start = .;
 	__mmu_ftr_fixup	: { *(__mmu_ftr_fixup) }
+	VDSO_mmu_ftr_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_lwsync_fixup_start = .;
 	__lwsync_fixup	: { *(__lwsync_fixup) }
+	VDSO_lwsync_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_fw_ftr_fixup_start = .;
 	__fw_ftr_fixup	: { *(__fw_ftr_fixup) }
+	VDSO_fw_ftr_fixup_end = .;
 
 	/*
 	 * Other stuff is appended to the text segment:
@@ -61,56 +72,21 @@ SECTIONS
 	.gcc_except_table : { *(.gcc_except_table) }
 	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
 
-	.opd ALIGN(8)	: { KEEP (*(.opd)) }
 	.got ALIGN(8)	: { *(.got .toc) }
 
 	_end = .;
 	PROVIDE(end = .);
 
-	/*
-	 * Stabs debugging sections are here too.
-	 */
-	.stab          0 : { *(.stab) }
-	.stabstr       0 : { *(.stabstr) }
-	.stab.excl     0 : { *(.stab.excl) }
-	.stab.exclstr  0 : { *(.stab.exclstr) }
-	.stab.index    0 : { *(.stab.index) }
-	.stab.indexstr 0 : { *(.stab.indexstr) }
-	.comment       0 : { *(.comment) }
-
-	/*
-	 * DWARF debug sections.
-	 * Symbols in the DWARF debugging sections are relative to the beginning
-	 * of the section so we begin them at 0.
-	 */
-	/* DWARF 1 */
-	.debug          0 : { *(.debug) }
-	.line           0 : { *(.line) }
-	/* GNU DWARF 1 extensions */
-	.debug_srcinfo  0 : { *(.debug_srcinfo) }
-	.debug_sfnames  0 : { *(.debug_sfnames) }
-	/* DWARF 1.1 and DWARF 2 */
-	.debug_aranges  0 : { *(.debug_aranges) }
-	.debug_pubnames 0 : { *(.debug_pubnames) }
-	/* DWARF 2 */
-	.debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
-	.debug_abbrev   0 : { *(.debug_abbrev) }
-	.debug_line     0 : { *(.debug_line) }
-	.debug_frame    0 : { *(.debug_frame) }
-	.debug_str      0 : { *(.debug_str) }
-	.debug_loc      0 : { *(.debug_loc) }
-	.debug_macinfo  0 : { *(.debug_macinfo) }
-	/* SGI/MIPS DWARF 2 extensions */
-	.debug_weaknames 0 : { *(.debug_weaknames) }
-	.debug_funcnames 0 : { *(.debug_funcnames) }
-	.debug_typenames 0 : { *(.debug_typenames) }
-	.debug_varnames  0 : { *(.debug_varnames) }
+	STABS_DEBUG
+	DWARF_DEBUG
+	ELF_DETAILS
 
 	/DISCARD/	: {
 		*(.note.GNU-stack)
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
+		*(.opd)
 	}
 }
 
@@ -138,18 +114,12 @@ VERSION
 {
 	VDSO_VERSION_STRING {
 	global:
-		/*
-		 * Has to be there for the kernel to find
-		 */
-		__kernel_datapage_offset;
-
 		__kernel_get_syscall_map;
 		__kernel_gettimeofday;
 		__kernel_clock_gettime;
 		__kernel_clock_getres;
 		__kernel_get_tbfreq;
 		__kernel_sync_dicache;
-		__kernel_sync_dicache_p5;
 		__kernel_sigtramp_rt64;
 		__kernel_getcpu;
 		__kernel_time;
@@ -157,3 +127,8 @@ VERSION
 	local: *;
 	};
 }
+
+/*
+ * Make the sigreturn code visible to the kernel.
+ */
+VDSO_sigtramp_rt64	= __kernel_start_sigtramp_rt64;

@@ -19,6 +19,7 @@
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
 #include <linux/gpio/machine.h>
+#include <linux/platform_data/pata_ixp4xx_cf.h>
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -27,6 +28,8 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+
+#include "irqs.h"
 
 #define AVILA_SDA_PIN	7
 #define AVILA_SCL_PIN	6

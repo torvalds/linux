@@ -6,6 +6,14 @@
  * Copyright (C) 2016 Cogent Embedded, Inc.
  */
 
+/*
+ * SSI-AK4613
+ *	aplay   -D plughw:0,0 xxx.wav
+ *	arecord -D plughw:0,0 xxx.wav
+ * SSI-HDMI
+ *	aplay   -D plughw:0,1 xxx.wav
+ */
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
@@ -15,10 +23,12 @@
 	aliases {
 		serial0 = &scif2;
 		ethernet0 = &avb;
+		mmc0 = &sdhi2;
+		mmc1 = &sdhi0;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -83,20 +93,13 @@
 		regulator-always-on;
 	};
 
-	rsnd_ak4613: sound {
-		compatible = "simple-audio-card";
+	sound_card: sound {
+		compatible = "audio-graph-card";
+		label = "rcar-sound";
 
-		simple-audio-card,format = "left_j";
-		simple-audio-card,bitclock-master = <&sndcpu>;
-		simple-audio-card,frame-master = <&sndcpu>;
-
-		sndcpu: simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-
-		sndcodec: simple-audio-card,codec {
-			sound-dai = <&ak4613>;
-		};
+		dais = <&rsnd_port0	/* ak4613 */
+			&rsnd_port1	/* HDMI0  */
+			>;
 	};
 
 	vcc_sdhi0: regulator-vcc-sdhi0 {
@@ -119,8 +122,7 @@
 
 		gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	x12_clk: x12 {
@@ -136,6 +138,10 @@
 	};
 };
 
+&a57_0 {
+	cpu-supply = <&dvfs>;
+};
+
 &audio_clk_a {
 	clock-frequency = <22579200>;
 };
@@ -144,7 +150,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-txid";
+	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -182,6 +188,12 @@
 				remote-endpoint = <&hdmi0_con>;
 			};
 		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_for_hdmi>;
+			};
+		};
 	};
 };
 
@@ -211,6 +223,12 @@
 		asahi-kasei,out4-single-end;
 		asahi-kasei,out5-single-end;
 		asahi-kasei,out6-single-end;
+
+		port {
+			ak4613_endpoint: endpoint {
+				remote-endpoint = <&rsnd_for_ak4613>;
+			};
+		};
 	};
 
 	cs2000: clk-multiplier@4f {
@@ -332,12 +350,6 @@
 	sdhi2_pins: sd2 {
 		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
 		function = "sdhi2";
-		power-source = <3300>;
-	};
-
-	sdhi2_pins_uhs: sd2_uhs {
-		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
-		function = "sdhi2";
 		power-source = <1800>;
 	};
 
@@ -359,7 +371,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
 	/* Single DAI */
@@ -390,12 +402,40 @@
 		 <&audio_clk_c>,
 		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
 
-	rcar_sound,dai {
-		dai0 {
-			playback = <&ssi0 &src0 &dvc0>;
-			capture  = <&ssi1 &src1 &dvc1>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		rsnd_port0: port@0 {
+			reg = <0>;
+			rsnd_for_ak4613: endpoint {
+				remote-endpoint = <&ak4613_endpoint>;
+
+				dai-format = "left_j";
+				bitclock-master = <&rsnd_for_ak4613>;
+				frame-master = <&rsnd_for_ak4613>;
+
+				playback = <&ssi0>, <&src0>, <&dvc0>;
+				capture  = <&ssi1>, <&src1>, <&dvc1>;
+			};
+		};
+		rsnd_port1: port@1 {
+			reg = <1>;
+			rsnd_for_hdmi: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_for_hdmi>;
+				frame-master = <&rsnd_for_hdmi>;
+
+				playback = <&ssi2>;
+			};
 		};
 	};
+};
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
 };
 
 &scif2 {
@@ -426,14 +466,18 @@
 &sdhi2 {
 	/* used for on-board 8bit eMMC */
 	pinctrl-0 = <&sdhi2_pins>;
-	pinctrl-1 = <&sdhi2_pins_uhs>;
+	pinctrl-1 = <&sdhi2_pins>;
 	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	no-sd;
+	no-sdio;
 	non-removable;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 
@@ -445,10 +489,5 @@
 	pinctrl-0 = <&usb1_pins>;
 	pinctrl-names = "default";
 
-	status = "okay";
-};
-
-&rwdt {
-	timeout-sec = <60>;
 	status = "okay";
 };

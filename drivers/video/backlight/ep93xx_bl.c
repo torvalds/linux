@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Cirrus EP93xx lcd backlight
  *
  * Copyright (c) 2010 H Hartley Sweeten <hsweeten@visionengravers.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This driver controls the pulse width modulated brightness control output,
  * BRIGHT, on the Cirrus EP9307, EP9312, and EP9315 processors.
@@ -39,13 +36,7 @@ static int ep93xxbl_set(struct backlight_device *bl, int brightness)
 
 static int ep93xxbl_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	return ep93xxbl_set(bl, brightness);
+	return ep93xxbl_set(bl, backlight_get_brightness(bl));
 }
 
 static int ep93xxbl_get_brightness(struct backlight_device *bl)

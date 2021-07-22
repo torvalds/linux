@@ -1,4 +1,5 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 1997-2003 Erez Zadok
@@ -6,22 +7,7 @@
  * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
- *              Tyler Hicks <tyhicks@ou.edu>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ *              Tyler Hicks <code@tyhicks.com>
  */
 
 #include <linux/dcache.h>
@@ -38,7 +24,7 @@
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * Module parameter that defines the ecryptfs_verbosity level.
  */
 int ecryptfs_verbosity = 0;
@@ -48,7 +34,7 @@ MODULE_PARM_DESC(ecryptfs_verbosity,
 		 "Initial verbosity level (0 or 1; defaults to "
 		 "0, which is Quiet)");
 
-/**
+/*
  * Module parameter that defines the number of message buffer elements
  */
 unsigned int ecryptfs_message_buf_len = ECRYPTFS_DEFAULT_MSG_CTX_ELEMS;
@@ -57,7 +43,7 @@ module_param(ecryptfs_message_buf_len, uint, 0);
 MODULE_PARM_DESC(ecryptfs_message_buf_len,
 		 "Number of message buffer elements");
 
-/**
+/*
  * Module parameter that defines the maximum guaranteed amount of time to wait
  * for a response from ecryptfsd.  The actual sleep time will be, more than
  * likely, a small amount greater than this specified value, but only less if
@@ -71,7 +57,7 @@ MODULE_PARM_DESC(ecryptfs_message_wait_timeout,
 		 "sleep while waiting for a message response from "
 		 "userspace");
 
-/**
+/*
  * Module parameter that is an estimate of the maximum number of users
  * that will be concurrently using eCryptfs. Set this to the right
  * value to balance performance and memory use.
@@ -94,7 +80,7 @@ void __ecryptfs_printk(const char *fmt, ...)
 	va_end(args);
 }
 
-/**
+/*
  * ecryptfs_init_lower_file
  * @ecryptfs_dentry: Fully initialized eCryptfs dentry object, with
  *                   the lower dentry and the lower mount set
@@ -235,7 +221,7 @@ static void ecryptfs_init_mount_crypt_stat(
 
 /**
  * ecryptfs_parse_options
- * @sb: The ecryptfs super block
+ * @sbi: The ecryptfs super block
  * @options: The options passed to the kernel
  * @check_ruid: set to 1 if device uid should be checked against the ruid
  *
@@ -480,10 +466,10 @@ out:
 struct kmem_cache *ecryptfs_sb_info_cache;
 static struct file_system_type ecryptfs_fs_type;
 
-/**
- * ecryptfs_get_sb
- * @fs_type
- * @flags
+/*
+ * ecryptfs_mount
+ * @fs_type: The filesystem type that the superblock should belong to
+ * @flags: The flags associated with the mount
  * @dev_name: The path to mount over
  * @raw_data: The options passed into the kernel
  */
@@ -503,6 +489,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);
 	if (!sbi) {
 		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (!dev_name) {
+		rc = -EINVAL;
+		err = "Device name cannot be null";
 		goto out;
 	}
 
@@ -542,6 +534,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		printk(KERN_ERR "Mount on filesystem of type "
 			"eCryptfs explicitly disallowed due to "
 			"known incompatibilities\n");
+		goto out_free;
+	}
+
+	if (mnt_user_ns(path.mnt) != &init_user_ns) {
+		rc = -EINVAL;
+		printk(KERN_ERR "Mounting on idmapped mounts currently disallowed\n");
 		goto out_free;
 	}
 
@@ -643,7 +641,7 @@ static struct file_system_type ecryptfs_fs_type = {
 };
 MODULE_ALIAS_FS("ecryptfs");
 
-/**
+/*
  * inode_info_init_once
  *
  * Initializes the ecryptfs_inode_info_cache when it is created

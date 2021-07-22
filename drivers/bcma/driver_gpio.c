@@ -122,6 +122,7 @@ static irqreturn_t bcma_gpio_irq_handler(int irq, void *dev_id)
 static int bcma_gpio_irq_init(struct bcma_drv_cc *cc)
 {
 	struct gpio_chip *chip = &cc->gpio;
+	struct gpio_irq_chip *girq = &chip->irq;
 	int hwirq, err;
 
 	if (cc->core->bus->hosttype != BCMA_HOSTTYPE_SOC)
@@ -136,15 +137,13 @@ static int bcma_gpio_irq_init(struct bcma_drv_cc *cc)
 	bcma_chipco_gpio_intmask(cc, ~0, 0);
 	bcma_cc_set32(cc, BCMA_CC_IRQMASK, BCMA_CC_IRQ_GPIO);
 
-	err =  gpiochip_irqchip_add(chip,
-				    &bcma_gpio_irq_chip,
-				    0,
-				    handle_simple_irq,
-				    IRQ_TYPE_NONE);
-	if (err) {
-		free_irq(hwirq, cc);
-		return err;
-	}
+	girq->chip = &bcma_gpio_irq_chip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
 
 	return 0;
 }
@@ -183,7 +182,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->owner		= THIS_MODULE;
-	chip->parent		= bcma_bus_get_host_dev(bus);
+	chip->parent		= bus->dev;
 #if IS_BUILTIN(CONFIG_OF)
 	chip->of_node		= cc->core->dev.of_node;
 #endif
@@ -212,13 +211,13 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	else
 		chip->base		= -1;
 
-	err = gpiochip_add_data(chip, cc);
+	err = bcma_gpio_irq_init(cc);
 	if (err)
 		return err;
 
-	err = bcma_gpio_irq_init(cc);
+	err = gpiochip_add_data(chip, cc);
 	if (err) {
-		gpiochip_remove(chip);
+		bcma_gpio_irq_exit(cc);
 		return err;
 	}
 

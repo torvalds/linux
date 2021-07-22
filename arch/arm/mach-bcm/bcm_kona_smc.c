@@ -125,9 +125,7 @@ static int bcm_kona_do_smc(u32 service_id, u32 buffer_phys)
 		__asmeq("%2", "r4")
 		__asmeq("%3", "r5")
 		__asmeq("%4", "r6")
-#ifdef REQUIRES_SEC
 		".arch_extension sec\n"
-#endif
 		"	smc    #0\n"
 		: "=r" (ip), "=r" (r0)
 		: "r" (r4), "r" (r5), "r" (r6)
@@ -142,7 +140,7 @@ static int bcm_kona_do_smc(u32 service_id, u32 buffer_phys)
 static void __bcm_kona_smc(void *info)
 {
 	struct bcm_kona_smc_data *data = info;
-	u32 *args = bcm_smc_buffer;
+	u32 __iomem *args = bcm_smc_buffer;
 
 	BUG_ON(smp_processor_id() != 0);
 	BUG_ON(!args);

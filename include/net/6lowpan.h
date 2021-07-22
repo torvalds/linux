@@ -138,7 +138,7 @@ struct lowpan_dev {
 	struct lowpan_iphc_ctx_table ctx;
 
 	/* must be last */
-	u8 priv[0] __aligned(sizeof(void *));
+	u8 priv[] __aligned(sizeof(void *));
 };
 
 struct lowpan_802154_neigh {

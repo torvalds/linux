@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Freescale GPMI NAND Flash Driver
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
  * Copyright 2008 Embedded Alley Solutions, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #ifndef __GPMI_NAND_GPMI_REGS_H
 #define __GPMI_NAND_GPMI_REGS_H
@@ -120,6 +107,7 @@
 #define BV_GPMI_CTRL1_WRN_DLY_SEL_7_TO_12NS		0x2
 #define BV_GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY		0x3
 
+#define BM_GPMI_CTRL1_GANGED_RDYBUSY			(1 << 19)
 #define BM_GPMI_CTRL1_BCH_MODE				(1 << 18)
 
 #define BP_GPMI_CTRL1_DLL_ENABLE			17

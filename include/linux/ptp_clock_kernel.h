@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * PTP 1588 clock support
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _PTP_CLOCK_KERNEL_H_
@@ -24,7 +11,23 @@
 #include <linux/device.h>
 #include <linux/pps_kernel.h>
 #include <linux/ptp_clock.h>
+#include <linux/timecounter.h>
+#include <linux/skbuff.h>
 
+#define PTP_CLOCK_NAME_LEN	32
+/**
+ * struct ptp_clock_request - request PTP clock event
+ *
+ * @type:   The type of the request.
+ *	    EXTTS:  Configure external trigger timestamping
+ *	    PEROUT: Configure periodic output signal (e.g. PPS)
+ *	    PPS:    trigger internal PPS event for input
+ *	            into kernel PPS subsystem
+ * @extts:  describes configuration for external trigger timestamping.
+ *          This is only valid when event == PTP_CLK_REQ_EXTTS.
+ * @perout: describes configuration for periodic output.
+ *	    This is only valid when event == PTP_CLK_REQ_PEROUT.
+ */
 
 struct ptp_clock_request {
 	enum {
@@ -39,8 +42,17 @@ struct ptp_clock_request {
 };
 
 struct system_device_crosststamp;
+
 /**
- * struct ptp_clock_info - decribes a PTP hardware clock
+ * struct ptp_system_timestamp - system time corresponding to a PHC timestamp
+ */
+struct ptp_system_timestamp {
+	struct timespec64 pre_ts;
+	struct timespec64 post_ts;
+};
+
+/**
+ * struct ptp_clock_info - describes a PTP hardware clock
  *
  * @owner:     The clock driver should set to THIS_MODULE.
  * @name:      A short "friendly name" to identify the clock and to
@@ -69,11 +81,24 @@ struct system_device_crosststamp;
  *            parameter delta: Desired frequency offset from nominal frequency
  *            in parts per billion
  *
+ * @adjphase:  Adjusts the phase offset of the hardware clock.
+ *             parameter delta: Desired change in nanoseconds.
+ *
  * @adjtime:  Shifts the time of the hardware clock.
  *            parameter delta: Desired change in nanoseconds.
  *
  * @gettime64:  Reads the current time from the hardware clock.
+ *              This method is deprecated.  New drivers should implement
+ *              the @gettimex64 method instead.
  *              parameter ts: Holds the result.
+ *
+ * @gettimex64:  Reads the current time from the hardware clock and optionally
+ *               also the system clock.
+ *               parameter ts: Holds the PHC timestamp.
+ *               parameter sts: If not NULL, it holds a pair of timestamps from
+ *               the system clock. The first reading is made right before
+ *               reading the lowest bits of the PHC timestamp and the second
+ *               reading immediately follows that.
  *
  * @getcrosststamp:  Reads the current time from the hardware clock and
  *                   system clock simultaneously.
@@ -99,10 +124,10 @@ struct system_device_crosststamp;
  *            parameter func: the desired function to use.
  *            parameter chan: the function channel index to use.
  *
- * @do_work:  Request driver to perform auxiliary (periodic) operations
- *	      Driver should return delay of the next auxiliary work scheduling
- *	      time (>=0) or negative value in case further scheduling
- *	      is not required.
+ * @do_aux_work:  Request driver to perform auxiliary (periodic) operations
+ *                Driver should return delay of the next auxiliary work
+ *                scheduling time (>=0) or negative value in case further
+ *                scheduling is not required.
  *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().
@@ -112,7 +137,7 @@ struct system_device_crosststamp;
 
 struct ptp_clock_info {
 	struct module *owner;
-	char name[16];
+	char name[PTP_CLOCK_NAME_LEN];
 	s32 max_adj;
 	int n_alarm;
 	int n_ext_ts;
@@ -122,8 +147,11 @@ struct ptp_clock_info {
 	struct ptp_pin_desc *pin_config;
 	int (*adjfine)(struct ptp_clock_info *ptp, long scaled_ppm);
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
+	int (*adjphase)(struct ptp_clock_info *ptp, s32 phase);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*gettimex64)(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			  struct ptp_system_timestamp *sts);
 	int (*getcrosststamp)(struct ptp_clock_info *ptp,
 			      struct system_device_crosststamp *cts);
 	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
@@ -160,6 +188,32 @@ struct ptp_clock_event {
 		struct pps_event_time pps_times;
 	};
 };
+
+/**
+ * scaled_ppm_to_ppb() - convert scaled ppm to ppb
+ *
+ * @ppm:    Parts per million, but with a 16 bit binary fractional field
+ */
+static inline long scaled_ppm_to_ppb(long ppm)
+{
+	/*
+	 * The 'freq' field in the 'struct timex' is in parts per
+	 * million, but with a 16 bit binary fractional field.
+	 *
+	 * We want to calculate
+	 *
+	 *    ppb = scaled_ppm * 1000 / 2^16
+	 *
+	 * which simplifies to
+	 *
+	 *    ppb = scaled_ppm * 125 / 2^13
+	 */
+	s64 ppb = 1 + ppm;
+
+	ppb *= 125;
+	ppb >>= 13;
+	return (long)ppb;
+}
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
@@ -207,6 +261,12 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
 /**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
+ * The caller must hold ptp_clock::pincfg_mux.  Drivers do not have
+ * access to that mutex as ptp_clock is an opaque type.  However, the
+ * core code acquires the mutex before invoking the driver's
+ * ptp_clock_info::enable() callback, and so drivers may call this
+ * function from that context.
+ *
  * @ptp:    The clock obtained from ptp_clock_register().
  * @func:   One of the ptp_pin_function enumerated values.
  * @chan:   The particular functional channel to find.
@@ -218,6 +278,19 @@ int ptp_find_pin(struct ptp_clock *ptp,
 		 enum ptp_pin_function func, unsigned int chan);
 
 /**
+ * ptp_find_pin_unlocked() - wrapper for ptp_find_pin()
+ *
+ * This function acquires the ptp_clock::pincfg_mux mutex before
+ * invoking ptp_find_pin().  Instead of using this function, drivers
+ * should most likely call ptp_find_pin() directly from their
+ * ptp_clock_info::enable() method.
+ *
+ */
+
+int ptp_find_pin_unlocked(struct ptp_clock *ptp,
+			  enum ptp_pin_function func, unsigned int chan);
+
+/**
  * ptp_schedule_worker() - schedule ptp auxiliary work
  *
  * @ptp:    The clock obtained from ptp_clock_register().
@@ -226,6 +299,34 @@ int ptp_find_pin(struct ptp_clock *ptp,
  */
 
 int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay);
+
+/**
+ * ptp_cancel_worker_sync() - cancel ptp auxiliary clock
+ *
+ * @ptp:     The clock obtained from ptp_clock_register().
+ */
+void ptp_cancel_worker_sync(struct ptp_clock *ptp);
+
+/**
+ * ptp_get_vclocks_index() - get all vclocks index on pclock, and
+ *                           caller is responsible to free memory
+ *                           of vclock_index
+ *
+ * @pclock_index: phc index of ptp pclock.
+ * @vclock_index: pointer to pointer of vclock index.
+ *
+ * return number of vclocks.
+ */
+int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
+
+/**
+ * ptp_convert_timestamp() - convert timestamp to a ptp vclock time
+ *
+ * @hwtstamps:    skb_shared_hwtstamps structure pointer
+ * @vclock_index: phc index of ptp vclock.
+ */
+void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+			   int vclock_index);
 
 #else
 static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
@@ -244,7 +345,26 @@ static inline int ptp_find_pin(struct ptp_clock *ptp,
 static inline int ptp_schedule_worker(struct ptp_clock *ptp,
 				      unsigned long delay)
 { return -EOPNOTSUPP; }
+static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
+{ }
+static inline int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
+{ return 0; }
+static inline void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+					 int vclock_index)
+{ }
 
 #endif
+
+static inline void ptp_read_system_prets(struct ptp_system_timestamp *sts)
+{
+	if (sts)
+		ktime_get_real_ts64(&sts->pre_ts);
+}
+
+static inline void ptp_read_system_postts(struct ptp_system_timestamp *sts)
+{
+	if (sts)
+		ktime_get_real_ts64(&sts->post_ts);
+}
 
 #endif

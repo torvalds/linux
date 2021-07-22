@@ -7,6 +7,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "fsl-ls1012a.dtsi"
 
 / {
@@ -57,6 +58,26 @@
 	};
 };
 
+&dspi {
+	bus-num = <0>;
+	status = "okay";
+
+	serial@0 {
+		compatible = "nxp,sc16is740";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		clocks = <&sc16is7xx_clk>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		sc16is7xx_clk: clock-sc16is7xx {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+	};
+};
+
 &duart0 {
 	status = "okay";
 };
@@ -71,6 +92,21 @@
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_1p8v>;
 		clocks = <&sys_mclk>;
+	};
+};
+
+&qspi {
+	status = "okay";
+
+	s25fs512s0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
 	};
 };
 

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Kernel Probes Jump Optimization (Optprobes)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  * Copyright (C) Hitachi Ltd., 2012
@@ -98,21 +85,21 @@ asm (
 			"optprobe_template_end:\n");
 
 #define TMPL_VAL_IDX \
-	((unsigned long *)&optprobe_template_val - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_val - (unsigned long *)optprobe_template_entry)
 #define TMPL_CALL_IDX \
-	((unsigned long *)&optprobe_template_call - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_call - (unsigned long *)optprobe_template_entry)
 #define TMPL_END_IDX \
-	((unsigned long *)&optprobe_template_end - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_end - (unsigned long *)optprobe_template_entry)
 #define TMPL_ADD_SP \
-	((unsigned long *)&optprobe_template_add_sp - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_add_sp - (unsigned long *)optprobe_template_entry)
 #define TMPL_SUB_SP \
-	((unsigned long *)&optprobe_template_sub_sp - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_sub_sp - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_BEGIN \
-	((unsigned long *)&optprobe_template_restore_begin - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_begin - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_ORIGN_INSN \
-	((unsigned long *)&optprobe_template_restore_orig_insn - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_orig_insn - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_END \
-	((unsigned long *)&optprobe_template_restore_end - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_end - (unsigned long *)optprobe_template_entry)
 
 /*
  * ARM can always optimize an instruction when using ARM ISA, except
@@ -247,7 +234,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 	}
 
 	/* Copy arch-dep-instance from template. */
-	memcpy(code, &optprobe_template_entry,
+	memcpy(code, (unsigned long *)optprobe_template_entry,
 			TMPL_END_IDX * sizeof(kprobe_opcode_t));
 
 	/* Adjust buffer according to instruction. */

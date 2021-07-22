@@ -83,27 +83,6 @@ SUN RPC subsystem
 .. kernel-doc:: net/sunrpc/clnt.c
    :export:
 
-WiMAX
------
-
-.. kernel-doc:: net/wimax/op-msg.c
-   :export:
-
-.. kernel-doc:: net/wimax/op-reset.c
-   :export:
-
-.. kernel-doc:: net/wimax/op-rfkill.c
-   :export:
-
-.. kernel-doc:: net/wimax/stack.c
-   :export:
-
-.. kernel-doc:: include/net/wimax.h
-   :internal:
-
-.. kernel-doc:: include/uapi/linux/wimax.h
-   :internal:
-
 Network device support
 ======================
 
@@ -132,6 +111,15 @@ PHY Support
    :export:
 
 .. kernel-doc:: drivers/net/phy/phy.c
+   :internal:
+
+.. kernel-doc:: drivers/net/phy/phy-core.c
+   :export:
+
+.. kernel-doc:: drivers/net/phy/phy-c45.c
+   :export:
+
+.. kernel-doc:: include/linux/phy.h
    :internal:
 
 .. kernel-doc:: drivers/net/phy/phy_device.c

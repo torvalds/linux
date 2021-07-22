@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/copy_to_user.S
  *
  *  Author:	Nicolas Pitre
  *  Created:	Sep 29, 2005
  *  Copyright:	MontaVista Software, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -35,11 +32,6 @@
  */
 
 #define LDR1W_SHIFT	0
-#ifndef CONFIG_THUMB2_KERNEL
-#define STR1W_SHIFT	0
-#else
-#define STR1W_SHIFT	1
-#endif
 
 	.macro ldr1w ptr reg abort
 	W(ldr) \reg, [\ptr], #4
@@ -54,8 +46,16 @@
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
-	ldr\cond\()b \reg, [\ptr], #1
+	ldrb\cond \reg, [\ptr], #1
 	.endm
+
+#ifdef CONFIG_CPU_USE_DOMAINS
+
+#ifndef CONFIG_THUMB2_KERNEL
+#define STR1W_SHIFT	0
+#else
+#define STR1W_SHIFT	1
+#endif
 
 	.macro str1w ptr reg abort
 	strusr	\reg, \ptr, 4, abort=\abort
@@ -71,6 +71,20 @@
 	str1w \ptr, \reg7, \abort
 	str1w \ptr, \reg8, \abort
 	.endm
+
+#else
+
+#define STR1W_SHIFT	0
+
+	.macro str1w ptr reg abort
+	USERL(\abort, W(str) \reg, [\ptr], #4)
+	.endm
+
+	.macro str8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
+	USERL(\abort, stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8})
+	.endm
+
+#endif /* CONFIG_CPU_USE_DOMAINS */
 
 	.macro str1b ptr reg cond=al abort
 	strusr	\reg, \ptr, 1, \cond, abort=\abort

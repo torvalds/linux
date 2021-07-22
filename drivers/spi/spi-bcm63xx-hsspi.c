@@ -20,6 +20,8 @@
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/reset.h>
+#include <linux/pm_runtime.h>
 
 #define HSSPI_GLOBAL_CTRL_REG			0x0
 #define GLOBAL_CTRL_CS_POLARITY_SHIFT		0
@@ -291,8 +293,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 
 		msg->actual_length += t->len;
 
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+		spi_transfer_delay_exec(t);
 
 		if (t->cs_change)
 			bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
@@ -330,21 +331,18 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct bcm63xx_hsspi *bs;
-	struct resource *res_mem;
 	void __iomem *regs;
 	struct device *dev = &pdev->dev;
 	struct clk *clk, *pll_clk = NULL;
 	int irq, ret;
 	u32 reg, rate, num_cs = HSSPI_SPI_MAX_CS;
+	struct reset_control *reset;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no irq: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res_mem);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -353,9 +351,19 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
+	reset = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
 	ret = clk_prepare_enable(clk);
 	if (ret)
 		return ret;
+
+	ret = reset_control_reset(reset);
+	if (ret) {
+		dev_err(dev, "unable to reset device: %d\n", ret);
+		goto out_disable_clk;
+	}
 
 	rate = clk_get_rate(clk);
 	if (!rate) {
@@ -371,7 +379,6 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 			goto out_disable_clk;
 
 		rate = clk_get_rate(pll_clk);
-		clk_disable_unprepare(pll_clk);
 		if (!rate) {
 			ret = -EINVAL;
 			goto out_disable_pll_clk;
@@ -433,13 +440,17 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_put_master;
 
+	pm_runtime_enable(&pdev->dev);
+
 	/* register and we are done */
 	ret = devm_spi_register_master(dev, master);
 	if (ret)
-		goto out_put_master;
+		goto out_pm_disable;
 
 	return 0;
 
+out_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 out_put_master:
 	spi_master_put(master);
 out_disable_pll_clk:
@@ -488,8 +499,10 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 
 	if (bs->pll_clk) {
 		ret = clk_prepare_enable(bs->pll_clk);
-		if (ret)
+		if (ret) {
+			clk_disable_unprepare(bs->clk);
 			return ret;
+		}
 	}
 
 	spi_master_resume(master);

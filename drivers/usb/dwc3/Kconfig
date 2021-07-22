@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config USB_DWC3
 	tristate "DesignWare USB3 DRD Core Support"
 	depends on (USB || USB_GADGET) && HAS_DMA
 	select USB_XHCI_PLATFORM if USB_XHCI_HCD
+	select USB_ROLE_SWITCH if USB_DWC3_DUAL_ROLE
 	help
 	  Say Y or M here if your system has a Dual Role SuperSpeed
 	  USB controller based on the DesignWare USB3 IP Core.
@@ -52,7 +55,8 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	depends on OF
 	default USB_DWC3
 	help
@@ -86,21 +90,32 @@ config USB_DWC3_HAPS
 	  platform, please say 'Y' or 'M' here.
 
 config USB_DWC3_KEYSTONE
-	tristate "Texas Instruments Keystone2 Platforms"
-	depends on ARCH_KEYSTONE || COMPILE_TEST
+	tristate "Texas Instruments Keystone2/AM654 Platforms"
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	default USB_DWC3
 	help
-	  Support of USB2/3 functionality in TI Keystone2 platforms.
+	  Support of USB2/3 functionality in TI Keystone2 and AM654 platforms.
 	  Say 'Y' or 'M' here if you have one such device
 
+config USB_DWC3_MESON_G12A
+	tristate "Amlogic Meson G12A Platforms"
+	depends on OF && COMMON_CLK
+	depends on ARCH_MESON || COMPILE_TEST
+	default USB_DWC3
+	select USB_ROLE_SWITCH
+	select REGMAP_MMIO
+	help
+	  Support USB2/3 functionality in Amlogic G12A platforms.
+	  Say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_OF_SIMPLE
-       tristate "Generic OF Simple Glue Layer"
-       depends on OF && COMMON_CLK
-       default USB_DWC3
-       help
-         Support USB2/3 functionality in simple SoC integrations.
-	 Currently supports Xilinx and Qualcomm DWC USB3 IP.
-	 Say 'Y' or 'M' if you have one such device.
+	tristate "Generic OF Simple Glue Layer"
+	depends on OF && COMMON_CLK
+	default USB_DWC3
+	help
+	  Support USB2/3 functionality in simple SoC integrations.
+	  Currently supports Xilinx and Qualcomm DWC USB3 IP.
+	  Say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
@@ -113,14 +128,34 @@ config USB_DWC3_ST
 
 config USB_DWC3_QCOM
 	tristate "Qualcomm Platform"
-	depends on EXTCON && (ARCH_QCOM || COMPILE_TEST)
-	depends on OF
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on EXTCON || !EXTCON
+	depends on (OF || ACPI)
 	default USB_DWC3
 	help
 	  Some Qualcomm SoCs use DesignWare Core IP for USB2/3
 	  functionality.
 	  This driver also handles Qscratch wrapper which is needed
 	  for peripheral mode support.
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_IMX8MP
+	tristate "NXP iMX8MP Platform"
+	depends on OF && COMMON_CLK
+	depends on (ARCH_MXC && ARM64) || COMPILE_TEST
+	default USB_DWC3
+	help
+	  NXP iMX8M Plus SoC use DesignWare Core IP for USB2/3
+	  functionality.
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_XILINX
+	tristate "Xilinx Platforms"
+	depends on (ARCH_ZYNQMP || ARCH_VERSAL) && OF
+	default USB_DWC3
+	help
+	  Support Xilinx SoCs with DesignWare Core USB3 IP.
+	  This driver handles both ZynqMP and Versal SoC operations.
 	  Say 'Y' or 'M' if you have one such device.
 
 endif

@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for Kamstrup OMNIA Flex Concentrator.
+ *
+ * Copyright (C) 2020 Kamstrup A/S
+ * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "imx7d-tqma7.dtsi"
+
+/* One I2C device on TQMa7 SoM is not mounted */
+/delete-node/ &ds1339;
+
+/ {
+	model = "Kamstrup OMNIA Flex Concentrator";
+	compatible = "kam,imx7d-flex-concentrator", "fsl,imx7d";
+
+	memory@80000000 {
+		device_type = "memory";
+		/* 1024 MB - TQMa7D board configuration */
+		reg = <0x80000000 0x40000000>;
+	};
+
+	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "VBUS_USBOTG2";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_vref_1v8: regulator-vref-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC1V8_REF";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		vin-supply = <&sw2_reg>;
+	};
+
+	/*
+	 * Human Machine Interface consists of 4 dual red/green LEDs.
+	 * hmi-a:green is controlled directly by the switch-mode power supply.
+	 * hmi-a:red is not used.
+	 */
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds>;
+
+		led-0 {
+			label = "hmi-b:red:heartbeat-degraded";
+			gpios = <&gpio3 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-1 {
+			label = "hmi-b:green:heartbeat-running";
+			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led-2 {
+			label = "hmi-c:red:mesh-error";
+			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-3 {
+			label = "hmi-c:green:mesh-activity";
+			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-4 {
+			label = "hmi-d:red:omnia-error";
+			gpios = <&gpio2 31 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-5 {
+			label = "hmi-d:green:omnia-activity";
+			gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	/*
+	 * Errata e10574 board restart workaround.
+	 */
+	gpio-restart {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_restart>;
+		compatible = "gpio-restart";
+		gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+};
+
+/*
+ * Analog signals
+ * ADC1_IN0: SMPS - 5V output monitor (voltage divider: 1/0.2806)
+ */
+&adc1 {
+	vref-supply = <&reg_vref_1v8>;
+	status = "okay";
+};
+
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	num-chipselects = <1>;
+	cs-gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	pcf2127: rtc@0 {
+		compatible = "nxp,pcf2127";
+		reg = <0>;
+		spi-max-frequency = <2000000>;
+		reset-source;
+	};
+};
+
+&ecspi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi4>;
+	num-chipselects = <1>;
+	cs-gpios = <&gpio3 3 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	/*
+	 * ST chip maximum SPI clock frequency is 33 MHz.
+	 *
+	 * TCG specification - Section 6.4.1 Clocking:
+	 * TPM shall support a SPI clock frequency range of 10-24 MHz.
+	 */
+	st33htph: tpm-tis@0 {
+		compatible = "st,st33htpm-spi", "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+	};
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy>;
+	status = "okay";
+
+	/*
+	 * MDIO bus reset is used to generate PHY device reset before
+	 * Ethernet PHY type ID auto-detection. Otherwise this communication
+	 * fails as device does not answer when recommended reset circuit
+	 * is used.
+	 */
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-delay-us = <100000>;
+		reset-post-delay-us = <500000>;
+		reset-gpios = <&gpio7 15 GPIO_ACTIVE_LOW>;
+
+		/* Microchip/Micrel KSZ8081RNB */
+		ethphy: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			interrupt-parent = <&gpio1>;
+			interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+			reg = <1>;
+		};
+	};
+};
+
+/*
+ * Detection signals for internal USB modules.
+ * Used for robust USB plug and play handling such as USB downstream port
+ * power-cycle and USB hub reset in case of misbehaving or crashed modules.
+ *
+ * SMPS - AC input monitor based on zero crossing.
+ * Used for last gasp notification.
+ */
+&gpio3 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+	"", "", "", "", "smps-ac-monitor", "", "usb-hub-reset", "",
+	"", "", "", "", "", "", "", "",
+	"", "module-b-detection", "", "module-a-detection", "", "", "", "";
+};
+
+/*
+ * Tamper IRQ trigger timestamp reading.
+ * Used for sealed cover opened/closed notification.
+ */
+&gpio5 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+	"", "", "", "", "rtc-tamper-irq", "", "", "",
+	"", "", "", "", "", "", "", "",
+	"", "", "", "", "", "", "", "";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_misc>;
+
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX7D_PAD_ECSPI2_MISO__ECSPI2_MISO		0x7c /* X2-15 */
+			MX7D_PAD_ECSPI2_MOSI__ECSPI2_MOSI		0x74 /* X2-18 */
+			MX7D_PAD_ECSPI2_SCLK__ECSPI2_SCLK		0x74 /* X2-13 */
+			MX7D_PAD_ECSPI2_SS0__GPIO4_IO23			0x74 /* X2-20 */
+			/* RTC - Tamper IRQ */
+			MX7D_PAD_SD2_CLK__GPIO5_IO12			0x3c /* X1-92 */
+		>;
+	};
+
+	pinctrl_ecspi4: ecspi4grp {
+		fsl,pins = <
+			MX7D_PAD_LCD_CLK__ECSPI4_MISO			0x7c /* X2-72 */
+			MX7D_PAD_LCD_ENABLE__ECSPI4_MOSI		0x74 /* X2-68 */
+			MX7D_PAD_LCD_HSYNC__ECSPI4_SCLK			0x74 /* X2-76 */
+			MX7D_PAD_LCD_VSYNC__GPIO3_IO3			0x74 /* X2-78 */
+		>;
+	};
+
+	pinctrl_enet1: enet1grp {
+		fsl,pins = <
+			MX7D_PAD_GPIO1_IO10__ENET1_MDIO			0x03 /* X2-48 */
+			MX7D_PAD_GPIO1_IO11__ENET1_MDC			0x03 /* X2-46 */
+			MX7D_PAD_ENET1_RGMII_TD0__ENET1_RGMII_TD0	0x71 /* X2-53 */
+			MX7D_PAD_ENET1_RGMII_TD1__ENET1_RGMII_TD1	0x71 /* X2-55 */
+			MX7D_PAD_ENET1_RGMII_TX_CTL__ENET1_RGMII_TX_CTL	0x71 /* X2-61 */
+			MX7D_PAD_ENET1_RGMII_RD0__ENET1_RGMII_RD0	0x79 /* X2-56 */
+			MX7D_PAD_ENET1_RGMII_RD1__ENET1_RGMII_RD1	0x79 /* X2-58 */
+			MX7D_PAD_ENET1_RGMII_RX_CTL__ENET1_RGMII_RX_CTL	0x79 /* X2-64 */
+			MX7D_PAD_ENET1_RGMII_RXC__ENET1_RX_ER		0x73 /* X2-52 */
+			/* PHY reset: SRE_FAST, DSE_X1 */
+			MX7D_PAD_ENET1_COL__GPIO7_IO15			0x00 /* X1-96 */
+			/* Clock from PHY to MAC: 100kPU */
+			MX7D_PAD_GPIO1_IO12__CCM_ENET_REF_CLK1		0x70 /* X3-4 */
+			/* PHY interrupt: 100kPU, HYS */
+			MX7D_PAD_GPIO1_IO09__GPIO1_IO9			0x78 /* X1-80 */
+		>;
+	};
+
+	pinctrl_leds: ledsgrp {
+		fsl,pins = <
+			MX7D_PAD_LCD_DATA01__GPIO3_IO6			0x14 /* X2-82 */
+			MX7D_PAD_EPDC_BDR0__GPIO2_IO28			0x14 /* X1-82 */
+			MX7D_PAD_EPDC_BDR1__GPIO2_IO29			0x14 /* X1-84 */
+			MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30		0x14 /* X1-86 */
+			MX7D_PAD_EPDC_PWR_STAT__GPIO2_IO31		0x14 /* X1-88 */
+			MX7D_PAD_UART2_TX_DATA__GPIO4_IO3		0x14 /* X1-90 */
+		>;
+	};
+
+	pinctrl_misc: miscgrp {
+		fsl,pins = <
+			/* Module A detection (low = present) */
+			MX7D_PAD_LCD_DATA22__GPIO3_IO27			0x7c /* X2-105 */
+			/* Module B detection (low = present) */
+			MX7D_PAD_LCD_DATA20__GPIO3_IO25			0x7c /* X2-103 */
+			/* SMPS - AC input monitor (high = failure) */
+			MX7D_PAD_LCD_DATA07__GPIO3_IO12			0x7c /* X2-88 */
+			/* USB - Hub reset */
+			MX7D_PAD_LCD_DATA09__GPIO3_IO14			0x74 /* X2-92 */
+		>;
+	};
+
+	pinctrl_restart: restartgrp {
+		fsl,pins = <
+			MX7D_PAD_ENET1_TX_CLK__GPIO7_IO12	0x74 /* X1-94 */
+		>;
+	};
+
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX7D_PAD_SAI2_TX_SYNC__UART4_DCE_RX	0x7e /* X3-14 */
+			MX7D_PAD_SAI2_TX_BCLK__UART4_DCE_TX	0x76 /* X3-16 */
+		>;
+	};
+};
+
+&iomuxc_lpsr {
+	pinctrl_usbotg2: usbotg2grp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO06__USB_OTG2_OC	0x5c /* X3-11 */
+			MX7D_PAD_LPSR_GPIO1_IO07__GPIO1_IO7	0x59 /* X3-9 */
+		>;
+	};
+
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	assigned-clocks = <&clks IMX7D_UART4_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_OSC_24M_CLK>;
+};
+
+&usbotg2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg2>;
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	srp-disable;
+	hnp-disable;
+	adp-disable;
+	over-current-active-low;
+	dr_mode = "host";
+	status = "okay";
+};
+
+/*
+ * External watchdog feature provided by pcf2127.
+ */
+&wdog1 {
+	status = "disabled";
+};

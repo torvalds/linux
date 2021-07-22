@@ -69,7 +69,7 @@ struct vmw_cmdbuf_res_manager {
  * vmw_cmdbuf_res_lookup - Look up a command buffer resource
  *
  * @man: Pointer to the command buffer resource manager
- * @resource_type: The resource type, that combined with the user key
+ * @res_type: The resource type, that combined with the user key
  * identifies the resource.
  * @user_key: The user key.
  *
@@ -148,7 +148,6 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 /**
  * vmw_cmdbuf_res_revert - Revert a list of command buffer resource actions
  *
- * @man: Pointer to the command buffer resource manager
  * @list: Caller's list of command buffer resource action
  *
  * This function reverts a list of command buffer resource
@@ -160,7 +159,6 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 void vmw_cmdbuf_res_revert(struct list_head *list)
 {
 	struct vmw_cmdbuf_res *entry, *next;
-	int ret;
 
 	list_for_each_entry_safe(entry, next, list, head) {
 		switch (entry->state) {
@@ -168,8 +166,7 @@ void vmw_cmdbuf_res_revert(struct list_head *list)
 			vmw_cmdbuf_res_free(entry->man, entry);
 			break;
 		case VMW_CMDBUF_RES_DEL:
-			ret = drm_ht_insert_item(&entry->man->resources,
-						 &entry->hash);
+			drm_ht_insert_item(&entry->man->resources, &entry->hash);
 			list_del(&entry->head);
 			list_add_tail(&entry->head, &entry->man->list);
 			entry->state = VMW_CMDBUF_RES_COMMITTED;
@@ -209,8 +206,10 @@ int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
 
 	cres->hash.key = user_key | (res_type << 24);
 	ret = drm_ht_insert_item(&man->resources, &cres->hash);
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		kfree(cres);
 		goto out_invalid_key;
+	}
 
 	cres->state = VMW_CMDBUF_RES_ADD;
 	cres->res = vmw_resource_reference(res);
@@ -325,7 +324,6 @@ void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man)
 }
 
 /**
- *
  * vmw_cmdbuf_res_man_size - Return the size of a command buffer managed
  * resource manager
  *

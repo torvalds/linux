@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cb710/sgbuf2.c
  *
  *  Copyright by Michał Mirosław, 2008-2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -120,6 +117,7 @@ static void sg_dwiter_write_slow(struct sg_mapping_iter *miter, uint32_t data)
 /**
  * cb710_sg_dwiter_write_next_block() - write next 32-bit word to sg buffer
  * @miter: sg mapping iterator used for writing
+ * @data: data to write to sg buffer
  *
  * Description:
  *   Writes 32-bit word starting at byte pointed to by @miter@

@@ -1,25 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Kernel page table mapping
  *
  * Copyright (C) 2015 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ASM_KERNEL_PGTABLE_H
 #define __ASM_KERNEL_PGTABLE_H
 
-#include <asm/pgtable.h>
+#include <asm/pgtable-hwdef.h>
 #include <asm/sparsemem.h>
 
 /*
@@ -29,9 +18,9 @@
  * 64K (section size = 512M).
  */
 #ifdef CONFIG_ARM64_4K_PAGES
-#define ARM64_SWAPPER_USES_SECTION_MAPS 1
+#define ARM64_KERNEL_USES_PMD_MAPS 1
 #else
-#define ARM64_SWAPPER_USES_SECTION_MAPS 0
+#define ARM64_KERNEL_USES_PMD_MAPS 0
 #endif
 
 /*
@@ -44,7 +33,7 @@
  * VA range, so pages required to map highest possible PA are reserved in all
  * cases.
  */
-#if ARM64_SWAPPER_USES_SECTION_MAPS
+#if ARM64_KERNEL_USES_PMD_MAPS
 #define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS - 1)
 #define IDMAP_PGTABLE_LEVELS	(ARM64_HW_PGTABLE_LEVELS(PHYS_MASK_SHIFT) - 1)
 #else
@@ -97,19 +86,13 @@
 			+ EARLY_PGDS((vstart), (vend)) 	/* each PGDIR needs a next level page table */	\
 			+ EARLY_PUDS((vstart), (vend))	/* each PUD needs a next level page table */	\
 			+ EARLY_PMDS((vstart), (vend)))	/* each PMD needs a next level page table */
-#define INIT_DIR_SIZE (PAGE_SIZE * EARLY_PAGES(KIMAGE_VADDR + TEXT_OFFSET, _end))
+#define INIT_DIR_SIZE (PAGE_SIZE * EARLY_PAGES(KIMAGE_VADDR, _end))
 #define IDMAP_DIR_SIZE		(IDMAP_PGTABLE_LEVELS * PAGE_SIZE)
 
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-#define RESERVED_TTBR0_SIZE	(PAGE_SIZE)
-#else
-#define RESERVED_TTBR0_SIZE	(0)
-#endif
-
 /* Initial memory map size */
-#if ARM64_SWAPPER_USES_SECTION_MAPS
-#define SWAPPER_BLOCK_SHIFT	SECTION_SHIFT
-#define SWAPPER_BLOCK_SIZE	SECTION_SIZE
+#if ARM64_KERNEL_USES_PMD_MAPS
+#define SWAPPER_BLOCK_SHIFT	PMD_SHIFT
+#define SWAPPER_BLOCK_SIZE	PMD_SIZE
 #define SWAPPER_TABLE_SHIFT	PUD_SHIFT
 #else
 #define SWAPPER_BLOCK_SHIFT	PAGE_SHIFT
@@ -117,16 +100,13 @@
 #define SWAPPER_TABLE_SHIFT	PMD_SHIFT
 #endif
 
-/* The size of the initial kernel direct mapping */
-#define SWAPPER_INIT_MAP_SIZE	(_AC(1, UL) << SWAPPER_TABLE_SHIFT)
-
 /*
  * Initial memory map attributes.
  */
 #define SWAPPER_PTE_FLAGS	(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED)
 #define SWAPPER_PMD_FLAGS	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S)
 
-#if ARM64_SWAPPER_USES_SECTION_MAPS
+#if ARM64_KERNEL_USES_PMD_MAPS
 #define SWAPPER_MM_MMUFLAGS	(PMD_ATTRINDX(MT_NORMAL) | SWAPPER_PMD_FLAGS)
 #else
 #define SWAPPER_MM_MMUFLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS)
@@ -142,7 +122,7 @@
 #if defined(CONFIG_ARM64_4K_PAGES)
 #define ARM64_MEMSTART_SHIFT		PUD_SHIFT
 #elif defined(CONFIG_ARM64_16K_PAGES)
-#define ARM64_MEMSTART_SHIFT		(PMD_SHIFT + 5)
+#define ARM64_MEMSTART_SHIFT		CONT_PMD_SHIFT
 #else
 #define ARM64_MEMSTART_SHIFT		PMD_SHIFT
 #endif
@@ -153,7 +133,7 @@
  * has a direct correspondence, and needs to appear sufficiently aligned
  * in the virtual address space.
  */
-#if defined(CONFIG_SPARSEMEM_VMEMMAP) && ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
+#if ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
 #define ARM64_MEMSTART_ALIGN	(1UL << SECTION_SIZE_BITS)
 #else
 #define ARM64_MEMSTART_ALIGN	(1UL << ARM64_MEMSTART_SHIFT)

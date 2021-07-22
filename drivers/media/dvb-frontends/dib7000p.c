@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux-DVB Driver for DiBcom's second generation DiB7000P (PC).
  *
  * Copyright (C) 2005-7 DiBcom (http://www.dibcom.fr/)
- *
- * This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -94,7 +91,7 @@ enum dib7000p_power_mode {
 	DIB7000P_POWER_INTERFACE_ONLY,
 };
 
-/* dib7090 specific fonctions */
+/* dib7090 specific functions */
 static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode);
 static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff);
 static void dib7090_setDibTxMux(struct dib7000p_state *state, int mode);
@@ -279,7 +276,7 @@ static int dib7000p_set_power_mode(struct dib7000p_state *state, enum dib7000p_p
 		if (state->version != SOC7090)
 			reg_1280 &= ~((1 << 11));
 		reg_1280 &= ~(1 << 6);
-		/* fall-through */
+		fallthrough;
 	case DIB7000P_POWER_INTERFACE_ONLY:
 		/* just leave power on the control-interfaces: GPIO and (I2C or SDIO) */
 		/* TODO power up either SDIO or I2C */
@@ -319,7 +316,7 @@ static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_ad
 
 			dib7000p_write_word(state, 1925, reg | (1 << 4) | (1 << 2));	/* en_slowAdc = 1 & reset_sladc = 1 */
 
-			reg = dib7000p_read_word(state, 1925);	/* read acces to make it works... strange ... */
+			reg = dib7000p_read_word(state, 1925);	/* read access to make it works... strange ... */
 			msleep(200);
 			dib7000p_write_word(state, 1925, reg & ~(1 << 4));	/* en_slowAdc = 1 & reset_sladc = 0 */
 
@@ -918,7 +915,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 
 		dib7000p_restart_agc(state);
 
-		dprintk("SPLIT %p: %hd\n", demod, agc_split);
+		dprintk("SPLIT %p: %u\n", demod, agc_split);
 
 		(*agc_state)++;
 		ret = 5;
@@ -1101,7 +1098,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state,
 	else
 		state->div_sync_wait = (value * 3) / 2 + state->cfg.diversity_delay;
 
-	/* deactive the possibility of diversity reception if extended interleaver */
+	/* deactivate the possibility of diversity reception if extended interleaver */
 	state->div_force_off = !1 && ch->transmission_mode != TRANSMISSION_MODE_8K;
 	dib7000p_set_diversity_in(&state->demod, state->div_state);
 
@@ -1871,9 +1868,12 @@ static u32 dib7000p_get_time_us(struct dvb_frontend *demod)
 		break;
 	}
 
-	interleaving = interleaving;
-
 	denom = bits_per_symbol * rate_num * fft_div * 384;
+
+	/*
+	 * FIXME: check if the math makes sense. If so, fill the
+	 * interleaving var.
+	 */
 
 	/* If calculus gets wrong, wait for 1s for the next stats */
 	if (!denom)
@@ -2036,7 +2036,8 @@ static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 	if (i2c_transfer(i2c_adap, msg, 2) == 2)
 		if (rx[0] == 0x01 && rx[1] == 0xb3) {
 			dprintk("-D-  DiB7000PC detected\n");
-			return 1;
+			ret = 1;
+			goto out;
 		}
 
 	msg[0].addr = msg[1].addr = 0x40;
@@ -2044,11 +2045,13 @@ static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 	if (i2c_transfer(i2c_adap, msg, 2) == 2)
 		if (rx[0] == 0x01 && rx[1] == 0xb3) {
 			dprintk("-D-  DiB7000PC detected\n");
-			return 1;
+			ret = 1;
+			goto out;
 		}
 
 	dprintk("-D-  DiB7000PC not detected\n");
 
+out:
 	kfree(rx);
 rx_memory_error:
 	kfree(tx);
@@ -2375,7 +2378,7 @@ static int dib7090_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msg[]
 		}
 	}
 
-	if (apb_address != 0)	/* R/W acces via APB */
+	if (apb_address != 0)	/* R/W access via APB */
 		return dib7090p_rw_on_apb(i2c_adap, msg, num, apb_address);
 	else			/* R/W access via SERPAR  */
 		return w7090p_tuner_rw_serpar(i2c_adap, msg, num);
@@ -2771,7 +2774,8 @@ static struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_a
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000P, st->i2c_adap, st->i2c_addr);
 
 	/* init 7090 tuner adapter */
-	strncpy(st->dib7090_tuner_adap.name, "DiB7090 tuner interface", sizeof(st->dib7090_tuner_adap.name));
+	strscpy(st->dib7090_tuner_adap.name, "DiB7090 tuner interface",
+		sizeof(st->dib7090_tuner_adap.name));
 	st->dib7090_tuner_adap.algo = &dib7090_tuner_xfer_algo;
 	st->dib7090_tuner_adap.algo_data = NULL;
 	st->dib7090_tuner_adap.dev.parent = st->i2c_adap->dev.parent;

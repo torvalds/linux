@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Gallant SC-6000 soundcard. This card is also known as
  *  Audio Excel DSP 16 or Zoltrix AV302.
@@ -9,20 +10,6 @@
  *
  *  I don't have documentation for this card. I used the driver
  *  for OSS/Free included in the kernel source as reference.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/module.h>
@@ -42,9 +29,6 @@
 MODULE_AUTHOR("Krzysztof Helt");
 MODULE_DESCRIPTION("Gallant SC-6000");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gallant, SC-6000},"
-			"{AudioExcel, Audio Excel DSP 16},"
-			"{Zoltrix, AV302}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -547,8 +531,8 @@ static int snd_sc6000_match(struct device *devptr, unsigned int dev)
 
 static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 {
-	static int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
-	static int possible_dmas[] = { 1, 3, 0, -1 };
+	static const int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
+	static const int possible_dmas[] = { 1, 3, 0, -1 };
 	int err;
 	int xirq = irq[dev];
 	int xdma = dma[dev];
@@ -685,7 +669,7 @@ err_exit:
 	return err;
 }
 
-static int snd_sc6000_remove(struct device *devptr, unsigned int dev)
+static void snd_sc6000_remove(struct device *devptr, unsigned int dev)
 {
 	struct snd_card *card = dev_get_drvdata(devptr);
 	char __iomem **vport = card->private_data;
@@ -697,7 +681,6 @@ static int snd_sc6000_remove(struct device *devptr, unsigned int dev)
 	release_region(mss_port[dev], 4);
 
 	snd_card_free(card);
-	return 0;
 }
 
 static struct isa_driver snd_sc6000_driver = {

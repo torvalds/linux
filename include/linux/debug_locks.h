@@ -2,9 +2,9 @@
 #ifndef __LINUX_DEBUG_LOCKING_H
 #define __LINUX_DEBUG_LOCKING_H
 
-#include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/bug.h>
+#include <linux/printk.h>
 
 struct task_struct;
 
@@ -12,7 +12,7 @@ extern int debug_locks __read_mostly;
 extern int debug_locks_silent __read_mostly;
 
 
-static inline int __debug_locks_off(void)
+static __always_inline int __debug_locks_off(void)
 {
 	return xchg(&debug_locks, 0);
 }
@@ -27,8 +27,10 @@ extern int debug_locks_off(void);
 	int __ret = 0;							\
 									\
 	if (!oops_in_progress && unlikely(c)) {				\
+		instrumentation_begin();				\
 		if (debug_locks_off() && !debug_locks_silent)		\
 			WARN(1, "DEBUG_LOCKS_WARN_ON(%s)", #c);		\
+		instrumentation_end();					\
 		__ret = 1;						\
 	}								\
 	__ret;								\

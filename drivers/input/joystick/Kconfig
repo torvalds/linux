@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Joystick driver configuration
 #
 menuconfig INPUT_JOYSTICK
 	bool "Joysticks/Gamepads"
+	depends on !UML
 	help
 	  If you have a joystick, 6dof controller, gamepad, steering wheel,
 	  weapon control system or something like that you can say Y here
@@ -17,7 +19,7 @@ if INPUT_JOYSTICK
 config JOYSTICK_ANALOG
 	tristate "Classic PC analog joysticks and gamepads"
 	select GAMEPORT
-	---help---
+	help
 	  Say Y here if you have a joystick that connects to the PC
 	  gameport. In addition to the usual PC analog joystick, this driver
 	  supports many extensions, including joysticks with throttle control,
@@ -41,9 +43,20 @@ config JOYSTICK_A3D
 	  To compile this driver as a module, choose M here: the
 	  module will be called a3d.
 
+config JOYSTICK_ADC
+	tristate "Simple joystick connected over ADC"
+	depends on IIO
+	select IIO_BUFFER_CB
+	help
+	  Say Y here if you have a simple joystick connected over ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adc-joystick.
+
 config JOYSTICK_ADI
 	tristate "Logitech ADI digital joysticks and gamepads"
 	select GAMEPORT
+	depends on ADI!=m # avoid module name conflict
 	help
 	  Say Y here if you have a Logitech controller using the ADI
 	  protocol over the PC gameport.
@@ -223,7 +236,7 @@ config JOYSTICK_GAMECON
 	tristate "Multisystem, NES, SNES, N64, PSX joysticks and gamepads"
 	depends on PARPORT
 	select INPUT_FF_MEMLESS
-	---help---
+	help
 	  Say Y here if you have a Nintendo Entertainment System gamepad,
 	  Super Nintendo Entertainment System gamepad, Nintendo 64 gamepad,
 	  Sony PlayStation gamepad or a Multisystem -- Atari, Amiga,
@@ -296,13 +309,13 @@ config JOYSTICK_XPAD_FF
 	bool "X-Box gamepad rumble support"
 	depends on JOYSTICK_XPAD && INPUT
 	select INPUT_FF_MEMLESS
-	---help---
+	help
 	  Say Y here if you want to take advantage of xbox 360 rumble features.
 
 config JOYSTICK_XPAD_LEDS
 	bool "LED Support for Xbox360 controller 'BigX' LED"
 	depends on JOYSTICK_XPAD && (LEDS_CLASS=y || LEDS_CLASS=JOYSTICK_XPAD)
-	---help---
+	help
 	  This option enables support for the LED which surrounds the Big X on
 	  XBox 360 controller.
 
@@ -333,7 +346,6 @@ config JOYSTICK_MAPLE
 config JOYSTICK_PSXPAD_SPI
 	tristate "PlayStation 1/2 joypads via SPI interface"
 	depends on SPI
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you wish to connect PlayStation 1/2 joypads
 	  via SPI interface.
@@ -360,5 +372,31 @@ config JOYSTICK_PXRC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxrc.
+
+config JOYSTICK_QWIIC
+	tristate "SparkFun Qwiic Joystick"
+	depends on I2C
+	help
+	  Say Y here if you want to use the SparkFun Qwiic Joystick.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qwiic-joystick.
+
+config JOYSTICK_FSIA6B
+	tristate "FlySky FS-iA6B RC Receiver"
+	select SERIO
+	help
+	  Say Y here if you use a FlySky FS-i6 RC remote control along with the
+	  FS-iA6B RC receiver as a joystick input device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fsia6b.
+
+config JOYSTICK_N64
+	bool "N64 controller"
+	depends on MACH_NINTENDO64
+	help
+	  Say Y here if you want enable support for the four
+	  built-in controller ports on the Nintendo 64 console.
 
 endif

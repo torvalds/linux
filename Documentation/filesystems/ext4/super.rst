@@ -58,7 +58,7 @@ The ext4 superblock is laid out as follows in
    * - 0x1C
      - \_\_le32
      - s\_log\_cluster\_size
-     - Cluster size is (2 ^ s\_log\_cluster\_size) blocks if bigalloc is
+     - Cluster size is 2 ^ (10 + s\_log\_cluster\_size) blocks if bigalloc is
        enabled. Otherwise s\_log\_cluster\_size must equal s\_log\_block\_size.
    * - 0x20
      - \_\_le32
@@ -447,7 +447,7 @@ The ext4 superblock is laid out as follows in
      - Upper 8 bits of the s_wtime field.
    * - 0x275
      - \_\_u8
-     - s\_wtime_hi
+     - s\_mtime_hi
      - Upper 8 bits of the s_mtime field.
    * - 0x276
      - \_\_u8
@@ -466,12 +466,20 @@ The ext4 superblock is laid out as follows in
      - s\_last_error_time_hi
      - Upper 8 bits of the s_last_error_time_hi field.
    * - 0x27A
-     - \_\_u8[2]
-     - s\_pad
+     - \_\_u8
+     - s\_pad[2]
      - Zero padding.
    * - 0x27C
+     - \_\_le16
+     - s\_encoding
+     - Filename charset encoding.
+   * - 0x27E
+     - \_\_le16
+     - s\_encoding_flags
+     - Filename charset encoding flags.
+   * - 0x280
      - \_\_le32
-     - s\_reserved[96]
+     - s\_reserved[95]
      - Padding to the end of the block.
    * - 0x3FC
      - \_\_le32
@@ -588,6 +596,13 @@ following:
      - Sparse Super Block, v2. If this flag is set, the SB field s\_backup\_bgs
        points to the two block groups that contain backup superblocks
        (COMPAT\_SPARSE\_SUPER2).
+   * - 0x400
+     - Fast commits supported. Although fast commits blocks are
+       backward incompatible, fast commit blocks are not always
+       present in the journal. If fast commit blocks are present in
+       the journal, JBD2 incompat feature
+       (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT) gets
+       set (COMPAT\_FAST\_COMMIT).
 
 .. _super_incompat:
 
@@ -617,7 +632,7 @@ following:
    * - 0x80
      - Enable a filesystem size of 2^64 blocks (INCOMPAT\_64BIT).
    * - 0x100
-     - Multiple mount protection. Not implemented (INCOMPAT\_MMP).
+     - Multiple mount protection (INCOMPAT\_MMP).
    * - 0x200
      - Flexible block groups. See the earlier discussion of this feature
        (INCOMPAT\_FLEX\_BG).
@@ -696,6 +711,8 @@ the following:
        (RO\_COMPAT\_READONLY)
    * - 0x2000
      - Filesystem tracks project quotas. (RO\_COMPAT\_PROJECT)
+   * - 0x8000
+     - Verity inodes may be present on the filesystem. (RO\_COMPAT\_VERITY)
 
 .. _super_def_hash:
 

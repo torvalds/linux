@@ -24,7 +24,6 @@
 
 #define XEN_PFN_DOWN(x)	((x) >> XEN_PAGE_SHIFT)
 #define XEN_PFN_UP(x)	(((x) + XEN_PAGE_SIZE-1) >> XEN_PAGE_SHIFT)
-#define XEN_PFN_PHYS(x)	((phys_addr_t)(x) << XEN_PAGE_SHIFT)
 
 #include <asm/xen/page.h>
 

@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-2.0
+obj-$(CONFIG_PINCTRL_SH_PFC)		+= core.o pinctrl.o
+obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
+obj-$(CONFIG_PINCTRL_PFC_EMEV2)		+= pfc-emev2.o
+obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7742)	+= pfc-r8a7790.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7743)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7744)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7745)	+= pfc-r8a7794.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77470)	+= pfc-r8a77470.o
+obj-$(CONFIG_PINCTRL_PFC_R8A774A1)	+= pfc-r8a7796.o
+obj-$(CONFIG_PINCTRL_PFC_R8A774B1)	+= pfc-r8a77965.o
+obj-$(CONFIG_PINCTRL_PFC_R8A774C0)	+= pfc-r8a77990.o
+obj-$(CONFIG_PINCTRL_PFC_R8A774E1)	+= pfc-r8a77951.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7778)	+= pfc-r8a7778.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7779)	+= pfc-r8a7779.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7790)	+= pfc-r8a7790.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7791)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7792)	+= pfc-r8a7792.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7793)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7794)	+= pfc-r8a7794.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77950)	+= pfc-r8a77950.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77951)	+= pfc-r8a77951.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77960)	+= pfc-r8a7796.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77961)	+= pfc-r8a7796.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77965)	+= pfc-r8a77965.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77970)	+= pfc-r8a77970.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77980)	+= pfc-r8a77980.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77990)	+= pfc-r8a77990.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77995)	+= pfc-r8a77995.o
+obj-$(CONFIG_PINCTRL_PFC_R8A779A0)	+= pfc-r8a779a0.o
+obj-$(CONFIG_PINCTRL_PFC_SH7203)	+= pfc-sh7203.o
+obj-$(CONFIG_PINCTRL_PFC_SH7264)	+= pfc-sh7264.o
+obj-$(CONFIG_PINCTRL_PFC_SH7269)	+= pfc-sh7269.o
+obj-$(CONFIG_PINCTRL_PFC_SH73A0)	+= pfc-sh73a0.o
+obj-$(CONFIG_PINCTRL_PFC_SH7720)	+= pfc-sh7720.o
+obj-$(CONFIG_PINCTRL_PFC_SH7722)	+= pfc-sh7722.o
+obj-$(CONFIG_PINCTRL_PFC_SH7723)	+= pfc-sh7723.o
+obj-$(CONFIG_PINCTRL_PFC_SH7724)	+= pfc-sh7724.o
+obj-$(CONFIG_PINCTRL_PFC_SH7734)	+= pfc-sh7734.o
+obj-$(CONFIG_PINCTRL_PFC_SH7757)	+= pfc-sh7757.o
+obj-$(CONFIG_PINCTRL_PFC_SH7785)	+= pfc-sh7785.o
+obj-$(CONFIG_PINCTRL_PFC_SH7786)	+= pfc-sh7786.o
+obj-$(CONFIG_PINCTRL_PFC_SHX3)		+= pfc-shx3.o
+
+obj-$(CONFIG_PINCTRL_RZA1)	+= pinctrl-rza1.o
+obj-$(CONFIG_PINCTRL_RZA2)	+= pinctrl-rza2.o
+obj-$(CONFIG_PINCTRL_RZN1)	+= pinctrl-rzn1.o
+
+ifeq ($(CONFIG_COMPILE_TEST),y)
+CFLAGS_pfc-sh7203.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
+CFLAGS_pfc-sh7264.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
+CFLAGS_pfc-sh7269.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
+CFLAGS_pfc-sh7720.o	+= -I$(srctree)/arch/sh/include/cpu-sh3
+CFLAGS_pfc-sh7722.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7723.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7724.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7734.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7757.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7785.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-sh7786.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+CFLAGS_pfc-shx3.o	+= -I$(srctree)/arch/sh/include/cpu-sh4
+endif

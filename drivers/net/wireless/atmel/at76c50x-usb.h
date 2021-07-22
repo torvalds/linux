@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2002,2003 Oliver Kurth
  *	     (c) 2003,2004 Joerg Albert <joerg.albert@gmx.de>
  *	     (c) 2007 Guido Guenther <agx@sigxcpu.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  *
  * This driver was based on information from the Sourceforge driver
  * released and maintained by Atmel:
@@ -155,7 +151,7 @@ struct at76_command {
 	u8 cmd;
 	u8 reserved;
 	__le16 size;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Length of Atmel-specific Rx header before 802.11 frame */

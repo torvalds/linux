@@ -28,7 +28,6 @@ enum ctl_group {
 	CTL_ETSI = 0x30,
 };
 
-#define NO_CTL 0xff
 #define SD_NO_CTL               0xE0
 #define NO_CTL                  0xff
 #define CTL_11A                 0
@@ -185,7 +184,9 @@ enum CountryCode {
 	CTRY_UKRAINE = 804,
 	CTRY_UNITED_KINGDOM = 826,
 	CTRY_UNITED_STATES = 840,
+	CTRY_UNITED_STATES2 = 841,
 	CTRY_UNITED_STATES_FCC49 = 842,
+	CTRY_UNITED_STATES3 = 843,
 	CTRY_URUGUAY = 858,
 	CTRY_UZBEKISTAN = 860,
 	CTRY_VENEZUELA = 862,

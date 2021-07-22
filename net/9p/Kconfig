@@ -1,9 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # 9P protocol configuration
 #
 
 menuconfig NET_9P
-	depends on NET
 	tristate "Plan 9 Resource Sharing Support (9P2000)"
 	help
 	  If you say Y here, you will get experimental support for

@@ -32,7 +32,6 @@ Optional properties:
 					(ADS7846).
 	ti,keep-vref-on			set to keep vref on for differential
 					measurements as well
-	ti,swap-xy			swap x and y axis
 	ti,settle-delay-usec		Settling time of the analog signals;
 					a function of Vcc and the capacitance
 					on the X/Y drivers.  If set to non-zero,
@@ -51,13 +50,6 @@ Optional properties:
 					in Ohms (u16).
 	ti,x-min			Minimum value on the X axis (u16).
 	ti,y-min			Minimum value on the Y axis (u16).
-	ti,x-max			Maximum value on the X axis (u16).
-	ti,y-max			Minimum value on the Y axis (u16).
-	ti,pressure-min			Minimum reported pressure value
-					(threshold) - u16.
-	ti,pressure-max			Maximum reported pressure value (u16).
-	ti,debounce-max			Max number of additional readings per
-					sample (u16).
 	ti,debounce-tol			Tolerance used for filtering (u16).
 	ti,debounce-rep			Additional consecutive good readings
 					required after the first two (u16).
@@ -67,7 +59,28 @@ Optional properties:
 					line is connected to.
 	wakeup-source			use any event on touchscreen as wakeup event.
 					(Legacy property support: "linux,wakeup")
+	touchscreen-size-x		General touchscreen binding, see [1].
+	touchscreen-size-y		General touchscreen binding, see [1].
+	touchscreen-max-pressure	General touchscreen binding, see [1].
+	touchscreen-min-pressure	General touchscreen binding, see [1].
+	touchscreen-average-samples	General touchscreen binding, see [1].
+	touchscreen-inverted-x		General touchscreen binding, see [1].
+	touchscreen-inverted-y		General touchscreen binding, see [1].
+	touchscreen-swapped-x-y		General touchscreen binding, see [1].
 
+[1] All general touchscreen properties are described in
+    Documentation/devicetree/bindings/input/touchscreen/touchscreen.txt.
+
+Deprecated properties:
+
+	ti,swap-xy			swap x and y axis
+	ti,x-max			Maximum value on the X axis (u16).
+	ti,y-max			Maximum value on the Y axis (u16).
+	ti,pressure-min			Minimum reported pressure value
+					(threshold) - u16.
+	ti,pressure-max			Maximum reported pressure value (u16).
+	ti,debounce-max			Max number of additional readings per
+					sample (u16).
 
 Example for a TSC2046 chip connected to an McSPI controller of an OMAP SoC::
 

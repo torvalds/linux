@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-tegra/reset.c
  *
  * Copyright (C) 2011,2012 NVIDIA Corporation.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/io.h>
+
+#include <linux/firmware/trusted_foundations.h>
 
 #include <soc/tegra/fuse.h>
 
@@ -77,7 +70,7 @@ static void __init tegra_cpu_reset_handler_enable(void)
 	switch (err) {
 	case -ENOSYS:
 		tegra_cpu_reset_handler_set(reset_address);
-		/* pass-through */
+		fallthrough;
 	case 0:
 		is_enabled = true;
 		break;
@@ -89,6 +82,8 @@ static void __init tegra_cpu_reset_handler_enable(void)
 
 void __init tegra_cpu_reset_handler_init(void)
 {
+	__tegra_cpu_reset_handler_data[TEGRA_RESET_TF_PRESENT] =
+		trusted_foundations_registered();
 
 #ifdef CONFIG_SMP
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_MASK_PRESENT] =

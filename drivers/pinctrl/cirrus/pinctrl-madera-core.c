@@ -1,12 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl for Cirrus Logic Madera codecs
  *
  * Copyright (C) 2016-2018 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2.
  */
 
 #include <linux/err.h>
@@ -14,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
@@ -399,6 +396,16 @@ static const struct {
 		.group_names = madera_pin_single_group_names,
 		.func = 0x157
 	},
+	{
+		.name = "aux-pdm-clk",
+		.group_names = madera_pin_single_group_names,
+		.func = 0x280
+	},
+	{
+		.name = "aux-pdm-dat",
+		.group_names = madera_pin_single_group_names,
+		.func = 0x281
+	},
 };
 
 static u16 madera_pin_make_drv_str(struct madera_pin_private *priv,
@@ -552,7 +559,6 @@ static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
 	if (conf[0] & MADERA_GP1_IP_CFG_MASK)
 		seq_puts(s, " SCHMITT");
 }
-
 
 static const struct pinctrl_ops madera_pin_group_ops = {
 	.get_groups_count = madera_get_groups_count,
@@ -989,7 +995,7 @@ static struct pinctrl_desc madera_pin_desc = {
 static int madera_pin_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
-	const struct madera_pdata *pdata = dev_get_platdata(madera->dev);
+	const struct madera_pdata *pdata = &madera->pdata;
 	struct madera_pin_private *priv;
 	int ret;
 
@@ -1007,6 +1013,10 @@ static int madera_pin_probe(struct platform_device *pdev)
 	pdev->dev.of_node = madera->dev->of_node;
 
 	switch (madera->type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_PINCTRL_CS47L15))
+			priv->chip = &cs47l15_pin_chip;
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L35))
 			priv->chip = &cs47l35_pin_chip;
@@ -1020,6 +1030,12 @@ static int madera_pin_probe(struct platform_device *pdev)
 	case CS47L91:
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L90))
 			priv->chip = &cs47l90_pin_chip;
+		break;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		if (IS_ENABLED(CONFIG_PINCTRL_CS47L92))
+			priv->chip = &cs47l92_pin_chip;
 		break;
 	default:
 		break;
@@ -1040,7 +1056,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 	}
 
 	/* if the configuration is provided through pdata, apply it */
-	if (pdata && pdata->gpio_configs) {
+	if (pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
 		if (ret) {
@@ -1057,13 +1073,26 @@ static int madera_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, priv);
+
 	dev_dbg(priv->dev, "pinctrl probed ok\n");
+
+	return 0;
+}
+
+static int madera_pin_remove(struct platform_device *pdev)
+{
+	struct madera_pin_private *priv = platform_get_drvdata(pdev);
+
+	if (priv->madera->pdata.gpio_configs)
+		pinctrl_unregister_mappings(priv->madera->pdata.gpio_configs);
 
 	return 0;
 }
 
 static struct platform_driver madera_pin_driver = {
 	.probe = madera_pin_probe,
+	.remove = madera_pin_remove,
 	.driver = {
 		.name = "madera-pinctrl",
 	},

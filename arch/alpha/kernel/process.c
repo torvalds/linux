@@ -37,7 +37,6 @@
 #include <asm/reg.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/hwrpb.h>
 #include <asm/fpu.h>
 
@@ -58,7 +57,7 @@ EXPORT_SYMBOL(pm_power_off);
 void arch_cpu_idle(void)
 {
 	wtint(0);
-	local_irq_enable();
+	raw_local_irq_enable();
 }
 
 void arch_cpu_idle_dead(void)
@@ -135,7 +134,7 @@ common_shutdown_1(void *generic_ptr)
 #ifdef CONFIG_DUMMY_CONSOLE
 		/* If we've gotten here after SysRq-b, leave interrupt
 		   context before taking over the console. */
-		if (in_interrupt())
+		if (in_irq())
 			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
 		console_lock();
@@ -234,10 +233,9 @@ release_thread(struct task_struct *dead_task)
 /*
  * Copy architecture-specific thread state
  */
-int
-copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long kthread_arg,
-	    struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp,
+		unsigned long kthread_arg, struct task_struct *p,
+		unsigned long tls)
 {
 	extern void ret_from_fork(void);
 	extern void ret_from_kernel_thread(void);
@@ -251,7 +249,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	childti->pcb.ksp = (unsigned long) childstack;
 	childti->pcb.flags = 1;	/* set FEN, clear everything else */
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		/* kernel thread */
 		memset(childstack, 0,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
@@ -268,7 +266,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	   required for proper operation in the case of a threaded
 	   application calling fork.  */
 	if (clone_flags & CLONE_SETTLS)
-		childti->pcb.unique = regs->r20;
+		childti->pcb.unique = tls;
 	else
 		regs->r20 = 0;	/* OSF/1 has some strange fork() semantics.  */
 	childti->pcb.usp = usp ?: rdusp();
@@ -382,7 +380,7 @@ get_wchan(struct task_struct *p)
 {
 	unsigned long schedule_frame;
 	unsigned long pc;
-	if (!p || p == current || p->state == TASK_RUNNING)
+	if (!p || p == current || task_is_running(p))
 		return 0;
 	/*
 	 * This one depends on the frame size of schedule().  Do a

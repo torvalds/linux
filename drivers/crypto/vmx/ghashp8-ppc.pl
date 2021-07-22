@@ -13,7 +13,7 @@
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://www.openssl.org/~appro/cryptogams/.
 # ====================================================================
 #
 # GHASH for for PowerISA v2.07.

@@ -8,6 +8,8 @@
  * Copyright (C) 1996-2005 Paul Mackerras.
  */
 
+#define FDT_ALIGN_SIZE 8
+
 /**
  * struct alias_prop - Alias property in 'aliases' node
  * @link:	List node to link the structure in aliases_lookup list
@@ -24,7 +26,7 @@ struct alias_prop {
 	const char *alias;
 	struct device_node *np;
 	int id;
-	char stem[0];
+	char stem[];
 };
 
 #if defined(CONFIG_SPARC)
@@ -84,11 +86,11 @@ static inline void __of_detach_node_sysfs(struct device_node *np) {}
 int of_resolve_phandles(struct device_node *tree);
 #endif
 
+void __of_phandle_cache_inv_entry(phandle handle);
+
 #if defined(CONFIG_OF_OVERLAY)
 void of_overlay_mutex_lock(void);
 void of_overlay_mutex_unlock(void);
-int of_free_phandle_cache(void);
-void of_populate_phandle_cache(void);
 #else
 static inline void of_overlay_mutex_lock(void) {};
 static inline void of_overlay_mutex_unlock(void) {};
@@ -153,5 +155,24 @@ extern void __of_sysfs_remove_bin_file(struct device_node *np,
 /* reverse iterator */
 #define for_each_transaction_entry_reverse(_oft, _te) \
 	list_for_each_entry_reverse(_te, &(_oft)->te_list, node)
+
+extern int of_bus_n_addr_cells(struct device_node *np);
+extern int of_bus_n_size_cells(struct device_node *np);
+
+struct bus_dma_region;
+#if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_HAS_DMA)
+int of_dma_get_range(struct device_node *np,
+		const struct bus_dma_region **map);
+#else
+static inline int of_dma_get_range(struct device_node *np,
+		const struct bus_dma_region **map)
+{
+	return -ENODEV;
+}
+#endif
+
+void fdt_init_reserved_mem(void);
+void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
+			       phys_addr_t base, phys_addr_t size);
 
 #endif /* _LINUX_OF_PRIVATE_H */

@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/thine,thc63lvd1024.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Thine Electronics THC63LVD1024 LVDS Decoder
+
+maintainers:
+  - Jacopo Mondi <jacopo+renesas@jmondi.org>
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description: |
+  The THC63LVD1024 is a dual link LVDS receiver designed to convert LVDS
+  streams to parallel data outputs. The chip supports single/dual input/output
+  modes, handling up to two LVDS input streams and up to two digital CMOS/TTL
+  outputs.
+
+  Single or dual operation mode, output data mapping and DDR output modes are
+  configured through input signals and the chip does not expose any control
+  bus.
+
+properties:
+  compatible:
+    const: thine,thc63lvd1024
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      The device can operate in single or dual input and output modes.
+
+      When operating in single input mode, all pixels are received on port@0,
+      and port@1 shall not contain any endpoint. In dual input mode,
+      even-numbered pixels are received on port@0 and odd-numbered pixels on
+      port@1, and both port@0 and port@1 shall contain endpoints.
+
+      When operating in single output mode all pixels are output from the first
+      CMOS/TTL port and port@3 shall not contain any endpoint. In dual output
+      mode pixels are output from both CMOS/TTL ports and both port@2 and
+      port@3 shall contain endpoints.
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: First LVDS input port
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Second LVDS input port
+
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: First digital CMOS/TTL parallel output
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Second digital CMOS/TTL parallel output
+
+    required:
+      - port@0
+      - port@2
+
+  oe-gpios:
+    maxItems: 1
+    description: Output enable GPIO signal, pin name "OE", active high.
+
+  powerdown-gpios:
+    maxItems: 1
+    description: Power down GPIO signal, pin name "/PDWN", active low.
+
+  vcc-supply:
+    description:
+      Power supply for the TTL output, TTL CLOCKOUT signal, LVDS input, PLL and
+      digital circuitry.
+
+required:
+  - compatible
+  - ports
+  - vcc-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    lvds-decoder {
+        compatible = "thine,thc63lvd1024";
+
+        vcc-supply = <&reg_lvds_vcc>;
+        powerdown-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+
+                lvds_dec_in_0: endpoint {
+                    remote-endpoint = <&lvds_out>;
+                };
+            };
+
+            port@2 {
+                reg = <2>;
+
+                lvds_dec_out_2: endpoint {
+                    remote-endpoint = <&adv7511_in>;
+                };
+            };
+        };
+    };
+
+...

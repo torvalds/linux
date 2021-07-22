@@ -171,8 +171,6 @@
 	enet0: ethernet@b0000 {
 		queue-group@b0000 {
 			reg = <0x10000 0x1000>;
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
 		};
 	};
 
@@ -180,8 +178,6 @@
 	enet1: ethernet@b1000 {
 		queue-group@b1000 {
 			reg = <0x11000 0x1000>;
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
 		};
 	};
 

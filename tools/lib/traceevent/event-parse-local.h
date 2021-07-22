@@ -7,12 +7,15 @@
 #ifndef _PARSE_EVENTS_INT_H
 #define _PARSE_EVENTS_INT_H
 
-struct cmdline;
+struct tep_cmdline;
 struct cmdline_list;
 struct func_map;
 struct func_list;
 struct event_handler;
 struct func_resolver;
+struct tep_plugins_dir;
+
+#define __hidden __attribute__((visibility ("hidden")))
 
 struct tep_handle {
 	int ref_count;
@@ -28,15 +31,13 @@ struct tep_handle {
 	enum tep_endian file_bigendian;
 	enum tep_endian host_bigendian;
 
-	int latency_format;
-
 	int old_format;
 
 	int cpus;
 	int long_size;
 	int page_size;
 
-	struct cmdline *cmdlines;
+	struct tep_cmdline *cmdlines;
 	struct cmdline_list *cmdlist;
 	int cmdline_count;
 
@@ -49,10 +50,9 @@ struct tep_handle {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
-
-	struct tep_event_format **events;
+	struct tep_event **events;
 	int nr_events;
-	struct tep_event_format **sort_events;
+	struct tep_event **sort_events;
 	enum tep_event_sort_type last_type;
 
 	int type_offset;
@@ -70,8 +70,6 @@ struct tep_handle {
 	int ld_offset;
 	int ld_size;
 
-	int print_raw;
-
 	int test_filters;
 
 	int flags;
@@ -84,9 +82,42 @@ struct tep_handle {
 	struct tep_function_handler *func_handlers;
 
 	/* cache */
-	struct tep_event_format *last_event;
+	struct tep_event *last_event;
 
-	char *trace_clock;
+	struct tep_plugins_dir *plugins_dir;
 };
+
+enum tep_print_parse_type {
+	PRINT_FMT_STRING,
+	PRINT_FMT_ARG_DIGIT,
+	PRINT_FMT_ARG_POINTER,
+	PRINT_FMT_ARG_STRING,
+};
+
+struct tep_print_parse {
+	struct tep_print_parse	*next;
+
+	char				*format;
+	int				ls;
+	enum tep_print_parse_type	type;
+	struct tep_print_arg		*arg;
+	struct tep_print_arg		*len_as_arg;
+};
+
+void free_tep_event(struct tep_event *event);
+void free_tep_format_field(struct tep_format_field *field);
+void free_tep_plugin_paths(struct tep_handle *tep);
+
+unsigned short data2host2(struct tep_handle *tep, unsigned short data);
+unsigned int data2host4(struct tep_handle *tep, unsigned int data);
+unsigned long long data2host8(struct tep_handle *tep, unsigned long long data);
+
+/* access to the internal parser */
+int peek_char(void);
+void init_input_buf(const char *buf, unsigned long long size);
+unsigned long long get_input_buf_ptr(void);
+const char *get_input_buf(void);
+enum tep_event_type read_token(char **tok);
+void free_token(char *tok);
 
 #endif /* _PARSE_EVENTS_INT_H */

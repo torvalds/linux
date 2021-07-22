@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -20,11 +21,11 @@
 
 /* define the XP debug device structures to be used with dev_dbg() et al */
 
-struct device_driver xp_dbg_name = {
+static struct device_driver xp_dbg_name = {
 	.name = "xp"
 };
 
-struct device xp_dbg_subname = {
+static struct device xp_dbg_subname = {
 	.init_name = "",		/* set to "" */
 	.driver = &xp_dbg_name
 };
@@ -223,7 +224,7 @@ xpc_disconnect(int ch_number)
 }
 EXPORT_SYMBOL_GPL(xpc_disconnect);
 
-int __init
+static int __init
 xp_init(void)
 {
 	enum xp_retval ret;
@@ -233,9 +234,7 @@ xp_init(void)
 	for (ch_number = 0; ch_number < XPC_MAX_NCHANNELS; ch_number++)
 		mutex_init(&xpc_registrations[ch_number].mutex);
 
-	if (is_shub())
-		ret = xp_init_sn2();
-	else if (is_uv())
+	if (is_uv_system())
 		ret = xp_init_uv();
 	else
 		ret = 0;
@@ -248,12 +247,10 @@ xp_init(void)
 
 module_init(xp_init);
 
-void __exit
+static void __exit
 xp_exit(void)
 {
-	if (is_shub())
-		xp_exit_sn2();
-	else if (is_uv())
+	if (is_uv_system())
 		xp_exit_uv();
 }
 

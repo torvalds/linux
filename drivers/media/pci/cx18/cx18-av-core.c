@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 ADEC audio functions
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -98,7 +89,7 @@ static void cx18_av_init(struct cx18 *cx)
 	/*
 	 * The crystal freq used in calculations in this driver will be
 	 * 28.636360 MHz.
-	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimize errors.
 	 */
 
 	/*
@@ -131,7 +122,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	cx18_av_write4_expect(cx, CXADEC_DL_CTL, 0x03000000,
 						 0x03000000, 0x13000000);
 
-	/* initallize the PLL by toggling sleep bit */
+	/* initialize the PLL by toggling sleep bit */
 	v = cx18_av_read4(cx, CXADEC_HOST_REG1);
 	/* enable sleep mode - register appears to be read only... */
 	cx18_av_write4_expect(cx, CXADEC_HOST_REG1, v | 1, v, 0xfffe);
@@ -939,7 +930,7 @@ static int cx18_av_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static int cx18_av_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;

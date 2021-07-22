@@ -1,13 +1,8 @@
-/*
- * Tobermory audio support
- *
- * Copyright 2011 Wolfson Microelectronics
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Tobermory audio support
+//
+// Copyright 2011 Wolfson Microelectronics
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -27,8 +22,8 @@ static int tobermory_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -70,8 +65,8 @@ static int tobermory_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -114,17 +109,19 @@ static struct snd_soc_ops tobermory_ops = {
 	.hw_params = tobermory_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(cpu,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8962.1-001a", "wm8962")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 static struct snd_soc_dai_link tobermory_dai[] = {
 	{
 		.name = "CPU",
 		.stream_name = "CPU",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm8962",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8962.1-001a",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &tobermory_ops,
+		SND_SOC_DAILINK_REG(cpu),
 	},
 };
 
@@ -183,9 +180,9 @@ static int tobermory_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	component = rtd->codec_dai->component;
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	component = asoc_rtd_to_codec(rtd, 0)->component;
+	codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
 				     32768, SND_SOC_CLOCK_IN);
@@ -232,7 +229,7 @@ static int tobermory_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret)
+	if (ret && ret != -EPROBE_DEFER)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 

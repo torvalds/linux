@@ -880,7 +880,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 						return -EIO;
 					}
 					mdc800->pic_len=-1;
-					/* fall through */
+					fallthrough;
 
 				case 0x09: /* Download Thumbnail */
 					mdc800->download_left=answersize+64;

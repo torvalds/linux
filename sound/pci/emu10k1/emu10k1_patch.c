@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Patch transfer callback for Emu10k1
  *
  *  Copyright (C) 2000 Takashi iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 /*
  * All the code for loading in a patch.  There is very little that is
@@ -40,7 +27,8 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		       const void __user *data, long count)
 {
 	int offset;
-	int truesize, size, loopsize, blocksize;
+	int truesize, size, blocksize;
+	__maybe_unused int loopsize;
 	int loopend, sampleend;
 	unsigned int start_addr;
 	struct snd_emu10k1 *emu;

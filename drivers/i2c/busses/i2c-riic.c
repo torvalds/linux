@@ -42,7 +42,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #define RIIC_ICCR1	0x00
 #define RIIC_ICCR2	0x04
@@ -85,6 +88,11 @@
 
 #define RIIC_INIT_MSG	-1
 
+enum riic_type {
+	RIIC_RZ_A,
+	RIIC_RZ_G2L,
+};
+
 struct riic_dev {
 	void __iomem *base;
 	u8 *buf;
@@ -112,12 +120,10 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct riic_dev *riic = i2c_get_adapdata(adap);
 	unsigned long time_left;
-	int i, ret;
+	int i;
 	u8 start_bit;
 
-	ret = clk_prepare_enable(riic->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(adap->dev.parent);
 
 	if (readb(riic->base + RIIC_ICCR2) & ICCR2_BBSY) {
 		riic->err = -EBUSY;
@@ -150,7 +156,7 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	}
 
  out:
-	clk_disable_unprepare(riic->clk);
+	pm_runtime_put(adap->dev.parent);
 
 	return riic->err ?: num;
 }
@@ -203,6 +209,7 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 	if (readb(riic->base + RIIC_ICSR2) & ICSR2_NACKF) {
 		/* We got a NACKIE */
 		readb(riic->base + RIIC_ICDRR);	/* dummy read */
+		riic_clear_set_bit(riic, ICSR2_NACKF, 0, RIIC_ICSR2);
 		riic->err = -ENXIO;
 	} else if (riic->bytes_left) {
 		return IRQ_NONE;
@@ -281,20 +288,18 @@ static const struct i2c_algorithm riic_algo = {
 
 static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 {
-	int ret;
+	int ret = 0;
 	unsigned long rate;
 	int total_ticks, cks, brl, brh;
 
-	ret = clk_prepare_enable(riic->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(riic->adapter.dev.parent);
 
-	if (t->bus_freq_hz > 400000) {
+	if (t->bus_freq_hz > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(&riic->adapter.dev,
-			"unsupported bus speed (%dHz). 400000 max\n",
-			t->bus_freq_hz);
-		clk_disable_unprepare(riic->clk);
-		return -EINVAL;
+			"unsupported bus speed (%dHz). %d max\n",
+			t->bus_freq_hz, I2C_MAX_FAST_MODE_FREQ);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	rate = clk_get_rate(riic->clk);
@@ -332,8 +337,8 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 	if (brl > (0x1F + 3)) {
 		dev_err(&riic->adapter.dev, "invalid speed (%lu). Too slow.\n",
 			(unsigned long)t->bus_freq_hz);
-		clk_disable_unprepare(riic->clk);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	brh = total_ticks - brl;
@@ -378,9 +383,9 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 
 	riic_clear_set_bit(riic, ICCR1_IICRST, 0, RIIC_ICCR1);
 
-	clk_disable_unprepare(riic->clk);
-
-	return 0;
+out:
+	pm_runtime_put(riic->adapter.dev.parent);
+	return ret;
 }
 
 static struct riic_irq_desc riic_irqs[] = {
@@ -397,7 +402,9 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	struct resource *res;
 	struct i2c_timings i2c_t;
+	struct reset_control *rstc;
 	int i, ret;
+	enum riic_type type;
 
 	riic = devm_kzalloc(&pdev->dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
@@ -412,6 +419,17 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(riic->clk)) {
 		dev_err(&pdev->dev, "missing controller clock");
 		return PTR_ERR(riic->clk);
+	}
+
+	type = (enum riic_type)of_device_get_match_data(&pdev->dev);
+	if (type == RIIC_RZ_G2L) {
+		rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(rstc)) {
+			dev_err(&pdev->dev, "Error: missing reset ctrl\n");
+			return PTR_ERR(rstc);
+		}
+
+		reset_control_deassert(rstc);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
@@ -439,34 +457,43 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	i2c_parse_fw_timings(&pdev->dev, &i2c_t, true);
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = riic_init_hw(riic, &i2c_t);
 	if (ret)
-		return ret;
-
+		goto out;
 
 	ret = i2c_add_adapter(adap);
 	if (ret)
-		return ret;
+		goto out;
 
 	platform_set_drvdata(pdev, riic);
 
 	dev_info(&pdev->dev, "registered with %dHz bus speed\n",
 		 i2c_t.bus_freq_hz);
 	return 0;
+
+out:
+	pm_runtime_disable(&pdev->dev);
+	return ret;
 }
 
 static int riic_i2c_remove(struct platform_device *pdev)
 {
 	struct riic_dev *riic = platform_get_drvdata(pdev);
 
+	pm_runtime_get_sync(&pdev->dev);
 	writeb(0, riic->base + RIIC_ICIER);
+	pm_runtime_put(&pdev->dev);
 	i2c_del_adapter(&riic->adapter);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
 
 static const struct of_device_id riic_i2c_dt_ids[] = {
-	{ .compatible = "renesas,riic-rz" },
+	{ .compatible = "renesas,riic-r9a07g044", .data = (void *)RIIC_RZ_G2L },
+	{ .compatible = "renesas,riic-rz", .data = (void *)RIIC_RZ_A },
 	{ /* Sentinel */ },
 };
 

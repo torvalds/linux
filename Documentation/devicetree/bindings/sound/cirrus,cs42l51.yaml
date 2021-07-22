@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/cirrus,cs42l51.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CS42L51 audio codec DT bindings
+
+maintainers:
+  - Olivier Moysan <olivier.moysan@st.com>
+
+properties:
+  compatible:
+    const: cirrus,cs42l51
+
+  reg:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: MCLK
+
+  reset-gpios:
+    maxItems: 1
+
+  VL-supply:
+    description: phandle to voltage regulator of digital interface section
+
+  VD-supply:
+    description: phandle to voltage regulator of digital internal section
+
+  VA-supply:
+    description: phandle to voltage regulator of analog internal section
+
+  VAHP-supply:
+    description: phandle to voltage regulator of headphone
+
+required:
+  - compatible
+  - reg
+  - "#sound-dai-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      cs42l51@4a {
+        compatible = "cirrus,cs42l51";
+        reg = <0x4a>;
+        #sound-dai-cells = <0>;
+        clocks = <&mclk_prov>;
+        clock-names = "MCLK";
+        VL-supply = <&reg_audio>;
+        VD-supply = <&reg_audio>;
+        VA-supply = <&reg_audio>;
+        VAHP-supply = <&reg_audio>;
+        reset-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+      };
+    };
+...

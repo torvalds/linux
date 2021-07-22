@@ -18,6 +18,7 @@
 #define _UAPI_VM_SOCKETS_H
 
 #include <linux/socket.h>
+#include <linux/types.h>
 
 /* Option name for STREAM socket buffer size.  Use as the option name in
  * setsockopt(3) or getsockopt(3) to set or get an unsigned long long that
@@ -99,11 +100,13 @@
 
 #define VMADDR_CID_HYPERVISOR 0
 
-/* This CID is specific to VMCI and can be considered reserved (even VMCI
- * doesn't use it anymore, it's a legacy value from an older release).
+/* Use this as the destination CID in an address when referring to the
+ * local communication (loopback).
+ * (This was VMADDR_CID_RESERVED, but even VMCI doesn't use it anymore,
+ * it was a legacy value from an older release).
  */
 
-#define VMADDR_CID_RESERVED 1
+#define VMADDR_CID_LOCAL 1
 
 /* Use this as the destination CID in an address when referring to the host
  * (any process other than the hypervisor).  VMCI relies on it being 2, but
@@ -111,6 +114,26 @@
  */
 
 #define VMADDR_CID_HOST 2
+
+/* The current default use case for the vsock channel is the following:
+ * local vsock communication between guest and host and nested VMs setup.
+ * In addition to this, implicitly, the vsock packets are forwarded to the host
+ * if no host->guest vsock transport is set.
+ *
+ * Set this flag value in the sockaddr_vm corresponding field if the vsock
+ * packets need to be always forwarded to the host. Using this behavior,
+ * vsock communication between sibling VMs can be setup.
+ *
+ * This way can explicitly distinguish between vsock channels created for
+ * different use cases, such as nested VMs (or local communication between
+ * guest and host) and sibling VMs.
+ *
+ * The flag can be set in the connect logic in the user space application flow.
+ * In the listen logic (from kernel space) the flag is set on the remote peer
+ * address. This happens for an incoming connection when it is routed from the
+ * host and comes from the guest (local CID and remote CID > VMADDR_CID_HOST).
+ */
+#define VMADDR_FLAG_TO_HOST 0x01
 
 /* Invalid vSockets version. */
 
@@ -146,10 +169,13 @@ struct sockaddr_vm {
 	unsigned short svm_reserved1;
 	unsigned int svm_port;
 	unsigned int svm_cid;
+	__u8 svm_flags;
 	unsigned char svm_zero[sizeof(struct sockaddr) -
 			       sizeof(sa_family_t) -
 			       sizeof(unsigned short) -
-			       sizeof(unsigned int) - sizeof(unsigned int)];
+			       sizeof(unsigned int) -
+			       sizeof(unsigned int) -
+			       sizeof(__u8)];
 };
 
 #define IOCTL_VM_SOCKETS_GET_LOCAL_CID		_IO(7, 0xb9)

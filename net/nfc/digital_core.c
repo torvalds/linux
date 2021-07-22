@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NFC Digital Protocol stack
  * Copyright (c) 2013, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #define pr_fmt(fmt) "digital: %s: " fmt, __func__
@@ -466,7 +457,10 @@ static void digital_add_poll_tech(struct nfc_digital_dev *ddev, u8 rf_tech,
 }
 
 /**
- * start_poll operation
+ * digital_start_poll - start_poll operation
+ * @nfc_dev: device to be polled
+ * @im_protocols: bitset of nfc initiator protocols to be used for polling
+ * @tm_protocols: bitset of nfc transport protocols to be used for polling
  *
  * For every supported protocol, the corresponding polling function is added
  * to the table of polling technologies (ddev->poll_techs[]) using

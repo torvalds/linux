@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on arch/arm/kernel/time.c
  *
  * Copyright (C) 1991, 1992, 1995  Linus Torvalds
  * Modifications for ARM (C) 1994-2001 Russell King
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clockchips.h>
@@ -34,13 +23,14 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/clocksource.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/acpi.h>
 
 #include <clocksource/arm_arch_timer.h>
 
 #include <asm/thread_info.h>
 #include <asm/stacktrace.h>
+#include <asm/paravirt.h>
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -49,11 +39,8 @@ unsigned long profile_pc(struct pt_regs *regs)
 	if (!in_lock_functions(regs->pc))
 		return regs->pc;
 
-	frame.fp = regs->regs[29];
-	frame.pc = regs->pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = current->curr_ret_stack;
-#endif
+	start_backtrace(&frame, regs->regs[29], regs->pc);
+
 	do {
 		int ret = unwind_frame(NULL, &frame);
 		if (ret < 0)
@@ -79,4 +66,6 @@ void __init time_init(void)
 
 	/* Calibrate the delay loop directly */
 	lpj_fine = arch_timer_rate / HZ;
+
+	pv_time_init();
 }

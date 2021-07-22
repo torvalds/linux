@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config BCACHE
 	tristate "Block device as cache"
@@ -25,3 +26,12 @@ config BCACHE_CLOSURES_DEBUG
 	Keeps all active closures in a linked list and provides a debugfs
 	interface to list them, which makes it possible to see asynchronous
 	operations that get stuck.
+
+config BCACHE_ASYNC_REGISTRATION
+	bool "Asynchronous device registration (EXPERIMENTAL)"
+	depends on BCACHE
+	help
+	Add a sysfs file /sys/fs/bcache/register_async. Writing registering
+	device path into this file will returns immediately and the real
+	registration work is handled in kernel work queue in asynchronous
+	way.

@@ -15,18 +15,20 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#define SNVS_LPSR_REG	0x4C	/* LP Status Register */
-#define SNVS_LPCR_REG	0x38	/* LP Control Register */
-#define SNVS_HPSR_REG	0x14
-#define SNVS_HPSR_BTN	BIT(6)
-#define SNVS_LPSR_SPO	BIT(18)
-#define SNVS_LPCR_DEP_EN BIT(5)
+#define SNVS_HPVIDR1_REG	0xF8
+#define SNVS_LPSR_REG		0x4C	/* LP Status Register */
+#define SNVS_LPCR_REG		0x38	/* LP Control Register */
+#define SNVS_HPSR_REG		0x14
+#define SNVS_HPSR_BTN		BIT(6)
+#define SNVS_LPSR_SPO		BIT(18)
+#define SNVS_LPCR_DEP_EN	BIT(5)
 
-#define DEBOUNCE_TIME 30
-#define REPEAT_INTERVAL 60
+#define DEBOUNCE_TIME		30
+#define REPEAT_INTERVAL		60
 
 struct pwrkey_drv_data {
 	struct regmap *snvs;
@@ -36,6 +38,7 @@ struct pwrkey_drv_data {
 	int wakeup;
 	struct timer_list check_timer;
 	struct input_dev *input;
+	u8 minor_rev;
 };
 
 static void imx_imx_snvs_check_for_events(struct timer_list *t)
@@ -66,13 +69,29 @@ static irqreturn_t imx_snvs_pwrkey_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
+	struct input_dev *input = pdata->input;
 	u32 lp_status;
 
-	pm_wakeup_event(pdata->input->dev.parent, 0);
+	pm_wakeup_event(input->dev.parent, 0);
 
 	regmap_read(pdata->snvs, SNVS_LPSR_REG, &lp_status);
-	if (lp_status & SNVS_LPSR_SPO)
-		mod_timer(&pdata->check_timer, jiffies + msecs_to_jiffies(DEBOUNCE_TIME));
+	if (lp_status & SNVS_LPSR_SPO) {
+		if (pdata->minor_rev == 0) {
+			/*
+			 * The first generation i.MX6 SoCs only sends an
+			 * interrupt on button release. To mimic power-key
+			 * usage, we'll prepend a press event.
+			 */
+			input_report_key(input, pdata->keycode, 1);
+			input_sync(input);
+			input_report_key(input, pdata->keycode, 0);
+			input_sync(input);
+			pm_relax(input->dev.parent);
+		} else {
+			mod_timer(&pdata->check_timer,
+			          jiffies + msecs_to_jiffies(DEBOUNCE_TIME));
+		}
+	}
 
 	/* clear SPO status */
 	regmap_write(pdata->snvs, SNVS_LPSR_REG, SNVS_LPSR_SPO);
@@ -89,10 +108,11 @@ static void imx_snvs_pwrkey_act(void *pdata)
 
 static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 {
-	struct pwrkey_drv_data *pdata = NULL;
-	struct input_dev *input = NULL;
+	struct pwrkey_drv_data *pdata;
+	struct input_dev *input;
 	struct device_node *np;
 	int error;
+	u32 vid;
 
 	/* Get SNVS register Page */
 	np = pdev->dev.of_node;
@@ -117,10 +137,11 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	pdata->wakeup = of_property_read_bool(np, "wakeup-source");
 
 	pdata->irq = platform_get_irq(pdev, 0);
-	if (pdata->irq < 0) {
-		dev_err(&pdev->dev, "no irq defined in platform data\n");
+	if (pdata->irq < 0)
 		return -EINVAL;
-	}
+
+	regmap_read(pdata->snvs, SNVS_HPVIDR1_REG, &vid);
+	pdata->minor_rev = vid & 0xff;
 
 	regmap_update_bits(pdata->snvs, SNVS_LPCR_REG, SNVS_LPCR_DEP_EN, SNVS_LPCR_DEP_EN);
 
@@ -148,6 +169,9 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	pdata->input = input;
+	platform_set_drvdata(pdev, pdata);
+
 	error = devm_request_irq(&pdev->dev, pdata->irq,
 			       imx_snvs_pwrkey_interrupt,
 			       0, pdev->name, pdev);
@@ -163,32 +187,10 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	pdata->input = input;
-	platform_set_drvdata(pdev, pdata);
-
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
-
-	return 0;
-}
-
-static int __maybe_unused imx_snvs_pwrkey_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
-
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(pdata->irq);
-
-	return 0;
-}
-
-static int __maybe_unused imx_snvs_pwrkey_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
-
-	if (device_may_wakeup(&pdev->dev))
-		disable_irq_wake(pdata->irq);
+	error = dev_pm_set_wake_irq(&pdev->dev, pdata->irq);
+	if (error)
+		dev_err(&pdev->dev, "irq wake enable failed.\n");
 
 	return 0;
 }
@@ -199,13 +201,9 @@ static const struct of_device_id imx_snvs_pwrkey_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_snvs_pwrkey_ids);
 
-static SIMPLE_DEV_PM_OPS(imx_snvs_pwrkey_pm_ops, imx_snvs_pwrkey_suspend,
-				imx_snvs_pwrkey_resume);
-
 static struct platform_driver imx_snvs_pwrkey_driver = {
 	.driver = {
 		.name = "snvs_pwrkey",
-		.pm     = &imx_snvs_pwrkey_pm_ops,
 		.of_match_table = imx_snvs_pwrkey_ids,
 	},
 	.probe = imx_snvs_pwrkey_probe,

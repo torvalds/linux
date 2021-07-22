@@ -37,6 +37,8 @@
 #include "iavf_type.h"
 #include <linux/avf/virtchnl.h>
 #include "iavf_txrx.h"
+#include "iavf_fdir.h"
+#include "iavf_adv_rss.h"
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "iavf: "
@@ -81,11 +83,15 @@ struct iavf_vsi {
 #define IAVF_TX_DESC(R, i) (&(((struct iavf_tx_desc *)((R)->desc))[i]))
 #define IAVF_TX_CTXTDESC(R, i) \
 	(&(((struct iavf_tx_context_desc *)((R)->desc))[i]))
-#define IAVF_MAX_REQ_QUEUES 4
+#define IAVF_MAX_REQ_QUEUES 16
 
 #define IAVF_HKEY_ARRAY_SIZE ((IAVF_VFQF_HKEY_MAX_INDEX + 1) * 4)
 #define IAVF_HLUT_ARRAY_SIZE ((IAVF_VFQF_HLUT_MAX_INDEX + 1) * 4)
 #define IAVF_MBPS_DIVISOR	125000 /* divisor to convert to Mbps */
+
+#define IAVF_VIRTCHNL_VF_RESOURCE_SIZE (sizeof(struct virtchnl_vf_resource) + \
+					(IAVF_MAX_VF_VSI * \
+					 sizeof(struct virtchnl_vsi_resource)))
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -109,7 +115,7 @@ struct iavf_q_vector {
 
 /* Helper macros to switch between ints/sec and what the register uses.
  * And yes, it's the same math going both ways.  The lowest value
- * supported by all of the i40e hardware is 8.
+ * supported by all of the iavf hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
 	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
@@ -171,6 +177,7 @@ enum iavf_state_t {
 	__IAVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_SW,		/* got resources, setting up structs */
 	__IAVF_RESETTING,		/* in reset */
+	__IAVF_COMM_FAILED,		/* communication with PF failed */
 	/* Below here, watchdog is running */
 	__IAVF_DOWN,			/* ready, can be opened */
 	__IAVF_DOWN_PENDING,		/* descending, waiting for watchdog */
@@ -214,9 +221,12 @@ struct iavf_cloud_filter {
 	bool add;		/* filter needs to be added */
 };
 
+#define IAVF_RESET_WAIT_MS 10
+#define IAVF_RESET_WAIT_DETECTED_COUNT 500
+#define IAVF_RESET_WAIT_COMPLETE_COUNT 2000
+
 /* board specific private data structure */
 struct iavf_adapter {
-	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
@@ -244,7 +254,7 @@ struct iavf_adapter {
 	int num_iwarp_msix;
 	int iwarp_base_vector;
 	u32 client_pending;
-	struct i40e_client_instance *cinst;
+	struct iavf_client_instance *cinst;
 	struct msix_entry *msix_entries;
 
 	u32 flags;
@@ -253,7 +263,6 @@ struct iavf_adapter {
 #define IAVF_FLAG_RESET_PENDING		BIT(4)
 #define IAVF_FLAG_RESET_NEEDED		BIT(5)
 #define IAVF_FLAG_WB_ON_ITR_CAPABLE		BIT(6)
-#define IAVF_FLAG_ADDR_SET_BY_PF		BIT(8)
 #define IAVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(9)
 #define IAVF_FLAG_CLIENT_NEEDS_OPEN		BIT(10)
 #define IAVF_FLAG_CLIENT_NEEDS_CLOSE		BIT(11)
@@ -293,6 +302,10 @@ struct iavf_adapter {
 #define IAVF_FLAG_AQ_DISABLE_CHANNELS		BIT(22)
 #define IAVF_FLAG_AQ_ADD_CLOUD_FILTER		BIT(23)
 #define IAVF_FLAG_AQ_DEL_CLOUD_FILTER		BIT(24)
+#define IAVF_FLAG_AQ_ADD_FDIR_FILTER		BIT(25)
+#define IAVF_FLAG_AQ_DEL_FDIR_FILTER		BIT(26)
+#define IAVF_FLAG_AQ_ADD_ADV_RSS_CFG		BIT(27)
+#define IAVF_FLAG_AQ_DEL_ADV_RSS_CFG		BIT(28)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -303,10 +316,18 @@ struct iavf_adapter {
 	enum iavf_state_t state;
 	unsigned long crit_section;
 
-	struct work_struct watchdog_task;
+	struct delayed_work watchdog_task;
 	bool netdev_registered;
 	bool link_up;
 	enum virtchnl_link_speed link_speed;
+	/* This is only populated if the VIRTCHNL_VF_CAP_ADV_LINK_SPEED is set
+	 * in vf_res->vf_cap_flags. Use ADV_LINK_SUPPORT macro to determine if
+	 * this field is valid. This field should be used going forward and the
+	 * enum virtchnl_link_speed above should be considered the legacy way of
+	 * storing/communicating link speeds.
+	 */
+	u32 link_speed_mbps;
+
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_cap_flags & \
@@ -323,6 +344,12 @@ struct iavf_adapter {
 			VIRTCHNL_VF_OFFLOAD_RSS_PF)))
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_cap_flags & \
 			  VIRTCHNL_VF_OFFLOAD_VLAN)
+#define ADV_LINK_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
+			      VIRTCHNL_VF_CAP_ADV_LINK_SPEED)
+#define FDIR_FLTR_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
+			       VIRTCHNL_VF_OFFLOAD_FDIR_PF)
+#define ADV_RSS_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
+			     VIRTCHNL_VF_OFFLOAD_ADV_RSS_PF)
 	struct virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
 	struct virtchnl_version_info pf_version;
@@ -345,20 +372,28 @@ struct iavf_adapter {
 	/* lock to protect access to the cloud filter list */
 	spinlock_t cloud_filter_list_lock;
 	u16 num_cloud_filters;
+
+#define IAVF_MAX_FDIR_FILTERS 128	/* max allowed Flow Director filters */
+	u16 fdir_active_fltr;
+	struct list_head fdir_list_head;
+	spinlock_t fdir_fltr_lock;	/* protect the Flow Director filter list */
+
+	struct list_head adv_rss_list_head;
+	spinlock_t adv_rss_lock;	/* protect the RSS management list */
 };
 
 
 /* Ethtool Private Flags */
 
 /* lan device, used by client interface */
-struct i40e_device {
+struct iavf_device {
 	struct list_head list;
 	struct iavf_adapter *vf;
 };
 
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
-extern const char iavf_driver_version[];
+extern struct workqueue_struct *iavf_wq;
 
 int iavf_up(struct iavf_adapter *adapter);
 void iavf_down(struct iavf_adapter *adapter);
@@ -402,7 +437,7 @@ void iavf_enable_vlan_stripping(struct iavf_adapter *adapter);
 void iavf_disable_vlan_stripping(struct iavf_adapter *adapter);
 void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			      enum virtchnl_ops v_opcode,
-			      iavf_status v_retval, u8 *msg, u16 msglen);
+			      enum iavf_status v_retval, u8 *msg, u16 msglen);
 int iavf_config_rss(struct iavf_adapter *adapter);
 int iavf_lan_add_device(struct iavf_adapter *adapter);
 int iavf_lan_del_device(struct iavf_adapter *adapter);
@@ -415,4 +450,10 @@ void iavf_enable_channels(struct iavf_adapter *adapter);
 void iavf_disable_channels(struct iavf_adapter *adapter);
 void iavf_add_cloud_filter(struct iavf_adapter *adapter);
 void iavf_del_cloud_filter(struct iavf_adapter *adapter);
+void iavf_add_fdir_filter(struct iavf_adapter *adapter);
+void iavf_del_fdir_filter(struct iavf_adapter *adapter);
+void iavf_add_adv_rss_cfg(struct iavf_adapter *adapter);
+void iavf_del_adv_rss_cfg(struct iavf_adapter *adapter);
+struct iavf_mac_filter *iavf_add_filter(struct iavf_adapter *adapter,
+					const u8 *macaddr);
 #endif /* _IAVF_H_ */

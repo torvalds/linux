@@ -8,21 +8,20 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include "xen_drm_front_gem.h"
-
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem.h>
-
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 #include <linux/shmem_fs.h>
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+
 #include <xen/balloon.h>
+#include <xen/xen.h>
 
 #include "xen_drm_front.h"
-#include "xen_drm_front_shbuf.h"
+#include "xen_drm_front_gem.h"
 
 struct xen_gem_object {
 	struct drm_gem_object base;
@@ -58,6 +57,19 @@ static void gem_free_pages_array(struct xen_gem_object *xen_obj)
 	xen_obj->pages = NULL;
 }
 
+static const struct vm_operations_struct xen_drm_drv_vm_ops = {
+	.open           = drm_gem_vm_open,
+	.close          = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs xen_drm_front_gem_object_funcs = {
+	.free = xen_drm_front_gem_object_free,
+	.get_sg_table = xen_drm_front_gem_get_sg_table,
+	.vmap = xen_drm_front_gem_prime_vmap,
+	.vunmap = xen_drm_front_gem_prime_vunmap,
+	.vm_ops = &xen_drm_drv_vm_ops,
+};
+
 static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 					     size_t size)
 {
@@ -67,6 +79,8 @@ static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 	xen_obj = kzalloc(sizeof(*xen_obj), GFP_KERNEL);
 	if (!xen_obj)
 		return ERR_PTR(-ENOMEM);
+
+	xen_obj->base.funcs = &xen_drm_front_gem_object_funcs;
 
 	ret = drm_gem_object_init(dev, &xen_obj->base, size);
 	if (ret < 0) {
@@ -85,7 +99,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 
 	size = round_up(size, PAGE_SIZE);
 	xen_obj = gem_create_obj(dev, size);
-	if (IS_ERR_OR_NULL(xen_obj))
+	if (IS_ERR(xen_obj))
 		return xen_obj;
 
 	if (drm_info->front_info->cfg.be_alloc) {
@@ -101,8 +115,8 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		 * allocate ballooned pages which will be used to map
 		 * grant references provided by the backend
 		 */
-		ret = alloc_xenballooned_pages(xen_obj->num_pages,
-					       xen_obj->pages);
+		ret = xen_alloc_unpopulated_pages(xen_obj->num_pages,
+					          xen_obj->pages);
 		if (ret < 0) {
 			DRM_ERROR("Cannot allocate %zu ballooned pages: %d\n",
 				  xen_obj->num_pages, ret);
@@ -119,7 +133,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 	 */
 	xen_obj->num_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	xen_obj->pages = drm_gem_get_pages(&xen_obj->base);
-	if (IS_ERR_OR_NULL(xen_obj->pages)) {
+	if (IS_ERR(xen_obj->pages)) {
 		ret = PTR_ERR(xen_obj->pages);
 		xen_obj->pages = NULL;
 		goto fail;
@@ -138,7 +152,7 @@ struct drm_gem_object *xen_drm_front_gem_create(struct drm_device *dev,
 	struct xen_gem_object *xen_obj;
 
 	xen_obj = gem_create(dev, size);
-	if (IS_ERR_OR_NULL(xen_obj))
+	if (IS_ERR(xen_obj))
 		return ERR_CAST(xen_obj);
 
 	return &xen_obj->base;
@@ -154,8 +168,8 @@ void xen_drm_front_gem_free_object_unlocked(struct drm_gem_object *gem_obj)
 	} else {
 		if (xen_obj->pages) {
 			if (xen_obj->be_alloc) {
-				free_xenballooned_pages(xen_obj->num_pages,
-							xen_obj->pages);
+				xen_free_unpopulated_pages(xen_obj->num_pages,
+							   xen_obj->pages);
 				gem_free_pages_array(xen_obj);
 			} else {
 				drm_gem_put_pages(&xen_obj->base,
@@ -181,7 +195,8 @@ struct sg_table *xen_drm_front_gem_get_sg_table(struct drm_gem_object *gem_obj)
 	if (!xen_obj->pages)
 		return ERR_PTR(-ENOMEM);
 
-	return drm_prime_pages_to_sg(xen_obj->pages, xen_obj->num_pages);
+	return drm_prime_pages_to_sg(gem_obj->dev,
+				     xen_obj->pages, xen_obj->num_pages);
 }
 
 struct drm_gem_object *
@@ -196,7 +211,7 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 
 	size = attach->dmabuf->size;
 	xen_obj = gem_create_obj(dev, size);
-	if (IS_ERR_OR_NULL(xen_obj))
+	if (IS_ERR(xen_obj))
 		return ERR_CAST(xen_obj);
 
 	ret = gem_alloc_pages_array(xen_obj, size);
@@ -205,19 +220,20 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 
 	xen_obj->sgt_imported = sgt;
 
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, xen_obj->pages,
-					       NULL, xen_obj->num_pages);
+	ret = drm_prime_sg_to_page_array(sgt, xen_obj->pages,
+					 xen_obj->num_pages);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	ret = xen_drm_front_dbuf_create(drm_info->front_info,
 					xen_drm_front_dbuf_to_cookie(&xen_obj->base),
-					0, 0, 0, size, xen_obj->pages);
+					0, 0, 0, size, sgt->sgl->offset,
+					xen_obj->pages);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	DRM_DEBUG("Imported buffer of size %zu with nents %u\n",
-		  size, sgt->nents);
+		  size, sgt->orig_nents);
 
 	return &xen_obj->base;
 }
@@ -225,8 +241,7 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 static int gem_mmap_obj(struct xen_gem_object *xen_obj,
 			struct vm_area_struct *vma)
 {
-	unsigned long addr = vma->vm_start;
-	int i;
+	int ret;
 
 	/*
 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
@@ -236,8 +251,14 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_pgoff = 0;
-	vma->vm_page_prot =
-			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	/*
+	 * According to Xen on ARM ABI (xen/include/public/arch-arm.h):
+	 * all memory which is shared with other entities in the system
+	 * (including the hypervisor and other guests) must reside in memory
+	 * which is mapped as Normal Inner Write-Back Outer Write-Back
+	 * Inner-Shareable.
+	 */
+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
 	/*
 	 * vm_operations_struct.fault handler will be called if CPU access
@@ -247,18 +268,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
 	 * FIXME: as we insert all the pages now then no .fault handler must
 	 * be called, so don't provide one
 	 */
-	for (i = 0; i < xen_obj->num_pages; i++) {
-		int ret;
+	ret = vm_map_pages(vma, xen_obj->pages, xen_obj->num_pages);
+	if (ret < 0)
+		DRM_ERROR("Failed to map pages into vma: %d\n", ret);
 
-		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
-		if (ret < 0) {
-			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
-			return ret;
-		}
-
-		addr += PAGE_SIZE;
-	}
-	return 0;
+	return ret;
 }
 
 int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -276,21 +290,28 @@ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return gem_mmap_obj(xen_obj, vma);
 }
 
-void *xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj)
+int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj, struct dma_buf_map *map)
 {
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
+	void *vaddr;
 
 	if (!xen_obj->pages)
-		return NULL;
+		return -ENOMEM;
 
-	return vmap(xen_obj->pages, xen_obj->num_pages,
-		    VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+	/* Please see comment in gem_mmap_obj on mapping and attributes. */
+	vaddr = vmap(xen_obj->pages, xen_obj->num_pages,
+		     VM_MAP, PAGE_KERNEL);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    void *vaddr)
+				    struct dma_buf_map *map)
 {
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 }
 
 int xen_drm_front_gem_prime_mmap(struct drm_gem_object *gem_obj,

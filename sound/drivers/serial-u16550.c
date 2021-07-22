@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   serial.c
  *   Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
@@ -6,20 +7,6 @@
  *		      Hannu Savolainen
  *
  *   This code is based on the code from ALSA 0.5.9, but heavily rewritten.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Sat Mar 31 17:27:57 PST 2001 tim.mann@compaq.com 
  *      Added support for the Midiator MS-124T and for the MS-124W in
@@ -47,7 +34,6 @@
 
 MODULE_DESCRIPTION("MIDI serial u16550");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ALSA, MIDI serial u16550}}");
 
 #define SNDRV_SERIAL_SOUNDCANVAS 0 /* Roland Soundcanvas; F5 NN selects part */
 #define SNDRV_SERIAL_MS124T 1      /* Midiator MS-124T */
@@ -55,7 +41,7 @@ MODULE_SUPPORTED_DEVICE("{{ALSA, MIDI serial u16550}}");
 #define SNDRV_SERIAL_MS124W_MB 3   /* Midiator MS-124W in M/B mode */
 #define SNDRV_SERIAL_GENERIC 4     /* Generic Interface */
 #define SNDRV_SERIAL_MAX_ADAPTOR SNDRV_SERIAL_GENERIC
-static char *adaptor_names[] = {
+static const char * const adaptor_names[] = {
 	"Soundcanvas",
         "MS-124T",
 	"MS-124W S/A",
@@ -790,14 +776,15 @@ static int snd_uart16550_create(struct snd_card *card,
 				int droponfull,
 				struct snd_uart16550 **ruart)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_uart16550_dev_free,
 	};
 	struct snd_uart16550 *uart;
 	int err;
 
 
-	if ((uart = kzalloc(sizeof(*uart), GFP_KERNEL)) == NULL)
+	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	if (!uart)
 		return -ENOMEM;
 	uart->adaptor = adaptor;
 	uart->card = card;
@@ -806,7 +793,8 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->base = iobase;
 	uart->drop_on_full = droponfull;
 
-	if ((err = snd_uart16550_detect(uart)) <= 0) {
+	err = snd_uart16550_detect(uart);
+	if (err <= 0) {
 		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
 		snd_uart16550_free(uart);
 		return -ENODEV;
@@ -832,7 +820,8 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->timer_running = 0;
 
 	/* Register device */
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, uart, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, uart, &ops);
+	if (err < 0) {
 		snd_uart16550_free(uart);
 		return err;
 	}
@@ -946,14 +935,10 @@ static int snd_serial_probe(struct platform_device *devptr)
 	strcpy(card->driver, "Serial");
 	strcpy(card->shortname, "Serial MIDI (UART16550A)");
 
-	if ((err = snd_uart16550_create(card,
-					port[dev],
-					irq[dev],
-					speed[dev],
-					base[dev],
-					adaptor[dev],
-					droponfull[dev],
-					&uart)) < 0)
+	err = snd_uart16550_create(card, port[dev], irq[dev], speed[dev],
+				   base[dev], adaptor[dev], droponfull[dev],
+				   &uart);
+	if (err < 0)
 		goto _err;
 
 	err = snd_uart16550_rmidi(uart, 0, outs[dev], ins[dev], &uart->rmidi);
@@ -966,7 +951,8 @@ static int snd_serial_probe(struct platform_device *devptr)
 		uart->base,
 		uart->irq);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		goto _err;
 
 	platform_set_drvdata(devptr, card);
@@ -1006,7 +992,8 @@ static int __init alsa_card_serial_init(void)
 {
 	int i, cards, err;
 
-	if ((err = platform_driver_register(&snd_serial_driver)) < 0)
+	err = platform_driver_register(&snd_serial_driver);
+	if (err < 0)
 		return err;
 
 	cards = 0;

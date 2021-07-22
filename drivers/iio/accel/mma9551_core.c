@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common code for Freescale MMA955x Intelligent Sensor Platform drivers
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -672,7 +664,7 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 	int ret;
 
 	if (on)
-		ret = pm_runtime_get_sync(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
 	else {
 		pm_runtime_mark_last_busy(&client->dev);
 		ret = pm_runtime_put_autosuspend(&client->dev);
@@ -681,8 +673,6 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"failed to change power state to %d\n", on);
-		if (on)
-			pm_runtime_put_noidle(&client->dev);
 
 		return ret;
 	}

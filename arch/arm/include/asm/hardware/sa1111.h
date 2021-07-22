@@ -403,7 +403,7 @@ struct sa1111_driver {
 	struct device_driver	drv;
 	unsigned int		devid;
 	int (*probe)(struct sa1111_dev *);
-	int (*remove)(struct sa1111_dev *);
+	void (*remove)(struct sa1111_dev *);
 };
 
 #define SA1111_DRV(_d)	container_of((_d), struct sa1111_driver, drv)
@@ -432,10 +432,6 @@ int sa1111_check_dma_bug(dma_addr_t addr);
 
 int sa1111_driver_register(struct sa1111_driver *);
 void sa1111_driver_unregister(struct sa1111_driver *);
-
-void sa1111_set_io_dir(struct sa1111_dev *sadev, unsigned int bits, unsigned int dir, unsigned int sleep_dir);
-void sa1111_set_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v);
-void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v);
 
 struct sa1111_platform_data {
 	int	irq_base;	/* base for cascaded on-chip IRQs */

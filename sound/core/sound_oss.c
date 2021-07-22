@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Advanced Linux Sound Architecture
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -232,7 +217,8 @@ static void snd_minor_info_oss_read(struct snd_info_entry *entry,
 
 	mutex_lock(&sound_oss_mutex);
 	for (minor = 0; minor < SNDRV_OSS_MINORS; ++minor) {
-		if (!(mptr = snd_oss_minors[minor]))
+		mptr = snd_oss_minors[minor];
+		if (!mptr)
 			continue;
 		if (mptr->card >= 0)
 			snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", minor,

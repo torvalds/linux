@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp5_kms.h"
 
@@ -22,65 +14,52 @@ static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-#include <mach/board.h>
-#include <linux/msm-bus.h>
-#include <linux/msm-bus-board.h>
-
-static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx)
-{
-	if (mdp5_cmd_enc->bsc) {
-		DBG("set bus scaling: %d", idx);
-		/* HACK: scaling down, and then immediately back up
-		 * seems to leave things broken (underflow).. so
-		 * never disable:
-		 */
-		idx = 1;
-		msm_bus_scale_client_update_request(mdp5_cmd_enc->bsc, idx);
-	}
-}
-#else
-static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx) {}
-#endif
-
 #define VSYNC_CLK_RATE 19200000
 static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 				    struct drm_display_mode *mode)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct device *dev = encoder->dev->dev;
-	u32 total_lines_x100, vclks_line, cfg;
+	u32 total_lines, vclks_line, cfg;
 	long vsync_clk_speed;
 	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
 	int pp_id = mixer->pp;
 
 	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
-		dev_err(dev, "vsync_clk is not initialized\n");
+		DRM_DEV_ERROR(dev, "vsync_clk is not initialized\n");
 		return -EINVAL;
 	}
 
-	total_lines_x100 = mode->vtotal * mode->vrefresh;
-	if (!total_lines_x100) {
-		dev_err(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
-				__func__, mode->vtotal, mode->vrefresh);
+	total_lines = mode->vtotal * drm_mode_vrefresh(mode);
+	if (!total_lines) {
+		DRM_DEV_ERROR(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
+			      __func__, mode->vtotal, drm_mode_vrefresh(mode));
 		return -EINVAL;
 	}
 
 	vsync_clk_speed = clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE);
 	if (vsync_clk_speed <= 0) {
-		dev_err(dev, "vsync_clk round rate failed %ld\n",
+		DRM_DEV_ERROR(dev, "vsync_clk round rate failed %ld\n",
 							vsync_clk_speed);
 		return -EINVAL;
 	}
-	vclks_line = vsync_clk_speed * 100 / total_lines_x100;
+	vclks_line = vsync_clk_speed / total_lines;
 
 	cfg = MDP5_PP_SYNC_CONFIG_VSYNC_COUNTER_EN
 		| MDP5_PP_SYNC_CONFIG_VSYNC_IN_EN;
 	cfg |= MDP5_PP_SYNC_CONFIG_VSYNC_COUNT(vclks_line);
 
+	/*
+	 * Tearcheck emits a blanking signal every vclks_line * vtotal * 2 ticks on
+	 * the vsync_clk equating to roughly half the desired panel refresh rate.
+	 * This is only necessary as stability fallback if interrupts from the
+	 * panel arrive too late or not at all, but is currently used by default
+	 * because these panel interrupts are not wired up yet.
+	 */
 	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_CONFIG_VSYNC(pp_id), cfg);
 	mdp5_write(mdp5_kms,
-		REG_MDP5_PP_SYNC_CONFIG_HEIGHT(pp_id), 0xfff0);
+		REG_MDP5_PP_SYNC_CONFIG_HEIGHT(pp_id), (2 * mode->vtotal));
+
 	mdp5_write(mdp5_kms,
 		REG_MDP5_PP_VSYNC_INIT_VAL(pp_id), mode->vdisplay);
 	mdp5_write(mdp5_kms, REG_MDP5_PP_RD_PTR_IRQ(pp_id), mode->vdisplay + 1);
@@ -88,6 +67,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_THRESH(pp_id),
 			MDP5_PP_SYNC_THRESH_START(4) |
 			MDP5_PP_SYNC_THRESH_CONTINUE(4));
+	mdp5_write(mdp5_kms, REG_MDP5_PP_AUTOREFRESH_CONFIG(pp_id), 0x0);
 
 	return 0;
 }
@@ -102,13 +82,13 @@ static int pingpong_tearcheck_enable(struct drm_encoder *encoder)
 	ret = clk_set_rate(mdp5_kms->vsync_clk,
 		clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE));
 	if (ret) {
-		dev_err(encoder->dev->dev,
+		DRM_DEV_ERROR(encoder->dev->dev,
 			"vsync_clk clk_set_rate failed, %d\n", ret);
 		return ret;
 	}
 	ret = clk_prepare_enable(mdp5_kms->vsync_clk);
 	if (ret) {
-		dev_err(encoder->dev->dev,
+		DRM_DEV_ERROR(encoder->dev->dev,
 			"vsync_clk clk_prepare_enable failed, %d\n", ret);
 		return ret;
 	}
@@ -134,14 +114,7 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 {
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 	pingpong_tearcheck_setup(encoder, mode);
 	mdp5_crtc_set_pipeline(encoder->crtc);
 }
@@ -161,8 +134,6 @@ void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 	mdp5_ctl_set_encoder_state(ctl, pipeline, false);
 	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf), true);
 
-	bs_set(mdp5_cmd_enc, 0);
-
 	mdp5_cmd_enc->enabled = false;
 }
 
@@ -176,7 +147,6 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 	if (WARN_ON(mdp5_cmd_enc->enabled))
 		return;
 
-	bs_set(mdp5_cmd_enc, 1);
 	if (pingpong_tearcheck_enable(encoder))
 		return;
 

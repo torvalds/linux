@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * i2c-stm32.c
  *
  * Copyright (C) M'boumba Cedric Madianga 2017
  * Author: M'boumba Cedric Madianga <cedric.madianga@gmail.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include "i2c-stm32.h"
@@ -21,13 +20,15 @@ struct stm32_i2c_dma *stm32_i2c_dma_request(struct device *dev,
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Request and configure I2C TX dma channel */
-	dma->chan_tx = dma_request_slave_channel(dev, "tx");
-	if (!dma->chan_tx) {
-		dev_dbg(dev, "can't request DMA tx channel\n");
-		ret = -EINVAL;
+	dma->chan_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(dma->chan_tx)) {
+		ret = PTR_ERR(dma->chan_tx);
+		if (ret != -ENODEV)
+			ret = dev_err_probe(dev, ret,
+					    "can't request DMA tx channel\n");
 		goto fail_al;
 	}
 
@@ -43,10 +44,13 @@ struct stm32_i2c_dma *stm32_i2c_dma_request(struct device *dev,
 	}
 
 	/* Request and configure I2C RX dma channel */
-	dma->chan_rx = dma_request_slave_channel(dev, "rx");
-	if (!dma->chan_rx) {
-		dev_err(dev, "can't request DMA rx channel\n");
-		ret = -EINVAL;
+	dma->chan_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(dma->chan_rx)) {
+		ret = PTR_ERR(dma->chan_rx);
+		if (ret != -ENODEV)
+			ret = dev_err_probe(dev, ret,
+					    "can't request DMA rx channel\n");
+
 		goto fail_tx;
 	}
 
@@ -74,9 +78,8 @@ fail_tx:
 	dma_release_channel(dma->chan_tx);
 fail_al:
 	devm_kfree(dev, dma);
-	dev_info(dev, "can't use DMA\n");
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 void stm32_i2c_dma_free(struct stm32_i2c_dma *dma)

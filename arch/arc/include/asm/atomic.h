@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _ASM_ARC_ATOMIC_H
@@ -17,18 +14,14 @@
 #include <asm/barrier.h>
 #include <asm/smp.h>
 
-#define ATOMIC_INIT(i)	{ (i) }
-
-#ifndef CONFIG_ARC_PLAT_EZNPS
-
-#define atomic_read(v)  READ_ONCE((v)->counter)
+#define arch_atomic_read(v)  READ_ONCE((v)->counter)
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
-#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	unsigned int val;						\
 									\
@@ -44,13 +37,13 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 }									\
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int atomic_##op##_return(int i, atomic_t *v)		\
+static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	unsigned int val;						\
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
+	 * LLOCK/SCOND themselves don't provide any such semantics	\
 	 */								\
 	smp_mb();							\
 									\
@@ -70,13 +63,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	unsigned int val, orig;						\
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
+	 * LLOCK/SCOND themselves don't provide any such semantics	\
 	 */								\
 	smp_mb();							\
 									\
@@ -101,11 +94,11 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 #ifndef CONFIG_SMP
 
  /* violating atomic_xxx API locking protocol in UP for optimization sake */
-#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #else
 
-static inline void atomic_set(atomic_t *v, int i)
+static inline void arch_atomic_set(atomic_t *v, int i)
 {
 	/*
 	 * Independent of hardware support, all of the atomic_xxx() APIs need
@@ -123,7 +116,7 @@ static inline void atomic_set(atomic_t *v, int i)
 	atomic_ops_unlock(flags);
 }
 
-#define atomic_set_release(v, i)	atomic_set((v), (i))
+#define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
 
 #endif
 
@@ -133,7 +126,7 @@ static inline void atomic_set(atomic_t *v, int i)
  */
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	unsigned long flags;						\
 									\
@@ -143,7 +136,7 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 }
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int atomic_##op##_return(int i, atomic_t *v)		\
+static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
 	unsigned long temp;						\
@@ -161,7 +154,7 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
 	unsigned long orig;						\
@@ -187,9 +180,6 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
-#define atomic_andnot		atomic_andnot
-#define atomic_fetch_andnot	atomic_fetch_andnot
-
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\
@@ -200,107 +190,8 @@ ATOMIC_OPS(andnot, &= ~, bic)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
 
-#else /* CONFIG_ARC_PLAT_EZNPS */
-
-static inline int atomic_read(const atomic_t *v)
-{
-	int temp;
-
-	__asm__ __volatile__(
-	"	ld.di %0, [%1]"
-	: "=r"(temp)
-	: "r"(&v->counter)
-	: "memory");
-	return temp;
-}
-
-static inline void atomic_set(atomic_t *v, int i)
-{
-	__asm__ __volatile__(
-	"	st.di %0,[%1]"
-	:
-	: "r"(i), "r"(&v->counter)
-	: "memory");
-}
-
-#define ATOMIC_OP(op, c_op, asm_op)					\
-static inline void atomic_##op(int i, atomic_t *v)			\
-{									\
-	__asm__ __volatile__(						\
-	"	mov r2, %0\n"						\
-	"	mov r3, %1\n"						\
-	"       .word %2\n"						\
-	:								\
-	: "r"(i), "r"(&v->counter), "i"(asm_op)				\
-	: "r2", "r3", "memory");					\
-}									\
-
-#define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int atomic_##op##_return(int i, atomic_t *v)		\
-{									\
-	unsigned int temp = i;						\
-									\
-	/* Explicit full memory barrier needed before/after */		\
-	smp_mb();							\
-									\
-	__asm__ __volatile__(						\
-	"	mov r2, %0\n"						\
-	"	mov r3, %1\n"						\
-	"       .word %2\n"						\
-	"	mov %0, r2"						\
-	: "+r"(temp)							\
-	: "r"(&v->counter), "i"(asm_op)					\
-	: "r2", "r3", "memory");					\
-									\
-	smp_mb();							\
-									\
-	temp c_op i;							\
-									\
-	return temp;							\
-}
-
-#define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
-{									\
-	unsigned int temp = i;						\
-									\
-	/* Explicit full memory barrier needed before/after */		\
-	smp_mb();							\
-									\
-	__asm__ __volatile__(						\
-	"	mov r2, %0\n"						\
-	"	mov r3, %1\n"						\
-	"       .word %2\n"						\
-	"	mov %0, r2"						\
-	: "+r"(temp)							\
-	: "r"(&v->counter), "i"(asm_op)					\
-	: "r2", "r3", "memory");					\
-									\
-	smp_mb();							\
-									\
-	return temp;							\
-}
-
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
-
-ATOMIC_OPS(add, +=, CTOP_INST_AADD_DI_R2_R2_R3)
-#define atomic_sub(i, v) atomic_add(-(i), (v))
-#define atomic_sub_return(i, v) atomic_add_return(-(i), (v))
-#define atomic_fetch_sub(i, v) atomic_fetch_add(-(i), (v))
-
-#undef ATOMIC_OPS
-#define ATOMIC_OPS(op, c_op, asm_op)					\
-	ATOMIC_OP(op, c_op, asm_op)					\
-	ATOMIC_FETCH_OP(op, c_op, asm_op)
-
-ATOMIC_OPS(and, &=, CTOP_INST_AAND_DI_R2_R2_R3)
-ATOMIC_OPS(or, |=, CTOP_INST_AOR_DI_R2_R2_R3)
-ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
-
-#endif /* CONFIG_ARC_PLAT_EZNPS */
+#define arch_atomic_andnot		arch_atomic_andnot
+#define arch_atomic_fetch_andnot	arch_atomic_fetch_andnot
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -324,14 +215,14 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
  */
 
 typedef struct {
-	aligned_u64 counter;
+	s64 __aligned(8) counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(a) { (a) }
 
-static inline long long atomic64_read(const atomic64_t *v)
+static inline s64 arch_atomic64_read(const atomic64_t *v)
 {
-	unsigned long long val;
+	s64 val;
 
 	__asm__ __volatile__(
 	"	ldd   %0, [%1]	\n"
@@ -341,7 +232,7 @@ static inline long long atomic64_read(const atomic64_t *v)
 	return val;
 }
 
-static inline void atomic64_set(atomic64_t *v, long long a)
+static inline void arch_atomic64_set(atomic64_t *v, s64 a)
 {
 	/*
 	 * This could have been a simple assignment in "C" but would need
@@ -362,9 +253,9 @@ static inline void atomic64_set(atomic64_t *v, long long a)
 }
 
 #define ATOMIC64_OP(op, op1, op2)					\
-static inline void atomic64_##op(long long a, atomic64_t *v)		\
+static inline void arch_atomic64_##op(s64 a, atomic64_t *v)		\
 {									\
-	unsigned long long val;						\
+	s64 val;							\
 									\
 	__asm__ __volatile__(						\
 	"1:				\n"				\
@@ -375,13 +266,13 @@ static inline void atomic64_##op(long long a, atomic64_t *v)		\
 	"	bnz     1b		\n"				\
 	: "=&r"(val)							\
 	: "r"(&v->counter), "ir"(a)					\
-	: "cc");						\
+	: "cc");							\
 }									\
 
 #define ATOMIC64_OP_RETURN(op, op1, op2)		        	\
-static inline long long atomic64_##op##_return(long long a, atomic64_t *v)	\
+static inline s64 arch_atomic64_##op##_return(s64 a, atomic64_t *v)	\
 {									\
-	unsigned long long val;						\
+	s64 val;							\
 									\
 	smp_mb();							\
 									\
@@ -402,9 +293,9 @@ static inline long long atomic64_##op##_return(long long a, atomic64_t *v)	\
 }
 
 #define ATOMIC64_FETCH_OP(op, op1, op2)		        		\
-static inline long long atomic64_fetch_##op(long long a, atomic64_t *v)	\
+static inline s64 arch_atomic64_fetch_##op(s64 a, atomic64_t *v)	\
 {									\
-	unsigned long long val, orig;					\
+	s64 val, orig;							\
 									\
 	smp_mb();							\
 									\
@@ -429,9 +320,6 @@ static inline long long atomic64_fetch_##op(long long a, atomic64_t *v)	\
 	ATOMIC64_OP_RETURN(op, op1, op2)				\
 	ATOMIC64_FETCH_OP(op, op1, op2)
 
-#define atomic64_andnot		atomic64_andnot
-#define atomic64_fetch_andnot	atomic64_fetch_andnot
-
 ATOMIC64_OPS(add, add.f, adc)
 ATOMIC64_OPS(sub, sub.f, sbc)
 ATOMIC64_OPS(and, and, and)
@@ -439,15 +327,18 @@ ATOMIC64_OPS(andnot, bic, bic)
 ATOMIC64_OPS(or, or, or)
 ATOMIC64_OPS(xor, xor, xor)
 
+#define arch_atomic64_andnot		arch_atomic64_andnot
+#define arch_atomic64_fetch_andnot	arch_atomic64_fetch_andnot
+
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
-static inline long long
-atomic64_cmpxchg(atomic64_t *ptr, long long expected, long long new)
+static inline s64
+arch_atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
 {
-	long long prev;
+	s64 prev;
 
 	smp_mb();
 
@@ -467,9 +358,9 @@ atomic64_cmpxchg(atomic64_t *ptr, long long expected, long long new)
 	return prev;
 }
 
-static inline long long atomic64_xchg(atomic64_t *ptr, long long new)
+static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 {
-	long long prev;
+	s64 prev;
 
 	smp_mb();
 
@@ -488,16 +379,16 @@ static inline long long atomic64_xchg(atomic64_t *ptr, long long new)
 }
 
 /**
- * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic64_t
  *
  * The function returns the old value of *v minus 1, even if
  * the atomic variable, v, was not decremented.
  */
 
-static inline long long atomic64_dec_if_positive(atomic64_t *v)
+static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {
-	long long val;
+	s64 val;
 
 	smp_mb();
 
@@ -517,10 +408,10 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 
 	return val;
 }
-#define atomic64_dec_if_positive atomic64_dec_if_positive
+#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 
 /**
- * atomic64_fetch_add_unless - add unless the number is a given value
+ * arch_atomic64_fetch_add_unless - add unless the number is a given value
  * @v: pointer of type atomic64_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
@@ -528,10 +419,9 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
  * Atomically adds @a to @v, if it was not @u.
  * Returns the old value of @v
  */
-static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
-						  long long u)
+static inline s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
-	long long old, temp;
+	s64 old, temp;
 
 	smp_mb();
 
@@ -553,7 +443,7 @@ static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
 
 	return old;
 }
-#define atomic64_fetch_add_unless atomic64_fetch_add_unless
+#define arch_atomic64_fetch_add_unless arch_atomic64_fetch_add_unless
 
 #endif	/* !CONFIG_GENERIC_ATOMIC64 */
 

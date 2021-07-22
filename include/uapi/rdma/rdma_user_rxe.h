@@ -39,6 +39,11 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 
+enum {
+	RXE_NETWORK_TYPE_IPV4 = 1,
+	RXE_NETWORK_TYPE_IPV6 = 2,
+};
+
 union rxe_gid {
 	__u8	raw[16];
 	struct {
@@ -57,9 +62,9 @@ struct rxe_global_route {
 
 struct rxe_av {
 	__u8			port_num;
+	/* From RXE_NETWORK_TYPE_* */
 	__u8			network_type;
-	__u16			reserved1;
-	__u32			reserved2;
+	__u8			dmac[6];
 	struct rxe_global_route	grh;
 	union {
 		struct sockaddr_in	_sockaddr_in;
@@ -94,15 +99,25 @@ struct rxe_send_wr {
 			__u32	remote_qkey;
 			__u16	pkey_index;
 		} ud;
+		struct {
+			__aligned_u64	addr;
+			__aligned_u64	length;
+			__u32		mr_lkey;
+			__u32		mw_rkey;
+			__u32		rkey;
+			__u32		access;
+		} mw;
 		/* reg is only used by the kernel and is not part of the uapi */
+#ifdef __KERNEL__
 		struct {
 			union {
 				struct ib_mr *mr;
 				__aligned_u64 reserved;
 			};
-			__u32        key;
-			__u32        access;
+			__u32	     key;
+			__u32	     access;
 		} reg;
+#endif
 	} wr;
 };
 
@@ -113,7 +128,7 @@ struct rxe_sge {
 };
 
 struct mminfo {
-	__aligned_u64  		offset;
+	__aligned_u64		offset;
 	__u32			size;
 	__u32			pad;
 };
@@ -174,6 +189,27 @@ struct rxe_create_srq_resp {
 
 struct rxe_modify_srq_cmd {
 	__aligned_u64 mmap_info_addr;
+};
+
+/* This data structure is stored at the base of work and
+ * completion queues shared between user space and kernel space.
+ * It contains the producer and consumer indices. Is also
+ * contains a copy of the queue size parameters for user space
+ * to use but the kernel must use the parameters in the
+ * rxe_queue struct. For performance reasons arrange to have
+ * producer and consumer indices in separate cache lines
+ * the kernel should always mask the indices to avoid accessing
+ * memory outside of the data area
+ */
+struct rxe_queue_buf {
+	__u32			log2_elem_size;
+	__u32			index_mask;
+	__u32			pad_1[30];
+	__u32			producer_index;
+	__u32			pad_2[31];
+	__u32			consumer_index;
+	__u32			pad_3[31];
+	__u8			data[];
 };
 
 #endif /* RDMA_USER_RXE_H */

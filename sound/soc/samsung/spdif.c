@@ -1,14 +1,9 @@
-/* sound/soc/samsung/spdif.c
- *
- * ALSA SoC Audio Layer - Samsung S/PDIF Controller driver
- *
- * Copyright (c) 2010 Samsung Electronics Co. Ltd
- *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ALSA SoC Audio Layer - Samsung S/PDIF Controller driver
+//
+// Copyright (c) 2010 Samsung Electronics Co. Ltd
+//		http://www.samsung.com/
 
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -75,9 +70,9 @@
  * @clk_rate: Current clock rate for calcurate ratio.
  * @pclk: The peri-clock pointer for spdif master operation.
  * @sclk: The source clock pointer for making sync signals.
- * @save_clkcon: Backup clkcon reg. in suspend.
- * @save_con: Backup con reg. in suspend.
- * @save_cstas: Backup cstas reg. in suspend.
+ * @saved_clkcon: Backup clkcon reg. in suspend.
+ * @saved_con: Backup con reg. in suspend.
+ * @saved_cstas: Backup cstas reg. in suspend.
  * @dma_playback: DMA information for playback channel.
  */
 struct samsung_spdif_info {
@@ -95,6 +90,12 @@ struct samsung_spdif_info {
 
 static struct snd_dmaengine_dai_dma_data spdif_stereo_out;
 static struct samsung_spdif_info spdif_info;
+
+static inline struct samsung_spdif_info
+*component_to_info(struct snd_soc_component *component)
+{
+	return snd_soc_component_get_drvdata(component);
+}
 
 static inline struct samsung_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
 {
@@ -140,8 +141,8 @@ static int spdif_set_sysclk(struct snd_soc_dai *cpu_dai,
 static int spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct samsung_spdif_info *spdif = to_info(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct samsung_spdif_info *spdif = to_info(asoc_rtd_to_cpu(rtd, 0));
 	unsigned long flags;
 
 	dev_dbg(spdif->dev, "Entered %s\n", __func__);
@@ -176,8 +177,8 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *socdai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct samsung_spdif_info *spdif = to_info(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct samsung_spdif_info *spdif = to_info(asoc_rtd_to_cpu(rtd, 0));
 	void __iomem *regs = spdif->regs;
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 con, clkcon, cstas;
@@ -193,7 +194,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
+	snd_soc_dai_set_dma_data(asoc_rtd_to_cpu(rtd, 0), substream, dma_data);
 
 	spin_lock_irqsave(&spdif->lock, flags);
 
@@ -278,8 +279,8 @@ err:
 static void spdif_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct samsung_spdif_info *spdif = to_info(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct samsung_spdif_info *spdif = to_info(asoc_rtd_to_cpu(rtd, 0));
 	void __iomem *regs = spdif->regs;
 	u32 con, clkcon;
 
@@ -295,9 +296,9 @@ static void spdif_shutdown(struct snd_pcm_substream *substream,
 }
 
 #ifdef CONFIG_PM
-static int spdif_suspend(struct snd_soc_dai *cpu_dai)
+static int spdif_suspend(struct snd_soc_component *component)
 {
-	struct samsung_spdif_info *spdif = to_info(cpu_dai);
+	struct samsung_spdif_info *spdif = component_to_info(component);
 	u32 con = spdif->saved_con;
 
 	dev_dbg(spdif->dev, "Entered %s\n", __func__);
@@ -312,9 +313,9 @@ static int spdif_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int spdif_resume(struct snd_soc_dai *cpu_dai)
+static int spdif_resume(struct snd_soc_component *component)
 {
-	struct samsung_spdif_info *spdif = to_info(cpu_dai);
+	struct samsung_spdif_info *spdif = component_to_info(component);
 
 	dev_dbg(spdif->dev, "Entered %s\n", __func__);
 
@@ -348,12 +349,12 @@ static struct snd_soc_dai_driver samsung_spdif_dai = {
 				SNDRV_PCM_RATE_96000),
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.ops = &spdif_dai_ops,
-	.suspend = spdif_suspend,
-	.resume = spdif_resume,
 };
 
 static const struct snd_soc_component_driver samsung_spdif_component = {
 	.name		= "samsung-spdif",
+	.suspend	= spdif_suspend,
+	.resume		= spdif_resume,
 };
 
 static int spdif_probe(struct platform_device *pdev)
@@ -430,7 +431,7 @@ static int spdif_probe(struct platform_device *pdev)
 	spdif->dma_playback = &spdif_stereo_out;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
-						 NULL, NULL);
+						 NULL, NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
 		goto err4;

@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
+#include <asm/machdep.h>
 #include <asm/ptrace.h>
 #include <asm/traps.h>
 
@@ -127,9 +128,7 @@ void q40_mksound(unsigned int hz, unsigned int ticks)
 	sound_ticks = ticks << 1;
 }
 
-static irq_handler_t q40_timer_routine;
-
-static irqreturn_t q40_timer_int (int irq, void * dev)
+static irqreturn_t q40_timer_int(int irq, void *dev_id)
 {
 	ql_ticks = ql_ticks ? 0 : 1;
 	if (sound_ticks) {
@@ -139,20 +138,24 @@ static irqreturn_t q40_timer_int (int irq, void * dev)
 		*DAC_RIGHT=sval;
 	}
 
-	if (!ql_ticks)
-		q40_timer_routine(irq, dev);
+	if (!ql_ticks) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		legacy_timer_tick(1);
+		timer_heartbeat();
+		local_irq_restore(flags);
+	}
 	return IRQ_HANDLED;
 }
 
-void q40_sched_init (irq_handler_t timer_routine)
+void q40_sched_init (void)
 {
 	int timer_irq;
 
-	q40_timer_routine = timer_routine;
 	timer_irq = Q40_IRQ_FRAME;
 
-	if (request_irq(timer_irq, q40_timer_int, 0,
-				"timer", q40_timer_int))
+	if (request_irq(timer_irq, q40_timer_int, 0, "timer", NULL))
 		panic("Couldn't register timer int");
 
 	master_outb(-1, FRAME_CLEAR_REG);

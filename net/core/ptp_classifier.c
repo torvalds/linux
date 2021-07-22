@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* PTP classifier
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 /* The below program is the bpf_asm (tools/net/) representation of
@@ -115,6 +107,36 @@ unsigned int ptp_classify_raw(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(ptp_classify_raw);
 
+struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type)
+{
+	u8 *ptr = skb_mac_header(skb);
+
+	if (type & PTP_CLASS_VLAN)
+		ptr += VLAN_HLEN;
+
+	switch (type & PTP_CLASS_PMASK) {
+	case PTP_CLASS_IPV4:
+		ptr += IPV4_HLEN(ptr) + UDP_HLEN;
+		break;
+	case PTP_CLASS_IPV6:
+		ptr += IP6_HLEN + UDP_HLEN;
+		break;
+	case PTP_CLASS_L2:
+		break;
+	default:
+		return NULL;
+	}
+
+	ptr += ETH_HLEN;
+
+	/* Ensure that the entire header is present in this packet. */
+	if (ptr + sizeof(struct ptp_header) > skb->data + skb->len)
+		return NULL;
+
+	return (struct ptp_header *)ptr;
+}
+EXPORT_SYMBOL_GPL(ptp_parse_header);
+
 void __init ptp_classifier_init(void)
 {
 	static struct sock_filter ptp_filter[] __initdata = {
@@ -185,9 +207,10 @@ void __init ptp_classifier_init(void)
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 	};
-	struct sock_fprog_kern ptp_prog = {
-		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
-	};
+	struct sock_fprog_kern ptp_prog;
+
+	ptp_prog.len = ARRAY_SIZE(ptp_filter);
+	ptp_prog.filter = ptp_filter;
 
 	BUG_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
 }

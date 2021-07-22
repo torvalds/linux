@@ -16,12 +16,10 @@ struct xfs_log_vec;
 void	xfs_trans_init(struct xfs_mount *);
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
-void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
-				bool abort);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
 void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
-				xfs_lsn_t commit_lsn, int aborted);
+				xfs_lsn_t commit_lsn, bool aborted);
 /*
  * AIL traversal cursor.
  *
@@ -93,24 +91,13 @@ xfs_trans_ail_update(
 	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
 }
 
-bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
-void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
-		int shutdown_type) __releases(ailp->ail_lock);
+void xfs_trans_ail_insert(struct xfs_ail *ailp, struct xfs_log_item *lip,
+		xfs_lsn_t lsn);
 
-static inline void
-xfs_trans_ail_remove(
-	struct xfs_log_item	*lip,
-	int			shutdown_type)
-{
-	struct xfs_ail		*ailp = lip->li_ailp;
-
-	spin_lock(&ailp->ail_lock);
-	/* xfs_trans_ail_delete() drops the AIL lock */
-	if (test_bit(XFS_LI_IN_AIL, &lip->li_flags))
-		xfs_trans_ail_delete(ailp, lip, shutdown_type);
-	else
-		spin_unlock(&ailp->ail_lock);
-}
+xfs_lsn_t xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+void xfs_ail_update_finish(struct xfs_ail *ailp, xfs_lsn_t old_lsn)
+			__releases(ailp->ail_lock);
+void xfs_trans_ail_delete(struct xfs_log_item *lip, int shutdown_type);
 
 void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
 void			xfs_ail_push_all(struct xfs_ail *);

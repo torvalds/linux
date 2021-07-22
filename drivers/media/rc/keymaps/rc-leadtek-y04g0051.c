@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LeadTek Y04G0051 remote controller keytable
  *
  * Copyright (C) 2010 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <media/rc-map.h>
@@ -25,20 +12,20 @@ static struct rc_map_table leadtek_y04g0051[] = {
 	{ 0x0300, KEY_POWER2 },
 	{ 0x0303, KEY_SCREEN },
 	{ 0x0304, KEY_RIGHT },
-	{ 0x0305, KEY_1 },
-	{ 0x0306, KEY_2 },
-	{ 0x0307, KEY_3 },
+	{ 0x0305, KEY_NUMERIC_1 },
+	{ 0x0306, KEY_NUMERIC_2 },
+	{ 0x0307, KEY_NUMERIC_3 },
 	{ 0x0308, KEY_LEFT },
-	{ 0x0309, KEY_4 },
-	{ 0x030a, KEY_5 },
-	{ 0x030b, KEY_6 },
+	{ 0x0309, KEY_NUMERIC_4 },
+	{ 0x030a, KEY_NUMERIC_5 },
+	{ 0x030b, KEY_NUMERIC_6 },
 	{ 0x030c, KEY_UP },
-	{ 0x030d, KEY_7 },
-	{ 0x030e, KEY_8 },
-	{ 0x030f, KEY_9 },
+	{ 0x030d, KEY_NUMERIC_7 },
+	{ 0x030e, KEY_NUMERIC_8 },
+	{ 0x030f, KEY_NUMERIC_9 },
 	{ 0x0310, KEY_DOWN },
 	{ 0x0311, KEY_AGAIN },
-	{ 0x0312, KEY_0 },
+	{ 0x0312, KEY_NUMERIC_0 },
 	{ 0x0313, KEY_OK },              /* 1st ok */
 	{ 0x0314, KEY_MUTE },
 	{ 0x0316, KEY_OK },              /* 2nd ok */

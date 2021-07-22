@@ -30,6 +30,7 @@ Required properties
  - vdd-cdc-io-supply: phandle to VDD_CDC_IO regulator DT node.
  - vdd-cdc-tx-rx-cx-supply: phandle to VDD_CDC_TX/RX/CX regulator DT node.
  - vdd-micbias-supply: phandle of VDD_MICBIAS supply's regulator DT node.
+
 Optional Properties:
  - qcom,mbhc-vthreshold-low: Array of 5 threshold voltages in mV for 5 buttons
 			     detection on headset when the mbhc is powered up
@@ -92,9 +93,9 @@ spmi_bus {
 				  "cdc_ear_cnp_int",
 				  "cdc_hphr_cnp_int",
 				  "cdc_hphl_cnp_int";
-	               VDD-CDC-IO-supply = <&pm8916_l5>;
-	               VDD-CDC-TX-RX-CX-supply = <&pm8916_l5>;
-	               VDD-MICBIAS-supply = <&pm8916_l13>;
+	               vdd-cdc-io-supply = <&pm8916_l5>;
+	               vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
+	               vdd-micbias-supply = <&pm8916_l13>;
 	               #sound-dai-cells = <1>;
 	};
 };

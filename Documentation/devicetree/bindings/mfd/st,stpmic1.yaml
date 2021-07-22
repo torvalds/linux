@@ -1,0 +1,334 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/st,stpmic1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectonics STPMIC1 Power Management IC bindings
+
+description: STMicroelectronics STPMIC1 Power Management IC
+
+maintainers:
+  - pascal Paillet <p.paillet@st.com>
+
+properties:
+  compatible:
+    const: st,stpmic1
+
+  reg:
+    const: 0x33
+
+  interrupts:
+    maxItems: 1
+
+  "#interrupt-cells":
+    const: 2
+
+  interrupt-controller: true
+
+  onkey:
+    type: object
+
+    $ref: ../input/input.yaml
+
+    properties:
+      compatible:
+        const: st,stpmic1-onkey
+
+      interrupts:
+        items:
+          - description: onkey-falling, happens when onkey is pressed. IT_PONKEY_F of pmic
+          - description: onkey-rising, happens when onkey is released. IT_PONKEY_R of pmic
+
+      interrupt-names:
+        items:
+          - const: onkey-falling
+          - const: onkey-rising
+
+      st,onkey-clear-cc-flag:
+        description: onkey is able power on after an over-current shutdown event.
+        $ref: /schemas/types.yaml#/definitions/flag
+
+      st,onkey-pu-inactive:
+        description: onkey pull up is not active
+        $ref: /schemas/types.yaml#/definitions/flag
+
+      power-off-time-sec:
+        minimum: 1
+        maximum: 16
+
+    required:
+      - compatible
+      - interrupts
+      - interrupt-names
+
+    additionalProperties: false
+
+  watchdog:
+    type: object
+
+    $ref: ../watchdog/watchdog.yaml
+
+    properties:
+      compatible:
+        const: st,stpmic1-wdt
+
+      timeout-sec: true
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+  regulators:
+    type: object
+
+    description: |
+      Available Regulators in STPMIC1 device are:
+        - buck1 for Buck BUCK1
+        - buck2 for Buck BUCK2
+        - buck3 for Buck BUCK3
+        - buck4 for Buck BUCK4
+        - ldo1 for LDO LDO1
+        - ldo2 for LDO LDO2
+        - ldo3 for LDO LDO3
+        - ldo4 for LDO LDO4
+        - ldo5 for LDO LDO5
+        - ldo6 for LDO LDO6
+        - vref_ddr for LDO Vref DDR
+        - boost for Buck BOOST
+        - pwr_sw1 for VBUS_OTG switch
+        - pwr_sw2 for SW_OUT switch
+      Switches are fixed voltage regulators with only enable/disable capability.
+
+    properties:
+      compatible:
+        const: st,stpmic1-regulators
+
+      ldo3:
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-min-microvolt: true
+          regulator-max-microvolt: true
+          regulator-allow-bypass: true
+          regulator-over-current-protection: true
+
+        additionalProperties: false
+
+      ldo4:
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-over-current-protection: true
+
+        additionalProperties: false
+
+      vref_ddr:
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+
+        additionalProperties: false
+
+      boost:
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-over-current-protection: true
+
+        additionalProperties: false
+
+    patternProperties:
+      "^(buck[1-4]|ldo[1-6]|boost|pwr_sw[1-2])-supply$":
+        description: STPMIC1 voltage regulators supplies
+
+      "^(buck[1-4]|ldo[1-6]|boost|vref_ddr|pwr_sw[1-2])$":
+        $ref: ../regulator/regulator.yaml
+
+      "^ldo[1-2,5-6]$":
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-min-microvolt: true
+          regulator-max-microvolt: true
+          regulator-over-current-protection: true
+          regulator-enable-ramp-delay: true
+
+        additionalProperties: false
+
+      "^buck[1-4]$":
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          st,mask-reset:
+            description: mask reset for this regulator, the regulator configuration
+              is maintained during pmic reset.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-min-microvolt: true
+          regulator-max-microvolt: true
+          regulator-initial-mode: true
+          regulator-pull-down: true
+          regulator-over-current-protection: true
+          regulator-enable-ramp-delay: true
+
+        additionalProperties: false
+
+      "^pwr_sw[1-2]$":
+        type: object
+
+        properties:
+          interrupts:
+            maxItems: 1
+
+          regulator-name: true
+          regulator-boot-on: true
+          regulator-always-on: true
+          regulator-over-current-protection: true
+          regulator-active-discharge: true
+
+        additionalProperties: false
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - "#interrupt-cells"
+  - interrupt-controller
+
+examples:
+  - |
+    #include <dt-bindings/mfd/st,stpmic1.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      pmic@33 {
+        compatible = "st,stpmic1";
+        reg = <0x33>;
+        interrupt-parent = <&gpioa>;
+        interrupts = <0 2>;
+
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        onkey {
+          compatible = "st,stpmic1-onkey";
+          interrupts = <IT_PONKEY_F 0>,<IT_PONKEY_R 1>;
+          interrupt-names = "onkey-falling", "onkey-rising";
+          power-off-time-sec = <10>;
+        };
+
+        watchdog {
+          compatible = "st,stpmic1-wdt";
+        };
+
+        regulators {
+          compatible = "st,stpmic1-regulators";
+
+          ldo6-supply = <&v3v3>;
+
+          buck1 {
+            regulator-name = "vdd_core";
+            interrupts = <IT_CURLIM_BUCK1 0>;
+            st,mask-reset;
+            regulator-boot-on;
+            regulator-min-microvolt = <700000>;
+            regulator-max-microvolt = <1200000>;
+          };
+
+          buck3 {
+            regulator-name = "vdd";
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+            regulator-boot-on;
+            regulator-pull-down;
+          };
+
+          buck4 {
+            regulator-name = "v3v3";
+            interrupts = <IT_CURLIM_BUCK4 0>;
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+          };
+
+          ldo6 {
+            regulator-name = "v1v8";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <1800000>;
+            regulator-over-current-protection;
+          };
+        };
+      };
+    };
+
+...

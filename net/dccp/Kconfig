@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig IP_DCCP
 	tristate "The DCCP Protocol"
 	depends on INET
-	---help---
+	help
 	  Datagram Congestion Control Protocol (RFC 4340)
 
-	  From http://www.ietf.org/rfc/rfc4340.txt:
+	  From https://www.ietf.org/rfc/rfc4340.txt:
 
 	  The Datagram Congestion Control Protocol (DCCP) is a transport
 	  protocol that implements bidirectional, unicast connections of
@@ -31,7 +32,7 @@ menu "DCCP Kernel Hacking"
 
 config IP_DCCP_DEBUG
 	bool "DCCP debug messages"
-	---help---
+	help
 	  Only use this if you're hacking DCCP.
 
 	  When compiling DCCP as a module, this debugging output can be toggled

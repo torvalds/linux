@@ -46,9 +46,9 @@ struct alpha_machine_vector
 	void (*mv_pci_tbi)(struct pci_controller *hose,
 			   dma_addr_t start, dma_addr_t end);
 
-	unsigned int (*mv_ioread8)(void __iomem *);
-	unsigned int (*mv_ioread16)(void __iomem *);
-	unsigned int (*mv_ioread32)(void __iomem *);
+	unsigned int (*mv_ioread8)(const void __iomem *);
+	unsigned int (*mv_ioread16)(const void __iomem *);
+	unsigned int (*mv_ioread32)(const void __iomem *);
 
 	void (*mv_iowrite8)(u8, void __iomem *);
 	void (*mv_iowrite16)(u16, void __iomem *);
@@ -98,12 +98,6 @@ struct alpha_machine_vector
 	struct _alpha_agp_info *(*agp_info)(void);
 
 	const char *vector_name;
-
-	/* NUMA information */
-	int (*pa_to_nid)(unsigned long);
-	int (*cpuid_to_nid)(int);
-	unsigned long (*node_mem_start)(int);
-	unsigned long (*node_mem_size)(int);
 
 	/* System specific parameters.  */
 	union {

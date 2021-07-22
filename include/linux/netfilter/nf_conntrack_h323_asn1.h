@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
- * ip_conntrack_h323_asn1.h - BER and PER decoding library for H.323
- * 			      conntrack/NAT module.
+ * BER and PER decoding library for H.323 conntrack/NAT module.
  *
  * Copyright (c) 2006 by Jing Min Zhao <zhaojingmin@users.sourceforge.net>
- *
- * This source code is licensed under General Public License version 2.
- *
  *
  * This library is based on H.225 version 4, H.235 version 2 and H.245
  * version 7. It is extremely optimized to decode only the absolutely
@@ -40,6 +37,8 @@
 /*****************************************************************************
  * H.323 Types
  ****************************************************************************/
+
+#include <linux/types.h>
 #include <linux/netfilter/nf_conntrack_h323_types.h>
 
 typedef struct {

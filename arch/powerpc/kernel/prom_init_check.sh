@@ -1,11 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Copyright © 2008 IBM Corporation
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version
-# 2 of the License, or (at your option) any later version.
 
 # This script checks prom_init.o to see what external symbols it
 # is using, if it finds symbols not in the whitelist it returns
@@ -16,19 +13,28 @@
 # If you really need to reference something from prom_init.o add
 # it to the list below:
 
+grep "^CONFIG_KASAN=y$" .config >/dev/null
+if [ $? -eq 0 ]
+then
+	MEM_FUNCS="__memcpy __memset"
+else
+	MEM_FUNCS="memcpy memset"
+fi
+
 WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
-_end enter_prom memcpy memset reloc_offset __secondary_hold
+_end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
 __secondary_hold_acknowledge __secondary_hold_spinloop __start
-strcmp strcpy strlcpy strlen strncmp strstr kstrtobool logo_linux_clut224
+logo_linux_clut224 btext_prepare_BAT
 reloc_got2 kernstart_addr memstart_addr linux_banner _stext
-__prom_init_toc_start __prom_init_toc_end btext_setup_display TOC."
+__prom_init_toc_start __prom_init_toc_end btext_setup_display TOC.
+relocate"
 
 NM="$1"
 OBJ="$2"
 
 ERROR=0
 
-function check_section()
+check_section()
 {
     file=$1
     section=$2

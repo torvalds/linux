@@ -51,9 +51,17 @@
  *
  * The 40 bit 82580 SYSTIM overflows every
  *   2^40 * 10^-9 /  60  = 18.3 minutes.
+ *
+ * SYSTIM is converted to real time using a timecounter. As
+ * timecounter_cyc2time() allows old timestamps, the timecounter needs
+ * to be updated at least once per half of the SYSTIM interval.
+ * Scheduling of delayed work is not very accurate, and also the NIC
+ * clock can be adjusted to run up to 6% faster and the system clock
+ * up to 10% slower, so we aim for 6 minutes to be sure the actual
+ * interval in the NIC time is shorter than 9.16 minutes.
  */
 
-#define IGB_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 9)
+#define IGB_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 6)
 #define IGB_PTP_TX_TIMEOUT		(HZ * 15)
 #define INCPERIOD_82576			BIT(E1000_TIMINCA_16NS_SHIFT)
 #define INCVALUE_82576_MASK		GENMASK(E1000_TIMINCA_16NS_SHIFT - 1, 0)
@@ -269,17 +277,25 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
-				 struct timespec64 *ts)
+static int igb_ptp_gettimex_82576(struct ptp_clock_info *ptp,
+				  struct timespec64 *ts,
+				  struct ptp_system_timestamp *sts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
 	unsigned long flags;
+	u32 lo, hi;
 	u64 ns;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	ns = timecounter_read(&igb->tc);
+	ptp_read_system_prets(sts);
+	lo = rd32(E1000_SYSTIML);
+	ptp_read_system_postts(sts);
+	hi = rd32(E1000_SYSTIMH);
+
+	ns = timecounter_cyc2time(&igb->tc, ((u64)hi << 32) | lo);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -288,16 +304,50 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int igb_ptp_gettime_i210(struct ptp_clock_info *ptp,
-				struct timespec64 *ts)
+static int igb_ptp_gettimex_82580(struct ptp_clock_info *ptp,
+				  struct timespec64 *ts,
+				  struct ptp_system_timestamp *sts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
+	unsigned long flags;
+	u32 lo, hi;
+	u64 ns;
+
+	spin_lock_irqsave(&igb->tmreg_lock, flags);
+
+	ptp_read_system_prets(sts);
+	rd32(E1000_SYSTIMR);
+	ptp_read_system_postts(sts);
+	lo = rd32(E1000_SYSTIML);
+	hi = rd32(E1000_SYSTIMH);
+
+	ns = timecounter_cyc2time(&igb->tc, ((u64)hi << 32) | lo);
+
+	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+
+	*ts = ns_to_timespec64(ns);
+
+	return 0;
+}
+
+static int igb_ptp_gettimex_i210(struct ptp_clock_info *ptp,
+				 struct timespec64 *ts,
+				 struct ptp_system_timestamp *sts)
+{
+	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
+					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
 	unsigned long flags;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	igb_ptp_read_i210(igb, ts);
+	ptp_read_system_prets(sts);
+	rd32(E1000_SYSTIMR);
+	ptp_read_system_postts(sts);
+	ts->tv_nsec = rd32(E1000_SYSTIML);
+	ts->tv_sec = rd32(E1000_SYSTIMH);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -471,6 +521,19 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_EXTTS:
+		/* Reject requests with unsupported flags */
+		if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
+					PTP_RISING_EDGE |
+					PTP_FALLING_EDGE |
+					PTP_STRICT_FLAGS))
+			return -EOPNOTSUPP;
+
+		/* Reject requests failing to enable both edges. */
+		if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
+		    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
+		    (rq->extts.flags & PTP_EXTTS_EDGES) != PTP_EXTTS_EDGES)
+			return -EOPNOTSUPP;
+
 		if (on) {
 			pin = ptp_find_pin(igb->ptp_clock, PTP_PF_EXTTS,
 					   rq->extts.index);
@@ -501,6 +564,10 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		return 0;
 
 	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
 		if (on) {
 			pin = ptp_find_pin(igb->ptp_clock, PTP_PF_PEROUT,
 					   rq->perout.index);
@@ -650,9 +717,12 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 	struct igb_adapter *igb =
 		container_of(work, struct igb_adapter, ptp_overflow_work.work);
 	struct timespec64 ts;
+	u64 ns;
 
-	igb->ptp_caps.gettime64(&igb->ptp_caps, &ts);
+	/* Update the timecounter */
+	ns = timecounter_read(&igb->tc);
 
+	ts = ns_to_timespec64(ns);
 	pr_debug("igb overflow check at %lld.%09lu\n",
 		 (long long) ts.tv_sec, ts.tv_nsec);
 
@@ -790,25 +860,35 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
  * igb_ptp_rx_pktstamp - retrieve Rx per packet timestamp
  * @q_vector: Pointer to interrupt specific structure
  * @va: Pointer to address containing Rx buffer
- * @skb: Buffer containing timestamp and packet
+ * @timestamp: Pointer where timestamp will be stored
  *
  * This function is meant to retrieve a timestamp from the first buffer of an
  * incoming frame.  The value is stored in little endian format starting on
- * byte 8.
+ * byte 8
+ *
+ * Returns: The timestamp header length or 0 if not available
  **/
-void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, void *va,
-			 struct sk_buff *skb)
+int igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, void *va,
+			ktime_t *timestamp)
 {
-	__le64 *regval = (__le64 *)va;
 	struct igb_adapter *adapter = q_vector->adapter;
+	struct skb_shared_hwtstamps ts;
+	__le64 *regval = (__le64 *)va;
 	int adjust = 0;
+
+	if (!(adapter->ptp_flags & IGB_PTP_ENABLED))
+		return 0;
 
 	/* The timestamp is recorded in little endian format.
 	 * DWORD: 0        1        2        3
 	 * Field: Reserved Reserved SYSTIML  SYSTIMH
 	 */
-	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb),
-				   le64_to_cpu(regval[1]));
+
+	/* check reserved dwords are zero, be/le doesn't matter for zero */
+	if (regval[0])
+		return 0;
+
+	igb_ptp_systim_to_hwtstamp(adapter, &ts, le64_to_cpu(regval[1]));
 
 	/* adjust timestamp for the RX latency based on link speed */
 	if (adapter->hw.mac.type == e1000_i210) {
@@ -824,8 +904,10 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, void *va,
 			break;
 		}
 	}
-	skb_hwtstamps(skb)->hwtstamp =
-		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
+
+	*timestamp = ktime_sub_ns(ts.hwtstamp, adjust);
+
+	return IGB_TS_HDR_LEN;
 }
 
 /**
@@ -836,13 +918,15 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, void *va,
  * This function is meant to retrieve a timestamp from the internal registers
  * of the adapter and store it in the skb.
  **/
-void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
-			 struct sk_buff *skb)
+void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
-	u64 regval;
 	int adjust = 0;
+	u64 regval;
+
+	if (!(adapter->ptp_flags & IGB_PTP_ENABLED))
+		return;
 
 	/* If this bit is set, then the RX registers contain the time stamp. No
 	 * other packet will be time stamped until we read these registers, so
@@ -887,8 +971,8 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 
 /**
  * igb_ptp_get_ts_config - get hardware time stamping config
- * @netdev:
- * @ifreq:
+ * @netdev: netdev struct
+ * @ifr: interface struct
  *
  * Get the hwtstamp_config settings to return to the user. Rather than attempt
  * to deconstruct the settings from the registers, just return a shadow copy
@@ -938,6 +1022,7 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tsync_tx_ctl = 0;
+		break;
 	case HWTSTAMP_TX_ON:
 		break;
 	default:
@@ -983,7 +1068,7 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 			config->rx_filter = HWTSTAMP_FILTER_ALL;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
@@ -1046,12 +1131,12 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 			| E1000_FTQF_MASK); /* mask all inputs */
 		ftqf &= ~E1000_FTQF_MASK_PROTO_BP; /* enable protocol check */
 
-		wr32(E1000_IMIR(3), htons(PTP_EV_PORT));
+		wr32(E1000_IMIR(3), (__force unsigned int)htons(PTP_EV_PORT));
 		wr32(E1000_IMIREXT(3),
 		     (E1000_IMIREXT_SIZE_BP | E1000_IMIREXT_CTRL_BP));
 		if (hw->mac.type == e1000_82576) {
 			/* enable source port check */
-			wr32(E1000_SPQF(3), htons(PTP_EV_PORT));
+			wr32(E1000_SPQF(3), (__force unsigned int)htons(PTP_EV_PORT));
 			ftqf &= ~E1000_FTQF_MASK_SOURCE_PORT_BP;
 		}
 		wr32(E1000_FTQF(3), ftqf);
@@ -1071,8 +1156,8 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 
 /**
  * igb_ptp_set_ts_config - set hardware time stamping config
- * @netdev:
- * @ifreq:
+ * @netdev: netdev struct
+ * @ifr: interface struct
  *
  **/
 int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
@@ -1118,7 +1203,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82576;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_82576;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82576;
@@ -1137,7 +1222,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfine = igb_ptp_adjfine_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_82580;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82580;
@@ -1165,7 +1250,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pin_config = adapter->sdp_config;
 		adapter->ptp_caps.adjfine = igb_ptp_adjfine_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_i210;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_i210;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_i210;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable_i210;
 		adapter->ptp_caps.verify = igb_ptp_verify_pin;

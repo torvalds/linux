@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2010 Sascha Hauer <s.hauer@pengutronix.de>
  * Copyright (C) 2005-2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 #ifndef __IPU_PRV_H__
 #define __IPU_PRV_H__
@@ -272,6 +263,7 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 		       unsigned int height, unsigned int stride, u32 format,
 		       uint64_t modifier, unsigned int bufaddr);
 void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr);
+bool ipu_pre_update_pending(struct ipu_pre *pre);
 
 struct ipu_prg *ipu_prg_lookup_by_phandle(struct device *dev, const char *name,
 					  int ipu_id);

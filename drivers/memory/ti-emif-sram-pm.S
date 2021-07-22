@@ -14,12 +14,12 @@
  * GNU General Public License for more details.
  */
 
-#include <generated/ti-emif-asm-offsets.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/memory.h>
 
 #include "emif.h"
+#include "ti-emif-asm-offsets.h"
 
 #define EMIF_POWER_MGMT_WAIT_SELF_REFRESH_8192_CYCLES	0x00a0
 #define EMIF_POWER_MGMT_SR_TIMER_MASK			0x00f0
@@ -27,6 +27,7 @@
 #define EMIF_POWER_MGMT_SELF_REFRESH_MODE_MASK		0x0700
 
 #define EMIF_SDCFG_TYPE_DDR2				0x2 << SDRAM_TYPE_SHIFT
+#define EMIF_SDCFG_TYPE_DDR3				0x3 << SDRAM_TYPE_SHIFT
 #define EMIF_STATUS_READY				0x4
 
 #define AM43XX_EMIF_PHY_CTRL_REG_COUNT                  0x120
@@ -243,6 +244,46 @@ emif_skip_restore_extra_regs:
 
 	mov	pc, lr
 ENDPROC(ti_emif_restore_context)
+
+/*
+ * void ti_emif_run_hw_leveling(void)
+ *
+ * Used during resume to run hardware leveling again and restore the
+ * configuration of the EMIF PHY, only for DDR3.
+ */
+ENTRY(ti_emif_run_hw_leveling)
+	adr	r4, ti_emif_pm_sram_data
+	ldr	r0, [r4, #EMIF_PM_BASE_ADDR_PHYS_OFFSET]
+
+	ldr	r3, [r0, #EMIF_READ_WRITE_LEVELING_CONTROL]
+	orr	r3, r3, #RDWRLVLFULL_START
+	ldr	r2, [r0, #EMIF_SDRAM_CONFIG]
+	and	r2, r2, #SDRAM_TYPE_MASK
+	cmp	r2, #EMIF_SDCFG_TYPE_DDR3
+	bne	skip_hwlvl
+
+	str	r3, [r0, #EMIF_READ_WRITE_LEVELING_CONTROL]
+
+	/*
+	 * If EMIF registers are touched during initial stage of HW
+	 * leveling sequence there will be an L3 NOC timeout error issued
+	 * as the EMIF will not respond, which is not fatal, but it is
+	 * avoidable. This small wait loop is enough time for this condition
+	 * to clear, even at worst case of CPU running at max speed of 1Ghz.
+	 */
+	mov	r2, #0x2000
+1:
+	subs	r2, r2, #0x1
+	bne	1b
+
+	/* Bit clears when operation is complete */
+2:	ldr     r1, [r0, #EMIF_READ_WRITE_LEVELING_CONTROL]
+	tst     r1, #RDWRLVLFULL_START
+	bne     2b
+
+skip_hwlvl:
+	mov	pc, lr
+ENDPROC(ti_emif_run_hw_leveling)
 
 /*
  * void ti_emif_enter_sr(void)

@@ -1,7 +1,7 @@
 /*
  * OMAP Dual-Mode Timers
  *
- * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com/
  * Tarun Kanti DebBarma <tarun.kanti@ti.com>
  * Thara Gopinath <thara@ti.com>
  *
@@ -74,6 +74,7 @@
 #define OMAP_TIMER_ERRATA_I103_I767			0x80000000
 
 struct timer_regs {
+	u32 ocp_cfg;
 	u32 tidr;
 	u32 tier;
 	u32 twer;
@@ -105,17 +106,17 @@ struct omap_dm_timer {
 	void __iomem	*pend;		/* write pending */
 	void __iomem	*func_base;	/* function register base */
 
+	atomic_t enabled;
 	unsigned long rate;
 	unsigned reserved:1;
 	unsigned posted:1;
 	struct timer_regs context;
-	int (*get_context_loss_count)(struct device *);
-	int ctx_loss_count;
 	int revision;
 	u32 capability;
 	u32 errata;
 	struct platform_device *pdev;
 	struct list_head node;
+	struct notifier_block nb;
 };
 
 int omap_dm_timer_reserve_systimer(int id);
@@ -248,8 +249,7 @@ int omap_dm_timers_active(void);
 
 /*
  * The below are inlined to optimize code size for system timers. Other code
- * should not need these at all, see
- * include/linux/platform_data/pwm_omap_dmtimer.h
+ * should not need these at all.
  */
 #if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2PLUS)
 static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,

@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2011 - 2012 Cavium, Inc.
  */
 
@@ -57,9 +54,9 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 		u16 reg		= be32_to_cpup(paddr++);
 		u16 mask	= be32_to_cpup(paddr++);
 		u16 val_bits	= be32_to_cpup(paddr++);
-		int val;
-		u32 regnum = MII_ADDR_C45 | (devid << 16) | reg;
-		val = 0;
+		u32 regnum = mdiobus_c45_addr(devid, reg);
+		int val = 0;
+
 		if (mask) {
 			val = phy_read(phydev, regnum);
 			if (val < 0) {
@@ -84,16 +81,16 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 }
 #endif /* CONFIG_OF_MDIO */
 
+static int bcm87xx_get_features(struct phy_device *phydev)
+{
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+			 phydev->supported);
+	return 0;
+}
+
 static int bcm87xx_config_init(struct phy_device *phydev)
 {
-	phydev->supported = SUPPORTED_10000baseR_FEC;
-	phydev->advertising = ADVERTISED_10000baseR_FEC;
-	phydev->state = PHY_NOLINK;
-	phydev->autoneg = AUTONEG_DISABLE;
-
-	bcm87xx_of_reg_init(phydev);
-
-	return 0;
+	return bcm87xx_of_reg_init(phydev);
 }
 
 static int bcm87xx_config_aneg(struct phy_device *phydev)
@@ -147,35 +144,41 @@ static int bcm87xx_config_intr(struct phy_device *phydev)
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg |= 1;
-	else
-		reg &= ~1;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+		if (err)
+			return err;
 
-	err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		reg |= 1;
+		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+	} else {
+		reg &= ~1;
+		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		if (err)
+			return err;
+
+		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+	}
+
 	return err;
 }
 
-static int bcm87xx_did_interrupt(struct phy_device *phydev)
+static irqreturn_t bcm87xx_handle_interrupt(struct phy_device *phydev)
 {
-	int reg;
+	int irq_status;
 
-	reg = phy_read(phydev, BCM87XX_LASI_STATUS);
-
-	if (reg < 0) {
-		phydev_err(phydev,
-			   "Error: Read of BCM87XX_LASI_STATUS failed: %d\n",
-			   reg);
-		return 0;
+	irq_status = phy_read(phydev, BCM87XX_LASI_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
 	}
-	return (reg & 1) != 0;
-}
 
-static int bcm87xx_ack_interrupt(struct phy_device *phydev)
-{
-	/* Reading the LASI status clears it. */
-	bcm87xx_did_interrupt(phydev);
-	return 0;
+	if (irq_status == 0)
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int bcm8706_match_phy_device(struct phy_device *phydev)
@@ -193,28 +196,26 @@ static struct phy_driver bcm87xx_driver[] = {
 	.phy_id		= PHY_ID_BCM8706,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Broadcom BCM8706",
-	.flags		= PHY_HAS_INTERRUPT,
+	.get_features	= bcm87xx_get_features,
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
-	.ack_interrupt	= bcm87xx_ack_interrupt,
 	.config_intr	= bcm87xx_config_intr,
-	.did_interrupt	= bcm87xx_did_interrupt,
+	.handle_interrupt = bcm87xx_handle_interrupt,
 	.match_phy_device = bcm8706_match_phy_device,
 }, {
 	.phy_id		= PHY_ID_BCM8727,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Broadcom BCM8727",
-	.flags		= PHY_HAS_INTERRUPT,
+	.get_features	= bcm87xx_get_features,
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
-	.ack_interrupt	= bcm87xx_ack_interrupt,
 	.config_intr	= bcm87xx_config_intr,
-	.did_interrupt	= bcm87xx_did_interrupt,
+	.handle_interrupt = bcm87xx_handle_interrupt,
 	.match_phy_device = bcm8727_match_phy_device,
 } };
 
 module_phy_driver(bcm87xx_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

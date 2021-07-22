@@ -34,7 +34,7 @@
 /*--------------------------Define Parameters-------------------------------*/
 
 /*  */
-/*        8192S Regsiter offset definition */
+/*        8192S Register offset definition */
 /*  */
 
 /*  */
@@ -43,7 +43,7 @@
 /*  2. 0x800/0x900/0xA00/0xC00/0xD00/0xE00 */
 /*  3. RF register 0x00-2E */
 /*  4. Bit Mask for BB/RF register */
-/*  5. Other defintion for BB/RF R/W */
+/*  5. Other definition for BB/RF R/W */
 /*  */
 
 
@@ -137,7 +137,7 @@
 #define		rFPGA0_AnalogParameter3		0x888	/*  Useless now */
 #define		rFPGA0_AnalogParameter4		0x88c
 
-#define		rFPGA0_XA_LSSIReadBack		0x8a0	/*  Tranceiver LSSI Readback */
+#define		rFPGA0_XA_LSSIReadBack		0x8a0	/*  Transceiver LSSI Readback */
 #define		rFPGA0_XB_LSSIReadBack		0x8a4
 #define		rFPGA0_XC_LSSIReadBack		0x8a8
 #define		rFPGA0_XD_LSSIReadBack		0x8ac
@@ -206,7 +206,7 @@
 #define		rOFDM0_TRSWIsolation		0xc0c
 
 #define		rOFDM0_XARxAFE			0xc10  /* RxIQ DC offset, Rx digital filter, DC notch filter */
-#define		rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imblance matrix */
+#define		rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imbalance matrix */
 #define		rOFDM0_XBRxAFE				0xc18
 #define		rOFDM0_XBRxIQImbalance		0xc1c
 #define		rOFDM0_XCRxAFE				0xc20
@@ -558,7 +558,6 @@
 
 #define		b3WireRFPowerDown			0x1	/*  Useless now */
 /* define bHWSISelect				0x8 */
-#define		b5GPAPEPolarity				0x40000000
 #define		b2GPAPEPolarity				0x80000000
 #define		bRFSW_TxDefaultAnt			0x3
 #define		bRFSW_TxOptionAnt			0x30
@@ -577,7 +576,6 @@
 #define		bRFSI_ANTSW				0x100
 #define		bRFSI_ANTSWB				0x200
 #define		bRFSI_PAPE					0x400
-#define		bRFSI_PAPE5G				0x800
 #define		bBandSelect					0x1
 #define		bHTSIG2_GI					0x80
 #define		bHTSIG2_Smoothing			0x01

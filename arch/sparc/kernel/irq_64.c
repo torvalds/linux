@@ -42,6 +42,7 @@
 #include <asm/head.h>
 #include <asm/hypervisor.h>
 #include <asm/cacheflush.h>
+#include <asm/softirq_stack.h>
 
 #include "entry.h"
 #include "cpumap.h"
@@ -915,7 +916,7 @@ static void map_prom_timers(void)
 	dp = of_find_node_by_path("/");
 	dp = dp->child;
 	while (dp) {
-		if (!strcmp(dp->name, "counter-timer"))
+		if (of_node_name_eq(dp, "counter-timer"))
 			break;
 		dp = dp->sibling;
 	}

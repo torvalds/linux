@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on arch/arm/mm/flush.c
  *
  * Copyright (C) 1995-2002 Russell King
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/export.h>
@@ -25,24 +14,25 @@
 #include <asm/cache.h>
 #include <asm/tlbflush.h>
 
-void sync_icache_aliases(void *kaddr, unsigned long len)
+void sync_icache_aliases(unsigned long start, unsigned long end)
 {
-	unsigned long addr = (unsigned long)kaddr;
-
 	if (icache_is_aliasing()) {
-		__clean_dcache_area_pou(kaddr, len);
-		__flush_icache_all();
+		dcache_clean_pou(start, end);
+		icache_inval_all_pou();
 	} else {
-		flush_icache_range(addr, addr + len);
+		/*
+		 * Don't issue kick_all_cpus_sync() after I-cache invalidation
+		 * for user mappings.
+		 */
+		caches_clean_inval_pou(start, end);
 	}
 }
 
-static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-				unsigned long uaddr, void *kaddr,
-				unsigned long len)
+static void flush_ptrace_access(struct vm_area_struct *vma, unsigned long start,
+				unsigned long end)
 {
 	if (vma->vm_flags & VM_EXEC)
-		sync_icache_aliases(kaddr, len);
+		sync_icache_aliases(start, end);
 }
 
 /*
@@ -55,16 +45,19 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long len)
 {
 	memcpy(dst, src, len);
-	flush_ptrace_access(vma, page, uaddr, dst, len);
+	flush_ptrace_access(vma, (unsigned long)dst, (unsigned long)dst + len);
 }
 
 void __sync_icache_dcache(pte_t pte)
 {
 	struct page *page = pte_page(pte);
 
-	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
-		sync_icache_aliases(page_address(page),
-				    PAGE_SIZE << compound_order(page));
+	if (!test_bit(PG_dcache_clean, &page->flags)) {
+		sync_icache_aliases((unsigned long)page_address(page),
+				    (unsigned long)page_address(page) +
+					    page_size(page));
+		set_bit(PG_dcache_clean, &page->flags);
+	}
 }
 EXPORT_SYMBOL_GPL(__sync_icache_dcache);
 
@@ -83,20 +76,20 @@ EXPORT_SYMBOL(flush_dcache_page);
 /*
  * Additional functions defined in assembly.
  */
-EXPORT_SYMBOL(__flush_icache_range);
+EXPORT_SYMBOL(caches_clean_inval_pou);
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
 	/* Ensure order against any prior non-cacheable writes */
 	dmb(osh);
-	__clean_dcache_area_pop(addr, size);
+	dcache_clean_pop((unsigned long)addr, (unsigned long)addr + size);
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
-	__inval_dcache_area(addr, size);
+	dcache_inval_poc((unsigned long)addr, (unsigned long)addr + size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
 #endif

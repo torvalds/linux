@@ -50,8 +50,8 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	}
 
 	/* now map mmio and vidmem */
-	sm750_dev->pvReg = ioremap_nocache(sm750_dev->vidreg_start,
-					   sm750_dev->vidreg_size);
+	sm750_dev->pvReg = ioremap(sm750_dev->vidreg_start,
+				   sm750_dev->vidreg_size);
 	if (!sm750_dev->pvReg) {
 		pr_err("mmio failed\n");
 		ret = -EFAULT;
@@ -207,7 +207,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 			if (output->paths & sm750_crt)
 				disp_set |= do_CRT_SEC;
 		}
-		ddk750_setLogicalDispOut(disp_set);
+		ddk750_set_logical_disp_out(disp_set);
 	} else {
 		/* just open DISPLAY_CONTROL_750LE register bit 3:0 */
 		u32 reg;

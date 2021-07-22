@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PC Speaker beeper driver for Linux
  *
  *  Copyright (c) 2002 Vojtech Pavlik
  *  Copyright (c) 1992 Orest Zborowski
- *
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation
- */
 
 #include <linux/init.h>
 #include <linux/input.h>
@@ -59,6 +54,7 @@ static int pcspkr_input_event(struct input_dev *dev, unsigned int type,
 		case SND_BELL:
 			if (value)
 				value = 1000;
+			break;
 		case SND_TONE:
 			break;
 		default:

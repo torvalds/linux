@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-sa1100/generic.c
  *
  * Author: Nicolas Pitre
  *
  * Code common to all SA11x0 machines.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
@@ -235,18 +232,11 @@ void sa11x0_register_lcd(struct sa1100fb_mach_info *inf)
 	sa11x0_register_device(&sa11x0fb_device, inf);
 }
 
-static bool sa11x0pcmcia_legacy = true;
-static struct platform_device sa11x0pcmcia_device = {
-	.name		= "sa11x0-pcmcia",
-	.id		= -1,
-};
-
 void sa11x0_register_pcmcia(int socket, struct gpiod_lookup_table *table)
 {
 	if (table)
 		gpiod_add_lookup_table(table);
 	platform_device_register_simple("sa11x0-pcmcia", socket, NULL, 0);
-	sa11x0pcmcia_legacy = false;
 }
 
 static struct platform_device sa11x0mtd_device = {
@@ -330,9 +320,6 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 static int __init sa1100_init(void)
 {
 	pm_power_off = sa1100_power_off;
-
-	if (sa11x0pcmcia_legacy)
-		platform_device_register(&sa11x0pcmcia_device);
 
 	regulator_has_full_constraints();
 

@@ -16,8 +16,8 @@ Required properties:
 				registers (required for Northstar2)
  - interrupts:	Interrupt number
 
-Optional properties:
-- mac-address:	See ethernet.txt file in the same directory
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Examples:
 

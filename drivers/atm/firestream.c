@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /* drivers/atm/firestream.c - FireStream 155 (MB86697) and
  *                            FireStream  50 (MB86695) device driver 
@@ -9,22 +10,6 @@
  */
 
 /*
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-  The GNU GPL is contained in /usr/doc/copyright/GPL on a Debian
-  system and in the file COPYING in the Linux kernel source.
 */
 
 
@@ -726,7 +711,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 
 		switch (STATUS_CODE (qe)) {
 		case 0x01: /* This is for AAL0 where we put the chip in streaming mode */
-			/* Fall through */
+			fallthrough;
 		case 0x02:
 			/* Process a real txdone entry. */
 			tmp = qe->p0;
@@ -810,6 +795,7 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 		switch (STATUS_CODE (qe)) {
 		case 0x1:
 			/* Fall through for streaming mode */
+			fallthrough;
 		case 0x2:/* Packet received OK.... */
 			if (atm_vcc) {
 				skb = pe->skb;
@@ -927,6 +913,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			}
 			if (!to) {
 				printk ("No more free channels for FS50..\n");
+				kfree(vcc);
 				return -EBUSY;
 			}
 			vcc->channo = dev->channo;
@@ -937,6 +924,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			if (((DO_DIRECTION(rxtp) && dev->atm_vccs[vcc->channo])) ||
 			    ( DO_DIRECTION(txtp) && test_bit (vcc->channo, dev->tx_inuse))) {
 				printk ("Channel is in use for FS155.\n");
+				kfree(vcc);
 				return -EBUSY;
 			}
 		}
@@ -950,6 +938,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 			    tc, sizeof (struct fs_transmit_config));
 		if (!tc) {
 			fs_dprintk (FS_DEBUG_OPEN, "fs: can't alloc transmit_config.\n");
+			kfree(vcc);
 			return -ENOMEM;
 		}
 
@@ -1010,6 +999,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 				error = make_rate (pcr, r, &tmc0, NULL);
 				if (error) {
 					kfree(tc);
+					kfree(vcc);
 					return error;
 				}
 			}
@@ -1085,7 +1075,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 					RC_FLAGS_BFPS_BFP * bfp |
 					RC_FLAGS_RXBM_PSB, 0, 0);
 			break;
-		};
+		}
 		if (IS_FS50 (dev)) {
 			submit_command (dev, &dev->hp_txq, 
 					QE_CMD_REG_WR | QE_CMD_IMM_INQ,
@@ -1289,8 +1279,6 @@ static const struct atmdev_ops ops = {
 	.send =         fs_send,
 	.owner =        THIS_MODULE,
 	/* ioctl:          fs_ioctl, */
-	/* getsockopt:     fs_getsockopt, */
-	/* setsockopt:     fs_setsockopt, */
 	/* change_qos:     fs_change_qos, */
 
 	/* For now implement these internally here... */  
@@ -1410,7 +1398,7 @@ static int init_q(struct fs_dev *dev, struct queue *txq, int queue,
 
 	func_enter ();
 
-	fs_dprintk (FS_DEBUG_INIT, "Inititing queue at %x: %d entries:\n", 
+	fs_dprintk (FS_DEBUG_INIT, "Initializing queue at %x: %d entries:\n",
 		    queue, nentries);
 
 	p = aligned_kmalloc (sz, GFP_KERNEL, 0x10);
@@ -1443,7 +1431,7 @@ static int init_fp(struct fs_dev *dev, struct freepool *fp, int queue,
 {
 	func_enter ();
 
-	fs_dprintk (FS_DEBUG_INIT, "Inititing free pool at %x:\n", queue);
+	fs_dprintk (FS_DEBUG_INIT, "Initializing free pool at %x:\n", queue);
 
 	write_fs (dev, FP_CNF(queue), (bufsize * RBFP_RBS) | RBFP_RBSVAL | RBFP_CME);
 	write_fs (dev, FP_SA(queue),  0);
@@ -1646,7 +1634,7 @@ static irqreturn_t fs_irq (int irq, void *dev_id)
 	}
 
 	if (status & ISR_TBRQ_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Data tramsitted!\n");
+		fs_dprintk (FS_DEBUG_IRQ, "Data transmitted!\n");
 		process_txdone_queue (dev, &dev->tx_relq);
 	}
 

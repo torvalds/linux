@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kprobes.h>
+#include <linux/security.h>
 #include "trace.h"
 #include "trace_probe.h"
 
@@ -15,7 +16,7 @@ static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 
 /*
  * Force it to be aligned to unsigned long to avoid misaligned accesses
- * suprises
+ * surprises
  */
 typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 	perf_trace_t;
@@ -26,8 +27,10 @@ static int	total_ref_count;
 static int perf_trace_event_perm(struct trace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
+	int ret;
+
 	if (tp_event->perf_perm) {
-		int ret = tp_event->perf_perm(tp_event, p_event);
+		ret = tp_event->perf_perm(tp_event, p_event);
 		if (ret)
 			return ret;
 	}
@@ -46,8 +49,9 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 
 	/* The ftrace function trace is allowed only for root. */
 	if (ftrace_event_is_function(tp_event)) {
-		if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
+		ret = perf_allow_tracepoint(&p_event->attr);
+		if (ret)
+			return ret;
 
 		if (!is_sampling_event(p_event))
 			return 0;
@@ -82,8 +86,9 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 	 * ...otherwise raw tracepoint data can be a severe data leak,
 	 * only allow root to have these.
 	 */
-	if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	ret = perf_allow_tracepoint(&p_event->attr);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -272,9 +277,11 @@ int perf_kprobe_init(struct perf_event *p_event, bool is_retprobe)
 		goto out;
 	}
 
+	mutex_lock(&event_mutex);
 	ret = perf_trace_event_init(tp_event, p_event);
 	if (ret)
 		destroy_local_trace_kprobe(tp_event);
+	mutex_unlock(&event_mutex);
 out:
 	kfree(func);
 	return ret;
@@ -282,15 +289,18 @@ out:
 
 void perf_kprobe_destroy(struct perf_event *p_event)
 {
+	mutex_lock(&event_mutex);
 	perf_trace_event_close(p_event);
 	perf_trace_event_unreg(p_event);
+	mutex_unlock(&event_mutex);
 
 	destroy_local_trace_kprobe(p_event->tp_event);
 }
 #endif /* CONFIG_KPROBE_EVENTS */
 
 #ifdef CONFIG_UPROBE_EVENTS
-int perf_uprobe_init(struct perf_event *p_event, bool is_retprobe)
+int perf_uprobe_init(struct perf_event *p_event,
+		     unsigned long ref_ctr_offset, bool is_retprobe)
 {
 	int ret;
 	char *path = NULL;
@@ -298,22 +308,20 @@ int perf_uprobe_init(struct perf_event *p_event, bool is_retprobe)
 
 	if (!p_event->attr.uprobe_path)
 		return -EINVAL;
-	path = kzalloc(PATH_MAX, GFP_KERNEL);
-	if (!path)
-		return -ENOMEM;
-	ret = strncpy_from_user(
-		path, u64_to_user_ptr(p_event->attr.uprobe_path), PATH_MAX);
-	if (ret == PATH_MAX)
-		return -E2BIG;
-	if (ret < 0)
-		goto out;
+
+	path = strndup_user(u64_to_user_ptr(p_event->attr.uprobe_path),
+			    PATH_MAX);
+	if (IS_ERR(path)) {
+		ret = PTR_ERR(path);
+		return (ret == -EINVAL) ? -E2BIG : ret;
+	}
 	if (path[0] == '\0') {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	tp_event = create_local_trace_uprobe(
-		path, p_event->attr.probe_offset, is_retprobe);
+	tp_event = create_local_trace_uprobe(path, p_event->attr.probe_offset,
+					     ref_ctr_offset, is_retprobe);
 	if (IS_ERR(tp_event)) {
 		ret = PTR_ERR(tp_event);
 		goto out;
@@ -413,27 +421,31 @@ NOKPROBE_SYMBOL(perf_trace_buf_alloc);
 void perf_trace_buf_update(void *record, u16 type)
 {
 	struct trace_entry *entry = record;
-	int pc = preempt_count();
-	unsigned long flags;
 
-	local_save_flags(flags);
-	tracing_generic_entry_update(entry, flags, pc);
-	entry->type = type;
+	tracing_generic_entry_update(entry, type, tracing_gen_ctx());
 }
 NOKPROBE_SYMBOL(perf_trace_buf_update);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static void
 perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *ops, struct pt_regs *pt_regs)
+			  struct ftrace_ops *ops,  struct ftrace_regs *fregs)
 {
 	struct ftrace_entry *entry;
 	struct perf_event *event;
 	struct hlist_head head;
 	struct pt_regs regs;
 	int rctx;
+	int bit;
+
+	if (!rcu_is_watching())
+		return;
 
 	if ((unsigned long)ops->private != smp_processor_id())
+		return;
+
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
 		return;
 
 	event = container_of(ops, struct perf_event, ftrace_ops);
@@ -456,13 +468,15 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 
 	entry = perf_trace_buf_alloc(ENTRY_SIZE, NULL, &rctx);
 	if (!entry)
-		return;
+		goto out;
 
 	entry->ip = ip;
 	entry->parent_ip = parent_ip;
 	perf_trace_buf_submit(entry, ENTRY_SIZE, rctx, TRACE_FN,
 			      1, &regs, &head, NULL);
 
+out:
+	ftrace_test_recursion_unlock(bit);
 #undef ENTRY_SIZE
 }
 
@@ -470,7 +484,6 @@ static int perf_ftrace_function_register(struct perf_event *event)
 {
 	struct ftrace_ops *ops = &event->ftrace_ops;
 
-	ops->flags   = FTRACE_OPS_FL_RCU;
 	ops->func    = perf_ftrace_function_call;
 	ops->private = (void *)(unsigned long)nr_cpu_ids;
 

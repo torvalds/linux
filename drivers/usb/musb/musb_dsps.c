@@ -36,7 +36,7 @@
 
 static const struct of_device_id musb_dsps_of_match[];
 
-/**
+/*
  * DSPS musb wrapper register offset.
  * FIXME: This should be expanded to have all the wrapper registers from TI DSPS
  * musb ips.
@@ -96,7 +96,7 @@ struct dsps_context {
 	u32 rx_mode;
 };
 
-/**
+/*
  * DSPS glue structure.
  */
 struct dsps_glue {
@@ -162,14 +162,13 @@ static void dsps_mod_timer_optional(struct dsps_glue *glue)
 
 #define USBSS_IRQ_PD_COMP	(1 << 2)
 
-/**
+/*
  * dsps_musb_enable - enable interrupts
  */
 static void dsps_musb_enable(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct platform_device *pdev = to_platform_device(dev->parent);
-	struct dsps_glue *glue = platform_get_drvdata(pdev);
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 epmask, coremask;
@@ -181,20 +180,21 @@ static void dsps_musb_enable(struct musb *musb)
 
 	musb_writel(reg_base, wrp->epintr_set, epmask);
 	musb_writel(reg_base, wrp->coreintr_set, coremask);
-	/* start polling for ID change in dual-role idle mode */
-	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-			musb->port_mode == MUSB_OTG)
+	/*
+	 * start polling for runtime PM active and idle,
+	 * and for ID change in dual-role idle mode.
+	 */
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
 		dsps_mod_timer(glue, -1);
 }
 
-/**
+/*
  * dsps_musb_disable - disable HDRC and flush interrupts
  */
 static void dsps_musb_disable(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct platform_device *pdev = to_platform_device(dev->parent);
-	struct dsps_glue *glue = platform_get_drvdata(pdev);
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	void __iomem *reg_base = musb->ctrl_base;
 
@@ -227,8 +227,13 @@ static int dsps_check_status(struct musb *musb, void *unused)
 
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_VRISE:
-		dsps_mod_timer_optional(glue);
-		break;
+		if (musb->port_mode == MUSB_HOST) {
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
+			dsps_mod_timer_optional(glue);
+			break;
+		}
+		fallthrough;
+
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
 		if (musb->port_mode == MUSB_HOST) {
@@ -237,7 +242,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
@@ -249,6 +254,10 @@ static int dsps_check_status(struct musb *musb, void *unused)
 				musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 				MUSB_HST_MODE(musb);
 			}
+
+			if (musb->port_mode == MUSB_PERIPHERAL)
+				skip_session = 1;
+
 			if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
 				musb_writeb(mregs, MUSB_DEVCTL,
 					    MUSB_DEVCTL_SESSION);
@@ -402,7 +411,7 @@ static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
 	char buf[128];
 
 	sprintf(buf, "%s.dsps", dev_name(musb->controller));
-	root = debugfs_create_dir(buf, NULL);
+	root = debugfs_create_dir(buf, usb_debug_root);
 	glue->dbgfs_root = root;
 
 	glue->regset.regs = dsps_musb_regs;
@@ -786,7 +795,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_SUPER:
 		dev_warn(dev, "ignore incorrect maximum_speed "
 				"(super-speed) setting in dts");
-		/* fall through */
+		fallthrough;
 	default:
 		config->maximum_speed = USB_SPEED_HIGH;
 	}

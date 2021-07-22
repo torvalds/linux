@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TLV320AIC31xx CODEC Driver Definitions
  *
- * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef _TLV320AIC31XX_H
@@ -19,6 +19,10 @@
 #define AIC31XX_STEREO_CLASS_D_BIT	BIT(1)
 #define AIC31XX_MINIDSP_BIT		BIT(2)
 #define DAC31XX_BIT			BIT(3)
+
+#define AIC31XX_JACK_MASK (SND_JACK_HEADPHONE | \
+			   SND_JACK_HEADSET | \
+			   SND_JACK_BTN_0)
 
 enum aic31xx_type {
 	AIC3100	= 0,
@@ -214,11 +218,24 @@ struct aic31xx_pdata {
 #define AIC31XX_GPIO1_ADC_MOD_CLK	0x10
 #define AIC31XX_GPIO1_SDOUT		0x11
 
-/* AIC31XX_DACSETUP */
-#define AIC31XX_SOFTSTEP_MASK		GENMASK(1, 0)
-
 /* AIC31XX_DACMUTE */
 #define AIC31XX_DACMUTE_MASK		GENMASK(3, 2)
+
+/* AIC31XX_HSDETECT */
+#define AIC31XX_HSD_ENABLE		BIT(7)
+#define AIC31XX_HSD_TYPE_MASK		GENMASK(6, 5)
+#define AIC31XX_HSD_TYPE_SHIFT		5
+#define AIC31XX_HSD_NONE		0x00
+#define AIC31XX_HSD_HP			0x01
+#define AIC31XX_HSD_HS			0x03
+
+/* AIC31XX_HPDRIVER */
+#define AIC31XX_HPD_OCMV_MASK		GENMASK(4, 3)
+#define AIC31XX_HPD_OCMV_SHIFT		3
+#define AIC31XX_HPD_OCMV_1_35V		0x0
+#define AIC31XX_HPD_OCMV_1_5V		0x1
+#define AIC31XX_HPD_OCMV_1_65V		0x2
+#define AIC31XX_HPD_OCMV_1_8V		0x3
 
 /* AIC31XX_MICBIAS */
 #define AIC31XX_MICBIAS_MASK		GENMASK(1, 0)

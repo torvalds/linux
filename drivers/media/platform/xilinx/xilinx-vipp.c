@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx Video IP Composite Device
  *
@@ -6,10 +7,6 @@
  *
  * Contacts: Hyun Kwon <hyun.kwon@xilinx.com>
  *           Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/list.h>
@@ -362,7 +359,7 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 	dev_dbg(xdev->dev, "parsing node %p\n", fwnode);
 
 	while (1) {
-		struct v4l2_async_subdev *asd;
+		struct xvip_graph_entity *xge;
 
 		ep = fwnode_graph_get_next_endpoint(fwnode, ep);
 		if (ep == NULL)
@@ -385,12 +382,12 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 			continue;
 		}
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(
+		xge = v4l2_async_notifier_add_fwnode_subdev(
 			&xdev->notifier, remote,
-			sizeof(struct xvip_graph_entity));
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
-			fwnode_handle_put(remote);
+			struct xvip_graph_entity);
+		fwnode_handle_put(remote);
+		if (IS_ERR(xge)) {
+			ret = PTR_ERR(xge);
 			goto err_notifier_cleanup;
 		}
 	}
@@ -528,6 +525,7 @@ static int xvip_graph_init(struct xvip_composite_device *xdev)
 
 	if (list_empty(&xdev->notifier.asd_list)) {
 		dev_err(xdev->dev, "no subdev found in graph\n");
+		ret = -ENOENT;
 		goto done;
 	}
 

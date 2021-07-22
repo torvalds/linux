@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation. The full GNU General
- * Public License is included in this distribution in the file called COPYING.
- *
  * Contact Information:
  * linux-drivers@broadcom.com
- *
  */
 
 #ifndef BEISCSI_CMDS_H
@@ -1305,7 +1300,7 @@ struct be_cmd_get_port_name {
 
 /* Returns the number of items in the field array. */
 #define BE_NUMBER_OF_FIELD(_type_, _field_)	\
-	(FIELD_SIZEOF(_type_, _field_)/sizeof((((_type_ *)0)->_field_[0])))\
+	(sizeof_field(_type_, _field_)/sizeof((((_type_ *)0)->_field_[0])))\
 
 /**
  * Different types of iSCSI completions to host driver for both initiator

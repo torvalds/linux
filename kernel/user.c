@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The "user cache".
  *
@@ -54,7 +55,7 @@ struct user_namespace init_user_ns = {
 			},
 		},
 	},
-	.count = ATOMIC_INIT(3),
+	.ns.count = REFCOUNT_INIT(3),
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
 	.ns.inum = PROC_USER_INIT_INO,
@@ -62,9 +63,9 @@ struct user_namespace init_user_ns = {
 	.ns.ops = &userns_operations,
 #endif
 	.flags = USERNS_INIT_FLAGS,
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	.persistent_keyring_register_sem =
-	__RWSEM_INITIALIZER(init_user_ns.persistent_keyring_register_sem),
+#ifdef CONFIG_KEYS
+	.keyring_name_list = LIST_HEAD_INIT(init_user_ns.keyring_name_list),
+	.keyring_sem = __RWSEM_INITIALIZER(init_user_ns.keyring_sem),
 #endif
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
@@ -81,7 +82,7 @@ EXPORT_SYMBOL_GPL(init_user_ns);
 #define uidhashentry(uid)	(uidhash_table + __uidhashfn((__kuid_val(uid))))
 
 static struct kmem_cache *uid_cachep;
-struct hlist_head uidhash_table[UIDHASH_SZ];
+static struct hlist_head uidhash_table[UIDHASH_SZ];
 
 /*
  * The uidhash_lock is mostly taken from process context, but it is
@@ -97,9 +98,6 @@ static DEFINE_SPINLOCK(uidhash_lock);
 /* root_user.__count is 1, for init task cred */
 struct user_struct root_user = {
 	.__count	= REFCOUNT_INIT(1),
-	.processes	= ATOMIC_INIT(1),
-	.sigpending	= ATOMIC_INIT(0),
-	.locked_shm     = 0,
 	.uid		= GLOBAL_ROOT_UID,
 	.ratelimit	= RATELIMIT_STATE_INIT(root_user.ratelimit, 0, 0),
 };
@@ -140,8 +138,6 @@ static void free_user(struct user_struct *up, unsigned long flags)
 {
 	uid_hash_remove(up);
 	spin_unlock_irqrestore(&uidhash_lock, flags);
-	key_put(up->uid_keyring);
-	key_put(up->session_keyring);
 	kmem_cache_free(uid_cachep, up);
 }
 
@@ -185,7 +181,7 @@ struct user_struct *alloc_uid(kuid_t uid)
 	if (!up) {
 		new = kmem_cache_zalloc(uid_cachep, GFP_KERNEL);
 		if (!new)
-			goto out_unlock;
+			return NULL;
 
 		new->uid = uid;
 		refcount_set(&new->__count, 1);
@@ -199,8 +195,6 @@ struct user_struct *alloc_uid(kuid_t uid)
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
-			key_put(new->uid_keyring);
-			key_put(new->session_keyring);
 			kmem_cache_free(uid_cachep, new);
 		} else {
 			uid_hash_insert(new, hashent);
@@ -210,9 +204,6 @@ struct user_struct *alloc_uid(kuid_t uid)
 	}
 
 	return up;
-
-out_unlock:
-	return NULL;
 }
 
 static int __init uid_cache_init(void)

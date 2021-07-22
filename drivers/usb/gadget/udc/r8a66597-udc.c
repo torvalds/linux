@@ -1827,10 +1827,8 @@ static void nop_completion(struct usb_ep *ep, struct usb_request *r)
 static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 					  struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
-	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
+	r8a66597->sudmac_reg =
+		devm_platform_ioremap_resource_byname(pdev, "sudmac");
 	return PTR_ERR_OR_ZERO(r8a66597->sudmac_reg);
 }
 
@@ -1838,7 +1836,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	char clk_name[8];
-	struct resource *res, *ires;
+	struct resource *ires;
 	int irq;
 	void __iomem *reg = NULL;
 	struct r8a66597 *r8a66597 = NULL;
@@ -1846,12 +1844,13 @@ static int r8a66597_probe(struct platform_device *pdev)
 	int i;
 	unsigned long irq_trigger;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!ires)
+		return -EINVAL;
 	irq = ires->start;
 	irq_trigger = ires->flags & IRQF_TRIGGER_MASK;
 
@@ -1969,7 +1968,7 @@ clean_up2:
 static struct platform_driver r8a66597_driver = {
 	.remove =	r8a66597_remove,
 	.driver		= {
-		.name =	(char *) udc_name,
+		.name =	udc_name,
 	},
 };
 

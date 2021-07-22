@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2010-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -42,6 +42,7 @@
 #define LPFC_BSG_VENDOR_RAS_GET_FWLOG		17
 #define LPFC_BSG_VENDOR_RAS_GET_CONFIG		18
 #define LPFC_BSG_VENDOR_RAS_SET_CONFIG		19
+#define LPFC_BSG_VENDOR_GET_TRUNK_INFO		20
 
 struct set_ct_event {
 	uint32_t command;
@@ -67,6 +68,7 @@ struct send_mgmt_resp {
 };
 
 
+#define DISABLE_LOOP_BACK  0x0 /* disables loop back */
 #define INTERNAL_LOOP_BACK 0x1 /* adapter short cuts the loop internally */
 #define EXTERNAL_LOOP_BACK 0x2 /* requires an external loopback plug */
 
@@ -74,6 +76,7 @@ struct diag_mode_set {
 	uint32_t command;
 	uint32_t type;
 	uint32_t timeout;
+	uint32_t physical_link;
 };
 
 struct sli4_link_diag {
@@ -222,6 +225,10 @@ struct lpfc_sli_config_hdr {
 	uint32_t reserved5;
 };
 
+#define LPFC_CSF_BOOT_DEV		0x1D
+#define LPFC_CSF_QUERY			0
+#define LPFC_CSF_SAVE			1
+
 struct lpfc_sli_config_emb0_subsys {
 	struct lpfc_sli_config_hdr	sli_config_hdr;
 #define LPFC_MBX_SLI_CONFIG_MAX_MSE     19
@@ -240,6 +247,15 @@ struct lpfc_sli_config_emb0_subsys {
 #define FCOE_OPCODE_ADD_FCF		0x09
 #define FCOE_OPCODE_SET_DPORT_MODE	0x27
 #define FCOE_OPCODE_GET_DPORT_RESULTS	0x28
+	uint32_t timeout;		/* comn_set_feature timeout */
+	uint32_t request_length;	/* comn_set_feature request len */
+	uint32_t version;		/* comn_set_feature version */
+	uint32_t csf_feature;		/* comn_set_feature feature */
+	uint32_t word69;		/* comn_set_feature parameter len */
+	uint32_t word70;		/* comn_set_feature parameter val0 */
+#define lpfc_emb0_subcmnd_csf_p0_SHIFT	0
+#define lpfc_emb0_subcmnd_csf_p0_MASK	0x3
+#define lpfc_emb0_subcmnd_csf_p0_WORD	word70
 };
 
 struct lpfc_sli_config_emb1_subsys {
@@ -258,6 +274,7 @@ struct lpfc_sli_config_emb1_subsys {
 #define COMN_OPCODE_WRITE_OBJECT	0xAC
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
 #define COMN_OPCODE_DELETE_OBJECT	0xAE
+#define COMN_OPCODE_SET_FEATURES	0xBF
 #define COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES	0x79
 #define COMN_OPCODE_GET_CNTL_ATTRIBUTES	0x20
 	uint32_t timeout;
@@ -331,6 +348,43 @@ struct lpfc_bsg_get_ras_config_reply {
 	uint32_t log_buff_sz;
 };
 
+struct lpfc_trunk_info {
+	uint32_t word0;
+#define lpfc_trunk_info_link_status_SHIFT      0
+#define lpfc_trunk_info_link_status_MASK       1
+#define lpfc_trunk_info_link_status_WORD       word0
+#define lpfc_trunk_info_trunk_active0_SHIFT    8
+#define lpfc_trunk_info_trunk_active0_MASK     1
+#define lpfc_trunk_info_trunk_active0_WORD     word0
+#define lpfc_trunk_info_trunk_active1_SHIFT    9
+#define lpfc_trunk_info_trunk_active1_MASK     1
+#define lpfc_trunk_info_trunk_active1_WORD     word0
+#define lpfc_trunk_info_trunk_active2_SHIFT    10
+#define lpfc_trunk_info_trunk_active2_MASK     1
+#define lpfc_trunk_info_trunk_active2_WORD     word0
+#define lpfc_trunk_info_trunk_active3_SHIFT    11
+#define lpfc_trunk_info_trunk_active3_MASK     1
+#define lpfc_trunk_info_trunk_active3_WORD     word0
+#define lpfc_trunk_info_trunk_config0_SHIFT    12
+#define lpfc_trunk_info_trunk_config0_MASK     1
+#define lpfc_trunk_info_trunk_config0_WORD     word0
+#define lpfc_trunk_info_trunk_config1_SHIFT    13
+#define lpfc_trunk_info_trunk_config1_MASK     1
+#define lpfc_trunk_info_trunk_config1_WORD     word0
+#define lpfc_trunk_info_trunk_config2_SHIFT    14
+#define lpfc_trunk_info_trunk_config2_MASK     1
+#define lpfc_trunk_info_trunk_config2_WORD     word0
+#define lpfc_trunk_info_trunk_config3_SHIFT    15
+#define lpfc_trunk_info_trunk_config3_MASK     1
+#define lpfc_trunk_info_trunk_config3_WORD     word0
+	uint16_t    port_speed;
+	uint16_t    logical_speed;
+	uint32_t    reserved3;
+};
+
+struct get_trunk_info_req {
+	uint32_t command;
+};
 
 /* driver only */
 #define SLI_CONFIG_NOT_HANDLED		0

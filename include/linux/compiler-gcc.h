@@ -10,29 +10,6 @@
 		     + __GNUC_MINOR__ * 100	\
 		     + __GNUC_PATCHLEVEL__)
 
-#if GCC_VERSION < 40600
-# error Sorry, your compiler is too old - please upgrade it.
-#endif
-
-/* Optimization barrier */
-
-/* The "volatile" is due to gcc bugs */
-#define barrier() __asm__ __volatile__("": : :"memory")
-/*
- * This version is i.e. to prevent dead stores elimination on @ptr
- * where gcc and llvm may behave differently when otherwise using
- * normal barrier(): while gcc behavior gets along with a normal
- * barrier(), llvm needs an explicit input variable to be assumed
- * clobbered. The issue is as follows: while the inline asm might
- * access any memory it wants, the compiler could have fit all of
- * @ptr into memory registers instead, and since @ptr never escaped
- * from that, it proved that the inline asm wasn't touching any of
- * it. This version works well with both compilers, i.e. we're telling
- * the compiler that the inline asm absolutely may see the contents
- * of @ptr. See also: https://llvm.org/bugs/show_bug.cgi?id=15495
- */
-#define barrier_data(ptr) __asm__ __volatile__("": :"r"(ptr) :"memory")
-
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
  * shouldn't recognize the original var, and make assumptions about it.
@@ -58,41 +35,20 @@
 	(typeof(ptr)) (__ptr + (off));					\
 })
 
-/* Make the optimizer believe the variable can be manipulated arbitrarily. */
-#define OPTIMIZER_HIDE_VAR(var)						\
-	__asm__ ("" : "=r" (var) : "0" (var))
-
-/*
- * A trick to suppress uninitialized variable warning without generating any
- * code
- */
-#define uninitialized_var(x) x = x
-
-#ifdef __CHECKER__
-#define __must_be_array(a)	0
-#else
-/* &a[0] degrades to a pointer: a different type from an array */
-#define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
-#endif
-
-#ifdef RETPOLINE
-#define __noretpoline __attribute__((indirect_branch("keep")))
+#ifdef CONFIG_RETPOLINE
+#define __noretpoline __attribute__((__indirect_branch__("keep")))
 #endif
 
 #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
 
-#define __optimize(level)	__attribute__((__optimize__(level)))
-
 #define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
 
-#ifndef __CHECKER__
-#define __compiletime_warning(message) __attribute__((warning(message)))
-#define __compiletime_error(message) __attribute__((error(message)))
+#define __compiletime_warning(message) __attribute__((__warning__(message)))
+#define __compiletime_error(message) __attribute__((__error__(message)))
 
-#ifdef LATENT_ENTROPY_PLUGIN
+#if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
 #define __latent_entropy __attribute__((latent_entropy))
 #endif
-#endif /* __CHECKER__ */
 
 /*
  * calling noreturn functions, __builtin_unreachable() and __builtin_trap()
@@ -107,10 +63,6 @@
  * Mark a position in code as unreachable.  This can be used to
  * suppress control flow warnings after asm blocks that transfer
  * control elsewhere.
- *
- * Early snapshots of gcc 4.5 don't support this and we can't detect
- * this in the preprocessor, but we can live with this because they're
- * unreleased.  Really, we need to have autoconf for the kernel.
  */
 #define unreachable() \
 	do {					\
@@ -119,41 +71,12 @@
 		__builtin_unreachable();	\
 	} while (0)
 
-/* Mark a function definition as prohibited from being cloned. */
-#define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
-
 #if defined(RANDSTRUCT_PLUGIN) && !defined(__CHECKER__)
 #define __randomize_layout __attribute__((randomize_layout))
 #define __no_randomize_layout __attribute__((no_randomize_layout))
 /* This anon struct can add padding, so only enable it under randstruct. */
 #define randomized_struct_fields_start	struct {
 #define randomized_struct_fields_end	} __randomize_layout;
-#endif
-
-/*
- * When used with Link Time Optimization, gcc can optimize away C functions or
- * variables which are referenced only from assembly code.  __visible tells the
- * optimizer that something else uses this function or variable, thus preventing
- * this.
- */
-#define __visible	__attribute__((externally_visible))
-
-/* gcc version specific checks */
-
-#if GCC_VERSION >= 40900 && !defined(__CHECKER__)
-/*
- * __assume_aligned(n, k): Tell the optimizer that the returned
- * pointer can be assumed to be k modulo n. The second argument is
- * optional (default 0), so we use a variadic macro to make the
- * shorthand.
- *
- * Beware: Do not apply this to functions which may return
- * ERR_PTRs. Also, it is probably unwise to apply it to functions
- * returning extra information in the low bits (but in that case the
- * compiler should see some alignment anyway, when the return value is
- * massaged by 'flags = ptr & 3; ptr &= ~3;').
- */
-#define __assume_aligned(a, ...) __attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
 #endif
 
 /*
@@ -167,17 +90,11 @@
  */
 #define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
 
-/*
- * sparse (__CHECKER__) pretends to be gcc, but can't do constant
- * folding in __builtin_bswap*() (yet), so don't set these for it.
- */
-#if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP) && !defined(__CHECKER__)
+#if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
 #define __HAVE_BUILTIN_BSWAP32__
 #define __HAVE_BUILTIN_BSWAP64__
-#if GCC_VERSION >= 40800
 #define __HAVE_BUILTIN_BSWAP16__
-#endif
-#endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP && !__CHECKER__ */
+#endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
 
 #if GCC_VERSION >= 70000
 #define KASAN_ABI_VERSION 5
@@ -187,37 +104,32 @@
 #define KASAN_ABI_VERSION 3
 #endif
 
-#if GCC_VERSION >= 40902
-/*
- * Tell the compiler that address safety instrumentation (KASAN)
- * should not be applied to that function.
- * Conflicts with inlining: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- */
+#if __has_attribute(__no_sanitize_address__)
 #define __no_sanitize_address __attribute__((no_sanitize_address))
-#ifdef CONFIG_KASAN
-#define __no_sanitize_address_or_inline					\
-	__no_sanitize_address __maybe_unused notrace
 #else
-#define __no_sanitize_address_or_inline inline
+#define __no_sanitize_address
 #endif
+
+#if defined(__SANITIZE_THREAD__) && __has_attribute(__no_sanitize_thread__)
+#define __no_sanitize_thread __attribute__((no_sanitize_thread))
+#else
+#define __no_sanitize_thread
+#endif
+
+#if __has_attribute(__no_sanitize_undefined__)
+#define __no_sanitize_undefined __attribute__((no_sanitize_undefined))
+#else
+#define __no_sanitize_undefined
+#endif
+
+#if defined(CONFIG_KCOV) && __has_attribute(__no_sanitize_coverage__)
+#define __no_sanitize_coverage __attribute__((no_sanitize_coverage))
+#else
+#define __no_sanitize_coverage
 #endif
 
 #if GCC_VERSION >= 50100
-/*
- * Mark structures as requiring designated initializers.
- * https://gcc.gnu.org/onlinedocs/gcc/Designated-Inits.html
- */
-#define __designated_init __attribute__((designated_init))
 #define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
-#endif
-
-#if !defined(__noclone)
-#define __noclone	/* not needed */
-#endif
-
-#if !defined(__no_sanitize_address)
-#define __no_sanitize_address
-#define __no_sanitize_address_or_inline inline
 #endif
 
 /*

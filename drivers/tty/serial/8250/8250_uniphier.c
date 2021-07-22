@@ -75,7 +75,7 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 		break;
 	case UART_LCR:
 		valshift = 8;
-		/* fall through */
+		fallthrough;
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
 		break;
@@ -101,7 +101,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 	case UART_SCR:
 		/* No SCR for this hardware.  Use CHAR as a scratch register */
 		valshift = 8;
-		/* fall through */
+		fallthrough;
 	case UART_FCR:
 		offset = UNIPHIER_UART_CHAR_FCR;
 		break;
@@ -109,7 +109,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		valshift = 8;
 		/* Divisor latch access bit does not exist. */
 		value &= ~UART_LCR_DLAB;
-		/* fall through */
+		fallthrough;
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
 		break;
@@ -176,10 +176,8 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

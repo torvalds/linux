@@ -1,31 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Kernel module help for powerpc.
     Copyright (C) 2001, 2003 Rusty Russell IBM Corporation.
     Copyright (C) 2008 Freescale Semiconductor, Inc.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
 #include <linux/err.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/bug.h>
 #include <asm/module.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
+#include <asm/sections.h>
 
 static LIST_HEAD(module_bug_list);
 
@@ -97,4 +87,40 @@ int module_finalize(const Elf_Ehdr *hdr,
 				 (void *)sect->sh_addr + sect->sh_size);
 
 	return 0;
+}
+
+static __always_inline void *
+__module_alloc(unsigned long size, unsigned long start, unsigned long end)
+{
+	pgprot_t prot = strict_module_rwx_enabled() ? PAGE_KERNEL : PAGE_KERNEL_EXEC;
+
+	/*
+	 * Don't do huge page allocations for modules yet until more testing
+	 * is done. STRICT_MODULE_RWX may require extra work to support this
+	 * too.
+	 */
+	return __vmalloc_node_range(size, 1, start, end, GFP_KERNEL, prot,
+				    VM_FLUSH_RESET_PERMS | VM_NO_HUGE_VMAP,
+				    NUMA_NO_NODE, __builtin_return_address(0));
+}
+
+void *module_alloc(unsigned long size)
+{
+#ifdef MODULES_VADDR
+	unsigned long limit = (unsigned long)_etext - SZ_32M;
+	void *ptr = NULL;
+
+	BUILD_BUG_ON(TASK_SIZE > MODULES_VADDR);
+
+	/* First try within 32M limit from _etext to avoid branch trampolines */
+	if (MODULES_VADDR < PAGE_OFFSET && MODULES_END > limit)
+		ptr = __module_alloc(size, limit, MODULES_END);
+
+	if (!ptr)
+		ptr = __module_alloc(size, MODULES_VADDR, MODULES_END);
+
+	return ptr;
+#else
+	return __module_alloc(size, VMALLOC_START, VMALLOC_END);
+#endif
 }

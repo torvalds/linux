@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ti_hdmi_4xxx_ip.c
  *
  * HDMI TI81xx, TI38xx, TI OMAP4 etc IP driver Library
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "HDMICORE"
@@ -690,7 +679,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config acore;
-	int err, n, cts, channel_count;
+	int n, cts, channel_count;
 	unsigned int fs_nr;
 	bool word_length_16b = false;
 
@@ -712,7 +701,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	else
 		acore.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_RIGHT;
 	/*
-	 * The I2S input word length is twice the lenght given in the IEC-60958
+	 * The I2S input word length is twice the length given in the IEC-60958
 	 * status word. If the word size is greater than
 	 * 20 bits, increment by one.
 	 */
@@ -752,7 +741,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		return -EINVAL;
 	}
 
-	err = hdmi_compute_acr(pclk, fs_nr, &n, &cts);
+	hdmi_compute_acr(pclk, fs_nr, &n, &cts);
 
 	/* Audio clock regeneration settings */
 	acore.n = n;
@@ -886,15 +875,7 @@ void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	if (!res) {
-		DSSERR("can't get CORE mem resource\n");
-		return -EINVAL;
-	}
-
-	core->base = devm_ioremap_resource(&pdev->dev, res);
+	core->base = devm_platform_ioremap_resource_byname(pdev, "core");
 	if (IS_ERR(core->base)) {
 		DSSERR("can't ioremap CORE\n");
 		return PTR_ERR(core->base);

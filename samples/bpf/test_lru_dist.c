@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #define _GNU_SOURCE
 #include <linux/types.h>
@@ -492,7 +489,6 @@ static void test_parallel_lru_loss(int map_type, int map_flags, int nr_tasks)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int map_flags[] = {0, BPF_F_NO_COMMON_LRU};
 	const char *dist_file;
 	int nr_tasks = 1;
@@ -510,8 +506,6 @@ int main(int argc, char **argv)
 	nr_tasks = atoi(argv[3]);
 
 	setbuf(stdout, NULL);
-
-	assert(!setrlimit(RLIMIT_MEMLOCK, &r));
 
 	srand(time(NULL));
 

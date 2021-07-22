@@ -1,11 +1,11 @@
-For all of the nmem device attributes under nfit/*, see the 'NVDIMM Firmware
+For all of the nmem device attributes under ``nfit/*``, see the 'NVDIMM Firmware
 Interface Table (NFIT)' section in the ACPI specification
 (http://www.uefi.org/specifications) for more details.
 
 What:		/sys/bus/nd/devices/nmemX/nfit/serial
 Date:		Jun, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Serial number of the NVDIMM (non-volatile dual in-line
 		memory module), assigned by the module vendor.
@@ -14,7 +14,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/handle
 Date:		Apr, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) The address (given by the _ADR object) of the device on its
 		parent bus of the NVDIMM device containing the NVDIMM region.
@@ -23,7 +23,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/device
 Date:		Apr, 2015
 KernelVersion:	v4.1
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Device id for the NVDIMM, assigned by the module vendor.
 
@@ -31,7 +31,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/rev_id
 Date:		Jun, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Revision of the NVDIMM, assigned by the module vendor.
 
@@ -39,7 +39,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/phys_id
 Date:		Apr, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Handle (i.e., instance number) for the SMBIOS (system
 		management BIOS) Memory Device structure describing the NVDIMM
@@ -49,7 +49,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/flags
 Date:		Jun, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) The flags in the NFIT memory device sub-structure indicate
 		the state of the data on the nvdimm relative to its energy
@@ -68,7 +68,7 @@ What:		/sys/bus/nd/devices/nmemX/nfit/format1
 What:		/sys/bus/nd/devices/nmemX/nfit/formats
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) The interface codes indicate support for persistent memory
 		mapped directly into system physical address space and / or a
@@ -84,7 +84,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/vendor
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Vendor id of the NVDIMM.
 
@@ -92,7 +92,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/dsm_mask
 Date:		May, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) The bitmask indicates the supported device specific control
 		functions relative to the NVDIMM command family supported by the
@@ -102,7 +102,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/family
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Displays the NVDIMM family command sets. Values
 		0, 1, 2 and 3 correspond to NVDIMM_FAMILY_INTEL,
@@ -118,7 +118,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/id
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) ACPI specification 6.2 section 5.2.25.9, defines an
 		identifier for an NVDIMM, which refelects the id attribute.
@@ -127,7 +127,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/subsystem_vendor
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Sub-system vendor id of the NVDIMM non-volatile memory
 		subsystem controller.
@@ -136,7 +136,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/subsystem_rev_id
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Sub-system revision id of the NVDIMM non-volatile memory subsystem
 		controller, assigned by the non-volatile memory subsystem
@@ -146,7 +146,7 @@ Description:
 What:		/sys/bus/nd/devices/nmemX/nfit/subsystem_device
 Date:		Apr, 2016
 KernelVersion:	v4.7
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Sub-system device id for the NVDIMM non-volatile memory
 		subsystem controller, assigned by the non-volatile memory
@@ -156,7 +156,7 @@ Description:
 What:		/sys/bus/nd/devices/ndbusX/nfit/revision
 Date:		Jun, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) ACPI NFIT table revision number.
 
@@ -164,7 +164,7 @@ Description:
 What:		/sys/bus/nd/devices/ndbusX/nfit/scrub
 Date:		Sep, 2016
 KernelVersion:	v4.9
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RW) This shows the number of full Address Range Scrubs (ARS)
 		that have been completed since driver load time. Userspace can
@@ -177,7 +177,7 @@ Description:
 What:		/sys/bus/nd/devices/ndbusX/nfit/hw_error_scrub
 Date:		Sep, 2016
 KernelVersion:	v4.9
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RW) Provides a way to toggle the behavior between just adding
 		the address (cache line) where the MCE happened to the poison
@@ -196,17 +196,36 @@ Description:
 What:		/sys/bus/nd/devices/ndbusX/nfit/dsm_mask
 Date:		Jun, 2017
 KernelVersion:	v4.13
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) The bitmask indicates the supported bus specific control
 		functions. See the section named 'NVDIMM Root Device _DSMs' in
 		the ACPI specification.
 
+What:		/sys/bus/nd/devices/ndbusX/nfit/firmware_activate_noidle
+Date:		Apr, 2020
+KernelVersion:	v5.8
+Contact:	nvdimm@lists.linux.dev
+Description:
+		(RW) The Intel platform implementation of firmware activate
+		support exposes an option let the platform force idle devices in
+		the system over the activation event, or trust that the OS will
+		do it. The safe default is to let the platform force idle
+		devices since the kernel is already in a suspend state, and on
+		the chance that a driver does not properly quiesce bus-mastering
+		after a suspend callback the platform will handle it.  However,
+		the activation might abort if, for example, platform firmware
+		determines that the activation time exceeds the max PCI-E
+		completion timeout. Since the platform does not know whether the
+		OS is running the activation from a suspend context it aborts,
+		but if the system owner trusts driver suspend callback to be
+		sufficient then 'firmware_activation_noidle' can be
+		enabled to bypass the activation abort.
 
 What:		/sys/bus/nd/devices/regionX/nfit/range_index
 Date:		Jun, 2015
 KernelVersion:	v4.2
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) A unique number provided by the BIOS to identify an address
 		range. Used by NVDIMM Region Mapping Structure to uniquely refer

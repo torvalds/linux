@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_debug_h__
 #define __iwl_fw_api_debug_h__
 
@@ -81,6 +24,25 @@ enum iwl_debug_cmds {
 	 */
 	UMAC_RD_WR = 0x1,
 	/**
+	 * @HOST_EVENT_CFG:
+	 * updates the enabled event severities
+	 * &struct iwl_dbg_host_event_cfg_cmd
+	 */
+	HOST_EVENT_CFG = 0x3,
+	/**
+	 * @DBGC_SUSPEND_RESUME:
+	 * DBGC suspend/resume commad. Uses a single dword as data:
+	 * 0 - resume DBGC recording
+	 * 1 - suspend DBGC recording
+	 */
+	DBGC_SUSPEND_RESUME = 0x7,
+	/**
+	 * @BUFFER_ALLOCATION:
+	 * passes DRAM buffers to a DBGC
+	 * &struct iwl_buf_alloc_cmd
+	 */
+	BUFFER_ALLOCATION = 0x8,
+	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
 	 */
@@ -100,6 +62,16 @@ enum {
 	FW_ERR_OBSOLETE_FUNC = 0x12,
 	FW_ERR_UNEXPECTED = 0xFE,
 	FW_ERR_FATAL = 0xFF
+};
+
+/** enum iwl_dbg_suspend_resume_cmds - dbgc suspend resume operations
+ * dbgc suspend resume command operations
+ * @DBGC_RESUME_CMD: resume dbgc recording
+ * @DBGC_SUSPEND_CMD: stop dbgc recording
+ */
+enum iwl_dbg_suspend_resume_cmds {
+	DBGC_RESUME_CMD,
+	DBGC_SUSPEND_CMD,
 };
 
 /**
@@ -195,6 +167,8 @@ struct iwl_shared_mem_lmac_cfg {
  * @page_buff_size: size of %page_buff_addr
  * @lmac_num: number of LMACs (1 or 2)
  * @lmac_smem: per - LMAC smem data
+ * @rxfifo2_control_addr: start addr of RXF2C
+ * @rxfifo2_control_size: size of RXF2C
  */
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
@@ -206,8 +180,25 @@ struct iwl_shared_mem_cfg {
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
 	__le32 lmac_num;
-	struct iwl_shared_mem_lmac_cfg lmac_smem[2];
-} __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
+	struct iwl_shared_mem_lmac_cfg lmac_smem[3];
+	__le32 rxfifo2_control_addr;
+	__le32 rxfifo2_control_size;
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_4 */
+
+/**
+ * struct iwl_mfuart_load_notif_v1 - mfuart image version & status
+ * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * @installed_ver: installed image version
+ * @external_ver: external image version
+ * @status: MFUART loading status
+ * @duration: MFUART loading time
+*/
+struct iwl_mfuart_load_notif_v1 {
+	__le32 installed_ver;
+	__le32 external_ver;
+	__le32 status;
+	__le32 duration;
+} __packed; /* MFU_LOADER_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_mfuart_load_notif - mfuart image version & status
@@ -335,54 +326,47 @@ struct iwl_dbg_mem_access_rsp {
 	__le32 data[];
 } __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
 
-#define CONT_REC_COMMAND_SIZE	80
-#define ENABLE_CONT_RECORDING	0x15
-#define DISABLE_CONT_RECORDING	0x16
-#define BUFFER_ALLOCATION	0x27
-#define START_DEBUG_RECORDING	0x29
-#define STOP_DEBUG_RECORDING	0x2A
-
-/*
- * struct iwl_continuous_record_mode - recording mode
+/**
+ * struct iwl_dbg_suspend_resume_cmd - dbgc suspend resume command
+ * @operation: suspend or resume operation, uses
+ *	&enum iwl_dbg_suspend_resume_cmds
  */
-struct iwl_continuous_record_mode {
-	__le16 enable_recording;
+struct iwl_dbg_suspend_resume_cmd {
+	__le32 operation;
 } __packed;
 
-/*
- * struct iwl_continuous_record_cmd - enable/disable continuous recording
- */
-struct iwl_continuous_record_cmd {
-	struct iwl_continuous_record_mode record_mode;
-	u8 pad[CONT_REC_COMMAND_SIZE -
-		sizeof(struct iwl_continuous_record_mode)];
-} __packed;
-
-/* maximum fragments to be allocated per target of allocationId */
-#define IWL_BUFFER_LOCATION_MAX_FRAGS	2
+#define BUF_ALLOC_MAX_NUM_FRAGS 16
 
 /**
- * struct iwl_fragment_data single fragment structure
- * @address: 64bit start address
- * @size: size in bytes
+ * struct iwl_buf_alloc_frag - a DBGC fragment
+ * @addr: base address of the fragment
+ * @size: size of the fragment
  */
-struct iwl_fragment_data {
-	__le64 address;
+struct iwl_buf_alloc_frag {
+	__le64 addr;
 	__le32 size;
 } __packed; /* FRAGMENT_STRUCTURE_API_S_VER_1 */
 
 /**
- * struct iwl_buffer_allocation_cmd - buffer allocation command structure
- * @allocation_id: id of the allocation
- * @buffer_location: location of the buffer
+ * struct iwl_buf_alloc_cmd - buffer allocation command
+ * @alloc_id: &enum iwl_fw_ini_allocation_id
+ * @buf_location: &enum iwl_fw_ini_buffer_location
  * @num_frags: number of fragments
- * @fragments: memory fragments
+ * @frags: fragments array
  */
-struct iwl_buffer_allocation_cmd {
-	__le32 allocation_id;
-	__le32 buffer_location;
+struct iwl_buf_alloc_cmd {
+	__le32 alloc_id;
+	__le32 buf_location;
 	__le32 num_frags;
-	struct iwl_fragment_data fragments[IWL_BUFFER_LOCATION_MAX_FRAGS];
-} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_1 */
+	struct iwl_buf_alloc_frag frags[BUF_ALLOC_MAX_NUM_FRAGS];
+} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_dbg_host_event_cfg_cmd
+ * @enabled_severities: enabled severities
+ */
+struct iwl_dbg_host_event_cfg_cmd {
+	__le32 enabled_severities;
+} __packed; /* DEBUG_HOST_EVENT_CFG_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_debug_h__ */

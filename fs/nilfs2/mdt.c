@@ -199,7 +199,7 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
  out_no_wait:
 	err = -EIO;
 	if (!buffer_uptodate(first_bh)) {
-		nilfs_msg(inode->i_sb, KERN_ERR,
+		nilfs_err(inode->i_sb,
 			  "I/O error reading meta-data file (ino=%lu, block-offset=%lu)",
 			  inode->i_ino, block);
 		goto failed_bh;
@@ -434,6 +434,7 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 
 
 static const struct address_space_operations def_mdt_aops = {
+	.set_page_dirty		= __set_page_dirty_buffers,
 	.writepage		= nilfs_mdt_write_page,
 };
 

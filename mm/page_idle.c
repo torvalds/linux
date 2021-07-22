@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
+#include <linux/memory_hotplug.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
@@ -30,24 +31,16 @@
  */
 static struct page *page_idle_get_page(unsigned long pfn)
 {
-	struct page *page;
-	struct zone *zone;
+	struct page *page = pfn_to_online_page(pfn);
 
-	if (!pfn_valid(pfn))
-		return NULL;
-
-	page = pfn_to_page(pfn);
 	if (!page || !PageLRU(page) ||
 	    !get_page_unless_zero(page))
 		return NULL;
 
-	zone = page_zone(page);
-	spin_lock_irq(zone_lru_lock(zone));
 	if (unlikely(!PageLRU(page))) {
 		put_page(page);
 		page = NULL;
 	}
-	spin_unlock_irq(zone_lru_lock(zone));
 	return page;
 }
 
@@ -136,7 +129,7 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
 
 	end_pfn = pfn + count * BITS_PER_BYTE;
 	if (end_pfn > max_pfn)
-		end_pfn = ALIGN(max_pfn, BITMAP_CHUNK_BITS);
+		end_pfn = max_pfn;
 
 	for (; pfn < end_pfn; pfn++) {
 		bit = pfn % BITMAP_CHUNK_BITS;
@@ -181,7 +174,7 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
 
 	end_pfn = pfn + count * BITS_PER_BYTE;
 	if (end_pfn > max_pfn)
-		end_pfn = ALIGN(max_pfn, BITMAP_CHUNK_BITS);
+		end_pfn = max_pfn;
 
 	for (; pfn < end_pfn; pfn++) {
 		bit = pfn % BITMAP_CHUNK_BITS;

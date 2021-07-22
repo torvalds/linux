@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /************************************************************************
  *
  *	USBVEND.H		Vendor-specific USB definitions
@@ -593,7 +593,7 @@ struct ti_i2c_desc {
 	__u8	Type;			// Type of descriptor
 	__le16	Size;			// Size of data only not including header
 	__u8	CheckSum;		// Checksum (8 bit sum of data only)
-	__u8	Data[0];		// Data starts here
+	__u8	Data[];		// Data starts here
 } __attribute__((packed));
 
 // for 5152 devices only (type 2 record)
@@ -601,7 +601,7 @@ struct ti_i2c_desc {
 struct ti_i2c_firmware_rec {
 	__u8	Ver_Major;		// Firmware Major version number
 	__u8	Ver_Minor;		// Firmware Minor version number
-	__u8	Data[0];		// Download starts here
+	__u8	Data[];		// Download starts here
 } __attribute__((packed));
 
 

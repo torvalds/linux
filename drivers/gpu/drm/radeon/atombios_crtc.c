@@ -23,11 +23,14 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
+
 #include "radeon.h"
 #include "atom.h"
 #include "atom-bits.h"
@@ -241,9 +244,8 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-	if (ASIC_IS_DCE8(rdev)) {
+	if (ASIC_IS_DCE8(rdev))
 		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control);
-	}
 }
 
 static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
@@ -1155,7 +1157,6 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 tmp, viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1265,8 +1266,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		break;
 	default:
-		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->format->format, &format_name));
+		DRM_ERROR("Unsupported screen format %p4cc\n",
+			  &target_fb->format->format);
 		return -EINVAL;
 	}
 
@@ -1476,7 +1477,6 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1577,8 +1577,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		break;
 	default:
-		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->format->format, &format_name));
+		DRM_ERROR("Unsupported screen format %p4cc\n",
+			  &target_fb->format->format);
 		return -EINVAL;
 	}
 
@@ -1785,7 +1785,6 @@ static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
  * radeon_get_shared_nondp_ppll - return the PPLL used by another non-DP crtc
  *
  * @crtc: drm crtc
- * @encoder: drm encoder
  *
  * Returns the PPLL (Pixel PLL) used by another non-DP crtc/encoder which can
  * be shared (i.e., same clock).
@@ -2229,6 +2228,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
 	.disable = atombios_crtc_disable,
+	.get_scanout_position = radeon_get_crtc_scanout_position,
 };
 
 void radeon_atombios_init_crtc(struct drm_device *dev,

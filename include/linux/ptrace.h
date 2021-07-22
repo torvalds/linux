@@ -9,6 +9,13 @@
 #include <linux/bug.h>			/* For BUG_ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
+#include <linux/seccomp.h>
+
+/* Add sp to seccomp_data, as seccomp is user API, we don't want to modify it */
+struct syscall_info {
+	__u64			sp;
+	struct seccomp_data	data;
+};
 
 extern int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 			    void *buf, int len, unsigned int gup_flags);
@@ -64,15 +71,12 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define PTRACE_MODE_NOAUDIT	0x04
 #define PTRACE_MODE_FSCREDS	0x08
 #define PTRACE_MODE_REALCREDS	0x10
-#define PTRACE_MODE_SCHED	0x20
-#define PTRACE_MODE_IBPB	0x40
 
 /* shorthands for READ/ATTACH and FSCREDS/REALCREDS combinations */
 #define PTRACE_MODE_READ_FSCREDS (PTRACE_MODE_READ | PTRACE_MODE_FSCREDS)
 #define PTRACE_MODE_READ_REALCREDS (PTRACE_MODE_READ | PTRACE_MODE_REALCREDS)
 #define PTRACE_MODE_ATTACH_FSCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_FSCREDS)
 #define PTRACE_MODE_ATTACH_REALCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_REALCREDS)
-#define PTRACE_MODE_SPEC_IBPB (PTRACE_MODE_ATTACH_REALCREDS | PTRACE_MODE_IBPB)
 
 /**
  * ptrace_may_access - check whether the caller is permitted to access
@@ -89,20 +93,6 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
  * process_vm_writev or ptrace (and should use the real credentials).
  */
 extern bool ptrace_may_access(struct task_struct *task, unsigned int mode);
-
-/**
- * ptrace_may_access - check whether the caller is permitted to access
- * a target task.
- * @task: target task
- * @mode: selects type of access and caller credentials
- *
- * Returns true on success, false on denial.
- *
- * Similar to ptrace_may_access(). Only to be called from context switch
- * code. Does not call into audit and the regular LSM hooks due to locking
- * constraints.
- */
-extern bool ptrace_may_access_sched(struct task_struct *task, unsigned int mode);
 
 static inline int ptrace_reparented(struct task_struct *child)
 {
@@ -181,7 +171,7 @@ static inline void ptrace_event(int event, unsigned long message)
  *
  * Check whether @event is enabled and, if so, report @event and @pid
  * to the ptrace parent.  @pid is reported as the pid_t seen from the
- * the ptrace parent's pid namespace.
+ * ptrace parent's pid namespace.
  *
  * Called without locks.
  */
@@ -365,7 +355,7 @@ static inline void user_single_step_report(struct pt_regs *regs)
 	info.si_code = SI_USER;
 	info.si_pid = 0;
 	info.si_uid = 0;
-	force_sig_info(info.si_signo, &info, current);
+	force_sig_info(&info);
 }
 #endif
 
@@ -424,8 +414,7 @@ static inline void user_single_step_report(struct pt_regs *regs)
 #define current_user_stack_pointer() user_stack_pointer(current_pt_regs())
 #endif
 
-extern int task_current_syscall(struct task_struct *target, long *callno,
-				unsigned long args[6], unsigned int maxargs,
-				unsigned long *sp, unsigned long *pc);
+extern int task_current_syscall(struct task_struct *target, struct syscall_info *info);
 
+extern void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact);
 #endif

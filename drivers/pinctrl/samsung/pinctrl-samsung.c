@@ -272,6 +272,7 @@ static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
 						&reserved_maps, num_maps);
 		if (ret < 0) {
 			samsung_dt_free_map(pctldev, *map, *num_maps);
+			of_node_put(np);
 			return ret;
 		}
 	}
@@ -399,14 +400,14 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 		reg += 4;
 	}
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 
 	data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 	data &= ~(mask << shift);
 	data |= func->val << shift;
 	writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 /* enable a specified pinmux by writing to registers */
@@ -450,7 +451,7 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 	width = type->fld_width[cfg_type];
 	cfg_reg = type->reg_offset[cfg_type];
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 
 	mask = (1 << width) - 1;
 	shift = pin_offset * width;
@@ -467,7 +468,7 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 		*config = PINCFG_PACK(cfg_type, data);
 	}
 
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
 }
@@ -560,9 +561,9 @@ static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 	struct samsung_pin_bank *bank = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 	samsung_gpio_set_value(gc, offset, value);
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 /* gpiolib gpio_get callback function */
@@ -625,9 +626,9 @@ static int samsung_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 	ret = samsung_gpio_set_direction(gc, offset, true);
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 	return ret;
 }
 
@@ -639,10 +640,10 @@ static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 	samsung_gpio_set_value(gc, offset, value);
 	ret = samsung_gpio_set_direction(gc, offset, false);
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 
 	return ret;
 }
@@ -785,8 +786,10 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 		if (!of_get_child_count(cfg_np)) {
 			ret = samsung_pinctrl_create_function(dev, drvdata,
 							cfg_np, func);
-			if (ret < 0)
+			if (ret < 0) {
+				of_node_put(cfg_np);
 				return ERR_PTR(ret);
+			}
 			if (ret > 0) {
 				++func;
 				++func_cnt;
@@ -797,8 +800,11 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 		for_each_child_of_node(cfg_np, func_np) {
 			ret = samsung_pinctrl_create_function(dev, drvdata,
 						func_np, func);
-			if (ret < 0)
+			if (ret < 0) {
+				of_node_put(func_np);
+				of_node_put(cfg_np);
 				return ERR_PTR(ret);
+			}
 			if (ret > 0) {
 				++func;
 				++func_cnt;
@@ -1051,7 +1057,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 		bank->eint_offset = bdata->eint_offset;
 		bank->name = bdata->name;
 
-		spin_lock_init(&bank->slock);
+		raw_spin_lock_init(&bank->slock);
 		bank->drvdata = d;
 		bank->pin_base = d->nr_pins;
 		d->nr_pins += bank->nr_pins;
@@ -1071,7 +1077,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 			continue;
 		bank = d->pin_banks;
 		for (i = 0; i < d->nr_banks; ++i, ++bank) {
-			if (!strcmp(bank->name, np->name)) {
+			if (of_node_name_eq(np, bank->name)) {
 				bank->of_node = np;
 				break;
 			}
@@ -1134,7 +1140,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-/**
+/*
  * samsung_pinctrl_suspend - save pinctrl state for suspend
  *
  * Save data for all banks handled by this device.
@@ -1181,7 +1187,7 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
 	return 0;
 }
 
-/**
+/*
  * samsung_pinctrl_resume - restore pinctrl state from suspend
  *
  * Restore one of the banks that was saved during suspend.

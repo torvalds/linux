@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/net/ifb.c:
 
 	The purpose of this driver is to provide a device that allows
@@ -15,14 +16,10 @@
 	by Patrick McHardy and then maintained by Andre Correa.
 
 	You need the tc action  mirror or redirect to feed this device
-       	packets.
+	packets.
 
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License
-	as published by the Free Software Foundation; either version
-	2 of the License, or (at your option) any later version.
 
-  	Authors:	Jamal Hadi Salim (2005)
+	Authors:	Jamal Hadi Salim (2005)
 
 */
 
@@ -62,9 +59,9 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ifb_open(struct net_device *dev);
 static int ifb_close(struct net_device *dev);
 
-static void ifb_ri_tasklet(unsigned long _txp)
+static void ifb_ri_tasklet(struct tasklet_struct *t)
 {
-	struct ifb_q_private *txp = (struct ifb_q_private *)_txp;
+	struct ifb_q_private *txp = from_tasklet(txp, t, ifb_tasklet);
 	struct netdev_queue *txq;
 	struct sk_buff *skb;
 
@@ -78,7 +75,7 @@ static void ifb_ri_tasklet(unsigned long _txp)
 	}
 
 	while ((skb = __skb_dequeue(&txp->tq)) != NULL) {
-		skb->tc_redirected = 0;
+		skb->redirected = 0;
 		skb->tc_skip_classify = 1;
 
 		u64_stats_update_begin(&txp->tsync);
@@ -99,7 +96,7 @@ static void ifb_ri_tasklet(unsigned long _txp)
 		rcu_read_unlock();
 		skb->skb_iif = txp->dev->ifindex;
 
-		if (!skb->tc_from_ingress) {
+		if (!skb->from_ingress) {
 			dev_queue_xmit(skb);
 		} else {
 			skb_pull_rcsum(skb, skb->mac_len);
@@ -173,8 +170,7 @@ static int ifb_dev_init(struct net_device *dev)
 		__skb_queue_head_init(&txp->tq);
 		u64_stats_init(&txp->rsync);
 		u64_stats_init(&txp->tsync);
-		tasklet_init(&txp->ifb_tasklet, ifb_ri_tasklet,
-			     (unsigned long)txp);
+		tasklet_setup(&txp->ifb_tasklet, ifb_ri_tasklet);
 		netif_tx_start_queue(netdev_get_tx_queue(dev, i));
 	}
 	return 0;
@@ -190,8 +186,7 @@ static const struct net_device_ops ifb_netdev_ops = {
 };
 
 #define IFB_FEATURES (NETIF_F_HW_CSUM | NETIF_F_SG  | NETIF_F_FRAGLIST	| \
-		      NETIF_F_TSO_ECN | NETIF_F_TSO | NETIF_F_TSO6	| \
-		      NETIF_F_GSO_ENCAP_ALL 				| \
+		      NETIF_F_GSO_SOFTWARE | NETIF_F_GSO_ENCAP_ALL	| \
 		      NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX		| \
 		      NETIF_F_HW_VLAN_STAG_TX)
 
@@ -246,7 +241,7 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	txp->rx_bytes += skb->len;
 	u64_stats_update_end(&txp->rsync);
 
-	if (!skb->tc_redirected || !skb->skb_iif) {
+	if (!skb->redirected || !skb->skb_iif) {
 		dev_kfree_skb(skb);
 		dev->stats.rx_dropped++;
 		return NETDEV_TX_OK;

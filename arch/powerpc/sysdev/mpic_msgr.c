@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011-2012, Meador Inge, Mentor Graphics Corporation.
  *
  * Some ideas based on un-pushed work done by Vivek Mahajan, Jason Jin, and
  * Mingkai Hu from Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/list.h>
@@ -196,7 +191,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 
 	/* IO map the message register block. */
 	of_address_to_resource(np, 0, &rsrc);
-	msgr_block_addr = ioremap(rsrc.start, resource_size(&rsrc));
+	msgr_block_addr = devm_ioremap(&dev->dev, rsrc.start, resource_size(&rsrc));
 	if (!msgr_block_addr) {
 		dev_err(&dev->dev, "Failed to iomap MPIC message registers");
 		return -EFAULT;

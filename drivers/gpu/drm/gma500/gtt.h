@@ -1,26 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  * Copyright (c) 2007-2008, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
 
 #ifndef _PSB_GTT_H_
 #define _PSB_GTT_H_
 
-#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
 /* This wants cleaning up with respect to the psb_dev and un-needed stuff */
@@ -50,7 +37,6 @@ struct gtt_range {
 	bool mmapping;			/* Is mmappable */
 	struct page **pages;		/* Backing pages if present */
 	int npage;			/* Number of backing pages */
-	int roll;			/* Roll applied to the GTT entries */
 };
 
 #define to_gtt_range(x) container_of(x, struct gtt_range, gem)
@@ -62,7 +48,5 @@ extern void psb_gtt_kref_put(struct gtt_range *gt);
 extern void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt);
 extern int psb_gtt_pin(struct gtt_range *gt);
 extern void psb_gtt_unpin(struct gtt_range *gt);
-extern void psb_gtt_roll(struct drm_device *dev,
-					struct gtt_range *gt, int roll);
 extern int psb_gtt_restore(struct drm_device *dev);
 #endif

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS client file system
  *
  * Copyright (C) 2002,5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -82,16 +78,18 @@ static int __net_init afs_net_init(struct net *net_ns)
 	mutex_init(&net->socket_mutex);
 
 	net->cells = RB_ROOT;
-	seqlock_init(&net->cells_lock);
+	init_rwsem(&net->cells_lock);
 	INIT_WORK(&net->cells_manager, afs_manage_cells);
 	timer_setup(&net->cells_timer, afs_cells_timer, 0);
 
+	mutex_init(&net->cells_alias_lock);
 	mutex_init(&net->proc_cells_lock);
 	INIT_HLIST_HEAD(&net->proc_cells);
 
 	seqlock_init(&net->fs_lock);
 	net->fs_servers = RB_ROOT;
-	INIT_LIST_HEAD(&net->fs_updates);
+	INIT_LIST_HEAD(&net->fs_probe_fast);
+	INIT_LIST_HEAD(&net->fs_probe_slow);
 	INIT_HLIST_HEAD(&net->fs_proc);
 
 	INIT_HLIST_HEAD(&net->fs_addresses4);
@@ -100,6 +98,9 @@ static int __net_init afs_net_init(struct net *net_ns)
 
 	INIT_WORK(&net->fs_manager, afs_manage_servers);
 	timer_setup(&net->fs_timer, afs_servers_timer, 0);
+	INIT_WORK(&net->fs_prober, afs_fs_probe_dispatcher);
+	timer_setup(&net->fs_probe_timer, afs_fs_probe_timer, 0);
+	atomic_set(&net->servers_outstanding, 1);
 
 	ret = -ENOMEM;
 	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
@@ -130,6 +131,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 
 error_open_socket:
 	net->live = false;
+	afs_fs_probe_cleanup(net);
 	afs_cell_purge(net);
 	afs_purge_servers(net);
 error_cell_init:
@@ -150,6 +152,7 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	struct afs_net *net = afs_net(net_ns);
 
 	net->live = false;
+	afs_fs_probe_cleanup(net);
 	afs_cell_purge(net);
 	afs_purge_servers(net);
 	afs_close_socket(net);
@@ -190,7 +193,7 @@ static int __init afs_init(void)
 		goto error_cache;
 #endif
 
-	ret = register_pernet_subsys(&afs_net_ops);
+	ret = register_pernet_device(&afs_net_ops);
 	if (ret < 0)
 		goto error_net;
 
@@ -200,8 +203,8 @@ static int __init afs_init(void)
 		goto error_fs;
 
 	afs_proc_symlink = proc_symlink("fs/afs", NULL, "../self/net/afs");
-	if (IS_ERR(afs_proc_symlink)) {
-		ret = PTR_ERR(afs_proc_symlink);
+	if (!afs_proc_symlink) {
+		ret = -ENOMEM;
 		goto error_proc;
 	}
 
@@ -210,7 +213,7 @@ static int __init afs_init(void)
 error_proc:
 	afs_fs_exit();
 error_fs:
-	unregister_pernet_subsys(&afs_net_ops);
+	unregister_pernet_device(&afs_net_ops);
 error_net:
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_unregister_netfs(&afs_cache_netfs);
@@ -241,7 +244,7 @@ static void __exit afs_exit(void)
 
 	proc_remove(afs_proc_symlink);
 	afs_fs_exit();
-	unregister_pernet_subsys(&afs_net_ops);
+	unregister_pernet_device(&afs_net_ops);
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_unregister_netfs(&afs_cache_netfs);
 #endif

@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/common.c - Common device power management code.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
-
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/export.h>
@@ -160,7 +158,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
  * For a detailed function description, see dev_pm_domain_attach_by_id().
  */
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
-					    char *name)
+					    const char *name)
 {
 	if (dev->pm_domain)
 		return ERR_PTR(-EEXIST);
@@ -188,6 +186,26 @@ void dev_pm_domain_detach(struct device *dev, bool power_off)
 		dev->pm_domain->detach(dev, power_off);
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
+
+/**
+ * dev_pm_domain_start - Start the device through its PM domain.
+ * @dev: Device to start.
+ *
+ * This function should typically be called during probe by a subsystem/driver,
+ * when it needs to start its device from the PM domain's perspective. Note
+ * that, it's assumed that the PM domain is already powered on when this
+ * function is called.
+ *
+ * Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_domain_start(struct device *dev)
+{
+	if (dev->pm_domain && dev->pm_domain->start)
+		return dev->pm_domain->start(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_start);
 
 /**
  * dev_pm_domain_set - Set PM domain of a device.

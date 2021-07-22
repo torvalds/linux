@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/renesas,tpu-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Timer Pulse Unit PWM Controller
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: renesas,tpu
+  required:
+    - compatible
+    - '#pwm-cells'
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,tpu-r8a73a4   # R-Mobile APE6
+          - renesas,tpu-r8a7740   # R-Mobile A1
+          - renesas,tpu-r8a7742   # RZ/G1H
+          - renesas,tpu-r8a7743   # RZ/G1M
+          - renesas,tpu-r8a7744   # RZ/G1N
+          - renesas,tpu-r8a7745   # RZ/G1E
+          - renesas,tpu-r8a7790   # R-Car H2
+          - renesas,tpu-r8a7791   # R-Car M2-W
+          - renesas,tpu-r8a7792   # R-Car V2H
+          - renesas,tpu-r8a7793   # R-Car M2-N
+          - renesas,tpu-r8a7794   # R-Car E2
+          - renesas,tpu-r8a7795   # R-Car H3
+          - renesas,tpu-r8a7796   # R-Car M3-W
+          - renesas,tpu-r8a77965  # R-Car M3-N
+          - renesas,tpu-r8a77970  # R-Car V3M
+          - renesas,tpu-r8a77980  # R-Car V3H
+      - const: renesas,tpu
+
+  reg:
+    # Base address and length of each memory resource used by the PWM
+    # controller hardware module.
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#pwm-cells':
+    # should be 3. See pwm.yaml in this directory for a description of
+    # the cells format. The only third cell flag supported by this binding is
+    # PWM_POLARITY_INVERTED.
+    const: 3
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#pwm-cells'
+  - clocks
+  - power-domains
+
+allOf:
+  - $ref: pwm.yaml#
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,tpu-r8a73a4
+                - renesas,tpu-r8a7740
+    then:
+      required:
+        - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7740-clock.h>
+
+    tpu: pwm@e6600000 {
+        compatible = "renesas,tpu-r8a7740", "renesas,tpu";
+        reg = <0xe6600000 0x148>;
+        clocks = <&mstp3_clks R8A7740_CLK_TPU0>;
+        power-domains = <&pd_a3sp>;
+        #pwm-cells = <3>;
+    };

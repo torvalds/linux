@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nvs.c - Routines for saving and restoring ACPI NVS memory region
  *
  * Copyright (C) 2008-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- *
- * This file is released under the GPLv2.
  */
+
+#define pr_fmt(fmt) "ACPI: PM: " fmt
 
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -83,19 +84,19 @@ struct nvs_page {
 static LIST_HEAD(nvs_list);
 
 /**
- *	suspend_nvs_register - register platform NVS memory region to save
- *	@start - physical address of the region
- *	@size - size of the region
+ * suspend_nvs_register - register platform NVS memory region to save
+ * @start: Physical address of the region.
+ * @size: Size of the region.
  *
- *	The NVS region need not be page-aligned (both ends) and we arrange
- *	things so that the data from page-aligned addresses in this region will
- *	be copied into separate RAM pages.
+ * The NVS region need not be page-aligned (both ends) and we arrange
+ * things so that the data from page-aligned addresses in this region will
+ * be copied into separate RAM pages.
  */
 static int suspend_nvs_register(unsigned long start, unsigned long size)
 {
 	struct nvs_page *entry, *next;
 
-	pr_info("PM: Registering ACPI NVS region [mem %#010lx-%#010lx] (%ld bytes)\n",
+	pr_info("Registering ACPI NVS region [mem %#010lx-%#010lx] (%ld bytes)\n",
 		start, start + size - 1, size);
 
 	while (size > 0) {
@@ -124,7 +125,7 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 }
 
 /**
- *	suspend_nvs_free - free data pages allocated for saving NVS regions
+ * suspend_nvs_free - free data pages allocated for saving NVS regions
  */
 void suspend_nvs_free(void)
 {
@@ -148,7 +149,7 @@ void suspend_nvs_free(void)
 }
 
 /**
- *	suspend_nvs_alloc - allocate memory necessary for saving NVS regions
+ * suspend_nvs_alloc - allocate memory necessary for saving NVS regions
  */
 int suspend_nvs_alloc(void)
 {
@@ -165,13 +166,13 @@ int suspend_nvs_alloc(void)
 }
 
 /**
- *	suspend_nvs_save - save NVS memory regions
+ * suspend_nvs_save - save NVS memory regions
  */
 int suspend_nvs_save(void)
 {
 	struct nvs_page *entry;
 
-	printk(KERN_INFO "PM: Saving platform NVS memory\n");
+	pr_info("Saving platform NVS memory\n");
 
 	list_for_each_entry(entry, &nvs_list, node)
 		if (entry->data) {
@@ -194,16 +195,16 @@ int suspend_nvs_save(void)
 }
 
 /**
- *	suspend_nvs_restore - restore NVS memory regions
+ * suspend_nvs_restore - restore NVS memory regions
  *
- *	This function is going to be called with interrupts disabled, so it
- *	cannot iounmap the virtual addresses used to access the NVS region.
+ * This function is going to be called with interrupts disabled, so it
+ * cannot iounmap the virtual addresses used to access the NVS region.
  */
 void suspend_nvs_restore(void)
 {
 	struct nvs_page *entry;
 
-	printk(KERN_INFO "PM: Restoring platform NVS memory\n");
+	pr_info("Restoring platform NVS memory\n");
 
 	list_for_each_entry(entry, &nvs_list, node)
 		if (entry->data)

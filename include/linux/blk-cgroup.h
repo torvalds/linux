@@ -15,30 +15,32 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/percpu.h>
 #include <linux/percpu_counter.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/seq_file.h>
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
 #include <linux/atomic.h>
 #include <linux/kthread.h>
+#include <linux/fs.h>
 
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
+#define FC_APPID_LEN              129
+
 
 #ifdef CONFIG_BLK_CGROUP
 
-enum blkg_rwstat_type {
-	BLKG_RWSTAT_READ,
-	BLKG_RWSTAT_WRITE,
-	BLKG_RWSTAT_SYNC,
-	BLKG_RWSTAT_ASYNC,
-	BLKG_RWSTAT_DISCARD,
+enum blkg_iostat_type {
+	BLKG_IOSTAT_READ,
+	BLKG_IOSTAT_WRITE,
+	BLKG_IOSTAT_DISCARD,
 
-	BLKG_RWSTAT_NR,
-	BLKG_RWSTAT_TOTAL = BLKG_RWSTAT_NR,
+	BLKG_IOSTAT_NR,
 };
 
 struct blkcg_gq;
@@ -46,6 +48,7 @@ struct blkcg_gq;
 struct blkcg {
 	struct cgroup_subsys_state	css;
 	spinlock_t			lock;
+	refcount_t			online_pin;
 
 	struct radix_tree_root		blkg_tree;
 	struct blkcg_gq	__rcu		*blkg_hint;
@@ -54,25 +57,23 @@ struct blkcg {
 	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
 
 	struct list_head		all_blkcgs_node;
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
+	char                            fc_app_id[FC_APPID_LEN];
+#endif
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head		cgwb_list;
-	refcount_t			cgwb_refcnt;
 #endif
 };
 
-/*
- * blkg_[rw]stat->aux_cnt is excluded for local stats but included for
- * recursive.  Used to carry stats of dead children, and, for blkg_rwstat,
- * to carry result values from read and sum operations.
- */
-struct blkg_stat {
-	struct percpu_counter		cpu_cnt;
-	atomic64_t			aux_cnt;
+struct blkg_iostat {
+	u64				bytes[BLKG_IOSTAT_NR];
+	u64				ios[BLKG_IOSTAT_NR];
 };
 
-struct blkg_rwstat {
-	struct percpu_counter		cpu_cnt[BLKG_RWSTAT_NR];
-	atomic64_t			aux_cnt[BLKG_RWSTAT_NR];
+struct blkg_iostat_set {
+	struct u64_stats_sync		sync;
+	struct blkg_iostat		cur;
+	struct blkg_iostat		last;
 };
 
 /*
@@ -113,17 +114,8 @@ struct blkcg_gq {
 	struct hlist_node		blkcg_node;
 	struct blkcg			*blkcg;
 
-	/*
-	 * Each blkg gets congested separately and the congestion state is
-	 * propagated to the matching bdi_writeback_congested.
-	 */
-	struct bdi_writeback_congested	*wb_congested;
-
 	/* all non-root blkcg_gq's are guaranteed to have access to parent */
 	struct blkcg_gq			*parent;
-
-	/* request allocation list for this blkcg-q pair */
-	struct request_list		rl;
 
 	/* reference count */
 	struct percpu_ref		refcnt;
@@ -131,25 +123,30 @@ struct blkcg_gq {
 	/* is this blkg online? protected by both blkcg and q locks */
 	bool				online;
 
-	struct blkg_rwstat		stat_bytes;
-	struct blkg_rwstat		stat_ios;
+	struct blkg_iostat_set __percpu	*iostat_cpu;
+	struct blkg_iostat_set		iostat;
 
 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
 
-	struct rcu_head			rcu_head;
+	spinlock_t			async_bio_lock;
+	struct bio_list			async_bios;
+	struct work_struct		async_bio_work;
 
 	atomic_t			use_delay;
 	atomic64_t			delay_nsec;
 	atomic64_t			delay_start;
 	u64				last_delay;
 	int				last_use;
+
+	struct rcu_head			rcu_head;
 };
 
 typedef struct blkcg_policy_data *(blkcg_pol_alloc_cpd_fn)(gfp_t gfp);
 typedef void (blkcg_pol_init_cpd_fn)(struct blkcg_policy_data *cpd);
 typedef void (blkcg_pol_free_cpd_fn)(struct blkcg_policy_data *cpd);
 typedef void (blkcg_pol_bind_cpd_fn)(struct blkcg_policy_data *cpd);
-typedef struct blkg_policy_data *(blkcg_pol_alloc_pd_fn)(gfp_t gfp, int node);
+typedef struct blkg_policy_data *(blkcg_pol_alloc_pd_fn)(gfp_t gfp,
+				struct request_queue *q, struct blkcg *blkcg);
 typedef void (blkcg_pol_init_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_online_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_offline_pd_fn)(struct blkg_policy_data *pd);
@@ -181,15 +178,11 @@ struct blkcg_policy {
 
 extern struct blkcg blkcg_root;
 extern struct cgroup_subsys_state * const blkcg_root_css;
+extern bool blkcg_debug_stats;
 
 struct blkcg_gq *blkg_lookup_slowpath(struct blkcg *blkcg,
 				      struct request_queue *q, bool update_hint);
-struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
-				      struct request_queue *q);
-struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
-				    struct request_queue *q);
 int blkcg_init_queue(struct request_queue *q);
-void blkcg_drain_queue(struct request_queue *q);
 void blkcg_exit_queue(struct request_queue *q);
 
 /* Blkio controller policy registration */
@@ -207,27 +200,14 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 		       const struct blkcg_policy *pol, int data,
 		       bool show_total);
 u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
-u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-			 const struct blkg_rwstat *rwstat);
-u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off);
-u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-		       int off);
-int blkg_print_stat_bytes(struct seq_file *sf, void *v);
-int blkg_print_stat_ios(struct seq_file *sf, void *v);
-int blkg_print_stat_bytes_recursive(struct seq_file *sf, void *v);
-int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v);
-
-u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
-			    struct blkcg_policy *pol, int off);
-struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
-					     struct blkcg_policy *pol, int off);
 
 struct blkg_conf_ctx {
-	struct gendisk			*disk;
+	struct block_device		*bdev;
 	struct blkcg_gq			*blkg;
 	char				*body;
 };
 
+struct block_device *blkcg_conf_open_bdev(char **inputp);
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		   char *input, struct blkg_conf_ctx *ctx);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
@@ -255,15 +235,18 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 }
 
 /**
- * __bio_blkcg - internal version of bio_blkcg for bfq and cfq
+ * __bio_blkcg - internal, inconsistent version to get blkcg
  *
  * DO NOT USE.
- * There is a flaw using this version of the function.  In particular, this was
- * used in a broken paradigm where association was called on the given css.  It
- * is possible though that the returned css from task_css() is in the process
- * of dying due to migration of the current task.  So it is improper to assume
- * *_get() is going to succeed.  Both BFQ and CFQ rely on this logic and will
- * take additional work to handle more gracefully.
+ * This function is inconsistent and consequently is dangerous to use.  The
+ * first part of the function returns a blkcg where a reference is owned by the
+ * bio.  This means it does not need to be rcu protected as it cannot go away
+ * with the bio owning a reference to it.  However, the latter potentially gets
+ * it from task_css().  This can race against task migration and the cgroup
+ * dying.  It is also semantically different as it must be called rcu protected
+ * and is susceptible to failure when trying to get a reference to it.
+ * Therefore, it is not ok to assume that *_get() will always succeed on the
+ * blkcg returned here.
  */
 static inline struct blkcg *__bio_blkcg(struct bio *bio)
 {
@@ -276,8 +259,8 @@ static inline struct blkcg *__bio_blkcg(struct bio *bio)
  * bio_blkcg - grab the blkcg associated with a bio
  * @bio: target bio
  *
- * This returns the blkcg associated with a bio, NULL if not associated.
- * Callers are expected to either handle NULL or know association has been
+ * This returns the blkcg associated with a bio, %NULL if not associated.
+ * Callers are expected to either handle %NULL or know association has been
  * done prior to calling this.
  */
 static inline struct blkcg *bio_blkcg(struct bio *bio)
@@ -367,16 +350,12 @@ static inline struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
  * @q: request_queue of interest
  *
  * Lookup blkg for the @blkcg - @q pair.  This function should be called
- * under RCU read lock and is guaranteed to return %NULL if @q is bypassing
- * - see blk_queue_bypass_start() for details.
+ * under RCU read lock.
  */
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 					   struct request_queue *q)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	if (unlikely(blk_queue_bypass(q)))
-		return NULL;
 	return __blkg_lookup(blkcg, q, false);
 }
 
@@ -428,46 +407,37 @@ static inline struct blkcg *cpd_to_blkcg(struct blkcg_policy_data *cpd)
 
 extern void blkcg_destroy_blkgs(struct blkcg *blkcg);
 
-#ifdef CONFIG_CGROUP_WRITEBACK
-
 /**
- * blkcg_cgwb_get - get a reference for blkcg->cgwb_list
+ * blkcg_pin_online - pin online state
  * @blkcg: blkcg of interest
  *
- * This is used to track the number of active wb's related to a blkcg.
+ * While pinned, a blkcg is kept online.  This is primarily used to
+ * impedance-match blkg and cgwb lifetimes so that blkg doesn't go offline
+ * while an associated cgwb is still active.
  */
-static inline void blkcg_cgwb_get(struct blkcg *blkcg)
+static inline void blkcg_pin_online(struct blkcg *blkcg)
 {
-	refcount_inc(&blkcg->cgwb_refcnt);
+	refcount_inc(&blkcg->online_pin);
 }
 
 /**
- * blkcg_cgwb_put - put a reference for @blkcg->cgwb_list
+ * blkcg_unpin_online - unpin online state
  * @blkcg: blkcg of interest
  *
- * This is used to track the number of active wb's related to a blkcg.
- * When this count goes to zero, all active wb has finished so the
+ * This is primarily used to impedance-match blkg and cgwb lifetimes so
+ * that blkg doesn't go offline while an associated cgwb is still active.
+ * When this count goes to zero, all active cgwbs have finished so the
  * blkcg can continue destruction by calling blkcg_destroy_blkgs().
- * This work may occur in cgwb_release_workfn() on the cgwb_release
- * workqueue.
  */
-static inline void blkcg_cgwb_put(struct blkcg *blkcg)
+static inline void blkcg_unpin_online(struct blkcg *blkcg)
 {
-	if (refcount_dec_and_test(&blkcg->cgwb_refcnt))
+	do {
+		if (!refcount_dec_and_test(&blkcg->online_pin))
+			break;
 		blkcg_destroy_blkgs(blkcg);
+		blkcg = blkcg_parent(blkcg);
+	} while (blkcg);
 }
-
-#else
-
-static inline void blkcg_cgwb_get(struct blkcg *blkcg) { }
-
-static inline void blkcg_cgwb_put(struct blkcg *blkcg)
-{
-	/* wb isn't being accounted, so trigger destruction right away */
-	blkcg_destroy_blkgs(blkcg);
-}
-
-#endif
 
 /**
  * blkg_path - format cgroup path of blkg
@@ -502,22 +472,7 @@ static inline void blkg_get(struct blkcg_gq *blkg)
  */
 static inline bool blkg_tryget(struct blkcg_gq *blkg)
 {
-	return percpu_ref_tryget(&blkg->refcnt);
-}
-
-/**
- * blkg_tryget_closest - try and get a blkg ref on the closet blkg
- * @blkg: blkg to get
- *
- * This walks up the blkg tree to find the closest non-dying blkg and returns
- * the blkg that it did association with as it may not be the passed in blkg.
- */
-static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
-{
-	while (!percpu_ref_tryget(&blkg->refcnt))
-		blkg = blkg->parent;
-
-	return blkg;
+	return blkg && percpu_ref_tryget(&blkg->refcnt);
 }
 
 /**
@@ -561,338 +516,25 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
 					      (p_blkg)->q, false)))
 
-/**
- * blk_get_rl - get request_list to use
- * @q: request_queue of interest
- * @bio: bio which will be attached to the allocated request (may be %NULL)
- *
- * The caller wants to allocate a request from @q to use for @bio.  Find
- * the request_list to use and obtain a reference on it.  Should be called
- * under queue_lock.  This function is guaranteed to return non-%NULL
- * request_list.
- */
-static inline struct request_list *blk_get_rl(struct request_queue *q,
-					      struct bio *bio)
+bool __blkcg_punt_bio_submit(struct bio *bio);
+
+static inline bool blkcg_punt_bio_submit(struct bio *bio)
 {
-	struct blkcg *blkcg;
-	struct blkcg_gq *blkg;
-
-	rcu_read_lock();
-
-	if (bio && bio->bi_blkg) {
-		blkcg = bio->bi_blkg->blkcg;
-		if (blkcg == &blkcg_root)
-			goto rl_use_root;
-
-		blkg_get(bio->bi_blkg);
-		rcu_read_unlock();
-		return &bio->bi_blkg->rl;
-	}
-
-	blkcg = css_to_blkcg(blkcg_css());
-	if (blkcg == &blkcg_root)
-		goto rl_use_root;
-
-	blkg = blkg_lookup(blkcg, q);
-	if (unlikely(!blkg))
-		blkg = __blkg_lookup_create(blkcg, q);
-
-	if (blkg->blkcg == &blkcg_root || !blkg_tryget(blkg))
-		goto rl_use_root;
-
-	rcu_read_unlock();
-	return &blkg->rl;
-
-	/*
-	 * Each blkg has its own request_list, however, the root blkcg
-	 * uses the request_queue's root_rl.  This is to avoid most
-	 * overhead for the root blkcg.
-	 */
-rl_use_root:
-	rcu_read_unlock();
-	return &q->root_rl;
-}
-
-/**
- * blk_put_rl - put request_list
- * @rl: request_list to put
- *
- * Put the reference acquired by blk_get_rl().  Should be called under
- * queue_lock.
- */
-static inline void blk_put_rl(struct request_list *rl)
-{
-	if (rl->blkg->blkcg != &blkcg_root)
-		blkg_put(rl->blkg);
-}
-
-/**
- * blk_rq_set_rl - associate a request with a request_list
- * @rq: request of interest
- * @rl: target request_list
- *
- * Associate @rq with @rl so that accounting and freeing can know the
- * request_list @rq came from.
- */
-static inline void blk_rq_set_rl(struct request *rq, struct request_list *rl)
-{
-	rq->rl = rl;
-}
-
-/**
- * blk_rq_rl - return the request_list a request came from
- * @rq: request of interest
- *
- * Return the request_list @rq is allocated from.
- */
-static inline struct request_list *blk_rq_rl(struct request *rq)
-{
-	return rq->rl;
-}
-
-struct request_list *__blk_queue_next_rl(struct request_list *rl,
-					 struct request_queue *q);
-/**
- * blk_queue_for_each_rl - iterate through all request_lists of a request_queue
- *
- * Should be used under queue_lock.
- */
-#define blk_queue_for_each_rl(rl, q)	\
-	for ((rl) = &(q)->root_rl; (rl); (rl) = __blk_queue_next_rl((rl), (q)))
-
-static inline int blkg_stat_init(struct blkg_stat *stat, gfp_t gfp)
-{
-	int ret;
-
-	ret = percpu_counter_init(&stat->cpu_cnt, 0, gfp);
-	if (ret)
-		return ret;
-
-	atomic64_set(&stat->aux_cnt, 0);
-	return 0;
-}
-
-static inline void blkg_stat_exit(struct blkg_stat *stat)
-{
-	percpu_counter_destroy(&stat->cpu_cnt);
-}
-
-/**
- * blkg_stat_add - add a value to a blkg_stat
- * @stat: target blkg_stat
- * @val: value to add
- *
- * Add @val to @stat.  The caller must ensure that IRQ on the same CPU
- * don't re-enter this function for the same counter.
- */
-static inline void blkg_stat_add(struct blkg_stat *stat, uint64_t val)
-{
-	percpu_counter_add_batch(&stat->cpu_cnt, val, BLKG_STAT_CPU_BATCH);
-}
-
-/**
- * blkg_stat_read - read the current value of a blkg_stat
- * @stat: blkg_stat to read
- */
-static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
-{
-	return percpu_counter_sum_positive(&stat->cpu_cnt);
-}
-
-/**
- * blkg_stat_reset - reset a blkg_stat
- * @stat: blkg_stat to reset
- */
-static inline void blkg_stat_reset(struct blkg_stat *stat)
-{
-	percpu_counter_set(&stat->cpu_cnt, 0);
-	atomic64_set(&stat->aux_cnt, 0);
-}
-
-/**
- * blkg_stat_add_aux - add a blkg_stat into another's aux count
- * @to: the destination blkg_stat
- * @from: the source
- *
- * Add @from's count including the aux one to @to's aux count.
- */
-static inline void blkg_stat_add_aux(struct blkg_stat *to,
-				     struct blkg_stat *from)
-{
-	atomic64_add(blkg_stat_read(from) + atomic64_read(&from->aux_cnt),
-		     &to->aux_cnt);
-}
-
-static inline int blkg_rwstat_init(struct blkg_rwstat *rwstat, gfp_t gfp)
-{
-	int i, ret;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++) {
-		ret = percpu_counter_init(&rwstat->cpu_cnt[i], 0, gfp);
-		if (ret) {
-			while (--i >= 0)
-				percpu_counter_destroy(&rwstat->cpu_cnt[i]);
-			return ret;
-		}
-		atomic64_set(&rwstat->aux_cnt[i], 0);
-	}
-	return 0;
-}
-
-static inline void blkg_rwstat_exit(struct blkg_rwstat *rwstat)
-{
-	int i;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		percpu_counter_destroy(&rwstat->cpu_cnt[i]);
-}
-
-/**
- * blkg_rwstat_add - add a value to a blkg_rwstat
- * @rwstat: target blkg_rwstat
- * @op: REQ_OP and flags
- * @val: value to add
- *
- * Add @val to @rwstat.  The counters are chosen according to @rw.  The
- * caller is responsible for synchronizing calls to this function.
- */
-static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
-				   unsigned int op, uint64_t val)
-{
-	struct percpu_counter *cnt;
-
-	if (op_is_discard(op))
-		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_DISCARD];
-	else if (op_is_write(op))
-		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_WRITE];
+	if (bio->bi_opf & REQ_CGROUP_PUNT)
+		return __blkcg_punt_bio_submit(bio);
 	else
-		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_READ];
-
-	percpu_counter_add_batch(cnt, val, BLKG_STAT_CPU_BATCH);
-
-	if (op_is_sync(op))
-		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_SYNC];
-	else
-		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_ASYNC];
-
-	percpu_counter_add_batch(cnt, val, BLKG_STAT_CPU_BATCH);
+		return false;
 }
-
-/**
- * blkg_rwstat_read - read the current values of a blkg_rwstat
- * @rwstat: blkg_rwstat to read
- *
- * Read the current snapshot of @rwstat and return it in the aux counts.
- */
-static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
-{
-	struct blkg_rwstat result;
-	int i;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_set(&result.aux_cnt[i],
-			     percpu_counter_sum_positive(&rwstat->cpu_cnt[i]));
-	return result;
-}
-
-/**
- * blkg_rwstat_total - read the total count of a blkg_rwstat
- * @rwstat: blkg_rwstat to read
- *
- * Return the total count of @rwstat regardless of the IO direction.  This
- * function can be called without synchronization and takes care of u64
- * atomicity.
- */
-static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
-{
-	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
-
-	return atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_WRITE]);
-}
-
-/**
- * blkg_rwstat_reset - reset a blkg_rwstat
- * @rwstat: blkg_rwstat to reset
- */
-static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
-{
-	int i;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++) {
-		percpu_counter_set(&rwstat->cpu_cnt[i], 0);
-		atomic64_set(&rwstat->aux_cnt[i], 0);
-	}
-}
-
-/**
- * blkg_rwstat_add_aux - add a blkg_rwstat into another's aux count
- * @to: the destination blkg_rwstat
- * @from: the source
- *
- * Add @from's count including the aux one to @to's aux count.
- */
-static inline void blkg_rwstat_add_aux(struct blkg_rwstat *to,
-				       struct blkg_rwstat *from)
-{
-	u64 sum[BLKG_RWSTAT_NR];
-	int i;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		sum[i] = percpu_counter_sum_positive(&from->cpu_cnt[i]);
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_add(sum[i] + atomic64_read(&from->aux_cnt[i]),
-			     &to->aux_cnt[i]);
-}
-
-#ifdef CONFIG_BLK_DEV_THROTTLING
-extern bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
-			   struct bio *bio);
-#else
-static inline bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
-				  struct bio *bio) { return false; }
-#endif
-
 
 static inline void blkcg_bio_issue_init(struct bio *bio)
 {
 	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
 }
 
-static inline bool blkcg_bio_issue_check(struct request_queue *q,
-					 struct bio *bio)
-{
-	struct blkcg_gq *blkg;
-	bool throtl = false;
-
-	rcu_read_lock();
-
-	bio_associate_create_blkg(q, bio);
-	blkg = bio->bi_blkg;
-
-	throtl = blk_throtl_bio(q, blkg, bio);
-
-	if (!throtl) {
-		/*
-		 * If the bio is flagged with BIO_QUEUE_ENTERED it means this
-		 * is a split bio and we would have already accounted for the
-		 * size of the bio.
-		 */
-		if (!bio_flagged(bio, BIO_QUEUE_ENTERED))
-			blkg_rwstat_add(&blkg->stat_bytes, bio->bi_opf,
-					bio->bi_iter.bi_size);
-		blkg_rwstat_add(&blkg->stat_ios, bio->bi_opf, 1);
-	}
-
-	blkcg_bio_issue_init(bio);
-
-	rcu_read_unlock();
-	return !throtl;
-}
-
 static inline void blkcg_use_delay(struct blkcg_gq *blkg)
 {
+	if (WARN_ON_ONCE(atomic_read(&blkg->use_delay) < 0))
+		return;
 	if (atomic_add_return(1, &blkg->use_delay) == 1)
 		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
 }
@@ -901,6 +543,8 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 {
 	int old = atomic_read(&blkg->use_delay);
 
+	if (WARN_ON_ONCE(old < 0))
+		return 0;
 	if (old == 0)
 		return 0;
 
@@ -925,22 +569,42 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 	return 1;
 }
 
+/**
+ * blkcg_set_delay - Enable allocator delay mechanism with the specified delay amount
+ * @blkg: target blkg
+ * @delay: delay duration in nsecs
+ *
+ * When enabled with this function, the delay is not decayed and must be
+ * explicitly cleared with blkcg_clear_delay(). Must not be mixed with
+ * blkcg_[un]use_delay() and blkcg_add_delay() usages.
+ */
+static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
+{
+	int old = atomic_read(&blkg->use_delay);
+
+	/* We only want 1 person setting the congestion count for this blkg. */
+	if (!old && atomic_cmpxchg(&blkg->use_delay, old, -1) == old)
+		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
+
+	atomic64_set(&blkg->delay_nsec, delay);
+}
+
+/**
+ * blkcg_clear_delay - Disable allocator delay mechanism
+ * @blkg: target blkg
+ *
+ * Disable use_delay mechanism. See blkcg_set_delay().
+ */
 static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 {
 	int old = atomic_read(&blkg->use_delay);
-	if (!old)
-		return;
+
 	/* We only want 1 person clearing the congestion count for this blkg. */
-	while (old) {
-		int cur = atomic_cmpxchg(&blkg->use_delay, old, 0);
-		if (cur == old) {
-			atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
-			break;
-		}
-		old = cur;
-	}
+	if (old && atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
+		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
 }
 
+void blk_cgroup_bio_start(struct bio *bio);
 void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta);
 void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay);
 void blkcg_maybe_throttle_current(void);
@@ -974,7 +638,6 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { ret
 static inline struct blkcg_gq *blk_queue_root_blkg(struct request_queue *q)
 { return NULL; }
 static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
-static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }
 static inline int blkcg_policy_register(struct blkcg_policy *pol) { return 0; }
 static inline void blkcg_policy_unregister(struct blkcg_policy *pol) { }
@@ -993,19 +656,71 @@ static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }
 
-static inline struct request_list *blk_get_rl(struct request_queue *q,
-					      struct bio *bio) { return &q->root_rl; }
-static inline void blk_put_rl(struct request_list *rl) { }
-static inline void blk_rq_set_rl(struct request *rq, struct request_list *rl) { }
-static inline struct request_list *blk_rq_rl(struct request *rq) { return &rq->q->root_rl; }
-
+static inline bool blkcg_punt_bio_submit(struct bio *bio) { return false; }
 static inline void blkcg_bio_issue_init(struct bio *bio) { }
-static inline bool blkcg_bio_issue_check(struct request_queue *q,
-					 struct bio *bio) { return true; }
+static inline void blk_cgroup_bio_start(struct bio *bio) { }
 
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = NULL)
 
 #endif	/* CONFIG_BLOCK */
 #endif	/* CONFIG_BLK_CGROUP */
+
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
+/*
+ * Sets the fc_app_id field associted to blkcg
+ * @app_id: application identifier
+ * @cgrp_id: cgroup id
+ * @app_id_len: size of application identifier
+ */
+static inline int blkcg_set_fc_appid(char *app_id, u64 cgrp_id, size_t app_id_len)
+{
+	struct cgroup *cgrp;
+	struct cgroup_subsys_state *css;
+	struct blkcg *blkcg;
+	int ret  = 0;
+
+	if (app_id_len > FC_APPID_LEN)
+		return -EINVAL;
+
+	cgrp = cgroup_get_from_id(cgrp_id);
+	if (!cgrp)
+		return -ENOENT;
+	css = cgroup_get_e_css(cgrp, &io_cgrp_subsys);
+	if (!css) {
+		ret = -ENOENT;
+		goto out_cgrp_put;
+	}
+	blkcg = css_to_blkcg(css);
+	/*
+	 * There is a slight race condition on setting the appid.
+	 * Worst case an I/O may not find the right id.
+	 * This is no different from the I/O we let pass while obtaining
+	 * the vmid from the fabric.
+	 * Adding the overhead of a lock is not necessary.
+	 */
+	strlcpy(blkcg->fc_app_id, app_id, app_id_len);
+	css_put(css);
+out_cgrp_put:
+	cgroup_put(cgrp);
+	return ret;
+}
+
+/**
+ * blkcg_get_fc_appid - get the fc app identifier associated with a bio
+ * @bio: target bio
+ *
+ * On success return the fc_app_id, on failure return NULL
+ */
+static inline char *blkcg_get_fc_appid(struct bio *bio)
+{
+	if (bio && bio->bi_blkg &&
+		(bio->bi_blkg->blkcg->fc_app_id[0] != '\0'))
+		return bio->bi_blkg->blkcg->fc_app_id;
+	return NULL;
+}
+#else
+static inline int blkcg_set_fc_appid(char *buf, u64 id, size_t len) { return -EINVAL; }
+static inline char *blkcg_get_fc_appid(struct bio *bio) { return NULL; }
+#endif /*CONFIG_BLK_CGROUP_FC_APPID*/
 #endif	/* _BLK_CGROUP_H */

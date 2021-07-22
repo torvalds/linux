@@ -1,19 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/gpio/gpio-mb86s7x.c
  *
  *  Copyright (C) 2015 Fujitsu Semiconductor Limited
  *  Copyright (C) 2015 Linaro Ltd.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -26,6 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+
+#include "gpiolib.h"
+#include "gpiolib-acpi.h"
 
 /*
  * Only first 8bits of a register correspond to each pin,
@@ -143,10 +139,25 @@ static void mb86s70_gpio_set(struct gpio_chip *gc, unsigned gpio, int value)
 	spin_unlock_irqrestore(&gchip->lock, flags);
 }
 
+static int mb86s70_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
+{
+	int irq, index;
+
+	for (index = 0;; index++) {
+		irq = platform_get_irq(to_platform_device(gc->parent), index);
+		if (irq < 0)
+			return irq;
+		if (irq == 0)
+			break;
+		if (irq_get_irq_data(irq)->hwirq == offset)
+			return irq;
+	}
+	return -EINVAL;
+}
+
 static int mb86s70_gpio_probe(struct platform_device *pdev)
 {
 	struct mb86s70_gpio_chip *gchip;
-	struct resource *res;
 	int ret;
 
 	gchip = devm_kzalloc(&pdev->dev, sizeof(*gchip), GFP_KERNEL);
@@ -155,12 +166,11 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gchip);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gchip->base = devm_ioremap_resource(&pdev->dev, res);
+	gchip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gchip->base))
 		return PTR_ERR(gchip->base);
 
-	gchip->clk = devm_clk_get(&pdev->dev, NULL);
+	gchip->clk = devm_clk_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(gchip->clk))
 		return PTR_ERR(gchip->clk);
 
@@ -176,6 +186,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	gchip->gc.free = mb86s70_gpio_free;
 	gchip->gc.get = mb86s70_gpio_get;
 	gchip->gc.set = mb86s70_gpio_set;
+	gchip->gc.to_irq = mb86s70_gpio_to_irq;
 	gchip->gc.label = dev_name(&pdev->dev);
 	gchip->gc.ngpio = 32;
 	gchip->gc.owner = THIS_MODULE;
@@ -186,15 +197,19 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't register gpio driver\n");
 		clk_disable_unprepare(gchip->clk);
+		return ret;
 	}
 
-	return ret;
+	acpi_gpiochip_request_interrupts(&gchip->gc);
+
+	return 0;
 }
 
 static int mb86s70_gpio_remove(struct platform_device *pdev)
 {
 	struct mb86s70_gpio_chip *gchip = platform_get_drvdata(pdev);
 
+	acpi_gpiochip_free_interrupts(&gchip->gc);
 	gpiochip_remove(&gchip->gc);
 	clk_disable_unprepare(gchip->clk);
 
@@ -207,10 +222,19 @@ static const struct of_device_id mb86s70_gpio_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mb86s70_gpio_dt_ids);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id mb86s70_gpio_acpi_ids[] = {
+	{ "SCX0007" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(acpi, mb86s70_gpio_acpi_ids);
+#endif
+
 static struct platform_driver mb86s70_gpio_driver = {
 	.driver = {
 		.name = "mb86s70-gpio",
 		.of_match_table = mb86s70_gpio_dt_ids,
+		.acpi_match_table = ACPI_PTR(mb86s70_gpio_acpi_ids),
 	},
 	.probe = mb86s70_gpio_probe,
 	.remove = mb86s70_gpio_remove,

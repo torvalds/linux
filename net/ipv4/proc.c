@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -25,17 +26,13 @@
  *					split functions for more readibility.
  *	Andi Kleen		:	Add support for /proc/net/netstat
  *	Arnaldo C. Melo		:	Convert to seq_file
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
 #include <net/net_namespace.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
+#include <net/mptcp.h>
 #include <net/udp.h>
 #include <net/udplite.h>
 #include <linux/bottom_half.h>
@@ -72,8 +69,8 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "RAW: inuse %d\n",
 		   sock_prot_inuse_get(net, &raw_prot));
 	seq_printf(seq,  "FRAG: inuse %u memory %lu\n",
-		   atomic_read(&net->ipv4.frags.rhashtable.nelems),
-		   frag_mem_limit(&net->ipv4.frags));
+		   atomic_read(&net->ipv4.fqdir->rhashtable.nelems),
+		   frag_mem_limit(net->ipv4.fqdir));
 	return 0;
 }
 
@@ -170,6 +167,7 @@ static const struct snmp_mib snmp4_udp_list[] = {
 	SNMP_MIB_ITEM("SndbufErrors", UDP_MIB_SNDBUFERRORS),
 	SNMP_MIB_ITEM("InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_ITEM("IgnoredMulti", UDP_MIB_IGNOREDMULTI),
+	SNMP_MIB_ITEM("MemErrors", UDP_MIB_MEMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -219,6 +217,7 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPRenoRecoveryFail", LINUX_MIB_TCPRENORECOVERYFAIL),
 	SNMP_MIB_ITEM("TCPSackRecoveryFail", LINUX_MIB_TCPSACKRECOVERYFAIL),
 	SNMP_MIB_ITEM("TCPRcvCollapsed", LINUX_MIB_TCPRCVCOLLAPSED),
+	SNMP_MIB_ITEM("TCPBacklogCoalesce", LINUX_MIB_TCPBACKLOGCOALESCE),
 	SNMP_MIB_ITEM("TCPDSACKOldSent", LINUX_MIB_TCPDSACKOLDSENT),
 	SNMP_MIB_ITEM("TCPDSACKOfoSent", LINUX_MIB_TCPDSACKOFOSENT),
 	SNMP_MIB_ITEM("TCPDSACKRecv", LINUX_MIB_TCPDSACKRECV),
@@ -290,6 +289,14 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPAckCompressed", LINUX_MIB_TCPACKCOMPRESSED),
 	SNMP_MIB_ITEM("TCPZeroWindowDrop", LINUX_MIB_TCPZEROWINDOWDROP),
 	SNMP_MIB_ITEM("TCPRcvQDrop", LINUX_MIB_TCPRCVQDROP),
+	SNMP_MIB_ITEM("TCPWqueueTooBig", LINUX_MIB_TCPWQUEUETOOBIG),
+	SNMP_MIB_ITEM("TCPFastOpenPassiveAltKey", LINUX_MIB_TCPFASTOPENPASSIVEALTKEY),
+	SNMP_MIB_ITEM("TcpTimeoutRehash", LINUX_MIB_TCPTIMEOUTREHASH),
+	SNMP_MIB_ITEM("TcpDuplicateDataRehash", LINUX_MIB_TCPDUPLICATEDATAREHASH),
+	SNMP_MIB_ITEM("TCPDSACKRecvSegs", LINUX_MIB_TCPDSACKRECVSEGS),
+	SNMP_MIB_ITEM("TCPDSACKIgnoredDubious", LINUX_MIB_TCPDSACKIGNOREDDUBIOUS),
+	SNMP_MIB_ITEM("TCPMigrateReqSuccess", LINUX_MIB_TCPMIGRATEREQSUCCESS),
+	SNMP_MIB_ITEM("TCPMigrateReqFailure", LINUX_MIB_TCPMIGRATEREQFAILURE),
 	SNMP_MIB_SENTINEL
 };
 
@@ -459,31 +466,54 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
  */
 static int netstat_seq_show(struct seq_file *seq, void *v)
 {
-	int i;
+	const int ip_cnt = ARRAY_SIZE(snmp4_ipextstats_list) - 1;
+	const int tcp_cnt = ARRAY_SIZE(snmp4_net_list) - 1;
 	struct net *net = seq->private;
+	unsigned long *buff;
+	int i;
 
 	seq_puts(seq, "TcpExt:");
-	for (i = 0; snmp4_net_list[i].name; i++)
+	for (i = 0; i < tcp_cnt; i++)
 		seq_printf(seq, " %s", snmp4_net_list[i].name);
 
 	seq_puts(seq, "\nTcpExt:");
-	for (i = 0; snmp4_net_list[i].name; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field(net->mib.net_statistics,
-					   snmp4_net_list[i].entry));
-
+	buff = kzalloc(max(tcp_cnt * sizeof(long), ip_cnt * sizeof(u64)),
+		       GFP_KERNEL);
+	if (buff) {
+		snmp_get_cpu_field_batch(buff, snmp4_net_list,
+					 net->mib.net_statistics);
+		for (i = 0; i < tcp_cnt; i++)
+			seq_printf(seq, " %lu", buff[i]);
+	} else {
+		for (i = 0; i < tcp_cnt; i++)
+			seq_printf(seq, " %lu",
+				   snmp_fold_field(net->mib.net_statistics,
+						   snmp4_net_list[i].entry));
+	}
 	seq_puts(seq, "\nIpExt:");
-	for (i = 0; snmp4_ipextstats_list[i].name; i++)
+	for (i = 0; i < ip_cnt; i++)
 		seq_printf(seq, " %s", snmp4_ipextstats_list[i].name);
 
 	seq_puts(seq, "\nIpExt:");
-	for (i = 0; snmp4_ipextstats_list[i].name; i++)
-		seq_printf(seq, " %llu",
-			   snmp_fold_field64(net->mib.ip_statistics,
-					     snmp4_ipextstats_list[i].entry,
-					     offsetof(struct ipstats_mib, syncp)));
+	if (buff) {
+		u64 *buff64 = (u64 *)buff;
 
+		memset(buff64, 0, ip_cnt * sizeof(u64));
+		snmp_get_cpu_field64_batch(buff64, snmp4_ipextstats_list,
+					   net->mib.ip_statistics,
+					   offsetof(struct ipstats_mib, syncp));
+		for (i = 0; i < ip_cnt; i++)
+			seq_printf(seq, " %llu", buff64[i]);
+	} else {
+		for (i = 0; i < ip_cnt; i++)
+			seq_printf(seq, " %llu",
+				   snmp_fold_field64(net->mib.ip_statistics,
+						     snmp4_ipextstats_list[i].entry,
+						     offsetof(struct ipstats_mib, syncp)));
+	}
+	kfree(buff);
 	seq_putc(seq, '\n');
+	mptcp_seq_show(seq);
 	return 0;
 }
 

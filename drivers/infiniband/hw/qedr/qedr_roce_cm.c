@@ -397,13 +397,16 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	bool has_udp = false;
 	int i;
 
+	rc = rdma_read_gid_l2_fields(sgid_attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
+
+	if (vlan_id < VLAN_CFI_MASK)
+		has_vlan = true;
+
 	send_size = 0;
 	for (i = 0; i < swr->num_sge; ++i)
 		send_size += swr->sg_list[i].length;
-
-	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr->ndev);
-	if (vlan_id < VLAN_CFI_MASK)
-		has_vlan = true;
 
 	has_udp = (sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {
@@ -583,8 +586,8 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		qp->wqe_wr_id[qp->sq.prod].wr_id = wr->wr_id;
 		qedr_inc_sw_prod(&qp->sq);
 		DP_DEBUG(qp->dev, QEDR_MSG_GSI,
-			 "gsi post send: opcode=%d, in_irq=%ld, irqs_disabled=%d, wr_id=%llx\n",
-			 wr->opcode, in_irq(), irqs_disabled(), wr->wr_id);
+			 "gsi post send: opcode=%d, wr_id=%llx\n", wr->opcode,
+			 wr->wr_id);
 	} else {
 		DP_ERR(dev, "gsi post send: failed to transmit (rc=%d)\n", rc);
 		rc = -EAGAIN;

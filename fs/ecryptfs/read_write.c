@@ -1,23 +1,9 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -244,6 +230,8 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
  * ecryptfs_read_lower_page_segment
  * @page_for_ecryptfs: The page into which data for eCryptfs will be
  *                     written
+ * @page_index: Page index in @page_for_ecryptfs from which to start
+ *		writing
  * @offset_in_page: Offset in @page_for_ecryptfs from which to start
  *                  writing
  * @size: The number of bytes to write into @page_for_ecryptfs

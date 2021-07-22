@@ -1,18 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C bus driver for Amlogic Meson SoCs
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -35,12 +34,17 @@
 #define REG_CTRL_ACK_IGNORE	BIT(1)
 #define REG_CTRL_STATUS		BIT(2)
 #define REG_CTRL_ERROR		BIT(3)
-#define REG_CTRL_CLKDIV_SHIFT	12
-#define REG_CTRL_CLKDIV_MASK	GENMASK(21, 12)
-#define REG_CTRL_CLKDIVEXT_SHIFT 28
-#define REG_CTRL_CLKDIVEXT_MASK	GENMASK(29, 28)
+#define REG_CTRL_CLKDIV		GENMASK(21, 12)
+#define REG_CTRL_CLKDIVEXT	GENMASK(29, 28)
+
+#define REG_SLV_ADDR		GENMASK(7, 0)
+#define REG_SLV_SDA_FILTER	GENMASK(10, 8)
+#define REG_SLV_SCL_FILTER	GENMASK(13, 11)
+#define REG_SLV_SCL_LOW		GENMASK(27, 16)
+#define REG_SLV_SCL_LOW_EN	BIT(28)
 
 #define I2C_TIMEOUT_MS		500
+#define FILTER_DELAY		15
 
 enum {
 	TOKEN_END = 0,
@@ -135,19 +139,24 @@ static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 	unsigned long clk_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
-	div = DIV_ROUND_UP(clk_rate, freq * i2c->data->div_factor);
+	div = DIV_ROUND_UP(clk_rate, freq);
+	div -= FILTER_DELAY;
+	div = DIV_ROUND_UP(div, i2c->data->div_factor);
 
 	/* clock divider has 12 bits */
-	if (div >= (1 << 12)) {
+	if (div > GENMASK(11, 0)) {
 		dev_err(i2c->dev, "requested bus frequency too low\n");
-		div = (1 << 12) - 1;
+		div = GENMASK(11, 0);
 	}
 
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV_MASK,
-			   (div & GENMASK(9, 0)) << REG_CTRL_CLKDIV_SHIFT);
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV,
+			   FIELD_PREP(REG_CTRL_CLKDIV, div & GENMASK(9, 0)));
 
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT_MASK,
-			   (div >> 10) << REG_CTRL_CLKDIVEXT_SHIFT);
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT,
+			   FIELD_PREP(REG_CTRL_CLKDIVEXT, div >> 10));
+
+	/* Disable HIGH/LOW mode */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_EN, 0);
 
 	dev_dbg(i2c->dev, "%s: clk %lu, freq %u, div %u\n", __func__,
 		clk_rate, freq, div);
@@ -216,6 +225,30 @@ static void meson_i2c_prepare_xfer(struct meson_i2c *i2c)
 	writel(i2c->tokens[1], i2c->regs + REG_TOK_LIST1);
 }
 
+static void meson_i2c_transfer_complete(struct meson_i2c *i2c, u32 ctrl)
+{
+	if (ctrl & REG_CTRL_ERROR) {
+		/*
+		 * The bit is set when the IGNORE_NAK bit is cleared
+		 * and the device didn't respond. In this case, the
+		 * I2C controller automatically generates a STOP
+		 * condition.
+		 */
+		dev_dbg(i2c->dev, "error bit set\n");
+		i2c->error = -ENXIO;
+		i2c->state = STATE_IDLE;
+	} else {
+		if (i2c->state == STATE_READ && i2c->count)
+			meson_i2c_get_data(i2c, i2c->msg->buf + i2c->pos,
+					   i2c->count);
+
+		i2c->pos += i2c->count;
+
+		if (i2c->pos >= i2c->msg->len)
+			i2c->state = STATE_IDLE;
+	}
+}
+
 static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 {
 	struct meson_i2c *i2c = dev_id;
@@ -235,27 +268,9 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (ctrl & REG_CTRL_ERROR) {
-		/*
-		 * The bit is set when the IGNORE_NAK bit is cleared
-		 * and the device didn't respond. In this case, the
-		 * I2C controller automatically generates a STOP
-		 * condition.
-		 */
-		dev_dbg(i2c->dev, "error bit set\n");
-		i2c->error = -ENXIO;
-		i2c->state = STATE_IDLE;
-		complete(&i2c->done);
-		goto out;
-	}
+	meson_i2c_transfer_complete(i2c, ctrl);
 
-	if (i2c->state == STATE_READ && i2c->count)
-		meson_i2c_get_data(i2c, i2c->msg->buf + i2c->pos, i2c->count);
-
-	i2c->pos += i2c->count;
-
-	if (i2c->pos >= i2c->msg->len) {
-		i2c->state = STATE_IDLE;
+	if (i2c->state == STATE_IDLE) {
 		complete(&i2c->done);
 		goto out;
 	}
@@ -276,16 +291,20 @@ static void meson_i2c_do_start(struct meson_i2c *i2c, struct i2c_msg *msg)
 	token = (msg->flags & I2C_M_RD) ? TOKEN_SLAVE_ADDR_READ :
 		TOKEN_SLAVE_ADDR_WRITE;
 
-	writel(msg->addr << 1, i2c->regs + REG_SLAVE_ADDR);
+
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_ADDR,
+			   FIELD_PREP(REG_SLV_ADDR, msg->addr << 1));
+
 	meson_i2c_add_token(i2c, TOKEN_START);
 	meson_i2c_add_token(i2c, token);
 }
 
 static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
-			      int last)
+			      int last, bool atomic)
 {
 	unsigned long time_left, flags;
 	int ret = 0;
+	u32 ctrl;
 
 	i2c->msg = msg;
 	i2c->last = last;
@@ -303,13 +322,24 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 
 	i2c->state = (msg->flags & I2C_M_RD) ? STATE_READ : STATE_WRITE;
 	meson_i2c_prepare_xfer(i2c);
-	reinit_completion(&i2c->done);
+
+	if (!atomic)
+		reinit_completion(&i2c->done);
 
 	/* Start the transfer */
 	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, REG_CTRL_START);
 
-	time_left = msecs_to_jiffies(I2C_TIMEOUT_MS);
-	time_left = wait_for_completion_timeout(&i2c->done, time_left);
+	if (atomic) {
+		ret = readl_poll_timeout_atomic(i2c->regs + REG_CTRL, ctrl,
+						!(ctrl & REG_CTRL_STATUS),
+						10, I2C_TIMEOUT_MS * 1000);
+	} else {
+		time_left = msecs_to_jiffies(I2C_TIMEOUT_MS);
+		time_left = wait_for_completion_timeout(&i2c->done, time_left);
+
+		if (!time_left)
+			ret = -ETIMEDOUT;
+	}
 
 	/*
 	 * Protect access to i2c struct and registers from interrupt
@@ -318,13 +348,14 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 	 */
 	spin_lock_irqsave(&i2c->lock, flags);
 
+	if (atomic && !ret)
+		meson_i2c_transfer_complete(i2c, ctrl);
+
 	/* Abort any active operation */
 	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
 
-	if (!time_left) {
+	if (ret)
 		i2c->state = STATE_IDLE;
-		ret = -ETIMEDOUT;
-	}
 
 	if (i2c->error)
 		ret = i2c->error;
@@ -334,23 +365,31 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 	return ret;
 }
 
-static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-			  int num)
+static int meson_i2c_xfer_messages(struct i2c_adapter *adap,
+				   struct i2c_msg *msgs, int num, bool atomic)
 {
 	struct meson_i2c *i2c = adap->algo_data;
 	int i, ret = 0;
 
-	clk_enable(i2c->clk);
-
 	for (i = 0; i < num; i++) {
-		ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1);
+		ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1, atomic);
 		if (ret)
 			break;
 	}
 
-	clk_disable(i2c->clk);
-
 	return ret ?: i;
+}
+
+static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			  int num)
+{
+	return meson_i2c_xfer_messages(adap, msgs, num, false);
+}
+
+static int meson_i2c_xfer_atomic(struct i2c_adapter *adap,
+				 struct i2c_msg *msgs, int num)
+{
+	return meson_i2c_xfer_messages(adap, msgs, num, true);
 }
 
 static u32 meson_i2c_func(struct i2c_adapter *adap)
@@ -359,15 +398,15 @@ static u32 meson_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm meson_i2c_algorithm = {
-	.master_xfer	= meson_i2c_xfer,
-	.functionality	= meson_i2c_func,
+	.master_xfer = meson_i2c_xfer,
+	.master_xfer_atomic = meson_i2c_xfer_atomic,
+	.functionality = meson_i2c_func,
 };
 
 static int meson_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct meson_i2c *i2c;
-	struct resource *mem;
 	struct i2c_timings timings;
 	int irq, ret = 0;
 
@@ -392,16 +431,13 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(i2c->clk);
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
+	i2c->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "can't find IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, meson_i2c_irq, 0, NULL, i2c);
 	if (ret < 0) {
@@ -409,7 +445,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = clk_prepare(i2c->clk);
+	ret = clk_prepare_enable(i2c->clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't prepare clock\n");
 		return ret;
@@ -431,9 +467,13 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
-		clk_unprepare(i2c->clk);
+		clk_disable_unprepare(i2c->clk);
 		return ret;
 	}
+
+	/* Disable filtering */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR,
+			   REG_SLV_SDA_FILTER | REG_SLV_SCL_FILTER, 0);
 
 	meson_i2c_set_clk_div(i2c, timings.bus_freq_hz);
 
@@ -445,7 +485,7 @@ static int meson_i2c_remove(struct platform_device *pdev)
 	struct meson_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-	clk_unprepare(i2c->clk);
+	clk_disable_unprepare(i2c->clk);
 
 	return 0;
 }

@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ioremap implementation.
  *
  * Copyright (C) 2015 Cadence Design Systems Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 
 static void __iomem *xtensa_ioremap(unsigned long paddr, unsigned long size,
 				    pgprot_t prot)

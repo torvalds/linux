@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Scaler library
  *
@@ -6,10 +7,6 @@
  * David Griego, <dagriego@biglakesoftware.com>
  * Dale Farnsworth, <dale@farnsworth.org>
  * Archit Taneja, <archit@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -297,10 +294,8 @@ struct sc_data *sc_create(struct platform_device *pdev, const char *res_name)
 	}
 
 	sc->base = devm_ioremap_resource(&pdev->dev, sc->res);
-	if (IS_ERR(sc->base)) {
-		dev_err(&pdev->dev, "failed to ioremap\n");
+	if (IS_ERR(sc->base))
 		return ERR_CAST(sc->base);
-	}
 
 	return sc;
 }

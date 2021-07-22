@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  QLogic FCoE Offload Driver
  *  Copyright (c) 2016-2018 Cavium Inc.
- *
- *  This software is available under the terms of the GNU General Public License
- *  (GPL) Version 2, available from the file COPYING in the main directory of
- *  this source tree.
  */
 #include "qedf.h"
 
@@ -27,9 +24,8 @@ static struct qedf_ctx *qedf_get_base_qedf(struct qedf_ctx *qedf)
 	return lport_priv(base_lport);
 }
 
-static ssize_t
-qedf_fcoe_mac_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t fcoe_mac_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct fc_lport *lport = shost_priv(class_to_shost(dev));
 	u32 port_id;
@@ -45,9 +41,8 @@ qedf_fcoe_mac_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%pM\n", fcoe_mac);
 }
 
-static ssize_t
-qedf_fka_period_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t fka_period_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct fc_lport *lport = shost_priv(class_to_shost(dev));
 	struct qedf_ctx *qedf = lport_priv(lport);
@@ -62,8 +57,8 @@ qedf_fka_period_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", fka_period);
 }
 
-static DEVICE_ATTR(fcoe_mac, S_IRUGO, qedf_fcoe_mac_show, NULL);
-static DEVICE_ATTR(fka_period, S_IRUGO, qedf_fka_period_show, NULL);
+static DEVICE_ATTR_RO(fcoe_mac);
+static DEVICE_ATTR_RO(fka_period);
 
 struct device_attribute *qedf_host_attrs[] = {
 	&dev_attr_fcoe_mac,

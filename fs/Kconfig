@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # File system configuration
 #
@@ -7,6 +8,12 @@ menu "File systems"
 # Use unaligned word dcache accesses
 config DCACHE_WORD_ACCESS
        bool
+
+config VALIDATE_FS_PARSER
+	bool "Validate filesystem parameter description"
+	help
+	  Enable this to perform validation of the parameter description for a
+	  filesystem when it is registered.
 
 if BLOCK
 
@@ -33,6 +40,7 @@ source "fs/ocfs2/Kconfig"
 source "fs/btrfs/Kconfig"
 source "fs/nilfs2/Kconfig"
 source "fs/f2fs/Kconfig"
+source "fs/zonefs/Kconfig"
 
 config FS_DAX
 	bool "Direct Access (DAX) support"
@@ -105,6 +113,8 @@ config MANDATORY_FILE_LOCKING
 
 source "fs/crypto/Kconfig"
 
+source "fs/verity/Kconfig"
+
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
@@ -115,6 +125,7 @@ source "fs/overlayfs/Kconfig"
 
 menu "Caches"
 
+source "fs/netfs/Kconfig"
 source "fs/fscache/Kconfig"
 source "fs/cachefiles/Kconfig"
 
@@ -130,9 +141,10 @@ endmenu
 endif # BLOCK
 
 if BLOCK
-menu "DOS/FAT/NT Filesystems"
+menu "DOS/FAT/EXFAT/NT Filesystems"
 
 source "fs/fat/Kconfig"
+source "fs/exfat/Kconfig"
 source "fs/ntfs/Kconfig"
 
 endmenu
@@ -155,7 +167,7 @@ config TMPFS
 	  space. If you unmount a tmpfs instance, everything stored therein is
 	  lost.
 
-	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+	  See <file:Documentation/filesystems/tmpfs.rst> for details.
 
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
@@ -190,10 +202,34 @@ config TMPFS_XATTR
 
 	  If unsure, say N.
 
+config TMPFS_INODE64
+	bool "Use 64-bit ino_t by default in tmpfs"
+	depends on TMPFS && 64BIT
+	default n
+	help
+	  tmpfs has historically used only inode numbers as wide as an unsigned
+	  int. In some cases this can cause wraparound, potentially resulting
+	  in multiple files with the same inode number on a single device. This
+	  option makes tmpfs use the full width of ino_t by default, without
+	  needing to specify the inode64 option when mounting.
+
+	  But if a long-lived tmpfs is to be accessed by 32-bit applications so
+	  ancient that opening a file larger than 2GiB fails with EINVAL, then
+	  the INODE64 config option and inode64 mount option risk operations
+	  failing with EOVERFLOW once 33-bit inode numbers are reached.
+
+	  To override this configured default, use the inode32 or inode64
+	  option when mounting.
+
+	  If unsure, say N.
+
+config ARCH_SUPPORTS_HUGETLBFS
+	def_bool n
+
 config HUGETLBFS
 	bool "HugeTLB file system support"
 	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
-		   SYS_SUPPORTS_HUGETLBFS || BROKEN
+		   ARCH_SUPPORTS_HUGETLBFS || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -203,6 +239,21 @@ config HUGETLBFS
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
+
+config HUGETLB_PAGE_FREE_VMEMMAP
+	def_bool HUGETLB_PAGE
+	depends on X86_64
+	depends on SPARSEMEM_VMEMMAP
+
+config HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON
+	bool "Default freeing vmemmap pages of HugeTLB to on"
+	default n
+	depends on HUGETLB_PAGE_FREE_VMEMMAP
+	help
+	  When using HUGETLB_PAGE_FREE_VMEMMAP, the freeing unused vmemmap
+	  pages associated with each HugeTLB page is default off. Say Y here
+	  to enable freeing vmemmap pages of HugeTLB by default. It can then
+	  be disabled on the command line via hugetlb_free_vmemmap=off.
 
 config MEMFD_CREATE
 	def_bool TMPFS || HUGETLBFS
@@ -218,7 +269,7 @@ endmenu
 menuconfig MISC_FILESYSTEMS
 	bool "Miscellaneous filesystems"
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for various miscellaneous
 	  filesystems, such as filesystems that came from other
 	  operating systems.
@@ -254,17 +305,16 @@ source "fs/romfs/Kconfig"
 source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
-source "fs/exofs/Kconfig"
+source "fs/erofs/Kconfig"
+source "fs/vboxsf/Kconfig"
 
 endif # MISC_FILESYSTEMS
-
-source "fs/exofs/Kconfig.ore"
 
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"
 	default y
 	depends on NET
-	---help---
+	help
 	  Say Y here to get to see options for network filesystems and
 	  filesystem-related networking code, such as NFS daemon and
 	  RPCSEC security modules.
@@ -302,6 +352,10 @@ config NFS_COMMON
 	depends on NFSD || NFS_FS || LOCKD
 	default y
 
+config NFS_V4_2_SSC_HELPER
+	bool
+	default y if NFS_V4_2
+
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
@@ -313,5 +367,9 @@ endif # NETWORK_FILESYSTEMS
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
+source "fs/unicode/Kconfig"
+
+config IO_WQ
+	bool
 
 endmenu

@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 ST-Ericsson AB
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  *
  * Device Tree for the HREF+ prior to the v60 variant.
  */
 
-#include "ste-dbx5x0.dtsi"
 #include "ste-href-ab8500.dtsi"
 #include "ste-href.dtsi"
 
@@ -64,17 +57,12 @@
 			 */
 			pinctrl-names = "default";
 			pinctrl-0 = <&ssp0_hrefprev60_mode>;
+			status = "okay";
 		};
 
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			cd-gpios  = <&tc3589x_gpio 3 GPIO_ACTIVE_HIGH>;
-		};
-
-		vmmci: regulator-gpio {
-			gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
-			enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
 		};
 
 		pinctrl {

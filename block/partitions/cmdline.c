@@ -11,14 +11,13 @@
  *
  * The format for the command line is just like mtdparts.
  *
- * For further information, see "Documentation/block/cmdline-partition.txt"
+ * For further information, see "Documentation/block/cmdline-partition.rst"
  *
  */
 
 #include <linux/cmdline-parser.h>
 
 #include "check.h"
-#include "cmdline.h"
 
 static char *cmdline;
 static struct cmdline_parts *bdev_parts;

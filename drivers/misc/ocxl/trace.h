@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright 2017 IBM Corp.
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ocxl
@@ -7,6 +7,70 @@
 #define _TRACE_OCXL_H
 
 #include <linux/tracepoint.h>
+
+
+TRACE_EVENT(ocxl_mmu_notifier_range,
+	TP_PROTO(unsigned long start, unsigned long end, unsigned long pidr),
+	TP_ARGS(start, end, pidr),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, start)
+		__field(unsigned long, end)
+		__field(unsigned long, pidr)
+	),
+
+	TP_fast_assign(
+		__entry->start = start;
+		__entry->end = end;
+		__entry->pidr = pidr;
+	),
+
+	TP_printk("start=0x%lx end=0x%lx pidr=0x%lx",
+		__entry->start,
+		__entry->end,
+		__entry->pidr
+	)
+);
+
+TRACE_EVENT(ocxl_init_mmu_notifier,
+	TP_PROTO(int pasid, unsigned long pidr),
+	TP_ARGS(pasid, pidr),
+
+	TP_STRUCT__entry(
+		__field(int, pasid)
+		__field(unsigned long, pidr)
+	),
+
+	TP_fast_assign(
+		__entry->pasid = pasid;
+		__entry->pidr = pidr;
+	),
+
+	TP_printk("pasid=%d, pidr=0x%lx",
+		__entry->pasid,
+		__entry->pidr
+	)
+);
+
+TRACE_EVENT(ocxl_release_mmu_notifier,
+	TP_PROTO(int pasid, unsigned long pidr),
+	TP_ARGS(pasid, pidr),
+
+	TP_STRUCT__entry(
+		__field(int, pasid)
+		__field(unsigned long, pidr)
+	),
+
+	TP_fast_assign(
+		__entry->pasid = pasid;
+		__entry->pidr = pidr;
+	),
+
+	TP_printk("pasid=%d, pidr=0x%lx",
+		__entry->pasid,
+		__entry->pidr
+	)
+);
 
 DECLARE_EVENT_CLASS(ocxl_context,
 	TP_PROTO(pid_t pid, void *spa, int pasid, u32 pidr, u32 tidr),
@@ -107,16 +171,14 @@ DEFINE_EVENT(ocxl_fault_handler, ocxl_fault_ack,
 );
 
 TRACE_EVENT(ocxl_afu_irq_alloc,
-	TP_PROTO(int pasid, int irq_id, unsigned int virq, int hw_irq,
-		u64 irq_offset),
-	TP_ARGS(pasid, irq_id, virq, hw_irq, irq_offset),
+	TP_PROTO(int pasid, int irq_id, unsigned int virq, int hw_irq),
+	TP_ARGS(pasid, irq_id, virq, hw_irq),
 
 	TP_STRUCT__entry(
 		__field(int, pasid)
 		__field(int, irq_id)
 		__field(unsigned int, virq)
 		__field(int, hw_irq)
-		__field(u64, irq_offset)
 	),
 
 	TP_fast_assign(
@@ -124,15 +186,13 @@ TRACE_EVENT(ocxl_afu_irq_alloc,
 		__entry->irq_id = irq_id;
 		__entry->virq = virq;
 		__entry->hw_irq = hw_irq;
-		__entry->irq_offset = irq_offset;
 	),
 
-	TP_printk("pasid=0x%x irq_id=%d virq=%u hw_irq=%d irq_offset=0x%llx",
+	TP_printk("pasid=0x%x irq_id=%d virq=%u hw_irq=%d",
 		__entry->pasid,
 		__entry->irq_id,
 		__entry->virq,
-		__entry->hw_irq,
-		__entry->irq_offset
+		__entry->hw_irq
 	)
 );
 

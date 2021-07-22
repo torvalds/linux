@@ -18,10 +18,8 @@ u8 rtw_hal_data_init(struct adapter *padapter)
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		padapter->hal_data_sz = sizeof(struct hal_com_data);
 		padapter->HalData = vzalloc(padapter->hal_data_sz);
-		if (padapter->HalData == NULL) {
-			DBG_8192C("cannot alloc memory for HAL DATA\n");
+		if (!padapter->HalData)
 			return _FAIL;
-		}
 	}
 	return _SUCCESS;
 }
@@ -30,7 +28,6 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 {
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		if (padapter->HalData) {
-			phy_free_filebuf(padapter);
 			vfree(padapter->HalData);
 			padapter->HalData = NULL;
 			padapter->hal_data_sz = 0;
@@ -39,51 +36,52 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 }
 
 
-void dump_chip_info(HAL_VERSION	ChipVersion)
+void dump_chip_info(struct hal_version	ChipVersion)
 {
-	int cnt = 0;
-	u8 buf[128];
+	char buf[128];
+	size_t cnt = 0;
 
-	cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8723B_");
-	cnt += sprintf((buf+cnt), "%s_", IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "Chip Version Info: CHIP_8723B_%s_",
+			IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+
 	if (IS_CHIP_VENDOR_TSMC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "TSMC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "TSMC_");
 	else if (IS_CHIP_VENDOR_UMC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "UMC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "UMC_");
 	else if (IS_CHIP_VENDOR_SMIC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "SMIC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "SMIC_");
 
 	if (IS_A_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "A_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "A_CUT_");
 	else if (IS_B_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "B_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "B_CUT_");
 	else if (IS_C_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "C_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "C_CUT_");
 	else if (IS_D_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "D_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "D_CUT_");
 	else if (IS_E_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "E_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "E_CUT_");
 	else if (IS_I_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "I_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "I_CUT_");
 	else if (IS_J_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "J_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "J_CUT_");
 	else if (IS_K_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "K_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "K_CUT_");
 	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
+				"UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
 
 	if (IS_1T1R(ChipVersion))
-		cnt += sprintf((buf+cnt), "1T1R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
 	else if (IS_1T2R(ChipVersion))
-		cnt += sprintf((buf+cnt), "1T2R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T2R_");
 	else if (IS_2T2R(ChipVersion))
-		cnt += sprintf((buf+cnt), "2T2R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "2T2R_");
 	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
+				"UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
 
-	cnt += sprintf((buf+cnt), "RomVer(%d)\n", ChipVersion.ROMVer);
-
-	DBG_871X("%s", buf);
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", ChipVersion.ROMVer);
 }
 
 
@@ -125,15 +123,13 @@ u8 hal_com_config_channel_plan(
 	if (0xFF == hw_channel_plan)
 		AutoLoadFail = true;
 
-	if (false == AutoLoadFail) {
+	if (!AutoLoadFail) {
 		u8 hw_chnlPlan;
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
 		if (rtw_is_channel_plan_valid(hw_chnlPlan)) {
-#ifndef CONFIG_SW_CHANNEL_PLAN
 			if (hw_channel_plan & EEPROM_CHANNEL_PLAN_BY_HW_MASK)
 				pHalData->bDisableSWChannelPlan = true;
-#endif /*  !CONFIG_SW_CHANNEL_PLAN */
 
 			chnlPlan = hw_chnlPlan;
 		}
@@ -152,17 +148,11 @@ bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
 {
 	bool bLegalChannel = true;
 
-	if (Channel > 14) {
-		bLegalChannel = false;
-		DBG_871X("Channel > 14 but wireless_mode do not support 5G\n");
-	} else if ((Channel <= 14) && (Channel >= 1)) {
-		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false) {
+	if ((Channel <= 14) && (Channel >= 1)) {
+		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false)
 			bLegalChannel = false;
-			DBG_871X("(Channel <= 14) && (Channel >= 1) but wireless_mode do not support 2.4G\n");
-		}
 	} else {
 		bLegalChannel = false;
-		DBG_871X("Channel is Invalid !!!\n");
 	}
 
 	return bLegalChannel;
@@ -304,126 +294,6 @@ u8 MRateToHwRate(u8 rate)
 		break;
 	case MGN_MCS31:
 		ret = DESC_RATEMCS31;
-		break;
-	case MGN_VHT1SS_MCS0:
-		ret = DESC_RATEVHTSS1MCS0;
-		break;
-	case MGN_VHT1SS_MCS1:
-		ret = DESC_RATEVHTSS1MCS1;
-		break;
-	case MGN_VHT1SS_MCS2:
-		ret = DESC_RATEVHTSS1MCS2;
-		break;
-	case MGN_VHT1SS_MCS3:
-		ret = DESC_RATEVHTSS1MCS3;
-		break;
-	case MGN_VHT1SS_MCS4:
-		ret = DESC_RATEVHTSS1MCS4;
-		break;
-	case MGN_VHT1SS_MCS5:
-		ret = DESC_RATEVHTSS1MCS5;
-		break;
-	case MGN_VHT1SS_MCS6:
-		ret = DESC_RATEVHTSS1MCS6;
-		break;
-	case MGN_VHT1SS_MCS7:
-		ret = DESC_RATEVHTSS1MCS7;
-		break;
-	case MGN_VHT1SS_MCS8:
-		ret = DESC_RATEVHTSS1MCS8;
-		break;
-	case MGN_VHT1SS_MCS9:
-		ret = DESC_RATEVHTSS1MCS9;
-		break;
-	case MGN_VHT2SS_MCS0:
-		ret = DESC_RATEVHTSS2MCS0;
-		break;
-	case MGN_VHT2SS_MCS1:
-		ret = DESC_RATEVHTSS2MCS1;
-		break;
-	case MGN_VHT2SS_MCS2:
-		ret = DESC_RATEVHTSS2MCS2;
-		break;
-	case MGN_VHT2SS_MCS3:
-		ret = DESC_RATEVHTSS2MCS3;
-		break;
-	case MGN_VHT2SS_MCS4:
-		ret = DESC_RATEVHTSS2MCS4;
-		break;
-	case MGN_VHT2SS_MCS5:
-		ret = DESC_RATEVHTSS2MCS5;
-		break;
-	case MGN_VHT2SS_MCS6:
-		ret = DESC_RATEVHTSS2MCS6;
-		break;
-	case MGN_VHT2SS_MCS7:
-		ret = DESC_RATEVHTSS2MCS7;
-		break;
-	case MGN_VHT2SS_MCS8:
-		ret = DESC_RATEVHTSS2MCS8;
-		break;
-	case MGN_VHT2SS_MCS9:
-		ret = DESC_RATEVHTSS2MCS9;
-		break;
-	case MGN_VHT3SS_MCS0:
-		ret = DESC_RATEVHTSS3MCS0;
-		break;
-	case MGN_VHT3SS_MCS1:
-		ret = DESC_RATEVHTSS3MCS1;
-		break;
-	case MGN_VHT3SS_MCS2:
-		ret = DESC_RATEVHTSS3MCS2;
-		break;
-	case MGN_VHT3SS_MCS3:
-		ret = DESC_RATEVHTSS3MCS3;
-		break;
-	case MGN_VHT3SS_MCS4:
-		ret = DESC_RATEVHTSS3MCS4;
-		break;
-	case MGN_VHT3SS_MCS5:
-		ret = DESC_RATEVHTSS3MCS5;
-		break;
-	case MGN_VHT3SS_MCS6:
-		ret = DESC_RATEVHTSS3MCS6;
-		break;
-	case MGN_VHT3SS_MCS7:
-		ret = DESC_RATEVHTSS3MCS7;
-		break;
-	case MGN_VHT3SS_MCS8:
-		ret = DESC_RATEVHTSS3MCS8;
-		break;
-	case MGN_VHT3SS_MCS9:
-		ret = DESC_RATEVHTSS3MCS9;
-		break;
-	case MGN_VHT4SS_MCS0:
-		ret = DESC_RATEVHTSS4MCS0;
-		break;
-	case MGN_VHT4SS_MCS1:
-		ret = DESC_RATEVHTSS4MCS1;
-		break;
-	case MGN_VHT4SS_MCS2:
-		ret = DESC_RATEVHTSS4MCS2;
-		break;
-	case MGN_VHT4SS_MCS3:
-		ret = DESC_RATEVHTSS4MCS3;
-		break;
-	case MGN_VHT4SS_MCS4:
-		ret = DESC_RATEVHTSS4MCS4;
-		break;
-	case MGN_VHT4SS_MCS5:
-		ret = DESC_RATEVHTSS4MCS5;
-		break;
-	case MGN_VHT4SS_MCS6:
-		ret = DESC_RATEVHTSS4MCS6;
-		break;
-	case MGN_VHT4SS_MCS7:
-		ret = DESC_RATEVHTSS4MCS7;
-		break;
-	case MGN_VHT4SS_MCS8:
-		ret = DESC_RATEVHTSS4MCS8;
-		break;
-	case MGN_VHT4SS_MCS9:
-		ret = DESC_RATEVHTSS4MCS9;
 		break;
 	default:
 		break;
@@ -569,129 +439,7 @@ u8 HwRateToMRate(u8 rate)
 	case DESC_RATEMCS31:
 		ret_rate = MGN_MCS31;
 		break;
-	case DESC_RATEVHTSS1MCS0:
-		ret_rate = MGN_VHT1SS_MCS0;
-		break;
-	case DESC_RATEVHTSS1MCS1:
-		ret_rate = MGN_VHT1SS_MCS1;
-		break;
-	case DESC_RATEVHTSS1MCS2:
-		ret_rate = MGN_VHT1SS_MCS2;
-		break;
-	case DESC_RATEVHTSS1MCS3:
-		ret_rate = MGN_VHT1SS_MCS3;
-		break;
-	case DESC_RATEVHTSS1MCS4:
-		ret_rate = MGN_VHT1SS_MCS4;
-		break;
-	case DESC_RATEVHTSS1MCS5:
-		ret_rate = MGN_VHT1SS_MCS5;
-		break;
-	case DESC_RATEVHTSS1MCS6:
-		ret_rate = MGN_VHT1SS_MCS6;
-		break;
-	case DESC_RATEVHTSS1MCS7:
-		ret_rate = MGN_VHT1SS_MCS7;
-		break;
-	case DESC_RATEVHTSS1MCS8:
-		ret_rate = MGN_VHT1SS_MCS8;
-		break;
-	case DESC_RATEVHTSS1MCS9:
-		ret_rate = MGN_VHT1SS_MCS9;
-		break;
-	case DESC_RATEVHTSS2MCS0:
-		ret_rate = MGN_VHT2SS_MCS0;
-		break;
-	case DESC_RATEVHTSS2MCS1:
-		ret_rate = MGN_VHT2SS_MCS1;
-		break;
-	case DESC_RATEVHTSS2MCS2:
-		ret_rate = MGN_VHT2SS_MCS2;
-		break;
-	case DESC_RATEVHTSS2MCS3:
-		ret_rate = MGN_VHT2SS_MCS3;
-		break;
-	case DESC_RATEVHTSS2MCS4:
-		ret_rate = MGN_VHT2SS_MCS4;
-		break;
-	case DESC_RATEVHTSS2MCS5:
-		ret_rate = MGN_VHT2SS_MCS5;
-		break;
-	case DESC_RATEVHTSS2MCS6:
-		ret_rate = MGN_VHT2SS_MCS6;
-		break;
-	case DESC_RATEVHTSS2MCS7:
-		ret_rate = MGN_VHT2SS_MCS7;
-		break;
-	case DESC_RATEVHTSS2MCS8:
-		ret_rate = MGN_VHT2SS_MCS8;
-		break;
-	case DESC_RATEVHTSS2MCS9:
-		ret_rate = MGN_VHT2SS_MCS9;
-		break;
-	case DESC_RATEVHTSS3MCS0:
-		ret_rate = MGN_VHT3SS_MCS0;
-		break;
-	case DESC_RATEVHTSS3MCS1:
-		ret_rate = MGN_VHT3SS_MCS1;
-		break;
-	case DESC_RATEVHTSS3MCS2:
-		ret_rate = MGN_VHT3SS_MCS2;
-		break;
-	case DESC_RATEVHTSS3MCS3:
-		ret_rate = MGN_VHT3SS_MCS3;
-		break;
-	case DESC_RATEVHTSS3MCS4:
-		ret_rate = MGN_VHT3SS_MCS4;
-		break;
-	case DESC_RATEVHTSS3MCS5:
-		ret_rate = MGN_VHT3SS_MCS5;
-		break;
-	case DESC_RATEVHTSS3MCS6:
-		ret_rate = MGN_VHT3SS_MCS6;
-		break;
-	case DESC_RATEVHTSS3MCS7:
-		ret_rate = MGN_VHT3SS_MCS7;
-		break;
-	case DESC_RATEVHTSS3MCS8:
-		ret_rate = MGN_VHT3SS_MCS8;
-		break;
-	case DESC_RATEVHTSS3MCS9:
-		ret_rate = MGN_VHT3SS_MCS9;
-		break;
-	case DESC_RATEVHTSS4MCS0:
-		ret_rate = MGN_VHT4SS_MCS0;
-		break;
-	case DESC_RATEVHTSS4MCS1:
-		ret_rate = MGN_VHT4SS_MCS1;
-		break;
-	case DESC_RATEVHTSS4MCS2:
-		ret_rate = MGN_VHT4SS_MCS2;
-		break;
-	case DESC_RATEVHTSS4MCS3:
-		ret_rate = MGN_VHT4SS_MCS3;
-		break;
-	case DESC_RATEVHTSS4MCS4:
-		ret_rate = MGN_VHT4SS_MCS4;
-		break;
-	case DESC_RATEVHTSS4MCS5:
-		ret_rate = MGN_VHT4SS_MCS5;
-		break;
-	case DESC_RATEVHTSS4MCS6:
-		ret_rate = MGN_VHT4SS_MCS6;
-		break;
-	case DESC_RATEVHTSS4MCS7:
-		ret_rate = MGN_VHT4SS_MCS7;
-		break;
-	case DESC_RATEVHTSS4MCS8:
-		ret_rate = MGN_VHT4SS_MCS8;
-		break;
-	case DESC_RATEVHTSS4MCS9:
-		ret_rate = MGN_VHT4SS_MCS9;
-		break;
-
 	default:
-		DBG_871X("HwRateToMRate(): Non supported Rate [%x]!!!\n", rate);
 		break;
 	}
 
@@ -909,7 +657,7 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	int i;
 	u8 trigger;
 
-	if (buf == NULL)
+	if (!buf)
 		goto exit;
 
 	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
@@ -927,29 +675,9 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	c2h_evt->seq = rtw_read8(adapter, REG_C2HEVT_CMD_SEQ_88XX);
 	c2h_evt->plen = rtw_read8(adapter, REG_C2HEVT_CMD_LEN_88XX);
 
-	RT_PRINT_DATA(
-		_module_hal_init_c_,
-		_drv_info_,
-		"c2h_evt_read(): ",
-		&c2h_evt,
-		sizeof(c2h_evt)
-	);
-
-	DBG_871X(
-		"%s id:%u, len:%u, seq:%u, trigger:0x%02x\n",
-		__func__,
-		c2h_evt->id,
-		c2h_evt->plen,
-		c2h_evt->seq,
-		trigger
-	);
-
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
 		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 2 + i);
-
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): Command Content:\n",
-		c2h_evt->payload, c2h_evt->plen);
 
 	ret = _SUCCESS;
 
@@ -963,18 +691,9 @@ exit:
 	return ret;
 }
 
-
-u8  rtw_hal_networktype_to_raid(struct adapter *adapter, struct sta_info *psta)
-{
-	return networktype_to_raid_ex(adapter, psta);
-}
-
 u8 rtw_get_mgntframe_raid(struct adapter *adapter, unsigned char network_type)
 {
-
-	u8 raid;
-	raid = (network_type & WIRELESS_11B) ? RATEID_IDX_B : RATEID_IDX_G;
-	return raid;
+	return (network_type & WIRELESS_11B) ? RATEID_IDX_B : RATEID_IDX_G;
 }
 
 void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *psta)
@@ -982,7 +701,7 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 	u8 i, rf_type, limit;
 	u32 tx_ra_bitmap;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	tx_ra_bitmap = 0;
@@ -1002,7 +721,7 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 			limit = 8; /*   1R */
 
 		for (i = 0; i < limit; i++) {
-			if (psta->htpriv.ht_cap.supp_mcs_set[i/8] & BIT(i%8))
+			if (psta->htpriv.ht_cap.mcs.rx_mask[i/8] & BIT(i%8))
 				tx_ra_bitmap |= BIT(i+12);
 		}
 	}
@@ -1018,7 +737,7 @@ void hw_var_port_switch(struct adapter *adapter)
 void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 
 	switch (variable) {
 	case HW_VAR_PORT_SWITCH:
@@ -1085,12 +804,9 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		/* TODO - Is something needed here? */
 		break;
 	default:
-		DBG_871X_LEVEL(
-			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
-			FUNC_ADPT_ARG(adapter),
-			variable
-		);
+		netdev_dbg(adapter->pnetdev,
+			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
 }
@@ -1098,7 +814,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
@@ -1111,12 +827,9 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		*((u8 *)val) = hal_data->rf_type;
 		break;
 	default:
-		DBG_871X_LEVEL(
-			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
-			FUNC_ADPT_ARG(adapter),
-			variable
-		);
+		netdev_dbg(adapter->pnetdev,
+			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
 }
@@ -1125,30 +838,17 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 
 
 u8 SetHalDefVar(
-	struct adapter *adapter, enum HAL_DEF_VARIABLE variable, void *value
+	struct adapter *adapter, enum hal_def_variable variable, void *value
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
-	case HW_DEF_FA_CNT_DUMP:
-		/* ODM_COMP_COMMON */
-		if (*((u8 *)value))
-			odm->DebugComponents |= (ODM_COMP_DIG | ODM_COMP_FA_CNT);
-		else
-			odm->DebugComponents &= ~(ODM_COMP_DIG | ODM_COMP_FA_CNT);
-		break;
 	case HAL_DEF_DBG_RX_INFO_DUMP:
-		DBG_871X("============ Rx Info dump ===================\n");
-		DBG_871X("bLinked = %d, RSSI_Min = %d(%%)\n",
-			odm->bLinked, odm->RSSI_Min);
 
 		if (odm->bLinked) {
-			DBG_871X("RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
-				HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);
-
 			#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
 			rtw_dump_raw_rssi_info(adapter);
 			#endif
@@ -1167,27 +867,23 @@ u8 SetHalDefVar(
 
 		if (dm_func == 0) { /* disable all dynamic func */
 			odm->SupportAbility = DYNAMIC_FUNC_DISABLE;
-			DBG_8192C("==> Disable all dynamic function...\n");
 		} else if (dm_func == 1) {/* disable DIG */
 			odm->SupportAbility  &= (~DYNAMIC_BB_DIG);
-			DBG_8192C("==> Disable DIG...\n");
 		} else if (dm_func == 2) {/* disable High power */
 			odm->SupportAbility  &= (~DYNAMIC_BB_DYNAMIC_TXPWR);
 		} else if (dm_func == 3) {/* disable tx power tracking */
 			odm->SupportAbility  &= (~DYNAMIC_RF_CALIBRATION);
-			DBG_8192C("==> Disable tx power tracking...\n");
 		} else if (dm_func == 4) {/* disable BT coexistence */
 			dm->DMFlag &= (~DYNAMIC_FUNC_BT);
 		} else if (dm_func == 5) {/* disable antenna diversity */
 			odm->SupportAbility  &= (~DYNAMIC_BB_ANT_DIV);
 		} else if (dm_func == 6) {/* turn on all dynamic func */
 			if (!(odm->SupportAbility  & DYNAMIC_BB_DIG)) {
-				DIG_T	*pDigTable = &odm->DM_DigTable;
+				struct dig_t	*pDigTable = &odm->DM_DigTable;
 				pDigTable->CurIGValue = rtw_read8(adapter, 0xc50);
 			}
 			dm->DMFlag |= DYNAMIC_FUNC_BT;
 			odm->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
-			DBG_8192C("==> Turn on all dynamic function...\n");
 		}
 	}
 		break;
@@ -1201,7 +897,9 @@ u8 SetHalDefVar(
 		hal_data->AntDetection = *((u8 *)value);
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		netdev_dbg(adapter->pnetdev,
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   __func__, variable);
 		bResult = _FAIL;
 		break;
 	}
@@ -1210,11 +908,10 @@ u8 SetHalDefVar(
 }
 
 u8 GetHalDefVar(
-	struct adapter *adapter, enum HAL_DEF_VARIABLE variable, void *value
+	struct adapter *adapter, enum hal_def_variable variable, void *value
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &(hal_data->odmpriv);
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
@@ -1230,12 +927,6 @@ u8 GetHalDefVar(
 			if (psta)
 				*((int *)value) = psta->rssi_stat.UndecoratedSmoothedPWDB;
 		}
-		break;
-	case HW_DEF_ODM_DBG_FLAG:
-		*((u64 *)value) = odm->DebugComponents;
-		break;
-	case HW_DEF_ODM_DBG_LEVEL:
-		*((u32 *)value) = odm->DebugLevel;
 		break;
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)value) = hal_data->odmpriv.SupportAbility;
@@ -1256,7 +947,9 @@ u8 GetHalDefVar(
 		*((u32 *)value) = PAGE_SIZE_128;
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		netdev_dbg(adapter->pnetdev,
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   __func__, variable);
 		bResult = _FAIL;
 		break;
 	}
@@ -1266,26 +959,12 @@ u8 GetHalDefVar(
 
 void GetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	void *pValue2
 )
 {
 	switch (eVariable) {
-#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
-	case HAL_ODM_NOISE_MONITOR:
-		{
-			struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-			u8 chan = *(u8 *)pValue1;
-			*(s16 *)pValue2 = pHalData->noise[chan];
-			#ifdef DBG_NOISE_MONITOR
-			DBG_8192C("### Noise monitor chan(%d)-noise:%d (dBm) ###\n",
-				chan, pHalData->noise[chan]);
-			#endif
-
-		}
-		break;
-#endif/* ifdef CONFIG_BACKGROUND_NOISE_MONITOR */
 	default:
 		break;
 	}
@@ -1293,23 +972,21 @@ void GetHalODMVar(
 
 void SetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	bool bSet
 )
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T podmpriv = &pHalData->odmpriv;
+	struct dm_odm_t *podmpriv = &pHalData->odmpriv;
 	/* _irqL irqL; */
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:
 		{
 			struct sta_info *psta = pValue1;
 			if (bSet) {
-				DBG_8192C("### Set STA_(%d) info ###\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
 			} else {
-				DBG_8192C("### Clean STA_(%d) info ###\n", psta->mac_id);
 				/* spin_lock_bh(&pHalData->odm_stainfo_lock); */
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, NULL);
 
@@ -1323,27 +1000,6 @@ void SetHalODMVar(
 	case HAL_ODM_WIFI_DISPLAY_STATE:
 			ODM_CmnInfoUpdate(podmpriv, ODM_CMNINFO_WIFI_DISPLAY, bSet);
 		break;
-	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
-	case HAL_ODM_NOISE_MONITOR:
-		{
-			struct noise_info *pinfo = pValue1;
-
-			#ifdef DBG_NOISE_MONITOR
-			DBG_8192C("### Noise monitor chan(%d)-bPauseDIG:%d, IGIValue:0x%02x, max_time:%d (ms) ###\n",
-				pinfo->chan, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
-			#endif
-
-			pHalData->noise[pinfo->chan] = ODM_InbandNoise_Monitor(podmpriv, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
-			DBG_871X("chan_%d, noise = %d (dBm)\n", pinfo->chan, pHalData->noise[pinfo->chan]);
-			#ifdef DBG_NOISE_MONITOR
-			DBG_871X("noise_a = %d, noise_b = %d  noise_all:%d\n",
-				podmpriv->noise_level.noise[ODM_RF_PATH_A],
-				podmpriv->noise_level.noise[ODM_RF_PATH_B],
-				podmpriv->noise_level.noise_all);
-			#endif
-		}
-		break;
-	#endif/* ifdef CONFIG_BACKGROUND_NOISE_MONITOR */
 
 	default:
 		break;
@@ -1389,11 +1045,11 @@ bool IsHexDigit(char chTmp)
 u32 MapCharToHexDigit(char chTmp)
 {
 	if (chTmp >= '0' && chTmp <= '9')
-		return (chTmp - '0');
+		return chTmp - '0';
 	else if (chTmp >= 'a' && chTmp <= 'f')
-		return (10 + (chTmp - 'a'));
+		return 10 + (chTmp - 'a');
 	else if (chTmp >= 'A' && chTmp <= 'F')
-		return (10 + (chTmp - 'A'));
+		return 10 + (chTmp - 'A');
 	else
 		return 0;
 }
@@ -1407,11 +1063,8 @@ bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
 	char *szScan = szStr;
 
 	/*  Check input parameter. */
-	if (szStr == NULL || pu4bVal == NULL || pu4bMove == NULL) {
-		DBG_871X("GetHexValueFromString(): Invalid input arguments! szStr: %p, pu4bVal: %p, pu4bMove: %p\n",
-			 szStr, pu4bVal, pu4bMove);
+	if (!szStr || !pu4bVal || !pu4bMove)
 		return false;
-	}
 
 	/*  Initialize output. */
 	*pu4bMove = 0;
@@ -1585,8 +1238,6 @@ void linked_info_dump(struct adapter *padapter, u8 benable)
 	if (padapter->bLinkInfoDump == benable)
 		return;
 
-	DBG_871X("%s %s\n", __func__, (benable) ? "enable" : "disable");
-
 	if (benable) {
 		pwrctrlpriv->org_power_mgnt = pwrctrlpriv->power_mgnt;/* keep org value */
 		rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
@@ -1608,33 +1259,28 @@ void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
 
-	DBG_871X_SEL_NL(
-		sel,
-		"RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-		HDATA_RATE(psample_pkt_rssi->data_rate),
-		psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all
-	);
+	netdev_dbg(padapter->pnetdev,
+		   "RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
+		   HDATA_RATE(psample_pkt_rssi->data_rate),
+		   psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
 
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X_SEL_NL(
-			sel,
-			"RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)\n",
-			rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path],
-			psample_pkt_rssi->mimo_singal_quality[rf_path]
-		);
+		netdev_dbg(padapter->pnetdev,
+			   "RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
+			   rf_path,
+			   psample_pkt_rssi->mimo_signal_strength[rf_path],
+			   psample_pkt_rssi->mimo_signal_quality[rf_path]);
 
 		if (!isCCKrate) {
-			DBG_871X_SEL_NL(
-				sel,
-				"\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
-				psample_pkt_rssi->ofdm_pwr[rf_path],
-				psample_pkt_rssi->ofdm_snr[rf_path]
-			);
+			netdev_dbg(padapter->pnetdev,
+				   "\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
+				   psample_pkt_rssi->ofdm_pwr[rf_path],
+				   psample_pkt_rssi->ofdm_snr[rf_path]);
 		}
 	}
 }
@@ -1644,19 +1290,13 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter)
 	u8 isCCKrate, rf_path;
 	struct hal_com_data *pHalData =  GET_HAL_DATA(padapter);
 	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-	DBG_871X("============ RAW Rx Info dump ===================\n");
-	DBG_871X("RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-			HDATA_RATE(psample_pkt_rssi->data_rate), psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
 
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X("RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)"
-			, rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path], psample_pkt_rssi->mimo_singal_quality[rf_path]);
-
 		if (!isCCKrate) {
 			printk(", rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
 			psample_pkt_rssi->ofdm_pwr[rf_path], psample_pkt_rssi->ofdm_snr[rf_path]);
@@ -1682,8 +1322,8 @@ void rtw_store_phy_info(struct adapter *padapter, union recv_frame *prframe)
 	psample_pkt_rssi->pwr_all = pPhyInfo->recv_signal_power;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		psample_pkt_rssi->mimo_singal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
-		psample_pkt_rssi->mimo_singal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
+		psample_pkt_rssi->mimo_signal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
+		psample_pkt_rssi->mimo_signal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
 		if (!isCCKrate) {
 			psample_pkt_rssi->ofdm_pwr[rf_path] = pPhyInfo->RxPwr[rf_path];
 			psample_pkt_rssi->ofdm_snr[rf_path] = pPhyInfo->RxSNR[rf_path];
@@ -1711,34 +1351,25 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 	u32 res, i = 0;
 	u32 *Array = Array_kfreemap;
 	u32 v1 = 0, v2 = 0, target = 0;
-	/* DBG_871X("+%s value: 0x%02x+\n", __func__, value); */
 
 	if (value & BIT4) {
-		DBG_871X("Offset RF Gain.\n");
-		DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal = 0x%x\n", padapter->eeprompriv.EEPROMRFGainVal);
 		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {
 			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
 			res &= 0xfff87fff;
-			DBG_871X("Offset RF Gain. before reg 0x7f = 0x%08x\n", res);
 			/* res &= 0xfff87fff; */
 			for (i = 0; i < ARRAY_SIZE(Array_kfreemap); i += 2) {
 				v1 = Array[i];
 				v2 = Array[i+1];
 				if (v1 == padapter->eeprompriv.EEPROMRFGainVal) {
-					DBG_871X("Offset RF Gain. got v1 = 0x%x , v2 = 0x%x\n", v1, v2);
 					target = v2;
 					break;
 				}
 			}
-			DBG_871X("padapter->eeprompriv.EEPROMRFGainVal = 0x%x , Gain offset Target Value = 0x%x\n", padapter->eeprompriv.EEPROMRFGainVal, target);
 			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT18|BIT17|BIT16|BIT15, target);
 
 			/* res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15; */
 			/* rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res); */
 			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
-			DBG_871X("Offset RF Gain. After reg 0x7f = 0x%08x\n", res);
-		} else
-			DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal = 0x%x	!= 0xff, didn't run Kfree\n", padapter->eeprompriv.EEPROMRFGainVal);
-	} else
-		DBG_871X("Using the default RF gain.\n");
+		}
+	}
 }

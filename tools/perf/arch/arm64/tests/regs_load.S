@@ -7,7 +7,7 @@
 #define LDR_REG(r)	ldr x##r, [x0, 8 * r]
 #define SP	(8 * 31)
 #define PC	(8 * 32)
-ENTRY(perf_regs_load)
+SYM_FUNC_START(perf_regs_load)
 	STR_REG(0)
 	STR_REG(1)
 	STR_REG(2)
@@ -44,4 +44,4 @@ ENTRY(perf_regs_load)
 	str x30, [x0, #PC]
 	LDR_REG(1)
 	ret
-ENDPROC(perf_regs_load)
+SYM_FUNC_END(perf_regs_load)

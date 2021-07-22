@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* DVB compliant Linux driver for the DVB-S si2109/2110 demodulator
 *
 * Copyright (C) 2008 Igor M. Liplianin (liplianin@me.by)
-*
-*	This program is free software; you can redistribute it and/or modify
-*	it under the terms of the GNU General Public License as published by
-*	the Free Software Foundation; either version 2 of the License, or
-*	(at your option) any later version.
-*
 */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -469,10 +464,8 @@ static int si21xx_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt)
 	switch (volt) {
 	case SEC_VOLTAGE_18:
 		return si21_writereg(state, LNB_CTRL_REG_1, val | 0x40);
-		break;
 	case SEC_VOLTAGE_13:
 		return si21_writereg(state, LNB_CTRL_REG_1, (val & ~0x40));
-		break;
 	default:
 		return -EINVAL;
 	}

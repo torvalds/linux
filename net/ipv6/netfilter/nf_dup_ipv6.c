@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) 2007 by Sebastian Claßen <sebastian.classen@freenet.ag>
  * (C) 2007-2010 by Jan Engelhardt <jengelh@medozas.de>
  *
  * Extracted from xt_TEE.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 or later, as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/percpu.h>
@@ -57,7 +54,7 @@ void nf_dup_ipv6(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 		return;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	nf_reset(skb);
+	nf_reset_ct(skb);
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 #endif
 	if (hooknum == NF_INET_PRE_ROUTING ||

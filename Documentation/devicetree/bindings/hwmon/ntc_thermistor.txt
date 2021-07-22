@@ -4,6 +4,7 @@ NTC Thermistor hwmon sensors
 Requires node properties:
 - "compatible" value : one of
 	"epcos,b57330v2103"
+	"epcos,b57891s0103"
 	"murata,ncp15wb473"
 	"murata,ncp18wb473"
 	"murata,ncp21wb473"
@@ -31,7 +32,7 @@ Optional node properties:
 - "#thermal-sensor-cells" Used to expose itself to thermal fw.
 
 Read more about iio bindings at
-	Documentation/devicetree/bindings/iio/iio-bindings.txt
+	https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/
 
 Example:
 	ncp15wb473@0 {

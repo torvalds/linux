@@ -34,9 +34,6 @@ typedef uint32_t xlog_tid_t;
 #define XLOG_MIN_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
 #define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
 #define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
-#define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \
-                                 (log)->l_mp->m_sb.sb_logsunit)
-#define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
 
 #define XLOG_HEADER_SIZE	512
 
@@ -368,10 +365,13 @@ static inline int xfs_ilog_fdata(int w)
  * directly mirrors the xfs_dinode structure as it must contain all the same
  * information.
  */
-typedef struct xfs_ictimestamp {
+typedef uint64_t xfs_log_timestamp_t;
+
+/* Legacy timestamp encoding format. */
+struct xfs_log_legacy_timestamp {
 	int32_t		t_sec;		/* timestamp seconds */
 	int32_t		t_nsec;		/* timestamp nanoseconds */
-} xfs_ictimestamp_t;
+};
 
 /*
  * Define the format of the inode core that is logged. This structure must be
@@ -390,9 +390,9 @@ struct xfs_log_dinode {
 	uint16_t	di_projid_hi;	/* higher part of owner's project id */
 	uint8_t		di_pad[6];	/* unused, zeroed space */
 	uint16_t	di_flushiter;	/* incremented on flush */
-	xfs_ictimestamp_t di_atime;	/* time last accessed */
-	xfs_ictimestamp_t di_mtime;	/* time last modified */
-	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
+	xfs_log_timestamp_t di_atime;	/* time last accessed */
+	xfs_log_timestamp_t di_mtime;	/* time last modified */
+	xfs_log_timestamp_t di_ctime;	/* time created/inode modified */
 	xfs_fsize_t	di_size;	/* number of bytes in file */
 	xfs_rfsblock_t	di_nblocks;	/* # of direct & btree blocks used */
 	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
@@ -417,24 +417,22 @@ struct xfs_log_dinode {
 	uint8_t		di_pad2[12];	/* more padding for future expansion */
 
 	/* fields only written to during inode creation */
-	xfs_ictimestamp_t di_crtime;	/* time created */
+	xfs_log_timestamp_t di_crtime;	/* time created */
 	xfs_ino_t	di_ino;		/* inode number */
 	uuid_t		di_uuid;	/* UUID of the filesystem */
 
 	/* structure must be padded to 64 bit alignment */
 };
 
-static inline uint xfs_log_dinode_size(int version)
-{
-	if (version == 3)
-		return sizeof(struct xfs_log_dinode);
-	return offsetof(struct xfs_log_dinode, di_next_unlinked);
-}
+#define xfs_log_dinode_size(mp)						\
+	(xfs_sb_version_has_v3inode(&(mp)->m_sb) ?			\
+		sizeof(struct xfs_log_dinode) :				\
+		offsetof(struct xfs_log_dinode, di_next_unlinked))
 
 /*
- * Buffer Log Format defintions
+ * Buffer Log Format definitions
  *
- * These are the physical dirty bitmap defintions for the log format structure.
+ * These are the physical dirty bitmap definitions for the log format structure.
  */
 #define	XFS_BLF_CHUNK		128
 #define	XFS_BLF_SHIFT		7
@@ -462,11 +460,20 @@ static inline uint xfs_log_dinode_size(int version)
 #define	XFS_BLF_GDQUOT_BUF	(1<<4)
 
 /*
- * This is the structure used to lay out a buf log item in the
- * log.  The data map describes which 128 byte chunks of the buffer
- * have been logged.
+ * This is the structure used to lay out a buf log item in the log.  The data
+ * map describes which 128 byte chunks of the buffer have been logged.
+ *
+ * The placement of blf_map_size causes blf_data_map to start at an odd
+ * multiple of sizeof(unsigned int) offset within the struct.  Because the data
+ * bitmap size will always be an even number, the end of the data_map (and
+ * therefore the structure) will also be at an odd multiple of sizeof(unsigned
+ * int).  Some 64-bit compilers will insert padding at the end of the struct to
+ * ensure 64-bit alignment of blf_blkno, but 32-bit ones will not.  Therefore,
+ * XFS_BLF_DATAMAP_SIZE must be an odd number to make the padding explicit and
+ * keep the structure size consistent between 32-bit and 64-bit platforms.
  */
-#define XFS_BLF_DATAMAP_SIZE	((XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK) / NBWORD)
+#define __XFS_BLF_DATAMAP_SIZE	((XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK) / NBWORD)
+#define XFS_BLF_DATAMAP_SIZE	(__XFS_BLF_DATAMAP_SIZE + 1)
 
 typedef struct xfs_buf_log_format {
 	unsigned short	blf_type;	/* buf log item type indicator */

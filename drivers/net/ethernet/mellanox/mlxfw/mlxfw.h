@@ -1,41 +1,35 @@
-/*
- * drivers/net/ethernet/mellanox/mlxfw/mlxfw.h
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
 
 #ifndef _MLXFW_H
 #define _MLXFW_H
 
 #include <linux/firmware.h>
+#include <linux/netlink.h>
+#include <linux/device.h>
+#include <net/devlink.h>
+
+struct mlxfw_dev {
+	const struct mlxfw_dev_ops *ops;
+	const char *psid;
+	u16 psid_size;
+	struct devlink *devlink;
+};
+
+static inline
+struct device *mlxfw_dev_dev(struct mlxfw_dev *mlxfw_dev)
+{
+	return mlxfw_dev->devlink->dev;
+}
+
+#define MLXFW_PRFX "mlxfw: "
+
+#define mlxfw_info(mlxfw_dev, fmt, ...) \
+	dev_info(mlxfw_dev_dev(mlxfw_dev), MLXFW_PRFX fmt, ## __VA_ARGS__)
+#define mlxfw_err(mlxfw_dev, fmt, ...) \
+	dev_err(mlxfw_dev_dev(mlxfw_dev), MLXFW_PRFX fmt, ## __VA_ARGS__)
+#define mlxfw_dbg(mlxfw_dev, fmt, ...) \
+	dev_dbg(mlxfw_dev_dev(mlxfw_dev), MLXFW_PRFX fmt, ## __VA_ARGS__)
 
 enum mlxfw_fsm_state {
 	MLXFW_FSM_STATE_IDLE,
@@ -61,7 +55,19 @@ enum mlxfw_fsm_state_err {
 	MLXFW_FSM_STATE_ERR_MAX,
 };
 
-struct mlxfw_dev;
+enum mlxfw_fsm_reactivate_status {
+	MLXFW_FSM_REACTIVATE_STATUS_OK,
+	MLXFW_FSM_REACTIVATE_STATUS_BUSY,
+	MLXFW_FSM_REACTIVATE_STATUS_PROHIBITED_FW_VER_ERR,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_COPY_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_ERASE_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_RESTORE_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_CANDIDATE_FW_DEACTIVATION_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FW_ALREADY_ACTIVATED,
+	MLXFW_FSM_REACTIVATE_STATUS_ERR_DEVICE_RESET_REQUIRED,
+	MLXFW_FSM_REACTIVATE_STATUS_ERR_FW_PROGRAMMING_NEEDED,
+	MLXFW_FSM_REACTIVATE_STATUS_MAX,
+};
 
 struct mlxfw_dev_ops {
 	int (*component_query)(struct mlxfw_dev *mlxfw_dev, u16 component_index,
@@ -81,6 +87,8 @@ struct mlxfw_dev_ops {
 
 	int (*fsm_activate)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
 
+	int (*fsm_reactivate)(struct mlxfw_dev *mlxfw_dev, u8 *status);
+
 	int (*fsm_query_state)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 			       enum mlxfw_fsm_state *fsm_state,
 			       enum mlxfw_fsm_state_err *fsm_state_err);
@@ -90,19 +98,15 @@ struct mlxfw_dev_ops {
 	void (*fsm_release)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
 };
 
-struct mlxfw_dev {
-	const struct mlxfw_dev_ops *ops;
-	const char *psid;
-	u16 psid_size;
-};
-
 #if IS_REACHABLE(CONFIG_MLXFW)
 int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
-			 const struct firmware *firmware);
+			 const struct firmware *firmware,
+			 struct netlink_ext_ack *extack);
 #else
 static inline
 int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
-			 const struct firmware *firmware)
+			 const struct firmware *firmware,
+			 struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

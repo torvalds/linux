@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* aha152x.c -- Adaptec AHA-152x driver
  * Author: Jürgen E. Fischer, fischer@norbit.de
  * Copyright 1993-2004 Jürgen E. Fischer
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  *
  * $Id: aha152x.c,v 2.7 2004/01/24 11:42:59 fischer Exp $
  *
@@ -228,10 +218,9 @@
  * Revision 0.0  1993/08/14  19:54:25  root
  * empty function bodies; detect() works.
  *
- *
  **************************************************************************
 
- see Documentation/scsi/aha152x.txt for configuration details
+ see Documentation/scsi/aha152x.rst for configuration details
 
  **************************************************************************/
 
@@ -269,7 +258,7 @@ static LIST_HEAD(aha152x_host_list);
 /* DEFINES */
 
 /* For PCMCIA cards, always use AUTOCONF */
-#if defined(PCMCIA) || defined(MODULE)
+#if defined(AHA152X_PCMCIA) || defined(MODULE)
 #if !defined(AUTOCONF)
 #define AUTOCONF
 #endif
@@ -297,7 +286,7 @@ CMD_INC_RESID(struct scsi_cmnd *cmd, int inc)
 
 #define DELAY_DEFAULT 1000
 
-#if defined(PCMCIA)
+#if defined(AHA152X_PCMCIA)
 #define IRQ_MIN 0
 #define IRQ_MAX 16
 #else
@@ -328,7 +317,7 @@ MODULE_AUTHOR("Jürgen Fischer");
 MODULE_DESCRIPTION(AHA152X_REVID);
 MODULE_LICENSE("GPL");
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 #if defined(MODULE)
 static int io[] = {0, 0};
 module_param_hw_array(io, int, ioport, NULL, 0);
@@ -391,7 +380,7 @@ static struct isapnp_device_id id_table[] = {
 MODULE_DEVICE_TABLE(isapnp, id_table);
 #endif /* ISAPNP */
 
-#endif /* !PCMCIA */
+#endif /* !AHA152X_PCMCIA */
 
 static struct scsi_host_template aha152x_driver_template;
 
@@ -630,7 +619,8 @@ static struct {
 static irqreturn_t intr(int irq, void *dev_id);
 static void reset_ports(struct Scsi_Host *shpnt);
 static void aha152x_error(struct Scsi_Host *shpnt, char *msg);
-static void done(struct Scsi_Host *shpnt, int error);
+static void done(struct Scsi_Host *shpnt, unsigned char status_byte,
+		 unsigned char host_byte);
 
 /* diagnostics */
 static void show_command(struct scsi_cmnd * ptr);
@@ -863,7 +853,7 @@ void aha152x_release(struct Scsi_Host *shpnt)
 	if (shpnt->irq)
 		free_irq(shpnt->irq, shpnt);
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 	if (shpnt->io_port)
 		release_region(shpnt->io_port, IO_RANGE);
 #endif
@@ -948,7 +938,6 @@ static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
 	   SCp.ptr              : buffer pointer
 	   SCp.this_residual    : buffer length
 	   SCp.buffer           : next buffer
-	   SCp.buffers_residual : left buffers in list
 	   SCp.phase            : current state of the command */
 
 	if ((phase & resetting) || !scsi_sglist(SCpnt)) {
@@ -956,13 +945,11 @@ static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
 		SCpnt->SCp.this_residual = 0;
 		scsi_set_resid(SCpnt, 0);
 		SCpnt->SCp.buffer           = NULL;
-		SCpnt->SCp.buffers_residual = 0;
 	} else {
 		scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 		SCpnt->SCp.buffer           = scsi_sglist(SCpnt);
 		SCpnt->SCp.ptr              = SG_ADDRESS(SCpnt->SCp.buffer);
 		SCpnt->SCp.this_residual    = SCpnt->SCp.buffer->length;
-		SCpnt->SCp.buffers_residual = scsi_sg_count(SCpnt) - 1;
 	}
 
 	DO_LOCK(flags);
@@ -1263,7 +1250,7 @@ static int aha152x_biosparam(struct scsi_device *sdev, struct block_device *bdev
 				       "aha152x: unable to verify geometry for disk with >1GB.\n"
 				       "         Using default translation. Please verify yourself.\n"
 				       "         Perhaps you need to enable extended translation in the driver.\n"
-				       "         See Documentation/scsi/aha152x.txt for details.\n");
+				       "         See Documentation/scsi/aha152x.rst for details.\n");
 			}
 		} else {
 			info_array[0] = info[0];
@@ -1285,7 +1272,8 @@ static int aha152x_biosparam(struct scsi_device *sdev, struct block_device *bdev
  *  Internal done function
  *
  */
-static void done(struct Scsi_Host *shpnt, int error)
+static void done(struct Scsi_Host *shpnt, unsigned char status_byte,
+		 unsigned char host_byte)
 {
 	if (CURRENT_SC) {
 		if(DONE_SC)
@@ -1295,7 +1283,8 @@ static void done(struct Scsi_Host *shpnt, int error)
 
 		DONE_SC = CURRENT_SC;
 		CURRENT_SC = NULL;
-		DONE_SC->result = error;
+		set_status_byte(DONE_SC, status_byte);
+		set_host_byte(DONE_SC, host_byte);
 	} else
 		printk(KERN_ERR "aha152x: done() called outside of command\n");
 }
@@ -1390,13 +1379,13 @@ static void busfree_run(struct Scsi_Host *shpnt)
 
 		if(CURRENT_SC->SCp.phase & completed) {
 			/* target sent COMMAND COMPLETE */
-			done(shpnt, (CURRENT_SC->SCp.Status & 0xff) | ((CURRENT_SC->SCp.Message & 0xff) << 8) | (DID_OK << 16));
+			done(shpnt, CURRENT_SC->SCp.Status, DID_OK);
 
 		} else if(CURRENT_SC->SCp.phase & aborted) {
-			done(shpnt, (CURRENT_SC->SCp.Status & 0xff) | ((CURRENT_SC->SCp.Message & 0xff) << 8) | (DID_ABORT << 16));
+			done(shpnt, CURRENT_SC->SCp.Status, DID_ABORT);
 
 		} else if(CURRENT_SC->SCp.phase & resetted) {
-			done(shpnt, (CURRENT_SC->SCp.Status & 0xff) | ((CURRENT_SC->SCp.Message & 0xff) << 8) | (DID_RESET << 16));
+			done(shpnt, CURRENT_SC->SCp.Status, DID_RESET);
 
 		} else if(CURRENT_SC->SCp.phase & disconnected) {
 			/* target sent DISCONNECT */
@@ -1408,7 +1397,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			CURRENT_SC = NULL;
 
 		} else {
-			done(shpnt, DID_ERROR << 16);
+			done(shpnt, SAM_STAT_GOOD, DID_ERROR);
 		}
 #if defined(AHA152X_STAT)
 	} else {
@@ -1529,7 +1518,7 @@ static void seldo_run(struct Scsi_Host *shpnt)
 	if (TESTLO(SSTAT0, SELDO)) {
 		scmd_printk(KERN_ERR, CURRENT_SC,
 			    "aha152x: passing bus free condition\n");
-		done(shpnt, DID_NO_CONNECT << 16);
+		done(shpnt, SAM_STAT_GOOD, DID_NO_CONNECT);
 		return;
 	}
 
@@ -1566,12 +1555,12 @@ static void selto_run(struct Scsi_Host *shpnt)
 	CURRENT_SC->SCp.phase &= ~selecting;
 
 	if (CURRENT_SC->SCp.phase & aborted)
-		done(shpnt, DID_ABORT << 16);
+		done(shpnt, SAM_STAT_GOOD, DID_ABORT);
 	else if (TESTLO(SSTAT0, SELINGO))
-		done(shpnt, DID_BUS_BUSY << 16);
+		done(shpnt, SAM_STAT_GOOD, DID_BUS_BUSY);
 	else
 		/* ARBITRATION won, but SELECTION failed */
-		done(shpnt, DID_NO_CONNECT << 16);
+		done(shpnt, SAM_STAT_GOOD, DID_NO_CONNECT);
 }
 
 /*
@@ -1905,7 +1894,7 @@ static void cmd_init(struct Scsi_Host *shpnt)
 	if (CURRENT_SC->SCp.sent_command) {
 		scmd_printk(KERN_ERR, CURRENT_SC,
 			    "command already sent\n");
-		done(shpnt, DID_ERROR << 16);
+		done(shpnt, SAM_STAT_GOOD, DID_ERROR);
 		return;
 	}
 
@@ -2030,10 +2019,9 @@ static void datai_run(struct Scsi_Host *shpnt)
 				}
 
 				if (CURRENT_SC->SCp.this_residual == 0 &&
-				    CURRENT_SC->SCp.buffers_residual > 0) {
+				    !sg_is_last(CURRENT_SC->SCp.buffer)) {
 					/* advance to next buffer */
-					CURRENT_SC->SCp.buffers_residual--;
-					CURRENT_SC->SCp.buffer++;
+					CURRENT_SC->SCp.buffer = sg_next(CURRENT_SC->SCp.buffer);
 					CURRENT_SC->SCp.ptr           = SG_ADDRESS(CURRENT_SC->SCp.buffer);
 					CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length;
 				}
@@ -2045,8 +2033,7 @@ static void datai_run(struct Scsi_Host *shpnt)
 				    fifodata, GETPORT(FIFOSTAT));
 			SETPORT(DMACNTRL0, ENDMA|_8BIT);
 			while(fifodata>0) {
-				int data;
-				data=GETPORT(DATAPORT);
+				GETPORT(DATAPORT);
 				fifodata--;
 				DATA_LEN++;
 			}
@@ -2136,10 +2123,10 @@ static void datao_run(struct Scsi_Host *shpnt)
 			CMD_INC_RESID(CURRENT_SC, -2 * data_count);
 		}
 
-		if(CURRENT_SC->SCp.this_residual==0 && CURRENT_SC->SCp.buffers_residual>0) {
+		if (CURRENT_SC->SCp.this_residual == 0 &&
+		    !sg_is_last(CURRENT_SC->SCp.buffer)) {
 			/* advance to next buffer */
-			CURRENT_SC->SCp.buffers_residual--;
-			CURRENT_SC->SCp.buffer++;
+			CURRENT_SC->SCp.buffer = sg_next(CURRENT_SC->SCp.buffer);
 			CURRENT_SC->SCp.ptr           = SG_ADDRESS(CURRENT_SC->SCp.buffer);
 			CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length;
 		}
@@ -2158,22 +2145,26 @@ static void datao_run(struct Scsi_Host *shpnt)
 static void datao_end(struct Scsi_Host *shpnt)
 {
 	if(TESTLO(DMASTAT, DFIFOEMP)) {
-		int data_count = (DATA_LEN - scsi_get_resid(CURRENT_SC)) -
-			GETSTCNT();
+		u32 datao_cnt = GETSTCNT();
+		int datao_out = DATA_LEN - scsi_get_resid(CURRENT_SC);
+		int done;
+		struct scatterlist *sg = scsi_sglist(CURRENT_SC);
 
-		CMD_INC_RESID(CURRENT_SC, data_count);
+		CMD_INC_RESID(CURRENT_SC, datao_out - datao_cnt);
 
-		data_count -= CURRENT_SC->SCp.ptr -
-			SG_ADDRESS(CURRENT_SC->SCp.buffer);
-		while(data_count>0) {
-			CURRENT_SC->SCp.buffer--;
-			CURRENT_SC->SCp.buffers_residual++;
-			data_count -= CURRENT_SC->SCp.buffer->length;
+		done = scsi_bufflen(CURRENT_SC) - scsi_get_resid(CURRENT_SC);
+		/* Locate the first SG entry not yet sent */
+		while (done > 0 && !sg_is_last(sg)) {
+			if (done < sg->length)
+				break;
+			done -= sg->length;
+			sg = sg_next(sg);
 		}
-		CURRENT_SC->SCp.ptr = SG_ADDRESS(CURRENT_SC->SCp.buffer) -
-			data_count;
-		CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length +
-			data_count;
+
+		CURRENT_SC->SCp.buffer = sg;
+		CURRENT_SC->SCp.ptr = SG_ADDRESS(CURRENT_SC->SCp.buffer) + done;
+		CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length -
+			done;
 	}
 
 	SETPORT(SXFRCTL0, CH1|CLRCH1|CLRSTCNT);
@@ -2243,7 +2234,7 @@ static int update_state(struct Scsi_Host *shpnt)
 static void parerr_run(struct Scsi_Host *shpnt)
 {
 	scmd_printk(KERN_ERR, CURRENT_SC, "parity error\n");
-	done(shpnt, DID_PARITY << 16);
+	done(shpnt, SAM_STAT_GOOD, DID_PARITY);
 }
 
 /*
@@ -2266,7 +2257,7 @@ static void rsti_run(struct Scsi_Host *shpnt)
 			kfree(ptr->host_scribble);
 			ptr->host_scribble=NULL;
 
-			ptr->result =  DID_RESET << 16;
+			set_host_byte(ptr, DID_RESET);
 			ptr->scsi_done(ptr);
 		}
 
@@ -2274,7 +2265,7 @@ static void rsti_run(struct Scsi_Host *shpnt)
 	}
 
 	if(CURRENT_SC && !CURRENT_SC->device->soft_reset)
-		done(shpnt, DID_RESET << 16 );
+		done(shpnt, SAM_STAT_GOOD, DID_RESET);
 }
 
 
@@ -2501,7 +2492,7 @@ static void get_command(struct seq_file *m, struct scsi_cmnd * ptr)
 
 	seq_printf(m, "); resid=%d; residual=%d; buffers=%d; phase |",
 		scsi_get_resid(ptr), ptr->SCp.this_residual,
-		ptr->SCp.buffers_residual);
+		sg_nents(ptr->SCp.buffer) - 1);
 
 	if (ptr->SCp.phase & not_issued)
 		seq_puts(m, "not issued|");
@@ -2920,11 +2911,11 @@ static struct scsi_host_template aha152x_driver_template = {
 	.can_queue			= 1,
 	.this_id			= 7,
 	.sg_tablesize			= SG_ALL,
-	.use_clustering			= DISABLE_CLUSTERING,
+	.dma_boundary			= PAGE_SIZE - 1,
 	.slave_alloc			= aha152x_adjust_queue,
 };
 
-#if !defined(PCMCIA)
+#if !defined(AHA152X_PCMCIA)
 static int setup_count;
 static struct aha152x_setup setup[2];
 
@@ -3392,4 +3383,4 @@ static int __init aha152x_setup(char *str)
 __setup("aha152x=", aha152x_setup);
 #endif
 
-#endif /* !PCMCIA */
+#endif /* !AHA152X_PCMCIA */

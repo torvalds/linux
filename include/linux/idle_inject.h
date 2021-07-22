@@ -20,10 +20,14 @@ int idle_inject_start(struct idle_inject_device *ii_dev);
 void idle_inject_stop(struct idle_inject_device *ii_dev);
 
 void idle_inject_set_duration(struct idle_inject_device *ii_dev,
-				 unsigned int run_duration_ms,
-				 unsigned int idle_duration_ms);
+				 unsigned int run_duration_us,
+				 unsigned int idle_duration_us);
 
 void idle_inject_get_duration(struct idle_inject_device *ii_dev,
-				 unsigned int *run_duration_ms,
-				 unsigned int *idle_duration_ms);
+				 unsigned int *run_duration_us,
+				 unsigned int *idle_duration_us);
+
+void idle_inject_set_latency(struct idle_inject_device *ii_dev,
+			     unsigned int latency_us);
+
 #endif /* __IDLE_INJECT_H__ */

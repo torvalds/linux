@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MDP4_KMS_H__
@@ -230,19 +219,6 @@ struct clk *mpd4_lvds_pll_init(struct drm_device *dev);
 static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
 {
 	return ERR_PTR(-ENODEV);
-}
-#endif
-
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-/* bus scaling data is associated with extra pointless platform devices,
- * "dtv", etc.. this is a bit of a hack, but we need a way for encoders
- * to find their pdata to make the bus-scaling stuff work.
- */
-static inline void *mdp4_find_pdata(const char *devname)
-{
-	struct device *dev;
-	dev = bus_find_device_by_name(&platform_bus_type, NULL, devname);
-	return dev ? dev->platform_data : NULL;
 }
 #endif
 

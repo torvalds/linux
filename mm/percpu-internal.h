@@ -9,8 +9,17 @@
  * pcpu_block_md is the metadata block struct.
  * Each chunk's bitmap is split into a number of full blocks.
  * All units are in terms of bits.
+ *
+ * The scan hint is the largest known contiguous area before the contig hint.
+ * It is not necessarily the actual largest contig hint though.  There is an
+ * invariant that the scan_hint_start > contig_hint_start iff
+ * scan_hint == contig_hint.  This is necessary because when scanning forward,
+ * we don't know if a new contig hint would be better than the current one.
  */
 struct pcpu_block_md {
+	int			scan_hint;	/* scan hint for block */
+	int			scan_hint_start; /* block relative starting
+						    position of the scan hint */
 	int                     contig_hint;    /* contig hint for block */
 	int                     contig_hint_start; /* block relative starting
 						      position of the contig hint */
@@ -19,6 +28,7 @@ struct pcpu_block_md {
 	int                     right_free;     /* size of free space along
 						   the right side of the block */
 	int                     first_free;     /* block position of first free */
+	int			nr_bits;	/* total bits responsible for */
 };
 
 struct pcpu_chunk {
@@ -29,9 +39,7 @@ struct pcpu_chunk {
 
 	struct list_head	list;		/* linked to pcpu_slot lists */
 	int			free_bytes;	/* free bytes in the chunk */
-	int			contig_bits;	/* max contiguous size hint */
-	int			contig_bits_start; /* contig_bits starting
-						      offset */
+	struct pcpu_block_md	chunk_md;
 	void			*base_addr;	/* base address of this chunk */
 
 	unsigned long		*alloc_map;	/* allocation map */
@@ -39,14 +47,18 @@ struct pcpu_chunk {
 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
-	int			first_bit;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
+	bool			isolated;	/* isolated from active chunk
+						   slots */
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
 						   base_addr */
 	int			end_offset;	/* additional area required to
 						   have the region end page
 						   aligned */
+#ifdef CONFIG_MEMCG_KMEM
+	struct obj_cgroup	**obj_cgroups;	/* vector of object cgroups */
+#endif
 
 	int			nr_pages;	/* # of pages served by this chunk */
 	int			nr_populated;	/* # of populated pages */
@@ -56,8 +68,10 @@ struct pcpu_chunk {
 
 extern spinlock_t pcpu_lock;
 
-extern struct list_head *pcpu_slot;
+extern struct list_head *pcpu_chunk_lists;
 extern int pcpu_nr_slots;
+extern int pcpu_sidelined_slot;
+extern int pcpu_to_depopulate_slot;
 extern int pcpu_nr_empty_pop_pages;
 
 extern struct pcpu_chunk *pcpu_first_chunk;
@@ -110,7 +124,7 @@ struct percpu_stats {
 	u64 nr_max_alloc;	/* max # of live allocations */
 	u32 nr_chunks;		/* current # of live chunks */
 	u32 nr_max_chunks;	/* max # of live chunks */
-	size_t min_alloc_size;	/* min allocaiton size */
+	size_t min_alloc_size;	/* min allocation size */
 	size_t max_alloc_size;	/* max allocation size */
 };
 

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -27,6 +24,8 @@
 #endif
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+
+extern unsigned int nf_frag_pernet_id;
 
 static DEFINE_MUTEX(defrag6_mutex);
 
@@ -92,10 +91,12 @@ static const struct nf_hook_ops ipv6_defrag_ops[] = {
 
 static void __net_exit defrag6_net_exit(struct net *net)
 {
-	if (net->nf.defrag_ipv6) {
+	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
+
+	if (nf_frag->users) {
 		nf_unregister_net_hooks(net, ipv6_defrag_ops,
 					ARRAY_SIZE(ipv6_defrag_ops));
-		net->nf.defrag_ipv6 = false;
+		nf_frag->users = 0;
 	}
 }
 
@@ -133,27 +134,45 @@ static void __exit nf_defrag_fini(void)
 
 int nf_defrag_ipv6_enable(struct net *net)
 {
+	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
 	int err = 0;
 
-	might_sleep();
-
-	if (net->nf.defrag_ipv6)
-		return 0;
-
 	mutex_lock(&defrag6_mutex);
-	if (net->nf.defrag_ipv6)
+	if (nf_frag->users == UINT_MAX) {
+		err = -EOVERFLOW;
 		goto out_unlock;
+	}
+
+	if (nf_frag->users) {
+		nf_frag->users++;
+		goto out_unlock;
+	}
 
 	err = nf_register_net_hooks(net, ipv6_defrag_ops,
 				    ARRAY_SIZE(ipv6_defrag_ops));
 	if (err == 0)
-		net->nf.defrag_ipv6 = true;
+		nf_frag->users = 1;
 
  out_unlock:
 	mutex_unlock(&defrag6_mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(nf_defrag_ipv6_enable);
+
+void nf_defrag_ipv6_disable(struct net *net)
+{
+	struct nft_ct_frag6_pernet *nf_frag = net_generic(net, nf_frag_pernet_id);
+
+	mutex_lock(&defrag6_mutex);
+	if (nf_frag->users) {
+		nf_frag->users--;
+		if (nf_frag->users == 0)
+			nf_unregister_net_hooks(net, ipv6_defrag_ops,
+						ARRAY_SIZE(ipv6_defrag_ops));
+	}
+	mutex_unlock(&defrag6_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_defrag_ipv6_disable);
 
 module_init(nf_defrag_init);
 module_exit(nf_defrag_fini);

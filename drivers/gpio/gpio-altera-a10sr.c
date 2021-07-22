@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright Intel Corporation (C) 2014-2016. All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * GPIO driver for  Altera Arria10 MAX5 System Resource Chip
  *
@@ -58,17 +47,20 @@ static void altr_a10sr_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static int altr_a10sr_gpio_direction_input(struct gpio_chip *gc,
 					   unsigned int nr)
 {
-	if (nr >= (ALTR_A10SR_IN_VALID_RANGE_LO - ALTR_A10SR_LED_VALID_SHIFT))
-		return 0;
-	return -EINVAL;
+	if (nr < (ALTR_A10SR_IN_VALID_RANGE_LO - ALTR_A10SR_LED_VALID_SHIFT))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int altr_a10sr_gpio_direction_output(struct gpio_chip *gc,
 					    unsigned int nr, int value)
 {
-	if (nr <= (ALTR_A10SR_OUT_VALID_RANGE_HI - ALTR_A10SR_LED_VALID_SHIFT))
-		return 0;
-	return -EINVAL;
+	if (nr > (ALTR_A10SR_OUT_VALID_RANGE_HI - ALTR_A10SR_LED_VALID_SHIFT))
+		return -EINVAL;
+
+	altr_a10sr_gpio_set(gc, nr, value);
+	return 0;
 }
 
 static const struct gpio_chip altr_a10sr_gc = {
@@ -86,7 +78,6 @@ static const struct gpio_chip altr_a10sr_gc = {
 static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 {
 	struct altr_a10sr_gpio *gpio;
-	int ret;
 	struct altr_a10sr *a10sr = dev_get_drvdata(pdev->dev.parent);
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
@@ -99,15 +90,7 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 	gpio->gp.parent = pdev->dev.parent;
 	gpio->gp.of_node = pdev->dev.of_node;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 }
 
 static const struct of_device_id altr_a10sr_gpio_of_match[] = {

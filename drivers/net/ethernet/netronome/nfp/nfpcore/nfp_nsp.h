@@ -22,6 +22,13 @@ int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw);
 int nfp_nsp_mac_reinit(struct nfp_nsp *state);
 int nfp_nsp_load_stored_fw(struct nfp_nsp *state);
 int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size);
+int nfp_nsp_hwinfo_lookup_optional(struct nfp_nsp *state, void *buf,
+				   unsigned int size, const char *default_val);
+int nfp_nsp_hwinfo_set(struct nfp_nsp *state, void *buf, unsigned int size);
+int nfp_nsp_fw_loaded(struct nfp_nsp *state);
+int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
+			       unsigned int offset, void *data,
+			       unsigned int len, unsigned int *read_len);
 
 static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
 {
@@ -38,12 +45,33 @@ static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
 	return nfp_nsp_get_abi_ver_minor(state) > 24;
 }
 
+static inline bool nfp_nsp_has_hwinfo_set(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 25;
+}
+
+static inline bool nfp_nsp_has_fw_loaded(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 25;
+}
+
+static inline bool nfp_nsp_has_versions(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 27;
+}
+
+static inline bool nfp_nsp_has_read_module_eeprom(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 28;
+}
+
 enum nfp_eth_interface {
 	NFP_INTERFACE_NONE	= 0,
 	NFP_INTERFACE_SFP	= 1,
 	NFP_INTERFACE_SFPP	= 10,
 	NFP_INTERFACE_SFP28	= 28,
 	NFP_INTERFACE_QSFP	= 40,
+	NFP_INTERFACE_RJ45	= 45,
 	NFP_INTERFACE_CXP	= 100,
 	NFP_INTERFACE_QSFP28	= 112,
 };
@@ -73,6 +101,21 @@ enum nfp_eth_fec {
 #define NFP_FEC_BASER		BIT(NFP_FEC_BASER_BIT)
 #define NFP_FEC_REED_SOLOMON	BIT(NFP_FEC_REED_SOLOMON_BIT)
 #define NFP_FEC_DISABLED	BIT(NFP_FEC_DISABLED_BIT)
+
+/* Defines the valid values of the 'abi_drv_reset' hwinfo key */
+#define NFP_NSP_DRV_RESET_DISK			0
+#define NFP_NSP_DRV_RESET_ALWAYS		1
+#define NFP_NSP_DRV_RESET_NEVER			2
+#define NFP_NSP_DRV_RESET_DEFAULT		"0"
+
+/* Defines the valid values of the 'app_fw_from_flash' hwinfo key */
+#define NFP_NSP_APP_FW_LOAD_DISK		0
+#define NFP_NSP_APP_FW_LOAD_FLASH		1
+#define NFP_NSP_APP_FW_LOAD_PREF		2
+#define NFP_NSP_APP_FW_LOAD_DEFAULT		"2"
+
+/* Define the default value for the 'abi_drv_load_ifc' key */
+#define NFP_NSP_DRV_LOAD_IFC_DEFAULT		"0x10ff"
 
 /**
  * struct nfp_eth_table - ETH table information
@@ -140,7 +183,7 @@ struct nfp_eth_table {
 		bool is_split;
 
 		unsigned int fec_modes_supported;
-	} ports[0];
+	} ports[];
 };
 
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);
@@ -208,4 +251,19 @@ enum nfp_nsp_sensor_id {
 int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
 			  long *val);
 
+#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
+
+enum nfp_nsp_versions {
+	NFP_VERSIONS_BSP,
+	NFP_VERSIONS_CPLD,
+	NFP_VERSIONS_APP,
+	NFP_VERSIONS_BUNDLE,
+	NFP_VERSIONS_UNDI,
+	NFP_VERSIONS_NCSI,
+	NFP_VERSIONS_CFGR,
+};
+
+int nfp_nsp_versions(struct nfp_nsp *state, void *buf, unsigned int size);
+const char *nfp_nsp_versions_get(enum nfp_nsp_versions id, bool flash,
+				 const u8 *buf, unsigned int size);
 #endif

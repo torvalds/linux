@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Twofish Cipher 8-way parallel algorithm (AVX/x86_64)
  *
@@ -5,22 +6,6 @@
  *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
  *
  * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -33,11 +18,6 @@
 .align 16
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-
-.section	.rodata.cst16.xts_gf128mul_and_shl1_mask, "aM", @progbits, 16
-.align 16
-.Lxts_gf128mul_and_shl1_mask:
-	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
 
 .text
 
@@ -249,7 +229,7 @@
 	vpxor		x3, wkey, x3;
 
 .align 8
-__twofish_enc_blk8:
+SYM_FUNC_START_LOCAL(__twofish_enc_blk8)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: blocks
@@ -288,10 +268,10 @@ __twofish_enc_blk8:
 	outunpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
 
 	ret;
-ENDPROC(__twofish_enc_blk8)
+SYM_FUNC_END(__twofish_enc_blk8)
 
 .align 8
-__twofish_dec_blk8:
+SYM_FUNC_START_LOCAL(__twofish_dec_blk8)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2: encrypted blocks
@@ -328,9 +308,9 @@ __twofish_dec_blk8:
 	outunpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
 
 	ret;
-ENDPROC(__twofish_dec_blk8)
+SYM_FUNC_END(__twofish_dec_blk8)
 
-ENTRY(twofish_ecb_enc_8way)
+SYM_FUNC_START(twofish_ecb_enc_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -348,9 +328,9 @@ ENTRY(twofish_ecb_enc_8way)
 
 	FRAME_END
 	ret;
-ENDPROC(twofish_ecb_enc_8way)
+SYM_FUNC_END(twofish_ecb_enc_8way)
 
-ENTRY(twofish_ecb_dec_8way)
+SYM_FUNC_START(twofish_ecb_dec_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -368,9 +348,9 @@ ENTRY(twofish_ecb_dec_8way)
 
 	FRAME_END
 	ret;
-ENDPROC(twofish_ecb_dec_8way)
+SYM_FUNC_END(twofish_ecb_dec_8way)
 
-ENTRY(twofish_cbc_dec_8way)
+SYM_FUNC_START(twofish_cbc_dec_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -393,79 +373,4 @@ ENTRY(twofish_cbc_dec_8way)
 
 	FRAME_END
 	ret;
-ENDPROC(twofish_cbc_dec_8way)
-
-ENTRY(twofish_ctr_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	pushq %r12;
-
-	movq %rsi, %r11;
-	movq %rdx, %r12;
-
-	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		      RD2, RX0, RX1, RY0);
-
-	call __twofish_enc_blk8;
-
-	store_ctr_8way(%r12, %r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
-
-	popq %r12;
-
-	FRAME_END
-	ret;
-ENDPROC(twofish_ctr_8way)
-
-ENTRY(twofish_xts_enc_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	movq %rsi, %r11;
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
-		      RX0, RX1, RY0, .Lxts_gf128mul_and_shl1_mask);
-
-	call __twofish_enc_blk8;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
-
-	FRAME_END
-	ret;
-ENDPROC(twofish_xts_enc_8way)
-
-ENTRY(twofish_xts_dec_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	movq %rsi, %r11;
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2,
-		      RX0, RX1, RY0, .Lxts_gf128mul_and_shl1_mask);
-
-	call __twofish_dec_blk8;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	FRAME_END
-	ret;
-ENDPROC(twofish_xts_dec_8way)
+SYM_FUNC_END(twofish_cbc_dec_8way)

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * General Purpose I2C multiplexer
  *
  * Copyright (C) 2017 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -88,18 +85,14 @@ static int i2c_mux_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mux->control = devm_mux_control_get(dev, NULL);
-	if (IS_ERR(mux->control)) {
-		if (PTR_ERR(mux->control) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get control-mux\n");
-		return PTR_ERR(mux->control);
-	}
+	if (IS_ERR(mux->control))
+		return dev_err_probe(dev, PTR_ERR(mux->control),
+				     "failed to get control-mux\n");
 
 	parent = mux_parent_adapter(dev);
-	if (IS_ERR(parent)) {
-		if (PTR_ERR(parent) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get i2c-parent adapter\n");
-		return PTR_ERR(parent);
-	}
+	if (IS_ERR(parent))
+		return dev_err_probe(dev, PTR_ERR(parent),
+				     "failed to get i2c-parent adapter\n");
 
 	children = of_get_child_count(np);
 

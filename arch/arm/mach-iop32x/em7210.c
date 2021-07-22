@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-iop32x/em7210.c
  *
@@ -6,11 +7,6 @@
  * Based on arch/arm/mach-iop32x/iq31244.c file.
  *
  * Copyright (C) 2007 Arnaud Patard <arnaud.patard@rtp-net.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/mm.h>
@@ -24,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <mach/hardware.h>
+#include <linux/gpio/machine.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/mach/arch.h>
@@ -32,8 +28,10 @@
 #include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
-#include <mach/time.h>
+
+#include "hardware.h"
 #include "gpio-iop32x.h"
+#include "irqs.h"
 
 static void __init em7210_timer_init(void)
 {
@@ -211,6 +209,8 @@ static void __init em7210_init_machine(void)
 {
 	register_iop32x_gpio();
 	platform_device_register(&em7210_serial_device);
+	gpiod_add_lookup_table(&iop3xx_i2c0_gpio_lookup);
+	gpiod_add_lookup_table(&iop3xx_i2c1_gpio_lookup);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&em7210_flash_device);

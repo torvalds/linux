@@ -19,6 +19,9 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#ifndef _UAPI_LINUX_CRYPTOUSER_H
+#define _UAPI_LINUX_CRYPTOUSER_H
+
 #include <linux/types.h>
 
 /* Netlink configuration messages.  */
@@ -76,45 +79,69 @@ struct crypto_user_alg {
 	__u32 cru_flags;
 };
 
-struct crypto_stat {
+struct crypto_stat_aead {
 	char type[CRYPTO_MAX_NAME];
-	union {
-		__u32 stat_encrypt_cnt;
-		__u32 stat_compress_cnt;
-		__u32 stat_generate_cnt;
-		__u32 stat_hash_cnt;
-		__u32 stat_setsecret_cnt;
-	};
-	union {
-		__u64 stat_encrypt_tlen;
-		__u64 stat_compress_tlen;
-		__u64 stat_generate_tlen;
-		__u64 stat_hash_tlen;
-	};
-	union {
-		__u32 stat_akcipher_err_cnt;
-		__u32 stat_cipher_err_cnt;
-		__u32 stat_compress_err_cnt;
-		__u32 stat_aead_err_cnt;
-		__u32 stat_hash_err_cnt;
-		__u32 stat_rng_err_cnt;
-		__u32 stat_kpp_err_cnt;
-	};
-	union {
-		__u32 stat_decrypt_cnt;
-		__u32 stat_decompress_cnt;
-		__u32 stat_seed_cnt;
-		__u32 stat_generate_public_key_cnt;
-	};
-	union {
-		__u64 stat_decrypt_tlen;
-		__u64 stat_decompress_tlen;
-	};
-	union {
-		__u32 stat_verify_cnt;
-		__u32 stat_compute_shared_secret_cnt;
-	};
-	__u32 stat_sign_cnt;
+	__u64 stat_encrypt_cnt;
+	__u64 stat_encrypt_tlen;
+	__u64 stat_decrypt_cnt;
+	__u64 stat_decrypt_tlen;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_akcipher {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_encrypt_cnt;
+	__u64 stat_encrypt_tlen;
+	__u64 stat_decrypt_cnt;
+	__u64 stat_decrypt_tlen;
+	__u64 stat_verify_cnt;
+	__u64 stat_sign_cnt;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_cipher {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_encrypt_cnt;
+	__u64 stat_encrypt_tlen;
+	__u64 stat_decrypt_cnt;
+	__u64 stat_decrypt_tlen;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_compress {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_compress_cnt;
+	__u64 stat_compress_tlen;
+	__u64 stat_decompress_cnt;
+	__u64 stat_decompress_tlen;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_hash {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_hash_cnt;
+	__u64 stat_hash_tlen;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_kpp {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_setsecret_cnt;
+	__u64 stat_generate_public_key_cnt;
+	__u64 stat_compute_shared_secret_cnt;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_rng {
+	char type[CRYPTO_MAX_NAME];
+	__u64 stat_generate_cnt;
+	__u64 stat_generate_tlen;
+	__u64 stat_seed_cnt;
+	__u64 stat_err_cnt;
+};
+
+struct crypto_stat_larval {
+	char type[CRYPTO_MAX_NAME];
 };
 
 struct crypto_report_larval {
@@ -174,3 +201,5 @@ struct crypto_report_acomp {
 
 #define CRYPTO_REPORT_MAXSIZE (sizeof(struct crypto_user_alg) + \
 			       sizeof(struct crypto_report_blkcipher))
+
+#endif /* _UAPI_LINUX_CRYPTOUSER_H */

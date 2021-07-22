@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/vmalloc.h>
 #include <linux/module.h>
@@ -26,6 +18,12 @@ static int nvdimm_probe(struct device *dev)
 	struct nvdimm_drvdata *ndd;
 	int rc;
 
+	rc = nvdimm_security_setup_events(dev);
+	if (rc < 0) {
+		dev_err(dev, "security event setup failed: %d\n", rc);
+		return rc;
+	}
+
 	rc = nvdimm_check_config_data(dev);
 	if (rc) {
 		/* not required for non-aliased nvdimm, ex. NVDIMM-N */
@@ -34,7 +32,11 @@ static int nvdimm_probe(struct device *dev)
 		return rc;
 	}
 
-	/* reset locked, to be validated below... */
+	/*
+	 * The locked status bit reflects explicit status codes from the
+	 * label reading commands, revalidate it each time the driver is
+	 * activated and re-reads the label area.
+	 */
 	nvdimm_clear_locked(dev);
 
 	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
@@ -50,6 +52,16 @@ static int nvdimm_probe(struct device *dev)
 	ndd->dev = dev;
 	get_device(dev);
 	kref_init(&ndd->kref);
+
+	/*
+	 * Attempt to unlock, if the DIMM supports security commands,
+	 * otherwise the locked indication is determined by explicit
+	 * status codes from the label reading commands.
+	 */
+	rc = nvdimm_security_unlock(dev);
+	if (rc < 0)
+		dev_dbg(dev, "failed to unlock dimm: %d\n", rc);
+
 
 	/*
 	 * EACCES failures reading the namespace label-area-properties
@@ -87,7 +99,7 @@ static int nvdimm_probe(struct device *dev)
 	if (ndd->ns_current >= 0) {
 		rc = nd_label_reserve_dpa(ndd);
 		if (rc == 0)
-			nvdimm_set_aliasing(dev);
+			nvdimm_set_labeling(dev);
 	}
 	nvdimm_bus_unlock(dev);
 
@@ -101,19 +113,14 @@ static int nvdimm_probe(struct device *dev)
 	return rc;
 }
 
-static int nvdimm_remove(struct device *dev)
+static void nvdimm_remove(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
-
-	if (!ndd)
-		return 0;
 
 	nvdimm_bus_lock(dev);
 	dev_set_drvdata(dev, NULL);
 	nvdimm_bus_unlock(dev);
 	put_ndd(ndd);
-
-	return 0;
 }
 
 static struct nd_device_driver nvdimm_driver = {

@@ -11,7 +11,13 @@
 #ifndef __XEN_DRM_FRONT_GEM_H
 #define __XEN_DRM_FRONT_GEM_H
 
-#include <drm/drmP.h>
+struct dma_buf_attachment;
+struct dma_buf_map;
+struct drm_device;
+struct drm_gem_object;
+struct file;
+struct sg_table;
+struct vm_area_struct;
 
 struct drm_gem_object *xen_drm_front_gem_create(struct drm_device *dev,
 						size_t size);
@@ -29,10 +35,11 @@ void xen_drm_front_gem_free_object_unlocked(struct drm_gem_object *gem_obj);
 
 int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
-void *xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj);
+int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj,
+				 struct dma_buf_map *map);
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    void *vaddr);
+				    struct dma_buf_map *map);
 
 int xen_drm_front_gem_prime_mmap(struct drm_gem_object *gem_obj,
 				 struct vm_area_struct *vma);

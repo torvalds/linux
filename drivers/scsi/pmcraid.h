@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * pmcraid.h -- PMC Sierra MaxRAID controller driver header file
  *
@@ -5,20 +6,6 @@
  *             PMC-Sierra Inc
  *
  * Copyright (C) 2008, 2009 PMC Sierra Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _PMCRAID_H
@@ -60,8 +47,8 @@
 /*
  * MAX_CMD          : maximum commands that can be outstanding with IOA
  * MAX_IO_CMD       : command blocks available for IO commands
- * MAX_HCAM_CMD     : command blocks avaibale for HCAMS
- * MAX_INTERNAL_CMD : command blocks avaible for internal commands like reset
+ * MAX_HCAM_CMD     : command blocks available for HCAMS
+ * MAX_INTERNAL_CMD : command blocks available for internal commands like reset
  */
 #define PMCRAID_MAX_CMD				1024
 #define PMCRAID_MAX_IO_CMD			1020
@@ -257,7 +244,7 @@ struct pmcraid_ioarcb {
 	__u8  hrrq_id;
 	__u8  cdb[PMCRAID_MAX_CDB_LEN];
 	struct pmcraid_ioarcb_add_data add_data;
-} __attribute__((packed, aligned(PMCRAID_IOARCB_ALIGNMENT)));
+};
 
 /* well known resource handle values */
 #define PMCRAID_IOA_RES_HANDLE        0xffffffff
@@ -636,7 +623,7 @@ struct pmcraid_aen_msg {
 	u32 hostno;
 	u32 length;
 	u8  reserved[8];
-	u8  data[0];
+	u8  data[];
 };
 
 /* Controller state event message type */
@@ -1053,8 +1040,8 @@ struct pmcraid_passthrough_ioctl_buffer {
 	struct pmcraid_ioctl_header ioctl_header;
 	struct pmcraid_ioarcb ioarcb;
 	struct pmcraid_ioasa  ioasa;
-	u8  request_buffer[1];
-} __attribute__ ((packed));
+	u8  request_buffer[];
+} __attribute__ ((packed, aligned(PMCRAID_IOARCB_ALIGNMENT)));
 
 /*
  * keys to differentiate between driver handled IOCTLs and passthrough

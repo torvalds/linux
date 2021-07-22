@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_ipmi.c - ACPI IPMI opregion
  *
  *  Copyright (C) 2010, 2013 Intel Corporation
  *    Author: Zhao Yakui <yakui.zhao@intel.com>
  *            Lv Zheng <lv.zheng@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/module.h>
@@ -491,7 +478,6 @@ err_lock:
 	ipmi_dev_release(ipmi_device);
 err_ref:
 	put_device(smi_data.dev);
-	return;
 }
 
 static void ipmi_bmc_gone(int iface)
@@ -611,9 +597,14 @@ static int __init acpi_ipmi_init(void)
 		pr_warn("Can't register IPMI opregion space handle\n");
 		return -EINVAL;
 	}
+
 	result = ipmi_smi_watcher_register(&driver_data.bmc_events);
-	if (result)
+	if (result) {
+		acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
+										  ACPI_ADR_SPACE_IPMI,
+										  &acpi_ipmi_space_handler);
 		pr_err("Can't register IPMI system interface watcher\n");
+	}
 
 	return result;
 }

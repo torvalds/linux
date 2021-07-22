@@ -27,7 +27,7 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 /* ISA irq handler */
-static irqreturn_t sni_isa_irq_handler(int dummy, void *p)
+irqreturn_t sni_isa_irq_handler(int dummy, void *p)
 {
 	int irq;
 
@@ -38,12 +38,6 @@ static irqreturn_t sni_isa_irq_handler(int dummy, void *p)
 	generic_handle_irq(irq);
 	return IRQ_HANDLED;
 }
-
-struct irqaction sni_isa_irq = {
-	.handler = sni_isa_irq_handler,
-	.name = "ISA",
-	.flags = IRQF_SHARED
-};
 
 /*
  * On systems with i8259-style interrupt controllers we assume for

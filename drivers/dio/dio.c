@@ -89,8 +89,8 @@ static struct dioname names[] =
 #undef DIONAME
 #undef DIOFBNAME
 
-static const char *unknowndioname 
-        = "unknown DIO board -- please email <linux-m68k@lists.linux-m68k.org>!";
+static const char unknowndioname[]
+	= "unknown DIO board, please email linux-m68k@lists.linux-m68k.org";
 
 static const char *dio_getname(int id)
 {
@@ -135,7 +135,8 @@ int __init dio_find(int deviceid)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-                if (probe_kernel_read(&i, (unsigned char *)va + DIO_IDOFF, 1)) {
+		if (copy_from_kernel_nofault(&i,
+				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
                         continue;             /* no board present at that select code */
@@ -208,7 +209,8 @@ static int __init dio_init(void)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-                if (probe_kernel_read(&i, (unsigned char *)va + DIO_IDOFF, 1)) {
+		if (copy_from_kernel_nofault(&i,
+				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
                         continue;              /* no board present at that select code */

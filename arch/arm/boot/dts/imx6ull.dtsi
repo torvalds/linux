@@ -12,6 +12,7 @@
 /delete-node/ &crypto;
 
 &cpu0 {
+	clock-frequency = <900000000>;
 	operating-points = <
 		/* kHz	uV */
 		900000	1275000
@@ -30,14 +31,49 @@
 	>;
 };
 
+&ocotp {
+	compatible = "fsl,imx6ull-ocotp", "syscon";
+};
+
+&pxp {
+	compatible = "fsl,imx6ull-pxp";
+	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&usdhc1 {
+	compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
+};
+
+&usdhc2 {
+	compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
+};
+
 / {
 	soc {
-		aips3: aips-bus@2200000 {
+		aips3: bus@2200000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x02200000 0x100000>;
 			ranges;
+
+			dcp: crypto@2280000 {
+				compatible = "fsl,imx6ull-dcp", "fsl,imx28-dcp";
+				reg = <0x02280000 0x4000>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6ULL_CLK_DCP_CLK>;
+				clock-names = "dcp";
+			};
+
+			rngb: rng@2284000 {
+				compatible = "fsl,imx6ull-rngb", "fsl,imx25-rngb";
+				reg = <0x02284000 0x4000>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_DUMMY>;
+			};
 
 			iomuxc_snvs: iomuxc-snvs@2290000 {
 				compatible = "fsl,imx6ull-iomuxc-snvs";

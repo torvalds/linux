@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
  *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "cx23885.h"
@@ -23,6 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -40,6 +31,18 @@ MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX23885_VERSION);
+
+/*
+ * Some platforms have been found to require periodic resetting of the DMA
+ * engine. Ryzen and XEON platforms are known to be affected. The symptom
+ * encountered is "mpeg risc op code error". Only Ryzen platforms employ
+ * this workaround if the option equals 1. The workaround can be explicitly
+ * disabled for all platforms by setting to 0, the workaround can be forced
+ * on for any platform by setting to 2.
+ */
+static unsigned int dma_reset_workaround = 1;
+module_param(dma_reset_workaround, int, 0644);
+MODULE_PARM_DESC(dma_reset_workaround, "periodic RiSC dma engine reset; 0-force disable, 1-driver detect (default), 2-force enable");
 
 static unsigned int debug;
 module_param(debug, int, 0644);
@@ -603,8 +606,13 @@ static void cx23885_risc_disasm(struct cx23885_tsport *port,
 
 static void cx23885_clear_bridge_error(struct cx23885_dev *dev)
 {
-	uint32_t reg1_val = cx_read(TC_REQ); /* read-only */
-	uint32_t reg2_val = cx_read(TC_REQ_SET);
+	uint32_t reg1_val, reg2_val;
+
+	if (!dev->need_dma_reset)
+		return;
+
+	reg1_val = cx_read(TC_REQ); /* read-only */
+	reg2_val = cx_read(TC_REQ_SET);
 
 	if (reg1_val && reg2_val) {
 		cx_write(TC_REQ, reg1_val);
@@ -1210,7 +1218,8 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 		/ PAGE_SIZE + lines);
 	instructions += 5;
 	risc->size = instructions * 12;
-	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (risc->cpu == NULL)
 		return -ENOMEM;
 
@@ -1247,7 +1256,8 @@ int cx23885_risc_databuffer(struct pci_dev *pci,
 	instructions += 4;
 
 	risc->size = instructions * 12;
-	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (risc->cpu == NULL)
 		return -ENOMEM;
 
@@ -1285,7 +1295,8 @@ int cx23885_risc_vbibuffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 		/ PAGE_SIZE + lines);
 	instructions += 5;
 	risc->size = instructions * 12;
-	risc->cpu = pci_alloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (risc->cpu == NULL)
 		return -ENOMEM;
 	/* write risc instructions */
@@ -1314,8 +1325,7 @@ void cx23885_free_buffer(struct cx23885_dev *dev, struct cx23885_buffer *buf)
 {
 	struct cx23885_riscmem *risc = &buf->risc;
 
-	BUG_ON(in_interrupt());
-	pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+	dma_free_coherent(&dev->pci->dev, risc->size, risc->cpu, risc->dma);
 }
 
 static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
@@ -1978,9 +1988,9 @@ static inline int encoder_on_portc(struct cx23885_dev *dev)
  * and report errors if we think we're tampering with a GPIo that might
  * be assigned to the encoder (and used for the host bus).
  *
- * GPIO  2 thru  0 - On the cx23885 bridge
- * GPIO 18 thru  3 - On the cx23417 host bus interface
- * GPIO 23 thru 19 - On the cx25840 a/v core
+ * GPIO  2 through  0 - On the cx23885 bridge
+ * GPIO 18 through  3 - On the cx23417 host bus interface
+ * GPIO 23 through 19 - On the cx25840 a/v core
  */
 void cx23885_gpio_set(struct cx23885_dev *dev, u32 mask)
 {
@@ -2058,6 +2068,50 @@ void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput)
 	/* TODO: 23-19 */
 }
 
+static struct {
+	int vendor, dev;
+} const broken_dev_id[] = {
+	/* According with
+	 * https://openbenchmarking.org/system/1703021-RI-AMDZEN08075/Ryzen%207%201800X/lspci,
+	 * 0x1451 is PCI ID for the IOMMU found on Ryzen
+	 */
+	{ PCI_VENDOR_ID_AMD, 0x1451 },
+	/* According to sudo lspci -nn,
+	 * 0x1423 is the PCI ID for the IOMMU found on Kaveri
+	 */
+	{ PCI_VENDOR_ID_AMD, 0x1423 },
+	/* 0x1481 is the PCI ID for the IOMMU found on Starship/Matisse
+	 */
+	{ PCI_VENDOR_ID_AMD, 0x1481 },
+	/* 0x1419 is the PCI ID for the IOMMU found on 15h (Models 10h-1fh) family
+	 */
+	{ PCI_VENDOR_ID_AMD, 0x1419 },
+	/* 0x5a23 is the PCI ID for the IOMMU found on RD890S/RD990
+	 */
+	{ PCI_VENDOR_ID_ATI, 0x5a23 },
+};
+
+static bool cx23885_does_need_dma_reset(void)
+{
+	int i;
+	struct pci_dev *pdev = NULL;
+
+	if (dma_reset_workaround == 0)
+		return false;
+	else if (dma_reset_workaround == 2)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(broken_dev_id); i++) {
+		pdev = pci_get_device(broken_dev_id[i].vendor,
+				      broken_dev_id[i].dev, NULL);
+		if (pdev) {
+			pci_dev_put(pdev);
+			return true;
+		}
+	}
+	return false;
+}
+
 static int cx23885_initdev(struct pci_dev *pci_dev,
 			   const struct pci_device_id *pci_id)
 {
@@ -2068,6 +2122,8 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
 		return -ENOMEM;
+
+	dev->need_dma_reset = cx23885_does_need_dma_reset();
 
 	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
 	if (err < 0)
@@ -2106,7 +2162,7 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 		(unsigned long long)pci_resource_start(pci_dev, 0));
 
 	pci_set_master(pci_dev);
-	err = pci_set_dma_mask(pci_dev, 0xffffffff);
+	err = dma_set_mask(&pci_dev->dev, 0xffffffff);
 	if (err) {
 		pr_err("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
 		goto fail_ctrl;
@@ -2194,9 +2250,6 @@ static struct pci_driver cx23885_pci_driver = {
 	.id_table = cx23885_pci_tbl,
 	.probe    = cx23885_initdev,
 	.remove   = cx23885_finidev,
-	/* TODO */
-	.suspend  = NULL,
-	.resume   = NULL,
 };
 
 static int __init cx23885_init(void)

@@ -28,23 +28,22 @@ void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter, u64 qmask);
 void ixgbe_txrx_ring_disable(struct ixgbe_adapter *adapter, int ring);
 void ixgbe_txrx_ring_enable(struct ixgbe_adapter *adapter, int ring);
 
-struct xdp_umem *ixgbe_xsk_umem(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *ring);
-int ixgbe_xsk_umem_query(struct ixgbe_adapter *adapter, struct xdp_umem **umem,
-			 u16 qid);
-int ixgbe_xsk_umem_setup(struct ixgbe_adapter *adapter, struct xdp_umem *umem,
+struct xsk_buff_pool *ixgbe_xsk_pool(struct ixgbe_adapter *adapter,
+				     struct ixgbe_ring *ring);
+int ixgbe_xsk_pool_setup(struct ixgbe_adapter *adapter,
+			 struct xsk_buff_pool *pool,
 			 u16 qid);
 
 void ixgbe_zca_free(struct zero_copy_allocator *alloc, unsigned long handle);
 
-void ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count);
+bool ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count);
 int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 			  struct ixgbe_ring *rx_ring,
 			  const int budget);
 void ixgbe_xsk_clean_rx_ring(struct ixgbe_ring *rx_ring);
 bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 			    struct ixgbe_ring *tx_ring, int napi_budget);
-int ixgbe_xsk_async_xmit(struct net_device *dev, u32 queue_id);
+int ixgbe_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags);
 void ixgbe_xsk_clean_tx_ring(struct ixgbe_ring *tx_ring);
 
 #endif /* #define _IXGBE_TXRX_COMMON_H_ */

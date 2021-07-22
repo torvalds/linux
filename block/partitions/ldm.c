@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * ldm - Support for Windows Logical Disk Manager (Dynamic Disks)
  *
@@ -6,21 +7,6 @@
  * Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
  * Documentation is available at http://www.linux-ntfs.org/doku.php?id=downloads 
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any later
- * version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program (in the main directory of the source in the file COPYING); if
- * not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
- * Boston, MA  02111-1307  USA
  */
 
 #include <linux/slab.h>
@@ -28,12 +14,12 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <linux/msdos_partition.h>
 
 #include "ldm.h"
 #include "check.h"
-#include "msdos.h"
 
-/**
+/*
  * ldm_debug/info/error/crit - Output an error message
  * @f:    A printf format string containing the message
  * @...:  Variables to substitute into @f
@@ -507,7 +493,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 {
 	Sector sect;
 	u8 *data;
-	struct partition *p;
+	struct msdos_partition *p;
 	int i;
 	bool result = false;
 
@@ -522,9 +508,9 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 	if (*(__le16*) (data + 0x01FE) != cpu_to_le16 (MSDOS_LABEL_MAGIC))
 		goto out;
 
-	p = (struct partition*)(data + 0x01BE);
+	p = (struct msdos_partition *)(data + 0x01BE);
 	for (i = 0; i < 4; i++, p++)
-		if (SYS_IND (p) == LDM_PARTITION) {
+		if (p->sys_ind == LDM_PARTITION) {
 			result = true;
 			break;
 		}
@@ -924,7 +910,7 @@ static bool ldm_parse_dsk4 (const u8 *buffer, int buflen, struct vblk *vb)
 		return false;
 
 	disk = &vb->vblk.disk;
-	uuid_copy(&disk->disk_id, (uuid_t *)(buffer + 0x18 + r_name));
+	import_uuid(&disk->disk_id, buffer + 0x18 + r_name);
 	return true;
 }
 
@@ -1247,7 +1233,7 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 	BUG_ON (!data || !frags);
 
 	if (size < 2 * VBLK_SIZE_HEAD) {
-		ldm_error("Value of size is to small.");
+		ldm_error("Value of size is too small.");
 		return false;
 	}
 

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
  */
 #include <asm/io.h>
 
@@ -130,7 +122,7 @@ static const struct
 
 void pic32_pps_input(int function, int pin)
 {
-	void __iomem *pps_base = ioremap_nocache(PPS_BASE, 0xF4);
+	void __iomem *pps_base = ioremap(PPS_BASE, 0xF4);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(input_pin_reg); i++) {
@@ -260,7 +252,7 @@ static const struct
 
 void pic32_pps_output(int function, int pin)
 {
-	void __iomem *pps_base = ioremap_nocache(PPS_BASE, 0x170);
+	void __iomem *pps_base = ioremap(PPS_BASE, 0x170);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(output_pin_reg); i++) {

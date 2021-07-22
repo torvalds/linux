@@ -18,16 +18,24 @@
  * PACA flags in paca->irq_happened.
  *
  * This bits are set when interrupts occur while soft-disabled
- * and allow a proper replay. Additionally, PACA_IRQ_HARD_DIS
- * is set whenever we manually hard disable.
+ * and allow a proper replay.
+ *
+ * The PACA_IRQ_HARD_DIS is set whenever we hard disable. It is almost
+ * always in synch with the MSR[EE] state, except:
+ * - A window in interrupt entry, where hardware disables MSR[EE] and that
+ *   must be "reconciled" with the soft mask state.
+ * - NMI interrupts that hit in awkward places, until they fix the state.
+ * - When local irqs are being enabled and state is being fixed up.
+ * - When returning from an interrupt there are some windows where this
+ *   can become out of synch, but gets fixed before the RFI or before
+ *   executing the next user instruction (see arch/powerpc/kernel/interrupt.c).
  */
 #define PACA_IRQ_HARD_DIS	0x01
 #define PACA_IRQ_DBELL		0x02
 #define PACA_IRQ_EE		0x04
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
-#define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
-#define PACA_IRQ_HMI		0x20
-#define PACA_IRQ_PMI		0x40
+#define PACA_IRQ_HMI		0x10
+#define PACA_IRQ_PMI		0x20
 
 /*
  * Some soft-masked interrupts must be hard masked until they are replayed
@@ -39,6 +47,8 @@
 #define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE)
 #endif
 
+#endif /* CONFIG_PPC64 */
+
 /*
  * flags for paca->irq_soft_mask
  */
@@ -47,18 +57,56 @@
 #define IRQS_PMI_DISABLED	2
 #define IRQS_ALL_DISABLED	(IRQS_DISABLED | IRQS_PMI_DISABLED)
 
-#endif /* CONFIG_PPC64 */
-
 #ifndef __ASSEMBLY__
 
-extern void replay_system_reset(void);
-extern void __replay_interrupt(unsigned int vector);
+static inline void __hard_irq_enable(void)
+{
+	if (IS_ENABLED(CONFIG_BOOKE) || IS_ENABLED(CONFIG_40x))
+		wrtee(MSR_EE);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		wrtspr(SPRN_EIE);
+	else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		__mtmsrd(MSR_EE | MSR_RI, 1);
+	else
+		mtmsr(mfmsr() | MSR_EE);
+}
 
-extern void timer_interrupt(struct pt_regs *);
-extern void timer_broadcast_interrupt(void);
-extern void performance_monitor_exception(struct pt_regs *regs);
-extern void WatchdogException(struct pt_regs *regs);
-extern void unknown_exception(struct pt_regs *regs);
+static inline void __hard_irq_disable(void)
+{
+	if (IS_ENABLED(CONFIG_BOOKE) || IS_ENABLED(CONFIG_40x))
+		wrtee(0);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		wrtspr(SPRN_EID);
+	else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		__mtmsrd(MSR_RI, 1);
+	else
+		mtmsr(mfmsr() & ~MSR_EE);
+}
+
+static inline void __hard_EE_RI_disable(void)
+{
+	if (IS_ENABLED(CONFIG_BOOKE) || IS_ENABLED(CONFIG_40x))
+		wrtee(0);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		wrtspr(SPRN_NRI);
+	else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		__mtmsrd(0, 1);
+	else
+		mtmsr(mfmsr() & ~(MSR_EE | MSR_RI));
+}
+
+static inline void __hard_RI_enable(void)
+{
+	if (IS_ENABLED(CONFIG_BOOKE) || IS_ENABLED(CONFIG_40x))
+		return;
+
+	if (IS_ENABLED(CONFIG_PPC_8xx))
+		wrtspr(SPRN_EID);
+	else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		__mtmsrd(MSR_RI, 1);
+	else
+		mtmsr(mfmsr() | MSR_RI);
+}
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -200,17 +248,14 @@ static inline bool arch_irqs_disabled(void)
 #define powerpc_local_irq_pmu_save(flags)			\
 	 do {							\
 		raw_local_irq_pmu_save(flags);			\
-		trace_hardirqs_off();				\
+		if (!raw_irqs_disabled_flags(flags))		\
+			trace_hardirqs_off();			\
 	} while(0)
 #define powerpc_local_irq_pmu_restore(flags)			\
 	do {							\
-		if (raw_irqs_disabled_flags(flags)) {		\
-			raw_local_irq_pmu_restore(flags);	\
-			trace_hardirqs_off();			\
-		} else {					\
+		if (!raw_irqs_disabled_flags(flags))		\
 			trace_hardirqs_on();			\
-			raw_local_irq_pmu_restore(flags);	\
-		}						\
+		raw_local_irq_pmu_restore(flags);		\
 	} while(0)
 #else
 #define powerpc_local_irq_pmu_save(flags)			\
@@ -225,14 +270,6 @@ static inline bool arch_irqs_disabled(void)
 
 #endif /* CONFIG_PPC_BOOK3S */
 
-#ifdef CONFIG_PPC_BOOK3E
-#define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory")
-#define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory")
-#else
-#define __hard_irq_enable()	__mtmsrd(MSR_EE|MSR_RI, 1)
-#define __hard_irq_disable()	__mtmsrd(MSR_RI, 1)
-#endif
-
 #define hard_irq_disable()	do {					\
 	unsigned long flags;						\
 	__hard_irq_disable();						\
@@ -246,9 +283,27 @@ static inline bool arch_irqs_disabled(void)
 	}								\
 } while(0)
 
+static inline bool __lazy_irq_pending(u8 irq_happened)
+{
+	return !!(irq_happened & ~PACA_IRQ_HARD_DIS);
+}
+
+/*
+ * Check if a lazy IRQ is pending. Should be called with IRQs hard disabled.
+ */
 static inline bool lazy_irq_pending(void)
 {
-	return !!(get_paca()->irq_happened & ~PACA_IRQ_HARD_DIS);
+	return __lazy_irq_pending(get_paca()->irq_happened);
+}
+
+/*
+ * Check if a lazy IRQ is pending, with no debugging checks.
+ * Should be called with IRQs hard disabled.
+ * For use in RI disabled code or other constrained situations.
+ */
+static inline bool lazy_irq_pending_nocheck(void)
+{
+	return __lazy_irq_pending(local_paca->irq_happened);
 }
 
 /*
@@ -278,9 +333,16 @@ extern void irq_set_pending_from_srr1(unsigned long srr1);
 
 extern void force_external_irq_replay(void);
 
+static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned long val)
+{
+	regs->softe = val;
+}
 #else /* CONFIG_PPC64 */
 
-#define SET_MSR_EE(x)	mtmsr(x)
+static inline notrace unsigned long irq_soft_mask_return(void)
+{
+	return 0;
+}
 
 static inline unsigned long arch_local_save_flags(void)
 {
@@ -289,47 +351,34 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-#if defined(CONFIG_BOOKE)
-	asm volatile("wrtee %0" : : "r" (flags) : "memory");
-#else
-	mtmsr(flags);
-#endif
+	if (IS_ENABLED(CONFIG_BOOKE))
+		wrtee(flags);
+	else
+		mtmsr(flags);
 }
 
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags = arch_local_save_flags();
-#ifdef CONFIG_BOOKE
-	asm volatile("wrteei 0" : : : "memory");
-#elif defined(CONFIG_PPC_8xx)
-	wrtspr(SPRN_EID);
-#else
-	SET_MSR_EE(flags & ~MSR_EE);
-#endif
+
+	if (IS_ENABLED(CONFIG_BOOKE))
+		wrtee(0);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		wrtspr(SPRN_EID);
+	else
+		mtmsr(flags & ~MSR_EE);
+
 	return flags;
 }
 
 static inline void arch_local_irq_disable(void)
 {
-#ifdef CONFIG_BOOKE
-	asm volatile("wrteei 0" : : : "memory");
-#elif defined(CONFIG_PPC_8xx)
-	wrtspr(SPRN_EID);
-#else
-	arch_local_irq_save();
-#endif
+	__hard_irq_disable();
 }
 
 static inline void arch_local_irq_enable(void)
 {
-#ifdef CONFIG_BOOKE
-	asm volatile("wrteei 1" : : : "memory");
-#elif defined(CONFIG_PPC_8xx)
-	wrtspr(SPRN_EIE);
-#else
-	unsigned long msr = mfmsr();
-	SET_MSR_EE(msr | MSR_EE);
-#endif
+	__hard_irq_enable();
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
@@ -349,17 +398,22 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 	return !(regs->msr & MSR_EE);
 }
 
-static inline void may_hard_irq_enable(void) { }
+static inline bool may_hard_irq_enable(void)
+{
+	return false;
+}
 
+static inline void do_hard_irq_enable(void)
+{
+	BUILD_BUG();
+}
+
+static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned long val)
+{
+}
 #endif /* CONFIG_PPC64 */
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
-
-/*
- * interrupt-retrigger: should we handle this via lost interrupts and IPIs
- * or should we not care like we do now ? --BenH.
- */
-struct irq_chip;
 
 #endif  /* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */

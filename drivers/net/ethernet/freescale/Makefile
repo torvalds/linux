@@ -23,3 +23,5 @@ obj-$(CONFIG_FSL_FMAN) += fman/
 obj-$(CONFIG_FSL_DPAA_ETH) += dpaa/
 
 obj-$(CONFIG_FSL_DPAA2_ETH) += dpaa2/
+
+obj-y += enetc/

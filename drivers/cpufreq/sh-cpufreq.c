@@ -23,7 +23,6 @@
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
-#include <linux/sched.h>	/* set_cpus_allowed() */
 #include <linux/clk.h>
 #include <linux/percpu.h>
 #include <linux/sh_clk.h>
@@ -87,7 +86,7 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	return work_on_cpu(policy->cpu, __sh_cpufreq_target, &data);
 }
 
-static int sh_cpufreq_verify(struct cpufreq_policy *policy)
+static int sh_cpufreq_verify(struct cpufreq_policy_data *policy)
 {
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, policy->cpu);
 	struct cpufreq_frequency_table *freq_table;

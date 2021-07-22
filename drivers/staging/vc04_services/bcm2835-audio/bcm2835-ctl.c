@@ -68,7 +68,7 @@ static int snd_bcm2835_ctl_get(struct snd_kcontrol *kcontrol,
 }
 
 static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	int val, *valp;
@@ -129,7 +129,7 @@ static const struct snd_kcontrol_new snd_bcm2835_ctl[] = {
 };
 
 static int snd_bcm2835_spdif_default_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
+					  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
@@ -137,7 +137,7 @@ static int snd_bcm2835_spdif_default_info(struct snd_kcontrol *kcontrol,
 }
 
 static int snd_bcm2835_spdif_default_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	int i;
@@ -153,7 +153,7 @@ static int snd_bcm2835_spdif_default_get(struct snd_kcontrol *kcontrol,
 }
 
 static int snd_bcm2835_spdif_default_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int val = 0;
@@ -172,7 +172,7 @@ static int snd_bcm2835_spdif_default_put(struct snd_kcontrol *kcontrol,
 }
 
 static int snd_bcm2835_spdif_mask_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
+				       struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
@@ -180,7 +180,7 @@ static int snd_bcm2835_spdif_mask_info(struct snd_kcontrol *kcontrol,
 }
 
 static int snd_bcm2835_spdif_mask_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	/*
 	 * bcm2835 supports only consumer mode and sets all other format flags
@@ -224,7 +224,7 @@ int snd_bcm2835_new_ctl(struct bcm2835_chip *chip)
 {
 	int err;
 
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	err = create_ctls(chip, ARRAY_SIZE(snd_bcm2835_ctl), snd_bcm2835_ctl);
 	if (err < 0)
 		return err;
@@ -261,7 +261,7 @@ static const struct snd_kcontrol_new snd_bcm2835_headphones_ctl[] = {
 
 int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip)
 {
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_headphones_ctl),
 			   snd_bcm2835_headphones_ctl);
 }
@@ -295,7 +295,7 @@ static const struct snd_kcontrol_new snd_bcm2835_hdmi[] = {
 
 int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip)
 {
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_hdmi),
 			   snd_bcm2835_hdmi);
 }

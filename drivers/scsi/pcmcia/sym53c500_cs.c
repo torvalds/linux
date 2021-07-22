@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 *  sym53c500_cs.c	Bob Tracy (rct@frus.com)
 *
@@ -25,16 +26,6 @@
 *	Original by Tom Corner (tcorner@via.at) was adapted from a
 *	driver for the Qlogic SCSI card written by
 *	David Hinds (dhinds@allegro.stanford.edu).
-* 
-*  This program is free software; you can redistribute it and/or modify it
-*  under the terms of the GNU General Public License as published by the
-*  Free Software Foundation; either version 2, or (at your option) any
-*  later version.
-*
-*  This program is distributed in the hope that it will be useful, but
-*  WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-*  General Public License for more details.
 */
 
 #define SYM53C500_DEBUG 0
@@ -680,7 +671,6 @@ static struct scsi_host_template sym53c500_driver_template = {
      .can_queue			= 1,
      .this_id			= 7,
      .sg_tablesize		= 32,
-     .use_clustering		= ENABLE_CLUSTERING,
      .shost_attrs		= SYM53C500_shost_attrs
 };
 

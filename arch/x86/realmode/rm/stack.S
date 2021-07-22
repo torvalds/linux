@@ -6,15 +6,13 @@
 #include <linux/linkage.h>
 
 	.data
-GLOBAL(HEAP)
-	.long	rm_heap
-GLOBAL(heap_end)
-	.long	rm_stack
+SYM_DATA(HEAP,		.long rm_heap)
+SYM_DATA(heap_end,	.long rm_stack)
 
 	.bss
 	.balign	16
-GLOBAL(rm_heap)
+SYM_DATA(rm_heap,	.space 2048)
+
+SYM_DATA_START(rm_stack)
 	.space	2048
-GLOBAL(rm_stack)
-	.space	2048
-GLOBAL(rm_stack_end)
+SYM_DATA_END_LABEL(rm_stack, SYM_L_GLOBAL, rm_stack_end)

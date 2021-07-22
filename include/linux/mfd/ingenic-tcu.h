@@ -41,7 +41,7 @@
 #define TCU_TCSR_PRESCALE_LSB		3
 #define TCU_TCSR_PRESCALE_MASK		0x38
 
-#define TCU_TCSR_PWM_SD		BIT(9)	/* 0: Shutdown abruptly 1: gracefully */
+#define TCU_TCSR_PWM_SD		BIT(9)	/* 0: Shutdown gracefully 1: abruptly */
 #define TCU_TCSR_PWM_INITL_HIGH	BIT(8)	/* Sets the initial output level */
 #define TCU_TCSR_PWM_EN		BIT(7)	/* PWM pin output enable */
 

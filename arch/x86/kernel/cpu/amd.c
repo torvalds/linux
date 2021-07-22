@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/export.h>
 #include <linux/bitops.h>
 #include <linux/elf.h>
@@ -7,24 +8,28 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/random.h>
+#include <linux/topology.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cacheinfo.h>
 #include <asm/cpu.h>
 #include <asm/spec-ctrl.h>
 #include <asm/smp.h>
+#include <asm/numa.h>
 #include <asm/pci-direct.h>
 #include <asm/delay.h>
+#include <asm/debugreg.h>
+#include <asm/resctrl.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/mmconfig.h>
-# include <asm/set_memory.h>
 #endif
 
 #include "cpu.h"
 
 static const int amd_erratum_383[];
 static const int amd_erratum_400[];
+static const int amd_erratum_1054[];
 static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
 
 /*
@@ -81,11 +86,14 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
  *	performance at the same time..
  */
 
+#ifdef CONFIG_X86_32
 extern __visible void vide(void);
-__asm__(".globl vide\n"
+__asm__(".text\n"
+	".globl vide\n"
 	".type vide, @function\n"
 	".align 4\n"
 	"vide: ret\n");
+#endif
 
 static void init_amd_k5(struct cpuinfo_x86 *c)
 {
@@ -313,13 +321,6 @@ static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
 	c->cpu_core_id %= cus_per_node;
 }
 
-
-static void amd_get_topology_early(struct cpuinfo_x86 *c)
-{
-	if (cpu_has(c, X86_FEATURE_TOPOEXT))
-		smp_num_siblings = ((cpuid_ebx(0x8000001e) >> 8) & 0xff) + 1;
-}
-
 /*
  * Fixup core topology information for
  * (1) AMD multi-node processors
@@ -328,7 +329,6 @@ static void amd_get_topology_early(struct cpuinfo_x86 *c)
  */
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
-	u8 node_id;
 	int cpu = smp_processor_id();
 
 	/* get information required for multi-node processors */
@@ -338,7 +338,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
 
-		node_id  = ecx & 0xff;
+		c->cpu_die_id  = ecx & 0xff;
 
 		if (c->x86 == 0x15)
 			c->cu_id = ebx & 0xff;
@@ -358,15 +358,15 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		if (!err)
 			c->x86_coreid_bits = get_count_order(c->x86_max_cores);
 
-		cacheinfo_amd_init_llc_id(c, cpu, node_id);
+		cacheinfo_amd_init_llc_id(c, cpu);
 
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		node_id = value & 7;
+		c->cpu_die_id = value & 7;
 
-		per_cpu(cpu_llc_id, cpu) = node_id;
+		per_cpu(cpu_llc_id, cpu) = c->cpu_die_id;
 	} else
 		return;
 
@@ -391,14 +391,37 @@ static void amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* Convert the initial APIC ID into the socket ID */
 	c->phys_proc_id = c->initial_apicid >> bits;
 	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
+	per_cpu(cpu_llc_id, cpu) = c->cpu_die_id = c->phys_proc_id;
 }
 
-u16 amd_get_nb_id(int cpu)
+static void amd_detect_ppin(struct cpuinfo_x86 *c)
 {
-	return per_cpu(cpu_llc_id, cpu);
+	unsigned long long val;
+
+	if (!cpu_has(c, X86_FEATURE_AMD_PPIN))
+		return;
+
+	/* When PPIN is defined in CPUID, still need to check PPIN_CTL MSR */
+	if (rdmsrl_safe(MSR_AMD_PPIN_CTL, &val))
+		goto clear_ppin;
+
+	/* PPIN is locked in disabled mode, clear feature bit */
+	if ((val & 3UL) == 1UL)
+		goto clear_ppin;
+
+	/* If PPIN is disabled, try to enable it */
+	if (!(val & 2UL)) {
+		wrmsrl_safe(MSR_AMD_PPIN_CTL,  val | 2UL);
+		rdmsrl_safe(MSR_AMD_PPIN_CTL, &val);
+	}
+
+	/* If PPIN_EN bit is 1, return from here; otherwise fall through */
+	if (val & 2UL)
+		return;
+
+clear_ppin:
+	clear_cpu_cap(c, X86_FEATURE_AMD_PPIN);
 }
-EXPORT_SYMBOL_GPL(amd_get_nb_id);
 
 u32 amd_get_nodes_per_socket(void)
 {
@@ -485,26 +508,6 @@ static void early_init_amd_mc(struct cpuinfo_x86 *c)
 
 static void bsp_init_amd(struct cpuinfo_x86 *c)
 {
-
-#ifdef CONFIG_X86_64
-	if (c->x86 >= 0xf) {
-		unsigned long long tseg;
-
-		/*
-		 * Split up direct mapping around the TSEG SMM area.
-		 * Don't do it for gbpages because there seems very little
-		 * benefit in doing so.
-		 */
-		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
-			unsigned long pfn = tseg >> PAGE_SHIFT;
-
-			pr_debug("tseg: %010llx\n", tseg);
-			if (pfn_range_is_mapped(pfn, pfn + 1))
-				set_memory_4k((unsigned long)__va(tseg), 1);
-		}
-	}
-#endif
-
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 
 		if (c->x86 > 0x10 ||
@@ -539,12 +542,12 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		u32 ecx;
 
 		ecx = cpuid_ecx(0x8000001e);
-		nodes_per_socket = ((ecx >> 8) & 7) + 1;
+		__max_die_per_package = nodes_per_socket = ((ecx >> 8) & 7) + 1;
 	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		nodes_per_socket = ((value >> 3) & 7) + 1;
+		__max_die_per_package = nodes_per_socket = ((value >> 3) & 7) + 1;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
@@ -568,6 +571,8 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 			x86_amd_ls_cfg_ssbd_mask = 1ULL << bit;
 		}
 	}
+
+	resctrl_cpu_detect(c);
 }
 
 static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
@@ -581,15 +586,15 @@ static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 	 *	      If BIOS has not enabled SME then don't advertise the
 	 *	      SME feature (set in scattered.c).
 	 *   For SEV: If BIOS has not enabled SEV then don't advertise the
-	 *            SEV feature (set in scattered.c).
+	 *            SEV and SEV_ES feature (set in scattered.c).
 	 *
 	 *   In all cases, since support for SME and SEV requires long mode,
 	 *   don't advertise the feature under CONFIG_X86_32.
 	 */
 	if (cpu_has(c, X86_FEATURE_SME) || cpu_has(c, X86_FEATURE_SEV)) {
 		/* Check if memory encryption is enabled */
-		rdmsrl(MSR_K8_SYSCFG, msr);
-		if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+		rdmsrl(MSR_AMD64_SYSCFG, msr);
+		if (!(msr & MSR_AMD64_SYSCFG_MEM_ENCRYPT))
 			goto clear_all;
 
 		/*
@@ -609,9 +614,10 @@ static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 		return;
 
 clear_all:
-		clear_cpu_cap(c, X86_FEATURE_SME);
+		setup_clear_cpu_cap(X86_FEATURE_SME);
 clear_sev:
-		clear_cpu_cap(c, X86_FEATURE_SEV);
+		setup_clear_cpu_cap(X86_FEATURE_SEV);
+		setup_clear_cpu_cap(X86_FEATURE_SEV_ES);
 	}
 }
 
@@ -621,11 +627,6 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	u32 dummy;
 
 	early_init_amd_mc(c);
-
-#ifdef CONFIG_X86_32
-	if (c->x86 == 6)
-		set_cpu_cap(c, X86_FEATURE_K7);
-#endif
 
 	if (c->x86 >= 0xf)
 		set_cpu_cap(c, X86_FEATURE_K8);
@@ -644,6 +645,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
 	if (c->x86_power & BIT(12))
 		set_cpu_cap(c, X86_FEATURE_ACC_POWER);
+
+	/* Bit 14 indicates the Runtime Average Power Limit interface. */
+	if (c->x86_power & BIT(14))
+		set_cpu_cap(c, X86_FEATURE_RAPL);
 
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
@@ -711,7 +716,8 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 		}
 	}
 
-	amd_get_topology_early(c);
+	if (cpu_has(c, X86_FEATURE_TOPOEXT))
+		smp_num_siblings = ((cpuid_ebx(0x8000001e) >> 8) & 0xff) + 1;
 }
 
 static void init_amd_k8(struct cpuinfo_x86 *c)
@@ -799,6 +805,64 @@ static void init_amd_ln(struct cpuinfo_x86 *c)
 	msr_set_bit(MSR_AMD64_DE_CFG, 31);
 }
 
+static bool rdrand_force;
+
+static int __init rdrand_cmdline(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strcmp(str, "force"))
+		rdrand_force = true;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+early_param("rdrand", rdrand_cmdline);
+
+static void clear_rdrand_cpuid_bit(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Saving of the MSR used to hide the RDRAND support during
+	 * suspend/resume is done by arch/x86/power/cpu.c, which is
+	 * dependent on CONFIG_PM_SLEEP.
+	 */
+	if (!IS_ENABLED(CONFIG_PM_SLEEP))
+		return;
+
+	/*
+	 * The nordrand option can clear X86_FEATURE_RDRAND, so check for
+	 * RDRAND support using the CPUID function directly.
+	 */
+	if (!(cpuid_ecx(1) & BIT(30)) || rdrand_force)
+		return;
+
+	msr_clear_bit(MSR_AMD64_CPUID_FN_1, 62);
+
+	/*
+	 * Verify that the CPUID change has occurred in case the kernel is
+	 * running virtualized and the hypervisor doesn't support the MSR.
+	 */
+	if (cpuid_ecx(1) & BIT(30)) {
+		pr_info_once("BIOS may not properly restore RDRAND after suspend, but hypervisor does not support hiding RDRAND via CPUID.\n");
+		return;
+	}
+
+	clear_cpu_cap(c, X86_FEATURE_RDRAND);
+	pr_info_once("BIOS may not properly restore RDRAND after suspend, hiding RDRAND via CPUID. Use rdrand=force to reenable.\n");
+}
+
+static void init_amd_jg(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Some BIOS implementations do not restore proper RDRAND support
+	 * across suspend and resume. Check on whether to hide the RDRAND
+	 * instruction support via CPUID.
+	 */
+	clear_rdrand_cpuid_bit(c);
+}
+
 static void init_amd_bd(struct cpuinfo_x86 *c)
 {
 	u64 value;
@@ -813,16 +877,28 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 			wrmsrl_safe(MSR_F15H_IC_CFG, value);
 		}
 	}
+
+	/*
+	 * Some BIOS implementations do not restore proper RDRAND support
+	 * across suspend and resume. Check on whether to hide the RDRAND
+	 * instruction support via CPUID.
+	 */
+	clear_rdrand_cpuid_bit(c);
 }
 
 static void init_amd_zn(struct cpuinfo_x86 *c)
 {
 	set_cpu_cap(c, X86_FEATURE_ZEN);
+
+#ifdef CONFIG_NUMA
+	node_reclaim_distance = 32;
+#endif
+
 	/*
-	 * Fix erratum 1076: CPB feature bit not being set in CPUID. It affects
-	 * all up to and including B1.
+	 * Fix erratum 1076: CPB feature bit not being set in CPUID.
+	 * Always set it, except when running under a hypervisor.
 	 */
-	if (c->x86_model <= 1 && c->x86_stepping <= 1)
+	if (!cpu_has(c, X86_FEATURE_HYPERVISOR) && !cpu_has(c, X86_FEATURE_CPB))
 		set_cpu_cap(c, X86_FEATURE_CPB);
 }
 
@@ -854,7 +930,9 @@ static void init_amd(struct cpuinfo_x86 *c)
 	case 0x10: init_amd_gh(c); break;
 	case 0x12: init_amd_ln(c); break;
 	case 0x15: init_amd_bd(c); break;
-	case 0x17: init_amd_zn(c); break;
+	case 0x16: init_amd_jg(c); break;
+	case 0x17: fallthrough;
+	case 0x19: init_amd_zn(c); break;
 	}
 
 	/*
@@ -869,16 +947,13 @@ static void init_amd(struct cpuinfo_x86 *c)
 	amd_detect_cmp(c);
 	amd_get_topology(c);
 	srat_detect_node(c);
+	amd_detect_ppin(c);
 
 	init_amd_cacheinfo(c);
 
 	if (cpu_has(c, X86_FEATURE_XMM2)) {
-		unsigned long long val;
-		int ret;
-
 		/*
-		 * A serializing LFENCE has less overhead than MFENCE, so
-		 * use it for execution serialization.  On families which
+		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
 		 * is not present.
@@ -886,19 +961,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 		msr_set_bit(MSR_F10H_DECFG,
 			    MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT);
 
-		/*
-		 * Verify that the MSR write was successful (could be running
-		 * under a hypervisor) and only then assume that LFENCE is
-		 * serializing.
-		 */
-		ret = rdmsrl_safe(MSR_F10H_DECFG, &val);
-		if (!ret && (val & MSR_F10H_DECFG_LFENCE_SERIALIZE)) {
-			/* A serializing LFENCE stops RDTSC speculation */
-			set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
-		} else {
-			/* MFENCE stops RDTSC speculation */
-			set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
-		}
+		/* A serializing LFENCE stops RDTSC speculation */
+		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 	}
 
 	/*
@@ -916,6 +980,15 @@ static void init_amd(struct cpuinfo_x86 *c)
 	/* AMD CPUs don't reset SS attributes on SYSRET, Xen does. */
 	if (!cpu_has(c, X86_FEATURE_XENPV))
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+
+	/*
+	 * Turn on the Instructions Retired free counter on machines not
+	 * susceptible to erratum #1054 "Instructions Retired Performance
+	 * Counter May Be Inaccurate".
+	 */
+	if (cpu_has(c, X86_FEATURE_IRPERF) &&
+	    !cpu_has_amd_erratum(c, amd_erratum_1054))
+		msr_set_bit(MSR_K7_HWCR, MSR_K7_HWCR_IRPERF_EN_BIT);
 }
 
 #ifdef CONFIG_X86_32
@@ -1043,6 +1116,9 @@ static const int amd_erratum_400[] =
 static const int amd_erratum_383[] =
 	AMD_OSVW_ERRATUM(3, AMD_MODEL_RANGE(0x10, 0, 0, 0xff, 0xf));
 
+/* #1054: Instructions Retired Performance Counter May Be Inaccurate */
+static const int amd_erratum_1054[] =
+	AMD_LEGACY_ERRATUM(AMD_MODEL_RANGE(0x17, 0, 0, 0x2f, 0xf));
 
 static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum)
 {
@@ -1093,3 +1169,19 @@ void set_dr_addr_mask(unsigned long mask, int dr)
 		break;
 	}
 }
+
+u32 amd_get_highest_perf(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86 == 0x17 && ((c->x86_model >= 0x30 && c->x86_model < 0x40) ||
+			       (c->x86_model >= 0x70 && c->x86_model < 0x80)))
+		return 166;
+
+	if (c->x86 == 0x19 && ((c->x86_model >= 0x20 && c->x86_model < 0x30) ||
+			       (c->x86_model >= 0x40 && c->x86_model < 0x70)))
+		return 166;
+
+	return 255;
+}
+EXPORT_SYMBOL_GPL(amd_get_highest_perf);

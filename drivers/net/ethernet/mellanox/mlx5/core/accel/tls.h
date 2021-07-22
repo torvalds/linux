@@ -37,7 +37,66 @@
 #include <linux/mlx5/driver.h>
 #include <linux/tls.h>
 
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_TLS
+int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
+			 struct tls_crypto_info *crypto_info,
+			 u32 *p_key_id);
+void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id);
+
+static inline bool mlx5_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, tls_tx);
+}
+
+static inline bool mlx5_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, tls_rx);
+}
+
+static inline bool mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev)
+{
+	if (!mlx5_accel_is_ktls_tx(mdev) &&
+	    !mlx5_accel_is_ktls_rx(mdev))
+		return false;
+
+	if (!MLX5_CAP_GEN(mdev, log_max_dek))
+		return false;
+
+	return MLX5_CAP_TLS(mdev, tls_1_2_aes_gcm_128);
+}
+
+static inline bool mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
+					 struct tls_crypto_info *crypto_info)
+{
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		if (crypto_info->version == TLS_1_2_VERSION)
+			return MLX5_CAP_TLS(mdev,  tls_1_2_aes_gcm_128);
+		break;
+	}
+
+	return false;
+}
+#else
+static inline bool mlx5_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
+{ return false; }
+
+static inline bool mlx5_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
+{ return false; }
+
+static inline int
+mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
+		     struct tls_crypto_info *crypto_info,
+		     u32 *p_key_id) { return -ENOTSUPP; }
+static inline void
+mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id) {}
+
+static inline bool
+mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev) { return false; }
+static inline bool
+mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
+		      struct tls_crypto_info *crypto_info) { return false; }
+#endif
 
 enum {
 	MLX5_ACCEL_TLS_TX = BIT(0),
@@ -60,14 +119,15 @@ struct mlx5_ifc_tls_flow_bits {
 	u8         reserved_at_2[0x1e];
 };
 
+#ifdef CONFIG_MLX5_FPGA_TLS
 int mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			    struct tls_crypto_info *crypto_info,
 			    u32 start_offload_tcp_sn, u32 *p_swid,
 			    bool direction_sx);
 void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 			     bool direction_sx);
-int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
-			     u64 rcd_sn);
+int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+			     u32 seq, __be64 rcd_sn);
 bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev);
 u32 mlx5_accel_tls_device_caps(struct mlx5_core_dev *mdev);
 int mlx5_accel_tls_init(struct mlx5_core_dev *mdev);
@@ -82,13 +142,15 @@ mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			bool direction_sx) { return -ENOTSUPP; }
 static inline void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 					   bool direction_sx) { }
-static inline int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle,
-					   u32 seq, u64 rcd_sn) { return 0; }
-static inline bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev) { return false; }
+static inline int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+					   u32 seq, __be64 rcd_sn) { return 0; }
+static inline bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev)
+{
+	return mlx5_accel_is_ktls_device(mdev);
+}
 static inline u32 mlx5_accel_tls_device_caps(struct mlx5_core_dev *mdev) { return 0; }
 static inline int mlx5_accel_tls_init(struct mlx5_core_dev *mdev) { return 0; }
 static inline void mlx5_accel_tls_cleanup(struct mlx5_core_dev *mdev) { }
-
 #endif
 
 #endif	/* __MLX5_ACCEL_TLS_H__ */

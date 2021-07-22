@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
  *
@@ -5,10 +6,6 @@
  *
  * Authors: Younghwan Joo <yhwan.joo@samsung.com>
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef FIMC_IS_H_
 #define FIMC_IS_H_
@@ -177,7 +174,7 @@ struct is_af_info {
 struct fimc_is_firmware {
 	const struct firmware *f_w;
 
-	dma_addr_t paddr;
+	dma_addr_t addr;
 	void *vaddr;
 	unsigned int size;
 
@@ -188,8 +185,8 @@ struct fimc_is_firmware {
 };
 
 struct fimc_is_memory {
-	/* physical base address */
-	dma_addr_t paddr;
+	/* DMA base address */
+	dma_addr_t addr;
 	/* virtual base address */
 	void *vaddr;
 	/* total length */
@@ -235,15 +232,33 @@ struct chain_config {
  * struct fimc_is - fimc-is data structure
  * @pdev: pointer to FIMC-IS platform device
  * @pctrl: pointer to pinctrl structure for this device
- * @v4l2_dev: pointer to top the level v4l2_device
+ * @v4l2_dev: pointer to the top level v4l2_device
+ * @fw: data structure describing the FIMC-IS firmware binary
+ * @memory: memory region assigned for the FIMC-IS (firmware)
+ * @isp: the ISP block data structure
+ * @sensor: fimc-is sensor subdevice array
+ * @setfile: descriptor of the imaging pipeline calibration data
+ * @ctrl_handler: the v4l2 controls handler
  * @lock: mutex serializing video device and the subdev operations
  * @slock: spinlock protecting this data structure and the hw registers
  * @clocks: FIMC-LITE gate clock
  * @regs: MCUCTL mmapped registers region
  * @pmu_regs: PMU ISP mmapped registers region
+ * @irq: FIMC-IS interrupt
  * @irq_queue: interrupt handling waitqueue
  * @lpm: low power mode flag
  * @state: internal driver's state flags
+ * @sensor_index: image sensor index for the firmware
+ * @i2h_cmd: FIMC-IS to the host (CPU) mailbox command data structure
+ * @h2i_cmd: the host (CPU) to FIMC-IS mailbox command data structure
+ * @fd_header: the face detection result data structure
+ * @config: shared HW pipeline configuration data
+ * @config_index: index to the @config entry currently in use
+ * @is_p_region: pointer to the shared parameter memory region
+ * @is_dma_p_region: DMA address of the shared parameter memory region
+ * @is_shared_region: pointer to the IS shared region data structure
+ * @af: auto focus data
+ * @debugfs_entry: debugfs entry for the firmware log
  */
 struct fimc_is {
 	struct platform_device		*pdev;
@@ -252,7 +267,6 @@ struct fimc_is {
 
 	struct fimc_is_firmware		fw;
 	struct fimc_is_memory		memory;
-	struct firmware			*f_w;
 
 	struct fimc_isp			isp;
 	struct fimc_is_sensor		sensor[FIMC_IS_SENSORS_NUM];

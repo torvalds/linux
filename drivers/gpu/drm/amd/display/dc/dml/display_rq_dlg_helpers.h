@@ -26,7 +26,6 @@
 #ifndef __DISPLAY_RQ_DLG_HELPERS_H__
 #define __DISPLAY_RQ_DLG_HELPERS_H__
 
-#include "dml_common_defs.h"
 #include "display_mode_lib.h"
 
 /* Function: Printer functions

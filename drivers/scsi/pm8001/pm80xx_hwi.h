@@ -220,6 +220,9 @@
 #define SAS_DOPNRJT_RTRY_TMO            128
 #define SAS_COPNRJT_RTRY_TMO            128
 
+#define SPCV_DOORBELL_CLEAR_TIMEOUT	(30 * 50) /* 30 sec */
+#define SPC_DOORBELL_CLEAR_TIMEOUT	(15 * 50) /* 15 sec */
+
 /*
   Making ORR bigger than IT NEXUS LOSS which is 2000000us = 2 second.
   Assuming a bigger value 3 second, 3000000/128 = 23437.5 where 128
@@ -230,6 +233,8 @@
 #define SAS_MAX_AIP                     0x200000
 #define IT_NEXUS_TIMEOUT       0x7D0
 #define PORT_RECOVERY_TIMEOUT  ((IT_NEXUS_TIMEOUT/100) + 30)
+/* Port recovery timeout, 10000 ms for PM8006 controller */
+#define CHIP_8006_PORT_RECOVERY_TIMEOUT 0x640000
 
 #ifdef __LITTLE_ENDIAN_BITFIELD
 struct sas_identify_frame_local {
@@ -1267,6 +1272,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE	0x47
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED	0x48
 #define IO_DS_INVALID					0x49
+#define IO_FATAL_ERROR					0x51
 /* WARNING: the value is not contiguous from here */
 #define IO_XFER_ERR_LAST_PIO_DATAIN_CRC_ERR	0x52
 #define IO_XFER_DMA_ACTIVATE_TIMEOUT		0x53
@@ -1362,6 +1368,19 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define MSGU_HOST_SCRATCH_PAD_5			0x68
 #define MSGU_HOST_SCRATCH_PAD_6			0x6C
 #define MSGU_HOST_SCRATCH_PAD_7			0x70
+
+#define MSGU_SCRATCHPAD1_RAAE_STATE_ERR(x) ((x & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_ILA_STATE_ERR(x) (((x >> 2) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_BOOTLDR_STATE_ERR(x) ((((x >> 4) & 0x7) == 0x7) || \
+						(((x >> 4) & 0x7) == 0x4))
+#define MSGU_SCRATCHPAD1_IOP0_STATE_ERR(x) (((x >> 10) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_IOP1_STATE_ERR(x) (((x >> 12) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_STATE_FATAL_ERROR(x)  \
+			(MSGU_SCRATCHPAD1_RAAE_STATE_ERR(x) ||      \
+			 MSGU_SCRATCHPAD1_ILA_STATE_ERR(x) ||       \
+			 MSGU_SCRATCHPAD1_BOOTLDR_STATE_ERR(x) ||   \
+			 MSGU_SCRATCHPAD1_IOP0_STATE_ERR(x) ||      \
+			 MSGU_SCRATCHPAD1_IOP1_STATE_ERR(x))
 
 /* bit definition for ODMR register */
 #define ODMR_MASK_ALL			0xFFFFFFFF/* mask all
@@ -1634,3 +1653,9 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 
 #define MEMBASE_II_SHIFT_REGISTER       0x1010
 #endif
+
+/**
+ * As we know sleep (1~20) ms may result in sleep longer than ~20 ms, hence we
+ * choose 20 ms interval.
+ */
+#define FW_READY_INTERVAL	20

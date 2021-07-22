@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is a module which is used for logging packets to userspace via
  * nfetlink.
@@ -7,10 +8,6 @@
  *
  * Based on the old ipv4-only ipt_ULOG.c:
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -44,6 +41,10 @@
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include "../bridge/br_private.h"
+#endif
+
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#include <net/netfilter/nf_conntrack.h>
 #endif
 
 #define NFULNL_COPY_DISABLED	0xff
@@ -148,7 +149,7 @@ static void
 instance_put(struct nfulnl_instance *inst)
 {
 	if (inst && refcount_dec_and_test(&inst->use))
-		call_rcu_bh(&inst->rcu, nfulnl_instance_free_rcu);
+		call_rcu(&inst->rcu, nfulnl_instance_free_rcu);
 }
 
 static void nfulnl_timer(struct timer_list *t);
@@ -359,8 +360,7 @@ __nfulnl_send(struct nfulnl_instance *inst)
 			goto out;
 		}
 	}
-	nfnetlink_unicast(inst->skb, inst->net, inst->peer_portid,
-			  MSG_DONTWAIT);
+	nfnetlink_unicast(inst->skb, inst->net, inst->peer_portid);
 out:
 	inst->qlen = 0;
 	inst->skb = NULL;
@@ -388,6 +388,57 @@ nfulnl_timer(struct timer_list *t)
 	instance_put(inst);
 }
 
+static u32 nfulnl_get_bridge_size(const struct sk_buff *skb)
+{
+	u32 size = 0;
+
+	if (!skb_mac_header_was_set(skb))
+		return 0;
+
+	if (skb_vlan_tag_present(skb)) {
+		size += nla_total_size(0); /* nested */
+		size += nla_total_size(sizeof(u16)); /* id */
+		size += nla_total_size(sizeof(u16)); /* tag */
+	}
+
+	if (skb->network_header > skb->mac_header)
+		size += nla_total_size(skb->network_header - skb->mac_header);
+
+	return size;
+}
+
+static int nfulnl_put_bridge(struct nfulnl_instance *inst, const struct sk_buff *skb)
+{
+	if (!skb_mac_header_was_set(skb))
+		return 0;
+
+	if (skb_vlan_tag_present(skb)) {
+		struct nlattr *nest;
+
+		nest = nla_nest_start(inst->skb, NFULA_VLAN);
+		if (!nest)
+			goto nla_put_failure;
+
+		if (nla_put_be16(inst->skb, NFULA_VLAN_TCI, htons(skb->vlan_tci)) ||
+		    nla_put_be16(inst->skb, NFULA_VLAN_PROTO, skb->vlan_proto))
+			goto nla_put_failure;
+
+		nla_nest_end(inst->skb, nest);
+	}
+
+	if (skb->mac_header < skb->network_header) {
+		int len = (int)(skb->network_header - skb->mac_header);
+
+		if (nla_put(inst->skb, NFULA_L2HDR, len, skb_mac_header(skb)))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 /* This is an inline function, we don't really care about a long
  * list of arguments */
 static inline int
@@ -405,20 +456,15 @@ __build_packet_message(struct nfnl_log_net *log,
 {
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
-	struct nfgenmsg *nfmsg;
 	sk_buff_data_t old_tail = inst->skb->tail;
 	struct sock *sk;
 	const unsigned char *hwhdrp;
 
-	nlh = nlmsg_put(inst->skb, 0, 0,
-			nfnl_msg_type(NFNL_SUBSYS_ULOG, NFULNL_MSG_PACKET),
-			sizeof(struct nfgenmsg), 0);
+	nlh = nfnl_msg_put(inst->skb, 0, 0,
+			   nfnl_msg_type(NFNL_SUBSYS_ULOG, NFULNL_MSG_PACKET),
+			   0, pf, NFNETLINK_V0, htons(inst->group_num));
 	if (!nlh)
 		return -1;
-	nfmsg = nlmsg_data(nlh);
-	nfmsg->nfgen_family = pf;
-	nfmsg->version = NFNETLINK_V0;
-	nfmsg->res_id = htons(inst->group_num);
 
 	memset(&pmsg, 0, sizeof(pmsg));
 	pmsg.hw_protocol	= skb->protocol;
@@ -540,7 +586,7 @@ __build_packet_message(struct nfnl_log_net *log,
 			goto nla_put_failure;
 	}
 
-	if (skb->tstamp) {
+	if (hooknum <= NF_INET_FORWARD && skb->tstamp) {
 		struct nfulnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
 		ts.sec = cpu_to_be64(kts.tv_sec);
@@ -581,6 +627,10 @@ __build_packet_message(struct nfnl_log_net *log,
 
 	if (ct && nfnl_ct->build(inst->skb, ct, ctinfo,
 				 NFULA_CT, NFULA_CT_INFO) < 0)
+		goto nla_put_failure;
+
+	if ((pf == NFPROTO_NETDEV || pf == NFPROTO_BRIDGE) &&
+	    nfulnl_put_bridge(inst, skb) < 0)
 		goto nla_put_failure;
 
 	if (data_len) {
@@ -637,7 +687,7 @@ nfulnl_log_packet(struct net *net,
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
 	const struct nfnl_ct_hook *nfnl_ct = NULL;
 	struct nf_conn *ct = NULL;
-	enum ip_conntrack_info uninitialized_var(ctinfo);
+	enum ip_conntrack_info ctinfo;
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)
 		li = li_user;
@@ -654,7 +704,7 @@ nfulnl_log_packet(struct net *net,
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
 	 * memory efficient... */
-	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
+	size = nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
@@ -671,7 +721,7 @@ nfulnl_log_packet(struct net *net,
 		+ nla_total_size(sizeof(struct nfgenmsg));	/* NLMSG_DONE */
 
 	if (in && skb_mac_header_was_set(skb)) {
-		size +=   nla_total_size(skb->dev->hard_header_len)
+		size += nla_total_size(skb->dev->hard_header_len)
 			+ nla_total_size(sizeof(u_int16_t))	/* hwtype */
 			+ nla_total_size(sizeof(u_int16_t));	/* hwlen */
 	}
@@ -682,14 +732,18 @@ nfulnl_log_packet(struct net *net,
 		size += nla_total_size(sizeof(u_int32_t));
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL)
 		size += nla_total_size(sizeof(u_int32_t));
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	if (inst->flags & NFULNL_CFG_F_CONNTRACK) {
 		nfnl_ct = rcu_dereference(nfnl_ct_hook);
 		if (nfnl_ct != NULL) {
-			ct = nfnl_ct->get_ct(skb, &ctinfo);
+			ct = nf_ct_get(skb, &ctinfo);
 			if (ct != NULL)
 				size += nfnl_ct->build_size(ct);
 		}
 	}
+#endif
+	if (pf == NFPROTO_NETDEV || pf == NFPROTO_BRIDGE)
+		size += nfulnl_get_bridge_size(skb);
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
@@ -791,10 +845,8 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 	.notifier_call	= nfulnl_rcv_nl_event,
 };
 
-static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[],
-			      struct netlink_ext_ack *extack)
+static int nfulnl_recv_unsupp(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nfula[])
 {
 	return -ENOTSUPP;
 }
@@ -815,29 +867,26 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 	[NFULA_CFG_FLAGS]	= { .type = NLA_U16 },
 };
 
-static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfula[],
-			      struct netlink_ext_ack *extack)
+static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nfula[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u_int16_t group_num = ntohs(nfmsg->res_id);
-	struct nfulnl_instance *inst;
+	struct nfnl_log_net *log = nfnl_log_pernet(info->net);
+	u_int16_t group_num = ntohs(info->nfmsg->res_id);
 	struct nfulnl_msg_config_cmd *cmd = NULL;
-	struct nfnl_log_net *log = nfnl_log_pernet(net);
-	int ret = 0;
+	struct nfulnl_instance *inst;
 	u16 flags = 0;
+	int ret = 0;
 
 	if (nfula[NFULA_CFG_CMD]) {
-		u_int8_t pf = nfmsg->nfgen_family;
+		u_int8_t pf = info->nfmsg->nfgen_family;
 		cmd = nla_data(nfula[NFULA_CFG_CMD]);
 
 		/* Commands without queue context */
 		switch (cmd->command) {
 		case NFULNL_CFG_CMD_PF_BIND:
-			return nf_log_bind_pf(net, pf, &nfulnl_logger);
+			return nf_log_bind_pf(info->net, pf, &nfulnl_logger);
 		case NFULNL_CFG_CMD_PF_UNBIND:
-			nf_log_unbind_pf(net, pf);
+			nf_log_unbind_pf(info->net, pf);
 			return 0;
 		}
 	}
@@ -878,7 +927,7 @@ static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 				goto out_put;
 			}
 
-			inst = instance_create(net, group_num,
+			inst = instance_create(info->net, group_num,
 					       NETLINK_CB(skb).portid,
 					       sk_user_ns(NETLINK_CB(skb).sk));
 			if (IS_ERR(inst)) {
@@ -939,11 +988,17 @@ out:
 }
 
 static const struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
-	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
-				    .attr_count = NFULA_MAX, },
-	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
-				    .attr_count = NFULA_CFG_MAX,
-				    .policy = nfula_cfg_policy },
+	[NFULNL_MSG_PACKET]	= {
+		.call		= nfulnl_recv_unsupp,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFULA_MAX,
+	},
+	[NFULNL_MSG_CONFIG]	= {
+		.call		= nfulnl_recv_config,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFULA_CFG_MAX,
+		.policy		= nfula_cfg_policy
+	},
 };
 
 static const struct nfnetlink_subsystem nfulnl_subsys = {

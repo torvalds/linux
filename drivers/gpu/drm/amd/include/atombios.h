@@ -1987,9 +1987,9 @@ typedef struct _PIXEL_CLOCK_PARAMETERS_V6
 #define PIXEL_CLOCK_V6_MISC_HDMI_BPP_MASK           0x0c
 #define PIXEL_CLOCK_V6_MISC_HDMI_24BPP              0x00
 #define PIXEL_CLOCK_V6_MISC_HDMI_36BPP              0x04
-#define PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6           0x08    //for V6, the correct defintion for 36bpp should be 2 for 36bpp(2:1)
+#define PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6           0x08    //for V6, the correct definition for 36bpp should be 2 for 36bpp(2:1)
 #define PIXEL_CLOCK_V6_MISC_HDMI_30BPP              0x08
-#define PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6           0x04    //for V6, the correct defintion for 30bpp should be 1 for 36bpp(5:4)
+#define PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6           0x04    //for V6, the correct definition for 30bpp should be 1 for 36bpp(5:4)
 #define PIXEL_CLOCK_V6_MISC_HDMI_48BPP              0x0c
 #define PIXEL_CLOCK_V6_MISC_REF_DIV_SRC             0x10
 #define PIXEL_CLOCK_V6_MISC_GEN_DPREFCLK            0x40
@@ -4106,7 +4106,7 @@ typedef struct  _ATOM_LCD_MODE_CONTROL_CAP
 typedef struct _ATOM_FAKE_EDID_PATCH_RECORD
 {
   UCHAR ucRecordType;
-  UCHAR ucFakeEDIDLength;       // = 128 means EDID lenght is 128 bytes, otherwise the EDID length = ucFakeEDIDLength*128
+  UCHAR ucFakeEDIDLength;       // = 128 means EDID length is 128 bytes, otherwise the EDID length = ucFakeEDIDLength*128
   UCHAR ucFakeEDIDString[1];    // This actually has ucFakeEdidLength elements.
 } ATOM_FAKE_EDID_PATCH_RECORD;
 
@@ -5178,11 +5178,11 @@ typedef struct  _ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 typedef struct  _ATOM_SVID2_VOLTAGE_OBJECT_V3
 {
    ATOM_VOLTAGE_OBJECT_HEADER_V3 sHeader;    // voltage mode = VOLTAGE_OBJ_SVID2
-// 14:7 � PSI0_VID
-// 6 � PSI0_EN
-// 5 � PSI1
-// 4:2 � load line slope trim.
-// 1:0 � offset trim,
+// 14:7 - PSI0_VID
+// 6 - PSI0_EN
+// 5 - PSI1
+// 4:2 - load line slope trim.
+// 1:0 - offset trim,
    USHORT   usLoadLine_PSI;
 // GPU GPIO pin Id to SVID2 regulator VRHot pin. possible value 0~31. 0 means GPIO0, 31 means GPIO31
    UCHAR    ucSVDGpioId;     //0~31 indicate GPIO0~31
@@ -5636,7 +5636,9 @@ typedef struct  _ATOM_SMU_INFO_V2_1
 {
   ATOM_COMMON_TABLE_HEADER         asHeader;
   UCHAR ucSclkEntryNum;            // for potential future extend, indicate the number of ATOM_SCLK_FCW_RANGE_ENTRY_V1
-  UCHAR ucReserved[3];
+  UCHAR ucSMUVer;
+  UCHAR ucSharePowerSource;
+  UCHAR ucReserved;
   ATOM_SCLK_FCW_RANGE_ENTRY_V1     asSclkFcwRangeEntry[8];
 }ATOM_SMU_INFO_V2_1;
 
@@ -5655,6 +5657,22 @@ typedef struct  _ATOM_GFX_INFO_V2_1
   UCHAR max_texture_channel_caches;
 }ATOM_GFX_INFO_V2_1;
 
+typedef struct  _ATOM_GFX_INFO_V2_3
+{
+  ATOM_COMMON_TABLE_HEADER asHeader;
+  UCHAR GfxIpMinVer;
+  UCHAR GfxIpMajVer;
+  UCHAR max_shader_engines;
+  UCHAR max_tile_pipes;
+  UCHAR max_cu_per_sh;
+  UCHAR max_sh_per_se;
+  UCHAR max_backends_per_se;
+  UCHAR max_texture_channel_caches;
+  USHORT usHiLoLeakageThreshold;
+  USHORT usEdcDidtLoDpm7TableOffset; //offset of DPM7 low leakage table _ATOM_EDC_DIDT_TABLE_V1
+  USHORT usEdcDidtHiDpm7TableOffset; //offset of DPM7 high leakage table _ATOM_EDC_DIDT_TABLE_V1
+  USHORT usReserverd[3];
+}ATOM_GFX_INFO_V2_3;
 
 typedef struct _ATOM_POWER_SOURCE_OBJECT
 {

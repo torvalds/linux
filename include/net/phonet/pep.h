@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * File: pep.h
  *
  * Phonet Pipe End Point sockets definitions
  *
  * Copyright (C) 2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef NET_PHONET_PEP_H
@@ -63,10 +50,11 @@ struct pnpipehdr {
 		u8		state_after_reset;	/* reset request */
 		u8		error_code;		/* any response */
 		u8		pep_type;		/* status indication */
-		u8		data[1];
+		u8		data0;			/* anything else */
 	};
+	u8			data[];
 };
-#define other_pep_type		data[1]
+#define other_pep_type		data[0]
 
 static inline struct pnpipehdr *pnp_hdr(struct sk_buff *skb)
 {

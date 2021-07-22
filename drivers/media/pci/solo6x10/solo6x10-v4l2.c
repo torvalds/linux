@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <https://www.bluecherrydvr.com>
  *
  * Original author:
  * Ben Collins <bcollins@ubuntu.com>
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -387,9 +378,6 @@ static int solo_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, "Softlogic 6x10", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -470,8 +458,6 @@ static int solo_enum_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
-	strscpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
-
 	return 0;
 }
 
@@ -491,7 +477,6 @@ static int solo_try_fmt_cap(struct file *file, void *priv,
 	pix->field = V4L2_FIELD_INTERLACED;
 	pix->pixelformat = V4L2_PIX_FMT_UYVY;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pix->priv = 0;
 	return 0;
 }
 
@@ -521,7 +506,6 @@ static int solo_get_fmt_cap(struct file *file, void *priv,
 	pix->sizeimage = solo_image_size(solo_dev);
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->bytesperline = solo_bytesperline(solo_dev);
-	pix->priv = 0;
 
 	return 0;
 }
@@ -637,6 +621,8 @@ static const struct video_device solo_v4l2_template = {
 	.minor			= -1,
 	.release		= video_device_release,
 	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_ctrl_ops solo_ctrl_ops = {
@@ -706,7 +692,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	while (erase_off(solo_dev))
 		/* Do nothing */;
 
-	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
+	ret = video_register_device(solo_dev->vfd, VFL_TYPE_VIDEO, nr);
 	if (ret < 0)
 		goto fail;
 

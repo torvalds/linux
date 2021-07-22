@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* arch/arm/include/debug/sa1100.S
  *
  * Debugging macro include header
  *
  *  Copyright (C) 1994-1999 Russell King
  *  Moved from linux/arch/arm/kernel/debug.S by Ben Dooks
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #define UTCR3		0x0c
@@ -55,7 +51,10 @@
 		str	\rd, [\rx, #UTDR]
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 1001:		ldr	\rd, [\rx, #UTSR1]
 		tst	\rd, #UTSR1_TNF
 		beq	1001b

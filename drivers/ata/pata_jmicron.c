@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    pata_jmicron.c - JMicron ATA driver for non AHCI mode. This drives the
  *			PATA port of the controller. The SATA ports are
@@ -119,7 +120,7 @@ static struct ata_port_operations jmicron_ops = {
 /**
  *	jmicron_init_one - Register Jmicron ATA PCI device with kernel services
  *	@pdev: PCI device to register
- *	@ent: Entry in jmicron_pci_tbl matching with @pdev
+ *	@id: PCI device ID
  *
  *	Called from kernel PCI layer.
  *

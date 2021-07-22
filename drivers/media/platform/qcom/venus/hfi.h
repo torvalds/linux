@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef __HFI_H__
 #define __HFI_H__
@@ -111,6 +102,7 @@ struct hfi_inst_ops {
 			 u32 hfi_flags, u64 timestamp_us);
 	void (*event_notify)(struct venus_inst *inst, u32 event,
 			     struct hfi_event_data *data);
+	void (*flush_done)(struct venus_inst *inst);
 };
 
 struct hfi_ops {
@@ -153,6 +145,7 @@ struct hfi_ops {
 
 int hfi_create(struct venus_core *core, const struct hfi_core_ops *ops);
 void hfi_destroy(struct venus_core *core);
+void hfi_reinit(struct venus_core *core);
 
 int hfi_core_init(struct venus_core *core);
 int hfi_core_deinit(struct venus_core *core, bool blocking);
@@ -170,7 +163,7 @@ int hfi_session_continue(struct venus_inst *inst);
 int hfi_session_abort(struct venus_inst *inst);
 int hfi_session_load_res(struct venus_inst *inst);
 int hfi_session_unload_res(struct venus_inst *inst);
-int hfi_session_flush(struct venus_inst *inst);
+int hfi_session_flush(struct venus_inst *inst, u32 type, bool block);
 int hfi_session_set_buffers(struct venus_inst *inst,
 			    struct hfi_buffer_desc *bd);
 int hfi_session_unset_buffers(struct venus_inst *inst,

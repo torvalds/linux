@@ -544,6 +544,10 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 		io_read_num_rec_bytes(iobase, &num_bytes_read);
 		if (num_bytes_read >= 4) {
 			DEBUGP(2, dev, "NumRecBytes = %i\n", num_bytes_read);
+			if (num_bytes_read > 4) {
+				rc = -EIO;
+				goto exit_setprotocol;
+			}
 			break;
 		}
 		usleep_range(10000, 11000);
@@ -731,8 +735,9 @@ static void monitor_card(struct timer_list *t)
 	}
 
 	switch (dev->mstate) {
+	case M_CARDOFF: {
 		unsigned char flags0;
-	case M_CARDOFF:
+
 		DEBUGP(4, dev, "M_CARDOFF\n");
 		flags0 = inb(REG_FLAGS0(iobase));
 		if (flags0 & 0x02) {
@@ -755,6 +760,7 @@ static void monitor_card(struct timer_list *t)
 			dev->mdelay = T_50MSEC;
 		}
 		break;
+	}
 	case M_FETCH_ATR:
 		DEBUGP(4, dev, "M_FETCH_ATR\n");
 		xoutb(0x80, REG_FLAGS0(iobase));
@@ -1048,7 +1054,6 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	struct cm4000_dev *dev = filp->private_data;
 	unsigned int iobase = dev->p_dev->resource[0]->start;
 	unsigned short s;
-	unsigned char tmp;
 	unsigned char infolen;
 	unsigned char sendT0;
 	unsigned short nsend;
@@ -1146,7 +1151,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	set_cardparameter(dev);
 
 	/* dummy read, reset flag procedure received */
-	tmp = inb(REG_FLAGS1(iobase));
+	inb(REG_FLAGS1(iobase));
 
 	dev->flags1 = 0x20	/* T_Active */
 	    | (sendT0)
@@ -1402,7 +1407,6 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned int iobase = dev->p_dev->resource[0]->start;
 	struct inode *inode = file_inode(filp);
 	struct pcmcia_device *link;
-	int size;
 	int rc;
 	void __user *argp = (void __user *)arg;
 #ifdef CM4000_DEBUG
@@ -1438,19 +1442,6 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (_IOC_NR(cmd) > CM_IOC_MAXNR) {
 		DEBUGP(4, dev, "iocnr mismatch\n");
 		goto out;
-	}
-	size = _IOC_SIZE(cmd);
-	rc = -EFAULT;
-	DEBUGP(4, dev, "iocdir=%.4x iocr=%.4x iocw=%.4x iocsize=%d cmd=%.4x\n",
-	      _IOC_DIR(cmd), _IOC_READ, _IOC_WRITE, size, cmd);
-
-	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (!access_ok(VERIFY_WRITE, argp, size))
-			goto out;
-	}
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (!access_ok(VERIFY_READ, argp, size))
-			goto out;
 	}
 	rc = 0;
 
@@ -1682,7 +1673,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	link->open = 1;		/* only one open per device */
 
 	DEBUGP(2, dev, "<- cmm_open\n");
-	ret = nonseekable_open(inode, filp);
+	ret = stream_open(inode, filp);
 out:
 	mutex_unlock(&cmm_mutex);
 	return ret;

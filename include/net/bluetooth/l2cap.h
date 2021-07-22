@@ -47,6 +47,7 @@
 #define L2CAP_DEFAULT_ACC_LAT		0xFFFFFFFF
 #define L2CAP_BREDR_MAX_PAYLOAD		1019    /* 3-DH5 packet */
 #define L2CAP_LE_MIN_MTU		23
+#define L2CAP_ECRED_CONN_SCID_MAX	5
 
 #define L2CAP_DISC_TIMEOUT		msecs_to_jiffies(100)
 #define L2CAP_DISC_REJ_TIMEOUT		msecs_to_jiffies(5000)
@@ -119,6 +120,10 @@ struct l2cap_conninfo {
 #define L2CAP_LE_CONN_REQ	0x14
 #define L2CAP_LE_CONN_RSP	0x15
 #define L2CAP_LE_CREDITS	0x16
+#define L2CAP_ECRED_CONN_REQ	0x17
+#define L2CAP_ECRED_CONN_RSP	0x18
+#define L2CAP_ECRED_RECONF_REQ	0x19
+#define L2CAP_ECRED_RECONF_RSP	0x1a
 
 /* L2CAP extended feature mask */
 #define L2CAP_FEAT_FLOWCTL	0x00000001
@@ -202,6 +207,7 @@ struct l2cap_hdr {
 	__le16     len;
 	__le16     cid;
 } __packed;
+#define L2CAP_LEN_SIZE		2
 #define L2CAP_HDR_SIZE		4
 #define L2CAP_ENH_HDR_SIZE	6
 #define L2CAP_EXT_HDR_SIZE	8
@@ -290,6 +296,8 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_LE_ENCRYPTION		0x0008
 #define L2CAP_CR_LE_INVALID_SCID	0x0009
 #define L2CAP_CR_LE_SCID_IN_USE		0X000A
+#define L2CAP_CR_LE_UNACCEPT_PARAMS	0X000B
+#define L2CAP_CR_LE_INVALID_PARAMS	0X000C
 
 /* connect/create channel status */
 #define L2CAP_CS_NO_INFO	0x0000
@@ -299,14 +307,14 @@ struct l2cap_conn_rsp {
 struct l2cap_conf_req {
 	__le16     dcid;
 	__le16     flags;
-	__u8       data[0];
+	__u8       data[];
 } __packed;
 
 struct l2cap_conf_rsp {
 	__le16     scid;
 	__le16     flags;
 	__le16     result;
-	__u8       data[0];
+	__u8       data[];
 } __packed;
 
 #define L2CAP_CONF_SUCCESS	0x0000
@@ -322,7 +330,7 @@ struct l2cap_conf_rsp {
 struct l2cap_conf_opt {
 	__u8       type;
 	__u8       len;
-	__u8       val[0];
+	__u8       val[];
 } __packed;
 #define L2CAP_CONF_OPT_SIZE	2
 
@@ -359,6 +367,7 @@ struct l2cap_conf_rfc {
  * ever be used in the BR/EDR configuration phase.
  */
 #define L2CAP_MODE_LE_FLOWCTL	0x80
+#define L2CAP_MODE_EXT_FLOWCTL	0x81
 
 struct l2cap_conf_efs {
 	__u8	id;
@@ -392,7 +401,7 @@ struct l2cap_info_req {
 struct l2cap_info_rsp {
 	__le16      type;
 	__le16      result;
-	__u8        data[0];
+	__u8        data[];
 } __packed;
 
 struct l2cap_create_chan_req {
@@ -481,6 +490,40 @@ struct l2cap_le_conn_rsp {
 struct l2cap_le_credits {
 	__le16     cid;
 	__le16     credits;
+} __packed;
+
+#define L2CAP_ECRED_MIN_MTU		64
+#define L2CAP_ECRED_MIN_MPS		64
+#define L2CAP_ECRED_MAX_CID		5
+
+struct l2cap_ecred_conn_req {
+	__le16 psm;
+	__le16 mtu;
+	__le16 mps;
+	__le16 credits;
+	__le16 scid[];
+} __packed;
+
+struct l2cap_ecred_conn_rsp {
+	__le16 mtu;
+	__le16 mps;
+	__le16 credits;
+	__le16 result;
+	__le16 dcid[];
+};
+
+struct l2cap_ecred_reconf_req {
+	__le16 mtu;
+	__le16 mps;
+	__le16 scid[];
+} __packed;
+
+#define L2CAP_RECONF_SUCCESS		0x0000
+#define L2CAP_RECONF_INVALID_MTU	0x0001
+#define L2CAP_RECONF_INVALID_MPS	0x0002
+
+struct l2cap_ecred_reconf_rsp {
+	__le16 result;
 } __packed;
 
 /* ----- L2CAP channels and connections ----- */
@@ -620,9 +663,12 @@ struct l2cap_ops {
 	void			(*suspend) (struct l2cap_chan *chan);
 	void			(*set_shutdown) (struct l2cap_chan *chan);
 	long			(*get_sndtimeo) (struct l2cap_chan *chan);
+	struct pid		*(*get_peer_pid) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long hdr_len,
 					       unsigned long len, int nb);
+	int			(*filter) (struct l2cap_chan * chan,
+					   struct sk_buff *skb);
 };
 
 struct l2cap_conn {
@@ -724,6 +770,7 @@ enum {
 	FLAG_EFS_ENABLE,
 	FLAG_DEFER_SETUP,
 	FLAG_LE_CONN_REQ_SENT,
+	FLAG_ECRED_CONN_REQ_SENT,
 	FLAG_PENDING_SECURITY,
 	FLAG_HOLD_HCI_CONN,
 };
@@ -917,12 +964,14 @@ static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 }
 
 extern bool disable_ertm;
+extern bool enable_ecred;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 bool l2cap_is_socket(struct socket *sock);
 
 void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan);
+void __l2cap_ecred_conn_rsp_defer(struct l2cap_chan *chan);
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
@@ -932,6 +981,7 @@ struct l2cap_chan *l2cap_chan_create(void);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type);
+int l2cap_chan_reconfigure(struct l2cap_chan *chan, __u16 mtu);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
 int l2cap_chan_check_security(struct l2cap_chan *chan, bool initiator);
@@ -939,6 +989,9 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
+typedef void (*l2cap_chan_func_t)(struct l2cap_chan *chan, void *data);
+void l2cap_chan_list(struct l2cap_conn *conn, l2cap_chan_func_t func,
+		     void *data);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
 void l2cap_move_start(struct l2cap_chan *chan);

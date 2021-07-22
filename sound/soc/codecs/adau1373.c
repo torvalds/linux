@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Analog Devices ADAU1373 Audio Codec drive
  *
  * Copyright 2011 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -1206,7 +1205,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.id = 1,
@@ -1226,7 +1225,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.id = 2,
@@ -1246,7 +1245,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 

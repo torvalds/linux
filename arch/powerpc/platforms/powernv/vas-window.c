@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016-17 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "vas: " fmt
@@ -16,8 +12,11 @@
 #include <linux/log2.h>
 #include <linux/rcupdate.h>
 #include <linux/cred.h>
+#include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 #include <asm/switch_to.h>
 #include <asm/ppc-opcode.h>
+#include <asm/vas.h>
 #include "vas.h"
 #include "copy-paste.h"
 
@@ -28,14 +27,14 @@
  * Compute the paste address region for the window @window using the
  * ->paste_base_addr and ->paste_win_id_shift we got from device tree.
  */
-static void compute_paste_address(struct vas_window *window, u64 *addr, int *len)
+void vas_win_paste_addr(struct pnv_vas_window *window, u64 *addr, int *len)
 {
 	int winid;
 	u64 base, shift;
 
 	base = window->vinst->paste_base_addr;
 	shift = window->vinst->paste_win_id_shift;
-	winid = window->winid;
+	winid = window->vas_win.winid;
 
 	*addr  = base + (winid << shift);
 	if (len)
@@ -44,33 +43,23 @@ static void compute_paste_address(struct vas_window *window, u64 *addr, int *len
 	pr_debug("Txwin #%d: Paste addr 0x%llx\n", winid, *addr);
 }
 
-u64 vas_win_paste_addr(struct vas_window *win)
-{
-	u64 addr;
-
-	compute_paste_address(win, &addr, NULL);
-
-	return addr;
-}
-EXPORT_SYMBOL(vas_win_paste_addr);
-
-static inline void get_hvwc_mmio_bar(struct vas_window *window,
+static inline void get_hvwc_mmio_bar(struct pnv_vas_window *window,
 			u64 *start, int *len)
 {
 	u64 pbaddr;
 
 	pbaddr = window->vinst->hvwc_bar_start;
-	*start = pbaddr + window->winid * VAS_HVWC_SIZE;
+	*start = pbaddr + window->vas_win.winid * VAS_HVWC_SIZE;
 	*len = VAS_HVWC_SIZE;
 }
 
-static inline void get_uwc_mmio_bar(struct vas_window *window,
+static inline void get_uwc_mmio_bar(struct pnv_vas_window *window,
 			u64 *start, int *len)
 {
 	u64 pbaddr;
 
 	pbaddr = window->vinst->uwc_bar_start;
-	*start = pbaddr + window->winid * VAS_UWC_SIZE;
+	*start = pbaddr + window->vas_win.winid * VAS_UWC_SIZE;
 	*len = VAS_UWC_SIZE;
 }
 
@@ -79,7 +68,7 @@ static inline void get_uwc_mmio_bar(struct vas_window *window,
  * space. Unlike MMIO regions (map_mmio_region() below), paste region must
  * be mapped cache-able and is only applicable to send windows.
  */
-static void *map_paste_region(struct vas_window *txwin)
+static void *map_paste_region(struct pnv_vas_window *txwin)
 {
 	int len;
 	void *map;
@@ -87,12 +76,12 @@ static void *map_paste_region(struct vas_window *txwin)
 	u64 start;
 
 	name = kasprintf(GFP_KERNEL, "window-v%d-w%d", txwin->vinst->vas_id,
-				txwin->winid);
+				txwin->vas_win.winid);
 	if (!name)
 		goto free_name;
 
 	txwin->paste_addr_name = name;
-	compute_paste_address(txwin, &start, &len);
+	vas_win_paste_addr(txwin, &start, &len);
 
 	if (!request_mem_region(start, len, name)) {
 		pr_devel("%s(): request_mem_region(0x%llx, %d) failed\n",
@@ -144,13 +133,13 @@ static void unmap_region(void *addr, u64 start, int len)
 /*
  * Unmap the paste address region for a window.
  */
-static void unmap_paste_region(struct vas_window *window)
+static void unmap_paste_region(struct pnv_vas_window *window)
 {
 	int len;
 	u64 busaddr_start;
 
 	if (window->paste_kaddr) {
-		compute_paste_address(window, &busaddr_start, &len);
+		vas_win_paste_addr(window, &busaddr_start, &len);
 		unmap_region(window->paste_kaddr, busaddr_start, len);
 		window->paste_kaddr = NULL;
 		kfree(window->paste_addr_name);
@@ -165,7 +154,7 @@ static void unmap_paste_region(struct vas_window *window)
  * path, just minimize the time we hold the mutex for now. We can add
  * a per-instance mutex later if necessary.
  */
-static void unmap_winctx_mmio_bars(struct vas_window *window)
+static void unmap_winctx_mmio_bars(struct pnv_vas_window *window)
 {
 	int len;
 	void *uwc_map;
@@ -198,7 +187,7 @@ static void unmap_winctx_mmio_bars(struct vas_window *window)
  * OS/User Window Context (UWC) MMIO Base Address Region for the given window.
  * Map these bus addresses and save the mapped kernel addresses in @window.
  */
-int map_winctx_mmio_bars(struct vas_window *window)
+static int map_winctx_mmio_bars(struct pnv_vas_window *window)
 {
 	int len;
 	u64 start;
@@ -226,7 +215,7 @@ int map_winctx_mmio_bars(struct vas_window *window)
  *	 registers are not sequential. And, we can only write to offsets
  *	 with valid registers.
  */
-void reset_window_regs(struct vas_window *window)
+static void reset_window_regs(struct pnv_vas_window *window)
 {
 	write_hvwc_reg(window, VREG(LPID), 0ULL);
 	write_hvwc_reg(window, VREG(PID), 0ULL);
@@ -282,7 +271,7 @@ void reset_window_regs(struct vas_window *window)
  * want to add fields to vas_winctx and move the initialization to
  * init_vas_winctx_regs().
  */
-static void init_xlate_regs(struct vas_window *window, bool user_win)
+static void init_xlate_regs(struct pnv_vas_window *window, bool user_win)
 {
 	u64 lpcr, val;
 
@@ -347,7 +336,7 @@ static void init_xlate_regs(struct vas_window *window, bool user_win)
  *
  * TODO: Reserved (aka dedicated) send buffers are not supported yet.
  */
-static void init_rsvd_tx_buf_count(struct vas_window *txwin,
+static void init_rsvd_tx_buf_count(struct pnv_vas_window *txwin,
 				struct vas_winctx *winctx)
 {
 	write_hvwc_reg(txwin, VREG(TX_RSVD_BUF_COUNT), 0ULL);
@@ -369,7 +358,8 @@ static void init_rsvd_tx_buf_count(struct vas_window *txwin,
  *	as a one-time task? That could work for NX but what about other
  *	receivers?  Let the receivers tell us the rx-fifo buffers for now.
  */
-int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
+static void init_winctx_regs(struct pnv_vas_window *window,
+			     struct vas_winctx *winctx)
 {
 	u64 val;
 	int fifo_size;
@@ -387,7 +377,7 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	init_xlate_regs(window, winctx->user_win);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_FAULT_TX_WIN, val, 0);
+	val = SET_FIELD(VAS_FAULT_TX_WIN, val, winctx->fault_win_id);
 	write_hvwc_reg(window, VREG(FAULT_TX_WIN), val);
 
 	/* In PowerNV, interrupts go to HV. */
@@ -511,8 +501,6 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	val = SET_FIELD(VAS_WINCTL_NX_WIN, val, winctx->nx_win);
 	val = SET_FIELD(VAS_WINCTL_OPEN, val, 1);
 	write_hvwc_reg(window, VREG(WINCTL), val);
-
-	return 0;
 }
 
 static void vas_release_window_id(struct ida *ida, int winid)
@@ -532,10 +520,10 @@ static int vas_assign_window_id(struct ida *ida)
 	return winid;
 }
 
-static void vas_window_free(struct vas_window *window)
+static void vas_window_free(struct pnv_vas_window *window)
 {
-	int winid = window->winid;
 	struct vas_instance *vinst = window->vinst;
+	int winid = window->vas_win.winid;
 
 	unmap_winctx_mmio_bars(window);
 
@@ -546,10 +534,10 @@ static void vas_window_free(struct vas_window *window)
 	vas_release_window_id(&vinst->ida, winid);
 }
 
-static struct vas_window *vas_window_alloc(struct vas_instance *vinst)
+static struct pnv_vas_window *vas_window_alloc(struct vas_instance *vinst)
 {
 	int winid;
-	struct vas_window *window;
+	struct pnv_vas_window *window;
 
 	winid = vas_assign_window_id(&vinst->ida);
 	if (winid < 0)
@@ -560,7 +548,7 @@ static struct vas_window *vas_window_alloc(struct vas_instance *vinst)
 		goto out_free;
 
 	window->vinst = vinst;
-	window->winid = winid;
+	window->vas_win.winid = winid;
 
 	if (map_winctx_mmio_bars(window))
 		goto out_free;
@@ -575,7 +563,7 @@ out_free:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void put_rx_win(struct vas_window *rxwin)
+static void put_rx_win(struct pnv_vas_window *rxwin)
 {
 	/* Better not be a send window! */
 	WARN_ON_ONCE(rxwin->tx_win);
@@ -591,10 +579,11 @@ static void put_rx_win(struct vas_window *rxwin)
  *
  * NOTE: We access ->windows[] table and assume that vinst->mutex is held.
  */
-static struct vas_window *get_user_rxwin(struct vas_instance *vinst, u32 pswid)
+static struct pnv_vas_window *get_user_rxwin(struct vas_instance *vinst,
+					     u32 pswid)
 {
 	int vasid, winid;
-	struct vas_window *rxwin;
+	struct pnv_vas_window *rxwin;
 
 	decode_pswid(pswid, &vasid, &winid);
 
@@ -603,7 +592,7 @@ static struct vas_window *get_user_rxwin(struct vas_instance *vinst, u32 pswid)
 
 	rxwin = vinst->windows[winid];
 
-	if (!rxwin || rxwin->tx_win || rxwin->cop != VAS_COP_TYPE_FTW)
+	if (!rxwin || rxwin->tx_win || rxwin->vas_win.cop != VAS_COP_TYPE_FTW)
 		return ERR_PTR(-EINVAL);
 
 	return rxwin;
@@ -615,10 +604,10 @@ static struct vas_window *get_user_rxwin(struct vas_instance *vinst, u32 pswid)
  *
  * See also function header of set_vinst_win().
  */
-static struct vas_window *get_vinst_rxwin(struct vas_instance *vinst,
+static struct pnv_vas_window *get_vinst_rxwin(struct vas_instance *vinst,
 			enum vas_cop_type cop, u32 pswid)
 {
-	struct vas_window *rxwin;
+	struct pnv_vas_window *rxwin;
 
 	mutex_lock(&vinst->mutex);
 
@@ -651,9 +640,9 @@ static struct vas_window *get_vinst_rxwin(struct vas_instance *vinst,
  * window, we also save the window in the ->rxwin[] table.
  */
 static void set_vinst_win(struct vas_instance *vinst,
-			struct vas_window *window)
+			struct pnv_vas_window *window)
 {
-	int id = window->winid;
+	int id = window->vas_win.winid;
 
 	mutex_lock(&vinst->mutex);
 
@@ -662,8 +651,8 @@ static void set_vinst_win(struct vas_instance *vinst,
 	 * unless its a user (FTW) window.
 	 */
 	if (!window->user_win && !window->tx_win) {
-		WARN_ON_ONCE(vinst->rxwin[window->cop]);
-		vinst->rxwin[window->cop] = window;
+		WARN_ON_ONCE(vinst->rxwin[window->vas_win.cop]);
+		vinst->rxwin[window->vas_win.cop] = window;
 	}
 
 	WARN_ON_ONCE(vinst->windows[id] != NULL);
@@ -676,16 +665,16 @@ static void set_vinst_win(struct vas_instance *vinst,
  * Clear this window from the table(s) of windows for this VAS instance.
  * See also function header of set_vinst_win().
  */
-static void clear_vinst_win(struct vas_window *window)
+static void clear_vinst_win(struct pnv_vas_window *window)
 {
-	int id = window->winid;
+	int id = window->vas_win.winid;
 	struct vas_instance *vinst = window->vinst;
 
 	mutex_lock(&vinst->mutex);
 
 	if (!window->user_win && !window->tx_win) {
-		WARN_ON_ONCE(!vinst->rxwin[window->cop]);
-		vinst->rxwin[window->cop] = NULL;
+		WARN_ON_ONCE(!vinst->rxwin[window->vas_win.cop]);
+		vinst->rxwin[window->vas_win.cop] = NULL;
 	}
 
 	WARN_ON_ONCE(vinst->windows[id] != window);
@@ -694,7 +683,7 @@ static void clear_vinst_win(struct vas_window *window)
 	mutex_unlock(&vinst->mutex);
 }
 
-static void init_winctx_for_rxwin(struct vas_window *rxwin,
+static void init_winctx_for_rxwin(struct pnv_vas_window *rxwin,
 			struct vas_rx_win_attr *rxattr,
 			struct vas_winctx *winctx)
 {
@@ -715,7 +704,7 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 
 	winctx->rx_fifo = rxattr->rx_fifo;
 	winctx->rx_fifo_size = rxattr->rx_fifo_size;
-	winctx->wcreds_max = rxwin->wcreds_max;
+	winctx->wcreds_max = rxwin->vas_win.wcreds_max;
 	winctx->pin_win = rxattr->pin_win;
 
 	winctx->nx_win = rxattr->nx_win;
@@ -762,6 +751,8 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 
 	winctx->min_scope = VAS_SCOPE_LOCAL;
 	winctx->max_scope = VAS_SCOPE_VECTORED_GROUP;
+	if (rxwin->vinst->virq)
+		winctx->irq_port = rxwin->vinst->irq_port;
 }
 
 static bool rx_win_args_valid(enum vas_cop_type cop,
@@ -782,7 +773,7 @@ static bool rx_win_args_valid(enum vas_cop_type cop,
 	if (attr->rx_fifo_size > VAS_RX_FIFO_SIZE_MAX)
 		return false;
 
-	if (attr->wcreds_max > VAS_RX_WCREDS_MAX)
+	if (!attr->wcreds_max)
 		return false;
 
 	if (attr->nx_win) {
@@ -827,7 +818,8 @@ void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
 {
 	memset(rxattr, 0, sizeof(*rxattr));
 
-	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI) {
+	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI ||
+		cop == VAS_COP_TYPE_GZIP || cop == VAS_COP_TYPE_GZIP_HIPRI) {
 		rxattr->pin_win = true;
 		rxattr->nx_win = true;
 		rxattr->fault_win = false;
@@ -841,9 +833,9 @@ void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
 		rxattr->fault_win = true;
 		rxattr->notify_disable = true;
 		rxattr->rx_wcred_mode = true;
-		rxattr->tx_wcred_mode = true;
 		rxattr->rx_win_ord_mode = true;
-		rxattr->tx_win_ord_mode = true;
+		rxattr->rej_no_credit = true;
+		rxattr->tc_mode = VAS_THRESH_DISABLED;
 	} else if (cop == VAS_COP_TYPE_FTW) {
 		rxattr->user_win = true;
 		rxattr->intr_disable = true;
@@ -861,7 +853,7 @@ EXPORT_SYMBOL_GPL(vas_init_rx_win_attr);
 struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 			struct vas_rx_win_attr *rxattr)
 {
-	struct vas_window *rxwin;
+	struct pnv_vas_window *rxwin;
 	struct vas_winctx winctx;
 	struct vas_instance *vinst;
 
@@ -880,23 +872,21 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 	rxwin = vas_window_alloc(vinst);
 	if (IS_ERR(rxwin)) {
 		pr_devel("Unable to allocate memory for Rx window\n");
-		return rxwin;
+		return (struct vas_window *)rxwin;
 	}
 
 	rxwin->tx_win = false;
 	rxwin->nx_win = rxattr->nx_win;
 	rxwin->user_win = rxattr->user_win;
-	rxwin->cop = cop;
-	rxwin->wcreds_max = rxattr->wcreds_max ?: VAS_WCREDS_DEFAULT;
-	if (rxattr->user_win)
-		rxwin->pid = task_pid_vnr(current);
+	rxwin->vas_win.cop = cop;
+	rxwin->vas_win.wcreds_max = rxattr->wcreds_max;
 
 	init_winctx_for_rxwin(rxwin, rxattr, &winctx);
 	init_winctx_regs(rxwin, &winctx);
 
 	set_vinst_win(vinst, rxwin);
 
-	return rxwin;
+	return &rxwin->vas_win;
 }
 EXPORT_SYMBOL_GPL(vas_rx_win_open);
 
@@ -904,7 +894,8 @@ void vas_init_tx_win_attr(struct vas_tx_win_attr *txattr, enum vas_cop_type cop)
 {
 	memset(txattr, 0, sizeof(*txattr));
 
-	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI) {
+	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI ||
+		cop == VAS_COP_TYPE_GZIP || cop == VAS_COP_TYPE_GZIP_HIPRI) {
 		txattr->rej_no_credit = false;
 		txattr->rx_wcred_mode = true;
 		txattr->tx_wcred_mode = true;
@@ -916,7 +907,7 @@ void vas_init_tx_win_attr(struct vas_tx_win_attr *txattr, enum vas_cop_type cop)
 }
 EXPORT_SYMBOL_GPL(vas_init_tx_win_attr);
 
-static void init_winctx_for_txwin(struct vas_window *txwin,
+static void init_winctx_for_txwin(struct pnv_vas_window *txwin,
 			struct vas_tx_win_attr *txattr,
 			struct vas_winctx *winctx)
 {
@@ -937,7 +928,7 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 	 */
 	memset(winctx, 0, sizeof(struct vas_winctx));
 
-	winctx->wcreds_max = txwin->wcreds_max;
+	winctx->wcreds_max = txwin->vas_win.wcreds_max;
 
 	winctx->user_win = txattr->user_win;
 	winctx->nx_win = txwin->rxwin->nx_win;
@@ -957,14 +948,24 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 
 	winctx->lpid = txattr->lpid;
 	winctx->pidr = txattr->pidr;
-	winctx->rx_win_id = txwin->rxwin->winid;
+	winctx->rx_win_id = txwin->rxwin->vas_win.winid;
+	/*
+	 * IRQ and fault window setup is successful. Set fault window
+	 * for the send window so that ready to handle faults.
+	 */
+	if (txwin->vinst->virq)
+		winctx->fault_win_id = txwin->vinst->fault_win->vas_win.winid;
 
 	winctx->dma_type = VAS_DMA_TYPE_INJECT;
 	winctx->tc_mode = txattr->tc_mode;
 	winctx->min_scope = VAS_SCOPE_LOCAL;
 	winctx->max_scope = VAS_SCOPE_VECTORED_GROUP;
+	if (txwin->vinst->virq)
+		winctx->irq_port = txwin->vinst->irq_port;
 
-	winctx->pswid = 0;
+	winctx->pswid = txattr->pswid ? txattr->pswid :
+			encode_pswid(txwin->vinst->vas_id,
+			txwin->vas_win.winid);
 }
 
 static bool tx_win_args_valid(enum vas_cop_type cop,
@@ -979,9 +980,14 @@ static bool tx_win_args_valid(enum vas_cop_type cop,
 	if (attr->wcreds_max > VAS_TX_WCREDS_MAX)
 		return false;
 
-	if (attr->user_win &&
-			(cop != VAS_COP_TYPE_FTW || attr->rsvd_txbuf_count))
-		return false;
+	if (attr->user_win) {
+		if (attr->rsvd_txbuf_count)
+			return false;
+
+		if (cop != VAS_COP_TYPE_FTW && cop != VAS_COP_TYPE_GZIP &&
+			cop != VAS_COP_TYPE_GZIP_HIPRI)
+			return false;
+	}
 
 	return true;
 }
@@ -990,8 +996,8 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			struct vas_tx_win_attr *attr)
 {
 	int rc;
-	struct vas_window *txwin;
-	struct vas_window *rxwin;
+	struct pnv_vas_window *txwin;
+	struct pnv_vas_window *rxwin;
 	struct vas_winctx winctx;
 	struct vas_instance *vinst;
 
@@ -1017,7 +1023,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 	rxwin = get_vinst_rxwin(vinst, cop, attr->pswid);
 	if (IS_ERR(rxwin)) {
 		pr_devel("No RxWin for vasid %d, cop %d\n", vasid, cop);
-		return rxwin;
+		return (struct vas_window *)rxwin;
 	}
 
 	txwin = vas_window_alloc(vinst);
@@ -1026,13 +1032,12 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		goto put_rxwin;
 	}
 
-	txwin->cop = cop;
+	txwin->vas_win.cop = cop;
 	txwin->tx_win = 1;
 	txwin->rxwin = rxwin;
 	txwin->nx_win = txwin->rxwin->nx_win;
-	txwin->pid = attr->pid;
 	txwin->user_win = attr->user_win;
-	txwin->wcreds_max = attr->wcreds_max ?: VAS_WCREDS_DEFAULT;
+	txwin->vas_win.wcreds_max = attr->wcreds_max ?: VAS_WCREDS_DEFAULT;
 
 	init_winctx_for_txwin(txwin, attr, &winctx);
 
@@ -1054,17 +1059,24 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		}
 	} else {
 		/*
-		 * A user mapping must ensure that context switch issues
-		 * CP_ABORT for this thread.
+		 * Interrupt hanlder or fault window setup failed. Means
+		 * NX can not generate fault for page fault. So not
+		 * opening for user space tx window.
 		 */
-		rc = set_thread_uses_vas();
+		if (!vinst->virq) {
+			rc = -ENODEV;
+			goto free_window;
+		}
+		rc = get_vas_user_win_ref(&txwin->vas_win.task_ref);
 		if (rc)
 			goto free_window;
+
+		vas_user_win_add_mm_context(&txwin->vas_win.task_ref);
 	}
 
 	set_vinst_win(vinst, txwin);
 
-	return txwin;
+	return &txwin->vas_win;
 
 free_window:
 	vas_window_free(txwin);
@@ -1083,12 +1095,14 @@ int vas_copy_crb(void *crb, int offset)
 EXPORT_SYMBOL_GPL(vas_copy_crb);
 
 #define RMA_LSMP_REPORT_ENABLE PPC_BIT(53)
-int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
+int vas_paste_crb(struct vas_window *vwin, int offset, bool re)
 {
+	struct pnv_vas_window *txwin;
 	int rc;
 	void *addr;
 	uint64_t val;
 
+	txwin = container_of(vwin, struct pnv_vas_window, vas_win);
 	trace_vas_paste_crb(current, txwin);
 
 	/*
@@ -1118,7 +1132,7 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	else
 		rc = -EINVAL;
 
-	pr_debug("Txwin #%d: Msg count %llu\n", txwin->winid,
+	pr_debug("Txwin #%d: Msg count %llu\n", txwin->vas_win.winid,
 			read_hvwc_reg(txwin, VREG(LRFIFO_PUSH)));
 
 	return rc;
@@ -1138,10 +1152,11 @@ EXPORT_SYMBOL_GPL(vas_paste_crb);
  *	user space. (NX-842 driver waits for CSB and Fast thread-wakeup
  *	doesn't use credit checking).
  */
-static void poll_window_credits(struct vas_window *window)
+static void poll_window_credits(struct pnv_vas_window *window)
 {
 	u64 val;
 	int creds, mode;
+	int count = 0;
 
 	val = read_hvwc_reg(window, VREG(WINCTL));
 	if (window->tx_win)
@@ -1160,10 +1175,28 @@ retry:
 		creds = GET_FIELD(VAS_LRX_WCRED, val);
 	}
 
-	if (creds < window->wcreds_max) {
+	/*
+	 * Takes around few milliseconds to complete all pending requests
+	 * and return credits.
+	 * TODO: Scan fault FIFO and invalidate CRBs points to this window
+	 *       and issue CRB Kill to stop all pending requests. Need only
+	 *       if there is a bug in NX or fault handling in kernel.
+	 */
+	if (creds < window->vas_win.wcreds_max) {
 		val = 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(msecs_to_jiffies(10));
+		count++;
+		/*
+		 * Process can not close send window until all credits are
+		 * returned.
+		 */
+		if (!(count % 1000))
+			pr_warn_ratelimited("VAS: pid %d stuck. Waiting for credits returned for Window(%d). creds %d, Retries %d\n",
+				vas_window_pid(&window->vas_win),
+				window->vas_win.winid,
+				creds, count);
+
 		goto retry;
 	}
 }
@@ -1173,10 +1206,11 @@ retry:
  * short time to queue a CRB, so window should not be busy for too long.
  * Trying 5ms intervals.
  */
-static void poll_window_busy_state(struct vas_window *window)
+static void poll_window_busy_state(struct pnv_vas_window *window)
 {
 	int busy;
 	u64 val;
+	int count = 0;
 
 retry:
 	val = read_hvwc_reg(window, VREG(WIN_STATUS));
@@ -1184,7 +1218,17 @@ retry:
 	if (busy) {
 		val = 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(msecs_to_jiffies(5));
+		schedule_timeout(msecs_to_jiffies(10));
+		count++;
+		/*
+		 * Takes around few milliseconds to process all pending
+		 * requests.
+		 */
+		if (!(count % 1000))
+			pr_warn_ratelimited("VAS: pid %d stuck. Window (ID=%d) is in busy state. Retries %d\n",
+				vas_window_pid(&window->vas_win),
+				window->vas_win.winid, count);
+
 		goto retry;
 	}
 }
@@ -1205,7 +1249,7 @@ retry:
  *	casting out becomes necessary we should consider offloading the
  *	job to a worker thread, so the window close can proceed quickly.
  */
-static void poll_window_castout(struct vas_window *window)
+static void poll_window_castout(struct pnv_vas_window *window)
 {
 	/* stub for now */
 }
@@ -1214,7 +1258,7 @@ static void poll_window_castout(struct vas_window *window)
  * Unpin and close a window so no new requests are accepted and the
  * hardware can evict this window from cache if necessary.
  */
-static void unpin_close_window(struct vas_window *window)
+static void unpin_close_window(struct pnv_vas_window *window)
 {
 	u64 val;
 
@@ -1236,10 +1280,14 @@ static void unpin_close_window(struct vas_window *window)
  *
  * Besides the hardware, kernel has some bookkeeping of course.
  */
-int vas_win_close(struct vas_window *window)
+int vas_win_close(struct vas_window *vwin)
 {
-	if (!window)
+	struct pnv_vas_window *window;
+
+	if (!vwin)
 		return 0;
+
+	window = container_of(vwin, struct pnv_vas_window, vas_win);
 
 	if (!window->tx_win && atomic_read(&window->num_txwins) != 0) {
 		pr_devel("Attempting to close an active Rx window!\n");
@@ -1249,19 +1297,24 @@ int vas_win_close(struct vas_window *window)
 
 	unmap_paste_region(window);
 
-	clear_vinst_win(window);
-
 	poll_window_busy_state(window);
 
 	unpin_close_window(window);
 
 	poll_window_credits(window);
 
+	clear_vinst_win(window);
+
 	poll_window_castout(window);
 
 	/* if send window, drop reference to matching receive window */
-	if (window->tx_win)
+	if (window->tx_win) {
+		if (window->user_win) {
+			put_vas_user_win_ref(&vwin->task_ref);
+			mm_context_remove_vas_window(vwin->task_ref.mm);
+		}
 		put_rx_win(window->rxwin);
+	}
 
 	vas_window_free(window);
 
@@ -1270,10 +1323,149 @@ int vas_win_close(struct vas_window *window)
 EXPORT_SYMBOL_GPL(vas_win_close);
 
 /*
- * Return a system-wide unique window id for the window @win.
+ * Return credit for the given window.
+ * Send windows and fault window uses credit mechanism as follows:
+ *
+ * Send windows:
+ * - The default number of credits available for each send window is
+ *   1024. It means 1024 requests can be issued asynchronously at the
+ *   same time. If the credit is not available, that request will be
+ *   returned with RMA_Busy.
+ * - One credit is taken when NX request is issued.
+ * - This credit is returned after NX processed that request.
+ * - If NX encounters translation error, kernel will return the
+ *   credit on the specific send window after processing the fault CRB.
+ *
+ * Fault window:
+ * - The total number credits available is FIFO_SIZE/CRB_SIZE.
+ *   Means 4MB/128 in the current implementation. If credit is not
+ *   available, RMA_Reject is returned.
+ * - A credit is taken when NX pastes CRB in fault FIFO.
+ * - The kernel with return credit on fault window after reading entry
+ *   from fault FIFO.
  */
-u32 vas_win_id(struct vas_window *win)
+void vas_return_credit(struct pnv_vas_window *window, bool tx)
 {
-	return encode_pswid(win->vinst->vas_id, win->winid);
+	uint64_t val;
+
+	val = 0ULL;
+	if (tx) { /* send window */
+		val = SET_FIELD(VAS_TX_WCRED, val, 1);
+		write_hvwc_reg(window, VREG(TX_WCRED_ADDER), val);
+	} else {
+		val = SET_FIELD(VAS_LRX_WCRED, val, 1);
+		write_hvwc_reg(window, VREG(LRX_WCRED_ADDER), val);
+	}
 }
-EXPORT_SYMBOL_GPL(vas_win_id);
+
+struct pnv_vas_window *vas_pswid_to_window(struct vas_instance *vinst,
+		uint32_t pswid)
+{
+	struct pnv_vas_window *window;
+	int winid;
+
+	if (!pswid) {
+		pr_devel("%s: called for pswid 0!\n", __func__);
+		return ERR_PTR(-ESRCH);
+	}
+
+	decode_pswid(pswid, NULL, &winid);
+
+	if (winid >= VAS_WINDOWS_PER_CHIP)
+		return ERR_PTR(-ESRCH);
+
+	/*
+	 * If application closes the window before the hardware
+	 * returns the fault CRB, we should wait in vas_win_close()
+	 * for the pending requests. so the window must be active
+	 * and the process alive.
+	 *
+	 * If its a kernel process, we should not get any faults and
+	 * should not get here.
+	 */
+	window = vinst->windows[winid];
+
+	if (!window) {
+		pr_err("PSWID decode: Could not find window for winid %d pswid %d vinst 0x%p\n",
+			winid, pswid, vinst);
+		return NULL;
+	}
+
+	/*
+	 * Do some sanity checks on the decoded window.  Window should be
+	 * NX GZIP user send window. FTW windows should not incur faults
+	 * since their CRBs are ignored (not queued on FIFO or processed
+	 * by NX).
+	 */
+	if (!window->tx_win || !window->user_win || !window->nx_win ||
+			window->vas_win.cop == VAS_COP_TYPE_FAULT ||
+			window->vas_win.cop == VAS_COP_TYPE_FTW) {
+		pr_err("PSWID decode: id %d, tx %d, user %d, nx %d, cop %d\n",
+			winid, window->tx_win, window->user_win,
+			window->nx_win, window->vas_win.cop);
+		WARN_ON(1);
+	}
+
+	return window;
+}
+
+static struct vas_window *vas_user_win_open(int vas_id, u64 flags,
+				enum vas_cop_type cop_type)
+{
+	struct vas_tx_win_attr txattr = {};
+
+	vas_init_tx_win_attr(&txattr, cop_type);
+
+	txattr.lpid = mfspr(SPRN_LPID);
+	txattr.pidr = mfspr(SPRN_PID);
+	txattr.user_win = true;
+	txattr.rsvd_txbuf_count = false;
+	txattr.pswid = false;
+
+	pr_devel("Pid %d: Opening txwin, PIDR %ld\n", txattr.pidr,
+				mfspr(SPRN_PID));
+
+	return vas_tx_win_open(vas_id, cop_type, &txattr);
+}
+
+static u64 vas_user_win_paste_addr(struct vas_window *txwin)
+{
+	struct pnv_vas_window *win;
+	u64 paste_addr;
+
+	win = container_of(txwin, struct pnv_vas_window, vas_win);
+	vas_win_paste_addr(win, &paste_addr, NULL);
+
+	return paste_addr;
+}
+
+static int vas_user_win_close(struct vas_window *txwin)
+{
+	vas_win_close(txwin);
+
+	return 0;
+}
+
+static const struct vas_user_win_ops vops =  {
+	.open_win	=	vas_user_win_open,
+	.paste_addr	=	vas_user_win_paste_addr,
+	.close_win	=	vas_user_win_close,
+};
+
+/*
+ * Supporting only nx-gzip coprocessor type now, but this API code
+ * extended to other coprocessor types later.
+ */
+int vas_register_api_powernv(struct module *mod, enum vas_cop_type cop_type,
+			     const char *name)
+{
+
+	return vas_register_coproc_api(mod, cop_type, name, &vops);
+}
+EXPORT_SYMBOL_GPL(vas_register_api_powernv);
+
+void vas_unregister_api_powernv(void)
+{
+	vas_unregister_coproc_api();
+}
+EXPORT_SYMBOL_GPL(vas_unregister_api_powernv);

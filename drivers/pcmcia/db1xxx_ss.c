@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCMCIA socket code for the Alchemy Db1xxx/Pb1xxx boards.
  *
@@ -254,8 +255,10 @@ static int db1x_pcmcia_configure(struct pcmcia_socket *skt,
 	switch (state->Vcc) {
 	case 50:
 		++v;
+		fallthrough;
 	case 33:
 		++v;
+		fallthrough;
 	case 0:
 		break;
 	default:
@@ -266,9 +269,11 @@ static int db1x_pcmcia_configure(struct pcmcia_socket *skt,
 	switch (state->Vpp) {
 	case 12:
 		++p;
+		fallthrough;
 	case 33:
 	case 50:
 		++p;
+		fallthrough;
 	case 0:
 		break;
 	default:
@@ -447,7 +452,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 		printk(KERN_INFO "db1xxx-ss: unknown board %d!\n", bid);
 		ret = -ENODEV;
 		goto out0;
-	};
+	}
 
 	/*
 	 * gather resources necessary and optional nice-to-haves to

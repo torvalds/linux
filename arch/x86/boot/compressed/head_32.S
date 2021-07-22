@@ -33,51 +33,19 @@
 #include <asm/bootparam.h>
 
 /*
- * The 32-bit x86 assembler in binutils 2.26 will generate R_386_GOT32X
- * relocation to get the symbol address in PIC.  When the compressed x86
- * kernel isn't built as PIC, the linker optimizes R_386_GOT32X
- * relocations to their fixed symbol addresses.  However, when the
- * compressed x86 kernel is loaded at a different address, it leads
- * to the following load failure:
- *
- *   Failed to allocate space for phdrs
- *
- * during the decompression stage.
- *
- * If the compressed x86 kernel is relocatable at run-time, it should be
- * compiled with -fPIE, instead of -fPIC, if possible and should be built as
- * Position Independent Executable (PIE) so that linker won't optimize
- * R_386_GOT32X relocation to its fixed symbol address.  Older
- * linkers generate R_386_32 relocations against locally defined symbols,
- * _bss, _ebss, _got and _egot, in PIE.  It isn't wrong, just less
- * optimal than R_386_RELATIVE.  But the x86 kernel fails to properly handle
- * R_386_32 relocations when relocating the kernel.  To generate
- * R_386_RELATIVE relocations, we mark _bss, _ebss, _got and _egot as
- * hidden:
+ * These symbols needed to be marked as .hidden to prevent the BFD linker from
+ * generating R_386_32 (rather than R_386_RELATIVE) relocations for them when
+ * the 32-bit compressed kernel is linked as PIE. This is no longer necessary,
+ * but it doesn't hurt to keep them .hidden.
  */
 	.hidden _bss
 	.hidden _ebss
-	.hidden _got
-	.hidden _egot
+	.hidden _end
 
 	__HEAD
-ENTRY(startup_32)
+SYM_FUNC_START(startup_32)
 	cld
-	/*
-	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments
-	 */
-	testb	$KEEP_SEGMENTS, BP_loadflags(%esi)
-	jnz	1f
-
 	cli
-	movl	$__BOOT_DS, %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %fs
-	movl	%eax, %gs
-	movl	%eax, %ss
-1:
 
 /*
  * Calculate the delta between where we were compiled to run
@@ -89,35 +57,64 @@ ENTRY(startup_32)
  */
 	leal	(BP_scratch+4)(%esi), %esp
 	call	1f
-1:	popl	%ebp
-	subl	$1b, %ebp
+1:	popl	%edx
+	addl	$_GLOBAL_OFFSET_TABLE_+(.-1b), %edx
+
+	/* Load new GDT */
+	leal	gdt@GOTOFF(%edx), %eax
+	movl	%eax, 2(%eax)
+	lgdt	(%eax)
+
+	/* Load segment registers with our descriptors */
+	movl	$__BOOT_DS, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
+	movl	%eax, %ss
 
 /*
- * %ebp contains the address we are loaded at by the boot loader and %ebx
- * contains the address where we should move the kernel image temporarily
- * for safe in-place decompression.
+ * %edx contains the address we are loaded at by the boot loader (plus the
+ * offset to the GOT).  The below code calculates %ebx to be the address where
+ * we should move the kernel image temporarily for safe in-place decompression
+ * (again, plus the offset to the GOT).
+ *
+ * %ebp is calculated to be the address that the kernel will be decompressed to.
  */
 
 #ifdef CONFIG_RELOCATABLE
-	movl	%ebp, %ebx
+	leal	startup_32@GOTOFF(%edx), %ebx
+
+#ifdef CONFIG_EFI_STUB
+/*
+ * If we were loaded via the EFI LoadImage service, startup_32() will be at an
+ * offset to the start of the space allocated for the image. efi_pe_entry() will
+ * set up image_offset to tell us where the image actually starts, so that we
+ * can use the full available buffer.
+ *	image_offset = startup_32 - image_base
+ * Otherwise image_offset will be zero and has no effect on the calculations.
+ */
+	subl    image_offset@GOTOFF(%edx), %ebx
+#endif
+
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl    %eax, %ebx
 	notl	%eax
 	andl    %eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
-	jge	1f
+	jae	1f
 #endif
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 1:
 
+	movl	%ebx, %ebp	// Save the output address for later
 	/* Target address to relocate to for decompression */
-	movl    BP_init_size(%esi), %eax
-	subl    $_end, %eax
-	addl    %eax, %ebx
+	addl    BP_init_size(%esi), %ebx
+	subl    $_end@GOTOFF, %ebx
 
 	/* Set up the stack */
-	leal	boot_stack_end(%ebx), %esp
+	leal	boot_stack_end@GOTOFF(%ebx), %esp
 
 	/* Zero EFLAGS */
 	pushl	$0
@@ -128,8 +125,8 @@ ENTRY(startup_32)
  * where decompression in place becomes safe.
  */
 	pushl	%esi
-	leal	(_bss-4)(%ebp), %esi
-	leal	(_bss-4)(%ebx), %edi
+	leal	(_bss@GOTOFF-4)(%edx), %esi
+	leal	(_bss@GOTOFF-4)(%ebx), %edi
 	movl	$(_bss - startup_32), %ecx
 	shrl	$2, %ecx
 	std
@@ -137,122 +134,61 @@ ENTRY(startup_32)
 	cld
 	popl	%esi
 
+	/*
+	 * The GDT may get overwritten either during the copy we just did or
+	 * during extract_kernel below. To avoid any issues, repoint the GDTR
+	 * to the new copy of the GDT.
+	 */
+	leal	gdt@GOTOFF(%ebx), %eax
+	movl	%eax, 2(%eax)
+	lgdt	(%eax)
+
 /*
  * Jump to the relocated address.
  */
-	leal	relocated(%ebx), %eax
+	leal	.Lrelocated@GOTOFF(%ebx), %eax
 	jmp	*%eax
-ENDPROC(startup_32)
+SYM_FUNC_END(startup_32)
 
 #ifdef CONFIG_EFI_STUB
-/*
- * We don't need the return address, so set up the stack so efi_main() can find
- * its arguments.
- */
-ENTRY(efi_pe_entry)
+SYM_FUNC_START(efi32_stub_entry)
+SYM_FUNC_START_ALIAS(efi_stub_entry)
 	add	$0x4, %esp
-
-	call	1f
-1:	popl	%esi
-	subl	$1b, %esi
-
-	popl	%ecx
-	movl	%ecx, efi32_config(%esi)	/* Handle */
-	popl	%ecx
-	movl	%ecx, efi32_config+8(%esi)	/* EFI System table pointer */
-
-	/* Relocate efi_config->call() */
-	leal	efi32_config(%esi), %eax
-	add	%esi, 40(%eax)
-	pushl	%eax
-
-	call	make_boot_params
-	cmpl	$0, %eax
-	je	fail
-	movl	%esi, BP_code32_start(%eax)
-	popl	%ecx
-	pushl	%eax
-	pushl	%ecx
-	jmp	2f		/* Skip efi_config initialization */
-ENDPROC(efi_pe_entry)
-
-ENTRY(efi32_stub_entry)
-	add	$0x4, %esp
-	popl	%ecx
-	popl	%edx
-
-	call	1f
-1:	popl	%esi
-	subl	$1b, %esi
-
-	movl	%ecx, efi32_config(%esi)	/* Handle */
-	movl	%edx, efi32_config+8(%esi)	/* EFI System table pointer */
-
-	/* Relocate efi_config->call() */
-	leal	efi32_config(%esi), %eax
-	add	%esi, 40(%eax)
-	pushl	%eax
-2:
+	movl	8(%esp), %esi	/* save boot_params pointer */
 	call	efi_main
-	cmpl	$0, %eax
-	movl	%eax, %esi
-	jne	2f
-fail:
-	/* EFI init failed, so hang. */
-	hlt
-	jmp	fail
-2:
-	movl	BP_code32_start(%esi), %eax
-	leal	startup_32(%eax), %eax
+	/* efi_main returns the possibly relocated address of startup_32 */
 	jmp	*%eax
-ENDPROC(efi32_stub_entry)
+SYM_FUNC_END(efi32_stub_entry)
+SYM_FUNC_END_ALIAS(efi_stub_entry)
 #endif
 
 	.text
-relocated:
+SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 
 /*
  * Clear BSS (stack is currently empty)
  */
 	xorl	%eax, %eax
-	leal	_bss(%ebx), %edi
-	leal	_ebss(%ebx), %ecx
+	leal	_bss@GOTOFF(%ebx), %edi
+	leal	_ebss@GOTOFF(%ebx), %ecx
 	subl	%edi, %ecx
 	shrl	$2, %ecx
 	rep	stosl
 
 /*
- * Adjust our own GOT
- */
-	leal	_got(%ebx), %edx
-	leal	_egot(%ebx), %ecx
-1:
-	cmpl	%ecx, %edx
-	jae	2f
-	addl	%ebx, (%edx)
-	addl	$4, %edx
-	jmp	1b
-2:
-
-/*
  * Do the extraction, and jump to the new kernel..
  */
-				/* push arguments for extract_kernel: */
-	pushl	$z_output_len	/* decompressed length, end of relocs */
+	/* push arguments for extract_kernel: */
 
-	movl    BP_init_size(%esi), %eax
-	subl    $_end, %eax
-	movl    %ebx, %ebp
-	subl    %eax, %ebp
-	pushl	%ebp		/* output address */
-
-	pushl	$z_input_len	/* input_len */
-	leal	input_data(%ebx), %eax
-	pushl	%eax		/* input_data */
-	leal	boot_heap(%ebx), %eax
-	pushl	%eax		/* heap area */
-	pushl	%esi		/* real mode pointer */
-	call	extract_kernel	/* returns kernel location in %eax */
+	pushl	output_len@GOTOFF(%ebx)	/* decompressed length, end of relocs */
+	pushl	%ebp			/* output address */
+	pushl	input_len@GOTOFF(%ebx)	/* input_len */
+	leal	input_data@GOTOFF(%ebx), %eax
+	pushl	%eax			/* input_data */
+	leal	boot_heap@GOTOFF(%ebx), %eax
+	pushl	%eax			/* heap area */
+	pushl	%esi			/* real mode pointer */
+	call	extract_kernel		/* returns kernel location in %eax */
 	addl	$24, %esp
 
 /*
@@ -260,14 +196,21 @@ relocated:
  */
 	xorl	%ebx, %ebx
 	jmp	*%eax
+SYM_FUNC_END(.Lrelocated)
+
+	.data
+	.balign	8
+SYM_DATA_START_LOCAL(gdt)
+	.word	gdt_end - gdt - 1
+	.long	0
+	.word	0
+	.quad	0x0000000000000000	/* Reserved */
+	.quad	0x00cf9a000000ffff	/* __KERNEL_CS */
+	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
+SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
 #ifdef CONFIG_EFI_STUB
-	.data
-efi32_config:
-	.fill 5,8,0
-	.long efi_call_phys
-	.long 0
-	.byte 0
+SYM_DATA(image_offset, .long 0)
 #endif
 
 /*

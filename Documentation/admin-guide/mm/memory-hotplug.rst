@@ -5,7 +5,7 @@ Memory Hotplug
 ==============
 
 :Created:							Jul 28 2007
-:Updated: Add description of notifier of memory hotplug:	Oct 11 2007
+:Updated: Add some details about locking internals:		Aug 20 2018
 
 This document is about memory hotplug including how-to-use and current status.
 Because Memory Hotplug is still under development, contents of this text will
@@ -160,16 +160,16 @@ Under each memory block, you can see 5 files:
 
                     "online_movable", "online", "offline" command
                     which will be performed on all sections in the block.
-``phys_device``     read-only: designed to show the name of physical memory
-                    device.  This is not well implemented now.
-``removable``       read-only: contains an integer value indicating
-                    whether the memory block is removable or not
-                    removable.  A value of 1 indicates that the memory
-                    block is removable and a value of 0 indicates that
-                    it is not removable. A memory block is removable only if
-                    every section in the block is removable.
-``valid_zones``     read-only: designed to show which zones this memory block
-		    can be onlined to.
+``phys_device``	    read-only: legacy interface only ever used on s390x to
+		    expose the covered storage increment.
+``removable``	    read-only: legacy interface that indicated whether a memory
+		    block was likely to be offlineable or not.  Newer kernel
+		    versions return "1" if and only if the kernel supports
+		    memory offlining.
+``valid_zones``     read-only: designed to show by which zone memory provided by
+		    a memory block is managed, and to show by which zone memory
+		    provided by an offline memory block could be managed when
+		    onlining.
 
 		    The first column shows it`s default zone.
 
@@ -357,6 +357,28 @@ creates ZONE_MOVABLE as following.
    Unfortunately, there is no information to show which memory block belongs
    to ZONE_MOVABLE. This is TBD.
 
+   Memory offlining can fail when dissolving a free huge page on ZONE_MOVABLE
+   and the feature of freeing unused vmemmap pages associated with each hugetlb
+   page is enabled.
+
+   This can happen when we have plenty of ZONE_MOVABLE memory, but not enough
+   kernel memory to allocate vmemmmap pages.  We may even be able to migrate
+   huge page contents, but will not be able to dissolve the source huge page.
+   This will prevent an offline operation and is unfortunate as memory offlining
+   is expected to succeed on movable zones.  Users that depend on memory hotplug
+   to succeed for movable zones should carefully consider whether the memory
+   savings gained from this feature are worth the risk of possibly not being
+   able to offline memory in certain situations.
+
+.. note::
+   Techniques that rely on long-term pinnings of memory (especially, RDMA and
+   vfio) are fundamentally problematic with ZONE_MOVABLE and, therefore, memory
+   hot remove. Pinned pages cannot reside on ZONE_MOVABLE, to guarantee that
+   memory can still get hot removed - be aware that pinning can fail even if
+   there is plenty of free memory in ZONE_MOVABLE. In addition, using
+   ZONE_MOVABLE might make page pinning more expensive, because pages have to be
+   migrated off that zone first.
+
 .. _memory_hotplug_how_to_offline_memory:
 
 How to offline memory
@@ -391,6 +413,46 @@ Physical memory remove
 Need more implementation yet....
  - Notification completion of remove works by OS to firmware.
  - Guard from remove if not yet.
+
+
+Locking Internals
+=================
+
+When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
+the device_hotplug_lock should be held to:
+
+- synchronize against online/offline requests (e.g. via sysfs). This way, memory
+  block devices can only be accessed (.online/.state attributes) by user
+  space once memory has been fully added. And when removing memory, we
+  know nobody is in critical sections.
+- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
+
+Especially, there is a possible lock inversion that is avoided using
+device_hotplug_lock when adding memory and user space tries to online that
+memory faster than expected:
+
+- device_online() will first take the device_lock(), followed by
+  mem_hotplug_lock
+- add_memory_resource() will first take the mem_hotplug_lock, followed by
+  the device_lock() (while creating the devices, during bus_add_device()).
+
+As the device is visible to user space before taking the device_lock(), this
+can result in a lock inversion.
+
+onlining/offlining of memory should be done via device_online()/
+device_offline() - to make sure it is properly synchronized to actions
+via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
+
+When adding/removing/onlining/offlining memory or adding/removing
+heterogeneous/device memory, we should always hold the mem_hotplug_lock in
+write mode to serialise memory hotplug (e.g. access to global/zone
+variables).
+
+In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
+mode allows for a quite efficient get_online_mems/put_online_mems
+implementation, so code accessing memory can protect from that memory
+vanishing.
+
 
 Future Work
 ===========

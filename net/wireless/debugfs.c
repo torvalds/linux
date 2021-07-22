@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cfg80211 debugfs
  *
  * Copyright 2009	Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -76,8 +73,6 @@ static ssize_t ht40allow_map_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	rtnl_lock();
-
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wiphy->bands[band];
 		if (!sband)
@@ -86,8 +81,6 @@ static ssize_t ht40allow_map_read(struct file *file,
 			offset += ht_print_chan(&sband->channels[i],
 						buf, buf_size, offset);
 	}
-
-	rtnl_unlock();
 
 	r = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
 

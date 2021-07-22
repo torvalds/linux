@@ -396,7 +396,7 @@
 			   <earl@exis.net>.
 			  Updated the PCI interface to conform with the latest
 			   version. I hope nothing is broken...
-          		  Add TX done interrupt modification from suggestion
+			  Add TX done interrupt modification from suggestion
 			   by <Austin.Donnelly@cl.cam.ac.uk>.
 			  Fix is_anc_capable() bug reported by
 			   <Austin.Donnelly@cl.cam.ac.uk>.
@@ -951,7 +951,7 @@ static void    reset_init_sia(struct net_device *dev, s32 sicr, s32 strr, s32 si
 static int     test_ans(struct net_device *dev, s32 irqs, s32 irq_mask, s32 msec);
 static int     test_tp(struct net_device *dev, s32 msec);
 static int     EISA_signature(char *name, struct device *device);
-static int     PCI_signature(char *name, struct de4x5_private *lp);
+static void    PCI_signature(char *name, struct de4x5_private *lp);
 static void    DevicePresent(struct net_device *dev, u_long iobase);
 static void    enet_addr_rst(u_long aprom_addr);
 static int     de4x5_bad_srom(struct de4x5_private *lp);
@@ -1499,7 +1499,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 	    spin_lock_irqsave(&lp->lock, flags);
 	    netif_stop_queue(dev);
 	    load_packet(dev, skb->data, TD_IC | TD_LS | TD_FS | skb->len, skb);
- 	    lp->stats.tx_bytes += skb->len;
+	    lp->stats.tx_bytes += skb->len;
 	    outl(POLL_DEMAND, DE4X5_TPD);/* Start the TX */
 
 	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
@@ -1651,7 +1651,7 @@ de4x5_rx(struct net_device *dev)
 
 		    /* Update stats */
 		    lp->stats.rx_packets++;
- 		    lp->stats.rx_bytes += pkt_len;
+		    lp->stats.rx_bytes += pkt_len;
 		}
 	    }
 
@@ -2107,7 +2107,6 @@ static struct eisa_driver de4x5_eisa_driver = {
 		.remove  = de4x5_eisa_remove,
         }
 };
-MODULE_DEVICE_TABLE(eisa, de4x5_eisa_ids);
 #endif
 
 #ifdef CONFIG_PCI
@@ -3204,7 +3203,7 @@ srom_map_media(struct net_device *dev)
       case SROM_10BASETF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_10BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
@@ -3226,7 +3225,7 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASETF:
         if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_100BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
@@ -3240,7 +3239,7 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASEFF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_100BASEF:
 	if (lp->params.fdx && !lp->fdx) return -1;
@@ -3903,14 +3902,14 @@ EISA_signature(char *name, struct device *device)
 /*
 ** Look for a particular board name in the PCI configuration space
 */
-static int
+static void
 PCI_signature(char *name, struct de4x5_private *lp)
 {
-    int i, status = 0, siglen = ARRAY_SIZE(de4x5_signatures);
+    int i, siglen = ARRAY_SIZE(de4x5_signatures);
 
     if (lp->chipset == DC21040) {
 	strcpy(name, "DE434/5");
-	return status;
+	return;
     } else {                           /* Search for a DEC name in the SROM */
 	int tmp = *((char *)&lp->srom + 19) * 3;
 	strncpy(name, (char *)&lp->srom + 26 + tmp, 8);
@@ -3936,8 +3935,6 @@ PCI_signature(char *name, struct de4x5_private *lp)
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	lp->useSROM = true;
     }
-
-    return status;
 }
 
 /*
@@ -4928,11 +4925,11 @@ mii_get_oui(u_char phyaddr, u_long ioaddr)
 	u_char breg[2];
     } a;
     int i, r2, r3, ret=0;*/
-    int r2, r3;
+    int r2;
 
     /* Read r2 and r3 */
     r2 = mii_rd(MII_ID0, phyaddr, ioaddr);
-    r3 = mii_rd(MII_ID1, phyaddr, ioaddr);
+    mii_rd(MII_ID1, phyaddr, ioaddr);
                                                 /* SEEQ and Cypress way * /
     / * Shuffle r2 and r3 * /
     a.reg=0;

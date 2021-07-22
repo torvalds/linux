@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant Linux driver for the AZUREWAVE DVB-S/S2 USB2.0 (AZ6027)
  * receiver.
  *
  * Copyright (C) 2009 Adams.Xu <adams.xu@azwave.com.cn>
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "az6027.h"
 
@@ -1054,8 +1051,8 @@ static struct i2c_algorithm az6027_i2c_algo = {
 };
 
 static int az6027_identify_state(struct usb_device *udev,
-				 struct dvb_usb_device_properties *props,
-				 struct dvb_usb_device_description **desc,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
 				 int *cold)
 {
 	u8 *b;

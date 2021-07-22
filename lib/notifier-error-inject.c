@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 
 #include "notifier-error-inject.h"
@@ -58,33 +59,22 @@ struct dentry *notifier_err_inject_init(const char *name, struct dentry *parent,
 	err_inject->nb.priority = priority;
 
 	dir = debugfs_create_dir(name, parent);
-	if (!dir)
-		return ERR_PTR(-ENOMEM);
 
 	actions_dir = debugfs_create_dir("actions", dir);
-	if (!actions_dir)
-		goto fail;
 
 	for (action = err_inject->actions; action->name; action++) {
 		struct dentry *action_dir;
 
 		action_dir = debugfs_create_dir(action->name, actions_dir);
-		if (!action_dir)
-			goto fail;
 
 		/*
 		 * Create debugfs r/w file containing action->error. If
 		 * notifier call chain is called with action->val, it will
 		 * fail with the error code
 		 */
-		if (!debugfs_create_errno("error", mode, action_dir,
-					&action->error))
-			goto fail;
+		debugfs_create_errno("error", mode, action_dir, &action->error);
 	}
 	return dir;
-fail:
-	debugfs_remove_recursive(dir);
-	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(notifier_err_inject_init);
 

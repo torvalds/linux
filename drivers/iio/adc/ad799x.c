@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * iio/adc/ad799x.c
  * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
@@ -11,15 +12,10 @@
  * based on linux/drivers/acron/char/pcf8583.c
  * Copyright (C) 2000 Russell King
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * ad799x.c
  *
  * Support for ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997,
  * ad7998 and similar chips.
- *
  */
 
 #include <linux/interrupt.h>
@@ -171,12 +167,21 @@ static int ad799x_read_config(struct ad799x_state *st)
 	}
 }
 
-/**
- * ad799x_trigger_handler() bh of trigger launched polling to ring buffer
- *
- * Currently there is no option in this driver to disable the saving of
- * timestamps within the ring.
- **/
+static int ad799x_update_config(struct ad799x_state *st, u16 config)
+{
+	int ret;
+
+	ret = ad799x_write_config(st, config);
+	if (ret < 0)
+		return ret;
+	ret = ad799x_read_config(st);
+	if (ret < 0)
+		return ret;
+	st->config = ret;
+
+	return 0;
+}
+
 static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -803,8 +808,6 @@ static int ad799x_probe(struct i2c_client *client,
 
 	st->client = client;
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_config->info;
 
@@ -812,13 +815,9 @@ static int ad799x_probe(struct i2c_client *client,
 	indio_dev->channels = st->chip_config->channel;
 	indio_dev->num_channels = chip_info->num_channels;
 
-	ret = ad799x_write_config(st, st->chip_config->default_config);
-	if (ret < 0)
-		goto error_disable_reg;
-	ret = ad799x_read_config(st);
-	if (ret < 0)
-		goto error_disable_reg;
-	st->config = ret;
+	ret = ad799x_update_config(st, st->chip_config->default_config);
+	if (ret)
+		goto error_disable_vref;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 		&ad799x_trigger_handler, NULL);
@@ -868,6 +867,48 @@ static int ad799x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int __maybe_unused ad799x_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct ad799x_state *st = iio_priv(indio_dev);
+
+	regulator_disable(st->vref);
+	regulator_disable(st->reg);
+
+	return 0;
+}
+
+static int __maybe_unused ad799x_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct ad799x_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = regulator_enable(st->reg);
+	if (ret) {
+		dev_err(dev, "Unable to enable vcc regulator\n");
+		return ret;
+	}
+	ret = regulator_enable(st->vref);
+	if (ret) {
+		regulator_disable(st->reg);
+		dev_err(dev, "Unable to enable vref regulator\n");
+		return ret;
+	}
+
+	/* resync config */
+	ret = ad799x_update_config(st, st->config);
+	if (ret) {
+		regulator_disable(st->vref);
+		regulator_disable(st->reg);
+		return ret;
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(ad799x_pm_ops, ad799x_suspend, ad799x_resume);
+
 static const struct i2c_device_id ad799x_id[] = {
 	{ "ad7991", ad7991 },
 	{ "ad7995", ad7995 },
@@ -885,6 +926,7 @@ MODULE_DEVICE_TABLE(i2c, ad799x_id);
 static struct i2c_driver ad799x_driver = {
 	.driver = {
 		.name = "ad799x",
+		.pm = &ad799x_pm_ops,
 	},
 	.probe = ad799x_probe,
 	.remove = ad799x_remove,

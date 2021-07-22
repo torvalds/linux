@@ -25,21 +25,27 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/radeon_drm.h>
-#include "radeon_reg.h"
-#include "radeon.h"
-#include "atom.h"
 
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
+
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "radeon.h"
+#include "radeon_kms.h"
+#include "radeon_reg.h"
+
 
 #define RADEON_WAIT_IDLE_TIMEOUT 200
 
-/**
+/*
  * radeon_driver_irq_handler_kms - irq handler for KMS
- *
- * @int irq, void *arg: args
  *
  * This is the irq handler for the radeon KMS driver (all asics).
  * radeon_irq_process is a macro that points to the per-asic
@@ -308,7 +314,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
 
 	rdev->irq.installed = true;
-	r = drm_irq_install(rdev->ddev, rdev->ddev->pdev->irq);
+	r = drm_irq_install(rdev->ddev, rdev->pdev->irq);
 	if (r) {
 		rdev->irq.installed = false;
 		flush_delayed_work(&rdev->hotplug_work);
@@ -542,14 +548,14 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
 }
 
 /**
- * radeon_irq_kms_update_int_n - helper for updating interrupt enable registers
+ * radeon_irq_kms_set_irq_n_enabled - helper for updating interrupt enable registers
  *
  * @rdev: radeon device pointer
  * @reg: the register to write to enable/disable interrupts
  * @mask: the mask that enables the interrupts
  * @enable: whether to enable or disable the interrupt register
  * @name: the name of the interrupt register to print to the kernel log
- * @num: the number of the interrupt register to print to the kernel log
+ * @n: the number of the interrupt register to print to the kernel log
  *
  * Helper for updating the enable state of interrupt registers. Checks whether
  * or not the interrupt matches the enable state we want. If it doesn't, then

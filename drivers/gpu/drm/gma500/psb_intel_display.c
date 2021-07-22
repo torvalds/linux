@@ -1,33 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright Â© 2006-2011 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_plane_helper.h>
+
 #include "framebuffer.h"
+#include "gma_display.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "gma_display.h"
-#include "power.h"
 
 #define INTEL_LIMIT_I9XX_SDVO_DAC   0
 #define INTEL_LIMIT_I9XX_LVDS	    1
@@ -82,7 +71,7 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
-/**
+/*
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
  */
@@ -437,12 +426,16 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.disable = gma_crtc_disable,
 };
 
-const struct drm_crtc_funcs psb_intel_crtc_funcs = {
+const struct drm_crtc_funcs gma_intel_crtc_funcs = {
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
 	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
+	.page_flip = gma_crtc_page_flip,
+	.enable_vblank = psb_enable_vblank,
+	.disable_vblank = psb_disable_vblank,
+	.get_vblank_counter = psb_get_vblank_counter,
 };
 
 const struct gma_clock_funcs psb_clock_funcs = {

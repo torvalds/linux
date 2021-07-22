@@ -11,10 +11,11 @@
 #define _ASM_S390_AIRQ_H
 
 #include <linux/bit_spinlock.h>
+#include <linux/dma-mapping.h>
 
 struct airq_struct {
 	struct hlist_node list;		/* Handler queueing. */
-	void (*handler)(struct airq_struct *);	/* Thin-interrupt handler */
+	void (*handler)(struct airq_struct *airq, bool floating);
 	u8 *lsi_ptr;			/* Local-Summary-Indicator pointer */
 	u8 lsi_mask;			/* Local-Summary-Indicator mask */
 	u8 isc;				/* Interrupt-subclass */
@@ -29,19 +30,22 @@ void unregister_adapter_interrupt(struct airq_struct *airq);
 /* Adapter interrupt bit vector */
 struct airq_iv {
 	unsigned long *vector;	/* Adapter interrupt bit vector */
+	dma_addr_t vector_dma; /* Adapter interrupt bit vector dma */
 	unsigned long *avail;	/* Allocation bit mask for the bit vector */
 	unsigned long *bitlock;	/* Lock bit mask for the bit vector */
 	unsigned long *ptr;	/* Pointer associated with each bit */
 	unsigned int *data;	/* 32 bit value associated with each bit */
 	unsigned long bits;	/* Number of bits in the vector */
 	unsigned long end;	/* Number of highest allocated bit + 1 */
+	unsigned long flags;	/* Allocation flags */
 	spinlock_t lock;	/* Lock to protect alloc & free */
 };
 
-#define AIRQ_IV_ALLOC	1	/* Use an allocation bit mask */
-#define AIRQ_IV_BITLOCK	2	/* Allocate the lock bit mask */
-#define AIRQ_IV_PTR	4	/* Allocate the ptr array */
-#define AIRQ_IV_DATA	8	/* Allocate the data array */
+#define AIRQ_IV_ALLOC		1	/* Use an allocation bit mask */
+#define AIRQ_IV_BITLOCK		2	/* Allocate the lock bit mask */
+#define AIRQ_IV_PTR		4	/* Allocate the ptr array */
+#define AIRQ_IV_DATA		8	/* Allocate the data array */
+#define AIRQ_IV_CACHELINE	16	/* Cacheline alignment for the vector */
 
 struct airq_iv *airq_iv_create(unsigned long bits, unsigned long flags);
 void airq_iv_release(struct airq_iv *iv);

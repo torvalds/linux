@@ -301,16 +301,6 @@ struct iscsi_queue_req {
 	struct list_head	qr_list;
 };
 
-struct iscsi_data_count {
-	int			data_length;
-	int			sync_and_steering;
-	enum data_count_type	type;
-	u32			iov_count;
-	u32			ss_iov_count;
-	u32			ss_marker_count;
-	struct kvec		*iov;
-};
-
 struct iscsi_param_list {
 	bool			iser;
 	struct list_head	param_list;
@@ -473,6 +463,7 @@ struct iscsi_cmd {
 	struct timer_list	dataout_timer;
 	/* Iovecs for SCSI data payload RX/TX w/ kernel level sockets */
 	struct kvec		*iov_data;
+	void			*overflow_buf;
 	/* Iovecs for miscellaneous purposes */
 #define ISCSI_MISC_IOVECS			5
 	struct kvec		iov_misc[ISCSI_MISC_IOVECS];
@@ -565,10 +556,11 @@ struct iscsi_conn {
 	struct socket		*sock;
 	void			(*orig_data_ready)(struct sock *);
 	void			(*orig_state_change)(struct sock *);
-#define LOGIN_FLAGS_READ_ACTIVE		1
-#define LOGIN_FLAGS_CLOSED		2
-#define LOGIN_FLAGS_READY		4
-#define LOGIN_FLAGS_INITIAL_PDU		8
+#define LOGIN_FLAGS_READY		0
+#define LOGIN_FLAGS_INITIAL_PDU		1
+#define LOGIN_FLAGS_READ_ACTIVE		2
+#define LOGIN_FLAGS_WRITE_ACTIVE	3
+#define LOGIN_FLAGS_CLOSED		4
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
 	struct iscsi_login	*login;
@@ -675,7 +667,7 @@ struct iscsi_session {
 	atomic_t		session_logout;
 	atomic_t		session_reinstatement;
 	atomic_t		session_stop_active;
-	atomic_t		sleep_on_sess_wait_comp;
+	atomic_t		session_close;
 	/* connection list */
 	struct list_head	sess_conn_list;
 	struct list_head	cr_active_list;

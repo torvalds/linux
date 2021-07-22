@@ -1,0 +1,8 @@
+What:          nvdimm
+Date:          July 2020
+KernelVersion: 5.8
+Contact:       Dan Williams <dan.j.williams@intel.com>
+Description:
+
+The libnvdimm sub-system implements a common sysfs interface for
+platform nvdimm resources. See Documentation/driver-api/nvdimm/.

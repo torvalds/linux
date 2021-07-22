@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <linux/devm-helpers.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -474,20 +474,14 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		if (!charger->poll_interval)
 			return 0;
 
-		INIT_DELAYED_WORK(&charger->poll, bq24735_poll);
+		ret = devm_delayed_work_autocancel(&client->dev, &charger->poll,
+						   bq24735_poll);
+		if (ret)
+			return ret;
+
 		schedule_delayed_work(&charger->poll,
 				      msecs_to_jiffies(charger->poll_interval));
 	}
-
-	return 0;
-}
-
-static int bq24735_charger_remove(struct i2c_client *client)
-{
-	struct bq24735 *charger = i2c_get_clientdata(client);
-
-	if (charger->poll_interval)
-		cancel_delayed_work_sync(&charger->poll);
 
 	return 0;
 }
@@ -510,7 +504,6 @@ static struct i2c_driver bq24735_charger_driver = {
 		.of_match_table = bq24735_match_ids,
 	},
 	.probe = bq24735_charger_probe,
-	.remove = bq24735_charger_remove,
 	.id_table = bq24735_charger_id,
 };
 

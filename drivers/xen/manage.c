@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Handle extern requests for shutdown, reboot and sysrq
  */
@@ -178,6 +179,7 @@ static int poweroff_nb(struct notifier_block *cb, unsigned long code, void *unus
 	case SYS_HALT:
 	case SYS_POWER_OFF:
 		shutting_down = SHUTDOWN_POWEROFF;
+		break;
 	default:
 		break;
 	}

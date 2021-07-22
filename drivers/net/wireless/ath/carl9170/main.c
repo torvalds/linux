@@ -582,11 +582,10 @@ static int carl9170_init_interface(struct ar9170 *ar,
 	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
 	    (vif->type != NL80211_IFTYPE_AP));
 
-	/* While the driver supports HW offload in a single
-	 * P2P client configuration, it doesn't support HW
-	 * offload in the favourit, concurrent P2P GO+CLIENT
-	 * configuration. Hence, HW offload will always be
-	 * disabled for P2P.
+	/* The driver used to have P2P GO+CLIENT support,
+	 * but since this was dropped and we don't know if
+	 * there are any gremlins lurking in the shadows,
+	 * so best we keep HW offload disabled for P2P.
 	 */
 	ar->disable_offload |= vif->p2p;
 
@@ -639,18 +638,6 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 			if (vif->type == NL80211_IFTYPE_STATION)
 				break;
 
-			/* P2P GO [master] use-case
-			 * Because the P2P GO station is selected dynamically
-			 * by all participating peers of a WIFI Direct network,
-			 * the driver has be able to change the main interface
-			 * operating mode on the fly.
-			 */
-			if (main_vif->p2p && vif->p2p &&
-			    vif->type == NL80211_IFTYPE_AP) {
-				old_main = main_vif;
-				break;
-			}
-
 			err = -EBUSY;
 			rcu_read_unlock();
 
@@ -659,7 +646,6 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			if ((vif->type == NL80211_IFTYPE_STATION) ||
-			    (vif->type == NL80211_IFTYPE_WDS) ||
 			    (vif->type == NL80211_IFTYPE_AP) ||
 			    (vif->type == NL80211_IFTYPE_MESH_POINT))
 				break;
@@ -1387,13 +1373,8 @@ static int carl9170_op_conf_tx(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&ar->mutex);
-	if (queue < ar->hw->queues) {
-		memcpy(&ar->edcf[ar9170_qmap[queue]], param, sizeof(*param));
-		ret = carl9170_set_qos(ar);
-	} else {
-		ret = -EINVAL;
-	}
-
+	memcpy(&ar->edcf[ar9170_qmap(queue)], param, sizeof(*param));
+	ret = carl9170_set_qos(ar);
 	mutex_unlock(&ar->mutex);
 	return ret;
 }
@@ -1454,8 +1435,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		rcu_assign_pointer(sta_info->agg[tid], tid_info);
 		spin_unlock_bh(&ar->tx_ampdu_list_lock);
 
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
+		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
 
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:

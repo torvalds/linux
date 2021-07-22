@@ -1,23 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: PC Chen <pc.chen@mediatek.com>
 *	Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #include <linux/module.h>
 
 #include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_util.h"
-#include "mtk_vpu.h"
 
 /* For encoder, this will enable logs in venc/*/
 bool mtk_vcodec_dbg;
@@ -49,7 +40,7 @@ int mtk_vcodec_mem_alloc(struct mtk_vcodec_ctx *data,
 	struct mtk_vcodec_ctx *ctx = (struct mtk_vcodec_ctx *)data;
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
-	mem->va = dma_zalloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
 	if (!mem->va) {
 		mtk_v4l2_err("%s dma_alloc size=%ld failed!", dev_name(dev),
 			     size);

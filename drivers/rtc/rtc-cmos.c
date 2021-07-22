@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RTC class driver for "CMOS RTC":  PCs, ACPI, etc
  *
  * Copyright (C) 1996 Paul Gortmaker (drivers/char/rtc.c)
  * Copyright (C) 2006 David Brownell (convert to new framework)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -257,6 +253,7 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char	rtc_control;
 
+	/* This not only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
 
@@ -452,6 +449,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	unsigned char mon, mday, hrs, min, sec, rtc_control;
 	int ret;
 
+	/* This not only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
 
@@ -515,9 +513,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -EINVAL;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -803,6 +798,14 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 
 	spin_lock_irq(&rtc_lock);
 
+	/* Ensure that the RTC is accessible. Bit 6 must be 0! */
+	if ((CMOS_READ(RTC_VALID) & 0x40) != 0) {
+		spin_unlock_irq(&rtc_lock);
+		dev_warn(dev, "not accessible\n");
+		retval = -ENXIO;
+		goto cleanup1;
+	}
+
 	if (!(flags & CMOS_RTC_FLAGS_NOFREQ)) {
 		/* force periodic irq to CMOS reset default of 1024Hz;
 		 *
@@ -849,24 +852,28 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			rtc_cmos_int_handler = cmos_interrupt;
 
 		retval = request_irq(rtc_irq, rtc_cmos_int_handler,
-				IRQF_SHARED, dev_name(&cmos_rtc.rtc->dev),
+				0, dev_name(&cmos_rtc.rtc->dev),
 				cmos_rtc.rtc);
 		if (retval < 0) {
 			dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
 			goto cleanup1;
 		}
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, cmos_rtc.rtc->features);
 	}
 
 	cmos_rtc.rtc->ops = &cmos_rtc_ops;
-	cmos_rtc.rtc->nvram_old_abi = true;
-	retval = rtc_register_device(cmos_rtc.rtc);
+
+	retval = devm_rtc_register_device(cmos_rtc.rtc);
 	if (retval)
 		goto cleanup2;
 
+	/* Set the sync offset for the periodic 11min update correct */
+	cmos_rtc.rtc->set_offset_nsec = NSEC_PER_SEC / 2;
+
 	/* export at least the first block of NVRAM */
 	nvmem_cfg.size = address_space - NVRAM_OFFSET;
-	if (rtc_nvmem_register(cmos_rtc.rtc, &nvmem_cfg))
-		dev_err(dev, "nvmem registration failed\n");
+	devm_rtc_nvmem_register(cmos_rtc.rtc, &nvmem_cfg);
 
 	dev_info(dev, "%s%s, %d bytes nvram%s\n",
 		 !is_valid_irq(rtc_irq) ? "no alarms" :
@@ -1001,6 +1008,7 @@ static int cmos_suspend(struct device *dev)
 			enable_irq_wake(cmos->irq);
 	}
 
+	memset(&cmos->saved_wkalrm, 0, sizeof(struct rtc_wkalrm));
 	cmos_read_alarm(dev, &cmos->saved_wkalrm);
 
 	dev_dbg(dev, "suspend%s, ctrl %02x\n",
@@ -1049,6 +1057,7 @@ static void cmos_check_wkalrm(struct device *dev)
 		return;
 	}
 
+	memset(&current_alarm, 0, sizeof(struct rtc_wkalrm));
 	cmos_read_alarm(dev, &current_alarm);
 	t_current_expires = rtc_tm_to_time64(&current_alarm.time);
 	t_saved_expires = rtc_tm_to_time64(&cmos->saved_wkalrm.time);
@@ -1193,8 +1202,6 @@ static void rtc_wake_off(struct device *dev)
 /* Enable use_acpi_alarm mode for Intel platforms no earlier than 2015 */
 static void use_acpi_alarm_quirks(void)
 {
-	int year;
-
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return;
 
@@ -1204,8 +1211,10 @@ static void use_acpi_alarm_quirks(void)
 	if (!is_hpet_enabled())
 		return;
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year >= 2015)
-		use_acpi_alarm = true;
+	if (dmi_get_bios_year() < 2015)
+		return;
+
+	use_acpi_alarm = true;
 }
 #else
 static inline void use_acpi_alarm_quirks(void) { }
@@ -1301,7 +1310,7 @@ static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		 * hardcode it on systems with a legacy PIC.
 		 */
 		if (nr_legacy_irqs())
-			irq = 8;
+			irq = RTC_IRQ;
 #endif
 		return cmos_do_probe(&pnp->dev,
 				pnp_get_resource(pnp, IORESOURCE_IO, 0), irq);
@@ -1341,7 +1350,7 @@ static const struct pnp_device_id rtc_ids[] = {
 MODULE_DEVICE_TABLE(pnp, rtc_ids);
 
 static struct pnp_driver cmos_pnp_driver = {
-	.name		= (char *) driver_name,
+	.name		= driver_name,
 	.id_table	= rtc_ids,
 	.probe		= cmos_pnp_probe,
 	.remove		= cmos_pnp_remove,

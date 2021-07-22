@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 IBM Corporation.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/types.h>
 #include <linux/threads.h>
@@ -206,7 +201,7 @@ void xics_migrate_irqs_away(void)
 		struct ics *ics;
 
 		/* We can't set affinity on ISA interrupts */
-		if (virq < NUM_ISA_INTERRUPTS)
+		if (virq < NR_IRQS_LEGACY)
 			continue;
 		/* We only need to migrate enabled IRQS */
 		if (!desc->action)
@@ -481,6 +476,8 @@ void __init xics_init(void)
 	rc = ics_rtas_init();
 	if (rc < 0)
 		rc = ics_opal_init();
+	if (rc < 0)
+		rc = ics_native_init();
 	if (rc < 0)
 		pr_warn("XICS: Cannot find a Source Controller !\n");
 

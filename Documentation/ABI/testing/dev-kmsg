@@ -6,13 +6,14 @@ Description:	The /dev/kmsg character device node provides userspace access
 		to the kernel's printk buffer.
 
 		Injecting messages:
+
 		Every write() to the opened device node places a log entry in
 		the kernel's printk buffer.
 
 		The logged line can be prefixed with a <N> syslog prefix, which
 		carries the syslog priority and facility. The single decimal
 		prefix number is composed of the 3 lowest bits being the syslog
-		priority and the higher bits the syslog facility number.
+		priority and the next 8 bits the syslog facility number.
 
 		If no prefix is given, the priority number is the default kernel
 		log priority and the facility number is set to LOG_USER (1). It
@@ -21,6 +22,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		the messages can always be reliably determined.
 
 		Accessing the buffer:
+
 		Every read() from the opened device node receives one record
 		of the kernel's printk buffer.
 
@@ -48,6 +50,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		if needed, without limiting the interface to a single reader.
 
 		The device supports seek with the following parameters:
+
 		SEEK_SET, 0
 		  seek to the first entry in the buffer
 		SEEK_END, 0
@@ -55,6 +58,17 @@ Description:	The /dev/kmsg character device node provides userspace access
 		SEEK_DATA, 0
 		  seek after the last record available at the time
 		  the last SYSLOG_ACTION_CLEAR was issued.
+
+		Other seek operations or offsets are not supported because of
+		the special behavior this device has. The device allows to read
+		or write only whole variable length messages (records) that are
+		stored in a ring buffer.
+
+		Because of the non-standard behavior also the error values are
+		non-standard. -ESPIPE is returned for non-zero offset. -EINVAL
+		is returned for other operations, e.g. SEEK_CUR. This behavior
+		and values are historical and could not be modified without the
+		risk of breaking userspace.
 
 		The output format consists of a prefix carrying the syslog
 		prefix including priority and facility, the 64 bit message
@@ -76,27 +90,30 @@ Description:	The /dev/kmsg character device node provides userspace access
 		readable context of the message, for reliable processing in
 		userspace.
 
-		Example:
-		7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
-		 SUBSYSTEM=acpi
-		 DEVICE=+acpi:PNP0A03:00
-		6,339,5140900,-;NET: Registered protocol family 10
-		30,340,5690716,-;udevd[80]: starting version 181
+		Example::
+
+		  7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
+		   SUBSYSTEM=acpi
+		   DEVICE=+acpi:PNP0A03:00
+		  6,339,5140900,-;NET: Registered protocol family 10
+		  30,340,5690716,-;udevd[80]: starting version 181
 
 		The DEVICE= key uniquely identifies devices the following way:
-		  b12:8        - block dev_t
-		  c127:3       - char dev_t
-		  n8           - netdev ifindex
-		  +sound:card0 - subsystem:devname
+
+		  ============  =================
+		  b12:8         block dev_t
+		  c127:3        char dev_t
+		  n8            netdev ifindex
+		  +sound:card0  subsystem:devname
+		  ============  =================
 
 		The flags field carries '-' by default. A 'c' indicates a
-		fragment of a line. All following fragments are flagged with
-		'+'. Note, that these hints about continuation lines are not
-		necessarily correct, and the stream could be interleaved with
-		unrelated messages, but merging the lines in the output
-		usually produces better human readable results. A similar
-		logic is used internally when messages are printed to the
-		console, /proc/kmsg or the syslog() syscall.
+		fragment of a line. Note, that these hints about continuation
+		lines are not necessarily correct, and the stream could be
+		interleaved with unrelated messages, but merging the lines in
+		the output usually produces better human readable results. A
+		similar logic is used internally when messages are printed to
+		the console, /proc/kmsg or the syslog() syscall.
 
 		By default, kernel tries to avoid fragments by concatenating
 		when it can and fragments are rare; however, when extended

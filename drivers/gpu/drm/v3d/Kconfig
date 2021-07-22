@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_V3D
 	tristate "Broadcom V3D 3.x and newer"
 	depends on ARCH_BCM || ARCH_BCMSTB || COMPILE_TEST
@@ -5,6 +6,7 @@ config DRM_V3D
 	depends on COMMON_CLK
 	depends on MMU
 	select DRM_SCHED
+	select DRM_GEM_SHMEM_HELPER
 	help
 	  Choose this option if you have a system that has a Broadcom
 	  V3D 3.x or newer GPU, such as BCM7268.

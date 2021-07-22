@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
 	depends on BLOCK
@@ -8,7 +9,7 @@ config HPFS_FS
 	  write files to an OS/2 HPFS partition on your hard drive. OS/2
 	  floppies however are in regular MSDOS format, so you don't need this
 	  option in order to be able to read them. Read
-	  <file:Documentation/filesystems/hpfs.txt>.
+	  <file:Documentation/filesystems/hpfs.rst>.
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called hpfs.  If unsure, say N.

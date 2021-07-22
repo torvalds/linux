@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
-
-comment "Compiler: $(CC_VERSION_TEXT)"
 
 source "scripts/Kconfig.include"
 
@@ -30,3 +28,5 @@ source "crypto/Kconfig"
 source "lib/Kconfig"
 
 source "lib/Kconfig.debug"
+
+source "Documentation/Kconfig"

@@ -55,7 +55,7 @@ static void iss_print_status(struct iss_device *iss)
  * readback the same register, in this case the revision register.
  *
  * See this link for reference:
- *   http://www.mail-archive.com/linux-omap@vger.kernel.org/msg08149.html
+ *   https://www.mail-archive.com/linux-omap@vger.kernel.org/msg08149.html
  */
 static void omap4iss_flush(struct iss_device *iss)
 {
@@ -456,6 +456,8 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 
 	pipe->do_propagation = false;
 
+	mutex_lock(&iss->media_dev.graph_mutex);
+
 	entity = &pipe->output->video.entity;
 	while (1) {
 		pad = &entity->pads[0];
@@ -472,6 +474,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
 		if (ret < 0 && ret != -ENOIOCTLCMD) {
 			iss_pipeline_disable(pipe, entity);
+			mutex_unlock(&iss->media_dev.graph_mutex);
 			return ret;
 		}
 
@@ -480,7 +483,9 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 			pipe->do_propagation = true;
 	}
 
+	mutex_unlock(&iss->media_dev.graph_mutex);
 	iss_print_status(pipe->output->iss);
+
 	return 0;
 }
 
@@ -908,11 +913,7 @@ static int iss_map_mem_resource(struct platform_device *pdev,
 				struct iss_device *iss,
 				enum iss_mem_resources res)
 {
-	struct resource *mem;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, res);
-
-	iss->regs[res] = devm_ioremap_resource(iss->dev, mem);
+	iss->regs[res] = devm_platform_ioremap_resource(pdev, res);
 
 	return PTR_ERR_OR_ZERO(iss->regs[res]);
 }
@@ -964,7 +965,7 @@ iss_register_subdev_group(struct iss_device *iss,
 		}
 
 		subdev = v4l2_i2c_new_subdev_board(&iss->v4l2_dev, adapter,
-				board_info->board_info, NULL);
+						   board_info->board_info, NULL);
 		if (!subdev) {
 			dev_err(iss->dev, "Unable to register subdev %s\n",
 				board_info->board_info->type);
@@ -1240,8 +1241,10 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error;
 
-	if (!omap4iss_get(iss))
+	if (!omap4iss_get(iss)) {
+		ret = -EINVAL;
 		goto error;
+	}
 
 	ret = iss_reset(iss);
 	if (ret < 0)
@@ -1276,7 +1279,6 @@ static int iss_probe(struct platform_device *pdev)
 	/* Interrupt */
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		dev_err(iss->dev, "No IRQ resource\n");
 		ret = -ENODEV;
 		goto error_iss;
 	}
@@ -1354,4 +1356,3 @@ module_platform_driver(iss_driver);
 MODULE_DESCRIPTION("TI OMAP4 ISS driver");
 MODULE_AUTHOR("Sergio Aguirre <sergio.a.aguirre@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ISS_VIDEO_DRIVER_VERSION);

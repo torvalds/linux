@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _WMI_OPS_H_
@@ -33,6 +22,9 @@ struct wmi_ops {
 			    struct wmi_mgmt_rx_ev_arg *arg);
 	int (*pull_mgmt_tx_compl)(struct ath10k *ar, struct sk_buff *skb,
 				  struct wmi_tlv_mgmt_tx_compl_ev_arg *arg);
+	int (*pull_mgmt_tx_bundle_compl)(
+				struct ath10k *ar, struct sk_buff *skb,
+				struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg);
 	int (*pull_ch_info)(struct ath10k *ar, struct sk_buff *skb,
 			    struct wmi_ch_info_ev_arg *arg);
 	int (*pull_vdev_start)(struct ath10k *ar, struct sk_buff *skb,
@@ -66,6 +58,8 @@ struct wmi_ops {
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
 	struct sk_buff *(*gen_pdev_resume)(struct ath10k *ar);
+	struct sk_buff *(*gen_pdev_set_base_macaddr)(struct ath10k *ar,
+						     const u8 macaddr[ETH_ALEN]);
 	struct sk_buff *(*gen_pdev_set_rd)(struct ath10k *ar, u16 rd, u16 rd2g,
 					   u16 rd5g, u16 ctl2g, u16 ctl5g,
 					   enum wmi_dfs_region dfs_reg);
@@ -132,6 +126,13 @@ struct wmi_ops {
 	struct sk_buff *(*gen_pdev_set_wmm)(struct ath10k *ar,
 					    const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_request_stats)(struct ath10k *ar, u32 stats_mask);
+	struct sk_buff *(*gen_request_peer_stats_info)(struct ath10k *ar,
+						       u32 vdev_id,
+						       enum
+						       wmi_peer_stats_info_request_type
+						       type,
+						       u8 *addr,
+						       u32 reset);
 	struct sk_buff *(*gen_force_fw_hang)(struct ath10k *ar,
 					     enum wmi_force_fw_hang_type type,
 					     u32 delay_ms);
@@ -139,6 +140,7 @@ struct wmi_ops {
 	struct sk_buff *(*gen_mgmt_tx_send)(struct ath10k *ar,
 					    struct sk_buff *skb,
 					    dma_addr_t paddr);
+	int (*cleanup_mgmt_tx_send)(struct ath10k *ar, struct sk_buff *msdu);
 	struct sk_buff *(*gen_dbglog_cfg)(struct ath10k *ar, u64 module_enable,
 					  u32 log_level);
 	struct sk_buff *(*gen_pktlog_enable)(struct ath10k *ar, u32 filter);
@@ -219,6 +221,11 @@ struct wmi_ops {
 	struct sk_buff *(*gen_echo)(struct ath10k *ar, u32 value);
 	struct sk_buff *(*gen_pdev_get_tpc_table_cmdid)(struct ath10k *ar,
 							u32 param);
+	struct sk_buff *(*gen_bb_timing)
+			(struct ath10k *ar,
+			 const struct wmi_bb_timing_cfg_arg *arg);
+	struct sk_buff *(*gen_per_peer_per_tid_cfg)(struct ath10k *ar,
+						    const struct wmi_per_peer_per_tid_cfg_arg *arg);
 
 };
 
@@ -274,6 +281,16 @@ ath10k_wmi_pull_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_mgmt_tx_compl(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb,
+				     struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_mgmt_tx_bundle_compl)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_mgmt_tx_bundle_compl(ar, skb, arg);
 }
 
 static inline int
@@ -435,6 +452,15 @@ ath10k_wmi_get_txbf_conf_scheme(struct ath10k *ar)
 }
 
 static inline int
+ath10k_wmi_cleanup_mgmt_tx_send(struct ath10k *ar, struct sk_buff *msdu)
+{
+	if (!ar->wmi.ops->cleanup_mgmt_tx_send)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->cleanup_mgmt_tx_send(ar, msdu);
+}
+
+static inline int
 ath10k_wmi_mgmt_tx_send(struct ath10k *ar, struct sk_buff *msdu,
 			dma_addr_t paddr)
 {
@@ -501,6 +527,22 @@ ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g, u16 rd5g,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_set_regdomain_cmdid);
+}
+
+static inline int
+ath10k_wmi_pdev_set_base_macaddr(struct ath10k *ar, const u8 macaddr[ETH_ALEN])
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_pdev_set_base_macaddr)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_pdev_set_base_macaddr(ar, macaddr);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_set_base_macaddr_cmdid);
 }
 
 static inline int
@@ -1042,6 +1084,29 @@ ath10k_wmi_request_stats(struct ath10k *ar, u32 stats_mask)
 }
 
 static inline int
+ath10k_wmi_request_peer_stats_info(struct ath10k *ar,
+				   u32 vdev_id,
+				   enum wmi_peer_stats_info_request_type type,
+				   u8 *addr,
+				   u32 reset)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_request_peer_stats_info)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_request_peer_stats_info(ar,
+						       vdev_id,
+						       type,
+						       addr,
+						       reset);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->request_peer_stats_info_cmdid);
+}
+
+static inline int
 ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			 enum wmi_force_fw_hang_type type, u32 delay_ms)
 {
@@ -1576,4 +1641,38 @@ ath10k_wmi_report_radar_found(struct ath10k *ar,
 				   ar->wmi.cmd->radar_found_cmdid);
 }
 
+static inline int
+ath10k_wmi_pdev_bb_timing(struct ath10k *ar,
+			  const struct wmi_bb_timing_cfg_arg *arg)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_bb_timing)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_bb_timing(ar, arg);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->set_bb_timing_cmdid);
+}
+
+static inline int
+ath10k_wmi_set_per_peer_per_tid_cfg(struct ath10k *ar,
+				    const struct wmi_per_peer_per_tid_cfg_arg *arg)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_per_peer_per_tid_cfg)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_per_peer_per_tid_cfg(ar, arg);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->per_peer_per_tid_config_cmdid);
+}
 #endif

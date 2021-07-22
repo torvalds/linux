@@ -47,7 +47,7 @@
 
 #include "usbtv.h"
 
-static struct usbtv_norm_params norm_params[] = {
+static const struct usbtv_norm_params norm_params[] = {
 	{
 		.norm = V4L2_STD_525_60,
 		.cap_width = 720,
@@ -63,7 +63,7 @@ static struct usbtv_norm_params norm_params[] = {
 static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
 {
 	int i, ret = 0;
-	struct usbtv_norm_params *params = NULL;
+	const struct usbtv_norm_params *params = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(norm_params); i++) {
 		if (norm_params[i].norm & norm) {
@@ -603,9 +603,6 @@ static int usbtv_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "usbtv", sizeof(cap->driver));
 	strscpy(cap->card, "usbtv", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE;
-	cap->device_caps |= V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -636,8 +633,6 @@ static int usbtv_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index > 0)
 		return -EINVAL;
 
-	strscpy(f->description, "16 bpp YUY2, 4:2:2, packed",
-		sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_YUYV;
 	return 0;
 }
@@ -690,7 +685,7 @@ static int usbtv_s_input(struct file *file, void *priv, unsigned int i)
 	return usbtv_select_input(usbtv, i);
 }
 
-static struct v4l2_ioctl_ops usbtv_ioctl_ops = {
+static const struct v4l2_ioctl_ops usbtv_ioctl_ops = {
 	.vidioc_querycap = usbtv_querycap,
 	.vidioc_enum_input = usbtv_enum_input,
 	.vidioc_enum_fmt_vid_cap = usbtv_enum_fmt_vid_cap,
@@ -805,7 +800,8 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = usb_control_msg(usbtv->udev,
 			usb_rcvctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, USBTV_BASE + 0x0244, (void *)data, 3, 0);
+			0, USBTV_BASE + 0x0244, (void *)data, 3,
+			USB_CTRL_GET_TIMEOUT);
 		if (ret < 0)
 			goto error;
 	}
@@ -856,7 +852,7 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 	ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
 			USBTV_CONTROL_REG,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, index, (void *)data, size, 0);
+			0, index, (void *)data, size, USB_CTRL_SET_TIMEOUT);
 
 error:
 	if (ret < 0)
@@ -876,7 +872,6 @@ static void usbtv_release(struct v4l2_device *v4l2_dev)
 
 	v4l2_device_unregister(&usbtv->v4l2_dev);
 	v4l2_ctrl_handler_free(&usbtv->ctrl);
-	vb2_queue_release(&usbtv->vb2q);
 	kfree(usbtv);
 }
 
@@ -942,8 +937,10 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->vdev.tvnorms = USBTV_TV_STD;
 	usbtv->vdev.queue = &usbtv->vb2q;
 	usbtv->vdev.lock = &usbtv->v4l2_lock;
+	usbtv->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING;
 	video_set_drvdata(&usbtv->vdev, usbtv);
-	ret = video_register_device(&usbtv->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&usbtv->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_warn(usbtv->dev, "Could not register video device\n");
 		goto vdev_fail;
@@ -956,7 +953,6 @@ vdev_fail:
 v4l2_fail:
 ctrl_fail:
 	v4l2_ctrl_handler_free(&usbtv->ctrl);
-	vb2_queue_release(&usbtv->vb2q);
 
 	return ret;
 }
@@ -967,7 +963,7 @@ void usbtv_video_free(struct usbtv *usbtv)
 	mutex_lock(&usbtv->v4l2_lock);
 
 	usbtv_stop(usbtv);
-	video_unregister_device(&usbtv->vdev);
+	vb2_video_unregister_device(&usbtv->vdev);
 	v4l2_device_disconnect(&usbtv->v4l2_dev);
 
 	mutex_unlock(&usbtv->v4l2_lock);

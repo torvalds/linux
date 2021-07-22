@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
@@ -6,15 +7,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/configfs.h>
@@ -36,7 +28,6 @@
 /* Instance Attributes Table */
 #define ISCSI_INST_NUM_NODES		1
 #define ISCSI_INST_DESCR		"Storage Engine Target"
-#define ISCSI_INST_LAST_FAILURE_TYPE	0
 #define ISCSI_DISCONTINUITY_TIME	0
 
 #define ISCSI_NODE_INDEX		1

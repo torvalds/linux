@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_BITOPS_H
 #define __ASM_CSKY_BITOPS_H
@@ -40,7 +39,7 @@ static __always_inline unsigned long __ffs(unsigned long x)
 /*
  * asm-generic/bitops/fls.h
  */
-static __always_inline int fls(int x)
+static __always_inline int fls(unsigned int x)
 {
 	asm volatile(
 		"ff1 %0\n"

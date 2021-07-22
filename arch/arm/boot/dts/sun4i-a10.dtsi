@@ -143,7 +143,7 @@
 			trips {
 				cpu_alert0: cpu-alert0 {
 					/* milliCelsius */
-					temperature = <850000>;
+					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
@@ -182,6 +182,26 @@
 		compatible = "allwinner,sun4i-a10-display-engine";
 		allwinner,pipelines = <&fe0>, <&fe1>;
 		status = "disabled";
+	};
+
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupts = <3>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* Address must be kept in the lower 256 MiBs of DRAM for VE. */
+		default-pool {
+			compatible = "shared-dma-pool";
+			size = <0x6000000>;
+			alloc-ranges = <0x40000000 0x10000000>;
+			reusable;
+			linux,cma-default;
+		};
 	};
 
 	soc {
@@ -224,6 +244,19 @@
 					status = "disabled";
 				};
 			};
+
+			sram_c: sram@1d00000 {
+				compatible = "mmio-sram";
+				reg = <0x01d00000 0xd0000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x01d00000 0xd0000>;
+
+				ve_sram: sram-section@0 {
+					compatible = "allwinner,sun4i-a10-sram-c1";
+					reg = <0x000000 0x80000>;
+				};
+			};
 		};
 
 		dma: dma-controller@1c02000 {
@@ -234,7 +267,7 @@
 			#dma-cells = <2>;
 		};
 
-		nfc: nand@1c03000 {
+		nfc: nand-controller@1c03000 {
 			compatible = "allwinner,sun4i-a10-nand";
 			reg = <0x01c03000 0x1000>;
 			interrupts = <37>;
@@ -309,6 +342,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon0-pixel-clock";
+			#clock-cells = <0>;
 			dmas = <&dma SUN4I_DMA_DEDICATED 14>;
 
 			ports {
@@ -358,6 +392,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon1-pixel-clock";
+			#clock-cells = <0>;
 			dmas = <&dma SUN4I_DMA_DEDICATED 15>;
 
 			ports {
@@ -392,6 +427,17 @@
 					};
 				};
 			};
+		};
+
+		video-codec@1c0e000 {
+			compatible = "allwinner,sun4i-a10-video-engine";
+			reg = <0x01c0e000 0x1000>;
+			clocks = <&ccu CLK_AHB_VE>, <&ccu CLK_VE>,
+				 <&ccu CLK_DRAM_VE>;
+			clock-names = "ahb", "mod", "ram";
+			resets = <&ccu RST_VE>;
+			interrupts = <53>;
+			allwinner,sram = <&ve_sram 1>;
 		};
 
 		mmc0: mmc@1c0f000 {
@@ -450,13 +496,14 @@
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
 			allwinner,sram = <&otg_sram 1>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
 		usbphy: phy@1c13400 {
 			#phy-cells = <1>;
 			compatible = "allwinner,sun4i-a10-usb-phy";
-			reg = <0x01c13400 0x10 0x01c14800 0x4 0x01c1c800 0x4>;
+			reg = <0x01c13400 0x10>, <0x01c14800 0x4>, <0x01c1c800 0x4>;
 			reg-names = "phy_ctrl", "pmu1", "pmu2";
 			clocks = <&ccu CLK_USB_PHY>;
 			clock-names = "usb_phy";
@@ -530,8 +577,6 @@
 				};
 
 				hdmi_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -579,6 +624,16 @@
 			status = "disabled";
 		};
 
+		csi1: csi@1c1d000 {
+			compatible = "allwinner,sun4i-a10-csi1";
+			reg = <0x01c1d000 0x1000>;
+			interrupts = <43>;
+			clocks = <&ccu CLK_AHB_CSI1>, <&ccu CLK_DRAM_CSI1>;
+			clock-names = "bus", "ram";
+			resets = <&ccu RST_CSI1>;
+			status = "disabled";
+		};
+
 		spi3: spi@1c1f000 {
 			compatible = "allwinner,sun4i-a10-spi";
 			reg = <0x01c1f000 0x1000>;
@@ -623,6 +678,31 @@
 			can0_ph_pins: can0-ph-pins {
 				pins = "PH20", "PH21";
 				function = "can";
+			};
+
+			/omit-if-no-ref/
+			csi1_8bits_pg_pins: csi1-8bits-pg-pins {
+				pins = "PG0", "PG2", "PG3", "PG4", "PG5",
+				       "PG6", "PG7", "PG8", "PG9", "PG10",
+				       "PG11";
+				function = "csi1";
+			};
+
+			/omit-if-no-ref/
+			csi1_24bits_ph_pins: csi1-24bits-ph-pins {
+				pins = "PH0", "PH1", "PH2", "PH3", "PH4",
+				       "PH5", "PH6", "PH7", "PH8", "PH9",
+				       "PH10", "PH11", "PH12", "PH13", "PH14",
+				       "PH15", "PH16", "PH17", "PH18", "PH19",
+				       "PH20", "PH21", "PH22", "PH23", "PH24",
+				       "PH25", "PH26", "PH27";
+				function = "csi1";
+			};
+
+			/omit-if-no-ref/
+			csi1_clk_pg_pin: csi1-clk-pg-pin {
+				pins = "PG1";
+				function = "csi1";
 			};
 
 			emac_pins: emac0-pins {
@@ -762,13 +842,20 @@
 		timer@1c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0x90>;
-			interrupts = <22>;
+			interrupts = <22>,
+				     <23>,
+				     <24>,
+				     <25>,
+				     <67>,
+				     <68>;
 			clocks = <&osc24M>;
 		};
 
 		wdt: watchdog@1c20c90 {
 			compatible = "allwinner,sun4i-a10-wdt";
 			reg = <0x01c20c90 0x10>;
+			interrupts = <24>;
+			clocks = <&osc24M>;
 		};
 
 		rtc: rtc@1c20d00 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  pci_irq.c - ACPI PCI Interrupt Routing ($Revision: 11 $)
  *
@@ -6,22 +7,9 @@
  *  Copyright (C) 2002       Dominik Brodowski <devel@brodo.de>
  *  (c) Copyright 2008 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#define pr_fmt(fmt) "ACPI: PCI: " fmt
 
 #include <linux/dmi.h>
 #include <linux/kernel.h>
@@ -34,11 +22,6 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-
-#define PREFIX "ACPI: "
-
-#define _COMPONENT		ACPI_PCI_COMPONENT
-ACPI_MODULE_NAME("pci_irq");
 
 struct acpi_prt_entry {
 	struct acpi_pci_id	id;
@@ -139,7 +122,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 		    entry->pin == quirk->pin &&
 		    !strcmp(prt->source, quirk->source) &&
 		    strlen(prt->source) >= strlen(quirk->actual_source)) {
-			printk(KERN_WARNING PREFIX "firmware reports "
+			pr_warn("Firmware reports "
 				"%04x:%02x:%02x PCI INT %c connected to %s; "
 				"changing to %s\n",
 				entry->id.segment, entry->id.bus,
@@ -188,7 +171,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * configure the IRQ assigned to this slot|dev|pin.  The 'source_index'
 	 * indicates which resource descriptor in the resource template (of
 	 * the link device) this interrupt is allocated from.
-	 * 
+	 *
 	 * NOTE: Don't query the Link Device for IRQ information at this time
 	 *       because Link Device enumeration may not have occurred yet
 	 *       (e.g. exists somewhere 'below' this _PRT entry in the ACPI
@@ -204,12 +187,9 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * the IRQ value, which is hardwired to specific interrupt inputs on
 	 * the interrupt controller.
 	 */
-
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
-			      "      %04x:%02x:%02x[%c] -> %s[%d]\n",
-			      entry->id.segment, entry->id.bus,
-			      entry->id.device, pin_name(entry->pin),
-			      prt->source, entry->index));
+	pr_debug("%04x:%02x:%02x[%c] -> %s[%d]\n",
+		 entry->id.segment, entry->id.bus, entry->id.device,
+		 pin_name(entry->pin), prt->source, entry->index);
 
 	*entry_ptr = entry;
 
@@ -320,8 +300,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 #ifdef CONFIG_X86_IO_APIC
 		acpi_reroute_boot_interrupt(dev, entry);
 #endif /* CONFIG_X86_IO_APIC */
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
-				  pci_name(dev), pin_name(pin)));
+		dev_dbg(&dev->dev, "Found [%c] _PRT entry\n", pin_name(pin));
 		return entry;
 	}
 
@@ -337,9 +316,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 			/* PC card has the same IRQ as its cardbridge */
 			bridge_pin = bridge->pin;
 			if (!bridge_pin) {
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "No interrupt pin configured for device %s\n",
-						  pci_name(bridge)));
+				dev_dbg(&bridge->dev, "No interrupt pin configured\n");
 				return NULL;
 			}
 			pin = bridge_pin;
@@ -347,10 +324,8 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 
 		ret = acpi_pci_irq_find_prt_entry(bridge, pin, &entry);
 		if (!ret && entry) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					 "Derived GSI for %s INT %c from %s\n",
-					 pci_name(dev), pin_name(orig_pin),
-					 pci_name(bridge)));
+			dev_dbg(&dev->dev, "Derived GSI INT %c from %s\n",
+				pin_name(orig_pin), pci_name(bridge));
 			return entry;
 		}
 
@@ -426,9 +401,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	pin = dev->pin;
 	if (!pin) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "No interrupt pin configured for device %s\n",
-				  pci_name(dev)));
+		dev_dbg(&dev->dev, "No interrupt pin configured\n");
 		return 0;
 	}
 
@@ -462,8 +435,10 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		 * No IRQ known to the ACPI subsystem - maybe the BIOS /
 		 * driver reported one, then use it. Exit in any case.
 		 */
-		if (!acpi_pci_irq_valid(dev, pin))
+		if (!acpi_pci_irq_valid(dev, pin)) {
+			kfree(entry);
 			return 0;
+		}
 
 		if (acpi_isa_register_gsi(dev))
 			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",

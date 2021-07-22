@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * I2C multiplexer using a single register
  *
  * Copyright 2015 Freescale Semiconductor
  * York Sun  <yorksun@freescale.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/i2c.h>
@@ -175,13 +171,9 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 			sizeof(mux->data));
 	} else {
 		ret = i2c_mux_reg_probe_dt(mux, pdev);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Error parsing device tree");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(&pdev->dev, ret,
+					     "Error parsing device tree");
 	}
 
 	parent = i2c_get_adapter(mux->data.parent);

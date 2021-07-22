@@ -29,6 +29,7 @@
 #include <linux/types.h>
 
 #include "i915_random.h"
+#include "i915_utils.h"
 
 u64 i915_prandom_u64_state(struct rnd_state *rnd)
 {
@@ -41,16 +42,35 @@ u64 i915_prandom_u64_state(struct rnd_state *rnd)
 	return x;
 }
 
+void i915_prandom_shuffle(void *arr, size_t elsz, size_t count,
+			  struct rnd_state *state)
+{
+	char stack[128];
+
+	if (WARN_ON(elsz > sizeof(stack) || count > U32_MAX))
+		return;
+
+	if (!elsz || !count)
+		return;
+
+	/* Fisher-Yates shuffle courtesy of Knuth */
+	while (--count) {
+		size_t swp;
+
+		swp = i915_prandom_u32_max_state(count + 1, state);
+		if (swp == count)
+			continue;
+
+		memcpy(stack, arr + count * elsz, elsz);
+		memcpy(arr + count * elsz, arr + swp * elsz, elsz);
+		memcpy(arr + swp * elsz, stack, elsz);
+	}
+}
+
 void i915_random_reorder(unsigned int *order, unsigned int count,
 			 struct rnd_state *state)
 {
-	unsigned int i, j;
-
-	for (i = 0; i < count; i++) {
-		BUILD_BUG_ON(sizeof(unsigned int) > sizeof(u32));
-		j = i915_prandom_u32_max_state(count, state);
-		swap(order[i], order[j]);
-	}
+	i915_prandom_shuffle(order, sizeof(*order), count, state);
 }
 
 unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)
@@ -67,4 +87,23 @@ unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)
 
 	i915_random_reorder(order, count, state);
 	return order;
+}
+
+u64 igt_random_offset(struct rnd_state *state,
+		      u64 start, u64 end,
+		      u64 len, u64 align)
+{
+	u64 range, addr;
+
+	BUG_ON(range_overflows(start, len, end));
+	BUG_ON(round_up(start, align) > round_down(end - len, align));
+
+	range = round_down(end - len, align) - round_up(start, align);
+	if (range) {
+		addr = i915_prandom_u64_state(state);
+		div64_u64_rem(addr, range, &addr);
+		start += addr;
+	}
+
+	return round_up(start, align);
 }

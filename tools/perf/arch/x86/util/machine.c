@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/string.h>
+#include <limits.h>
 #include <stdlib.h>
 
-#include "../../util/machine.h"
-#include "../../util/map.h"
-#include "../../util/symbol.h"
-#include "../../util/sane_ctype.h"
+#include <internal/lib.h> // page_size
+#include "../../../util/machine.h"
+#include "../../../util/map.h"
+#include "../../../util/symbol.h"
+#include <linux/ctype.h>
 
 #include <symbol/kallsyms.h>
 

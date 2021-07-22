@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config USB_RAINSHADOW_CEC
+	tristate "RainShadow Tech HDMI CEC"
+	select CEC_CORE
+	select USB
+	select USB_ACM
+	select SERIO
+	select SERIO_SERPORT
+	help
+	  This is a cec driver for the RainShadow Tech HDMI CEC device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rainshadow-cec.

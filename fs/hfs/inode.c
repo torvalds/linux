@@ -17,6 +17,7 @@
 #include <linux/cred.h>
 #include <linux/uio.h>
 #include <linux/xattr.h>
+#include <linux/blkdev.h>
 
 #include "hfs_fs.h"
 #include "btree.h"
@@ -158,6 +159,7 @@ static int hfs_writepages(struct address_space *mapping,
 }
 
 const struct address_space_operations hfs_btree_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= hfs_readpage,
 	.writepage	= hfs_writepage,
 	.write_begin	= hfs_write_begin,
@@ -167,6 +169,7 @@ const struct address_space_operations hfs_btree_aops = {
 };
 
 const struct address_space_operations hfs_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= hfs_readpage,
 	.writepage	= hfs_writepage,
 	.write_begin	= hfs_write_begin,
@@ -351,7 +354,7 @@ static int hfs_read_inode(struct inode *inode, void *data)
 		inode->i_mode &= ~hsb->s_file_umask;
 		inode->i_mode |= S_IFREG;
 		inode->i_ctime = inode->i_atime = inode->i_mtime =
-				timespec_to_timespec64(hfs_m_to_utime(rec->file.MdDat));
+				hfs_m_to_utime(rec->file.MdDat);
 		inode->i_op = &hfs_file_inode_operations;
 		inode->i_fop = &hfs_file_operations;
 		inode->i_mapping->a_ops = &hfs_aops;
@@ -362,7 +365,7 @@ static int hfs_read_inode(struct inode *inode, void *data)
 		HFS_I(inode)->fs_blocks = 0;
 		inode->i_mode = S_IFDIR | (S_IRWXUGO & ~hsb->s_dir_umask);
 		inode->i_ctime = inode->i_atime = inode->i_mtime =
-				timespec_to_timespec64(hfs_m_to_utime(rec->dir.MdDat));
+				hfs_m_to_utime(rec->dir.MdDat);
 		inode->i_op = &hfs_dir_inode_operations;
 		inode->i_fop = &hfs_dir_operations;
 		break;
@@ -601,13 +604,15 @@ static int hfs_file_release(struct inode *inode, struct file *file)
  *     correspond to the same HFS file.
  */
 
-int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
+int hfs_inode_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
 	int error;
 
-	error = setattr_prepare(dentry, attr); /* basic permission checks */
+	error = setattr_prepare(&init_user_ns, dentry,
+				attr); /* basic permission checks */
 	if (error)
 		return error;
 
@@ -642,9 +647,11 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 
 		truncate_setsize(inode, attr->ia_size);
 		hfs_file_truncate(inode);
+		inode->i_atime = inode->i_mtime = inode->i_ctime =
+						  current_time(inode);
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

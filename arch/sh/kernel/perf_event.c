@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Performance event support framework for SuperH hardware counters.
  *
@@ -15,10 +16,6 @@
  *
  * ppc:
  *  Copyright 2008-2009 Paul Mackerras, IBM Corporation.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -59,24 +56,6 @@ static inline int sh_pmu_initialized(void)
 {
 	return !!sh_pmu;
 }
-
-const char *perf_pmu_name(void)
-{
-	if (!sh_pmu)
-		return NULL;
-
-	return sh_pmu->name;
-}
-EXPORT_SYMBOL_GPL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	if (!sh_pmu)
-		return 0;
-
-	return sh_pmu->num_events;
-}
-EXPORT_SYMBOL_GPL(perf_num_counters);
 
 /*
  * Release the PMU if this is the last perf_event.

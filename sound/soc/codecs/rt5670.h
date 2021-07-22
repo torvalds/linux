@@ -1,18 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5670.h  --  RT5670 ALSA SoC audio driver
  *
  * Copyright 2014 Realtek Microelectronics
  * Author: Bard Liao <bardliao@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5670_H__
 #define __RT5670_H__
-
-#include <sound/rt5670.h>
 
 /* Info */
 #define RT5670_RESET				0x00
@@ -217,12 +212,8 @@
 /* global definition */
 #define RT5670_L_MUTE				(0x1 << 15)
 #define RT5670_L_MUTE_SFT			15
-#define RT5670_VOL_L_MUTE			(0x1 << 14)
-#define RT5670_VOL_L_SFT			14
 #define RT5670_R_MUTE				(0x1 << 7)
 #define RT5670_R_MUTE_SFT			7
-#define RT5670_VOL_R_MUTE			(0x1 << 6)
-#define RT5670_VOL_R_SFT			6
 #define RT5670_L_VOL_MASK			(0x3f << 8)
 #define RT5670_L_VOL_SFT			8
 #define RT5670_R_VOL_MASK			(0x3f)
@@ -760,7 +751,7 @@
 #define RT5670_PWR_VREF2_BIT			4
 #define RT5670_PWR_FV2				(0x1 << 3)
 #define RT5670_PWR_FV2_BIT			3
-#define RT5670_LDO_SEL_MASK			(0x3)
+#define RT5670_LDO_SEL_MASK			(0x7)
 #define RT5670_LDO_SEL_SFT			0
 
 /* Power Management for Analog 2 (0x64) */
@@ -1991,10 +1982,22 @@ int rt5670_sel_asrc_clk_src(struct snd_soc_component *component,
 
 struct rt5670_priv {
 	struct snd_soc_component *component;
-	struct rt5670_platform_data pdata;
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
 	struct snd_soc_jack_gpio hp_gpio;
+
+	int jd_mode;
+	bool in2_diff;
+	bool gpio1_is_irq;
+	bool gpio1_is_ext_spk_en;
+
+	bool dmic_en;
+	unsigned int dmic1_data_pin;
+	/* 0 = GPIO6; 1 = IN2P; 3 = GPIO7*/
+	unsigned int dmic2_data_pin;
+	/* 0 = GPIO8; 1 = IN3N; */
+	unsigned int dmic3_data_pin;
+	/* 0 = GPIO9; 1 = GPIO10; 2 = GPIO5*/
 
 	int sysclk;
 	int sysclk_src;
@@ -2010,10 +2013,17 @@ struct rt5670_priv {
 	int dsp_rate;
 	int jack_type;
 	int jack_type_saved;
+
+	bool dac1_mixl_dac1_switch;
+	bool dac1_mixr_dac1_switch;
+	bool dac1_playback_switch_l;
+	bool dac1_playback_switch_r;
 };
 
 void rt5670_jack_suspend(struct snd_soc_component *component);
 void rt5670_jack_resume(struct snd_soc_component *component);
 int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
+const char *rt5670_components(void);
+
 #endif /* __RT5670_H__ */

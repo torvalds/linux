@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System Specific setup for Soekris net5501
  * At the moment this means setup of GPIO control of LEDs and buttons
  * on net5501 boards.
- *
  *
  * Copyright (C) 2008-2009 Tower Technologies
  * Written by Alessandro Zummo <a.zummo@towertech.it>
@@ -10,10 +10,6 @@
  * Copyright (C) 2008 Constantin Baranov <const@mimas.ru>
  * Copyright (C) 2011 Ed Wildgoose <kernel@wildgooses.com>
  *                and Philip Prindeville <philipp@redfish-solutions.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -22,9 +18,9 @@
 #include <linux/string.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/geode.h>
 
@@ -60,15 +56,22 @@ static struct platform_device net5501_buttons_dev = {
 static struct gpio_led net5501_leds[] = {
 	{
 		.name = "net5501:1",
-		.gpio = 6,
 		.default_trigger = "default-on",
-		.active_low = 0,
 	},
 };
 
 static struct gpio_led_platform_data net5501_leds_data = {
 	.num_leds = ARRAY_SIZE(net5501_leds),
 	.leds = net5501_leds,
+};
+
+static struct gpiod_lookup_table net5501_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		/* The Geode GPIOs should be on the CS5535 companion chip */
+		GPIO_LOOKUP_IDX("cs5535-gpio", 6, NULL, 0, GPIO_ACTIVE_HIGH),
+		{ }
+	},
 };
 
 static struct platform_device net5501_leds_dev = {
@@ -85,6 +88,7 @@ static struct platform_device *net5501_devs[] __initdata = {
 static void __init register_net5501(void)
 {
 	/* Setup LED control through leds-gpio driver */
+	gpiod_add_lookup_table(&net5501_leds_gpio_table);
 	platform_add_devices(net5501_devs, ARRAY_SIZE(net5501_devs));
 }
 

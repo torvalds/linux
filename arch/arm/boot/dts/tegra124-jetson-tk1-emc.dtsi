@@ -79,7 +79,7 @@
 		};
 	};
 
-	emc@7001b000 {
+	external-memory-controller@7001b000 {
 		emc-timings-3 {
 			nvidia,ram-code = <3>;
 
@@ -2419,4 +2419,12 @@
 			};
 		};
 	};
+};
+
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp@1200000000,1100;
+};
+
+&emc_bw_dfs_opp_table {
+	/delete-node/ opp@1200000000;
 };

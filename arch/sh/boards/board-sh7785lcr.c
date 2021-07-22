@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas Technology Corp. R0P7785LC0011RL Support.
  *
  * Copyright (C) 2008  Yoshihiro Shimoda
  * Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -344,7 +341,7 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = ioremap_nocache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
+	sm501_reg = ioremap(SM107_REG_ADDR, SM501_DRAM_CONTROL);
 	if (!sm501_reg) {
 		printk(KERN_ERR "%s: ioremap error.\n", __func__);
 		return;

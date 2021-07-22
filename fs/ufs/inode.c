@@ -526,6 +526,7 @@ static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations ufs_aops = {
+	.set_page_dirty = __set_page_dirty_buffers,
 	.readpage = ufs_readpage,
 	.writepage = ufs_writepage,
 	.write_begin = ufs_write_begin,
@@ -1211,13 +1212,14 @@ out:
 	return err;
 }
 
-int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+int ufs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 	int error;
 
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
 
@@ -1227,7 +1229,7 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 			return error;
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

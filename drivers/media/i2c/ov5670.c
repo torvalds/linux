@@ -7,6 +7,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 
 #define OV5670_REG_CHIP_ID		0x300a
 #define OV5670_CHIP_ID			0x005670
@@ -1936,7 +1937,7 @@ static int ov5670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov5670 *ov5670 = to_ov5670(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	mutex_lock(&ov5670->mutex);
 
@@ -2059,6 +2060,8 @@ static const struct v4l2_ctrl_ops ov5670_ctrl_ops = {
 /* Initialize control handlers */
 static int ov5670_init_controls(struct ov5670 *ov5670)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 vblank_max;
 	s64 vblank_def;
@@ -2067,7 +2070,7 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 	int ret;
 
 	ctrl_hdlr = &ov5670->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 10);
 	if (ret)
 		return ret;
 
@@ -2081,7 +2084,8 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 
 	/* By default, V4L2_CID_PIXEL_RATE is read only */
 	ov5670->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &ov5670_ctrl_ops,
-					       V4L2_CID_PIXEL_RATE, 0,
+					       V4L2_CID_PIXEL_RATE,
+					       link_freq_configs[0].pixel_rate,
 					       link_freq_configs[0].pixel_rate,
 					       1,
 					       link_freq_configs[0].pixel_rate);
@@ -2129,6 +2133,15 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 		goto error;
 	}
 
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		goto error;
+
+	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov5670_ctrl_ops,
+					      &props);
+	if (ret)
+		goto error;
+
 	ov5670->sd.ctrl_handler = ctrl_hdlr;
 
 	return 0;
@@ -2140,7 +2153,7 @@ error:
 }
 
 static int ov5670_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Only one bayer order GRBG is supported */
@@ -2153,7 +2166,7 @@ static int ov5670_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov5670_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -2180,11 +2193,12 @@ static void ov5670_update_pad_format(const struct ov5670_mode *mode,
 }
 
 static int ov5670_do_get_pad_format(struct ov5670 *ov5670,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov5670->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&ov5670->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		ov5670_update_pad_format(ov5670->cur_mode, fmt);
@@ -2193,21 +2207,21 @@ static int ov5670_do_get_pad_format(struct ov5670 *ov5670,
 }
 
 static int ov5670_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct ov5670 *ov5670 = to_ov5670(sd);
 	int ret;
 
 	mutex_lock(&ov5670->mutex);
-	ret = ov5670_do_get_pad_format(ov5670, cfg, fmt);
+	ret = ov5670_do_get_pad_format(ov5670, sd_state, fmt);
 	mutex_unlock(&ov5670->mutex);
 
 	return ret;
 }
 
 static int ov5670_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct ov5670 *ov5670 = to_ov5670(sd);
@@ -2225,7 +2239,7 @@ static int ov5670_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov5670_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5670->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov5670->link_freq, mode->link_freq_index);
@@ -2334,11 +2348,9 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 		goto unlock_and_return;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto unlock_and_return;
-		}
 
 		ret = ov5670_start_streaming(ov5670);
 		if (ret)
@@ -2361,8 +2373,7 @@ unlock_and_return:
 
 static int __maybe_unused ov5670_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5670 *ov5670 = to_ov5670(sd);
 
 	if (ov5670->streaming)
@@ -2373,8 +2384,7 @@ static int __maybe_unused ov5670_suspend(struct device *dev)
 
 static int __maybe_unused ov5670_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5670 *ov5670 = to_ov5670(sd);
 	int ret;
 
@@ -2492,7 +2502,7 @@ static int ov5670_probe(struct i2c_client *client)
 	}
 
 	/* Async register for subdev */
-	ret = v4l2_async_register_subdev_sensor_common(&ov5670->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov5670->sd);
 	if (ret < 0) {
 		err_msg = "v4l2_async_register_subdev() error";
 		goto error_entity_cleanup;

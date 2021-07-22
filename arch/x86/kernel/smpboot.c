@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /*
  *	x86 SMP booting functions
  *
@@ -11,9 +12,6 @@
  *	Thanks to Intel for making available several different Pentium,
  *	Pentium Pro and Pentium-II/Xeon MP machines.
  *	Original development of Linux SMP code supported by Caldera.
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  *
  *	Fixes
  *		Felix Koop	:	NR_CPUS used properly
@@ -49,13 +47,16 @@
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/percpu.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>
-#include <linux/stackprotector.h>
 #include <linux/gfp.h>
 #include <linux/cpuidle.h>
+#include <linux/numa.h>
+#include <linux/pgtable.h>
+#include <linux/overflow.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -64,7 +65,6 @@
 #include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/mwait.h>
@@ -81,6 +81,11 @@
 #include <asm/cpu_device_id.h>
 #include <asm/spec-ctrl.h>
 #include <asm/hw_irq.h>
+#include <asm/stackprotector.h>
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+#include <acpi/cppc_acpi.h>
+#endif
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
@@ -89,6 +94,10 @@ EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 /* representing HT and core siblings of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_core_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
+
+/* representing HT, core, and die siblings of each logical CPU */
+DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_die_map);
+EXPORT_PER_CPU_SYMBOL(cpu_die_map);
 
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 
@@ -100,6 +109,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
 static unsigned int logical_packages __read_mostly;
+static unsigned int logical_die __read_mostly;
 
 /* Maximum number of SMT threads on any online core */
 int __read_mostly __max_smt_threads = 1;
@@ -143,13 +153,15 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	*((volatile u32 *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) = 0;
 }
 
+static void init_freq_invariance(bool secondary, bool cppc_ready);
+
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
  * during CPU online.
  */
 static void smp_callin(void)
 {
-	int cpuid, phys_id;
+	int cpuid;
 
 	/*
 	 * If waken up by an INIT in an 82489DX configuration
@@ -158,11 +170,6 @@ static void smp_callin(void)
 	 * now safe to touch our local APIC.
 	 */
 	cpuid = smp_processor_id();
-
-	/*
-	 * (This works even if the APIC is not enabled.)
-	 */
-	phys_id = read_apic_id();
 
 	/*
 	 * the boot CPU has finished the init stage and is spinning
@@ -183,6 +190,8 @@ static void smp_callin(void)
 	 * calibrate_delay() and notify_cpu_starting().
 	 */
 	set_cpu_sibling_map(raw_smp_processor_id());
+
+	init_freq_invariance(true, false);
 
 	/*
 	 * Get our bogomips.
@@ -216,23 +225,16 @@ static void notrace start_secondary(void *unused)
 	 * before cpu_init(), SMP booting is too fragile that we want to
 	 * limit the things done here to the most necessary things.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PCID))
-		__write_cr4(__read_cr4() | X86_CR4_PCIDE);
+	cr4_init();
 
 #ifdef CONFIG_X86_32
 	/* switch away from the initial page table */
 	load_cr3(swapper_pg_dir);
-	/*
-	 * Initialize the CR4 shadow before doing anything that could
-	 * try to read it.
-	 */
-	cr4_init_shadow();
 	__flush_tlb_all();
 #endif
-	load_current_idt();
-	cpu_init();
+	cpu_init_secondary();
+	rcu_cpu_starting(raw_smp_processor_id());
 	x86_cpuinit.early_percpu_clock_init();
-	preempt_disable();
 	smp_callin();
 
 	enable_start_cpu0 = 0;
@@ -261,9 +263,6 @@ static void notrace start_secondary(void *unused)
 
 	/* enable local interrupts */
 	local_irq_enable();
-
-	/* to prevent fake stack check failure in clock setup */
-	boot_init_stack_canary();
 
 	x86_cpuinit.setup_percpu_clockev();
 
@@ -306,6 +305,26 @@ int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 	return -1;
 }
 EXPORT_SYMBOL(topology_phys_to_logical_pkg);
+/**
+ * topology_phys_to_logical_die - Map a physical die id to logical
+ *
+ * Returns logical die id or -1 if not found
+ */
+int topology_phys_to_logical_die(unsigned int die_id, unsigned int cur_cpu)
+{
+	int cpu;
+	int proc_id = cpu_data(cur_cpu).phys_proc_id;
+
+	for_each_possible_cpu(cpu) {
+		struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+		if (c->initialized && c->cpu_die_id == die_id &&
+		    c->phys_proc_id == proc_id)
+			return c->logical_die_id;
+	}
+	return -1;
+}
+EXPORT_SYMBOL(topology_phys_to_logical_die);
 
 /**
  * topology_update_package_map - Update the physical to logical package map
@@ -330,6 +349,29 @@ found:
 	cpu_data(cpu).logical_proc_id = new;
 	return 0;
 }
+/**
+ * topology_update_die_map - Update the physical to logical die map
+ * @die:	The die id as retrieved via CPUID
+ * @cpu:	The cpu for which this is updated
+ */
+int topology_update_die_map(unsigned int die, unsigned int cpu)
+{
+	int new;
+
+	/* Already available somewhere? */
+	new = topology_phys_to_logical_die(die, cpu);
+	if (new >= 0)
+		goto found;
+
+	new = logical_die++;
+	if (new != die) {
+		pr_info("CPU %u Converting physical %u to logical die %u\n",
+			cpu, die, new);
+	}
+found:
+	cpu_data(cpu).logical_die_id = new;
+	return 0;
+}
 
 void __init smp_store_boot_cpu_info(void)
 {
@@ -339,6 +381,7 @@ void __init smp_store_boot_cpu_info(void)
 	*c = boot_cpu_data;
 	c->cpu_index = id;
 	topology_update_package_map(c->phys_proc_id, id);
+	topology_update_die_map(c->cpu_die_id, id);
 	c->initialized = true;
 }
 
@@ -393,6 +436,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 		if (c->phys_proc_id == o->phys_proc_id &&
+		    c->cpu_die_id == o->cpu_die_id &&
 		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2)) {
 			if (c->cpu_core_id == o->cpu_core_id)
 				return topology_sane(c, o, "smt");
@@ -404,6 +448,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 		}
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&
+		   c->cpu_die_id == o->cpu_die_id &&
 		   c->cpu_core_id == o->cpu_core_id) {
 		return topology_sane(c, o, "smt");
 	}
@@ -411,29 +456,52 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
+static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	if (c->phys_proc_id == o->phys_proc_id &&
+	    c->cpu_die_id == o->cpu_die_id)
+		return true;
+	return false;
+}
+
 /*
- * Define snc_cpu[] for SNC (Sub-NUMA Cluster) CPUs.
+ * Unlike the other levels, we do not enforce keeping a
+ * multicore group inside a NUMA node.  If this happens, we will
+ * discard the MC level of the topology later.
+ */
+static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	if (c->phys_proc_id == o->phys_proc_id)
+		return true;
+	return false;
+}
+
+/*
+ * Define intel_cod_cpu[] for Intel COD (Cluster-on-Die) CPUs.
  *
- * These are Intel CPUs that enumerate an LLC that is shared by
- * multiple NUMA nodes. The LLC on these systems is shared for
- * off-package data access but private to the NUMA node (half
- * of the package) for on-package access.
+ * Any Intel CPU that has multiple nodes per package and does not
+ * match intel_cod_cpu[] has the SNC (Sub-NUMA Cluster) topology.
  *
- * CPUID (the source of the information about the LLC) can only
- * enumerate the cache as being shared *or* unshared, but not
- * this particular configuration. The CPU in this case enumerates
- * the cache to be shared across the entire package (spanning both
- * NUMA nodes).
+ * When in SNC mode, these CPUs enumerate an LLC that is shared
+ * by multiple NUMA nodes. The LLC is shared for off-package data
+ * access but private to the NUMA node (half of the package) for
+ * on-package access. CPUID (the source of the information about
+ * the LLC) can only enumerate the cache as shared or unshared,
+ * but not this particular configuration.
  */
 
-static const struct x86_cpu_id snc_cpu[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_X },
+static const struct x86_cpu_id intel_cod_cpu[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X, 0),	/* COD */
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X, 0),	/* COD */
+	X86_MATCH_INTEL_FAM6_MODEL(ANY, 1),		/* SNC */
 	{}
 };
 
 static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
+	const struct x86_cpu_id *id = x86_match_cpu(intel_cod_cpu);
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
+	bool intel_snc = id && id->driver_data;
 
 	/* Do not match if we do not have a valid APICID for cpu: */
 	if (per_cpu(cpu_llc_id, cpu1) == BAD_APICID)
@@ -448,23 +516,12 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	 * means 'c' does not share the LLC of 'o'. This will be
 	 * reflected to userspace.
 	 */
-	if (!topology_same_node(c, o) && x86_match_cpu(snc_cpu))
+	if (match_pkg(c, o) && !topology_same_node(c, o) && intel_snc)
 		return false;
 
 	return topology_sane(c, o, "llc");
 }
 
-/*
- * Unlike the other levels, we do not enforce keeping a
- * multicore group inside a NUMA node.  If this happens, we will
- * discard the MC level of the topology later.
- */
-static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
-{
-	if (c->phys_proc_id == o->phys_proc_id)
-		return true;
-	return false;
-}
 
 #if defined(CONFIG_SCHED_SMT) || defined(CONFIG_SCHED_MC)
 static inline int x86_sched_itmt_flags(void)
@@ -528,6 +585,7 @@ void set_cpu_sibling_map(int cpu)
 		cpumask_set_cpu(cpu, topology_sibling_cpumask(cpu));
 		cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
 		cpumask_set_cpu(cpu, topology_core_cpumask(cpu));
+		cpumask_set_cpu(cpu, topology_die_cpumask(cpu));
 		c->booted_cores = 1;
 		return;
 	}
@@ -535,13 +593,22 @@ void set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
+		if (match_pkg(c, o) && !topology_same_node(c, o))
+			x86_has_numa_in_package = true;
+
 		if ((i == cpu) || (has_smt && match_smt(c, o)))
 			link_mask(topology_sibling_cpumask, cpu, i);
 
 		if ((i == cpu) || (has_mp && match_llc(c, o)))
 			link_mask(cpu_llc_shared_mask, cpu, i);
 
+		if ((i == cpu) || (has_mp && match_die(c, o)))
+			link_mask(topology_die_cpumask, cpu, i);
 	}
+
+	threads = cpumask_weight(topology_sibling_cpumask(cpu));
+	if (threads > __max_smt_threads)
+		__max_smt_threads = threads;
 
 	/*
 	 * This needs a separate iteration over the cpus because we rely on all
@@ -550,14 +617,13 @@ void set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
-		if ((i == cpu) || (has_mp && match_die(c, o))) {
+		if ((i == cpu) || (has_mp && match_pkg(c, o))) {
 			link_mask(topology_core_cpumask, cpu, i);
 
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
-			if (cpumask_weight(
-			    topology_sibling_cpumask(cpu)) == 1) {
+			if (threads == 1) {
 				/*
 				 * for each core in package, increment
 				 * the booted_cores for this new cpu
@@ -574,13 +640,7 @@ void set_cpu_sibling_map(int cpu)
 			} else if (i != cpu && !c->booted_cores)
 				c->booted_cores = cpu_data(i).booted_cores;
 		}
-		if (match_die(c, o) && !topology_same_node(c, o))
-			x86_has_numa_in_package = true;
 	}
-
-	threads = cpumask_weight(topology_sibling_cpumask(cpu));
-	if (threads > __max_smt_threads)
-		__max_smt_threads = threads;
 }
 
 /* maps the cpu to the sched domain representing multi-core */
@@ -693,13 +753,14 @@ static void __init smp_quirk_init_udelay(void)
 int
 wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 {
+	u32 dm = apic->dest_mode_logical ? APIC_DEST_LOGICAL : APIC_DEST_PHYSICAL;
 	unsigned long send_status, accept_status = 0;
 	int maxlvt;
 
 	/* Target chip */
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_icr_write(APIC_DM_NMI | apic->dest_logical, apicid);
+	apic_icr_write(APIC_DM_NMI | dm, apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -841,7 +902,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 /* reduce the number of lines printed when booting a large cpu count system */
 static void announce_cpu(int cpu, int apicid)
 {
-	static int current_node = -1;
+	static int current_node = NUMA_NO_NODE;
 	int node = early_cpu_to_node(cpu);
 	static int width, node_width;
 
@@ -926,10 +987,7 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 	if (!boot_error) {
 		enable_start_cpu0 = 1;
 		*cpu0_nmi_registered = 1;
-		if (apic->dest_logical == APIC_DEST_LOGICAL)
-			id = cpu0_logical_apicid;
-		else
-			id = apicid;
+		id = apic->dest_mode_logical ? cpu0_logical_apicid : apicid;
 		boot_error = wakeup_secondary_cpu_via_nmi(id, start_ip);
 	}
 
@@ -939,20 +997,28 @@ out:
 	return boot_error;
 }
 
-void common_cpu_up(unsigned int cpu, struct task_struct *idle)
+int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
+	int ret;
+
 	/* Just in case we booted with a single CPU. */
 	alternatives_enable_smp();
 
 	per_cpu(current_task, cpu) = idle;
+	cpu_init_stack_canary(cpu, idle);
+
+	/* Initialize the interrupt stack(s) */
+	ret = irq_init_percpu_irqstack(cpu);
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
-	irq_ctx_init(cpu);
 	per_cpu(cpu_current_top_of_stack, cpu) = task_top_of_stack(idle);
 #else
 	initial_gs = per_cpu_offset(cpu);
 #endif
+	return 0;
 }
 
 /*
@@ -964,8 +1030,6 @@ void common_cpu_up(unsigned int cpu, struct task_struct *idle)
 static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 		       int *cpu0_nmi_registered)
 {
-	volatile u32 *trampoline_status =
-		(volatile u32 *) __va(real_mode_header->trampoline_status);
 	/* start_ip had better be page-aligned! */
 	unsigned long start_ip = real_mode_header->trampoline_start;
 
@@ -1057,9 +1121,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 		}
 	}
 
-	/* mark "stuck" area as not stuck */
-	*trampoline_status = 0;
-
 	if (x86_platform.legacy.warm_reset) {
 		/*
 		 * Cleanup possible dangling ends...
@@ -1110,7 +1171,9 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	/* the FPU context is blank, nobody can own it */
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
-	common_cpu_up(cpu, tidle);
+	err = common_cpu_up(cpu, tidle);
+	if (err)
+		return err;
 
 	err = do_boot_cpu(apicid, cpu, tidle, &cpu0_nmi_registered);
 	if (err) {
@@ -1171,6 +1234,7 @@ static __init void disable_smp(void)
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
 	cpumask_set_cpu(0, topology_sibling_cpumask(0));
 	cpumask_set_cpu(0, topology_core_cpumask(0));
+	cpumask_set_cpu(0, topology_die_cpumask(0));
 }
 
 /*
@@ -1266,6 +1330,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	for_each_possible_cpu(i) {
 		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
 		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
+		zalloc_cpumask_var(&per_cpu(cpu_die_map, i), GFP_KERNEL);
 		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
 	}
 
@@ -1279,7 +1344,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	set_sched_topology(x86_topology);
 
 	set_cpu_sibling_map(0);
-
+	init_freq_invariance(false, false);
 	smp_sanity_check();
 
 	switch (apic_intr_mode) {
@@ -1305,8 +1370,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
 
-	native_pv_lock_init();
-
 	uv_system_init();
 
 	set_mtrr_aps_delayed_init();
@@ -1316,12 +1379,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	speculative_store_bypass_ht_init();
 }
 
-void arch_enable_nonboot_cpus_begin(void)
+void arch_thaw_secondary_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
 }
 
-void arch_enable_nonboot_cpus_end(void)
+void arch_thaw_secondary_cpus_end(void)
 {
 	mtrr_aps_init();
 }
@@ -1336,6 +1399,7 @@ void __init native_smp_prepare_boot_cpu(void)
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);
 	cpu_set_state_online(me);
+	native_pv_lock_init();
 }
 
 void __init calculate_max_logical_packages(void)
@@ -1343,11 +1407,11 @@ void __init calculate_max_logical_packages(void)
 	int ncpus;
 
 	/*
-	 * Today neither Intel nor AMD support heterogenous systems so
+	 * Today neither Intel nor AMD support heterogeneous systems so
 	 * extrapolate the boot cpu's data to all packages.
 	 */
 	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
-	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
+	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 }
 
@@ -1377,7 +1441,7 @@ early_param("possible_cpus", _setup_possible_cpus);
 /*
  * cpu_possible_mask should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
- * are allocated by some modules at init time, and dont expect to
+ * are allocated by some modules at init time, and don't expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current
@@ -1486,6 +1550,8 @@ static void remove_siblinginfo(int cpu)
 			cpu_data(sibling).booted_cores--;
 	}
 
+	for_each_cpu(sibling, topology_die_cpumask(cpu))
+		cpumask_clear_cpu(cpu, topology_die_cpumask(sibling));
 	for_each_cpu(sibling, topology_sibling_cpumask(cpu))
 		cpumask_clear_cpu(cpu, topology_sibling_cpumask(sibling));
 	for_each_cpu(sibling, cpu_llc_shared_mask(cpu))
@@ -1493,6 +1559,7 @@ static void remove_siblinginfo(int cpu)
 	cpumask_clear(cpu_llc_shared_mask(cpu));
 	cpumask_clear(topology_sibling_cpumask(cpu));
 	cpumask_clear(topology_core_cpumask(cpu));
+	cpumask_clear(topology_die_cpumask(cpu));
 	c->cpu_core_id = 0;
 	c->booted_cores = 0;
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
@@ -1531,8 +1598,27 @@ int native_cpu_disable(void)
 	if (ret)
 		return ret;
 
-	clear_local_APIC();
 	cpu_disable_common();
+
+        /*
+         * Disable the local APIC. Otherwise IPI broadcasts will reach
+         * it. It still responds normally to INIT, NMI, SMI, and SIPI
+         * messages.
+         *
+         * Disabling the APIC must happen after cpu_disable_common()
+         * which invokes fixup_irqs().
+         *
+         * Disabling the APIC preserves already set bits in IRR, but
+         * an interrupt arriving after disabling the local APIC does not
+         * set the corresponding IRR bit.
+         *
+         * fixup_irqs() scans IRR for set bits so it can raise a not
+         * yet handled interrupt on the new destination CPU via an IPI
+         * but obviously it can't do so for IRR bits which are not set.
+         * IOW, interrupts arriving after disabling the local APIC will
+         * be lost.
+         */
+	apic_soft_disable();
 
 	return 0;
 }
@@ -1573,13 +1659,17 @@ void play_dead_common(void)
 	local_irq_disable();
 }
 
-static bool wakeup_cpu0(void)
+/**
+ * cond_wakeup_cpu0 - Wake up CPU0 if needed.
+ *
+ * If NMI wants to wake up CPU0, start CPU0.
+ */
+void cond_wakeup_cpu0(void)
 {
 	if (smp_processor_id() == 0 && enable_start_cpu0)
-		return true;
-
-	return false;
+		start_cpu0();
 }
+EXPORT_SYMBOL_GPL(cond_wakeup_cpu0);
 
 /*
  * We need to flush the caches before going to sleep, lest we have
@@ -1648,11 +1738,8 @@ static inline void mwait_play_dead(void)
 		__monitor(mwait_ptr, 0, 0);
 		mb();
 		__mwait(eax, 0);
-		/*
-		 * If NMI wants to wake up CPU0, start CPU0.
-		 */
-		if (wakeup_cpu0())
-			start_cpu0();
+
+		cond_wakeup_cpu0();
 	}
 }
 
@@ -1663,11 +1750,8 @@ void hlt_play_dead(void)
 
 	while (1) {
 		native_halt();
-		/*
-		 * If NMI wants to wake up CPU0, start CPU0.
-		 */
-		if (wakeup_cpu0())
-			start_cpu0();
+
+		cond_wakeup_cpu0();
 	}
 }
 
@@ -1699,3 +1783,419 @@ void native_play_dead(void)
 }
 
 #endif
+
+#ifdef CONFIG_X86_64
+/*
+ * APERF/MPERF frequency ratio computation.
+ *
+ * The scheduler wants to do frequency invariant accounting and needs a <1
+ * ratio to account for the 'current' frequency, corresponding to
+ * freq_curr / freq_max.
+ *
+ * Since the frequency freq_curr on x86 is controlled by micro-controller and
+ * our P-state setting is little more than a request/hint, we need to observe
+ * the effective frequency 'BusyMHz', i.e. the average frequency over a time
+ * interval after discarding idle time. This is given by:
+ *
+ *   BusyMHz = delta_APERF / delta_MPERF * freq_base
+ *
+ * where freq_base is the max non-turbo P-state.
+ *
+ * The freq_max term has to be set to a somewhat arbitrary value, because we
+ * can't know which turbo states will be available at a given point in time:
+ * it all depends on the thermal headroom of the entire package. We set it to
+ * the turbo level with 4 cores active.
+ *
+ * Benchmarks show that's a good compromise between the 1C turbo ratio
+ * (freq_curr/freq_max would rarely reach 1) and something close to freq_base,
+ * which would ignore the entire turbo range (a conspicuous part, making
+ * freq_curr/freq_max always maxed out).
+ *
+ * An exception to the heuristic above is the Atom uarch, where we choose the
+ * highest turbo level for freq_max since Atom's are generally oriented towards
+ * power efficiency.
+ *
+ * Setting freq_max to anything less than the 1C turbo ratio makes the ratio
+ * freq_curr / freq_max to eventually grow >1, in which case we clip it to 1.
+ */
+
+DEFINE_STATIC_KEY_FALSE(arch_scale_freq_key);
+
+static DEFINE_PER_CPU(u64, arch_prev_aperf);
+static DEFINE_PER_CPU(u64, arch_prev_mperf);
+static u64 arch_turbo_freq_ratio = SCHED_CAPACITY_SCALE;
+static u64 arch_max_freq_ratio = SCHED_CAPACITY_SCALE;
+
+void arch_set_max_freq_ratio(bool turbo_disabled)
+{
+	arch_max_freq_ratio = turbo_disabled ? SCHED_CAPACITY_SCALE :
+					arch_turbo_freq_ratio;
+}
+EXPORT_SYMBOL_GPL(arch_set_max_freq_ratio);
+
+static bool turbo_disabled(void)
+{
+	u64 misc_en;
+	int err;
+
+	err = rdmsrl_safe(MSR_IA32_MISC_ENABLE, &misc_en);
+	if (err)
+		return false;
+
+	return (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
+}
+
+static bool slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
+	int err;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_RATIOS, base_freq);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_TURBO_RATIOS, turbo_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 16) & 0x3F;     /* max P state */
+	*turbo_freq = *turbo_freq & 0x3F;           /* 1C turbo    */
+
+	return true;
+}
+
+#define X86_MATCH(model)					\
+	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6,		\
+		INTEL_FAM6_##model, X86_FEATURE_APERFMPERF, NULL)
+
+static const struct x86_cpu_id has_knl_turbo_ratio_limits[] = {
+	X86_MATCH(XEON_PHI_KNL),
+	X86_MATCH(XEON_PHI_KNM),
+	{}
+};
+
+static const struct x86_cpu_id has_skx_turbo_ratio_limits[] = {
+	X86_MATCH(SKYLAKE_X),
+	{}
+};
+
+static const struct x86_cpu_id has_glm_turbo_ratio_limits[] = {
+	X86_MATCH(ATOM_GOLDMONT),
+	X86_MATCH(ATOM_GOLDMONT_D),
+	X86_MATCH(ATOM_GOLDMONT_PLUS),
+	{}
+};
+
+static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
+				int num_delta_fratio)
+{
+	int fratio, delta_fratio, found;
+	int err, i;
+	u64 msr;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;	    /* max P state */
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	if (err)
+		return false;
+
+	fratio = (msr >> 8) & 0xFF;
+	i = 16;
+	found = 0;
+	do {
+		if (found >= num_delta_fratio) {
+			*turbo_freq = fratio;
+			return true;
+		}
+
+		delta_fratio = (msr >> (i + 5)) & 0x7;
+
+		if (delta_fratio) {
+			found += 1;
+			fratio -= delta_fratio;
+		}
+
+		i += 8;
+	} while (i < 64);
+
+	return true;
+}
+
+static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
+{
+	u64 ratios, counts;
+	u32 group_size;
+	int err, i;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &ratios);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT1, &counts);
+	if (err)
+		return false;
+
+	for (i = 0; i < 64; i += 8) {
+		group_size = (counts >> i) & 0xFF;
+		if (group_size >= size) {
+			*turbo_freq = (ratios >> i) & 0xFF;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
+	u64 msr;
+	int err;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;    /* max P state */
+	*turbo_freq = (msr >> 24) & 0xFF;         /* 4C turbo    */
+
+	/* The CPU may have less than 4 cores */
+	if (!*turbo_freq)
+		*turbo_freq = msr & 0xFF;         /* 1C turbo    */
+
+	return true;
+}
+
+static bool intel_set_max_freq_ratio(void)
+{
+	u64 base_freq, turbo_freq;
+	u64 turbo_ratio;
+
+	if (slv_set_max_freq_ratio(&base_freq, &turbo_freq))
+		goto out;
+
+	if (x86_match_cpu(has_glm_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+		goto out;
+
+	if (x86_match_cpu(has_knl_turbo_ratio_limits) &&
+	    knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+		goto out;
+
+	if (x86_match_cpu(has_skx_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 4))
+		goto out;
+
+	if (core_set_max_freq_ratio(&base_freq, &turbo_freq))
+		goto out;
+
+	return false;
+
+out:
+	/*
+	 * Some hypervisors advertise X86_FEATURE_APERFMPERF
+	 * but then fill all MSR's with zeroes.
+	 * Some CPUs have turbo boost but don't declare any turbo ratio
+	 * in MSR_TURBO_RATIO_LIMIT.
+	 */
+	if (!base_freq || !turbo_freq) {
+		pr_debug("Couldn't determine cpu base or turbo frequency, necessary for scale-invariant accounting.\n");
+		return false;
+	}
+
+	turbo_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE, base_freq);
+	if (!turbo_ratio) {
+		pr_debug("Non-zero turbo and base frequencies led to a 0 ratio.\n");
+		return false;
+	}
+
+	arch_turbo_freq_ratio = turbo_ratio;
+	arch_set_max_freq_ratio(turbo_disabled());
+
+	return true;
+}
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+static bool amd_set_max_freq_ratio(void)
+{
+	struct cppc_perf_caps perf_caps;
+	u64 highest_perf, nominal_perf;
+	u64 perf_ratio;
+	int rc;
+
+	rc = cppc_get_perf_caps(0, &perf_caps);
+	if (rc) {
+		pr_debug("Could not retrieve perf counters (%d)\n", rc);
+		return false;
+	}
+
+	highest_perf = amd_get_highest_perf();
+	nominal_perf = perf_caps.nominal_perf;
+
+	if (!highest_perf || !nominal_perf) {
+		pr_debug("Could not retrieve highest or nominal performance\n");
+		return false;
+	}
+
+	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
+	/* midpoint between max_boost and max_P */
+	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
+	if (!perf_ratio) {
+		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
+		return false;
+	}
+
+	arch_turbo_freq_ratio = perf_ratio;
+	arch_set_max_freq_ratio(false);
+
+	return true;
+}
+#else
+static bool amd_set_max_freq_ratio(void)
+{
+	return false;
+}
+#endif
+
+static void init_counter_refs(void)
+{
+	u64 aperf, mperf;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	this_cpu_write(arch_prev_aperf, aperf);
+	this_cpu_write(arch_prev_mperf, mperf);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static struct syscore_ops freq_invariance_syscore_ops = {
+	.resume = init_counter_refs,
+};
+
+static void register_freq_invariance_syscore_ops(void)
+{
+	/* Bail out if registered already. */
+	if (freq_invariance_syscore_ops.node.prev)
+		return;
+
+	register_syscore_ops(&freq_invariance_syscore_ops);
+}
+#else
+static inline void register_freq_invariance_syscore_ops(void) {}
+#endif
+
+static void init_freq_invariance(bool secondary, bool cppc_ready)
+{
+	bool ret = false;
+
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
+		return;
+
+	if (secondary) {
+		if (static_branch_likely(&arch_scale_freq_key)) {
+			init_counter_refs();
+		}
+		return;
+	}
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		ret = intel_set_max_freq_ratio();
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		if (!cppc_ready) {
+			return;
+		}
+		ret = amd_set_max_freq_ratio();
+	}
+
+	if (ret) {
+		init_counter_refs();
+		static_branch_enable(&arch_scale_freq_key);
+		register_freq_invariance_syscore_ops();
+		pr_info("Estimated ratio of average max frequency by base frequency (times 1024): %llu\n", arch_max_freq_ratio);
+	} else {
+		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");
+	}
+}
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+static DEFINE_MUTEX(freq_invariance_lock);
+
+void init_freq_invariance_cppc(void)
+{
+	static bool secondary;
+
+	mutex_lock(&freq_invariance_lock);
+
+	init_freq_invariance(secondary, true);
+	secondary = true;
+
+	mutex_unlock(&freq_invariance_lock);
+}
+#endif
+
+static void disable_freq_invariance_workfn(struct work_struct *work)
+{
+	static_branch_disable(&arch_scale_freq_key);
+}
+
+static DECLARE_WORK(disable_freq_invariance_work,
+		    disable_freq_invariance_workfn);
+
+DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
+
+void arch_scale_freq_tick(void)
+{
+	u64 freq_scale = SCHED_CAPACITY_SCALE;
+	u64 aperf, mperf;
+	u64 acnt, mcnt;
+
+	if (!arch_scale_freq_invariant())
+		return;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	acnt = aperf - this_cpu_read(arch_prev_aperf);
+	mcnt = mperf - this_cpu_read(arch_prev_mperf);
+
+	this_cpu_write(arch_prev_aperf, aperf);
+	this_cpu_write(arch_prev_mperf, mperf);
+
+	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
+		goto error;
+
+	if (check_mul_overflow(mcnt, arch_max_freq_ratio, &mcnt) || !mcnt)
+		goto error;
+
+	freq_scale = div64_u64(acnt, mcnt);
+	if (!freq_scale)
+		goto error;
+
+	if (freq_scale > SCHED_CAPACITY_SCALE)
+		freq_scale = SCHED_CAPACITY_SCALE;
+
+	this_cpu_write(arch_freq_scale, freq_scale);
+	return;
+
+error:
+	pr_warn("Scheduler frequency invariance went wobbly, disabling!\n");
+	schedule_work(&disable_freq_invariance_work);
+}
+#else
+static inline void init_freq_invariance(bool secondary, bool cppc_ready)
+{
+}
+#endif /* CONFIG_X86_64 */

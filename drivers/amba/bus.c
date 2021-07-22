@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/common/amba.c
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -21,50 +18,65 @@
 #include <linux/limits.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 
 #include <asm/irq.h>
 
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
+/* called on periphid match and class 0x9 coresight device. */
+static int
+amba_cs_uci_id_match(const struct amba_id *table, struct amba_device *dev)
+{
+	int ret = 0;
+	struct amba_cs_uci_id *uci;
+
+	uci = table->data;
+
+	/* no table data or zero mask - return match on periphid */
+	if (!uci || (uci->devarch_mask == 0))
+		return 1;
+
+	/* test against read devtype and masked devarch value */
+	ret = (dev->uci.devtype == uci->devtype) &&
+		((dev->uci.devarch & uci->devarch_mask) == uci->devarch);
+	return ret;
+}
+
 static const struct amba_id *
 amba_lookup(const struct amba_id *table, struct amba_device *dev)
 {
-	int ret = 0;
-
 	while (table->mask) {
-		ret = (dev->periphid & table->mask) == table->id;
-		if (ret)
-			break;
+		if (((dev->periphid & table->mask) == table->id) &&
+			((dev->cid != CORESIGHT_CID) ||
+			 (amba_cs_uci_id_match(table, dev))))
+			return table;
 		table++;
 	}
-
-	return ret ? table : NULL;
+	return NULL;
 }
 
-static int amba_match(struct device *dev, struct device_driver *drv)
+static int amba_get_enable_pclk(struct amba_device *pcdev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *pcdrv = to_amba_driver(drv);
+	int ret;
 
-	/* When driver_override is set, only bind to the matching driver */
-	if (pcdev->driver_override)
-		return !strcmp(pcdev->driver_override, drv->name);
+	pcdev->pclk = clk_get(&pcdev->dev, "apb_pclk");
+	if (IS_ERR(pcdev->pclk))
+		return PTR_ERR(pcdev->pclk);
 
-	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
+	ret = clk_prepare_enable(pcdev->pclk);
+	if (ret)
+		clk_put(pcdev->pclk);
+
+	return ret;
 }
 
-static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
+static void amba_put_disable_pclk(struct amba_device *pcdev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-	int retval = 0;
-
-	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);
-	if (retval)
-		return retval;
-
-	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
-	return retval;
+	clk_disable_unprepare(pcdev->pclk);
+	clk_put(pcdev->pclk);
 }
+
 
 static ssize_t driver_override_show(struct device *_dev,
 				    struct device_attribute *attr, char *buf)
@@ -137,6 +149,109 @@ static struct attribute *amba_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(amba_dev);
 
+static int amba_match(struct device *dev, struct device_driver *drv)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *pcdrv = to_amba_driver(drv);
+
+	/* When driver_override is set, only bind to the matching driver */
+	if (pcdev->driver_override)
+		return !strcmp(pcdev->driver_override, drv->name);
+
+	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
+}
+
+static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	int retval = 0;
+
+	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);
+	if (retval)
+		return retval;
+
+	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
+	return retval;
+}
+
+/*
+ * These are the device model conversion veneers; they convert the
+ * device model structures to our more specific structures.
+ */
+static int amba_probe(struct device *dev)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
+	const struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
+	int ret;
+
+	do {
+		ret = of_clk_set_defaults(dev->of_node, false);
+		if (ret < 0)
+			break;
+
+		ret = dev_pm_domain_attach(dev, true);
+		if (ret)
+			break;
+
+		ret = amba_get_enable_pclk(pcdev);
+		if (ret) {
+			dev_pm_domain_detach(dev, true);
+			break;
+		}
+
+		pm_runtime_get_noresume(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+
+		ret = pcdrv->probe(pcdev, id);
+		if (ret == 0)
+			break;
+
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_put_noidle(dev);
+
+		amba_put_disable_pclk(pcdev);
+		dev_pm_domain_detach(dev, true);
+	} while (0);
+
+	return ret;
+}
+
+static int amba_remove(struct device *dev)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *drv = to_amba_driver(dev->driver);
+
+	pm_runtime_get_sync(dev);
+	if (drv->remove)
+		drv->remove(pcdev);
+	pm_runtime_put_noidle(dev);
+
+	/* Undo the runtime PM settings in amba_probe() */
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
+
+	amba_put_disable_pclk(pcdev);
+	dev_pm_domain_detach(dev, true);
+
+	return 0;
+}
+
+static void amba_shutdown(struct device *dev)
+{
+	struct amba_driver *drv;
+
+	if (!dev->driver)
+		return;
+
+	drv = to_amba_driver(dev->driver);
+	if (drv->shutdown)
+		drv->shutdown(to_amba_device(dev));
+}
+
 #ifdef CONFIG_PM
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
@@ -202,6 +317,9 @@ struct bus_type amba_bustype = {
 	.dev_groups	= amba_dev_groups,
 	.match		= amba_match,
 	.uevent		= amba_uevent,
+	.probe		= amba_probe,
+	.remove		= amba_remove,
+	.shutdown	= amba_shutdown,
 	.dma_configure	= platform_dma_configure,
 	.pm		= &amba_pm,
 };
@@ -214,99 +332,6 @@ static int __init amba_init(void)
 
 postcore_initcall(amba_init);
 
-static int amba_get_enable_pclk(struct amba_device *pcdev)
-{
-	int ret;
-
-	pcdev->pclk = clk_get(&pcdev->dev, "apb_pclk");
-	if (IS_ERR(pcdev->pclk))
-		return PTR_ERR(pcdev->pclk);
-
-	ret = clk_prepare_enable(pcdev->pclk);
-	if (ret)
-		clk_put(pcdev->pclk);
-
-	return ret;
-}
-
-static void amba_put_disable_pclk(struct amba_device *pcdev)
-{
-	clk_disable_unprepare(pcdev->pclk);
-	clk_put(pcdev->pclk);
-}
-
-/*
- * These are the device model conversion veneers; they convert the
- * device model structures to our more specific structures.
- */
-static int amba_probe(struct device *dev)
-{
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
-	const struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
-	int ret;
-
-	do {
-		ret = of_clk_set_defaults(dev->of_node, false);
-		if (ret < 0)
-			break;
-
-		ret = dev_pm_domain_attach(dev, true);
-		if (ret)
-			break;
-
-		ret = amba_get_enable_pclk(pcdev);
-		if (ret) {
-			dev_pm_domain_detach(dev, true);
-			break;
-		}
-
-		pm_runtime_get_noresume(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-
-		ret = pcdrv->probe(pcdev, id);
-		if (ret == 0)
-			break;
-
-		pm_runtime_disable(dev);
-		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
-
-		amba_put_disable_pclk(pcdev);
-		dev_pm_domain_detach(dev, true);
-	} while (0);
-
-	return ret;
-}
-
-static int amba_remove(struct device *dev)
-{
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *drv = to_amba_driver(dev->driver);
-	int ret;
-
-	pm_runtime_get_sync(dev);
-	ret = drv->remove(pcdev);
-	pm_runtime_put_noidle(dev);
-
-	/* Undo the runtime PM settings in amba_probe() */
-	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
-
-	amba_put_disable_pclk(pcdev);
-	dev_pm_domain_detach(dev, true);
-
-	return ret;
-}
-
-static void amba_shutdown(struct device *dev)
-{
-	struct amba_driver *drv = to_amba_driver(dev->driver);
-	drv->shutdown(to_amba_device(dev));
-}
-
 /**
  *	amba_driver_register - register an AMBA device driver
  *	@drv: amba device driver structure
@@ -317,12 +342,10 @@ static void amba_shutdown(struct device *dev)
  */
 int amba_driver_register(struct amba_driver *drv)
 {
-	drv->drv.bus = &amba_bustype;
+	if (!drv->probe)
+		return -EINVAL;
 
-#define SETFN(fn)	if (drv->fn) drv->drv.fn = amba_##fn
-	SETFN(probe);
-	SETFN(remove);
-	SETFN(shutdown);
+	drv->drv.bus = &amba_bustype;
 
 	return driver_register(&drv->drv);
 }
@@ -387,6 +410,21 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	ret = amba_get_enable_pclk(dev);
 	if (ret == 0) {
 		u32 pid, cid;
+		struct reset_control *rstc;
+
+		/*
+		 * Find reset control(s) of the amba bus and de-assert them.
+		 */
+		rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
+		if (IS_ERR(rstc)) {
+			ret = PTR_ERR(rstc);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&dev->dev, "can't get reset: %d\n",
+					ret);
+			goto err_reset;
+		}
+		reset_control_deassert(rstc);
+		reset_control_put(rstc);
 
 		/*
 		 * Read pid and cid based on size of resource
@@ -399,10 +437,22 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 			cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) <<
 				(i * 8);
 
+		if (cid == CORESIGHT_CID) {
+			/* set the base to the start of the last 4k block */
+			void __iomem *csbase = tmp + size - 4096;
+
+			dev->uci.devarch =
+				readl(csbase + UCI_REG_DEVARCH_OFFSET);
+			dev->uci.devtype =
+				readl(csbase + UCI_REG_DEVTYPE_OFFSET) & 0xff;
+		}
+
 		amba_put_disable_pclk(dev);
 
-		if (cid == AMBA_CID || cid == CORESIGHT_CID)
+		if (cid == AMBA_CID || cid == CORESIGHT_CID) {
 			dev->periphid = pid;
+			dev->cid = cid;
+		}
 
 		if (!dev->periphid)
 			ret = -ENODEV;
@@ -432,6 +482,12 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	release_resource(&dev->res);
  err_out:
 	return ret;
+
+ err_reset:
+	amba_put_disable_pclk(dev);
+	iounmap(tmp);
+	dev_pm_domain_detach(&dev->dev, true);
+	goto err_release;
 }
 
 /*
@@ -457,7 +513,7 @@ static DECLARE_DELAYED_WORK(deferred_retry_work, amba_deferred_retry_func);
 
 #define DEFERRED_DEVICE_TIMEOUT (msecs_to_jiffies(5 * 1000))
 
-static void amba_deferred_retry_func(struct work_struct *dummy)
+static int amba_deferred_retry(void)
 {
 	struct deferred_device *ddev, *tmp;
 
@@ -473,11 +529,19 @@ static void amba_deferred_retry_func(struct work_struct *dummy)
 		kfree(ddev);
 	}
 
+	mutex_unlock(&deferred_devices_lock);
+
+	return 0;
+}
+late_initcall(amba_deferred_retry);
+
+static void amba_deferred_retry_func(struct work_struct *dummy)
+{
+	amba_deferred_retry();
+
 	if (!list_empty(&deferred_devices))
 		schedule_delayed_work(&deferred_retry_work,
 				      DEFERRED_DEVICE_TIMEOUT);
-
-	mutex_unlock(&deferred_devices_lock);
 }
 
 /**
@@ -597,6 +661,7 @@ static void amba_device_initialize(struct amba_device *dev, const char *name)
 	dev->dev.release = amba_device_release;
 	dev->dev.bus = &amba_bustype;
 	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
+	dev->dev.dma_parms = &dev->dma_parms;
 	dev->res.name = dev_name(&dev->dev);
 }
 

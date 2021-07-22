@@ -42,16 +42,12 @@ int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
 
-#ifdef CONFIG_XEN_PV
+#if defined(CONFIG_XEN_PV) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				unsigned int address_bits,
 				dma_addr_t *dma_handle);
 
 void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
-
-int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
-		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
-		  unsigned int domid, bool no_translate, struct page **pages);
 #else
 static inline int xen_create_contiguous_region(phys_addr_t pstart,
 					       unsigned int order,
@@ -63,7 +59,13 @@ static inline int xen_create_contiguous_region(phys_addr_t pstart,
 
 static inline void xen_destroy_contiguous_region(phys_addr_t pstart,
 						 unsigned int order) { }
+#endif
 
+#if defined(CONFIG_XEN_PV)
+int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
+		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
+		  unsigned int domid, bool no_translate, struct page **pages);
+#else
 static inline int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 				xen_pfn_t *pfn, int nr, int *err_ptr,
 				pgprot_t prot,  unsigned int domid,
@@ -106,6 +108,9 @@ static inline int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 	return -EOPNOTSUPP;
 }
 #endif
+
+int xen_remap_vma_range(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long len);
 
 /*
  * xen_remap_domain_gfn_array() - map an array of foreign frames by gfn
@@ -207,43 +212,10 @@ int xen_xlate_map_ballooned_pages(xen_pfn_t **pfns, void **vaddr,
 
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 
-efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc);
-efi_status_t xen_efi_set_time(efi_time_t *tm);
-efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
-				     efi_time_t *tm);
-efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm);
-efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 *attr, unsigned long *data_size,
-				  void *data);
-efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
-				       efi_char16_t *name, efi_guid_t *vendor);
-efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 attr, unsigned long data_size,
-				  void *data);
-efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
-					 u64 *remaining_space,
-					 u64 *max_variable_size);
-efi_status_t xen_efi_get_next_high_mono_count(u32 *count);
-efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
-				    unsigned long count, unsigned long sg_list);
-efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
-					unsigned long count, u64 *max_size,
-					int *reset_type);
-void xen_efi_reset_system(int reset_type, efi_status_t status,
-			  unsigned long data_size, efi_char16_t *data);
+void xen_efi_runtime_setup(void);
 
 
-#ifdef CONFIG_PREEMPT
-
-static inline void xen_preemptible_hcall_begin(void)
-{
-}
-
-static inline void xen_preemptible_hcall_end(void)
-{
-}
-
-#else
+#if defined(CONFIG_XEN_PV) && !defined(CONFIG_PREEMPTION)
 
 DECLARE_PER_CPU(bool, xen_in_preemptible_hcall);
 
@@ -257,6 +229,11 @@ static inline void xen_preemptible_hcall_end(void)
 	__this_cpu_write(xen_in_preemptible_hcall, false);
 }
 
-#endif /* CONFIG_PREEMPT */
+#else
+
+static inline void xen_preemptible_hcall_begin(void) { }
+static inline void xen_preemptible_hcall_end(void) { }
+
+#endif /* CONFIG_XEN_PV && !CONFIG_PREEMPTION */
 
 #endif /* INCLUDE_XEN_OPS_H */

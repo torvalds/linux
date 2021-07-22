@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * helpers for managing a buffer for many packets
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <linux/firewire.h>
@@ -37,7 +37,7 @@ int iso_packets_buffer_init(struct iso_packets_buffer *b, struct fw_unit *unit,
 	packets_per_page = PAGE_SIZE / packet_size;
 	if (WARN_ON(!packets_per_page)) {
 		err = -EINVAL;
-		goto error;
+		goto err_packets;
 	}
 	pages = DIV_ROUND_UP(count, packets_per_page);
 

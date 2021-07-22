@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006, Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* just for IFNAMSIZ */
@@ -262,7 +259,6 @@ static void tpt_trig_timer(struct timer_list *t)
 {
 	struct tpt_led_trigger *tpt_trig = from_timer(tpt_trig, t, timer);
 	struct ieee80211_local *local = tpt_trig->local;
-	struct led_classdev *led_cdev;
 	unsigned long on, off, tpt;
 	int i;
 
@@ -286,10 +282,7 @@ static void tpt_trig_timer(struct timer_list *t)
 		}
 	}
 
-	read_lock(&local->tpt_led.leddev_list_lock);
-	list_for_each_entry(led_cdev, &local->tpt_led.led_cdevs, trig_list)
-		led_blink_set(led_cdev, &on, &off);
-	read_unlock(&local->tpt_led.leddev_list_lock);
+	led_trigger_blink(&local->tpt_led, &on, &off);
 }
 
 const char *
@@ -344,7 +337,6 @@ static void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
 static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 {
 	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
-	struct led_classdev *led_cdev;
 
 	if (!tpt_trig->running)
 		return;
@@ -352,10 +344,7 @@ static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 	tpt_trig->running = false;
 	del_timer_sync(&tpt_trig->timer);
 
-	read_lock(&local->tpt_led.leddev_list_lock);
-	list_for_each_entry(led_cdev, &local->tpt_led.led_cdevs, trig_list)
-		led_set_brightness(led_cdev, LED_OFF);
-	read_unlock(&local->tpt_led.leddev_list_lock);
+	led_trigger_event(&local->tpt_led, LED_OFF);
 }
 
 void ieee80211_mod_tpt_led_trig(struct ieee80211_local *local,

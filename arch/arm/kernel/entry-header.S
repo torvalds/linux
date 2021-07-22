@@ -6,6 +6,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/thread_info.h>
+#include <asm/uaccess-asm.h>
 #include <asm/v7m.h>
 
 @ Bad Abort numbers
@@ -127,7 +128,8 @@
          */
 	.macro	v7m_exception_slow_exit ret_r0
 	cpsid	i
-	ldr	lr, =EXC_RET_THREADMODE_PROCESSSTACK
+	ldr	lr, =exc_ret
+	ldr	lr, [lr]
 
 	@ read original r12, sp, lr, pc and xPSR
 	add	r12, sp, #S_IP
@@ -216,9 +218,7 @@
 	blne	trace_hardirqs_off
 #endif
 	.endif
-	ldr	r1, [sp, #SVC_ADDR_LIMIT]
-	uaccess_restore
-	str	r1, [tsk, #TI_ADDR_LIMIT]
+	uaccess_exit tsk, r0, r1
 
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode SVC restore
@@ -262,9 +262,7 @@
 	@ on the stack remains correct).
 	@
 	.macro  svc_exit_via_fiq
-	ldr	r1, [sp, #SVC_ADDR_LIMIT]
-	uaccess_restore
-	str	r1, [tsk, #TI_ADDR_LIMIT]
+	uaccess_exit tsk, r0, r1
 #ifndef CONFIG_THUMB2_KERNEL
 	@ ARM mode restore
 	mov	r0, sp
@@ -387,8 +385,8 @@
 	badr	lr, \ret			@ return address
 	.if	\reload
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
-	ldmccia	r1, {r0 - r6}			@ reload r0-r6
-	stmccia	sp, {r4, r5}			@ update stack arguments
+	ldmiacc	r1, {r0 - r6}			@ reload r0-r6
+	stmiacc	sp, {r4, r5}			@ update stack arguments
 	.endif
 	ldrcc	pc, [\table, \tmp, lsl #2]	@ call sys_* routine
 #else
@@ -396,8 +394,8 @@
 	badr	lr, \ret			@ return address
 	.if	\reload
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
-	ldmccia	r1, {r0 - r6}			@ reload r0-r6
-	stmccia	sp, {r4, r5}			@ update stack arguments
+	ldmiacc	r1, {r0 - r6}			@ reload r0-r6
+	stmiacc	sp, {r4, r5}			@ update stack arguments
 	.endif
 	ldrcc	pc, [\table, \nr, lsl #2]	@ call sys_* routine
 #endif

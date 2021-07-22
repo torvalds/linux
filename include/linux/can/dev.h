@@ -15,9 +15,12 @@
 #define _CAN_DEV_H
 
 #include <linux/can.h>
+#include <linux/can/bittiming.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
+#include <linux/can/length.h>
 #include <linux/can/netlink.h>
+#include <linux/can/skb.h>
 #include <linux/netdevice.h>
 
 /*
@@ -36,18 +39,22 @@ struct can_priv {
 	struct net_device *dev;
 	struct can_device_stats can_stats;
 
-	struct can_bittiming bittiming, data_bittiming;
 	const struct can_bittiming_const *bittiming_const,
 		*data_bittiming_const;
-	const u16 *termination_const;
-	unsigned int termination_const_cnt;
-	u16 termination;
-	const u32 *bitrate_const;
+	struct can_bittiming bittiming, data_bittiming;
+	const struct can_tdc_const *tdc_const;
+	struct can_tdc tdc;
+
 	unsigned int bitrate_const_cnt;
+	const u32 *bitrate_const;
 	const u32 *data_bitrate_const;
 	unsigned int data_bitrate_const_cnt;
 	u32 bitrate_max;
 	struct can_clock clock;
+
+	unsigned int termination_const_cnt;
+	const u16 *termination_const;
+	u16 termination;
 
 	enum can_state state;
 
@@ -81,46 +88,6 @@ struct can_priv {
 #endif
 };
 
-/*
- * get_can_dlc(value) - helper macro to cast a given data length code (dlc)
- * to __u8 and ensure the dlc value to be max. 8 bytes.
- *
- * To be used in the CAN netdriver receive path to ensure conformance with
- * ISO 11898-1 Chapter 8.4.2.3 (DLC field)
- */
-#define get_can_dlc(i)		(min_t(__u8, (i), CAN_MAX_DLC))
-#define get_canfd_dlc(i)	(min_t(__u8, (i), CANFD_MAX_DLC))
-
-/* Drop a given socketbuffer if it does not contain a valid CAN frame. */
-static inline bool can_dropped_invalid_skb(struct net_device *dev,
-					  struct sk_buff *skb)
-{
-	const struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-
-	if (skb->protocol == htons(ETH_P_CAN)) {
-		if (unlikely(skb->len != CAN_MTU ||
-			     cfd->len > CAN_MAX_DLEN))
-			goto inval_skb;
-	} else if (skb->protocol == htons(ETH_P_CANFD)) {
-		if (unlikely(skb->len != CANFD_MTU ||
-			     cfd->len > CANFD_MAX_DLEN))
-			goto inval_skb;
-	} else
-		goto inval_skb;
-
-	return false;
-
-inval_skb:
-	kfree_skb(skb);
-	dev->stats.tx_dropped++;
-	return true;
-}
-
-static inline bool can_is_canfd_skb(const struct sk_buff *skb)
-{
-	/* the CAN specific type of skb is identified by its data length */
-	return skb->len == CANFD_MTU;
-}
 
 /* helper to define static CAN controller features at device creation time */
 static inline void can_set_static_ctrlmode(struct net_device *dev,
@@ -137,11 +104,7 @@ static inline void can_set_static_ctrlmode(struct net_device *dev,
 		dev->mtu = CANFD_MTU;
 }
 
-/* get data length from can_dlc with sanitized can_dlc */
-u8 can_dlc2len(u8 can_dlc);
-
-/* map the sanitized data length to an appropriate data length code */
-u8 can_len2dlc(u8 len);
+void can_setup(struct net_device *dev);
 
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs);
@@ -164,13 +127,9 @@ void unregister_candev(struct net_device *dev);
 int can_restart_now(struct net_device *dev);
 void can_bus_off(struct net_device *dev);
 
+const char *can_get_state_str(const enum can_state state);
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state);
-
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		      unsigned int idx);
-unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);
-void can_free_echo_skb(struct net_device *dev, unsigned int idx);
 
 #ifdef CONFIG_OF
 void of_can_transceiver(struct net_device *dev);
@@ -178,10 +137,8 @@ void of_can_transceiver(struct net_device *dev);
 static inline void of_can_transceiver(struct net_device *dev) { }
 #endif
 
-struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
-struct sk_buff *alloc_canfd_skb(struct net_device *dev,
-				struct canfd_frame **cfd);
-struct sk_buff *alloc_can_err_skb(struct net_device *dev,
-				  struct can_frame **cf);
+extern struct rtnl_link_ops can_link_ops;
+int can_netlink_register(void);
+void can_netlink_unregister(void);
 
 #endif /* !_CAN_DEV_H */

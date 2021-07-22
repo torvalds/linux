@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* NXP PCF50633 Power Management Unit (PMU) driver
  *
  * (C) 2006-2008 by Openmoko, Inc.
  * Author: Harald Welte <laforge@openmoko.org>
  * 	   Balaji Rao <balajirrao@openmoko.org>
  * All rights reserved.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -82,8 +77,8 @@ int pcf50633_reg_clear_bits(struct pcf50633 *pcf, u8 reg, u8 val)
 EXPORT_SYMBOL_GPL(pcf50633_reg_clear_bits);
 
 /* sysfs attributes */
-static ssize_t show_dump_regs(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t dump_regs_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct pcf50633 *pcf = dev_get_drvdata(dev);
 	u8 dump[16];
@@ -111,10 +106,10 @@ static ssize_t show_dump_regs(struct device *dev, struct device_attribute *attr,
 
 	return buf1 - buf;
 }
-static DEVICE_ATTR(dump_regs, 0400, show_dump_regs, NULL);
+static DEVICE_ATTR_ADMIN_RO(dump_regs);
 
-static ssize_t show_resume_reason(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t resume_reason_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	struct pcf50633 *pcf = dev_get_drvdata(dev);
 	int n;
@@ -128,7 +123,7 @@ static ssize_t show_resume_reason(struct device *dev,
 
 	return n;
 }
-static DEVICE_ATTR(resume_reason, 0400, show_resume_reason, NULL);
+static DEVICE_ATTR_ADMIN_RO(resume_reason);
 
 static struct attribute *pcf_sysfs_entries[] = {
 	&dev_attr_dump_regs.attr,

@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __DPU_ENCODER_PHYS_H__
@@ -114,8 +105,6 @@ struct dpu_encoder_virt_ops {
  * @handle_post_kickoff:	Do any work necessary post-kickoff work
  * @trigger_start:		Process start event on physical encoder
  * @needs_single_flush:		Whether encoder slaves need to be flushed
- * @hw_reset:			Issue HW recovery such as CTL reset and clear
- *				DPU_ENC_ERR_NEEDS_HW_RESET state
  * @irq_control:		Handler to enable/disable all the encoder IRQs
  * @prepare_idle_pc:		phys encoder can update the vsync_enable status
  *                              on idle power collapse prepare
@@ -146,16 +135,15 @@ struct dpu_encoder_phys_ops {
 	int (*wait_for_commit_done)(struct dpu_encoder_phys *phys_enc);
 	int (*wait_for_tx_complete)(struct dpu_encoder_phys *phys_enc);
 	int (*wait_for_vblank)(struct dpu_encoder_phys *phys_enc);
-	void (*prepare_for_kickoff)(struct dpu_encoder_phys *phys_enc,
-			struct dpu_encoder_kickoff_params *params);
+	void (*prepare_for_kickoff)(struct dpu_encoder_phys *phys_enc);
 	void (*handle_post_kickoff)(struct dpu_encoder_phys *phys_enc);
 	void (*trigger_start)(struct dpu_encoder_phys *phys_enc);
 	bool (*needs_single_flush)(struct dpu_encoder_phys *phys_enc);
-	void (*hw_reset)(struct dpu_encoder_phys *phys_enc);
 	void (*irq_control)(struct dpu_encoder_phys *phys, bool enable);
 	void (*prepare_idle_pc)(struct dpu_encoder_phys *phys_enc);
 	void (*restore)(struct dpu_encoder_phys *phys);
 	int (*get_line_count)(struct dpu_encoder_phys *phys);
+	int (*get_frame_count)(struct dpu_encoder_phys *phys);
 };
 
 /**
@@ -177,18 +165,14 @@ enum dpu_intr_idx {
 /**
  * dpu_encoder_irq - tracking structure for interrupts
  * @name:		string name of interrupt
- * @intr_type:		Encoder interrupt type
  * @intr_idx:		Encoder interrupt enumeration
- * @hw_idx:		HW Block ID
  * @irq_idx:		IRQ interface lookup index from DPU IRQ framework
  *			will be -EINVAL if IRQ is not registered
  * @irq_cb:		interrupt callback
  */
 struct dpu_encoder_irq {
 	const char *name;
-	enum dpu_intr_type intr_type;
 	enum dpu_intr_idx intr_idx;
-	int hw_idx;
 	int irq_idx;
 	struct dpu_irq_callback cb;
 };
@@ -204,6 +188,7 @@ struct dpu_encoder_irq {
  * @hw_mdptop:		Hardware interface to the top registers
  * @hw_ctl:		Hardware interface to the ctl registers
  * @hw_pp:		Hardware interface to the ping pong registers
+ * @hw_intf:		Hardware interface to the intf registers
  * @dpu_kms:		Pointer to the dpu_kms top level
  * @cached_mode:	DRM mode cached at mode_set time, acted on in enable
  * @enabled:		Whether the encoder has enabled and running a mode
@@ -232,6 +217,7 @@ struct dpu_encoder_phys {
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_pingpong *hw_pp;
+	struct dpu_hw_intf *hw_intf;
 	struct dpu_kms *dpu_kms;
 	struct drm_display_mode cached_mode;
 	enum dpu_enc_split_role split_role;
@@ -253,19 +239,6 @@ static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
 	atomic_inc_return(&phys->pending_ctlstart_cnt);
 	return atomic_inc_return(&phys->pending_kickoff_cnt);
 }
-
-/**
- * struct dpu_encoder_phys_vid - sub-class of dpu_encoder_phys to handle video
- *	mode specific operations
- * @base:	Baseclass physical encoder structure
- * @hw_intf:	Hardware interface to the intf registers
- * @timing_params: Current timing parameter
- */
-struct dpu_encoder_phys_vid {
-	struct dpu_encoder_phys base;
-	struct dpu_hw_intf *hw_intf;
-	struct intf_timing_params timing_params;
-};
 
 /**
  * struct dpu_encoder_phys_cmd - sub-class of dpu_encoder_phys to handle command
@@ -342,15 +315,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
  */
 void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_helper_hw_reset - issue ctl hw reset
- *	This helper function may be optionally specified by physical
- *	encoders if they require ctl hw reset. If state is currently
- *	DPU_ENC_ERR_NEEDS_HW_RESET, it is set back to DPU_ENC_ENABLED.
- * @phys_enc: Pointer to physical encoder structure
- */
-void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc);
-
 static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 		struct dpu_encoder_phys *phys_enc)
 {
@@ -362,7 +326,7 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
 	if (phys_enc->split_role == ENC_ROLE_SOLO &&
-	    dpu_crtc_state_is_stereo(dpu_cstate))
+	    dpu_cstate->num_mixers == CRTC_DUAL_MIXERS)
 		return BLEND_3D_H_ROW_INT;
 
 	return BLEND_3D_NONE;

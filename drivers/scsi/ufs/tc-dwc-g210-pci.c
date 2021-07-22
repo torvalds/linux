@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Synopsys G210 Test Chip driver
  *
  * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
  *
  * Authors: Joao Pinto <jpinto@synopsys.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "ufshcd.h"
@@ -151,6 +148,8 @@ static const struct dev_pm_ops tc_dwc_g210_pci_pm_ops = {
 	.runtime_suspend = tc_dwc_g210_pci_runtime_suspend,
 	.runtime_resume  = tc_dwc_g210_pci_runtime_resume,
 	.runtime_idle    = tc_dwc_g210_pci_runtime_idle,
+	.prepare	 = ufshcd_suspend_prepare,
+	.complete	 = ufshcd_resume_complete,
 };
 
 static const struct pci_device_id tc_dwc_g210_pci_tbl[] = {

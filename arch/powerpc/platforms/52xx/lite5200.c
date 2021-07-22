@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale Lite5200 board support
  *
@@ -7,10 +8,6 @@
  * Copyright 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Description:
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #undef DEBUG
@@ -168,8 +165,6 @@ static void __init lite5200_setup_arch(void)
 	mpc52xx_suspend.board_resume_finish = lite5200_resume_finish;
 	lite5200_pm_init();
 #endif
-
-	mpc52xx_setup_pci();
 }
 
 static const char * const board[] __initconst = {
@@ -190,6 +185,7 @@ define_machine(lite5200) {
 	.name 		= "lite5200",
 	.probe 		= lite5200_probe,
 	.setup_arch 	= lite5200_setup_arch,
+	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,

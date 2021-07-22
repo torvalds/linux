@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* 
  * Driver for NeoMagic 256AV and 256ZX chipsets.
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
@@ -7,21 +8,6 @@
  * so I just put my acknoledgment to him/her here.
  * The original author's web page is found at
  *	http://www.uglx.org/sony.html
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
   
 #include <linux/io.h>
@@ -46,8 +32,6 @@
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("NeoMagic NM256AV/ZX");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{NeoMagic,NM256AV},"
-		"{NeoMagic,NM256ZX}}");
 
 /*
  * some compile conditions.
@@ -313,7 +297,7 @@ snd_nm256_writel(struct nm256 *chip, int offset, u32 val)
 }
 
 static inline void
-snd_nm256_write_buffer(struct nm256 *chip, void *src, int offset, int size)
+snd_nm256_write_buffer(struct nm256 *chip, const void *src, int offset, int size)
 {
 	offset -= chip->buffer_start;
 #ifdef CONFIG_SND_DEBUG
@@ -474,6 +458,7 @@ static int snd_nm256_acquire_irq(struct nm256 *chip)
 			return -EBUSY;
 		}
 		chip->irq = chip->pci->irq;
+		chip->card->sync_irq = chip->irq;
 	}
 	chip->irq_acks++;
 	mutex_unlock(&chip->irq_mutex);
@@ -489,6 +474,7 @@ static void snd_nm256_release_irq(struct nm256 *chip)
 	if (chip->irq_acks == 0 && chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
+		chip->card->sync_irq = -1;
 	}
 	mutex_unlock(&chip->irq_mutex);
 }
@@ -572,7 +558,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		s->suspended = 0;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (! s->running) {
 			snd_nm256_playback_start(chip, s, substream);
@@ -581,7 +567,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		s->suspended = 1;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (s->running) {
 			snd_nm256_playback_stop(chip);
@@ -797,7 +783,7 @@ snd_nm256_capture_update(struct nm256 *chip)
 /*
  * hardware info
  */
-static struct snd_pcm_hardware snd_nm256_playback =
+static const struct snd_pcm_hardware snd_nm256_playback =
 {
 	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -816,7 +802,7 @@ static struct snd_pcm_hardware snd_nm256_playback =
 	.period_bytes_max =	128 * 1024,
 };
 
-static struct snd_pcm_hardware snd_nm256_capture =
+static const struct snd_pcm_hardware snd_nm256_capture =
 {
 	.info =			SNDRV_PCM_INFO_MMAP_IOMEM | SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -850,7 +836,7 @@ static int snd_nm256_pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static void snd_nm256_setup_stream(struct nm256 *chip, struct nm256_stream *s,
 				   struct snd_pcm_substream *substream,
-				   struct snd_pcm_hardware *hw_ptr)
+				   const struct snd_pcm_hardware *hw_ptr)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -920,7 +906,6 @@ snd_nm256_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_nm256_playback_ops = {
 	.open =		snd_nm256_playback_open,
 	.close =	snd_nm256_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_playback_trigger,
@@ -936,7 +921,6 @@ static const struct snd_pcm_ops snd_nm256_playback_ops = {
 static const struct snd_pcm_ops snd_nm256_capture_ops = {
 	.open =		snd_nm256_capture_open,
 	.close =	snd_nm256_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_capture_trigger,
@@ -1193,7 +1177,7 @@ struct initialValues {
 	unsigned short value;
 };
 
-static struct initialValues nm256_ac97_init_val[] =
+static const struct initialValues nm256_ac97_init_val[] =
 {
 	{ AC97_MASTER, 		0x8000 },
 	{ AC97_HEADPHONE,	0x8000 },
@@ -1323,7 +1307,7 @@ snd_nm256_mixer(struct nm256 *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.reset = snd_nm256_ac97_reset,
 		.write = snd_nm256_ac97_write,
 		.read = snd_nm256_ac97_read,
@@ -1334,7 +1318,8 @@ snd_nm256_mixer(struct nm256 *chip)
 	if (! chip->ac97_regs)
 		return -ENOMEM;
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
+	if (err < 0)
 		return err;
 
 	memset(&ac97, 0, sizeof(ac97));
@@ -1367,7 +1352,7 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	unsigned long pointer_found = chip->buffer_end - 0x1400;
 	u32 sig;
 
-	temp = ioremap_nocache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
+	temp = ioremap(chip->buffer_addr + chip->buffer_end - 0x400, 16);
 	if (temp == NULL) {
 		dev_err(chip->card->dev,
 			"Unable to scan for card signature in video RAM\n");
@@ -1413,7 +1398,6 @@ static int nm256_suspend(struct device *dev)
 	struct nm256 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 	chip->coeffs_current = 0;
 	return 0;
@@ -1486,14 +1470,15 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 {
 	struct nm256 *chip;
 	int err, pval;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_nm256_dev_free,
 	};
 	u32 addr;
 
 	*chip_ret = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1533,7 +1518,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->cport = ioremap_nocache(chip->cport_addr, NM_PORT2_SIZE);
+	chip->cport = ioremap(chip->cport_addr, NM_PORT2_SIZE);
 	if (chip->cport == NULL) {
 		dev_err(card->dev, "unable to map control port %lx\n",
 			chip->cport_addr);
@@ -1585,7 +1570,8 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		chip->buffer_end = buffer_top;
 	else {
 		/* get buffer end pointer from signature */
-		if ((err = snd_nm256_peek_for_sig(chip)) < 0)
+		err = snd_nm256_peek_for_sig(chip);
+		if (err < 0)
 			goto __error;
 	}
 
@@ -1604,7 +1590,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->buffer = ioremap_nocache(chip->buffer_addr, chip->buffer_size);
+	chip->buffer = ioremap(chip->buffer_addr, chip->buffer_size);
 	if (chip->buffer == NULL) {
 		err = -ENOMEM;
 		dev_err(card->dev, "unable to map ring buffer at %lx\n",
@@ -1635,7 +1621,8 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 
 	// pci_set_master(pci); /* needed? */
 	
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0)
 		goto __error;
 
 	*chip_ret = chip;
@@ -1647,11 +1634,11 @@ __error:
 }
 
 
-enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
+enum { NM_IGNORED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
-static struct snd_pci_quirk nm256_quirks[] = {
+static const struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
-	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
+	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_IGNORED),
 	/* Reset workarounds to avoid lock-ups */
 	SND_PCI_QUIRK(0x104d, 0x8041, "Sony PCG-F305", NM_RESET_WORKAROUND),
 	SND_PCI_QUIRK(0x1028, 0x0080, "Dell Latitude LS", NM_RESET_WORKAROUND),
@@ -1673,13 +1660,13 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		dev_dbg(&pci->dev, "Enabled quirk for %s.\n",
 			    snd_pci_quirk_name(q));
 		switch (q->value) {
-		case NM_BLACKLISTED:
+		case NM_IGNORED:
 			dev_info(&pci->dev,
-				 "The device is blacklisted. Loading stopped\n");
+				 "The device is on the denylist. Loading stopped\n");
 			return -ENODEV;
 		case NM_RESET_WORKAROUND_2:
 			reset_workaround_2 = 1;
-			/* Fall-through */
+			fallthrough;
 		case NM_RESET_WORKAROUND:
 			reset_workaround = 1;
 			break;
@@ -1717,7 +1704,8 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		capture_bufsize = 4;
 	if (capture_bufsize > 128)
 		capture_bufsize = 128;
-	if ((err = snd_nm256_create(card, pci, &chip)) < 0) {
+	err = snd_nm256_create(card, pci, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1733,8 +1721,13 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		chip->reset_workaround_2 = 1;
 	}
 
-	if ((err = snd_nm256_pcm(chip, 0)) < 0 ||
-	    (err = snd_nm256_mixer(chip)) < 0) {
+	err = snd_nm256_pcm(chip, 0);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	err = snd_nm256_mixer(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1744,7 +1737,8 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		card->shortname,
 		chip->buffer_addr, chip->cport_addr, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

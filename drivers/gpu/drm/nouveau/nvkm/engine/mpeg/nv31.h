@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV31_MPEG_H__
 #define __NV31_MPEG_H__
 #define nv31_mpeg(p) container_of((p), struct nv31_mpeg, engine)
@@ -11,8 +11,8 @@ struct nv31_mpeg {
 	struct nv31_mpeg_chan *chan;
 };
 
-int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *,
-		   int index, struct nvkm_engine **);
+int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_engine **);
 
 struct nv31_mpeg_func {
 	bool (*mthd_dma)(struct nvkm_device *, u32 mthd, u32 data);

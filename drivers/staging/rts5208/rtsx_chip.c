@@ -1,19 +1,8 @@
-/* Driver for Realtek PCI-Express card reader
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG (wei_wang@realsil.com.cn)
@@ -609,38 +598,38 @@ nextcard:
 	return STATUS_SUCCESS;
 }
 
-static inline int check_sd_speed_prior(u32 sd_speed_prior)
+static inline int valid_sd_speed_prior(u32 sd_speed_prior)
 {
-	bool fake_para = false;
+	bool valid_para = true;
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_speed_prior >> (i * 8));
 
 		if ((tmp < 0x01) || (tmp > 0x04)) {
-			fake_para = true;
+			valid_para = false;
 			break;
 		}
 	}
 
-	return !fake_para;
+	return valid_para;
 }
 
-static inline int check_sd_current_prior(u32 sd_current_prior)
+static inline int valid_sd_current_prior(u32 sd_current_prior)
 {
-	bool fake_para = false;
+	bool valid_para = true;
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_current_prior >> (i * 8));
 
 		if (tmp > 0x03) {
-			fake_para = true;
+			valid_para = false;
 			break;
 		}
 	}
 
-	return !fake_para;
+	return valid_para;
 }
 
 static int rts5208_init(struct rtsx_chip *chip)
@@ -807,13 +796,13 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 		chip->rw_fail_cnt[i] = 0;
 	}
 
-	if (!check_sd_speed_prior(chip->sd_speed_prior))
+	if (!valid_sd_speed_prior(chip->sd_speed_prior))
 		chip->sd_speed_prior = 0x01040203;
 
 	dev_dbg(rtsx_dev(chip), "sd_speed_prior = 0x%08x\n",
 		chip->sd_speed_prior);
 
-	if (!check_sd_current_prior(chip->sd_current_prior))
+	if (!valid_sd_current_prior(chip->sd_current_prior))
 		chip->sd_current_prior = 0x00010203;
 
 	dev_dbg(rtsx_dev(chip), "sd_current_prior = 0x%08x\n",
@@ -951,7 +940,8 @@ static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 		if (maybe_support_aspm)
 			chip->aspm_l0s_l1_en = 0x03;
 
-		dev_dbg(rtsx_dev(chip), "aspm_level[0] = 0x%02x, aspm_level[1] = 0x%02x\n",
+		dev_dbg(rtsx_dev(chip),
+			"aspm_level[0] = 0x%02x, aspm_level[1] = 0x%02x\n",
 			chip->aspm_level[0], chip->aspm_level[1]);
 
 		if (chip->aspm_l0s_l1_en) {
@@ -1450,6 +1440,7 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	u16 aligned_addr = addr - offset;
 	int dw_len, i, j;
 	int retval;
+	size_t size;
 
 	if (!buf)
 		return STATUS_NOMEM;
@@ -1461,11 +1452,12 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 
 	dev_dbg(rtsx_dev(chip), "dw_len = %d\n", dw_len);
 
-	data = vzalloc(array_size(dw_len, 4));
+	size = array_size(dw_len, 4);
+	data = vzalloc(size);
 	if (!data)
 		return STATUS_NOMEM;
 
-	mask = vzalloc(array_size(dw_len, 4));
+	mask = vzalloc(size);
 	if (!mask) {
 		vfree(data);
 		return STATUS_NOMEM;
@@ -1481,10 +1473,8 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 		}
 	}
 
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, mask,
-			     dw_len * 4);
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, data,
-			     dw_len * 4);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, mask, size);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, data, size);
 
 	for (i = 0; i < dw_len; i++) {
 		retval = rtsx_write_cfg_dw(chip, func, aligned_addr + i * 4,

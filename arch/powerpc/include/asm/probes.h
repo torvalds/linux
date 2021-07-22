@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_PROBES_H
 #define _ASM_POWERPC_PROBES_H
 #ifdef __KERNEL__
 /*
  * Definitions common to probes files
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright IBM Corporation, 2012
  */
@@ -47,14 +34,14 @@ typedef u32 ppc_opcode_t;
 /* Enable single stepping for the current task */
 static inline void enable_single_step(struct pt_regs *regs)
 {
-	regs->msr |= MSR_SINGLESTEP;
+	regs_set_return_msr(regs, regs->msr | MSR_SINGLESTEP);
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/*
 	 * We turn off Critical Input Exception(CE) to ensure that the single
 	 * step will be for the instruction we have the probe on; if we don't,
 	 * it is possible we'd get the single step reported for CE.
 	 */
-	regs->msr &= ~MSR_CE;
+	regs_set_return_msr(regs, regs->msr & ~MSR_CE);
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
 #ifdef CONFIG_PPC_47x
 	isync();

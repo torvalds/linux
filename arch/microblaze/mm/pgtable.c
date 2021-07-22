@@ -32,8 +32,8 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/mm_types.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <linux/io.h>
 #include <asm/mmu.h>
@@ -43,10 +43,6 @@
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);
-
-#ifndef CONFIG_SMP
-struct pgtable_cache_struct quicklists;
-#endif
 
 static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		unsigned long flags)
@@ -75,7 +71,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		p >= memory_start && p < virt_to_phys(high_memory) &&
 		!(p >= __virt_to_phys((phys_addr_t)__bss_stop) &&
 		p < __virt_to_phys((phys_addr_t)__bss_stop))) {
-		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %pf\n",
+		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %ps\n",
 			(unsigned long)p, __builtin_return_address(0));
 		return NULL;
 	}
@@ -138,11 +134,16 @@ EXPORT_SYMBOL(iounmap);
 
 int map_page(unsigned long va, phys_addr_t pa, int flags)
 {
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pd;
 	pte_t *pg;
 	int err = -ENOMEM;
+
 	/* Use upper 10 bits of VA to index the first level map */
-	pd = pmd_offset(pgd_offset_k(va), va);
+	p4d = p4d_offset(pgd_offset_k(va), va);
+	pud = pud_offset(p4d, va);
+	pd = pmd_offset(pud, va);
 	/* Use middle 10 bits of VA to index the second-level map */
 	pg = pte_alloc_kernel(pd, va); /* from powerpc - pgtable.c */
 	/* pg = pte_alloc_kernel(&init_mm, pd, va); */
@@ -192,13 +193,17 @@ void __init mapin_ram(void)
 static int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
 {
 	pgd_t	*pgd;
+	p4d_t	*p4d;
+	pud_t	*pud;
 	pmd_t	*pmd;
 	pte_t	*pte;
 	int     retval = 0;
 
 	pgd = pgd_offset(mm, addr & PAGE_MASK);
 	if (pgd) {
-		pmd = pmd_offset(pgd, addr & PAGE_MASK);
+		p4d = p4d_offset(pgd, addr & PAGE_MASK);
+		pud = pud_offset(p4d, addr & PAGE_MASK);
+		pmd = pmd_offset(pud, addr & PAGE_MASK);
 		if (pmd_present(*pmd)) {
 			pte = pte_offset_kernel(pmd, addr & PAGE_MASK);
 			if (pte) {
@@ -235,8 +240,7 @@ unsigned long iopa(unsigned long addr)
 	return pa;
 }
 
-__ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-		unsigned long address)
+__ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	pte_t *pte;
 	if (mem_init_done) {

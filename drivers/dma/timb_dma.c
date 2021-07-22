@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * timb_dma.c timberdale FPGA DMA driver
  * Copyright (c) 2010 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Supports:
@@ -96,7 +88,7 @@ struct timb_dma {
 	struct dma_device	dma;
 	void __iomem		*membase;
 	struct tasklet_struct	tasklet;
-	struct timb_dma_chan	channels[0];
+	struct timb_dma_chan	channels[];
 };
 
 static struct device *chan2dev(struct dma_chan *chan)
@@ -571,9 +563,9 @@ static int td_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static void td_tasklet(unsigned long data)
+static void td_tasklet(struct tasklet_struct *t)
 {
-	struct timb_dma *td = (struct timb_dma *)data;
+	struct timb_dma *td = from_tasklet(td, t, tasklet);
 	u32 isr;
 	u32 ipr;
 	u32 ier;
@@ -643,8 +635,8 @@ static int td_probe(struct platform_device *pdev)
 		DRIVER_NAME))
 		return -EBUSY;
 
-	td  = kzalloc(sizeof(struct timb_dma) +
-		sizeof(struct timb_dma_chan) * pdata->nr_channels, GFP_KERNEL);
+	td  = kzalloc(struct_size(td, channels, pdata->nr_channels),
+		      GFP_KERNEL);
 	if (!td) {
 		err = -ENOMEM;
 		goto err_release_region;
@@ -666,7 +658,7 @@ static int td_probe(struct platform_device *pdev)
 	iowrite32(0x0, td->membase + TIMBDMA_IER);
 	iowrite32(0xFFFFFFFF, td->membase + TIMBDMA_ISR);
 
-	tasklet_init(&td->tasklet, td_tasklet, (unsigned long)td);
+	tasklet_setup(&td->tasklet, td_tasklet);
 
 	err = request_irq(irq, td_irq, IRQF_SHARED, DRIVER_NAME, td);
 	if (err) {

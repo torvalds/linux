@@ -38,6 +38,12 @@
 #include "rds.h"
 #include "loop.h"
 
+static char * const rds_trans_modules[] = {
+	[RDS_TRANS_IB] = "rds_rdma",
+	[RDS_TRANS_GAP] = NULL,
+	[RDS_TRANS_TCP] = "rds_tcp",
+};
+
 static struct rds_transport *transports[RDS_TRANS_COUNT];
 static DECLARE_RWSEM(rds_trans_sem);
 
@@ -110,18 +116,20 @@ struct rds_transport *rds_trans_get(int t_type)
 {
 	struct rds_transport *ret = NULL;
 	struct rds_transport *trans;
-	unsigned int i;
 
 	down_read(&rds_trans_sem);
-	for (i = 0; i < RDS_TRANS_COUNT; i++) {
-		trans = transports[i];
-
-		if (trans && trans->t_type == t_type &&
-		    (!trans->t_owner || try_module_get(trans->t_owner))) {
-			ret = trans;
-			break;
-		}
+	trans = transports[t_type];
+	if (!trans) {
+		up_read(&rds_trans_sem);
+		if (rds_trans_modules[t_type])
+			request_module(rds_trans_modules[t_type]);
+		down_read(&rds_trans_sem);
+		trans = transports[t_type];
 	}
+	if (trans && trans->t_type == t_type &&
+	    (!trans->t_owner || try_module_get(trans->t_owner)))
+		ret = trans;
+
 	up_read(&rds_trans_sem);
 
 	return ret;

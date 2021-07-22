@@ -20,8 +20,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-
-#include "most/core.h"
+#include <linux/most.h>
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"
@@ -47,12 +46,14 @@ MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a powe
 static DEFINE_SPINLOCK(dim_lock);
 
 static void dim2_tasklet_fn(unsigned long data);
-static DECLARE_TASKLET(dim2_tasklet, dim2_tasklet_fn, 0);
+static DECLARE_TASKLET_OLD(dim2_tasklet, dim2_tasklet_fn);
 
 /**
  * struct hdm_channel - private structure to keep channel specific data
+ * @name: channel name
  * @is_initialized: identifier to know whether the channel is initialized
  * @ch: HAL specific channel data
+ * @reset_dbr_size: reset DBR data buffer size
  * @pending_list: list to keep MBO's before starting transfer
  * @started_list: list to keep MBO's after starting transfer
  * @direction: channel direction (TX or RX)
@@ -69,7 +70,7 @@ struct hdm_channel {
 	enum most_channel_data_type data_type;
 };
 
-/**
+/*
  * struct dim2_hdm - private structure to keep interface specific data
  * @hch: an array of channel specific data
  * @most_iface: most interface structure
@@ -101,12 +102,12 @@ struct dim2_hdm {
 	struct medialb_bus bus;
 	void (*on_netinfo)(struct most_interface *most_iface,
 			   unsigned char link_state, unsigned char *addrs);
-	void (*disable_platform)(struct platform_device *);
+	void (*disable_platform)(struct platform_device *pdev);
 };
 
 struct dim2_platform_data {
-	int (*enable)(struct platform_device *);
-	void (*disable)(struct platform_device *);
+	int (*enable)(struct platform_device *pdev);
+	void (*disable)(struct platform_device *pdev);
 };
 
 #define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)
@@ -126,25 +127,6 @@ bool dim2_sysfs_get_state_cb(void)
 	spin_unlock_irqrestore(&dim_lock, flags);
 
 	return state;
-}
-
-/**
- * dimcb_io_read - callback from HAL to read an I/O register
- * @ptr32: register address
- */
-u32 dimcb_io_read(u32 __iomem *ptr32)
-{
-	return readl(ptr32);
-}
-
-/**
- * dimcb_io_write - callback from HAL to write value to an I/O register
- * @ptr32: register address
- * @value: value to write
- */
-void dimcb_io_write(u32 __iomem *ptr32, u32 value)
-{
-	writel(value, ptr32);
 }
 
 /**
@@ -448,9 +430,9 @@ static void complete_all_mbos(struct list_head *head)
 
 /**
  * configure_channel - initialize a channel
- * @iface: interface the channel belongs to
- * @channel: channel to be configured
- * @channel_config: structure that holds the configuration information
+ * @most_iface: interface the channel belongs to
+ * @ch_idx: channel index to be configured
+ * @ccfg: structure that holds the configuration information
  *
  * Receives configuration information from mostcore and initialize
  * the corresponding channel. Return 0 on success, negative on failure.
@@ -566,8 +548,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 
 /**
  * enqueue - enqueue a buffer for data transfer
- * @iface: intended interface
- * @channel: ID of the channel the buffer is intended for
+ * @most_iface: intended interface
+ * @ch_idx: ID of the channel the buffer is intended for
  * @mbo: pointer to the buffer object
  *
  * Push the buffer into pending_list and try to transfer one buffer from
@@ -599,8 +581,9 @@ static int enqueue(struct most_interface *most_iface, int ch_idx,
 
 /**
  * request_netinfo - triggers retrieving of network info
- * @iface: pointer to the interface
- * @channel_id: corresponding channel ID
+ * @most_iface: pointer to the interface
+ * @ch_idx: corresponding channel ID
+ * @on_netinfo: call-back used to deliver network status to mostcore
  *
  * Send a command to INIC which triggers retrieving of network info by means of
  * "Message exchange over MDP/MEP". Return 0 on success, negative on failure.
@@ -641,8 +624,8 @@ static void request_netinfo(struct most_interface *most_iface, int ch_idx,
 
 /**
  * poison_channel - poison buffers of a channel
- * @iface: pointer to the interface the channel to be poisoned belongs to
- * @channel_id: corresponding channel ID
+ * @most_iface: pointer to the interface the channel to be poisoned belongs to
+ * @ch_idx: corresponding channel ID
  *
  * Destroy a channel and complete all the buffers in both started_list &
  * pending_list. Return 0 on success, negative on failure.
@@ -797,7 +780,6 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, AHB0_INT_IDX);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get ahb0_int irq: %d\n", irq);
 		ret = irq;
 		goto err_shutdown_dim;
 	}
@@ -811,7 +793,6 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, MLB_INT_IDX);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get mlb_int irq: %d\n", irq);
 		ret = irq;
 		goto err_shutdown_dim;
 	}
@@ -875,8 +856,9 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
 	dev->most_iface.driver_dev = &pdev->dev;
+	dev->most_iface.dev = &dev->dev;
 	dev->dev.init_name = "dim2_state";
-	dev->dev.parent = &dev->most_iface.dev;
+	dev->dev.parent = &pdev->dev;
 
 	ret = most_register_interface(&dev->most_iface);
 	if (ret) {

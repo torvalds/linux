@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
  * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  * Copyright (C) 2012 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -46,7 +42,6 @@ static char *camif_clocks[CLK_MAX_NUM] = {
 
 static const struct camif_fmt camif_formats[] = {
 	{
-		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.depth		= 16,
 		.ybpp		= 1,
@@ -55,7 +50,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YUV 4:2:0 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -64,7 +58,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YVU 4:2:0 planar, Y/Cr/Cb",
 		.fourcc		= V4L2_PIX_FMT_YVU420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -73,7 +66,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "RGB565, 16 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB565X,
 		.depth		= 16,
 		.ybpp		= 2,
@@ -82,7 +74,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "XRGB8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= 32,
 		.ybpp		= 4,
@@ -91,7 +82,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "BGR666",
 		.fourcc		= V4L2_PIX_FMT_BGR666,
 		.depth		= 32,
 		.ybpp		= 4,
@@ -141,11 +131,13 @@ static int camif_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 	while (sh--) {
 		unsigned int tmp = 1 << sh;
 		if (src >= tar * tmp) {
-			*shift = sh, *ratio = tmp;
+			*shift = sh;
+			*ratio = tmp;
 			return 0;
 		}
 	}
-	*shift = 0, *ratio = 1;
+	*shift = 0;
+	*ratio = 1;
 	return 0;
 }
 
@@ -314,7 +306,7 @@ static int camif_media_dev_init(struct camif_dev *camif)
 	int ret;
 
 	memset(md, 0, sizeof(*md));
-	snprintf(md->model, sizeof(md->model), "SAMSUNG S3C%s CAMIF",
+	snprintf(md->model, sizeof(md->model), "Samsung S3C%s CAMIF",
 		 ip_rev == S3C6410_CAMIF_IP_REV ? "6410" : "244X");
 	strscpy(md->bus_info, "platform", sizeof(md->bus_info));
 	md->hw_revision = ip_rev;
@@ -390,10 +382,8 @@ static int camif_request_irqs(struct platform_device *pdev,
 		init_waitqueue_head(&vp->irq_queue);
 
 		irq = platform_get_irq(pdev, i);
-		if (irq <= 0) {
-			dev_err(&pdev->dev, "failed to get IRQ %d\n", i);
+		if (irq <= 0)
 			return -ENXIO;
-		}
 
 		ret = devm_request_irq(&pdev->dev, irq, s3c_camif_irq_handler,
 				       0, dev_name(&pdev->dev), vp);
@@ -470,13 +460,13 @@ static int s3c_camif_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
-		goto err_pm;
+		goto err_disable;
 
 	ret = camif_media_dev_init(camif);
 	if (ret < 0)
-		goto err_alloc;
+		goto err_pm;
 
 	ret = camif_register_sensor(camif);
 	if (ret < 0)
@@ -510,10 +500,10 @@ err_sens:
 	media_device_unregister(&camif->media_dev);
 	media_device_cleanup(&camif->media_dev);
 	camif_unregister_media_entities(camif);
-err_alloc:
-	pm_runtime_put(dev);
-	pm_runtime_disable(dev);
 err_pm:
+	pm_runtime_put(dev);
+err_disable:
+	pm_runtime_disable(dev);
 	camif_clk_put(camif);
 err_clk:
 	s3c_camif_unregister_subdev(camif);

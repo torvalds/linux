@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Source for:
  * Cypress TrueTouch(TM) Standard Product (TTSP) SPI touchscreen driver.
@@ -10,18 +11,7 @@
  * Copyright (C) 2012 Javier Martinez Canillas <javier@dowhile0.org>
  * Copyright (C) 2013 Cypress Semiconductor
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, and only version 2, as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Contact Cypress Semiconductor at www.cypress.com <ttdrivers@cypress.com>
- *
  */
 
 #include "cyttsp_core.h"
@@ -29,6 +19,8 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/spi/spi.h>
+
+#define CY_SPI_NAME		"cyttsp-spi"
 
 #define CY_SPI_WR_OP		0x00 /* r/~w */
 #define CY_SPI_RD_OP		0x01
@@ -170,10 +162,18 @@ static int cyttsp_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id cyttsp_of_spi_match[] = {
+	{ .compatible = "cypress,cy8ctma340", },
+	{ .compatible = "cypress,cy8ctst341", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, cyttsp_of_spi_match);
+
 static struct spi_driver cyttsp_spi_driver = {
 	.driver = {
 		.name	= CY_SPI_NAME,
 		.pm	= &cyttsp_pm_ops,
+		.of_match_table = cyttsp_of_spi_match,
 	},
 	.probe  = cyttsp_spi_probe,
 };

@@ -1,27 +1,13 @@
-/*
- * tps80031-regulator.c -- TI TPS80031 regulator driver.
- *
- * Regulator driver for TI TPS80031/TPS80032 Fully Integrated Power
- * Management with Power Path and Battery Charger.
- *
- * Copyright (c) 2012, NVIDIA Corporation.
- *
- * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307, USA
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// tps80031-regulator.c -- TI TPS80031 regulator driver.
+//
+// Regulator driver for TI TPS80031/TPS80032 Fully Integrated Power
+// Management with Power Path and Battery Charger.
+//
+// Copyright (c) 2012, NVIDIA Corporation.
+//
+// Author: Laxman Dewangan <ldewangan@nvidia.com>
 
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -85,7 +71,6 @@ struct tps80031_regulator_info {
 
 struct tps80031_regulator {
 	struct device			*dev;
-	struct regulator_dev		*rdev;
 	struct tps80031_regulator_info	*rinfo;
 
 	u8				device_flags;
@@ -155,7 +140,7 @@ static int tps80031_reg_disable(struct regulator_dev *rdev)
 }
 
 /* DCDC voltages for the selector of 58 to 63 */
-static int tps80031_dcdc_voltages[4][5] = {
+static const int tps80031_dcdc_voltages[4][5] = {
 	{ 1350, 1500, 1800, 1900, 2100},
 	{ 1350, 1500, 1800, 1900, 2100},
 	{ 2084, 2315, 2778, 2932, 3241},
@@ -286,7 +271,7 @@ static int tps80031_vbus_is_enabled(struct regulator_dev *rdev)
 {
 	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps80031_dev(rdev);
-	int ret = -EIO;
+	int ret;
 	uint8_t ctrl1 = 0;
 	uint8_t ctrl3 = 0;
 
@@ -337,7 +322,7 @@ static int tps80031_vbus_disable(struct regulator_dev *rdev)
 {
 	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps80031_dev(rdev);
-	int ret = 0;
+	int ret;
 
 	if (ri->config_flags & TPS80031_VBUS_DISCHRG_EN_PDN) {
 		ret = tps80031_write(parent, TPS80031_SLAVE_ID2,
@@ -378,7 +363,7 @@ static int tps80031_vbus_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static struct regulator_ops tps80031_dcdc_ops = {
+static const struct regulator_ops tps80031_dcdc_ops = {
 	.list_voltage		= tps80031_dcdc_list_voltage,
 	.set_voltage_sel	= tps80031_dcdc_set_voltage_sel,
 	.get_voltage_sel	= tps80031_dcdc_get_voltage_sel,
@@ -387,7 +372,7 @@ static struct regulator_ops tps80031_dcdc_ops = {
 	.is_enabled	= tps80031_reg_is_enabled,
 };
 
-static struct regulator_ops tps80031_ldo_ops = {
+static const struct regulator_ops tps80031_ldo_ops = {
 	.list_voltage		= tps80031_ldo_list_voltage,
 	.map_voltage		= tps80031_ldo_map_voltage,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -397,18 +382,18 @@ static struct regulator_ops tps80031_ldo_ops = {
 	.is_enabled		= tps80031_reg_is_enabled,
 };
 
-static struct regulator_ops tps80031_vbus_sw_ops = {
+static const struct regulator_ops tps80031_vbus_sw_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_vbus_enable,
 	.disable	= tps80031_vbus_disable,
 	.is_enabled	= tps80031_vbus_is_enabled,
 };
 
-static struct regulator_ops tps80031_vbus_hw_ops = {
+static const struct regulator_ops tps80031_vbus_hw_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops tps80031_ext_reg_ops = {
+static const struct regulator_ops tps80031_ext_reg_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_reg_enable,
 	.disable	= tps80031_reg_disable,
@@ -545,7 +530,8 @@ static int tps80031_regulator_config(struct device *parent,
 	case TPS80031_REGULATOR_LDOUSB:
 		if (ri->config_flags & (TPS80031_USBLDO_INPUT_VSYS |
 			TPS80031_USBLDO_INPUT_PMID)) {
-			unsigned val = 0;
+			unsigned val;
+
 			if (ri->config_flags & TPS80031_USBLDO_INPUT_VSYS)
 				val = MISC2_LDOUSB_IN_VSYS;
 			else
@@ -736,7 +722,6 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 					ri->rinfo->desc.name);
 			return PTR_ERR(rdev);
 		}
-		ri->rdev = rdev;
 	}
 
 	platform_set_drvdata(pdev, pmic);

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SBP2 target driver (SCSI over IEEE1394 in target mode)
  *
  * Copyright (C) 2011  Chris Boot <bootc@bootc.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #define KMSG_COMPONENT "sbp_target"
@@ -1019,7 +1006,7 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 			agent->state = AGENT_STATE_SUSPENDED;
 
 		spin_unlock_bh(&agent->lock);
-	};
+	}
 }
 
 static struct sbp_target_agent *sbp_target_agent_register(
@@ -1231,11 +1218,9 @@ static void sbp_handle_command(struct sbp_target_request *req)
 
 	/* only used for printk until we do TMRs */
 	req->se_cmd.tag = req->orb_pointer;
-	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
-			      req->sense_buf, unpacked_lun, data_length,
-			      TCM_SIMPLE_TAG, data_dir, TARGET_SCF_ACK_KREF))
-		goto err;
-
+	target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
+			  req->sense_buf, unpacked_lun, data_length,
+			  TCM_SIMPLE_TAG, data_dir, TARGET_SCF_ACK_KREF);
 	return;
 
 err:
@@ -1276,7 +1261,6 @@ static int sbp_rw_data(struct sbp_target_request *req)
 	pg_size = CMDBLK_ORB_PG_SIZE(be32_to_cpu(req->orb.misc));
 	if (pg_size) {
 		pr_err("sbp_run_transaction: page size ignored\n");
-		pg_size = 0x100 << pg_size;
 	}
 
 	spin_lock_bh(&sess->lock);
@@ -1694,11 +1678,6 @@ static int sbp_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static char *sbp_get_fabric_name(void)
-{
-	return "sbp";
-}
-
 static char *sbp_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
@@ -1751,11 +1730,6 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 	}
 
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static int sbp_write_pending_status(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -2323,8 +2297,7 @@ static struct configfs_attribute *sbp_tpg_attrib_attrs[] = {
 
 static const struct target_core_fabric_ops sbp_ops = {
 	.module				= THIS_MODULE,
-	.name				= "sbp",
-	.get_fabric_name		= sbp_get_fabric_name,
+	.fabric_name			= "sbp",
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
 	.tpg_check_demo_mode		= sbp_check_true,
@@ -2335,7 +2308,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.release_cmd			= sbp_release_cmd,
 	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
-	.write_pending_status		= sbp_write_pending_status,
 	.set_default_node_attributes	= sbp_set_default_node_attrs,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,

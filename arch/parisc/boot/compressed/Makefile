@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # linux/arch/parisc/boot/compressed/Makefile
 #
@@ -11,9 +12,11 @@ UBSAN_SANITIZE := n
 targets := vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
 targets += misc.o piggy.o sizes.h head.o real2.o firmware.o
+targets += real2.S firmware.c
 
 KBUILD_CFLAGS := -D__KERNEL__ -O2 -DBOOTLOADER
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+KBUILD_CFLAGS += -fno-strict-aliasing
 KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks -fno-builtin-printf
 KBUILD_CFLAGS += -fno-PIE -mno-space-regs -mdisable-fpregs -Os
 ifndef CONFIG_64BIT
@@ -54,7 +57,8 @@ $(obj)/misc.o: $(obj)/sizes.h
 CPPFLAGS_vmlinux.lds += -I$(objtree)/$(obj) -DBOOTLOADER
 $(obj)/vmlinux.lds: $(obj)/sizes.h
 
-$(obj)/vmlinux.bin: vmlinux
+OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .note -S
+$(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
 vmlinux.bin.all-y := $(obj)/vmlinux.bin

@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
  * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
  * Author: Xing Zheng <zhengxing@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
@@ -110,9 +102,10 @@ static struct rockchip_cpuclk_rate_table rk3036_cpuclk_rates[] __initdata = {
 };
 
 static const struct rockchip_cpuclk_reg_data rk3036_cpuclk_data = {
-	.core_reg = RK2928_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0x1f,
+	.core_reg[0] = RK2928_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0x1f,
+	.num_cores = 1,
 	.mux_core_alt = 1,
 	.mux_core_main = 0,
 	.mux_core_shift = 7,
@@ -266,7 +259,7 @@ static struct rockchip_clk_branch rk3036_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(1), 13, GFLAGS,
 			&rk3036_uart2_fracmux),
 
-	COMPOSITE(0, "aclk_vcodec", mux_pll_src_3plls_p, 0,
+	COMPOSITE(ACLK_VCODEC, "aclk_vcodec", mux_pll_src_3plls_p, 0,
 			RK2928_CLKSEL_CON(32), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK2928_CLKGATE_CON(3), 11, GFLAGS),
 	FACTOR_GATE(HCLK_VCODEC, "hclk_vcodec", "aclk_vcodec", 0, 1, 4,

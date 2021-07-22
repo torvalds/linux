@@ -1,20 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 IBM Corporation
  *
  * Authors:
  * Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
  * Mimi Zohar <zohar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/kexec.h>
+#include <linux/of.h>
+#include <linux/ima.h>
 #include "ima.h"
 
 #ifdef CONFIG_IMA_KEXEC
@@ -106,7 +103,7 @@ void ima_add_kexec_buffer(struct kimage *image)
 		kexec_segment_size = ALIGN(ima_get_binary_runtime_size() +
 					   PAGE_SIZE / 2, PAGE_SIZE);
 	if ((kexec_segment_size == ULONG_MAX) ||
-	    ((kexec_segment_size >> PAGE_SHIFT) > totalram_pages / 2)) {
+	    ((kexec_segment_size >> PAGE_SHIFT) > totalram_pages() / 2)) {
 		pr_err("Binary measurement list too large.\n");
 		return;
 	}
@@ -124,14 +121,13 @@ void ima_add_kexec_buffer(struct kimage *image)
 	ret = kexec_add_buffer(&kbuf);
 	if (ret) {
 		pr_err("Error passing over kexec measurement buffer.\n");
+		vfree(kexec_buffer);
 		return;
 	}
 
-	ret = arch_ima_add_kexec_buffer(image, kbuf.mem, kexec_segment_size);
-	if (ret) {
-		pr_err("Error passing over kexec measurement buffer.\n");
-		return;
-	}
+	image->ima_buffer_addr = kbuf.mem;
+	image->ima_buffer_size = kexec_segment_size;
+	image->ima_buffer = kexec_buffer;
 
 	pr_debug("kexec measurement buffer for the loaded kernel at 0x%lx.\n",
 		 kbuf.mem);

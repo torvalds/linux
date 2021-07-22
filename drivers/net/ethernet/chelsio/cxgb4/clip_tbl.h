@@ -29,7 +29,7 @@ struct clip_tbl {
 	atomic_t nfree;
 	struct list_head ce_free_head;
 	void *cl_list;
-	struct list_head hash_list[0];
+	struct list_head hash_list[];
 };
 
 enum {

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef FIMC_MDEVICE_H_
@@ -29,8 +26,6 @@
 #define FIMC_LITE_OF_NODE_NAME	"fimc-lite"
 #define FIMC_IS_OF_NODE_NAME	"fimc-is"
 #define CSIS_OF_NODE_NAME	"csis"
-
-#define PINCTRL_STATE_IDLE	"idle"
 
 #define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
@@ -79,7 +74,7 @@ struct fimc_camclk_info {
 
 /**
  * struct fimc_sensor_info - image data source subdev information
- * @pdata: sensor's atrributes passed as media device's platform data
+ * @pdata: sensor's attributes passed as media device's platform data
  * @asd: asynchronous subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
@@ -88,7 +83,7 @@ struct fimc_camclk_info {
  */
 struct fimc_sensor_info {
 	struct fimc_source_info pdata;
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_subdev *asd;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
 };
@@ -105,6 +100,8 @@ struct cam_clk {
  * @sensor: array of registered sensor subdevs
  * @num_sensors: actual number of registered sensors
  * @camclk: external sensor clock information
+ * @wbclk: external writeback clock information
+ * @fimc_lite: array of registered fimc-lite devices
  * @fimc: array of registered fimc devices
  * @fimc_is: fimc-is data structure
  * @use_isp: set to true when FIMC-IS subsystem is used
@@ -112,12 +109,12 @@ struct cam_clk {
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
- * @pinctrl: camera port pinctrl handle
- * @state_default: pinctrl default state handle
- * @state_idle: pinctrl idle state handle
- * @cam_clk_provider: CAMCLK clock provider structure
+ * @clk_provider: CAMCLK clock provider structure
+ * @subdev_notifier: notifier for the subdevs
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
+ * @pipelines: list of pipelines
+ * @link_setup_graph: graph iterator
  */
 struct fimc_md {
 	struct fimc_csis_info csis[CSIS_MAX_ENTITIES];
@@ -133,12 +130,6 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
-
-	struct fimc_pinctrl {
-		struct pinctrl *pinctrl;
-		struct pinctrl_state *state_default;
-		struct pinctrl_state *state_idle;
-	} pinctl;
 
 	struct cam_clk_provider {
 		struct clk *clks[FIMC_MAX_CAMCLKS];

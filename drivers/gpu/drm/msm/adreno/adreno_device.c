@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013-2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
  * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "adreno_gpu.h"
@@ -25,8 +14,49 @@ bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
 
+bool snapshot_debugbus = false;
+MODULE_PARM_DESC(snapshot_debugbus, "Include debugbus sections in GPU devcoredump (if not fused off)");
+module_param_named(snapshot_debugbus, snapshot_debugbus, bool, 0600);
+
+bool allow_vram_carveout = false;
+MODULE_PARM_DESC(allow_vram_carveout, "Allow using VRAM Carveout, in place of IOMMU");
+module_param_named(allow_vram_carveout, allow_vram_carveout, bool, 0600);
+
 static const struct adreno_info gpulist[] = {
 	{
+		.rev   = ADRENO_REV(2, 0, 0, 0),
+		.revn  = 200,
+		.name  = "A200",
+		.fw = {
+			[ADRENO_FW_PM4] = "yamato_pm4.fw",
+			[ADRENO_FW_PFP] = "yamato_pfp.fw",
+		},
+		.gmem  = SZ_256K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, { /* a200 on i.mx51 has only 128kib gmem */
+		.rev   = ADRENO_REV(2, 0, 0, 1),
+		.revn  = 201,
+		.name  = "A200",
+		.fw = {
+			[ADRENO_FW_PM4] = "yamato_pm4.fw",
+			[ADRENO_FW_PFP] = "yamato_pfp.fw",
+		},
+		.gmem  = SZ_128K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(2, 2, 0, ANY_ID),
+		.revn  = 220,
+		.name  = "A220",
+		.fw = {
+			[ADRENO_FW_PM4] = "leia_pm4_470.fw",
+			[ADRENO_FW_PFP] = "leia_pfp_470.fw",
+		},
+		.gmem  = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, {
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
 		.revn  = 305,
 		.name  = "A305",
@@ -71,6 +101,17 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a3xx_gpu_init,
 	}, {
+		.rev   = ADRENO_REV(4, 0, 5, ANY_ID),
+		.revn  = 405,
+		.name  = "A405",
+		.fw = {
+			[ADRENO_FW_PM4] = "a420_pm4.fw",
+			[ADRENO_FW_PFP] = "a420_pfp.fw",
+		},
+		.gmem  = SZ_256K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a4xx_gpu_init,
+	}, {
 		.rev   = ADRENO_REV(4, 2, 0, ANY_ID),
 		.revn  = 420,
 		.name  = "A420",
@@ -93,6 +134,73 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a4xx_gpu_init,
 	}, {
+		.rev   = ADRENO_REV(5, 0, 8, ANY_ID),
+		.revn = 508,
+		.name = "A508",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+		},
+		.gmem = (SZ_128K + SZ_8K),
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		.zapfw = "a508_zap.mdt",
+	}, {
+		.rev   = ADRENO_REV(5, 0, 9, ANY_ID),
+		.revn = 509,
+		.name = "A509",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+		},
+		.gmem = (SZ_256K + SZ_16K),
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		/* Adreno 509 uses the same ZAP as 512 */
+		.zapfw = "a512_zap.mdt",
+	}, {
+		.rev   = ADRENO_REV(5, 1, 0, ANY_ID),
+		.revn = 510,
+		.name = "A510",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+		},
+		.gmem = SZ_256K,
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.init = a5xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(5, 1, 2, ANY_ID),
+		.revn = 512,
+		.name = "A512",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+		},
+		.gmem = (SZ_256K + SZ_16K),
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		.zapfw = "a512_zap.mdt",
+	}, {
 		.rev = ADRENO_REV(5, 3, 0, 2),
 		.revn = 530,
 		.name = "A530",
@@ -112,6 +220,35 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
 	}, {
+		.rev = ADRENO_REV(5, 4, 0, ANY_ID),
+		.revn = 540,
+		.name = "A540",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+			[ADRENO_FW_GPMU] = "a540_gpmu.fw2",
+		},
+		.gmem = SZ_1M,
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		.zapfw = "a540_zap.mdt",
+	}, {
+		.rev = ADRENO_REV(6, 1, 8, ANY_ID),
+		.revn = 618,
+		.name = "A618",
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a630_gmu.bin",
+		},
+		.gmem = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+	}, {
 		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
 		.revn = 630,
 		.name = "A630",
@@ -122,6 +259,47 @@ static const struct adreno_info gpulist[] = {
 		.gmem = SZ_1M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init = a6xx_gpu_init,
+		.zapfw = "a630_zap.mdt",
+		.hwcg = a630_hwcg,
+	}, {
+		.rev = ADRENO_REV(6, 4, 0, ANY_ID),
+		.revn = 640,
+		.name = "A640",
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a640_gmu.bin",
+		},
+		.gmem = SZ_1M,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.zapfw = "a640_zap.mdt",
+		.hwcg = a640_hwcg,
+	}, {
+		.rev = ADRENO_REV(6, 5, 0, ANY_ID),
+		.revn = 650,
+		.name = "A650",
+		.fw = {
+			[ADRENO_FW_SQE] = "a650_sqe.fw",
+			[ADRENO_FW_GMU] = "a650_gmu.bin",
+		},
+		.gmem = SZ_1M + SZ_128K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.zapfw = "a650_zap.mdt",
+		.hwcg = a650_hwcg,
+	}, {
+		.rev = ADRENO_REV(6, 6, 0, ANY_ID),
+		.revn = 660,
+		.name = "A660",
+		.fw = {
+			[ADRENO_FW_SQE] = "a660_sqe.fw",
+			[ADRENO_FW_GMU] = "a660_gmu.bin",
+		},
+		.gmem = SZ_1M + SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.zapfw = "a660_zap.mdt",
+		.hwcg = a660_hwcg,
 	},
 };
 
@@ -140,6 +318,7 @@ MODULE_FIRMWARE("qcom/a530_zap.b01");
 MODULE_FIRMWARE("qcom/a530_zap.b02");
 MODULE_FIRMWARE("qcom/a630_sqe.fw");
 MODULE_FIRMWARE("qcom/a630_gmu.bin");
+MODULE_FIRMWARE("qcom/a630_zap.mbn");
 
 static inline bool _rev_match(uint8_t entry, uint8_t id)
 {
@@ -172,7 +351,7 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	int ret;
 
 	if (pdev)
-		gpu = platform_get_drvdata(pdev);
+		gpu = dev_to_gpu(&pdev->dev);
 
 	if (!gpu) {
 		dev_err_once(dev->dev, "no GPU device was found\n");
@@ -196,7 +375,8 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		dev_err(dev->dev, "Couldn't power up the GPU: %d\n", ret);
+		pm_runtime_put_sync(&pdev->dev);
+		DRM_DEV_ERROR(dev->dev, "Couldn't power up the GPU: %d\n", ret);
 		return NULL;
 	}
 
@@ -205,7 +385,7 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 	pm_runtime_put_autosuspend(&pdev->dev);
 	if (ret) {
-		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "gpu hw init failed: %d\n", ret);
 		return NULL;
 	}
 
@@ -238,7 +418,8 @@ static int find_chipid(struct device *dev, struct adreno_rev *rev)
 	if (ret == 0) {
 		unsigned int r, patch;
 
-		if (sscanf(compat, "qcom,adreno-%u.%u", &r, &patch) == 2) {
+		if (sscanf(compat, "qcom,adreno-%u.%u", &r, &patch) == 2 ||
+		    sscanf(compat, "amd,imageon-%u.%u", &r, &patch) == 2) {
 			rev->core = r / 100;
 			r %= 100;
 			rev->major = r / 10;
@@ -253,7 +434,7 @@ static int find_chipid(struct device *dev, struct adreno_rev *rev)
 	/* and if that fails, fall back to legacy "qcom,chipid" property: */
 	ret = of_property_read_u32(node, "qcom,chipid", &chipid);
 	if (ret) {
-		dev_err(dev, "could not parse qcom,chipid: %d\n", ret);
+		DRM_DEV_ERROR(dev, "could not parse qcom,chipid: %d\n", ret);
 		return ret;
 	}
 
@@ -274,6 +455,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	static struct adreno_platform_config config = {};
 	const struct adreno_info *info;
 	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu *gpu;
 	int ret;
 
@@ -296,13 +478,14 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
 		config.rev.minor, config.rev.patchid);
 
+	priv->is_a2xx = config.rev.core == 2;
+	priv->has_cached_coherent = config.rev.core >= 6;
+
 	gpu = info->init(drm);
 	if (IS_ERR(gpu)) {
 		dev_warn(drm->dev, "failed to load adreno gpu\n");
 		return PTR_ERR(gpu);
 	}
-
-	dev_set_drvdata(dev, gpu);
 
 	return 0;
 }
@@ -310,9 +493,9 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 static void adreno_unbind(struct device *dev, struct device *master,
 		void *data)
 {
-	struct msm_gpu *gpu = dev_get_drvdata(dev);
+	struct msm_gpu *gpu = dev_to_gpu(dev);
 
-	gpu->funcs->pm_suspend(gpu);
+	pm_runtime_force_suspend(dev);
 	gpu->funcs->destroy(gpu);
 
 	set_gpu_pdev(dev_get_drvdata(master), NULL);
@@ -323,9 +506,37 @@ static const struct component_ops a3xx_ops = {
 		.unbind = adreno_unbind,
 };
 
+static void adreno_device_register_headless(void)
+{
+	/* on imx5, we don't have a top-level mdp/dpu node
+	 * this creates a dummy node for the driver for that case
+	 */
+	struct platform_device_info dummy_info = {
+		.parent = NULL,
+		.name = "msm",
+		.id = -1,
+		.res = NULL,
+		.num_res = 0,
+		.data = NULL,
+		.size_data = 0,
+		.dma_mask = ~0,
+	};
+	platform_device_register_full(&dummy_info);
+}
+
 static int adreno_probe(struct platform_device *pdev)
 {
-	return component_add(&pdev->dev, &a3xx_ops);
+
+	int ret;
+
+	ret = component_add(&pdev->dev, &a3xx_ops);
+	if (ret)
+		return ret;
+
+	if (of_device_is_compatible(pdev->dev.of_node, "amd,imageon"))
+		adreno_device_register_headless();
+
+	return 0;
 }
 
 static int adreno_remove(struct platform_device *pdev)
@@ -334,9 +545,16 @@ static int adreno_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void adreno_shutdown(struct platform_device *pdev)
+{
+	pm_runtime_force_suspend(&pdev->dev);
+}
+
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "qcom,adreno" },
 	{ .compatible = "qcom,adreno-3xx" },
+	/* for compatibility with imx5 gpu: */
+	{ .compatible = "amd,imageon" },
 	/* for backwards compat w/ downstream kgsl DT files: */
 	{ .compatible = "qcom,kgsl-3d0" },
 	{}
@@ -345,16 +563,14 @@ static const struct of_device_id dt_match[] = {
 #ifdef CONFIG_PM
 static int adreno_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+	struct msm_gpu *gpu = dev_to_gpu(dev);
 
 	return gpu->funcs->pm_resume(gpu);
 }
 
 static int adreno_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+	struct msm_gpu *gpu = dev_to_gpu(dev);
 
 	return gpu->funcs->pm_suspend(gpu);
 }
@@ -368,6 +584,7 @@ static const struct dev_pm_ops adreno_pm_ops = {
 static struct platform_driver adreno_driver = {
 	.probe = adreno_probe,
 	.remove = adreno_remove,
+	.shutdown = adreno_shutdown,
 	.driver = {
 		.name = "adreno",
 		.of_match_table = dt_match,

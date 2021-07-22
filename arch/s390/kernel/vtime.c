@@ -13,7 +13,7 @@
 #include <linux/timex.h>
 #include <linux/types.h>
 #include <linux/time.h>
-
+#include <asm/alternative.h>
 #include <asm/vtimer.h>
 #include <asm/vtime.h>
 #include <asm/cpu_mf.h>
@@ -37,7 +37,7 @@ static inline u64 get_vtimer(void)
 {
 	u64 timer;
 
-	asm volatile("stpt %0" : "=m" (timer));
+	asm volatile("stpt %0" : "=Q" (timer));
 	return timer;
 }
 
@@ -48,7 +48,7 @@ static inline void set_vtimer(u64 expires)
 	asm volatile(
 		"	stpt	%0\n"	/* Store current cpu timer value */
 		"	spt	%1"	/* Set new value imm. afterwards */
-		: "=m" (timer) : "m" (expires));
+		: "=Q" (timer) : "Q" (expires));
 	S390_lowcore.system_timer += S390_lowcore.last_update_timer - timer;
 	S390_lowcore.last_update_timer = expires;
 }
@@ -69,7 +69,7 @@ static void update_mt_scaling(void)
 	u64 delta, fac, mult, div;
 	int i;
 
-	stcctm5(smp_cpu_mtid + 1, cycles_new);
+	stcctm(MT_DIAG, smp_cpu_mtid + 1, cycles_new);
 	cycles_old = this_cpu_ptr(mt_cycles);
 	fac = 1;
 	mult = div = 0;
@@ -124,19 +124,17 @@ static void account_system_index_scaled(struct task_struct *p, u64 cputime,
  */
 static int do_account_vtime(struct task_struct *tsk)
 {
-	u64 timer, clock, user, guest, system, hardirq, softirq, steal;
+	u64 timer, clock, user, guest, system, hardirq, softirq;
 
 	timer = S390_lowcore.last_update_timer;
 	clock = S390_lowcore.last_update_clock;
-	asm volatile(
-		"	stpt	%0\n"	/* Store current cpu timer value */
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
-		"	stckf	%1"	/* Store current tod clock value */
-#else
-		"	stck	%1"	/* Store current tod clock value */
-#endif
-		: "=m" (S390_lowcore.last_update_timer),
-		  "=m" (S390_lowcore.last_update_clock));
+	/* Use STORE CLOCK by default, STORE CLOCK FAST if available. */
+	alternative_io("stpt %0\n .insn s,0xb2050000,%1\n",
+		       "stpt %0\n .insn s,0xb27c0000,%1\n",
+		       25,
+		       ASM_OUTPUT2("=Q" (S390_lowcore.last_update_timer),
+				   "=Q" (S390_lowcore.last_update_clock)),
+		       ASM_NO_INPUT_CLOBBER("cc"));
 	clock = S390_lowcore.last_update_clock - clock;
 	timer -= S390_lowcore.last_update_timer;
 
@@ -182,12 +180,6 @@ static int do_account_vtime(struct task_struct *tsk)
 	if (softirq)
 		account_system_index_scaled(tsk, softirq, CPUTIME_SOFTIRQ);
 
-	steal = S390_lowcore.steal_timer;
-	if ((s64) steal > 0) {
-		S390_lowcore.steal_timer = 0;
-		account_steal_time(cputime_to_nsecs(steal));
-	}
-
 	return virt_timer_forward(user + guest + system + hardirq + softirq);
 }
 
@@ -213,38 +205,64 @@ void vtime_task_switch(struct task_struct *prev)
  */
 void vtime_flush(struct task_struct *tsk)
 {
+	u64 steal, avg_steal;
+
 	if (do_account_vtime(tsk))
 		virt_timer_expire();
+
+	steal = S390_lowcore.steal_timer;
+	avg_steal = S390_lowcore.avg_steal_timer / 2;
+	if ((s64) steal > 0) {
+		S390_lowcore.steal_timer = 0;
+		account_steal_time(cputime_to_nsecs(steal));
+		avg_steal += steal;
+	}
+	S390_lowcore.avg_steal_timer = avg_steal;
+}
+
+static u64 vtime_delta(void)
+{
+	u64 timer = S390_lowcore.last_update_timer;
+
+	S390_lowcore.last_update_timer = get_vtimer();
+
+	return timer - S390_lowcore.last_update_timer;
 }
 
 /*
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void vtime_account_irq_enter(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
-	u64 timer;
+	u64 delta = vtime_delta();
 
-	timer = S390_lowcore.last_update_timer;
-	S390_lowcore.last_update_timer = get_vtimer();
-	timer -= S390_lowcore.last_update_timer;
-
-	if ((tsk->flags & PF_VCPU) && (irq_count() == 0))
-		S390_lowcore.guest_timer += timer;
-	else if (hardirq_count())
-		S390_lowcore.hardirq_timer += timer;
-	else if (in_serving_softirq())
-		S390_lowcore.softirq_timer += timer;
+	if (tsk->flags & PF_VCPU)
+		S390_lowcore.guest_timer += delta;
 	else
-		S390_lowcore.system_timer += timer;
+		S390_lowcore.system_timer += delta;
 
-	virt_timer_forward(timer);
+	virt_timer_forward(delta);
 }
-EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
+EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
-void vtime_account_system(struct task_struct *tsk)
-__attribute__((alias("vtime_account_irq_enter")));
-EXPORT_SYMBOL_GPL(vtime_account_system);
+void vtime_account_softirq(struct task_struct *tsk)
+{
+	u64 delta = vtime_delta();
+
+	S390_lowcore.softirq_timer += delta;
+
+	virt_timer_forward(delta);
+}
+
+void vtime_account_hardirq(struct task_struct *tsk)
+{
+	u64 delta = vtime_delta();
+
+	S390_lowcore.hardirq_timer += delta;
+
+	virt_timer_forward(delta);
+}
 
 /*
  * Sorted add to a list. List is linear searched until first bigger
@@ -432,6 +450,6 @@ void vtime_init(void)
 		__this_cpu_write(mt_scaling_jiffies, jiffies);
 		__this_cpu_write(mt_scaling_mult, 1);
 		__this_cpu_write(mt_scaling_div, 1);
-		stcctm5(smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
+		stcctm(MT_DIAG, smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
 	}
 }

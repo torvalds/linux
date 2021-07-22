@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: Andrew-CT Chen <andrew-ct.chen@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #ifndef _MTK_VPU_H
@@ -18,12 +10,14 @@
 #include <linux/platform_device.h>
 
 /**
+ * DOC: VPU
+ *
  * VPU (video processor unit) is a tiny processor controlling video hardware
  * related to video codec, scaling and color format converting.
  * VPU interfaces with other blocks by share memory and interrupt.
- **/
+ */
 
-typedef void (*ipi_handler_t) (void *data,
+typedef void (*ipi_handler_t) (const void *data,
 			       unsigned int len,
 			       void *priv);
 
@@ -134,18 +128,18 @@ struct platform_device *vpu_get_plat_device(struct platform_device *pdev);
  * vpu_wdt_reg_handler - register a VPU watchdog handler
  *
  * @pdev:               VPU platform device
- * @vpu_wdt_reset_func:	the callback reset function
- * @private_data:       the private data for reset function
- * @rst_id:		reset id
+ * @vpu_wdt_reset_func():	the callback reset function
+ *	@priv: the private data for reset function
+ * @priv:		the private data for reset function
+ * @id:			reset id
  *
  * Register a handler performing own tasks when vpu reset by watchdog
  *
  * Return: Return 0 if the handler is added successfully,
  * otherwise it is failed.
- *
  **/
 int vpu_wdt_reg_handler(struct platform_device *pdev,
-			void vpu_wdt_reset_func(void *),
+			void vpu_wdt_reset_func(void *priv),
 			void *priv, enum rst_id id);
 
 /**
@@ -179,8 +173,8 @@ int vpu_load_firmware(struct platform_device *pdev);
 /**
  * vpu_mapping_dm_addr - Mapping DTCM/DMEM to kernel virtual address
  *
- * @pdev:	VPU platform device
- * @dmem_addr:	VPU's data memory address
+ * @pdev:		VPU platform device
+ * @dtcm_dmem_addr:	VPU's data memory address
  *
  * Mapping the VPU's DTCM (Data Tightly-Coupled Memory) /
  * DMEM (Data Extended Memory) memory address to

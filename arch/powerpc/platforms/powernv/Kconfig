@@ -7,12 +7,11 @@ config PPC_POWERNV
 	select PPC_ICP_NATIVE
 	select PPC_XIVE_NATIVE
 	select PPC_P7_NAP
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
-	select PPC_SCOM
 	select ARCH_RANDOM
 	select CPU_FREQ
 	select PPC_DOORBELL
@@ -28,22 +27,12 @@ config OPAL_PRD
 	  recovery diagnostics on OpenPower machines
 
 config PPC_MEMTRACE
-	bool "Enable removal of RAM from kernel mappings for tracing"
-	depends on PPC_POWERNV && MEMORY_HOTREMOVE
+	bool "Enable runtime allocation of RAM for tracing"
+	depends on PPC_POWERNV && MEMORY_HOTPLUG && CONTIG_ALLOC
 	help
-	  Enabling this option allows for the removal of memory (RAM)
-	  from the kernel mappings to be used for hardware tracing.
+	  Enabling this option allows for runtime allocation of memory (RAM)
+	  for hardware tracing.
 
-config PPC_VAS
-	bool "IBM Virtual Accelerator Switchboard (VAS)"
-	depends on PPC_POWERNV && PPC_64K_PAGES
-	default y
-	help
-	  This enables support for IBM Virtual Accelerator Switchboard (VAS).
-
-	  VAS allows accelerators in co-processors like NX-GZIP and NX-842
-	  to be accessible to kernel subsystems and user processes.
-
-	  VAS adapters are found in POWER9 based systems.
-
-	  If unsure, say N.
+config SCOM_DEBUGFS
+	bool "Expose SCOM controllers via debugfs"
+	depends on DEBUG_FS

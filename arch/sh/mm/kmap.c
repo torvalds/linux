@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/kmap.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2002 - 2009  Paul Mundt
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -15,9 +14,6 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-#define kmap_get_fixmap_pte(vaddr)                                     \
-	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), (vaddr))
-
 static pte_t *kmap_coherent_pte;
 
 void __init kmap_coherent_init(void)
@@ -26,7 +22,7 @@ void __init kmap_coherent_init(void)
 
 	/* cache the first coherent kmap pte */
 	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
-	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
+	kmap_coherent_pte = virt_to_kpte(vaddr);
 }
 
 void *kmap_coherent(struct page *page, unsigned long addr)

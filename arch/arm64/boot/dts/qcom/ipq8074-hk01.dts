@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /dts-v1/;
 /* Copyright (c) 2017, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include "ipq8074.dtsi"
 
@@ -32,63 +24,89 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000 0x0 0x20000000>;
 	};
+};
 
-	soc {
-		serial@78b3000 {
-			status = "ok";
-		};
+&blsp1_i2c2 {
+	status = "okay";
+};
 
-		spi@78b5000 {
-			status = "ok";
+&blsp1_spi1 {
+	status = "okay";
 
-			m25p80@0 {
-				  #address-cells = <1>;
-				  #size-cells = <1>;
-				  compatible = "jedec,spi-nor";
-				  reg = <0>;
-				  spi-max-frequency = <50000000>;
-			};
-		};
-
-		serial@78b1000 {
-			 status = "ok";
-		};
-
-		i2c@78b6000 {
-			 status = "ok";
-		};
-
-		dma@7984000 {
-			 status = "ok";
-		};
-
-		nand@79b0000 {
-			status = "ok";
-
-			nand@0 {
-				reg = <0>;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-				nand-bus-width = <8>;
-			};
-		};
-
-		phy@86000 {
-			status = "ok";
-		};
-
-		phy@8e000 {
-			status = "ok";
-		};
-
-		pci@20000000 {
-			status = "ok";
-			perst-gpio = <&tlmm 58 0x1>;
-		};
-
-		pci@10000000 {
-			status = "ok";
-			perst-gpio = <&tlmm 61 0x1>;
-		};
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
 	};
+};
+
+&blsp1_uart3 {
+	status = "okay";
+};
+
+&blsp1_uart5 {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+	perst-gpio = <&tlmm 61 0x1>;
+};
+
+&pcie1 {
+	status = "okay";
+	perst-gpio = <&tlmm 58 0x1>;
+};
+
+&pcie_phy0 {
+	status = "okay";
+};
+
+&pcie_phy1 {
+	status = "okay";
+};
+
+&qpic_bam {
+	status = "okay";
+};
+
+&qpic_nand {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-bus-width = <8>;
+	};
+};
+
+&sdhc_1 {
+	status = "okay";
+};
+
+&qusb_phy_0 {
+	status = "okay";
+};
+
+&qusb_phy_1 {
+	status = "okay";
+};
+
+&ssphy_0 {
+	status = "okay";
+};
+
+&ssphy_1 {
+	status = "okay";
+};
+
+&usb_0 {
+	status = "okay";
+};
+
+&usb_1 {
+	status = "okay";
 };

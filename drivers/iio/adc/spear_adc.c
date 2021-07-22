@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST SPEAr ADC driver
  *
  * Copyright 2012 Stefan Roese <sr@denx.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -76,6 +75,15 @@ struct spear_adc_state {
 	struct adc_regs_spear6xx __iomem *adc_base_spear6xx;
 	struct clk *clk;
 	struct completion completion;
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a completion callback,
+	 * and finally a register read, during which userspace could issue
+	 * another read request. This lock protects a read access from
+	 * ocurring before another one has finished.
+	 */
+	struct mutex lock;
 	u32 current_clk;
 	u32 sampling_freq;
 	u32 avg_samples;
@@ -147,7 +155,7 @@ static int spear_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 
 		status = SPEAR_ADC_STATUS_CHANNEL_NUM(chan->channel) |
 			SPEAR_ADC_STATUS_AVG_SAMPLE(st->avg_samples) |
@@ -160,7 +168,7 @@ static int spear_adc_read_raw(struct iio_dev *indio_dev,
 		wait_for_completion(&st->completion); /* set by ISR */
 		*val = st->value;
 
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 
 		return IIO_VAL_INT;
 
@@ -188,7 +196,7 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	if ((val < SPEAR_ADC_CLK_MIN) ||
 	    (val > SPEAR_ADC_CLK_MAX) ||
@@ -200,7 +208,7 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	spear_adc_set_clk(st, val);
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -261,7 +269,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
-	struct resource *res;
 	struct iio_dev *indio_dev = NULL;
 	int ret = -ENODEV;
 	int irq;
@@ -273,6 +280,9 @@ static int spear_adc_probe(struct platform_device *pdev)
 	}
 
 	st = iio_priv(indio_dev);
+
+	mutex_init(&st->lock);
+
 	st->np = np;
 
 	/*
@@ -280,8 +290,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 	 * (e.g. SPEAr3xx). Let's provide two register base addresses
 	 * to support multi-arch kernels.
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	st->adc_base_spear6xx = devm_ioremap_resource(&pdev->dev, res);
+	st->adc_base_spear6xx = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->adc_base_spear6xx))
 		return PTR_ERR(st->adc_base_spear6xx);
 
@@ -302,7 +311,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(dev, "failed getting interrupt resource\n");
 		ret = -EINVAL;
 		goto errout2;
 	}
@@ -340,7 +348,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 	init_completion(&st->completion);
 
 	indio_dev->name = SPEAR_ADC_MOD_NAME;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &spear_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = spear_adc_iio_channels;

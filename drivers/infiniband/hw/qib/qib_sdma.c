@@ -62,7 +62,7 @@ static void sdma_get(struct qib_sdma_state *);
 static void sdma_put(struct qib_sdma_state *);
 static void sdma_set_state(struct qib_pportdata *, enum qib_sdma_states);
 static void sdma_start_sw_clean_up(struct qib_pportdata *);
-static void sdma_sw_clean_up_task(unsigned long);
+static void sdma_sw_clean_up_task(struct tasklet_struct *);
 static void unmap_desc(struct qib_pportdata *, unsigned);
 
 static void sdma_get(struct qib_sdma_state *ss)
@@ -119,9 +119,10 @@ static void clear_sdma_activelist(struct qib_pportdata *ppd)
 	}
 }
 
-static void sdma_sw_clean_up_task(unsigned long opaque)
+static void sdma_sw_clean_up_task(struct tasklet_struct *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *) opaque;
+	struct qib_pportdata *ppd = from_tasklet(ppd, t,
+						 sdma_sw_clean_up_task);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
@@ -436,8 +437,7 @@ int qib_setup_sdma(struct qib_pportdata *ppd)
 
 	INIT_LIST_HEAD(&ppd->sdma_activelist);
 
-	tasklet_init(&ppd->sdma_sw_clean_up_task, sdma_sw_clean_up_task,
-		(unsigned long)ppd);
+	tasklet_setup(&ppd->sdma_sw_clean_up_task, sdma_sw_clean_up_task);
 
 	ret = dd->f_init_sdma_regs(ppd);
 	if (ret)
@@ -565,19 +565,15 @@ retry:
 	sge = &ss->sge;
 	while (dwords) {
 		u32 dw;
-		u32 len;
+		u32 len = rvt_get_sge_length(sge, dwords << 2);
 
-		len = dwords << 2;
-		if (len > sge->length)
-			len = sge->length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
-		BUG_ON(len == 0);
 		dw = (len + 3) >> 2;
 		addr = dma_map_single(&ppd->dd->pcidev->dev, sge->vaddr,
 				      dw << 2, DMA_TO_DEVICE);
-		if (dma_mapping_error(&ppd->dd->pcidev->dev, addr))
+		if (dma_mapping_error(&ppd->dd->pcidev->dev, addr)) {
+			ret = -ENOMEM;
 			goto unmap;
+		}
 		sdmadesc[0] = 0;
 		make_sdma_desc(ppd, sdmadesc, (u64) addr, dw, dwoffset);
 		/* SDmaUseLargeBuf has to be set in every descriptor */
@@ -593,24 +589,7 @@ retry:
 			descqp = &ppd->sdma_descq[0].qw[0];
 			++ppd->sdma_generation;
 		}
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
-
+		rvt_update_sge(ss, len, false);
 		dwoffset += dw;
 		dwords -= dw;
 	}
@@ -784,7 +763,7 @@ void __qib_sdma_process_event(struct qib_pportdata *ppd,
 			 * bringing the link up with traffic active on
 			 * 7220, e.g. */
 			ss->go_s99_running = 1;
-			/* fall through -- and start dma engine */
+			fallthrough;	/* and start dma engine */
 		case qib_sdma_event_e10_go_hw_start:
 			/* This reference means the state machine is started */
 			sdma_get(&ppd->sdma_state);

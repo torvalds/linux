@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2008 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <jroedel@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #define pr_fmt(fmt)    "iommu: " fmt
@@ -22,7 +10,8 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/iommu.h>
@@ -33,20 +22,15 @@
 #include <linux/bitops.h>
 #include <linux/property.h>
 #include <linux/fsl/mc.h>
+#include <linux/module.h>
 #include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
 static DEFINE_IDA(iommu_group_ida);
-#ifdef CONFIG_IOMMU_DEFAULT_PASSTHROUGH
-static unsigned int iommu_def_domain_type = IOMMU_DOMAIN_IDENTITY;
-#else
-static unsigned int iommu_def_domain_type = IOMMU_DOMAIN_DMA;
-#endif
-static bool iommu_dma_strict __read_mostly = true;
 
-struct iommu_callback_data {
-	const struct iommu_ops *ops;
-};
+static unsigned int iommu_def_domain_type __read_mostly;
+static bool iommu_dma_strict __read_mostly = true;
+static u32 iommu_cmd_line __read_mostly;
 
 struct iommu_group {
 	struct kobject kobj;
@@ -60,6 +44,7 @@ struct iommu_group {
 	int id;
 	struct iommu_domain *default_domain;
 	struct iommu_domain *domain;
+	struct list_head entry;
 };
 
 struct group_device {
@@ -76,11 +61,31 @@ struct iommu_group_attribute {
 };
 
 static const char * const iommu_group_resv_type_string[] = {
-	[IOMMU_RESV_DIRECT]	= "direct",
-	[IOMMU_RESV_RESERVED]	= "reserved",
-	[IOMMU_RESV_MSI]	= "msi",
-	[IOMMU_RESV_SW_MSI]	= "msi",
+	[IOMMU_RESV_DIRECT]			= "direct",
+	[IOMMU_RESV_DIRECT_RELAXABLE]		= "direct-relaxable",
+	[IOMMU_RESV_RESERVED]			= "reserved",
+	[IOMMU_RESV_MSI]			= "msi",
+	[IOMMU_RESV_SW_MSI]			= "msi",
 };
+
+#define IOMMU_CMD_LINE_DMA_API		BIT(0)
+#define IOMMU_CMD_LINE_STRICT		BIT(1)
+
+static int iommu_alloc_default_domain(struct iommu_group *group,
+				      struct device *dev);
+static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
+						 unsigned type);
+static int __iommu_attach_device(struct iommu_domain *domain,
+				 struct device *dev);
+static int __iommu_attach_group(struct iommu_domain *domain,
+				struct iommu_group *group);
+static void __iommu_detach_group(struct iommu_domain *domain,
+				 struct iommu_group *group);
+static int iommu_create_device_direct_mappings(struct iommu_group *group,
+					       struct device *dev);
+static struct iommu_group *iommu_group_get_for_dev(struct device *dev);
+static ssize_t iommu_group_store_type(struct iommu_group *group,
+				      const char *buf, size_t count);
 
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
 struct iommu_group_attribute iommu_group_attr_##_name =		\
@@ -94,14 +99,74 @@ struct iommu_group_attribute iommu_group_attr_##_name =		\
 static LIST_HEAD(iommu_device_list);
 static DEFINE_SPINLOCK(iommu_device_lock);
 
-int iommu_device_register(struct iommu_device *iommu)
+/*
+ * Use a function instead of an array here because the domain-type is a
+ * bit-field, so an array would waste memory.
+ */
+static const char *iommu_domain_type_str(unsigned int t)
 {
-	spin_lock(&iommu_device_lock);
-	list_add_tail(&iommu->list, &iommu_device_list);
-	spin_unlock(&iommu_device_lock);
+	switch (t) {
+	case IOMMU_DOMAIN_BLOCKED:
+		return "Blocked";
+	case IOMMU_DOMAIN_IDENTITY:
+		return "Passthrough";
+	case IOMMU_DOMAIN_UNMANAGED:
+		return "Unmanaged";
+	case IOMMU_DOMAIN_DMA:
+		return "Translated";
+	default:
+		return "Unknown";
+	}
+}
+
+static int __init iommu_subsys_init(void)
+{
+	if (!(iommu_cmd_line & IOMMU_CMD_LINE_DMA_API)) {
+		if (IS_ENABLED(CONFIG_IOMMU_DEFAULT_PASSTHROUGH))
+			iommu_set_default_passthrough(false);
+		else
+			iommu_set_default_translated(false);
+
+		if (iommu_default_passthrough() && mem_encrypt_active()) {
+			pr_info("Memory encryption detected - Disabling default IOMMU Passthrough\n");
+			iommu_set_default_translated(false);
+		}
+	}
+
+	pr_info("Default domain type: %s %s\n",
+		iommu_domain_type_str(iommu_def_domain_type),
+		(iommu_cmd_line & IOMMU_CMD_LINE_DMA_API) ?
+			"(set via kernel command line)" : "");
 
 	return 0;
 }
+subsys_initcall(iommu_subsys_init);
+
+/**
+ * iommu_device_register() - Register an IOMMU hardware instance
+ * @iommu: IOMMU handle for the instance
+ * @ops:   IOMMU ops to associate with the instance
+ * @hwdev: (optional) actual instance device, used for fwnode lookup
+ *
+ * Return: 0 on success, or an error.
+ */
+int iommu_device_register(struct iommu_device *iommu,
+			  const struct iommu_ops *ops, struct device *hwdev)
+{
+	/* We need to be able to take module references appropriately */
+	if (WARN_ON(is_module_address((unsigned long)ops) && !ops->owner))
+		return -EINVAL;
+
+	iommu->ops = ops;
+	if (hwdev)
+		iommu->fwnode = hwdev->fwnode;
+
+	spin_lock(&iommu_device_lock);
+	list_add_tail(&iommu->list, &iommu_device_list);
+	spin_unlock(&iommu_device_lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_device_register);
 
 void iommu_device_unregister(struct iommu_device *iommu)
 {
@@ -109,15 +174,147 @@ void iommu_device_unregister(struct iommu_device *iommu)
 	list_del(&iommu->list);
 	spin_unlock(&iommu_device_lock);
 }
+EXPORT_SYMBOL_GPL(iommu_device_unregister);
 
-static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
-						 unsigned type);
-static int __iommu_attach_device(struct iommu_domain *domain,
-				 struct device *dev);
-static int __iommu_attach_group(struct iommu_domain *domain,
-				struct iommu_group *group);
-static void __iommu_detach_group(struct iommu_domain *domain,
-				 struct iommu_group *group);
+static struct dev_iommu *dev_iommu_get(struct device *dev)
+{
+	struct dev_iommu *param = dev->iommu;
+
+	if (param)
+		return param;
+
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param)
+		return NULL;
+
+	mutex_init(&param->lock);
+	dev->iommu = param;
+	return param;
+}
+
+static void dev_iommu_free(struct device *dev)
+{
+	iommu_fwspec_free(dev);
+	kfree(dev->iommu);
+	dev->iommu = NULL;
+}
+
+static int __iommu_probe_device(struct device *dev, struct list_head *group_list)
+{
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+	struct iommu_device *iommu_dev;
+	struct iommu_group *group;
+	int ret;
+
+	if (!ops)
+		return -ENODEV;
+
+	if (!dev_iommu_get(dev))
+		return -ENOMEM;
+
+	if (!try_module_get(ops->owner)) {
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	iommu_dev = ops->probe_device(dev);
+	if (IS_ERR(iommu_dev)) {
+		ret = PTR_ERR(iommu_dev);
+		goto out_module_put;
+	}
+
+	dev->iommu->iommu_dev = iommu_dev;
+
+	group = iommu_group_get_for_dev(dev);
+	if (IS_ERR(group)) {
+		ret = PTR_ERR(group);
+		goto out_release;
+	}
+	iommu_group_put(group);
+
+	if (group_list && !group->default_domain && list_empty(&group->entry))
+		list_add_tail(&group->entry, group_list);
+
+	iommu_device_link(iommu_dev, dev);
+
+	return 0;
+
+out_release:
+	ops->release_device(dev);
+
+out_module_put:
+	module_put(ops->owner);
+
+err_free:
+	dev_iommu_free(dev);
+
+	return ret;
+}
+
+int iommu_probe_device(struct device *dev)
+{
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+	struct iommu_group *group;
+	int ret;
+
+	ret = __iommu_probe_device(dev, NULL);
+	if (ret)
+		goto err_out;
+
+	group = iommu_group_get(dev);
+	if (!group) {
+		ret = -ENODEV;
+		goto err_release;
+	}
+
+	/*
+	 * Try to allocate a default domain - needs support from the
+	 * IOMMU driver. There are still some drivers which don't
+	 * support default domains, so the return value is not yet
+	 * checked.
+	 */
+	iommu_alloc_default_domain(group, dev);
+
+	if (group->default_domain) {
+		ret = __iommu_attach_device(group->default_domain, dev);
+		if (ret) {
+			iommu_group_put(group);
+			goto err_release;
+		}
+	}
+
+	iommu_create_device_direct_mappings(group, dev);
+
+	iommu_group_put(group);
+
+	if (ops->probe_finalize)
+		ops->probe_finalize(dev);
+
+	return 0;
+
+err_release:
+	iommu_release_device(dev);
+
+err_out:
+	return ret;
+
+}
+
+void iommu_release_device(struct device *dev)
+{
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!dev->iommu)
+		return;
+
+	iommu_device_unlink(dev->iommu->iommu_dev, dev);
+
+	ops->release_device(dev);
+
+	iommu_group_remove_device(dev);
+	module_put(ops->owner);
+	dev_iommu_free(dev);
+}
 
 static int __init iommu_set_def_domain_type(char *str)
 {
@@ -128,16 +325,39 @@ static int __init iommu_set_def_domain_type(char *str)
 	if (ret)
 		return ret;
 
-	iommu_def_domain_type = pt ? IOMMU_DOMAIN_IDENTITY : IOMMU_DOMAIN_DMA;
+	if (pt)
+		iommu_set_default_passthrough(true);
+	else
+		iommu_set_default_translated(true);
+
 	return 0;
 }
 early_param("iommu.passthrough", iommu_set_def_domain_type);
 
 static int __init iommu_dma_setup(char *str)
 {
-	return kstrtobool(str, &iommu_dma_strict);
+	int ret = kstrtobool(str, &iommu_dma_strict);
+
+	if (!ret)
+		iommu_cmd_line |= IOMMU_CMD_LINE_STRICT;
+	return ret;
 }
 early_param("iommu.strict", iommu_dma_setup);
+
+void iommu_set_dma_strict(bool strict)
+{
+	if (strict || !(iommu_cmd_line & IOMMU_CMD_LINE_STRICT))
+		iommu_dma_strict = strict;
+}
+
+bool iommu_get_dma_strict(struct iommu_domain *domain)
+{
+	/* only allow lazy flushing for DMA domains */
+	if (domain->type == IOMMU_DOMAIN_DMA)
+		return iommu_dma_strict;
+	return true;
+}
+EXPORT_SYMBOL_GPL(iommu_get_dma_strict);
 
 static ssize_t iommu_group_attr_show(struct kobject *kobj,
 				     struct attribute *__attr, char *buf)
@@ -192,58 +412,58 @@ static ssize_t iommu_group_show_name(struct iommu_group *group, char *buf)
  * @new: new region to insert
  * @regions: list of regions
  *
- * The new element is sorted by address with respect to the other
- * regions of the same type. In case it overlaps with another
- * region of the same type, regions are merged. In case it
- * overlaps with another region of different type, regions are
- * not merged.
+ * Elements are sorted by start address and overlapping segments
+ * of the same type are merged.
  */
 static int iommu_insert_resv_region(struct iommu_resv_region *new,
 				    struct list_head *regions)
 {
-	struct iommu_resv_region *region;
-	phys_addr_t start = new->start;
-	phys_addr_t end = new->start + new->length - 1;
-	struct list_head *pos = regions->next;
+	struct iommu_resv_region *iter, *tmp, *nr, *top;
+	LIST_HEAD(stack);
 
-	while (pos != regions) {
-		struct iommu_resv_region *entry =
-			list_entry(pos, struct iommu_resv_region, list);
-		phys_addr_t a = entry->start;
-		phys_addr_t b = entry->start + entry->length - 1;
-		int type = entry->type;
-
-		if (end < a) {
-			goto insert;
-		} else if (start > b) {
-			pos = pos->next;
-		} else if ((start >= a) && (end <= b)) {
-			if (new->type == type)
-				goto done;
-			else
-				pos = pos->next;
-		} else {
-			if (new->type == type) {
-				phys_addr_t new_start = min(a, start);
-				phys_addr_t new_end = max(b, end);
-
-				list_del(&entry->list);
-				entry->start = new_start;
-				entry->length = new_end - new_start + 1;
-				iommu_insert_resv_region(entry, regions);
-			} else {
-				pos = pos->next;
-			}
-		}
-	}
-insert:
-	region = iommu_alloc_resv_region(new->start, new->length,
-					 new->prot, new->type);
-	if (!region)
+	nr = iommu_alloc_resv_region(new->start, new->length,
+				     new->prot, new->type);
+	if (!nr)
 		return -ENOMEM;
 
-	list_add_tail(&region->list, pos);
-done:
+	/* First add the new element based on start address sorting */
+	list_for_each_entry(iter, regions, list) {
+		if (nr->start < iter->start ||
+		    (nr->start == iter->start && nr->type <= iter->type))
+			break;
+	}
+	list_add_tail(&nr->list, &iter->list);
+
+	/* Merge overlapping segments of type nr->type in @regions, if any */
+	list_for_each_entry_safe(iter, tmp, regions, list) {
+		phys_addr_t top_end, iter_end = iter->start + iter->length - 1;
+
+		/* no merge needed on elements of different types than @new */
+		if (iter->type != new->type) {
+			list_move_tail(&iter->list, &stack);
+			continue;
+		}
+
+		/* look for the last stack element of same type as @iter */
+		list_for_each_entry_reverse(top, &stack, list)
+			if (top->type == iter->type)
+				goto check_overlap;
+
+		list_move_tail(&iter->list, &stack);
+		continue;
+
+check_overlap:
+		top_end = top->start + top->length - 1;
+
+		if (iter->start > top_end + 1) {
+			list_move_tail(&iter->list, &stack);
+		} else {
+			top->length = max(top_end, iter_end) - top->start + 1;
+			list_del(&iter->list);
+			kfree(iter);
+		}
+	}
+	list_splice(&stack, regions);
 	return 0;
 }
 
@@ -311,6 +531,7 @@ static ssize_t iommu_group_show_type(struct iommu_group *group,
 {
 	char *type = "unknown\n";
 
+	mutex_lock(&group->mutex);
 	if (group->default_domain) {
 		switch (group->default_domain->type) {
 		case IOMMU_DOMAIN_BLOCKED:
@@ -323,10 +544,11 @@ static ssize_t iommu_group_show_type(struct iommu_group *group,
 			type = "unmanaged\n";
 			break;
 		case IOMMU_DOMAIN_DMA:
-			type = "DMA";
+			type = "DMA\n";
 			break;
 		}
 	}
+	mutex_unlock(&group->mutex);
 	strcpy(buf, type);
 
 	return strlen(type);
@@ -337,7 +559,8 @@ static IOMMU_GROUP_ATTR(name, S_IRUGO, iommu_group_show_name, NULL);
 static IOMMU_GROUP_ATTR(reserved_regions, 0444,
 			iommu_group_show_resv_regions, NULL);
 
-static IOMMU_GROUP_ATTR(type, 0444, iommu_group_show_type, NULL);
+static IOMMU_GROUP_ATTR(type, 0644, iommu_group_show_type,
+			iommu_group_store_type);
 
 static void iommu_group_release(struct kobject *kobj)
 {
@@ -385,6 +608,7 @@ struct iommu_group *iommu_group_alloc(void)
 	group->kobj.kset = iommu_group_kset;
 	mutex_init(&group->mutex);
 	INIT_LIST_HEAD(&group->devices);
+	INIT_LIST_HEAD(&group->entry);
 	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
 
 	ret = ida_simple_get(&iommu_group_ida, 0, 0, GFP_KERNEL);
@@ -398,7 +622,7 @@ struct iommu_group *iommu_group_alloc(void)
 				   NULL, "%d", group->id);
 	if (ret) {
 		ida_simple_remove(&iommu_group_ida, group->id);
-		kfree(group);
+		kobject_put(&group->kobj);
 		return ERR_PTR(ret);
 	}
 
@@ -526,8 +750,8 @@ int iommu_group_set_name(struct iommu_group *group, const char *name)
 }
 EXPORT_SYMBOL_GPL(iommu_group_set_name);
 
-static int iommu_group_create_direct_mappings(struct iommu_group *group,
-					      struct device *dev)
+static int iommu_create_device_direct_mappings(struct iommu_group *group,
+					       struct device *dev)
 {
 	struct iommu_domain *domain = group->default_domain;
 	struct iommu_resv_region *entry;
@@ -548,6 +772,7 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 	/* We need to consider overlapping regions for different devices */
 	list_for_each_entry(entry, &mappings, list) {
 		dma_addr_t start, end, addr;
+		size_t map_size = 0;
 
 		if (domain->ops->apply_resv_region)
 			domain->ops->apply_resv_region(dev, domain, entry);
@@ -555,29 +780,50 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 		start = ALIGN(entry->start, pg_size);
 		end   = ALIGN(entry->start + entry->length, pg_size);
 
-		if (entry->type != IOMMU_RESV_DIRECT)
+		if (entry->type != IOMMU_RESV_DIRECT &&
+		    entry->type != IOMMU_RESV_DIRECT_RELAXABLE)
 			continue;
 
-		for (addr = start; addr < end; addr += pg_size) {
+		for (addr = start; addr <= end; addr += pg_size) {
 			phys_addr_t phys_addr;
 
-			phys_addr = iommu_iova_to_phys(domain, addr);
-			if (phys_addr)
-				continue;
+			if (addr == end)
+				goto map_end;
 
-			ret = iommu_map(domain, addr, addr, pg_size, entry->prot);
-			if (ret)
-				goto out;
+			phys_addr = iommu_iova_to_phys(domain, addr);
+			if (!phys_addr) {
+				map_size += pg_size;
+				continue;
+			}
+
+map_end:
+			if (map_size) {
+				ret = iommu_map(domain, addr - map_size,
+						addr - map_size, map_size,
+						entry->prot);
+				if (ret)
+					goto out;
+				map_size = 0;
+			}
 		}
 
 	}
 
-	iommu_flush_tlb_all(domain);
+	iommu_flush_iotlb_all(domain);
 
 out:
 	iommu_put_resv_regions(dev, &mappings);
 
 	return ret;
+}
+
+static bool iommu_is_attach_deferred(struct iommu_domain *domain,
+				     struct device *dev)
+{
+	if (domain->ops->is_attach_deferred)
+		return domain->ops->is_attach_deferred(domain, dev);
+
+	return false;
 }
 
 /**
@@ -630,11 +876,9 @@ rename:
 
 	dev->iommu_group = group;
 
-	iommu_group_create_direct_mappings(group, dev);
-
 	mutex_lock(&group->mutex);
 	list_add_tail(&device->list, &group->devices);
-	if (group->domain)
+	if (group->domain  && !iommu_is_attach_deferred(group->domain, dev))
 		ret = __iommu_attach_device(group->domain, dev);
 	mutex_unlock(&group->mutex);
 	if (ret)
@@ -646,7 +890,7 @@ rename:
 
 	trace_add_device_to_group(group->id, dev);
 
-	pr_info("Adding device %s to group %d\n", dev_name(dev), group->id);
+	dev_info(dev, "Adding to iommu group %d\n", group->id);
 
 	return 0;
 
@@ -656,13 +900,14 @@ err_put_group:
 	mutex_unlock(&group->mutex);
 	dev->iommu_group = NULL;
 	kobject_put(group->devices_kobj);
+	sysfs_remove_link(group->devices_kobj, device->name);
 err_free_name:
 	kfree(device->name);
 err_remove_link:
 	sysfs_remove_link(&dev->kobj, "iommu_group");
 err_free_device:
 	kfree(device);
-	pr_err("Failed to add device %s to group %d: %d\n", dev_name(dev), group->id, ret);
+	dev_err(dev, "Failed to add to iommu group %d: %d\n", group->id, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_group_add_device);
@@ -679,7 +924,7 @@ void iommu_group_remove_device(struct device *dev)
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *tmp_device, *device = NULL;
 
-	pr_info("Removing device %s from group %d\n", dev_name(dev), group->id);
+	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
 	/* Pre-notify listeners that a device is being removed. */
 	blocking_notifier_call_chain(&group->notifier,
@@ -791,6 +1036,7 @@ struct iommu_group *iommu_group_ref_get(struct iommu_group *group)
 	kobject_get(group->devices_kobj);
 	return group;
 }
+EXPORT_SYMBOL_GPL(iommu_group_ref_get);
 
 /**
  * iommu_group_put - Decrement group reference
@@ -835,6 +1081,217 @@ int iommu_group_unregister_notifier(struct iommu_group *group,
 	return blocking_notifier_chain_unregister(&group->notifier, nb);
 }
 EXPORT_SYMBOL_GPL(iommu_group_unregister_notifier);
+
+/**
+ * iommu_register_device_fault_handler() - Register a device fault handler
+ * @dev: the device
+ * @handler: the fault handler
+ * @data: private data passed as argument to the handler
+ *
+ * When an IOMMU fault event is received, this handler gets called with the
+ * fault event and data as argument. The handler should return 0 on success. If
+ * the fault is recoverable (IOMMU_FAULT_PAGE_REQ), the consumer should also
+ * complete the fault by calling iommu_page_response() with one of the following
+ * response code:
+ * - IOMMU_PAGE_RESP_SUCCESS: retry the translation
+ * - IOMMU_PAGE_RESP_INVALID: terminate the fault
+ * - IOMMU_PAGE_RESP_FAILURE: terminate the fault and stop reporting
+ *   page faults if possible.
+ *
+ * Return 0 if the fault handler was installed successfully, or an error.
+ */
+int iommu_register_device_fault_handler(struct device *dev,
+					iommu_dev_fault_handler_t handler,
+					void *data)
+{
+	struct dev_iommu *param = dev->iommu;
+	int ret = 0;
+
+	if (!param)
+		return -EINVAL;
+
+	mutex_lock(&param->lock);
+	/* Only allow one fault handler registered for each device */
+	if (param->fault_param) {
+		ret = -EBUSY;
+		goto done_unlock;
+	}
+
+	get_device(dev);
+	param->fault_param = kzalloc(sizeof(*param->fault_param), GFP_KERNEL);
+	if (!param->fault_param) {
+		put_device(dev);
+		ret = -ENOMEM;
+		goto done_unlock;
+	}
+	param->fault_param->handler = handler;
+	param->fault_param->data = data;
+	mutex_init(&param->fault_param->lock);
+	INIT_LIST_HEAD(&param->fault_param->faults);
+
+done_unlock:
+	mutex_unlock(&param->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_register_device_fault_handler);
+
+/**
+ * iommu_unregister_device_fault_handler() - Unregister the device fault handler
+ * @dev: the device
+ *
+ * Remove the device fault handler installed with
+ * iommu_register_device_fault_handler().
+ *
+ * Return 0 on success, or an error.
+ */
+int iommu_unregister_device_fault_handler(struct device *dev)
+{
+	struct dev_iommu *param = dev->iommu;
+	int ret = 0;
+
+	if (!param)
+		return -EINVAL;
+
+	mutex_lock(&param->lock);
+
+	if (!param->fault_param)
+		goto unlock;
+
+	/* we cannot unregister handler if there are pending faults */
+	if (!list_empty(&param->fault_param->faults)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	kfree(param->fault_param);
+	param->fault_param = NULL;
+	put_device(dev);
+unlock:
+	mutex_unlock(&param->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_unregister_device_fault_handler);
+
+/**
+ * iommu_report_device_fault() - Report fault event to device driver
+ * @dev: the device
+ * @evt: fault event data
+ *
+ * Called by IOMMU drivers when a fault is detected, typically in a threaded IRQ
+ * handler. When this function fails and the fault is recoverable, it is the
+ * caller's responsibility to complete the fault.
+ *
+ * Return 0 on success, or an error.
+ */
+int iommu_report_device_fault(struct device *dev, struct iommu_fault_event *evt)
+{
+	struct dev_iommu *param = dev->iommu;
+	struct iommu_fault_event *evt_pending = NULL;
+	struct iommu_fault_param *fparam;
+	int ret = 0;
+
+	if (!param || !evt)
+		return -EINVAL;
+
+	/* we only report device fault if there is a handler registered */
+	mutex_lock(&param->lock);
+	fparam = param->fault_param;
+	if (!fparam || !fparam->handler) {
+		ret = -EINVAL;
+		goto done_unlock;
+	}
+
+	if (evt->fault.type == IOMMU_FAULT_PAGE_REQ &&
+	    (evt->fault.prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
+		evt_pending = kmemdup(evt, sizeof(struct iommu_fault_event),
+				      GFP_KERNEL);
+		if (!evt_pending) {
+			ret = -ENOMEM;
+			goto done_unlock;
+		}
+		mutex_lock(&fparam->lock);
+		list_add_tail(&evt_pending->list, &fparam->faults);
+		mutex_unlock(&fparam->lock);
+	}
+
+	ret = fparam->handler(&evt->fault, fparam->data);
+	if (ret && evt_pending) {
+		mutex_lock(&fparam->lock);
+		list_del(&evt_pending->list);
+		mutex_unlock(&fparam->lock);
+		kfree(evt_pending);
+	}
+done_unlock:
+	mutex_unlock(&param->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_report_device_fault);
+
+int iommu_page_response(struct device *dev,
+			struct iommu_page_response *msg)
+{
+	bool needs_pasid;
+	int ret = -EINVAL;
+	struct iommu_fault_event *evt;
+	struct iommu_fault_page_request *prm;
+	struct dev_iommu *param = dev->iommu;
+	bool has_pasid = msg->flags & IOMMU_PAGE_RESP_PASID_VALID;
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+
+	if (!domain || !domain->ops->page_response)
+		return -ENODEV;
+
+	if (!param || !param->fault_param)
+		return -EINVAL;
+
+	if (msg->version != IOMMU_PAGE_RESP_VERSION_1 ||
+	    msg->flags & ~IOMMU_PAGE_RESP_PASID_VALID)
+		return -EINVAL;
+
+	/* Only send response if there is a fault report pending */
+	mutex_lock(&param->fault_param->lock);
+	if (list_empty(&param->fault_param->faults)) {
+		dev_warn_ratelimited(dev, "no pending PRQ, drop response\n");
+		goto done_unlock;
+	}
+	/*
+	 * Check if we have a matching page request pending to respond,
+	 * otherwise return -EINVAL
+	 */
+	list_for_each_entry(evt, &param->fault_param->faults, list) {
+		prm = &evt->fault.prm;
+		if (prm->grpid != msg->grpid)
+			continue;
+
+		/*
+		 * If the PASID is required, the corresponding request is
+		 * matched using the group ID, the PASID valid bit and the PASID
+		 * value. Otherwise only the group ID matches request and
+		 * response.
+		 */
+		needs_pasid = prm->flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID;
+		if (needs_pasid && (!has_pasid || msg->pasid != prm->pasid))
+			continue;
+
+		if (!needs_pasid && has_pasid) {
+			/* No big deal, just clear it. */
+			msg->flags &= ~IOMMU_PAGE_RESP_PASID_VALID;
+			msg->pasid = 0;
+		}
+
+		ret = domain->ops->page_response(dev, evt, msg);
+		list_del(&evt->list);
+		kfree(evt);
+		break;
+	}
+
+done_unlock:
+	mutex_unlock(&param->fault_param->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_page_response);
 
 /**
  * iommu_group_id - Return ID for a group
@@ -964,6 +1421,7 @@ struct iommu_group *generic_device_group(struct device *dev)
 {
 	return iommu_group_alloc();
 }
+EXPORT_SYMBOL_GPL(generic_device_group);
 
 /*
  * Use standard PCI bus topology, isolation features, and DMA alias quirks
@@ -1031,6 +1489,7 @@ struct iommu_group *pci_device_group(struct device *dev)
 	/* No shared group found, allocate new */
 	return iommu_group_alloc();
 }
+EXPORT_SYMBOL_GPL(pci_device_group);
 
 /* Get the IOMMU group for device on fsl-mc bus */
 struct iommu_group *fsl_mc_device_group(struct device *dev)
@@ -1043,6 +1502,56 @@ struct iommu_group *fsl_mc_device_group(struct device *dev)
 		group = iommu_group_alloc();
 	return group;
 }
+EXPORT_SYMBOL_GPL(fsl_mc_device_group);
+
+static int iommu_get_def_domain_type(struct device *dev)
+{
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (dev_is_pci(dev) && to_pci_dev(dev)->untrusted)
+		return IOMMU_DOMAIN_DMA;
+
+	if (ops->def_domain_type)
+		return ops->def_domain_type(dev);
+
+	return 0;
+}
+
+static int iommu_group_alloc_default_domain(struct bus_type *bus,
+					    struct iommu_group *group,
+					    unsigned int type)
+{
+	struct iommu_domain *dom;
+
+	dom = __iommu_domain_alloc(bus, type);
+	if (!dom && type != IOMMU_DOMAIN_DMA) {
+		dom = __iommu_domain_alloc(bus, IOMMU_DOMAIN_DMA);
+		if (dom)
+			pr_warn("Failed to allocate default IOMMU domain of type %u for group %s - Falling back to IOMMU_DOMAIN_DMA",
+				type, group->name);
+	}
+
+	if (!dom)
+		return -ENOMEM;
+
+	group->default_domain = dom;
+	if (!group->domain)
+		group->domain = dom;
+	return 0;
+}
+
+static int iommu_alloc_default_domain(struct iommu_group *group,
+				      struct device *dev)
+{
+	unsigned int type;
+
+	if (group->default_domain)
+		return 0;
+
+	type = iommu_get_def_domain_type(dev) ? : iommu_def_domain_type;
+
+	return iommu_group_alloc_default_domain(dev->bus, group, type);
+}
 
 /**
  * iommu_group_get_for_dev - Find or create the IOMMU group for a device
@@ -1054,7 +1563,7 @@ struct iommu_group *fsl_mc_device_group(struct device *dev)
  * to the returned IOMMU group, which will already include the provided
  * device.  The reference should be released with iommu_group_put().
  */
-struct iommu_group *iommu_group_get_for_dev(struct device *dev)
+static struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;
 	struct iommu_group *group;
@@ -1074,40 +1583,16 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (IS_ERR(group))
 		return group;
 
-	/*
-	 * Try to allocate a default domain - needs support from the
-	 * IOMMU driver.
-	 */
-	if (!group->default_domain) {
-		struct iommu_domain *dom;
-
-		dom = __iommu_domain_alloc(dev->bus, iommu_def_domain_type);
-		if (!dom && iommu_def_domain_type != IOMMU_DOMAIN_DMA) {
-			dev_warn(dev,
-				 "failed to allocate default IOMMU domain of type %u; falling back to IOMMU_DOMAIN_DMA",
-				 iommu_def_domain_type);
-			dom = __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_DMA);
-		}
-
-		group->default_domain = dom;
-		if (!group->domain)
-			group->domain = dom;
-
-		if (dom && !iommu_dma_strict) {
-			int attr = 1;
-			iommu_domain_set_attr(dom,
-					      DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE,
-					      &attr);
-		}
-	}
-
 	ret = iommu_group_add_device(group, dev);
-	if (ret) {
-		iommu_group_put(group);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto out_put_group;
 
 	return group;
+
+out_put_group:
+	iommu_group_put(group);
+
+	return ERR_PTR(ret);
 }
 
 struct iommu_domain *iommu_group_default_domain(struct iommu_group *group)
@@ -1115,24 +1600,20 @@ struct iommu_domain *iommu_group_default_domain(struct iommu_group *group)
 	return group->default_domain;
 }
 
-static int add_iommu_group(struct device *dev, void *data)
+static int probe_iommu_group(struct device *dev, void *data)
 {
-	struct iommu_callback_data *cb = data;
-	const struct iommu_ops *ops = cb->ops;
+	struct list_head *group_list = data;
+	struct iommu_group *group;
 	int ret;
 
-	if (!ops->add_device)
+	/* Device is probed already if in a group */
+	group = iommu_group_get(dev);
+	if (group) {
+		iommu_group_put(group);
 		return 0;
+	}
 
-	WARN_ON(dev->iommu_group);
-
-	ret = ops->add_device(dev);
-
-	/*
-	 * We ignore -ENODEV errors for now, as they just mean that the
-	 * device is not translated by an IOMMU. We still care about
-	 * other errors and fail to initialize when they happen.
-	 */
+	ret = __iommu_probe_device(dev, group_list);
 	if (ret == -ENODEV)
 		ret = 0;
 
@@ -1141,11 +1622,7 @@ static int add_iommu_group(struct device *dev, void *data)
 
 static int remove_iommu_group(struct device *dev, void *data)
 {
-	struct iommu_callback_data *cb = data;
-	const struct iommu_ops *ops = cb->ops;
-
-	if (ops->remove_device && dev->iommu_group)
-		ops->remove_device(dev);
+	iommu_release_device(dev);
 
 	return 0;
 }
@@ -1153,27 +1630,22 @@ static int remove_iommu_group(struct device *dev, void *data)
 static int iommu_bus_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data)
 {
-	struct device *dev = data;
-	const struct iommu_ops *ops = dev->bus->iommu_ops;
-	struct iommu_group *group;
 	unsigned long group_action = 0;
+	struct device *dev = data;
+	struct iommu_group *group;
 
 	/*
 	 * ADD/DEL call into iommu driver ops if provided, which may
 	 * result in ADD/DEL notifiers to group->notifier
 	 */
 	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		if (ops->add_device) {
-			int ret;
+		int ret;
 
-			ret = ops->add_device(dev);
-			return (ret) ? NOTIFY_DONE : NOTIFY_OK;
-		}
+		ret = iommu_probe_device(dev);
+		return (ret) ? NOTIFY_DONE : NOTIFY_OK;
 	} else if (action == BUS_NOTIFY_REMOVED_DEVICE) {
-		if (ops->remove_device && dev->iommu_group) {
-			ops->remove_device(dev);
-			return 0;
-		}
+		iommu_release_device(dev);
+		return NOTIFY_OK;
 	}
 
 	/*
@@ -1207,13 +1679,148 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
+struct __group_domain_type {
+	struct device *dev;
+	unsigned int type;
+};
+
+static int probe_get_default_domain_type(struct device *dev, void *data)
+{
+	struct __group_domain_type *gtype = data;
+	unsigned int type = iommu_get_def_domain_type(dev);
+
+	if (type) {
+		if (gtype->type && gtype->type != type) {
+			dev_warn(dev, "Device needs domain type %s, but device %s in the same iommu group requires type %s - using default\n",
+				 iommu_domain_type_str(type),
+				 dev_name(gtype->dev),
+				 iommu_domain_type_str(gtype->type));
+			gtype->type = 0;
+		}
+
+		if (!gtype->dev) {
+			gtype->dev  = dev;
+			gtype->type = type;
+		}
+	}
+
+	return 0;
+}
+
+static void probe_alloc_default_domain(struct bus_type *bus,
+				       struct iommu_group *group)
+{
+	struct __group_domain_type gtype;
+
+	memset(&gtype, 0, sizeof(gtype));
+
+	/* Ask for default domain requirements of all devices in the group */
+	__iommu_group_for_each_dev(group, &gtype,
+				   probe_get_default_domain_type);
+
+	if (!gtype.type)
+		gtype.type = iommu_def_domain_type;
+
+	iommu_group_alloc_default_domain(bus, group, gtype.type);
+
+}
+
+static int iommu_group_do_dma_attach(struct device *dev, void *data)
+{
+	struct iommu_domain *domain = data;
+	int ret = 0;
+
+	if (!iommu_is_attach_deferred(domain, dev))
+		ret = __iommu_attach_device(domain, dev);
+
+	return ret;
+}
+
+static int __iommu_group_dma_attach(struct iommu_group *group)
+{
+	return __iommu_group_for_each_dev(group, group->default_domain,
+					  iommu_group_do_dma_attach);
+}
+
+static int iommu_group_do_probe_finalize(struct device *dev, void *data)
+{
+	struct iommu_domain *domain = data;
+
+	if (domain->ops->probe_finalize)
+		domain->ops->probe_finalize(dev);
+
+	return 0;
+}
+
+static void __iommu_group_dma_finalize(struct iommu_group *group)
+{
+	__iommu_group_for_each_dev(group, group->default_domain,
+				   iommu_group_do_probe_finalize);
+}
+
+static int iommu_do_create_direct_mappings(struct device *dev, void *data)
+{
+	struct iommu_group *group = data;
+
+	iommu_create_device_direct_mappings(group, dev);
+
+	return 0;
+}
+
+static int iommu_group_create_direct_mappings(struct iommu_group *group)
+{
+	return __iommu_group_for_each_dev(group, group,
+					  iommu_do_create_direct_mappings);
+}
+
+int bus_iommu_probe(struct bus_type *bus)
+{
+	struct iommu_group *group, *next;
+	LIST_HEAD(group_list);
+	int ret;
+
+	/*
+	 * This code-path does not allocate the default domain when
+	 * creating the iommu group, so do it after the groups are
+	 * created.
+	 */
+	ret = bus_for_each_dev(bus, NULL, &group_list, probe_iommu_group);
+	if (ret)
+		return ret;
+
+	list_for_each_entry_safe(group, next, &group_list, entry) {
+		/* Remove item from the list */
+		list_del_init(&group->entry);
+
+		mutex_lock(&group->mutex);
+
+		/* Try to allocate default domain */
+		probe_alloc_default_domain(bus, group);
+
+		if (!group->default_domain) {
+			mutex_unlock(&group->mutex);
+			continue;
+		}
+
+		iommu_group_create_direct_mappings(group);
+
+		ret = __iommu_group_dma_attach(group);
+
+		mutex_unlock(&group->mutex);
+
+		if (ret)
+			break;
+
+		__iommu_group_dma_finalize(group);
+	}
+
+	return ret;
+}
+
 static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 {
-	int err;
 	struct notifier_block *nb;
-	struct iommu_callback_data cb = {
-		.ops = ops,
-	};
+	int err;
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (!nb)
@@ -1225,7 +1832,7 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 	if (err)
 		goto out_free;
 
-	err = bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
+	err = bus_iommu_probe(bus);
 	if (err)
 		goto out_err;
 
@@ -1234,7 +1841,7 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 
 out_err:
 	/* Clean up */
-	bus_for_each_dev(bus, NULL, &cb, remove_iommu_group);
+	bus_for_each_dev(bus, NULL, NULL, remove_iommu_group);
 	bus_unregister_notifier(bus, nb);
 
 out_free:
@@ -1259,6 +1866,11 @@ out_free:
 int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops)
 {
 	int err;
+
+	if (ops == NULL) {
+		bus->iommu_ops = NULL;
+		return 0;
+	}
 
 	if (bus->iommu_ops != NULL)
 		return -EBUSY;
@@ -1348,9 +1960,6 @@ static int __iommu_attach_device(struct iommu_domain *domain,
 				 struct device *dev)
 {
 	int ret;
-	if ((domain->ops->is_attach_deferred != NULL) &&
-	    domain->ops->is_attach_deferred(domain, dev))
-		return 0;
 
 	if (unlikely(domain->ops->attach_dev == NULL))
 		return -ENODEV;
@@ -1389,11 +1998,230 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(iommu_attach_device);
 
+int iommu_deferred_attach(struct device *dev, struct iommu_domain *domain)
+{
+	const struct iommu_ops *ops = domain->ops;
+
+	if (ops->is_attach_deferred && ops->is_attach_deferred(domain, dev))
+		return __iommu_attach_device(domain, dev);
+
+	return 0;
+}
+
+/*
+ * Check flags and other user provided data for valid combinations. We also
+ * make sure no reserved fields or unused flags are set. This is to ensure
+ * not breaking userspace in the future when these fields or flags are used.
+ */
+static int iommu_check_cache_invl_data(struct iommu_cache_invalidate_info *info)
+{
+	u32 mask;
+	int i;
+
+	if (info->version != IOMMU_CACHE_INVALIDATE_INFO_VERSION_1)
+		return -EINVAL;
+
+	mask = (1 << IOMMU_CACHE_INV_TYPE_NR) - 1;
+	if (info->cache & ~mask)
+		return -EINVAL;
+
+	if (info->granularity >= IOMMU_INV_GRANU_NR)
+		return -EINVAL;
+
+	switch (info->granularity) {
+	case IOMMU_INV_GRANU_ADDR:
+		if (info->cache & IOMMU_CACHE_INV_TYPE_PASID)
+			return -EINVAL;
+
+		mask = IOMMU_INV_ADDR_FLAGS_PASID |
+			IOMMU_INV_ADDR_FLAGS_ARCHID |
+			IOMMU_INV_ADDR_FLAGS_LEAF;
+
+		if (info->granu.addr_info.flags & ~mask)
+			return -EINVAL;
+		break;
+	case IOMMU_INV_GRANU_PASID:
+		mask = IOMMU_INV_PASID_FLAGS_PASID |
+			IOMMU_INV_PASID_FLAGS_ARCHID;
+		if (info->granu.pasid_info.flags & ~mask)
+			return -EINVAL;
+
+		break;
+	case IOMMU_INV_GRANU_DOMAIN:
+		if (info->cache & IOMMU_CACHE_INV_TYPE_DEV_IOTLB)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Check reserved padding fields */
+	for (i = 0; i < sizeof(info->padding); i++) {
+		if (info->padding[i])
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+int iommu_uapi_cache_invalidate(struct iommu_domain *domain, struct device *dev,
+				void __user *uinfo)
+{
+	struct iommu_cache_invalidate_info inv_info = { 0 };
+	u32 minsz;
+	int ret;
+
+	if (unlikely(!domain->ops->cache_invalidate))
+		return -ENODEV;
+
+	/*
+	 * No new spaces can be added before the variable sized union, the
+	 * minimum size is the offset to the union.
+	 */
+	minsz = offsetof(struct iommu_cache_invalidate_info, granu);
+
+	/* Copy minsz from user to get flags and argsz */
+	if (copy_from_user(&inv_info, uinfo, minsz))
+		return -EFAULT;
+
+	/* Fields before the variable size union are mandatory */
+	if (inv_info.argsz < minsz)
+		return -EINVAL;
+
+	/* PASID and address granu require additional info beyond minsz */
+	if (inv_info.granularity == IOMMU_INV_GRANU_PASID &&
+	    inv_info.argsz < offsetofend(struct iommu_cache_invalidate_info, granu.pasid_info))
+		return -EINVAL;
+
+	if (inv_info.granularity == IOMMU_INV_GRANU_ADDR &&
+	    inv_info.argsz < offsetofend(struct iommu_cache_invalidate_info, granu.addr_info))
+		return -EINVAL;
+
+	/*
+	 * User might be using a newer UAPI header which has a larger data
+	 * size, we shall support the existing flags within the current
+	 * size. Copy the remaining user data _after_ minsz but not more
+	 * than the current kernel supported size.
+	 */
+	if (copy_from_user((void *)&inv_info + minsz, uinfo + minsz,
+			   min_t(u32, inv_info.argsz, sizeof(inv_info)) - minsz))
+		return -EFAULT;
+
+	/* Now the argsz is validated, check the content */
+	ret = iommu_check_cache_invl_data(&inv_info);
+	if (ret)
+		return ret;
+
+	return domain->ops->cache_invalidate(domain, dev, &inv_info);
+}
+EXPORT_SYMBOL_GPL(iommu_uapi_cache_invalidate);
+
+static int iommu_check_bind_data(struct iommu_gpasid_bind_data *data)
+{
+	u64 mask;
+	int i;
+
+	if (data->version != IOMMU_GPASID_BIND_VERSION_1)
+		return -EINVAL;
+
+	/* Check the range of supported formats */
+	if (data->format >= IOMMU_PASID_FORMAT_LAST)
+		return -EINVAL;
+
+	/* Check all flags */
+	mask = IOMMU_SVA_GPASID_VAL;
+	if (data->flags & ~mask)
+		return -EINVAL;
+
+	/* Check reserved padding fields */
+	for (i = 0; i < sizeof(data->padding); i++) {
+		if (data->padding[i])
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int iommu_sva_prepare_bind_data(void __user *udata,
+				       struct iommu_gpasid_bind_data *data)
+{
+	u32 minsz;
+
+	/*
+	 * No new spaces can be added before the variable sized union, the
+	 * minimum size is the offset to the union.
+	 */
+	minsz = offsetof(struct iommu_gpasid_bind_data, vendor);
+
+	/* Copy minsz from user to get flags and argsz */
+	if (copy_from_user(data, udata, minsz))
+		return -EFAULT;
+
+	/* Fields before the variable size union are mandatory */
+	if (data->argsz < minsz)
+		return -EINVAL;
+	/*
+	 * User might be using a newer UAPI header, we shall let IOMMU vendor
+	 * driver decide on what size it needs. Since the guest PASID bind data
+	 * can be vendor specific, larger argsz could be the result of extension
+	 * for one vendor but it should not affect another vendor.
+	 * Copy the remaining user data _after_ minsz
+	 */
+	if (copy_from_user((void *)data + minsz, udata + minsz,
+			   min_t(u32, data->argsz, sizeof(*data)) - minsz))
+		return -EFAULT;
+
+	return iommu_check_bind_data(data);
+}
+
+int iommu_uapi_sva_bind_gpasid(struct iommu_domain *domain, struct device *dev,
+			       void __user *udata)
+{
+	struct iommu_gpasid_bind_data data = { 0 };
+	int ret;
+
+	if (unlikely(!domain->ops->sva_bind_gpasid))
+		return -ENODEV;
+
+	ret = iommu_sva_prepare_bind_data(udata, &data);
+	if (ret)
+		return ret;
+
+	return domain->ops->sva_bind_gpasid(domain, dev, &data);
+}
+EXPORT_SYMBOL_GPL(iommu_uapi_sva_bind_gpasid);
+
+int iommu_sva_unbind_gpasid(struct iommu_domain *domain, struct device *dev,
+			     ioasid_t pasid)
+{
+	if (unlikely(!domain->ops->sva_unbind_gpasid))
+		return -ENODEV;
+
+	return domain->ops->sva_unbind_gpasid(dev, pasid);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_unbind_gpasid);
+
+int iommu_uapi_sva_unbind_gpasid(struct iommu_domain *domain, struct device *dev,
+				 void __user *udata)
+{
+	struct iommu_gpasid_bind_data data = { 0 };
+	int ret;
+
+	if (unlikely(!domain->ops->sva_bind_gpasid))
+		return -ENODEV;
+
+	ret = iommu_sva_prepare_bind_data(udata, &data);
+	if (ret)
+		return ret;
+
+	return iommu_sva_unbind_gpasid(domain, dev, data.hpasid);
+}
+EXPORT_SYMBOL_GPL(iommu_uapi_sva_unbind_gpasid);
+
 static void __iommu_detach_device(struct iommu_domain *domain,
 				  struct device *dev)
 {
-	if ((domain->ops->is_attach_deferred != NULL) &&
-	    domain->ops->is_attach_deferred(domain, dev))
+	if (iommu_is_attach_deferred(domain, dev))
 		return;
 
 	if (unlikely(domain->ops->detach_dev == NULL))
@@ -1578,16 +2406,17 @@ static size_t iommu_pgsize(struct iommu_domain *domain,
 	return pgsize;
 }
 
-int iommu_map(struct iommu_domain *domain, unsigned long iova,
-	      phys_addr_t paddr, size_t size, int prot)
+static int __iommu_map(struct iommu_domain *domain, unsigned long iova,
+		       phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
 {
+	const struct iommu_ops *ops = domain->ops;
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
 	size_t orig_size = size;
 	phys_addr_t orig_paddr = paddr;
 	int ret = 0;
 
-	if (unlikely(domain->ops->map == NULL ||
+	if (unlikely(ops->map == NULL ||
 		     domain->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
@@ -1615,8 +2444,8 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 
 		pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
 			 iova, &paddr, pgsize);
+		ret = ops->map(domain, iova, paddr, pgsize, prot, gfp);
 
-		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
 		if (ret)
 			break;
 
@@ -1633,11 +2462,38 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 
 	return ret;
 }
+
+static int _iommu_map(struct iommu_domain *domain, unsigned long iova,
+		      phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+{
+	const struct iommu_ops *ops = domain->ops;
+	int ret;
+
+	ret = __iommu_map(domain, iova, paddr, size, prot, gfp);
+	if (ret == 0 && ops->iotlb_sync_map)
+		ops->iotlb_sync_map(domain, iova, size);
+
+	return ret;
+}
+
+int iommu_map(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, size_t size, int prot)
+{
+	might_sleep();
+	return _iommu_map(domain, iova, paddr, size, prot, GFP_KERNEL);
+}
 EXPORT_SYMBOL_GPL(iommu_map);
+
+int iommu_map_atomic(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, size_t size, int prot)
+{
+	return _iommu_map(domain, iova, paddr, size, prot, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(iommu_map_atomic);
 
 static size_t __iommu_unmap(struct iommu_domain *domain,
 			    unsigned long iova, size_t size,
-			    bool sync)
+			    struct iommu_iotlb_gather *iotlb_gather)
 {
 	const struct iommu_ops *ops = domain->ops;
 	size_t unmapped_page, unmapped = 0;
@@ -1674,12 +2530,9 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 	while (unmapped < size) {
 		size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
 
-		unmapped_page = ops->unmap(domain, iova, pgsize);
+		unmapped_page = ops->unmap(domain, iova, pgsize, iotlb_gather);
 		if (!unmapped_page)
 			break;
-
-		if (sync && ops->iotlb_range_add)
-			ops->iotlb_range_add(domain, iova, pgsize);
 
 		pr_debug("unmapped: iova 0x%lx size 0x%zx\n",
 			 iova, unmapped_page);
@@ -1688,9 +2541,6 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 		unmapped += unmapped_page;
 	}
 
-	if (sync && ops->iotlb_sync)
-		ops->iotlb_sync(domain);
-
 	trace_unmap(orig_iova, size, unmapped);
 	return unmapped;
 }
@@ -1698,49 +2548,62 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 size_t iommu_unmap(struct iommu_domain *domain,
 		   unsigned long iova, size_t size)
 {
-	return __iommu_unmap(domain, iova, size, true);
+	struct iommu_iotlb_gather iotlb_gather;
+	size_t ret;
+
+	iommu_iotlb_gather_init(&iotlb_gather);
+	ret = __iommu_unmap(domain, iova, size, &iotlb_gather);
+	iommu_iotlb_sync(domain, &iotlb_gather);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
 
 size_t iommu_unmap_fast(struct iommu_domain *domain,
-			unsigned long iova, size_t size)
+			unsigned long iova, size_t size,
+			struct iommu_iotlb_gather *iotlb_gather)
 {
-	return __iommu_unmap(domain, iova, size, false);
+	return __iommu_unmap(domain, iova, size, iotlb_gather);
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 
-size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-		    struct scatterlist *sg, unsigned int nents, int prot)
+static size_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+			     struct scatterlist *sg, unsigned int nents, int prot,
+			     gfp_t gfp)
 {
-	struct scatterlist *s;
-	size_t mapped = 0;
-	unsigned int i, min_pagesz;
+	const struct iommu_ops *ops = domain->ops;
+	size_t len = 0, mapped = 0;
+	phys_addr_t start;
+	unsigned int i = 0;
 	int ret;
 
-	if (unlikely(domain->pgsize_bitmap == 0UL))
-		return 0;
+	while (i <= nents) {
+		phys_addr_t s_phys = sg_phys(sg);
 
-	min_pagesz = 1 << __ffs(domain->pgsize_bitmap);
+		if (len && s_phys != start + len) {
+			ret = __iommu_map(domain, iova + mapped, start,
+					len, prot, gfp);
 
-	for_each_sg(sg, s, nents, i) {
-		phys_addr_t phys = page_to_phys(sg_page(s)) + s->offset;
+			if (ret)
+				goto out_err;
 
-		/*
-		 * We are mapping on IOMMU page boundaries, so offset within
-		 * the page must be 0. However, the IOMMU may support pages
-		 * smaller than PAGE_SIZE, so s->offset may still represent
-		 * an offset of that boundary within the CPU page.
-		 */
-		if (!IS_ALIGNED(s->offset, min_pagesz))
-			goto out_err;
+			mapped += len;
+			len = 0;
+		}
 
-		ret = iommu_map(domain, iova + mapped, phys, s->length, prot);
-		if (ret)
-			goto out_err;
+		if (len) {
+			len += sg->length;
+		} else {
+			len = sg->length;
+			start = s_phys;
+		}
 
-		mapped += s->length;
+		if (++i < nents)
+			sg = sg_next(sg);
 	}
 
+	if (ops->iotlb_sync_map)
+		ops->iotlb_sync_map(domain, iova, mapped);
 	return mapped;
 
 out_err:
@@ -1750,27 +2613,20 @@ out_err:
 	return 0;
 
 }
+
+size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+		    struct scatterlist *sg, unsigned int nents, int prot)
+{
+	might_sleep();
+	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
+}
 EXPORT_SYMBOL_GPL(iommu_map_sg);
 
-int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
-			       phys_addr_t paddr, u64 size, int prot)
+size_t iommu_map_sg_atomic(struct iommu_domain *domain, unsigned long iova,
+		    struct scatterlist *sg, unsigned int nents, int prot)
 {
-	if (unlikely(domain->ops->domain_window_enable == NULL))
-		return -ENODEV;
-
-	return domain->ops->domain_window_enable(domain, wnd_nr, paddr, size,
-						 prot);
+	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_ATOMIC);
 }
-EXPORT_SYMBOL_GPL(iommu_domain_window_enable);
-
-void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr)
-{
-	if (unlikely(domain->ops->domain_window_disable == NULL))
-		return;
-
-	return domain->ops->domain_window_disable(domain, wnd_nr);
-}
-EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
 
 /**
  * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
@@ -1826,50 +2682,26 @@ static int __init iommu_init(void)
 }
 core_initcall(iommu_init);
 
-int iommu_domain_get_attr(struct iommu_domain *domain,
-			  enum iommu_attr attr, void *data)
+int iommu_enable_nesting(struct iommu_domain *domain)
 {
-	struct iommu_domain_geometry *geometry;
-	bool *paging;
-	int ret = 0;
-
-	switch (attr) {
-	case DOMAIN_ATTR_GEOMETRY:
-		geometry  = data;
-		*geometry = domain->geometry;
-
-		break;
-	case DOMAIN_ATTR_PAGING:
-		paging  = data;
-		*paging = (domain->pgsize_bitmap != 0UL);
-		break;
-	default:
-		if (!domain->ops->domain_get_attr)
-			return -EINVAL;
-
-		ret = domain->ops->domain_get_attr(domain, attr, data);
-	}
-
-	return ret;
+	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
+		return -EINVAL;
+	if (!domain->ops->enable_nesting)
+		return -EINVAL;
+	return domain->ops->enable_nesting(domain);
 }
-EXPORT_SYMBOL_GPL(iommu_domain_get_attr);
+EXPORT_SYMBOL_GPL(iommu_enable_nesting);
 
-int iommu_domain_set_attr(struct iommu_domain *domain,
-			  enum iommu_attr attr, void *data)
+int iommu_set_pgtable_quirks(struct iommu_domain *domain,
+		unsigned long quirk)
 {
-	int ret = 0;
-
-	switch (attr) {
-	default:
-		if (domain->ops->domain_set_attr == NULL)
-			return -EINVAL;
-
-		ret = domain->ops->domain_set_attr(domain, attr, data);
-	}
-
-	return ret;
+	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
+		return -EINVAL;
+	if (!domain->ops->set_pgtable_quirks)
+		return -EINVAL;
+	return domain->ops->set_pgtable_quirks(domain, quirk);
 }
-EXPORT_SYMBOL_GPL(iommu_domain_set_attr);
+EXPORT_SYMBOL_GPL(iommu_set_pgtable_quirks);
 
 void iommu_get_resv_regions(struct device *dev, struct list_head *list)
 {
@@ -1886,6 +2718,25 @@ void iommu_put_resv_regions(struct device *dev, struct list_head *list)
 	if (ops && ops->put_resv_regions)
 		ops->put_resv_regions(dev, list);
 }
+
+/**
+ * generic_iommu_put_resv_regions - Reserved region driver helper
+ * @dev: device for which to free reserved regions
+ * @list: reserved region list for device
+ *
+ * IOMMU drivers can use this to implement their .put_resv_regions() callback
+ * for simple reservations. Memory allocated for each reserved region will be
+ * freed. If an IOMMU driver allocates additional resources per region, it is
+ * going to have to implement a custom callback.
+ */
+void generic_iommu_put_resv_regions(struct device *dev, struct list_head *list)
+{
+	struct iommu_resv_region *entry, *next;
+
+	list_for_each_entry_safe(entry, next, list, list)
+		kfree(entry);
+}
+EXPORT_SYMBOL(generic_iommu_put_resv_regions);
 
 struct iommu_resv_region *iommu_alloc_resv_region(phys_addr_t start,
 						  size_t length, int prot,
@@ -1904,59 +2755,27 @@ struct iommu_resv_region *iommu_alloc_resv_region(phys_addr_t start,
 	region->type = type;
 	return region;
 }
+EXPORT_SYMBOL_GPL(iommu_alloc_resv_region);
 
-/* Request that a device is direct mapped by the IOMMU */
-int iommu_request_dm_for_dev(struct device *dev)
+void iommu_set_default_passthrough(bool cmd_line)
 {
-	struct iommu_domain *dm_domain;
-	struct iommu_group *group;
-	int ret;
-
-	/* Device must already be in a group before calling this function */
-	group = iommu_group_get_for_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
-
-	mutex_lock(&group->mutex);
-
-	/* Check if the default domain is already direct mapped */
-	ret = 0;
-	if (group->default_domain &&
-	    group->default_domain->type == IOMMU_DOMAIN_IDENTITY)
-		goto out;
-
-	/* Don't change mappings of existing devices */
-	ret = -EBUSY;
-	if (iommu_group_device_count(group) != 1)
-		goto out;
-
-	/* Allocate a direct mapped domain */
-	ret = -ENOMEM;
-	dm_domain = __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_IDENTITY);
-	if (!dm_domain)
-		goto out;
-
-	/* Attach the device to the domain */
-	ret = __iommu_attach_group(dm_domain, group);
-	if (ret) {
-		iommu_domain_free(dm_domain);
-		goto out;
-	}
-
-	/* Make the direct mapped domain the default for this group */
-	if (group->default_domain)
-		iommu_domain_free(group->default_domain);
-	group->default_domain = dm_domain;
-
-	pr_info("Using direct mapping for device %s\n", dev_name(dev));
-
-	ret = 0;
-out:
-	mutex_unlock(&group->mutex);
-	iommu_group_put(group);
-
-	return ret;
+	if (cmd_line)
+		iommu_cmd_line |= IOMMU_CMD_LINE_DMA_API;
+	iommu_def_domain_type = IOMMU_DOMAIN_IDENTITY;
 }
+
+void iommu_set_default_translated(bool cmd_line)
+{
+	if (cmd_line)
+		iommu_cmd_line |= IOMMU_CMD_LINE_DMA_API;
+	iommu_def_domain_type = IOMMU_DOMAIN_DMA;
+}
+
+bool iommu_default_passthrough(void)
+{
+	return iommu_def_domain_type == IOMMU_DOMAIN_IDENTITY;
+}
+EXPORT_SYMBOL_GPL(iommu_default_passthrough);
 
 const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 {
@@ -1976,57 +2795,465 @@ const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 		      const struct iommu_ops *ops)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
 	if (fwspec)
 		return ops == fwspec->ops ? 0 : -EINVAL;
 
-	fwspec = kzalloc(sizeof(*fwspec), GFP_KERNEL);
+	if (!dev_iommu_get(dev))
+		return -ENOMEM;
+
+	/* Preallocate for the overwhelmingly common case of 1 ID */
+	fwspec = kzalloc(struct_size(fwspec, ids, 1), GFP_KERNEL);
 	if (!fwspec)
 		return -ENOMEM;
 
 	of_node_get(to_of_node(iommu_fwnode));
 	fwspec->iommu_fwnode = iommu_fwnode;
 	fwspec->ops = ops;
-	dev->iommu_fwspec = fwspec;
+	dev_iommu_fwspec_set(dev, fwspec);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_fwspec_init);
 
 void iommu_fwspec_free(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
 	if (fwspec) {
 		fwnode_handle_put(fwspec->iommu_fwnode);
 		kfree(fwspec);
-		dev->iommu_fwspec = NULL;
+		dev_iommu_fwspec_set(dev, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(iommu_fwspec_free);
 
 int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
-	size_t size;
-	int i;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	int i, new_num;
 
 	if (!fwspec)
 		return -EINVAL;
 
-	size = offsetof(struct iommu_fwspec, ids[fwspec->num_ids + num_ids]);
-	if (size > sizeof(*fwspec)) {
-		fwspec = krealloc(dev->iommu_fwspec, size, GFP_KERNEL);
+	new_num = fwspec->num_ids + num_ids;
+	if (new_num > 1) {
+		fwspec = krealloc(fwspec, struct_size(fwspec, ids, new_num),
+				  GFP_KERNEL);
 		if (!fwspec)
 			return -ENOMEM;
 
-		dev->iommu_fwspec = fwspec;
+		dev_iommu_fwspec_set(dev, fwspec);
 	}
 
 	for (i = 0; i < num_ids; i++)
 		fwspec->ids[fwspec->num_ids + i] = ids[i];
 
-	fwspec->num_ids += num_ids;
+	fwspec->num_ids = new_num;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_fwspec_add_ids);
+
+/*
+ * Per device IOMMU features.
+ */
+int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features feat)
+{
+	if (dev->iommu && dev->iommu->iommu_dev) {
+		const struct iommu_ops *ops = dev->iommu->iommu_dev->ops;
+
+		if (ops->dev_enable_feat)
+			return ops->dev_enable_feat(dev, feat);
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(iommu_dev_enable_feature);
+
+/*
+ * The device drivers should do the necessary cleanups before calling this.
+ * For example, before disabling the aux-domain feature, the device driver
+ * should detach all aux-domains. Otherwise, this will return -EBUSY.
+ */
+int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features feat)
+{
+	if (dev->iommu && dev->iommu->iommu_dev) {
+		const struct iommu_ops *ops = dev->iommu->iommu_dev->ops;
+
+		if (ops->dev_disable_feat)
+			return ops->dev_disable_feat(dev, feat);
+	}
+
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(iommu_dev_disable_feature);
+
+bool iommu_dev_feature_enabled(struct device *dev, enum iommu_dev_features feat)
+{
+	if (dev->iommu && dev->iommu->iommu_dev) {
+		const struct iommu_ops *ops = dev->iommu->iommu_dev->ops;
+
+		if (ops->dev_feat_enabled)
+			return ops->dev_feat_enabled(dev, feat);
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(iommu_dev_feature_enabled);
+
+/*
+ * Aux-domain specific attach/detach.
+ *
+ * Only works if iommu_dev_feature_enabled(dev, IOMMU_DEV_FEAT_AUX) returns
+ * true. Also, as long as domains are attached to a device through this
+ * interface, any tries to call iommu_attach_device() should fail
+ * (iommu_detach_device() can't fail, so we fail when trying to re-attach).
+ * This should make us safe against a device being attached to a guest as a
+ * whole while there are still pasid users on it (aux and sva).
+ */
+int iommu_aux_attach_device(struct iommu_domain *domain, struct device *dev)
+{
+	int ret = -ENODEV;
+
+	if (domain->ops->aux_attach_dev)
+		ret = domain->ops->aux_attach_dev(domain, dev);
+
+	if (!ret)
+		trace_attach_device_to_domain(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_aux_attach_device);
+
+void iommu_aux_detach_device(struct iommu_domain *domain, struct device *dev)
+{
+	if (domain->ops->aux_detach_dev) {
+		domain->ops->aux_detach_dev(domain, dev);
+		trace_detach_device_from_domain(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(iommu_aux_detach_device);
+
+int iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev)
+{
+	int ret = -ENODEV;
+
+	if (domain->ops->aux_get_pasid)
+		ret = domain->ops->aux_get_pasid(domain, dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_aux_get_pasid);
+
+/**
+ * iommu_sva_bind_device() - Bind a process address space to a device
+ * @dev: the device
+ * @mm: the mm to bind, caller must hold a reference to it
+ *
+ * Create a bond between device and address space, allowing the device to access
+ * the mm using the returned PASID. If a bond already exists between @device and
+ * @mm, it is returned and an additional reference is taken. Caller must call
+ * iommu_sva_unbind_device() to release each reference.
+ *
+ * iommu_dev_enable_feature(dev, IOMMU_DEV_FEAT_SVA) must be called first, to
+ * initialize the required SVA features.
+ *
+ * On error, returns an ERR_PTR value.
+ */
+struct iommu_sva *
+iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, void *drvdata)
+{
+	struct iommu_group *group;
+	struct iommu_sva *handle = ERR_PTR(-EINVAL);
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_bind)
+		return ERR_PTR(-ENODEV);
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return ERR_PTR(-ENODEV);
+
+	/* Ensure device count and domain don't change while we're binding */
+	mutex_lock(&group->mutex);
+
+	/*
+	 * To keep things simple, SVA currently doesn't support IOMMU groups
+	 * with more than one device. Existing SVA-capable systems are not
+	 * affected by the problems that required IOMMU groups (lack of ACS
+	 * isolation, device ID aliasing and other hardware issues).
+	 */
+	if (iommu_group_device_count(group) != 1)
+		goto out_unlock;
+
+	handle = ops->sva_bind(dev, mm, drvdata);
+
+out_unlock:
+	mutex_unlock(&group->mutex);
+	iommu_group_put(group);
+
+	return handle;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_bind_device);
+
+/**
+ * iommu_sva_unbind_device() - Remove a bond created with iommu_sva_bind_device
+ * @handle: the handle returned by iommu_sva_bind_device()
+ *
+ * Put reference to a bond between device and address space. The device should
+ * not be issuing any more transaction for this PASID. All outstanding page
+ * requests for this PASID must have been flushed to the IOMMU.
+ */
+void iommu_sva_unbind_device(struct iommu_sva *handle)
+{
+	struct iommu_group *group;
+	struct device *dev = handle->dev;
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_unbind)
+		return;
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return;
+
+	mutex_lock(&group->mutex);
+	ops->sva_unbind(handle);
+	mutex_unlock(&group->mutex);
+
+	iommu_group_put(group);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_unbind_device);
+
+u32 iommu_sva_get_pasid(struct iommu_sva *handle)
+{
+	const struct iommu_ops *ops = handle->dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_get_pasid)
+		return IOMMU_PASID_INVALID;
+
+	return ops->sva_get_pasid(handle);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
+
+/*
+ * Changes the default domain of an iommu group that has *only* one device
+ *
+ * @group: The group for which the default domain should be changed
+ * @prev_dev: The device in the group (this is used to make sure that the device
+ *	 hasn't changed after the caller has called this function)
+ * @type: The type of the new default domain that gets associated with the group
+ *
+ * Returns 0 on success and error code on failure
+ *
+ * Note:
+ * 1. Presently, this function is called only when user requests to change the
+ *    group's default domain type through /sys/kernel/iommu_groups/<grp_id>/type
+ *    Please take a closer look if intended to use for other purposes.
+ */
+static int iommu_change_dev_def_domain(struct iommu_group *group,
+				       struct device *prev_dev, int type)
+{
+	struct iommu_domain *prev_dom;
+	struct group_device *grp_dev;
+	int ret, dev_def_dom;
+	struct device *dev;
+
+	mutex_lock(&group->mutex);
+
+	if (group->default_domain != group->domain) {
+		dev_err_ratelimited(prev_dev, "Group not assigned to default domain\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * iommu group wasn't locked while acquiring device lock in
+	 * iommu_group_store_type(). So, make sure that the device count hasn't
+	 * changed while acquiring device lock.
+	 *
+	 * Changing default domain of an iommu group with two or more devices
+	 * isn't supported because there could be a potential deadlock. Consider
+	 * the following scenario. T1 is trying to acquire device locks of all
+	 * the devices in the group and before it could acquire all of them,
+	 * there could be another thread T2 (from different sub-system and use
+	 * case) that has already acquired some of the device locks and might be
+	 * waiting for T1 to release other device locks.
+	 */
+	if (iommu_group_device_count(group) != 1) {
+		dev_err_ratelimited(prev_dev, "Cannot change default domain: Group has more than one device\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Since group has only one device */
+	grp_dev = list_first_entry(&group->devices, struct group_device, list);
+	dev = grp_dev->dev;
+
+	if (prev_dev != dev) {
+		dev_err_ratelimited(prev_dev, "Cannot change default domain: Device has been changed\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	prev_dom = group->default_domain;
+	if (!prev_dom) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	dev_def_dom = iommu_get_def_domain_type(dev);
+	if (!type) {
+		/*
+		 * If the user hasn't requested any specific type of domain and
+		 * if the device supports both the domains, then default to the
+		 * domain the device was booted with
+		 */
+		type = dev_def_dom ? : iommu_def_domain_type;
+	} else if (dev_def_dom && type != dev_def_dom) {
+		dev_err_ratelimited(prev_dev, "Device cannot be in %s domain\n",
+				    iommu_domain_type_str(type));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * Switch to a new domain only if the requested domain type is different
+	 * from the existing default domain type
+	 */
+	if (prev_dom->type == type) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Sets group->default_domain to the newly allocated domain */
+	ret = iommu_group_alloc_default_domain(dev->bus, group, type);
+	if (ret)
+		goto out;
+
+	ret = iommu_create_device_direct_mappings(group, dev);
+	if (ret)
+		goto free_new_domain;
+
+	ret = __iommu_attach_device(group->default_domain, dev);
+	if (ret)
+		goto free_new_domain;
+
+	group->domain = group->default_domain;
+
+	/*
+	 * Release the mutex here because ops->probe_finalize() call-back of
+	 * some vendor IOMMU drivers calls arm_iommu_attach_device() which
+	 * in-turn might call back into IOMMU core code, where it tries to take
+	 * group->mutex, resulting in a deadlock.
+	 */
+	mutex_unlock(&group->mutex);
+
+	/* Make sure dma_ops is appropriatley set */
+	iommu_group_do_probe_finalize(dev, group->default_domain);
+	iommu_domain_free(prev_dom);
+	return 0;
+
+free_new_domain:
+	iommu_domain_free(group->default_domain);
+	group->default_domain = prev_dom;
+	group->domain = prev_dom;
+
+out:
+	mutex_unlock(&group->mutex);
+
+	return ret;
+}
+
+/*
+ * Changing the default domain through sysfs requires the users to ubind the
+ * drivers from the devices in the iommu group. Return failure if this doesn't
+ * meet.
+ *
+ * We need to consider the race between this and the device release path.
+ * device_lock(dev) is used here to guarantee that the device release path
+ * will not be entered at the same time.
+ */
+static ssize_t iommu_group_store_type(struct iommu_group *group,
+				      const char *buf, size_t count)
+{
+	struct group_device *grp_dev;
+	struct device *dev;
+	int ret, req_type;
+
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+
+	if (WARN_ON(!group))
+		return -EINVAL;
+
+	if (sysfs_streq(buf, "identity"))
+		req_type = IOMMU_DOMAIN_IDENTITY;
+	else if (sysfs_streq(buf, "DMA"))
+		req_type = IOMMU_DOMAIN_DMA;
+	else if (sysfs_streq(buf, "auto"))
+		req_type = 0;
+	else
+		return -EINVAL;
+
+	/*
+	 * Lock/Unlock the group mutex here before device lock to
+	 * 1. Make sure that the iommu group has only one device (this is a
+	 *    prerequisite for step 2)
+	 * 2. Get struct *dev which is needed to lock device
+	 */
+	mutex_lock(&group->mutex);
+	if (iommu_group_device_count(group) != 1) {
+		mutex_unlock(&group->mutex);
+		pr_err_ratelimited("Cannot change default domain: Group has more than one device\n");
+		return -EINVAL;
+	}
+
+	/* Since group has only one device */
+	grp_dev = list_first_entry(&group->devices, struct group_device, list);
+	dev = grp_dev->dev;
+	get_device(dev);
+
+	/*
+	 * Don't hold the group mutex because taking group mutex first and then
+	 * the device lock could potentially cause a deadlock as below. Assume
+	 * two threads T1 and T2. T1 is trying to change default domain of an
+	 * iommu group and T2 is trying to hot unplug a device or release [1] VF
+	 * of a PCIe device which is in the same iommu group. T1 takes group
+	 * mutex and before it could take device lock assume T2 has taken device
+	 * lock and is yet to take group mutex. Now, both the threads will be
+	 * waiting for the other thread to release lock. Below, lock order was
+	 * suggested.
+	 * device_lock(dev);
+	 *	mutex_lock(&group->mutex);
+	 *		iommu_change_dev_def_domain();
+	 *	mutex_unlock(&group->mutex);
+	 * device_unlock(dev);
+	 *
+	 * [1] Typical device release path
+	 * device_lock() from device/driver core code
+	 *  -> bus_notifier()
+	 *   -> iommu_bus_notifier()
+	 *    -> iommu_release_device()
+	 *     -> ops->release_device() vendor driver calls back iommu core code
+	 *      -> mutex_lock() from iommu core code
+	 */
+	mutex_unlock(&group->mutex);
+
+	/* Check if the device in the group still has a driver bound to it */
+	device_lock(dev);
+	if (device_is_bound(dev)) {
+		pr_err_ratelimited("Device is still bound to driver\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = iommu_change_dev_def_domain(group, dev, req_type);
+	ret = ret ?: count;
+
+out:
+	device_unlock(dev);
+	put_device(dev);
+
+	return ret;
+}

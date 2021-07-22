@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NTB_INTEL
 	tristate "Intel Non-Transparent Bridge support"
 	depends on X86_64

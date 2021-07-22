@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG SMDK5410 board device tree source
+ * Samsung SMDK5410 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -10,7 +10,7 @@
 #include "exynos5410.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 / {
-	model = "Samsung SMDK5410 board based on EXYNOS5410";
+	model = "Samsung SMDK5410 board based on Exynos5410";
 	compatible = "samsung,smdk5410", "samsung,exynos5410", "samsung,exynos5";
 
 	memory@40000000 {
@@ -19,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200";
+		stdout-path = "serial2:115200n8";
 	};
 
 	fin_pll: xxti {
@@ -27,6 +27,13 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "fin_pll";
 		#clock-cells = <0>;
+	};
+
+	pmic_ap_clk: pmic-ap-clk {
+		/* Workaround for missing PMIC and its clock */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
 	};
 
 	firmware@2037000 {
@@ -77,6 +84,11 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
+};
+
+&rtc {
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sromc {

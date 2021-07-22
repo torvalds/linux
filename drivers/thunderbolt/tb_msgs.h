@@ -28,6 +28,7 @@ enum tb_cfg_error {
 	TB_CFG_ERROR_LOOP = 8,
 	TB_CFG_ERROR_HEC_ERROR_DETECTED = 12,
 	TB_CFG_ERROR_FLOW_CONTROL_ERROR = 13,
+	TB_CFG_ERROR_LOCK = 15,
 };
 
 /* common header */
@@ -67,8 +68,12 @@ struct cfg_error_pkg {
 	u32 zero1:4;
 	u32 port:6;
 	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:16;
+	u32 zero3:14;
+	u32 pg:2;
 } __packed;
+
+#define TB_CFG_ERROR_PG_HOT_PLUG	0x2
+#define TB_CFG_ERROR_PG_HOT_UNPLUG	0x3
 
 /* TB_CFG_PKG_EVENT */
 struct cfg_event_pkg {
@@ -101,13 +106,15 @@ enum icm_pkg_code {
 	ICM_APPROVE_XDOMAIN = 0x10,
 	ICM_DISCONNECT_XDOMAIN = 0x11,
 	ICM_PREBOOT_ACL = 0x18,
+	ICM_USB4_SWITCH_OP = 0x20,
 };
 
 enum icm_event_code {
-	ICM_EVENT_DEVICE_CONNECTED = 3,
-	ICM_EVENT_DEVICE_DISCONNECTED = 4,
-	ICM_EVENT_XDOMAIN_CONNECTED = 6,
-	ICM_EVENT_XDOMAIN_DISCONNECTED = 7,
+	ICM_EVENT_DEVICE_CONNECTED = 0x3,
+	ICM_EVENT_DEVICE_DISCONNECTED = 0x4,
+	ICM_EVENT_XDOMAIN_CONNECTED = 0x6,
+	ICM_EVENT_XDOMAIN_DISCONNECTED = 0x7,
+	ICM_EVENT_RTD3_VETO = 0xa,
 };
 
 struct icm_pkg_header {
@@ -121,6 +128,8 @@ struct icm_pkg_header {
 #define ICM_FLAGS_NO_KEY		BIT(1)
 #define ICM_FLAGS_SLEVEL_SHIFT		3
 #define ICM_FLAGS_SLEVEL_MASK		GENMASK(4, 3)
+#define ICM_FLAGS_DUAL_LANE		BIT(5)
+#define ICM_FLAGS_SPEED_GEN3		BIT(7)
 #define ICM_FLAGS_WRITE			BIT(7)
 
 struct icm_pkg_driver_ready {
@@ -335,6 +344,8 @@ struct icm_tr_pkg_driver_ready_response {
 #define ICM_TR_FLAGS_RTD3		BIT(6)
 
 #define ICM_TR_INFO_SLEVEL_MASK		GENMASK(2, 0)
+#define ICM_TR_INFO_PROTO_VERSION_MASK	GENMASK(6, 4)
+#define ICM_TR_INFO_PROTO_VERSION_SHIFT	4
 #define ICM_TR_INFO_BOOT_ACL_SHIFT	7
 #define ICM_TR_INFO_BOOT_ACL_MASK	GENMASK(12, 7)
 
@@ -463,6 +474,38 @@ struct icm_tr_pkg_disconnect_xdomain_response {
 	uuid_t remote_uuid;
 };
 
+/* Ice Lake messages */
+
+struct icm_icl_event_rtd3_veto {
+	struct icm_pkg_header hdr;
+	u32 veto_reason;
+};
+
+/* USB4 ICM messages */
+
+struct icm_usb4_switch_op {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	u32 metadata;
+	u16 opcode;
+	u16 data_len_valid;
+	u32 data[16];
+};
+
+#define ICM_USB4_SWITCH_DATA_LEN_MASK	GENMASK(3, 0)
+#define ICM_USB4_SWITCH_DATA_VALID	BIT(4)
+
+struct icm_usb4_switch_op_response {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	u32 metadata;
+	u16 opcode;
+	u16 status;
+	u32 data[16];
+};
+
 /* XDomain messages */
 
 struct tb_xdomain_header {
@@ -490,6 +533,17 @@ struct tb_xdp_header {
 	struct tb_xdomain_header xd_hdr;
 	uuid_t uuid;
 	u32 type;
+};
+
+struct tb_xdp_uuid {
+	struct tb_xdp_header hdr;
+};
+
+struct tb_xdp_uuid_response {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	u32 src_route_hi;
+	u32 src_route_lo;
 };
 
 struct tb_xdp_properties {

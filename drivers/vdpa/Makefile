@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+obj-$(CONFIG_VDPA) += vdpa.o
+obj-$(CONFIG_VDPA_SIM) += vdpa_sim/
+obj-$(CONFIG_IFCVF)    += ifcvf/
+obj-$(CONFIG_MLX5_VDPA) += mlx5/
+obj-$(CONFIG_VP_VDPA)    += virtio_pci/

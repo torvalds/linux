@@ -1,10 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # C2 port devices
 #
 
 menuconfig C2PORT
 	tristate "Silicon Labs C2 port support"
-	default n
 	help
 	  This option enables support for Silicon Labs C2 port used to
 	  program Silicon micro controller chips (and other 8051 compatible).
@@ -23,7 +23,6 @@ if C2PORT
 config C2PORT_DURAMAR_2150
 	tristate "C2 port support for Eurotech's Duramar 2150"
 	depends on X86
-	default n
 	help
 	  This option enables C2 support for the Eurotech's Duramar 2150
 	  on board micro controller.

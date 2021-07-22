@@ -7,12 +7,12 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -128,7 +128,7 @@ static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
 int rcar_du_atomic_check_planes(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
-	struct rcar_du_device *rcdu = dev->dev_private;
+	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	bool needs_realloc = false;
@@ -607,21 +607,26 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+				      struct drm_atomic_state *state)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(new_plane_state);
 
-	return __rcar_du_plane_atomic_check(plane, state, &rstate->format);
+	return __rcar_du_plane_atomic_check(plane, new_plane_state,
+					    &rstate->format);
 }
 
 static void rcar_du_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *old_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_plane_state *old_rstate;
 	struct rcar_du_plane_state *new_rstate;
 
-	if (!plane->state->visible)
+	if (!new_state->visible)
 		return;
 
 	rcar_du_plane_setup(rplane);
@@ -635,7 +640,7 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 	 * bit. We thus need to restart the group if the source changes.
 	 */
 	old_rstate = to_rcar_plane_state(old_state);
-	new_rstate = to_rcar_plane_state(plane->state);
+	new_rstate = to_rcar_plane_state(new_state);
 
 	if ((old_rstate->source == RCAR_DU_PLANE_MEMORY) !=
 	    (new_rstate->source == RCAR_DU_PLANE_MEMORY))
@@ -773,9 +778,9 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		plane->group = rgrp;
 
-		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
-					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats),
+		ret = drm_universal_plane_init(&rcdu->ddev, &plane->plane,
+					       crtcs, &rcar_du_plane_funcs,
+					       formats, ARRAY_SIZE(formats),
 					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;
@@ -783,14 +788,17 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		drm_plane_helper_add(&plane->plane,
 				     &rcar_du_plane_helper_funcs);
 
-		if (type == DRM_PLANE_TYPE_PRIMARY)
-			continue;
-
-		drm_object_attach_property(&plane->plane.base,
-					   rcdu->props.colorkey,
-					   RCAR_DU_COLORKEY_NONE);
 		drm_plane_create_alpha_property(&plane->plane);
-		drm_plane_create_zpos_property(&plane->plane, 1, 1, 7);
+
+		if (type == DRM_PLANE_TYPE_PRIMARY) {
+			drm_plane_create_zpos_immutable_property(&plane->plane,
+								 0);
+		} else {
+			drm_object_attach_property(&plane->plane.base,
+						   rcdu->props.colorkey,
+						   RCAR_DU_COLORKEY_NONE);
+			drm_plane_create_zpos_property(&plane->plane, 1, 1, 7);
+		}
 	}
 
 	return 0;

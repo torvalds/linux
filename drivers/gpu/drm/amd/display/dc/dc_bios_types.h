@@ -61,9 +61,6 @@ struct dc_vbios_funcs {
 		struct graphics_object_id connector_object_id,
 		uint32_t device_tag_index,
 		struct connector_device_tag_info *info);
-	enum bp_result (*get_firmware_info)(
-		struct dc_bios *bios,
-		struct dc_firmware_info *info);
 	enum bp_result (*get_spread_spectrum_info)(
 		struct dc_bios *bios,
 		enum as_signal_type signal,
@@ -92,7 +89,6 @@ struct dc_vbios_funcs {
 	bool (*is_device_id_supported)(
 		struct dc_bios *bios,
 		struct device_id id);
-
 	/* COMMANDS */
 
 	enum bp_result (*encoder_control)(
@@ -121,10 +117,6 @@ struct dc_vbios_funcs {
 	enum bp_result (*program_crtc_timing)(
 		struct dc_bios *bios,
 		struct bp_hw_crtc_timing_parameters *bp_params);
-
-	enum bp_result (*crtc_source_select)(
-		struct dc_bios *bios,
-		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*program_display_engine_pll)(
 		struct dc_bios *bios,
 		struct bp_pixel_clock_parameters *bp_params);
@@ -138,6 +130,32 @@ struct dc_vbios_funcs {
 	enum bp_result (*get_board_layout_info)(
 		struct dc_bios *dcb,
 		struct board_layout_info *board_layout_info);
+	uint16_t (*pack_data_tables)(
+		struct dc_bios *dcb,
+		void *dst);
+
+	enum bp_result (*get_atom_dc_golden_table)(
+			struct dc_bios *dcb);
+
+	enum bp_result (*enable_lvtma_control)(
+		struct dc_bios *bios,
+		uint8_t uc_pwr_on,
+		uint8_t panel_instance);
+
+	enum bp_result (*get_soc_bb_info)(
+		struct dc_bios *dcb,
+		struct bp_soc_bb_info *soc_bb_info);
+
+	enum bp_result (*get_disp_connector_caps_info)(
+			struct dc_bios *dcb,
+			struct graphics_object_id object_id,
+			struct bp_disp_connector_caps_info *info);
+	enum bp_result (*get_lttpr_caps)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
+	enum bp_result (*get_lttpr_interop)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
 };
 
 struct bios_registers {
@@ -156,6 +174,10 @@ struct dc_bios {
 	struct dc_context *ctx;
 	const struct bios_registers *regs;
 	struct integrated_info *integrated_info;
+	struct dc_firmware_info fw_info;
+	bool fw_info_valid;
+	struct dc_vram_info vram_info;
+	struct dc_golden_table golden_table;
 };
 
 #endif /* DC_BIOS_TYPES_H */

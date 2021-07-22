@@ -13,11 +13,10 @@
 #include "ext4_extents.h"
 
 /**
- * get_ext_path - Find an extent path for designated logical block number.
- *
- * @inode:	an inode which is searched
+ * get_ext_path() - Find an extent path for designated logical block number.
+ * @inode:	inode to be searched
  * @lblock:	logical block number to find an extent path
- * @path:	pointer to an extent path pointer (for output)
+ * @ppath:	pointer to an extent path pointer (for output)
  *
  * ext4_find_extent wrapper. Return 0 on success, or a negative error value
  * on failure.
@@ -42,8 +41,9 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 }
 
 /**
- * ext4_double_down_write_data_sem - Acquire two inodes' write lock
- *                                   of i_data_sem
+ * ext4_double_down_write_data_sem() - write lock two inodes's i_data_sem
+ * @first: inode to be locked
+ * @second: inode to be locked
  *
  * Acquire write lock of i_data_sem of the two inodes
  */
@@ -215,7 +215,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 	for (i = 0; i < nr; i++) {
 		bh = arr[i];
 		if (!bh_uptodate_or_lock(bh)) {
-			err = bh_submit_read(bh);
+			err = ext4_read_bh(bh, 0, NULL);
 			if (err)
 				return err;
 		}
@@ -390,7 +390,8 @@ data_copy:
 
 	/* Even in case of data=writeback it is reasonable to pin
 	 * inode to transaction, to prevent unexpected data loss */
-	*err = ext4_jbd2_inode_add_write(handle, orig_inode);
+	*err = ext4_jbd2_inode_add_write(handle, orig_inode,
+			(loff_t)orig_page_offset << PAGE_SHIFT, replaced_size);
 
 unlock_pages:
 	unlock_page(pagep[0]);
@@ -421,8 +422,8 @@ repair_branches:
 					   block_len_in_page, 0, &err2);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	if (replaced_count != block_len_in_page) {
-		EXT4_ERROR_INODE_BLOCK(orig_inode, (sector_t)(orig_blk_offset),
-				       "Unable to copy data block,"
+		ext4_error_inode_block(orig_inode, (sector_t)(orig_blk_offset),
+				       EIO, "Unable to copy data block,"
 				       " data will be lost.");
 		*err = -EIO;
 	}
@@ -592,8 +593,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		return -EOPNOTSUPP;
 	}
 
-	if (ext4_encrypted_inode(orig_inode) ||
-	    ext4_encrypted_inode(donor_inode)) {
+	if (IS_ENCRYPTED(orig_inode) || IS_ENCRYPTED(donor_inode)) {
 		ext4_msg(orig_inode->i_sb, KERN_ERR,
 			 "Online defrag not supported for encrypted files");
 		return -EOPNOTSUPP;
@@ -686,8 +686,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 
 out:
 	if (*moved_len) {
-		ext4_discard_preallocations(orig_inode);
-		ext4_discard_preallocations(donor_inode);
+		ext4_discard_preallocations(orig_inode, 0);
+		ext4_discard_preallocations(donor_inode, 0);
 	}
 
 	ext4_ext_drop_refs(path);

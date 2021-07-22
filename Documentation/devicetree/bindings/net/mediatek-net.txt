@@ -11,6 +11,8 @@ Required properties:
 		"mediatek,mt2701-eth": for MT2701 SoC
 		"mediatek,mt7623-eth", "mediatek,mt2701-eth": for MT7623 SoC
 		"mediatek,mt7622-eth": for MT7622 SoC
+		"mediatek,mt7629-eth": for MT7629 SoC
+		"ralink,rt5350-eth": for Ralink Rt5350F and MT7628/88 SoC
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the three frame engines interrupts in numeric
 	order. These are fe_int0, fe_int1 and fe_int2.
@@ -19,14 +21,23 @@ Required properties:
 	"ethif", "esw", "gp2", "gp1" : For MT2701 and MT7623 SoC
         "ethif", "esw", "gp0", "gp1", "gp2", "sgmii_tx250m", "sgmii_rx250m",
 	"sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck", "eth2pll" : For MT7622 SoC
+	"ethif", "sgmiitop", "esw", "gp0", "gp1", "gp2", "fe", "sgmii_tx250m",
+	"sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii2_tx250m",
+	"sgmii2_rx250m", "sgmii2_cdr_ref", "sgmii2_cdr_fb", "sgmii_ck",
+	"eth2pll" : For MT7629 SoC.
 - power-domains: phandle to the power domain that the ethernet is part of
 - resets: Should contain phandles to the ethsys reset signals
 - reset-names: Should contain the names of reset signal listed in the resets
 		property
 		These are "fe", "gmac" and "ppe"
 - mediatek,ethsys: phandle to the syscon node that handles the port setup
-- mediatek,sgmiisys: phandle to the syscon node that handles the SGMII setup
-	which is required for those SoCs equipped with SGMII such as MT7622 SoC.
+- mediatek,infracfg: phandle to the syscon node that handles the path from
+	GMAC to PHY variants, which is required for MT7629 SoC.
+- mediatek,sgmiisys: a list of phandles to the syscon node that handles the
+	SGMII setup which is required for those SoCs equipped with SGMII such
+	as MT7622 and MT7629 SoC. And MT7622 have only one set of SGMII shared
+	by GMAC1 and GMAC2; MT7629 have two independent sets of SGMII directed
+	to GMAC1 and GMAC2, respectively.
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
 	and driver current: only for MT2701 and MT7623 SoC
 

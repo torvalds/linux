@@ -46,9 +46,9 @@
 #define KEY_BUF_SIZE    5
 
 #define	RX_SMOOTH_FACTOR		20
-#define DMESG(x, a...)
-#define DMESGW(x, a...)
-#define DMESGE(x, a...)
+#define DMESG(x, a...)  no_printk(x, ##a)
+#define DMESGW(x, a...) no_printk(x, ##a)
+#define DMESGE(x, a...) no_printk(x, ##a)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 	do {							\
@@ -364,13 +364,13 @@ typedef enum _firmware_status {
 	FW_STATUS_5_READY = 5,
 } firmware_status_e;
 
-typedef struct _rt_firmare_seg_container {
+typedef struct _fw_seg_container {
 	u16	seg_size;
 	u8	*seg_ptr;
 } fw_seg_container, *pfw_seg_container;
 typedef struct _rt_firmware {
 	firmware_status_e firmware_status;
-	u16               cmdpacket_frag_thresold;
+	u16               cmdpacket_frag_threshold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000
 	u8                firmware_buf[RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16               firmware_buf_size;

@@ -15,17 +15,22 @@ SYNOPSIS
 	*OPTIONS* := { [{ **-j** | **--json** }] [{ **-p** | **--pretty** }] }
 
 	*COMMANDS* :=
-	{ **show** | **list** } [ **dev** name ] | **help**
+	{ **show** | **list** | **attach** | **detach** | **help** }
 
 NET COMMANDS
 ============
 
-|	**bpftool** **net { show | list } [ dev name ]**
+|	**bpftool** **net** { **show** | **list** } [ **dev** *NAME* ]
+|	**bpftool** **net attach** *ATTACH_TYPE* *PROG* **dev** *NAME* [ **overwrite** ]
+|	**bpftool** **net detach** *ATTACH_TYPE* **dev** *NAME*
 |	**bpftool** **net help**
+|
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*ATTACH_TYPE* := { **xdp** | **xdpgeneric** | **xdpdrv** | **xdpoffload** }
 
 DESCRIPTION
 ===========
-	**bpftool net { show | list } [ dev name ]**
+	**bpftool net { show | list }** [ **dev** *NAME* ]
                   List bpf program attachments in the kernel networking subsystem.
 
                   Currently, only device driver xdp attachments and tc filter
@@ -47,23 +52,30 @@ DESCRIPTION
                   all bpf programs attached to non clsact qdiscs, and finally all
                   bpf programs attached to root and clsact qdisc.
 
+	**bpftool** **net attach** *ATTACH_TYPE* *PROG* **dev** *NAME* [ **overwrite** ]
+                  Attach bpf program *PROG* to network interface *NAME* with
+                  type specified by *ATTACH_TYPE*. Previously attached bpf program
+                  can be replaced by the command used with **overwrite** option.
+                  Currently, only XDP-related modes are supported for *ATTACH_TYPE*.
+
+                  *ATTACH_TYPE* can be of:
+                  **xdp** - try native XDP and fallback to generic XDP if NIC driver does not support it;
+                  **xdpgeneric** - Generic XDP. runs at generic XDP hook when packet already enters receive path as skb;
+                  **xdpdrv** - Native XDP. runs earliest point in driver's receive path;
+                  **xdpoffload** - Offload XDP. runs directly on NIC on each packet reception;
+
+	**bpftool** **net detach** *ATTACH_TYPE* **dev** *NAME*
+                  Detach bpf program attached to network interface *NAME* with
+                  type specified by *ATTACH_TYPE*. To detach bpf program, same
+                  *ATTACH_TYPE* previously used for attach must be specified.
+                  Currently, only XDP-related modes are supported for *ATTACH_TYPE*.
+
 	**bpftool net help**
 		  Print short help message.
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-v, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
+	.. include:: common_options.rst
 
 EXAMPLES
 ========
@@ -133,7 +145,30 @@ EXAMPLES
         }
     ]
 
+|
+| **# bpftool net attach xdpdrv id 16 dev enp6s0np0**
+| **# bpftool net**
 
-SEE ALSO
-========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-map**\ (8)
+::
+
+      xdp:
+      enp6s0np0(4) driver id 16
+
+|
+| **# bpftool net attach xdpdrv id 16 dev enp6s0np0**
+| **# bpftool net attach xdpdrv id 20 dev enp6s0np0 overwrite**
+| **# bpftool net**
+
+::
+
+      xdp:
+      enp6s0np0(4) driver id 20
+
+|
+| **# bpftool net attach xdpdrv id 16 dev enp6s0np0**
+| **# bpftool net detach xdpdrv dev enp6s0np0**
+| **# bpftool net**
+
+::
+
+      xdp:

@@ -323,6 +323,33 @@ static const struct dmi_system_id i2c_hid_dmi_desc_override_table[] = {
 		.driver_data = (void *)&sipodev_desc
 	},
 	{
+		/*
+		 * There are at least 2 Primebook C11B versions, the older
+		 * version has a product-name of "Primebook C11B", and a
+		 * bios version / release / firmware revision of:
+		 * V2.1.2 / 05/03/2018 / 18.2
+		 * The new version has "PRIMEBOOK C11B" as product-name and a
+		 * bios version / release / firmware revision of:
+		 * CFALKSW05_BIOS_V1.1.2 / 11/19/2018 / 19.2
+		 * Only the older version needs this quirk, note the newer
+		 * version will not match as it has a different product-name.
+		 */
+		.ident = "Trekstor Primebook C11B",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Primebook C11B"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "Trekstor SURFBOOK E11B",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "SURFBOOK E11B"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
 		.ident = "Direkt-Tek DTLAPY116-2",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Direkt-Tek"),
@@ -331,10 +358,58 @@ static const struct dmi_system_id i2c_hid_dmi_desc_override_table[] = {
 		.driver_data = (void *)&sipodev_desc
 	},
 	{
+		.ident = "Direkt-Tek DTLAPY133-1",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Direkt-Tek"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "DTLAPY133-1"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
 		.ident = "Mediacom Flexbook Edge 11",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MEDIACOM"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "FlexBook edge11 - M-FBE11"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "Mediacom FlexBook edge 13",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MEDIACOM"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "FlexBook_edge13-M-FBE13"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "Odys Winbook 13",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "AXDIA International GmbH"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "WINBOOK 13"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "iBall Aer3",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "iBall"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Aer3"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "Schneider SCL142ALM",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "SCHNEIDER"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "SCL142ALM"),
+		},
+		.driver_data = (void *)&sipodev_desc
+	},
+	{
+		.ident = "Vero K147",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "VERO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "K147"),
 		},
 		.driver_data = (void *)&sipodev_desc
 	},

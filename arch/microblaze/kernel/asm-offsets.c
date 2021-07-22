@@ -70,8 +70,6 @@ int main(int argc, char *argv[])
 
 	/* struct task_struct */
 	DEFINE(TS_THREAD_INFO, offsetof(struct task_struct, stack));
-#ifdef CONFIG_MMU
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
 	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
 	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
 	DEFINE(TASK_BLOCKED, offsetof(struct task_struct, blocked));
@@ -84,7 +82,6 @@ int main(int argc, char *argv[])
 
 	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
 	BLANK();
-#endif
 
 	/* struct thread_info */
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));

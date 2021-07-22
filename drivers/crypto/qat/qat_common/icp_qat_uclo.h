@@ -1,55 +1,12 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #ifndef __ICP_QAT_UCLO_H__
 #define __ICP_QAT_UCLO_H__
 
 #define ICP_QAT_AC_895XCC_DEV_TYPE 0x00400000
 #define ICP_QAT_AC_C62X_DEV_TYPE   0x01000000
 #define ICP_QAT_AC_C3XXX_DEV_TYPE  0x02000000
+#define ICP_QAT_AC_4XXX_A_DEV_TYPE 0x08000000
 #define ICP_QAT_UCLO_MAX_AE       12
 #define ICP_QAT_UCLO_MAX_CTX      8
 #define ICP_QAT_UCLO_MAX_UIMAGE   (ICP_QAT_UCLO_MAX_AE * ICP_QAT_UCLO_MAX_CTX)
@@ -57,6 +14,7 @@
 #define ICP_QAT_UCLO_MAX_XFER_REG 128
 #define ICP_QAT_UCLO_MAX_GPR_REG  128
 #define ICP_QAT_UCLO_MAX_LMEM_REG 1024
+#define ICP_QAT_UCLO_MAX_LMEM_REG_2X 1280
 #define ICP_QAT_UCLO_AE_ALL_CTX   0xff
 #define ICP_QAT_UOF_OBJID_LEN     8
 #define ICP_QAT_UOF_FID 0xc6c2
@@ -75,26 +33,59 @@
 #define ICP_QAT_SUOF_FID  0x53554f46
 #define ICP_QAT_SUOF_MAJVER 0x0
 #define ICP_QAT_SUOF_MINVER 0x1
+#define ICP_QAT_SUOF_OBJ_NAME_LEN 128
+#define ICP_QAT_MOF_OBJ_ID_LEN 8
+#define ICP_QAT_MOF_OBJ_CHUNKID_LEN 8
+#define ICP_QAT_MOF_FID 0x00666f6d
+#define ICP_QAT_MOF_MAJVER 0x0
+#define ICP_QAT_MOF_MINVER 0x1
+#define ICP_QAT_MOF_SYM_OBJS "SYM_OBJS"
+#define ICP_QAT_SUOF_OBJS "SUF_OBJS"
+#define ICP_QAT_SUOF_IMAG "SUF_IMAG"
 #define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
 #define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
-#define ICP_QAT_CSS_FWSK_MODULUS_LEN    256
-#define ICP_QAT_CSS_FWSK_EXPONENT_LEN   4
-#define ICP_QAT_CSS_FWSK_PAD_LEN        252
-#define ICP_QAT_CSS_FWSK_PUB_LEN   (ICP_QAT_CSS_FWSK_MODULUS_LEN + \
-				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
-				    ICP_QAT_CSS_FWSK_PAD_LEN)
-#define ICP_QAT_CSS_SIGNATURE_LEN   256
+
+#define DSS_FWSK_MODULUS_LEN    384 /* RSA3K */
+#define DSS_FWSK_EXPONENT_LEN   4
+#define DSS_FWSK_PADDING_LEN    380
+#define DSS_SIGNATURE_LEN       384 /* RSA3K */
+
+#define CSS_FWSK_MODULUS_LEN    256 /* RSA2K */
+#define CSS_FWSK_EXPONENT_LEN   4
+#define CSS_FWSK_PADDING_LEN    252
+#define CSS_SIGNATURE_LEN       256 /* RSA2K */
+
+#define ICP_QAT_CSS_FWSK_MODULUS_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_MODULUS_LEN  : \
+						CSS_FWSK_MODULUS_LEN)
+
+#define ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_EXPONENT_LEN : \
+						CSS_FWSK_EXPONENT_LEN)
+
+#define ICP_QAT_CSS_FWSK_PAD_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_PADDING_LEN : \
+						CSS_FWSK_PADDING_LEN)
+
+#define ICP_QAT_CSS_FWSK_PUB_LEN(handle)	(ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
+						ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
+						ICP_QAT_CSS_FWSK_PAD_LEN(handle))
+
+#define ICP_QAT_CSS_SIGNATURE_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_SIGNATURE_LEN : \
+						CSS_SIGNATURE_LEN)
+
 #define ICP_QAT_CSS_AE_IMG_LEN     (sizeof(struct icp_qat_simg_ae_mode) + \
 				    ICP_QAT_SIMG_AE_INIT_SEQ_LEN +         \
 				    ICP_QAT_SIMG_AE_INSTS_LEN)
-#define ICP_QAT_CSS_AE_SIMG_LEN    (sizeof(struct icp_qat_css_hdr) + \
-				    ICP_QAT_CSS_FWSK_PUB_LEN + \
-				    ICP_QAT_CSS_SIGNATURE_LEN + \
-				    ICP_QAT_CSS_AE_IMG_LEN)
-#define ICP_QAT_AE_IMG_OFFSET	   (sizeof(struct icp_qat_css_hdr) + \
-				    ICP_QAT_CSS_FWSK_MODULUS_LEN + \
-				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
-				    ICP_QAT_CSS_SIGNATURE_LEN)
+#define ICP_QAT_CSS_AE_SIMG_LEN(handle) (sizeof(struct icp_qat_css_hdr) + \
+					ICP_QAT_CSS_FWSK_PUB_LEN(handle) + \
+					ICP_QAT_CSS_SIGNATURE_LEN(handle) + \
+					ICP_QAT_CSS_AE_IMG_LEN)
+#define ICP_QAT_AE_IMG_OFFSET(handle) (sizeof(struct icp_qat_css_hdr) + \
+					ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
+					ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
+					ICP_QAT_CSS_SIGNATURE_LEN(handle))
 #define ICP_QAT_CSS_MAX_IMAGE_LEN   0x40000
 
 #define ICP_QAT_CTX_MODE(ae_mode) ((ae_mode) & 0xf)
@@ -104,6 +95,9 @@
 
 #define ICP_QAT_LOC_MEM0_MODE(ae_mode) (((ae_mode) >> 0x8) & 0x1)
 #define ICP_QAT_LOC_MEM1_MODE(ae_mode) (((ae_mode) >> 0x9) & 0x1)
+#define ICP_QAT_LOC_MEM2_MODE(ae_mode) (((ae_mode) >> 0x6) & 0x1)
+#define ICP_QAT_LOC_MEM3_MODE(ae_mode) (((ae_mode) >> 0x7) & 0x1)
+#define ICP_QAT_LOC_TINDEX_MODE(ae_mode) (((ae_mode) >> 0xe) & 0x1)
 
 enum icp_qat_uof_mem_region {
 	ICP_QAT_UOF_SRAM_REGION = 0x0,
@@ -133,6 +127,8 @@ enum icp_qat_uof_regtype {
 	ICP_LMEM0	= 27,
 	ICP_LMEM1	= 28,
 	ICP_NEIGH_REL	= 31,
+	ICP_LMEM2	= 61,
+	ICP_LMEM3	= 62,
 };
 
 enum icp_qat_css_fwtype {
@@ -176,7 +172,7 @@ struct icp_qat_uof_encap_obj {
 struct icp_qat_uclo_encap_uwblock {
 	unsigned int start_addr;
 	unsigned int words_num;
-	uint64_t micro_words;
+	u64 micro_words;
 };
 
 struct icp_qat_uclo_encap_page {
@@ -215,7 +211,7 @@ struct icp_qat_uclo_objhdr {
 struct icp_qat_uof_strtable {
 	unsigned int table_len;
 	unsigned int reserved;
-	uint64_t strings;
+	u64 strings;
 };
 
 struct icp_qat_uclo_objhandle {
@@ -235,7 +231,7 @@ struct icp_qat_uclo_objhandle {
 	unsigned int ae_num;
 	unsigned int ustore_phy_size;
 	void *obj_buf;
-	uint64_t *uword_buf;
+	u64 *uword_buf;
 };
 
 struct icp_qat_uof_uword_block {
@@ -438,7 +434,7 @@ struct icp_qat_suof_handle {
 
 struct icp_qat_fw_auth_desc {
 	unsigned int   img_len;
-	unsigned int   reserved;
+	unsigned int   ae_mask;
 	unsigned int   css_hdr_high;
 	unsigned int   css_hdr_low;
 	unsigned int   img_high;
@@ -524,5 +520,65 @@ struct icp_qat_suof_strtable {
 struct icp_qat_suof_objhdr {
 	unsigned int img_length;
 	unsigned int reserved;
+};
+
+struct icp_qat_mof_file_hdr {
+	unsigned int file_id;
+	unsigned int checksum;
+	char min_ver;
+	char maj_ver;
+	unsigned short reserved;
+	unsigned short max_chunks;
+	unsigned short num_chunks;
+};
+
+struct icp_qat_mof_chunkhdr {
+	char chunk_id[ICP_QAT_MOF_OBJ_ID_LEN];
+	u64 offset;
+	u64 size;
+};
+
+struct icp_qat_mof_str_table {
+	unsigned int tab_len;
+	unsigned int strings;
+};
+
+struct icp_qat_mof_obj_hdr {
+	unsigned short max_chunks;
+	unsigned short num_chunks;
+	unsigned int reserved;
+};
+
+struct icp_qat_mof_obj_chunkhdr {
+	char chunk_id[ICP_QAT_MOF_OBJ_CHUNKID_LEN];
+	u64 offset;
+	u64 size;
+	unsigned int name;
+	unsigned int reserved;
+};
+
+struct icp_qat_mof_objhdr {
+	char *obj_name;
+	char *obj_buf;
+	unsigned int obj_size;
+};
+
+struct icp_qat_mof_table {
+	unsigned int num_objs;
+	struct icp_qat_mof_objhdr *obj_hdr;
+};
+
+struct icp_qat_mof_handle {
+	unsigned int file_id;
+	unsigned int checksum;
+	char min_ver;
+	char maj_ver;
+	char *mof_buf;
+	u32 mof_size;
+	char *sym_str;
+	unsigned int sym_size;
+	char *uobjs_hdr;
+	char *sobjs_hdr;
+	struct icp_qat_mof_table obj_table;
 };
 #endif

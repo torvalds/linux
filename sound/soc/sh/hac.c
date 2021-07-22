@@ -270,7 +270,6 @@ static const struct snd_soc_dai_ops hac_dai_ops = {
 static struct snd_soc_dai_driver sh4_hac_dai[] = {
 {
 	.name			= "hac-dai.0",
-	.bus_control		= true,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,

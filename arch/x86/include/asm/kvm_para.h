@@ -4,9 +4,8 @@
 
 #include <asm/processor.h>
 #include <asm/alternative.h>
+#include <linux/interrupt.h>
 #include <uapi/asm/kvm_para.h>
-
-extern void kvmclock_init(void);
 
 #ifdef CONFIG_KVM_GUEST
 bool kvm_check_and_clear_guest_paused(void);
@@ -18,7 +17,7 @@ static inline bool kvm_check_and_clear_guest_paused(void)
 #endif /* CONFIG_KVM_GUEST */
 
 #define KVM_HYPERCALL \
-        ALTERNATIVE(".byte 0x0f,0x01,0xc1", ".byte 0x0f,0x01,0xd9", X86_FEATURE_VMMCALL)
+        ALTERNATIVE("vmcall", "vmmcall", X86_FEATURE_VMMCALL)
 
 /* For KVM hypercalls, a three-byte sequence of either the vmcall or the vmmcall
  * instruction.  The hypervisor may replace it with something else but only the
@@ -85,13 +84,25 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 }
 
 #ifdef CONFIG_KVM_GUEST
+void kvmclock_init(void);
+void kvmclock_disable(void);
 bool kvm_para_available(void);
 unsigned int kvm_arch_para_features(void);
 unsigned int kvm_arch_para_hints(void);
-void kvm_async_pf_task_wait(u32 token, int interrupt_kernel);
+void kvm_async_pf_task_wait_schedule(u32 token);
 void kvm_async_pf_task_wake(u32 token);
-u32 kvm_read_and_reset_pf_reason(void);
-extern void kvm_disable_steal_time(void);
+u32 kvm_read_and_reset_apf_flags(void);
+bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token);
+
+DECLARE_STATIC_KEY_FALSE(kvm_async_pf_enabled);
+
+static __always_inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+{
+	if (static_branch_unlikely(&kvm_async_pf_enabled))
+		return __kvm_handle_async_pf(regs, token);
+	else
+		return false;
+}
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void __init kvm_spinlock_init(void);
@@ -102,7 +113,7 @@ static inline void kvm_spinlock_init(void)
 #endif /* CONFIG_PARAVIRT_SPINLOCKS */
 
 #else /* CONFIG_KVM_GUEST */
-#define kvm_async_pf_task_wait(T, I) do {} while(0)
+#define kvm_async_pf_task_wait_schedule(T) do {} while(0)
 #define kvm_async_pf_task_wake(T) do {} while(0)
 
 static inline bool kvm_para_available(void)
@@ -120,14 +131,14 @@ static inline unsigned int kvm_arch_para_hints(void)
 	return 0;
 }
 
-static inline u32 kvm_read_and_reset_pf_reason(void)
+static inline u32 kvm_read_and_reset_apf_flags(void)
 {
 	return 0;
 }
 
-static inline void kvm_disable_steal_time(void)
+static __always_inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
-	return;
+	return false;
 }
 #endif
 

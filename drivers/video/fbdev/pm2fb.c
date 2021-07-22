@@ -54,7 +54,7 @@
 #define DPRINTK(a, b...)	\
 	printk(KERN_DEBUG "pm2fb: %s: " a, __func__ , ## b)
 #else
-#define DPRINTK(a, b...)
+#define DPRINTK(a, b...)	no_printk(a, ##b)
 #endif
 
 #define PM2_PIXMAP_SIZE	(1600 * 4)
@@ -233,12 +233,13 @@ static u32 to3264(u32 timing, int bpp, int is64)
 	switch (bpp) {
 	case 24:
 		timing *= 3;
-		/* fall through */
+		fallthrough;
 	case 8:
 		timing >>= 1;
-		/* fall through */
+		fallthrough;
 	case 16:
 		timing >>= 1;
+		fallthrough;
 	case 32:
 		break;
 	}
@@ -1483,7 +1484,7 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
  *  Frame buffer operations
  */
 
-static struct fb_ops pm2fb_ops = {
+static const struct fb_ops pm2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pm2fb_check_var,
 	.fb_set_par	= pm2fb_set_par,
@@ -1507,8 +1508,8 @@ static struct fb_ops pm2fb_ops = {
  *
  * Initialise and allocate resource for PCI device.
  *
- * @param	pdev	PCI device.
- * @param	id	PCI device ID.
+ * @pdev:	PCI device.
+ * @id:		PCI device ID.
  */
 static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1563,7 +1564,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_exit_neither;
 	}
 	default_par->v_regs =
-		ioremap_nocache(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
+		ioremap(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
 	if (!default_par->v_regs) {
 		printk(KERN_WARNING "pm2fb: Can't remap %s register area.\n",
 		       pm2fb_fix.id);
@@ -1714,7 +1715,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  *
  * Release all device resources.
  *
- * @param	pdev	PCI device to clean up.
+ * @pdev:	PCI device to clean up.
  */
 static void pm2fb_remove(struct pci_dev *pdev)
 {
@@ -1755,7 +1756,7 @@ MODULE_DEVICE_TABLE(pci, pm2fb_id_table);
 
 
 #ifndef MODULE
-/**
+/*
  * Parse user specified options.
  *
  * This is, comma-separated options following `video=pm2fb:'.

@@ -15,35 +15,11 @@
 
 	aliases {
 		serial0 = &scif0;
-		ethernet0 = &avb;
+		ethernet0 = &gether;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-	};
-
-	memory@48000000 {
-		device_type = "memory";
-		/* first 128MB is reserved for secure area. */
-		reg = <0 0x48000000 0 0x78000000>;
-	};
-
-	d3_3v: regulator-0 {
-		compatible = "regulator-fixed";
-		regulator-name = "D3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddq_vin01: regulator-1 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDQ_VIN01";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	d1_8v: regulator-2 {
@@ -51,6 +27,15 @@
 		regulator-name = "D1.8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	d3_3v: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "D3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -90,27 +75,25 @@
 		};
 	};
 
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0 0x48000000 0 0x78000000>;
+	};
+
+	vddq_vin01: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDQ_VIN01";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	x1_clk: x1-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <148500000>;
-	};
-};
-
-&avb {
-	pinctrl-0 = <&avb_pins>;
-	pinctrl-names = "default";
-
-	phy-mode = "rgmii-id";
-	phy-handle = <&phy0>;
-	renesas,no-ether-link;
-	status = "okay";
-
-	phy0: ethernet-phy@0 {
-		rxc-skew-ps = <1500>;
-		reg = <0>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -137,6 +120,23 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
+};
+
+&gether {
+	pinctrl-0 = <&gether_pins>;
+	pinctrl-names = "default";
+
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy0>;
+	renesas,no-ether-link;
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		rxc-skew-ps = <1500>;
+		reg = <0>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+	};
 };
 
 &i2c0 {
@@ -174,8 +174,6 @@
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
@@ -212,13 +210,15 @@
 
 &mmc0 {
 	pinctrl-0 = <&mmc_pins>;
-	pinctrl-1 = <&mmc_pins_uhs>;
+	pinctrl-1 = <&mmc_pins>;
 	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&d3_3v>;
 	vqmmc-supply = <&vddq_vin01>;
 	mmc-hs200-1_8v;
 	bus-width = <8>;
+	no-sd;
+	no-sdio;
 	non-removable;
 	status = "okay";
 };
@@ -236,14 +236,15 @@
 };
 
 &pfc {
-	avb_pins: avb {
-		groups = "avb_mdio", "avb_rgmii";
-		function = "avb";
-	};
-
 	canfd0_pins: canfd0 {
 		groups = "canfd0_data_a";
 		function = "canfd0";
+	};
+
+	gether_pins: gether {
+		groups = "gether_mdio_a", "gether_rgmii",
+			 "gether_txcrefclk", "gether_txcrefclk_mega";
+		function = "gether";
 	};
 
 	i2c0_pins: i2c0 {
@@ -254,13 +255,12 @@
 	mmc_pins: mmc {
 		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
 		function = "mmc";
-		power-source = <3300>;
+		power-source = <1800>;
 	};
 
-	mmc_pins_uhs: mmc_uhs {
-		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
-		function = "mmc";
-		power-source = <1800>;
+	qspi0_pins: qspi0 {
+		groups = "qspi0_ctrl", "qspi0_data4";
+		function = "qspi0";
 	};
 
 	scif0_pins: scif0 {
@@ -271,6 +271,68 @@
 	scif_clk_pins: scif_clk {
 		groups = "scif_clk_b";
 		function = "scif_clk";
+	};
+};
+
+&rpc {
+	pinctrl-0 = <&qspi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash@0 {
+		compatible = "spansion,s25fs512s", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-rx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			bootparam@0 {
+				reg = <0x00000000 0x040000>;
+				read-only;
+			};
+			cr7@40000 {
+				reg = <0x00040000 0x080000>;
+				read-only;
+			};
+			cert_header_sa3@c0000 {
+				reg = <0x000c0000 0x080000>;
+				read-only;
+			};
+			bl2@140000 {
+				reg = <0x00140000 0x040000>;
+				read-only;
+			};
+			cert_header_sa6@180000 {
+				reg = <0x00180000 0x040000>;
+				read-only;
+			};
+			bl31@1c0000 {
+				reg = <0x001c0000 0x460000>;
+				read-only;
+			};
+			uboot@640000 {
+				reg = <0x00640000 0x0c0000>;
+				read-only;
+			};
+			uboot-env@700000 {
+				reg = <0x00700000 0x040000>;
+				read-only;
+			};
+			dtb@740000 {
+				reg = <0x00740000 0x080000>;
+			};
+			kernel@7c0000 {
+				reg = <0x007c0000 0x1400000>;
+			};
+			user@1bc0000 {
+				reg = <0x01bc0000 0x2440000>;
+			};
+		};
 	};
 };
 

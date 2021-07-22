@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
  *
  * Based on reduced version of METAG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 
@@ -32,8 +29,6 @@ static void __init arc_set_early_base_baud(unsigned long dt_root)
 	else if (of_flat_dt_is_compatible(dt_root, "snps,arc-sdp") ||
 		 of_flat_dt_is_compatible(dt_root, "snps,hsdk"))
 		arc_base_baud = 33333333;	/* Fixed 33MHz clk (AXS10x & HSDK) */
-	else if (of_flat_dt_is_compatible(dt_root, "ezchip,arc-nps"))
-		arc_base_baud = 800000000;      /* Fixed 800MHz clk (NPS) */
 	else
 		arc_base_baud = 50000000;	/* Fixed default 50MHz */
 }

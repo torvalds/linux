@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * algif_aead: User-space interface for AEAD algorithms
  *
  * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
  *
  * This file provides the user-space API for AEAD ciphers.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * The following concept of the memory management is used:
  *
@@ -82,7 +78,7 @@ static int crypto_aead_copy_sgl(struct crypto_sync_skcipher *null_tfm,
 	SYNC_SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
 
 	skcipher_request_set_sync_tfm(skreq, null_tfm);
-	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_BACKLOG,
+	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_SLEEP,
 				      NULL, NULL);
 	skcipher_request_set_crypt(skreq, src, dst, len, NULL);
 
@@ -110,8 +106,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	size_t usedpages = 0;		/* [in]  RX bufs to be used from user */
 	size_t processed = 0;		/* [in]  TX bufs to be consumed */
 
-	if (!ctx->used) {
-		err = af_alg_wait_for_data(sk, flags);
+	if (!ctx->init || ctx->more) {
+		err = af_alg_wait_for_data(sk, flags, 0);
 		if (err)
 			return err;
 	}
@@ -124,7 +120,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	/*
 	 * Make sure sufficient data is present -- note, the same check is
-	 * is also present in sendmsg/sendpage. The checks in sendpage/sendmsg
+	 * also present in sendmsg/sendpage. The checks in sendpage/sendmsg
 	 * shall provide an information to the data sender that something is
 	 * wrong, but they are irrelevant to maintain the kernel integrity.
 	 * We need this check here too in case user space decides to not honor
@@ -295,19 +291,20 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		areq->outlen = outlen;
 
 		aead_request_set_callback(&areq->cra_u.aead_req,
-					  CRYPTO_TFM_REQ_MAY_BACKLOG,
+					  CRYPTO_TFM_REQ_MAY_SLEEP,
 					  af_alg_async_cb, areq);
 		err = ctx->enc ? crypto_aead_encrypt(&areq->cra_u.aead_req) :
 				 crypto_aead_decrypt(&areq->cra_u.aead_req);
 
 		/* AIO operation in progress */
-		if (err == -EINPROGRESS || err == -EBUSY)
+		if (err == -EINPROGRESS)
 			return -EIOCBQUEUED;
 
 		sock_put(sk);
 	} else {
 		/* Synchronous operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
+					  CRYPTO_TFM_REQ_MAY_SLEEP |
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  crypto_req_done, &ctx->wait);
 		err = crypto_wait_req(ctx->enc ?
@@ -365,11 +362,9 @@ static struct proto_ops algif_aead_ops = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg,
@@ -388,7 +383,7 @@ static int aead_check_key(struct socket *sock)
 	struct alg_sock *ask = alg_sk(sk);
 
 	lock_sock(sk);
-	if (ask->refcnt)
+	if (!atomic_read(&ask->nokey_refcnt))
 		goto unlock_child;
 
 	psk = ask->parent;
@@ -400,11 +395,8 @@ static int aead_check_key(struct socket *sock)
 	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
 		goto unlock;
 
-	if (!pask->refcnt++)
-		sock_hold(psk);
-
-	ask->refcnt = 1;
-	sock_put(psk);
+	atomic_dec(&pask->nokey_refcnt);
+	atomic_set(&ask->nokey_refcnt, 0);
 
 	err = 0;
 
@@ -461,11 +453,9 @@ static struct proto_ops algif_aead_ops_nokey = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg_nokey,
@@ -565,12 +555,6 @@ static int aead_accept_parent_nokey(void *private, struct sock *sk)
 
 	INIT_LIST_HEAD(&ctx->tsgl_list);
 	ctx->len = len;
-	ctx->used = 0;
-	atomic_set(&ctx->rcvused, 0);
-	ctx->more = 0;
-	ctx->merge = 0;
-	ctx->enc = 0;
-	ctx->aead_assoclen = 0;
 	crypto_init_wait(&ctx->wait);
 
 	ask->private = ctx;

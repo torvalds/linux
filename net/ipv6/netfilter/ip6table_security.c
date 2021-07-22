@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * "security" table for IPv6
  *
@@ -10,10 +11,6 @@
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  * Copyright (C) 2000-2004 Netfilter Core Team <coreteam <at> netfilter.org>
  * Copyright (C) 2008 Red Hat, Inc., James Morris <jmorris <at> redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
@@ -42,7 +39,7 @@ static unsigned int
 ip6table_security_hook(void *priv, struct sk_buff *skb,
 		       const struct nf_hook_state *state)
 {
-	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_security);
+	return ip6t_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;
@@ -52,27 +49,26 @@ static int __net_init ip6table_security_table_init(struct net *net)
 	struct ip6t_replace *repl;
 	int ret;
 
-	if (net->ipv6.ip6table_security)
-		return 0;
-
 	repl = ip6t_alloc_initial_table(&security_table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ip6t_register_table(net, &security_table, repl, sectbl_ops,
-				  &net->ipv6.ip6table_security);
+	ret = ip6t_register_table(net, &security_table, repl, sectbl_ops);
 	kfree(repl);
 	return ret;
 }
 
+static void __net_exit ip6table_security_net_pre_exit(struct net *net)
+{
+	ip6t_unregister_table_pre_exit(net, "security");
+}
+
 static void __net_exit ip6table_security_net_exit(struct net *net)
 {
-	if (!net->ipv6.ip6table_security)
-		return;
-	ip6t_unregister_table(net, net->ipv6.ip6table_security, sectbl_ops);
-	net->ipv6.ip6table_security = NULL;
+	ip6t_unregister_table_exit(net, "security");
 }
 
 static struct pernet_operations ip6table_security_net_ops = {
+	.pre_exit = ip6table_security_net_pre_exit,
 	.exit = ip6table_security_net_exit,
 };
 

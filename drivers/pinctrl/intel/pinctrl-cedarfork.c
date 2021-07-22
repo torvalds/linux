@@ -6,7 +6,7 @@
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -91,13 +91,13 @@ static const struct pinctrl_pin_desc cdf_pins[] = {
 	PINCTRL_PIN(43, "MEMTRIP_N"),
 	PINCTRL_PIN(44, "UART0_RXD"),
 	PINCTRL_PIN(45, "UART0_TXD"),
-	PINCTRL_PIN(46, "UART1_RXD"),
-	PINCTRL_PIN(47, "UART1_TXD"),
+	PINCTRL_PIN(46, "GBE_UART_RXD"),
+	PINCTRL_PIN(47, "GBE_UART_TXD"),
 	/* WEST01 */
 	PINCTRL_PIN(48, "GBE_GPIO13"),
 	PINCTRL_PIN(49, "AUX_PWR"),
-	PINCTRL_PIN(50, "CPU_GP_2"),
-	PINCTRL_PIN(51, "CPU_GP_3"),
+	PINCTRL_PIN(50, "UART0_RTS"),
+	PINCTRL_PIN(51, "UART0_CTS"),
 	PINCTRL_PIN(52, "FAN_PWM_0"),
 	PINCTRL_PIN(53, "FAN_PWM_1"),
 	PINCTRL_PIN(54, "FAN_PWM_2"),
@@ -201,8 +201,8 @@ static const struct pinctrl_pin_desc cdf_pins[] = {
 	/* WESTF */
 	PINCTRL_PIN(145, "NAC_RMII_CLK"),
 	PINCTRL_PIN(146, "NAC_RGMII_CLK"),
-	PINCTRL_PIN(147, "NAC_SPARE0"),
-	PINCTRL_PIN(148, "NAC_SPARE1"),
+	PINCTRL_PIN(147, "NAC_GBE_SMB_CLK_TX_N2S"),
+	PINCTRL_PIN(148, "NAC_GBE_SMB_DATA_TX_N2S"),
 	PINCTRL_PIN(149, "NAC_SPARE2"),
 	PINCTRL_PIN(150, "NAC_INIT_SX_WAKE_N"),
 	PINCTRL_PIN(151, "NAC_GBE_GPIO0_S2N"),
@@ -219,8 +219,8 @@ static const struct pinctrl_pin_desc cdf_pins[] = {
 	PINCTRL_PIN(162, "NAC_NCSI_TXD1"),
 	PINCTRL_PIN(163, "NAC_NCSI_ARB_OUT"),
 	PINCTRL_PIN(164, "NAC_NCSI_OE_N"),
-	PINCTRL_PIN(165, "NAC_GBE_SMB_CLK"),
-	PINCTRL_PIN(166, "NAC_GBE_SMB_DATA"),
+	PINCTRL_PIN(165, "NAC_GBE_SMB_CLK_RX_S2N"),
+	PINCTRL_PIN(166, "NAC_GBE_SMB_DATA_RX_S2N"),
 	PINCTRL_PIN(167, "NAC_GBE_SMB_ALRT_N"),
 	/* EAST2 */
 	PINCTRL_PIN(168, "USB_OC0_N"),
@@ -232,7 +232,7 @@ static const struct pinctrl_pin_desc cdf_pins[] = {
 	PINCTRL_PIN(174, "GBE_GPIO5"),
 	PINCTRL_PIN(175, "GBE_GPIO6"),
 	PINCTRL_PIN(176, "GBE_GPIO7"),
-	PINCTRL_PIN(177, "GBE_GPIO8"),
+	PINCTRL_PIN(177, "SPI_TPM_CS_N"),
 	PINCTRL_PIN(178, "GBE_GPIO9"),
 	PINCTRL_PIN(179, "GBE_GPIO10"),
 	PINCTRL_PIN(180, "GBE_GPIO11"),
@@ -330,21 +330,16 @@ static const struct intel_pinctrl_soc_data cdf_soc_data = {
 	.ncommunities = ARRAY_SIZE(cdf_communities),
 };
 
-static int cdf_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe(pdev, &cdf_soc_data);
-}
-
 static INTEL_PINCTRL_PM_OPS(cdf_pinctrl_pm_ops);
 
 static const struct acpi_device_id cdf_pinctrl_acpi_match[] = {
-	{ "INTC3001" },
+	{ "INTC3001", (kernel_ulong_t)&cdf_soc_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cdf_pinctrl_acpi_match);
 
 static struct platform_driver cdf_pinctrl_driver = {
-	.probe = cdf_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "cedarfork-pinctrl",
 		.acpi_match_table = cdf_pinctrl_acpi_match,

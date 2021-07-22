@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *   Copyright (C) 2010-2012 Hans de Goede <hdegoede@redhat.com>           *
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -25,7 +12,6 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include "sch56xx-common.h"
@@ -78,8 +64,6 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 
 struct sch5627_data {
 	unsigned short addr;
-	struct device *hwmon_dev;
-	struct sch56xx_watchdog_data *watchdog;
 	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
 	u8 temp_crit[SCH5627_NO_TEMPS];
@@ -87,66 +71,96 @@ struct sch5627_data {
 
 	struct mutex update_lock;
 	unsigned long last_battery;	/* In jiffies */
-	char valid;			/* !=0 if following fields are valid */
-	unsigned long last_updated;	/* In jiffies */
+	char temp_valid;		/* !=0 if following fields are valid */
+	char fan_valid;
+	char in_valid;
+	unsigned long temp_last_updated;	/* In jiffies */
+	unsigned long fan_last_updated;
+	unsigned long in_last_updated;
 	u16 temp[SCH5627_NO_TEMPS];
 	u16 fan[SCH5627_NO_FANS];
 	u16 in[SCH5627_NO_IN];
 };
 
-static struct sch5627_data *sch5627_update_device(struct device *dev)
+static int sch5627_update_temp(struct sch5627_data *data)
 {
-	struct sch5627_data *data = dev_get_drvdata(dev);
-	struct sch5627_data *ret = data;
+	int ret = 0;
+	int i, val;
+
+	mutex_lock(&data->update_lock);
+
+	/* Cache the values for 1 second */
+	if (time_after(jiffies, data->temp_last_updated + HZ) || !data->temp_valid) {
+		for (i = 0; i < SCH5627_NO_TEMPS; i++) {
+			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_TEMP_MSB[i],
+							 SCH5627_REG_TEMP_LSN[i],
+							 SCH5627_REG_TEMP_HIGH_NIBBLE[i]);
+			if (unlikely(val < 0)) {
+				ret = val;
+				goto abort;
+			}
+			data->temp[i] = val;
+		}
+		data->temp_last_updated = jiffies;
+		data->temp_valid = 1;
+	}
+abort:
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
+static int sch5627_update_fan(struct sch5627_data *data)
+{
+	int ret = 0;
+	int i, val;
+
+	mutex_lock(&data->update_lock);
+
+	/* Cache the values for 1 second */
+	if (time_after(jiffies, data->fan_last_updated + HZ) || !data->fan_valid) {
+		for (i = 0; i < SCH5627_NO_FANS; i++) {
+			val = sch56xx_read_virtual_reg16(data->addr, SCH5627_REG_FAN[i]);
+			if (unlikely(val < 0)) {
+				ret = val;
+				goto abort;
+			}
+			data->fan[i] = val;
+		}
+		data->fan_last_updated = jiffies;
+		data->fan_valid = 1;
+	}
+abort:
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
+static int sch5627_update_in(struct sch5627_data *data)
+{
+	int ret = 0;
 	int i, val;
 
 	mutex_lock(&data->update_lock);
 
 	/* Trigger a Vbat voltage measurement every 5 minutes */
 	if (time_after(jiffies, data->last_battery + 300 * HZ)) {
-		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
-					  data->control | 0x10);
+		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | 0x10);
 		data->last_battery = jiffies;
 	}
 
 	/* Cache the values for 1 second */
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		for (i = 0; i < SCH5627_NO_TEMPS; i++) {
-			val = sch56xx_read_virtual_reg12(data->addr,
-				SCH5627_REG_TEMP_MSB[i],
-				SCH5627_REG_TEMP_LSN[i],
-				SCH5627_REG_TEMP_HIGH_NIBBLE[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->temp[i] = val;
-		}
-
-		for (i = 0; i < SCH5627_NO_FANS; i++) {
-			val = sch56xx_read_virtual_reg16(data->addr,
-							 SCH5627_REG_FAN[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->fan[i] = val;
-		}
-
+	if (time_after(jiffies, data->in_last_updated + HZ) || !data->in_valid) {
 		for (i = 0; i < SCH5627_NO_IN; i++) {
-			val = sch56xx_read_virtual_reg12(data->addr,
-				SCH5627_REG_IN_MSB[i],
-				SCH5627_REG_IN_LSN[i],
-				SCH5627_REG_IN_HIGH_NIBBLE[i]);
+			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_IN_MSB[i],
+							 SCH5627_REG_IN_LSN[i],
+							 SCH5627_REG_IN_HIGH_NIBBLE[i]);
 			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
+				ret = val;
 				goto abort;
 			}
 			data->in[i] = val;
 		}
-
-		data->last_updated = jiffies;
-		data->valid = 1;
+		data->in_last_updated = jiffies;
+		data->in_valid = 1;
 	}
 abort:
 	mutex_unlock(&data->update_lock);
@@ -205,269 +219,147 @@ static int reg_to_rpm(u16 reg)
 	return 5400540 / reg;
 }
 
-static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
-	char *buf)
+static umode_t sch5627_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
+				  int channel)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
+	return 0444;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
+			long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = sch5627_update_device(dev);
-	int val;
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	val = reg_to_temp(data->temp[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-
-static ssize_t show_temp_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = sch5627_update_device(dev);
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", data->temp[attr->index] == 0);
-}
-
-static ssize_t show_temp_max(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5627_data *data = dev_get_drvdata(dev);
-	int val;
+	int ret;
 
-	val = reg_to_temp_limit(data->temp_max[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	switch (type) {
+	case hwmon_temp:
+		ret = sch5627_update_temp(data);
+		if (ret < 0)
+			return ret;
+		switch (attr) {
+		case hwmon_temp_input:
+			*val = reg_to_temp(data->temp[channel]);
+			return 0;
+		case hwmon_temp_max:
+			*val = reg_to_temp_limit(data->temp_max[channel]);
+			return 0;
+		case hwmon_temp_crit:
+			*val = reg_to_temp_limit(data->temp_crit[channel]);
+			return 0;
+		case hwmon_temp_fault:
+			*val = (data->temp[channel] == 0);
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		ret = sch5627_update_fan(data);
+		if (ret < 0)
+			return ret;
+		switch (attr) {
+		case hwmon_fan_input:
+			ret = reg_to_rpm(data->fan[channel]);
+			if (ret < 0)
+				return ret;
+			*val = ret;
+			return 0;
+		case hwmon_fan_min:
+			ret = reg_to_rpm(data->fan_min[channel]);
+			if (ret < 0)
+				return ret;
+			*val = ret;
+			return 0;
+		case hwmon_fan_fault:
+			*val = (data->fan[channel] == 0xffff);
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_in:
+		ret = sch5627_update_in(data);
+		if (ret < 0)
+			return ret;
+		switch (attr) {
+		case hwmon_in_input:
+			*val = DIV_ROUND_CLOSEST(data->in[channel] * SCH5627_REG_IN_FACTOR[channel],
+						 10000);
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
-static ssize_t show_temp_crit(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static int sch5627_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+			       int channel, const char **str)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = dev_get_drvdata(dev);
-	int val;
+	switch (type) {
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_label:
+			*str = SCH5627_IN_LABELS[channel];
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
 
-	val = reg_to_temp_limit(data->temp_crit[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return -EOPNOTSUPP;
 }
 
-static ssize_t show_fan(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = sch5627_update_device(dev);
-	int val;
+static const struct hwmon_ops sch5627_ops = {
+	.is_visible = sch5627_is_visible,
+	.read = sch5627_read,
+	.read_string = sch5627_read_string,
+};
 
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	val = reg_to_rpm(data->fan[attr->index]);
-	if (val < 0)
-		return val;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-
-static ssize_t show_fan_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = sch5627_update_device(dev);
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			data->fan[attr->index] == 0xffff);
-}
-
-static ssize_t show_fan_min(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = dev_get_drvdata(dev);
-	int val = reg_to_rpm(data->fan_min[attr->index]);
-	if (val < 0)
-		return val;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-
-static ssize_t show_in(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct sch5627_data *data = sch5627_update_device(dev);
-	int val;
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	val = DIV_ROUND_CLOSEST(
-		data->in[attr->index] * SCH5627_REG_IN_FACTOR[attr->index],
-		10000);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-
-static ssize_t show_in_label(struct device *dev, struct device_attribute
-	*devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			SCH5627_IN_LABELS[attr->index]);
-}
-
-static DEVICE_ATTR_RO(name);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp5_input, S_IRUGO, show_temp, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp6_input, S_IRUGO, show_temp, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp7_input, S_IRUGO, show_temp, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp8_input, S_IRUGO, show_temp, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, show_temp_fault, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_temp_fault, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_temp_fault, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp4_fault, S_IRUGO, show_temp_fault, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp5_fault, S_IRUGO, show_temp_fault, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp6_fault, S_IRUGO, show_temp_fault, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp7_fault, S_IRUGO, show_temp_fault, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp8_fault, S_IRUGO, show_temp_fault, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp_max, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO, show_temp_max, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO, show_temp_max, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp4_max, S_IRUGO, show_temp_max, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp5_max, S_IRUGO, show_temp_max, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp6_max, S_IRUGO, show_temp_max, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp7_max, S_IRUGO, show_temp_max, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp8_max, S_IRUGO, show_temp_max, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp_crit, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_crit, S_IRUGO, show_temp_crit, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp4_crit, S_IRUGO, show_temp_crit, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp5_crit, S_IRUGO, show_temp_crit, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp6_crit, S_IRUGO, show_temp_crit, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp7_crit, S_IRUGO, show_temp_crit, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp8_crit, S_IRUGO, show_temp_crit, NULL, 7);
-
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_input, S_IRUGO, show_fan, NULL, 3);
-static SENSOR_DEVICE_ATTR(fan1_fault, S_IRUGO, show_fan_fault, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_fault, S_IRUGO, show_fan_fault, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_fault, S_IRUGO, show_fan_fault, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_fault, S_IRUGO, show_fan_fault, NULL, 3);
-static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO, show_fan_min, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO, show_fan_min, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_min, S_IRUGO, show_fan_min, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_min, S_IRUGO, show_fan_min, NULL, 3);
-
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_in, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_in, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_in, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_in, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_in, NULL, 4);
-static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, show_in_label, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, show_in_label, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_label, S_IRUGO, show_in_label, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, show_in_label, NULL, 3);
-
-static struct attribute *sch5627_attributes[] = {
-	&dev_attr_name.attr,
-
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp5_input.dev_attr.attr,
-	&sensor_dev_attr_temp6_input.dev_attr.attr,
-	&sensor_dev_attr_temp7_input.dev_attr.attr,
-	&sensor_dev_attr_temp8_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_fault.dev_attr.attr,
-	&sensor_dev_attr_temp2_fault.dev_attr.attr,
-	&sensor_dev_attr_temp3_fault.dev_attr.attr,
-	&sensor_dev_attr_temp4_fault.dev_attr.attr,
-	&sensor_dev_attr_temp5_fault.dev_attr.attr,
-	&sensor_dev_attr_temp6_fault.dev_attr.attr,
-	&sensor_dev_attr_temp7_fault.dev_attr.attr,
-	&sensor_dev_attr_temp8_fault.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp3_max.dev_attr.attr,
-	&sensor_dev_attr_temp4_max.dev_attr.attr,
-	&sensor_dev_attr_temp5_max.dev_attr.attr,
-	&sensor_dev_attr_temp6_max.dev_attr.attr,
-	&sensor_dev_attr_temp7_max.dev_attr.attr,
-	&sensor_dev_attr_temp8_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit.dev_attr.attr,
-	&sensor_dev_attr_temp5_crit.dev_attr.attr,
-	&sensor_dev_attr_temp6_crit.dev_attr.attr,
-	&sensor_dev_attr_temp7_crit.dev_attr.attr,
-	&sensor_dev_attr_temp8_crit.dev_attr.attr,
-
-	&sensor_dev_attr_fan1_input.dev_attr.attr,
-	&sensor_dev_attr_fan2_input.dev_attr.attr,
-	&sensor_dev_attr_fan3_input.dev_attr.attr,
-	&sensor_dev_attr_fan4_input.dev_attr.attr,
-	&sensor_dev_attr_fan1_fault.dev_attr.attr,
-	&sensor_dev_attr_fan2_fault.dev_attr.attr,
-	&sensor_dev_attr_fan3_fault.dev_attr.attr,
-	&sensor_dev_attr_fan4_fault.dev_attr.attr,
-	&sensor_dev_attr_fan1_min.dev_attr.attr,
-	&sensor_dev_attr_fan2_min.dev_attr.attr,
-	&sensor_dev_attr_fan3_min.dev_attr.attr,
-	&sensor_dev_attr_fan4_min.dev_attr.attr,
-
-	&sensor_dev_attr_in0_input.dev_attr.attr,
-	&sensor_dev_attr_in1_input.dev_attr.attr,
-	&sensor_dev_attr_in2_input.dev_attr.attr,
-	&sensor_dev_attr_in3_input.dev_attr.attr,
-	&sensor_dev_attr_in4_input.dev_attr.attr,
-	&sensor_dev_attr_in0_label.dev_attr.attr,
-	&sensor_dev_attr_in1_label.dev_attr.attr,
-	&sensor_dev_attr_in2_label.dev_attr.attr,
-	&sensor_dev_attr_in3_label.dev_attr.attr,
-	/* No in4_label as in4 is a generic input pin */
-
+static const struct hwmon_channel_info *sch5627_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_FAULT
+			   ),
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_FAULT
+			   ),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT
+			   ),
 	NULL
 };
 
-static const struct attribute_group sch5627_group = {
-	.attrs = sch5627_attributes,
+static const struct hwmon_chip_info sch5627_chip_info = {
+	.ops = &sch5627_ops,
+	.info = sch5627_info,
 };
-
-static int sch5627_remove(struct platform_device *pdev)
-{
-	struct sch5627_data *data = platform_get_drvdata(pdev);
-
-	if (data->watchdog)
-		sch56xx_watchdog_unregister(data->watchdog);
-
-	if (data->hwmon_dev)
-		hwmon_device_unregister(data->hwmon_dev);
-
-	sysfs_remove_group(&pdev->dev.kobj, &sch5627_group);
-
-	return 0;
-}
 
 static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
+	struct device *hwmon_dev;
 	int err, build_code, build_id, hwmon_rev, val;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
@@ -480,72 +372,58 @@ static int sch5627_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_HWMON_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_HWMON_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "hwmon",
 		       val, SCH5627_HWMON_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_COMPANY_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_COMPANY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "company",
 		       val, SCH5627_COMPANY_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PRIMARY_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_PRIMARY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "primary",
 		       val, SCH5627_PRIMARY_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	build_code = sch56xx_read_virtual_reg(data->addr,
 					      SCH5627_REG_BUILD_CODE);
-	if (build_code < 0) {
-		err = build_code;
-		goto error;
-	}
+	if (build_code < 0)
+		return build_code;
 
 	build_id = sch56xx_read_virtual_reg16(data->addr,
 					      SCH5627_REG_BUILD_ID);
-	if (build_id < 0) {
-		err = build_id;
-		goto error;
-	}
+	if (build_id < 0)
+		return build_id;
 
 	hwmon_rev = sch56xx_read_virtual_reg(data->addr,
 					     SCH5627_REG_HWMON_REV);
-	if (hwmon_rev < 0) {
-		err = hwmon_rev;
-		goto error;
-	}
+	if (hwmon_rev < 0)
+		return hwmon_rev;
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_CTRL);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	data->control = val;
 	if (!(data->control & 0x01)) {
 		pr_err("hardware monitoring not enabled\n");
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 	/* Trigger a Vbat voltage measurement, so that we get a valid reading
 	   the first time we read Vbat */
@@ -559,34 +437,23 @@ static int sch5627_probe(struct platform_device *pdev)
 	 */
 	err = sch5627_read_limits(data);
 	if (err)
-		goto error;
+		return err;
 
 	pr_info("found %s chip at %#hx\n", DEVNAME, data->addr);
 	pr_info("firmware build: code 0x%02X, id 0x%04X, hwmon: rev 0x%02X\n",
 		build_code, build_id, hwmon_rev);
 
-	/* Register sysfs interface files */
-	err = sysfs_create_group(&pdev->dev.kobj, &sch5627_group);
-	if (err)
-		goto error;
-
-	data->hwmon_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		data->hwmon_dev = NULL;
-		goto error;
-	}
+	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, DEVNAME, data,
+							 &sch5627_chip_info, NULL);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
 	/* Note failing to register the watchdog is not a fatal error */
-	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
-			(build_code << 24) | (build_id << 8) | hwmon_rev,
-			&data->update_lock, 1);
+	sch56xx_watchdog_register(&pdev->dev, data->addr,
+				  (build_code << 24) | (build_id << 8) | hwmon_rev,
+				  &data->update_lock, 1);
 
 	return 0;
-
-error:
-	sch5627_remove(pdev);
-	return err;
 }
 
 static struct platform_driver sch5627_driver = {
@@ -594,7 +461,6 @@ static struct platform_driver sch5627_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5627_probe,
-	.remove		= sch5627_remove,
 };
 
 module_platform_driver(sch5627_driver);

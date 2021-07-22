@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Apple Onboard Audio driver -- layout/machine id fabric
  *
  * Copyright 2006-2008 Johannes Berg <johannes@sipsolutions.net>
- *
- * GPL v2, can be found in COPYING.
- *
  *
  * This fabric module looks for sound codecs based on the
  * layout-id or device-id property in the device tree.
@@ -657,7 +655,7 @@ static int n##_control_put(struct snd_kcontrol *kcontrol,		\
 			!!ucontrol->value.integer.value[0]);		\
 	return 1;							\
 }									\
-static struct snd_kcontrol_new n##_ctl = {				\
+static const struct snd_kcontrol_new n##_ctl = {			\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,				\
 	.name = description,						\
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,                      \
@@ -776,7 +774,7 @@ static int check_codec(struct aoa_codec *codec,
 	struct codec_connection *cc;
 
 	/* if the codec has a 'codec' node, we require a reference */
-	if (codec->node && (strcmp(codec->node->name, "codec") == 0)) {
+	if (of_node_name_eq(codec->node, "codec")) {
 		snprintf(propname, sizeof(propname),
 			 "platform-%s-codec-ref", codec->name);
 		ref = of_get_property(ldev->sound, propname, NULL);
@@ -950,7 +948,7 @@ static void layout_attached_codec(struct aoa_codec *codec)
 				ldev->gpio.methods->set_lineout(codec->gpio, 1);
 			ctl = snd_ctl_new1(&lineout_ctl, codec->gpio);
 			if (cc->connected & CC_LINEOUT_LABELLED_HEADPHONE)
-				strlcpy(ctl->id.name,
+				strscpy(ctl->id.name,
 					"Headphone Switch", sizeof(ctl->id.name));
 			ldev->lineout_ctrl = ctl;
 			aoa_snd_ctl_add(ctl);
@@ -964,14 +962,14 @@ static void layout_attached_codec(struct aoa_codec *codec)
 				ctl = snd_ctl_new1(&lineout_detect_choice,
 						   ldev);
 				if (cc->connected & CC_LINEOUT_LABELLED_HEADPHONE)
-					strlcpy(ctl->id.name,
+					strscpy(ctl->id.name,
 						"Headphone Detect Autoswitch",
 						sizeof(ctl->id.name));
 				aoa_snd_ctl_add(ctl);
 				ctl = snd_ctl_new1(&lineout_detected,
 						   ldev);
 				if (cc->connected & CC_LINEOUT_LABELLED_HEADPHONE)
-					strlcpy(ctl->id.name,
+					strscpy(ctl->id.name,
 						"Headphone Detected",
 						sizeof(ctl->id.name));
 				ldev->lineout_detected_ctrl = ctl;
@@ -1008,8 +1006,8 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 		return -ENODEV;
 
 	/* by breaking out we keep a reference */
-	while ((sound = of_get_next_child(sdev->ofdev.dev.of_node, sound))) {
-		if (sound->type && strcasecmp(sound->type, "soundchip") == 0)
+	for_each_child_of_node(sdev->ofdev.dev.of_node, sound) {
+		if (of_node_is_type(sound, "soundchip"))
 			break;
 	}
 	if (!sound)

@@ -1,18 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This contains the functions to handle the descriptors for DesignWare databook
  * 4.xx.
  *
  * Copyright (C) 2015  STMicroelectronics Ltd
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  * Author: Alexandre Torgue <alexandre.torgue@st.com>
  */
 
 #include <linux/stmmac.h>
 #include "common.h"
+#include "dwmac4.h"
 #include "dwmac4_descs.h"
 
 static int dwmac4_wrback_get_tx_status(void *data, struct stmmac_extra_stats *x,
@@ -86,9 +84,10 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(rdes3 & RDES3_OWN))
 		return dma_own;
 
-	/* Verify rx error by looking at the last segment. */
-	if (likely(!(rdes3 & RDES3_LAST_DESCRIPTOR)))
+	if (unlikely(rdes3 & RDES3_CONTEXT_DESCRIPTOR))
 		return discard_frame;
+	if (likely(!(rdes3 & RDES3_LAST_DESCRIPTOR)))
+		return rx_not_ls;
 
 	if (unlikely(rdes3 & RDES3_ERROR_SUMMARY)) {
 		if (unlikely(rdes3 & RDES3_GIANT_PACKET))
@@ -191,7 +190,7 @@ static void dwmac4_set_tx_owner(struct dma_desc *p)
 
 static void dwmac4_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
-	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
+	p->des3 |= cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
 
 	if (!disable_rx_ic)
 		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
@@ -241,15 +240,18 @@ static inline void dwmac4_get_timestamp(void *desc, u32 ats, u64 *ts)
 static int dwmac4_rx_check_timestamp(void *desc)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
+	unsigned int rdes0 = le32_to_cpu(p->des0);
+	unsigned int rdes1 = le32_to_cpu(p->des1);
+	unsigned int rdes3 = le32_to_cpu(p->des3);
 	u32 own, ctxt;
 	int ret = 1;
 
-	own = p->des3 & RDES3_OWN;
-	ctxt = ((p->des3 & RDES3_CONTEXT_DESCRIPTOR)
+	own = rdes3 & RDES3_OWN;
+	ctxt = ((rdes3 & RDES3_CONTEXT_DESCRIPTOR)
 		>> RDES3_CONTEXT_DESCRIPTOR_SHIFT);
 
 	if (likely(!own && ctxt)) {
-		if ((p->des0 == 0xffffffff) && (p->des1 == 0xffffffff))
+		if ((rdes0 == 0xffffffff) && (rdes1 == 0xffffffff))
 			/* Corrupted value */
 			ret = -EINVAL;
 		else
@@ -268,7 +270,7 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, void *next_desc,
 	int ret = -EINVAL;
 
 	/* Get the status from normal w/b descriptor */
-	if (likely(p->des3 & TDES3_RS1V)) {
+	if (likely(le32_to_cpu(p->des3) & RDES3_RDES1_VALID)) {
 		if (likely(le32_to_cpu(p->des1) & RDES1_TIMESTAMP_AVAILABLE)) {
 			int i = 0;
 
@@ -293,7 +295,7 @@ exit:
 }
 
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
-				   int mode, int end)
+				   int mode, int end, int bfsize)
 {
 	dwmac4_set_rx_owner(p, disable_rx_ic);
 }
@@ -400,19 +402,53 @@ static void dwmac4_rd_set_tx_ic(struct dma_desc *p)
 	p->des2 |= cpu_to_le32(TDES2_INTERRUPT_ON_COMPLETION);
 }
 
-static void dwmac4_display_ring(void *head, unsigned int size, bool rx)
+static void dwmac4_display_ring(void *head, unsigned int size, bool rx,
+				dma_addr_t dma_rx_phy, unsigned int desc_size)
 {
-	struct dma_desc *p = (struct dma_desc *)head;
+	dma_addr_t dma_addr;
 	int i;
 
 	pr_info("%s descriptor ring:\n", rx ? "RX" : "TX");
 
-	for (i = 0; i < size; i++) {
-		pr_info("%03d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
-			i, (unsigned int)virt_to_phys(p),
-			le32_to_cpu(p->des0), le32_to_cpu(p->des1),
-			le32_to_cpu(p->des2), le32_to_cpu(p->des3));
-		p++;
+	if (desc_size == sizeof(struct dma_desc)) {
+		struct dma_desc *p = (struct dma_desc *)head;
+
+		for (i = 0; i < size; i++) {
+			dma_addr = dma_rx_phy + i * sizeof(*p);
+			pr_info("%03d [%pad]: 0x%x 0x%x 0x%x 0x%x\n",
+				i, &dma_addr,
+				le32_to_cpu(p->des0), le32_to_cpu(p->des1),
+				le32_to_cpu(p->des2), le32_to_cpu(p->des3));
+			p++;
+		}
+	} else if (desc_size == sizeof(struct dma_extended_desc)) {
+		struct dma_extended_desc *extp = (struct dma_extended_desc *)head;
+
+		for (i = 0; i < size; i++) {
+			dma_addr = dma_rx_phy + i * sizeof(*extp);
+			pr_info("%03d [%pad]: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+				i, &dma_addr,
+				le32_to_cpu(extp->basic.des0), le32_to_cpu(extp->basic.des1),
+				le32_to_cpu(extp->basic.des2), le32_to_cpu(extp->basic.des3),
+				le32_to_cpu(extp->des4), le32_to_cpu(extp->des5),
+				le32_to_cpu(extp->des6), le32_to_cpu(extp->des7));
+			extp++;
+		}
+	} else if (desc_size == sizeof(struct dma_edesc)) {
+		struct dma_edesc *ep = (struct dma_edesc *)head;
+
+		for (i = 0; i < size; i++) {
+			dma_addr = dma_rx_phy + i * sizeof(*ep);
+			pr_info("%03d [%pad]: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+				i, &dma_addr,
+				le32_to_cpu(ep->des4), le32_to_cpu(ep->des5),
+				le32_to_cpu(ep->des6), le32_to_cpu(ep->des7),
+				le32_to_cpu(ep->basic.des0), le32_to_cpu(ep->basic.des1),
+				le32_to_cpu(ep->basic.des2), le32_to_cpu(ep->basic.des3));
+			ep++;
+		}
+	} else {
+		pr_err("unsupported descriptor!");
 	}
 }
 
@@ -431,8 +467,8 @@ static void dwmac4_get_addr(struct dma_desc *p, unsigned int *addr)
 
 static void dwmac4_set_addr(struct dma_desc *p, dma_addr_t addr)
 {
-	p->des0 = cpu_to_le32(addr);
-	p->des1 = 0;
+	p->des0 = cpu_to_le32(lower_32_bits(addr));
+	p->des1 = cpu_to_le32(upper_32_bits(addr));
 }
 
 static void dwmac4_clear(struct dma_desc *p)
@@ -441,6 +477,79 @@ static void dwmac4_clear(struct dma_desc *p)
 	p->des1 = 0;
 	p->des2 = 0;
 	p->des3 = 0;
+}
+
+static void dwmac4_set_sarc(struct dma_desc *p, u32 sarc_type)
+{
+	sarc_type <<= TDES3_SA_INSERT_CTRL_SHIFT;
+
+	p->des3 |= cpu_to_le32(sarc_type & TDES3_SA_INSERT_CTRL_MASK);
+}
+
+static int set_16kib_bfsize(int mtu)
+{
+	int ret = 0;
+
+	if (unlikely(mtu >= BUF_SIZE_8KiB))
+		ret = BUF_SIZE_16KiB;
+	return ret;
+}
+
+static void dwmac4_set_vlan_tag(struct dma_desc *p, u16 tag, u16 inner_tag,
+				u32 inner_type)
+{
+	p->des0 = 0;
+	p->des1 = 0;
+	p->des2 = 0;
+	p->des3 = 0;
+
+	/* Inner VLAN */
+	if (inner_type) {
+		u32 des = inner_tag << TDES2_IVT_SHIFT;
+
+		des &= TDES2_IVT_MASK;
+		p->des2 = cpu_to_le32(des);
+
+		des = inner_type << TDES3_IVTIR_SHIFT;
+		des &= TDES3_IVTIR_MASK;
+		p->des3 = cpu_to_le32(des | TDES3_IVLTV);
+	}
+
+	/* Outer VLAN */
+	p->des3 |= cpu_to_le32(tag & TDES3_VLAN_TAG);
+	p->des3 |= cpu_to_le32(TDES3_VLTV);
+
+	p->des3 |= cpu_to_le32(TDES3_CONTEXT_TYPE);
+}
+
+static void dwmac4_set_vlan(struct dma_desc *p, u32 type)
+{
+	type <<= TDES2_VLAN_TAG_SHIFT;
+	p->des2 |= cpu_to_le32(type & TDES2_VLAN_TAG_MASK);
+}
+
+static void dwmac4_get_rx_header_len(struct dma_desc *p, unsigned int *len)
+{
+	*len = le32_to_cpu(p->des2) & RDES2_HL;
+}
+
+static void dwmac4_set_sec_addr(struct dma_desc *p, dma_addr_t addr, bool buf2_valid)
+{
+	p->des2 = cpu_to_le32(lower_32_bits(addr));
+	p->des3 = cpu_to_le32(upper_32_bits(addr));
+
+	if (buf2_valid)
+		p->des3 |= cpu_to_le32(RDES3_BUFFER2_VALID_ADDR);
+	else
+		p->des3 &= cpu_to_le32(~RDES3_BUFFER2_VALID_ADDR);
+}
+
+static void dwmac4_set_tbs(struct dma_edesc *p, u32 sec, u32 nsec)
+{
+	p->des4 = cpu_to_le32((sec & TDES4_LT) | TDES4_LTV);
+	p->des5 = cpu_to_le32(nsec & TDES5_LT);
+	p->des6 = 0;
+	p->des7 = 0;
 }
 
 const struct stmmac_desc_ops dwmac4_desc_ops = {
@@ -467,6 +576,14 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.get_addr = dwmac4_get_addr,
 	.set_addr = dwmac4_set_addr,
 	.clear = dwmac4_clear,
+	.set_sarc = dwmac4_set_sarc,
+	.set_vlan_tag = dwmac4_set_vlan_tag,
+	.set_vlan = dwmac4_set_vlan,
+	.get_rx_header_len = dwmac4_get_rx_header_len,
+	.set_sec_addr = dwmac4_set_sec_addr,
+	.set_tbs = dwmac4_set_tbs,
 };
 
-const struct stmmac_mode_ops dwmac4_ring_mode_ops = { };
+const struct stmmac_mode_ops dwmac4_ring_mode_ops = {
+	.set_16kib_bfsize = set_16kib_bfsize,
+};

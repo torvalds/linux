@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * header file for Samsung EXYNOS5 SoC series G-Scaler driver
 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef GSC_CORE_H_
@@ -66,14 +64,11 @@ enum gsc_irq {
  * enum gsc_datapath - the path of data used for G-Scaler
  * @GSC_CAMERA: from camera
  * @GSC_DMA: from/to DMA
- * @GSC_LOCAL: to local path
  * @GSC_WRITEBACK: from FIMD
  */
 enum gsc_datapath {
 	GSC_CAMERA = 0x1,
 	GSC_DMA,
-	GSC_MIXER,
-	GSC_FIMD,
 	GSC_WRITEBACK,
 };
 
@@ -105,18 +100,17 @@ enum gsc_yuv_fmt {
 /**
  * struct gsc_fmt - the driver's internal color format data
  * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @name: format description
  * @pixelformat: the fourcc code for this format, 0 if not applicable
+ * @color: color encoding
  * @yorder: Y/C order
  * @corder: Chrominance order control
  * @num_planes: number of physically non-contiguous data planes
- * @nr_comp: number of physically contiguous data planes
+ * @num_comp: number of physically contiguous data planes
  * @depth: per plane driver's private 'number of bits per pixel'
  * @flags: flags indicating which operation mode format applies to
  */
 struct gsc_fmt {
 	u32 mbus_code;
-	char	*name;
 	u32	pixelformat;
 	u32	color;
 	u32	yorder;
@@ -284,7 +278,7 @@ struct gsc_pix_align {
 	u16 target_h;
 };
 
-/**
+/*
  * struct gsc_variant - G-Scaler variant information
  */
 struct gsc_variant {
@@ -305,6 +299,9 @@ struct gsc_variant {
  *
  * @variant: the variant information for this driver.
  * @num_entities: the number of g-scalers
+ * @clk_names: clock names
+ * @num_clocks: the number of clocks in @clk_names
+ * @num_entities: the number of g-scalers
  */
 struct gsc_driverdata {
 	struct gsc_variant *variant[GSC_MAX_DEVS];
@@ -320,12 +317,14 @@ struct gsc_driverdata {
  * @pdev:	pointer to the G-Scaler platform device
  * @variant:	the IP variant information
  * @id:		G-Scaler device index (0..GSC_MAX_DEVS)
+ * @num_clocks:	number of clocks required for G-Scaler operation
  * @clock:	clocks required for G-Scaler operation
  * @regs:	the mapped hardware registers
  * @irq_queue:	interrupt handler waitqueue
  * @m2m:	memory-to-memory V4L2 device information
  * @state:	flags used to synchronize m2m and capture mode operation
  * @vdev:	video device for G-Scaler instance
+ * @v4l2_dev:	v4l2_device for G-Scaler instance
  */
 struct gsc_dev {
 	spinlock_t			slock;
@@ -344,7 +343,7 @@ struct gsc_dev {
 };
 
 /**
- * gsc_ctx - the device context data
+ * struct gsc_ctx - the device context data
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @in_path:		input mode (DMA or camera)
@@ -352,12 +351,16 @@ struct gsc_dev {
  * @scaler:		image scaler properties
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
+ * @rotation:		rotation
+ * @hflip:		horizontal flip
+ * @vflip:		vertical flip
  * @gsc_dev:		the G-Scaler device this context applies to
  * @m2m_ctx:		memory-to-memory device context
  * @fh:                 v4l2 file handle
  * @ctrl_handler:       v4l2 controls handler
- * @gsc_ctrls		G-Scaler control set
+ * @gsc_ctrls:		G-Scaler control set
  * @ctrls_rdy:          true if the control handler is initialized
+ * @out_colorspace:     the colorspace of the OUTPUT queue
  */
 struct gsc_ctx {
 	struct gsc_frame	s_frame;
@@ -387,13 +390,12 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state);
 u32 get_plane_size(struct gsc_frame *fr, unsigned int plane);
 const struct gsc_fmt *get_format(int index);
 const struct gsc_fmt *find_fmt(u32 *pixelformat, u32 *mbus_code, u32 index);
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f);
+int gsc_enum_fmt(struct v4l2_fmtdesc *f);
 int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_set_frame_size(struct gsc_frame *frame, int width, int height);
 int gsc_g_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_check_crop_change(u32 tmp_w, u32 tmp_h, u32 *w, u32 *h);
-int gsc_g_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
-int gsc_try_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
+int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s);
 int gsc_cal_prescaler_ratio(struct gsc_variant *var, u32 src, u32 dst,
 							u32 *ratio);
 void gsc_get_prescaler_shfactor(u32 hratio, u32 vratio, u32 *sh);

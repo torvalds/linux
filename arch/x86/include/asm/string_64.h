@@ -7,45 +7,12 @@
 
 /* Written 2002 by Andi Kleen */
 
-/* Only used for special circumstances. Stolen from i386/string.h */
-static __always_inline void *__inline_memcpy(void *to, const void *from, size_t n)
-{
-	unsigned long d0, d1, d2;
-	asm volatile("rep ; movsl\n\t"
-		     "testb $2,%b4\n\t"
-		     "je 1f\n\t"
-		     "movsw\n"
-		     "1:\ttestb $1,%b4\n\t"
-		     "je 2f\n\t"
-		     "movsb\n"
-		     "2:"
-		     : "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		     : "0" (n / 4), "q" (n), "1" ((long)to), "2" ((long)from)
-		     : "memory");
-	return to;
-}
-
 /* Even with __builtin_ the compiler may decide to use the out of line
    function. */
 
 #define __HAVE_ARCH_MEMCPY 1
 extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
-
-#ifndef CONFIG_FORTIFY_SOURCE
-#if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4
-#define memcpy(dst, src, len)					\
-({								\
-	size_t __len = (len);					\
-	void *__ret;						\
-	if (__builtin_constant_p(len) && __len >= 64)		\
-		__ret = __memcpy((dst), (src), __len);		\
-	else							\
-		__ret = __builtin_memcpy((dst), (src), __len);	\
-	__ret;							\
-})
-#endif
-#endif /* !CONFIG_FORTIFY_SOURCE */
 
 #define __HAVE_ARCH_MEMSET
 void *memset(void *s, int c, size_t n);
@@ -114,38 +81,6 @@ int strcmp(const char *cs, const char *ct);
 #endif
 
 #endif
-
-#define __HAVE_ARCH_MEMCPY_MCSAFE 1
-__must_check unsigned long __memcpy_mcsafe(void *dst, const void *src,
-		size_t cnt);
-DECLARE_STATIC_KEY_FALSE(mcsafe_key);
-
-/**
- * memcpy_mcsafe - copy memory with indication if a machine check happened
- *
- * @dst:	destination address
- * @src:	source address
- * @cnt:	number of bytes to copy
- *
- * Low level memory copy function that catches machine checks
- * We only call into the "safe" function on systems that can
- * actually do machine check recovery. Everyone else can just
- * use memcpy().
- *
- * Return 0 for success, or number of bytes not copied if there was an
- * exception.
- */
-static __always_inline __must_check unsigned long
-memcpy_mcsafe(void *dst, const void *src, size_t cnt)
-{
-#ifdef CONFIG_X86_MCE
-	if (static_branch_unlikely(&mcsafe_key))
-		return __memcpy_mcsafe(dst, src, cnt);
-	else
-#endif
-		memcpy(dst, src, cnt);
-	return 0;
-}
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 #define __HAVE_ARCH_MEMCPY_FLUSHCACHE 1

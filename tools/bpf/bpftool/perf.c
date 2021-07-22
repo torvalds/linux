@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 // Copyright (C) 2018 Facebook
 // Author: Yonghong Song <yhs@fb.com>
 
@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <ftw.h>
 
-#include <bpf.h>
+#include <bpf/bpf.h>
 
 #include "main.h"
 
@@ -104,6 +104,8 @@ static void print_perf_json(int pid, int fd, __u32 prog_id, __u32 fd_type,
 		jsonw_string_field(json_wtr, "filename", buf);
 		jsonw_lluint_field(json_wtr, "offset", probe_offset);
 		break;
+	default:
+		break;
 	}
 	jsonw_end_object(json_wtr);
 }
@@ -139,6 +141,8 @@ static void print_perf_plain(int pid, int fd, __u32 prog_id, __u32 fd_type,
 	case BPF_FD_TYPE_URETPROBE:
 		printf("uretprobe  filename %s  offset %llu\n", buf,
 		       probe_offset);
+		break;
+	default:
 		break;
 	}
 }
@@ -227,7 +231,7 @@ static int do_show(int argc, char **argv)
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %s %s { show | list | help }\n"
+		"Usage: %1$s %2$s { show | list | help }\n"
 		"",
 		bin_name, argv[-2]);
 

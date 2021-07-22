@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Register definitions for Gemini GMAC Ethernet device driver
  *
  * Copyright (C) 2006 Storlink, Corp.

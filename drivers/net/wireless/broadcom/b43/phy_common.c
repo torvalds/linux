@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -9,20 +10,6 @@
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -471,7 +458,7 @@ void b43_software_rfkill(struct b43_wldev *dev, bool blocked)
 	b43_mac_enable(dev);
 }
 
-/**
+/*
  * b43_phy_txpower_adjust_work - TX power workqueue.
  *
  * Workqueue for updating the TX power parameters in hardware.
@@ -572,7 +559,7 @@ bool b43_is_40mhz(struct b43_wldev *dev)
 	return dev->phy.chandef->width == NL80211_CHAN_WIDTH_40;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
 void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 {
 	u32 tmp;
@@ -603,51 +590,4 @@ void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 		break;
 #endif
 	}
-}
-
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/Cordic */
-struct b43_c32 b43_cordic(int theta)
-{
-	static const u32 arctg[] = {
-		2949120, 1740967, 919879, 466945, 234379, 117304,
-		  58666,   29335,  14668,   7334,   3667,   1833,
-		    917,     458,    229,    115,     57,     29,
-	};
-	u8 i;
-	s32 tmp;
-	s8 signx = 1;
-	u32 angle = 0;
-	struct b43_c32 ret = { .i = 39797, .q = 0, };
-
-	while (theta > (180 << 16))
-		theta -= (360 << 16);
-	while (theta < -(180 << 16))
-		theta += (360 << 16);
-
-	if (theta > (90 << 16)) {
-		theta -= (180 << 16);
-		signx = -1;
-	} else if (theta < -(90 << 16)) {
-		theta += (180 << 16);
-		signx = -1;
-	}
-
-	for (i = 0; i <= 17; i++) {
-		if (theta > angle) {
-			tmp = ret.i - (ret.q >> i);
-			ret.q += ret.i >> i;
-			ret.i = tmp;
-			angle += arctg[i];
-		} else {
-			tmp = ret.i + (ret.q >> i);
-			ret.q -= ret.i >> i;
-			ret.i = tmp;
-			angle -= arctg[i];
-		}
-	}
-
-	ret.i *= signx;
-	ret.q *= signx;
-
-	return ret;
 }

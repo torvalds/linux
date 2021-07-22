@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -6,23 +7,10 @@
   Copyright (c) 2008-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2009 Gábor Stefanik <netrolller.3d@gmail.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
+#include <linux/cordic.h>
 #include <linux/slab.h>
 
 #include "b43.h"
@@ -82,7 +70,7 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 	dev->phy.lp = NULL;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/LP/ReadBandSrom */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/LP/ReadBandSrom */
 static void lpphy_read_band_sprom(struct b43_wldev *dev)
 {
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
@@ -1780,9 +1768,9 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 buf[64];
-	int i, samples = 0, angle = 0;
+	int i, samples = 0, theta = 0;
 	int rotation = (((36 * freq) / 20) << 16) / 100;
-	struct b43_c32 sample;
+	struct cordic_iq sample;
 
 	lpphy->tx_tone_freq = freq;
 
@@ -1798,10 +1786,10 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 	}
 
 	for (i = 0; i < samples; i++) {
-		sample = b43_cordic(angle);
-		angle += rotation;
-		buf[i] = CORDIC_CONVERT((sample.i * max) & 0xFF) << 8;
-		buf[i] |= CORDIC_CONVERT((sample.q * max) & 0xFF);
+		sample = cordic_calc_iq(CORDIC_FIXED(theta));
+		theta += rotation;
+		buf[i] = CORDIC_FLOAT((sample.i * max) & 0xFF) << 8;
+		buf[i] |= CORDIC_FLOAT((sample.q * max) & 0xFF);
 	}
 
 	b43_lptab_write_bulk(dev, B43_LPTAB16(5, 0), samples, buf);
@@ -1825,16 +1813,10 @@ static void lpphy_stop_tx_tone(struct b43_wldev *dev)
 }
 
 
-static void lpphy_papd_cal(struct b43_wldev *dev, struct lpphy_tx_gains gains,
-			   int mode, bool useindex, u8 index)
-{
-	//TODO
-}
-
 static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct lpphy_tx_gains gains, oldgains;
+	struct lpphy_tx_gains oldgains;
 	int old_txpctl, old_afe_ovr, old_rf, old_bbmult;
 
 	lpphy_read_tx_pctl_mode_from_hardware(dev);
@@ -1846,11 +1828,6 @@ static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 	old_bbmult = lpphy_get_bb_mult(dev);
 
 	lpphy_set_tx_power_control(dev, B43_LPPHY_TXPCTL_OFF);
-
-	if (dev->dev->chip_id == 0x4325 && dev->dev->chip_rev == 0)
-		lpphy_papd_cal(dev, gains, 0, 1, 30);
-	else
-		lpphy_papd_cal(dev, gains, 0, 1, 65);
 
 	if (old_afe_ovr)
 		lpphy_set_tx_gains(dev, oldgains);

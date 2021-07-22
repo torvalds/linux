@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Userspace PCI Endpoint Test Module
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <errno.h>
@@ -41,21 +30,24 @@ struct pci_test {
 	int		irqtype;
 	bool		set_irqtype;
 	bool		get_irqtype;
+	bool		clear_irq;
 	bool		read;
 	bool		write;
 	bool		copy;
 	unsigned long	size;
+	bool		use_dma;
 };
 
-static void run_test(struct pci_test *test)
+static int run_test(struct pci_test *test)
 {
-	long ret;
+	struct pci_endpoint_test_xfer_param param;
+	int ret = -EINVAL;
 	int fd;
 
 	fd = open(test->device, O_RDWR);
 	if (fd < 0) {
 		perror("can't open PCI Endpoint Test device");
-		return;
+		return -ENODEV;
 	}
 
 	if (test->barnum >= 0 && test->barnum <= 5) {
@@ -83,6 +75,15 @@ static void run_test(struct pci_test *test)
 			fprintf(stdout, "FAILED\n");
 		else
 			fprintf(stdout, "%s\n", irq[ret]);
+	}
+
+	if (test->clear_irq) {
+		ret = ioctl(fd, PCITEST_CLEAR_IRQ);
+		fprintf(stdout, "CLEAR IRQ:\t\t");
+		if (ret < 0)
+			fprintf(stdout, "FAILED\n");
+		else
+			fprintf(stdout, "%s\n", result[ret]);
 	}
 
 	if (test->legacyirq) {
@@ -113,7 +114,10 @@ static void run_test(struct pci_test *test)
 	}
 
 	if (test->write) {
-		ret = ioctl(fd, PCITEST_WRITE, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_WRITE, &param);
 		fprintf(stdout, "WRITE (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -122,7 +126,10 @@ static void run_test(struct pci_test *test)
 	}
 
 	if (test->read) {
-		ret = ioctl(fd, PCITEST_READ, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_READ, &param);
 		fprintf(stdout, "READ (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -131,7 +138,10 @@ static void run_test(struct pci_test *test)
 	}
 
 	if (test->copy) {
-		ret = ioctl(fd, PCITEST_COPY, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_COPY, &param);
 		fprintf(stdout, "COPY (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -140,6 +150,8 @@ static void run_test(struct pci_test *test)
 	}
 
 	fflush(stdout);
+	close(fd);
+	return (ret < 0) ? ret : 1 - ret; /* return 0 if test succeeded */
 }
 
 int main(int argc, char **argv)
@@ -162,7 +174,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:Ilrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:m:x:i:deIlhrwcs:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -203,10 +215,15 @@ int main(int argc, char **argv)
 	case 'c':
 		test->copy = true;
 		continue;
+	case 'e':
+		test->clear_irq = true;
+		continue;
 	case 's':
 		test->size = strtoul(optarg, NULL, 0);
 		continue;
-	case '?':
+	case 'd':
+		test->use_dma = true;
+		continue;
 	case 'h':
 	default:
 usage:
@@ -218,16 +235,18 @@ usage:
 			"\t-m <msi num>		MSI test (msi number between 1..32)\n"
 			"\t-x <msix num>	\tMSI-X test (msix number between 1..2048)\n"
 			"\t-i <irq type>	\tSet IRQ type (0 - Legacy, 1 - MSI, 2 - MSI-X)\n"
+			"\t-e			Clear IRQ\n"
 			"\t-I			Get current IRQ type configured\n"
+			"\t-d			Use DMA\n"
 			"\t-l			Legacy IRQ test\n"
 			"\t-r			Read buffer test\n"
 			"\t-w			Write buffer test\n"
 			"\t-c			Copy buffer test\n"
-			"\t-s <size>		Size of buffer {default: 100KB}\n",
+			"\t-s <size>		Size of buffer {default: 100KB}\n"
+			"\t-h			Print this help message\n",
 			argv[0]);
 		return -EINVAL;
 	}
 
-	run_test(test);
-	return 0;
+	return run_test(test);
 }

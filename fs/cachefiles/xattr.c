@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* CacheFiles extended attribute management
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -43,8 +39,8 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	_enter("%p{%s}", object, type);
 
 	/* attempt to install a type label directly */
-	ret = vfs_setxattr(dentry, cachefiles_xattr_cache, type, 2,
-			   XATTR_CREATE);
+	ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache, type,
+			   2, XATTR_CREATE);
 	if (ret == 0) {
 		_debug("SET"); /* we succeeded */
 		goto error;
@@ -58,7 +54,8 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	}
 
 	/* read the current type label */
-	ret = vfs_getxattr(dentry, cachefiles_xattr_cache, xtype, 3);
+	ret = vfs_getxattr(&init_user_ns, dentry, cachefiles_xattr_cache, xtype,
+			   3);
 	if (ret < 0) {
 		if (ret == -ERANGE)
 			goto bad_type_length;
@@ -114,9 +111,8 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	_debug("SET #%u", auxdata->len);
 
 	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
-	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
-			   &auxdata->type, auxdata->len,
-			   XATTR_CREATE);
+	ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
+			   &auxdata->type, auxdata->len, XATTR_CREATE);
 	if (ret < 0 && ret != -ENOMEM)
 		cachefiles_io_error_obj(
 			object,
@@ -135,7 +131,8 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(dentry);
+	if (!dentry)
+		return -ESTALE;
 
 	_enter("%p,#%d", object, auxdata->len);
 
@@ -143,9 +140,8 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	_debug("SET #%u", auxdata->len);
 
 	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
-	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
-			   &auxdata->type, auxdata->len,
-			   XATTR_REPLACE);
+	ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
+			   &auxdata->type, auxdata->len, XATTR_REPLACE);
 	if (ret < 0 && ret != -ENOMEM)
 		cachefiles_io_error_obj(
 			object,
@@ -174,7 +170,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 	if (!auxbuf)
 		return -ENOMEM;
 
-	xlen = vfs_getxattr(dentry, cachefiles_xattr_cache,
+	xlen = vfs_getxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
 			    &auxbuf->type, 512 + 1);
 	ret = -ESTALE;
 	if (xlen < 1 ||
@@ -216,7 +212,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 	}
 
 	/* read the current type label */
-	ret = vfs_getxattr(dentry, cachefiles_xattr_cache,
+	ret = vfs_getxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
 			   &auxbuf->type, 512 + 1);
 	if (ret < 0) {
 		if (ret == -ENODATA)
@@ -273,9 +269,9 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 		}
 
 		/* update the current label */
-		ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
-				   &auxdata->type, auxdata->len,
-				   XATTR_REPLACE);
+		ret = vfs_setxattr(&init_user_ns, dentry,
+				   cachefiles_xattr_cache, &auxdata->type,
+				   auxdata->len, XATTR_REPLACE);
 		if (ret < 0) {
 			cachefiles_io_error_obj(object,
 						"Can't update xattr on %lu"
@@ -312,7 +308,7 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 {
 	int ret;
 
-	ret = vfs_removexattr(dentry, cachefiles_xattr_cache);
+	ret = vfs_removexattr(&init_user_ns, dentry, cachefiles_xattr_cache);
 	if (ret < 0) {
 		if (ret == -ENOENT || ret == -ENODATA)
 			ret = 0;

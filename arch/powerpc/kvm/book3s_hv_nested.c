@@ -11,14 +11,15 @@
 #include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/llist.h>
+#include <linux/pgtable.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/pte-walk.h>
 #include <asm/reg.h>
+#include <asm/plpar_wrappers.h>
 
 static struct patb_entry *pseries_partition_tb;
 
@@ -29,12 +30,12 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	hr->pcr = vc->pcr;
+	hr->pcr = vc->pcr | PCR_MASK;
 	hr->dpdes = vc->dpdes;
 	hr->hfscr = vcpu->arch.hfscr;
 	hr->tb_offset = vc->tb_offset;
-	hr->dawr0 = vcpu->arch.dawr;
-	hr->dawrx0 = vcpu->arch.dawrx;
+	hr->dawr0 = vcpu->arch.dawr0;
+	hr->dawrx0 = vcpu->arch.dawrx0;
 	hr->ciabr = vcpu->arch.ciabr;
 	hr->purr = vcpu->arch.purr;
 	hr->spurr = vcpu->arch.spurr;
@@ -49,9 +50,12 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 	hr->pidr = vcpu->arch.pid;
 	hr->cfar = vcpu->arch.cfar;
 	hr->ppr = vcpu->arch.ppr;
+	hr->dawr1 = vcpu->arch.dawr1;
+	hr->dawrx1 = vcpu->arch.dawrx1;
 }
 
-static void byteswap_pt_regs(struct pt_regs *regs)
+/* Use noinline_for_stack due to https://bugs.llvm.org/show_bug.cgi?id=49610 */
+static noinline_for_stack void byteswap_pt_regs(struct pt_regs *regs)
 {
 	unsigned long *addr = (unsigned long *) regs;
 
@@ -65,7 +69,7 @@ static void byteswap_hv_regs(struct hv_guest_state *hr)
 	hr->lpid = swab32(hr->lpid);
 	hr->vcpu_token = swab32(hr->vcpu_token);
 	hr->lpcr = swab64(hr->lpcr);
-	hr->pcr = swab64(hr->pcr);
+	hr->pcr = swab64(hr->pcr) | PCR_MASK;
 	hr->amor = swab64(hr->amor);
 	hr->dpdes = swab64(hr->dpdes);
 	hr->hfscr = swab64(hr->hfscr);
@@ -91,6 +95,8 @@ static void byteswap_hv_regs(struct hv_guest_state *hr)
 	hr->pidr = swab64(hr->pidr);
 	hr->cfar = swab64(hr->cfar);
 	hr->ppr = swab64(hr->ppr);
+	hr->dawr1 = swab64(hr->dawr1);
+	hr->dawrx1 = swab64(hr->dawrx1);
 }
 
 static void save_hv_return_state(struct kvm_vcpu *vcpu, int trap,
@@ -128,8 +134,33 @@ static void save_hv_return_state(struct kvm_vcpu *vcpu, int trap,
 	}
 }
 
+/*
+ * This can result in some L0 HV register state being leaked to an L1
+ * hypervisor when the hv_guest_state is copied back to the guest after
+ * being modified here.
+ *
+ * There is no known problem with such a leak, and in many cases these
+ * register settings could be derived by the guest by observing behaviour
+ * and timing, interrupts, etc., but it is an issue to consider.
+ */
 static void sanitise_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	u64 mask;
+
+	/*
+	 * Don't let L1 change LPCR bits for the L2 except these:
+	 */
+	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC | LPCR_AIL | LPCR_LD |
+		LPCR_LPES | LPCR_MER;
+
+	/*
+	 * Additional filtering is required depending on hardware
+	 * and configuration.
+	 */
+	hr->lpcr = kvmppc_filter_lpcr_hv(vcpu->kvm,
+			(vc->lpcr & ~mask) | (hr->lpcr & mask));
+
 	/*
 	 * Don't let L1 enable features for L2 which we've disabled for L1,
 	 * but preserve the interrupt cause field.
@@ -138,6 +169,7 @@ static void sanitise_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 
 	/* Don't let data address watchpoint match in hypervisor state */
 	hr->dawrx0 &= ~DAWRX_HYP;
+	hr->dawrx1 &= ~DAWRX_HYP;
 
 	/* Don't let completed instruction address breakpt match in HV state */
 	if ((hr->ciabr & CIABR_PRIV) == CIABR_PRIV_HYPER)
@@ -148,11 +180,11 @@ static void restore_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	vc->pcr = hr->pcr;
+	vc->pcr = hr->pcr | PCR_MASK;
 	vc->dpdes = hr->dpdes;
 	vcpu->arch.hfscr = hr->hfscr;
-	vcpu->arch.dawr = hr->dawr0;
-	vcpu->arch.dawrx = hr->dawrx0;
+	vcpu->arch.dawr0 = hr->dawr0;
+	vcpu->arch.dawrx0 = hr->dawrx0;
 	vcpu->arch.ciabr = hr->ciabr;
 	vcpu->arch.purr = hr->purr;
 	vcpu->arch.spurr = hr->spurr;
@@ -167,6 +199,8 @@ static void restore_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 	vcpu->arch.pid = hr->pidr;
 	vcpu->arch.cfar = hr->cfar;
 	vcpu->arch.ppr = hr->ppr;
+	vcpu->arch.dawr1 = hr->dawr1;
+	vcpu->arch.dawrx1 = hr->dawrx1;
 }
 
 void kvmhv_restore_hv_return_state(struct kvm_vcpu *vcpu,
@@ -195,38 +229,94 @@ void kvmhv_restore_hv_return_state(struct kvm_vcpu *vcpu,
 	vcpu->arch.ppr = hr->ppr;
 }
 
+static void kvmhv_nested_mmio_needed(struct kvm_vcpu *vcpu, u64 regs_ptr)
+{
+	/* No need to reflect the page fault to L1, we've handled it */
+	vcpu->arch.trap = 0;
+
+	/*
+	 * Since the L2 gprs have already been written back into L1 memory when
+	 * we complete the mmio, store the L1 memory location of the L2 gpr
+	 * being loaded into by the mmio so that the loaded value can be
+	 * written there in kvmppc_complete_mmio_load()
+	 */
+	if (((vcpu->arch.io_gpr & KVM_MMIO_REG_EXT_MASK) == KVM_MMIO_REG_GPR)
+	    && (vcpu->mmio_is_write == 0)) {
+		vcpu->arch.nested_io_gpr = (gpa_t) regs_ptr +
+					   offsetof(struct pt_regs,
+						    gpr[vcpu->arch.io_gpr]);
+		vcpu->arch.io_gpr = KVM_MMIO_REG_NESTED_GPR;
+	}
+}
+
+static int kvmhv_read_guest_state_and_regs(struct kvm_vcpu *vcpu,
+					   struct hv_guest_state *l2_hv,
+					   struct pt_regs *l2_regs,
+					   u64 hv_ptr, u64 regs_ptr)
+{
+	int size;
+
+	if (kvm_vcpu_read_guest(vcpu, hv_ptr, &l2_hv->version,
+				sizeof(l2_hv->version)))
+		return -1;
+
+	if (kvmppc_need_byteswap(vcpu))
+		l2_hv->version = swab64(l2_hv->version);
+
+	size = hv_guest_state_size(l2_hv->version);
+	if (size < 0)
+		return -1;
+
+	return kvm_vcpu_read_guest(vcpu, hv_ptr, l2_hv, size) ||
+		kvm_vcpu_read_guest(vcpu, regs_ptr, l2_regs,
+				    sizeof(struct pt_regs));
+}
+
+static int kvmhv_write_guest_state_and_regs(struct kvm_vcpu *vcpu,
+					    struct hv_guest_state *l2_hv,
+					    struct pt_regs *l2_regs,
+					    u64 hv_ptr, u64 regs_ptr)
+{
+	int size;
+
+	size = hv_guest_state_size(l2_hv->version);
+	if (size < 0)
+		return -1;
+
+	return kvm_vcpu_write_guest(vcpu, hv_ptr, l2_hv, size) ||
+		kvm_vcpu_write_guest(vcpu, regs_ptr, l2_regs,
+				     sizeof(struct pt_regs));
+}
+
 long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 {
 	long int err, r;
 	struct kvm_nested_guest *l2;
 	struct pt_regs l2_regs, saved_l1_regs;
-	struct hv_guest_state l2_hv, saved_l1_hv;
+	struct hv_guest_state l2_hv = {0}, saved_l1_hv;
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	u64 hv_ptr, regs_ptr;
 	u64 hdec_exp;
 	s64 delta_purr, delta_spurr, delta_ic, delta_vtb;
-	u64 mask;
-	unsigned long lpcr;
 
 	if (vcpu->kvm->arch.l1_ptcr == 0)
 		return H_NOT_AVAILABLE;
 
 	/* copy parameters in */
 	hv_ptr = kvmppc_get_gpr(vcpu, 4);
-	err = kvm_vcpu_read_guest(vcpu, hv_ptr, &l2_hv,
-				  sizeof(struct hv_guest_state));
+	regs_ptr = kvmppc_get_gpr(vcpu, 5);
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	err = kvmhv_read_guest_state_and_regs(vcpu, &l2_hv, &l2_regs,
+					      hv_ptr, regs_ptr);
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (err)
 		return H_PARAMETER;
+
 	if (kvmppc_need_byteswap(vcpu))
 		byteswap_hv_regs(&l2_hv);
-	if (l2_hv.version != HV_GUEST_STATE_VERSION)
+	if (l2_hv.version > HV_GUEST_STATE_VERSION)
 		return H_P2;
 
-	regs_ptr = kvmppc_get_gpr(vcpu, 5);
-	err = kvm_vcpu_read_guest(vcpu, regs_ptr, &l2_regs,
-				  sizeof(struct pt_regs));
-	if (err)
-		return H_PARAMETER;
 	if (kvmppc_need_byteswap(vcpu))
 		byteswap_pt_regs(&l2_regs);
 	if (l2_hv.vcpu_token >= NR_CPUS)
@@ -255,10 +345,10 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	vcpu->arch.nested = l2;
 	vcpu->arch.nested_vcpu_id = l2_hv.vcpu_token;
 	vcpu->arch.regs = l2_regs;
-	vcpu->arch.shregs.msr = vcpu->arch.regs.msr;
-	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC | LPCR_AIL | LPCR_LD |
-		LPCR_LPES | LPCR_MER;
-	lpcr = (vc->lpcr & ~mask) | (l2_hv.lpcr & mask);
+
+	/* Guest must always run with ME enabled, HV disabled. */
+	vcpu->arch.shregs.msr = (vcpu->arch.regs.msr | MSR_ME) & ~MSR_HV;
+
 	sanitise_hv_regs(vcpu, &l2_hv);
 	restore_hv_regs(vcpu, &l2_hv);
 
@@ -270,8 +360,7 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 			r = RESUME_HOST;
 			break;
 		}
-		r = kvmhv_run_single_vcpu(vcpu->arch.kvm_run, vcpu, hdec_exp,
-					  lpcr);
+		r = kvmhv_run_single_vcpu(vcpu, hdec_exp, l2_hv.lpcr);
 	} while (is_kvmppc_resume_guest(r));
 
 	/* save L2 state for return */
@@ -304,17 +393,20 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 		byteswap_hv_regs(&l2_hv);
 		byteswap_pt_regs(&l2_regs);
 	}
-	err = kvm_vcpu_write_guest(vcpu, hv_ptr, &l2_hv,
-				   sizeof(struct hv_guest_state));
-	if (err)
-		return H_AUTHORITY;
-	err = kvm_vcpu_write_guest(vcpu, regs_ptr, &l2_regs,
-				   sizeof(struct pt_regs));
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	err = kvmhv_write_guest_state_and_regs(vcpu, &l2_hv, &l2_regs,
+					       hv_ptr, regs_ptr);
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (err)
 		return H_AUTHORITY;
 
 	if (r == -EINTR)
 		return H_INTERRUPT;
+
+	if (vcpu->mmio_needed) {
+		kvmhv_nested_mmio_needed(vcpu, regs_ptr);
+		return H_TOO_HARD;
+	}
 
 	return vcpu->arch.trap;
 }
@@ -373,12 +465,19 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 	long rc;
 
 	if (!kvmhv_on_pseries()) {
-		radix__flush_tlb_lpid(lpid);
+		radix__flush_all_lpid(lpid);
 		return;
 	}
 
-	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(2, 0, 1),
-				lpid, TLBIEL_INVAL_SET_LPID);
+	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE))
+		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(2, 0, 1),
+					lpid, TLBIEL_INVAL_SET_LPID);
+	else
+		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
+					    H_RPTI_TYPE_NESTED |
+					    H_RPTI_TYPE_TLB | H_RPTI_TYPE_PWC |
+					    H_RPTI_TYPE_PAT,
+					    H_RPTI_PAGE_ALL, 0, -1UL);
 	if (rc)
 		pr_err("KVM: TLB LPID invalidation hcall failed, rc=%ld\n", rc);
 }
@@ -386,7 +485,7 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1)
 {
 	if (!kvmhv_on_pseries()) {
-		mmu_partition_table_set_entry(lpid, dw0, dw1);
+		mmu_partition_table_set_entry(lpid, dw0, dw1, true);
 		return;
 	}
 
@@ -437,6 +536,85 @@ long kvmhv_set_partition_table(struct kvm_vcpu *vcpu)
 }
 
 /*
+ * Handle the H_COPY_TOFROM_GUEST hcall.
+ * r4 = L1 lpid of nested guest
+ * r5 = pid
+ * r6 = eaddr to access
+ * r7 = to buffer (L1 gpa)
+ * r8 = from buffer (L1 gpa)
+ * r9 = n bytes to copy
+ */
+long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu)
+{
+	struct kvm_nested_guest *gp;
+	int l1_lpid = kvmppc_get_gpr(vcpu, 4);
+	int pid = kvmppc_get_gpr(vcpu, 5);
+	gva_t eaddr = kvmppc_get_gpr(vcpu, 6);
+	gpa_t gp_to = (gpa_t) kvmppc_get_gpr(vcpu, 7);
+	gpa_t gp_from = (gpa_t) kvmppc_get_gpr(vcpu, 8);
+	void *buf;
+	unsigned long n = kvmppc_get_gpr(vcpu, 9);
+	bool is_load = !!gp_to;
+	long rc;
+
+	if (gp_to && gp_from) /* One must be NULL to determine the direction */
+		return H_PARAMETER;
+
+	if (eaddr & (0xFFFUL << 52))
+		return H_PARAMETER;
+
+	buf = kzalloc(n, GFP_KERNEL);
+	if (!buf)
+		return H_NO_MEM;
+
+	gp = kvmhv_get_nested(vcpu->kvm, l1_lpid, false);
+	if (!gp) {
+		rc = H_PARAMETER;
+		goto out_free;
+	}
+
+	mutex_lock(&gp->tlb_lock);
+
+	if (is_load) {
+		/* Load from the nested guest into our buffer */
+		rc = __kvmhv_copy_tofrom_guest_radix(gp->shadow_lpid, pid,
+						     eaddr, buf, NULL, n);
+		if (rc)
+			goto not_found;
+
+		/* Write what was loaded into our buffer back to the L1 guest */
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		rc = kvm_vcpu_write_guest(vcpu, gp_to, buf, n);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+		if (rc)
+			goto not_found;
+	} else {
+		/* Load the data to be stored from the L1 guest into our buf */
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		rc = kvm_vcpu_read_guest(vcpu, gp_from, buf, n);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+		if (rc)
+			goto not_found;
+
+		/* Store from our buffer into the nested guest */
+		rc = __kvmhv_copy_tofrom_guest_radix(gp->shadow_lpid, pid,
+						     eaddr, NULL, buf, n);
+		if (rc)
+			goto not_found;
+	}
+
+out_unlock:
+	mutex_unlock(&gp->tlb_lock);
+	kvmhv_put_nested(gp);
+out_free:
+	kfree(buf);
+	return rc;
+not_found:
+	rc = H_NOT_FOUND;
+	goto out_unlock;
+}
+
+/*
  * Reload the partition table entry for a guest.
  * Caller must hold gp->tlb_lock.
  */
@@ -449,9 +627,12 @@ static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp)
 
 	ret = -EFAULT;
 	ptbl_addr = (kvm->arch.l1_ptcr & PRTB_MASK) + (gp->l1_lpid << 4);
-	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 8)))
+	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 8))) {
+		int srcu_idx = srcu_read_lock(&kvm->srcu);
 		ret = kvm_read_guest(kvm, ptbl_addr,
 				     &ptbl_entry, sizeof(ptbl_entry));
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
+	}
 	if (ret) {
 		gp->l1_gr_to_hr = 0;
 		gp->process_table = 0;
@@ -462,7 +643,7 @@ static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp)
 	kvmhv_set_nested_ptbl(gp);
 }
 
-struct kvm_nested_guest *kvmhv_alloc_nested(struct kvm *kvm, unsigned int lpid)
+static struct kvm_nested_guest *kvmhv_alloc_nested(struct kvm *kvm, unsigned int lpid)
 {
 	struct kvm_nested_guest *gp;
 	long shadow_lpid;
@@ -480,6 +661,7 @@ struct kvm_nested_guest *kvmhv_alloc_nested(struct kvm *kvm, unsigned int lpid)
 	if (shadow_lpid < 0)
 		goto out_free2;
 	gp->shadow_lpid = shadow_lpid;
+	gp->radix = 1;
 
 	memset(gp->prev_cpu, -1, sizeof(gp->prev_cpu));
 
@@ -649,6 +831,23 @@ static struct kvm_nested_guest *kvmhv_find_nested(struct kvm *kvm, int lpid)
 	return kvm->arch.nested_guests[lpid];
 }
 
+pte_t *find_kvm_nested_guest_pte(struct kvm *kvm, unsigned long lpid,
+				 unsigned long ea, unsigned *hshift)
+{
+	struct kvm_nested_guest *gp;
+	pte_t *pte;
+
+	gp = kvmhv_find_nested(kvm, lpid);
+	if (!gp)
+		return NULL;
+
+	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
+		"%s called with kvm mmu_lock not held \n", __func__);
+	pte = __find_linux_pte(gp->shadow_pgtable, ea, NULL, hshift);
+
+	return pte;
+}
+
 static inline bool kvmhv_n_rmap_is_equal(u64 rmap_1, u64 rmap_2)
 {
 	return !((rmap_1 ^ rmap_2) & (RMAP_NESTED_LPID_MASK |
@@ -687,6 +886,53 @@ void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 	*n_rmap = NULL;
 }
 
+static void kvmhv_update_nest_rmap_rc(struct kvm *kvm, u64 n_rmap,
+				      unsigned long clr, unsigned long set,
+				      unsigned long hpa, unsigned long mask)
+{
+	unsigned long gpa;
+	unsigned int shift, lpid;
+	pte_t *ptep;
+
+	gpa = n_rmap & RMAP_NESTED_GPA_MASK;
+	lpid = (n_rmap & RMAP_NESTED_LPID_MASK) >> RMAP_NESTED_LPID_SHIFT;
+
+	/* Find the pte */
+	ptep = find_kvm_nested_guest_pte(kvm, lpid, gpa, &shift);
+	/*
+	 * If the pte is present and the pfn is still the same, update the pte.
+	 * If the pfn has changed then this is a stale rmap entry, the nested
+	 * gpa actually points somewhere else now, and there is nothing to do.
+	 * XXX A future optimisation would be to remove the rmap entry here.
+	 */
+	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa)) {
+		__radix_pte_update(ptep, clr, set);
+		kvmppc_radix_tlbie_page(kvm, gpa, shift, lpid);
+	}
+}
+
+/*
+ * For a given list of rmap entries, update the rc bits in all ptes in shadow
+ * page tables for nested guests which are referenced by the rmap list.
+ */
+void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp,
+				    unsigned long clr, unsigned long set,
+				    unsigned long hpa, unsigned long nbytes)
+{
+	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct rmap_nested *cursor;
+	unsigned long rmap, mask;
+
+	if ((clr | set) & ~(_PAGE_DIRTY | _PAGE_ACCESSED))
+		return;
+
+	mask = PTE_RPN_MASK & ~(nbytes - 1);
+	hpa &= mask;
+
+	for_each_nest_rmap_safe(cursor, entry, &rmap)
+		kvmhv_update_nest_rmap_rc(kvm, rmap, clr, set, hpa, mask);
+}
+
 static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
 				   unsigned long hpa, unsigned long mask)
 {
@@ -702,7 +948,7 @@ static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
 		return;
 
 	/* Find and invalidate the pte */
-	ptep = __find_linux_pte(gp->shadow_pgtable, gpa, NULL, &shift);
+	ptep = find_kvm_nested_guest_pte(kvm, lpid, gpa, &shift);
 	/* Don't spuriously invalidate ptes if the pfn has changed */
 	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa))
 		kvmppc_unmap_pte(kvm, ptep, gpa, shift, NULL, gp->shadow_lpid);
@@ -723,7 +969,7 @@ static void kvmhv_remove_nest_rmap_list(struct kvm *kvm, unsigned long *rmapp,
 
 /* called with kvm->mmu_lock held */
 void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
-				  struct kvm_memory_slot *memslot,
+				  const struct kvm_memory_slot *memslot,
 				  unsigned long gpa, unsigned long hpa,
 				  unsigned long nbytes)
 {
@@ -769,7 +1015,7 @@ static bool kvmhv_invalidate_shadow_pte(struct kvm_vcpu *vcpu,
 	int shift;
 
 	spin_lock(&kvm->mmu_lock);
-	ptep = __find_linux_pte(gp->shadow_pgtable, gpa, NULL, &shift);
+	ptep = find_kvm_nested_guest_pte(kvm, gp->l1_lpid, gpa, &shift);
 	if (!shift)
 		shift = PAGE_SHIFT;
 	if (ptep && pte_present(*ptep)) {
@@ -977,6 +1223,113 @@ long kvmhv_do_nested_tlbie(struct kvm_vcpu *vcpu)
 	return H_SUCCESS;
 }
 
+static long do_tlb_invalidate_nested_all(struct kvm_vcpu *vcpu,
+					 unsigned long lpid, unsigned long ric)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *gp;
+
+	gp = kvmhv_get_nested(kvm, lpid, false);
+	if (gp) {
+		kvmhv_emulate_tlbie_lpid(vcpu, gp, ric);
+		kvmhv_put_nested(gp);
+	}
+	return H_SUCCESS;
+}
+
+/*
+ * Number of pages above which we invalidate the entire LPID rather than
+ * flush individual pages.
+ */
+static unsigned long tlb_range_flush_page_ceiling __read_mostly = 33;
+
+static long do_tlb_invalidate_nested_tlb(struct kvm_vcpu *vcpu,
+					 unsigned long lpid,
+					 unsigned long pg_sizes,
+					 unsigned long start,
+					 unsigned long end)
+{
+	int ret = H_P4;
+	unsigned long addr, nr_pages;
+	struct mmu_psize_def *def;
+	unsigned long psize, ap, page_size;
+	bool flush_lpid;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+		def = &mmu_psize_defs[psize];
+		if (!(pg_sizes & def->h_rpt_pgsize))
+			continue;
+
+		nr_pages = (end - start) >> def->shift;
+		flush_lpid = nr_pages > tlb_range_flush_page_ceiling;
+		if (flush_lpid)
+			return do_tlb_invalidate_nested_all(vcpu, lpid,
+							RIC_FLUSH_TLB);
+		addr = start;
+		ap = mmu_get_ap(psize);
+		page_size = 1UL << def->shift;
+		do {
+			ret = kvmhv_emulate_tlbie_tlb_addr(vcpu, lpid, ap,
+						   get_epn(addr));
+			if (ret)
+				return H_P4;
+			addr += page_size;
+		} while (addr < end);
+	}
+	return ret;
+}
+
+/*
+ * Performs partition-scoped invalidations for nested guests
+ * as part of H_RPT_INVALIDATE hcall.
+ */
+long do_h_rpt_invalidate_pat(struct kvm_vcpu *vcpu, unsigned long lpid,
+			     unsigned long type, unsigned long pg_sizes,
+			     unsigned long start, unsigned long end)
+{
+	/*
+	 * If L2 lpid isn't valid, we need to return H_PARAMETER.
+	 *
+	 * However, nested KVM issues a L2 lpid flush call when creating
+	 * partition table entries for L2. This happens even before the
+	 * corresponding shadow lpid is created in HV which happens in
+	 * H_ENTER_NESTED call. Since we can't differentiate this case from
+	 * the invalid case, we ignore such flush requests and return success.
+	 */
+	if (!kvmhv_find_nested(vcpu->kvm, lpid))
+		return H_SUCCESS;
+
+	/*
+	 * A flush all request can be handled by a full lpid flush only.
+	 */
+	if ((type & H_RPTI_TYPE_NESTED_ALL) == H_RPTI_TYPE_NESTED_ALL)
+		return do_tlb_invalidate_nested_all(vcpu, lpid, RIC_FLUSH_ALL);
+
+	/*
+	 * We don't need to handle a PWC flush like process table here,
+	 * because intermediate partition scoped table in nested guest doesn't
+	 * really have PWC. Only level we have PWC is in L0 and for nested
+	 * invalidate at L0 we always do kvm_flush_lpid() which does
+	 * radix__flush_all_lpid(). For range invalidate at any level, we
+	 * are not removing the higher level page tables and hence there is
+	 * no PWC invalidate needed.
+	 *
+	 * if (type & H_RPTI_TYPE_PWC) {
+	 *	ret = do_tlb_invalidate_nested_all(vcpu, lpid, RIC_FLUSH_PWC);
+	 *	if (ret)
+	 *		return H_P4;
+	 * }
+	 */
+
+	if (start == 0 && end == -1)
+		return do_tlb_invalidate_nested_all(vcpu, lpid, RIC_FLUSH_TLB);
+
+	if (type & H_RPTI_TYPE_TLB)
+		return do_tlb_invalidate_nested_tlb(vcpu, lpid, pg_sizes,
+						    start, end);
+	return H_SUCCESS;
+}
+
 /* Used to convert a nested guest real address to a L1 guest real address */
 static int kvmhv_translate_addr_nested(struct kvm_vcpu *vcpu,
 				       struct kvm_nested_guest *gp,
@@ -1017,7 +1370,7 @@ static int kvmhv_translate_addr_nested(struct kvm_vcpu *vcpu,
 		} else if (vcpu->arch.trap == BOOK3S_INTERRUPT_H_INST_STORAGE) {
 			/* Can we execute? */
 			if (!gpte_p->may_execute) {
-				flags |= SRR1_ISI_N_OR_G;
+				flags |= SRR1_ISI_N_G_OR_CIP;
 				goto forward_to_l1;
 			}
 		} else {
@@ -1034,7 +1387,7 @@ static int kvmhv_translate_addr_nested(struct kvm_vcpu *vcpu,
 forward_to_l1:
 	vcpu->arch.fault_dsisr = flags;
 	if (vcpu->arch.trap == BOOK3S_INTERRUPT_H_INST_STORAGE) {
-		vcpu->arch.shregs.msr &= ~0x783f0000ul;
+		vcpu->arch.shregs.msr &= SRR1_MSR_BITS;
 		vcpu->arch.shregs.msr |= flags;
 	}
 	return RESUME_HOST;
@@ -1049,7 +1402,7 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	bool writing = !!(dsisr & DSISR_ISSTORE);
 	u64 pgflags;
-	bool ret;
+	long ret;
 
 	/* Are the rc bits set in the L1 partition scoped pte? */
 	pgflags = _PAGE_ACCESSED;
@@ -1060,18 +1413,24 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 
 	spin_lock(&kvm->mmu_lock);
 	/* Set the rc bit in the pte of our (L0) pgtable for the L1 guest */
-	ret = kvmppc_hv_handle_set_rc(kvm, kvm->arch.pgtable, writing,
-				     gpte.raddr, kvm->arch.lpid);
-	spin_unlock(&kvm->mmu_lock);
-	if (!ret)
-		return -EINVAL;
+	ret = kvmppc_hv_handle_set_rc(kvm, false, writing,
+				      gpte.raddr, kvm->arch.lpid);
+	if (!ret) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	/* Set the rc bit in the pte of the shadow_pgtable for the nest guest */
-	ret = kvmppc_hv_handle_set_rc(kvm, gp->shadow_pgtable, writing, n_gpa,
-				      gp->shadow_lpid);
+	ret = kvmppc_hv_handle_set_rc(kvm, true, writing,
+				      n_gpa, gp->l1_lpid);
 	if (!ret)
-		return -EINVAL;
-	return 0;
+		ret = -EINVAL;
+	else
+		ret = 0;
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
+	return ret;
 }
 
 static inline int kvmppc_radix_level_to_shift(int level)
@@ -1180,9 +1539,9 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 			kvmppc_core_queue_data_storage(vcpu, ea, dsisr);
 			return RESUME_GUEST;
 		}
-		/* passthrough of emulated MMIO case... */
-		pr_err("emulated MMIO passthrough?\n");
-		return -EINVAL;
+
+		/* passthrough of emulated MMIO case */
+		return kvmppc_hv_emulate_mmio(vcpu, gpa, ea, writing);
 	}
 	if (memslot->flags & KVM_MEM_READONLY) {
 		if (writing) {
@@ -1203,7 +1562,7 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	/* See if can find translation in our partition scoped tables for L1 */
 	pte = __pte(0);
 	spin_lock(&kvm->mmu_lock);
-	pte_p = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
+	pte_p = find_kvm_secondary_pte(kvm, gpa, &shift);
 	if (!shift)
 		shift = PAGE_SHIFT;
 	if (pte_p)
@@ -1220,6 +1579,8 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 			return ret;
 		shift = kvmppc_radix_level_to_shift(level);
 	}
+	/* Align gfn to the start of the page */
+	gfn = (gpa & ~((1UL << shift) - 1)) >> PAGE_SHIFT;
 
 	/* 3. Compute the pte we need to insert for nest_gpa -> host r_addr */
 
@@ -1227,6 +1588,9 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	perm |= gpte.may_read ? 0UL : _PAGE_READ;
 	perm |= gpte.may_write ? 0UL : _PAGE_WRITE;
 	perm |= gpte.may_execute ? 0UL : _PAGE_EXEC;
+	/* Only set accessed/dirty (rc) bits if set in host and l1 guest ptes */
+	perm |= (gpte.rc & _PAGE_ACCESSED) ? 0UL : _PAGE_ACCESSED;
+	perm |= ((gpte.rc & _PAGE_DIRTY) && writing) ? 0UL : _PAGE_DIRTY;
 	pte = __pte(pte_val(pte) & ~perm);
 
 	/* What size pte can we insert? */
@@ -1252,8 +1616,7 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	ret = kvmppc_create_pte(kvm, gp->shadow_pgtable, pte, n_gpa, level,
 				mmu_seq, gp->shadow_lpid, rmapp, &n_rmap);
-	if (n_rmap)
-		kfree(n_rmap);
+	kfree(n_rmap);
 	if (ret == -EAGAIN)
 		ret = RESUME_GUEST;	/* Let the guest try again */
 

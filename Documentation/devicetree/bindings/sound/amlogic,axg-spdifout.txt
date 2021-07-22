@@ -1,12 +1,17 @@
 * Amlogic Audio SPDIF Output
 
 Required properties:
-- compatible: 'amlogic,axg-spdifout'
+- compatible: 'amlogic,axg-spdifout' or
+	      'amlogic,g12a-spdifout' or
+	      'amlogic,sm1-spdifout'
 - clocks: list of clock phandle, one for each entry clock-names.
 - clock-names: should contain the following:
   * "pclk" : peripheral clock.
   * "mclk" : master clock
 - #sound-dai-cells: must be 0.
+
+Optional property:
+- resets: phandle to the dedicated reset line of the spdif output.
 
 Example on the A113 SoC:
 

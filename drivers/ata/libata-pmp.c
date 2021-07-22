@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * libata-pmp.c - libata port multiplier support
  *
  * Copyright (c) 2007  SUSE Linux Products GmbH
  * Copyright (c) 2007  Tejun Heo <teheo@suse.de>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>
@@ -63,7 +62,7 @@ static unsigned int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
  *	sata_pmp_write - write PMP register
  *	@link: link to write PMP register for
  *	@reg: register to write
- *	@r_val: value to write
+ *	@val: value to write
  *
  *	Write PMP register.
  *
@@ -764,6 +763,7 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 
 	if (dev->flags & ATA_DFLAG_DETACH) {
 		detach = 1;
+		rc = -ENODEV;
 		goto fail;
 	}
 

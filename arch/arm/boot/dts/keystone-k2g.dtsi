@@ -95,14 +95,14 @@
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
 
-		msm_ram: msmram@c000000 {
+		msm_ram: sram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x100000>;
 			ranges = <0x0 0x0c000000 0x100000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			sram-bm@f7000 {
+			bm-sram@f7000 {
 				reg = <0x000f7000 0x8000>;
 			};
 		};
@@ -242,7 +242,7 @@
 			status = "disabled";
 		};
 
-		msgmgr: msgmgr@2a00000 {
+		msgmgr: mailbox@2a00000 {
 			compatible = "ti,k2g-message-manager";
 			#mbox-cells = <2>;
 			reg-names = "queue_proxy_region",
@@ -254,7 +254,7 @@
 				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pmmc: pmmc@2921c00 {
+		pmmc: system-controller@2921c00 {
 			compatible = "ti,k2g-sci";
 			/*
 			 * In case of rare platforms that does not use k2g as
@@ -272,7 +272,7 @@
 				#power-domain-cells = <1>;
 			};
 
-			k2g_clks: clocks {
+			k2g_clks: clock-controller {
 				compatible = "ti,k2g-sci-clk";
 				#clock-cells = <2>;
 			};
@@ -322,6 +322,28 @@
 			ti,davinci-gpio-unbanked = <0>;
 			clocks = <&k2g_clks 0x001c 0x0>;
 			clock-names = "gpio";
+		};
+
+		dss: dss@02540000 {
+			compatible = "ti,k2g-dss";
+			reg =	<0x02540000 0x400>,
+				<0x02550000 0x1000>,
+				<0x02557000 0x1000>,
+				<0x0255a800 0x100>,
+				<0x0255ac00 0x100>;
+			reg-names = "cfg", "common", "vid1", "ovr1", "vp1";
+			clocks =	<&k2g_clks 0x2 0>,
+					<&k2g_clks 0x2 1>;
+			clock-names = "fck", "vp1";
+			interrupts = <GIC_SPI 247 IRQ_TYPE_EDGE_RISING>;
+
+			power-domains = <&k2g_pds 0x2>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			max-memory-bandwidth = <230000000>;
 		};
 
 		edma0: edma@2700000 {

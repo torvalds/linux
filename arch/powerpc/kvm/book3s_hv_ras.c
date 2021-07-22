@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  *
  * Copyright 2012 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  */
@@ -66,13 +64,10 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 /*
  * On POWER7, see if we can handle a machine check that occurred inside
  * the guest in real mode, without switching to the host partition.
- *
- * Returns: 0 => exit guest, 1 => deliver machine check to guest
  */
 static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 {
 	unsigned long srr1 = vcpu->arch.shregs.msr;
-	struct machine_check_event mce_evt;
 	long handled = 1;
 
 	if (srr1 & SRR1_MC_LDSTERR) {
@@ -110,53 +105,35 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		handled = 0;
 	}
 
-	/*
-	 * See if we have already handled the condition in the linux host.
-	 * We assume that if the condition is recovered then linux host
-	 * will have generated an error log event that we will pick
-	 * up and log later.
-	 * Don't release mce event now. We will queue up the event so that
-	 * we can log the MCE event info on host console.
-	 */
-	if (!get_mce_event(&mce_evt, MCE_EVENT_DONTRELEASE))
-		goto out;
-
-	if (mce_evt.version == MCE_V1 &&
-	    (mce_evt.severity == MCE_SEV_NO_ERROR ||
-	     mce_evt.disposition == MCE_DISPOSITION_RECOVERED))
-		handled = 1;
-
-out:
-	/*
-	 * For guest that supports FWNMI capability, hook the MCE event into
-	 * vcpu structure. We are going to exit the guest with KVM_EXIT_NMI
-	 * exit reason. On our way to exit we will pull this event from vcpu
-	 * structure and print it from thread 0 of the core/subcore.
-	 *
-	 * For guest that does not support FWNMI capability (old QEMU):
-	 * We are now going enter guest either through machine check
-	 * interrupt (for unhandled errors) or will continue from
-	 * current HSRR0 (for handled errors) in guest. Hence
-	 * queue up the event so that we can log it from host console later.
-	 */
-	if (vcpu->kvm->arch.fwnmi_enabled) {
-		/*
-		 * Hook up the mce event on to vcpu structure.
-		 * First clear the old event.
-		 */
-		memset(&vcpu->arch.mce_evt, 0, sizeof(vcpu->arch.mce_evt));
-		if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
-			vcpu->arch.mce_evt = mce_evt;
-		}
-	} else
-		machine_check_queue_event();
-
 	return handled;
 }
 
-long kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
+void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
 {
-	return kvmppc_realmode_mc_power7(vcpu);
+	struct machine_check_event mce_evt;
+	long handled;
+
+	if (vcpu->kvm->arch.fwnmi_enabled) {
+		/* FWNMI guests handle their own recovery */
+		handled = 0;
+	} else {
+		handled = kvmppc_realmode_mc_power7(vcpu);
+	}
+
+	/*
+	 * Now get the event and stash it in the vcpu struct so it can
+	 * be handled by the primary thread in virtual mode.  We can't
+	 * call machine_check_queue_event() here if we are running on
+	 * an offline secondary thread.
+	 */
+	if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
+		if (handled && mce_evt.version == MCE_V1)
+			mce_evt.disposition = MCE_DISPOSITION_RECOVERED;
+	} else {
+		memset(&mce_evt, 0, sizeof(mce_evt));
+	}
+
+	vcpu->arch.mce_evt = mce_evt;
 }
 
 /* Check if dynamic split is in force and return subcore size accordingly. */
@@ -276,7 +253,7 @@ long kvmppc_realmode_hmi_handler(void)
 {
 	bool resync_req;
 
-	__this_cpu_inc(irq_stat.hmi_exceptions);
+	local_paca->hmi_irqs++;
 
 	if (hmi_handle_debugtrig(NULL) >= 0)
 		return 1;

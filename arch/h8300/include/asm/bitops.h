@@ -9,6 +9,10 @@
 
 #include <linux/compiler.h>
 
+#include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
+#include <asm-generic/bitops/fls64.h>
+
 #ifdef __KERNEL__
 
 #ifndef _LINUX_BITOPS_H
@@ -50,12 +54,6 @@ static inline void FNAME(int nr, volatile unsigned long *addr)	\
 		__asm__(OP " %s1,%0" : "+WU"(*b_addr) : "r"(bit));	\
 	}							\
 }
-
-/*
- * clear_bit() doesn't provide any barrier for the compiler.
- */
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
 
 H8300_GEN_BITOP(set_bit,    "bset")
 H8300_GEN_BITOP(clear_bit,  "bclr")
@@ -178,9 +176,5 @@ static inline unsigned long __ffs(unsigned long word)
 #include <asm-generic/bitops/ext2-atomic.h>
 
 #endif /* __KERNEL__ */
-
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/__fls.h>
-#include <asm-generic/bitops/fls64.h>
 
 #endif /* _H8300_BITOPS_H */

@@ -1,22 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PC Chen <pc.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _VDEC_IPI_MSG_H_
 #define _VDEC_IPI_MSG_H_
 
-/**
+/*
  * enum vdec_ipi_msgid - message id between AP and VPU
  * @AP_IPIMSG_XXX	: AP to VPU cmd message id
  * @VPU_IPIMSG_XXX_ACK	: VPU ack AP cmd message id

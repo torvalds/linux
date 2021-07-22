@@ -9,9 +9,6 @@
 #define NX_STRING	"IBM Power7+ Nest Accelerator Crypto Driver"
 #define NX_VERSION	"1.0"
 
-static const char nx_driver_string[] = NX_STRING;
-static const char nx_driver_version[] = NX_VERSION;
-
 /* a scatterlist in the format PHYP is expecting */
 struct nx_sg {
 	u64 addr;
@@ -40,7 +37,7 @@ struct max_sync_cop {
 	u32 fc;
 	u32 mode;
 	u32 triplets;
-	struct msc_triplet trip[0];
+	struct msc_triplet trip[];
 } __packed;
 
 struct alg_props {
@@ -76,20 +73,12 @@ struct nx_stats {
 	atomic_t last_error_pid;
 };
 
-struct nx_debugfs {
-	struct dentry *dfs_root;
-	struct dentry *dfs_aes_ops, *dfs_aes_bytes;
-	struct dentry *dfs_sha256_ops, *dfs_sha256_bytes;
-	struct dentry *dfs_sha512_ops, *dfs_sha512_bytes;
-	struct dentry *dfs_errors, *dfs_last_error, *dfs_last_error_pid;
-};
-
 struct nx_crypto_driver {
 	struct nx_stats    stats;
 	struct nx_of       of;
 	struct vio_dev    *viodev;
 	struct vio_driver  viodriver;
-	struct nx_debugfs  dfs;
+	struct dentry     *dfs_root;
 };
 
 #define NX_GCM4106_NONCE_LEN		(4)
@@ -156,19 +145,20 @@ struct crypto_aead;
 int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm);
-int nx_crypto_ctx_aes_ctr_init(struct crypto_tfm *tfm);
-int nx_crypto_ctx_aes_cbc_init(struct crypto_tfm *tfm);
-int nx_crypto_ctx_aes_ecb_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_aes_ctr_init(struct crypto_skcipher *tfm);
+int nx_crypto_ctx_aes_cbc_init(struct crypto_skcipher *tfm);
+int nx_crypto_ctx_aes_ecb_init(struct crypto_skcipher *tfm);
 int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm);
 void nx_crypto_ctx_exit(struct crypto_tfm *tfm);
+void nx_crypto_ctx_skcipher_exit(struct crypto_skcipher *tfm);
 void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm);
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function);
 int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 		  u32 may_sleep);
 struct nx_sg *nx_build_sg_list(struct nx_sg *, u8 *, unsigned int *, u32);
-int nx_build_sg_lists(struct nx_crypto_ctx *, struct blkcipher_desc *,
-		      struct scatterlist *, struct scatterlist *, unsigned int *,
-		      unsigned int, u8 *);
+int nx_build_sg_lists(struct nx_crypto_ctx *nx_ctx, const u8 *iv,
+		      struct scatterlist *dst, struct scatterlist *src,
+		      unsigned int *nbytes, unsigned int offset, u8 *oiv);
 struct nx_sg *nx_walk_and_build(struct nx_sg *, unsigned int,
 				struct scatterlist *, unsigned int,
 				unsigned int *);
@@ -177,7 +167,7 @@ struct nx_sg *nx_walk_and_build(struct nx_sg *, unsigned int,
 #define NX_DEBUGFS_INIT(drv)	nx_debugfs_init(drv)
 #define NX_DEBUGFS_FINI(drv)	nx_debugfs_fini(drv)
 
-int nx_debugfs_init(struct nx_crypto_driver *);
+void nx_debugfs_init(struct nx_crypto_driver *);
 void nx_debugfs_fini(struct nx_crypto_driver *);
 #else
 #define NX_DEBUGFS_INIT(drv)	(0)
@@ -186,11 +176,11 @@ void nx_debugfs_fini(struct nx_crypto_driver *);
 
 #define NX_PAGE_NUM(x)		((u64)(x) & 0xfffffffffffff000ULL)
 
-extern struct crypto_alg nx_cbc_aes_alg;
-extern struct crypto_alg nx_ecb_aes_alg;
+extern struct skcipher_alg nx_cbc_aes_alg;
+extern struct skcipher_alg nx_ecb_aes_alg;
 extern struct aead_alg nx_gcm_aes_alg;
 extern struct aead_alg nx_gcm4106_aes_alg;
-extern struct crypto_alg nx_ctr3686_aes_alg;
+extern struct skcipher_alg nx_ctr3686_aes_alg;
 extern struct aead_alg nx_ccm_aes_alg;
 extern struct aead_alg nx_ccm4309_aes_alg;
 extern struct shash_alg nx_shash_aes_xcbc_alg;

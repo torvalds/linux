@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
   BNEP protocol definition for Linux Bluetooth stack (BlueZ).
   Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License, version 2, as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef _BNEP_H
@@ -84,14 +74,14 @@ struct bnep_setup_conn_req {
 	__u8 type;
 	__u8 ctrl;
 	__u8 uuid_size;
-	__u8 service[0];
+	__u8 service[];
 } __packed;
 
 struct bnep_set_filter_req {
 	__u8 type;
 	__u8 ctrl;
 	__be16 len;
-	__u8 list[0];
+	__u8 list[];
 } __packed;
 
 struct bnep_control_rsp {
@@ -103,7 +93,7 @@ struct bnep_control_rsp {
 struct bnep_ext_hdr {
 	__u8 type;
 	__u8 len;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 /* BNEP ioctl defines */

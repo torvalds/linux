@@ -461,7 +461,7 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 		case WLAN_MSD_FWLOAD:
 			wlandev->msdstate = WLAN_MSD_RUNNING_PENDING;
 			/* Initialize the device+driver for full
-			 * operation. Note that this might me an FWLOAD to
+			 * operation. Note that this might me an FWLOAD
 			 * to RUNNING transition so we must not do a chip
 			 * or board level reset.  Note that on failure,
 			 * the MSD state is set to HWPRESENT because we
@@ -846,7 +846,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICSERIALNUMBER,
 					snum, HFA384x_RID_NICSERIALNUMBER_LEN);
 	if (!result) {
-		netdev_info(wlandev->netdev, "Prism2 card SN: %*pEhp\n",
+		netdev_info(wlandev->netdev, "Prism2 card SN: %*pE\n",
 			    HFA384x_RID_NICSERIALNUMBER_LEN, snum);
 	} else {
 		netdev_err(wlandev->netdev, "Failed to retrieve Prism2 Card SN\n");
@@ -1352,7 +1352,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * we get back in range.  We should block transmits and
 		 * receives in this state.  Do we need an indication here?
 		 * Probably not since a polling user-mode element would
-		 * get this status from from p2PortStatus(FD40). What about
+		 * get this status from p2PortStatus(FD40). What about
 		 * p80211?
 		 * Response:
 		 * Block Transmits, Ignore receives of data frames

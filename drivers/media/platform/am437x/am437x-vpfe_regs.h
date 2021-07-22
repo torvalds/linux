@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TI AM437x Image Sensor Interface Registers
  *
@@ -5,15 +6,6 @@
  *
  * Benoit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef AM437X_VPFE_REGS_H
@@ -66,13 +58,13 @@
 #define VPFE_PIX_FMT_MASK			3
 #define VPFE_PIX_FMT_SHIFT			12
 #define VPFE_VP2SDR_DISABLE			0xfffbffff
-#define VPFE_WEN_ENABLE				(1 << 17)
+#define VPFE_WEN_ENABLE				BIT(17)
 #define VPFE_SDR2RSZ_DISABLE			0xfff7ffff
-#define VPFE_VDHDEN_ENABLE			(1 << 16)
-#define VPFE_LPF_ENABLE				(1 << 14)
-#define VPFE_ALAW_ENABLE			(1 << 3)
+#define VPFE_VDHDEN_ENABLE			BIT(16)
+#define VPFE_LPF_ENABLE				BIT(14)
+#define VPFE_ALAW_ENABLE			BIT(3)
 #define VPFE_ALAW_GAMMA_WD_MASK			7
-#define VPFE_BLK_CLAMP_ENABLE			(1 << 31)
+#define VPFE_BLK_CLAMP_ENABLE			BIT(31)
 #define VPFE_BLK_SGAIN_MASK			0x1f
 #define VPFE_BLK_ST_PXL_MASK			0x7fff
 #define VPFE_BLK_ST_PXL_SHIFT			10
@@ -85,8 +77,8 @@
 #define VPFE_BLK_COMP_GB_COMP_SHIFT		8
 #define VPFE_BLK_COMP_GR_COMP_SHIFT		16
 #define VPFE_BLK_COMP_R_COMP_SHIFT		24
-#define VPFE_LATCH_ON_VSYNC_DISABLE		(1 << 15)
-#define VPFE_DATA_PACK_ENABLE			(1 << 11)
+#define VPFE_LATCH_ON_VSYNC_DISABLE		BIT(15)
+#define VPFE_DATA_PACK_ENABLE			BIT(11)
 #define VPFE_HORZ_INFO_SPH_SHIFT		16
 #define VPFE_VERT_START_SLV0_SHIFT		16
 #define VPFE_VDINT_VDINT0_SHIFT			16
@@ -114,15 +106,15 @@
 #define VPFE_SYN_FLDMODE_MASK			1
 #define VPFE_SYN_FLDMODE_SHIFT			7
 #define VPFE_REC656IF_BT656_EN			3
-#define VPFE_SYN_MODE_VD_POL_NEGATIVE		(1 << 2)
+#define VPFE_SYN_MODE_VD_POL_NEGATIVE		BIT(2)
 #define VPFE_CCDCFG_Y8POS_SHIFT			11
-#define VPFE_CCDCFG_BW656_10BIT			(1 << 5)
+#define VPFE_CCDCFG_BW656_10BIT			BIT(5)
 #define VPFE_SDOFST_FIELD_INTERLEAVED		0x249
 #define VPFE_NO_CULLING				0xffff00ff
-#define VPFE_VDINT0				(1 << 0)
-#define VPFE_VDINT1				(1 << 1)
-#define VPFE_VDINT2				(1 << 2)
-#define VPFE_DMA_CNTL_OVERFLOW			(1 << 31)
+#define VPFE_VDINT0				BIT(0)
+#define VPFE_VDINT1				BIT(1)
+#define VPFE_VDINT2				BIT(2)
+#define VPFE_DMA_CNTL_OVERFLOW			BIT(31)
 
 #define VPFE_CONFIG_PCLK_INV_SHIFT		0
 #define VPFE_CONFIG_PCLK_INV_MASK		1

@@ -26,9 +26,10 @@
  *          Jerome Glisse
  */
 #include <linux/kernel.h>
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600.h"
 #include "r600d.h"
 #include "r600_reg_safe.h"
 
@@ -37,7 +38,7 @@ extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, 
 
 
 struct r600_cs_track {
-	/* configuration we miror so that we use same code btw kms/ums */
+	/* configuration we mirror so that we use same code btw kms/ums */
 	u32			group_size;
 	u32			nbanks;
 	u32			npipes;
@@ -219,7 +220,7 @@ int r600_fmt_get_nblocksx(u32 format, u32 w)
 	if (bw == 0)
 		return 0;
 
-	return (w + bw - 1) / bw;
+	return DIV_ROUND_UP(w, bw);
 }
 
 int r600_fmt_get_nblocksy(u32 format, u32 h)
@@ -233,7 +234,7 @@ int r600_fmt_get_nblocksy(u32 format, u32 h)
 	if (bh == 0)
 		return 0;
 
-	return (h + bh - 1) / bh;
+	return DIV_ROUND_UP(h, bh);
 }
 
 struct array_mode_checker {
@@ -350,7 +351,7 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 {
 	struct r600_cs_track *track = p->track;
-	u32 slice_tile_max, size, tmp;
+	u32 slice_tile_max, tmp;
 	u32 height, height_align, pitch, pitch_align, depth_align;
 	u64 base_offset, base_align;
 	struct array_mode_checker array_check;
@@ -360,7 +361,6 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	/* When resolve is used, the second colorbuffer has always 1 sample. */
 	unsigned nsamples = track->is_resolve && i == 1 ? 1 : track->nsamples;
 
-	size = radeon_bo_size(track->cb_color_bo[i]) - track->cb_color_bo_offset[i];
 	format = G_0280A0_FORMAT(track->cb_color_info[i]);
 	if (!r600_fmt_is_valid_color(format)) {
 		dev_warn(p->dev, "%s:%d cb invalid format %d for %d (0x%08X)\n",
@@ -488,7 +488,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 				return -EINVAL;
 			}
 		}
-		/* fall through */
+		fallthrough;
 	case V_0280A0_CLEAR_ENABLE:
 	{
 		uint32_t block_max = G_028100_CMASK_BLOCK_MAX(track->cb_color_mask[i]);
@@ -517,7 +517,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 {
 	struct r600_cs_track *track = p->track;
-	u32 nviews, bpe, ntiles, size, slice_tile_max, tmp;
+	u32 nviews, bpe, ntiles, slice_tile_max, tmp;
 	u32 height_align, pitch_align, depth_align;
 	u32 pitch = 8192;
 	u32 height = 8192;
@@ -564,7 +564,6 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 		}
 		ib[track->db_depth_size_idx] = S_028000_SLICE_TILE_MAX(tmp - 1) | (track->db_depth_size & 0x3FF);
 	} else {
-		size = radeon_bo_size(track->db_bo);
 		/* pitch in pixels */
 		pitch = (G_028000_PITCH_TILE_MAX(track->db_depth_size) + 1) * 8;
 		slice_tile_max = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
@@ -784,7 +783,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 
 /**
  * r600_cs_packet_parse_vline() - parse userspace VLINE packet
- * @parser:		parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  *
  * This is an R600-specific function for parsing VLINE packets.
  * Real work is done by r600_cs_common_vline_parse function.
@@ -803,7 +802,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 /**
  * r600_cs_common_vline_parse() - common vline parser
- * @parser:		parser structure holding parsing context.
+ * @p:			parser structure holding parsing context.
  * @vline_start_end:    table of vline_start_end registers
  * @vline_status:       table of vline_status registers
  *
@@ -958,13 +957,13 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 
 /**
  * r600_cs_check_reg() - check if register is authorized or not
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
  *
  * This function will test against r600_reg_safe_bm and return 0
  * if register is safe. If register is not flag as safe this function
- * will test it against a list of register needind special handling.
+ * will test it against a list of register needing special handling.
  */
 static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
@@ -1462,6 +1461,9 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
  * @idx: index into the cs buffer
  * @texture: texture's bo structure
  * @mipmap: mipmap's bo structure
+ * @base_offset: base offset (used for error checking)
+ * @mip_offset: mip offset (used for error checking)
+ * @tiling_flags: tiling flags
  *
  * This function will check that the resource has valid field and that
  * the texture and mipmap bo object are big enough to cover this resource.
@@ -1537,7 +1539,7 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		break;
 	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
 		is_array = true;
-		/* fall through */
+		fallthrough;
 	case V_038000_SQ_TEX_DIM_2D_MSAA:
 		array_check.nsamples = 1 << llevel;
 		llevel = 0;
@@ -2334,7 +2336,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 /**
  * r600_dma_cs_next_reloc() - parse next reloc
  * @p:		parser structure holding parsing context.
- * @cs_reloc:		reloc informations
+ * @cs_reloc:		reloc information
  *
  * Return the next reloc, do bo validation and compute
  * GPU offset using the provided start.
@@ -2342,7 +2344,6 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 			   struct radeon_bo_list **cs_reloc)
 {
-	struct radeon_cs_chunk *relocs_chunk;
 	unsigned idx;
 
 	*cs_reloc = NULL;
@@ -2350,7 +2351,6 @@ int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 		DRM_ERROR("No relocation chunk !\n");
 		return -EINVAL;
 	}
-	relocs_chunk = p->chunk_relocs;
 	idx = p->dma_reloc_idx;
 	if (idx >= p->nrelocs) {
 		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",

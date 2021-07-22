@@ -88,7 +88,7 @@ static struct usb_interface_descriptor hidg_interface_desc = {
 static struct hid_descriptor hidg_desc = {
 	.bLength			= sizeof hidg_desc,
 	.bDescriptorType		= HID_DT_HID,
-	.bcdHID				= 0x0101,
+	.bcdHID				= cpu_to_le16(0x0101),
 	.bCountryCode			= 0x00,
 	.bNumDescriptors		= 0x1,
 	/*.desc[0].bDescriptorType	= DYNAMIC */
@@ -252,9 +252,6 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buffer, count))
-		return -EFAULT;
-
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 
 #define READ_COND (!list_empty(&hidg->completed_out_req))
@@ -339,9 +336,6 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 	unsigned long flags;
 	ssize_t status = -ENOMEM;
 
-	if (!access_ok(VERIFY_READ, buffer, count))
-		return -EFAULT;
-
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
 #define WRITE_COND (!hidg->write_pending)
@@ -391,20 +385,20 @@ try_again:
 	req->complete = f_hidg_req_complete;
 	req->context  = hidg;
 
+	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+
 	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);
 	if (status < 0) {
 		ERROR(hidg->func.config->cdev,
 			"usb_ep_queue error on int endpoint %zd\n", status);
-		goto release_write_pending_unlocked;
+		goto release_write_pending;
 	} else {
 		status = count;
 	}
-	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
 
 	return status;
 release_write_pending:
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
-release_write_pending_unlocked:
 	hidg->write_pending = 0;
 	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
 
@@ -483,7 +477,7 @@ static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 	default:
 		ERROR(cdev, "Set report failed %d\n", req->status);
-		/* FALLTHROUGH */
+		fallthrough;
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
@@ -808,7 +802,8 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 		hidg_fs_out_ep_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, hidg_fs_descriptors,
-			hidg_hs_descriptors, hidg_ss_descriptors, NULL);
+			hidg_hs_descriptors, hidg_ss_descriptors,
+			hidg_ss_descriptors);
 	if (status)
 		goto fail;
 
@@ -1123,7 +1118,7 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	hidg->func.setup   = hidg_setup;
 	hidg->func.free_func = hidg_free;
 
-	/* this could me made configurable at some point */
+	/* this could be made configurable at some point */
 	hidg->qlen	   = 4;
 
 	return &hidg->func;

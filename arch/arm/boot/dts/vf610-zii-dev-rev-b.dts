@@ -1,45 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
- *
- * Based on an original 'vf610-twr.dts' which is Copyright 2015,
- * Freescale Semiconductor, Inc.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -334,11 +295,11 @@
 		gpio-sck  = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		gpio-miso = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-		cs-gpios  = <&gpio1  9 GPIO_ACTIVE_HIGH
+		cs-gpios  = <&gpio1  9 GPIO_ACTIVE_LOW
 			     &gpio1  8 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <2>;
 
-		m25p128@0 {
+		flash@0 {
 			compatible = "m25p128", "jedec,spi-nor";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -362,12 +323,7 @@
 };
 
 &i2c0 {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c0>;
-	status = "okay";
-
-	gpio5: pca9554@20 {
+	gpio5: io-expander@20 {
 		compatible = "nxp,pca9554";
 		reg = <0x20>;
 		gpio-controller;
@@ -375,7 +331,7 @@
 
 	};
 
-	gpio6: pca9554@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pca9554_22>;
@@ -389,11 +345,6 @@
 };
 
 &i2c2 {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2>;
-	status = "okay";
-
 	tca9548@70 {
 		compatible = "nxp,pca9548";
 		pinctrl-0 = <&pinctrl_i2c_mux_reset>;
@@ -408,7 +359,7 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			sfp1: at24c04@50 {
+			sfp1: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -419,7 +370,7 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			sfp2: at24c04@50 {
+			sfp2: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -430,7 +381,7 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			sfp3: at24c04@50 {
+			sfp3: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -441,7 +392,7 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			sfp4: at24c04@50 {
+			sfp4: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -455,6 +406,9 @@
 	};
 };
 
+&mdio1 {
+	clock-frequency = <5000000>;
+};
 
 &iomuxc {
 	pinctrl_gpio_e6185_eeprom_sel: pinctrl-gpio-e6185-eeprom-spi0 {

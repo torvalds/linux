@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* linux/net/ipv4/arp.c
  *
  * Copyright (C) 1994 by Florian  La Roche
@@ -6,11 +7,6 @@
  * which is used to convert IP addresses (or in the future maybe other
  * high-level addresses) into a low-level hardware address (like an Ethernet
  * address).
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Fixes:
  *		Alan Cox	:	Removed the Ethernet assumptions in
@@ -129,6 +125,7 @@ static int arp_constructor(struct neighbour *neigh);
 static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb);
 static void parp_redo(struct sk_buff *skb);
+static int arp_is_multicast(const void *pkey);
 
 static const struct neigh_ops arp_generic_ops = {
 	.family =		AF_INET,
@@ -160,6 +157,7 @@ struct neigh_table arp_tbl = {
 	.key_eq		= arp_key_eq,
 	.constructor	= arp_constructor,
 	.proxy_redo	= parp_redo,
+	.is_multicast	= arp_is_multicast,
 	.id		= "arp_cache",
 	.parms		= {
 		.tbl			= &arp_tbl,
@@ -932,6 +930,10 @@ static void parp_redo(struct sk_buff *skb)
 	arp_process(dev_net(skb->dev), NULL, skb);
 }
 
+static int arp_is_multicast(const void *pkey)
+{
+	return ipv4_is_multicast(*((__be32 *)pkey));
+}
 
 /*
  *	Receive an arp request from the device layer.
@@ -1185,7 +1187,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCSARP:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
-		/* fall through */
+		fallthrough;
 	case SIOCGARP:
 		err = copy_from_user(&r, arg, sizeof(struct arpreq));
 		if (err)

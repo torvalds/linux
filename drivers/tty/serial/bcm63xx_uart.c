@@ -10,10 +10,6 @@
  * my board.
  */
 
-#if defined(CONFIG_SERIAL_BCM63XX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -298,9 +294,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty_port);
-	spin_lock(&port->lock);
 }
 
 /*
@@ -858,6 +852,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	port->fifosize = 16;
 	port->uartclk = clk_get_rate(clk) / 2;
 	port->line = pdev->id;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_BCM63XX_CONSOLE);
 	clk_put(clk);
 
 	ret = uart_add_one_port(&bcm_uart_driver, port);

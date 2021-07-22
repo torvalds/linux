@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * keyboard input driver for i2c IR remote controls
@@ -32,17 +33,6 @@
  *	Mark Weaver <mark@npsl.co.uk>
  *	Jarod Wilson <jarod@redhat.com>
  *	Copyright (C) 2011 Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <asm/unaligned.h>
@@ -688,8 +678,8 @@ static int zilog_tx(struct rc_dev *rcdev, unsigned int *txbuf,
 		goto out_unlock;
 	}
 
-	i = i2c_master_recv(ir->tx_c, buf, 1);
-	if (i != 1) {
+	ret = i2c_master_recv(ir->tx_c, buf, 1);
+	if (ret != 1) {
 		dev_err(&ir->rc->dev, "i2c_master_recv failed with %d\n", ret);
 		ret = -EIO;
 		goto out_unlock;
@@ -895,9 +885,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	INIT_DELAYED_WORK(&ir->work, ir_work);
 
 	if (probe_tx) {
-		ir->tx_c = i2c_new_dummy(client->adapter, 0x70);
-		if (!ir->tx_c) {
+		ir->tx_c = i2c_new_dummy_device(client->adapter, 0x70);
+		if (IS_ERR(ir->tx_c)) {
 			dev_err(&client->dev, "failed to setup tx i2c address");
+			err = PTR_ERR(ir->tx_c);
+			goto err_out_free;
 		} else if (!zilog_init(ir)) {
 			ir->carrier = 38000;
 			ir->duty_cycle = 40;
@@ -914,7 +906,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
  err_out_free:
-	if (ir->tx_c)
+	if (!IS_ERR(ir->tx_c))
 		i2c_unregister_device(ir->tx_c);
 
 	/* Only frees rc if it were allocated internally */
@@ -926,16 +918,12 @@ static int ir_remove(struct i2c_client *client)
 {
 	struct IR_i2c *ir = i2c_get_clientdata(client);
 
-	/* kill outstanding polls */
 	cancel_delayed_work_sync(&ir->work);
 
-	if (ir->tx_c)
-		i2c_unregister_device(ir->tx_c);
+	i2c_unregister_device(ir->tx_c);
 
-	/* unregister device */
 	rc_unregister_device(ir->rc);
 
-	/* free memory */
 	return 0;
 }
 

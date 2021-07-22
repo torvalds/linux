@@ -634,7 +634,7 @@ int xxxfb_sync(struct fb_info *info)
      *  Frame buffer operations
      */
 
-static struct fb_ops xxxfb_ops = {
+static const struct fb_ops xxxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= xxxfb_open,
 	.fb_read	= xxxfb_read,

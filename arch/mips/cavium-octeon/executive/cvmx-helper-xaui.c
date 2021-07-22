@@ -259,13 +259,13 @@ int __cvmx_helper_xaui_enable(int interface)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t __cvmx_helper_xaui_link_get(int ipd_port)
+union cvmx_helper_link_info __cvmx_helper_xaui_link_get(int ipd_port)
 {
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	union cvmx_gmxx_tx_xaui_ctl gmxx_tx_xaui_ctl;
 	union cvmx_gmxx_rx_xaui_ctl gmxx_rx_xaui_ctl;
 	union cvmx_pcsxx_status1_reg pcsxx_status1_reg;
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 
 	gmxx_tx_xaui_ctl.u64 = cvmx_read_csr(CVMX_GMXX_TX_XAUI_CTL(interface));
 	gmxx_rx_xaui_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RX_XAUI_CTL(interface));
@@ -299,7 +299,7 @@ cvmx_helper_link_info_t __cvmx_helper_xaui_link_get(int ipd_port)
  *
  * Returns Zero on success, negative on failure
  */
-int __cvmx_helper_xaui_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
+int __cvmx_helper_xaui_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	union cvmx_gmxx_tx_xaui_ctl gmxx_tx_xaui_ctl;
@@ -317,44 +317,5 @@ int __cvmx_helper_xaui_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 		return 0;
 
 	/* Bring the link up */
-	return __cvmx_helper_xaui_enable(interface);
-}
-
-/**
- * Configure a port for internal and/or external loopback. Internal loopback
- * causes packets sent by the port to be received by Octeon. External loopback
- * causes packets received from the wire to sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-extern int __cvmx_helper_xaui_configure_loopback(int ipd_port,
-						 int enable_internal,
-						 int enable_external)
-{
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	union cvmx_pcsxx_control1_reg pcsxx_control1_reg;
-	union cvmx_gmxx_xaui_ext_loopback gmxx_xaui_ext_loopback;
-
-	/* Set the internal loop */
-	pcsxx_control1_reg.u64 =
-	    cvmx_read_csr(CVMX_PCSXX_CONTROL1_REG(interface));
-	pcsxx_control1_reg.s.loopbck1 = enable_internal;
-	cvmx_write_csr(CVMX_PCSXX_CONTROL1_REG(interface),
-		       pcsxx_control1_reg.u64);
-
-	/* Set the external loop */
-	gmxx_xaui_ext_loopback.u64 =
-	    cvmx_read_csr(CVMX_GMXX_XAUI_EXT_LOOPBACK(interface));
-	gmxx_xaui_ext_loopback.s.en = enable_external;
-	cvmx_write_csr(CVMX_GMXX_XAUI_EXT_LOOPBACK(interface),
-		       gmxx_xaui_ext_loopback.u64);
-
-	/* Take the link through a reset */
 	return __cvmx_helper_xaui_enable(interface);
 }

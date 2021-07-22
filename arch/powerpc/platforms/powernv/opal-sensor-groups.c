@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL Sensor-groups interface
  *
  * Copyright 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)     "opal-sensor-groups: " fmt
@@ -17,7 +13,7 @@
 
 #include <asm/opal.h>
 
-DEFINE_MUTEX(sg_mutex);
+static DEFINE_MUTEX(sg_mutex);
 
 static struct kobject *sg_kobj;
 

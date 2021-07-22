@@ -37,7 +37,7 @@ struct garp_skb_cb {
 static inline struct garp_skb_cb *garp_cb(struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(struct garp_skb_cb) >
-		     FIELD_SIZEOF(struct sk_buff, cb));
+		     sizeof_field(struct sk_buff, cb));
 	return (struct garp_skb_cb *)skb->cb;
 }
 

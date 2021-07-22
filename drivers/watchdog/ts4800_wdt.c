@@ -108,7 +108,8 @@ static const struct watchdog_info ts4800_wdt_info = {
 
 static int ts4800_wdt_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct device_node *syscon_np;
 	struct watchdog_device *wdd;
 	struct ts4800_wdt *wdt;
@@ -117,18 +118,18 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 
 	syscon_np = of_parse_phandle(np, "syscon", 0);
 	if (!syscon_np) {
-		dev_err(&pdev->dev, "no syscon property\n");
+		dev_err(dev, "no syscon property\n");
 		return -ENODEV;
 	}
 
 	ret = of_property_read_u32_index(np, "syscon", 1, &reg);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
+		dev_err(dev, "no offset in syscon\n");
 		return ret;
 	}
 
 	/* allocate memory for watchdog struct */
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -137,13 +138,13 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	wdt->regmap = syscon_node_to_regmap(syscon_np);
 	of_node_put(syscon_np);
 	if (IS_ERR(wdt->regmap)) {
-		dev_err(&pdev->dev, "cannot get parent's regmap\n");
+		dev_err(dev, "cannot get parent's regmap\n");
 		return PTR_ERR(wdt->regmap);
 	}
 
 	/* Initialize struct watchdog_device */
 	wdd = &wdt->wdd;
-	wdd->parent = &pdev->dev;
+	wdd->parent = dev;
 	wdd->info = &ts4800_wdt_info;
 	wdd->ops = &ts4800_wdt_ops;
 	wdd->min_timeout = ts4800_wdt_map[0].timeout;
@@ -151,7 +152,7 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 	watchdog_set_nowayout(wdd, nowayout);
-	watchdog_init_timeout(wdd, 0, &pdev->dev);
+	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
 	 * As this watchdog supports only a few values, ts4800_wdt_set_timeout
@@ -169,27 +170,14 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	 */
 	ts4800_wdt_stop(wdd);
 
-	ret = watchdog_register_device(wdd);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"failed to register watchdog device\n");
+	ret = devm_watchdog_register_device(dev, wdd);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(&pdev->dev,
-		 "initialized (timeout = %d sec, nowayout = %d)\n",
+	dev_info(dev, "initialized (timeout = %d sec, nowayout = %d)\n",
 		 wdd->timeout, nowayout);
-
-	return 0;
-}
-
-static int ts4800_wdt_remove(struct platform_device *pdev)
-{
-	struct ts4800_wdt *wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&wdt->wdd);
 
 	return 0;
 }
@@ -202,7 +190,6 @@ MODULE_DEVICE_TABLE(of, ts4800_wdt_of_match);
 
 static struct platform_driver ts4800_wdt_driver = {
 	.probe		= ts4800_wdt_probe,
-	.remove		= ts4800_wdt_remove,
 	.driver		= {
 		.name	= "ts4800_wdt",
 		.of_match_table = ts4800_wdt_of_match,

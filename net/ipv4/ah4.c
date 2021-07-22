@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "IPsec: " fmt
 
 #include <crypto/algapi.h>
@@ -106,7 +107,7 @@ static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 			if (optlen < 6)
 				return -EINVAL;
 			memcpy(daddr, optptr+optlen-4, 4);
-			/* Fall through */
+			fallthrough;
 		default:
 			memset(optptr, 0, optlen);
 		}
@@ -140,7 +141,7 @@ static void ah_output_done(struct crypto_async_request *base, int err)
 	}
 
 	kfree(AH_SKB_CB(skb)->tmp);
-	xfrm_output_resume(skb, err);
+	xfrm_output_resume(skb->sk, skb, err);
 }
 
 static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
@@ -449,6 +450,7 @@ static int ah4_err(struct sk_buff *skb, u32 info)
 	case ICMP_DEST_UNREACH:
 		if (icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 			return 0;
+		break;
 	case ICMP_REDIRECT:
 		break;
 	default:
@@ -553,7 +555,6 @@ static int ah4_rcv_cb(struct sk_buff *skb, int err)
 
 static const struct xfrm_type ah_type =
 {
-	.description	= "AH4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_AH,
 	.flags		= XFRM_TYPE_REPLAY_PROT,
@@ -589,8 +590,7 @@ static void __exit ah4_fini(void)
 {
 	if (xfrm4_protocol_deregister(&ah4_protocol, IPPROTO_AH) < 0)
 		pr_info("%s: can't remove protocol\n", __func__);
-	if (xfrm_unregister_type(&ah_type, AF_INET) < 0)
-		pr_info("%s: can't remove xfrm type\n", __func__);
+	xfrm_unregister_type(&ah_type, AF_INET);
 }
 
 module_init(ah4_init);

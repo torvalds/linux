@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale Vybrid vf610 DAC driver
  *
  * Copyright 2016 Toradex AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -45,6 +36,7 @@ struct vf610_dac {
 	struct device *dev;
 	enum vf610_conversion_mode_sel conv_mode;
 	void __iomem *regs;
+	struct mutex lock;
 };
 
 static void vf610_dac_init(struct vf610_dac *info)
@@ -73,7 +65,7 @@ static int vf610_set_conversion_mode(struct iio_dev *indio_dev,
 	struct vf610_dac *info = iio_priv(indio_dev);
 	int val;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&info->lock);
 	info->conv_mode = mode;
 	val = readl(info->regs + VF610_DACx_STATCTRL);
 	if (mode)
@@ -81,7 +73,7 @@ static int vf610_set_conversion_mode(struct iio_dev *indio_dev,
 	else
 		val &= ~VF610_DAC_LPEN;
 	writel(val, info->regs + VF610_DACx_STATCTRL);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	return 0;
 }
@@ -156,9 +148,9 @@ static int vf610_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&info->lock);
 		writel(VF610_DAC_DAT0(val), info->regs);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&info->lock);
 		return 0;
 
 	default:
@@ -181,7 +173,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct vf610_dac *info;
-	struct resource *mem;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
@@ -194,8 +185,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 	info->dev = &pdev->dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, mem);
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
@@ -209,12 +199,12 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &vf610_dac_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_dac_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(vf610_dac_iio_channels);
+
+	mutex_init(&info->lock);
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
@@ -234,6 +224,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	return 0;
 
 error_iio_device_register:
+	vf610_dac_exit(info);
 	clk_disable_unprepare(info->clk);
 
 	return ret;

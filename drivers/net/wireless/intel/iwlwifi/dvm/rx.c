@@ -1,22 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2018, 2020 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -142,7 +132,7 @@ static void iwlagn_rx_beacon_notif(struct iwl_priv *priv,
 	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 }
 
-/**
+/*
  * iwl_good_plcp_health - checks for plcp error.
  *
  * When the plcp error is exceeding the thresholds, reset the radio
@@ -592,7 +582,7 @@ static int iwlagn_set_decrypted_flag(struct iwl_priv *priv,
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_BAD_KEY_TTAK)
 			break;
-
+		fallthrough;
 	case RX_RES_STATUS_SEC_TYPE_WEP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_BAD_ICV_MIC) {
@@ -601,6 +591,7 @@ static int iwlagn_set_decrypted_flag(struct iwl_priv *priv,
 			IWL_DEBUG_RX(priv, "Packet destroyed\n");
 			return -1;
 		}
+		fallthrough;
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
@@ -729,7 +720,7 @@ static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 			decrypt_out |= RX_RES_STATUS_BAD_KEY_TTAK;
 			break;
 		}
-		/* fall through if TTAK OK */
+		fallthrough;
 	default:
 		if (!(decrypt_in & RX_MPDU_RES_STATUS_ICV_OK))
 			decrypt_out |= RX_RES_STATUS_BAD_ICV_MIC;
@@ -795,7 +786,7 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
 	struct iwl_rx_mpdu_res_start *amsdu;
-	u32 len;
+	u32 len, pkt_len = iwl_rx_packet_len(pkt);
 	u32 ampdu_status;
 	u32 rate_n_flags;
 
@@ -803,10 +794,22 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		IWL_ERR(priv, "MPDU frame without cached PHY data\n");
 		return;
 	}
+
+	if (unlikely(pkt_len < sizeof(*amsdu))) {
+		IWL_DEBUG_DROP(priv, "Bad REPLY_RX_MPDU_CMD size\n");
+		return;
+	}
+
 	phy_res = &priv->last_phy_res;
 	amsdu = (struct iwl_rx_mpdu_res_start *)pkt->data;
 	header = (struct ieee80211_hdr *)(pkt->data + sizeof(*amsdu));
 	len = le16_to_cpu(amsdu->byte_count);
+
+	if (unlikely(len + sizeof(*amsdu) + sizeof(__le32) > pkt_len)) {
+		IWL_DEBUG_DROP(priv, "FW lied about packet len\n");
+		return;
+	}
+
 	rx_pkt_status = *(__le32 *)(pkt->data + sizeof(*amsdu) + len);
 	ampdu_status = iwlagn_translate_rx_status(priv,
 						  le32_to_cpu(rx_pkt_status));
@@ -938,7 +941,7 @@ static void iwlagn_rx_noa_notification(struct iwl_priv *priv,
 		kfree_rcu(old_data, rcu_head);
 }
 
-/**
+/*
  * iwl_setup_rx_handlers - Initialize Rx handler callbacks
  *
  * Setup the RX handlers for each of the reply types sent from the uCode

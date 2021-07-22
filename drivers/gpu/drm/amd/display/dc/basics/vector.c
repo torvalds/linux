@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "include/vector.h"
 
@@ -50,7 +52,7 @@ bool dal_vector_construct(
 	return true;
 }
 
-bool dal_vector_presized_costruct(
+static bool dal_vector_presized_costruct(
 	struct vector *vector,
 	struct dc_context *ctx,
 	uint32_t count,

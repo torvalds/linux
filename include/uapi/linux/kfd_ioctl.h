@@ -26,8 +26,14 @@
 #include <drm/drm.h>
 #include <linux/ioctl.h>
 
+/*
+ * - 1.1 - initial version
+ * - 1.3 - Add SMI events support
+ * - 1.4 - Indicate new SRAM EDC bit in device properties
+ * - 1.5 - Add SVM API
+ */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 1
+#define KFD_IOCTL_MINOR_VERSION 5
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -35,9 +41,10 @@ struct kfd_ioctl_get_version_args {
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
-#define KFD_IOC_QUEUE_TYPE_COMPUTE	0
-#define KFD_IOC_QUEUE_TYPE_SDMA		1
-#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL	2
+#define KFD_IOC_QUEUE_TYPE_COMPUTE		0x0
+#define KFD_IOC_QUEUE_TYPE_SDMA			0x1
+#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL		0x2
+#define KFD_IOC_QUEUE_TYPE_SDMA_XGMI		0x3
 
 #define KFD_MAX_QUEUE_PERCENTAGE	100
 #define KFD_MAX_QUEUE_PRIORITY		15
@@ -83,11 +90,11 @@ struct kfd_ioctl_set_cu_mask_args {
 };
 
 struct kfd_ioctl_get_queue_wave_state_args {
-	uint64_t ctl_stack_address;	/* to KFD */
-	uint32_t ctl_stack_used_size;	/* from KFD */
-	uint32_t save_area_used_size;	/* from KFD */
-	uint32_t queue_id;		/* to KFD */
-	uint32_t pad;
+	__u64 ctl_stack_address;	/* to KFD */
+	__u32 ctl_stack_used_size;	/* from KFD */
+	__u32 save_area_used_size;	/* from KFD */
+	__u32 queue_id;			/* to KFD */
+	__u32 pad;
 };
 
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
@@ -211,6 +218,11 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_HW_EXCEPTION_GPU_HANG	0
 #define KFD_HW_EXCEPTION_ECC		1
 
+/* For kfd_hsa_memory_exception_data.ErrorType */
+#define KFD_MEM_ERR_NO_RAS		0
+#define KFD_MEM_ERR_SRAM_ECC		1
+#define KFD_MEM_ERR_POISON_CONSUMED	2
+#define KFD_MEM_ERR_GPU_HANG		3
 
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
@@ -245,20 +257,25 @@ struct kfd_memory_exception_failure {
 	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
-/* memory exception data*/
+/* memory exception data */
 struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
 	__u32 gpu_id;
-	__u32 pad;
+	__u32 ErrorType; /* 0 = no RAS error,
+			  * 1 = ECC_SRAM,
+			  * 2 = Link_SYNFLOOD (poison),
+			  * 3 = GPU hang (not attributable to a specific cause),
+			  * other values reserved
+			  */
 };
 
 /* hw exception data */
 struct kfd_hsa_hw_exception_data {
-	uint32_t reset_type;
-	uint32_t reset_cause;
-	uint32_t memory_lost;
-	uint32_t gpu_id;
+	__u32 reset_type;
+	__u32 reset_cause;
+	__u32 memory_lost;
+	__u32 gpu_id;
 };
 
 /* Event data */
@@ -328,6 +345,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define KFD_IOC_ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 /* Allocation flags: attributes/access options */
 #define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
@@ -335,6 +353,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE	(1 << 28)
 #define KFD_IOC_ALLOC_MEM_FLAGS_AQL_QUEUE_MEM	(1 << 27)
 #define KFD_IOC_ALLOC_MEM_FLAGS_COHERENT	(1 << 26)
+#define KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED	(1 << 25)
 
 /* Allocate memory for later SVM (shared virtual memory) mapping.
  *
@@ -396,6 +415,224 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 	__u64 device_ids_array_ptr;	/* to KFD */
 	__u32 n_devices;		/* to KFD */
 	__u32 n_success;		/* to/from KFD */
+};
+
+/* Allocate GWS for specific queue
+ *
+ * @queue_id:    queue's id that GWS is allocated for
+ * @num_gws:     how many GWS to allocate
+ * @first_gws:   index of the first GWS allocated.
+ *               only support contiguous GWS allocation
+ */
+struct kfd_ioctl_alloc_queue_gws_args {
+	__u32 queue_id;		/* to KFD */
+	__u32 num_gws;		/* to KFD */
+	__u32 first_gws;	/* from KFD */
+	__u32 pad;
+};
+
+struct kfd_ioctl_get_dmabuf_info_args {
+	__u64 size;		/* from KFD */
+	__u64 metadata_ptr;	/* to KFD */
+	__u32 metadata_size;	/* to KFD (space allocated by user)
+				 * from KFD (actual metadata size)
+				 */
+	__u32 gpu_id;	/* from KFD */
+	__u32 flags;		/* from KFD (KFD_IOC_ALLOC_MEM_FLAGS) */
+	__u32 dmabuf_fd;	/* to KFD */
+};
+
+struct kfd_ioctl_import_dmabuf_args {
+	__u64 va_addr;	/* to KFD */
+	__u64 handle;	/* from KFD */
+	__u32 gpu_id;	/* to KFD */
+	__u32 dmabuf_fd;	/* to KFD */
+};
+
+/*
+ * KFD SMI(System Management Interface) events
+ */
+enum kfd_smi_event {
+	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
+	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
+	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
+	KFD_SMI_EVENT_GPU_POST_RESET = 4,
+};
+
+#define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
+
+struct kfd_ioctl_smi_events_args {
+	__u32 gpuid;	/* to KFD */
+	__u32 anon_fd;	/* from KFD */
+};
+
+/* Register offset inside the remapped mmio page
+ */
+enum kfd_mmio_remap {
+	KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL = 0,
+	KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL = 4,
+};
+
+/* Guarantee host access to memory */
+#define KFD_IOCTL_SVM_FLAG_HOST_ACCESS 0x00000001
+/* Fine grained coherency between all devices with access */
+#define KFD_IOCTL_SVM_FLAG_COHERENT    0x00000002
+/* Use any GPU in same hive as preferred device */
+#define KFD_IOCTL_SVM_FLAG_HIVE_LOCAL  0x00000004
+/* GPUs only read, allows replication */
+#define KFD_IOCTL_SVM_FLAG_GPU_RO      0x00000008
+/* Allow execution on GPU */
+#define KFD_IOCTL_SVM_FLAG_GPU_EXEC    0x00000010
+/* GPUs mostly read, may allow similar optimizations as RO, but writes fault */
+#define KFD_IOCTL_SVM_FLAG_GPU_READ_MOSTLY     0x00000020
+
+/**
+ * kfd_ioctl_svm_op - SVM ioctl operations
+ *
+ * @KFD_IOCTL_SVM_OP_SET_ATTR: Modify one or more attributes
+ * @KFD_IOCTL_SVM_OP_GET_ATTR: Query one or more attributes
+ */
+enum kfd_ioctl_svm_op {
+	KFD_IOCTL_SVM_OP_SET_ATTR,
+	KFD_IOCTL_SVM_OP_GET_ATTR
+};
+
+/** kfd_ioctl_svm_location - Enum for preferred and prefetch locations
+ *
+ * GPU IDs are used to specify GPUs as preferred and prefetch locations.
+ * Below definitions are used for system memory or for leaving the preferred
+ * location unspecified.
+ */
+enum kfd_ioctl_svm_location {
+	KFD_IOCTL_SVM_LOCATION_SYSMEM = 0,
+	KFD_IOCTL_SVM_LOCATION_UNDEFINED = 0xffffffff
+};
+
+/**
+ * kfd_ioctl_svm_attr_type - SVM attribute types
+ *
+ * @KFD_IOCTL_SVM_ATTR_PREFERRED_LOC: gpuid of the preferred location, 0 for
+ *                                    system memory
+ * @KFD_IOCTL_SVM_ATTR_PREFETCH_LOC: gpuid of the prefetch location, 0 for
+ *                                   system memory. Setting this triggers an
+ *                                   immediate prefetch (migration).
+ * @KFD_IOCTL_SVM_ATTR_ACCESS:
+ * @KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE:
+ * @KFD_IOCTL_SVM_ATTR_NO_ACCESS: specify memory access for the gpuid given
+ *                                by the attribute value
+ * @KFD_IOCTL_SVM_ATTR_SET_FLAGS: bitmask of flags to set (see
+ *                                KFD_IOCTL_SVM_FLAG_...)
+ * @KFD_IOCTL_SVM_ATTR_CLR_FLAGS: bitmask of flags to clear
+ * @KFD_IOCTL_SVM_ATTR_GRANULARITY: migration granularity
+ *                                  (log2 num pages)
+ */
+enum kfd_ioctl_svm_attr_type {
+	KFD_IOCTL_SVM_ATTR_PREFERRED_LOC,
+	KFD_IOCTL_SVM_ATTR_PREFETCH_LOC,
+	KFD_IOCTL_SVM_ATTR_ACCESS,
+	KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE,
+	KFD_IOCTL_SVM_ATTR_NO_ACCESS,
+	KFD_IOCTL_SVM_ATTR_SET_FLAGS,
+	KFD_IOCTL_SVM_ATTR_CLR_FLAGS,
+	KFD_IOCTL_SVM_ATTR_GRANULARITY
+};
+
+/**
+ * kfd_ioctl_svm_attribute - Attributes as pairs of type and value
+ *
+ * The meaning of the @value depends on the attribute type.
+ *
+ * @type: attribute type (see enum @kfd_ioctl_svm_attr_type)
+ * @value: attribute value
+ */
+struct kfd_ioctl_svm_attribute {
+	__u32 type;
+	__u32 value;
+};
+
+/**
+ * kfd_ioctl_svm_args - Arguments for SVM ioctl
+ *
+ * @op specifies the operation to perform (see enum
+ * @kfd_ioctl_svm_op).  @start_addr and @size are common for all
+ * operations.
+ *
+ * A variable number of attributes can be given in @attrs.
+ * @nattr specifies the number of attributes. New attributes can be
+ * added in the future without breaking the ABI. If unknown attributes
+ * are given, the function returns -EINVAL.
+ *
+ * @KFD_IOCTL_SVM_OP_SET_ATTR sets attributes for a virtual address
+ * range. It may overlap existing virtual address ranges. If it does,
+ * the existing ranges will be split such that the attribute changes
+ * only apply to the specified address range.
+ *
+ * @KFD_IOCTL_SVM_OP_GET_ATTR returns the intersection of attributes
+ * over all memory in the given range and returns the result as the
+ * attribute value. If different pages have different preferred or
+ * prefetch locations, 0xffffffff will be returned for
+ * @KFD_IOCTL_SVM_ATTR_PREFERRED_LOC or
+ * @KFD_IOCTL_SVM_ATTR_PREFETCH_LOC resepctively. For
+ * @KFD_IOCTL_SVM_ATTR_SET_FLAGS, flags of all pages will be
+ * aggregated by bitwise AND. The minimum  migration granularity
+ * throughout the range will be returned for
+ * @KFD_IOCTL_SVM_ATTR_GRANULARITY.
+ *
+ * Querying of accessibility attributes works by initializing the
+ * attribute type to @KFD_IOCTL_SVM_ATTR_ACCESS and the value to the
+ * GPUID being queried. Multiple attributes can be given to allow
+ * querying multiple GPUIDs. The ioctl function overwrites the
+ * attribute type to indicate the access for the specified GPU.
+ *
+ * @KFD_IOCTL_SVM_ATTR_CLR_FLAGS is invalid for
+ * @KFD_IOCTL_SVM_OP_GET_ATTR.
+ */
+struct kfd_ioctl_svm_args {
+	__u64 start_addr;
+	__u64 size;
+	__u32 op;
+	__u32 nattr;
+	/* Variable length array of attributes */
+	struct kfd_ioctl_svm_attribute attrs[0];
+};
+
+/**
+ * kfd_ioctl_set_xnack_mode_args - Arguments for set_xnack_mode
+ *
+ * @xnack_enabled:       [in/out] Whether to enable XNACK mode for this process
+ *
+ * @xnack_enabled indicates whether recoverable page faults should be
+ * enabled for the current process. 0 means disabled, positive means
+ * enabled, negative means leave unchanged. If enabled, virtual address
+ * translations on GFXv9 and later AMD GPUs can return XNACK and retry
+ * the access until a valid PTE is available. This is used to implement
+ * device page faults.
+ *
+ * On output, @xnack_enabled returns the (new) current mode (0 or
+ * positive). Therefore, a negative input value can be used to query
+ * the current mode without changing it.
+ *
+ * The XNACK mode fundamentally changes the way SVM managed memory works
+ * in the driver, with subtle effects on application performance and
+ * functionality.
+ *
+ * Enabling XNACK mode requires shader programs to be compiled
+ * differently. Furthermore, not all GPUs support changing the mode
+ * per-process. Therefore changing the mode is only allowed while no
+ * user mode queues exist in the process. This ensure that no shader
+ * code is running that may be compiled for the wrong mode. And GPUs
+ * that cannot change to the requested mode will prevent the XNACK
+ * mode from occurring. All GPUs used by the process must be in the
+ * same XNACK mode.
+ *
+ * GFXv8 or older GPUs do not support 48 bit virtual addresses or SVM.
+ * Therefore those GPUs are not considered for the XNACK mode switch.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+struct kfd_ioctl_set_xnack_mode_args {
+	__s32 xnack_enabled;
 };
 
 #define AMDKFD_IOCTL_BASE 'K'
@@ -486,7 +723,24 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 #define AMDKFD_IOC_GET_QUEUE_WAVE_STATE		\
 		AMDKFD_IOWR(0x1B, struct kfd_ioctl_get_queue_wave_state_args)
 
+#define AMDKFD_IOC_GET_DMABUF_INFO		\
+		AMDKFD_IOWR(0x1C, struct kfd_ioctl_get_dmabuf_info_args)
+
+#define AMDKFD_IOC_IMPORT_DMABUF		\
+		AMDKFD_IOWR(0x1D, struct kfd_ioctl_import_dmabuf_args)
+
+#define AMDKFD_IOC_ALLOC_QUEUE_GWS		\
+		AMDKFD_IOWR(0x1E, struct kfd_ioctl_alloc_queue_gws_args)
+
+#define AMDKFD_IOC_SMI_EVENTS			\
+		AMDKFD_IOWR(0x1F, struct kfd_ioctl_smi_events_args)
+
+#define AMDKFD_IOC_SVM	AMDKFD_IOWR(0x20, struct kfd_ioctl_svm_args)
+
+#define AMDKFD_IOC_SET_XNACK_MODE		\
+		AMDKFD_IOWR(0x21, struct kfd_ioctl_set_xnack_mode_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1C
+#define AMDKFD_COMMAND_END		0x22
 
 #endif

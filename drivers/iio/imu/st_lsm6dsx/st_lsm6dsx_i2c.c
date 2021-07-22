@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_lsm6dsx i2c driver
  *
@@ -5,15 +6,12 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include "st_lsm6dsx.h"
@@ -31,13 +29,11 @@ static int st_lsm6dsx_i2c_probe(struct i2c_client *client,
 
 	regmap = devm_regmap_init_i2c(client, &st_lsm6dsx_i2c_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to register i2c regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&client->dev, "Failed to register i2c regmap %ld\n", PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsx_probe(&client->dev, client->irq,
-				hw_id, id->name, regmap);
+	return st_lsm6dsx_probe(&client->dev, client->irq, hw_id, regmap);
 }
 
 static const struct of_device_id st_lsm6dsx_i2c_of_match[] = {
@@ -65,6 +61,46 @@ static const struct of_device_id st_lsm6dsx_i2c_of_match[] = {
 		.compatible = "st,lsm6dso",
 		.data = (void *)ST_LSM6DSO_ID,
 	},
+	{
+		.compatible = "st,asm330lhh",
+		.data = (void *)ST_ASM330LHH_ID,
+	},
+	{
+		.compatible = "st,lsm6dsox",
+		.data = (void *)ST_LSM6DSOX_ID,
+	},
+	{
+		.compatible = "st,lsm6dsr",
+		.data = (void *)ST_LSM6DSR_ID,
+	},
+	{
+		.compatible = "st,lsm6ds3tr-c",
+		.data = (void *)ST_LSM6DS3TRC_ID,
+	},
+	{
+		.compatible = "st,ism330dhcx",
+		.data = (void *)ST_ISM330DHCX_ID,
+	},
+	{
+		.compatible = "st,lsm9ds1-imu",
+		.data = (void *)ST_LSM9DS1_ID,
+	},
+	{
+		.compatible = "st,lsm6ds0",
+		.data = (void *)ST_LSM6DS0_ID,
+	},
+	{
+		.compatible = "st,lsm6dsrx",
+		.data = (void *)ST_LSM6DSRX_ID,
+	},
+	{
+		.compatible = "st,lsm6dst",
+		.data = (void *)ST_LSM6DST_ID,
+	},
+	{
+		.compatible = "st,lsm6dsop",
+		.data = (void *)ST_LSM6DSOP_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsx_i2c_of_match);
@@ -76,6 +112,16 @@ static const struct i2c_device_id st_lsm6dsx_i2c_id_table[] = {
 	{ ST_LSM6DSM_DEV_NAME, ST_LSM6DSM_ID },
 	{ ST_ISM330DLC_DEV_NAME, ST_ISM330DLC_ID },
 	{ ST_LSM6DSO_DEV_NAME, ST_LSM6DSO_ID },
+	{ ST_ASM330LHH_DEV_NAME, ST_ASM330LHH_ID },
+	{ ST_LSM6DSOX_DEV_NAME, ST_LSM6DSOX_ID },
+	{ ST_LSM6DSR_DEV_NAME, ST_LSM6DSR_ID },
+	{ ST_LSM6DS3TRC_DEV_NAME, ST_LSM6DS3TRC_ID },
+	{ ST_ISM330DHCX_DEV_NAME, ST_ISM330DHCX_ID },
+	{ ST_LSM9DS1_DEV_NAME, ST_LSM9DS1_ID },
+	{ ST_LSM6DS0_DEV_NAME, ST_LSM6DS0_ID },
+	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
+	{ ST_LSM6DST_DEV_NAME, ST_LSM6DST_ID },
+	{ ST_LSM6DSOP_DEV_NAME, ST_LSM6DSOP_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm6dsx_i2c_id_table);
@@ -84,7 +130,7 @@ static struct i2c_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_i2c",
 		.pm = &st_lsm6dsx_pm_ops,
-		.of_match_table = of_match_ptr(st_lsm6dsx_i2c_of_match),
+		.of_match_table = st_lsm6dsx_i2c_of_match,
 	},
 	.probe = st_lsm6dsx_i2c_probe,
 	.id_table = st_lsm6dsx_i2c_id_table,

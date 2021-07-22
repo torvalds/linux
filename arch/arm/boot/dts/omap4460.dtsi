@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for OMAP4460 SoC
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -24,13 +24,6 @@
 			/* cooling options */
 			#cooling-cells = <2>; /* min followed by max */
 		};
-	};
-
-	pmu {
-		compatible = "arm,cortex-a9-pmu";
-		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-		ti,hwmods = "debugss";
 	};
 
 	thermal-zones {
@@ -126,6 +119,12 @@
 		 <0x0002a000 0x0002a000 0x00002000>,
 		 <0x0002c000 0x0002c000 0x00004000>,
 		 <0x00030000 0x00030000 0x00010000>;
+};
+
+&pmu {
+	compatible = "arm,cortex-a9-pmu";
+	interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 /include/ "omap446x-clocks.dtsi"

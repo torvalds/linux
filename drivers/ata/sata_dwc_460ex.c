@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/ata/sata_dwc_460ex.c
  *
@@ -11,11 +12,6 @@
  * Based on versions provided by AMCC and Synopsys which are:
  *          Copyright 2006 Applied Micro Circuits Corporation
  *          COPYRIGHT (C) 2005  SYNOPSYS, INC.  ALL RIGHTS RESERVED
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifdef CONFIG_SATA_DWC_DEBUG
@@ -547,6 +543,11 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 		hsdev->sactive_issued |= qcmd_tag_to_mask(tag);
 
 		qc = ata_qc_from_tag(ap, tag);
+		if (unlikely(!qc)) {
+			dev_err(ap->dev, "failed to get qc");
+			handled = 1;
+			goto DONE;
+		}
 		/*
 		 * Start FP DMA for NCQ command.  At this point the tag is the
 		 * active tag.  It is the tag that matches the command about to
@@ -662,6 +663,11 @@ DRVSTILLBUSY:
 
 		tag_mask &= (~0x00000001);
 		qc = ata_qc_from_tag(ap, tag);
+		if (unlikely(!qc)) {
+			dev_err(ap->dev, "failed to get qc");
+			handled = 1;
+			goto DONE;
+		}
 
 		/* To be picked up by completion functions */
 		qc->ap->link.active_tag = tag;

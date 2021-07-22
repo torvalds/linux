@@ -449,7 +449,7 @@ static int __check_incompat_features(struct cache_disk_superblock *disk_super,
 	/*
 	 * Check for read-only metadata to skip the following RDWR checks.
 	 */
-	if (get_disk_ro(cmd->bdev->bd_disk))
+	if (bdev_read_only(cmd->bdev))
 		return 0;
 
 	features = le32_to_cpu(disk_super->compat_ro_flags) & ~DM_CACHE_FEATURE_COMPAT_RO_SUPP;
@@ -537,12 +537,16 @@ static int __create_persistent_data_objects(struct dm_cache_metadata *cmd,
 					  CACHE_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(cmd->bm)) {
 		DMERR("could not create block manager");
-		return PTR_ERR(cmd->bm);
+		r = PTR_ERR(cmd->bm);
+		cmd->bm = NULL;
+		return r;
 	}
 
 	r = __open_or_format_metadata(cmd, may_format_device);
-	if (r)
+	if (r) {
 		dm_block_manager_destroy(cmd->bm);
+		cmd->bm = NULL;
+	}
 
 	return r;
 }
@@ -930,6 +934,10 @@ static int blocks_are_clean_separate_dirty(struct dm_cache_metadata *cmd,
 	bool dirty_flag;
 	*result = true;
 
+	if (from_cblock(cmd->cache_blocks) == 0)
+		/* Nothing to do */
+		return 0;
+
 	r = dm_bitset_cursor_begin(&cmd->dirty_info, cmd->dirty_root,
 				   from_cblock(cmd->cache_blocks), &cmd->dirty_cursor);
 	if (r) {
@@ -1163,9 +1171,16 @@ static int __load_discards(struct dm_cache_metadata *cmd,
 		if (r)
 			return r;
 
-		for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
+		for (b = 0; ; b++) {
 			r = fn(context, cmd->discard_block_size, to_dblock(b),
 			       dm_bitset_cursor_get_value(&c));
+			if (r)
+				break;
+
+			if (b >= (from_dblock(cmd->discard_nr_blocks) - 1))
+				break;
+
+			r = dm_bitset_cursor_next(&c);
 			if (r)
 				break;
 		}

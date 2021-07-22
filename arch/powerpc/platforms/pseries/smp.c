@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SMP support for pSeries machines.
  *
@@ -5,11 +6,6 @@
  * Mike Corrigan {engebret|bergner|mikec}@us.ibm.com
  *
  * Plus various changes from other IBM teams...
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 
@@ -24,12 +20,12 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
+#include <linux/pgtable.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
@@ -45,10 +41,10 @@
 #include <asm/dbell.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/code-patching.h>
+#include <asm/svm.h>
+#include <asm/kvm_guest.h>
 
 #include "pseries.h"
-#include "offline_states.h"
-
 
 /*
  * The Primary thread of each non-boot processor was started from the OF client
@@ -109,12 +105,6 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 		return 1;
 	}
 
-	/* Fixup atomic count: it exited inside IRQ handler. */
-	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
-#ifdef CONFIG_HOTPLUG_CPU
-	if (get_cpu_current_state(lcpu) == CPU_STATE_INACTIVE)
-		goto out;
-#endif
 	/* 
 	 * If the RTAS start-cpu token does not exist then presume the
 	 * cpu is already spinning.
@@ -129,9 +119,6 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 		return 0;
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
-out:
-#endif
 	return 1;
 }
 
@@ -146,10 +133,6 @@ static void smp_setup_cpu(int cpu)
 		vpa_init(cpu);
 
 	cpumask_clear_cpu(cpu, of_spin_mask);
-#ifdef CONFIG_HOTPLUG_CPU
-	set_cpu_current_state(cpu, CPU_STATE_ONLINE);
-	set_default_offline_state(cpu);
-#endif
 }
 
 static int smp_pSeries_kick_cpu(int nr)
@@ -166,20 +149,6 @@ static int smp_pSeries_kick_cpu(int nr)
 	 * the processor will continue on to secondary_start
 	 */
 	paca_ptrs[nr]->cpu_start = 1;
-#ifdef CONFIG_HOTPLUG_CPU
-	set_preferred_offline_state(nr, CPU_STATE_ONLINE);
-
-	if (get_cpu_current_state(nr) == CPU_STATE_INACTIVE) {
-		long rc;
-		unsigned long hcpuid;
-
-		hcpuid = get_hard_smp_processor_id(nr);
-		rc = plpar_hcall_norets(H_PROD, hcpuid);
-		if (rc != H_SUCCESS)
-			printk(KERN_ERR "Error: Prod to wake up processor %d "
-						"Ret= %ld\n", nr, rc);
-	}
-#endif
 
 	return 0;
 }
@@ -191,13 +160,16 @@ static int pseries_smp_prepare_cpu(int cpu)
 	return 0;
 }
 
-static void smp_pseries_cause_ipi(int cpu)
+/* Cause IPI as setup by the interrupt controller (xics or xive) */
+static void (*ic_cause_ipi)(int cpu) __ro_after_init;
+
+/* Use msgsndp doorbells target is a sibling, else use interrupt controller */
+static void dbell_or_ic_cause_ipi(int cpu)
 {
-	/* POWER9 should not use this handler */
 	if (doorbell_try_core_ipi(cpu))
 		return;
 
-	icp_ops->cause_ipi(cpu);
+	ic_cause_ipi(cpu);
 }
 
 static int pseries_cause_nmi_ipi(int cpu)
@@ -221,26 +193,51 @@ static int pseries_cause_nmi_ipi(int cpu)
 	return 0;
 }
 
-static __init void pSeries_smp_probe_xics(void)
-{
-	xics_smp_probe();
-
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		smp_ops->cause_ipi = smp_pseries_cause_ipi;
-	else
-		smp_ops->cause_ipi = icp_ops->cause_ipi;
-}
-
 static __init void pSeries_smp_probe(void)
 {
 	if (xive_enabled())
-		/*
-		 * Don't use P9 doorbells when XIVE is enabled. IPIs
-		 * using MMIOs should be faster
-		 */
 		xive_smp_probe();
 	else
-		pSeries_smp_probe_xics();
+		xics_smp_probe();
+
+	/* No doorbell facility, must use the interrupt controller for IPIs */
+	if (!cpu_has_feature(CPU_FTR_DBELL))
+		return;
+
+	/* Doorbells can only be used for IPIs between SMT siblings */
+	if (!cpu_has_feature(CPU_FTR_SMT))
+		return;
+
+	check_kvm_guest();
+
+	if (is_kvm_guest()) {
+		/*
+		 * KVM emulates doorbells by disabling FSCR[MSGP] so msgsndp
+		 * faults to the hypervisor which then reads the instruction
+		 * from guest memory, which tends to be slower than using XIVE.
+		 */
+		if (xive_enabled())
+			return;
+
+		/*
+		 * XICS hcalls aren't as fast, so we can use msgsndp (which
+		 * also helps exercise KVM emulation), however KVM can't
+		 * emulate secure guests because it can't read the instruction
+		 * out of their memory.
+		 */
+		if (is_secure_guest())
+			return;
+	}
+
+	/*
+	 * Under PowerVM, FSCR[MSGP] is enabled as guest vCPU siblings are
+	 * gang scheduled on the same physical core, so doorbells are always
+	 * faster than the interrupt controller, and they can be used by
+	 * secure guests.
+	 */
+
+	ic_cause_ipi = smp_ops->cause_ipi;
+	smp_ops->cause_ipi = dbell_or_ic_cause_ipi;
 }
 
 static struct smp_ops_t pseries_smp_ops = {

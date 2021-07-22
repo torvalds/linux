@@ -20,6 +20,8 @@
 #include <linux/isdn/capiutil.h>
 #include <linux/slab.h>
 
+#include "kcapi.h"
+
 /* from CAPI2.0 DDK AVM Berlin GmbH */
 
 typedef struct {
@@ -245,190 +247,6 @@ static void jumpcstruct(_cmsg *cmsg)
 		}
 	}
 }
-/*-------------------------------------------------------*/
-static void pars_2_message(_cmsg *cmsg)
-{
-
-	for (; TYP != _CEND; cmsg->p++) {
-		switch (TYP) {
-		case _CBYTE:
-			byteTLcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l++;
-			break;
-		case _CWORD:
-			wordTLcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l += 2;
-			break;
-		case _CDWORD:
-			dwordTLcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l += 4;
-			break;
-		case _CSTRUCT:
-			if (*(u8 **) OFF == NULL) {
-				*(cmsg->m + cmsg->l) = '\0';
-				cmsg->l++;
-			} else if (**(_cstruct *) OFF != 0xff) {
-				structTLcpy(cmsg->m + cmsg->l, *(_cstruct *) OFF, 1 + **(_cstruct *) OFF);
-				cmsg->l += 1 + **(_cstruct *) OFF;
-			} else {
-				_cstruct s = *(_cstruct *) OFF;
-				structTLcpy(cmsg->m + cmsg->l, s, 3 + *(u16 *) (s + 1));
-				cmsg->l += 3 + *(u16 *) (s + 1);
-			}
-			break;
-		case _CMSTRUCT:
-/*----- Metastruktur 0 -----*/
-			if (*(_cmstruct *) OFF == CAPI_DEFAULT) {
-				*(cmsg->m + cmsg->l) = '\0';
-				cmsg->l++;
-				jumpcstruct(cmsg);
-			}
-/*----- Metastruktur wird composed -----*/
-			else {
-				unsigned _l = cmsg->l;
-				unsigned _ls;
-				cmsg->l++;
-				cmsg->p++;
-				pars_2_message(cmsg);
-				_ls = cmsg->l - _l - 1;
-				if (_ls < 255)
-					(cmsg->m + _l)[0] = (u8) _ls;
-				else {
-					structTLcpyovl(cmsg->m + _l + 3, cmsg->m + _l + 1, _ls);
-					(cmsg->m + _l)[0] = 0xff;
-					wordTLcpy(cmsg->m + _l + 1, &_ls);
-				}
-			}
-			break;
-		}
-	}
-}
-
-/**
- * capi_cmsg2message() - assemble CAPI 2.0 message from _cmsg structure
- * @cmsg:	_cmsg structure
- * @msg:	buffer for assembled message
- *
- * Return value: 0 for success
- */
-
-unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)
-{
-	cmsg->m = msg;
-	cmsg->l = 8;
-	cmsg->p = 0;
-	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
-	if (!cmsg->par)
-		return 1;	/* invalid command/subcommand */
-
-	pars_2_message(cmsg);
-
-	wordTLcpy(msg + 0, &cmsg->l);
-	byteTLcpy(cmsg->m + 4, &cmsg->Command);
-	byteTLcpy(cmsg->m + 5, &cmsg->Subcommand);
-	wordTLcpy(cmsg->m + 2, &cmsg->ApplId);
-	wordTLcpy(cmsg->m + 6, &cmsg->Messagenumber);
-
-	return 0;
-}
-
-/*-------------------------------------------------------*/
-static void message_2_pars(_cmsg *cmsg)
-{
-	for (; TYP != _CEND; cmsg->p++) {
-
-		switch (TYP) {
-		case _CBYTE:
-			byteTRcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l++;
-			break;
-		case _CWORD:
-			wordTRcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l += 2;
-			break;
-		case _CDWORD:
-			dwordTRcpy(cmsg->m + cmsg->l, OFF);
-			cmsg->l += 4;
-			break;
-		case _CSTRUCT:
-			*(u8 **) OFF = cmsg->m + cmsg->l;
-
-			if (cmsg->m[cmsg->l] != 0xff)
-				cmsg->l += 1 + cmsg->m[cmsg->l];
-			else
-				cmsg->l += 3 + *(u16 *) (cmsg->m + cmsg->l + 1);
-			break;
-		case _CMSTRUCT:
-/*----- Metastruktur 0 -----*/
-			if (cmsg->m[cmsg->l] == '\0') {
-				*(_cmstruct *) OFF = CAPI_DEFAULT;
-				cmsg->l++;
-				jumpcstruct(cmsg);
-			} else {
-				unsigned _l = cmsg->l;
-				*(_cmstruct *) OFF = CAPI_COMPOSE;
-				cmsg->l = (cmsg->m + _l)[0] == 255 ? cmsg->l + 3 : cmsg->l + 1;
-				cmsg->p++;
-				message_2_pars(cmsg);
-			}
-			break;
-		}
-	}
-}
-
-/**
- * capi_message2cmsg() - disassemble CAPI 2.0 message into _cmsg structure
- * @cmsg:	_cmsg structure
- * @msg:	buffer for assembled message
- *
- * Return value: 0 for success
- */
-
-unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)
-{
-	memset(cmsg, 0, sizeof(_cmsg));
-	cmsg->m = msg;
-	cmsg->l = 8;
-	cmsg->p = 0;
-	byteTRcpy(cmsg->m + 4, &cmsg->Command);
-	byteTRcpy(cmsg->m + 5, &cmsg->Subcommand);
-	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
-	if (!cmsg->par)
-		return 1;	/* invalid command/subcommand */
-
-	message_2_pars(cmsg);
-
-	wordTRcpy(msg + 0, &cmsg->l);
-	wordTRcpy(cmsg->m + 2, &cmsg->ApplId);
-	wordTRcpy(cmsg->m + 6, &cmsg->Messagenumber);
-
-	return 0;
-}
-
-/**
- * capi_cmsg_header() - initialize header part of _cmsg structure
- * @cmsg:	_cmsg structure
- * @_ApplId:	ApplID field value
- * @_Command:	Command field value
- * @_Subcommand:	Subcommand field value
- * @_Messagenumber:	Message Number field value
- * @_Controller:	Controller/PLCI/NCCI field value
- *
- * Return value: 0 for success
- */
-
-unsigned capi_cmsg_header(_cmsg *cmsg, u16 _ApplId,
-			  u8 _Command, u8 _Subcommand,
-			  u16 _Messagenumber, u32 _Controller)
-{
-	memset(cmsg, 0, sizeof(_cmsg));
-	cmsg->ApplId = _ApplId;
-	cmsg->Command = _Command;
-	cmsg->Subcommand = _Subcommand;
-	cmsg->Messagenumber = _Messagenumber;
-	cmsg->adr.adrController = _Controller;
-	return 0;
-}
 
 /*-------------------------------------------------------*/
 
@@ -560,8 +378,6 @@ static char *pnames[] =
 	/*2e */ "Reject",
 	/*2f */ "Useruserdata"
 };
-
-
 
 #include <stdarg.h>
 
@@ -800,37 +616,6 @@ _cdebbuf *capi_message2str(u8 *msg)
 	return cdb;
 }
 
-/**
- * capi_cmsg2str() - format _cmsg structure for printing
- * @cmsg:	_cmsg structure
- *
- * Allocates a CAPI debug buffer and fills it with a printable representation
- * of the CAPI 2.0 message stored in @cmsg by a previous call to
- * capi_cmsg2message() or capi_message2cmsg().
- * Return value: allocated debug buffer, NULL on error
- * The returned buffer should be freed by a call to cdebbuf_free() after use.
- */
-
-_cdebbuf *capi_cmsg2str(_cmsg *cmsg)
-{
-	_cdebbuf *cdb;
-
-	if (!cmsg->m)
-		return NULL;	/* no message */
-	cdb = cdebbuf_alloc();
-	if (!cdb)
-		return NULL;
-	cmsg->l = 8;
-	cmsg->p = 0;
-	cdb = bufprint(cdb, "%s ID=%03d #0x%04x LEN=%04d\n",
-		       capi_cmd2str(cmsg->Command, cmsg->Subcommand),
-		       ((u16 *) cmsg->m)[1],
-		       ((u16 *) cmsg->m)[3],
-		       ((u16 *) cmsg->m)[0]);
-	cdb = protocol_message_2_pars(cdb, cmsg, 1);
-	return cdb;
-}
-
 int __init cdebug_init(void)
 {
 	g_cmsg = kmalloc(sizeof(_cmsg), GFP_KERNEL);
@@ -854,7 +639,7 @@ int __init cdebug_init(void)
 	return 0;
 }
 
-void __exit cdebug_exit(void)
+void cdebug_exit(void)
 {
 	if (g_debbuf)
 		kfree(g_debbuf->buf);
@@ -885,16 +670,8 @@ int __init cdebug_init(void)
 	return 0;
 }
 
-void __exit cdebug_exit(void)
+void cdebug_exit(void)
 {
 }
 
 #endif
-
-EXPORT_SYMBOL(cdebbuf_free);
-EXPORT_SYMBOL(capi_cmsg2message);
-EXPORT_SYMBOL(capi_message2cmsg);
-EXPORT_SYMBOL(capi_cmsg_header);
-EXPORT_SYMBOL(capi_cmd2str);
-EXPORT_SYMBOL(capi_cmsg2str);
-EXPORT_SYMBOL(capi_message2str);

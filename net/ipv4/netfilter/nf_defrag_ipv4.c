@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -23,7 +20,12 @@
 #endif
 #include <net/netfilter/nf_conntrack_zones.h>
 
+static unsigned int defrag4_pernet_id __read_mostly;
 static DEFINE_MUTEX(defrag4_mutex);
+
+struct defrag4_pernet {
+	unsigned int users;
+};
 
 static int nf_ct_ipv4_gather_frags(struct net *net, struct sk_buff *skb,
 				   u_int32_t user)
@@ -109,15 +111,19 @@ static const struct nf_hook_ops ipv4_defrag_ops[] = {
 
 static void __net_exit defrag4_net_exit(struct net *net)
 {
-	if (net->nf.defrag_ipv4) {
+	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
+
+	if (nf_defrag->users) {
 		nf_unregister_net_hooks(net, ipv4_defrag_ops,
 					ARRAY_SIZE(ipv4_defrag_ops));
-		net->nf.defrag_ipv4 = false;
+		nf_defrag->users = 0;
 	}
 }
 
 static struct pernet_operations defrag4_net_ops = {
 	.exit = defrag4_net_exit,
+	.id   = &defrag4_pernet_id,
+	.size = sizeof(struct defrag4_pernet),
 };
 
 static int __init nf_defrag_init(void)
@@ -132,27 +138,46 @@ static void __exit nf_defrag_fini(void)
 
 int nf_defrag_ipv4_enable(struct net *net)
 {
+	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
 	int err = 0;
 
-	might_sleep();
-
-	if (net->nf.defrag_ipv4)
-		return 0;
-
 	mutex_lock(&defrag4_mutex);
-	if (net->nf.defrag_ipv4)
+	if (nf_defrag->users == UINT_MAX) {
+		err = -EOVERFLOW;
 		goto out_unlock;
+	}
+
+	if (nf_defrag->users) {
+		nf_defrag->users++;
+		goto out_unlock;
+	}
 
 	err = nf_register_net_hooks(net, ipv4_defrag_ops,
 				    ARRAY_SIZE(ipv4_defrag_ops));
 	if (err == 0)
-		net->nf.defrag_ipv4 = true;
+		nf_defrag->users = 1;
 
  out_unlock:
 	mutex_unlock(&defrag4_mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(nf_defrag_ipv4_enable);
+
+void nf_defrag_ipv4_disable(struct net *net)
+{
+	struct defrag4_pernet *nf_defrag = net_generic(net, defrag4_pernet_id);
+
+	mutex_lock(&defrag4_mutex);
+	if (nf_defrag->users) {
+		nf_defrag->users--;
+		if (nf_defrag->users == 0)
+			nf_unregister_net_hooks(net, ipv4_defrag_ops,
+						ARRAY_SIZE(ipv4_defrag_ops));
+	}
+
+	mutex_unlock(&defrag4_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_defrag_ipv4_disable);
 
 module_init(nf_defrag_init);
 module_exit(nf_defrag_fini);

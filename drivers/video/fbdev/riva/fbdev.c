@@ -202,11 +202,7 @@ static int flatpanel = -1; /* Autodetect later */
 static int forceCRTC = -1;
 static bool noaccel  = 0;
 static bool nomtrr = 0;
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int backlight = 1;
-#else
-static int backlight = 0;
-#endif
+static int backlight = IS_BUILTIN(CONFIG_PMAC_BACKLIGHT);
 
 static char *mode_option = NULL;
 static bool strictmode       = 0;
@@ -468,7 +464,7 @@ static inline void reverse_order(u32 *l)
 
 /**
  * rivafb_load_cursor_image - load cursor image to hardware
- * @data: address to monochrome bitmap (1 = foreground color, 0 = background)
+ * @data8: address to monochrome bitmap (1 = foreground color, 0 = background)
  * @par:  pointer to private data
  * @w:    width of cursor image in pixels
  * @h:    height of cursor image in scanlines
@@ -847,9 +843,9 @@ static void riva_update_var(struct fb_var_screeninfo *var,
 /**
  * rivafb_do_maximize - 
  * @info: pointer to fb_info object containing info for current riva board
- * @var:
- * @nom:
- * @den:
+ * @var: standard kernel fb changeable data
+ * @nom: nom
+ * @den: den
  *
  * DESCRIPTION:
  * .
@@ -1097,7 +1093,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 9 ... 15:
 		var->green.length = 5;
-		/* fall through */
+		fallthrough;
 	case 16:
 		var->bits_per_pixel = 16;
 		/* The Riva128 supports RGB555 only */
@@ -1218,7 +1214,6 @@ out:
 /**
  * rivafb_pan_display
  * @var: standard kernel fb changeable data
- * @con: TODO
  * @info: pointer to fb_info object containing info for current riva board
  *
  * DESCRIPTION:
@@ -1673,7 +1668,7 @@ static int rivafb_sync(struct fb_info *info)
  * ------------------------------------------------------------------------- */
 
 /* kernel interface */
-static struct fb_ops riva_fb_ops = {
+static const struct fb_ops riva_fb_ops = {
 	.owner 		= THIS_MODULE,
 	.fb_open	= rivafb_open,
 	.fb_release	= rivafb_release,
@@ -1902,7 +1897,6 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	info = framebuffer_alloc(sizeof(struct riva_par), &pd->dev);
 	if (!info) {
-		printk (KERN_ERR PFX "could not allocate memory\n");
 		ret = -ENOMEM;
 		goto err_ret;
 	}

@@ -13,6 +13,8 @@
 #include <linux/pci_regs.h>
 #include <linux/types.h>
 
+#include "pci.h"
+
 /**
  * pci_vc_save_restore_dwords - Save or restore a series of dwords
  * @dev: device
@@ -105,7 +107,7 @@ static void pci_vc_enable(struct pci_dev *dev, int pos, int res)
 	struct pci_dev *link = NULL;
 
 	/* Enable VCs from the downstream device */
-	if (!dev->has_secondary_link)
+	if (!pci_is_pcie(dev) || !pcie_downstream_port(dev))
 		return;
 
 	ctrl_pos = pos + PCI_VC_RES_CTRL + (res * PCI_CAP_VC_PER_VC_SIZEOF);
@@ -170,7 +172,6 @@ enable:
  * @dev: device
  * @pos: starting position of VC capability (VC/VC9/MFVC)
  * @save_state: buffer for save/restore
- * @name: for error message
  * @save: if provided a buffer, this indicates what to do with it
  *
  * Walking Virtual Channel config space to size, save, or restore it
@@ -409,7 +410,6 @@ void pci_restore_vc_state(struct pci_dev *dev)
  * For each type of VC capability, VC/VC9/MFVC, find the capability, size
  * it, and allocate a buffer for save/restore.
  */
-
 void pci_allocate_vc_save_buffers(struct pci_dev *dev)
 {
 	int i;

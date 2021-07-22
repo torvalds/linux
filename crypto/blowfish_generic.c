@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -9,17 +10,11 @@
  * Copyright (c) Herbert Valerio Riedel <hvr@hvrlab.org>
  * Copyright (c) Kyle McMartin <kyle@debian.org>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
 #include <crypto/blowfish.h>
@@ -41,12 +36,10 @@
 static void bf_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct bf_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __be32 *in_blk = (const __be32 *)src;
-	__be32 *const out_blk = (__be32 *)dst;
 	const u32 *P = ctx->p;
 	const u32 *S = ctx->s;
-	u32 yl = be32_to_cpu(in_blk[0]);
-	u32 yr = be32_to_cpu(in_blk[1]);
+	u32 yl = get_unaligned_be32(src);
+	u32 yr = get_unaligned_be32(src + 4);
 
 	ROUND(yr, yl, 0);
 	ROUND(yl, yr, 1);
@@ -68,19 +61,17 @@ static void bf_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	yl ^= P[16];
 	yr ^= P[17];
 
-	out_blk[0] = cpu_to_be32(yr);
-	out_blk[1] = cpu_to_be32(yl);
+	put_unaligned_be32(yr, dst);
+	put_unaligned_be32(yl, dst + 4);
 }
 
 static void bf_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct bf_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __be32 *in_blk = (const __be32 *)src;
-	__be32 *const out_blk = (__be32 *)dst;
 	const u32 *P = ctx->p;
 	const u32 *S = ctx->s;
-	u32 yl = be32_to_cpu(in_blk[0]);
-	u32 yr = be32_to_cpu(in_blk[1]);
+	u32 yl = get_unaligned_be32(src);
+	u32 yr = get_unaligned_be32(src + 4);
 
 	ROUND(yr, yl, 17);
 	ROUND(yl, yr, 16);
@@ -102,8 +93,8 @@ static void bf_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	yl ^= P[1];
 	yr ^= P[0];
 
-	out_blk[0] = cpu_to_be32(yr);
-	out_blk[1] = cpu_to_be32(yl);
+	put_unaligned_be32(yr, dst);
+	put_unaligned_be32(yl, dst + 4);
 }
 
 static struct crypto_alg alg = {
@@ -113,7 +104,6 @@ static struct crypto_alg alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	BF_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct bf_ctx),
-	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	BF_MIN_KEY_SIZE,
@@ -133,7 +123,7 @@ static void __exit blowfish_mod_fini(void)
 	crypto_unregister_alg(&alg);
 }
 
-module_init(blowfish_mod_init);
+subsys_initcall(blowfish_mod_init);
 module_exit(blowfish_mod_fini);
 
 MODULE_LICENSE("GPL");

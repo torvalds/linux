@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ci.h - common structures, functions, and macros of the ChipIdea driver
  *
@@ -16,6 +16,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/role.h>
 #include <linux/ulpi/interface.h>
 
 /******************************************************************************
@@ -24,6 +25,7 @@
 #define TD_PAGE_COUNT      5
 #define CI_HDRC_PAGE_SIZE  4096ul /* page size for TD's */
 #define ENDPT_MAX          32
+#define CI_MAX_BUF_SIZE	(TD_PAGE_COUNT * CI_HDRC_PAGE_SIZE)
 
 /******************************************************************************
  * REGISTERS
@@ -193,7 +195,6 @@ struct hw_bank {
  * @phy: pointer to PHY, if any
  * @usb_phy: pointer to USB PHY, if any and if using the USB PHY framework
  * @hcd: pointer to usb_hcd for ehci host driver
- * @debugfs: root dentry for this controller in debugfs
  * @id_event: indicates there is an id event, and handled at ci_otg_work
  * @b_sess_valid_event: indicates there is a vbus event, and handled
  * at ci_otg_work
@@ -217,6 +218,7 @@ struct ci_hdrc {
 	ktime_t				hr_timeouts[NUM_OTG_FSM_TIMERS];
 	unsigned			enabled_otg_timer_bits;
 	enum otg_fsm_timer		next_otg_timer;
+	struct usb_role_switch		*role_switch;
 	struct work_struct		work;
 	struct workqueue_struct		*wq;
 
@@ -246,7 +248,6 @@ struct ci_hdrc {
 	/* old usb_phy interface */
 	struct usb_phy			*usb_phy;
 	struct usb_hcd			*hcd;
-	struct dentry			*debugfs;
 	bool				id_event;
 	bool				b_sess_valid_event;
 	bool				imx28_write_fix;
@@ -288,6 +289,26 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 	ci->role = CI_ROLE_END;
 
 	ci->roles[role]->stop(ci);
+}
+
+static inline enum usb_role ci_role_to_usb_role(struct ci_hdrc *ci)
+{
+	if (ci->role == CI_ROLE_HOST)
+		return USB_ROLE_HOST;
+	else if (ci->role == CI_ROLE_GADGET && ci->vbus_active)
+		return USB_ROLE_DEVICE;
+	else
+		return USB_ROLE_NONE;
+}
+
+static inline enum ci_role usb_role_to_ci_role(enum usb_role role)
+{
+	if (role == USB_ROLE_HOST)
+		return CI_ROLE_HOST;
+	else if (role == USB_ROLE_DEVICE)
+		return CI_ROLE_GADGET;
+	else
+		return CI_ROLE_END;
 }
 
 /**

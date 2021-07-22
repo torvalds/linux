@@ -1,45 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
- *
- * Based on an original 'vf610-twr.dts' which is Copyright 2015,
- * Freescale Semiconductor, Inc.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -203,7 +164,7 @@
 					port@9 {
 						reg = <9>;
 						label = "sff2";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff2>;
 					};
@@ -277,7 +238,7 @@
 	status = "okay";
 	spi-num-chipselects = <2>;
 
-	m25p128@0 {
+	flash@0 {
 		compatible = "m25p128", "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -313,7 +274,7 @@
 	 *    P1 - WE2_CMD
 	 *    P2 - WE2_CLK
 	 */
-	gpio5: pca9557@18 {
+	gpio5: io-expander@18 {
 		compatible = "nxp,pca9557";
 		reg = <0x18>;
 		gpio-controller;
@@ -361,7 +322,7 @@
 	 *     IO0 - WE1_CLK
 	 *     IO1 - WE1_CMD
 	 */
-	gpio7: pca9554@22 {
+	gpio7: io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
@@ -371,7 +332,7 @@
 };
 
 &i2c1 {
-	at24mac602@50 {
+	eeprom@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
 		read-only;

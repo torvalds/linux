@@ -1,5 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * SPDX-License-Identifier: GPL-2.0
  * tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
  *
  * Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -64,7 +64,6 @@ struct tm6000_input {
  */
 
 struct tm6000_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 };

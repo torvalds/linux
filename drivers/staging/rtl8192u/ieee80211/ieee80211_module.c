@@ -9,22 +9,6 @@
  *  <jkmaline@cc.hut.fi>
  *  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of version 2 of the GNU General Public License as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
- *  The full GNU General Public License is included in this distribution in the
- *  file called LICENSE.
- *
  *  Contact Information:
  *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
  *  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
@@ -68,8 +52,7 @@ static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 				 sizeof(struct ieee80211_network),
 				 GFP_KERNEL);
 	if (!ieee->networks) {
-		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
-		       ieee->dev->name);
+		netdev_warn(ieee->dev, "Out of memory allocating beacons\n");
 		return -ENOMEM;
 	}
 
@@ -109,7 +92,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	}
 
 	ieee = netdev_priv(dev);
-	memset(ieee, 0, sizeof(struct ieee80211_device) + sizeof_priv);
 	ieee->dev = dev;
 
 	err = ieee80211_networks_allocate(ieee);
@@ -155,7 +137,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee80211_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL) {
+	if (!ieee->pHTInfo) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
 
 		/* By this point in code ieee80211_networks_allocate() has been
@@ -265,12 +247,12 @@ static int open_debug_level(struct inode *inode, struct file *file)
 	return single_open(file, show_debug_level, NULL);
 }
 
-static const struct file_operations fops = {
-	.open = open_debug_level,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = write_debug_level,
-	.release = single_release,
+static const struct proc_ops debug_level_proc_ops = {
+	.proc_open	= open_debug_level,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= write_debug_level,
+	.proc_release	= single_release,
 };
 
 int __init ieee80211_debug_init(void)
@@ -285,7 +267,7 @@ int __init ieee80211_debug_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", 0644, ieee80211_proc, &fops);
+	e = proc_create("debug_level", 0644, ieee80211_proc, &debug_level_proc_ops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;

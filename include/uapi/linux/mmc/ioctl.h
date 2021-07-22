@@ -3,9 +3,13 @@
 #define LINUX_MMC_IOCTL_H
 
 #include <linux/types.h>
+#include <linux/major.h>
 
 struct mmc_ioc_cmd {
-	/* Implies direction of data.  true = write, false = read */
+	/*
+	 * Direction of data: nonzero = write, zero = read.
+	 * Bit 31 selects 'Reliable Write' for RPMB.
+	 */
 	int write_flag;
 
 	/* Application-specific command.  true = precede with CMD55 */

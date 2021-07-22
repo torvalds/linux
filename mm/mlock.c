@@ -23,6 +23,7 @@
 #include <linux/hugetlb.h>
 #include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
+#include <linux/secretmem.h>
 
 #include "internal.h"
 
@@ -49,7 +50,7 @@ EXPORT_SYMBOL(can_do_mlock);
  * When lazy mlocking via vmscan, it is important to ensure that the
  * vma's VM_LOCKED status is not concurrently being modified, otherwise we
  * may have mlocked a page that is being munlocked. So lazy mlock must take
- * the mmap_sem for read, and verify that the vma really is locked
+ * the mmap_lock for read, and verify that the vma really is locked
  * (see mm/rmap.c).
  */
 
@@ -58,12 +59,14 @@ EXPORT_SYMBOL(can_do_mlock);
  */
 void clear_page_mlock(struct page *page)
 {
+	int nr_pages;
+
 	if (!TestClearPageMlocked(page))
 		return;
 
-	mod_zone_page_state(page_zone(page), NR_MLOCK,
-			    -hpage_nr_pages(page));
-	count_vm_event(UNEVICTABLE_PGCLEARED);
+	nr_pages = thp_nr_pages(page);
+	mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+	count_vm_events(UNEVICTABLE_PGCLEARED, nr_pages);
 	/*
 	 * The previous TestClearPageMlocked() corresponds to the smp_mb()
 	 * in __pagevec_lru_add_fn().
@@ -77,7 +80,7 @@ void clear_page_mlock(struct page *page)
 		 * We lost the race. the page already moved to evictable list.
 		 */
 		if (PageUnevictable(page))
-			count_vm_event(UNEVICTABLE_PGSTRANDED);
+			count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
 	}
 }
 
@@ -94,38 +97,19 @@ void mlock_vma_page(struct page *page)
 	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
 
 	if (!TestSetPageMlocked(page)) {
-		mod_zone_page_state(page_zone(page), NR_MLOCK,
-				    hpage_nr_pages(page));
-		count_vm_event(UNEVICTABLE_PGMLOCKED);
+		int nr_pages = thp_nr_pages(page);
+
+		mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
+		count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
 		if (!isolate_lru_page(page))
 			putback_lru_page(page);
 	}
 }
 
 /*
- * Isolate a page from LRU with optional get_page() pin.
- * Assumes lru_lock already held and page already pinned.
- */
-static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
-{
-	if (PageLRU(page)) {
-		struct lruvec *lruvec;
-
-		lruvec = mem_cgroup_page_lruvec(page, page_pgdat(page));
-		if (getpage)
-			get_page(page);
-		ClearPageLRU(page);
-		del_page_from_lru_list(page, lruvec, page_lru(page));
-		return true;
-	}
-
-	return false;
-}
-
-/*
  * Finish munlock after successful page isolation
  *
- * Page must be locked. This is a wrapper for try_to_munlock()
+ * Page must be locked. This is a wrapper for page_mlock()
  * and putback_lru_page() with munlock accounting.
  */
 static void __munlock_isolated_page(struct page *page)
@@ -135,11 +119,11 @@ static void __munlock_isolated_page(struct page *page)
 	 * and we don't need to check all the other vmas.
 	 */
 	if (page_mapcount(page) > 1)
-		try_to_munlock(page);
+		page_mlock(page);
 
 	/* Did try_to_unlock() succeed or punt? */
 	if (!PageMlocked(page))
-		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+		count_vm_events(UNEVICTABLE_PGMUNLOCKED, thp_nr_pages(page));
 
 	putback_lru_page(page);
 }
@@ -155,10 +139,12 @@ static void __munlock_isolated_page(struct page *page)
  */
 static void __munlock_isolation_failed(struct page *page)
 {
+	int nr_pages = thp_nr_pages(page);
+
 	if (PageUnevictable(page))
-		__count_vm_event(UNEVICTABLE_PGSTRANDED);
+		__count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
 	else
-		__count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+		__count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
 }
 
 /**
@@ -173,7 +159,7 @@ static void __munlock_isolation_failed(struct page *page)
  * munlock()ed or munmap()ed, we want to check whether other vmas hold the
  * page locked so that we can leave it on the unevictable lru list and not
  * bother vmscan with it.  However, to walk the page's rmap list in
- * try_to_munlock() we must isolate the page from the LRU.  If some other
+ * page_mlock() we must isolate the page from the LRU.  If some other
  * task has removed the page from the LRU, we won't be able to do that.
  * So we clear the PageMlocked as we might not get another chance.  If we
  * can't isolate the page, we leave it for putback_lru_page() and vmscan
@@ -182,40 +168,24 @@ static void __munlock_isolation_failed(struct page *page)
 unsigned int munlock_vma_page(struct page *page)
 {
 	int nr_pages;
-	struct zone *zone = page_zone(page);
 
-	/* For try_to_munlock() and to serialize with page migration */
+	/* For page_mlock() and to serialize with page migration */
 	BUG_ON(!PageLocked(page));
-
 	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	/*
-	 * Serialize with any parallel __split_huge_page_refcount() which
-	 * might otherwise copy PageMlocked to part of the tail pages before
-	 * we clear it in the head page. It also stabilizes hpage_nr_pages().
-	 */
-	spin_lock_irq(zone_lru_lock(zone));
 
 	if (!TestClearPageMlocked(page)) {
 		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
-		nr_pages = 1;
-		goto unlock_out;
+		return 0;
 	}
 
-	nr_pages = hpage_nr_pages(page);
-	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
+	nr_pages = thp_nr_pages(page);
+	mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
 
-	if (__munlock_isolate_lru_page(page, true)) {
-		spin_unlock_irq(zone_lru_lock(zone));
+	if (!isolate_lru_page(page))
 		__munlock_isolated_page(page);
-		goto out;
-	}
-	__munlock_isolation_failed(page);
+	else
+		__munlock_isolation_failed(page);
 
-unlock_out:
-	spin_unlock_irq(zone_lru_lock(zone));
-
-out:
 	return nr_pages - 1;
 }
 
@@ -236,7 +206,7 @@ static int __mlock_posix_error_return(long retval)
  *
  * The fast path is available only for evictable pages with single mapping.
  * Then we can bypass the per-cpu pvec and get better performance.
- * when mapcount > 1 we need try_to_munlock() which can fail.
+ * when mapcount > 1 we need page_mlock() which can fail.
  * when !page_evictable(), we need the full redo logic of putback_lru_page to
  * avoid leaving evictable page in unevictable list.
  *
@@ -293,12 +263,12 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	int nr = pagevec_count(pvec);
 	int delta_munlocked = -nr;
 	struct pagevec pvec_putback;
+	struct lruvec *lruvec = NULL;
 	int pgrescued = 0;
 
 	pagevec_init(&pvec_putback);
 
 	/* Phase 1: page isolation */
-	spin_lock_irq(zone_lru_lock(zone));
 	for (i = 0; i < nr; i++) {
 		struct page *page = pvec->pages[i];
 
@@ -307,9 +277,11 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 			 * We already have pin from follow_page_mask()
 			 * so we can spare the get_page() here.
 			 */
-			if (__munlock_isolate_lru_page(page, false))
+			if (TestClearPageLRU(page)) {
+				lruvec = relock_page_lruvec_irq(page, lruvec);
+				del_page_from_lru_list(page, lruvec);
 				continue;
-			else
+			} else
 				__munlock_isolation_failed(page);
 		} else {
 			delta_munlocked++;
@@ -324,8 +296,12 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 		pagevec_add(&pvec_putback, pvec->pages[i]);
 		pvec->pages[i] = NULL;
 	}
-	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
-	spin_unlock_irq(zone_lru_lock(zone));
+	if (lruvec) {
+		__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
+		unlock_page_lruvec_irq(lruvec);
+	} else if (delta_munlocked) {
+		mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
+	}
 
 	/* Now we can release pins of pages that we are not munlocking */
 	pagevec_release(&pvec_putback);
@@ -381,7 +357,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 	/*
 	 * Initialize pte walk starting at the already pinned page where we
 	 * are sure that there is a pte, as it was pinned under the same
-	 * mmap_sem write op.
+	 * mmap_lock write op.
 	 */
 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
 	/* Make sure we do not cross the page table boundary */
@@ -439,7 +415,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
  *
  * We don't save and restore VM_LOCKED here because pages are
  * still on lru.  In unmap path, pages might be scanned by reclaim
- * and re-mlocked by try_to_{munlock|unmap} before we unmap and
+ * and re-mlocked by page_mlock/try_to_unmap before we unmap and
  * free them.  This will result in freeing mlocked pages.
  */
 void munlock_vma_pages_range(struct vm_area_struct *vma,
@@ -528,7 +504,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 
 	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
 	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm) ||
-	    vma_is_dax(vma))
+	    vma_is_dax(vma) || vma_is_secretmem(vma))
 		/* don't set VM_LOCKED or VM_LOCKONFAULT and don't count */
 		goto out;
 
@@ -565,7 +541,7 @@ success:
 	mm->locked_vm += nr_pages;
 
 	/*
-	 * vm_flags is protected by the mmap_sem held in write mode.
+	 * vm_flags is protected by the mmap_lock held in write mode.
 	 * It's okay if try_to_unmap_one unmaps a page just after we
 	 * set VM_LOCKED, populate_vma_page_range will bring it back.
 	 */
@@ -584,7 +560,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 				vm_flags_t flags)
 {
 	unsigned long nstart, end, tmp;
-	struct vm_area_struct * vma, * prev;
+	struct vm_area_struct *vma, *prev;
 	int error;
 
 	VM_BUG_ON(offset_in_page(start));
@@ -636,18 +612,18 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
  * is also counted.
  * Return value: previously mlocked page counts
  */
-static int count_mm_mlocked_page_nr(struct mm_struct *mm,
+static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
 		unsigned long start, size_t len)
 {
 	struct vm_area_struct *vma;
-	int count = 0;
+	unsigned long count = 0;
 
 	if (mm == NULL)
 		mm = current->mm;
 
 	vma = find_vma(mm, start);
 	if (vma == NULL)
-		vma = mm->mmap;
+		return 0;
 
 	for (; vma ; vma = vma->vm_next) {
 		if (start >= vma->vm_end)
@@ -674,6 +650,8 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 	unsigned long lock_limit;
 	int error = -ENOMEM;
 
+	start = untagged_addr(start);
+
 	if (!can_do_mlock())
 		return -EPERM;
 
@@ -684,7 +662,7 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 	lock_limit >>= PAGE_SHIFT;
 	locked = len >> PAGE_SHIFT;
 
-	if (down_write_killable(&current->mm->mmap_sem))
+	if (mmap_write_lock_killable(current->mm))
 		return -EINTR;
 
 	locked += current->mm->locked_vm;
@@ -703,7 +681,7 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
 		error = apply_vma_lock_flags(start, len, flags);
 
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 	if (error)
 		return error;
 
@@ -735,13 +713,15 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
 {
 	int ret;
 
+	start = untagged_addr(start);
+
 	len = PAGE_ALIGN(len + (offset_in_page(start)));
 	start &= PAGE_MASK;
 
-	if (down_write_killable(&current->mm->mmap_sem))
+	if (mmap_write_lock_killable(current->mm))
 		return -EINTR;
 	ret = apply_vma_lock_flags(start, len, 0);
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 
 	return ret;
 }
@@ -758,7 +738,7 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
  */
 static int apply_mlockall_flags(int flags)
 {
-	struct vm_area_struct * vma, * prev = NULL;
+	struct vm_area_struct *vma, *prev = NULL;
 	vm_flags_t to_add = 0;
 
 	current->mm->def_flags &= VM_LOCKED_CLEAR_MASK;
@@ -797,7 +777,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 	unsigned long lock_limit;
 	int ret;
 
-	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)))
+	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)) ||
+	    flags == MCL_ONFAULT)
 		return -EINVAL;
 
 	if (!can_do_mlock())
@@ -806,14 +787,14 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 	lock_limit = rlimit(RLIMIT_MEMLOCK);
 	lock_limit >>= PAGE_SHIFT;
 
-	if (down_write_killable(&current->mm->mmap_sem))
+	if (mmap_write_lock_killable(current->mm))
 		return -EINTR;
 
 	ret = -ENOMEM;
 	if (!(flags & MCL_CURRENT) || (current->mm->total_vm <= lock_limit) ||
 	    capable(CAP_IPC_LOCK))
 		ret = apply_mlockall_flags(flags);
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 	if (!ret && (flags & MCL_CURRENT))
 		mm_populate(0, TASK_SIZE);
 
@@ -824,10 +805,10 @@ SYSCALL_DEFINE0(munlockall)
 {
 	int ret;
 
-	if (down_write_killable(&current->mm->mmap_sem))
+	if (mmap_write_lock_killable(current->mm))
 		return -EINTR;
 	ret = apply_mlockall_flags(0);
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 	return ret;
 }
 
@@ -837,9 +818,10 @@ SYSCALL_DEFINE0(munlockall)
  */
 static DEFINE_SPINLOCK(shmlock_user_lock);
 
-int user_shm_lock(size_t size, struct user_struct *user)
+int user_shm_lock(size_t size, struct ucounts *ucounts)
 {
 	unsigned long lock_limit, locked;
+	long memlock;
 	int allowed = 0;
 
 	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -848,21 +830,26 @@ int user_shm_lock(size_t size, struct user_struct *user)
 		allowed = 1;
 	lock_limit >>= PAGE_SHIFT;
 	spin_lock(&shmlock_user_lock);
-	if (!allowed &&
-	    locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
+	memlock = inc_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_MEMLOCK, locked);
+
+	if (!allowed && (memlock == LONG_MAX || memlock > lock_limit) && !capable(CAP_IPC_LOCK)) {
+		dec_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_MEMLOCK, locked);
 		goto out;
-	get_uid(user);
-	user->locked_shm += locked;
+	}
+	if (!get_ucounts(ucounts)) {
+		dec_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_MEMLOCK, locked);
+		goto out;
+	}
 	allowed = 1;
 out:
 	spin_unlock(&shmlock_user_lock);
 	return allowed;
 }
 
-void user_shm_unlock(size_t size, struct user_struct *user)
+void user_shm_unlock(size_t size, struct ucounts *ucounts)
 {
 	spin_lock(&shmlock_user_lock);
-	user->locked_shm -= (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	dec_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_MEMLOCK, (size + PAGE_SIZE - 1) >> PAGE_SHIFT);
 	spin_unlock(&shmlock_user_lock);
-	free_uid(user);
+	put_ucounts(ucounts);
 }

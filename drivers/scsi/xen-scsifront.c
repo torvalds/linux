@@ -251,6 +251,7 @@ static void scsifront_cdb_cmd_done(struct vscsifrnt_info *info,
 	struct scsi_cmnd *sc;
 	uint32_t id;
 	uint8_t sense_len;
+	int result;
 
 	id = ring_rsp->rqid;
 	shadow = info->shadow[id];
@@ -261,7 +262,12 @@ static void scsifront_cdb_cmd_done(struct vscsifrnt_info *info,
 	scsifront_gnttab_done(info, shadow);
 	scsifront_put_rqid(info, id);
 
-	sc->result = ring_rsp->rslt;
+	result = ring_rsp->rslt;
+	if (result >> 24)
+		set_host_byte(sc, DID_ERROR);
+	else
+		set_host_byte(sc, host_byte(result));
+	set_status_byte(sc, result & 0xff);
 	scsi_set_resid(sc, ring_rsp->residual_len);
 
 	sense_len = min_t(uint8_t, VSCSIIF_SENSE_BUFFERSIZE,
@@ -696,7 +702,6 @@ static struct scsi_host_template scsifront_sht = {
 	.this_id		= -1,
 	.cmd_size		= sizeof(struct vscsifrnt_shadow),
 	.sg_tablesize		= VSCSIIF_SG_TABLESIZE,
-	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "scsifront",
 };
 
@@ -1112,7 +1117,7 @@ static void scsifront_backend_changed(struct xenbus_device *dev,
 	case XenbusStateClosed:
 		if (dev->state == XenbusStateClosed)
 			break;
-		/* Missed the backend's Closing state -- fallthrough */
+		fallthrough;	/* Missed the backend's Closing state */
 	case XenbusStateClosing:
 		scsifront_disconnect(info);
 		break;

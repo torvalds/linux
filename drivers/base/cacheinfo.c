@@ -79,8 +79,7 @@ static void cache_size(struct cacheinfo *this_leaf, struct device_node *np)
 	ct_idx = get_cacheinfo_idx(this_leaf->type);
 	propname = cache_type_info[ct_idx].size_prop;
 
-	if (of_property_read_u32(np, propname, &this_leaf->size))
-		this_leaf->size = 0;
+	of_property_read_u32(np, propname, &this_leaf->size);
 }
 
 /* not cache_line_size() because that's a macro in include/linux/cache.h */
@@ -114,8 +113,7 @@ static void cache_nr_sets(struct cacheinfo *this_leaf, struct device_node *np)
 	ct_idx = get_cacheinfo_idx(this_leaf->type);
 	propname = cache_type_info[ct_idx].nr_sets_prop;
 
-	if (of_property_read_u32(np, propname, &this_leaf->number_of_sets))
-		this_leaf->number_of_sets = 0;
+	of_property_read_u32(np, propname, &this_leaf->number_of_sets);
 }
 
 static void cache_associativity(struct cacheinfo *this_leaf)
@@ -215,6 +213,8 @@ int __weak cache_setup_acpi(unsigned int cpu)
 	return -ENOTSUPP;
 }
 
+unsigned int coherency_max_size;
+
 static int cache_shared_cpu_map_setup(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
@@ -253,6 +253,9 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 				cpumask_set_cpu(i, &this_leaf->shared_cpu_map);
 			}
 		}
+		/* record the maximum cache line size */
+		if (this_leaf->coherency_line_size > coherency_max_size)
+			coherency_max_size = this_leaf->coherency_line_size;
 	}
 
 	return 0;
@@ -359,7 +362,7 @@ static ssize_t file_name##_show(struct device *dev,		\
 		struct device_attribute *attr, char *buf)	\
 {								\
 	struct cacheinfo *this_leaf = dev_get_drvdata(dev);	\
-	return sprintf(buf, "%u\n", this_leaf->object);		\
+	return sysfs_emit(buf, "%u\n", this_leaf->object);	\
 }
 
 show_one(id, id);
@@ -374,44 +377,48 @@ static ssize_t size_show(struct device *dev,
 {
 	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%uK\n", this_leaf->size >> 10);
-}
-
-static ssize_t shared_cpumap_show_func(struct device *dev, bool list, char *buf)
-{
-	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
-	const struct cpumask *mask = &this_leaf->shared_cpu_map;
-
-	return cpumap_print_to_pagebuf(list, buf, mask);
+	return sysfs_emit(buf, "%uK\n", this_leaf->size >> 10);
 }
 
 static ssize_t shared_cpu_map_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return shared_cpumap_show_func(dev, false, buf);
+	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
+	const struct cpumask *mask = &this_leaf->shared_cpu_map;
+
+	return sysfs_emit(buf, "%*pb\n", nr_cpu_ids, mask);
 }
 
 static ssize_t shared_cpu_list_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	return shared_cpumap_show_func(dev, true, buf);
+	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
+	const struct cpumask *mask = &this_leaf->shared_cpu_map;
+
+	return sysfs_emit(buf, "%*pbl\n", nr_cpu_ids, mask);
 }
 
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
+	const char *output;
 
 	switch (this_leaf->type) {
 	case CACHE_TYPE_DATA:
-		return sprintf(buf, "Data\n");
+		output = "Data";
+		break;
 	case CACHE_TYPE_INST:
-		return sprintf(buf, "Instruction\n");
+		output = "Instruction";
+		break;
 	case CACHE_TYPE_UNIFIED:
-		return sprintf(buf, "Unified\n");
+		output = "Unified";
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 
 static ssize_t allocation_policy_show(struct device *dev,
@@ -419,15 +426,18 @@ static ssize_t allocation_policy_show(struct device *dev,
 {
 	struct cacheinfo *this_leaf = dev_get_drvdata(dev);
 	unsigned int ci_attr = this_leaf->attributes;
-	int n = 0;
+	const char *output;
 
 	if ((ci_attr & CACHE_READ_ALLOCATE) && (ci_attr & CACHE_WRITE_ALLOCATE))
-		n = sprintf(buf, "ReadWriteAllocate\n");
+		output = "ReadWriteAllocate";
 	else if (ci_attr & CACHE_READ_ALLOCATE)
-		n = sprintf(buf, "ReadAllocate\n");
+		output = "ReadAllocate";
 	else if (ci_attr & CACHE_WRITE_ALLOCATE)
-		n = sprintf(buf, "WriteAllocate\n");
-	return n;
+		output = "WriteAllocate";
+	else
+		return 0;
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 
 static ssize_t write_policy_show(struct device *dev,
@@ -438,9 +448,9 @@ static ssize_t write_policy_show(struct device *dev,
 	int n = 0;
 
 	if (ci_attr & CACHE_WRITE_THROUGH)
-		n = sprintf(buf, "WriteThrough\n");
+		n = sysfs_emit(buf, "WriteThrough\n");
 	else if (ci_attr & CACHE_WRITE_BACK)
-		n = sprintf(buf, "WriteBack\n");
+		n = sysfs_emit(buf, "WriteBack\n");
 	return n;
 }
 
@@ -657,7 +667,8 @@ static int cacheinfo_cpu_pre_down(unsigned int cpu)
 
 static int __init cacheinfo_sysfs_init(void)
 {
-	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "base/cacheinfo:online",
+	return cpuhp_setup_state(CPUHP_AP_BASE_CACHEINFO_ONLINE,
+				 "base/cacheinfo:online",
 				 cacheinfo_cpu_online, cacheinfo_cpu_pre_down);
 }
 device_initcall(cacheinfo_sysfs_init);

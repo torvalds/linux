@@ -25,7 +25,6 @@ static void hv_qlock_kick(int cpu)
 
 static void hv_qlock_wait(u8 *byte, u8 val)
 {
-	unsigned long msr_val;
 	unsigned long flags;
 
 	if (in_nmi())
@@ -48,15 +47,20 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	/*
 	 * Only issue the rdmsrl() when the lock state has not changed.
 	 */
-	if (READ_ONCE(*byte) == val)
+	if (READ_ONCE(*byte) == val) {
+		unsigned long msr_val;
+
 		rdmsrl(HV_X64_MSR_GUEST_IDLE, msr_val);
+
+		(void)msr_val;
+	}
 	local_irq_restore(flags);
 }
 
 /*
  * Hyper-V does not support this so far.
  */
-bool hv_vcpu_is_preempted(int vcpu)
+__visible bool hv_vcpu_is_preempted(int vcpu)
 {
 	return false;
 }
@@ -66,7 +70,7 @@ void __init hv_init_spinlocks(void)
 {
 	if (!hv_pvspin || !apic ||
 	    !(ms_hyperv.hints & HV_X64_CLUSTER_IPI_RECOMMENDED) ||
-	    !(ms_hyperv.features & HV_X64_MSR_GUEST_IDLE_AVAILABLE)) {
+	    !(ms_hyperv.features & HV_MSR_GUEST_IDLE_AVAILABLE)) {
 		pr_info("PV spinlocks disabled\n");
 		return;
 	}

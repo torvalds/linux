@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED driver : leds-ktd2692.c
  *
  * Copyright (C) 2015 Samsung Electronics
  * Ingi Kim <ingi2.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -22,7 +19,7 @@
 /* Value related the movie mode */
 #define KTD2692_MOVIE_MODE_CURRENT_LEVELS	16
 #define KTD2692_MM_TO_FL_RATIO(x)		((x) / 3)
-#define KTD2962_MM_MIN_CURR_THRESHOLD_SCALE	8
+#define KTD2692_MM_MIN_CURR_THRESHOLD_SCALE	8
 
 /* Value related the flash mode */
 #define KTD2692_FLASH_MODE_TIMEOUT_LEVELS	8
@@ -253,20 +250,31 @@ static void ktd2692_setup(struct ktd2692_context *led)
 	ktd2692_expresswire_reset(led);
 	gpiod_direction_output(led->aux_gpio, KTD2692_LOW);
 
-	ktd2692_expresswire_write(led, (KTD2962_MM_MIN_CURR_THRESHOLD_SCALE - 1)
+	ktd2692_expresswire_write(led, (KTD2692_MM_MIN_CURR_THRESHOLD_SCALE - 1)
 				 | KTD2692_REG_MM_MIN_CURR_THRESHOLD_BASE);
 	ktd2692_expresswire_write(led, KTD2692_FLASH_MODE_CURR_PERCENT(45)
 				 | KTD2692_REG_FLASH_CURRENT_BASE);
 }
 
+static void regulator_disable_action(void *_data)
+{
+	struct device *dev = _data;
+	struct ktd2692_context *led = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_disable(led->regulator);
+	if (ret)
+		dev_err(dev, "Failed to disable supply: %d\n", ret);
+}
+
 static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 			    struct ktd2692_led_config_data *cfg)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *child_node;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev_of_node(dev))
 		return -ENXIO;
 
 	led->ctrl_gpio = devm_gpiod_get(dev, "ctrl", GPIOD_ASIS);
@@ -289,8 +297,14 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 
 	if (led->regulator) {
 		ret = regulator_enable(led->regulator);
-		if (ret)
+		if (ret) {
 			dev_err(dev, "Failed to enable supply: %d\n", ret);
+		} else {
+			ret = devm_add_action_or_reset(dev,
+						regulator_disable_action, dev);
+			if (ret)
+				return ret;
+		}
 	}
 
 	child_node = of_get_next_available_child(np, NULL);
@@ -380,16 +394,8 @@ static int ktd2692_probe(struct platform_device *pdev)
 static int ktd2692_remove(struct platform_device *pdev)
 {
 	struct ktd2692_context *led = platform_get_drvdata(pdev);
-	int ret;
 
 	led_classdev_flash_unregister(&led->fled_cdev);
-
-	if (led->regulator) {
-		ret = regulator_disable(led->regulator);
-		if (ret)
-			dev_err(&pdev->dev,
-				"Failed to disable supply: %d\n", ret);
-	}
 
 	mutex_destroy(&led->lock);
 

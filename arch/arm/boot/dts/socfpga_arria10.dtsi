@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright Altera Corporation (C) 2014. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -26,18 +15,27 @@
 		#size-cells = <0>;
 		enable-method = "altr,socfpga-a10-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
 		};
-		cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2>;
 		};
+	};
+
+	pmu: pmu@ff111000 {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&intc>;
+		interrupts = <0 124 4>, <0 125 4>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+		reg = <0xff111000 0x1000>,
+		      <0xff113000 0x1000>;
 	};
 
 	intc: intc@ffffd000 {
@@ -79,6 +77,8 @@
 				#dma-requests = <32>;
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
+				resets = <&rst DMA_RESET>, <&rst DMA_OCP_RESET>;
+				reset-names = "dma", "dma-ocp";
 			};
 		};
 
@@ -429,7 +429,7 @@
 		};
 
 		gmac0: ethernet@ff800000 {
-			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.72a", "snps,dwmac";
+			compatible = "altr,socfpga-stmmac-a10-s10", "snps,dwmac-3.72a", "snps,dwmac";
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
 			reg = <0xff800000 0x2000>;
 			interrupts = <0 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -440,17 +440,17 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
-			resets = <&rst EMAC0_RESET>;
-			reset-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
+			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
 		gmac1: ethernet@ff802000 {
-			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.72a", "snps,dwmac";
-			altr,sysmgr-syscon = <&sysmgr 0x48 0>;
+			compatible = "altr,socfpga-stmmac-a10-s10", "snps,dwmac-3.72a", "snps,dwmac";
+			altr,sysmgr-syscon = <&sysmgr 0x48 8>;
 		        reg = <0xff802000 0x2000>;
 			interrupts = <0 93 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -460,17 +460,17 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
-			resets = <&rst EMAC1_RESET>;
-			reset-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
+			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
 		gmac2: ethernet@ff804000 {
-			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.72a", "snps,dwmac";
-			altr,sysmgr-syscon = <&sysmgr 0x4C 0>;
+			compatible = "altr,socfpga-stmmac-a10-s10", "snps,dwmac-3.72a", "snps,dwmac";
+			altr,sysmgr-syscon = <&sysmgr 0x4C 16>;
 			reg = <0xff804000 0x2000>;
 			interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -480,8 +480,10 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <16384>;
-			clocks = <&l4_mp_clk>;
-			clock-names = "stmmaceth";
+			clocks = <&l4_mp_clk>, <&peri_emac_ptp_clk>;
+			clock-names = "stmmaceth", "ptp_ref";
+			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
@@ -491,6 +493,7 @@
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
 			reg = <0xffc02900 0x100>;
+			resets = <&rst GPIO0_RESET>;
 			status = "disabled";
 
 			porta: gpio-controller@0 {
@@ -510,6 +513,7 @@
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
 			reg = <0xffc02a00 0x100>;
+			resets = <&rst GPIO1_RESET>;
 			status = "disabled";
 
 			portb: gpio-controller@0 {
@@ -529,6 +533,7 @@
 			#size-cells = <0>;
 			compatible = "snps,dw-apb-gpio";
 			reg = <0xffc02b00 0x100>;
+			resets = <&rst GPIO2_RESET>;
 			status = "disabled";
 
 			portc: gpio-controller@0 {
@@ -559,6 +564,7 @@
 			reg = <0xffc02200 0x100>;
 			interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst I2C0_RESET>;
 			status = "disabled";
 		};
 
@@ -569,6 +575,7 @@
 			reg = <0xffc02300 0x100>;
 			interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst I2C1_RESET>;
 			status = "disabled";
 		};
 
@@ -579,6 +586,7 @@
 			reg = <0xffc02400 0x100>;
 			interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst I2C2_RESET>;
 			status = "disabled";
 		};
 
@@ -589,6 +597,7 @@
 			reg = <0xffc02500 0x100>;
 			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst I2C3_RESET>;
 			status = "disabled";
 		};
 
@@ -599,6 +608,7 @@
 			reg = <0xffc02600 0x100>;
 			interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst I2C4_RESET>;
 			status = "disabled";
 		};
 
@@ -611,6 +621,8 @@
 			num-cs = <4>;
 			/*32bit_access;*/
 			clocks = <&spi_m_clk>;
+			resets = <&rst SPIM0_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
@@ -625,6 +637,8 @@
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
 			clocks = <&spi_m_clk>;
+			resets = <&rst SPIM1_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
@@ -633,7 +647,7 @@
 			reg = <0xffcfb100 0x80>;
 		};
 
-		L2: l2-cache@fffff000 {
+		L2: cache-controller@fffff000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xfffff000 0x1000>;
 			interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
@@ -653,20 +667,21 @@
 			fifo-depth = <0x400>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
+			resets = <&rst SDMMC_RESET>;
 			status = "disabled";
 		};
 
 		nand: nand@ffb90000 {
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			compatible = "altr,socfpga-denali-nand";
 			reg = <0xffb90000 0x72000>,
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0 99 4>;
-			dma-mask = <0xffffffff>;
 			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
 			clock-names = "nand", "nand_x", "ecc";
+			resets = <&rst NAND_RESET>;
 			status = "disabled";
 		};
 
@@ -751,6 +766,8 @@
 			cdns,fifo-width = <4>;
 			cdns,trigger-address = <0x00000000>;
 			clocks = <&qspi_clk>;
+			resets = <&rst QSPI_RESET>, <&rst QSPI_OCP_RESET>;
+			reset-names = "qspi", "qspi-ocp";
 			status = "disabled";
 		};
 
@@ -813,7 +830,7 @@
 		timer3: timer3@ffd00100 {
 			compatible = "snps,dw-apb-timer";
 			interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>;
-			reg = <0xffd01000 0x100>;
+			reg = <0xffd00100 0x100>;
 			clocks = <&l4_sys_free_clk>;
 			clock-names = "timer";
 			resets = <&rst L4SYSTIMER1_RESET>;
@@ -827,6 +844,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst UART0_RESET>;
 			status = "disabled";
 		};
 
@@ -837,6 +855,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			resets = <&rst UART1_RESET>;
 			status = "disabled";
 		};
 
@@ -877,6 +896,7 @@
 			reg = <0xffd00200 0x100>;
 			interrupts = <0 119 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sys_free_clk>;
+			resets = <&rst L4WD0_RESET>;
 			status = "disabled";
 		};
 
@@ -885,6 +905,7 @@
 			reg = <0xffd00300 0x100>;
 			interrupts = <0 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&l4_sys_free_clk>;
+			resets = <&rst L4WD1_RESET>;
 			status = "disabled";
 		};
 	};

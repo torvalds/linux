@@ -84,7 +84,7 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-#define LPS_DELAY_TIME	1*HZ /*  1 sec */
+#define LPS_DELAY_TIME	1 * HZ /*  1 sec */
 
 #define EXE_PWR_NONE	0x01
 #define EXE_PWR_IPS		0x02
@@ -171,7 +171,7 @@ struct pwrctrl_priv {
 	unsigned long ips_deny_time; /* will deny IPS when system time less than this */
 	u8 ps_processing; /* temp used to mark whether in rtw_ps_processor */
 
-	u8	bLeisurePs;
+	bool	bLeisurePs;
 	u8	LpsIdleCount;
 	u8	power_mgnt;
 	u8	bFwCurrentInPSMode;

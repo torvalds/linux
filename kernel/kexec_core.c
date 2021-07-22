@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kexec.c - kexec system call core code.
  * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -28,6 +26,7 @@
 #include <linux/suspend.h>
 #include <linux/device.h>
 #include <linux/freezer.h>
+#include <linux/panic_notifier.h>
 #include <linux/pm.h>
 #include <linux/cpu.h>
 #include <linux/uaccess.h>
@@ -38,13 +37,13 @@
 #include <linux/syscore_ops.h>
 #include <linux/compiler.h>
 #include <linux/hugetlb.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
+#include <linux/kmsg_dump.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
 
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include "kexec_internal.h"
 
 DEFINE_MUTEX(kexec_mutex);
@@ -111,7 +110,7 @@ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
  * defined more restrictively in <asm/kexec.h>.
  *
  * The code for the transition from the current kernel to the
- * the new kernel is placed in the control_code_buffer, whose size
+ * new kernel is placed in the control_code_buffer, whose size
  * is given by KEXEC_CONTROL_PAGE_SIZE.  In the best case only a single
  * page of memory is necessary, but some architectures require more.
  * Because this memory must be identity mapped in the transition from
@@ -152,6 +151,7 @@ int sanity_check_segment_list(struct kimage *image)
 	int i;
 	unsigned long nr_segments = image->nr_segments;
 	unsigned long total_pages = 0;
+	unsigned long nr_pages = totalram_pages();
 
 	/*
 	 * Verify we have good destination addresses.  The caller is
@@ -217,13 +217,13 @@ int sanity_check_segment_list(struct kimage *image)
 	 * wasted allocating pages, which can cause a soft lockup.
 	 */
 	for (i = 0; i < nr_segments; i++) {
-		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2)
+		if (PAGE_COUNT(image->segment[i].memsz) > nr_pages / 2)
 			return -EINVAL;
 
 		total_pages += PAGE_COUNT(image->segment[i].memsz);
 	}
 
-	if (total_pages > totalram_pages / 2)
+	if (total_pages > nr_pages / 2)
 		return -EINVAL;
 
 	/*
@@ -301,6 +301,8 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
 	struct page *pages;
 
+	if (fatal_signal_pending(current))
+		return NULL;
 	pages = alloc_pages(gfp_mask & ~__GFP_ZERO, order);
 	if (pages) {
 		unsigned int count, i;
@@ -588,6 +590,12 @@ static void kimage_free_extra_pages(struct kimage *image)
 	kimage_free_page_list(&image->unusable_pages);
 
 }
+
+int __weak machine_kexec_post_load(struct kimage *image)
+{
+	return 0;
+}
+
 void kimage_terminate(struct kimage *image)
 {
 	if (*image->entry != 0)
@@ -1070,7 +1078,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 	if (!buf)
 		return;
 	memset(&prstatus, 0, sizeof(prstatus));
-	prstatus.pr_pid = current->pid;
+	prstatus.common.pr_pid = current->pid;
 	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
 	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
 			      &prstatus, sizeof(prstatus));
@@ -1128,7 +1136,6 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
-		lock_system_sleep();
 		pm_prepare_console();
 		error = freeze_processes();
 		if (error) {
@@ -1149,7 +1156,7 @@ int kernel_kexec(void)
 		error = dpm_suspend_end(PMSG_FREEZE);
 		if (error)
 			goto Resume_devices;
-		error = disable_nonboot_cpus();
+		error = suspend_disable_secondary_cpus();
 		if (error)
 			goto Enable_cpus;
 		local_irq_disable();
@@ -1160,7 +1167,7 @@ int kernel_kexec(void)
 #endif
 	{
 		kexec_in_progress = true;
-		kernel_restart_prepare(NULL);
+		kernel_restart_prepare("kexec reboot");
 		migrate_to_reboot_cpu();
 
 		/*
@@ -1170,10 +1177,11 @@ int kernel_kexec(void)
 		 * CPU hotplug again; so re-enable it here.
 		 */
 		cpu_hotplug_enable();
-		pr_emerg("Starting new kernel\n");
+		pr_notice("Starting new kernel\n");
 		machine_shutdown();
 	}
 
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 	machine_kexec(kexec_image);
 
 #ifdef CONFIG_KEXEC_JUMP
@@ -1182,7 +1190,7 @@ int kernel_kexec(void)
  Enable_irqs:
 		local_irq_enable();
  Enable_cpus:
-		enable_nonboot_cpus();
+		suspend_enable_secondary_cpus();
 		dpm_resume_start(PMSG_RESTORE);
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
@@ -1191,7 +1199,6 @@ int kernel_kexec(void)
 		thaw_processes();
  Restore_console:
 		pm_restore_console();
-		unlock_system_sleep();
 	}
 #endif
 

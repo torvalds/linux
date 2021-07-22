@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Socket CAN driver for Aeroflex Gaisler GRCAN and GRHCAN.
  *
@@ -17,11 +18,6 @@
  *
  * See "Documentation/admin-guide/kernel-parameters.rst" for information on the module
  * parameters.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Andreas Larsson <andreas@gaisler.com>
  */
@@ -521,10 +517,10 @@ static int catch_up_echo_skb(struct net_device *dev, int budget, bool echo)
 			stats->tx_packets++;
 			stats->tx_bytes += priv->txdlc[i];
 			priv->txdlc[i] = 0;
-			can_get_echo_skb(dev, i);
+			can_get_echo_skb(dev, i, NULL);
 		} else {
 			/* For cleanup of untransmitted messages */
-			can_free_echo_skb(dev, i);
+			can_free_echo_skb(dev, i, NULL);
 		}
 
 		priv->eskbp = grcan_ring_add(priv->eskbp, GRCAN_MSG_SIZE,
@@ -730,7 +726,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 			txrx = "on rx ";
 			stats->rx_errors++;
 		}
-		netdev_err(dev, "Fatal AHB buss error %s- halting device\n",
+		netdev_err(dev, "Fatal AHB bus error %s- halting device\n",
 			   txrx);
 
 		spin_lock_irqsave(&priv->lock, flags);
@@ -1205,12 +1201,12 @@ static int grcan_receive(struct net_device *dev, int budget)
 			cf->can_id = ((slot[0] & GRCAN_MSG_BID)
 				      >> GRCAN_MSG_BID_BIT);
 		}
-		cf->can_dlc = get_can_dlc((slot[1] & GRCAN_MSG_DLC)
+		cf->len = can_cc_dlc2len((slot[1] & GRCAN_MSG_DLC)
 					  >> GRCAN_MSG_DLC_BIT);
 		if (rtr) {
 			cf->can_id |= CAN_RTR_FLAG;
 		} else {
-			for (i = 0; i < cf->can_dlc; i++) {
+			for (i = 0; i < cf->len; i++) {
 				j = GRCAN_MSG_DATA_SLOT_INDEX(i);
 				shift = GRCAN_MSG_DATA_SHIFT(i);
 				cf->data[i] = (u8)(slot[j] >> shift);
@@ -1219,7 +1215,7 @@ static int grcan_receive(struct net_device *dev, int budget)
 
 		/* Update statistics and read pointer */
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		netif_receive_skb(skb);
 
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
@@ -1247,7 +1243,7 @@ static int grcan_poll(struct napi_struct *napi, int budget)
 	int rx_budget = budget / 2;
 	int tx_budget = budget - rx_budget;
 
-	/* Half of the budget for receiveing messages */
+	/* Half of the budget for receiving messages */
 	rx_work_done = grcan_receive(dev, rx_budget);
 
 	/* Half of the budget for transmitting messages as that can trigger echo
@@ -1403,7 +1399,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	eff = cf->can_id & CAN_EFF_FLAG;
 	rtr = cf->can_id & CAN_RTR_FLAG;
 	id = cf->can_id & (eff ? CAN_EFF_MASK : CAN_SFF_MASK);
-	dlc = cf->can_dlc;
+	dlc = cf->len;
 	if (eff)
 		tmp = (id << GRCAN_MSG_EID_BIT) & GRCAN_MSG_EID;
 	else
@@ -1451,8 +1447,8 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	 * can_put_echo_skb would be an error unless other measures are
 	 * taken.
 	 */
-	priv->txdlc[slotindex] = cf->can_dlc; /* Store dlc for statistics */
-	can_put_echo_skb(skb, dev, slotindex);
+	priv->txdlc[slotindex] = cf->len; /* Store dlc for statistics */
+	can_put_echo_skb(skb, dev, slotindex, 0);
 
 	/* Make sure everything is written before allowing hardware to
 	 * read from the memory
@@ -1656,7 +1652,6 @@ exit_free_candev:
 static int grcan_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
-	struct resource *res;
 	u32 sysid, ambafreq;
 	int irq, err;
 	void __iomem *base;
@@ -1676,8 +1671,7 @@ static int grcan_probe(struct platform_device *ofdev)
 		goto exit_error;
 	}
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&ofdev->dev, res);
+	base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(base)) {
 		err = PTR_ERR(base);
 		goto exit_error;

@@ -8,8 +8,8 @@
  */
 
 #include <linux/kexec.h>
-#include <linux/sha256.h>
 #include <linux/string.h>
+#include <crypto/sha2.h>
 #include <asm/purgatory.h>
 
 int verify_sha256_digest(void)

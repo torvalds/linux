@@ -1,8 +1,8 @@
 rfkill - radio frequency (RF) connector kill switch support
 
-For details to this subsystem look at Documentation/rfkill.txt.
+For details to this subsystem look at Documentation/driver-api/rfkill.rst.
 
-For the deprecated /sys/class/rfkill/*/claim knobs of this interface look in
+For the deprecated ``/sys/class/rfkill/*/claim`` knobs of this interface look in
 Documentation/ABI/removed/sysfs-class-rfkill.
 
 What: 		/sys/class/rfkill
@@ -36,9 +36,10 @@ KernelVersion	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Whether the soft blocked state is initialised from non-volatile
 		storage at startup.
-Values: 	A numeric value.
-		0: false
-		1: true
+Values: 	A numeric value:
+
+		- 0: false
+		- 1: true
 
 
 What:		/sys/class/rfkill/rfkill[0-9]+/state
@@ -54,6 +55,7 @@ Description: 	Current state of the transmitter.
 		through this interface. There will likely be another attempt to
 		remove it in the future.
 Values: 	A numeric value.
+
 		0: RFKILL_STATE_SOFT_BLOCKED
 			transmitter is turned off by software
 		1: RFKILL_STATE_UNBLOCKED
@@ -69,6 +71,7 @@ KernelVersion	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Current hardblock state. This file is read only.
 Values: 	A numeric value.
+
 		0: inactive
 			The transmitter is (potentially) active.
 		1: active
@@ -82,7 +85,9 @@ KernelVersion	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description:	Current softblock state. This file is read and write.
 Values: 	A numeric value.
+
 		0: inactive
 			The transmitter is (potentially) active.
+
 		1: active
 			The transmitter is turned off by software.

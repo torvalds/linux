@@ -190,7 +190,7 @@ void iavf_detect_recover_hung(struct iavf_vsi *vsi)
 static bool iavf_clean_tx_irq(struct iavf_vsi *vsi,
 			      struct iavf_ring *tx_ring, int napi_budget)
 {
-	u16 i = tx_ring->next_to_clean;
+	int i = tx_ring->next_to_clean;
 	struct iavf_tx_buffer *tx_buf;
 	struct iavf_tx_desc *tx_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
@@ -379,19 +379,19 @@ static inline unsigned int iavf_itr_divisor(struct iavf_q_vector *q_vector)
 	unsigned int divisor;
 
 	switch (q_vector->adapter->link_speed) {
-	case I40E_LINK_SPEED_40GB:
+	case VIRTCHNL_LINK_SPEED_40GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 1024;
 		break;
-	case I40E_LINK_SPEED_25GB:
-	case I40E_LINK_SPEED_20GB:
+	case VIRTCHNL_LINK_SPEED_25GB:
+	case VIRTCHNL_LINK_SPEED_20GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 512;
 		break;
 	default:
-	case I40E_LINK_SPEED_10GB:
+	case VIRTCHNL_LINK_SPEED_10GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 256;
 		break;
-	case I40E_LINK_SPEED_1GB:
-	case I40E_LINK_SPEED_100MB:
+	case VIRTCHNL_LINK_SPEED_1GB:
+	case VIRTCHNL_LINK_SPEED_100MB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 32;
 		break;
 	}
@@ -1007,7 +1007,7 @@ static inline void iavf_rx_checksum(struct iavf_vsi *vsi,
 	case IAVF_RX_PTYPE_INNER_PROT_UDP:
 	case IAVF_RX_PTYPE_INNER_PROT_SCTP:
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		/* fall though */
+		fallthrough;
 	default:
 		break;
 	}
@@ -1142,19 +1142,6 @@ static void iavf_reuse_rx_page(struct iavf_ring *rx_ring,
 }
 
 /**
- * iavf_page_is_reusable - check if any reuse is possible
- * @page: page struct to check
- *
- * A page is not reusable if it was allocated under low memory
- * conditions, or it's not in the same NUMA node as this CPU.
- */
-static inline bool iavf_page_is_reusable(struct page *page)
-{
-	return (page_to_nid(page) == numa_mem_id()) &&
-		!page_is_pfmemalloc(page);
-}
-
-/**
  * iavf_can_reuse_rx_page - Determine if this page can be reused by
  * the adapter for another receive
  *
@@ -1187,7 +1174,7 @@ static bool iavf_can_reuse_rx_page(struct iavf_rx_buffer *rx_buffer)
 	struct page *page = rx_buffer->page;
 
 	/* Is any reuse possible? */
-	if (unlikely(!iavf_page_is_reusable(page)))
+	if (!dev_page_is_reusable(page))
 		return false;
 
 #if (PAGE_SIZE < 8192)
@@ -1236,6 +1223,9 @@ static void iavf_add_rx_frag(struct iavf_ring *rx_ring,
 	unsigned int truesize = SKB_DATA_ALIGN(size + iavf_rx_offset(rx_ring));
 #endif
 
+	if (!size)
+		return;
+
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buffer->page,
 			rx_buffer->page_offset, size, truesize);
 
@@ -1259,6 +1249,9 @@ static struct iavf_rx_buffer *iavf_get_rx_buffer(struct iavf_ring *rx_ring,
 						 const unsigned int size)
 {
 	struct iavf_rx_buffer *rx_buffer;
+
+	if (!size)
+		return NULL;
 
 	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
 	prefetchw(rx_buffer->page);
@@ -1290,7 +1283,7 @@ static struct sk_buff *iavf_construct_skb(struct iavf_ring *rx_ring,
 					  struct iavf_rx_buffer *rx_buffer,
 					  unsigned int size)
 {
-	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	void *va;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = iavf_rx_pg_size(rx_ring) / 2;
 #else
@@ -1299,11 +1292,11 @@ static struct sk_buff *iavf_construct_skb(struct iavf_ring *rx_ring,
 	unsigned int headlen;
 	struct sk_buff *skb;
 
+	if (!rx_buffer)
+		return NULL;
 	/* prefetch first cache line of first page */
-	prefetch(va);
-#if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
-#endif
+	va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	net_prefetch(va);
 
 	/* allocate a skb to store the frags */
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi,
@@ -1315,7 +1308,7 @@ static struct sk_buff *iavf_construct_skb(struct iavf_ring *rx_ring,
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > IAVF_RX_HDR_SIZE)
-		headlen = eth_get_headlen(va, IAVF_RX_HDR_SIZE);
+		headlen = eth_get_headlen(skb->dev, va, IAVF_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
@@ -1354,7 +1347,7 @@ static struct sk_buff *iavf_build_skb(struct iavf_ring *rx_ring,
 				      struct iavf_rx_buffer *rx_buffer,
 				      unsigned int size)
 {
-	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	void *va;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = iavf_rx_pg_size(rx_ring) / 2;
 #else
@@ -1363,11 +1356,12 @@ static struct sk_buff *iavf_build_skb(struct iavf_ring *rx_ring,
 #endif
 	struct sk_buff *skb;
 
+	if (!rx_buffer)
+		return NULL;
 	/* prefetch first cache line of first page */
-	prefetch(va);
-#if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
-#endif
+	va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	net_prefetch(va);
+
 	/* build an skb around the page buffer */
 	skb = build_skb(va - IAVF_SKB_PAD, truesize);
 	if (unlikely(!skb))
@@ -1398,6 +1392,9 @@ static struct sk_buff *iavf_build_skb(struct iavf_ring *rx_ring,
 static void iavf_put_rx_buffer(struct iavf_ring *rx_ring,
 			       struct iavf_rx_buffer *rx_buffer)
 {
+	if (!rx_buffer)
+		return;
+
 	if (iavf_can_reuse_rx_page(rx_buffer)) {
 		/* hand second half of page back to the ring */
 		iavf_reuse_rx_page(rx_ring, rx_buffer);
@@ -1496,11 +1493,12 @@ static int iavf_clean_rx_irq(struct iavf_ring *rx_ring, int budget)
 		 * verified the descriptor has been written back.
 		 */
 		dma_rmb();
+#define IAVF_RXD_DD BIT(IAVF_RX_DESC_STATUS_DD_SHIFT)
+		if (!iavf_test_staterr(rx_desc, IAVF_RXD_DD))
+			break;
 
 		size = (qword & IAVF_RXD_QW1_LENGTH_PBUF_MASK) >>
 		       IAVF_RXD_QW1_LENGTH_PBUF_SHIFT;
-		if (!size)
-			break;
 
 		iavf_trace(clean_rx_irq, rx_ring, rx_desc, skb);
 		rx_buffer = iavf_get_rx_buffer(rx_ring, size);
@@ -1516,7 +1514,8 @@ static int iavf_clean_rx_irq(struct iavf_ring *rx_ring, int budget)
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
 			rx_ring->rx_stats.alloc_buff_failed++;
-			rx_buffer->pagecnt_bias++;
+			if (rx_buffer)
+				rx_buffer->pagecnt_bias++;
 			break;
 		}
 
@@ -1761,10 +1760,11 @@ tx_only:
 	if (vsi->back->flags & IAVF_TXR_FLAGS_WB_ON_ITR)
 		q_vector->arm_wb_state = false;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-
-	iavf_update_enable_itr(vsi, q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		iavf_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
@@ -1905,13 +1905,20 @@ static int iavf_tso(struct iavf_tx_buffer *first, u8 *hdr_len,
 
 	/* determine offset of inner transport header */
 	l4_offset = l4.hdr - skb->data;
-
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
-	/* compute length of segmentation header */
-	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		csum_replace_by_diff(&l4.udp->check,
+				     (__force __wsum)htonl(paylen));
+		/* compute length of UDP segmentation header */
+		*hdr_len = (u8)sizeof(l4.udp) + l4_offset;
+	} else {
+		csum_replace_by_diff(&l4.tcp->check,
+				     (__force __wsum)htonl(paylen));
+		/* compute length of TCP segmentation header */
+		*hdr_len = (u8)((l4.tcp->doff * 4) + l4_offset);
+	}
 
 	/* pull values out of skb_shinfo */
 	gso_size = skb_shinfo(skb)->gso_size;
@@ -2098,7 +2105,7 @@ static int iavf_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 }
 
 /**
- * iavf_create_tx_ctx Build the Tx context descriptor
+ * iavf_create_tx_ctx - Build the Tx context descriptor
  * @tx_ring:  ring to create the descriptor on
  * @cd_type_cmd_tso_mss: Quad Word 1
  * @cd_tunneling: Quad Word 0 - bits 0-31
@@ -2143,7 +2150,7 @@ static void iavf_create_tx_ctx(struct iavf_ring *tx_ring,
  **/
 bool __iavf_chk_linearize(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag, *stale;
+	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
 	/* no need to check if number of frags is less than 7 */
@@ -2187,7 +2194,7 @@ bool __iavf_chk_linearize(struct sk_buff *skb)
 		 * descriptor associated with the fragment.
 		 */
 		if (stale_size > IAVF_MAX_DATA_PER_TXD) {
-			int align_pad = -(stale->page_offset) &
+			int align_pad = -(skb_frag_off(stale)) &
 					(IAVF_MAX_READ_REQ_SIZE - 1);
 
 			sum -= align_pad;
@@ -2251,7 +2258,7 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	struct iavf_tx_buffer *tx_bi;
 	struct iavf_tx_desc *tx_desc;
 	u16 i = tx_ring->next_to_use;
@@ -2343,6 +2350,8 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
 	 *
@@ -2355,13 +2364,8 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 	first->next_to_watch = tx_desc;
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
-
-		/* we need this if more than one processor can write to our tail
-		 * at a time, it synchronizes IO on IA64/Altix systems
-		 */
-		mmiowb();
 	}
 
 	return;
@@ -2460,8 +2464,6 @@ static netdev_tx_t iavf_xmit_frame_ring(struct sk_buff *skb,
 				  tx_ring, &cd_tunneling);
 	if (tso < 0)
 		goto out_drop;
-
-	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
 	td_cmd |= IAVF_TX_DESC_CMD_ICRC;

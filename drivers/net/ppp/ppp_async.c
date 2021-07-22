@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PPP async serial channel driver for Linux.
  *
  * Copyright 1999 Paul Mackerras.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * This driver provides the encapsulation and framing for sending
  * and receiving PPP frames over async serial lines.  It relies on
@@ -70,7 +66,7 @@ struct asyncppp {
 	struct tasklet_struct tsk;
 
 	refcount_t	refcnt;
-	struct semaphore dead_sem;
+	struct completion dead;
 	struct ppp_channel chan;	/* interface to generic ppp layer */
 	unsigned char	obuf[OBUFSIZE];
 };
@@ -102,10 +98,10 @@ static int ppp_async_send(struct ppp_channel *chan, struct sk_buff *skb);
 static int ppp_async_push(struct asyncppp *ap);
 static void ppp_async_flush_output(struct asyncppp *ap);
 static void ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-			    char *flags, int count);
+			    const char *flags, int count);
 static int ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd,
 			   unsigned long arg);
-static void ppp_async_process(unsigned long arg);
+static void ppp_async_process(struct tasklet_struct *t);
 
 static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 			   int len, int inbound);
@@ -148,7 +144,7 @@ static struct asyncppp *ap_get(struct tty_struct *tty)
 static void ap_put(struct asyncppp *ap)
 {
 	if (refcount_dec_and_test(&ap->refcnt))
-		up(&ap->dead_sem);
+		complete(&ap->dead);
 }
 
 /*
@@ -183,10 +179,10 @@ ppp_asynctty_open(struct tty_struct *tty)
 	ap->lcp_fcs = -1;
 
 	skb_queue_head_init(&ap->rqueue);
-	tasklet_init(&ap->tsk, ppp_async_process, (unsigned long) ap);
+	tasklet_setup(&ap->tsk, ppp_async_process);
 
 	refcount_set(&ap->refcnt, 1);
-	sema_init(&ap->dead_sem, 0);
+	init_completion(&ap->dead);
 
 	ap->chan.private = ap;
 	ap->chan.ops = &async_ops;
@@ -235,7 +231,7 @@ ppp_asynctty_close(struct tty_struct *tty)
 	 * by the time it returns.
 	 */
 	if (!refcount_dec_and_test(&ap->refcnt))
-		down(&ap->dead_sem);
+		wait_for_completion(&ap->dead);
 	tasklet_kill(&ap->tsk);
 
 	ppp_unregister_channel(&ap->chan);
@@ -263,7 +259,8 @@ static int ppp_asynctty_hangup(struct tty_struct *tty)
  */
 static ssize_t
 ppp_asynctty_read(struct tty_struct *tty, struct file *file,
-		  unsigned char __user *buf, size_t count)
+		  unsigned char *buf, size_t count,
+		  void **cookie, unsigned long offset)
 {
 	return -EAGAIN;
 }
@@ -343,7 +340,7 @@ ppp_asynctty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 /* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
 ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
-		  char *cflags, int count)
+		  const char *cflags, int count)
 {
 	struct asyncppp *ap = ap_get(tty);
 	unsigned long flags;
@@ -375,7 +372,7 @@ ppp_asynctty_wakeup(struct tty_struct *tty)
 
 static struct tty_ldisc_ops ppp_ldisc = {
 	.owner  = THIS_MODULE,
-	.magic	= TTY_LDISC_MAGIC,
+	.num	= N_PPP,
 	.name	= "ppp",
 	.open	= ppp_asynctty_open,
 	.close	= ppp_asynctty_close,
@@ -393,7 +390,7 @@ ppp_async_init(void)
 {
 	int err;
 
-	err = tty_register_ldisc(N_PPP, &ppp_ldisc);
+	err = tty_register_ldisc(&ppp_ldisc);
 	if (err != 0)
 		printk(KERN_ERR "PPP_async: error %d registering line disc.\n",
 		       err);
@@ -492,9 +489,9 @@ ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
  * to the ppp_generic code, and to tell the ppp_generic code
  * if we can accept more output now.
  */
-static void ppp_async_process(unsigned long arg)
+static void ppp_async_process(struct tasklet_struct *t)
 {
-	struct asyncppp *ap = (struct asyncppp *) arg;
+	struct asyncppp *ap = from_tasklet(ap, t, tsk);
 	struct sk_buff *skb;
 
 	/* process received packets */
@@ -770,7 +767,7 @@ process_input_packet(struct asyncppp *ap)
 {
 	struct sk_buff *skb;
 	unsigned char *p;
-	unsigned int len, fcs, proto;
+	unsigned int len, fcs;
 
 	skb = ap->rpkt;
 	if (ap->state & (SC_TOSS | SC_ESCAPE))
@@ -799,14 +796,14 @@ process_input_packet(struct asyncppp *ap)
 			goto err;
 		p = skb_pull(skb, 2);
 	}
-	proto = p[0];
-	if (proto & 1) {
-		/* protocol is compressed */
-		*(u8 *)skb_push(skb, 1) = 0;
-	} else {
+
+	/* If protocol field is not compressed, it can be LCP packet */
+	if (!(p[0] & 0x01)) {
+		unsigned int proto;
+
 		if (skb->len < 2)
 			goto err;
-		proto = (proto << 8) + p[1];
+		proto = (p[0] << 8) + p[1];
 		if (proto == PPP_LCP)
 			async_lcp_peek(ap, p, skb->len, 1);
 	}
@@ -833,7 +830,7 @@ process_input_packet(struct asyncppp *ap)
 
 static void
 ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-		char *flags, int count)
+		const char *flags, int count)
 {
 	struct sk_buff *skb;
 	int c, i, j, n, s, f;
@@ -878,15 +875,15 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 				skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
 				if (!skb)
 					goto nomem;
- 				ap->rpkt = skb;
- 			}
- 			if (skb->len == 0) {
- 				/* Try to get the payload 4-byte aligned.
- 				 * This should match the
- 				 * PPP_ALLSTATIONS/PPP_UI/compressed tests in
- 				 * process_input_packet, but we do not have
- 				 * enough chars here to test buf[1] and buf[2].
- 				 */
+				ap->rpkt = skb;
+			}
+			if (skb->len == 0) {
+				/* Try to get the payload 4-byte aligned.
+				 * This should match the
+				 * PPP_ALLSTATIONS/PPP_UI/compressed tests in
+				 * process_input_packet, but we do not have
+				 * enough chars here to test buf[1] and buf[2].
+				 */
 				if (buf[0] != PPP_ALLSTATIONS)
 					skb_reserve(skb, 2 + (buf[0] & 1));
 			}
@@ -1019,8 +1016,7 @@ static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 
 static void __exit ppp_async_cleanup(void)
 {
-	if (tty_unregister_ldisc(N_PPP) != 0)
-		printk(KERN_ERR "failed to unregister PPP line discipline\n");
+	tty_unregister_ldisc(&ppp_ldisc);
 }
 
 module_init(ppp_async_init);

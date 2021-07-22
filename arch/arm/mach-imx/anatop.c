@@ -1,13 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/err.h>
@@ -25,8 +19,6 @@
 #define ANADIG_REG_2P5		0x130
 #define ANADIG_REG_CORE		0x140
 #define ANADIG_ANA_MISC0	0x150
-#define ANADIG_USB1_CHRG_DETECT	0x1b0
-#define ANADIG_USB2_CHRG_DETECT	0x210
 #define ANADIG_DIGPROG		0x260
 #define ANADIG_DIGPROG_IMX6SL	0x280
 #define ANADIG_DIGPROG_IMX7D	0x800
@@ -39,8 +31,6 @@
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG	0x1000
 /* Below MISC0_DISCON_HIGH_SNVS is only for i.MX6SL */
 #define BM_ANADIG_ANA_MISC0_DISCON_HIGH_SNVS	0x2000
-#define BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B	0x80000
-#define BM_ANADIG_USB_CHRG_DETECT_EN_B		0x100000
 
 static struct regmap *anatop;
 
@@ -99,22 +89,11 @@ void imx_anatop_post_resume(void)
 
 	if (cpu_is_imx6sl())
 		imx_anatop_disconnect_high_snvs(false);
-
-}
-
-static void imx_anatop_usb_chrg_detect_disable(void)
-{
-	regmap_write(anatop, ANADIG_USB1_CHRG_DETECT,
-		BM_ANADIG_USB_CHRG_DETECT_EN_B
-		| BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B);
-	regmap_write(anatop, ANADIG_USB2_CHRG_DETECT,
-		BM_ANADIG_USB_CHRG_DETECT_EN_B |
-		BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B);
 }
 
 void __init imx_init_revision_from_anatop(void)
 {
-	struct device_node *np;
+	struct device_node *np, *src_np;
 	void __iomem *anatop_base;
 	unsigned int revision;
 	u32 digprog;
@@ -155,9 +134,10 @@ void __init imx_init_revision_from_anatop(void)
 			void __iomem *src_base;
 			u32 sbmr2;
 
-			np = of_find_compatible_node(NULL, NULL,
+			src_np = of_find_compatible_node(NULL, NULL,
 						     "fsl,imx6ul-src");
-			src_base = of_iomap(np, 0);
+			src_base = of_iomap(src_np, 0);
+			of_node_put(src_np);
 			WARN_ON(!src_base);
 			sbmr2 = readl_relaxed(src_base + SRC_SBMR2);
 			iounmap(src_base);
@@ -169,6 +149,7 @@ void __init imx_init_revision_from_anatop(void)
 			}
 		}
 	}
+	of_node_put(np);
 
 	mxc_set_cpu_type(digprog >> 16 & 0xff);
 	imx_set_soc_revision(revision);
@@ -177,10 +158,6 @@ void __init imx_init_revision_from_anatop(void)
 void __init imx_anatop_init(void)
 {
 	anatop = syscon_regmap_lookup_by_compatible("fsl,imx6q-anatop");
-	if (IS_ERR(anatop)) {
+	if (IS_ERR(anatop))
 		pr_err("%s: failed to find imx6q-anatop regmap!\n", __func__);
-		return;
-	}
-
-	imx_anatop_usb_chrg_detect_disable();
 }

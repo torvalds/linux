@@ -1,69 +1,14 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_img_h__
 #define __iwl_fw_img_h__
 #include <linux/types.h>
+
+#include "api/dbg-tlv.h"
 
 #include "file.h"
 #include "error-dump.h"
@@ -103,8 +48,14 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 error_log_addr;
+	u32 error_log_size;
+	u32 num_stations;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
+
+	const struct iwl_fw_cmd_version *cmd_versions;
+	u32 n_cmd_versions;
 };
 
 static inline bool
@@ -164,6 +115,9 @@ struct fw_img {
 #define PAGING_CMD_IS_ENABLED BIT(8)
 #define PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS	0
 #define PAGING_TLV_SECURE_MASK 1
+
+/* FW MSB Mask for regions/cache_control */
+#define FW_ADDR_CACHE_CONTROL 0xC0000000UL
 
 /**
  * struct iwl_fw_paging
@@ -244,7 +198,7 @@ struct iwl_fw_dbg {
 struct iwl_fw {
 	u32 ucode_ver;
 
-	char fw_version[ETHTOOL_FWVERS_LEN];
+	char fw_version[64];
 
 	/* ucode images */
 	struct fw_img img[IWL_UCODE_TYPE_MAX];
@@ -268,6 +222,9 @@ struct iwl_fw {
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 
 	struct iwl_fw_dbg dbg;
+
+	u8 *phy_integration_ver;
+	u32 phy_integration_ver_len;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)
@@ -306,4 +263,8 @@ iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
 	return &fw->img[ucode_type];
 }
 
+u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
+
+u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
+const char *iwl_fw_lookup_assert_desc(u32 num);
 #endif  /* __iwl_fw_img_h__ */

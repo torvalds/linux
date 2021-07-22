@@ -1,19 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Driver header for NOON010PC30L camera sensor chip.
  *
  * Copyright (c) 2010 Samsung Electronics, Co. Ltd
  * Contact: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef NOON010PC30_H
 #define NOON010PC30_H
 
 /**
+ * struct noon010pc30_platform_data - platform data
  * @clk_rate: the clock frequency in Hz
  * @gpio_nreset: GPIO driving nRESET pin
  * @gpio_nstby: GPIO driving nSTBY pin

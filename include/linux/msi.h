@@ -4,11 +4,50 @@
 
 #include <linux/kobject.h>
 #include <linux/list.h>
+#include <asm/msi.h>
 
+/* Dummy shadow structures if an architecture does not define them */
+#ifndef arch_msi_msg_addr_lo
+typedef struct arch_msi_msg_addr_lo {
+	u32	address_lo;
+} __attribute__ ((packed)) arch_msi_msg_addr_lo_t;
+#endif
+
+#ifndef arch_msi_msg_addr_hi
+typedef struct arch_msi_msg_addr_hi {
+	u32	address_hi;
+} __attribute__ ((packed)) arch_msi_msg_addr_hi_t;
+#endif
+
+#ifndef arch_msi_msg_data
+typedef struct arch_msi_msg_data {
+	u32	data;
+} __attribute__ ((packed)) arch_msi_msg_data_t;
+#endif
+
+/**
+ * msi_msg - Representation of a MSI message
+ * @address_lo:		Low 32 bits of msi message address
+ * @arch_addrlo:	Architecture specific shadow of @address_lo
+ * @address_hi:		High 32 bits of msi message address
+ *			(only used when device supports it)
+ * @arch_addrhi:	Architecture specific shadow of @address_hi
+ * @data:		MSI message data (usually 16 bits)
+ * @arch_data:		Architecture specific shadow of @data
+ */
 struct msi_msg {
-	u32	address_lo;	/* low 32 bits of msi message address */
-	u32	address_hi;	/* high 32 bits of msi message address */
-	u32	data;		/* 16 bits of msi message data */
+	union {
+		u32			address_lo;
+		arch_msi_msg_addr_lo_t	arch_addr_lo;
+	};
+	union {
+		u32			address_hi;
+		arch_msi_msg_addr_hi_t	arch_addr_hi;
+	};
+	union {
+		u32			data;
+		arch_msi_msg_data_t	arch_data;
+	};
 };
 
 extern int pci_msi_ignore_mask;
@@ -48,6 +87,14 @@ struct fsl_mc_msi_desc {
 };
 
 /**
+ * ti_sci_inta_msi_desc - TISCI based INTA specific msi descriptor data
+ * @dev_index: TISCI device index
+ */
+struct ti_sci_inta_msi_desc {
+	u16	dev_index;
+};
+
+/**
  * struct msi_desc - Descriptor structure for MSI based interrupts
  * @list:	List head for management
  * @irq:	The base interrupt number
@@ -55,6 +102,10 @@ struct fsl_mc_msi_desc {
  * @dev:	Pointer to the device which uses this descriptor
  * @msg:	The last set MSI message cached for reuse
  * @affinity:	Optional pointer to a cpu affinity mask for this descriptor
+ *
+ * @write_msi_msg:	Callback that may be called when the MSI message
+ *			address or data changes
+ * @write_msi_msg_data:	Data parameter for the callback.
  *
  * @masked:	[PCI MSI/X] Mask bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
@@ -68,6 +119,7 @@ struct fsl_mc_msi_desc {
  * @mask_base:	[PCI MSI-X] Mask register base address
  * @platform:	[platform]  Platform device specific msi descriptor data
  * @fsl_mc:	[fsl-mc]    FSL MC device specific msi descriptor data
+ * @inta:	[INTA]	    TISCI based INTA specific msi descriptor data
  */
 struct msi_desc {
 	/* Shared device/bus type independent data */
@@ -76,19 +128,26 @@ struct msi_desc {
 	unsigned int			nvec_used;
 	struct device			*dev;
 	struct msi_msg			msg;
-	struct cpumask			*affinity;
+	struct irq_affinity_desc	*affinity;
+#ifdef CONFIG_IRQ_MSI_IOMMU
+	const void			*iommu_cookie;
+#endif
+
+	void (*write_msi_msg)(struct msi_desc *entry, void *data);
+	void *write_msi_msg_data;
 
 	union {
 		/* PCI MSI/X specific data */
 		struct {
 			u32 masked;
 			struct {
-				__u8	is_msix		: 1;
-				__u8	multiple	: 3;
-				__u8	multi_cap	: 3;
-				__u8	maskbit		: 1;
-				__u8	is_64		: 1;
-				__u16	entry_nr;
+				u8	is_msix		: 1;
+				u8	multiple	: 3;
+				u8	multi_cap	: 3;
+				u8	maskbit		: 1;
+				u8	is_64		: 1;
+				u8	is_virtual	: 1;
+				u16	entry_nr;
 				unsigned default_irq;
 			} msi_attrib;
 			union {
@@ -106,6 +165,7 @@ struct msi_desc {
 		 */
 		struct platform_msi_desc platform;
 		struct fsl_mc_msi_desc fsl_mc;
+		struct ti_sci_inta_msi_desc inta;
 	};
 };
 
@@ -116,6 +176,37 @@ struct msi_desc {
 	list_first_entry(dev_to_msi_list((dev)), struct msi_desc, list)
 #define for_each_msi_entry(desc, dev)	\
 	list_for_each_entry((desc), dev_to_msi_list((dev)), list)
+#define for_each_msi_entry_safe(desc, tmp, dev)	\
+	list_for_each_entry_safe((desc), (tmp), dev_to_msi_list((dev)), list)
+#define for_each_msi_vector(desc, __irq, dev)				\
+	for_each_msi_entry((desc), (dev))				\
+		if ((desc)->irq)					\
+			for (__irq = (desc)->irq;			\
+			     __irq < ((desc)->irq + (desc)->nvec_used);	\
+			     __irq++)
+
+#ifdef CONFIG_IRQ_MSI_IOMMU
+static inline const void *msi_desc_get_iommu_cookie(struct msi_desc *desc)
+{
+	return desc->iommu_cookie;
+}
+
+static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
+					     const void *iommu_cookie)
+{
+	desc->iommu_cookie = iommu_cookie;
+}
+#else
+static inline const void *msi_desc_get_iommu_cookie(struct msi_desc *desc)
+{
+	return NULL;
+}
+
+static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
+					     const void *iommu_cookie)
+{
+}
+#endif
 
 #ifdef CONFIG_PCI_MSI
 #define first_pci_msi_entry(pdev)	first_msi_entry(&(pdev)->dev)
@@ -136,7 +227,7 @@ static inline void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg)
 #endif /* CONFIG_PCI_MSI */
 
 struct msi_desc *alloc_msi_entry(struct device *dev, int nvec,
-				 const struct cpumask *affinity);
+				 const struct irq_affinity_desc *affinity);
 void free_msi_entry(struct msi_desc *entry);
 void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
@@ -146,55 +237,42 @@ u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
 
-/* Conversion helpers. Should be removed after merging */
-static inline void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
-{
-	__pci_write_msi_msg(entry, msg);
-}
-static inline void write_msi_msg(int irq, struct msi_msg *msg)
-{
-	pci_write_msi_msg(irq, msg);
-}
-static inline void mask_msi_irq(struct irq_data *data)
-{
-	pci_msi_mask_irq(data);
-}
-static inline void unmask_msi_irq(struct irq_data *data)
-{
-	pci_msi_unmask_irq(data);
-}
-
 /*
- * The arch hooks to setup up msi irqs. Those functions are
- * implemented as weak symbols so that they /can/ be overriden by
- * architecture specific code if needed.
+ * The arch hooks to setup up msi irqs. Default functions are implemented
+ * as weak symbols so that they /can/ be overriden by architecture specific
+ * code if needed. These hooks can only be enabled by the architecture.
+ *
+ * If CONFIG_PCI_MSI_ARCH_FALLBACKS is not selected they are replaced by
+ * stubs with warnings.
  */
+#ifdef CONFIG_PCI_MSI_ARCH_FALLBACKS
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc);
 void arch_teardown_msi_irq(unsigned int irq);
 int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);
 void arch_teardown_msi_irqs(struct pci_dev *dev);
+#else
+static inline int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	WARN_ON_ONCE(1);
+	return -ENODEV;
+}
+
+static inline void arch_teardown_msi_irqs(struct pci_dev *dev)
+{
+	WARN_ON_ONCE(1);
+}
+#endif
+
+/*
+ * The restore hooks are still available as they are useful even
+ * for fully irq domain based setups. Courtesy to XEN/X86.
+ */
 void arch_restore_msi_irqs(struct pci_dev *dev);
-
-void default_teardown_msi_irqs(struct pci_dev *dev);
 void default_restore_msi_irqs(struct pci_dev *dev);
-
-struct msi_controller {
-	struct module *owner;
-	struct device *dev;
-	struct device_node *of_node;
-	struct list_head list;
-
-	int (*setup_irq)(struct msi_controller *chip, struct pci_dev *dev,
-			 struct msi_desc *desc);
-	int (*setup_irqs)(struct msi_controller *chip, struct pci_dev *dev,
-			  int nvec, int type);
-	void (*teardown_irq)(struct msi_controller *chip, unsigned int irq);
-};
 
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 
 #include <linux/irqhandler.h>
-#include <asm/msi.h>
 
 struct irq_domain;
 struct irq_domain_ops;
@@ -213,6 +291,10 @@ struct msi_domain_info;
  * @msi_finish:		Optional callback to finalize the allocation
  * @set_desc:		Set the msi descriptor for an interrupt
  * @handle_error:	Optional error handler if the allocation fails
+ * @domain_alloc_irqs:	Optional function to override the default allocation
+ *			function.
+ * @domain_free_irqs:	Optional function to override the default free
+ *			function.
  *
  * @get_hwirq, @msi_init and @msi_free are callbacks used by
  * msi_create_irq_domain() and related interfaces
@@ -220,6 +302,22 @@ struct msi_domain_info;
  * @msi_check, @msi_prepare, @msi_finish, @set_desc and @handle_error
  * are callbacks used by msi_domain_alloc_irqs() and related
  * interfaces which are based on msi_desc.
+ *
+ * @domain_alloc_irqs, @domain_free_irqs can be used to override the
+ * default allocation/free functions (__msi_domain_alloc/free_irqs). This
+ * is initially for a wrapper around XENs seperate MSI universe which can't
+ * be wrapped into the regular irq domains concepts by mere mortals.  This
+ * allows to universally use msi_domain_alloc/free_irqs without having to
+ * special case XEN all over the place.
+ *
+ * Contrary to other operations @domain_alloc_irqs and @domain_free_irqs
+ * are set to the default implementation if NULL and even when
+ * MSI_FLAG_USE_DEF_DOM_OPS is not set to avoid breaking existing users and
+ * because these callbacks are obviously mandatory.
+ *
+ * This is NOT meant to be abused, but it can be useful to build wrappers
+ * for specialized MSI irq domains which need extra work before and after
+ * calling __msi_domain_alloc_irqs()/__msi_domain_free_irqs().
  */
 struct msi_domain_ops {
 	irq_hw_number_t	(*get_hwirq)(struct msi_domain_info *info,
@@ -242,6 +340,10 @@ struct msi_domain_ops {
 				    struct msi_desc *desc);
 	int		(*handle_error)(struct irq_domain *domain,
 					struct msi_desc *desc, int error);
+	int		(*domain_alloc_irqs)(struct irq_domain *domain,
+					     struct device *dev, int nvec);
+	void		(*domain_free_irqs)(struct irq_domain *domain,
+					    struct device *dev);
 };
 
 /**
@@ -299,8 +401,11 @@ int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
 struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent);
+int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
+			    int nvec);
 int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			  int nvec);
+void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 
@@ -341,12 +446,11 @@ void pci_msi_domain_write_msg(struct irq_data *irq_data, struct msi_msg *msg);
 struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent);
-irq_hw_number_t pci_msi_domain_calc_hwirq(struct pci_dev *dev,
-					  struct msi_desc *desc);
 int pci_msi_domain_check_cap(struct irq_domain *domain,
 			     struct msi_domain_info *info, struct device *dev);
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev);
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev);
+bool pci_dev_has_special_msi_domain(struct pci_dev *pdev);
 #else
 static inline struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
 {

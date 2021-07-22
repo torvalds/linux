@@ -24,25 +24,31 @@
 #ifndef _INTEL_GVT_H_
 #define _INTEL_GVT_H_
 
-struct intel_gvt;
+struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_GVT
 int intel_gvt_init(struct drm_i915_private *dev_priv);
-void intel_gvt_cleanup(struct drm_i915_private *dev_priv);
+void intel_gvt_driver_remove(struct drm_i915_private *dev_priv);
 int intel_gvt_init_device(struct drm_i915_private *dev_priv);
 void intel_gvt_clean_device(struct drm_i915_private *dev_priv);
 int intel_gvt_init_host(void);
 void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv);
+void intel_gvt_resume(struct drm_i915_private *dev_priv);
 #else
 static inline int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
 	return 0;
 }
-static inline void intel_gvt_cleanup(struct drm_i915_private *dev_priv)
+
+static inline void intel_gvt_driver_remove(struct drm_i915_private *dev_priv)
 {
 }
 
 static inline void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
+{
+}
+
+static inline void intel_gvt_resume(struct drm_i915_private *dev_priv)
 {
 }
 #endif

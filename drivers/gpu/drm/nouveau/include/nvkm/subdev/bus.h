@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BUS_H__
 #define __NVKM_BUS_H__
 #include <core/subdev.h>
@@ -18,9 +18,9 @@ void nvkm_hwsq_wait(struct nvkm_hwsq *, u8 flag, u8 data);
 void nvkm_hwsq_wait_vblank(struct nvkm_hwsq *);
 void nvkm_hwsq_nsec(struct nvkm_hwsq *, u32 nsec);
 
-int nv04_bus_new(struct nvkm_device *, int, struct nvkm_bus **);
-int nv31_bus_new(struct nvkm_device *, int, struct nvkm_bus **);
-int nv50_bus_new(struct nvkm_device *, int, struct nvkm_bus **);
-int g94_bus_new(struct nvkm_device *, int, struct nvkm_bus **);
-int gf100_bus_new(struct nvkm_device *, int, struct nvkm_bus **);
+int nv04_bus_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bus **);
+int nv31_bus_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bus **);
+int nv50_bus_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bus **);
+int g94_bus_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bus **);
+int gf100_bus_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bus **);
 #endif

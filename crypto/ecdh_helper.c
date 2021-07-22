@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -14,7 +10,7 @@
 #include <crypto/ecdh.h>
 #include <crypto/kpp.h>
 
-#define ECDH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + 2 * sizeof(short))
+#define ECDH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + sizeof(short))
 
 static inline u8 *ecdh_pack_data(void *dst, const void *src, size_t sz)
 {
@@ -50,7 +46,6 @@ int crypto_ecdh_encode_key(char *buf, unsigned int len,
 		return -EINVAL;
 
 	ptr = ecdh_pack_data(ptr, &secret, sizeof(secret));
-	ptr = ecdh_pack_data(ptr, &params->curve_id, sizeof(params->curve_id));
 	ptr = ecdh_pack_data(ptr, &params->key_size, sizeof(params->key_size));
 	ecdh_pack_data(ptr, params->key, params->key_size);
 
@@ -71,7 +66,9 @@ int crypto_ecdh_decode_key(const char *buf, unsigned int len,
 	if (secret.type != CRYPTO_KPP_SECRET_TYPE_ECDH)
 		return -EINVAL;
 
-	ptr = ecdh_unpack_data(&params->curve_id, ptr, sizeof(params->curve_id));
+	if (unlikely(len < secret.len))
+		return -EINVAL;
+
 	ptr = ecdh_unpack_data(&params->key_size, ptr, sizeof(params->key_size));
 	if (secret.len != crypto_ecdh_key_len(params))
 		return -EINVAL;

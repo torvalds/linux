@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * clk-si5351.c: Silicon Laboratories Si5351A/B/C I2C Clock Generator
  *
@@ -6,14 +7,9 @@
  *
  * References:
  * [1] "Si5351A/B/C Data Sheet"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
+ *     https://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
  * [2] "Manually Generating an Si5351 Register Map"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
+ *     https://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
  */
 
 #include <linux/module.h>
@@ -906,6 +902,10 @@ static int _si5351_clkout_set_disable_state(
 static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num)
 {
 	u8 val = si5351_reg_read(drvdata, SI5351_CLK0_CTRL + num);
+	u8 mask = val & SI5351_CLK_PLL_SELECT ? SI5351_PLL_RESET_B :
+						       SI5351_PLL_RESET_A;
+	unsigned int v;
+	int err;
 
 	switch (val & SI5351_CLK_INPUT_MASK) {
 	case SI5351_CLK_INPUT_XTAL:
@@ -913,9 +913,12 @@ static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num
 		return;  /* pll not used, no need to reset */
 	}
 
-	si5351_reg_write(drvdata, SI5351_PLL_RESET,
-			 val & SI5351_CLK_PLL_SELECT ? SI5351_PLL_RESET_B :
-						       SI5351_PLL_RESET_A);
+	si5351_reg_write(drvdata, SI5351_PLL_RESET, mask);
+
+	err = regmap_read_poll_timeout(drvdata->regmap, SI5351_PLL_RESET, v,
+				 !(v & mask), 0, 20000);
+	if (err < 0)
+		dev_err(&drvdata->client->dev, "Reset bit didn't clear\n");
 
 	dev_dbg(&drvdata->client->dev, "%s - %s: pll = %d\n",
 		__func__, clk_hw_get_name(&drvdata->clkout[num].hw),
@@ -1215,8 +1218,8 @@ static int si5351_dt_parse(struct i2c_client *client,
 	/* per clkout properties */
 	for_each_child_of_node(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
-			dev_err(&client->dev, "missing reg property of %s\n",
-				child->name);
+			dev_err(&client->dev, "missing reg property of %pOFn\n",
+				child);
 			goto put_child;
 		}
 

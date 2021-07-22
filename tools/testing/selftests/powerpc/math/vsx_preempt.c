@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015, Cyril Bur, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * This test attempts to see if the VSX registers change across preemption.
  * There is no way to be sure preemption happened so this test just
@@ -95,6 +91,8 @@ int test_preempt_vsx(void)
 {
 	int i, rc, threads;
 	pthread_t *tids;
+
+	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_VSX));
 
 	threads = sysconf(_SC_NPROCESSORS_ONLN) * THREAD_FACTOR;
 	tids = malloc(threads * sizeof(pthread_t));

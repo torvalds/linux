@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Virtio PCI driver - legacy device support
  *
@@ -11,10 +12,6 @@
  *  Anthony Liguori  <aliguori@us.ibm.com>
  *  Rusty Russell <rusty@rustcorp.com.au>
  *  Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
  */
 
 #include "virtio_pci_common.h"
@@ -52,7 +49,8 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	void __iomem *ioaddr = vp_dev->ioaddr +
-				VIRTIO_PCI_CONFIG(vp_dev) + offset;
+			VIRTIO_PCI_CONFIG_OFF(vp_dev->msix_enabled) +
+			offset;
 	u8 *ptr = buf;
 	int i;
 
@@ -67,7 +65,8 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	void __iomem *ioaddr = vp_dev->ioaddr +
-				VIRTIO_PCI_CONFIG(vp_dev) + offset;
+			VIRTIO_PCI_CONFIG_OFF(vp_dev->msix_enabled) +
+			offset;
 	const u8 *ptr = buf;
 	int i;
 

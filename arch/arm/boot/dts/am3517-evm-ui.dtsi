@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018 Logic PD, Inc - http://www.logicpd.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2018 Logic PD, Inc - https://www.logicpd.com/
  */
 
 #include <dt-bindings/input/input.h>
@@ -186,14 +183,14 @@
 };
 
 &mcbsp1 {
-	status = "ok";
+	status = "okay";
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcbsp1_pins>;
 };
 
 &mcbsp2 {
-	status = "ok";
+	status = "okay";
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcbsp2_pins>;

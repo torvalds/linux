@@ -88,6 +88,7 @@ int main(void)
 	ksft_print_header();
 
 	sync_api_supported();
+	ksft_set_plan(3 + 7);
 
 	ksft_print_msg("[RUN]\tTesting sync framework\n");
 

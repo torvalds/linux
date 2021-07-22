@@ -568,10 +568,6 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	ret = ov2680_mode_restore(sensor);
-	if (ret < 0)
-		goto disable;
-
 	sensor->is_enabled = true;
 
 	/* Set clock lane into LP-11 state */
@@ -580,12 +576,6 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 	ov2680_stream_disable(sensor);
 
 	return 0;
-
-disable:
-	dev_err(dev, "failed to enable sensor: %d\n", ret);
-	ov2680_power_off(sensor);
-
-	return ret;
 }
 
 static int ov2680_s_power(struct v4l2_subdev *sd, int on)
@@ -606,6 +596,8 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
 		if (ret < 0)
 			return ret;
+
+		ret = ov2680_mode_restore(sensor);
 	}
 
 	return ret;
@@ -653,7 +645,7 @@ unlock:
 }
 
 static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -667,7 +659,7 @@ static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov2680_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -681,9 +673,10 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
+						 format->pad);
 #else
-		ret = -ENOTTY;
+		ret = -EINVAL;
 #endif
 	} else {
 		fmt = &sensor->fmt;
@@ -698,7 +691,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -729,12 +722,9 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		try_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		try_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *try_fmt;
-#else
-		ret = -ENOTTY;
 #endif
-
 		goto unlock;
 	}
 
@@ -754,22 +744,22 @@ unlock:
 }
 
 static int ov2680_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg)
+			   struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = {
-		.which = cfg ? V4L2_SUBDEV_FORMAT_TRY
-				: V4L2_SUBDEV_FORMAT_ACTIVE,
+		.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+		: V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
 			.width = 800,
 			.height = 600,
 		}
 	};
 
-	return ov2680_set_fmt(sd, cfg, &fmt);
+	return ov2680_set_fmt(sd, sd_state, &fmt);
 }
 
 static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int index = fse->index;
@@ -786,7 +776,7 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct v4l2_fract tpf;
@@ -1031,7 +1021,7 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 	return 0;
 }
 
-static int ov2860_parse_dt(struct ov2680_dev *sensor)
+static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
 	struct device *dev = ov2680_to_dev(sensor);
 	int ret;
@@ -1072,7 +1062,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	sensor->i2c_client = client;
 
-	ret = ov2860_parse_dt(sensor);
+	ret = ov2680_parse_dt(sensor);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -1122,8 +1112,7 @@ static int ov2680_remove(struct i2c_client *client)
 
 static int __maybe_unused ov2680_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
 	if (sensor->is_streaming)
@@ -1134,8 +1123,7 @@ static int __maybe_unused ov2680_suspend(struct device *dev)
 
 static int __maybe_unused ov2680_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	int ret;
 

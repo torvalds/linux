@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Atmel
  *
  * Boris Brezillon <boris.brezillon@free-electrons.com
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- *
  */
 
 #ifndef __AT91_SOC_H
@@ -16,14 +12,19 @@
 
 struct at91_soc {
 	u32 cidr_match;
+	u32 cidr_mask;
+	u32 version_mask;
 	u32 exid_match;
 	const char *name;
 	const char *family;
 };
 
-#define AT91_SOC(__cidr, __exid, __name, __family)		\
+#define AT91_SOC(__cidr, __cidr_mask, __version_mask, __exid,	\
+		 __name, __family)				\
 	{							\
 		.cidr_match = (__cidr),				\
+		.cidr_mask = (__cidr_mask),			\
+		.version_mask = (__version_mask),		\
 		.exid_match = (__exid),				\
 		.name = (__name),				\
 		.family = (__family),				\
@@ -42,6 +43,8 @@ at91_soc_init(const struct at91_soc *socs);
 #define AT91SAM9G45_CIDR_MATCH		0x019b05a0
 #define AT91SAM9X5_CIDR_MATCH		0x019a05a0
 #define AT91SAM9N12_CIDR_MATCH		0x019a07a0
+#define SAM9X60_CIDR_MATCH		0x019b35a0
+#define SAMA7G5_CIDR_MATCH		0x00162100
 
 #define AT91SAM9M11_EXID_MATCH		0x00000001
 #define AT91SAM9M10_EXID_MATCH		0x00000002
@@ -58,6 +61,16 @@ at91_soc_init(const struct at91_soc *socs);
 #define AT91SAM9N12_EXID_MATCH		0x00000006
 #define AT91SAM9CN11_EXID_MATCH		0x00000009
 
+#define SAM9X60_EXID_MATCH		0x00000000
+#define SAM9X60_D5M_EXID_MATCH		0x00000001
+#define SAM9X60_D1G_EXID_MATCH		0x00000010
+#define SAM9X60_D6K_EXID_MATCH		0x00000011
+
+#define SAMA7G51_EXID_MATCH		0x3
+#define SAMA7G52_EXID_MATCH		0x2
+#define SAMA7G53_EXID_MATCH		0x1
+#define SAMA7G54_EXID_MATCH		0x0
+
 #define AT91SAM9XE128_CIDR_MATCH	0x329973a0
 #define AT91SAM9XE256_CIDR_MATCH	0x329a93a0
 #define AT91SAM9XE512_CIDR_MATCH	0x329aa3a0
@@ -73,9 +86,13 @@ at91_soc_init(const struct at91_soc *socs);
 #define SAMA5D26CU_EXID_MATCH		0x00000012
 #define SAMA5D27C_D1G_EXID_MATCH	0x00000033
 #define SAMA5D27C_D5M_EXID_MATCH	0x00000032
+#define SAMA5D27C_LD1G_EXID_MATCH	0x00000061
+#define SAMA5D27C_LD2G_EXID_MATCH	0x00000062
 #define SAMA5D27CU_EXID_MATCH		0x00000011
 #define SAMA5D27CN_EXID_MATCH		0x00000021
 #define SAMA5D28C_D1G_EXID_MATCH	0x00000013
+#define SAMA5D28C_LD1G_EXID_MATCH	0x00000071
+#define SAMA5D28C_LD2G_EXID_MATCH	0x00000072
 #define SAMA5D28CU_EXID_MATCH		0x00000010
 #define SAMA5D28CN_EXID_MATCH		0x00000020
 

@@ -10,10 +10,13 @@ Date:		June 2015
 KernelVersion:	4.3
 Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 Description:	(RO) Output port type:
-		  0: not present,
-		  1: MSU (Memory Storage Unit)
-		  2: CTP (Common Trace Port)
-		  4: PTI (MIPI PTI).
+
+		 ==  =========================
+		  0  not present,
+		  1  MSU (Memory Storage Unit)
+		  2  CTP (Common Trace Port)
+		  4  PTI (MIPI PTI).
+		 ==  =========================
 
 What:		/sys/bus/intel_th/devices/<intel_th_id>-gth/outputs/[0-7]_drop
 Date:		June 2015

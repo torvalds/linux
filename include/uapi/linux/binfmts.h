@@ -16,6 +16,10 @@ struct pt_regs;
 #define MAX_ARG_STRINGS 0x7FFFFFFF
 
 /* sizeof(linux_binprm->buf) */
-#define BINPRM_BUF_SIZE 128
+#define BINPRM_BUF_SIZE 256
+
+/* preserve argv0 for the interpreter  */
+#define AT_FLAGS_PRESERVE_ARGV0_BIT 0
+#define AT_FLAGS_PRESERVE_ARGV0 (1 << AT_FLAGS_PRESERVE_ARGV0_BIT)
 
 #endif /* _UAPI_LINUX_BINFMTS_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/drv-intf/saa7146_vv.h>
@@ -54,8 +55,6 @@ void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	DEB_EE("dev:%p, buf:%p\n", dev, buf);
 
-	BUG_ON(in_interrupt());
-
 	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
@@ -96,8 +95,6 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	DEB_EE("dev:%p, dmaq:%p, state:%d\n", dev, q, state);
 	DEB_EE("q->curr:%p\n", q->curr);
 
-	BUG_ON(!q->curr);
-
 	/* finish current buffer */
 	if (NULL == q->curr) {
 		DEB_D("aiii. no current buffer\n");
@@ -105,7 +102,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	}
 
 	q->curr->vb.state = state;
-	v4l2_get_timestamp(&q->curr->vb.ts);
+	q->curr->vb.ts = ktime_get_ns();
 	wake_up(&q->curr->vb.done);
 
 	q->curr = NULL;
@@ -295,7 +292,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 	int res;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER: {
+	case VFL_TYPE_VIDEO: {
 		DEB_EE("V4L2_BUF_TYPE_VIDEO_CAPTURE: file:%p, vma:%p\n",
 		       file, vma);
 		q = &fh->video_q;
@@ -377,7 +374,7 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 	int ret;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 /*
 		DEB_EE("V4L2_BUF_TYPE_VIDEO_CAPTURE: file:%p, data:%p, count:%lun",
 		       file, data, (unsigned long)count);
@@ -408,7 +405,7 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 	int ret;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		return -EINVAL;
 	case VFL_TYPE_VBI:
 		if (fh->dev->ext_vv_data->vbi_fops.write) {
@@ -518,8 +515,8 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	dev->ext_vv_data = ext_vv;
 
 	vv->d_clipping.cpu_addr =
-		pci_zalloc_consistent(dev->pci, SAA7146_CLIPPING_MEM,
-				      &vv->d_clipping.dma_handle);
+		dma_alloc_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
+				   &vv->d_clipping.dma_handle, GFP_KERNEL);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR("out of memory. aborting.\n");
 		kfree(vv);
@@ -577,7 +574,8 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 	DEB_EE("dev:%p\n", dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
-	pci_free_consistent(dev->pci, SAA7146_CLIPPING_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
+	dma_free_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
+			  vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(vv);
 	dev->vv_data = NULL;
@@ -596,7 +594,7 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	DEB_EE("dev:%p, name:'%s', type:%d\n", dev, name, type);
 
 	vfd->fops = &video_fops;
-	if (type == VFL_TYPE_GRABBER)
+	if (type == VFL_TYPE_VIDEO)
 		vfd->ioctl_ops = &dev->ext_vv_data->vid_ops;
 	else
 		vfd->ioctl_ops = &dev->ext_vv_data->vbi_ops;
@@ -607,6 +605,15 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strscpy(vfd->name, name, sizeof(vfd->name));
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
+			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	vfd->device_caps |= dev->ext_vv_data->capabilities;
+	if (type == VFL_TYPE_VIDEO)
+		vfd->device_caps &=
+			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
+	else
+		vfd->device_caps &=
+			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_AUDIO);
 	video_set_drvdata(vfd, dev);
 
 	err = video_register_device(vfd, type, -1);

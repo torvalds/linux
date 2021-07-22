@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 'raw' table, which is the very first hooked in at PRE_ROUTING and LOCAL_OUT .
  *
- * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -40,7 +41,7 @@ static unsigned int
 iptable_raw_hook(void *priv, struct sk_buff *skb,
 		 const struct nf_hook_state *state)
 {
-	return ipt_do_table(skb, state, state->net->ipv4.iptable_raw);
+	return ipt_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *rawtable_ops __read_mostly;
@@ -54,27 +55,26 @@ static int __net_init iptable_raw_table_init(struct net *net)
 	if (raw_before_defrag)
 		table = &packet_raw_before_defrag;
 
-	if (net->ipv4.iptable_raw)
-		return 0;
-
 	repl = ipt_alloc_initial_table(table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ipt_register_table(net, table, repl, rawtable_ops,
-				 &net->ipv4.iptable_raw);
+	ret = ipt_register_table(net, table, repl, rawtable_ops);
 	kfree(repl);
 	return ret;
 }
 
+static void __net_exit iptable_raw_net_pre_exit(struct net *net)
+{
+	ipt_unregister_table_pre_exit(net, "raw");
+}
+
 static void __net_exit iptable_raw_net_exit(struct net *net)
 {
-	if (!net->ipv4.iptable_raw)
-		return;
-	ipt_unregister_table(net, net->ipv4.iptable_raw, rawtable_ops);
-	net->ipv4.iptable_raw = NULL;
+	ipt_unregister_table_exit(net, "raw");
 }
 
 static struct pernet_operations iptable_raw_net_ops = {
+	.pre_exit = iptable_raw_net_pre_exit,
 	.exit = iptable_raw_net_exit,
 };
 

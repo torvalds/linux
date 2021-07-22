@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Fair Queue CoDel discipline
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *  Copyright (C) 2012,2015 Eric Dumazet <edumazet@google.com>
  */
@@ -18,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/jhash.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
@@ -49,7 +44,6 @@ struct fq_codel_flow {
 	struct sk_buff	  *tail;
 	struct list_head  flowchain;
 	int		  deficit;
-	u32		  dropped; /* number of drops (or ECN marks) on this flow */
 	struct codel_vars cvars;
 }; /* please try to keep this structure <= 64 bytes */
 
@@ -105,7 +99,7 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_QUEUED:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
-			/* fall through */
+			fallthrough;
 		case TC_ACT_SHOT:
 			return 0;
 		}
@@ -177,7 +171,8 @@ static unsigned int fq_codel_drop(struct Qdisc *sch, unsigned int max_packets,
 		__qdisc_drop(skb, to_free);
 	} while (++i < max_packets && len < threshold);
 
-	flow->dropped += i;
+	/* Tell codel to increase its signal strength also */
+	flow->cvars.count += i;
 	q->backlogs[idx] -= len;
 	q->memory_usage -= mem;
 	sch->qstats.drops += i;
@@ -192,7 +187,7 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	unsigned int idx, prev_backlog, prev_qlen;
 	struct fq_codel_flow *flow;
-	int uninitialized_var(ret);
+	int ret;
 	unsigned int pkt_len;
 	bool memory_limited;
 
@@ -215,7 +210,6 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		list_add_tail(&flow->flowchain, &q->new_flows);
 		q->new_flow_count++;
 		flow->deficit = q->quantum;
-		flow->dropped = 0;
 	}
 	get_codel_cb(skb)->mem_usage = skb->truesize;
 	q->memory_usage += get_codel_cb(skb)->mem_usage;
@@ -290,7 +284,6 @@ static struct sk_buff *fq_codel_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	struct fq_codel_flow *flow;
 	struct list_head *head;
-	u32 prev_drop_count, prev_ecn_mark;
 
 begin:
 	head = &q->new_flows;
@@ -307,15 +300,9 @@ begin:
 		goto begin;
 	}
 
-	prev_drop_count = q->cstats.drop_count;
-	prev_ecn_mark = q->cstats.ecn_mark;
-
 	skb = codel_dequeue(sch, &sch->qstats.backlog, &q->cparams,
 			    &flow->cvars, &q->cstats, qdisc_pkt_len,
 			    codel_get_enqueue_time, drop_func, dequeue_func);
-
-	flow->dropped += q->cstats.drop_count - prev_drop_count;
-	flow->dropped += q->cstats.ecn_mark - prev_ecn_mark;
 
 	if (!skb) {
 		/* force a pass through old_flows to prevent starvation */
@@ -387,8 +374,8 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_FQ_CODEL_MAX, opt, fq_codel_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FQ_CODEL_MAX, opt,
+					  fq_codel_policy, NULL);
 	if (err < 0)
 		return err;
 	if (tb[TCA_FQ_CODEL_FLOWS]) {
@@ -429,7 +416,7 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt,
 		q->quantum = max(256U, nla_get_u32(tb[TCA_FQ_CODEL_QUANTUM]));
 
 	if (tb[TCA_FQ_CODEL_DROP_BATCH_SIZE])
-		q->drop_batch_size = min(1U, nla_get_u32(tb[TCA_FQ_CODEL_DROP_BATCH_SIZE]));
+		q->drop_batch_size = max(1U, nla_get_u32(tb[TCA_FQ_CODEL_DROP_BATCH_SIZE]));
 
 	if (tb[TCA_FQ_CODEL_MEMORY_LIMIT])
 		q->memory_limit = min(1U << 31, nla_get_u32(tb[TCA_FQ_CODEL_MEMORY_LIMIT]));
@@ -527,7 +514,7 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 
@@ -600,8 +587,6 @@ static unsigned long fq_codel_find(struct Qdisc *sch, u32 classid)
 static unsigned long fq_codel_bind(struct Qdisc *sch, unsigned long parent,
 			      u32 classid)
 {
-	/* we cannot bypass queue discipline anymore */
-	sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
@@ -664,7 +649,7 @@ static int fq_codel_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 			sch_tree_unlock(sch);
 		}
 		qs.backlog = q->backlogs[idx];
-		qs.drops = flow->dropped;
+		qs.drops = 0;
 	}
 	if (gnet_stats_copy_queue(d, NULL, &qs, qs.qlen) < 0)
 		return -1;
@@ -736,3 +721,4 @@ module_init(fq_codel_module_init)
 module_exit(fq_codel_module_exit)
 MODULE_AUTHOR("Eric Dumazet");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Fair Queue CoDel discipline");

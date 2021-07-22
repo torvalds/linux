@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -26,7 +15,6 @@
 int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 			   u8 bw_index, bool scan)
 {
-	struct sk_buff *skb;
 	struct {
 		u8 idx;
 		u8 scan;
@@ -41,25 +29,24 @@ int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 		.idx = channel,
 		.scan = scan,
 		.bw = bw,
-		.chainmask = cpu_to_le16(dev->mt76.chainmask),
+		.chainmask = cpu_to_le16(dev->mphy.chainmask),
 	};
 
 	/* first set the channel without the extension channel info */
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	mt76_mcu_send_msg(dev, skb, CMD_SWITCH_CHANNEL_OP, true);
+	mt76_mcu_send_msg(&dev->mt76, CMD_SWITCH_CHANNEL_OP, &msg,
+			  sizeof(msg), true);
 
 	usleep_range(5000, 10000);
 
 	msg.ext_chan = 0xe0 + bw_index;
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_SWITCH_CHANNEL_OP, true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_SWITCH_CHANNEL_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_set_channel);
 
 int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 		       u8 channel)
 {
-	struct sk_buff *skb;
 	struct {
 		u8 cr_mode;
 		u8 temp;
@@ -80,15 +67,14 @@ int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 	msg.cfg = cpu_to_le32(val);
 
 	/* first set the channel without the extension channel info */
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_LOAD_CR, true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_LOAD_CR, &msg, sizeof(msg),
+				 true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_load_cr);
 
 int mt76x2_mcu_init_gain(struct mt76x02_dev *dev, u8 channel, u32 gain,
 			 bool force)
 {
-	struct sk_buff *skb;
 	struct {
 		__le32 channel;
 		__le32 gain_val;
@@ -100,15 +86,14 @@ int mt76x2_mcu_init_gain(struct mt76x02_dev *dev, u8 channel, u32 gain,
 	if (force)
 		msg.channel |= cpu_to_le32(BIT(31));
 
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_INIT_GAIN_OP, true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_INIT_GAIN_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_init_gain);
 
 int mt76x2_mcu_tssi_comp(struct mt76x02_dev *dev,
 			 struct mt76x2_tssi_comp *tssi_data)
 {
-	struct sk_buff *skb;
 	struct {
 		__le32 id;
 		struct mt76x2_tssi_comp data;
@@ -117,7 +102,7 @@ int mt76x2_mcu_tssi_comp(struct mt76x02_dev *dev,
 		.data = *tssi_data,
 	};
 
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_CALIBRATION_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_tssi_comp);

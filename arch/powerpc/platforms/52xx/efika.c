@@ -82,11 +82,9 @@ static void __init efika_pcisetup(void)
 		return;
 	}
 
-	for (pcictrl = NULL;;) {
-		pcictrl = of_get_next_child(root, pcictrl);
-		if ((pcictrl == NULL) || (strcmp(pcictrl->name, "pci") == 0))
+	for_each_child_of_node(root, pcictrl)
+		if (of_node_name_eq(pcictrl, "pci"))
 			break;
-	}
 
 	of_node_put(root);
 
@@ -187,8 +185,6 @@ static void __init efika_setup_arch(void)
 	/* Map important registers from the internal memory map */
 	mpc52xx_map_common_devices();
 
-	efika_pcisetup();
-
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = efika_suspend_prepare;
 	mpc52xx_pm_init();
@@ -207,7 +203,6 @@ static int __init efika_probe(void)
 	if (strcmp(model, "EFIKA5K2"))
 		return 0;
 
-	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 
@@ -221,6 +216,7 @@ define_machine(efika)
 	.name			= EFIKA_PLATFORM_NAME,
 	.probe			= efika_probe,
 	.setup_arch		= efika_setup_arch,
+	.discover_phbs		= efika_pcisetup,
 	.init			= mpc52xx_declare_of_platform_devices,
 	.show_cpuinfo		= efika_show_cpuinfo,
 	.init_IRQ		= mpc52xx_init_irq,

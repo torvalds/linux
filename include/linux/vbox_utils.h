@@ -16,6 +16,7 @@ struct vbg_dev;
 __printf(1, 2) void vbg_info(const char *fmt, ...);
 __printf(1, 2) void vbg_warn(const char *fmt, ...);
 __printf(1, 2) void vbg_err(const char *fmt, ...);
+__printf(1, 2) void vbg_err_ratelimited(const char *fmt, ...);
 
 /* Only use backdoor logging for non-dynamic debug builds */
 #if defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
@@ -24,15 +25,17 @@ __printf(1, 2) void vbg_debug(const char *fmt, ...);
 #define vbg_debug pr_debug
 #endif
 
-int vbg_hgcm_connect(struct vbg_dev *gdev,
+int vbg_hgcm_connect(struct vbg_dev *gdev, u32 requestor,
 		     struct vmmdev_hgcm_service_location *loc,
 		     u32 *client_id, int *vbox_status);
 
-int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status);
+int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 requestor,
+			u32 client_id, int *vbox_status);
 
-int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
-		  u32 timeout_ms, struct vmmdev_hgcm_function_parameter *parms,
-		  u32 parm_count, int *vbox_status);
+int vbg_hgcm_call(struct vbg_dev *gdev, u32 requestor, u32 client_id,
+		  u32 function, u32 timeout_ms,
+		  struct vmmdev_hgcm_function_parameter *parms, u32 parm_count,
+		  int *vbox_status);
 
 /**
  * Convert a VirtualBox status code to a standard Linux kernel return value.

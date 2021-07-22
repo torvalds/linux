@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * async.c: Asynchronous function calls for boot performance
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 
@@ -82,6 +78,12 @@ static DECLARE_WAIT_QUEUE_HEAD(async_done);
 
 static atomic_t entry_count;
 
+static long long microseconds_since(ktime_t start)
+{
+	ktime_t now = ktime_get();
+	return ktime_to_ns(ktime_sub(now, start)) >> 10;
+}
+
 static async_cookie_t lowest_in_progress(struct async_domain *domain)
 {
 	struct async_entry *first = NULL;
@@ -115,24 +117,18 @@ static void async_run_entry_fn(struct work_struct *work)
 	struct async_entry *entry =
 		container_of(work, struct async_entry, work);
 	unsigned long flags;
-	ktime_t uninitialized_var(calltime), delta, rettime;
+	ktime_t calltime;
 
 	/* 1) run (and print duration) */
-	if (initcall_debug && system_state < SYSTEM_RUNNING) {
-		pr_debug("calling  %lli_%pF @ %i\n",
-			(long long)entry->cookie,
-			entry->func, task_pid_nr(current));
-		calltime = ktime_get();
-	}
+	pr_debug("calling  %lli_%pS @ %i\n", (long long)entry->cookie,
+		 entry->func, task_pid_nr(current));
+	calltime = ktime_get();
+
 	entry->func(entry->data, entry->cookie);
-	if (initcall_debug && system_state < SYSTEM_RUNNING) {
-		rettime = ktime_get();
-		delta = ktime_sub(rettime, calltime);
-		pr_debug("initcall %lli_%pF returned 0 after %lld usecs\n",
-			(long long)entry->cookie,
-			entry->func,
-			(long long)ktime_to_ns(delta) >> 10);
-	}
+
+	pr_debug("initcall %lli_%pS returned after %lld usecs\n",
+		 (long long)entry->cookie, entry->func,
+		 microseconds_since(calltime));
 
 	/* 2) remove self from the pending queues */
 	spin_lock_irqsave(&async_lock, flags);
@@ -149,7 +145,25 @@ static void async_run_entry_fn(struct work_struct *work)
 	wake_up(&async_done);
 }
 
-static async_cookie_t __async_schedule(async_func_t func, void *data, struct async_domain *domain)
+/**
+ * async_schedule_node_domain - NUMA specific version of async_schedule_domain
+ * @func: function to execute asynchronously
+ * @data: data pointer to pass to the function
+ * @node: NUMA node that we want to schedule this on or close to
+ * @domain: the domain
+ *
+ * Returns an async_cookie_t that may be used for checkpointing later.
+ * @domain may be used in the async_synchronize_*_domain() functions to
+ * wait within a certain synchronization domain rather than globally.
+ *
+ * Note: This function may be called from atomic or non-atomic contexts.
+ *
+ * The node requested will be honored on a best effort basis. If the node
+ * has no CPUs associated with it then the work is distributed among all
+ * available CPUs.
+ */
+async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
+					  int node, struct async_domain *domain)
 {
 	struct async_entry *entry;
 	unsigned long flags;
@@ -195,43 +209,30 @@ static async_cookie_t __async_schedule(async_func_t func, void *data, struct asy
 	current->flags |= PF_USED_ASYNC;
 
 	/* schedule for execution */
-	queue_work(system_unbound_wq, &entry->work);
+	queue_work_node(node, system_unbound_wq, &entry->work);
 
 	return newcookie;
 }
+EXPORT_SYMBOL_GPL(async_schedule_node_domain);
 
 /**
- * async_schedule - schedule a function for asynchronous execution
+ * async_schedule_node - NUMA specific version of async_schedule
  * @func: function to execute asynchronously
  * @data: data pointer to pass to the function
+ * @node: NUMA node that we want to schedule this on or close to
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
  * Note: This function may be called from atomic or non-atomic contexts.
- */
-async_cookie_t async_schedule(async_func_t func, void *data)
-{
-	return __async_schedule(func, data, &async_dfl_domain);
-}
-EXPORT_SYMBOL_GPL(async_schedule);
-
-/**
- * async_schedule_domain - schedule a function for asynchronous execution within a certain domain
- * @func: function to execute asynchronously
- * @data: data pointer to pass to the function
- * @domain: the domain
  *
- * Returns an async_cookie_t that may be used for checkpointing later.
- * @domain may be used in the async_synchronize_*_domain() functions to
- * wait within a certain synchronization domain rather than globally.  A
- * synchronization domain is specified via @domain.  Note: This function
- * may be called from atomic or non-atomic contexts.
+ * The node requested will be honored on a best effort basis. If the node
+ * has no CPUs associated with it then the work is distributed among all
+ * available CPUs.
  */
-async_cookie_t async_schedule_domain(async_func_t func, void *data,
-				     struct async_domain *domain)
+async_cookie_t async_schedule_node(async_func_t func, void *data, int node)
 {
-	return __async_schedule(func, data, domain);
+	return async_schedule_node_domain(func, data, node, &async_dfl_domain);
 }
-EXPORT_SYMBOL_GPL(async_schedule_domain);
+EXPORT_SYMBOL_GPL(async_schedule_node);
 
 /**
  * async_synchronize_full - synchronize all asynchronous function calls
@@ -243,24 +244,6 @@ void async_synchronize_full(void)
 	async_synchronize_full_domain(NULL);
 }
 EXPORT_SYMBOL_GPL(async_synchronize_full);
-
-/**
- * async_unregister_domain - ensure no more anonymous waiters on this domain
- * @domain: idle domain to flush out of any async_synchronize_full instances
- *
- * async_synchronize_{cookie|full}_domain() are not flushed since callers
- * of these routines should know the lifetime of @domain
- *
- * Prefer ASYNC_DOMAIN_EXCLUSIVE() declarations over flushing
- */
-void async_unregister_domain(struct async_domain *domain)
-{
-	spin_lock_irq(&async_lock);
-	WARN_ON(!domain->registered || !list_empty(&domain->pending));
-	domain->registered = 0;
-	spin_unlock_irq(&async_lock);
-}
-EXPORT_SYMBOL_GPL(async_unregister_domain);
 
 /**
  * async_synchronize_full_domain - synchronize all asynchronous function within a certain domain
@@ -286,23 +269,15 @@ EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
  */
 void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain *domain)
 {
-	ktime_t uninitialized_var(starttime), delta, endtime;
+	ktime_t starttime;
 
-	if (initcall_debug && system_state < SYSTEM_RUNNING) {
-		pr_debug("async_waiting @ %i\n", task_pid_nr(current));
-		starttime = ktime_get();
-	}
+	pr_debug("async_waiting @ %i\n", task_pid_nr(current));
+	starttime = ktime_get();
 
 	wait_event(async_done, lowest_in_progress(domain) >= cookie);
 
-	if (initcall_debug && system_state < SYSTEM_RUNNING) {
-		endtime = ktime_get();
-		delta = ktime_sub(endtime, starttime);
-
-		pr_debug("async_continuing @ %i after %lli usec\n",
-			task_pid_nr(current),
-			(long long)ktime_to_ns(delta) >> 10);
-	}
+	pr_debug("async_continuing @ %i after %lli usec\n", task_pid_nr(current),
+		 microseconds_since(starttime));
 }
 EXPORT_SYMBOL_GPL(async_synchronize_cookie_domain);
 

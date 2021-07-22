@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * iPAQ microcontroller backlight support
  * Author : Linus Walleij <linus.walleij@linaro.org>
@@ -46,7 +44,7 @@ static const struct backlight_ops micro_bl_ops = {
 	.update_status  = micro_bl_update_status,
 };
 
-static struct backlight_properties micro_bl_props = {
+static const struct backlight_properties micro_bl_props = {
 	.type = BACKLIGHT_RAW,
 	.max_brightness = 255,
 	.power = FB_BLANK_UNBLANK,

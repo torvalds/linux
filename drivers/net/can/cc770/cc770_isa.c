@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for CC770 and AN82527 CAN controllers on the legacy ISA bus
  *
  * Copyright (C) 2009, 2011 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -183,7 +175,7 @@ static int cc770_isa_probe(struct platform_device *pdev)
 			err = -EBUSY;
 			goto exit;
 		}
-		base = ioremap_nocache(mem[idx], iosize);
+		base = ioremap(mem[idx], iosize);
 		if (!base) {
 			err = -ENOMEM;
 			goto exit_release;

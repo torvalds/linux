@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/acorn/scsi/acornscsi.c
  *
  *  Acorn SCSI 3 driver
  *  By R.M.King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Abandoned using the Select and Transfer command since there were
  * some nasty races between our software and the target devices that
@@ -146,12 +143,6 @@
 #define VER_MAJOR 2
 #define VER_MINOR 0
 #define VER_PATCH 6
-
-#ifndef ABORT_TAG
-#define ABORT_TAG 0xd
-#else
-#error "Yippee!  ABORT TAG is now defined!  Remove this error!"
-#endif
 
 #ifdef USE_DMAC
 /*
@@ -803,7 +794,10 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 
 	acornscsi_dma_cleanup(host);
 
-	SCpnt->result = result << 16 | host->scsi.SCp.Message << 8 | host->scsi.SCp.Status;
+	set_host_byte(SCpnt, result);
+	if (result == DID_OK)
+		scsi_msg_to_host_byte(SCpnt, host->scsi.SCp.Message);
+	set_status_byte(SCpnt, host->scsi.SCp.Status);
 
 	/*
 	 * In theory, this should not happen.  In practice, it seems to.
@@ -842,12 +836,12 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 			xfer_warn = 0;
 
 		if (xfer_warn) {
-		    switch (status_byte(SCpnt->result)) {
-		    case CHECK_CONDITION:
-		    case COMMAND_TERMINATED:
-		    case BUSY:
-		    case QUEUE_FULL:
-		    case RESERVATION_CONFLICT:
+		    switch (get_status_byte(SCpnt)) {
+		    case SAM_STAT_CHECK_CONDITION:
+		    case SAM_STAT_COMMAND_TERMINATED:
+		    case SAM_STAT_BUSY:
+		    case SAM_STAT_TASK_SET_FULL:
+		    case SAM_STAT_RESERVATION_CONFLICT:
 			break;
 
 		    default:
@@ -1070,7 +1064,7 @@ void acornscsi_dma_setup(AS_Host *host, dmadir_t direction)
  * Purpose : ensure that all DMA transfers are up-to-date & host->scsi.SCp is correct
  * Params  : host - host to finish
  * Notes   : This is called when a command is:
- *		terminating, RESTORE_POINTERS, SAVE_POINTERS, DISCONECT
+ *		terminating, RESTORE_POINTERS, SAVE_POINTERS, DISCONNECT
  *	   : This must not return until all transfers are completed.
  */
 static
@@ -1493,8 +1487,8 @@ void acornscsi_message(AS_Host *host)
     }
 
     switch (message[0]) {
-    case ABORT:
-    case ABORT_TAG:
+    case ABORT_TASK_SET:
+    case ABORT_TASK:
     case COMMAND_COMPLETE:
 	if (host->scsi.phase != PHASE_STATUSIN) {
 	    printk(KERN_ERR "scsi%d.%c: command complete following non-status in phase?\n",
@@ -1597,10 +1591,6 @@ void acornscsi_message(AS_Host *host)
 	default:
 	    break;
 	}
-	break;
-
-    case QUEUE_FULL:
-	/* TODO: target queue is full */
 	break;
 
     case SIMPLE_QUEUE_TAG:
@@ -1819,7 +1809,7 @@ int acornscsi_reconnect(AS_Host *host)
 }
 
 /*
- * Function: int acornscsi_reconect_finish(AS_Host *host)
+ * Function: int acornscsi_reconnect_finish(AS_Host *host)
  * Purpose : finish reconnecting a command
  * Params  : host - host to complete
  * Returns : 0 if failed
@@ -2483,7 +2473,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
     if (acornscsi_cmdtype(SCpnt->cmnd[0]) == CMD_WRITE && (NO_WRITE & (1 << SCpnt->device->id))) {
 	printk(KERN_CRIT "scsi%d.%c: WRITE attempted with NO_WRITE flag set\n",
 	    host->host->host_no, '0' + SCpnt->device->id);
-	SCpnt->result = DID_NO_CONNECT << 16;
+	set_host_byte(SCpnt, DID_NO_CONNECT);
 	done(SCpnt);
 	return 0;
     }
@@ -2505,7 +2495,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
 	unsigned long flags;
 
 	if (!queue_add_cmd_ordered(&host->queues.issue, SCpnt)) {
-	    SCpnt->result = DID_ERROR << 16;
+		set_host_byte(SCpnt, DID_ERROR);
 	    done(SCpnt);
 	    return 0;
 	}
@@ -2518,31 +2508,6 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
 }
 
 DEF_SCSI_QCMD(acornscsi_queuecmd)
-
-/*
- * Prototype: void acornscsi_reportstatus(struct scsi_cmnd **SCpntp1, struct scsi_cmnd **SCpntp2, int result)
- * Purpose  : pass a result to *SCpntp1, and check if *SCpntp1 = *SCpntp2
- * Params   : SCpntp1 - pointer to command to return
- *	      SCpntp2 - pointer to command to check
- *	      result  - result to pass back to mid-level done function
- * Returns  : *SCpntp2 = NULL if *SCpntp1 is the same command structure as *SCpntp2.
- */
-static inline void acornscsi_reportstatus(struct scsi_cmnd **SCpntp1,
-					  struct scsi_cmnd **SCpntp2,
-					  int result)
-{
-	struct scsi_cmnd *SCpnt = *SCpntp1;
-
-    if (SCpnt) {
-	*SCpntp1 = NULL;
-
-	SCpnt->result = result;
-	SCpnt->scsi_done(SCpnt);
-    }
-
-    if (SCpnt == *SCpntp2)
-	*SCpntp2 = NULL;
-}
 
 enum res_abort { res_not_running, res_success, res_success_clear, res_snooze };
 
@@ -2890,7 +2855,7 @@ static struct scsi_host_template acornscsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.proc_name		= "acornscsi",
 };
 
@@ -2914,8 +2879,10 @@ static int acornscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ashost->base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	ashost->fast = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
-	if (!ashost->base || !ashost->fast)
+	if (!ashost->base || !ashost->fast) {
+		ret = -ENOMEM;
 		goto out_put;
+	}
 
 	host->irq = ec->irq;
 	ashost->host = host;

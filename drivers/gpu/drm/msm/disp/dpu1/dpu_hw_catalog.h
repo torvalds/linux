@@ -1,13 +1,5 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_HW_CATALOG_H
@@ -17,7 +9,6 @@
 #include <linux/bug.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
-#include <drm/drmP.h>
 
 /**
  * Max hardware block count: For ex: max 12 SSPP pipes or
@@ -46,15 +37,19 @@
 #define DPU_HW_VER_400	DPU_HW_VER(4, 0, 0) /* sdm845 v1.0 */
 #define DPU_HW_VER_401	DPU_HW_VER(4, 0, 1) /* sdm845 v2.0 */
 #define DPU_HW_VER_410	DPU_HW_VER(4, 1, 0) /* sdm670 v1.0 */
-#define DPU_HW_VER_500	DPU_HW_VER(5, 0, 0) /* sdm855 v1.0 */
-
+#define DPU_HW_VER_500	DPU_HW_VER(5, 0, 0) /* sm8150 v1.0 */
+#define DPU_HW_VER_501	DPU_HW_VER(5, 0, 1) /* sm8150 v2.0 */
+#define DPU_HW_VER_600	DPU_HW_VER(6, 0, 0) /* sm8250 */
+#define DPU_HW_VER_620	DPU_HW_VER(6, 2, 0) /* sc7180 v1.0 */
+#define DPU_HW_VER_720	DPU_HW_VER(7, 2, 0) /* sc7280 */
 
 #define IS_MSM8996_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_170)
 #define IS_MSM8998_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_300)
 #define IS_SDM845_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_400)
 #define IS_SDM670_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_410)
 #define IS_SDM855_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_500)
-
+#define IS_SC7180_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_620)
+#define IS_SC7280_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_720)
 
 #define DPU_HW_BLK_NAME_LEN	16
 
@@ -72,9 +67,8 @@ enum {
 	DPU_HW_UBWC_VER_10 = 0x100,
 	DPU_HW_UBWC_VER_20 = 0x200,
 	DPU_HW_UBWC_VER_30 = 0x300,
+	DPU_HW_UBWC_VER_40 = 0x400,
 };
-
-#define IS_UBWC_20_SUPPORTED(rev)       ((rev) >= DPU_HW_UBWC_VER_20)
 
 /**
  * MDP TOP BLOCK features
@@ -101,6 +95,8 @@ enum {
  * @DPU_SSPP_SRC             Src and fetch part of the pipes,
  * @DPU_SSPP_SCALER_QSEED2,  QSEED2 algorithm support
  * @DPU_SSPP_SCALER_QSEED3,  QSEED3 alogorithm support
+ * @DPU_SSPP_SCALER_QSEED3LITE,  QSEED3 Lite alogorithm support
+ * @DPU_SSPP_SCALER_QSEED4,  QSEED4 algorithm support
  * @DPU_SSPP_SCALER_RGB,     RGB Scaler, supported by RGB pipes
  * @DPU_SSPP_CSC,            Support of Color space converion
  * @DPU_SSPP_CSC_10BIT,      Support of 10-bit Color space conversion
@@ -119,6 +115,8 @@ enum {
 	DPU_SSPP_SRC = 0x1,
 	DPU_SSPP_SCALER_QSEED2,
 	DPU_SSPP_SCALER_QSEED3,
+	DPU_SSPP_SCALER_QSEED3LITE,
+	DPU_SSPP_SCALER_QSEED4,
 	DPU_SSPP_SCALER_RGB,
 	DPU_SSPP_CSC,
 	DPU_SSPP_CSC_10BIT,
@@ -151,6 +149,17 @@ enum {
 };
 
 /**
+ * DSPP sub-blocks
+ * @DPU_DSPP_PCC             Panel color correction block
+ * @DPU_DSPP_GC              Gamma correction block
+ */
+enum {
+	DPU_DSPP_PCC = 0x1,
+	DPU_DSPP_GC,
+	DPU_DSPP_MAX
+};
+
+/**
  * PINGPONG sub-blocks
  * @DPU_PINGPONG_TE         Tear check block
  * @DPU_PINGPONG_TE2        Additional tear check block for split pipes
@@ -175,7 +184,25 @@ enum {
  */
 enum {
 	DPU_CTL_SPLIT_DISPLAY = 0x1,
+	DPU_CTL_ACTIVE_CFG,
+	DPU_CTL_FETCH_ACTIVE,
 	DPU_CTL_MAX
+};
+
+/**
+ * INTF sub-blocks
+ * @DPU_INTF_INPUT_CTRL         Supports the setting of pp block from which
+ *                              pixel data arrives to this INTF
+ * @DPU_INTF_TE                 INTF block has TE configuration support
+ * @DPU_DATA_HCTL_EN            Allows data to be transferred at different rate
+                                than video timing
+ * @DPU_INTF_MAX
+ */
+enum {
+	DPU_INTF_INPUT_CTRL = 0x1,
+	DPU_INTF_TE,
+	DPU_DATA_HCTL_EN,
+	DPU_INTF_MAX
 };
 
 /**
@@ -252,17 +279,6 @@ struct dpu_pp_blk {
 };
 
 /**
- * struct dpu_format_extended - define dpu specific pixel format+modifier
- * @fourcc_format: Base FOURCC pixel format code
- * @modifier: 64-bit drm format modifier, same modifier must be applied to all
- *            framebuffer planes
- */
-struct dpu_format_extended {
-	uint32_t fourcc_format;
-	uint64_t modifier;
-};
-
-/**
  * enum dpu_qos_lut_usage - define QoS LUT use cases
  */
 enum dpu_qos_lut_usage {
@@ -289,7 +305,7 @@ struct dpu_qos_lut_entry {
  */
 struct dpu_qos_lut_tbl {
 	u32 nentry;
-	struct dpu_qos_lut_entry *entries;
+	const struct dpu_qos_lut_entry *entries;
 };
 
 /**
@@ -303,6 +319,11 @@ struct dpu_qos_lut_tbl {
  * @has_src_split      source split feature status
  * @has_dim_layer      dim layer feature status
  * @has_idle_pc        indicate if idle power collapse feature is supported
+ * @has_3d_merge       indicate if 3D merge is supported
+ * @max_linewidth      max linewidth for sspp
+ * @pixel_ram_size     size of latency hiding and de-tiling buffer in bytes
+ * @max_hdeci_exp      max horizontal decimation supported (max is 2^value)
+ * @max_vdeci_exp      max vertical decimation supported (max is 2^value)
  */
 struct dpu_caps {
 	u32 max_mixer_width;
@@ -313,22 +334,12 @@ struct dpu_caps {
 	bool has_src_split;
 	bool has_dim_layer;
 	bool has_idle_pc;
-};
-
-/**
- * struct dpu_sspp_blks_common : SSPP sub-blocks common configuration
- * @maxwidth: max pixelwidth supported by this pipe
- * @pixel_ram_size: size of latency hiding and de-tiling buffer in bytes
- * @maxhdeciexp: max horizontal decimation supported by this pipe
- *				(max is 2^value)
- * @maxvdeciexp: max vertical decimation supported by this pipe
- *				(max is 2^value)
- */
-struct dpu_sspp_blks_common {
-	u32 maxlinewidth;
+	bool has_3d_merge;
+	/* SSPP limits */
+	u32 max_linewidth;
 	u32 pixel_ram_size;
-	u32 maxhdeciexp;
-	u32 maxvdeciexp;
+	u32 max_hdeci_exp;
+	u32 max_vdeci_exp;
 };
 
 /**
@@ -340,6 +351,7 @@ struct dpu_sspp_blks_common {
  * @maxupscale:  maxupscale ratio supported
  * @smart_dma_priority: hw priority of rect1 of multirect pipe
  * @max_per_pipe_bw: maximum allowable bandwidth of this pipe in kBps
+ * @qseed_ver: qseed version
  * @src_blk:
  * @scaler_blk:
  * @csc_blk:
@@ -348,16 +360,18 @@ struct dpu_sspp_blks_common {
  * @pcc_blk:
  * @igc_blk:
  * @format_list: Pointer to list of supported formats
+ * @num_formats: Number of supported formats
  * @virt_format_list: Pointer to list of supported formats for virtual planes
+ * @virt_num_formats: Number of supported formats for virtual planes
  */
 struct dpu_sspp_sub_blks {
-	const struct dpu_sspp_blks_common *common;
 	u32 creq_vblank;
 	u32 danger_vblank;
 	u32 maxdwnscale;
 	u32 maxupscale;
 	u32 smart_dma_priority;
 	u32 max_per_pipe_bw;
+	u32 qseed_ver;
 	struct dpu_src_blk src_blk;
 	struct dpu_scaler_blk scaler_blk;
 	struct dpu_pp_blk csc_blk;
@@ -366,8 +380,10 @@ struct dpu_sspp_sub_blks {
 	struct dpu_pp_blk pcc_blk;
 	struct dpu_pp_blk igc_blk;
 
-	const struct dpu_format_extended *format_list;
-	const struct dpu_format_extended *virt_format_list;
+	const u32 *format_list;
+	u32 num_formats;
+	const u32 *virt_format_list;
+	u32 virt_num_formats;
 };
 
 /**
@@ -382,6 +398,16 @@ struct dpu_lm_sub_blks {
 	u32 maxblendstages;
 	u32 blendstage_base[MAX_BLOCKS];
 	struct dpu_pp_blk gc;
+};
+
+/**
+ * struct dpu_dspp_sub_blks: Information of DSPP block
+ * @gc : gamma correction block
+ * @pcc: pixel color correction block
+ */
+struct dpu_dspp_sub_blks {
+	struct dpu_pp_blk gc;
+	struct dpu_pp_blk pcc;
 };
 
 struct dpu_pingpong_sub_blks {
@@ -409,6 +435,7 @@ enum dpu_clk_ctrl_type {
 	DPU_CLK_CTRL_CURSOR0,
 	DPU_CLK_CTRL_CURSOR1,
 	DPU_CLK_CTRL_INLINE_ROT0_SSPP,
+	DPU_CLK_CTRL_REG_DMA,
 	DPU_CLK_CTRL_MAX,
 };
 
@@ -433,18 +460,19 @@ struct dpu_clk_ctrl_reg {
 struct dpu_mdp_cfg {
 	DPU_HW_BLK_INFO;
 	u32 highest_bank_bit;
-	u32 ubwc_static;
 	u32 ubwc_swizzle;
 	struct dpu_clk_ctrl_reg clk_ctrls[DPU_CLK_CTRL_MAX];
 };
 
-/* struct dpu_mdp_cfg : MDP TOP-BLK instance info
+/* struct dpu_ctl_cfg : MDP CTL instance info
  * @id:                index identifying this block
  * @base:              register base offset to mdss
  * @features           bit mask identifying sub-blocks/features
+ * @intr_start:        interrupt index for CTL_START
  */
 struct dpu_ctl_cfg {
 	DPU_HW_BLK_INFO;
+	s32 intr_start;
 };
 
 /**
@@ -478,7 +506,21 @@ struct dpu_lm_cfg {
 	DPU_HW_BLK_INFO;
 	const struct dpu_lm_sub_blks *sblk;
 	u32 pingpong;
+	u32 dspp;
 	unsigned long lm_pair_mask;
+};
+
+/**
+ * struct dpu_dspp_cfg - information of DSPP blocks
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ *                     supported by this block
+ * @sblk               sub-blocks information
+ */
+struct dpu_dspp_cfg  {
+	DPU_HW_BLK_INFO;
+	const struct dpu_dspp_sub_blks *sblk;
 };
 
 /**
@@ -486,11 +528,29 @@ struct dpu_lm_cfg {
  * @id                 enum identifying this block
  * @base               register offset of this block
  * @features           bit mask identifying sub-blocks/features
+ * @intr_done:         index for PINGPONG done interrupt
+ * @intr_rdptr:        index for PINGPONG readpointer done interrupt
  * @sblk               sub-blocks information
  */
 struct dpu_pingpong_cfg  {
 	DPU_HW_BLK_INFO;
+	u32 merge_3d;
+	s32 intr_done;
+	s32 intr_rdptr;
 	const struct dpu_pingpong_sub_blks *sblk;
+};
+
+/**
+ * struct dpu_merge_3d_cfg - information of DSPP blocks
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ *                     supported by this block
+ * @sblk               sub-blocks information
+ */
+struct dpu_merge_3d_cfg  {
+	DPU_HW_BLK_INFO;
+	const struct dpu_merge_3d_sub_blks *sblk;
 };
 
 /**
@@ -501,12 +561,16 @@ struct dpu_pingpong_cfg  {
  * @type:              Interface type(DSI, DP, HDMI)
  * @controller_id:     Controller Instance ID in case of multiple of intf type
  * @prog_fetch_lines_worst_case	Worst case latency num lines needed to prefetch
+ * @intr_underrun:	index for INTF underrun interrupt
+ * @intr_vsync:	        index for INTF VSYNC interrupt
  */
 struct dpu_intf_cfg  {
 	DPU_HW_BLK_INFO;
 	u32 type;   /* interface type*/
 	u32 controller_id;
 	u32 prog_fetch_lines_worst_case;
+	s32 intr_underrun;
+	s32 intr_vsync;
 };
 
 /**
@@ -527,7 +591,7 @@ struct dpu_vbif_dynamic_ot_cfg {
  */
 struct dpu_vbif_dynamic_ot_tbl {
 	u32 count;
-	struct dpu_vbif_dynamic_ot_cfg *cfg;
+	const struct dpu_vbif_dynamic_ot_cfg *cfg;
 };
 
 /**
@@ -537,7 +601,7 @@ struct dpu_vbif_dynamic_ot_tbl {
  */
 struct dpu_vbif_qos_tbl {
 	u32 npriority_lvl;
-	u32 *priority_lvl;
+	const u32 *priority_lvl;
 };
 
 /**
@@ -579,6 +643,8 @@ struct dpu_reg_dma_cfg {
 	DPU_HW_BLK_INFO;
 	u32 version;
 	u32 trigger_sel_off;
+	u32 xin_id;
+	enum dpu_clk_ctrl_type clk_ctrl;
 };
 
 /**
@@ -623,6 +689,8 @@ struct dpu_perf_cdp_cfg {
  * @downscaling_prefill_lines  downscaling latency in lines
  * @amortizable_theshold minimum y position for traffic shaping prefill
  * @min_prefill_lines  minimum pipeline latency in lines
+ * @clk_inefficiency_factor DPU src clock inefficiency factor
+ * @bw_inefficiency_factor DPU axi bus bw inefficiency factor
  * @safe_lut_tbl: LUT tables for safe signals
  * @danger_lut_tbl: LUT tables for danger signals
  * @qos_lut_tbl: LUT tables for QoS signals
@@ -647,6 +715,8 @@ struct dpu_perf_cfg {
 	u32 downscaling_prefill_lines;
 	u32 amortizable_threshold;
 	u32 min_prefill_lines;
+	u32 clk_inefficiency_factor;
+	u32 bw_inefficiency_factor;
 	u32 safe_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
 	u32 danger_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
 	struct dpu_qos_lut_tbl qos_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
@@ -662,6 +732,7 @@ struct dpu_perf_cfg {
  * @dma_formats        Supported formats for dma pipe
  * @cursor_formats     Supported formats for cursor pipe
  * @vig_formats        Supported formats for vig pipe
+ * @mdss_irqs:         Bitmap with the irqs supported by the target
  */
 struct dpu_mdss_cfg {
 	u32 hwversion;
@@ -669,37 +740,45 @@ struct dpu_mdss_cfg {
 	const struct dpu_caps *caps;
 
 	u32 mdp_count;
-	struct dpu_mdp_cfg *mdp;
+	const struct dpu_mdp_cfg *mdp;
 
 	u32 ctl_count;
-	struct dpu_ctl_cfg *ctl;
+	const struct dpu_ctl_cfg *ctl;
 
 	u32 sspp_count;
-	struct dpu_sspp_cfg *sspp;
+	const struct dpu_sspp_cfg *sspp;
 
 	u32 mixer_count;
-	struct dpu_lm_cfg *mixer;
+	const struct dpu_lm_cfg *mixer;
 
 	u32 pingpong_count;
-	struct dpu_pingpong_cfg *pingpong;
+	const struct dpu_pingpong_cfg *pingpong;
+
+	u32 merge_3d_count;
+	const struct dpu_merge_3d_cfg *merge_3d;
 
 	u32 intf_count;
-	struct dpu_intf_cfg *intf;
+	const struct dpu_intf_cfg *intf;
 
 	u32 vbif_count;
-	struct dpu_vbif_cfg *vbif;
+	const struct dpu_vbif_cfg *vbif;
 
 	u32 reg_dma_count;
 	struct dpu_reg_dma_cfg dma_cfg;
 
 	u32 ad_count;
 
+	u32 dspp_count;
+	const struct dpu_dspp_cfg *dspp;
+
 	/* Add additional block data structures here */
 
 	struct dpu_perf_cfg perf;
-	struct dpu_format_extended *dma_formats;
-	struct dpu_format_extended *cursor_formats;
-	struct dpu_format_extended *vig_formats;
+	const struct dpu_format_extended *dma_formats;
+	const struct dpu_format_extended *cursor_formats;
+	const struct dpu_format_extended *vig_formats;
+
+	unsigned long mdss_irqs;
 };
 
 struct dpu_mdss_hw_cfg_handler {
@@ -720,6 +799,8 @@ struct dpu_mdss_hw_cfg_handler {
 #define BLK_PINGPONG(s) ((s)->pingpong)
 #define BLK_INTF(s) ((s)->intf)
 #define BLK_AD(s) ((s)->ad)
+#define BLK_DSPP(s) ((s)->dspp)
+#define BLK_MERGE3d(s) ((s)->merge_3d)
 
 /**
  * dpu_hw_catalog_init - dpu hardware catalog init API retrieves
@@ -736,13 +817,4 @@ struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev);
  */
 void dpu_hw_catalog_deinit(struct dpu_mdss_cfg *dpu_cfg);
 
-/**
- * dpu_hw_sspp_multirect_enabled - check multirect enabled for the sspp
- * @cfg:          pointer to sspp cfg
- */
-static inline bool dpu_hw_sspp_multirect_enabled(const struct dpu_sspp_cfg *cfg)
-{
-	return test_bit(DPU_SSPP_SMART_DMA_V1, &cfg->features) ||
-			 test_bit(DPU_SSPP_SMART_DMA_V2, &cfg->features);
-}
 #endif /* _DPU_HW_CATALOG_H */

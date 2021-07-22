@@ -37,8 +37,17 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		     bool *csum_err, __be16 proto, int nhs);
 
-bool is_gretap_dev(const struct net_device *dev);
-bool is_ip6gretap_dev(const struct net_device *dev);
+static inline bool netif_is_gretap(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "gretap");
+}
+
+static inline bool netif_is_ip6gretap(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "ip6gretap");
+}
 
 static inline int gre_calc_hlen(__be16 o_flags)
 {
@@ -97,17 +106,6 @@ static inline __be16 gre_tnl_flags_to_gre_flags(__be16 tflags)
 	return flags;
 }
 
-static inline __sum16 gre_checksum(struct sk_buff *skb)
-{
-	__wsum csum;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		csum = lco_csum(skb);
-	else
-		csum = skb_checksum(skb, 0, skb->len, 0);
-	return csum_fold(csum);
-}
-
 static inline void gre_build_header(struct sk_buff *skb, int hdr_len,
 				    __be16 flags, __be16 proto,
 				    __be32 key, __be32 seq)
@@ -137,7 +135,13 @@ static inline void gre_build_header(struct sk_buff *skb, int hdr_len,
 		    !(skb_shinfo(skb)->gso_type &
 		      (SKB_GSO_GRE | SKB_GSO_GRE_CSUM))) {
 			*ptr = 0;
-			*(__sum16 *)ptr = gre_checksum(skb);
+			if (skb->ip_summed == CHECKSUM_PARTIAL) {
+				*(__sum16 *)ptr = csum_fold(lco_csum(skb));
+			} else {
+				skb->ip_summed = CHECKSUM_PARTIAL;
+				skb->csum_start = skb_transport_header(skb) - skb->head;
+				skb->csum_offset = sizeof(*greh);
+			}
 		}
 	}
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/zylonite_pxa300.c
  *
@@ -7,10 +8,6 @@
  * Copyright (C) 2007 Marvell Internation Ltd.
  * 2007-08-21: eric miao <eric.miao@marvell.com>
  *             initial version
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -230,11 +227,13 @@ static struct pca953x_platform_data gpio_exp[] = {
 static struct i2c_board_info zylonite_i2c_board_info[] = {
 	{
 		.type		= "pca9539",
+		.dev_name	= "pca9539-a",
 		.addr		= 0x74,
 		.platform_data	= &gpio_exp[0],
 		.irq		= PXA_GPIO_TO_IRQ(18),
 	}, {
 		.type		= "pca9539",
+		.dev_name	= "pca9539-b",
 		.addr		= 0x75,
 		.platform_data	= &gpio_exp[1],
 		.irq		= PXA_GPIO_TO_IRQ(19),

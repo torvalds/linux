@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -25,10 +17,13 @@
 
 #include "ccu-sun8i-r.h"
 
-static const char * const ar100_parents[] = { "osc32k", "osc24M",
-					     "pll-periph0", "iosc" };
-static const char * const a83t_ar100_parents[] = { "osc16M-d512", "osc24M",
-						   "pll-periph0", "iosc" };
+static const struct clk_parent_data ar100_parents[] = {
+	{ .fw_name = "losc" },
+	{ .fw_name = "hosc" },
+	{ .fw_name = "pll-periph" },
+	{ .fw_name = "iosc" },
+};
+
 static const struct ccu_mux_var_prediv ar100_predivs[] = {
 	{ .index = 2, .shift = 8, .width = 5 },
 };
@@ -47,64 +42,37 @@ static struct ccu_div ar100_clk = {
 	.common		= {
 		.reg		= 0x00,
 		.features	= CCU_FEATURE_VARIABLE_PREDIV,
-		.hw.init	= CLK_HW_INIT_PARENTS("ar100",
-						      ar100_parents,
-						      &ccu_div_ops,
-						      0),
+		.hw.init	= CLK_HW_INIT_PARENTS_DATA("ar100",
+							   ar100_parents,
+							   &ccu_div_ops,
+							   0),
 	},
 };
 
-static struct ccu_div a83t_ar100_clk = {
-	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
+static CLK_FIXED_FACTOR_HW(ahb0_clk, "ahb0", &ar100_clk.common.hw, 1, 1, 0);
 
-	.mux		= {
-		.shift	= 16,
-		.width	= 2,
+static SUNXI_CCU_M(apb0_clk, "apb0", "ahb0", 0x0c, 0, 2, 0);
 
-		.var_predivs	= ar100_predivs,
-		.n_var_predivs	= ARRAY_SIZE(ar100_predivs),
-	},
-
-	.common		= {
-		.reg		= 0x00,
-		.features	= CCU_FEATURE_VARIABLE_PREDIV,
-		.hw.init	= CLK_HW_INIT_PARENTS("ar100",
-						      a83t_ar100_parents,
-						      &ccu_div_ops,
-						      0),
-	},
-};
-
-static CLK_FIXED_FACTOR(ahb0_clk, "ahb0", "ar100", 1, 1, 0);
-
-static struct ccu_div apb0_clk = {
-	.div		= _SUNXI_CCU_DIV_FLAGS(0, 2, CLK_DIVIDER_POWER_OF_TWO),
-
-	.common		= {
-		.reg		= 0x0c,
-		.hw.init	= CLK_HW_INIT("apb0",
-					      "ahb0",
-					      &ccu_div_ops,
-					      0),
-	},
-};
-
-static SUNXI_CCU_M(a83t_apb0_clk, "apb0", "ahb0", 0x0c, 0, 2, 0);
-
-static SUNXI_CCU_GATE(apb0_pio_clk,	"apb0-pio",	"apb0",
-		      0x28, BIT(0), 0);
-static SUNXI_CCU_GATE(apb0_ir_clk,	"apb0-ir",	"apb0",
-		      0x28, BIT(1), 0);
-static SUNXI_CCU_GATE(apb0_timer_clk,	"apb0-timer",	"apb0",
-		      0x28, BIT(2), 0);
-static SUNXI_CCU_GATE(apb0_rsb_clk,	"apb0-rsb",	"apb0",
-		      0x28, BIT(3), 0);
-static SUNXI_CCU_GATE(apb0_uart_clk,	"apb0-uart",	"apb0",
-		      0x28, BIT(4), 0);
-static SUNXI_CCU_GATE(apb0_i2c_clk,	"apb0-i2c",	"apb0",
-		      0x28, BIT(6), 0);
-static SUNXI_CCU_GATE(apb0_twd_clk,	"apb0-twd",	"apb0",
-		      0x28, BIT(7), 0);
+/*
+ * Define the parent as an array that can be reused to save space
+ * instead of having compound literals for each gate. Also have it
+ * non-const so we can change it on the A83T.
+ */
+static const struct clk_hw *apb0_gate_parent[] = { &apb0_clk.common.hw };
+static SUNXI_CCU_GATE_HWS(apb0_pio_clk,		"apb0-pio",
+			  apb0_gate_parent, 0x28, BIT(0), 0);
+static SUNXI_CCU_GATE_HWS(apb0_ir_clk,		"apb0-ir",
+			  apb0_gate_parent, 0x28, BIT(1), 0);
+static SUNXI_CCU_GATE_HWS(apb0_timer_clk,	"apb0-timer",
+			  apb0_gate_parent, 0x28, BIT(2), 0);
+static SUNXI_CCU_GATE_HWS(apb0_rsb_clk,		"apb0-rsb",
+			  apb0_gate_parent, 0x28, BIT(3), 0);
+static SUNXI_CCU_GATE_HWS(apb0_uart_clk,	"apb0-uart",
+			  apb0_gate_parent, 0x28, BIT(4), 0);
+static SUNXI_CCU_GATE_HWS(apb0_i2c_clk,		"apb0-i2c",
+			  apb0_gate_parent, 0x28, BIT(6), 0);
+static SUNXI_CCU_GATE_HWS(apb0_twd_clk,		"apb0-twd",
+			  apb0_gate_parent, 0x28, BIT(7), 0);
 
 static const char * const r_mod0_default_parents[] = { "osc32k", "osc24M" };
 static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
@@ -115,7 +83,10 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
 				  BIT(31),	/* gate */
 				  0);
 
-static const char *const a83t_r_mod0_parents[] = { "osc16M", "osc24M" };
+static const struct clk_parent_data a83t_r_mod0_parents[] = {
+	{ .fw_name = "iosc" },
+	{ .fw_name = "hosc" },
+};
 static const struct ccu_mux_fixed_prediv a83t_ir_predivs[] = {
 	{ .index = 0, .div = 16 },
 };
@@ -135,16 +106,16 @@ static struct ccu_mp a83t_ir_clk = {
 	.common		= {
 		.reg		= 0x54,
 		.features	= CCU_FEATURE_VARIABLE_PREDIV,
-		.hw.init	= CLK_HW_INIT_PARENTS("ir",
-						      a83t_r_mod0_parents,
-						      &ccu_mp_ops,
-						      0),
+		.hw.init	= CLK_HW_INIT_PARENTS_DATA("ir",
+							   a83t_r_mod0_parents,
+							   &ccu_mp_ops,
+							   0),
 	},
 };
 
 static struct ccu_common *sun8i_a83t_r_ccu_clks[] = {
-	&a83t_ar100_clk.common,
-	&a83t_apb0_clk.common,
+	&ar100_clk.common,
+	&apb0_clk.common,
 	&apb0_pio_clk.common,
 	&apb0_ir_clk.common,
 	&apb0_timer_clk.common,
@@ -182,9 +153,9 @@ static struct ccu_common *sun50i_a64_r_ccu_clks[] = {
 
 static struct clk_hw_onecell_data sun8i_a83t_r_hw_clks = {
 	.hws	= {
-		[CLK_AR100]		= &a83t_ar100_clk.common.hw,
+		[CLK_AR100]		= &ar100_clk.common.hw,
 		[CLK_AHB0]		= &ahb0_clk.hw,
-		[CLK_APB0]		= &a83t_apb0_clk.common.hw,
+		[CLK_APB0]		= &apb0_clk.common.hw,
 		[CLK_APB0_PIO]		= &apb0_pio_clk.common.hw,
 		[CLK_APB0_IR]		= &apb0_ir_clk.common.hw,
 		[CLK_APB0_TIMER]	= &apb0_timer_clk.common.hw,

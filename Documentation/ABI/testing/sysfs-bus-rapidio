@@ -4,24 +4,27 @@ Description:
 		an individual subdirectory with the following name format of
 		device_name "nn:d:iiii", where:
 
-		nn   - two-digit hexadecimal ID of RapidIO network where the
+		====   ========================================================
+		nn     two-digit hexadecimal ID of RapidIO network where the
 		       device resides
-		d    - device type: 'e' - for endpoint or 's' - for switch
-		iiii - four-digit device destID for endpoints, or switchID for
+		d      device type: 'e' - for endpoint or 's' - for switch
+		iiii   four-digit device destID for endpoints, or switchID for
 		       switches
+		====   ========================================================
 
 		For example, below is a list of device directories that
 		represents a typical RapidIO network with one switch, one host,
 		and two agent endpoints, as it is seen by the enumerating host
-		(with destID = 1):
+		(with destID = 1)::
 
-		/sys/bus/rapidio/devices/00:e:0000
-		/sys/bus/rapidio/devices/00:e:0002
-		/sys/bus/rapidio/devices/00:s:0001
+		  /sys/bus/rapidio/devices/00:e:0000
+		  /sys/bus/rapidio/devices/00:e:0002
+		  /sys/bus/rapidio/devices/00:s:0001
 
-		NOTE: An enumerating or discovering endpoint does not create a
-		sysfs entry for itself, this is why an endpoint with destID=1 is
-		not shown in the list.
+		NOTE:
+		  An enumerating or discovering endpoint does not create a
+		  sysfs entry for itself, this is why an endpoint with destID=1
+		  is not shown in the list.
 
 Attributes Common for All RapidIO Devices
 -----------------------------------------

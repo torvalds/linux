@@ -173,6 +173,8 @@ static void do_usercopy_heap_size(bool to_user)
 			goto free_user;
 		}
 	}
+	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
@@ -248,6 +250,8 @@ static void do_usercopy_heap_whitelist(bool to_user)
 			goto free_user;
 		}
 	}
+	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_alloc, PAGE_SIZE);
@@ -304,35 +308,26 @@ void lkdtm_USERCOPY_KERNEL(void)
 		return;
 	}
 
-	pr_info("attempting good copy_to_user from kernel rodata\n");
+	pr_info("attempting good copy_to_user from kernel rodata: %px\n",
+		test_text);
 	if (copy_to_user((void __user *)user_addr, test_text,
 			 unconst + sizeof(test_text))) {
 		pr_warn("copy_to_user failed unexpectedly?!\n");
 		goto free_user;
 	}
 
-	pr_info("attempting bad copy_to_user from kernel text\n");
-	if (copy_to_user((void __user *)user_addr, vm_mmap,
+	pr_info("attempting bad copy_to_user from kernel text: %px\n",
+		vm_mmap);
+	if (copy_to_user((void __user *)user_addr, function_nocfi(vm_mmap),
 			 unconst + PAGE_SIZE)) {
 		pr_warn("copy_to_user failed, but lacked Oops\n");
 		goto free_user;
 	}
+	pr_err("FAIL: bad copy_to_user() not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
-}
-
-void lkdtm_USERCOPY_KERNEL_DS(void)
-{
-	char __user *user_ptr = (char __user *)ERR_PTR(-EINVAL);
-	mm_segment_t old_fs = get_fs();
-	char buf[10] = {0};
-
-	pr_info("attempting copy_to_user on unmapped kernel address\n");
-	set_fs(KERNEL_DS);
-	if (copy_to_user(user_ptr, buf, sizeof(buf)))
-		pr_info("copy_to_user un unmapped kernel address failed\n");
-	set_fs(old_fs);
 }
 
 void __init lkdtm_usercopy_init(void)

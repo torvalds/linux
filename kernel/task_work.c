@@ -9,25 +9,33 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * task_work_add - ask the @task to execute @work->func()
  * @task: the task which should run the callback
  * @work: the callback to run
- * @notify: send the notification if true
+ * @notify: how to notify the targeted task
  *
- * Queue @work for task_work_run() below and notify the @task if @notify.
- * Fails if the @task is exiting/exited and thus it can't process this @work.
- * Otherwise @work->func() will be called when the @task returns from kernel
- * mode or exits.
+ * Queue @work for task_work_run() below and notify the @task if @notify
+ * is @TWA_RESUME or @TWA_SIGNAL. @TWA_SIGNAL works like signals, in that the
+ * it will interrupt the targeted task and run the task_work. @TWA_RESUME
+ * work is run only when the task exits the kernel and returns to user mode,
+ * or before entering guest mode. Fails if the @task is exiting/exited and thus
+ * it can't process this @work. Otherwise @work->func() will be called when the
+ * @task goes through one of the aforementioned transitions, or exits.
  *
- * This is like the signal handler which runs in kernel mode, but it doesn't
- * try to wake up the @task.
+ * If the targeted task is exiting, then an error is returned and the work item
+ * is not queued. It's up to the caller to arrange for an alternative mechanism
+ * in that case.
  *
- * Note: there is no ordering guarantee on works queued here.
+ * Note: there is no ordering guarantee on works queued here. The task_work
+ * list is LIFO.
  *
  * RETURNS:
  * 0 if succeeds or -ESRCH.
  */
-int
-task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
+int task_work_add(struct task_struct *task, struct callback_head *work,
+		  enum task_work_notify_mode notify)
 {
 	struct callback_head *head;
+
+	/* record the work call stack in order to print it in KASAN reports */
+	kasan_record_aux_stack(work);
 
 	do {
 		head = READ_ONCE(task->task_works);
@@ -36,9 +44,63 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 		work->next = head;
 	} while (cmpxchg(&task->task_works, head, work) != head);
 
-	if (notify)
+	switch (notify) {
+	case TWA_NONE:
+		break;
+	case TWA_RESUME:
 		set_notify_resume(task);
+		break;
+	case TWA_SIGNAL:
+		set_notify_signal(task);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
 	return 0;
+}
+
+/**
+ * task_work_cancel_match - cancel a pending work added by task_work_add()
+ * @task: the task which should execute the work
+ * @match: match function to call
+ *
+ * RETURNS:
+ * The found work or NULL if not found.
+ */
+struct callback_head *
+task_work_cancel_match(struct task_struct *task,
+		       bool (*match)(struct callback_head *, void *data),
+		       void *data)
+{
+	struct callback_head **pprev = &task->task_works;
+	struct callback_head *work;
+	unsigned long flags;
+
+	if (likely(!task->task_works))
+		return NULL;
+	/*
+	 * If cmpxchg() fails we continue without updating pprev.
+	 * Either we raced with task_work_add() which added the
+	 * new entry before this work, we will find it again. Or
+	 * we raced with task_work_run(), *pprev == NULL/exited.
+	 */
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
+	while ((work = READ_ONCE(*pprev))) {
+		if (!match(work, data))
+			pprev = &work->next;
+		else if (cmpxchg(pprev, work, work->next) == work)
+			break;
+	}
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
+
+	return work;
+}
+
+static bool task_work_func_match(struct callback_head *cb, void *data)
+{
+	return cb->func == data;
 }
 
 /**
@@ -55,28 +117,7 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
 {
-	struct callback_head **pprev = &task->task_works;
-	struct callback_head *work;
-	unsigned long flags;
-
-	if (likely(!task->task_works))
-		return NULL;
-	/*
-	 * If cmpxchg() fails we continue without updating pprev.
-	 * Either we raced with task_work_add() which added the
-	 * new entry before this work, we will find it again. Or
-	 * we raced with task_work_run(), *pprev == NULL/exited.
-	 */
-	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	while ((work = READ_ONCE(*pprev))) {
-		if (work->func != func)
-			pprev = &work->next;
-		else if (cmpxchg(pprev, work, work->next) == work)
-			break;
-	}
-	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
-
-	return work;
+	return task_work_cancel_match(task, task_work_func_match, func);
 }
 
 /**
@@ -97,16 +138,26 @@ void task_work_run(void)
 		 * work->func() can do task_work_add(), do not set
 		 * work_exited unless the list is empty.
 		 */
-		raw_spin_lock_irq(&task->pi_lock);
 		do {
+			head = NULL;
 			work = READ_ONCE(task->task_works);
-			head = !work && (task->flags & PF_EXITING) ?
-				&work_exited : NULL;
+			if (!work) {
+				if (task->flags & PF_EXITING)
+					head = &work_exited;
+				else
+					break;
+			}
 		} while (cmpxchg(&task->task_works, work, head) != work);
-		raw_spin_unlock_irq(&task->pi_lock);
 
 		if (!work)
 			break;
+		/*
+		 * Synchronize with task_work_cancel(). It can not remove
+		 * the first entry == work, cmpxchg(task_works) must fail.
+		 * But it can remove another entry from the ->next list.
+		 */
+		raw_spin_lock_irq(&task->pi_lock);
+		raw_spin_unlock_irq(&task->pi_lock);
 
 		do {
 			next = work->next;

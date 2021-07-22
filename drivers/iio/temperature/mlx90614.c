@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mlx90614.c - Support for Melexis MLX90614 contactless IR temperature sensor
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
  * Copyright (c) 2015 Essensium NV
  * Copyright (c) 2015 Melexis
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Driver for the Melexis MLX90614 I2C 16-bit IR thermopile sensor
  *
@@ -20,7 +17,6 @@
  * i2c adapter is locked since it cannot be used by other clients.  The SCL line
  * always has a pull-up so we do not need an extra GPIO to drive it high.  If
  * the "wakeup" GPIO is not given, power management will be disabled.
- *
  */
 
 #include <linux/err.h>
@@ -180,11 +176,14 @@ static inline s32 mlx90614_iir_search(const struct i2c_client *client,
 static int mlx90614_power_get(struct mlx90614_data *data, bool startup)
 {
 	unsigned long now;
+	int ret;
 
 	if (!data->wakeup_gpio)
 		return 0;
 
-	pm_runtime_get_sync(&data->client->dev);
+	ret = pm_runtime_resume_and_get(&data->client->dev);
+	if (ret < 0)
+		return ret;
 
 	if (startup) {
 		now = jiffies;
@@ -271,7 +270,10 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 		*val = MLX90614_CONST_SCALE;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBEMISSIVITY: /* 1/65535 / LSB */
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = i2c_smbus_read_word_data(data->client,
 					       MLX90614_EMISSIVITY);
@@ -291,7 +293,10 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY: /* IIR setting with
 							     FIR = 1024 */
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = i2c_smbus_read_word_data(data->client, MLX90614_CONFIG);
 		mutex_unlock(&data->lock);
@@ -323,7 +328,10 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		val = val * MLX90614_CONST_RAW_EMISSIVITY_MAX +
 			val2 / MLX90614_CONST_EMISSIVITY_RESOLUTION;
 
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = mlx90614_write_word(data->client, MLX90614_EMISSIVITY,
 					  val);
@@ -335,7 +343,10 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		if (val < 0 || val2 < 0)
 			return -EINVAL;
 
-		mlx90614_power_get(data, false);
+		ret = mlx90614_power_get(data, false);
+		if (ret < 0)
+			return ret;
+
 		mutex_lock(&data->lock);
 		ret = mlx90614_iir_search(data->client,
 					  val * 100 + val2 / 10000);
@@ -529,7 +540,6 @@ static int mlx90614_probe(struct i2c_client *client,
 
 	mlx90614_wakeup(data);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mlx90614_info;

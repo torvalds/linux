@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 
 #include <asm/cpufeature.h>
+#include <asm/cacheinfo.h>
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 
@@ -247,6 +248,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	switch (leaf) {
 	case 1:
 		l1 = &l1i;
+		fallthrough;
 	case 0:
 		if (!l1->val)
 			return;
@@ -578,7 +580,7 @@ static void amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf, int index)
 	if (index < 3)
 		return;
 
-	node = amd_get_nb_id(smp_processor_id());
+	node = topology_die_id(smp_processor_id());
 	this_leaf->nb = node_to_amd_nb(node);
 	if (this_leaf->nb && !this_leaf->nb->l3_cache.indices)
 		amd_calc_l3_indices(this_leaf->nb);
@@ -644,7 +646,7 @@ static int find_num_cache_leaves(struct cpuinfo_x86 *c)
 	return i;
 }
 
-void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
+void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 {
 	/*
 	 * We may have multiple LLCs if L3 caches exist, so check if we
@@ -655,9 +657,8 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
 
 	if (c->x86 < 0x17) {
 		/* LLC is at the node level. */
-		per_cpu(cpu_llc_id, cpu) = node_id;
-	} else if (c->x86 == 0x17 &&
-		   c->x86_model >= 0 && c->x86_model <= 0x1F) {
+		per_cpu(cpu_llc_id, cpu) = c->cpu_die_id;
+	} else if (c->x86 == 0x17 && c->x86_model <= 0x1F) {
 		/*
 		 * LLC is at the core complex level.
 		 * Core complex ID is ApicId[3] for these processors.
@@ -683,7 +684,7 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
 	}
 }
 
-void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
+void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 {
 	/*
 	 * We may have multiple LLCs if L3 caches exist, so check if we
@@ -876,7 +877,7 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 				    struct _cpuid4_info_regs *base)
 {
-	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
+	struct cpu_cacheinfo *this_cpu_ci;
 	struct cacheinfo *this_leaf;
 	int i, sibling;
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  *  Cloned from drivers/media/video/s5p-tv/regs-mixer.h
@@ -6,10 +7,6 @@
  * http://www.samsung.com/
  *
  * Mixer register header file for Samsung Mixer driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 #ifndef SAMSUNG_REGS_MIXER_H
 #define SAMSUNG_REGS_MIXER_H
@@ -85,10 +82,11 @@
 /* bits for MXR_CFG */
 #define MXR_CFG_LAYER_UPDATE		(1 << 31)
 #define MXR_CFG_LAYER_UPDATE_COUNT_MASK (3 << 29)
-#define MXR_CFG_RGB601_0_255		(0 << 9)
-#define MXR_CFG_RGB601_16_235		(1 << 9)
-#define MXR_CFG_RGB709_0_255		(2 << 9)
-#define MXR_CFG_RGB709_16_235		(3 << 9)
+#define MXR_CFG_QUANT_RANGE_FULL	(0 << 9)
+#define MXR_CFG_QUANT_RANGE_LIMITED	(1 << 9)
+#define MXR_CFG_RGB601			(0 << 10)
+#define MXR_CFG_RGB709			(1 << 10)
+
 #define MXR_CFG_RGB_FMT_MASK		0x600
 #define MXR_CFG_OUT_YUV444		(0 << 8)
 #define MXR_CFG_OUT_RGB888		(1 << 8)

@@ -167,7 +167,7 @@ static int nfeth_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static void nfeth_tx_timeout(struct net_device *dev)
+static void nfeth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);

@@ -19,8 +19,10 @@ struct rcar_du_device;
 
 struct rcar_du_format_info {
 	u32 fourcc;
+	u32 v4l2;
 	unsigned int bpp;
 	unsigned int planes;
+	unsigned int hsub;
 	unsigned int pnmr;
 	unsigned int edf;
 };

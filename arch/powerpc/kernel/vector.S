@@ -21,6 +21,7 @@ _GLOBAL(load_vr_state)
 	REST_32VRS(0,r4,r3)
 	blr
 EXPORT_SYMBOL(load_vr_state)
+_ASM_NOKPROBE_SYMBOL(load_vr_state); /* used by restore_math */
 
 /*
  * Store VMX state into memory, including VSCR.
@@ -66,15 +67,18 @@ _GLOBAL(load_up_altivec)
 #ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG_THREAD		/* current task's THREAD (phys) */
 	oris	r9,r9,MSR_VEC@h
+	tovirt(r5, r5)
 #else
 	ld	r4,PACACURRENT(r13)
 	addi	r5,r4,THREAD		/* Get THREAD */
 	oris	r12,r12,MSR_VEC@h
 	std	r12,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3S_64
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
 #endif
-	/* Don't care if r4 overflows, this is desired behaviour */
-	lbz	r4,THREAD_LOAD_VEC(r5)
-	addi	r4,r4,1
+#endif
+	li	r4,1
 	stb	r4,THREAD_LOAD_VEC(r5)
 	addi	r6,r5,THREAD_VRSTATE
 	li	r4,1
@@ -85,6 +89,7 @@ _GLOBAL(load_up_altivec)
 	REST_32VRS(0,r4,r6)
 	/* restore registers and return */
 	blr
+_ASM_NOKPROBE_SYMBOL(load_up_altivec)
 
 /*
  * save_altivec(tsk)
@@ -130,7 +135,9 @@ _GLOBAL(load_up_vsx)
 	/* enable use of VSX after return */
 	oris	r12,r12,MSR_VSX@h
 	std	r12,_MSR(r1)
-	b	fast_exception_return
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
+	b	fast_interrupt_return_srr
 
 #endif /* CONFIG_VSX */
 

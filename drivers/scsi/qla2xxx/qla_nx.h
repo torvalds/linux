@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #ifndef __QLA_NX_H
 #define __QLA_NX_H
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <scsi/scsi.h>
 
 /*
  * Following are the states of the Phantom. Phantom will set them and
@@ -486,13 +485,13 @@
 #define QLA82XX_ADDR_QDR_NET		(0x0000000300000000ULL)
 #define QLA82XX_P3_ADDR_QDR_NET_MAX	(0x0000000303ffffffULL)
 
-#define QLA82XX_PCI_CRBSPACE		(unsigned long)0x06000000
-#define QLA82XX_PCI_DIRECT_CRB		(unsigned long)0x04400000
-#define QLA82XX_PCI_CAMQM		(unsigned long)0x04800000
-#define QLA82XX_PCI_CAMQM_MAX		(unsigned long)0x04ffffff
-#define QLA82XX_PCI_DDR_NET		(unsigned long)0x00000000
-#define QLA82XX_PCI_QDR_NET		(unsigned long)0x04000000
-#define QLA82XX_PCI_QDR_NET_MAX		(unsigned long)0x043fffff
+#define QLA82XX_PCI_CRBSPACE		0x06000000UL
+#define QLA82XX_PCI_DIRECT_CRB		0x04400000UL
+#define QLA82XX_PCI_CAMQM		0x04800000UL
+#define QLA82XX_PCI_CAMQM_MAX		0x04ffffffUL
+#define QLA82XX_PCI_DDR_NET		0x00000000UL
+#define QLA82XX_PCI_QDR_NET		0x04000000UL
+#define QLA82XX_PCI_QDR_NET_MAX		0x043fffffUL
 
 /*
  *   Register offsets for MN
@@ -800,16 +799,16 @@ struct qla82xx_legacy_intr_set {
 #define QLA82XX_URI_FIRMWARE_IDX_OFF	29
 
 struct qla82xx_uri_table_desc{
-	uint32_t	findex;
-	uint32_t	num_entries;
-	uint32_t	entry_size;
-	uint32_t	reserved[5];
+	__le32	findex;
+	__le32	num_entries;
+	__le32	entry_size;
+	__le32	reserved[5];
 };
 
 struct qla82xx_uri_data_desc{
-	uint32_t	findex;
-	uint32_t	size;
-	uint32_t	reserved[5];
+	__le32	findex;
+	__le32	size;
+	__le32	reserved[5];
 };
 
 /* UNIFIED ROMIMAGE END */
@@ -829,22 +828,22 @@ struct qla82xx_uri_data_desc{
  * ISP 8021 I/O Register Set structure definitions.
  */
 struct device_reg_82xx {
-	uint32_t req_q_out[64];		/* Request Queue out-Pointer (64 * 4) */
-	uint32_t rsp_q_in[64];		/* Response Queue In-Pointer. */
-	uint32_t rsp_q_out[64];		/* Response Queue Out-Pointer. */
+	__le32	req_q_out[64];		/* Request Queue out-Pointer (64 * 4) */
+	__le32	rsp_q_in[64];		/* Response Queue In-Pointer. */
+	__le32	rsp_q_out[64];		/* Response Queue Out-Pointer. */
 
-	uint16_t mailbox_in[32];	/* Mail box In registers */
-	uint16_t unused_1[32];
-	uint32_t hint;			/* Host interrupt register */
+	__le16	mailbox_in[32];		/* Mailbox In registers */
+	__le16	unused_1[32];
+	__le32	hint;			/* Host interrupt register */
 #define	HINT_MBX_INT_PENDING	BIT_0
-	uint16_t unused_2[62];
-	uint16_t mailbox_out[32];	/* Mail box Out registers */
-	uint32_t unused_3[48];
+	__le16	unused_2[62];
+	__le16	mailbox_out[32];	/* Mailbox Out registers */
+	__le32	unused_3[48];
 
-	uint32_t host_status;		/* host status */
+	__le32	host_status;		/* host status */
 #define HSRX_RISC_INT		BIT_15	/* RISC to Host interrupt. */
 #define HSRX_RISC_PAUSED	BIT_8	/* RISC Paused. */
-	uint32_t host_int;		/* Interrupt status. */
+	__le32	host_int;		/* Interrupt status. */
 #define ISRX_NX_RISC_INT	BIT_0	/* RISC interrupt. */
 };
 

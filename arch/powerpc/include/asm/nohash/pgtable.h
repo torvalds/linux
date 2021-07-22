@@ -56,7 +56,7 @@ static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 #ifdef CONFIG_NUMA_BALANCING
 /*
  * These work without NUMA balancing but the kernel does not care. See the
- * comment in include/asm-generic/pgtable.h . On powerpc, this will only
+ * comment in include/linux/pgtable.h . On powerpc, this will only
  * work for user pages and always return true for kernel pages.
  */
 static inline int pte_protnone(pte_t pte)
@@ -130,21 +130,14 @@ static inline pte_t pte_exprotect(pte_t pte)
 	return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
 
-#ifndef pte_mkclean
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
 }
-#endif
 
 static inline pte_t pte_mkold(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
-}
-
-static inline pte_t pte_mkpte(pte_t pte)
-{
-	return pte;
 }
 
 static inline pte_t pte_mkspecial(pte_t pte)
@@ -199,9 +192,9 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 */
 	if (IS_ENABLED(CONFIG_PPC32) && IS_ENABLED(CONFIG_PTE_64BIT) && !percpu) {
 		__asm__ __volatile__("\
-			stw%U0%X0 %2,%0\n\
+			stw%X0 %2,%0\n\
 			eieio\n\
-			stw%U0%X0 %L2,%1"
+			stw%X1 %L2,%1"
 		: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
 		: "r" (pte) : "memory");
 		return;
@@ -209,7 +202,11 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	/* Anything else just stores the PTE normally. That covers all 64-bit
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+	ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
+#else
 	*ptep = pte;
+#endif
 
 	/*
 	 * With hardware tablewalk, a sync is needed to ensure that
@@ -263,7 +260,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 static inline int hugepd_ok(hugepd_t hpd)
 {
 #ifdef CONFIG_PPC_8xx
-	return ((hpd_val(hpd) & 0x4) != 0);
+	return ((hpd_val(hpd) & _PMD_PAGE_MASK) == _PMD_PAGE_8M);
 #else
 	/* We clear the top bit to indicate hugepd */
 	return (hpd_val(hpd) && (hpd_val(hpd) & PD_HUGE) == 0);
@@ -287,6 +284,19 @@ static inline int pgd_huge(pgd_t pgd)
 #define pgd_huge		pgd_huge
 
 #define is_hugepd(hpd)		(hugepd_ok(hpd))
+#endif
+
+/*
+ * This gets called at the end of handling a page fault, when
+ * the kernel has put a new PTE into the page table for the process.
+ * We use it to ensure coherency between the i-cache and d-cache
+ * for the page which has just been mapped in.
+ */
+#if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_HUGETLB_PAGE)
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep);
+#else
+static inline
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep) {}
 #endif
 
 #endif /* __ASSEMBLY__ */

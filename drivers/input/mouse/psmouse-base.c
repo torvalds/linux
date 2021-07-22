@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PS/2 mouse driver
  *
@@ -5,11 +6,6 @@
  * Copyright (c) 2003-2004 Dmitry Torokhov
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 #define psmouse_fmt(fmt)	fmt
@@ -372,6 +368,8 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 	if (unlikely(psmouse->ps2dev.flags & PS2_FLAG_CMD))
 		if  (ps2_handle_response(&psmouse->ps2dev, data))
 			goto out;
+
+	pm_wakeup_event(&serio->dev, 0);
 
 	if (psmouse->state <= PSMOUSE_RESYNCING)
 		goto out;
@@ -2044,7 +2042,7 @@ static int psmouse_get_maxproto(char *buffer, const struct kernel_param *kp)
 {
 	int type = *((unsigned int *)kp->arg);
 
-	return sprintf(buffer, "%s", psmouse_protocol_by_type(type)->name);
+	return sprintf(buffer, "%s\n", psmouse_protocol_by_type(type)->name);
 }
 
 static int __init psmouse_init(void)

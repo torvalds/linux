@@ -97,6 +97,7 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 
 /**
  * mgmt_open_connection()- Establish a TCP CXN
+ * @phba: driver priv structure
  * @dst_addr: Destination Address
  * @beiscsi_ep: ptr to device endpoint struct
  * @nonemb_cmd: ptr to memory allocated for command
@@ -209,7 +210,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	return tag;
 }
 
-/*
+/**
  * beiscsi_exec_nemb_cmd()- execute non-embedded MBX cmd
  * @phba: driver priv structure
  * @nonemb_cmd: DMA address of the MBX command to be issued
@@ -293,8 +294,8 @@ static int beiscsi_prep_nemb_cmd(struct beiscsi_hba *phba,
 				 struct be_dma_mem *cmd,
 				 u8 subsystem, u8 opcode, u32 size)
 {
-	cmd->va = dma_zalloc_coherent(&phba->ctrl.pdev->dev, size, &cmd->dma,
-			GFP_KERNEL);
+	cmd->va = dma_alloc_coherent(&phba->ctrl.pdev->dev, size, &cmd->dma,
+				     GFP_KERNEL);
 	if (!cmd->va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BG_%d : Failed to allocate memory for if info\n");
@@ -1178,12 +1179,12 @@ beiscsi_active_session_disp(struct device *dev, struct device_attribute *attr,
 		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
 			avlbl_cids = BEISCSI_ULP_AVLBL_CID(phba, ulp_num);
 			total_cids = BEISCSI_GET_CID_COUNT(phba, ulp_num);
-			len += snprintf(buf+len, PAGE_SIZE - len,
-					"ULP%d : %d\n", ulp_num,
-					(total_cids - avlbl_cids));
+			len += scnprintf(buf+len, PAGE_SIZE - len,
+					 "ULP%d : %d\n", ulp_num,
+					 (total_cids - avlbl_cids));
 		} else
-			len += snprintf(buf+len, PAGE_SIZE - len,
-					"ULP%d : %d\n", ulp_num, 0);
+			len += scnprintf(buf+len, PAGE_SIZE - len,
+					 "ULP%d : %d\n", ulp_num, 0);
 	}
 
 	return len;
@@ -1208,12 +1209,12 @@ beiscsi_free_session_disp(struct device *dev, struct device_attribute *attr,
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
 		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported))
-			len += snprintf(buf+len, PAGE_SIZE - len,
-					"ULP%d : %d\n", ulp_num,
-					BEISCSI_ULP_AVLBL_CID(phba, ulp_num));
+			len += scnprintf(buf+len, PAGE_SIZE - len,
+					 "ULP%d : %d\n", ulp_num,
+					 BEISCSI_ULP_AVLBL_CID(phba, ulp_num));
 		else
-			len += snprintf(buf+len, PAGE_SIZE - len,
-					"ULP%d : %d\n", ulp_num, 0);
+			len += scnprintf(buf+len, PAGE_SIZE - len,
+					 "ULP%d : %d\n", ulp_num, 0);
 	}
 
 	return len;
@@ -1243,23 +1244,19 @@ beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
 	case OC_DEVICE_ID2:
 		return snprintf(buf, PAGE_SIZE,
 				"Obsolete/Unsupported BE2 Adapter Family\n");
-		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID3:
 		return snprintf(buf, PAGE_SIZE, "BE3-R Adapter Family\n");
-		break;
 	case OC_SKH_ID1:
 		return snprintf(buf, PAGE_SIZE, "Skyhawk-R Adapter Family\n");
-		break;
 	default:
 		return snprintf(buf, PAGE_SIZE,
 				"Unknown Adapter Family: 0x%x\n", dev_id);
-		break;
 	}
 }
 
 /**
- * beiscsi_phys_port()- Display Physical Port Identifier
+ * beiscsi_phys_port_disp()- Display Physical Port Identifier
  * @dev: ptr to device not used.
  * @attr: device attribute, not used.
  * @buf: contains formatted text port identifier
@@ -1510,10 +1507,9 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		return -EINVAL;
 
 	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
-	nonemb_cmd.va = dma_zalloc_coherent(&phba->ctrl.pdev->dev,
-					      nonemb_cmd.size,
-					      &nonemb_cmd.dma,
-					      GFP_KERNEL);
+	nonemb_cmd.va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
+					   nonemb_cmd.size, &nonemb_cmd.dma,
+					   GFP_KERNEL);
 	if (!nonemb_cmd.va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
 			    "BM_%d : invldt_cmds_params alloc failed\n");

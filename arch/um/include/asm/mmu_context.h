@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __UM_MMU_CONTEXT_H
@@ -8,44 +8,14 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/mmap_lock.h>
 
+#include <asm/mm_hooks.h>
 #include <asm/mmu.h>
-
-extern void uml_setup_stubs(struct mm_struct *mm);
-/*
- * Needed since we do not use the asm-generic/mm_hooks.h:
- */
-static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-{
-	uml_setup_stubs(mm);
-	return 0;
-}
-extern void arch_exit_mmap(struct mm_struct *mm);
-static inline void arch_unmap(struct mm_struct *mm,
-			struct vm_area_struct *vma,
-			unsigned long start, unsigned long end)
-{
-}
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-				     struct vm_area_struct *vma)
-{
-}
-
-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
-		bool write, bool execute, bool foreign)
-{
-	/* by default, allow everything */
-	return true;
-}
-
-/*
- * end asm-generic/mm_hooks.h functions
- */
-
-#define deactivate_mm(tsk,mm)	do { } while (0)
 
 extern void force_flush_all(void);
 
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 {
 	/*
@@ -53,9 +23,6 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * when the new ->mm is used for the first time.
 	 */
 	__switch_mm(&new->context.id);
-	down_write(&new->mmap_sem);
-	uml_setup_stubs(new);
-	up_write(&new->mmap_sem);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -71,13 +38,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	}
 }
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, 
-				  struct task_struct *tsk)
-{
-}
-
+#define init_new_context init_new_context
 extern int init_new_context(struct task_struct *task, struct mm_struct *mm);
 
+#define destroy_context destroy_context
 extern void destroy_context(struct mm_struct *mm);
+
+#include <asm-generic/mmu_context.h>
 
 #endif

@@ -1,13 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_PRIV_H__
 #define __NVKM_DISP_PRIV_H__
 #include <engine/disp.h>
 #include "outp.h"
 
-int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *,
-		   int index, struct nvkm_disp *);
-int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *,
-		   int index, struct nvkm_disp **);
+int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_disp *);
+int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_disp **);
 void nvkm_disp_vblank(struct nvkm_disp *, int head);
 
 struct nvkm_disp_func {

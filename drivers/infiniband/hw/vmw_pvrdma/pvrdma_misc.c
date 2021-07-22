@@ -182,26 +182,20 @@ int pvrdma_page_dir_insert_dma(struct pvrdma_page_dir *pdir, u64 idx,
 int pvrdma_page_dir_insert_umem(struct pvrdma_page_dir *pdir,
 				struct ib_umem *umem, u64 offset)
 {
+	struct ib_block_iter biter;
 	u64 i = offset;
-	int j, entry;
-	int ret = 0, len = 0;
-	struct scatterlist *sg;
+	int ret = 0;
 
 	if (offset >= pdir->npages)
 		return -EINVAL;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (j = 0; j < len; j++) {
-			dma_addr_t addr = sg_dma_address(sg) +
-					  (j << umem->page_shift);
+	rdma_umem_for_each_dma_block (umem, &biter, PAGE_SIZE) {
+		ret = pvrdma_page_dir_insert_dma(
+			pdir, i, rdma_block_iter_dma_address(&biter));
+		if (ret)
+			goto exit;
 
-			ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
-			if (ret)
-				goto exit;
-
-			i++;
-		}
+		i++;
 	}
 
 exit:

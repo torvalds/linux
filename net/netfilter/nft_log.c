@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  * Copyright (c) 2012-2014 Pablo Neira Ayuso <pablo@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -131,6 +128,20 @@ static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_FLAGS]	= { .type = NLA_U32 },
 };
 
+static int nft_log_modprobe(struct net *net, enum nf_log_type t)
+{
+	switch (t) {
+	case NF_LOG_TYPE_LOG:
+		return nft_request_module(net, "%s", "nf_log_syslog");
+	case NF_LOG_TYPE_ULOG:
+		return nft_request_module(net, "%s", "nfnetlink_log");
+	case NF_LOG_TYPE_MAX:
+		break;
+	}
+
+	return -ENOENT;
+}
+
 static int nft_log_init(const struct nft_ctx *ctx,
 			const struct nft_expr *expr,
 			const struct nlattr * const tb[])
@@ -155,7 +166,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		priv->prefix = kmalloc(nla_len(nla) + 1, GFP_KERNEL);
 		if (priv->prefix == NULL)
 			return -ENOMEM;
-		nla_strlcpy(priv->prefix, nla, nla_len(nla) + 1);
+		nla_strscpy(priv->prefix, nla, nla_len(nla) + 1);
 	} else {
 		priv->prefix = (char *)nft_log_null_prefix;
 	}
@@ -200,8 +211,12 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		return 0;
 
 	err = nf_logger_find_get(ctx->family, li->type);
-	if (err < 0)
+	if (err < 0) {
+		if (nft_log_modprobe(ctx->net, li->type) == -EAGAIN)
+			err = -EAGAIN;
+
 		goto err1;
+	}
 
 	return 0;
 
@@ -301,3 +316,4 @@ module_exit(nft_log_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("log");
+MODULE_DESCRIPTION("Netfilter nf_tables log module");

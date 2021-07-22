@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/macintosh/mac_hid.c
  *
@@ -182,8 +183,7 @@ static void mac_hid_stop_emulation(void)
 }
 
 static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
-				   void __user *buffer, size_t *lenp,
-				   loff_t *ppos)
+				   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
 	int old_val = *valp;

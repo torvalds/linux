@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/epoll.h>
-#include <util/evlist.h>
+#include <util/symbol.h>
 #include <linux/filter.h>
 #include "tests.h"
 #include "debug.h"
 #include "probe-file.h"
 #include "build-id.h"
+#include "util.h"
 
 /* To test SDT event, we need libelf support to scan elf binary */
 #if defined(HAVE_SDT_EVENT) && defined(HAVE_LIBELF_SUPPORT)
@@ -24,16 +28,16 @@ static int target_function(void)
 static int build_id_cache__add_file(const char *filename)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
-	u8 build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	int err;
 
-	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
+	err = filename__read_build_id(filename, &bid);
 	if (err < 0) {
 		pr_debug("Failed to read build id of %s\n", filename);
 		return err;
 	}
 
-	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+	build_id__sprintf(&bid, sbuild_id);
 	err = build_id_cache__add_s(sbuild_id, filename, NULL, false, false);
 	if (err < 0)
 		pr_debug("Failed to add build id cache of %s\n", filename);

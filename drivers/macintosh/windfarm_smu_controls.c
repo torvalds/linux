@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. SMU based controls
  *
  * (c) Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  */
 
 #include <linux/types.h>
@@ -95,7 +94,7 @@ static int smu_set_fan(int pwm, u8 id, u16 value)
 		return rc;
 	wait_for_completion(&comp);
 
-	/* Handle fallback (see coment above) */
+	/* Handle fallback (see comment above) */
 	if (cmd.status != 0 && smu_supports_new_fans_ops) {
 		printk(KERN_WARNING "windfarm: SMU failed new fan command "
 		       "falling back to old method\n");
@@ -267,7 +266,7 @@ static int __init smu_controls_init(void)
 
 	/* Look for RPM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (!strcmp(fans->name, "rpm-fans") ||
+		if (of_node_name_eq(fans, "rpm-fans") ||
 		    of_device_is_compatible(fans, "smu-rpm-fans"))
 			break;
 	for (fan = NULL;
@@ -287,7 +286,7 @@ static int __init smu_controls_init(void)
 
 	/* Look for PWM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (!strcmp(fans->name, "pwm-fans"))
+		if (of_node_name_eq(fans, "pwm-fans"))
 			break;
 	for (fan = NULL;
 	     fans && (fan = of_get_next_child(fans, fan)) != NULL;) {

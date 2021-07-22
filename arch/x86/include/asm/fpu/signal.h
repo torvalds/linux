@@ -22,12 +22,14 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 
 extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
 			      struct task_struct *tsk);
-extern void convert_to_fxsr(struct task_struct *tsk,
+extern void convert_to_fxsr(struct fxregs_state *fxsave,
 			    const struct user_i387_ia32_struct *env);
 
 unsigned long
 fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
 		     unsigned long *buf_fx, unsigned long *size);
+
+unsigned long fpu__get_fpstate_size(void);
 
 extern void fpu__init_prepare_fx_sw_frame(void);
 

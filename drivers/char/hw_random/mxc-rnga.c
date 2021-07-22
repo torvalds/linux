@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RNG driver for Freescale RNGA
  *
@@ -6,12 +7,6 @@
  */
 
 /*
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  *
  * This driver is based on other RNG drivers.
  */
@@ -139,7 +134,6 @@ static void mxc_rnga_cleanup(struct hwrng *rng)
 static int __init mxc_rnga_probe(struct platform_device *pdev)
 {
 	int err;
-	struct resource *res;
 	struct mxc_rng *mxc_rng;
 
 	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(*mxc_rng), GFP_KERNEL);
@@ -149,9 +143,9 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	mxc_rng->dev = &pdev->dev;
 	mxc_rng->rng.name = "mxc-rnga";
 	mxc_rng->rng.init = mxc_rnga_init;
-	mxc_rng->rng.cleanup = mxc_rnga_cleanup,
-	mxc_rng->rng.data_present = mxc_rnga_data_present,
-	mxc_rng->rng.data_read = mxc_rnga_data_read,
+	mxc_rng->rng.cleanup = mxc_rnga_cleanup;
+	mxc_rng->rng.data_present = mxc_rnga_data_present;
+	mxc_rng->rng.data_read = mxc_rnga_data_read;
 
 	mxc_rng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mxc_rng->clk)) {
@@ -163,8 +157,7 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);
+	mxc_rng->mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mxc_rng->mem)) {
 		err = PTR_ERR(mxc_rng->mem);
 		goto err_ioremap;

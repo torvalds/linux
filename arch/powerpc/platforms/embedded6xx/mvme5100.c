@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Board setup routines for the Motorola/Emerson MVME5100.
  *
@@ -8,13 +9,7 @@
  *    Matt Porter, MontaVista Software Inc.
  *    Copyright 2001 MontaVista Software Inc.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  * Author: Stephen Chivers <schivers@csc.com>
- *
  */
 
 #include <linux/of_platform.h>
@@ -159,17 +154,19 @@ static const struct of_device_id mvme5100_of_bus_ids[] __initconst = {
  */
 static void __init mvme5100_setup_arch(void)
 {
-	struct device_node *np;
-
 	if (ppc_md.progress)
 		ppc_md.progress("mvme5100_setup_arch()", 0);
-
-	for_each_compatible_node(np, "pci", "hawk-pci")
-		mvme5100_add_bridge(np);
 
 	restart = ioremap(BOARD_MODRST_REG, 4);
 }
 
+static void __init mvme5100_setup_pci(void)
+{
+	struct device_node *np;
+
+	for_each_compatible_node(np, "pci", "hawk-pci")
+		mvme5100_add_bridge(np);
+}
 
 static void mvme5100_show_cpuinfo(struct seq_file *m)
 {
@@ -210,6 +207,7 @@ define_machine(mvme5100) {
 	.name			= "MVME5100",
 	.probe			= mvme5100_probe,
 	.setup_arch		= mvme5100_setup_arch,
+	.discover_phbs		= mvme5100_setup_pci,
 	.init_IRQ		= mvme5100_pic_init,
 	.show_cpuinfo		= mvme5100_show_cpuinfo,
 	.get_irq		= mpic_get_irq,

@@ -64,7 +64,7 @@ rt5677 {
 	compatible = "realtek,rt5677";
 	reg = <0x2c>;
 	interrupt-parent = <&gpio>;
-	interrupts = <TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>;
+	interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
 
 	gpio-controller;
 	#gpio-cells = <2>;

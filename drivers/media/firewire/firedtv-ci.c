@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FireDTV driver (formerly known as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -221,7 +217,7 @@ static const struct file_operations fdtv_ca_fops = {
 	.llseek		= noop_llseek,
 };
 
-static struct dvb_device fdtv_ca = {
+static const struct dvb_device fdtv_ca = {
 	.users		= 1,
 	.readers	= 1,
 	.writers	= 1,

@@ -3,7 +3,7 @@
  * Copyright (C) 2017 Etnaviv Project
  */
 
-#include <linux/kthread.h>
+#include <linux/moduleparam.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_dump.h"
@@ -82,19 +82,23 @@ static struct dma_fence *etnaviv_sched_run_job(struct drm_sched_job *sched_job)
 	return fence;
 }
 
-static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
+static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
+							  *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct etnaviv_gpu *gpu = submit->gpu;
 	u32 dma_addr;
 	int change;
 
+	/* block scheduler */
+	drm_sched_stop(&gpu->sched, sched_job);
+
 	/*
 	 * If the GPU managed to complete this jobs fence, the timout is
 	 * spurious. Bail out.
 	 */
-	if (fence_completed(gpu, submit->out_fence->seqno))
-		return;
+	if (dma_fence_is_signaled(submit->out_fence))
+		goto out_no_timeout;
 
 	/*
 	 * If the GPU is still making forward progress on the front-end (which
@@ -105,27 +109,32 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 	change = dma_addr - gpu->hangcheck_dma_addr;
 	if (change < 0 || change > 16) {
 		gpu->hangcheck_dma_addr = dma_addr;
-		schedule_delayed_work(&sched_job->sched->work_tdr,
-				      sched_job->sched->timeout);
-		return;
+		goto out_no_timeout;
 	}
 
-	/* block scheduler */
-	kthread_park(gpu->sched.thread);
-	drm_sched_hw_job_reset(&gpu->sched, sched_job);
+	if(sched_job)
+		drm_sched_increase_karma(sched_job);
 
 	/* get the GPU back into the init state */
-	etnaviv_core_dump(gpu);
+	etnaviv_core_dump(submit);
 	etnaviv_gpu_recover_hang(gpu);
 
+	drm_sched_resubmit_jobs(&gpu->sched);
+
+	drm_sched_start(&gpu->sched, true);
+	return DRM_GPU_SCHED_STAT_NOMINAL;
+
+out_no_timeout:
 	/* restart scheduler after GPU is usable again */
-	drm_sched_job_recovery(&gpu->sched);
-	kthread_unpark(gpu->sched.thread);
+	drm_sched_start(&gpu->sched, true);
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static void etnaviv_sched_free_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
+
+	drm_sched_job_cleanup(sched_job);
 
 	etnaviv_submit_put(submit);
 }
@@ -150,7 +159,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 	mutex_lock(&submit->gpu->fence_lock);
 
 	ret = drm_sched_job_init(&submit->sched_job, sched_entity,
-				 submit->cmdbuf.ctx);
+				 submit->ctx);
 	if (ret)
 		goto out_unlock;
 
@@ -159,6 +168,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 						submit->out_fence, 0,
 						INT_MAX, GFP_KERNEL);
 	if (submit->out_fence_id < 0) {
+		drm_sched_job_cleanup(&submit->sched_job);
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
@@ -180,7 +190,7 @@ int etnaviv_sched_init(struct etnaviv_gpu *gpu)
 
 	ret = drm_sched_init(&gpu->sched, &etnaviv_sched_ops,
 			     etnaviv_hw_jobs_limit, etnaviv_job_hang_limit,
-			     msecs_to_jiffies(500), dev_name(gpu->dev));
+			     msecs_to_jiffies(500), NULL, dev_name(gpu->dev));
 	if (ret)
 		return ret;
 

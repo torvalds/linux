@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2013 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_CAPABILITY_H
@@ -40,7 +36,7 @@ struct aa_caps {
 
 extern struct aa_sfs_entry aa_sfs_entry_caps[];
 
-int aa_capable(struct aa_label *label, int cap, int audit);
+int aa_capable(struct aa_label *label, int cap, unsigned int opts);
 
 static inline void aa_free_cap_rules(struct aa_caps *caps)
 {

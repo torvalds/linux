@@ -32,56 +32,77 @@
 
 #ifndef _HNS_ROCE_COMMON_H
 #define _HNS_ROCE_COMMON_H
-
-#ifndef assert
-#define assert(cond)
-#endif
+#include <linux/bitfield.h>
 
 #define roce_write(dev, reg, val)	writel((val), (dev)->reg_base + (reg))
 #define roce_read(dev, reg)		readl((dev)->reg_base + (reg))
 #define roce_raw_write(value, addr) \
 	__raw_writel((__force u32)cpu_to_le32(value), (addr))
 
-#define roce_get_field(origin, mask, shift) \
-	(((le32_to_cpu(origin)) & (mask)) >> (shift))
+#define roce_get_field(origin, mask, shift)                                    \
+	((le32_to_cpu(origin) & (mask)) >> (u32)(shift))
 
 #define roce_get_bit(origin, shift) \
 	roce_get_field((origin), (1ul << (shift)), (shift))
 
-#define roce_set_field(origin, mask, shift, val) \
-	do { \
-		(origin) &= ~cpu_to_le32(mask); \
-		(origin) |= cpu_to_le32(((u32)(val) << (shift)) & (mask)); \
+#define roce_set_field(origin, mask, shift, val)                               \
+	do {                                                                   \
+		(origin) &= ~cpu_to_le32(mask);                                \
+		(origin) |=                                                    \
+			cpu_to_le32(((u32)(val) << (u32)(shift)) & (mask));    \
 	} while (0)
 
-#define roce_set_bit(origin, shift, val) \
+#define roce_set_bit(origin, shift, val)                                       \
 	roce_set_field((origin), (1ul << (shift)), (shift), (val))
 
-/*
- * roce_hw_index_cmp_lt - Compare two hardware index values in hisilicon
- *                        SOC, check if a is less than b.
- * @a: hardware index value
- * @b: hardware index value
- * @bits: the number of bits of a and b, range: 0~31.
- *
- * Hardware index increases continuously till max value, and then restart
- * from zero, again and again. Because the bits of reg field is often
- * limited, the reg field can only hold the low bits of the hardware index
- * in hisilicon SOC.
- * In some scenes we need to compare two values(a,b) getted from two reg
- * fields in this driver, for example:
- * If a equals 0xfffe, b equals 0x1 and bits equals 16, we think b has
- * incresed from 0xffff to 0x1 and a is less than b.
- * If a equals 0xfffe, b equals 0x0xf001 and bits equals 16, we think a
- * is bigger than b.
- *
- * Return true on a less than b, otherwise false.
- */
-#define roce_hw_index_mask(bits)	((1ul << (bits)) - 1)
-#define roce_hw_index_shift(bits)	(32 - (bits))
-#define roce_hw_index_cmp_lt(a, b, bits) \
-	((int)((((a) - (b)) & roce_hw_index_mask(bits)) << \
-		roce_hw_index_shift(bits)) < 0)
+#define FIELD_LOC(field_type, field_h, field_l) field_type, field_h, field_l
+
+#define _hr_reg_enable(ptr, field_type, field_h, field_l)                      \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		*((__le32 *)_ptr + (field_h) / 32) |= cpu_to_le32(             \
+			BIT((field_l) % 32) +                                  \
+			BUILD_BUG_ON_ZERO((field_h) != (field_l)));            \
+	})
+
+#define hr_reg_enable(ptr, field) _hr_reg_enable(ptr, field)
+
+#define _hr_reg_clear(ptr, field_type, field_h, field_l)                       \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		BUILD_BUG_ON(((field_h) / 32) != ((field_l) / 32));            \
+		*((__le32 *)_ptr + (field_h) / 32) &=                          \
+			~cpu_to_le32(GENMASK((field_h) % 32, (field_l) % 32)); \
+	})
+
+#define hr_reg_clear(ptr, field) _hr_reg_clear(ptr, field)
+
+#define _hr_reg_write_bool(ptr, field_type, field_h, field_l, val)             \
+	({                                                                     \
+		(val) ? _hr_reg_enable(ptr, field_type, field_h, field_l) :    \
+			_hr_reg_clear(ptr, field_type, field_h, field_l);      \
+	})
+
+#define hr_reg_write_bool(ptr, field, val) _hr_reg_write_bool(ptr, field, val)
+
+#define _hr_reg_write(ptr, field_type, field_h, field_l, val)                  \
+	({                                                                     \
+		_hr_reg_clear(ptr, field_type, field_h, field_l);              \
+		*((__le32 *)ptr + (field_h) / 32) |= cpu_to_le32(FIELD_PREP(   \
+			GENMASK((field_h) % 32, (field_l) % 32), val));        \
+	})
+
+#define hr_reg_write(ptr, field, val) _hr_reg_write(ptr, field, val)
+
+#define _hr_reg_read(ptr, field_type, field_h, field_l)                        \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		BUILD_BUG_ON(((field_h) / 32) != ((field_l) / 32));            \
+		FIELD_GET(GENMASK((field_h) % 32, (field_l) % 32),             \
+			  le32_to_cpu(*((__le32 *)_ptr + (field_h) / 32)));    \
+	})
+
+#define hr_reg_read(ptr, field) _hr_reg_read(ptr, field)
 
 #define ROCEE_GLB_CFG_ROCEE_DB_SQ_MODE_S 3
 #define ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S 4
@@ -271,8 +292,6 @@
 #define ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M   \
 	(((1UL << 28) - 1) << ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S)
 
-#define ROCEE_SDB_PTR_CMP_BITS 28
-
 #define ROCEE_SDB_INV_CNT_SDB_INV_CNT_S 0
 #define ROCEE_SDB_INV_CNT_SDB_INV_CNT_M   \
 	(((1UL << 16) - 1) << ROCEE_SDB_INV_CNT_SDB_INV_CNT_S)
@@ -353,13 +372,8 @@
 #define ROCEE_CAEP_AE_MASK_REG			0x6C8
 #define ROCEE_CAEP_AE_ST_REG			0x6CC
 
-#define ROCEE_SDB_ISSUE_PTR_REG			0x758
-#define ROCEE_SDB_SEND_PTR_REG			0x75C
 #define ROCEE_CAEP_CQE_WCMD_EMPTY		0x850
 #define ROCEE_SCAEP_WR_CQE_CNT			0x8D0
-#define ROCEE_SDB_INV_CNT_REG			0x9A4
-#define ROCEE_SDB_RETRY_CNT_REG			0x9AC
-#define ROCEE_TSP_BP_ST_REG			0x9EC
 #define ROCEE_ECC_UCERR_ALM0_REG		0xB34
 #define ROCEE_ECC_CERR_ALM0_REG			0xB40
 
@@ -367,17 +381,14 @@
 #define ROCEE_TX_CMQ_BASEADDR_L_REG		0x07000
 #define ROCEE_TX_CMQ_BASEADDR_H_REG		0x07004
 #define ROCEE_TX_CMQ_DEPTH_REG			0x07008
-#define ROCEE_TX_CMQ_TAIL_REG			0x07010
-#define ROCEE_TX_CMQ_HEAD_REG			0x07014
+#define ROCEE_TX_CMQ_PI_REG			0x07010
+#define ROCEE_TX_CMQ_CI_REG			0x07014
 
 #define ROCEE_RX_CMQ_BASEADDR_L_REG		0x07018
 #define ROCEE_RX_CMQ_BASEADDR_H_REG		0x0701c
 #define ROCEE_RX_CMQ_DEPTH_REG			0x07020
 #define ROCEE_RX_CMQ_TAIL_REG			0x07024
 #define ROCEE_RX_CMQ_HEAD_REG			0x07028
-
-#define ROCEE_VF_MB_CFG0_REG			0x40
-#define ROCEE_VF_MB_STATUS_REG			0x58
 
 #define ROCEE_VF_EQ_DB_CFG0_REG			0x238
 #define ROCEE_VF_EQ_DB_CFG1_REG			0x23C

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 2001-2002 Magnus Boden <mb@ozaba.mine.nu>
  * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -20,11 +18,13 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_tftp.h>
 
+#define HELPER_NAME "tftp"
+
 MODULE_AUTHOR("Magnus Boden <mb@ozaba.mine.nu>");
 MODULE_DESCRIPTION("TFTP connection tracking helper");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_conntrack_tftp");
-MODULE_ALIAS_NFCT_HELPER("tftp");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 #define MAX_PORTS 8
 static unsigned short ports[MAX_PORTS];
@@ -78,7 +78,7 @@ static int tftp_help(struct sk_buff *skb,
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_tftp(skb, ctinfo, exp);
-		else if (nf_ct_expect_related(exp) != 0) {
+		else if (nf_ct_expect_related(exp, 0) != 0) {
 			nf_ct_helper_log(skb, ct, "cannot add expectation");
 			ret = NF_DROP;
 		}
@@ -119,12 +119,14 @@ static int __init nf_conntrack_tftp_init(void)
 		ports[ports_c++] = TFTP_PORT;
 
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&tftp[2 * i], AF_INET, IPPROTO_UDP, "tftp",
-				  TFTP_PORT, ports[i], i, &tftp_exp_policy,
-				  0, tftp_help, NULL, THIS_MODULE);
-		nf_ct_helper_init(&tftp[2 * i + 1], AF_INET6, IPPROTO_UDP, "tftp",
-				  TFTP_PORT, ports[i], i, &tftp_exp_policy,
-				  0, tftp_help, NULL, THIS_MODULE);
+		nf_ct_helper_init(&tftp[2 * i], AF_INET, IPPROTO_UDP,
+				  HELPER_NAME, TFTP_PORT, ports[i], i,
+				  &tftp_exp_policy, 0, tftp_help, NULL,
+				  THIS_MODULE);
+		nf_ct_helper_init(&tftp[2 * i + 1], AF_INET6, IPPROTO_UDP,
+				  HELPER_NAME, TFTP_PORT, ports[i], i,
+				  &tftp_exp_policy, 0, tftp_help, NULL,
+				  THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(tftp, ports_c * 2);

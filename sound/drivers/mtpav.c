@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      MOTU Midi Timepiece ALSA Main routines
  *      Copyright by Michael T. Mayers (c) Jan 09, 2000
  *      mail: michael@tweakoz.com
  *      Thanks to John Galbraith
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
- *      This program is distributed in the hope that it will be useful,
- *      but WITHOUT ANY WARRANTY; without even the implied warranty of
- *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *      GNU General Public License for more details.
- *
- *      You should have received a copy of the GNU General Public License
- *      along with this program; if not, write to the Free Software
- *      Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  *
  *      This driver is for the 'Mark Of The Unicorn' (MOTU)
  *      MidiTimePiece AV multiport MIDI interface 
@@ -39,7 +25,6 @@
  *      MIDI Synchronization to Video, ADAT, SMPTE and other Clock sources
  *      128 'scene' memories, recallable from MIDI program change
  *
- *
  * ChangeLog
  * Jun 11 2001	Takashi Iwai <tiwai@suse.de>
  *      - Recoded & debugged
@@ -47,7 +32,6 @@
  *      - hwports is between 1 and 8, which specifies the number of hardware ports.
  *        The three global ports, computer, adat and broadcast ports, are created
  *        always after h/w and remote ports.
- *
  */
 
 #include <linux/init.h>
@@ -69,7 +53,6 @@
 MODULE_AUTHOR("Michael T. Mayers");
 MODULE_DESCRIPTION("MOTU MidiTimePiece AV multiport MIDI");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{MOTU,MidiTimePiece AV multiport MIDI}}");
 
 // io resources
 #define MTPAV_IOBASE		0x378
@@ -583,7 +566,8 @@ static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
  */
 static int snd_mtpav_get_ISA(struct mtpav *mcard)
 {
-	if ((mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI")) == NULL) {
+	mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI");
+	if (!mcard->res_port) {
 		snd_printk(KERN_ERR "MTVAP port 0x%lx is busy\n", port);
 		return -EBUSY;
 	}
@@ -645,10 +629,11 @@ static int snd_mtpav_get_RAWMIDI(struct mtpav *mcard)
 		hwports = 8;
 	mcard->num_ports = hwports;
 
-	if ((rval = snd_rawmidi_new(mcard->card, "MotuMIDI", 0,
-				    mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
-				    mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
-				    &mcard->rmidi)) < 0)
+	rval = snd_rawmidi_new(mcard->card, "MotuMIDI", 0,
+			       mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
+			       mcard->num_ports * 2 + MTPAV_PIDX_BROADCAST + 1,
+			       &mcard->rmidi);
+	if (rval < 0)
 		return rval;
 	rawmidi = mcard->rmidi;
 	rawmidi->private_data = mcard;
@@ -761,7 +746,8 @@ static int __init alsa_card_mtpav_init(void)
 {
 	int err;
 
-	if ((err = platform_driver_register(&snd_mtpav_driver)) < 0)
+	err = platform_driver_register(&snd_mtpav_driver);
+	if (err < 0)
 		return err;
 
 	device = platform_device_register_simple(SND_MTPAV_DRIVER, -1, NULL, 0);

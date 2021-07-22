@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RTL8XXXU mac80211 USB driver - 8192e specific subdriver
  *
@@ -10,15 +11,6 @@
  * rtl8723au driver. As the Realtek 8xxx chips are very similar in
  * their programming interface, I have started adding support for
  * additional 8xxx chips like the 8192cu, 8188cus, etc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -562,9 +554,43 @@ rtl8192e_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	}
 }
 
+static void rtl8192eu_log_next_device_info(struct rtl8xxxu_priv *priv,
+					   char *record_name,
+					   char *device_info,
+					   unsigned int *record_offset)
+{
+	char *record = device_info + *record_offset;
+
+	/* A record is [ total length | 0x03 | value ] */
+	unsigned char l = record[0];
+
+	/*
+	 * The whole device info section seems to be 80 characters, make sure
+	 * we don't read further.
+	 */
+	if (*record_offset + l > 80) {
+		dev_warn(&priv->udev->dev,
+			 "invalid record length %d while parsing \"%s\" at offset %u.\n",
+			 l, record_name, *record_offset);
+		return;
+	}
+
+	if (l >= 2) {
+		char value[80];
+
+		memcpy(value, &record[2], l - 2);
+		value[l - 2] = '\0';
+		dev_info(&priv->udev->dev, "%s: %s\n", record_name, value);
+		*record_offset = *record_offset + l;
+	} else {
+		dev_info(&priv->udev->dev, "%s not available.\n", record_name);
+	}
+}
+
 static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8192eu_efuse *efuse = &priv->efuse_wifi.efuse8192eu;
+	unsigned int record_offset;
 	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
@@ -612,12 +638,25 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	priv->has_xtalk = 1;
 	priv->xtalk = priv->efuse_wifi.efuse8192eu.xtal_k & 0x3f;
 
-	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
-	dev_info(&priv->udev->dev, "Product: %.11s\n", efuse->device_name);
-	if (memchr_inv(efuse->serial, 0xff, 11))
-		dev_info(&priv->udev->dev, "Serial: %.11s\n", efuse->serial);
-	else
-		dev_info(&priv->udev->dev, "Serial not available.\n");
+	/*
+	 * device_info section seems to be laid out as records
+	 * [ total length | 0x03 | value ] so:
+	 * - vendor length + 2
+	 * - 0x03
+	 * - vendor string (not null terminated)
+	 * - product length + 2
+	 * - 0x03
+	 * - product string (not null terminated)
+	 * Then there is one or 2 0x00 on all the 4 devices I own or found
+	 * dumped online.
+	 * As previous version of the code handled an optional serial
+	 * string, I now assume there may be a third record if the
+	 * length is not 0.
+	 */
+	record_offset = 0;
+	rtl8192eu_log_next_device_info(priv, "Vendor", efuse->device_info, &record_offset);
+	rtl8192eu_log_next_device_info(priv, "Product", efuse->device_info, &record_offset);
+	rtl8192eu_log_next_device_info(priv, "Serial", efuse->device_info, &record_offset);
 
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
 		unsigned char *raw = priv->efuse_wifi.raw;
@@ -1019,7 +1058,7 @@ static void rtl8192eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	u32 i, val32;
 	int path_a_ok, path_b_ok;
 	int retry = 2;
-	const u32 adda_regs[RTL8XXXU_ADDA_REGS] = {
+	static const u32 adda_regs[RTL8XXXU_ADDA_REGS] = {
 		REG_FPGA0_XCD_SWITCH_CTRL, REG_BLUETOOTH,
 		REG_RX_WAIT_CCA, REG_TX_CCK_RFON,
 		REG_TX_CCK_BBON, REG_TX_OFDM_RFON,
@@ -1029,11 +1068,11 @@ static void rtl8192eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 		REG_RX_TO_RX, REG_STANDBY,
 		REG_SLEEP, REG_PMPD_ANAEN
 	};
-	const u32 iqk_mac_regs[RTL8XXXU_MAC_REGS] = {
+	static const u32 iqk_mac_regs[RTL8XXXU_MAC_REGS] = {
 		REG_TXPAUSE, REG_BEACON_CTRL,
 		REG_BEACON_CTRL_1, REG_GPIO_MUXCFG
 	};
-	const u32 iqk_bb_regs[RTL8XXXU_BB_REGS] = {
+	static const u32 iqk_bb_regs[RTL8XXXU_BB_REGS] = {
 		REG_OFDM0_TRX_PATH_ENABLE, REG_OFDM0_TR_MUX_PAR,
 		REG_FPGA0_XCD_RF_SW_CTRL, REG_CONFIG_ANT_A, REG_CONFIG_ANT_B,
 		REG_FPGA0_XAB_RF_SW_CTRL, REG_FPGA0_XA_RF_INT_OE,
@@ -1514,8 +1553,6 @@ static int rtl8192eu_power_on(struct rtl8xxxu_priv *priv)
 	u16 val16;
 	u32 val32;
 	int ret;
-
-	ret = 0;
 
 	val32 = rtl8xxxu_read32(priv, REG_SYS_CFG);
 	if (val32 & SYS_CFG_SPS_LDO_SEL) {

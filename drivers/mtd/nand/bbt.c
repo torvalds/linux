@@ -27,7 +27,8 @@ int nanddev_bbt_init(struct nand_device *nand)
 	unsigned int nwords = DIV_ROUND_UP(nblocks * bits_per_block,
 					   BITS_PER_LONG);
 
-	nand->bbt.cache = kzalloc(nwords, GFP_KERNEL);
+	nand->bbt.cache = kcalloc(nwords, sizeof(*nand->bbt.cache),
+				  GFP_KERNEL);
 	if (!nand->bbt.cache)
 		return -ENOMEM;
 
@@ -122,7 +123,7 @@ int nanddev_bbt_set_block_status(struct nand_device *nand, unsigned int entry,
 		unsigned int rbits = bits_per_block + offs - BITS_PER_LONG;
 
 		pos[1] &= ~GENMASK(rbits - 1, 0);
-		pos[1] |= val >> rbits;
+		pos[1] |= val >> (bits_per_block - rbits);
 	}
 
 	return 0;

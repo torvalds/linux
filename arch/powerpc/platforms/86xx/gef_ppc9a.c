@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GE PPC9A board support
  *
  * Author: Martyn Welch <martyn.welch@ge.com>
  *
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Based on: mpc86xx_hpcn.c (MPC86xx HPCN board specific routines)
  * Copyright 2006 Freescale Semiconductor Inc.

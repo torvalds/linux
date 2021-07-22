@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Pondicherry2 memory controller.
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * [Derived from sb_edac.c]
  *
@@ -206,7 +198,7 @@ static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 	switch (sz) {
 	case 8:
 		ret = _apl_rd_reg(port, off + 4, op, (u32 *)(data + 4));
-		/* fall through */
+		fallthrough;
 	case 4:
 		ret |= _apl_rd_reg(port, off, op, (u32 *)data);
 		pnd2_printk(KERN_DEBUG, "%s=%x%08x ret=%d\n", name,
@@ -268,11 +260,14 @@ static u64 get_sideband_reg_base_addr(void)
 	}
 }
 
+#define DNV_MCHBAR_SIZE  0x8000
+#define DNV_SB_PORT_SIZE 0x10000
 static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *name)
 {
 	struct pci_dev *pdev;
 	char *base;
 	u64 addr;
+	unsigned long size;
 
 	if (op == 4) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x1980, NULL);
@@ -287,15 +282,17 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 			addr = get_mem_ctrl_hub_base_addr();
 			if (!addr)
 				return -ENODEV;
+			size = DNV_MCHBAR_SIZE;
 		} else {
 			/* MMIO via sideband register base address */
 			addr = get_sideband_reg_base_addr();
 			if (!addr)
 				return -ENODEV;
 			addr += (port << 16);
+			size = DNV_SB_PORT_SIZE;
 		}
 
-		base = ioremap((resource_size_t)addr, 0x10000);
+		base = ioremap((resource_size_t)addr, size);
 		if (!base)
 			return -ENODEV;
 
@@ -1158,7 +1155,7 @@ static void pnd2_mce_output_error(struct mem_ctl_info *mci, const struct mce *m,
 	u32 optypenum = GET_BITFIELD(m->status, 4, 6);
 	int rc;
 
-	tp_event = uc_err ? (ripv ? HW_EVENT_ERR_FATAL : HW_EVENT_ERR_UNCORRECTED) :
+	tp_event = uc_err ? (ripv ? HW_EVENT_ERR_UNCORRECTED : HW_EVENT_ERR_FATAL) :
 						 HW_EVENT_ERR_CORRECTED;
 
 	/*
@@ -1234,7 +1231,7 @@ static void apl_get_dimm_config(struct mem_ctl_info *mci)
 		if (!(chan_mask & BIT(i)))
 			continue;
 
-		dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, 0, 0);
+		dimm = edac_get_dimm(mci, i, 0, 0);
 		if (!dimm) {
 			edac_dbg(0, "No allocated DIMM for channel %d\n", i);
 			continue;
@@ -1314,7 +1311,7 @@ static void dnv_get_dimm_config(struct mem_ctl_info *mci)
 			if (!ranks_of_dimm[j])
 				continue;
 
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			if (!dimm) {
 				edac_dbg(0, "No allocated DIMM for channel %d DIMM %d\n", i, j);
 				continue;
@@ -1399,11 +1396,8 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 	struct dram_addr daddr;
 	char *type;
 
-	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
-		return NOTIFY_DONE;
-
 	mci = pnd2_mci;
-	if (!mci)
+	if (!mci || (mce->kflags & MCE_HANDLED_CEC))
 		return NOTIFY_DONE;
 
 	/*
@@ -1432,11 +1426,13 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 	pnd2_mce_output_error(mci, mce, &daddr);
 
 	/* Advice mcelog that the error were handled */
-	return NOTIFY_STOP;
+	mce->kflags |= MCE_HANDLED_EDAC;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block pnd2_mce_dec = {
 	.notifier_call	= pnd2_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -1540,8 +1536,8 @@ static struct dunit_ops dnv_ops = {
 };
 
 static const struct x86_cpu_id pnd2_cpuids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_GOLDMONT, 0, (kernel_ulong_t)&apl_ops },
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_GOLDMONT_X, 0, (kernel_ulong_t)&dnv_ops },
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&apl_ops),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	&dnv_ops),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, pnd2_cpuids);
@@ -1557,6 +1553,9 @@ static int __init pnd2_init(void)
 	owner = edac_get_owner();
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
 		return -EBUSY;
+
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return -ENODEV;
 
 	id = x86_match_cpu(pnd2_cpuids);
 	if (!id)

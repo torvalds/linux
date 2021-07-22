@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016 MediaTek Inc.
  * Author: Houlong Wei <houlong.wei@mediatek.com>
  *         Ming Hsiu Tsai <minghsiu.tsai@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MTK_MDP_CORE_H__
@@ -36,12 +28,10 @@
 #define MTK_MDP_FMT_FLAG_CAPTURE	BIT(1)
 
 #define MTK_MDP_VPU_INIT		BIT(0)
-#define MTK_MDP_SRC_FMT			BIT(1)
-#define MTK_MDP_DST_FMT			BIT(2)
 #define MTK_MDP_CTX_ERROR		BIT(5)
 
 /**
- *  struct mtk_mdp_pix_align - alignement of image
+ *  struct mtk_mdp_pix_align - alignment of image
  *  @org_w: source alignment of width
  *  @org_h: source alignment of height
  *  @target_w: dst alignment of width
@@ -62,8 +52,8 @@ struct mtk_mdp_pix_align {
  * @depth: per plane driver's private 'number of bits per pixel'
  * @row_depth: per plane driver's private 'number of bits per pixel per row'
  * @flags: flags indicating which operation mode format applies to
-	   MTK_MDP_FMT_FLAG_OUTPUT is used in OUTPUT stream
-	   MTK_MDP_FMT_FLAG_CAPTURE is used in CAPTURE stream
+ *	   MTK_MDP_FMT_FLAG_OUTPUT is used in OUTPUT stream
+ *	   MTK_MDP_FMT_FLAG_CAPTURE is used in CAPTURE stream
  * @align: pointer to a pixel alignment struct, NULL if using default value
  */
 struct mtk_mdp_fmt {
@@ -122,8 +112,8 @@ struct mtk_mdp_frame {
 /**
  * struct mtk_mdp_variant - image processor variant information
  * @pix_max:		maximum limit of image size
- * @pix_min:		minimun limit of image size
- * @pix_align:		alignement of image
+ * @pix_min:		minimum limit of image size
+ * @pix_align:		alignment of image
  * @h_scale_up_max:	maximum scale-up in horizontal
  * @v_scale_up_max:	maximum scale-up in vertical
  * @h_scale_down_max:	maximum scale-down in horizontal
@@ -146,7 +136,7 @@ struct mtk_mdp_variant {
  * @pdev:	pointer to the image processor platform device
  * @variant:	the IP variant information
  * @id:		image processor device index (0..MTK_MDP_MAX_DEVS)
- * @comp:	MDP function components
+ * @comp_list:	list of MDP function components
  * @m2m_dev:	v4l2 memory-to-memory device data
  * @ctx_list:	list of struct mtk_mdp_ctx
  * @vdev:	video device for image processor driver
@@ -164,7 +154,7 @@ struct mtk_mdp_dev {
 	struct platform_device		*pdev;
 	struct mtk_mdp_variant		*variant;
 	u16				id;
-	struct mtk_mdp_comp		*comp[MTK_MDP_COMP_ID_MAX];
+	struct list_head		comp_list;
 	struct v4l2_m2m_dev		*m2m_dev;
 	struct list_head		ctx_list;
 	struct video_device		*vdev;
@@ -178,14 +168,14 @@ struct mtk_mdp_dev {
 };
 
 /**
- * mtk_mdp_ctx - the device context data
+ * struct mtk_mdp_ctx - the device context data
  * @list:		link to ctx_list of mtk_mdp_dev
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @id:			index of the context that this structure describes
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
-			Protected by slock
+ *			Protected by slock
  * @rotation:		rotates the image by specified angle
  * @hflip:		mirror the picture horizontally
  * @vflip:		mirror the picture vertically
@@ -193,7 +183,7 @@ struct mtk_mdp_dev {
  * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
  * @ctrl_handler:	v4l2 controls handler
- * @ctrls		image processor control set
+ * @ctrls:		image processor control set
  * @ctrls_rdy:		true if the control handler is initialized
  * @colorspace:		enum v4l2_colorspace; supplemental to pixelformat
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
@@ -230,6 +220,12 @@ struct mtk_mdp_ctx {
 };
 
 extern int mtk_mdp_dbg_level;
+
+void mtk_mdp_register_component(struct mtk_mdp_dev *mdp,
+				struct mtk_mdp_comp *comp);
+
+void mtk_mdp_unregister_component(struct mtk_mdp_dev *mdp,
+				  struct mtk_mdp_comp *comp);
 
 #if defined(DEBUG)
 

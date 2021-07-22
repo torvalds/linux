@@ -47,6 +47,18 @@ struct mmsch_v1_0_init_header {
 	uint32_t uvd_table_size;
 };
 
+struct mmsch_vf_eng_init_header {
+	uint32_t init_status;
+	uint32_t table_offset;
+	uint32_t table_size;
+};
+
+struct mmsch_v1_1_init_header {
+	uint32_t version;
+	uint32_t total_size;
+	struct mmsch_vf_eng_init_header eng[2];
+};
+
 struct mmsch_v1_0_cmd_direct_reg_header {
 	uint32_t reg_offset   : 28;
 	uint32_t command_type : 4;

@@ -331,7 +331,7 @@ static unsigned int npcmgpio_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static struct irq_chip npcmgpio_irqchip = {
+static const struct irq_chip npcmgpio_irqchip = {
 	.name = "NPCM7XX-GPIO-IRQ",
 	.irq_ack = npcmgpio_irq_ack,
 	.irq_unmask = npcmgpio_irq_unmask,
@@ -923,7 +923,7 @@ struct npcm7xx_pincfg {
 };
 
 static const struct npcm7xx_pincfg pincfg[] = {
-	/*	PIN	  FUNCTION 1		   FUNCTION 2		  FUNCTION 3	    FLAGS */
+	/*		PIN	  FUNCTION 1		   FUNCTION 2		  FUNCTION 3	    FLAGS */
 	NPCM7XX_PINCFG(0,	 iox1, MFSEL1, 30,	  none, NONE, 0,	none, NONE, 0,	     0),
 	NPCM7XX_PINCFG(1,	 iox1, MFSEL1, 30,	  none, NONE, 0,	none, NONE, 0,	     DS(8, 12)),
 	NPCM7XX_PINCFG(2,	 iox1, MFSEL1, 30,	  none, NONE, 0,	none, NONE, 0,	     DS(8, 12)),
@@ -958,8 +958,8 @@ static const struct npcm7xx_pincfg pincfg[] = {
 	NPCM7XX_PINCFG(31,	 smb3, MFSEL1, 0,	  none, NONE, 0,	none, NONE, 0,	     0),
 
 	NPCM7XX_PINCFG(32,    spi0cs1, MFSEL1, 3,	  none, NONE, 0,	none, NONE, 0,	     0),
-	NPCM7XX_PINCFG(33,   none, NONE, 0,     none, NONE, 0,	none, NONE, 0,	     SLEW),
-	NPCM7XX_PINCFG(34,   none, NONE, 0,     none, NONE, 0,	none, NONE, 0,	     SLEW),
+	NPCM7XX_PINCFG(33,	 none, NONE, 0,           none, NONE, 0,	none, NONE, 0,	     SLEW),
+	NPCM7XX_PINCFG(34,	 none, NONE, 0,           none, NONE, 0,	none, NONE, 0,	     SLEW),
 	NPCM7XX_PINCFG(37,	smb3c, I2CSEGSEL, 12,	  none, NONE, 0,	none, NONE, 0,	     SLEW),
 	NPCM7XX_PINCFG(38,	smb3c, I2CSEGSEL, 12,	  none, NONE, 0,	none, NONE, 0,	     SLEW),
 	NPCM7XX_PINCFG(39,	smb3b, I2CSEGSEL, 11,	  none, NONE, 0,	none, NONE, 0,	     SLEW),
@@ -1601,7 +1601,7 @@ static void npcm7xx_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops npcm7xx_pinctrl_ops = {
+static const struct pinctrl_ops npcm7xx_pinctrl_ops = {
 	.get_groups_count = npcm7xx_get_groups_count,
 	.get_group_name = npcm7xx_get_group_name,
 	.get_group_pins = npcm7xx_get_group_pins,
@@ -1701,7 +1701,7 @@ static int npcm_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops npcm7xx_pinmux_ops = {
+static const struct pinmux_ops npcm7xx_pinmux_ops = {
 	.get_functions_count = npcm7xx_get_functions_count,
 	.get_function_name = npcm7xx_get_function_name,
 	.get_function_groups = npcm7xx_get_function_groups,
@@ -1799,19 +1799,12 @@ static int npcm7xx_config_set_one(struct npcm7xx_pinctrl *npcm,
 		npcm_gpio_set(&bank->gc, bank->base + NPCM7XX_GP_N_PU, gpio);
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		if (arg) {
-			iowrite32(gpio, bank->base + NPCM7XX_GP_N_OEC);
-			npcm_gpio_set(&bank->gc, bank->base + NPCM7XX_GP_N_IEM,
-				      gpio);
-		} else
-			npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_IEM,
-				      gpio);
+		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OEC);
+		bank->direction_input(&bank->gc, pin % bank->gc.ngpio);
 		break;
 	case PIN_CONFIG_OUTPUT:
-		npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_IEM, gpio);
-		iowrite32(gpio, arg ? bank->base + NPCM7XX_GP_N_DOS :
-			  bank->base + NPCM7XX_GP_N_DOC);
 		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OES);
+		bank->direction_output(&bank->gc, pin % bank->gc.ngpio, arg);
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_OTYP, gpio);
@@ -1849,7 +1842,7 @@ static int npcm7xx_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return 0;
 }
 
-static struct pinconf_ops npcm7xx_pinconf_ops = {
+static const struct pinconf_ops npcm7xx_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_get = npcm7xx_config_get,
 	.pin_config_set = npcm7xx_config_set,
@@ -1932,6 +1925,9 @@ static int npcm7xx_gpio_of(struct npcm7xx_pinctrl *pctrl)
 			pctrl->gpio_bank[id].gc.label =
 				devm_kasprintf(pctrl->dev, GFP_KERNEL, "%pOF",
 					       np);
+			if (pctrl->gpio_bank[id].gc.label == NULL)
+				return -ENOMEM;
+
 			pctrl->gpio_bank[id].gc.dbg_show = npcmgpio_dbg_show;
 			pctrl->gpio_bank[id].direction_input =
 				pctrl->gpio_bank[id].gc.direction_input;
@@ -1958,6 +1954,22 @@ static int npcm7xx_gpio_register(struct npcm7xx_pinctrl *pctrl)
 	int ret, id;
 
 	for (id = 0 ; id < pctrl->bank_num ; id++) {
+		struct gpio_irq_chip *girq;
+
+		girq = &pctrl->gpio_bank[id].gc.irq;
+		girq->chip = &pctrl->gpio_bank[id].irq_chip;
+		girq->parent_handler = npcmgpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(pctrl->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
+			goto err_register;
+		}
+		girq->parents[0] = pctrl->gpio_bank[id].irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
 		ret = devm_gpiochip_add_data(pctrl->dev,
 					     &pctrl->gpio_bank[id].gc,
 					     &pctrl->gpio_bank[id]);
@@ -1976,22 +1988,6 @@ static int npcm7xx_gpio_register(struct npcm7xx_pinctrl *pctrl)
 			gpiochip_remove(&pctrl->gpio_bank[id].gc);
 			goto err_register;
 		}
-
-		ret = gpiochip_irqchip_add(&pctrl->gpio_bank[id].gc,
-					   &pctrl->gpio_bank[id].irq_chip,
-					   0, handle_level_irq,
-					   IRQ_TYPE_NONE);
-		if (ret < 0) {
-			dev_err(pctrl->dev,
-				"Failed to add IRQ chip %u\n", id);
-			gpiochip_remove(&pctrl->gpio_bank[id].gc);
-			goto err_register;
-		}
-
-		gpiochip_set_chained_irqchip(&pctrl->gpio_bank[id].gc,
-					     &pctrl->gpio_bank[id].irq_chip,
-					     pctrl->gpio_bank[id].irq,
-					     npcmgpio_irq_handler);
 	}
 
 	return 0;

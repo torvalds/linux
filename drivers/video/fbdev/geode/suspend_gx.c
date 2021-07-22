@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) 2007 Advanced Micro Devices, Inc.
  *   Copyright (C) 2008 Andres Salomon <dilinger@debian.org>
- *
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the
- *   Free Software Foundation; either version 2 of the License, or (at your
- *   option) any later version.
  */
 #include <linux/fb.h>
 #include <asm/io.h>
@@ -14,8 +10,6 @@
 #include <asm/delay.h>
 
 #include "gxfb.h"
-
-#ifdef CONFIG_PM
 
 static void gx_save_regs(struct gxfb_par *par)
 {
@@ -263,5 +257,3 @@ int gx_powerup(struct fb_info *info)
 	par->powered_down  = 0;
 	return 0;
 }
-
-#endif

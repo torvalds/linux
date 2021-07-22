@@ -145,14 +145,13 @@ static int putchar(int c)
 
 void __noreturn error(char *x)
 {
-	puts("\n\n");
-	puts(x);
-	puts("\n\n -- System halted");
+	if (x) puts(x);
+	puts("\n -- System halted\n");
 	while (1)	/* wait forever */
 		;
 }
 
-static int print_hex(unsigned long num)
+static int print_num(unsigned long num, int base)
 {
 	const char hex[] = "0123456789abcdef";
 	char str[40];
@@ -160,12 +159,14 @@ static int print_hex(unsigned long num)
 
 	str[i--] = '\0';
 	do {
-		str[i--] = hex[num & 0x0f];
-		num >>= 4;
+		str[i--] = hex[num % base];
+		num = num / base;
 	} while (num);
 
-	str[i--] = 'x';
-	str[i] = '0';
+	if (base == 16) {
+		str[i--] = 'x';
+		str[i] = '0';
+	} else i++;
 	puts(&str[i]);
 
 	return 0;
@@ -187,8 +188,9 @@ put:
 
 		if (fmt[++i] == '%')
 			goto put;
+		print_num(va_arg(args, unsigned long),
+			fmt[i] == 'x' ? 16:10);
 		++i;
-		print_hex(va_arg(args, unsigned long));
 	}
 
 	va_end(args);
@@ -327,8 +329,15 @@ unsigned long decompress_kernel(unsigned int started_wide,
 		free_mem_end_ptr = rd_start;
 #endif
 
-	if (free_mem_ptr >= free_mem_end_ptr)
-		error("Kernel too big for machine.");
+	if (free_mem_ptr >= free_mem_end_ptr) {
+		int free_ram;
+		free_ram = (free_mem_ptr >> 20) + 1;
+		if (free_ram < 32)
+			free_ram = 32;
+		printf("\nKernel requires at least %d MB RAM.\n",
+			free_ram);
+		error(NULL);
+	}
 
 #ifdef DEBUG
 	printf("\n");

@@ -30,8 +30,9 @@
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
 
-/* TODO unhardcode, 4 for CZ*/
-#define MEMORY_TYPE_MULTIPLIER 4
+#define MEMORY_TYPE_MULTIPLIER_CZ 4
+#define MEMORY_TYPE_HBM 2
+
 
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
@@ -45,6 +46,10 @@ struct resource_caps {
 	int num_pll;
 	int num_dwb;
 	int num_ddc;
+	int num_vmid;
+	int num_dsc;
+	unsigned int num_dig_link_enc; // Total number of DIGs (digital encoders) in DIO (Display Input/Output).
+	int num_mpc_3dlut;
 };
 
 struct resource_straps {
@@ -73,11 +78,9 @@ bool resource_construct(
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id);
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version);
 
 void dc_destroy_resource_pool(struct dc *dc);
 
@@ -113,6 +116,10 @@ bool resource_are_streams_timing_synchronizable(
 		struct dc_stream_state *stream1,
 		struct dc_stream_state *stream2);
 
+bool resource_are_vblanks_synchronizable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2);
+
 struct clock_source *resource_find_used_clk_src_for_sharing(
 		struct resource_context *res_ctx,
 		struct pipe_ctx *pipe_ctx);
@@ -134,10 +141,8 @@ bool resource_attach_surfaces_to_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool);
-
-bool resource_is_stream_unchanged(
-	struct dc_state *old_context, struct dc_stream_state *stream);
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
@@ -174,5 +179,12 @@ void update_audio_usage(
 		bool acquired);
 
 unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
+
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *aud_chk);
+
+int get_num_mpc_splits(struct pipe_ctx *pipe);
+
+int get_num_odm_splits(struct pipe_ctx *pipe);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

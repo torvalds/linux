@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  lis3lv02d.c - ST LIS3LV02DL accelerometer driver
  *
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008 Eric Piel
  *  Copyright (C) 2008-2009 Pavel Machek
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
@@ -221,7 +208,7 @@ static int lis3_3dc_rates[16] = {0, 1, 10, 25, 50, 100, 200, 400, 1600, 5000};
 static int lis3_3dlh_rates[4] = {50, 100, 400, 1000};
 
 /* ODR is Output Data Rate */
-static int lis3lv02d_get_odr(struct lis3lv02d *lis3)
+static int lis3lv02d_get_odr_index(struct lis3lv02d *lis3)
 {
 	u8 ctrl;
 	int shift;
@@ -229,15 +216,23 @@ static int lis3lv02d_get_odr(struct lis3lv02d *lis3)
 	lis3->read(lis3, CTRL_REG1, &ctrl);
 	ctrl &= lis3->odr_mask;
 	shift = ffs(lis3->odr_mask) - 1;
-	return lis3->odrs[(ctrl >> shift)];
+	return (ctrl >> shift);
 }
 
 static int lis3lv02d_get_pwron_wait(struct lis3lv02d *lis3)
 {
-	int div = lis3lv02d_get_odr(lis3);
+	int odr_idx = lis3lv02d_get_odr_index(lis3);
+	int div = lis3->odrs[odr_idx];
 
-	if (WARN_ONCE(div == 0, "device returned spurious data"))
+	if (div == 0) {
+		if (odr_idx == 0) {
+			/* Power-down mode, not sampling no need to sleep */
+			return 0;
+		}
+
+		dev_err(&lis3->pdev->dev, "Error unknown odrs-index: %d\n", odr_idx);
 		return -ENXIO;
+	}
 
 	/* LIS3 power on delay is quite long */
 	msleep(lis3->pwron_delay / div);
@@ -447,23 +442,23 @@ int lis3lv02d_poweron(struct lis3lv02d *lis3)
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
 
-static void lis3lv02d_joystick_poll(struct input_polled_dev *pidev)
+static void lis3lv02d_joystick_poll(struct input_dev *input)
 {
-	struct lis3lv02d *lis3 = pidev->private;
+	struct lis3lv02d *lis3 = input_get_drvdata(input);
 	int x, y, z;
 
 	mutex_lock(&lis3->mutex);
 	lis3lv02d_get_xyz(lis3, &x, &y, &z);
-	input_report_abs(pidev->input, ABS_X, x);
-	input_report_abs(pidev->input, ABS_Y, y);
-	input_report_abs(pidev->input, ABS_Z, z);
-	input_sync(pidev->input);
+	input_report_abs(input, ABS_X, x);
+	input_report_abs(input, ABS_Y, y);
+	input_report_abs(input, ABS_Z, z);
+	input_sync(input);
 	mutex_unlock(&lis3->mutex);
 }
 
-static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
+static int lis3lv02d_joystick_open(struct input_dev *input)
 {
-	struct lis3lv02d *lis3 = pidev->private;
+	struct lis3lv02d *lis3 = input_get_drvdata(input);
 
 	if (lis3->pm_dev)
 		pm_runtime_get_sync(lis3->pm_dev);
@@ -474,12 +469,14 @@ static void lis3lv02d_joystick_open(struct input_polled_dev *pidev)
 	 * Update coordinates for the case where poll interval is 0 and
 	 * the chip in running purely under interrupt control
 	 */
-	lis3lv02d_joystick_poll(pidev);
+	lis3lv02d_joystick_poll(input);
+
+	return 0;
 }
 
-static void lis3lv02d_joystick_close(struct input_polled_dev *pidev)
+static void lis3lv02d_joystick_close(struct input_dev *input)
 {
-	struct lis3lv02d *lis3 = pidev->private;
+	struct lis3lv02d *lis3 = input_get_drvdata(input);
 
 	atomic_set(&lis3->wake_thread, 0);
 	if (lis3->pm_dev)
@@ -510,7 +507,7 @@ out:
 
 static void lis302dl_interrupt_handle_click(struct lis3lv02d *lis3)
 {
-	struct input_dev *dev = lis3->idev->input;
+	struct input_dev *dev = lis3->idev;
 	u8 click_src;
 
 	mutex_lock(&lis3->mutex);
@@ -690,18 +687,9 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3)
 	if (lis3->idev)
 		return -EINVAL;
 
-	lis3->idev = input_allocate_polled_device();
-	if (!lis3->idev)
+	input_dev = input_allocate_device();
+	if (!input_dev)
 		return -ENOMEM;
-
-	lis3->idev->poll = lis3lv02d_joystick_poll;
-	lis3->idev->open = lis3lv02d_joystick_open;
-	lis3->idev->close = lis3lv02d_joystick_close;
-	lis3->idev->poll_interval = MDPS_POLL_INTERVAL;
-	lis3->idev->poll_interval_min = MDPS_POLL_MIN;
-	lis3->idev->poll_interval_max = MDPS_POLL_MAX;
-	lis3->idev->private = lis3;
-	input_dev = lis3->idev->input;
 
 	input_dev->name       = "ST LIS3LV02DL Accelerometer";
 	input_dev->phys       = DRIVER_NAME "/input0";
@@ -709,7 +697,9 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3)
 	input_dev->id.vendor  = 0;
 	input_dev->dev.parent = &lis3->pdev->dev;
 
-	set_bit(EV_ABS, input_dev->evbit);
+	input_dev->open = lis3lv02d_joystick_open;
+	input_dev->close = lis3lv02d_joystick_close;
+
 	max_val = (lis3->mdps_max_val * lis3->scale) / LIS3_ACCURACY;
 	if (lis3->whoami == WAI_12B) {
 		fuzz = LIS3_DEFAULT_FUZZ_12B;
@@ -725,17 +715,32 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3)
 	input_set_abs_params(input_dev, ABS_Y, -max_val, max_val, fuzz, flat);
 	input_set_abs_params(input_dev, ABS_Z, -max_val, max_val, fuzz, flat);
 
+	input_set_drvdata(input_dev, lis3);
+	lis3->idev = input_dev;
+
+	err = input_setup_polling(input_dev, lis3lv02d_joystick_poll);
+	if (err)
+		goto err_free_input;
+
+	input_set_poll_interval(input_dev, MDPS_POLL_INTERVAL);
+	input_set_min_poll_interval(input_dev, MDPS_POLL_MIN);
+	input_set_max_poll_interval(input_dev, MDPS_POLL_MAX);
+
 	lis3->mapped_btns[0] = lis3lv02d_get_axis(abs(lis3->ac.x), btns);
 	lis3->mapped_btns[1] = lis3lv02d_get_axis(abs(lis3->ac.y), btns);
 	lis3->mapped_btns[2] = lis3lv02d_get_axis(abs(lis3->ac.z), btns);
 
-	err = input_register_polled_device(lis3->idev);
-	if (err) {
-		input_free_polled_device(lis3->idev);
-		lis3->idev = NULL;
-	}
+	err = input_register_device(lis3->idev);
+	if (err)
+		goto err_free_input;
 
+	return 0;
+
+err_free_input:
+	input_free_device(input_dev);
+	lis3->idev = NULL;
 	return err;
+
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_enable);
 
@@ -751,8 +756,7 @@ void lis3lv02d_joystick_disable(struct lis3lv02d *lis3)
 
 	if (lis3->irq)
 		misc_deregister(&lis3->miscdev);
-	input_unregister_polled_device(lis3->idev);
-	input_free_polled_device(lis3->idev);
+	input_unregister_device(lis3->idev);
 	lis3->idev = NULL;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_disable);
@@ -820,9 +824,12 @@ static ssize_t lis3lv02d_rate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct lis3lv02d *lis3 = dev_get_drvdata(dev);
+	int odr_idx;
 
 	lis3lv02d_sysfs_poweron(lis3);
-	return sprintf(buf, "%d\n", lis3lv02d_get_odr(lis3));
+
+	odr_idx = lis3lv02d_get_odr_index(lis3);
+	return sprintf(buf, "%d\n", lis3->odrs[odr_idx]);
 }
 
 static ssize_t lis3lv02d_rate_set(struct device *dev,
@@ -908,10 +915,9 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 			(p->click_thresh_y << 4));
 
 		if (lis3->idev) {
-			struct input_dev *input_dev = lis3->idev->input;
-			input_set_capability(input_dev, EV_KEY, BTN_X);
-			input_set_capability(input_dev, EV_KEY, BTN_Y);
-			input_set_capability(input_dev, EV_KEY, BTN_Z);
+			input_set_capability(lis3->idev, EV_KEY, BTN_X);
+			input_set_capability(lis3->idev, EV_KEY, BTN_Y);
+			input_set_capability(lis3->idev, EV_KEY, BTN_Z);
 		}
 	}
 
@@ -1167,16 +1173,14 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		break;
 	default:
 		pr_err("unknown sensor type 0x%X\n", lis3->whoami);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	lis3->reg_cache = kzalloc(max(sizeof(lis3_wai8_regs),
 				     sizeof(lis3_wai12_regs)), GFP_KERNEL);
 
-	if (lis3->reg_cache == NULL) {
-		printk(KERN_ERR DRIVER_NAME "out of memory\n");
+	if (lis3->reg_cache == NULL)
 		return -ENOMEM;
-	}
 
 	mutex_init(&lis3->mutex);
 	atomic_set(&lis3->wake_thread, 0);

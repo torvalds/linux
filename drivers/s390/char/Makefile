@@ -31,9 +31,10 @@ obj-$(CONFIG_TN3215) += con3215.o
 obj-$(CONFIG_SCLP_TTY) += sclp_tty.o
 obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
-obj-$(CONFIG_SCLP_ASYNC) += sclp_async.o
 
 obj-$(CONFIG_PCI) += sclp_pci.o
+
+obj-$(subst m,y,$(CONFIG_ZCRYPT)) += sclp_ap.o
 
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o
 obj-$(CONFIG_VMCP) += vmcp.o
@@ -50,6 +51,3 @@ obj-$(CONFIG_CRASH_DUMP) += sclp_sdias.o zcore.o
 
 hmcdrv-objs := hmcdrv_mod.o hmcdrv_dev.o hmcdrv_ftp.o hmcdrv_cache.o diag_ftp.o sclp_ftp.o
 obj-$(CONFIG_HMC_DRV) += hmcdrv.o
-
-chkbss := sclp_early_core.o
-include $(srctree)/arch/s390/scripts/Makefile.chkbss

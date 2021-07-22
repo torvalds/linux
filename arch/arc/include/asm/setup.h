@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __ASMARC_SETUP_H
 #define __ASMARC_SETUP_H
@@ -12,11 +9,7 @@
 #include <linux/types.h>
 #include <uapi/asm/setup.h>
 
-#ifdef CONFIG_ARC_PLAT_EZNPS
-#define COMMAND_LINE_SIZE 2048
-#else
 #define COMMAND_LINE_SIZE 256
-#endif
 
 /*
  * Data structure to map a ID to string

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* CAN bus driver for Holt HI3110 CAN Controller with SPI Interface
  *
  * Copyright(C) Timesys Corporation 2016
@@ -11,10 +12,6 @@
  * - Sascha Hauer, Marc Kleine-Budde, Pengutronix
  * - Simon Kallweit, intefo AG
  * Copyright 2007
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/can/core.h>
@@ -24,7 +21,6 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/dma-mapping.h>
 #include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -129,10 +125,6 @@
 
 #define DEVICE_NAME "hi3110"
 
-static int hi3110_enable_dma = 1; /* Enable SPI DMA. Default: 1 (On) */
-module_param(hi3110_enable_dma, int, 0444);
-MODULE_PARM_DESC(hi3110_enable_dma, "Enable SPI DMA. Default: 1 (On)");
-
 static const struct can_bittiming_const hi3110_bittiming_const = {
 	.name = DEVICE_NAME,
 	.tseg1_min = 2,
@@ -159,8 +151,6 @@ struct hi3110_priv {
 
 	u8 *spi_tx_buf;
 	u8 *spi_rx_buf;
-	dma_addr_t spi_tx_dma;
-	dma_addr_t spi_rx_dma;
 
 	struct sk_buff *tx_skb;
 	int tx_len;
@@ -187,10 +177,9 @@ static void hi3110_clean(struct net_device *net)
 
 	if (priv->tx_skb || priv->tx_len)
 		net->stats.tx_errors++;
-	if (priv->tx_skb)
-		dev_kfree_skb(priv->tx_skb);
+	dev_kfree_skb(priv->tx_skb);
 	if (priv->tx_len)
-		can_free_echo_skb(priv->net, 0);
+		can_free_echo_skb(priv->net, 0, NULL);
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
 }
@@ -220,13 +209,6 @@ static int hi3110_spi_trans(struct spi_device *spi, int len)
 	int ret;
 
 	spi_message_init(&m);
-
-	if (hi3110_enable_dma) {
-		t.tx_dma = priv->spi_tx_dma;
-		t.rx_dma = priv->spi_rx_dma;
-		m.is_dma_mapped = 1;
-	}
-
 	spi_message_add_tail(&t, &m);
 
 	ret = spi_sync(spi, &m);
@@ -295,13 +277,13 @@ static void hi3110_hw_tx(struct spi_device *spi, struct can_frame *frame)
 			((frame->can_id & CAN_EFF_MASK) << 1) |
 			((frame->can_id & CAN_RTR_FLAG) ? 1 : 0);
 
-		buf[HI3110_FIFO_EXT_DLC_OFF] = frame->can_dlc;
+		buf[HI3110_FIFO_EXT_DLC_OFF] = frame->len;
 
 		memcpy(buf + HI3110_FIFO_EXT_DATA_OFF,
-		       frame->data, frame->can_dlc);
+		       frame->data, frame->len);
 
 		hi3110_hw_tx_frame(spi, buf, HI3110_TX_EXT_BUF_LEN -
-				   (HI3110_CAN_MAX_DATA_LEN - frame->can_dlc));
+				   (HI3110_CAN_MAX_DATA_LEN - frame->len));
 	} else {
 		/* Standard frame */
 		buf[HI3110_FIFO_ID_OFF] =   (frame->can_id & CAN_SFF_MASK) >> 3;
@@ -309,13 +291,13 @@ static void hi3110_hw_tx(struct spi_device *spi, struct can_frame *frame)
 			((frame->can_id & CAN_SFF_MASK) << 5) |
 			((frame->can_id & CAN_RTR_FLAG) ? (1 << 4) : 0);
 
-		buf[HI3110_FIFO_STD_DLC_OFF] = frame->can_dlc;
+		buf[HI3110_FIFO_STD_DLC_OFF] = frame->len;
 
 		memcpy(buf + HI3110_FIFO_STD_DATA_OFF,
-		       frame->data, frame->can_dlc);
+		       frame->data, frame->len);
 
 		hi3110_hw_tx_frame(spi, buf, HI3110_TX_STD_BUF_LEN -
-				   (HI3110_CAN_MAX_DATA_LEN - frame->can_dlc));
+				   (HI3110_CAN_MAX_DATA_LEN - frame->len));
 	}
 }
 
@@ -359,16 +341,16 @@ static void hi3110_hw_rx(struct spi_device *spi)
 	}
 
 	/* Data length */
-	frame->can_dlc = get_can_dlc(buf[HI3110_FIFO_WOTIME_DLC_OFF] & 0x0F);
+	frame->len = can_cc_dlc2len(buf[HI3110_FIFO_WOTIME_DLC_OFF] & 0x0F);
 
 	if (buf[HI3110_FIFO_WOTIME_ID_OFF + 3] & HI3110_FIFO_WOTIME_ID_RTR)
 		frame->can_id |= CAN_RTR_FLAG;
 	else
 		memcpy(frame->data, buf + HI3110_FIFO_WOTIME_DAT_OFF,
-		       frame->can_dlc);
+		       frame->len);
 
 	priv->net->stats.rx_packets++;
-	priv->net->stats.rx_bytes += frame->can_dlc;
+	priv->net->stats.rx_bytes += frame->len;
 
 	can_led_event(priv->net, CAN_LED_EVENT_RX);
 
@@ -603,8 +585,8 @@ static void hi3110_tx_work_handler(struct work_struct *ws)
 		} else {
 			frame = (struct can_frame *)priv->tx_skb->data;
 			hi3110_hw_tx(spi, frame);
-			priv->tx_len = 1 + frame->can_dlc;
-			can_put_echo_skb(priv->tx_skb, net, 0);
+			priv->tx_len = 1 + frame->len;
+			can_put_echo_skb(priv->tx_skb, net, 0, 0);
 			priv->tx_skb = NULL;
 		}
 	}
@@ -743,7 +725,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 			net->stats.tx_bytes += priv->tx_len - 1;
 			can_led_event(net, CAN_LED_EVENT_TX);
 			if (priv->tx_len) {
-				can_get_echo_skb(net, 0);
+				can_get_echo_skb(net, 0, NULL);
 				priv->tx_len = 0;
 			}
 			netif_wake_queue(net);
@@ -760,7 +742,7 @@ static int hi3110_open(struct net_device *net)
 {
 	struct hi3110_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_RISING;
+	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_HIGH;
 	int ret;
 
 	ret = open_candev(net);
@@ -889,7 +871,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 		CAN_CTRLMODE_BERR_REPORTING;
 
 	if (of_id)
-		priv->model = (enum hi3110_model)of_id->data;
+		priv->model = (enum hi3110_model)(uintptr_t)of_id->data;
 	else
 		priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
@@ -918,43 +900,18 @@ static int hi3110_can_probe(struct spi_device *spi)
 	priv->spi = spi;
 	mutex_init(&priv->hi3110_lock);
 
-	/* If requested, allocate DMA buffers */
-	if (hi3110_enable_dma) {
-		spi->dev.coherent_dma_mask = ~0;
-
-		/* Minimum coherent DMA allocation is PAGE_SIZE, so allocate
-		 * that much and share it between Tx and Rx DMA buffers.
-		 */
-		priv->spi_tx_buf = dmam_alloc_coherent(&spi->dev,
-						       PAGE_SIZE,
-						       &priv->spi_tx_dma,
-						       GFP_DMA);
-
-		if (priv->spi_tx_buf) {
-			priv->spi_rx_buf = (priv->spi_tx_buf + (PAGE_SIZE / 2));
-			priv->spi_rx_dma = (dma_addr_t)(priv->spi_tx_dma +
-							(PAGE_SIZE / 2));
-		} else {
-			/* Fall back to non-DMA */
-			hi3110_enable_dma = 0;
-		}
+	priv->spi_tx_buf = devm_kzalloc(&spi->dev, HI3110_RX_BUF_LEN,
+					GFP_KERNEL);
+	if (!priv->spi_tx_buf) {
+		ret = -ENOMEM;
+		goto error_probe;
 	}
+	priv->spi_rx_buf = devm_kzalloc(&spi->dev, HI3110_RX_BUF_LEN,
+					GFP_KERNEL);
 
-	/* Allocate non-DMA buffers */
-	if (!hi3110_enable_dma) {
-		priv->spi_tx_buf = devm_kzalloc(&spi->dev, HI3110_RX_BUF_LEN,
-						GFP_KERNEL);
-		if (!priv->spi_tx_buf) {
-			ret = -ENOMEM;
-			goto error_probe;
-		}
-		priv->spi_rx_buf = devm_kzalloc(&spi->dev, HI3110_RX_BUF_LEN,
-						GFP_KERNEL);
-
-		if (!priv->spi_rx_buf) {
-			ret = -ENOMEM;
-			goto error_probe;
-		}
+	if (!priv->spi_rx_buf) {
+		ret = -ENOMEM;
+		goto error_probe;
 	}
 
 	SET_NETDEV_DEV(net, &spi->dev);

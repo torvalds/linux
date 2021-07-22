@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/sched.h>
@@ -91,7 +90,11 @@ static struct pxp_fmt formats[] = {
 		.depth	= 16,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
-		.fourcc = V4L2_PIX_FMT_YUV32,
+		.fourcc = V4L2_PIX_FMT_VUYA32,
+		.depth	= 32,
+		.types	= MEM2MEM_CAPTURE,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VUYX32,
 		.depth	= 32,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
@@ -237,7 +240,7 @@ static u32 pxp_v4l2_pix_fmt_to_ps_format(u32 v4l2_pix_fmt)
 	case V4L2_PIX_FMT_RGB555:  return BV_PXP_PS_CTRL_FORMAT__RGB555;
 	case V4L2_PIX_FMT_RGB444:  return BV_PXP_PS_CTRL_FORMAT__RGB444;
 	case V4L2_PIX_FMT_RGB565:  return BV_PXP_PS_CTRL_FORMAT__RGB565;
-	case V4L2_PIX_FMT_YUV32:   return BV_PXP_PS_CTRL_FORMAT__YUV1P444;
+	case V4L2_PIX_FMT_VUYX32:  return BV_PXP_PS_CTRL_FORMAT__YUV1P444;
 	case V4L2_PIX_FMT_UYVY:    return BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
 	case V4L2_PIX_FMT_YUYV:    return BM_PXP_PS_CTRL_WB_SWAP |
 					  BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
@@ -266,7 +269,8 @@ static u32 pxp_v4l2_pix_fmt_to_out_format(u32 v4l2_pix_fmt)
 	case V4L2_PIX_FMT_RGB555:   return BV_PXP_OUT_CTRL_FORMAT__RGB555;
 	case V4L2_PIX_FMT_RGB444:   return BV_PXP_OUT_CTRL_FORMAT__RGB444;
 	case V4L2_PIX_FMT_RGB565:   return BV_PXP_OUT_CTRL_FORMAT__RGB565;
-	case V4L2_PIX_FMT_YUV32:    return BV_PXP_OUT_CTRL_FORMAT__YUV1P444;
+	case V4L2_PIX_FMT_VUYA32:
+	case V4L2_PIX_FMT_VUYX32:   return BV_PXP_OUT_CTRL_FORMAT__YUV1P444;
 	case V4L2_PIX_FMT_UYVY:     return BV_PXP_OUT_CTRL_FORMAT__UYVY1P422;
 	case V4L2_PIX_FMT_VYUY:     return BV_PXP_OUT_CTRL_FORMAT__VYUY1P422;
 	case V4L2_PIX_FMT_GREY:     return BV_PXP_OUT_CTRL_FORMAT__Y8;
@@ -282,7 +286,8 @@ static u32 pxp_v4l2_pix_fmt_to_out_format(u32 v4l2_pix_fmt)
 static bool pxp_v4l2_pix_fmt_is_yuv(u32 v4l2_pix_fmt)
 {
 	switch (v4l2_pix_fmt) {
-	case V4L2_PIX_FMT_YUV32:
+	case V4L2_PIX_FMT_VUYA32:
+	case V4L2_PIX_FMT_VUYX32:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_VYUY:
@@ -681,7 +686,7 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 				csc2_coef = csc2_coef_rec709_full;
 			else
 				csc2_coef = csc2_coef_rec709_lim;
-		} else if (ycbcr_enc == V4L2_YCBCR_ENC_709) {
+		} else if (ycbcr_enc == V4L2_YCBCR_ENC_BT2020) {
 			if (quantization == V4L2_QUANTIZATION_FULL_RANGE)
 				csc2_coef = csc2_coef_bt2020_full;
 			else
@@ -1020,8 +1025,8 @@ static irqreturn_t pxp_irq_handler(int irq, void *dev_id)
 static int pxp_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
+	strscpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
+	strscpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", MEM2MEM_NAME);
 	return 0;
@@ -1607,7 +1612,7 @@ static const struct v4l2_m2m_ops m2m_ops = {
 	.job_abort	= pxp_job_abort,
 };
 
-static void pxp_soft_reset(struct pxp_dev *dev)
+static int pxp_soft_reset(struct pxp_dev *dev)
 {
 	int ret;
 	u32 val;
@@ -1620,10 +1625,12 @@ static void pxp_soft_reset(struct pxp_dev *dev)
 	ret = readl_poll_timeout(dev->mmio + HW_PXP_CTRL, val,
 				 val & BM_PXP_CTRL_CLKGATE, 0, 100);
 	if (ret < 0)
-		pr_err("PXP reset timeout\n");
+		return ret;
 
 	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_CLR);
 	writel(BM_PXP_CTRL_CLKGATE, dev->mmio + HW_PXP_CTRL_CLR);
+
+	return 0;
 }
 
 static int pxp_probe(struct platform_device *pdev)
@@ -1647,17 +1654,12 @@ static int pxp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->mmio)) {
-		ret = PTR_ERR(dev->mmio);
-		dev_err(&pdev->dev, "Failed to map register space: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(dev->mmio))
+		return PTR_ERR(dev->mmio);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get irq resource: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, pxp_irq_handler,
 			IRQF_ONESHOT, dev_name(&pdev->dev), dev);
@@ -1666,8 +1668,15 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(dev->clk);
-	pxp_soft_reset(dev);
+	ret = clk_prepare_enable(dev->clk);
+	if (ret < 0)
+		return ret;
+
+	ret = pxp_soft_reset(dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "PXP reset timeout: %d\n", ret);
+		goto err_clk;
+	}
 
 	spin_lock_init(&dev->irqlock);
 
@@ -1697,7 +1706,7 @@ static int pxp_probe(struct platform_device *pdev)
 		goto err_v4l2;
 	}
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
 		goto err_m2m;
@@ -1743,7 +1752,7 @@ static struct platform_driver pxp_driver = {
 	.remove		= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.of_match_table = of_match_ptr(pxp_dt_ids),
+		.of_match_table = pxp_dt_ids,
 	},
 };
 

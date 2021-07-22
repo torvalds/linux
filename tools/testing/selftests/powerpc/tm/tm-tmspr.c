@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Original: Michael Neuling 3/4/2014
  * Modified: Rashmica Gupta 8/12/2015
@@ -21,7 +21,6 @@
  * 	(a) begin transaction
  *    	(b) abort transaction
  *	(c) check TEXASR to see if FS has been corrupted
- *
  */
 
 #define _GNU_SOURCE
@@ -34,19 +33,13 @@
 #include "utils.h"
 #include "tm.h"
 
-int	num_loops	= 10000;
+int	num_loops	= 1000000;
 int	passed = 1;
 
 void tfiar_tfhar(void *in)
 {
-	int i, cpu;
 	unsigned long tfhar, tfhar_rd, tfiar, tfiar_rd;
-	cpu_set_t cpuset;
-
-	CPU_ZERO(&cpuset);
-	cpu = (unsigned long)in >> 1;
-	CPU_SET(cpu, &cpuset);
-	sched_setaffinity(0, sizeof(cpuset), &cpuset);
+	int i;
 
 	/* TFIAR: Last bit has to be high so userspace can read register */
 	tfiar = ((unsigned long)in) + 1;

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  tifm.h - TI FlashMedia driver
  *
  *  Copyright (C) 2006 Alex Dubov <oakad@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _TIFM_H
@@ -128,7 +124,7 @@ struct tifm_adapter {
 	int                 (*has_ms_pif)(struct tifm_adapter *fm,
 					  struct tifm_dev *sock);
 
-	struct tifm_dev     *sockets[0];
+	struct tifm_dev     *sockets[];
 };
 
 struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,

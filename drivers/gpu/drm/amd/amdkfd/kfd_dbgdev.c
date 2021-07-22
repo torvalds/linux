@@ -45,7 +45,7 @@ static void dbgdev_address_watch_disable_nodiq(struct kfd_dev *dev)
 }
 
 static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
-				unsigned int pasid, uint64_t vmid0_address,
+				u32 pasid, uint64_t vmid0_address,
 				uint32_t *packet_buff, size_t size_in_bytes)
 {
 	struct pm4__release_mem *rm_packet;
@@ -72,11 +72,11 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	 * The receive packet buff will be sitting on the Indirect Buffer
 	 * and in the PQ we put the IB packet + sync packet(s).
 	 */
-	status = kq->ops.acquire_packet_buffer(kq,
+	status = kq_acquire_packet_buffer(kq,
 				pq_packets_size_in_bytes / sizeof(uint32_t),
 				&ib_packet_buff);
 	if (status) {
-		pr_err("acquire_packet_buffer failed\n");
+		pr_err("kq_acquire_packet_buffer failed\n");
 		return status;
 	}
 
@@ -115,7 +115,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	if (status) {
 		pr_err("Failed to allocate GART memory\n");
-		kq->ops.rollback_packet(kq);
+		kq_rollback_packet(kq);
 		return status;
 	}
 
@@ -151,11 +151,11 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	rm_packet->data_lo = QUEUESTATE__ACTIVE;
 
-	kq->ops.submit_packet(kq);
+	kq_submit_packet(kq);
 
 	/* Wait till CP writes sync code: */
 	status = amdkfd_fence_wait_timeout(
-			(unsigned int *) rm_state,
+			rm_state,
 			QUEUESTATE__ACTIVE, 1500);
 
 	kfd_gtt_sa_free(dbgdev->dev, mem_obj);
@@ -185,7 +185,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	properties.type = KFD_QUEUE_TYPE_DIQ;
 
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
-				&properties, &qid);
+				&properties, &qid, NULL);
 
 	if (status) {
 		pr_err("Failed to create DIQ\n");
@@ -761,6 +761,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 {
 	int status = 0;
 	unsigned int vmid;
+	uint16_t queried_pasid;
 	union SQ_CMD_BITS reg_sq_cmd;
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct kfd_process_device *pdd;
@@ -782,19 +783,18 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	 */
 
 	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
-		if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
-				(dev->kgd, vmid)) {
-			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid
-					(dev->kgd, vmid) == p->pasid) {
-				pr_debug("Killing wave fronts of vmid %d and pasid %d\n",
-						vmid, p->pasid);
-				break;
-			}
+		status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
+				(dev->kgd, vmid, &queried_pasid);
+
+		if (status && queried_pasid == p->pasid) {
+			pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
+					vmid, p->pasid);
+			break;
 		}
 	}
 
 	if (vmid > last_vmid_to_scan) {
-		pr_err("Didn't find vmid for pasid %d\n", p->pasid);
+		pr_err("Didn't find vmid for pasid 0x%x\n", p->pasid);
 		return -EFAULT;
 	}
 

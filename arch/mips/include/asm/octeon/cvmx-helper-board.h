@@ -93,7 +93,7 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * Returns The ports link status. If the link isn't fully resolved, this must
  *	   return zero.
  */
-extern cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port);
+extern union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port);
 
 /**
  * This function is called by cvmx_helper_interface_probe() after it
@@ -118,18 +118,6 @@ extern cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port);
  */
 extern int __cvmx_helper_board_interface_probe(int interface,
 					       int supported_ports);
-
-/**
- * Enable packet input/output from the hardware. This function is
- * called after by cvmx_helper_packet_hardware_enable() to
- * perform board specific initialization. For most boards
- * nothing is needed.
- *
- * @interface: Interface to enable
- *
- * Returns Zero on success, negative on failure
- */
-extern int __cvmx_helper_board_hardware_enable(int interface);
 
 enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(void);
 

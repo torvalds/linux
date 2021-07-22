@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /******************************************************************************
  *  usbatm.h - Generic USB xDSL driver core
  *
@@ -164,7 +164,7 @@ struct usbatm_data {
 	unsigned char *cell_buf;	/* holds partial rx cell */
 	unsigned int buf_usage;
 
-	struct urb *urbs[0];
+	struct urb *urbs[];
 };
 
 static inline void *to_usbatm_driver_data(struct usb_interface *intf)

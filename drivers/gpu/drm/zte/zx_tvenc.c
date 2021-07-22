@@ -1,21 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017 Linaro Ltd.
  * Copyright 2017 ZTE Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "zx_drm_drv.h"
 #include "zx_tvenc_regs.h"
@@ -220,10 +219,6 @@ static const struct drm_encoder_helper_funcs zx_tvenc_encoder_helper_funcs = {
 	.mode_set = zx_tvenc_encoder_mode_set,
 };
 
-static const struct drm_encoder_funcs zx_tvenc_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static int zx_tvenc_connector_get_modes(struct drm_connector *connector)
 {
 	struct zx_tvenc *tvenc = to_zx_tvenc(connector);
@@ -287,8 +282,7 @@ static int zx_tvenc_register(struct drm_device *drm, struct zx_tvenc *tvenc)
 	 */
 	encoder->possible_crtcs = BIT(1);
 
-	drm_encoder_init(drm, encoder, &zx_tvenc_encoder_funcs,
-			 DRM_MODE_ENCODER_TVDAC, NULL);
+	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_TVDAC);
 	drm_encoder_helper_add(encoder, &zx_tvenc_encoder_helper_funcs);
 
 	connector->interlace_allowed = true;

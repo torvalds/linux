@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BMG160 Gyro Sensor driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -27,6 +19,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"
@@ -100,10 +93,16 @@
 
 struct bmg160_data {
 	struct regmap *regmap;
+	struct regulator_bulk_data regulators[2];
 	struct iio_trigger *dready_trig;
 	struct iio_trigger *motion_trig;
+	struct iio_mount_matrix orientation;
 	struct mutex mutex;
-	s16 buffer[8];
+	/* Ensure naturally aligned timestamp */
+	struct {
+		s16 chans[3];
+		s64 timestamp __aligned(8);
+	} scan;
 	u32 dps_range;
 	int ev_enable_state;
 	int slope_thres;
@@ -582,11 +581,10 @@ static int bmg160_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		return bmg160_get_filter(data, val);
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
 		switch (chan->type) {
 		case IIO_TEMP:
-			*val2 = 500000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = 500;
+			return IIO_VAL_INT;
 		case IIO_ANGL_VEL:
 		{
 			int i;
@@ -594,6 +592,7 @@ static int bmg160_read_raw(struct iio_dev *indio_dev,
 			for (i = 0; i < ARRAY_SIZE(bmg160_scale_table); ++i) {
 				if (bmg160_scale_table[i].dps_range ==
 							data->dps_range) {
+					*val = 0;
 					*val2 = bmg160_scale_table[i].scale;
 					return IIO_VAL_INT_PLUS_MICRO;
 				}
@@ -794,6 +793,20 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static const struct iio_mount_matrix *
+bmg160_get_mount_matrix(const struct iio_dev *indio_dev,
+			 const struct iio_chan_spec *chan)
+{
+	struct bmg160_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info bmg160_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, bmg160_get_mount_matrix),
+	{ }
+};
+
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100 200 400 1000 2000");
 
 static IIO_CONST_ATTR(in_anglvel_scale_available,
@@ -831,6 +844,7 @@ static const struct iio_event_spec bmg160_event = {
 		.storagebits = 16,					\
 		.endianness = IIO_LE,					\
 	},								\
+	.ext_info = bmg160_ext_info,					\
 	.event_spec = &bmg160_event,					\
 	.num_event_specs = 1						\
 }
@@ -872,12 +886,12 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->mutex);
 	ret = regmap_bulk_read(data->regmap, BMG160_REG_XOUT_L,
-			       data->buffer, AXIS_MAX * 2);
+			       data->scan.chans, AXIS_MAX * 2);
 	mutex_unlock(&data->mutex);
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -885,7 +899,7 @@ err:
 	return IRQ_HANDLED;
 }
 
-static int bmg160_trig_try_reen(struct iio_trigger *trig)
+static void bmg160_trig_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct bmg160_data *data = iio_priv(indio_dev);
@@ -894,18 +908,14 @@ static int bmg160_trig_try_reen(struct iio_trigger *trig)
 
 	/* new data interrupts don't need ack */
 	if (data->dready_trigger_on)
-		return 0;
+		return;
 
 	/* Set latched mode interrupt and clear any latched interrupt */
 	ret = regmap_write(data->regmap, BMG160_REG_INT_RST_LATCH,
 			   BMG160_INT_MODE_LATCH_INT |
 			   BMG160_INT_MODE_LATCH_RESET);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev, "Error writing reg_rst_latch\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static int bmg160_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -953,7 +963,7 @@ static int bmg160_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops bmg160_trigger_ops = {
 	.set_trigger_state = bmg160_data_rdy_trigger_set_state,
-	.try_reenable = bmg160_trig_try_reen,
+	.reenable = bmg160_trig_reen,
 };
 
 static irqreturn_t bmg160_event_handler(int irq, void *private)
@@ -1043,8 +1053,6 @@ static int bmg160_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops bmg160_buffer_setup_ops = {
 	.preenable = bmg160_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = bmg160_buffer_postdisable,
 };
 
@@ -1057,6 +1065,13 @@ static const char *bmg160_match_acpi_device(struct device *dev)
 		return NULL;
 
 	return dev_name(dev);
+}
+
+static void bmg160_disable_regulators(void *d)
+{
+	struct bmg160_data *data = d;
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
 }
 
 int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
@@ -1075,6 +1090,26 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	data->irq = irq;
 	data->regmap = regmap;
 
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, bmg160_disable_regulators, data);
+	if (ret)
+		return ret;
+
+	ret = iio_read_mount_matrix(dev, &data->orientation);
+	if (ret)
+		return ret;
+
 	ret = bmg160_chip_init(data);
 	if (ret < 0)
 		return ret;
@@ -1084,7 +1119,6 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ACPI_HANDLE(dev))
 		name = bmg160_match_acpi_device(dev);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = bmg160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmg160_channels);
 	indio_dev->name = name;
@@ -1106,25 +1140,23 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		data->dready_trig = devm_iio_trigger_alloc(dev,
 							   "%s-dev%d",
 							   indio_dev->name,
-							   indio_dev->id);
+							   iio_device_id(indio_dev));
 		if (!data->dready_trig)
 			return -ENOMEM;
 
 		data->motion_trig = devm_iio_trigger_alloc(dev,
 							  "%s-any-motion-dev%d",
 							  indio_dev->name,
-							  indio_dev->id);
+							  iio_device_id(indio_dev));
 		if (!data->motion_trig)
 			return -ENOMEM;
 
-		data->dready_trig->dev.parent = dev;
 		data->dready_trig->ops = &bmg160_trigger_ops;
 		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 		ret = iio_trigger_register(data->dready_trig);
 		if (ret)
 			return ret;
 
-		data->motion_trig->dev.parent = dev;
 		data->motion_trig->ops = &bmg160_trigger_ops;
 		iio_trigger_set_drvdata(data->motion_trig, indio_dev);
 		ret = iio_trigger_register(data->motion_trig);

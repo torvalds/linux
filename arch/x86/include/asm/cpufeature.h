@@ -2,12 +2,13 @@
 #ifndef _ASM_X86_CPUFEATURE_H
 #define _ASM_X86_CPUFEATURE_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <asm/processor.h>
+
+#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+
 #include <asm/asm.h>
 #include <linux/bitops.h>
+#include <asm/alternative.h>
 
 enum cpuid_leafs
 {
@@ -22,14 +23,15 @@ enum cpuid_leafs
 	CPUID_LNX_3,
 	CPUID_7_0_EBX,
 	CPUID_D_1_EAX,
-	CPUID_F_0_EDX,
-	CPUID_F_1_EDX,
+	CPUID_LNX_4,
+	CPUID_7_1_EAX,
 	CPUID_8000_0008_EBX,
 	CPUID_6_EAX,
 	CPUID_8000_000A_EDX,
 	CPUID_7_ECX,
 	CPUID_8000_0007_EBX,
 	CPUID_7_EDX,
+	CPUID_8000_001F_EAX,
 };
 
 #ifdef CONFIG_X86_FEATURE_NAMES
@@ -61,6 +63,13 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define CHECK_BIT_IN_MASK_WORD(maskname, word, bit)	\
 	(((bit)>>5)==(word) && (1UL<<((bit)&31) & maskname##word ))
 
+/*
+ * {REQUIRED,DISABLED}_MASK_CHECK below may seem duplicated with the
+ * following BUILD_BUG_ON_ZERO() check but when NCAPINTS gets changed, all
+ * header macros which use NCAPINTS need to be changed. The duplicated macro
+ * use causes the compiler to issue errors for all headers so that all usage
+ * sites can be corrected.
+ */
 #define REQUIRED_MASK_BIT_SET(feature_bit)		\
 	 ( CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK,  0, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK,  1, feature_bit) ||	\
@@ -81,8 +90,9 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 16, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 17, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 18, feature_bit) ||	\
+	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 19, feature_bit) ||	\
 	   REQUIRED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
+	   BUILD_BUG_ON_ZERO(NCAPINTS != 20))
 
 #define DISABLED_MASK_BIT_SET(feature_bit)				\
 	 ( CHECK_BIT_IN_MASK_WORD(DISABLED_MASK,  0, feature_bit) ||	\
@@ -104,16 +114,18 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 16, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 17, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 18, feature_bit) ||	\
+	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 19, feature_bit) ||	\
 	   DISABLED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
+	   BUILD_BUG_ON_ZERO(NCAPINTS != 20))
 
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
 	 test_cpu_cap(c, bit))
 
 #define this_cpu_has(bit)						\
-	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : 	\
-	 x86_this_cpu_test_bit(bit, (unsigned long *)&cpu_info.x86_capability))
+	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
+	 x86_this_cpu_test_bit(bit,					\
+		(unsigned long __percpu *)&cpu_info.x86_capability))
 
 /*
  * This macro is for detection of features which need kernel
@@ -140,7 +152,7 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
-#if defined(__clang__) && !defined(CC_HAVE_ASM_GOTO)
+#if defined(__clang__) && !defined(CONFIG_CC_HAS_ASM_GOTO)
 
 /*
  * Workaround for the sake of BPF compilation which utilizes kernel
@@ -155,18 +167,24 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 #else
 
 /*
- * Static testing of CPU features.  Used the same as boot_cpu_has().
- * These will statically patch the target code for additional
- * performance.
+ * Static testing of CPU features. Used the same as boot_cpu_has(). It
+ * statically patches the target code for additional performance. Use
+ * static_cpu_has() only in fast paths, where every cycle counts. Which
+ * means that the boot_cpu_has() variant is already fast enough for the
+ * majority of cases and you should stick to using it as it is generally
+ * only two instructions: a RIP-relative MOV and a TEST.
  */
-static __always_inline __pure bool _static_cpu_has(u16 bit)
+static __always_inline bool _static_cpu_has(u16 bit)
 {
-	asm_volatile_goto("STATIC_CPU_HAS bitnum=%[bitnum] "
-			  "cap_byte=\"%[cap_byte]\" "
-			  "feature=%P[feature] t_yes=%l[t_yes] "
-			  "t_no=%l[t_no] always=%P[always]"
+	asm_volatile_goto(
+		ALTERNATIVE_TERNARY("jmp 6f", %P[feature], "", "jmp %l[t_no]")
+		".section .altinstr_aux,\"ax\"\n"
+		"6:\n"
+		" testb %[bitnum],%[cap_byte]\n"
+		" jnz %l[t_yes]\n"
+		" jmp %l[t_no]\n"
+		".previous\n"
 		 : : [feature]  "i" (bit),
-		     [always]   "i" (X86_FEATURE_ALWAYS),
 		     [bitnum]   "i" (1 << (bit & 7)),
 		     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
 		 : : t_yes, t_no);
@@ -199,44 +217,5 @@ t_no:
 #define CPU_FEATURE_TYPEVAL		boot_cpu_data.x86_vendor, boot_cpu_data.x86, \
 					boot_cpu_data.x86_model
 
-#else /* __ASSEMBLY__ */
-
-.macro STATIC_CPU_HAS bitnum:req cap_byte:req feature:req t_yes:req t_no:req always:req
-1:
-	jmp 6f
-2:
-	.skip -(((5f-4f) - (2b-1b)) > 0) * ((5f-4f) - (2b-1b)),0x90
-3:
-	.section .altinstructions,"a"
-	.long 1b - .		/* src offset */
-	.long 4f - .		/* repl offset */
-	.word \always		/* always replace */
-	.byte 3b - 1b		/* src len */
-	.byte 5f - 4f		/* repl len */
-	.byte 3b - 2b		/* pad len */
-	.previous
-	.section .altinstr_replacement,"ax"
-4:
-	jmp \t_no
-5:
-	.previous
-	.section .altinstructions,"a"
-	.long 1b - .		/* src offset */
-	.long 0			/* no replacement */
-	.word \feature		/* feature bit */
-	.byte 3b - 1b		/* src len */
-	.byte 0			/* repl len */
-	.byte 0			/* pad len */
-	.previous
-	.section .altinstr_aux,"ax"
-6:
-	testb \bitnum,\cap_byte
-	jnz \t_yes
-	jmp \t_no
-	.previous
-.endm
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
+#endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 #endif /* _ASM_X86_CPUFEATURE_H */

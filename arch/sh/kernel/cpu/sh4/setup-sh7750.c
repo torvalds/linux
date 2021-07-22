@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7091/SH7750/SH7750S/SH7750R/SH7751/SH7751R Setup
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2006  Jamie Lenehan
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -16,6 +13,7 @@
 #include <linux/sh_intc.h>
 #include <linux/serial_sci.h>
 #include <generated/machtypes.h>
+#include <asm/platform_early.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -164,15 +162,15 @@ void __init plat_early_device_setup(void)
 	if (mach_is_rts7751r2d()) {
 		scif_platform_data.scscr |= SCSCR_CKE1;
 		dev[0] = &scif_device;
-		early_platform_add_devices(dev, 1);
+		sh_early_platform_add_devices(dev, 1);
 	} else {
 		dev[0] = &sci_device;
-		early_platform_add_devices(dev, 1);
+		sh_early_platform_add_devices(dev, 1);
 		dev[0] = &scif_device;
-		early_platform_add_devices(dev, 1);
+		sh_early_platform_add_devices(dev, 1);
 	}
 
-	early_platform_add_devices(sh7750_early_devices,
+	sh_early_platform_add_devices(sh7750_early_devices,
 				   ARRAY_SIZE(sh7750_early_devices));
 }
 

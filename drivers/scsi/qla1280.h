@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /******************************************************************************
 *                  QLOGIC LINUX SOFTWARE
 *
 * QLogic ISP1280 (Ultra2) /12160 (Ultra3) SCSI driver
 * Copyright (C) 2000 Qlogic Corporation
 * (www.qlogic.com)
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
 *
 ******************************************************************************/
 
@@ -286,6 +277,8 @@ struct device_reg {
 #define MBC_MAILBOX_REGISTER_TEST	6	/* Wrap incoming mailboxes */
 #define MBC_VERIFY_CHECKSUM		7	/* Verify checksum */
 #define MBC_ABOUT_FIRMWARE		8	/* Get firmware revision */
+#define MBC_LOAD_RAM_A64_ROM		9	/* Load RAM 64bit ROM version */
+#define MBC_DUMP_RAM_A64_ROM		0x0a	/* Dump RAM 64bit ROM version */
 #define MBC_INIT_REQUEST_QUEUE		0x10	/* Initialize request queue */
 #define MBC_INIT_RESPONSE_QUEUE		0x11	/* Initialize response queue */
 #define MBC_EXECUTE_IOCB		0x12	/* Execute IOCB command */
@@ -1064,9 +1057,6 @@ struct scsi_qla_host {
 		uint32_t reset_active:1;		/* 3 */
 		uint32_t abort_isp_active:1;		/* 4 */
 		uint32_t disable_risc_code_load:1;	/* 5 */
-#ifdef __ia64__
-		uint32_t use_pci_vchannel:1;
-#endif
 	} flags;
 
 	struct nvram nvram;

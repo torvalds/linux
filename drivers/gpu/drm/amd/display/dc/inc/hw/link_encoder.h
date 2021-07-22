@@ -59,13 +59,16 @@ struct encoder_feature_support {
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
 			uint32_t HDMI_6GB_EN:1;
+			uint32_t DP_IS_USB_C:1;
 		} bits;
 		uint32_t raw;
 	} flags;
 
 	enum dc_color_depth max_hdmi_deep_color;
 	unsigned int max_hdmi_pixel_clock;
-	bool ycbcr420_supported;
+	bool hdmi_ycbcr420_supported;
+	bool dp_ycbcr420_supported;
+	bool fec_supported;
 };
 
 union dpcd_psr_configuration {
@@ -87,7 +90,8 @@ union psr_error_status {
 	struct {
 		unsigned char LINK_CRC_ERROR        :1;
 		unsigned char RFB_STORAGE_ERROR     :1;
-		unsigned char RESERVED              :6;
+		unsigned char VSC_SDP_ERROR         :1;
+		unsigned char RESERVED              :5;
 	} bits;
 	unsigned char raw;
 };
@@ -111,9 +115,27 @@ struct link_encoder {
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
 	enum hpd_source_id hpd_source;
+	bool usbc_combo_phy;
+};
+
+struct link_enc_state {
+
+		uint32_t dphy_fec_en;
+		uint32_t dphy_fec_ready_shadow;
+		uint32_t dphy_fec_active_status;
+		uint32_t dp_link_training_complete;
+
+};
+
+enum encoder_type_select {
+	ENCODER_TYPE_DIG = 0,
+	ENCODER_TYPE_HDMI_FRL = 1,
+	ENCODER_TYPE_DP_128B132B = 2
 };
 
 struct link_encoder_funcs {
+	void (*read_state)(
+			struct link_encoder *enc, struct link_enc_state *s);
 	bool (*validate_output_with_stream)(
 		struct link_encoder *enc, const struct dc_stream_state *stream);
 	void (*hw_init)(struct link_encoder *enc);
@@ -152,7 +174,40 @@ struct link_encoder_funcs {
 	void (*enable_hpd)(struct link_encoder *enc);
 	void (*disable_hpd)(struct link_encoder *enc);
 	bool (*is_dig_enabled)(struct link_encoder *enc);
+	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
+
+	void (*fec_set_enable)(struct link_encoder *enc,
+		bool enable);
+
+	void (*fec_set_ready)(struct link_encoder *enc,
+		bool ready);
+
+	bool (*fec_is_active)(struct link_encoder *enc);
+	bool (*is_in_alt_mode) (struct link_encoder *enc);
+
+	void (*get_max_link_cap)(struct link_encoder *enc,
+		struct dc_link_settings *link_settings);
+
+	enum signal_type (*get_dig_mode)(
+		struct link_encoder *enc);
+	void (*set_dio_phy_mux)(
+		struct link_encoder *enc,
+		enum encoder_type_select sel,
+		uint32_t hpo_inst);
+};
+
+/*
+ * Used to track assignments of links (display endpoints) to link encoders.
+ *
+ * Entry in link_enc_assignments table in struct resource_context.
+ * Entries only marked valid once encoder assigned to a link and invalidated once unassigned.
+ * Uses engine ID as identifier since PHY ID not relevant for USB4 DPIA endpoint.
+ */
+struct link_enc_assignment {
+	bool valid;
+	struct display_endpoint_id ep_id;
+	enum engine_id eng_id;
 };
 
 #endif /* LINK_ENCODER_H_ */

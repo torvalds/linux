@@ -138,7 +138,7 @@
 		};
 	};
 
-	mmc1_pwrseq: mmc1_pwrseq {
+	mmc1_pwrseq: mmc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpx0 0 GPIO_ACTIVE_LOW>; /* WIFI_EN */
 		clocks = <&max77802 MAX77802_CLK_32K_CP>;
@@ -154,6 +154,15 @@
 &clock_audss {
 	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>;
 	assigned-clock-parents = <&clock CLK_MAU_EPLL>;
+};
+
+/*
+ * Peach Pi board uses SoC revision with lower maximum frequency for A7 cores
+ * (1.3 GHz instead of 1.4 GHz) than Odroid XU3/XU4 boards.  Thus we need to
+ * update A7 OPPs table accordingly.
+ */
+&cluster_a7_opp_table {
+	/delete-node/opp-1400000000;
 };
 
 &cpu0 {
@@ -205,7 +214,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	max77802: max77802-pmic@9 {
+	max77802: pmic@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&gpx3>;
 		interrupts = <1 IRQ_TYPE_NONE>;
@@ -257,6 +266,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&buck3_reg>;
+				regulator-coupled-max-spread = <300000>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -269,6 +280,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&buck2_reg>;
+				regulator-coupled-max-spread = <300000>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -440,6 +453,7 @@
 				regulator-name = "vdd_ldo10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -1031,6 +1045,10 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&timer {
+	arm,cpu-registers-not-fw-configured;
 };
 
 &tmu_cpu0 {

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Tehuti Networks(R) Network Driver
  * ethtool interface implementation
  * Copyright (C) 2007 Tehuti Networks Ltd. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /*
@@ -142,7 +138,10 @@ static void print_eth_id(struct net_device *ndev)
  * @priv: NIC private structure
  * @f: fifo to initialize
  * @fsz_type: fifo size type: 0-4KB, 1-8KB, 2-16KB, 3-32KB
- * @reg_XXX: offsets of registers relative to base address
+ * @reg_CFG0: offsets of registers relative to base address
+ * @reg_CFG1: offsets of registers relative to base address
+ * @reg_RPTR: offsets of registers relative to base address
+ * @reg_WPTR: offsets of registers relative to base address
  *
  * 1K extra space is allocated at the end of the fifo to simplify
  * processing of descriptors that wraps around fifo's end
@@ -157,11 +156,11 @@ bdx_fifo_init(struct bdx_priv *priv, struct fifo *f, int fsz_type,
 	u16 memsz = FIFO_SIZE * (1 << fsz_type);
 
 	memset(f, 0, sizeof(struct fifo));
-	/* pci_alloc_consistent gives us 4k-aligned memory */
-	f->va = pci_alloc_consistent(priv->pdev,
-				     memsz + FIFO_EXTRA_SPACE, &f->da);
+	/* dma_alloc_coherent gives us 4k-aligned memory */
+	f->va = dma_alloc_coherent(&priv->pdev->dev, memsz + FIFO_EXTRA_SPACE,
+				   &f->da, GFP_ATOMIC);
 	if (!f->va) {
-		pr_err("pci_alloc_consistent failed\n");
+		pr_err("dma_alloc_coherent failed\n");
 		RET(-ENOMEM);
 	}
 	f->reg_CFG0 = reg_CFG0;
@@ -187,8 +186,8 @@ static void bdx_fifo_free(struct bdx_priv *priv, struct fifo *f)
 {
 	ENTER;
 	if (f->va) {
-		pci_free_consistent(priv->pdev,
-				    f->memsz + FIFO_EXTRA_SPACE, f->va, f->da);
+		dma_free_coherent(&priv->pdev->dev,
+				  f->memsz + FIFO_EXTRA_SPACE, f->va, f->da);
 		f->va = NULL;
 	}
 	RET();
@@ -562,7 +561,7 @@ static int bdx_reset(struct bdx_priv *priv)
 
 /**
  * bdx_close - Disables a network interface
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0, this is not allowed to fail
  *
@@ -589,7 +588,7 @@ static int bdx_close(struct net_device *ndev)
 
 /**
  * bdx_open - Called when a network interface is made active
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0 on success, negative value on failure
  *
@@ -702,7 +701,7 @@ static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
  * __bdx_vlan_rx_vid - private helper for adding/killing VLAN vid
  * @ndev: network device
  * @vid:  VLAN vid
- * @op:   add or kill operation
+ * @enable: enable or disable vlan
  *
  * Passes VLAN filter table to hardware
  */
@@ -733,6 +732,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 /**
  * bdx_vlan_rx_add_vid - kernel hook for adding VLAN vid to hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to add
  */
 static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -744,6 +744,7 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 /**
  * bdx_vlan_rx_kill_vid - kernel hook for killing VLAN vid in hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to kill
  */
 static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -754,7 +755,7 @@ static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 
 /**
  * bdx_change_mtu - Change the Maximum Transfer Unit
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  * @new_mtu: new value for maximum frame size
  *
  * Returns 0 on success, negative on failure
@@ -1037,9 +1038,8 @@ static void bdx_rx_free_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	for (i = 0; i < db->nelem; i++) {
 		dm = bdx_rxdb_addr_elem(db, i);
 		if (dm->dma) {
-			pci_unmap_single(priv->pdev,
-					 dm->dma, f->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, dm->dma,
+					 f->m.pktsz, DMA_FROM_DEVICE);
 			dev_kfree_skb(dm->skb);
 		}
 	}
@@ -1101,9 +1101,8 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 
 		idx = bdx_rxdb_alloc_elem(db);
 		dm = bdx_rxdb_addr_elem(db, idx);
-		dm->dma = pci_map_single(priv->pdev,
-					 skb->data, f->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+		dm->dma = dma_map_single(&priv->pdev->dev, skb->data,
+					 f->m.pktsz, DMA_FROM_DEVICE);
 		dm->skb = skb;
 		rxfd = (struct rxf_desc *)(f->m.va + f->m.wptr);
 		rxfd->info = CPU_CHIP_SWAP32(0x10003);	/* INFO=1 BC=3 */
@@ -1263,16 +1262,15 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		    (skb2 = netdev_alloc_skb(priv->ndev, len + NET_IP_ALIGN))) {
 			skb_reserve(skb2, NET_IP_ALIGN);
 			/*skb_put(skb2, len); */
-			pci_dma_sync_single_for_cpu(priv->pdev,
-						    dm->dma, rxf_fifo->m.pktsz,
-						    PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&priv->pdev->dev, dm->dma,
+						rxf_fifo->m.pktsz,
+						DMA_FROM_DEVICE);
 			memcpy(skb2->data, skb->data, len);
 			bdx_recycle_skb(priv, rxdd);
 			skb = skb2;
 		} else {
-			pci_unmap_single(priv->pdev,
-					 dm->dma, rxf_fifo->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, dm->dma,
+					 rxf_fifo->m.pktsz, DMA_FROM_DEVICE);
 			bdx_rxdb_free_elem(db, rxdd->va_lo);
 		}
 
@@ -1365,18 +1363,6 @@ static void print_rxfd(struct rxf_desc *rxfd)
  * This technique avoids eccessive reading of RPTR and WPTR registers.
  * As our benchmarks shows, it adds 1.5 Gbit/sec to NIS's throuput.
  */
-
-/*************************************************************************
- *     Tx DB                                                             *
- *************************************************************************/
-static inline int bdx_tx_db_size(struct txdb *db)
-{
-	int taken = db->wptr - db->rptr;
-	if (taken < 0)
-		taken = db->size + 1 + taken;	/* (size + 1) equals memsz */
-
-	return db->size - taken;
-}
 
 /**
  * __bdx_tx_db_ptr_next - helper function, increment read/write pointer + wrap
@@ -1494,8 +1480,8 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 	int i;
 
 	db->wptr->len = skb_headlen(skb);
-	db->wptr->addr.dma = pci_map_single(priv->pdev, skb->data,
-					    db->wptr->len, PCI_DMA_TODEVICE);
+	db->wptr->addr.dma = dma_map_single(&priv->pdev->dev, skb->data,
+					    db->wptr->len, DMA_TO_DEVICE);
 	pbl->len = CPU_CHIP_SWAP32(db->wptr->len);
 	pbl->pa_lo = CPU_CHIP_SWAP32(L32_64(db->wptr->addr.dma));
 	pbl->pa_hi = CPU_CHIP_SWAP32(H32_64(db->wptr->addr.dma));
@@ -1505,7 +1491,7 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 	bdx_tx_db_inc_wptr(db);
 
 	for (i = 0; i < nr_frags; i++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag;
 
 		frag = &skb_shinfo(skb)->frags[i];
 		db->wptr->len = skb_frag_size(frag);
@@ -1732,14 +1718,14 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 		BDX_ASSERT(db->rptr->len == 0);
 		do {
 			BDX_ASSERT(db->rptr->addr.dma == 0);
-			pci_unmap_page(priv->pdev, db->rptr->addr.dma,
-				       db->rptr->len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&priv->pdev->dev, db->rptr->addr.dma,
+				       db->rptr->len, DMA_TO_DEVICE);
 			bdx_tx_db_inc_rptr(db);
 		} while (db->rptr->len > 0);
 		tx_level -= db->rptr->len;	/* '-' koz len is negative */
 
 		/* now should come skb pointer - free it */
-		dev_kfree_skb_irq(db->rptr->addr.skb);
+		dev_consume_skb_irq(db->rptr->addr.skb);
 		bdx_tx_db_inc_rptr(db);
 	}
 
@@ -1772,6 +1758,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 
 /**
  * bdx_tx_free_skbs - frees all skbs from TXD fifo.
+ * @priv: NIC private structure
+ *
  * It gets called when OS stops this dev, eg upon "ifconfig down" or rmmod
  */
 static void bdx_tx_free_skbs(struct bdx_priv *priv)
@@ -1781,8 +1769,8 @@ static void bdx_tx_free_skbs(struct bdx_priv *priv)
 	ENTER;
 	while (db->rptr != db->wptr) {
 		if (likely(db->rptr->len))
-			pci_unmap_page(priv->pdev, db->rptr->addr.dma,
-				       db->rptr->len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&priv->pdev->dev, db->rptr->addr.dma,
+				       db->rptr->len, DMA_TO_DEVICE);
 		else
 			dev_kfree_skb(db->rptr->addr.skb);
 		bdx_tx_db_inc_rptr(db);
@@ -1918,12 +1906,12 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)			/* it triggers interrupt, dunno why. */
 		goto err_pci;		/* it's not a problem though */
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
+	if (!(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) &&
+	    !(err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
 		pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
+		if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) ||
+		    (err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)))) {
 			pr_err("No usable DMA configuration, aborting\n");
 			goto err_dma;
 		}
@@ -2056,6 +2044,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/*bdx_hw_reset(priv); */
 		if (bdx_read_mac(priv)) {
 			pr_err("load MAC address failed\n");
+			err = -EFAULT;
 			goto err_out_iomap;
 		}
 		SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -2377,6 +2366,8 @@ static void bdx_get_ethtool_stats(struct net_device *netdev,
 static void bdx_set_ethtool_ops(struct net_device *netdev)
 {
 	static const struct ethtool_ops bdx_ethtool_ops = {
+		.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+					     ETHTOOL_COALESCE_MAX_FRAMES,
 		.get_drvinfo = bdx_get_drvinfo,
 		.get_link = ethtool_op_get_link,
 		.get_coalesce = bdx_get_coalesce,

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * iio/dac/max5821.c
   * Copyright (C) 2014 Philippe Reynes
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License version 2 as
-  * published by the Free Software Foundation.
   */
 
 #include <linux/kernel.h>
@@ -87,7 +84,7 @@ static ssize_t max5821_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct max5821_data *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", st->powerdown[chan->channel]);
+	return sysfs_emit(buf, "%d\n", st->powerdown[chan->channel]);
 }
 
 static int max5821_sync_powerdown_mode(struct max5821_data *data,
@@ -344,7 +341,6 @@ static int max5821_probe(struct i2c_client *client,
 	data->vref_mv = ret / 1000;
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->num_channels = ARRAY_SIZE(max5821_channels);
 	indio_dev->channels = max5821_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;

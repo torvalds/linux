@@ -35,8 +35,10 @@ Required standard properties:
 		"ti,sysc-omap3-sham"
 		"ti,sysc-omap-aes"
 		"ti,sysc-mcasp"
+		"ti,sysc-dra7-mcasp"
 		"ti,sysc-usb-host-fs"
 		"ti,sysc-dra7-mcan"
+		"ti,sysc-pruss"
 
 - reg		shall have register areas implemented for the interconnect
 		target module in question such as revision, sysc and syss
@@ -93,6 +95,8 @@ Optional properties:
 
 - ti,no-idle-on-init	interconnect target module should not be idled at init
 
+- ti,no-idle		interconnect target module should not be idled
+
 Example: Single instance of MUSB controller on omap4 using interconnect ranges
 using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):
 
@@ -130,6 +134,6 @@ using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):
 		};
 	};
 
-Note that other SoCs, such as am335x can have multipe child devices. On am335x
+Note that other SoCs, such as am335x can have multiple child devices. On am335x
 there are two MUSB instances, two USB PHY instances, and a single CPPI41 DMA
-instance as children of a single interconnet target module.
+instance as children of a single interconnect target module.

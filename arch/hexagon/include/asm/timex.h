@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #ifndef _ASM_TIMEX_H
@@ -21,6 +8,7 @@
 
 #include <asm-generic/timex.h>
 #include <asm/timer-regs.h>
+#include <asm/hexagon_vm.h>
 
 /* Using TCX0 as our clock.  CLOCK_TICK_RATE scheduled to be removed. */
 #define CLOCK_TICK_RATE              TCX0_CLK_RATE
@@ -29,7 +17,7 @@
 
 static inline int read_current_timer(unsigned long *timer_val)
 {
-	*timer_val = (unsigned long) __vmgettime();
+	*timer_val = __vmgettime();
 	return 0;
 }
 

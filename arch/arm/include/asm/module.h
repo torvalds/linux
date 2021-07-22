@@ -19,8 +19,18 @@ enum {
 };
 #endif
 
+#define PLT_ENT_STRIDE		L1_CACHE_BYTES
+#define PLT_ENT_COUNT		(PLT_ENT_STRIDE / sizeof(u32))
+#define PLT_ENT_SIZE		(sizeof(struct plt_entries) / PLT_ENT_COUNT)
+
+struct plt_entries {
+	u32	ldr[PLT_ENT_COUNT];
+	u32	lit[PLT_ENT_COUNT];
+};
+
 struct mod_plt_sec {
 	struct elf32_shdr	*plt;
+	struct plt_entries	*plt_ent;
 	int			plt_count;
 };
 
@@ -37,28 +47,15 @@ struct mod_arch_specific {
 struct module;
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val);
 
-/*
- * Add the ARM architecture version to the version magic string
- */
-#define MODULE_ARCH_VERMAGIC_ARMVSN "ARMv" __stringify(__LINUX_ARM_ARCH__) " "
-
-/* Add __virt_to_phys patching state as well */
-#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
-#define MODULE_ARCH_VERMAGIC_P2V "p2v8 "
-#else
-#define MODULE_ARCH_VERMAGIC_P2V ""
-#endif
-
-/* Add instruction set architecture tag to distinguish ARM/Thumb kernels */
 #ifdef CONFIG_THUMB2_KERNEL
-#define MODULE_ARCH_VERMAGIC_ARMTHUMB "thumb2 "
-#else
-#define MODULE_ARCH_VERMAGIC_ARMTHUMB ""
-#endif
+#define HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
+static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
+{
+	if (ELF_ST_TYPE(sym->st_info) == STT_FUNC)
+		return sym->st_value & ~1;
 
-#define MODULE_ARCH_VERMAGIC \
-	MODULE_ARCH_VERMAGIC_ARMVSN \
-	MODULE_ARCH_VERMAGIC_ARMTHUMB \
-	MODULE_ARCH_VERMAGIC_P2V
+	return sym->st_value;
+}
+#endif
 
 #endif /* _ASM_ARM_MODULE_H */

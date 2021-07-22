@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Test that /proc/loadavg correctly reports last pid in pid namespace. */
-#define _GNU_SOURCE
 #include <errno.h>
 #include <sched.h>
 #include <sys/types.h>
@@ -30,7 +29,7 @@ int main(void)
 
 	if (unshare(CLONE_NEWPID) == -1) {
 		if (errno == ENOSYS || errno == EPERM)
-			return 2;
+			return 4;
 		return 1;
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
  *
@@ -6,16 +7,6 @@
  * Special thanks to Fintek for providing hardware and spec sheets.
  * This driver is based upon the nuvoton, ite and ene drivers for
  * similar hardware.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -57,13 +48,6 @@ static inline u8 fintek_cr_read(struct fintek_dev *fintek, u8 reg)
 static inline void fintek_set_reg_bit(struct fintek_dev *fintek, u8 val, u8 reg)
 {
 	u8 tmp = fintek_cr_read(fintek, reg) | val;
-	fintek_cr_write(fintek, tmp, reg);
-}
-
-/* clear config register bit without changing other bits */
-static inline void fintek_clear_reg_bit(struct fintek_dev *fintek, u8 val, u8 reg)
-{
-	u8 tmp = fintek_cr_read(fintek, reg) & ~val;
 	fintek_cr_write(fintek, tmp, reg);
 }
 
@@ -315,8 +299,8 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 		case PARSE_IRDATA:
 			fintek->rem--;
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
-			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
-					  * CIR_SAMPLE_PERIOD);
+			rawir.duration = (sample & BUF_SAMPLE_MASK)
+					  * CIR_SAMPLE_PERIOD;
 
 			fit_dbg("Storing %s with duration %d",
 				rawir.pulse ? "pulse" : "space",
@@ -540,9 +524,9 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = FINTEK_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->timeout = US_TO_NS(1000);
+	rdev->timeout = 1000;
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
+	rdev->rx_resolution = CIR_SAMPLE_PERIOD;
 
 	fintek->rdev = rdev;
 

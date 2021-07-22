@@ -281,7 +281,6 @@ static int mlx4_comm_cmd_post(struct mlx4_dev *dev, u8 cmd, u16 param)
 	val = param | (cmd << 16) | (priv->cmd.comm_toggle << 31);
 	__raw_writel((__force u32) cpu_to_be32(val),
 		     &priv->mfunc.comm->slave_write);
-	mmiowb();
 	mutex_unlock(&dev->persist->device_state_mutex);
 	return 0;
 }
@@ -495,12 +494,6 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 					       (event ? (1 << HCR_E_BIT) : 0)	|
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op), hcr + 6);
-
-	/*
-	 * Make sure that our HCR writes don't get mixed in with
-	 * writes from another CPU starting a FW command.
-	 */
-	mmiowb();
 
 	cmd->toggle = cmd->toggle ^ 1;
 
@@ -2206,7 +2199,6 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	}
 	__raw_writel((__force u32) cpu_to_be32(reply),
 		     &priv->mfunc.comm[slave].slave_read);
-	mmiowb();
 
 	return;
 
@@ -2249,43 +2241,52 @@ void mlx4_master_comm_channel(struct work_struct *work)
 	struct mlx4_priv *priv =
 		container_of(mfunc, struct mlx4_priv, mfunc);
 	struct mlx4_dev *dev = &priv->dev;
-	__be32 *bit_vec;
+	u32 lbit_vec[COMM_CHANNEL_BIT_ARRAY_SIZE];
+	u32 nmbr_bits;
 	u32 comm_cmd;
-	u32 vec;
-	int i, j, slave;
+	int i, slave;
 	int toggle;
+	bool first = true;
 	int served = 0;
 	int reported = 0;
 	u32 slt;
 
-	bit_vec = master->comm_arm_bit_vector;
-	for (i = 0; i < COMM_CHANNEL_BIT_ARRAY_SIZE; i++) {
-		vec = be32_to_cpu(bit_vec[i]);
-		for (j = 0; j < 32; j++) {
-			if (!(vec & (1 << j)))
-				continue;
-			++reported;
-			slave = (i * 32) + j;
-			comm_cmd = swab32(readl(
-					  &mfunc->comm[slave].slave_write));
-			slt = swab32(readl(&mfunc->comm[slave].slave_read))
-				     >> 31;
-			toggle = comm_cmd >> 31;
-			if (toggle != slt) {
-				if (master->slave_state[slave].comm_toggle
-				    != slt) {
-					pr_info("slave %d out of sync. read toggle %d, state toggle %d. Resynching.\n",
-						slave, slt,
-						master->slave_state[slave].comm_toggle);
-					master->slave_state[slave].comm_toggle =
-						slt;
-				}
-				mlx4_master_do_cmd(dev, slave,
-						   comm_cmd >> 16 & 0xff,
-						   comm_cmd & 0xffff, toggle);
-				++served;
-			}
+	for (i = 0; i < COMM_CHANNEL_BIT_ARRAY_SIZE; i++)
+		lbit_vec[i] = be32_to_cpu(master->comm_arm_bit_vector[i]);
+	nmbr_bits = dev->persist->num_vfs + 1;
+	if (++master->next_slave >= nmbr_bits)
+		master->next_slave = 0;
+	slave = master->next_slave;
+	while (true) {
+		slave = find_next_bit((const unsigned long *)&lbit_vec, nmbr_bits, slave);
+		if  (!first && slave >= master->next_slave)
+			break;
+		if (slave == nmbr_bits) {
+			if (!first)
+				break;
+			first = false;
+			slave = 0;
+			continue;
 		}
+		++reported;
+		comm_cmd = swab32(readl(&mfunc->comm[slave].slave_write));
+		slt = swab32(readl(&mfunc->comm[slave].slave_read)) >> 31;
+		toggle = comm_cmd >> 31;
+		if (toggle != slt) {
+			if (master->slave_state[slave].comm_toggle
+			    != slt) {
+				pr_info("slave %d out of sync. read toggle %d, state toggle %d. Resynching.\n",
+					slave, slt,
+					master->slave_state[slave].comm_toggle);
+				master->slave_state[slave].comm_toggle =
+					slt;
+			}
+			mlx4_master_do_cmd(dev, slave,
+					   comm_cmd >> 16 & 0xff,
+					   comm_cmd & 0xffff, toggle);
+			++served;
+		}
+		slave++;
 	}
 
 	if (reported && reported != served)
@@ -2397,6 +2398,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		if (!priv->mfunc.master.vf_oper)
 			goto err_comm_oper;
 
+		priv->mfunc.master.next_slave = 0;
+
 		for (i = 0; i < dev->num_slaves; ++i) {
 			vf_admin = &priv->mfunc.master.vf_admin[i];
 			vf_oper = &priv->mfunc.master.vf_oper[i];
@@ -2410,7 +2413,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				     &priv->mfunc.comm[i].slave_write);
 			__raw_writel((__force u32) 0,
 				     &priv->mfunc.comm[i].slave_read);
-			mmiowb();
 			for (port = 1; port <= MLX4_MAX_PORTS; port++) {
 				struct mlx4_vport_state *admin_vport;
 				struct mlx4_vport_state *oper_vport;
@@ -2576,10 +2578,6 @@ void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev)
 		slave_read |= (u32)COMM_CHAN_EVENT_INTERNAL_ERR;
 		__raw_writel((__force u32)cpu_to_be32(slave_read),
 			     &priv->mfunc.comm[slave].slave_read);
-		/* Make sure that our comm channel write doesn't
-		 * get mixed in with writes from another CPU.
-		 */
-		mmiowb();
 	}
 }
 
@@ -2645,6 +2643,8 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	if (!priv->cmd.context)
 		return -ENOMEM;
 
+	if (mlx4_is_mfunc(dev))
+		mutex_lock(&priv->cmd.slave_cmd_mutex);
 	down_write(&priv->cmd.switch_sem);
 	for (i = 0; i < priv->cmd.max_cmds; ++i) {
 		priv->cmd.context[i].token = i;
@@ -2670,6 +2670,8 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	down(&priv->cmd.poll_sem);
 	priv->cmd.use_events = 1;
 	up_write(&priv->cmd.switch_sem);
+	if (mlx4_is_mfunc(dev))
+		mutex_unlock(&priv->cmd.slave_cmd_mutex);
 
 	return err;
 }
@@ -2682,6 +2684,8 @@ void mlx4_cmd_use_polling(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int i;
 
+	if (mlx4_is_mfunc(dev))
+		mutex_lock(&priv->cmd.slave_cmd_mutex);
 	down_write(&priv->cmd.switch_sem);
 	priv->cmd.use_events = 0;
 
@@ -2689,9 +2693,12 @@ void mlx4_cmd_use_polling(struct mlx4_dev *dev)
 		down(&priv->cmd.event_sem);
 
 	kfree(priv->cmd.context);
+	priv->cmd.context = NULL;
 
 	up(&priv->cmd.poll_sem);
 	up_write(&priv->cmd.switch_sem);
+	if (mlx4_is_mfunc(dev))
+		mutex_unlock(&priv->cmd.slave_cmd_mutex);
 }
 
 struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
@@ -3274,7 +3281,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 		mlx4_warn(dev, "unknown value for link_state %02x on slave %d port %d\n",
 			  link_state, slave, port);
 		return -EINVAL;
-	};
+	}
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->link_state = link_state;
 

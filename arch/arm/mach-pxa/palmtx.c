@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for PalmTX
  *
@@ -9,12 +10,7 @@
  *		Jan Herman <2hp@seznam.cz>
  *		Michal Hrusecky
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -27,7 +23,6 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
@@ -337,6 +332,19 @@ static void __init palmtx_map_io(void)
 	iotable_init(palmtx_io_desc, ARRAY_SIZE(palmtx_io_desc));
 }
 
+static struct gpiod_lookup_table palmtx_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTX_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTX_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTX_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static void __init palmtx_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtx_pin_config));
@@ -344,8 +352,7 @@ static void __init palmtx_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(GPIO_NR_PALMTX_SD_DETECT_N, GPIO_NR_PALMTX_SD_READONLY,
-			GPIO_NR_PALMTX_SD_POWER, 0);
+	palm27x_mmc_init(&palmtx_mci_gpio_table);
 	palm27x_pm_init(PALMTX_STR_BASE);
 	palm27x_lcd_init(-1, &palm_320x480_lcd_mode);
 	palm27x_udc_init(GPIO_NR_PALMTX_USB_DETECT_N,

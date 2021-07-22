@@ -1067,6 +1067,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_AUXSTMPL1  0x08C44 /* Auxiliary Time Stamp 1 register Low - RO */
 #define IXGBE_AUXSTMPH1  0x08C48 /* Auxiliary Time Stamp 1 register High - RO */
 #define IXGBE_TSIM       0x08C68 /* TimeSync Interrupt Mask Register - RW */
+#define IXGBE_TSSDP      0x0003C /* TimeSync SDP Configuration Register - RW */
 
 /* Diagnostic Registers */
 #define IXGBE_RDSTATCTL   0x02C20
@@ -1406,6 +1407,7 @@ struct ixgbe_nvm_version {
 #define QT2022_PHY_ID    0x0043A400
 #define ATH_PHY_ID       0x03429050
 #define AQ_FW_REV        0x20
+#define BCM54616S_E_PHY_ID 0x03625D10
 
 /* Special PHY Init Routine */
 #define IXGBE_PHY_INIT_OFFSET_NL 0x002B
@@ -2240,10 +2242,17 @@ enum {
 #define IXGBE_RXDCTL_RLPML_EN   0x00008000
 #define IXGBE_RXDCTL_VME        0x40000000  /* VLAN mode enable */
 
-#define IXGBE_TSAUXC_EN_CLK   0x00000004
-#define IXGBE_TSAUXC_SYNCLK   0x00000008
-#define IXGBE_TSAUXC_SDP0_INT 0x00000040
+#define IXGBE_TSAUXC_EN_CLK		0x00000004
+#define IXGBE_TSAUXC_SYNCLK		0x00000008
+#define IXGBE_TSAUXC_SDP0_INT		0x00000040
+#define IXGBE_TSAUXC_EN_TT0		0x00000001
+#define IXGBE_TSAUXC_EN_TT1		0x00000002
+#define IXGBE_TSAUXC_ST0		0x00000010
 #define IXGBE_TSAUXC_DISABLE_SYSTIME	0x80000000
+
+#define IXGBE_TSSDP_TS_SDP0_SEL_MASK	0x000000C0
+#define IXGBE_TSSDP_TS_SDP0_CLK0	0x00000080
+#define IXGBE_TSSDP_TS_SDP0_EN		0x00000100
 
 #define IXGBE_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
 #define IXGBE_TSYNCTXCTL_ENABLED	0x00000010 /* Tx timestamping enabled */
@@ -3374,10 +3383,6 @@ struct ixgbe_hw_stats {
 
 /* forward declaration */
 struct ixgbe_hw;
-
-/* iterator type for walking multicast address lists */
-typedef u8* (*ixgbe_mc_addr_itr) (struct ixgbe_hw *hw, u8 **mc_addr_ptr,
-				  u32 *vmdq);
 
 /* Function pointer table */
 struct ixgbe_eeprom_operations {

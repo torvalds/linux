@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -37,6 +25,24 @@
 #include <linux/math64.h>
 #include <linux/writeback.h>
 #include "ubifs.h"
+
+static int ubifs_default_version_set(const char *val, const struct kernel_param *kp)
+{
+	int n = 0, ret;
+
+	ret = kstrtoint(val, 10, &n);
+	if (ret != 0 || n < 4 || n > UBIFS_FORMAT_VERSION)
+		return -EINVAL;
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops ubifs_default_version_ops = {
+	.set = ubifs_default_version_set,
+	.get = param_get_int,
+};
+
+int ubifs_default_version = UBIFS_FORMAT_VERSION;
+module_param_cb(default_version, &ubifs_default_version_ops, &ubifs_default_version, 0600);
 
 /*
  * Maximum amount of memory we may 'kmalloc()' without worrying that we are
@@ -129,9 +135,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		goto out_ino;
 
 	inode->i_flags |= S_NOCMTIME;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-	inode->i_flags |= S_NOATIME;
-#endif
+
+	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+		inode->i_flags |= S_NOATIME;
+
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
@@ -246,7 +253,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 
 out_invalid:
 	ubifs_err(c, "inode %lu validation failed, error %d", inode->i_ino, err);
-	ubifs_dump_node(c, ino);
+	ubifs_dump_node(c, ino, UBIFS_MAX_INO_NODE_SZ);
 	ubifs_dump_inode(c, inode);
 	err = -EINVAL;
 out_ino:
@@ -268,23 +275,19 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 	memset((void *)ui + sizeof(struct inode), 0,
 	       sizeof(struct ubifs_inode) - sizeof(struct inode));
 	mutex_init(&ui->ui_mutex);
+	init_rwsem(&ui->xattr_sem);
 	spin_lock_init(&ui->ui_lock);
 	return &ui->vfs_inode;
 };
 
-static void ubifs_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	kmem_cache_free(ubifs_inode_slab, ui);
-}
-
-static void ubifs_destroy_inode(struct inode *inode)
+static void ubifs_free_inode(struct inode *inode)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	kfree(ui->data);
-	call_rcu(&inode->i_rcu, ubifs_i_callback);
+	fscrypt_free_inode(inode);
+
+	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
 /*
@@ -332,6 +335,16 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	mutex_unlock(&ui->ui_mutex);
 	ubifs_release_dirty_inode_budget(c, ui);
 	return err;
+}
+
+static int ubifs_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	if (!drop)
+		drop = fscrypt_drop_inode(inode);
+
+	return drop;
 }
 
 static void ubifs_evict_inode(struct inode *inode)
@@ -579,6 +592,11 @@ static int init_constants_early(struct ubifs_info *c)
 	c->ranges[UBIFS_REF_NODE].len  = UBIFS_REF_NODE_SZ;
 	c->ranges[UBIFS_TRUN_NODE].len = UBIFS_TRUN_NODE_SZ;
 	c->ranges[UBIFS_CS_NODE].len   = UBIFS_CS_NODE_SZ;
+	c->ranges[UBIFS_AUTH_NODE].min_len = UBIFS_AUTH_NODE_SZ;
+	c->ranges[UBIFS_AUTH_NODE].max_len = UBIFS_AUTH_NODE_SZ +
+				UBIFS_MAX_HMAC_LEN;
+	c->ranges[UBIFS_SIG_NODE].min_len = UBIFS_SIG_NODE_SZ;
+	c->ranges[UBIFS_SIG_NODE].max_len = c->leb_size - UBIFS_SB_NODE_SZ;
 
 	c->ranges[UBIFS_INO_NODE].min_len  = UBIFS_INO_NODE_SZ;
 	c->ranges[UBIFS_INO_NODE].max_len  = UBIFS_MAX_INO_NODE_SZ;
@@ -620,6 +638,10 @@ static int init_constants_early(struct ubifs_info *c)
 	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
 	if (c->max_bu_buf_len > c->leb_size)
 		c->max_bu_buf_len = c->leb_size;
+
+	/* Log is ready, preserve one LEB for commits. */
+	c->min_log_bytes = c->leb_size;
+
 	return 0;
 }
 
@@ -816,6 +838,11 @@ static int alloc_wbufs(struct ubifs_info *c)
 		c->jheads[i].wbuf.sync_callback = &bud_wbuf_callback;
 		c->jheads[i].wbuf.jhead = i;
 		c->jheads[i].grouped = 1;
+		c->jheads[i].log_hash = ubifs_hash_get_desc(c);
+		if (IS_ERR(c->jheads[i].log_hash)) {
+			err = PTR_ERR(c->jheads[i].log_hash);
+			goto out;
+		}
 	}
 
 	/*
@@ -826,6 +853,12 @@ static int alloc_wbufs(struct ubifs_info *c)
 	c->jheads[GCHD].grouped = 0;
 
 	return 0;
+
+out:
+	while (i--)
+		kfree(c->jheads[i].log_hash);
+
+	return err;
 }
 
 /**
@@ -840,6 +873,7 @@ static void free_wbufs(struct ubifs_info *c)
 		for (i = 0; i < c->jhead_cnt; i++) {
 			kfree(c->jheads[i].wbuf.buf);
 			kfree(c->jheads[i].wbuf.inodes);
+			kfree(c->jheads[i].log_hash);
 		}
 		kfree(c->jheads);
 		c->jheads = NULL;
@@ -924,6 +958,8 @@ static int check_volume_empty(struct ubifs_info *c)
  * Opt_no_chk_data_crc: do not check CRCs when reading data nodes
  * Opt_override_compr: override default compressor
  * Opt_assert: set ubifs_assert() action
+ * Opt_auth_key: The key name used for authentication
+ * Opt_auth_hash_name: The hash type used for authentication
  * Opt_err: just end of array marker
  */
 enum {
@@ -935,6 +971,8 @@ enum {
 	Opt_no_chk_data_crc,
 	Opt_override_compr,
 	Opt_assert,
+	Opt_auth_key,
+	Opt_auth_hash_name,
 	Opt_ignore,
 	Opt_err,
 };
@@ -947,6 +985,8 @@ static const match_table_t tokens = {
 	{Opt_chk_data_crc, "chk_data_crc"},
 	{Opt_no_chk_data_crc, "no_chk_data_crc"},
 	{Opt_override_compr, "compr=%s"},
+	{Opt_auth_key, "auth_key=%s"},
+	{Opt_auth_hash_name, "auth_hash_name=%s"},
 	{Opt_ignore, "ubi=%s"},
 	{Opt_ignore, "vol=%s"},
 	{Opt_assert, "assert=%s"},
@@ -1040,6 +1080,8 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 				c->mount_opts.compr_type = UBIFS_COMPR_LZO;
 			else if (!strcmp(name, "zlib"))
 				c->mount_opts.compr_type = UBIFS_COMPR_ZLIB;
+			else if (!strcmp(name, "zstd"))
+				c->mount_opts.compr_type = UBIFS_COMPR_ZSTD;
 			else {
 				ubifs_err(c, "unknown compressor \"%s\"", name); //FIXME: is c ready?
 				kfree(name);
@@ -1070,6 +1112,22 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			kfree(act);
 			break;
 		}
+		case Opt_auth_key:
+			if (!is_remount) {
+				c->auth_key_name = kstrdup(args[0].from,
+								GFP_KERNEL);
+				if (!c->auth_key_name)
+					return -ENOMEM;
+			}
+			break;
+		case Opt_auth_hash_name:
+			if (!is_remount) {
+				c->auth_hash_name = kstrdup(args[0].from,
+								GFP_KERNEL);
+				if (!c->auth_hash_name)
+					return -ENOMEM;
+			}
+			break;
 		case Opt_ignore:
 			break;
 		default:
@@ -1090,6 +1148,18 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 	}
 
 	return 0;
+}
+
+/*
+ * ubifs_release_options - release mount parameters which have been dumped.
+ * @c: UBIFS file-system description object
+ */
+static void ubifs_release_options(struct ubifs_info *c)
+{
+	kfree(c->auth_key_name);
+	c->auth_key_name = NULL;
+	kfree(c->auth_hash_name);
+	c->auth_hash_name = NULL;
 }
 
 /**
@@ -1249,9 +1319,22 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	c->mounting = 1;
 
+	if (c->auth_key_name) {
+		if (IS_ENABLED(CONFIG_UBIFS_FS_AUTHENTICATION)) {
+			err = ubifs_init_authentication(c);
+			if (err)
+				goto out_free;
+		} else {
+			ubifs_err(c, "auth_key_name, but UBIFS is built without"
+				  " authentication support");
+			err = -EINVAL;
+			goto out_free;
+		}
+	}
+
 	err = ubifs_read_superblock(c);
 	if (err)
-		goto out_free;
+		goto out_auth;
 
 	c->probing = 0;
 
@@ -1263,19 +1346,18 @@ static int mount_ubifs(struct ubifs_info *c)
 		ubifs_err(c, "'compressor \"%s\" is not compiled in",
 			  ubifs_compr_name(c, c->default_compr));
 		err = -ENOTSUPP;
-		goto out_free;
+		goto out_auth;
 	}
 
 	err = init_constants_sb(c);
 	if (err)
-		goto out_free;
+		goto out_auth;
 
-	sz = ALIGN(c->max_idx_node_sz, c->min_io_size);
-	sz = ALIGN(sz + c->max_idx_node_sz, c->min_io_size);
+	sz = ALIGN(c->max_idx_node_sz, c->min_io_size) * 2;
 	c->cbuf = kmalloc(sz, GFP_NOFS);
 	if (!c->cbuf) {
 		err = -ENOMEM;
-		goto out_free;
+		goto out_auth;
 	}
 
 	err = alloc_wbufs(c);
@@ -1334,6 +1416,26 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_lpt;
 	}
 
+	/*
+	 * Handle offline signed images: Now that the master node is
+	 * written and its validation no longer depends on the hash
+	 * in the superblock, we can update the offline signed
+	 * superblock with a HMAC version,
+	 */
+	if (ubifs_authenticated(c) && ubifs_hmac_zero(c, c->sup_node->hmac)) {
+		err = ubifs_hmac_wkm(c, c->sup_node->hmac_wkm);
+		if (err)
+			goto out_lpt;
+		c->superblock_need_write = 1;
+	}
+
+	if (!c->ro_mount && c->superblock_need_write) {
+		err = ubifs_write_sb_node(c, c->sup_node);
+		if (err)
+			goto out_lpt;
+		c->superblock_need_write = 0;
+	}
+
 	err = dbg_check_idx_size(c, c->bi.old_idx_sz);
 	if (err)
 		goto out_lpt;
@@ -1367,12 +1469,21 @@ static int mount_ubifs(struct ubifs_info *c)
 		}
 
 		if (c->need_recovery) {
-			err = ubifs_recover_size(c);
-			if (err)
-				goto out_orphans;
+			if (!ubifs_authenticated(c)) {
+				err = ubifs_recover_size(c, true);
+				if (err)
+					goto out_orphans;
+			}
+
 			err = ubifs_rcvry_gc_commit(c);
 			if (err)
 				goto out_orphans;
+
+			if (ubifs_authenticated(c)) {
+				err = ubifs_recover_size(c, false);
+				if (err)
+					goto out_orphans;
+			}
 		} else {
 			err = take_gc_lnum(c);
 			if (err)
@@ -1391,7 +1502,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		if (err)
 			goto out_orphans;
 	} else if (c->need_recovery) {
-		err = ubifs_recover_size(c);
+		err = ubifs_recover_size(c, false);
 		if (err)
 			goto out_orphans;
 	} else {
@@ -1430,9 +1541,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	err = dbg_debugfs_init_fs(c);
-	if (err)
-		goto out_infos;
+	dbg_debugfs_init_fs(c);
 
 	c->mounting = 0;
 
@@ -1444,8 +1553,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	ubifs_msg(c, "LEB size: %d bytes (%d KiB), min./max. I/O unit sizes: %d bytes/%d bytes",
 		  c->leb_size, c->leb_size >> 10, c->min_io_size,
 		  c->max_write_size);
-	ubifs_msg(c, "FS size: %lld bytes (%lld MiB, %d LEBs), journal size %lld bytes (%lld MiB, %d LEBs)",
-		  x, x >> 20, c->main_lebs,
+	ubifs_msg(c, "FS size: %lld bytes (%lld MiB, %d LEBs), max %d LEBs, journal size %lld bytes (%lld MiB, %d LEBs)",
+		  x, x >> 20, c->main_lebs, c->max_leb_cnt,
 		  y, y >> 20, c->log_lebs + c->max_bud_cnt);
 	ubifs_msg(c, "reserved for root: %llu bytes (%llu KiB)",
 		  c->report_rp_size, c->report_rp_size >> 10);
@@ -1466,7 +1575,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_gen("main area LEBs:      %d (%d - %d)",
 		c->main_lebs, c->main_first, c->leb_cnt - 1);
 	dbg_gen("index LEBs:          %d", c->lst.idx_lebs);
-	dbg_gen("total index bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("total index bytes:   %llu (%llu KiB, %llu MiB)",
 		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
 		c->bi.old_idx_sz >> 20);
 	dbg_gen("key hash type:       %d", c->key_hash_type);
@@ -1499,6 +1608,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
 	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
 	dbg_gen("commit number:       %llu", c->cmt_no);
+	dbg_gen("max. xattrs per inode: %d", ubifs_xattr_max_cnt(c));
+	dbg_gen("max orphans:           %d", c->max_orphans);
 
 	return 0;
 
@@ -1521,12 +1632,15 @@ out_wbufs:
 	free_wbufs(c);
 out_cbuf:
 	kfree(c->cbuf);
+out_auth:
+	ubifs_exit_authentication(c);
 out_free:
 	kfree(c->write_reserve_buf);
 	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
+	kfree(c->sup_node);
 	ubifs_debugging_exit(c);
 	return err;
 }
@@ -1557,7 +1671,9 @@ static void ubifs_umount(struct ubifs_info *c)
 	free_wbufs(c);
 	free_orphans(c);
 	ubifs_lpt_free(c, 0);
+	ubifs_exit_authentication(c);
 
+	ubifs_release_options(c);
 	kfree(c->cbuf);
 	kfree(c->rcvrd_mst_node);
 	kfree(c->mst_node);
@@ -1566,6 +1682,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
+	kfree(c->sup_node);
 	ubifs_debugging_exit(c);
 }
 
@@ -1604,29 +1721,16 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (err)
 		goto out;
 
-	if (c->old_leb_cnt != c->leb_cnt) {
-		struct ubifs_sb_node *sup;
-
-		sup = ubifs_read_sb_node(c);
-		if (IS_ERR(sup)) {
-			err = PTR_ERR(sup);
-			goto out;
-		}
-		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
-		err = ubifs_write_sb_node(c, sup);
-		kfree(sup);
-		if (err)
-			goto out;
-	}
-
 	if (c->need_recovery) {
 		ubifs_msg(c, "completing deferred recovery");
 		err = ubifs_write_rcvrd_mst_node(c);
 		if (err)
 			goto out;
-		err = ubifs_recover_size(c);
-		if (err)
-			goto out;
+		if (!ubifs_authenticated(c)) {
+			err = ubifs_recover_size(c, true);
+			if (err)
+				goto out;
+		}
 		err = ubifs_clean_lebs(c, c->sbuf);
 		if (err)
 			goto out;
@@ -1646,6 +1750,16 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		err = ubifs_write_master(c);
 		if (err)
 			goto out;
+	}
+
+	if (c->superblock_need_write) {
+		struct ubifs_sb_node *sup = c->sup_node;
+
+		err = ubifs_write_sb_node(c, sup);
+		if (err)
+			goto out;
+
+		c->superblock_need_write = 0;
 	}
 
 	c->ileb_buf = vmalloc(c->leb_size);
@@ -1692,10 +1806,19 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 			goto out;
 	}
 
-	if (c->need_recovery)
+	if (c->need_recovery) {
 		err = ubifs_rcvry_gc_commit(c);
-	else
+		if (err)
+			goto out;
+
+		if (ubifs_authenticated(c)) {
+			err = ubifs_recover_size(c, false);
+			if (err)
+				goto out;
+		}
+	} else {
 		err = ubifs_leb_unmap(c, c->gc_lnum);
+	}
 	if (err)
 		goto out;
 
@@ -1920,9 +2043,10 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 const struct super_operations ubifs_super_operations = {
 	.alloc_inode   = ubifs_alloc_inode,
-	.destroy_inode = ubifs_destroy_inode,
+	.free_inode    = ubifs_free_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
+	.drop_inode    = ubifs_drop_inode,
 	.evict_inode   = ubifs_evict_inode,
 	.statfs        = ubifs_statfs,
 	.dirty_inode   = ubifs_dirty_inode,
@@ -1937,7 +2061,7 @@ const struct super_operations ubifs_super_operations = {
  * @mode: UBI volume open mode
  *
  * The primary method of mounting UBIFS is by specifying the UBI volume
- * character device node path. However, UBIFS may also be mounted withoug any
+ * character device node path. However, UBIFS may also be mounted without any
  * character device node using one of the following methods:
  *
  * o ubiX_Y    - mount UBI device number X, volume Y;
@@ -2075,6 +2199,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 				   c->vi.vol_id);
 	if (err)
 		goto out_close;
+	sb->s_bdi->ra_pages = 0;
+	sb->s_bdi->io_pages = 0;
 
 	sb->s_fs_info = c;
 	sb->s_magic = UBIFS_SUPER_MAGIC;
@@ -2084,12 +2210,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	if (c->max_inode_sz > MAX_LFS_FILESIZE)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
-#ifdef CONFIG_UBIFS_FS_XATTR
 	sb->s_xattr = ubifs_xattr_handlers;
-#endif
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
-	sb->s_cop = &ubifs_crypt_operations;
-#endif
+	fscrypt_set_ops(sb, &ubifs_crypt_operations);
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2111,6 +2233,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_umount;
 	}
 
+	import_uuid(&sb->s_uuid, c->uuid);
+
 	mutex_unlock(&c->umount_mutex);
 	return 0;
 
@@ -2119,6 +2243,7 @@ out_umount:
 out_unlock:
 	mutex_unlock(&c->umount_mutex);
 out_close:
+	ubifs_release_options(c);
 	ubi_close_volume(c->ubi);
 out:
 	return err;
@@ -2191,11 +2316,10 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			goto out_deact;
 		/* We do not support atime */
 		sb->s_flags |= SB_ACTIVE;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-		sb->s_flags |= SB_NOATIME;
-#else
-		ubifs_msg(c, "full atime support is enabled.");
-#endif
+		if (IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+			ubifs_msg(c, "full atime support is enabled.");
+		else
+			sb->s_flags |= SB_NOATIME;
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */
@@ -2310,9 +2434,7 @@ static int __init ubifs_init(void)
 	if (err)
 		goto out_shrinker;
 
-	err = dbg_debugfs_init();
-	if (err)
-		goto out_compr;
+	dbg_debugfs_init();
 
 	err = register_filesystem(&ubifs_fs_type);
 	if (err) {
@@ -2324,7 +2446,6 @@ static int __init ubifs_init(void)
 
 out_dbg:
 	dbg_debugfs_exit();
-out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);

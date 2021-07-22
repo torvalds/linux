@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2014 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __MIPS_ASM_MIPS_MAAR_H__
@@ -36,7 +32,7 @@ unsigned platform_maar_init(unsigned num_pairs);
  * @upper:	The highest address that the MAAR pair will affect. Must be
  *		aligned to one byte before a 2^16 byte boundary.
  * @attrs:	The accessibility attributes to program, eg. MIPS_MAAR_S. The
- *		MIPS_MAAR_VL attribute will automatically be set.
+ *		MIPS_MAAR_VL/MIPS_MAAR_VH attributes will automatically be set.
  *
  * Program the pair of MAAR registers specified by idx to apply the attributes
  * specified by attrs to the range of addresses from lower to higher.
@@ -52,17 +48,30 @@ static inline void write_maar_pair(unsigned idx, phys_addr_t lower,
 	/* Automatically set MIPS_MAAR_VL */
 	attrs |= MIPS_MAAR_VL;
 
-	/* Write the upper address & attributes (only MIPS_MAAR_VL matters) */
+	/*
+	 * Write the upper address & attributes (both MIPS_MAAR_VL and
+	 * MIPS_MAAR_VH matter)
+	 */
 	write_c0_maari(idx << 1);
 	back_to_back_c0_hazard();
 	write_c0_maar(((upper >> 4) & MIPS_MAAR_ADDR) | attrs);
 	back_to_back_c0_hazard();
+#ifdef CONFIG_XPA
+	upper >>= MIPS_MAARX_ADDR_SHIFT;
+	writex_c0_maar(((upper >> 4) & MIPS_MAARX_ADDR) | MIPS_MAARX_VH);
+	back_to_back_c0_hazard();
+#endif
 
 	/* Write the lower address & attributes */
 	write_c0_maari((idx << 1) | 0x1);
 	back_to_back_c0_hazard();
 	write_c0_maar((lower >> 4) | attrs);
 	back_to_back_c0_hazard();
+#ifdef CONFIG_XPA
+	lower >>= MIPS_MAARX_ADDR_SHIFT;
+	writex_c0_maar(((lower >> 4) & MIPS_MAARX_ADDR) | MIPS_MAARX_VH);
+	back_to_back_c0_hazard();
+#endif
 }
 
 /**

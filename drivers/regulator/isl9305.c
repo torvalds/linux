@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * isl9305 - Intersil ISL9305 DCDC regulator
  *
  * Copyright 2014 Linaro Ltd
  *
  * Author: Mark Brown <broonie@kernel.org>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -141,8 +137,7 @@ static const struct regmap_config isl9305_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int isl9305_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int isl9305_i2c_probe(struct i2c_client *i2c)
 {
 	struct regulator_config config = { };
 	struct isl9305_pdata *pdata = i2c->dev.platform_data;
@@ -202,7 +197,7 @@ static struct i2c_driver isl9305_regulator_driver = {
 		.name = "isl9305",
 		.of_match_table	= of_match_ptr(isl9305_dt_ids),
 	},
-	.probe = isl9305_i2c_probe,
+	.probe_new = isl9305_i2c_probe,
 	.id_table = isl9305_i2c_id,
 };
 

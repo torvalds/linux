@@ -454,27 +454,24 @@ static const struct nand_op_parser tegra_nand_op_parser = NAND_OP_PARSER(
 		NAND_OP_PARSER_PAT_DATA_IN_ELEM(true, 4)),
 	);
 
-static int tegra_nand_exec_op(struct nand_chip *chip,
-			      const struct nand_operation *op,
-			      bool check_only)
-{
-	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
-				      check_only);
-}
-
-static void tegra_nand_select_chip(struct nand_chip *chip, int die_nr)
+static void tegra_nand_select_target(struct nand_chip *chip,
+				     unsigned int die_nr)
 {
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 
-	WARN_ON(die_nr >= (int)ARRAY_SIZE(nand->cs));
-
-	if (die_nr < 0 || die_nr > 0) {
-		ctrl->cur_cs = -1;
-		return;
-	}
-
 	ctrl->cur_cs = nand->cs[die_nr];
+}
+
+static int tegra_nand_exec_op(struct nand_chip *chip,
+			      const struct nand_operation *op,
+			      bool check_only)
+{
+	if (!check_only)
+		tegra_nand_select_target(chip, op->cs);
+
+	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
+				      check_only);
 }
 
 static void tegra_nand_hw_ecc(struct tegra_nand_controller *ctrl,
@@ -482,7 +479,7 @@ static void tegra_nand_hw_ecc(struct tegra_nand_controller *ctrl,
 {
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 
-	if (chip->ecc.algo == NAND_ECC_BCH && enable)
+	if (chip->ecc.algo == NAND_ECC_ALGO_BCH && enable)
 		writel_relaxed(nand->bch_config, ctrl->regs + BCH_CONFIG);
 	else
 		writel_relaxed(0, ctrl->regs + BCH_CONFIG);
@@ -502,6 +499,8 @@ static int tegra_nand_page_xfer(struct mtd_info *mtd, struct nand_chip *chip,
 	dma_addr_t dma_addr = 0, dma_addr_oob = 0;
 	u32 addr1, cmd, dma_ctrl;
 	int ret;
+
+	tegra_nand_select_target(chip, chip->cur_cs);
 
 	if (read) {
 		writel_relaxed(NAND_CMD_READ0, ctrl->regs + CMD_REG1);
@@ -814,8 +813,8 @@ static void tegra_nand_setup_timing(struct tegra_nand_controller *ctrl,
 	writel_relaxed(reg, ctrl->regs + TIMING_2);
 }
 
-static int tegra_nand_setup_data_interface(struct nand_chip *chip, int csline,
-					const struct nand_data_interface *conf)
+static int tegra_nand_setup_interface(struct nand_chip *chip, int csline,
+				      const struct nand_interface_config *conf)
 {
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 	const struct nand_sdr_timings *timings;
@@ -841,7 +840,10 @@ static int tegra_nand_get_strength(struct nand_chip *chip, const int *strength,
 				   int strength_len, int bits_per_step,
 				   int oobsize)
 {
-	bool maximize = chip->ecc.options & NAND_ECC_MAXIMIZE;
+	struct nand_device *base = mtd_to_nanddev(nand_to_mtd(chip));
+	const struct nand_ecc_props *requirements =
+		nanddev_get_ecc_requirements(base);
+	bool maximize = base->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH;
 	int i;
 
 	/*
@@ -856,7 +858,7 @@ static int tegra_nand_get_strength(struct nand_chip *chip, const int *strength,
 		} else {
 			strength_sel = strength[i];
 
-			if (strength_sel < chip->ecc_strength_ds)
+			if (strength_sel < requirements->strength)
 				continue;
 		}
 
@@ -878,7 +880,7 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 	int strength_len, bits_per_step;
 
 	switch (chip->ecc.algo) {
-	case NAND_ECC_RS:
+	case NAND_ECC_ALGO_RS:
 		bits_per_step = BITS_PER_STEP_RS;
 		if (chip->options & NAND_IS_BOOT_MEDIUM) {
 			strength = rs_strength_bootable;
@@ -888,7 +890,7 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 			strength_len = ARRAY_SIZE(rs_strength);
 		}
 		break;
-	case NAND_ECC_BCH:
+	case NAND_ECC_ALGO_BCH:
 		bits_per_step = BITS_PER_STEP_BCH;
 		if (chip->options & NAND_IS_BOOT_MEDIUM) {
 			strength = bch_strength_bootable;
@@ -909,6 +911,8 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 static int tegra_nand_attach_chip(struct nand_chip *chip)
 {
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
+	const struct nand_ecc_props *requirements =
+		nanddev_get_ecc_requirements(&chip->base);
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int bits_per_step;
@@ -917,12 +921,12 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		chip->bbt_options |= NAND_BBT_NO_OOB;
 
-	chip->ecc.mode = NAND_ECC_HW;
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->ecc.size = 512;
 	chip->ecc.steps = mtd->writesize / chip->ecc.size;
-	if (chip->ecc_step_ds != 512) {
+	if (requirements->step_size != 512) {
 		dev_err(ctrl->dev, "Unsupported step size %d\n",
-			chip->ecc_step_ds);
+			requirements->step_size);
 		return -EINVAL;
 	}
 
@@ -936,14 +940,14 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	if (chip->options & NAND_BUSWIDTH_16)
 		nand->config |= CONFIG_BUS_WIDTH_16;
 
-	if (chip->ecc.algo == NAND_ECC_UNKNOWN) {
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN) {
 		if (mtd->writesize < 2048)
-			chip->ecc.algo = NAND_ECC_RS;
+			chip->ecc.algo = NAND_ECC_ALGO_RS;
 		else
-			chip->ecc.algo = NAND_ECC_BCH;
+			chip->ecc.algo = NAND_ECC_ALGO_BCH;
 	}
 
-	if (chip->ecc.algo == NAND_ECC_BCH && mtd->writesize < 2048) {
+	if (chip->ecc.algo == NAND_ECC_ALGO_BCH && mtd->writesize < 2048) {
 		dev_err(ctrl->dev, "BCH supports 2K or 4K page size only\n");
 		return -EINVAL;
 	}
@@ -953,7 +957,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 		if (ret < 0) {
 			dev_err(ctrl->dev,
 				"No valid strength found, minimum %d\n",
-				chip->ecc_strength_ds);
+				requirements->strength);
 			return ret;
 		}
 
@@ -964,7 +968,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			   CONFIG_SKIP_SPARE_SIZE_4;
 
 	switch (chip->ecc.algo) {
-	case NAND_ECC_RS:
+	case NAND_ECC_ALGO_RS:
 		bits_per_step = BITS_PER_STEP_RS * chip->ecc.strength;
 		mtd_set_ooblayout(mtd, &tegra_nand_oob_rs_ops);
 		nand->config_ecc |= CONFIG_HW_ECC | CONFIG_ECC_SEL |
@@ -985,7 +989,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			return -EINVAL;
 		}
 		break;
-	case NAND_ECC_BCH:
+	case NAND_ECC_ALGO_BCH:
 		bits_per_step = BITS_PER_STEP_BCH * chip->ecc.strength;
 		mtd_set_ooblayout(mtd, &tegra_nand_oob_bch_ops);
 		nand->bch_config = BCH_ENABLE;
@@ -1014,7 +1018,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	}
 
 	dev_info(ctrl->dev, "Using %s with strength %d per 512 byte step\n",
-		 chip->ecc.algo == NAND_ECC_BCH ? "BCH" : "RS",
+		 chip->ecc.algo == NAND_ECC_ALGO_BCH ? "BCH" : "RS",
 		 chip->ecc.strength);
 
 	chip->ecc.bytes = DIV_ROUND_UP(bits_per_step, BITS_PER_BYTE);
@@ -1053,6 +1057,8 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops tegra_nand_controller_ops = {
 	.attach_chip = &tegra_nand_attach_chip,
+	.exec_op = tegra_nand_exec_op,
+	.setup_interface = tegra_nand_setup_interface,
 };
 
 static int tegra_nand_chips_init(struct device *dev,
@@ -1114,10 +1120,7 @@ static int tegra_nand_chips_init(struct device *dev,
 	if (!mtd->name)
 		mtd->name = "tegra_nand";
 
-	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER;
-	chip->exec_op = tegra_nand_exec_op;
-	chip->select_chip = tegra_nand_select_chip;
-	chip->setup_data_interface = tegra_nand_setup_data_interface;
+	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA;
 
 	ret = nand_scan(chip, 1);
 	if (ret)

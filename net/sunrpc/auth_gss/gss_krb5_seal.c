@@ -123,30 +123,6 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	return krb5_hdr;
 }
 
-u32
-gss_seq_send_fetch_and_inc(struct krb5_ctx *ctx)
-{
-	u32 old, seq_send = READ_ONCE(ctx->seq_send);
-
-	do {
-		old = seq_send;
-		seq_send = cmpxchg(&ctx->seq_send, old, old + 1);
-	} while (old != seq_send);
-	return seq_send;
-}
-
-u64
-gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx)
-{
-	u64 old, seq_send = READ_ONCE(ctx->seq_send);
-
-	do {
-		old = seq_send;
-		seq_send = cmpxchg64(&ctx->seq_send64, old, old + 1);
-	} while (old != seq_send);
-	return seq_send;
-}
-
 static u32
 gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
@@ -155,14 +131,14 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
 					    .data = cksumdata};
 	void			*ptr;
-	s32			now;
+	time64_t		now;
 	u32			seq_send;
 	u8			*cksumkey;
 
 	dprintk("RPC:       %s\n", __func__);
 	BUG_ON(ctx == NULL);
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 
 	ptr = setup_token(ctx, token);
 
@@ -177,7 +153,7 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data, md5cksum.len);
 
-	seq_send = gss_seq_send_fetch_and_inc(ctx);
+	seq_send = atomic_fetch_inc(&ctx->seq_send);
 
 	if (krb5_make_seq_num(ctx, ctx->seq, ctx->initiate ? 0 : 0xff,
 			      seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8))
@@ -194,7 +170,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	struct xdr_netobj cksumobj = { .len = sizeof(cksumdata),
 				       .data = cksumdata};
 	void *krb5_hdr;
-	s32 now;
+	time64_t now;
 	u8 *cksumkey;
 	unsigned int cksum_usage;
 	__be64 seq_send_be64;
@@ -205,7 +181,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	/* Set up the sequence number. Now 64-bits in clear
 	 * text and w/o direction indicator */
-	seq_send_be64 = cpu_to_be64(gss_seq_send64_fetch_and_inc(ctx));
+	seq_send_be64 = cpu_to_be64(atomic64_fetch_inc(&ctx->seq_send64));
 	memcpy(krb5_hdr + 8, (char *) &seq_send_be64, 8);
 
 	if (ctx->initiate) {
@@ -222,7 +198,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	memcpy(krb5_hdr + GSS_KRB5_TOK_HDR_LEN, cksumobj.data, cksumobj.len);
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
@@ -238,7 +214,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
-	case ENCTYPE_ARCFOUR_HMAC:
 		return gss_get_mic_v1(ctx, text, token);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:

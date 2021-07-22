@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * at91-kizbox2-2.dts - Device Tree file for the Kizbox2 with
+ * two head board
+ *
+ * Copyright (C) 2015 Overkiz SAS
+ *
+ * Authors: Antoine Aubert <a.aubert@overkiz.com>
+ *	    Kévin Raymond <k.raymond@overkiz.com>
+ */
+/dts-v1/;
+#include "at91-kizbox2-common.dtsi"
+
+/ {
+	model = "Overkiz Kizbox 2 with two heads";
+	compatible = "overkiz,kizbox2-2", "atmel,sama5d31",
+		     "atmel,sama5d3", "atmel,sama5";
+};
+
+&usart1 {
+	status = "okay";
+};
+
+&usart2 {
+	status = "okay";
+};

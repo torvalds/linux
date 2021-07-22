@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TXx9 NAND flash memory controller driver
  * Based on RBTX49xx patch from CELF patch archive.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * (C) Copyright TOSHIBA CORPORATION 2004-2007
  * All Rights Reserved.
@@ -16,8 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/platform_data/txx9/ndfmc.h>
@@ -159,7 +156,6 @@ static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_NONE)
 			txx9ndfmc_write(dev, 0, TXX9_NDFDTR);
 	}
-	mmiowb();
 }
 
 static int txx9ndfmc_dev_ready(struct nand_chip *chip)
@@ -198,8 +194,8 @@ static int txx9ndfmc_correct_data(struct nand_chip *chip, unsigned char *buf,
 	int stat;
 
 	for (eccsize = chip->ecc.size; eccsize > 0; eccsize -= 256) {
-		stat = __nand_correct_data(buf, read_ecc, calc_ecc, 256,
-					   false);
+		stat = ecc_sw_hamming_correct(buf, read_ecc, calc_ecc,
+					      chip->ecc.size, false);
 		if (stat < 0)
 			return stat;
 		corrected += stat;
@@ -257,6 +253,11 @@ static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.strength = 1;
+
 	if (mtd->writesize >= 512) {
 		chip->ecc.size = 512;
 		chip->ecc.bytes = 6;
@@ -264,6 +265,10 @@ static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 		chip->ecc.size = 256;
 		chip->ecc.bytes = 3;
 	}
+
+	chip->ecc.calculate = txx9ndfmc_calculate_ecc;
+	chip->ecc.correct = txx9ndfmc_correct_data;
+	chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
 
 	return 0;
 }
@@ -330,11 +335,6 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->legacy.write_buf = txx9ndfmc_write_buf;
 		chip->legacy.cmd_ctrl = txx9ndfmc_cmd_ctrl;
 		chip->legacy.dev_ready = txx9ndfmc_dev_ready;
-		chip->ecc.calculate = txx9ndfmc_calculate_ecc;
-		chip->ecc.correct = txx9ndfmc_correct_data;
-		chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
-		chip->ecc.mode = NAND_ECC_HW;
-		chip->ecc.strength = 1;
 		chip->legacy.chip_delay = 100;
 		chip->controller = &drvdata->controller;
 
@@ -375,7 +375,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 static int __exit txx9ndfmc_remove(struct platform_device *dev)
 {
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
-	int i;
+	int ret, i;
 
 	if (!drvdata)
 		return 0;
@@ -389,7 +389,9 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		chip = mtd_to_nand(mtd);
 		txx9_priv = nand_get_controller_data(chip);
 
-		nand_release(chip);
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

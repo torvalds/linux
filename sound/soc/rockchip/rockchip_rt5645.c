@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Rockchip machine ASoC driver for boards using a RT5645/RT5650 CODEC.
  *
  * Copyright (c) 2015, ROCKCHIP CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -67,9 +55,9 @@ static int rk_aif1_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int mclk;
 
 	switch (params_rate(params)) {
@@ -125,7 +113,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	return rt5645_set_jack_detect(runtime->codec_dai->component,
+	return rt5645_set_jack_detect(asoc_rtd_to_codec(runtime, 0)->component,
 				     &headset_jack,
 				     &headset_jack,
 				     &headset_jack);
@@ -135,15 +123,20 @@ static const struct snd_soc_ops rk_aif1_ops = {
 	.hw_params = rk_aif1_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5645-aif1")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "rt5645",
 	.stream_name = "rt5645 PCM",
-	.codec_dai_name = "rt5645-aif1",
 	.init = rk_init,
 	.ops = &rk_aif1_ops,
 	/* set rt5645 as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_card_rk = {
@@ -168,24 +161,24 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	/* register the soc card */
 	card->dev = &pdev->dev;
 
-	rk_dailink.codec_of_node = of_parse_phandle(np,
+	rk_dailink.codecs->of_node = of_parse_phandle(np,
 			"rockchip,audio-codec", 0);
-	if (!rk_dailink.codec_of_node) {
+	if (!rk_dailink.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.cpu_of_node = of_parse_phandle(np,
+	rk_dailink.cpus->of_node = of_parse_phandle(np,
 			"rockchip,i2s-controller", 0);
-	if (!rk_dailink.cpu_of_node) {
+	if (!rk_dailink.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto put_codec_of_node;
 	}
 
-	rk_dailink.platform_of_node = rk_dailink.cpu_of_node;
+	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
 	ret = snd_soc_of_parse_card_name(card, "rockchip,model");
 	if (ret) {
@@ -204,21 +197,21 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	return ret;
 
 put_cpu_of_node:
-	of_node_put(rk_dailink.cpu_of_node);
-	rk_dailink.cpu_of_node = NULL;
+	of_node_put(rk_dailink.cpus->of_node);
+	rk_dailink.cpus->of_node = NULL;
 put_codec_of_node:
-	of_node_put(rk_dailink.codec_of_node);
-	rk_dailink.codec_of_node = NULL;
+	of_node_put(rk_dailink.codecs->of_node);
+	rk_dailink.codecs->of_node = NULL;
 
 	return ret;
 }
 
 static int snd_rk_mc_remove(struct platform_device *pdev)
 {
-	of_node_put(rk_dailink.cpu_of_node);
-	rk_dailink.cpu_of_node = NULL;
-	of_node_put(rk_dailink.codec_of_node);
-	rk_dailink.codec_of_node = NULL;
+	of_node_put(rk_dailink.cpus->of_node);
+	rk_dailink.cpus->of_node = NULL;
+	of_node_put(rk_dailink.codecs->of_node);
+	rk_dailink.codecs->of_node = NULL;
 
 	return 0;
 }

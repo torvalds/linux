@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: ISC
 config ATH5K
 	tristate "Atheros 5xxx wireless cards support"
 	depends on (PCI || ATH25) && MAC80211
@@ -7,7 +8,7 @@ config ATH5K
 	select NEW_LEDS
 	select ATH5K_AHB if ATH25
 	select ATH5K_PCI if !ATH25
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Atheros 5xxx chipset.
 
@@ -24,7 +25,7 @@ config ATH5K
 config ATH5K_DEBUG
 	bool "Atheros 5xxx debugging"
 	depends on ATH5K
-	---help---
+	help
 	  Atheros 5xxx debugging messages.
 
 	  Say Y, if and you will get debug options for ath5k.
@@ -44,7 +45,7 @@ config ATH5K_TRACER
 	bool "Atheros 5xxx tracer"
 	depends on ATH5K
 	depends on EVENT_TRACING
-	---help---
+	help
 	  Say Y here to enable tracepoints for the ath5k driver
 	  using the kernel tracing infrastructure.  Select this
 	  option if you are interested in debugging the driver.
@@ -53,22 +54,22 @@ config ATH5K_TRACER
 
 config ATH5K_AHB
 	bool "Atheros 5xxx AHB bus support"
-	depends on ATH25
-	---help---
+	depends on ATH25 && ATH5K
+	help
 	  This adds support for WiSoC type chipsets of the 5xxx Atheros
 	  family.
 
 config ATH5K_PCI
 	bool "Atheros 5xxx PCI bus support"
 	depends on (!ATH25 && PCI)
-	---help---
+	help
 	  This adds support for PCI type chipsets of the 5xxx Atheros
 	  family.
 
 config ATH5K_TEST_CHANNELS
 	bool "Enables testing channels on ath5k"
 	depends on ATH5K && CFG80211_CERTIFICATION_ONUS
-	---help---
+	help
 	  This enables non-standard IEEE 802.11 channels on ath5k, which
 	  can be used for research purposes. This option should be disabled
 	  unless doing research.

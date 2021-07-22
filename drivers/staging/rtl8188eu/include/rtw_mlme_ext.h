@@ -11,7 +11,6 @@
 #include <drv_types.h>
 #include <wlan_bssdef.h>
 
-
 /*	Commented by Albert 20101105 */
 /*	Increase the SURVEY_TO value from 100 to 150  ( 100ms to 150ms ) */
 /*	The Realtek 8188CE SoftAP will spend around 100ms to send the probe response after receiving the probe request. */
@@ -66,7 +65,6 @@
 #define _HW_STATE_STATION_	0x02
 #define _HW_STATE_AP_			0x03
 
-
 #define		_1M_RATE_	0
 #define		_2M_RATE_	1
 #define		_5M_RATE_	2
@@ -80,15 +78,8 @@
 #define		_48M_RATE_	10
 #define		_54M_RATE_	11
 
-
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WMM_OUI[];
-extern unsigned char WPS_OUI[];
-extern unsigned char WFD_OUI[];
-extern unsigned char P2P_OUI[];
-
-extern unsigned char WMM_INFO_OUI[];
-extern unsigned char WMM_PARA_OUI[];
+extern const u8 RTW_WPA_OUI[];
+extern const u8 WPS_OUI[];
 
 /*  Channel Plan Type. */
 /*  Note: */
@@ -179,14 +170,6 @@ struct rt_channel_plan_2g {
 struct rt_channel_plan_map {
 	unsigned char	Index2G;
 };
-
-static const struct {
-	int channel_plan;
-	char *name;
-} channel_table[] = { { RT_CHANNEL_DOMAIN_FCC, "US" },
-	{ RT_CHANNEL_DOMAIN_ETSI, "EU" },
-	{ RT_CHANNEL_DOMAIN_MKK, "JP" },
-	{ RT_CHANNEL_DOMAIN_CHINA, "CN"} };
 
 enum Associated_AP {
 	atherosAP	= 0,
@@ -400,7 +383,6 @@ struct p2p_oper_class_map {
 };
 
 struct mlme_ext_priv {
-	struct adapter	*padapter;
 	u8	mlmeext_init;
 	atomic_t	event_seq;
 	u16	mgnt_seq;
@@ -457,7 +439,7 @@ void init_addba_retry_timer(struct adapter *adapt, struct sta_info *sta);
 struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
 
 unsigned char networktype_to_raid(unsigned char network_type);
-u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int len);
+u8 judge_network_type(struct adapter *padapter, unsigned char *rate);
 void get_rate_set(struct adapter *padapter, unsigned char *pbssrate, int *len);
 void UpdateBrateTbl(struct adapter *padapter, u8 *mBratesOS);
 void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen);
@@ -492,7 +474,6 @@ void flush_all_cam_entry(struct adapter *padapter);
 void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct adapter *adapter, bool update_ie);
 
-int get_bsstype(unsigned short capability);
 u16 get_beacon_interval(struct wlan_bssid_ex *bss);
 
 int is_client_associated_to_ap(struct adapter *padapter);
@@ -533,7 +514,6 @@ void set_sta_rate(struct adapter *padapter, struct sta_info *psta);
 unsigned char get_highest_rate_idx(u32 mask);
 int support_short_GI(struct adapter *padapter, struct ieee80211_ht_cap *caps);
 unsigned int is_ap_in_tkip(struct adapter *padapter);
-unsigned int is_ap_in_wep(struct adapter *padapter);
 
 void report_join_res(struct adapter *padapter, int res);
 void report_survey_event(struct adapter *padapter,
@@ -544,7 +524,6 @@ void report_del_sta_event(struct adapter *padapter,
 void report_add_sta_event(struct adapter *padapter, unsigned char *addr,
 			  int cam_idx);
 
-void beacon_timing_control(struct adapter *padapter);
 u8 set_tx_beacon_cmd(struct adapter *padapter);
 unsigned int setup_beacon_frame(struct adapter *padapter,
 				unsigned char *beacon_frame);
@@ -579,9 +558,6 @@ void addba_timer_hdl(struct timer_list *t);
 #define set_link_timer(mlmeext, ms) \
 	mod_timer(&mlmeext->link_timer, jiffies +	\
 		  msecs_to_jiffies(ms))
-
-int cckrates_included(unsigned char *rate, int ratelen);
-int cckratesonly_included(unsigned char *rate, int ratelen);
 
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
 
@@ -620,28 +596,6 @@ u8 led_blink_hdl(struct adapter *padapter, unsigned char *pbuf);
 /* Handling DFS channel switch announcement ie. */
 u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
-
-#ifdef _RTW_CMD_C_
-
-static struct cmd_hdl wlancmds[] = {
-	{sizeof(struct wlan_bssid_ex), join_cmd_hdl},
-	{sizeof(struct disconnect_parm), disconnect_hdl},
-	{sizeof(struct wlan_bssid_ex), createbss_hdl},
-	{sizeof(struct setopmode_parm), setopmode_hdl},
-	{sizeof(struct sitesurvey_parm), sitesurvey_cmd_hdl},
-	{sizeof(struct setauth_parm), setauth_hdl},
-	{sizeof(struct setkey_parm), setkey_hdl},
-	{sizeof(struct set_stakey_parm), set_stakey_hdl},
-	{sizeof(struct set_assocsta_parm), NULL},
-	{sizeof(struct addBaReq_parm), add_ba_hdl},
-	{sizeof(struct set_ch_parm), set_ch_hdl},
-	{sizeof(struct wlan_bssid_ex), tx_beacon_hdl},
-	{0, mlme_evt_hdl},
-	{0, rtw_drvextra_cmd_hdl},
-	{sizeof(struct SetChannelPlan_param), set_chplan_hdl}
-};
-
-#endif
 
 struct C2HEvent_Header {
 #ifdef __LITTLE_ENDIAN
@@ -691,7 +645,6 @@ enum rtw_c2h_event {
 	MAX_C2HEVT
 };
 
-
 #ifdef _RTW_MLME_EXT_C_
 
 static struct fwevent wlanevents[] = {
@@ -708,7 +661,7 @@ static struct fwevent wlanevents[] = {
 	{0, &rtw_joinbss_event_callback},		/*10*/
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},
 	{sizeof(struct stadel_event), &rtw_stadel_event_callback},
-	{0, &rtw_atimdone_event_callback},
+	{0, NULL},
 	{0, rtw_dummy_event_callback},
 	{0, NULL},	/*15*/
 	{0, NULL},
@@ -718,7 +671,7 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},	 /*20*/
 	{0, NULL},
 	{0, NULL},
-	{0, &rtw_cpwm_event_callback},
+	{0, NULL},
 	{0, NULL},
 };
 

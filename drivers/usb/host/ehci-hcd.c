@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/otg.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
@@ -75,12 +76,12 @@ static const char	hcd_name [] = "ehci_hcd";
 #define	EHCI_TUNE_FLS		1	/* (medium) 512-frame schedule */
 
 /* Initial IRQ latency:  faster than hw default */
-static int log2_irq_thresh = 0;		// 0 to 6
+static int log2_irq_thresh;		// 0 to 6
 module_param (log2_irq_thresh, int, S_IRUGO);
 MODULE_PARM_DESC (log2_irq_thresh, "log2 IRQ latency, 1-64 microframes");
 
 /* initial park setting:  slower than hw default */
-static unsigned park = 0;
+static unsigned park;
 module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 
@@ -559,7 +560,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	ehci->command = temp;
 
 	/* Accept arbitrarily long scatter-gather lists */
-	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+	if (!hcd->localmem_pool)
 		hcd->self.sg_tablesize = ~0;
 
 	/* Prepare for unlinking active QHs */
@@ -573,6 +574,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
 	u32			hcc_params;
+	int			rc;
 
 	hcd->uses_new_polling = 1;
 
@@ -628,9 +630,20 @@ static int ehci_run (struct usb_hcd *hcd)
 	down_write(&ehci_cf_port_reset_rwsem);
 	ehci->rh_state = EHCI_RH_RUNNING;
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
+
+	/* Wait until HC become operational */
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 	msleep(5);
+	rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT, 0, 100 * 1000);
+
 	up_write(&ehci_cf_port_reset_rwsem);
+
+	if (rc) {
+		ehci_err(ehci, "USB %x.%x, controller refused to start: %d\n",
+			 ((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f), rc);
+		return rc;
+	}
+
 	ehci->last_periodic_enable = ktime_get_real();
 
 	temp = HC_VERSION(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
@@ -638,7 +651,7 @@ static int ehci_run (struct usb_hcd *hcd)
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
 		temp >> 8, temp & 0xff,
-		ignore_oc ? ", overcurrent ignored" : "");
+		(ignore_oc || ehci->spurious_oc) ? ", overcurrent ignored" : "");
 
 	ehci_writel(ehci, INTR_MASK,
 		    &ehci->regs->intr_enable); /* Turn On Interrupts */
@@ -692,15 +705,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			status, masked_status, pcd_status = 0, cmd;
 	int			bh;
-	unsigned long		flags;
 
-	/*
-	 * For threadirqs option we use spin_lock_irqsave() variant to prevent
-	 * deadlock with ehci hrtimer callback, because hrtimer callbacks run
-	 * in interrupt context even when threadirqs is specified. We can go
-	 * back to spin_lock() variant when hrtimer callbacks become threaded.
-	 */
-	spin_lock_irqsave(&ehci->lock, flags);
+	spin_lock(&ehci->lock);
 
 	status = ehci_readl(ehci, &ehci->regs->status);
 
@@ -718,7 +724,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* Shared IRQ? */
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
-		spin_unlock_irqrestore(&ehci->lock, flags);
+		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
 
@@ -829,7 +835,7 @@ dead:
 
 	if (bh)
 		ehci_work (ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
+	spin_unlock(&ehci->lock);
 	if (pcd_status)
 		usb_hcd_poll_rh_status(hcd);
 	return IRQ_HANDLED;
@@ -866,7 +872,7 @@ static int ehci_urb_enqueue (
 		 */
 		if (urb->transfer_buffer_length > (16 * 1024))
 			return -EMSGSIZE;
-		/* FALLTHROUGH */
+		fallthrough;
 	/* case PIPE_BULK: */
 	default:
 		if (!qh_urb_transaction (ehci, urb, &qtd_list, mem_flags))
@@ -982,7 +988,7 @@ rescan:
 			start_unlink_async(ehci, qh);
 		else
 			start_unlink_intr(ehci, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_COMPLETING:	/* already in unlinking */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
@@ -999,7 +1005,7 @@ idle_timeout:
 			qh_destroy(ehci, qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
@@ -1193,7 +1199,7 @@ static const struct hc_driver ehci_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq =			ehci_irq,
-	.flags =		HCD_MEMORY | HCD_USB2 | HCD_BH,
+	.flags =		HCD_MEMORY | HCD_DMA | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -1232,6 +1238,10 @@ static const struct hc_driver ehci_hc_driver = {
 	 * device support
 	 */
 	.free_dev =		ehci_remove_device,
+#ifdef CONFIG_USB_HCD_TEST_MODE
+	/* EH SINGLE_STEP_SET_FEATURE test support */
+	.submit_single_step_set_feature	= ehci_submit_single_step_set_feature,
+#endif
 };
 
 void ehci_init_driver(struct hc_driver *drv,

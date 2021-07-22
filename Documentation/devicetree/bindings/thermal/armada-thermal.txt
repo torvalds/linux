@@ -12,7 +12,7 @@ Required properties:
 
 Note: these bindings are deprecated for AP806/CP110 and should instead
 follow the rules described in:
-Documentation/devicetree/bindings/arm/marvell/ap806-system-controller.txt
+Documentation/devicetree/bindings/arm/marvell/ap80x-system-controller.txt
 Documentation/devicetree/bindings/arm/marvell/cp110-system-controller.txt
 
 - reg: Device's register space.

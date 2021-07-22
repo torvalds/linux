@@ -39,7 +39,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_warning(const char *module_name,
 			   u32 line_number,
 			   char *pathname,
-			   u8 node_flags, const char *format, ...)
+			   u16 node_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -81,7 +81,7 @@ acpi_ut_predefined_warning(const char *module_name,
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_info(const char *module_name,
 			u32 line_number,
-			char *pathname, u8 node_flags, const char *format, ...)
+			char *pathname, u16 node_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -124,7 +124,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_bios_error(const char *module_name,
 			      u32 line_number,
 			      char *pathname,
-			      u8 node_flags, const char *format, ...)
+			      u16 node_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -183,19 +183,19 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 	case AE_ALREADY_EXISTS:
 
 		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-		message = "Failure creating";
+		message = "Failure creating named object";
 		break;
 
 	case AE_NOT_FOUND:
 
 		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-		message = "Could not resolve";
+		message = "Could not resolve symbol";
 		break;
 
 	default:
 
 		acpi_os_printf(ACPI_MSG_ERROR);
-		message = "Failure resolving";
+		message = "Failure resolving symbol";
 		break;
 	}
 
@@ -317,7 +317,8 @@ acpi_ut_method_error(const char *module_name,
 	}
 
 	acpi_ns_print_node_pathname(node, message);
-	acpi_os_printf(", %s", acpi_format_exception(method_status));
+	acpi_os_printf(" due to previous error (%s)",
+		       acpi_format_exception(method_status));
 
 	ACPI_MSG_SUFFIX;
 	ACPI_MSG_REDIRECT_END;

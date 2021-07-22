@@ -23,79 +23,126 @@
 
 #include <nvif/cl507c.h>
 #include <nvif/event.h>
+#include <nvif/push507c.h>
+#include <nvif/timer.h>
+
+#include <nvhw/class/cl507c.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+
 #include "nouveau_bo.h"
 
-void
+int
 base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0080, 1);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CORE]);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, UPDATE, interlock[NV50_DISP_INTERLOCK_CORE]);
+	return PUSH_KICK(push);
 }
 
-void
+int
 base507c_image_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_PRESENT_CONTROL,
+		  NVDEF(NV507C, SET_PRESENT_CONTROL, BEGIN_MODE, NON_TEARING) |
+		  NVVAL(NV507C, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, 0));
+
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_ISO, 0x00000000);
+	return 0;
 }
 
-static void
+static int
 base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 10))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, asyw->image.mode << 8 |
-			       asyw->image.interval << 4);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, asyw->image.handle[0]);
-		evo_mthd(push, 0x0800, 5);
-		evo_data(push, asyw->image.offset[0] >> 8);
-		evo_data(push, 0x00000000);
-		evo_data(push, asyw->image.h << 16 | asyw->image.w);
-		evo_data(push, asyw->image.layout << 20 |
-			       (asyw->image.pitch[0] >> 8) << 8 |
-			       asyw->image.blocks[0] << 8 |
-			       asyw->image.blockh);
-		evo_data(push, asyw->image.kind << 16 |
-			       asyw->image.format << 8);
-		evo_kick(push, &wndw->wndw);
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_PRESENT_CONTROL,
+		  NVVAL(NV507C, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVVAL(NV507C, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval));
+
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_ISO, asyw->image.handle[0]);
+
+	if (asyw->image.format == NV507C_SURFACE_SET_PARAMS_FORMAT_RF16_GF16_BF16_AF16) {
+		PUSH_MTHD(push, NV507C, SET_PROCESSING,
+			  NVDEF(NV507C, SET_PROCESSING, USE_GAIN_OFS, ENABLE),
+
+					SET_CONVERSION,
+			  NVVAL(NV507C, SET_CONVERSION, GAIN, 0) |
+			  NVVAL(NV507C, SET_CONVERSION, OFS, 0x64));
+	} else {
+		PUSH_MTHD(push, NV507C, SET_PROCESSING,
+			  NVDEF(NV507C, SET_PROCESSING, USE_GAIN_OFS, DISABLE),
+
+					SET_CONVERSION,
+			  NVVAL(NV507C, SET_CONVERSION, GAIN, 0) |
+			  NVVAL(NV507C, SET_CONVERSION, OFS, 0));
 	}
+
+	PUSH_MTHD(push, NV507C, SURFACE_SET_OFFSET(0, 0), asyw->image.offset[0] >> 8);
+
+	PUSH_MTHD(push, NV507C, SURFACE_SET_SIZE(0),
+		  NVVAL(NV507C, SURFACE_SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NV507C, SURFACE_SET_SIZE, HEIGHT, asyw->image.h),
+
+				SURFACE_SET_STORAGE(0),
+		  NVVAL(NV507C, SURFACE_SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout) |
+		  NVVAL(NV507C, SURFACE_SET_STORAGE, PITCH, asyw->image.pitch[0] >> 8) |
+		  NVVAL(NV507C, SURFACE_SET_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NV507C, SURFACE_SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh),
+
+				SURFACE_SET_PARAMS(0),
+		  NVVAL(NV507C, SURFACE_SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVDEF(NV507C, SURFACE_SET_PARAMS, SUPER_SAMPLE, X1_AA) |
+		  NVDEF(NV507C, SURFACE_SET_PARAMS, GAMMA, LINEAR) |
+		  NVDEF(NV507C, SURFACE_SET_PARAMS, LAYOUT, FRM) |
+		  NVVAL(NV507C, SURFACE_SET_PARAMS, KIND, asyw->image.kind) |
+		  NVDEF(NV507C, SURFACE_SET_PARAMS, PART_STRIDE, PARTSTRIDE_256));
+	return 0;
 }
 
-void
+int
 base507c_xlut_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x00e0, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_BASE_LUT_LO,
+		  NVDEF(NV507C, SET_BASE_LUT_LO, ENABLE, DISABLE));
+	return 0;
 }
 
-void
+int
 base507c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x00e0, 1);
-		evo_data(push, 0x40000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_BASE_LUT_LO,
+		  NVDEF(NV507C, SET_BASE_LUT_LO, ENABLE, USE_CORE_LUT));
+	return 0;
 }
 
 int
@@ -103,66 +150,77 @@ base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		u32 data = nouveau_bo_rd32(bo, offset / 4);
-		if ((data & 0xc0000000) == 0x40000000)
+		if (NVBO_TD32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0, STATUS, ==, BEGUN))
 			break;
 		usleep_range(1, 2);
 	);
 	return time < 0 ? time : 0;
 }
 
-void
+int
 base507c_ntfy_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x00a4, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_NOTIFIER, 0x00000000);
+	return 0;
 }
 
-void
+int
 base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 3))) {
-		evo_mthd(push, 0x00a0, 2);
-		evo_data(push, asyw->ntfy.awaken << 30 | asyw->ntfy.offset);
-		evo_data(push, asyw->ntfy.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 3)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_NOTIFIER_CONTROL,
+		  NVVAL(NV507C, SET_NOTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
+		  NVVAL(NV507C, SET_NOTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 2),
+
+				SET_CONTEXT_DMA_NOTIFIER, asyw->ntfy.handle);
+	return 0;
 }
 
 void
 base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	NVBO_WR32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0,
+			NVDEF(NV_DISP_BASE_NOTIFIER_1, _0, STATUS, NOT_BEGUN));
 }
 
-void
+int
 base507c_sema_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0094, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_SEMAPHORE, 0x00000000);
+	return 0;
 }
 
-void
+int
 base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x0088, 4);
-		evo_data(push, asyw->sema.offset);
-		evo_data(push, asyw->sema.acquire);
-		evo_data(push, asyw->sema.release);
-		evo_data(push, asyw->sema.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_MTHD(push, NV507C, SET_SEMAPHORE_CONTROL, asyw->sema.offset,
+				SET_SEMAPHORE_ACQUIRE, asyw->sema.acquire,
+				SET_SEMAPHORE_RELEASE, asyw->sema.release,
+				SET_CONTEXT_DMA_SEMAPHORE, asyw->sema.handle);
+	return 0;
 }
 
 void
@@ -178,9 +236,6 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	const struct drm_framebuffer *fb = asyw->state.fb;
 	int ret;
-
-	if (!fb->format->depth)
-		return -EINVAL;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
 						  DRM_PLANE_HELPER_NO_SCALING,
@@ -200,6 +255,14 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.y = asyw->state.src.y1 >> 16;
 	asyh->base.w = asyw->state.fb->width;
 	asyh->base.h = asyw->state.fb->height;
+
+	/* Some newer formats, esp FP16 ones, don't have a
+	 * "depth". There's nothing that really makes sense there
+	 * either, so just set it to the implicit bit count.
+	 */
+	if (!asyh->base.depth)
+		asyh->base.depth = asyh->base.cpp * 8;
+
 	return 0;
 }
 
@@ -215,6 +278,8 @@ base507c_format[] = {
 	DRM_FORMAT_ABGR2101010,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR16161616F,
+	DRM_FORMAT_ABGR16161616F,
 	0
 };
 
@@ -244,7 +309,8 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	struct nv50_disp_base_channel_dma_v0 args = {
 		.head = head,
 	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct nv50_disp *disp50 = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
 	int ret;
 
@@ -254,16 +320,17 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
+	ret = nv50_dmac_create(&drm->client.device, &disp->disp.object,
 			       &oclass, head, &args, sizeof(args),
-			       disp->sync->bo.offset, &wndw->wndw);
+			       disp50->sync->offset, &wndw->wndw);
 	if (ret) {
 		NV_ERROR(drm, "base%04x allocation failed: %d\n", oclass, ret);
 		return ret;
 	}
 
-	ret = nvif_notify_init(&wndw->wndw.base.user, wndw->notify.func,
-			       false, NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT,
+	ret = nvif_notify_ctor(&wndw->wndw.base.user, "kmsBaseNtfy",
+			       wndw->notify.func, false,
+			       NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT,
 			       &(struct nvif_notify_uevent_req) {},
 			       sizeof(struct nvif_notify_uevent_req),
 			       sizeof(struct nvif_notify_uevent_rep),

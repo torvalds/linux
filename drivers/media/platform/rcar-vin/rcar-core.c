@@ -131,9 +131,13 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 	    !is_media_entity_v4l2_video_device(link->sink->entity))
 		return 0;
 
-	/* If any entity is in use don't allow link changes. */
+	/*
+	 * Don't allow link changes if any entity in the graph is
+	 * streaming, modifying the CHSEL register fields can disrupt
+	 * running streams.
+	 */
 	media_device_for_each_entity(entity, &group->mdev)
-		if (entity->use_count)
+		if (entity->stream_count)
 			return -EBUSY;
 
 	mutex_lock(&group->lock);
@@ -181,8 +185,8 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 		 */
 		sd = media_entity_to_v4l2_subdev(link->source->entity);
 		for (i = 0; i < RCAR_VIN_NUM; i++) {
-			if (group->vin[i] && group->vin[i]->parallel &&
-			    group->vin[i]->parallel->subdev == sd) {
+			if (group->vin[i] &&
+			    group->vin[i]->parallel.subdev == sd) {
 				group->vin[i]->is_csi = false;
 				ret = 0;
 				goto out;
@@ -239,7 +243,6 @@ static struct rvin_group *rvin_group_data;
 
 static void rvin_group_cleanup(struct rvin_group *group)
 {
-	media_device_unregister(&group->mdev);
 	media_device_cleanup(&group->mdev);
 	mutex_destroy(&group->lock);
 }
@@ -249,7 +252,6 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 	struct media_device *mdev = &group->mdev;
 	const struct of_device_id *match;
 	struct device_node *np;
-	int ret;
 
 	mutex_init(&group->lock);
 
@@ -274,11 +276,7 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 
 	media_device_init(mdev);
 
-	ret = media_device_register(&group->mdev);
-	if (ret)
-		rvin_group_cleanup(group);
-
-	return ret;
+	return 0;
 }
 
 static void rvin_group_release(struct kref *kref)
@@ -386,6 +384,28 @@ out:
 }
 
 /* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+static int rvin_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct rvin_dev *vin =
+		container_of(ctrl->handler, struct rvin_dev, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALPHA_COMPONENT:
+		rvin_set_alpha(vin, ctrl->val);
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops rvin_ctrl_ops = {
+	.s_ctrl = rvin_s_ctrl,
+};
+
+/* -----------------------------------------------------------------------------
  * Async notifier
  */
 
@@ -420,20 +440,20 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
 	if (ret < 0)
 		return ret;
-	vin->parallel->source_pad = ret;
+	vin->parallel.source_pad = ret;
 
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
-	vin->parallel->sink_pad = ret < 0 ? 0 : ret;
+	vin->parallel.sink_pad = ret < 0 ? 0 : ret;
 
 	if (vin->info->use_mc) {
-		vin->parallel->subdev = subdev;
+		vin->parallel.subdev = subdev;
 		return 0;
 	}
 
 	/* Find compatible subdevices mbus format */
 	vin->mbus_code = 0;
 	code.index = 0;
-	code.pad = vin->parallel->source_pad;
+	code.pad = vin->parallel.source_pad;
 	while (!vin->mbus_code &&
 	       !v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code)) {
 		code.index++;
@@ -474,8 +494,17 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	if (ret < 0)
 		return ret;
 
+	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	if (vin->ctrl_handler.error) {
+		ret = vin->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&vin->ctrl_handler);
+		return ret;
+	}
+
 	ret = v4l2_ctrl_add_handler(&vin->ctrl_handler, subdev->ctrl_handler,
-				    NULL);
+				    NULL, true);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&vin->ctrl_handler);
 		return ret;
@@ -483,7 +512,7 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 
 	vin->vdev.ctrl_handler = &vin->ctrl_handler;
 
-	vin->parallel->subdev = subdev;
+	vin->parallel.subdev = subdev;
 
 	return 0;
 }
@@ -491,7 +520,7 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 {
 	rvin_v4l2_unregister(vin);
-	vin->parallel->subdev = NULL;
+	vin->parallel.subdev = NULL;
 
 	if (!vin->info->use_mc) {
 		v4l2_ctrl_handler_free(&vin->ctrl_handler);
@@ -522,11 +551,11 @@ static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 		return 0;
 
 	/* If we're running with media-controller, link the subdevs. */
-	source = &vin->parallel->subdev->entity;
+	source = &vin->parallel.subdev->entity;
 	sink = &vin->vdev.entity;
 
-	ret = media_create_pad_link(source, vin->parallel->source_pad,
-				    sink, vin->parallel->sink_pad, 0);
+	ret = media_create_pad_link(source, vin->parallel.source_pad,
+				    sink, vin->parallel.sink_pad, 0);
 	if (ret)
 		vin_err(vin, "Error adding link from %s to %s: %d\n",
 			source->name, sink->name, ret);
@@ -563,8 +592,8 @@ static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 	v4l2_set_subdev_hostdata(subdev, vin);
 
 	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
-		subdev->name, vin->parallel->source_pad,
-		vin->parallel->sink_pad);
+		subdev->name, vin->parallel.source_pad,
+		vin->parallel.sink_pad);
 
 	return 0;
 }
@@ -575,35 +604,57 @@ static const struct v4l2_async_notifier_operations rvin_parallel_notify_ops = {
 	.complete = rvin_parallel_notify_complete,
 };
 
-static int rvin_parallel_parse_v4l2(struct device *dev,
-				    struct v4l2_fwnode_endpoint *vep,
-				    struct v4l2_async_subdev *asd)
+static int rvin_parallel_parse_of(struct rvin_dev *vin)
 {
-	struct rvin_dev *vin = dev_get_drvdata(dev);
-	struct rvin_parallel_entity *rvpe =
-		container_of(asd, struct rvin_parallel_entity, asd);
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_UNKNOWN,
+	};
+	struct v4l2_async_subdev *asd;
+	int ret;
 
-	if (vep->base.port || vep->base.id)
-		return -ENOTCONN;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 0, 0, 0);
+	if (!ep)
+		return 0;
 
-	vin->parallel = rvpe;
-	vin->parallel->mbus_type = vep->bus_type;
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
+	}
 
-	switch (vin->parallel->mbus_type) {
+	switch (vep.bus_type) {
 	case V4L2_MBUS_PARALLEL:
-		vin_dbg(vin, "Found PARALLEL media bus\n");
-		vin->parallel->mbus_flags = vep->bus.parallel.flags;
-		break;
 	case V4L2_MBUS_BT656:
-		vin_dbg(vin, "Found BT656 media bus\n");
-		vin->parallel->mbus_flags = 0;
+		vin_dbg(vin, "Found %s media bus\n",
+			vep.bus_type == V4L2_MBUS_PARALLEL ?
+			"PARALLEL" : "BT656");
+		vin->parallel.mbus_type = vep.bus_type;
+		vin->parallel.bus = vep.bus.parallel;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	return 0;
+	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->notifier, fwnode,
+						    struct v4l2_async_subdev);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out;
+	}
+
+	vin->parallel.asd = asd;
+
+	vin_dbg(vin, "Add parallel OF device %pOF\n", to_of_node(fwnode));
+out:
+	fwnode_handle_put(fwnode);
+
+	return ret;
 }
 
 static int rvin_parallel_init(struct rvin_dev *vin)
@@ -612,24 +663,22 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 
 	v4l2_async_notifier_init(&vin->notifier);
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		vin->dev, &vin->notifier, sizeof(struct rvin_parallel_entity),
-		0, rvin_parallel_parse_v4l2);
+	ret = rvin_parallel_parse_of(vin);
 	if (ret)
 		return ret;
 
 	/* If using mc, it's fine not to have any input registered. */
-	if (!vin->parallel)
+	if (!vin->parallel.asd)
 		return vin->info->use_mc ? 0 : -ENODEV;
 
 	vin_dbg(vin, "Found parallel subdevice %pOF\n",
-		to_of_node(vin->parallel->asd.match.fwnode));
+		to_of_node(vin->parallel.asd->match.fwnode));
 
 	vin->notifier.ops = &rvin_parallel_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_notifier_cleanup(&vin->notifier);
 		return ret;
 	}
 
@@ -646,6 +695,10 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 	const struct rvin_group_route *route;
 	unsigned int i;
 	int ret;
+
+	ret = media_device_register(&vin->group->mdev);
+	if (ret)
+		return ret;
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
 	if (ret) {
@@ -719,7 +772,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].asd != asd)
 			continue;
 		vin->group->csi[i].subdev = NULL;
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
@@ -727,6 +780,8 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	}
 
 	mutex_unlock(&vin->group->lock);
+
+	media_device_unregister(&vin->group->mdev);
 }
 
 static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
@@ -739,7 +794,7 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].asd != asd)
 			continue;
 		vin->group->csi[i].subdev = subdev;
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
@@ -757,52 +812,75 @@ static const struct v4l2_async_notifier_operations rvin_group_notify_ops = {
 	.complete = rvin_group_notify_complete,
 };
 
-static int rvin_mc_parse_of_endpoint(struct device *dev,
-				     struct v4l2_fwnode_endpoint *vep,
-				     struct v4l2_async_subdev *asd)
+static int rvin_mc_parse_of(struct rvin_dev *vin, unsigned int id)
 {
-	struct rvin_dev *vin = dev_get_drvdata(dev);
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct v4l2_async_subdev *asd;
+	int ret;
 
-	if (vep->base.port != 1 || vep->base.id >= RVIN_CSI_MAX)
-		return -EINVAL;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 1, id, 0);
+	if (!ep)
+		return 0;
 
-	if (!of_device_is_available(to_of_node(asd->match.fwnode))) {
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!of_device_is_available(to_of_node(fwnode))) {
 		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
-			to_of_node(asd->match.fwnode));
-		return -ENOTCONN;
+			to_of_node(fwnode));
+		ret = -ENOTCONN;
+		goto out;
 	}
 
-	if (vin->group->csi[vep->base.id].fwnode) {
-		vin_dbg(vin, "OF device %pOF already handled\n",
-			to_of_node(asd->match.fwnode));
-		return -ENOTCONN;
+	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->group->notifier,
+						    fwnode,
+						    struct v4l2_async_subdev);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out;
 	}
 
-	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
+	vin->group->csi[vep.base.id].asd = asd;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
-		to_of_node(asd->match.fwnode), vep->base.id);
+		to_of_node(fwnode), vep.base.id);
+out:
+	fwnode_handle_put(fwnode);
 
-	return 0;
+	return ret;
 }
 
 static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 {
-	unsigned int count = 0;
-	unsigned int i;
+	unsigned int count = 0, vin_mask = 0;
+	unsigned int i, id;
 	int ret;
 
 	mutex_lock(&vin->group->lock);
 
 	/* If not all VIN's are registered don't register the notifier. */
-	for (i = 0; i < RCAR_VIN_NUM; i++)
-		if (vin->group->vin[i])
+	for (i = 0; i < RCAR_VIN_NUM; i++) {
+		if (vin->group->vin[i]) {
 			count++;
+			vin_mask |= BIT(i);
+		}
+	}
 
 	if (vin->group->count != count) {
 		mutex_unlock(&vin->group->lock);
 		return 0;
 	}
+
+	mutex_unlock(&vin->group->lock);
 
 	v4l2_async_notifier_init(&vin->group->notifier);
 
@@ -812,20 +890,18 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 	 * will only be registered once with the group notifier.
 	 */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
-		if (!vin->group->vin[i])
+		if (!(vin_mask & BIT(i)))
 			continue;
 
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
-				sizeof(struct v4l2_async_subdev), 1,
-				rvin_mc_parse_of_endpoint);
-		if (ret) {
-			mutex_unlock(&vin->group->lock);
-			return ret;
+		for (id = 0; id < RVIN_CSI_MAX; id++) {
+			if (vin->group->csi[id].asd)
+				continue;
+
+			ret = rvin_mc_parse_of(vin->group->vin[i], id);
+			if (ret)
+				return ret;
 		}
 	}
-
-	mutex_unlock(&vin->group->lock);
 
 	if (list_empty(&vin->group->notifier.asd_list))
 		return 0;
@@ -859,7 +935,70 @@ static int rvin_mc_init(struct rvin_dev *vin)
 	if (ret)
 		rvin_group_put(vin);
 
+	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
+	if (ret < 0)
+		return ret;
+
+	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	if (vin->ctrl_handler.error) {
+		ret = vin->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&vin->ctrl_handler);
+		return ret;
+	}
+
+	vin->vdev.ctrl_handler = &vin->ctrl_handler;
+
 	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * Suspend / Resume
+ */
+
+static int __maybe_unused rvin_suspend(struct device *dev)
+{
+	struct rvin_dev *vin = dev_get_drvdata(dev);
+
+	if (vin->state != RUNNING)
+		return 0;
+
+	rvin_stop_streaming(vin);
+
+	vin->state = SUSPENDED;
+
+	return 0;
+}
+
+static int __maybe_unused rvin_resume(struct device *dev)
+{
+	struct rvin_dev *vin = dev_get_drvdata(dev);
+
+	if (vin->state != SUSPENDED)
+		return 0;
+
+	/*
+	 * Restore group master CHSEL setting.
+	 *
+	 * This needs to be done by every VIN resuming not only the master
+	 * as we don't know if and in which order the master VINs will
+	 * be resumed.
+	 */
+	if (vin->info->use_mc) {
+		unsigned int master_id = rvin_group_id_to_master(vin->id);
+		struct rvin_dev *master = vin->group->vin[master_id];
+		int ret;
+
+		if (WARN_ON(!master))
+			return -ENODEV;
+
+		ret = rvin_set_channel_routing(master, master->chsel);
+		if (ret)
+			return ret;
+	}
+
+	return rvin_start_streaming(vin);
 }
 
 /* -----------------------------------------------------------------------------
@@ -885,6 +1024,42 @@ static const struct rvin_info rcar_info_gen2 = {
 	.use_mc = false,
 	.max_width = 2048,
 	.max_height = 2048,
+};
+
+static const struct rvin_group_route rcar_info_r8a774e1_routes[] = {
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 2, .mask = BIT(0) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
+	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) | BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
+	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 6, .mask = BIT(0) },
+	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
+	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
+	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) | BIT(2) },
+	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
+	{ /* Sentinel */ }
+};
+
+static const struct rvin_info rcar_info_r8a774e1 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.max_width = 4096,
+	.max_height = 4096,
+	.routes = rcar_info_r8a774e1_routes,
 };
 
 static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
@@ -926,6 +1101,7 @@ static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
 static const struct rvin_info rcar_info_r8a7795 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
@@ -1020,6 +1196,7 @@ static const struct rvin_group_route rcar_info_r8a7796_routes[] = {
 static const struct rvin_info rcar_info_r8a7796 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
@@ -1064,6 +1241,7 @@ static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
 static const struct rvin_info rcar_info_r8a77965 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
@@ -1088,6 +1266,52 @@ static const struct rvin_info rcar_info_r8a77970 = {
 	.routes = rcar_info_r8a77970_routes,
 };
 
+static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
+	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
+	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 4, .mask = BIT(2) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
+	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
+	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
+	{ /* Sentinel */ }
+};
+
+static const struct rvin_info rcar_info_r8a77980 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.nv12 = true,
+	.max_width = 4096,
+	.max_height = 4096,
+	.routes = rcar_info_r8a77980_routes,
+};
+
+static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 4, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
+	{ /* Sentinel */ }
+};
+
+static const struct rvin_info rcar_info_r8a77990 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.nv12 = true,
+	.max_width = 4096,
+	.max_height = 4096,
+	.routes = rcar_info_r8a77990_routes,
+};
+
 static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
 	{ /* Sentinel */ }
 };
@@ -1095,6 +1319,7 @@ static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
 static const struct rvin_info rcar_info_r8a77995 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
@@ -1102,28 +1327,28 @@ static const struct rvin_info rcar_info_r8a77995 = {
 
 static const struct of_device_id rvin_of_id_table[] = {
 	{
+		.compatible = "renesas,vin-r8a774a1",
+		.data = &rcar_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,vin-r8a774b1",
+		.data = &rcar_info_r8a77965,
+	},
+	{
+		.compatible = "renesas,vin-r8a774c0",
+		.data = &rcar_info_r8a77990,
+	},
+	{
+		.compatible = "renesas,vin-r8a774e1",
+		.data = &rcar_info_r8a774e1,
+	},
+	{
 		.compatible = "renesas,vin-r8a7778",
 		.data = &rcar_info_m1,
 	},
 	{
 		.compatible = "renesas,vin-r8a7779",
 		.data = &rcar_info_h1,
-	},
-	{
-		.compatible = "renesas,vin-r8a7790",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7791",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7793",
-		.data = &rcar_info_gen2,
-	},
-	{
-		.compatible = "renesas,vin-r8a7794",
-		.data = &rcar_info_gen2,
 	},
 	{
 		.compatible = "renesas,rcar-gen2-vin",
@@ -1138,12 +1363,24 @@ static const struct of_device_id rvin_of_id_table[] = {
 		.data = &rcar_info_r8a7796,
 	},
 	{
+		.compatible = "renesas,vin-r8a77961",
+		.data = &rcar_info_r8a7796,
+	},
+	{
 		.compatible = "renesas,vin-r8a77965",
 		.data = &rcar_info_r8a77965,
 	},
 	{
 		.compatible = "renesas,vin-r8a77970",
 		.data = &rcar_info_r8a77970,
+	},
+	{
+		.compatible = "renesas,vin-r8a77980",
+		.data = &rcar_info_r8a77980,
+	},
+	{
+		.compatible = "renesas,vin-r8a77990",
+		.data = &rcar_info_r8a77990,
 	},
 	{
 		.compatible = "renesas,vin-r8a77995",
@@ -1165,7 +1402,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
 	struct rvin_dev *vin;
-	struct resource *mem;
 	int irq, ret;
 
 	vin = devm_kzalloc(&pdev->dev, sizeof(*vin), GFP_KERNEL);
@@ -1174,6 +1410,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	vin->dev = &pdev->dev;
 	vin->info = of_device_get_match_data(&pdev->dev);
+	vin->alpha = 0xff;
 
 	/*
 	 * Special care is needed on r8a7795 ES1.x since it
@@ -1183,11 +1420,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (attr)
 		vin->info = attr->data;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem == NULL)
-		return -EINVAL;
-
-	vin->base = devm_ioremap_resource(vin->dev, mem);
+	vin->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vin->base))
 		return PTR_ERR(vin->base);
 
@@ -1217,6 +1450,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	return 0;
 
 error_group_unregister:
+	v4l2_ctrl_handler_free(&vin->ctrl_handler);
+
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
 		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
@@ -1245,25 +1480,24 @@ static int rcar_vin_remove(struct platform_device *pdev)
 	v4l2_async_notifier_cleanup(&vin->notifier);
 
 	if (vin->info->use_mc) {
-		mutex_lock(&vin->group->lock);
-		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-			v4l2_async_notifier_unregister(&vin->group->notifier);
-			v4l2_async_notifier_cleanup(&vin->group->notifier);
-		}
-		mutex_unlock(&vin->group->lock);
+		v4l2_async_notifier_unregister(&vin->group->notifier);
+		v4l2_async_notifier_cleanup(&vin->group->notifier);
 		rvin_group_put(vin);
-	} else {
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
 	}
+
+	v4l2_ctrl_handler_free(&vin->ctrl_handler);
 
 	rvin_dma_unregister(vin);
 
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
+
 static struct platform_driver rcar_vin_driver = {
 	.driver = {
 		.name = "rcar-vin",
+		.pm = &rvin_pm_ops,
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,

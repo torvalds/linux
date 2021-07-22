@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/firmware.h>
@@ -29,30 +18,6 @@
 #define MT76U_MCU_DLM_OFFSET		0x110000
 #define MT76U_MCU_ROM_PATCH_OFFSET	0x90000
 
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
-				bool ext, int rssi, u32 false_cca)
-{
-	struct {
-		__le32 channel;
-		__le32 rssi_val;
-		__le32 false_cca_val;
-	} __packed __aligned(4) msg = {
-		.rssi_val = cpu_to_le32(rssi),
-		.false_cca_val = cpu_to_le32(false_cca),
-	};
-	struct sk_buff *skb;
-	u32 val = channel;
-
-	if (ap)
-		val |= BIT(31);
-	if (ext)
-		val |= BIT(30);
-	msg.channel = cpu_to_le32(val);
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_DYNC_VGA_OP, true);
-}
-
 static void mt76x2u_mcu_load_ivb(struct mt76x02_dev *dev)
 {
 	mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
@@ -63,7 +28,7 @@ static void mt76x2u_mcu_load_ivb(struct mt76x02_dev *dev)
 static void mt76x2u_mcu_enable_patch(struct mt76x02_dev *dev)
 {
 	struct mt76_usb *usb = &dev->mt76.usb;
-	const u8 data[] = {
+	static const u8 data[] = {
 		0x6f, 0xfc, 0x08, 0x01,
 		0x20, 0x04, 0x00, 0x00,
 		0x00, 0x09, 0x00,
@@ -117,7 +82,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 		return 0;
 	}
 
-	err = request_firmware(&fw, MT7662U_ROM_PATCH, dev->mt76.dev);
+	err = request_firmware(&fw, MT7662_ROM_PATCH, dev->mt76.dev);
 	if (err < 0)
 		return err;
 
@@ -183,7 +148,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	int err, len, ilm_len, dlm_len;
 	const struct firmware *fw;
 
-	err = request_firmware(&fw, MT7662U_FIRMWARE, dev->mt76.dev);
+	err = request_firmware(&fw, MT7662_FIRMWARE, dev->mt76.dev);
 	if (err < 0)
 		return err;
 
@@ -282,9 +247,9 @@ int mt76x2u_mcu_init(struct mt76x02_dev *dev)
 {
 	int err;
 
-	err = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
+	err = mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 	if (err < 0)
 		return err;
 
-	return mt76x02_mcu_set_radio_state(dev, true, false);
+	return mt76x02_mcu_set_radio_state(dev, true);
 }

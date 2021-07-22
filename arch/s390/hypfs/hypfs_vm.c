@@ -118,7 +118,7 @@ do { \
 		return PTR_ERR(rc); \
 } while(0)
 
-static int hpyfs_vm_create_guest(struct dentry *systems_dir,
+static int hypfs_vm_create_guest(struct dentry *systems_dir,
 				 struct diag2fc_data *data)
 {
 	char guest_name[NAME_LEN + 1] = {};
@@ -219,7 +219,7 @@ int hypfs_vm_create_files(struct dentry *root)
 	}
 
 	for (i = 0; i < count; i++) {
-		rc = hpyfs_vm_create_guest(dir, &(data[i]));
+		rc = hypfs_vm_create_guest(dir, &(data[i]));
 		if (rc)
 			goto failed;
 	}
@@ -234,7 +234,7 @@ failed:
 struct dbfs_d2fc_hdr {
 	u64	len;		/* Length of d2fc buffer without header */
 	u16	version;	/* Version of header */
-	char	tod_ext[STORE_CLOCK_EXT_SIZE]; /* TOD clock for d2fc */
+	union tod_clock tod_ext; /* TOD clock for d2fc */
 	u64	count;		/* Number of VM guests in d2fc buffer */
 	char	reserved[30];
 } __attribute__ ((packed));
@@ -252,7 +252,7 @@ static int dbfs_diag2fc_create(void **data, void **data_free_ptr, size_t *size)
 	d2fc = diag2fc_store(guest_query, &count, sizeof(d2fc->hdr));
 	if (IS_ERR(d2fc))
 		return PTR_ERR(d2fc);
-	get_tod_clock_ext(d2fc->hdr.tod_ext);
+	store_tod_clock_ext(&d2fc->hdr.tod_ext);
 	d2fc->hdr.len = count * sizeof(struct diag2fc_data);
 	d2fc->hdr.version = DBFS_D2FC_HDR_VERSION;
 	d2fc->hdr.count = count;
@@ -279,7 +279,8 @@ int hypfs_vm_init(void)
 		guest_query = local_guest;
 	else
 		return -EACCES;
-	return hypfs_dbfs_create_file(&dbfs_file_2fc);
+	hypfs_dbfs_create_file(&dbfs_file_2fc);
+	return 0;
 }
 
 void hypfs_vm_exit(void)

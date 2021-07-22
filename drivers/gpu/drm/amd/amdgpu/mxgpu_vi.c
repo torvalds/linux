@@ -37,7 +37,6 @@
 #include "gmc/gmc_8_2_sh_mask.h"
 #include "oss/oss_3_0_d.h"
 #include "oss/oss_3_0_sh_mask.h"
-#include "gca/gfx_8_0_sh_mask.h"
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 #include "smu/smu_7_1_3_d.h"
@@ -516,7 +515,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 
 	/* wait until RCV_MSG become 3 */
 	if (xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
-		pr_err("failed to recieve FLR_CMPL\n");
+		pr_err("failed to receive FLR_CMPL\n");
 		return;
 	}
 

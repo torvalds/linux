@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/io.h
  *
  *  Copyright (C) 1996-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Modifications:
  *  16-Sep-1996	RMK	Inlined the inx/outx functions & optimised for both
@@ -33,7 +30,6 @@
  * ISA I/O bus memory addresses are 1:1 with the physical address.
  */
 #define isa_virt_to_bus virt_to_phys
-#define isa_page_to_bus page_to_phys
 #define isa_bus_to_virt phys_to_virt
 
 /*
@@ -281,8 +277,6 @@ extern void _memcpy_fromio(void *, const volatile void __iomem *, size_t);
 extern void _memcpy_toio(volatile void __iomem *, const void *, size_t);
 extern void _memset_io(volatile void __iomem *, int, size_t);
 
-#define mmiowb()
-
 /*
  *  Memory access primitives
  *  ------------------------
@@ -362,7 +356,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  *
  * Function		Memory type	Cacheability	Cache hint
  * ioremap()		Device		n/a		n/a
- * ioremap_nocache()	Device		n/a		n/a
  * ioremap_cache()	Normal		Writeback	Read allocate
  * ioremap_wc()		Normal		Non-cacheable	n/a
  * ioremap_wt()		Normal		Non-cacheable	n/a
@@ -373,13 +366,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  * - writes may be delayed before they hit the endpoint device
- *
- * ioremap_nocache() is the same as ioremap() as there are too many device
- * drivers using this for device registers, and documentation which tells
- * people to use it for such for this to be any different.  This is not a
- * safe fallback for memory-like mappings, or memory regions where the
- * compiler may generate unaligned accesses - eg, via inlining its own
- * memcpy.
  *
  * All normal memory mappings have the following properties:
  * - reads can be repeated with no side effects
@@ -398,19 +384,12 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  */
 void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
-#define ioremap_nocache ioremap
 
 /*
  * Do not use ioremap_cache for mapping memory. Use memremap instead.
  */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
-
-/*
- * Do not use ioremap_cached in new code. Provided for the benefit of
- * the pxa2xx-flash MTD driver only.
- */
-void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size);
 
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 #define ioremap_wc ioremap_wc
@@ -451,18 +430,12 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
 
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
 #include <asm-generic/io.h>
 
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
 extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
-extern int devmem_is_allowed(unsigned long pfn);
 #endif
 
 /*

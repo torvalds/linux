@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2016-2018 Toradex AG
  */
@@ -17,6 +17,7 @@
 
 	pcie@1003000 {
 		status = "okay";
+
 		avddio-pex-supply = <&reg_1v05_vdd>;
 		avdd-pex-pll-supply = <&reg_1v05_vdd>;
 		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
@@ -39,7 +40,7 @@
 			phy-names = "pcie-0";
 			status = "okay";
 
-			pcie@0 {
+			ethernet@0,0 {
 				reg = <0 0 0 0 0>;
 				local-mac-address = [00 00 00 00 00 00];
 			};
@@ -1561,6 +1562,7 @@
 		sgtl5000: codec@a {
 			compatible = "fsl,sgtl5000";
 			reg = <0x0a>;
+			#sound-dai-cells = <0>;
 			VDDA-supply = <&reg_module_3v3_audio>;
 			VDDD-supply = <&reg_1v8_vddio>;
 			VDDIO-supply = <&reg_1v8_vddio>;
@@ -1796,6 +1798,7 @@
 		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-2}>,
 		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>;
 		phy-names = "usb2-0", "usb3-1", "usb2-1", "usb2-2", "usb3-0";
+
 		avddio-pex-supply = <&reg_1v05_vdd>;
 		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
 		avdd-pll-utmip-supply = <&reg_1v8_vddio>;
@@ -1807,6 +1810,11 @@
 	};
 
 	padctl@7009f000 {
+		avdd-pll-utmip-supply = <&reg_1v8_vddio>;
+		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
+		avdd-pex-pll-supply = <&reg_1v05_vdd>;
+		hvdd-pex-pll-e-supply = <&reg_module_3v3>;
+
 		pads {
 			usb2 {
 				status = "okay";
@@ -1909,7 +1917,7 @@
 	};
 
 	/* eMMC */
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
@@ -2002,8 +2010,14 @@
 		nvidia,audio-codec = <&sgtl5000>;
 		clocks = <&tegra_car TEGRA124_CLK_PLL_A>,
 			 <&tegra_car TEGRA124_CLK_PLL_A_OUT0>,
-			 <&tegra_car TEGRA124_CLK_EXTERN1>;
+			 <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
+
+		assigned-clocks = <&tegra_car TEGRA124_CLK_EXTERN1>,
+				  <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
+
+		assigned-clock-parents = <&tegra_car TEGRA124_CLK_PLL_A_OUT0>,
+					 <&tegra_car TEGRA124_CLK_EXTERN1>;
 	};
 
 	thermal-zones {

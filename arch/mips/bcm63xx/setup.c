@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <linux/pm.h>
 #include <asm/bootinfo.h>
@@ -146,7 +146,7 @@ void __init plat_time_init(void)
 
 void __init plat_mem_setup(void)
 {
-	add_memory_region(0, bcm63xx_get_memory_size(), BOOT_MEM_RAM);
+	memblock_add(0, bcm63xx_get_memory_size());
 
 	_machine_halt = bcm63xx_machine_halt;
 	_machine_restart = __bcm63xx_machine_reboot;

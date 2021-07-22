@@ -8,10 +8,6 @@ struct test arch_tests[] = {
 		.desc = "x86 rdpmc",
 		.func = test__rdpmc,
 	},
-	{
-		.desc = "Convert perf time to TSC",
-		.func = test__perf_time_to_tsc,
-	},
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	{
 		.desc = "DWARF unwind",
@@ -23,6 +19,10 @@ struct test arch_tests[] = {
 		.desc = "x86 instruction decoder - new instructions",
 		.func = test__insn_x86,
 	},
+	{
+		.desc = "Intel PT packet decoder",
+		.func = test__intel_pt_pkt_decoder,
+	},
 #endif
 #if defined(__x86_64__)
 	{
@@ -30,6 +30,10 @@ struct test arch_tests[] = {
 		.func = test__bp_modify,
 	},
 #endif
+	{
+		.desc = "x86 Sample parsing",
+		.func = test__x86_sample_parsing,
+	},
 	{
 		.func = NULL,
 	},

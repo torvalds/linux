@@ -20,6 +20,7 @@
 #include <linux/uaccess.h>
 #include <asm/thread_info.h>
 #include <cpu/mmu_context.h>
+#include <asm/softirq_stack.h>
 
 atomic_t irq_err_count;
 
@@ -44,7 +45,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 	seq_printf(p, "%*s: ", prec, "NMI");
 	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", nmi_count(j));
+		seq_printf(p, "%10u ", per_cpu(irq_stat.__nmi_count, j));
 	seq_printf(p, "  Non-maskable interrupts\n");
 
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));

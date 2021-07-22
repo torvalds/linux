@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*	Sysfs attributes of bond slaves
  *
  *      Copyright (c) 2014 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/capability.h>
@@ -55,7 +51,9 @@ static SLAVE_ATTR_RO(link_failure_count);
 
 static ssize_t perm_hwaddr_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%pM\n", slave->perm_hwaddr);
+	return sprintf(buf, "%*phC\n",
+		       slave->dev->addr_len,
+		       slave->perm_hwaddr);
 }
 static SLAVE_ATTR_RO(perm_hwaddr);
 
@@ -123,7 +121,6 @@ static const struct slave_attribute *slave_attrs[] = {
 };
 
 #define to_slave_attr(_at) container_of(_at, struct slave_attribute, attr)
-#define to_slave(obj)	container_of(obj, struct slave, kobj)
 
 static ssize_t slave_show(struct kobject *kobj,
 			  struct attribute *attr, char *buf)
@@ -134,25 +131,14 @@ static ssize_t slave_show(struct kobject *kobj,
 	return slave_attr->show(slave, buf);
 }
 
-static const struct sysfs_ops slave_sysfs_ops = {
+const struct sysfs_ops slave_sysfs_ops = {
 	.show = slave_show,
-};
-
-static struct kobj_type slave_ktype = {
-#ifdef CONFIG_SYSFS
-	.sysfs_ops = &slave_sysfs_ops,
-#endif
 };
 
 int bond_sysfs_slave_add(struct slave *slave)
 {
 	const struct slave_attribute **a;
 	int err;
-
-	err = kobject_init_and_add(&slave->kobj, &slave_ktype,
-				   &(slave->dev->dev.kobj), "bonding_slave");
-	if (err)
-		return err;
 
 	for (a = slave_attrs; *a; ++a) {
 		err = sysfs_create_file(&slave->kobj, &((*a)->attr));
@@ -171,6 +157,4 @@ void bond_sysfs_slave_del(struct slave *slave)
 
 	for (a = slave_attrs; *a; ++a)
 		sysfs_remove_file(&slave->kobj, &((*a)->attr));
-
-	kobject_put(&slave->kobj);
 }

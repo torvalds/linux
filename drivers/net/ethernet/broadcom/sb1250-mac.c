@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001,2002,2003,2004 Broadcom Corporation
  * Copyright (c) 2006, 2007  Maciej W. Rozycki
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  *
  * This driver is designed for the Broadcom SiByte SOC built-in
  * Ethernet controllers. Written by Mitch Lichtenberg at Broadcom Corp.
@@ -307,7 +294,7 @@ static int sbmac_set_duplex(struct sbmac_softc *s, enum sbmac_duplex duplex,
 			    enum sbmac_fc fc);
 
 static int sbmac_open(struct net_device *dev);
-static void sbmac_tx_timeout (struct net_device *dev);
+static void sbmac_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
@@ -1288,7 +1275,7 @@ static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
 		 * for transmits, we just free buffers.
 		 */
 
-		dev_kfree_skb_irq(sb);
+		dev_consume_skb_irq(sb);
 
 		/*
 		 * .. and advance to the next buffer.
@@ -2432,7 +2419,7 @@ static void sbmac_mii_poll(struct net_device *dev)
 }
 
 
-static void sbmac_tx_timeout (struct net_device *dev)
+static void sbmac_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned long flags;
@@ -2550,7 +2537,7 @@ static int sbmac_probe(struct platform_device *pldev)
 
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	BUG_ON(!res);
-	sbm_base = ioremap_nocache(res->start, resource_size(res));
+	sbm_base = ioremap(res->start, resource_size(res));
 	if (!sbm_base) {
 		printk(KERN_ERR "%s: unable to map device registers\n",
 		       dev_name(&pldev->dev));

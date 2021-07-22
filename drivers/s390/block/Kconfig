@@ -26,7 +26,6 @@ config DASD
 	def_tristate y
 	prompt "Support for DASD devices"
 	depends on CCW && BLOCK
-	select IOSCHED_DEADLINE
 	help
 	  Enable this option if you want to access DASDs directly utilizing
 	  S/390s channel subsystem commands. This is necessary for running
@@ -38,7 +37,7 @@ config DASD_PROFILE
 	depends on DASD
 	help
 	  Enable this option if you want to see profiling information
-          in /proc/dasd/statistics.
+	  in /proc/dasd/statistics.
 
 config DASD_ECKD
 	def_tristate y

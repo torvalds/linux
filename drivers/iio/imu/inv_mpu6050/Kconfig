@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # inv-mpu6050 drivers for Invensense MPU devices and combos
 #
@@ -9,12 +10,14 @@ config INV_MPU6050_IIO
 
 config INV_MPU6050_I2C
 	tristate "Invensense MPU6050 devices (I2C)"
-	depends on I2C_MUX
+	depends on I2C
+	select I2C_MUX
 	select INV_MPU6050_IIO
 	select REGMAP_I2C
 	help
-	  This driver supports the Invensense MPU6050/6500/9150 and ICM20608
-	  motion tracking devices over I2C.
+	  This driver supports the Invensense MPU6050/9150,
+	  MPU6500/6515/6880/9250/9255, ICM20608/20609/20689, ICM20602/ICM20690
+	  and IAM20680 motion tracking devices over I2C.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-i2c.
 
@@ -24,7 +27,8 @@ config INV_MPU6050_SPI
 	select INV_MPU6050_IIO
 	select REGMAP_SPI
 	help
-	  This driver supports the Invensense MPU6050/6500/9150 and ICM20608
-	  motion tracking devices over SPI.
+	  This driver supports the Invensense MPU6000,
+	  MPU6500/6515/6880/9250/9255, ICM20608/20609/20689, ICM20602/ICM20690
+	  and IAM20680 motion tracking devices over SPI.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-spi.

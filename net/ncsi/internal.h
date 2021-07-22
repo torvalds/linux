@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright Gavin Shan, IBM Corporation 2016.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __NCSI_INTERNAL_H__
@@ -68,21 +64,47 @@ enum {
 	NCSI_MODE_MAX
 };
 
+/* Supported media status bits for Mellanox Mac affinity command.
+ * Bit (0-2) for different protocol support; Bit 1 for RBT support,
+ * bit 1 for SMBUS support and bit 2 for PCIE support. Bit (3-5)
+ * for different protocol availability. Bit 4 for RBT, bit 4 for
+ * SMBUS and bit 5 for PCIE.
+ */
+enum {
+	MLX_MC_RBT_SUPPORT  = 0x01, /* MC supports RBT         */
+	MLX_MC_RBT_AVL      = 0x08, /* RBT medium is available */
+};
+
 /* OEM Vendor Manufacture ID */
 #define NCSI_OEM_MFR_MLX_ID             0x8119
 #define NCSI_OEM_MFR_BCM_ID             0x113d
+#define NCSI_OEM_MFR_INTEL_ID           0x157
+/* Intel specific OEM command */
+#define NCSI_OEM_INTEL_CMD_KEEP_PHY     0x20   /* CMD ID for Keep PHY up */
 /* Broadcom specific OEM Command */
 #define NCSI_OEM_BCM_CMD_GMA            0x01   /* CMD ID for Get MAC */
+/* Mellanox specific OEM Command */
+#define NCSI_OEM_MLX_CMD_GMA            0x00   /* CMD ID for Get MAC */
+#define NCSI_OEM_MLX_CMD_GMA_PARAM      0x1b   /* Parameter for GMA  */
+#define NCSI_OEM_MLX_CMD_SMAF           0x01   /* CMD ID for Set MC Affinity */
+#define NCSI_OEM_MLX_CMD_SMAF_PARAM     0x07   /* Parameter for SMAF         */
 /* OEM Command payload lengths*/
+#define NCSI_OEM_INTEL_CMD_KEEP_PHY_LEN 7
 #define NCSI_OEM_BCM_CMD_GMA_LEN        12
+#define NCSI_OEM_MLX_CMD_GMA_LEN        8
+#define NCSI_OEM_MLX_CMD_SMAF_LEN        60
+/* Offset in OEM request */
+#define MLX_SMAF_MAC_ADDR_OFFSET         8     /* Offset for MAC in SMAF    */
+#define MLX_SMAF_MED_SUPPORT_OFFSET      14    /* Offset for medium in SMAF */
 /* Mac address offset in OEM response */
 #define BCM_MAC_ADDR_OFFSET             28
+#define MLX_MAC_ADDR_OFFSET             8
 
 
 struct ncsi_channel_version {
 	u32 version;		/* Supported BCD encoded NCSI version */
 	u32 alpha2;		/* Supported BCD encoded NCSI version */
-	u8  fw_name[12];	/* Firware name string                */
+	u8  fw_name[12];	/* Firmware name string                */
 	u32 fw_version;		/* Firmware version                   */
 	u16 pci_ids[4];		/* PCI identification                 */
 	u32 mf_id;		/* Manufacture ID                     */
@@ -220,8 +242,12 @@ struct ncsi_package {
 	struct ncsi_dev_priv *ndp;        /* NCSI device            */
 	spinlock_t           lock;        /* Protect the package    */
 	unsigned int         channel_num; /* Number of channels     */
-	struct list_head     channels;    /* List of chanels        */
+	struct list_head     channels;    /* List of channels        */
 	struct list_head     node;        /* Form list of packages  */
+
+	bool                 multi_channel; /* Enable multiple channels  */
+	u32                  channel_whitelist; /* Channels to configure */
+	struct ncsi_channel  *preferred_channel; /* Primary channel      */
 };
 
 struct ncsi_request {
@@ -246,7 +272,10 @@ enum {
 	ncsi_dev_state_probe_deselect	= 0x0201,
 	ncsi_dev_state_probe_package,
 	ncsi_dev_state_probe_channel,
+	ncsi_dev_state_probe_mlx_gma,
+	ncsi_dev_state_probe_mlx_smaf,
 	ncsi_dev_state_probe_cis,
+	ncsi_dev_state_probe_keep_phy,
 	ncsi_dev_state_probe_gvi,
 	ncsi_dev_state_probe_gc,
 	ncsi_dev_state_probe_gls,
@@ -259,9 +288,7 @@ enum {
 	ncsi_dev_state_config_ev,
 	ncsi_dev_state_config_sma,
 	ncsi_dev_state_config_ebf,
-#if IS_ENABLED(CONFIG_IPV6)
-	ncsi_dev_state_config_egmf,
-#endif
+	ncsi_dev_state_config_dgmf,
 	ncsi_dev_state_config_ecnt,
 	ncsi_dev_state_config_ec,
 	ncsi_dev_state_config_ae,
@@ -287,16 +314,13 @@ struct ncsi_dev_priv {
 #define NCSI_DEV_PROBED		1            /* Finalized NCSI topology    */
 #define NCSI_DEV_HWA		2            /* Enabled HW arbitration     */
 #define NCSI_DEV_RESHUFFLE	4
+#define NCSI_DEV_RESET		8            /* Reset state of NC          */
 	unsigned int        gma_flag;        /* OEM GMA flag               */
 	spinlock_t          lock;            /* Protect the NCSI device    */
-#if IS_ENABLED(CONFIG_IPV6)
-	unsigned int        inet6_addr_num;  /* Number of IPv6 addresses   */
-#endif
+	unsigned int        package_probe_id;/* Current ID during probe    */
 	unsigned int        package_num;     /* Number of packages         */
 	struct list_head    packages;        /* List of packages           */
 	struct ncsi_channel *hot_channel;    /* Channel was ever active    */
-	struct ncsi_package *force_package;  /* Force a specific package   */
-	struct ncsi_channel *force_channel;  /* Force a specific channel   */
 	struct ncsi_request requests[256];   /* Request table              */
 	unsigned int        request_id;      /* Last used request ID       */
 #define NCSI_REQ_START_IDX	1
@@ -309,6 +333,10 @@ struct ncsi_dev_priv {
 	struct list_head    node;            /* Form NCSI device list      */
 #define NCSI_MAX_VLAN_VIDS	15
 	struct list_head    vlan_vids;       /* List of active VLAN IDs */
+
+	bool                multi_package;   /* Enable multiple packages   */
+	bool                mlx_multi_host;  /* Enable multi host Mellanox */
+	u32                 package_whitelist; /* Packages to configure    */
 };
 
 struct ncsi_cmd_arg {
@@ -316,7 +344,7 @@ struct ncsi_cmd_arg {
 	unsigned char        type;        /* Command in the NCSI packet    */
 	unsigned char        id;          /* Request ID (sequence number)  */
 	unsigned char        package;     /* Destination package ID        */
-	unsigned char        channel;     /* Detination channel ID or 0x1f */
+	unsigned char        channel;     /* Destination channel ID or 0x1f */
 	unsigned short       payload;     /* Command packet payload length */
 	unsigned int         req_flags;   /* NCSI request properties       */
 	union {
@@ -341,6 +369,7 @@ extern spinlock_t ncsi_dev_lock;
 	list_for_each_entry_rcu(nc, &np->channels, node)
 
 /* Resources */
+int ncsi_reset_dev(struct ncsi_dev *nd);
 void ncsi_start_channel_monitor(struct ncsi_channel *nc);
 void ncsi_stop_channel_monitor(struct ncsi_channel *nc);
 struct ncsi_channel *ncsi_find_channel(struct ncsi_package *np,
@@ -361,6 +390,13 @@ struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp,
 void ncsi_free_request(struct ncsi_request *nr);
 struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
 int ncsi_process_next_channel(struct ncsi_dev_priv *ndp);
+bool ncsi_channel_has_link(struct ncsi_channel *channel);
+bool ncsi_channel_is_last(struct ncsi_dev_priv *ndp,
+			  struct ncsi_channel *channel);
+int ncsi_update_tx_channel(struct ncsi_dev_priv *ndp,
+			   struct ncsi_package *np,
+			   struct ncsi_channel *disable,
+			   struct ncsi_channel *enable);
 
 /* Packet handlers */
 u32 ncsi_calculate_checksum(unsigned char *data, int len);

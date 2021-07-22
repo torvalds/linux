@@ -30,7 +30,7 @@ struct ath6kl_fwlog_slot {
 	__le32 length;
 
 	/* max ATH6KL_FWLOG_PAYLOAD_SIZE bytes */
-	u8 payload[0];
+	u8 payload[];
 };
 
 #define ATH6KL_FWLOG_MAX_ENTRIES 20
@@ -1027,14 +1027,17 @@ static ssize_t ath6kl_lrssi_roam_write(struct file *file,
 {
 	struct ath6kl *ar = file->private_data;
 	unsigned long lrssi_roam_threshold;
+	int ret;
 
 	if (kstrtoul_from_user(user_buf, count, 0, &lrssi_roam_threshold))
 		return -EINVAL;
 
 	ar->lrssi_roam_threshold = lrssi_roam_threshold;
 
-	ath6kl_wmi_set_roam_lrssi_cmd(ar->wmi, ar->lrssi_roam_threshold);
+	ret = ath6kl_wmi_set_roam_lrssi_cmd(ar->wmi, ar->lrssi_roam_threshold);
 
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -1132,8 +1135,7 @@ int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
 
 	tbl = (const struct wmi_target_roam_tbl *) buf;
 	num_entries = le16_to_cpu(tbl->num_entries);
-	if (sizeof(*tbl) + num_entries * sizeof(struct wmi_bss_roam_info) >
-	    len)
+	if (struct_size(tbl, info, num_entries) > len)
 		return -EINVAL;
 
 	if (ar->debug.roam_tbl == NULL ||

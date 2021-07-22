@@ -71,11 +71,11 @@ if the flex\_bg size is 4, then group 0 will contain (in order) the
 superblock, group descriptors, data block bitmaps for groups 0-3, inode
 bitmaps for groups 0-3, inode tables for groups 0-3, and the remaining
 space in group 0 is for file data. The effect of this is to group the
-block metadata close together for faster loading, and to enable large
-files to be continuous on disk. Backup copies of the superblock and
-group descriptors are always at the beginning of block groups, even if
-flex\_bg is enabled. The number of block groups that make up a flex\_bg
-is given by 2 ^ ``sb.s_log_groups_per_flex``.
+block group metadata close together for faster loading, and to enable
+large files to be continuous on disk. Backup copies of the superblock
+and group descriptors are always at the beginning of block groups, even
+if flex\_bg is enabled. The number of block groups that make up a
+flex\_bg is given by 2 ^ ``sb.s_log_groups_per_flex``.
 
 Meta Block Groups
 -----------------
@@ -84,7 +84,7 @@ Without the option META\_BG, for safety concerns, all block group
 descriptors copies are kept in the first block group. Given the default
 128MiB(2^27 bytes) block group size and 64-byte group descriptors, ext4
 can have at most 2^27/64 = 2^21 block groups. This limits the entire
-filesystem size to 2^21 ∗ 2^27 = 2^48bytes or 256TiB.
+filesystem size to 2^21 * 2^27 = 2^48bytes or 256TiB.
 
 The solution to this problem is to use the metablock group feature
 (META\_BG), which is already in ext3 for all 2.6 releases. With the

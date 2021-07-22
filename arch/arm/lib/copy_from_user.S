@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/copy_from_user.S
  *
  *  Author:	Nicolas Pitre
  *  Created:	Sep 29, 2005
  *  Copyright:	MontaVista Software, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -34,12 +31,13 @@
  *	Number of bytes NOT copied.
  */
 
+#ifdef CONFIG_CPU_USE_DOMAINS
+
 #ifndef CONFIG_THUMB2_KERNEL
 #define LDR1W_SHIFT	0
 #else
 #define LDR1W_SHIFT	1
 #endif
-#define STR1W_SHIFT	0
 
 	.macro ldr1w ptr reg abort
 	ldrusr	\reg, \ptr, 4, abort=\abort
@@ -57,9 +55,29 @@
 	ldr4w \ptr, \reg5, \reg6, \reg7, \reg8, \abort
 	.endm
 
+#else
+
+#define LDR1W_SHIFT	0
+
+	.macro ldr1w ptr reg abort
+	USERL(\abort, W(ldr) \reg, [\ptr], #4)
+	.endm
+
+	.macro ldr4w ptr reg1 reg2 reg3 reg4 abort
+	USERL(\abort, ldmia \ptr!, {\reg1, \reg2, \reg3, \reg4})
+	.endm
+
+	.macro ldr8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
+	USERL(\abort, ldmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8})
+	.endm
+
+#endif /* CONFIG_CPU_USE_DOMAINS */
+
 	.macro ldr1b ptr reg cond=al abort
 	ldrusr	\reg, \ptr, 1, \cond, abort=\abort
 	.endm
+
+#define STR1W_SHIFT	0
 
 	.macro str1w ptr reg abort
 	W(str) \reg, [\ptr], #4
@@ -70,7 +88,7 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
-	str\cond\()b \reg, [\ptr], #1
+	strb\cond \reg, [\ptr], #1
 	.endm
 
 	.macro enter reg1 reg2
@@ -100,7 +118,7 @@ ENTRY(arm_copy_from_user)
 
 ENDPROC(arm_copy_from_user)
 
-	.pushsection .fixup,"ax"
+	.pushsection .text.fixup,"ax"
 	.align 0
 	copy_abort_preamble
 	ldmfd	sp!, {r1, r2, r3}

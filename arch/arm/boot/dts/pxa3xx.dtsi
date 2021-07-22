@@ -71,6 +71,14 @@
 #define MFP_DS13X	< (0x7 << 10) MFP_DSMSK >
 
 /*
+ * MFP bias pull mode for pins.
+ * Example of use: pinctrl-single,bias-pullup = MPF_PULL_UP;
+ */
+#define MPF_PULL_MSK	(0x7 << 13)
+#define MPF_PULL_DOWN	< (0x5 << 13) (0x5 << 13) 0 MPF_PULL_MSK >
+#define MPF_PULL_UP	< (0x6 << 13) (0x6 << 13) 0 MPF_PULL_MSK >
+
+/*
  * MFP low power mode for pins.
  * Example of use:
  *   pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW|MFP_LPM_EDGE_FALL);
@@ -151,8 +159,6 @@
 		pinctrl: pinctrl@40e10000 {
 			compatible = "pinconf-single";
 			reg = <0x40e10000 0xffff>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0x7>;
@@ -164,7 +170,7 @@
 			clocks = <&clks CLK_GPIO>;
 			gpio-ranges = <&pinctrl 0 0 128>;
 			interrupt-names = "gpio0", "gpio1", "gpio_mux";
-			interrupts = <8 9 10>;
+			interrupts = <8>, <9>, <10>;
 			gpio-controller;
 			#gpio-cells = <0x2>;
 			interrupt-controller;
@@ -204,7 +210,7 @@
 			status = "disabled";
 		};
 
-		pxa3xx_ohci: usb@4c000000 {
+		usb0: usb@4c000000 {
 			compatible = "marvell,pxa-ohci";
 			reg = <0x4c000000 0x10000>;
 			interrupts = <3>;
@@ -275,6 +281,22 @@
 			clocks = <&clks CLK_SSP4>;
 			status = "disabled";
 		};
+
+		timer@40a00000 {
+			compatible = "marvell,pxa-timer";
+			reg = <0x40a00000 0x20>;
+			interrupts = <26>;
+			clocks = <&clks CLK_OSTIMER>;
+			status = "okay";
+		};
+
+		gcu: display-controller@54000000 {
+			compatible = "marvell,pxa300-gcu";
+			reg = <0x54000000 0x1000>;
+			interrupts = <39>;
+			clocks = <&clks CLK_PXA300_GCU>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
@@ -286,18 +308,10 @@
 		#size-cells = <1>;
 		ranges;
 
-		clks: pxa3xx_clks@41300004 {
+		clks: clocks {
 			compatible = "marvell,pxa300-clocks";
 			#clock-cells = <1>;
 			status = "okay";
 		};
-	};
-
-	timer@40a00000 {
-		compatible = "marvell,pxa-timer";
-		reg = <0x40a00000 0x20>;
-		interrupts = <26>;
-		clocks = <&clks CLK_OSTIMER>;
-		status = "okay";
 	};
 };

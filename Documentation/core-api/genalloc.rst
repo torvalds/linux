@@ -23,7 +23,7 @@ begins with the creation of a pool using one of:
 .. kernel-doc:: lib/genalloc.c
    :functions: devm_gen_pool_create
 
-A call to :c:func:`gen_pool_create` will create a pool.  The granularity of
+A call to gen_pool_create() will create a pool.  The granularity of
 allocations is set with min_alloc_order; it is a log-base-2 number like
 those used by the page allocator, but it refers to bytes rather than pages.
 So, if min_alloc_order is passed as 3, then all allocations will be a
@@ -32,7 +32,7 @@ required to track the memory in the pool.  The nid parameter specifies
 which NUMA node should be used for the allocation of the housekeeping
 structures; it can be -1 if the caller doesn't care.
 
-The "managed" interface :c:func:`devm_gen_pool_create` ties the pool to a
+The "managed" interface devm_gen_pool_create() ties the pool to a
 specific device.  Among other things, it will automatically clean up the
 pool when the given device is destroyed.
 
@@ -53,32 +53,32 @@ to the pool.  That can be done with one of:
    :functions: gen_pool_add
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_add_virt
+   :functions: gen_pool_add_owner
 
-A call to :c:func:`gen_pool_add` will place the size bytes of memory
+A call to gen_pool_add() will place the size bytes of memory
 starting at addr (in the kernel's virtual address space) into the given
 pool, once again using nid as the node ID for ancillary memory allocations.
-The :c:func:`gen_pool_add_virt` variant associates an explicit physical
+The gen_pool_add_virt() variant associates an explicit physical
 address with the memory; this is only necessary if the pool will be used
 for DMA allocations.
 
 The functions for allocating memory from the pool (and putting it back)
 are:
 
-.. kernel-doc:: lib/genalloc.c
+.. kernel-doc:: include/linux/genalloc.h
    :functions: gen_pool_alloc
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_dma_alloc
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_free
+   :functions: gen_pool_free_owner
 
-As one would expect, :c:func:`gen_pool_alloc` will allocate size< bytes
-from the given pool.  The :c:func:`gen_pool_dma_alloc` variant allocates
+As one would expect, gen_pool_alloc() will allocate size< bytes
+from the given pool.  The gen_pool_dma_alloc() variant allocates
 memory for use with DMA operations, returning the associated physical
 address in the space pointed to by dma.  This will only work if the memory
-was added with :c:func:`gen_pool_add_virt`.  Note that this function
+was added with gen_pool_add_virt().  Note that this function
 departs from the usual genpool pattern of using unsigned long values to
 represent kernel addresses; it returns a void * instead.
 
@@ -89,14 +89,14 @@ return.  If that sort of control is needed, the following functions will be
 of interest:
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_alloc_algo
+   :functions: gen_pool_alloc_algo_owner
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_set_algo
 
-Allocations with :c:func:`gen_pool_alloc_algo` specify an algorithm to be
+Allocations with gen_pool_alloc_algo() specify an algorithm to be
 used to choose the memory to be allocated; the default algorithm can be set
-with :c:func:`gen_pool_set_algo`.  The data value is passed to the
+with gen_pool_set_algo().  The data value is passed to the
 algorithm; most ignore it, but it is occasionally needed.  One can,
 naturally, write a special-purpose algorithm, but there is a fair set
 already available:
@@ -129,7 +129,7 @@ writing of special-purpose memory allocators in the future.
    :functions: gen_pool_for_each_chunk
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: addr_in_gen_pool
+   :functions: gen_pool_has_addr
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_avail

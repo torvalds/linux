@@ -1,26 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Support PCI IO workaround
  *
  * (C) Copyright 2007-2008 TOSHIBA CORPORATION
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _IO_WORKAROUNDS_H
 #define _IO_WORKAROUNDS_H
 
+#ifdef CONFIG_PPC_IO_WORKAROUNDS
 #include <linux/io.h>
 #include <asm/pci-bridge.h>
 
@@ -44,5 +32,24 @@ extern int spiderpci_iowa_init(struct iowa_bus *, void *);
 #define SPIDER_PCI_VCI_CNTL_STAT	0x0110
 #define SPIDER_PCI_DUMMY_READ		0x0810
 #define SPIDER_PCI_DUMMY_READ_BASE	0x0814
+
+#endif
+
+#if defined(CONFIG_PPC_IO_WORKAROUNDS) && defined(CONFIG_PPC_INDIRECT_MMIO)
+extern bool io_workaround_inited;
+
+static inline bool iowa_is_active(void)
+{
+	return unlikely(io_workaround_inited);
+}
+#else
+static inline bool iowa_is_active(void)
+{
+	return false;
+}
+#endif
+
+void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
+			   pgprot_t prot, void *caller);
 
 #endif /* _IO_WORKAROUNDS_H */

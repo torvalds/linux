@@ -240,19 +240,14 @@ static int ptp_dte_probe(struct platform_device *pdev)
 {
 	struct ptp_dte *ptp_dte;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
 	ptp_dte = devm_kzalloc(dev, sizeof(struct ptp_dte), GFP_KERNEL);
 	if (!ptp_dte)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ptp_dte->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ptp_dte->regs)) {
-		dev_err(dev,
-			"%s: io remap failed\n", __func__);
+	ptp_dte->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ptp_dte->regs))
 		return PTR_ERR(ptp_dte->regs);
-	}
 
 	spin_lock_init(&ptp_dte->lock);
 

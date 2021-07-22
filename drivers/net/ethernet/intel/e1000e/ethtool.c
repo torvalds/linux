@@ -23,6 +23,13 @@ struct e1000_stats {
 	int stat_offset;
 };
 
+static const char e1000e_priv_flags_strings[][ETH_GSTRING_LEN] = {
+#define E1000E_PRIV_FLAGS_S0IX_ENABLED	BIT(0)
+	"s0ix-enabled",
+};
+
+#define E1000E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(e1000e_priv_flags_strings)
+
 #define E1000_STAT(str, m) { \
 		.stat_string = str, \
 		.type = E1000_STATS, \
@@ -633,8 +640,6 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, e1000e_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, e1000e_driver_version,
-		sizeof(drvinfo->version));
 
 	/* EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
@@ -894,8 +899,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
-		/* fall through */
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 		mask |= BIT(18);
 		break;
 	default:
@@ -1014,7 +1021,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
 	e1e_flush();
-	usleep_range(10000, 20000);
+	usleep_range(10000, 11000);
 
 	/* Test each interrupt */
 	for (i = 0; i < 10; i++) {
@@ -1046,7 +1053,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			ew32(IMC, mask);
 			ew32(ICS, mask);
 			e1e_flush();
-			usleep_range(10000, 20000);
+			usleep_range(10000, 11000);
 
 			if (adapter->test_icr & mask) {
 				*data = 3;
@@ -1064,7 +1071,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		ew32(IMS, mask);
 		ew32(ICS, mask);
 		e1e_flush();
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 
 		if (!(adapter->test_icr & mask)) {
 			*data = 4;
@@ -1082,7 +1089,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			ew32(IMC, ~mask & 0x00007FFF);
 			ew32(ICS, ~mask & 0x00007FFF);
 			e1e_flush();
-			usleep_range(10000, 20000);
+			usleep_range(10000, 11000);
 
 			if (adapter->test_icr) {
 				*data = 5;
@@ -1094,7 +1101,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
 	e1e_flush();
-	usleep_range(10000, 20000);
+	usleep_range(10000, 11000);
 
 	/* Unhook test interrupt handler */
 	free_irq(irq, netdev);
@@ -1126,8 +1133,7 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 						 buffer_info->dma,
 						 buffer_info->length,
 						 DMA_TO_DEVICE);
-			if (buffer_info->skb)
-				dev_kfree_skb(buffer_info->skb);
+			dev_kfree_skb(buffer_info->skb);
 		}
 	}
 
@@ -1139,8 +1145,7 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 				dma_unmap_single(&pdev->dev,
 						 buffer_info->dma,
 						 2048, DMA_FROM_DEVICE);
-			if (buffer_info->skb)
-				dev_kfree_skb(buffer_info->skb);
+			dev_kfree_skb(buffer_info->skb);
 		}
 	}
 
@@ -1470,7 +1475,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 	 */
 	ew32(SCTL, E1000_SCTL_ENABLE_SERDES_LOOPBACK);
 	e1e_flush();
-	usleep_range(10000, 20000);
+	usleep_range(10000, 11000);
 
 	return 0;
 }
@@ -1561,6 +1566,9 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	switch (hw->mac.type) {
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 		fext_nvm11 = er32(FEXTNVM11);
 		fext_nvm11 &= ~E1000_FEXTNVM11_DISABLE_MULR_FIX;
 		ew32(FEXTNVM11, fext_nvm11);
@@ -1569,7 +1577,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		/* set bit 29 (value of MULR requests is now 0) */
 		tarc0 &= 0xcfffffff;
 		ew32(TARC(0), tarc0);
-		/* fall through */
+		fallthrough;
 	case e1000_80003es2lan:
 		if (hw->phy.media_type == e1000_media_type_fiber ||
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {
@@ -1577,17 +1585,17 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 			ew32(CTRL_EXT, adapter->tx_fifo_head);
 			adapter->tx_fifo_head = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case e1000_82571:
 	case e1000_82572:
 		if (hw->phy.media_type == e1000_media_type_fiber ||
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {
 			ew32(SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 			e1e_flush();
-			usleep_range(10000, 20000);
+			usleep_range(10000, 11000);
 			break;
 		}
-		/* Fall Through */
+		fallthrough;
 	default:
 		hw->mac.autoneg = 1;
 		if (hw->phy.type == e1000_phy_gg82563)
@@ -1609,8 +1617,8 @@ static void e1000_create_lbtest_frame(struct sk_buff *skb,
 	memset(skb->data, 0xFF, frame_size);
 	frame_size &= ~1;
 	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
-	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
-	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
+	skb->data[frame_size / 2 + 10] = 0xBE;
+	skb->data[frame_size / 2 + 12] = 0xAF;
 }
 
 static int e1000_check_lbtest_frame(struct sk_buff *skb,
@@ -1775,6 +1783,8 @@ static int e1000e_get_sset_count(struct net_device __always_unused *netdev,
 		return E1000_TEST_LEN;
 	case ETH_SS_STATS:
 		return E1000_STATS_LEN;
+	case ETH_SS_PRIV_FLAGS:
+		return E1000E_PRIV_FLAGS_STR_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2096,6 +2106,10 @@ static void e1000_get_strings(struct net_device __always_unused *netdev,
 			p += ETH_GSTRING_LEN;
 		}
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, e1000e_priv_flags_strings,
+		       E1000E_PRIV_FLAGS_STR_LEN * ETH_GSTRING_LEN);
+		break;
 	}
 }
 
@@ -2122,7 +2136,7 @@ static int e1000_get_rxnfc(struct net_device *netdev,
 		case TCP_V4_FLOW:
 			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4_TCP)
 				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* fall through */
+			fallthrough;
 		case UDP_V4_FLOW:
 		case SCTP_V4_FLOW:
 		case AH_ESP_V4_FLOW:
@@ -2133,7 +2147,7 @@ static int e1000_get_rxnfc(struct net_device *netdev,
 		case TCP_V6_FLOW:
 			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6_TCP)
 				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* fall through */
+			fallthrough;
 		case UDP_V6_FLOW:
 		case SCTP_V6_FLOW:
 		case AH_ESP_V6_FLOW:
@@ -2304,7 +2318,39 @@ static int e1000e_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
+static u32 e1000e_get_priv_flags(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	u32 priv_flags = 0;
+
+	if (adapter->flags2 & FLAG2_ENABLE_S0IX_FLOWS)
+		priv_flags |= E1000E_PRIV_FLAGS_S0IX_ENABLED;
+
+	return priv_flags;
+}
+
+static int e1000e_set_priv_flags(struct net_device *netdev, u32 priv_flags)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	unsigned int flags2 = adapter->flags2;
+
+	flags2 &= ~FLAG2_ENABLE_S0IX_FLOWS;
+	if (priv_flags & E1000E_PRIV_FLAGS_S0IX_ENABLED) {
+		struct e1000_hw *hw = &adapter->hw;
+
+		if (hw->mac.type < e1000_pch_cnp)
+			return -EINVAL;
+		flags2 |= FLAG2_ENABLE_S0IX_FLOWS;
+	}
+
+	if (flags2 != adapter->flags2)
+		adapter->flags2 = flags2;
+
+	return 0;
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS,
 	.get_drvinfo		= e1000_get_drvinfo,
 	.get_regs_len		= e1000_get_regs_len,
 	.get_regs		= e1000_get_regs,
@@ -2334,6 +2380,8 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_eee		= e1000e_set_eee,
 	.get_link_ksettings	= e1000_get_link_ksettings,
 	.set_link_ksettings	= e1000_set_link_ksettings,
+	.get_priv_flags		= e1000e_get_priv_flags,
+	.set_priv_flags		= e1000e_set_priv_flags,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

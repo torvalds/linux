@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/9p/clnt.c
  *
@@ -5,22 +6,6 @@
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to:
- *  Free Software Foundation
- *  51 Franklin Street, Fifth Floor
- *  Boston, MA  02111-1301  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -137,7 +122,7 @@ static int get_protocol_version(char *s)
 }
 
 /**
- * parse_options - parse mount options into client structure
+ * parse_opts - parse mount options into client structure
  * @opts: options string passed from mount
  * @clnt: existing v9fs client information
  *
@@ -179,6 +164,12 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 				p9_debug(P9_DEBUG_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
+				continue;
+			}
+			if (option < 4096) {
+				p9_debug(P9_DEBUG_ERROR,
+					 "msize should be at least 4k\n");
+				ret = -EINVAL;
 				continue;
 			}
 			clnt->msize = option;
@@ -265,7 +256,7 @@ EXPORT_SYMBOL(p9_fcall_fini);
 static struct kmem_cache *p9_req_cache;
 
 /**
- * p9_req_alloc - Allocate a new request.
+ * p9_tag_alloc - Allocate a new request.
  * @c: Client session.
  * @type: Transaction type.
  * @max_size: Maximum packet size for this request.
@@ -290,6 +281,7 @@ p9_tag_alloc(struct p9_client *c, int8_t type, unsigned int max_size)
 
 	p9pdu_reset(&req->tc);
 	p9pdu_reset(&req->rc);
+	req->t_err = 0;
 	req->status = REQ_STATUS_ALLOC;
 	init_waitqueue_head(&req->wq);
 	INIT_LIST_HEAD(&req->req_list);
@@ -420,8 +412,9 @@ static void p9_tag_cleanup(struct p9_client *c)
 
 /**
  * p9_client_cb - call back from transport to client
- * c: client state
- * req: request received
+ * @c: client state
+ * @req: request received
+ * @status: request status, one of REQ_STATUS_*
  *
  */
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
@@ -563,6 +556,7 @@ out_err:
  * p9_check_zc_errors - check 9p packet for error return and process it
  * @c: current client instance
  * @req: request to parse and check for error conditions
+ * @uidata: external buffer containing error
  * @in_hdrlen: Size of response protocol buffer.
  *
  * returns error code if one is discovered, otherwise returns 0
@@ -819,7 +813,7 @@ reterr:
  * @uodata: source for zero copy write
  * @inlen: read buffer size
  * @olen: write buffer size
- * @hdrlen: reader header size, This is the size of response protocol data
+ * @in_hdrlen: reader header size, This is the size of response protocol data
  * @fmt: protocol format string (see protocol.c)
  *
  * Returns request structure (which client must free using p9_tag_remove)
@@ -909,6 +903,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	fid->clnt = clnt;
 	fid->rdir = NULL;
 	fid->fid = 0;
+	refcount_set(&fid->count, 1);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&clnt->lock);
@@ -916,7 +911,6 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 			    GFP_NOWAIT);
 	spin_unlock_irq(&clnt->lock);
 	idr_preload_end();
-
 	if (!ret)
 		return fid;
 
@@ -983,10 +977,18 @@ static int p9_client_version(struct p9_client *c)
 	else if (!strncmp(version, "9P2000", 6))
 		c->proto_version = p9_proto_legacy;
 	else {
+		p9_debug(P9_DEBUG_ERROR,
+			 "server returned an unknown version: %s\n", version);
 		err = -EREMOTEIO;
 		goto error;
 	}
 
+	if (msize < 4096) {
+		p9_debug(P9_DEBUG_ERROR,
+			 "server returned a msize < 4096: %d\n", msize);
+		err = -EREMOTEIO;
+		goto error;
+	}
 	if (msize < c->msize)
 		c->msize = msize;
 
@@ -1042,6 +1044,13 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 	if (clnt->msize > clnt->trans_mod->maxsize)
 		clnt->msize = clnt->trans_mod->maxsize;
+
+	if (clnt->msize < 4096) {
+		p9_debug(P9_DEBUG_ERROR,
+			 "Please specify a msize of at least 4k\n");
+		err = -EINVAL;
+		goto close_trans;
+	}
 
 	err = p9_client_version(clnt);
 	if (err)
@@ -1180,7 +1189,6 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
 
 	p9_debug(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %ud wname[0] %s\n",
 		 oldfid->fid, fid->fid, nwname, wnames ? wnames[0] : NULL);
-
 	req = p9_client_rpc(clnt, P9_TWALK, "ddT", oldfid->fid, fid->fid,
 								nwname, wnames);
 	if (IS_ERR(req)) {
@@ -1212,7 +1220,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
 	if (nwname)
 		memmove(&fid->qid, &wqids[nwqids - 1], sizeof(struct p9_qid));
 	else
-		fid->qid = oldfid->qid;
+		memmove(&fid->qid, &oldfid->qid, sizeof(struct p9_qid));
 
 	kfree(wqids);
 	return fid;
@@ -1265,6 +1273,7 @@ int p9_client_open(struct p9_fid *fid, int mode)
 		p9_is_proto_dotl(clnt) ? "RLOPEN" : "ROPEN",  qid.type,
 		(unsigned long long)qid.path, qid.version, iounit);
 
+	memmove(&fid->qid, &qid, sizeof(struct p9_qid));
 	fid->mode = mode;
 	fid->iounit = iounit;
 
@@ -1310,6 +1319,7 @@ int p9_client_create_dotl(struct p9_fid *ofid, const char *name, u32 flags, u32 
 			(unsigned long long)qid->path,
 			qid->version, iounit);
 
+	memmove(&ofid->qid, qid, sizeof(struct p9_qid));
 	ofid->mode = mode;
 	ofid->iounit = iounit;
 
@@ -1355,6 +1365,7 @@ int p9_client_fcreate(struct p9_fid *fid, const char *name, u32 perm, int mode,
 				(unsigned long long)qid.path,
 				qid.version, iounit);
 
+	memmove(&fid->qid, &qid, sizeof(struct p9_qid));
 	fid->mode = mode;
 	fid->iounit = iounit;
 
@@ -1451,12 +1462,14 @@ int p9_client_clunk(struct p9_fid *fid)
 	struct p9_req_t *req;
 	int retries = 0;
 
-	if (!fid) {
-		pr_warn("%s (%d): Trying to clunk with NULL fid\n",
+	if (!fid || IS_ERR(fid)) {
+		pr_warn("%s (%d): Trying to clunk with invalid fid\n",
 			__func__, task_pid_nr(current));
 		dump_stack();
 		return 0;
 	}
+	if (!refcount_dec_and_test(&fid->count))
+		return 0;
 
 again:
 	p9_debug(P9_DEBUG_9P, ">>> TCLUNK fid %d (try %d)\n", fid->fid,
@@ -1542,82 +1555,90 @@ EXPORT_SYMBOL(p9_client_unlinkat);
 int
 p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 {
-	struct p9_client *clnt = fid->clnt;
-	struct p9_req_t *req;
 	int total = 0;
 	*err = 0;
 
-	p9_debug(P9_DEBUG_9P, ">>> TREAD fid %d offset %llu %d\n",
-		   fid->fid, (unsigned long long) offset, (int)iov_iter_count(to));
-
 	while (iov_iter_count(to)) {
-		int count = iov_iter_count(to);
-		int rsize, non_zc = 0;
-		char *dataptr;
+		int count;
 
-		rsize = fid->iounit;
-		if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
-			rsize = clnt->msize - P9_IOHDRSZ;
-
-		if (count < rsize)
-			rsize = count;
-
-		/* Don't bother zerocopy for small IO (< 1024) */
-		if (clnt->trans_mod->zc_request && rsize > 1024) {
-			/*
-			 * response header len is 11
-			 * PDU Header(7) + IO Size (4)
-			 */
-			req = p9_client_zc_rpc(clnt, P9_TREAD, to, NULL, rsize,
-					       0, 11, "dqd", fid->fid,
-					       offset, rsize);
-		} else {
-			non_zc = 1;
-			req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
-					    rsize);
-		}
-		if (IS_ERR(req)) {
-			*err = PTR_ERR(req);
+		count = p9_client_read_once(fid, offset, to, err);
+		if (!count || *err)
 			break;
-		}
-
-		*err = p9pdu_readf(&req->rc, clnt->proto_version,
-				   "D", &count, &dataptr);
-		if (*err) {
-			trace_9p_protocol_dump(clnt, &req->rc);
-			p9_tag_remove(clnt, req);
-			break;
-		}
-		if (rsize < count) {
-			pr_err("bogus RREAD count (%d > %d)\n", count, rsize);
-			count = rsize;
-		}
-
-		p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
-		if (!count) {
-			p9_tag_remove(clnt, req);
-			break;
-		}
-
-		if (non_zc) {
-			int n = copy_to_iter(dataptr, count, to);
-			total += n;
-			offset += n;
-			if (n != count) {
-				*err = -EFAULT;
-				p9_tag_remove(clnt, req);
-				break;
-			}
-		} else {
-			iov_iter_advance(to, count);
-			total += count;
-			offset += count;
-		}
-		p9_tag_remove(clnt, req);
+		offset += count;
+		total += count;
 	}
 	return total;
 }
 EXPORT_SYMBOL(p9_client_read);
+
+int
+p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
+		    int *err)
+{
+	struct p9_client *clnt = fid->clnt;
+	struct p9_req_t *req;
+	int count = iov_iter_count(to);
+	int rsize, non_zc = 0;
+	char *dataptr;
+
+	*err = 0;
+	p9_debug(P9_DEBUG_9P, ">>> TREAD fid %d offset %llu %d\n",
+		   fid->fid, (unsigned long long) offset, (int)iov_iter_count(to));
+
+	rsize = fid->iounit;
+	if (!rsize || rsize > clnt->msize - P9_IOHDRSZ)
+		rsize = clnt->msize - P9_IOHDRSZ;
+
+	if (count < rsize)
+		rsize = count;
+
+	/* Don't bother zerocopy for small IO (< 1024) */
+	if (clnt->trans_mod->zc_request && rsize > 1024) {
+		/* response header len is 11
+		 * PDU Header(7) + IO Size (4)
+		 */
+		req = p9_client_zc_rpc(clnt, P9_TREAD, to, NULL, rsize,
+				       0, 11, "dqd", fid->fid,
+				       offset, rsize);
+	} else {
+		non_zc = 1;
+		req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
+				    rsize);
+	}
+	if (IS_ERR(req)) {
+		*err = PTR_ERR(req);
+		return 0;
+	}
+
+	*err = p9pdu_readf(&req->rc, clnt->proto_version,
+			   "D", &count, &dataptr);
+	if (*err) {
+		trace_9p_protocol_dump(clnt, &req->rc);
+		p9_tag_remove(clnt, req);
+		return 0;
+	}
+	if (rsize < count) {
+		pr_err("bogus RREAD count (%d > %d)\n", count, rsize);
+		count = rsize;
+	}
+
+	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
+
+	if (non_zc) {
+		int n = copy_to_iter(dataptr, count, to);
+
+		if (n != count) {
+			*err = -EFAULT;
+			p9_tag_remove(clnt, req);
+			return n;
+		}
+	} else {
+		iov_iter_advance(to, count);
+	}
+	p9_tag_remove(clnt, req);
+	return count;
+}
+EXPORT_SYMBOL(p9_client_read_once);
 
 int
 p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
@@ -2066,7 +2087,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	struct kvec kv = {.iov_base = data, .iov_len = count};
 	struct iov_iter to;
 
-	iov_iter_kvec(&to, READ | ITER_KVEC, &kv, 1, count);
+	iov_iter_kvec(&to, READ, &kv, 1, count);
 
 	p9_debug(P9_DEBUG_9P, ">>> TREADDIR fid %d offset %llu count %d\n",
 				fid->fid, (unsigned long long) offset, count);

@@ -554,7 +554,7 @@ err_free_irq:
 err_release_mem:
 	release_mem_region(dev->mem_start, dev->mem_end - dev->mem_start + 1);
 err_free_dev:
-	free_netdev(dev);
+	free_arcdev(dev);
 	return -EIO;
 }
 
@@ -672,7 +672,7 @@ static void __exit com90xx_exit(void)
 		release_region(dev->base_addr, ARCNET_TOTAL_SIZE);
 		release_mem_region(dev->mem_start,
 				   dev->mem_end - dev->mem_start + 1);
-		free_netdev(dev);
+		free_arcdev(dev);
 	}
 }
 
@@ -693,10 +693,13 @@ static int __init com90xx_setup(char *s)
 	switch (ints[0]) {
 	default:		/* ERROR */
 		pr_err("Too many arguments\n");
+		fallthrough;
 	case 3:		/* Mem address */
 		shmem = ints[3];
+		fallthrough;
 	case 2:		/* IRQ */
 		irq = ints[2];
+		fallthrough;
 	case 1:		/* IO address */
 		io = ints[1];
 	}

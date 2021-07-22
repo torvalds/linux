@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the ICST307 VCO clock found in the ARM Reference designs.
  * We wrap the custom interface from <asm/hardware/icst.h> into the generic
  * clock framework.
  *
  * Copyright (C) 2012-2015 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * TODO: when all ARM reference designs are migrated to generic clocks, the
  * ICST clock code from the ARM tree should probably be merged into this
@@ -37,22 +34,11 @@
 #define INTEGRATOR_AP_PCI_25_33_MHZ BIT(8)
 
 /**
- * enum icst_control_type - the type of ICST control register
- */
-enum icst_control_type {
-	ICST_VERSATILE, /* The standard type, all control bits available */
-	ICST_INTEGRATOR_AP_CM, /* Only 8 bits of VDW available */
-	ICST_INTEGRATOR_AP_SYS, /* Only 8 bits of VDW available */
-	ICST_INTEGRATOR_AP_PCI, /* Odd bit pattern storage */
-	ICST_INTEGRATOR_CP_CM_CORE, /* Only 8 bits of VDW and 3 bits of OD */
-	ICST_INTEGRATOR_CP_CM_MEM, /* Only 8 bits of VDW and 3 bits of OD */
-};
-
-/**
  * struct clk_icst - ICST VCO clock wrapper
  * @hw: corresponding clock hardware entry
- * @vcoreg: VCO register address
- * @lockreg: VCO lock register address
+ * @map: register map
+ * @vcoreg_off: VCO register address
+ * @lockreg_off: VCO lock register address
  * @params: parameters for this ICST instance
  * @rate: current rate
  * @ctype: the type of control register for the ICST
@@ -347,12 +333,12 @@ static const struct clk_ops icst_ops = {
 	.set_rate = icst_set_rate,
 };
 
-static struct clk *icst_clk_setup(struct device *dev,
-				  const struct clk_icst_desc *desc,
-				  const char *name,
-				  const char *parent_name,
-				  struct regmap *map,
-				  enum icst_control_type ctype)
+struct clk *icst_clk_setup(struct device *dev,
+			   const struct clk_icst_desc *desc,
+			   const char *name,
+			   const char *parent_name,
+			   struct regmap *map,
+			   enum icst_control_type ctype)
 {
 	struct clk *clk;
 	struct clk_icst *icst;
@@ -389,6 +375,7 @@ static struct clk *icst_clk_setup(struct device *dev,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(icst_clk_setup);
 
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,
@@ -442,7 +429,7 @@ static const struct icst_params icst307_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-/**
+/*
  * The core modules on the Integrator/AP and Integrator/CP have
  * especially crippled ICST525 control.
  */

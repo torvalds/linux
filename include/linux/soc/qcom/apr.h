@@ -85,6 +85,7 @@ struct apr_device {
 	uint16_t	domain_id;
 	uint32_t	version;
 	char name[APR_NAME_SIZE];
+	const char *service_path;
 	spinlock_t	lock;
 	struct list_head node;
 };
@@ -112,7 +113,7 @@ void apr_driver_unregister(struct apr_driver *drv);
 
 /**
  * module_apr_driver() - Helper macro for registering a aprbus driver
- * @__aprbus_driver: aprbus_driver struct
+ * @__apr_driver: apr_driver struct
  *
  * Helper macro for aprbus drivers which do not do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module

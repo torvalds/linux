@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/balloon3.c
  *
@@ -7,10 +8,6 @@
  *  Created:	June, 2006
  *  Copyright:	Toby Churchill Ltd
  *  Derived from mainstone.c, by Nico Pitre
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -35,7 +32,7 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -290,9 +287,6 @@ static unsigned long balloon3_mmc_pin_config[] __initdata = {
 
 static struct pxamci_platform_data balloon3_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 	.detect_delay_ms	= 200,
 };
 

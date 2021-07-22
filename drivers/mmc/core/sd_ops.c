@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/mmc/core/sd_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -21,6 +17,7 @@
 
 #include "core.h"
 #include "sd_ops.h"
+#include "mmc_ops.h"
 
 int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 {
@@ -52,36 +49,17 @@ int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 }
 EXPORT_SYMBOL_GPL(mmc_app_cmd);
 
-/**
- *	mmc_wait_for_app_cmd - start an application command and wait for
- 			       completion
- *	@host: MMC host to start command
- *	@card: Card to send MMC_APP_CMD to
- *	@cmd: MMC command to start
- *	@retries: maximum number of retries
- *
- *	Sends a MMC_APP_CMD, checks the card response, sends the command
- *	in the parameter and waits for it to complete. Return any error
- *	that occurred while the command was executing.  Do not attempt to
- *	parse the response.
- */
-int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
-	struct mmc_command *cmd, int retries)
+static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
+				struct mmc_command *cmd)
 {
 	struct mmc_request mrq = {};
-
-	int i, err;
-
-	if (retries < 0)
-		retries = MMC_CMD_RETRIES;
-
-	err = -EIO;
+	int i, err = -EIO;
 
 	/*
 	 * We have to resend MMC_APP_CMD for each attempt so
 	 * we cannot use the retries field in mmc_command.
 	 */
-	for (i = 0;i <= retries;i++) {
+	for (i = 0; i <= MMC_CMD_RETRIES; i++) {
 		err = mmc_app_cmd(host, card);
 		if (err) {
 			/* no point in retrying; no APP commands allowed */
@@ -116,8 +94,6 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 	return err;
 }
 
-EXPORT_SYMBOL(mmc_wait_for_app_cmd);
-
 int mmc_app_set_bus_width(struct mmc_card *card, int width)
 {
 	struct mmc_command cmd = {};
@@ -136,7 +112,7 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 		return -EINVAL;
 	}
 
-	return mmc_wait_for_app_cmd(card->host, card, &cmd, MMC_CMD_RETRIES);
+	return mmc_wait_for_app_cmd(card->host, card, &cmd);
 }
 
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
@@ -152,7 +128,7 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
-		err = mmc_wait_for_app_cmd(host, NULL, &cmd, MMC_CMD_RETRIES);
+		err = mmc_wait_for_app_cmd(host, NULL, &cmd);
 		if (err)
 			break;
 
@@ -183,7 +159,8 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	return err;
 }
 
-int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
+static int __mmc_send_if_cond(struct mmc_host *host, u32 ocr, u8 pcie_bits,
+			      u32 *resp)
 {
 	struct mmc_command cmd = {};
 	int err;
@@ -196,7 +173,7 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	 * SD 1.0 cards.
 	 */
 	cmd.opcode = SD_SEND_IF_COND;
-	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | test_pattern;
+	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | pcie_bits << 8 | test_pattern;
 	cmd.flags = MMC_RSP_SPI_R7 | MMC_RSP_R7 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
@@ -210,6 +187,50 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 
 	if (result_pattern != test_pattern)
 		return -EIO;
+
+	if (resp)
+		*resp = cmd.resp[0];
+
+	return 0;
+}
+
+int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
+{
+	return __mmc_send_if_cond(host, ocr, 0, NULL);
+}
+
+int mmc_send_if_cond_pcie(struct mmc_host *host, u32 ocr)
+{
+	u32 resp = 0;
+	u8 pcie_bits = 0;
+	int ret;
+
+	if (host->caps2 & MMC_CAP2_SD_EXP) {
+		/* Probe card for SD express support via PCIe. */
+		pcie_bits = 0x10;
+		if (host->caps2 & MMC_CAP2_SD_EXP_1_2V)
+			/* Probe also for 1.2V support. */
+			pcie_bits = 0x30;
+	}
+
+	ret = __mmc_send_if_cond(host, ocr, pcie_bits, &resp);
+	if (ret)
+		return 0;
+
+	/* Continue with the SD express init, if the card supports it. */
+	resp &= 0x3000;
+	if (pcie_bits && resp) {
+		if (resp == 0x3000)
+			host->ios.timing = MMC_TIMING_SD_EXP_1_2V;
+		else
+			host->ios.timing = MMC_TIMING_SD_EXP;
+
+		/*
+		 * According to the spec the clock shall also be gated, but
+		 * let's leave this to the host driver for more flexibility.
+		 */
+		return host->ops->init_sd_express(host, &host->ios);
+	}
 
 	return 0;
 }
@@ -289,43 +310,18 @@ int mmc_app_send_scr(struct mmc_card *card)
 int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	u8 value, u8 *resp)
 {
-	struct mmc_request mrq = {};
-	struct mmc_command cmd = {};
-	struct mmc_data data = {};
-	struct scatterlist sg;
+	u32 cmd_args;
 
 	/* NOTE: caller guarantees resp is heap-allocated */
 
 	mode = !!mode;
 	value &= 0xF;
+	cmd_args = mode << 31 | 0x00FFFFFF;
+	cmd_args &= ~(0xF << (group * 4));
+	cmd_args |= value << (group * 4);
 
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-
-	cmd.opcode = SD_SWITCH;
-	cmd.arg = mode << 31 | 0x00FFFFFF;
-	cmd.arg &= ~(0xF << (group * 4));
-	cmd.arg |= value << (group * 4);
-	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	data.blksz = 64;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	sg_init_one(&sg, resp, 64);
-
-	mmc_set_data_timeout(&data, card);
-
-	mmc_wait_for_req(card->host, &mrq);
-
-	if (cmd.error)
-		return cmd.error;
-	if (data.error)
-		return data.error;
-
-	return 0;
+	return mmc_send_adtc_data(card, card->host, SD_SWITCH, cmd_args, resp,
+				  64);
 }
 
 int mmc_app_sd_status(struct mmc_card *card, void *ssr)

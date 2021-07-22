@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_I2C_H__
 #define __NVKM_I2C_H__
 #include <core/subdev.h>
@@ -38,6 +38,7 @@ struct nvkm_i2c_bus {
 	struct mutex mutex;
 	struct list_head head;
 	struct i2c_adapter i2c;
+	u8 enabled;
 };
 
 int nvkm_i2c_bus_acquire(struct nvkm_i2c_bus *);
@@ -57,6 +58,7 @@ struct nvkm_i2c_aux {
 	struct mutex mutex;
 	struct list_head head;
 	struct i2c_adapter i2c;
+	u8 enabled;
 
 	u32 intr;
 };
@@ -83,14 +85,15 @@ struct nvkm_i2c {
 struct nvkm_i2c_bus *nvkm_i2c_bus_find(struct nvkm_i2c *, int);
 struct nvkm_i2c_aux *nvkm_i2c_aux_find(struct nvkm_i2c *, int);
 
-int nv04_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int nv4e_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int nv50_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int g94_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int gf117_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int gf119_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int gk104_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int gm200_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int nv04_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int nv4e_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int nv50_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int g94_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int gf117_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int gf119_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int gk104_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int gk110_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
+int gm200_i2c_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_i2c **);
 
 static inline int
 nvkm_rdi2cr(struct i2c_adapter *adap, u8 addr, u8 reg)

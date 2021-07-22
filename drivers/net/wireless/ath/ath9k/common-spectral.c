@@ -1039,6 +1039,9 @@ static struct dentry *create_buf_file_handler(const char *filename,
 
 	buf_file = debugfs_create_file(filename, mode, parent, buf,
 				       &relay_file_operations);
+	if (IS_ERR(buf_file))
+		return NULL;
+
 	*is_global = 1;
 	return buf_file;
 }
@@ -1050,7 +1053,7 @@ static int remove_buf_file_handler(struct dentry *dentry)
 	return 0;
 }
 
-static struct rchan_callbacks rfs_spec_scan_cb = {
+static const struct rchan_callbacks rfs_spec_scan_cb = {
 	.create_buf_file = create_buf_file_handler,
 	.remove_buf_file = remove_buf_file_handler,
 };

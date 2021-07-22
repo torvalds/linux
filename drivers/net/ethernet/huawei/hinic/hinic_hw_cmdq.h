@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_CMDQ_H
@@ -40,6 +31,10 @@
 			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
 
+#define HINIC_CMDQ_CTXT_PAGE_INFO_GET(val, member)	\
+			(((u64)(val) >> HINIC_CMDQ_CTXT_##member##_SHIFT) \
+			 & HINIC_CMDQ_CTXT_##member##_MASK)
+
 #define HINIC_CMDQ_CTXT_PAGE_INFO_CLEAR(val, member)    \
 			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)))
@@ -53,6 +48,10 @@
 #define HINIC_CMDQ_CTXT_BLOCK_INFO_SET(val, member)     \
 			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
+
+#define HINIC_CMDQ_CTXT_BLOCK_INFO_GET(val, member)	\
+			(((u64)(val) >> HINIC_CMDQ_CTXT_##member##_SHIFT) \
+			& HINIC_CMDQ_CTXT_##member##_MASK)
 
 #define HINIC_CMDQ_CTXT_BLOCK_INFO_CLEAR(val, member)   \
 			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
@@ -131,7 +130,7 @@ struct hinic_cmdq_ctxt {
 
 	u16     func_idx;
 	u8      cmdq_type;
-	u8      rsvd1[1];
+	u8      ppf_idx;
 
 	u8      rsvd2[4];
 
@@ -139,6 +138,8 @@ struct hinic_cmdq_ctxt {
 };
 
 struct hinic_cmdq {
+	struct hinic_hwdev      *hwdev;
+
 	struct hinic_wq         *wq;
 
 	enum hinic_cmdq_type    cmdq_type;

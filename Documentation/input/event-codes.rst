@@ -190,16 +190,26 @@ A few EV_REL codes have special meanings:
 * REL_WHEEL, REL_HWHEEL:
 
   - These codes are used for vertical and horizontal scroll wheels,
-    respectively. The value is the number of "notches" moved on the wheel, the
-    physical size of which varies by device. For high-resolution wheels (which
-    report multiple events for each notch of movement, or do not have notches)
-    this may be an approximation based on the high-resolution scroll events.
+    respectively. The value is the number of detents moved on the wheel, the
+    physical size of which varies by device. For high-resolution wheels
+    this may be an approximation based on the high-resolution scroll events,
+    see REL_WHEEL_HI_RES. These event codes are legacy codes and
+    REL_WHEEL_HI_RES and REL_HWHEEL_HI_RES should be preferred where
+    available.
 
-* REL_WHEEL_HI_RES:
+* REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES:
 
-  - If a vertical scroll wheel supports high-resolution scrolling, this code
-    will be emitted in addition to REL_WHEEL. The value is the (approximate)
-    distance travelled by the user's finger, in microns.
+  - High-resolution scroll wheel data. The accumulated value 120 represents
+    movement by one detent. For devices that do not provide high-resolution
+    scrolling, the value is always a multiple of 120. For devices with
+    high-resolution scrolling, the value may be a fraction of 120.
+
+    If a vertical scroll wheel supports high-resolution scrolling, this code
+    will be emitted in addition to REL_WHEEL or REL_HWHEEL. The REL_WHEEL
+    and REL_HWHEEL may be an approximation based on the high-resolution
+    scroll events. There is no guarantee that the high-resolution data
+    is a multiple of 120 at the time of an emulated REL_WHEEL or REL_HWHEEL
+    event.
 
 EV_ABS
 ------
@@ -225,6 +235,21 @@ A few EV_ABS codes have special meanings:
 
   - Used to describe multitouch input events. Please see
     multi-touch-protocol.txt for details.
+
+* ABS_PRESSURE/ABS_MT_PRESSURE:
+
+   - For touch devices, many devices converted contact size into pressure.
+     A finger flattens with pressure, causing a larger contact area and thus
+     pressure and contact size are directly related. This is not the case
+     for other devices, for example digitizers and touchpads with a true
+     pressure sensor ("pressure pads").
+
+     A device should set the resolution of the axis to indicate whether the
+     pressure is in measurable units. If the resolution is zero, the
+     pressure data is in arbitrary units. If the resolution is non-zero, the
+     pressure data is in units/gram. For example, a value of 10 with a
+     resolution of 1 represents 10 gram, a value of 10 with a resolution of
+     1000 represents 10 microgram.
 
 EV_SW
 -----
@@ -319,7 +344,7 @@ INPUT_PROP_BUTTONPAD
 
 For touchpads where the button is placed beneath the surface, such that
 pressing down on the pad causes a button click, this property should be
-set. Common in clickpad notebooks and macbooks from 2009 and onwards.
+set. Common in Clickpad notebooks and Macbooks from 2009 and onwards.
 
 Originally, the buttonpad property was coded into the bcm5974 driver
 version field under the name integrated button. For backwards
@@ -331,7 +356,7 @@ INPUT_PROP_SEMI_MT
 Some touchpads, most common between 2008 and 2011, can detect the presence
 of multiple contacts without resolving the individual positions; only the
 number of contacts and a rectangular shape is known. For such
-touchpads, the semi-mt property should be set.
+touchpads, the SEMI_MT property should be set.
 
 Depending on the device, the rectangle may enclose all touches, like a
 bounding box, or just some of them, for instance the two most recent
@@ -369,7 +394,7 @@ Guidelines
 ==========
 
 The guidelines below ensure proper single-touch and multi-finger functionality.
-For multi-touch functionality, see the multi-touch-protocol.txt document for
+For multi-touch functionality, see the multi-touch-protocol.rst document for
 more information.
 
 Mice

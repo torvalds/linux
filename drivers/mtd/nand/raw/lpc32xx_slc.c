@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NXP LPC32XX NAND SLC driver
  *
@@ -7,16 +8,6 @@
  *
  * Copyright © 2011 NXP Semiconductors
  * Copyright © 2012 Roland Stigge
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -32,11 +23,11 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/mtd/lpc32xx_slc.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 
 #define LPC32XX_MODNAME		"lpc32xx-nand"
 
@@ -352,6 +343,18 @@ static int lpc32xx_nand_ecc_calculate(struct nand_chip *chip,
 	 * and write operations, so it doesn't need to be calculated here.
 	 */
 	return 0;
+}
+
+/*
+ * Corrects the data
+ */
+static int lpc32xx_nand_ecc_correct(struct nand_chip *chip,
+				    unsigned char *buf,
+				    unsigned char *read_ecc,
+				    unsigned char *calc_ecc)
+{
+	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc,
+				      chip->ecc.size, false);
 }
 
 /*
@@ -784,6 +787,9 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
 	/* OOB and ECC CPU and DMA work areas */
 	host->ecc_buf = (uint32_t *)(host->data_buf + LPC32XX_DMA_DATA_SIZE);
 
@@ -795,11 +801,22 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	if (mtd->writesize <= 512)
 		mtd_set_ooblayout(mtd, &lpc32xx_ooblayout_ops);
 
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
 	/* These sizes remain the same regardless of page size */
 	chip->ecc.size = 256;
+	chip->ecc.strength = 1;
 	chip->ecc.bytes = LPC32XX_SLC_DEV_ECC_BYTES;
 	chip->ecc.prepad = 0;
 	chip->ecc.postpad = 0;
+	chip->ecc.read_page_raw = lpc32xx_nand_read_page_raw_syndrome;
+	chip->ecc.read_page = lpc32xx_nand_read_page_syndrome;
+	chip->ecc.write_page_raw = lpc32xx_nand_write_page_raw_syndrome;
+	chip->ecc.write_page = lpc32xx_nand_write_page_syndrome;
+	chip->ecc.write_oob = lpc32xx_nand_write_oob_syndrome;
+	chip->ecc.read_oob = lpc32xx_nand_read_oob_syndrome;
+	chip->ecc.calculate = lpc32xx_nand_ecc_calculate;
+	chip->ecc.correct = lpc32xx_nand_ecc_correct;
+	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
 	/*
 	 * Use a custom BBT marker setup for small page FLASH that
@@ -890,20 +907,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	/* NAND callbacks for LPC32xx SLC hardware */
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->legacy.read_byte = lpc32xx_nand_read_byte;
 	chip->legacy.read_buf = lpc32xx_nand_read_buf;
 	chip->legacy.write_buf = lpc32xx_nand_write_buf;
-	chip->ecc.read_page_raw = lpc32xx_nand_read_page_raw_syndrome;
-	chip->ecc.read_page = lpc32xx_nand_read_page_syndrome;
-	chip->ecc.write_page_raw = lpc32xx_nand_write_page_raw_syndrome;
-	chip->ecc.write_page = lpc32xx_nand_write_page_syndrome;
-	chip->ecc.write_oob = lpc32xx_nand_write_oob_syndrome;
-	chip->ecc.read_oob = lpc32xx_nand_read_oob_syndrome;
-	chip->ecc.calculate = lpc32xx_nand_ecc_calculate;
-	chip->ecc.correct = nand_correct_data;
-	chip->ecc.strength = 1;
-	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
 	/*
 	 * Allocate a large enough buffer for a single huge page plus
@@ -924,7 +930,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Find NAND device */
-	chip->dummy_controller.ops = &lpc32xx_nand_controller_ops;
+	chip->legacy.dummy_controller.ops = &lpc32xx_nand_controller_ops;
 	res = nand_scan(chip, 1);
 	if (res)
 		goto release_dma;
@@ -956,8 +962,12 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	uint32_t tmp;
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->nand_chip;
+	int ret;
 
-	nand_release(&host->nand_chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	dma_release_channel(host->dma_chan);
 
 	/* Force CE high */

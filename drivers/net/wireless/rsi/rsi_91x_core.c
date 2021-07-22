@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -193,8 +193,7 @@ get_queue_num:
 		if (recontend_queue)
 			goto get_queue_num;
 
-		q_num = INVALID_QUEUE;
-		return q_num;
+		return INVALID_QUEUE;
 	}
 
 	common->selected_qnum = q_num;

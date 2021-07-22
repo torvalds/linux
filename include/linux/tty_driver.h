@@ -89,7 +89,7 @@
  *
  *	Note: Do not call this function directly, call tty_driver_flush_chars
  * 
- * int  (*write_room)(struct tty_struct *tty);
+ * unsigned int  (*write_room)(struct tty_struct *tty);
  *
  * 	This routine returns the numbers of characters the tty driver
  * 	will accept for queuing to be written.  This number is subject
@@ -136,7 +136,7 @@
  * 	the line discipline are close to full, and it should somehow
  * 	signal that no more characters should be sent to the tty.
  *
- *	Optional: Always invoke via tty_throttle(), called under the
+ *	Optional: Always invoke via tty_throttle_safe(), called under the
  *	termios lock.
  * 
  * void (*unthrottle)(struct tty_struct * tty);
@@ -153,7 +153,7 @@
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
  *
- *	Called with ->flow_lock held. Serialized with start() method.
+ *	Called with ->flow.lock held. Serialized with start() method.
  *
  *	Optional:
  *
@@ -164,7 +164,7 @@
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
  *
- *	Called with ->flow_lock held. Serialized with stop() method.
+ *	Called with ->flow.lock held. Serialized with stop() method.
  *
  *	Optional:
  *
@@ -224,19 +224,11 @@
  *	line). See tty_do_resize() if you need to wrap the standard method
  *	in your own logic - the usual case.
  *
- * void (*set_termiox)(struct tty_struct *tty, struct termiox *new);
- *
- *	Called when the device receives a termiox based ioctl. Passes down
- *	the requested data from user space. This method will not be invoked
- *	unless the tty also has a valid tty->termiox pointer.
- *
- *	Optional: Called under the termios lock
- *
  * int (*get_icount)(struct tty_struct *tty, struct serial_icounter *icount);
  *
  *	Called when the device receives a TIOCGICOUNT ioctl. Passed a kernel
  *	structure to complete. This method is optional and will only be called
- *	if provided (otherwise EINVAL will be returned).
+ *	if provided (otherwise ENOTTY will be returned).
  */
 
 #include <linux/export.h>
@@ -264,8 +256,8 @@ struct tty_operations {
 		      const unsigned char *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
 	void (*flush_chars)(struct tty_struct *tty);
-	int  (*write_room)(struct tty_struct *tty);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
+	unsigned int (*write_room)(struct tty_struct *tty);
+	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
 	long (*compat_ioctl)(struct tty_struct *tty,
@@ -285,7 +277,6 @@ struct tty_operations {
 	int (*tiocmset)(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 	int (*resize)(struct tty_struct *tty, struct winsize *ws);
-	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
 	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *p);

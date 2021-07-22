@@ -1664,7 +1664,7 @@ static int r820t_iq_tree(struct r820t_priv *priv,
 
 	/*
 	 * record IMC results by input gain/phase location then adjust
-	 * gain or phase positive 1 step and negtive 1 step,
+	 * gain or phase positive 1 step and negative 1 step,
 	 * both record results
 	 */
 
@@ -2066,7 +2066,7 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 	}
 
 	/*
-	 * Disables IMR callibration. That emulates the same behaviour
+	 * Disables IMR calibration. That emulates the same behaviour
 	 * as what is done by rtl-sdr userspace library. Useful for testing
 	 */
 	if (no_imr_cal) {

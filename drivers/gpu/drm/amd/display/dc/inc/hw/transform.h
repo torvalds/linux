@@ -162,9 +162,7 @@ struct scl_inits {
 	struct fixed31_32 h;
 	struct fixed31_32 h_c;
 	struct fixed31_32 v;
-	struct fixed31_32 v_bot;
 	struct fixed31_32 v_c;
-	struct fixed31_32 v_c_bot;
 };
 
 struct scaler_data {

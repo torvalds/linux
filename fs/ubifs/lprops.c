@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -281,7 +269,7 @@ void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 			break;
 		/* No more room on heap so make it un-categorized */
 		cat = LPROPS_UNCAT;
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 		list_add(&lprops->list, &c->uncat_list);
 		break;
@@ -325,7 +313,7 @@ static void ubifs_remove_from_cat(struct ubifs_info *c,
 	case LPROPS_FREEABLE:
 		c->freeable_cnt -= 1;
 		ubifs_assert(c, c->freeable_cnt >= 0);
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 	case LPROPS_EMPTY:
 	case LPROPS_FRDI_IDX:
@@ -1107,7 +1095,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		return LPT_SCAN_CONTINUE;
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(c->leb_size, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 

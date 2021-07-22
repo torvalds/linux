@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  scsi.c Copyright (C) 1992 Drew Eckhardt
  *         Copyright (C) 1993, 1994, 1995, 1999 Eric Youngdale
@@ -85,32 +86,13 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-/* sd, scsi core and power management need to coordinate flushing async actions */
-ASYNC_DOMAIN(scsi_sd_probe_domain);
-EXPORT_SYMBOL(scsi_sd_probe_domain);
-
 /*
- * Separate domain (from scsi_sd_probe_domain) to maximize the benefit of
- * asynchronous system resume operations.  It is marked 'exclusive' to avoid
- * being included in the async_synchronize_full() that is invoked by
- * dpm_resume()
+ * Domain for asynchronous system resume operations.  It is marked 'exclusive'
+ * to avoid being included in the async_synchronize_full() that is invoked by
+ * dpm_resume().
  */
 ASYNC_DOMAIN_EXCLUSIVE(scsi_sd_pm_domain);
 EXPORT_SYMBOL(scsi_sd_pm_domain);
-
-/**
- * scsi_put_command - Free a scsi command block
- * @cmd: command block to free
- *
- * Returns:	Nothing.
- *
- * Notes:	The command must not belong to any lists.
- */
-void scsi_put_command(struct scsi_cmnd *cmd)
-{
-	scsi_del_cmd_from_list(cmd);
-	BUG_ON(delayed_work_pending(&cmd->abort_work));
-}
 
 #ifdef CONFIG_SCSI_LOGGING
 void scsi_log_send(struct scsi_cmnd *cmd)
@@ -162,7 +144,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 		    (level > 1)) {
 			scsi_print_result(cmd, "Done", disposition);
 			scsi_print_command(cmd);
-			if (status_byte(cmd->result) == CHECK_CONDITION)
+			if (scsi_status_is_check_condition(cmd->result))
 				scsi_print_sense(cmd);
 			if (level > 3)
 				scmd_printk(KERN_INFO, cmd,
@@ -173,22 +155,6 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 	}
 }
 #endif
-
-/**
- * scsi_cmd_get_serial - Assign a serial number to a command
- * @host: the scsi host
- * @cmd: command to assign serial number to
- *
- * Description: a serial number identifies a request for error recovery
- * and debugging purposes.  Protected by the Host_Lock of host.
- */
-void scsi_cmd_get_serial(struct Scsi_Host *host, struct scsi_cmnd *cmd)
-{
-	cmd->serial_number = host->cmd_serial_number++;
-	if (cmd->serial_number == 0) 
-		cmd->serial_number = host->cmd_serial_number++;
-}
-EXPORT_SYMBOL(scsi_cmd_get_serial);
 
 /**
  * scsi_finish_command - cleanup and pass command back to upper layer
@@ -206,7 +172,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	struct scsi_driver *drv;
 	unsigned int good_bytes;
 
-	scsi_device_unbusy(sdev);
+	scsi_device_unbusy(sdev, cmd);
 
 	/*
 	 * Clear the flags that say that the device/target/host is no longer
@@ -218,13 +184,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 		atomic_set(&starget->target_blocked, 0);
 	if (atomic_read(&sdev->device_blocked))
 		atomic_set(&sdev->device_blocked, 0);
-
-	/*
-	 * If we have valid sense information, then some kind of recovery
-	 * must have taken place.  Make a note of this.
-	 */
-	if (SCSI_SENSE_VALID(cmd))
-		cmd->result |= (DRIVER_SENSE << 24);
 
 	SCSI_LOG_MLCOMPLETE(4, sdev_printk(KERN_INFO, sdev,
 				"Notifying upper driver of completion "
@@ -248,6 +207,15 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	scsi_io_completion(cmd, good_bytes);
 }
 
+
+/*
+ * 1024 is big enough for saturating the fast scsi LUN now
+ */
+int scsi_device_max_queue_depth(struct scsi_device *sdev)
+{
+	return max_t(int, sdev->host->can_queue, 1024);
+}
+
 /**
  * scsi_change_queue_depth - change a device's queue depth
  * @sdev: SCSI Device in question
@@ -257,6 +225,8 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
  */
 int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 {
+	depth = min_t(int, depth, scsi_device_max_queue_depth(sdev));
+
 	if (depth > 0) {
 		sdev->queue_depth = depth;
 		wmb();
@@ -264,6 +234,8 @@ int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 
 	if (sdev->request_queue)
 		blk_set_queue_depth(sdev->request_queue, depth);
+
+	sbitmap_resize(&sdev->budget_map, sdev->queue_depth);
 
 	return sdev->queue_depth;
 }
@@ -454,8 +426,8 @@ static void scsi_update_vpd_page(struct scsi_device *sdev, u8 page,
 		return;
 
 	mutex_lock(&sdev->inquiry_mutex);
-	rcu_swap_protected(*sdev_vpd_buf, vpd_buf,
-			   lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_buf = rcu_replace_pointer(*sdev_vpd_buf, vpd_buf,
+				      lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_buf)
@@ -485,10 +457,14 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 		return;
 
 	for (i = 4; i < vpd_buf->len; i++) {
+		if (vpd_buf->data[i] == 0x0)
+			scsi_update_vpd_page(sdev, 0x0, &sdev->vpd_pg0);
 		if (vpd_buf->data[i] == 0x80)
 			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80);
 		if (vpd_buf->data[i] == 0x83)
 			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
+		if (vpd_buf->data[i] == 0x89)
+			scsi_update_vpd_page(sdev, 0x89, &sdev->vpd_pg89);
 	}
 	kfree(vpd_buf);
 }
@@ -525,6 +501,8 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer, len,
 				  &sshdr, 30 * HZ, 3, NULL);
 
+	if (result < 0)
+		return result;
 	if (result && scsi_sense_valid(&sshdr) &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
 	    (sshdr.asc == 0x20 || sshdr.asc == 0x24) && sshdr.ascq == 0x00)
@@ -780,20 +758,10 @@ MODULE_LICENSE("GPL");
 module_param(scsi_logging_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(scsi_logging_level, "a bit mask of logging levels");
 
-#ifdef CONFIG_SCSI_MQ_DEFAULT
-bool scsi_use_blk_mq = true;
-#else
-bool scsi_use_blk_mq = false;
-#endif
-module_param_named(use_blk_mq, scsi_use_blk_mq, bool, S_IWUSR | S_IRUGO);
-
 static int __init init_scsi(void)
 {
 	int error;
 
-	error = scsi_init_queue();
-	if (error)
-		return error;
 	error = scsi_init_procfs();
 	if (error)
 		goto cleanup_queue;
@@ -839,7 +807,6 @@ static void __exit exit_scsi(void)
 	scsi_exit_devinfo();
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	async_unregister_domain(&scsi_sd_probe_domain);
 }
 
 subsys_initcall(init_scsi);

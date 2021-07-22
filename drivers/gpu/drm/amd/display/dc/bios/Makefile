@@ -32,6 +32,15 @@ AMD_DAL_BIOS = $(addprefix $(AMDDALPATH)/dc/bios/,$(BIOS))
 AMD_DISPLAY_FILES += $(AMD_DAL_BIOS)
 
 ###############################################################################
+# DCE 6x
+###############################################################################
+# All DCE6.x are derived from DCE6.0, so 6.0 MUST be defined if ANY of
+# DCE6.x is compiled.
+ifdef CONFIG_DRM_AMD_DC_SI
+AMD_DISPLAY_FILES += $(AMDDALPATH)/dc/bios/dce60/command_table_helper_dce60.o
+endif
+
+###############################################################################
 # DCE 8x
 ###############################################################################
 # All DCE8.x are derived from DCE8.0, so 8.0 MUST be defined if ANY of

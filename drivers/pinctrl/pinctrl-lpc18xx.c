@@ -630,14 +630,8 @@ static const struct pinctrl_pin_desc lpc18xx_pins[] = {
 	LPC18XX_PIN(i2c0_sda, PIN_I2C0_SDA),
 };
 
-/**
- * enum lpc18xx_pin_config_param - possible pin configuration parameters
- * @PIN_CONFIG_GPIO_PIN_INT: route gpio to the gpio pin interrupt
- * 	controller.
- */
-enum lpc18xx_pin_config_param {
-	PIN_CONFIG_GPIO_PIN_INT = PIN_CONFIG_END + 1,
-};
+/* PIN_CONFIG_GPIO_PIN_INT: route gpio to the gpio pin interrupt controller */
+#define PIN_CONFIG_GPIO_PIN_INT		(PIN_CONFIG_END + 1)
 
 static const struct pinconf_generic_params lpc18xx_params[] = {
 	{"nxp,gpio-pin-interrupt", PIN_CONFIG_GPIO_PIN_INT, 0},
@@ -652,7 +646,7 @@ static const struct pin_config_item lpc18xx_conf_items[ARRAY_SIZE(lpc18xx_params
 static int lpc18xx_pconf_get_usb1(enum pin_config_param param, int *arg, u32 reg)
 {
 	switch (param) {
-	case PIN_CONFIG_LOW_POWER_MODE:
+	case PIN_CONFIG_MODE_LOW_POWER:
 		if (reg & LPC18XX_SCU_USB1_EPWR)
 			*arg = 0;
 		else
@@ -844,11 +838,11 @@ static int lpc18xx_pconf_get_pin(struct pinctrl_dev *pctldev, unsigned param,
 		*arg = (reg & LPC18XX_SCU_PIN_EHD_MASK) >> LPC18XX_SCU_PIN_EHD_POS;
 		switch (*arg) {
 		case 3: *arg += 5;
-			/* fall through */
+			fallthrough;
 		case 2: *arg += 5;
-			/* fall through */
+			fallthrough;
 		case 1: *arg += 3;
-			/* fall through */
+			fallthrough;
 		case 0: *arg += 4;
 		}
 		break;
@@ -910,7 +904,7 @@ static int lpc18xx_pconf_set_usb1(struct pinctrl_dev *pctldev,
 				  u32 param_val, u32 *reg)
 {
 	switch (param) {
-	case PIN_CONFIG_LOW_POWER_MODE:
+	case PIN_CONFIG_MODE_LOW_POWER:
 		if (param_val)
 			*reg &= ~LPC18XX_SCU_USB1_EPWR;
 		else
@@ -1063,11 +1057,11 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 
 		switch (param_val) {
 		case 20: param_val -= 5;
-			 /* fall through */
+			fallthrough;
 		case 14: param_val -= 5;
-			 /* fall through */
+			fallthrough;
 		case  8: param_val -= 3;
-			 /* fall through */
+			fallthrough;
 		case  4: param_val -= 4;
 			 break;
 		default:
@@ -1330,15 +1324,13 @@ static int lpc18xx_create_group_func_map(struct device *dev,
 static int lpc18xx_scu_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_scu_data *scu;
-	struct resource *res;
 	int ret;
 
 	scu = devm_kzalloc(&pdev->dev, sizeof(*scu), GFP_KERNEL);
 	if (!scu)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	scu->base = devm_ioremap_resource(&pdev->dev, res);
+	scu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(scu->base))
 		return PTR_ERR(scu->base);
 

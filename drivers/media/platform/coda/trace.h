@@ -97,8 +97,8 @@ DECLARE_EVENT_CLASS(coda_buf_meta_class,
 	TP_fast_assign(
 		__entry->minor = ctx->fh.vdev->minor;
 		__entry->index = buf->vb2_buf.index;
-		__entry->start = meta->start;
-		__entry->end = meta->end;
+		__entry->start = meta->start & ctx->bitstream_fifo.kfifo.mask;
+		__entry->end = meta->end & ctx->bitstream_fifo.kfifo.mask;
 		__entry->ctx = ctx->idx;
 	),
 
@@ -127,8 +127,10 @@ DECLARE_EVENT_CLASS(coda_meta_class,
 
 	TP_fast_assign(
 		__entry->minor = ctx->fh.vdev->minor;
-		__entry->start = meta ? meta->start : 0;
-		__entry->end = meta ? meta->end : 0;
+		__entry->start = meta ? (meta->start &
+					 ctx->bitstream_fifo.kfifo.mask) : 0;
+		__entry->end = meta ? (meta->end &
+				       ctx->bitstream_fifo.kfifo.mask) : 0;
 		__entry->ctx = ctx->idx;
 	),
 
@@ -152,10 +154,20 @@ DEFINE_EVENT(coda_buf_meta_class, coda_dec_rot_done,
 	TP_ARGS(ctx, buf, meta)
 );
 
+DEFINE_EVENT(coda_buf_class, coda_jpeg_run,
+	TP_PROTO(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf),
+	TP_ARGS(ctx, buf)
+);
+
+DEFINE_EVENT(coda_buf_class, coda_jpeg_done,
+	TP_PROTO(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf),
+	TP_ARGS(ctx, buf)
+);
+
 #endif /* __CODA_TRACE_H__ */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/media/platform/coda
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

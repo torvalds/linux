@@ -890,14 +890,14 @@ out:
 	spin_unlock_irqrestore(&hp->lock, flags);
 }
 
-static int hvsi_write_room(struct tty_struct *tty)
+static unsigned int hvsi_write_room(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 
 	return N_OUTBUF - hp->n_outbuf;
 }
 
-static int hvsi_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvsi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 
@@ -929,7 +929,7 @@ static int hvsi_write(struct tty_struct *tty,
 	 * will see there is no room in outbuf and return.
 	 */
 	while ((count > 0) && (hvsi_write_room(tty) > 0)) {
-		int chunksize = min(count, hvsi_write_room(tty));
+		int chunksize = min_t(int, count, hvsi_write_room(tty));
 
 		BUG_ON(hp->n_outbuf < 0);
 		memcpy(hp->outbuf + hp->n_outbuf, source, chunksize);
@@ -1128,7 +1128,7 @@ static int __init hvsi_console_setup(struct console *console, char *options)
 	int ret;
 
 	if (console->index < 0 || console->index >= hvsi_count)
-		return -1;
+		return -EINVAL;
 	hp = &hvsi_ports[console->index];
 
 	/* give the FSP a chance to change the baud rate when we re-open */

@@ -26,7 +26,8 @@
 
 static const struct gk104_fifo_func
 gk20a_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.intr.fault = gf100_fifo_intr_fault,
+	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
@@ -37,7 +38,8 @@ gk20a_fifo = {
 };
 
 int
-gk20a_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gk20a_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk20a_fifo, device, index, 128, pfifo);
+	return gk104_fifo_new_(&gk20a_fifo, device, type, inst, 128, pfifo);
 }

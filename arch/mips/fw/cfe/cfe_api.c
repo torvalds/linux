@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2000, 2001, 2002 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 /*
@@ -256,11 +243,6 @@ int cfe_getfwinfo(cfe_fwinfo_t * info)
 	info->fwi_bootarea_pa = xiocb.plist.xiocb_fwinfo.fwi_bootarea_pa;
 	info->fwi_bootarea_size =
 	    xiocb.plist.xiocb_fwinfo.fwi_bootarea_size;
-#if 0
-	info->fwi_reserved1 = xiocb.plist.xiocb_fwinfo.fwi_reserved1;
-	info->fwi_reserved2 = xiocb.plist.xiocb_fwinfo.fwi_reserved2;
-	info->fwi_reserved3 = xiocb.plist.xiocb_fwinfo.fwi_reserved3;
-#endif
 
 	return 0;
 }

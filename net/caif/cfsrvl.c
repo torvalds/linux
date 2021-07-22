@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
@@ -21,7 +21,6 @@
 #define SRVL_FLOW_OFF 0x81
 #define SRVL_FLOW_ON  0x80
 #define SRVL_SET_PIN  0x82
-#define SRVL_CTRL_PKT_SIZE 1
 
 #define container_obj(layr) container_of(layr, struct cfsrvl, layer)
 

@@ -5,8 +5,6 @@
 #ifndef _ASM_POWERPC_REG_8xx_H
 #define _ASM_POWERPC_REG_8xx_H
 
-#include <asm/mmu.h>
-
 /* Cache control on the MPC8xx is provided through some additional
  * special purpose registers.
  */
@@ -37,8 +35,24 @@
 #define SPRN_CMPE	152
 #define SPRN_CMPF	153
 #define SPRN_LCTRL1	156
+#define   LCTRL1_CTE_GT		0xc0000000
+#define   LCTRL1_CTF_LT		0x14000000
+#define   LCTRL1_CRWE_RW	0x00000000
+#define   LCTRL1_CRWE_RO	0x00040000
+#define   LCTRL1_CRWE_WO	0x000c0000
+#define   LCTRL1_CRWF_RW	0x00000000
+#define   LCTRL1_CRWF_RO	0x00010000
+#define   LCTRL1_CRWF_WO	0x00030000
 #define SPRN_LCTRL2	157
+#define   LCTRL2_LW0EN		0x80000000
+#define   LCTRL2_LW0LA_E	0x00000000
+#define   LCTRL2_LW0LA_F	0x04000000
+#define   LCTRL2_LW0LA_EandF	0x08000000
+#define   LCTRL2_LW0LADC	0x02000000
+#define   LCTRL2_SLW0EN		0x00000002
+#ifdef CONFIG_PPC_8xx
 #define SPRN_ICTRL	158
+#endif
 #define SPRN_BAR	159
 
 /* Commands.  Only the first few are available to the instruction cache.

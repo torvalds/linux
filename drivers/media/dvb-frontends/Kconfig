@@ -1,5 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+
+if MEDIA_DIGITAL_TV_SUPPORT
+
+comment "DVB Frontend drivers auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+
 menu "Customise DVB Frontends"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -316,18 +323,6 @@ config DVB_TDA10071
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
-config DVB_SP8870
-	tristate "Spase sp8870 based"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  A DVB-T tuner module. Say Y when you want to support this frontend.
-
-	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/scripts/get_dvb_firmware sp8870" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
-	  or /lib/firmware (depending on configuration of firmware hotplug).
-
 config DVB_SP887X
 	tristate "Spase sp887x based"
 	depends on DVB_CORE && I2C
@@ -508,7 +503,7 @@ config DVB_RTL2830
 config DVB_RTL2832
 	tristate "Realtek RTL2832 DVB-T"
 	depends on DVB_CORE && I2C && I2C_MUX
-	select REGMAP
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
@@ -700,6 +695,15 @@ config DVB_S5H1411
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
+
+config DVB_MXL692
+	tristate "MaxLinear MXL692 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  MaxLinear MxL692 is a combo tuner-demodulator that
+	  supports ATSC 8VSB and QAM modes. Say Y when you want to
+	  support this frontend.
 
 comment "ISDB-T (terrestrial) frontends"
 	depends on DVB_CORE
@@ -940,10 +944,15 @@ config DVB_SP2
 	help
 	  CIMaX SP2/SP2HF Common Interface module.
 
+endmenu # Customise DVB Frontends
+
+endif # MEDIA_DIGITAL_TV_SUPPORT
+
 comment "Tools to develop new frontends"
+	depends on MEDIA_TEST_SUPPORT
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
-	depends on DVB_CORE
-	default n
-endmenu
+	depends on MEDIA_TEST_SUPPORT && DVB_CORE
+	help
+	  Dummy skeleton frontend driver.

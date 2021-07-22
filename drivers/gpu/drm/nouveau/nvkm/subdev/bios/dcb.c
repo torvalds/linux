@@ -172,8 +172,8 @@ dcb_outp_parse(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len,
 					outp->dpconf.link_nr = 1;
 					break;
 				}
+				fallthrough;
 
-				/* fall-through... */
 			case DCB_OUTPUT_TMDS:
 			case DCB_OUTPUT_LVDS:
 				outp->link = (conf & 0x00000030) >> 4;

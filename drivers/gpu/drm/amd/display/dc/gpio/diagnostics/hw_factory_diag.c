@@ -28,6 +28,7 @@
  */
 
 #include "dm_services.h"
+#include "hw_factory_diag.h"
 #include "include/gpio_types.h"
 #include "../hw_factory.h"
 
@@ -38,15 +39,13 @@
 #include "../hw_gpio.h"
 #include "../hw_ddc.h"
 #include "../hw_hpd.h"
+#include "../hw_generic.h"
 
 /* function table */
 static const struct hw_factory_funcs funcs = {
-	.create_ddc_data = NULL,
-	.create_ddc_clock = NULL,
-	.create_generic = NULL,
-	.create_hpd = NULL,
-	.create_sync = NULL,
-	.create_gsl = NULL,
+	.init_ddc_data = NULL,
+	.init_generic = NULL,
+	.init_hpd = NULL,
 };
 
 void dal_hw_factory_diag_fpga_init(struct hw_factory *factory)

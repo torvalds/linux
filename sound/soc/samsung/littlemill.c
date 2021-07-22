@@ -1,13 +1,8 @@
-/*
- * Littlemill audio support
- *
- * Copyright 2011 Wolfson Microelectronics
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Littlemill audio support
+//
+// Copyright 2011 Wolfson Microelectronics
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -27,8 +22,8 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *aif1_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	aif1_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	aif1_dai = asoc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -74,8 +69,8 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dai *aif1_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	aif1_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	aif1_dai = asoc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -109,8 +104,8 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 static int littlemill_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	sample_rate = params_rate(params);
@@ -147,28 +142,33 @@ static const struct snd_soc_pcm_stream baseband_params = {
 	.channels_max = 2,
 };
 
+SND_SOC_DAILINK_DEFS(cpu,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(baseband,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm8994-aif2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm1250-ev1.1-0027",
+				      "wm1250-ev1")));
+
 static struct snd_soc_dai_link littlemill_dai[] = {
 	{
 		.name = "CPU",
 		.stream_name = "CPU",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8994-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &littlemill_ops,
+		SND_SOC_DAILINK_REG(cpu),
 	},
 	{
 		.name = "Baseband",
 		.stream_name = "Baseband",
-		.cpu_dai_name = "wm8994-aif2",
-		.codec_dai_name = "wm1250-ev1",
-		.codec_name = "wm1250-ev1.1-0027",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 		.params = &baseband_params,
+		SND_SOC_DAILINK_REG(baseband),
 	},
 };
 
@@ -180,8 +180,8 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
-	aif2_dai = rtd->cpu_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
+	aif2_dai = asoc_rtd_to_cpu(rtd, 0);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -263,12 +263,12 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	component = rtd->codec_dai->component;
-	aif1_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	component = asoc_rtd_to_codec(rtd, 0)->component;
+	aif1_dai = asoc_rtd_to_codec(rtd, 0);
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
-	aif2_dai = rtd->cpu_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
+	aif2_dai = asoc_rtd_to_cpu(rtd, 0);
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,
 				     32768, SND_SOC_CLOCK_IN);
@@ -325,7 +325,7 @@ static int littlemill_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret)
+	if (ret && ret != -EPROBE_DEFER)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 

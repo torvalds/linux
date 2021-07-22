@@ -59,10 +59,11 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 
 	/* These are the only tables that contain executable AML */
 
-	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT)) {
+	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_DSDT) ||
+	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_PSDT) ||
+	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_SSDT) ||
+	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_OSDT) ||
+	    ACPI_IS_OEM_SIG(table->signature)) {
 		return (TRUE);
 	}
 

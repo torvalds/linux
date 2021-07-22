@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BIOS_H__
 #define __NVKM_BIOS_H__
 #include <core/subdev.h>
@@ -30,5 +30,5 @@ u8  nvbios_rd08(struct nvkm_bios *, u32 addr);
 u16 nvbios_rd16(struct nvkm_bios *, u32 addr);
 u32 nvbios_rd32(struct nvkm_bios *, u32 addr);
 
-int nvkm_bios_new(struct nvkm_device *, int, struct nvkm_bios **);
+int nvkm_bios_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_bios **);
 #endif

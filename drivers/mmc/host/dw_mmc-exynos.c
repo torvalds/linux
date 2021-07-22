@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Exynos Specific Extensions for Synopsys DW Multimedia Card Interface driver
  *
  * Copyright (C) 2012, Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -180,6 +176,7 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 /**
  * dw_mci_exynos_suspend_noirq - Exynos-specific suspend code
+ * @dev: Device to suspend (this device)
  *
  * This ensures that device will be in runtime active state in
  * dw_mci_exynos_resume_noirq after calling pm_runtime_force_resume()
@@ -192,6 +189,7 @@ static int dw_mci_exynos_suspend_noirq(struct device *dev)
 
 /**
  * dw_mci_exynos_resume_noirq - Exynos-specific resume code
+ * @dev: Device to resume (this device)
  *
  * On exynos5420 there is a silicon errata that will sometimes leave the
  * WAKEUP_INT bit in the CLKSEL register asserted.  This bit is 1 to indicate
@@ -476,7 +474,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 	struct mmc_host *mmc = slot->mmc;
 	u8 start_smpl, smpl, candiates = 0;
-	s8 found = -1;
+	s8 found;
 	int ret = 0;
 
 	start_smpl = dw_mci_exynos_get_clksmpl(host);
@@ -594,6 +592,7 @@ static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.remove		= dw_mci_exynos_remove,
 	.driver		= {
 		.name		= "dwmmc_exynos",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_exynos_match,
 		.pm		= &dw_mci_exynos_pmops,
 	},

@@ -150,8 +150,12 @@ LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 __memcpy:
-FEXPORT(__copy_user)
-EXPORT_SYMBOL(__copy_user)
+FEXPORT(__raw_copy_from_user)
+EXPORT_SYMBOL(__raw_copy_from_user)
+FEXPORT(__raw_copy_to_user)
+EXPORT_SYMBOL(__raw_copy_to_user)
+FEXPORT(__raw_copy_in_user)
+EXPORT_SYMBOL(__raw_copy_in_user)
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps

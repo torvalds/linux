@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #define pr_fmt(fmt) "nci_spi: %s: " fmt, __func__
@@ -57,7 +44,8 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
 		t.len = 0;
 	}
 	t.cs_change = cs_change;
-	t.delay_usecs = nspi->xfer_udelay;
+	t.delay.value = nspi->xfer_udelay;
+	t.delay.unit = SPI_DELAY_UNIT_USECS;
 	t.speed_hz = nspi->xfer_speed_hz;
 
 	spi_message_init(&m);
@@ -229,7 +217,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	rx.rx_buf = skb_put(skb, rx_len);
 	rx.len = rx_len;
 	rx.cs_change = 0;
-	rx.delay_usecs = nspi->xfer_udelay;
+	rx.delay.value = nspi->xfer_udelay;
+	rx.delay.unit = SPI_DELAY_UNIT_USECS;
 	rx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&rx, &m);
 

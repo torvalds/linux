@@ -27,13 +27,50 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	NOTES
 	.data :	{
 		_data = . ;
 		*(.data)
 		*(.data.*)
 		_edata = . ;
 	}
+	/*
+	* .dma section for code, data, ex_table that need to stay below 2 GB,
+	* even when the kernel is relocate: above 2 GB.
+	*/
+	. = ALIGN(PAGE_SIZE);
+	_sdma = .;
+	.dma.text : {
+		_stext_dma = .;
+		*(.dma.text)
+		. = ALIGN(PAGE_SIZE);
+		_etext_dma = .;
+	}
+	. = ALIGN(16);
+	.dma.ex_table : {
+		_start_dma_ex_table = .;
+		KEEP(*(.dma.ex_table))
+		_stop_dma_ex_table = .;
+	}
+	.dma.data : { *(.dma.data) }
+	. = ALIGN(PAGE_SIZE);
+	_edma = .;
+
 	BOOT_DATA
+	BOOT_DATA_PRESERVED
+
+	/*
+	 * This is the BSS section of the decompressor and not of the decompressed Linux kernel.
+	 * It will consume place in the decompressor's image.
+	 */
+	. = ALIGN(8);
+	.bss : {
+		_bss = . ;
+		*(.bss)
+		*(.bss.*)
+		*(COMMON)
+		_ebss = .;
+	}
 
 	/*
 	 * uncompressed image info used by the decompressor it should match
@@ -46,6 +83,14 @@ SECTIONS
 		*(.vmlinux.info)
 	}
 
+	.decompressor.syms : {
+		. += 1; /* make sure we have \0 before the first entry */
+		. = ALIGN(2);
+		_decompressor_syms_start = .;
+		*(.decompressor.syms)
+		_decompressor_syms_end = .;
+	}
+
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 	. = 0x100000;
 #else
@@ -55,15 +100,8 @@ SECTIONS
 		_compressed_start = .;
 		*(.vmlinux.bin.compressed)
 		_compressed_end = .;
-	}
-	. = ALIGN(256);
-	.bss : {
-		_bss = . ;
-		*(.bss)
-		*(.bss.*)
-		*(COMMON)
-		. = ALIGN(8);	/* For convenience during zeroing */
-		_ebss = .;
+		FILL(0xff);
+		. = ALIGN(4096);
 	}
 	_end = .;
 

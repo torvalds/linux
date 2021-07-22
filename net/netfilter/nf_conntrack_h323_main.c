@@ -1,13 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * H.323 connection tracking helper
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
  * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
- * This source code is licensed under General Public License version 2.
- *
  * Based on the 'brute force' H.323 connection tracking module by
- * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Jozsef Kadlecsik <kadlec@netfilter.org>
  *
  * For more information, please see http://nath323.sourceforge.net/
  */
@@ -147,7 +146,8 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 		/* Get first TPKT pointer */
 		tpkt = skb_header_pointer(skb, tcpdataoff, tcpdatalen,
 					  h323_buffer);
-		BUG_ON(tpkt == NULL);
+		if (!tpkt)
+			goto clear_out;
 
 		/* Validate TPKT identifier */
 		if (tcpdatalen < 4 || tpkt[0] != 0x03 || tpkt[1] != 0) {
@@ -194,7 +194,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 		if (tcpdatalen == 4) {	/* Separate TPKT header */
 			/* Netmeeting sends TPKT header and data separately */
 			pr_debug("nf_ct_h323: separate TPKT header indicates "
-				 "there will be TPKT data of %hu bytes\n",
+				 "there will be TPKT data of %d bytes\n",
 				 tpktlen - 4);
 			info->tpkt_len[dir] = tpktlen - 4;
 			return 0;
@@ -306,8 +306,8 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		ret = nat_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
 				   taddr, port, rtp_port, rtp_exp, rtcp_exp);
 	} else {		/* Conntrack only */
-		if (nf_ct_expect_related(rtp_exp) == 0) {
-			if (nf_ct_expect_related(rtcp_exp) == 0) {
+		if (nf_ct_expect_related(rtp_exp, 0) == 0) {
+			if (nf_ct_expect_related(rtcp_exp, 0) == 0) {
 				pr_debug("nf_ct_h323: expect RTP ");
 				nf_ct_dump_tuple(&rtp_exp->tuple);
 				pr_debug("nf_ct_h323: expect RTCP ");
@@ -365,7 +365,7 @@ static int expect_t120(struct sk_buff *skb,
 		ret = nat_t120(skb, ct, ctinfo, protoff, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
-		if (nf_ct_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_h323: expect T.120 ");
 			nf_ct_dump_tuple(&exp->tuple);
 		} else
@@ -702,7 +702,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 		ret = nat_h245(skb, ct, ctinfo, protoff, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
-		if (nf_ct_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_q931: expect H.245 ");
 			nf_ct_dump_tuple(&exp->tuple);
 		} else
@@ -748,24 +748,19 @@ static int callforward_do_filter(struct net *net,
 		}
 		break;
 	}
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6: {
-		const struct nf_ipv6_ops *v6ops;
 		struct rt6_info *rt1, *rt2;
 		struct flowi6 fl1, fl2;
-
-		v6ops = nf_get_ipv6_ops();
-		if (!v6ops)
-			return 0;
 
 		memset(&fl1, 0, sizeof(fl1));
 		fl1.daddr = src->in6;
 
 		memset(&fl2, 0, sizeof(fl2));
 		fl2.daddr = dst->in6;
-		if (!v6ops->route(net, (struct dst_entry **)&rt1,
+		if (!nf_ip6_route(net, (struct dst_entry **)&rt1,
 				  flowi6_to_flowi(&fl1), false)) {
-			if (!v6ops->route(net, (struct dst_entry **)&rt2,
+			if (!nf_ip6_route(net, (struct dst_entry **)&rt2,
 					  flowi6_to_flowi(&fl2), false)) {
 				if (ipv6_addr_equal(rt6_nexthop(rt1, &fl1.daddr),
 						    rt6_nexthop(rt2, &fl2.daddr)) &&
@@ -831,7 +826,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 					 protoff, data, dataoff,
 					 taddr, port, exp);
 	} else {		/* Conntrack only */
-		if (nf_ct_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_q931: expect Call Forwarding ");
 			nf_ct_dump_tuple(&exp->tuple);
 		} else
@@ -1290,7 +1285,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 		ret = nat_q931(skb, ct, ctinfo, protoff, data,
 			       taddr, i, port, exp);
 	} else {		/* Conntrack only */
-		if (nf_ct_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_ras: expect Q.931 ");
 			nf_ct_dump_tuple(&exp->tuple);
 
@@ -1355,7 +1350,7 @@ static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 			  IPPROTO_UDP, NULL, &port);
 	exp->helper = nf_conntrack_helper_ras;
 
-	if (nf_ct_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp, 0) == 0) {
 		pr_debug("nf_ct_ras: expect RAS ");
 		nf_ct_dump_tuple(&exp->tuple);
 	} else
@@ -1567,7 +1562,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 	exp->flags = NF_CT_EXPECT_PERMANENT;
 	exp->helper = nf_conntrack_helper_q931;
 
-	if (nf_ct_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp, 0) == 0) {
 		pr_debug("nf_ct_ras: expect Q.931 ");
 		nf_ct_dump_tuple(&exp->tuple);
 	} else
@@ -1621,7 +1616,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 	exp->flags = NF_CT_EXPECT_PERMANENT;
 	exp->helper = nf_conntrack_helper_q931;
 
-	if (nf_ct_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp, 0) == 0) {
 		pr_debug("nf_ct_ras: expect Q.931 ");
 		nf_ct_dump_tuple(&exp->tuple);
 	} else

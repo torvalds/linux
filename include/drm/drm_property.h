@@ -114,7 +114,7 @@ struct drm_property {
 	 *     by the property. Bitmask properties are created using
 	 *     drm_property_create_bitmask().
 	 *
-	 * DRM_MODE_PROB_OBJECT
+	 * DRM_MODE_PROP_OBJECT
 	 *     Object properties are used to link modeset objects. This is used
 	 *     extensively in the atomic support to create the display pipeline,
 	 *     by linking &drm_framebuffer to &drm_plane, &drm_plane to
@@ -153,7 +153,8 @@ struct drm_property {
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
 	 *     userspace, e.g. the EDID, or the connector path property on DP
-	 *     MST sinks.
+	 *     MST sinks. Kernel can update the value of an immutable property
+	 *     by calling drm_object_property_set_value().
 	 */
 	uint32_t flags;
 

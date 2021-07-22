@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * atmel_ssc_dai.h - ALSA SSC interface for the Atmel  SoC
  *
@@ -11,20 +12,6 @@
  * Frank Mandarino <fmandarino@endrelia.com>
  * Based on pxa2xx Platform drivers by
  * Liam Girdwood <lrg@slimlogic.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _ATMEL_SSC_DAI_H
@@ -106,7 +93,6 @@ struct atmel_ssc_state {
 struct atmel_ssc_info {
 	char *name;
 	struct ssc_device *ssc;
-	spinlock_t lock;	/* lock for dir_mask */
 	unsigned short dir_mask;	/* 0=unused, 1=playback, 2=capture */
 	unsigned short initialized;	/* true if SSC has been initialized */
 	unsigned short daifmt;

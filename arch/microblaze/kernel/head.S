@@ -34,7 +34,6 @@
 #include <asm/page.h>
 #include <linux/of_fdt.h>		/* for OF_DT_HEADER */
 
-#ifdef CONFIG_MMU
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -47,8 +46,6 @@ empty_zero_page:
 .global swapper_pg_dir
 swapper_pg_dir:
 	.space	PAGE_SIZE
-
-#endif /* CONFIG_MMU */
 
 .section .rodata
 .align 4
@@ -99,7 +96,7 @@ big_endian:
 _prepare_copy_fdt:
 	or	r11, r0, r0 /* incremment */
 	ori	r4, r0, TOPHYS(_fdt_start)
-	ori	r3, r0, (0x8000 - 4)
+	ori	r3, r0, (0x10000 - 4)
 _copy_fdt:
 	lw	r12, r7, r11 /* r12 = r7 + r11 */
 	sw	r12, r4, r11 /* addr[r4 + r11] = r12 */
@@ -107,8 +104,6 @@ _copy_fdt:
 	bgtid	r3, _copy_fdt /* loop for all entries */
 	addik	r3, r3, -4 /* descrement loop */
 no_fdt_arg:
-
-#ifdef CONFIG_MMU
 
 #ifndef CONFIG_CMDLINE_BOOL
 /*
@@ -121,10 +116,10 @@ no_fdt_arg:
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	/* r2=r5+r6 - r5 contain pointer to command line */
+	/* r2=r5+r11 - r5 contain pointer to command line */
 	lbu	r2, r5, r11
 	beqid	r2, skip		/* Skip if no data */
-	sb	r2, r4, r11		/* addr[r4+r6]= r2 */
+	sb	r2, r4, r11		/* addr[r4+r11]= r2 */
 	addik	r11, r11, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* decrement loop */
@@ -139,8 +134,8 @@ skip:
 	ori	r4, r0, TOPHYS(_bram_load_start)	/* save bram context */
 	ori	r3, r0, (LMB_SIZE - 4)
 _copy_bram:
-	lw	r7, r0, r11		/* r7 = r0 + r6 */
-	sw	r7, r4, r11		/* addr[r4 + r6] = r7 */
+	lw	r7, r0, r11		/* r7 = r0 + r11 */
+	sw	r7, r4, r11		/* addr[r4 + r11] = r7 */
 	addik	r11, r11, 4		/* increment counting */
 	bgtid	r3, _copy_bram		/* loop for all entries */
 	addik	r3, r3, -4		/* descrement loop */
@@ -329,7 +324,6 @@ turn_on_mmu:
 	nop
 
 start_here:
-#endif /* CONFIG_MMU */
 
 	/* Initialize small data anchors */
 	addik	r13, r0, _KERNEL_SDA_BASE_
@@ -345,11 +339,6 @@ start_here:
 	brald	r15, r11
 	nop
 
-#ifndef CONFIG_MMU
-	addik	r15, r0, machine_halt
-	braid	start_kernel
-	nop
-#else
 	/*
 	 * Initialize the MMU.
 	 */
@@ -383,4 +372,3 @@ kernel_load_context:
 	nop
 	rted	r17, 0		/* enable MMU and jump to start_kernel */
 	nop
-#endif /* CONFIG_MMU */

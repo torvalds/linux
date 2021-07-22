@@ -306,7 +306,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id);
 static int lance_close(struct net_device *dev);
 static struct net_device_stats *lance_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static void lance_tx_timeout (struct net_device *dev);
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue);
 
 
 
@@ -780,7 +780,7 @@ lance_open(struct net_device *dev)
 		outw(0x0002, ioaddr+LANCE_ADDR);
 		/* Only touch autoselect bit. */
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
- 	}
+	}
 
 	if (lance_debug > 1)
 		printk("%s: lance_open() irq %d dma %d tx/rx rings %#x/%#x init %#x.\n",
@@ -812,7 +812,7 @@ lance_open(struct net_device *dev)
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
 	 * reports that doing so triggers a bug in the '974.
 	 */
- 	outw(0x0042, ioaddr+LANCE_DATA);
+	outw(0x0042, ioaddr+LANCE_DATA);
 
 	if (lance_debug > 2)
 		printk("%s: LANCE open after %d ticks, init block %#x csr0 %4.4x.\n",
@@ -913,7 +913,7 @@ lance_restart(struct net_device *dev, unsigned int csr0_bits, int must_reinit)
 }
 
 
-static void lance_tx_timeout (struct net_device *dev)
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = (struct lance_private *) dev->ml_priv;
 	int ioaddr = dev->base_addr;
@@ -1084,7 +1084,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 				/* We must free the original skb if it's not a data-only copy
 				   in the bounce buffer. */
 				if (lp->tx_skbuff[entry]) {
-					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
+					dev_consume_skb_irq(lp->tx_skbuff[entry]);
 					lp->tx_skbuff[entry] = NULL;
 				}
 				dirty_tx++;

@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #ifndef _QEDI_ISCSI_H_
@@ -59,6 +56,7 @@ enum {
 	EP_STATE_OFLDCONN_FAILED        = 0x2000,
 	EP_STATE_CONNECT_FAILED         = 0x4000,
 	EP_STATE_DISCONN_TIMEDOUT       = 0x8000,
+	EP_STATE_OFLDCONN_NONE          = 0x10000,
 };
 
 struct qedi_conn;
@@ -151,6 +149,7 @@ struct qedi_conn {
 	struct iscsi_cls_conn *cls_conn;
 	struct qedi_ctx *qedi;
 	struct qedi_endpoint *ep;
+	struct iscsi_endpoint *iscsi_ep;
 	struct list_head active_cmd_list;
 	spinlock_t list_lock;		/* internal conn lock */
 	u32 active_cmd_count;
@@ -170,8 +169,8 @@ struct qedi_conn {
 	struct list_head tmf_work_list;
 	wait_queue_head_t wait_queue;
 	spinlock_t tmf_work_lock;	/* tmf work lock */
-	unsigned long flags;
-#define QEDI_CONN_FW_CLEANUP	1
+	bool ep_disconnect_starting;
+	int fw_cleanup_works;
 };
 
 struct qedi_cmd {
@@ -213,6 +212,7 @@ struct qedi_cmd {
 struct qedi_work_map {
 	struct list_head list;
 	struct qedi_cmd *qedi_cmd;
+	struct iscsi_task *ctask;
 	int rtid;
 
 	int state;

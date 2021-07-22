@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Renesas R-Car CAN device driver
  *
  * Copyright (C) 2013 Cogent Embedded, Inc. <source@cogentembedded.com>
  * Copyright (C) 2013 Renesas Solutions Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -19,10 +15,19 @@
 #include <linux/can/led.h>
 #include <linux/can/dev.h>
 #include <linux/clk.h>
-#include <linux/can/platform/rcar_can.h>
 #include <linux/of.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
+
+/* Clock Select Register settings */
+enum CLKR {
+	CLKR_CLKP1 = 0, /* Peripheral clock (clkp1) */
+	CLKR_CLKP2 = 1, /* Peripheral clock (clkp2) */
+	CLKR_CLKEXT = 3, /* Externally input clock */
+};
+
+#define RCAR_SUPPORTED_CLOCKS	(BIT(CLKR_CLKP1) | BIT(CLKR_CLKP2) | \
+				 BIT(CLKR_CLKEXT))
 
 /* Mailbox configuration:
  * mailbox 60 - 63 - Rx FIFO mailboxes
@@ -212,7 +217,7 @@ static void tx_failure_cleanup(struct net_device *ndev)
 	int i;
 
 	for (i = 0; i < RCAR_CAN_FIFO_DEPTH; i++)
-		can_free_echo_skb(ndev, i);
+		can_free_echo_skb(ndev, i, NULL);
 }
 
 static void rcar_can_error(struct net_device *ndev)
@@ -359,7 +364,7 @@ static void rcar_can_error(struct net_device *ndev)
 
 	if (skb) {
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		netif_rx(skb);
 	}
 }
@@ -381,7 +386,7 @@ static void rcar_can_tx_done(struct net_device *ndev)
 		stats->tx_bytes += priv->tx_dlc[priv->tx_tail %
 						RCAR_CAN_FIFO_DEPTH];
 		priv->tx_dlc[priv->tx_tail % RCAR_CAN_FIFO_DEPTH] = 0;
-		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH);
+		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH, NULL);
 		priv->tx_tail++;
 		netif_wake_queue(ndev);
 	}
@@ -602,17 +607,17 @@ static netdev_tx_t rcar_can_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG) { /* Remote transmission request */
 		data |= RCAR_CAN_RTR;
 	} else {
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			writeb(cf->data[i],
 			       &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].data[i]);
 	}
 
 	writel(data, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].id);
 
-	writeb(cf->can_dlc, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
+	writeb(cf->len, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
 
-	priv->tx_dlc[priv->tx_head % RCAR_CAN_FIFO_DEPTH] = cf->can_dlc;
-	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH);
+	priv->tx_dlc[priv->tx_head % RCAR_CAN_FIFO_DEPTH] = cf->len;
+	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH, 0);
 	priv->tx_head++;
 	/* Start Tx: write 0xff to the TFPCR register to increment
 	 * the CPU-side pointer for the transmit FIFO to the next
@@ -654,18 +659,18 @@ static void rcar_can_rx_pkt(struct rcar_can_priv *priv)
 		cf->can_id = (data >> RCAR_CAN_SID_SHIFT) & CAN_SFF_MASK;
 
 	dlc = readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].dlc);
-	cf->can_dlc = get_can_dlc(dlc);
+	cf->len = can_cc_dlc2len(dlc);
 	if (data & RCAR_CAN_RTR) {
 		cf->can_id |= CAN_RTR_FLAG;
 	} else {
-		for (dlc = 0; dlc < cf->can_dlc; dlc++)
+		for (dlc = 0; dlc < cf->len; dlc++)
 			cf->data[dlc] =
 			readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].data[dlc]);
 	}
 
 	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	stats->rx_packets++;
 	netif_receive_skb(skb);
 }
@@ -737,36 +742,23 @@ static const char * const clock_names[] = {
 
 static int rcar_can_probe(struct platform_device *pdev)
 {
-	struct rcar_can_platform_data *pdata;
 	struct rcar_can_priv *priv;
 	struct net_device *ndev;
-	struct resource *mem;
 	void __iomem *addr;
 	u32 clock_select = CLKR_CLKP1;
 	int err = -ENODEV;
 	int irq;
 
-	if (pdev->dev.of_node) {
-		of_property_read_u32(pdev->dev.of_node,
-				     "renesas,can-clock-select", &clock_select);
-	} else {
-		pdata = dev_get_platdata(&pdev->dev);
-		if (!pdata) {
-			dev_err(&pdev->dev, "No platform data provided!\n");
-			goto fail;
-		}
-		clock_select = pdata->clock_select;
-	}
+	of_property_read_u32(pdev->dev.of_node, "renesas,can-clock-select",
+			     &clock_select);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
 		err = irq;
 		goto fail;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(&pdev->dev, mem);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
 		goto fail;
@@ -789,7 +781,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 		goto fail_clk;
 	}
 
-	if (clock_select >= ARRAY_SIZE(clock_names)) {
+	if (!(BIT(clock_select) & RCAR_SUPPORTED_CLOCKS)) {
 		err = -EINVAL;
 		dev_err(&pdev->dev, "invalid CAN clock selected\n");
 		goto fail_clk;

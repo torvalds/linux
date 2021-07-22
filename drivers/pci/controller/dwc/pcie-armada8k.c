@@ -25,10 +25,14 @@
 
 #include "pcie-designware.h"
 
+#define ARMADA8K_PCIE_MAX_LANES PCIE_LNK_X4
+
 struct armada8k_pcie {
 	struct dw_pcie *pci;
 	struct clk *clk;
 	struct clk *clk_reg;
+	struct phy *phy[ARMADA8K_PCIE_MAX_LANES];
+	unsigned int phy_count;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
@@ -55,7 +59,7 @@ struct armada8k_pcie {
 #define PCIE_ARUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x5C)
 #define PCIE_AWUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x60)
 /*
- * AR/AW Cache defauls: Normal memory, Write-Back, Read / Write
+ * AR/AW Cache defaults: Normal memory, Write-Back, Read / Write
  * allocate
  */
 #define ARCACHE_DEFAULT_VALUE		0x3511
@@ -66,6 +70,75 @@ struct armada8k_pcie {
 #define AX_USER_DOMAIN_SHIFT		4
 
 #define to_armada8k_pcie(x)	dev_get_drvdata((x)->dev)
+
+static void armada8k_pcie_disable_phys(struct armada8k_pcie *pcie)
+{
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		phy_power_off(pcie->phy[i]);
+		phy_exit(pcie->phy[i]);
+	}
+}
+
+static int armada8k_pcie_enable_phys(struct armada8k_pcie *pcie)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		ret = phy_init(pcie->phy[i]);
+		if (ret)
+			return ret;
+
+		ret = phy_set_mode_ext(pcie->phy[i], PHY_MODE_PCIE,
+				       pcie->phy_count);
+		if (ret) {
+			phy_exit(pcie->phy[i]);
+			return ret;
+		}
+
+		ret = phy_power_on(pcie->phy[i]);
+		if (ret) {
+			phy_exit(pcie->phy[i]);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
+{
+	struct dw_pcie *pci = pcie->pci;
+	struct device *dev = pci->dev;
+	struct device_node *node = dev->of_node;
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
+		pcie->phy[i] = devm_of_phy_get_by_index(dev, node, i);
+		if (IS_ERR(pcie->phy[i])) {
+			if (PTR_ERR(pcie->phy[i]) != -ENODEV)
+				return PTR_ERR(pcie->phy[i]);
+
+			pcie->phy[i] = NULL;
+			continue;
+		}
+
+		pcie->phy_count++;
+	}
+
+	/* Old bindings miss the PHY handle, so just warn if there is no PHY */
+	if (!pcie->phy_count)
+		dev_warn(dev, "No available PHY\n");
+
+	ret = armada8k_pcie_enable_phys(pcie);
+	if (ret)
+		dev_err(dev, "Failed to initialize PHY(s) (%d)\n", ret);
+
+	return ret;
+}
 
 static int armada8k_pcie_link_up(struct dw_pcie *pci)
 {
@@ -81,10 +154,22 @@ static int armada8k_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
+static int armada8k_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = pcie->pci;
 	u32 reg;
+
+	/* Start LTSSM */
+	reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
+	reg |= PCIE_APP_LTSSM_EN;
+	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
+
+	return 0;
+}
+
+static int armada8k_pcie_host_init(struct pcie_port *pp)
+{
+	u32 reg;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	if (!dw_pcie_link_up(pci)) {
 		/* Disable LTSSM state machine to enable configuration */
@@ -119,26 +204,6 @@ static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
 	reg |= PCIE_INT_A_ASSERT_MASK | PCIE_INT_B_ASSERT_MASK |
 	       PCIE_INT_C_ASSERT_MASK | PCIE_INT_D_ASSERT_MASK;
 	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_INT_MASK1_REG, reg);
-
-	if (!dw_pcie_link_up(pci)) {
-		/* Configuration done. Start LTSSM */
-		reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
-		reg |= PCIE_APP_LTSSM_EN;
-		dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
-	}
-
-	/* Wait until the link becomes active again */
-	if (dw_pcie_wait_for_link(pci))
-		dev_err(pci->dev, "Link not up after reconfiguration\n");
-}
-
-static int armada8k_pcie_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct armada8k_pcie *pcie = to_armada8k_pcie(pci);
-
-	dw_pcie_setup_rc(pp);
-	armada8k_pcie_establish_link(pcie);
 
 	return 0;
 }
@@ -175,10 +240,8 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 	pp->ops = &armada8k_pcie_host_ops;
 
 	pp->irq = platform_get_irq(pdev, 0);
-	if (pp->irq < 0) {
-		dev_err(dev, "failed to get irq for port\n");
+	if (pp->irq < 0)
 		return pp->irq;
-	}
 
 	ret = devm_request_irq(dev, pp->irq, armada8k_pcie_irq_handler,
 			       IRQF_SHARED, "armada8k-pcie", pcie);
@@ -198,6 +261,7 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = armada8k_pcie_link_up,
+	.start_link = armada8k_pcie_start_link,
 };
 
 static int armada8k_pcie_probe(struct platform_device *pdev)
@@ -244,19 +308,24 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 	base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
 	pci->dbi_base = devm_pci_remap_cfg_resource(dev, base);
 	if (IS_ERR(pci->dbi_base)) {
-		dev_err(dev, "couldn't remap regs base %p\n", base);
 		ret = PTR_ERR(pci->dbi_base);
 		goto fail_clkreg;
 	}
+
+	ret = armada8k_pcie_setup_phys(pcie);
+	if (ret)
+		goto fail_clkreg;
 
 	platform_set_drvdata(pdev, pcie);
 
 	ret = armada8k_add_pcie_port(pcie, pdev);
 	if (ret)
-		goto fail_clkreg;
+		goto disable_phy;
 
 	return 0;
 
+disable_phy:
+	armada8k_pcie_disable_phys(pcie);
 fail_clkreg:
 	clk_disable_unprepare(pcie->clk_reg);
 fail:

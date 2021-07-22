@@ -5,27 +5,22 @@
  * Copyright IBM Corp. 2018
  *
  * Author(s): Tony Krowiak <akrowiak@linux.ibm.com>
+ *	      Pierre Morel <pmorel@linux.ibm.com>
  */
 
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <asm/facility.h>
 #include "vfio_ap_private.h"
 
 #define VFIO_AP_ROOT_NAME "vfio_ap"
-#define VFIO_AP_DEV_TYPE_NAME "ap_matrix"
 #define VFIO_AP_DEV_NAME "matrix"
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("VFIO AP device driver, Copyright IBM Corp. 2018");
 MODULE_LICENSE("GPL v2");
-
-static struct ap_driver vfio_ap_drv;
-
-static struct device_type vfio_ap_dev_type = {
-	.name = VFIO_AP_DEV_TYPE_NAME,
-};
 
 struct ap_matrix_dev *matrix_dev;
 
@@ -39,20 +34,55 @@ static struct ap_device_id ap_queue_ids[] = {
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ .dev_type = AP_DEVICE_TYPE_CEX6,
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX7,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ /* end of sibling */ },
 };
 
 MODULE_DEVICE_TABLE(vfio_ap, ap_queue_ids);
 
+/**
+ * vfio_ap_queue_dev_probe:
+ *
+ * Allocate a vfio_ap_queue structure and associate it
+ * with the device as driver_data.
+ */
 static int vfio_ap_queue_dev_probe(struct ap_device *apdev)
 {
+	struct vfio_ap_queue *q;
+
+	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	if (!q)
+		return -ENOMEM;
+	dev_set_drvdata(&apdev->device, q);
+	q->apqn = to_ap_queue(&apdev->device)->qid;
+	q->saved_isc = VFIO_AP_ISC_INVALID;
 	return 0;
 }
 
+/**
+ * vfio_ap_queue_dev_remove:
+ *
+ * Takes the matrix lock to avoid actions on this device while removing
+ * Free the associated vfio_ap_queue structure
+ */
 static void vfio_ap_queue_dev_remove(struct ap_device *apdev)
 {
-	/* Nothing to do yet */
+	struct vfio_ap_queue *q;
+
+	mutex_lock(&matrix_dev->lock);
+	q = dev_get_drvdata(&apdev->device);
+	vfio_ap_mdev_reset_queue(q, 1);
+	dev_set_drvdata(&apdev->device, NULL);
+	kfree(q);
+	mutex_unlock(&matrix_dev->lock);
 }
+
+static struct ap_driver vfio_ap_drv = {
+	.probe = vfio_ap_queue_dev_probe,
+	.remove = vfio_ap_queue_dev_remove,
+	.ids = ap_queue_ids,
+};
 
 static void vfio_ap_matrix_dev_release(struct device *dev)
 {
@@ -60,6 +90,22 @@ static void vfio_ap_matrix_dev_release(struct device *dev)
 
 	kfree(matrix_dev);
 }
+
+static int matrix_bus_match(struct device *dev, struct device_driver *drv)
+{
+	return 1;
+}
+
+static struct bus_type matrix_bus = {
+	.name = "matrix",
+	.match = &matrix_bus_match,
+};
+
+static struct device_driver matrix_driver = {
+	.name = "vfio_ap",
+	.bus = &matrix_bus,
+	.suppress_bind_attrs = true,
+};
 
 static int vfio_ap_matrix_dev_create(void)
 {
@@ -69,6 +115,10 @@ static int vfio_ap_matrix_dev_create(void)
 	root_device = root_device_register(VFIO_AP_ROOT_NAME);
 	if (IS_ERR(root_device))
 		return PTR_ERR(root_device);
+
+	ret = bus_register(&matrix_bus);
+	if (ret)
+		goto bus_register_err;
 
 	matrix_dev = kzalloc(sizeof(*matrix_dev), GFP_KERNEL);
 	if (!matrix_dev) {
@@ -86,30 +136,41 @@ static int vfio_ap_matrix_dev_create(void)
 	mutex_init(&matrix_dev->lock);
 	INIT_LIST_HEAD(&matrix_dev->mdev_list);
 
-	matrix_dev->device.type = &vfio_ap_dev_type;
 	dev_set_name(&matrix_dev->device, "%s", VFIO_AP_DEV_NAME);
 	matrix_dev->device.parent = root_device;
+	matrix_dev->device.bus = &matrix_bus;
 	matrix_dev->device.release = vfio_ap_matrix_dev_release;
-	matrix_dev->device.driver = &vfio_ap_drv.driver;
+	matrix_dev->vfio_ap_drv = &vfio_ap_drv;
 
 	ret = device_register(&matrix_dev->device);
 	if (ret)
 		goto matrix_reg_err;
 
+	ret = driver_register(&matrix_driver);
+	if (ret)
+		goto matrix_drv_err;
+
 	return 0;
 
+matrix_drv_err:
+	device_unregister(&matrix_dev->device);
 matrix_reg_err:
 	put_device(&matrix_dev->device);
 matrix_alloc_err:
+	bus_unregister(&matrix_bus);
+bus_register_err:
 	root_device_unregister(root_device);
-
 	return ret;
 }
 
 static void vfio_ap_matrix_dev_destroy(void)
 {
+	struct device *root_device = matrix_dev->device.parent;
+
+	driver_unregister(&matrix_driver);
 	device_unregister(&matrix_dev->device);
-	root_device_unregister(matrix_dev->device.parent);
+	bus_unregister(&matrix_bus);
+	root_device_unregister(root_device);
 }
 
 static int __init vfio_ap_init(void)
@@ -123,11 +184,6 @@ static int __init vfio_ap_init(void)
 	ret = vfio_ap_matrix_dev_create();
 	if (ret)
 		return ret;
-
-	memset(&vfio_ap_drv, 0, sizeof(vfio_ap_drv));
-	vfio_ap_drv.probe = vfio_ap_queue_dev_probe;
-	vfio_ap_drv.remove = vfio_ap_queue_dev_remove;
-	vfio_ap_drv.ids = ap_queue_ids;
 
 	ret = ap_driver_register(&vfio_ap_drv, THIS_MODULE, VFIO_AP_DRV_NAME);
 	if (ret) {

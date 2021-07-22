@@ -15,6 +15,30 @@
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
 #include <linux/of_platform.h>
+#include <linux/debugfs.h>
+#include "common.h"
+
+static const char *const ep_type_names[] = {
+	[USB_ENDPOINT_XFER_CONTROL] = "ctrl",
+	[USB_ENDPOINT_XFER_ISOC] = "isoc",
+	[USB_ENDPOINT_XFER_BULK] = "bulk",
+	[USB_ENDPOINT_XFER_INT] = "intr",
+};
+
+/**
+ * usb_ep_type_string() - Returns human readable-name of the endpoint type.
+ * @ep_type: The endpoint type to return human-readable name for.  If it's not
+ *   any of the types: USB_ENDPOINT_XFER_{CONTROL, ISOC, BULK, INT},
+ *   usually got by usb_endpoint_type(), the string 'unknown' will be returned.
+ */
+const char *usb_ep_type_string(int ep_type)
+{
+	if (ep_type < 0 || ep_type >= ARRAY_SIZE(ep_type_names))
+		return "unknown";
+
+	return ep_type_names[ep_type];
+}
+EXPORT_SYMBOL_GPL(usb_ep_type_string);
 
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
@@ -51,6 +75,19 @@ static const char *const speed_names[] = {
 	[USB_SPEED_SUPER_PLUS] = "super-speed-plus",
 };
 
+static const char *const ssp_rate[] = {
+	[USB_SSP_GEN_UNKNOWN] = "UNKNOWN",
+	[USB_SSP_GEN_2x1] = "super-speed-plus-gen2x1",
+	[USB_SSP_GEN_1x2] = "super-speed-plus-gen1x2",
+	[USB_SSP_GEN_2x2] = "super-speed-plus-gen2x2",
+};
+
+/**
+ * usb_speed_string() - Returns human readable-name of the speed.
+ * @speed: The speed to return human-readable name for.  If it's not
+ *   any of the speeds defined in usb_device_speed enum, string for
+ *   USB_SPEED_UNKNOWN will be returned.
+ */
 const char *usb_speed_string(enum usb_device_speed speed)
 {
 	if (speed < 0 || speed >= ARRAY_SIZE(speed_names))
@@ -59,6 +96,14 @@ const char *usb_speed_string(enum usb_device_speed speed)
 }
 EXPORT_SYMBOL_GPL(usb_speed_string);
 
+/**
+ * usb_get_maximum_speed - Get maximum requested speed for a given USB
+ * controller.
+ * @dev: Pointer to the given USB controller device
+ *
+ * The function gets the maximum speed string from property "maximum-speed",
+ * and returns the corresponding enum usb_device_speed.
+ */
 enum usb_device_speed usb_get_maximum_speed(struct device *dev)
 {
 	const char *maximum_speed;
@@ -68,12 +113,44 @@ enum usb_device_speed usb_get_maximum_speed(struct device *dev)
 	if (ret < 0)
 		return USB_SPEED_UNKNOWN;
 
-	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
+	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
+	if (ret > 0)
+		return USB_SPEED_SUPER_PLUS;
 
+	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
 	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
 }
 EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 
+/**
+ * usb_get_maximum_ssp_rate - Get the signaling rate generation and lane count
+ *	of a SuperSpeed Plus capable device.
+ * @dev: Pointer to the given USB controller device
+ *
+ * If the string from "maximum-speed" property is super-speed-plus-genXxY where
+ * 'X' is the generation number and 'Y' is the number of lanes, then this
+ * function returns the corresponding enum usb_ssp_rate.
+ */
+enum usb_ssp_rate usb_get_maximum_ssp_rate(struct device *dev)
+{
+	const char *maximum_speed;
+	int ret;
+
+	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
+	if (ret < 0)
+		return USB_SSP_GEN_UNKNOWN;
+
+	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
+	return (ret < 0) ? USB_SSP_GEN_UNKNOWN : ret;
+}
+EXPORT_SYMBOL_GPL(usb_get_maximum_ssp_rate);
+
+/**
+ * usb_state_string - Returns human readable name for the state.
+ * @state: The state to return a human-readable name for. If it's not
+ *	any of the states devices in usb_device_state_string enum,
+ *	the string UNKNOWN will be returned.
+ */
 const char *usb_state_string(enum usb_device_state state)
 {
 	static const char *const names[] = {
@@ -123,6 +200,47 @@ enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 
+/**
+ * usb_decode_interval - Decode bInterval into the time expressed in 1us unit
+ * @epd: The descriptor of the endpoint
+ * @speed: The speed that the endpoint works as
+ *
+ * Function returns the interval expressed in 1us unit for servicing
+ * endpoint for data transfers.
+ */
+unsigned int usb_decode_interval(const struct usb_endpoint_descriptor *epd,
+				 enum usb_device_speed speed)
+{
+	unsigned int interval = 0;
+
+	switch (usb_endpoint_type(epd)) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		/* uframes per NAK */
+		if (speed == USB_SPEED_HIGH)
+			interval = epd->bInterval;
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		interval = 1 << (epd->bInterval - 1);
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		/* uframes per NAK */
+		if (speed == USB_SPEED_HIGH && usb_endpoint_dir_out(epd))
+			interval = epd->bInterval;
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		if (speed >= USB_SPEED_HIGH)
+			interval = 1 << (epd->bInterval - 1);
+		else
+			interval = epd->bInterval;
+		break;
+	}
+
+	interval *= (speed >= USB_SPEED_HIGH) ? 125 : 1000;
+
+	return interval;
+}
+EXPORT_SYMBOL_GPL(usb_decode_interval);
+
 #ifdef CONFIG_OF
 /**
  * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
@@ -145,6 +263,8 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 
 	do {
 		controller = of_find_node_with_property(controller, "phys");
+		if (!of_device_is_available(controller))
+			continue;
 		index = 0;
 		do {
 			if (arg0 == -1) {
@@ -272,5 +392,24 @@ struct device *usb_of_get_companion_dev(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(usb_of_get_companion_dev);
 #endif
+
+struct dentry *usb_debug_root;
+EXPORT_SYMBOL_GPL(usb_debug_root);
+
+static int __init usb_common_init(void)
+{
+	usb_debug_root = debugfs_create_dir("usb", NULL);
+	ledtrig_usb_init();
+	return 0;
+}
+
+static void __exit usb_common_exit(void)
+{
+	ledtrig_usb_exit();
+	debugfs_remove_recursive(usb_debug_root);
+}
+
+subsys_initcall(usb_common_init);
+module_exit(usb_common_exit);
 
 MODULE_LICENSE("GPL");

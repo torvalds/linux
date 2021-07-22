@@ -1,19 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/boot/nspire-cx.dts
  *
  *  Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
- *
  */
 /dts-v1/;
 
 /include/ "nspire.dtsi"
 
 &lcd {
-	lcd-type = "cx";
+	port {
+		clcd_pads: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
 };
 
 &fast_timer {
@@ -107,6 +107,15 @@
 				compatible = "snps,designware-i2c";
 				reg = <0x90050000 0x1000>;
 				interrupts = <20>;
+			};
+		};
+	};
+
+	panel {
+		compatible = "ti,nspire-cx-lcd-panel";
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&clcd_pads>;
 			};
 		};
 	};

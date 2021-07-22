@@ -22,6 +22,13 @@
 #include <linux/debug_locks.h>
 #include <linux/export.h>
 
+#ifdef CONFIG_MMIOWB
+#ifndef arch_mmiowb_state
+DEFINE_PER_CPU(struct mmiowb_state, __mmiowb_state);
+EXPORT_PER_CPU_SYMBOL(__mmiowb_state);
+#endif
+#endif
+
 /*
  * If lockdep is enabled then we use the non-preemption spin-ops
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
@@ -51,10 +58,10 @@
 /*
  * We build the __lock_function inlines here. They are too large for
  * inlining all over the place, but here is only one user per function
- * which embedds them into the calling _lock_function below.
+ * which embeds them into the calling _lock_function below.
  *
  * This could be a long-held lock. We both prepare to spin for a long
- * time (making _this_ CPU preemptable if possible), and we also signal
+ * time (making _this_ CPU preemptible if possible), and we also signal
  * towards that other CPU that it should break the lock ASAP.
  */
 #define BUILD_LOCK_OPS(op, locktype)					\

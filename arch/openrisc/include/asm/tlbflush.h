@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC Linux
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __ASM_OPENRISC_TLBFLUSH_H
@@ -21,8 +17,6 @@
 
 #include <linux/mm.h>
 #include <asm/processor.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <asm/current.h>
 #include <linux/sched.h>
 
@@ -31,7 +25,7 @@
  *  - flush_tlb_all() flushes all processes TLBs
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
  *  - flush_tlb_page(vma, vmaddr) flushes one page
- *  - flush_tlb_range(mm, start, end) flushes a range of pages
+ *  - flush_tlb_range(vma, start, end) flushes a range of pages
  */
 extern void local_flush_tlb_all(void);
 extern void local_flush_tlb_mm(struct mm_struct *mm);

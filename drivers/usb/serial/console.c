@@ -79,7 +79,7 @@ static int usb_console_setup(struct console *co, char *options)
 		if (*s)
 			doflow = (*s++ == 'r');
 	}
-	
+
 	/* Sane default */
 	if (baud == 0)
 		baud = 9600;
@@ -101,7 +101,9 @@ static int usb_console_setup(struct console *co, char *options)
 		cflag |= PARENB;
 		break;
 	}
-	co->cflag = cflag;
+
+	if (doflow)
+		cflag |= CRTSCTS;
 
 	/*
 	 * no need to check the index here: if the index is wrong, console
@@ -164,6 +166,7 @@ static int usb_console_setup(struct console *co, char *options)
 			serial->type->set_termios(tty, port, &dummy);
 
 			tty_port_tty_set(&port->port, NULL);
+			tty_save_termios(tty);
 			tty_kref_put(tty);
 		}
 		tty_port_set_initialized(&port->port, 1);

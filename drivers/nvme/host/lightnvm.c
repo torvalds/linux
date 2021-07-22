@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * nvme-lightnvm.c - LightNVM NVMe device
  *
  * Copyright (C) 2014-2015 IT University of Copenhagen
  * Initial release: Matias Bjorling <mb@lightnvm.io>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
- * USA.
- *
  */
 
 #include "nvme.h"
@@ -185,7 +171,7 @@ struct nvme_nvm_bb_tbl {
 	__le32	tdresv;
 	__le32	thresv;
 	__le32	rsvd2[8];
-	__u8	blk[0];
+	__u8	blk[];
 };
 
 struct nvme_nvm_id20_addrf {
@@ -577,7 +563,8 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 	struct ppa_addr ppa;
 	size_t left = nchks * sizeof(struct nvme_nvm_chk_meta);
 	size_t log_pos, offset, len;
-	int ret, i, max_len;
+	int i, max_len;
+	int ret = 0;
 
 	/*
 	 * limit requests to maximum 256K to avoid issuing arbitrary large
@@ -606,8 +593,8 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 		dev_meta_off = dev_meta;
 
 		ret = nvme_get_log(ctrl, ns->head->ns_id,
-				NVME_NVM_LOG_REPORT_CHUNK, 0, dev_meta, len,
-				offset);
+				NVME_NVM_LOG_REPORT_CHUNK, 0, NVME_CSI_NVM,
+				dev_meta, len, offset);
 		if (ret) {
 			dev_err(ctrl->device, "Get REPORT CHUNK log error\n");
 			break;
@@ -666,25 +653,28 @@ static struct request *nvme_nvm_alloc_request(struct request_queue *q,
 
 	nvme_nvm_rqtocmd(rqd, ns, cmd);
 
-	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
+	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0);
 	if (IS_ERR(rq))
 		return rq;
 
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
 	if (rqd->bio)
-		blk_init_request_from_bio(rq, rqd->bio);
+		blk_rq_append_bio(rq, rqd->bio);
 	else
 		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
 
 	return rq;
 }
 
-static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
+static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd,
+			      void *buf)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct request_queue *q = dev->q;
 	struct nvme_nvm_command *cmd;
 	struct request *rq;
+	int ret;
 
 	cmd = kzalloc(sizeof(struct nvme_nvm_command), GFP_KERNEL);
 	if (!cmd)
@@ -692,50 +682,34 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	rq = nvme_nvm_alloc_request(q, rqd, cmd);
 	if (IS_ERR(rq)) {
-		kfree(cmd);
-		return PTR_ERR(rq);
+		ret = PTR_ERR(rq);
+		goto err_free_cmd;
+	}
+
+	if (buf) {
+		ret = blk_rq_map_kern(q, rq, buf, geo->csecs * rqd->nr_ppas,
+				GFP_KERNEL);
+		if (ret)
+			goto err_free_cmd;
 	}
 
 	rq->end_io_data = rqd;
 
-	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_io);
+	blk_execute_rq_nowait(NULL, rq, 0, nvme_nvm_end_io);
 
 	return 0;
-}
 
-static int nvme_nvm_submit_io_sync(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	struct request_queue *q = dev->q;
-	struct request *rq;
-	struct nvme_nvm_command cmd;
-	int ret = 0;
-
-	memset(&cmd, 0, sizeof(struct nvme_nvm_command));
-
-	rq = nvme_nvm_alloc_request(q, rqd, &cmd);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	/* I/Os can fail and the error is signaled through rqd. Callers must
-	 * handle the error accordingly.
-	 */
-	blk_execute_rq(q, NULL, rq, 0);
-	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
-		ret = -EINTR;
-
-	rqd->ppa_status = le64_to_cpu(nvme_req(rq)->result.u64);
-	rqd->error = nvme_req(rq)->status;
-
-	blk_mq_free_request(rq);
-
+err_free_cmd:
+	kfree(cmd);
 	return ret;
 }
 
-static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
+static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name,
+					int size)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
 
-	return dma_pool_create(name, ns->ctrl->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	return dma_pool_create(name, ns->ctrl->dev, size, PAGE_SIZE, 0);
 }
 
 static void nvme_nvm_destroy_dma_pool(void *pool)
@@ -766,7 +740,6 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.get_chk_meta		= nvme_nvm_get_chk_meta,
 
 	.submit_io		= nvme_nvm_submit_io,
-	.submit_io_sync		= nvme_nvm_submit_io_sync,
 
 	.create_dma_pool	= nvme_nvm_create_dma_pool,
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,
@@ -784,7 +757,6 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 {
 	bool write = nvme_is_write((struct nvme_command *)vcmd);
 	struct nvm_dev *dev = ns->ndev;
-	struct gendisk *disk = ns->disk;
 	struct request *rq;
 	struct bio *bio = NULL;
 	__le64 *ppa_list = NULL;
@@ -794,14 +766,14 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int ret = 0;
 
-	rq = nvme_alloc_request(q, (struct nvme_command *)vcmd, 0,
-			NVME_QID_ANY);
+	rq = nvme_alloc_request(q, (struct nvme_command *)vcmd, 0);
 	if (IS_ERR(rq)) {
 		ret = -ENOMEM;
 		goto err_cmd;
 	}
 
-	rq->timeout = timeout ? timeout : ADMIN_TIMEOUT;
+	if (timeout)
+		rq->timeout = timeout;
 
 	if (ppa_buf && ppa_len) {
 		ppa_list = dma_pool_alloc(dev->dma_pool, GFP_KERNEL, &ppa_dma);
@@ -844,10 +816,10 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
 		}
 
-		bio->bi_disk = disk;
+		bio_set_dev(bio, ns->disk->part0);
 	}
 
-	blk_execute_rq(q, NULL, rq, 0);
+	blk_execute_rq(NULL, rq, 0);
 
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
 		ret = -EINTR;
@@ -935,9 +907,9 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	/* cdw11-12 */
 	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
 	c.ph_rw.control  = cpu_to_le16(vcmd.control);
-	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
-	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
-	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
+	c.common.cdw13 = cpu_to_le32(vcmd.cdw13);
+	c.common.cdw14 = cpu_to_le32(vcmd.cdw14);
+	c.common.cdw15 = cpu_to_le32(vcmd.cdw15);
 
 	if (vcmd.timeout_ms)
 		timeout = msecs_to_jiffies(vcmd.timeout_ms);
@@ -958,42 +930,41 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	return ret;
 }
 
-int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg)
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, void __user *argp)
 {
 	switch (cmd) {
 	case NVME_NVM_IOCTL_ADMIN_VIO:
-		return nvme_nvm_user_vcmd(ns, 1, (void __user *)arg);
+		return nvme_nvm_user_vcmd(ns, 1, argp);
 	case NVME_NVM_IOCTL_IO_VIO:
-		return nvme_nvm_user_vcmd(ns, 0, (void __user *)arg);
+		return nvme_nvm_user_vcmd(ns, 0, argp);
 	case NVME_NVM_IOCTL_SUBMIT_VIO:
-		return nvme_nvm_submit_vio(ns, (void __user *)arg);
+		return nvme_nvm_submit_vio(ns, argp);
 	default:
 		return -ENOTTY;
 	}
-}
-
-void nvme_nvm_update_nvm_info(struct nvme_ns *ns)
-{
-	struct nvm_dev *ndev = ns->ndev;
-	struct nvm_geo *geo = &ndev->geo;
-
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		return;
-
-	geo->csecs = 1 << ns->lba_shift;
-	geo->sos = ns->ms;
 }
 
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
 	struct request_queue *q = ns->queue;
 	struct nvm_dev *dev;
+	struct nvm_geo *geo;
 
 	_nvme_nvm_check_size();
 
 	dev = nvm_alloc_dev(node);
 	if (!dev)
 		return -ENOMEM;
+
+	/* Note that csecs and sos will be overridden if it is a 1.2 drive. */
+	geo = &dev->geo;
+	geo->csecs = 1 << ns->lba_shift;
+	geo->sos = ns->ms;
+	if (ns->features & NVME_NS_EXT_LBAS)
+		geo->ext = true;
+	else
+		geo->ext = false;
+	geo->mdts = ns->ctrl->max_hw_sectors;
 
 	dev->q = q;
 	memcpy(dev->name, disk_name, DISK_NAME_LEN);
@@ -1269,7 +1240,7 @@ static struct attribute *nvm_dev_attrs[] = {
 static umode_t nvm_dev_attrs_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gendisk *disk = dev_to_disk(dev);
 	struct nvme_ns *ns = disk->private_data;
 	struct nvm_dev *ndev = ns->ndev;

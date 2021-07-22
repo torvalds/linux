@@ -55,7 +55,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgtable.h>
 
 #include "savagefb.h"
 
@@ -1637,7 +1636,7 @@ static int savagefb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops savagefb_ops = {
+static const struct fb_ops savagefb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = savagefb_open,
 	.fb_release     = savagefb_release,
@@ -1860,8 +1859,7 @@ static int savage_init_hw(struct savagefb_par *par)
 		vga_out8(0x3d4, 0x68, par);	/* memory control 1 */
 		if ((vga_in8(0x3d5, par) & 0xC0) == (0x01 << 6))
 			RamSavage4[1] = 8;
-
-		/*FALLTHROUGH*/
+		fallthrough;
 
 	case S3_SAVAGE2000:
 		videoRam = RamSavage4[(config1 & 0xE0) >> 5] * 1024;
@@ -2155,9 +2153,11 @@ static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
 
 		err = fb_alloc_cmap(&info->cmap, NR_PALETTE, 0);
 		if (!err)
-		info->flags |= FBINFO_HWACCEL_COPYAREA |
-	                       FBINFO_HWACCEL_FILLRECT |
-		               FBINFO_HWACCEL_IMAGEBLIT;
+			info->flags |= FBINFO_HWACCEL_COPYAREA |
+				       FBINFO_HWACCEL_FILLRECT |
+				       FBINFO_HWACCEL_IMAGEBLIT;
+		else
+			kfree(info->pixmap.addr);
 	}
 #endif
 	return err;
@@ -2333,14 +2333,7 @@ static void savagefb_remove(struct pci_dev *dev)
 	DBG("savagefb_remove");
 
 	if (info) {
-		/*
-		 * If unregister_framebuffer fails, then
-		 * we will be leaving hooks that could cause
-		 * oopsen laying around.
-		 */
-		if (unregister_framebuffer(info))
-			printk(KERN_WARNING "savagefb: danger danger! "
-			       "Oopsen imminent!\n");
+		unregister_framebuffer(info);
 
 #ifdef CONFIG_FB_SAVAGE_I2C
 		savagefb_delete_i2c_busses(info);
@@ -2354,9 +2347,9 @@ static void savagefb_remove(struct pci_dev *dev)
 	}
 }
 
-static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
+static int savagefb_suspend_late(struct device *dev, pm_message_t mesg)
 {
-	struct fb_info *info = pci_get_drvdata(dev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct savagefb_par *par = info->par;
 
 	DBG("savagefb_suspend");
@@ -2364,7 +2357,7 @@ static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
 	par->pm_state = mesg.event;
-	dev->dev.power.power_state = mesg;
+	dev->power.power_state = mesg;
 
 	/*
 	 * For PM_EVENT_FREEZE, do not power down so the console
@@ -2382,17 +2375,29 @@ static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	savagefb_blank(FB_BLANK_POWERDOWN, info);
 	savage_set_default_par(par, &par->save);
 	savage_disable_mmio(par);
-	pci_save_state(dev);
-	pci_disable_device(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, mesg));
 	console_unlock();
 
 	return 0;
 }
 
-static int savagefb_resume(struct pci_dev* dev)
+static int __maybe_unused savagefb_suspend(struct device *dev)
 {
-	struct fb_info *info = pci_get_drvdata(dev);
+	return savagefb_suspend_late(dev, PMSG_SUSPEND);
+}
+
+static int __maybe_unused savagefb_hibernate(struct device *dev)
+{
+	return savagefb_suspend_late(dev, PMSG_HIBERNATE);
+}
+
+static int __maybe_unused savagefb_freeze(struct device *dev)
+{
+	return savagefb_suspend_late(dev, PMSG_FREEZE);
+}
+
+static int __maybe_unused savagefb_resume(struct device *dev)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct savagefb_par *par = info->par;
 	int cur_state = par->pm_state;
 
@@ -2404,20 +2409,11 @@ static int savagefb_resume(struct pci_dev* dev)
 	 * The adapter was not powered down coming back from a
 	 * PM_EVENT_FREEZE.
 	 */
-	if (cur_state == PM_EVENT_FREEZE) {
-		pci_set_power_state(dev, PCI_D0);
+	if (cur_state == PM_EVENT_FREEZE)
 		return 0;
-	}
 
 	console_lock();
 
-	pci_set_power_state(dev, PCI_D0);
-	pci_restore_state(dev);
-
-	if (pci_enable_device(dev))
-		DBG("err");
-
-	pci_set_master(dev);
 	savage_enable_mmio(par);
 	savage_init_hw(par);
 	savagefb_set_par(info);
@@ -2428,6 +2424,16 @@ static int savagefb_resume(struct pci_dev* dev)
 	return 0;
 }
 
+static const struct dev_pm_ops savagefb_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend	= savagefb_suspend,
+	.resume		= savagefb_resume,
+	.freeze		= savagefb_freeze,
+	.thaw		= savagefb_resume,
+	.poweroff	= savagefb_hibernate,
+	.restore	= savagefb_resume,
+#endif
+};
 
 static const struct pci_device_id savagefb_devices[] = {
 	{PCI_VENDOR_ID_S3, PCI_CHIP_SUPSAV_MX128,
@@ -2508,8 +2514,7 @@ static struct pci_driver savagefb_driver = {
 	.name =     "savagefb",
 	.id_table = savagefb_devices,
 	.probe =    savagefb_probe,
-	.suspend =  savagefb_suspend,
-	.resume =   savagefb_resume,
+	.driver.pm = &savagefb_pm_ops,
 	.remove =   savagefb_remove,
 };
 

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/assembler.h
  *
  *  Copyright (C) 1996-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This file contains arm architecture specific defines
  *  for the different processors.
@@ -21,11 +18,11 @@
 #endif
 
 #include <asm/ptrace.h>
-#include <asm/domain.h>
 #include <asm/opcodes-virt.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
+#include <asm/uaccess-asm.h>
 
 #define IOMEM(x)	(x)
 
@@ -243,12 +240,14 @@
 	.endm
 #endif
 
-#define USER(x...)				\
+#define USERL(l, x...)				\
 9999:	x;					\
 	.pushsection __ex_table,"a";		\
 	.align	3;				\
-	.long	9999b,9001f;			\
+	.long	9999b,l;			\
 	.popsection
+
+#define USER(x...)	USERL(9001f, x)
 
 #ifdef CONFIG_SMP
 #define ALT_SMP(instr...)					\
@@ -260,7 +259,7 @@
  */
 #define ALT_UP(instr...)					\
 	.pushsection ".alt.smp.init", "a"			;\
-	.long	9998b						;\
+	.long	9998b - .					;\
 9997:	instr							;\
 	.if . - 9997b == 2					;\
 		nop						;\
@@ -270,10 +269,9 @@
 	.endif							;\
 	.popsection
 #define ALT_UP_B(label)					\
-	.equ	up_b_offset, label - 9998b			;\
 	.pushsection ".alt.smp.init", "a"			;\
-	.long	9998b						;\
-	W(b)	. + up_b_offset					;\
+	.long	9998b - .					;\
+	W(b)	. + (label - 9998b)					;\
 	.popsection
 #else
 #define ALT_SMP(instr...)
@@ -374,9 +372,9 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=TUSER()
 9999:
 	.if	\inc == 1
-	\instr\cond\()b\()\t\().w \reg, [\ptr, #\off]
+	\instr\()b\t\cond\().w \reg, [\ptr, #\off]
 	.elseif	\inc == 4
-	\instr\cond\()\t\().w \reg, [\ptr, #\off]
+	\instr\t\cond\().w \reg, [\ptr, #\off]
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif
@@ -415,9 +413,9 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.rept	\rept
 9999:
 	.if	\inc == 1
-	\instr\cond\()b\()\t \reg, [\ptr], #\inc
+	\instr\()b\t\cond \reg, [\ptr], #\inc
 	.elseif	\inc == 4
-	\instr\cond\()\t \reg, [\ptr], #\inc
+	\instr\t\cond \reg, [\ptr], #\inc
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif
@@ -445,79 +443,6 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 \name:
 	.asciz "\string"
 	.size \name , . - \name
-	.endm
-
-	.macro	csdb
-#ifdef CONFIG_THUMB2_KERNEL
-	.inst.w	0xf3af8014
-#else
-	.inst	0xe320f014
-#endif
-	.endm
-
-	.macro check_uaccess, addr:req, size:req, limit:req, tmp:req, bad:req
-#ifndef CONFIG_CPU_USE_DOMAINS
-	adds	\tmp, \addr, #\size - 1
-	sbcccs	\tmp, \tmp, \limit
-	bcs	\bad
-#ifdef CONFIG_CPU_SPECTRE
-	movcs	\addr, #0
-	csdb
-#endif
-#endif
-	.endm
-
-	.macro uaccess_mask_range_ptr, addr:req, size:req, limit:req, tmp:req
-#ifdef CONFIG_CPU_SPECTRE
-	sub	\tmp, \limit, #1
-	subs	\tmp, \tmp, \addr	@ tmp = limit - 1 - addr
-	addhs	\tmp, \tmp, #1		@ if (tmp >= 0) {
-	subhss	\tmp, \tmp, \size	@ tmp = limit - (addr + size) }
-	movlo	\addr, #0		@ if (tmp < 0) addr = NULL
-	csdb
-#endif
-	.endm
-
-	.macro	uaccess_disable, tmp, isb=1
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	/*
-	 * Whenever we re-enter userspace, the domains should always be
-	 * set appropriately.
-	 */
-	mov	\tmp, #DACR_UACCESS_DISABLE
-	mcr	p15, 0, \tmp, c3, c0, 0		@ Set domain register
-	.if	\isb
-	instr_sync
-	.endif
-#endif
-	.endm
-
-	.macro	uaccess_enable, tmp, isb=1
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	/*
-	 * Whenever we re-enter userspace, the domains should always be
-	 * set appropriately.
-	 */
-	mov	\tmp, #DACR_UACCESS_ENABLE
-	mcr	p15, 0, \tmp, c3, c0, 0
-	.if	\isb
-	instr_sync
-	.endif
-#endif
-	.endm
-
-	.macro	uaccess_save, tmp
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	mrc	p15, 0, \tmp, c3, c0, 0
-	str	\tmp, [sp, #SVC_DACR]
-#endif
-	.endm
-
-	.macro	uaccess_restore
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	ldr	r0, [sp, #SVC_DACR]
-	mcr	p15, 0, r0, c3, c0, 0
-#endif
 	.endm
 
 	.irp	c,,eq,ne,cs,cc,mi,pl,vs,vc,hi,ls,ge,lt,gt,le,hs,lo
@@ -568,5 +493,106 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 #else
 #define _ASM_NOKPROBE(entry)
 #endif
+
+	.macro		__adldst_l, op, reg, sym, tmp, c
+	.if		__LINUX_ARM_ARCH__ < 7
+	ldr\c		\tmp, .La\@
+	.subsection	1
+	.align		2
+.La\@:	.long		\sym - .Lpc\@
+	.previous
+	.else
+	.ifnb		\c
+ THUMB(	ittt		\c			)
+	.endif
+	movw\c		\tmp, #:lower16:\sym - .Lpc\@
+	movt\c		\tmp, #:upper16:\sym - .Lpc\@
+	.endif
+
+#ifndef CONFIG_THUMB2_KERNEL
+	.set		.Lpc\@, . + 8			// PC bias
+	.ifc		\op, add
+	add\c		\reg, \tmp, pc
+	.else
+	\op\c		\reg, [pc, \tmp]
+	.endif
+#else
+.Lb\@:	add\c		\tmp, \tmp, pc
+	/*
+	 * In Thumb-2 builds, the PC bias depends on whether we are currently
+	 * emitting into a .arm or a .thumb section. The size of the add opcode
+	 * above will be 2 bytes when emitting in Thumb mode and 4 bytes when
+	 * emitting in ARM mode, so let's use this to account for the bias.
+	 */
+	.set		.Lpc\@, . + (. - .Lb\@)
+
+	.ifnc		\op, add
+	\op\c		\reg, [\tmp]
+	.endif
+#endif
+	.endm
+
+	/*
+	 * mov_l - move a constant value or [relocated] address into a register
+	 */
+	.macro		mov_l, dst:req, imm:req
+	.if		__LINUX_ARM_ARCH__ < 7
+	ldr		\dst, =\imm
+	.else
+	movw		\dst, #:lower16:\imm
+	movt		\dst, #:upper16:\imm
+	.endif
+	.endm
+
+	/*
+	 * adr_l - adr pseudo-op with unlimited range
+	 *
+	 * @dst: destination register
+	 * @sym: name of the symbol
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		adr_l, dst:req, sym:req, cond
+	__adldst_l	add, \dst, \sym, \dst, \cond
+	.endm
+
+	/*
+	 * ldr_l - ldr <literal> pseudo-op with unlimited range
+	 *
+	 * @dst: destination register
+	 * @sym: name of the symbol
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		ldr_l, dst:req, sym:req, cond
+	__adldst_l	ldr, \dst, \sym, \dst, \cond
+	.endm
+
+	/*
+	 * str_l - str <literal> pseudo-op with unlimited range
+	 *
+	 * @src: source register
+	 * @sym: name of the symbol
+	 * @tmp: mandatory scratch register
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		str_l, src:req, sym:req, tmp:req, cond
+	__adldst_l	str, \src, \sym, \tmp, \cond
+	.endm
+
+	/*
+	 * rev_l - byte-swap a 32-bit value
+	 *
+	 * @val: source/destination register
+	 * @tmp: scratch register
+	 */
+	.macro		rev_l, val:req, tmp:req
+	.if		__LINUX_ARM_ARCH__ < 6
+	eor		\tmp, \val, \val, ror #16
+	bic		\tmp, \tmp, #0x00ff0000
+	mov		\val, \val, ror #8
+	eor		\val, \val, \tmp, lsr #8
+	.else
+	rev		\val, \val
+	.endif
+	.endm
 
 #endif /* __ASM_ASSEMBLER_H__ */

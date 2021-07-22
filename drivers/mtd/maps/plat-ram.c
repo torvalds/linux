@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/mtd/maps/plat-ram.c
  *
  * (c) 2004-2005 Simtec Electronics
@@ -5,20 +6,6 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Generic platform device based RAM map
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/module.h>
@@ -140,7 +127,6 @@ static int platram_probe(struct platform_device *pdev)
 	info->map.virt = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->map.virt)) {
 		err = PTR_ERR(info->map.virt);
-		dev_err(&pdev->dev, "failed to ioremap() region\n");
 		goto exit_free;
 	}
 
@@ -190,8 +176,12 @@ static int platram_probe(struct platform_device *pdev)
 	err = mtd_device_parse_register(info->mtd, pdata->probes, NULL,
 					pdata->partitions,
 					pdata->nr_partitions);
-	if (!err)
-		dev_info(&pdev->dev, "registered mtd device\n");
+	if (err) {
+		dev_err(&pdev->dev, "failed to register mtd device\n");
+		goto exit_free;
+	}
+
+	dev_info(&pdev->dev, "registered mtd device\n");
 
 	if (pdata->nr_partitions) {
 		/* add the whole device. */
@@ -199,10 +189,11 @@ static int platram_probe(struct platform_device *pdev)
 		if (err) {
 			dev_err(&pdev->dev,
 				"failed to register the entire device\n");
+			goto exit_free;
 		}
 	}
 
-	return err;
+	return 0;
 
  exit_free:
 	platram_remove(pdev);

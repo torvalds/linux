@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  *
  * Copyright (c) (2005-2007) Imagination Technologies Limited.
  * Copyright (c) 2007, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA..
  *
  **************************************************************************/
 
@@ -562,21 +550,7 @@
 #define PSB_PM_SSC			0x20
 #define PSB_PM_SSS			0x30
 #define PSB_PWRGT_DISPLAY_MASK		0xc /*on a different BA than video/gfx*/
-#define MDFLD_PWRGT_DISPLAY_A_CNTR	0x0000000c
-#define MDFLD_PWRGT_DISPLAY_B_CNTR	0x0000c000
-#define MDFLD_PWRGT_DISPLAY_C_CNTR	0x00030000
-#define MDFLD_PWRGT_DISP_MIPI_CNTR	0x000c0000
-#define MDFLD_PWRGT_DISPLAY_CNTR    (MDFLD_PWRGT_DISPLAY_A_CNTR | MDFLD_PWRGT_DISPLAY_B_CNTR | MDFLD_PWRGT_DISPLAY_C_CNTR | MDFLD_PWRGT_DISP_MIPI_CNTR) /* 0x000fc00c */
 /* Display SSS register bits are different in A0 vs. B0 */
 #define PSB_PWRGT_GFX_MASK		0x3
-#define MDFLD_PWRGT_DISPLAY_A_STS	0x000000c0
-#define MDFLD_PWRGT_DISPLAY_B_STS	0x00000300
-#define MDFLD_PWRGT_DISPLAY_C_STS	0x00000c00
 #define PSB_PWRGT_GFX_MASK_B0		0xc3
-#define MDFLD_PWRGT_DISPLAY_A_STS_B0	0x0000000c
-#define MDFLD_PWRGT_DISPLAY_B_STS_B0	0x0000c000
-#define MDFLD_PWRGT_DISPLAY_C_STS_B0	0x00030000
-#define MDFLD_PWRGT_DISP_MIPI_STS	0x000c0000
-#define MDFLD_PWRGT_DISPLAY_STS_A0    (MDFLD_PWRGT_DISPLAY_A_STS | MDFLD_PWRGT_DISPLAY_B_STS | MDFLD_PWRGT_DISPLAY_C_STS | MDFLD_PWRGT_DISP_MIPI_STS) /* 0x000fc00c */
-#define MDFLD_PWRGT_DISPLAY_STS_B0    (MDFLD_PWRGT_DISPLAY_A_STS_B0 | MDFLD_PWRGT_DISPLAY_B_STS_B0 | MDFLD_PWRGT_DISPLAY_C_STS_B0 | MDFLD_PWRGT_DISP_MIPI_STS) /* 0x000fc00c */
 #endif

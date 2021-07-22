@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "saa7134.h"
@@ -444,7 +436,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	sd = &saa->sd;
 	v4l2_subdev_init(sd, &saa7134_go7007_sd_ops);
 	v4l2_set_subdevdata(sd, saa);
-	strncpy(sd->name, "saa7134-go7007", sizeof(sd->name));
+	strscpy(sd->name, "saa7134-go7007", sizeof(sd->name));
 
 	/* Allocate a couple pages for receiving the compressed stream */
 	saa->top = (u8 *)get_zeroed_page(GFP_KERNEL);
@@ -501,7 +493,7 @@ static int saa7134_go7007_fini(struct saa7134_dev *dev)
 	free_page((unsigned long)saa->bottom);
 	v4l2_device_unregister_subdev(&saa->sd);
 	kfree(saa);
-	video_unregister_device(&go->vdev);
+	vb2_video_unregister_device(&go->vdev);
 
 	v4l2_device_put(&go->v4l2_dev);
 	dev->empress_dev = NULL;

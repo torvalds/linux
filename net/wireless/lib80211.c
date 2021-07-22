@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib80211 -- common bits for IEEE802.11 drivers
  *
@@ -24,8 +25,6 @@
 #include <linux/string.h>
 
 #include <net/lib80211.h>
-
-#define DRV_NAME        "lib80211"
 
 #define DRV_DESCRIPTION	"common routines for IEEE802.11 drivers"
 

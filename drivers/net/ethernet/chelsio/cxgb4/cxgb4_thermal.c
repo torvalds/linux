@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2017 Chelsio Communications.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  *
  *  Written by: Ganesh Goudar (ganeshgr@chelsio.com)
  */
@@ -73,6 +62,7 @@ static struct thermal_zone_device_ops cxgb4_thermal_ops = {
 int cxgb4_thermal_init(struct adapter *adap)
 {
 	struct ch_thermal *ch_thermal = &adap->ch_thermal;
+	char ch_tz_name[THERMAL_NAME_LENGTH];
 	int num_trip = CXGB4_NUM_TRIPS;
 	u32 param, val;
 	int ret;
@@ -93,7 +83,8 @@ int cxgb4_thermal_init(struct adapter *adap)
 		ch_thermal->trip_type = THERMAL_TRIP_CRITICAL;
 	}
 
-	ch_thermal->tzdev = thermal_zone_device_register("cxgb4", num_trip,
+	snprintf(ch_tz_name, sizeof(ch_tz_name), "cxgb4_%s", adap->name);
+	ch_thermal->tzdev = thermal_zone_device_register(ch_tz_name, num_trip,
 							 0, adap,
 							 &cxgb4_thermal_ops,
 							 NULL, 0, 0);
@@ -103,12 +94,22 @@ int cxgb4_thermal_init(struct adapter *adap)
 		ch_thermal->tzdev = NULL;
 		return ret;
 	}
+
+	ret = thermal_zone_device_enable(ch_thermal->tzdev);
+	if (ret) {
+		dev_err(adap->pdev_dev, "Failed to enable thermal zone\n");
+		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		return ret;
+	}
+
 	return 0;
 }
 
 int cxgb4_thermal_remove(struct adapter *adap)
 {
-	if (adap->ch_thermal.tzdev)
+	if (adap->ch_thermal.tzdev) {
 		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		adap->ch_thermal.tzdev = NULL;
+	}
 	return 0;
 }

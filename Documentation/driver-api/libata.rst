@@ -250,23 +250,23 @@ High-level taskfile hooks
 
 ::
 
-    void (*qc_prep) (struct ata_queued_cmd *qc);
+    enum ata_completion_errors (*qc_prep) (struct ata_queued_cmd *qc);
     int (*qc_issue) (struct ata_queued_cmd *qc);
 
 
-Higher-level hooks, these two hooks can potentially supercede several of
+Higher-level hooks, these two hooks can potentially supersede several of
 the above taskfile/DMA engine hooks. ``->qc_prep`` is called after the
 buffers have been DMA-mapped, and is typically used to populate the
-hardware's DMA scatter-gather table. Most drivers use the standard
-:c:func:`ata_qc_prep` helper function, but more advanced drivers roll their
-own.
+hardware's DMA scatter-gather table. Some drivers use the standard
+:c:func:`ata_bmdma_qc_prep` and :c:func:`ata_bmdma_dumb_qc_prep` helper
+functions, but more advanced drivers roll their own.
 
 ``->qc_issue`` is used to make a command active, once the hardware and S/G
 tables have been prepared. IDE BMDMA drivers use the helper function
-:c:func:`ata_qc_issue_prot` for taskfile protocol-based dispatch. More
+:c:func:`ata_sff_qc_issue` for taskfile protocol-based dispatch. More
 advanced drivers implement their own ``->qc_issue``.
 
-:c:func:`ata_qc_issue_prot` calls ``->tf_load()``, ``->bmdma_setup()``, and
+:c:func:`ata_sff_qc_issue` calls ``->sff_tf_load()``, ``->bmdma_setup()``, and
 ``->bmdma_start()`` as necessary to initiate a transfer.
 
 Exception and probe handling (EH)
@@ -401,7 +401,7 @@ Error handling
 ==============
 
 This chapter describes how errors are handled under libata. Readers are
-advised to read SCSI EH (Documentation/scsi/scsi_eh.txt) and ATA
+advised to read SCSI EH (Documentation/scsi/scsi_eh.rst) and ATA
 exceptions doc first.
 
 Origins of commands
@@ -508,7 +508,7 @@ also complete commands.
 
 2. ATA_QCFLAG_ACTIVE is cleared from qc->flags.
 
-3. :c:func:`qc->complete_fn` callback is invoked. If the return value of the
+3. :c:expr:`qc->complete_fn` callback is invoked. If the return value of the
    callback is not zero. Completion is short circuited and
    :c:func:`ata_qc_complete` returns.
 

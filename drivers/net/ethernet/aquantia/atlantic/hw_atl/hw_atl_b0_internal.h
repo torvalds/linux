@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_b0_internal.h: Definition of Atlantic B0 chip specific
@@ -67,18 +64,21 @@
 #define HW_ATL_B0_MPI_SPEED_MSK         0xFFFFU
 #define HW_ATL_B0_MPI_SPEED_SHIFT       16U
 
-#define HW_ATL_B0_TXBUF_MAX  160U
-#define HW_ATL_B0_RXBUF_MAX  320U
+#define HW_ATL_B0_TXBUF_MAX              160U
+#define HW_ATL_B0_PTP_TXBUF_SIZE           8U
+
+#define HW_ATL_B0_RXBUF_MAX              320U
+#define HW_ATL_B0_PTP_RXBUF_SIZE          16U
 
 #define HW_ATL_B0_RSS_REDIRECTION_MAX 64U
 #define HW_ATL_B0_RSS_REDIRECTION_BITS 3U
 #define HW_ATL_B0_RSS_HASHKEY_BITS 320U
 
 #define HW_ATL_B0_TCRSS_4_8  1
-#define HW_ATL_B0_TC_MAX 1U
+#define HW_ATL_B0_TC_MAX 8U
 #define HW_ATL_B0_RSS_MAX 8U
 
-#define HW_ATL_B0_LRO_RXD_MAX 2U
+#define HW_ATL_B0_LRO_RXD_MAX 16U
 #define HW_ATL_B0_RS_SLIP_ENABLED  0U
 
 /* (256k -1(max pay_len) - 54(header)) */
@@ -110,10 +110,17 @@
 #define HW_ATL_B0_RXD_NCEA0 (0x1)
 
 #define HW_ATL_B0_RXD_WB_STAT_RSSTYPE (0x0000000F)
+#define HW_ATL_B0_RXD_WB_STAT_RSSTYPE_SHIFT (0x0)
 #define HW_ATL_B0_RXD_WB_STAT_PKTTYPE (0x00000FF0)
+#define HW_ATL_B0_RXD_WB_STAT_PKTTYPE_SHIFT (0x4)
 #define HW_ATL_B0_RXD_WB_STAT_RXCTRL  (0x00180000)
+#define HW_ATL_B0_RXD_WB_STAT_RXCTRL_SHIFT (0x13)
 #define HW_ATL_B0_RXD_WB_STAT_SPLHDR  (0x00200000)
 #define HW_ATL_B0_RXD_WB_STAT_HDRLEN  (0xFFC00000)
+#define HW_ATL_B0_RXD_WB_STAT_HDRLEN_SHIFT (0x16)
+
+#define HW_ATL_B0_RXD_WB_PKTTYPE_VLAN          BIT(5)
+#define HW_ATL_B0_RXD_WB_PKTTYPE_VLAN_DOUBLE   BIT(6)
 
 #define HW_ATL_B0_RXD_WB_STAT2_DD      (0x0001)
 #define HW_ATL_B0_RXD_WB_STAT2_EOP     (0x0002)
@@ -143,6 +150,10 @@
 
 #define HW_ATL_B0_MAX_RXD 8184U
 #define HW_ATL_B0_MAX_TXD 8184U
+
+#define HW_ATL_RSS_DISABLED 0x00000000U
+#define HW_ATL_RSS_ENABLED_8TCS_2INDEX_BITS 0xA2222222U
+#define HW_ATL_RSS_ENABLED_4TCS_3INDEX_BITS 0x80003333U
 
 /* HW layer capabilities */
 

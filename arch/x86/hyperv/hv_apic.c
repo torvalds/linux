@@ -60,9 +60,11 @@ static u32 hv_apic_read(u32 reg)
 	switch (reg) {
 	case APIC_EOI:
 		rdmsr(HV_X64_MSR_EOI, reg_val, hi);
+		(void)hi;
 		return reg_val;
 	case APIC_TASKPRI:
 		rdmsr(HV_X64_MSR_TPR, reg_val, hi);
+		(void)hi;
 		return reg_val;
 
 	default:
@@ -86,6 +88,11 @@ static void hv_apic_write(u32 reg, u32 val)
 
 static void hv_apic_eoi_write(u32 reg, u32 val)
 {
+	struct hv_vp_assist_page *hvp = hv_vp_assist_page[smp_processor_id()];
+
+	if (hvp && (xchg(&hvp->apic_assist, 0) & 0x1))
+		return;
+
 	wrmsr(HV_X64_MSR_EOI, val, 0);
 }
 
@@ -98,7 +105,7 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
 	struct hv_send_ipi_ex *ipi_arg;
 	unsigned long flags;
 	int nr_bank = 0;
-	int ret = 1;
+	u64 status = HV_STATUS_INVALID_PARAMETER;
 
 	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
 		return false;
@@ -123,19 +130,19 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
 	if (!nr_bank)
 		ipi_arg->vp_set.format = HV_GENERIC_SET_ALL;
 
-	ret = hv_do_rep_hypercall(HVCALL_SEND_IPI_EX, 0, nr_bank,
+	status = hv_do_rep_hypercall(HVCALL_SEND_IPI_EX, 0, nr_bank,
 			      ipi_arg, NULL);
 
 ipi_mask_ex_done:
 	local_irq_restore(flags);
-	return ((ret == 0) ? true : false);
+	return hv_result_success(status);
 }
 
 static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 {
 	int cur_cpu, vcpu;
 	struct hv_send_ipi ipi_arg;
-	int ret = 1;
+	u64 status;
 
 	trace_hyperv_send_ipi_mask(mask, vector);
 
@@ -179,9 +186,9 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 		__set_bit(vcpu, (unsigned long *)&ipi_arg.cpu_mask);
 	}
 
-	ret = hv_do_fast_hypercall16(HVCALL_SEND_IPI, ipi_arg.vector,
+	status = hv_do_fast_hypercall16(HVCALL_SEND_IPI, ipi_arg.vector,
 				     ipi_arg.cpu_mask);
-	return ((ret == 0) ? true : false);
+	return hv_result_success(status);
 
 do_ex_hypercall:
 	return __send_ipi_mask_ex(mask, vector);
@@ -189,10 +196,22 @@ do_ex_hypercall:
 
 static bool __send_ipi_one(int cpu, int vector)
 {
-	struct cpumask mask = CPU_MASK_NONE;
+	int vp = hv_cpu_number_to_vp_number(cpu);
+	u64 status;
 
-	cpumask_set_cpu(cpu, &mask);
-	return __send_ipi_mask(&mask, vector);
+	trace_hyperv_send_ipi_one(cpu, vector);
+
+	if (!hv_hypercall_pg || (vp == VP_INVAL))
+		return false;
+
+	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
+		return false;
+
+	if (vp >= 64)
+		return __send_ipi_mask_ex(cpumask_of(cpu), vector);
+
+	status = hv_do_fast_hypercall16(HVCALL_SEND_IPI, vector, BIT_ULL(vp));
+	return hv_result_success(status);
 }
 
 static void hv_send_ipi(int cpu, int vector)
@@ -255,11 +274,25 @@ void __init hv_apic_init(void)
 	}
 
 	if (ms_hyperv.hints & HV_X64_APIC_ACCESS_RECOMMENDED) {
-		pr_info("Hyper-V: Using MSR based APIC access\n");
+		pr_info("Hyper-V: Using enlightened APIC (%s mode)",
+			x2apic_enabled() ? "x2apic" : "xapic");
+		/*
+		 * When in x2apic mode, don't use the Hyper-V specific APIC
+		 * accessors since the field layout in the ICR register is
+		 * different in x2apic mode. Furthermore, the architectural
+		 * x2apic MSRs function just as well as the Hyper-V
+		 * synthetic APIC MSRs, so there's no benefit in having
+		 * separate Hyper-V accessors for x2apic mode. The only
+		 * exception is hv_apic_eoi_write, because it benefits from
+		 * lazy EOI when available, but the same accessor works for
+		 * both xapic and x2apic because the field layout is the same.
+		 */
 		apic_set_eoi_write(hv_apic_eoi_write);
-		apic->read      = hv_apic_read;
-		apic->write     = hv_apic_write;
-		apic->icr_write = hv_apic_icr_write;
-		apic->icr_read  = hv_apic_icr_read;
+		if (!x2apic_enabled()) {
+			apic->read      = hv_apic_read;
+			apic->write     = hv_apic_write;
+			apic->icr_write = hv_apic_icr_write;
+			apic->icr_read  = hv_apic_icr_read;
+		}
 	}
 }

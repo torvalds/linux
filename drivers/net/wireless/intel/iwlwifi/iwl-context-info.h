@@ -1,56 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2020 Intel Corporation
+ */
 #ifndef __iwl_context_info_file_h__
 #define __iwl_context_info_file_h__
 
@@ -64,12 +16,12 @@
  *	the init done for driver command that configures several system modes
  * @IWL_CTXT_INFO_EARLY_DEBUG: enable early debug
  * @IWL_CTXT_INFO_ENABLE_CDMP: enable core dump
- * @IWL_CTXT_INFO_RB_CB_SIZE_POS: position of the RBD Cyclic Buffer Size
+ * @IWL_CTXT_INFO_RB_CB_SIZE: mask of the RBD Cyclic Buffer Size
  *	exponent, the actual size is 2**value, valid sizes are 8-2048.
  *	The value is four bits long. Maximum valid exponent is 12
  * @IWL_CTXT_INFO_TFD_FORMAT_LONG: use long TFD Format (the
  *	default is short format - not supported by the driver)
- * @IWL_CTXT_INFO_RB_SIZE_POS: RB size position
+ * @IWL_CTXT_INFO_RB_SIZE: RB size mask
  *	(values are IWL_CTXT_INFO_RB_SIZE_*K)
  * @IWL_CTXT_INFO_RB_SIZE_1K: Value for 1K RB size
  * @IWL_CTXT_INFO_RB_SIZE_2K: Value for 2K RB size
@@ -83,12 +35,12 @@
  * @IWL_CTXT_INFO_RB_SIZE_32K: Value for 32K RB size
  */
 enum iwl_context_info_flags {
-	IWL_CTXT_INFO_AUTO_FUNC_INIT	= BIT(0),
-	IWL_CTXT_INFO_EARLY_DEBUG	= BIT(1),
-	IWL_CTXT_INFO_ENABLE_CDMP	= BIT(2),
-	IWL_CTXT_INFO_RB_CB_SIZE_POS	= 4,
-	IWL_CTXT_INFO_TFD_FORMAT_LONG	= BIT(8),
-	IWL_CTXT_INFO_RB_SIZE_POS	= 9,
+	IWL_CTXT_INFO_AUTO_FUNC_INIT	= 0x0001,
+	IWL_CTXT_INFO_EARLY_DEBUG	= 0x0002,
+	IWL_CTXT_INFO_ENABLE_CDMP	= 0x0004,
+	IWL_CTXT_INFO_RB_CB_SIZE	= 0x00f0,
+	IWL_CTXT_INFO_TFD_FORMAT_LONG	= 0x0100,
+	IWL_CTXT_INFO_RB_SIZE		= 0x1e00,
 	IWL_CTXT_INFO_RB_SIZE_1K	= 0x1,
 	IWL_CTXT_INFO_RB_SIZE_2K	= 0x2,
 	IWL_CTXT_INFO_RB_SIZE_4K	= 0x4,
@@ -225,5 +177,8 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans);
 int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 			 const struct fw_img *fw,
 			 struct iwl_context_info_dram *ctxt_dram);
+int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
+				 const void *data, u32 len,
+				 struct iwl_dram_data *dram);
 
 #endif /* __iwl_context_info_file_h__ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/video/ep93xx-fb.c
  *
@@ -10,11 +11,6 @@
  *
  * Based on the Cirrus Logic ep93xxfb driver, and various other ep93xxfb
  * drivers.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/platform_device.h>
@@ -406,7 +402,7 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static struct fb_ops ep93xxfb_ops = {
+static const struct fb_ops ep93xxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= ep93xxfb_check_var,
 	.fb_set_par	= ep93xxfb_set_par,
@@ -434,7 +430,7 @@ static int ep93xxfb_alloc_videomem(struct fb_info *info)
 	/*
 	 * There is a bug in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
-	 * See: http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
+	 * See: https://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
 	 * There does not seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.

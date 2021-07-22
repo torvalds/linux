@@ -162,13 +162,8 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	account_size = ttm_round_pot(alloc_size) + VMW_IDA_ACC_SIZE +
 		TTM_OBJ_EXTRA_SIZE;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (ret)
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), account_size,
 				   &ctx);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for %s"
@@ -239,17 +234,17 @@ vmw_simple_resource_lookup(struct ttm_object_file *tfile,
 
 	base = ttm_base_object_lookup(tfile, handle);
 	if (!base) {
-		DRM_ERROR("Invalid %s handle 0x%08lx.\n",
-			  func->res_func.type_name,
-			  (unsigned long) handle);
+		VMW_DEBUG_USER("Invalid %s handle 0x%08lx.\n",
+			       func->res_func.type_name,
+			       (unsigned long) handle);
 		return ERR_PTR(-ESRCH);
 	}
 
 	if (ttm_base_object_type(base) != func->ttm_res_type) {
 		ttm_base_object_unref(&base);
-		DRM_ERROR("Invalid type of %s handle 0x%08lx.\n",
-			  func->res_func.type_name,
-			  (unsigned long) handle);
+		VMW_DEBUG_USER("Invalid type of %s handle 0x%08lx.\n",
+			       func->res_func.type_name,
+			       (unsigned long) handle);
 		return ERR_PTR(-EINVAL);
 	}
 

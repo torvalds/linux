@@ -26,6 +26,7 @@
 #include <linux/soc/qcom/smem_state.h>
 
 #include "qcom_common.h"
+#include "qcom_pil_info.h"
 #include "qcom_q6v5.h"
 #include "remoteproc_internal.h"
 
@@ -46,11 +47,9 @@
 #define LPASS_PWR_ON_REG		0x10
 #define LPASS_HALTREQ_REG		0x0
 
-/* list of clocks required by ADSP PIL */
-static const char * const adsp_clk_id[] = {
-	"sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
-	"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core",
-};
+#define QDSP6SS_XO_CBCR		0x38
+#define QDSP6SS_CORE_CBCR	0x20
+#define QDSP6SS_SLEEP_CBCR	0x3c
 
 struct adsp_pil_data {
 	int crash_reason_smem;
@@ -59,6 +58,9 @@ struct adsp_pil_data {
 	const char *ssr_name;
 	const char *sysmon_name;
 	int ssctl_id;
+
+	const char **clk_ids;
+	int num_clks;
 };
 
 struct qcom_adsp {
@@ -75,12 +77,13 @@ struct qcom_adsp {
 	void __iomem *qdsp6ss_base;
 
 	struct reset_control *pdc_sync_reset;
-	struct reset_control *cc_lpass_restart;
+	struct reset_control *restart;
 
 	struct regmap *halt_map;
 	unsigned int halt_lpass;
 
 	int crash_reason_smem;
+	const char *info_name;
 
 	struct completion start_done;
 	struct completion stop_done;
@@ -143,7 +146,7 @@ reset:
 	/* Assert the LPASS PDC Reset */
 	reset_control_assert(adsp->pdc_sync_reset);
 	/* Place the LPASS processor into reset */
-	reset_control_assert(adsp->cc_lpass_restart);
+	reset_control_assert(adsp->restart);
 	/* wait after asserting subsystem restart from AOSS */
 	usleep_range(200, 300);
 
@@ -153,7 +156,7 @@ reset:
 	/* De-assert the LPASS PDC Reset */
 	reset_control_deassert(adsp->pdc_sync_reset);
 	/* Remove the LPASS reset */
-	reset_control_deassert(adsp->cc_lpass_restart);
+	reset_control_deassert(adsp->restart);
 	/* wait after de-asserting subsystem restart from AOSS */
 	usleep_range(200, 300);
 
@@ -163,10 +166,17 @@ reset:
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	int ret;
 
-	return qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
-			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
-			     &adsp->mem_reloc);
+	ret = qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
+				    adsp->mem_region, adsp->mem_phys,
+				    adsp->mem_size, &adsp->mem_reloc);
+	if (ret)
+		return ret;
+
+	qcom_pil_info_store(adsp->info_name, adsp->mem_phys, adsp->mem_size);
+
+	return 0;
 }
 
 static int adsp_start(struct rproc *rproc)
@@ -183,14 +193,25 @@ static int adsp_start(struct rproc *rproc)
 
 	dev_pm_genpd_set_performance_state(adsp->dev, INT_MAX);
 	ret = pm_runtime_get_sync(adsp->dev);
-	if (ret)
+	if (ret) {
+		pm_runtime_put_noidle(adsp->dev);
 		goto disable_xo_clk;
+	}
 
 	ret = clk_bulk_prepare_enable(adsp->num_clks, adsp->clks);
 	if (ret) {
 		dev_err(adsp->dev, "adsp clk_enable failed\n");
 		goto disable_power_domain;
 	}
+
+	/* Enable the XO clock */
+	writel(1, adsp->qdsp6ss_base + QDSP6SS_XO_CBCR);
+
+	/* Enable the QDSP6SS sleep clock */
+	writel(1, adsp->qdsp6ss_base + QDSP6SS_SLEEP_CBCR);
+
+	/* Enable the QDSP6 core clock */
+	writel(1, adsp->qdsp6ss_base + QDSP6SS_CORE_CBCR);
 
 	/* Program boot address */
 	writel(adsp->mem_phys >> 4, adsp->qdsp6ss_base + RST_EVB_REG);
@@ -245,7 +266,7 @@ static int adsp_stop(struct rproc *rproc)
 	int handover;
 	int ret;
 
-	ret = qcom_q6v5_request_stop(&adsp->q6v5);
+	ret = qcom_q6v5_request_stop(&adsp->q6v5, adsp->sysmon);
 	if (ret == -ETIMEDOUT)
 		dev_err(adsp->dev, "timed out on wait\n");
 
@@ -260,7 +281,7 @@ static int adsp_stop(struct rproc *rproc)
 	return ret;
 }
 
-static void *adsp_da_to_va(struct rproc *rproc, u64 da, int len)
+static void *adsp_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	int offset;
@@ -272,16 +293,25 @@ static void *adsp_da_to_va(struct rproc *rproc, u64 da, int len)
 	return adsp->mem_region + offset;
 }
 
+static unsigned long adsp_panic(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = rproc->priv;
+
+	return qcom_q6v5_panic(&adsp->q6v5);
+}
+
 static const struct rproc_ops adsp_ops = {
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
 	.parse_fw = qcom_register_dump_segments,
 	.load = adsp_load,
+	.panic = adsp_panic,
 };
 
-static int adsp_init_clock(struct qcom_adsp *adsp)
+static int adsp_init_clock(struct qcom_adsp *adsp, const char **clk_ids)
 {
+	int num_clks = 0;
 	int i, ret;
 
 	adsp->xo = devm_clk_get(adsp->dev, "xo");
@@ -292,32 +322,39 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 		return ret;
 	}
 
-	adsp->num_clks = ARRAY_SIZE(adsp_clk_id);
+	for (i = 0; clk_ids[i]; i++)
+		num_clks++;
+
+	adsp->num_clks = num_clks;
 	adsp->clks = devm_kcalloc(adsp->dev, adsp->num_clks,
 				sizeof(*adsp->clks), GFP_KERNEL);
 	if (!adsp->clks)
 		return -ENOMEM;
 
 	for (i = 0; i < adsp->num_clks; i++)
-		adsp->clks[i].id = adsp_clk_id[i];
+		adsp->clks[i].id = clk_ids[i];
 
 	return devm_clk_bulk_get(adsp->dev, adsp->num_clks, adsp->clks);
 }
 
 static int adsp_init_reset(struct qcom_adsp *adsp)
 {
-	adsp->pdc_sync_reset = devm_reset_control_get_exclusive(adsp->dev,
+	adsp->pdc_sync_reset = devm_reset_control_get_optional_exclusive(adsp->dev,
 			"pdc_sync");
 	if (IS_ERR(adsp->pdc_sync_reset)) {
 		dev_err(adsp->dev, "failed to acquire pdc_sync reset\n");
 		return PTR_ERR(adsp->pdc_sync_reset);
 	}
 
-	adsp->cc_lpass_restart = devm_reset_control_get_exclusive(adsp->dev,
-			"cc_lpass");
-	if (IS_ERR(adsp->cc_lpass_restart)) {
-		dev_err(adsp->dev, "failed to acquire cc_lpass restart\n");
-		return PTR_ERR(adsp->cc_lpass_restart);
+	adsp->restart = devm_reset_control_get_optional_exclusive(adsp->dev, "restart");
+
+	/* Fall back to the  old "cc_lpass" if "restart" is absent */
+	if (!adsp->restart)
+		adsp->restart = devm_reset_control_get_exclusive(adsp->dev, "cc_lpass");
+
+	if (IS_ERR(adsp->restart)) {
+		dev_err(adsp->dev, "failed to acquire restart\n");
+		return PTR_ERR(adsp->restart);
 	}
 
 	return 0;
@@ -327,15 +364,12 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 				struct platform_device *pdev)
 {
 	struct device_node *syscon;
-	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adsp->qdsp6ss_base = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (!adsp->qdsp6ss_base) {
+	adsp->qdsp6ss_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(adsp->qdsp6ss_base)) {
 		dev_err(adsp->dev, "failed to map QDSP6SS registers\n");
-		return -ENOMEM;
+		return PTR_ERR(adsp->qdsp6ss_base);
 	}
 
 	syscon = of_parse_phandle(pdev->dev.of_node, "qcom,halt-regs", 0);
@@ -405,17 +439,19 @@ static int adsp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
 	}
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 
 	adsp = (struct qcom_adsp *)rproc->priv;
 	adsp->dev = &pdev->dev;
 	adsp->rproc = rproc;
+	adsp->info_name = desc->sysmon_name;
 	platform_set_drvdata(pdev, adsp);
 
 	ret = adsp_alloc_memory_region(adsp);
 	if (ret)
 		goto free_rproc;
 
-	ret = adsp_init_clock(adsp);
+	ret = adsp_init_clock(adsp, desc->clk_ids);
 	if (ret)
 		goto free_rproc;
 
@@ -434,11 +470,15 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_pm;
 
-	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
+	qcom_add_glink_subdev(rproc, &adsp->glink_subdev, desc->ssr_name);
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
 					      desc->sysmon_name,
 					      desc->ssctl_id);
+	if (IS_ERR(adsp->sysmon)) {
+		ret = PTR_ERR(adsp->sysmon);
+		goto disable_pm;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -475,9 +515,28 @@ static const struct adsp_pil_data adsp_resource_init = {
 	.ssr_name = "lpass",
 	.sysmon_name = "adsp",
 	.ssctl_id = 0x14,
+	.clk_ids = (const char*[]) {
+		"sway_cbcr", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
+		"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core", NULL
+	},
+	.num_clks = 7,
+};
+
+static const struct adsp_pil_data cdsp_resource_init = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.ssctl_id = 0x17,
+	.clk_ids = (const char*[]) {
+		"sway", "tbu", "bimc", "ahb_aon", "q6ss_slave", "q6ss_master",
+		"q6_axim", NULL
+	},
+	.num_clks = 7,
 };
 
 static const struct of_device_id adsp_of_match[] = {
+	{ .compatible = "qcom,qcs404-cdsp-pil", .data = &cdsp_resource_init },
 	{ .compatible = "qcom,sdm845-adsp-pil", .data = &adsp_resource_init },
 	{ },
 };

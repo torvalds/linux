@@ -17,6 +17,7 @@
 #define GLK_PAD_OWN	0x020
 #define GLK_PADCFGLOCK	0x080
 #define GLK_HOSTSW_OWN	0x0b0
+#define GLK_GPI_IS	0x100
 #define GLK_GPI_IE	0x110
 
 #define GLK_COMMUNITY(s, e)				\
@@ -24,6 +25,7 @@
 		.padown_offset = GLK_PAD_OWN,		\
 		.padcfglock_offset = GLK_PADCFGLOCK,	\
 		.hostown_offset = GLK_HOSTSW_OWN,	\
+		.is_offset = GLK_GPI_IS,		\
 		.ie_offset = GLK_GPI_IE,		\
 		.gpp_size = 32,                         \
 		.pin_base = (s),			\
@@ -445,7 +447,7 @@ static const struct intel_pinctrl_soc_data *glk_pinctrl_soc_data[] = {
 	&glk_north_soc_data,
 	&glk_audio_soc_data,
 	&glk_scc_soc_data,
-	NULL,
+	NULL
 };
 
 static const struct acpi_device_id glk_pinctrl_acpi_match[] = {

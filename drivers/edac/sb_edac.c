@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Intel Sandy Bridge -EN/-EP/-EX Memory Controller kernel module
  *
  * This driver supports the memory controllers found on the Intel
  * processor family Sandy Bridge.
- *
- * This file may be distributed under the terms of the
- * GNU General Public License version 2 only.
  *
  * Copyright (c) 2011 by:
  *	 Mauro Carvalho Chehab
@@ -256,18 +254,20 @@ static const u32 rir_offset[MAX_RIR_RANGES][MAX_RIR_WAY] = {
  * FIXME: Implement the error count reads directly
  */
 
-static const u32 correrrcnt[] = {
-	0x104, 0x108, 0x10c, 0x110,
-};
-
 #define RANK_ODD_OV(reg)		GET_BITFIELD(reg, 31, 31)
 #define RANK_ODD_ERR_CNT(reg)		GET_BITFIELD(reg, 16, 30)
 #define RANK_EVEN_OV(reg)		GET_BITFIELD(reg, 15, 15)
 #define RANK_EVEN_ERR_CNT(reg)		GET_BITFIELD(reg,  0, 14)
 
+#if 0 /* Currently unused*/
+static const u32 correrrcnt[] = {
+	0x104, 0x108, 0x10c, 0x110,
+};
+
 static const u32 correrrthrsld[] = {
 	0x11c, 0x120, 0x124, 0x128,
 };
+#endif
 
 #define RANK_ODD_ERR_THRSLD(reg)	GET_BITFIELD(reg, 16, 30)
 #define RANK_EVEN_ERR_THRSLD(reg)	GET_BITFIELD(reg,  0, 14)
@@ -939,12 +939,9 @@ static enum dev_type sbridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
 
 static enum dev_type __ibridge_get_width(u32 mtr)
 {
-	enum dev_type type;
+	enum dev_type type = DEV_UNKNOWN;
 
 	switch (mtr) {
-	case 3:
-		type = DEV_UNKNOWN;
-		break;
 	case 2:
 		type = DEV_X16;
 		break;
@@ -1342,7 +1339,7 @@ static void knl_show_mc_route(u32 reg, char *s)
  */
 static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 {
-	u64 sad_base, sad_size, sad_limit = 0;
+	u64 sad_base, sad_limit = 0;
 	u64 tad_base, tad_size, tad_limit, tad_deadspace, tad_livespace;
 	int sad_rule = 0;
 	int tad_rule = 0;
@@ -1429,7 +1426,6 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 		edram_only = KNL_EDRAM_ONLY(dram_rule);
 
 		sad_limit = pvt->info.sad_limit(dram_rule)+1;
-		sad_size = sad_limit - sad_base;
 
 		pci_read_config_dword(pvt->pci_sad0,
 			pvt->info.interleave_list[sad_rule], &interleave_reg);
@@ -1513,7 +1509,6 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 						sad_actual_size[mc] += tad_size;
 					}
 				}
-				tad_base = tad_limit+1;
 			}
 		}
 
@@ -1623,7 +1618,7 @@ static int __populate_dimms(struct mem_ctl_info *mci,
 		}
 
 		for (j = 0; j < max_dimms_per_channel; j++) {
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			if (pvt->info.type == KNIGHTS_LANDING) {
 				pci_read_config_dword(pvt->knl.pci_channel[i],
 					knl_mtr_reg, &mtr);
@@ -2955,7 +2950,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	struct mem_ctl_info *new_mci;
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	enum hw_event_mc_err_type tp_event;
-	char *type, *optype, msg[256];
+	char *optype, msg[256];
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
@@ -2984,14 +2979,11 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	if (uncorrected_error) {
 		core_err_cnt = 1;
 		if (ripv) {
-			type = "FATAL";
-			tp_event = HW_EVENT_ERR_FATAL;
-		} else {
-			type = "NON_FATAL";
 			tp_event = HW_EVENT_ERR_UNCORRECTED;
+		} else {
+			tp_event = HW_EVENT_ERR_FATAL;
 		}
 	} else {
-		type = "CORRECTED";
 		tp_event = HW_EVENT_ERR_CORRECTED;
 	}
 
@@ -3139,7 +3131,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
+	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
 	/*
@@ -3188,7 +3180,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	sbridge_mce_output_error(mci, mce);
 
 	/* Advice mcelog that the error were handled */
-	return NOTIFY_STOP;
+	mce->kflags |= MCE_HANDLED_EDAC;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block sbridge_mce_dec = {
@@ -3203,7 +3196,6 @@ static struct notifier_block sbridge_mce_dec = {
 static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 {
 	struct mem_ctl_info *mci = sbridge_dev->mci;
-	struct sbridge_pvt *pvt;
 
 	if (unlikely(!mci || !mci->pvt_info)) {
 		edac_dbg(0, "MC: dev = %p\n", &sbridge_dev->pdev[0]->dev);
@@ -3211,8 +3203,6 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 		sbridge_printk(KERN_ERR, "Couldn't find mci handler\n");
 		return;
 	}
-
-	pvt = mci->pvt_info;
 
 	edac_dbg(0, "MC: mci = %p, dev = %p\n",
 		 mci, &sbridge_dev->pdev[0]->dev);
@@ -3428,13 +3418,13 @@ fail0:
 }
 
 static const struct x86_cpu_id sbridge_cpuids[] = {
-	INTEL_CPU_FAM6(SANDYBRIDGE_X,	  pci_dev_descr_sbridge_table),
-	INTEL_CPU_FAM6(IVYBRIDGE_X,	  pci_dev_descr_ibridge_table),
-	INTEL_CPU_FAM6(HASWELL_X,	  pci_dev_descr_haswell_table),
-	INTEL_CPU_FAM6(BROADWELL_X,	  pci_dev_descr_broadwell_table),
-	INTEL_CPU_FAM6(BROADWELL_XEON_D,  pci_dev_descr_broadwell_table),
-	INTEL_CPU_FAM6(XEON_PHI_KNL,	  pci_dev_descr_knl_table),
-	INTEL_CPU_FAM6(XEON_PHI_KNM,	  pci_dev_descr_knl_table),
+	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X, &pci_dev_descr_sbridge_table),
+	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE_X,	  &pci_dev_descr_ibridge_table),
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X,	  &pci_dev_descr_haswell_table),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,	  &pci_dev_descr_broadwell_table),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,	  &pci_dev_descr_broadwell_table),
+	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,  &pci_dev_descr_knl_table),
+	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,  &pci_dev_descr_knl_table),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);
@@ -3520,6 +3510,9 @@ static int __init sbridge_init(void)
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
 		return -EBUSY;
 
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return -ENODEV;
+
 	id = x86_match_cpu(sbridge_cpuids);
 	if (!id)
 		return -ENODEV;
@@ -3531,8 +3524,6 @@ static int __init sbridge_init(void)
 
 	if (rc >= 0) {
 		mce_register_decode_chain(&sbridge_mce_dec);
-		if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
-			sbridge_printk(KERN_WARNING, "Loading driver, error reporting disabled.\n");
 		return 0;
 	}
 
@@ -3561,6 +3552,6 @@ MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
+MODULE_AUTHOR("Red Hat Inc. (https://www.redhat.com)");
 MODULE_DESCRIPTION("MC Driver for Intel Sandy Bridge and Ivy Bridge memory controllers - "
 		   SBRIDGE_REVISION);

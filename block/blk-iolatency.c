@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Block rq-qos base io controller
  *
@@ -72,8 +73,10 @@
 #include <linux/sched/loadavg.h>
 #include <linux/sched/signal.h>
 #include <trace/events/block.h>
+#include <linux/blk-mq.h>
 #include "blk-rq-qos.h"
 #include "blk-stat.h"
+#include "blk.h"
 
 #define DEFAULT_SCALE_COOKIE 1000000U
 
@@ -262,29 +265,25 @@ static inline void iolat_update_total_lat_avg(struct iolatency_grp *iolat,
 				   stat->rqs.mean);
 }
 
-static inline bool iolatency_may_queue(struct iolatency_grp *iolat,
-				       wait_queue_entry_t *wait,
-				       bool first_block)
+static void iolat_cleanup_cb(struct rq_wait *rqw, void *private_data)
 {
-	struct rq_wait *rqw = &iolat->rq_wait;
+	atomic_dec(&rqw->inflight);
+	wake_up(&rqw->wait);
+}
 
-	if (first_block && waitqueue_active(&rqw->wait) &&
-	    rqw->wait.head.next != &wait->entry)
-		return false;
+static bool iolat_acquire_inflight(struct rq_wait *rqw, void *private_data)
+{
+	struct iolatency_grp *iolat = private_data;
 	return rq_wait_inc_below(rqw, iolat->rq_depth.max_depth);
 }
 
 static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 				       struct iolatency_grp *iolat,
-				       spinlock_t *lock, bool issue_as_root,
+				       bool issue_as_root,
 				       bool use_memdelay)
-	__releases(lock)
-	__acquires(lock)
 {
 	struct rq_wait *rqw = &iolat->rq_wait;
 	unsigned use_delay = atomic_read(&lat_to_blkg(iolat)->use_delay);
-	DEFINE_WAIT(wait);
-	bool first_block = true;
 
 	if (use_delay)
 		blkcg_schedule_throttle(rqos->q, use_memdelay);
@@ -301,27 +300,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 		return;
 	}
 
-	if (iolatency_may_queue(iolat, &wait, first_block))
-		return;
-
-	do {
-		prepare_to_wait_exclusive(&rqw->wait, &wait,
-					  TASK_UNINTERRUPTIBLE);
-
-		if (iolatency_may_queue(iolat, &wait, first_block))
-			break;
-		first_block = false;
-
-		if (lock) {
-			spin_unlock_irq(lock);
-			io_schedule();
-			spin_lock_irq(lock);
-		} else {
-			io_schedule();
-		}
-	} while (1);
-
-	finish_wait(&rqw->wait, &wait);
+	rq_qos_wait(rqw, iolat, iolat_acquire_inflight, iolat_cleanup_cb);
 }
 
 #define SCALE_DOWN_FACTOR 2
@@ -478,8 +457,7 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	scale_change(iolat, direction > 0);
 }
 
-static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
-				     spinlock_t *lock)
+static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio)
 {
 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
 	struct blkcg_gq *blkg = bio->bi_blkg;
@@ -496,7 +474,7 @@ static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
 		}
 
 		check_scale_change(iolat);
-		__blkcg_iolatency_throttle(rqos, iolat, lock, issue_as_root,
+		__blkcg_iolatency_throttle(rqos, iolat, issue_as_root,
 				     (bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 		blkg = blkg->parent;
 	}
@@ -613,12 +591,13 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	struct rq_wait *rqw;
 	struct iolatency_grp *iolat;
 	u64 window_start;
-	u64 now = ktime_to_ns(ktime_get());
+	u64 now;
 	bool issue_as_root = bio_issue_as_root_blkg(bio);
 	bool enabled = false;
+	int inflight = 0;
 
 	blkg = bio->bi_blkg;
-	if (!blkg)
+	if (!blkg || !bio_flagged(bio, BIO_TRACKED))
 		return;
 
 	iolat = blkg_to_lat(bio->bi_blkg);
@@ -626,6 +605,10 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 		return;
 
 	enabled = blk_iolatency_enabled(iolat->blkiolat);
+	if (!enabled)
+		return;
+
+	now = ktime_to_ns(ktime_get());
 	while (blkg && blkg->parent) {
 		iolat = blkg_to_lat(blkg);
 		if (!iolat) {
@@ -634,41 +617,24 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 		}
 		rqw = &iolat->rq_wait;
 
-		atomic_dec(&rqw->inflight);
-		if (!enabled || iolat->min_lat_nsec == 0)
-			goto next;
-		iolatency_record_time(iolat, &bio->bi_issue, now,
-				      issue_as_root);
-		window_start = atomic64_read(&iolat->window_start);
-		if (now > window_start &&
-		    (now - window_start) >= iolat->cur_win_nsec) {
-			if (atomic64_cmpxchg(&iolat->window_start,
-					window_start, now) == window_start)
-				iolatency_check_latencies(iolat, now);
+		inflight = atomic_dec_return(&rqw->inflight);
+		WARN_ON_ONCE(inflight < 0);
+		/*
+		 * If bi_status is BLK_STS_AGAIN, the bio wasn't actually
+		 * submitted, so do not account for it.
+		 */
+		if (iolat->min_lat_nsec && bio->bi_status != BLK_STS_AGAIN) {
+			iolatency_record_time(iolat, &bio->bi_issue, now,
+					      issue_as_root);
+			window_start = atomic64_read(&iolat->window_start);
+			if (now > window_start &&
+			    (now - window_start) >= iolat->cur_win_nsec) {
+				if (atomic64_cmpxchg(&iolat->window_start,
+					     window_start, now) == window_start)
+					iolatency_check_latencies(iolat, now);
+			}
 		}
-next:
 		wake_up(&rqw->wait);
-		blkg = blkg->parent;
-	}
-}
-
-static void blkcg_iolatency_cleanup(struct rq_qos *rqos, struct bio *bio)
-{
-	struct blkcg_gq *blkg;
-
-	blkg = bio->bi_blkg;
-	while (blkg && blkg->parent) {
-		struct rq_wait *rqw;
-		struct iolatency_grp *iolat;
-
-		iolat = blkg_to_lat(blkg);
-		if (!iolat)
-			goto next;
-
-		rqw = &iolat->rq_wait;
-		atomic_dec(&rqw->inflight);
-		wake_up(&rqw->wait);
-next:
 		blkg = blkg->parent;
 	}
 }
@@ -684,7 +650,6 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
 
 static struct rq_qos_ops blkcg_iolatency_ops = {
 	.throttle = blkcg_iolatency_throttle,
-	.cleanup = blkcg_iolatency_cleanup,
 	.done_bio = blkcg_iolatency_done_bio,
 	.exit = blkcg_iolatency_exit,
 };
@@ -761,7 +726,7 @@ int blk_iolatency_init(struct request_queue *q)
 		return -ENOMEM;
 
 	rqos = &blkiolat->rqos;
-	rqos->id = RQ_QOS_CGROUP;
+	rqos->id = RQ_QOS_LATENCY;
 	rqos->ops = &blkcg_iolatency_ops;
 	rqos->q = q;
 
@@ -779,10 +744,13 @@ int blk_iolatency_init(struct request_queue *q)
 	return 0;
 }
 
-static void iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
+/*
+ * return 1 for enabling iolatency, return -1 for disabling iolatency, otherwise
+ * return 0.
+ */
+static int iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 {
 	struct iolatency_grp *iolat = blkg_to_lat(blkg);
-	struct blk_iolatency *blkiolat = iolat->blkiolat;
 	u64 oldval = iolat->min_lat_nsec;
 
 	iolat->min_lat_nsec = val;
@@ -791,9 +759,12 @@ static void iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 				    BLKIOLATENCY_MAX_WIN_SIZE);
 
 	if (!oldval && val)
-		atomic_inc(&blkiolat->enabled);
-	if (oldval && !val)
-		atomic_dec(&blkiolat->enabled);
+		return 1;
+	if (oldval && !val) {
+		blkcg_clear_delay(blkg);
+		return -1;
+	}
+	return 0;
 }
 
 static void iolatency_clear_scaling(struct blkcg_gq *blkg)
@@ -825,6 +796,7 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	u64 lat_val = 0;
 	u64 oldval;
 	int ret;
+	int enable = 0;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_iolatency, buf, &ctx);
 	if (ret)
@@ -859,7 +831,12 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	blkg = ctx.blkg;
 	oldval = iolat->min_lat_nsec;
 
-	iolatency_set_min_lat_nsec(blkg, lat_val);
+	enable = iolatency_set_min_lat_nsec(blkg, lat_val);
+	if (enable) {
+		WARN_ON_ONCE(!blk_get_queue(blkg->q));
+		blkg_get(blkg);
+	}
+
 	if (oldval != iolat->min_lat_nsec) {
 		iolatency_clear_scaling(blkg);
 	}
@@ -867,6 +844,24 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 	ret = 0;
 out:
 	blkg_conf_finish(&ctx);
+	if (ret == 0 && enable) {
+		struct iolatency_grp *tmp = blkg_to_lat(blkg);
+		struct blk_iolatency *blkiolat = tmp->blkiolat;
+
+		blk_mq_freeze_queue(blkg->q);
+
+		if (enable == 1)
+			atomic_inc(&blkiolat->enabled);
+		else if (enable == -1)
+			atomic_dec(&blkiolat->enabled);
+		else
+			WARN_ON_ONCE(1);
+
+		blk_mq_unfreeze_queue(blkg->q);
+
+		blkg_put(blkg);
+		blk_put_queue(blkg->q);
+	}
 	return ret ?: nbytes;
 }
 
@@ -923,6 +918,9 @@ static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
 	unsigned long long avg_lat;
 	unsigned long long cur_win;
 
+	if (!blkcg_debug_stats)
+		return 0;
+
 	if (iolat->ssd)
 		return iolatency_ssd_stat(iolat, buf, size);
 
@@ -937,11 +935,13 @@ static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
 }
 
 
-static struct blkg_policy_data *iolatency_pd_alloc(gfp_t gfp, int node)
+static struct blkg_policy_data *iolatency_pd_alloc(gfp_t gfp,
+						   struct request_queue *q,
+						   struct blkcg *blkcg)
 {
 	struct iolatency_grp *iolat;
 
-	iolat = kzalloc_node(sizeof(*iolat), gfp, node);
+	iolat = kzalloc_node(sizeof(*iolat), gfp, q->node);
 	if (!iolat)
 		return NULL;
 	iolat->stats = __alloc_percpu_gfp(sizeof(struct latency_stat),
@@ -1002,8 +1002,14 @@ static void iolatency_pd_offline(struct blkg_policy_data *pd)
 {
 	struct iolatency_grp *iolat = pd_to_lat(pd);
 	struct blkcg_gq *blkg = lat_to_blkg(iolat);
+	struct blk_iolatency *blkiolat = iolat->blkiolat;
+	int ret;
 
-	iolatency_set_min_lat_nsec(blkg, 0);
+	ret = iolatency_set_min_lat_nsec(blkg, 0);
+	if (ret == 1)
+		atomic_inc(&blkiolat->enabled);
+	if (ret == -1)
+		atomic_dec(&blkiolat->enabled);
 	iolatency_clear_scaling(blkg);
 }
 
@@ -1040,7 +1046,7 @@ static int __init iolatency_init(void)
 
 static void __exit iolatency_exit(void)
 {
-	return blkcg_policy_unregister(&blkcg_policy_iolatency);
+	blkcg_policy_unregister(&blkcg_policy_iolatency);
 }
 
 module_init(iolatency_init);

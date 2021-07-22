@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Oleksij Rempel <linux@rempel-privat.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -120,15 +116,15 @@ static irqreturn_t asm9260_rtc_irq(int irq, void *dev_id)
 	u32 isr;
 	unsigned long events = 0;
 
-	mutex_lock(&priv->rtc->ops_lock);
+	rtc_lock(priv->rtc);
 	isr = ioread32(priv->iobase + HW_CIIR);
 	if (!isr) {
-		mutex_unlock(&priv->rtc->ops_lock);
+		rtc_unlock(priv->rtc);
 		return IRQ_NONE;
 	}
 
 	iowrite32(0, priv->iobase + HW_CIIR);
-	mutex_unlock(&priv->rtc->ops_lock);
+	rtc_unlock(priv->rtc);
 
 	events |= RTC_AF | RTC_IRQF;
 
@@ -249,7 +245,6 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 {
 	struct asm9260_rtc_priv *priv;
 	struct device *dev = &pdev->dev;
-	struct resource	*res;
 	int irq_alarm, ret;
 	u32 ccr;
 
@@ -261,17 +256,17 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	irq_alarm = platform_get_irq(pdev, 0);
-	if (irq_alarm < 0) {
-		dev_err(dev, "No alarm IRQ resource defined\n");
+	if (irq_alarm < 0)
 		return irq_alarm;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->iobase = devm_ioremap_resource(dev, res);
+	priv->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->iobase))
 		return PTR_ERR(priv->iobase);
 
 	priv->clk = devm_clk_get(dev, "ahb");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
 		dev_err(dev, "Failed to enable clk!\n");

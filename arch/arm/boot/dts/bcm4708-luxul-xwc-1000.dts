@@ -19,12 +19,13 @@
 		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
-	nand: nand@18028000 {
-		nandcs@0 {
+	nand_controller: nand-controller@18028000 {
+		nand@0 {
 			partitions {
 				compatible = "fixed-partitions";
 				#address-cells = <1>;
@@ -50,8 +51,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		restart {
 			label = "Reset";
@@ -65,6 +64,19 @@
 	status = "okay";
 };
 
-&usb3_phy {
+&srab {
 	status = "okay";
+
+	ports {
+		port@4 {
+			reg = <4>;
+			label = "lan";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+		};
+	};
 };

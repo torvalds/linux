@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define INTF_TIMING_ENGINE_EN           0x000
@@ -40,6 +31,8 @@
 #define INTF_TEST_CTL                   0x054
 #define INTF_TP_COLOR0                  0x058
 #define INTF_TP_COLOR1                  0x05C
+#define INTF_CONFIG2                    0x060
+#define INTF_DISPLAY_DATA_HCTL          0x064
 #define INTF_FRAME_LINE_COUNT_EN        0x0A8
 #define INTF_FRAME_COUNT                0x0AC
 #define   INTF_LINE_COUNT               0x0B0
@@ -65,8 +58,10 @@
 #define   INTF_FRAME_COUNT              0x0AC
 #define   INTF_LINE_COUNT               0x0B0
 
-static struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
-		struct dpu_mdss_cfg *m,
+#define   INTF_MUX                      0x25C
+
+static const struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -100,7 +95,7 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	u32 active_hctl, display_hctl, hsync_ctl;
 	u32 polarity_ctl, den_polarity, hsync_polarity, vsync_polarity;
 	u32 panel_format;
-	u32 intf_cfg;
+	u32 intf_cfg, intf_cfg2 = 0, display_data_hctl = 0;
 
 	/* read interface_cfg */
 	intf_cfg = DPU_REG_READ(c, INTF_CONFIG);
@@ -113,11 +108,6 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	hsync_period) + p->hsync_skew;
 	display_v_end = ((vsync_period - p->v_front_porch) * hsync_period) +
 	p->hsync_skew - 1;
-
-	if (ctx->cap->type == INTF_EDP || ctx->cap->type == INTF_DP) {
-		display_v_start += p->hsync_pulse_width + p->h_back_porch;
-		display_v_end -= p->h_front_porch;
-	}
 
 	hsync_start_x = p->h_back_porch + p->hsync_pulse_width;
 	hsync_end_x = hsync_period - p->h_front_porch - 1;
@@ -151,10 +141,25 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	hsync_ctl = (hsync_period << 16) | p->hsync_pulse_width;
 	display_hctl = (hsync_end_x << 16) | hsync_start_x;
 
+	if (ctx->cap->type == INTF_EDP || ctx->cap->type == INTF_DP) {
+		active_h_start = hsync_start_x;
+		active_h_end = active_h_start + p->xres - 1;
+		active_v_start = display_v_start;
+		active_v_end = active_v_start + (p->yres * hsync_period) - 1;
+
+		display_v_start += p->hsync_pulse_width + p->h_back_porch;
+
+		active_hctl = (active_h_end << 16) | active_h_start;
+		display_hctl = active_hctl;
+	}
+
 	den_polarity = 0;
 	if (ctx->cap->type == INTF_HDMI) {
 		hsync_polarity = p->yres >= 720 ? 0 : 1;
 		vsync_polarity = p->yres >= 720 ? 0 : 1;
+	} else if (ctx->cap->type == INTF_DP) {
+		hsync_polarity = p->hsync_polarity;
+		vsync_polarity = p->vsync_polarity;
 	} else {
 		hsync_polarity = 0;
 		vsync_polarity = 0;
@@ -174,6 +179,13 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 				(COLOR_8BIT << 2) |
 				(COLOR_8BIT << 4) |
 				(0x21 << 8));
+
+	if (ctx->cap->features & BIT(DPU_DATA_HCTL_EN)) {
+		intf_cfg2 |= BIT(4);
+		display_data_hctl = display_hctl;
+		DPU_REG_WRITE(c, INTF_CONFIG2, intf_cfg2);
+		DPU_REG_WRITE(c, INTF_DISPLAY_DATA_HCTL, display_data_hctl);
+	}
 
 	DPU_REG_WRITE(c, INTF_HSYNC_CTL, hsync_ctl);
 	DPU_REG_WRITE(c, INTF_VSYNC_PERIOD_F0, vsync_period * hsync_period);
@@ -227,6 +239,25 @@ static void dpu_hw_intf_setup_prg_fetch(
 	DPU_REG_WRITE(c, INTF_CONFIG, fetch_enable);
 }
 
+static void dpu_hw_intf_bind_pingpong_blk(
+		struct dpu_hw_intf *intf,
+		bool enable,
+		const enum dpu_pingpong pp)
+{
+	struct dpu_hw_blk_reg_map *c = &intf->hw;
+	u32 mux_cfg;
+
+	mux_cfg = DPU_REG_READ(c, INTF_MUX);
+	mux_cfg &= ~0xf;
+
+	if (enable)
+		mux_cfg |= (pp - PINGPONG_0) & 0x7;
+	else
+		mux_cfg |= 0xf;
+
+	DPU_REG_WRITE(c, INTF_MUX, mux_cfg);
+}
+
 static void dpu_hw_intf_get_status(
 		struct dpu_hw_intf *intf,
 		struct intf_status *s)
@@ -234,6 +265,7 @@ static void dpu_hw_intf_get_status(
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
 
 	s->is_en = DPU_REG_READ(c, INTF_TIMING_ENGINE_EN);
+	s->is_prog_fetch_en = !!(DPU_REG_READ(c, INTF_CONFIG) & BIT(31));
 	if (s->is_en) {
 		s->frame_count = DPU_REG_READ(c, INTF_FRAME_COUNT);
 		s->line_count = DPU_REG_READ(c, INTF_LINE_COUNT);
@@ -263,20 +295,16 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 	ops->get_status = dpu_hw_intf_get_status;
 	ops->enable_timing = dpu_hw_intf_enable_timing_engine;
 	ops->get_line_count = dpu_hw_intf_get_line_count;
+	if (cap & BIT(DPU_INTF_INPUT_CTRL))
+		ops->bind_pingpong_blk = dpu_hw_intf_bind_pingpong_blk;
 }
-
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
-};
 
 struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_intf *c;
-	struct dpu_intf_cfg *cfg;
-	int rc;
+	const struct dpu_intf_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -297,24 +325,11 @@ struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 	c->mdss = m;
 	_setup_intf_ops(&c->ops, c->cap->features);
 
-	rc = dpu_hw_blk_init(&c->base, DPU_HW_BLK_INTF, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
-
 	return c;
-
-blk_init_error:
-	kzfree(c);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_intf_destroy(struct dpu_hw_intf *intf)
 {
-	if (intf)
-		dpu_hw_blk_destroy(&intf->base);
 	kfree(intf);
 }
 

@@ -1,20 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Linaro Ltd.
  * Copyright 2016 ZTE Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drmP.h>
 
 #include "zx_common_regs.h"
 #include "zx_drm_drv.h"
@@ -50,18 +46,20 @@ static const uint32_t vl_formats[] = {
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 
 static int zx_vl_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *plane_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state,
+									     plane);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 	int min_scale = FRAC_16_16(1, 8);
 	int max_scale = FRAC_16_16(8, 1);
 
-	if (!crtc || !fb)
+	if (!crtc || WARN_ON(!fb))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
 							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
@@ -183,13 +181,14 @@ static void zx_vl_rsz_setup(struct zx_plane *zplane, uint32_t format,
 }
 
 static void zx_vl_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct zx_plane *zplane = to_zx_plane(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dst = &state->dst;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_rect *src = &new_state->src;
+	struct drm_rect *dst = &new_state->dst;
 	struct drm_gem_cma_object *cma_obj;
 	void __iomem *layer = zplane->layer;
 	void __iomem *hbsc = zplane->hbsc;
@@ -199,7 +198,6 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	u32 dst_x, dst_y, dst_w, dst_h;
 	uint32_t format;
 	int fmt;
-	int num_planes;
 	int i;
 
 	if (!fb)
@@ -218,13 +216,12 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	dst_h = drm_rect_height(dst);
 
 	/* Set up data address registers for Y, Cb and Cr planes */
-	num_planes = drm_format_num_planes(format);
 	paddr_reg = layer + VL_Y;
-	for (i = 0; i < num_planes; i++) {
+	for (i = 0; i < fb->format->num_planes; i++) {
 		cma_obj = drm_fb_cma_get_gem_obj(fb, i);
 		paddr = cma_obj->paddr + fb->offsets[i];
 		paddr += src_y * fb->pitches[i];
-		paddr += src_x * drm_format_plane_cpp(format, i);
+		paddr += src_x * fb->format->cpp[i];
 		zx_writel(paddr_reg, paddr);
 		paddr_reg += 4;
 	}
@@ -263,8 +260,10 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void zx_plane_atomic_disable(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct zx_plane *zplane = to_zx_plane(plane);
 	void __iomem *hbsc = zplane->hbsc;
 
@@ -281,16 +280,18 @@ static const struct drm_plane_helper_funcs zx_vl_plane_helper_funcs = {
 };
 
 static int zx_gl_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *plane_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state,
+									     plane);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 
-	if (!crtc || !fb)
+	if (!crtc || WARN_ON(!fb))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
 							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
@@ -353,10 +354,12 @@ static void zx_gl_rsz_setup(struct zx_plane *zplane, u32 src_w, u32 src_h,
 }
 
 static void zx_gl_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct zx_plane *zplane = to_zx_plane(plane);
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	void __iomem *layer = zplane->layer;
 	void __iomem *csc = zplane->csc;
@@ -375,15 +378,15 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	format = fb->format->format;
 	stride = fb->pitches[0];
 
-	src_x = plane->state->src_x >> 16;
-	src_y = plane->state->src_y >> 16;
-	src_w = plane->state->src_w >> 16;
-	src_h = plane->state->src_h >> 16;
+	src_x = new_state->src_x >> 16;
+	src_y = new_state->src_y >> 16;
+	src_w = new_state->src_w >> 16;
+	src_h = new_state->src_h >> 16;
 
-	dst_x = plane->state->crtc_x;
-	dst_y = plane->state->crtc_y;
-	dst_w = plane->state->crtc_w;
-	dst_h = plane->state->crtc_h;
+	dst_x = new_state->crtc_x;
+	dst_y = new_state->crtc_y;
+	dst_w = new_state->crtc_w;
+	dst_h = new_state->crtc_h;
 
 	bpp = fb->format->cpp[0];
 
@@ -444,16 +447,10 @@ static const struct drm_plane_helper_funcs zx_gl_plane_helper_funcs = {
 	.atomic_disable = zx_plane_atomic_disable,
 };
 
-static void zx_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_helper_disable(plane, NULL);
-	drm_plane_cleanup(plane);
-}
-
 static const struct drm_plane_funcs zx_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = zx_plane_destroy,
+	.destroy = drm_plane_cleanup,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

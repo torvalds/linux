@@ -5,7 +5,8 @@ SPI0, and the other known as the "Universal SPI Master"; part of the
 auxiliary block. This binding applies to the SPI0 controller.
 
 Required properties:
-- compatible: Should be "brcm,bcm2835-spi".
+- compatible: Should be one of "brcm,bcm2835-spi" for BCM2835/2836/2837 or
+  "brcm,bcm2711-spi" for BCM2711 or "brcm,bcm7211-spi" for BCM7211.
 - reg: Should contain register location and length.
 - interrupts: Should contain interrupt.
 - clocks: The clock feeding the SPI controller.

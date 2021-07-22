@@ -10,7 +10,10 @@ Required properties:
 	"mediatek,mt7623-pinctrl", compatible with mt7623 pinctrl.
 	"mediatek,mt8127-pinctrl", compatible with mt8127 pinctrl.
 	"mediatek,mt8135-pinctrl", compatible with mt8135 pinctrl.
+	"mediatek,mt8167-pinctrl", compatible with mt8167 pinctrl.
 	"mediatek,mt8173-pinctrl", compatible with mt8173 pinctrl.
+	"mediatek,mt8365-pinctrl", compatible with mt8365 pinctrl.
+	"mediatek,mt8516-pinctrl", compatible with mt8516 pinctrl.
 - pins-are-numbered: Specify the subnodes are using numbered pinmux to
   specify pins.
 - gpio-controller : Marks the device node as a gpio controller.
@@ -89,7 +92,7 @@ Examples:
 	pinctrl@1c20800 {
 		compatible = "mediatek,mt8135-pinctrl";
 		reg = <0 0x1000B000 0 0x1000>;
-		mediatek,pctl-regmap = <&syscfg_pctl_a &syscfg_pctl_b>;
+		mediatek,pctl-regmap = <&syscfg_pctl_a>, <&syscfg_pctl_b>;
 		pins-are-numbered;
 		gpio-controller;
 		#gpio-cells = <2>;

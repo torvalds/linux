@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, base class
  *
@@ -5,11 +6,7 @@
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * class skeleton from drivers/hwmon/hwmon.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -23,20 +20,65 @@
 
 #include "rtc-core.h"
 
-
 static DEFINE_IDA(rtc_ida);
 struct class *rtc_class;
 
 static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
+
 	ida_simple_remove(&rtc_ida, rtc->id);
+	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 /* Result of the last RTC to system clock attempt. */
 int rtc_hctosys_ret = -ENODEV;
+
+/* IMPORTANT: the RTC only stores whole seconds. It is arbitrary
+ * whether it stores the most close value or the value with partial
+ * seconds truncated. However, it is important that we use it to store
+ * the truncated value. This is because otherwise it is necessary,
+ * in an rtc sync function, to read both xtime.tv_sec and
+ * xtime.tv_nsec. On some processors (i.e. ARM), an atomic read
+ * of >32bits is not possible. So storing the most close value would
+ * slow down the sync API. So here we have the truncated value and
+ * the best guess is to add 0.5s.
+ */
+
+static void rtc_hctosys(struct rtc_device *rtc)
+{
+	int err;
+	struct rtc_time tm;
+	struct timespec64 tv64 = {
+		.tv_nsec = NSEC_PER_SEC >> 1,
+	};
+
+	err = rtc_read_time(rtc, &tm);
+	if (err) {
+		dev_err(rtc->dev.parent,
+			"hctosys: unable to read the hardware clock\n");
+		goto err_read;
+	}
+
+	tv64.tv_sec = rtc_tm_to_time64(&tm);
+
+#if BITS_PER_LONG == 32
+	if (tv64.tv_sec > INT_MAX) {
+		err = -ERANGE;
+		goto err_read;
+	}
+#endif
+
+	err = do_settimeofday64(&tv64);
+
+	dev_info(rtc->dev.parent, "setting system clock to %ptR UTC (%lld)\n",
+		 &tm, (long long)tv64.tv_sec);
+
+err_read:
+	rtc_hctosys_ret = err;
+}
 #endif
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_RTC_HCTOSYS_DEVICE)
@@ -46,7 +88,6 @@ int rtc_hctosys_ret = -ENODEV;
  */
 
 static struct timespec64 old_rtc, old_system, old_delta;
-
 
 static int rtc_suspend(struct device *dev)
 {
@@ -71,7 +112,6 @@ static int rtc_suspend(struct device *dev)
 	ktime_get_real_ts64(&old_system);
 	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
-
 	/*
 	 * To avoid drift caused by repeated suspend/resumes,
 	 * which each can add ~1 second drift error,
@@ -83,7 +123,7 @@ static int rtc_suspend(struct device *dev)
 	if (delta_delta.tv_sec < -2 || delta_delta.tv_sec >= 2) {
 		/*
 		 * if delta_delta is too large, assume time correction
-		 * has occured and set old_delta to the current delta.
+		 * has occurred and set old_delta to the current delta.
 		 */
 		old_delta = delta;
 	} else {
@@ -136,7 +176,7 @@ static int rtc_resume(struct device *dev)
 	 * to keep things accurate.
 	 */
 	sleep_time = timespec64_sub(sleep_time,
-			timespec64_sub(new_system, old_system));
+				    timespec64_sub(new_system, old_system));
 
 	if (sleep_time.tv_sec >= 0)
 		timekeeping_inject_sleeptime64(&sleep_time);
@@ -161,8 +201,13 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	device_initialize(&rtc->dev);
 
-	/* Drivers can revise this default after allocating the device. */
-	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+	/*
+	 * Drivers can revise this default after allocating the device.
+	 * The default is what most RTCs do: Increment seconds exactly one
+	 * second after the write happened. This adds a default transport
+	 * time of 5ms which is at least halfways close to reality.
+	 */
+	rtc->set_offset_nsec = NSEC_PER_SEC + 5 * NSEC_PER_MSEC;
 
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
@@ -178,13 +223,15 @@ static struct rtc_device *rtc_allocate_device(void)
 	timerqueue_init_head(&rtc->timerqueue);
 	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
 	/* Init aie timer */
-	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, rtc);
 	/* Init uie timer */
-	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, rtc);
 	/* Init pie timer */
 	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
+
+	set_bit(RTC_FEATURE_ALARM, rtc->features);
 
 	return rtc;
 }
@@ -277,89 +324,10 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 		rtc->offset_secs = 0;
 }
 
-/**
- * rtc_device_register - register w/ RTC class
- * @dev: the device to register
- *
- * rtc_device_unregister() must be called when the class device is no
- * longer needed.
- *
- * Returns the pointer to the new struct class device.
- */
-static struct rtc_device *rtc_device_register(const char *name,
-					      struct device *dev,
-					      const struct rtc_class_ops *ops,
-					      struct module *owner)
+static void devm_rtc_unregister_device(void *data)
 {
-	struct rtc_device *rtc;
-	struct rtc_wkalrm alrm;
-	int id, err;
+	struct rtc_device *rtc = data;
 
-	id = rtc_device_get_id(dev);
-	if (id < 0) {
-		err = id;
-		goto exit;
-	}
-
-	rtc = rtc_allocate_device();
-	if (!rtc) {
-		err = -ENOMEM;
-		goto exit_ida;
-	}
-
-	rtc->id = id;
-	rtc->ops = ops;
-	rtc->owner = owner;
-	rtc->dev.parent = dev;
-
-	dev_set_name(&rtc->dev, "rtc%d", id);
-
-	rtc_device_get_offset(rtc);
-
-	/* Check to see if there is an ALARM already set in hw */
-	err = __rtc_read_alarm(rtc, &alrm);
-
-	if (!err && !rtc_valid_tm(&alrm.time))
-		rtc_initialize_alarm(rtc, &alrm);
-
-	rtc_dev_prepare(rtc);
-
-	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
-	if (err) {
-		dev_warn(&rtc->dev, "%s: failed to add char device %d:%d\n",
-			 name, MAJOR(rtc->dev.devt), rtc->id);
-
-		/* This will free both memory and the ID */
-		put_device(&rtc->dev);
-		goto exit;
-	} else {
-		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", name,
-			MAJOR(rtc->dev.devt), rtc->id);
-	}
-
-	rtc_proc_add_device(rtc);
-
-	dev_info(dev, "rtc core: registered %s as %s\n",
-			name, dev_name(&rtc->dev));
-
-	return rtc;
-
-exit_ida:
-	ida_simple_remove(&rtc_ida, id);
-
-exit:
-	dev_err(dev, "rtc core: unable to register %s, err = %d\n",
-			name, err);
-	return ERR_PTR(err);
-}
-
-/**
- * rtc_device_unregister - removes the previously registered RTC class device
- *
- * @rtc: the RTC class device to destroy
- */
-static void rtc_device_unregister(struct rtc_device *rtc)
-{
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -369,137 +337,54 @@ static void rtc_device_unregister(struct rtc_device *rtc)
 	cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
+}
+
+static void devm_rtc_release_device(void *res)
+{
+	struct rtc_device *rtc = res;
+
 	put_device(&rtc->dev);
-}
-
-static void devm_rtc_device_release(struct device *dev, void *res)
-{
-	struct rtc_device *rtc = *(struct rtc_device **)res;
-
-	rtc_nvmem_unregister(rtc);
-	rtc_device_unregister(rtc);
-}
-
-static int devm_rtc_device_match(struct device *dev, void *res, void *data)
-{
-	struct rtc **r = res;
-
-	return *r == data;
-}
-
-/**
- * devm_rtc_device_register - resource managed rtc_device_register()
- * @dev: the device to register
- * @name: the name of the device
- * @ops: the rtc operations structure
- * @owner: the module owner
- *
- * @return a struct rtc on success, or an ERR_PTR on error
- *
- * Managed rtc_device_register(). The rtc_device returned from this function
- * are automatically freed on driver detach. See rtc_device_register()
- * for more information.
- */
-
-struct rtc_device *devm_rtc_device_register(struct device *dev,
-					const char *name,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
-{
-	struct rtc_device **ptr, *rtc;
-
-	ptr = devres_alloc(devm_rtc_device_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	rtc = rtc_device_register(name, dev, ops, owner);
-	if (!IS_ERR(rtc)) {
-		*ptr = rtc;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return rtc;
-}
-EXPORT_SYMBOL_GPL(devm_rtc_device_register);
-
-/**
- * devm_rtc_device_unregister - resource managed devm_rtc_device_unregister()
- * @dev: the device to unregister
- * @rtc: the RTC class device to unregister
- *
- * Deallocated a rtc allocated with devm_rtc_device_register(). Normally this
- * function will not need to be called and the resource management code will
- * ensure that the resource is freed.
- */
-void devm_rtc_device_unregister(struct device *dev, struct rtc_device *rtc)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_rtc_device_release,
-				devm_rtc_device_match, rtc);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
-
-static void devm_rtc_release_device(struct device *dev, void *res)
-{
-	struct rtc_device *rtc = *(struct rtc_device **)res;
-
-	rtc_nvmem_unregister(rtc);
-
-	if (rtc->registered)
-		rtc_device_unregister(rtc);
-	else
-		put_device(&rtc->dev);
 }
 
 struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 {
-	struct rtc_device **ptr, *rtc;
+	struct rtc_device *rtc;
 	int id, err;
 
 	id = rtc_device_get_id(dev);
 	if (id < 0)
 		return ERR_PTR(id);
 
-	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_ida;
-	}
-
 	rtc = rtc_allocate_device();
 	if (!rtc) {
-		err = -ENOMEM;
-		goto exit_devres;
+		ida_simple_remove(&rtc_ida, id);
+		return ERR_PTR(-ENOMEM);
 	}
-
-	*ptr = rtc;
-	devres_add(dev, ptr);
 
 	rtc->id = id;
 	rtc->dev.parent = dev;
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
-	return rtc;
+	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
+	if (err)
+		return ERR_PTR(err);
 
-exit_devres:
-	devres_free(ptr);
-exit_ida:
-	ida_simple_remove(&rtc_ida, id);
-	return ERR_PTR(err);
+	return rtc;
 }
 EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
 
-int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 {
 	struct rtc_wkalrm alrm;
 	int err;
 
-	if (!rtc->ops)
+	if (!rtc->ops) {
+		dev_dbg(&rtc->dev, "no ops set\n");
 		return -EINVAL;
+	}
+
+	if (!rtc->ops->set_alarm)
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
 
 	rtc->owner = owner;
 	rtc_device_get_offset(rtc);
@@ -521,13 +406,54 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	rtc_proc_add_device(rtc);
 
-	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",
 		 dev_name(&rtc->dev));
 
-	return 0;
+#ifdef CONFIG_RTC_HCTOSYS_DEVICE
+	if (!strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE))
+		rtc_hctosys(rtc);
+#endif
+
+	return devm_add_action_or_reset(rtc->dev.parent,
+					devm_rtc_unregister_device, rtc);
 }
-EXPORT_SYMBOL_GPL(__rtc_register_device);
+EXPORT_SYMBOL_GPL(__devm_rtc_register_device);
+
+/**
+ * devm_rtc_device_register - resource managed rtc_device_register()
+ * @dev: the device to register
+ * @name: the name of the device (unused)
+ * @ops: the rtc operations structure
+ * @owner: the module owner
+ *
+ * @return a struct rtc on success, or an ERR_PTR on error
+ *
+ * Managed rtc_device_register(). The rtc_device returned from this function
+ * are automatically freed on driver detach.
+ * This function is deprecated, use devm_rtc_allocate_device and
+ * rtc_register_device instead
+ */
+struct rtc_device *devm_rtc_device_register(struct device *dev,
+					    const char *name,
+					    const struct rtc_class_ops *ops,
+					    struct module *owner)
+{
+	struct rtc_device *rtc;
+	int err;
+
+	rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rtc))
+		return rtc;
+
+	rtc->ops = ops;
+
+	err = __devm_rtc_register_device(owner, rtc);
+	if (err)
+		return ERR_PTR(err);
+
+	return rtc;
+}
+EXPORT_SYMBOL_GPL(devm_rtc_device_register);
 
 static int __init rtc_init(void)
 {

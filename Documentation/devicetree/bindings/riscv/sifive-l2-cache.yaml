@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright (C) 2020 SiFive, Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/riscv/sifive-l2-cache.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SiFive L2 Cache Controller
+
+maintainers:
+  - Sagar Kadam <sagar.kadam@sifive.com>
+  - Yash Shah <yash.shah@sifive.com>
+  - Paul Walmsley  <paul.walmsley@sifive.com>
+
+description:
+  The SiFive Level 2 Cache Controller is used to provide access to fast copies
+  of memory for masters in a Core Complex. The Level 2 Cache Controller also
+  acts as directory-based coherency manager.
+  All the properties in ePAPR/DeviceTree specification applies for this platform.
+
+allOf:
+  - $ref: /schemas/cache-controller.yaml#
+
+select:
+  properties:
+    compatible:
+      items:
+        - enum:
+            - sifive,fu540-c000-ccache
+            - sifive,fu740-c000-ccache
+
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - sifive,fu540-c000-ccache
+          - sifive,fu740-c000-ccache
+      - const: cache
+
+  cache-block-size:
+    const: 64
+
+  cache-level:
+    const: 2
+
+  cache-sets:
+    const: 1024
+
+  cache-size:
+    const: 2097152
+
+  cache-unified: true
+
+  interrupts:
+    minItems: 3
+    items:
+      - description: DirError interrupt
+      - description: DataError interrupt
+      - description: DataFail interrupt
+      - description: DirFail interrupt
+
+  reg:
+    maxItems: 1
+
+  next-level-cache: true
+
+  memory-region:
+    maxItems: 1
+    description: |
+      The reference to the reserved-memory for the L2 Loosely Integrated Memory region.
+      The reserved memory node should be defined as per the bindings in reserved-memory.txt.
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: sifive,fu540-c000-ccache
+
+then:
+  properties:
+    interrupts:
+      description: |
+        Must contain entries for DirError, DataError and DataFail signals.
+      maxItems: 3
+
+else:
+  properties:
+    interrupts:
+      description: |
+        Must contain entries for DirError, DataError, DataFail, DirFail signals.
+      minItems: 4
+
+additionalProperties: false
+
+required:
+  - compatible
+  - cache-block-size
+  - cache-level
+  - cache-sets
+  - cache-size
+  - cache-unified
+  - interrupts
+  - reg
+
+examples:
+  - |
+    cache-controller@2010000 {
+        compatible = "sifive,fu540-c000-ccache", "cache";
+        cache-block-size = <64>;
+        cache-level = <2>;
+        cache-sets = <1024>;
+        cache-size = <2097152>;
+        cache-unified;
+        reg = <0x2010000 0x1000>;
+        interrupt-parent = <&plic0>;
+        interrupts = <1>,
+                     <2>,
+                     <3>;
+        next-level-cache = <&L25>;
+        memory-region = <&l2_lim>;
+    };

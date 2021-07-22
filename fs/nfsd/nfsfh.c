@@ -14,6 +14,7 @@
 #include "nfsd.h"
 #include "vfs.h"
 #include "auth.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
 
@@ -39,7 +40,8 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = inode_permission(d_inode(parent), MAY_EXEC);
+		err = inode_permission(&init_user_ns,
+				       d_inode(parent), MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;
@@ -209,11 +211,14 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	}
 
 	error = nfserr_stale;
-	if (PTR_ERR(exp) == -ENOENT)
-		return error;
+	if (IS_ERR(exp)) {
+		trace_nfsd_set_fh_dentry_badexport(rqstp, fhp, PTR_ERR(exp));
 
-	if (IS_ERR(exp))
+		if (PTR_ERR(exp) == -ENOENT)
+			return error;
+
 		return nfserrno(PTR_ERR(exp));
+	}
 
 	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
 		/* Elevate privileges so that the lack of 'r' or 'x'
@@ -264,9 +269,20 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (fileid_type == FILEID_ROOT)
 		dentry = dget(exp->ex_path.dentry);
 	else {
-		dentry = exportfs_decode_fh(exp->ex_path.mnt, fid,
-				data_left, fileid_type,
-				nfsd_acceptable, exp);
+		dentry = exportfs_decode_fh_raw(exp->ex_path.mnt, fid,
+						data_left, fileid_type,
+						nfsd_acceptable, exp);
+		if (IS_ERR_OR_NULL(dentry)) {
+			trace_nfsd_set_fh_dentry_badhandle(rqstp, fhp,
+					dentry ?  PTR_ERR(dentry) : -ESTALE);
+			switch (PTR_ERR(dentry)) {
+			case -ENOMEM:
+			case -ETIMEDOUT:
+				break;
+			default:
+				dentry = ERR_PTR(-ESTALE);
+			}
+		}
 	}
 	if (dentry == NULL)
 		goto out;
@@ -284,6 +300,20 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 
 	fhp->fh_dentry = dentry;
 	fhp->fh_export = exp;
+
+	switch (rqstp->rq_vers) {
+	case 4:
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOATOMIC_ATTR)
+			fhp->fh_no_atomic_attr = true;
+		break;
+	case 3:
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
+			fhp->fh_no_wcc = true;
+		break;
+	case 2:
+		fhp->fh_no_wcc = true;
+	}
+
 	return 0;
 out:
 	exp_put(exp);
@@ -320,7 +350,7 @@ out:
 __be32
 fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 {
-	struct svc_export *exp;
+	struct svc_export *exp = NULL;
 	struct dentry	*dentry;
 	__be32		error;
 
@@ -393,7 +423,7 @@ skip_pseudoflavor_check:
 	}
 out:
 	if (error == nfserr_stale)
-		nfsdstats.fh_stale++;
+		nfsd_stats_fh_stale_inc(exp);
 	return error;
 }
 
@@ -452,7 +482,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_DEV:
 		if (!old_valid_dev(exp_sb(exp)->s_dev))
 			return false;
-		/* FALL THROUGH */
+		fallthrough;
 	case FSID_MAJOR_MINOR:
 	case FSID_ENCODE_DEV:
 		return exp_sb(exp)->s_type->fs_flags & FS_REQUIRES_DEV;
@@ -462,7 +492,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_UUID16:
 		if (!is_root_export(exp))
 			return false;
-		/* fall through */
+		fallthrough;
 	case FSID_UUID4_INUM:
 	case FSID_UUID16_INUM:
 		return exp->ex_uuid != NULL;
@@ -551,6 +581,9 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 * or the export options.
 	 */
 	set_version_and_fsid_type(fhp, exp, ref_fh);
+
+	/* If we have a ref_fh, then copy the fh_no_wcc setting from it. */
+	fhp->fh_no_wcc = ref_fh ? ref_fh->fh_no_wcc : false;
 
 	if (ref_fh == fhp)
 		fh_put(ref_fh);
@@ -655,6 +688,7 @@ fh_put(struct svc_fh *fhp)
 		exp_put(exp);
 		fhp->fh_export = NULL;
 	}
+	fhp->fh_no_wcc = false;
 	return;
 }
 
@@ -677,7 +711,7 @@ char * SVCFH_fmt(struct svc_fh *fhp)
 	return buf;
 }
 
-enum fsid_source fsid_source(struct svc_fh *fhp)
+enum fsid_source fsid_source(const struct svc_fh *fhp)
 {
 	if (fhp->fh_handle.fh_version != 1)
 		return FSIDSOURCE_DEV;

@@ -1,15 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_CHAN_H__
 #define __NOUVEAU_CHAN_H__
 #include <nvif/object.h>
 #include <nvif/notify.h>
+#include <nvif/push.h>
 struct nvif_device;
 
 struct nouveau_channel {
+	struct {
+		struct nvif_push _push;
+		struct nvif_push *push;
+	} chan;
+
 	struct nvif_device *device;
 	struct nouveau_drm *drm;
+	struct nouveau_vmm *vmm;
 
 	int chid;
+	u64 inst;
+	u32 token;
 
 	struct nvif_object vram;
 	struct nvif_object gart;
@@ -48,7 +57,8 @@ struct nouveau_channel {
 int nouveau_channels_init(struct nouveau_drm *);
 
 int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
-			 u32 arg0, u32 arg1, struct nouveau_channel **);
+			 u32 arg0, u32 arg1, bool priv,
+			 struct nouveau_channel **);
 void nouveau_channel_del(struct nouveau_channel **);
 int  nouveau_channel_idle(struct nouveau_channel *);
 

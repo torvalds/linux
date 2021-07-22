@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * drivers/parisc/gsc.h
  * Declarations for functions in gsc.c
  * Copyright (c) 2000-2002 Helge Deller, Matthew Wilcox
- *
- * Distributed under the terms of the GPL, version 2
  */
 
 #include <linux/interrupt.h>

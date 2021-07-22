@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Samsung Exynos4x12 FIMC-IS (Imaging Subsystem) driver
  *
@@ -7,10 +8,6 @@
  *
  * Authors: Younghwan Joo <yhwan.joo@samsung.com>
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef FIMC_IS_CMD_H_
@@ -18,7 +15,7 @@
 
 #define FIMC_IS_COMMAND_VER	110 /* FIMC-IS command set version 1.10 */
 
-/* Enumeration of commands beetween the FIMC-IS and the host processor. */
+/* Enumeration of commands between the FIMC-IS and the host processor. */
 
 /* HOST to FIMC-IS */
 #define HIC_PREVIEW_STILL	0x0001

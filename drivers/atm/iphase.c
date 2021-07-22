@@ -47,6 +47,7 @@
 #include <linux/errno.h>  
 #include <linux/atm.h>  
 #include <linux/atmdev.h>  
+#include <linux/ctype.h>
 #include <linux/sonet.h>  
 #include <linux/skbuff.h>  
 #include <linux/time.h>  
@@ -63,6 +64,7 @@
 #include <asm/byteorder.h>  
 #include <linux/vmalloc.h>
 #include <linux/jiffies.h>
+#include <linux/nospec.h>
 #include "iphase.h"		  
 #include "suni.h"		  
 #define swap_byte_order(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))
@@ -679,7 +681,7 @@ static void ia_tx_poll (IADEV *iadev) {
           skb1 = skb_dequeue(&iavcc->txing_skb);
        }                                                        
        if (!skb1) {
-          IF_EVENT(printk("IA: Vci %d - skb not found requed\n",vcc->vci);)
+          IF_EVENT(printk("IA: Vci %d - skb not found requeued\n",vcc->vci);)
           ia_enque_head_rtn_q (&iadev->tx_return_q, rtne);
           break;
        }
@@ -995,10 +997,12 @@ static void xdump( u_char*  cp, int  length, char*  prefix )
         }
         pBuf += sprintf( pBuf, "  " );
         for(col = 0;count + col < length && col < 16; col++){
-            if (isprint((int)cp[count + col]))
-                pBuf += sprintf( pBuf, "%c", cp[count + col] );
-            else
-                pBuf += sprintf( pBuf, "." );
+		u_char c = cp[count + col];
+
+		if (isascii(c) && isprint(c))
+			pBuf += sprintf(pBuf, "%c", c);
+		else
+			pBuf += sprintf(pBuf, ".");
                 }
         printk("%s\n", prntBuf);
         count += col;
@@ -2760,19 +2764,16 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
    }
    if (copy_from_user(&ia_cmds, arg, sizeof ia_cmds)) return -EFAULT; 
    board = ia_cmds.status;
-   if ((board < 0) || (board > iadev_count))
-         board = 0;    
+
+	if ((board < 0) || (board > iadev_count))
+		board = 0;
+	board = array_index_nospec(board, iadev_count + 1);
+
    iadev = ia_dev[board];
    switch (ia_cmds.cmd) {
    case MEMDUMP:
    {
 	switch (ia_cmds.sub_cmd) {
-       	  case MEMDUMP_DEV:     
-	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	     if (copy_to_user(ia_cmds.buf, iadev, sizeof(IADEV)))
-                return -EFAULT;
-             ia_cmds.status = 0;
-             break;
           case MEMDUMP_SEGREG:
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
              tmps = (u16 __user *)ia_cmds.buf;
@@ -2826,8 +2827,8 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
          case 0x6:
          {  
              ia_cmds.status = 0; 
-             printk("skb = 0x%lx\n", (long)skb_peek(&iadev->tx_backlog));
-             printk("rtn_q: 0x%lx\n",(long)ia_deque_rtn_q(&iadev->tx_return_q));
+             printk("skb = 0x%p\n", skb_peek(&iadev->tx_backlog));
+             printk("rtn_q: 0x%p\n",ia_deque_rtn_q(&iadev->tx_return_q));
          }
              break;
          case 0x8:
@@ -2880,20 +2881,6 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 
    }	
    return 0;  
-}  
-  
-static int ia_getsockopt(struct atm_vcc *vcc, int level, int optname,   
-	void __user *optval, int optlen)  
-{  
-	IF_EVENT(printk(">ia_getsockopt\n");)  
-	return -EINVAL;  
-}  
-  
-static int ia_setsockopt(struct atm_vcc *vcc, int level, int optname,   
-	void __user *optval, unsigned int optlen)  
-{  
-	IF_EVENT(printk(">ia_setsockopt\n");)  
-	return -EINVAL;  
 }  
   
 static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
@@ -3166,8 +3153,6 @@ static const struct atmdev_ops ops = {
 	.open		= ia_open,  
 	.close		= ia_close,  
 	.ioctl		= ia_ioctl,  
-	.getsockopt	= ia_getsockopt,  
-	.setsockopt	= ia_setsockopt,  
 	.send		= ia_send,  
 	.phy_put	= ia_phy_put,  
 	.phy_get	= ia_phy_get,  
@@ -3297,7 +3282,7 @@ static void __exit ia_module_exit(void)
 {
 	pci_unregister_driver(&ia_driver);
 
-        del_timer(&ia_timer);
+	del_timer_sync(&ia_timer);
 }
 
 module_init(ia_module_init);

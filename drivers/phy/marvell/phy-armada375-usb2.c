@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB cluster support for Armada 375 platform.
  *
  * Copyright (C) 2014 Marvell
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2 or later. This program is licensed "as is"
- * without any warranty of any kind, whether express or implied.
  *
  * Armada 375 comes with an USB2 host and device controller and an
  * USB3 controller. The USB cluster control register allows to manage
@@ -18,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -109,15 +105,13 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct phy_provider *phy_provider;
 	void __iomem *usb_cluster_base;
-	struct resource *res;
 	struct armada375_cluster_phy *cluster_phy;
 
 	cluster_phy = devm_kzalloc(dev, sizeof(*cluster_phy), GFP_KERNEL);
 	if (!cluster_phy)
 		return  -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	usb_cluster_base = devm_ioremap_resource(&pdev->dev, res);
+	usb_cluster_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(usb_cluster_base))
 		return PTR_ERR(usb_cluster_base);
 
@@ -142,7 +136,6 @@ static const struct of_device_id of_usb_cluster_table[] = {
 	{ .compatible = "marvell,armada-375-usb-cluster", },
 	{ /* end of list */ },
 };
-MODULE_DEVICE_TABLE(of, of_usb_cluster_table);
 
 static struct platform_driver armada375_usb_phy_driver = {
 	.probe	= armada375_usb_phy_probe,
@@ -151,8 +144,4 @@ static struct platform_driver armada375_usb_phy_driver = {
 		.name  = "armada-375-usb-cluster",
 	}
 };
-module_platform_driver(armada375_usb_phy_driver);
-
-MODULE_DESCRIPTION("Armada 375 USB cluster driver");
-MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(armada375_usb_phy_driver);

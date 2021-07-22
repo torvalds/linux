@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	linux/kernel/resource.c
  *
@@ -17,12 +18,15 @@
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
+#include <linux/pseudo_fs.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
+#include <linux/mount.h>
 #include <linux/resource_ext.h>
+#include <uapi/linux/magic.h>
 #include <asm/io.h>
 
 
@@ -60,12 +64,8 @@ static DEFINE_RWLOCK(resource_lock);
 static struct resource *bootmem_resource_free;
 static DEFINE_SPINLOCK(bootmem_resource_lock);
 
-static struct resource *next_resource(struct resource *p, bool sibling_only)
+static struct resource *next_resource(struct resource *p)
 {
-	/* Caller wants to traverse through siblings only */
-	if (sibling_only)
-		return p->sibling;
-
 	if (p->child)
 		return p->child;
 	while (!p->sibling && p->parent)
@@ -77,7 +77,7 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct resource *p = v;
 	(*pos)++;
-	return (void *)next_resource(p, false);
+	return (void *)next_resource(p);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -319,20 +319,25 @@ int release_resource(struct resource *old)
 EXPORT_SYMBOL(release_resource);
 
 /**
- * Finds the lowest iomem resource that covers part of [start..end].  The
- * caller must specify start, end, flags, and desc (which may be
- * IORES_DESC_NONE).
+ * find_next_iomem_res - Finds the lowest iomem resource that covers part of
+ *			 [@start..@end].
  *
- * If a resource is found, returns 0 and *res is overwritten with the part
- * of the resource that's within [start..end]; if none is found, returns
- * -1.
+ * If a resource is found, returns 0 and @*res is overwritten with the part
+ * of the resource that's within [@start..@end]; if none is found, returns
+ * -ENODEV.  Returns -EINVAL for invalid parameters.
  *
- * This function walks the whole tree and not just first level children
- * unless @first_lvl is true.
+ * @start:	start address of the resource searched for
+ * @end:	end address of same resource
+ * @flags:	flags which the resource must have
+ * @desc:	descriptor the resource must have
+ * @res:	return ptr, if resource found
+ *
+ * The caller must specify @start, @end, @flags, and @desc
+ * (which may be IORES_DESC_NONE).
  */
 static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 			       unsigned long flags, unsigned long desc,
-			       bool first_lvl, struct resource *res)
+			       struct resource *res)
 {
 	struct resource *p;
 
@@ -344,41 +349,51 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 
 	read_lock(&resource_lock);
 
-	for (p = iomem_resource.child; p; p = next_resource(p, first_lvl)) {
-		if ((p->flags & flags) != flags)
-			continue;
-		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
-			continue;
+	for (p = iomem_resource.child; p; p = next_resource(p)) {
+		/* If we passed the resource we are looking for, stop */
 		if (p->start > end) {
 			p = NULL;
 			break;
 		}
-		if ((p->end >= start) && (p->start <= end))
-			break;
+
+		/* Skip until we find a range that matches what we look for */
+		if (p->end < start)
+			continue;
+
+		if ((p->flags & flags) != flags)
+			continue;
+		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
+			continue;
+
+		/* Found a match, break */
+		break;
+	}
+
+	if (p) {
+		/* copy data */
+		*res = (struct resource) {
+			.start = max(start, p->start),
+			.end = min(end, p->end),
+			.flags = p->flags,
+			.desc = p->desc,
+			.parent = p->parent,
+		};
 	}
 
 	read_unlock(&resource_lock);
-	if (!p)
-		return -1;
-
-	/* copy data */
-	res->start = max(start, p->start);
-	res->end = min(end, p->end);
-	res->flags = p->flags;
-	res->desc = p->desc;
-	return 0;
+	return p ? 0 : -ENODEV;
 }
 
 static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
 				 unsigned long flags, unsigned long desc,
-				 bool first_lvl, void *arg,
+				 void *arg,
 				 int (*func)(struct resource *, void *))
 {
 	struct resource res;
-	int ret = -1;
+	int ret = -EINVAL;
 
 	while (start < end &&
-	       !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
+	       !find_next_iomem_res(start, end, flags, desc, &res)) {
 		ret = (*func)(&res, arg);
 		if (ret)
 			break;
@@ -390,15 +405,18 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
 }
 
 /**
- * Walks through iomem resources and calls func() with matching resource
- * ranges. This walks through whole tree and not just first level children.
- * All the memory ranges which overlap start,end and also match flags and
- * desc are valid candidates.
- *
+ * walk_iomem_res_desc - Walks through iomem resources and calls func()
+ *			 with matching resource ranges.
+ * *
  * @desc: I/O resource descriptor. Use IORES_DESC_NONE to skip @desc check.
  * @flags: I/O resource flags
  * @start: start addr
  * @end: end addr
+ * @arg: function argument for the callback @func
+ * @func: callback function that is called for each qualifying resource area
+ *
+ * All the memory ranges which overlap start,end and also match flags and
+ * desc are valid candidates.
  *
  * NOTE: For a new descriptor search, define a new IORES_DESC in
  * <linux/ioport.h> and set it in 'desc' of a target resource entry.
@@ -406,7 +424,7 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
 int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
 		u64 end, void *arg, int (*func)(struct resource *, void *))
 {
-	return __walk_iomem_res_desc(start, end, flags, desc, false, arg, func);
+	return __walk_iomem_res_desc(start, end, flags, desc, arg, func);
 }
 EXPORT_SYMBOL_GPL(walk_iomem_res_desc);
 
@@ -422,8 +440,8 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
 {
 	unsigned long flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 
-	return __walk_iomem_res_desc(start, end, flags, IORES_DESC_NONE, true,
-				     arg, func);
+	return __walk_iomem_res_desc(start, end, flags, IORES_DESC_NONE, arg,
+				     func);
 }
 
 /*
@@ -435,11 +453,9 @@ int walk_mem_res(u64 start, u64 end, void *arg,
 {
 	unsigned long flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 
-	return __walk_iomem_res_desc(start, end, flags, IORES_DESC_NONE, true,
-				     arg, func);
+	return __walk_iomem_res_desc(start, end, flags, IORES_DESC_NONE, arg,
+				     func);
 }
-
-#if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
 
 /*
  * This function calls the @func callback against all memory ranges of type
@@ -453,16 +469,15 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	unsigned long flags;
 	struct resource res;
 	unsigned long pfn, end_pfn;
-	int ret = -1;
+	int ret = -EINVAL;
 
 	start = (u64) start_pfn << PAGE_SHIFT;
 	end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
 	flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 	while (start < end &&
-	       !find_next_iomem_res(start, end, flags, IORES_DESC_NONE,
-				    true, &res)) {
-		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+	       !find_next_iomem_res(start, end, flags, IORES_DESC_NONE, &res)) {
+		pfn = PFN_UP(res.start);
+		end_pfn = PFN_DOWN(res.end + 1);
 		if (end_pfn > pfn)
 			ret = (*func)(pfn, end_pfn - pfn, arg);
 		if (ret)
@@ -471,8 +486,6 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	}
 	return ret;
 }
-
-#endif
 
 static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
 {
@@ -488,6 +501,34 @@ int __weak page_is_ram(unsigned long pfn)
 	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
 }
 EXPORT_SYMBOL_GPL(page_is_ram);
+
+static int __region_intersects(resource_size_t start, size_t size,
+			unsigned long flags, unsigned long desc)
+{
+	struct resource res;
+	int type = 0; int other = 0;
+	struct resource *p;
+
+	res.start = start;
+	res.end = start + size - 1;
+
+	for (p = iomem_resource.child; p ; p = p->sibling) {
+		bool is_type = (((p->flags & flags) == flags) &&
+				((desc == IORES_DESC_NONE) ||
+				 (desc == p->desc)));
+
+		if (resource_overlaps(p, &res))
+			is_type ? type++ : other++;
+	}
+
+	if (type == 0)
+		return REGION_DISJOINT;
+
+	if (other == 0)
+		return REGION_INTERSECTS;
+
+	return REGION_MIXED;
+}
 
 /**
  * region_intersects() - determine intersection of region with known resources
@@ -512,32 +553,13 @@ EXPORT_SYMBOL_GPL(page_is_ram);
 int region_intersects(resource_size_t start, size_t size, unsigned long flags,
 		      unsigned long desc)
 {
-	resource_size_t end = start + size - 1;
-	int type = 0; int other = 0;
-	struct resource *p;
+	int ret;
 
 	read_lock(&resource_lock);
-	for (p = iomem_resource.child; p ; p = p->sibling) {
-		bool is_type = (((p->flags & flags) == flags) &&
-				((desc == IORES_DESC_NONE) ||
-				 (desc == p->desc)));
-
-		if (start >= p->start && start <= p->end)
-			is_type ? type++ : other++;
-		if (end >= p->start && end <= p->end)
-			is_type ? type++ : other++;
-		if (p->start >= start && p->end <= end)
-			is_type ? type++ : other++;
-	}
+	ret = __region_intersects(start, size, flags, desc);
 	read_unlock(&resource_lock);
 
-	if (other == 0)
-		return type ? REGION_INTERSECTS : REGION_DISJOINT;
-
-	if (type)
-		return REGION_MIXED;
-
-	return REGION_DISJOINT;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(region_intersects);
 
@@ -1089,29 +1111,64 @@ resource_size_t resource_alignment(struct resource *res)
 
 static DECLARE_WAIT_QUEUE_HEAD(muxed_resource_wait);
 
-/**
- * __request_region - create a new busy resource region
- * @parent: parent resource descriptor
- * @start: resource start address
- * @n: resource region size
- * @name: reserving caller's ID string
- * @flags: IO resource flags
- */
-struct resource * __request_region(struct resource *parent,
+static struct inode *iomem_inode;
+
+#ifdef CONFIG_IO_STRICT_DEVMEM
+static void revoke_iomem(struct resource *res)
+{
+	/* pairs with smp_store_release() in iomem_init_inode() */
+	struct inode *inode = smp_load_acquire(&iomem_inode);
+
+	/*
+	 * Check that the initialization has completed. Losing the race
+	 * is ok because it means drivers are claiming resources before
+	 * the fs_initcall level of init and prevent iomem_get_mapping users
+	 * from establishing mappings.
+	 */
+	if (!inode)
+		return;
+
+	/*
+	 * The expectation is that the driver has successfully marked
+	 * the resource busy by this point, so devmem_is_allowed()
+	 * should start returning false, however for performance this
+	 * does not iterate the entire resource range.
+	 */
+	if (devmem_is_allowed(PHYS_PFN(res->start)) &&
+	    devmem_is_allowed(PHYS_PFN(res->end))) {
+		/*
+		 * *cringe* iomem=relaxed says "go ahead, what's the
+		 * worst that can happen?"
+		 */
+		return;
+	}
+
+	unmap_mapping_range(inode->i_mapping, res->start, resource_size(res), 1);
+}
+#else
+static void revoke_iomem(struct resource *res) {}
+#endif
+
+struct address_space *iomem_get_mapping(void)
+{
+	/*
+	 * This function is only called from file open paths, hence guaranteed
+	 * that fs_initcalls have completed and no need to check for NULL. But
+	 * since revoke_iomem can be called before the initcall we still need
+	 * the barrier to appease checkers.
+	 */
+	return smp_load_acquire(&iomem_inode)->i_mapping;
+}
+
+static int __request_region_locked(struct resource *res, struct resource *parent,
 				   resource_size_t start, resource_size_t n,
 				   const char *name, int flags)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	struct resource *res = alloc_resource(GFP_KERNEL);
-
-	if (!res)
-		return NULL;
 
 	res->name = name;
 	res->start = start;
 	res->end = start + n - 1;
-
-	write_lock(&resource_lock);
 
 	for (;;) {
 		struct resource *conflict;
@@ -1123,6 +1180,15 @@ struct resource * __request_region(struct resource *parent,
 		conflict = __request_resource(parent, res);
 		if (!conflict)
 			break;
+		/*
+		 * mm/hmm.c reserves physical addresses which then
+		 * become unavailable to other users.  Conflicts are
+		 * not expected.  Warn to aid debugging if encountered.
+		 */
+		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+			pr_warn("Unaddressable device %s %pR conflicts with %pR",
+				conflict->name, conflict, res);
+		}
 		if (conflict != parent) {
 			if (!(conflict->flags & IORESOURCE_BUSY)) {
 				parent = conflict;
@@ -1139,11 +1205,42 @@ struct resource * __request_region(struct resource *parent,
 			continue;
 		}
 		/* Uhhuh, that didn't work out.. */
-		free_resource(res);
-		res = NULL;
-		break;
+		return -EBUSY;
 	}
+
+	return 0;
+}
+
+/**
+ * __request_region - create a new busy resource region
+ * @parent: parent resource descriptor
+ * @start: resource start address
+ * @n: resource region size
+ * @name: reserving caller's ID string
+ * @flags: IO resource flags
+ */
+struct resource *__request_region(struct resource *parent,
+				  resource_size_t start, resource_size_t n,
+				  const char *name, int flags)
+{
+	struct resource *res = alloc_resource(GFP_KERNEL);
+	int ret;
+
+	if (!res)
+		return NULL;
+
+	write_lock(&resource_lock);
+	ret = __request_region_locked(res, parent, start, n, name, flags);
 	write_unlock(&resource_lock);
+
+	if (ret) {
+		free_resource(res);
+		return NULL;
+	}
+
+	if (parent == &iomem_resource)
+		revoke_iomem(res);
+
 	return res;
 }
 EXPORT_SYMBOL(__request_region);
@@ -1200,7 +1297,6 @@ EXPORT_SYMBOL(__release_region);
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /**
  * release_mem_region_adjustable - release a previously reserved memory region
- * @parent: parent resource descriptor
  * @start: resource start address
  * @size: resource region size
  *
@@ -1218,21 +1314,28 @@ EXPORT_SYMBOL(__release_region);
  *   assumes that all children remain in the lower address entry for
  *   simplicity.  Enhance this logic when necessary.
  */
-int release_mem_region_adjustable(struct resource *parent,
-				  resource_size_t start, resource_size_t size)
+void release_mem_region_adjustable(resource_size_t start, resource_size_t size)
 {
+	struct resource *parent = &iomem_resource;
+	struct resource *new_res = NULL;
+	bool alloc_nofail = false;
 	struct resource **p;
 	struct resource *res;
-	struct resource *new_res;
 	resource_size_t end;
-	int ret = -EINVAL;
 
 	end = start + size - 1;
-	if ((start < parent->start) || (end > parent->end))
-		return ret;
+	if (WARN_ON_ONCE((start < parent->start) || (end > parent->end)))
+		return;
 
-	/* The alloc_resource() result gets checked later */
-	new_res = alloc_resource(GFP_KERNEL);
+	/*
+	 * We free up quite a lot of memory on memory hotunplug (esp., memap),
+	 * just before releasing the region. This is highly unlikely to
+	 * fail - let's play save and make it never fail as the caller cannot
+	 * perform any error handling (e.g., trying to re-add memory will fail
+	 * similarly).
+	 */
+retry:
+	new_res = alloc_resource(GFP_KERNEL | (alloc_nofail ? __GFP_NOFAIL : 0));
 
 	p = &parent->child;
 	write_lock(&resource_lock);
@@ -1245,6 +1348,20 @@ int release_mem_region_adjustable(struct resource *parent,
 		if (res->start > start || res->end < end) {
 			p = &res->sibling;
 			continue;
+		}
+
+		/*
+		 * All memory regions added from memory-hotplug path have the
+		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
+		 * this flag, we know that we are dealing with a resource coming
+		 * from HMM/devm. HMM/devm use another mechanism to add/release
+		 * a resource. This goes via devm_request_mem_region and
+		 * devm_release_mem_region.
+		 * HMM/devm take care to release their resources when they want,
+		 * so if we are dealing with them, let us just back off here.
+		 */
+		if (!(res->flags & IORESOURCE_SYSRAM)) {
+			break;
 		}
 
 		if (!(res->flags & IORESOURCE_MEM))
@@ -1260,20 +1377,23 @@ int release_mem_region_adjustable(struct resource *parent,
 			/* free the whole entry */
 			*p = res->sibling;
 			free_resource(res);
-			ret = 0;
 		} else if (res->start == start && res->end != end) {
 			/* adjust the start */
-			ret = __adjust_resource(res, end + 1,
-						res->end - end);
+			WARN_ON_ONCE(__adjust_resource(res, end + 1,
+						       res->end - end));
 		} else if (res->start != start && res->end == end) {
 			/* adjust the end */
-			ret = __adjust_resource(res, res->start,
-						start - res->start);
+			WARN_ON_ONCE(__adjust_resource(res, res->start,
+						       start - res->start));
 		} else {
-			/* split into two entries */
+			/* split into two entries - we need a new resource */
 			if (!new_res) {
-				ret = -ENOMEM;
-				break;
+				new_res = alloc_resource(GFP_ATOMIC);
+				if (!new_res) {
+					alloc_nofail = true;
+					write_unlock(&resource_lock);
+					goto retry;
+				}
 			}
 			new_res->name = res->name;
 			new_res->start = end + 1;
@@ -1284,9 +1404,8 @@ int release_mem_region_adjustable(struct resource *parent,
 			new_res->sibling = res->sibling;
 			new_res->child = NULL;
 
-			ret = __adjust_resource(res, res->start,
-						start - res->start);
-			if (ret)
+			if (WARN_ON_ONCE(__adjust_resource(res, res->start,
+							   start - res->start)))
 				break;
 			res->sibling = new_res;
 			new_res = NULL;
@@ -1297,9 +1416,68 @@ int release_mem_region_adjustable(struct resource *parent,
 
 	write_unlock(&resource_lock);
 	free_resource(new_res);
-	return ret;
 }
 #endif	/* CONFIG_MEMORY_HOTREMOVE */
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static bool system_ram_resources_mergeable(struct resource *r1,
+					   struct resource *r2)
+{
+	/* We assume either r1 or r2 is IORESOURCE_SYSRAM_MERGEABLE. */
+	return r1->flags == r2->flags && r1->end + 1 == r2->start &&
+	       r1->name == r2->name && r1->desc == r2->desc &&
+	       !r1->child && !r2->child;
+}
+
+/**
+ * merge_system_ram_resource - mark the System RAM resource mergeable and try to
+ *	merge it with adjacent, mergeable resources
+ * @res: resource descriptor
+ *
+ * This interface is intended for memory hotplug, whereby lots of contiguous
+ * system ram resources are added (e.g., via add_memory*()) by a driver, and
+ * the actual resource boundaries are not of interest (e.g., it might be
+ * relevant for DIMMs). Only resources that are marked mergeable, that have the
+ * same parent, and that don't have any children are considered. All mergeable
+ * resources must be immutable during the request.
+ *
+ * Note:
+ * - The caller has to make sure that no pointers to resources that are
+ *   marked mergeable are used anymore after this call - the resource might
+ *   be freed and the pointer might be stale!
+ * - release_mem_region_adjustable() will split on demand on memory hotunplug
+ */
+void merge_system_ram_resource(struct resource *res)
+{
+	const unsigned long flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+	struct resource *cur;
+
+	if (WARN_ON_ONCE((res->flags & flags) != flags))
+		return;
+
+	write_lock(&resource_lock);
+	res->flags |= IORESOURCE_SYSRAM_MERGEABLE;
+
+	/* Try to merge with next item in the list. */
+	cur = res->sibling;
+	if (cur && system_ram_resources_mergeable(res, cur)) {
+		res->end = cur->end;
+		res->sibling = cur->sibling;
+		free_resource(cur);
+	}
+
+	/* Try to merge with previous item in the list. */
+	cur = res->parent->child;
+	while (cur && cur->sibling != res)
+		cur = cur->sibling;
+	if (cur && system_ram_resources_mergeable(cur, res)) {
+		cur->end = res->end;
+		cur->sibling = res->sibling;
+		free_resource(res);
+	}
+	write_unlock(&resource_lock);
+}
+#endif	/* CONFIG_MEMORY_HOTPLUG */
 
 /*
  * Managed region resource
@@ -1596,6 +1774,93 @@ void resource_list_free(struct list_head *head)
 }
 EXPORT_SYMBOL(resource_list_free);
 
+#ifdef CONFIG_DEVICE_PRIVATE
+static struct resource *__request_free_mem_region(struct device *dev,
+		struct resource *base, unsigned long size, const char *name)
+{
+	resource_size_t end, addr;
+	struct resource *res;
+	struct region_devres *dr = NULL;
+
+	size = ALIGN(size, 1UL << PA_SECTION_SHIFT);
+	end = min_t(unsigned long, base->end, (1UL << MAX_PHYSMEM_BITS) - 1);
+	addr = end - size + 1UL;
+
+	res = alloc_resource(GFP_KERNEL);
+	if (!res)
+		return ERR_PTR(-ENOMEM);
+
+	if (dev) {
+		dr = devres_alloc(devm_region_release,
+				sizeof(struct region_devres), GFP_KERNEL);
+		if (!dr) {
+			free_resource(res);
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	write_lock(&resource_lock);
+	for (; addr > size && addr >= base->start; addr -= size) {
+		if (__region_intersects(addr, size, 0, IORES_DESC_NONE) !=
+				REGION_DISJOINT)
+			continue;
+
+		if (__request_region_locked(res, &iomem_resource, addr, size,
+						name, 0))
+			break;
+
+		if (dev) {
+			dr->parent = &iomem_resource;
+			dr->start = addr;
+			dr->n = size;
+			devres_add(dev, dr);
+		}
+
+		res->desc = IORES_DESC_DEVICE_PRIVATE_MEMORY;
+		write_unlock(&resource_lock);
+
+		/*
+		 * A driver is claiming this region so revoke any mappings.
+		 */
+		revoke_iomem(res);
+		return res;
+	}
+	write_unlock(&resource_lock);
+
+	free_resource(res);
+	if (dr)
+		devres_free(dr);
+
+	return ERR_PTR(-ERANGE);
+}
+
+/**
+ * devm_request_free_mem_region - find free region for device private memory
+ *
+ * @dev: device struct to bind the resource to
+ * @size: size in bytes of the device memory to add
+ * @base: resource tree to look in
+ *
+ * This function tries to find an empty range of physical address big enough to
+ * contain the new resource, so that it can later be hotplugged as ZONE_DEVICE
+ * memory, which in turn allocates struct pages.
+ */
+struct resource *devm_request_free_mem_region(struct device *dev,
+		struct resource *base, unsigned long size)
+{
+	return __request_free_mem_region(dev, base, size, dev_name(dev));
+}
+EXPORT_SYMBOL_GPL(devm_request_free_mem_region);
+
+struct resource *request_free_mem_region(struct resource *base,
+		unsigned long size, const char *name)
+{
+	return __request_free_mem_region(NULL, base, size, name);
+}
+EXPORT_SYMBOL_GPL(request_free_mem_region);
+
+#endif /* CONFIG_DEVICE_PRIVATE */
+
 static int __init strict_iomem(char *str)
 {
 	if (strstr(str, "relaxed"))
@@ -1604,5 +1869,49 @@ static int __init strict_iomem(char *str)
 		strict_iomem_checks = 1;
 	return 1;
 }
+
+static int iomem_fs_init_fs_context(struct fs_context *fc)
+{
+	return init_pseudo(fc, DEVMEM_MAGIC) ? 0 : -ENOMEM;
+}
+
+static struct file_system_type iomem_fs_type = {
+	.name		= "iomem",
+	.owner		= THIS_MODULE,
+	.init_fs_context = iomem_fs_init_fs_context,
+	.kill_sb	= kill_anon_super,
+};
+
+static int __init iomem_init_inode(void)
+{
+	static struct vfsmount *iomem_vfs_mount;
+	static int iomem_fs_cnt;
+	struct inode *inode;
+	int rc;
+
+	rc = simple_pin_fs(&iomem_fs_type, &iomem_vfs_mount, &iomem_fs_cnt);
+	if (rc < 0) {
+		pr_err("Cannot mount iomem pseudo filesystem: %d\n", rc);
+		return rc;
+	}
+
+	inode = alloc_anon_inode(iomem_vfs_mount->mnt_sb);
+	if (IS_ERR(inode)) {
+		rc = PTR_ERR(inode);
+		pr_err("Cannot allocate inode for iomem: %d\n", rc);
+		simple_release_fs(&iomem_vfs_mount, &iomem_fs_cnt);
+		return rc;
+	}
+
+	/*
+	 * Publish iomem revocation inode initialized.
+	 * Pairs with smp_load_acquire() in revoke_iomem().
+	 */
+	smp_store_release(&iomem_inode, inode);
+
+	return 0;
+}
+
+fs_initcall(iomem_init_inode);
 
 __setup("iomem=", strict_iomem);

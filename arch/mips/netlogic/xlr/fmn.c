@@ -103,18 +103,12 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 				mflags = nlm_cop2_enable_irqsave();
 			}
 		}
-	};
+	}
 	/* Enable message ring intr, to any thread in core */
 	nlm_fmn_setup_intr(irq, (1 << nlm_threads_per_core) - 1);
 	nlm_cop2_disable_irqrestore(mflags);
 	return IRQ_HANDLED;
 }
-
-struct irqaction fmn_irqaction = {
-	.handler = fmn_message_handler,
-	.flags = IRQF_PERCPU,
-	.name = "fmn",
-};
 
 void xlr_percpu_fmn_init(void)
 {
@@ -195,8 +189,9 @@ void nlm_setup_fmn_irq(void)
 {
 	uint32_t flags;
 
-	/* setup irq only once */
-	setup_irq(IRQ_FMN, &fmn_irqaction);
+	/* request irq only once */
+	if (request_irq(IRQ_FMN, fmn_message_handler, IRQF_PERCPU, "fmn", NULL))
+		pr_err("Failed to request irq %d (fmn)\n", IRQ_FMN);
 
 	flags = nlm_cop2_enable_irqsave();
 	nlm_fmn_setup_intr(IRQ_FMN, (1 << nlm_threads_per_core) - 1);

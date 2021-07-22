@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * NET		Generic infrastructure for Network protocols.
  *
@@ -6,11 +7,6 @@
  * Authors:	Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * 		From code originally in include/net/tcp.h
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _REQUEST_SOCK_H
 #define _REQUEST_SOCK_H
@@ -45,6 +41,13 @@ struct request_sock_ops {
 
 int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req);
 
+struct saved_syn {
+	u32 mac_hdrlen;
+	u32 network_hdrlen;
+	u32 tcp_hdrlen;
+	u8 data[];
+};
+
 /* struct request_sock - mini sock to represent a connection request
  */
 struct request_sock {
@@ -58,13 +61,13 @@ struct request_sock {
 	struct request_sock		*dl_next;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
-	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
+	u8				syncookie:1; /* syncookie: encode tcpopts in timestamp */
 	u8				num_timeout:7; /* number of timeouts */
 	u32				ts_recent;
 	struct timer_list		rsk_timer;
 	const struct request_sock_ops	*rsk_ops;
 	struct sock			*sk;
-	u32				*saved_syn;
+	struct saved_syn		*saved_syn;
 	u32				secid;
 	u32				peer_secid;
 };
@@ -101,21 +104,27 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	sk_node_init(&req_to_sk(req)->sk_node);
 	sk_tx_queue_clear(req_to_sk(req));
 	req->saved_syn = NULL;
+	req->num_timeout = 0;
+	req->num_retrans = 0;
+	req->sk = NULL;
 	refcount_set(&req->rsk_refcnt, 0);
 
 	return req;
 }
 
-static inline void reqsk_free(struct request_sock *req)
+static inline void __reqsk_free(struct request_sock *req)
 {
-	/* temporary debugging */
-	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
-
 	req->rsk_ops->destructor(req);
 	if (req->rsk_listener)
 		sock_put(req->rsk_listener);
 	kfree(req->saved_syn);
 	kmem_cache_free(req->rsk_ops->slab, req);
+}
+
+static inline void reqsk_free(struct request_sock *req)
+{
+	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
+	__reqsk_free(req);
 }
 
 static inline void reqsk_put(struct request_sock *req)
@@ -183,7 +192,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 
 static inline bool reqsk_queue_empty(const struct request_sock_queue *queue)
 {
-	return queue->rskq_accept_head == NULL;
+	return READ_ONCE(queue->rskq_accept_head) == NULL;
 }
 
 static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue *queue,
@@ -195,7 +204,7 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 	req = queue->rskq_accept_head;
 	if (req) {
 		sk_acceptq_removed(parent);
-		queue->rskq_accept_head = req->dl_next;
+		WRITE_ONCE(queue->rskq_accept_head, req->dl_next);
 		if (queue->rskq_accept_head == NULL)
 			queue->rskq_accept_tail = NULL;
 	}

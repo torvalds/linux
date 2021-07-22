@@ -74,6 +74,8 @@ nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
 
 	if (debug > subdev->debug)
 		return;
+	if (!mthd)
+		return;
 
 	for (i = 0; (list = mthd->data[i].mthd) != NULL; i++) {
 		u32 base = chan->head * mthd->addr;
@@ -276,7 +278,7 @@ nv50_disp_chan_child_get(struct nvkm_object *object, int index,
 	const struct nvkm_device_oclass *oclass = NULL;
 
 	if (chan->func->bind)
-		sclass->engine = nvkm_device_engine(device, NVKM_ENGINE_DMAOBJ);
+		sclass->engine = nvkm_device_engine(device, NVKM_ENGINE_DMAOBJ, 0);
 	else
 		sclass->engine = NULL;
 

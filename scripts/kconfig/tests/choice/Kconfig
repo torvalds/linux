@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config MODULES
 	bool "Enable loadable module support"
-	option modules
+	modules
 	default y
 
 choice

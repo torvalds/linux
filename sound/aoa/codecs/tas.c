@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Apple Onboard Audio driver for tas codec
  *
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
- *
- * GPL v2, can be found in COPYING.
  *
  * Open questions:
  *  - How to distinguish between 3004 and versions?
@@ -218,7 +217,7 @@ static int tas_dev_register(struct snd_device *dev)
 	return 0;
 }
 
-static struct snd_device_ops ops = {
+static const struct snd_device_ops ops = {
 	.dev_register = tas_dev_register,
 };
 
@@ -370,7 +369,7 @@ static int tas_snd_mixer_put(struct snd_kcontrol *kcontrol,
 }
 
 #define MIXER_CONTROL(n,descr,idx)			\
-static struct snd_kcontrol_new n##_control = {		\
+static const struct snd_kcontrol_new n##_control = {	\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
 	.name = descr " Playback Volume",		\
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,	\
@@ -895,7 +894,7 @@ static int tas_i2c_probe(struct i2c_client *client,
 	/* seems that half is a saner default */
 	tas->drc_range = TAS3004_DRC_MAX / 2;
 
-	strlcpy(tas->codec.name, "tas", MAX_CODEC_NAME_LEN);
+	strscpy(tas->codec.name, "tas", MAX_CODEC_NAME_LEN);
 	tas->codec.owner = THIS_MODULE;
 	tas->codec.init = tas_init_codec;
 	tas->codec.exit = tas_exit_codec;

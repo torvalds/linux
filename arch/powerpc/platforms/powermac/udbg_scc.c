@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * udbg for zilog scc ports as found on Apple PowerMacs
  *
  * Copyright (C) 2001-2005 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
 #include <asm/udbg.h>
@@ -84,10 +80,10 @@ void udbg_scc_init(int force_scc)
 	path = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (path != NULL)
 		stdout = of_find_node_by_path(path);
-	for (ch = NULL; (ch = of_get_next_child(escc, ch)) != NULL;) {
+	for_each_child_of_node(escc, ch) {
 		if (ch == stdout)
 			ch_def = of_node_get(ch);
-		if (strcmp(ch->name, "ch-a") == 0)
+		if (of_node_name_eq(ch, "ch-a"))
 			ch_a = of_node_get(ch);
 	}
 	if (ch_def == NULL && !force_scc)

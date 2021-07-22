@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
- * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
  * linux-drivers@emulex.com
@@ -27,7 +23,7 @@ struct be_ethtool_stat {
 };
 
 enum {DRVSTAT_TX, DRVSTAT_RX, DRVSTAT};
-#define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
+#define FIELDINFO(_struct, field) sizeof_field(_struct, field), \
 					offsetof(_struct, field)
 #define DRVSTAT_TX_INFO(field)	#field, DRVSTAT_TX,\
 					FIELDINFO(struct be_tx_stats, field)
@@ -225,7 +221,6 @@ static void be_get_drvinfo(struct net_device *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VER, sizeof(drvinfo->version));
 	if (!memcmp(adapter->fw_ver, adapter->fw_on_flash, FW_VER_LEN))
 		strlcpy(drvinfo->fw_version, adapter->fw_ver,
 			sizeof(drvinfo->fw_version));
@@ -274,8 +269,8 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 	int status = 0;
 
 	read_cmd.size = LANCER_READ_FILE_CHUNK;
-	read_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, read_cmd.size,
-					  &read_cmd.dma, GFP_ATOMIC);
+	read_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, read_cmd.size,
+					 &read_cmd.dma, GFP_ATOMIC);
 
 	if (!read_cmd.va) {
 		dev_err(&adapter->pdev->dev,
@@ -333,8 +328,8 @@ static int be_get_coalesce(struct net_device *netdev,
 	et->tx_coalesce_usecs_high = aic->max_eqd;
 	et->tx_coalesce_usecs_low = aic->min_eqd;
 
-	et->use_adaptive_rx_coalesce = aic->enable;
-	et->use_adaptive_tx_coalesce = aic->enable;
+	et->use_adaptive_rx_coalesce = adapter->aic_enabled;
+	et->use_adaptive_tx_coalesce = adapter->aic_enabled;
 
 	return 0;
 }
@@ -350,8 +345,9 @@ static int be_set_coalesce(struct net_device *netdev,
 	struct be_eq_obj *eqo;
 	int i;
 
+	adapter->aic_enabled = et->use_adaptive_rx_coalesce;
+
 	for_all_evt_queues(adapter, eqo, i) {
-		aic->enable = et->use_adaptive_rx_coalesce;
 		aic->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
 		aic->min_eqd = min(et->rx_coalesce_usecs_low, aic->max_eqd);
 		aic->et_eqd = min(et->rx_coalesce_usecs, aic->max_eqd);
@@ -575,7 +571,7 @@ static u32 convert_to_et_setting(struct be_adapter *adapter, u32 if_speeds)
 				break;
 			}
 		}
-		/* fall through */
+		fallthrough;
 	case PHY_TYPE_SFP_PLUS_10GB:
 	case PHY_TYPE_XFP_10GB:
 	case PHY_TYPE_SFP_1GB:
@@ -815,7 +811,7 @@ static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	}
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
-	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
+	cmd.va = dma_alloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
 	if (!cmd.va)
 		return -ENOMEM;
 
@@ -851,9 +847,9 @@ static int be_test_ddr_dma(struct be_adapter *adapter)
 	};
 
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
-	ddrdma_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
-					    ddrdma_cmd.size, &ddrdma_cmd.dma,
-					    GFP_KERNEL);
+	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
+					   ddrdma_cmd.size, &ddrdma_cmd.dma,
+					   GFP_KERNEL);
 	if (!ddrdma_cmd.va)
 		return -ENOMEM;
 
@@ -895,7 +891,7 @@ static void be_self_test(struct net_device *netdev, struct ethtool_test *test,
 			 u64 *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status;
+	int status, cnt;
 	u8 link_status = 0;
 
 	if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
@@ -905,6 +901,9 @@ static void be_self_test(struct net_device *netdev, struct ethtool_test *test,
 	}
 
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
+
+	/* check link status before offline tests */
+	link_status = netif_carrier_ok(netdev);
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (be_loopback_test(adapter, BE_MAC_LOOPBACK, &data[0]) != 0)
@@ -926,13 +925,26 @@ static void be_self_test(struct net_device *netdev, struct ethtool_test *test,
 		test->flags |= ETH_TEST_FL_FAILED;
 	}
 
-	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
-	if (status) {
-		test->flags |= ETH_TEST_FL_FAILED;
-		data[4] = -1;
-	} else if (!link_status) {
+	/* link status was down prior to test */
+	if (!link_status) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = 1;
+		return;
+	}
+
+	for (cnt = 10; cnt; cnt--) {
+		status = be_cmd_link_status_query(adapter, NULL, &link_status,
+						  0);
+		if (status) {
+			test->flags |= ETH_TEST_FL_FAILED;
+			data[4] = -1;
+			break;
+		}
+
+		if (link_status)
+			break;
+
+		msleep_interruptible(500);
 	}
 }
 
@@ -1014,9 +1026,9 @@ static int be_read_eeprom(struct net_device *netdev,
 
 	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
 	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
-	eeprom_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
-					    eeprom_cmd.size, &eeprom_cmd.dma,
-					    GFP_KERNEL);
+	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
+					   eeprom_cmd.size, &eeprom_cmd.dma,
+					   GFP_KERNEL);
 
 	if (!eeprom_cmd.va)
 		return -ENOMEM;
@@ -1105,7 +1117,7 @@ static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		cmd->data = be_get_rss_hash_opts(adapter, cmd->flow_type);
 		break;
 	case ETHTOOL_GRXRINGS:
-		cmd->data = adapter->num_rx_qs - 1;
+		cmd->data = adapter->num_rx_qs;
 		break;
 	default:
 		return -EINVAL;
@@ -1396,6 +1408,9 @@ static int be_set_priv_flags(struct net_device *netdev, u32 flags)
 }
 
 const struct ethtool_ops be_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE |
+				     ETHTOOL_COALESCE_USECS_LOW_HIGH,
 	.get_drvinfo = be_get_drvinfo,
 	.get_wol = be_get_wol,
 	.set_wol = be_set_wol,

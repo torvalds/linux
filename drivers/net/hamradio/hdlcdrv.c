@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*****************************************************************************/
 
 /*
  *	hdlcdrv.c  -- HDLC packet radio network driver.
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Please note that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
@@ -87,7 +74,7 @@
 
 static inline void append_crc_ccitt(unsigned char *buffer, int len)
 {
- 	unsigned int crc = crc_ccitt(0xffff, buffer, len) ^ 0xffff;
+	unsigned int crc = crc_ccitt(0xffff, buffer, len) ^ 0xffff;
 	buffer += len;
 	*buffer++ = crc;
 	*buffer++ = crc >> 8;
@@ -488,8 +475,7 @@ static int hdlcdrv_close(struct net_device *dev)
 
 	if (s->ops && s->ops->close)
 		i = s->ops->close(dev);
-	if (s->skb)
-		dev_kfree_skb(s->skb);
+	dev_kfree_skb(s->skb);
 	s->skb = NULL;
 	s->opened = 0;
 	return i;
@@ -611,7 +597,7 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case HDLCDRVCTL_DRIVERNAME:
 		if (s->ops && s->ops->drvname) {
-			strncpy(bi.data.drivername, s->ops->drvname, 
+			strlcpy(bi.data.drivername, s->ops->drvname,
 				sizeof(bi.data.drivername));
 			break;
 		}
@@ -700,8 +686,6 @@ struct net_device *hdlcdrv_register(const struct hdlcdrv_ops *ops,
 	struct net_device *dev;
 	struct hdlcdrv_state *s;
 	int err;
-
-	BUG_ON(ops == NULL);
 
 	if (privsize < sizeof(struct hdlcdrv_state))
 		privsize = sizeof(struct hdlcdrv_state);

@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+
+config SND_SOC_SOF_IMX_TOPLEVEL
+	bool "SOF support for NXP i.MX audio DSPs"
+	depends on ARM64|| COMPILE_TEST
+	depends on SND_SOC_SOF_OF
+	help
+	  This adds support for Sound Open Firmware for NXP i.MX platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+if SND_SOC_SOF_IMX_TOPLEVEL
+
+config SND_SOC_SOF_IMX_OF
+	def_tristate SND_SOC_SOF_OF
+	select SND_SOC_SOF_IMX8 if SND_SOC_SOF_IMX8_SUPPORT
+	select SND_SOC_SOF_IMX8M if SND_SOC_SOF_IMX8M_SUPPORT
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_IMX_COMMON
+	tristate
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_IMX8_SUPPORT
+	bool "SOF support for i.MX8"
+	depends on IMX_SCU=y || IMX_SCU=SND_SOC_SOF_IMX_OF
+	depends on IMX_DSP=y || IMX_DSP=SND_SOC_SOF_IMX_OF
+	help
+	  This adds support for Sound Open Firmware for NXP i.MX8 platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_IMX8
+	tristate
+	select SND_SOC_SOF_IMX_COMMON
+	select SND_SOC_SOF_XTENSA
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_IMX8M_SUPPORT
+	bool "SOF support for i.MX8M"
+	depends on IMX_DSP=y || IMX_DSP=SND_SOC_SOF_OF
+	help
+	  This adds support for Sound Open Firmware for NXP i.MX8M platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_IMX8M
+	tristate
+	select SND_SOC_SOF_IMX_COMMON
+	select SND_SOC_SOF_XTENSA
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+endif ## SND_SOC_SOF_IMX_IMX_TOPLEVEL

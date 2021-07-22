@@ -48,7 +48,7 @@ registers).
 	 */
 #define KILL_INSN	break	0,0
 
-	.level          LEVEL
+	.level          PA_ASM_LEVEL
 
 	.text
 
@@ -571,8 +571,8 @@ lws_compare_and_swap:
 	ldil	L%lws_lock_start, %r20
 	ldo	R%lws_lock_start(%r20), %r28
 
-	/* Extract four bits from r26 and hash lock (Bits 4-7) */
-	extru  %r26, 27, 4, %r20
+	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
+	extru  %r26, 28, 8, %r20
 
 	/* Find lock to use, the hash is either one of 0 to
 	   15, multiplied by 16 (keep it 16-byte aligned)
@@ -761,8 +761,8 @@ cas2_lock_start:
 	ldil	L%lws_lock_start, %r20
 	ldo	R%lws_lock_start(%r20), %r28
 
-	/* Extract four bits from r26 and hash lock (Bits 4-7) */
-	extru  %r26, 27, 4, %r20
+	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
+	extru  %r26, 28, 8, %r20
 
 	/* Find lock to use, the hash is either one of 0 to
 	   15, multiplied by 16 (keep it 16-byte aligned)
@@ -919,17 +919,22 @@ ENTRY(lws_table)
 END(lws_table)
 	/* End of lws table */
 
+#ifdef CONFIG_64BIT
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
+#else
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
+#endif
+#define __SYSCALL(nr, entry)	ASM_ULONG_INSN entry
 	.align 8
 ENTRY(sys_call_table)
 	.export sys_call_table,data
-#include "syscall_table.S"
+#include <asm/syscall_table_32.h>    /* 32-bit syscalls */
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
 	.align 8
 ENTRY(sys_call_table64)
-#define SYSCALL_TABLE_64BIT
-#include "syscall_table.S"
+#include <asm/syscall_table_64.h>    /* 64-bit syscalls */
 END(sys_call_table64)
 #endif
 
@@ -945,7 +950,7 @@ END(sys_call_table64)
 	.align	L1_CACHE_BYTES
 ENTRY(lws_lock_start)
 	/* lws locks */
-	.rept 16
+	.rept 256
 	/* Keep locks aligned at 16-bytes */
 	.word 1
 	.word 0 
@@ -956,5 +961,3 @@ END(lws_lock_start)
 	.previous
 
 .end
-
-

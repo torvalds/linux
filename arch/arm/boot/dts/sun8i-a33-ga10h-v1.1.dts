@@ -69,7 +69,7 @@
 };
 
 &lradc {
-	button@600 {
+	button-600 {
 		label = "Back";
 		linux,code = <KEY_BACK>;
 		channel = <0>;
@@ -79,7 +79,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
+	pinctrl-0 = <&mmc1_pg_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	bus-width = <4>;
 	non-removable;

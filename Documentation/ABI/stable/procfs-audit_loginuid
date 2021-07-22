@@ -1,0 +1,27 @@
+What:		Audit Login UID
+Date:		2005-02-01
+KernelVersion:	2.6.11-rc2 1e2d1492e178 ("[PATCH] audit: handle loginuid through proc")
+Contact:	linux-audit@redhat.com
+Users:		audit and login applications
+Description:
+		The /proc/$pid/loginuid pseudofile is written to set and
+		read to get the audit login UID of process $pid as a
+		decimal unsigned int (%u, u32).  If it is unset,
+		permissions are not needed to set it.  The accessor must
+		have CAP_AUDIT_CONTROL in the initial user namespace to
+		write it if it has been set.  It cannot be written again
+		if AUDIT_FEATURE_LOGINUID_IMMUTABLE is enabled.  It
+		cannot be unset if AUDIT_FEATURE_ONLY_UNSET_LOGINUID is
+		enabled.
+
+What:		Audit Login Session ID
+Date:		2008-03-13
+KernelVersion:	2.6.25-rc7 1e0bd7550ea9 ("[PATCH] export sessionid alongside the loginuid in procfs")
+Contact:	linux-audit@redhat.com
+Users:		audit and login applications
+Description:
+		The /proc/$pid/sessionid pseudofile is read to get the
+		audit login session ID of process $pid as a decimal
+		unsigned int (%u, u32).  It is set automatically,
+		serially assigned with each new login.
+

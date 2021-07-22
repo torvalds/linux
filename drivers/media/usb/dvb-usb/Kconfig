@@ -1,12 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_USB
 	tristate "Support for various USB DVB devices"
 	depends on DVB_CORE && USB && I2C && RC_CORE
+	select CYPRESS_FIRMWARE
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
 
 	  Almost every USB device needs a firmware, please look into
-	  <file:Documentation/media/dvb-drivers/dvb-usb.rst>.
+	  <file:Documentation/driver-api/media/drivers/dvb-usb.rst>.
 
 	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
@@ -138,11 +140,24 @@ config DVB_USB_CXUSB
 	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
-	  Currently, only DVB and ATSC modes are supported, analog mode
-	  shall be added in the future. Devices that require this module:
+	  DVB and ATSC modes are supported, for a basic analog mode support
+	  see the next option ("Analog support for the Conexant USB2.0 hybrid
+	  reference design").
+	  Devices that require this module:
 
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
+
+config DVB_USB_CXUSB_ANALOG
+	bool "Analog support for the Conexant USB2.0 hybrid reference design"
+	depends on DVB_USB_CXUSB && VIDEO_V4L2
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_USB_CXUSB
+	select VIDEO_CX25840
+	select VIDEOBUF2_VMALLOC
+	help
+	  Say Y here to enable basic analog mode support for the Conexant
+	  USB2.0 hybrid reference design.
+	  Currently this mode is supported only on a Medion MD95700 device.
 
 config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"
@@ -264,6 +279,7 @@ config DVB_USB_PCTV452E
 	tristate "Pinnacle PCTV HDTV Pro USB device/TT Connect S2-3600"
 	depends on DVB_USB
 	select TTPCI_EEPROM
+	select DVB_ISL6423 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LNBP22 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STB0899 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT

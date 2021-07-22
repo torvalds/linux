@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IWLEGACY
 	tristate
 	select FW_LOADER
@@ -10,7 +11,7 @@ config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN (iwl4965)"
 	depends on PCI && MAC80211
 	select IWLEGACY
-	---help---
+	help
 	  This option enables support for
 
 	  Select to build the driver supporting the:
@@ -31,14 +32,14 @@ config IWL4965
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwl4965.
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
 	depends on PCI && MAC80211
 	select IWLEGACY
-	---help---
+	help
 	  Select to build the driver supporting the:
 
 	  Intel PRO/Wireless 3945ABG/BG Network Connection
@@ -57,7 +58,7 @@ config IWL3945
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwl3945.
 
 menu "iwl3945 / iwl4965 Debugging Options"
@@ -66,7 +67,7 @@ menu "iwl3945 / iwl4965 Debugging Options"
 config IWLEGACY_DEBUG
 	bool "Enable full debugging output in iwlegacy (iwl 3945/4965) drivers"
 	depends on IWLEGACY
-	---help---
+	help
 	  This option will enable debug tracing output for the iwlegacy
 	  drivers.
 
@@ -90,9 +91,9 @@ config IWLEGACY_DEBUG
 	  any problems you may encounter.
 
 config IWLEGACY_DEBUGFS
-        bool "iwlegacy (iwl 3945/4965) debugfs support"
-        depends on IWLEGACY && MAC80211_DEBUGFS
-        ---help---
+	bool "iwlegacy (iwl 3945/4965) debugfs support"
+	depends on IWLEGACY && MAC80211_DEBUGFS
+	help
 	  Enable creation of debugfs files for the iwlegacy drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.

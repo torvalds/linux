@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  The NFC Controller Interface is the communication protocol between an
  *  NFC Controller (NFCC) and a Device Host (DH).
@@ -11,19 +12,6 @@
  *  Acknowledgements:
  *  This file is based on hci_core.h, which was written
  *  by Maxim Krasnyansky.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #ifndef __NCI_CORE_H
@@ -166,7 +154,7 @@ struct nci_conn_info {
  * According to specification 102 622 chapter 4.4 Pipes,
  * the pipe identifier is 7 bits long.
  */
-#define NCI_HCI_MAX_PIPES          127
+#define NCI_HCI_MAX_PIPES          128
 
 struct nci_hci_gate {
 	u8 gate;
@@ -310,6 +298,7 @@ int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
 		      struct sk_buff **resp);
 
 struct nci_hci_dev *nci_hci_allocate(struct nci_dev *ndev);
+void nci_hci_deallocate(struct nci_dev *ndev);
 int nci_hci_send_event(struct nci_dev *ndev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
 int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate,
@@ -442,8 +431,6 @@ struct nci_uart_ops {
 	int (*open)(struct nci_uart *nci_uart);
 	void (*close)(struct nci_uart *nci_uart);
 	int (*recv)(struct nci_uart *nci_uart, struct sk_buff *skb);
-	int (*recv_buf)(struct nci_uart *nci_uart, const u8 *data, char *flags,
-			int count);
 	int (*send)(struct nci_uart *nci_uart, struct sk_buff *skb);
 	void (*tx_start)(struct nci_uart *nci_uart);
 	void (*tx_done)(struct nci_uart *nci_uart);

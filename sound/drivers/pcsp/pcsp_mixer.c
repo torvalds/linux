@@ -120,17 +120,17 @@ static int pcsp_pcspkr_put(struct snd_kcontrol *kcontrol,
 	.put =		pcsp_##ctl_type##_put, \
 }
 
-static struct snd_kcontrol_new snd_pcsp_controls_pcm[] = {
+static const struct snd_kcontrol_new snd_pcsp_controls_pcm[] = {
 	PCSP_MIXER_CONTROL(enable, "Master Playback Switch"),
 	PCSP_MIXER_CONTROL(treble, "BaseFRQ Playback Volume"),
 };
 
-static struct snd_kcontrol_new snd_pcsp_controls_spkr[] = {
+static const struct snd_kcontrol_new snd_pcsp_controls_spkr[] = {
 	PCSP_MIXER_CONTROL(pcspkr, "Beep Playback Switch"),
 };
 
 static int snd_pcsp_ctls_add(struct snd_pcsp *chip,
-			     struct snd_kcontrol_new *ctls, int num)
+			     const struct snd_kcontrol_new *ctls, int num)
 {
 	int i, err;
 	struct snd_card *card = chip->card;

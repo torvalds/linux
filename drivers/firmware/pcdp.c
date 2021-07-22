@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Parse the EFI PCDP table to locate the console device.
  *
@@ -5,10 +6,6 @@
  *	Khalid Aziz <khalid.aziz@hp.com>
  *	Alex Williamson <alex.williamson@hp.com>
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -83,6 +80,8 @@ setup_vga_console(struct pcdp_device *dev)
 #endif
 }
 
+extern unsigned long hcdp_phys;
+
 int __init
 efi_setup_pcdp_console(char *cmdline)
 {
@@ -92,11 +91,11 @@ efi_setup_pcdp_console(char *cmdline)
 	int i, serial = 0;
 	int rc = -ENODEV;
 
-	if (efi.hcdp == EFI_INVALID_TABLE_ADDR)
+	if (hcdp_phys == EFI_INVALID_TABLE_ADDR)
 		return -ENODEV;
 
-	pcdp = early_memremap(efi.hcdp, 4096);
-	printk(KERN_INFO "PCDP: v%d at 0x%lx\n", pcdp->rev, efi.hcdp);
+	pcdp = early_memremap(hcdp_phys, 4096);
+	printk(KERN_INFO "PCDP: v%d at 0x%lx\n", pcdp->rev, hcdp_phys);
 
 	if (strstr(cmdline, "console=hcdp")) {
 		if (pcdp->rev < 3)

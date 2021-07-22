@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Omnivision OV2659 CMOS Image Sensor driver
  *
@@ -5,46 +6,21 @@
  *
  * Benoit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/kernel.h>
-#include <linux/media.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/of_graph.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/videodev2.h>
+#include <linux/pm_runtime.h>
 
-#include <media/media-entity.h>
 #include <media/i2c/ov2659.h>
-#include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
-#include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
 #define DRIVER_NAME "ov2659"
@@ -228,10 +204,15 @@ struct ov2659 {
 	struct i2c_client *client;
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *link_frequency;
+	struct clk *clk;
 	const struct ov2659_framesize *frame_size;
 	struct sensor_register *format_ctrl_regs;
 	struct ov2659_pll_ctrl pll;
 	int streaming;
+	/* used to control the sensor PWDN pin */
+	struct gpio_desc *pwdn_gpio;
+	/* used to control the sensor RESETB pin */
+	struct gpio_desc *resetb_gpio;
 };
 
 static const struct sensor_register ov2659_init_regs[] = {
@@ -419,10 +400,14 @@ static struct sensor_register ov2659_720p[] = {
 	{ REG_TIMING_YINC, 0x11 },
 	{ REG_TIMING_VERT_FORMAT, 0x80 },
 	{ REG_TIMING_HORIZ_FORMAT, 0x00 },
+	{ 0x370a, 0x12 },
 	{ 0x3a03, 0xe8 },
 	{ 0x3a09, 0x6f },
 	{ 0x3a0b, 0x5d },
 	{ 0x3a15, 0x9a },
+	{ REG_VFIFO_READ_START_H, 0x00 },
+	{ REG_VFIFO_READ_START_L, 0x80 },
+	{ REG_ISP_CTRL02, 0x00 },
 	{ REG_NULL, 0x00 },
 };
 
@@ -661,7 +646,7 @@ static struct sensor_register ov2659_vga[] = {
 	{ REG_TIMING_HORIZ_FORMAT, 0x01 },
 	{ 0x370a, 0x52 },
 	{ REG_VFIFO_READ_START_H, 0x00 },
-	{ REG_VFIFO_READ_START_L, 0x80 },
+	{ REG_VFIFO_READ_START_L, 0xa0 },
 	{ REG_ISP_CTRL02, 0x10 },
 	{ REG_NULL, 0x00 },
 };
@@ -709,7 +694,7 @@ static  struct sensor_register ov2659_qvga[] = {
 	{ REG_TIMING_HORIZ_FORMAT, 0x01 },
 	{ 0x370a, 0x52 },
 	{ REG_VFIFO_READ_START_H, 0x00 },
-	{ REG_VFIFO_READ_START_L, 0x80 },
+	{ REG_VFIFO_READ_START_L, 0xa0 },
 	{ REG_ISP_CTRL02, 0x10 },
 	{ REG_NULL, 0x00 },
 };
@@ -995,7 +980,7 @@ static int ov2659_init(struct v4l2_subdev *sd, u32 val)
  */
 
 static int ov2659_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1011,7 +996,7 @@ static int ov2659_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov2659_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1037,7 +1022,7 @@ static int ov2659_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int ov2659_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1049,13 +1034,13 @@ static int ov2659_get_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		struct v4l2_mbus_framefmt *mf;
 
-		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		mutex_lock(&ov2659->lock);
 		fmt->format = *mf;
 		mutex_unlock(&ov2659->lock);
 		return 0;
 #else
-	return -ENOTTY;
+		return -EINVAL;
 #endif
 	}
 
@@ -1099,7 +1084,7 @@ static void __ov2659_try_frame_size(struct v4l2_mbus_framefmt *mf,
 }
 
 static int ov2659_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1117,8 +1102,10 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		if (ov2659_formats[index].code == mf->code)
 			break;
 
-	if (index < 0)
-		return -EINVAL;
+	if (index < 0) {
+		index = 0;
+		mf->code = ov2659_formats[index].code;
+	}
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
 	mf->field = V4L2_FIELD_NONE;
@@ -1127,10 +1114,8 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*mf = fmt->format;
-#else
-		return -ENOTTY;
 #endif
 	} else {
 		s64 val;
@@ -1198,14 +1183,25 @@ static int ov2659_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		ov2659_set_streaming(ov2659, 0);
 		ov2659->streaming = on;
+		pm_runtime_put(&client->dev);
 		goto unlock;
 	}
 
-	ov2659_set_pixel_clock(ov2659);
-	ov2659_set_frame_size(ov2659);
-	ov2659_set_format(ov2659);
-	ov2659_set_streaming(ov2659, 1);
-	ov2659->streaming = on;
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret < 0)
+		goto unlock;
+
+	ret = ov2659_init(sd, 0);
+	if (!ret)
+		ret = ov2659_set_pixel_clock(ov2659);
+	if (!ret)
+		ret = ov2659_set_frame_size(ov2659);
+	if (!ret)
+		ret = ov2659_set_format(ov2659);
+	if (!ret) {
+		ov2659_set_streaming(ov2659, 1);
+		ov2659->streaming = on;
+	}
 
 unlock:
 	mutex_unlock(&ov2659->lock);
@@ -1239,12 +1235,18 @@ static int ov2659_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov2659 *ov2659 =
 			container_of(ctrl->handler, struct ov2659, ctrls);
+	struct i2c_client *client = ov2659->client;
+
+	/* V4L2 controls values will be applied only when power is already up */
+	if (!pm_runtime_get_if_in_use(&client->dev))
+		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_TEST_PATTERN:
 		return ov2659_set_test_pattern(ov2659, ctrl->val);
 	}
 
+	pm_runtime_put(&client->dev);
 	return 0;
 }
 
@@ -1257,6 +1259,49 @@ static const char * const ov2659_test_pattern_menu[] = {
 	"Vertical Color Bars",
 };
 
+static int ov2659_power_off(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov2659 *ov2659 = to_ov2659(sd);
+
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	gpiod_set_value(ov2659->pwdn_gpio, 1);
+
+	clk_disable_unprepare(ov2659->clk);
+
+	return 0;
+}
+
+static int ov2659_power_on(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov2659 *ov2659 = to_ov2659(sd);
+	int ret;
+
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	ret = clk_prepare_enable(ov2659->clk);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to enable clock\n",
+			__func__);
+		return ret;
+	}
+
+	gpiod_set_value(ov2659->pwdn_gpio, 0);
+
+	if (ov2659->resetb_gpio) {
+		gpiod_set_value(ov2659->resetb_gpio, 1);
+		usleep_range(500, 1000);
+		gpiod_set_value(ov2659->resetb_gpio, 0);
+		usleep_range(3000, 5000);
+	}
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 subdev internal operations
  */
@@ -1266,7 +1311,7 @@ static int ov2659_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
@@ -1330,13 +1375,12 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 		unsigned short id;
 
 		id = OV265X_ID(pid, ver);
-		if (id != OV2659_ID)
+		if (id != OV2659_ID) {
 			dev_err(&client->dev,
-				"Sensor detection failed (%04X, %d)\n",
-				id, ret);
-		else {
+				"Sensor detection failed (%04X)\n", id);
+			ret = -ENODEV;
+		} else {
 			dev_info(&client->dev, "Found OV%04X sensor\n", id);
-			ret = ov2659_init(sd, 0);
 		}
 	}
 
@@ -1384,13 +1428,11 @@ done:
 	return pdata;
 }
 
-static int ov2659_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2659_probe(struct i2c_client *client)
 {
 	const struct ov2659_platform_data *pdata = ov2659_get_pdata(client);
 	struct v4l2_subdev *sd;
 	struct ov2659 *ov2659;
-	struct clk *clk;
 	int ret;
 
 	if (!pdata) {
@@ -1405,14 +1447,26 @@ static int ov2659_probe(struct i2c_client *client,
 	ov2659->pdata = pdata;
 	ov2659->client = client;
 
-	clk = devm_clk_get(&client->dev, "xvclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ov2659->clk = devm_clk_get(&client->dev, "xvclk");
+	if (IS_ERR(ov2659->clk))
+		return PTR_ERR(ov2659->clk);
 
-	ov2659->xvclk_frequency = clk_get_rate(clk);
+	ov2659->xvclk_frequency = clk_get_rate(ov2659->clk);
 	if (ov2659->xvclk_frequency < 6000000 ||
 	    ov2659->xvclk_frequency > 27000000)
 		return -EINVAL;
+
+	/* Optional gpio don't fail if not present */
+	ov2659->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(ov2659->pwdn_gpio))
+		return PTR_ERR(ov2659->pwdn_gpio);
+
+	/* Optional gpio don't fail if not present */
+	ov2659->resetb_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						      GPIOD_OUT_HIGH);
+	if (IS_ERR(ov2659->resetb_gpio))
+		return PTR_ERR(ov2659->resetb_gpio);
 
 	v4l2_ctrl_handler_init(&ov2659->ctrls, 2);
 	ov2659->link_frequency =
@@ -1459,6 +1513,10 @@ static int ov2659_probe(struct i2c_client *client,
 	ov2659->frame_size = &ov2659_framesizes[2];
 	ov2659->format_ctrl_regs = ov2659_formats[0].format_ctrl_regs;
 
+	ret = ov2659_power_on(&client->dev);
+	if (ret < 0)
+		goto error;
+
 	ret = ov2659_detect(sd);
 	if (ret < 0)
 		goto error;
@@ -1472,10 +1530,15 @@ static int ov2659_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "%s sensor driver registered !!\n", sd->name);
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_idle(&client->dev);
+
 	return 0;
 
 error:
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
+	ov2659_power_off(&client->dev);
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&ov2659->lock);
 	return ret;
@@ -1491,8 +1554,17 @@ static int ov2659_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&ov2659->lock);
 
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov2659_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
+
+static const struct dev_pm_ops ov2659_pm_ops = {
+	SET_RUNTIME_PM_OPS(ov2659_power_off, ov2659_power_on, NULL)
+};
 
 static const struct i2c_device_id ov2659_id[] = {
 	{ "ov2659", 0 },
@@ -1511,9 +1583,10 @@ MODULE_DEVICE_TABLE(of, ov2659_of_match);
 static struct i2c_driver ov2659_i2c_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
+		.pm	= &ov2659_pm_ops,
 		.of_match_table = of_match_ptr(ov2659_of_match),
 	},
-	.probe		= ov2659_probe,
+	.probe_new	= ov2659_probe,
 	.remove		= ov2659_remove,
 	.id_table	= ov2659_id,
 };

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * es8328.c  --  ES8328 ALSA SoC Audio driver
  *
  * Copyright 2014 Sutajio Ko-Usagi PTE LTD
  *
  * Author: Sean Cross <xobs@kosagi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -102,7 +99,6 @@ static SOC_ENUM_SINGLE_DECL(adcpol,
 
 static const DECLARE_TLV_DB_SCALE(play_tlv, -3000, 100, 0);
 static const DECLARE_TLV_DB_SCALE(dac_adc_tlv, -9600, 50, 0);
-static const DECLARE_TLV_DB_SCALE(pga_tlv, 0, 300, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 300, 0);
 
@@ -231,7 +227,7 @@ static const struct soc_enum es8328_rline_enum =
 			      ARRAY_SIZE(es8328_line_texts),
 			      es8328_line_texts);
 static const struct snd_kcontrol_new es8328_right_line_controls =
-	SOC_DAPM_ENUM("Route", es8328_lline_enum);
+	SOC_DAPM_ENUM("Route", es8328_rline_enum);
 
 /* Left Mixer */
 static const struct snd_kcontrol_new es8328_left_mixer_controls[] = {
@@ -453,7 +449,7 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 	{ "ROUT2", NULL, "Right Out 2" },
 };
 
-static int es8328_mute(struct snd_soc_dai *dai, int mute)
+static int es8328_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	return snd_soc_component_update_bits(dai->component, ES8328_DACCONTROL3,
 			ES8328_DACCONTROL3_DACMUTE,
@@ -566,14 +562,14 @@ static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
 		break;
 	case 22579200:
 		mclkdiv2 = 1;
-		/* fall through */
+		fallthrough;
 	case 11289600:
 		es8328->sysclk_constraints = &constraints_11289;
 		es8328->mclk_ratios = ratios_11289;
 		break;
 	case 24576000:
 		mclkdiv2 = 1;
-		/* fall through */
+		fallthrough;
 	case 12288000:
 		es8328->sysclk_constraints = &constraints_12288;
 		es8328->mclk_ratios = ratios_12288;
@@ -696,9 +692,10 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops es8328_dai_ops = {
 	.startup	= es8328_startup,
 	.hw_params	= es8328_hw_params,
-	.digital_mute	= es8328_mute,
+	.mute_stream	= es8328_mute,
 	.set_sysclk	= es8328_set_sysclk,
 	.set_fmt	= es8328_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8328_dai = {
@@ -718,7 +715,7 @@ static struct snd_soc_dai_driver es8328_dai = {
 		.formats = ES8328_FORMATS,
 	},
 	.ops = &es8328_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int es8328_suspend(struct snd_soc_component *component)
@@ -812,8 +809,7 @@ static void es8328_remove(struct snd_soc_component *component)
 
 	es8328 = snd_soc_component_get_drvdata(component);
 
-	if (es8328->clk)
-		clk_disable_unprepare(es8328->clk);
+	clk_disable_unprepare(es8328->clk);
 
 	regulator_bulk_disable(ARRAY_SIZE(es8328->supplies),
 			       es8328->supplies);

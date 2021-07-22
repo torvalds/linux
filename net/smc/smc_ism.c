@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <asm/page.h>
 
@@ -14,13 +15,16 @@
 #include "smc_core.h"
 #include "smc_ism.h"
 #include "smc_pnet.h"
+#include "smc_netlink.h"
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
-	.lock = __SPIN_LOCK_UNLOCKED(smcd_dev_list.lock)
+	.mutex = __MUTEX_INITIALIZER(smcd_dev_list.mutex)
 };
 
-/* Test if an ISM communication is possible. */
+static bool smc_ism_v2_capable;
+
+/* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
 {
 	return smcd->ops->query_remote_gid(smcd, peer_gid, vlan_id ? 1 : 0,
@@ -36,6 +40,22 @@ int smc_ism_write(struct smcd_dev *smcd, const struct smc_ism_position *pos,
 				  pos->offset, data, len);
 
 	return rc < 0 ? rc : 0;
+}
+
+void smc_ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+{
+	smcd->ops->get_system_eid(smcd, eid);
+}
+
+u16 smc_ism_get_chid(struct smcd_dev *smcd)
+{
+	return smcd->ops->get_chid(smcd);
+}
+
+/* HW supports ISM V2 and thus System EID is defined */
+bool smc_ism_is_v2_capable(void)
+{
+	return smc_ism_v2_capable;
 }
 
 /* Set a connection using this DMBE. */
@@ -146,6 +166,10 @@ out:
 int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 {
 	struct smcd_dmb dmb;
+	int rc = 0;
+
+	if (!dmb_desc->dma_addr)
+		return rc;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = dmb_desc->token;
@@ -153,7 +177,13 @@ int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 	dmb.cpu_addr = dmb_desc->cpu_addr;
 	dmb.dma_addr = dmb_desc->dma_addr;
 	dmb.dmb_len = dmb_desc->len;
-	return smcd->ops->unregister_dmb(smcd, &dmb);
+	rc = smcd->ops->unregister_dmb(smcd, &dmb);
+	if (!rc || rc == ISM_ERROR) {
+		dmb_desc->cpu_addr = NULL;
+		dmb_desc->dma_addr = 0;
+	}
+
+	return rc;
 }
 
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
@@ -178,6 +208,97 @@ int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 	return rc;
 }
 
+static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
+				  struct sk_buff *skb,
+				  struct netlink_callback *cb)
+{
+	char smc_pnet[SMC_MAX_PNETID_LEN + 1];
+	struct smc_pci_dev smc_pci_dev;
+	struct nlattr *port_attrs;
+	struct nlattr *attrs;
+	int use_cnt = 0;
+	void *nlh;
+
+	nlh = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &smc_gen_nl_family, NLM_F_MULTI,
+			  SMC_NETLINK_GET_DEV_SMCD);
+	if (!nlh)
+		goto errmsg;
+	attrs = nla_nest_start(skb, SMC_GEN_DEV_SMCD);
+	if (!attrs)
+		goto errout;
+	use_cnt = atomic_read(&smcd->lgr_cnt);
+	if (nla_put_u32(skb, SMC_NLA_DEV_USE_CNT, use_cnt))
+		goto errattr;
+	if (nla_put_u8(skb, SMC_NLA_DEV_IS_CRIT, use_cnt > 0))
+		goto errattr;
+	memset(&smc_pci_dev, 0, sizeof(smc_pci_dev));
+	smc_set_pci_values(to_pci_dev(smcd->dev.parent), &smc_pci_dev);
+	if (nla_put_u32(skb, SMC_NLA_DEV_PCI_FID, smc_pci_dev.pci_fid))
+		goto errattr;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_CHID, smc_pci_dev.pci_pchid))
+		goto errattr;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_VENDOR, smc_pci_dev.pci_vendor))
+		goto errattr;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_DEVICE, smc_pci_dev.pci_device))
+		goto errattr;
+	if (nla_put_string(skb, SMC_NLA_DEV_PCI_ID, smc_pci_dev.pci_id))
+		goto errattr;
+
+	port_attrs = nla_nest_start(skb, SMC_NLA_DEV_PORT);
+	if (!port_attrs)
+		goto errattr;
+	if (nla_put_u8(skb, SMC_NLA_DEV_PORT_PNET_USR, smcd->pnetid_by_user))
+		goto errportattr;
+	memcpy(smc_pnet, smcd->pnetid, SMC_MAX_PNETID_LEN);
+	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
+	if (nla_put_string(skb, SMC_NLA_DEV_PORT_PNETID, smc_pnet))
+		goto errportattr;
+
+	nla_nest_end(skb, port_attrs);
+	nla_nest_end(skb, attrs);
+	genlmsg_end(skb, nlh);
+	return 0;
+
+errportattr:
+	nla_nest_cancel(skb, port_attrs);
+errattr:
+	nla_nest_cancel(skb, attrs);
+errout:
+	nlmsg_cancel(skb, nlh);
+errmsg:
+	return -EMSGSIZE;
+}
+
+static void smc_nl_prep_smcd_dev(struct smcd_dev_list *dev_list,
+				 struct sk_buff *skb,
+				 struct netlink_callback *cb)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	int snum = cb_ctx->pos[0];
+	struct smcd_dev *smcd;
+	int num = 0;
+
+	mutex_lock(&dev_list->mutex);
+	list_for_each_entry(smcd, &dev_list->list, list) {
+		if (num < snum)
+			goto next;
+		if (smc_nl_handle_smcd_dev(smcd, skb, cb))
+			goto errout;
+next:
+		num++;
+	}
+errout:
+	mutex_unlock(&dev_list->mutex);
+	cb_ctx->pos[0] = num;
+}
+
+int smcd_nl_get_device(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	smc_nl_prep_smcd_dev(&smcd_dev_list, skb, cb);
+	return skb->len;
+}
+
 struct smc_ism_event_work {
 	struct work_struct work;
 	struct smcd_dev *smcd;
@@ -187,22 +308,28 @@ struct smc_ism_event_work {
 #define ISM_EVENT_REQUEST		0x0001
 #define ISM_EVENT_RESPONSE		0x0002
 #define ISM_EVENT_REQUEST_IR		0x00000001
+#define ISM_EVENT_CODE_SHUTDOWN		0x80
 #define ISM_EVENT_CODE_TESTLINK		0x83
+
+union smcd_sw_event_info {
+	u64	info;
+	struct {
+		u8		uid[SMC_LGR_ID_SIZE];
+		unsigned short	vlan_id;
+		u16		code;
+	};
+};
 
 static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 {
-	union {
-		u64	info;
-		struct {
-			u32		uid;
-			unsigned short	vlanid;
-			u16		code;
-		};
-	} ev_info;
+	union smcd_sw_event_info ev_info;
 
+	ev_info.info = wrk->event.info;
 	switch (wrk->event.code) {
+	case ISM_EVENT_CODE_SHUTDOWN:	/* Peer shut down DMBs */
+		smc_smcd_terminate(wrk->smcd, wrk->event.tok, ev_info.vlan_id);
+		break;
 	case ISM_EVENT_CODE_TESTLINK:	/* Activity timer */
-		ev_info.info = wrk->event.info;
 		if (ev_info.code == ISM_EVENT_REQUEST) {
 			ev_info.code = ISM_EVENT_RESPONSE;
 			wrk->smcd->ops->signal_event(wrk->smcd,
@@ -215,6 +342,24 @@ static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 	}
 }
 
+int smc_ism_signal_shutdown(struct smc_link_group *lgr)
+{
+	int rc;
+	union smcd_sw_event_info ev_info;
+
+	if (lgr->peer_shutdown)
+		return 0;
+
+	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
+	ev_info.vlan_id = lgr->vlan_id;
+	ev_info.code = ISM_EVENT_REQUEST;
+	rc = lgr->smcd->ops->signal_event(lgr->smcd, lgr->peer_gid,
+					  ISM_EVENT_REQUEST_IR,
+					  ISM_EVENT_CODE_SHUTDOWN,
+					  ev_info.info);
+	return rc;
+}
+
 /* worker for SMC-D events */
 static void smc_ism_event_work(struct work_struct *work)
 {
@@ -223,7 +368,7 @@ static void smc_ism_event_work(struct work_struct *work)
 
 	switch (wrk->event.type) {
 	case ISM_EVENT_GID:	/* GID event, token is peer GID */
-		smc_smcd_terminate(wrk->smcd, wrk->event.tok);
+		smc_smcd_terminate(wrk->smcd, wrk->event.tok, VLAN_VID_MASK);
 		break;
 	case ISM_EVENT_DMB:
 		break;
@@ -257,39 +402,75 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 		return NULL;
 	}
 
+	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
+						 WQ_MEM_RECLAIM, name);
+	if (!smcd->event_wq) {
+		kfree(smcd->conn);
+		kfree(smcd);
+		return NULL;
+	}
+
 	smcd->dev.parent = parent;
 	smcd->dev.release = smcd_release;
 	device_initialize(&smcd->dev);
 	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
-	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
+	if (smc_pnetid_by_dev_port(parent, 0, smcd->pnetid))
+		smc_pnetid_by_table_smcd(smcd);
 
 	spin_lock_init(&smcd->lock);
+	spin_lock_init(&smcd->lgr_lock);
 	INIT_LIST_HEAD(&smcd->vlan);
-	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
-						 WQ_MEM_RECLAIM, name);
+	INIT_LIST_HEAD(&smcd->lgr_list);
+	init_waitqueue_head(&smcd->lgrs_deleted);
 	return smcd;
 }
 EXPORT_SYMBOL_GPL(smcd_alloc_dev);
 
 int smcd_register_dev(struct smcd_dev *smcd)
 {
-	spin_lock(&smcd_dev_list.lock);
-	list_add_tail(&smcd->list, &smcd_dev_list.list);
-	spin_unlock(&smcd_dev_list.lock);
+	int rc;
 
-	return device_add(&smcd->dev);
+	mutex_lock(&smcd_dev_list.mutex);
+	if (list_empty(&smcd_dev_list.list)) {
+		u8 *system_eid = NULL;
+
+		smc_ism_get_system_eid(smcd, &system_eid);
+		if (system_eid[24] != '0' || system_eid[28] != '0')
+			smc_ism_v2_capable = true;
+	}
+	/* sort list: devices without pnetid before devices with pnetid */
+	if (smcd->pnetid[0])
+		list_add_tail(&smcd->list, &smcd_dev_list.list);
+	else
+		list_add(&smcd->list, &smcd_dev_list.list);
+	mutex_unlock(&smcd_dev_list.mutex);
+
+	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
+			    dev_name(&smcd->dev), smcd->pnetid,
+			    smcd->pnetid_by_user ? " (user defined)" : "");
+
+	rc = device_add(&smcd->dev);
+	if (rc) {
+		mutex_lock(&smcd_dev_list.mutex);
+		list_del(&smcd->list);
+		mutex_unlock(&smcd_dev_list.mutex);
+	}
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(smcd_register_dev);
 
 void smcd_unregister_dev(struct smcd_dev *smcd)
 {
-	spin_lock(&smcd_dev_list.lock);
-	list_del(&smcd->list);
-	spin_unlock(&smcd_dev_list.lock);
-	flush_workqueue(smcd->event_wq);
+	pr_warn_ratelimited("smc: removing smcd device %s\n",
+			    dev_name(&smcd->dev));
+	mutex_lock(&smcd_dev_list.mutex);
+	list_del_init(&smcd->list);
+	mutex_unlock(&smcd_dev_list.mutex);
+	smcd->going_away = 1;
+	smc_smcd_terminate_all(smcd);
 	destroy_workqueue(smcd->event_wq);
-	smc_smcd_terminate(smcd, 0);
 
 	device_del(&smcd->dev);
 }
@@ -316,6 +497,8 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 {
 	struct smc_ism_event_work *wrk;
 
+	if (smcd->going_away)
+		return;
 	/* copy event to event work queue, and let it be handled there */
 	wrk = kmalloc(sizeof(*wrk), GFP_ATOMIC);
 	if (!wrk)
@@ -341,8 +524,13 @@ void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
 
 	spin_lock_irqsave(&smcd->lock, flags);
 	conn = smcd->conn[dmbno];
-	if (conn)
+	if (conn && !conn->killed)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
 EXPORT_SYMBOL_GPL(smcd_handle_irq);
+
+void __init smc_ism_init(void)
+{
+	smc_ism_v2_capable = false;
+}

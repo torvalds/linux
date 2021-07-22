@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP Display Subsystem Base
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
@@ -19,36 +11,15 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 
 #include "dss.h"
 #include "omapdss.h"
-
-static struct dss_device *dss_device;
-
-struct dss_device *omapdss_get_dss(void)
-{
-	return dss_device;
-}
-EXPORT_SYMBOL(omapdss_get_dss);
-
-void omapdss_set_dss(struct dss_device *dss)
-{
-	dss_device = dss;
-}
-EXPORT_SYMBOL(omapdss_set_dss);
 
 struct dispc_device *dispc_get_dispc(struct dss_device *dss)
 {
 	return dss->dispc;
 }
-EXPORT_SYMBOL(dispc_get_dispc);
-
-const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
-{
-	return dss->dispc_ops;
-}
-EXPORT_SYMBOL(dispc_get_ops);
-
 
 /* -----------------------------------------------------------------------------
  * OMAP DSS Devices Handling
@@ -63,7 +34,6 @@ void omapdss_device_register(struct omap_dss_device *dssdev)
 	list_add_tail(&dssdev->list, &omapdss_devices_list);
 	mutex_unlock(&omapdss_devices_lock);
 }
-EXPORT_SYMBOL_GPL(omapdss_device_register);
 
 void omapdss_device_unregister(struct omap_dss_device *dssdev)
 {
@@ -71,7 +41,6 @@ void omapdss_device_unregister(struct omap_dss_device *dssdev)
 	list_del(&dssdev->list);
 	mutex_unlock(&omapdss_devices_lock);
 }
-EXPORT_SYMBOL_GPL(omapdss_device_unregister);
 
 static bool omapdss_device_is_registered(struct device_node *node)
 {
@@ -93,32 +62,23 @@ static bool omapdss_device_is_registered(struct device_node *node)
 
 struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev)
 {
-	if (!try_module_get(dssdev->owner))
+	if (get_device(dssdev->dev) == NULL)
 		return NULL;
-
-	if (get_device(dssdev->dev) == NULL) {
-		module_put(dssdev->owner);
-		return NULL;
-	}
 
 	return dssdev;
 }
-EXPORT_SYMBOL(omapdss_device_get);
 
 void omapdss_device_put(struct omap_dss_device *dssdev)
 {
 	put_device(dssdev->dev);
-	module_put(dssdev->owner);
 }
-EXPORT_SYMBOL(omapdss_device_put);
 
-struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
-						    unsigned int port)
+struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node)
 {
 	struct omap_dss_device *dssdev;
 
 	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
-		if (dssdev->dev->of_node == src && dssdev->of_ports & BIT(port))
+		if (dssdev->dev->of_node == node)
 			return omapdss_device_get(dssdev);
 	}
 
@@ -126,13 +86,10 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 }
 
 /*
- * Search for the next device starting at @from. The type argument specfies
- * which device types to consider when searching. Searching for multiple types
- * is supported by and'ing their type flags. Release the reference to the @from
- * device, and acquire a reference to the returned device if found.
+ * Search for the next output device starting at @from. Release the reference to
+ * the @from device, and acquire a reference to the returned device if found.
  */
-struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
-						enum omap_dss_device_type type)
+struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from)
 {
 	struct omap_dss_device *dssdev;
 	struct list_head *list;
@@ -160,15 +117,7 @@ struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 			goto done;
 		}
 
-		/*
-		 * Accept display entities if the display type is requested,
-		 * and output entities if the output type is requested.
-		 */
-		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) &&
-		    !dssdev->output_type)
-			goto done;
-		if ((type & OMAP_DSS_DEVICE_TYPE_OUTPUT) && dssdev->id &&
-		    dssdev->next)
+		if (dssdev->id && dssdev->bridge)
 			goto done;
 	}
 
@@ -183,61 +132,58 @@ done:
 	mutex_unlock(&omapdss_devices_lock);
 	return dssdev;
 }
-EXPORT_SYMBOL(omapdss_device_get_next);
+
+static bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
+{
+	return dssdev->dss;
+}
 
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	int ret;
+	dev_dbg(&dss->pdev->dev, "connect(%s, %s)\n",
+		src ? dev_name(src->dev) : "NULL",
+		dst ? dev_name(dst->dev) : "NULL");
 
-	dev_dbg(dst->dev, "connect\n");
+	if (!dst) {
+		/*
+		 * The destination is NULL when the source is connected to a
+		 * bridge instead of a DSS device. Stop here, we will attach
+		 * the bridge later when we will have a DRM encoder.
+		 */
+		return src && src->bridge ? 0 : -EINVAL;
+	}
 
 	if (omapdss_device_is_connected(dst))
 		return -EBUSY;
 
 	dst->dss = dss;
 
-	ret = dst->ops->connect(src, dst);
-	if (ret < 0) {
-		dst->dss = NULL;
-		return ret;
-	}
-
-	if (src) {
-		WARN_ON(src->dst);
-		dst->src = src;
-		src->dst = dst;
-	}
-
 	return 0;
 }
-EXPORT_SYMBOL_GPL(omapdss_device_connect);
 
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst)
 {
-	dev_dbg(dst->dev, "disconnect\n");
+	struct dss_device *dss = src ? src->dss : dst->dss;
 
-	if (!dst->id && !omapdss_device_is_connected(dst)) {
-		WARN_ON(dst->output_type);
+	dev_dbg(&dss->pdev->dev, "disconnect(%s, %s)\n",
+		src ? dev_name(src->dev) : "NULL",
+		dst ? dev_name(dst->dev) : "NULL");
+
+	if (!dst) {
+		WARN_ON(!src->bridge);
 		return;
 	}
 
-	if (src) {
-		if (WARN_ON(dst != src->dst))
-			return;
-
-		dst->src = NULL;
-		src->dst = NULL;
+	if (!dst->id && !omapdss_device_is_connected(dst)) {
+		WARN_ON(1);
+		return;
 	}
 
-	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
-
-	dst->ops->disconnect(src, dst);
 	dst->dss = NULL;
 }
-EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
 
 /* -----------------------------------------------------------------------------
  * Components Handling
@@ -249,6 +195,7 @@ struct omapdss_comp_node {
 	struct list_head list;
 	struct device_node *node;
 	bool dss_core_component;
+	const char *compat;
 };
 
 static bool omapdss_list_contains(const struct device_node *node)
@@ -266,13 +213,20 @@ static bool omapdss_list_contains(const struct device_node *node)
 static void omapdss_walk_device(struct device *dev, struct device_node *node,
 				bool dss_core)
 {
+	struct omapdss_comp_node *comp;
 	struct device_node *n;
-	struct omapdss_comp_node *comp = devm_kzalloc(dev, sizeof(*comp),
-						      GFP_KERNEL);
+	const char *compat;
+	int ret;
 
+	ret = of_property_read_string(node, "compatible", &compat);
+	if (ret < 0)
+		return;
+
+	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (comp) {
 		comp->node = node;
 		comp->dss_core_component = dss_core;
+		comp->compat = compat;
 		list_add(&comp->list, &omapdss_comp_list);
 	}
 
@@ -312,18 +266,15 @@ void omapdss_gather_components(struct device *dev)
 
 	omapdss_walk_device(dev, dev->of_node, true);
 
-	for_each_available_child_of_node(dev->of_node, child) {
-		if (!of_find_property(child, "compatible", NULL))
-			continue;
-
+	for_each_available_child_of_node(dev->of_node, child)
 		omapdss_walk_device(dev, child, true);
-	}
 }
-EXPORT_SYMBOL(omapdss_gather_components);
 
 static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 {
 	if (comp->dss_core_component)
+		return true;
+	if (!strstarts(comp->compat, "omapdss,"))
 		return true;
 	if (omapdss_device_is_registered(comp->node))
 		return true;
@@ -342,8 +293,3 @@ bool omapdss_stack_is_ready(void)
 
 	return true;
 }
-EXPORT_SYMBOL(omapdss_stack_is_ready);
-
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
-MODULE_DESCRIPTION("OMAP Display Subsystem Base");
-MODULE_LICENSE("GPL v2");

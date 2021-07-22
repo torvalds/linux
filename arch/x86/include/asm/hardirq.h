@@ -37,7 +37,7 @@ typedef struct {
 #ifdef CONFIG_X86_MCE_AMD
 	unsigned int irq_deferred_error_count;
 #endif
-#if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
+#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
 	unsigned int irq_hv_callback_count;
 #endif
 #if IS_ENABLED(CONFIG_HYPERV)
@@ -67,12 +67,12 @@ static inline void kvm_set_cpu_l1tf_flush_l1d(void)
 	__this_cpu_write(irq_stat.kvm_cpu_l1tf_flush_l1d, 1);
 }
 
-static inline void kvm_clear_cpu_l1tf_flush_l1d(void)
+static __always_inline void kvm_clear_cpu_l1tf_flush_l1d(void)
 {
 	__this_cpu_write(irq_stat.kvm_cpu_l1tf_flush_l1d, 0);
 }
 
-static inline bool kvm_get_cpu_l1tf_flush_l1d(void)
+static __always_inline bool kvm_get_cpu_l1tf_flush_l1d(void)
 {
 	return __this_cpu_read(irq_stat.kvm_cpu_l1tf_flush_l1d);
 }

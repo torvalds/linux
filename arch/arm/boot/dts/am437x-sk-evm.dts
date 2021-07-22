@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /* AM437x SK EVM */
@@ -137,22 +134,6 @@
 
 		enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 
-		panel-timing {
-			clock-frequency = <9000000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <2>;
-			hback-porch = <2>;
-			hsync-len = <41>;
-			vfront-porch = <2>;
-			vback-porch = <2>;
-			vsync-len = <10>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <1>;
-			pixelclk-active = <1>;
-		};
-
 		port {
 			lcd_in: endpoint {
 				remote-endpoint = <&dpi_out>;
@@ -272,6 +253,12 @@
 			AM4372_IOPAD(0xa1c, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 			AM4372_IOPAD(0xa20, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 			AM4372_IOPAD(0xa24, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+		>;
+	};
+
+	clkout1_pin: pinmux_clkout1_pin {
+		pinctrl-single,pins = <
+			0x270 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)	/* XDMA_EVENT_INTR0/CLKOUT1 */
 		>;
 	};
 
@@ -596,6 +583,25 @@
 	pinctrl-0 = <&i2c1_pins>;
 	clock-frequency = <400000>;
 
+	ov2659@30 {
+		compatible = "ovti,ov2659";
+		reg = <0x30>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&clkout1_pin>;
+
+		clocks = <&clkout1_mux_ck>;
+		clock-names = "xvclk";
+		assigned-clocks = <&clkout1_mux_ck>;
+		assigned-clock-parents = <&clkout1_osc_div_ck>;
+
+		port {
+			ov2659_1: endpoint {
+				remote-endpoint = <&vpfe0_ep>;
+				link-frequencies = /bits/ 64 <70000000>;
+			};
+		};
+	};
+
 	edt-ft5306@38 {
 		status = "okay";
 		compatible = "edt,edt-ft5306", "edt,edt-ft5x06";
@@ -697,7 +703,7 @@
 	pinctrl-1 = <&mmc3_pins_sleep>;
 	cap-power-off-card;
 	keep-power-in-suspend;
-	ti,non-removable;
+	non-removable;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -786,19 +792,17 @@
 	};
 };
 
-&mac {
+&mac_sw {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
-	dual_emac = <1>;
 	status = "okay";
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
-	status = "okay";
 
 	ethphy0: ethernet-phy@4 {
 		reg = <4>;
@@ -809,16 +813,16 @@
 	};
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&ethphy0>;
-	phy-mode = "rgmii";
-	dual_emac_res_vlan = <1>;
+	phy-mode = "rgmii-rxid";
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&ethphy1>;
-	phy-mode = "rgmii";
-	dual_emac_res_vlan = <2>;
+	phy-mode = "rgmii-rxid";
+	ti,dual-emac-pvid = <2>;
 };
 
 &elm {
@@ -880,7 +884,7 @@
 	/* Camera port */
 	port {
 		vpfe0_ep: endpoint {
-			/* remote-endpoint = <&sensor>; add once we have it */
+			remote-endpoint = <&ov2659_1>;
 			ti,am437x-vpfe-interface = <0>;
 			bus-width = <8>;
 			hsync-active = <0>;

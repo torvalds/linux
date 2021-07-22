@@ -27,6 +27,7 @@
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
+#include <linux/interrupt.h>
 
 #include <media/i2c/adv7604.h>
 #include <media/cec.h>
@@ -72,6 +73,8 @@ MODULE_LICENSE("GPL");
 
 #define ADV76XX_MAX_ADDRS (3)
 
+#define ADV76XX_MAX_EDID_BLOCKS 4
+
 enum adv76xx_type {
 	ADV7604,
 	ADV7611,
@@ -107,12 +110,22 @@ struct adv76xx_chip_info {
 
 	unsigned int edid_enable_reg;
 	unsigned int edid_status_reg;
+	unsigned int edid_segment_reg;
+	unsigned int edid_segment_mask;
+	unsigned int edid_spa_loc_reg;
+	unsigned int edid_spa_loc_msb_mask;
+	unsigned int edid_spa_port_b_reg;
 	unsigned int lcf_reg;
 
 	unsigned int cable_det_mask;
 	unsigned int tdms_lock_mask;
 	unsigned int fmt_change_digital_mask;
 	unsigned int cp_csc;
+
+	unsigned int cec_irq_status;
+	unsigned int cec_rx_enable;
+	unsigned int cec_rx_enable_mask;
+	bool cec_irq_swap;
 
 	const struct adv76xx_format_info *formats;
 	unsigned int nformats;
@@ -170,7 +183,7 @@ struct adv76xx_state {
 	const struct adv76xx_format_info *format;
 
 	struct {
-		u8 edid[256];
+		u8 edid[ADV76XX_MAX_EDID_BLOCKS * 128];
 		u32 present;
 		unsigned blocks;
 	} edid;
@@ -506,10 +519,17 @@ static inline int edid_write_block(struct v4l2_subdev *sd,
 
 static void adv76xx_set_hpd(struct adv76xx_state *state, unsigned int hpd)
 {
+	const struct adv76xx_chip_info *info = state->info;
 	unsigned int i;
 
-	for (i = 0; i < state->info->num_dv_ports; ++i)
-		gpiod_set_value_cansleep(state->hpd_gpio[i], hpd & BIT(i));
+	if (info->type == ADV7604) {
+		for (i = 0; i < state->info->num_dv_ports; ++i)
+			gpiod_set_value_cansleep(state->hpd_gpio[i], hpd & BIT(i));
+	} else {
+		for (i = 0; i < state->info->num_dv_ports; ++i)
+			io_write_clr_set(&state->sd, 0x20, 0x80 >> i,
+					 (!!(hpd & BIT(i))) << (7 - i));
+	}
 
 	v4l2_subdev_notify(&state->sd, ADV76XX_HOTPLUG, &hpd);
 }
@@ -766,7 +786,7 @@ static const struct v4l2_dv_timings_cap adv7604_timings_cap_analog = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1200, 25000000, 170000000,
+	V4L2_INIT_BT_TIMINGS(640, 1920, 350, 1200, 25000000, 170000000,
 		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
@@ -777,7 +797,7 @@ static const struct v4l2_dv_timings_cap adv76xx_timings_cap_digital = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1200, 25000000, 225000000,
+	V4L2_INIT_BT_TIMINGS(640, 1920, 350, 1200, 25000000, 225000000,
 		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
@@ -1497,23 +1517,14 @@ static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 
 static unsigned int adv7604_read_hdmi_pixelclock(struct v4l2_subdev *sd)
 {
-	unsigned int freq;
 	int a, b;
 
 	a = hdmi_read(sd, 0x06);
 	b = hdmi_read(sd, 0x3b);
 	if (a < 0 || b < 0)
 		return 0;
-	freq =  a * 1000000 + ((b & 0x30) >> 4) * 250000;
 
-	if (is_hdmi(sd)) {
-		/* adjust for deep color mode */
-		unsigned bits_per_channel = ((hdmi_read(sd, 0x0b) & 0x60) >> 4) + 8;
-
-		freq = freq * 8 / bits_per_channel;
-	}
-
-	return freq;
+	return a * 1000000 + ((b & 0x30) >> 4) * 250000;
 }
 
 static unsigned int adv7611_read_hdmi_pixelclock(struct v4l2_subdev *sd)
@@ -1524,7 +1535,26 @@ static unsigned int adv7611_read_hdmi_pixelclock(struct v4l2_subdev *sd)
 	b = hdmi_read(sd, 0x52);
 	if (a < 0 || b < 0)
 		return 0;
+
 	return ((a << 1) | (b >> 7)) * 1000000 + (b & 0x7f) * 1000000 / 128;
+}
+
+static unsigned int adv76xx_read_hdmi_pixelclock(struct v4l2_subdev *sd)
+{
+	struct adv76xx_state *state = to_state(sd);
+	const struct adv76xx_chip_info *info = state->info;
+	unsigned int freq, bits_per_channel, pixelrepetition;
+
+	freq = info->read_hdmi_pixelclock(sd);
+	if (is_hdmi(sd)) {
+		/* adjust for deep color mode and pixel repetition */
+		bits_per_channel = ((hdmi_read(sd, 0x0b) & 0x60) >> 4) + 8;
+		pixelrepetition = (hdmi_read(sd, 0x05) & 0x0f) + 1;
+
+		freq = freq * 8 / bits_per_channel / pixelrepetition;
+	}
+
+	return freq;
 }
 
 static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
@@ -1573,7 +1603,7 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 
 		bt->width = w;
 		bt->height = h;
-		bt->pixelclock = info->read_hdmi_pixelclock(sd);
+		bt->pixelclock = adv76xx_read_hdmi_pixelclock(sd);
 		bt->hfrontporch = hdmi_read16(sd, 0x20, info->hfrontporch_mask);
 		bt->hsync = hdmi_read16(sd, 0x22, info->hsync_mask);
 		bt->hbackporch = hdmi_read16(sd, 0x24, info->hbackporch_mask);
@@ -1803,7 +1833,7 @@ static int adv76xx_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv76xx_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -1883,7 +1913,7 @@ static void adv76xx_setup_format(struct adv76xx_state *state)
 }
 
 static int adv76xx_get_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -1896,7 +1926,7 @@ static int adv76xx_get_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 		format->format.code = fmt->code;
 	} else {
 		format->format.code = state->format->code;
@@ -1906,7 +1936,7 @@ static int adv76xx_get_format(struct v4l2_subdev *sd,
 }
 
 static int adv76xx_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -1926,7 +1956,7 @@ static int adv76xx_get_selection(struct v4l2_subdev *sd,
 }
 
 static int adv76xx_set_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -1945,7 +1975,7 @@ static int adv76xx_set_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 		fmt->code = format->format.code;
 	} else {
 		state->format = info;
@@ -2003,10 +2033,11 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 {
 	struct adv76xx_state *state = to_state(sd);
+	const struct adv76xx_chip_info *info = state->info;
 	u8 cec_irq;
 
 	/* cec controller */
-	cec_irq = io_read(sd, 0x4d) & 0x0f;
+	cec_irq = io_read(sd, info->cec_irq_status) & 0x0f;
 	if (!cec_irq)
 		return;
 
@@ -2024,15 +2055,21 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 
 			for (i = 0; i < msg.len; i++)
 				msg.msg[i] = cec_read(sd, i + 0x15);
-			cec_write(sd, 0x26, 0x01); /* re-enable rx */
+			cec_write(sd, info->cec_rx_enable,
+				  info->cec_rx_enable_mask); /* re-enable rx */
 			cec_received_msg(state->cec_adap, &msg);
 		}
 	}
 
-	/* note: the bit order is swapped between 0x4d and 0x4e */
-	cec_irq = ((cec_irq & 0x08) >> 3) | ((cec_irq & 0x04) >> 1) |
-		  ((cec_irq & 0x02) << 1) | ((cec_irq & 0x01) << 3);
-	io_write(sd, 0x4e, cec_irq);
+	if (info->cec_irq_swap) {
+		/*
+		 * Note: the bit order is swapped between 0x4d and 0x4e
+		 * on adv7604
+		 */
+		cec_irq = ((cec_irq & 0x08) >> 3) | ((cec_irq & 0x04) >> 1) |
+			  ((cec_irq & 0x02) << 1) | ((cec_irq & 0x01) << 3);
+	}
+	io_write(sd, info->cec_irq_status + 1, cec_irq);
 
 	if (handled)
 		*handled = true;
@@ -2041,6 +2078,7 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 static int adv76xx_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
 	struct adv76xx_state *state = cec_get_drvdata(adap);
+	const struct adv76xx_chip_info *info = state->info;
 	struct v4l2_subdev *sd = &state->sd;
 
 	if (!state->cec_enabled_adap && enable) {
@@ -2052,11 +2090,11 @@ static int adv76xx_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		/* tx: arbitration lost */
 		/* tx: retry timeout */
 		/* rx: ready */
-		io_write_clr_set(sd, 0x50, 0x0f, 0x0f);
-		cec_write(sd, 0x26, 0x01);            /* enable rx */
+		io_write_clr_set(sd, info->cec_irq_status + 3, 0x0f, 0x0f);
+		cec_write(sd, info->cec_rx_enable, info->cec_rx_enable_mask);
 	} else if (state->cec_enabled_adap && !enable) {
 		/* disable cec interrupts */
-		io_write_clr_set(sd, 0x50, 0x0f, 0x00);
+		io_write_clr_set(sd, info->cec_irq_status + 3, 0x0f, 0x00);
 		/* disable address mask 1-3 */
 		cec_write_clr_set(sd, 0x27, 0x70, 0x00);
 		/* power down cec section */
@@ -2221,6 +2259,16 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	return 0;
 }
 
+static irqreturn_t adv76xx_irq_handler(int irq, void *dev_id)
+{
+	struct adv76xx_state *state = dev_id;
+	bool handled = false;
+
+	adv76xx_isr(&state->sd, 0, &handled);
+
+	return handled ? IRQ_HANDLED : IRQ_NONE;
+}
+
 static int adv76xx_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -2264,7 +2312,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct adv76xx_state *state = to_state(sd);
 	const struct adv76xx_chip_info *info = state->info;
 	unsigned int spa_loc;
-	u16 pa;
+	u16 pa, parent_pa;
 	int err;
 	int i;
 
@@ -2293,14 +2341,24 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 				__func__, edid->pad, state->edid.present);
 		return 0;
 	}
-	if (edid->blocks > 2) {
-		edid->blocks = 2;
+	if (edid->blocks > ADV76XX_MAX_EDID_BLOCKS) {
+		edid->blocks = ADV76XX_MAX_EDID_BLOCKS;
 		return -E2BIG;
 	}
+
 	pa = v4l2_get_edid_phys_addr(edid->edid, edid->blocks * 128, &spa_loc);
-	err = v4l2_phys_addr_validate(pa, &pa, NULL);
+	err = v4l2_phys_addr_validate(pa, &parent_pa, NULL);
 	if (err)
 		return err;
+
+	if (!spa_loc) {
+		/*
+		 * There is no SPA, so just set spa_loc to 128 and pa to whatever
+		 * data is there.
+		 */
+		spa_loc = 128;
+		pa = (edid->edid[spa_loc] << 8) | edid->edid[spa_loc + 1];
+	}
 
 	v4l2_dbg(2, debug, sd, "%s: write EDID pad %d, edid.present = 0x%x\n",
 			__func__, edid->pad, state->edid.present);
@@ -2310,41 +2368,33 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	adv76xx_set_hpd(state, 0);
 	rep_write_clr_set(sd, info->edid_enable_reg, 0x0f, 0x00);
 
-	/*
-	 * Return an error if no location of the source physical address
-	 * was found.
-	 */
-	if (spa_loc == 0)
-		return -EINVAL;
-
 	switch (edid->pad) {
 	case ADV76XX_PAD_HDMI_PORT_A:
-		state->spa_port_a[0] = edid->edid[spa_loc];
-		state->spa_port_a[1] = edid->edid[spa_loc + 1];
+		state->spa_port_a[0] = pa >> 8;
+		state->spa_port_a[1] = pa & 0xff;
 		break;
 	case ADV7604_PAD_HDMI_PORT_B:
-		rep_write(sd, 0x70, edid->edid[spa_loc]);
-		rep_write(sd, 0x71, edid->edid[spa_loc + 1]);
+		rep_write(sd, info->edid_spa_port_b_reg, pa >> 8);
+		rep_write(sd, info->edid_spa_port_b_reg + 1, pa & 0xff);
 		break;
 	case ADV7604_PAD_HDMI_PORT_C:
-		rep_write(sd, 0x72, edid->edid[spa_loc]);
-		rep_write(sd, 0x73, edid->edid[spa_loc + 1]);
+		rep_write(sd, info->edid_spa_port_b_reg + 2, pa >> 8);
+		rep_write(sd, info->edid_spa_port_b_reg + 3, pa & 0xff);
 		break;
 	case ADV7604_PAD_HDMI_PORT_D:
-		rep_write(sd, 0x74, edid->edid[spa_loc]);
-		rep_write(sd, 0x75, edid->edid[spa_loc + 1]);
+		rep_write(sd, info->edid_spa_port_b_reg + 4, pa >> 8);
+		rep_write(sd, info->edid_spa_port_b_reg + 5, pa & 0xff);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (info->type == ADV7604) {
-		rep_write(sd, 0x76, spa_loc & 0xff);
-		rep_write_clr_set(sd, 0x77, 0x40, (spa_loc & 0x100) >> 2);
-	} else {
-		/* ADV7612 Software Manual Rev. A, p. 15 */
-		rep_write(sd, 0x70, spa_loc & 0xff);
-		rep_write_clr_set(sd, 0x71, 0x01, (spa_loc & 0x100) >> 8);
+	if (info->edid_spa_loc_reg) {
+		u8 mask = info->edid_spa_loc_msb_mask;
+
+		rep_write(sd, info->edid_spa_loc_reg, spa_loc & 0xff);
+		rep_write_clr_set(sd, info->edid_spa_loc_reg + 1,
+				  mask, (spa_loc & 0x100) ? mask : 0);
 	}
 
 	edid->edid[spa_loc] = state->spa_port_a[0];
@@ -2356,10 +2406,24 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 			edid->edid[0x16]);
 	state->edid.present |= 1 << edid->pad;
 
-	err = edid_write_block(sd, 128 * edid->blocks, state->edid.edid);
+	rep_write_clr_set(sd, info->edid_segment_reg,
+			  info->edid_segment_mask, 0);
+	err = edid_write_block(sd, 128 * min(edid->blocks, 2U), state->edid.edid);
 	if (err < 0) {
 		v4l2_err(sd, "error %d writing edid pad %d\n", err, edid->pad);
 		return err;
+	}
+	if (edid->blocks > 2) {
+		rep_write_clr_set(sd, info->edid_segment_reg,
+				  info->edid_segment_mask,
+				  info->edid_segment_mask);
+		err = edid_write_block(sd, 128 * (edid->blocks - 2),
+				       state->edid.edid + 256);
+		if (err < 0) {
+			v4l2_err(sd, "error %d writing edid pad %d\n",
+				 err, edid->pad);
+			return err;
+		}
 	}
 
 	/* adv76xx calculates the checksums and enables I2C access to internal
@@ -2375,7 +2439,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		v4l2_err(sd, "error enabling edid (0x%x)\n", state->edid.present);
 		return -EIO;
 	}
-	cec_s_phys_addr(state->cec_adap, pa, false);
+	cec_s_phys_addr(state->cec_adap, parent_pa, false);
 
 	/* enable hotplug after 100 ms */
 	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
@@ -2420,7 +2484,7 @@ static int adv76xx_read_infoframe(struct v4l2_subdev *sd, int index,
 		buffer[i + 3] = infoframe_read(sd,
 				       adv76xx_cri[index].payload_addr + i);
 
-	if (hdmi_infoframe_unpack(frame, buffer) < 0) {
+	if (hdmi_infoframe_unpack(frame, buffer, sizeof(buffer)) < 0) {
 		v4l2_err(sd, "%s: unpack of %s infoframe failed\n", __func__,
 			 adv76xx_cri[index].desc);
 		return -ENOENT;
@@ -2769,6 +2833,18 @@ static int adv76xx_core_init(struct v4l2_subdev *sd)
 	io_write(sd, 0x0b, 0x44);   /* Power down ESDP block */
 	cp_write(sd, 0xcf, 0x01);   /* Power down macrovision */
 
+	/* HPD */
+	if (info->type != ADV7604) {
+		/* Set manual HPD values to 0 */
+		io_write_clr_set(sd, 0x20, 0xc0, 0);
+		/*
+		 * Set HPA_DELAY to 200 ms and set automatic HPD control
+		 * to: internal EDID is active AND a cable is detected
+		 * AND the manual HPD control is set to 1.
+		 */
+		hdmi_write_clr_set(sd, 0x6c, 0xf6, 0x26);
+	}
+
 	/* video format */
 	io_write_clr_set(sd, 0x02, 0x0f, pdata->alt_gamma << 3);
 	io_write_clr_set(sd, 0x05, 0x0e, pdata->blank_data << 3 |
@@ -2838,10 +2914,8 @@ static void adv76xx_unregister_clients(struct adv76xx_state *state)
 {
 	unsigned int i;
 
-	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i) {
-		if (state->i2c_clients[i])
-			i2c_unregister_device(state->i2c_clients[i]);
-	}
+	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i)
+		i2c_unregister_device(state->i2c_clients[i]);
 }
 
 static struct i2c_client *adv76xx_dummy_client(struct v4l2_subdev *sd,
@@ -2854,14 +2928,14 @@ static struct i2c_client *adv76xx_dummy_client(struct v4l2_subdev *sd,
 	struct i2c_client *new_client;
 
 	if (pdata && pdata->i2c_addresses[page])
-		new_client = i2c_new_dummy(client->adapter,
+		new_client = i2c_new_dummy_device(client->adapter,
 					   pdata->i2c_addresses[page]);
 	else
-		new_client = i2c_new_secondary_device(client,
+		new_client = i2c_new_ancillary_device(client,
 				adv76xx_default_addresses[page].name,
 				adv76xx_default_addresses[page].default_addr);
 
-	if (new_client)
+	if (!IS_ERR(new_client))
 		io_write(sd, io_reg, new_client->addr << 1);
 
 	return new_client;
@@ -2955,11 +3029,20 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 		.num_dv_ports = 4,
 		.edid_enable_reg = 0x77,
 		.edid_status_reg = 0x7d,
+		.edid_segment_reg = 0x77,
+		.edid_segment_mask = 0x10,
+		.edid_spa_loc_reg = 0x76,
+		.edid_spa_loc_msb_mask = 0x40,
+		.edid_spa_port_b_reg = 0x70,
 		.lcf_reg = 0xb3,
 		.tdms_lock_mask = 0xe0,
 		.cable_det_mask = 0x1e,
 		.fmt_change_digital_mask = 0xc1,
 		.cp_csc = 0xfc,
+		.cec_irq_status = 0x4d,
+		.cec_rx_enable = 0x26,
+		.cec_rx_enable_mask = 0x01,
+		.cec_irq_swap = true,
 		.formats = adv7604_formats,
 		.nformats = ARRAY_SIZE(adv7604_formats),
 		.set_termination = adv7604_set_termination,
@@ -3001,11 +3084,16 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 		.num_dv_ports = 1,
 		.edid_enable_reg = 0x74,
 		.edid_status_reg = 0x76,
+		.edid_segment_reg = 0x7a,
+		.edid_segment_mask = 0x01,
 		.lcf_reg = 0xa3,
 		.tdms_lock_mask = 0x43,
 		.cable_det_mask = 0x01,
 		.fmt_change_digital_mask = 0x03,
 		.cp_csc = 0xf4,
+		.cec_irq_status = 0x93,
+		.cec_rx_enable = 0x2c,
+		.cec_rx_enable_mask = 0x02,
 		.formats = adv7611_formats,
 		.nformats = ARRAY_SIZE(adv7611_formats),
 		.set_termination = adv7611_set_termination,
@@ -3042,11 +3130,19 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 		.num_dv_ports = 1,			/* normally 2 */
 		.edid_enable_reg = 0x74,
 		.edid_status_reg = 0x76,
+		.edid_segment_reg = 0x7a,
+		.edid_segment_mask = 0x01,
+		.edid_spa_loc_reg = 0x70,
+		.edid_spa_loc_msb_mask = 0x01,
+		.edid_spa_port_b_reg = 0x52,
 		.lcf_reg = 0xa3,
 		.tdms_lock_mask = 0x43,
 		.cable_det_mask = 0x01,
 		.fmt_change_digital_mask = 0x03,
 		.cp_csc = 0xf4,
+		.cec_irq_status = 0x93,
+		.cec_rx_enable = 0x2c,
+		.cec_rx_enable_mask = 0x02,
 		.formats = adv7612_formats,
 		.nformats = ARRAY_SIZE(adv7612_formats),
 		.set_termination = adv7611_set_termination,
@@ -3134,7 +3230,7 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 		state->pdata.insert_av_codes = 1;
 
 	/* Disable the interrupt for now as no DT-based board uses it. */
-	state->pdata.int1_config = ADV76XX_INT1_CONFIG_DISABLED;
+	state->pdata.int1_config = ADV76XX_INT1_CONFIG_ACTIVE_HIGH;
 
 	/* Hardcode the remaining platform data fields. */
 	state->pdata.disable_pwrdnb = 0;
@@ -3482,15 +3578,19 @@ static int adv76xx_probe(struct i2c_client *client,
 	}
 
 	for (i = 1; i < ADV76XX_PAGE_MAX; ++i) {
+		struct i2c_client *dummy_client;
+
 		if (!(BIT(i) & state->info->page_mask))
 			continue;
 
-		state->i2c_clients[i] = adv76xx_dummy_client(sd, i);
-		if (!state->i2c_clients[i]) {
-			err = -EINVAL;
+		dummy_client = adv76xx_dummy_client(sd, i);
+		if (IS_ERR(dummy_client)) {
+			err = PTR_ERR(dummy_client);
 			v4l2_err(sd, "failed to create i2c client %u\n", i);
 			goto err_i2c;
 		}
+
+		state->i2c_clients[i] = dummy_client;
 	}
 
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
@@ -3516,6 +3616,16 @@ static int adv76xx_probe(struct i2c_client *client,
 	err = adv76xx_core_init(sd);
 	if (err)
 		goto err_entity;
+
+	if (client->irq) {
+		err = devm_request_threaded_irq(&client->dev,
+						client->irq,
+						NULL, adv76xx_irq_handler,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+						client->name, state);
+		if (err)
+			goto err_entity;
+	}
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7604_CEC)
 	state->cec_adap = cec_allocate_adapter(&adv76xx_cec_adap_ops,
@@ -3560,7 +3670,7 @@ static int adv76xx_remove(struct i2c_client *client)
 	io_write(sd, 0x6e, 0);
 	io_write(sd, 0x73, 0);
 
-	cancel_delayed_work(&state->delayed_work_enable_hotplug);
+	cancel_delayed_work_sync(&state->delayed_work_enable_hotplug);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	adv76xx_unregister_clients(to_state(sd));

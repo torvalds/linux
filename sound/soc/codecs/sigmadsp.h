@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Load firmware files from Analog Devices SigmaStudio
  *
  * Copyright 2009-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __SIGMA_FIRMWARE_H__
@@ -45,7 +44,6 @@ struct sigmadsp {
 
 struct sigmadsp *devm_sigmadsp_init(struct device *dev,
 	const struct sigmadsp_ops *ops, const char *firmware_name);
-void sigmadsp_reset(struct sigmadsp *sigmadsp);
 
 int sigmadsp_restrict_params(struct sigmadsp *sigmadsp,
 	struct snd_pcm_substream *substream);
@@ -60,7 +58,7 @@ struct sigmadsp *devm_sigmadsp_init_i2c(struct i2c_client *client,
 
 int sigmadsp_attach(struct sigmadsp *sigmadsp,
 	struct snd_soc_component *component);
-int sigmadsp_setup(struct sigmadsp *sigmadsp, unsigned int rate);
+int sigmadsp_setup(struct sigmadsp *sigmadsp, unsigned int samplerate);
 void sigmadsp_reset(struct sigmadsp *sigmadsp);
 
 #endif

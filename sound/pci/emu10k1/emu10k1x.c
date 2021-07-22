@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  *  Driver EMU10K1X chips
@@ -13,21 +14,6 @@
  *  Chips (SB0200 model):
  *    - EMU10K1X-DBQ
  *    - STAC 9708T
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -45,7 +31,6 @@
 MODULE_AUTHOR("Francisco Moraes <fmoraes@nc.rr.com>");
 MODULE_DESCRIPTION("EMU10K1X");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Dell Creative Labs,SB Live!}");
 
 // module parameters (see "Module Parameters")
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
@@ -364,7 +349,8 @@ static void snd_emu10k1x_pcm_interrupt(struct emu10k1x *emu, struct emu10k1x_voi
 {
 	struct emu10k1x_pcm *epcm;
 
-	if ((epcm = voice->epcm) == NULL)
+	epcm = voice->epcm;
+	if (!epcm)
 		return;
 	if (epcm->substream == NULL)
 		return;
@@ -386,10 +372,11 @@ static int snd_emu10k1x_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0) {
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
-	}
-	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
+	err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64);
+	if (err < 0)
                 return err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
@@ -425,8 +412,7 @@ static int snd_emu10k1x_pcm_hw_params(struct snd_pcm_substream *substream,
 		epcm->voice->epcm = epcm;
 	}
 
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
+	return 0;
 }
 
 /* hw_free callback */
@@ -446,7 +432,7 @@ static int snd_emu10k1x_pcm_hw_free(struct snd_pcm_substream *substream)
 		epcm->voice = NULL;
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /* prepare callback */
@@ -551,7 +537,6 @@ snd_emu10k1x_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_emu10k1x_playback_ops = {
 	.open =        snd_emu10k1x_playback_open,
 	.close =       snd_emu10k1x_playback_close,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.hw_params =   snd_emu10k1x_pcm_hw_params,
 	.hw_free =     snd_emu10k1x_pcm_hw_free,
 	.prepare =     snd_emu10k1x_pcm_prepare,
@@ -567,10 +552,12 @@ static int snd_emu10k1x_pcm_open_capture(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
-                return err;
-	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
-                return err;
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64);
+	if (err < 0)
+		return err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
@@ -608,8 +595,7 @@ static int snd_emu10k1x_pcm_hw_params_capture(struct snd_pcm_substream *substrea
 		epcm->voice->use = 1;
 	}
 
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
+	return 0;
 }
 
 /* hw_free callback */
@@ -629,7 +615,7 @@ static int snd_emu10k1x_pcm_hw_free_capture(struct snd_pcm_substream *substream)
 		epcm->voice = NULL;
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /* prepare capture callback */
@@ -697,7 +683,6 @@ snd_emu10k1x_pcm_pointer_capture(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_emu10k1x_capture_ops = {
 	.open =        snd_emu10k1x_pcm_open_capture,
 	.close =       snd_emu10k1x_pcm_close_capture,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.hw_params =   snd_emu10k1x_pcm_hw_params_capture,
 	.hw_free =     snd_emu10k1x_pcm_hw_free_capture,
 	.prepare =     snd_emu10k1x_pcm_prepare_capture,
@@ -736,12 +721,13 @@ static int snd_emu10k1x_ac97(struct emu10k1x *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_emu10k1x_ac97_write,
 		.read = snd_emu10k1x_ac97_read,
 	};
   
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
+	if (err < 0)
 		return err;
 	pbus->no_vra = 1; /* we don't need VRA */
 
@@ -857,7 +843,8 @@ static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device)
 	if (device == 0)
 		capture = 1;
 	
-	if ((err = snd_pcm_new(emu->card, "emu10k1x", device, 1, capture, &pcm)) < 0)
+	err = snd_pcm_new(emu->card, "emu10k1x", device, 1, capture, &pcm);
+	if (err < 0)
 		return err;
   
 	pcm->private_data = emu;
@@ -890,9 +877,8 @@ static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device)
 	}
 	emu->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci), 
-					      32*1024, 32*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &emu->pci->dev, 32*1024, 32*1024);
   
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
 				     1 << 2, NULL);
@@ -905,16 +891,17 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	struct emu10k1x *chip;
 	int err;
 	int ch;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_emu10k1x_dev_free,
 	};
 
 	*rchip = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(28)) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(28)) < 0) {
+
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28)) < 0) {
 		dev_err(card->dev, "error to set 28bit mask DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
@@ -934,8 +921,8 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	spin_lock_init(&chip->voice_lock);
   
 	chip->port = pci_resource_start(pci, 0);
-	if ((chip->res_port = request_region(chip->port, 8,
-					     "EMU10K1X")) == NULL) { 
+	chip->res_port = request_region(chip->port, 8, "EMU10K1X");
+	if (!chip->res_port) {
 		dev_err(card->dev, "cannot allocate the port 0x%lx\n",
 			chip->port);
 		snd_emu10k1x_free(chip);
@@ -949,9 +936,10 @@ static int snd_emu10k1x_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
   
-	if(snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-			       4 * 1024, &chip->dma_buffer) < 0) {
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
+				4 * 1024, &chip->dma_buffer) < 0) {
 		snd_emu10k1x_free(chip);
 		return -ENOMEM;
 	}
@@ -1010,8 +998,8 @@ static int snd_emu10k1x_create(struct snd_card *card,
 
 	outl(HCFG_LOCKSOUNDCACHE|HCFG_AUDIOENABLE, chip->port+HCFG);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
-				  chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_emu10k1x_free(chip);
 		return err;
 	}
@@ -1058,22 +1046,16 @@ static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry,
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
 
-		if (reg < 0x49 && val <= 0xffffffff && channel_id <= 2)
+		if (reg < 0x49 && channel_id <= 2)
 			snd_emu10k1x_ptr_write(emu, reg, channel_id, val);
 	}
 }
 
 static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 {
-	struct snd_info_entry *entry;
-	
-	if(! snd_card_proc_new(emu->card, "emu10k1x_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_emu10k1x_proc_reg_read);
-		entry->c.text.write = snd_emu10k1x_proc_reg_write;
-		entry->mode |= 0200;
-		entry->private_data = emu;
-	}
-	
+	snd_card_rw_proc_new(emu->card, "emu10k1x_regs", emu,
+			     snd_emu10k1x_proc_reg_read,
+			     snd_emu10k1x_proc_reg_write);
 	return 0;
 }
 
@@ -1094,7 +1076,6 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 {
 	struct emu10k1x *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
-	int change = 0;
 
 	val = ucontrol->value.integer.value[0] ;
 
@@ -1109,7 +1090,7 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 		snd_emu10k1x_ptr_write(emu, ROUTING, 0, 0x1003F);
 		snd_emu10k1x_gpio_write(emu, 0x1080);
 	}
-	return change;
+	return 0;
 }
 
 static const struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
@@ -1197,17 +1178,23 @@ static int snd_emu10k1x_mixer(struct emu10k1x *emu)
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = emu->card;
 
-	if ((kctl = snd_ctl_new1(&snd_emu10k1x_spdif_mask_control, emu)) == NULL)
+	kctl = snd_ctl_new1(&snd_emu10k1x_spdif_mask_control, emu);
+	if (!kctl)
 		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
-	if ((kctl = snd_ctl_new1(&snd_emu10k1x_shared_spdif, emu)) == NULL)
+	kctl = snd_ctl_new1(&snd_emu10k1x_shared_spdif, emu);
+	if (!kctl)
 		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
-	if ((kctl = snd_ctl_new1(&snd_emu10k1x_spdif_control, emu)) == NULL)
+	kctl = snd_ctl_new1(&snd_emu10k1x_spdif_control, emu);
+	if (!kctl)
 		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
 
 	return 0;
@@ -1514,7 +1501,8 @@ static int emu10k1x_midi_init(struct emu10k1x *emu,
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if ((err = snd_rawmidi_new(emu->card, name, device, 1, 1, &rmidi)) < 0)
+	err = snd_rawmidi_new(emu->card, name, device, 1, 1, &rmidi);
+	if (err < 0)
 		return err;
 	midi->emu = emu;
 	spin_lock_init(&midi->open_lock);
@@ -1537,7 +1525,8 @@ static int snd_emu10k1x_midi(struct emu10k1x *emu)
 	struct emu10k1x_midi *midi = &emu->midi;
 	int err;
 
-	if ((err = emu10k1x_midi_init(emu, midi, 0, "EMU10K1X MPU-401 (UART)")) < 0)
+	err = emu10k1x_midi_init(emu, midi, 0, "EMU10K1X MPU-401 (UART)");
+	if (err < 0)
 		return err;
 
 	midi->tx_enable = INTE_MIDITXENABLE;
@@ -1569,35 +1558,42 @@ static int snd_emu10k1x_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	if ((err = snd_emu10k1x_create(card, pci, &chip)) < 0) {
+	err = snd_emu10k1x_create(card, pci, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
-	if ((err = snd_emu10k1x_pcm(chip, 0)) < 0) {
+	err = snd_emu10k1x_pcm(chip, 0);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_emu10k1x_pcm(chip, 1)) < 0) {
+	err = snd_emu10k1x_pcm(chip, 1);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_emu10k1x_pcm(chip, 2)) < 0) {
+	err = snd_emu10k1x_pcm(chip, 2);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
-	if ((err = snd_emu10k1x_ac97(chip)) < 0) {
+	err = snd_emu10k1x_ac97(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
-	if ((err = snd_emu10k1x_mixer(chip)) < 0) {
+	err = snd_emu10k1x_mixer(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	
-	if ((err = snd_emu10k1x_midi(chip)) < 0) {
+	err = snd_emu10k1x_midi(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1609,7 +1605,8 @@ static int snd_emu10k1x_probe(struct pci_dev *pci,
 	sprintf(card->longname, "%s at 0x%lx irq %i",
 		card->shortname, chip->port, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

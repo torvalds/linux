@@ -47,7 +47,7 @@
  * using the 2.6 Linux kernel kref construct.
  *
  * For direction on installation and usage of this driver please reference
- * Documentation/powerpc/hvcs.txt.
+ * Documentation/powerpc/hvcs.rst.
  */
 
 #include <linux/device.h>
@@ -196,8 +196,6 @@ module_param(hvcs_parm_num_devs, int, 0);
 
 static const char hvcs_driver_name[] = "hvcs";
 static const char hvcs_device_node[] = "hvcs";
-static const char hvcs_driver_string[]
-	= "IBM hvcs (Hypervisor Virtual Console Server) Driver";
 
 /* Status of partner info rescan triggered via sysfs. */
 static int hvcs_rescan_status;
@@ -292,36 +290,11 @@ static LIST_HEAD(hvcs_structs);
 static DEFINE_SPINLOCK(hvcs_structs_lock);
 static DEFINE_MUTEX(hvcs_init_mutex);
 
-static void hvcs_unthrottle(struct tty_struct *tty);
-static void hvcs_throttle(struct tty_struct *tty);
-static irqreturn_t hvcs_handle_interrupt(int irq, void *dev_instance);
-
-static int hvcs_write(struct tty_struct *tty,
-		const unsigned char *buf, int count);
-static int hvcs_write_room(struct tty_struct *tty);
-static int hvcs_chars_in_buffer(struct tty_struct *tty);
-
-static int hvcs_has_pi(struct hvcs_struct *hvcsd);
-static void hvcs_set_pi(struct hvcs_partner_info *pi,
-		struct hvcs_struct *hvcsd);
 static int hvcs_get_pi(struct hvcs_struct *hvcsd);
 static int hvcs_rescan_devices_list(void);
 
-static int hvcs_partner_connect(struct hvcs_struct *hvcsd);
 static void hvcs_partner_free(struct hvcs_struct *hvcsd);
 
-static int hvcs_enable_device(struct hvcs_struct *hvcsd,
-		uint32_t unit_address, unsigned int irq, struct vio_dev *dev);
-
-static int hvcs_open(struct tty_struct *tty, struct file *filp);
-static void hvcs_close(struct tty_struct *tty, struct file *filp);
-static void hvcs_hangup(struct tty_struct * tty);
-
-static int hvcs_probe(struct vio_dev *dev,
-		const struct vio_device_id *id);
-static int hvcs_remove(struct vio_dev *dev);
-static int __init hvcs_module_init(void);
-static void __exit hvcs_module_exit(void);
 static int hvcs_initialize(void);
 
 #define HVCS_SCHED_READ	0x00000001
@@ -607,7 +580,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 		hvcsd->todo_mask |= HVCS_QUICK_READ;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	/* This is synch because tty->low_latency == 1 */
+	/* This is synch -- FIXME :js: it is not! */
 	if(got)
 		tty_flip_buffer_push(&hvcsd->port);
 
@@ -821,14 +794,11 @@ static int hvcs_probe(
 	return 0;
 }
 
-static int hvcs_remove(struct vio_dev *dev)
+static void hvcs_remove(struct vio_dev *dev)
 {
 	struct hvcs_struct *hvcsd = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 	struct tty_struct *tty;
-
-	if (!hvcsd)
-		return -ENODEV;
 
 	/* By this time the vty-server won't be getting any more interrupts */
 
@@ -854,7 +824,6 @@ static int hvcs_remove(struct vio_dev *dev)
 
 	printk(KERN_INFO "HVCS: vty-server@%X removed from the"
 			" vio bus.\n", dev->unit_address);
-	return 0;
 };
 
 static struct vio_driver hvcs_vio_driver = {
@@ -871,8 +840,8 @@ static void hvcs_set_pi(struct hvcs_partner_info *pi, struct hvcs_struct *hvcsd)
 	hvcsd->p_partition_ID  = pi->partition_ID;
 
 	/* copy the null-term char too */
-	strlcpy(&hvcsd->p_location_code[0],
-			&pi->location_code[0], sizeof(hvcsd->p_location_code));
+	strlcpy(hvcsd->p_location_code, pi->location_code,
+		sizeof(hvcsd->p_location_code));
 }
 
 /*
@@ -1218,13 +1187,6 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 
 		tty_wait_until_sent(tty, HVCS_CLOSE_WAIT);
 
-		/*
-		 * This line is important because it tells hvcs_open that this
-		 * device needs to be re-configured the next time hvcs_open is
-		 * called.
-		 */
-		tty->driver_data = NULL;
-
 		free_irq(irq, hvcsd);
 		return;
 	} else if (hvcsd->port.count < 0) {
@@ -1238,6 +1200,13 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 static void hvcs_cleanup(struct tty_struct * tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
+
+	/*
+	 * This line is important because it tells hvcs_open that this
+	 * device needs to be re-configured the next time hvcs_open is
+	 * called.
+	 */
+	tty->driver_data = NULL;
 
 	tty_port_put(&hvcsd->port);
 }
@@ -1407,7 +1376,7 @@ static int hvcs_write(struct tty_struct *tty,
  * absolutely WILL BUFFER if we can't send it.  This driver MUST honor the
  * return value, hence the reason for hvcs_struct buffering.
  */
-static int hvcs_write_room(struct tty_struct *tty)
+static unsigned int hvcs_write_room(struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 
@@ -1417,7 +1386,7 @@ static int hvcs_write_room(struct tty_struct *tty)
 	return HVCS_BUFF_LEN - hvcsd->chars_in_buffer;
 }
 
-static int hvcs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvcs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 

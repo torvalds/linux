@@ -1,64 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fh_h__
 #define __iwl_fh_h__
 
@@ -127,7 +71,7 @@
 static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 					     unsigned int chnl)
 {
-	if (trans->cfg->use_tfh) {
+	if (trans->trans_cfg->use_tfh) {
 		WARN_ON_ONCE(chnl >= 64);
 		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
 	}
@@ -148,7 +92,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bits 3:0:
  * Define the maximum number of pending read requests.
- * Maximum configration value allowed is 0xC
+ * Maximum configuration value allowed is 0xC
  * Bits 9:8:
  * Define the maximum transfer size. (64 / 128 / 256)
  * Bit 10:
@@ -611,10 +555,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
-#define MQ_RX_TABLE_SIZE	512
-#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
-#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
-#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+#define RX_POOL_SIZE(rbds)	((rbds) - 1 +	\
 				 IWL_MAX_RX_HW_QUEUES *	\
 				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
 /* cb size is the exponent */
@@ -649,8 +590,7 @@ struct iwl_rb_status {
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define TFD_QUEUE_BC_SIZE_GEN3	(TFD_QUEUE_SIZE_MAX_GEN3 + \
-				 TFD_QUEUE_SIZE_BC_DUP)
+#define TFD_QUEUE_BC_SIZE_GEN3	1024
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
@@ -768,7 +708,7 @@ struct iwlagn_scd_bc_tbl {
 
 /**
  * struct iwl_gen3_bc_tbl scheduler byte count table gen3
- * For 22560 and on:
+ * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved

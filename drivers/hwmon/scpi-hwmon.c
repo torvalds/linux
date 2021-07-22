@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * System Control and Power Interface(SCPI) based hwmon sensor driver
  *
  * Copyright (C) 2015 ARM Ltd.
  * Punit Agrawal <punit.agrawal@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/hwmon.h>
@@ -106,6 +98,15 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 		return ret;
 
 	scpi_scale_reading(&value, sensor);
+
+	/*
+	 * Temperature sensor values are treated as signed values based on
+	 * observation even though that is not explicitly specified, and
+	 * because an unsigned u64 temperature does not really make practical
+	 * sense especially when the temperature is below zero degrees Celsius.
+	 */
+	if (sensor->info.class == TEMPERATURE)
+		return sprintf(buf, "%lld\n", (s64)value);
 
 	return sprintf(buf, "%llu\n", value);
 }
@@ -226,11 +227,11 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 		sensor->scale = scale[sensor->info.class];
 
-		sensor->dev_attr_input.attr.mode = S_IRUGO;
+		sensor->dev_attr_input.attr.mode = 0444;
 		sensor->dev_attr_input.show = scpi_show_sensor;
 		sensor->dev_attr_input.attr.name = sensor->input;
 
-		sensor->dev_attr_label.attr.mode = S_IRUGO;
+		sensor->dev_attr_label.attr.mode = 0444;
 		sensor->dev_attr_label.show = scpi_show_label;
 		sensor->dev_attr_label.attr.name = sensor->label;
 

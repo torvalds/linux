@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pps-ldisc.c -- PPS line discipline
  *
- *
  * Copyright (C) 2008	Rodolfo Giometti <giometti@linux.it>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -26,8 +12,6 @@
 #include <linux/tty.h>
 #include <linux/pps_kernel.h>
 #include <linux/bug.h>
-
-#define PPS_TTY_MAGIC		0x0001
 
 static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status)
 {
@@ -72,9 +56,9 @@ static int pps_tty_open(struct tty_struct *tty)
 
 	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
-	if (pps == NULL) {
+	if (IS_ERR(pps)) {
 		pr_err("cannot register PPS source \"%s\"\n", info.path);
-		return -ENOMEM;
+		return PTR_ERR(pps);
 	}
 	pps->lookup_cookie = tty;
 
@@ -128,13 +112,13 @@ static int __init pps_tty_init(void)
 
 	/* Init PPS_TTY data */
 	pps_ldisc_ops.owner = THIS_MODULE;
-	pps_ldisc_ops.magic = PPS_TTY_MAGIC;
+	pps_ldisc_ops.num = N_PPS;
 	pps_ldisc_ops.name = "pps_tty";
 	pps_ldisc_ops.dcd_change = pps_tty_dcd_change;
 	pps_ldisc_ops.open = pps_tty_open;
 	pps_ldisc_ops.close = pps_tty_close;
 
-	err = tty_register_ldisc(N_PPS, &pps_ldisc_ops);
+	err = tty_register_ldisc(&pps_ldisc_ops);
 	if (err)
 		pr_err("can't register PPS line discipline\n");
 	else
@@ -145,13 +129,7 @@ static int __init pps_tty_init(void)
 
 static void __exit pps_tty_cleanup(void)
 {
-	int err;
-
-	err = tty_unregister_ldisc(N_PPS);
-	if (err)
-		pr_err("can't unregister PPS line discipline\n");
-	else
-		pr_info("PPS line discipline removed\n");
+	tty_unregister_ldisc(&pps_ldisc_ops);
 }
 
 module_init(pps_tty_init);

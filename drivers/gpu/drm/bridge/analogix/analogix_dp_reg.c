@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Analogix DP (Display port) core register interface driver.
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 
@@ -397,7 +393,7 @@ void analogix_dp_clear_hotplug_interrupts(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio))
+	if (dp->hpd_gpiod)
 		return;
 
 	reg = HOTPLUG_CHG | HPD_LOST | PLUG;
@@ -411,7 +407,7 @@ void analogix_dp_init_hpd(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio))
+	if (dp->hpd_gpiod)
 		return;
 
 	analogix_dp_clear_hotplug_interrupts(dp);
@@ -434,8 +430,8 @@ enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio)) {
-		reg = gpio_get_value(dp->hpd_gpio);
+	if (dp->hpd_gpiod) {
+		reg = gpiod_get_value(dp->hpd_gpiod);
 		if (reg)
 			return DP_IRQ_TYPE_HP_CABLE_IN;
 		else
@@ -507,8 +503,8 @@ int analogix_dp_get_plug_in_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio)) {
-		if (gpio_get_value(dp->hpd_gpio))
+	if (dp->hpd_gpiod) {
+		if (gpiod_get_value(dp->hpd_gpiod))
 			return 0;
 	} else {
 		reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
@@ -526,94 +522,6 @@ void analogix_dp_enable_sw_function(struct analogix_dp_device *dp)
 	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_1);
 	reg &= ~SW_FUNC_EN_N;
 	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_1);
-}
-
-int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp)
-{
-	int reg;
-	int retval = 0;
-	int timeout_loop = 0;
-
-	/* Enable AUX CH operation */
-	reg = readl(dp->reg_base + ANALOGIX_DP_AUX_CH_CTL_2);
-	reg |= AUX_EN;
-	writel(reg, dp->reg_base + ANALOGIX_DP_AUX_CH_CTL_2);
-
-	/* Is AUX CH command reply received? */
-	reg = readl(dp->reg_base + ANALOGIX_DP_INT_STA);
-	while (!(reg & RPLY_RECEIV)) {
-		timeout_loop++;
-		if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
-			dev_err(dp->dev, "AUX CH command reply failed!\n");
-			return -ETIMEDOUT;
-		}
-		reg = readl(dp->reg_base + ANALOGIX_DP_INT_STA);
-		usleep_range(10, 11);
-	}
-
-	/* Clear interrupt source for AUX CH command reply */
-	writel(RPLY_RECEIV, dp->reg_base + ANALOGIX_DP_INT_STA);
-
-	/* Clear interrupt source for AUX CH access error */
-	reg = readl(dp->reg_base + ANALOGIX_DP_INT_STA);
-	if (reg & AUX_ERR) {
-		writel(AUX_ERR, dp->reg_base + ANALOGIX_DP_INT_STA);
-		return -EREMOTEIO;
-	}
-
-	/* Check AUX CH error access status */
-	reg = readl(dp->reg_base + ANALOGIX_DP_AUX_CH_STA);
-	if ((reg & AUX_STATUS_MASK) != 0) {
-		dev_err(dp->dev, "AUX CH error happens: %d\n\n",
-			reg & AUX_STATUS_MASK);
-		return -EREMOTEIO;
-	}
-
-	return retval;
-}
-
-int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
-				   unsigned int reg_addr,
-				   unsigned char data)
-{
-	u32 reg;
-	int i;
-	int retval;
-
-	for (i = 0; i < 3; i++) {
-		/* Clear AUX CH data buffer */
-		reg = BUF_CLR;
-		writel(reg, dp->reg_base + ANALOGIX_DP_BUFFER_DATA_CTL);
-
-		/* Select DPCD device address */
-		reg = AUX_ADDR_7_0(reg_addr);
-		writel(reg, dp->reg_base + ANALOGIX_DP_AUX_ADDR_7_0);
-		reg = AUX_ADDR_15_8(reg_addr);
-		writel(reg, dp->reg_base + ANALOGIX_DP_AUX_ADDR_15_8);
-		reg = AUX_ADDR_19_16(reg_addr);
-		writel(reg, dp->reg_base + ANALOGIX_DP_AUX_ADDR_19_16);
-
-		/* Write data buffer */
-		reg = (unsigned int)data;
-		writel(reg, dp->reg_base + ANALOGIX_DP_BUF_DATA_0);
-
-		/*
-		 * Set DisplayPort transaction and write 1 byte
-		 * If bit 3 is 1, DisplayPort transaction.
-		 * If Bit 3 is 0, I2C transaction.
-		 */
-		reg = AUX_TX_COMM_DP_TRANSACTION | AUX_TX_COMM_WRITE;
-		writel(reg, dp->reg_base + ANALOGIX_DP_AUX_CH_CTL_1);
-
-		/* Start AUX transaction */
-		retval = analogix_dp_start_aux_transaction(dp);
-		if (retval == 0)
-			break;
-
-		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
-	}
-
-	return retval;
 }
 
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
@@ -1041,7 +949,7 @@ static ssize_t analogix_dp_get_psr_status(struct analogix_dp_device *dp)
 }
 
 int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
-			     struct edp_vsc_psr *vsc, bool blocking)
+			     struct dp_sdp *vsc, bool blocking)
 {
 	unsigned int val;
 	int ret;
@@ -1069,8 +977,8 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	writel(0x5D, dp->reg_base + ANALOGIX_DP_SPD_PB3);
 
 	/* configure DB0 / DB1 values */
-	writel(vsc->DB0, dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB0);
-	writel(vsc->DB1, dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB1);
+	writel(vsc->db[0], dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB0);
+	writel(vsc->db[1], dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB1);
 
 	/* set reuse spd inforframe */
 	val = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_3);
@@ -1092,8 +1000,8 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 
 	ret = readx_poll_timeout(analogix_dp_get_psr_status, dp, psr_status,
 		psr_status >= 0 &&
-		((vsc->DB1 && psr_status == DP_PSR_SINK_ACTIVE_RFB) ||
-		(!vsc->DB1 && psr_status == DP_PSR_SINK_INACTIVE)), 1500,
+		((vsc->db[1] && psr_status == DP_PSR_SINK_ACTIVE_RFB) ||
+		(!vsc->db[1] && psr_status == DP_PSR_SINK_INACTIVE)), 1500,
 		DP_TIMEOUT_PSR_LOOP_MS * 1000);
 	if (ret) {
 		dev_warn(dp->dev, "Failed to apply PSR %d\n", ret);

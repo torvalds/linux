@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #include <linux/posix_types.h>
@@ -102,12 +102,10 @@ static const struct tty_operations console_ops = {
 	.install		= con_install,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
-	.put_char 		= line_put_char,
 	.write_room		= line_write_room,
 	.chars_in_buffer 	= line_chars_in_buffer,
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
-	.set_termios 		= line_set_termios,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
 	.hangup			= line_hangup,

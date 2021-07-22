@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RackMac vu-meter driver
  *
  * (c) Copyright 2006 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * Support the CPU-meter LEDs of the Xserve G5
  *
@@ -12,7 +11,6 @@
  * interface for fun. Also, the CPU-meter could be made nicer by being
  * a bit less "immediate" but giving instead a more average load over
  * time. Patches welcome :-)
- *
  */
 #undef DEBUG
 
@@ -83,13 +81,14 @@ static int rackmeter_ignore_nice;
  */
 static inline u64 get_cpu_idle_time(unsigned int cpu)
 {
+	struct kernel_cpustat *kcpustat = &kcpustat_cpu(cpu);
 	u64 retval;
 
-	retval = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE] +
-		 kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
+	retval = kcpustat->cpustat[CPUTIME_IDLE] +
+		 kcpustat->cpustat[CPUTIME_IOWAIT];
 
 	if (rackmeter_ignore_nice)
-		retval += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
+		retval += kcpustat_field(kcpustat, CPUTIME_NICE, cpu);
 
 	return retval;
 }
@@ -376,18 +375,19 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	pr_debug("rackmeter_probe()\n");
 
 	/* Get i2s-a node */
-	while ((i2s = of_get_next_child(mdev->ofdev.dev.of_node, i2s)) != NULL)
-	       if (strcmp(i2s->name, "i2s-a") == 0)
-		       break;
+	for_each_child_of_node(mdev->ofdev.dev.of_node, i2s)
+		if (of_node_name_eq(i2s, "i2s-a"))
+			break;
+
 	if (i2s == NULL) {
 		pr_debug("  i2s-a child not found\n");
 		goto bail;
 	}
 	/* Get lightshow or virtual sound */
-	while ((np = of_get_next_child(i2s, np)) != NULL) {
-	       if (strcmp(np->name, "lightshow") == 0)
+	for_each_child_of_node(i2s, np) {
+	       if (of_node_name_eq(np, "lightshow"))
 		       break;
-	       if ((strcmp(np->name, "sound") == 0) &&
+	       if (of_node_name_eq(np, "sound") &&
 		   of_get_property(np, "virtual", NULL) != NULL)
 		       break;
 	}

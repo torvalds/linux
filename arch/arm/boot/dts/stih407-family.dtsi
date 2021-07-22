@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 STMicroelectronics Limited.
  * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * publishhed by the Free Software Foundation.
  */
 #include "stih407-pinctrl.dtsi"
 #include <dt-bindings/mfd/st-lpc.h>
@@ -768,20 +765,6 @@
 			clock-names = "stmmaceth", "sti-ethclk";
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>,
 				 <&clk_s_c0_flexgen CLK_ETH_PHY>;
-		};
-
-		rng10: rng@8a89000 {
-			compatible      = "st,rng";
-			reg		= <0x08a89000 0x1000>;
-			clocks          = <&clk_sysin>;
-			status		= "okay";
-		};
-
-		rng11: rng@8a8a000 {
-			compatible      = "st,rng";
-			reg		= <0x08a8a000 0x1000>;
-			clocks          = <&clk_sysin>;
-			status		= "okay";
 		};
 
 		mailbox0: mailbox@8f00000  {

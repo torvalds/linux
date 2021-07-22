@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OSS compatible sequencer driver
  *
  * open/close and reset interface
  *
  * Copyright (C) 1998-1999 Takashi Iwai <tiwai@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include "seq_oss_device.h"
@@ -107,10 +94,10 @@ snd_seq_oss_create_client(void)
 	port_callback.event_input = receive_announce;
 	port->kernel = &port_callback;
 	
-	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port);
-	if ((system_port = port->addr.port) >= 0) {
+	if (call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port) >= 0) {
 		struct snd_seq_port_subscribe subs;
 
+		system_port = port->addr.port;
 		memset(&subs, 0, sizeof(subs));
 		subs.sender.client = SNDRV_SEQ_CLIENT_SYSTEM;
 		subs.sender.port = SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE;
@@ -367,7 +354,8 @@ alloc_seq_queue(struct seq_oss_devinfo *dp)
 	qinfo.owner = system_client;
 	qinfo.locked = 1;
 	strcpy(qinfo.name, "OSS Sequencer Emulation");
-	if ((rc = call_ctl(SNDRV_SEQ_IOCTL_CREATE_QUEUE, &qinfo)) < 0)
+	rc = call_ctl(SNDRV_SEQ_IOCTL_CREATE_QUEUE, &qinfo);
+	if (rc < 0)
 		return rc;
 	dp->queue = qinfo.queue;
 	return 0;
@@ -473,10 +461,10 @@ enabled_str(int bool)
 	return bool ? "enabled" : "disabled";
 }
 
-static char *
+static const char *
 filemode_str(int val)
 {
-	static char *str[] = {
+	static const char * const str[] = {
 		"none", "read", "write", "read/write",
 	};
 	return str[val & SNDRV_SEQ_OSS_FILE_ACMODE];
@@ -498,7 +486,8 @@ snd_seq_oss_system_info_read(struct snd_info_buffer *buf)
 	snd_iprintf(buf, "\nNumber of applications: %d\n", num_clients);
 	for (i = 0; i < num_clients; i++) {
 		snd_iprintf(buf, "\nApplication %d: ", i);
-		if ((dp = client_table[i]) == NULL) {
+		dp = client_table[i];
+		if (!dp) {
 			snd_iprintf(buf, "*empty*\n");
 			continue;
 		}

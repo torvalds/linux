@@ -21,13 +21,12 @@
  *
  * Authors: Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_trace.h"
+#include "ni.h"
 #include "nid.h"
-
-u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /*
  * DMA

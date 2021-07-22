@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <inttypes.h>
+#include <stdlib.h>
+#include <string.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include "util.h"
+#include "map_symbol.h"
+#include "branch.h"
 #include "event.h"
 #include "evsel.h"
 #include "debug.h"
+#include "util/synthetic-events.h"
 
 #include "tests.h"
 
@@ -94,6 +99,7 @@ static bool samples_same(const struct perf_sample *s1,
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		COMP(branch_stack->nr);
+		COMP(branch_stack->hw_idx);
 		for (i = 0; i < s1->branch_stack->nr; i++)
 			MCOMP(branch_stack->entries[i]);
 	}
@@ -145,16 +151,36 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_PHYS_ADDR)
 		COMP(phys_addr);
 
+	if (type & PERF_SAMPLE_CGROUP)
+		COMP(cgroup);
+
+	if (type & PERF_SAMPLE_DATA_PAGE_SIZE)
+		COMP(data_page_size);
+
+	if (type & PERF_SAMPLE_CODE_PAGE_SIZE)
+		COMP(code_page_size);
+
+	if (type & PERF_SAMPLE_AUX) {
+		COMP(aux_sample.size);
+		if (memcmp(s1->aux_sample.data, s2->aux_sample.data,
+			   s1->aux_sample.size)) {
+			pr_debug("Samples differ at 'aux_sample'\n");
+			return false;
+		}
+	}
+
 	return true;
 }
 
 static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 {
-	struct perf_evsel evsel = {
+	struct evsel evsel = {
 		.needs_swap = false,
-		.attr = {
-			.sample_type = sample_type,
-			.read_format = read_format,
+		.core = {
+			. attr = {
+				.sample_type = sample_type,
+				.read_format = read_format,
+			},
 		},
 	};
 	union perf_event *event;
@@ -170,11 +196,12 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		u64 data[64];
 	} branch_stack = {
 		/* 1 branch_entry */
-		.data = {1, 211, 212, 213},
+		.data = {1, -1ULL, 211, 212, 213},
 	};
 	u64 regs[64];
-	const u64 raw_data[] = {0x123456780a0b0c0dULL, 0x1102030405060708ULL};
+	const u32 raw_data[] = {0x12345678, 0x0a0b0c0d, 0x11020304, 0x05060708, 0 };
 	const u64 data[] = {0x2211443366558877ULL, 0, 0xaabbccddeeff4321ULL};
+	const u64 aux_data[] = {0xa55a, 0, 0xeeddee, 0x0282028202820282};
 	struct perf_sample sample = {
 		.ip		= 101,
 		.pid		= 102,
@@ -191,6 +218,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		.transaction	= 112,
 		.raw_data	= (void *)raw_data,
 		.callchain	= &callchain.callchain,
+		.no_hw_idx      = false,
 		.branch_stack	= &branch_stack.branch_stack,
 		.user_regs	= {
 			.abi	= PERF_SAMPLE_REGS_ABI_64,
@@ -211,6 +239,13 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			.regs	= regs,
 		},
 		.phys_addr	= 113,
+		.cgroup		= 114,
+		.data_page_size = 115,
+		.code_page_size = 116,
+		.aux_sample	= {
+			.size	= sizeof(aux_data),
+			.data	= (void *)aux_data,
+		},
 	};
 	struct sample_read_value values[] = {{1, 5}, {9, 3}, {2, 7}, {6, 4},};
 	struct perf_sample sample_out;
@@ -218,10 +253,13 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	int err, ret = -1;
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
-		evsel.attr.sample_regs_user = sample_regs;
+		evsel.core.attr.sample_regs_user = sample_regs;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR)
-		evsel.attr.sample_regs_intr = sample_regs;
+		evsel.core.attr.sample_regs_intr = sample_regs;
+
+	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+		evsel.core.attr.branch_sample_type |= PERF_SAMPLE_BRANCH_HW_INDEX;
 
 	for (i = 0; i < sizeof(regs); i++)
 		*(i + (u8 *)regs) = i & 0xfe;
@@ -266,12 +304,12 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	evsel.sample_size = __perf_evsel__sample_size(sample_type);
+	evsel.sample_size = __evsel__sample_size(sample_type);
 
-	err = perf_evsel__parse_sample(&evsel, event, &sample_out);
+	err = evsel__parse_sample(&evsel, event, &sample_out);
 	if (err) {
 		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
-			 "perf_evsel__parse_sample", sample_type, err);
+			 "evsel__parse_sample", sample_type, err);
 		goto out_free;
 	}
 
@@ -310,7 +348,7 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_PHYS_ADDR << 1) {
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_WEIGHT_STRUCT << 1) {
 		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
@@ -340,8 +378,12 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 			return err;
 	}
 
-	/* Test all sample format bits together */
-	sample_type = PERF_SAMPLE_MAX - 1;
+	/*
+	 * Test all sample format bits together
+	 * Note: PERF_SAMPLE_WEIGHT and PERF_SAMPLE_WEIGHT_STRUCT cannot
+	 *       be set simultaneously.
+	 */
+	sample_type = (PERF_SAMPLE_MAX - 1) & ~PERF_SAMPLE_WEIGHT;
 	sample_regs = 0x3fff; /* shared yb intr and user regs */
 	for (i = 0; i < ARRAY_SIZE(rf); i++) {
 		err = do_test(sample_type, sample_regs, rf[i]);

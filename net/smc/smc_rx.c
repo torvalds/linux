@@ -21,6 +21,7 @@
 #include "smc_cdc.h"
 #include "smc_tx.h" /* smc_tx_consumer_update() */
 #include "smc_rx.h"
+#include "smc_stats.h"
 
 /* callback implementation to wakeup consumers blocked with smc_rx_wait().
  * indirectly called by smc_cdc_msg_recv_action().
@@ -129,17 +130,8 @@ out:
 	sock_put(sk);
 }
 
-static int smc_rx_pipe_buf_nosteal(struct pipe_inode_info *pipe,
-				   struct pipe_buffer *buf)
-{
-	return 1;
-}
-
 static const struct pipe_buf_operations smc_pipe_ops = {
-	.can_merge = 0,
-	.confirm = generic_pipe_buf_confirm,
 	.release = smc_rx_pipe_buf_release,
-	.steal = smc_rx_pipe_buf_nosteal,
 	.get = generic_pipe_buf_get
 };
 
@@ -202,6 +194,8 @@ int smc_rx_wait(struct smc_sock *smc, long *timeo,
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct smc_connection *conn = &smc->conn;
+	struct smc_cdc_conn_state_flags *cflags =
+					&conn->local_tx_ctrl.conn_state_flags;
 	struct sock *sk = &smc->sk;
 	int rc;
 
@@ -211,9 +205,10 @@ int smc_rx_wait(struct smc_sock *smc, long *timeo,
 	add_wait_queue(sk_sleep(sk), &wait);
 	rc = sk_wait_event(sk, timeo,
 			   sk->sk_err ||
+			   cflags->peer_conn_abort ||
 			   sk->sk_shutdown & RCV_SHUTDOWN ||
-			   fcrit(conn) ||
-			   smc_cdc_rxed_any_close_or_senddone(conn),
+			   conn->killed ||
+			   fcrit(conn),
 			   &wait);
 	remove_wait_queue(sk_sleep(sk), &wait);
 	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
@@ -233,6 +228,7 @@ static int smc_rx_recv_urg(struct smc_sock *smc, struct msghdr *msg, int len,
 	    conn->urg_state == SMC_URG_READ)
 		return -EINVAL;
 
+	SMC_STAT_INC(smc, urg_data_cnt);
 	if (conn->urg_state == SMC_URG_VALID) {
 		if (!(flags & MSG_PEEK))
 			smc->conn.urg_state = SMC_URG_READ;
@@ -261,6 +257,18 @@ static int smc_rx_recv_urg(struct smc_sock *smc, struct msghdr *msg, int len,
 		return 0;
 
 	return -EAGAIN;
+}
+
+static bool smc_rx_recvmsg_data_available(struct smc_sock *smc)
+{
+	struct smc_connection *conn = &smc->conn;
+
+	if (smc_rx_data_available(conn))
+		return true;
+	else if (conn->urg_state == SMC_URG_VALID)
+		/* we received a single urgent Byte - skip */
+		smc_rx_update_cons(smc, 0);
+	return false;
 }
 
 /* smc_rx_recvmsg - receive data from RMBE
@@ -297,6 +305,12 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
+	readable = atomic_read(&conn->bytes_to_rcv);
+	if (readable >= conn->rmb_desc->len)
+		SMC_STAT_RMB_RX_FULL(smc, !conn->lnk);
+
+	if (len < readable)
+		SMC_STAT_RMB_RX_SIZE_SMALL(smc, !conn->lnk);
 	/* we currently use 1 RMBE per RMB, so RMBE == RMB base addr */
 	rcvbuf_base = conn->rx_off + conn->rmb_desc->cpu_addr;
 
@@ -304,16 +318,20 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 		if (read_done >= target || (pipe && read_done))
 			break;
 
-		if (atomic_read(&conn->bytes_to_rcv))
-			goto copy;
-		else if (conn->urg_state == SMC_URG_VALID)
-			/* we received a single urgent Byte - skip */
-			smc_rx_update_cons(smc, 0);
-
-		if (sk->sk_shutdown & RCV_SHUTDOWN ||
-		    smc_cdc_rxed_any_close_or_senddone(conn) ||
-		    conn->local_tx_ctrl.conn_state_flags.peer_conn_abort)
+		if (conn->killed)
 			break;
+
+		if (smc_rx_recvmsg_data_available(smc))
+			goto copy;
+
+		if (sk->sk_shutdown & RCV_SHUTDOWN) {
+			/* smc_cdc_msg_recv_action() could have run after
+			 * above smc_rx_recvmsg_data_available()
+			 */
+			if (smc_rx_recvmsg_data_available(smc))
+				goto copy;
+			break;
+		}
 
 		if (read_done) {
 			if (sk->sk_err ||

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 bootwrapper support.
  *
  *  Copyright (C) 2007 Sony Computer Entertainment Inc.
  *  Copyright 2007 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <stdarg.h>
@@ -32,13 +20,6 @@ extern int lv1_get_logical_partition_id(u64 *out_1);
 extern int lv1_get_logical_ppe_id(u64 *out_1);
 extern int lv1_get_repository_node_value(u64 in_1, u64 in_2, u64 in_3,
 	u64 in_4, u64 in_5, u64 *out_1, u64 *out_2);
-
-#ifdef DEBUG
-#define DBG(fmt...) printf(fmt)
-#else
-static inline int __attribute__ ((format (printf, 1, 2))) DBG(
-	const char *fmt, ...) {return 0;}
-#endif
 
 BSS_STACK(4096);
 
@@ -139,7 +120,7 @@ void platform_init(void)
 	ps3_repository_read_rm_size(&rm_size);
 	dt_fixup_memory(0, rm_size);
 
-	if (_initrd_end > _initrd_start) {
+	if (&_initrd_end > &_initrd_start) {
 		setprop_val(chosen, "linux,initrd-start", (u32)(_initrd_start));
 		setprop_val(chosen, "linux,initrd-end", (u32)(_initrd_end));
 	}

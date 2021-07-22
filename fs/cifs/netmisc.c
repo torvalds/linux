@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   fs/cifs/netmisc.c
  *
@@ -6,20 +7,6 @@
  *
  *   Error mapping routines from Samba libsmb/errormap.c
  *   Copyright (C) Andrew Tridgell 2001
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/net.h>
@@ -127,10 +114,6 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 	{ERRpasswordExpired, -EKEYEXPIRED},
 
 	{ERRnosupport, -EINVAL},
-	{0, 0}
-};
-
-static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 	{0, 0}
 };
 
@@ -898,6 +881,33 @@ map_smb_to_linux_error(char *buf, bool logErr)
 	return rc;
 }
 
+int
+map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
+{
+	int rc;
+	struct smb_hdr *smb = (struct smb_hdr *)mid->resp_buf;
+
+	rc = map_smb_to_linux_error((char *)smb, logErr);
+	if (rc == -EACCES && !(smb->Flags2 & SMBFLG2_ERR_STATUS)) {
+		/* possible ERRBaduid */
+		__u8 class = smb->Status.DosError.ErrorClass;
+		__u16 code = le16_to_cpu(smb->Status.DosError.Error);
+
+		/* switch can be used to handle different errors */
+		if (class == ERRSRV && code == ERRbaduid) {
+			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
+				code);
+			spin_lock(&GlobalMid_Lock);
+			if (mid->server->tcpStatus != CifsExiting)
+				mid->server->tcpStatus = CifsNeedReconnect;
+			spin_unlock(&GlobalMid_Lock);
+		}
+	}
+
+	return rc;
+}
+
+
 /*
  * calculate the size of the SMB message based on the fixed header
  * portion, the number of word parameters and the data portion of the message
@@ -962,8 +972,8 @@ static const int total_days_of_prev_months[] = {
 struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 {
 	struct timespec64 ts;
-	time64_t sec;
-	int min, days, month, year;
+	time64_t sec, days;
+	int min, day, month, year;
 	u16 date = le16_to_cpu(le_date);
 	u16 time = le16_to_cpu(le_time);
 	SMB_TIME *st = (SMB_TIME *)&time;
@@ -974,20 +984,20 @@ struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	sec = 2 * st->TwoSeconds;
 	min = st->Minutes;
 	if ((sec > 59) || (min > 59))
-		cifs_dbg(VFS, "illegal time min %d sec %lld\n", min, sec);
+		cifs_dbg(VFS, "Invalid time min %d sec %lld\n", min, sec);
 	sec += (min * 60);
 	sec += 60 * 60 * st->Hours;
 	if (st->Hours > 24)
-		cifs_dbg(VFS, "illegal hours %d\n", st->Hours);
-	days = sd->Day;
+		cifs_dbg(VFS, "Invalid hours %d\n", st->Hours);
+	day = sd->Day;
 	month = sd->Month;
-	if (days < 1 || days > 31 || month < 1 || month > 12) {
-		cifs_dbg(VFS, "illegal date, month %d day: %d\n", month, days);
-		days = clamp(days, 1, 31);
+	if (day < 1 || day > 31 || month < 1 || month > 12) {
+		cifs_dbg(VFS, "Invalid date, month %d day: %d\n", month, day);
+		day = clamp(day, 1, 31);
 		month = clamp(month, 1, 12);
 	}
 	month -= 1;
-	days += total_days_of_prev_months[month];
+	days = day + total_days_of_prev_months[month];
 	days += 3652; /* account for difference in days between 1980 and 1970 */
 	year = sd->Year;
 	days += year * 365;

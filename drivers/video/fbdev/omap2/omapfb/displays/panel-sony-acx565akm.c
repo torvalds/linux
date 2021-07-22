@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sony ACX565AKM LCD Panel driver
  *
@@ -6,18 +7,6 @@
  * Original Driver Author: Imre Deak <imre.deak@nokia.com>
  * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
  * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -517,16 +506,11 @@ static int acx565akm_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.sdi->connect(in, dssdev);
-	if (r)
-		return r;
-
-	return 0;
+	return in->ops.sdi->connect(in, dssdev);
 }
 
 static void acx565akm_disconnect(struct omap_dss_device *dssdev)

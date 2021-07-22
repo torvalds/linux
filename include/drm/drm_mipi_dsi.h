@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MIPI DSI Bus
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __DRM_MIPI_DSI_H__
@@ -16,6 +13,7 @@
 
 struct mipi_dsi_host;
 struct mipi_dsi_device;
+struct drm_dsc_picture_parameter_set;
 
 /* request ACK from peripheral */
 #define MIPI_DSI_MSG_REQ_ACK	BIT(0)
@@ -168,6 +166,12 @@ struct mipi_dsi_device_info {
  * @format: pixel format for video mode
  * @lanes: number of active data lanes
  * @mode_flags: DSI operation mode related flags
+ * @hs_rate: maximum lane frequency for high speed mode in hertz, this should
+ * be set to the real limits of the hardware, zero is only accepted for
+ * legacy drivers
+ * @lp_rate: maximum lane frequency for low power mode in hertz, this should
+ * be set to the real limits of the hardware, zero is only accepted for
+ * legacy drivers
  */
 struct mipi_dsi_device {
 	struct mipi_dsi_host *host;
@@ -178,6 +182,8 @@ struct mipi_dsi_device {
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
+	unsigned long hs_rate;
+	unsigned long lp_rate;
 };
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
@@ -223,6 +229,9 @@ int mipi_dsi_shutdown_peripheral(struct mipi_dsi_device *dsi);
 int mipi_dsi_turn_on_peripheral(struct mipi_dsi_device *dsi);
 int mipi_dsi_set_maximum_return_packet_size(struct mipi_dsi_device *dsi,
 					    u16 value);
+ssize_t mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable);
+ssize_t mipi_dsi_picture_parameter_set(struct mipi_dsi_device *dsi,
+				       const struct drm_dsc_picture_parameter_set *pps);
 
 ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *dsi, const void *payload,
 			       size_t size);

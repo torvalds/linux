@@ -7,6 +7,8 @@
 
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 
 #include "adxl372.h"
@@ -37,9 +39,16 @@ static const struct spi_device_id adxl372_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, adxl372_spi_id);
 
+static const struct of_device_id adxl372_of_match[] = {
+	{ .compatible = "adi,adxl372" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adxl372_of_match);
+
 static struct spi_driver adxl372_spi_driver = {
 	.driver = {
 		.name = "adxl372_spi",
+		.of_match_table = adxl372_of_match,
 	},
 	.probe = adxl372_spi_probe,
 	.id_table = adxl372_spi_id,

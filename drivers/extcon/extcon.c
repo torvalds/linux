@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/extcon/extcon.c - External Connector (extcon) framework.
  *
@@ -11,15 +12,6 @@
  * based on android/drivers/switch/switch_class.c
  * Copyright (C) 2008 Google, Inc.
  * Author: Mike Lockwood <lockwood@android.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -908,7 +900,7 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 			     struct notifier_block *nb)
 {
 	unsigned long flags;
-	int ret, idx = -EINVAL;
+	int ret, idx;
 
 	if (!edev || !nb)
 		return -EINVAL;
@@ -1249,6 +1241,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 				sizeof(*edev->nh), GFP_KERNEL);
 	if (!edev->nh) {
 		ret = -ENOMEM;
+		device_unregister(&edev->dev);
 		goto err_dev;
 	}
 
@@ -1414,6 +1407,7 @@ const char *extcon_get_edev_name(struct extcon_dev *edev)
 {
 	return !edev ? NULL : edev->name;
 }
+EXPORT_SYMBOL_GPL(extcon_get_edev_name);
 
 static int __init extcon_class_init(void)
 {

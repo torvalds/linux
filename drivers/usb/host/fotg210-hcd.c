@@ -10,6 +10,7 @@
  * Most of code borrowed from the Linux-3.7 EHCI driver
  */
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
 #include <linux/kernel.h>
@@ -31,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/clk.h>
 
 #include <asm/byteorder.h>
@@ -406,17 +408,17 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 		temp = snprintf(next, size,
 				"\n\t%p%c%s len=%d %08x urb %p",
 				td, mark, ({ char *tmp;
-				 switch ((scratch>>8)&0x03) {
-				 case 0:
+				switch ((scratch>>8)&0x03) {
+				case 0:
 					tmp = "out";
 					break;
-				 case 1:
+				case 1:
 					tmp = "in";
 					break;
-				 case 2:
+				case 2:
 					tmp = "setup";
 					break;
-				 default:
+				default:
 					tmp = "?";
 					break;
 				 } tmp; }),
@@ -848,7 +850,6 @@ static inline void create_debug_files(struct fotg210_hcd *fotg210)
 	struct dentry *root;
 
 	root = debugfs_create_dir(bus->bus_name, fotg210_debug_root);
-	fotg210->debug_dir = root;
 
 	debugfs_create_file("async", S_IRUGO, root, bus, &debug_async_fops);
 	debugfs_create_file("periodic", S_IRUGO, root, bus,
@@ -859,7 +860,9 @@ static inline void create_debug_files(struct fotg210_hcd *fotg210)
 
 static inline void remove_debug_files(struct fotg210_hcd *fotg210)
 {
-	debugfs_remove_recursive(fotg210->debug_dir);
+	struct usb_bus *bus = &fotg210_to_hcd(fotg210)->self;
+
+	debugfs_remove(debugfs_lookup(bus->bus_name, fotg210_debug_root));
 }
 
 /* handshake - spin reading hc until handshake completes or fails
@@ -882,18 +885,15 @@ static int handshake(struct fotg210_hcd *fotg210, void __iomem *ptr,
 		u32 mask, u32 done, int usec)
 {
 	u32 result;
+	int ret;
 
-	do {
-		result = fotg210_readl(fotg210, ptr);
-		if (result == ~(u32)0)		/* card removed */
-			return -ENODEV;
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(1);
-		usec--;
-	} while (usec > 0);
-	return -ETIMEDOUT;
+	ret = readl_poll_timeout_atomic(ptr, result,
+					((result & mask) == done ||
+					 result == U32_MAX), 1, usec);
+	if (result == U32_MAX)		/* card removed */
+		return -ENODEV;
+
+	return ret;
 }
 
 /* Force HC to halt state from unknown (EHCI spec section 2.3).
@@ -1628,6 +1628,10 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/* see what we found out */
 			temp = check_reset_complete(fotg210, wIndex, status_reg,
 					fotg210_readl(fotg210, status_reg));
+
+			/* restart schedule */
+			fotg210->command |= CMD_RUN;
+			fotg210_writel(fotg210, fotg210->command, &fotg210->regs->command);
 		}
 
 		if (!(temp & (PORT_RESUME|PORT_RESET))) {
@@ -1948,7 +1952,7 @@ static int fotg210_mem_init(struct fotg210_hcd *fotg210, gfp_t flags)
 		goto fail;
 
 	/* Hardware periodic table */
-	fotg210->periodic = (__le32 *)
+	fotg210->periodic =
 		dma_alloc_coherent(fotg210_to_hcd(fotg210)->self.controller,
 				fotg210->periodic_size * sizeof(__le32),
 				&fotg210->periodic_dma, 0);
@@ -2696,7 +2700,7 @@ cleanup:
  * any previous qh and cancel its urbs first; endpoints are
  * implicitly reset then (data toggle too).
  * That'd mean updating how usbcore talks to HCDs. (2.7?)
-*/
+ */
 
 
 /* Each QH holds a qtd list; a QH is used for everything except iso.
@@ -2802,7 +2806,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
 		info1 |= QH_LOW_SPEED;
-		/* FALL THROUGH */
+		fallthrough;
 
 	case USB_SPEED_FULL:
 		/* EPS 0 means "full" */
@@ -4629,7 +4633,7 @@ static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
 		default:
 			fotg210_dbg(fotg210, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
-			/* FALL THROUGH */
+			fallthrough;
 		case Q_TYPE_QH:
 		case Q_TYPE_FSTN:
 			/* End of the iTDs and siTDs */
@@ -4995,7 +4999,7 @@ static int hcd_fotg210_init(struct usb_hcd *hcd)
 	fotg210->command = temp;
 
 	/* Accept arbitrarily long scatter-gather lists */
-	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+	if (!hcd->localmem_pool)
 		hcd->self.sg_tablesize = ~0;
 	return 0;
 }
@@ -5005,7 +5009,6 @@ static int fotg210_run(struct usb_hcd *hcd)
 {
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
 	u32 temp;
-	u32 hcc_params;
 
 	hcd->uses_new_polling = 1;
 
@@ -5028,7 +5031,7 @@ static int fotg210_run(struct usb_hcd *hcd)
 	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
 	 * host side drivers though.
 	 */
-	hcc_params = fotg210_readl(fotg210, &fotg210->caps->hcc_params);
+	fotg210_readl(fotg210, &fotg210->caps->hcc_params);
 
 	/*
 	 * Philips, Intel, and maybe others need CMD_RUN before the
@@ -5274,7 +5277,7 @@ static int fotg210_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		 */
 		if (urb->transfer_buffer_length > (16 * 1024))
 			return -EMSGSIZE;
-		/* FALLTHROUGH */
+		fallthrough;
 	/* case PIPE_BULK: */
 	default:
 		if (!qh_urb_transaction(fotg210, urb, &qtd_list, mem_flags))
@@ -5407,7 +5410,7 @@ rescan:
 		 */
 		if (tmp)
 			start_unlink_async(fotg210, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
 idle_timeout:
@@ -5421,7 +5424,7 @@ idle_timeout:
 			qh_destroy(fotg210, qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
@@ -5503,7 +5506,7 @@ static const struct hc_driver fotg210_fotg210_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= fotg210_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_DMA | HCD_USB2,
 
 	/*
 	 * basic lifecycle operations
@@ -5553,7 +5556,7 @@ static void fotg210_init(struct fotg210_hcd *fotg210)
 	iowrite32(value, &fotg210->regs->otgcsr);
 }
 
-/**
+/*
  * fotg210_hcd_probe - initialize faraday FOTG210 HCDs
  *
  * Allocates basic resources for this USB host controller, and
@@ -5566,7 +5569,7 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd;
 	struct resource *res;
 	int irq;
-	int retval = -ENODEV;
+	int retval;
 	struct fotg210_hcd *fotg210;
 
 	if (usb_disabled())
@@ -5586,7 +5589,7 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&fotg210_fotg210_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
-		dev_err(dev, "failed to create hcd with err %d\n", retval);
+		dev_err(dev, "failed to create hcd\n");
 		retval = -ENOMEM;
 		goto fail_create_hcd;
 	}
@@ -5641,8 +5644,10 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 	return retval;
 
 failed_dis_clk:
-	if (!IS_ERR(fotg210->pclk))
+	if (!IS_ERR(fotg210->pclk)) {
 		clk_disable_unprepare(fotg210->pclk);
+		clk_put(fotg210->pclk);
+	}
 failed_put_hcd:
 	usb_put_hcd(hcd);
 fail_create_hcd:
@@ -5650,7 +5655,7 @@ fail_create_hcd:
 	return retval;
 }
 
-/**
+/*
  * fotg210_hcd_remove - shutdown processing for EHCI HCDs
  * @dev: USB Host Controller being removed
  *
@@ -5660,8 +5665,10 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
 
-	if (!IS_ERR(fotg210->pclk))
+	if (!IS_ERR(fotg210->pclk)) {
 		clk_disable_unprepare(fotg210->pclk);
+		clk_put(fotg210->pclk);
+	}
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -5669,9 +5676,18 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id fotg210_of_match[] = {
+	{ .compatible = "faraday,fotg210" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, fotg210_of_match);
+#endif
+
 static struct platform_driver fotg210_hcd_driver = {
 	.driver = {
 		.name   = "fotg210-hcd",
+		.of_match_table = of_match_ptr(fotg210_of_match),
 	},
 	.probe  = fotg210_hcd_probe,
 	.remove = fotg210_hcd_remove,

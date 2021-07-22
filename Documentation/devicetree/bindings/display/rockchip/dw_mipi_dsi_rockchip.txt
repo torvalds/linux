@@ -4,18 +4,25 @@ Rockchip specific extensions to the Synopsys Designware MIPI DSI
 Required properties:
 - #address-cells: Should be <1>.
 - #size-cells: Should be <0>.
-- compatible: "rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi".
-	      "rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi".
+- compatible: one of
+	"rockchip,px30-mipi-dsi", "snps,dw-mipi-dsi"
+	"rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi"
+	"rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi"
 - reg: Represent the physical address range of the controller.
 - interrupts: Represent the controller's interrupt to the CPU(s).
 - clocks, clock-names: Phandles to the controller's pll reference
-  clock(ref) and APB clock(pclk). For RK3399, a phy config clock
-  (phy_cfg) and a grf clock(grf) are required. As described in [1].
+  clock(ref) when using an internal dphy and APB clock(pclk).
+  For RK3399, a phy config clock (phy_cfg) and a grf clock(grf)
+  are required. As described in [1].
 - rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
 - ports: contain a port node with endpoint definitions as defined in [2].
   For vopb,set the reg = <0> and set the reg = <1> for vopl.
+- video port 0 for the VOP input, the remote endpoint maybe vopb or vopl
+- video port 1 for either a panel or subsequent encoder
 
 Optional properties:
+- phys: from general PHY binding: the phandle for the PHY device.
+- phy-names: Should be "dphy" if phys references an external phy.
 - power-domains: a phandle to mipi dsi power domain node.
 - resets: list of phandle + reset specifier pairs, as described in [3].
 - reset-names: string reset name, must be "apb".
@@ -40,11 +47,12 @@ Example:
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
 
-			mipi_in: port {
+			mipi_in: port@0 {
+				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				mipi_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_mipi>;
@@ -52,6 +60,16 @@ Example:
 				mipi_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_mipi>;
+				};
+			};
+
+			mipi_out: port@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				mipi_out_panel: endpoint {
+					remote-endpoint = <&panel_in_mipi>;
 				};
 			};
 		};
@@ -64,5 +82,11 @@ Example:
 			pinctrl-names = "default";
 			pinctrl-0 = <&lcd_en>;
 			backlight = <&backlight>;
+
+			port {
+				panel_in_mipi: endpoint {
+					remote-endpoint = <&mipi_out_panel>;
+				};
+			};
 		};
 	};

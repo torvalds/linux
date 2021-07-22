@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include "dc.h"
 #include "dc_bios_types.h"
@@ -29,7 +32,6 @@
 #include "core_status.h"
 #include "resource.h"
 #include "dm_helpers.h"
-#include "dce110_hw_sequencer.h"
 #include "dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
 #include "gpio_service_interface.h"
@@ -45,10 +47,16 @@
 #include "stream_encoder.h"
 #include "link_encoder.h"
 #include "link_hwss.h"
+#include "dc_link_dp.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#include "dccg.h"
+#endif
 #include "clock_source.h"
+#include "clk_mgr.h"
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
+#include "panel_cntl.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -56,6 +64,10 @@
 #include "custom_float.h"
 
 #include "atomfirmware.h"
+
+#include "dcn10/dcn10_hw_sequencer.h"
+
+#define GAMMA_HW_POINTS_NUM 256
 
 /*
  * All values are in milliseconds;
@@ -65,6 +77,8 @@
 #define PANEL_POWER_UP_TIMEOUT 300
 #define PANEL_POWER_DOWN_TIMEOUT 500
 #define HPD_CHECK_INTERVAL 10
+#define OLED_POST_T7_DELAY 100
+#define OLED_PRE_T11_DELAY 150
 
 #define CTX \
 	hws->ctx
@@ -242,6 +256,9 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 	prescale_params->mode = IPP_PRESCALE_MODE_FIXED_UNSIGNED;
 
 	switch (plane_state->format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+		prescale_params->scale = 0x2082;
+		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		prescale_params->scale = 0x2020;
@@ -251,6 +268,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 		prescale_params->scale = 0x2008;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		prescale_params->scale = 0x2000;
 		break;
@@ -261,7 +279,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 }
 
 static bool
-dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
+dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       const struct dc_plane_state *plane_state)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
@@ -548,14 +566,14 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 
 	regamma_params->hw_points_num = hw_points;
 
-	i = 1;
-	for (k = 0; k < 16 && i < 16; k++) {
+	k = 0;
+	for (i = 1; i < 16; i++) {
 		if (seg_distr[k] != -1) {
 			regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 			regamma_params->arr_curve_points[i].offset =
 					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
-		i++;
+		k++;
 	}
 
 	if (seg_distr[k] != -1)
@@ -589,7 +607,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 }
 
 static bool
-dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
@@ -614,58 +632,9 @@ dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	return true;
 }
 
-static enum dc_status bios_parser_crtc_source_select(
-		struct pipe_ctx *pipe_ctx)
-{
-	struct dc_bios *dcb;
-	/* call VBIOS table to set CRTC source for the HW
-	 * encoder block
-	 * note: video bios clears all FMT setting here. */
-	struct bp_crtc_source_select crtc_source_select = {0};
-	const struct dc_sink *sink = pipe_ctx->stream->sink;
-
-	crtc_source_select.engine_id = pipe_ctx->stream_res.stream_enc->id;
-	crtc_source_select.controller_id = pipe_ctx->stream_res.tg->inst + 1;
-	/*TODO: Need to un-hardcode color depth, dp_audio and account for
-	 * the case where signal and sink signal is different (translator
-	 * encoder)*/
-	crtc_source_select.signal = pipe_ctx->stream->signal;
-	crtc_source_select.enable_dp_audio = false;
-	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
-
-	switch (pipe_ctx->stream->timing.display_color_depth) {
-	case COLOR_DEPTH_666:
-		crtc_source_select.display_output_bit_depth = PANEL_6BIT_COLOR;
-		break;
-	case COLOR_DEPTH_888:
-		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
-		break;
-	case COLOR_DEPTH_101010:
-		crtc_source_select.display_output_bit_depth = PANEL_10BIT_COLOR;
-		break;
-	case COLOR_DEPTH_121212:
-		crtc_source_select.display_output_bit_depth = PANEL_12BIT_COLOR;
-		break;
-	default:
-		BREAK_TO_DEBUGGER();
-		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
-		break;
-	}
-
-	dcb = sink->ctx->dc_bios;
-
-	if (BP_RESULT_OK != dcb->funcs->crtc_source_select(
-		dcb,
-		&crtc_source_select)) {
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	return DC_OK;
-}
-
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
-	bool is_hdmi;
+	bool is_hdmi_tmds;
 	bool is_dp;
 
 	ASSERT(pipe_ctx->stream);
@@ -673,13 +642,13 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.stream_enc == NULL)
 		return;  /* this is not root pipe */
 
-	is_hdmi = dc_is_hdmi_signal(pipe_ctx->stream->signal);
+	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi && !is_dp)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
-	if (is_hdmi)
+	if (is_hdmi_tmds)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
@@ -692,11 +661,10 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
-		pipe_ctx->stream->sink->link->cur_link_settings.lane_count;
-
+		pipe_ctx->stream->link->cur_link_settings.lane_count;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct dc_link *link = pipe_ctx->stream->sink->link;
-
+	struct dc_link *link = pipe_ctx->stream->link;
+	const struct dc *dc = link->dc;
 
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
@@ -709,9 +677,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
 						    pipe_ctx->stream_res.stream_enc->id, true);
 
-	/* update AVI info frame (HDMI, DP)*/
-	/* TODO: FPGA may change to hwss.update_info_frame */
-	dce110_update_info_frame(pipe_ctx);
+	dc->hwss.update_info_frame(pipe_ctx);
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
@@ -738,28 +704,6 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 }
 
-/*todo: cloned in stream enc, fix*/
-static bool is_panel_backlight_on(struct dce_hwseq *hws)
-{
-	uint32_t value;
-
-	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
-
-	return value;
-}
-
-static bool is_panel_powered_on(struct dce_hwseq *hws)
-{
-	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
-
-
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
-
-	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
-
-	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
-}
-
 static enum bp_result link_transmitter_control(
 		struct dc_bios *bios,
 	struct bp_transmitter_control *cntl)
@@ -775,13 +719,14 @@ static enum bp_result link_transmitter_control(
  * @brief
  * eDP only.
  */
-void hwss_edp_wait_for_hpd_ready(
+void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up)
 {
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
+	struct dc_sink *sink = link->local_sink;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -814,6 +759,14 @@ void hwss_edp_wait_for_hpd_ready(
 		return;
 	}
 
+	if (sink != NULL) {
+		if (sink->edid_caps.panel_patch.extra_t3_ms > 0) {
+			int extra_t3_in_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+
+			msleep(extra_t3_in_ms);
+		}
+	}
+
 	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
 
 	/* wait until timeout or panel detected */
@@ -843,14 +796,14 @@ void hwss_edp_wait_for_hpd_ready(
 	}
 }
 
-void hwss_edp_power_control(
+void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hwseq = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
+	uint8_t panel_instance;
 
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -859,38 +812,70 @@ void hwss_edp_power_control(
 		return;
 	}
 
-	if (power_up != is_panel_powered_on(hwseq)) {
+	if (!link->panel_cntl)
+		return;
+	if (power_up !=
+		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
+
+		unsigned long long current_ts = dm_get_timestamp(ctx);
+		unsigned long long time_since_edp_poweroff_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweroff), 1000000);
+		unsigned long long time_since_edp_poweron_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweron), 1000000);
+		DC_LOG_HW_RESUME_S3(
+				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
+				__func__,
+				power_up,
+				current_ts,
+				link->link_trace.time_stamp.edp_poweroff,
+				link->link_trace.time_stamp.edp_poweron,
+				time_since_edp_poweroff_ms,
+				time_since_edp_poweron_ms);
+
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
-			unsigned long long current_ts = dm_get_timestamp(ctx);
-			unsigned long long duration_in_ms =
-					div64_u64(dm_get_elapse_time_in_ns(
-							ctx,
-							current_ts,
-							link->link_trace.time_stamp.edp_poweroff), 1000000);
-			unsigned long long wait_time_ms = 0;
+			/* edp requires a min of 500ms from LCDVDD off to on */
+			unsigned long long remaining_min_edp_poweroff_time_ms = 500;
 
-			/* max 500ms from LCDVDD off to on */
-			unsigned long long edp_poweroff_time_ms = 500;
-
+			/* add time defined by a patch, if any (usually patch extra_t12_ms is 0) */
 			if (link->local_sink != NULL)
-				edp_poweroff_time_ms =
-						500 + link->local_sink->edid_caps.panel_patch.extra_t12_ms;
-			if (link->link_trace.time_stamp.edp_poweroff == 0)
-				wait_time_ms = edp_poweroff_time_ms;
-			else if (duration_in_ms < edp_poweroff_time_ms)
-				wait_time_ms = edp_poweroff_time_ms - duration_in_ms;
+				remaining_min_edp_poweroff_time_ms +=
+					link->local_sink->edid_caps.panel_patch.extra_t12_ms;
 
-			if (wait_time_ms) {
-				msleep(wait_time_ms);
-				dm_output_to_console("%s: wait %lld ms to power on eDP.\n",
-						__func__, wait_time_ms);
+			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
+			if (link->link_trace.time_stamp.edp_poweroff != 0) {
+				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
+					remaining_min_edp_poweroff_time_ms =
+						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
+				else
+					remaining_min_edp_poweroff_time_ms = 0;
 			}
 
+			if (remaining_min_edp_poweroff_time_ms) {
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: begin wait.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+				msleep(remaining_min_edp_poweroff_time_ms);
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: end wait.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+				dm_output_to_console("%s: wait %lld ms to power on eDP.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+			} else {
+				DC_LOG_HW_RESUME_S3(
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: no wait required.\n",
+						__func__, remaining_min_edp_poweroff_time_ms);
+			}
 		}
 
 		DC_LOG_HW_RESUME_S3(
-				"%s: Panel Power action: %s\n",
+				"%s: BEGIN: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
 		cntl.action = power_up ?
@@ -901,13 +886,38 @@ void hwss_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+		panel_instance = link->panel_cntl->inst;
+
+		if (ctx->dc->ctx->dmub_srv &&
+				ctx->dc->debug.dmub_command_table) {
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_ON,
+						panel_instance);
+			else
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_OFF,
+						panel_instance);
+		}
+
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
+
+		DC_LOG_HW_RESUME_S3(
+				"%s: END: Panel Power action: %s bp_result=%u\n",
+				__func__, (power_up ? "On":"Off"),
+				bp_result);
 
 		if (!power_up)
 			/*save driver power off time stamp*/
 			link->link_trace.time_stamp.edp_poweroff = dm_get_timestamp(ctx);
 		else
 			link->link_trace.time_stamp.edp_poweron = dm_get_timestamp(ctx);
+
+		DC_LOG_HW_RESUME_S3(
+				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
+				__func__,
+				link->link_trace.time_stamp.edp_poweroff,
+				link->link_trace.time_stamp.edp_poweron);
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
@@ -920,18 +930,49 @@ void hwss_edp_power_control(
 	}
 }
 
+void dce110_edp_wait_for_T12(
+		struct dc_link *link)
+{
+	struct dc_context *ctx = link->ctx;
+
+	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
+			!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (!link->panel_cntl)
+		return;
+
+	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
+			link->link_trace.time_stamp.edp_poweroff != 0) {
+		unsigned int t12_duration = 500; // Default T12 as per spec
+		unsigned long long current_ts = dm_get_timestamp(ctx);
+		unsigned long long time_since_edp_poweroff_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweroff), 1000000);
+
+		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
+
+		if (time_since_edp_poweroff_ms < t12_duration)
+			msleep(t12_duration - time_since_edp_poweroff_ms);
+	}
+}
+
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
  * eDP only. Control the backlight of the eDP panel
  */
-void hwss_edp_backlight_control(
+void dce110_edp_backlight_control(
 		struct dc_link *link,
 		bool enable)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hws = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
+	uint8_t panel_instance;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -939,11 +980,15 @@ void hwss_edp_backlight_control(
 		return;
 	}
 
-	if (enable && is_panel_backlight_on(hws)) {
-		DC_LOG_HW_RESUME_S3(
-				"%s: panel already powered up. Do nothing.\n",
+	if (link->panel_cntl) {
+		bool is_backlight_on = link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl);
+
+		if ((enable && is_backlight_on) || (!enable && !is_backlight_on)) {
+			DC_LOG_HW_RESUME_S3(
+				"%s: panel already powered up/off. Do nothing.\n",
 				__func__);
-		return;
+			return;
+		}
 	}
 
 	/* Send VBIOS command to control eDP panel backlight */
@@ -976,52 +1021,118 @@ void hwss_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
-		edp_receiver_ready_T7(link);
+	panel_instance = link->panel_cntl->inst;
+
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T7-ready.
+		 */
+			edp_receiver_ready_T7(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
+	}
+
+	if (ctx->dc->ctx->dmub_srv &&
+			ctx->dc->debug.dmub_command_table) {
+		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLON,
+					panel_instance);
+		else
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLOFF,
+					panel_instance);
+	}
+
 	link_transmitter_control(ctx->dc_bios, &cntl);
+
+	if (enable && link->dpcd_sink_ext_caps.bits.oled)
+		msleep(OLED_POST_T7_DELAY);
+
+	if (link->dpcd_sink_ext_caps.bits.oled ||
+		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
+		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
+		dc_link_backlight_enable_aux(link, enable);
+
 	/*edp 1.2*/
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
-		edp_receiver_ready_T9(link);
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T9-ready.
+		 */
+			edp_add_delay_for_T9(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
+	}
+
+	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
+		msleep(OLED_PRE_T11_DELAY);
 }
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	/* notify audio driver for audio modes of monitor */
-	struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+	struct dc *dc;
+	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
+
+	if (!pipe_ctx->stream)
+		return;
+
+	dc = pipe_ctx->stream->ctx->dc;
+	clk_mgr = dc->clk_mgr;
+
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
+		return;
 
 	if (pipe_ctx->stream_res.audio) {
 		for (i = 0; i < MAX_PIPES; i++) {
 			/*current_state not updated yet*/
-			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
 				num_audio++;
 		}
 
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
-		if (num_audio == 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, false);
+					pipe_ctx->stream_res.stream_enc, false);
+		if (pipe_ctx->stream_res.audio)
+			pipe_ctx->stream_res.audio->enabled = true;
 	}
 }
 
-void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dc *dc;
+	struct clk_mgr *clk_mgr;
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		return;
+
+	dc = pipe_ctx->stream->ctx->dc;
+	clk_mgr = dc->clk_mgr;
+
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
+		return;
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
-		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only) {
-			/*only disalbe az_endpoint if power down or free*/
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-		}
+		pipe_ctx->stream_res.audio->enabled = false;
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
@@ -1029,13 +1140,10 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
-		/*don't free audio if it is from retrain or internal disable stream*/
-		if (option == FREE_ACQUIRED_RESOURCE && dc->caps.dynamic_audio == true) {
-			/*we have to dynamic arbitrate the audio endpoints*/
-			/*we free the resource, need reset is_audio_acquired*/
-			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
-			pipe_ctx->stream_res.audio = NULL;
-		}
+
+		if (clk_mgr->funcs->enable_pme_wa)
+			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
+			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
@@ -1045,21 +1153,24 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 	}
 }
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc);
+		pipe_ctx->stream_res.stream_enc->funcs->hdmi_reset_stream_attribute(
+			pipe_ctx->stream_res.stream_enc);
+	}
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
-	dc->hwss.disable_audio_stream(pipe_ctx, option);
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
@@ -1073,33 +1184,45 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 {
 	struct encoder_unblank_param params = { { 0 } };
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
+	struct dce_hwseq *hws = link->dc->hwseq;
 
 	/* only 3 items below are used by unblank */
-	params.pixel_clk_khz =
-		pipe_ctx->stream->timing.pix_clk_khz;
+	params.timing = pipe_ctx->stream->timing;
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		link->dc->hwss.edp_backlight_control(link, true);
-		stream->bl_pwm_level = EDP_BACKLIGHT_RAMP_DISABLE_LEVEL;
+		hws->funcs.edp_backlight_control(link, true);
 	}
 }
+
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
+	struct dce_hwseq *hws = link->dc->hwseq;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		link->dc->hwss.edp_backlight_control(link, false);
-		dc_link_set_abm_disable(link);
+		hws->funcs.edp_backlight_control(link, false);
+		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
+
+		if (!dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+			/*
+			 * After output is idle pattern some sinks need time to recognize the stream
+			 * has changed or they enter protection state and hang.
+			 */
+			msleep(60);
+		} else if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
+			edp_receiver_ready_T9(link);
+	}
+
 }
 
 
@@ -1164,36 +1287,37 @@ static void build_audio_output(
 			stream->timing.flags.INTERLACE;
 
 	audio_output->crtc_info.refresh_rate =
-		(stream->timing.pix_clk_khz*1000)/
+		(stream->timing.pix_clk_100hz*100)/
 		(stream->timing.h_total*stream->timing.v_total);
 
 	audio_output->crtc_info.color_depth =
 		stream->timing.display_color_depth;
 
-	audio_output->crtc_info.requested_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+	audio_output->crtc_info.requested_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
-	audio_output->crtc_info.calculated_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+	audio_output->crtc_info.calculated_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
-		audio_output->crtc_info.requested_pixel_clock ==
-				stream->timing.pix_clk_khz) {
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) &&
+		audio_output->crtc_info.requested_pixel_clock_100Hz ==
+				(stream->timing.pix_clk_100hz)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-			audio_output->crtc_info.requested_pixel_clock =
-					audio_output->crtc_info.requested_pixel_clock/2;
-			audio_output->crtc_info.calculated_pixel_clock =
-					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk/2;
+			audio_output->crtc_info.requested_pixel_clock_100Hz =
+					audio_output->crtc_info.requested_pixel_clock_100Hz/2;
+			audio_output->crtc_info.calculated_pixel_clock_100Hz =
+					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/2;
 
 		}
 	}
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
-			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+	if (state->clk_mgr &&
+		(pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-				state->dis_clk->funcs->get_dp_ref_clk_frequency(
-						state->dis_clk);
+				state->clk_mgr->funcs->get_dp_ref_clk_frequency(
+						state->clk_mgr);
 	}
 
 	audio_output->pll_info.feed_back_divider =
@@ -1210,47 +1334,12 @@ static void build_audio_output(
 			pipe_ctx->pll_settings.ss_percentage;
 }
 
-static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color)
-{
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
-
-	switch (pipe_ctx->plane_res.scl_data.format) {
-	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
-		color->color_r_cr = color_value;
-		break;
-
-	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
-		color->color_b_cb = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
-		color->color_g_y = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
-		color->color_g_y = color_value;
-		color->color_r_cr = color_value;
-		break;
-	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
-		color->color_r_cr = color_value;
-		color->color_b_cb = color_value;
-		color->color_g_y = color_value;
-		break;
-	default:
-		break;
-	}
-}
-
 static void program_scaler(const struct dc *dc,
 		const struct pipe_ctx *pipe_ctx)
 {
 	struct tg_color color = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TOFPGA */
 	if (pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth == NULL)
 		return;
@@ -1268,10 +1357,19 @@ static void program_scaler(const struct dc *dc,
 		pipe_ctx->plane_res.scl_data.lb_params.depth,
 		&pipe_ctx->stream->bit_depth_params);
 
-	if (pipe_ctx->stream_res.tg->funcs->set_overscan_blank_color)
+	if (pipe_ctx->stream_res.tg->funcs->set_overscan_blank_color) {
+		/*
+		 * The way 420 is packed, 2 channels carry Y component, 1 channel
+		 * alternate between Cb and Cr, so both channels need the pixel
+		 * value for Y
+		 */
+		if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			color.color_r_cr = color.color_g_y;
+
 		pipe_ctx->stream_res.tg->funcs->set_overscan_blank_color(
 				pipe_ctx->stream_res.tg,
 				&color);
+	}
 
 	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(pipe_ctx->plane_res.xfm,
 		&pipe_ctx->plane_res.scl_data);
@@ -1286,8 +1384,6 @@ static enum dc_status dce110_enable_stream_timing(
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0;
 
 	if (!pipe_ctx_old->stream) {
 
@@ -1315,21 +1411,12 @@ static enum dc_status dce110_enable_stream_timing(
 		pipe_ctx->stream_res.tg->funcs->program_timing(
 				pipe_ctx->stream_res.tg,
 				&stream->timing,
+				0,
+				0,
+				0,
+				0,
+				pipe_ctx->stream->signal,
 				true);
-
-		params.vertical_total_min = stream->adjust.v_total_min;
-		params.vertical_total_max = stream->adjust.v_total_max;
-		if (pipe_ctx->stream_res.tg->funcs->set_drr)
-			pipe_ctx->stream_res.tg->funcs->set_drr(
-				pipe_ctx->stream_res.tg, &params);
-
-		// DRR should set trigger event to monitor surface update event
-		if (stream->adjust.v_total_min != 0 &&
-				stream->adjust.v_total_max != 0)
-			event_triggers = 0x80;
-		if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
-			pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1349,6 +1436,14 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+	struct dce_hwseq *hws = dc->hwseq;
+
+	if (hws->funcs.disable_stream_gating) {
+		hws->funcs.disable_stream_gating(dc, pipe_ctx);
+	}
 
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
@@ -1375,32 +1470,65 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	}
 
 	/*  */
-	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
+	/* Do not touch stream timing on seamless boot optimization. */
+	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
+		hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 
-	/* TODO: move to stream encoder */
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		if (DC_OK != bios_parser_crtc_source_select(pipe_ctx)) {
-			BREAK_TO_DEBUGGER();
-			return DC_ERROR_UNEXPECTED;
-		}
+	if (hws->funcs.setup_vupdate_interrupt)
+		hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
+
+	params.vertical_total_min = stream->adjust.v_total_min;
+	params.vertical_total_max = stream->adjust.v_total_max;
+	if (pipe_ctx->stream_res.tg->funcs->set_drr)
+		pipe_ctx->stream_res.tg->funcs->set_drr(
+			pipe_ctx->stream_res.tg, &params);
+
+	// DRR should set trigger event to monitor surface update event
+	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
+		event_triggers = 0x80;
+	/* Event triggers and num frames initialized for DRR, but can be
+	 * later updated for PSR use. Note DRR trigger events are generated
+	 * regardless of whether num frames met.
+	 */
+	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers, 2);
+
+	if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
+			pipe_ctx->stream_res.stream_enc,
+			pipe_ctx->stream_res.tg->inst);
 
 	pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
 			pipe_ctx->stream_res.opp,
 			COLOR_SPACE_YCBCR601,
 			stream->timing.display_color_depth,
-			pipe_ctx->stream->signal);
+			stream->signal);
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 		pipe_ctx->stream_res.opp,
 		&stream->bit_depth_params,
 		&stream->clamping);
+	while (odm_pipe) {
+		odm_pipe->stream_res.opp->funcs->opp_set_dyn_expansion(
+				odm_pipe->stream_res.opp,
+				COLOR_SPACE_YCBCR601,
+				stream->timing.display_color_depth,
+				stream->signal);
+
+		odm_pipe->stream_res.opp->funcs->opp_program_fmt(
+				odm_pipe->stream_res.opp,
+				&stream->bit_depth_params,
+				&stream->clamping);
+		odm_pipe = odm_pipe->next_odm_pipe;
+	}
 
 	if (!stream->dpms_off)
 		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
-	pipe_ctx->stream->sink->link->psr_enabled = false;
+	pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 
 	return DC_OK;
 }
@@ -1410,8 +1538,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 static void power_down_encoders(struct dc *dc)
 {
 	int i;
-	enum connector_id connector_id;
-	enum signal_type signal = SIGNAL_TYPE_NONE;
 
 	/* do not know BIOS back-front mapping, simply blank all. It will not
 	 * hurt for non-DP
@@ -1422,18 +1548,22 @@ static void power_down_encoders(struct dc *dc)
 	}
 
 	for (i = 0; i < dc->link_count; i++) {
-		connector_id = dal_graphics_object_id_get_connector_id(dc->links[i]->link_id);
-		if ((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
-			(connector_id == CONNECTOR_ID_EDP)) {
+		enum signal_type signal = dc->links[i]->connector_signal;
 
+		if ((signal == SIGNAL_TYPE_EDP) ||
+			(signal == SIGNAL_TYPE_DISPLAY_PORT))
 			if (!dc->links[i]->wa_flags.dp_keep_receiver_powered)
 				dp_receiver_power_ctrl(dc->links[i], false);
-			if (connector_id == CONNECTOR_ID_EDP)
-				signal = SIGNAL_TYPE_EDP;
-		}
+
+		if (signal != SIGNAL_TYPE_EDP)
+			signal = SIGNAL_TYPE_NONE;
 
 		dc->links[i]->link_enc->funcs->disable_output(
 				dc->links[i]->link_enc, signal);
+
+		dc->links[i]->link_status.link_active = false;
+		memset(&dc->links[i]->cur_link_settings, 0,
+				sizeof(dc->links[i]->cur_link_settings));
 	}
 }
 
@@ -1499,43 +1629,43 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
-static struct dc_link *get_link_for_edp(struct dc *dc)
+
+static void get_edp_streams(struct dc_state *context,
+		struct dc_stream_state **edp_streams,
+		int *edp_stream_num)
 {
 	int i;
 
-	for (i = 0; i < dc->link_count; i++) {
-		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP)
-			return dc->links[i];
+	*edp_stream_num = 0;
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
+			edp_streams[*edp_stream_num] = context->streams[i];
+			if (++(*edp_stream_num) == MAX_NUM_EDP)
+				return;
+		}
 	}
-	return NULL;
 }
 
-static struct dc_link *get_link_for_edp_not_in_use(
+static void get_edp_links_with_sink(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_link **edp_links_with_sink,
+		int *edp_with_sink_num)
 {
 	int i;
-	struct dc_link *link = NULL;
-
-	/* check if eDP panel is suppose to be set mode, if yes, no need to disable */
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
-			return NULL;
-	}
 
 	/* check if there is an eDP panel not in use */
+	*edp_with_sink_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		if (dc->links[i]->local_sink &&
 			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-			link = dc->links[i];
-			break;
+			edp_links_with_sink[*edp_with_sink_num] = dc->links[i];
+			if (++(*edp_with_sink_num) == MAX_NUM_EDP)
+				return;
 		}
 	}
-
-	return link;
 }
 
-/**
+/*
  * When ASIC goes from VBIOS/VGA mode to driver/accelerated mode we need:
  *  1. Power down all DC HW blocks
  *  2. Disable VGA engine on all controllers
@@ -1544,51 +1674,82 @@ static struct dc_link *get_link_for_edp_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
+	struct dc_link *edp_links_with_sink[MAX_NUM_EDP];
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
+	struct dc_link *edp_link_with_sink = NULL;
+	struct dc_link *edp_link = NULL;
+	struct dc_stream_state *edp_stream = NULL;
+	struct dce_hwseq *hws = dc->hwseq;
+	int edp_with_sink_num;
+	int edp_num;
+	int edp_stream_num;
 	int i;
-	struct dc_link *edp_link_to_turnoff = NULL;
-	struct dc_link *edp_link = get_link_for_edp(dc);
-	bool can_edp_fast_boot_optimize = false;
-	bool apply_edp_fast_boot_optimization = false;
+	bool can_apply_edp_fast_boot = false;
+	bool can_apply_seamless_boot = false;
+	bool keep_edp_vdd_on = false;
+	DC_LOGGER_INIT();
 
-	if (edp_link) {
-		/* this seems to cause blank screens on DCE8 */
-		if ((dc->ctx->dce_version == DCE_VERSION_8_0) ||
-		    (dc->ctx->dce_version == DCE_VERSION_8_1) ||
-		    (dc->ctx->dce_version == DCE_VERSION_8_3))
-			can_edp_fast_boot_optimize = false;
-		else
-			can_edp_fast_boot_optimize =
-				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc);
+
+	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
+	get_edp_links(dc, edp_links, &edp_num);
+
+	if (hws->funcs.init_pipes)
+		hws->funcs.init_pipes(dc, context);
+
+	get_edp_streams(context, edp_streams, &edp_stream_num);
+
+	// Check fastboot support, disable on DCE8 because of blank screens
+	if (edp_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
+		    dc->ctx->dce_version != DCE_VERSION_8_1 &&
+		    dc->ctx->dce_version != DCE_VERSION_8_3) {
+		for (i = 0; i < edp_num; i++) {
+			edp_link = edp_links[i];
+			// enable fastboot if backend is enabled on eDP
+			if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
+				/* Set optimization flag on eDP stream*/
+				if (edp_stream_num && edp_link->link_status.link_active) {
+					edp_stream = edp_streams[0];
+					can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
+					edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
+					if (can_apply_edp_fast_boot)
+						DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
+
+					break;
+				}
+			}
+		}
+		// We are trying to enable eDP, don't power down VDD
+		if (edp_stream_num)
+			keep_edp_vdd_on = true;
 	}
 
-	if (can_edp_fast_boot_optimize)
-		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
-
-	/* if OS doesn't light up eDP and eDP link is available, we want to disable
-	 * If resume from S4/S5, should optimization.
-	 */
-	if (can_edp_fast_boot_optimize && !edp_link_to_turnoff) {
-		/* Find eDP stream and set optimization flag */
-		for (i = 0; i < context->stream_count; i++) {
-			if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
-				context->streams[i]->apply_edp_fast_boot_optimization = true;
-				apply_edp_fast_boot_optimization = true;
-			}
+	// Check seamless boot support
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
 		}
 	}
 
-	if (!apply_edp_fast_boot_optimization) {
-		if (edp_link_to_turnoff) {
+	/* eDP should not have stream in resume from S4 and so even with VBios post
+	 * it should get turned off
+	 */
+	if (edp_with_sink_num)
+		edp_link_with_sink = edp_links_with_sink[0];
+
+	if (!can_apply_edp_fast_boot && !can_apply_seamless_boot) {
+		if (edp_link_with_sink && !keep_edp_vdd_on) {
 			/*turn off backlight before DP_blank and encoder powered down*/
-			dc->hwss.edp_backlight_control(edp_link_to_turnoff, false);
+			hws->funcs.edp_backlight_control(edp_link_with_sink, false);
 		}
 		/*resume from S3, no vbios posting, no need to power down again*/
 		power_down_all_hw_blocks(dc);
 		disable_vga_and_power_gate_all_controllers(dc);
-		if (edp_link_to_turnoff)
-			dc->hwss.edp_power_control(edp_link_to_turnoff, false);
+		if (edp_link_with_sink && !keep_edp_vdd_on)
+			dc->hwss.edp_power_control(edp_link_with_sink, false);
 	}
-	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
+	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 1);
 }
 
 static uint32_t compute_pstate_blackout_duration(
@@ -1601,8 +1762,8 @@ static uint32_t compute_pstate_blackout_duration(
 	pstate_blackout_duration_ns = 1000 * blackout_duration.value >> 24;
 
 	total_dest_line_time_ns = 1000000UL *
-		stream->timing.h_total /
-		stream->timing.pix_clk_khz +
+		(stream->timing.h_total * 10) /
+		stream->timing.pix_clk_100hz +
 		pstate_blackout_duration_ns;
 
 	return total_dest_line_time_ns;
@@ -1626,18 +1787,18 @@ static void dce110_set_displaymarks(
 			dc->bw_vbios->blackout_duration, pipe_ctx->stream);
 		pipe_ctx->plane_res.mi->funcs->mem_input_program_display_marks(
 			pipe_ctx->plane_res.mi,
-			context->bw.dce.nbp_state_change_wm_ns[num_pipes],
-			context->bw.dce.stutter_exit_wm_ns[num_pipes],
-			context->bw.dce.stutter_entry_wm_ns[num_pipes],
-			context->bw.dce.urgent_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.stutter_entry_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.urgent_wm_ns[num_pipes],
 			total_dest_line_time_ns);
 		if (i == underlay_idx) {
 			num_pipes++;
 			pipe_ctx->plane_res.mi->funcs->mem_input_program_chroma_display_marks(
 				pipe_ctx->plane_res.mi,
-				context->bw.dce.nbp_state_change_wm_ns[num_pipes],
-				context->bw.dce.stutter_exit_wm_ns[num_pipes],
-				context->bw.dce.urgent_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.nbp_state_change_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.stutter_exit_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.urgent_wm_ns[num_pipes],
 				total_dest_line_time_ns);
 		}
 		num_pipes++;
@@ -1684,15 +1845,17 @@ void dce110_set_safe_displaymarks(
  ******************************************************************************/
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, int vmin, int vmax)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
 	// DRR should set trigger event to monitor surface update event
 	unsigned int event_triggers = 0x80;
+	// Note DRR trigger events are generated regardless of whether num frames met.
+	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
 
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
@@ -1702,10 +1865,10 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
 
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
-					event_triggers);
+					event_triggers, num_frames);
 	}
 }
 
@@ -1722,65 +1885,44 @@ static void get_position(struct pipe_ctx **pipe_ctx,
 }
 
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, const struct dc_static_screen_events *events)
+		int num_pipes, const struct dc_static_screen_params *params)
 {
 	unsigned int i;
-	unsigned int value = 0;
+	unsigned int triggers = 0;
 
-	if (events->overlay_update)
-		value |= 0x100;
-	if (events->surface_update)
-		value |= 0x80;
-	if (events->cursor_update)
-		value |= 0x2;
-	if (events->force_trigger)
-		value |= 0x1;
+	if (params->triggers.overlay_update)
+		triggers |= 0x100;
+	if (params->triggers.surface_update)
+		triggers |= 0x80;
+	if (params->triggers.cursor_update)
+		triggers |= 0x2;
+	if (params->triggers.force_trigger)
+		triggers |= 0x1;
 
-	value |= 0x84;
+	if (num_pipes) {
+		struct dc *dc = pipe_ctx[0]->stream->ctx->dc;
+
+		if (dc->fbc_compressor)
+			triggers |= 0x84;
+	}
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->
-			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
-}
-
-/* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet
- */
-static uint32_t get_max_pixel_clock_for_all_paths(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	uint32_t max_pix_clk = 0;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL)
-			continue;
-
-		/* do not check under lay */
-		if (pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
-			max_pix_clk =
-				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
-	}
-
-	return max_pix_clk;
+			set_static_screen_control(pipe_ctx[i]->stream_res.tg,
+					triggers, params->num_frames);
 }
 
 /*
  *  Check if FBC can be enabled
  */
 static bool should_enable_fbc(struct dc *dc,
-			      struct dc_state *context,
-			      uint32_t *pipe_idx)
+		struct dc_state *context,
+		uint32_t *pipe_idx)
 {
 	uint32_t i;
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct resource_context *res_ctx = &context->res_ctx;
+	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
 
 
 	ASSERT(dc->fbc_compressor);
@@ -1795,21 +1937,32 @@ static bool should_enable_fbc(struct dc *dc,
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (res_ctx->pipe_ctx[i].stream) {
+
 			pipe_ctx = &res_ctx->pipe_ctx[i];
-			*pipe_idx = i;
-			break;
+
+			if (!pipe_ctx)
+				continue;
+
+			/* fbc not applicable on underlay pipe */
+			if (pipe_ctx->pipe_idx != underlay_idx) {
+				*pipe_idx = i;
+				break;
+			}
 		}
 	}
 
-	/* Pipe context should be found */
-	ASSERT(pipe_ctx);
+	if (i == dc->res_pool->pipe_count)
+		return false;
+
+	if (!pipe_ctx->stream->link)
+		return false;
 
 	/* Only supports eDP */
-	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
+	if (pipe_ctx->stream->link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
 
 	/* PSR should not be enabled */
-	if (pipe_ctx->stream->sink->link->psr_enabled)
+	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
 	/* Nothing to compress */
@@ -1826,8 +1979,9 @@ static bool should_enable_fbc(struct dc *dc,
 /*
  *  Enable FBC
  */
-static void enable_fbc(struct dc *dc,
-		       struct dc_state *context)
+static void enable_fbc(
+		struct dc *dc,
+		struct dc_state *context)
 {
 	uint32_t pipe_idx = 0;
 
@@ -1837,10 +1991,9 @@ static void enable_fbc(struct dc *dc,
 		struct compressor *compr = dc->fbc_compressor;
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
-
 		params.source_view_width = pipe_ctx->stream->timing.h_addressable;
 		params.source_view_height = pipe_ctx->stream->timing.v_addressable;
-
+		params.inst = pipe_ctx->stream_res.tg->inst;
 		compr->compr_surface_address.quad_part = dc->ctx->fbc_gpu_addr;
 
 		compr->funcs->surface_address_and_pitch(compr, &params);
@@ -1879,8 +2032,25 @@ static void dce110_reset_hw_ctx_wrap(
 			/* Disable if new stream is null. O/w, if stream is
 			 * disabled already, no need to disable again.
 			 */
-			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off)
-				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
+			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
+				core_link_disable_stream(pipe_ctx_old);
+
+				/* free acquired resources*/
+				if (pipe_ctx_old->stream_res.audio) {
+					/*disable az_endpoint*/
+					pipe_ctx_old->stream_res.audio->funcs->
+							az_disable(pipe_ctx_old->stream_res.audio);
+
+					/*free audio*/
+					if (dc->caps.dynamic_audio == true) {
+						/*we have to dynamic arbitrate the audio endpoints*/
+						/*we free the resource, need reset is_audio_acquired*/
+						update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+								pipe_ctx_old->stream_res.audio, false);
+						pipe_ctx_old->stream_res.audio = NULL;
+					}
+				}
+			}
 
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
@@ -1936,20 +2106,38 @@ static void dce110_setup_audio_dto(
 
 		if (pipe_ctx->top_pipe)
 			continue;
-
 		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 			continue;
-
 		if (pipe_ctx->stream_res.audio != NULL) {
 			struct audio_output audio_output;
 
 			build_audio_output(context, pipe_ctx, &audio_output);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			/* For DCN3.1, audio to HPO FRL encoder is using audio DTBCLK DTO */
+			if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->set_audio_dtbclk_dto) {
+				/* disable audio DTBCLK DTO */
+				dc->res_pool->dccg->funcs->set_audio_dtbclk_dto(
+					dc->res_pool->dccg, 0);
+
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+						pipe_ctx->stream_res.audio,
+						pipe_ctx->stream->signal,
+						&audio_output.crtc_info,
+						&audio_output.pll_info);
+			} else
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+					pipe_ctx->stream_res.audio,
+					pipe_ctx->stream->signal,
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
+#else
 			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
 				&audio_output.crtc_info,
 				&audio_output.pll_info);
+#endif
 			break;
 		}
 	}
@@ -1988,13 +2176,14 @@ enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
 
 	/* Reset old context */
 	/* look up the targets that have been removed since last commit */
-	dc->hwss.reset_hw_ctx_wrap(dc, context);
+	hws->funcs.reset_hw_ctx_wrap(dc, context);
 
 	/* Skip applying if no targets */
 	if (context->stream_count <= 0)
@@ -2019,7 +2208,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 			continue;
 		}
 
-		dc->hwss.enable_display_power_gating(
+		hws->funcs.enable_display_power_gating(
 				dc, i, dc->ctx->dc_bios,
 				PIPE_GATING_CONTROL_DISABLE);
 	}
@@ -2037,13 +2226,15 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		if (pipe_ctx->stream == pipe_ctx_old->stream)
+		if (pipe_ctx->stream == pipe_ctx_old->stream &&
+			pipe_ctx->stream->link->link_state_valid) {
 			continue;
+		}
 
 		if (pipe_ctx_old->stream && !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;
 
-		if (pipe_ctx->top_pipe)
+		if (pipe_ctx->top_pipe || pipe_ctx->prev_odm_pipe)
 			continue;
 
 		status = apply_single_controller_ctx_to_hw(
@@ -2055,10 +2246,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 			return status;
 	}
 
-	dcb->funcs->set_scratch_critical_state(dcb, false);
-
 	if (dc->fbc_compressor)
-		enable_fbc(dc, context);
+		enable_fbc(dc, dc->current_state);
+
+	dcb->funcs->set_scratch_critical_state(dcb, false);
 
 	return DC_OK;
 }
@@ -2291,7 +2482,7 @@ static void dce110_enable_per_frame_crtc_position_reset(
 	int i;
 
 	gsl_params.gsl_group = 0;
-	gsl_params.gsl_master = grouped_pipes[0]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst;
+	gsl_params.gsl_master = 0;
 
 	for (i = 0; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->setup_global_swap_lock(
@@ -2314,25 +2505,33 @@ static void dce110_enable_per_frame_crtc_position_reset(
 
 }
 
+static void init_pipes(struct dc *dc, struct dc_state *context)
+{
+	// Do nothing
+}
+
 static void init_hw(struct dc *dc)
 {
 	int i;
 	struct dc_bios *bp;
 	struct transform *xfm;
 	struct abm *abm;
+	struct dmcu *dmcu;
+	struct dce_hwseq *hws = dc->hwseq;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		xfm = dc->res_pool->transforms[i];
 		xfm->funcs->transform_reset(xfm);
 
-		dc->hwss.enable_display_power_gating(
+		hws->funcs.enable_display_power_gating(
 				dc, i, bp,
 				PIPE_GATING_CONTROL_INIT);
-		dc->hwss.enable_display_power_gating(
+		hws->funcs.enable_display_power_gating(
 				dc, i, bp,
 				PIPE_GATING_CONTROL_DISABLE);
-		dc->hwss.enable_display_pipe_clock_gating(
+		hws->funcs.enable_display_pipe_clock_gating(
 			dc->ctx,
 			true);
 	}
@@ -2346,9 +2545,6 @@ static void init_hw(struct dc *dc)
 		 * required signal (which may be different from the
 		 * default signal on connector). */
 		struct dc_link *link = dc->links[i];
-
-		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-			dc->hwss.edp_power_control(link, true);
 
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
@@ -2369,219 +2565,67 @@ static void init_hw(struct dc *dc)
 		audio->funcs->hw_init(audio);
 	}
 
-	abm = dc->res_pool->abm;
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
+	for (i = 0; i < dc->link_count; i++) {
+		struct dc_link *link = dc->links[i];
+
+		if (link->panel_cntl)
+			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
 	}
+
+	abm = dc->res_pool->abm;
+	if (abm != NULL)
+		abm->funcs->abm_init(abm, backlight);
+
+	dmcu = dc->res_pool->dmcu;
+	if (dmcu != NULL && abm != NULL)
+		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
 
 }
 
-void dce110_fill_display_configs(
-	const struct dc_state *context,
-	struct dm_pp_display_configuration *pp_display_cfg)
-{
-	int j;
-	int num_cfgs = 0;
 
-	for (j = 0; j < context->stream_count; j++) {
-		int k;
-
-		const struct dc_stream_state *stream = context->streams[j];
-		struct dm_pp_single_disp_config *cfg =
-			&pp_display_cfg->disp_configs[num_cfgs];
-		const struct pipe_ctx *pipe_ctx = NULL;
-
-		for (k = 0; k < MAX_PIPES; k++)
-			if (stream == context->res_ctx.pipe_ctx[k].stream) {
-				pipe_ctx = &context->res_ctx.pipe_ctx[k];
-				break;
-			}
-
-		ASSERT(pipe_ctx != NULL);
-
-		/* only notify active stream */
-		if (stream->dpms_off)
-			continue;
-
-		num_cfgs++;
-		cfg->signal = pipe_ctx->stream->signal;
-		cfg->pipe_idx = pipe_ctx->stream_res.tg->inst;
-		cfg->src_height = stream->src.height;
-		cfg->src_width = stream->src.width;
-		cfg->ddi_channel_mapping =
-			stream->sink->link->ddi_channel_mapping.raw;
-		cfg->transmitter =
-			stream->sink->link->link_enc->transmitter;
-		cfg->link_settings.lane_count =
-			stream->sink->link->cur_link_settings.lane_count;
-		cfg->link_settings.link_rate =
-			stream->sink->link->cur_link_settings.link_rate;
-		cfg->link_settings.link_spread =
-			stream->sink->link->cur_link_settings.link_spread;
-		cfg->sym_clock = stream->phy_pix_clk;
-		/* Round v_refresh*/
-		cfg->v_refresh = stream->timing.pix_clk_khz * 1000;
-		cfg->v_refresh /= stream->timing.h_total;
-		cfg->v_refresh = (cfg->v_refresh + stream->timing.v_total / 2)
-							/ stream->timing.v_total;
-	}
-
-	pp_display_cfg->display_count = num_cfgs;
-}
-
-uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
-{
-	uint8_t j;
-	uint32_t min_vertical_blank_time = -1;
-
-	for (j = 0; j < context->stream_count; j++) {
-		struct dc_stream_state *stream = context->streams[j];
-		uint32_t vertical_blank_in_pixels = 0;
-		uint32_t vertical_blank_time = 0;
-
-		vertical_blank_in_pixels = stream->timing.h_total *
-			(stream->timing.v_total
-			 - stream->timing.v_addressable);
-
-		vertical_blank_time = vertical_blank_in_pixels
-			* 1000 / stream->timing.pix_clk_khz;
-
-		if (min_vertical_blank_time > vertical_blank_time)
-			min_vertical_blank_time = vertical_blank_time;
-	}
-
-	return min_vertical_blank_time;
-}
-
-static int determine_sclk_from_bounding_box(
-		const struct dc *dc,
-		int required_sclk)
-{
-	int i;
-
-	/*
-	 * Some asics do not give us sclk levels, so we just report the actual
-	 * required sclk
-	 */
-	if (dc->sclk_lvls.num_levels == 0)
-		return required_sclk;
-
-	for (i = 0; i < dc->sclk_lvls.num_levels; i++) {
-		if (dc->sclk_lvls.clocks_in_khz[i] >= required_sclk)
-			return dc->sclk_lvls.clocks_in_khz[i];
-	}
-	/*
-	 * even maximum level could not satisfy requirement, this
-	 * is unexpected at this stage, should have been caught at
-	 * validation time
-	 */
-	ASSERT(0);
-	return dc->sclk_lvls.clocks_in_khz[dc->sclk_lvls.num_levels - 1];
-}
-
-static void pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->all_displays_in_sync =
-		context->bw.dce.all_displays_in_sync;
-	pp_display_cfg->nb_pstate_switch_disable =
-			context->bw.dce.nbp_state_change_enable == false;
-	pp_display_cfg->cpu_cc6_disable =
-			context->bw.dce.cpuc_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_disable =
-			context->bw.dce.cpup_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_separation_time =
-			context->bw.dce.blackout_recovery_time_us;
-
-	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
-		/ MEMORY_TYPE_MULTIPLIER;
-
-	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
-			dc,
-			context->bw.dce.sclk_khz);
-
-	pp_display_cfg->min_engine_clock_deep_sleep_khz
-			= context->bw.dce.sclk_deep_sleep_khz;
-
-	pp_display_cfg->avail_mclk_switch_time_us =
-						dce110_get_min_vblank_time_us(context);
-	/* TODO: dce11.2*/
-	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
-
-	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
-
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	/* TODO: is this still applicable?*/
-	if (pp_display_cfg->display_count == 1) {
-		const struct dc_crtc_timing *timing =
-			&context->streams[0]->timing;
-
-		pp_display_cfg->crtc_index =
-			pp_display_cfg->disp_configs[0].pipe_idx;
-		pp_display_cfg->line_time_in_us = timing->h_total * 1000
-							/ timing->pix_clk_khz;
-	}
-
-	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
-			struct dm_pp_display_configuration)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-
-	dc->prev_display_config = *pp_display_cfg;
-}
-
-static void dce110_set_bandwidth(
+void dce110_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed)
+		struct dc_state *context)
 {
-	struct dc_clocks req_clks;
-	struct dccg *dccg = dc->res_pool->dccg;
+	struct clk_mgr *dccg = dc->clk_mgr;
 
-	req_clks.dispclk_khz = context->bw.dce.dispclk_khz;
-	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
-
-	if (decrease_allowed)
-		dce110_set_displaymarks(dc, context);
-	else
-		dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
-
-	if (dccg->funcs->update_dfs_bypass)
-		dccg->funcs->update_dfs_bypass(
-			dccg,
-			dc,
-			context,
-			req_clks.dispclk_khz);
+	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
 	dccg->funcs->update_clocks(
 			dccg,
-			&req_clks,
-			decrease_allowed);
-	pplib_apply_display_requirements(dc, context);
+			context,
+			false);
+}
+
+void dce110_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	struct clk_mgr *dccg = dc->clk_mgr;
+
+	dce110_set_displaymarks(dc, context);
+
+	dccg->funcs->update_clocks(
+			dccg,
+			context,
+			true);
 }
 
 static void dce110_program_front_end_for_pipe(
 		struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
-	struct pipe_ctx *old_pipe = NULL;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
-	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
 	unsigned int i;
+	struct dce_hwseq *hws = dc->hwseq;
+
 	DC_LOGGER_INIT();
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
-
-	if (dc->current_state)
-		old_pipe = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
@@ -2616,15 +2660,6 @@ static void dce110_program_front_end_for_pipe(
 
 	program_scaler(dc, pipe_ctx);
 
-	/* fbc not applicable on Underlay pipe */
-	if (dc->fbc_compressor && old_pipe->stream &&
-	    pipe_ctx->pipe_idx != underlay_idx) {
-		if (plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
-			dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
-		else
-			enable_fbc(dc, dc->current_state);
-	}
-
 	mi->funcs->mem_input_program_surface_config(
 			mi,
 			plane_state->format,
@@ -2647,10 +2682,10 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update ||
 			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
 			pipe_ctx->plane_state->update_flags.bits.gamma_change)
-		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
-		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
+		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 
 	DC_LOG_SURFACE(
 			"Pipe:%d %p: addr hi:0x%x, "
@@ -2701,16 +2736,8 @@ static void dce110_apply_ctx_for_surface(
 	if (num_planes == 0)
 		return;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (stream == pipe_ctx->stream) {
-			if (!pipe_ctx->top_pipe &&
-				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
-		}
-	}
+	if (dc->fbc_compressor)
+		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -2723,7 +2750,7 @@ static void dce110_apply_ctx_for_surface(
 				pipe_ctx->plane_res.mi,
 				pipe_ctx->stream->timing.h_total,
 				pipe_ctx->stream->timing.v_total,
-				pipe_ctx->stream->timing.pix_clk_khz,
+				pipe_ctx->stream->timing.pix_clk_100hz / 10,
 				context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
@@ -2734,19 +2761,19 @@ static void dce110_apply_ctx_for_surface(
 
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+	if (dc->fbc_compressor)
+		enable_fbc(dc, context);
+}
 
-		if ((stream == pipe_ctx->stream) &&
-			(!pipe_ctx->top_pipe) &&
-			(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
-			dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
-	}
+static void dce110_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context)
+{
 }
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 	int fe_idx = pipe_ctx->plane_res.mi ?
 		pipe_ctx->plane_res.mi->inst : pipe_ctx->pipe_idx;
 
@@ -2754,7 +2781,7 @@ static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
 		return;
 
-	dc->hwss.enable_display_power_gating(
+	hws->funcs.enable_display_power_gating(
 		dc, fe_idx, dc->ctx->dc_bios, PIPE_GATING_CONTROL_ENABLE);
 
 	dc->res_pool->transforms[fe_idx]->funcs->transform_reset(
@@ -2769,42 +2796,59 @@ static void dce110_wait_for_mpcc_disconnect(
 	/* do nothing*/
 }
 
-static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
+static void program_output_csc(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
-		uint16_t *matrix)
+		uint16_t *matrix,
+		int opp_id)
 {
 	int i;
 	struct out_csc_color_matrix tbl_entry;
 
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
-				== true) {
-			enum dc_color_space color_space =
-				pipe_ctx->stream->output_color_space;
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
+		enum dc_color_space color_space = pipe_ctx->stream->output_color_space;
 
-			//uint16_t matrix[12];
-			for (i = 0; i < 12; i++)
-				tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
+		for (i = 0; i < 12; i++)
+			tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
 
-			tbl_entry.color_space = color_space;
-			//tbl_entry.regval = matrix;
-			pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.xfm, &tbl_entry);
+		tbl_entry.color_space = color_space;
+
+		pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(
+				pipe_ctx->plane_res.xfm, &tbl_entry);
 	}
 }
 
-void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
+static void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct dc_cursor_mi_param param = {
-		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
-		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
+		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clocks.xtalin_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
 		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,
 		.rotation = pipe_ctx->plane_state->rotation,
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
+
+	/**
+	 * If the cursor's source viewport is clipped then we need to
+	 * translate the cursor to appear in the correct position on
+	 * the screen.
+	 *
+	 * This translation isn't affected by scaling so it needs to be
+	 * done *after* we adjust the position for the scale factor.
+	 *
+	 * This is only done by opt-in for now since there are still
+	 * some usecases like tiled display that might enable the
+	 * cursor on both streams while expecting dc to clip it.
+	 */
+	if (pos_cpy.translate_by_source) {
+		pos_cpy.x += pipe_ctx->plane_state->src_rect.x;
+		pos_cpy.y += pipe_ctx->plane_state->src_rect.y;
+	}
 
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
@@ -2819,7 +2863,7 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
 }
 
-void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
+static void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
@@ -2839,21 +2883,72 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->plane_res.xfm, attributes);
 }
 
-static void ready_shared_resources(struct dc *dc, struct dc_state *context) {}
+bool dce110_set_backlight_level(struct pipe_ctx *pipe_ctx,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	struct dc  *dc = link->ctx->dc;
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = link->panel_cntl;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	bool fw_set_brightness = true;
+	/* DMCU -1 for all controller id values,
+	 * therefore +1 here
+	 */
+	uint32_t controller_id = pipe_ctx->stream_res.tg->inst + 1;
 
-static void optimize_shared_resources(struct dc *dc) {}
+	if (abm == NULL || panel_cntl == NULL || (abm->funcs->set_backlight_level_pwm == NULL))
+		return false;
+
+	if (dmcu)
+		fw_set_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
+
+	if (!fw_set_brightness && panel_cntl->funcs->driver_set_backlight)
+		panel_cntl->funcs->driver_set_backlight(panel_cntl, backlight_pwm_u16_16);
+	else
+		abm->funcs->set_backlight_level_pwm(
+				abm,
+				backlight_pwm_u16_16,
+				frame_ramp,
+				controller_id,
+				link->panel_cntl->inst);
+
+	return true;
+}
+
+void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+
+	if (abm)
+		abm->funcs->set_abm_immediate_disable(abm,
+				pipe_ctx->stream->link->panel_cntl->inst);
+
+	if (panel_cntl)
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+}
+
+void dce110_set_pipe(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst + 1;
+
+	if (abm && panel_cntl)
+		abm->funcs->set_pipe(abm, otg_inst, panel_cntl->inst);
+}
 
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
-	.program_csc_matrix = program_csc_matrix,
+	.program_output_csc = program_output_csc,
 	.init_hw = init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
+	.post_unlock_program_front_end = dce110_post_unlock_program_front_end,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
-	.set_input_transfer_func = dce110_set_input_transfer_func,
-	.set_output_transfer_func = dce110_set_output_transfer_func,
-	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dce110_enable_timing_synchronization,
 	.enable_per_frame_crtc_position_reset = dce110_enable_per_frame_crtc_position_reset,
@@ -2864,31 +2959,46 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.blank_stream = dce110_blank_stream,
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
-	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
-	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.disable_plane = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
-	.set_bandwidth = dce110_set_bandwidth,
+	.interdependent_update_lock = NULL,
+	.cursor_lock = dce_pipe_control_lock,
+	.prepare_bandwidth = dce110_prepare_bandwidth,
+	.optimize_bandwidth = dce110_optimize_bandwidth,
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
-	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
-	.enable_stream_timing = dce110_enable_stream_timing,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
-	.ready_shared_resources = ready_shared_resources,
-	.optimize_shared_resources = optimize_shared_resources,
-	.pplib_apply_display_requirements = pplib_apply_display_requirements,
-	.edp_backlight_control = hwss_edp_backlight_control,
-	.edp_power_control = hwss_edp_power_control,
-	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.edp_backlight_control = dce110_edp_backlight_control,
+	.edp_power_control = dce110_edp_power_control,
+	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dce110_set_cursor_position,
-	.set_cursor_attribute = dce110_set_cursor_attribute
+	.set_cursor_attribute = dce110_set_cursor_attribute,
+	.set_backlight_level = dce110_set_backlight_level,
+	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
+	.set_pipe = dce110_set_pipe,
+};
+
+static const struct hwseq_private_funcs dce110_private_funcs = {
+	.init_pipes = init_pipes,
+	.update_plane_addr = update_plane_addr,
+	.set_input_transfer_func = dce110_set_input_transfer_func,
+	.set_output_transfer_func = dce110_set_output_transfer_func,
+	.power_down = dce110_power_down,
+	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
+	.enable_display_power_gating = dce110_enable_display_power_gating,
+	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
+	.enable_stream_timing = dce110_enable_stream_timing,
+	.disable_stream_gating = NULL,
+	.enable_stream_gating = NULL,
+	.edp_backlight_control = dce110_edp_backlight_control,
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)
 {
 	dc->hwss = dce110_funcs;
+	dc->hwseq->funcs = dce110_private_funcs;
 }
 

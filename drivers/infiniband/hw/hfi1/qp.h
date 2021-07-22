@@ -63,11 +63,17 @@ extern const struct rvt_operation_params hfi1_post_parms[];
  * HFI1_S_AHG_VALID - ahg header valid on chip
  * HFI1_S_AHG_CLEAR - have send engine clear ahg state
  * HFI1_S_WAIT_PIO_DRAIN - qp waiting for PIOs to drain
+ * HFI1_S_WAIT_TID_SPACE - a QP is waiting for TID resource
+ * HFI1_S_WAIT_TID_RESP - waiting for a TID RDMA WRITE response
+ * HFI1_S_WAIT_HALT - halt the first leg send engine
  * HFI1_S_MIN_BIT_MASK - the lowest bit that can be used by hfi1
  */
 #define HFI1_S_AHG_VALID         0x80000000
 #define HFI1_S_AHG_CLEAR         0x40000000
 #define HFI1_S_WAIT_PIO_DRAIN    0x20000000
+#define HFI1_S_WAIT_TID_SPACE    0x10000000
+#define HFI1_S_WAIT_TID_RESP     0x08000000
+#define HFI1_S_WAIT_HALT         0x04000000
 #define HFI1_S_MIN_BIT_MASK      0x01000000
 
 /*
@@ -76,6 +82,7 @@ extern const struct rvt_operation_params hfi1_post_parms[];
 
 #define HFI1_S_ANY_WAIT_IO (RVT_S_ANY_WAIT_IO | HFI1_S_WAIT_PIO_DRAIN)
 #define HFI1_S_ANY_WAIT (HFI1_S_ANY_WAIT_IO | RVT_S_ANY_WAIT_SEND)
+#define HFI1_S_ANY_TID_WAIT_SEND (RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA)
 
 /*
  * Send if not busy or waiting for I/O and either
@@ -104,20 +111,6 @@ static inline void clear_ahg(struct rvt_qp *qp)
 		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
 	qp->s_ahgidx = -1;
 }
-
-/**
- * hfi1_create_qp - create a queue pair for a device
- * @ibpd: the protection domain who's device we create the queue pair for
- * @init_attr: the attributes of the queue pair
- * @udata: user data for libibverbs.so
- *
- * Returns the queue pair on success, otherwise returns an errno.
- *
- * Called by the ib_create_qp() core verbs function.
- */
-struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
-			     struct ib_qp_init_attr *init_attr,
-			     struct ib_udata *udata);
 
 /**
  * hfi1_qp_wakeup - wake up on the indicated event

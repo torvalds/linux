@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD9523 SPI Low Jitter Clock Generator
  *
  * Copyright 2012 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef IIO_FREQUENCY_AD9523_H_
@@ -129,8 +128,8 @@ enum cpole1_capacitor {
  * @pll2_ndiv_b_cnt: PLL2 Feedback N-divider, B Counter, range 0..63.
  * @pll2_freq_doubler_en: PLL2 frequency doubler enable.
  * @pll2_r2_div: PLL2 R2 divider, range 0..31.
- * @pll2_vco_diff_m1: VCO1 divider, range 3..5.
- * @pll2_vco_diff_m2: VCO2 divider, range 3..5.
+ * @pll2_vco_div_m1: VCO1 divider, range 3..5.
+ * @pll2_vco_div_m2: VCO2 divider, range 3..5.
  * @rpole2: PLL2 loop filter Rpole resistor value.
  * @rzero: PLL2 loop filter Rzero resistor value.
  * @cpole1: PLL2 loop filter Cpole capacitor value.
@@ -176,8 +175,8 @@ struct ad9523_platform_data {
 	unsigned char			pll2_ndiv_b_cnt;
 	bool				pll2_freq_doubler_en;
 	unsigned char			pll2_r2_div;
-	unsigned char			pll2_vco_diff_m1; /* 3..5 */
-	unsigned char			pll2_vco_diff_m2; /* 3..5 */
+	unsigned char			pll2_vco_div_m1; /* 3..5 */
+	unsigned char			pll2_vco_div_m2; /* 3..5 */
 
 	/* Loop Filter PLL2 */
 	enum rpole2_resistor		rpole2;

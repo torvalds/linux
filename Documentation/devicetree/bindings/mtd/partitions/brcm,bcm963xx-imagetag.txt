@@ -1,0 +1,45 @@
+Broadcom BCM963XX ImageTag Partition Container
+==============================================
+
+Some Broadcom BCM63XX SoC based devices contain additional, non discoverable
+partitions or non standard bootloader partition sizes. For these a mixed layout
+needs to be used with an explicit firmware partition.
+
+The BCM963XX ImageTag is a simple firmware header describing the offsets and
+sizes of the rootfs and kernel parts contained in the firmware.
+
+Required properties:
+- compatible : must be "brcm,bcm963xx-imagetag"
+
+Example:
+
+flash@1e000000 {
+	compatible = "cfi-flash";
+	reg = <0x1e000000 0x2000000>;
+	bank-width = <2>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		cfe@0 {
+			reg = <0x0 0x10000>;
+			read-only;
+		};
+
+		firmware@10000 {
+			reg = <0x10000 0x7d0000>;
+			compatible = "brcm,bcm963xx-imagetag";
+		};
+
+		caldata@7e0000 {
+			reg = <0x7e0000 0x10000>;
+			read-only;
+		};
+
+		nvram@7f0000 {
+			reg = <0x7f0000 0x10000>;
+		};
+	};
+};

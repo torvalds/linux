@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2008-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EFX_MCDI_H
@@ -193,6 +190,7 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
  * 32-bit-aligned.  Also, on Siena we must copy to the MC shared
  * memory strictly 32 bits at a time, so add any necessary padding.
  */
+#define MCDI_TX_BUF_LEN(_len) DIV_ROUND_UP((_len), 4)
 #define _MCDI_DECLARE_BUF(_name, _len)					\
 	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
 #define MCDI_DECLARE_BUF(_name, _len)					\
@@ -329,6 +327,17 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_EVENT_FIELD(_ev, _field)			\
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
+#define MCDI_CAPABILITY(field)						\
+	MC_CMD_GET_CAPABILITIES_V8_OUT_ ## field ## _LBN
+
+#define MCDI_CAPABILITY_OFST(field) \
+	MC_CMD_GET_CAPABILITIES_V8_OUT_ ## field ## _OFST
+
+#define efx_has_cap(efx, field) \
+	efx->type->check_caps(efx, \
+			      MCDI_CAPABILITY(field), \
+			      MCDI_CAPABILITY_OFST(field))
+
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 			   u16 *fw_subtype_list, u32 *capabilities);
@@ -337,27 +346,20 @@ int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
 int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
 			bool *protected_out);
+int efx_new_mcdi_nvram_test_all(struct efx_nic *efx);
 int efx_mcdi_nvram_test_all(struct efx_nic *efx);
 int efx_mcdi_handle_assertion(struct efx_nic *efx);
-void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
+int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
 				  int *id_out);
 int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
 int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
 int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
 int efx_mcdi_flush_rxqs(struct efx_nic *efx);
-int efx_mcdi_port_probe(struct efx_nic *efx);
-void efx_mcdi_port_remove(struct efx_nic *efx);
-int efx_mcdi_port_reconfigure(struct efx_nic *efx);
-int efx_mcdi_port_get_number(struct efx_nic *efx);
-u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
 void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
-int efx_mcdi_set_mac(struct efx_nic *efx);
-#define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 void efx_mcdi_mac_start_stats(struct efx_nic *efx);
 void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
 void efx_mcdi_mac_pull_stats(struct efx_nic *efx);
-bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
 int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled,

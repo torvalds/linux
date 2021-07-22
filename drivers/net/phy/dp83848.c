@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Texas Instruments DP83848 PHY
  *
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -45,6 +37,20 @@
 	 DP83848_MISR_SPD_INT_EN |	\
 	 DP83848_MISR_LINK_INT_EN)
 
+#define DP83848_MISR_RHF_INT		BIT(8)
+#define DP83848_MISR_FHF_INT		BIT(9)
+#define DP83848_MISR_ANC_INT		BIT(10)
+#define DP83848_MISR_DUP_INT		BIT(11)
+#define DP83848_MISR_SPD_INT		BIT(12)
+#define DP83848_MISR_LINK_INT		BIT(13)
+#define DP83848_MISR_ED_INT		BIT(14)
+
+#define DP83848_INT_MASK		\
+	(DP83848_MISR_ANC_INT |	\
+	 DP83848_MISR_DUP_INT |	\
+	 DP83848_MISR_SPD_INT |	\
+	 DP83848_MISR_LINK_INT)
+
 static int dp83848_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, DP83848_MISR);
@@ -61,27 +67,51 @@ static int dp83848_config_intr(struct phy_device *phydev)
 		return control;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		ret = dp83848_ack_interrupt(phydev);
+		if (ret)
+			return ret;
+
 		control |= DP83848_MICR_INT_OE;
 		control |= DP83848_MICR_INTEN;
 
 		ret = phy_write(phydev, DP83848_MISR, DP83848_INT_EN_MASK);
 		if (ret < 0)
 			return ret;
+
+		ret = phy_write(phydev, DP83848_MICR, control);
 	} else {
 		control &= ~DP83848_MICR_INTEN;
+		ret = phy_write(phydev, DP83848_MICR, control);
+		if (ret)
+			return ret;
+
+		ret = dp83848_ack_interrupt(phydev);
 	}
 
-	return phy_write(phydev, DP83848_MICR, control);
+	return ret;
+}
+
+static irqreturn_t dp83848_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, DP83848_MISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & DP83848_INT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83848_config_init(struct phy_device *phydev)
 {
-	int err;
 	int val;
-
-	err = genphy_config_init(phydev);
-	if (err < 0)
-		return err;
 
 	/* DP83620 always reports Auto Negotiation Ability on BMSR. Instead,
 	 * we check initial value of BMCR Auto negotiation enable bit
@@ -107,8 +137,7 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		.phy_id		= _id,				\
 		.phy_id_mask	= 0xfffffff0,			\
 		.name		= _name,			\
-		.features	= PHY_BASIC_FEATURES,		\
-		.flags		= PHY_HAS_INTERRUPT,		\
+		/* PHY_BASIC_FEATURES */			\
 								\
 		.soft_reset	= genphy_soft_reset,		\
 		.config_init	= _config_init,			\
@@ -116,22 +145,22 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		.resume		= genphy_resume,		\
 								\
 		/* IRQ related */				\
-		.ack_interrupt	= dp83848_ack_interrupt,	\
 		.config_intr	= dp83848_config_intr,		\
+		.handle_interrupt = dp83848_handle_interrupt,	\
 	}
 
 static struct phy_driver dp83848_driver[] = {
 	DP83848_PHY_DRIVER(TI_DP83848C_PHY_ID, "TI DP83848C 10/100 Mbps PHY",
-			   genphy_config_init),
+			   NULL),
 	DP83848_PHY_DRIVER(NS_DP83848C_PHY_ID, "NS DP83848C 10/100 Mbps PHY",
-			   genphy_config_init),
+			   NULL),
 	DP83848_PHY_DRIVER(TI_DP83620_PHY_ID, "TI DP83620 10/100 Mbps PHY",
 			   dp83848_config_init),
 	DP83848_PHY_DRIVER(TLK10X_PHY_ID, "TI TLK10X 10/100 Mbps PHY",
-			   genphy_config_init),
+			   NULL),
 };
 module_phy_driver(dp83848_driver);
 
 MODULE_DESCRIPTION("Texas Instruments DP83848 PHY driver");
 MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

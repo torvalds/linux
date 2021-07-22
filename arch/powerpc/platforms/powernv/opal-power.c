@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL power control for graceful shutdown handling
  *
  * Copyright 2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"opal-power: "	fmt
@@ -138,7 +134,7 @@ static struct notifier_block opal_power_control_nb = {
 	.priority	= 0,
 };
 
-static int __init opal_power_control_init(void)
+int __init opal_power_control_init(void)
 {
 	int ret, supported = 0;
 	struct device_node *np;
@@ -176,4 +172,3 @@ static int __init opal_power_control_init(void)
 
 	return 0;
 }
-machine_subsys_initcall(powernv, opal_power_control_init);

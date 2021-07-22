@@ -310,8 +310,8 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			if (hw->soc->drive_set) {
 				err = hw->soc->drive_set(hw, desc, arg);
-			if (err)
-				return err;
+				if (err)
+					return err;
 			} else {
 				err = -ENOTSUPP;
 			}
@@ -514,8 +514,8 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->direction_output	= mtk_gpio_direction_output;
 	chip->get		= mtk_gpio_get;
 	chip->set		= mtk_gpio_set;
-	chip->to_irq		= mtk_gpio_to_irq,
-	chip->set_config	= mtk_gpio_set_config,
+	chip->to_irq		= mtk_gpio_to_irq;
+	chip->set_config	= mtk_gpio_set_config;
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
 	chip->of_node		= np;
@@ -589,7 +589,6 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 			    const struct mtk_pin_soc *soc)
 {
 	struct pinctrl_pin_desc *pins;
-	struct resource *res;
 	struct mtk_pinctrl *hw;
 	int err, i;
 
@@ -612,19 +611,15 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for (i = 0; i < hw->soc->nbase_names; i++) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   hw->soc->base_names[i]);
-		if (!res) {
-			dev_err(&pdev->dev, "missing IO resource\n");
-			return -ENXIO;
-		}
-
-		hw->base[i] = devm_ioremap_resource(&pdev->dev, res);
+		hw->base[i] = devm_platform_ioremap_resource_byname(pdev,
+						hw->soc->base_names[i]);
 		if (IS_ERR(hw->base[i]))
 			return PTR_ERR(hw->base[i]);
 	}
 
 	hw->nbase = hw->soc->nbase_names;
+
+	spin_lock_init(&hw->lock);
 
 	/* Copy from internal struct mtk_pin_desc to register to the core */
 	pins = devm_kmalloc_array(&pdev->dev, hw->soc->npins, sizeof(*pins),

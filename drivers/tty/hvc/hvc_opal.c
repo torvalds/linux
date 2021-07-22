@@ -103,7 +103,7 @@ static void hvc_opal_hvsi_close(struct hvc_struct *hp, int data)
 	notifier_del_irq(hp, data);
 }
 
-void hvc_opal_hvsi_hangup(struct hvc_struct *hp, int data)
+static void hvc_opal_hvsi_hangup(struct hvc_struct *hp, int data)
 {
 	struct hvc_opal_priv *pv = hvc_opal_privs[hp->vtermno];
 
@@ -353,7 +353,7 @@ void __init hvc_opal_init_early(void)
 		if (!opal)
 			return;
 		for_each_child_of_node(opal, np) {
-			if (!strcmp(np->name, "serial")) {
+			if (of_node_name_eq(np, "serial")) {
 				stdout_node = np;
 				break;
 			}

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ZD1211 USB-WLAN driver for Linux
  *
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
  * Copyright (C) 2007-2008 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/netdevice.h>
@@ -235,7 +223,6 @@ void zd_mac_clear(struct zd_mac *mac)
 {
 	flush_workqueue(zd_workqueue);
 	zd_chip_clear(&mac->chip);
-	lockdep_assert_held(&mac->lock);
 	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
 }
 
@@ -429,11 +416,10 @@ int zd_restore_settings(struct zd_mac *mac)
 
 /**
  * zd_mac_tx_status - reports tx status of a packet if required
- * @hw - a &struct ieee80211_hw pointer
- * @skb - a sk-buffer
- * @flags: extra flags to set in the TX status info
+ * @hw: a &struct ieee80211_hw pointer
+ * @skb: a sk-buffer
  * @ackssi: ACK signal strength
- * @success - True for successful transmission of the frame
+ * @tx_status: success and/or retry
  *
  * This information calls ieee80211_tx_status_irqsafe() if required by the
  * control information. It copies the control information into the status
@@ -490,7 +476,7 @@ static void zd_mac_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 /**
  * zd_mac_tx_failed - callback for failed frames
- * @dev: the mac80211 wireless device
+ * @urb: pointer to the urb structure
  *
  * This function is called if a frame couldn't be successfully
  * transferred. The first frame from the tx queue, will be selected and
@@ -926,9 +912,9 @@ static int fill_ctrlset(struct zd_mac *mac,
 /**
  * zd_op_tx - transmits a network frame to the device
  *
- * @dev: mac80211 hardware device
- * @skb: socket buffer
+ * @hw: a &struct ieee80211_hw pointer
  * @control: the control structure
+ * @skb: socket buffer
  *
  * This function transmit an IEEE 802.11 network frame to the device. The
  * control block of the skbuff will be initialized. If necessary the incoming
@@ -959,7 +945,7 @@ fail:
 
 /**
  * filter_ack - filters incoming packets for acknowledgements
- * @dev: the mac80211 device
+ * @hw: a &struct ieee80211_hw pointer
  * @rx_hdr: received header
  * @stats: the status for the received packet
  *

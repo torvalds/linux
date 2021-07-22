@@ -1,12 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low level CPU setup functions.
  *    Copyright (C) 2003 Benjamin Herrenschmidt (benh@kernel.crashing.org)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <asm/processor.h>
@@ -24,6 +19,7 @@ BEGIN_MMU_FTR_SECTION
 	li	r10,0
 	mtspr	SPRN_SPRG_603_LRU,r10		/* init SW LRU tracking */
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+
 BEGIN_FTR_SECTION
 	bl	__init_fpu_registers
 END_FTR_SECTION_IFCLR(CPU_FTR_FPU_UNAVAILABLE)
@@ -292,6 +288,7 @@ _GLOBAL(__init_fpu_registers)
 	mtmsr	r10
 	isync
 	blr
+_ASM_NOKPROBE_SYMBOL(__init_fpu_registers)
 
 
 /* Definitions for the table use to save CPU states */
@@ -326,7 +323,7 @@ _GLOBAL(__save_cpu_setup)
 	lis	r5,cpu_state_storage@h
 	ori	r5,r5,cpu_state_storage@l
 
-	/* Save HID0 (common to all CONFIG_6xx cpus) */
+	/* Save HID0 (common to all CONFIG_PPC_BOOK3S_32 cpus) */
 	mfspr	r3,SPRN_HID0
 	stw	r3,CS_HID0(r5)
 
@@ -487,4 +484,5 @@ _GLOBAL(__restore_cpu_setup)
 1:
 	mtcr	r7
 	blr
+_ASM_NOKPROBE_SYMBOL(__restore_cpu_setup)
 

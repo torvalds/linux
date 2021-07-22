@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef _ASMNDS32_SIGCONTEXT_H
@@ -9,6 +9,29 @@
  * before the signal handler was invoked.  Note: only add new entries
  * to the end of the structure.
  */
+struct fpu_struct {
+	unsigned long long fd_regs[32];
+	unsigned long fpcsr;
+	/*
+	 * When CONFIG_SUPPORT_DENORMAL_ARITHMETIC is defined, kernel prevents
+	 * hardware from treating the denormalized output as an underflow case
+	 * and rounding it to a normal number. Hence kernel enables the UDF and
+	 * IEX trap in the fpcsr register to step in the calculation.
+	 * However, the UDF and IEX trap enable bit in $fpcsr also lose
+	 * their use.
+	 *
+	 * UDF_IEX_trap replaces the feature of UDF and IEX trap enable bit in
+	 * $fpcsr to control the trap of underflow and inexact. The bit filed
+	 * of UDF_IEX_trap is the same as $fpcsr, 10th bit is used to enable UDF
+	 * exception trapping and 11th bit is used to enable IEX exception
+	 * trapping.
+	 *
+	 * UDF_IEX_trap is only modified through fp_udfiex_crtl syscall.
+	 * Therefore, UDF_IEX_trap needn't be saved and restored in each
+	 * context switch.
+	 */
+	unsigned long UDF_IEX_trap;
+};
 
 struct zol_struct {
 	unsigned long nds32_lc;	/* $LC */
@@ -54,6 +77,7 @@ struct sigcontext {
 	unsigned long fault_address;
 	unsigned long used_math_flag;
 	/* FPU Registers */
+	struct fpu_struct fpu;
 	struct zol_struct zol;
 };
 

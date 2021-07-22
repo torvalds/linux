@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test for x86 KVM_CAP_SYNC_REGS
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Verifies expected behavior of x86 KVM_CAP_SYNC_REGS functionality,
  * including requesting an invalid register set, updates to/from values
@@ -23,12 +22,24 @@
 
 #define VCPU_ID 5
 
+#define UCALL_PIO_PORT ((uint16_t)0x1000)
+
+struct ucall uc_none = {
+	.cmd = UCALL_NONE,
+};
+
+/*
+ * ucall is embedded here to protect against compiler reshuffling registers
+ * before calling a function. In this test we only need to get KVM_EXIT_IO
+ * vmexit and preserve RBX, no additional information is needed.
+ */
 void guest_code(void)
 {
-	for (;;) {
-		GUEST_SYNC(0);
-		asm volatile ("inc %r11");
-	}
+	asm volatile("1: in %[port], %%al\n"
+		     "add $0x1, %%rbx\n"
+		     "jmp 1b"
+		     : : [port] "d" (UCALL_PIO_PORT), "D" (&uc_none)
+		     : "rax", "rbx");
 }
 
 static void compare_regs(struct kvm_regs *left, struct kvm_regs *right)
@@ -85,11 +96,11 @@ int main(int argc, char *argv[])
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
 	if ((cap & TEST_SYNC_FIELDS) != TEST_SYNC_FIELDS) {
-		fprintf(stderr, "KVM_CAP_SYNC_REGS not supported, skipping test\n");
+		print_skip("KVM_CAP_SYNC_REGS not supported");
 		exit(KSFT_SKIP);
 	}
 	if ((cap & INVALID_SYNC_FIELD) != 0) {
-		fprintf(stderr, "The \"invalid\" field is not invalid, skipping test\n");
+		print_skip("The \"invalid\" field is not invalid");
 		exit(KSFT_SKIP);
 	}
 
@@ -147,7 +158,7 @@ int main(int argc, char *argv[])
 	compare_vcpu_events(&events, &run->s.regs.events);
 
 	/* Set and verify various register values. */
-	run->s.regs.regs.r11 = 0xBAD1DEA;
+	run->s.regs.regs.rbx = 0xBAD1DEA;
 	run->s.regs.sregs.apic_base = 1 << 11;
 	/* TODO run->s.regs.events.XYZ = ABC; */
 
@@ -158,9 +169,9 @@ int main(int argc, char *argv[])
 		    "Unexpected exit reason: %u (%s),\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
-	TEST_ASSERT(run->s.regs.regs.r11 == 0xBAD1DEA + 1,
-		    "r11 sync regs value incorrect 0x%llx.",
-		    run->s.regs.regs.r11);
+	TEST_ASSERT(run->s.regs.regs.rbx == 0xBAD1DEA + 1,
+		    "rbx sync regs value incorrect 0x%llx.",
+		    run->s.regs.regs.rbx);
 	TEST_ASSERT(run->s.regs.sregs.apic_base == 1 << 11,
 		    "apic_base sync regs value incorrect 0x%llx.",
 		    run->s.regs.sregs.apic_base);
@@ -179,15 +190,15 @@ int main(int argc, char *argv[])
 	 */
 	run->kvm_valid_regs = TEST_SYNC_FIELDS;
 	run->kvm_dirty_regs = 0;
-	run->s.regs.regs.r11 = 0xDEADBEEF;
+	run->s.regs.regs.rbx = 0xDEADBEEF;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s),\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
-	TEST_ASSERT(run->s.regs.regs.r11 != 0xDEADBEEF,
-		    "r11 sync regs value incorrect 0x%llx.",
-		    run->s.regs.regs.r11);
+	TEST_ASSERT(run->s.regs.regs.rbx != 0xDEADBEEF,
+		    "rbx sync regs value incorrect 0x%llx.",
+		    run->s.regs.regs.rbx);
 
 	/* Clear kvm_valid_regs bits and kvm_dirty_bits.
 	 * Verify s.regs values are not overwritten with existing guest values
@@ -195,21 +206,21 @@ int main(int argc, char *argv[])
 	 */
 	run->kvm_valid_regs = 0;
 	run->kvm_dirty_regs = 0;
-	run->s.regs.regs.r11 = 0xAAAA;
-	regs.r11 = 0xBAC0;
+	run->s.regs.regs.rbx = 0xAAAA;
+	regs.rbx = 0xBAC0;
 	vcpu_regs_set(vm, VCPU_ID, &regs);
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s),\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
-	TEST_ASSERT(run->s.regs.regs.r11 == 0xAAAA,
-		    "r11 sync regs value incorrect 0x%llx.",
-		    run->s.regs.regs.r11);
+	TEST_ASSERT(run->s.regs.regs.rbx == 0xAAAA,
+		    "rbx sync regs value incorrect 0x%llx.",
+		    run->s.regs.regs.rbx);
 	vcpu_regs_get(vm, VCPU_ID, &regs);
-	TEST_ASSERT(regs.r11 == 0xBAC0 + 1,
-		    "r11 guest value incorrect 0x%llx.",
-		    regs.r11);
+	TEST_ASSERT(regs.rbx == 0xBAC0 + 1,
+		    "rbx guest value incorrect 0x%llx.",
+		    regs.rbx);
 
 	/* Clear kvm_valid_regs bits. Verify s.regs values are not overwritten
 	 * with existing guest values but that guest values are overwritten
@@ -217,19 +228,19 @@ int main(int argc, char *argv[])
 	 */
 	run->kvm_valid_regs = 0;
 	run->kvm_dirty_regs = TEST_SYNC_FIELDS;
-	run->s.regs.regs.r11 = 0xBBBB;
+	run->s.regs.regs.rbx = 0xBBBB;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s),\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
-	TEST_ASSERT(run->s.regs.regs.r11 == 0xBBBB,
-		    "r11 sync regs value incorrect 0x%llx.",
-		    run->s.regs.regs.r11);
+	TEST_ASSERT(run->s.regs.regs.rbx == 0xBBBB,
+		    "rbx sync regs value incorrect 0x%llx.",
+		    run->s.regs.regs.rbx);
 	vcpu_regs_get(vm, VCPU_ID, &regs);
-	TEST_ASSERT(regs.r11 == 0xBBBB + 1,
-		    "r11 guest value incorrect 0x%llx.",
-		    regs.r11);
+	TEST_ASSERT(regs.rbx == 0xBBBB + 1,
+		    "rbx guest value incorrect 0x%llx.",
+		    regs.rbx);
 
 	kvm_vm_free(vm);
 

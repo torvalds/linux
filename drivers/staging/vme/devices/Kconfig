@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "VME Device Drivers"
 
 config VME_USER

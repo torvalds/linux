@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pistachio platform setup
  *
  * Copyright (C) 2014 Google, Inc.
  * Copyright (C) 2016 Imagination Technologies
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -16,7 +13,6 @@
 #include <linux/of_fdt.h>
 
 #include <asm/cacheflush.h>
-#include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-cps.h>
@@ -86,12 +82,11 @@ phys_addr_t mips_cdmm_phys_base(void)
 static void __init mips_nmi_setup(void)
 {
 	void *base;
-	extern char except_vec_nmi;
 
 	base = cpu_has_veic ?
 		(void *)(CAC_BASE + 0xa80) :
 		(void *)(CAC_BASE + 0x380);
-	memcpy(base, &except_vec_nmi, 0x80);
+	memcpy(base, except_vec_nmi, 0x80);
 	flush_icache_range((unsigned long)base,
 			   (unsigned long)base + 0x80);
 }
@@ -99,12 +94,12 @@ static void __init mips_nmi_setup(void)
 static void __init mips_ejtag_setup(void)
 {
 	void *base;
-	extern char except_vec_ejtag_debug;
+	extern char except_vec_ejtag_debug[];
 
 	base = cpu_has_veic ?
 		(void *)(CAC_BASE + 0xa00) :
 		(void *)(CAC_BASE + 0x300);
-	memcpy(base, &except_vec_ejtag_debug, 0x80);
+	memcpy(base, except_vec_ejtag_debug, 0x80);
 	flush_icache_range((unsigned long)base,
 			   (unsigned long)base + 0x80);
 }
@@ -119,10 +114,6 @@ void __init prom_init(void)
 	register_cps_smp_ops();
 
 	pr_info("SoC Type: %s\n", get_system_type());
-}
-
-void __init prom_free_prom_memory(void)
-{
 }
 
 void __init device_tree_init(void)

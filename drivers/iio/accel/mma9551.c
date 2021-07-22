@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Freescale MMA9551L Intelligent Motion-Sensing Platform driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -481,7 +473,6 @@ static int mma9551_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = mma9551_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mma9551_channels);
 	indio_dev->name = name;
@@ -524,7 +515,6 @@ static int mma9551_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
 	mutex_lock(&data->mutex);
 	mma9551_set_device_state(data->client, false);

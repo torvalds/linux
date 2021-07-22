@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pata-cs5530.c 	- CS5530 PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *
  * based upon cs5530.c by Mark Lord.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Loosely based on the piix & svwks drivers.
  *
@@ -159,8 +147,9 @@ static unsigned int cs5530_qc_issue(struct ata_queued_cmd *qc)
 }
 
 static struct scsi_host_template cs5530_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize	= LIBATA_DUMB_MAX_PRD,
+	.dma_boundary	= ATA_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations cs5530_port_ops = {
@@ -283,7 +272,7 @@ fail_put:
 
 /**
  *	cs5530_init_one		-	Initialise a CS5530
- *	@dev: PCI device
+ *	@pdev: PCI device
  *	@id: Entry in match table
  *
  *	Install a driver for the newly found CS5530 companion chip. Most of

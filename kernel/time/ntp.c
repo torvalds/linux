@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
-#include <linux/math64.h>
+#include <linux/audit.h>
 
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"
@@ -43,6 +43,7 @@ static u64			tick_length_base;
 #define MAX_TICKADJ		500LL		/* usecs */
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
+#define MAX_TAI_OFFSET		100000
 
 /*
  * phase-lock loop variables
@@ -189,13 +190,13 @@ static inline int is_error_status(int status)
 			&& (status & (STA_PPSWANDER|STA_PPSERROR)));
 }
 
-static inline void pps_fill_timex(struct timex *txc)
+static inline void pps_fill_timex(struct __kernel_timex *txc)
 {
 	txc->ppsfreq	   = shift_right((pps_freq >> PPM_SCALE_INV_SHIFT) *
 					 PPM_SCALE_INV, NTP_SCALE_SHIFT);
 	txc->jitter	   = pps_jitter;
 	if (!(time_status & STA_NANO))
-		txc->jitter /= NSEC_PER_USEC;
+		txc->jitter = pps_jitter / NSEC_PER_USEC;
 	txc->shift	   = pps_shift;
 	txc->stabil	   = pps_stabil;
 	txc->jitcnt	   = pps_jitcnt;
@@ -221,7 +222,7 @@ static inline int is_error_status(int status)
 	return status & (STA_UNSYNC|STA_CLOCKERR);
 }
 
-static inline void pps_fill_timex(struct timex *txc)
+static inline void pps_fill_timex(struct __kernel_timex *txc)
 {
 	/* PPS is not implemented, so these are zero */
 	txc->ppsfreq	   = 0;
@@ -493,122 +494,122 @@ out:
 	return leap;
 }
 
+#if defined(CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC)
 static void sync_hw_clock(struct work_struct *work);
-static DECLARE_DELAYED_WORK(sync_work, sync_hw_clock);
+static DECLARE_WORK(sync_work, sync_hw_clock);
+static struct hrtimer sync_hrtimer;
+#define SYNC_PERIOD_NS (11ULL * 60 * NSEC_PER_SEC)
 
-static void sched_sync_hw_clock(struct timespec64 now,
-				unsigned long target_nsec, bool fail)
-
+static enum hrtimer_restart sync_timer_callback(struct hrtimer *timer)
 {
-	struct timespec64 next;
+	queue_work(system_freezable_power_efficient_wq, &sync_work);
 
-	ktime_get_real_ts64(&next);
-	if (!fail)
-		next.tv_sec = 659;
-	else {
-		/*
-		 * Try again as soon as possible. Delaying long periods
-		 * decreases the accuracy of the work queue timer. Due to this
-		 * the algorithm is very likely to require a short-sleep retry
-		 * after the above long sleep to synchronize ts_nsec.
-		 */
-		next.tv_sec = 0;
-	}
-
-	/* Compute the needed delay that will get to tv_nsec == target_nsec */
-	next.tv_nsec = target_nsec - next.tv_nsec;
-	if (next.tv_nsec <= 0)
-		next.tv_nsec += NSEC_PER_SEC;
-	if (next.tv_nsec >= NSEC_PER_SEC) {
-		next.tv_sec++;
-		next.tv_nsec -= NSEC_PER_SEC;
-	}
-
-	queue_delayed_work(system_power_efficient_wq, &sync_work,
-			   timespec64_to_jiffies(&next));
+	return HRTIMER_NORESTART;
 }
 
-static void sync_rtc_clock(void)
+static void sched_sync_hw_clock(unsigned long offset_nsec, bool retry)
 {
-	unsigned long target_nsec;
-	struct timespec64 adjust, now;
-	int rc;
+	ktime_t exp = ktime_set(ktime_get_real_seconds(), 0);
 
-	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
-		return;
+	if (retry)
+		exp = ktime_add_ns(exp, 2ULL * NSEC_PER_SEC - offset_nsec);
+	else
+		exp = ktime_add_ns(exp, SYNC_PERIOD_NS - offset_nsec);
 
-	ktime_get_real_ts64(&now);
+	hrtimer_start(&sync_hrtimer, exp, HRTIMER_MODE_ABS);
+}
 
-	adjust = now;
-	if (persistent_clock_is_local)
-		adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
+/*
+ * Check whether @now is correct versus the required time to update the RTC
+ * and calculate the value which needs to be written to the RTC so that the
+ * next seconds increment of the RTC after the write is aligned with the next
+ * seconds increment of clock REALTIME.
+ *
+ * tsched     t1 write(t2.tv_sec - 1sec))	t2 RTC increments seconds
+ *
+ * t2.tv_nsec == 0
+ * tsched = t2 - set_offset_nsec
+ * newval = t2 - NSEC_PER_SEC
+ *
+ * ==> neval = tsched + set_offset_nsec - NSEC_PER_SEC
+ *
+ * As the execution of this code is not guaranteed to happen exactly at
+ * tsched this allows it to happen within a fuzzy region:
+ *
+ *	abs(now - tsched) < FUZZ
+ *
+ * If @now is not inside the allowed window the function returns false.
+ */
+static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
+				  struct timespec64 *to_set,
+				  const struct timespec64 *now)
+{
+	/* Allowed error in tv_nsec, arbitrarily set to 5 jiffies in ns. */
+	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
+	struct timespec64 delay = {.tv_sec = -1,
+				   .tv_nsec = set_offset_nsec};
 
-	/*
-	 * The current RTC in use will provide the target_nsec it wants to be
-	 * called at, and does rtc_tv_nsec_ok internally.
-	 */
-	rc = rtc_set_ntp_time(adjust, &target_nsec);
-	if (rc == -ENODEV)
-		return;
+	*to_set = timespec64_add(*now, delay);
 
-	sched_sync_hw_clock(now, target_nsec, rc);
+	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
+		to_set->tv_nsec = 0;
+		return true;
+	}
+
+	if (to_set->tv_nsec > NSEC_PER_SEC - TIME_SET_NSEC_FUZZ) {
+		to_set->tv_sec++;
+		to_set->tv_nsec = 0;
+		return true;
+	}
+	return false;
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-int __weak update_persistent_clock(struct timespec now)
+int __weak update_persistent_clock64(struct timespec64 now64)
 {
 	return -ENODEV;
 }
-
-int __weak update_persistent_clock64(struct timespec64 now64)
+#else
+static inline int update_persistent_clock64(struct timespec64 now64)
 {
-	struct timespec now;
-
-	now = timespec64_to_timespec(now64);
-	return update_persistent_clock(now);
+	return -ENODEV;
 }
 #endif
 
-static bool sync_cmos_clock(void)
+#ifdef CONFIG_RTC_SYSTOHC
+/* Save NTP synchronized time to the RTC */
+static int update_rtc(struct timespec64 *to_set, unsigned long *offset_nsec)
 {
-	static bool no_cmos;
-	struct timespec64 now;
-	struct timespec64 adjust;
-	int rc = -EPROTO;
-	long target_nsec = NSEC_PER_SEC / 2;
+	struct rtc_device *rtc;
+	struct rtc_time tm;
+	int err = -ENODEV;
 
-	if (!IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE))
-		return false;
+	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
+	if (!rtc)
+		return -ENODEV;
 
-	if (no_cmos)
-		return false;
+	if (!rtc->ops || !rtc->ops->set_time)
+		goto out_close;
 
-	/*
-	 * Historically update_persistent_clock64() has followed x86
-	 * semantics, which match the MC146818A/etc RTC. This RTC will store
-	 * 'adjust' and then in .5s it will advance once second.
-	 *
-	 * Architectures are strongly encouraged to use rtclib and not
-	 * implement this legacy API.
-	 */
-	ktime_get_real_ts64(&now);
-	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &now)) {
-		if (persistent_clock_is_local)
-			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
-		rc = update_persistent_clock64(adjust);
-		/*
-		 * The machine does not support update_persistent_clock64 even
-		 * though it defines CONFIG_GENERIC_CMOS_UPDATE.
-		 */
-		if (rc == -ENODEV) {
-			no_cmos = true;
-			return false;
-		}
+	/* First call might not have the correct offset */
+	if (*offset_nsec == rtc->set_offset_nsec) {
+		rtc_time64_to_tm(to_set->tv_sec, &tm);
+		err = rtc_set_time(rtc, &tm);
+	} else {
+		/* Store the update offset and let the caller try again */
+		*offset_nsec = rtc->set_offset_nsec;
+		err = -EAGAIN;
 	}
-
-	sched_sync_hw_clock(now, target_nsec, rc);
-	return true;
+out_close:
+	rtc_class_close(rtc);
+	return err;
 }
+#else
+static inline int update_rtc(struct timespec64 *to_set, unsigned long *offset_nsec)
+{
+	return -ENODEV;
+}
+#endif
 
 /*
  * If we have an externally synchronized Linux clock, then update RTC clock
@@ -620,29 +621,69 @@ static bool sync_cmos_clock(void)
  */
 static void sync_hw_clock(struct work_struct *work)
 {
-	if (!ntp_synced())
+	/*
+	 * The default synchronization offset is 500ms for the deprecated
+	 * update_persistent_clock64() under the assumption that it uses
+	 * the infamous CMOS clock (MC146818).
+	 */
+	static unsigned long offset_nsec = NSEC_PER_SEC / 2;
+	struct timespec64 now, to_set;
+	int res = -EAGAIN;
+
+	/*
+	 * Don't update if STA_UNSYNC is set and if ntp_notify_cmos_timer()
+	 * managed to schedule the work between the timer firing and the
+	 * work being able to rearm the timer. Wait for the timer to expire.
+	 */
+	if (!ntp_synced() || hrtimer_is_queued(&sync_hrtimer))
 		return;
 
-	if (sync_cmos_clock())
-		return;
+	ktime_get_real_ts64(&now);
+	/* If @now is not in the allowed window, try again */
+	if (!rtc_tv_nsec_ok(offset_nsec, &to_set, &now))
+		goto rearm;
 
-	sync_rtc_clock();
+	/* Take timezone adjusted RTCs into account */
+	if (persistent_clock_is_local)
+		to_set.tv_sec -= (sys_tz.tz_minuteswest * 60);
+
+	/* Try the legacy RTC first. */
+	res = update_persistent_clock64(to_set);
+	if (res != -ENODEV)
+		goto rearm;
+
+	/* Try the RTC class */
+	res = update_rtc(&to_set, &offset_nsec);
+	if (res == -ENODEV)
+		return;
+rearm:
+	sched_sync_hw_clock(offset_nsec, res != 0);
 }
 
 void ntp_notify_cmos_timer(void)
 {
-	if (!ntp_synced())
-		return;
-
-	if (IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE) ||
-	    IS_ENABLED(CONFIG_RTC_SYSTOHC))
-		queue_delayed_work(system_power_efficient_wq, &sync_work, 0);
+	/*
+	 * When the work is currently executed but has not yet the timer
+	 * rearmed this queues the work immediately again. No big issue,
+	 * just a pointless work scheduled.
+	 */
+	if (ntp_synced() && !hrtimer_is_queued(&sync_hrtimer))
+		queue_work(system_freezable_power_efficient_wq, &sync_work);
 }
+
+static void __init ntp_init_cmos_sync(void)
+{
+	hrtimer_init(&sync_hrtimer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	sync_hrtimer.function = sync_timer_callback;
+}
+#else /* CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
+static inline void __init ntp_init_cmos_sync(void) { }
+#endif /* !CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
 
 /*
  * Propagate a new txc->status value into the NTP state:
  */
-static inline void process_adj_status(const struct timex *txc)
+static inline void process_adj_status(const struct __kernel_timex *txc)
 {
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		time_state = TIME_OK;
@@ -665,7 +706,8 @@ static inline void process_adj_status(const struct timex *txc)
 }
 
 
-static inline void process_adjtimex_modes(const struct timex *txc, s32 *time_tai)
+static inline void process_adjtimex_modes(const struct __kernel_timex *txc,
+					  s32 *time_tai)
 {
 	if (txc->modes & ADJ_STATUS)
 		process_adj_status(txc);
@@ -698,7 +740,8 @@ static inline void process_adjtimex_modes(const struct timex *txc, s32 *time_tai
 		time_constant = max(time_constant, 0l);
 	}
 
-	if (txc->modes & ADJ_TAI && txc->constant > 0)
+	if (txc->modes & ADJ_TAI &&
+			txc->constant >= 0 && txc->constant <= MAX_TAI_OFFSET)
 		*time_tai = txc->constant;
 
 	if (txc->modes & ADJ_OFFSET)
@@ -716,7 +759,8 @@ static inline void process_adjtimex_modes(const struct timex *txc, s32 *time_tai
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(struct timex *txc, const struct timespec64 *ts, s32 *time_tai)
+int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
+		  s32 *time_tai, struct audit_ntp_data *ad)
 {
 	int result;
 
@@ -727,18 +771,33 @@ int __do_adjtimex(struct timex *txc, const struct timespec64 *ts, s32 *time_tai)
 			/* adjtime() is independent from ntp_adjtime() */
 			time_adjust = txc->offset;
 			ntp_update_frequency();
+
+			audit_ntp_set_old(ad, AUDIT_NTP_ADJUST,	save_adjust);
+			audit_ntp_set_new(ad, AUDIT_NTP_ADJUST,	time_adjust);
 		}
 		txc->offset = save_adjust;
 	} else {
-
 		/* If there are input parameters, then process them: */
-		if (txc->modes)
+		if (txc->modes) {
+			audit_ntp_set_old(ad, AUDIT_NTP_OFFSET,	time_offset);
+			audit_ntp_set_old(ad, AUDIT_NTP_FREQ,	time_freq);
+			audit_ntp_set_old(ad, AUDIT_NTP_STATUS,	time_status);
+			audit_ntp_set_old(ad, AUDIT_NTP_TAI,	*time_tai);
+			audit_ntp_set_old(ad, AUDIT_NTP_TICK,	tick_usec);
+
 			process_adjtimex_modes(txc, time_tai);
+
+			audit_ntp_set_new(ad, AUDIT_NTP_OFFSET,	time_offset);
+			audit_ntp_set_new(ad, AUDIT_NTP_FREQ,	time_freq);
+			audit_ntp_set_new(ad, AUDIT_NTP_STATUS,	time_status);
+			audit_ntp_set_new(ad, AUDIT_NTP_TAI,	*time_tai);
+			audit_ntp_set_new(ad, AUDIT_NTP_TICK,	tick_usec);
+		}
 
 		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
 				  NTP_SCALE_SHIFT);
 		if (!(time_status & STA_NANO))
-			txc->offset /= NSEC_PER_USEC;
+			txc->offset = (u32)txc->offset / NSEC_PER_USEC;
 	}
 
 	result = time_state;	/* mostly `TIME_OK' */
@@ -760,10 +819,10 @@ int __do_adjtimex(struct timex *txc, const struct timespec64 *ts, s32 *time_tai)
 	/* fill PPS status fields */
 	pps_fill_timex(txc);
 
-	txc->time.tv_sec = (time_t)ts->tv_sec;
+	txc->time.tv_sec = ts->tv_sec;
 	txc->time.tv_usec = ts->tv_nsec;
 	if (!(time_status & STA_NANO))
-		txc->time.tv_usec /= NSEC_PER_USEC;
+		txc->time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
 
 	/* Handle leapsec adjustments */
 	if (unlikely(ts->tv_sec >= ntp_next_leap_sec)) {
@@ -1033,4 +1092,5 @@ __setup("ntp_tick_adj=", ntp_tick_adj_setup);
 void __init ntp_init(void)
 {
 	ntp_clear();
+	ntp_init_cmos_sync();
 }

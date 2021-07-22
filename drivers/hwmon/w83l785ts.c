@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * w83l785ts.c - Part of lm_sensors, Linux kernel modules for hardware
  *               monitoring
@@ -14,20 +15,6 @@
  *
  * Thanks to James Bolt <james@evilpenguin.com> for benchmarking the read
  * error handling mechanism.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -75,8 +62,7 @@ static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
  * Functions declaration
  */
 
-static int w83l785ts_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id);
+static int w83l785ts_probe(struct i2c_client *client);
 static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l785ts_remove(struct i2c_client *client);
@@ -98,7 +84,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.driver = {
 		.name	= "w83l785ts",
 	},
-	.probe		= w83l785ts_probe,
+	.probe_new	= w83l785ts_probe,
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,
@@ -176,8 +162,7 @@ static int w83l785ts_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int w83l785ts_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int w83l785ts_probe(struct i2c_client *client)
 {
 	struct w83l785ts_data *data;
 	struct device *dev = &client->dev;

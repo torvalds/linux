@@ -11,6 +11,8 @@
 #include <linux/usb/composite.h>
 
 #include "mtu3.h"
+#include "mtu3_debug.h"
+#include "mtu3_trace.h"
 
 /* ep0 is always mtu3->in_eps[0] */
 #define	next_ep0_request(mtu)	next_request((mtu)->ep0)
@@ -151,6 +153,15 @@ static void ep0_stall_set(struct mtu3_ep *mep0, bool set, u32 pktrdy)
 		set ? "SEND" : "CLEAR", decode_ep0_state(mtu));
 }
 
+static void ep0_do_status_stage(struct mtu3 *mtu)
+{
+	void __iomem *mbase = mtu->mac_base;
+	u32 value;
+
+	value = mtu3_readl(mbase, U3D_EP0CSR) & EP0_W1C_BITS;
+	mtu3_writel(mbase, U3D_EP0CSR, value | EP0_SETUPPKTRDY | EP0_DATAEND);
+}
+
 static int ep0_queue(struct mtu3_ep *mep0, struct mtu3_request *mreq);
 
 static void ep0_dummy_complete(struct usb_ep *ep, struct usb_request *req)
@@ -267,20 +278,20 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 	u32 value;
 
 	switch (le16_to_cpu(setup->wIndex) >> 8) {
-	case TEST_J:
-		dev_dbg(mtu->dev, "TEST_J\n");
+	case USB_TEST_J:
+		dev_dbg(mtu->dev, "USB_TEST_J\n");
 		mtu->test_mode_nr = TEST_J_MODE;
 		break;
-	case TEST_K:
-		dev_dbg(mtu->dev, "TEST_K\n");
+	case USB_TEST_K:
+		dev_dbg(mtu->dev, "USB_TEST_K\n");
 		mtu->test_mode_nr = TEST_K_MODE;
 		break;
-	case TEST_SE0_NAK:
-		dev_dbg(mtu->dev, "TEST_SE0_NAK\n");
+	case USB_TEST_SE0_NAK:
+		dev_dbg(mtu->dev, "USB_TEST_SE0_NAK\n");
 		mtu->test_mode_nr = TEST_SE0_NAK_MODE;
 		break;
-	case TEST_PACKET:
-		dev_dbg(mtu->dev, "TEST_PACKET\n");
+	case USB_TEST_PACKET:
+		dev_dbg(mtu->dev, "USB_TEST_PACKET\n");
 		mtu->test_mode_nr = TEST_PACKET_MODE;
 		break;
 	default:
@@ -295,8 +306,7 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 		ep0_load_test_packet(mtu);
 
 	/* send status before entering test mode. */
-	value = mtu3_readl(mbase, U3D_EP0CSR) & EP0_W1C_BITS;
-	mtu3_writel(mbase, U3D_EP0CSR, value | EP0_SETUPPKTRDY | EP0_DATAEND);
+	ep0_do_status_stage(mtu);
 
 	/* wait for ACK status sent by host */
 	readl_poll_timeout_atomic(mbase + U3D_EP0CSR, value,
@@ -336,9 +346,9 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
 		if (set)
-			lpc |= SW_U1_ACCEPT_ENABLE;
+			lpc |= SW_U1_REQUEST_ENABLE;
 		else
-			lpc &= ~SW_U1_ACCEPT_ENABLE;
+			lpc &= ~SW_U1_REQUEST_ENABLE;
 		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
 
 		mtu->u1_enable = !!set;
@@ -351,9 +361,9 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
 		if (set)
-			lpc |= SW_U2_ACCEPT_ENABLE;
+			lpc |= SW_U2_REQUEST_ENABLE;
 		else
-			lpc &= ~SW_U2_ACCEPT_ENABLE;
+			lpc &= ~SW_U2_REQUEST_ENABLE;
 		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
 
 		mtu->u2_enable = !!set;
@@ -407,7 +417,7 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 
 		handled = 1;
 		/* ignore request if endpoint is wedged */
-		if (mep->wedged)
+		if (mep->flags & MTU3_EP_WEDGE)
 			break;
 
 		mtu3_ep_stall_set(mep, set);
@@ -630,10 +640,10 @@ __acquires(mtu->lock)
 {
 	struct usb_ctrlrequest setup;
 	struct mtu3_request *mreq;
-	void __iomem *mbase = mtu->mac_base;
 	int handled = 0;
 
 	ep0_read_setup(mtu, &setup);
+	trace_mtu3_handle_setup(&setup);
 
 	if ((setup.bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		handled = handle_standard_request(mtu, &setup);
@@ -661,14 +671,19 @@ finish:
 	if (mtu->test_mode) {
 		;	/* nothing to do */
 	} else if (handled == USB_GADGET_DELAYED_STATUS) {
-		/* handle the delay STATUS phase till receive ep_queue on ep0 */
-		mtu->delayed_status = true;
+
+		mreq = next_ep0_request(mtu);
+		if (mreq) {
+			/* already asked us to continue delayed status */
+			ep0_do_status_stage(mtu);
+			ep0_req_giveback(mtu, &mreq->request);
+		} else {
+			/* do delayed STATUS stage till receive ep0_queue */
+			mtu->delayed_status = true;
+		}
 	} else if (le16_to_cpu(setup.wLength) == 0) { /* no data stage */
 
-		mtu3_writel(mbase, U3D_EP0CSR,
-			(mtu3_readl(mbase, U3D_EP0CSR) & EP0_W1C_BITS)
-			| EP0_SETUPPKTRDY | EP0_DATAEND);
-
+		ep0_do_status_stage(mtu);
 		/* complete zlp request directly */
 		mreq = next_ep0_request(mtu);
 		if (mreq && !mreq->request.length)
@@ -692,8 +707,12 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_EPISR, int_status); /* W1C */
 
 	/* only handle ep0's */
-	if (!(int_status & EP0ISR))
+	if (!(int_status & (EP0ISR | SETUPENDISR)))
 		return IRQ_NONE;
+
+	/* abort current SETUP, and process new one */
+	if (int_status & SETUPENDISR)
+		mtu->ep0_state = MU3D_EP0_STATE_SETUP;
 
 	csr = mtu3_readl(mbase, U3D_EP0CSR);
 
@@ -706,6 +725,7 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 		ret = IRQ_HANDLED;
 	}
 	dev_dbg(mtu->dev, "ep0_state: %s\n", decode_ep0_state(mtu));
+	mtu3_dbg_trace(mtu->dev, "ep0_state %s", decode_ep0_state(mtu));
 
 	switch (mtu->ep0_state) {
 	case MU3D_EP0_STATE_TX:
@@ -794,12 +814,9 @@ static int ep0_queue(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	}
 
 	if (mtu->delayed_status) {
-		u32 csr;
 
 		mtu->delayed_status = false;
-		csr = mtu3_readl(mtu->mac_base, U3D_EP0CSR) & EP0_W1C_BITS;
-		csr |= EP0_SETUPPKTRDY | EP0_DATAEND;
-		mtu3_writel(mtu->mac_base, U3D_EP0CSR, csr);
+		ep0_do_status_stage(mtu);
 		/* needn't giveback the request for handling delay STATUS */
 		return 0;
 	}

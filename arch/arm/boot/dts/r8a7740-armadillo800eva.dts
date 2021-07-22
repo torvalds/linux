@@ -21,7 +21,7 @@
 	};
 
 	chosen {
-		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=on rw";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -60,8 +60,7 @@
 
 		enable-gpio = <&pfc 74 GPIO_ACTIVE_HIGH>;
 		gpios = <&pfc 17 GPIO_ACTIVE_HIGH>;
-		states = <3300000 0
-			  1800000 1>;
+		states = <3300000 0>, <1800000 1>;
 
 		enable-active-high;
 	};

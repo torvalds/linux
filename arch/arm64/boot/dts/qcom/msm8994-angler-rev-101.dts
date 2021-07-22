@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015, Huawei Inc. All rights reserved.
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /dts-v1/;
@@ -19,6 +11,8 @@
 	model = "Huawei Nexus 6P";
 	compatible = "huawei,angler", "qcom,msm8994";
 	/* required for bootloader to select correct board */
+	qcom,msm-id = <207 0x20000>;
+	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
 	qcom,board-id = <8026 0>;
 
 	aliases {
@@ -37,4 +31,8 @@
 			pinctrl-1 = <&blsp1_uart2_sleep>;
 		};
 	};
+};
+
+&tlmm {
+	gpio-reserved-ranges = <85 4>;
 };

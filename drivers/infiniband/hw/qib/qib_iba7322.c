@@ -791,28 +791,6 @@ static inline u32 qib_read_ureg32(const struct qib_devdata *dd,
 }
 
 /**
- * qib_read_ureg - read virtualized per-context register
- * @dd: device
- * @regno: register number
- * @ctxt: context number
- *
- * Return the contents of a register that is virtualized to be per context.
- * Returns -1 on errors (not distinguishable from valid contents at
- * runtime; we may add a separate error variable at some point).
- */
-static inline u64 qib_read_ureg(const struct qib_devdata *dd,
-				enum qib_ureg regno, int ctxt)
-{
-
-	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
-		return 0;
-	return readq(regno + (u64 __iomem *)(
-		(dd->ureg_align * ctxt) + (dd->userbase ?
-		 (char __iomem *)dd->userbase :
-		 (char __iomem *)dd->kregbase + dd->uregbase)));
-}
-
-/**
  * qib_write_ureg - write virtualized per-context register
  * @dd: device
  * @regno: register number
@@ -1382,7 +1360,6 @@ static void err_decode(char *msg, size_t len, u64 errs,
 					*msg++ = ',';
 					len--;
 				}
-				BUG_ON(!msp->sz);
 				/* msp->sz counts the nul */
 				took = min_t(size_t, msp->sz - (size_t)1, len);
 				memcpy(msg,  msp->msg, took);
@@ -1734,9 +1711,9 @@ done:
 	return;
 }
 
-static void qib_error_tasklet(unsigned long data)
+static void qib_error_tasklet(struct tasklet_struct *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *)data;
+	struct qib_devdata *dd = from_tasklet(dd, t, error_tasklet);
 
 	handle_7322_errors(dd);
 	qib_write_kreg(dd, kr_errmask, dd->cspec->errormask);
@@ -2376,7 +2353,6 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	struct qib_devdata *dd = ppd->dd;
 	u64 val, guid, ibc;
 	unsigned long flags;
-	int ret = 0;
 
 	/*
 	 * SerDes model not in Pd, but still need to
@@ -2511,12 +2487,12 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 		val | ERR_MASK_N(IBStatusChanged));
 
 	/* Always zero until we start messing with SerDes for real */
-	return ret;
+	return 0;
 }
 
 /**
- * qib_7322_quiet_serdes - set serdes to txidle
- * @dd: the qlogic_ib device
+ * qib_7322_mini_quiet_serdes - set serdes to txidle
+ * @ppd: the qlogic_ib device
  * Called when driver is being unloaded
  */
 static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
@@ -3539,8 +3515,7 @@ try_intx:
 	for (i = 0; i < ARRAY_SIZE(redirect); i++)
 		qib_write_kreg(dd, kr_intredirect + i, redirect[i]);
 	dd->cspec->main_int_mask = mask;
-	tasklet_init(&dd->error_tasklet, qib_error_tasklet,
-		(unsigned long)dd);
+	tasklet_setup(&dd->error_tasklet, qib_error_tasklet);
 }
 
 /**
@@ -3763,7 +3738,7 @@ bail:
  * qib_7322_put_tid - write a TID to the chip
  * @dd: the qlogic_ib device
  * @tidptr: pointer to the expected TID (in chip) to update
- * @tidtype: 0 for eager, 1 for expected
+ * @type: 0 for eager, 1 for expected
  * @pa: physical address of in memory buffer; tidinvalid if freeing
  */
 static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
@@ -3794,13 +3769,12 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
  * qib_7322_clear_tids - clear all TID entries for a ctxt, expected and eager
  * @dd: the qlogic_ib device
- * @ctxt: the ctxt
+ * @rcd: the ctxt
  *
  * clear all TID entries for a ctxt, expected and eager.
  * Used from qib_close().
@@ -3863,9 +3837,9 @@ static void qib_7322_tidtemplate(struct qib_devdata *dd)
 }
 
 /**
- * qib_init_7322_get_base_info - set chip-specific flags for user code
+ * qib_7322_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
- * @kbase: qib_base_info pointer
+ * @kinfo: qib_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
  * HyperTransport can affect some user packet algorithims.
@@ -4441,10 +4415,8 @@ static void qib_update_7322_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 		adjust_rcv_timeout(rcd, npkts);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7322_hdrqempty(struct qib_ctxtdata *rcd)
@@ -4730,7 +4702,7 @@ static void sendctrl_7322_mod(struct qib_pportdata *ppd, u32 op)
 /**
  * qib_portcntr_7322 - read a per-port chip counter
  * @ppd: the qlogic_ib pport
- * @creg: the counter to read (not a chip offset)
+ * @reg: the counter to read (not a chip offset)
  */
 static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 {
@@ -5102,7 +5074,7 @@ done:
 
 /**
  * qib_get_7322_faststats - get word counters from chip before they overflow
- * @opaque - contains a pointer to the qlogic_ib device qib_devdata
+ * @t: contains a pointer to the qlogic_ib device qib_devdata
  *
  * VESTIGIAL IBA7322 has no "small fast counters", so the only
  * real purpose of this function is to maintain the notion of
@@ -5513,11 +5485,11 @@ static u32 qib_7322_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7322_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7322_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7322_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;
@@ -6141,7 +6113,7 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 static int setup_txselect(const char *str, const struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
-	unsigned long val;
+	unsigned long index, val;
 	char *n;
 
 	if (strlen(str) >= ARRAY_SIZE(txselect_list)) {
@@ -6157,7 +6129,7 @@ static int setup_txselect(const char *str, const struct kernel_param *kp)
 	}
 	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
 
-	list_for_each_entry(dd, &qib_dev_list, list)
+	xa_for_each(&qib_dev_table, index, dd)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);
 	return 0;
@@ -6538,7 +6510,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 				    "Invalid num_vls %u, using 4 VLs\n",
 				    qib_num_cfg_vls);
 			qib_num_cfg_vls = 4;
-			/* fall through */
+			fallthrough;
 		case 4:
 			ppd->vls_supported = IB_VL_VL0_3;
 			break;
@@ -6599,7 +6571,6 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 
 	/* we always allocate at least 2048 bytes for eager buffers */
 	dd->rcvegrbufsize = max(mtu, 2048);
-	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
 	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7322_tidtemplate(dd);
@@ -6635,7 +6606,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	/* vl15 buffers start just after the 4k buffers */
 	vl15off = dd->physaddr + (dd->piobufbase >> 32) +
 		  dd->piobcnt4k * dd->align4k;
-	dd->piovl15base	= ioremap_nocache(vl15off,
+	dd->piovl15base	= ioremap(vl15off,
 					  NUM_VL15_BUFS * dd->align4k);
 	if (!dd->piovl15base) {
 		ret = -ENOMEM;
@@ -6880,7 +6851,7 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 	struct qib_devdata *dd = ppd->dd;
 	unsigned lastbuf, erstbuf;
 	u64 senddmabufmask[3] = { 0 };
-	int n, ret = 0;
+	int n;
 
 	qib_write_kreg_port(ppd, krp_senddmabase, ppd->sdma_descq_phys);
 	qib_sdma_7322_setlengen(ppd);
@@ -6904,13 +6875,12 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 		unsigned word = erstbuf / BITS_PER_LONG;
 		unsigned bit = erstbuf & (BITS_PER_LONG - 1);
 
-		BUG_ON(word >= 3);
 		senddmabufmask[word] |= 1ULL << bit;
 	}
 	qib_write_kreg_port(ppd, krp_senddmabufmask0, senddmabufmask[0]);
 	qib_write_kreg_port(ppd, krp_senddmabufmask1, senddmabufmask[1]);
 	qib_write_kreg_port(ppd, krp_senddmabufmask2, senddmabufmask[2]);
-	return ret;
+	return 0;
 }
 
 /* sdma_lock must be held */
@@ -7183,7 +7153,7 @@ static int qib_7322_tempsense_rd(struct qib_devdata *dd, int regnum)
 
 /**
  * qib_init_iba7322_funcs - set up the chip-specific function pointers
- * @dev: the pci_dev for qlogic_ib device
+ * @pdev: the pci_dev for qlogic_ib device
  * @ent: pci_device_id struct for this dev
  *
  * Also allocates, inits, and returns the devdata struct for this

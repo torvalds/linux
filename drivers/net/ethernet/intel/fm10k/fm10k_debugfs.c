@@ -160,8 +160,6 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 	snprintf(name, sizeof(name), "q_vector.%03d", q_vector->v_idx);
 
 	q_vector->dbg_q_vector = debugfs_create_dir(name, interface->dbg_intfc);
-	if (!q_vector->dbg_q_vector)
-		return;
 
 	/* Generate a file for each rx ring in the q_vector */
 	for (i = 0; i < q_vector->tx.count; i++) {
@@ -187,7 +185,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 }
 
 /**
- * fm10k_dbg_free_q_vector_dir - setup debugfs for the q_vectors
+ * fm10k_dbg_q_vector_exit - setup debugfs for the q_vectors
  * @q_vector: q_vector to allocate directories for
  **/
 void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector)

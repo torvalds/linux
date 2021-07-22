@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/ibm/emac/zmii.h
  *
@@ -14,12 +15,6 @@
  * Based on original work by
  *      Armin Kuster <akuster@mvista.com>
  * 	Copyright 2001 MontaVista Softare Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #ifndef __IBM_NEWEMAC_ZMII_H
 #define __IBM_NEWEMAC_ZMII_H
@@ -55,7 +50,8 @@ struct zmii_instance {
 
 int zmii_init(void);
 void zmii_exit(void);
-int zmii_attach(struct platform_device *ofdev, int input, int *mode);
+int zmii_attach(struct platform_device *ofdev, int input,
+		phy_interface_t *mode);
 void zmii_detach(struct platform_device *ofdev, int input);
 void zmii_get_mdio(struct platform_device *ofdev, int input);
 void zmii_put_mdio(struct platform_device *ofdev, int input);

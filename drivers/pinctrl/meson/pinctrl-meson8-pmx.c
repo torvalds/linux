@@ -1,15 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * First generation of pinmux driver for Amlogic Meson SoCs
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
  * Copyright (C) 2017 Jerome Brunet  <jbrunet@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* For this first generation of pinctrl driver every pinmux group can be
@@ -106,3 +100,5 @@ const struct pinmux_ops meson8_pmx_ops = {
 	.get_function_groups = meson_pmx_get_groups,
 	.gpio_request_enable = meson8_pmx_request_gpio,
 };
+EXPORT_SYMBOL_GPL(meson8_pmx_ops);
+MODULE_LICENSE("GPL v2");

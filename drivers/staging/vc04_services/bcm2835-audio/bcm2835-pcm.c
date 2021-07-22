@@ -12,16 +12,16 @@
 static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_DRAIN_TRIGGER | SNDRV_PCM_INFO_SYNC_APPLPTR),
+		 SNDRV_PCM_INFO_SYNC_APPLPTR | SNDRV_PCM_INFO_BATCH),
 	.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
+	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_192000,
 	.rate_min = 8000,
-	.rate_max = 48000,
+	.rate_max = 192000,
 	.channels_min = 1,
-	.channels_max = 2,
-	.buffer_bytes_max = 128 * 1024,
+	.channels_max = 8,
+	.buffer_bytes_max = 512 * 1024,
 	.period_bytes_min = 1 * 1024,
-	.period_bytes_max = 128 * 1024,
+	.period_bytes_max = 512 * 1024,
 	.periods_min = 1,
 	.periods_max = 128,
 };
@@ -29,7 +29,7 @@ static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 static const struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_DRAIN_TRIGGER | SNDRV_PCM_INFO_SYNC_APPLPTR),
+		 SNDRV_PCM_INFO_SYNC_APPLPTR | SNDRV_PCM_INFO_BATCH),
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_44100 |
 	SNDRV_PCM_RATE_48000,
@@ -74,6 +74,7 @@ void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream,
 	atomic_set(&alsa_stream->pos, pos);
 
 	alsa_stream->period_offset += bytes;
+	alsa_stream->interpolate_start = ktime_get();
 	if (alsa_stream->period_offset >= alsa_stream->period_size) {
 		alsa_stream->period_offset %= alsa_stream->period_size;
 		snd_pcm_period_elapsed(substream);
@@ -164,14 +165,11 @@ static int snd_bcm2835_playback_spdif_open(struct snd_pcm_substream *substream)
 	return snd_bcm2835_playback_open_generic(substream, 1);
 }
 
-/* close callback */
 static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 {
-	/* the hardware-specific codes will be here */
-
-	struct bcm2835_chip *chip;
-	struct snd_pcm_runtime *runtime;
 	struct bcm2835_alsa_stream *alsa_stream;
+	struct snd_pcm_runtime *runtime;
+	struct bcm2835_chip *chip;
 
 	chip = snd_pcm_substream_chip(substream);
 	mutex_lock(&chip->audio_mutex);
@@ -195,20 +193,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/* hw_params callback */
-static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-}
-
-/* hw_free callback */
-static int snd_bcm2835_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-/* prepare callback */
 static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct bcm2835_chip *chip = snd_pcm_substream_chip(substream);
@@ -243,12 +227,13 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	atomic_set(&alsa_stream->pos, 0);
 	alsa_stream->period_offset = 0;
 	alsa_stream->draining = false;
+	alsa_stream->interpolate_start = ktime_get();
 
 	return 0;
 }
 
 static void snd_bcm2835_pcm_transfer(struct snd_pcm_substream *substream,
-	struct snd_pcm_indirect *rec, size_t bytes)
+				     struct snd_pcm_indirect *rec, size_t bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
@@ -292,6 +277,24 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
+	ktime_t now = ktime_get();
+
+	/* Give userspace better delay reporting by interpolating between GPU
+	 * notifications, assuming audio speed is close enough to the clock
+	 * used for ktime
+	 */
+
+	if ((ktime_to_ns(alsa_stream->interpolate_start)) &&
+	    (ktime_compare(alsa_stream->interpolate_start, now) < 0)) {
+		u64 interval =
+			(ktime_to_ns(ktime_sub(now,
+				alsa_stream->interpolate_start)));
+		u64 frames_output_in_interval =
+			div_u64((interval * runtime->rate), 1000000000);
+		snd_pcm_sframes_t frames_output_in_interval_sized =
+			-frames_output_in_interval;
+		runtime->delay = frames_output_in_interval_sized;
+	}
 
 	return snd_pcm_indirect_playback_pointer(substream,
 		&alsa_stream->pcm_indirect,
@@ -302,9 +305,6 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.open = snd_bcm2835_playback_open,
 	.close = snd_bcm2835_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_bcm2835_pcm_hw_params,
-	.hw_free = snd_bcm2835_pcm_hw_free,
 	.prepare = snd_bcm2835_pcm_prepare,
 	.trigger = snd_bcm2835_pcm_trigger,
 	.pointer = snd_bcm2835_pcm_pointer,
@@ -314,9 +314,6 @@ static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 static const struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 	.open = snd_bcm2835_playback_spdif_open,
 	.close = snd_bcm2835_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_bcm2835_pcm_hw_params,
-	.hw_free = snd_bcm2835_pcm_hw_free,
 	.prepare = snd_bcm2835_pcm_prepare,
 	.trigger = snd_bcm2835_pcm_trigger,
 	.pointer = snd_bcm2835_pcm_pointer,
@@ -337,7 +334,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
 
 	pcm->private_data = chip;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	if (!spdif) {
 		chip->dest = route;
 		chip->volume = 0;
@@ -348,8 +345,8 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
 			spdif ? &snd_bcm2835_playback_spdif_ops :
 			&snd_bcm2835_playback_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-		chip->card->dev, 128 * 1024, 128 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       chip->card->dev, 128 * 1024, 128 * 1024);
 
 	if (spdif)
 		chip->pcm_spdif = pcm;

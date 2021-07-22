@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -48,6 +48,7 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/numa.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -63,6 +64,7 @@ struct hfi1_affinity_node_list node_affinity = {
 static const char * const irq_type_names[] = {
 	"SDMA",
 	"RCVCTXT",
+	"NETDEVCTXT",
 	"GENERAL",
 	"OTHER",
 };
@@ -478,6 +480,8 @@ static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 			  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), i, cpu);
 	}
 
+	free_cpumask_var(available_cpus);
+	free_cpumask_var(non_intr_cpus);
 	return 0;
 
 fail:
@@ -628,21 +632,10 @@ static void _dev_comp_vect_cpu_mask_clean_up(struct hfi1_devdata *dd,
  */
 int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 {
-	int node = pcibus_to_node(dd->pcidev->bus);
 	struct hfi1_affinity_node *entry;
 	const struct cpumask *local_mask;
 	int curr_cpu, possible, i, ret;
 	bool new_entry = false;
-
-	/*
-	 * If the BIOS does not have the NUMA node information set, select
-	 * NUMA 0 so we get consistent performance.
-	 */
-	if (node < 0) {
-		dd_dev_err(dd, "Invalid PCI NUMA node. Performance may be affected\n");
-		node = 0;
-	}
-	dd->node = node;
 
 	local_mask = cpumask_of_node(dd->node);
 	if (cpumask_first(local_mask) >= nr_cpu_ids)
@@ -656,7 +649,7 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	 * create an entry in the global affinity structure and initialize it.
 	 */
 	if (!entry) {
-		entry = node_affinity_allocate(node);
+		entry = node_affinity_allocate(dd->node);
 		if (!entry) {
 			dd_dev_err(dd,
 				   "Unable to allocate global affinity node\n");
@@ -747,6 +740,7 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	if (new_entry)
 		node_affinity_add_tail(entry);
 
+	dd->affinity_entry = entry;
 	mutex_unlock(&node_affinity.lock);
 
 	return 0;
@@ -762,10 +756,9 @@ void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 {
 	struct hfi1_affinity_node *entry;
 
-	if (dd->node < 0)
-		return;
-
 	mutex_lock(&node_affinity.lock);
+	if (!dd->affinity_entry)
+		goto unlock;
 	entry = node_affinity_lookup(dd->node);
 	if (!entry)
 		goto unlock;
@@ -776,8 +769,8 @@ void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 	 */
 	_dev_comp_vect_cpu_mask_clean_up(dd, entry);
 unlock:
+	dd->affinity_entry = NULL;
 	mutex_unlock(&node_affinity.lock);
-	dd->node = -1;
 }
 
 /*
@@ -912,6 +905,11 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 			set = &entry->rcv_intr;
 		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
 		break;
+	case IRQ_NETDEVCTXT:
+		rcd = (struct hfi1_ctxtdata *)msix->arg;
+		set = &entry->def_intr;
+		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
+		break;
 	default:
 		dd_dev_err(dd, "Invalid IRQ type %d\n", msix->type);
 		return -EINVAL;
@@ -964,7 +962,6 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 			   struct hfi1_msix_entry *msix)
 {
 	struct cpu_mask_set *set = NULL;
-	struct hfi1_ctxtdata *rcd;
 	struct hfi1_affinity_node *entry;
 
 	mutex_lock(&node_affinity.lock);
@@ -978,11 +975,16 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 	case IRQ_GENERAL:
 		/* Don't do accounting for general contexts */
 		break;
-	case IRQ_RCVCTXT:
-		rcd = (struct hfi1_ctxtdata *)msix->arg;
+	case IRQ_RCVCTXT: {
+		struct hfi1_ctxtdata *rcd = msix->arg;
+
 		/* Don't do accounting for control contexts */
 		if (rcd->ctxt != HFI1_CTRL_CTXT)
 			set = &entry->rcv_intr;
+		break;
+	}
+	case IRQ_NETDEVCTXT:
+		set = &entry->def_intr;
 		break;
 	default:
 		mutex_unlock(&node_affinity.lock);
@@ -1037,7 +1039,7 @@ int hfi1_get_proc_affinity(int node)
 	struct hfi1_affinity_node *entry;
 	cpumask_var_t diff, hw_thread_mask, available_mask, intrs_mask;
 	const struct cpumask *node_mask,
-		*proc_mask = &current->cpus_allowed;
+		*proc_mask = current->cpus_ptr;
 	struct hfi1_affinity_node_list *affinity = &node_affinity;
 	struct cpu_mask_set *set = &affinity->proc;
 
@@ -1045,7 +1047,7 @@ int hfi1_get_proc_affinity(int node)
 	 * check whether process/context affinity has already
 	 * been set
 	 */
-	if (cpumask_weight(proc_mask) == 1) {
+	if (current->nr_cpus_allowed == 1) {
 		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU %*pbl",
 			  current->pid, current->comm,
 			  cpumask_pr_args(proc_mask));
@@ -1056,7 +1058,7 @@ int hfi1_get_proc_affinity(int node)
 		cpu = cpumask_first(proc_mask);
 		cpumask_set_cpu(cpu, &set->used);
 		goto done;
-	} else if (cpumask_weight(proc_mask) < cpumask_weight(&set->mask)) {
+	} else if (current->nr_cpus_allowed < cpumask_weight(&set->mask)) {
 		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU set(s) %*pbl",
 			  current->pid, current->comm,
 			  cpumask_pr_args(proc_mask));

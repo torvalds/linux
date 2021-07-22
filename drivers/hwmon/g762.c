@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * g762 - Driver for the Global Mixed-mode Technology Inc. fan speed
  *        PWM controller chips from G762 family, i.e. G762 and G763
@@ -24,20 +25,6 @@
  *
  * g762: minimal datasheet available at:
  *       http://www.gmt.com.tw/product/datasheet/EDS-762_3.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation.
  */
 
 #include <linux/device.h>
@@ -1046,7 +1033,7 @@ static inline int g762_fan_init(struct device *dev)
 					 data->fan_cmd1);
 }
 
-static int g762_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int g762_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1092,7 +1079,7 @@ static struct i2c_driver g762_driver = {
 		.name = DRVNAME,
 		.of_match_table = of_match_ptr(g762_dt_match),
 	},
-	.probe	  = g762_probe,
+	.probe_new = g762_probe,
 	.id_table = g762_id,
 };
 

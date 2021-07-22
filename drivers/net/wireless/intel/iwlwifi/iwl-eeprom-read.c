@@ -1,61 +1,7 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2005-2014, 2018-2019 Intel Corporation
+ */
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -193,34 +139,25 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 {
 	int ret;
 
-	/* Enable 40MHz radio clock */
-	iwl_write32(trans, CSR_GP_CNTRL,
-		    iwl_read32(trans, CSR_GP_CNTRL) |
-		    BIT(trans->cfg->csr->flag_init_done));
+	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	if (ret)
+		return ret;
 
-	/* wait for clock to be ready */
-	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   BIT(trans->cfg->csr->flag_mac_clock_ready),
-			   BIT(trans->cfg->csr->flag_mac_clock_ready),
-			   25000);
-	if (ret < 0) {
-		IWL_ERR(trans, "Time out access OTP\n");
-	} else {
-		iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
-				  APMG_PS_CTRL_VAL_RESET_REQ);
-		udelay(5);
-		iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
-				    APMG_PS_CTRL_VAL_RESET_REQ);
+	iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
+			  APMG_PS_CTRL_VAL_RESET_REQ);
+	udelay(5);
+	iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
+			    APMG_PS_CTRL_VAL_RESET_REQ);
 
-		/*
-		 * CSR auto clock gate disable bit -
-		 * this is only applicable for HW with OTP shadow RAM
-		 */
-		if (trans->cfg->base_params->shadow_ram_support)
-			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
-	}
-	return ret;
+	/*
+	 * CSR auto clock gate disable bit -
+	 * this is only applicable for HW with OTP shadow RAM
+	 */
+	if (trans->trans_cfg->base_params->shadow_ram_support)
+		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+
+	return 0;
 }
 
 static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
@@ -337,14 +274,14 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
+	} while (usedblocks <= trans->trans_cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(trans->dev, "OTP has no valid blocks\n");
 	return -EINVAL;
 }
 
-/**
+/*
  * iwl_read_eeprom - read EEPROM contents
  *
  * Load the EEPROM contents from adapter and return it
@@ -370,7 +307,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 	if (nvm_is_otp < 0)
 		return nvm_is_otp;
 
-	sz = trans->cfg->base_params->eeprom_size;
+	sz = trans->trans_cfg->base_params->eeprom_size;
 	IWL_DEBUG_EEPROM(trans->dev, "NVM size = %d\n", sz);
 
 	e = kmalloc(sz, GFP_KERNEL);
@@ -405,7 +342,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!trans->cfg->base_params->shadow_ram_support) {
+		if (!trans->trans_cfg->base_params->shadow_ram_support) {
 			ret = iwl_find_otp_image(trans, &validblockaddr);
 			if (ret)
 				goto err_unlock;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
    drbd_state.c
 
@@ -10,19 +11,6 @@
    Thanks to Carter Burden, Bart Grantham and Gennadiy Nerubayev
    from Logicworks, Inc. for making SDP replication support possible.
 
-   drbd is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   drbd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with drbd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/drbd_limits.h>
@@ -688,11 +676,9 @@ request_detach(struct drbd_device *device)
 			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
 }
 
-enum drbd_state_rv
-drbd_request_detach_interruptible(struct drbd_device *device)
+int drbd_request_detach_interruptible(struct drbd_device *device)
 {
-	enum drbd_state_rv rv;
-	int ret;
+	int ret, rv;
 
 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
 	wait_event_interruptible(device->state_wait,
@@ -918,9 +904,9 @@ out:
  * is_valid_soft_transition() - Returns an SS_ error code if the state transition is not possible
  * This function limits state transitions that may be declined by DRBD. I.e.
  * user requests (aka soft transitions).
- * @device:	DRBD device.
- * @ns:		new state.
  * @os:		old state.
+ * @ns:		new state.
+ * @connection:  DRBD connection.
  */
 static enum drbd_state_rv
 is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_connection *connection)
@@ -1058,7 +1044,7 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
  * @device:	DRBD device.
  * @os:		old state.
  * @ns:		new state.
- * @warn_sync_abort:
+ * @warn:	placeholder for returned state warning.
  *
  * When we loose connection, we have to set the state of the peers disk (pdsk)
  * to D_UNKNOWN. This rule and many more along those lines are in this function.
@@ -1124,7 +1110,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 			ns.pdsk = D_UP_TO_DATE;
 	}
 
-	/* Implications of the connection stat on the disk states */
+	/* Implications of the connection state on the disk states */
 	disk_min = D_DISKLESS;
 	disk_max = D_UP_TO_DATE;
 	pdsk_min = D_INCONSISTENT;
@@ -1618,7 +1604,7 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	unsigned int n_device, n_connection, n_peer_device, n_peer_devices;
 	void (*last_func)(struct sk_buff *, unsigned int, void *,
 			  enum drbd_notification_type) = NULL;
-	void *uninitialized_var(last_arg);
+	void *last_arg = NULL;
 
 #define HAS_CHANGED(state) ((state)[OLD] != (state)[NEW])
 #define FINAL_STATE_CHANGE(type) \
@@ -1710,6 +1696,7 @@ static bool lost_contact_to_peer_data(enum drbd_disk_state os, enum drbd_disk_st
  * @os:		old state.
  * @ns:		new state.
  * @flags:	Flags
+ * @state_change: state change to broadcast
  */
 static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags,
@@ -2109,9 +2096,8 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 			spin_unlock_irq(&connection->resource->req_lock);
 		}
 	}
-	kref_put(&connection->kref, drbd_destroy_connection);
-
 	conn_md_sync(connection);
+	kref_put(&connection->kref, drbd_destroy_connection);
 
 	return 0;
 }

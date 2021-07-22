@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dsi.h"
@@ -29,7 +21,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 
 	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
 	if (!phy_node) {
-		dev_err(&pdev->dev, "cannot find phy device\n");
+		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
 		return -ENXIO;
 	}
 
@@ -40,7 +32,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	of_node_put(phy_node);
 
 	if (!phy_pdev || !msm_dsi->phy) {
-		dev_err(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -169,6 +161,8 @@ static const struct of_device_id dt_match[] = {
 
 static const struct dev_pm_ops dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(msm_dsi_runtime_suspend, msm_dsi_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver dsi_driver = {
@@ -210,7 +204,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	ret = msm_dsi_host_modeset_init(msm_dsi->host, dev);
 	if (ret) {
-		dev_err(dev->dev, "failed to modeset init host: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to modeset init host: %d\n", ret);
 		goto fail;
 	}
 
@@ -222,7 +216,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->bridge)) {
 		ret = PTR_ERR(msm_dsi->bridge);
-		dev_err(dev->dev, "failed to create dsi bridge: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);
 		msm_dsi->bridge = NULL;
 		goto fail;
 	}
@@ -244,11 +238,13 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	if (IS_ERR(msm_dsi->connector)) {
 		ret = PTR_ERR(msm_dsi->connector);
-		dev_err(dev->dev,
+		DRM_DEV_ERROR(dev->dev,
 			"failed to create dsi connector: %d\n", ret);
 		msm_dsi->connector = NULL;
 		goto fail;
 	}
+
+	msm_dsi_manager_setup_encoder(msm_dsi->id);
 
 	priv->bridges[priv->num_bridges++]       = msm_dsi->bridge;
 	priv->connectors[priv->num_connectors++] = msm_dsi->connector;
@@ -268,5 +264,11 @@ fail:
 	msm_dsi->connector = NULL;
 
 	return ret;
+}
+
+void msm_dsi_snapshot(struct msm_disp_state *disp_state, struct msm_dsi *msm_dsi)
+{
+	msm_dsi_host_snapshot(disp_state, msm_dsi->host);
+	msm_dsi_phy_snapshot(disp_state, msm_dsi->phy);
 }
 

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ASIX AX8817X based USB 2.0 Ethernet Devices
  * Copyright (C) 2003-2006 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
  * Copyright (C) 2006 James Painter <jamie.painter@iname.com>
  * Copyright (c) 2002-2003 TiVo Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "asix.h"
@@ -233,6 +221,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	int tailroom = skb_tailroom(skb);
 	u32 packet_len;
 	u32 padbytes = 0xffff0000;
+	void *ptr;
 
 	padlen = ((skb->len + 4) & (dev->maxpacket - 1)) ? 0 : 4;
 
@@ -268,13 +257,11 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	}
 
 	packet_len = ((skb->len ^ 0x0000ffff) << 16) + skb->len;
-	skb_push(skb, 4);
-	cpu_to_le32s(&packet_len);
-	skb_copy_to_linear_data(skb, &packet_len, sizeof(packet_len));
+	ptr = skb_push(skb, 4);
+	put_unaligned_le32(packet_len, ptr);
 
 	if (padlen) {
-		cpu_to_le32s(&padbytes);
-		memcpy(skb_tail_pointer(skb), &padbytes, sizeof(padbytes));
+		put_unaligned_le32(padbytes, skb_tail_pointer(skb));
 		skb_put(skb, sizeof(padbytes));
 	}
 
@@ -301,32 +288,33 @@ int asix_set_hw_mii(struct usbnet *dev, int in_pm)
 	return ret;
 }
 
-int asix_read_phy_addr(struct usbnet *dev, int internal)
+int asix_read_phy_addr(struct usbnet *dev, bool internal)
 {
-	int offset = (internal ? 1 : 0);
+	int ret, offset;
 	u8 buf[2];
-	int ret = asix_read_cmd(dev, AX_CMD_READ_PHY_ID, 0, 0, 2, buf, 0);
 
-	netdev_dbg(dev->net, "asix_get_phy_addr()\n");
+	ret = asix_read_cmd(dev, AX_CMD_READ_PHY_ID, 0, 0, 2, buf, 0);
+	if (ret < 0)
+		goto error;
 
-	if (ret < 0) {
-		netdev_err(dev->net, "Error reading PHYID register: %02x\n", ret);
-		goto out;
+	if (ret < 2) {
+		ret = -EIO;
+		goto error;
 	}
-	netdev_dbg(dev->net, "asix_get_phy_addr() returning 0x%04x\n",
-		   *((__le16 *)buf));
+
+	offset = (internal ? 1 : 0);
 	ret = buf[offset];
 
-out:
+	netdev_dbg(dev->net, "%s PHY address 0x%x\n",
+		   internal ? "internal" : "external", ret);
+
+	return ret;
+
+error:
+	netdev_err(dev->net, "Error reading PHY_ID register: %02x\n", ret);
+
 	return ret;
 }
-
-int asix_get_phy_addr(struct usbnet *dev)
-{
-	/* return the address of the internal phy */
-	return asix_read_phy_addr(dev, 1);
-}
-
 
 int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm)
 {
@@ -394,6 +382,27 @@ int asix_write_medium_mode(struct usbnet *dev, u16 mode, int in_pm)
 			   mode, ret);
 
 	return ret;
+}
+
+/* set MAC link settings according to information from phylib */
+void asix_adjust_link(struct net_device *netdev)
+{
+	struct phy_device *phydev = netdev->phydev;
+	struct usbnet *dev = netdev_priv(netdev);
+	u16 mode = 0;
+
+	if (phydev->link) {
+		mode = AX88772_MEDIUM_DEFAULT;
+
+		if (phydev->duplex == DUPLEX_HALF)
+			mode &= ~AX_MEDIUM_FD;
+
+		if (phydev->speed != SPEED_100)
+			mode &= ~AX_MEDIUM_PS;
+	}
+
+	asix_write_medium_mode(dev, mode, 0);
+	phy_print_status(phydev);
 }
 
 int asix_write_gpio(struct usbnet *dev, u16 value, int sleep, int in_pm)
@@ -476,18 +485,23 @@ int asix_mdio_read(struct net_device *netdev, int phy_id, int loc)
 		return ret;
 	}
 
-	asix_read_cmd(dev, AX_CMD_READ_MII_REG, phy_id,
-				(__u16)loc, 2, &res, 0);
-	asix_set_hw_mii(dev, 0);
+	ret = asix_read_cmd(dev, AX_CMD_READ_MII_REG, phy_id, (__u16)loc, 2,
+			    &res, 0);
+	if (ret < 0)
+		goto out;
+
+	ret = asix_set_hw_mii(dev, 0);
+out:
 	mutex_unlock(&dev->phy_mutex);
 
 	netdev_dbg(dev->net, "asix_mdio_read() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",
 			phy_id, loc, le16_to_cpu(res));
 
-	return le16_to_cpu(res);
+	return ret < 0 ? ret : le16_to_cpu(res);
 }
 
-void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
+static int __asix_mdio_write(struct net_device *netdev, int phy_id, int loc,
+			     int val)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 	__le16 res = cpu_to_le16(val);
@@ -507,15 +521,40 @@ void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
 		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
 				    0, 0, 1, &smsr, 0);
 	} while (!(smsr & AX_HOST_EN) && (i++ < 30) && (ret != -ENODEV));
-	if (ret == -ENODEV) {
-		mutex_unlock(&dev->phy_mutex);
-		return;
-	}
 
-	asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id,
-		       (__u16)loc, 2, &res, 0);
-	asix_set_hw_mii(dev, 0);
+	if (ret == -ENODEV)
+		goto out;
+
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id, (__u16)loc, 2,
+			     &res, 0);
+	if (ret < 0)
+		goto out;
+
+	ret = asix_set_hw_mii(dev, 0);
+out:
 	mutex_unlock(&dev->phy_mutex);
+
+	return ret < 0 ? ret : 0;
+}
+
+void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
+{
+	__asix_mdio_write(netdev, phy_id, loc, val);
+}
+
+/* MDIO read and write wrappers for phylib */
+int asix_mdio_bus_read(struct mii_bus *bus, int phy_id, int regnum)
+{
+	struct usbnet *priv = bus->priv;
+
+	return asix_mdio_read(priv->net, phy_id, regnum);
+}
+
+int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val)
+{
+	struct usbnet *priv = bus->priv;
+
+	return __asix_mdio_write(priv->net, phy_id, regnum, val);
 }
 
 int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc)

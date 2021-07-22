@@ -5,7 +5,6 @@
  * Copyright (C) 2016 Cogent Embedded Inc.
  */
 
-#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 

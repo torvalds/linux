@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/allwinner,sun4i-a10-axi-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A10 AXI Clock Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+deprecated: true
+
+properties:
+  "#clock-cells":
+    const: 0
+
+  compatible:
+    enum:
+      - allwinner,sun4i-a10-axi-clk
+      - allwinner,sun8i-a23-axi-clk
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - "#clock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-output-names
+
+additionalProperties: false
+
+examples:
+  - |
+    axi@1c20054 {
+        #clock-cells = <0>;
+        compatible = "allwinner,sun4i-a10-axi-clk";
+        reg = <0x01c20054 0x4>;
+        clocks = <&cpu>;
+        clock-output-names = "axi";
+    };
+
+  - |
+    axi_clk@1c20050 {
+        #clock-cells = <0>;
+        compatible = "allwinner,sun8i-a23-axi-clk";
+        reg = <0x01c20050 0x4>;
+        clocks = <&cpu>;
+        clock-output-names = "axi";
+    };
+
+...

@@ -20,7 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <drm/drmP.h>
+
+#include <drm/drm_vblank.h>
+
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_i2c.h"
@@ -37,6 +39,7 @@
 #include "dce_v11_0.h"
 #include "dce_virtual.h"
 #include "ivsrcid/ivsrcid_vislands30.h"
+#include "amdgpu_display.h"
 
 #define DCE_VIRTUAL_VBLANK_PERIOD 16666666
 
@@ -45,6 +48,9 @@ static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
 static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 					      int index);
+static int dce_virtual_pageflip(struct amdgpu_device *adev,
+				unsigned crtc_id);
+static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vblank_timer);
 static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
 							int crtc,
 							enum amdgpu_interrupt_state state);
@@ -121,17 +127,18 @@ static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 	.set_config = amdgpu_display_crtc_set_config,
 	.destroy = dce_virtual_crtc_destroy,
 	.page_flip_target = amdgpu_display_crtc_page_flip_target,
+	.get_vblank_counter = amdgpu_get_vblank_counter_kms,
+	.enable_vblank = amdgpu_enable_vblank_kms,
+	.disable_vblank = amdgpu_disable_vblank_kms,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 };
 
 static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	unsigned type;
-
-	if (amdgpu_sriov_vf(adev))
-		return;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -165,22 +172,12 @@ static void dce_virtual_crtc_commit(struct drm_crtc *crtc)
 static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
 
-	dce_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->primary->fb) {
-		int r;
-		struct amdgpu_bo *abo;
+	if (dev->num_crtcs)
+		drm_crtc_vblank_off(crtc);
 
-		abo = gem_to_amdgpu_bo(crtc->primary->fb->obj[0]);
-		r = amdgpu_bo_reserve(abo, true);
-		if (unlikely(r))
-			DRM_ERROR("failed to reserve abo before unpin\n");
-		else {
-			amdgpu_bo_unpin(abo);
-			amdgpu_bo_unreserve(abo);
-		}
-	}
-
+	amdgpu_crtc->enabled = false;
 	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
 	amdgpu_crtc->encoder = NULL;
 	amdgpu_crtc->connector = NULL;
@@ -229,6 +226,7 @@ static const struct drm_crtc_helper_funcs dce_virtual_crtc_helper_funcs = {
 	.prepare = dce_virtual_crtc_prepare,
 	.commit = dce_virtual_crtc_commit,
 	.disable = dce_virtual_crtc_disable,
+	.get_scanout_position = amdgpu_crtc_get_scanout_position,
 };
 
 static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
@@ -240,7 +238,7 @@ static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
 	if (amdgpu_crtc == NULL)
 		return -ENOMEM;
 
-	drm_crtc_init(adev->ddev, &amdgpu_crtc->base, &dce_virtual_crtc_funcs);
+	drm_crtc_init(adev_to_drm(adev), &amdgpu_crtc->base, &dce_virtual_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&amdgpu_crtc->base, 256);
 	amdgpu_crtc->crtc_id = index;
@@ -252,6 +250,11 @@ static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
 	amdgpu_crtc->vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
 	drm_crtc_helper_add(&amdgpu_crtc->base, &dce_virtual_crtc_helper_funcs);
 
+	hrtimer_init(&amdgpu_crtc->vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_set_expires(&amdgpu_crtc->vblank_timer, DCE_VIRTUAL_VBLANK_PERIOD);
+	amdgpu_crtc->vblank_timer.function = dce_virtual_vblank_timer_handle;
+	hrtimer_start(&amdgpu_crtc->vblank_timer,
+		      DCE_VIRTUAL_VBLANK_PERIOD, HRTIMER_MODE_REL);
 	return 0;
 }
 
@@ -271,15 +274,14 @@ static struct drm_encoder *
 dce_virtual_encoder(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder;
-	int i;
 
-	drm_connector_for_each_possible_encoder(connector, encoder, i) {
+	drm_connector_for_each_possible_encoder(connector, encoder) {
 		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
 			return encoder;
 	}
 
 	/* pick the first one */
-	drm_connector_for_each_possible_encoder(connector, encoder, i)
+	drm_connector_for_each_possible_encoder(connector, encoder)
 		return encoder;
 
 	return NULL;
@@ -293,7 +295,7 @@ static int dce_virtual_get_modes(struct drm_connector *connector)
 	static const struct mode_size {
 		int w;
 		int h;
-	} common_modes[17] = {
+	} common_modes[] = {
 		{ 640,  480},
 		{ 720,  480},
 		{ 800,  600},
@@ -310,10 +312,15 @@ static int dce_virtual_get_modes(struct drm_connector *connector)
 		{1680, 1050},
 		{1600, 1200},
 		{1920, 1080},
-		{1920, 1200}
+		{1920, 1200},
+		{2560, 1440},
+		{4096, 3112},
+		{3656, 2664},
+		{3840, 2160},
+		{4096, 2160},
 	};
 
-	for (i = 0; i < 17; i++) {
+	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
 		drm_mode_probed_add(connector, mode);
 	}
@@ -376,24 +383,24 @@ static int dce_virtual_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->ddev->max_vblank_count = 0;
+	adev_to_drm(adev)->max_vblank_count = 0;
 
-	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
+	adev_to_drm(adev)->mode_config.funcs = &amdgpu_mode_funcs;
 
-	adev->ddev->mode_config.max_width = 16384;
-	adev->ddev->mode_config.max_height = 16384;
+	adev_to_drm(adev)->mode_config.max_width = 16384;
+	adev_to_drm(adev)->mode_config.max_height = 16384;
 
-	adev->ddev->mode_config.preferred_depth = 24;
-	adev->ddev->mode_config.prefer_shadow = 1;
+	adev_to_drm(adev)->mode_config.preferred_depth = 24;
+	adev_to_drm(adev)->mode_config.prefer_shadow = 1;
 
-	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
+	adev_to_drm(adev)->mode_config.fb_base = adev->gmc.aper_base;
 
 	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;
 
-	adev->ddev->mode_config.max_width = 16384;
-	adev->ddev->mode_config.max_height = 16384;
+	adev_to_drm(adev)->mode_config.max_width = 16384;
+	adev_to_drm(adev)->mode_config.max_height = 16384;
 
 	/* allocate crtcs, encoders, connectors */
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
@@ -405,7 +412,7 @@ static int dce_virtual_sw_init(void *handle)
 			return r;
 	}
 
-	drm_kms_helper_poll_init(adev->ddev);
+	drm_kms_helper_poll_init(adev_to_drm(adev));
 
 	adev->mode_info.mode_config_initialized = true;
 	return 0;
@@ -414,12 +421,17 @@ static int dce_virtual_sw_init(void *handle)
 static int dce_virtual_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i = 0;
+
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
+		if (adev->mode_info.crtcs[i])
+			hrtimer_cancel(&adev->mode_info.crtcs[i]->vblank_timer);
 
 	kfree(adev->mode_info.bios_hardcoded_edid);
 
-	drm_kms_helper_poll_fini(adev->ddev);
+	drm_kms_helper_poll_fini(adev_to_drm(adev));
 
-	drm_mode_config_cleanup(adev->ddev);
+	drm_mode_config_cleanup(adev_to_drm(adev));
 	/* clear crtcs pointer to avoid dce irq finish routine access freed data */
 	memset(adev->mode_info.crtcs, 0, sizeof(adev->mode_info.crtcs[0]) * AMDGPU_MAX_CRTCS);
 	adev->mode_info.mode_config_initialized = false;
@@ -465,36 +477,37 @@ static int dce_virtual_hw_init(void *handle)
 #endif
 		/* no DCE */
 		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-		break;
 	default:
-		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
+		break;
 	}
 	return 0;
 }
 
 static int dce_virtual_hw_fini(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i = 0;
-
-	for (i = 0; i<adev->mode_info.num_crtc; i++)
-		if (adev->mode_info.crtcs[i])
-			dce_virtual_set_crtc_vblank_interrupt_state(adev, i, AMDGPU_IRQ_STATE_DISABLE);
-
 	return 0;
 }
 
 static int dce_virtual_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = amdgpu_display_suspend_helper(adev);
+	if (r)
+		return r;
 	return dce_virtual_hw_fini(handle);
 }
 
 static int dce_virtual_resume(void *handle)
 {
-	return dce_virtual_hw_init(handle);
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = dce_virtual_hw_init(handle);
+	if (r)
+		return r;
+	return amdgpu_display_resume_helper(adev);
 }
 
 static bool dce_virtual_is_idle(void *handle)
@@ -608,7 +621,7 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 	if (!encoder)
 		return -ENOMEM;
 	encoder->possible_crtcs = 1 << index;
-	drm_encoder_init(adev->ddev, encoder, &dce_virtual_encoder_funcs,
+	drm_encoder_init(adev_to_drm(adev), encoder, &dce_virtual_encoder_funcs,
 			 DRM_MODE_ENCODER_VIRTUAL, NULL);
 	drm_encoder_helper_add(encoder, &dce_virtual_encoder_helper_funcs);
 
@@ -619,13 +632,12 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 	}
 
 	/* add a new connector */
-	drm_connector_init(adev->ddev, connector, &dce_virtual_connector_funcs,
+	drm_connector_init(adev_to_drm(adev), connector, &dce_virtual_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);
 	drm_connector_helper_add(connector, &dce_virtual_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-	drm_connector_register(connector);
 
 	/* link them */
 	drm_connector_attach_encoder(connector, encoder);
@@ -670,14 +682,14 @@ static int dce_virtual_pageflip(struct amdgpu_device *adev,
 	if (amdgpu_crtc == NULL)
 		return 0;
 
-	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 	works = amdgpu_crtc->pflip_works;
 	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
 		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
 			"AMDGPU_FLIP_SUBMITTED(%d)\n",
 			amdgpu_crtc->pflip_status,
 			AMDGPU_FLIP_SUBMITTED);
-		spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+		spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 		return 0;
 	}
 
@@ -689,10 +701,12 @@ static int dce_virtual_pageflip(struct amdgpu_device *adev,
 	if (works->event)
 		drm_crtc_send_vblank_event(&amdgpu_crtc->base, works->event);
 
-	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 
 	drm_crtc_vblank_put(&amdgpu_crtc->base);
-	schedule_work(&works->unpin_work);
+	amdgpu_bo_unref(&works->old_abo);
+	kfree(works->shared);
+	kfree(works);
 
 	return 0;
 }
@@ -702,10 +716,16 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 	struct amdgpu_crtc *amdgpu_crtc = container_of(vblank_timer,
 						       struct amdgpu_crtc, vblank_timer);
 	struct drm_device *ddev = amdgpu_crtc->base.dev;
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_irq_src *source = adev->irq.client[AMDGPU_IRQ_CLIENTID_LEGACY].sources
+		[VISLANDS30_IV_SRCID_SMU_DISP_TIMER2_TRIGGER];
+	int irq_type = amdgpu_display_crtc_idx_to_irq_type(adev,
+						amdgpu_crtc->crtc_id);
 
-	drm_handle_vblank(ddev, amdgpu_crtc->crtc_id);
-	dce_virtual_pageflip(adev, amdgpu_crtc->crtc_id);
+	if (amdgpu_irq_enabled(adev, source, irq_type)) {
+		drm_handle_vblank(ddev, amdgpu_crtc->crtc_id);
+		dce_virtual_pageflip(adev, amdgpu_crtc->crtc_id);
+	}
 	hrtimer_start(vblank_timer, DCE_VIRTUAL_VBLANK_PERIOD,
 		      HRTIMER_MODE_REL);
 
@@ -719,21 +739,6 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 	if (crtc >= adev->mode_info.num_crtc || !adev->mode_info.crtcs[crtc]) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
 		return;
-	}
-
-	if (state && !adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
-		DRM_DEBUG("Enable software vsync timer\n");
-		hrtimer_init(&adev->mode_info.crtcs[crtc]->vblank_timer,
-			     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		hrtimer_set_expires(&adev->mode_info.crtcs[crtc]->vblank_timer,
-				    DCE_VIRTUAL_VBLANK_PERIOD);
-		adev->mode_info.crtcs[crtc]->vblank_timer.function =
-			dce_virtual_vblank_timer_handle;
-		hrtimer_start(&adev->mode_info.crtcs[crtc]->vblank_timer,
-			      DCE_VIRTUAL_VBLANK_PERIOD, HRTIMER_MODE_REL);
-	} else if (!state && adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
-		DRM_DEBUG("Disable software vsync timer\n");
-		hrtimer_cancel(&adev->mode_info.crtcs[crtc]->vblank_timer);
 	}
 
 	adev->mode_info.crtcs[crtc]->vsync_timer_enabled = state;
@@ -761,7 +766,7 @@ static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
 
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VBLANK6 + 1;
+	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dce_virtual_crtc_irq_funcs;
 }
 

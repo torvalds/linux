@@ -31,8 +31,6 @@
     System Programming Guide; Section 9.11. (1997 edition - PPro).
 */
 
-#define DEBUG
-
 #include <linux/types.h> /* FIXME: kvm_para.h needs this */
 
 #include <linux/stop_machine.h>
@@ -52,7 +50,7 @@
 #include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 
 #include "mtrr.h"
 
@@ -794,8 +792,6 @@ void mtrr_ap_init(void)
 	if (!use_intel() || mtrr_aps_delayed_init)
 		return;
 
-	rcu_cpu_starting(smp_processor_id());
-
 	/*
 	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries
 	 * changed, but this routine will be called in cpu boot time,
@@ -803,7 +799,7 @@ void mtrr_ap_init(void)
 	 *
 	 * This routine is called in two cases:
 	 *
-	 *   1. very earily time of software resume, when there absolutely
+	 *   1. very early time of software resume, when there absolutely
 	 *      isn't mtrr entry changes;
 	 *
 	 *   2. cpu hotadd time. We let mtrr_add/del_page hold cpuhotplug
@@ -813,7 +809,8 @@ void mtrr_ap_init(void)
 }
 
 /**
- * Save current fixed-range MTRR state of the first cpu in cpu_online_mask.
+ * mtrr_save_state - Save current fixed-range MTRR state of the first
+ *	cpu in cpu_online_mask.
  */
 void mtrr_save_state(void)
 {

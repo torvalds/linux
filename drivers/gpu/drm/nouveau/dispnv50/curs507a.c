@@ -24,21 +24,48 @@
 #include "head.h"
 
 #include <nvif/cl507a.h>
+#include <nvif/timer.h>
+
+#include <nvhw/class/cl507a.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
-static void
-curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
+bool
+curs507a_space(struct nv50_wndw *wndw)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
+	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
+		if (NVIF_TV32(&wndw->wimm.base.user, NV507A, FREE, COUNT, >=, 4))
+			return true;
+	);
+
+	WARN_ON(1);
+	return false;
 }
 
-static void
+static int
+curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
+{
+	struct nvif_object *user = &wndw->wimm.base.user;
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0) {
+		NVIF_WR32(user, NV507A, UPDATE,
+			  NVDEF(NV507A, UPDATE, INTERLOCK_WITH_CORE, DISABLE));
+	}
+	return ret;
+}
+
+static int
 curs507a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0084, asyw->point.y << 16 |
-						 asyw->point.x);
+	struct nvif_object *user = &wndw->wimm.base.user;
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0) {
+		NVIF_WR32(user, NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT,
+			  NVVAL(NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT, X, asyw->point.x) |
+			  NVVAL(NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT, Y, asyw->point.y));
+	}
+	return ret;
 }
 
 const struct nv50_wimm_func
@@ -123,8 +150,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nvif_object_init(&disp->disp->object, 0, oclass, &args,
-			       sizeof(args), &wndw->wimm.base.user);
+	ret = nvif_object_ctor(&disp->disp->object, "kmsCurs", 0, oclass,
+			       &args, sizeof(args), &wndw->wimm.base.user);
 	if (ret) {
 		NV_ERROR(drm, "curs%04x allocation failed: %d\n", oclass, ret);
 		return ret;

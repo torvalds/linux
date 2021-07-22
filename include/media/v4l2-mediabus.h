@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Media Bus API header
  *
  * Copyright (C) 2009, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef V4L2_MEDIABUS_H
@@ -14,9 +11,34 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/bitops.h>
 
+/*
+ * How to use the V4L2_MBUS_* flags:
+ * Flags are defined for each of the possible states and values of a media
+ * bus configuration parameter. One and only one bit of each group of flags
+ * shall be set by the users of the v4l2_subdev_pad_ops.get_mbus_config and
+ * v4l2_subdev_pad_ops.set_mbus_config operations to ensure that no
+ * conflicting settings are specified when reporting and setting the media bus
+ * configuration with the two operations respectively. For example, it is
+ * invalid to set or clear both the V4L2_MBUS_HSYNC_ACTIVE_HIGH and the
+ * V4L2_MBUS_HSYNC_ACTIVE_LOW flag at the same time. Instead either flag
+ * V4L2_MBUS_HSYNC_ACTIVE_HIGH or flag V4L2_MBUS_HSYNC_ACTIVE_LOW shall be
+ * set. The same is true for the V4L2_MBUS_CSI2_1/2/3/4_LANE flags group: only
+ * one of these four bits shall be set.
+ *
+ * TODO: replace the existing V4L2_MBUS_* flags with structures of fields
+ * to avoid conflicting settings.
+ *
+ * In example:
+ *     #define V4L2_MBUS_HSYNC_ACTIVE_HIGH             BIT(2)
+ *     #define V4L2_MBUS_HSYNC_ACTIVE_LOW              BIT(3)
+ * will be replaced by a field whose value reports the intended active state of
+ * the signal:
+ *     unsigned int v4l2_mbus_hsync_active : 1;
+ */
+
 /* Parallel flags */
 /*
- * Can the client run in master or in slave mode. By "Master mode" an operation
+ * The client runs in master or in slave mode. By "Master mode" an operation
  * mode is meant, when the client (e.g., a camera sensor) is producing
  * horizontal and vertical synchronisation. In "Slave mode" the host is
  * providing these signals to the slave.
@@ -48,17 +70,17 @@
 #define V4L2_MBUS_DATA_ENABLE_LOW		BIT(15)
 
 /* Serial flags */
-/* How many lanes the client can use */
+/* CSI-2 D-PHY number of data lanes. */
 #define V4L2_MBUS_CSI2_1_LANE			BIT(0)
 #define V4L2_MBUS_CSI2_2_LANE			BIT(1)
 #define V4L2_MBUS_CSI2_3_LANE			BIT(2)
 #define V4L2_MBUS_CSI2_4_LANE			BIT(3)
-/* On which channels it can send video data */
+/* CSI-2 Virtual Channel identifiers. */
 #define V4L2_MBUS_CSI2_CHANNEL_0		BIT(4)
 #define V4L2_MBUS_CSI2_CHANNEL_1		BIT(5)
 #define V4L2_MBUS_CSI2_CHANNEL_2		BIT(6)
 #define V4L2_MBUS_CSI2_CHANNEL_3		BIT(7)
-/* Does it support only continuous or also non-continuous clock mode */
+/* Clock non-continuous mode support. */
 #define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		BIT(8)
 #define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	BIT(9)
 
@@ -81,6 +103,7 @@
  * @V4L2_MBUS_CCP2:	CCP2 (Compact Camera Port 2)
  * @V4L2_MBUS_CSI2_DPHY: MIPI CSI-2 serial interface, with D-PHY
  * @V4L2_MBUS_CSI2_CPHY: MIPI CSI-2 serial interface, with C-PHY
+ * @V4L2_MBUS_INVALID:	invalid bus type (keep as last)
  */
 enum v4l2_mbus_type {
 	V4L2_MBUS_UNKNOWN,
@@ -90,6 +113,7 @@ enum v4l2_mbus_type {
 	V4L2_MBUS_CCP2,
 	V4L2_MBUS_CSI2_DPHY,
 	V4L2_MBUS_CSI2_CPHY,
+	V4L2_MBUS_INVALID,
 };
 
 /**
@@ -123,7 +147,7 @@ v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
 }
 
 /**
- * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ * v4l2_fill_mbus_format - Ancillary routine that fills a &struct
  *	v4l2_mbus_framefmt from a &struct v4l2_pix_format and a
  *	data format code.
  *
@@ -146,7 +170,7 @@ static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
 }
 
 /**
- * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ * v4l2_fill_pix_format_mplane - Ancillary routine that fills a &struct
  *	v4l2_pix_format_mplane fields from a media bus structure.
  *
  * @pix_mp_fmt:	pointer to &struct v4l2_pix_format_mplane to be filled
@@ -166,7 +190,7 @@ v4l2_fill_pix_format_mplane(struct v4l2_pix_format_mplane *pix_mp_fmt,
 }
 
 /**
- * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ * v4l2_fill_mbus_format_mplane - Ancillary routine that fills a &struct
  *	v4l2_mbus_framefmt from a &struct v4l2_pix_format_mplane.
  *
  * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be filled

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2015 Pengutronix, Markus Pargmann <mpa@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  *
  * This is the driver for the imx25 GCQ (Generic Conversion Queue)
  * connected to the imx25 ADC.
@@ -43,6 +40,15 @@ struct mx25_gcq_priv {
 	int irq;
 	struct regulator *vref[4];
 	u32 channel_vref_mv[MX25_NUM_CFGS];
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a completion callback,
+	 * and finally a register read, during which userspace could issue
+	 * another read request. This lock protects a read access from
+	 * ocurring before another one has finished.
+	 */
+	struct mutex lock;
 };
 
 #define MX25_CQG_CHAN(chan, id) {\
@@ -140,9 +146,9 @@ static int mx25_gcq_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&priv->lock);
 		ret = mx25_gcq_get_raw_value(&indio_dev->dev, chan, priv, val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&priv->lock);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -297,7 +303,6 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 	struct mx25_gcq_priv *priv;
 	struct mx25_tsadc *tsadc = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	void __iomem *mem;
 	int ret;
 	int i;
@@ -308,8 +313,7 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 	priv = iio_priv(indio_dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mem = devm_ioremap_resource(dev, res);
+	mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
@@ -318,6 +322,8 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to initialize regmap\n");
 		return PTR_ERR(priv->regs);
 	}
+
+	mutex_init(&priv->lock);
 
 	init_completion(&priv->completed);
 
@@ -343,7 +349,6 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq <= 0) {
-		dev_err(dev, "Failed to get IRQ\n");
 		ret = priv->irq;
 		if (!ret)
 			ret = -ENXIO;
@@ -356,7 +361,6 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->channels = mx25_gcq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mx25_gcq_channels);
 	indio_dev->info = &mx25_gcq_iio_info;

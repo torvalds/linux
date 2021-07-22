@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Oleksij Rempel <linux@rempel-privat.de>.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -271,7 +260,6 @@ static void __init asm9260_acc_init(struct device_node *np)
 	const char *ref_clk, *pll_clk = "pll";
 	u32 rate;
 	int n;
-	u32 accuracy = 0;
 
 	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
 	if (!clk_data)
@@ -281,18 +269,19 @@ static void __init asm9260_acc_init(struct device_node *np)
 
 	base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(base))
-		panic("%s: unable to map resource", np->name);
+		panic("%pOFn: unable to map resource", np);
 
 	/* register pll */
 	rate = (ioread32(base + HW_SYSPLLCTRL) & 0xffff) * 1000000;
 
+	/* TODO: Convert to DT parent scheme */
 	ref_clk = of_clk_get_parent_name(np, 0);
-	accuracy = clk_get_accuracy(__clk_lookup(ref_clk));
-	hw = clk_hw_register_fixed_rate_with_accuracy(NULL, pll_clk,
-			ref_clk, 0, rate, accuracy);
+	hw = __clk_hw_register_fixed_rate(NULL, NULL, pll_clk,
+			ref_clk, NULL, NULL, 0, rate, 0,
+			CLK_FIXED_RATE_PARENT_ACCURACY);
 
 	if (IS_ERR(hw))
-		panic("%s: can't register REFCLK. Check DT!", np->name);
+		panic("%pOFn: can't register REFCLK. Check DT!", np);
 
 	for (n = 0; n < ARRAY_SIZE(asm9260_mux_clks); n++) {
 		const struct asm9260_mux_clock *mc = &asm9260_mux_clks[n];

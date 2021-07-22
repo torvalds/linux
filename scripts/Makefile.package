@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Makefile for the different targets used to generate full packages of a kernel
+
+include $(srctree)/scripts/Kbuild.include
+
+# RPM target
+# ---------------------------------------------------------------------------
+# The rpm target generates two rpm files:
+# /usr/src/packages/SRPMS/kernel-2.6.7rc2-1.src.rpm
+# /usr/src/packages/RPMS/i386/kernel-2.6.7rc2-1.<arch>.rpm
+# The src.rpm files includes all source for the kernel being built
+# The <arch>.rpm includes kernel configuration, modules etc.
+#
+# Process to create the rpm files
+# a) clean the kernel
+# b) Generate .spec file
+# c) Build a tar ball, using symlink to make kernel version
+#    first entry in the path
+# d) and pack the result to a tar.gz file
+# e) generate the rpm files, based on kernel.spec
+# - Use /. to avoid tar packing just the symlink
+
+# Note that the rpm-pkg target cannot be used with KBUILD_OUTPUT,
+# but the binrpm-pkg target can; for some reason O= gets ignored.
+
+# Remove hyphens since they have special meaning in RPM filenames
+KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
+KDEB_SOURCENAME ?= linux-upstream
+KBUILD_PKG_ROOTCMD ?="fakeroot -u"
+export KDEB_SOURCENAME
+# Include only those top-level files that are needed by make, plus the GPL copy
+TAR_CONTENT := $(KBUILD_ALLDIRS) .config .scmversion Makefile \
+               Kbuild Kconfig COPYING $(wildcard localversion*)
+MKSPEC     := $(srctree)/scripts/package/mkspec
+
+quiet_cmd_src_tar = TAR     $(2).tar.gz
+      cmd_src_tar = \
+if test "$(objtree)" != "$(srctree)"; then \
+	echo >&2; \
+	echo >&2 "  ERROR:"; \
+	echo >&2 "  Building source tarball is not possible outside the"; \
+	echo >&2 "  kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
+	echo >&2 "  binrpm-pkg or bindeb-pkg target instead."; \
+	echo >&2; \
+	false; \
+fi ; \
+$(srctree)/scripts/setlocalversion --save-scmversion; \
+tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
+	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3); \
+rm -f $(objtree)/.scmversion
+
+# rpm-pkg
+# ---------------------------------------------------------------------------
+PHONY += rpm-pkg
+rpm-pkg:
+	$(MAKE) clean
+	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
+	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
+	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz \
+	--define='_smp_mflags %{nil}'
+
+# binrpm-pkg
+# ---------------------------------------------------------------------------
+PHONY += binrpm-pkg
+binrpm-pkg:
+	$(MAKE) -f $(srctree)/Makefile
+	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
+	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
+		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
+
+PHONY += deb-pkg
+deb-pkg:
+	$(MAKE) clean
+	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
+	$(call cmd,src_tar,$(KDEB_SOURCENAME))
+	origversion=$$(dpkg-parsechangelog -SVersion |sed 's/-[^-]*$$//');\
+		mv $(KDEB_SOURCENAME).tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
+	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -i.git -us -uc
+
+PHONY += bindeb-pkg
+bindeb-pkg:
+	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
+	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -b -nc -uc
+
+PHONY += intdeb-pkg
+intdeb-pkg:
+	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
+
+# snap-pkg
+# ---------------------------------------------------------------------------
+PHONY += snap-pkg
+snap-pkg:
+	rm -rf $(objtree)/snap
+	mkdir $(objtree)/snap
+	$(MAKE) clean
+	$(call cmd,src_tar,$(KERNELPATH))
+	sed "s@KERNELRELEASE@$(KERNELRELEASE)@; \
+		s@SRCTREE@$(shell realpath $(KERNELPATH).tar.gz)@" \
+		$(srctree)/scripts/package/snapcraft.template > \
+		$(objtree)/snap/snapcraft.yaml
+	cd $(objtree)/snap && \
+	snapcraft --target-arch=$(UTS_MACHINE)
+
+# tarball targets
+# ---------------------------------------------------------------------------
+tar-pkgs := dir-pkg tar-pkg targz-pkg tarbz2-pkg tarxz-pkg
+PHONY += $(tar-pkgs)
+$(tar-pkgs):
+	$(MAKE) -f $(srctree)/Makefile
+	+$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
+
+# perf-pkg - generate a source tarball with perf source
+# ---------------------------------------------------------------------------
+
+perf-tar=perf-$(KERNELVERSION)
+
+quiet_cmd_perf_tar = TAR
+      cmd_perf_tar = \
+git --git-dir=$(srctree)/.git archive --prefix=$(perf-tar)/         \
+	HEAD^{tree} $$(cd $(srctree);                               \
+		       echo $$(cat tools/perf/MANIFEST)) \
+	-o $(perf-tar).tar;                                         \
+mkdir -p $(perf-tar);                                               \
+git --git-dir=$(srctree)/.git rev-parse HEAD > $(perf-tar)/HEAD;    \
+(cd $(srctree)/tools/perf;                                          \
+util/PERF-VERSION-GEN $(CURDIR)/$(perf-tar)/);              \
+tar rf $(perf-tar).tar $(perf-tar)/HEAD $(perf-tar)/PERF-VERSION-FILE; \
+rm -r $(perf-tar);                                                  \
+$(if $(findstring tar-src,$@),,                                     \
+$(if $(findstring bz2,$@),$(KBZIP2),                                 \
+$(if $(findstring gz,$@),$(KGZIP),                                  \
+$(if $(findstring xz,$@),$(XZ),                                     \
+$(error unknown target $@))))                                       \
+	-f -9 $(perf-tar).tar)
+
+perf-tar-pkgs := perf-tar-src-pkg perf-targz-src-pkg perf-tarbz2-src-pkg perf-tarxz-src-pkg
+PHONY += $(perf-tar-pkgs)
+$(perf-tar-pkgs):
+	$(call cmd,perf_tar)
+
+# Help text displayed when executing 'make help'
+# ---------------------------------------------------------------------------
+PHONY += help
+help:
+	@echo '  rpm-pkg             - Build both source and binary RPM kernel packages'
+	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
+	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
+	@echo '  bindeb-pkg          - Build only the binary kernel deb package'
+	@echo '  snap-pkg            - Build only the binary kernel snap package'
+	@echo '                        (will connect to external hosts)'
+	@echo '  dir-pkg             - Build the kernel as a plain directory structure'
+	@echo '  tar-pkg             - Build the kernel as an uncompressed tarball'
+	@echo '  targz-pkg           - Build the kernel as a gzip compressed tarball'
+	@echo '  tarbz2-pkg          - Build the kernel as a bzip2 compressed tarball'
+	@echo '  tarxz-pkg           - Build the kernel as a xz compressed tarball'
+	@echo '  perf-tar-src-pkg    - Build $(perf-tar).tar source tarball'
+	@echo '  perf-targz-src-pkg  - Build $(perf-tar).tar.gz source tarball'
+	@echo '  perf-tarbz2-src-pkg - Build $(perf-tar).tar.bz2 source tarball'
+	@echo '  perf-tarxz-src-pkg  - Build $(perf-tar).tar.xz source tarball'
+
+.PHONY: $(PHONY)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale MPC85xx/MPC86xx RapidIO support
  *
@@ -15,11 +16,6 @@
  *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
@@ -112,8 +108,8 @@ int fsl_rio_mcheck_exception(struct pt_regs *regs)
 				 __func__);
 			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
 				 0);
-			regs->msr |= MSR_RI;
-			regs->nip = extable_fixup(entry);
+			regs_set_return_msr(regs, regs->msr | MSR_RI);
+			regs_set_return_ip(regs, extable_fixup(entry));
 			return 1;
 		}
 	}

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S5P/EXYNOS4 SoC series FIMC (CAMIF) driver
  *
  * Copyright (C) 2010-2012 Samsung Electronics Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -40,7 +36,6 @@ static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 
 static struct fimc_fmt fimc_formats[] = {
 	{
-		.name		= "RGB565",
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_RGB565,
@@ -48,7 +43,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "BGR666",
 		.fourcc		= V4L2_PIX_FMT_BGR666,
 		.depth		= { 32 },
 		.color		= FIMC_FMT_RGB666,
@@ -56,7 +50,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "BGRA8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_BGR32,
 		.depth		= { 32 },
 		.color		= FIMC_FMT_RGB888,
@@ -64,7 +57,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M | FMT_HAS_ALPHA,
 	}, {
-		.name		= "ARGB1555",
 		.fourcc		= V4L2_PIX_FMT_RGB555,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_RGB555,
@@ -72,7 +64,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
 	}, {
-		.name		= "ARGB4444",
 		.fourcc		= V4L2_PIX_FMT_RGB444,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_RGB444,
@@ -80,11 +71,9 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
 	}, {
-		.name		= "YUV 4:4:4",
 		.mbus_code	= MEDIA_BUS_FMT_YUV10_1X30,
 		.flags		= FMT_FLAGS_WRITEBACK,
 	}, {
-		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
@@ -93,7 +82,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.flags		= FMT_FLAGS_M2M | FMT_FLAGS_CAM,
 	}, {
-		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CBYCRY422,
@@ -102,7 +90,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.flags		= FMT_FLAGS_M2M | FMT_FLAGS_CAM,
 	}, {
-		.name		= "YUV 4:2:2 packed, CrYCbY",
 		.fourcc		= V4L2_PIX_FMT_VYUY,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_CRYCBY422,
@@ -111,7 +98,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.flags		= FMT_FLAGS_M2M | FMT_FLAGS_CAM,
 	}, {
-		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.fourcc		= V4L2_PIX_FMT_YVYU,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCRYCB422,
@@ -120,7 +106,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.flags		= FMT_FLAGS_M2M | FMT_FLAGS_CAM,
 	}, {
-		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
@@ -128,7 +113,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:2 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV16,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
@@ -136,7 +120,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:2 planar, Y/CrCb",
 		.fourcc		= V4L2_PIX_FMT_NV61,
 		.depth		= { 16 },
 		.color		= FIMC_FMT_YCRYCB422,
@@ -144,7 +127,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 planar, YCbCr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= { 12 },
 		.color		= FIMC_FMT_YCBCR420,
@@ -152,7 +134,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12,
 		.depth		= { 12 },
 		.color		= FIMC_FMT_YCBCR420,
@@ -160,7 +141,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contig. 2p, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
@@ -168,7 +148,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contig. 3p, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 2, 2 },
@@ -176,7 +155,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contig. 2p, tiled",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
@@ -184,7 +162,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "JPEG encoded data",
 		.fourcc		= V4L2_PIX_FMT_JPEG,
 		.color		= FIMC_FMT_JPEG,
 		.depth		= { 8 },
@@ -193,7 +170,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_JPEG_1X8,
 		.flags		= FMT_FLAGS_CAM | FMT_FLAGS_COMPRESSED,
 	}, {
-		.name		= "S5C73MX interleaved UYVY/JPEG",
 		.fourcc		= V4L2_PIX_FMT_S5C_UYVY_JPG,
 		.color		= FIMC_FMT_YUYV_JPEG,
 		.depth		= { 8 },
@@ -238,11 +214,13 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 	while (sh--) {
 		u32 tmp = 1 << sh;
 		if (src >= tar * tmp) {
-			*shift = sh, *ratio = tmp;
+			*shift = sh;
+			*ratio = tmp;
 			return 0;
 		}
 	}
-	*shift = 0, *ratio = 1;
+	*shift = 0;
+	*ratio = 1;
 	return 0;
 }
 
@@ -349,7 +327,7 @@ out:
 
 /* The color format (colplanes, memplanes) must be already configured. */
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
-		      struct fimc_frame *frame, struct fimc_addr *paddr)
+		      struct fimc_frame *frame, struct fimc_addr *addr)
 {
 	int ret = 0;
 	u32 pix_size;
@@ -362,42 +340,40 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 	dbg("memplanes= %d, colplanes= %d, pix_size= %d",
 		frame->fmt->memplanes, frame->fmt->colplanes, pix_size);
 
-	paddr->y = vb2_dma_contig_plane_dma_addr(vb, 0);
+	addr->y = vb2_dma_contig_plane_dma_addr(vb, 0);
 
 	if (frame->fmt->memplanes == 1) {
 		switch (frame->fmt->colplanes) {
 		case 1:
-			paddr->cb = 0;
-			paddr->cr = 0;
+			addr->cb = 0;
+			addr->cr = 0;
 			break;
 		case 2:
 			/* decompose Y into Y/Cb */
-			paddr->cb = (u32)(paddr->y + pix_size);
-			paddr->cr = 0;
+			addr->cb = (u32)(addr->y + pix_size);
+			addr->cr = 0;
 			break;
 		case 3:
-			paddr->cb = (u32)(paddr->y + pix_size);
+			addr->cb = (u32)(addr->y + pix_size);
 			/* decompose Y into Y/Cb/Cr */
 			if (FIMC_FMT_YCBCR420 == frame->fmt->color)
-				paddr->cr = (u32)(paddr->cb
-						+ (pix_size >> 2));
+				addr->cr = (u32)(addr->cb + (pix_size >> 2));
 			else /* 422 */
-				paddr->cr = (u32)(paddr->cb
-						+ (pix_size >> 1));
+				addr->cr = (u32)(addr->cb + (pix_size >> 1));
 			break;
 		default:
 			return -EINVAL;
 		}
 	} else if (!frame->fmt->mdataplanes) {
 		if (frame->fmt->memplanes >= 2)
-			paddr->cb = vb2_dma_contig_plane_dma_addr(vb, 1);
+			addr->cb = vb2_dma_contig_plane_dma_addr(vb, 1);
 
 		if (frame->fmt->memplanes == 3)
-			paddr->cr = vb2_dma_contig_plane_dma_addr(vb, 2);
+			addr->cr = vb2_dma_contig_plane_dma_addr(vb, 2);
 	}
 
-	dbg("PHYS_ADDR: y= 0x%X  cb= 0x%X cr= 0x%X ret= %d",
-	    paddr->y, paddr->cb, paddr->cr, ret);
+	dbg("DMA ADDR: y= 0x%X  cb= 0x%X cr= 0x%X ret= %d",
+	    addr->y, addr->cb, addr->cr, ret);
 
 	return ret;
 }
@@ -978,9 +954,11 @@ static int fimc_probe(struct platform_device *pdev)
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
-	fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
-	if (IS_ERR(fimc->sysreg))
-		return PTR_ERR(fimc->sysreg);
+	if (fimc->variant->has_isp_wb) {
+		fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
+		if (IS_ERR(fimc->sysreg))
+			return PTR_ERR(fimc->sysreg);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	fimc->regs = devm_ioremap_resource(dev, res);
@@ -1134,67 +1112,8 @@ static int fimc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* Image pixel limits, similar across several FIMC HW revisions. */
-static const struct fimc_pix_limit s5p_pix_limit[4] = {
-	[0] = {
-		.scaler_en_w	= 3264,
-		.scaler_dis_w	= 8192,
-		.out_rot_en_w	= 1920,
-		.out_rot_dis_w	= 4224,
-	},
-	[1] = {
-		.scaler_en_w	= 4224,
-		.scaler_dis_w	= 8192,
-		.out_rot_en_w	= 1920,
-		.out_rot_dis_w	= 4224,
-	},
-	[2] = {
-		.scaler_en_w	= 1920,
-		.scaler_dis_w	= 8192,
-		.out_rot_en_w	= 1280,
-		.out_rot_dis_w	= 1920,
-	},
-};
-
-static const struct fimc_variant fimc0_variant_s5pv210 = {
-	.has_inp_rot	 = 1,
-	.has_out_rot	 = 1,
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[1],
-};
-
-static const struct fimc_variant fimc1_variant_s5pv210 = {
-	.has_inp_rot	 = 1,
-	.has_out_rot	 = 1,
-	.has_cam_if	 = 1,
-	.has_mainscaler_ext = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 1,
-	.min_vsize_align = 1,
-	.pix_limit	 = &s5p_pix_limit[2],
-};
-
-static const struct fimc_variant fimc2_variant_s5pv210 = {
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[2],
-};
-
 /* S5PV210, S5PC110 */
 static const struct fimc_drvdata fimc_drvdata_s5pv210 = {
-	.variant = {
-		[0] = &fimc0_variant_s5pv210,
-		[1] = &fimc1_variant_s5pv210,
-		[2] = &fimc2_variant_s5pv210,
-	},
 	.num_entities	= 3,
 	.lclk_frequency	= 166000000UL,
 	.out_buf_count	= 4,

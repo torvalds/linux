@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2008-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/delay.h>
@@ -215,12 +212,14 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		 * progress on a NIC at any one time.  So no need for locking.
 		 */
 		for (i = 0; i < hdr_len / 4 && bytes < PAGE_SIZE; i++)
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr[i].u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x",
+					   le32_to_cpu(hdr[i].u32[0]));
 
 		for (i = 0; i < inlen / 4 && bytes < PAGE_SIZE; i++)
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(inbuf[i].u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x",
+					   le32_to_cpu(inbuf[i].u32[0]));
 
 		netif_info(efx, hw, efx->net_dev, "MCDI RPC REQ:%s\n", buf);
 	}
@@ -305,15 +304,15 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 		 */
 		for (i = 0; i < hdr_len && bytes < PAGE_SIZE; i++) {
 			efx->type->mcdi_read_response(efx, &hdr, (i * 4), 4);
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr.u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x", le32_to_cpu(hdr.u32[0]));
 		}
 
 		for (i = 0; i < data_len && bytes < PAGE_SIZE; i++) {
 			efx->type->mcdi_read_response(efx, &hdr,
 					mcdi->resp_hdr_len + (i * 4), 4);
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr.u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x", le32_to_cpu(hdr.u32[0]));
 		}
 
 		netif_info(efx, hw, efx->net_dev, "MCDI RPC RESP:%s\n", buf);
@@ -1300,6 +1299,14 @@ static void efx_mcdi_abandon(struct efx_nic *efx)
 	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
+static void efx_handle_drain_event(struct efx_nic *efx)
+{
+	if (atomic_dec_and_test(&efx->active_queues))
+		wake_up(&efx->flush_wq);
+
+	WARN_ON(atomic_read(&efx->active_queues) < 0);
+}
+
 /* Called from efx_farch_ev_process and efx_ef10_ev_process for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
@@ -1330,7 +1337,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_process_link_change(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SENSOREVT:
-		efx_mcdi_sensor_event(efx, event);
+		efx_sensor_event(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SCHEDERR:
 		netif_dbg(efx, hw, efx->net_dev,
@@ -1372,7 +1379,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
 			     MCDI_EVENT_RX_FLUSH_TO_DRIVER_LBN);
 		if (!MCDI_EVENT_FIELD(*event, TX_FLUSH_TO_DRIVER))
-			efx_ef10_handle_drain_event(efx);
+			efx_handle_drain_event(efx);
 		break;
 	case MCDI_EVENT_CODE_TX_ERR:
 	case MCDI_EVENT_CODE_RX_ERR:
@@ -1420,27 +1427,22 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	}
 
 	ver_words = (__le16 *)MCDI_PTR(outbuf, GET_VERSION_OUT_VERSION);
-	offset = snprintf(buf, len, "%u.%u.%u.%u",
-			  le16_to_cpu(ver_words[0]), le16_to_cpu(ver_words[1]),
-			  le16_to_cpu(ver_words[2]), le16_to_cpu(ver_words[3]));
+	offset = scnprintf(buf, len, "%u.%u.%u.%u",
+			   le16_to_cpu(ver_words[0]),
+			   le16_to_cpu(ver_words[1]),
+			   le16_to_cpu(ver_words[2]),
+			   le16_to_cpu(ver_words[3]));
 
-	/* EF10 may have multiple datapath firmware variants within a
-	 * single version.  Report which variants are running.
+	if (efx->type->print_additional_fwver)
+		offset += efx->type->print_additional_fwver(efx, buf + offset,
+							    len - offset);
+
+	/* It's theoretically possible for the string to exceed 31
+	 * characters, though in practice the first three version
+	 * components are short enough that this doesn't happen.
 	 */
-	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
-		struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-		offset += snprintf(buf + offset, len - offset, " rx%x tx%x",
-				   nic_data->rx_dpcpu_fw_id,
-				   nic_data->tx_dpcpu_fw_id);
-
-		/* It's theoretically possible for the string to exceed 31
-		 * characters, though in practice the first three version
-		 * components are short enough that this doesn't happen.
-		 */
-		if (WARN_ON(offset >= len))
-			buf[0] = 0;
-	}
+	if (WARN_ON(offset >= len))
+		buf[0] = 0;
 
 	return;
 
@@ -1619,6 +1621,35 @@ fail:
 	return rc;
 }
 
+/* This function finds types using the new NVRAM_PARTITIONS mcdi. */
+static int efx_new_mcdi_nvram_types(struct efx_nic *efx, u32 *number,
+				    u32 *nvram_types)
+{
+	efx_dword_t *outbuf = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				      GFP_KERNEL);
+	size_t outlen;
+	int rc;
+
+	if (!outbuf)
+		return -ENOMEM;
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_PARTITIONS, NULL, 0,
+			  outbuf, MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2, &outlen);
+	if (rc)
+		goto fail;
+
+	*number = MCDI_DWORD(outbuf, NVRAM_PARTITIONS_OUT_NUM_PARTITIONS);
+
+	memcpy(nvram_types, MCDI_PTR(outbuf, NVRAM_PARTITIONS_OUT_TYPE_ID),
+	       *number * sizeof(u32));
+
+fail:
+	kfree(outbuf);
+	return rc;
+}
+
 int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
 			bool *protected_out)
@@ -1670,6 +1701,39 @@ static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 	default:
 		return -EIO;
 	}
+}
+
+/* This function tests nvram partitions using the new mcdi partition lookup scheme */
+int efx_new_mcdi_nvram_test_all(struct efx_nic *efx)
+{
+	u32 *nvram_types = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				   GFP_KERNEL);
+	unsigned int number;
+	int rc, i;
+
+	if (!nvram_types)
+		return -ENOMEM;
+
+	rc = efx_new_mcdi_nvram_types(efx, &number, nvram_types);
+	if (rc)
+		goto fail;
+
+	/* Require at least one check */
+	rc = -EAGAIN;
+
+	for (i = 0; i < number; i++) {
+		if (nvram_types[i] == NVRAM_PARTITION_TYPE_PARTITION_MAP ||
+		    nvram_types[i] == NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG)
+			continue;
+
+		rc = efx_mcdi_nvram_test(efx, nvram_types[i]);
+		if (rc)
+			goto fail;
+	}
+
+fail:
+	kfree(nvram_types);
+	return rc;
 }
 
 int efx_mcdi_nvram_test_all(struct efx_nic *efx)
@@ -1804,10 +1868,9 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 	return efx_mcdi_exit_assertion(efx);
 }
 
-void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_ID_LED_IN_LEN);
-	int rc;
 
 	BUILD_BUG_ON(EFX_LED_OFF != MC_CMD_LED_OFF);
 	BUILD_BUG_ON(EFX_LED_ON != MC_CMD_LED_ON);
@@ -1817,8 +1880,7 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 	MCDI_SET_DWORD(inbuf, SET_ID_LED_IN_STATE, mode);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	return efx_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf), NULL, 0, NULL);
 }
 
 static int efx_mcdi_reset_func(struct efx_nic *efx)
@@ -2074,22 +2136,26 @@ fail:
 
 static int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 {
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_START_IN_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_START_V2_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_START_IN_TYPE, type);
+	MCDI_POPULATE_DWORD_1(inbuf, NVRAM_UPDATE_START_V2_IN_FLAGS,
+			      NVRAM_UPDATE_START_V2_IN_FLAG_REPORT_VERIFY_RESULT,
+			      1);
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
+
 	return rc;
 }
 
 static int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 			       loff_t offset, u8 *buffer, size_t length)
 {
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_READ_IN_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_READ_IN_V2_LEN);
 	MCDI_DECLARE_BUF(outbuf,
 			 MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX));
 	size_t outlen;
@@ -2098,6 +2164,8 @@ static int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_TYPE, type);
 	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_OFFSET, offset);
 	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_LENGTH, length);
+	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_V2_MODE,
+		       MC_CMD_NVRAM_READ_IN_V2_DEFAULT);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
@@ -2147,15 +2215,51 @@ static int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 
 static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 {
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN);
-	int rc;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN);
+	size_t outlen;
+	int rc, rc2;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_FINISH_IN_TYPE, type);
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_FINISH_OUT_LEN != 0);
+	/* Always set this flag. Old firmware ignores it */
+	MCDI_POPULATE_DWORD_1(inbuf, NVRAM_UPDATE_FINISH_V2_IN_FLAGS,
+			      NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT,
+			      1);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+			  outbuf, sizeof(outbuf), &outlen);
+	if (!rc && outlen >= MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
+		rc2 = MCDI_DWORD(outbuf, NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE);
+		if (rc2 != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)
+			netif_err(efx, drv, efx->net_dev,
+				  "NVRAM update failed verification with code 0x%x\n",
+				  rc2);
+		switch (rc2) {
+		case MC_CMD_NVRAM_VERIFY_RC_SUCCESS:
+			break;
+		case MC_CMD_NVRAM_VERIFY_RC_CMS_CHECK_FAILED:
+		case MC_CMD_NVRAM_VERIFY_RC_MESSAGE_DIGEST_CHECK_FAILED:
+		case MC_CMD_NVRAM_VERIFY_RC_SIGNATURE_CHECK_FAILED:
+		case MC_CMD_NVRAM_VERIFY_RC_TRUSTED_APPROVERS_CHECK_FAILED:
+		case MC_CMD_NVRAM_VERIFY_RC_SIGNATURE_CHAIN_CHECK_FAILED:
+			rc = -EIO;
+			break;
+		case MC_CMD_NVRAM_VERIFY_RC_INVALID_CMS_FORMAT:
+		case MC_CMD_NVRAM_VERIFY_RC_BAD_MESSAGE_DIGEST:
+			rc = -EINVAL;
+			break;
+		case MC_CMD_NVRAM_VERIFY_RC_NO_VALID_SIGNATURES:
+		case MC_CMD_NVRAM_VERIFY_RC_NO_TRUSTED_APPROVERS:
+		case MC_CMD_NVRAM_VERIFY_RC_NO_SIGNATURE_MATCH:
+			rc = -EPERM;
+			break;
+		default:
+			netif_err(efx, drv, efx->net_dev,
+				  "Unknown response to NVRAM_UPDATE_FINISH\n");
+			rc = -EIO;
+		}
+	}
+
 	return rc;
 }
 

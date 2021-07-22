@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Generic part shared by ipv4 and ipv6 backends.
  */
@@ -26,7 +24,7 @@ static const struct nla_policy nft_xfrm_policy[NFTA_XFRM_MAX + 1] = {
 
 struct nft_xfrm {
 	enum nft_xfrm_keys	key:8;
-	enum nft_registers	dreg:8;
+	u8			dreg;
 	u8			dir;
 	u8			spnum;
 };
@@ -88,9 +86,8 @@ static int nft_xfrm_get_init(const struct nft_ctx *ctx,
 
 	priv->spnum = spnum;
 
-	priv->dreg = nft_parse_register(tb[NFTA_XFRM_DREG]);
-	return nft_validate_register_store(ctx, priv->dreg, NULL,
-					   NFT_DATA_VALUE, len);
+	return nft_parse_register_store(ctx, tb[NFTA_XFRM_DREG], &priv->dreg,
+					NULL, NFT_DATA_VALUE, len);
 }
 
 /* Return true if key asks for daddr/saddr and current
@@ -161,7 +158,7 @@ static void nft_xfrm_get_eval_in(const struct nft_xfrm *priv,
 				    struct nft_regs *regs,
 				    const struct nft_pktinfo *pkt)
 {
-	const struct sec_path *sp = pkt->skb->sp;
+	const struct sec_path *sp = skb_sec_path(pkt->skb);
 	const struct xfrm_state *state;
 
 	if (sp == NULL || sp->len <= priv->spnum) {

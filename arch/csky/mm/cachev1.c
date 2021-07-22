@@ -94,6 +94,11 @@ void icache_inv_all(void)
 	cache_op_all(INS_CACHE|CACHE_INV, 0);
 }
 
+void local_icache_inv_all(void *priv)
+{
+	cache_op_all(INS_CACHE|CACHE_INV, 0);
+}
+
 void dcache_wb_range(unsigned long start, unsigned long end)
 {
 	cache_op_range(start, end, DATA_CACHE|CACHE_CLR, 0);
@@ -120,7 +125,12 @@ void dma_wbinv_range(unsigned long start, unsigned long end)
 	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
 }
 
+void dma_inv_range(unsigned long start, unsigned long end)
+{
+	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
+}
+
 void dma_wb_range(unsigned long start, unsigned long end)
 {
-	cache_op_range(start, end, DATA_CACHE|CACHE_INV, 1);
+	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
 }

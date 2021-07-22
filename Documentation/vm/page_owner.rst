@@ -18,7 +18,7 @@ Although we already have tracepoint for tracing page allocation/free,
 using it for analyzing who allocate each page is rather complex. We need
 to enlarge the trace buffer for preventing overlapping until userspace
 program launched. And, launched program continually dump out the trace
-buffer for later analysis and it would change system behviour with more
+buffer for later analysis and it would change system behaviour with more
 possibility rather than just keeping it in memory, so bad for debugging.
 
 page owner can also be used for various purposes. For example, accurate
@@ -41,17 +41,17 @@ size change due to this facility.
 - Without page owner::
 
    text    data     bss     dec     hex filename
-   40662   1493     644   42799    a72f mm/page_alloc.o
+   48392   2333     644   51369    c8a9 mm/page_alloc.o
 
 - With page owner::
 
    text    data     bss     dec     hex filename
-   40892   1493     644   43029    a815 mm/page_alloc.o
-   1427      24       8    1459     5b3 mm/page_ext.o
-   2722      50       0    2772     ad4 mm/page_owner.o
+   48800   2445     644   51889    cab1 mm/page_alloc.o
+   6662     108      29    6799    1a8f mm/page_owner.o
+   1025       8       8    1041     411 mm/page_ext.o
 
-Although, roughly, 4 KB code is added in total, page_alloc.o increase by
-230 bytes and only half of it is in hotpath. Building the kernel with
+Although, roughly, 8 KB code is added in total, page_alloc.o increase by
+520 bytes and less than half of it is in hotpath. Building the kernel with
 page owner and turning it on if needed would be great option to debug
 kernel memory problem.
 
@@ -83,8 +83,7 @@ Usage
 4) Analyze information from page owner::
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
-	grep -v ^PFN page_owner_full.txt > page_owner.txt
-	./page_owner_sort page_owner.txt sorted_page_owner.txt
+	./page_owner_sort page_owner_full.txt sorted_page_owner.txt
 
    See the result about who allocated each page
    in the ``sorted_page_owner.txt``.

@@ -16,3 +16,17 @@ value must be one of the following values:
   ralink,mt7620a-soc
   ralink,mt7620n-soc
   ralink,mt7628a-soc
+  ralink,mt7688a-soc
+
+2. Boards
+
+GARDENA smart Gateway (MT7688)
+
+This board is based on the MediaTek MT7688 and equipped with 128 MiB
+of DDR and 8 MiB of flash (SPI NOR) and additional 128MiB SPI NAND
+storage.
+
+------------------------------
+Required root node properties:
+- compatible = "gardena,smart-gateway-mt7688", "ralink,mt7688a-soc",
+		"ralink,mt7628a-soc";

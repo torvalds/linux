@@ -174,6 +174,164 @@ int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo)
 EXPORT_SYMBOL_GPL(nanddev_mtd_erase);
 
 /**
+ * nanddev_mtd_max_bad_blocks() - Get the maximum number of bad eraseblock on
+ *				  a specific region of the NAND device
+ * @mtd: MTD device
+ * @offs: offset of the NAND region
+ * @len: length of the NAND region
+ *
+ * Default implementation for mtd->_max_bad_blocks(). Only works if
+ * nand->memorg.max_bad_eraseblocks_per_lun is > 0.
+ *
+ * Return: a positive number encoding the maximum number of eraseblocks on a
+ * portion of memory, a negative error code otherwise.
+ */
+int nanddev_mtd_max_bad_blocks(struct mtd_info *mtd, loff_t offs, size_t len)
+{
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct nand_pos pos, end;
+	unsigned int max_bb = 0;
+
+	if (!nand->memorg.max_bad_eraseblocks_per_lun)
+		return -ENOTSUPP;
+
+	nanddev_offs_to_pos(nand, offs, &pos);
+	nanddev_offs_to_pos(nand, offs + len, &end);
+
+	for (nanddev_offs_to_pos(nand, offs, &pos);
+	     nanddev_pos_cmp(&pos, &end) < 0;
+	     nanddev_pos_next_lun(nand, &pos))
+		max_bb += nand->memorg.max_bad_eraseblocks_per_lun;
+
+	return max_bb;
+}
+EXPORT_SYMBOL_GPL(nanddev_mtd_max_bad_blocks);
+
+/**
+ * nanddev_get_ecc_engine() - Find and get a suitable ECC engine
+ * @nand: NAND device
+ */
+static int nanddev_get_ecc_engine(struct nand_device *nand)
+{
+	int engine_type;
+
+	/* Read the user desires in terms of ECC engine/configuration */
+	of_get_nand_ecc_user_config(nand);
+
+	engine_type = nand->ecc.user_conf.engine_type;
+	if (engine_type == NAND_ECC_ENGINE_TYPE_INVALID)
+		engine_type = nand->ecc.defaults.engine_type;
+
+	switch (engine_type) {
+	case NAND_ECC_ENGINE_TYPE_NONE:
+		return 0;
+	case NAND_ECC_ENGINE_TYPE_SOFT:
+		nand->ecc.engine = nand_ecc_get_sw_engine(nand);
+		break;
+	case NAND_ECC_ENGINE_TYPE_ON_DIE:
+		nand->ecc.engine = nand_ecc_get_on_die_hw_engine(nand);
+		break;
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
+		pr_err("On-host hardware ECC engines not supported yet\n");
+		break;
+	default:
+		pr_err("Missing ECC engine type\n");
+	}
+
+	if (!nand->ecc.engine)
+		return  -EINVAL;
+
+	return 0;
+}
+
+/**
+ * nanddev_put_ecc_engine() - Dettach and put the in-use ECC engine
+ * @nand: NAND device
+ */
+static int nanddev_put_ecc_engine(struct nand_device *nand)
+{
+	switch (nand->ecc.ctx.conf.engine_type) {
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
+		pr_err("On-host hardware ECC engines not supported yet\n");
+		break;
+	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
+	case NAND_ECC_ENGINE_TYPE_ON_DIE:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/**
+ * nanddev_find_ecc_configuration() - Find a suitable ECC configuration
+ * @nand: NAND device
+ */
+static int nanddev_find_ecc_configuration(struct nand_device *nand)
+{
+	int ret;
+
+	if (!nand->ecc.engine)
+		return -ENOTSUPP;
+
+	ret = nand_ecc_init_ctx(nand);
+	if (ret)
+		return ret;
+
+	if (!nand_ecc_is_strong_enough(nand))
+		pr_warn("WARNING: %s: the ECC used on your system is too weak compared to the one required by the NAND chip\n",
+			nand->mtd.name);
+
+	return 0;
+}
+
+/**
+ * nanddev_ecc_engine_init() - Initialize an ECC engine for the chip
+ * @nand: NAND device
+ */
+int nanddev_ecc_engine_init(struct nand_device *nand)
+{
+	int ret;
+
+	/* Look for the ECC engine to use */
+	ret = nanddev_get_ecc_engine(nand);
+	if (ret) {
+		pr_err("No ECC engine found\n");
+		return ret;
+	}
+
+	/* No ECC engine requested */
+	if (!nand->ecc.engine)
+		return 0;
+
+	/* Configure the engine: balance user input and chip requirements */
+	ret = nanddev_find_ecc_configuration(nand);
+	if (ret) {
+		pr_err("No suitable ECC configuration\n");
+		nanddev_put_ecc_engine(nand);
+
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nanddev_ecc_engine_init);
+
+/**
+ * nanddev_ecc_engine_cleanup() - Cleanup ECC engine initializations
+ * @nand: NAND device
+ */
+void nanddev_ecc_engine_cleanup(struct nand_device *nand)
+{
+	if (nand->ecc.engine)
+		nand_ecc_cleanup_ctx(nand);
+
+	nanddev_put_ecc_engine(nand);
+}
+EXPORT_SYMBOL_GPL(nanddev_ecc_engine_cleanup);
+
+/**
  * nanddev_init() - Initialize a NAND device
  * @nand: NAND device
  * @ops: NAND device operations

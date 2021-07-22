@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for M-5MOLS 8M Pixel camera sensor with ISP
  *
@@ -6,11 +7,6 @@
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
  * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/i2c.h>
@@ -291,7 +287,7 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
  * @reg: the I2C_REG() address of an 8-bit status register to check
  * @value: expected status register value
  * @mask: bit mask for the read status register value
- * @timeout: timeout in miliseconds, or -1 for default timeout
+ * @timeout: timeout in milliseconds, or -1 for default timeout
  *
  * The @reg register value is ORed with @mask before comparing with @value.
  *
@@ -543,17 +539,19 @@ static int __find_resolution(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_mbus_framefmt *__find_format(struct m5mols_info *info,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				enum v4l2_subdev_format_whence which,
 				enum m5mols_restype type)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return cfg ? v4l2_subdev_get_try_format(&info->sd, cfg, 0) : NULL;
+		return sd_state ? v4l2_subdev_get_try_format(&info->sd,
+							     sd_state, 0) : NULL;
 
 	return &info->ffmt[type];
 }
 
-static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int m5mols_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct m5mols_info *info = to_m5mols(sd);
@@ -562,7 +560,7 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 
 	mutex_lock(&info->lock);
 
-	format = __find_format(info, cfg, fmt->which, info->res_type);
+	format = __find_format(info, sd_state, fmt->which, info->res_type);
 	if (format)
 		fmt->format = *format;
 	else
@@ -572,7 +570,8 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	return ret;
 }
 
-static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int m5mols_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct m5mols_info *info = to_m5mols(sd);
@@ -586,7 +585,7 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	if (ret < 0)
 		return ret;
 
-	sfmt = __find_format(info, cfg, fmt->which, type);
+	sfmt = __find_format(info, sd_state, fmt->which, type);
 	if (!sfmt)
 		return 0;
 
@@ -652,7 +651,7 @@ static int m5mols_set_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 
 
 static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (!code || code->index >= SIZE_DEFAULT_FFMT)
@@ -768,7 +767,8 @@ static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
 
 		ret = regulator_bulk_enable(ARRAY_SIZE(supplies), supplies);
 		if (ret) {
-			info->set_power(&client->dev, 0);
+			if (info->set_power)
+				info->set_power(&client->dev, 0);
 			return ret;
 		}
 
@@ -912,7 +912,9 @@ static const struct v4l2_subdev_core_ops m5mols_core_ops = {
  */
 static int m5mols_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd,
+								       fh->state,
+								       0);
 
 	*format = m5mols_default_ffmt[0];
 	return 0;

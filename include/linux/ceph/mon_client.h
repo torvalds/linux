@@ -19,7 +19,7 @@ struct ceph_monmap {
 	struct ceph_fsid fsid;
 	u32 epoch;
 	u32 num_mon;
-	struct ceph_entity_inst mon_inst[0];
+	struct ceph_entity_inst mon_inst[];
 };
 
 struct ceph_mon_client;
@@ -104,12 +104,12 @@ struct ceph_mon_client {
 #endif
 };
 
-extern struct ceph_monmap *ceph_monmap_decode(void *p, void *end);
 extern int ceph_monmap_contains(struct ceph_monmap *m,
 				struct ceph_entity_addr *addr);
 
 extern int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl);
 extern void ceph_monc_stop(struct ceph_mon_client *monc);
+extern void ceph_monc_reopen_session(struct ceph_mon_client *monc);
 
 enum {
 	CEPH_SUB_MONMAP = 0,
@@ -142,7 +142,7 @@ int ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 int ceph_monc_get_version_async(struct ceph_mon_client *monc, const char *what,
 				ceph_monc_callback_t cb, u64 private_data);
 
-int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
+int ceph_monc_blocklist_add(struct ceph_mon_client *monc,
 			    struct ceph_entity_addr *client_addr);
 
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);

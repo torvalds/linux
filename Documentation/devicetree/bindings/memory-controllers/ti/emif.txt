@@ -32,7 +32,7 @@ Required only for "ti,emif-am3352" and "ti,emif-am4372":
 - sram			: Phandles for generic sram driver nodes,
   first should be type 'protect-exec' for the driver to use to copy
   and run PM functions, second should be regular pool to be used for
-  data region for code. See Documentation/devicetree/bindings/sram/sram.txt
+  data region for code. See Documentation/devicetree/bindings/sram/sram.yaml
   for more details.
 
 Optional properties:

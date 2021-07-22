@@ -1,5 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _LINUX_VERMAGIC_H
+#define _LINUX_VERMAGIC_H
+
+#ifndef INCLUDE_VERMAGIC
+#error "This header can be included from kernel/module.c or *.mod.c only"
+#endif
+
 #include <generated/utsrelease.h>
+#include <asm/vermagic.h>
 
 /* Simply sanity version stamp for modules. */
 #ifdef CONFIG_SMP
@@ -9,6 +17,8 @@
 #endif
 #ifdef CONFIG_PREEMPT
 #define MODULE_VERMAGIC_PREEMPT "preempt "
+#elif defined(CONFIG_PREEMPT_RT)
+#define MODULE_VERMAGIC_PREEMPT "preempt_rt "
 #else
 #define MODULE_VERMAGIC_PREEMPT ""
 #endif
@@ -21,9 +31,6 @@
 #define MODULE_VERMAGIC_MODVERSIONS "modversions "
 #else
 #define MODULE_VERMAGIC_MODVERSIONS ""
-#endif
-#ifndef MODULE_ARCH_VERMAGIC
-#define MODULE_ARCH_VERMAGIC ""
 #endif
 #ifdef RANDSTRUCT_PLUGIN
 #include <generated/randomize_layout_hash.h>
@@ -39,3 +46,4 @@
 	MODULE_ARCH_VERMAGIC						\
 	MODULE_RANDSTRUCT_PLUGIN
 
+#endif /* _LINUX_VERMAGIC_H */

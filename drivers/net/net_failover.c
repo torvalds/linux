@@ -40,14 +40,14 @@ static int net_failover_open(struct net_device *dev)
 
 	primary_dev = rtnl_dereference(nfo_info->primary_dev);
 	if (primary_dev) {
-		err = dev_open(primary_dev);
+		err = dev_open(primary_dev, NULL);
 		if (err)
 			goto err_primary_open;
 	}
 
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 	if (standby_dev) {
-		err = dev_open(standby_dev);
+		err = dev_open(standby_dev, NULL);
 		if (err)
 			goto err_standby_open;
 	}
@@ -61,7 +61,8 @@ static int net_failover_open(struct net_device *dev)
 	return 0;
 
 err_standby_open:
-	dev_close(primary_dev);
+	if (primary_dev)
+		dev_close(primary_dev);
 err_primary_open:
 	netif_tx_disable(dev);
 	return err;
@@ -115,8 +116,7 @@ static netdev_tx_t net_failover_start_xmit(struct sk_buff *skb,
 
 static u16 net_failover_select_queue(struct net_device *dev,
 				     struct sk_buff *skb,
-				     struct net_device *sb_dev,
-				     select_queue_fallback_t fallback)
+				     struct net_device *sb_dev)
 {
 	struct net_failover_info *nfo_info = netdev_priv(dev);
 	struct net_device *primary_dev;
@@ -127,10 +127,9 @@ static u16 net_failover_select_queue(struct net_device *dev,
 		const struct net_device_ops *ops = primary_dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
-			txq = ops->ndo_select_queue(primary_dev, skb,
-						    sb_dev, fallback);
+			txq = ops->ndo_select_queue(primary_dev, skb, sb_dev);
 		else
-			txq = fallback(primary_dev, skb, NULL);
+			txq = netdev_pick_tx(primary_dev, skb, NULL);
 
 		qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
 
@@ -517,7 +516,7 @@ static int net_failover_slave_register(struct net_device *slave_dev,
 	dev_hold(slave_dev);
 
 	if (netif_running(failover_dev)) {
-		err = dev_open(slave_dev);
+		err = dev_open(slave_dev, NULL);
 		if (err && (err != -EBUSY)) {
 			netdev_err(failover_dev, "Opening slave %s failed err:%d\n",
 				   slave_dev->name, err);
@@ -680,7 +679,7 @@ static int net_failover_slave_name_change(struct net_device *slave_dev,
 	/* We need to bring up the slave after the rename by udev in case
 	 * open failed with EBUSY when it was registered.
 	 */
-	dev_open(slave_dev);
+	dev_open(slave_dev, NULL);
 
 	return 0;
 }
@@ -698,7 +697,7 @@ static struct failover_ops net_failover_ops = {
 /**
  * net_failover_create - Create and register a failover instance
  *
- * @dev: standby netdev
+ * @standby_dev: standby netdev
  *
  * Creates a failover netdev and registers a failover instance for a standby
  * netdev. Used by paravirtual drivers that use 3-netdev model.

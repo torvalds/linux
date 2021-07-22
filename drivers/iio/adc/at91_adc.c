@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the ADC present in the Atmel AT91 evaluation boards.
  *
  * Copyright 2011 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/bitmap.h>
@@ -22,8 +21,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
-
-#include <linux/platform_data/at91_adc.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -154,11 +151,30 @@
 #define TOUCH_SHTIM                    0xa
 #define TOUCH_SCTIM_US		10		/* 10us for the Touchscreen Switches Closure Time */
 
+enum atmel_adc_ts_type {
+	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
+	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
+};
+
+/**
+ * struct at91_adc_trigger - description of triggers
+ * @name:		name of the trigger advertised to the user
+ * @value:		value to set in the ADC's trigger setup register
+ *			to enable the trigger
+ * @is_external:	Does the trigger rely on an external pin?
+ */
+struct at91_adc_trigger {
+	const char	*name;
+	u8		value;
+	bool		is_external;
+};
+
 /**
  * struct at91_adc_reg_desc - Various informations relative to registers
  * @channel_base:	Base offset for the channel data registers
  * @drdy_mask:		Mask of the DRDY field in the relevant registers
-			(Interruptions registers mostly)
+ *			(Interruptions registers mostly)
  * @status_register:	Offset of the Interrupt Status Register
  * @trigger_register:	Offset of the Trigger setup register
  * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register
@@ -188,6 +204,11 @@ struct at91_adc_caps {
 	u32 (*calc_startup_ticks)(u32 startup_time, u32 adc_clk_khz);
 
 	u8	num_channels;
+
+	u8	low_res_bits;
+	u8	high_res_bits;
+	u32	trigger_number;
+	const struct at91_adc_trigger *triggers;
 	struct at91_adc_reg_desc registers;
 };
 
@@ -203,19 +224,16 @@ struct at91_adc_state {
 	struct mutex		lock;
 	u8			num_channels;
 	void __iomem		*reg_base;
-	struct at91_adc_reg_desc *registers;
+	const struct at91_adc_reg_desc *registers;
 	u32			startup_time;
 	u8			sample_hold_time;
 	bool			sleep_mode;
 	struct iio_trigger	**trig;
-	struct at91_adc_trigger	*trigger_list;
-	u32			trigger_number;
 	bool			use_external;
 	u32			vref_mv;
 	u32			res;		/* resolution used for convertions */
-	bool			low_res;	/* the resolution corresponds to the lowest one */
 	wait_queue_head_t	wq_data_avail;
-	struct at91_adc_caps	*caps;
+	const struct at91_adc_caps	*caps;
 
 	/*
 	 * Following ADC channels are shared by touchscreen:
@@ -288,13 +306,13 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 	}
 }
 
-static int at91_ts_sample(struct at91_adc_state *st)
+static int at91_ts_sample(struct iio_dev *idev)
 {
+	struct at91_adc_state *st = iio_priv(idev);
 	unsigned int xscale, yscale, reg, z1, z2;
 	unsigned int x, y, pres, xpos, ypos;
 	unsigned int rxp = 1;
 	unsigned int factor = 1000;
-	struct iio_dev *idev = iio_priv_to_dev(st);
 
 	unsigned int xyz_mask_bits = st->res;
 	unsigned int xyz_mask = (1 << xyz_mask_bits) - 1;
@@ -450,7 +468,7 @@ static irqreturn_t at91_adc_9x5_interrupt(int irq, void *private)
 
 		if (status & AT91_ADC_ISR_PENS) {
 			/* validate data by pen contact */
-			at91_ts_sample(st);
+			at91_ts_sample(idev);
 		} else {
 			/* triggered by event that is no pen contact, just read
 			 * them to clean the interrupt and discard all.
@@ -519,17 +537,17 @@ static int at91_adc_channel_init(struct iio_dev *idev)
 }
 
 static int at91_adc_get_trigger_value_by_name(struct iio_dev *idev,
-					     struct at91_adc_trigger *triggers,
+					     const struct at91_adc_trigger *triggers,
 					     const char *trigger_name)
 {
 	struct at91_adc_state *st = iio_priv(idev);
 	int i;
 
-	for (i = 0; i < st->trigger_number; i++) {
+	for (i = 0; i < st->caps->trigger_number; i++) {
 		char *name = kasprintf(GFP_KERNEL,
 				"%s-dev%d-%s",
 				idev->name,
-				idev->id,
+				iio_device_id(idev),
 				triggers[i].name);
 		if (!name)
 			return -ENOMEM;
@@ -551,13 +569,13 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *idev = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(idev);
-	struct at91_adc_reg_desc *reg = st->registers;
+	const struct at91_adc_reg_desc *reg = st->registers;
 	u32 status = at91_adc_readl(st, reg->trigger_register);
 	int value;
 	u8 bit;
 
 	value = at91_adc_get_trigger_value_by_name(idev,
-						   st->trigger_list,
+						   st->caps->triggers,
 						   idev->trig->name);
 	if (value < 0)
 		return value;
@@ -602,17 +620,16 @@ static const struct iio_trigger_ops at91_adc_trigger_ops = {
 };
 
 static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *idev,
-						     struct at91_adc_trigger *trigger)
+						     const struct at91_adc_trigger *trigger)
 {
 	struct iio_trigger *trig;
 	int ret;
 
-	trig = iio_trigger_alloc("%s-dev%d-%s", idev->name,
-				 idev->id, trigger->name);
+	trig = iio_trigger_alloc(idev->dev.parent, "%s-dev%d-%s", idev->name,
+				 iio_device_id(idev), trigger->name);
 	if (trig == NULL)
 		return NULL;
 
-	trig->dev.parent = idev->dev.parent;
 	iio_trigger_set_drvdata(trig, idev);
 	trig->ops = &at91_adc_trigger_ops;
 
@@ -629,7 +646,7 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 	int i, ret;
 
 	st->trig = devm_kcalloc(&idev->dev,
-				st->trigger_number, sizeof(*st->trig),
+				st->caps->trigger_number, sizeof(*st->trig),
 				GFP_KERNEL);
 
 	if (st->trig == NULL) {
@@ -637,12 +654,12 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 		goto error_ret;
 	}
 
-	for (i = 0; i < st->trigger_number; i++) {
-		if (st->trigger_list[i].is_external && !(st->use_external))
+	for (i = 0; i < st->caps->trigger_number; i++) {
+		if (st->caps->triggers[i].is_external && !(st->use_external))
 			continue;
 
 		st->trig[i] = at91_adc_allocate_trigger(idev,
-							st->trigger_list + i);
+							st->caps->triggers + i);
 		if (st->trig[i] == NULL) {
 			dev_err(&idev->dev,
 				"Could not allocate trigger %d\n", i);
@@ -667,7 +684,7 @@ static void at91_adc_trigger_remove(struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 	int i;
 
-	for (i = 0; i < st->trigger_number; i++) {
+	for (i = 0; i < st->caps->trigger_number; i++) {
 		iio_trigger_unregister(st->trig[i]);
 		iio_trigger_free(st->trig[i]);
 	}
@@ -704,23 +721,29 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 		ret = wait_event_interruptible_timeout(st->wq_data_avail,
 						       st->done,
 						       msecs_to_jiffies(1000));
-		if (ret == 0)
-			ret = -ETIMEDOUT;
-		if (ret < 0) {
-			mutex_unlock(&st->lock);
-			return ret;
-		}
 
-		*val = st->last_value;
-
+		/* Disable interrupts, regardless if adc conversion was
+		 * successful or not
+		 */
 		at91_adc_writel(st, AT91_ADC_CHDR,
 				AT91_ADC_CH(chan->channel));
 		at91_adc_writel(st, AT91_ADC_IDR, BIT(chan->channel));
 
-		st->last_value = 0;
-		st->done = false;
+		if (ret > 0) {
+			/* a valid conversion took place */
+			*val = st->last_value;
+			st->last_value = 0;
+			st->done = false;
+			ret = IIO_VAL_INT;
+		} else if (ret == 0) {
+			/* conversion timeout */
+			dev_err(&idev->dev, "ADC Channel %d timeout.\n",
+				chan->channel);
+			ret = -ETIMEDOUT;
+		}
+
 		mutex_unlock(&st->lock);
-		return IIO_VAL_INT;
+		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_mv;
@@ -732,58 +755,6 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 	return -EINVAL;
 }
 
-static int at91_adc_of_get_resolution(struct at91_adc_state *st,
-				      struct platform_device *pdev)
-{
-	struct iio_dev *idev = iio_priv_to_dev(st);
-	struct device_node *np = pdev->dev.of_node;
-	int count, i, ret = 0;
-	char *res_name, *s;
-	u32 *resolutions;
-
-	count = of_property_count_strings(np, "atmel,adc-res-names");
-	if (count < 2) {
-		dev_err(&idev->dev, "You must specified at least two resolution names for "
-				    "adc-res-names property in the DT\n");
-		return count;
-	}
-
-	resolutions = kmalloc_array(count, sizeof(*resolutions), GFP_KERNEL);
-	if (!resolutions)
-		return -ENOMEM;
-
-	if (of_property_read_u32_array(np, "atmel,adc-res", resolutions, count)) {
-		dev_err(&idev->dev, "Missing adc-res property in the DT.\n");
-		ret = -ENODEV;
-		goto ret;
-	}
-
-	if (of_property_read_string(np, "atmel,adc-use-res", (const char **)&res_name))
-		res_name = "highres";
-
-	for (i = 0; i < count; i++) {
-		if (of_property_read_string_index(np, "atmel,adc-res-names", i, (const char **)&s))
-			continue;
-
-		if (strcmp(res_name, s))
-			continue;
-
-		st->res = resolutions[i];
-		if (!strcmp(res_name, "lowres"))
-			st->low_res = true;
-		else
-			st->low_res = false;
-
-		dev_info(&idev->dev, "Resolution used: %u bits\n", st->res);
-		goto ret;
-	}
-
-	dev_err(&idev->dev, "There is no resolution for %s\n", res_name);
-
-ret:
-	kfree(resolutions);
-	return ret;
-}
 
 static u32 calc_startup_ticks_9260(u32 startup_time, u32 adc_clk_khz)
 {
@@ -824,8 +795,6 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	return ticks;
 }
 
-static const struct of_device_id at91_adc_dt_ids[];
-
 static int at91_adc_probe_dt_ts(struct device_node *node,
 	struct at91_adc_state *st, struct device *dev)
 {
@@ -861,124 +830,6 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 	}
 }
 
-static int at91_adc_probe_dt(struct at91_adc_state *st,
-			     struct platform_device *pdev)
-{
-	struct iio_dev *idev = iio_priv_to_dev(st);
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *trig_node;
-	int i = 0, ret;
-	u32 prop;
-
-	if (!node)
-		return -EINVAL;
-
-	st->caps = (struct at91_adc_caps *)
-		of_match_device(at91_adc_dt_ids, &pdev->dev)->data;
-
-	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
-
-	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
-		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->channels_mask = prop;
-
-	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
-
-	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
-		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->startup_time = prop;
-
-	prop = 0;
-	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
-	st->sample_hold_time = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
-		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->vref_mv = prop;
-
-	ret = at91_adc_of_get_resolution(st, pdev);
-	if (ret)
-		goto error_ret;
-
-	st->registers = &st->caps->registers;
-	st->num_channels = st->caps->num_channels;
-	st->trigger_number = of_get_child_count(node);
-	st->trigger_list = devm_kcalloc(&idev->dev,
-					st->trigger_number,
-					sizeof(struct at91_adc_trigger),
-					GFP_KERNEL);
-	if (!st->trigger_list) {
-		dev_err(&idev->dev, "Could not allocate trigger list memory.\n");
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	for_each_child_of_node(node, trig_node) {
-		struct at91_adc_trigger *trig = st->trigger_list + i;
-		const char *name;
-
-		if (of_property_read_string(trig_node, "trigger-name", &name)) {
-			dev_err(&idev->dev, "Missing trigger-name property in the DT.\n");
-			ret = -EINVAL;
-			goto error_ret;
-		}
-		trig->name = name;
-
-		if (of_property_read_u32(trig_node, "trigger-value", &prop)) {
-			dev_err(&idev->dev, "Missing trigger-value property in the DT.\n");
-			ret = -EINVAL;
-			goto error_ret;
-		}
-		trig->value = prop;
-		trig->is_external = of_property_read_bool(trig_node, "trigger-external");
-		i++;
-	}
-
-	/* Check if touchscreen is supported. */
-	if (st->caps->has_ts)
-		return at91_adc_probe_dt_ts(node, st, &idev->dev);
-	else
-		dev_info(&idev->dev, "not support touchscreen in the adc compatible string.\n");
-
-	return 0;
-
-error_ret:
-	return ret;
-}
-
-static int at91_adc_probe_pdata(struct at91_adc_state *st,
-				struct platform_device *pdev)
-{
-	struct at91_adc_data *pdata = pdev->dev.platform_data;
-
-	if (!pdata)
-		return -EINVAL;
-
-	st->caps = (struct at91_adc_caps *)
-			platform_get_device_id(pdev)->driver_data;
-
-	st->use_external = pdata->use_external_triggers;
-	st->vref_mv = pdata->vref;
-	st->channels_mask = pdata->channels_used;
-	st->num_channels = st->caps->num_channels;
-	st->startup_time = pdata->startup_time;
-	st->trigger_number = pdata->trigger_number;
-	st->trigger_list = pdata->trigger_list;
-	st->registers = &st->caps->registers;
-	st->touchscreen_type = pdata->touchscreen_type;
-
-	return 0;
-}
-
 static const struct iio_info at91_adc_info = {
 	.read_raw = &at91_adc_read_raw,
 };
@@ -1005,9 +856,9 @@ static void atmel_ts_close(struct input_dev *dev)
 		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_PEN);
 }
 
-static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
+static int at91_ts_hw_init(struct iio_dev *idev, u32 adc_clk_khz)
 {
-	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(idev);
 	u32 reg = 0;
 	u32 tssctim = 0;
 	int i = 0;
@@ -1080,11 +931,11 @@ static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
 	return 0;
 }
 
-static int at91_ts_register(struct at91_adc_state *st,
+static int at91_ts_register(struct iio_dev *idev,
 		struct platform_device *pdev)
 {
+	struct at91_adc_state *st = iio_priv(idev);
 	struct input_dev *input;
-	struct iio_dev *idev = iio_priv_to_dev(st);
 	int ret;
 
 	input = input_allocate_device();
@@ -1144,11 +995,12 @@ static void at91_ts_unregister(struct at91_adc_state *st)
 static int at91_adc_probe(struct platform_device *pdev)
 {
 	unsigned int prsc, mstrclk, ticks, adc_clk, adc_clk_khz, shtim;
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
-	struct resource *res;
-	u32 reg;
+	u32 reg, prop;
+	char *s;
 
 	idev = devm_iio_device_alloc(&pdev->dev, sizeof(struct at91_adc_state));
 	if (!idev)
@@ -1156,32 +1008,63 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	if (pdev->dev.of_node)
-		ret = at91_adc_probe_dt(st, pdev);
-	else
-		ret = at91_adc_probe_pdata(st, pdev);
+	st->caps = of_device_get_match_data(&pdev->dev);
 
-	if (ret) {
-		dev_err(&pdev->dev, "No platform data available.\n");
+	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
+
+	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
+		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
 		return -EINVAL;
+	}
+	st->channels_mask = prop;
+
+	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+
+	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
+		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
+		return -EINVAL;
+	}
+	st->startup_time = prop;
+
+	prop = 0;
+	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	st->sample_hold_time = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
+		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
+		return -EINVAL;
+	}
+	st->vref_mv = prop;
+
+	st->res = st->caps->high_res_bits;
+	if (st->caps->low_res_bits &&
+	    !of_property_read_string(node, "atmel,adc-use-res", (const char **)&s)
+	    && !strcmp(s, "lowres"))
+		st->res = st->caps->low_res_bits;
+
+	dev_info(&idev->dev, "Resolution used: %u bits\n", st->res);
+
+	st->registers = &st->caps->registers;
+	st->num_channels = st->caps->num_channels;
+
+	/* Check if touchscreen is supported. */
+	if (st->caps->has_ts) {
+		ret = at91_adc_probe_dt_ts(node, st, &idev->dev);
+		if (ret)
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, idev);
 
-	idev->dev.parent = &pdev->dev;
 	idev->name = dev_name(&pdev->dev);
 	idev->modes = INDIO_DIRECT_MODE;
 	idev->info = &at91_adc_info;
 
 	st->irq = platform_get_irq(pdev, 0);
-	if (st->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ ID is designated\n");
+	if (st->irq < 0)
 		return -ENODEV;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	st->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	st->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->reg_base))
 		return PTR_ERR(st->reg_base);
 
@@ -1265,7 +1148,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	reg = AT91_ADC_PRESCAL_(prsc) & st->registers->mr_prescal_mask;
 	reg |= AT91_ADC_STARTUP_(ticks) & st->registers->mr_startup_mask;
-	if (st->low_res)
+	if (st->res == st->caps->low_res_bits)
 		reg |= AT91_ADC_LOWRES;
 	if (st->sleep_mode)
 		reg |= AT91_ADC_SLEEP;
@@ -1301,11 +1184,11 @@ static int at91_adc_probe(struct platform_device *pdev)
 			goto error_disable_adc_clk;
 		}
 	} else {
-		ret = at91_ts_register(st, pdev);
+		ret = at91_ts_register(idev, pdev);
 		if (ret)
 			goto error_disable_adc_clk;
 
-		at91_ts_hw_init(st, adc_clk_khz);
+		at91_ts_hw_init(idev, adc_clk_khz);
 	}
 
 	ret = iio_device_register(idev);
@@ -1354,7 +1237,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int at91_adc_suspend(struct device *dev)
 {
-	struct iio_dev *idev = platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *idev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(idev);
 
 	pinctrl_pm_select_sleep_state(dev);
@@ -1365,7 +1248,7 @@ static int at91_adc_suspend(struct device *dev)
 
 static int at91_adc_resume(struct device *dev)
 {
-	struct iio_dev *idev = platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *idev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(idev);
 
 	clk_prepare_enable(st->clk);
@@ -1377,9 +1260,18 @@ static int at91_adc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(at91_adc_pm_ops, at91_adc_suspend, at91_adc_resume);
 
+static const struct at91_adc_trigger at91sam9260_triggers[] = {
+	{ .name = "timer-counter-0", .value = 0x1 },
+	{ .name = "timer-counter-1", .value = 0x3 },
+	{ .name = "timer-counter-2", .value = 0x5 },
+	{ .name = "external", .value = 0xd, .is_external = true },
+};
+
 static struct at91_adc_caps at91sam9260_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9260,
 	.num_channels = 4,
+	.low_res_bits = 8,
+	.high_res_bits = 10,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -1388,12 +1280,23 @@ static struct at91_adc_caps at91sam9260_caps = {
 		.mr_prescal_mask = AT91_ADC_PRESCAL_9260,
 		.mr_startup_mask = AT91_ADC_STARTUP_9260,
 	},
+	.triggers = at91sam9260_triggers,
+	.trigger_number = ARRAY_SIZE(at91sam9260_triggers),
+};
+
+static const struct at91_adc_trigger at91sam9x5_triggers[] = {
+	{ .name = "external-rising", .value = 0x1, .is_external = true },
+	{ .name = "external-falling", .value = 0x2, .is_external = true },
+	{ .name = "external-any", .value = 0x3, .is_external = true },
+	{ .name = "continuous", .value = 0x6 },
 };
 
 static struct at91_adc_caps at91sam9rl_caps = {
 	.has_ts = true,
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
 	.num_channels = 6,
+	.low_res_bits = 8,
+	.high_res_bits = 10,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -1402,12 +1305,16 @@ static struct at91_adc_caps at91sam9rl_caps = {
 		.mr_prescal_mask = AT91_ADC_PRESCAL_9260,
 		.mr_startup_mask = AT91_ADC_STARTUP_9G45,
 	},
+	.triggers = at91sam9x5_triggers,
+	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
 static struct at91_adc_caps at91sam9g45_caps = {
 	.has_ts = true,
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
 	.num_channels = 8,
+	.low_res_bits = 8,
+	.high_res_bits = 10,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -1416,6 +1323,8 @@ static struct at91_adc_caps at91sam9g45_caps = {
 		.mr_prescal_mask = AT91_ADC_PRESCAL_9G45,
 		.mr_startup_mask = AT91_ADC_STARTUP_9G45,
 	},
+	.triggers = at91sam9x5_triggers,
+	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
 static struct at91_adc_caps at91sam9x5_caps = {
@@ -1425,6 +1334,8 @@ static struct at91_adc_caps at91sam9x5_caps = {
 	.ts_pen_detect_sensitivity = 2,
 	.calc_startup_ticks = calc_startup_ticks_9x5,
 	.num_channels = 12,
+	.low_res_bits = 8,
+	.high_res_bits = 10,
 	.registers = {
 		.channel_base = AT91_ADC_CDR0_9X5,
 		.drdy_mask = AT91_ADC_SR_DRDY_9X5,
@@ -1434,6 +1345,29 @@ static struct at91_adc_caps at91sam9x5_caps = {
 		.mr_prescal_mask = AT91_ADC_PRESCAL_9G45,
 		.mr_startup_mask = AT91_ADC_STARTUP_9X5,
 	},
+	.triggers = at91sam9x5_triggers,
+	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
+};
+
+static struct at91_adc_caps sama5d3_caps = {
+	.has_ts = true,
+	.has_tsmr = true,
+	.ts_filter_average = 3,
+	.ts_pen_detect_sensitivity = 2,
+	.calc_startup_ticks = calc_startup_ticks_9x5,
+	.num_channels = 12,
+	.low_res_bits = 0,
+	.high_res_bits = 12,
+	.registers = {
+		.channel_base = AT91_ADC_CDR0_9X5,
+		.drdy_mask = AT91_ADC_SR_DRDY_9X5,
+		.status_register = AT91_ADC_SR_9X5,
+		.trigger_register = AT91_ADC_TRGR_9X5,
+		.mr_prescal_mask = AT91_ADC_PRESCAL_9G45,
+		.mr_startup_mask = AT91_ADC_STARTUP_9X5,
+	},
+	.triggers = at91sam9x5_triggers,
+	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
 static const struct of_device_id at91_adc_dt_ids[] = {
@@ -1441,36 +1375,17 @@ static const struct of_device_id at91_adc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9rl-adc", .data = &at91sam9rl_caps },
 	{ .compatible = "atmel,at91sam9g45-adc", .data = &at91sam9g45_caps },
 	{ .compatible = "atmel,at91sam9x5-adc", .data = &at91sam9x5_caps },
+	{ .compatible = "atmel,sama5d3-adc", .data = &sama5d3_caps },
 	{},
 };
 MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
 
-static const struct platform_device_id at91_adc_ids[] = {
-	{
-		.name = "at91sam9260-adc",
-		.driver_data = (unsigned long)&at91sam9260_caps,
-	}, {
-		.name = "at91sam9rl-adc",
-		.driver_data = (unsigned long)&at91sam9rl_caps,
-	}, {
-		.name = "at91sam9g45-adc",
-		.driver_data = (unsigned long)&at91sam9g45_caps,
-	}, {
-		.name = "at91sam9x5-adc",
-		.driver_data = (unsigned long)&at91sam9x5_caps,
-	}, {
-		/* terminator */
-	}
-};
-MODULE_DEVICE_TABLE(platform, at91_adc_ids);
-
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
 	.remove = at91_adc_remove,
-	.id_table = at91_adc_ids,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
+		   .of_match_table = at91_adc_dt_ids,
 		   .pm = &at91_adc_pm_ops,
 	},
 };

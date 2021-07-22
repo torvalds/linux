@@ -10,7 +10,7 @@
     |         arc: |  ok  |
     |         arm: |  ok  |
     |       arm64: |  ok  |
-    |         c6x: |  ..  |
+    |        csky: |  ..  |
     |       h8300: |  ..  |
     |     hexagon: |  ..  |
     |        ia64: | TODO |
@@ -27,7 +27,6 @@
     |          sh: |  ..  |
     |       sparc: |  ok  |
     |          um: |  ..  |
-    |   unicore32: |  ..  |
     |         x86: |  ok  |
     |      xtensa: |  ..  |
     -----------------------

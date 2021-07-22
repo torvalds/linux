@@ -23,6 +23,42 @@
  */
 #include "priv.h"
 
+s64
+nvkm_timer_wait_test(struct nvkm_timer_wait *wait)
+{
+	struct nvkm_subdev *subdev = &wait->tmr->subdev;
+	u64 time = nvkm_timer_read(wait->tmr);
+
+	if (wait->reads == 0) {
+		wait->time0 = time;
+		wait->time1 = time;
+	}
+
+	if (wait->time1 == time) {
+		if (wait->reads++ == 16) {
+			nvkm_fatal(subdev, "stalled at %016llx\n", time);
+			return -ETIMEDOUT;
+		}
+	} else {
+		wait->time1 = time;
+		wait->reads = 1;
+	}
+
+	if (wait->time1 - wait->time0 > wait->limit)
+		return -ETIMEDOUT;
+
+	return wait->time1 - wait->time0;
+}
+
+void
+nvkm_timer_wait_init(struct nvkm_device *device, u64 nsec,
+		     struct nvkm_timer_wait *wait)
+{
+	wait->tmr = device->timer;
+	wait->limit = nsec;
+	wait->reads = 0;
+}
+
 u64
 nvkm_timer_read(struct nvkm_timer *tmr)
 {
@@ -147,14 +183,14 @@ nvkm_timer = {
 
 int
 nvkm_timer_new_(const struct nvkm_timer_func *func, struct nvkm_device *device,
-		int index, struct nvkm_timer **ptmr)
+		enum nvkm_subdev_type type, int inst, struct nvkm_timer **ptmr)
 {
 	struct nvkm_timer *tmr;
 
 	if (!(tmr = *ptmr = kzalloc(sizeof(*tmr), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_timer, device, index, &tmr->subdev);
+	nvkm_subdev_ctor(&nvkm_timer, device, type, inst, &tmr->subdev);
 	tmr->func = func;
 	INIT_LIST_HEAD(&tmr->alarms);
 	spin_lock_init(&tmr->lock);

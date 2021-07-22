@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max30102.c - Support for MAX30102 heart rate and pulse oximeter sensor
  *
- * Copyright (C) 2017 Matt Ranostay <matt@ranostay.consulting>
+ * Copyright (C) 2017 Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * Support for MAX30105 optical particle sensor
  * Copyright (C) 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  *
  * 7-bit I2C chip address: 0x57
  * TODO: proximity power saving feature
@@ -28,7 +19,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -282,10 +273,10 @@ static int max30102_read_measurement(struct max30102_data *data,
 	switch (measurements) {
 	case 3:
 		MAX30102_COPY_DATA(2);
-		/* fall through */
+		fallthrough;
 	case 2:
 		MAX30102_COPY_DATA(1);
-		/* fall through */
+		fallthrough;
 	case 1:
 		MAX30102_COPY_DATA(0);
 		break;
@@ -332,11 +323,10 @@ static int max30102_get_current_idx(unsigned int val, int *reg)
 static int max30102_led_init(struct max30102_data *data)
 {
 	struct device *dev = &data->client->dev;
-	struct device_node *np = dev->of_node;
 	unsigned int val;
 	int reg, ret;
 
-	ret = of_property_read_u32(np, "maxim,red-led-current-microamp", &val);
+	ret = device_property_read_u32(dev, "maxim,red-led-current-microamp", &val);
 	if (ret) {
 		dev_info(dev, "no red-led-current-microamp set\n");
 
@@ -355,7 +345,7 @@ static int max30102_led_init(struct max30102_data *data)
 		return ret;
 
 	if (data->chip_id == max30105) {
-		ret = of_property_read_u32(np,
+		ret = device_property_read_u32(dev,
 			"maxim,green-led-current-microamp", &val);
 		if (ret) {
 			dev_info(dev, "no green-led-current-microamp set\n");
@@ -377,7 +367,7 @@ static int max30102_led_init(struct max30102_data *data)
 			return ret;
 	}
 
-	ret = of_property_read_u32(np, "maxim,ir-led-current-microamp", &val);
+	ret = device_property_read_u32(dev, "maxim,ir-led-current-microamp", &val);
 	if (ret) {
 		dev_info(dev, "no ir-led-current-microamp set\n");
 
@@ -516,7 +506,6 @@ static int max30102_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct max30102_data *data;
-	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
 	int ret;
 	unsigned int reg;
@@ -525,17 +514,9 @@ static int max30102_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	buffer = devm_iio_kfifo_allocate(&client->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
 	indio_dev->name = MAX30102_DRV_NAME;
 	indio_dev->info = &max30102_info;
-	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
-	indio_dev->setup_ops = &max30102_buffer_setup_ops;
-	indio_dev->dev.parent = &client->dev;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;
@@ -559,6 +540,12 @@ static int max30102_probe(struct i2c_client *client,
 	default:
 		return -ENODEV;
 	}
+
+	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &max30102_buffer_setup_ops);
+	if (ret)
+		return ret;
 
 	data->regmap = devm_regmap_init_i2c(client, &max30102_regmap_config);
 	if (IS_ERR(data->regmap)) {
@@ -634,7 +621,7 @@ MODULE_DEVICE_TABLE(of, max30102_dt_ids);
 static struct i2c_driver max30102_driver = {
 	.driver = {
 		.name	= MAX30102_DRV_NAME,
-		.of_match_table	= of_match_ptr(max30102_dt_ids),
+		.of_match_table	= max30102_dt_ids,
 	},
 	.probe		= max30102_probe,
 	.remove		= max30102_remove,
@@ -642,6 +629,6 @@ static struct i2c_driver max30102_driver = {
 };
 module_i2c_driver(max30102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt@ranostay.consulting>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("MAX30102 heart rate/pulse oximeter and MAX30105 particle sensor driver");
 MODULE_LICENSE("GPL");

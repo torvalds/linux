@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AD7746 capacitive sensor driver supporting AD7745, AD7746 and AD7747
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/delay.h>
@@ -18,8 +17,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-
-#include "ad7746.h"
 
 /*
  * AD7746 Register Definition
@@ -84,10 +81,6 @@
 /* CAPDAC Register Bit Designations (AD7746_REG_CAPDACx) */
 #define AD7746_CAPDAC_DACEN		BIT(7)
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
-
-/*
- * struct ad7746_chip_info - chip specific information
- */
 
 struct ad7746_chip_info {
 	struct i2c_client *client;
@@ -216,6 +209,19 @@ static const unsigned char ad7746_cap_filter_rate_table[][2] = {
 	{16, 62 + 1}, {13, 77 + 1}, {11, 92 + 1}, {9, 110 + 1},
 };
 
+static int ad7746_set_capdac(struct ad7746_chip_info *chip, int channel)
+{
+	int ret = i2c_smbus_write_byte_data(chip->client,
+					    AD7746_REG_CAPDACA,
+					    chip->capdac[channel][0]);
+	if (ret < 0)
+		return ret;
+
+	return i2c_smbus_write_byte_data(chip->client,
+					  AD7746_REG_CAPDACB,
+					  chip->capdac[channel][1]);
+}
+
 static int ad7746_select_channel(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan)
 {
@@ -231,17 +237,11 @@ static int ad7746_select_channel(struct iio_dev *indio_dev,
 			AD7746_CONF_CAPFS_SHIFT;
 		delay = ad7746_cap_filter_rate_table[idx][1];
 
+		ret = ad7746_set_capdac(chip, chan->channel);
+		if (ret < 0)
+			return ret;
+
 		if (chip->capdac_set != chan->channel) {
-			ret = i2c_smbus_write_byte_data(chip->client,
-				AD7746_REG_CAPDACA,
-				chip->capdac[chan->channel][0]);
-			if (ret < 0)
-				return ret;
-			ret = i2c_smbus_write_byte_data(chip->client,
-				AD7746_REG_CAPDACB,
-				chip->capdac[chan->channel][1]);
-			if (ret < 0)
-				return ret;
 
 			chip->capdac_set = chan->channel;
 		}
@@ -485,14 +485,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		chip->capdac[chan->channel][chan->differential] = val > 0 ?
 			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
-		ret = i2c_smbus_write_byte_data(chip->client,
-						AD7746_REG_CAPDACA,
-						chip->capdac[chan->channel][0]);
-		if (ret < 0)
-			goto out;
-		ret = i2c_smbus_write_byte_data(chip->client,
-						AD7746_REG_CAPDACB,
-						chip->capdac[chan->channel][1]);
+		ret = ad7746_set_capdac(chip, chan->channel);
 		if (ret < 0)
 			goto out;
 
@@ -565,10 +558,10 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		switch (chan->type) {
 		case IIO_TEMP:
-		/*
-		 * temperature in milli degrees Celsius
-		 * T = ((*val / 2048) - 4096) * 1000
-		 */
+			/*
+			 * temperature in milli degrees Celsius
+			 * T = ((*val / 2048) - 4096) * 1000
+			 */
 			*val = (*val * 125) / 256;
 			break;
 		case IIO_VOLTAGE:
@@ -670,18 +663,15 @@ static const struct iio_info ad7746_info = {
 	.write_raw = ad7746_write_raw,
 };
 
-/*
- * device probe and remove
- */
-
 static int ad7746_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct ad7746_platform_data *pdata = client->dev.platform_data;
+	struct device *dev = &client->dev;
 	struct ad7746_chip_info *chip;
 	struct iio_dev *indio_dev;
 	unsigned char regval = 0;
-	int ret = 0;
+	unsigned int vdd_permille;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
@@ -694,38 +684,48 @@ static int ad7746_probe(struct i2c_client *client,
 	chip->client = client;
 	chip->capdac_set = -1;
 
-	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad7746_info;
 	indio_dev->channels = ad7746_channels;
 	if (id->driver_data == 7746)
 		indio_dev->num_channels = ARRAY_SIZE(ad7746_channels);
 	else
 		indio_dev->num_channels =  ARRAY_SIZE(ad7746_channels) - 2;
-	indio_dev->num_channels = ARRAY_SIZE(ad7746_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (pdata) {
-		if (pdata->exca_en) {
-			if (pdata->exca_inv_en)
-				regval |= AD7746_EXCSETUP_NEXCA;
-			else
-				regval |= AD7746_EXCSETUP_EXCA;
-		}
+	if (device_property_read_bool(dev, "adi,exca-output-en")) {
+		if (device_property_read_bool(dev, "adi,exca-output-invert"))
+			regval |= AD7746_EXCSETUP_NEXCA;
+		else
+			regval |= AD7746_EXCSETUP_EXCA;
+	}
 
-		if (pdata->excb_en) {
-			if (pdata->excb_inv_en)
-				regval |= AD7746_EXCSETUP_NEXCB;
-			else
-				regval |= AD7746_EXCSETUP_EXCB;
-		}
+	if (device_property_read_bool(dev, "adi,excb-output-en")) {
+		if (device_property_read_bool(dev, "adi,excb-output-invert"))
+			regval |= AD7746_EXCSETUP_NEXCB;
+		else
+			regval |= AD7746_EXCSETUP_EXCB;
+	}
 
-		regval |= AD7746_EXCSETUP_EXCLVL(pdata->exclvl);
-	} else {
-		dev_warn(&client->dev, "No platform data? using default\n");
-		regval = AD7746_EXCSETUP_EXCA | AD7746_EXCSETUP_EXCB |
-			AD7746_EXCSETUP_EXCLVL(3);
+	ret = device_property_read_u32(dev, "adi,excitation-vdd-permille",
+				       &vdd_permille);
+	if (!ret) {
+		switch (vdd_permille) {
+		case 125:
+			regval |= AD7746_EXCSETUP_EXCLVL(0);
+			break;
+		case 250:
+			regval |= AD7746_EXCSETUP_EXCLVL(1);
+			break;
+		case 375:
+			regval |= AD7746_EXCSETUP_EXCLVL(2);
+			break;
+		case 500:
+			regval |= AD7746_EXCSETUP_EXCLVL(3);
+			break;
+		default:
+			break;
+		}
 	}
 
 	ret = i2c_smbus_write_byte_data(chip->client,
@@ -733,11 +733,7 @@ static int ad7746_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 }
 
 static const struct i2c_device_id ad7746_id[] = {
@@ -749,9 +745,19 @@ static const struct i2c_device_id ad7746_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad7746_id);
 
+static const struct of_device_id ad7746_of_match[] = {
+	{ .compatible = "adi,ad7745" },
+	{ .compatible = "adi,ad7746" },
+	{ .compatible = "adi,ad7747" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, ad7746_of_match);
+
 static struct i2c_driver ad7746_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad7746_of_match,
 	},
 	.probe = ad7746_probe,
 	.id_table = ad7746_id,

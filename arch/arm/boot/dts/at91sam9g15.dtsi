@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9g15.dtsi - Device Tree Include file for AT91SAM9G15 SoC
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2.
  */
 
 #include "at91sam9x5.dtsi"
@@ -12,18 +11,18 @@
 / {
 	model = "Atmel AT91SAM9G15 SoC";
 	compatible = "atmel,at91sam9g15", "atmel,at91sam9x5";
+};
 
-	ahb {
-		apb {
-			pinctrl@fffff400 {
-				atmel,mux-mask = <
-				      /*    A         B          C     */
-				       0xffffffff 0xffe0399f 0x00000000  /* pioA */
-				       0x00040000 0x00047e3f 0x00000000  /* pioB */
-				       0xfdffffff 0x00000000 0xb83fffff  /* pioC */
-				       0x003fffff 0x003f8000 0x00000000  /* pioD */
-				      >;
-			};
-		};
-	};
+&pinctrl {
+	atmel,mux-mask = <
+	      /*    A         B          C     */
+	       0xffffffff 0xffe0399f 0x00000000  /* pioA */
+	       0x00040000 0x00047e3f 0x00000000  /* pioB */
+	       0xfdffffff 0x00000000 0xb83fffff  /* pioC */
+	       0x003fffff 0x003f8000 0x00000000  /* pioD */
+	      >;
+};
+
+&pmc {
+	compatible = "atmel,at91sam9g15-pmc", "atmel,at91sam9x5-pmc", "syscon";
 };

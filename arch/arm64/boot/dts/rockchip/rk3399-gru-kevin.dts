@@ -39,11 +39,25 @@
 	};
 
 	edp_panel: edp-panel {
-		compatible = "sharp,lq123p1jx31", "simple-panel";
+		compatible = "sharp,lq123p1jx31";
 		backlight = <&backlight>;
 		power-supply = <&pp3300_disp>;
 
-		ports {
+		panel-timing {
+			clock-frequency = <266666667>;
+			hactive = <2400>;
+			hfront-porch = <48>;
+			hback-porch = <84>;
+			hsync-len = <32>;
+			hsync-active = <0>;
+			vactive = <1600>;
+			vfront-porch = <3>;
+			vback-porch = <120>;
+			vsync-len = <10>;
+			vsync-active = <0>;
+		};
+
+		port {
 			panel_in_edp: endpoint {
 				remote-endpoint = <&edp_out_panel>;
 			};
@@ -118,13 +132,17 @@
 			map0 {
 				trip = <&ppvar_bigcpu_alert>;
 				cooling-device =
-					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				contribution = <4096>;
 			};
 			map1 {
 				trip = <&ppvar_bigcpu_alert>;
 				cooling-device =
-					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_b1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				contribution = <1024>;
 			};
 		};
@@ -286,24 +304,24 @@ ap_i2c_dig: &i2c2 {
 	digitizer {
 		/* Has external pullup */
 		cpu1_dig_irq_l: cpu1-dig-irq-l {
-			rockchip,pins = <2 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/* Has external pullup */
 		cpu1_dig_pdct_l: cpu1-dig-pdct-l {
-			rockchip,pins = <2 5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	discrete-regulators {
 		cpu3_pen_pwr_en: cpu3-pen-pwr-en {
-			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pen {
 		cpu1_pen_eject: cpu1-pen-eject {
-			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

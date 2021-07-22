@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. Core
  *
  * (c) Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * This core code tracks the list of sensors & controls, register
  * clients, and holds the kernel thread used for control.
@@ -57,7 +56,7 @@ static BLOCKING_NOTIFIER_HEAD(wf_client_list);
 static int wf_client_count;
 static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
-struct task_struct *wf_thread;
+static struct task_struct *wf_thread;
 
 static struct platform_device wf_platform_device = {
 	.name	= "windfarm",

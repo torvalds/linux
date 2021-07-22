@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _PPP_CHANNEL_H_
 #define _PPP_CHANNEL_H_
 /*
@@ -10,11 +11,6 @@
  * number at the start, but not the address and control bytes.
  *
  * Copyright 1999 Paul Mackerras.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * ==FILEVERSION 20000322==
  */
@@ -32,6 +28,9 @@ struct ppp_channel_ops {
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
+	int	(*fill_forward_path)(struct net_device_path_ctx *,
+				     struct net_device_path *,
+				     const struct ppp_channel *);
 };
 
 struct ppp_channel {

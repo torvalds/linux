@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Motion Eye video4linux driver for Sony Vaio PictureBook
  *
@@ -11,16 +12,6 @@
  *
  * Some parts borrowed from various video4linux drivers, especially
  * bttv-driver.c and zoran.c, see original files for credits.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -805,7 +796,7 @@ again:
 				      mchip_hsize() * mchip_vsize() * 2);
 		meye.grab_buffer[reqnr].size = mchip_hsize() * mchip_vsize() * 2;
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
-		v4l2_get_timestamp(&meye.grab_buffer[reqnr].timestamp);
+		meye.grab_buffer[reqnr].ts = ktime_get_ns();
 		meye.grab_buffer[reqnr].sequence = sequence++;
 		kfifo_in_locked(&meye.doneq, (unsigned char *)&reqnr,
 				sizeof(int), &meye.doneq_lock);
@@ -826,7 +817,7 @@ again:
 		       size);
 		meye.grab_buffer[reqnr].size = size;
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
-		v4l2_get_timestamp(&meye.grab_buffer[reqnr].timestamp);
+		meye.grab_buffer[reqnr].ts = ktime_get_ns();
 		meye.grab_buffer[reqnr].sequence = sequence++;
 		kfifo_in_locked(&meye.doneq, (unsigned char *)&reqnr,
 				sizeof(int), &meye.doneq_lock);
@@ -961,7 +952,7 @@ static int meyeioc_sync(struct file *file, void *fh, int *i)
 			mutex_unlock(&meye.lock);
 			return -EINTR;
 		}
-		/* fall through */
+		fallthrough;
 	case MEYE_BUF_DONE:
 		meye.grab_buffer[*i].state = MEYE_BUF_UNUSED;
 		if (kfifo_out_locked(&meye.doneq, (unsigned char *)&unused,
@@ -1022,11 +1013,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strscpy(cap->driver, "meye", sizeof(cap->driver));
 	strscpy(cap->card, "meye", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			    V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -1118,12 +1104,9 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 	if (f->index == 0) {
 		/* standard YUV 422 capture */
 		f->flags = 0;
-		strscpy(f->description, "YUV422", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 	} else {
 		/* compressed MJPEG capture */
-		f->flags = V4L2_FMT_FLAG_COMPRESSED;
-		strscpy(f->description, "MJPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
 	}
 
@@ -1283,7 +1266,7 @@ static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		buf->flags |= V4L2_BUF_FLAG_DONE;
 
 	buf->field = V4L2_FIELD_NONE;
-	buf->timestamp = meye.grab_buffer[index].timestamp;
+	v4l2_buffer_set_timestamp(buf, meye.grab_buffer[index].ts);
 	buf->sequence = meye.grab_buffer[index].sequence;
 	buf->memory = V4L2_MEMORY_MMAP;
 	buf->m.offset = index * gbufsize;
@@ -1349,7 +1332,7 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	buf->bytesused = meye.grab_buffer[reqnr].size;
 	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	buf->field = V4L2_FIELD_NONE;
-	buf->timestamp = meye.grab_buffer[reqnr].timestamp;
+	v4l2_buffer_set_timestamp(buf, meye.grab_buffer[reqnr].ts);
 	buf->sequence = meye.grab_buffer[reqnr].sequence;
 	buf->memory = V4L2_MEMORY_MMAP;
 	buf->m.offset = reqnr * gbufsize;
@@ -1538,25 +1521,23 @@ static const struct video_device meye_template = {
 	.fops		= &meye_fops,
 	.ioctl_ops	= &meye_ioctl_ops,
 	.release	= video_device_release_empty,
+	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_ctrl_ops meye_ctrl_ops = {
 	.s_ctrl = meye_s_ctrl,
 };
 
-#ifdef CONFIG_PM
-static int meye_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused meye_suspend(struct device *dev)
 {
-	pci_save_state(pdev);
 	meye.pm_mchip_mode = meye.mchip_mode;
 	mchip_hic_stop();
 	mchip_set(MCHIP_MM_INTA, 0x0);
 	return 0;
 }
 
-static int meye_resume(struct pci_dev *pdev)
+static int __maybe_unused meye_resume(struct device *dev)
 {
-	pci_restore_state(pdev);
 	pci_write_config_word(meye.mchip_dev, MCHIP_PCI_SOFTRESET_SET, 1);
 
 	mchip_delay(MCHIP_HIC_CMD, 0);
@@ -1578,7 +1559,6 @@ static int meye_resume(struct pci_dev *pdev)
 	}
 	return 0;
 }
-#endif
 
 static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
@@ -1727,7 +1707,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	v4l2_ctrl_handler_setup(&meye.hdl);
 	meye.vdev.ctrl_handler = &meye.hdl;
 
-	if (video_register_device(&meye.vdev, VFL_TYPE_GRABBER,
+	if (video_register_device(&meye.vdev, VFL_TYPE_VIDEO,
 				  video_nr) < 0) {
 		v4l2_err(v4l2_dev, "video_register_device failed\n");
 		goto outvideoreg;
@@ -1804,15 +1784,14 @@ static const struct pci_device_id meye_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, meye_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(meye_pm_ops, meye_suspend, meye_resume);
+
 static struct pci_driver meye_driver = {
 	.name		= "meye",
 	.id_table	= meye_pci_tbl,
 	.probe		= meye_probe,
 	.remove		= meye_remove,
-#ifdef CONFIG_PM
-	.suspend	= meye_suspend,
-	.resume		= meye_resume,
-#endif
+	.driver.pm	= &meye_pm_ops,
 };
 
 static int __init meye_init(void)

@@ -26,8 +26,8 @@ struct rsnd_gen {
 	struct regmap *regmap[RSND_BASE_MAX];
 
 	/* RSND_REG_MAX base */
-	struct regmap_field *regs[RSND_REG_MAX];
-	const char *reg_name[RSND_REG_MAX];
+	struct regmap_field *regs[REG_MAX];
+	const char *reg_name[REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
@@ -49,11 +49,11 @@ struct rsnd_regmap_field_conf {
 }
 /* single address mapping */
 #define RSND_GEN_S_REG(id, offset)	\
-	RSND_REG_SET(RSND_REG_##id, offset, 0, #id)
+	RSND_REG_SET(id, offset, 0, #id)
 
 /* multi address mapping */
 #define RSND_GEN_M_REG(id, offset, _id_offset)	\
-	RSND_REG_SET(RSND_REG_##id, offset, _id_offset, #id)
+	RSND_REG_SET(id, offset, _id_offset, #id)
 
 /*
  *		basic function
@@ -71,9 +71,17 @@ static int rsnd_is_accessible_reg(struct rsnd_priv *priv,
 	return 1;
 }
 
-u32 rsnd_read(struct rsnd_priv *priv,
-	      struct rsnd_mod *mod, enum rsnd_reg reg)
+static int rsnd_mod_id_cmd(struct rsnd_mod *mod)
 {
+	if (mod->ops->id_cmd)
+		return mod->ops->id_cmd(mod);
+
+	return rsnd_mod_id(mod);
+}
+
+u32 rsnd_mod_read(struct rsnd_mod *mod, enum rsnd_reg reg)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 	u32 val;
@@ -81,35 +89,36 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return 0;
 
-	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id_cmd(mod), &val);
 
-	dev_dbg(dev, "r %s[%d] - %-18s (%4d) : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "r %s - %-18s (%4d) : %08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, val);
 
 	return val;
 }
 
-void rsnd_write(struct rsnd_priv *priv,
-		struct rsnd_mod *mod,
-		enum rsnd_reg reg, u32 data)
+void rsnd_mod_write(struct rsnd_mod *mod,
+		    enum rsnd_reg reg, u32 data)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return;
 
-	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
+	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id_cmd(mod), data);
 
-	dev_dbg(dev, "w %s[%d] - %-18s (%4d) : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "w %s - %-18s (%4d) : %08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, data);
 }
 
-void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
-	       enum rsnd_reg reg, u32 mask, u32 data)
+void rsnd_mod_bset(struct rsnd_mod *mod,
+		   enum rsnd_reg reg, u32 mask, u32 data)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 
@@ -117,10 +126,10 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		return;
 
 	regmap_fields_force_update_bits(gen->regs[reg],
-					rsnd_mod_id(mod), mask, data);
+					rsnd_mod_id_cmd(mod), mask, data);
 
-	dev_dbg(dev, "b %s[%d] - %-18s (%4d) : %08x/%08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "b %s - %-18s (%4d) : %08x/%08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, data, mask);
 
 }
@@ -131,6 +140,15 @@ phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id)
 
 	return	gen->res[reg_id];
 }
+
+#ifdef CONFIG_DEBUG_FS
+void __iomem *rsnd_gen_get_base_addr(struct rsnd_priv *priv, int reg_id)
+{
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	return	gen->base[reg_id];
+}
+#endif
 
 #define rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf)		\
 	_rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf, ARRAY_SIZE(conf))
@@ -215,6 +233,14 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 		RSND_GEN_S_REG(SSI_SYS_STATUS5,	0x884),
 		RSND_GEN_S_REG(SSI_SYS_STATUS6,	0x888),
 		RSND_GEN_S_REG(SSI_SYS_STATUS7,	0x88c),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE0, 0x850),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE1, 0x854),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE2, 0x858),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE3, 0x85c),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE4, 0x890),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE5, 0x894),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE6, 0x898),
+		RSND_GEN_S_REG(SSI_SYS_INT_ENABLE7, 0x89c),
 		RSND_GEN_S_REG(HDMI0_SEL,	0x9e0),
 		RSND_GEN_S_REG(HDMI1_SEL,	0x9e4),
 
@@ -246,6 +272,30 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 		RSND_GEN_M_REG(SSI_MODE,		0xc,	0x80),
 		RSND_GEN_M_REG(SSI_CTRL,		0x10,	0x80),
 		RSND_GEN_M_REG(SSI_INT_ENABLE,		0x18,	0x80),
+		RSND_GEN_S_REG(SSI9_BUSIF0_MODE,	0x48c),
+		RSND_GEN_S_REG(SSI9_BUSIF0_ADINR,	0x484),
+		RSND_GEN_S_REG(SSI9_BUSIF0_DALIGN,	0x488),
+		RSND_GEN_S_REG(SSI9_BUSIF1_MODE,	0x4a0),
+		RSND_GEN_S_REG(SSI9_BUSIF1_ADINR,	0x4a4),
+		RSND_GEN_S_REG(SSI9_BUSIF1_DALIGN,	0x4a8),
+		RSND_GEN_S_REG(SSI9_BUSIF2_MODE,	0x4c0),
+		RSND_GEN_S_REG(SSI9_BUSIF2_ADINR,	0x4c4),
+		RSND_GEN_S_REG(SSI9_BUSIF2_DALIGN,	0x4c8),
+		RSND_GEN_S_REG(SSI9_BUSIF3_MODE,	0x4e0),
+		RSND_GEN_S_REG(SSI9_BUSIF3_ADINR,	0x4e4),
+		RSND_GEN_S_REG(SSI9_BUSIF3_DALIGN,	0x4e8),
+		RSND_GEN_S_REG(SSI9_BUSIF4_MODE,	0xd80),
+		RSND_GEN_S_REG(SSI9_BUSIF4_ADINR,	0xd84),
+		RSND_GEN_S_REG(SSI9_BUSIF4_DALIGN,	0xd88),
+		RSND_GEN_S_REG(SSI9_BUSIF5_MODE,	0xda0),
+		RSND_GEN_S_REG(SSI9_BUSIF5_ADINR,	0xda4),
+		RSND_GEN_S_REG(SSI9_BUSIF5_DALIGN,	0xda8),
+		RSND_GEN_S_REG(SSI9_BUSIF6_MODE,	0xdc0),
+		RSND_GEN_S_REG(SSI9_BUSIF6_ADINR,	0xdc4),
+		RSND_GEN_S_REG(SSI9_BUSIF6_DALIGN,	0xdc8),
+		RSND_GEN_S_REG(SSI9_BUSIF7_MODE,	0xde0),
+		RSND_GEN_S_REG(SSI9_BUSIF7_ADINR,	0xde4),
+		RSND_GEN_S_REG(SSI9_BUSIF7_DALIGN,	0xde8),
 	};
 
 	static const struct rsnd_regmap_field_conf conf_scu[] = {

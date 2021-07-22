@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IIO DAC driver for Analog Devices AD8801 DAC
  *
  * Copyright (C) 2016 Gwenhael Goavec-Merou
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/iio/iio.h>
@@ -179,7 +171,6 @@ static int ad8801_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, indio_dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad8801_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad8801_channels;

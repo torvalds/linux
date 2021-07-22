@@ -1,18 +1,11 @@
-/* Hey EMACS -*- linux-c -*- */
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
  * Copyright (C) 2002-2003 Romain Lievin <roms@tilp.info>
- * Released under the terms of the GNU GPL v2.0.
- *
  */
-
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
 
 #include <stdlib.h>
 #include "lkc.h"
-#include "images.c"
+#include "images.h"
 
 #include <glade/glade.h>
 #include <gtk/gtk.h>
@@ -21,6 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -78,8 +72,8 @@ static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
 /* Helping/Debugging Functions */
-
-const char *dbg_sym_flags(int val)
+#ifdef DEBUG
+static const char *dbg_sym_flags(int val)
 {
 	static char buf[256];
 
@@ -108,9 +102,10 @@ const char *dbg_sym_flags(int val)
 
 	return buf;
 }
+#endif
 
-void replace_button_icon(GladeXML * xml, GdkDrawable * window,
-			 GtkStyle * style, gchar * btn_name, gchar ** xpm)
+static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
+				GtkStyle *style, gchar *btn_name, gchar **xpm)
 {
 	GdkPixmap *pixmap;
 	GdkBitmap *mask;
@@ -128,7 +123,7 @@ void replace_button_icon(GladeXML * xml, GdkDrawable * window,
 }
 
 /* Main Window Initialization */
-void init_main_window(const gchar * glade_file)
+static void init_main_window(const gchar *glade_file)
 {
 	GladeXML *xml;
 	GtkWidget *widget;
@@ -190,7 +185,7 @@ void init_main_window(const gchar * glade_file)
 	gtk_widget_show(main_wnd);
 }
 
-void init_tree_model(void)
+static void init_tree_model(void)
 {
 	gint i;
 
@@ -220,7 +215,7 @@ void init_tree_model(void)
 	model1 = GTK_TREE_MODEL(tree1);
 }
 
-void init_left_tree(void)
+static void init_left_tree(void)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(tree1_w);
 	GtkCellRenderer *renderer;
@@ -262,7 +257,7 @@ static void renderer_edited(GtkCellRendererText * cell,
 			    const gchar * path_string,
 			    const gchar * new_text, gpointer user_data);
 
-void init_right_tree(void)
+static void init_right_tree(void)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(tree2_w);
 	GtkCellRenderer *renderer;
@@ -640,7 +635,7 @@ on_set_option_mode3_activate(GtkMenuItem *menuitem, gpointer user_data)
 void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
-	const gchar *intro_text = 
+	const gchar *intro_text =
 	    "Welcome to gkc, the GTK+ graphical configuration tool\n"
 	    "For each option, a blank box indicates the feature is disabled, a\n"
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
@@ -1049,8 +1044,13 @@ static gchar **fill_row(struct menu *menu)
 		g_free(row[i]);
 	bzero(row, sizeof(row));
 
+	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+
 	row[COL_OPTION] =
-	    g_strdup_printf("%s %s", menu_get_prompt(menu),
+	    g_strdup_printf("%s %s %s %s",
+			    ptype == P_COMMENT ? "***" : "",
+			    menu_get_prompt(menu),
+			    ptype == P_COMMENT ? "***" : "",
 			    sym && !sym_has_value(sym) ? "(NEW)" : "");
 
 	if (opt_mode == OPT_ALL && !menu_is_visible(menu))
@@ -1061,7 +1061,6 @@ static gchar **fill_row(struct menu *menu)
 	else
 		row[COL_COLOR] = g_strdup("Black");
 
-	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
 	switch (ptype) {
 	case P_MENU:
 		row[COL_PIXBUF] = (gchar *) xpm_menu;
@@ -1212,8 +1211,8 @@ static GtkTreeIter found;
 /*
  * Find a menu in the GtkTree starting at parent.
  */
-GtkTreeIter *gtktree_iter_find_node(GtkTreeIter * parent,
-				    struct menu *tofind)
+static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
+					   struct menu *tofind)
 {
 	GtkTreeIter iter;
 	GtkTreeIter *child = &iter;
@@ -1424,7 +1423,7 @@ static void display_list(void)
 	tree = tree2;
 }
 
-void fixup_rootmenu(struct menu *menu)
+static void fixup_rootmenu(struct menu *menu)
 {
 	struct menu *child;
 	static int menu_cnt = 0;
@@ -1452,9 +1451,6 @@ int main(int ac, char *av[])
 	gtk_set_locale();
 	gtk_init(&ac, &av);
 	glade_init();
-
-	//add_pixmap_directory (PACKAGE_DATA_DIR "/" PACKAGE "/pixmaps");
-	//add_pixmap_directory (PACKAGE_SOURCE_DIR "/pixmaps");
 
 	/* Determine GUI path */
 	env = getenv(SRCTREE);

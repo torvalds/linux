@@ -21,10 +21,17 @@ understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
 will be to diagnose and fix.  Please review the procedure outlined in
-admin-guide/reporting-bugs.rst if you are unclear about what
+'Documentation/admin-guide/reporting-issues.rst' if you are unclear about what
 information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
+
+Please send plain text emails without attachments where possible.
+It is much harder to have a context-quoted discussion about a complex
+issue if all the details are hidden away in attachments.  Think of it like a
+:doc:`regular patch submission <../process/submitting-patches>`
+(even if you don't have a patch yet): describe the problem and impact, list
+reproduction steps, and follow it with a proposed fix, all in plain text.
 
 Disclosure and embargoed information
 ------------------------------------
@@ -32,18 +39,19 @@ Disclosure and embargoed information
 The security list is not a disclosure channel.  For that, see Coordination
 below.
 
-Once a robust fix has been developed, our preference is to release the
-fix in a timely fashion, treating it no differently than any of the other
-thousands of changes and fixes the Linux kernel project releases every
-month.
+Once a robust fix has been developed, the release process starts.  Fixes
+for publicly known bugs are released immediately.
 
-However, at the request of the reporter, we will postpone releasing the
-fix for up to 5 business days after the date of the report or after the
-embargo has lifted; whichever comes first.  The only exception to that
-rule is if the bug is publicly known, in which case the preference is to
-release the fix as soon as it's available.
+Although our preference is to release fixes for publicly undisclosed bugs
+as soon as they become available, this may be postponed at the request of
+the reporter or an affected party for up to 7 calendar days from the start
+of the release process, with an exceptional extension to 14 calendar days
+if it is agreed that the criticality of the bug requires more time.  The
+only valid reason for deferring the publication of a fix is to accommodate
+the logistics of QA and large scale rollouts which require release
+coordination.
 
-Whilst embargoed information may be shared with trusted individuals in
+While embargoed information may be shared with trusted individuals in
 order to develop a fix, such information will not be published alongside
 the fix or on any other disclosure channel without the permission of the
 reporter.  This includes but is not limited to the original bug report

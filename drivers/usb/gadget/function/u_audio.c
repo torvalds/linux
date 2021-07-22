@@ -16,17 +16,13 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/control.h>
 
 #include "u_audio.h"
 
 #define BUFF_SIZE_MAX	(PAGE_SIZE * 16)
 #define PRD_SIZE_MAX	PAGE_SIZE
 #define MIN_PERIODS	4
-
-struct uac_req {
-	struct uac_rtd_params *pp; /* parent param */
-	struct usb_request *req;
-};
 
 /* Runtime data params for one stream */
 struct uac_rtd_params {
@@ -40,10 +36,13 @@ struct uac_rtd_params {
 
 	void *rbuf;
 
-	unsigned max_psize;	/* MaxPacketSize of endpoint */
-	struct uac_req *ureq;
+	unsigned int pitch;	/* Stream pitch ratio to 1000000 */
+	unsigned int max_psize;	/* MaxPacketSize of endpoint */
 
-	spinlock_t lock;
+	struct usb_request **reqs;
+
+	struct usb_request *req_fback; /* Feedback endpoint request */
+	bool fb_ep_enabled; /* if the ep is enabled */
 };
 
 struct snd_uac_chip {
@@ -76,20 +75,65 @@ static const struct snd_pcm_hardware uac_pcm_hardware = {
 	.periods_min = MIN_PERIODS,
 };
 
+static void u_audio_set_fback_frequency(enum usb_device_speed speed,
+					unsigned long long freq,
+					unsigned int pitch,
+					void *buf)
+{
+	u32 ff = 0;
+
+	/*
+	 * Because the pitch base is 1000000, the final divider here
+	 * will be 1000 * 1000000 = 1953125 << 9
+	 *
+	 * Instead of dealing with big numbers lets fold this 9 left shift
+	 */
+
+	if (speed == USB_SPEED_FULL) {
+		/*
+		 * Full-speed feedback endpoints report frequency
+		 * in samples/frame
+		 * Format is encoded in Q10.10 left-justified in the 24 bits,
+		 * so that it has a Q10.14 format.
+		 *
+		 * ff = (freq << 14) / 1000
+		 */
+		freq <<= 5;
+	} else {
+		/*
+		 * High-speed feedback endpoints report frequency
+		 * in samples/microframe.
+		 * Format is encoded in Q12.13 fitted into four bytes so that
+		 * the binary point is located between the second and the third
+		 * byte fromat (that is Q16.16)
+		 *
+		 * ff = (freq << 16) / 8000
+		 */
+		freq <<= 4;
+	}
+
+	ff = DIV_ROUND_CLOSEST_ULL((freq * pitch), 1953125);
+
+	*(__le32 *)buf = cpu_to_le32(ff);
+}
+
 static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	unsigned pending;
-	unsigned long flags, flags2;
+	unsigned int pending;
 	unsigned int hw_ptr;
 	int status = req->status;
-	struct uac_req *ur = req->context;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	struct uac_rtd_params *prm = ur->pp;
+	struct uac_rtd_params *prm = req->context;
 	struct snd_uac_chip *uac = prm->uac;
 
 	/* i/f shutting down */
-	if (!prm->ep_enabled || req->status == -ESHUTDOWN)
+	if (!prm->ep_enabled) {
+		usb_ep_free_request(ep, req);
+		return;
+	}
+
+	if (req->status == -ESHUTDOWN)
 		return;
 
 	/*
@@ -106,15 +150,13 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	if (!substream)
 		goto exit;
 
-	snd_pcm_stream_lock_irqsave(substream, flags2);
+	snd_pcm_stream_lock(substream);
 
 	runtime = substream->runtime;
 	if (!runtime || !snd_pcm_running(substream)) {
-		snd_pcm_stream_unlock_irqrestore(substream, flags2);
+		snd_pcm_stream_unlock(substream);
 		goto exit;
 	}
-
-	spin_lock_irqsave(&prm->lock, flags);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/*
@@ -142,8 +184,6 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 
 	hw_ptr = prm->hw_ptr;
 
-	spin_unlock_irqrestore(&prm->lock, flags);
-
 	/* Pack USB load in ALSA ring buffer */
 	pending = runtime->dma_bytes - hw_ptr;
 
@@ -167,17 +207,44 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 	}
 
-	spin_lock_irqsave(&prm->lock, flags);
 	/* update hw_ptr after data is copied to memory */
 	prm->hw_ptr = (hw_ptr + req->actual) % runtime->dma_bytes;
 	hw_ptr = prm->hw_ptr;
-	spin_unlock_irqrestore(&prm->lock, flags);
-	snd_pcm_stream_unlock_irqrestore(substream, flags2);
+	snd_pcm_stream_unlock(substream);
 
 	if ((hw_ptr % snd_pcm_lib_period_bytes(substream)) < req->actual)
 		snd_pcm_period_elapsed(substream);
 
 exit:
+	if (usb_ep_queue(ep, req, GFP_ATOMIC))
+		dev_err(uac->card->dev, "%d Error!\n", __LINE__);
+}
+
+static void u_audio_iso_fback_complete(struct usb_ep *ep,
+				       struct usb_request *req)
+{
+	struct uac_rtd_params *prm = req->context;
+	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+	int status = req->status;
+
+	/* i/f shutting down */
+	if (!prm->fb_ep_enabled || req->status == -ESHUTDOWN)
+		return;
+
+	/*
+	 * We can't really do much about bad xfers.
+	 * Afterall, the ISOCH xfers could fail legitimately.
+	 */
+	if (status)
+		pr_debug("%s: iso_complete status(%d) %d/%d\n",
+			__func__, status, req->actual, req->length);
+
+	u_audio_set_fback_frequency(audio_dev->gadget->speed,
+				    params->c_srate, prm->pitch,
+				    req->buf);
+
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))
 		dev_err(uac->card->dev, "%d Error!\n", __LINE__);
 }
@@ -188,7 +255,6 @@ static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct uac_rtd_params *prm;
 	struct g_audio *audio_dev;
 	struct uac_params *params;
-	unsigned long flags;
 	int err = 0;
 
 	audio_dev = uac->audio_dev;
@@ -198,8 +264,6 @@ static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		prm = &uac->p_prm;
 	else
 		prm = &uac->c_prm;
-
-	spin_lock_irqsave(&prm->lock, flags);
 
 	/* Reset */
 	prm->hw_ptr = 0;
@@ -216,8 +280,6 @@ static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		err = -EINVAL;
 	}
-
-	spin_unlock_irqrestore(&prm->lock, flags);
 
 	/* Clear buffer after Play stops */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !prm->ss)
@@ -239,16 +301,23 @@ static snd_pcm_uframes_t uac_pcm_pointer(struct snd_pcm_substream *substream)
 	return bytes_to_frames(substream->runtime, prm->hw_ptr);
 }
 
-static int uac_pcm_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *hw_params)
+static u64 uac_ssize_to_fmt(int ssize)
 {
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
+	u64 ret;
 
-static int uac_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
+	switch (ssize) {
+	case 3:
+		ret = SNDRV_PCM_FMTBIT_S24_3LE;
+		break;
+	case 4:
+		ret = SNDRV_PCM_FMTBIT_S32_LE;
+		break;
+	default:
+		ret = SNDRV_PCM_FMTBIT_S16_LE;
+		break;
+	}
+
+	return ret;
 }
 
 static int uac_pcm_open(struct snd_pcm_substream *substream)
@@ -274,36 +343,14 @@ static int uac_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = uac_pcm_hardware;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		spin_lock_init(&uac->p_prm.lock);
 		runtime->hw.rate_min = p_srate;
-		switch (p_ssize) {
-		case 3:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_3LE;
-			break;
-		case 4:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
-			break;
-		default:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
-			break;
-		}
+		runtime->hw.formats = uac_ssize_to_fmt(p_ssize);
 		runtime->hw.channels_min = num_channels(p_chmask);
 		runtime->hw.period_bytes_min = 2 * uac->p_prm.max_psize
 						/ runtime->hw.periods_min;
 	} else {
-		spin_lock_init(&uac->c_prm.lock);
 		runtime->hw.rate_min = c_srate;
-		switch (c_ssize) {
-		case 3:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_3LE;
-			break;
-		case 4:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
-			break;
-		default:
-			runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
-			break;
-		}
+		runtime->hw.formats = uac_ssize_to_fmt(c_ssize);
 		runtime->hw.channels_min = num_channels(c_chmask);
 		runtime->hw.period_bytes_min = 2 * uac->c_prm.max_psize
 						/ runtime->hw.periods_min;
@@ -326,9 +373,6 @@ static int uac_pcm_null(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops uac_pcm_ops = {
 	.open = uac_pcm_open,
 	.close = uac_pcm_null,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = uac_pcm_hw_params,
-	.hw_free = uac_pcm_hw_free,
 	.trigger = uac_pcm_trigger,
 	.pointer = uac_pcm_pointer,
 	.prepare = uac_pcm_null,
@@ -350,10 +394,16 @@ static inline void free_ep(struct uac_rtd_params *prm, struct usb_ep *ep)
 	params = &audio_dev->params;
 
 	for (i = 0; i < params->req_number; i++) {
-		if (prm->ureq[i].req) {
-			usb_ep_dequeue(ep, prm->ureq[i].req);
-			usb_ep_free_request(ep, prm->ureq[i].req);
-			prm->ureq[i].req = NULL;
+		if (prm->reqs[i]) {
+			if (usb_ep_dequeue(ep, prm->reqs[i]))
+				usb_ep_free_request(ep, prm->reqs[i]);
+			/*
+			 * If usb_ep_dequeue() cannot successfully dequeue the
+			 * request, the request will be freed by the completion
+			 * callback.
+			 */
+
+			prm->reqs[i] = NULL;
 		}
 	}
 
@@ -361,14 +411,33 @@ static inline void free_ep(struct uac_rtd_params *prm, struct usb_ep *ep)
 		dev_err(uac->card->dev, "%s:%d Error!\n", __func__, __LINE__);
 }
 
+static inline void free_ep_fback(struct uac_rtd_params *prm, struct usb_ep *ep)
+{
+	struct snd_uac_chip *uac = prm->uac;
+
+	if (!prm->fb_ep_enabled)
+		return;
+
+	prm->fb_ep_enabled = false;
+
+	if (prm->req_fback) {
+		usb_ep_dequeue(ep, prm->req_fback);
+		kfree(prm->req_fback->buf);
+		usb_ep_free_request(ep, prm->req_fback);
+		prm->req_fback = NULL;
+	}
+
+	if (usb_ep_disable(ep))
+		dev_err(uac->card->dev, "%s:%d Error!\n", __func__, __LINE__);
+}
 
 int u_audio_start_capture(struct g_audio *audio_dev)
 {
 	struct snd_uac_chip *uac = audio_dev->uac;
 	struct usb_gadget *gadget = audio_dev->gadget;
 	struct device *dev = &gadget->dev;
-	struct usb_request *req;
-	struct usb_ep *ep;
+	struct usb_request *req, *req_fback;
+	struct usb_ep *ep, *ep_fback;
 	struct uac_rtd_params *prm;
 	struct uac_params *params = &audio_dev->params;
 	int req_len, i;
@@ -376,30 +445,66 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	ep = audio_dev->out_ep;
 	prm = &uac->c_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
-	req_len = prm->max_psize;
+	req_len = ep->maxpacket;
 
 	prm->ep_enabled = true;
 	usb_ep_enable(ep);
 
 	for (i = 0; i < params->req_number; i++) {
-		if (!prm->ureq[i].req) {
+		if (!prm->reqs[i]) {
 			req = usb_ep_alloc_request(ep, GFP_ATOMIC);
 			if (req == NULL)
 				return -ENOMEM;
 
-			prm->ureq[i].req = req;
-			prm->ureq[i].pp = prm;
+			prm->reqs[i] = req;
 
 			req->zero = 0;
-			req->context = &prm->ureq[i];
+			req->context = prm;
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * prm->max_psize;
+			req->buf = prm->rbuf + i * ep->maxpacket;
 		}
 
-		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
+		if (usb_ep_queue(ep, prm->reqs[i], GFP_ATOMIC))
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 	}
+
+	ep_fback = audio_dev->in_ep_fback;
+	if (!ep_fback)
+		return 0;
+
+	/* Setup feedback endpoint */
+	config_ep_by_speed(gadget, &audio_dev->func, ep_fback);
+	prm->fb_ep_enabled = true;
+	usb_ep_enable(ep_fback);
+	req_len = ep_fback->maxpacket;
+
+	req_fback = usb_ep_alloc_request(ep_fback, GFP_ATOMIC);
+	if (req_fback == NULL)
+		return -ENOMEM;
+
+	prm->req_fback = req_fback;
+	req_fback->zero = 0;
+	req_fback->context = prm;
+	req_fback->length = req_len;
+	req_fback->complete = u_audio_iso_fback_complete;
+
+	req_fback->buf = kzalloc(req_len, GFP_ATOMIC);
+	if (!req_fback->buf)
+		return -ENOMEM;
+
+	/*
+	 * Configure the feedback endpoint's reported frequency.
+	 * Always start with original frequency since its deviation can't
+	 * be meauserd at start of playback
+	 */
+	prm->pitch = 1000000;
+	u_audio_set_fback_frequency(audio_dev->gadget->speed,
+				    params->c_srate, prm->pitch,
+				    req_fback->buf);
+
+	if (usb_ep_queue(ep_fback, req_fback, GFP_ATOMIC))
+		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 
 	return 0;
 }
@@ -409,6 +514,8 @@ void u_audio_stop_capture(struct g_audio *audio_dev)
 {
 	struct snd_uac_chip *uac = audio_dev->uac;
 
+	if (audio_dev->in_ep_fback)
+		free_ep_fback(&uac->c_prm, audio_dev->in_ep_fback);
 	free_ep(&uac->c_prm, audio_dev->out_ep);
 }
 EXPORT_SYMBOL_GPL(u_audio_stop_capture);
@@ -422,7 +529,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	struct usb_ep *ep;
 	struct uac_rtd_params *prm;
 	struct uac_params *params = &audio_dev->params;
-	unsigned int factor, rate;
+	unsigned int factor;
 	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i;
 
@@ -441,13 +548,15 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	/* pre-compute some values for iso_complete() */
 	uac->p_framesize = params->p_ssize *
 			    num_channels(params->p_chmask);
-	rate = params->p_srate * uac->p_framesize;
 	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
-	uac->p_pktsize = min_t(unsigned int, rate / uac->p_interval,
-				prm->max_psize);
+	uac->p_pktsize = min_t(unsigned int,
+				uac->p_framesize *
+					(params->p_srate / uac->p_interval),
+				ep->maxpacket);
 
-	if (uac->p_pktsize < prm->max_psize)
-		uac->p_pktsize_residue = rate % uac->p_interval;
+	if (uac->p_pktsize < ep->maxpacket)
+		uac->p_pktsize_residue = uac->p_framesize *
+			(params->p_srate % uac->p_interval);
 	else
 		uac->p_pktsize_residue = 0;
 
@@ -458,22 +567,21 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	usb_ep_enable(ep);
 
 	for (i = 0; i < params->req_number; i++) {
-		if (!prm->ureq[i].req) {
+		if (!prm->reqs[i]) {
 			req = usb_ep_alloc_request(ep, GFP_ATOMIC);
 			if (req == NULL)
 				return -ENOMEM;
 
-			prm->ureq[i].req = req;
-			prm->ureq[i].pp = prm;
+			prm->reqs[i] = req;
 
 			req->zero = 0;
-			req->context = &prm->ureq[i];
+			req->context = prm;
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * prm->max_psize;
+			req->buf = prm->rbuf + i * ep->maxpacket;
 		}
 
-		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
+		if (usb_ep_queue(ep, prm->reqs[i], GFP_ATOMIC))
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 	}
 
@@ -489,12 +597,82 @@ void u_audio_stop_playback(struct g_audio *audio_dev)
 }
 EXPORT_SYMBOL_GPL(u_audio_stop_playback);
 
+static int u_audio_pitch_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
+	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+	unsigned int pitch_min, pitch_max;
+
+	pitch_min = (1000 - FBACK_SLOW_MAX) * 1000;
+	pitch_max = (1000 + params->fb_max) * 1000;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = pitch_min;
+	uinfo->value.integer.max = pitch_max;
+	uinfo->value.integer.step = 1;
+	return 0;
+}
+
+static int u_audio_pitch_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = prm->pitch;
+
+	return 0;
+}
+
+static int u_audio_pitch_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
+	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+	unsigned int val;
+	unsigned int pitch_min, pitch_max;
+	int change = 0;
+
+	pitch_min = (1000 - FBACK_SLOW_MAX) * 1000;
+	pitch_max = (1000 + params->fb_max) * 1000;
+
+	val = ucontrol->value.integer.value[0];
+
+	if (val < pitch_min)
+		val = pitch_min;
+	if (val > pitch_max)
+		val = pitch_max;
+
+	if (prm->pitch != val) {
+		prm->pitch = val;
+		change = 1;
+	}
+
+	return change;
+}
+
+static const struct snd_kcontrol_new u_audio_controls[]  = {
+{
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
+	.name =         "Capture Pitch 1000000",
+	.info =         u_audio_pitch_info,
+	.get =          u_audio_pitch_get,
+	.put =          u_audio_pitch_put,
+},
+};
+
 int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 					const char *card_name)
 {
 	struct snd_uac_chip *uac;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
+	struct snd_kcontrol *kctl;
 	struct uac_params *params;
 	int p_chmask, c_chmask;
 	int err;
@@ -518,9 +696,10 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		uac->c_prm.uac = uac;
 		prm->max_psize = g_audio->out_ep_maxpsize;
 
-		prm->ureq = kcalloc(params->req_number, sizeof(struct uac_req),
-				GFP_KERNEL);
-		if (!prm->ureq) {
+		prm->reqs = kcalloc(params->req_number,
+				    sizeof(struct usb_request *),
+				    GFP_KERNEL);
+		if (!prm->reqs) {
 			err = -ENOMEM;
 			goto fail;
 		}
@@ -540,9 +719,10 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		uac->p_prm.uac = uac;
 		prm->max_psize = g_audio->in_ep_maxpsize;
 
-		prm->ureq = kcalloc(params->req_number, sizeof(struct uac_req),
-				GFP_KERNEL);
-		if (!prm->ureq) {
+		prm->reqs = kcalloc(params->req_number,
+				    sizeof(struct usb_request *),
+				    GFP_KERNEL);
+		if (!prm->reqs) {
 			err = -ENOMEM;
 			goto fail;
 		}
@@ -573,19 +753,36 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if (err < 0)
 		goto snd_fail;
 
-	strlcpy(pcm->name, pcm_name, sizeof(pcm->name));
+	strscpy(pcm->name, pcm_name, sizeof(pcm->name));
 	pcm->private_data = uac;
 	uac->pcm = pcm;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &uac_pcm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &uac_pcm_ops);
 
-	strlcpy(card->driver, card_name, sizeof(card->driver));
-	strlcpy(card->shortname, card_name, sizeof(card->shortname));
+	if (c_chmask && g_audio->in_ep_fback) {
+		strscpy(card->mixername, card_name, sizeof(card->driver));
+
+		kctl = snd_ctl_new1(&u_audio_controls[0], &uac->c_prm);
+		if (!kctl) {
+			err = -ENOMEM;
+			goto snd_fail;
+		}
+
+		kctl->id.device = pcm->device;
+		kctl->id.subdevice = 0;
+
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
+			goto snd_fail;
+	}
+
+	strscpy(card->driver, card_name, sizeof(card->driver));
+	strscpy(card->shortname, card_name, sizeof(card->shortname));
 	sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL), 0, BUFF_SIZE_MAX);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 0, BUFF_SIZE_MAX);
 
 	err = snd_card_register(card);
 
@@ -595,8 +792,8 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 snd_fail:
 	snd_card_free(card);
 fail:
-	kfree(uac->p_prm.ureq);
-	kfree(uac->c_prm.ureq);
+	kfree(uac->p_prm.reqs);
+	kfree(uac->c_prm.reqs);
 	kfree(uac->p_prm.rbuf);
 	kfree(uac->c_prm.rbuf);
 	kfree(uac);
@@ -618,8 +815,8 @@ void g_audio_cleanup(struct g_audio *g_audio)
 	if (card)
 		snd_card_free(card);
 
-	kfree(uac->p_prm.ureq);
-	kfree(uac->c_prm.ureq);
+	kfree(uac->p_prm.reqs);
+	kfree(uac->c_prm.reqs);
 	kfree(uac->p_prm.rbuf);
 	kfree(uac->c_prm.rbuf);
 	kfree(uac);

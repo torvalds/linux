@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung keypad driver
  *
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -150,13 +146,12 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 {
 	struct samsung_keypad *keypad = dev_id;
 	unsigned int row_state[SAMSUNG_MAX_COLS];
-	unsigned int val;
 	bool key_down;
 
 	pm_runtime_get_sync(&keypad->pdev->dev);
 
 	do {
-		val = readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
+		readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
 		/* Clear interrupt. */
 		writel(~0x0, keypad->base + SAMSUNG_KEYIFSTSCLR);
 
@@ -541,7 +536,7 @@ static int samsung_keypad_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		samsung_keypad_stop(keypad);
 
 	samsung_keypad_toggle_wakeup(keypad, true);
@@ -561,7 +556,7 @@ static int samsung_keypad_resume(struct device *dev)
 
 	samsung_keypad_toggle_wakeup(keypad, false);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		samsung_keypad_start(keypad);
 
 	mutex_unlock(&input_dev->mutex);

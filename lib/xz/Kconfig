@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config XZ_DEC
 	tristate "XZ decompression support"
 	select CRC32
 	help
 	  LZMA2 compression algorithm and BCJ filters are supported using
 	  the .xz file format as the container. For integrity checking,
-	  CRC32 is supported. See Documentation/xz.txt for more information.
+	  CRC32 is supported. See Documentation/staging/xz.rst for more information.
 
 if XZ_DEC
 

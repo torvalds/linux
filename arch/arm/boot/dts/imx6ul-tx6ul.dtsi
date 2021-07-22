@@ -71,6 +71,7 @@
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0>; /* will be filled by U-Boot */
 	};
 
@@ -548,7 +549,6 @@
 &pwm5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm5>;
-	#pwm-cells = <3>;
 	status = "okay";
 };
 

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -42,6 +39,7 @@ static void gfs2_init_inode_once(void *foo)
 	atomic_set(&ip->i_sizehint, 0);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
+	INIT_LIST_HEAD(&ip->i_ordered);
 	ip->i_qadata = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_rgd_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
@@ -100,7 +98,7 @@ static int __init init_gfs2_fs(void)
 	error = -ENOMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
 					      sizeof(struct gfs2_glock),
-					      0, 0,
+					      0, SLAB_RECLAIM_ACCOUNT,
 					      gfs2_init_glock_once);
 	if (!gfs2_glock_cachep)
 		goto fail_cachep1;
@@ -136,7 +134,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_quotad_cachep = kmem_cache_create("gfs2_quotad",
 					       sizeof(struct gfs2_quota_data),
-					       0, 0, NULL);
+					       0, SLAB_RECLAIM_ACCOUNT, NULL);
 	if (!gfs2_quotad_cachep)
 		goto fail_cachep6;
 
@@ -145,6 +143,12 @@ static int __init init_gfs2_fs(void)
 					       0, 0, NULL);
 	if (!gfs2_qadata_cachep)
 		goto fail_cachep7;
+
+	gfs2_trans_cachep = kmem_cache_create("gfs2_trans",
+					       sizeof(struct gfs2_trans),
+					       0, 0, NULL);
+	if (!gfs2_trans_cachep)
+		goto fail_cachep8;
 
 	error = register_shrinker(&gfs2_qd_shrinker);
 	if (error)
@@ -178,16 +182,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_page_pool)
 		goto fail_mempool;
 
-	error = gfs2_register_debugfs();
-	if (error)
-		goto fail_debugfs;
+	gfs2_register_debugfs();
 
 	pr_info("GFS2 installed\n");
 
 	return 0;
 
-fail_debugfs:
-	mempool_destroy(gfs2_page_pool);
 fail_mempool:
 	destroy_workqueue(gfs2_freeze_wq);
 fail_wq3:
@@ -201,6 +201,8 @@ fail_fs2:
 fail_fs1:
 	unregister_shrinker(&gfs2_qd_shrinker);
 fail_shrinker:
+	kmem_cache_destroy(gfs2_trans_cachep);
+fail_cachep8:
 	kmem_cache_destroy(gfs2_qadata_cachep);
 fail_cachep7:
 	kmem_cache_destroy(gfs2_quotad_cachep);
@@ -243,6 +245,7 @@ static void __exit exit_gfs2_fs(void)
 	rcu_barrier();
 
 	mempool_destroy(gfs2_page_pool);
+	kmem_cache_destroy(gfs2_trans_cachep);
 	kmem_cache_destroy(gfs2_qadata_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

@@ -7,6 +7,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 
 #define OV13858_REG_VALUE_08BIT		1
 #define OV13858_REG_VALUE_16BIT		2
@@ -1149,7 +1150,7 @@ static int ov13858_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	struct v4l2_mbus_framefmt *try_fmt = v4l2_subdev_get_try_format(sd,
-									fh->pad,
+									fh->state,
 									0);
 
 	mutex_lock(&ov13858->mutex);
@@ -1224,7 +1225,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 					 ov13858->exposure->minimum,
 					 max, ov13858->exposure->step, max);
 		break;
-	};
+	}
 
 	/*
 	 * Applying V4L2 control value only happens
@@ -1262,7 +1263,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
 			 ctrl->id, ctrl->val);
 		break;
-	};
+	}
 
 	pm_runtime_put(&client->dev);
 
@@ -1274,7 +1275,7 @@ static const struct v4l2_ctrl_ops ov13858_ctrl_ops = {
 };
 
 static int ov13858_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Only one bayer order(GRBG) is supported */
@@ -1287,7 +1288,7 @@ static int ov13858_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov13858_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -1314,14 +1315,14 @@ static void ov13858_update_pad_format(const struct ov13858_mode *mode,
 }
 
 static int ov13858_do_get_pad_format(struct ov13858 *ov13858,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
 	struct v4l2_subdev *sd = &ov13858->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov13858_update_pad_format(ov13858->cur_mode, fmt);
@@ -1331,14 +1332,14 @@ static int ov13858_do_get_pad_format(struct ov13858 *ov13858,
 }
 
 static int ov13858_get_pad_format(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	int ret;
 
 	mutex_lock(&ov13858->mutex);
-	ret = ov13858_do_get_pad_format(ov13858, cfg, fmt);
+	ret = ov13858_do_get_pad_format(ov13858, sd_state, fmt);
 	mutex_unlock(&ov13858->mutex);
 
 	return ret;
@@ -1346,7 +1347,7 @@ static int ov13858_get_pad_format(struct v4l2_subdev *sd,
 
 static int
 ov13858_set_pad_format(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *fmt)
 {
 	struct ov13858 *ov13858 = to_ov13858(sd);
@@ -1370,7 +1371,7 @@ ov13858_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov13858_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ov13858->cur_mode = mode;
@@ -1471,11 +1472,9 @@ static int ov13858_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values
@@ -1504,8 +1503,7 @@ err_unlock:
 
 static int __maybe_unused ov13858_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 
 	if (ov13858->streaming)
@@ -1516,8 +1514,7 @@ static int __maybe_unused ov13858_suspend(struct device *dev)
 
 static int __maybe_unused ov13858_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	int ret;
 
@@ -1589,6 +1586,7 @@ static const struct v4l2_subdev_internal_ops ov13858_internal_ops = {
 static int ov13858_init_controls(struct ov13858 *ov13858)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
 	s64 vblank_def;
@@ -1600,7 +1598,7 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 	int ret;
 
 	ctrl_hdlr = &ov13858->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 10);
 	if (ret)
 		return ret;
 
@@ -1612,7 +1610,8 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 				OV13858_NUM_OF_LINK_FREQS - 1,
 				0,
 				link_freq_menu_items);
-	ov13858->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (ov13858->link_freq)
+		ov13858->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	pixel_rate_max = link_freq_to_pixel_rate(link_freq_menu_items[0]);
 	pixel_rate_min = link_freq_to_pixel_rate(link_freq_menu_items[1]);
@@ -1635,7 +1634,8 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 	ov13858->hblank = v4l2_ctrl_new_std(
 				ctrl_hdlr, &ov13858_ctrl_ops, V4L2_CID_HBLANK,
 				hblank, hblank, 1, hblank);
-	ov13858->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (ov13858->hblank)
+		ov13858->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	exposure_max = mode->vts_def - 8;
 	ov13858->exposure = v4l2_ctrl_new_std(
@@ -1663,6 +1663,15 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 			__func__, ret);
 		goto error;
 	}
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		goto error;
+
+	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov13858_ctrl_ops,
+					      &props);
+	if (ret)
+		goto error;
 
 	ov13858->sd.ctrl_handler = ctrl_hdlr;
 
@@ -1727,7 +1736,7 @@ static int ov13858_probe(struct i2c_client *client,
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&ov13858->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov13858->sd);
 	if (ret < 0)
 		goto error_media_entity;
 

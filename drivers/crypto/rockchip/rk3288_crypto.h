@@ -3,14 +3,17 @@
 #define __RK3288_CRYPTO_H__
 
 #include <crypto/aes.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/algapi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 
 #include <crypto/md5.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 #define _SBF(v, f)			((v) << (f))
 
@@ -207,7 +210,8 @@ struct rk_crypto_info {
 	void				*addr_vir;
 	int				aligned;
 	int				align_size;
-	size_t				nents;
+	size_t				src_nents;
+	size_t				dst_nents;
 	unsigned int			total;
 	unsigned int			count;
 	dma_addr_t			addr_in;
@@ -244,6 +248,7 @@ struct rk_cipher_ctx {
 	struct rk_crypto_info		*dev;
 	unsigned int			keylen;
 	u32				mode;
+	u8				iv[AES_BLOCK_SIZE];
 };
 
 enum alg_type {
@@ -254,7 +259,7 @@ enum alg_type {
 struct rk_crypto_tmp {
 	struct rk_crypto_info		*dev;
 	union {
-		struct crypto_alg	crypto;
+		struct skcipher_alg	skcipher;
 		struct ahash_alg	hash;
 	} alg;
 	enum alg_type			type;

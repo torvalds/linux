@@ -15,7 +15,8 @@
 		bootargs = "earlycon";
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -75,8 +76,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		rfkill {
 			label = "WiFi";
@@ -126,8 +125,4 @@
 
 &usb2 {
 	vcc-gpio = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
-};
-
-&usb3_phy {
-	status = "okay";
 };

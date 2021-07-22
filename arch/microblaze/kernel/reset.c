@@ -8,83 +8,9 @@
  */
 
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/of_platform.h>
-
-/* Trigger specific functions */
-#ifdef CONFIG_GPIOLIB
-
-#include <linux/of_gpio.h>
-
-static int handle; /* reset pin handle */
-static unsigned int reset_val;
-
-static int of_platform_reset_gpio_probe(void)
-{
-	int ret;
-	handle = of_get_named_gpio(of_find_node_by_path("/"),
-				   "hard-reset-gpios", 0);
-
-	if (!gpio_is_valid(handle)) {
-		pr_info("Skipping unavailable RESET gpio %d (%s)\n",
-				handle, "reset");
-		return -ENODEV;
-	}
-
-	ret = gpio_request(handle, "reset");
-	if (ret < 0) {
-		pr_info("GPIO pin is already allocated\n");
-		return ret;
-	}
-
-	/* get current setup value */
-	reset_val = gpio_get_value(handle);
-	/* FIXME maybe worth to perform any action */
-	pr_debug("Reset: Gpio output state: 0x%x\n", reset_val);
-
-	/* Setup GPIO as output */
-	ret = gpio_direction_output(handle, 0);
-	if (ret < 0)
-		goto err;
-
-	/* Setup output direction */
-	gpio_set_value(handle, 0);
-
-	pr_info("RESET: Registered gpio device: %d, current val: %d\n",
-							handle, reset_val);
-	return 0;
-err:
-	gpio_free(handle);
-	return ret;
-}
-device_initcall(of_platform_reset_gpio_probe);
-
-
-static void gpio_system_reset(void)
-{
-	if (gpio_is_valid(handle))
-		gpio_set_value(handle, 1 - reset_val);
-	else
-		pr_notice("Reset GPIO unavailable - halting!\n");
-}
-#else
-static void gpio_system_reset(void)
-{
-	pr_notice("No reset GPIO present - halting!\n");
-}
-
-void of_platform_reset_gpio_probe(void)
-{
-	return;
-}
-#endif
-
-void machine_restart(char *cmd)
-{
-	pr_notice("Machine restart...\n");
-	gpio_system_reset();
-	while (1)
-		;
-}
+#include <linux/reboot.h>
 
 void machine_shutdown(void)
 {
@@ -105,4 +31,13 @@ void machine_power_off(void)
 	pr_notice("Machine power off...\n");
 	while (1)
 		;
+}
+
+void machine_restart(char *cmd)
+{
+	do_kernel_restart(cmd);
+	/* Give the restart hook 1 s to take us down */
+	mdelay(1000);
+	pr_emerg("Reboot failed -- System halted\n");
+	while (1);
 }

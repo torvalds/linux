@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Host AP crypt: host-based TKIP encryption implementation for Host AP driver
  *
  * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -21,9 +18,8 @@
 
 #include "ieee80211.h"
 
+#include <crypto/arc4.h>
 #include <crypto/hash.h>
-#include <crypto/skcipher.h>
-	#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -53,9 +49,9 @@ struct ieee80211_tkip_data {
 
 	int key_idx;
 
-	struct crypto_sync_skcipher *rx_tfm_arc4;
+	struct arc4_ctx rx_ctx_arc4;
+	struct arc4_ctx tx_ctx_arc4;
 	struct crypto_shash *rx_tfm_michael;
-	struct crypto_sync_skcipher *tx_tfm_arc4;
 	struct crypto_shash *tx_tfm_michael;
 
 	/* scratch buffers for virt_to_page() (crypto API) */
@@ -66,32 +62,19 @@ static void *ieee80211_tkip_init(int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
+	if (fips_enabled)
+		return NULL;
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		goto fail;
 	priv->key_idx = key_idx;
-
-	priv->tx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
-	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
-				"crypto API arc4\n");
-		priv->tx_tfm_arc4 = NULL;
-		goto fail;
-	}
 
 	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 				"crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
-		goto fail;
-	}
-
-	priv->rx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
-	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
-				"crypto API arc4\n");
-		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
@@ -108,9 +91,7 @@ static void *ieee80211_tkip_init(int key_idx)
 fail:
 	if (priv) {
 		crypto_free_shash(priv->tx_tfm_michael);
-		crypto_free_sync_skcipher(priv->tx_tfm_arc4);
 		crypto_free_shash(priv->rx_tfm_michael);
-		crypto_free_sync_skcipher(priv->rx_tfm_arc4);
 		kfree(priv);
 	}
 
@@ -124,11 +105,9 @@ static void ieee80211_tkip_deinit(void *priv)
 
 	if (_priv) {
 		crypto_free_shash(_priv->tx_tfm_michael);
-		crypto_free_sync_skcipher(_priv->tx_tfm_arc4);
 		crypto_free_shash(_priv->rx_tfm_michael);
-		crypto_free_sync_skcipher(_priv->rx_tfm_arc4);
 	}
-	kfree(priv);
+	kfree_sensitive(priv);
 }
 
 
@@ -164,7 +143,7 @@ static inline u16 Hi16(u32 val)
 
 static inline u16 Mk16(u8 hi, u8 lo)
 {
-	return lo | (((u16) hi) << 8);
+	return lo | (((u16)hi) << 8);
 }
 
 static const u16 Sbox[256] = {
@@ -242,7 +221,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	 * Make temporary area overlap WEP seed so that the final copy can be
 	 * avoided on little endian hosts.
 	 */
-	u16 *PPK = (u16 *) &WEPSeed[4];
+	u16 *PPK = (u16 *)&WEPSeed[4];
 
 	/* Step 1 - make copy of TTAK and bring in TSC */
 	PPK[0] = TTAK[0];
@@ -294,16 +273,14 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	int ret = 0;
 	u8 rc4key[16],  *icv;
 	u32 crc;
-	struct scatterlist sg;
 
 	if (skb_headroom(skb) < 8 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (!tcb_desc->bHwSec) {
 		if (!tkey->tx_phase1_done) {
@@ -331,28 +308,22 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		*pos++ = rc4key[2];
 	}
 
-	*pos++ = (tkey->key_idx << 6) | (1 << 5) /* Ext IV included */;
+	*pos++ = (tkey->key_idx << 6) | BIT(5) /* Ext IV included */;
 	*pos++ = tkey->tx_iv32 & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 8) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
 
 	if (!tcb_desc->bHwSec) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, tkey->tx_tfm_arc4);
-
 		icv = skb_put(skb, 4);
 		crc = ~crc32_le(~0, pos, len);
 		icv[0] = crc;
 		icv[1] = crc >> 8;
 		icv[2] = crc >> 16;
 		icv[3] = crc >> 24;
-		crypto_sync_skcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, len+4);
-		skcipher_request_set_sync_tfm(req, tkey->tx_tfm_arc4);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-		skcipher_request_set_crypt(req, &sg, &sg, len + 4, NULL);
-		ret = crypto_skcipher_encrypt(req);
-		skcipher_request_zero(req);
+
+		arc4_setkey(&tkey->tx_ctx_arc4, rc4key, 16);
+		arc4_crypt(&tkey->tx_ctx_arc4, pos, pos, len + 4);
 	}
 
 	tkey->tx_iv16++;
@@ -361,12 +332,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		tkey->tx_iv32++;
 	}
 
-	if (!tcb_desc->bHwSec)
-		return ret;
-	else
-		return 0;
-
-
+	return 0;
 }
 
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
@@ -380,32 +346,30 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 rc4key[16];
 	u8 icv[4];
 	u32 crc;
-	struct scatterlist sg;
 	int plen;
-	int err;
 
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
-	if (!(keyidx & (1 << 5))) {
+	if (!(keyidx & BIT(5))) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet without ExtIV"
+			netdev_dbg(skb->dev, "TKIP: received packet without ExtIV"
 			       " flag from %pM\n", hdr->addr2);
 		}
 		return -2;
 	}
 	keyidx >>= 6;
 	if (tkey->key_idx != keyidx) {
-		printk(KERN_DEBUG "TKIP: RX tkey->key_idx=%d frame "
+		netdev_dbg(skb->dev, "TKIP: RX tkey->key_idx=%d frame "
 		       "keyidx=%d priv=%p\n", tkey->key_idx, keyidx, priv);
 		return -6;
 	}
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet from %pM"
+			netdev_dbg(skb->dev, "TKIP: received packet from %pM"
 			       " with keyid=%d that does not have a configured"
 			       " key\n", hdr->addr2, keyidx);
 		}
@@ -416,12 +380,10 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (!tcb_desc->bHwSec) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, tkey->rx_tfm_arc4);
-
 		if (iv32 < tkey->rx_iv32 ||
 		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
+				netdev_dbg(skb->dev, "TKIP: replay detected: STA=%pM"
 				" previous TSC %08x%04x received TSC "
 				"%08x%04x\n", hdr->addr2,
 				tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
@@ -438,23 +400,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		plen = skb->len - hdr_len - 12;
 
-		crypto_sync_skcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, plen+4);
-
-		skcipher_request_set_sync_tfm(req, tkey->rx_tfm_arc4);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-		skcipher_request_set_crypt(req, &sg, &sg, plen + 4, NULL);
-
-		err = crypto_skcipher_decrypt(req);
-		skcipher_request_zero(req);
-		if (err) {
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG ": TKIP: failed to decrypt "
-						"received packet from %pM\n",
-						hdr->addr2);
-			}
-			return -7;
-		}
+		arc4_setkey(&tkey->rx_ctx_arc4, rc4key, 16);
+		arc4_crypt(&tkey->rx_ctx_arc4, pos, pos, plen + 4);
 
 		crc = ~crc32_le(~0, pos, plen);
 		icv[0] = crc;
@@ -472,7 +419,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				tkey->rx_phase1_done = 0;
 			}
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "TKIP: ICV error detected: STA="
+				netdev_dbg(skb->dev, "TKIP: ICV error detected: STA="
 				"%pM\n", hdr->addr2);
 			}
 			tkey->dot11RSNAStatsTKIPICVErrors++;
@@ -503,7 +450,6 @@ static int michael_mic(struct crypto_shash *tfm_michael, u8 *key, u8 *hdr,
 	int err;
 
 	desc->tfm = tfm_michael;
-	desc->flags = 0;
 
 	if (crypto_shash_setkey(tfm_michael, key, 8))
 		return -1;
@@ -528,7 +474,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 {
 	struct rtl_80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr11 = (struct rtl_80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -561,10 +507,10 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
-		printk(KERN_DEBUG "Invalid packet for Michael MIC add "
+		netdev_dbg(skb->dev, "Invalid packet for Michael MIC add "
 		       "(tailroom=%d hdr_len=%d skb->len=%d)\n",
 		       skb_tailroom(skb), hdr_len, skb->len);
 		return -1;
@@ -604,7 +550,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	memcpy(ev.src_addr.sa_data, hdr->addr2, ETH_ALEN);
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
-	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *) &ev);
+	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
@@ -614,7 +560,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	u8 mic[8];
 	struct rtl_80211_hdr_4addr *hdr;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (!tkey->key_set)
 		return -1;
@@ -631,12 +577,11 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtl_80211_hdr_4addr *hdr;
-		hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+		hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
-		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
+		netdev_dbg(skb->dev, "Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
-		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
-		       keyidx);
+		       hdr->addr2, keyidx);
 		if (skb->dev)
 			ieee80211_michael_mic_failure(skb->dev, hdr, keyidx);
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
@@ -661,17 +606,13 @@ static int ieee80211_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 	struct ieee80211_tkip_data *tkey = priv;
 	int keyidx;
 	struct crypto_shash *tfm = tkey->tx_tfm_michael;
-	struct crypto_sync_skcipher *tfm2 = tkey->tx_tfm_arc4;
 	struct crypto_shash *tfm3 = tkey->rx_tfm_michael;
-	struct crypto_sync_skcipher *tfm4 = tkey->rx_tfm_arc4;
 
 	keyidx = tkey->key_idx;
 	memset(tkey, 0, sizeof(*tkey));
 	tkey->key_idx = keyidx;
 	tkey->tx_tfm_michael = tfm;
-	tkey->tx_tfm_arc4 = tfm2;
 	tkey->rx_tfm_michael = tfm3;
-	tkey->rx_tfm_arc4 = tfm4;
 
 	if (len == TKIP_KEY_LEN) {
 		memcpy(tkey->key, key, TKIP_KEY_LEN);

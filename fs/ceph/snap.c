@@ -3,11 +3,13 @@
 
 #include <linux/sort.h>
 #include <linux/slab.h>
-
+#include <linux/iversion.h>
 #include "super.h"
 #include "mds_client.h"
-
 #include <linux/ceph/decode.h>
+
+/* unused map expires after 5 minutes */
+#define CEPH_SNAPID_MAP_TIMEOUT	(5 * 60 * HZ)
 
 /*
  * Snapshots in ceph are driven in large part by cooperation from the
@@ -58,11 +60,13 @@
 /*
  * increase ref count for the realm
  *
- * caller must hold snap_rwsem for write.
+ * caller must hold snap_rwsem.
  */
 void ceph_get_snap_realm(struct ceph_mds_client *mdsc,
 			 struct ceph_snap_realm *realm)
 {
+	lockdep_assert_held(&mdsc->snap_rwsem);
+
 	dout("get_realm %p %d -> %d\n", realm,
 	     atomic_read(&realm->nref), atomic_read(&realm->nref)+1);
 	/*
@@ -111,6 +115,8 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 {
 	struct ceph_snap_realm *realm;
 
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
+
 	realm = kzalloc(sizeof(*realm), GFP_NOFS);
 	if (!realm)
 		return ERR_PTR(-ENOMEM);
@@ -124,6 +130,8 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	INIT_LIST_HEAD(&realm->inodes_with_caps);
 	spin_lock_init(&realm->inodes_with_caps_lock);
 	__insert_snap_realm(&mdsc->snap_realms, realm);
+	mdsc->num_snap_realms++;
+
 	dout("create_snap_realm %llx %p\n", realm->ino, realm);
 	return realm;
 }
@@ -131,13 +139,15 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 /*
  * lookup the realm rooted at @ino.
  *
- * caller must hold snap_rwsem for write.
+ * caller must hold snap_rwsem.
  */
 static struct ceph_snap_realm *__lookup_snap_realm(struct ceph_mds_client *mdsc,
 						   u64 ino)
 {
 	struct rb_node *n = mdsc->snap_realms.rb_node;
 	struct ceph_snap_realm *r;
+
+	lockdep_assert_held(&mdsc->snap_rwsem);
 
 	while (n) {
 		r = rb_entry(n, struct ceph_snap_realm, node);
@@ -172,9 +182,12 @@ static void __put_snap_realm(struct ceph_mds_client *mdsc,
 static void __destroy_snap_realm(struct ceph_mds_client *mdsc,
 				 struct ceph_snap_realm *realm)
 {
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
+
 	dout("__destroy_snap_realm %p %llx\n", realm, realm->ino);
 
 	rb_erase(&realm->node, &mdsc->snap_realms);
+	mdsc->num_snap_realms--;
 
 	if (realm->parent) {
 		list_del_init(&realm->child_item);
@@ -193,6 +206,8 @@ static void __destroy_snap_realm(struct ceph_mds_client *mdsc,
 static void __put_snap_realm(struct ceph_mds_client *mdsc,
 			     struct ceph_snap_realm *realm)
 {
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
+
 	dout("__put_snap_realm %llx %p %d -> %d\n", realm->ino, realm,
 	     atomic_read(&realm->nref), atomic_read(&realm->nref)-1);
 	if (atomic_dec_and_test(&realm->nref))
@@ -231,6 +246,8 @@ static void __cleanup_empty_realms(struct ceph_mds_client *mdsc)
 {
 	struct ceph_snap_realm *realm;
 
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
+
 	spin_lock(&mdsc->snap_empty_lock);
 	while (!list_empty(&mdsc->snap_empty)) {
 		realm = list_first_entry(&mdsc->snap_empty,
@@ -263,6 +280,8 @@ static int adjust_snap_realm_parent(struct ceph_mds_client *mdsc,
 				    u64 parentino)
 {
 	struct ceph_snap_realm *parent;
+
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
 
 	if (realm->parent_ino == parentino)
 		return 0;
@@ -455,11 +474,12 @@ static bool has_new_snaps(struct ceph_snap_context *o,
  * Caller must hold snap_rwsem for read (i.e., the realm topology won't
  * change).
  */
-void ceph_queue_cap_snap(struct ceph_inode_info *ci)
+static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
 	struct ceph_snap_context *old_snapc, *new_snapc;
+	struct ceph_buffer *old_blob = NULL;
 	int used, dirty;
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
@@ -536,7 +556,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	capsnap->gid = inode->i_gid;
 
 	if (dirty & CEPH_CAP_XATTR_EXCL) {
-		__ceph_build_xattrs_blob(ci);
+		old_blob = __ceph_build_xattrs_blob(ci);
 		capsnap->xattr_blob =
 			ceph_buffer_get(ci->i_xattrs.blob);
 		capsnap->xattr_version = ci->i_xattrs.version;
@@ -568,12 +588,18 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	old_snapc = NULL;
 
 update_snapc:
-	if (ci->i_head_snapc) {
+       if (ci->i_wrbuffer_ref_head == 0 &&
+           ci->i_wr_ref == 0 &&
+           ci->i_dirty_caps == 0 &&
+           ci->i_flushing_caps == 0) {
+               ci->i_head_snapc = NULL;
+       } else {
 		ci->i_head_snapc = ceph_get_snap_context(new_snapc);
 		dout(" new snapc is %p\n", new_snapc);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 
+	ceph_buffer_put(old_blob);
 	kfree(capsnap);
 	ceph_put_snap_context(old_snapc);
 }
@@ -590,13 +616,15 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 			    struct ceph_cap_snap *capsnap)
 {
 	struct inode *inode = &ci->vfs_inode;
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 
 	BUG_ON(capsnap->writing);
-	capsnap->size = inode->i_size;
+	capsnap->size = i_size_read(inode);
 	capsnap->mtime = inode->i_mtime;
 	capsnap->atime = inode->i_atime;
 	capsnap->ctime = inode->i_ctime;
+	capsnap->btime = ci->i_btime;
+	capsnap->change_attr = inode_peek_iversion_raw(inode);
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
 	capsnap->truncate_size = ci->i_truncate_size;
 	capsnap->truncate_seq = ci->i_truncate_seq;
@@ -609,6 +637,16 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 		return 0;
 	}
 
+	/* Fb cap still in use, delay it */
+	if (ci->i_wb_ref) {
+		dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu "
+		     "used WRBUFFER, delaying\n", inode, capsnap,
+		     capsnap->context, capsnap->context->seq,
+		     ceph_cap_string(capsnap->dirty), capsnap->size);
+		capsnap->writing = 1;
+		return 0;
+	}
+
 	ci->i_ceph_flags |= CEPH_I_FLUSH_SNAPS;
 	dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu\n",
 	     inode, capsnap, capsnap->context,
@@ -616,7 +654,8 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	     capsnap->size);
 
 	spin_lock(&mdsc->snap_flush_lock);
-	list_add_tail(&ci->i_snap_flush_item, &mdsc->snap_flush_list);
+	if (list_empty(&ci->i_snap_flush_item))
+		list_add_tail(&ci->i_snap_flush_item, &mdsc->snap_flush_list);
 	spin_unlock(&mdsc->snap_flush_lock);
 	return 1;  /* caller may want to ceph_flush_snaps */
 }
@@ -668,6 +707,8 @@ int ceph_update_snap_trace(struct ceph_mds_client *mdsc,
 	int invalidate = 0;
 	int err = -ENOMEM;
 	LIST_HEAD(dirty_realms);
+
+	lockdep_assert_held_write(&mdsc->snap_rwsem);
 
 	dout("update_snap_trace deletion=%d\n", deletion);
 more:
@@ -764,7 +805,7 @@ more:
 	return 0;
 
 bad:
-	err = -EINVAL;
+	err = -EIO;
 fail:
 	if (realm && !IS_ERR(realm))
 		ceph_put_snap_realm(mdsc, realm);
@@ -801,10 +842,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 	}
 	spin_unlock(&mdsc->snap_flush_lock);
 
-	if (session) {
-		mutex_unlock(&session->s_mutex);
-		ceph_put_mds_session(session);
-	}
+	ceph_put_mds_session(session);
 	dout("flush_snaps done\n");
 }
 
@@ -854,7 +892,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 	     ceph_snap_op_name(op), split, trace_len);
 
 	mutex_lock(&session->s_mutex);
-	session->s_seq++;
+	inc_session_sequence(session);
 	mutex_unlock(&session->s_mutex);
 
 	down_write(&mdsc->snap_rwsem);
@@ -984,4 +1022,156 @@ out:
 	if (locked_rwsem)
 		up_write(&mdsc->snap_rwsem);
 	return;
+}
+
+struct ceph_snapid_map* ceph_get_snapid_map(struct ceph_mds_client *mdsc,
+					    u64 snap)
+{
+	struct ceph_snapid_map *sm, *exist;
+	struct rb_node **p, *parent;
+	int ret;
+
+	exist = NULL;
+	spin_lock(&mdsc->snapid_map_lock);
+	p = &mdsc->snapid_map_tree.rb_node;
+	while (*p) {
+		exist = rb_entry(*p, struct ceph_snapid_map, node);
+		if (snap > exist->snap) {
+			p = &(*p)->rb_left;
+		} else if (snap < exist->snap) {
+			p = &(*p)->rb_right;
+		} else {
+			if (atomic_inc_return(&exist->ref) == 1)
+				list_del_init(&exist->lru);
+			break;
+		}
+		exist = NULL;
+	}
+	spin_unlock(&mdsc->snapid_map_lock);
+	if (exist) {
+		dout("found snapid map %llx -> %x\n", exist->snap, exist->dev);
+		return exist;
+	}
+
+	sm = kmalloc(sizeof(*sm), GFP_NOFS);
+	if (!sm)
+		return NULL;
+
+	ret = get_anon_bdev(&sm->dev);
+	if (ret < 0) {
+		kfree(sm);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&sm->lru);
+	atomic_set(&sm->ref, 1);
+	sm->snap = snap;
+
+	exist = NULL;
+	parent = NULL;
+	p = &mdsc->snapid_map_tree.rb_node;
+	spin_lock(&mdsc->snapid_map_lock);
+	while (*p) {
+		parent = *p;
+		exist = rb_entry(*p, struct ceph_snapid_map, node);
+		if (snap > exist->snap)
+			p = &(*p)->rb_left;
+		else if (snap < exist->snap)
+			p = &(*p)->rb_right;
+		else
+			break;
+		exist = NULL;
+	}
+	if (exist) {
+		if (atomic_inc_return(&exist->ref) == 1)
+			list_del_init(&exist->lru);
+	} else {
+		rb_link_node(&sm->node, parent, p);
+		rb_insert_color(&sm->node, &mdsc->snapid_map_tree);
+	}
+	spin_unlock(&mdsc->snapid_map_lock);
+	if (exist) {
+		free_anon_bdev(sm->dev);
+		kfree(sm);
+		dout("found snapid map %llx -> %x\n", exist->snap, exist->dev);
+		return exist;
+	}
+
+	dout("create snapid map %llx -> %x\n", sm->snap, sm->dev);
+	return sm;
+}
+
+void ceph_put_snapid_map(struct ceph_mds_client* mdsc,
+			 struct ceph_snapid_map *sm)
+{
+	if (!sm)
+		return;
+	if (atomic_dec_and_lock(&sm->ref, &mdsc->snapid_map_lock)) {
+		if (!RB_EMPTY_NODE(&sm->node)) {
+			sm->last_used = jiffies;
+			list_add_tail(&sm->lru, &mdsc->snapid_map_lru);
+			spin_unlock(&mdsc->snapid_map_lock);
+		} else {
+			/* already cleaned up by
+			 * ceph_cleanup_snapid_map() */
+			spin_unlock(&mdsc->snapid_map_lock);
+			kfree(sm);
+		}
+	}
+}
+
+void ceph_trim_snapid_map(struct ceph_mds_client *mdsc)
+{
+	struct ceph_snapid_map *sm;
+	unsigned long now;
+	LIST_HEAD(to_free);
+
+	spin_lock(&mdsc->snapid_map_lock);
+	now = jiffies;
+
+	while (!list_empty(&mdsc->snapid_map_lru)) {
+		sm = list_first_entry(&mdsc->snapid_map_lru,
+				      struct ceph_snapid_map, lru);
+		if (time_after(sm->last_used + CEPH_SNAPID_MAP_TIMEOUT, now))
+			break;
+
+		rb_erase(&sm->node, &mdsc->snapid_map_tree);
+		list_move(&sm->lru, &to_free);
+	}
+	spin_unlock(&mdsc->snapid_map_lock);
+
+	while (!list_empty(&to_free)) {
+		sm = list_first_entry(&to_free, struct ceph_snapid_map, lru);
+		list_del(&sm->lru);
+		dout("trim snapid map %llx -> %x\n", sm->snap, sm->dev);
+		free_anon_bdev(sm->dev);
+		kfree(sm);
+	}
+}
+
+void ceph_cleanup_snapid_map(struct ceph_mds_client *mdsc)
+{
+	struct ceph_snapid_map *sm;
+	struct rb_node *p;
+	LIST_HEAD(to_free);
+
+	spin_lock(&mdsc->snapid_map_lock);
+	while ((p = rb_first(&mdsc->snapid_map_tree))) {
+		sm = rb_entry(p, struct ceph_snapid_map, node);
+		rb_erase(p, &mdsc->snapid_map_tree);
+		RB_CLEAR_NODE(p);
+		list_move(&sm->lru, &to_free);
+	}
+	spin_unlock(&mdsc->snapid_map_lock);
+
+	while (!list_empty(&to_free)) {
+		sm = list_first_entry(&to_free, struct ceph_snapid_map, lru);
+		list_del(&sm->lru);
+		free_anon_bdev(sm->dev);
+		if (WARN_ON_ONCE(atomic_read(&sm->ref))) {
+			pr_err("snapid map %llx -> %x still in use\n",
+			       sm->snap, sm->dev);
+		}
+		kfree(sm);
+	}
 }

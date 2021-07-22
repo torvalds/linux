@@ -24,6 +24,7 @@
  */
 
 #include <linux/irqdomain.h>
+#include <linux/pci.h>
 #include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <sound/designware_i2s.h>
@@ -35,17 +36,17 @@
 
 #include "acp_gfx_if.h"
 
-#define ACP_TILE_ON_MASK                	0x03
-#define ACP_TILE_OFF_MASK               	0x02
-#define ACP_TILE_ON_RETAIN_REG_MASK     	0x1f
-#define ACP_TILE_OFF_RETAIN_REG_MASK    	0x20
+#define ACP_TILE_ON_MASK			0x03
+#define ACP_TILE_OFF_MASK			0x02
+#define ACP_TILE_ON_RETAIN_REG_MASK		0x1f
+#define ACP_TILE_OFF_RETAIN_REG_MASK		0x20
 
-#define ACP_TILE_P1_MASK                	0x3e
-#define ACP_TILE_P2_MASK                	0x3d
-#define ACP_TILE_DSP0_MASK              	0x3b
-#define ACP_TILE_DSP1_MASK              	0x37
+#define ACP_TILE_P1_MASK			0x3e
+#define ACP_TILE_P2_MASK			0x3d
+#define ACP_TILE_DSP0_MASK			0x3b
+#define ACP_TILE_DSP1_MASK			0x37
 
-#define ACP_TILE_DSP2_MASK              	0x2f
+#define ACP_TILE_DSP2_MASK			0x2f
 
 #define ACP_DMA_REGS_END			0x146c0
 #define ACP_I2S_PLAY_REGS_START			0x14840
@@ -74,8 +75,8 @@
 #define mmACP_CONTROL				0x5131
 #define mmACP_STATUS				0x5133
 #define mmACP_SOFT_RESET			0x5134
-#define ACP_CONTROL__ClkEn_MASK 		0x1
-#define ACP_SOFT_RESET__SoftResetAud_MASK 	0x100
+#define ACP_CONTROL__ClkEn_MASK			0x1
+#define ACP_SOFT_RESET__SoftResetAud_MASK	0x100
 #define ACP_SOFT_RESET__SoftResetAudDone_MASK	0x1000000
 #define ACP_CLOCK_EN_TIME_OUT_VALUE		0x000000FF
 #define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE	0x000000FF
@@ -135,8 +136,7 @@ static int acp_poweroff(struct generic_pm_domain *genpd)
 	 * 2. power off the acp tiles
 	 * 3. check and enter ulv state
 	 */
-		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
 	}
 	return 0;
 }
@@ -155,8 +155,7 @@ static int acp_poweron(struct generic_pm_domain *genpd)
 	 * 2. turn on acp clock
 	 * 3. power on acp tiles
 	 */
-		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
 	}
 	return 0;
 }
@@ -177,7 +176,7 @@ static struct device *get_mfd_cell_dev(const char *device_name, int r)
 /**
  * acp_hw_init - start and test ACP block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_init(void *handle)
@@ -187,7 +186,7 @@ static int acp_hw_init(void *handle)
 	u32 val = 0;
 	u32 count = 0;
 	struct device *dev;
-	struct i2s_platform_data *i2s_pdata;
+	struct i2s_platform_data *i2s_pdata = NULL;
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -229,20 +228,21 @@ static int acp_hw_init(void *handle)
 	adev->acp.acp_cell = kcalloc(ACP_DEVS, sizeof(struct mfd_cell),
 							GFP_KERNEL);
 
-	if (adev->acp.acp_cell == NULL)
-		return -ENOMEM;
+	if (adev->acp.acp_cell == NULL) {
+		r = -ENOMEM;
+		goto failure;
+	}
 
 	adev->acp.acp_res = kcalloc(5, sizeof(struct resource), GFP_KERNEL);
 	if (adev->acp.acp_res == NULL) {
-		kfree(adev->acp.acp_cell);
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto failure;
 	}
 
 	i2s_pdata = kcalloc(3, sizeof(struct i2s_platform_data), GFP_KERNEL);
 	if (i2s_pdata == NULL) {
-		kfree(adev->acp.acp_res);
-		kfree(adev->acp.acp_cell);
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto failure;
 	}
 
 	switch (adev->asic_type) {
@@ -339,14 +339,14 @@ static int acp_hw_init(void *handle)
 	r = mfd_add_hotplug_devices(adev->acp.parent, adev->acp.acp_cell,
 								ACP_DEVS);
 	if (r)
-		return r;
+		goto failure;
 
 	for (i = 0; i < ACP_DEVS ; i++) {
 		dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
 		r = pm_genpd_add_device(&adev->acp.acp_genpd->gpd, dev);
 		if (r) {
 			dev_err(dev, "Failed to add dev to genpd\n");
-			return r;
+			goto failure;
 		}
 	}
 
@@ -365,7 +365,8 @@ static int acp_hw_init(void *handle)
 			break;
 		if (--count == 0) {
 			dev_err(&adev->pdev->dev, "Failed to reset ACP\n");
-			return -ETIMEDOUT;
+			r = -ETIMEDOUT;
+			goto failure;
 		}
 		udelay(100);
 	}
@@ -382,7 +383,8 @@ static int acp_hw_init(void *handle)
 			break;
 		if (--count == 0) {
 			dev_err(&adev->pdev->dev, "Failed to reset ACP\n");
-			return -ETIMEDOUT;
+			r = -ETIMEDOUT;
+			goto failure;
 		}
 		udelay(100);
 	}
@@ -391,12 +393,19 @@ static int acp_hw_init(void *handle)
 	val &= ~ACP_SOFT_RESET__SoftResetAud_MASK;
 	cgs_write_register(adev->acp.cgs_device, mmACP_SOFT_RESET, val);
 	return 0;
+
+failure:
+	kfree(i2s_pdata);
+	kfree(adev->acp.acp_res);
+	kfree(adev->acp.acp_cell);
+	kfree(adev->acp.acp_genpd);
+	return r;
 }
 
 /**
  * acp_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_fini(void *handle)
@@ -515,10 +524,9 @@ static int acp_set_powergating_state(void *handle,
 				     enum amd_powergating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = state == AMD_PG_STATE_GATE ? true : false;
+	bool enable = (state == AMD_PG_STATE_GATE);
 
-	if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, enable);
+	amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, enable);
 
 	return 0;
 }

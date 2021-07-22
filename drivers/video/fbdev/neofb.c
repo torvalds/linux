@@ -70,7 +70,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgtable.h>
 #include <video/vga.h>
 #include <video/neomagic.h>
 
@@ -1610,7 +1609,7 @@ neofb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 }
 */
 
-static struct fb_ops neofb_ops = {
+static const struct fb_ops neofb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= neofb_open,
 	.fb_release	= neofb_release,
@@ -1820,6 +1819,7 @@ static int neo_scan_monitor(struct fb_info *info)
 #else
 		printk(KERN_ERR
 		       "neofb: Only 640x480, 800x600/480 and 1024x768 panels are currently supported\n");
+		kfree(info->monspecs.modedb);
 		return -1;
 #endif
 	default:
@@ -1843,7 +1843,6 @@ static int neo_init_hw(struct fb_info *info)
 	struct neofb_par *par = info->par;
 	int videoRam = 896;
 	int maxClock = 65000;
-	int CursorMem = 1024;
 	int CursorOff = 0x100;
 
 	DBG("neo_init_hw");
@@ -1895,19 +1894,16 @@ static int neo_init_hw(struct fb_info *info)
 	case FB_ACCEL_NEOMAGIC_NM2070:
 	case FB_ACCEL_NEOMAGIC_NM2090:
 	case FB_ACCEL_NEOMAGIC_NM2093:
-		CursorMem = 2048;
 		CursorOff = 0x100;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2097:
 	case FB_ACCEL_NEOMAGIC_NM2160:
-		CursorMem = 1024;
 		CursorOff = 0x100;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2200:
 	case FB_ACCEL_NEOMAGIC_NM2230:
 	case FB_ACCEL_NEOMAGIC_NM2360:
 	case FB_ACCEL_NEOMAGIC_NM2380:
-		CursorMem = 1024;
 		CursorOff = 0x1000;
 
 		par->neo2200 = (Neo2200 __iomem *) par->mmio_vbase;
@@ -2122,14 +2118,7 @@ static void neofb_remove(struct pci_dev *dev)
 	DBG("neofb_remove");
 
 	if (info) {
-		/*
-		 * If unregister_framebuffer fails, then
-		 * we will be leaving hooks that could cause
-		 * oopsen laying around.
-		 */
-		if (unregister_framebuffer(info))
-			printk(KERN_WARNING
-			       "neofb: danger danger!  Oopsen imminent!\n");
+		unregister_framebuffer(info);
 
 		neo_unmap_video(info);
 		fb_destroy_modedb(info->monspecs.modedb);

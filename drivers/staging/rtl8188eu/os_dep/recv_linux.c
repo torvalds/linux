@@ -14,8 +14,7 @@
 #include <usb_ops_linux.h>
 
 /* alloc os related resource in struct recv_buf */
-int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
-				  struct recv_buf *precvbuf)
+int rtw_os_recvbuf_resource_alloc(struct recv_buf *precvbuf)
 {
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
@@ -38,7 +37,7 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	} else {
 		cur_time = jiffies;
 
-		if (cur_time - psecuritypriv->last_mic_err_time < 60*HZ) {
+		if (cur_time - psecuritypriv->last_mic_err_time < 60 * HZ) {
 			psecuritypriv->btkip_countermeasure = true;
 			psecuritypriv->last_mic_err_time = 0;
 			psecuritypriv->btkip_countermeasure_time = cur_time;
@@ -69,15 +68,12 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 	struct sk_buff *skb;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	precvpriv = &(padapter->recvpriv);
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
+	precvpriv = &padapter->recvpriv;
+	pfree_recv_queue = &precvpriv->free_recv_queue;
 
 	skb = precv_frame->pkt;
-	if (!skb) {
-		RT_TRACE(_module_recv_osdep_c_, _drv_err_,
-			 ("rtw_recv_indicatepkt():skb == NULL something wrong!!!!\n"));
+	if (!skb)
 		goto _recv_indicatepkt_drop;
-	}
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sk_buff *pskb2 = NULL;
@@ -124,9 +120,6 @@ _recv_indicatepkt_end:
 	precv_frame->pkt = NULL;
 
 	rtw_free_recvframe(precv_frame, pfree_recv_queue);
-
-	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("\n rtw_recv_indicatepkt :after netif_rx!!!!\n"));
 
 	return _SUCCESS;
 

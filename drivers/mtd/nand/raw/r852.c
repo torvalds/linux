@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2009 - Maxim Levitsky
  * driver for Ricoh xD readers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define DRV_NAME "r852"
@@ -45,7 +42,6 @@ static inline void r852_write_reg(struct r852_device *dev,
 						int address, uint8_t value)
 {
 	writeb(value, dev->mmio + address);
-	mmiowb();
 }
 
 
@@ -61,7 +57,6 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 							int address, uint32_t value)
 {
 	writel(cpu_to_le32(value), dev->mmio + address);
-	mmiowb();
 }
 
 /* returns pointer to our private structure */
@@ -151,8 +146,9 @@ static void r852_dma_done(struct r852_device *dev, int error)
 	dev->dma_stage = 0;
 
 	if (dev->phys_dma_addr && dev->phys_dma_addr != dev->phys_bounce_buffer)
-		pci_unmap_single(dev->pci_dev, dev->phys_dma_addr, R852_DMA_LEN,
-			dev->dma_dir ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
+		dma_unmap_single(&dev->pci_dev->dev, dev->phys_dma_addr,
+			R852_DMA_LEN,
+			dev->dma_dir ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /*
@@ -197,11 +193,10 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 		bounce = 1;
 
 	if (!bounce) {
-		dev->phys_dma_addr = pci_map_single(dev->pci_dev, (void *)buf,
+		dev->phys_dma_addr = dma_map_single(&dev->pci_dev->dev, buf,
 			R852_DMA_LEN,
-			(do_read ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE));
-
-		if (pci_dma_mapping_error(dev->pci_dev, dev->phys_dma_addr))
+			do_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+		if (dma_mapping_error(&dev->pci_dev->dev, dev->phys_dma_addr))
 			bounce = 1;
 	}
 
@@ -369,8 +364,7 @@ static int r852_wait(struct nand_chip *chip)
 	unsigned long timeout;
 	u8 status;
 
-	timeout = jiffies + (chip->state == FL_ERASING ?
-		msecs_to_jiffies(400) : msecs_to_jiffies(20));
+	timeout = jiffies + msecs_to_jiffies(400);
 
 	while (time_before(jiffies, timeout))
 		if (chip->legacy.dev_ready(chip))
@@ -589,8 +583,8 @@ static void r852_update_card_detect(struct r852_device *dev)
 	r852_write_reg(dev, R852_CARD_IRQ_ENABLE, card_detect_reg);
 }
 
-static ssize_t r852_media_type_show(struct device *sys_dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t media_type_show(struct device *sys_dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = container_of(sys_dev, struct mtd_info, dev);
 	struct r852_device *dev = r852_get_dev(mtd);
@@ -599,8 +593,7 @@ static ssize_t r852_media_type_show(struct device *sys_dev,
 	strcpy(buf, data);
 	return strlen(data);
 }
-
-static DEVICE_ATTR(media_type, S_IRUGO, r852_media_type_show, NULL);
+static DEVICE_ATTR_RO(media_type);
 
 
 /* Detect properties of card in slot */
@@ -657,7 +650,8 @@ static int r852_register_nand_device(struct r852_device *dev)
 	dev->card_registered = 1;
 	return 0;
 error3:
-	nand_release(dev->chip);
+	WARN_ON(mtd_device_unregister(nand_to_mtd(dev->chip)));
+	nand_cleanup(dev->chip);
 error1:
 	/* Force card redetect */
 	dev->card_detected = 0;
@@ -676,7 +670,8 @@ static void r852_unregister_nand_device(struct r852_device *dev)
 		return;
 
 	device_remove_file(&mtd->dev, &dev_attr_media_type);
-	nand_release(dev->chip);
+	WARN_ON(mtd_device_unregister(mtd));
+	nand_cleanup(dev->chip);
 	r852_engine_disable(dev);
 	dev->card_registered = 0;
 }
@@ -728,10 +723,9 @@ static irqreturn_t r852_irq(int irq, void *data)
 	struct r852_device *dev = (struct r852_device *)data;
 
 	uint8_t card_status, dma_status;
-	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
+	spin_lock(&dev->irqlock);
 
 	/* handle card detection interrupts first */
 	card_status = r852_read_reg(dev, R852_CARD_IRQ_STA);
@@ -817,9 +811,32 @@ static irqreturn_t r852_irq(int irq, void *data)
 		dbg("strange card status = %x", card_status);
 
 out:
-	spin_unlock_irqrestore(&dev->irqlock, flags);
+	spin_unlock(&dev->irqlock);
 	return ret;
 }
+
+static int r852_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
+	chip->ecc.size = R852_DMA_LEN;
+	chip->ecc.bytes = SM_OOB_SIZE;
+	chip->ecc.strength = 2;
+	chip->ecc.hwctl = r852_ecc_hwctl;
+	chip->ecc.calculate = r852_ecc_calculate;
+	chip->ecc.correct = r852_ecc_correct;
+
+	/* TODO: hack */
+	chip->ecc.read_oob = r852_read_oob;
+
+	return 0;
+}
+
+static const struct nand_controller_ops r852_ops = {
+	.attach_chip = r852_attach_chip,
+};
 
 static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
@@ -835,7 +852,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	pci_set_master(pci_dev);
 
-	error = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
+	error = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (error)
 		goto error2;
 
@@ -862,18 +879,6 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->legacy.read_buf = r852_read_buf;
 	chip->legacy.write_buf = r852_write_buf;
 
-	/* ecc */
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->ecc.size = R852_DMA_LEN;
-	chip->ecc.bytes = SM_OOB_SIZE;
-	chip->ecc.strength = 2;
-	chip->ecc.hwctl = r852_ecc_hwctl;
-	chip->ecc.calculate = r852_ecc_calculate;
-	chip->ecc.correct = r852_ecc_correct;
-
-	/* TODO: hack */
-	chip->ecc.read_oob = r852_read_oob;
-
 	/* init our device structure */
 	dev = kzalloc(sizeof(struct r852_device), GFP_KERNEL);
 
@@ -885,8 +890,12 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);
 
-	dev->bounce_buffer = pci_alloc_consistent(pci_dev, R852_DMA_LEN,
-		&dev->phys_bounce_buffer);
+	nand_controller_init(&dev->controller);
+	dev->controller.ops = &r852_ops;
+	chip->controller = &dev->controller;
+
+	dev->bounce_buffer = dma_alloc_coherent(&pci_dev->dev, R852_DMA_LEN,
+		&dev->phys_bounce_buffer, GFP_KERNEL);
 
 	if (!dev->bounce_buffer)
 		goto error6;
@@ -946,8 +955,8 @@ error9:
 error8:
 	pci_iounmap(pci_dev, dev->mmio);
 error7:
-	pci_free_consistent(pci_dev, R852_DMA_LEN,
-		dev->bounce_buffer, dev->phys_bounce_buffer);
+	dma_free_coherent(&pci_dev->dev, R852_DMA_LEN, dev->bounce_buffer,
+			  dev->phys_bounce_buffer);
 error6:
 	kfree(dev);
 error5:
@@ -980,8 +989,8 @@ static void r852_remove(struct pci_dev *pci_dev)
 	/* Cleanup */
 	kfree(dev->tmp_buffer);
 	pci_iounmap(pci_dev, dev->mmio);
-	pci_free_consistent(pci_dev, R852_DMA_LEN,
-		dev->bounce_buffer, dev->phys_bounce_buffer);
+	dma_free_coherent(&pci_dev->dev, R852_DMA_LEN, dev->bounce_buffer,
+			  dev->phys_bounce_buffer);
 
 	kfree(dev->chip);
 	kfree(dev);
@@ -1004,7 +1013,7 @@ static void r852_shutdown(struct pci_dev *pci_dev)
 #ifdef CONFIG_PM_SLEEP
 static int r852_suspend(struct device *device)
 {
-	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
+	struct r852_device *dev = dev_get_drvdata(device);
 
 	if (dev->ctlreg & R852_CTL_CARDENABLE)
 		return -EBUSY;
@@ -1025,7 +1034,7 @@ static int r852_suspend(struct device *device)
 
 static int r852_resume(struct device *device)
 {
-	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
+	struct r852_device *dev = dev_get_drvdata(device);
 
 	r852_disable_irqs(dev);
 	r852_card_update_present(dev);
@@ -1045,9 +1054,9 @@ static int r852_resume(struct device *device)
 	/* Otherwise, initialize the card */
 	if (dev->card_registered) {
 		r852_engine_enable(dev);
-		dev->chip->select_chip(dev->chip, 0);
+		nand_select_target(dev->chip, 0);
 		nand_reset_op(dev->chip);
-		dev->chip->select_chip(dev->chip, -1);
+		nand_deselect_target(dev->chip);
 	}
 
 	/* Program card detection IRQ */

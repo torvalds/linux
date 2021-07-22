@@ -242,6 +242,11 @@ struct pd_unit {
 
 static struct pd_unit pd[PD_UNITS];
 
+struct pd_req {
+	/* for REQ_OP_DRV_IN: */
+	enum action (*func)(struct pd_unit *disk);
+};
+
 static char pd_scratch[512];	/* scratch block buffer */
 
 static char *pd_errs[17] = { "ERR", "INDEX", "ECC", "DRQ", "SEEK", "WRERR",
@@ -435,7 +440,7 @@ static void run_fsm(void)
 				pd_claimed = 1;
 				if (!pi_schedule_claimed(pi_current, run_fsm))
 					return;
-				/* fall through */
+				fallthrough;
 			case 1:
 				pd_claimed = 2;
 				pi_current->proto->connect(pi_current);
@@ -460,7 +465,7 @@ static void run_fsm(void)
 				if (stop)
 					return;
 				}
-				/* fall through */
+				fallthrough;
 			case Hold:
 				schedule_fsm();
 				return;
@@ -502,8 +507,9 @@ static enum action do_pd_io_start(void)
 
 static enum action pd_special(void)
 {
-	enum action (*func)(struct pd_unit *) = pd_req->special;
-	return func(pd_current);
+	struct pd_req *req = blk_mq_rq_to_pdu(pd_req);
+
+	return req->func(pd_current);
 }
 
 static int pd_next_buf(void)
@@ -767,13 +773,15 @@ static int pd_special_command(struct pd_unit *disk,
 		      enum action (*func)(struct pd_unit *disk))
 {
 	struct request *rq;
+	struct pd_req *req;
 
 	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
+	req = blk_mq_rq_to_pdu(rq);
 
-	rq->special = func;
-	blk_execute_rq(disk->gd->queue, disk->gd, rq, 0);
+	req->func = func;
+	blk_execute_rq(disk->gd, rq, 0);
 	blk_put_request(rq);
 	return 0;
 }
@@ -851,24 +859,14 @@ static unsigned int pd_check_events(struct gendisk *p, unsigned int clearing)
 	return r ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
-static int pd_revalidate(struct gendisk *p)
-{
-	struct pd_unit *disk = p->private_data;
-	if (pd_special_command(disk, pd_identify) == 0)
-		set_capacity(p, disk->capacity);
-	else
-		set_capacity(p, 0);
-	return 0;
-}
-
 static const struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pd_open,
 	.release	= pd_release,
 	.ioctl		= pd_ioctl,
+	.compat_ioctl	= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.check_events	= pd_check_events,
-	.revalidate_disk= pd_revalidate
 };
 
 /* probing */
@@ -881,25 +879,33 @@ static void pd_probe_drive(struct pd_unit *disk)
 {
 	struct gendisk *p;
 
-	p = alloc_disk(1 << PD_BITS);
-	if (!p)
+	memset(&disk->tag_set, 0, sizeof(disk->tag_set));
+	disk->tag_set.ops = &pd_mq_ops;
+	disk->tag_set.cmd_size = sizeof(struct pd_req);
+	disk->tag_set.nr_hw_queues = 1;
+	disk->tag_set.nr_maps = 1;
+	disk->tag_set.queue_depth = 2;
+	disk->tag_set.numa_node = NUMA_NO_NODE;
+	disk->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+
+	if (blk_mq_alloc_tag_set(&disk->tag_set))
 		return;
+
+	p = blk_mq_alloc_disk(&disk->tag_set, disk);
+	if (!p) {
+		blk_mq_free_tag_set(&disk->tag_set);
+		return;
+	}
+	disk->gd = p;
 
 	strcpy(p->disk_name, disk->name);
 	p->fops = &pd_fops;
 	p->major = major;
 	p->first_minor = (disk - pd) << PD_BITS;
-	disk->gd = p;
+	p->minors = 1 << PD_BITS;
+	p->events = DISK_EVENT_MEDIA_CHANGE;
 	p->private_data = disk;
 
-	p->queue = blk_mq_init_sq_queue(&disk->tag_set, &pd_mq_ops, 2,
-				BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
-	if (IS_ERR(p->queue)) {
-		p->queue = NULL;
-		return;
-	}
-
-	p->queue->queuedata = disk;
 	blk_queue_max_hw_sectors(p->queue, cluster);
 	blk_queue_bounce_limit(p->queue, BLK_BOUNCE_HIGH);
 
@@ -1008,9 +1014,8 @@ static void __exit pd_exit(void)
 		if (p) {
 			disk->gd = NULL;
 			del_gendisk(p);
-			blk_cleanup_queue(p->queue);
+			blk_cleanup_disk(p);
 			blk_mq_free_tag_set(&disk->tag_set);
-			put_disk(p);
 			pi_release(disk->pi);
 		}
 	}

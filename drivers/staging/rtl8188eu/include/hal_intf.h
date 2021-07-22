@@ -117,7 +117,6 @@ enum hal_def_variable {
 	HW_DEF_RA_INFO_DUMP,
 	HAL_DEF_DBG_DUMP_TXPKT,
 	HW_DEF_FA_CNT_DUMP,
-	HW_DEF_ODM_DBG_FLAG,
 };
 
 enum hal_odm_variable {
@@ -185,7 +184,7 @@ u32	rtw_hal_inirp_init(struct adapter *padapter);
 void	rtw_hal_inirp_deinit(struct adapter *padapter);
 void usb_intf_stop(struct adapter *padapter);
 
-s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
+bool rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter,
 			  struct xmit_frame *pmgntframe);
 
@@ -199,7 +198,7 @@ void	rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg, u8 level);
 void	rtw_hal_clone_data(struct adapter *dst_adapt,
 			   struct adapter *src_adapt);
 
-void rtw_hal_bcn_related_reg_setting(struct adapter *padapter);
+void beacon_timing_control(struct adapter *padapter);
 
 u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
 			   u32 RegAddr, u32 BitMask);
@@ -209,7 +208,7 @@ void	rtw_hal_set_bwmode(struct adapter *padapter,
 void	rtw_hal_set_chan(struct adapter *padapter, u8 channel);
 void	rtw_hal_dm_watchdog(struct adapter *padapter);
 
-u8	rtw_hal_antdiv_before_linked(struct adapter *padapter);
+bool rtw_hal_antdiv_before_linked(struct adapter *padapter);
 void	rtw_hal_antdiv_rssi_compared(struct adapter *padapter,
 				     struct wlan_bssid_ex *dst,
 				     struct wlan_bssid_ex *src);

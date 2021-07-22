@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 ============================
 System-Wide Power Management
 ============================
@@ -6,3 +8,4 @@ System-Wide Power Management
    :maxdepth: 2
 
    sleep-states
+   suspend-flows

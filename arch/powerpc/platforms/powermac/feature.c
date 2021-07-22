@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 1996-2001 Paul Mackerras (paulus@cs.anu.edu.au)
  *                          Ben. Herrenschmidt (benh@kernel.crashing.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  *  TODO:
  *
@@ -14,7 +10,6 @@
  *     power)
  *   - Refcount some clocks (see darwin)
  *   - Split split split...
- *
  */
 #include <linux/types.h>
 #include <linux/init.h>
@@ -51,7 +46,7 @@
 #define DBG(fmt...)
 #endif
 
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 extern int powersave_lowspeed;
 #endif
 
@@ -173,9 +168,9 @@ static long ohare_htw_scc_enable(struct device_node *node, long param,
 	macio = macio_find(node, 0);
 	if (!macio)
 		return -ENODEV;
-	if (!strcmp(node->name, "ch-a"))
+	if (of_node_name_eq(node, "ch-a"))
 		chan_mask = MACIO_FLAG_SCCA_ON;
-	else if (!strcmp(node->name, "ch-b"))
+	else if (of_node_name_eq(node, "ch-b"))
 		chan_mask = MACIO_FLAG_SCCB_ON;
 	else
 		return -ENODEV;
@@ -610,9 +605,9 @@ static long core99_scc_enable(struct device_node *node, long param, long value)
 	macio = macio_find(node, 0);
 	if (!macio)
 		return -ENODEV;
-	if (!strcmp(node->name, "ch-a"))
+	if (of_node_name_eq(node, "ch-a"))
 		chan_mask = MACIO_FLAG_SCCA_ON;
-	else if (!strcmp(node->name, "ch-b"))
+	else if (of_node_name_eq(node, "ch-b"))
 		chan_mask = MACIO_FLAG_SCCB_ON;
 	else
 		return -ENODEV;
@@ -1392,8 +1387,7 @@ static long g5_mpic_enable(struct device_node *node, long param, long value)
 
 	if (parent == NULL)
 		return 0;
-	is_u3 = strcmp(parent->name, "u3") == 0 ||
-		strcmp(parent->name, "u4") == 0;
+	is_u3 = of_node_name_eq(parent, "u3") || of_node_name_eq(parent, "u4");
 	of_node_put(parent);
 	if (!is_u3)
 		return 0;
@@ -1471,6 +1465,7 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 	case 2:
 		if (macio->type == macio_shasta)
 			break;
+		fallthrough;
 	default:
 		return -ENODEV;
 	}

@@ -1,18 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	6LoWPAN IPv6 UDP compression according to RFC6282
- *
  *
  *	Authors:
  *	Alexander Aring	<aar@pengutronix.de>
  *
- *	Orignal written by:
+ *	Original written by:
  *	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  *	Jon Smirl <jonsmirl@gmail.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include "nhc.h"
@@ -87,7 +82,7 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 	if (fail)
 		return -EINVAL;
 
-	/* UDP length needs to be infered from the lower layers
+	/* UDP length needs to be inferred from the lower layers
 	 * here, we obtain the hint from the remaining size of the
 	 * frame
 	 */

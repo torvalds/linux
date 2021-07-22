@@ -1,24 +1,11 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function pid filters
+# requires: set_ftrace_pid set_ftrace_filter function:tracer
+# flags: instance
 
 # Make sure that function pid matching filter works.
 # Also test it on an instance directory
-
-if ! grep -q function available_tracers; then
-    echo "no function tracer configured"
-    exit_unsupported
-fi
-
-if [ ! -f set_ftrace_pid ]; then
-    echo "set_ftrace_pid not found? Is function tracer not set?"
-    exit_unsupported
-fi
-
-if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is function tracer not set?"
-    exit_unsupported
-fi
 
 do_function_fork=1
 
@@ -52,7 +39,7 @@ do_test() {
     disable_tracing
 
     echo do_execve* > set_ftrace_filter
-    echo *do_fork >> set_ftrace_filter
+    echo $FUNCTION_FORK >> set_ftrace_filter
 
     echo $PID > set_ftrace_pid
     echo function > current_tracer
@@ -96,13 +83,6 @@ do_test() {
 }
 
 do_test
-
-mkdir instances/foo
-cd instances/foo
-do_test
-cd ../../
-rmdir instances/foo
-
 do_reset
 
 exit 0

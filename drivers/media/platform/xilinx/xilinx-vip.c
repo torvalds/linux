@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx Video IP Core
  *
@@ -6,10 +7,6 @@
  *
  * Contacts: Hyun Kwon <hyun.kwon@xilinx.com>
  *           Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -28,21 +25,21 @@
 
 static const struct xvip_video_format xvip_video_formats[] = {
 	{ XVIP_VF_YUV_422, 8, NULL, MEDIA_BUS_FMT_UYVY8_1X16,
-	  2, V4L2_PIX_FMT_YUYV, "4:2:2, packed, YUYV" },
+	  2, V4L2_PIX_FMT_YUYV },
 	{ XVIP_VF_YUV_444, 8, NULL, MEDIA_BUS_FMT_VUY8_1X24,
-	  3, V4L2_PIX_FMT_YUV444, "4:4:4, packed, YUYV" },
+	  3, V4L2_PIX_FMT_YUV444 },
 	{ XVIP_VF_RBG, 8, NULL, MEDIA_BUS_FMT_RBG888_1X24,
-	  3, 0, NULL },
+	  3, 0 },
 	{ XVIP_VF_MONO_SENSOR, 8, "mono", MEDIA_BUS_FMT_Y8_1X8,
-	  1, V4L2_PIX_FMT_GREY, "Greyscale 8-bit" },
+	  1, V4L2_PIX_FMT_GREY },
 	{ XVIP_VF_MONO_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
-	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit RGGB" },
+	  1, V4L2_PIX_FMT_SRGGB8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
-	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit GRBG" },
+	  1, V4L2_PIX_FMT_SGRBG8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
-	  1, V4L2_PIX_FMT_SGBRG8, "Bayer 8-bit GBRG" },
+	  1, V4L2_PIX_FMT_SGBRG8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "bggr", MEDIA_BUS_FMT_SBGGR8_1X8,
-	  1, V4L2_PIX_FMT_SBGGR8, "Bayer 8-bit BGGR" },
+	  1, V4L2_PIX_FMT_SBGGR8 },
 };
 
 /**
@@ -73,8 +70,8 @@ EXPORT_SYMBOL_GPL(xvip_get_format_by_code);
  * @fourcc: the format 4CC
  *
  * Return: a pointer to the format information structure corresponding to the
- * given V4L2 format @fourcc, or ERR_PTR if no corresponding format can be
- * found.
+ * given V4L2 format @fourcc. If not found, return a pointer to the first
+ * available format (V4L2_PIX_FMT_YUYV).
  */
 const struct xvip_video_format *xvip_get_format_by_fourcc(u32 fourcc)
 {
@@ -87,7 +84,7 @@ const struct xvip_video_format *xvip_get_format_by_fourcc(u32 fourcc)
 			return format;
 	}
 
-	return ERR_PTR(-EINVAL);
+	return &xvip_video_formats[0];
 }
 EXPORT_SYMBOL_GPL(xvip_get_format_by_fourcc);
 
@@ -169,7 +166,7 @@ EXPORT_SYMBOL_GPL(xvip_set_format_size);
  * the register, otherwise the bitmask is cleared from the register
  * when the flag @set is false.
  *
- * Fox eample, this function can be used to set a control with a boolean value
+ * Fox example, this function can be used to set a control with a boolean value
  * requested by users. If the caller knows whether to set or clear in the first
  * place, the caller should call xvip_clr() or xvip_set() directly instead of
  * using this function.
@@ -237,7 +234,7 @@ EXPORT_SYMBOL_GPL(xvip_cleanup_resources);
 /**
  * xvip_enum_mbus_code - Enumerate the media format code
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code: returning media bus code
  *
  * Enumerate the media bus code of the subdevice. Return the corresponding
@@ -249,7 +246,7 @@ EXPORT_SYMBOL_GPL(xvip_cleanup_resources);
  * is not valid.
  */
 int xvip_enum_mbus_code(struct v4l2_subdev *subdev,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct v4l2_mbus_framefmt *format;
@@ -263,7 +260,7 @@ int xvip_enum_mbus_code(struct v4l2_subdev *subdev,
 	if (code->index)
 		return -EINVAL;
 
-	format = v4l2_subdev_get_try_format(subdev, cfg, code->pad);
+	format = v4l2_subdev_get_try_format(subdev, sd_state, code->pad);
 
 	code->code = format->code;
 
@@ -274,7 +271,7 @@ EXPORT_SYMBOL_GPL(xvip_enum_mbus_code);
 /**
  * xvip_enum_frame_size - Enumerate the media bus frame size
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fse: returning media bus frame size
  *
  * This function is a drop-in implementation of the subdev enum_frame_size pad
@@ -287,7 +284,7 @@ EXPORT_SYMBOL_GPL(xvip_enum_mbus_code);
  * if the index or the code is not valid.
  */
 int xvip_enum_frame_size(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_pad_config *cfg,
+			 struct v4l2_subdev_state *sd_state,
 			 struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct v4l2_mbus_framefmt *format;
@@ -298,7 +295,7 @@ int xvip_enum_frame_size(struct v4l2_subdev *subdev,
 	if (fse->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	format = v4l2_subdev_get_try_format(subdev, cfg, fse->pad);
+	format = v4l2_subdev_get_try_format(subdev, sd_state, fse->pad);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kirkwood thermal sensor driver
  *
  * Copyright (C) 2012 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/device.h>
 #include <linux/err.h>
@@ -74,6 +65,7 @@ static int kirkwood_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *thermal = NULL;
 	struct kirkwood_thermal_priv *priv;
 	struct resource *res;
+	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -90,6 +82,12 @@ static int kirkwood_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Failed to register thermal zone device\n");
 		return PTR_ERR(thermal);
+	}
+	ret = thermal_zone_device_enable(thermal);
+	if (ret) {
+		thermal_zone_device_unregister(thermal);
+		dev_err(&pdev->dev, "Failed to enable thermal zone device\n");
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, thermal);

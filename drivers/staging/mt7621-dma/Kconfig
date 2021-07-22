@@ -1,9 +1,4 @@
-config DMA_RALINK
-	tristate "RALINK DMA support"
-	depends on RALINK && !SOC_RT288X
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-
+# SPDX-License-Identifier: GPL-2.0
 config MTK_HSDMA
 	tristate "MTK HSDMA support"
 	depends on RALINK && SOC_MT7621

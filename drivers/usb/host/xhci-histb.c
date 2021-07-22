@@ -219,8 +219,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	histb->ctrl = devm_ioremap_resource(&pdev->dev, res);
+	histb->ctrl = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(histb->ctrl))
 		return PTR_ERR(histb->ctrl);
 
@@ -241,7 +240,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
-		return ret;
+		goto disable_pm;
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
@@ -325,14 +324,16 @@ static int xhci_histb_remove(struct platform_device *dev)
 	struct xhci_hcd_histb *histb = platform_get_drvdata(dev);
 	struct usb_hcd *hcd = histb->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
-	usb_remove_hcd(xhci->shared_hcd);
+	usb_remove_hcd(shared_hcd);
+	xhci->shared_hcd = NULL;
 	device_wakeup_disable(&dev->dev);
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(xhci->shared_hcd);
+	usb_put_hcd(shared_hcd);
 
 	xhci_histb_host_disable(histb);
 	usb_put_hcd(hcd);

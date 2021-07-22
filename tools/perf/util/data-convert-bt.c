@@ -1,16 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CTF writing support via babeltrace.
  *
  * Copyright (C) 2014, Jiri Olsa <jolsa@redhat.com>
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-writer/clock.h>
 #include <babeltrace/ctf-writer/stream.h>
@@ -21,16 +21,19 @@
 #include <babeltrace/ctf/events.h>
 #include <traceevent/event-parse.h>
 #include "asm/bug.h"
-#include "data-convert-bt.h"
+#include "data-convert.h"
 #include "session.h"
-#include "util.h"
 #include "debug.h"
 #include "tool.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "machine.h"
 #include "config.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/err.h>
+#include <linux/time64.h>
+#include "util.h"
+#include "clockid.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -271,7 +274,7 @@ static int string_set_value(struct bt_ctf_field *field, const char *string)
 				if (i > 0)
 					strncpy(buffer, string, i);
 			}
-			strncat(buffer + p, numstr, 4);
+			memcpy(buffer + p, numstr, 4);
 			p += 3;
 		}
 	}
@@ -310,7 +313,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	if (flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long tmp_val;
 
-		tmp_val = tep_read_number(fmtf->event->pevent,
+		tmp_val = tep_read_number(fmtf->event->tep,
 					  data + offset, len);
 		offset = tmp_val;
 		len = offset >> 16;
@@ -354,7 +357,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			unsigned long long value_int;
 
 			value_int = tep_read_number(
-					fmtf->event->pevent,
+					fmtf->event->tep,
 					data + offset + i * len, len);
 
 			if (!(flags & TEP_FIELD_IS_SIGNED))
@@ -414,7 +417,7 @@ static int add_tracepoint_fields_values(struct ctf_writer *cw,
 static int add_tracepoint_values(struct ctf_writer *cw,
 				 struct bt_ctf_event_class *event_class,
 				 struct bt_ctf_event *event,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct perf_sample *sample)
 {
 	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
@@ -585,10 +588,10 @@ put_len_type:
 
 static int add_generic_values(struct ctf_writer *cw,
 			      struct bt_ctf_event *event,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct perf_sample *sample)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 	int ret;
 
 	/*
@@ -754,11 +757,11 @@ static struct ctf_stream *ctf_stream(struct ctf_writer *cw, int cpu)
 }
 
 static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
-			  struct perf_evsel *evsel)
+			  struct evsel *evsel)
 {
 	int cpu = 0;
 
-	if (evsel->attr.sample_type & PERF_SAMPLE_CPU)
+	if (evsel->core.attr.sample_type & PERF_SAMPLE_CPU)
 		cpu = sample->cpu;
 
 	if (cpu > cw->stream_cnt) {
@@ -786,7 +789,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *_event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine __maybe_unused)
 {
 	struct convert *c = container_of(tool, struct convert, tool);
@@ -796,7 +799,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct bt_ctf_event_class *event_class;
 	struct bt_ctf_event *event;
 	int ret;
-	unsigned long type = evsel->attr.sample_type;
+	unsigned long type = evsel->core.attr.sample_type;
 
 	if (WARN_ONCE(!priv, "Failed to setup all events.\n"))
 		return 0;
@@ -821,7 +824,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ret)
 		return -1;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_values(cw, event_class, event,
 					    evsel, sample);
 		if (ret)
@@ -835,7 +838,7 @@ static int process_sample_event(struct perf_tool *tool,
 			return -1;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_values(event_class, event, sample);
 		if (ret)
 			return -1;
@@ -945,8 +948,8 @@ static char *change_name(char *name, char *orig_name, int dup)
 		goto out;
 	/*
 	 * Add '_' prefix to potential keywork.  According to
-	 * Mathieu Desnoyers (https://lkml.org/lkml/2015/1/23/652),
-	 * futher CTF spec updating may require us to use '$'.
+	 * Mathieu Desnoyers (https://lore.kernel.org/lkml/1074266107.40857.1422045946295.JavaMail.zimbra@efficios.com),
+	 * further CTF spec updating may require us to use '$'.
 	 */
 	if (dup < 0)
 		len = strlen(name) + sizeof("_");
@@ -1052,7 +1055,7 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 }
 
 static int add_tracepoint_types(struct ctf_writer *cw,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct bt_ctf_event_class *class)
 {
 	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
@@ -1085,10 +1088,10 @@ static int add_bpf_output_types(struct ctf_writer *cw,
 	return bt_ctf_event_class_add_field(class, seq_type, "raw_data");
 }
 
-static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
+static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 			     struct bt_ctf_event_class *event_class)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 
 	/*
 	 * missing:
@@ -1151,14 +1154,14 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	return 0;
 }
 
-static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
+static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 {
 	struct bt_ctf_event_class *event_class;
 	struct evsel_priv *priv;
-	const char *name = perf_evsel__name(evsel);
+	const char *name = evsel__name(evsel);
 	int ret;
 
-	pr("Adding event '%s' (type %d)\n", name, evsel->attr.type);
+	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
 
 	event_class = bt_ctf_event_class_create(name);
 	if (!event_class)
@@ -1168,13 +1171,13 @@ static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
 	if (ret)
 		goto err;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_types(cw, evsel, event_class);
 		if (ret)
 			goto err;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_types(cw, event_class);
 		if (ret)
 			goto err;
@@ -1202,8 +1205,8 @@ err:
 
 static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 	int ret;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -1309,8 +1312,8 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 
 static void cleanup_events(struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct evsel_priv *priv;
@@ -1320,7 +1323,7 @@ static void cleanup_events(struct perf_session *session)
 		zfree(&evsel->priv);
 	}
 
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	session->evlist = NULL;
 }
 
@@ -1354,7 +1357,7 @@ static void free_streams(struct ctf_writer *cw)
 	for (cpu = 0; cpu < cw->stream_cnt; cpu++)
 		ctf_stream__delete(cw->stream[cpu]);
 
-	free(cw->stream);
+	zfree(&cw->stream);
 }
 
 static int ctf_writer__setup_env(struct ctf_writer *cw,
@@ -1381,11 +1384,26 @@ do {									\
 	return 0;
 }
 
-static int ctf_writer__setup_clock(struct ctf_writer *cw)
+static int ctf_writer__setup_clock(struct ctf_writer *cw,
+				   struct perf_session *session,
+				   bool tod)
 {
 	struct bt_ctf_clock *clock = cw->clock;
+	const char *desc = "perf clock";
+	int64_t offset = 0;
 
-	bt_ctf_clock_set_description(clock, "perf clock");
+	if (tod) {
+		struct perf_env *env = &session->header.env;
+
+		if (!env->clock.enabled) {
+			pr_err("Can't provide --tod time, missing clock data. "
+			       "Please record with -k/--clockid option.\n");
+			return -1;
+		}
+
+		desc   = clockid_name(env->clock.clockid);
+		offset = env->clock.tod_ns - env->clock.clockid_ns;
+	}
 
 #define SET(__n, __v)				\
 do {						\
@@ -1394,8 +1412,8 @@ do {						\
 } while (0)
 
 	SET(frequency,   1000000000);
-	SET(offset_s,    0);
-	SET(offset,      0);
+	SET(offset,      offset);
+	SET(description, desc);
 	SET(precision,   10);
 	SET(is_absolute, 0);
 
@@ -1481,7 +1499,8 @@ static void ctf_writer__cleanup(struct ctf_writer *cw)
 	memset(cw, 0, sizeof(*cw));
 }
 
-static int ctf_writer__init(struct ctf_writer *cw, const char *path)
+static int ctf_writer__init(struct ctf_writer *cw, const char *path,
+			    struct perf_session *session, bool tod)
 {
 	struct bt_ctf_writer		*writer;
 	struct bt_ctf_stream_class	*stream_class;
@@ -1505,7 +1524,7 @@ static int ctf_writer__init(struct ctf_writer *cw, const char *path)
 
 	cw->clock = clock;
 
-	if (ctf_writer__setup_clock(cw)) {
+	if (ctf_writer__setup_clock(cw, session, tod)) {
 		pr("Failed to setup CTF clock.\n");
 		goto err_cleanup;
 	}
@@ -1578,7 +1597,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 {
 	struct perf_session *session;
 	struct perf_data data = {
-		.file      = { .path = input, .fd = -1 },
+		.path	   = input,
 		.mode      = PERF_DATA_MODE_READ,
 		.force     = opts->force,
 	};
@@ -1613,15 +1632,15 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	if (err)
 		return err;
 
-	/* CTF writer */
-	if (ctf_writer__init(cw, path))
-		return -1;
-
 	err = -1;
 	/* perf.data session */
 	session = perf_session__new(&data, 0, &c.tool);
-	if (!session)
-		goto free_writer;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
+
+	/* CTF writer */
+	if (ctf_writer__init(cw, path, session, opts->tod))
+		goto free_session;
 
 	if (c.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,
@@ -1630,17 +1649,17 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	/* CTF writer env/clock setup  */
 	if (ctf_writer__setup_env(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	/* CTF events setup */
 	if (setup_events(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	if (opts->all && setup_non_sample_events(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	if (setup_streams(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	err = perf_session__process_events(session);
 	if (!err)
@@ -1650,7 +1669,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
-		data.file.path, path);
+		data.path, path);
 
 	fprintf(stderr,
 		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",
@@ -1668,10 +1687,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	return err;
 
-free_session:
-	perf_session__delete(session);
 free_writer:
 	ctf_writer__cleanup(cw);
+free_session:
+	perf_session__delete(session);
 	pr_err("Error during conversion setup.\n");
 	return err;
 }

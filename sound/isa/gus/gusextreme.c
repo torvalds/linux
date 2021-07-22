@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Gravis UltraSound Extreme soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -42,7 +27,6 @@
 MODULE_DESCRIPTION(CRD_NAME);
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound Extreme}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -98,9 +82,9 @@ static int snd_gusextreme_es1688_create(struct snd_card *card,
 					struct snd_es1688 *chip,
 					struct device *dev, unsigned int n)
 {
-	static long possible_ports[] = {0x220, 0x240, 0x260};
-	static int possible_irqs[] = {5, 9, 10, 7, -1};
-	static int possible_dmas[] = {1, 3, 0, -1};
+	static const long possible_ports[] = {0x220, 0x240, 0x260};
+	static const int possible_irqs[] = {5, 9, 10, 7, -1};
+	static const int possible_dmas[] = {1, 3, 0, -1};
 
 	int i, error;
 
@@ -137,8 +121,8 @@ static int snd_gusextreme_gus_card_create(struct snd_card *card,
 					  struct device *dev, unsigned int n,
 					  struct snd_gus_card **rgus)
 {
-	static int possible_irqs[] = {11, 12, 15, 9, 5, 7, 3, -1};
-	static int possible_dmas[] = {5, 6, 7, 3, 1, -1};
+	static const int possible_irqs[] = {11, 12, 15, 9, 5, 7, 3, -1};
+	static const int possible_dmas[] = {5, 6, 7, 3, 1, -1};
 
 	if (gf1_irq[n] == SNDRV_AUTO_IRQ) {
 		gf1_irq[n] = snd_legacy_find_free_irq(possible_irqs);
@@ -193,14 +177,16 @@ static int snd_gusextreme_detect(struct snd_gus_card *gus,
 	udelay(100);
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -EIO;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -EIO;
 	}
@@ -339,10 +325,9 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int snd_gusextreme_remove(struct device *dev, unsigned int n)
+static void snd_gusextreme_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	return 0;
 }
 
 static struct isa_driver snd_gusextreme_driver = {

@@ -1,0 +1,326 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2012 Linaro Ltd
+ */
+
+#include <dt-bindings/clock/ste-ab8500.h>
+
+/ {
+	/* Essential housekeeping hardware monitors */
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&gpadc 0x02>, /* Battery temperature */
+			      <&gpadc 0x08>, /* Main battery voltage */
+			      <&gpadc 0x09>, /* VBUS */
+			      <&gpadc 0x0b>, /* Charger current */
+			      <&gpadc 0x0c>, /* Backup battery voltage */
+			      <&gpadc 0x0d>; /* Die temperature */
+	};
+
+	soc {
+		prcmu@80157000 {
+			ab8505 {
+				compatible = "stericsson,ab8505";
+				interrupt-parent = <&intc>;
+				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ab8500_clock: clock-controller {
+					compatible = "stericsson,ab8500-clk";
+					#clock-cells = <1>;
+				};
+
+				ab8505_gpio: ab8505-gpiocontroller {
+					compatible = "stericsson,ab8505-gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+
+				ab8500-rtc {
+					compatible = "stericsson,ab8500-rtc";
+					interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
+						     <18 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "60S", "ALARM";
+				};
+
+				gpadc: ab8500-gpadc {
+					compatible = "stericsson,ab8500-gpadc";
+					interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "SW_CONV_END";
+					vddadc-supply = <&ab8500_ldo_adc_reg>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#io-channel-cells = <1>;
+
+					/* GPADC channels */
+					bat_ctrl: channel@01 {
+						reg = <0x01>;
+					};
+					btemp_ball: channel@02 {
+						reg = <0x02>;
+					};
+					acc_detect1: channel@04 {
+						reg = <0x04>;
+					};
+					acc_detect2: channel@05 {
+						reg = <0x05>;
+					};
+					adc_aux1: channel@06 {
+						reg = <0x06>;
+					};
+					adc_aux2: channel@07 {
+						reg = <0x07>;
+					};
+					main_batt_v: channel@08 {
+						reg = <0x08>;
+					};
+					vbus_v: channel@09 {
+						reg = <0x09>;
+					};
+					charger_c: channel@0b {
+						reg = <0x0b>;
+					};
+					bk_bat_v: channel@0c {
+						reg = <0x0c>;
+					};
+					die_temp: channel@0d {
+						reg = <0x0d>;
+					};
+					usb_id: channel@0e {
+						reg = <0x0e>;
+					};
+				};
+
+				ab8500_battery: ab8500_battery {
+					stericsson,battery-type = "LIPO";
+					thermistor-on-batctrl;
+				};
+
+				ab8500_fg {
+					status = "disabled";
+					compatible = "stericsson,ab8500-fg";
+					interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
+						     <8 IRQ_TYPE_LEVEL_HIGH>,
+						     <28 IRQ_TYPE_LEVEL_HIGH>,
+						     <27 IRQ_TYPE_LEVEL_HIGH>,
+						     <26 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "NCONV_ACCU",
+							  "BATT_OVV",
+							  "LOW_BAT_F",
+							  "CC_INT_CALIB",
+							  "CCEOC";
+					battery = <&ab8500_battery>;
+					io-channels = <&gpadc 0x08>;
+					io-channel-names = "main_bat_v";
+				};
+
+				ab8500_btemp {
+					status = "disabled";
+					compatible = "stericsson,ab8500-btemp";
+					interrupts = <20 IRQ_TYPE_LEVEL_HIGH>,
+						     <80 IRQ_TYPE_LEVEL_HIGH>,
+						     <83 IRQ_TYPE_LEVEL_HIGH>,
+						     <81 IRQ_TYPE_LEVEL_HIGH>,
+						     <82 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "BAT_CTRL_INDB",
+							  "BTEMP_LOW",
+							  "BTEMP_HIGH",
+							  "BTEMP_LOW_MEDIUM",
+							  "BTEMP_MEDIUM_HIGH";
+					battery = <&ab8500_battery>;
+					io-channels = <&gpadc 0x02>,
+						      <&gpadc 0x01>;
+					io-channel-names = "btemp_ball",
+							  "bat_ctrl";
+				};
+
+				ab8500_charger {
+					status = "disabled";
+					compatible = "stericsson,ab8500-charger";
+					interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+						     <11 IRQ_TYPE_LEVEL_HIGH>,
+						     <0 IRQ_TYPE_LEVEL_HIGH>,
+						     <107 IRQ_TYPE_LEVEL_HIGH>,
+						     <106 IRQ_TYPE_LEVEL_HIGH>,
+						     <14 IRQ_TYPE_LEVEL_HIGH>,
+						     <15 IRQ_TYPE_LEVEL_HIGH>,
+						     <79 IRQ_TYPE_LEVEL_HIGH>,
+						     <105 IRQ_TYPE_LEVEL_HIGH>,
+						     <104 IRQ_TYPE_LEVEL_HIGH>,
+						     <89 IRQ_TYPE_LEVEL_HIGH>,
+						     <22 IRQ_TYPE_LEVEL_HIGH>,
+						     <21 IRQ_TYPE_LEVEL_HIGH>,
+						     <16 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "MAIN_CH_UNPLUG_DET",
+							  "MAIN_CHARGE_PLUG_DET",
+							  "MAIN_EXT_CH_NOT_OK",
+							  "MAIN_CH_TH_PROT_R",
+							  "MAIN_CH_TH_PROT_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_CH_TH_PROT_R",
+							  "USB_CH_TH_PROT_F",
+							  "USB_CHARGER_NOT_OKR",
+							  "VBUS_OVV",
+							  "CH_WD_EXP",
+							  "VBUS_CH_DROP_END";
+					battery = <&ab8500_battery>;
+					vddadc-supply = <&ab8500_ldo_adc_reg>;
+					io-channels = <&gpadc 0x09>,
+						      <&gpadc 0x0b>;
+					io-channel-names = "vbus_v",
+							  "usb_charger_c";
+				};
+
+				ab8500_chargalg {
+					status = "disabled";
+					compatible = "stericsson,ab8500-chargalg";
+					battery = <&ab8500_battery>;
+				};
+
+				ab8500_usb: ab8500_usb {
+					compatible = "stericsson,ab8500-usb";
+					interrupts = <90 IRQ_TYPE_LEVEL_HIGH>,
+						     <96 IRQ_TYPE_LEVEL_HIGH>,
+						     <14 IRQ_TYPE_LEVEL_HIGH>,
+						     <15 IRQ_TYPE_LEVEL_HIGH>,
+						     <79 IRQ_TYPE_LEVEL_HIGH>,
+						     <74 IRQ_TYPE_LEVEL_HIGH>,
+						     <75 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ID_WAKEUP_R",
+							  "ID_WAKEUP_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_ADP_PROBE_PLUG",
+							  "USB_ADP_PROBE_UNPLUG";
+					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
+					v-ape-supply = <&db8500_vape_reg>;
+					musb_1v8-supply = <&db8500_vsmps2_reg>;
+					clocks = <&prcmu_clk PRCMU_SYSCLK>;
+					clock-names = "sysclk";
+				};
+
+				ab8500-ponkey {
+					compatible = "stericsson,ab8500-poweron-key";
+					interrupts = <6 IRQ_TYPE_LEVEL_HIGH>,
+						     <7 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
+				};
+
+				ab8500-sysctrl {
+					compatible = "stericsson,ab8500-sysctrl";
+				};
+
+				ab8500-pwm {
+					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
+				};
+
+				ab8500-debugfs {
+					compatible = "stericsson,ab8500-debug";
+				};
+
+				codec: ab8500-codec {
+					compatible = "stericsson,ab8500-codec";
+
+					V-AUD-supply = <&ab8500_ldo_audio_reg>;
+					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
+					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
+
+					clocks = <&ab8500_clock AB8500_SYSCLK_AUDIO>;
+					clock-names = "audioclk";
+
+					stericsson,earpeice-cmv = <950>; /* Units in mV. */
+				};
+
+				ab8505-regulators {
+					compatible = "stericsson,ab8505-regulator";
+
+					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux4_reg: ab8500_ldo_aux4 {
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux5_reg: ab8500_ldo_aux5 {
+						regulator-min-microvolt = <1050000>;
+						regulator-max-microvolt = <2790000>;
+					};
+
+					ab8500_ldo_aux6_reg: ab8500_ldo_aux6 {
+						regulator-min-microvolt = <1050000>;
+						regulator-max-microvolt = <2790000>;
+					};
+
+					// supply for v-intcore12; VINTCORE12 LDO
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-min-microvolt = <1250000>;
+						regulator-max-microvolt = <1350000>;
+					};
+
+					// supply for gpadc; ADC LDO
+					ab8500_ldo_adc_reg: ab8500_ldo_adc {
+					};
+
+					// supply for ab8500-vaudio; VAUDIO LDO
+					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+					};
+
+					// supply for v-anamic1 VAMIC1 LDO
+					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+					};
+
+					// supply for v-amic2; VAMIC2 LDO; reuse constants for AMIC1
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+					};
+
+					// supply for v-aux8; VAUX8 LDO
+					ab8500_ldo_aux8_reg: ab8500_ldo_aux8 {
+					};
+
+					// supply for U8500 CSI/DSI; VANA LDO
+					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+					};
+				};
+			};
+		};
+
+		sound {
+			stericsson,audio-codec = <&codec>;
+			clocks = <&prcmu_clk PRCMU_SYSCLK>, <&ab8500_clock AB8500_SYSCLK_ULP>, <&ab8500_clock AB8500_SYSCLK_INT>;
+			clock-names = "sysclk", "ulpclk", "intclk";
+		};
+
+		mcde@a0350000 {
+			vana-supply = <&ab8500_ldo_ana_reg>;
+
+			dsi@a0351000 {
+				vana-supply = <&ab8500_ldo_ana_reg>;
+			};
+			dsi@a0352000 {
+				vana-supply = <&ab8500_ldo_ana_reg>;
+			};
+			dsi@a0353000 {
+				vana-supply = <&ab8500_ldo_ana_reg>;
+			};
+		};
+	};
+};

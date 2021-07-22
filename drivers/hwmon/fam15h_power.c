@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * fam15h_power.c - AMD Family 15h processor power monitoring
  *
  * Copyright (c) 2011-2016 Advanced Micro Devices, Inc.
  * Author: Andreas Herrmann <herrmann.der.user@googlemail.com>
- *
- *
- * This driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this driver; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/err.h>
@@ -52,10 +40,6 @@ MODULE_LICENSE("GPL");
 
 /* set maximum interval as 1 second */
 #define MAX_INTERVAL			1000
-
-#define MSR_F15H_CU_PWR_ACCUMULATOR	0xc001007a
-#define MSR_F15H_CU_MAX_PWR_ACCUMULATOR	0xc001007b
-#define MSR_F15H_PTSC			0xc0010280
 
 #define PCI_DEVICE_ID_AMD_15H_M70H_NB_F4 0x15b4
 

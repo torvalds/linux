@@ -53,6 +53,8 @@
 #include "hfi.h"
 #include "mad.h"
 #include "sdma.h"
+#include "ipoib.h"
+#include "user_sdma.h"
 
 const char *parse_sdma_flags(struct trace_seq *p, u64 desc0, u64 desc1);
 
@@ -114,19 +116,27 @@ DECLARE_EVENT_CLASS(hfi1_qpsleepwakeup_template,
 		    __field(u32, qpn)
 		    __field(u32, flags)
 		    __field(u32, s_flags)
+		    __field(u32, ps_flags)
+		    __field(unsigned long, iow_flags)
 		    ),
 		    TP_fast_assign(
-		    DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		    DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		    __entry->flags = flags;
 		    __entry->qpn = qp->ibqp.qp_num;
 		    __entry->s_flags = qp->s_flags;
+		    __entry->ps_flags =
+			((struct hfi1_qp_priv *)qp->priv)->s_flags;
+		    __entry->iow_flags =
+			((struct hfi1_qp_priv *)qp->priv)->s_iowait.flags;
 		    ),
 		    TP_printk(
-		    "[%s] qpn 0x%x flags 0x%x s_flags 0x%x",
+		    "[%s] qpn 0x%x flags 0x%x s_flags 0x%x ps_flags 0x%x iow_flags 0x%lx",
 		    __get_str(dev),
 		    __entry->qpn,
 		    __entry->flags,
-		    __entry->s_flags
+		    __entry->s_flags,
+		    __entry->ps_flags,
+		    __entry->iow_flags
 		    )
 );
 
@@ -580,7 +590,7 @@ TRACE_EVENT(hfi1_sdma_user_reqinfo,
 	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u8 subctxt, u16 *i),
 	    TP_ARGS(dd, ctxt, subctxt, i),
 	    TP_STRUCT__entry(
-		    DD_DEV_ENTRY(dd);
+		    DD_DEV_ENTRY(dd)
 		    __field(u16, ctxt)
 		    __field(u8, subctxt)
 		    __field(u8, ver_opcode)
@@ -643,6 +653,80 @@ TRACE_EVENT(hfi1_sdma_user_completion,
 		      __get_str(dev), __entry->ctxt, __entry->subctxt,
 		      __entry->idx, show_usdma_complete_state(__entry->state),
 		      __entry->code)
+);
+
+TRACE_EVENT(hfi1_usdma_defer,
+	    TP_PROTO(struct hfi1_user_sdma_pkt_q *pq,
+		     struct sdma_engine *sde,
+		     struct iowait *wait),
+	    TP_ARGS(pq, sde, wait),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(pq->dd)
+			     __field(struct hfi1_user_sdma_pkt_q *, pq)
+			     __field(struct sdma_engine *, sde)
+			     __field(struct iowait *, wait)
+			     __field(int, engine)
+			     __field(int, empty)
+			     ),
+	     TP_fast_assign(DD_DEV_ASSIGN(pq->dd);
+			    __entry->pq = pq;
+			    __entry->sde = sde;
+			    __entry->wait = wait;
+			    __entry->engine = sde->this_idx;
+			    __entry->empty = list_empty(&__entry->wait->list);
+			    ),
+	     TP_printk("[%s] pq %llx sde %llx wait %llx engine %d empty %d",
+		       __get_str(dev),
+		       (unsigned long long)__entry->pq,
+		       (unsigned long long)__entry->sde,
+		       (unsigned long long)__entry->wait,
+		       __entry->engine,
+		       __entry->empty
+		)
+);
+
+TRACE_EVENT(hfi1_usdma_activate,
+	    TP_PROTO(struct hfi1_user_sdma_pkt_q *pq,
+		     struct iowait *wait,
+		     int reason),
+	    TP_ARGS(pq, wait, reason),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(pq->dd)
+			     __field(struct hfi1_user_sdma_pkt_q *, pq)
+			     __field(struct iowait *, wait)
+			     __field(int, reason)
+			     ),
+	     TP_fast_assign(DD_DEV_ASSIGN(pq->dd);
+			    __entry->pq = pq;
+			    __entry->wait = wait;
+			    __entry->reason = reason;
+			    ),
+	     TP_printk("[%s] pq %llx wait %llx reason %d",
+		       __get_str(dev),
+		       (unsigned long long)__entry->pq,
+		       (unsigned long long)__entry->wait,
+		       __entry->reason
+		)
+);
+
+TRACE_EVENT(hfi1_usdma_we,
+	    TP_PROTO(struct hfi1_user_sdma_pkt_q *pq,
+		     int we_ret),
+	    TP_ARGS(pq, we_ret),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(pq->dd)
+			     __field(struct hfi1_user_sdma_pkt_q *, pq)
+			     __field(int, state)
+			     __field(int, we_ret)
+			     ),
+	     TP_fast_assign(DD_DEV_ASSIGN(pq->dd);
+			    __entry->pq = pq;
+			    __entry->state = pq->state;
+			    __entry->we_ret = we_ret;
+			    ),
+	     TP_printk("[%s] pq %llx state %d we_ret %d",
+		       __get_str(dev),
+		       (unsigned long long)__entry->pq,
+		       __entry->state,
+		       __entry->we_ret
+		)
 );
 
 const char *print_u32_array(struct trace_seq *, u32 *, int);
@@ -784,7 +868,7 @@ TRACE_EVENT(
 		__field(int, send_flags)
 	),
 	TP_fast_assign(
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->wqe = wqe;
 		__entry->wr_id = wqe->wr.wr_id;
 		__entry->qpn = qp->ibqp.qp_num;
@@ -820,7 +904,7 @@ DECLARE_EVENT_CLASS(
 		__field(bool, flag)
 	),
 	TP_fast_assign(
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->flag = flag;
 	),
@@ -838,10 +922,119 @@ DEFINE_EVENT(
 	TP_ARGS(qp, flag)
 );
 
+DEFINE_EVENT(/* event */
+	hfi1_do_send_template, hfi1_rc_do_tid_send,
+	TP_PROTO(struct rvt_qp *qp, bool flag),
+	TP_ARGS(qp, flag)
+);
+
 DEFINE_EVENT(
 	hfi1_do_send_template, hfi1_rc_expired_time_slice,
 	TP_PROTO(struct rvt_qp *qp, bool flag),
 	TP_ARGS(qp, flag)
+);
+
+DECLARE_EVENT_CLASS(/* AIP  */
+	hfi1_ipoib_txq_template,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(txq->priv->dd)
+		__field(struct hfi1_ipoib_txq *, txq)
+		__field(struct sdma_engine *, sde)
+		__field(ulong, head)
+		__field(ulong, tail)
+		__field(uint, used)
+		__field(uint, flow)
+		__field(int, stops)
+		__field(int, no_desc)
+		__field(u8, idx)
+		__field(u8, stopped)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(txq->priv->dd);
+		__entry->txq = txq;
+		__entry->sde = txq->sde;
+		__entry->head = txq->tx_ring.head;
+		__entry->tail = txq->tx_ring.tail;
+		__entry->idx = txq->q_idx;
+		__entry->used =
+			txq->sent_txreqs -
+			atomic64_read(&txq->complete_txreqs);
+		__entry->flow = txq->flow.as_int;
+		__entry->stops = atomic_read(&txq->stops);
+		__entry->no_desc = atomic_read(&txq->no_desc);
+		__entry->stopped =
+		 __netif_subqueue_stopped(txq->priv->netdev, txq->q_idx);
+	),
+	TP_printk(/* print  */
+		"[%s] txq %llx idx %u sde %llx head %lx tail %lx flow %x used %u stops %d no_desc %d stopped %u",
+		__get_str(dev),
+		(unsigned long long)__entry->txq,
+		__entry->idx,
+		(unsigned long long)__entry->sde,
+		__entry->head,
+		__entry->tail,
+		__entry->flow,
+		__entry->used,
+		__entry->stops,
+		__entry->no_desc,
+		__entry->stopped
+	)
+);
+
+DEFINE_EVENT(/* queue stop */
+	hfi1_ipoib_txq_template, hfi1_txq_stop,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* queue wake */
+	hfi1_ipoib_txq_template, hfi1_txq_wake,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* flow flush */
+	hfi1_ipoib_txq_template, hfi1_flow_flush,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* flow switch */
+	hfi1_ipoib_txq_template, hfi1_flow_switch,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* wakeup */
+	hfi1_ipoib_txq_template, hfi1_txq_wakeup,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* full */
+	hfi1_ipoib_txq_template, hfi1_txq_full,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* queued */
+	hfi1_ipoib_txq_template, hfi1_txq_queued,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* xmit_stopped */
+	hfi1_ipoib_txq_template, hfi1_txq_xmit_stopped,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* xmit_unstopped */
+	hfi1_ipoib_txq_template, hfi1_txq_xmit_unstopped,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
 );
 
 #endif /* __HFI1_TRACE_TX_H */

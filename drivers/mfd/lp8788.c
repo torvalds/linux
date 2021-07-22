@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI LP8788 MFD - core interface
  *
  * Copyright 2012 Texas Instruments
  *
  * Author: Milo(Woogyom) Kim <milo.kim@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/err.h>
@@ -38,7 +34,7 @@
 	.num_resources = num_resource,				\
 }
 
-static struct resource chg_irqs[] = {
+static const struct resource chg_irqs[] = {
 	/* Charger Interrupts */
 	{
 		.start = LP8788_INT_CHG_INPUT_STATE,
@@ -62,7 +58,7 @@ static struct resource chg_irqs[] = {
 	},
 };
 
-static struct resource rtc_irqs[] = {
+static const struct resource rtc_irqs[] = {
 	{
 		.start = LP8788_INT_RTC_ALARM1,
 		.end   = LP8788_INT_RTC_ALARM2,

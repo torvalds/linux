@@ -327,7 +327,6 @@ enum radeon_flip_status {
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
-	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
 	bool cursor_out_of_bounds;
@@ -881,6 +880,12 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
 
+extern bool
+radeon_get_crtc_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+				 int *vpos, int *hpos,
+				 ktime_t *stime, ktime_t *etime,
+				 const struct drm_display_mode *mode);
+
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
 radeon_bios_get_hardcoded_edid(struct radeon_device *rdev);
@@ -981,9 +986,6 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 
 void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 
-void radeon_fb_add_connector(struct radeon_device *rdev, struct drm_connector *connector);
-void radeon_fb_remove_connector(struct radeon_device *rdev, struct drm_connector *connector);
-
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
@@ -992,7 +994,7 @@ int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tile
 int radeon_dp_mst_init(struct radeon_connector *radeon_connector);
 int radeon_dp_mst_probe(struct radeon_connector *radeon_connector);
 int radeon_dp_mst_check_status(struct radeon_connector *radeon_connector);
-int radeon_mst_debugfs_init(struct radeon_device *rdev);
+void radeon_mst_debugfs_init(struct radeon_device *rdev);
 void radeon_dp_mst_prepare_pll(struct drm_crtc *crtc, struct drm_display_mode *mode);
 
 void radeon_setup_mst_connector(struct drm_device *dev);

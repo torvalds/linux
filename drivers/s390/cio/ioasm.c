@@ -12,21 +12,23 @@
 #include "ioasm.h"
 #include "orb.h"
 #include "cio.h"
+#include "cio_inject.h"
 
 static inline int __stsch(struct subchannel_id schid, struct schib *addr)
 {
-	register struct subchannel_id reg1 asm ("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode = -EIO;
 
 	asm volatile(
-		"	stsch	0(%3)\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"	lgr	1,%[r1]\n"
+		"	stsch	%[addr]\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (ccode), "=m" (*addr)
-		: "d" (reg1), "a" (addr)
-		: "cc");
+		: [cc] "+&d" (ccode), [addr] "=Q" (*addr)
+		: [r1] "d" (r1)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -43,18 +45,19 @@ EXPORT_SYMBOL(stsch);
 
 static inline int __msch(struct subchannel_id schid, struct schib *addr)
 {
-	register struct subchannel_id reg1 asm ("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode = -EIO;
 
 	asm volatile(
-		"	msch	0(%2)\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"	lgr	1,%[r1]\n"
+		"	msch	%[addr]\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (ccode)
-		: "d" (reg1), "a" (addr), "m" (*addr)
-		: "cc");
+		: [cc] "+&d" (ccode)
+		: [r1] "d" (r1), [addr] "Q" (*addr)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -70,16 +73,17 @@ int msch(struct subchannel_id schid, struct schib *addr)
 
 static inline int __tsch(struct subchannel_id schid, struct irb *addr)
 {
-	register struct subchannel_id reg1 asm ("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode;
 
 	asm volatile(
-		"	tsch	0(%3)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode), "=m" (*addr)
-		: "d" (reg1), "a" (addr)
-		: "cc");
+		"	lgr	1,%[r1]\n"
+		"	tsch	%[addr]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28"
+		: [cc] "=&d" (ccode), [addr] "=Q" (*addr)
+		: [r1] "d" (r1)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -95,18 +99,19 @@ int tsch(struct subchannel_id schid, struct irb *addr)
 
 static inline int __ssch(struct subchannel_id schid, union orb *addr)
 {
-	register struct subchannel_id reg1 asm("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode = -EIO;
 
 	asm volatile(
-		"	ssch	0(%2)\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"	lgr	1,%[r1]\n"
+		"	ssch	%[addr]\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (ccode)
-		: "d" (reg1), "a" (addr), "m" (*addr)
-		: "cc", "memory");
+		: [cc] "+&d" (ccode)
+		: [r1] "d" (r1), [addr] "Q" (*addr)
+		: "cc", "memory", "1");
 	return ccode;
 }
 
@@ -123,16 +128,17 @@ EXPORT_SYMBOL(ssch);
 
 static inline int __csch(struct subchannel_id schid)
 {
-	register struct subchannel_id reg1 asm("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode;
 
 	asm volatile(
+		"	lgr	1,%[r1]\n"
 		"	csch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc");
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode)
+		: [r1] "d" (r1)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -152,11 +158,11 @@ int tpi(struct tpi_info *addr)
 	int ccode;
 
 	asm volatile(
-		"	tpi	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode), "=m" (*addr)
-		: "a" (addr)
+		"	tpi	%[addr]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28"
+		: [cc] "=&d" (ccode), [addr] "=Q" (*addr)
+		:
 		: "cc");
 	trace_s390_cio_tpi(addr, ccode);
 
@@ -169,13 +175,13 @@ int chsc(void *chsc_area)
 	int cc = -EIO;
 
 	asm volatile(
-		"	.insn	rre,0xb25f0000,%2,0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"	.insn	rre,0xb25f0000,%[chsc_area],0\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (cc), "=m" (*(addr_type *) chsc_area)
-		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
+		: [cc] "+&d" (cc), "+m" (*(addr_type *)chsc_area)
+		: [chsc_area] "d" (chsc_area)
 		: "cc");
 	trace_s390_cio_chsc(chsc_area, cc);
 
@@ -185,17 +191,17 @@ EXPORT_SYMBOL(chsc);
 
 static inline int __rsch(struct subchannel_id schid)
 {
-	register struct subchannel_id reg1 asm("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode;
 
 	asm volatile(
+		"	lgr	1,%[r1]\n"
 		"	rsch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc", "memory");
-
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode)
+		: [r1] "d" (r1)
+		: "cc", "memory", "1");
 	return ccode;
 }
 
@@ -211,16 +217,17 @@ int rsch(struct subchannel_id schid)
 
 static inline int __hsch(struct subchannel_id schid)
 {
-	register struct subchannel_id reg1 asm("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode;
 
 	asm volatile(
+		"	lgr	1,%[r1]\n"
 		"	hsch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc");
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode)
+		: [r1] "d" (r1)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -233,19 +240,21 @@ int hsch(struct subchannel_id schid)
 
 	return ccode;
 }
+EXPORT_SYMBOL(hsch);
 
 static inline int __xsch(struct subchannel_id schid)
 {
-	register struct subchannel_id reg1 asm("1") = schid;
+	unsigned long r1 = *(unsigned int *)&schid;
 	int ccode;
 
 	asm volatile(
+		"	lgr	1,%[r1]\n"
 		"	xsch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc");
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode)
+		: [r1] "d" (r1)
+		: "cc", "1");
 	return ccode;
 }
 
@@ -259,17 +268,37 @@ int xsch(struct subchannel_id schid)
 	return ccode;
 }
 
-int stcrw(struct crw *crw)
+static inline int __stcrw(struct crw *crw)
 {
 	int ccode;
 
 	asm volatile(
-		"	stcrw	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "=m" (*crw)
-		: "a" (crw)
+		"	stcrw	%[crw]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (ccode), [crw] "=Q" (*crw)
+		:
 		: "cc");
+	return ccode;
+}
+
+static inline int _stcrw(struct crw *crw)
+{
+#ifdef CONFIG_CIO_INJECT
+	if (static_branch_unlikely(&cio_inject_enabled)) {
+		if (stcrw_get_injected(crw) == 0)
+			return 0;
+	}
+#endif
+
+	return __stcrw(crw);
+}
+
+int stcrw(struct crw *crw)
+{
+	int ccode;
+
+	ccode = _stcrw(crw);
 	trace_s390_cio_stcrw(crw, ccode);
 
 	return ccode;

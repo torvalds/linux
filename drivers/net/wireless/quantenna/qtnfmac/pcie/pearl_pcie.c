@@ -2,7 +2,6 @@
 /* Copyright (c) 2018 Quantenna Communications */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
@@ -24,23 +23,8 @@
 #include "shm_ipc.h"
 #include "debug.h"
 
-static bool use_msi = true;
-module_param(use_msi, bool, 0644);
-MODULE_PARM_DESC(use_msi, "set 0 to use legacy interrupt");
-
-static unsigned int tx_bd_size_param = 32;
-module_param(tx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size, power of two");
-
-static unsigned int rx_bd_size_param = 256;
-module_param(rx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size, power of two");
-
-static u8 flashboot = 1;
-module_param(flashboot, byte, 0644);
-MODULE_PARM_DESC(flashboot, "set to 0 to use FW binary file on FS");
-
-#define DRV_NAME	"qtnfmac_pearl_pcie"
+#define PEARL_TX_BD_SIZE_DEFAULT	32
+#define PEARL_RX_BD_SIZE_DEFAULT	256
 
 struct qtnf_pearl_bda {
 	__le16 bda_len;
@@ -261,8 +245,6 @@ static int pearl_alloc_bd_table(struct qtnf_pcie_pearl_state *ps)
 
 	/* tx bd */
 
-	memset(vaddr, 0, len);
-
 	ps->bd_table_vaddr = vaddr;
 	ps->bd_table_paddr = paddr;
 	ps->bd_table_len = len;
@@ -304,7 +286,7 @@ static int pearl_skb2rbd_attach(struct qtnf_pcie_pearl_state *ps, u16 index)
 	struct sk_buff *skb;
 	dma_addr_t paddr;
 
-	skb = __netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE, GFP_ATOMIC);
+	skb = netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE);
 	if (!skb) {
 		priv->rx_skb[index] = NULL;
 		return -ENOMEM;
@@ -415,42 +397,42 @@ static int pearl_hhbm_init(struct qtnf_pcie_pearl_state *ps)
 	return 0;
 }
 
-static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps)
+static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps,
+				     unsigned int tx_bd_size,
+				     unsigned int rx_bd_size)
 {
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
 	int ret;
 	u32 val;
 
-	priv->tx_bd_num = tx_bd_size_param;
-	priv->rx_bd_num = rx_bd_size_param;
+	if (tx_bd_size == 0)
+		tx_bd_size = PEARL_TX_BD_SIZE_DEFAULT;
+
+	val = tx_bd_size * sizeof(struct qtnf_pearl_tx_bd);
+
+	if (!is_power_of_2(tx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
+		pr_warn("invalid tx_bd_size value %u, use default %u\n",
+			tx_bd_size, PEARL_TX_BD_SIZE_DEFAULT);
+		priv->tx_bd_num = PEARL_TX_BD_SIZE_DEFAULT;
+	} else {
+		priv->tx_bd_num = tx_bd_size;
+	}
+
+	if (rx_bd_size == 0)
+		rx_bd_size = PEARL_RX_BD_SIZE_DEFAULT;
+
+	val = rx_bd_size * sizeof(dma_addr_t);
+
+	if (!is_power_of_2(rx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
+		pr_warn("invalid rx_bd_size value %u, use default %u\n",
+			rx_bd_size, PEARL_RX_BD_SIZE_DEFAULT);
+		priv->rx_bd_num = PEARL_RX_BD_SIZE_DEFAULT;
+	} else {
+		priv->rx_bd_num = rx_bd_size;
+	}
+
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
-
-	if (!priv->tx_bd_num || !is_power_of_2(priv->tx_bd_num)) {
-		pr_err("tx_bd_size_param %u is not power of two\n",
-		       priv->tx_bd_num);
-		return -EINVAL;
-	}
-
-	val = priv->tx_bd_num * sizeof(struct qtnf_pearl_tx_bd);
-	if (val > PCIE_HHBM_MAX_SIZE) {
-		pr_err("tx_bd_size_param %u is too large\n",
-		       priv->tx_bd_num);
-		return -EINVAL;
-	}
-
-	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
-		pr_err("rx_bd_size_param %u is not power of two\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
-
-	val = priv->rx_bd_num * sizeof(dma_addr_t);
-	if (val > PCIE_HHBM_MAX_SIZE) {
-		pr_err("rx_bd_size_param %u is too large\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
 
 	ret = pearl_hhbm_init(ps);
 	if (ret) {
@@ -507,7 +489,7 @@ static void qtnf_pearl_data_tx_reclaim(struct qtnf_pcie_pearl_state *ps)
 					 PCI_DMA_TODEVICE);
 
 			if (skb->dev) {
-				qtnf_update_tx_stats(skb->dev, skb);
+				dev_sw_netstats_tx_add(skb->dev, 1, skb->len);
 				if (unlikely(priv->tx_stopped)) {
 					qtnf_wake_all_queues(skb->dev);
 					priv->tx_stopped = 0;
@@ -550,7 +532,7 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_pearl_state *ps)
 	return 1;
 }
 
-static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
+static int qtnf_pcie_skb_send(struct qtnf_bus *bus, struct sk_buff *skb)
 {
 	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
@@ -611,7 +593,7 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	priv->tx_bd_w_index = i;
 
 tx_done:
-	if (ret && skb) {
+	if (ret) {
 		pr_err_ratelimited("drop skb\n");
 		if (skb->dev)
 			skb->dev->stats.tx_dropped++;
@@ -624,6 +606,38 @@ tx_done:
 	qtnf_pearl_data_tx_reclaim(ps);
 
 	return NETDEV_TX_OK;
+}
+
+static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
+			     unsigned int macid, unsigned int vifid)
+{
+	return qtnf_pcie_skb_send(bus, skb);
+}
+
+static int qtnf_pcie_data_tx_meta(struct qtnf_bus *bus, struct sk_buff *skb,
+				  unsigned int macid, unsigned int vifid)
+{
+	struct qtnf_frame_meta_info *meta;
+	int tail_need = sizeof(*meta) - skb_tailroom(skb);
+	int ret;
+
+	if (tail_need > 0 && pskb_expand_head(skb, 0, tail_need, GFP_ATOMIC)) {
+		skb->dev->stats.tx_dropped++;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
+	meta = skb_put(skb, sizeof(*meta));
+	meta->magic_s = HBM_FRAME_META_MAGIC_PATTERN_S;
+	meta->magic_e = HBM_FRAME_META_MAGIC_PATTERN_E;
+	meta->macid = macid;
+	meta->ifidx = vifid;
+
+	ret = qtnf_pcie_skb_send(bus, skb);
+	if (unlikely(ret == NETDEV_TX_BUSY))
+		__skb_trim(skb, skb->len - sizeof(*meta));
+
+	return ret;
 }
 
 static irqreturn_t qtnf_pcie_pearl_interrupt(int irq, void *data)
@@ -742,7 +756,7 @@ static int qtnf_pcie_pearl_rx_poll(struct napi_struct *napi, int budget)
 			skb_put(skb, psize);
 			ndev = qtnf_classify_skb(bus, skb);
 			if (likely(ndev)) {
-				qtnf_update_rx_stats(ndev, skb);
+				dev_sw_netstats_rx_add(ndev, skb->len);
 				skb->protocol = eth_type_trans(skb, ndev);
 				napi_gro_receive(napi, skb);
 			} else {
@@ -814,13 +828,22 @@ static void qtnf_pcie_data_rx_stop(struct qtnf_bus *bus)
 	qtnf_disable_hdp_irqs(ps);
 }
 
-static const struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
+static void qtnf_pearl_tx_use_meta_info_set(struct qtnf_bus *bus, bool use_meta)
+{
+	if (use_meta)
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx_meta;
+	else
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx;
+}
+
+static struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
 	/* control path methods */
 	.control_tx	= qtnf_pcie_control_tx,
 
 	/* data path methods */
 	.data_tx		= qtnf_pcie_data_tx,
 	.data_tx_timeout	= qtnf_pcie_data_tx_timeout,
+	.data_tx_use_meta_set	= qtnf_pearl_tx_use_meta_info_set,
 	.data_rx_start		= qtnf_pcie_data_rx_start,
 	.data_rx_stop		= qtnf_pcie_data_rx_stop,
 };
@@ -923,7 +946,7 @@ static int qtnf_ep_fw_send(struct pci_dev *pdev, uint32_t size,
 	memcpy(pdata, pblk, len);
 	hdr->crc = cpu_to_le32(~crc32(0, pdata, len));
 
-	ret = qtnf_pcie_data_tx(bus, skb);
+	ret = qtnf_pcie_skb_send(bus, skb);
 
 	return (ret == NETDEV_TX_OK) ? len : 0;
 }
@@ -999,14 +1022,13 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 {
 	struct qtnf_bus *bus = container_of(work, struct qtnf_bus, fw_work);
 	struct qtnf_pcie_pearl_state *ps = (void *)get_bus_priv(bus);
+	u32 state = QTN_RC_FW_LOADRDY | QTN_RC_FW_QLINK;
+	const char *fwname = QTN_PCI_PEARL_FW_NAME;
 	struct pci_dev *pdev = ps->base.pdev;
 	const struct firmware *fw;
 	int ret;
-	u32 state = QTN_RC_FW_LOADRDY | QTN_RC_FW_QLINK;
-	const char *fwname = QTN_PCI_PEARL_FW_NAME;
-	bool fw_boot_success = false;
 
-	if (flashboot) {
+	if (ps->base.flashboot) {
 		state |= QTN_RC_FW_FLASHBOOT;
 	} else {
 		ret = request_firmware(&fw, fwname, &pdev->dev);
@@ -1022,7 +1044,7 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 			    QTN_FW_DL_TIMEOUT_MS)) {
 		pr_err("card is not ready\n");
 
-		if (!flashboot)
+		if (!ps->base.flashboot)
 			release_firmware(fw);
 
 		goto fw_load_exit;
@@ -1030,7 +1052,7 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 
 	qtnf_clear_state(&ps->bda->bda_ep_state, QTN_EP_FW_LOADRDY);
 
-	if (flashboot) {
+	if (ps->base.flashboot) {
 		pr_info("booting firmware from flash\n");
 
 	} else {
@@ -1050,101 +1072,62 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 		goto fw_load_exit;
 	}
 
-	pr_info("firmware is up and running\n");
-
 	if (qtnf_poll_state(&ps->bda->bda_ep_state,
 			    QTN_EP_FW_QLINK_DONE, QTN_FW_QLINK_TIMEOUT_MS)) {
 		pr_err("firmware runtime failure\n");
 		goto fw_load_exit;
 	}
 
-	fw_boot_success = true;
+	pr_info("firmware is up and running\n");
+
+	ret = qtnf_pcie_fw_boot_done(bus);
+	if (ret)
+		goto fw_load_exit;
+
+	qtnf_debugfs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
+	qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 
 fw_load_exit:
-	qtnf_pcie_fw_boot_done(bus, fw_boot_success, DRV_NAME);
-
-	if (fw_boot_success) {
-		qtnf_debugfs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
-	}
+	put_device(&pdev->dev);
 }
 
-static void qtnf_pearl_reclaim_tasklet_fn(unsigned long data)
+static void qtnf_pearl_reclaim_tasklet_fn(struct tasklet_struct *t)
 {
-	struct qtnf_pcie_pearl_state *ps = (void *)data;
+	struct qtnf_pcie_pearl_state *ps = from_tasklet(ps, t, base.reclaim_tq);
 
 	qtnf_pearl_data_tx_reclaim(ps);
 	qtnf_en_txdone_irq(ps);
 }
 
-static int qtnf_pearl_check_chip_id(struct qtnf_pcie_pearl_state *ps)
+static u64 qtnf_pearl_dma_mask_get(void)
 {
-	unsigned int chipid;
-
-	chipid = qtnf_chip_id_get(ps->base.sysctl_bar);
-
-	switch (chipid) {
-	case QTN_CHIP_ID_PEARL:
-	case QTN_CHIP_ID_PEARL_B:
-	case QTN_CHIP_ID_PEARL_C:
-		pr_info("chip ID is 0x%x\n", chipid);
-		break;
-	default:
-		pr_err("incorrect chip ID 0x%x\n", chipid);
-		return -ENODEV;
-	}
-
-	return 0;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	return DMA_BIT_MASK(64);
+#else
+	return DMA_BIT_MASK(32);
+#endif
 }
 
-static int qtnf_pcie_pearl_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *id)
+static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size,
+				 unsigned int rx_bd_size)
 {
 	struct qtnf_shm_ipc_int ipc_int;
-	struct qtnf_pcie_pearl_state *ps;
-	struct qtnf_bus *bus;
+	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
+	struct pci_dev *pdev = ps->base.pdev;
 	int ret;
-	u64 dma_mask;
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	dma_mask = DMA_BIT_MASK(64);
-#else
-	dma_mask = DMA_BIT_MASK(32);
-#endif
-
-	ret = qtnf_pcie_probe(pdev, sizeof(*ps), &qtnf_pcie_pearl_bus_ops,
-			      dma_mask, use_msi);
-	if (ret)
-		return ret;
-
-	bus = pci_get_drvdata(pdev);
-	ps = get_bus_priv(bus);
-
+	bus->bus_ops = &qtnf_pcie_pearl_bus_ops;
 	spin_lock_init(&ps->irq_lock);
-
-	tasklet_init(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn,
-		     (unsigned long)ps);
-	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
-		       qtnf_pcie_pearl_rx_poll, 10);
 	INIT_WORK(&bus->fw_work, qtnf_pearl_fw_work_handler);
 
 	ps->pcie_reg_base = ps->base.dmareg_bar;
 	ps->bda = ps->base.epmem_bar;
 	writel(ps->base.msi_enabled, &ps->bda->bda_rc_msi_enabled);
 
-	ipc_int.fn = qtnf_pcie_pearl_ipc_gen_ep_int;
-	ipc_int.arg = ps;
-	qtnf_pcie_init_shm_ipc(&ps->base, &ps->bda->bda_shm_reg1,
-			       &ps->bda->bda_shm_reg2, &ipc_int);
-
-	ret = qtnf_pearl_check_chip_id(ps);
-	if (ret)
-		goto error;
-
-	ret = qtnf_pcie_pearl_init_xfer(ps);
+	ret = qtnf_pcie_pearl_init_xfer(ps, tx_bd_size, rx_bd_size);
 	if (ret) {
 		pr_err("PCIE xfer init failed\n");
-		goto error;
+		return ret;
 	}
 
 	/* init default irq settings */
@@ -1155,95 +1138,62 @@ static int qtnf_pcie_pearl_probe(struct pci_dev *pdev,
 
 	ret = devm_request_irq(&pdev->dev, pdev->irq,
 			       &qtnf_pcie_pearl_interrupt, 0,
-			       "qtnf_pcie_irq", (void *)bus);
+			       "qtnf_pearl_irq", (void *)bus);
 	if (ret) {
 		pr_err("failed to request pcie irq %d\n", pdev->irq);
-		goto err_xfer;
+		qtnf_pearl_free_xfer_buffers(ps);
+		return ret;
 	}
 
-	qtnf_pcie_bringup_fw_async(bus);
+	tasklet_setup(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn);
+	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
+		       qtnf_pcie_pearl_rx_poll, 10);
+
+	ipc_int.fn = qtnf_pcie_pearl_ipc_gen_ep_int;
+	ipc_int.arg = ps;
+	qtnf_pcie_init_shm_ipc(&ps->base, &ps->bda->bda_shm_reg1,
+			       &ps->bda->bda_shm_reg2, &ipc_int);
 
 	return 0;
-
-err_xfer:
-	qtnf_pearl_free_xfer_buffers(ps);
-error:
-	qtnf_pcie_remove(bus, &ps->base);
-
-	return ret;
 }
 
-static void qtnf_pcie_pearl_remove(struct pci_dev *pdev)
+static void qtnf_pcie_pearl_remove(struct qtnf_bus *bus)
 {
-	struct qtnf_pcie_pearl_state *ps;
-	struct qtnf_bus *bus;
+	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
 
-	bus = pci_get_drvdata(pdev);
-	if (!bus)
-		return;
-
-	ps = get_bus_priv(bus);
-
-	qtnf_pcie_remove(bus, &ps->base);
 	qtnf_pearl_reset_ep(ps);
 	qtnf_pearl_free_xfer_buffers(ps);
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int qtnf_pcie_pearl_suspend(struct device *dev)
+static int qtnf_pcie_pearl_suspend(struct qtnf_bus *bus)
 {
 	return -EOPNOTSUPP;
 }
 
-static int qtnf_pcie_pearl_resume(struct device *dev)
+static int qtnf_pcie_pearl_resume(struct qtnf_bus *bus)
 {
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
-
-#ifdef CONFIG_PM_SLEEP
-/* Power Management Hooks */
-static SIMPLE_DEV_PM_OPS(qtnf_pcie_pearl_pm_ops, qtnf_pcie_pearl_suspend,
-			 qtnf_pcie_pearl_resume);
 #endif
 
-static const struct pci_device_id qtnf_pcie_devid_table[] = {
-	{
-		PCIE_VENDOR_ID_QUANTENNA, PCIE_DEVICE_ID_QTN_PEARL,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	},
-	{ },
-};
+struct qtnf_bus *qtnf_pcie_pearl_alloc(struct pci_dev *pdev)
+{
+	struct qtnf_bus *bus;
+	struct qtnf_pcie_pearl_state *ps;
 
-MODULE_DEVICE_TABLE(pci, qtnf_pcie_devid_table);
+	bus = devm_kzalloc(&pdev->dev, sizeof(*bus) + sizeof(*ps), GFP_KERNEL);
+	if (!bus)
+		return NULL;
 
-static struct pci_driver qtnf_pcie_pearl_drv_data = {
-	.name = DRV_NAME,
-	.id_table = qtnf_pcie_devid_table,
-	.probe = qtnf_pcie_pearl_probe,
-	.remove = qtnf_pcie_pearl_remove,
+	ps = get_bus_priv(bus);
+	ps->base.probe_cb = qtnf_pcie_pearl_probe;
+	ps->base.remove_cb = qtnf_pcie_pearl_remove;
+	ps->base.dma_mask_get_cb = qtnf_pearl_dma_mask_get;
 #ifdef CONFIG_PM_SLEEP
-	.driver = {
-		.pm = &qtnf_pcie_pearl_pm_ops,
-	},
+	ps->base.resume_cb = qtnf_pcie_pearl_resume;
+	ps->base.suspend_cb = qtnf_pcie_pearl_suspend;
 #endif
-};
 
-static int __init qtnf_pcie_pearl_register(void)
-{
-	pr_info("register Quantenna QSR10g FullMAC PCIE driver\n");
-	return pci_register_driver(&qtnf_pcie_pearl_drv_data);
+	return bus;
 }
-
-static void __exit qtnf_pcie_pearl_exit(void)
-{
-	pr_info("unregister Quantenna QSR10g FullMAC PCIE driver\n");
-	pci_unregister_driver(&qtnf_pcie_pearl_drv_data);
-}
-
-module_init(qtnf_pcie_pearl_register);
-module_exit(qtnf_pcie_pearl_exit);
-
-MODULE_AUTHOR("Quantenna Communications");
-MODULE_DESCRIPTION("Quantenna QSR10g PCIe bus driver for 802.11 wireless LAN.");
-MODULE_LICENSE("GPL");

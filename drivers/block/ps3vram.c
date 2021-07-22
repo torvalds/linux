@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ps3vram - Use extra PS3 video ram as block device.
  *
@@ -66,7 +67,6 @@ struct ps3vram_cache {
 };
 
 struct ps3vram_priv {
-	struct request_queue *queue;
 	struct gendisk *gendisk;
 
 	u64 size;
@@ -88,12 +88,6 @@ struct ps3vram_priv {
 
 
 static int ps3vram_major;
-
-
-static const struct block_device_operations ps3vram_fops = {
-	.owner		= THIS_MODULE,
-};
-
 
 #define DMA_NOTIFIER_HANDLE_BASE 0x66604200 /* first DMA notifier handle */
 #define DMA_NOTIFIER_OFFSET_BASE 0x1000     /* first DMA notifier offset */
@@ -584,15 +578,15 @@ out:
 	return next;
 }
 
-static blk_qc_t ps3vram_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t ps3vram_submit_bio(struct bio *bio)
 {
-	struct ps3_system_bus_device *dev = q->queuedata;
+	struct ps3_system_bus_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int busy;
 
 	dev_dbg(&dev->core, "%s\n", __func__);
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	spin_lock_irq(&priv->lock);
 	busy = !bio_list_empty(&priv->list);
@@ -609,11 +603,15 @@ static blk_qc_t ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	return BLK_QC_T_NONE;
 }
 
+static const struct block_device_operations ps3vram_fops = {
+	.owner		= THIS_MODULE,
+	.submit_bio	= ps3vram_submit_bio,
+};
+
 static int ps3vram_probe(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv;
 	int error, status;
-	struct request_queue *queue;
 	struct gendisk *gendisk;
 	u64 ddr_size, ddr_lpar, ctrl_lpar, info_lpar, reports_lpar,
 	    reports_size, xdr_lpar;
@@ -736,44 +734,30 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 
 	ps3vram_proc_init(dev);
 
-	queue = blk_alloc_queue(GFP_KERNEL);
-	if (!queue) {
-		dev_err(&dev->core, "blk_alloc_queue failed\n");
+	gendisk = blk_alloc_disk(NUMA_NO_NODE);
+	if (!gendisk) {
+		dev_err(&dev->core, "blk_alloc_disk failed\n");
 		error = -ENOMEM;
 		goto out_cache_cleanup;
 	}
 
-	priv->queue = queue;
-	queue->queuedata = dev;
-	blk_queue_make_request(queue, ps3vram_make_request);
-	blk_queue_max_segments(queue, BLK_MAX_SEGMENTS);
-	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
-	blk_queue_max_hw_sectors(queue, BLK_SAFE_MAX_SECTORS);
-
-	gendisk = alloc_disk(1);
-	if (!gendisk) {
-		dev_err(&dev->core, "alloc_disk failed\n");
-		error = -ENOMEM;
-		goto fail_cleanup_queue;
-	}
-
 	priv->gendisk = gendisk;
 	gendisk->major = ps3vram_major;
-	gendisk->first_minor = 0;
+	gendisk->minors = 1;
 	gendisk->fops = &ps3vram_fops;
-	gendisk->queue = queue;
 	gendisk->private_data = dev;
 	strlcpy(gendisk->disk_name, DEVICE_NAME, sizeof(gendisk->disk_name));
 	set_capacity(gendisk, priv->size >> 9);
+	blk_queue_max_segments(gendisk->queue, BLK_MAX_SEGMENTS);
+	blk_queue_max_segment_size(gendisk->queue, BLK_MAX_SEGMENT_SIZE);
+	blk_queue_max_hw_sectors(gendisk->queue, BLK_SAFE_MAX_SECTORS);
 
-	dev_info(&dev->core, "%s: Using %lu MiB of GPU memory\n",
+	dev_info(&dev->core, "%s: Using %llu MiB of GPU memory\n",
 		 gendisk->disk_name, get_capacity(gendisk) >> 11);
 
 	device_add_disk(&dev->core, gendisk, NULL);
 	return 0;
 
-fail_cleanup_queue:
-	blk_cleanup_queue(queue);
 out_cache_cleanup:
 	remove_proc_entry(DEVICE_NAME, NULL);
 	ps3vram_cache_cleanup(dev);
@@ -799,13 +783,12 @@ fail:
 	return error;
 }
 
-static int ps3vram_remove(struct ps3_system_bus_device *dev)
+static void ps3vram_remove(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 
 	del_gendisk(priv->gendisk);
-	put_disk(priv->gendisk);
-	blk_cleanup_queue(priv->queue);
+	blk_cleanup_disk(priv->gendisk);
 	remove_proc_entry(DEVICE_NAME, NULL);
 	ps3vram_cache_cleanup(dev);
 	iounmap(priv->reports);
@@ -819,7 +802,6 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	free_pages((unsigned long) priv->xdr_buf, get_order(XDR_BUF_SIZE));
 	kfree(priv);
 	ps3_system_bus_set_drvdata(dev, NULL);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3vram = {

@@ -6,7 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef __SANE_USERSPACE_TYPES__
 #define __SANE_USERSPACE_TYPES__	/* For PPC64, to get LL64 types */
+#endif
+
 #include <asm/types.h>
 #include <asm/posix_types.h>
 
@@ -57,6 +60,9 @@ typedef __u32 __bitwise __le32;
 typedef __u32 __bitwise __be32;
 typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
+
+typedef __u16 __bitwise __sum16;
+typedef __u32 __bitwise __wsum;
 
 typedef struct {
 	int counter;

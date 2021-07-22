@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -9,20 +10,6 @@
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -370,14 +357,14 @@ static void b43_set_original_gains(struct b43_wldev *dev)
 	b43_dummy_transmission(dev, false, true);
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 static void b43_nrssi_hw_write(struct b43_wldev *dev, u16 offset, s16 val)
 {
 	b43_phy_write(dev, B43_PHY_NRSSILT_CTRL, offset);
 	b43_phy_write(dev, B43_PHY_NRSSILT_DATA, (u16) val);
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 static s16 b43_nrssi_hw_read(struct b43_wldev *dev, u16 offset)
 {
 	u16 val;
@@ -388,7 +375,7 @@ static s16 b43_nrssi_hw_read(struct b43_wldev *dev, u16 offset)
 	return (s16) val;
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 static void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
 {
 	u16 i;
@@ -402,7 +389,7 @@ static void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 static void b43_nrssi_mem_update(struct b43_wldev *dev)
 {
 	struct b43_phy_g *gphy = dev->phy.g;
@@ -1588,7 +1575,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	b43_write16(dev, 0x03E4, (b43_read16(dev, 0x03E4) & 0xFFC0) | 0x0004);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/Init/B6 */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/Init/B6 */
 static void b43_phy_initb6(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -2759,7 +2746,7 @@ static int b43_gphy_op_interf_mitigation(struct b43_wldev *dev,
 	return 0;
 }
 
-/* http://bcm-specs.sipsolutions.net/EstimatePowerOut
+/* https://bcm-specs.sipsolutions.net/EstimatePowerOut
  * This function converts a TSSI value to dBm in Q5.2
  */
 static s8 b43_gphy_estimate_power_out(struct b43_wldev *dev, s8 tssi)

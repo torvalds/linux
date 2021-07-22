@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -271,14 +272,14 @@ restart:
 				continue;
 			tw = inet_twsk(sk);
 			if ((tw->tw_family != family) ||
-				refcount_read(&twsk_net(tw)->count))
+				refcount_read(&twsk_net(tw)->ns.count))
 				continue;
 
 			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
 				continue;
 
 			if (unlikely((tw->tw_family != family) ||
-				     refcount_read(&twsk_net(tw)->count))) {
+				     refcount_read(&twsk_net(tw)->ns.count))) {
 				inet_twsk_put(tw);
 				goto restart;
 			}

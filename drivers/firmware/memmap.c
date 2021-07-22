@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/firmware/memmap.c
  *  Copyright (C) 2008 SUSE LINUX Products GmbH
  *  by Bernhard Walle <bernhard.walle@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/string.h>
@@ -19,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 
@@ -333,7 +324,8 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
 {
 	struct firmware_map_entry *entry;
 
-	entry = memblock_virt_alloc(sizeof(struct firmware_map_entry), 0);
+	entry = memblock_alloc(sizeof(struct firmware_map_entry),
+			       SMP_CACHE_BYTES);
 	if (WARN_ON(!entry))
 		return -ENOMEM;
 

@@ -82,6 +82,8 @@ int __init db1550_board_setup(void)
 
 /*****************************************************************************/
 
+static u64 au1550_all_dmamask = DMA_BIT_MASK(32);
+
 static struct mtd_partition db1550_spiflash_parts[] = {
 	{
 		.name	= "spi_flash",
@@ -223,7 +225,7 @@ static void __init pb1550_nand_setup(void)
 	case 0: case 2: case 8: case 0xC: case 0xD:
 		/* x16 NAND Flash */
 		pb1550_nand_pd.devwidth = 1;
-		/* fallthrough */
+		fallthrough;
 	case 1: case 3: case 9: case 0xE: case 0xF:
 		/* x8 NAND, already set up */
 		platform_device_register(&pb1550_nand_dev);
@@ -269,11 +271,10 @@ static struct au1550_spi_info db1550_spi_platdata = {
 	.activate_cs	= db1550_spi_cs_en,
 };
 
-static u64 spi_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1550_spi_dev = {
 	.dev	= {
-		.dma_mask		= &spi_dmamask,
+		.dma_mask		= &au1550_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1550_spi_platdata,
 	},
@@ -397,10 +398,18 @@ static struct platform_device db1550_i2sdma_dev = {
 
 static struct platform_device db1550_sndac97_dev = {
 	.name		= "db1550-ac97",
+	.dev = {
+		.dma_mask		= &au1550_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 static struct platform_device db1550_sndi2s_dev = {
 	.name		= "db1550-i2s",
+	.dev = {
+		.dma_mask		= &au1550_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 /**********************************************************************/

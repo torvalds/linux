@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Kernel module to match ROUTING parameters. */
 
 /* (C) 2001-2002 Andras Kis-Szabo <kisza@sch.bme.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -92,8 +89,7 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		 !((rtinfo->flags & IP6T_RT_RES) &&
 		   (((const struct rt0_hdr *)rh)->reserved)));
 
-	ret = (rh != NULL) &&
-	      (segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
+	ret = (segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
 			      rh->segments_left,
 			      !!(rtinfo->invflags & IP6T_RT_INV_SGS))) &&
 	      (!(rtinfo->flags & IP6T_RT_LEN) ||

@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# ===========================================================================
+# Module final link
+# ===========================================================================
+
+PHONY := __modfinal
+__modfinal:
+
+include include/config/auto.conf
+include $(srctree)/scripts/Kbuild.include
+
+# for c_flags and objtool_args
+include $(srctree)/scripts/Makefile.lib
+
+# find all modules listed in modules.order
+modules := $(sort $(shell cat $(MODORDER)))
+
+__modfinal: $(modules)
+	@:
+
+# modname and part-of-module are set to make c_flags define proper module flags
+modname = $(notdir $(@:.mod.o=))
+part-of-module = y
+
+quiet_cmd_cc_o_c = CC [M]  $@
+      cmd_cc_o_c = $(CC) $(filter-out $(CC_FLAGS_CFI), $(c_flags)) -c -o $@ $<
+
+%.mod.o: %.mod.c FORCE
+	$(call if_changed_dep,cc_o_c)
+
+ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
+
+ifdef CONFIG_LTO_CLANG
+# With CONFIG_LTO_CLANG, reuse the object file we compiled for modpost to
+# avoid a second slow LTO link
+prelink-ext := .lto
+
+# ELF processing was skipped earlier because we didn't have native code,
+# so let's now process the prelinked binary before we link the module.
+
+ifdef CONFIG_STACK_VALIDATION
+cmd_ld_ko_o +=								\
+	$(objtree)/tools/objtool/objtool $(objtool_args)		\
+		$(@:.ko=$(prelink-ext).o);
+
+endif # CONFIG_STACK_VALIDATION
+
+endif # CONFIG_LTO_CLANG
+
+quiet_cmd_ld_ko_o = LD [M]  $@
+      cmd_ld_ko_o +=							\
+	$(LD) -r $(KBUILD_LDFLAGS)					\
+		$(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE)		\
+		-T scripts/module.lds -o $@ $(filter %.o, $^);		\
+	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
+
+quiet_cmd_btf_ko = BTF [M] $@
+      cmd_btf_ko = 							\
+	if [ -f vmlinux ]; then						\
+		LLVM_OBJCOPY="$(OBJCOPY)" $(PAHOLE) -J --btf_base vmlinux $@; \
+	else								\
+		printf "Skipping BTF generation for %s due to unavailability of vmlinux\n" $@ 1>&2; \
+	fi;
+
+# Same as newer-prereqs, but allows to exclude specified extra dependencies
+newer_prereqs_except = $(filter-out $(PHONY) $(1),$?)
+
+# Same as if_changed, but allows to exclude specified extra dependencies
+if_changed_except = $(if $(call newer_prereqs_except,$(2))$(cmd-check),      \
+	$(cmd);                                                              \
+	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd, @:)
+
+
+# Re-generate module BTFs if either module's .ko or vmlinux changed
+$(modules): %.ko: %$(prelink-ext).o %.mod.o scripts/module.lds $(if $(KBUILD_BUILTIN),vmlinux) FORCE
+	+$(call if_changed_except,ld_ko_o,vmlinux)
+ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	+$(if $(newer-prereqs),$(call cmd,btf_ko))
+endif
+
+targets += $(modules) $(modules:.ko=.mod.o)
+
+# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# ---------------------------------------------------------------------------
+
+PHONY += FORCE
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+
+.PHONY: $(PHONY)

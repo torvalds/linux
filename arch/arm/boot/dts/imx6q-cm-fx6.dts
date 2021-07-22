@@ -51,6 +51,7 @@
 	compatible = "compulab,cm-fx6", "fsl,imx6q";
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
 	};
 
@@ -254,7 +255,7 @@
 };
 
 &ecspi1 {
-	cs-gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>, <&gpio3 19 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>, <&gpio3 19 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";

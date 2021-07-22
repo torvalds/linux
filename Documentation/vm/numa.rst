@@ -67,7 +67,7 @@ nodes.  Each emulated node will manage a fraction of the underlying cells'
 physical memory.  NUMA emluation is useful for testing NUMA kernel and
 application features on non-NUMA platforms, and as a sort of memory resource
 management mechanism when used together with cpusets.
-[see Documentation/cgroup-v1/cpusets.txt]
+[see Documentation/admin-guide/cgroup-v1/cpusets.rst]
 
 For each node with memory, Linux constructs an independent memory management
 subsystem, complete with its own free page lists, in-use page lists, usage
@@ -99,7 +99,7 @@ Local allocation will tend to keep subsequent access to the allocated memory
 as long as the task on whose behalf the kernel allocated some memory does not
 later migrate away from that memory.  The Linux scheduler is aware of the
 NUMA topology of the platform--embodied in the "scheduling domains" data
-structures [see Documentation/scheduler/sched-domains.txt]--and the scheduler
+structures [see Documentation/scheduler/sched-domains.rst]--and the scheduler
 attempts to minimize task migration to distant scheduling domains.  However,
 the scheduler does not take a task's NUMA footprint into account directly.
 Thus, under sufficient imbalance, tasks can migrate between nodes, remote
@@ -109,12 +109,12 @@ System administrators and application designers can restrict a task's migration
 to improve NUMA locality using various CPU affinity command line interfaces,
 such as taskset(1) and numactl(1), and program interfaces such as
 sched_setaffinity(2).  Further, one can modify the kernel's default local
-allocation behavior using Linux NUMA memory policy.
-[see Documentation/admin-guide/mm/numa_memory_policy.rst.]
+allocation behavior using Linux NUMA memory policy. [see
+:ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`].
 
 System administrators can restrict the CPUs and nodes' memories that a non-
 privileged user can specify in the scheduling or NUMA commands and functions
-using control groups and CPUsets.  [see Documentation/cgroup-v1/cpusets.txt]
+using control groups and CPUsets.  [see Documentation/admin-guide/cgroup-v1/cpusets.rst]
 
 On architectures that do not hide memoryless nodes, Linux will include only
 zones [nodes] with memory in the zonelists.  This means that for a memoryless

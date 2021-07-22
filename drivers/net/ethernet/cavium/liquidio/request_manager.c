@@ -95,20 +95,16 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	/* Initialize a list to holds requests that have been posted to Octeon
 	 * but has yet to be fetched by octeon
 	 */
-	iq->request_list = vmalloc_node((sizeof(*iq->request_list) * num_descs),
-					       numa_node);
+	iq->request_list = vzalloc_node(array_size(num_descs, sizeof(*iq->request_list)),
+					numa_node);
 	if (!iq->request_list)
-		iq->request_list =
-			vmalloc(array_size(num_descs,
-					   sizeof(*iq->request_list)));
+		iq->request_list = vzalloc(array_size(num_descs, sizeof(*iq->request_list)));
 	if (!iq->request_list) {
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "Alloc failed for IQ[%d] nr free list\n",
 			iq_no);
 		return 1;
 	}
-
-	memset(iq->request_list, 0, sizeof(*iq->request_list) * num_descs);
 
 	dev_dbg(&oct->pci_dev->dev, "IQ[%d]: base: %p basedma: %pad count: %d\n",
 		iq_no, iq->base_addr, &iq->base_addr_dma, iq->max_count);
@@ -218,15 +214,13 @@ int octeon_setup_iq(struct octeon_device *oct,
 		return 0;
 	}
 	oct->instr_queue[iq_no] =
-	    vmalloc_node(sizeof(struct octeon_instr_queue), numa_node);
+	    vzalloc_node(sizeof(struct octeon_instr_queue), numa_node);
 	if (!oct->instr_queue[iq_no])
 		oct->instr_queue[iq_no] =
-		    vmalloc(sizeof(struct octeon_instr_queue));
+		    vzalloc(sizeof(struct octeon_instr_queue));
 	if (!oct->instr_queue[iq_no])
 		return 1;
 
-	memset(oct->instr_queue[iq_no], 0,
-	       sizeof(struct octeon_instr_queue));
 
 	oct->instr_queue[iq_no]->q_index = q_index;
 	oct->instr_queue[iq_no]->app_ctx = app_ctx;
@@ -239,8 +233,10 @@ int octeon_setup_iq(struct octeon_device *oct,
 	}
 
 	oct->num_iqs++;
-	if (oct->fn_list.enable_io_queues(oct))
+	if (oct->fn_list.enable_io_queues(oct)) {
+		octeon_delete_instr_queue(oct, iq_no);
 		return 1;
+	}
 
 	return 0;
 }
@@ -278,7 +274,6 @@ ring_doorbell(struct octeon_device *oct, struct octeon_instr_queue *iq)
 	if (atomic_read(&oct->status) == OCT_DEV_RUNNING) {
 		writel(iq->fill_cnt, iq->doorbell_reg);
 		/* make sure doorbell write goes through */
-		mmiowb();
 		iq->fill_cnt = 0;
 		iq->last_db_time = jiffies;
 		return;

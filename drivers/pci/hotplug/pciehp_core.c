@@ -17,6 +17,9 @@
  *   Dely Sy <dely.l.sy@intel.com>"
  */
 
+#define pr_fmt(fmt) "pciehp: " fmt
+#define dev_fmt pr_fmt
+
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +30,6 @@
 #include "../pci.h"
 
 /* Global variables */
-bool pciehp_debug;
 bool pciehp_poll_mode;
 int pciehp_poll_time;
 
@@ -35,14 +37,10 @@ int pciehp_poll_time;
  * not really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
-module_param(pciehp_debug, bool, 0644);
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
-MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
-
-#define PCIE_MODULE_NAME "pciehp"
 
 static int set_attention_status(struct hotplug_slot *slot, u8 value);
 static int get_power_status(struct hotplug_slot *slot, u8 *value);
@@ -97,15 +95,20 @@ static void cleanup_slot(struct controller *ctrl)
 }
 
 /*
- * set_attention_status - Turns the Amber LED for a slot on, off or blink
+ * set_attention_status - Turns the Attention Indicator on, off or blinking
  */
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
 	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl->pcie->port;
 
+	if (status)
+		status <<= PCI_EXP_SLTCTL_ATTN_IND_SHIFT;
+	else
+		status = PCI_EXP_SLTCTL_ATTN_IND_OFF;
+
 	pci_config_pm_runtime_get(pdev);
-	pciehp_set_attention_status(ctrl, status);
+	pciehp_set_indicators(ctrl, INDICATOR_NOOP, status);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
@@ -136,15 +139,21 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl->pcie->port;
+	int ret;
 
 	pci_config_pm_runtime_get(pdev);
-	*value = pciehp_card_present_or_link_active(ctrl);
+	ret = pciehp_card_present_or_link_active(ctrl);
 	pci_config_pm_runtime_put(pdev);
+	if (ret < 0)
+		return ret;
+
+	*value = ret;
 	return 0;
 }
 
 /**
  * pciehp_check_presence() - synthesize event if presence has changed
+ * @ctrl: controller to check
  *
  * On probe and resume, an explicit presence check is necessary to bring up an
  * occupied slot or bring down an unoccupied slot.  This can't be triggered by
@@ -155,13 +164,13 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static void pciehp_check_presence(struct controller *ctrl)
 {
-	bool occupied;
+	int occupied;
 
 	down_read(&ctrl->reset_lock);
 	mutex_lock(&ctrl->state_lock);
 
 	occupied = pciehp_card_present_or_link_active(ctrl);
-	if ((occupied && (ctrl->state == OFF_STATE ||
+	if ((occupied > 0 && (ctrl->state == OFF_STATE ||
 			  ctrl->state == BLINKINGON_STATE)) ||
 	    (!occupied && (ctrl->state == ON_STATE ||
 			   ctrl->state == BLINKINGOFF_STATE)))
@@ -182,14 +191,14 @@ static int pciehp_probe(struct pcie_device *dev)
 
 	if (!dev->port->subordinate) {
 		/* Can happen if we run out of bus numbers during probe */
-		dev_err(&dev->device,
+		pci_err(dev->port,
 			"Hotplug bridge without secondary bus, ignoring\n");
 		return -ENODEV;
 	}
 
 	ctrl = pcie_init(dev);
 	if (!ctrl) {
-		dev_err(&dev->device, "Controller initialization failed\n");
+		pci_err(dev->port, "Controller initialization failed\n");
 		return -ENODEV;
 	}
 	set_service_data(dev, ctrl);
@@ -250,7 +259,7 @@ static bool pme_is_native(struct pcie_device *dev)
 	return pcie_ports_native || host->native_pme;
 }
 
-static int pciehp_suspend(struct pcie_device *dev)
+static void pciehp_disable_interrupt(struct pcie_device *dev)
 {
 	/*
 	 * Disable hotplug interrupt so that it does not trigger
@@ -258,7 +267,19 @@ static int pciehp_suspend(struct pcie_device *dev)
 	 */
 	if (pme_is_native(dev))
 		pcie_disable_interrupt(get_service_data(dev));
+}
 
+#ifdef CONFIG_PM_SLEEP
+static int pciehp_suspend(struct pcie_device *dev)
+{
+	/*
+	 * If the port is already runtime suspended we can keep it that
+	 * way.
+	 */
+	if (dev_pm_skip_suspend(&dev->port->dev))
+		return 0;
+
+	pciehp_disable_interrupt(dev);
 	return 0;
 }
 
@@ -276,6 +297,7 @@ static int pciehp_resume_noirq(struct pcie_device *dev)
 
 	return 0;
 }
+#endif
 
 static int pciehp_resume(struct pcie_device *dev)
 {
@@ -286,6 +308,12 @@ static int pciehp_resume(struct pcie_device *dev)
 
 	pciehp_check_presence(ctrl);
 
+	return 0;
+}
+
+static int pciehp_runtime_suspend(struct pcie_device *dev)
+{
+	pciehp_disable_interrupt(dev);
 	return 0;
 }
 
@@ -307,7 +335,7 @@ static int pciehp_runtime_resume(struct pcie_device *dev)
 #endif /* PM */
 
 static struct pcie_port_service_driver hpdriver_portdrv = {
-	.name		= PCIE_MODULE_NAME,
+	.name		= "pciehp",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_HP,
 
@@ -315,10 +343,12 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 	.remove		= pciehp_remove,
 
 #ifdef	CONFIG_PM
+#ifdef	CONFIG_PM_SLEEP
 	.suspend	= pciehp_suspend,
 	.resume_noirq	= pciehp_resume_noirq,
 	.resume		= pciehp_resume,
-	.runtime_suspend = pciehp_suspend,
+#endif
+	.runtime_suspend = pciehp_runtime_suspend,
 	.runtime_resume	= pciehp_runtime_resume,
 #endif	/* PM */
 };
@@ -328,9 +358,9 @@ int __init pcie_hp_init(void)
 	int retval = 0;
 
 	retval = pcie_port_service_register(&hpdriver_portdrv);
-	dbg("pcie_port_service_register = %d\n", retval);
+	pr_debug("pcie_port_service_register = %d\n", retval);
 	if (retval)
-		dbg("Failure to register service\n");
+		pr_debug("Failure to register service\n");
 
 	return retval;
 }

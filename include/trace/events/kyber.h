@@ -30,9 +30,9 @@ TRACE_EVENT(kyber_latency,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= disk_devt(dev_to_disk(kobj_to_dev(q->kobj.parent)));
-		strlcpy(__entry->domain, domain, DOMAIN_LEN);
-		strlcpy(__entry->type, type, DOMAIN_LEN);
+		__entry->dev		= disk_devt(queue_to_disk(q));
+		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
+		strlcpy(__entry->type, type, sizeof(__entry->type));
 		__entry->percentile	= percentile;
 		__entry->numerator	= numerator;
 		__entry->denominator	= denominator;
@@ -59,8 +59,8 @@ TRACE_EVENT(kyber_adjust,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= disk_devt(dev_to_disk(kobj_to_dev(q->kobj.parent)));
-		strlcpy(__entry->domain, domain, DOMAIN_LEN);
+		__entry->dev		= disk_devt(queue_to_disk(q));
+		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
 		__entry->depth		= depth;
 	),
 
@@ -81,8 +81,8 @@ TRACE_EVENT(kyber_throttled,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= disk_devt(dev_to_disk(kobj_to_dev(q->kobj.parent)));
-		strlcpy(__entry->domain, domain, DOMAIN_LEN);
+		__entry->dev		= disk_devt(queue_to_disk(q));
+		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
 	),
 
 	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev),

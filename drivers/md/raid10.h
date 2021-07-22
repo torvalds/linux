@@ -124,6 +124,7 @@ struct r10bio {
 	sector_t		sector;	/* virtual sector number */
 	int			sectors;
 	unsigned long		state;
+	unsigned long		start_time;
 	struct mddev		*mddev;
 	/*
 	 * original bio going to /dev/mdx
@@ -153,7 +154,7 @@ struct r10bio {
 		};
 		sector_t	addr;
 		int		devnum;
-	} devs[0];
+	} devs[];
 };
 
 /* bits for r10bio.state */
@@ -179,5 +180,6 @@ enum r10bio_state {
 	R10BIO_Previous,
 /* failfast devices did receive failfast requests. */
 	R10BIO_FailFast,
+	R10BIO_Discard,
 };
 #endif

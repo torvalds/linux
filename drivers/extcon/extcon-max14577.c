@@ -6,6 +6,7 @@
 // Chanwoo Choi <cw00.choi@samsung.com>
 // Krzysztof Kozlowski <krzk@kernel.org>
 
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -657,6 +658,8 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	struct max14577_muic_info *info;
 	int delay_jiffies;
+	int cable_type;
+	bool attached;
 	int ret;
 	int i;
 	u8 id;
@@ -671,7 +674,10 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
 
-	INIT_WORK(&info->irq_work, max14577_muic_irq_work);
+	ret = devm_work_autocancel(&pdev->dev, &info->irq_work,
+				   max14577_muic_irq_work);
+	if (ret)
+		return ret;
 
 	switch (max14577->dev_type) {
 	case MAXIM_DEVICE_TYPE_MAX77836:
@@ -711,7 +717,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 					      max14577_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return PTR_ERR(info->edev);
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
@@ -725,8 +731,17 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	info->path_uart = CTRL1_SW_UART;
 	delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 
-	/* Set initial path for UART */
-	max14577_muic_set_path(info, info->path_uart, true);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = max14577_bulk_read(info->max14577->regmap,
+			MAX14577_MUIC_REG_STATUS1, info->status, 2);
+	if (ret) {
+		dev_err(info->dev, "Cannot read STATUS registers\n");
+		return ret;
+	}
+	cable_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_ADC,
+					 &attached);
+	if (attached && cable_type == MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF)
+		max14577_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
 	ret = max14577_read_reg(info->max14577->regmap,
@@ -755,15 +770,6 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int max14577_muic_remove(struct platform_device *pdev)
-{
-	struct max14577_muic_info *info = platform_get_drvdata(pdev);
-
-	cancel_work_sync(&info->irq_work);
-
-	return 0;
-}
-
 static const struct platform_device_id max14577_muic_id[] = {
 	{ "max14577-muic", MAXIM_DEVICE_TYPE_MAX14577, },
 	{ "max77836-muic", MAXIM_DEVICE_TYPE_MAX77836, },
@@ -771,12 +777,21 @@ static const struct platform_device_id max14577_muic_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 
+static const struct of_device_id of_max14577_muic_dt_match[] = {
+	{ .compatible = "maxim,max14577-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX14577, },
+	{ .compatible = "maxim,max77836-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX77836, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_max14577_muic_dt_match);
+
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
+		.of_match_table = of_max14577_muic_dt_match,
 	},
 	.probe		= max14577_muic_probe,
-	.remove		= max14577_muic_remove,
 	.id_table	= max14577_muic_id,
 };
 

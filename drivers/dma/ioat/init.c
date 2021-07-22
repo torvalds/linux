@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel I/OAT DMA Linux driver
  * Copyright(c) 2004 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  */
 
 #include <linux/init.h>
@@ -119,6 +107,9 @@ static const struct pci_device_id ioat_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDXDE2) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDXDE3) },
 
+	/* I/OAT v3.4 platforms */
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_ICX) },
+
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ioat_pci_tbl);
@@ -135,10 +126,10 @@ static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma);
 static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
-int ioat_pending_level = 4;
+int ioat_pending_level = 7;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
-		 "high-water mark for pushing ioat descriptors (default: 4)");
+		 "high-water mark for pushing ioat descriptors (default: 7)");
 static char ioat_interrupt_style[32] = "msix";
 module_param_string(ioat_interrupt_style, ioat_interrupt_style,
 		    sizeof(ioat_interrupt_style), 0644);
@@ -565,10 +556,6 @@ static void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 	ioat_kobject_del(ioat_dma);
 
 	dma_async_device_unregister(dma);
-
-	dma_pool_destroy(ioat_dma->completion_pool);
-
-	INIT_LIST_HEAD(&dma->channels);
 }
 
 /**
@@ -598,7 +585,7 @@ static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 	dev_dbg(dev, "%s: xfercap = %d\n", __func__, 1 << xfercap_log);
 
 	for (i = 0; i < dma->chancnt; i++) {
-		ioat_chan = devm_kzalloc(dev, sizeof(*ioat_chan), GFP_KERNEL);
+		ioat_chan = kzalloc(sizeof(*ioat_chan), GFP_KERNEL);
 		if (!ioat_chan)
 			break;
 
@@ -615,7 +602,7 @@ static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 
 /**
  * ioat_free_chan_resources - release all the descriptors
- * @chan: the channel to be cleaned
+ * @c: the channel to be cleaned
  */
 static void ioat_free_chan_resources(struct dma_chan *c)
 {
@@ -633,7 +620,16 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 		return;
 
 	ioat_stop(ioat_chan);
-	ioat_reset_hw(ioat_chan);
+
+	if (!test_bit(IOAT_CHAN_DOWN, &ioat_chan->state)) {
+		ioat_reset_hw(ioat_chan);
+
+		/* Put LTR to idle */
+		if (ioat_dma->version >= IOAT_VER_3_4)
+			writeb(IOAT_CHAN_LTR_SWSEL_IDLE,
+			       ioat_chan->reg_base +
+			       IOAT_CHAN_LTR_SWSEL_OFFSET);
+	}
 
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 	spin_lock_bh(&ioat_chan->prep_lock);
@@ -655,7 +651,7 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 	}
 
 	for (i = 0; i < ioat_chan->desc_chunks; i++) {
-		dma_free_coherent(to_dev(ioat_chan), SZ_2M,
+		dma_free_coherent(to_dev(ioat_chan), IOAT_CHUNK_SIZE,
 				  ioat_chan->descs[i].virt,
 				  ioat_chan->descs[i].hw);
 		ioat_chan->descs[i].virt = NULL;
@@ -724,6 +720,28 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	spin_unlock_bh(&ioat_chan->prep_lock);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
 
+	/* Setting up LTR values for 3.4 or later */
+	if (ioat_chan->ioat_dma->version >= IOAT_VER_3_4) {
+		u32 lat_val;
+
+		lat_val = IOAT_CHAN_LTR_ACTIVE_SNVAL |
+			IOAT_CHAN_LTR_ACTIVE_SNLATSCALE |
+			IOAT_CHAN_LTR_ACTIVE_SNREQMNT;
+		writel(lat_val, ioat_chan->reg_base +
+				IOAT_CHAN_LTR_ACTIVE_OFFSET);
+
+		lat_val = IOAT_CHAN_LTR_IDLE_SNVAL |
+			  IOAT_CHAN_LTR_IDLE_SNLATSCALE |
+			  IOAT_CHAN_LTR_IDLE_SNREQMNT;
+		writel(lat_val, ioat_chan->reg_base +
+				IOAT_CHAN_LTR_IDLE_OFFSET);
+
+		/* Select to active */
+		writeb(IOAT_CHAN_LTR_SWSEL_ACTIVE,
+		       ioat_chan->reg_base +
+		       IOAT_CHAN_LTR_SWSEL_OFFSET);
+	}
+
 	ioat_start_null_desc(ioat_chan);
 
 	/* check that we got off the ground */
@@ -749,8 +767,6 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 		  struct ioatdma_chan *ioat_chan, int idx)
 {
 	struct dma_device *dma = &ioat_dma->dma_dev;
-	struct dma_chan *c = &ioat_chan->dma_chan;
-	unsigned long data = (unsigned long) c;
 
 	ioat_chan->ioat_dma = ioat_dma;
 	ioat_chan->reg_base = ioat_dma->reg_base + (0x80 * (idx + 1));
@@ -760,7 +776,7 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
 	ioat_dma->idx[idx] = ioat_chan;
 	timer_setup(&ioat_chan->timer, ioat_timer_event, 0);
-	tasklet_init(&ioat_chan->cleanup_task, ioat_cleanup_event, data);
+	tasklet_setup(&ioat_chan->cleanup_task, ioat_cleanup_event);
 }
 
 #define IOAT_NUM_SRC_TEST 6 /* must be <= 8 */
@@ -1177,13 +1193,17 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	/* disable relaxed ordering */
 	err = pcie_capability_read_word(pdev, IOAT_DEVCTRL_OFFSET, &val16);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	/* clear relaxed ordering enable */
 	val16 &= ~IOAT_DEVCTRL_ROE;
 	err = pcie_capability_write_word(pdev, IOAT_DEVCTRL_OFFSET, val16);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
+
+	if (ioat_dma->cap & IOAT_CAP_DPS)
+		writeb(ioat_pending_level + 1,
+		       ioat_dma->reg_base + IOAT_PREFETCH_LIMIT_OFFSET);
 
 	return 0;
 }
@@ -1245,7 +1265,7 @@ static void ioat_resume(struct ioatdma_device *ioat_dma)
 #define DRV_NAME "ioatdma"
 
 static pci_ers_result_t ioat_pcie_error_detected(struct pci_dev *pdev,
-						 enum pci_channel_state error)
+						 pci_channel_state_t error)
 {
 	dev_dbg(&pdev->dev, "%s: PCIe AER error %d\n", DRV_NAME, error);
 
@@ -1300,16 +1320,28 @@ static struct pci_driver ioat_pci_driver = {
 	.err_handler	= &ioat_err_handler,
 };
 
+static void release_ioatdma(struct dma_device *device)
+{
+	struct ioatdma_device *d = to_ioatdma_device(device);
+	int i;
+
+	for (i = 0; i < IOAT_MAX_CHANS; i++)
+		kfree(d->idx[i]);
+
+	dma_pool_destroy(d->completion_pool);
+	kfree(d);
+}
+
 static struct ioatdma_device *
 alloc_ioatdma(struct pci_dev *pdev, void __iomem *iobase)
 {
-	struct device *dev = &pdev->dev;
-	struct ioatdma_device *d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
+	struct ioatdma_device *d = kzalloc(sizeof(*d), GFP_KERNEL);
 
 	if (!d)
 		return NULL;
 	d->pdev = pdev;
 	d->reg_base = iobase;
+	d->dma_dev.device_release = release_ioatdma;
 	return d;
 }
 
@@ -1350,6 +1382,8 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, device);
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);
+	if (device->version >= IOAT_VER_3_4)
+		ioat_dca_enabled = 0;
 	if (device->version >= IOAT_VER_3_0) {
 		if (is_skx_ioat(pdev))
 			device->version = IOAT_VER_3_2;
@@ -1375,6 +1409,8 @@ static void ioat_remove(struct pci_dev *pdev)
 
 	if (!device)
 		return;
+
+	ioat_shutdown(pdev);
 
 	dev_err(&pdev->dev, "Removing dma and dca services\n");
 	if (device->dca) {

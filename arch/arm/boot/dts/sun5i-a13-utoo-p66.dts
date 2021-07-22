@@ -58,13 +58,11 @@
 		/delete-property/stdout-path;
 	};
 
-	i2c_lcd: i2c@0 {
+	i2c_lcd: i2c {
 		/* The lcd panel i2c interface is hooked up via gpios */
 		compatible = "i2c-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_lcd_pins>;
-		gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>, /* PG12, sda */
-			<&pio 6 10 GPIO_ACTIVE_HIGH>; /* PG10, scl */
+		sda-gpios = <&pio 6 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PG12 */
+		scl-gpios = <&pio 6 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PG10 */
 		i2c-gpio,delay-us = <5>;
 	};
 };
@@ -79,13 +77,9 @@
 	allwinner,pa-gpios = <&pio 6 3 GPIO_ACTIVE_HIGH>; /* PG3 */
 };
 
-&codec_pa_pin {
-	pins = "PG3";
-};
-
 &mmc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins_a>;
+	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
 	non-removable;
@@ -95,14 +89,6 @@
 		reg = <0>;
 		compatible = "mmc-card";
 		broken-hpi;
-	};
-};
-
-&pio {
-	i2c_lcd_pins: i2c_lcd_pin@0 {
-		pins = "PG10", "PG12";
-		function = "gpio_out";
-		bias-pull-up;
 	};
 };
 
@@ -127,8 +113,4 @@
 &uart1 {
 	/* The P66 uses the uart pins as gpios */
 	status = "disabled";
-};
-
-&usb0_vbus_pin_a {
-	pins = "PB4";
 };

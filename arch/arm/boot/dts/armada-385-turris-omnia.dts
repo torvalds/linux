@@ -12,6 +12,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include "armada-385.dtsi"
 
 / {
@@ -31,7 +32,8 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
-			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
 
@@ -82,6 +84,32 @@
 			};
 		};
 	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp_i2c>;
+		tx-fault-gpios = <&pcawan 0 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&pcawan 1 GPIO_ACTIVE_HIGH>;
+		rate-select0-gpios = <&pcawan 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&pcawan 3 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&pcawan 4 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <3000>;
+
+		/*
+		 * For now this has to be enabled at boot time by U-Boot when
+		 * a SFP module is present. Read more in the comment in the
+		 * eth2 node below.
+		 */
+		status = "disabled";
+	};
+};
+
+&bm {
+	status = "okay";
+};
+
+&bm_bppi {
+	status = "okay";
 };
 
 /* Connected to 88E6176 switch, port 6 */
@@ -90,6 +118,9 @@
 	pinctrl-0 = <&ge0_rgmii_pins>;
 	status = "okay";
 	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <0>;
+	bm,pool-short = <3>;
 
 	fixed-link {
 		speed = <1000>;
@@ -103,6 +134,9 @@
 	pinctrl-0 = <&ge1_rgmii_pins>;
 	status = "okay";
 	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <1>;
+	bm,pool-short = <3>;
 
 	fixed-link {
 		speed = <1000>;
@@ -112,9 +146,23 @@
 
 /* WAN port */
 &eth2 {
+	/*
+	 * eth2 is connected via a multiplexor to both the SFP cage and to
+	 * ethernet-phy@1. The multiplexor switches the signal to SFP cage when
+	 * a SFP module is present, as determined by the mode-def0 GPIO.
+	 *
+	 * Until kernel supports this configuration properly, in case SFP module
+	 * is present, U-Boot has to enable the sfp node above, remove phy
+	 * handle and add managed = "in-band-status" property.
+	 */
 	status = "okay";
 	phy-mode = "sgmii";
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
+	phys = <&comphy5 2>;
+	sfp = <&sfp>;
+	buffer-manager = <&bm>;
+	bm,pool-long = <2>;
+	bm,pool-short = <3>;
 };
 
 &i2c0 {
@@ -127,7 +175,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
-		status = "okay";
 
 		i2c@0 {
 			#address-cells = <1>;
@@ -135,7 +182,115 @@
 			reg = <0>;
 
 			/* STM32F0 command interface at address 0x2a */
-			/* leds device (in STM32F0) at address 0x2b */
+
+			led-controller@2b {
+				compatible = "cznic,turris-omnia-leds";
+				reg = <0x2b>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/*
+				 * LEDs are controlled by MCU (STM32F0) at
+				 * address 0x2b.
+				 *
+				 * The driver does not support HW control mode
+				 * for the LEDs yet. Disable the LEDs for now.
+				 *
+				 * Also LED functions are not stable yet:
+				 * - there are 3 LEDs connected via MCU to PCIe
+				 *   ports. One of these ports supports mSATA.
+				 *   There is no mSATA nor PCIe function.
+				 *   For now we use LED_FUNCTION_WLAN, since
+				 *   in most cases users have wifi cards in
+				 *   these slots
+				 * - there are 2 LEDs dedicated for user: A and
+				 *   B. Again there is no such function defined.
+				 *   For now we use LED_FUNCTION_INDICATOR
+				 */
+				status = "disabled";
+
+				multi-led@0 {
+					reg = <0x0>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <2>;
+				};
+
+				multi-led@1 {
+					reg = <0x1>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <1>;
+				};
+
+				multi-led@2 {
+					reg = <0x2>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@3 {
+					reg = <0x3>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@4 {
+					reg = <0x4>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@5 {
+					reg = <0x5>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WAN;
+				};
+
+				multi-led@6 {
+					reg = <0x6>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <4>;
+				};
+
+				multi-led@7 {
+					reg = <0x7>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@8 {
+					reg = <0x8>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@9 {
+					reg = <0x9>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@a {
+					reg = <0xa>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <0>;
+				};
+
+				multi-led@b {
+					reg = <0xb>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_POWER;
+				};
+			};
 
 			eeprom@54 {
 				compatible = "atmel,24c64";
@@ -177,7 +332,7 @@
 			/* routed to PCIe2 connector (CN62A) */
 		};
 
-		i2c@4 {
+		sfp_i2c: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
@@ -232,22 +387,27 @@
 	pinctrl-0 = <&mdio_pins>;
 	status = "okay";
 
-	phy1: phy@1 {
-		status = "okay";
-		compatible = "ethernet-phy-id0141.0DD1", "ethernet-phy-ieee802.3-c22";
+	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
+		marvell,reg-init = <3 18 0 0x4985>;
 
 		/* irq is connected to &pcawan pin 7 */
 	};
 
 	/* Switch MV88E6176 at address 0x10 */
 	switch@10 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&swint_pins>;
 		compatible = "marvell,mv88e6085";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		dsa,member = <0 0>;
 
+		dsa,member = <0 0>;
 		reg = <0x10>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
 
 		ports {
 			#address-cells = <1>;
@@ -298,6 +458,11 @@
 &pinctrl {
 	pcawan_pins: pcawan-pins {
 		marvell,pins = "mpp46";
+		marvell,function = "gpio";
+	};
+
+	swint_pins: swint-pins {
+		marvell,pins = "mpp45";
 		marvell,function = "gpio";
 	};
 

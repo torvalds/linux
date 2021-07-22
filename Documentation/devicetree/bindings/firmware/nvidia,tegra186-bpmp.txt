@@ -8,7 +8,6 @@ which can create the interprocessor communication (IPC) between the CPU
 and BPMP.
 
 Required properties:
-- name : Should be bpmp
 - compatible
     Array of strings
     One of:
@@ -33,7 +32,7 @@ implemented by this node:
 
 - .../clock/clock-bindings.txt
 - <dt-bindings/clock/tegra186-clock.h>
-- ../power/power_domain.txt
+- ../power/power-domain.yaml
 - <dt-bindings/power/tegra186-powergate.h>
 - .../reset/reset.txt
 - <dt-bindings/reset/tegra186-reset.h>

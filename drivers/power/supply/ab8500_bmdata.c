@@ -4,7 +4,8 @@
 #include <linux/of.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
+
+#include "ab8500-bm.h"
 
 /*
  * These are the defined batteries that uses a NTC and ID resistor placed
@@ -508,6 +509,7 @@ int ab8500_bm_of_probe(struct device *dev,
 	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
+		of_node_put(battery_node);
 		return -EINVAL;
 	}
 

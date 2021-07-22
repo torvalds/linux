@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file for LX2160A Clearfog ITX board; this contains the
+// common parts shared between the Clearfog CX and Honeycomb builds.
+//
+// Copyright 2019 SolidRun Ltd.
+
+/dts-v1/;
+
+#include "fsl-lx2160a-cex7.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key {
+			label = "power";
+			linux,can-disable;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	sfp0: sfp-0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp0_i2c>;
+		mod-def0-gpio = <&gpio2 0 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp1: sfp-1 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp1_i2c>;
+		mod-def0-gpio = <&gpio2 9 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp2: sfp-2 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp2_i2c>;
+		mod-def0-gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp3: sfp-3 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp3_i2c>;
+		mod-def0-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+};
+
+&dpmac7 {
+	sfp = <&sfp0>;
+	managed = "in-band-status";
+};
+
+&dpmac8 {
+	sfp = <&sfp1>;
+	managed = "in-band-status";
+};
+
+&dpmac9 {
+	sfp = <&sfp2>;
+	managed = "in-band-status";
+};
+
+&dpmac10 {
+	sfp = <&sfp3>;
+	managed = "in-band-status";
+};
+
+&emdio2 {
+	status = "okay";
+};
+
+&esdhc0 {
+	sd-uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr25;
+	sd-uhs-sdr12;
+	status = "okay";
+};
+
+&pcs_mdio7 {
+	status = "okay";
+};
+
+&pcs_mdio8 {
+	status = "okay";
+};
+
+&pcs_mdio9 {
+	status = "okay";
+};
+
+&pcs_mdio10 {
+	status = "okay";
+};
+
+&sata0 {
+	status = "okay";
+};
+
+&sata1 {
+	status = "okay";
+};
+
+&sata2 {
+	status = "okay";
+};
+
+&sata3 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};

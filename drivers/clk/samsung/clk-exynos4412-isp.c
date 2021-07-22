@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  * Author: Marek Szyprowski <m.szyprowski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for Exynos4412 ISP module.
 */
@@ -118,10 +115,8 @@ static int __init exynos4x12_isp_clk_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg_base)) {
-		dev_err(dev, "failed to map registers\n");
+	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
-	}
 
 	exynos4x12_save_isp = samsung_clk_alloc_reg_dump(exynos4x12_clk_isp_save,
 					ARRAY_SIZE(exynos4x12_clk_isp_save));

@@ -381,10 +381,6 @@ enum uhci_rh_state {
  * The full UHCI controller information:
  */
 struct uhci_hcd {
-
-	/* debugfs */
-	struct dentry *dentry;
-
 	/* Grabbed from PCI */
 	unsigned long io_addr;
 

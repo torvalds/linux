@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for the NVM Express interface
  * Copyright (c) 2011-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_NVME_H
@@ -46,21 +38,28 @@ enum {
 	NVMF_ADDR_FAMILY_IP6	= 2,	/* IP6 */
 	NVMF_ADDR_FAMILY_IB	= 3,	/* InfiniBand */
 	NVMF_ADDR_FAMILY_FC	= 4,	/* Fibre Channel */
+	NVMF_ADDR_FAMILY_LOOP	= 254,	/* Reserved for host usage */
+	NVMF_ADDR_FAMILY_MAX,
 };
 
 /* Transport Type codes for Discovery Log Page entry TRTYPE field */
 enum {
 	NVMF_TRTYPE_RDMA	= 1,	/* RDMA */
 	NVMF_TRTYPE_FC		= 2,	/* Fibre Channel */
+	NVMF_TRTYPE_TCP		= 3,	/* TCP/IP */
 	NVMF_TRTYPE_LOOP	= 254,	/* Reserved for host usage */
 	NVMF_TRTYPE_MAX,
 };
 
 /* Transport Requirements codes for Discovery Log Page entry TREQ field */
 enum {
-	NVMF_TREQ_NOT_SPECIFIED	= 0,	/* Not specified */
-	NVMF_TREQ_REQUIRED	= 1,	/* Required */
-	NVMF_TREQ_NOT_REQUIRED	= 2,	/* Not Required */
+	NVMF_TREQ_NOT_SPECIFIED	= 0,		/* Not specified */
+	NVMF_TREQ_REQUIRED	= 1,		/* Required */
+	NVMF_TREQ_NOT_REQUIRED	= 2,		/* Not Required */
+#define NVME_TREQ_SECURE_CHANNEL_MASK \
+	(NVMF_TREQ_REQUIRED | NVMF_TREQ_NOT_REQUIRED)
+
+	NVMF_TREQ_DISABLE_SQFLOW = (1 << 2),	/* Supports SQ flow control disable */
 };
 
 /* RDMA QP Service Type codes for Discovery Log Page entry TSAS
@@ -110,8 +109,25 @@ enum {
 	NVME_REG_AQA	= 0x0024,	/* Admin Queue Attributes */
 	NVME_REG_ASQ	= 0x0028,	/* Admin SQ Base Address */
 	NVME_REG_ACQ	= 0x0030,	/* Admin CQ Base Address */
-	NVME_REG_CMBLOC = 0x0038,	/* Controller Memory Buffer Location */
+	NVME_REG_CMBLOC	= 0x0038,	/* Controller Memory Buffer Location */
 	NVME_REG_CMBSZ	= 0x003c,	/* Controller Memory Buffer Size */
+	NVME_REG_BPINFO	= 0x0040,	/* Boot Partition Information */
+	NVME_REG_BPRSEL	= 0x0044,	/* Boot Partition Read Select */
+	NVME_REG_BPMBL	= 0x0048,	/* Boot Partition Memory Buffer
+					 * Location
+					 */
+	NVME_REG_CMBMSC = 0x0050,	/* Controller Memory Buffer Memory
+					 * Space Control
+					 */
+	NVME_REG_PMRCAP	= 0x0e00,	/* Persistent Memory Capabilities */
+	NVME_REG_PMRCTL	= 0x0e04,	/* Persistent Memory Region Control */
+	NVME_REG_PMRSTS	= 0x0e08,	/* Persistent Memory Region Status */
+	NVME_REG_PMREBS	= 0x0e0c,	/* Persistent Memory Region Elasticity
+					 * Buffer Size
+					 */
+	NVME_REG_PMRSWTP = 0x0e10,	/* Persistent Memory Region Sustained
+					 * Write Throughput
+					 */
 	NVME_REG_DBS	= 0x1000,	/* SQ 0 Tail Doorbell */
 };
 
@@ -119,8 +135,10 @@ enum {
 #define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
 #define NVME_CAP_NSSRC(cap)	(((cap) >> 36) & 0x1)
+#define NVME_CAP_CSS(cap)	(((cap) >> 37) & 0xff)
 #define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
 #define NVME_CAP_MPSMAX(cap)	(((cap) >> 52) & 0xf)
+#define NVME_CAP_CMBS(cap)	(((cap) >> 57) & 0x1)
 
 #define NVME_CMB_BIR(cmbloc)	((cmbloc) & 0x7)
 #define NVME_CMB_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
@@ -143,12 +161,12 @@ enum {
  * Submission and Completion Queue Entry Sizes for the NVM command set.
  * (In bytes and specified as a power of two (2^n)).
  */
+#define NVME_ADM_SQES       6
 #define NVME_NVM_IOSQES		6
 #define NVME_NVM_IOCQES		4
 
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
-	NVME_CC_CSS_NVM		= 0 << 4,
 	NVME_CC_EN_SHIFT	= 0,
 	NVME_CC_CSS_SHIFT	= 4,
 	NVME_CC_MPS_SHIFT	= 7,
@@ -156,6 +174,9 @@ enum {
 	NVME_CC_SHN_SHIFT	= 14,
 	NVME_CC_IOSQES_SHIFT	= 16,
 	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_CSS_NVM		= 0 << NVME_CC_CSS_SHIFT,
+	NVME_CC_CSS_CSI		= 6 << NVME_CC_CSS_SHIFT,
+	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
 	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
@@ -165,6 +186,8 @@ enum {
 	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
 	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
+	NVME_CAP_CSS_NVM	= 1 << 0,
+	NVME_CAP_CSS_CSI	= 1 << 6,
 	NVME_CSTS_RDY		= 1 << 0,
 	NVME_CSTS_CFS		= 1 << 1,
 	NVME_CSTS_NSSRO		= 1 << 4,
@@ -173,6 +196,8 @@ enum {
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
 	NVME_CSTS_SHST_MASK	= 3 << 2,
+	NVME_CMBMSC_CRE		= 1 << 0,
+	NVME_CMBMSC_CMSE	= 1 << 1,
 };
 
 struct nvme_id_power_state {
@@ -198,6 +223,11 @@ enum {
 	NVME_PS_FLAGS_NON_OP_STATE	= 1 << 1,
 };
 
+enum nvme_ctrl_attr {
+	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
+	NVME_CTRL_ATTR_TBKAS		= (1 << 6),
+};
+
 struct nvme_id_ctrl {
 	__le16			vid;
 	__le16			ssvid;
@@ -214,7 +244,11 @@ struct nvme_id_ctrl {
 	__le32			rtd3e;
 	__le32			oaes;
 	__le32			ctratt;
-	__u8			rsvd100[156];
+	__u8			rsvd100[28];
+	__le16			crdt1;
+	__le16			crdt2;
+	__le16			crdt3;
+	__u8			rsvd134[122];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -278,16 +312,27 @@ struct nvme_id_ctrl {
 };
 
 enum {
+	NVME_CTRL_CMIC_MULTI_CTRL		= 1 << 1,
+	NVME_CTRL_CMIC_ANA			= 1 << 3,
 	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
 	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
 	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
+	NVME_CTRL_ONCS_RESERVATIONS		= 1 << 5,
 	NVME_CTRL_ONCS_TIMESTAMP		= 1 << 6,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
 	NVME_CTRL_OACS_DIRECTIVES		= 1 << 5,
 	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 8,
 	NVME_CTRL_LPA_CMD_EFFECTS_LOG		= 1 << 1,
+	NVME_CTRL_CTRATT_128_ID			= 1 << 0,
+	NVME_CTRL_CTRATT_NON_OP_PSP		= 1 << 1,
+	NVME_CTRL_CTRATT_NVM_SETS		= 1 << 2,
+	NVME_CTRL_CTRATT_READ_RECV_LVLS		= 1 << 3,
+	NVME_CTRL_CTRATT_ENDURANCE_GROUPS	= 1 << 4,
+	NVME_CTRL_CTRATT_PREDICTABLE_LAT	= 1 << 5,
+	NVME_CTRL_CTRATT_NAMESPACE_GRANULARITY	= 1 << 7,
+	NVME_CTRL_CTRATT_UUID_LIST		= 1 << 9,
 };
 
 struct nvme_lbaf {
@@ -309,7 +354,7 @@ struct nvme_id_ns {
 	__u8			nmic;
 	__u8			rescap;
 	__u8			fpi;
-	__u8			rsvd33;
+	__u8			dlfeat;
 	__le16			nawun;
 	__le16			nawupf;
 	__le16			nacwu;
@@ -318,11 +363,17 @@ struct nvme_id_ns {
 	__le16			nabspf;
 	__le16			noiob;
 	__u8			nvmcap[16];
-	__u8			rsvd64[28];
+	__le16			npwg;
+	__le16			npwa;
+	__le16			npdg;
+	__le16			npda;
+	__le16			nows;
+	__u8			rsvd74[18];
 	__le32			anagrpid;
 	__u8			rsvd96[3];
 	__u8			nsattr;
-	__u8			rsvd100[4];
+	__le16			nvmsetid;
+	__le16			endgid;
 	__u8			nguid[16];
 	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
@@ -330,15 +381,59 @@ struct nvme_id_ns {
 	__u8			vs[3712];
 };
 
+struct nvme_zns_lbafe {
+	__le64			zsze;
+	__u8			zdes;
+	__u8			rsvd9[7];
+};
+
+struct nvme_id_ns_zns {
+	__le16			zoc;
+	__le16			ozcs;
+	__le32			mar;
+	__le32			mor;
+	__le32			rrl;
+	__le32			frl;
+	__u8			rsvd20[2796];
+	struct nvme_zns_lbafe	lbafe[16];
+	__u8			rsvd3072[768];
+	__u8			vs[256];
+};
+
+struct nvme_id_ctrl_zns {
+	__u8	zasl;
+	__u8	rsvd1[4095];
+};
+
+struct nvme_id_ctrl_nvm {
+	__u8	vsl;
+	__u8	wzsl;
+	__u8	wusl;
+	__u8	dmrl;
+	__le32	dmrsl;
+	__le64	dmsl;
+	__u8	rsvd16[4080];
+};
+
 enum {
 	NVME_ID_CNS_NS			= 0x00,
 	NVME_ID_CNS_CTRL		= 0x01,
 	NVME_ID_CNS_NS_ACTIVE_LIST	= 0x02,
 	NVME_ID_CNS_NS_DESC_LIST	= 0x03,
+	NVME_ID_CNS_CS_NS		= 0x05,
+	NVME_ID_CNS_CS_CTRL		= 0x06,
 	NVME_ID_CNS_NS_PRESENT_LIST	= 0x10,
 	NVME_ID_CNS_NS_PRESENT		= 0x11,
 	NVME_ID_CNS_CTRL_NS_LIST	= 0x12,
 	NVME_ID_CNS_CTRL_LIST		= 0x13,
+	NVME_ID_CNS_SCNDRY_CTRL_LIST	= 0x15,
+	NVME_ID_CNS_NS_GRANULARITY	= 0x16,
+	NVME_ID_CNS_UUID_LIST		= 0x17,
+};
+
+enum {
+	NVME_CSI_NVM			= 0,
+	NVME_CSI_ZNS			= 2,
 };
 
 enum {
@@ -356,8 +451,12 @@ enum {
 
 enum {
 	NVME_NS_FEAT_THIN	= 1 << 0,
+	NVME_NS_FEAT_ATOMICS	= 1 << 1,
+	NVME_NS_FEAT_IO_OPT	= 1 << 4,
+	NVME_NS_ATTR_RO		= 1 << 0,
 	NVME_NS_FLBAS_LBA_MASK	= 0xf,
 	NVME_NS_FLBAS_META_EXT	= 0x10,
+	NVME_NS_NMIC_SHARED	= 1 << 0,
 	NVME_LBAF_RP_BEST	= 0,
 	NVME_LBAF_RP_BETTER	= 1,
 	NVME_LBAF_RP_GOOD	= 2,
@@ -374,6 +473,12 @@ enum {
 	NVME_NS_DPS_PI_TYPE3	= 3,
 };
 
+/* Identify Namespace Metadata Capabilities (MC): */
+enum {
+	NVME_MC_EXTENDED_LBA	= (1 << 0),
+	NVME_MC_METADATA_PTR	= (1 << 1),
+};
+
 struct nvme_ns_id_desc {
 	__u8 nidt;
 	__u8 nidl;
@@ -383,11 +488,13 @@ struct nvme_ns_id_desc {
 #define NVME_NIDT_EUI64_LEN	8
 #define NVME_NIDT_NGUID_LEN	16
 #define NVME_NIDT_UUID_LEN	16
+#define NVME_NIDT_CSI_LEN	1
 
 enum {
 	NVME_NIDT_EUI64		= 0x01,
 	NVME_NIDT_NGUID		= 0x02,
 	NVME_NIDT_UUID		= 0x03,
+	NVME_NIDT_CSI		= 0x04,
 };
 
 struct nvme_smart_log {
@@ -396,7 +503,8 @@ struct nvme_smart_log {
 	__u8			avail_spare;
 	__u8			spare_thresh;
 	__u8			percent_used;
-	__u8			rsvd6[26];
+	__u8			endu_grp_crit_warn_sumry;
+	__u8			rsvd7[25];
 	__u8			data_units_read[16];
 	__u8			data_units_written[16];
 	__u8			host_reads[16];
@@ -410,7 +518,11 @@ struct nvme_smart_log {
 	__le32			warning_temp_time;
 	__le32			critical_comp_time;
 	__le16			temp_sensor[8];
-	__u8			rsvd216[296];
+	__le32			thm_temp1_trans_count;
+	__le32			thm_temp2_trans_count;
+	__le32			thm_temp1_total_time;
+	__le32			thm_temp2_total_time;
+	__u8			rsvd232[280];
 };
 
 struct nvme_fw_slot_info_log {
@@ -427,6 +539,7 @@ enum {
 	NVME_CMD_EFFECTS_NIC		= 1 << 3,
 	NVME_CMD_EFFECTS_CCC		= 1 << 4,
 	NVME_CMD_EFFECTS_CSE_MASK	= 3 << 16,
+	NVME_CMD_EFFECTS_UUID_SEL	= 1 << 19,
 };
 
 struct nvme_effects_log {
@@ -461,6 +574,27 @@ struct nvme_ana_rsp_hdr {
 	__le16	rsvd10[3];
 };
 
+struct nvme_zone_descriptor {
+	__u8		zt;
+	__u8		zs;
+	__u8		za;
+	__u8		rsvd3[5];
+	__le64		zcap;
+	__le64		zslba;
+	__le64		wp;
+	__u8		rsvd32[32];
+};
+
+enum {
+	NVME_ZONE_TYPE_SEQWRITE_REQ	= 0x2,
+};
+
+struct nvme_zone_report {
+	__le64		nr_zones;
+	__u8		resv8[56];
+	struct nvme_zone_descriptor entries[];
+};
+
 enum {
 	NVME_SMART_CRIT_SPARE		= 1 << 0,
 	NVME_SMART_CRIT_TEMPERATURE	= 1 << 1,
@@ -481,20 +615,29 @@ enum {
 	NVME_AER_NOTICE_NS_CHANGED	= 0x00,
 	NVME_AER_NOTICE_FW_ACT_STARTING = 0x01,
 	NVME_AER_NOTICE_ANA		= 0x03,
+	NVME_AER_NOTICE_DISC_CHANGED	= 0xf0,
 };
 
 enum {
-	NVME_AEN_CFG_NS_ATTR		= 1 << 8,
-	NVME_AEN_CFG_FW_ACT		= 1 << 9,
-	NVME_AEN_CFG_ANA_CHANGE		= 1 << 11,
+	NVME_AEN_BIT_NS_ATTR		= 8,
+	NVME_AEN_BIT_FW_ACT		= 9,
+	NVME_AEN_BIT_ANA_CHANGE		= 11,
+	NVME_AEN_BIT_DISC_CHANGE	= 31,
+};
+
+enum {
+	NVME_AEN_CFG_NS_ATTR		= 1 << NVME_AEN_BIT_NS_ATTR,
+	NVME_AEN_CFG_FW_ACT		= 1 << NVME_AEN_BIT_FW_ACT,
+	NVME_AEN_CFG_ANA_CHANGE		= 1 << NVME_AEN_BIT_ANA_CHANGE,
+	NVME_AEN_CFG_DISC_CHANGE	= 1 << NVME_AEN_BIT_DISC_CHANGE,
 };
 
 struct nvme_lba_range_type {
 	__u8			type;
 	__u8			attributes;
 	__u8			rsvd2[14];
-	__u64			slba;
-	__u64			nlb;
+	__le64			slba;
+	__le64			nlb;
 	__u8			guid[16];
 	__u8			rsvd48[16];
 };
@@ -541,11 +684,35 @@ enum nvme_opcode {
 	nvme_cmd_compare	= 0x05,
 	nvme_cmd_write_zeroes	= 0x08,
 	nvme_cmd_dsm		= 0x09,
+	nvme_cmd_verify		= 0x0c,
 	nvme_cmd_resv_register	= 0x0d,
 	nvme_cmd_resv_report	= 0x0e,
 	nvme_cmd_resv_acquire	= 0x11,
 	nvme_cmd_resv_release	= 0x15,
+	nvme_cmd_zone_mgmt_send	= 0x79,
+	nvme_cmd_zone_mgmt_recv	= 0x7a,
+	nvme_cmd_zone_append	= 0x7d,
 };
+
+#define nvme_opcode_name(opcode)	{ opcode, #opcode }
+#define show_nvm_opcode_name(val)				\
+	__print_symbolic(val,					\
+		nvme_opcode_name(nvme_cmd_flush),		\
+		nvme_opcode_name(nvme_cmd_write),		\
+		nvme_opcode_name(nvme_cmd_read),		\
+		nvme_opcode_name(nvme_cmd_write_uncor),		\
+		nvme_opcode_name(nvme_cmd_compare),		\
+		nvme_opcode_name(nvme_cmd_write_zeroes),	\
+		nvme_opcode_name(nvme_cmd_dsm),			\
+		nvme_opcode_name(nvme_cmd_resv_register),	\
+		nvme_opcode_name(nvme_cmd_resv_report),		\
+		nvme_opcode_name(nvme_cmd_resv_acquire),	\
+		nvme_opcode_name(nvme_cmd_resv_release),	\
+		nvme_opcode_name(nvme_cmd_zone_mgmt_send),	\
+		nvme_opcode_name(nvme_cmd_zone_mgmt_recv),	\
+		nvme_opcode_name(nvme_cmd_zone_append))
+
+
 
 /*
  * Descriptor subtype - lower 4 bits of nvme_(keyed_)sgl_desc identifier
@@ -639,7 +806,12 @@ struct nvme_common_command {
 	__le32			cdw2[2];
 	__le64			metadata;
 	union nvme_data_ptr	dptr;
-	__le32			cdw10[6];
+	__le32			cdw10;
+	__le32			cdw11;
+	__le32			cdw12;
+	__le32			cdw13;
+	__le32			cdw14;
+	__le32			cdw15;
 };
 
 struct nvme_rw_command {
@@ -662,6 +834,7 @@ struct nvme_rw_command {
 enum {
 	NVME_RW_LR			= 1 << 15,
 	NVME_RW_FUA			= 1 << 14,
+	NVME_RW_APPEND_PIREMAP		= 1 << 9,
 	NVME_RW_DSM_FREQ_UNSPEC		= 0,
 	NVME_RW_DSM_FREQ_TYPICAL	= 1,
 	NVME_RW_DSM_FREQ_RARE		= 2,
@@ -727,7 +900,67 @@ struct nvme_write_zeroes_cmd {
 	__le16			appmask;
 };
 
+enum nvme_zone_mgmt_action {
+	NVME_ZONE_CLOSE		= 0x1,
+	NVME_ZONE_FINISH	= 0x2,
+	NVME_ZONE_OPEN		= 0x3,
+	NVME_ZONE_RESET		= 0x4,
+	NVME_ZONE_OFFLINE	= 0x5,
+	NVME_ZONE_SET_DESC_EXT	= 0x10,
+};
+
+struct nvme_zone_mgmt_send_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__le32			cdw2[2];
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__le32			cdw12;
+	__u8			zsa;
+	__u8			select_all;
+	__u8			rsvd13[2];
+	__le32			cdw14[2];
+};
+
+struct nvme_zone_mgmt_recv_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__le64			rsvd2[2];
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__le32			numd;
+	__u8			zra;
+	__u8			zrasf;
+	__u8			pr;
+	__u8			rsvd13;
+	__le32			cdw14[2];
+};
+
+enum {
+	NVME_ZRA_ZONE_REPORT		= 0,
+	NVME_ZRASF_ZONE_REPORT_ALL	= 0,
+	NVME_ZRASF_ZONE_STATE_EMPTY	= 0x01,
+	NVME_ZRASF_ZONE_STATE_IMP_OPEN	= 0x02,
+	NVME_ZRASF_ZONE_STATE_EXP_OPEN	= 0x03,
+	NVME_ZRASF_ZONE_STATE_CLOSED	= 0x04,
+	NVME_ZRASF_ZONE_STATE_READONLY	= 0x05,
+	NVME_ZRASF_ZONE_STATE_FULL	= 0x06,
+	NVME_ZRASF_ZONE_STATE_OFFLINE	= 0x07,
+	NVME_REPORT_ZONE_PARTIAL	= 1,
+};
+
 /* Features */
+
+enum {
+	NVME_TEMP_THRESH_MASK		= 0xffff,
+	NVME_TEMP_THRESH_SELECT_SHIFT	= 16,
+	NVME_TEMP_THRESH_TYPE_UNDER	= 0x100000,
+};
 
 struct nvme_feat_auto_pst {
 	__le64 entries[32];
@@ -736,6 +969,15 @@ struct nvme_feat_auto_pst {
 enum {
 	NVME_HOST_MEM_ENABLE	= (1 << 0),
 	NVME_HOST_MEM_RETURN	= (1 << 1),
+};
+
+struct nvme_feat_host_behavior {
+	__u8 acre;
+	__u8 resv1[511];
+};
+
+enum {
+	NVME_ENABLE_ACRE	= 1,
 };
 
 /* Admin commands */
@@ -754,16 +996,49 @@ enum nvme_admin_opcode {
 	nvme_admin_ns_mgmt		= 0x0d,
 	nvme_admin_activate_fw		= 0x10,
 	nvme_admin_download_fw		= 0x11,
+	nvme_admin_dev_self_test	= 0x14,
 	nvme_admin_ns_attach		= 0x15,
 	nvme_admin_keep_alive		= 0x18,
 	nvme_admin_directive_send	= 0x19,
 	nvme_admin_directive_recv	= 0x1a,
+	nvme_admin_virtual_mgmt		= 0x1c,
+	nvme_admin_nvme_mi_send		= 0x1d,
+	nvme_admin_nvme_mi_recv		= 0x1e,
 	nvme_admin_dbbuf		= 0x7C,
 	nvme_admin_format_nvm		= 0x80,
 	nvme_admin_security_send	= 0x81,
 	nvme_admin_security_recv	= 0x82,
 	nvme_admin_sanitize_nvm		= 0x84,
+	nvme_admin_get_lba_status	= 0x86,
+	nvme_admin_vendor_start		= 0xC0,
 };
+
+#define nvme_admin_opcode_name(opcode)	{ opcode, #opcode }
+#define show_admin_opcode_name(val)					\
+	__print_symbolic(val,						\
+		nvme_admin_opcode_name(nvme_admin_delete_sq),		\
+		nvme_admin_opcode_name(nvme_admin_create_sq),		\
+		nvme_admin_opcode_name(nvme_admin_get_log_page),	\
+		nvme_admin_opcode_name(nvme_admin_delete_cq),		\
+		nvme_admin_opcode_name(nvme_admin_create_cq),		\
+		nvme_admin_opcode_name(nvme_admin_identify),		\
+		nvme_admin_opcode_name(nvme_admin_abort_cmd),		\
+		nvme_admin_opcode_name(nvme_admin_set_features),	\
+		nvme_admin_opcode_name(nvme_admin_get_features),	\
+		nvme_admin_opcode_name(nvme_admin_async_event),		\
+		nvme_admin_opcode_name(nvme_admin_ns_mgmt),		\
+		nvme_admin_opcode_name(nvme_admin_activate_fw),		\
+		nvme_admin_opcode_name(nvme_admin_download_fw),		\
+		nvme_admin_opcode_name(nvme_admin_ns_attach),		\
+		nvme_admin_opcode_name(nvme_admin_keep_alive),		\
+		nvme_admin_opcode_name(nvme_admin_directive_send),	\
+		nvme_admin_opcode_name(nvme_admin_directive_recv),	\
+		nvme_admin_opcode_name(nvme_admin_dbbuf),		\
+		nvme_admin_opcode_name(nvme_admin_format_nvm),		\
+		nvme_admin_opcode_name(nvme_admin_security_send),	\
+		nvme_admin_opcode_name(nvme_admin_security_recv),	\
+		nvme_admin_opcode_name(nvme_admin_sanitize_nvm),	\
+		nvme_admin_opcode_name(nvme_admin_get_lba_status))
 
 enum {
 	NVME_QUEUE_PHYS_CONTIG	= (1 << 0),
@@ -792,16 +1067,24 @@ enum {
 	NVME_FEAT_RRL		= 0x12,
 	NVME_FEAT_PLM_CONFIG	= 0x13,
 	NVME_FEAT_PLM_WINDOW	= 0x14,
+	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
+	NVME_FEAT_SANITIZE	= 0x17,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
 	NVME_FEAT_RESV_MASK	= 0x82,
 	NVME_FEAT_RESV_PERSIST	= 0x83,
 	NVME_FEAT_WRITE_PROTECT	= 0x84,
+	NVME_FEAT_VENDOR_START	= 0xC0,
+	NVME_FEAT_VENDOR_END	= 0xFF,
 	NVME_LOG_ERROR		= 0x01,
 	NVME_LOG_SMART		= 0x02,
 	NVME_LOG_FW_SLOT	= 0x03,
 	NVME_LOG_CHANGED_NS	= 0x04,
 	NVME_LOG_CMD_EFFECTS	= 0x05,
+	NVME_LOG_DEVICE_SELF_TEST = 0x06,
+	NVME_LOG_TELEMETRY_HOST = 0x07,
+	NVME_LOG_TELEMETRY_CTRL = 0x08,
+	NVME_LOG_ENDURANCE_GROUP = 0x09,
 	NVME_LOG_ANA		= 0x0c,
 	NVME_LOG_DISC		= 0x70,
 	NVME_LOG_RESERVATION	= 0x80,
@@ -830,7 +1113,9 @@ struct nvme_identify {
 	__u8			cns;
 	__u8			rsvd3;
 	__le16			ctrlid;
-	__u32			rsvd11[5];
+	__u8			rsvd11[3];
+	__u8			csi;
+	__u32			rsvd12[4];
 };
 
 #define NVME_IDENTIFY_DATA_SIZE 4096
@@ -937,9 +1222,16 @@ struct nvme_get_log_page_command {
 	__le16			numdl;
 	__le16			numdu;
 	__u16			rsvd11;
-	__le32			lpol;
-	__le32			lpou;
-	__u32			rsvd14[2];
+	union {
+		struct {
+			__le32 lpol;
+			__le32 lpou;
+		};
+		__le64 lpo;
+	};
+	__u8			rsvd14[3];
+	__u8			csi;
+	__u32			rsvd15;
 };
 
 struct nvme_directive_cmd {
@@ -972,6 +1264,23 @@ enum nvmf_capsule_command {
 	nvme_fabrics_type_connect	= 0x01,
 	nvme_fabrics_type_property_get	= 0x04,
 };
+
+#define nvme_fabrics_type_name(type)   { type, #type }
+#define show_fabrics_type_name(type)					\
+	__print_symbolic(type,						\
+		nvme_fabrics_type_name(nvme_fabrics_type_property_set),	\
+		nvme_fabrics_type_name(nvme_fabrics_type_connect),	\
+		nvme_fabrics_type_name(nvme_fabrics_type_property_get))
+
+/*
+ * If not fabrics command, fctype will be ignored.
+ */
+#define show_opcode_name(qid, opcode, fctype)			\
+	((opcode) == nvme_fabrics_command ?			\
+	 show_fabrics_type_name(fctype) :			\
+	((qid) ?						\
+	 show_nvm_opcode_name(opcode) :				\
+	 show_admin_opcode_name(opcode)))
 
 struct nvmf_common_command {
 	__u8	opcode;
@@ -1027,7 +1336,11 @@ struct nvmf_disc_rsp_page_hdr {
 	__le64		numrec;
 	__le16		recfmt;
 	__u8		resv14[1006];
-	struct nvmf_disc_rsp_page_entry entries[0];
+	struct nvmf_disc_rsp_page_entry entries[];
+};
+
+enum {
+	NVME_CONNECT_DISABLE_SQFLOW	= (1 << 2),
 };
 
 struct nvmf_connect_command {
@@ -1115,6 +1428,8 @@ struct nvme_command {
 		struct nvme_format_cmd format;
 		struct nvme_dsm_cmd dsm;
 		struct nvme_write_zeroes_cmd write_zeroes;
+		struct nvme_zone_mgmt_send_cmd zms;
+		struct nvme_zone_mgmt_recv_cmd zmr;
 		struct nvme_abort_cmd abort;
 		struct nvme_get_log_page_command get_log_page;
 		struct nvmf_common_command fabrics;
@@ -1126,6 +1441,25 @@ struct nvme_command {
 	};
 };
 
+static inline bool nvme_is_fabrics(struct nvme_command *cmd)
+{
+	return cmd->common.opcode == nvme_fabrics_command;
+}
+
+struct nvme_error_slot {
+	__le64		error_count;
+	__le16		sqid;
+	__le16		cmdid;
+	__le16		status_field;
+	__le16		param_error_location;
+	__le64		lba;
+	__le32		nsid;
+	__u8		vs;
+	__u8		resv[3];
+	__le64		cs;
+	__u8		resv2[24];
+};
+
 static inline bool nvme_is_write(struct nvme_command *cmd)
 {
 	/*
@@ -1133,7 +1467,7 @@ static inline bool nvme_is_write(struct nvme_command *cmd)
 	 *
 	 * Why can't we simply have a Fabrics In and Fabrics out command?
 	 */
-	if (unlikely(cmd->common.opcode == nvme_fabrics_command))
+	if (unlikely(nvme_is_fabrics(cmd)))
 		return cmd->fabrics.fctype & 1;
 	return cmd->common.opcode & 1;
 }
@@ -1160,16 +1494,30 @@ enum {
 	NVME_SC_SGL_INVALID_DATA	= 0xf,
 	NVME_SC_SGL_INVALID_METADATA	= 0x10,
 	NVME_SC_SGL_INVALID_TYPE	= 0x11,
-
+	NVME_SC_CMB_INVALID_USE		= 0x12,
+	NVME_SC_PRP_INVALID_OFFSET	= 0x13,
+	NVME_SC_ATOMIC_WU_EXCEEDED	= 0x14,
+	NVME_SC_OP_DENIED		= 0x15,
 	NVME_SC_SGL_INVALID_OFFSET	= 0x16,
-	NVME_SC_SGL_INVALID_SUBTYPE	= 0x17,
-
+	NVME_SC_RESERVED		= 0x17,
+	NVME_SC_HOST_ID_INCONSIST	= 0x18,
+	NVME_SC_KA_TIMEOUT_EXPIRED	= 0x19,
+	NVME_SC_KA_TIMEOUT_INVALID	= 0x1A,
+	NVME_SC_ABORTED_PREEMPT_ABORT	= 0x1B,
+	NVME_SC_SANITIZE_FAILED		= 0x1C,
+	NVME_SC_SANITIZE_IN_PROGRESS	= 0x1D,
+	NVME_SC_SGL_INVALID_GRANULARITY	= 0x1E,
+	NVME_SC_CMD_NOT_SUP_CMB_QUEUE	= 0x1F,
 	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
+	NVME_SC_CMD_INTERRUPTED		= 0x21,
+	NVME_SC_TRANSIENT_TR_ERR	= 0x22,
+	NVME_SC_INVALID_IO_CMD_SET	= 0x2C,
 
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
 	NVME_SC_RESERVATION_CONFLICT	= 0x83,
+	NVME_SC_FORMAT_IN_PROGRESS	= 0x84,
 
 	/*
 	 * Command Specific Status:
@@ -1193,15 +1541,24 @@ enum {
 	NVME_SC_FW_NEEDS_SUBSYS_RESET	= 0x110,
 	NVME_SC_FW_NEEDS_RESET		= 0x111,
 	NVME_SC_FW_NEEDS_MAX_TIME	= 0x112,
-	NVME_SC_FW_ACIVATE_PROHIBITED	= 0x113,
+	NVME_SC_FW_ACTIVATE_PROHIBITED	= 0x113,
 	NVME_SC_OVERLAPPING_RANGE	= 0x114,
-	NVME_SC_NS_INSUFFICENT_CAP	= 0x115,
+	NVME_SC_NS_INSUFFICIENT_CAP	= 0x115,
 	NVME_SC_NS_ID_UNAVAILABLE	= 0x116,
 	NVME_SC_NS_ALREADY_ATTACHED	= 0x118,
 	NVME_SC_NS_IS_PRIVATE		= 0x119,
 	NVME_SC_NS_NOT_ATTACHED		= 0x11a,
 	NVME_SC_THIN_PROV_NOT_SUPP	= 0x11b,
 	NVME_SC_CTRL_LIST_INVALID	= 0x11c,
+	NVME_SC_SELT_TEST_IN_PROGRESS	= 0x11d,
+	NVME_SC_BP_WRITE_PROHIBITED	= 0x11e,
+	NVME_SC_CTRL_ID_INVALID		= 0x11f,
+	NVME_SC_SEC_CTRL_STATE_INVALID	= 0x120,
+	NVME_SC_CTRL_RES_NUM_INVALID	= 0x121,
+	NVME_SC_RES_ID_INVALID		= 0x122,
+	NVME_SC_PMR_SAN_PROHIBITED	= 0x123,
+	NVME_SC_ANA_GROUP_ID_INVALID	= 0x124,
+	NVME_SC_ANA_ATTACH_FAILED	= 0x125,
 
 	/*
 	 * I/O Command Set Specific - NVM commands:
@@ -1224,6 +1581,18 @@ enum {
 	NVME_SC_AUTH_REQUIRED		= 0x191,
 
 	/*
+	 * I/O Command Set Specific - Zoned commands:
+	 */
+	NVME_SC_ZONE_BOUNDARY_ERROR	= 0x1b8,
+	NVME_SC_ZONE_FULL		= 0x1b9,
+	NVME_SC_ZONE_READ_ONLY		= 0x1ba,
+	NVME_SC_ZONE_OFFLINE		= 0x1bb,
+	NVME_SC_ZONE_INVALID_WRITE	= 0x1bc,
+	NVME_SC_ZONE_TOO_MANY_ACTIVE	= 0x1bd,
+	NVME_SC_ZONE_TOO_MANY_OPEN	= 0x1be,
+	NVME_SC_ZONE_INVALID_TRANSITION	= 0x1bf,
+
+	/*
 	 * Media and Data Integrity Errors:
 	 */
 	NVME_SC_WRITE_FAULT		= 0x280,
@@ -1242,7 +1611,9 @@ enum {
 	NVME_SC_ANA_INACCESSIBLE	= 0x302,
 	NVME_SC_ANA_TRANSITION		= 0x303,
 	NVME_SC_HOST_PATH_ERROR		= 0x370,
+	NVME_SC_HOST_ABORTED_CMD	= 0x371,
 
+	NVME_SC_CRD			= 0x1800,
 	NVME_SC_DNR			= 0x4000,
 };
 

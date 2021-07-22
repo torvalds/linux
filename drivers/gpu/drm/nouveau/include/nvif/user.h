@@ -10,10 +10,11 @@ struct nvif_user {
 
 struct nvif_user_func {
 	void (*doorbell)(struct nvif_user *, u32 token);
+	u64 (*time)(struct nvif_user *);
 };
 
-int nvif_user_init(struct nvif_device *);
-void nvif_user_fini(struct nvif_device *);
+int nvif_user_ctor(struct nvif_device *, const char *name);
+void nvif_user_dtor(struct nvif_device *);
 
 extern const struct nvif_user_func nvif_userc361;
 #endif

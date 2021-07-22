@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Netlink interface for IEEE 802.15.4 stack
  *
  * Copyright 2007, 2008 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
@@ -89,7 +81,7 @@ int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-static const struct genl_ops ieee802154_ops[] = {
+static const struct genl_small_ops ieee802154_ops[] = {
 	/* see nl-phy.c */
 	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
 			ieee802154_dump_phy),
@@ -136,9 +128,10 @@ struct genl_family nl802154_family __ro_after_init = {
 	.name		= IEEE802154_NL_NAME,
 	.version	= 1,
 	.maxattr	= IEEE802154_ATTR_MAX,
+	.policy		= ieee802154_policy,
 	.module		= THIS_MODULE,
-	.ops		= ieee802154_ops,
-	.n_ops		= ARRAY_SIZE(ieee802154_ops),
+	.small_ops	= ieee802154_ops,
+	.n_small_ops	= ARRAY_SIZE(ieee802154_ops),
 	.mcgrps		= ieee802154_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(ieee802154_mcgrps),
 };

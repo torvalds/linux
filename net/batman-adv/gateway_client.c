@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "gateway_client.h"
@@ -37,7 +25,6 @@
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -47,14 +34,12 @@
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
-#include "gateway_common.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "netlink.h"
 #include "originator.h"
 #include "routing.h"
 #include "soft-interface.h"
-#include "sysfs.h"
 #include "translation-table.h"
 
 /* These are the offsets of the "hw type" and "hw address length" in the dhcp
@@ -160,8 +145,8 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 	if (new_gw_node)
 		kref_get(&new_gw_node->refcount);
 
-	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
-	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
+	curr_gw_node = rcu_replace_pointer(bat_priv->gw.curr_gw, new_gw_node,
+					   true);
 
 	if (curr_gw_node)
 		batadv_gw_node_put(curr_gw_node);
@@ -377,6 +362,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 
 	kref_get(&gw_node->refcount);
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.gateway_list);
+	bat_priv->gw.generation++;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Found new gateway %pM -> gw bandwidth: %u.%u/%u.%u MBit\n",
@@ -472,6 +458,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		if (!hlist_unhashed(&gw_node->list)) {
 			hlist_del_init_rcu(&gw_node->list);
 			batadv_gw_node_put(gw_node);
+			bat_priv->gw.generation++;
 		}
 		spin_unlock_bh(&bat_priv->gw.list_lock);
 
@@ -518,47 +505,10 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 				  &bat_priv->gw.gateway_list, list) {
 		hlist_del_init_rcu(&gw_node->list);
 		batadv_gw_node_put(gw_node);
+		bat_priv->gw.generation++;
 	}
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-
-/**
- * batadv_gw_client_seq_print_text() - Print the gateway table in a seq file
- * @seq: seq file to print on
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hard_iface *primary_if;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		return 0;
-
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
-		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->algo_ops->name);
-
-	batadv_hardif_put(primary_if);
-
-	if (!bat_priv->algo_ops->gw.print) {
-		seq_puts(seq,
-			 "No printing function for this routing protocol\n");
-		return 0;
-	}
-
-	bat_priv->algo_ops->gw.print(bat_priv, seq);
-
-	return 0;
-}
-#endif
 
 /**
  * batadv_gw_dump() - Dump gateways into a message
@@ -714,8 +664,10 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 
 	chaddr_offset = *header_len + BATADV_DHCP_CHADDR_OFFSET;
 	/* store the client address if the message is going to a client */
-	if (ret == BATADV_DHCP_TO_CLIENT &&
-	    pskb_may_pull(skb, chaddr_offset + ETH_ALEN)) {
+	if (ret == BATADV_DHCP_TO_CLIENT) {
+		if (!pskb_may_pull(skb, chaddr_offset + ETH_ALEN))
+			return BATADV_DHCP_NO;
+
 		/* check if the DHCP packet carries an Ethernet DHCP */
 		p = skb->data + *header_len + BATADV_DHCP_HTYPE_OFFSET;
 		if (*p != BATADV_DHCP_HTYPE_ETHERNET)

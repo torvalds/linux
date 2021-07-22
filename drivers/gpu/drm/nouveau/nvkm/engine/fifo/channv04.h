@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV04_FIFO_CHAN_H__
 #define __NV04_FIFO_CHAN_H__
 #define nv04_fifo_chan(p) container_of((p), struct nv04_fifo_chan, base)
@@ -9,7 +9,11 @@ struct nv04_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct nv04_fifo *fifo;
 	u32 ramfc;
-	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
+#define NV04_FIFO_ENGN_SW   0
+#define NV04_FIFO_ENGN_GR   1
+#define NV04_FIFO_ENGN_MPEG 2
+#define NV04_FIFO_ENGN_DMA  3
+	struct nvkm_gpuobj *engn[NVKM_FIFO_ENGN_NR];
 };
 
 extern const struct nvkm_fifo_chan_func nv04_fifo_dma_func;

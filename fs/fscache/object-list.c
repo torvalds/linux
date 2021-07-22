@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Global fscache object list maintainer and viewer
  *
  * Copyright (C) 2009 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define FSCACHE_DEBUG_LEVEL COOKIE
 #include <linux/module.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/key.h>
@@ -409,9 +406,9 @@ static int fscache_objlist_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-const struct file_operations fscache_objlist_fops = {
-	.open		= fscache_objlist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= fscache_objlist_release,
+const struct proc_ops fscache_objlist_proc_ops = {
+	.proc_open	= fscache_objlist_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= fscache_objlist_release,
 };

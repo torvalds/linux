@@ -582,7 +582,7 @@ retry:
 		if (!arg->layoutupdate_pages)
 			return -ENOMEM;
 
-		start_p = __vmalloc(buffer_size, GFP_NOFS, PAGE_KERNEL);
+		start_p = __vmalloc(buffer_size, GFP_NOFS);
 		if (!start_p) {
 			kfree(arg->layoutupdate_pages);
 			return -ENOMEM;

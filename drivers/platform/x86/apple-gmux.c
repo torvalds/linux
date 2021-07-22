@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Gmux driver for Apple laptops
  *
  *  Copyright (C) Canonical Ltd. <seth.forshee@canonical.com>
  *  Copyright (C) 2010-2012 Andreas Heider <andreas@meetr.de>
  *  Copyright (C) 2015 Lukas Wunner <lukas@wunner.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -280,8 +277,8 @@ static bool gmux_is_indexed(struct apple_gmux_data *gmux_data)
  * MBP5 2008/09 uses a `TI LP8543`_ backlight driver. All newer models
  * use a `TI LP8545`_.
  *
- * .. _TI LP8543: http://www.ti.com/lit/ds/symlink/lp8543.pdf
- * .. _TI LP8545: http://www.ti.com/lit/ds/symlink/lp8545.pdf
+ * .. _TI LP8543: https://www.ti.com/lit/ds/symlink/lp8543.pdf
+ * .. _TI LP8545: https://www.ti.com/lit/ds/symlink/lp8545.pdf
  */
 
 static int gmux_get_brightness(struct backlight_device *bd)
@@ -376,14 +373,14 @@ static const struct backlight_ops gmux_bl_ops = {
  * switch the panel and the external DP connector and allocates a framebuffer
  * for the selected GPU.
  *
- * .. _US 8,687,007 B2: http://pimg-fpiw.uspto.gov/fdd/07/870/086/0.pdf
- * .. _NXP CBTL06141:   http://www.nxp.com/documents/data_sheet/CBTL06141.pdf
- * .. _NXP CBTL06142:   http://www.nxp.com/documents/data_sheet/CBTL06141.pdf
- * .. _TI HD3SS212:     http://www.ti.com/lit/ds/symlink/hd3ss212.pdf
+ * .. _US 8,687,007 B2: https://pimg-fpiw.uspto.gov/fdd/07/870/086/0.pdf
+ * .. _NXP CBTL06141:   https://www.nxp.com/documents/data_sheet/CBTL06141.pdf
+ * .. _NXP CBTL06142:   https://www.nxp.com/documents/data_sheet/CBTL06141.pdf
+ * .. _TI HD3SS212:     https://www.ti.com/lit/ds/symlink/hd3ss212.pdf
  * .. _Pericom PI3VDP12412: https://www.pericom.com/assets/Datasheets/PI3VDP12412.pdf
- * .. _TI SN74LV4066A:  http://www.ti.com/lit/ds/symlink/sn74lv4066a.pdf
+ * .. _TI SN74LV4066A:  https://www.ti.com/lit/ds/symlink/sn74lv4066a.pdf
  * .. _NXP CBTL03062:   http://pdf.datasheetarchive.com/indexerfiles/Datasheets-SW16/DSASW00308511.pdf
- * .. _TI TS3DS10224:   http://www.ti.com/lit/ds/symlink/ts3ds10224.pdf
+ * .. _TI TS3DS10224:   https://www.ti.com/lit/ds/symlink/ts3ds10224.pdf
  */
 
 static void gmux_read_switch_state(struct apple_gmux_data *gmux_data)

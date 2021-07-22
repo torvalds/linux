@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
+#include <linux/audit.h>
 #include <linux/elf.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -8,18 +9,23 @@
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
+#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <linux/user.h>
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
 #include <abi/regdef.h>
+#include <abi/ckmmu.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 /* sets the trace bits. */
 #define TRACE_MODE_SI      (1 << 14)
@@ -35,6 +41,9 @@ static void singlestep_disable(struct task_struct *tsk)
 
 	regs = task_pt_regs(tsk);
 	regs->sr = (regs->sr & TRACE_MODE_MASK) | TRACE_MODE_RUN;
+
+	/* Enable irq */
+	regs->sr |= BIT(6);
 }
 
 static void singlestep_enable(struct task_struct *tsk)
@@ -43,6 +52,9 @@ static void singlestep_enable(struct task_struct *tsk)
 
 	regs = task_pt_regs(tsk);
 	regs->sr = (regs->sr & TRACE_MODE_MASK) | TRACE_MODE_SI;
+
+	/* Disable irq */
+	regs->sr &= ~BIT(6);
 }
 
 /*
@@ -50,15 +62,11 @@ static void singlestep_enable(struct task_struct *tsk)
  */
 void user_enable_single_step(struct task_struct *child)
 {
-	if (child->thread.esp0 == 0)
-		return;
 	singlestep_enable(child);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
-	if (child->thread.esp0 == 0)
-		return;
 	singlestep_disable(child);
 }
 
@@ -69,17 +77,14 @@ enum csky_regset {
 
 static int gpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	struct pt_regs *regs;
-
-	regs = task_pt_regs(target);
+	struct pt_regs *regs = task_pt_regs(target);
 
 	/* Abiv1 regs->tls is fake and we need sync here. */
 	regs->tls = task_thread_info(target)->tp_value;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(*regs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -95,7 +100,9 @@ static int gpr_set(struct task_struct *target,
 		return ret;
 
 	regs.sr = task_pt_regs(target)->sr;
-
+#ifdef CONFIG_CPU_HAS_HILO
+	regs.dcsr = task_pt_regs(target)->dcsr;
+#endif
 	task_thread_info(target)->tp_value = regs.tls;
 
 	*task_pt_regs(target) = regs;
@@ -105,8 +112,7 @@ static int gpr_set(struct task_struct *target,
 
 static int fpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	struct user_fp *regs = (struct user_fp *)&target->thread.user_fp;
 
@@ -122,9 +128,9 @@ static int fpr_get(struct task_struct *target,
 	for (i = 0; i < 32; i++)
 		tmp.vr[64 + i] = regs->vr[32 + i];
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &tmp, 0, -1);
+	return membuf_write(&to, &tmp, sizeof(tmp));
 #else
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(*regs));
 #endif
 }
 
@@ -161,19 +167,19 @@ static int fpr_set(struct task_struct *target,
 static const struct user_regset csky_regsets[] = {
 	[REGSET_GPR] = {
 		.core_note_type = NT_PRSTATUS,
-		.n = ELF_NGREG,
+		.n = sizeof(struct pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &gpr_get,
-		.set = &gpr_set,
+		.regset_get = gpr_get,
+		.set = gpr_set,
 	},
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &fpr_get,
-		.set = &fpr_set,
+		.regset_get = fpr_get,
+		.set = fpr_set,
 	},
 };
 
@@ -187,6 +193,109 @@ static const struct user_regset_view user_csky_view = {
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 	return &user_csky_view;
+}
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(r) {.name = #r, .offset = offsetof(struct pt_regs, r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME(tls),
+	REG_OFFSET_NAME(lr),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(sr),
+	REG_OFFSET_NAME(usp),
+	REG_OFFSET_NAME(orig_a0),
+	REG_OFFSET_NAME(a0),
+	REG_OFFSET_NAME(a1),
+	REG_OFFSET_NAME(a2),
+	REG_OFFSET_NAME(a3),
+	REG_OFFSET_NAME(regs[0]),
+	REG_OFFSET_NAME(regs[1]),
+	REG_OFFSET_NAME(regs[2]),
+	REG_OFFSET_NAME(regs[3]),
+	REG_OFFSET_NAME(regs[4]),
+	REG_OFFSET_NAME(regs[5]),
+	REG_OFFSET_NAME(regs[6]),
+	REG_OFFSET_NAME(regs[7]),
+	REG_OFFSET_NAME(regs[8]),
+	REG_OFFSET_NAME(regs[9]),
+#if defined(__CSKYABIV2__)
+	REG_OFFSET_NAME(exregs[0]),
+	REG_OFFSET_NAME(exregs[1]),
+	REG_OFFSET_NAME(exregs[2]),
+	REG_OFFSET_NAME(exregs[3]),
+	REG_OFFSET_NAME(exregs[4]),
+	REG_OFFSET_NAME(exregs[5]),
+	REG_OFFSET_NAME(exregs[6]),
+	REG_OFFSET_NAME(exregs[7]),
+	REG_OFFSET_NAME(exregs[8]),
+	REG_OFFSET_NAME(exregs[9]),
+	REG_OFFSET_NAME(exregs[10]),
+	REG_OFFSET_NAME(exregs[11]),
+	REG_OFFSET_NAME(exregs[12]),
+	REG_OFFSET_NAME(exregs[13]),
+	REG_OFFSET_NAME(exregs[14]),
+	REG_OFFSET_NAME(rhi),
+	REG_OFFSET_NAME(rlo),
+	REG_OFFSET_NAME(dcsr),
+#endif
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:      pt_regs which contains kernel stack pointer.
+ * @addr:      address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	return (addr & ~(THREAD_SIZE - 1))  ==
+		(kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long *addr = (unsigned long *)kernel_stack_pointer(regs);
+
+	addr += n;
+	if (regs_within_kernel_stack(regs, (unsigned long)addr))
+		return *addr;
+	else
+		return 0;
 }
 
 void ptrace_disable(struct task_struct *child)
@@ -208,43 +317,153 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-/*
- * If process's system calls is traces, do some corresponding handles in this
- * function before entering system call function and after exiting system call
- * function.
- */
-asmlinkage void syscall_trace(int why, struct pt_regs *regs)
+asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
-	long saved_why;
-	/*
-	 * Save saved_why, why is used to denote syscall entry/exit;
-	 * why = 0:entry, why = 1: exit
-	 */
-	saved_why = regs->regs[SYSTRACE_SAVENUM];
-	regs->regs[SYSTRACE_SAVENUM] = why;
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		if (tracehook_report_syscall_entry(regs))
+			return -1;
 
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-					? 0x80 : 0));
+	if (secure_computing() == -1)
+		return -1;
 
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_enter(regs, syscall_get_nr(current, regs));
+
+	audit_syscall_entry(regs_syscallid(regs), regs->a0, regs->a1, regs->a2, regs->a3);
+	return 0;
+}
+
+asmlinkage void syscall_trace_exit(struct pt_regs *regs)
+{
+	audit_syscall_exit(regs);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, syscall_get_return_value(current, regs));
+}
+
+#ifdef CONFIG_CPU_CK860
+static void show_iutlb(void)
+{
+	int entry, i;
+	unsigned long flags;
+	unsigned long oldpid;
+	unsigned long entryhi[16], entrylo0[16], entrylo1[16];
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0x8000;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < 16; i++) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[i]  = read_mmu_entryhi();
+		entrylo0[i] = read_mmu_entrylo0();
+		entrylo1[i] = read_mmu_entrylo1();
+
+		entry++;
 	}
 
-	regs->regs[SYSTRACE_SAVENUM] = saved_why;
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+	for (i = 0; i < 16; i++)
+		printk("iutlb[%d]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 i, entryhi[i], entrylo0[i], entrylo1[i]);
+	printk("\n\n\n");
 }
+
+static void show_dutlb(void)
+{
+	int entry, i;
+	unsigned long flags;
+	unsigned long oldpid;
+	unsigned long entryhi[16], entrylo0[16], entrylo1[16];
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0x4000;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < 16; i++) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[i]  = read_mmu_entryhi();
+		entrylo0[i] = read_mmu_entrylo0();
+		entrylo1[i] = read_mmu_entrylo1();
+
+		entry++;
+	}
+
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+	for (i = 0; i < 16; i++)
+		printk("dutlb[%d]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 i, entryhi[i], entrylo0[i], entrylo1[i]);
+	printk("\n\n\n");
+}
+
+static unsigned long entryhi[1024], entrylo0[1024], entrylo1[1024];
+static void show_jtlb(void)
+{
+	int entry;
+	unsigned long flags;
+	unsigned long oldpid;
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0;
+
+	local_irq_save(flags);
+	while (entry < 1024) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[entry]  = read_mmu_entryhi();
+		entrylo0[entry] = read_mmu_entrylo0();
+		entrylo1[entry] = read_mmu_entrylo1();
+
+		entry++;
+	}
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+
+	for (entry = 0; entry < 1024; entry++)
+		printk("jtlb[%x]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 entry, entryhi[entry], entrylo0[entry], entrylo1[entry]);
+	printk("\n\n\n");
+}
+
+static void show_tlb(void)
+{
+	show_iutlb();
+	show_dutlb();
+	show_jtlb();
+}
+#else
+static void show_tlb(void)
+{
+	return;
+}
+#endif
 
 void show_regs(struct pt_regs *fp)
 {
-	unsigned long   *sp;
-	unsigned char   *tp;
-	int	i;
-
 	pr_info("\nCURRENT PROCESS:\n\n");
 	pr_info("COMM=%s PID=%d\n", current->comm, current->pid);
 
@@ -261,54 +480,42 @@ void show_regs(struct pt_regs *fp)
 		       (int) (((unsigned long) current) + 2 * PAGE_SIZE));
 	}
 
-	pr_info("PC: 0x%08lx\n", (long)fp->pc);
-	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("PC: 0x%08lx (%pS)\n", (long)fp->pc, (void *)fp->pc);
+	pr_info("LR: 0x%08lx (%pS)\n", (long)fp->lr, (void *)fp->lr);
+	pr_info("SP: 0x%08lx\n", (long)fp->usp);
 	pr_info("PSR: 0x%08lx\n", (long)fp->sr);
+	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("PT_REGS: 0x%08lx\n", (long)fp);
 
-	pr_info("a0: 0x%08lx  a1: 0x%08lx  a2: 0x%08lx  a3: 0x%08lx\n",
-	       fp->a0, fp->a1, fp->a2, fp->a3);
+	pr_info(" a0: 0x%08lx   a1: 0x%08lx   a2: 0x%08lx   a3: 0x%08lx\n",
+		fp->a0, fp->a1, fp->a2, fp->a3);
 #if defined(__CSKYABIV2__)
-	pr_info("r4: 0x%08lx  r5: 0x%08lx    r6: 0x%08lx    r7: 0x%08lx\n",
+	pr_info(" r4: 0x%08lx   r5: 0x%08lx   r6: 0x%08lx   r7: 0x%08lx\n",
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
-	pr_info("r8: 0x%08lx  r9: 0x%08lx   r10: 0x%08lx   r11: 0x%08lx\n",
+	pr_info(" r8: 0x%08lx   r9: 0x%08lx  r10: 0x%08lx  r11: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r12 0x%08lx  r13: 0x%08lx   r15: 0x%08lx\n",
+	pr_info("r12: 0x%08lx  r13: 0x%08lx  r15: 0x%08lx\n",
 		fp->regs[8], fp->regs[9], fp->lr);
-	pr_info("r16:0x%08lx   r17: 0x%08lx   r18: 0x%08lx    r19: 0x%08lx\n",
+	pr_info("r16: 0x%08lx  r17: 0x%08lx  r18: 0x%08lx  r19: 0x%08lx\n",
 		fp->exregs[0], fp->exregs[1], fp->exregs[2], fp->exregs[3]);
-	pr_info("r20 0x%08lx   r21: 0x%08lx   r22: 0x%08lx    r23: 0x%08lx\n",
+	pr_info("r20: 0x%08lx  r21: 0x%08lx  r22: 0x%08lx  r23: 0x%08lx\n",
 		fp->exregs[4], fp->exregs[5], fp->exregs[6], fp->exregs[7]);
-	pr_info("r24 0x%08lx   r25: 0x%08lx   r26: 0x%08lx    r27: 0x%08lx\n",
+	pr_info("r24: 0x%08lx  r25: 0x%08lx  r26: 0x%08lx  r27: 0x%08lx\n",
 		fp->exregs[8], fp->exregs[9], fp->exregs[10], fp->exregs[11]);
-	pr_info("r28 0x%08lx   r29: 0x%08lx   r30: 0x%08lx    tls: 0x%08lx\n",
+	pr_info("r28: 0x%08lx  r29: 0x%08lx  r30: 0x%08lx  tls: 0x%08lx\n",
 		fp->exregs[12], fp->exregs[13], fp->exregs[14], fp->tls);
-	pr_info("hi 0x%08lx    lo: 0x%08lx\n",
+	pr_info(" hi: 0x%08lx   lo: 0x%08lx\n",
 		fp->rhi, fp->rlo);
 #else
-	pr_info("r6: 0x%08lx   r7: 0x%08lx   r8: 0x%08lx   r9: 0x%08lx\n",
+	pr_info(" r6: 0x%08lx   r7: 0x%08lx   r8: 0x%08lx   r9: 0x%08lx\n",
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
-	pr_info("r10: 0x%08lx   r11: 0x%08lx   r12: 0x%08lx   r13: 0x%08lx\n",
+	pr_info("r10: 0x%08lx  r11: 0x%08lx  r12: 0x%08lx  r13: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r14 0x%08lx   r1: 0x%08lx   r15: 0x%08lx\n",
-		fp->regs[8], fp->regs[9], fp->lr);
+	pr_info("r14: 0x%08lx   r1: 0x%08lx\n",
+		fp->regs[8], fp->regs[9]);
 #endif
 
-	pr_info("\nCODE:");
-	tp = ((unsigned char *) fp->pc) - 0x20;
-	tp += ((int)tp % 4) ? 2 : 0;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
+	show_tlb();
 
-	pr_info("\nKERNEL STACK:");
-	tp = ((unsigned char *) fp) - 0x40;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
+	return;
 }

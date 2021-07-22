@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Maintained at www.Open-FCoE.org
  */
@@ -286,7 +274,6 @@ static struct scsi_host_template fcoe_shost_template = {
 	.this_id = -1,
 	.cmd_per_lun = 3,
 	.can_queue = FCOE_MAX_OUTSTANDING_COMMANDS,
-	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = SG_ALL,
 	.max_sectors = 0xffff,
 	.track_queue_depth = 1,
@@ -306,7 +293,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	struct fcoe_ctlr *fip = fcoe_to_ctlr(fcoe);
 	struct netdev_hw_addr *ha;
 	struct net_device *real_dev;
-	u8 flogi_maddr[ETH_ALEN];
+	static const u8 flogi_maddr[ETH_ALEN] = FC_FCOE_FLOGI_MAC;
 	const struct net_device_ops *ops;
 
 	fcoe->netdev = netdev;
@@ -349,7 +336,6 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	 * or enter promiscuous mode if not capable of listening
 	 * for multiple unicast MACs.
 	 */
-	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
 	dev_uc_add(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_add(netdev, fip->ctl_src_addr);
@@ -390,7 +376,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
  * Returns: pointer to a struct fcoe_interface or NULL on error
  */
 static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
-						    enum fip_state fip_mode)
+						    enum fip_mode fip_mode)
 {
 	struct fcoe_ctlr_device *ctlr_dev;
 	struct fcoe_ctlr *ctlr;
@@ -455,7 +441,7 @@ static void fcoe_interface_remove(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = fcoe_to_ctlr(fcoe);
-	u8 flogi_maddr[ETH_ALEN];
+	static const u8 flogi_maddr[ETH_ALEN] = FC_FCOE_FLOGI_MAC;
 	const struct net_device_ops *ops;
 
 	/*
@@ -471,7 +457,6 @@ static void fcoe_interface_remove(struct fcoe_interface *fcoe)
 	synchronize_net();
 
 	/* Delete secondary MAC addresses */
-	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
 	dev_uc_del(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_del(netdev, fip->ctl_src_addr);
@@ -658,7 +643,7 @@ static int fcoe_lport_config(struct fc_lport *lport)
 	return 0;
 }
 
-/**
+/*
  * fcoe_netdev_features_change - Updates the lport's offload flags based
  * on the LLD netdev's FCoE feature flags
  */
@@ -1263,15 +1248,21 @@ static int __init fcoe_if_init(void)
 	/* attach to scsi transport */
 	fcoe_nport_scsi_transport =
 		fc_attach_transport(&fcoe_nport_fc_functions);
+	if (!fcoe_nport_scsi_transport)
+		goto err;
+
 	fcoe_vport_scsi_transport =
 		fc_attach_transport(&fcoe_vport_fc_functions);
-
-	if (!fcoe_nport_scsi_transport) {
-		printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
-		return -ENODEV;
-	}
+	if (!fcoe_vport_scsi_transport)
+		goto err_vport;
 
 	return 0;
+
+err_vport:
+	fc_release_transport(fcoe_nport_scsi_transport);
+err:
+	printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
+	return -ENODEV;
 }
 
 /**
@@ -1535,8 +1526,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 			return -ENOMEM;
 		}
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
-		cp = kmap_atomic(skb_frag_page(frag))
-			+ frag->page_offset;
+		cp = kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
 	} else {
 		cp = skb_put(skb, tlen);
 	}
@@ -1631,7 +1621,6 @@ static inline int fcoe_filter_frames(struct fc_lport *lport,
 	else
 		fr_flags(fp) |= FCPHF_CRC_UNCHECKED;
 
-	fh = (struct fc_frame_header *) skb_transport_header(skb);
 	fh = fc_frame_header_get(fp);
 	if (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA && fh->fh_type == FC_TYPE_FCP)
 		return 0;
@@ -1670,7 +1659,6 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	struct fc_stats *stats;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
-	struct fcoe_port *port;
 	struct fcoe_hdr *hp;
 
 	fr = fcoe_dev_from_skb(skb);
@@ -1688,7 +1676,6 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 			skb_end_pointer(skb), skb->csum,
 			skb->dev ? skb->dev->name : "<NULL>");
 
-	port = lport_priv(lport);
 	skb_linearize(skb); /* check for skb_is_nonlinear is within skb_linearize */
 
 	/*
@@ -1859,7 +1846,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
-	struct fcoe_port *port;
 	struct fc_stats *stats;
 	u32 link_possible = 1;
 	u32 mfs;
@@ -1897,7 +1883,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		break;
 	case NETDEV_UNREGISTER:
 		list_del(&fcoe->list);
-		port = lport_priv(ctlr->lp);
 		fcoe_vport_remove(lport);
 		mutex_lock(&fcoe_config_mutex);
 		fcoe_if_destroy(lport);
@@ -1907,7 +1892,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		mutex_unlock(&fcoe_config_mutex);
 		fcoe_ctlr_device_delete(fcoe_ctlr_to_ctlr_dev(ctlr));
 		goto out;
-		break;
 	case NETDEV_FEAT_CHANGE:
 		fcoe_netdev_features_change(lport, netdev);
 		break;
@@ -1928,7 +1912,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		case FCOE_CTLR_ENABLED:
 		case FCOE_CTLR_UNUSED:
 			fcoe_ctlr_link_up(ctlr);
-		};
+		}
 	} else if (fcoe_ctlr_link_down(ctlr)) {
 		switch (cdev->enabled) {
 		case FCOE_CTLR_DISABLED:
@@ -1940,7 +1924,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 			stats->LinkFailureCount++;
 			put_cpu();
 			fcoe_clean_pending_queue(lport);
-		};
+		}
 	}
 out:
 	return rc;
@@ -2037,12 +2021,12 @@ static int fcoe_ctlr_enabled(struct fcoe_ctlr_device *cdev)
 	case FCOE_CTLR_UNUSED:
 	default:
 		return -ENOTSUPP;
-	};
+	}
 }
 
 /**
  * fcoe_ctlr_mode() - Switch FIP mode
- * @cdev: The FCoE Controller that is being modified
+ * @ctlr_dev: The FCoE Controller that is being modified
  *
  * When the FIP mode has been changed we need to update
  * the multicast addresses to ensure we get the correct
@@ -2149,9 +2133,7 @@ static bool fcoe_match(struct net_device *netdev)
 
 /**
  * fcoe_dcb_create() - Initialize DCB attributes and hooks
- * @netdev: The net_device object of the L2 link that should be queried
- * @port: The fcoe_port to bind FCoE APP priority with
- * @
+ * @fcoe:   The new FCoE interface
  */
 static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 {
@@ -2622,7 +2604,7 @@ static void fcoe_logo_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	fc_lport_logo_resp(seq, fp, lport);
 }
 
-/**
+/*
  * fcoe_elsct_send - FCoE specific ELS handler
  *
  * This does special case handling of FIP encapsualted ELS exchanges for FCoE,
@@ -2787,7 +2769,7 @@ static int fcoe_vport_disable(struct fc_vport *vport, bool disable)
 }
 
 /**
- * fcoe_vport_set_symbolic_name() - append vport string to symbolic name
+ * fcoe_set_vport_symbolic_name() - append vport string to symbolic name
  * @vport: fc_vport with a new symbolic name string
  *
  * After generating a new symbolic name string, a new RSPN_ID request is

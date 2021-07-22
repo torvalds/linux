@@ -94,7 +94,7 @@ struct port_info {
 	struct adapter *adapter;	/* our adapter */
 	u32 vlan_id;			/* vlan id for VST */
 	u16 viid;			/* virtual interface ID */
-	s16 xact_addr_filt;		/* index of our MAC address filter */
+	int xact_addr_filt;		/* index of our MAC address filter */
 	u16 rss_size;			/* size of VI's RSS table slice */
 	u8 pidx;			/* index into adapter port[] */
 	s8 mdio_addr;
@@ -352,6 +352,7 @@ struct sge {
 struct hash_mac_addr {
 	struct list_head list;
 	u8 addr[ETH_ALEN];
+	unsigned int iface_mac;
 };
 
 struct mbox_list {
@@ -405,11 +406,12 @@ struct adapter {
 };
 
 enum { /* adapter flags */
-	FULL_INIT_DONE     = (1UL << 0),
-	USING_MSI          = (1UL << 1),
-	USING_MSIX         = (1UL << 2),
-	QUEUES_BOUND       = (1UL << 3),
-	ROOT_NO_RELAXED_ORDERING = (1UL << 4),
+	CXGB4VF_FULL_INIT_DONE			= (1UL << 0),
+	CXGB4VF_USING_MSI			= (1UL << 1),
+	CXGB4VF_USING_MSIX			= (1UL << 2),
+	CXGB4VF_QUEUES_BOUND			= (1UL << 3),
+	CXGB4VF_ROOT_NO_RELAXED_ORDERING	= (1UL << 4),
+	CXGB4VF_FW_OK				= (1UL << 5),
 };
 
 /*
@@ -560,7 +562,7 @@ int t4vf_sge_alloc_eth_txq(struct adapter *, struct sge_eth_txq *,
 			   unsigned int);
 void t4vf_free_sge_resources(struct adapter *);
 
-int t4vf_eth_xmit(struct sk_buff *, struct net_device *);
+netdev_tx_t t4vf_eth_xmit(struct sk_buff *, struct net_device *);
 int t4vf_ethrx_handler(struct sge_rspq *, const __be64 *,
 		       const struct pkt_gl *);
 

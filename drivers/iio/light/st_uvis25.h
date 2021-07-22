@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics uvis25 sensor driver
  *
  * Copyright 2017 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_UVIS25_H
@@ -28,6 +27,11 @@ struct st_uvis25_hw {
 	struct iio_trigger *trig;
 	bool enabled;
 	int irq;
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		u8 chan;
+		s64 ts __aligned(8);
+	} scan;
 };
 
 extern const struct dev_pm_ops st_uvis25_pm_ops;

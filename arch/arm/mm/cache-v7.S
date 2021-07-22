@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/cache-v7.S
  *
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
  *  Copyright (C) 2005 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This is the "shell" of the ARMv7 processor support.
  */
@@ -19,6 +16,14 @@
 
 #include "proc-macros.S"
 
+#ifdef CONFIG_CPU_ICACHE_MISMATCH_WORKAROUND
+.globl icache_size
+	.data
+	.align	2
+icache_size:
+	.long	64
+	.text
+#endif
 /*
  * The secondary kernel init calls v7_flush_dcache_all before it enables
  * the L1; however, the L1 comes out of reset in an undefined state, so
@@ -28,41 +33,41 @@
  * processor.  We fix this by performing an invalidate, rather than a
  * clean + invalidate, before jumping into the kernel.
  *
- * This function is cloned from arch/arm/mach-tegra/headsmp.S, and needs
- * to be called for both secondary cores startup and primary core resume
- * procedures.
+ * This function needs to be called for both secondary cores startup and
+ * primary core resume procedures.
  */
 ENTRY(v7_invalidate_l1)
-       mov     r0, #0
-       mcr     p15, 2, r0, c0, c0, 0
-       mrc     p15, 1, r0, c0, c0, 0
+	mov	r0, #0
+	mcr	p15, 2, r0, c0, c0, 0	@ select L1 data cache in CSSELR
+	isb
+	mrc	p15, 1, r0, c0, c0, 0	@ read cache geometry from CCSIDR
 
-       movw    r1, #0x7fff
-       and     r2, r1, r0, lsr #13
+	movw	r3, #0x3ff
+	and	r3, r3, r0, lsr #3	@ 'Associativity' in CCSIDR[12:3]
+	clz	r1, r3			@ WayShift
+	mov	r2, #1
+	mov	r3, r3, lsl r1		@ NumWays-1 shifted into bits [31:...]
+	movs	r1, r2, lsl r1		@ #1 shifted left by same amount
+	moveq	r1, #1			@ r1 needs value > 0 even if only 1 way
 
-       movw    r1, #0x3ff
+	and	r2, r0, #0x7
+	add	r2, r2, #4		@ SetShift
 
-       and     r3, r1, r0, lsr #3      @ NumWays - 1
-       add     r2, r2, #1              @ NumSets
+1:	movw	ip, #0x7fff
+	and	r0, ip, r0, lsr #13	@ 'NumSets' in CCSIDR[27:13]
 
-       and     r0, r0, #0x7
-       add     r0, r0, #4      @ SetShift
-
-       clz     r1, r3          @ WayShift
-       add     r4, r3, #1      @ NumWays
-1:     sub     r2, r2, #1      @ NumSets--
-       mov     r3, r4          @ Temp = NumWays
-2:     subs    r3, r3, #1      @ Temp--
-       mov     r5, r3, lsl r1
-       mov     r6, r2, lsl r0
-       orr     r5, r5, r6      @ Reg = (Temp<<WayShift)|(NumSets<<SetShift)
-       mcr     p15, 0, r5, c7, c6, 2
-       bgt     2b
-       cmp     r2, #0
-       bgt     1b
-       dsb     st
-       isb
-       ret     lr
+2:	mov	ip, r0, lsl r2		@ NumSet << SetShift
+	orr	ip, ip, r3		@ Reg = (Temp<<WayShift)|(NumSets<<SetShift)
+	mcr	p15, 0, ip, c7, c6, 2
+	subs	r0, r0, #1		@ Set--
+	bpl	2b
+	subs	r3, r3, r1		@ Way--
+	bcc	3f
+	mrc	p15, 1, r0, c0, c0, 0	@ re-read cache geometry from CCSIDR
+	b	1b
+3:	dsb	st
+	isb
+	ret	lr
 ENDPROC(v7_invalidate_l1)
 
 /*
@@ -130,13 +135,13 @@ flush_levels:
 	and	r1, r1, #7			@ mask of the bits for current cache only
 	cmp	r1, #2				@ see what cache we have at this level
 	blt	skip				@ skip if no cache, or just i-cache
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
 #endif
 	mcr	p15, 2, r10, c0, c0, 0		@ select current cache level in cssr
 	isb					@ isb to sych the new cssr&csidr
 	mrc	p15, 1, r1, c0, c0, 0		@ read the new csidr
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	restore_irqs_notrace r9
 #endif
 	and	r2, r1, #7			@ extract the length of the cache lines
@@ -163,6 +168,9 @@ loop2:
 skip:
 	add	r10, r10, #2			@ increment cache number
 	cmp	r3, r10
+#ifdef CONFIG_ARM_ERRATA_814220
+	dsb
+#endif
 	bgt	flush_levels
 finished:
 	mov	r10, #0				@ switch back to cache level 0
@@ -284,7 +292,12 @@ ENTRY(v7_coherent_user_range)
 	cmp	r12, r1
 	blo	1b
 	dsb	ishst
+#ifdef CONFIG_CPU_ICACHE_MISMATCH_WORKAROUND
+	ldr	r3, =icache_size
+	ldr	r2, [r3, #0]
+#else
 	icache_line_size r2, r3
+#endif
 	sub	r3, r2, #1
 	bic	r12, r0, r3
 2:
@@ -360,14 +373,16 @@ v7_dma_inv_range:
 	ALT_UP(W(nop))
 #endif
 	mcrne	p15, 0, r0, c7, c14, 1		@ clean & invalidate D / U line
+	addne	r0, r0, r2
 
 	tst	r1, r3
 	bic	r1, r1, r3
 	mcrne	p15, 0, r1, c7, c14, 1		@ clean & invalidate D / U line
-1:
-	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D / U line
-	add	r0, r0, r2
 	cmp	r0, r1
+1:
+	mcrlo	p15, 0, r0, c7, c6, 1		@ invalidate D / U line
+	addlo	r0, r0, r2
+	cmplo	r0, r1
 	blo	1b
 	dsb	st
 	ret	lr

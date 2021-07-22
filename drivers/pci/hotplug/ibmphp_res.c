@@ -1941,6 +1941,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						break;
 					case PCI_HEADER_TYPE_BRIDGE:
 						function = 0x8;
+						fallthrough;
 					case PCI_HEADER_TYPE_MULTIBRIDGE:
 						/* We assume here that only 1 bus behind the bridge
 						   TO DO: add functionality for several:

@@ -1,25 +1,25 @@
-What:           /sys/bus/platform/devices/fsi-master/rescan
+What:           /sys/bus/platform/devices/../fsi-master/fsi0/rescan
 Date:		May 2017
 KernelVersion:  4.12
-Contact:        cbostic@linux.vnet.ibm.com
+Contact:        linux-fsi@lists.ozlabs.org
 Description:
                 Initiates a FSI master scan for all connected slave devices
 		on its links.
 
-What:           /sys/bus/platform/devices/fsi-master/break
+What:           /sys/bus/platform/devices/../fsi-master/fsi0/break
 Date:		May 2017
 KernelVersion:  4.12
-Contact:        cbostic@linux.vnet.ibm.com
+Contact:        linux-fsi@lists.ozlabs.org
 Description:
 		Sends an FSI BREAK command on a master's communication
-		link to any connnected slaves.  A BREAK resets connected
+		link to any connected slaves.  A BREAK resets connected
 		device's logic and preps it to receive further commands
 		from the master.
 
-What:           /sys/bus/platform/devices/fsi-master/slave@00:00/term
+What:           /sys/bus/platform/devices/../fsi-master/fsi0/slave@00:00/term
 Date:		May 2017
 KernelVersion:  4.12
-Contact:        cbostic@linux.vnet.ibm.com
+Contact:        linux-fsi@lists.ozlabs.org
 Description:
 		Sends an FSI terminate command from the master to its
 		connected slave. A terminate resets the slave's state machines
@@ -29,10 +29,18 @@ Description:
 		ongoing operation in case of an expired 'Master Time Out'
 		timer.
 
-What:           /sys/bus/platform/devices/fsi-master/slave@00:00/raw
+What:           /sys/bus/platform/devices/../fsi-master/fsi0/slave@00:00/raw
 Date:		May 2017
 KernelVersion:  4.12
-Contact:        cbostic@linux.vnet.ibm.com
+Contact:        linux-fsi@lists.ozlabs.org
 Description:
 		Provides a means of reading/writing a 32 bit value from/to a
 		specified FSI bus address.
+
+What:           /sys/bus/platform/devices/../cfam_reset
+Date:		Sept 2020
+KernelVersion:  5.10
+Contact:        linux-fsi@lists.ozlabs.org
+Description:
+		Provides a means of resetting the cfam that is attached to the
+		FSI device.

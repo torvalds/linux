@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2004-2008 Freescale Semiconductor, Inc.
  * Copyright 2009 Semihalf.
@@ -8,20 +9,6 @@
  * Based on original driver from Freescale Semiconductor
  * written by John Rigby <jrigby@freescale.com> on basis of mxc_nand.c.
  * Reworked and extended by Piotr Ziecik <kosmo@semihalf.com>.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
  */
 
 #include <linux/module.h>
@@ -117,6 +104,7 @@
 #define NFC_TIMEOUT		(HZ / 10)	/* 1/10 s */
 
 struct mpc5121_nfc_prv {
+	struct nand_controller	controller;
 	struct nand_chip	chip;
 	int			irq;
 	void __iomem		*regs;
@@ -451,7 +439,7 @@ static void mpc5121_nfc_copy_spare(struct mtd_info *mtd, uint offset,
 		buffer += blksize;
 		offset += blksize;
 		size -= blksize;
-	};
+	}
 }
 
 /* Copy data from/to NFC main and spare buffers */
@@ -615,6 +603,20 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 		iounmap(prv->csreg);
 }
 
+static int mpc5121_nfc_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops mpc5121_nfc_ops = {
+	.attach_chip = mpc5121_nfc_attach_chip,
+};
+
 static int mpc5121_nfc_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
@@ -646,6 +648,10 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 
 	chip = &prv->chip;
 	mtd = nand_to_mtd(chip);
+
+	nand_controller_init(&prv->controller);
+	prv->controller.ops = &mpc5121_nfc_ops;
+	chip->controller = &prv->controller;
 
 	mtd->dev.parent = dev;
 	nand_set_controller_data(chip, prv);
@@ -697,12 +703,10 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->legacy.read_byte = mpc5121_nfc_read_byte;
 	chip->legacy.read_buf = mpc5121_nfc_read_buf;
 	chip->legacy.write_buf = mpc5121_nfc_write_buf;
-	chip->select_chip = mpc5121_nfc_select_chip;
+	chip->legacy.select_chip = mpc5121_nfc_select_chip;
 	chip->legacy.set_features = nand_get_set_features_notsupp;
 	chip->legacy.get_features = nand_get_set_features_notsupp;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
-	chip->ecc.mode = NAND_ECC_SOFT;
-	chip->ecc.algo = NAND_ECC_HAMMING;
 
 	/* Support external chip-select logic on ADS5121 board */
 	if (of_machine_is_compatible("fsl,mpc5121ads")) {
@@ -712,7 +716,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 			return retval;
 		}
 
-		chip->select_chip = ads5121_select_chip;
+		chip->legacy.select_chip = ads5121_select_chip;
 	}
 
 	/* Enable NFC clock */
@@ -818,8 +822,11 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);
+	int ret;
 
-	nand_release(mtd_to_nand(mtd));
+	ret = mtd_device_unregister(mtd);
+	WARN_ON(ret);
+	nand_cleanup(mtd_to_nand(mtd));
 	mpc5121_nfc_free(dev, mtd);
 
 	return 0;

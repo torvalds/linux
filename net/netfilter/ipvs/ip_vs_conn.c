@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
  *              LINUX operating system.  IPVS is now implemented as a module
@@ -9,17 +10,11 @@
  *              Peter Kese <peter.kese@ijs.si>
  *              Julian Anastasov <ja@ssi.bg>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  * The IPVS code for kernel 2.2 was done by Wensong Zhang and Peter Kese,
  * with changes/fixes from Julian Anastasov, Lars Marowsky-Bree, Horms
  * and others. Many code here is taken from IP MASQ code of kernel 2.2.
  *
  * Changes:
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -407,6 +402,8 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 {
 	unsigned int hash;
 	struct ip_vs_conn *cp, *ret=NULL;
+	const union nf_inet_addr *saddr;
+	__be16 sport;
 
 	/*
 	 *	Check for "full" addressed entries
@@ -416,10 +413,20 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[hash], c_list) {
-		if (p->vport == cp->cport && p->cport == cp->dport &&
-		    cp->af == p->af &&
+		if (p->vport != cp->cport)
+			continue;
+
+		if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ) {
+			sport = cp->vport;
+			saddr = &cp->vaddr;
+		} else {
+			sport = cp->dport;
+			saddr = &cp->daddr;
+		}
+
+		if (p->cport == sport && cp->af == p->af &&
 		    ip_vs_addr_equal(p->af, p->vaddr, &cp->caddr) &&
-		    ip_vs_addr_equal(p->af, p->caddr, &cp->daddr) &&
+		    ip_vs_addr_equal(p->af, p->caddr, saddr) &&
 		    p->protocol == cp->protocol &&
 		    cp->ipvs == p->ipvs) {
 			if (!__ip_vs_conn_get(cp))
@@ -812,6 +819,31 @@ static void ip_vs_conn_rcu_free(struct rcu_head *head)
 	kmem_cache_free(ip_vs_conn_cachep, cp);
 }
 
+/* Try to delete connection while not holding reference */
+static void ip_vs_conn_del(struct ip_vs_conn *cp)
+{
+	if (del_timer(&cp->timer)) {
+		/* Drop cp->control chain too */
+		if (cp->control)
+			cp->timeout = 0;
+		ip_vs_conn_expire(&cp->timer);
+	}
+}
+
+/* Try to delete connection while holding reference */
+static void ip_vs_conn_del_put(struct ip_vs_conn *cp)
+{
+	if (del_timer(&cp->timer)) {
+		/* Drop cp->control chain too */
+		if (cp->control)
+			cp->timeout = 0;
+		__ip_vs_conn_put(cp);
+		ip_vs_conn_expire(&cp->timer);
+	} else {
+		__ip_vs_conn_put(cp);
+	}
+}
+
 static void ip_vs_conn_expire(struct timer_list *t)
 {
 	struct ip_vs_conn *cp = from_timer(cp, t, timer);
@@ -832,14 +864,17 @@ static void ip_vs_conn_expire(struct timer_list *t)
 
 		/* does anybody control me? */
 		if (ct) {
+			bool has_ref = !cp->timeout && __ip_vs_conn_get(ct);
+
 			ip_vs_control_del(cp);
 			/* Drop CTL or non-assured TPL if not used anymore */
-			if (!cp->timeout && !atomic_read(&ct->n_control) &&
+			if (has_ref && !atomic_read(&ct->n_control) &&
 			    (!(ct->flags & IP_VS_CONN_F_TEMPLATE) ||
 			     !(ct->state & IP_VS_CTPL_S_ASSURED))) {
 				IP_VS_DBG(4, "drop controlling connection\n");
-				ct->timeout = 0;
-				ip_vs_conn_expire_now(ct);
+				ip_vs_conn_del_put(ct);
+			} else if (has_ref) {
+				__ip_vs_conn_put(ct);
 			}
 		}
 
@@ -1322,8 +1357,7 @@ try_drop:
 
 drop:
 			IP_VS_DBG(4, "drop connection\n");
-			cp->timeout = 0;
-			ip_vs_conn_expire_now(cp);
+			ip_vs_conn_del(cp);
 		}
 		cond_resched_rcu();
 	}
@@ -1346,19 +1380,15 @@ flush_again:
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
 			if (cp->ipvs != ipvs)
 				continue;
-			/* As timers are expired in LIFO order, restart
-			 * the timer of controlling connection first, so
-			 * that it is expired after us.
-			 */
+			if (atomic_read(&cp->n_control))
+				continue;
 			cp_c = cp->control;
-			/* cp->control is valid only with reference to cp */
-			if (cp_c && __ip_vs_conn_get(cp)) {
-				IP_VS_DBG(4, "del controlling connection\n");
-				ip_vs_conn_expire_now(cp_c);
-				__ip_vs_conn_put(cp);
-			}
 			IP_VS_DBG(4, "del connection\n");
-			ip_vs_conn_expire_now(cp);
+			ip_vs_conn_del(cp);
+			if (cp_c && !atomic_read(&cp_c->n_control)) {
+				IP_VS_DBG(4, "del controlling connection\n");
+				ip_vs_conn_del(cp_c);
+			}
 		}
 		cond_resched_rcu();
 	}
@@ -1371,6 +1401,45 @@ flush_again:
 		goto flush_again;
 	}
 }
+
+#ifdef CONFIG_SYSCTL
+void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs)
+{
+	int idx;
+	struct ip_vs_conn *cp, *cp_c;
+	struct ip_vs_dest *dest;
+
+	rcu_read_lock();
+	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
+		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
+			if (cp->ipvs != ipvs)
+				continue;
+
+			dest = cp->dest;
+			if (!dest || (dest->flags & IP_VS_DEST_F_AVAILABLE))
+				continue;
+
+			if (atomic_read(&cp->n_control))
+				continue;
+
+			cp_c = cp->control;
+			IP_VS_DBG(4, "del connection\n");
+			ip_vs_conn_del(cp);
+			if (cp_c && !atomic_read(&cp_c->n_control)) {
+				IP_VS_DBG(4, "del controlling connection\n");
+				ip_vs_conn_del(cp_c);
+			}
+		}
+		cond_resched_rcu();
+
+		/* netns clean up started, abort delayed work */
+		if (!ipvs->enable)
+			break;
+	}
+	rcu_read_unlock();
+}
+#endif
+
 /*
  * per netns init and exit
  */

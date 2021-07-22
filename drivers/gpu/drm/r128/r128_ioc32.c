@@ -1,4 +1,4 @@
-/**
+/*
  * \file r128_ioc32.c
  *
  * 32-bit ioctl compatibility routines for the R128 DRM.
@@ -29,10 +29,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 typedef struct drm_r128_init32 {
@@ -169,13 +170,13 @@ drm_ioctl_compat_t *r128_compat_ioctls[] = {
 };
 
 /**
- * Called whenever a 32-bit process running under a 64-bit kernel
- * performs an ioctl on /dev/dri/card<n>.
+ * r128_compat_ioctl - Called whenever a 32-bit process running under
+ *                     a 64-bit kernel performs an ioctl on /dev/dri/card<n>.
  *
- * \param filp file pointer.
- * \param cmd command.
- * \param arg user argument.
- * \return zero on success or negative number on failure.
+ * @filp: file pointer.
+ * @cmd: command.
+ * @arg: user argument.
+ * return: zero on success or negative number on failure.
  */
 long r128_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

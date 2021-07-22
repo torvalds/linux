@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
+
 /*
  * 32-bit hash table MMU support
  */
@@ -34,8 +35,12 @@
 #define BAT_PHYS_ADDR(x) ((u32)((x & 0x00000000fffe0000ULL) | \
 				((x & 0x0000000e00000000ULL) >> 24) | \
 				((x & 0x0000000100000000ULL) >> 30)))
+#define PHYS_BAT_ADDR(x) (((u64)(x) & 0x00000000fffe0000ULL) | \
+			  (((u64)(x) << 24) & 0x0000000e00000000ULL) | \
+			  (((u64)(x) << 30) & 0x0000000100000000ULL))
 #else
 #define BAT_PHYS_ADDR(x) (x)
+#define PHYS_BAT_ADDR(x) ((x) & 0xfffe0000)
 #endif
 
 struct ppc_bat {
@@ -54,7 +59,22 @@ struct ppc_bat {
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
 
+/* Values for Segment Registers */
+#define SR_NX	0x10000000	/* No Execute */
+#define SR_KP	0x20000000	/* User key */
+#define SR_KS	0x40000000	/* Supervisor key */
+
 #ifndef __ASSEMBLY__
+
+/*
+ * This macro defines the mapping from contexts to VSIDs (virtual
+ * segment IDs).  We use a skew on both the context and the high 4 bits
+ * of the 32-bit virtual address (the "effective segment ID") in order
+ * to spread out the entries in the MMU hash table.  Note, if this
+ * function is changed then hash functions will have to be
+ * changed to correspond.
+ */
+#define CTX_TO_VSID(c, id)	((((c) * (897 * 16)) + (id * 0x111)) & 0xffffff)
 
 /*
  * Hardware Page Table Entry
@@ -80,8 +100,48 @@ struct hash_pte {
 
 typedef struct {
 	unsigned long id;
-	unsigned long vdso_base;
+	void __user *vdso;
 } mm_context_t;
+
+void update_bats(void);
+static inline void cleanup_cpu_mmu_context(void) { }
+
+/* patch sites */
+extern s32 patch__hash_page_A0, patch__hash_page_A1, patch__hash_page_A2;
+extern s32 patch__hash_page_B, patch__hash_page_C;
+extern s32 patch__flush_hash_A0, patch__flush_hash_A1, patch__flush_hash_A2;
+extern s32 patch__flush_hash_B;
+
+#include <asm/reg.h>
+#include <asm/task_size_32.h>
+
+static __always_inline void update_user_segment(u32 n, u32 val)
+{
+	if (n << 28 < TASK_SIZE)
+		mtsr(val + n * 0x111, n << 28);
+}
+
+static __always_inline void update_user_segments(u32 val)
+{
+	val &= 0xf0ffffff;
+
+	update_user_segment(0, val);
+	update_user_segment(1, val);
+	update_user_segment(2, val);
+	update_user_segment(3, val);
+	update_user_segment(4, val);
+	update_user_segment(5, val);
+	update_user_segment(6, val);
+	update_user_segment(7, val);
+	update_user_segment(8, val);
+	update_user_segment(9, val);
+	update_user_segment(10, val);
+	update_user_segment(11, val);
+	update_user_segment(12, val);
+	update_user_segment(13, val);
+	update_user_segment(14, val);
+	update_user_segment(15, val);
+}
 
 #endif /* !__ASSEMBLY__ */
 

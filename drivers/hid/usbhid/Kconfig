@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "USB HID support"
 	depends on USB
 
@@ -6,7 +7,7 @@ config USB_HID
 	default y
 	depends on USB && INPUT
 	select HID
-	---help---
+	help
 	  Say Y here if you want to connect USB keyboards,
 	  mice, joysticks, graphic tablets, or any other HID based devices
 	  to your computer via USB, as well as Uninterruptible Power Supply
@@ -50,7 +51,7 @@ menu "USB HID Boot Protocol drivers"
 config USB_KBD
 	tristate "USB HIDBP Keyboard (simple Boot) support"
 	depends on USB && INPUT
-	---help---
+	help
 	  Say Y here only if you are absolutely sure that you don't want
 	  to use the generic HID driver for your USB keyboard and prefer
 	  to use the keyboard in its limited Boot Protocol mode instead.
@@ -66,7 +67,7 @@ config USB_KBD
 config USB_MOUSE
 	tristate "USB HIDBP Mouse (simple Boot) support"
 	depends on USB && INPUT
-	---help---
+	help
 	  Say Y here only if you are absolutely sure that you don't want
 	  to use the generic HID driver for your USB mouse and prefer
 	  to use the mouse in its limited Boot Protocol mode instead.

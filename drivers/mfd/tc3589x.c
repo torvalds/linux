@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License, version 2
  * Author: Hanumath Prasad <hanumath.prasad@stericsson.com> for ST-Ericsson
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
@@ -18,7 +18,7 @@
 #include <linux/mfd/tc3589x.h>
 #include <linux/err.h>
 
-/**
+/*
  * enum tc3589x_version - indicates the TC3589x version
  */
 enum tc3589x_version {
@@ -141,7 +141,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(tc3589x_set_bits);
 
-static struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	{
 		.start	= TC3589x_INT_GPIIRQ,
 		.end	= TC3589x_INT_GPIIRQ,
@@ -149,7 +149,7 @@ static struct resource gpio_resources[] = {
 	},
 };
 
-static struct resource keypad_resources[] = {
+static const struct resource keypad_resources[] = {
 	{
 		.start  = TC3589x_INT_KBDIRQ,
 		.end    = TC3589x_INT_KBDIRQ,

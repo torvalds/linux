@@ -236,7 +236,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -247,7 +246,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -428,7 +426,7 @@
 				status = "disabled";
 			};
 
-			usb2: usb3@58000 {
+			usb2: usb@58000 {
 				compatible = "marvell,armada-375-xhci";
 				reg = <0x58000 0x20000>,<0x5b880 0x80>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;

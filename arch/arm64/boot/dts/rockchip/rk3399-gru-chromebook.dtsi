@@ -194,19 +194,24 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-				     17 18 19 20 21 22 23 24 25 26 27 28 29 30
-				     31 32 33 34 35 36 37 38 39 40 41 42 43 44
-				     45 46 47 48 49 50 51 52 53 54 55 56 57 58
-				     59 60 61 62 63 64 65 66 67 68 69 70 71 72
-				     73 74 75 76 77 78 79 80 81 82 83 84 85 86
-				     87 88 89 90 91 92 93 94 95 96 97 98 99 100>;
-		default-brightness-level = <51>;
 		enable-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 		power-supply = <&pp3300_disp>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
 		pwm-delay-us = <10000>;
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake_l>;
+
+		wake_on_bt: wake-on-bt {
+			label = "Wake-on-Bluetooth";
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
 	};
 };
 
@@ -286,11 +291,9 @@ ap_i2c_tp: &i2c5 {
 		#pwm-cells = <1>;
 	};
 
-	usbc_extcon1: extcon@1 {
+	usbc_extcon1: extcon1 {
 		compatible = "google,extcon-usbc-cros-ec";
 		google,usb-port-id = <1>;
-
-		#extcon-cells = <0>;
 	};
 };
 
@@ -360,27 +363,27 @@ ap_i2c_tp: &i2c5 {
 &pinctrl {
 	discrete-regulators {
 		pp1500_en: pp1500-en {
-			rockchip,pins = <RK_GPIO0 10 RK_FUNC_GPIO
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		pp1800_audio_en: pp1800-audio-en {
-			rockchip,pins = <RK_GPIO0 2 RK_FUNC_GPIO
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO
 					 &pcfg_pull_down>;
 		};
 
 		pp3000_en: pp3000-en {
-			rockchip,pins = <RK_GPIO0 12 RK_FUNC_GPIO
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		pp3300_disp_en: pp3300-disp-en {
-			rockchip,pins = <RK_GPIO4 27 RK_FUNC_GPIO
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		wlan_module_pd_l: wlan-module-pd-l {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO
 					 &pcfg_pull_down>;
 		};
 	};
@@ -388,10 +391,10 @@ ap_i2c_tp: &i2c5 {
 
 &wifi {
 	wifi_perst_l: wifi-perst-l {
-		rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 	};
 
 	wlan_host_wake_l: wlan-host-wake-l {
-		rockchip,pins = <0 8 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 	};
 };

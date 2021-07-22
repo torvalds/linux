@@ -18,7 +18,6 @@
 #include <linux/tick.h>
 #include <linux/bitops.h>
 #include <linux/ptrace.h>
-#include <asm/pgalloc.h>
 #include <linux/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
 
@@ -54,13 +53,13 @@ void flush_thread(void)
 {
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct thread_info *ti = task_thread_info(p);
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		/* if we're creating a new kernel thread then just zeroing all
 		 * the registers. That's OK for a brand new thread.*/
 		memset(childregs, 0, sizeof(struct pt_regs));
@@ -70,9 +69,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		ti->cpu_context.r19 = (unsigned long)arg;
 		childregs->pt_mode = 1;
 		local_save_flags(childregs->msr);
-#ifdef CONFIG_MMU
 		ti->cpu_context.msr = childregs->msr & ~MSR_IE;
-#endif
 		ti->cpu_context.r15 = (unsigned long)ret_from_kernel_thread - 8;
 		return 0;
 	}
@@ -82,9 +79,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	memset(&ti->cpu_context, 0, sizeof(struct cpu_context));
 	ti->cpu_context.r1 = (unsigned long)childregs;
-#ifndef CONFIG_MMU
-	ti->cpu_context.msr = (unsigned long)childregs->msr;
-#else
 	childregs->msr |= MSR_UMS;
 
 	/* we should consider the fact that childregs is a copy of the parent
@@ -106,7 +100,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	ti->cpu_context.msr = (childregs->msr|MSR_VM);
 	ti->cpu_context.msr &= ~MSR_UMS; /* switch_to to kernel mode */
 	ti->cpu_context.msr &= ~MSR_IE;
-#endif
 	ti->cpu_context.r15 = (unsigned long)ret_from_fork - 8;
 
 	/*
@@ -114,7 +107,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 *  which contains TLS area
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->r21 = childregs->r10;
+		childregs->r21 = tls;
 
 	return 0;
 }
@@ -131,13 +124,10 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 	regs->pc = pc;
 	regs->r1 = usp;
 	regs->pt_mode = 0;
-#ifdef CONFIG_MMU
 	regs->msr |= MSR_UMS;
 	regs->msr &= ~MSR_VM;
-#endif
 }
 
-#ifdef CONFIG_MMU
 #include <linux/elfcore.h>
 /*
  * Set up a thread for executing a new program
@@ -146,9 +136,8 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
 {
 	return 0; /* MicroBlaze has no separate FPU registers */
 }
-#endif /* CONFIG_MMU */
 
 void arch_cpu_idle(void)
 {
-       local_irq_enable();
+       raw_local_irq_enable();
 }

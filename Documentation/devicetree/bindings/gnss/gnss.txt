@@ -8,7 +8,7 @@ bus (e.g. UART, I2C or SPI).
 
 Please refer to the following documents for generic properties:
 
-	Documentation/devicetree/bindings/serial/slave-device.txt
+	Documentation/devicetree/bindings/serial/serial.yaml
 	Documentation/devicetree/bindings/spi/spi-bus.txt
 
 Required properties:
@@ -17,6 +17,7 @@ Required properties:
 		  represents
 
 Optional properties:
+- lna-supply	: Separate supply for an LNA
 - enable-gpios	: GPIO used to enable the device
 - timepulse-gpios	: Time pulse GPIO
 

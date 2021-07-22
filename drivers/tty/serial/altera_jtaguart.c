@@ -27,7 +27,7 @@
 
 /*
  * Altera JTAG UART register definitions according to the Altera JTAG UART
- * datasheet: http://www.altera.com/literature/hb/nios2/n2cpu_nii51009.pdf
+ * datasheet: https://www.altera.com/literature/hb/nios2/n2cpu_nii51009.pdf
  */
 
 #define ALTERA_JTAGUART_SIZE			8
@@ -131,9 +131,7 @@ static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 		uart_insert_char(port, 0, 0, ch, flag);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
-	spin_lock(&port->lock);
 }
 
 static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)

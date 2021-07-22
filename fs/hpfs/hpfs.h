@@ -120,11 +120,11 @@ struct hpfs_spare_block
   u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */
   u8 bad_bitmap: 1;			/* bad bitmap */
   u8 fast: 1;				/* partition was fast formatted */
-  u8 old_wrote: 1;			/* old version wrote to partion */
-  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
+  u8 old_wrote: 1;			/* old version wrote to partition */
+  u8 old_wrote_1: 1;			/* old version wrote to partition (?) */
 #else
-  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
-  u8 old_wrote: 1;			/* old version wrote to partion */
+  u8 old_wrote_1: 1;			/* old version wrote to partition (?) */
+  u8 old_wrote: 1;			/* old version wrote to partition */
   u8 fast: 1;				/* partition was fast formatted */
   u8 bad_bitmap: 1;			/* bad bitmap */
   u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */
@@ -356,7 +356,8 @@ struct hpfs_dirent {
   u8 no_of_acls;			/* number of ACL's (low 3 bits) */
   u8 ix;				/* code page index (of filename), see
 					   struct code_page_data */
-  u8 namelen, name[1];			/* file name */
+  u8 namelen;				/* file name length */
+  u8 name[];				/* file name */
   /* dnode_secno down;	  btree down pointer, if present,
      			  follows name on next word boundary, or maybe it
 			  precedes next dirent, which is on a word boundary. */

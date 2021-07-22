@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  max517.c - Support for Maxim MAX517, MAX518 and MAX519
  *
  *  Copyright (C) 2010, 2011 Roland Stigge <stigge@antcom.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -166,11 +153,7 @@ static int max517_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-
-	/* establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
 
 	switch (id->driver_data) {
 	case ID_MAX521:
@@ -202,13 +185,7 @@ static int max517_probe(struct i2c_client *client,
 			data->vref_mv[chan] = platform_data->vref_mv[chan];
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static int max517_remove(struct i2c_client *client)
-{
-	iio_device_unregister(i2c_get_clientdata(client));
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id max517_id[] = {
@@ -227,7 +204,6 @@ static struct i2c_driver max517_driver = {
 		.pm	= &max517_pm_ops,
 	},
 	.probe		= max517_probe,
-	.remove		= max517_remove,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

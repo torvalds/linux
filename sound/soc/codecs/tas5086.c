@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TAS5086 ASoC codec driver
  *
  * Copyright (c) 2013 Daniel Mack <zonque@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * TODO:
  *  - implement DAPM and input muxing
@@ -496,7 +487,7 @@ static int tas5086_init(struct device *dev, struct tas5086_private *priv)
 	/*
 	 * If any of the channels is configured to start in Mid-Z mode,
 	 * configure 'part 1' of the PWM starts to use Mid-Z, and tell
-	 * all configured mid-z channels to start start under 'part 1'.
+	 * all configured mid-z channels to start under 'part 1'.
 	 */
 	if (priv->pwm_start_mid_z)
 		regmap_write(priv->regmap, TAS5086_PWM_START,

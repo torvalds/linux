@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2003,2004 Aurelien Alleaume <slts@free.fr>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/kernel.h>
@@ -792,17 +780,17 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 {
 	switch (isl_oid[n].flags & OID_FLAG_TYPE) {
 	case OID_TYPE_U32:
-		return snprintf(str, PRIV_STR_SIZE, "%u\n", r->u);
+		return scnprintf(str, PRIV_STR_SIZE, "%u\n", r->u);
 	case OID_TYPE_BUFFER:{
 			struct obj_buffer *buff = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"size=%u\naddr=0x%X\n", buff->size,
 					buff->addr);
 		}
 		break;
 	case OID_TYPE_BSS:{
 			struct obj_bss *bss = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"age=%u\nchannel=%u\n"
 					"capinfo=0x%X\nrates=0x%X\n"
 					"basic_rates=0x%X\n", bss->age,
@@ -813,9 +801,9 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 	case OID_TYPE_BSSLIST:{
 			struct obj_bsslist *list = r->ptr;
 			int i, k;
-			k = snprintf(str, PRIV_STR_SIZE, "nr=%u\n", list->nr);
+			k = scnprintf(str, PRIV_STR_SIZE, "nr=%u\n", list->nr);
 			for (i = 0; i < list->nr; i++)
-				k += snprintf(str + k, PRIV_STR_SIZE - k,
+				k += scnprintf(str + k, PRIV_STR_SIZE - k,
 					      "bss[%u] :\nage=%u\nchannel=%u\n"
 					      "capinfo=0x%X\nrates=0x%X\n"
 					      "basic_rates=0x%X\n",
@@ -831,23 +819,23 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 			struct obj_frequencies *freq = r->ptr;
 			int i, t;
 			printk("nr : %u\n", freq->nr);
-			t = snprintf(str, PRIV_STR_SIZE, "nr=%u\n", freq->nr);
+			t = scnprintf(str, PRIV_STR_SIZE, "nr=%u\n", freq->nr);
 			for (i = 0; i < freq->nr; i++)
-				t += snprintf(str + t, PRIV_STR_SIZE - t,
+				t += scnprintf(str + t, PRIV_STR_SIZE - t,
 					      "mhz[%u]=%u\n", i, freq->mhz[i]);
 			return t;
 		}
 		break;
 	case OID_TYPE_MLME:{
 			struct obj_mlme *mlme = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"id=0x%X\nstate=0x%X\ncode=0x%X\n",
 					mlme->id, mlme->state, mlme->code);
 		}
 		break;
 	case OID_TYPE_MLMEEX:{
 			struct obj_mlmeex *mlme = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"id=0x%X\nstate=0x%X\n"
 					"code=0x%X\nsize=0x%X\n", mlme->id,
 					mlme->state, mlme->code, mlme->size);
@@ -855,7 +843,7 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 		break;
 	case OID_TYPE_ATTACH:{
 			struct obj_attachment *attach = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"id=%d\nsize=%d\n",
 					attach->id,
 					attach->size);
@@ -863,7 +851,7 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 		break;
 	case OID_TYPE_SSID:{
 			struct obj_ssid *ssid = r->ptr;
-			return snprintf(str, PRIV_STR_SIZE,
+			return scnprintf(str, PRIV_STR_SIZE,
 					"length=%u\noctets=%.*s\n",
 					ssid->length, ssid->length,
 					ssid->octets);
@@ -872,13 +860,13 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 	case OID_TYPE_KEY:{
 			struct obj_key *key = r->ptr;
 			int t, i;
-			t = snprintf(str, PRIV_STR_SIZE,
+			t = scnprintf(str, PRIV_STR_SIZE,
 				     "type=0x%X\nlength=0x%X\nkey=0x",
 				     key->type, key->length);
 			for (i = 0; i < key->length; i++)
-				t += snprintf(str + t, PRIV_STR_SIZE - t,
+				t += scnprintf(str + t, PRIV_STR_SIZE - t,
 					      "%02X:", key->key[i]);
-			t += snprintf(str + t, PRIV_STR_SIZE - t, "\n");
+			t += scnprintf(str + t, PRIV_STR_SIZE - t, "\n");
 			return t;
 		}
 		break;
@@ -886,11 +874,11 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 	case OID_TYPE_ADDR:{
 			unsigned char *buff = r->ptr;
 			int t, i;
-			t = snprintf(str, PRIV_STR_SIZE, "hex data=");
+			t = scnprintf(str, PRIV_STR_SIZE, "hex data=");
 			for (i = 0; i < isl_oid[n].size; i++)
-				t += snprintf(str + t, PRIV_STR_SIZE - t,
+				t += scnprintf(str + t, PRIV_STR_SIZE - t,
 					      "%02X:", buff[i]);
-			t += snprintf(str + t, PRIV_STR_SIZE - t, "\n");
+			t += scnprintf(str + t, PRIV_STR_SIZE - t, "\n");
 			return t;
 		}
 		break;

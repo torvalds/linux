@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/freescale/gianfar.h
  *
@@ -10,11 +11,6 @@
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
  * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  *  Still left to do:
  *      -Add support for module parameters
@@ -71,10 +67,7 @@ struct ethtool_rx_list {
 /* Number of bytes to align the rx bufs to */
 #define RXBUF_ALIGNMENT 64
 
-#define PHY_INIT_TIMEOUT 100000
-
 #define DRV_NAME "gfar-enet"
-extern const char gfar_driver_version[];
 
 /* MAXIMUM NUMBER OF QUEUES SUPPORTED */
 #define MAX_TX_QS	0x8
@@ -92,19 +85,15 @@ extern const char gfar_driver_version[];
 #define GFAR_RX_MAX_RING_SIZE   256
 #define GFAR_TX_MAX_RING_SIZE   256
 
-#define GFAR_MAX_FIFO_THRESHOLD 511
-#define GFAR_MAX_FIFO_STARVE	511
-#define GFAR_MAX_FIFO_STARVE_OFF 511
-
 #define FBTHR_SHIFT        24
 #define DEFAULT_RX_LFC_THR  16
 #define DEFAULT_LFC_PTVVAL  4
 
-/* prevent fragmenation by HW in DSA environments */
-#define GFAR_RXB_SIZE roundup(1536 + 8, 64)
-#define GFAR_SKBFRAG_SIZE (RXBUF_ALIGNMENT + GFAR_RXB_SIZE \
-			  + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define GFAR_RXB_TRUESIZE 2048
+#define GFAR_SKBFRAG_OVR (RXBUF_ALIGNMENT \
+			  + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define GFAR_RXB_SIZE rounddown(GFAR_RXB_TRUESIZE - GFAR_SKBFRAG_OVR, 64)
+#define GFAR_SKBFRAG_SIZE (GFAR_RXB_SIZE + GFAR_SKBFRAG_OVR)
 
 #define TX_RING_MOD_MASK(size) (size-1)
 #define RX_RING_MOD_MASK(size) (size-1)
@@ -113,9 +102,6 @@ extern const char gfar_driver_version[];
 #define DEFAULT_FIFO_TX_THR 0x100
 #define DEFAULT_FIFO_TX_STARVE 0x40
 #define DEFAULT_FIFO_TX_STARVE_OFF 0x80
-#define DEFAULT_BD_STASH 1
-#define DEFAULT_STASH_LENGTH	96
-#define DEFAULT_STASH_INDEX	0
 
 /* The number of Exact Match registers */
 #define GFAR_EM_NUM	15
@@ -142,15 +128,6 @@ extern const char gfar_driver_version[];
 
 #define DEFAULT_RX_COALESCE 0
 #define DEFAULT_RXCOUNT	0
-
-#define GFAR_SUPPORTED (SUPPORTED_10baseT_Half \
-		| SUPPORTED_10baseT_Full \
-		| SUPPORTED_100baseT_Half \
-		| SUPPORTED_100baseT_Full \
-		| SUPPORTED_Autoneg \
-		| SUPPORTED_MII)
-
-#define GFAR_SUPPORTED_GBIT SUPPORTED_1000baseT_Full
 
 /* TBI register addresses */
 #define MII_TBICON		0x11
@@ -188,8 +165,6 @@ extern const char gfar_driver_version[];
 #define ECNTRL_R100		0x00000008
 #define ECNTRL_REDUCED_MII_MODE	0x00000004
 #define ECNTRL_SGMII_MODE	0x00000002
-
-#define MRBLR_INIT_SETTINGS	DEFAULT_RX_BUFFER_SIZE
 
 #define MINFLR_INIT_SETTINGS	0x00000040
 
@@ -269,12 +244,6 @@ extern const char gfar_driver_version[];
 
 #define DEFAULT_TXIC mk_ic_value(DEFAULT_TXCOUNT, DEFAULT_TXTIME)
 #define DEFAULT_RXIC mk_ic_value(DEFAULT_RXCOUNT, DEFAULT_RXTIME)
-
-#define skip_bd(bdp, stride, base, ring_size) ({ \
-	typeof(bdp) new_bd = (bdp) + (stride); \
-	(new_bd >= (base) + (ring_size)) ? (new_bd - (ring_size)) : new_bd; })
-
-#define next_bd(bdp, base, ring_size) skip_bd(bdp, 1, base, ring_size)
 
 #define RCTRL_TS_ENABLE 	0x01000000
 #define RCTRL_PAL_MASK		0x001f0000
@@ -389,11 +358,6 @@ extern const char gfar_driver_version[];
 #define IMASK_RX_DISABLED ((~(IMASK_RX_DEFAULT)) & IMASK_DEFAULT)
 #define IMASK_TX_DISABLED ((~(IMASK_TX_DEFAULT)) & IMASK_DEFAULT)
 
-/* Fifo management */
-#define FIFO_TX_THR_MASK	0x01ff
-#define FIFO_TX_STARVE_MASK	0x01ff
-#define FIFO_TX_STARVE_OFF_MASK	0x01ff
-
 /* Attribute fields */
 
 /* This enables rx snooping for buffers and descriptors */
@@ -480,6 +444,60 @@ extern const char gfar_driver_version[];
 #define RQFPR_TUV		0x00000004
 #define RQFPR_PER		0x00000002
 #define RQFPR_EER		0x00000001
+
+/* CAR1 bits */
+#define CAR1_C164		0x80000000
+#define CAR1_C1127		0x40000000
+#define CAR1_C1255		0x20000000
+#define CAR1_C1511		0x10000000
+#define CAR1_C11K		0x08000000
+#define CAR1_C1MAX		0x04000000
+#define CAR1_C1MGV		0x02000000
+#define CAR1_C1REJ		0x00020000
+#define CAR1_C1RBY		0x00010000
+#define CAR1_C1RPK		0x00008000
+#define CAR1_C1RFC		0x00004000
+#define CAR1_C1RMC		0x00002000
+#define CAR1_C1RBC		0x00001000
+#define CAR1_C1RXC		0x00000800
+#define CAR1_C1RXP		0x00000400
+#define CAR1_C1RXU		0x00000200
+#define CAR1_C1RAL		0x00000100
+#define CAR1_C1RFL		0x00000080
+#define CAR1_C1RCD		0x00000040
+#define CAR1_C1RCS		0x00000020
+#define CAR1_C1RUN		0x00000010
+#define CAR1_C1ROV		0x00000008
+#define CAR1_C1RFR		0x00000004
+#define CAR1_C1RJB		0x00000002
+#define CAR1_C1RDR		0x00000001
+
+/* CAM1 bits */
+#define CAM1_M164		0x80000000
+#define CAM1_M1127		0x40000000
+#define CAM1_M1255		0x20000000
+#define CAM1_M1511		0x10000000
+#define CAM1_M11K		0x08000000
+#define CAM1_M1MAX		0x04000000
+#define CAM1_M1MGV		0x02000000
+#define CAM1_M1REJ		0x00020000
+#define CAM1_M1RBY		0x00010000
+#define CAM1_M1RPK		0x00008000
+#define CAM1_M1RFC		0x00004000
+#define CAM1_M1RMC		0x00002000
+#define CAM1_M1RBC		0x00001000
+#define CAM1_M1RXC		0x00000800
+#define CAM1_M1RXP		0x00000400
+#define CAM1_M1RXU		0x00000200
+#define CAM1_M1RAL		0x00000100
+#define CAM1_M1RFL		0x00000080
+#define CAM1_M1RCD		0x00000040
+#define CAM1_M1RCS		0x00000020
+#define CAM1_M1RUN		0x00000010
+#define CAM1_M1ROV		0x00000008
+#define CAM1_M1RFR		0x00000004
+#define CAM1_M1RJB		0x00000002
+#define CAM1_M1RDR		0x00000001
 
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
@@ -643,6 +661,15 @@ struct rmon_mib
 	u32	car2;	/* 0x.734 - Carry Register Two */
 	u32	cam1;	/* 0x.738 - Carry Mask Register One */
 	u32	cam2;	/* 0x.73c - Carry Mask Register Two */
+};
+
+struct rmon_overflow {
+	/* lock for synchronization of the rdrp field of this struct, and
+	 * CAR1/CAR2 registers
+	 */
+	spinlock_t lock;
+	u32	imask;
+	u64	rdrp;
 };
 
 struct gfar_extra_stats {
@@ -945,28 +972,12 @@ enum {
 	MQ_MG_MODE
 };
 
-/* GFAR_SQ_POLLING: Single Queue NAPI polling mode
- *	The driver supports a single pair of RX/Tx queues
- *	per interrupt group (Rx/Tx int line). MQ_MG mode
- *	devices have 2 interrupt groups, so the device will
- *	have a total of 2 Tx and 2 Rx queues in this case.
- * GFAR_MQ_POLLING: Multi Queue NAPI polling mode
- *	The driver supports all the 8 Rx and Tx HW queues
- *	each queue mapped by the Device Tree to one of
- *	the 2 interrupt groups. This mode implies significant
- *	processing overhead (CPU and controller level).
- */
-enum gfar_poll_mode {
-	GFAR_SQ_POLLING = 0,
-	GFAR_MQ_POLLING
-};
-
 /*
  * Per TX queue stats
  */
 struct tx_q_stats {
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
+	u64 tx_packets;
+	u64 tx_bytes;
 };
 
 /**
@@ -1015,9 +1026,9 @@ struct gfar_priv_tx_q {
  * Per RX queue stats
  */
 struct rx_q_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long rx_dropped;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
 };
 
 struct gfar_rx_buff {
@@ -1141,7 +1152,6 @@ struct gfar_private {
 	unsigned long state;
 
 	unsigned short mode;
-	unsigned short poll_mode;
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 	unsigned int num_grps;
@@ -1149,6 +1159,7 @@ struct gfar_private {
 
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
+	struct rmon_overflow rmon_overflow;
 
 	/* PHY stuff */
 	phy_interface_t interface;
@@ -1330,16 +1341,9 @@ static inline u32 gfar_rxbd_dma_lastfree(struct gfar_priv_rx_q *rxq)
 	return bdp_dma;
 }
 
-irqreturn_t gfar_receive(int irq, void *dev_id);
 int startup_gfar(struct net_device *dev);
 void stop_gfar(struct net_device *dev);
-void reset_gfar(struct net_device *dev);
 void gfar_mac_reset(struct gfar_private *priv);
-void gfar_halt(struct gfar_private *priv);
-void gfar_start(struct gfar_private *priv);
-void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
-		   u32 regnum, u32 read);
-void gfar_configure_coalescing_all(struct gfar_private *priv);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
@@ -1351,13 +1355,6 @@ extern const struct ethtool_ops gfar_ethtool_ops;
 #define RQFCR_PID_VID_MASK 0xFFFFF000
 #define RQFCR_PID_PORT_MASK 0xFFFF0000
 #define RQFCR_PID_MAC_MASK 0xFF000000
-
-struct gfar_mask_entry {
-	unsigned int mask; /* The mask value which is valid form start to end */
-	unsigned int start;
-	unsigned int end;
-	unsigned int block; /* Same block values indicate depended entries */
-};
 
 /* Represents a receive filer table entry */
 struct gfar_filer_entry {

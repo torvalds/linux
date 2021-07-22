@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
 #include <xen/xen.h>
 
 #include <asm/fpu/internal.h>
+#include <asm/sev.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 
@@ -44,55 +46,6 @@ __visible bool ex_handler_fault(const struct exception_table_entry *fixup,
 EXPORT_SYMBOL_GPL(ex_handler_fault);
 
 /*
- * Handler for UD0 exception following a failed test against the
- * result of a refcount inc/dec/add/sub.
- */
-__visible bool ex_handler_refcount(const struct exception_table_entry *fixup,
-				   struct pt_regs *regs, int trapnr,
-				   unsigned long error_code,
-				   unsigned long fault_addr)
-{
-	/* First unconditionally saturate the refcount. */
-	*(int *)regs->cx = INT_MIN / 2;
-
-	/*
-	 * Strictly speaking, this reports the fixup destination, not
-	 * the fault location, and not the actually overflowing
-	 * instruction, which is the instruction before the "js", but
-	 * since that instruction could be a variety of lengths, just
-	 * report the location after the overflow, which should be close
-	 * enough for finding the overflow, as it's at least back in
-	 * the function, having returned from .text.unlikely.
-	 */
-	regs->ip = ex_fixup_addr(fixup);
-
-	/*
-	 * This function has been called because either a negative refcount
-	 * value was seen by any of the refcount functions, or a zero
-	 * refcount value was seen by refcount_dec().
-	 *
-	 * If we crossed from INT_MAX to INT_MIN, OF (Overflow Flag: result
-	 * wrapped around) will be set. Additionally, seeing the refcount
-	 * reach 0 will set ZF (Zero Flag: result was zero). In each of
-	 * these cases we want a report, since it's a boundary condition.
-	 * The SF case is not reported since it indicates post-boundary
-	 * manipulations below zero or above INT_MAX. And if none of the
-	 * flags are set, something has gone very wrong, so report it.
-	 */
-	if (regs->flags & (X86_EFLAGS_OF | X86_EFLAGS_ZF)) {
-		bool zero = regs->flags & X86_EFLAGS_ZF;
-
-		refcount_error_report(regs, zero ? "hit zero" : "overflow");
-	} else if ((regs->flags & X86_EFLAGS_SF) == 0) {
-		/* Report if none of OF, ZF, nor SF are set. */
-		refcount_error_report(regs, "unexpected saturation");
-	}
-
-	return true;
-}
-EXPORT_SYMBOL(ex_handler_refcount);
-
-/*
  * Handler for when we fail to restore a task's FPU state.  We should never get
  * here because the FPU state of a task using the FPU (task->thread.fpu.state)
  * should always be valid.  However, past bugs have allowed userspace to set
@@ -112,97 +65,40 @@ __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 	WARN_ONCE(1, "Bad FPU state detected at %pB, reinitializing FPU registers.",
 		  (void *)instruction_pointer(regs));
 
-	__copy_kernel_to_fpregs(&init_fpstate, -1);
+	__restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
 	return true;
 }
 EXPORT_SYMBOL_GPL(ex_handler_fprestore);
-
-/* Helper to check whether a uaccess fault indicates a kernel bug. */
-static bool bogus_uaccess(struct pt_regs *regs, int trapnr,
-			  unsigned long fault_addr)
-{
-	/* This is the normal case: #PF with a fault address in userspace. */
-	if (trapnr == X86_TRAP_PF && fault_addr < TASK_SIZE_MAX)
-		return false;
-
-	/*
-	 * This code can be reached for machine checks, but only if the #MC
-	 * handler has already decided that it looks like a candidate for fixup.
-	 * This e.g. happens when attempting to access userspace memory which
-	 * the CPU can't access because of uncorrectable bad memory.
-	 */
-	if (trapnr == X86_TRAP_MC)
-		return false;
-
-	/*
-	 * There are two remaining exception types we might encounter here:
-	 *  - #PF for faulting accesses to kernel addresses
-	 *  - #GP for faulting accesses to noncanonical addresses
-	 * Complain about anything else.
-	 */
-	if (trapnr != X86_TRAP_PF && trapnr != X86_TRAP_GP) {
-		WARN(1, "unexpected trap %d in uaccess\n", trapnr);
-		return false;
-	}
-
-	/*
-	 * This is a faulting memory access in kernel space, on a kernel
-	 * address, in a usercopy function. This can e.g. be caused by improper
-	 * use of helpers like __put_user and by improper attempts to access
-	 * userspace addresses in KERNEL_DS regions.
-	 * The one (semi-)legitimate exception are probe_kernel_{read,write}(),
-	 * which can be invoked from places like kgdb, /dev/mem (for reading)
-	 * and privileged BPF code (for reading).
-	 * The probe_kernel_*() functions set the kernel_uaccess_faults_ok flag
-	 * to tell us that faulting on kernel addresses, and even noncanonical
-	 * addresses, in a userspace accessor does not necessarily imply a
-	 * kernel bug, root might just be doing weird stuff.
-	 */
-	if (current->kernel_uaccess_faults_ok)
-		return false;
-
-	/* This is bad. Refuse the fixup so that we go into die(). */
-	if (trapnr == X86_TRAP_PF) {
-		pr_emerg("BUG: pagefault on kernel address 0x%lx in non-whitelisted uaccess\n",
-			 fault_addr);
-	} else {
-		pr_emerg("BUG: GPF in non-whitelisted uaccess (non-canonical address?)\n");
-	}
-	return true;
-}
 
 __visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 				  struct pt_regs *regs, int trapnr,
 				  unsigned long error_code,
 				  unsigned long fault_addr)
 {
-	if (bogus_uaccess(regs, trapnr, fault_addr))
-		return false;
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
 EXPORT_SYMBOL(ex_handler_uaccess);
 
-__visible bool ex_handler_ext(const struct exception_table_entry *fixup,
-			      struct pt_regs *regs, int trapnr,
-			      unsigned long error_code,
-			      unsigned long fault_addr)
+__visible bool ex_handler_copy(const struct exception_table_entry *fixup,
+			       struct pt_regs *regs, int trapnr,
+			       unsigned long error_code,
+			       unsigned long fault_addr)
 {
-	if (bogus_uaccess(regs, trapnr, fault_addr))
-		return false;
-	/* Special hack for uaccess_err */
-	current->thread.uaccess_err = 1;
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
 	regs->ip = ex_fixup_addr(fixup);
+	regs->ax = trapnr;
 	return true;
 }
-EXPORT_SYMBOL(ex_handler_ext);
+EXPORT_SYMBOL(ex_handler_copy);
 
 __visible bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
 				       struct pt_regs *regs, int trapnr,
 				       unsigned long error_code,
 				       unsigned long fault_addr)
 {
-	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pF)\n",
+	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pS)\n",
 			 (unsigned int)regs->cx, regs->ip, (void *)regs->ip))
 		show_stack_regs(regs);
 
@@ -219,7 +115,7 @@ __visible bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup
 				       unsigned long error_code,
 				       unsigned long fault_addr)
 {
-	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pF)\n",
+	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pS)\n",
 			 (unsigned int)regs->cx, (unsigned int)regs->dx,
 			 (unsigned int)regs->ax,  regs->ip, (void *)regs->ip))
 		show_stack_regs(regs);
@@ -242,17 +138,21 @@ __visible bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_clear_fs);
 
-__visible bool ex_has_fault_handler(unsigned long ip)
+enum handler_type ex_get_fault_handler_type(unsigned long ip)
 {
 	const struct exception_table_entry *e;
 	ex_handler_t handler;
 
 	e = search_exception_tables(ip);
 	if (!e)
-		return false;
+		return EX_HANDLER_NONE;
 	handler = ex_fixup_handler(e);
-
-	return handler == ex_handler_fault;
+	if (handler == ex_handler_fault)
+		return EX_HANDLER_FAULT;
+	else if (handler == ex_handler_uaccess || handler == ex_handler_copy)
+		return EX_HANDLER_UACCESS;
+	else
+		return EX_HANDLER_OTHER;
 }
 
 int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
@@ -321,8 +221,19 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
 		return;
 
-	if (fixup_bug(regs, trapnr))
-		return;
+	if (trapnr == X86_TRAP_UD) {
+		if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN) {
+			/* Skip the ud2. */
+			regs->ip += LEN_UD2;
+			return;
+		}
+
+		/*
+		 * If this was a BUG and report_bug returns or if this
+		 * was just a normal #UD, we want to continue onward and
+		 * crash.
+		 */
+	}
 
 fail:
 	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * eeprom specific definitions for mac80211 Prism54 drivers
  *
@@ -13,10 +14,6 @@
  *
  * - islmvc driver
  *   Copyright (C) 2001 Intersil Americas Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef EEPROM_H
@@ -27,7 +24,7 @@
 struct pda_entry {
 	__le16 len;	/* includes both code and data */
 	__le16 code;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct eeprom_pda_wrap {
@@ -35,7 +32,7 @@ struct eeprom_pda_wrap {
 	__le16 pad;
 	__le16 len;
 	__le32 arm_opcode;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct p54_iq_autocal_entry {
@@ -90,7 +87,7 @@ struct pda_pa_curve_data {
 	u8 channels;
 	u8 points_per_channel;
 	u8 padding;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct pda_rssi_cal_ext_entry {
@@ -122,7 +119,7 @@ struct pda_custom_wrapper {
 	__le16 entry_size;
 	__le16 offset;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /*

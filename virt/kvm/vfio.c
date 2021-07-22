@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VFIO-KVM bridge pseudo device
  *
  * Copyright (C) 2013 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
@@ -219,7 +216,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			}
 		}
 
-		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL);
+		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL_ACCOUNT);
 		if (!kvg) {
 			mutex_unlock(&kv->lock);
 			kvm_vfio_group_put_external_user(vfio_group);
@@ -405,7 +402,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 
-	kv = kzalloc(sizeof(*kv), GFP_KERNEL);
+	kv = kzalloc(sizeof(*kv), GFP_KERNEL_ACCOUNT);
 	if (!kv)
 		return -ENOMEM;
 

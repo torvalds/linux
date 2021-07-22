@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/device.h>
 #include <linux/ndctl.h>
@@ -24,6 +16,8 @@ static guid_t nvdimm_btt_guid;
 static guid_t nvdimm_btt2_guid;
 static guid_t nvdimm_pfn_guid;
 static guid_t nvdimm_dax_guid;
+
+static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
 
 static u32 best_seq(u32 a, u32 b)
 {
@@ -359,11 +353,6 @@ static bool slot_valid(struct nvdimm_drvdata *ndd,
 	if (slot != __le32_to_cpu(nd_label->slot))
 		return false;
 
-	/* check that DPA allocations are page aligned */
-	if ((__le64_to_cpu(nd_label->dpa)
-				| __le64_to_cpu(nd_label->rawsize)) % SZ_4K)
-		return false;
-
 	/* check checksum */
 	if (namespace_label_has(ndd, checksum)) {
 		u64 sum, sum_save;
@@ -392,6 +381,7 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		return 0; /* no label, nothing to reserve */
 
 	for_each_clear_bit_le(slot, free, nslot) {
+		struct nvdimm *nvdimm = to_nvdimm(ndd->dev);
 		struct nd_namespace_label *nd_label;
 		struct nd_region *nd_region = NULL;
 		u8 label_uuid[NSLABEL_UUID_LEN];
@@ -406,6 +396,8 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 
 		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
 		flags = __le32_to_cpu(nd_label->flags);
+		if (test_bit(NDD_NOBLK, &nvdimm->flags))
+			flags &= ~NSLABEL_FLAG_LOCAL;
 		nd_label_gen_id(&label_id, label_uuid, flags);
 		res = nvdimm_allocate_dpa(ndd, &label_id,
 				__le64_to_cpu(nd_label->dpa),
@@ -753,16 +745,27 @@ static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
 		return &guid_null;
 }
 
+static void reap_victim(struct nd_mapping *nd_mapping,
+		struct nd_label_ent *victim)
+{
+	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+	u32 slot = to_slot(ndd, victim->label);
+
+	dev_dbg(ndd->dev, "free: %d\n", slot);
+	nd_label_free_slot(ndd, slot);
+	victim->label = NULL;
+}
+
 static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
-		int pos)
+		int pos, unsigned long flags)
 {
 	struct nd_namespace_common *ndns = &nspm->nsio.common;
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	struct nd_label_ent *label_ent, *victim = NULL;
 	struct nd_namespace_label *nd_label;
 	struct nd_namespace_index *nsindex;
+	struct nd_label_ent *label_ent;
 	struct nd_label_id label_id;
 	struct resource *res;
 	unsigned long *free;
@@ -796,7 +799,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	memcpy(nd_label->uuid, nspm->uuid, NSLABEL_UUID_LEN);
 	if (nspm->alt_name)
 		memcpy(nd_label->name, nspm->alt_name, NSLABEL_NAME_LEN);
-	nd_label->flags = __cpu_to_le32(NSLABEL_FLAG_UPDATING);
+	nd_label->flags = __cpu_to_le32(flags);
 	nd_label->nlabel = __cpu_to_le16(nd_region->ndr_mappings);
 	nd_label->position = __cpu_to_le16(pos);
 	nd_label->isetcookie = __cpu_to_le64(cookie);
@@ -831,18 +834,10 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 		if (!label_ent->label)
 			continue;
-		if (memcmp(nspm->uuid, label_ent->label->uuid,
-					NSLABEL_UUID_LEN) != 0)
-			continue;
-		victim = label_ent;
-		list_move_tail(&victim->list, &nd_mapping->labels);
-		break;
-	}
-	if (victim) {
-		dev_dbg(ndd->dev, "free: %d\n", slot);
-		slot = to_slot(ndd, victim->label);
-		nd_label_free_slot(ndd, slot);
-		victim->label = NULL;
+		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags)
+				|| memcmp(nspm->uuid, label_ent->label->uuid,
+					NSLABEL_UUID_LEN) == 0)
+			reap_victim(nd_mapping, label_ent);
 	}
 
 	/* update index */
@@ -944,8 +939,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	victims = 0;
 	if (old_num_resources) {
 		/* convert old local-label-map to dimm-slot victim-map */
-		victim_map = kcalloc(BITS_TO_LONGS(nslot), sizeof(long),
-				GFP_KERNEL);
+		victim_map = bitmap_zalloc(nslot, GFP_KERNEL);
 		if (!victim_map)
 			return -ENOMEM;
 
@@ -968,7 +962,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	/* don't allow updates that consume the last label */
 	if (nfree - alloc < 0 || nfree - alloc + victims < 1) {
 		dev_info(&nsblk->common.dev, "insufficient label space\n");
-		kfree(victim_map);
+		bitmap_free(victim_map);
 		return -ENOSPC;
 	}
 	/* from here on we need to abort on error */
@@ -985,6 +979,15 @@ static int __blk_label_update(struct nd_region *nd_region,
 			goto abort;
 		}
 	}
+
+	/* release slots associated with any invalidated UUIDs */
+	mutex_lock(&nd_mapping->lock);
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list)
+		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags)) {
+			reap_victim(nd_mapping, label_ent);
+			list_move(&label_ent->list, &list);
+		}
+	mutex_unlock(&nd_mapping->lock);
 
 	/*
 	 * Find the resource associated with the first label in the set
@@ -1005,8 +1008,10 @@ static int __blk_label_update(struct nd_region *nd_region,
 		if (is_old_resource(res, old_res_list, old_num_resources))
 			continue; /* carry-over */
 		slot = nd_label_alloc_slot(ndd);
-		if (slot == UINT_MAX)
+		if (slot == UINT_MAX) {
+			rc = -ENXIO;
 			goto abort;
+		}
 		dev_dbg(ndd->dev, "allocated: %d\n", slot);
 
 		nd_label = to_label(ndd, slot);
@@ -1140,7 +1145,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
  out:
 	kfree(old_res_list);
-	kfree(victim_map);
+	bitmap_free(victim_map);
 	return rc;
 
  abort:
@@ -1250,13 +1255,13 @@ static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 int nd_pmem_namespace_label_update(struct nd_region *nd_region,
 		struct nd_namespace_pmem *nspm, resource_size_t size)
 {
-	int i;
+	int i, rc;
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 		struct resource *res;
-		int rc, count = 0;
+		int count = 0;
 
 		if (size == 0) {
 			rc = del_labels(nd_mapping, nspm->uuid);
@@ -1274,7 +1279,20 @@ int nd_pmem_namespace_label_update(struct nd_region *nd_region,
 		if (rc < 0)
 			return rc;
 
-		rc = __pmem_label_update(nd_region, nd_mapping, nspm, i);
+		rc = __pmem_label_update(nd_region, nd_mapping, nspm, i,
+				NSLABEL_FLAG_UPDATING);
+		if (rc)
+			return rc;
+	}
+
+	if (size == 0)
+		return 0;
+
+	/* Clear the UPDATING flag per UEFI 2.7 expectations */
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+
+		rc = __pmem_label_update(nd_region, nd_mapping, nspm, i, 0);
 		if (rc)
 			return rc;
 	}

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # ARC EMAC network device configuration
 #
@@ -5,7 +6,7 @@
 config NET_VENDOR_ARC
 	bool "ARC devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -26,7 +27,7 @@ config ARC_EMAC
 	select ARC_EMAC_CORE
 	depends on OF_IRQ && OF_NET
 	depends on ARC || COMPILE_TEST
-	---help---
+	help
 	  On some legacy ARC (Synopsys) FPGA boards such as ARCAngel4/ML50x
 	  non-standard on-chip ethernet device ARC EMAC 10/100 is used.
 	  Say Y here if you have such a board.  If unsure, say N.
@@ -36,7 +37,7 @@ config EMAC_ROCKCHIP
 	select ARC_EMAC_CORE
 	depends on OF_IRQ && OF_NET && REGULATOR
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	---help---
+	help
 	  Support for Rockchip RK3036/RK3066/RK3188 EMAC ethernet controllers.
 	  This selects Rockchip SoC glue layer support for the
 	  emac device driver. This driver is used for RK3036/RK3066/RK3188

@@ -1,0 +1,344 @@
+Using TopDown metrics in user space
+-----------------------------------
+
+Intel CPUs (since Sandy Bridge and Silvermont) support a TopDown
+methology to break down CPU pipeline execution into 4 bottlenecks:
+frontend bound, backend bound, bad speculation, retiring.
+
+For more details on Topdown see [1][5]
+
+Traditionally this was implemented by events in generic counters
+and specific formulas to compute the bottlenecks.
+
+perf stat --topdown implements this.
+
+Full Top Down includes more levels that can break down the
+bottlenecks further. This is not directly implemented in perf,
+but available in other tools that can run on top of perf,
+such as toplev[2] or vtune[3]
+
+New Topdown features in Ice Lake
+===============================
+
+With Ice Lake CPUs the TopDown metrics are directly available as
+fixed counters and do not require generic counters. This allows
+to collect TopDown always in addition to other events.
+
+% perf stat -a --topdown -I1000
+#           time             retiring      bad speculation       frontend bound        backend bound
+     1.001281330                23.0%                15.3%                29.6%                32.1%
+     2.003009005                 5.0%                 6.8%                46.6%                41.6%
+     3.004646182                 6.7%                 6.7%                46.0%                40.6%
+     4.006326375                 5.0%                 6.4%                47.6%                41.0%
+     5.007991804                 5.1%                 6.3%                46.3%                42.3%
+     6.009626773                 6.2%                 7.1%                47.3%                39.3%
+     7.011296356                 4.7%                 6.7%                46.2%                42.4%
+     8.012951831                 4.7%                 6.7%                47.5%                41.1%
+...
+
+This also enables measuring TopDown per thread/process instead
+of only per core.
+
+Using TopDown through RDPMC in applications on Ice Lake
+======================================================
+
+For more fine grained measurements it can be useful to
+access the new  directly from user space. This is more complicated,
+but drastically lowers overhead.
+
+On Ice Lake, there is a new fixed counter 3: SLOTS, which reports
+"pipeline SLOTS" (cycles multiplied by core issue width) and a
+metric register that reports slots ratios for the different bottleneck
+categories.
+
+The metrics counter is CPU model specific and is not available on older
+CPUs.
+
+Example code
+============
+
+Library functions to do the functionality described below
+is also available in libjevents [4]
+
+The application opens a group with fixed counter 3 (SLOTS) and any
+metric event, and allow user programs to read the performance counters.
+
+Fixed counter 3 is mapped to a pseudo event event=0x00, umask=04,
+so the perf_event_attr structure should be initialized with
+{ .config = 0x0400, .type = PERF_TYPE_RAW }
+The metric events are mapped to the pseudo event event=0x00, umask=0x8X.
+For example, the perf_event_attr structure can be initialized with
+{ .config = 0x8000, .type = PERF_TYPE_RAW } for Retiring metric event
+The Fixed counter 3 must be the leader of the group.
+
+#include <linux/perf_event.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+/* Provide own perf_event_open stub because glibc doesn't */
+__attribute__((weak))
+int perf_event_open(struct perf_event_attr *attr, pid_t pid,
+		    int cpu, int group_fd, unsigned long flags)
+{
+	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+}
+
+/* Open slots counter file descriptor for current task. */
+struct perf_event_attr slots = {
+	.type = PERF_TYPE_RAW,
+	.size = sizeof(struct perf_event_attr),
+	.config = 0x400,
+	.exclude_kernel = 1,
+};
+
+int slots_fd = perf_event_open(&slots, 0, -1, -1, 0);
+if (slots_fd < 0)
+	... error ...
+
+/* Memory mapping the fd permits _rdpmc calls from userspace */
+void *slots_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, slots_fd, 0);
+if (!slot_p)
+	.... error ...
+
+/*
+ * Open metrics event file descriptor for current task.
+ * Set slots event as the leader of the group.
+ */
+struct perf_event_attr metrics = {
+	.type = PERF_TYPE_RAW,
+	.size = sizeof(struct perf_event_attr),
+	.config = 0x8000,
+	.exclude_kernel = 1,
+};
+
+int metrics_fd = perf_event_open(&metrics, 0, -1, slots_fd, 0);
+if (metrics_fd < 0)
+	... error ...
+
+/* Memory mapping the fd permits _rdpmc calls from userspace */
+void *metrics_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, metrics_fd, 0);
+if (!metrics_p)
+	... error ...
+
+Note: the file descriptors returned by the perf_event_open calls must be memory
+mapped to permit calls to the _rdpmd instruction. Permission may also be granted
+by writing the /sys/devices/cpu/rdpmc sysfs node.
+
+The RDPMC instruction (or _rdpmc compiler intrinsic) can now be used
+to read slots and the topdown metrics at different points of the program:
+
+#include <stdint.h>
+#include <x86intrin.h>
+
+#define RDPMC_FIXED	(1 << 30)	/* return fixed counters */
+#define RDPMC_METRIC	(1 << 29)	/* return metric counters */
+
+#define FIXED_COUNTER_SLOTS		3
+#define METRIC_COUNTER_TOPDOWN_L1_L2	0
+
+static inline uint64_t read_slots(void)
+{
+	return _rdpmc(RDPMC_FIXED | FIXED_COUNTER_SLOTS);
+}
+
+static inline uint64_t read_metrics(void)
+{
+	return _rdpmc(RDPMC_METRIC | METRIC_COUNTER_TOPDOWN_L1_L2);
+}
+
+Then the program can be instrumented to read these metrics at different
+points.
+
+It's not a good idea to do this with too short code regions,
+as the parallelism and overlap in the CPU program execution will
+cause too much measurement inaccuracy. For example instrumenting
+individual basic blocks is definitely too fine grained.
+
+_rdpmc calls should not be mixed with reading the metrics and slots counters
+through system calls, as the kernel will reset these counters after each system
+call.
+
+Decoding metrics values
+=======================
+
+The value reported by read_metrics() contains four 8 bit fields
+that represent a scaled ratio that represent the Level 1 bottleneck.
+All four fields add up to 0xff (= 100%)
+
+The binary ratios in the metric value can be converted to float ratios:
+
+#define GET_METRIC(m, i) (((m) >> (i*8)) & 0xff)
+
+/* L1 Topdown metric events */
+#define TOPDOWN_RETIRING(val)	((float)GET_METRIC(val, 0) / 0xff)
+#define TOPDOWN_BAD_SPEC(val)	((float)GET_METRIC(val, 1) / 0xff)
+#define TOPDOWN_FE_BOUND(val)	((float)GET_METRIC(val, 2) / 0xff)
+#define TOPDOWN_BE_BOUND(val)	((float)GET_METRIC(val, 3) / 0xff)
+
+/*
+ * L2 Topdown metric events.
+ * Available on Sapphire Rapids and later platforms.
+ */
+#define TOPDOWN_HEAVY_OPS(val)		((float)GET_METRIC(val, 4) / 0xff)
+#define TOPDOWN_BR_MISPREDICT(val)	((float)GET_METRIC(val, 5) / 0xff)
+#define TOPDOWN_FETCH_LAT(val)		((float)GET_METRIC(val, 6) / 0xff)
+#define TOPDOWN_MEM_BOUND(val)		((float)GET_METRIC(val, 7) / 0xff)
+
+and then converted to percent for printing.
+
+The ratios in the metric accumulate for the time when the counter
+is enabled. For measuring programs it is often useful to measure
+specific sections. For this it is needed to deltas on metrics.
+
+This can be done by scaling the metrics with the slots counter
+read at the same time.
+
+Then it's possible to take deltas of these slots counts
+measured at different points, and determine the metrics
+for that time period.
+
+	slots_a = read_slots();
+	metric_a = read_metrics();
+
+	... larger code region ...
+
+	slots_b = read_slots()
+	metric_b = read_metrics()
+
+	# compute scaled metrics for measurement a
+	retiring_slots_a = GET_METRIC(metric_a, 0) * slots_a
+	bad_spec_slots_a = GET_METRIC(metric_a, 1) * slots_a
+	fe_bound_slots_a = GET_METRIC(metric_a, 2) * slots_a
+	be_bound_slots_a = GET_METRIC(metric_a, 3) * slots_a
+
+	# compute delta scaled metrics between b and a
+	retiring_slots = GET_METRIC(metric_b, 0) * slots_b - retiring_slots_a
+	bad_spec_slots = GET_METRIC(metric_b, 1) * slots_b - bad_spec_slots_a
+	fe_bound_slots = GET_METRIC(metric_b, 2) * slots_b - fe_bound_slots_a
+	be_bound_slots = GET_METRIC(metric_b, 3) * slots_b - be_bound_slots_a
+
+Later the individual ratios of L1 metric events for the measurement period can
+be recreated from these counts.
+
+	slots_delta = slots_b - slots_a
+	retiring_ratio = (float)retiring_slots / slots_delta
+	bad_spec_ratio = (float)bad_spec_slots / slots_delta
+	fe_bound_ratio = (float)fe_bound_slots / slots_delta
+	be_bound_ratio = (float)be_bound_slots / slota_delta
+
+	printf("Retiring %.2f%% Bad Speculation %.2f%% FE Bound %.2f%% BE Bound %.2f%%\n",
+		retiring_ratio * 100.,
+		bad_spec_ratio * 100.,
+		fe_bound_ratio * 100.,
+		be_bound_ratio * 100.);
+
+The individual ratios of L2 metric events for the measurement period can be
+recreated from L1 and L2 metric counters. (Available on Sapphire Rapids and
+later platforms)
+
+	# compute scaled metrics for measurement a
+	heavy_ops_slots_a = GET_METRIC(metric_a, 4) * slots_a
+	br_mispredict_slots_a = GET_METRIC(metric_a, 5) * slots_a
+	fetch_lat_slots_a = GET_METRIC(metric_a, 6) * slots_a
+	mem_bound_slots_a = GET_METRIC(metric_a, 7) * slots_a
+
+	# compute delta scaled metrics between b and a
+	heavy_ops_slots = GET_METRIC(metric_b, 4) * slots_b - heavy_ops_slots_a
+	br_mispredict_slots = GET_METRIC(metric_b, 5) * slots_b - br_mispredict_slots_a
+	fetch_lat_slots = GET_METRIC(metric_b, 6) * slots_b - fetch_lat_slots_a
+	mem_bound_slots = GET_METRIC(metric_b, 7) * slots_b - mem_bound_slots_a
+
+	slots_delta = slots_b - slots_a
+	heavy_ops_ratio = (float)heavy_ops_slots / slots_delta
+	light_ops_ratio = retiring_ratio - heavy_ops_ratio;
+
+	br_mispredict_ratio = (float)br_mispredict_slots / slots_delta
+	machine_clears_ratio = bad_spec_ratio - br_mispredict_ratio;
+
+	fetch_lat_ratio = (float)fetch_lat_slots / slots_delta
+	fetch_bw_ratio = fe_bound_ratio - fetch_lat_ratio;
+
+	mem_bound_ratio = (float)mem_bound_slots / slota_delta
+	core_bound_ratio = be_bound_ratio - mem_bound_ratio;
+
+	printf("Heavy Operations %.2f%% Light Operations %.2f%% "
+	       "Branch Mispredict %.2f%% Machine Clears %.2f%% "
+	       "Fetch Latency %.2f%% Fetch Bandwidth %.2f%% "
+	       "Mem Bound %.2f%% Core Bound %.2f%%\n",
+		heavy_ops_ratio * 100.,
+		light_ops_ratio * 100.,
+		br_mispredict_ratio * 100.,
+		machine_clears_ratio * 100.,
+		fetch_lat_ratio * 100.,
+		fetch_bw_ratio * 100.,
+		mem_bound_ratio * 100.,
+		core_bound_ratio * 100.);
+
+Resetting metrics counters
+==========================
+
+Since the individual metrics are only 8bit they lose precision for
+short regions over time because the number of cycles covered by each
+fraction bit shrinks. So the counters need to be reset regularly.
+
+When using the kernel perf API the kernel resets on every read.
+So as long as the reading is at reasonable intervals (every few
+seconds) the precision is good.
+
+When using perf stat it is recommended to always use the -I option,
+with no longer interval than a few seconds
+
+	perf stat -I 1000 --topdown ...
+
+For user programs using RDPMC directly the counter can
+be reset explicitly using ioctl:
+
+	ioctl(perf_fd, PERF_EVENT_IOC_RESET, 0);
+
+This "opens" a new measurement period.
+
+A program using RDPMC for TopDown should schedule such a reset
+regularly, as in every few seconds.
+
+Limits on Ice Lake
+==================
+
+Four pseudo TopDown metric events are exposed for the end-users,
+topdown-retiring, topdown-bad-spec, topdown-fe-bound and topdown-be-bound.
+They can be used to collect the TopDown value under the following
+rules:
+- All the TopDown metric events must be in a group with the SLOTS event.
+- The SLOTS event must be the leader of the group.
+- The PERF_FORMAT_GROUP flag must be applied for each TopDown metric
+  events
+
+The SLOTS event and the TopDown metric events can be counting members of
+a sampling read group. Since the SLOTS event must be the leader of a TopDown
+group, the second event of the group is the sampling event.
+For example, perf record -e '{slots, $sampling_event, topdown-retiring}:S'
+
+Extension on Sapphire Rapids Server
+===================================
+The metrics counter is extended to support TMA method level 2 metrics.
+The lower half of the register is the TMA level 1 metrics (legacy).
+The upper half is also divided into four 8-bit fields for the new level 2
+metrics. Four more TopDown metric events are exposed for the end-users,
+topdown-heavy-ops, topdown-br-mispredict, topdown-fetch-lat and
+topdown-mem-bound.
+
+Each of the new level 2 metrics in the upper half is a subset of the
+corresponding level 1 metric in the lower half. Software can deduce the
+other four level 2 metrics by subtracting corresponding metrics as below.
+
+    Light_Operations = Retiring - Heavy_Operations
+    Machine_Clears = Bad_Speculation - Branch_Mispredicts
+    Fetch_Bandwidth = Frontend_Bound - Fetch_Latency
+    Core_Bound = Backend_Bound - Memory_Bound
+
+
+[1] https://software.intel.com/en-us/top-down-microarchitecture-analysis-method-win
+[2] https://github.com/andikleen/pmu-tools/wiki/toplev-manual
+[3] https://software.intel.com/en-us/intel-vtune-amplifier-xe
+[4] https://github.com/andikleen/pmu-tools/tree/master/jevents
+[5] https://sites.google.com/site/analysismethods/yasin-pubs

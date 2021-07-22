@@ -1,8 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VHOST_IOTLB
+	tristate
+	help
+	  Generic IOTLB implementation for vhost and vringh.
+	  This option is selected by any driver which needs to support
+	  an IOMMU in software.
+
+config VHOST_RING
+	tristate
+	select VHOST_IOTLB
+	help
+	  This option is selected by any driver which needs to access
+	  the host side of a virtio ring.
+
+config VHOST
+	tristate
+	select VHOST_IOTLB
+	help
+	  This option is selected by any driver which needs to access
+	  the core of vhost.
+
+menuconfig VHOST_MENU
+	bool "VHOST drivers"
+	default y
+
+if VHOST_MENU
+
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (TAP || !TAP)
 	select VHOST
-	---help---
+	help
 	  This kernel module can be loaded in host kernel to accelerate
 	  guest networking with virtio_net. Not to be confused with virtio_net
 	  module itself which needs to be loaded in guest kernel.
@@ -15,17 +43,17 @@ config VHOST_SCSI
 	depends on TARGET_CORE && EVENTFD
 	select VHOST
 	default n
-	---help---
+	help
 	Say M here to enable the vhost_scsi TCM fabric module
 	for use with virtio-scsi guests
 
 config VHOST_VSOCK
 	tristate "vhost virtio-vsock driver"
 	depends on VSOCKETS && EVENTFD
-	select VIRTIO_VSOCKETS_COMMON
 	select VHOST
+	select VIRTIO_VSOCKETS_COMMON
 	default n
-	---help---
+	help
 	This kernel module can be loaded in the host kernel to provide AF_VSOCK
 	sockets for communicating with guests.  The guests must have the
 	virtio_transport.ko driver loaded to use the virtio-vsock device.
@@ -33,16 +61,23 @@ config VHOST_VSOCK
 	To compile this driver as a module, choose M here: the module will be called
 	vhost_vsock.
 
-config VHOST
-	tristate
-	---help---
-	  This option is selected by any driver which needs to access
-	  the core of vhost.
+config VHOST_VDPA
+	tristate "Vhost driver for vDPA-based backend"
+	depends on EVENTFD
+	select VHOST
+	select IRQ_BYPASS_MANAGER
+	depends on VDPA
+	help
+	  This kernel module can be loaded in host kernel to accelerate
+	  guest virtio devices with the vDPA-based backends.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vhost_vdpa.
 
 config VHOST_CROSS_ENDIAN_LEGACY
 	bool "Cross-endian support for vhost"
 	default n
-	---help---
+	help
 	  This option allows vhost to support guests with a different byte
 	  ordering from host while using legacy virtio.
 
@@ -53,3 +88,5 @@ config VHOST_CROSS_ENDIAN_LEGACY
 	  adds some overhead, it is disabled by default.
 
 	  If unsure, say "N".
+
+endif

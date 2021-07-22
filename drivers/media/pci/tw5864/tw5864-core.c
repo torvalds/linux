@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  TW5864 driver - core functions
  *
  *  Copyright (C) 2016 Bluecherry, LLC <maintainers@bluecherrydvr.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -74,7 +65,7 @@ module_param_array(video_nr, int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "video devices numbers array");
 
 /*
- * Please add any new PCI IDs to: http://pci-ids.ucw.cz.  This keeps
+ * Please add any new PCI IDs to: https://pci-ids.ucw.cz.  This keeps
  * the PCI ID database up to date.  Note that the entries must be
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */

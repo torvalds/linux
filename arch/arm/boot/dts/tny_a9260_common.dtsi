@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tny_a9260_common.dtsi - Device Tree file for Caloa TNY A926x board
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2.
  */
 
 / {
@@ -11,7 +10,7 @@
 		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock6 rw rootfstype=ubifs";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 

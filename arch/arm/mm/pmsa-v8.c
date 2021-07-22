@@ -94,19 +94,20 @@ static __init bool is_region_fixed(int number)
 void __init pmsav8_adjust_lowmem_bounds(void)
 {
 	phys_addr_t mem_end;
-	struct memblock_region *reg;
+	phys_addr_t reg_start, reg_end;
 	bool first = true;
+	u64 i;
 
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &reg_start, &reg_end) {
 		if (first) {
 			phys_addr_t phys_offset = PHYS_OFFSET;
 
 			/*
 			 * Initially only use memory continuous from
 			 * PHYS_OFFSET */
-			if (reg->base != phys_offset)
+			if (reg_start != phys_offset)
 				panic("First memory bank must be contiguous from PHYS_OFFSET");
-			mem_end = reg->base + reg->size;
+			mem_end = reg_end;
 			first = false;
 		} else {
 			/*
@@ -115,8 +116,8 @@ void __init pmsav8_adjust_lowmem_bounds(void)
 			 * blocks separately while iterating)
 			 */
 			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
-				  &mem_end, &reg->base);
-			memblock_remove(reg->base, 0 - reg->base);
+				  &mem_end, &reg_start);
+			memblock_remove(reg_start, 0 - reg_start);
 			break;
 		}
 	}
@@ -165,7 +166,7 @@ static int __init pmsav8_setup_ram(unsigned int number, phys_addr_t start,phys_a
 		return -EINVAL;
 
 	bar = start;
-	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);;
+	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);
 
 	bar |= PMSAv8_AP_PL1RW_PL0RW | PMSAv8_RGN_SHARED;
 	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN;
@@ -181,7 +182,7 @@ static int __init pmsav8_setup_io(unsigned int number, phys_addr_t start,phys_ad
 		return -EINVAL;
 
 	bar = start;
-	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);;
+	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);
 
 	bar |= PMSAv8_AP_PL1RW_PL0RW | PMSAv8_RGN_SHARED | PMSAv8_BAR_XN;
 	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN;

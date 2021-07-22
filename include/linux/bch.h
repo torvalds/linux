@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic binary BCH encoding/decoding library
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Copyright © 2011 Parrot S.A.
  *
@@ -45,6 +33,7 @@
  * @cache:      log-based polynomial representation buffer
  * @elp:        error locator polynomial
  * @poly_2t:    temporary polynomials of degree 2t
+ * @swap_bits:  swap bits within data and syndrome bytes
  */
 struct bch_control {
 	unsigned int    m;
@@ -63,16 +52,18 @@ struct bch_control {
 	int            *cache;
 	struct gf_poly *elp;
 	struct gf_poly *poly_2t[4];
+	bool		swap_bits;
 };
 
-struct bch_control *init_bch(int m, int t, unsigned int prim_poly);
+struct bch_control *bch_init(int m, int t, unsigned int prim_poly,
+			     bool swap_bits);
 
-void free_bch(struct bch_control *bch);
+void bch_free(struct bch_control *bch);
 
-void encode_bch(struct bch_control *bch, const uint8_t *data,
+void bch_encode(struct bch_control *bch, const uint8_t *data,
 		unsigned int len, uint8_t *ecc);
 
-int decode_bch(struct bch_control *bch, const uint8_t *data, unsigned int len,
+int bch_decode(struct bch_control *bch, const uint8_t *data, unsigned int len,
 	       const uint8_t *recv_ecc, const uint8_t *calc_ecc,
 	       const unsigned int *syn, unsigned int *errloc);
 

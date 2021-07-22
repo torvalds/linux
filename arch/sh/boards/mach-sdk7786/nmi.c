@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SDK7786 FPGA NMI Support.
  *
  * Copyright (C) 2010  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -40,7 +37,7 @@ static int __init nmi_mode_setup(char *str)
 		nmi_mode = NMI_MODE_ANY;
 	else {
 		nmi_mode = NMI_MODE_UNKNOWN;
-		pr_warning("Unknown NMI mode %s\n", str);
+		pr_warn("Unknown NMI mode %s\n", str);
 	}
 
 	printk("Set NMI mode to %d\n", nmi_mode);

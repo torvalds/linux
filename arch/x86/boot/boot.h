@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -30,8 +28,6 @@
 #include "cpuflags.h"
 
 /* Useful macros */
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 extern struct setup_header hdr;
@@ -309,7 +305,7 @@ void query_edd(void);
 void __attribute__((noreturn)) die(void);
 
 /* memory.c */
-int detect_memory(void);
+void detect_memory(void);
 
 /* pm.c */
 void __attribute__((noreturn)) go_to_protected_mode(void);

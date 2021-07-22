@@ -25,13 +25,13 @@
  */
 
 #include <linux/hw_random.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/stop_machine.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <asm/io.h>
 
 
 #define PFX	KBUILD_MODNAME ": "
@@ -317,7 +317,7 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 		return -EBUSY;
 	}
 
-	intel_rng_hw->mem = ioremap_nocache(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
+	intel_rng_hw->mem = ioremap(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
 	if (intel_rng_hw->mem == NULL)
 		return -EBUSY;
 
@@ -330,7 +330,7 @@ static int __init mod_init(void)
 	int err = -ENODEV;
 	int i;
 	struct pci_dev *dev = NULL;
-	void __iomem *mem = mem;
+	void __iomem *mem;
 	u8 hw_status;
 	struct intel_rng_hw *intel_rng_hw;
 

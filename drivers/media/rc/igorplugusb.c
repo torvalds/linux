@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IgorPlug-USB IR Receiver
  *
@@ -9,16 +10,6 @@
  * Based on the lirc_igorplugusb.c driver:
  *	Copyright (C) 2004 Jan M. Hochstein
  *	<hochstein@algo.informatik.tu-darmstadt.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -78,7 +69,7 @@ static void igorplugusb_irdata(struct igorplugusb *ir, unsigned len)
 								overflow);
 
 		do {
-			rawir.duration = ir->buf_in[i] * 85333;
+			rawir.duration = ir->buf_in[i] * 85;
 			rawir.pulse = i & 1;
 
 			ir_raw_event_store_with_filter(ir->rc, &rawir);
@@ -211,8 +202,8 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	rc->priv = ir;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_HAUPPAUGE;
-	rc->timeout = MS_TO_NS(100);
-	rc->rx_resolution = 85333;
+	rc->timeout = MS_TO_US(100);
+	rc->rx_resolution = 85;
 
 	ir->rc = rc;
 	ret = rc_register_device(rc);

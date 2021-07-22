@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung S5P/EXYNOS SoC series MIPI-CSI receiver driver
  *
  * Copyright (C) 2011 - 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -44,7 +41,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 /* CSIS global control */
 #define S5PCSIS_CTRL			0x00
 #define S5PCSIS_CTRL_DPDN_DEFAULT	(0 << 31)
-#define S5PCSIS_CTRL_DPDN_SWAP		(1 << 31)
+#define S5PCSIS_CTRL_DPDN_SWAP		(1UL << 31)
 #define S5PCSIS_CTRL_ALIGN_32BIT	(1 << 20)
 #define S5PCSIS_CTRL_UPDATE_SHADOW	(1 << 16)
 #define S5PCSIS_CTRL_WCLK_EXTCLK	(1 << 8)
@@ -68,7 +65,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 /* Interrupt mask */
 #define S5PCSIS_INTMSK			0x10
-#define S5PCSIS_INTMSK_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTMSK_EVEN_BEFORE	(1UL << 31)
 #define S5PCSIS_INTMSK_EVEN_AFTER	(1 << 30)
 #define S5PCSIS_INTMSK_ODD_BEFORE	(1 << 29)
 #define S5PCSIS_INTMSK_ODD_AFTER	(1 << 28)
@@ -86,7 +83,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 /* Interrupt source */
 #define S5PCSIS_INTSRC			0x14
-#define S5PCSIS_INTSRC_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTSRC_EVEN_BEFORE	(1UL << 31)
 #define S5PCSIS_INTSRC_EVEN_AFTER	(1 << 30)
 #define S5PCSIS_INTSRC_EVEN		(0x3 << 30)
 #define S5PCSIS_INTSRC_ODD_BEFORE	(1 << 29)
@@ -183,7 +180,7 @@ struct csis_drvdata {
  * @index: the hardware instance index
  * @pdev: CSIS platform device
  * @phy: pointer to the CSIS generic PHY
- * @regs: mmaped I/O registers memory
+ * @regs: mmapped I/O registers memory
  * @supplies: CSIS regulator supplies
  * @clock: CSIS clocks
  * @irq: requested s5p-mipi-csis irq number
@@ -497,7 +494,7 @@ static int s5pcsis_s_power(struct v4l2_subdev *sd, int on)
 	struct device *dev = &state->pdev->dev;
 
 	if (on)
-		return pm_runtime_get_sync(dev);
+		return pm_runtime_resume_and_get(dev);
 
 	return pm_runtime_put_sync(dev);
 }
@@ -512,8 +509,8 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		s5pcsis_clear_counters(state);
-		ret = pm_runtime_get_sync(&state->pdev->dev);
-		if (ret && ret != 1)
+		ret = pm_runtime_resume_and_get(&state->pdev->dev);
+		if (ret < 0)
 			return ret;
 	}
 
@@ -536,11 +533,11 @@ unlock:
 	if (!enable)
 		pm_runtime_put(&state->pdev->dev);
 
-	return ret == 1 ? 0 : ret;
+	return ret;
 }
 
 static int s5pcsis_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5pcsis_formats))
@@ -568,23 +565,25 @@ static struct csis_pix_format const *s5pcsis_try_format(
 }
 
 static struct v4l2_mbus_framefmt *__s5pcsis_get_format(
-		struct csis_state *state, struct v4l2_subdev_pad_config *cfg,
+		struct csis_state *state, struct v4l2_subdev_state *sd_state,
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return cfg ? v4l2_subdev_get_try_format(&state->sd, cfg, 0) : NULL;
+		return sd_state ? v4l2_subdev_get_try_format(&state->sd,
+							     sd_state, 0) : NULL;
 
 	return &state->format;
 }
 
-static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5pcsis_set_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, cfg, fmt->which);
+	mf = __s5pcsis_get_format(state, sd_state, fmt->which);
 
 	if (fmt->pad == CSIS_PAD_SOURCE) {
 		if (mf) {
@@ -605,13 +604,14 @@ static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
 	return 0;
 }
 
-static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5pcsis_get_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, cfg, fmt->which);
+	mf = __s5pcsis_get_format(state, sd_state, fmt->which);
 	if (!mf)
 		return -EINVAL;
 
@@ -745,7 +745,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* Get MIPI CSI-2 bus configration from the endpoint node. */
+	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
 	of_property_read_u32(node, "samsung,csis-hs-settle",
 					&state->hs_settle);
 	state->wclk_ext = of_property_read_bool(node,
@@ -806,10 +806,8 @@ static int s5pcsis_probe(struct platform_device *pdev)
 		return PTR_ERR(state->regs);
 
 	state->irq = platform_get_irq(pdev, 0);
-	if (state->irq < 0) {
-		dev_err(dev, "Failed to get irq\n");
+	if (state->irq < 0)
 		return state->irq;
-	}
 
 	for (i = 0; i < CSIS_NUM_SUPPLIES; i++)
 		state->supplies[i].supply = csis_supply_name[i];

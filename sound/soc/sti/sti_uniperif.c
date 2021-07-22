@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) STMicroelectronics SA 2015
  * Authors: Arnaud Pouliquen <arnaud.pouliquen@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/module.h>
@@ -97,6 +97,7 @@ static const struct of_device_id snd_soc_sti_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, snd_soc_sti_match);
 
 int  sti_uniperiph_reset(struct uniperif *uni)
 {
@@ -308,9 +309,9 @@ int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
+static int sti_uniperiph_suspend(struct snd_soc_component *component)
 {
-	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
+	struct sti_uniperiph_data *priv = snd_soc_component_get_drvdata(component);
 	struct uniperif *uni = priv->dai_data.uni;
 	int ret;
 
@@ -330,9 +331,9 @@ static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
 	return ret;
 }
 
-static int sti_uniperiph_dai_resume(struct snd_soc_dai *dai)
+static int sti_uniperiph_resume(struct snd_soc_component *component)
 {
-	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
+	struct sti_uniperiph_data *priv = snd_soc_component_get_drvdata(component);
 	struct uniperif *uni = priv->dai_data.uni;
 	int ret;
 
@@ -370,12 +371,12 @@ static int sti_uniperiph_dai_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_driver sti_uniperiph_dai_template = {
 	.probe = sti_uniperiph_dai_probe,
-	.suspend = sti_uniperiph_dai_suspend,
-	.resume = sti_uniperiph_dai_resume
 };
 
 static const struct snd_soc_component_driver sti_uniperiph_dai_component = {
 	.name = "sti_cpu_dai",
+	.suspend = sti_uniperiph_suspend,
+	.resume = sti_uniperiph_resume
 };
 
 static int sti_uniperiph_cpu_dai_of(struct device_node *node,
@@ -409,16 +410,8 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	*dai = sti_uniperiph_dai_template;
 	dai->name = dev_data->dai_names;
 
-	/* Get resources */
-	uni->mem_region = platform_get_resource(priv->pdev, IORESOURCE_MEM, 0);
-
-	if (!uni->mem_region) {
-		dev_err(dev, "Failed to get memory resource\n");
-		return -ENODEV;
-	}
-
-	uni->base = devm_ioremap_resource(dev, uni->mem_region);
-
+	/* Get resources and base address */
+	uni->base = devm_platform_get_and_ioremap_resource(priv->pdev, 0, &uni->mem_region);
 	if (IS_ERR(uni->base))
 		return PTR_ERR(uni->base);
 
@@ -426,10 +419,8 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 				     UNIPERIF_FIFO_DATA_OFFSET(uni);
 
 	uni->irq = platform_get_irq(priv->pdev, 0);
-	if (uni->irq < 0) {
-		dev_err(dev, "Failed to get IRQ resource\n");
+	if (uni->irq < 0)
 		return -ENXIO;
-	}
 
 	uni->type = dev_data->type;
 
@@ -486,6 +477,8 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 
 	ret = sti_uniperiph_cpu_dai_of(node, priv);
+	if (ret < 0)
+		return ret;
 
 	dev_set_drvdata(&pdev->dev, priv);
 

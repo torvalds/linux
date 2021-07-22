@@ -1,12 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # AIC7XXX and AIC79XX 2.5.X Kernel configuration File.
 # $Id: //depot/linux-aic79xx-2.5.0/drivers/scsi/aic7xxx/Kconfig.aic7xxx#7 $
 #
 config SCSI_AIC7XXX
-	tristate "Adaptec AIC7xxx Fast -> U160 support (New Driver)"
+	tristate "Adaptec AIC7xxx Fast -> U160 support"
 	depends on (PCI || EISA) && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	This driver supports all of Adaptec's Fast through Ultra 160 PCI
 	based SCSI controllers as well as the aic7770 based EISA and VLB
 	SCSI controllers (the 274x and 284x series).  For AAA and ARO based
@@ -19,7 +20,7 @@ config AIC7XXX_CMDS_PER_DEVICE
 	int "Maximum number of TCQ commands per device"
 	depends on SCSI_AIC7XXX
 	default "32"
-	---help---
+	help
 	Specify the number of commands you would like to allocate per SCSI
 	device when Tagged Command Queueing (TCQ) is enabled on that device.
 
@@ -36,13 +37,13 @@ config AIC7XXX_CMDS_PER_DEVICE
 	on some devices.  The upper bound is 253.  0 disables tagged queueing.
 
 	Per device tag depth can be controlled via the kernel command line
-	"tag_info" option.  See Documentation/scsi/aic7xxx.txt for details.
+	"tag_info" option.  See Documentation/scsi/aic7xxx.rst for details.
 
 config AIC7XXX_RESET_DELAY_MS
 	int "Initial bus reset delay in milli-seconds"
 	depends on SCSI_AIC7XXX
 	default "5000"
-	---help---
+	help
 	The number of milliseconds to delay after an initial bus reset.
 	The bus settle delay following all error recovery actions is
 	dictated by the SCSI layer and is not affected by this value.

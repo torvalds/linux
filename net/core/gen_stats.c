@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/core/gen_stats.c
- *
- *             This program is free software; you can redistribute it and/or
- *             modify it under the terms of the GNU General Public License
- *             as published by the Free Software Foundation; either version
- *             2 of the License, or (at your option) any later version.
  *
  * Authors:  Thomas Graf <tgraf@suug.ch>
  *           Jamal Hadi Salim
  *           Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
- * See Documentation/networking/gen_stats.txt
+ * See Documentation/networking/gen_stats.rst
  */
 
 #include <linux/types.h>
@@ -127,8 +123,7 @@ __gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
 	for_each_possible_cpu(i) {
 		struct gnet_stats_basic_cpu *bcpu = per_cpu_ptr(cpu, i);
 		unsigned int start;
-		u64 bytes;
-		u32 packets;
+		u64 bytes, packets;
 
 		do {
 			start = u64_stats_fetch_begin_irq(&bcpu->syncp);
@@ -180,12 +175,17 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
 
 	if (d->tail) {
 		struct gnet_stats_basic sb;
+		int res;
 
 		memset(&sb, 0, sizeof(sb));
 		sb.bytes = bstats.bytes;
 		sb.packets = bstats.packets;
-		return gnet_stats_copy(d, type, &sb, sizeof(sb),
-				       TCA_STATS_PAD);
+		res = gnet_stats_copy(d, type, &sb, sizeof(sb), TCA_STATS_PAD);
+		if (res < 0 || sb.packets == bstats.packets)
+			return res;
+		/* emit 64bit stats only if needed */
+		return gnet_stats_copy(d, TCA_STATS_PKT64, &bstats.packets,
+				       sizeof(bstats.packets), TCA_STATS_PAD);
 	}
 	return 0;
 }

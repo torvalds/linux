@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * nau8822.h  --  NAU8822 Soc Audio Codec driver
+ * nau8822.h  --  NAU8822 ALSA SoC Audio driver
+ *
+ * Copyright 2017 Nuvoton Technology Crop.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
  * Co-author: John Hsu <kchsu0@nuvoton.com>
  * Co-author: Seven Li <wtli@nuvoton.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __NAU8822_H__
@@ -108,10 +107,17 @@
 
 /* NAU8822_REG_CLOCKING (0x6) */
 #define NAU8822_CLKIOEN_MASK			0x1
+#define NAU8822_CLK_MASTER			0x1
+#define NAU8822_CLK_SLAVE			0x0
 #define NAU8822_MCLKSEL_SFT			5
 #define NAU8822_MCLKSEL_MASK			(0x7 << 5)
 #define NAU8822_BCLKSEL_SFT			2
 #define NAU8822_BCLKSEL_MASK			(0x7 << 2)
+#define NAU8822_BCLKDIV_1			(0x0 << 2)
+#define NAU8822_BCLKDIV_2			(0x1 << 2)
+#define NAU8822_BCLKDIV_4			(0x2 << 2)
+#define NAU8822_BCLKDIV_8			(0x3 << 2)
+#define NAU8822_BCLKDIV_16			(0x4 << 2)
 #define NAU8822_CLKM_MASK			(0x1 << 8)
 #define NAU8822_CLKM_MCLK			(0x0 << 8)
 #define NAU8822_CLKM_PLL			(0x1 << 8)

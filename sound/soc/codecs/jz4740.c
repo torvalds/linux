@@ -1,15 +1,8 @@
-/*
- * Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// JZ4740 CODEC driver
+//
+// Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -221,17 +214,16 @@ static struct snd_soc_dai_driver jz4740_codec_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8,
 	},
 	.ops = &jz4740_codec_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void jz4740_codec_wakeup(struct regmap *regmap)
 {
-	regmap_update_bits(regmap, JZ4740_REG_CODEC_1,
-		JZ4740_CODEC_1_RESET, JZ4740_CODEC_1_RESET);
+	regmap_set_bits(regmap, JZ4740_REG_CODEC_1, JZ4740_CODEC_1_RESET);
 	udelay(2);
 
-	regmap_update_bits(regmap, JZ4740_REG_CODEC_1,
-		JZ4740_CODEC_1_SUSPEND | JZ4740_CODEC_1_RESET, 0);
+	regmap_clear_bits(regmap, JZ4740_REG_CODEC_1,
+			  JZ4740_CODEC_1_SUSPEND | JZ4740_CODEC_1_RESET);
 
 	regcache_sync(regmap);
 }
@@ -242,7 +234,6 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 	struct jz4740_codec *jz4740_codec = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = jz4740_codec->regmap;
 	unsigned int mask;
-	unsigned int value;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -251,9 +242,8 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
 				JZ4740_CODEC_1_VREF_AMP_DISABLE |
 				JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
-		value = 0;
 
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_clear_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* The only way to clear the suspend flag is to reset the codec */
@@ -263,17 +253,12 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
 			JZ4740_CODEC_1_VREF_AMP_DISABLE |
 			JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
-		value = JZ4740_CODEC_1_VREF_DISABLE |
-			JZ4740_CODEC_1_VREF_AMP_DISABLE |
-			JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
 
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_set_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		break;
 	case SND_SOC_BIAS_OFF:
 		mask = JZ4740_CODEC_1_SUSPEND;
-		value = JZ4740_CODEC_1_SUSPEND;
-
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_set_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		regcache_mark_dirty(regmap);
 		break;
 	default:
@@ -325,7 +310,6 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_codec *jz4740_codec;
-	struct resource *mem;
 	void __iomem *base;
 
 	jz4740_codec = devm_kzalloc(&pdev->dev, sizeof(*jz4740_codec),
@@ -333,8 +317,7 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 	if (!jz4740_codec)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -353,10 +336,17 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static const struct of_device_id jz4740_codec_of_matches[] = {
+	{ .compatible = "ingenic,jz4740-codec", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, jz4740_codec_of_matches);
+
 static struct platform_driver jz4740_codec_driver = {
 	.probe = jz4740_codec_probe,
 	.driver = {
 		.name = "jz4740-codec",
+		.of_match_table = jz4740_codec_of_matches,
 	},
 };
 

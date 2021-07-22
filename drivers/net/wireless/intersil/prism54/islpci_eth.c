@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -61,9 +50,9 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 			      skb, skb->data, skb->len, skb->truesize);
 #endif
 
-			pci_unmap_single(priv->pdev,
+			dma_unmap_single(&priv->pdev->dev,
 					 priv->pci_map_tx_address[index],
-					 skb->len, PCI_DMA_TODEVICE);
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(skb);
 			skb = NULL;
 		}
@@ -187,10 +176,9 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 #endif
 
 	/* map the skb buffer to pci memory for DMA operation */
-	pci_map_address = pci_map_single(priv->pdev,
-					 (void *) skb->data, skb->len,
-					 PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(priv->pdev, pci_map_address)) {
+	pci_map_address = dma_map_single(&priv->pdev->dev, (void *)skb->data,
+					 skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, pci_map_address)) {
 		printk(KERN_WARNING "%s: cannot map buffer to PCI\n",
 		       ndev->name);
 		goto drop_free;
@@ -334,9 +322,8 @@ islpci_eth_receive(islpci_private *priv)
 #endif
 
 	/* delete the streaming DMA mapping before processing the skb */
-	pci_unmap_single(priv->pdev,
-			 priv->pci_map_rx_address[index],
-			 MAX_FRAGMENT_SIZE_RX + 2, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&priv->pdev->dev, priv->pci_map_rx_address[index],
+			 MAX_FRAGMENT_SIZE_RX + 2, DMA_FROM_DEVICE);
 
 	/* update the skb structure and align the buffer */
 	skb_put(skb, size);
@@ -442,11 +429,9 @@ islpci_eth_receive(islpci_private *priv)
 
 		/* set the streaming DMA mapping for proper PCI bus operation */
 		priv->pci_map_rx_address[index] =
-		    pci_map_single(priv->pdev, (void *) skb->data,
-				   MAX_FRAGMENT_SIZE_RX + 2,
-				   PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(priv->pdev,
-					  priv->pci_map_rx_address[index])) {
+		    dma_map_single(&priv->pdev->dev, (void *)skb->data,
+				   MAX_FRAGMENT_SIZE_RX + 2, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&priv->pdev->dev, priv->pci_map_rx_address[index])) {
 			/* error mapping the buffer to device accessible memory address */
 			DEBUG(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");
@@ -484,7 +469,7 @@ islpci_do_reset_and_wake(struct work_struct *work)
 }
 
 void
-islpci_eth_tx_timeout(struct net_device *ndev)
+islpci_eth_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	islpci_private *priv = netdev_priv(ndev);
 

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. AD7417 sensors
  *
  * Copyright 2012 Benjamin Herrenschmidt, IBM Corp.
- *
- * Released under the term of the GNU GPL v2.
  */
 
 #include <linux/types.h>
@@ -313,9 +312,16 @@ static const struct i2c_device_id wf_ad7417_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wf_ad7417_id);
 
+static const struct of_device_id wf_ad7417_of_id[] = {
+	{ .compatible = "ad7417", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wf_ad7417_of_id);
+
 static struct i2c_driver wf_ad7417_driver = {
 	.driver = {
 		.name	= "wf_ad7417",
+		.of_match_table = wf_ad7417_of_id,
 	},
 	.probe		= wf_ad7417_probe,
 	.remove		= wf_ad7417_remove,

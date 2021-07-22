@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
   drbd_int.h
 
@@ -7,19 +8,6 @@
   Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
   Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
-  drbd is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
-
-  drbd is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with drbd; see the file COPYING.  If not, write to
-  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -430,7 +418,11 @@ enum {
 	__EE_MAY_SET_IN_SYNC,
 
 	/* is this a TRIM aka REQ_OP_DISCARD? */
-	__EE_IS_TRIM,
+	__EE_TRIM,
+	/* explicit zero-out requested, or
+	 * our lower level cannot handle trim,
+	 * and we want to fall back to zeroout instead */
+	__EE_ZEROOUT,
 
 	/* In case a barrier failed,
 	 * we need to resubmit without the barrier flag. */
@@ -472,7 +464,8 @@ enum {
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
-#define EE_IS_TRIM             (1<<__EE_IS_TRIM)
+#define EE_TRIM                (1<<__EE_TRIM)
+#define EE_ZEROOUT             (1<<__EE_ZEROOUT)
 #define EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
@@ -627,9 +620,9 @@ struct fifo_buffer {
 	unsigned int head_index;
 	unsigned int size;
 	int total; /* sum of all values */
-	int values[0];
+	int values[];
 };
-extern struct fifo_buffer *fifo_alloc(int fifo_size);
+extern struct fifo_buffer *fifo_alloc(unsigned int fifo_size);
 
 /* flag bits per connection */
 enum {
@@ -848,7 +841,6 @@ struct drbd_device {
 
 	sector_t p_size;     /* partner's disk size */
 	struct request_queue *rq_queue;
-	struct block_device *this_bdev;
 	struct gendisk	    *vdisk;
 
 	unsigned long last_reattach_jif;
@@ -1312,10 +1304,6 @@ struct bm_extent {
 
 #define DRBD_MAX_SECTORS_FIXED_BM \
 	  ((MD_128MB_SECT - MD_32kB_SECT - MD_4kB_SECT) * (1LL<<(BM_EXT_SHIFT-9)))
-#if !defined(CONFIG_LBDAF) && BITS_PER_LONG == 32
-#define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_32
-#define DRBD_MAX_SECTORS_FLEX DRBD_MAX_SECTORS_32
-#else
 #define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_FIXED_BM
 /* 16 TB in units of sectors */
 #if BITS_PER_LONG == 32
@@ -1328,7 +1316,6 @@ struct bm_extent {
 #define DRBD_MAX_SECTORS_FLEX (1UL << 51)
 /* corresponds to (1UL << 38) bits right now. */
 #endif
-#endif
 
 /* Estimate max bio size as 256 * PAGE_SIZE,
  * so for typical PAGE_SIZE of 4k, that is (1<<20) Byte.
@@ -1337,7 +1324,7 @@ struct bm_extent {
  * A followup commit may allow even bigger BIO sizes,
  * once we thought that through. */
 #define DRBD_MAX_BIO_SIZE (1U << 20)
-#if DRBD_MAX_BIO_SIZE > (BIO_MAX_PAGES << PAGE_SHIFT)
+#if DRBD_MAX_BIO_SIZE > (BIO_MAX_VECS << PAGE_SHIFT)
 #error Architecture not supported: DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
 #endif
 #define DRBD_MAX_BIO_SIZE_SAFE (1U << 12)       /* Works always = 4k */
@@ -1435,8 +1422,6 @@ extern mempool_t drbd_md_io_page_pool;
 /* We also need to make sure we get a bio
  * when we need it for housekeeping purposes */
 extern struct bio_set drbd_md_io_bio_set;
-/* to allocate from that set */
-extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 
 /* And a bio_set for cloning */
 extern struct bio_set drbd_io_bio_set;
@@ -1462,8 +1447,8 @@ extern void conn_free_crypto(struct drbd_connection *connection);
 
 /* drbd_req */
 extern void do_submit(struct work_struct *ws);
-extern void __drbd_make_request(struct drbd_device *, struct bio *, unsigned long);
-extern blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio);
+extern void __drbd_make_request(struct drbd_device *, struct bio *);
+extern blk_qc_t drbd_submit_bio(struct bio *bio);
 extern int drbd_read_remote(struct drbd_device *device, struct drbd_request *req);
 extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
@@ -1556,6 +1541,8 @@ extern void start_resync_timer_fn(struct timer_list *t);
 extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
 
 /* drbd_receiver.c */
+extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
+		sector_t start, unsigned int nr_sectors, int flags);
 extern int drbd_receiver(struct drbd_thread *thi);
 extern int drbd_ack_receiver(struct drbd_thread *thi);
 extern void drbd_send_ping_wf(struct work_struct *ws);
@@ -1580,52 +1567,18 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
 extern int drbd_connected(struct drbd_peer_device *);
 
-static inline void drbd_tcp_cork(struct socket *sock)
-{
-	int val = 1;
-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
-			(char*)&val, sizeof(val));
-}
-
-static inline void drbd_tcp_uncork(struct socket *sock)
-{
-	int val = 0;
-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
-			(char*)&val, sizeof(val));
-}
-
-static inline void drbd_tcp_nodelay(struct socket *sock)
-{
-	int val = 1;
-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
-			(char*)&val, sizeof(val));
-}
-
-static inline void drbd_tcp_quickack(struct socket *sock)
-{
-	int val = 2;
-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
-			(char*)&val, sizeof(val));
-}
-
 /* sets the number of 512 byte sectors of our virtual device */
-static inline void drbd_set_my_capacity(struct drbd_device *device,
-					sector_t size)
-{
-	/* set_capacity(device->this_bdev->bd_disk, size); */
-	set_capacity(device->vdisk, size);
-	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
-}
+void drbd_set_my_capacity(struct drbd_device *device, sector_t size);
 
 /*
  * used to submit our private bio
  */
-static inline void drbd_generic_make_request(struct drbd_device *device,
+static inline void drbd_submit_bio_noacct(struct drbd_device *device,
 					     int fault_type, struct bio *bio)
 {
 	__release(local);
-	if (!bio->bi_disk) {
-		drbd_err(device, "drbd_generic_make_request: bio->bi_disk == NULL\n");
+	if (!bio->bi_bdev) {
+		drbd_err(device, "drbd_submit_bio_noacct: bio->bi_bdev == NULL\n");
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return;
@@ -1634,7 +1587,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 	if (drbd_insert_fault(device, fault_type))
 		bio_io_error(bio);
 	else
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 }
 
 void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backing_dev *bdev,
@@ -1777,7 +1730,7 @@ static inline void __drbd_chk_io_error_(struct drbd_device *device,
 				_drbd_set_state(_NS(device, disk, D_INCONSISTENT), CS_HARD, NULL);
 			break;
 		}
-		/* NOTE fall through for DRBD_META_IO_ERROR or DRBD_FORCE_DETACH */
+		fallthrough;	/* for DRBD_META_IO_ERROR or DRBD_FORCE_DETACH */
 	case EP_DETACH:
 	case EP_CALL_HELPER:
 		/* Remember whether we saw a READ or WRITE error.
@@ -1976,7 +1929,7 @@ static inline void wake_ack_receiver(struct drbd_connection *connection)
 {
 	struct task_struct *task = connection->ack_receiver.task;
 	if (task && get_t_state(&connection->ack_receiver) == RUNNING)
-		force_sig(SIGXCPU, task);
+		send_sig(SIGXCPU, task, 1);
 }
 
 static inline void request_ping(struct drbd_connection *connection)

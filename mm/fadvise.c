@@ -22,13 +22,14 @@
 
 #include <asm/unistd.h>
 
+#include "internal.h"
+
 /*
  * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
  * deactivate the pages and clear PG_Referenced.
  */
 
-static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
-			   int advice)
+int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 {
 	struct inode *inode;
 	struct address_space *mapping;
@@ -103,10 +104,6 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 		if (!nrpages)
 			nrpages = ~0UL;
 
-		/*
-		 * Ignore return value because fadvise() shall return
-		 * success even if filesystem can't retrieve a hint,
-		 */
 		force_page_cache_readahead(mapping, file, start_index, nrpages);
 		break;
 	case POSIX_FADV_NOREUSE:
@@ -144,7 +141,7 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 		}
 
 		if (end_index >= start_index) {
-			unsigned long count;
+			unsigned long nr_pagevec = 0;
 
 			/*
 			 * It's common to FADV_DONTNEED right after
@@ -157,8 +154,9 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 			 */
 			lru_add_drain();
 
-			count = invalidate_mapping_pages(mapping,
-						start_index, end_index);
+			invalidate_mapping_pagevec(mapping,
+						start_index, end_index,
+						&nr_pagevec);
 
 			/*
 			 * If fewer pages were invalidated than expected then
@@ -166,7 +164,7 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 			 * a per-cpu pagevec for a remote CPU. Drain all
 			 * pagevecs and try again.
 			 */
-			if (count < (end_index - start_index + 1)) {
+			if (nr_pagevec) {
 				lru_add_drain_all();
 				invalidate_mapping_pages(mapping, start_index,
 						end_index);
@@ -178,6 +176,7 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(generic_fadvise);
 
 int vfs_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 {

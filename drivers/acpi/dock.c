@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  dock.c - ACPI dock station driver
  *
  *  Copyright (C) 2006, 2014, Intel Corp.
  *  Author: Kristen Carlson Accardi <kristen.c.accardi@intel.com>
  *          Rafael J. Wysocki <rafael.j.wysocki@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/kernel.h>
@@ -32,8 +19,6 @@
 #include <linux/acpi.h>
 
 #include "internal.h"
-
-ACPI_MODULE_NAME("dock");
 
 static bool immediate_undock = 1;
 module_param(immediate_undock, bool, 0644);
@@ -246,7 +231,8 @@ static void hot_remove_dock_devices(struct dock_station *ds)
 	 * between them).
 	 */
 	list_for_each_entry_reverse(dd, &ds->dependent_devices, list)
-		dock_hotplug_event(dd, ACPI_NOTIFY_EJECT_REQUEST, false);
+		dock_hotplug_event(dd, ACPI_NOTIFY_EJECT_REQUEST,
+				   DOCK_CALL_HANDLER);
 
 	list_for_each_entry_reverse(dd, &ds->dependent_devices, list)
 		acpi_bus_trim(dd->adev);
@@ -285,6 +271,7 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 
 		if (!acpi_device_enumerated(adev)) {
 			int ret = acpi_bus_scan(adev->handle);
+
 			if (ret)
 				dev_dbg(&adev->dev, "scan error %d\n", -ret);
 		}
@@ -482,7 +469,7 @@ int dock_notify(struct acpi_device *adev, u32 event)
 		surprise_removal = 1;
 		event = ACPI_NOTIFY_EJECT_REQUEST;
 		/* Fall back */
-		/* fall through */
+		fallthrough;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		begin_undock(ds);
 		if ((immediate_undock && !(ds->flags & DOCK_IS_ATA))
@@ -498,7 +485,7 @@ int dock_notify(struct acpi_device *adev, u32 event)
 /*
  * show_docked - read method for "docked" file in sysfs
  */
-static ssize_t show_docked(struct device *dev,
+static ssize_t docked_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	struct dock_station *dock_station = dev->platform_data;
@@ -507,25 +494,26 @@ static ssize_t show_docked(struct device *dev,
 	acpi_bus_get_device(dock_station->handle, &adev);
 	return snprintf(buf, PAGE_SIZE, "%u\n", acpi_device_enumerated(adev));
 }
-static DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
+static DEVICE_ATTR_RO(docked);
 
 /*
  * show_flags - read method for flags file in sysfs
  */
-static ssize_t show_flags(struct device *dev,
+static ssize_t flags_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct dock_station *dock_station = dev->platform_data;
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", dock_station->flags);
 
 }
-static DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
+static DEVICE_ATTR_RO(flags);
 
 /*
  * write_undock - write method for "undock" file in sysfs
  */
-static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t undock_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int ret;
 	struct dock_station *dock_station = dev->platform_data;
@@ -537,29 +525,30 @@ static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
 	begin_undock(dock_station);
 	ret = handle_eject_request(dock_station, ACPI_NOTIFY_EJECT_REQUEST);
 	acpi_scan_lock_release();
-	return ret ? ret: count;
+	return ret ? ret : count;
 }
-static DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
+static DEVICE_ATTR_WO(undock);
 
 /*
  * show_dock_uid - read method for "uid" file in sysfs
  */
-static ssize_t show_dock_uid(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static ssize_t uid_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	unsigned long long lbuf;
 	struct dock_station *dock_station = dev->platform_data;
+
 	acpi_status status = acpi_evaluate_integer(dock_station->handle,
 					"_UID", NULL, &lbuf);
 	if (ACPI_FAILURE(status))
-	    return 0;
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%llx\n", lbuf);
 }
-static DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
+static DEVICE_ATTR_RO(uid);
 
-static ssize_t show_dock_type(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct dock_station *dock_station = dev->platform_data;
 	char *type;
@@ -575,7 +564,7 @@ static ssize_t show_dock_type(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", type);
 }
-static DEVICE_ATTR(type, S_IRUGO, show_dock_type, NULL);
+static DEVICE_ATTR_RO(type);
 
 static struct attribute *dock_attributes[] = {
 	&dev_attr_docked.attr,

@@ -23,9 +23,9 @@
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
+#include <linux/extable.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/setup.h>
@@ -53,54 +53,6 @@ static void __noreturn unhandled_fault(unsigned long address,
 		(tsk->mm ? (unsigned long) tsk->mm->pgd :
 			(unsigned long) tsk->active_mm->pgd));
 	die_if_kernel("Oops", regs);
-}
-
-asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
-			    unsigned long address)
-{
-	struct pt_regs regs;
-	unsigned long g2;
-	unsigned int insn;
-	int i;
-
-	i = search_extables_range(ret_pc, &g2);
-	switch (i) {
-	case 3:
-		/* load & store will be handled by fixup */
-		return 3;
-
-	case 1:
-		/* store will be handled by fixup, load will bump out */
-		/* for _to_ macros */
-		insn = *((unsigned int *) pc);
-		if ((insn >> 21) & 1)
-			return 1;
-		break;
-
-	case 2:
-		/* load will be handled by fixup, store will bump out */
-		/* for _from_ macros */
-		insn = *((unsigned int *) pc);
-		if (!((insn >> 21) & 1) || ((insn>>19)&0x3f) == 15)
-			return 2;
-		break;
-
-	default:
-		break;
-	}
-
-	memset(&regs, 0, sizeof(regs));
-	regs.pc = pc;
-	regs.npc = pc + 4;
-	__asm__ __volatile__(
-		"rd %%psr, %0\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"nop\n" : "=r" (regs.psr));
-	unhandled_fault(address, current, &regs);
-
-	/* Not reached */
-	return 0;
 }
 
 static inline void
@@ -131,7 +83,7 @@ static void __do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 		show_signal_msg(regs, sig, code,
 				addr, current);
 
-	force_sig_fault(sig, code, (void __user *) addr, 0, current);
+	force_sig_fault(sig, code, (void __user *) addr, 0);
 }
 
 static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
@@ -163,12 +115,10 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	struct vm_area_struct *vma;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	unsigned int fixup;
-	unsigned long g2;
 	int from_user = !(regs->psr & PSR_PS);
 	int code;
 	vm_fault_t fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	if (text_fault)
 		address = regs->pc;
@@ -196,7 +146,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
 retry:
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	if (!from_user && address >= PAGE_OFFSET)
 		goto bad_area;
@@ -235,9 +185,9 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags, regs);
 
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+	if (fault_signal_pending(fault, regs))
 		return;
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
@@ -251,20 +201,10 @@ good_area:
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR) {
-			current->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ,
-				      1, regs, address);
-		} else {
-			current->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN,
-				      1, regs, address);
-		}
 		if (fault & VM_FAULT_RETRY) {
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
 
-			/* No need to up_read(&mm->mmap_sem) as we would
+			/* No need to mmap_read_unlock(mm) as we would
 			 * have already released it in __lock_page_or_retry
 			 * in mm/filemap.c.
 			 */
@@ -273,7 +213,7 @@ good_area:
 		}
 	}
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return;
 
 	/*
@@ -281,7 +221,7 @@ good_area:
 	 * Fix it, but check if it's kernel or user first..
 	 */
 bad_area:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
@@ -292,34 +232,19 @@ bad_area_nosemaphore:
 
 	/* Is this in ex_table? */
 no_context:
-	g2 = regs->u_regs[UREG_G2];
 	if (!from_user) {
-		fixup = search_extables_range(regs->pc, &g2);
-		/* Values below 10 are reserved for other things */
-		if (fixup > 10) {
-			extern const unsigned int __memset_start[];
-			extern const unsigned int __memset_end[];
-			extern const unsigned int __csum_partial_copy_start[];
-			extern const unsigned int __csum_partial_copy_end[];
+		const struct exception_table_entry *entry;
 
+		entry = search_exception_tables(regs->pc);
 #ifdef DEBUG_EXCEPTIONS
-			printk("Exception: PC<%08lx> faddr<%08lx>\n",
-			       regs->pc, address);
-			printk("EX_TABLE: insn<%08lx> fixup<%08x> g2<%08lx>\n",
-				regs->pc, fixup, g2);
+		printk("Exception: PC<%08lx> faddr<%08lx>\n",
+		       regs->pc, address);
+		printk("EX_TABLE: insn<%08lx> fixup<%08x>\n",
+			regs->pc, entry->fixup);
 #endif
-			if ((regs->pc >= (unsigned long)__memset_start &&
-			     regs->pc < (unsigned long)__memset_end) ||
-			    (regs->pc >= (unsigned long)__csum_partial_copy_start &&
-			     regs->pc < (unsigned long)__csum_partial_copy_end)) {
-				regs->u_regs[UREG_I4] = address;
-				regs->u_regs[UREG_I5] = regs->pc;
-			}
-			regs->u_regs[UREG_G2] = g2;
-			regs->pc = fixup;
-			regs->npc = regs->pc + 4;
-			return;
-		}
+		regs->pc = entry->fixup;
+		regs->npc = regs->pc + 4;
+		return;
 	}
 
 	unhandled_fault(address, tsk, regs);
@@ -330,7 +255,7 @@ no_context:
  * us unable to handle the page fault gracefully.
  */
 out_of_memory:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (from_user) {
 		pagefault_out_of_memory();
 		return;
@@ -338,7 +263,7 @@ out_of_memory:
 	goto no_context;
 
 do_sigbus:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, text_fault);
 	if (!from_user)
 		goto no_context;
@@ -351,6 +276,8 @@ vmalloc_fault:
 		 */
 		int offset = pgd_index(address);
 		pgd_t *pgd, *pgd_k;
+		p4d_t *p4d, *p4d_k;
+		pud_t *pud, *pud_k;
 		pmd_t *pmd, *pmd_k;
 
 		pgd = tsk->active_mm->pgd + offset;
@@ -363,8 +290,13 @@ vmalloc_fault:
 			return;
 		}
 
-		pmd = pmd_offset(pgd, address);
-		pmd_k = pmd_offset(pgd_k, address);
+		p4d = p4d_offset(pgd, address);
+		pud = pud_offset(p4d, address);
+		pmd = pmd_offset(pud, address);
+
+		p4d_k = p4d_offset(pgd_k, address);
+		pud_k = pud_offset(p4d_k, address);
+		pmd_k = pmd_offset(pud_k, address);
 
 		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
 			goto bad_area_nosemaphore;
@@ -385,7 +317,7 @@ static void force_user_fault(unsigned long address, int write)
 
 	code = SEGV_MAPERR;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
@@ -405,27 +337,27 @@ good_area:
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
-	switch (handle_mm_fault(vma, address, flags)) {
+	switch (handle_mm_fault(vma, address, flags, NULL)) {
 	case VM_FAULT_SIGBUS:
 	case VM_FAULT_OOM:
 		goto do_sigbus;
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return;
 bad_area:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	__do_fault_siginfo(code, SIGSEGV, tsk->thread.kregs, address);
 	return;
 
 do_sigbus:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	__do_fault_siginfo(BUS_ADRERR, SIGBUS, tsk->thread.kregs, address);
 }
 
 static void check_stack_aligned(unsigned long sp)
 {
 	if (sp & 0x7UL)
-		force_sig(SIGILL, current);
+		force_sig(SIGILL);
 }
 
 void window_overflow_fault(void)

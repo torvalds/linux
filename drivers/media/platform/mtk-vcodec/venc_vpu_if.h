@@ -1,22 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PoChun Lin <pochun.lin@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _VENC_VPU_IF_H_
 #define _VENC_VPU_IF_H_
 
-#include "mtk_vpu.h"
+#include "mtk_vcodec_fw.h"
 #include "venc_drv_if.h"
 
 /*
@@ -43,9 +34,8 @@ struct venc_vpu_inst {
 	int is_key_frm;
 	unsigned int inst_addr;
 	void *vsi;
-	enum ipi_id id;
+	int id;
 	struct mtk_vcodec_ctx *ctx;
-	struct platform_device *dev;
 };
 
 int vpu_enc_init(struct venc_vpu_inst *vpu);
@@ -55,7 +45,8 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 		   struct venc_frm_buf *frm_buf,
 		   struct mtk_vcodec_mem *bs_buf,
-		   unsigned int *bs_size);
+		   unsigned int *bs_size,
+		   struct venc_frame_info *frame_info);
 int vpu_enc_deinit(struct venc_vpu_inst *vpu);
 
 #endif

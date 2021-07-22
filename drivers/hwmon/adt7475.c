@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * adt7475 - Thermal sensor driver for the ADT7475 chip and derivatives
  * Copyright (C) 2007-2008, Advanced Micro Devices, Inc.
@@ -6,10 +7,6 @@
  * Copyright (C) 2009 Jean Delvare <jdelvare@suse.de>
  *
  * Derived from the lm83 driver by Jean Delvare
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -22,6 +19,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
+#include <linux/of.h>
 #include <linux/util_macros.h>
 
 /* Indexes for the sysfs hooks */
@@ -168,7 +166,7 @@ static const struct i2c_device_id adt7475_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adt7475_id);
 
-static const struct of_device_id adt7475_of_match[] = {
+static const struct of_device_id __maybe_unused adt7475_of_match[] = {
 	{
 		.compatible = "adi,adt7473",
 		.data = (void *)adt7473
@@ -190,12 +188,13 @@ static const struct of_device_id adt7475_of_match[] = {
 MODULE_DEVICE_TABLE(of, adt7475_of_match);
 
 struct adt7475_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	struct mutex lock;
 
 	unsigned long measure_updated;
 	bool valid;
 
+	u8 config2;
 	u8 config4;
 	u8 config5;
 	u8 has_voltage;
@@ -215,6 +214,7 @@ struct adt7475_data {
 
 	u8 vid;
 	u8 vrm;
+	const struct attribute_group *groups[9];
 };
 
 static struct i2c_driver adt7475_driver;
@@ -296,9 +296,10 @@ static inline u16 volt2reg(int channel, long volt, u8 bypass_attn)
 	long reg;
 
 	if (bypass_attn & (1 << channel))
-		reg = (volt * 1024) / 2250;
+		reg = DIV_ROUND_CLOSEST(volt * 1024, 2250);
 	else
-		reg = (volt * r[1] * 1024) / ((r[0] + r[1]) * 2250);
+		reg = DIV_ROUND_CLOSEST(volt * r[1] * 1024,
+					(r[0] + r[1]) * 2250);
 	return clamp_val(reg, 0, 1023) & (0xff << 2);
 }
 
@@ -322,7 +323,7 @@ static void adt7475_write_word(struct i2c_client *client, int reg, u16 val)
 	i2c_smbus_write_byte_data(client, reg, val & 0xFF);
 }
 
-static ssize_t show_voltage(struct device *dev, struct device_attribute *attr,
+static ssize_t voltage_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -343,13 +344,14 @@ static ssize_t show_voltage(struct device *dev, struct device_attribute *attr,
 	}
 }
 
-static ssize_t set_voltage(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t voltage_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned char reg;
 	long val;
 
@@ -380,7 +382,7 @@ static ssize_t set_voltage(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
+static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -438,12 +440,12 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", out);
 }
 
-static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t temp_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned char reg = 0;
 	u8 out;
 	int temp;
@@ -540,12 +542,11 @@ static const int ad7475_st_map[] = {
 	37500, 18800, 12500, 7500, 4700, 3100, 1600, 800,
 };
 
-static ssize_t show_temp_st(struct device *dev, struct device_attribute *attr,
-				  char *buf)
+static ssize_t temp_st_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
 	long val;
 
 	switch (sattr->index) {
@@ -567,12 +568,13 @@ static ssize_t show_temp_st(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "0\n");
 }
 
-static ssize_t set_temp_st(struct device *dev, struct device_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t temp_st_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned char reg;
 	int shift, idx;
 	ulong val;
@@ -627,7 +629,7 @@ static const int autorange_table[] = {
 	53330, 80000
 };
 
-static ssize_t show_point2(struct device *dev, struct device_attribute *attr,
+static ssize_t point2_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -645,11 +647,11 @@ static ssize_t show_point2(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", val + autorange_table[out]);
 }
 
-static ssize_t set_point2(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t point2_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
 	int temp;
 	long val;
@@ -688,7 +690,7 @@ static ssize_t set_point2(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_tach(struct device *dev, struct device_attribute *attr,
+static ssize_t tach_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -706,13 +708,13 @@ static ssize_t show_tach(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", out);
 }
 
-static ssize_t set_tach(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t tach_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned long val;
 
 	if (kstrtoul(buf, 10, &val))
@@ -729,7 +731,7 @@ static ssize_t set_tach(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
+static ssize_t pwm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -741,7 +743,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->pwm[sattr->nr][sattr->index]);
 }
 
-static ssize_t show_pwmchan(struct device *dev, struct device_attribute *attr,
+static ssize_t pwmchan_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -753,7 +755,7 @@ static ssize_t show_pwmchan(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->pwmchan[sattr->index]);
 }
 
-static ssize_t show_pwmctrl(struct device *dev, struct device_attribute *attr,
+static ssize_t pwmctrl_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -765,13 +767,13 @@ static ssize_t show_pwmctrl(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->pwmctl[sattr->index]);
 }
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	unsigned char reg = 0;
 	long val;
 
@@ -815,24 +817,24 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_stall_disable(struct device *dev,
+static ssize_t stall_disable_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+
 	u8 mask = BIT(5 + sattr->index);
 
 	return sprintf(buf, "%d\n", !!(data->enh_acoustics[0] & mask));
 }
 
-static ssize_t set_stall_disable(struct device *dev,
-				 struct device_attribute *attr, const char *buf,
-				 size_t count)
+static ssize_t stall_disable_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long val;
 	u8 mask = BIT(5 + sattr->index);
 
@@ -910,12 +912,13 @@ static int hw_set_pwm(struct i2c_client *client, int index,
 	return 0;
 }
 
-static ssize_t set_pwmchan(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t pwmchan_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	int r;
 	long val;
 
@@ -933,12 +936,13 @@ static ssize_t set_pwmchan(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_pwmctrl(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t pwmctrl_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	int r;
 	long val;
 
@@ -961,7 +965,7 @@ static const int pwmfreq_table[] = {
 	11, 14, 22, 29, 35, 44, 58, 88, 22500
 };
 
-static ssize_t show_pwmfreq(struct device *dev, struct device_attribute *attr,
+static ssize_t pwmfreq_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
@@ -976,12 +980,13 @@ static ssize_t show_pwmfreq(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", pwmfreq_table[idx]);
 }
 
-static ssize_t set_pwmfreq(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t pwmfreq_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	int out;
 	long val;
 
@@ -1020,8 +1025,8 @@ static ssize_t pwm_use_point2_pwm_at_crit_store(struct device *dev,
 					struct device_attribute *devattr,
 					const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long val;
 
 	if (kstrtol(buf, 10, &val))
@@ -1074,156 +1079,95 @@ static ssize_t cpu0_vid_show(struct device *dev,
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
-static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO, show_voltage, NULL, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(in0_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 0);
-static SENSOR_DEVICE_ATTR_2(in0_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 0);
-static SENSOR_DEVICE_ATTR_2(in0_alarm, S_IRUGO, show_voltage, NULL, ALARM, 0);
-static SENSOR_DEVICE_ATTR_2(in1_input, S_IRUGO, show_voltage, NULL, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(in1_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 1);
-static SENSOR_DEVICE_ATTR_2(in1_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 1);
-static SENSOR_DEVICE_ATTR_2(in1_alarm, S_IRUGO, show_voltage, NULL, ALARM, 1);
-static SENSOR_DEVICE_ATTR_2(in2_input, S_IRUGO, show_voltage, NULL, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(in2_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 2);
-static SENSOR_DEVICE_ATTR_2(in2_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 2);
-static SENSOR_DEVICE_ATTR_2(in2_alarm, S_IRUGO, show_voltage, NULL, ALARM, 2);
-static SENSOR_DEVICE_ATTR_2(in3_input, S_IRUGO, show_voltage, NULL, INPUT, 3);
-static SENSOR_DEVICE_ATTR_2(in3_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 3);
-static SENSOR_DEVICE_ATTR_2(in3_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 3);
-static SENSOR_DEVICE_ATTR_2(in3_alarm, S_IRUGO, show_voltage, NULL, ALARM, 3);
-static SENSOR_DEVICE_ATTR_2(in4_input, S_IRUGO, show_voltage, NULL, INPUT, 4);
-static SENSOR_DEVICE_ATTR_2(in4_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 4);
-static SENSOR_DEVICE_ATTR_2(in4_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 4);
-static SENSOR_DEVICE_ATTR_2(in4_alarm, S_IRUGO, show_voltage, NULL, ALARM, 8);
-static SENSOR_DEVICE_ATTR_2(in5_input, S_IRUGO, show_voltage, NULL, INPUT, 5);
-static SENSOR_DEVICE_ATTR_2(in5_max, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MAX, 5);
-static SENSOR_DEVICE_ATTR_2(in5_min, S_IRUGO | S_IWUSR, show_voltage,
-			    set_voltage, MIN, 5);
-static SENSOR_DEVICE_ATTR_2(in5_alarm, S_IRUGO, show_voltage, NULL, ALARM, 31);
-static SENSOR_DEVICE_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_alarm, S_IRUGO, show_temp, NULL, ALARM, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_fault, S_IRUGO, show_temp, NULL, FAULT, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MAX, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MIN, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_offset, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, OFFSET, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_auto_point1_temp, S_IRUGO | S_IWUSR,
-			    show_temp, set_temp, AUTOMIN, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_auto_point2_temp, S_IRUGO | S_IWUSR,
-			    show_point2, set_point2, 0, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_crit, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    THERM, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_crit_hyst, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, HYSTERSIS, 0);
-static SENSOR_DEVICE_ATTR_2(temp1_smoothing, S_IRUGO | S_IWUSR, show_temp_st,
-			    set_temp_st, 0, 0);
-static SENSOR_DEVICE_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_alarm, S_IRUGO, show_temp, NULL, ALARM, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MAX, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MIN, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_offset, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, OFFSET, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_auto_point1_temp, S_IRUGO | S_IWUSR,
-			    show_temp, set_temp, AUTOMIN, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_auto_point2_temp, S_IRUGO | S_IWUSR,
-			    show_point2, set_point2, 0, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_crit, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    THERM, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_crit_hyst, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, HYSTERSIS, 1);
-static SENSOR_DEVICE_ATTR_2(temp2_smoothing, S_IRUGO | S_IWUSR, show_temp_st,
-			    set_temp_st, 0, 1);
-static SENSOR_DEVICE_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_alarm, S_IRUGO, show_temp, NULL, ALARM, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_fault, S_IRUGO, show_temp, NULL, FAULT, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MAX, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    MIN, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_offset, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, OFFSET, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_auto_point1_temp, S_IRUGO | S_IWUSR,
-			    show_temp, set_temp, AUTOMIN, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_auto_point2_temp, S_IRUGO | S_IWUSR,
-			    show_point2, set_point2, 0, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_crit, S_IRUGO | S_IWUSR, show_temp, set_temp,
-			    THERM, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_crit_hyst, S_IRUGO | S_IWUSR, show_temp,
-			    set_temp, HYSTERSIS, 2);
-static SENSOR_DEVICE_ATTR_2(temp3_smoothing, S_IRUGO | S_IWUSR, show_temp_st,
-			    set_temp_st, 0, 2);
-static SENSOR_DEVICE_ATTR_2(fan1_input, S_IRUGO, show_tach, NULL, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(fan1_min, S_IRUGO | S_IWUSR, show_tach, set_tach,
-			    MIN, 0);
-static SENSOR_DEVICE_ATTR_2(fan1_alarm, S_IRUGO, show_tach, NULL, ALARM, 0);
-static SENSOR_DEVICE_ATTR_2(fan2_input, S_IRUGO, show_tach, NULL, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(fan2_min, S_IRUGO | S_IWUSR, show_tach, set_tach,
-			    MIN, 1);
-static SENSOR_DEVICE_ATTR_2(fan2_alarm, S_IRUGO, show_tach, NULL, ALARM, 1);
-static SENSOR_DEVICE_ATTR_2(fan3_input, S_IRUGO, show_tach, NULL, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(fan3_min, S_IRUGO | S_IWUSR, show_tach, set_tach,
-			    MIN, 2);
-static SENSOR_DEVICE_ATTR_2(fan3_alarm, S_IRUGO, show_tach, NULL, ALARM, 2);
-static SENSOR_DEVICE_ATTR_2(fan4_input, S_IRUGO, show_tach, NULL, INPUT, 3);
-static SENSOR_DEVICE_ATTR_2(fan4_min, S_IRUGO | S_IWUSR, show_tach, set_tach,
-			    MIN, 3);
-static SENSOR_DEVICE_ATTR_2(fan4_alarm, S_IRUGO, show_tach, NULL, ALARM, 3);
-static SENSOR_DEVICE_ATTR_2(pwm1, S_IRUGO | S_IWUSR, show_pwm, set_pwm, INPUT,
-			    0);
-static SENSOR_DEVICE_ATTR_2(pwm1_freq, S_IRUGO | S_IWUSR, show_pwmfreq,
-			    set_pwmfreq, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(pwm1_enable, S_IRUGO | S_IWUSR, show_pwmctrl,
-			    set_pwmctrl, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(pwm1_auto_channels_temp, S_IRUGO | S_IWUSR,
-			    show_pwmchan, set_pwmchan, INPUT, 0);
-static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MIN, 0);
-static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MAX, 0);
-static SENSOR_DEVICE_ATTR_2(pwm1_stall_disable, S_IRUGO | S_IWUSR,
-			    show_stall_disable, set_stall_disable, 0, 0);
-static SENSOR_DEVICE_ATTR_2(pwm2, S_IRUGO | S_IWUSR, show_pwm, set_pwm, INPUT,
-			    1);
-static SENSOR_DEVICE_ATTR_2(pwm2_freq, S_IRUGO | S_IWUSR, show_pwmfreq,
-			    set_pwmfreq, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(pwm2_enable, S_IRUGO | S_IWUSR, show_pwmctrl,
-			    set_pwmctrl, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(pwm2_auto_channels_temp, S_IRUGO | S_IWUSR,
-			    show_pwmchan, set_pwmchan, INPUT, 1);
-static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MIN, 1);
-static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MAX, 1);
-static SENSOR_DEVICE_ATTR_2(pwm2_stall_disable, S_IRUGO | S_IWUSR,
-			    show_stall_disable, set_stall_disable, 0, 1);
-static SENSOR_DEVICE_ATTR_2(pwm3, S_IRUGO | S_IWUSR, show_pwm, set_pwm, INPUT,
-			    2);
-static SENSOR_DEVICE_ATTR_2(pwm3_freq, S_IRUGO | S_IWUSR, show_pwmfreq,
-			    set_pwmfreq, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(pwm3_enable, S_IRUGO | S_IWUSR, show_pwmctrl,
-			    set_pwmctrl, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(pwm3_auto_channels_temp, S_IRUGO | S_IWUSR,
-			    show_pwmchan, set_pwmchan, INPUT, 2);
-static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MIN, 2);
-static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
-			    set_pwm, MAX, 2);
-static SENSOR_DEVICE_ATTR_2(pwm3_stall_disable, S_IRUGO | S_IWUSR,
-			    show_stall_disable, set_stall_disable, 0, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in0_input, voltage, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in0_max, voltage, MAX, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in0_min, voltage, MIN, 0);
+static SENSOR_DEVICE_ATTR_2_RO(in0_alarm, voltage, ALARM, 0);
+static SENSOR_DEVICE_ATTR_2_RO(in1_input, voltage, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in1_max, voltage, MAX, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in1_min, voltage, MIN, 1);
+static SENSOR_DEVICE_ATTR_2_RO(in1_alarm, voltage, ALARM, 1);
+static SENSOR_DEVICE_ATTR_2_RO(in2_input, voltage, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(in2_max, voltage, MAX, 2);
+static SENSOR_DEVICE_ATTR_2_RW(in2_min, voltage, MIN, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in2_alarm, voltage, ALARM, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in3_input, voltage, INPUT, 3);
+static SENSOR_DEVICE_ATTR_2_RW(in3_max, voltage, MAX, 3);
+static SENSOR_DEVICE_ATTR_2_RW(in3_min, voltage, MIN, 3);
+static SENSOR_DEVICE_ATTR_2_RO(in3_alarm, voltage, ALARM, 3);
+static SENSOR_DEVICE_ATTR_2_RO(in4_input, voltage, INPUT, 4);
+static SENSOR_DEVICE_ATTR_2_RW(in4_max, voltage, MAX, 4);
+static SENSOR_DEVICE_ATTR_2_RW(in4_min, voltage, MIN, 4);
+static SENSOR_DEVICE_ATTR_2_RO(in4_alarm, voltage, ALARM, 8);
+static SENSOR_DEVICE_ATTR_2_RO(in5_input, voltage, INPUT, 5);
+static SENSOR_DEVICE_ATTR_2_RW(in5_max, voltage, MAX, 5);
+static SENSOR_DEVICE_ATTR_2_RW(in5_min, voltage, MIN, 5);
+static SENSOR_DEVICE_ATTR_2_RO(in5_alarm, voltage, ALARM, 31);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_input, temp, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_alarm, temp, ALARM, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_fault, temp, FAULT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_max, temp, MAX, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_min, temp, MIN, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_offset, temp, OFFSET, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_auto_point1_temp, temp, AUTOMIN, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_auto_point2_temp, point2, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_crit, temp, THERM, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_crit_hyst, temp, HYSTERSIS, 0);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_smoothing, temp_st, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_input, temp, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_alarm, temp, ALARM, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_max, temp, MAX, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_min, temp, MIN, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_offset, temp, OFFSET, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_auto_point1_temp, temp, AUTOMIN, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_auto_point2_temp, point2, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_crit, temp, THERM, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_crit_hyst, temp, HYSTERSIS, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_smoothing, temp_st, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_input, temp, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_alarm, temp, ALARM, 2);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_fault, temp, FAULT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_max, temp, MAX, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_min, temp, MIN, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_offset, temp, OFFSET, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_auto_point1_temp, temp, AUTOMIN, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_auto_point2_temp, point2, 0, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_crit, temp, THERM, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_crit_hyst, temp, HYSTERSIS, 2);
+static SENSOR_DEVICE_ATTR_2_RW(temp3_smoothing, temp_st, 0, 2);
+static SENSOR_DEVICE_ATTR_2_RO(fan1_input, tach, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(fan1_min, tach, MIN, 0);
+static SENSOR_DEVICE_ATTR_2_RO(fan1_alarm, tach, ALARM, 0);
+static SENSOR_DEVICE_ATTR_2_RO(fan2_input, tach, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(fan2_min, tach, MIN, 1);
+static SENSOR_DEVICE_ATTR_2_RO(fan2_alarm, tach, ALARM, 1);
+static SENSOR_DEVICE_ATTR_2_RO(fan3_input, tach, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(fan3_min, tach, MIN, 2);
+static SENSOR_DEVICE_ATTR_2_RO(fan3_alarm, tach, ALARM, 2);
+static SENSOR_DEVICE_ATTR_2_RO(fan4_input, tach, INPUT, 3);
+static SENSOR_DEVICE_ATTR_2_RW(fan4_min, tach, MIN, 3);
+static SENSOR_DEVICE_ATTR_2_RO(fan4_alarm, tach, ALARM, 3);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1, pwm, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_freq, pwmfreq, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_enable, pwmctrl, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_channels_temp, pwmchan, INPUT, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point1_pwm, pwm, MIN, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_auto_point2_pwm, pwm, MAX, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm1_stall_disable, stall_disable, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2, pwm, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_freq, pwmfreq, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_enable, pwmctrl, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_channels_temp, pwmchan, INPUT, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_point1_pwm, pwm, MIN, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_point2_pwm, pwm, MAX, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm2_stall_disable, stall_disable, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3, pwm, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_freq, pwmfreq, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_enable, pwmctrl, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_channels_temp, pwmchan, INPUT, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_pwm, pwm, MIN, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_pwm, pwm, MAX, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_stall_disable, stall_disable, 0, 2);
 
 /* Non-standard name, might need revisiting */
 static DEVICE_ATTR_RW(pwm_use_point2_pwm_at_crit);
@@ -1401,26 +1345,6 @@ static int adt7475_detect(struct i2c_client *client,
 	return 0;
 }
 
-static void adt7475_remove_files(struct i2c_client *client,
-				 struct adt7475_data *data)
-{
-	sysfs_remove_group(&client->dev.kobj, &adt7475_attr_group);
-	if (data->has_fan4)
-		sysfs_remove_group(&client->dev.kobj, &fan4_attr_group);
-	if (data->has_pwm2)
-		sysfs_remove_group(&client->dev.kobj, &pwm2_attr_group);
-	if (data->has_voltage & (1 << 0))
-		sysfs_remove_group(&client->dev.kobj, &in0_attr_group);
-	if (data->has_voltage & (1 << 3))
-		sysfs_remove_group(&client->dev.kobj, &in3_attr_group);
-	if (data->has_voltage & (1 << 4))
-		sysfs_remove_group(&client->dev.kobj, &in4_attr_group);
-	if (data->has_voltage & (1 << 5))
-		sysfs_remove_group(&client->dev.kobj, &in5_attr_group);
-	if (data->has_vid)
-		sysfs_remove_group(&client->dev.kobj, &vid_attr_group);
-}
-
 static int adt7475_update_limits(struct i2c_client *client)
 {
 	struct adt7475_data *data = i2c_get_clientdata(client);
@@ -1536,8 +1460,86 @@ static int adt7475_update_limits(struct i2c_client *client)
 	return 0;
 }
 
-static int adt7475_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int set_property_bit(const struct i2c_client *client, char *property,
+			    u8 *config, u8 bit_index)
+{
+	u32 prop_value = 0;
+	int ret = of_property_read_u32(client->dev.of_node, property,
+					&prop_value);
+
+	if (!ret) {
+		if (prop_value)
+			*config |= (1 << bit_index);
+		else
+			*config &= ~(1 << bit_index);
+	}
+
+	return ret;
+}
+
+static int load_attenuators(const struct i2c_client *client, int chip,
+			    struct adt7475_data *data)
+{
+	int ret;
+
+	if (chip == adt7476 || chip == adt7490) {
+		set_property_bit(client, "adi,bypass-attenuator-in0",
+				 &data->config4, 4);
+		set_property_bit(client, "adi,bypass-attenuator-in1",
+				 &data->config4, 5);
+		set_property_bit(client, "adi,bypass-attenuator-in3",
+				 &data->config4, 6);
+		set_property_bit(client, "adi,bypass-attenuator-in4",
+				 &data->config4, 7);
+
+		ret = i2c_smbus_write_byte_data(client, REG_CONFIG4,
+						data->config4);
+		if (ret < 0)
+			return ret;
+	} else if (chip == adt7473 || chip == adt7475) {
+		set_property_bit(client, "adi,bypass-attenuator-in1",
+				 &data->config2, 5);
+
+		ret = i2c_smbus_write_byte_data(client, REG_CONFIG2,
+						data->config2);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int adt7475_set_pwm_polarity(struct i2c_client *client)
+{
+	u32 states[ADT7475_PWM_COUNT];
+	int ret, i;
+	u8 val;
+
+	ret = of_property_read_u32_array(client->dev.of_node,
+					 "adi,pwm-active-state", states,
+					 ARRAY_SIZE(states));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ADT7475_PWM_COUNT; i++) {
+		ret = adt7475_read(PWM_CONFIG_REG(i));
+		if (ret < 0)
+			return ret;
+		val = ret;
+		if (states[i])
+			val &= ~BIT(4);
+		else
+			val |= BIT(4);
+
+		ret = i2c_smbus_write_byte_data(client, PWM_CONFIG_REG(i), val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int adt7475_probe(struct i2c_client *client)
 {
 	enum chips chip;
 	static const char * const names[] = {
@@ -1548,14 +1550,17 @@ static int adt7475_probe(struct i2c_client *client,
 	};
 
 	struct adt7475_data *data;
-	int i, ret = 0, revision;
-	u8 config2, config3;
+	struct device *hwmon_dev;
+	int i, ret = 0, revision, group_num = 0;
+	u8 config3;
+	const struct i2c_device_id *id = i2c_match_id(adt7475_id, client);
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
 	mutex_init(&data->lock);
+	data->client = client;
 	i2c_set_clientdata(client, data);
 
 	if (client->dev.of_node)
@@ -1622,8 +1627,12 @@ static int adt7475_probe(struct i2c_client *client,
 	}
 
 	/* Voltage attenuators can be bypassed, globally or individually */
-	config2 = adt7475_read(REG_CONFIG2);
-	if (config2 & CONFIG2_ATTN) {
+	data->config2 = adt7475_read(REG_CONFIG2);
+	ret = load_attenuators(client, chip, data);
+	if (ret)
+		dev_warn(&client->dev, "Error configuring attenuator bypass\n");
+
+	if (data->config2 & CONFIG2_ATTN) {
 		data->bypass_attn = (0x3 << 3) | 0x3;
 	} else {
 		data->bypass_attn = ((data->config4 & CONFIG4_ATTN_IN10) >> 4) |
@@ -1638,6 +1647,10 @@ static int adt7475_probe(struct i2c_client *client,
 	for (i = 0; i < ADT7475_PWM_COUNT; i++)
 		adt7475_read_pwm(client, i);
 
+	ret = adt7475_set_pwm_polarity(client);
+	if (ret && ret != -EINVAL)
+		dev_warn(&client->dev, "Error configuring pwm polarity\n");
+
 	/* Start monitoring */
 	switch (chip) {
 	case adt7475:
@@ -1649,52 +1662,40 @@ static int adt7475_probe(struct i2c_client *client,
 		break;
 	}
 
-	ret = sysfs_create_group(&client->dev.kobj, &adt7475_attr_group);
-	if (ret)
-		return ret;
+	data->groups[group_num++] = &adt7475_attr_group;
 
 	/* Features that can be disabled individually */
 	if (data->has_fan4) {
-		ret = sysfs_create_group(&client->dev.kobj, &fan4_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &fan4_attr_group;
 	}
 	if (data->has_pwm2) {
-		ret = sysfs_create_group(&client->dev.kobj, &pwm2_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &pwm2_attr_group;
 	}
 	if (data->has_voltage & (1 << 0)) {
-		ret = sysfs_create_group(&client->dev.kobj, &in0_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &in0_attr_group;
 	}
 	if (data->has_voltage & (1 << 3)) {
-		ret = sysfs_create_group(&client->dev.kobj, &in3_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &in3_attr_group;
 	}
 	if (data->has_voltage & (1 << 4)) {
-		ret = sysfs_create_group(&client->dev.kobj, &in4_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &in4_attr_group;
 	}
 	if (data->has_voltage & (1 << 5)) {
-		ret = sysfs_create_group(&client->dev.kobj, &in5_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num++] = &in5_attr_group;
 	}
 	if (data->has_vid) {
 		data->vrm = vid_which_vrm();
-		ret = sysfs_create_group(&client->dev.kobj, &vid_attr_group);
-		if (ret)
-			goto eremove;
+		data->groups[group_num] = &vid_attr_group;
 	}
 
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		ret = PTR_ERR(data->hwmon_dev);
-		goto eremove;
+	/* register device with all the acquired attributes */
+	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
+							   client->name, data,
+							   data->groups);
+
+	if (IS_ERR(hwmon_dev)) {
+		ret = PTR_ERR(hwmon_dev);
+		return ret;
 	}
 
 	dev_info(&client->dev, "%s device, revision %d\n",
@@ -1716,21 +1717,7 @@ static int adt7475_probe(struct i2c_client *client,
 	/* Limits and settings, should never change update more than once */
 	ret = adt7475_update_limits(client);
 	if (ret)
-		goto eremove;
-
-	return 0;
-
-eremove:
-	adt7475_remove_files(client, data);
-	return ret;
-}
-
-static int adt7475_remove(struct i2c_client *client)
-{
-	struct adt7475_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	adt7475_remove_files(client, data);
+		return ret;
 
 	return 0;
 }
@@ -1741,8 +1728,7 @@ static struct i2c_driver adt7475_driver = {
 		.name	= "adt7475",
 		.of_match_table = of_match_ptr(adt7475_of_match),
 	},
-	.probe		= adt7475_probe,
-	.remove		= adt7475_remove,
+	.probe_new	= adt7475_probe,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
 	.address_list	= normal_i2c,
@@ -1816,8 +1802,8 @@ static void adt7475_read_pwm(struct i2c_client *client, int index)
 
 static int adt7475_update_measure(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	u16 ext;
 	int i;
 	int ret;
@@ -1913,8 +1899,7 @@ static int adt7475_update_measure(struct device *dev)
 
 static struct adt7475_data *adt7475_update_device(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adt7475_data *data = i2c_get_clientdata(client);
+	struct adt7475_data *data = dev_get_drvdata(dev);
 	int ret;
 
 	mutex_lock(&data->lock);

@@ -1,16 +1,5 @@
-/*
- * wakeirq.c - Device wakeirq helper functions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+// SPDX-License-Identifier: GPL-2.0
+/* Device wakeirq helper functions */
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -193,7 +182,6 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 
 	wirq->dev = dev;
 	wirq->irq = irq;
-	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
 	/* Prevent deferred spurious wakeirqs with disable_irq_nosync() */
 	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
@@ -203,7 +191,8 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 	 * so we use a threaded irq.
 	 */
 	err = request_threaded_irq(irq, NULL, handle_threaded_wake_irq,
-				   IRQF_ONESHOT, wirq->name, wirq);
+				   IRQF_ONESHOT | IRQF_NO_AUTOEN,
+				   wirq->name, wirq);
 	if (err)
 		goto err_free_name;
 
@@ -283,7 +272,7 @@ void dev_pm_enable_wake_irq_check(struct device *dev,
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+	if (!wirq || !(wirq->status & WAKE_IRQ_DEDICATED_MASK))
 		return;
 
 	if (likely(wirq->status & WAKE_IRQ_DEDICATED_MANAGED)) {
@@ -310,7 +299,7 @@ void dev_pm_disable_wake_irq_check(struct device *dev)
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+	if (!wirq || !(wirq->status & WAKE_IRQ_DEDICATED_MASK))
 		return;
 
 	if (wirq->status & WAKE_IRQ_DEDICATED_MANAGED)

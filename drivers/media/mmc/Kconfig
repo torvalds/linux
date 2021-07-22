@@ -1,2 +1,2 @@
-comment "Supported MMC/SDIO adapters"
+# SPDX-License-Identifier: GPL-2.0-only
 source "drivers/media/mmc/siano/Kconfig"

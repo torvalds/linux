@@ -1,0 +1,697 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+
+#include "ste-db8500.dtsi"
+#include "ste-ab8505.dtsi"
+#include "ste-dbx5x0-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/*
+ * Note: This device tree cannot be booted directly with the Samsung bootloader.
+ * You need an intermediate, device-tree compatible bootloader
+ * that locks the L2 cache. Otherwise the kernel will crash after decompression.
+ *
+ * There is a port of (mainline) U-Boot, see
+ * https://wiki.postmarketos.org/wiki/ST-Ericsson_NovaThor_U8500#U-Boot
+ */
+/ {
+	model = "Samsung Galaxy S III mini (GT-I8190)";
+	compatible = "samsung,golden", "st-ericsson,u8500";
+
+	chosen {
+		stdout-path = &serial2;
+	};
+
+	i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio2 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio2 13 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_0_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey@20 {
+			compatible = "coreriver,tc360-touchkey";
+			reg = <0x20>;
+			vdd-supply = <&ab8500_ldo_aux4_reg>;
+			vcc-supply = <&ab8500_ldo_aux6_reg>;
+
+			interrupt-parent = <&gpio2>;
+			interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&touchkey_default>;
+			linux,keycodes = <KEY_MENU KEY_BACK>;
+		};
+	};
+
+	i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio4 23 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_1_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+
+			avdd-supply = <&ab8500_ldo_aux1_reg>;
+			dvdd-supply = <&ab8500_ldo_aux8_reg>;
+		};
+	};
+
+	soc {
+		/* External Micro SD card slot */
+		mmc@80126000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+
+			non-removable;
+			/*
+			 * Unfortunately, there is no way to enable the UHS
+			 * modes due to a limitation of the SD level translator:
+			 * It will either translate to 2.9V or disconnect the
+			 * DATA lines, so switching to 1.8V signal voltage fails.
+			 */
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
+
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&sd_level_translator>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc0_a_2_default>;
+			pinctrl-1 = <&mc0_a_2_sleep>;
+		};
+
+		/* WLAN SDIO */
+		mmc@80118000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <50000000>;
+			bus-width = <4>;
+
+			non-removable;
+			cap-sd-highspeed;
+
+			vmmc-supply = <&wl_reg_on>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc1_a_2_default>;
+			pinctrl-1 = <&mc1_a_2_sleep>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			wifi@1 {
+				compatible = "brcm,bcm4334-fmac", "brcm,bcm4329-fmac";
+				reg = <1>;
+
+				/* GPIO216 (WLAN_HOST_WAKE) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "host-wake";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&wlan_default>;
+			};
+		};
+
+		/* eMMC */
+		mmc@80005000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <8>;
+
+			non-removable;
+			cap-mmc-highspeed;
+			mmc-ddr-1_8v;
+
+			vmmc-supply = <&vmem_3v3>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc2_a_1_default>;
+			pinctrl-1 = <&mc2_a_1_sleep>;
+		};
+
+		/* BT UART */
+		uart@80120000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
+
+			bluetooth {
+				/* BCM4334B0 actually */
+				compatible = "brcm,bcm4330-bt";
+				/* GPIO222 (BT_VREG_ON) */
+				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
+				/* GPIO199 (BT_WAKE) */
+				device-wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
+				/* GPIO97 (BT_HOST_WAKE) */
+				host-wakeup-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&bluetooth_default>;
+			};
+		};
+
+		/* GPF UART */
+		uart@80121000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+		};
+
+		/* Debugging console UART */
+		uart@80007000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
+		};
+
+		i2c@80004000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c0_a_1_default>;
+			pinctrl-1 = <&i2c0_a_1_sleep>;
+
+			proximity@44 {
+				compatible = "sharp,gp2ap002s00f";
+				reg = <0x44>;
+
+				/* GPIO146 (PS_INT) */
+				interrupt-parent = <&gpio4>;
+				interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vio-supply = <&ab8500_ldo_aux8_reg>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&proximity_default>;
+
+				sharp,proximity-far-hysteresis = <0x40>;
+				sharp,proximity-close-hysteresis = <0x0f>;
+			};
+		};
+
+		i2c@80128000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+
+			imu@68 {
+				compatible = "invensense,mpu6050";
+				reg = <0x68>;
+
+				/* GPIO206 (ACC_INT) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <14 IRQ_TYPE_EDGE_RISING>;
+
+				mount-matrix = "0", "1", "0",
+					      "-1", "0", "0",
+					       "0", "0", "1";
+
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&ab8500_ldo_aux8_reg>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&imu_default>;
+			};
+		};
+
+		i2c@80110000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+
+			touchscreen@4a {
+				compatible = "atmel,maxtouch";
+				reg = <0x4a>;
+
+				/* GPIO218 (TSP_INT_1V8) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+
+				/* VDDA is "analog supply", 2.57-3.47 V */
+				vdda-supply = <&ab8500_ldo_aux2_reg>;
+				/* VDD is "digital supply" 1.71-3.47V */
+				vdd-supply = <&ab8500_ldo_aux5_reg>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&tsp_default>;
+			};
+		};
+
+		prcmu@80157000 {
+			ab8505 {
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ab8505-regulators {
+					ab8500_ldo_aux1 {
+						regulator-name = "sensor_3v";
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					ab8500_ldo_aux2 {
+						regulator-name = "vreg_tsp_a3v3";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux3 {
+						regulator-name = "vdd_tf_2v91";
+					};
+
+					ab8500_ldo_aux4 {
+						regulator-name = "key_led_3.3v";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux5 {
+						regulator-name = "vreg_tsp_1v8";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ab8500_ldo_aux6 {
+						regulator-name = "touch_key_2.2v";
+						regulator-min-microvolt = <2200000>;
+						regulator-max-microvolt = <2200000>;
+					};
+
+					ab8500_ldo_aux8 {
+						regulator-name = "sensor_1v8";
+					};
+				};
+			};
+		};
+
+		mcde@a0350000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dsi_default_mode>;
+
+			dsi@a0351000 {
+				panel@0 {
+					compatible = "samsung,s6e63m0";
+					reg = <0>;
+					max-brightness = <15>;
+					vdd3-supply = <&panel_reg_3v0>;
+					vci-supply = <&panel_reg_1v8>;
+					reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+					/* ESD (electrostatic discharge) detection interrupt */
+					interrupt-parent = <&gpio2>;
+					interrupts = <18 IRQ_TYPE_EDGE_RISING>;
+					interrupt-names = "esd";
+					pinctrl-names = "default";
+					pinctrl-0 = <&display_default_mode>;
+				};
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_default>;
+
+		label = "GPIO Buttons";
+
+		volume-up {
+			label = "Volume Up";
+			/* GPIO67 (VOL_UP) */
+			gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			/* GPIO92 (VOL_DOWN) */
+			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		home {
+			label = "Home";
+			/* GPIO91 (HOME_KEY) */
+			gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
+		};
+	};
+
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
+		};
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		/* GPIO195 (MOT_EN) */
+		enable-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vibrator_default>;
+	};
+
+	/* External LDO for eMMC */
+	vmem_3v3: regulator-vmem {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vmem_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+
+		startup-delay-us = <200>;
+
+		/* GPIO223 (MEM_LDO_EN) */
+		gpio = <&gpio6 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mem_ldo_default>;
+	};
+
+	/* TI TXS0206-29 level translator for 2.9 V */
+	sd_level_translator: regulator-sd-level-translator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "sd-level-translator";
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+
+		startup-delay-us = <200>;
+
+		/* GPIO87 (TXS0206-29_EN) */
+		gpios = <&gpio2 23 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_level_translator_default>;
+	};
+
+	/*
+	 * WL_REG_ON takes WLAN out of reset and enables the internal regulators.
+	 * The voltage specified here is only used to determine the OCR mask,
+	 * the BCM chip is actually connected directly to VBAT.
+	 */
+	wl_reg_on: regulator-wl-reg-on {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg-on";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		startup-delay-us = <100000>;
+
+		/* GPIO215 (WLAN_EN) */
+		gpio = <&gpio6 23 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_en_default>;
+	};
+
+	/* MIC5366 GPIO-controlled regulator */
+	panel_reg_1v8: regulator-panel-1v8 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel-fixed-supply";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		/* GPIO219 */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <200>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reg_default_mode>;
+	};
+
+	/* MIC5366 GPIO-controlled regulator */
+	panel_reg_3v0: regulator-panel-3v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel-fixed-supply";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		/* GPIO219 */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <200>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reg_default_mode>;
+	};
+};
+
+&pinctrl {
+	gpio-keys {
+		gpio_keys_default: gpio_keys_default {
+			golden_cfg1 {
+				pins = "GPIO67",	/* VOL_UP */
+				       "GPIO91",	/* HOME_KEY */
+				       "GPIO92";	/* VOL_DOWN */
+				ste,config = <&gpio_in_pu>;
+			};
+		};
+	};
+
+	i2c-gpio-0 {
+		i2c_gpio_0_default: i2c_gpio_0 {
+			golden_cfg1 {
+				pins = "GPIO77",	/* TOUCHKEY_SCL */
+				       "GPIO78";	/* TOUCHKEY_SDA */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	flash {
+		gpio_flash_default_mode: flash_default {
+			golden_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+
+	i2c-gpio-1 {
+		i2c_gpio_1_default: i2c_gpio_1 {
+			golden_cfg1 {
+				pins = "GPIO151",	/* COMP_SCL */
+				       "GPIO152";	/* COMP_SDA */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	touchkey {
+		touchkey_default: touchkey_default {
+			golden_cfg1 {
+				pins = "GPIO79";	/* TOUCHKEY_INT */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	sdi0 {
+		sd_level_translator_default: sd_level_translator_default {
+			golden_cfg1 {
+				pins = "GPIO87_B3";	/* TXS0206-29_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+
+	sdi2 {
+		mem_ldo_default: mem_ldo_default {
+			golden_cfg1 {
+				pins = "GPIO223_AH9";	/* MEM_LDO_EN */
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+
+	mcde {
+		dsi_default_mode: dsi_default {
+			default_mux1 {
+				/* Mux in VSI0 used for DSI TE */
+				function = "lcd";
+				groups =
+				"lcdvsi0_a_1"; /* VSI0 for LCD */
+			};
+			default_cfg1 {
+				pins =
+				"GPIO68_E1"; /* VSI0 */
+				ste,config = <&in_nopull>;
+			};
+		};
+	};
+
+	display {
+		display_default_mode: display_default {
+			golden_cfg1 {
+				pins = "GPIO139_C9"; /* MIPI_DSI0_RESET_N */
+				ste,config = <&gpio_out_lo>;
+			};
+			golden_cfg2 {
+				pins = "GPIO82_C1"; /* LDI_ESD_DET */
+				ste,config = <&gpio_in_pu>;
+			};
+		};
+		panel_reg_default_mode: panel_reg_default {
+			golden_cfg1 {
+				pins = "GPIO219_AG10"; /* LCD_PWR_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+
+	proximity {
+		proximity_default: proximity_default {
+			golden_cfg1 {
+				pins = "GPIO146_D13";	/* PS_INT */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	imu {
+		imu_default: imu_default {
+			golden_cfg1 {
+				pins = "GPIO206_AG24";	/* ACC_INT */
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+
+	tsp {
+		tsp_default: tsp_default {
+			golden_cfg1 {
+				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	wlan {
+		wlan_default: wlan_default {
+			golden_cfg1 {
+				pins = "GPIO216_AG12";	/* WLAN_HOST_WAKE */
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+
+		wlan_en_default: wlan_en_default {
+			golden_cfg1 {
+				pins = "GPIO215_AH13";	/* WLAN_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+
+	bluetooth {
+		bluetooth_default: bluetooth_default {
+			golden_cfg1 {
+				pins = "GPIO199_AH23",	/* BT_WAKE */
+				       "GPIO222_AJ9";	/* BT_VREG_ON */
+				ste,config = <&gpio_out_lo>;
+			};
+			golden_cfg2 {
+				pins = "GPIO97_D9";	/* BT_HOST_WAKE */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	vibrator {
+		vibrator_default: vibrator_default {
+			golden_cfg1 {
+				pins = "GPIO195_AG28";	/* MOT_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+};
+
+&ab8505_gpio {
+	/* Hog a few default settings */
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio_default>;
+
+	gpio {
+		gpio_default: gpio_default {
+			golden_mux {
+				/* Change unused pins to GPIO mode */
+				function = "gpio";
+				groups = "gpio3_a_1",	/* default: SysClkReq4 */
+					 "gpio14_a_1";	/* default: PWMOut1 */
+			};
+			golden_cfg1 {
+				pins = "GPIO11_B17", "GPIO13_D17", "GPIO50_L4";
+				bias-disable;
+			};
+		};
+	};
+};

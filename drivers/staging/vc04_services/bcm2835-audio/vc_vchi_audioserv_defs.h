@@ -7,8 +7,9 @@
 #define VC_AUDIOSERV_MIN_VER 1
 #define VC_AUDIOSERV_VER 2
 
-/* FourCC code used for VCHI connection */
-#define VC_AUDIO_SERVER_NAME  MAKE_FOURCC("AUDS")
+/* FourCC codes used for VCHI communication */
+#define VC_AUDIO_WRITE_COOKIE1 VCHIQ_MAKE_FOURCC('B', 'C', 'M', 'A')
+#define VC_AUDIO_WRITE_COOKIE2 VCHIQ_MAKE_FOURCC('D', 'A', 'T', 'A')
 
 /*
  *  List of screens that are currently supported
@@ -91,7 +92,7 @@ struct vc_audio_msg {
 		struct vc_audio_write write;
 		struct vc_audio_result result;
 		struct vc_audio_complete complete;
-	} u;
+	};
 };
 
 #endif /* _VC_AUDIO_DEFS_H_ */

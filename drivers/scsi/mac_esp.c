@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* mac_esp.c: ESP front-end for Macintosh Quadra systems.
  *
  * Adapted from jazz_esp.c and the old mac_esp.c.
@@ -307,7 +308,7 @@ static int esp_mac_probe(struct platform_device *dev)
 		goto fail;
 
 	host->max_id = 8;
-	host->use_clustering = DISABLE_CLUSTERING;
+	host->dma_boundary = PAGE_SIZE - 1;
 	esp = shost_priv(host);
 
 	esp->host = host;
@@ -438,22 +439,10 @@ static struct platform_driver esp_mac_driver = {
 		.name	= DRV_MODULE_NAME,
 	},
 };
-
-static int __init mac_esp_init(void)
-{
-	return platform_driver_register(&esp_mac_driver);
-}
-
-static void __exit mac_esp_exit(void)
-{
-	platform_driver_unregister(&esp_mac_driver);
-}
+module_platform_driver(esp_mac_driver);
 
 MODULE_DESCRIPTION("Mac ESP SCSI driver");
 MODULE_AUTHOR("Finn Thain");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);
-
-module_init(mac_esp_init);
-module_exit(mac_esp_exit);

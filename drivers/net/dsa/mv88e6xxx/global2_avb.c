@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Switch Global 2 Registers support
  *
@@ -8,12 +9,9 @@
  *
  * Copyright (c) 2017 National Instruments
  *	Brandon Streiff <brandon.streiff@ni.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
+
+#include <linux/bitfield.h>
 
 #include "global2.h"
 
@@ -31,17 +29,33 @@
 /* mv88e6xxx_g2_avb_read -- Read one or multiple 16-bit words.
  * The hardware supports snapshotting up to four contiguous registers.
  */
+static int mv88e6xxx_g2_avb_wait(struct mv88e6xxx_chip *chip)
+{
+	int bit = __bf_shf(MV88E6352_G2_AVB_CMD_BUSY);
+
+	return mv88e6xxx_g2_wait_bit(chip, MV88E6352_G2_AVB_CMD, bit, 0);
+}
+
 static int mv88e6xxx_g2_avb_read(struct mv88e6xxx_chip *chip, u16 readop,
 				 u16 *data, int len)
 {
 	int err;
 	int i;
 
+	err = mv88e6xxx_g2_avb_wait(chip);
+	if (err)
+		return err;
+
 	/* Hardware can only snapshot four words. */
 	if (len > 4)
 		return -E2BIG;
 
-	err = mv88e6xxx_g2_update(chip, MV88E6352_G2_AVB_CMD, readop);
+	err = mv88e6xxx_g2_write(chip, MV88E6352_G2_AVB_CMD,
+				 MV88E6352_G2_AVB_CMD_BUSY | readop);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_avb_wait(chip);
 	if (err)
 		return err;
 
@@ -61,11 +75,18 @@ static int mv88e6xxx_g2_avb_write(struct mv88e6xxx_chip *chip, u16 writeop,
 {
 	int err;
 
+	err = mv88e6xxx_g2_avb_wait(chip);
+	if (err)
+		return err;
+
 	err = mv88e6xxx_g2_write(chip, MV88E6352_G2_AVB_DATA, data);
 	if (err)
 		return err;
 
-	return mv88e6xxx_g2_update(chip, MV88E6352_G2_AVB_CMD, writeop);
+	err = mv88e6xxx_g2_write(chip, MV88E6352_G2_AVB_CMD,
+				 MV88E6352_G2_AVB_CMD_BUSY | writeop);
+
+	return mv88e6xxx_g2_avb_wait(chip);
 }
 
 static int mv88e6352_g2_avb_port_ptp_read(struct mv88e6xxx_chip *chip,

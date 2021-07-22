@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * thmc50.c - Part of lm_sensors, Linux kernel modules for hardware
  *	      monitoring
  * Copyright (C) 2007 Krzysztof Helt <krzysztof.h1@wp.pl>
  * Based on 2.4 driver by Frodo Looijaard <frodol@dds.nl> and
  * Philip Edelbrock <phil@netroedge.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -128,16 +115,16 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 	return data;
 }
 
-static ssize_t show_analog_out(struct device *dev,
+static ssize_t analog_out_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct thmc50_data *data = thmc50_update_device(dev);
 	return sprintf(buf, "%d\n", data->analog_out);
 }
 
-static ssize_t set_analog_out(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
+static ssize_t analog_out_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct thmc50_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -166,14 +153,14 @@ static ssize_t set_analog_out(struct device *dev,
 }
 
 /* There is only one PWM mode = DC */
-static ssize_t show_pwm_mode(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t pwm_mode_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "0\n");
 }
 
 /* Temperatures */
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
+static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
@@ -181,16 +168,17 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->temp_input[nr] * 1000);
 }
 
-static ssize_t show_temp_min(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t temp_min_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct thmc50_data *data = thmc50_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_min[nr] * 1000);
 }
 
-static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t temp_min_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct thmc50_data *data = dev_get_drvdata(dev);
@@ -210,16 +198,17 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_temp_max(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t temp_max_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct thmc50_data *data = thmc50_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_max[nr] * 1000);
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct thmc50_data *data = dev_get_drvdata(dev);
@@ -239,16 +228,15 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_temp_critical(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t temp_critical_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct thmc50_data *data = thmc50_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_critical[nr] * 1000);
 }
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
@@ -257,29 +245,27 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", (data->alarms >> index) & 1);
 }
 
-#define temp_reg(offset)						\
-static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp,	\
-			NULL, offset - 1);				\
-static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR,	\
-			show_temp_min, set_temp_min, offset - 1);	\
-static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,	\
-			show_temp_max, set_temp_max, offset - 1);	\
-static SENSOR_DEVICE_ATTR(temp##offset##_crit, S_IRUGO,			\
-			show_temp_critical, NULL, offset - 1);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp_max, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit, temp_critical, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, temp_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp_max, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_crit, temp_critical, 1);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_min, temp_min, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_max, temp_max, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_crit, temp_critical, 2);
 
-temp_reg(1);
-temp_reg(2);
-temp_reg(3);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_alarm, alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(temp3_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_fault, alarm, 7);
+static SENSOR_DEVICE_ATTR_RO(temp3_fault, alarm, 2);
 
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 2);
-
-static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_analog_out,
-			  set_analog_out, 0);
-static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO, show_pwm_mode, NULL, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1, analog_out, 0);
+static SENSOR_DEVICE_ATTR_RO(pwm1_mode, pwm_mode, 0);
 
 static struct attribute *thmc50_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -391,8 +377,9 @@ static void thmc50_init_client(struct thmc50_data *data)
 	i2c_smbus_write_byte_data(client, THMC50_REG_CONF, config);
 }
 
-static int thmc50_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id thmc50_id[];
+
+static int thmc50_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct thmc50_data *data;
@@ -404,7 +391,7 @@ static int thmc50_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = id->driver_data;
+	data->type = i2c_match_id(thmc50_id, client)->driver_data;
 	mutex_init(&data->update_lock);
 
 	thmc50_init_client(data);
@@ -433,7 +420,7 @@ static struct i2c_driver thmc50_driver = {
 	.driver = {
 		.name = "thmc50",
 	},
-	.probe = thmc50_probe,
+	.probe_new = thmc50_probe,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
 	.address_list = normal_i2c,

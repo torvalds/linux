@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TI DaVinci GPIO Support
  *
  * Copyright (c) 2006-2007 David Brownell
  * Copyright (c) 2007, MontaVista Software, Inc. <source@mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/gpio/driver.h>
@@ -198,7 +194,6 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
 	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
@@ -236,18 +231,14 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	if (!chips)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpio_base = devm_ioremap_resource(dev, res);
+	gpio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_base))
 		return PTR_ERR(gpio_base);
 
 	for (i = 0; i < nirq; i++) {
 		chips->irqs[i] = platform_get_irq(pdev, i);
-		if (chips->irqs[i] < 0) {
-			dev_info(dev, "IRQ not populated, err = %d\n",
-				 chips->irqs[i]);
-			return chips->irqs[i];
-		}
+		if (chips->irqs[i] < 0)
+			return dev_err_probe(dev, chips->irqs[i], "IRQ not populated\n");
 	}
 
 	chips->chip.label = dev_name(dev);
@@ -258,17 +249,14 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.set = davinci_gpio_set;
 
 	chips->chip.ngpio = ngpio;
-	chips->chip.base = -1;
+	chips->chip.base = pdata->no_auto_base ? pdata->base : -1;
 
 #ifdef CONFIG_OF_GPIO
 	chips->chip.of_gpio_n_cells = 2;
 	chips->chip.parent = dev;
 	chips->chip.of_node = dev->of_node;
-
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
-		chips->chip.request = gpiochip_generic_request;
-		chips->chip.free = gpiochip_generic_free;
-	}
+	chips->chip.request = gpiochip_generic_request;
+	chips->chip.free = gpiochip_generic_free;
 #endif
 	spin_lock_init(&chips->lock);
 
@@ -303,7 +291,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 static void gpio_irq_disable(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d);
-	u32 mask = (u32) irq_data_get_irq_handler_data(d);
+	uintptr_t mask = (uintptr_t)irq_data_get_irq_handler_data(d);
 
 	writel_relaxed(mask, &g->clr_falling);
 	writel_relaxed(mask, &g->clr_rising);
@@ -312,7 +300,7 @@ static void gpio_irq_disable(struct irq_data *d)
 static void gpio_irq_enable(struct irq_data *d)
 {
 	struct davinci_gpio_regs __iomem *g = irq2regs(d);
-	u32 mask = (u32) irq_data_get_irq_handler_data(d);
+	uintptr_t mask = (uintptr_t)irq_data_get_irq_handler_data(d);
 	unsigned status = irqd_get_trigger_type(d);
 
 	status &= IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING;
@@ -453,7 +441,7 @@ davinci_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 				"davinci_gpio");
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 	irq_set_chip_data(irq, (__force void *)g);
-	irq_set_handler_data(irq, (void *)__gpio_mask(hw));
+	irq_set_handler_data(irq, (void *)(uintptr_t)__gpio_mask(hw));
 
 	return 0;
 }
@@ -638,6 +626,7 @@ done:
 
 static const struct of_device_id davinci_gpio_ids[] = {
 	{ .compatible = "ti,keystone-gpio", keystone_gpio_get_irq_chip},
+	{ .compatible = "ti,am654-gpio", keystone_gpio_get_irq_chip},
 	{ .compatible = "ti,dm6441-gpio", davinci_gpio_get_irq_chip},
 	{ /* sentinel */ },
 };

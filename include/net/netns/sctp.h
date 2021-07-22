@@ -22,6 +22,14 @@ struct netns_sctp {
 	 */
 	struct sock *ctl_sock;
 
+	/* UDP tunneling listening sock. */
+	struct sock *udp4_sock;
+	struct sock *udp6_sock;
+	/* UDP tunneling listening port. */
+	int udp_port;
+	/* UDP tunneling remote encap port. */
+	int encap_port;
+
 	/* This is the global local address list.
 	 * We actively maintain this complete list of addresses on
 	 * the system by catching address add/delete events.
@@ -76,6 +84,9 @@ struct netns_sctp {
 	/* HB.interval		    - 30 seconds  */
 	unsigned int hb_interval;
 
+	/* The interval for PLPMTUD probe timer */
+	unsigned int probe_interval;
+
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans	    - 5	 attempts (per destination address)
 	 * Max.Init.Retransmits	    - 8	 attempts
@@ -89,12 +100,26 @@ struct netns_sctp {
 	 */
 	int pf_retrans;
 
+	/* Primary.Switchover.Max.Retrans sysctl value
+	 * taken from:
+	 * https://tools.ietf.org/html/rfc7829
+	 */
+	int ps_retrans;
+
 	/*
 	 * Disable Potentially-Failed feature, the feature is enabled by default
 	 * pf_enable	-  0  : disable pf
 	 *		- >0  : enable pf
 	 */
 	int pf_enable;
+
+	/*
+	 * Disable Potentially-Failed state exposure, ignored by default
+	 * pf_expose	-  0  : compatible with old applications (by default)
+	 *		-  1  : disable pf state exposure
+	 *		-  2  : enable  pf state exposure
+	 */
+	int pf_expose;
 
 	/*
 	 * Policy for preforming sctp/socket accounting
@@ -127,6 +152,9 @@ struct netns_sctp {
 
 	/* Flag to indicate if stream interleave is enabled */
 	int intl_enable;
+
+	/* Flag to indicate if ecn is enabled */
+	int ecn_enable;
 
 	/*
 	 * Policy to control SCTP IPv4 address scoping

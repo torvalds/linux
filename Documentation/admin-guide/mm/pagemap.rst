@@ -21,6 +21,8 @@ There are four components to pagemap:
     * Bit  55    pte is soft-dirty (see
       :ref:`Documentation/admin-guide/mm/soft-dirty.rst <soft_dirty>`)
     * Bit  56    page exclusively mapped (since 4.2)
+    * Bit  57    pte is uffd-wp write-protected (since 5.13) (see
+      :ref:`Documentation/admin-guide/mm/userfaultfd.rst <userfaultfd>`)
     * Bits 57-60 zero
     * Bit  61    page is file-page or shared-anon (since 3.5)
     * Bit  62    page swapped
@@ -75,9 +77,10 @@ number of times a page is mapped.
     20. NOPAGE
     21. KSM
     22. THP
-    23. BALLOON
+    23. OFFLINE
     24. ZERO_PAGE
     25. IDLE
+    26. PGTABLE
 
  * ``/proc/kpagecgroup``.  This file contains a 64-bit inode number of the
    memory cgroup each page is charged to, indexed by PFN. Only available when
@@ -118,8 +121,8 @@ Short descriptions to the page flags
     identical memory pages dynamically shared between one or more processes
 22 - THP
     contiguous pages which construct transparent hugepages
-23 - BALLOON
-    balloon compaction page
+23 - OFFLINE
+    page is logically offline
 24 - ZERO_PAGE
     zero page for pfn_zero or huge_zero page
 25 - IDLE
@@ -128,6 +131,8 @@ Short descriptions to the page flags
     Note that this flag may be stale in case the page was accessed via
     a PTE. To make sure the flag is up-to-date one has to read
     ``/sys/kernel/mm/page_idle/bitmap`` first.
+26 - PGTABLE
+    page is in use as a page table
 
 IO related page flags
 ---------------------

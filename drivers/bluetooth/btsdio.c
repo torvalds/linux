@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Generic Bluetooth SDIO driver
  *
  *  Copyright (C) 2007  Cambridge Silicon Radio Ltd.
  *  Copyright (C) 2007  Marcel Holtmann <marcel@holtmann.org>
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -160,11 +145,20 @@ static int btsdio_rx_packet(struct btsdio_data *data)
 
 	data->hdev->stat.byte_rx += len;
 
-	hci_skb_pkt_type(skb) = hdr[3];
-
-	err = hci_recv_frame(data->hdev, skb);
-	if (err < 0)
-		return err;
+	switch (hdr[3]) {
+	case HCI_EVENT_PKT:
+	case HCI_ACLDATA_PKT:
+	case HCI_SCODATA_PKT:
+	case HCI_ISODATA_PKT:
+		hci_skb_pkt_type(skb) = hdr[3];
+		err = hci_recv_frame(data->hdev, skb);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	sdio_writeb(data->func, 0x00, REG_PC_RRT, NULL);
 
@@ -301,6 +295,7 @@ static int btsdio_probe(struct sdio_func *func,
 		switch (func->device) {
 		case SDIO_DEVICE_ID_BROADCOM_43341:
 		case SDIO_DEVICE_ID_BROADCOM_43430:
+		case SDIO_DEVICE_ID_BROADCOM_4356:
 			return -ENODEV;
 		}
 	}
@@ -376,20 +371,7 @@ static struct sdio_driver btsdio_driver = {
 	.id_table	= btsdio_table,
 };
 
-static int __init btsdio_init(void)
-{
-	BT_INFO("Generic Bluetooth SDIO driver ver %s", VERSION);
-
-	return sdio_register_driver(&btsdio_driver);
-}
-
-static void __exit btsdio_exit(void)
-{
-	sdio_unregister_driver(&btsdio_driver);
-}
-
-module_init(btsdio_init);
-module_exit(btsdio_exit);
+module_sdio_driver(btsdio_driver);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Generic Bluetooth SDIO driver ver " VERSION);

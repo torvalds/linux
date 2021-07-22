@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 
 #include "gpiolib.h"
+#include "gpiolib-sysfs.h"
 
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)
@@ -65,9 +66,8 @@ static ssize_t direction_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	gpiod_get_direction(desc);
-	status = sprintf(buf, "%s\n",
-			test_bit(FLAG_IS_OUT, &desc->flags)
-				? "out" : "in");
+	status = sysfs_emit(buf, "%s\n",
+			    test_bit(FLAG_IS_OUT, &desc->flags) ? "out" : "in");
 
 	mutex_unlock(&data->mutex);
 
@@ -108,13 +108,9 @@ static ssize_t value_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	status = gpiod_get_value_cansleep(desc);
-	if (status < 0)
-		goto err;
+	if (status >= 0)
+		status = sysfs_emit(buf, "%zd\n", status);
 
-	buf[0] = '0' + status;
-	buf[1] = '\n';
-	status = 2;
-err:
 	mutex_unlock(&data->mutex);
 
 	return status;
@@ -248,11 +244,11 @@ static ssize_t edge_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
-		if (data->irq_flags == trigger_types[i].flags) {
-			status = sprintf(buf, "%s\n", trigger_types[i].name);
+		if (data->irq_flags == trigger_types[i].flags)
 			break;
-		}
 	}
+	if (i < ARRAY_SIZE(trigger_types))
+		status = sysfs_emit(buf, "%s\n", trigger_types[i].name);
 
 	mutex_unlock(&data->mutex);
 
@@ -311,10 +307,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
 
-	if (value)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	else
-		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	assign_bit(FLAG_ACTIVE_LOW, &desc->flags, value);
 
 	/* reconfigure poll(2) support if enabled on one edge only */
 	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
@@ -335,8 +328,8 @@ static ssize_t active_low_show(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	status = sprintf(buf, "%d\n",
-				!!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
+	status = sysfs_emit(buf, "%d\n",
+			    !!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
 
 	mutex_unlock(&data->mutex);
 
@@ -365,7 +358,7 @@ static DEVICE_ATTR_RW(active_low);
 static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			       int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 	umode_t mode = attr->mode;
@@ -414,7 +407,7 @@ static ssize_t base_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", chip->base);
+	return sysfs_emit(buf, "%d\n", chip->base);
 }
 static DEVICE_ATTR_RO(base);
 
@@ -423,7 +416,7 @@ static ssize_t label_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", chip->label ? : "");
+	return sysfs_emit(buf, "%s\n", chip->label ?: "");
 }
 static DEVICE_ATTR_RO(label);
 
@@ -432,7 +425,7 @@ static ssize_t ngpio_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", chip->ngpio);
+	return sysfs_emit(buf, "%u\n", chip->ngpio);
 }
 static DEVICE_ATTR_RO(ngpio);
 
@@ -457,6 +450,8 @@ static ssize_t export_store(struct class *class,
 	long			gpio;
 	struct gpio_desc	*desc;
 	int			status;
+	struct gpio_chip	*gc;
+	int			offset;
 
 	status = kstrtol(buf, 0, &gpio);
 	if (status < 0)
@@ -468,6 +463,12 @@ static ssize_t export_store(struct class *class,
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
 	}
+	gc = desc->gdev->chip;
+	offset = gpio_chip_hwgpio(desc);
+	if (!gpiochip_line_is_valid(gc, offset)) {
+		pr_warn("%s: GPIO %ld masked\n", __func__, gpio);
+		return -EINVAL;
+	}
 
 	/* No extra locking here; FLAG_SYSFS just signifies that the
 	 * request and export were done by on behalf of userspace, so
@@ -475,7 +476,7 @@ static ssize_t export_store(struct class *class,
 	 */
 
 	status = gpiod_request(desc, "sysfs");
-	if (status < 0) {
+	if (status) {
 		if (status == -EPROBE_DEFER)
 			status = -ENODEV;
 		goto done;
@@ -762,10 +763,9 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 		parent = &gdev->dev;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, parent,
-					MKDEV(0, 0),
-					chip, gpiochip_groups,
-					"gpiochip%d", chip->base);
+	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), chip,
+					gpiochip_groups, GPIOCHIP_NAME "%d",
+					chip->base);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Library configuration
 #
@@ -10,6 +11,34 @@ menu "Library routines"
 config RAID6_PQ
 	tristate
 
+config RAID6_PQ_BENCHMARK
+	bool "Automatically choose fastest RAID6 PQ functions"
+	depends on RAID6_PQ
+	default y
+	help
+	  Benchmark all available RAID6 PQ functions on init and choose the
+	  fastest one.
+
+config LINEAR_RANGES
+	tristate
+
+config PACKING
+	bool "Generic bitfield packing and unpacking"
+	default n
+	help
+	  This option provides the packing() helper function, which permits
+	  converting bitfields between a CPU-usable representation and a
+	  memory representation that can have any combination of these quirks:
+	    - Is little endian (bytes are reversed within a 32-bit group)
+	    - The least-significant 32-bit word comes first (within a 64-bit
+	      group)
+	    - The most significant bit of a byte is at its right (bit 0 of a
+	      register description is numerically 2^7).
+	  Drivers may use these helpers to match the bit indices as described
+	  in the data sheets of the peripherals they are in control of.
+
+	  When in doubt, say N.
+
 config BITREVERSE
 	tristate
 
@@ -20,9 +49,6 @@ config HAVE_ARCH_BITREVERSE
 	help
 	  This option enables the use of hardware bit-reversal instructions on
 	  architectures which support such operations.
-
-config RATIONAL
-	bool
 
 config GENERIC_STRNCPY_FROM_USER
 	bool
@@ -35,6 +61,8 @@ config GENERIC_NET_UTILS
 
 config GENERIC_FIND_FIRST_BIT
 	bool
+
+source "lib/math/Kconfig"
 
 config NO_GENERIC_PCI_IOPORT_MAP
 	bool
@@ -55,6 +83,9 @@ config ARCH_USE_CMPXCHG_LOCKREF
 config ARCH_HAS_FAST_MULTIPLIER
 	bool
 
+config ARCH_USE_SYM_ANNOTATIONS
+	bool
+
 config INDIRECT_PIO
 	bool "Access I/O in non-MMIO mode"
 	depends on ARM64
@@ -70,6 +101,20 @@ config INDIRECT_PIO
 	  sure your devices really need this configure item enabled.
 
 	  When in doubt, say N.
+
+config INDIRECT_IOMEM
+	bool
+	help
+	  This is selected by other options/architectures to provide the
+	  emulated iomem accessors.
+
+config INDIRECT_IOMEM_FALLBACK
+	bool
+	depends on INDIRECT_IOMEM
+	help
+	  If INDIRECT_IOMEM is selected, this enables falling back to plain
+	  mmio accesses when the IO memory address is not a registered
+	  emulated region.
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -253,6 +298,13 @@ config ZLIB_DEFLATE
 	tristate
 	select BITREVERSE
 
+config ZLIB_DFLTCC
+	def_bool y
+	depends on S390
+	prompt "Enable s390x DEFLATE CONVERSION CALL support for kernel zlib"
+	help
+	 Enable s390x hardware support for zlib in the kernel.
+
 config LZO_COMPRESS
 	tristate
 
@@ -302,6 +354,10 @@ config DECOMPRESS_LZO
 
 config DECOMPRESS_LZ4
 	select LZ4_DECOMPRESS
+	tristate
+
+config DECOMPRESS_ZSTD
+	select ZSTD_DECOMPRESS
 	tristate
 
 #
@@ -395,7 +451,7 @@ config INTERVAL_TREE
 
 	  See:
 
-		Documentation/rbtree.txt
+		Documentation/core-api/rbtree.rst
 
 	  for more information.
 
@@ -422,7 +478,6 @@ config ASSOCIATIVE_ARRAY
 config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM
-	select GENERIC_IO
 	default y
 
 config HAS_IOPORT_MAP
@@ -506,20 +561,6 @@ config LRU_CACHE
 config CLZ_TAB
 	bool
 
-config CORDIC
-	tristate "CORDIC algorithm"
-	help
-	  This option provides an implementation of the CORDIC algorithm;
-	  calculations are in fixed point. Module will be called cordic.
-
-config DDR
-	bool "JEDEC DDR data"
-	help
-	  Data from JEDEC specs for DDR SDRAM memories,
-	  particularly the AC timing parameters and addressing
-	  information. This data is useful for drivers handling
-	  DDR SDRAM controllers.
-
 config IRQ_POLL
 	bool "IRQ polling library"
 	help
@@ -543,6 +584,13 @@ config SIGNATURE
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
 
+config DIMLIB
+	bool
+	help
+	  Dynamic Interrupt Moderation library.
+	  Implements an algorithm for dynamically changing CQ moderation values
+	  according to run time performance.
+
 #
 # libfdt files, only selected if needed.
 #
@@ -555,7 +603,12 @@ config OID_REGISTRY
 	  Enable fast lookup object identifier registry.
 
 config UCS2_STRING
-        tristate
+	tristate
+
+#
+# generic vdso
+#
+source "lib/vdso/Kconfig"
 
 source "lib/fonts/Kconfig"
 
@@ -577,21 +630,49 @@ config SG_POOL
 # sg chaining option
 #
 
-config ARCH_HAS_SG_CHAIN
+config ARCH_NO_SG_CHAIN
 	def_bool n
 
 config ARCH_HAS_PMEM_API
 	bool
 
+config MEMREGION
+	bool
+
+config ARCH_HAS_MEMREMAP_COMPAT_ALIGN
+	bool
+
+# use memcpy to implement user copies for nommu architectures
+config UACCESS_MEMCPY
+	bool
+
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
-config ARCH_HAS_UACCESS_MCSAFE
+# arch has a concept of a recoverable synchronous exception due to a
+# memory-read error like x86 machine-check or ARM data-abort, and
+# implements copy_mc_to_{user,kernel} to abort and report
+# 'bytes-transferred' if that exception fires when accessing the source
+# buffer.
+config ARCH_HAS_COPY_MC
 	bool
+
+# Temporary. Goes away when all archs are cleaned up
+config ARCH_STACKWALK
+       bool
 
 config STACKDEPOT
 	bool
 	select STACKTRACE
+
+config STACK_HASH_ORDER
+	int "stack depot hash size (12 => 4KB, 20 => 1024KB)"
+	range 12 20
+	default 20
+	depends on STACKDEPOT
+	help
+	 Select the hash size as a power of 2 for the stackdepot hash table.
+	 Choose a lower value to reduce the memory impact.
 
 config SBITMAP
 	bool
@@ -599,13 +680,16 @@ config SBITMAP
 config PARMAN
 	tristate "parman" if COMPILE_TEST
 
-config PRIME_NUMBERS
-	tristate
+config OBJAGG
+	tristate "objagg" if COMPILE_TEST
 
 config STRING_SELFTEST
 	tristate "Test string functions"
 
 endmenu
+
+config GENERIC_IOREMAP
+	bool
 
 config GENERIC_LIB_ASHLDI3
 	bool
@@ -625,5 +709,12 @@ config GENERIC_LIB_CMPDI2
 config GENERIC_LIB_UCMPDI2
 	bool
 
-config GENERIC_LIB_UMODDI3
+config GENERIC_LIB_DEVMEM_IS_ALLOWED
 	bool
+
+config PLDMFW
+	bool
+	default n
+
+config ASN1_ENCODER
+       tristate

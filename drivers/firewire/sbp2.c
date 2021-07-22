@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SBP2 driver (SCSI over IEEE1394)
  *
  * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
@@ -1144,10 +1131,6 @@ static int sbp2_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (device->is_local)
 		return -ENODEV;
 
-	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
-		WARN_ON(dma_set_max_seg_size(device->card->device,
-					     SBP2_MAX_SEG_SIZE));
-
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
 		return -ENOMEM;
@@ -1610,7 +1593,7 @@ static struct scsi_host_template scsi_driver_template = {
 	.eh_abort_handler	= sbp2_scsi_abort,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
+	.max_segment_size	= SBP2_MAX_SEG_SIZE,
 	.can_queue		= 1,
 	.sdev_attrs		= sbp2_scsi_sysfs_attrs,
 };

@@ -19,8 +19,6 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#ifdef __KERNEL__
-
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
@@ -55,6 +53,7 @@ enum rpc_display_format_t {
 
 struct rpc_task;
 struct rpc_xprt;
+struct xprt_class;
 struct seq_file;
 struct svc_serv;
 struct net;
@@ -103,6 +102,7 @@ struct rpc_rqst {
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
+	unsigned long		rq_minortimeo;	/* minor timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
 	ktime_t			rq_rtt;		/* round-trip time */
 	unsigned int		rq_retries;	/* # of retries */
@@ -143,7 +143,7 @@ struct rpc_xprt_ops {
 	void		(*buf_free)(struct rpc_task *task);
 	void		(*prepare_request)(struct rpc_rqst *req);
 	int		(*send_request)(struct rpc_rqst *req);
-	void		(*set_retrans_timeout)(struct rpc_task *task);
+	void		(*wait_for_reply_request)(struct rpc_task *task);
 	void		(*timer)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*release_request)(struct rpc_task *task);
 	void		(*close)(struct rpc_xprt *xprt);
@@ -157,8 +157,8 @@ struct rpc_xprt_ops {
 	void		(*inject_disconnect)(struct rpc_xprt *xprt);
 	int		(*bc_setup)(struct rpc_xprt *xprt,
 				    unsigned int min_reqs);
-	int		(*bc_up)(struct svc_serv *serv, struct net *net);
 	size_t		(*bc_maxpayload)(struct rpc_xprt *xprt);
+	unsigned int	(*bc_num_slots)(struct rpc_xprt *xprt);
 	void		(*bc_free_rqst)(struct rpc_rqst *rqst);
 	void		(*bc_destroy)(struct rpc_xprt *xprt,
 				      unsigned int max_reqs);
@@ -183,9 +183,11 @@ enum xprt_transports {
 	XPRT_TRANSPORT_LOCAL	= 257,
 };
 
+struct rpc_sysfs_xprt;
 struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	const struct rpc_xprt_ops *ops;		/* transport methods */
+	unsigned int		id;		/* transport id */
 
 	const struct rpc_timeout *timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
@@ -197,8 +199,6 @@ struct rpc_xprt {
 
 	size_t			max_payload;	/* largest RPC payload size,
 						   in bytes */
-	unsigned int		tsh_size;	/* size of transport specific
-						   header */
 
 	struct rpc_wait_queue	binding;	/* requests waiting on rpcbind */
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
@@ -209,7 +209,8 @@ struct rpc_xprt {
 	unsigned int		min_reqs;	/* min number of slots */
 	unsigned int		num_reqs;	/* total slots */
 	unsigned long		state;		/* transport state */
-	unsigned char		resvport   : 1; /* use a reserved port */
+	unsigned char		resvport   : 1,	/* use a reserved port */
+				reuseport  : 1; /* reuse port on reconnect */
 	atomic_t		swapper;	/* we're swapping over this
 						   transport */
 	unsigned int		bind_index;	/* bind function index */
@@ -241,6 +242,7 @@ struct rpc_xprt {
 	/*
 	 * Send stuff
 	 */
+	atomic_long_t		queuelen;
 	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		reserve_lock;	/* lock slot table */
 	spinlock_t		queue_lock;	/* send/receive queue lock */
@@ -248,13 +250,15 @@ struct rpc_xprt {
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 
 	struct list_head	xmit_queue;	/* Send queue */
+	atomic_long_t		xmit_queuelen;
 
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
-	int			bc_alloc_count;	/* Total number of preallocs */
-	atomic_t		bc_free_slots;
+	unsigned int		bc_alloc_max;
+	unsigned int		bc_alloc_count;	/* Total number of preallocs */
+	atomic_t		bc_slot_count;	/* Number of allocated slots */
 	spinlock_t		bc_pa_lock;	/* Protects the preallocated
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
@@ -287,6 +291,9 @@ struct rpc_xprt {
 	atomic_t		inject_disconnect;
 #endif
 	struct rcu_head		rcu;
+	const struct xprt_class	*xprt_class;
+	struct rpc_sysfs_xprt	*xprt_sysfs;
+	bool			main; /*mark if this is the 1st transport */
 };
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
@@ -330,6 +337,7 @@ struct xprt_class {
 	struct rpc_xprt *	(*setup)(struct xprt_create *);
 	struct module		*owner;
 	char			name[32];
+	const char *		netid[];
 };
 
 /*
@@ -337,6 +345,9 @@ struct xprt_class {
  */
 struct rpc_xprt		*xprt_create_transport(struct xprt_create *args);
 void			xprt_connect(struct rpc_task *task);
+unsigned long		xprt_reconnect_delay(const struct rpc_xprt *xprt);
+void			xprt_reconnect_backoff(struct rpc_xprt *xprt,
+					       unsigned long init_to);
 void			xprt_reserve(struct rpc_task *task);
 void			xprt_retry_reserve(struct rpc_task *task);
 int			xprt_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task);
@@ -349,6 +360,7 @@ bool			xprt_prepare_transmit(struct rpc_task *task);
 void			xprt_request_enqueue_transmit(struct rpc_task *task);
 void			xprt_request_enqueue_receive(struct rpc_task *task);
 void			xprt_request_wait_receive(struct rpc_task *task);
+void			xprt_request_dequeue_xprt(struct rpc_task *task);
 bool			xprt_request_need_retransmit(struct rpc_task *task);
 void			xprt_transmit(struct rpc_task *task);
 void			xprt_end_transmit(struct rpc_task *task);
@@ -362,11 +374,9 @@ struct rpc_xprt *	xprt_alloc(struct net *net, size_t size,
 				unsigned int num_prealloc,
 				unsigned int max_req);
 void			xprt_free(struct rpc_xprt *);
-
-static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
-{
-	return p + xprt->tsh_size;
-}
+void			xprt_add_backlog(struct rpc_xprt *xprt, struct rpc_task *task);
+bool			xprt_wake_up_backlog(struct rpc_xprt *xprt, struct rpc_rqst *req);
+void			xprt_cleanup_ids(void);
 
 static inline int
 xprt_enable_swap(struct rpc_xprt *xprt)
@@ -385,9 +395,9 @@ xprt_disable_swap(struct rpc_xprt *xprt)
  */
 int			xprt_register_transport(struct xprt_class *type);
 int			xprt_unregister_transport(struct xprt_class *type);
-int			xprt_load_transport(const char *);
-void			xprt_set_retrans_timeout_def(struct rpc_task *task);
-void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
+int			xprt_find_transport_ident(const char *);
+void			xprt_wait_for_reply_request_def(struct rpc_task *task);
+void			xprt_wait_for_reply_request_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
 void			xprt_wait_for_buffer_space(struct rpc_xprt *xprt);
 bool			xprt_write_space(struct rpc_xprt *xprt);
@@ -405,6 +415,7 @@ void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 
 bool			xprt_lock_connect(struct rpc_xprt *, struct rpc_task *, void *);
 void			xprt_unlock_connect(struct rpc_xprt *, void *);
+void			xprt_release_write(struct rpc_xprt *, struct rpc_task *);
 
 /*
  * Reserved bit positions in xprt->state
@@ -416,6 +427,8 @@ void			xprt_unlock_connect(struct rpc_xprt *, void *);
 #define XPRT_BOUND		(4)
 #define XPRT_BINDING		(5)
 #define XPRT_CLOSING		(6)
+#define XPRT_OFFLINE		(7)
+#define XPRT_REMOVE		(8)
 #define XPRT_CONGESTED		(9)
 #define XPRT_CWND_WAIT		(10)
 #define XPRT_WRITE_SPACE	(11)
@@ -505,7 +518,5 @@ static inline void xprt_inject_disconnect(struct rpc_xprt *xprt)
 {
 }
 #endif
-
-#endif /* __KERNEL__*/
 
 #endif /* _LINUX_SUNRPC_XPRT_H */

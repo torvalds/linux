@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ST Thermal Sensor Driver for memory mapped sensors.
  * Author: Ajit Pal Singh <ajitpal.singh@st.com>
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/of.h>
@@ -98,10 +94,8 @@ static int st_mmap_register_enable_irq(struct st_thermal_sensor *sensor)
 	int ret;
 
 	sensor->irq = platform_get_irq(pdev, 0);
-	if (sensor->irq < 0) {
-		dev_err(dev, "failed to register IRQ\n");
+	if (sensor->irq < 0)
 		return sensor->irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, sensor->irq,
 					NULL, st_mmap_thermal_trip_handler,
@@ -125,19 +119,10 @@ static int st_mmap_regmap_init(struct st_thermal_sensor *sensor)
 {
 	struct device *dev = sensor->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *res;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no memory resources defined\n");
-		return -ENODEV;
-	}
-
-	sensor->mmio_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(sensor->mmio_base)) {
-		dev_err(dev, "failed to remap IO\n");
+	sensor->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(sensor->mmio_base))
 		return PTR_ERR(sensor->mmio_base);
-	}
 
 	sensor->regmap = devm_regmap_init_mmio(dev, sensor->mmio_base,
 				&st_416mpe_regmap_config);

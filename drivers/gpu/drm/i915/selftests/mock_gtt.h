@@ -25,11 +25,12 @@
 #ifndef __MOCK_GTT_H
 #define __MOCK_GTT_H
 
-void mock_init_ggtt(struct drm_i915_private *i915);
-void mock_fini_ggtt(struct drm_i915_private *i915);
+struct drm_i915_private;
+struct i915_ggtt;
 
-struct i915_hw_ppgtt *
-mock_ppgtt(struct drm_i915_private *i915,
-	   const char *name);
+void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt);
+void mock_fini_ggtt(struct i915_ggtt *ggtt);
+
+struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name);
 
 #endif /* !__MOCK_GTT_H */

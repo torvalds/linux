@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -641,8 +638,11 @@ static void cxgbit_send_halfclose(struct cxgbit_sock *csk)
 
 static void cxgbit_arp_failure_discard(void *handle, struct sk_buff *skb)
 {
+	struct cxgbit_sock *csk = handle;
+
 	pr_debug("%s cxgbit_device %p\n", __func__, handle);
 	kfree_skb(skb);
+	cxgbit_put_csk(csk);
 }
 
 static void cxgbit_abort_arp_failure(void *handle, struct sk_buff *skb)
@@ -875,10 +875,12 @@ static u8 cxgbit_get_iscsi_dcb_priority(struct net_device *ndev, u16 local_port)
 		return 0;
 
 	if (caps & DCB_CAP_DCBX_VER_IEEE) {
-		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
-
+		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_STREAM;
 		ret = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
-
+		if (!ret) {
+			iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+			ret = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+		}
 	} else if (caps & DCB_CAP_DCBX_VER_CEE) {
 		iscsi_dcb_app.selector = DCB_APP_IDTYPE_PORTNUM;
 
@@ -932,8 +934,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			goto out;
 		csk->mtu = ndev->mtu;
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
-						 cxgb4_port_viid(ndev));
+		csk->smac_idx =
+			       ((struct port_info *)netdev_priv(ndev))->smt_idx;
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nchan;
 		csk->txq_idx = cxgb4_port_idx(ndev) * step;
@@ -968,8 +970,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		port_id = cxgb4_port_idx(ndev);
 		csk->mtu = dst_mtu(dst);
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
-						 cxgb4_port_viid(ndev));
+		csk->smac_idx =
+			       ((struct port_info *)netdev_priv(ndev))->smt_idx;
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nports;
 		csk->txq_idx = (port_id * step) +
@@ -1206,7 +1208,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, csk->ctrlq_idx);
-	t4_set_arp_err_handler(skb, NULL, cxgbit_arp_failure_discard);
+	t4_set_arp_err_handler(skb, csk, cxgbit_arp_failure_discard);
 	cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 
@@ -1358,7 +1360,6 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	cxgbit_sock_reset_wr_list(csk);
 	spin_lock_init(&csk->lock);
 	init_waitqueue_head(&csk->waitq);
-	init_waitqueue_head(&csk->ack_waitq);
 	csk->lock_owner = false;
 
 	if (cxgbit_alloc_csk_skb(csk)) {
@@ -1483,6 +1484,26 @@ u32 cxgbit_send_tx_flowc_wr(struct cxgbit_sock *csk)
 	return flowclen16;
 }
 
+static int
+cxgbit_send_tcb_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
+{
+	spin_lock_bh(&csk->lock);
+	if (unlikely(csk->com.state != CSK_STATE_ESTABLISHED)) {
+		spin_unlock_bh(&csk->lock);
+		pr_err("%s: csk 0x%p, tid %u, state %u\n",
+		       __func__, csk, csk->tid, csk->com.state);
+		__kfree_skb(skb);
+		return -1;
+	}
+
+	cxgbit_get_csk(csk);
+	cxgbit_init_wr_wait(&csk->com.wr_wait);
+	cxgbit_ofld_send(csk->com.cdev, skb);
+	spin_unlock_bh(&csk->lock);
+
+	return 0;
+}
+
 int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
@@ -1508,10 +1529,8 @@ int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 				(dcrc ? ULP_CRC_DATA : 0)) << 4);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->ctrlq_idx);
 
-	cxgbit_get_csk(csk);
-	cxgbit_init_wr_wait(&csk->com.wr_wait);
-
-	cxgbit_ofld_send(csk->com.cdev, skb);
+	if (cxgbit_send_tcb_skb(csk, skb))
+		return -1;
 
 	ret = cxgbit_wait_for_reply(csk->com.cdev,
 				    &csk->com.wr_wait,
@@ -1543,10 +1562,8 @@ int cxgbit_setup_conn_pgidx(struct cxgbit_sock *csk, u32 pg_idx)
 	req->val = cpu_to_be64(pg_idx << 8);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->ctrlq_idx);
 
-	cxgbit_get_csk(csk);
-	cxgbit_init_wr_wait(&csk->com.wr_wait);
-
-	cxgbit_ofld_send(csk->com.cdev, skb);
+	if (cxgbit_send_tcb_skb(csk, skb))
+		return -1;
 
 	ret = cxgbit_wait_for_reply(csk->com.cdev,
 				    &csk->com.wr_wait,
@@ -1829,7 +1846,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	while (credits) {
 		struct sk_buff *p = cxgbit_sock_peek_wr(csk);
-		const u32 csum = (__force u32)p->csum;
+		u32 csum;
 
 		if (unlikely(!p)) {
 			pr_err("csk 0x%p,%u, cr %u,%u+%u, empty.\n",
@@ -1838,6 +1855,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 			break;
 		}
 
+		csum = (__force u32)p->csum;
 		if (unlikely(credits < csum)) {
 			pr_warn("csk 0x%p,%u, cr %u,%u+%u, < %u.\n",
 				csk,  csk->tid,
@@ -1868,7 +1886,6 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 		if (csk->snd_una != snd_una) {
 			csk->snd_una = snd_una;
 			dst_confirm(csk->dst);
-			wake_up(&csk->ack_waitq);
 		}
 	}
 

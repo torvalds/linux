@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADAV80X Audio Codec driver supporting ADAV801, ADAV803
  *
  * Copyright 2011 Analog Devices Inc.
  * Author: Yi Li <yi.li@analog.com>
  * Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -374,6 +373,7 @@ static int adav80x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBM_CFM:
 		capture |= ADAV80X_CAPTURE_MODE_MASTER;
 		playback |= ADAV80X_PLAYBACK_MODE_MASTER;
+		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
@@ -648,7 +648,7 @@ static int adav80x_set_pll(struct snd_soc_component *component, int pll_id,
 			pll_ctrl1 |= ADAV80X_PLL_CTRL1_PLLDIV;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}
@@ -726,7 +726,7 @@ static int adav80x_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct adav80x *adav80x = snd_soc_component_get_drvdata(component);
 
-	if (!snd_soc_component_is_active(component) || !adav80x->rate)
+	if (!snd_soc_component_active(component) || !adav80x->rate)
 		return 0;
 
 	return snd_pcm_hw_constraint_single(substream->runtime,
@@ -739,7 +739,7 @@ static void adav80x_dai_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct adav80x *adav80x = snd_soc_component_get_drvdata(component);
 
-	if (!snd_soc_component_is_active(component))
+	if (!snd_soc_component_active(component))
 		adav80x->rate = 0;
 }
 

@@ -124,6 +124,19 @@
 
 #define IP_VS_PEDATA_MAXLEN     255
 
+/* Tunnel types */
+enum {
+	IP_VS_CONN_F_TUNNEL_TYPE_IPIP = 0,	/* IPIP */
+	IP_VS_CONN_F_TUNNEL_TYPE_GUE,		/* GUE */
+	IP_VS_CONN_F_TUNNEL_TYPE_GRE,		/* GRE */
+	IP_VS_CONN_F_TUNNEL_TYPE_MAX,
+};
+
+/* Tunnel encapsulation flags */
+#define IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM		(0)
+#define IP_VS_TUNNEL_ENCAP_FLAG_CSUM		(1 << 0)
+#define IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM		(1 << 1)
+
 /*
  *	The struct ip_vs_service_user and struct ip_vs_dest_user are
  *	used to set IPVS rules through setsockopt.
@@ -391,6 +404,12 @@ enum {
 	IPVS_DEST_ATTR_ADDR_FAMILY,	/* Address family of address */
 
 	IPVS_DEST_ATTR_STATS64,		/* nested attribute for dest stats */
+
+	IPVS_DEST_ATTR_TUN_TYPE,	/* tunnel type */
+
+	IPVS_DEST_ATTR_TUN_PORT,	/* tunnel port */
+
+	IPVS_DEST_ATTR_TUN_FLAGS,	/* tunnel flags */
 
 	__IPVS_DEST_ATTR_MAX,
 };

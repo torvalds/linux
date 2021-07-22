@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 #include <linux/export.h>
@@ -214,37 +215,6 @@ int idr_for_each(const struct idr *idr,
 EXPORT_SYMBOL(idr_for_each);
 
 /**
- * idr_get_next() - Find next populated entry.
- * @idr: IDR handle.
- * @nextid: Pointer to an ID.
- *
- * Returns the next populated entry in the tree with an ID greater than
- * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
- * to the ID of the found value.  To use in a loop, the value pointed to by
- * nextid must be incremented by the user.
- */
-void *idr_get_next(struct idr *idr, int *nextid)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	unsigned long base = idr->idr_base;
-	unsigned long id = *nextid;
-
-	id = (id < base) ? 0 : id - base;
-	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
-	if (!slot)
-		return NULL;
-	id = iter.index + base;
-
-	if (WARN_ON_ONCE(id > INT_MAX))
-		return NULL;
-
-	*nextid = id;
-	return rcu_dereference_raw(*slot);
-}
-EXPORT_SYMBOL(idr_get_next);
-
-/**
  * idr_get_next_ul() - Find next populated entry.
  * @idr: IDR handle.
  * @nextid: Pointer to an ID.
@@ -258,18 +228,50 @@ void *idr_get_next_ul(struct idr *idr, unsigned long *nextid)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+	void *entry = NULL;
 	unsigned long base = idr->idr_base;
 	unsigned long id = *nextid;
 
 	id = (id < base) ? 0 : id - base;
-	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
+	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, id) {
+		entry = rcu_dereference_raw(*slot);
+		if (!entry)
+			continue;
+		if (!xa_is_internal(entry))
+			break;
+		if (slot != &idr->idr_rt.xa_head && !xa_is_retry(entry))
+			break;
+		slot = radix_tree_iter_retry(&iter);
+	}
 	if (!slot)
 		return NULL;
 
 	*nextid = iter.index + base;
-	return rcu_dereference_raw(*slot);
+	return entry;
 }
 EXPORT_SYMBOL(idr_get_next_ul);
+
+/**
+ * idr_get_next() - Find next populated entry.
+ * @idr: IDR handle.
+ * @nextid: Pointer to an ID.
+ *
+ * Returns the next populated entry in the tree with an ID greater than
+ * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
+ * to the ID of the found value.  To use in a loop, the value pointed to by
+ * nextid must be incremented by the user.
+ */
+void *idr_get_next(struct idr *idr, int *nextid)
+{
+	unsigned long id = *nextid;
+	void *entry = idr_get_next_ul(idr, &id);
+
+	if (WARN_ON_ONCE(id > INT_MAX))
+		return NULL;
+	*nextid = id;
+	return entry;
+}
+EXPORT_SYMBOL(idr_get_next);
 
 /**
  * idr_replace() - replace pointer for given ID.
@@ -370,7 +372,8 @@ EXPORT_SYMBOL(idr_replace);
  * Allocate an ID between @min and @max, inclusive.  The allocated ID will
  * not exceed %INT_MAX, even if @max is larger.
  *
- * Context: Any context.
+ * Context: Any context. It is safe to call this function without
+ * locking in your code.
  * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
  * or %-ENOSPC if there are no free IDs.
  */
@@ -468,6 +471,7 @@ alloc:
 	goto retry;
 nospc:
 	xas_unlock_irqrestore(&xas, flags);
+	kfree(alloc);
 	return -ENOSPC;
 }
 EXPORT_SYMBOL(ida_alloc_range);
@@ -477,7 +481,8 @@ EXPORT_SYMBOL(ida_alloc_range);
  * @ida: IDA handle.
  * @id: Previously allocated ID.
  *
- * Context: Any context.
+ * Context: Any context. It is safe to call this function without
+ * locking in your code.
  */
 void ida_free(struct ida *ida, unsigned int id)
 {
@@ -529,7 +534,8 @@ EXPORT_SYMBOL(ida_free);
  * or freed.  If the IDA is already empty, there is no need to call this
  * function.
  *
- * Context: Any context.
+ * Context: Any context. It is safe to call this function without
+ * locking in your code.
  */
 void ida_destroy(struct ida *ida)
 {

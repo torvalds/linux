@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # D-Link device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_DLINK
 	bool "D-Link devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +21,7 @@ config DL2K
 	tristate "DL2000/TC902x/IP1000A-based Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This driver supports DL2000/TC902x/IP1000A-based Gigabit ethernet cards,
 	  which includes
 	  D-Link DGE-550T Gigabit Ethernet Adapter.
@@ -36,7 +37,7 @@ config SUNDANCE
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  This driver is for the Sundance "Alta" chip.
 	  More specific information and updates are available from
 	  <http://www.scyld.com/network/sundance.html>.
@@ -44,7 +45,7 @@ config SUNDANCE
 config SUNDANCE_MMIO
 	bool "Use MMIO instead of PIO"
 	depends on SUNDANCE
-	---help---
+	help
 	  Enable memory-mapped I/O for interaction with Sundance NIC registers.
 	  Do NOT enable this by default, PIO (enabled when MMIO is disabled)
 	  is known to solve bugs on certain chips.

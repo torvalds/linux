@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  RouterBoard 500 Platform devices
  *
  *  Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  *  Copyright (C) 2007 Florian Fainelli <florian@openwrt.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -23,6 +14,7 @@
 #include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/serial_8250.h>
@@ -66,37 +58,27 @@ EXPORT_SYMBOL(get_latch_u5);
 
 static struct resource korina_dev0_res[] = {
 	{
-		.name = "korina_regs",
+		.name = "emac",
 		.start = ETH0_BASE_ADDR,
 		.end = ETH0_BASE_ADDR + sizeof(struct eth_regs),
 		.flags = IORESOURCE_MEM,
 	 }, {
-		.name = "korina_rx",
+		.name = "rx",
 		.start = ETH0_DMA_RX_IRQ,
 		.end = ETH0_DMA_RX_IRQ,
 		.flags = IORESOURCE_IRQ
 	}, {
-		.name = "korina_tx",
+		.name = "tx",
 		.start = ETH0_DMA_TX_IRQ,
 		.end = ETH0_DMA_TX_IRQ,
 		.flags = IORESOURCE_IRQ
 	}, {
-		.name = "korina_ovr",
-		.start = ETH0_RX_OVR_IRQ,
-		.end = ETH0_RX_OVR_IRQ,
-		.flags = IORESOURCE_IRQ
-	}, {
-		.name = "korina_und",
-		.start = ETH0_TX_UND_IRQ,
-		.end = ETH0_TX_UND_IRQ,
-		.flags = IORESOURCE_IRQ
-	}, {
-		.name = "korina_dma_rx",
+		.name = "dma_rx",
 		.start = ETH0_RX_DMA_ADDR,
 		.end = ETH0_RX_DMA_ADDR + DMA_CHAN_OFFSET - 1,
 		.flags = IORESOURCE_MEM,
 	 }, {
-		.name = "korina_dma_tx",
+		.name = "dma_tx",
 		.start = ETH0_TX_DMA_ADDR,
 		.end = ETH0_TX_DMA_ADDR + DMA_CHAN_OFFSET - 1,
 		.flags = IORESOURCE_MEM,
@@ -113,6 +95,9 @@ static struct platform_device korina_dev0 = {
 	.name = "korina",
 	.resource = korina_dev0_res,
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
+	.dev = {
+		.platform_data = &korina_dev0_data.mac,
+	}
 };
 
 static struct resource cf_slot0_res[] = {
@@ -127,14 +112,18 @@ static struct resource cf_slot0_res[] = {
 	}
 };
 
-static struct cf_device cf_slot0_data = {
-	.gpio_pin = CF_GPIO_NUM
+static struct gpiod_lookup_table cf_slot0_gpio_table = {
+	.dev_id = "pata-rb532-cf",
+	.table = {
+		GPIO_LOOKUP("gpio0", CF_GPIO_NUM,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device cf_slot0 = {
 	.id = -1,
 	.name = "pata-rb532-cf",
-	.dev.platform_data = &cf_slot0_data,
 	.resource = cf_slot0_res,
 	.num_resources = ARRAY_SIZE(cf_slot0_res),
 };
@@ -290,7 +279,7 @@ static int __init plat_setup_devices(void)
 	nand_slot0_res[0].end = nand_slot0_res[0].start + 0x1000;
 
 	/* Read and map device controller 3 */
-	dev3.base = ioremap_nocache(readl(IDT434_REG_BASE + DEV3BASE), 1);
+	dev3.base = ioremap(readl(IDT434_REG_BASE + DEV3BASE), 1);
 
 	if (!dev3.base) {
 		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
@@ -303,8 +292,7 @@ static int __init plat_setup_devices(void)
 	/* set the uart clock to the current cpu frequency */
 	rb532_uart_res[0].uartclk = idt_cpu_freq;
 
-	dev_set_drvdata(&korina_dev0.dev, &korina_dev0_data);
-
+	gpiod_add_lookup_table(&cf_slot0_gpio_table);
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }
 

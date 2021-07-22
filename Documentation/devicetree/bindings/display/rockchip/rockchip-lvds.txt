@@ -4,6 +4,7 @@ Rockchip RK3288 LVDS interface
 Required properties:
 - compatible: matching the soc type, one of
 	- "rockchip,rk3288-lvds";
+	- "rockchip,px30-lvds";
 
 - reg: physical base address of the controller and length
 	of memory mapped region.
@@ -18,6 +19,9 @@ Required properties:
 - rockchip,grf: phandle to the general register files syscon
 - rockchip,output: "rgb", "lvds" or "duallvds", This describes the output interface
 
+- phys: LVDS/DSI DPHY (px30 only)
+- phy-names: name of the PHY, must be "dphy" (px30 only)
+
 Optional properties:
 - pinctrl-names: must contain a "lcdc" entry.
 - pinctrl-0: pin control group to be used for this controller.
@@ -31,17 +35,6 @@ Their connections are modeled using the OF graph bindings specified in
 
 - video port 0 for the VOP input, the remote endpoint maybe vopb or vopl
 - video port 1 for either a panel or subsequent encoder
-
-the lvds panel described by
-	Documentation/devicetree/bindings/display/panel/simple-panel.txt
-
-Panel required properties:
-- ports for remote LVDS output
-
-Panel optional properties:
-- data-mapping: should be "vesa-24","jeida-24" or "jeida-18".
-This describes decribed by:
-	Documentation/devicetree/bindings/display/panel/panel-lvds.txt
 
 Example:
 

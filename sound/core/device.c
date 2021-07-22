@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Device management routines
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -42,7 +27,7 @@
  * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_device_new(struct snd_card *card, enum snd_device_type type,
-		   void *device_data, struct snd_device_ops *ops)
+		   void *device_data, const struct snd_device_ops *ops)
 {
 	struct snd_device *dev;
 	struct list_head *p;
@@ -252,3 +237,24 @@ void snd_device_free_all(struct snd_card *card)
 	list_for_each_entry_safe_reverse(dev, next, &card->devices, list)
 		__snd_device_free(dev);
 }
+
+/**
+ * snd_device_get_state - Get the current state of the given device
+ * @card: the card instance
+ * @device_data: the data pointer to release
+ *
+ * Returns the current state of the given device object.  For the valid
+ * device, either @SNDRV_DEV_BUILD, @SNDRV_DEV_REGISTERED or
+ * @SNDRV_DEV_DISCONNECTED is returned.
+ * Or for a non-existing device, -1 is returned as an error.
+ */
+int snd_device_get_state(struct snd_card *card, void *device_data)
+{
+	struct snd_device *dev;
+
+	dev = look_for_dev(card, device_data);
+	if (dev)
+		return dev->state;
+	return -1;
+}
+EXPORT_SYMBOL_GPL(snd_device_get_state);

@@ -1,9 +1,9 @@
 [
   {
-        "ArchStdEvent": "EXC_IRQ",
+        "ArchStdEvent": "EXC_IRQ"
   },
   {
-        "ArchStdEvent": "EXC_FIQ",
+        "ArchStdEvent": "EXC_FIQ"
   },
   {
         "EventCode": "0xC6",

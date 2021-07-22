@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/rtc/rtc-spear.c
  *
  * Copyright (C) 2010 ST Microelectronics
  * Rajeev Kumar<rajeev-dlh.kumar@st.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/bcd.h>
@@ -153,12 +150,12 @@ static void rtc_wait_not_busy(struct spear_rtc_config *config)
 static irqreturn_t spear_rtc_irq(int irq, void *dev_id)
 {
 	struct spear_rtc_config *config = dev_id;
-	unsigned long flags, events = 0;
+	unsigned long events = 0;
 	unsigned int irq_data;
 
-	spin_lock_irqsave(&config->lock, flags);
+	spin_lock(&config->lock);
 	irq_data = readl(config->ioaddr + STATUS_REG);
-	spin_unlock_irqrestore(&config->lock, flags);
+	spin_unlock(&config->lock);
 
 	if ((irq_data & RTC_INT_MASK)) {
 		spear_rtc_clear_interrupt(config);
@@ -347,7 +344,6 @@ static const struct rtc_class_ops spear_rtc_ops = {
 
 static int spear_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct spear_rtc_config *config;
 	int status = 0;
 	int irq;
@@ -358,10 +354,8 @@ static int spear_rtc_probe(struct platform_device *pdev)
 
 	/* alarm irqs */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no update irq?\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	status = devm_request_irq(&pdev->dev, irq, spear_rtc_irq, 0, pdev->name,
 			config);
@@ -371,8 +365,7 @@ static int spear_rtc_probe(struct platform_device *pdev)
 		return status;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	config->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	config->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(config->ioaddr))
 		return PTR_ERR(config->ioaddr);
 

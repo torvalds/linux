@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-1.0+
+/* SPDX-License-Identifier: GPL-1.0+ */
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_DRIVER_H
@@ -104,6 +105,7 @@ struct usbhs_priv;
 
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
+#define CNEN	(1 << 8)	/* Single-ended receiver operation Enable */
 #define HSE	(1 << 7)	/* High-Speed Operation Enable */
 #define DCFM	(1 << 6)	/* Controller Function Select */
 #define DRPD	(1 << 5)	/* D+ Line/D- Line Resistance Control */
@@ -159,11 +161,12 @@ struct usbhs_priv;
 #define VBSTS	(1 << 7)	/* VBUS_0 and VBUSIN_0 Input Status */
 #define VALID	(1 << 3)	/* USB Request Receive */
 
-#define DVSQ_MASK		(0x3 << 4)	/* Device State */
+#define DVSQ_MASK		(0x7 << 4)	/* Device State */
 #define  POWER_STATE		(0 << 4)
 #define  DEFAULT_STATE		(1 << 4)
 #define  ADDRESS_STATE		(2 << 4)
 #define  CONFIGURATION_STATE	(3 << 4)
+#define  SUSPENDED_STATE	(4 << 4)
 
 #define CTSQ_MASK		(0x7)	/* Control Transfer Stage */
 #define  IDLE_SETUP_STAGE	0	/* Idle stage or setup stage */
@@ -209,6 +212,7 @@ struct usbhs_priv;
 /* DCPCTR */
 #define BSTS		(1 << 15)	/* Buffer Status */
 #define SUREQ		(1 << 14)	/* Sending SETUP Token */
+#define INBUFM		(1 << 14)	/* (PIPEnCTR) Transfer Buffer Monitor */
 #define CSSTS		(1 << 12)	/* CSSTS Status */
 #define	ACLRM		(1 << 9)	/* Buffer Auto-Clear Mode */
 #define SQCLR		(1 << 8)	/* Toggle Bit Clear */
@@ -250,7 +254,7 @@ struct usbhs_priv {
 	unsigned int irq;
 	unsigned long irqflags;
 
-	struct renesas_usbhs_platform_callback	pfunc;
+	const struct renesas_usbhs_platform_callback *pfunc;
 	struct renesas_usbhs_driver_param	dparam;
 
 	struct delayed_work notify_hotplug_work;
@@ -259,8 +263,6 @@ struct usbhs_priv {
 	struct extcon_dev *edev;
 
 	spinlock_t		lock;
-
-	u32 flags;
 
 	/*
 	 * module control
@@ -292,6 +294,8 @@ void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data);
 #define usbhs_lock(p, f) spin_lock_irqsave(usbhs_priv_to_lock(p), f)
 #define usbhs_unlock(p, f) spin_unlock_irqrestore(usbhs_priv_to_lock(p), f)
 
+int usbhs_get_id_as_gadget(struct platform_device *pdev);
+
 /*
  * sysconfig
  */
@@ -313,6 +317,7 @@ void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
 void usbhs_bus_send_reset(struct usbhs_priv *priv);
 int usbhs_bus_get_speed(struct usbhs_priv *priv);
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
+int usbhsc_schedule_notify_hotplug(struct platform_device *pdev);
 
 /*
  * frame

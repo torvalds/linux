@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  libahci.c - Common AHCI SATA low-level routines
  *
@@ -7,29 +8,12 @@
  *
  *  Copyright 2004-2005 Red Hat, Inc.
  *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
  * libata documentation is available via 'make {ps|pdf}docs',
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
  * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
- *
  */
 
 #include <linux/kernel.h>
@@ -73,7 +57,7 @@ static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
-static void ahci_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors ahci_qc_prep(struct ata_queued_cmd *qc);
 static int ahci_pmp_qc_defer(struct ata_queued_cmd *qc);
 static void ahci_freeze(struct ata_port *ap);
 static void ahci_thaw(struct ata_port *ap);
@@ -191,7 +175,6 @@ struct ata_port_operations ahci_pmp_retry_srst_ops = {
 EXPORT_SYMBOL_GPL(ahci_pmp_retry_srst_ops);
 
 static bool ahci_em_messages __read_mostly = true;
-EXPORT_SYMBOL_GPL(ahci_em_messages);
 module_param(ahci_em_messages, bool, 0444);
 /* add other LED protocol types when they become supported */
 MODULE_PARM_DESC(ahci_em_messages,
@@ -508,6 +491,11 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 	if (!(cap & HOST_CAP_ALPM) && (hpriv->flags & AHCI_HFLAG_YES_ALPM)) {
 		dev_info(dev, "controller can do ALPM, turning on CAP_ALPM\n");
 		cap |= HOST_CAP_ALPM;
+	}
+
+	if ((cap & HOST_CAP_SXS) && (hpriv->flags & AHCI_HFLAG_NO_SXS)) {
+		dev_info(dev, "controller does not support SXS, disabling CAP_SXS\n");
+		cap &= ~HOST_CAP_SXS;
 	}
 
 	if (hpriv->force_port_map && port_map != hpriv->force_port_map) {
@@ -1641,7 +1629,7 @@ static int ahci_pmp_qc_defer(struct ata_queued_cmd *qc)
 		return sata_pmp_qc_defer_cmd_switch(qc);
 }
 
-static void ahci_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors ahci_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ahci_port_priv *pp = ap->private_data;
@@ -1677,6 +1665,8 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 		opts |= AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH;
 
 	ahci_fill_cmd_slot(pp, qc->hw_tag, opts);
+
+	return AC_ERR_OK;
 }
 
 static void ahci_fbs_dec_intr(struct ata_port *ap)
@@ -2381,7 +2371,6 @@ static int ahci_port_start(struct ata_port *ap)
 	mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
-	memset(mem, 0, dma_sz);
 
 	/*
 	 * First item in chunk of DMA memory: 32-slot command table,
@@ -2599,7 +2588,8 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	int rc;
 
 	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI) {
-		if (hpriv->irq_handler)
+		if (hpriv->irq_handler &&
+		    hpriv->irq_handler != ahci_single_level_irq_intr)
 			dev_warn(host->dev,
 			         "both AHCI_HFLAG_MULTI_MSI flag set and custom irq handler implemented\n");
 		if (!hpriv->get_irq_vector) {

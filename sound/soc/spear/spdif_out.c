@@ -188,7 +188,7 @@ static int spdif_out_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
-static int spdif_digital_mute(struct snd_soc_dai *dai, int mute)
+static int spdif_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(dai);
 	u32 val;
@@ -229,7 +229,8 @@ static int spdif_mute_put(struct snd_kcontrol *kcontrol,
 	if (host->saved_params.mute == ucontrol->value.integer.value[0])
 		return 0;
 
-	spdif_digital_mute(cpu_dai, ucontrol->value.integer.value[0]);
+	spdif_mute(cpu_dai, ucontrol->value.integer.value[0],
+		   SNDRV_PCM_STREAM_PLAYBACK);
 
 	return 1;
 }
@@ -250,11 +251,12 @@ static int spdif_soc_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops spdif_out_dai_ops = {
-	.digital_mute	= spdif_digital_mute,
+	.mute_stream	= spdif_mute,
 	.startup	= spdif_out_startup,
 	.shutdown	= spdif_out_shutdown,
 	.trigger	= spdif_out_trigger,
 	.hw_params	= spdif_out_hw_params,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver spdif_out_dai = {
@@ -285,8 +287,7 @@ static int spdif_out_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->io_base = devm_ioremap_resource(&pdev->dev, res);
+	host->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(host->io_base))
 		return PTR_ERR(host->io_base);
 

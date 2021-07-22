@@ -42,7 +42,7 @@ static int gnss_open(struct inode *inode, struct file *file)
 
 	get_device(&gdev->dev);
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	file->private_data = gdev;
 
 	down_write(&gdev->rwsem);
@@ -334,6 +334,7 @@ static const char * const gnss_type_names[GNSS_TYPE_COUNT] = {
 	[GNSS_TYPE_NMEA]	= "NMEA",
 	[GNSS_TYPE_SIRF]	= "SiRF",
 	[GNSS_TYPE_UBX]		= "UBX",
+	[GNSS_TYPE_MTK]		= "MTK",
 };
 
 static const char *gnss_type_name(struct gnss_device *gdev)

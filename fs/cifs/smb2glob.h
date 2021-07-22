@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/smb2glob.h
  *
@@ -8,16 +9,6 @@
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
- *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
  *
  */
 #ifndef _SMB2_GLOB_H
@@ -45,6 +36,7 @@
 #define SMB2_OP_HARDLINK 8
 #define SMB2_OP_SET_EOF 9
 #define SMB2_OP_RMDIR 10
+#define SMB2_OP_POSIX_QUERY_INFO 11
 
 /* Used when constructing chained read requests. */
 #define CHAINED_REQUEST 1
@@ -57,6 +49,8 @@
 #define SMB2_HMACSHA256_SIZE (32)
 #define SMB2_CMACAES_SIZE (16)
 #define SMB3_SIGNKEY_SIZE (16)
+#define SMB3_GCM128_CRYPTKEY_SIZE (16)
+#define SMB3_GCM256_CRYPTKEY_SIZE (32)
 
 /* Maximum buffer size value we can send with 1 credit */
 #define SMB2_MAX_BUFFER_SIZE 65536

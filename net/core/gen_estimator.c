@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/gen_estimator.c	Simple rate estimator.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *		Eric Dumazet <edumazet@google.com>
@@ -52,7 +48,7 @@ struct net_rate_estimator {
 	u8			intvl_log; /* period : (250ms << intvl_log) */
 
 	seqcount_t		seq;
-	u32			last_packets;
+	u64			last_packets;
 	u64			last_bytes;
 
 	u64			avpps;
@@ -84,11 +80,11 @@ static void est_timer(struct timer_list *t)
 	u64 rate, brate;
 
 	est_fetch_counters(est, &b);
-	brate = (b.bytes - est->last_bytes) << (10 - est->ewma_log - est->intvl_log);
-	brate -= (est->avbps >> est->ewma_log);
+	brate = (b.bytes - est->last_bytes) << (10 - est->intvl_log);
+	brate = (brate >> est->ewma_log) - (est->avbps >> est->ewma_log);
 
-	rate = (u64)(b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
-	rate -= (est->avpps >> est->ewma_log);
+	rate = (b.packets - est->last_packets) << (10 - est->intvl_log);
+	rate = (rate >> est->ewma_log) - (est->avpps >> est->ewma_log);
 
 	write_seqcount_begin(&est->seq);
 	est->avbps += brate;
@@ -145,6 +141,9 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	 *  1 : 2 sec,    2 : 4 sec,    3 : 8 sec
 	 */
 	if (parm->interval < -2 || parm->interval > 3)
+		return -EINVAL;
+
+	if (parm->ewma_log == 0 || parm->ewma_log >= 31)
 		return -EINVAL;
 
 	est = kzalloc(sizeof(*est), GFP_KERNEL);

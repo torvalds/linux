@@ -4,12 +4,10 @@
 #
 config PCIEPORTBUS
 	bool "PCI Express Port Bus support"
-	depends on PCI
 	help
-	  This automatically enables PCI Express Port Bus support. Users can
-	  choose Native Hot-Plug support, Advanced Error Reporting support,
-	  Power Management Event support and Virtual Channel support to run
-	  on PCI Express Ports (Root or Switch).
+	  This enables PCI Express Port Bus support. Users can then enable
+	  support for Native Hot-Plug, Advanced Error Reporting, Power
+	  Management Events, and Downstream Port Containment.
 
 #
 # Include service Kconfig here
@@ -27,7 +25,6 @@ config PCIEAER
 	bool "PCI Express Advanced Error Reporting support"
 	depends on PCIEPORTBUS
 	select RAS
-	default y
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) driver support. Error reporting messages sent to Root
@@ -36,6 +33,7 @@ config PCIEAER
 config PCIEAER_INJECT
 	tristate "PCI Express error injection support"
 	depends on PCIEAER
+	select GENERIC_IRQ_INJECTION
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) software error injector.
@@ -45,7 +43,7 @@ config PCIEAER_INJECT
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
-	     http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+	     https://www.kernel.org/pub/linux/utils/pci/aer-inject/
 
 #
 # PCI Express ECRC
@@ -64,7 +62,6 @@ config PCIE_ECRC
 #
 config PCIEASPM
 	bool "PCI Express ASPM control" if EXPERT
-	depends on PCI && PCIEPORTBUS
 	default y
 	help
 	  This enables OS control over PCI Express ASPM (Active State
@@ -79,13 +76,6 @@ config PCIEASPM
 	  /sys/module/pcie_aspm/parameters/policy
 
 	  When in doubt, say Y.
-
-config PCIEASPM_DEBUG
-	bool "Debug PCI Express ASPM"
-	depends on PCIEASPM
-	help
-	  This enables PCI Express ASPM debug support. It will add per-device
-	  interface to control ASPM.
 
 choice
 	prompt "Default ASPM policy"
@@ -136,10 +126,19 @@ config PCIE_DPC
 
 config PCIE_PTM
 	bool "PCI Express Precision Time Measurement support"
-	depends on PCIEPORTBUS
 	help
 	  This enables PCI Express Precision Time Measurement (PTM)
 	  support.
 
 	  This is only useful if you have devices that support PTM, but it
 	  is safe to enable even if you don't.
+
+config PCIE_EDR
+	bool "PCI Express Error Disconnect Recover support"
+	depends on PCIE_DPC && ACPI
+	help
+	  This option adds Error Disconnect Recover support as specified
+	  in the Downstream Port Containment Related Enhancements ECN to
+	  the PCI Firmware Specification r3.2.  Enable this if you want to
+	  support hybrid DPC model which uses both firmware and OS to
+	  implement DPC.

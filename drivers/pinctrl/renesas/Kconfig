@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Renesas SH and SH Mobile PINCTRL drivers
+#
+
+menu "Renesas pinctrl drivers"
+
+config PINCTRL_RENESAS
+	bool "Renesas SoC pin control support" if COMPILE_TEST && !(ARCH_RENESAS || SUPERH)
+	default y if ARCH_RENESAS || SUPERH
+	select PINCTRL_PFC_EMEV2 if ARCH_EMEV2
+	select PINCTRL_PFC_R8A73A4 if ARCH_R8A73A4
+	select PINCTRL_PFC_R8A7740 if ARCH_R8A7740
+	select PINCTRL_PFC_R8A7742 if ARCH_R8A7742
+	select PINCTRL_PFC_R8A7743 if ARCH_R8A7743
+	select PINCTRL_PFC_R8A7744 if ARCH_R8A7744
+	select PINCTRL_PFC_R8A7745 if ARCH_R8A7745
+	select PINCTRL_PFC_R8A77470 if ARCH_R8A77470
+	select PINCTRL_PFC_R8A774A1 if ARCH_R8A774A1
+	select PINCTRL_PFC_R8A774B1 if ARCH_R8A774B1
+	select PINCTRL_PFC_R8A774C0 if ARCH_R8A774C0
+	select PINCTRL_PFC_R8A774E1 if ARCH_R8A774E1
+	select PINCTRL_PFC_R8A7778 if ARCH_R8A7778
+	select PINCTRL_PFC_R8A7779 if ARCH_R8A7779
+	select PINCTRL_PFC_R8A7790 if ARCH_R8A7790
+	select PINCTRL_PFC_R8A7791 if ARCH_R8A7791
+	select PINCTRL_PFC_R8A7792 if ARCH_R8A7792
+	select PINCTRL_PFC_R8A7793 if ARCH_R8A7793
+	select PINCTRL_PFC_R8A7794 if ARCH_R8A7794
+	select PINCTRL_PFC_R8A77950 if ARCH_R8A77950
+	select PINCTRL_PFC_R8A77951 if ARCH_R8A77951
+	select PINCTRL_PFC_R8A77960 if ARCH_R8A77960
+	select PINCTRL_PFC_R8A77961 if ARCH_R8A77961
+	select PINCTRL_PFC_R8A77965 if ARCH_R8A77965
+	select PINCTRL_PFC_R8A77970 if ARCH_R8A77970
+	select PINCTRL_PFC_R8A77980 if ARCH_R8A77980
+	select PINCTRL_PFC_R8A77990 if ARCH_R8A77990
+	select PINCTRL_PFC_R8A77995 if ARCH_R8A77995
+	select PINCTRL_PFC_R8A779A0 if ARCH_R8A779A0
+	select PINCTRL_PFC_SH7203 if CPU_SUBTYPE_SH7203
+	select PINCTRL_PFC_SH7264 if CPU_SUBTYPE_SH7264
+	select PINCTRL_PFC_SH7269 if CPU_SUBTYPE_SH7269
+	select PINCTRL_PFC_SH73A0 if ARCH_SH73A0
+	select PINCTRL_PFC_SH7720 if CPU_SUBTYPE_SH7720
+	select PINCTRL_PFC_SH7722 if CPU_SUBTYPE_SH7722
+	select PINCTRL_PFC_SH7723 if CPU_SUBTYPE_SH7723
+	select PINCTRL_PFC_SH7724 if CPU_SUBTYPE_SH7724
+	select PINCTRL_PFC_SH7734 if CPU_SUBTYPE_SH7734
+	select PINCTRL_PFC_SH7757 if CPU_SUBTYPE_SH7757
+	select PINCTRL_PFC_SH7785 if CPU_SUBTYPE_SH7785
+	select PINCTRL_PFC_SH7786 if CPU_SUBTYPE_SH7786
+	select PINCTRL_PFC_SHX3 if CPU_SUBTYPE_SHX3
+	help
+	  This enables pin control drivers for Renesas SuperH and ARM platforms
+
+config PINCTRL_SH_PFC
+	bool
+	select GENERIC_PINCONF
+	select PINMUX
+	select PINCONF
+	help
+	  This enables common pin control functionality for EMMA Mobile, R-Car,
+	  R-Mobile, RZ/G, SH, and SH-Mobile platforms.
+
+config PINCTRL_SH_PFC_GPIO
+	bool
+	select GPIOLIB
+	select PINCTRL_SH_PFC
+	help
+	  This enables pin control and GPIO drivers for SH/SH Mobile platforms
+
+config PINCTRL_SH_FUNC_GPIO
+	bool
+	select PINCTRL_SH_PFC_GPIO
+	help
+	  This enables legacy function GPIOs for SH platforms
+
+config PINCTRL_PFC_EMEV2
+	bool "pin control support for Emma Mobile EV2" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77995
+	bool "pin control support for R-Car D3" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7794
+	bool "pin control support for R-Car E2" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77990
+	bool "pin control support for R-Car E3" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7779
+	bool "pin control support for R-Car H1" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7790
+	bool "pin control support for R-Car H2" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77950
+	bool "pin control support for R-Car H3 ES1.x" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77951
+	bool "pin control support for R-Car H3 ES2.0+" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7778
+	bool "pin control support for R-Car M1A" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7793
+	bool "pin control support for R-Car M2-N" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7791
+	bool "pin control support for R-Car M2-W" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77965
+	bool "pin control support for R-Car M3-N" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77960
+	bool "pin control support for R-Car M3-W" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77961
+	bool "pin control support for R-Car M3-W+" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7792
+	bool "pin control support for R-Car V2H" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77980
+	bool "pin control support for R-Car V3H" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77970
+	bool "pin control support for R-Car V3M" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A779A0
+	bool "pin control support for R-Car V3U" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7740
+	bool "pin control support for R-Mobile A1" if COMPILE_TEST
+	select PINCTRL_SH_PFC_GPIO
+
+config PINCTRL_PFC_R8A73A4
+	bool "pin control support for R-Mobile APE6" if COMPILE_TEST
+	select PINCTRL_SH_PFC_GPIO
+
+config PINCTRL_RZA1
+	bool "pin control support for RZ/A1"
+	depends on OF
+	depends on ARCH_R7S72100 || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	help
+	  This selects pinctrl driver for Renesas RZ/A1 platforms.
+
+config PINCTRL_RZA2
+	bool "pin control support for RZ/A2"
+	depends on OF
+	depends on ARCH_R7S9210 || COMPILE_TEST
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	help
+	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
+
+config PINCTRL_PFC_R8A77470
+	bool "pin control support for RZ/G1C" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7745
+	bool "pin control support for RZ/G1E" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7742
+	bool "pin control support for RZ/G1H" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7743
+	bool "pin control support for RZ/G1M" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7744
+	bool "pin control support for RZ/G1N" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A774C0
+	bool "pin control support for RZ/G2E" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A774E1
+	bool "pin control support for RZ/G2H" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A774A1
+	bool "pin control support for RZ/G2M" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A774B1
+	bool "pin control support for RZ/G2N" if COMPILE_TEST
+	select PINCTRL_SH_PFC
+
+config PINCTRL_RZN1
+	bool "pin control support for RZ/N1"
+	depends on OF
+	depends on ARCH_RZN1 || COMPILE_TEST
+	select GENERIC_PINCONF
+	help
+	  This selects pinctrl driver for Renesas RZ/N1 devices.
+
+config PINCTRL_PFC_SH7203
+	bool "pin control support for SH7203" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7264
+	bool "pin control support for SH7264" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7269
+	bool "pin control support for SH7269" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7720
+	bool "pin control support for SH7720" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7722
+	bool "pin control support for SH7722" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7734
+	bool "pin control support for SH7734" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7757
+	bool "pin control support for SH7757" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7785
+	bool "pin control support for SH7785" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7786
+	bool "pin control support for SH7786" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH73A0
+	bool "pin control support for SH-Mobile AG5" if COMPILE_TEST
+	select PINCTRL_SH_PFC_GPIO
+	select REGULATOR
+
+config PINCTRL_PFC_SH7723
+	bool "pin control support for SH-Mobile R2" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SH7724
+	bool "pin control support for SH-Mobile R2R" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+config PINCTRL_PFC_SHX3
+	bool "pin control support for SH-X3" if COMPILE_TEST
+	select PINCTRL_SH_FUNC_GPIO
+
+endmenu

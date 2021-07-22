@@ -51,6 +51,7 @@
 
 / {
 	model = "LS1021A QDS Board";
+	compatible = "fsl,ls1021a-qds", "fsl,ls1021a";
 
 	aliases {
 		enet0_rgmii_phy = &rgmii_phy1;
@@ -142,6 +143,10 @@
 &enet2 {
 	phy-handle = <&rgmii_phy3>;
 	phy-connection-type = "rgmii-id";
+	status = "okay";
+};
+
+&esdhc {
 	status = "okay";
 };
 

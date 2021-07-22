@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ALSA sequencer MIDI-through client
  * Copyright (c) 1999-2000 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -123,7 +109,8 @@ create_port(int idx, int type)
 	struct snd_seq_port_callback pcb;
 	struct snd_seq_dummy_port *rec;
 
-	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL)
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	if (!rec)
 		return NULL;
 
 	rec->client = my_client;

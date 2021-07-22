@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP2/3 System Control Module register access
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2007 Nokia Corporation
  *
  * Written by Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #undef DEBUG
 
@@ -138,11 +135,6 @@ struct omap3_control_regs {
 
 static struct omap3_control_regs control_context;
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
-
-void __init omap2_set_globals_control(void __iomem *ctrl)
-{
-	omap2_ctrl_base = ctrl;
-}
 
 u8 omap_ctrl_readb(u16 offset)
 {
@@ -687,7 +679,7 @@ static u32 am33xx_control_vals[ARRAY_SIZE(am43xx_control_reg_offsets)];
  *
  * Save the wkup domain registers
  */
-void am43xx_control_save_context(void)
+static void am43xx_control_save_context(void)
 {
 	int i;
 
@@ -701,7 +693,7 @@ void am43xx_control_save_context(void)
  *
  * Restore the wkup domain registers
  */
-void am43xx_control_restore_context(void)
+static void am43xx_control_restore_context(void)
 {
 	int i;
 

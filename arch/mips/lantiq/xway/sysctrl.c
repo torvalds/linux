@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2011-2012 John Crispin <john@phrozen.org>
  *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
@@ -114,11 +112,15 @@ static u32 pmu_clk_cr_b[] = {
 #define PMU_PPE_DP	BIT(23)
 #define PMU_PPE_DPLUS	BIT(24)
 #define PMU_USB1_P	BIT(26)
+#define PMU_GPHY3	BIT(26) /* grx390 */
 #define PMU_USB1	BIT(27)
 #define PMU_SWITCH	BIT(28)
 #define PMU_PPE_TOP	BIT(29)
+#define PMU_GPHY0	BIT(29) /* ar10, xrx390 */
 #define PMU_GPHY	BIT(30)
+#define PMU_GPHY1	BIT(30) /* ar10, xrx390 */
 #define PMU_PCIE_CLK	BIT(31)
+#define PMU_GPHY2	BIT(31) /* ar10, xrx390 */
 
 #define PMU1_PCIE_PHY	BIT(0)	/* vr9-specific,moved in ar10/grx390 */
 #define PMU1_PCIE_CTL	BIT(1)
@@ -433,10 +435,10 @@ void __init ltq_soc_init(void)
 				res_ebu.name))
 		pr_err("Failed to request core resources");
 
-	pmu_membase = ioremap_nocache(res_pmu.start, resource_size(&res_pmu));
-	ltq_cgu_membase = ioremap_nocache(res_cgu.start,
+	pmu_membase = ioremap(res_pmu.start, resource_size(&res_pmu));
+	ltq_cgu_membase = ioremap(res_cgu.start,
 						resource_size(&res_cgu));
-	ltq_ebu_membase = ioremap_nocache(res_ebu.start,
+	ltq_ebu_membase = ioremap(res_ebu.start,
 						resource_size(&res_ebu));
 	if (!pmu_membase || !ltq_cgu_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");
@@ -467,17 +469,20 @@ void __init ltq_soc_init(void)
 
 	if (of_machine_is_compatible("lantiq,grx390") ||
 	    of_machine_is_compatible("lantiq,ar10")) {
+		clkdev_add_pmu("1e108000.switch", "gphy0", 0, 0, PMU_GPHY0);
+		clkdev_add_pmu("1e108000.switch", "gphy1", 0, 0, PMU_GPHY1);
+		clkdev_add_pmu("1e108000.switch", "gphy2", 0, 0, PMU_GPHY2);
 		clkdev_add_pmu("1f203018.usb2-phy", "phy", 1, 2, PMU_ANALOG_USB0_P);
 		clkdev_add_pmu("1f203034.usb2-phy", "phy", 1, 2, PMU_ANALOG_USB1_P);
 		/* rc 0 */
-		clkdev_add_pmu("1d900000.pcie", "phy", 1, 2, PMU_ANALOG_PCIE0_P);
+		clkdev_add_pmu("1f106800.phy", "phy", 1, 2, PMU_ANALOG_PCIE0_P);
 		clkdev_add_pmu("1d900000.pcie", "msi", 1, 1, PMU1_PCIE_MSI);
-		clkdev_add_pmu("1d900000.pcie", "pdi", 1, 1, PMU1_PCIE_PDI);
+		clkdev_add_pmu("1f106800.phy", "pdi", 1, 1, PMU1_PCIE_PDI);
 		clkdev_add_pmu("1d900000.pcie", "ctl", 1, 1, PMU1_PCIE_CTL);
 		/* rc 1 */
-		clkdev_add_pmu("19000000.pcie", "phy", 1, 2, PMU_ANALOG_PCIE1_P);
+		clkdev_add_pmu("1f700400.phy", "phy", 1, 2, PMU_ANALOG_PCIE1_P);
 		clkdev_add_pmu("19000000.pcie", "msi", 1, 1, PMU1_PCIE1_MSI);
-		clkdev_add_pmu("19000000.pcie", "pdi", 1, 1, PMU1_PCIE1_PDI);
+		clkdev_add_pmu("1f700400.phy", "pdi", 1, 1, PMU1_PCIE1_PDI);
 		clkdev_add_pmu("19000000.pcie", "ctl", 1, 1, PMU1_PCIE1_CTL);
 	}
 
@@ -498,12 +503,13 @@ void __init ltq_soc_init(void)
 	} else if (of_machine_is_compatible("lantiq,grx390")) {
 		clkdev_add_static(ltq_grx390_cpu_hz(), ltq_grx390_fpi_hz(),
 				  ltq_grx390_fpi_hz(), ltq_grx390_pp32_hz());
+		clkdev_add_pmu("1e108000.switch", "gphy3", 0, 0, PMU_GPHY3);
 		clkdev_add_pmu("1e101000.usb", "otg", 1, 0, PMU_USB0);
 		clkdev_add_pmu("1e106000.usb", "otg", 1, 0, PMU_USB1);
 		/* rc 2 */
-		clkdev_add_pmu("1a800000.pcie", "phy", 1, 2, PMU_ANALOG_PCIE2_P);
+		clkdev_add_pmu("1f106a00.pcie", "phy", 1, 2, PMU_ANALOG_PCIE2_P);
 		clkdev_add_pmu("1a800000.pcie", "msi", 1, 1, PMU1_PCIE2_MSI);
-		clkdev_add_pmu("1a800000.pcie", "pdi", 1, 1, PMU1_PCIE2_PDI);
+		clkdev_add_pmu("1f106a00.pcie", "pdi", 1, 1, PMU1_PCIE2_PDI);
 		clkdev_add_pmu("1a800000.pcie", "ctl", 1, 1, PMU1_PCIE2_CTL);
 		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0, PMU_SWITCH | PMU_PPE_DP);
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
@@ -516,8 +522,6 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0, PMU_SWITCH |
 			       PMU_PPE_DP | PMU_PPE_TC);
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
-		clkdev_add_pmu("1e108000.gswip", "gphy0", 0, 0, PMU_GPHY);
-		clkdev_add_pmu("1e108000.gswip", "gphy1", 0, 0, PMU_GPHY);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 		clkdev_add_pmu("1e116000.mei", "afe", 1, 2, PMU_ANALOG_DSL_AFE);
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);
@@ -528,10 +532,10 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1e101000.usb", "otg", 1, 0, PMU_USB0 | PMU_AHBM);
 		clkdev_add_pmu("1f203034.usb2-phy", "phy", 1, 0, PMU_USB1_P);
 		clkdev_add_pmu("1e106000.usb", "otg", 1, 0, PMU_USB1 | PMU_AHBM);
-		clkdev_add_pmu("1d900000.pcie", "phy", 1, 1, PMU1_PCIE_PHY);
+		clkdev_add_pmu("1f106800.phy", "phy", 1, 1, PMU1_PCIE_PHY);
 		clkdev_add_pmu("1d900000.pcie", "bus", 1, 0, PMU_PCIE_CLK);
 		clkdev_add_pmu("1d900000.pcie", "msi", 1, 1, PMU1_PCIE_MSI);
-		clkdev_add_pmu("1d900000.pcie", "pdi", 1, 1, PMU1_PCIE_PDI);
+		clkdev_add_pmu("1f106800.phy", "pdi", 1, 1, PMU1_PCIE_PDI);
 		clkdev_add_pmu("1d900000.pcie", "ctl", 1, 1, PMU1_PCIE_CTL);
 		clkdev_add_pmu(NULL, "ahb", 1, 0, PMU_AHBM | PMU_AHBS);
 
@@ -540,8 +544,8 @@ void __init ltq_soc_init(void)
 				PMU_SWITCH | PMU_PPE_DPLUS | PMU_PPE_DPLUM |
 				PMU_PPE_EMA | PMU_PPE_TC | PMU_PPE_SLL01 |
 				PMU_PPE_QSB | PMU_PPE_TOP);
-		clkdev_add_pmu("1e108000.gswip", "gphy0", 0, 0, PMU_GPHY);
-		clkdev_add_pmu("1e108000.gswip", "gphy1", 0, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.switch", "gphy0", 0, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.switch", "gphy1", 0, 0, PMU_GPHY);
 		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_SDIO);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);

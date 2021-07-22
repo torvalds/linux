@@ -9,6 +9,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 
 #include "ctree.h"
@@ -72,8 +73,16 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 	}
 
 	if (acl) {
+		unsigned int nofs_flag;
+
 		size = posix_acl_xattr_size(acl->a_count);
+		/*
+		 * We're holding a transaction handle, so use a NOFS memory
+		 * allocation context to avoid deadlock if reclaim happens.
+		 */
+		nofs_flag = memalloc_nofs_save();
 		value = kmalloc(size, GFP_KERNEL);
+		memalloc_nofs_restore(nofs_flag);
 		if (!value) {
 			ret = -ENOMEM;
 			goto out;
@@ -84,7 +93,11 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 
-	ret = btrfs_setxattr(trans, inode, name, value, size, 0);
+	if (trans)
+		ret = btrfs_setxattr(trans, inode, name, value, size, 0);
+	else
+		ret = btrfs_setxattr_trans(inode, name, value, size, 0);
+
 out:
 	kfree(value);
 
@@ -94,13 +107,15 @@ out:
 	return ret;
 }
 
-int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int btrfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		  struct posix_acl *acl, int type)
 {
 	int ret;
 	umode_t old_mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+		ret = posix_acl_update_mode(&init_user_ns, inode,
+					    &inode->i_mode, &acl);
 		if (ret)
 			return ret;
 	}

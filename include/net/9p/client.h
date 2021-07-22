@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/net/9p/client.h
  *
@@ -5,22 +6,6 @@
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to:
- *  Free Software Foundation
- *  51 Franklin Street, Fifth Floor
- *  Boston, MA  02111-1301  USA
- *
  */
 
 #ifndef NET_9P_CLIENT_H
@@ -88,7 +73,6 @@ enum p9_req_status_t {
  * @wq: wait_queue for the client to block on for this request
  * @tc: the request fcall structure
  * @rc: the response fcall structure
- * @aux: transport specific data (provided for trans_fd migration)
  * @req_list: link for higher level objects to chain requests
  */
 struct p9_req_t {
@@ -98,7 +82,6 @@ struct p9_req_t {
 	wait_queue_head_t wq;
 	struct p9_fcall tc;
 	struct p9_fcall rc;
-	void *aux;
 	struct list_head req_list;
 };
 
@@ -157,10 +140,16 @@ struct p9_client {
  *
  * TODO: This needs lots of explanation.
  */
+enum fid_source {
+	FID_FROM_OTHER,
+	FID_FROM_INODE,
+	FID_FROM_DENTRY,
+};
 
 struct p9_fid {
 	struct p9_client *clnt;
 	u32 fid;
+	refcount_t count;
 	int mode;
 	struct p9_qid qid;
 	u32 iounit;
@@ -169,6 +158,7 @@ struct p9_fid {
 	void *rdir;
 
 	struct hlist_node dlist;	/* list of all fids attached to a dentry */
+	struct hlist_node ilist;
 };
 
 /**
@@ -215,6 +205,8 @@ int p9_client_fsync(struct p9_fid *fid, int datasync);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_unlinkat(struct p9_fid *dfid, const char *name, int flags);
 int p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err);
+int p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
+		int *err);
 int p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err);
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset);
 int p9dirent_read(struct p9_client *clnt, char *buf, int len,

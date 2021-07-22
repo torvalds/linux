@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) 2005-2009 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -18,6 +16,7 @@
 #include <linux/slab.h>
 
 #include "dlm_internal.h"
+#include "midcomms.h"
 #include "lock.h"
 
 #define DLM_DEBUG_BUF_LEN 4096
@@ -25,6 +24,7 @@ static char debug_buf[DLM_DEBUG_BUF_LEN];
 static struct mutex debug_buf_lock;
 
 static struct dentry *dlm_root;
+static struct dentry *dlm_comms;
 
 static char *print_lockmode(int mode)
 {
@@ -544,6 +544,7 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 
 		if (bucket >= ls->ls_rsbtbl_size) {
 			kfree(ri);
+			++*pos;
 			return NULL;
 		}
 		tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
@@ -739,7 +740,58 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 	debugfs_remove(ls->ls_debug_toss_dentry);
 }
 
-int dlm_create_debug_file(struct dlm_ls *ls)
+static int dlm_state_show(struct seq_file *file, void *offset)
+{
+	seq_printf(file, "%s\n", dlm_midcomms_state(file->private));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dlm_state);
+
+static int dlm_flags_show(struct seq_file *file, void *offset)
+{
+	seq_printf(file, "%lu\n", dlm_midcomms_flags(file->private));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dlm_flags);
+
+static int dlm_send_queue_cnt_show(struct seq_file *file, void *offset)
+{
+	seq_printf(file, "%d\n", dlm_midcomms_send_queue_cnt(file->private));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dlm_send_queue_cnt);
+
+static int dlm_version_show(struct seq_file *file, void *offset)
+{
+	seq_printf(file, "0x%08x\n", dlm_midcomms_version(file->private));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dlm_version);
+
+void *dlm_create_debug_comms_file(int nodeid, void *data)
+{
+	struct dentry *d_node;
+	char name[256];
+
+	memset(name, 0, sizeof(name));
+	snprintf(name, 256, "%d", nodeid);
+
+	d_node = debugfs_create_dir(name, dlm_comms);
+	debugfs_create_file("state", 0444, d_node, data, &dlm_state_fops);
+	debugfs_create_file("flags", 0444, d_node, data, &dlm_flags_fops);
+	debugfs_create_file("send_queue_count", 0444, d_node, data,
+			    &dlm_send_queue_cnt_fops);
+	debugfs_create_file("version", 0444, d_node, data, &dlm_version_fops);
+
+	return d_node;
+}
+
+void dlm_delete_debug_comms_file(void *ctx)
+{
+	debugfs_remove(ctx);
+}
+
+void dlm_create_debug_file(struct dlm_ls *ls)
 {
 	char name[DLM_LOCKSPACE_LEN + 8];
 
@@ -750,8 +802,6 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 						      dlm_root,
 						      ls,
 						      &format1_fops);
-	if (!ls->ls_debug_rsb_dentry)
-		goto fail;
 
 	/* format 2 */
 
@@ -763,8 +813,6 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 							dlm_root,
 							ls,
 							&format2_fops);
-	if (!ls->ls_debug_locks_dentry)
-		goto fail;
 
 	/* format 3 */
 
@@ -776,8 +824,6 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 						      dlm_root,
 						      ls,
 						      &format3_fops);
-	if (!ls->ls_debug_all_dentry)
-		goto fail;
 
 	/* format 4 */
 
@@ -789,8 +835,6 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 						       dlm_root,
 						       ls,
 						       &format4_fops);
-	if (!ls->ls_debug_toss_dentry)
-		goto fail;
 
 	memset(name, 0, sizeof(name));
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
@@ -800,21 +844,13 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 							  dlm_root,
 							  ls,
 							  &waiters_fops);
-	if (!ls->ls_debug_waiters_dentry)
-		goto fail;
-
-	return 0;
-
- fail:
-	dlm_delete_debug_file(ls);
-	return -ENOMEM;
 }
 
-int __init dlm_register_debugfs(void)
+void __init dlm_register_debugfs(void)
 {
 	mutex_init(&debug_buf_lock);
 	dlm_root = debugfs_create_dir("dlm", NULL);
-	return dlm_root ? 0 : -ENOMEM;
+	dlm_comms = debugfs_create_dir("comms", dlm_root);
 }
 
 void dlm_unregister_debugfs(void)

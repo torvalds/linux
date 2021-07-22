@@ -6,6 +6,8 @@
 
 #ifdef CONFIG_IIO_BUFFER
 
+#include <uapi/linux/iio/buffer.h>
+
 struct iio_dev;
 struct iio_buffer;
 
@@ -18,7 +20,7 @@ struct iio_buffer;
 /**
  * struct iio_buffer_access_funcs - access functions for buffers.
  * @store_to:		actually store stuff to the buffer
- * @read_first_n:	try to get a specified number of bytes (must exist)
+ * @read:		try to get a specified number of bytes (must exist)
  * @data_available:	indicates how much data is available for reading from
  *			the buffer.
  * @request_update:	if a parameter change has been marked, update underlying
@@ -45,9 +47,7 @@ struct iio_buffer;
  **/
 struct iio_buffer_access_funcs {
 	int (*store_to)(struct iio_buffer *buffer, const void *data);
-	int (*read_first_n)(struct iio_buffer *buffer,
-			    size_t n,
-			    char __user *buf);
+	int (*read)(struct iio_buffer *buffer, size_t n, char __user *buf);
 	size_t (*data_available)(struct iio_buffer *buffer);
 
 	int (*request_update)(struct iio_buffer *buffer);
@@ -74,6 +74,9 @@ struct iio_buffer {
 	/** @length: Number of datums in buffer. */
 	unsigned int length;
 
+	/** @flags: File ops flags including busy flag. */
+	unsigned long flags;
+
 	/**  @bytes_per_datum: Size of individual datum including timestamp. */
 	size_t bytes_per_datum;
 
@@ -96,35 +99,26 @@ struct iio_buffer {
 	unsigned int watermark;
 
 	/* private: */
-	/*
-	 * @scan_el_attrs: Control of scan elements if that scan mode
-	 * control method is used.
-	 */
-	struct attribute_group *scan_el_attrs;
-
 	/* @scan_timestamp: Does the scan mode include a timestamp. */
 	bool scan_timestamp;
 
-	/* @scan_el_dev_attr_list: List of scan element related attributes. */
-	struct list_head scan_el_dev_attr_list;
-
-	/* @buffer_group: Attributes of the buffer group. */
-	struct attribute_group buffer_group;
+	/* @buffer_attr_list: List of buffer attributes. */
+	struct list_head buffer_attr_list;
 
 	/*
-	 * @scan_el_group: Attribute group for those attributes not
-	 * created from the iio_chan_info array.
+	 * @buffer_group: Attributes of the new buffer group.
+	 * Includes scan elements attributes.
 	 */
-	struct attribute_group scan_el_group;
-
-	/* @stufftoread: Flag to indicate new data. */
-	bool stufftoread;
+	struct attribute_group buffer_group;
 
 	/* @attrs: Standard attributes of the buffer. */
 	const struct attribute **attrs;
 
 	/* @demux_bounce: Buffer for doing gather from incoming scan. */
 	void *demux_bounce;
+
+	/* @attached_entry: Entry in the devices list of buffers attached by the driver. */
+	struct list_head attached_entry;
 
 	/* @buffer_list: Entry in the devices list of current buffers. */
 	struct list_head buffer_list;

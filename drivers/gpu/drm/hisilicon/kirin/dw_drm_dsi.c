@@ -1,28 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DesignWare MIPI DSI Host Controller v1.02 driver
  *
  * Copyright (c) 2016 Linaro Limited.
- * Copyright (c) 2014-2016 Hisilicon Limited.
+ * Copyright (c) 2014-2016 HiSilicon Limited.
  *
  * Author:
  *	Xinliang Liu <z.liuxinliang@hisilicon.com>
  *	Xinliang Liu <xinliang.liu@linaro.org>
  *	Xinwei Kong <kong.kongxinwei@hisilicon.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/delay.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
-#include <drm/drm_of.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_encoder_slave.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_device.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "dw_dsi_reg.h"
 
@@ -694,10 +696,6 @@ static const struct drm_encoder_helper_funcs dw_encoder_helper_funcs = {
 	.disable	= dsi_encoder_disable
 };
 
-static const struct drm_encoder_funcs dw_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static int dw_drm_encoder_init(struct device *dev,
 			       struct drm_device *drm_dev,
 			       struct drm_encoder *encoder)
@@ -711,8 +709,7 @@ static int dw_drm_encoder_init(struct device *dev,
 	}
 
 	encoder->possible_crtcs = crtc_mask;
-	ret = drm_encoder_init(drm_dev, encoder, &dw_encoder_funcs,
-			       DRM_MODE_ENCODER_DSI, NULL);
+	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
 		DRM_ERROR("failed to init dsi encoder\n");
 		return ret;
@@ -775,7 +772,7 @@ static int dsi_bridge_init(struct drm_device *dev, struct dw_dsi *dsi)
 	int ret;
 
 	/* associate the bridge to dsi encoder */
-	ret = drm_bridge_attach(encoder, bridge, NULL);
+	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret) {
 		DRM_ERROR("failed to attach external bridge\n");
 		return ret;

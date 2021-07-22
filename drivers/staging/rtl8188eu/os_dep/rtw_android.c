@@ -10,7 +10,6 @@
 
 #include <rtw_android.h>
 #include <osdep_service.h>
-#include <rtw_debug.h>
 #include <rtw_ioctl_set.h>
 
 static const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
@@ -52,23 +51,13 @@ struct android_wifi_priv_cmd {
 	int total_len;
 };
 
-/**
- * Local (static) functions and variables
- */
-
-/* Initialize g_wifi_on to 1 so dhd_bus_start will be called for the first
- * time (only) in dhd_open, subsequential wifi on will be handled by
- * wl_android_wifi_on
- */
-static int g_wifi_on = true;
-
-int rtw_android_cmdstr_to_num(char *cmdstr)
+static int rtw_android_cmdstr_to_num(char *cmdstr)
 {
 	int cmd_num;
 
 	for (cmd_num = 0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
-		if (0 == strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
-				  strlen(android_wifi_cmd_str[cmd_num])))
+		if (!strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
+				 strlen(android_wifi_cmd_str[cmd_num])))
 			break;
 	return cmd_num;
 }
@@ -76,15 +65,15 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 static int rtw_android_get_rssi(struct net_device *net, char *command,
 				int total_len)
 {
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(net);
-	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct adapter *padapter = netdev_priv(net);
+	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*pcur_network = &pmlmepriv->cur_network;
 	int bytes_written = 0;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		bytes_written += snprintf(&command[bytes_written], total_len,
 					  "%s rssi %d",
-					  pcur_network->network.Ssid.Ssid,
+					  pcur_network->network.ssid.ssid,
 					  padapter->recvpriv.rssi);
 	}
 	return bytes_written;
@@ -93,7 +82,7 @@ static int rtw_android_get_rssi(struct net_device *net, char *command,
 static int rtw_android_get_link_speed(struct net_device *net, char *command,
 				      int total_len)
 {
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(net);
+	struct adapter *padapter = netdev_priv(net);
 	u16 link_speed;
 
 	link_speed = rtw_get_cur_max_rate(padapter) / 10;
@@ -111,7 +100,7 @@ static int rtw_android_get_macaddr(struct net_device *net, char *command,
 static int android_set_cntry(struct net_device *net, char *command,
 			     int total_len)
 {
-	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(net);
+	struct adapter *adapter = netdev_priv(net);
 	char *country_code = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_COUNTRY]) + 1;
 	int ret;
 
@@ -120,17 +109,11 @@ static int android_set_cntry(struct net_device *net, char *command,
 }
 
 static int android_get_p2p_addr(struct net_device *net, char *command,
-					int total_len)
+				int total_len)
 {
 	/* We use the same address as our HW MAC address */
 	memcpy(command, net->dev_addr, ETH_ALEN);
 	return ETH_ALEN;
-}
-
-static int rtw_android_set_block(struct net_device *net, char *command,
-				 int total_len)
-{
-	return 0;
 }
 
 int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
@@ -151,20 +134,12 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (IS_ERR(command))
 		return PTR_ERR(command);
 	command[priv_cmd.total_len - 1] = 0;
-	DBG_88E("%s: Android private cmd \"%s\" on %s\n",
-		__func__, command, ifr->ifr_name);
 	cmd_num = rtw_android_cmdstr_to_num(command);
 	switch (cmd_num) {
 	case ANDROID_WIFI_CMD_START:
 		goto response;
 	case ANDROID_WIFI_CMD_SETFWPATH:
 		goto response;
-	}
-	if (!g_wifi_on) {
-		DBG_88E("%s: Ignore private cmd \"%s\" - iface %s is down\n",
-			__func__, command, ifr->ifr_name);
-		ret = 0;
-		goto free;
 	}
 	switch (cmd_num) {
 	case ANDROID_WIFI_CMD_STOP:
@@ -186,8 +161,6 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 							priv_cmd.total_len);
 		break;
 	case ANDROID_WIFI_CMD_BLOCK:
-		bytes_written = rtw_android_set_block(net, command,
-						      priv_cmd.total_len);
 		break;
 	case ANDROID_WIFI_CMD_RXFILTER_START:
 		break;
@@ -226,7 +199,6 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_P2P_SET_PS:
 		break;
 	default:
-		DBG_88E("Unknown PRIVATE command %s - ignored\n", command);
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK");
 	}
@@ -235,24 +207,17 @@ response:
 	if (bytes_written >= 0) {
 		if ((bytes_written == 0) && (priv_cmd.total_len > 0))
 			command[0] = '\0';
-		if (bytes_written >= priv_cmd.total_len) {
-			DBG_88E("%s: bytes_written = %d\n", __func__,
-				bytes_written);
+		if (bytes_written >= priv_cmd.total_len)
 			bytes_written = priv_cmd.total_len;
-		} else {
+		else
 			bytes_written++;
-		}
 		priv_cmd.used_len = bytes_written;
 		if (copy_to_user((char __user *)priv_cmd.buf, command,
-				 bytes_written)) {
-			DBG_88E("%s: failed to copy data to user buffer\n",
-				__func__);
+				 bytes_written))
 			ret = -EFAULT;
-		}
 	} else {
 		ret = bytes_written;
 	}
-free:
 	kfree(command);
 	return ret;
 }

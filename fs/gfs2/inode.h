@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __INODE_DOT_H__
@@ -30,16 +27,14 @@ static inline int gfs2_is_jdata(const struct gfs2_inode *ip)
 	return ip->i_diskflags & GFS2_DIF_JDATA;
 }
 
-static inline int gfs2_is_writeback(const struct gfs2_inode *ip)
+static inline bool gfs2_is_ordered(const struct gfs2_sbd *sdp)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	return (sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK) && !gfs2_is_jdata(ip);
+	return sdp->sd_args.ar_data == GFS2_DATA_ORDERED;
 }
 
-static inline int gfs2_is_ordered(const struct gfs2_inode *ip)
+static inline bool gfs2_is_writeback(const struct gfs2_sbd *sdp)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	return (sdp->sd_args.ar_data == GFS2_DATA_ORDERED) && !gfs2_is_jdata(ip);
+	return sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK;
 }
 
 static inline int gfs2_is_dir(const struct gfs2_inode *ip)
@@ -61,8 +56,8 @@ static inline u64 gfs2_get_inode_blocks(const struct inode *inode)
 
 static inline void gfs2_add_inode_blocks(struct inode *inode, s64 change)
 {
-	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks > -change));
-	change *= (GFS2_SB(inode)->sd_sb.sb_bsize/GFS2_BASIC_BLOCK);
+	change <<= inode->i_blkbits - GFS2_BASIC_BLOCK_SHIFT;
+	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks >= -change));
 	inode->i_blocks += change;
 }
 
@@ -97,27 +92,27 @@ extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type,
 				       u64 no_addr, u64 no_formal_ino,
 				       unsigned int blktype);
 extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
-					 u64 *no_formal_ino,
+					 u64 no_formal_ino,
 					 unsigned int blktype);
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
 extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 				  int is_root);
-extern int gfs2_permission(struct inode *inode, int mask);
-extern int gfs2_setattr_simple(struct inode *inode, struct iattr *attr);
+extern int gfs2_permission(struct user_namespace *mnt_userns,
+			   struct inode *inode, int mask);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
 extern int gfs2_open_common(struct inode *inode, struct file *file);
 extern loff_t gfs2_seek_data(struct file *file, loff_t offset);
 extern loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 
-extern const struct inode_operations gfs2_file_iops;
-extern const struct inode_operations gfs2_dir_iops;
-extern const struct inode_operations gfs2_symlink_iops;
 extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 
+extern int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+extern int gfs2_fileattr_set(struct user_namespace *mnt_userns,
+			     struct dentry *dentry, struct fileattr *fa);
 extern void gfs2_set_inode_flags(struct inode *inode);
  
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM

@@ -1,11 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Spreadtrum pin control drivers
 #
 
 config PINCTRL_SPRD
-	bool "Spreadtrum pinctrl driver"
-	depends on OF
-	depends on ARCH_SPRD || COMPILE_TEST
+	tristate
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -14,7 +13,9 @@ config PINCTRL_SPRD
 	  Say Y here to enable Spreadtrum pinctrl driver
 
 config PINCTRL_SPRD_SC9860
-	bool "Spreadtrum SC9860 pinctrl driver"
-	depends on PINCTRL_SPRD
+	tristate "Spreadtrum SC9860 pinctrl driver"
+	depends on OF
+	depends on ARCH_SPRD || COMPILE_TEST
+	select PINCTRL_SPRD
 	help
 	  Say Y here to enable Spreadtrum SC9860 pinctrl driver

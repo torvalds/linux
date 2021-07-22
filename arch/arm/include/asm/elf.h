@@ -51,6 +51,7 @@ typedef struct user_fp elf_fpregset_t;
 #define R_ARM_NONE		0
 #define R_ARM_PC24		1
 #define R_ARM_ABS32		2
+#define R_ARM_REL32		3
 #define R_ARM_CALL		28
 #define R_ARM_JUMP24		29
 #define R_ARM_TARGET1		38
@@ -58,11 +59,15 @@ typedef struct user_fp elf_fpregset_t;
 #define R_ARM_PREL31		42
 #define R_ARM_MOVW_ABS_NC	43
 #define R_ARM_MOVT_ABS		44
+#define R_ARM_MOVW_PREL_NC	45
+#define R_ARM_MOVT_PREL		46
 
 #define R_ARM_THM_CALL		10
 #define R_ARM_THM_JUMP24	30
 #define R_ARM_THM_MOVW_ABS_NC	47
 #define R_ARM_THM_MOVT_ABS	48
+#define R_ARM_THM_MOVW_PREL_NC	49
+#define R_ARM_THM_MOVT_PREL	50
 
 /*
  * These are used to set parameters in the core dumps.
@@ -110,10 +115,6 @@ extern int elf_check_arch(const struct elf32_hdr *);
 
 extern int arm_elf_read_implies_exec(int);
 #define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(stk)
-
-struct task_struct;
-int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
-#define ELF_CORE_COPY_TASK_REGS dump_task_regs
 
 #define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	4096

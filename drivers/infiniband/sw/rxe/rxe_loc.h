@@ -1,40 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef RXE_LOC_H
 #define RXE_LOC_H
 
 /* rxe_av.c */
+void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av);
 
 int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
 
@@ -52,11 +26,12 @@ int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
 		    int cqe, int comp_vector);
 
 int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
-		     int comp_vector, struct ib_ucontext *context,
+		     int comp_vector, struct ib_udata *udata,
 		     struct rxe_create_cq_resp __user *uresp);
 
 int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe,
-			struct rxe_resize_cq_resp __user *uresp);
+			struct rxe_resize_cq_resp __user *uresp,
+			struct ib_udata *udata);
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
@@ -90,54 +65,38 @@ struct rxe_mmap_info {
 
 void rxe_mmap_release(struct kref *ref);
 
-struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *dev,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj);
+struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *dev, u32 size,
+					   struct ib_udata *udata, void *obj);
 
 int rxe_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 /* rxe_mr.c */
-enum copy_direction {
-	to_mem_obj,
-	from_mem_obj,
-};
-
-int rxe_mem_init_dma(struct rxe_pd *pd,
-		     int access, struct rxe_mem *mem);
-
-int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
-		      u64 length, u64 iova, int access, struct ib_udata *udata,
-		      struct rxe_mem *mr);
-
-int rxe_mem_init_fast(struct rxe_pd *pd,
-		      int max_pages, struct rxe_mem *mem);
-
-int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr,
-		 int length, enum copy_direction dir, u32 *crcp);
-
+u8 rxe_get_next_key(u32 last_key);
+void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr);
+int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
+		     int access, struct rxe_mr *mr);
+int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr);
+int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
+		enum rxe_mr_copy_dir dir, u32 *crcp);
 int copy_data(struct rxe_pd *pd, int access,
 	      struct rxe_dma_info *dma, void *addr, int length,
-	      enum copy_direction dir, u32 *crcp);
-
-void *iova_to_vaddr(struct rxe_mem *mem, u64 iova, int length);
-
-enum lookup_type {
-	lookup_local,
-	lookup_remote,
-};
-
-struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
-			   enum lookup_type type);
-
-int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length);
-
-int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,
-		      u64 *page, int num_pages, u64 iova);
-
-void rxe_mem_cleanup(struct rxe_pool_entry *arg);
-
+	      enum rxe_mr_copy_dir dir, u32 *crcp);
+void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length);
+struct rxe_mr *lookup_mr(struct rxe_pd *pd, int access, u32 key,
+			 enum rxe_mr_lookup_type type);
+int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length);
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
+int rxe_invalidate_mr(struct rxe_qp *qp, u32 rkey);
+int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
+void rxe_mr_cleanup(struct rxe_pool_entry *arg);
+
+/* rxe_mw.c */
+int rxe_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata);
+int rxe_dealloc_mw(struct ib_mw *ibmw);
+int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe);
+int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey);
+struct rxe_mw *rxe_lookup_mw(struct rxe_qp *qp, int access, u32 rkey);
+void rxe_mw_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_net.c */
 void rxe_loopback(struct sk_buff *skb);
@@ -145,9 +104,7 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
 int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc);
-enum rdma_link_layer rxe_link_layer(struct rxe_dev *rxe, unsigned int port_num);
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
-struct device *rxe_dma_device(struct rxe_dev *rxe);
 int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
 int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
 
@@ -157,7 +114,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
-		     struct ib_pd *ibpd);
+		     struct ib_pd *ibpd, struct ib_udata *udata);
 
 int rxe_qp_to_init(struct rxe_qp *qp, struct ib_qp_init_attr *init);
 
@@ -223,15 +180,14 @@ int rxe_srq_chk_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		     struct ib_srq_attr *attr, enum ib_srq_attr_mask mask);
 
 int rxe_srq_from_init(struct rxe_dev *rxe, struct rxe_srq *srq,
-		      struct ib_srq_init_attr *init,
-		      struct ib_ucontext *context,
+		      struct ib_srq_init_attr *init, struct ib_udata *udata,
 		      struct rxe_create_srq_resp __user *uresp);
 
 int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_attr *attr, enum ib_srq_attr_mask mask,
-		      struct rxe_modify_srq_cmd *ucmd);
+		      struct rxe_modify_srq_cmd *ucmd, struct ib_udata *udata);
 
-void rxe_release(struct kref *kref);
+void rxe_dealloc(struct ib_device *ib_dev);
 
 int rxe_completer(void *arg);
 int rxe_requester(void *arg);
@@ -239,22 +195,21 @@ int rxe_responder(void *arg);
 
 u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 
-void rxe_resp_queue_pkt(struct rxe_dev *rxe,
-			struct rxe_qp *qp, struct sk_buff *skb);
+void rxe_resp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 
-void rxe_comp_queue_pkt(struct rxe_dev *rxe,
-			struct rxe_qp *qp, struct sk_buff *skb);
+void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 
 static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 {
 	return rxe_wr_opcode_info[opcode].mask[qp->ibqp.qp_type];
 }
 
-static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
-				  struct rxe_pkt_info *pkt, struct sk_buff *skb)
+static inline int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
+				  struct sk_buff *skb)
 {
 	int err;
 	int is_request = pkt->mask & RXE_REQ_MASK;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
 	if ((is_request && (qp->req.state != QP_STATE_READY)) ||
 	    (!is_request && (qp->resp.state != QP_STATE_READY))) {

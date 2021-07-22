@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -644,7 +640,6 @@ void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text);
 #define	dump_smt(smc,sm,text)
 #endif
 
-char* addr_to_string(struct fddi_addr *addr);
 #ifdef	DEBUG
 void dump_hex(char *p, int len);
 #endif

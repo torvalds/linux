@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCMCIA high-level CIS access functions
  *
@@ -7,11 +8,6 @@
  *
  * Copyright (C) 1999	     David A. Hinds
  * Copyright (C) 2004-2010   Dominik Brodowski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/slab.h>
@@ -82,9 +78,9 @@ done:
  * calls the @loop_tuple function for each entry. If the call to @loop_tuple
  * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
  */
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
+static int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+			     cisdata_t code, cisparse_t *parse, void *priv_data,
+			     int (*loop_tuple) (tuple_t *tuple,
 					 cisparse_t *parse,
 					 void *priv_data))
 {
@@ -126,7 +122,7 @@ next_entry:
 }
 
 
-/**
+/*
  * pcmcia_io_cfg_data_width() - convert cfgtable to data path width parameter
  */
 static int pcmcia_io_cfg_data_width(unsigned int flags)
@@ -147,7 +143,7 @@ struct pcmcia_cfg_mem {
 	cistpl_cftable_entry_t dflt;
 };
 
-/**
+/*
  * pcmcia_do_loop_config() - internal helper for pcmcia_loop_config()
  *
  * pcmcia_do_loop_config() is the internal callback for the call from
@@ -293,7 +289,7 @@ struct pcmcia_loop_mem {
 			   void *priv_data);
 };
 
-/**
+/*
  * pcmcia_do_loop_tuple() - internal helper for pcmcia_loop_config()
  *
  * pcmcia_do_loop_tuple() is the internal callback for the call from
@@ -341,7 +337,7 @@ struct pcmcia_loop_get {
 	cisdata_t **buf;
 };
 
-/**
+/*
  * pcmcia_do_get_tuple() - internal helper for pcmcia_get_tuple()
  *
  * pcmcia_do_get_tuple() is the internal callback for the call from
@@ -390,7 +386,7 @@ size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 EXPORT_SYMBOL(pcmcia_get_tuple);
 
 
-/**
+/*
  * pcmcia_do_get_mac() - internal helper for pcmcia_get_mac_from_cis()
  *
  * pcmcia_do_get_mac() is the internal callback for the call from

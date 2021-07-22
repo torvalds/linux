@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2009 Peter Holik
  *
@@ -9,18 +10,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or.
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -72,7 +61,7 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	int need_tail = 0;
 	__le16 *len;
 
-	/* if packet and our header is smaler than 64 pad to 64 (+ ZLP) */
+	/* if packet and our header is smaller than 64 pad to 64 (+ ZLP) */
 	if ((pack_with_header_len) < dev->maxpacket)
 		need_tail = dev->maxpacket - pack_with_header_len + 1;
 	/*
@@ -144,7 +133,7 @@ static const struct net_device_ops int51x1_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= int51x1_set_multicast,

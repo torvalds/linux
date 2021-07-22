@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/ioport.c
  *
  * Copyright (C) 2000  Niibe Yutaka
  * Copyright (C) 2005 - 2007 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/module.h>
 #include <linux/io.h>
+#include <asm/io_trapped.h>
 
 unsigned long sh_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(sh_io_port_base);

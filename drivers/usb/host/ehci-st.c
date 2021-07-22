@@ -152,17 +152,14 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	struct resource *res_mem;
 	struct usb_ehci_pdata *pdata = &ehci_platform_defaults;
 	struct st_ehci_platform_priv *priv;
-	struct ehci_hcd *ehci;
 	int err, irq, clk = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
 
 	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
-		dev_err(&dev->dev, "no irq provided");
+	if (irq < 0)
 		return irq;
-	}
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
 		dev_err(&dev->dev, "no memory resource provided");
@@ -177,7 +174,6 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, hcd);
 	dev->dev.platform_data = pdata;
 	priv = hcd_to_ehci_priv(hcd);
-	ehci = hcd_to_ehci(hcd);
 
 	priv->phy = devm_phy_get(&dev->dev, "usb");
 	if (IS_ERR(priv->phy)) {

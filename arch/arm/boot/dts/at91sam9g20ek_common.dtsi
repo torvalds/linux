@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9g20ek_common.dtsi - Device Tree file for Atmel at91sam9g20ek board
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2.
  */
 #include "at91sam9g20.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 
@@ -14,7 +14,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 
@@ -94,6 +94,7 @@
 					&pinctrl_mmc0_clk
 					&pinctrl_mmc0_slot1_cmd_dat0
 					&pinctrl_mmc0_slot1_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 				slot@1 {
 					reg = <1>;
@@ -234,7 +235,7 @@
 		btn4 {
 			label = "Button 4";
 			gpios = <&pioA 31 GPIO_ACTIVE_LOW>;
-			linux,code = <0x104>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Battery charger driver for Dialog Semiconductor DA9030
  *
  * Copyright (C) 2008 Compulab, Ltd.
  * 	Mike Rapoport <mike@compulab.co.il>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -175,17 +172,7 @@ static int bat_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bat_debug_show, inode->i_private);
-}
-
-static const struct file_operations bat_debug_fops = {
-	.open		= debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(bat_debug);
 
 static struct dentry *da9030_bat_create_debugfs(struct da9030_charger *charger)
 {

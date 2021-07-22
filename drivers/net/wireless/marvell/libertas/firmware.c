@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Firmware loading and handling functions.
  */
@@ -120,12 +121,12 @@ void lbs_wait_for_firmware_load(struct lbs_private *priv)
  *  either a helper firmware and a main firmware (2-stage), or just the helper.
  *
  *  @priv:      Pointer to lbs_private instance
- *  @dev:     	A pointer to &device structure
+ *  @device:   	A pointer to &device structure
  *  @card_model: Bus-specific card model ID used to filter firmware table
  *		elements
  *  @fw_table:	Table of firmware file names and device model numbers
  *		terminated by an entry with a NULL helper name
- *	@callback: User callback to invoke when firmware load succeeds or fails.
+ *  @callback:	User callback to invoke when firmware load succeeds or fails.
  */
 int lbs_get_firmware_async(struct lbs_private *priv, struct device *device,
 			    u32 card_model, const struct lbs_fw_table *fw_table,

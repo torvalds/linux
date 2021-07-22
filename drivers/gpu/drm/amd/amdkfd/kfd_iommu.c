@@ -20,6 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kconfig.h>
+
+#if IS_REACHABLE(CONFIG_AMD_IOMMU_V2)
+
 #include <linux/printk.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -41,7 +45,7 @@ int kfd_iommu_check_device(struct kfd_dev *kfd)
 	struct amd_iommu_device_info iommu_info;
 	int err;
 
-	if (!kfd->device_info->needs_iommu_device)
+	if (!kfd->use_iommu_v2)
 		return -ENODEV;
 
 	iommu_info.flags = 0;
@@ -62,20 +66,9 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
 	struct amd_iommu_device_info iommu_info;
 	unsigned int pasid_limit;
 	int err;
-	struct kfd_topology_device *top_dev;
 
-	top_dev = kfd_topology_device_by_id(kfd->id);
-
-	/*
-	 * Overwrite ATS capability according to needs_iommu_device to fix
-	 * potential missing corresponding bit in CRAT of BIOS.
-	 */
-	if (!kfd->device_info->needs_iommu_device) {
-		top_dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+	if (!kfd->use_iommu_v2)
 		return 0;
-	}
-
-	top_dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 
 	iommu_info.flags = 0;
 	err = amd_iommu_device_info(kfd->pdev, &iommu_info);
@@ -120,7 +113,7 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
 	struct kfd_process *p = pdd->process;
 	int err;
 
-	if (!dev->device_info->needs_iommu_device || pdd->bound == PDD_BOUND)
+	if (!dev->use_iommu_v2 || pdd->bound == PDD_BOUND)
 		return 0;
 
 	if (unlikely(pdd->bound == PDD_BOUND_SUSPENDED)) {
@@ -142,15 +135,15 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
  */
 void kfd_iommu_unbind_process(struct kfd_process *p)
 {
-	struct kfd_process_device *pdd;
+	int i;
 
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
-		if (pdd->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
+	for (i = 0; i < p->n_pdds; i++)
+		if (p->pdds[i]->bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(p->pdds[i]->dev->pdev, p->pasid);
 }
 
 /* Callback for process shutdown invoked by the IOMMU driver */
-static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
+static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, u32 pasid)
 {
 	struct kfd_dev *dev = kfd_device_by_pci_dev(pdev);
 	struct kfd_process *p;
@@ -168,7 +161,7 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 	if (!p)
 		return;
 
-	pr_debug("Unbinding process %d from IOMMU\n", pasid);
+	pr_debug("Unbinding process 0x%x from IOMMU\n", pasid);
 
 	mutex_lock(kfd_get_dbgmgr_mutex());
 
@@ -196,14 +189,14 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 }
 
 /* This function called by IOMMU driver on PPR failure */
-static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
-		unsigned long address, u16 flags)
+static int iommu_invalid_ppr_cb(struct pci_dev *pdev, u32 pasid,
+				unsigned long address, u16 flags)
 {
 	struct kfd_dev *dev;
 
 	dev_warn_ratelimited(kfd_device,
-			"Invalid PPR device %x:%x.%x pasid %d address 0x%lX flags 0x%X",
-			PCI_BUS_NUM(pdev->devfn),
+			"Invalid PPR device %x:%x.%x pasid 0x%x address 0x%lX flags 0x%X",
+			pdev->bus->number,
 			PCI_SLOT(pdev->devfn),
 			PCI_FUNC(pdev->devfn),
 			pasid,
@@ -243,7 +236,7 @@ static int kfd_bind_processes_to_device(struct kfd_dev *kfd)
 		err = amd_iommu_bind_pasid(kfd->pdev, p->pasid,
 				p->lead_thread);
 		if (err < 0) {
-			pr_err("Unexpected pasid %d binding failure\n",
+			pr_err("Unexpected pasid 0x%x binding failure\n",
 					p->pasid);
 			mutex_unlock(&p->mutex);
 			break;
@@ -295,7 +288,7 @@ static void kfd_unbind_processes_from_device(struct kfd_dev *kfd)
  */
 void kfd_iommu_suspend(struct kfd_dev *kfd)
 {
-	if (!kfd->device_info->needs_iommu_device)
+	if (!kfd->use_iommu_v2)
 		return;
 
 	kfd_unbind_processes_from_device(kfd);
@@ -315,7 +308,7 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 	unsigned int pasid_limit;
 	int err;
 
-	if (!kfd->device_info->needs_iommu_device)
+	if (!kfd->use_iommu_v2)
 		return 0;
 
 	pasid_limit = kfd_get_pasid_limit();
@@ -340,10 +333,6 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 	return 0;
 }
 
-extern bool amd_iommu_pc_supported(void);
-extern u8 amd_iommu_pc_get_max_banks(u16 devid);
-extern u8 amd_iommu_pc_get_max_counters(u16 devid);
-
 /** kfd_iommu_add_perf_counters - Add IOMMU performance counters to topology
  */
 int kfd_iommu_add_perf_counters(struct kfd_topology_device *kdev)
@@ -366,3 +355,5 @@ int kfd_iommu_add_perf_counters(struct kfd_topology_device *kdev)
 
 	return 0;
 }
+
+#endif

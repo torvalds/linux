@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r7s72100.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
 
 / {
@@ -28,23 +29,93 @@
 		reg = <0x08000000 0x02000000>;
 	};
 
+	keyboard {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
+		key-1 {
+			interrupt-parent = <&irqc>;
+			interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_1>;
+			label = "SW1";
+			wakeup-source;
+		};
+
+		key-2 {
+			interrupt-parent = <&irqc>;
+			interrupts = <2 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_2>;
+			label = "SW2";
+			wakeup-source;
+		};
+
+		key-3 {
+			interrupt-parent = <&irqc>;
+			interrupts = <5 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_3>;
+			label = "SW3";
+			wakeup-source;
+		};
+	};
+
 	lbsc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 
 	leds {
-		status = "okay";
 		compatible = "gpio-leds";
 
 		led0 {
 			gpios = <&port7 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led1 {
+			gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led2 {
+			gpios = <&io_expander1 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led3 {
+			gpios = <&io_expander1 2 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
 
 &extal_clk {
 	clock-frequency = <13330000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	io_expander1: gpio@20 {
+		compatible = "onnn,cat9554";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	io_expander2: gpio@21 {
+		compatible = "onnn,cat9554";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24016", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
 
 &usb_x1_clk {
@@ -56,6 +127,17 @@
 };
 
 &pinctrl {
+	/* RIIC ch3 (Port Expander, EEPROM (MAC Addr), Audio Codec) */
+	i2c3_pins: i2c3 {
+		pinmux = <RZA1_PINMUX(1, 6, 1)>,	/* RIIC3SCL */
+			 <RZA1_PINMUX(1, 7, 1)>;	/* RIIC3SDA */
+	};
+
+	keyboard_pins: keyboard {
+		pinmux = <RZA1_PINMUX(1, 9, 3)>,	/* IRQ3 */
+			 <RZA1_PINMUX(1, 8, 3)>,	/* IRQ2 */
+			 <RZA1_PINMUX(1, 11, 3)>;	/* IRQ5 */
+	};
 
 	/* Serial Console */
 	scif2_pins: serial2 {

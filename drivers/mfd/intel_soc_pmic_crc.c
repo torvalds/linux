@@ -28,23 +28,23 @@
 #define CRYSTAL_COVE_IRQ_GPIO		5
 #define CRYSTAL_COVE_IRQ_VHDMIOCP	6
 
-static struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_GPIO, "GPIO"),
 };
 
-static struct resource pwrsrc_resources[] = {
+static const struct resource pwrsrc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_PWRSRC, "PWRSRC"),
 };
 
-static struct resource adc_resources[] = {
+static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_ADC, "ADC"),
 };
 
-static struct resource thermal_resources[] = {
+static const struct resource thermal_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_THRM, "THERMAL"),
 };
 
-static struct resource bcu_resources[] = {
+static const struct resource bcu_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_BCU, "BCU"),
 };
 
@@ -75,7 +75,7 @@ static struct mfd_cell crystal_cove_byt_dev[] = {
 		.resources = gpio_resources,
 	},
 	{
-		.name = "crystal_cove_pmic",
+		.name = "byt_crystal_cove_pmic",
 	},
 	{
 		.name = "crystal_cove_pwm",
@@ -87,6 +87,9 @@ static struct mfd_cell crystal_cove_cht_dev[] = {
 		.name = "crystal_cove_gpio",
 		.num_resources = ARRAY_SIZE(gpio_resources),
 		.resources = gpio_resources,
+	},
+	{
+		.name = "cht_crystal_cove_pmic",
 	},
 	{
 		.name = "crystal_cove_pwm",

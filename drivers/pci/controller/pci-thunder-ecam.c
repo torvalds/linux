@@ -116,7 +116,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	 * the config space access window.  Since we are working with
 	 * the high-order 32 bits, shift everything down by 32 bits.
 	 */
-	node_bits = (cfg->res.start >> 32) & (1 << 12);
+	node_bits = upper_32_bits(cfg->res.start) & (1 << 12);
 
 	v |= node_bits;
 	set_val(v, where, size, val);
@@ -345,8 +345,7 @@ static int thunder_ecam_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-struct pci_ecam_ops pci_thunder_ecam_ops = {
-	.bus_shift	= 20,
+const struct pci_ecam_ops pci_thunder_ecam_ops = {
 	.pci_ops	= {
 		.map_bus        = pci_ecam_map_bus,
 		.read           = thunder_ecam_config_read,
@@ -357,14 +356,12 @@ struct pci_ecam_ops pci_thunder_ecam_ops = {
 #ifdef CONFIG_PCI_HOST_THUNDER_ECAM
 
 static const struct of_device_id thunder_ecam_of_match[] = {
-	{ .compatible = "cavium,pci-host-thunder-ecam" },
+	{
+		.compatible = "cavium,pci-host-thunder-ecam",
+		.data = &pci_thunder_ecam_ops,
+	},
 	{ },
 };
-
-static int thunder_ecam_probe(struct platform_device *pdev)
-{
-	return pci_host_common_probe(pdev, &pci_thunder_ecam_ops);
-}
 
 static struct platform_driver thunder_ecam_driver = {
 	.driver = {
@@ -372,7 +369,7 @@ static struct platform_driver thunder_ecam_driver = {
 		.of_match_table = thunder_ecam_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = thunder_ecam_probe,
+	.probe = pci_host_common_probe,
 };
 builtin_platform_driver(thunder_ecam_driver);
 

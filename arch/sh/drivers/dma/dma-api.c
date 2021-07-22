@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/drivers/dma/dma-api.c
  *
  * SuperH-specific DMA management API
  *
  * Copyright (C) 2003, 2004, 2005  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -417,4 +414,4 @@ subsys_initcall(dma_api_init);
 
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("DMA API for SuperH");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

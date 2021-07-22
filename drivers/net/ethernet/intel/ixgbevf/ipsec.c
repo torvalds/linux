@@ -211,7 +211,7 @@ struct xfrm_state *ixgbevf_ipsec_find_rx_state(struct ixgbevf_ipsec *ipsec,
 static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
 					  u32 *mykey, u32 *mysalt)
 {
-	struct net_device *dev = xs->xso.dev;
+	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -260,15 +260,23 @@ static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
  **/
 static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.dev;
-	struct ixgbevf_adapter *adapter = netdev_priv(dev);
-	struct ixgbevf_ipsec *ipsec = adapter->ipsec;
+	struct net_device *dev = xs->xso.real_dev;
+	struct ixgbevf_adapter *adapter;
+	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;
 	int ret;
+
+	adapter = netdev_priv(dev);
+	ipsec = adapter->ipsec;
 
 	if (xs->id.proto != IPPROTO_ESP && xs->id.proto != IPPROTO_AH) {
 		netdev_err(dev, "Unsupported protocol 0x%04x for IPsec offload\n",
 			   xs->id.proto);
+		return -EINVAL;
+	}
+
+	if (xs->props.mode != XFRM_MODE_TRANSPORT) {
+		netdev_err(dev, "Unsupported mode for ipsec offload\n");
 		return -EINVAL;
 	}
 
@@ -378,10 +386,13 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
  **/
 static void ixgbevf_ipsec_del_sa(struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.dev;
-	struct ixgbevf_adapter *adapter = netdev_priv(dev);
-	struct ixgbevf_ipsec *ipsec = adapter->ipsec;
+	struct net_device *dev = xs->xso.real_dev;
+	struct ixgbevf_adapter *adapter;
+	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;
+
+	adapter = netdev_priv(dev);
+	ipsec = adapter->ipsec;
 
 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND) {
 		sa_idx = xs->xso.offload_handle - IXGBE_IPSEC_BASE_RX_INDEX;
@@ -450,12 +461,14 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 	struct ixgbevf_adapter *adapter = netdev_priv(tx_ring->netdev);
 	struct ixgbevf_ipsec *ipsec = adapter->ipsec;
 	struct xfrm_state *xs;
+	struct sec_path *sp;
 	struct tx_sa *tsa;
 	u16 sa_idx;
 
-	if (unlikely(!first->skb->sp->len)) {
+	sp = skb_sec_path(first->skb);
+	if (unlikely(!sp->len)) {
 		netdev_err(tx_ring->netdev, "%s: no xfrm state len = %d\n",
-			   __func__, first->skb->sp->len);
+			   __func__, sp->len);
 		return 0;
 	}
 
@@ -546,6 +559,7 @@ void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
 	struct xfrm_state *xs = NULL;
 	struct ipv6hdr *ip6 = NULL;
 	struct iphdr *ip4 = NULL;
+	struct sec_path *sp;
 	void *daddr;
 	__be32 spi;
 	u8 *c_hdr;
@@ -585,12 +599,12 @@ void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
 	if (unlikely(!xs))
 		return;
 
-	skb->sp = secpath_dup(skb->sp);
-	if (unlikely(!skb->sp))
+	sp = secpath_set(skb);
+	if (unlikely(!sp))
 		return;
 
-	skb->sp->xvec[skb->sp->len++] = xs;
-	skb->sp->olen++;
+	sp->xvec[sp->len++] = xs;
+	sp->olen++;
 	xo = xfrm_offload(skb);
 	xo->flags = CRYPTO_DONE;
 	xo->status = CRYPTO_SUCCESS;

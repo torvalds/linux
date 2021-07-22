@@ -160,21 +160,22 @@ static void
 aoe_failip(struct aoedev *d)
 {
 	struct request *rq;
+	struct aoe_req *req;
 	struct bio *bio;
-	unsigned long n;
 
 	aoe_failbuf(d, d->ip.buf);
-
 	rq = d->ip.rq;
 	if (rq == NULL)
 		return;
+
+	req = blk_mq_rq_to_pdu(rq);
 	while ((bio = d->ip.nxbio)) {
 		bio->bi_status = BLK_STS_IOERR;
 		d->ip.nxbio = bio->bi_next;
-		n = (unsigned long) rq->special;
-		rq->special = (void *) --n;
+		req->nr_bios--;
 	}
-	if ((unsigned long) rq->special == 0)
+
+	if (!req->nr_bios)
 		aoe_end_request(d, rq, 0);
 }
 
@@ -276,9 +277,8 @@ freedev(struct aoedev *d)
 	if (d->gd) {
 		aoedisk_rm_debugfs(d);
 		del_gendisk(d->gd);
-		put_disk(d->gd);
+		blk_cleanup_disk(d->gd);
 		blk_mq_free_tag_set(&d->tag_set);
-		blk_cleanup_queue(d->blkq);
 	}
 	t = d->targets;
 	e = t + d->ntargets;
@@ -322,10 +322,14 @@ flush(const char __user *str, size_t cnt, int exiting)
 	}
 
 	flush_scheduled_work();
-	/* pass one: without sleeping, do aoedev_downdev */
+	/* pass one: do aoedev_downdev, which might sleep */
+restart1:
 	spin_lock_irqsave(&devlist_lock, flags);
 	for (d = devlist; d; d = d->next) {
 		spin_lock(&d->lock);
+		if (d->flags & DEVFL_TKILL)
+			goto cont;
+
 		if (exiting) {
 			/* unconditionally take each device down */
 		} else if (specified) {
@@ -337,8 +341,11 @@ flush(const char __user *str, size_t cnt, int exiting)
 		|| d->ref)
 			goto cont;
 
+		spin_unlock(&d->lock);
+		spin_unlock_irqrestore(&devlist_lock, flags);
 		aoedev_downdev(d);
 		d->flags |= DEVFL_TKILL;
+		goto restart1;
 cont:
 		spin_unlock(&d->lock);
 	}
@@ -347,7 +354,7 @@ cont:
 	/* pass two: call freedev, which might sleep,
 	 * for aoedevs marked with DEVFL_TKILL
 	 */
-restart:
+restart2:
 	spin_lock_irqsave(&devlist_lock, flags);
 	for (d = devlist; d; d = d->next) {
 		spin_lock(&d->lock);
@@ -356,7 +363,7 @@ restart:
 			spin_unlock(&d->lock);
 			spin_unlock_irqrestore(&devlist_lock, flags);
 			freedev(d);
-			goto restart;
+			goto restart2;
 		}
 		spin_unlock(&d->lock);
 	}

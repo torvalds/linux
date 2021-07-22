@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Set up the VMAs to tell the VM about the vDSO.
  * Copyright 2007 Andi Kleen, SUSE Labs.
- * Subject to the GPL, v.2
  */
 
 /*
@@ -366,7 +366,7 @@ static int map_vdso(const struct vdso_image *image,
 	unsigned long text_start, addr = 0;
 	int ret = 0;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 
 	/*
 	 * First, get an unmapped region: then randomize it, and make sure that
@@ -422,7 +422,7 @@ up_fail:
 	if (ret)
 		current->mm->context.vdso = NULL;
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 

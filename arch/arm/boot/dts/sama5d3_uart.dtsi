@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sama5d3_uart.dtsi - Device Tree Include file for SAMA5D3 SoC with
  * UART support
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * Licensed under GPLv2.
  */
 
 #include <dt-bindings/pinctrl/at91.h>
@@ -37,29 +36,13 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				periphck {
-					uart0_clk: uart0_clk {
-						#clock-cells = <0>;
-						reg = <16>;
-						atmel,clk-output-range = <0 66000000>;
-					};
-
-					uart1_clk: uart1_clk {
-						#clock-cells = <0>;
-						reg = <17>;
-						atmel,clk-output-range = <0 66000000>;
-					};
-				};
-			};
-
 			uart0: serial@f0024000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf0024000 0x100>;
 				interrupts = <16 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart0>;
-				clocks = <&uart0_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 16>;
 				clock-names = "usart";
 				status = "disabled";
 			};
@@ -70,7 +53,7 @@
 				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart1>;
-				clocks = <&uart1_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 17>;
 				clock-names = "usart";
 				status = "disabled";
 			};

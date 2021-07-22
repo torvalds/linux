@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Common implementation of switch_mm_irqs_off
  *
  *  Copyright IBM Corp. 2017
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/mm.h>
@@ -15,6 +10,7 @@
 #include <linux/sched/mm.h>
 
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 #if defined(CONFIG_PPC32)
 static inline void switch_mm_pgdir(struct task_struct *tsk,
@@ -47,24 +43,26 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 		/*
 		 * This full barrier orders the store to the cpumask above vs
-		 * a subsequent operation which allows this CPU to begin loading
-		 * translations for next.
+		 * a subsequent load which allows this CPU/MMU to begin loading
+		 * translations for 'next' from page table PTEs into the TLB.
 		 *
-		 * When using the radix MMU that operation is the load of the
+		 * When using the radix MMU, that operation is the load of the
 		 * MMU context id, which is then moved to SPRN_PID.
 		 *
 		 * For the hash MMU it is either the first load from slb_cache
-		 * in switch_slb(), and/or the store of paca->mm_ctx_id in
-		 * copy_mm_to_paca().
+		 * in switch_slb() to preload the SLBs, or the load of
+		 * get_user_context which loads the context for the VSID hash
+		 * to insert a new SLB, in the SLB fault handler.
 		 *
 		 * On the other side, the barrier is in mm/tlb-radix.c for
-		 * radix which orders earlier stores to clear the PTEs vs
-		 * the load of mm_cpumask. And pte_xchg which does the same
-		 * thing for hash.
+		 * radix which orders earlier stores to clear the PTEs before
+		 * the load of mm_cpumask to check which CPU TLBs should be
+		 * flushed. For hash, pte_xchg to clear the PTE includes the
+		 * barrier.
 		 *
-		 * This full barrier is needed by membarrier when switching
-		 * between processes after store to rq->curr, before user-space
-		 * memory accesses.
+		 * This full barrier is also needed by membarrier when
+		 * switching between processes after store to rq->curr, before
+		 * user-space memory accesses.
 		 */
 		smp_mb();
 
@@ -85,9 +83,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		asm volatile ("dssall");
 
-	if (new_on_cpu)
-		radix_kvm_prefetch_workaround(next);
-	else
+	if (!new_on_cpu)
 		membarrier_arch_switch_mm(prev, next, tsk);
 
 	/*
@@ -97,3 +93,12 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	switch_mmu_context(prev, next, tsk);
 }
 
+#ifndef CONFIG_PPC_BOOK3S_64
+void arch_exit_mmap(struct mm_struct *mm)
+{
+	void *frag = pte_frag_get(&mm->context);
+
+	if (frag)
+		pte_frag_destroy(frag);
+}
+#endif

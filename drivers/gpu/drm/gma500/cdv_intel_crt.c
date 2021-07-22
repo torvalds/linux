@@ -24,16 +24,18 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
-#include <drm/drmP.h>
+#include <linux/pm_runtime.h>
 
+#include <drm/drm_simple_kms_helper.h>
+
+#include "cdv_device.h"
 #include "intel_bios.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "power.h"
-#include "cdv_device.h"
-#include <linux/pm_runtime.h>
 
 
 static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
@@ -125,7 +127,7 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 }
 
 
-/**
+/*
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
  *
  * \return true if CRT is connected.
@@ -237,15 +239,6 @@ static const struct drm_connector_helper_funcs
 	.best_encoder = gma_best_encoder,
 };
 
-static void cdv_intel_crt_enc_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs cdv_intel_crt_enc_funcs = {
-	.destroy = cdv_intel_crt_enc_destroy,
-};
-
 void cdv_intel_crt_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev)
 {
@@ -254,8 +247,6 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	struct gma_encoder *gma_encoder;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-
-	u32 i2c_reg;
 
 	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
 	if (!gma_encoder)
@@ -271,31 +262,18 @@ void cdv_intel_crt_init(struct drm_device *dev,
 		&cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
 	encoder = &gma_encoder->base;
-	drm_encoder_init(dev, encoder,
-		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
 	/* Set up the DDC bus. */
-	i2c_reg = GPIOA;
-	/* Remove the following code for CDV */
-	/*
-	if (dev_priv->crt_ddc_bus != 0)
-		i2c_reg = dev_priv->crt_ddc_bus;
-	}*/
-	gma_encoder->ddc_bus = psb_intel_i2c_create(dev,
-							  i2c_reg, "CRTDDC_A");
+	gma_encoder->ddc_bus = psb_intel_i2c_create(dev, GPIOA, "CRTDDC_A");
 	if (!gma_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
-			   "failed.\n");
+		dev_printk(KERN_ERR, dev->dev, "DDC bus registration failed.\n");
 		goto failed_ddc;
 	}
 
 	gma_encoder->type = INTEL_OUTPUT_ANALOG;
-	/*
-	psb_intel_output->clone_mask = (1 << INTEL_ANALOG_CLONE_BIT);
-	psb_intel_output->crtc_mask = (1 << 0) | (1 << 1);
-	*/
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 

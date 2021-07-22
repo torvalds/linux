@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	w83627hf/thf WDT driver
  *
@@ -17,11 +18,6 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
  *	warranty for any of this software. This material is provided
  *	"AS-IS" and at no charge.
@@ -38,6 +34,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 
 #define WATCHDOG_NAME "w83627hf/thf/hg/dhg WDT"
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
@@ -46,11 +43,13 @@ static int wdt_io;
 static int cr_wdt_timeout;	/* WDT timeout register */
 static int cr_wdt_control;	/* WDT control register */
 static int cr_wdt_csr;		/* WDT control & status register */
+static int wdt_cfg_enter = 0x87;/* key to unlock configuration space */
+static int wdt_cfg_leave = 0xAA;/* key to lock configuration space */
 
 enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg, w83627dhg_p,
 	     w83667hg_b, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
-	     nct6795, nct6796, nct6102 };
+	     nct6795, nct6796, nct6102, nct6116 };
 
 static int timeout;			/* in seconds */
 module_param(timeout, int, 0);
@@ -95,6 +94,7 @@ MODULE_PARM_DESC(early_disable, "Disable watchdog at boot time (default=0)");
 #define NCT6775_ID		0xb4
 #define NCT6776_ID		0xc3
 #define NCT6102_ID		0xc4
+#define NCT6116_ID		0xd2
 #define NCT6779_ID		0xc5
 #define NCT6791_ID		0xc8
 #define NCT6792_ID		0xc9
@@ -130,8 +130,8 @@ static int superio_enter(void)
 	if (!request_muxed_region(wdt_io, 2, WATCHDOG_NAME))
 		return -EBUSY;
 
-	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
-	outb_p(0x87, WDT_EFER); /* Again according to manual */
+	outb_p(wdt_cfg_enter, WDT_EFER); /* Enter extended function mode */
+	outb_p(wdt_cfg_enter, WDT_EFER); /* Again according to manual */
 
 	return 0;
 }
@@ -143,7 +143,7 @@ static void superio_select(int ld)
 
 static void superio_exit(void)
 {
-	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
+	outb_p(wdt_cfg_leave, WDT_EFER); /* Leave extended function mode */
 	release_region(wdt_io, 2);
 }
 
@@ -212,6 +212,7 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	case nct6795:
 	case nct6796:
 	case nct6102:
+	case nct6116:
 		/*
 		 * These chips have a fixed WDTO# output pin (W83627UHG),
 		 * or support more than one WDTO# output pin.
@@ -418,6 +419,12 @@ static int wdt_find(int addr)
 		cr_wdt_control = NCT6102D_WDT_CONTROL;
 		cr_wdt_csr = NCT6102D_WDT_CSR;
 		break;
+	case NCT6116_ID:
+		ret = nct6116;
+		cr_wdt_timeout = NCT6102D_WDT_TIMEOUT;
+		cr_wdt_control = NCT6102D_WDT_CONTROL;
+		cr_wdt_csr = NCT6102D_WDT_CSR;
+		break;
 	case 0xff:
 		ret = -ENODEV;
 		break;
@@ -429,6 +436,32 @@ static int wdt_find(int addr)
 	superio_exit();
 	return ret;
 }
+
+/*
+ * On some systems, the NCT6791D comes with a companion chip and the
+ * watchdog function is in this companion chip. We must use a different
+ * unlocking sequence to access the companion chip.
+ */
+static int __init wdt_use_alt_key(const struct dmi_system_id *d)
+{
+	wdt_cfg_enter = 0x88;
+	wdt_cfg_leave = 0xBB;
+
+	return 0;
+}
+
+static const struct dmi_system_id wdt_dmi_table[] __initconst = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "INVES"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CTS"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "INVES"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SHARKBAY"),
+		},
+		.callback = wdt_use_alt_key,
+	},
+	{}
+};
 
 static int __init wdt_init(void)
 {
@@ -457,7 +490,11 @@ static int __init wdt_init(void)
 		"NCT6795",
 		"NCT6796",
 		"NCT6102",
+		"NCT6116",
 	};
+
+	/* Apply system-specific quirks */
+	dmi_check_system(wdt_dmi_table);
 
 	wdt_io = 0x2e;
 	chip = wdt_find(0x2e);

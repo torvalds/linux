@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2009 - Maxim Levitsky
  * Common routines & support for xD format
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/mtd/rawnand.h>
@@ -194,7 +191,7 @@ int sm_register_device(struct mtd_info *mtd, int smartmedia)
 	chip->options |= NAND_SKIP_BBTSCAN;
 
 	/* Scan for card properties */
-	chip->dummy_controller.ops = &sm_controller_ops;
+	chip->legacy.dummy_controller.ops = &sm_controller_ops;
 	flash_ids = smartmedia ? nand_smartmedia_flash_ids : nand_xd_flash_ids;
 	ret = nand_scan_with_ids(chip, 1, flash_ids);
 	if (ret)

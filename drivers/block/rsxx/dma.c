@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 * Filename: dma.c
-*
 *
 * Authors: Joshua Morris <josh.h.morris@us.ibm.com>
 *	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
 *
 * (C) Copyright 2013 IBM Corporation
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; either version 2 of the
-* License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include <linux/slab.h>
@@ -88,13 +74,10 @@ struct dma_tracker {
 	struct rsxx_dma	*dma;
 };
 
-#define DMA_TRACKER_LIST_SIZE8 (sizeof(struct dma_tracker_list) + \
-		(sizeof(struct dma_tracker) * RSXX_MAX_OUTSTANDING_CMDS))
-
 struct dma_tracker_list {
 	spinlock_t		lock;
 	int			head;
-	struct dma_tracker	list[0];
+	struct dma_tracker	list[];
 };
 
 
@@ -822,7 +805,8 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 
 	memset(&ctrl->stats, 0, sizeof(ctrl->stats));
 
-	ctrl->trackers = vmalloc(DMA_TRACKER_LIST_SIZE8);
+	ctrl->trackers = vmalloc(struct_size(ctrl->trackers, list,
+					     RSXX_MAX_OUTSTANDING_CMDS));
 	if (!ctrl->trackers)
 		return -ENOMEM;
 
@@ -958,8 +942,7 @@ failed_dma_setup:
 			ctrl->done_wq = NULL;
 		}
 
-		if (ctrl->trackers)
-			vfree(ctrl->trackers);
+		vfree(ctrl->trackers);
 
 		if (ctrl->status.buf)
 			dma_free_coherent(&card->dev->dev, STATUS_BUFFER_SIZE8,

@@ -127,7 +127,7 @@ struct moxart_desc {
 	unsigned int			dma_cycles;
 	struct virt_dma_desc		vd;
 	uint8_t				es;
-	struct moxart_sg		sg[0];
+	struct moxart_sg		sg[];
 };
 
 struct moxart_chan {
@@ -524,7 +524,6 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 	struct moxart_dmadev *mc = devid;
 	struct moxart_chan *ch = &mc->slave_chans[0];
 	unsigned int i;
-	unsigned long flags;
 	u32 ctrl;
 
 	dev_dbg(chan2dev(&ch->vc.chan), "%s\n", __func__);
@@ -541,14 +540,14 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 		if (ctrl & APB_DMA_FIN_INT_STS) {
 			ctrl &= ~APB_DMA_FIN_INT_STS;
 			if (ch->desc) {
-				spin_lock_irqsave(&ch->vc.lock, flags);
+				spin_lock(&ch->vc.lock);
 				if (++ch->sgidx < ch->desc->sglen) {
 					moxart_dma_start_sg(ch, ch->sgidx);
 				} else {
 					vchan_cookie_complete(&ch->desc->vd);
 					moxart_dma_start_desc(&ch->vc.chan);
 				}
-				spin_unlock_irqrestore(&ch->vc.lock, flags);
+				spin_unlock(&ch->vc.lock);
 			}
 		}
 
@@ -568,7 +567,7 @@ static int moxart_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct resource *res;
-	static void __iomem *dma_base_addr;
+	void __iomem *dma_base_addr;
 	int ret, i;
 	unsigned int irq;
 	struct moxart_chan *ch;

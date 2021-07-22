@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
  * not configured or static.
@@ -196,10 +197,8 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		struct ipv6hdr _ip6, *ip6;
 
 		ip6 = skb_header_pointer(skb, *offset, sizeof(_ip6), &_ip6);
-		if (!ip6 || (ip6->version != 6)) {
-			printk(KERN_ERR "IPv6 header not found\n");
+		if (!ip6 || (ip6->version != 6))
 			return -EBADMSG;
-		}
 		start = *offset + sizeof(struct ipv6hdr);
 		nexthdr = ip6->nexthdr;
 	}
@@ -265,7 +264,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		} else if (nexthdr == NEXTHDR_AUTH) {
 			if (flags && (*flags & IP6_FH_F_AUTH) && (target < 0))
 				break;
-			hdrlen = (hp->hdrlen + 2) << 2;
+			hdrlen = ipv6_authlen(hp);
 		} else
 			hdrlen = ipv6_optlen(hp);
 

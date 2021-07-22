@@ -1,0 +1,328 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the R-Car H3 (R8A77950) SoC
+ *
+ * Copyright (C) 2015 Renesas Electronics Corp.
+ */
+
+#include "r8a77951.dtsi"
+
+&audma0 {
+	iommus = <&ipmmu_mp1 0>, <&ipmmu_mp1 1>,
+	       <&ipmmu_mp1 2>, <&ipmmu_mp1 3>,
+	       <&ipmmu_mp1 4>, <&ipmmu_mp1 5>,
+	       <&ipmmu_mp1 6>, <&ipmmu_mp1 7>,
+	       <&ipmmu_mp1 8>, <&ipmmu_mp1 9>,
+	       <&ipmmu_mp1 10>, <&ipmmu_mp1 11>,
+	       <&ipmmu_mp1 12>, <&ipmmu_mp1 13>,
+	       <&ipmmu_mp1 14>, <&ipmmu_mp1 15>;
+};
+
+&audma1 {
+	iommus = <&ipmmu_mp1 16>, <&ipmmu_mp1 17>,
+	       <&ipmmu_mp1 18>, <&ipmmu_mp1 19>,
+	       <&ipmmu_mp1 20>, <&ipmmu_mp1 21>,
+	       <&ipmmu_mp1 22>, <&ipmmu_mp1 23>,
+	       <&ipmmu_mp1 24>, <&ipmmu_mp1 25>,
+	       <&ipmmu_mp1 26>, <&ipmmu_mp1 27>,
+	       <&ipmmu_mp1 28>, <&ipmmu_mp1 29>,
+	       <&ipmmu_mp1 30>, <&ipmmu_mp1 31>;
+};
+
+&cluster0_opp {
+	/delete-node/ opp-1600000000;
+	/delete-node/ opp-1700000000;
+};
+
+&du {
+	renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd3 0>;
+};
+
+&fcpvb1 {
+	iommus = <&ipmmu_vp0 7>;
+};
+
+&fcpf1 {
+	iommus = <&ipmmu_vp0 1>;
+};
+
+&fcpvi1 {
+	iommus = <&ipmmu_vp0 9>;
+};
+
+&fcpvd2 {
+	iommus = <&ipmmu_vi0 10>;
+};
+
+&gpio1 {
+	gpio-ranges = <&pfc 0 32 28>;
+};
+
+&ipmmu_vi0 {
+	renesas,ipmmu-main = <&ipmmu_mm 11>;
+};
+
+&ipmmu_vp0 {
+	renesas,ipmmu-main = <&ipmmu_mm 12>;
+};
+
+&ipmmu_vc0 {
+	renesas,ipmmu-main = <&ipmmu_mm 9>;
+};
+
+&ipmmu_vc1 {
+	renesas,ipmmu-main = <&ipmmu_mm 10>;
+};
+
+&ipmmu_rt {
+	renesas,ipmmu-main = <&ipmmu_mm 7>;
+};
+
+&soc {
+	/delete-node/ dma-controller@e6460000;
+	/delete-node/ dma-controller@e6470000;
+
+	ipmmu_mp1: iommu@ec680000 {
+		compatible = "renesas,ipmmu-r8a7795";
+		reg = <0 0xec680000 0 0x1000>;
+		renesas,ipmmu-main = <&ipmmu_mm 5>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		#iommu-cells = <1>;
+	};
+
+	ipmmu_sy: iommu@e7730000 {
+		compatible = "renesas,ipmmu-r8a7795";
+		reg = <0 0xe7730000 0 0x1000>;
+		renesas,ipmmu-main = <&ipmmu_mm 8>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		#iommu-cells = <1>;
+	};
+
+	/delete-node/ iommu@fd950000;
+	/delete-node/ iommu@fd960000;
+	/delete-node/ iommu@fd970000;
+	/delete-node/ iommu@febe0000;
+	/delete-node/ iommu@fe980000;
+
+	xhci1: usb@ee040000 {
+		compatible = "renesas,xhci-r8a7795", "renesas,rcar-gen3-xhci";
+		reg = <0 0xee040000 0 0xc00>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 327>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 327>;
+		status = "disabled";
+	};
+
+	/delete-node/ usb@e659c000;
+	/delete-node/ usb@ee0e0000;
+	/delete-node/ usb@ee0e0100;
+
+	/delete-node/ usb-phy@ee0e0200;
+
+	fdp1@fe948000 {
+		compatible = "renesas,fdp1";
+		reg = <0 0xfe948000 0 0x2400>;
+		interrupts = <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 117>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 117>;
+		renesas,fcp = <&fcpf2>;
+	};
+
+	fcpf2: fcp@fe952000 {
+		compatible = "renesas,fcpf";
+		reg = <0 0xfe952000 0 0x200>;
+		clocks = <&cpg CPG_MOD 613>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 613>;
+		iommus = <&ipmmu_vp0 2>;
+	};
+
+	fcpvd3: fcp@fea3f000 {
+		compatible = "renesas,fcpv";
+		reg = <0 0xfea3f000 0 0x200>;
+		clocks = <&cpg CPG_MOD 600>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 600>;
+		iommus = <&ipmmu_vi0 11>;
+	};
+
+	fcpvi2: fcp@fe9cf000 {
+		compatible = "renesas,fcpv";
+		reg = <0 0xfe9cf000 0 0x200>;
+		clocks = <&cpg CPG_MOD 609>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 609>;
+		iommus = <&ipmmu_vp0 10>;
+	};
+
+	vspd3: vsp@fea38000 {
+		compatible = "renesas,vsp2";
+		reg = <0 0xfea38000 0 0x5000>;
+		interrupts = <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 620>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 620>;
+
+		renesas,fcp = <&fcpvd3>;
+	};
+
+	vspi2: vsp@fe9c0000 {
+		compatible = "renesas,vsp2";
+		reg = <0 0xfe9c0000 0 0x8000>;
+		interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 629>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 629>;
+
+		renesas,fcp = <&fcpvi2>;
+	};
+
+	csi21: csi2@fea90000 {
+		compatible = "renesas,r8a7795-csi2";
+		reg = <0 0xfea90000 0 0x10000>;
+		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 713>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 713>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+			};
+
+			port@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				reg = <1>;
+
+				csi21vin0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vin0csi21>;
+				};
+				csi21vin1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vin1csi21>;
+				};
+				csi21vin2: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&vin2csi21>;
+				};
+				csi21vin3: endpoint@3 {
+					reg = <3>;
+					remote-endpoint = <&vin3csi21>;
+				};
+				csi21vin4: endpoint@4 {
+					reg = <4>;
+					remote-endpoint = <&vin4csi21>;
+				};
+				csi21vin5: endpoint@5 {
+					reg = <5>;
+					remote-endpoint = <&vin5csi21>;
+				};
+				csi21vin6: endpoint@6 {
+					reg = <6>;
+					remote-endpoint = <&vin6csi21>;
+				};
+				csi21vin7: endpoint@7 {
+					reg = <7>;
+					remote-endpoint = <&vin7csi21>;
+				};
+			};
+		};
+	};
+};
+
+&vin0 {
+	ports {
+		port@1 {
+			vin0csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin0>;
+			};
+		};
+	};
+};
+
+&vin1 {
+	ports {
+		port@1 {
+			vin1csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin1>;
+			};
+		};
+	};
+};
+
+&vin2 {
+	ports {
+		port@1 {
+			vin2csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin2>;
+			};
+		};
+	};
+};
+
+&vin3 {
+	ports {
+		port@1 {
+			vin3csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin3>;
+			};
+		};
+	};
+};
+
+&vin4 {
+	ports {
+		port@1 {
+			vin4csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin4>;
+			};
+		};
+	};
+};
+
+&vin5 {
+	ports {
+		port@1 {
+			vin5csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin5>;
+			};
+		};
+	};
+};
+
+&vin6 {
+	ports {
+		port@1 {
+			vin6csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin6>;
+			};
+		};
+	};
+};
+
+&vin7 {
+	ports {
+		port@1 {
+			vin7csi21: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi21vin7>;
+			};
+		};
+	};
+};

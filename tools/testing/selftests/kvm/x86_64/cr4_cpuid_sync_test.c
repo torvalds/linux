@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 	entry = kvm_get_supported_cpuid_entry(1);
 	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		printf("XSAVE feature not supported, skipping test\n");
+		print_skip("XSAVE feature not supported");
 		return 0;
 	}
 
@@ -81,28 +81,31 @@ int main(int argc, char *argv[])
 
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
 	while (1) {
 		rc = _vcpu_run(vm, VCPU_ID);
 
-		if (run->exit_reason == KVM_EXIT_IO) {
-			switch (get_ucall(vm, VCPU_ID, &uc)) {
-			case UCALL_SYNC:
-				/* emulate hypervisor clearing CR4.OSXSAVE */
-				vcpu_sregs_get(vm, VCPU_ID, &sregs);
-				sregs.cr4 &= ~X86_CR4_OSXSAVE;
-				vcpu_sregs_set(vm, VCPU_ID, &sregs);
-				break;
-			case UCALL_ABORT:
-				TEST_ASSERT(false, "Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
-				break;
-			case UCALL_DONE:
-				goto done;
-			default:
-				TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
-			}
+		TEST_ASSERT(rc == 0, "vcpu_run failed: %d\n", rc);
+		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
+			    "Unexpected exit reason: %u (%s),\n",
+			    run->exit_reason,
+			    exit_reason_str(run->exit_reason));
+
+		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		case UCALL_SYNC:
+			/* emulate hypervisor clearing CR4.OSXSAVE */
+			vcpu_sregs_get(vm, VCPU_ID, &sregs);
+			sregs.cr4 &= ~X86_CR4_OSXSAVE;
+			vcpu_sregs_set(vm, VCPU_ID, &sregs);
+			break;
+		case UCALL_ABORT:
+			TEST_FAIL("Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
+			break;
+		case UCALL_DONE:
+			goto done;
+		default:
+			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 	}
 

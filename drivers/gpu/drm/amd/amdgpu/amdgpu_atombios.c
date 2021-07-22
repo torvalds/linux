@@ -23,7 +23,7 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
@@ -148,7 +148,7 @@ void amdgpu_atombios_i2c_init(struct amdgpu_device *adev)
 
 			if (i2c.valid) {
 				sprintf(stmp, "0x%x", i2c.i2c_id);
-				adev->i2c_bus[i] = amdgpu_i2c_create(adev->ddev, &i2c, stmp);
+				adev->i2c_bus[i] = amdgpu_i2c_create(adev_to_drm(adev), &i2c, stmp);
 			}
 			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
 				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
@@ -338,17 +338,9 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 		path_size += le16_to_cpu(path->usSize);
 
 		if (device_support & le16_to_cpu(path->usDeviceTag)) {
-			uint8_t con_obj_id, con_obj_num, con_obj_type;
-
-			con_obj_id =
+			uint8_t con_obj_id =
 			    (le16_to_cpu(path->usConnObjectId) & OBJECT_ID_MASK)
 			    >> OBJECT_ID_SHIFT;
-			con_obj_num =
-			    (le16_to_cpu(path->usConnObjectId) & ENUM_ID_MASK)
-			    >> ENUM_ID_SHIFT;
-			con_obj_type =
-			    (le16_to_cpu(path->usConnObjectId) &
-			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
 			/* Skip TV/CV support */
 			if ((le16_to_cpu(path->usDeviceTag) ==
@@ -373,15 +365,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			router.ddc_valid = false;
 			router.cd_valid = false;
 			for (j = 0; j < ((le16_to_cpu(path->usSize) - 8) / 2); j++) {
-				uint8_t grph_obj_id, grph_obj_num, grph_obj_type;
-
-				grph_obj_id =
-				    (le16_to_cpu(path->usGraphicObjIds[j]) &
-				     OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
-				grph_obj_num =
-				    (le16_to_cpu(path->usGraphicObjIds[j]) &
-				     ENUM_ID_MASK) >> ENUM_ID_SHIFT;
-				grph_obj_type =
+				uint8_t grph_obj_type =
 				    (le16_to_cpu(path->usGraphicObjIds[j]) &
 				     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
@@ -557,7 +541,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 		}
 	}
 
-	amdgpu_link_encoder_connector(adev->ddev);
+	amdgpu_link_encoder_connector(adev_to_drm(adev));
 
 	return true;
 }
@@ -1248,157 +1232,6 @@ int amdgpu_atombios_get_leakage_vddc_based_on_leakage_idx(struct amdgpu_device *
 	return amdgpu_atombios_get_max_vddc(adev, VOLTAGE_TYPE_VDDC, leakage_idx, voltage);
 }
 
-int amdgpu_atombios_get_leakage_id_from_vbios(struct amdgpu_device *adev,
-					      u16 *leakage_id)
-{
-	union set_voltage args;
-	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
-	u8 frev, crev;
-
-	if (!amdgpu_atom_parse_cmd_header(adev->mode_info.atom_context, index, &frev, &crev))
-		return -EINVAL;
-
-	switch (crev) {
-	case 3:
-	case 4:
-		args.v3.ucVoltageType = 0;
-		args.v3.ucVoltageMode = ATOM_GET_LEAKAGE_ID;
-		args.v3.usVoltageLevel = 0;
-
-		amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-
-		*leakage_id = le16_to_cpu(args.v3.usVoltageLevel);
-		break;
-	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int amdgpu_atombios_get_leakage_vddc_based_on_leakage_params(struct amdgpu_device *adev,
-							     u16 *vddc, u16 *vddci,
-							     u16 virtual_voltage_id,
-							     u16 vbios_voltage_id)
-{
-	int index = GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo);
-	u8 frev, crev;
-	u16 data_offset, size;
-	int i, j;
-	ATOM_ASIC_PROFILING_INFO_V2_1 *profile;
-	u16 *leakage_bin, *vddc_id_buf, *vddc_buf, *vddci_id_buf, *vddci_buf;
-
-	*vddc = 0;
-	*vddci = 0;
-
-	if (!amdgpu_atom_parse_data_header(adev->mode_info.atom_context, index, &size,
-				    &frev, &crev, &data_offset))
-		return -EINVAL;
-
-	profile = (ATOM_ASIC_PROFILING_INFO_V2_1 *)
-		(adev->mode_info.atom_context->bios + data_offset);
-
-	switch (frev) {
-	case 1:
-		return -EINVAL;
-	case 2:
-		switch (crev) {
-		case 1:
-			if (size < sizeof(ATOM_ASIC_PROFILING_INFO_V2_1))
-				return -EINVAL;
-			leakage_bin = (u16 *)
-				(adev->mode_info.atom_context->bios + data_offset +
-				 le16_to_cpu(profile->usLeakageBinArrayOffset));
-			vddc_id_buf = (u16 *)
-				(adev->mode_info.atom_context->bios + data_offset +
-				 le16_to_cpu(profile->usElbVDDC_IdArrayOffset));
-			vddc_buf = (u16 *)
-				(adev->mode_info.atom_context->bios + data_offset +
-				 le16_to_cpu(profile->usElbVDDC_LevelArrayOffset));
-			vddci_id_buf = (u16 *)
-				(adev->mode_info.atom_context->bios + data_offset +
-				 le16_to_cpu(profile->usElbVDDCI_IdArrayOffset));
-			vddci_buf = (u16 *)
-				(adev->mode_info.atom_context->bios + data_offset +
-				 le16_to_cpu(profile->usElbVDDCI_LevelArrayOffset));
-
-			if (profile->ucElbVDDC_Num > 0) {
-				for (i = 0; i < profile->ucElbVDDC_Num; i++) {
-					if (vddc_id_buf[i] == virtual_voltage_id) {
-						for (j = 0; j < profile->ucLeakageBinNum; j++) {
-							if (vbios_voltage_id <= leakage_bin[j]) {
-								*vddc = vddc_buf[j * profile->ucElbVDDC_Num + i];
-								break;
-							}
-						}
-						break;
-					}
-				}
-			}
-			if (profile->ucElbVDDCI_Num > 0) {
-				for (i = 0; i < profile->ucElbVDDCI_Num; i++) {
-					if (vddci_id_buf[i] == virtual_voltage_id) {
-						for (j = 0; j < profile->ucLeakageBinNum; j++) {
-							if (vbios_voltage_id <= leakage_bin[j]) {
-								*vddci = vddci_buf[j * profile->ucElbVDDCI_Num + i];
-								break;
-							}
-						}
-						break;
-					}
-				}
-			}
-			break;
-		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
-			return -EINVAL;
-		}
-		break;
-	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-union get_voltage_info {
-	struct _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 in;
-	struct _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 evv_out;
-};
-
-int amdgpu_atombios_get_voltage_evv(struct amdgpu_device *adev,
-				    u16 virtual_voltage_id,
-				    u16 *voltage)
-{
-	int index = GetIndexIntoMasterTable(COMMAND, GetVoltageInfo);
-	u32 entry_id;
-	u32 count = adev->pm.dpm.dyn_state.vddc_dependency_on_sclk.count;
-	union get_voltage_info args;
-
-	for (entry_id = 0; entry_id < count; entry_id++) {
-		if (adev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].v ==
-		    virtual_voltage_id)
-			break;
-	}
-
-	if (entry_id >= count)
-		return -EINVAL;
-
-	args.in.ucVoltageType = VOLTAGE_TYPE_VDDC;
-	args.in.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
-	args.in.usVoltageLevel = cpu_to_le16(virtual_voltage_id);
-	args.in.ulSCLKFreq =
-		cpu_to_le32(adev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].clk);
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-
-	*voltage = le16_to_cpu(args.evv_out.usVoltageLevel);
-
-	return 0;
-}
-
 union voltage_object_info {
 	struct _ATOM_VOLTAGE_OBJECT_INFO v1;
 	struct _ATOM_VOLTAGE_OBJECT_INFO_V2 v2;
@@ -1417,7 +1250,7 @@ static ATOM_VOLTAGE_OBJECT_V3 *amdgpu_atombios_lookup_voltage_object_v3(ATOM_VOL
 {
 	u32 size = le16_to_cpu(v3->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V3_1, asVoltageObj[0]);
-	u8 *start = (u8*)v3;
+	u8 *start = (u8 *)v3;
 
 	while (offset < size) {
 		ATOM_VOLTAGE_OBJECT_V3 *vo = (ATOM_VOLTAGE_OBJECT_V3 *)(start + offset);
@@ -1802,9 +1635,9 @@ static int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 			(uint32_t)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
 			ATOM_VRAM_OPERATION_FLAGS_SHIFT)) {
 			/* Firmware request VRAM reservation for SR-IOV */
-			adev->fw_vram_usage.start_offset = (start_addr &
+			adev->mman.fw_vram_usage_start_offset = (start_addr &
 				(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
-			adev->fw_vram_usage.size = size << 10;
+			adev->mman.fw_vram_usage_size = size << 10;
 			/* Use the default scratch size */
 			usage_bytes = 0;
 		} else {
@@ -1898,7 +1731,7 @@ static void cail_mc_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 
 	WREG32(reg, val);
 }
@@ -1914,44 +1747,10 @@ static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 	uint32_t r;
 
 	r = RREG32(reg);
-	return r;
-}
-
-/**
- * cail_ioreg_write - write IO register
- *
- * @info: atom card_info pointer
- * @reg: IO register offset
- * @val: value to write to the pll register
- *
- * Provides a IO register accessor for the atom interpreter (r4xx+).
- */
-static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
-{
-	struct amdgpu_device *adev = info->dev->dev_private;
-
-	WREG32_IO(reg, val);
-}
-
-/**
- * cail_ioreg_read - read IO register
- *
- * @info: atom card_info pointer
- * @reg: IO register offset
- *
- * Provides an IO register accessor for the atom interpreter (r4xx+).
- * Returns the value of the IO register.
- */
-static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
-{
-	struct amdgpu_device *adev = info->dev->dev_private;
-	uint32_t r;
-
-	r = RREG32_IO(reg);
 	return r;
 }
 
@@ -1960,14 +1759,23 @@ static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
 						 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct atom_context *ctx = adev->mode_info.atom_context;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->vbios_version);
+	return sysfs_emit(buf, "%s\n", ctx->vbios_version);
 }
 
 static DEVICE_ATTR(vbios_version, 0444, amdgpu_atombios_get_vbios_version,
 		   NULL);
+
+static struct attribute *amdgpu_vbios_version_attrs[] = {
+	&dev_attr_vbios_version.attr,
+	NULL
+};
+
+const struct attribute_group amdgpu_vbios_version_attr_group = {
+	.attrs = amdgpu_vbios_version_attrs
+};
 
 /**
  * amdgpu_atombios_fini - free the driver info and callbacks for atombios
@@ -1988,7 +1796,6 @@ void amdgpu_atombios_fini(struct amdgpu_device *adev)
 	adev->mode_info.atom_context = NULL;
 	kfree(adev->mode_info.atom_card_info);
 	adev->mode_info.atom_card_info = NULL;
-	device_remove_file(adev->dev, &dev_attr_vbios_version);
 }
 
 /**
@@ -2005,24 +1812,14 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 {
 	struct card_info *atom_card_info =
 	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
-	int ret;
 
 	if (!atom_card_info)
 		return -ENOMEM;
 
 	adev->mode_info.atom_card_info = atom_card_info;
-	atom_card_info->dev = adev->ddev;
+	atom_card_info->dev = adev_to_drm(adev);
 	atom_card_info->reg_read = cail_reg_read;
 	atom_card_info->reg_write = cail_reg_write;
-	/* needed for iio ops */
-	if (adev->rio_mem) {
-		atom_card_info->ioreg_read = cail_ioreg_read;
-		atom_card_info->ioreg_write = cail_ioreg_write;
-	} else {
-		DRM_DEBUG("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
-		atom_card_info->ioreg_read = cail_reg_read;
-		atom_card_info->ioreg_write = cail_reg_write;
-	}
 	atom_card_info->mc_read = cail_mc_read;
 	atom_card_info->mc_write = cail_mc_write;
 	atom_card_info->pll_read = cail_pll_read;
@@ -2038,17 +1835,31 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 	if (adev->is_atom_fw) {
 		amdgpu_atomfirmware_scratch_regs_init(adev);
 		amdgpu_atomfirmware_allocate_fb_scratch(adev);
+		/* cached firmware_flags for further usage */
+		adev->mode_info.firmware_flags =
+			amdgpu_atomfirmware_query_firmware_capability(adev);
 	} else {
 		amdgpu_atombios_scratch_regs_init(adev);
 		amdgpu_atombios_allocate_fb_scratch(adev);
 	}
 
-	ret = device_create_file(adev->dev, &dev_attr_vbios_version);
-	if (ret) {
-		DRM_ERROR("Failed to create device file for VBIOS version\n");
-		return ret;
-	}
-
 	return 0;
 }
 
+int amdgpu_atombios_get_data_table(struct amdgpu_device *adev,
+				   uint32_t table,
+				   uint16_t *size,
+				   uint8_t *frev,
+				   uint8_t *crev,
+				   uint8_t **addr)
+{
+	uint16_t data_start;
+
+	if (!amdgpu_atom_parse_data_header(adev->mode_info.atom_context, table,
+					   size, frev, crev, &data_start))
+		return -EINVAL;
+
+	*addr = (uint8_t *)adev->mode_info.atom_context->bios + data_start;
+
+	return 0;
+}

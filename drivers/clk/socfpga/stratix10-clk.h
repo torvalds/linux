@@ -7,14 +7,14 @@
 #define	__STRATIX10_CLK_H
 
 struct stratix10_clock_data {
-	struct clk_onecell_data	clk_data;
+	struct clk_hw_onecell_data	clk_data;
 	void __iomem		*base;
 };
 
 struct stratix10_pll_clock {
 	unsigned int		id;
 	const char		*name;
-	const char		*const *parent_names;
+	const struct clk_parent_data	*parent_data;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		offset;
@@ -24,17 +24,28 @@ struct stratix10_perip_c_clock {
 	unsigned int		id;
 	const char		*name;
 	const char		*parent_name;
+	const struct clk_parent_data	*parent_data;
+	u8			num_parents;
+	unsigned long		flags;
+	unsigned long		offset;
+};
+
+struct n5x_perip_c_clock {
+	unsigned int		id;
+	const char		*name;
+	const char		*parent_name;
 	const char		*const *parent_names;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		offset;
+	unsigned long		shift;
 };
 
 struct stratix10_perip_cnt_clock {
 	unsigned int		id;
 	const char		*name;
 	const char		*parent_name;
-	const char		*const *parent_names;
+	const struct clk_parent_data	*parent_data;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		offset;
@@ -47,7 +58,7 @@ struct stratix10_gate_clock {
 	unsigned int		id;
 	const char		*name;
 	const char		*parent_name;
-	const char		*const *parent_names;
+	const struct clk_parent_data	*parent_data;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		gate_reg;
@@ -60,21 +71,20 @@ struct stratix10_gate_clock {
 	u8			fixed_div;
 };
 
-struct clk *s10_register_pll(const char *, const char *const *, u8,
-			     unsigned long, void __iomem *, unsigned long);
-
-struct clk *s10_register_periph(const char *, const char *,
-				const char * const *, u8, unsigned long,
-				void __iomem *, unsigned long);
-struct clk *s10_register_cnt_periph(const char *, const char *,
-				    const char * const *, u8,
-				    unsigned long, void __iomem *,
-				    unsigned long, u8, unsigned long,
-				    unsigned long);
-struct clk *s10_register_gate(const char *, const char *,
-			      const char * const *, u8,
-			      unsigned long, void __iomem *,
-			      unsigned long, unsigned long,
-			      unsigned long, unsigned long, u8,
-			      unsigned long, u8, u8);
+struct clk_hw *s10_register_pll(const struct stratix10_pll_clock *clks,
+			     void __iomem *reg);
+struct clk_hw *agilex_register_pll(const struct stratix10_pll_clock *clks,
+				void __iomem *reg);
+struct clk_hw *n5x_register_pll(const struct stratix10_pll_clock *clks,
+			     void __iomem *reg);
+struct clk_hw *s10_register_periph(const struct stratix10_perip_c_clock *clks,
+				void __iomem *reg);
+struct clk_hw *n5x_register_periph(const struct n5x_perip_c_clock *clks,
+				void __iomem *reg);
+struct clk_hw *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *clks,
+				    void __iomem *reg);
+struct clk_hw *s10_register_gate(const struct stratix10_gate_clock *clks,
+			      void __iomem *reg);
+struct clk_hw *agilex_register_gate(const struct stratix10_gate_clock *clks,
+			      void __iomem *reg);
 #endif	/* __STRATIX10_CLK_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Radio tuning for RTL8225 on RTL8187
  *
@@ -10,10 +11,6 @@
  * Magic delays, register offsets, and phy value tables below are
  * taken from the original r8187 driver sources.  Thanks to Realtek
  * for their support!
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/usb.h>
@@ -607,10 +604,6 @@ static const u8 rtl8225z2_tx_power_cck[] = {
 	0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03,
 	0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03,
 	0x26, 0x25, 0x21, 0x1b, 0x14, 0x0d, 0x06, 0x03
-};
-
-static const u8 rtl8225z2_tx_power_ofdm[] = {
-	0x42, 0x00, 0x40, 0x00, 0x40
 };
 
 static const u8 rtl8225z2_tx_gain_cck_ofdm[] = {

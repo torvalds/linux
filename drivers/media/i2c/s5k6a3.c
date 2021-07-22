@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung S5K6A3 image sensor driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -102,7 +99,7 @@ static const struct v4l2_mbus_framefmt *find_sensor_format(
 }
 
 static int s5k6a3_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5k6a3_formats))
@@ -126,17 +123,18 @@ static void s5k6a3_try_format(struct v4l2_mbus_framefmt *mf)
 }
 
 static struct v4l2_mbus_framefmt *__s5k6a3_get_format(
-		struct s5k6a3 *sensor, struct v4l2_subdev_pad_config *cfg,
+		struct s5k6a3 *sensor, struct v4l2_subdev_state *sd_state,
 		u32 pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return cfg ? v4l2_subdev_get_try_format(&sensor->subdev, cfg, pad) : NULL;
+		return sd_state ? v4l2_subdev_get_try_format(&sensor->subdev,
+							     sd_state, pad) : NULL;
 
 	return &sensor->format;
 }
 
 static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6a3 *sensor = sd_to_s5k6a3(sd);
@@ -144,7 +142,7 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 
 	s5k6a3_try_format(&fmt->format);
 
-	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
+	mf = __s5k6a3_get_format(sensor, sd_state, fmt->pad, fmt->which);
 	if (mf) {
 		mutex_lock(&sensor->lock);
 		*mf = fmt->format;
@@ -154,13 +152,13 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int s5k6a3_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6a3 *sensor = sd_to_s5k6a3(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
+	mf = __s5k6a3_get_format(sensor, sd_state, fmt->pad, fmt->which);
 
 	mutex_lock(&sensor->lock);
 	fmt->format = *mf;
@@ -176,7 +174,9 @@ static const struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 
 static int s5k6a3_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd,
+								       fh->state,
+								       0);
 
 	*format		= s5k6a3_formats[0];
 	format->width	= S5K6A3_DEFAULT_WIDTH;
@@ -200,7 +200,7 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 
 	ret = pm_runtime_get(sensor->dev);
 	if (ret < 0)
-		return ret;
+		goto error_rpm_put;
 
 	ret = regulator_enable(sensor->supplies[i].consumer);
 	if (ret < 0)
@@ -278,8 +278,7 @@ static const struct v4l2_subdev_ops s5k6a3_subdev_ops = {
 	.pad = &s5k6a3_pad_ops,
 };
 
-static int s5k6a3_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int s5k6a3_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct s5k6a3 *sensor;
@@ -381,7 +380,7 @@ static struct i2c_driver s5k6a3_driver = {
 		.of_match_table	= of_match_ptr(s5k6a3_of_match),
 		.name		= S5K6A3_DRV_NAME,
 	},
-	.probe		= s5k6a3_probe,
+	.probe_new	= s5k6a3_probe,
 	.remove		= s5k6a3_remove,
 	.id_table	= s5k6a3_ids,
 };

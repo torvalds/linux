@@ -1,19 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 
 #include "mdp4_kms.h"
 
@@ -68,7 +61,6 @@ static void mdp4_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp4_plane);
@@ -115,23 +107,24 @@ static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
 
 
 static int mdp4_plane_atomic_check(struct drm_plane *plane,
-		struct drm_plane_state *state)
+		struct drm_atomic_state *state)
 {
 	return 0;
 }
 
 static void mdp4_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	int ret;
 
 	ret = mdp4_plane_mode_set(plane,
-			state->crtc, state->fb,
-			state->crtc_x, state->crtc_y,
-			state->crtc_w, state->crtc_h,
-			state->src_x,  state->src_y,
-			state->src_w, state->src_h);
+			new_state->crtc, new_state->fb,
+			new_state->crtc_x, new_state->crtc_y,
+			new_state->crtc_w, new_state->crtc_h,
+			new_state->src_x,  new_state->src_y,
+			new_state->src_w, new_state->src_h);
 	/* atomic_check should have ensured that this doesn't fail */
 	WARN_ON(ret < 0);
 }
@@ -235,22 +228,22 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	format = to_mdp_format(msm_framebuffer_format(fb));
 
 	if (src_w > (crtc_w * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Width down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (src_h > (crtc_h * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Height down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_w > (src_w * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Width up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_h > (src_h * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Height up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
@@ -356,6 +349,12 @@ enum mdp4_pipe mdp4_plane_pipe(struct drm_plane *plane)
 	return mdp4_plane->pipe;
 }
 
+static const uint64_t supported_format_modifiers[] = {
+	DRM_FORMAT_MOD_SAMSUNG_64_32_TILE,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 /* initialize plane */
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 		enum mdp4_pipe pipe_id, bool private_plane)
@@ -384,13 +383,15 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
 				 mdp4_plane->formats, mdp4_plane->nformats,
-				 NULL, type, NULL);
+				 supported_format_modifiers, type, NULL);
 	if (ret)
 		goto fail;
 
 	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
 	mdp4_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

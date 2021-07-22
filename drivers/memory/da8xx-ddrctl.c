@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI da8xx DDR2/mDDR controller driver
  *
@@ -5,10 +6,6 @@
  *
  * Author:
  *   Bartosz Golaszewski <bgolaszewski@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -105,14 +102,12 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 {
 	const struct da8xx_ddrctl_config_knob *knob;
 	const struct da8xx_ddrctl_setting *setting;
-	struct device_node *node;
 	struct resource *res;
 	void __iomem *ddrctl;
 	struct device *dev;
 	u32 reg;
 
 	dev = &pdev->dev;
-	node = dev->of_node;
 
 	setting = da8xx_ddrctl_get_board_settings();
 	if (!setting) {

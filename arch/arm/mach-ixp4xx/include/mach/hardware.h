@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-ixp4xx/include/mach/hardware.h 
  *
  * Copyright (C) 2002 Intel Corporation.
  * Copyright (C) 2003-2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 /*
@@ -27,7 +23,7 @@
 #include "ixp4xx-regs.h"
 
 #ifndef __ASSEMBLER__
-#include <mach/cpu.h>
+#include <linux/soc/ixp4xx/cpu.h>
 #endif
 
 /* Platform helper functions and definitions */

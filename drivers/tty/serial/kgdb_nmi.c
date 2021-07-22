@@ -50,7 +50,7 @@ static int kgdb_nmi_console_setup(struct console *co, char *options)
 	 * I/O utilities that messages sent to the console will automatically
 	 * be displayed on the dbg_io.
 	 */
-	dbg_io_ops->is_console = true;
+	dbg_io_ops->cons = co;
 
 	return 0;
 }
@@ -115,10 +115,10 @@ static void kgdb_tty_recv(int ch)
 static int kgdb_nmi_poll_one_knock(void)
 {
 	static int n;
-	int c = -1;
+	int c;
 	const char *magic = kgdb_nmi_magic;
 	size_t m = strlen(magic);
-	bool printch = 0;
+	bool printch = false;
 
 	c = dbg_io_ops->read_char();
 	if (c == NO_POLL_CHAR)
@@ -130,7 +130,7 @@ static int kgdb_nmi_poll_one_knock(void)
 		n = (n + 1) % m;
 		if (!n)
 			return 1;
-		printch = 1;
+		printch = true;
 	} else {
 		n = 0;
 	}
@@ -298,7 +298,7 @@ static void kgdb_nmi_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(&priv->port);
 }
 
-static int kgdb_nmi_tty_write_room(struct tty_struct *tty)
+static unsigned int kgdb_nmi_tty_write_room(struct tty_struct *tty)
 {
 	/* Actually, we can handle any amount as we use polled writes. */
 	return 2048;
@@ -373,9 +373,7 @@ int kgdb_unregister_nmi_console(void)
 	if (ret)
 		return ret;
 
-	ret = tty_unregister_driver(kgdb_nmi_tty_driver);
-	if (ret)
-		return ret;
+	tty_unregister_driver(kgdb_nmi_tty_driver);
 	put_tty_driver(kgdb_nmi_tty_driver);
 
 	return 0;

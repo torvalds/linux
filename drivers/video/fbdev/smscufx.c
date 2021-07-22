@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * smscufx.c -- Framebuffer driver for SMSC UFX USB controller
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License v2. See the file COPYING in the main directory of this archive for
- * more details.
  *
  * Based on udlfb, with work from Florian Echtler, Henrik Bjerregaard Pedersen,
  * and others.
@@ -1173,7 +1170,6 @@ static int ufx_ops_release(struct fb_info *info, int user)
 		fb_deferred_io_cleanup(info);
 		kfree(info->fbdefio);
 		info->fbdefio = NULL;
-		info->fbops->fb_mmap = ufx_ops_mmap;
 	}
 
 	pr_debug("released /dev/fb%d user=%d count=%d",
@@ -1272,7 +1268,7 @@ static int ufx_ops_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops ufx_ops = {
+static const struct fb_ops ufx_ops = {
 	.owner = THIS_MODULE,
 	.fb_read = fb_sys_read,
 	.fb_write = ufx_ops_write,
@@ -1653,10 +1649,8 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, &usbdev->dev);
-	if (!info) {
-		dev_err(dev->gdev, "framebuffer_alloc failed\n");
+	if (!info)
 		goto e_nomem;
-	}
 
 	dev->info = info;
 	info->par = dev;

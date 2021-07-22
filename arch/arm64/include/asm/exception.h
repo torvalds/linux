@@ -1,32 +1,22 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on arch/arm/include/asm/exception.h
  *
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_EXCEPTION_H
 #define __ASM_EXCEPTION_H
 
 #include <asm/esr.h>
+#include <asm/kprobes.h>
+#include <asm/ptrace.h>
 
 #include <linux/interrupt.h>
 
-#define __exception	__attribute__((section(".exception.text")))
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define __exception_irq_entry	__irq_entry
 #else
-#define __exception_irq_entry	__exception
+#define __exception_irq_entry	__kprobes
 #endif
 
 static inline u32 disr_to_esr(u64 disr)
@@ -41,4 +31,48 @@ static inline u32 disr_to_esr(u64 disr)
 	return esr;
 }
 
+asmlinkage void handle_bad_stack(struct pt_regs *regs);
+
+asmlinkage void el1t_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el1h_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el0t_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el0t_32_sync_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_irq_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_fiq_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_error_handler(struct pt_regs *regs);
+
+asmlinkage void call_on_irq_stack(struct pt_regs *regs,
+				  void (*func)(struct pt_regs *));
+asmlinkage void enter_from_user_mode(void);
+asmlinkage void exit_to_user_mode(void);
+void do_mem_abort(unsigned long far, unsigned int esr, struct pt_regs *regs);
+void do_undefinstr(struct pt_regs *regs);
+void do_bti(struct pt_regs *regs);
+void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
+			struct pt_regs *regs);
+void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs);
+void do_sve_acc(unsigned int esr, struct pt_regs *regs);
+void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs);
+void do_sysinstr(unsigned int esr, struct pt_regs *regs);
+void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs);
+void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr);
+void do_cp15instr(unsigned int esr, struct pt_regs *regs);
+void do_el0_svc(struct pt_regs *regs);
+void do_el0_svc_compat(struct pt_regs *regs);
+void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr);
+void do_serror(struct pt_regs *regs, unsigned int esr);
+
+void panic_bad_stack(struct pt_regs *regs, unsigned int esr, unsigned long far);
 #endif	/* __ASM_EXCEPTION_H */

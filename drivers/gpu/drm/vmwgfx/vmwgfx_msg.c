@@ -24,16 +24,17 @@
  *
  */
 
-
-#include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/objtool.h>
 #include <linux/kernel.h>
-#include <linux/frame.h>
-#include <asm/hypervisor.h>
-#include <drm/drmP.h>
-#include "vmwgfx_drv.h"
-#include "vmwgfx_msg.h"
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/mem_encrypt.h>
 
+#include <asm/hypervisor.h>
+
+#include "vmwgfx_drv.h"
+#include "vmwgfx_msg_x86.h"
+#include "vmwgfx_msg_arm64.h"
 
 #define MESSAGE_STATUS_SUCCESS  0x0001
 #define MESSAGE_STATUS_DORECV   0x0002
@@ -46,8 +47,6 @@
 #define RETRIES                 3
 
 #define VMW_HYPERVISOR_MAGIC    0x564D5868
-#define VMW_HYPERVISOR_PORT     0x5658
-#define VMW_HYPERVISOR_HB_PORT  0x5659
 
 #define VMW_PORT_CMD_MSG        30
 #define VMW_PORT_CMD_HB_MSG     0
@@ -58,6 +57,8 @@
 #define VMW_PORT_CMD_RECVSTATUS (MSG_TYPE_RECVSTATUS << 16 | VMW_PORT_CMD_MSG)
 
 #define HIGH_WORD(X) ((X & 0xFFFF0000) >> 16)
+
+#define MAX_USER_MSG_LENGTH	PAGE_SIZE
 
 static u32 vmw_msg_enabled = 1;
 
@@ -93,7 +94,7 @@ static int vmw_open_channel(struct rpc_channel *channel, unsigned int protocol)
 
 	VMW_PORT(VMW_PORT_CMD_OPEN_CHANNEL,
 		(protocol | GUESTMSG_FLAG_COOKIE), si, di,
-		VMW_HYPERVISOR_PORT,
+		0,
 		VMW_HYPERVISOR_MAGIC,
 		eax, ebx, ecx, edx, si, di);
 
@@ -126,7 +127,7 @@ static int vmw_close_channel(struct rpc_channel *channel)
 
 	VMW_PORT(VMW_PORT_CMD_CLOSE_CHANNEL,
 		0, si, di,
-		(VMW_HYPERVISOR_PORT | (channel->channel_id << 16)),
+		channel->channel_id << 16,
 		VMW_HYPERVISOR_MAGIC,
 		eax, ebx, ecx, edx, si, di);
 
@@ -136,22 +137,132 @@ static int vmw_close_channel(struct rpc_channel *channel)
 	return 0;
 }
 
+/**
+ * vmw_port_hb_out - Send the message payload either through the
+ * high-bandwidth port if available, or through the backdoor otherwise.
+ * @channel: The rpc channel.
+ * @msg: NULL-terminated message.
+ * @hb: Whether the high-bandwidth port is available.
+ *
+ * Return: The port status.
+ */
+static unsigned long vmw_port_hb_out(struct rpc_channel *channel,
+				     const char *msg, bool hb)
+{
+	unsigned long si, di, eax, ebx, ecx, edx;
+	unsigned long msg_len = strlen(msg);
+
+	/* HB port can't access encrypted memory. */
+	if (hb && !mem_encrypt_active()) {
+		unsigned long bp = channel->cookie_high;
+
+		si = (uintptr_t) msg;
+		di = channel->cookie_low;
+
+		VMW_PORT_HB_OUT(
+			(MESSAGE_STATUS_SUCCESS << 16) | VMW_PORT_CMD_HB_MSG,
+			msg_len, si, di,
+			VMWARE_HYPERVISOR_HB | (channel->channel_id << 16) |
+			VMWARE_HYPERVISOR_OUT,
+			VMW_HYPERVISOR_MAGIC, bp,
+			eax, ebx, ecx, edx, si, di);
+
+		return ebx;
+	}
+
+	/* HB port not available. Send the message 4 bytes at a time. */
+	ecx = MESSAGE_STATUS_SUCCESS << 16;
+	while (msg_len && (HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS)) {
+		unsigned int bytes = min_t(size_t, msg_len, 4);
+		unsigned long word = 0;
+
+		memcpy(&word, msg, bytes);
+		msg_len -= bytes;
+		msg += bytes;
+		si = channel->cookie_high;
+		di = channel->cookie_low;
+
+		VMW_PORT(VMW_PORT_CMD_MSG | (MSG_TYPE_SENDPAYLOAD << 16),
+			 word, si, di,
+			 channel->channel_id << 16,
+			 VMW_HYPERVISOR_MAGIC,
+			 eax, ebx, ecx, edx, si, di);
+	}
+
+	return ecx;
+}
+
+/**
+ * vmw_port_hb_in - Receive the message payload either through the
+ * high-bandwidth port if available, or through the backdoor otherwise.
+ * @channel: The rpc channel.
+ * @reply: Pointer to buffer holding reply.
+ * @reply_len: Length of the reply.
+ * @hb: Whether the high-bandwidth port is available.
+ *
+ * Return: The port status.
+ */
+static unsigned long vmw_port_hb_in(struct rpc_channel *channel, char *reply,
+				    unsigned long reply_len, bool hb)
+{
+	unsigned long si, di, eax, ebx, ecx, edx;
+
+	/* HB port can't access encrypted memory */
+	if (hb && !mem_encrypt_active()) {
+		unsigned long bp = channel->cookie_low;
+
+		si = channel->cookie_high;
+		di = (uintptr_t) reply;
+
+		VMW_PORT_HB_IN(
+			(MESSAGE_STATUS_SUCCESS << 16) | VMW_PORT_CMD_HB_MSG,
+			reply_len, si, di,
+			VMWARE_HYPERVISOR_HB | (channel->channel_id << 16),
+			VMW_HYPERVISOR_MAGIC, bp,
+			eax, ebx, ecx, edx, si, di);
+
+		return ebx;
+	}
+
+	/* HB port not available. Retrieve the message 4 bytes at a time. */
+	ecx = MESSAGE_STATUS_SUCCESS << 16;
+	while (reply_len) {
+		unsigned int bytes = min_t(unsigned long, reply_len, 4);
+
+		si = channel->cookie_high;
+		di = channel->cookie_low;
+
+		VMW_PORT(VMW_PORT_CMD_MSG | (MSG_TYPE_RECVPAYLOAD << 16),
+			 MESSAGE_STATUS_SUCCESS, si, di,
+			 channel->channel_id << 16,
+			 VMW_HYPERVISOR_MAGIC,
+			 eax, ebx, ecx, edx, si, di);
+
+		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0)
+			break;
+
+		memcpy(reply, &ebx, bytes);
+		reply_len -= bytes;
+		reply += bytes;
+	}
+
+	return ecx;
+}
 
 
 /**
  * vmw_send_msg: Sends a message to the host
  *
  * @channel: RPC channel
- * @logmsg: NULL terminated string
+ * @msg: NULL terminated string
  *
  * Returns: 0 on success
  */
 static int vmw_send_msg(struct rpc_channel *channel, const char *msg)
 {
-	unsigned long eax, ebx, ecx, edx, si, di, bp;
+	unsigned long eax, ebx, ecx, edx, si, di;
 	size_t msg_len = strlen(msg);
 	int retries = 0;
-
 
 	while (retries < RETRIES) {
 		retries++;
@@ -162,27 +273,18 @@ static int vmw_send_msg(struct rpc_channel *channel, const char *msg)
 
 		VMW_PORT(VMW_PORT_CMD_SENDSIZE,
 			msg_len, si, di,
-			VMW_HYPERVISOR_PORT | (channel->channel_id << 16),
+			channel->channel_id << 16,
 			VMW_HYPERVISOR_MAGIC,
 			eax, ebx, ecx, edx, si, di);
 
-		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0 ||
-		    (HIGH_WORD(ecx) & MESSAGE_STATUS_HB) == 0) {
-			/* Expected success + high-bandwidth. Give up. */
+		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0) {
+			/* Expected success. Give up. */
 			return -EINVAL;
 		}
 
 		/* Send msg */
-		si  = (uintptr_t) msg;
-		di  = channel->cookie_low;
-		bp  = channel->cookie_high;
-
-		VMW_PORT_HB_OUT(
-			(MESSAGE_STATUS_SUCCESS << 16) | VMW_PORT_CMD_HB_MSG,
-			msg_len, si, di,
-			VMW_HYPERVISOR_HB_PORT | (channel->channel_id << 16),
-			VMW_HYPERVISOR_MAGIC, bp,
-			eax, ebx, ecx, edx, si, di);
+		ebx = vmw_port_hb_out(channel, msg,
+				      !!(HIGH_WORD(ecx) & MESSAGE_STATUS_HB));
 
 		if ((HIGH_WORD(ebx) & MESSAGE_STATUS_SUCCESS) != 0) {
 			return 0;
@@ -211,7 +313,7 @@ STACK_FRAME_NON_STANDARD(vmw_send_msg);
 static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 			size_t *msg_len)
 {
-	unsigned long eax, ebx, ecx, edx, si, di, bp;
+	unsigned long eax, ebx, ecx, edx, si, di;
 	char *reply;
 	size_t reply_len;
 	int retries = 0;
@@ -229,12 +331,11 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 		VMW_PORT(VMW_PORT_CMD_RECVSIZE,
 			0, si, di,
-			(VMW_HYPERVISOR_PORT | (channel->channel_id << 16)),
+			channel->channel_id << 16,
 			VMW_HYPERVISOR_MAGIC,
 			eax, ebx, ecx, edx, si, di);
 
-		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0 ||
-		    (HIGH_WORD(ecx) & MESSAGE_STATUS_HB) == 0) {
+		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0) {
 			DRM_ERROR("Failed to get reply size for host message.\n");
 			return -EINVAL;
 		}
@@ -252,20 +353,11 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 
 		/* Receive buffer */
-		si  = channel->cookie_high;
-		di  = (uintptr_t) reply;
-		bp  = channel->cookie_low;
-
-		VMW_PORT_HB_IN(
-			(MESSAGE_STATUS_SUCCESS << 16) | VMW_PORT_CMD_HB_MSG,
-			reply_len, si, di,
-			VMW_HYPERVISOR_HB_PORT | (channel->channel_id << 16),
-			VMW_HYPERVISOR_MAGIC, bp,
-			eax, ebx, ecx, edx, si, di);
-
+		ebx = vmw_port_hb_in(channel, reply, reply_len,
+				     !!(HIGH_WORD(ecx) & MESSAGE_STATUS_HB));
 		if ((HIGH_WORD(ebx) & MESSAGE_STATUS_SUCCESS) == 0) {
 			kfree(reply);
-
+			reply = NULL;
 			if ((HIGH_WORD(ebx) & MESSAGE_STATUS_CPT) != 0) {
 				/* A checkpoint occurred. Retry. */
 				continue;
@@ -283,13 +375,13 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 		VMW_PORT(VMW_PORT_CMD_RECVSTATUS,
 			MESSAGE_STATUS_SUCCESS, si, di,
-			(VMW_HYPERVISOR_PORT | (channel->channel_id << 16)),
+			channel->channel_id << 16,
 			VMW_HYPERVISOR_MAGIC,
 			eax, ebx, ecx, edx, si, di);
 
 		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0) {
 			kfree(reply);
-
+			reply = NULL;
 			if ((HIGH_WORD(ecx) & MESSAGE_STATUS_CPT) != 0) {
 				/* A checkpoint occurred. Retry. */
 				continue;
@@ -301,7 +393,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 		break;
 	}
 
-	if (retries == RETRIES)
+	if (!reply)
 		return -EINVAL;
 
 	*msg_len = reply_len;
@@ -382,30 +474,40 @@ out_open:
 }
 
 
-
 /**
- * vmw_host_log: Sends a log message to the host
+ * vmw_host_printf: Sends a log message to the host
  *
- * @log: NULL terminated string
+ * @fmt: Regular printf format string and arguments
  *
  * Returns: 0 on success
  */
-int vmw_host_log(const char *log)
+__printf(1, 2)
+int vmw_host_printf(const char *fmt, ...)
 {
+	va_list ap;
 	struct rpc_channel channel;
 	char *msg;
+	char *log;
 	int ret = 0;
-
 
 	if (!vmw_msg_enabled)
 		return -ENODEV;
 
-	if (!log)
+	if (!fmt)
 		return ret;
+
+	va_start(ap, fmt);
+	log = kvasprintf(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+	if (!log) {
+		DRM_ERROR("Cannot allocate memory for the log message.\n");
+		return -ENOMEM;
+	}
 
 	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
 		DRM_ERROR("Cannot allocate memory for host log message.\n");
+		kfree(log);
 		return -ENOMEM;
 	}
 
@@ -417,6 +519,7 @@ int vmw_host_log(const char *log)
 
 	vmw_close_channel(&channel);
 	kfree(msg);
+	kfree(log);
 
 	return 0;
 
@@ -424,7 +527,88 @@ out_msg:
 	vmw_close_channel(&channel);
 out_open:
 	kfree(msg);
+	kfree(log);
 	DRM_ERROR("Failed to send host log message.\n");
+
+	return -EINVAL;
+}
+
+
+/**
+ * vmw_msg_ioctl: Sends and receveives a message to/from host from/to user-space
+ *
+ * Sends a message from user-space to host.
+ * Can also receive a result from host and return that to user-space.
+ *
+ * @dev: Identifies the drm device.
+ * @data: Pointer to the ioctl argument.
+ * @file_priv: Identifies the caller.
+ * Return: Zero on success, negative error code on error.
+ */
+
+int vmw_msg_ioctl(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
+{
+	struct drm_vmw_msg_arg *arg =
+			(struct drm_vmw_msg_arg *)data;
+	struct rpc_channel channel;
+	char *msg;
+	int length;
+
+	msg = kmalloc(MAX_USER_MSG_LENGTH, GFP_KERNEL);
+	if (!msg) {
+		DRM_ERROR("Cannot allocate memory for log message.\n");
+		return -ENOMEM;
+	}
+
+	length = strncpy_from_user(msg, (void __user *)((unsigned long)arg->send),
+				   MAX_USER_MSG_LENGTH);
+	if (length < 0 || length >= MAX_USER_MSG_LENGTH) {
+		DRM_ERROR("Userspace message access failure.\n");
+		kfree(msg);
+		return -EINVAL;
+	}
+
+
+	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM)) {
+		DRM_ERROR("Failed to open channel.\n");
+		goto out_open;
+	}
+
+	if (vmw_send_msg(&channel, msg)) {
+		DRM_ERROR("Failed to send message to host.\n");
+		goto out_msg;
+	}
+
+	if (!arg->send_only) {
+		char *reply = NULL;
+		size_t reply_len = 0;
+
+		if (vmw_recv_msg(&channel, (void *) &reply, &reply_len)) {
+			DRM_ERROR("Failed to receive message from host.\n");
+			goto out_msg;
+		}
+		if (reply && reply_len > 0) {
+			if (copy_to_user((void __user *)((unsigned long)arg->receive),
+					 reply, reply_len)) {
+				DRM_ERROR("Failed to copy message to userspace.\n");
+				kfree(reply);
+				goto out_msg;
+			}
+			arg->receive_len = (__u32)reply_len;
+		}
+		kfree(reply);
+	}
+
+	vmw_close_channel(&channel);
+	kfree(msg);
+
+	return 0;
+
+out_msg:
+	vmw_close_channel(&channel);
+out_open:
+	kfree(msg);
 
 	return -EINVAL;
 }

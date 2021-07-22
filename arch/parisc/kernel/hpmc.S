@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* 
  * HPMC (High Priority Machine Check) handler.
  *
  * Copyright (C) 1999 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
  * Copyright (C) 2000 Hewlett-Packard (John Marvin)
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 
@@ -302,13 +289,3 @@ os_hpmc_6:
 	b .
 	nop
 	.align 16	/* make function length multiple of 16 bytes */
-.os_hpmc_end:
-
-
-	__INITRODATA
-.globl os_hpmc_size
-	.align 4
-	.type   os_hpmc_size, @object
-	.size   os_hpmc_size, 4
-os_hpmc_size:
-	.word .os_hpmc_end-.os_hpmc

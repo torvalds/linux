@@ -179,7 +179,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "This event counts L1D data line replacements.  Replacements occur when a new line is brought into the cache, causing eviction of a line loaded earlier.  ",
+        "PublicDescription": "This event counts L1D data line replacements.  Replacements occur when a new line is brought into the cache, causing eviction of a line loaded earlier.",
         "EventCode": "0x51",
         "Counter": "0,1,2,3",
         "UMask": "0x1",

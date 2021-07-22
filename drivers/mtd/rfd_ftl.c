@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rfd_ftl.c -- resident flash disk (flash translation layer)
  *
@@ -191,11 +192,8 @@ static int scan_header(struct partition *part)
 
 	part->sector_map = vmalloc(array_size(sizeof(u_long),
 					      part->sector_count));
-	if (!part->sector_map) {
-		printk(KERN_ERR PREFIX "'%s': unable to allocate memory for "
-			"sector map", part->mbd.mtd->name);
+	if (!part->sector_map)
 		goto err;
-	}
 
 	for (i=0; i<part->sector_count; i++)
 		part->sector_map[i] = -1;
@@ -793,18 +791,7 @@ static struct mtd_blktrans_ops rfd_ftl_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init init_rfd_ftl(void)
-{
-	return register_mtd_blktrans(&rfd_ftl_tr);
-}
-
-static void __exit cleanup_rfd_ftl(void)
-{
-	deregister_mtd_blktrans(&rfd_ftl_tr);
-}
-
-module_init(init_rfd_ftl);
-module_exit(cleanup_rfd_ftl);
+module_mtd_blktrans(rfd_ftl_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sean Young <sean@mess.org>");

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Fail on warnings - also for files referenced in subdirs
 # -Werror can be disabled for specific files using:
 # CFLAGS_<file.o> := -Wno-error
@@ -11,7 +12,7 @@ obj-y := $(platform-y)
 
 # make clean traverses $(obj-) without having included .config, so
 # everything ends up here
-obj- := $(platform-)
+obj- := $(platform-y)
 
 # mips object files
 # The object files are linked as core-y files would be linked

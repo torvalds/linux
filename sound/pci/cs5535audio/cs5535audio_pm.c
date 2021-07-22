@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Power management for audio on multifunction CS5535 companion device
  * Copyright (C) Jaya Kumar
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -62,7 +48,6 @@ static int __maybe_unused snd_cs5535audio_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(cs5535au->pcm);
 	snd_ac97_suspend(cs5535au->ac97);
 	for (i = 0; i < NUM_CS5535AUDIO_DMAS; i++) {
 		struct cs5535audio_dma *dma = &cs5535au->dmas[i];

@@ -39,7 +39,7 @@ TABLE OF CONTENTS.
 
 5. USE CASE (from a mailing list discussion with Greg)
 
-	a. As a FPGA development support tool,
+	a. As an FPGA development support tool,
 	During FPGA firmware development, you need to download a new FPGA
 	image frequently.
 	You would do that with a dedicated JTAG, which usually a limited
@@ -65,6 +65,6 @@ TABLE OF CONTENTS.
 6. REFERENCE
 
 	1. Xilinx APP NOTE XAPP583:
-	  http://www.xilinx.com/support/documentation/application_notes/xapp583-fpga-configuration.pdf
+	  https://www.xilinx.com/support/documentation/application_notes/xapp583-fpga-configuration.pdf
 	2. bitstream file info:
 	  http://home.earthlink.net/~davesullins/software/bitinfo.html

@@ -13,7 +13,6 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
-#include <uapi/linux/uleds.h>
 
 #define AN30259A_MAX_LEDS 3
 
@@ -54,6 +53,8 @@
 #define AN30259A_BLINK_MAX_TIME 7500 /* ms */
 #define AN30259A_SLOPE_RESOLUTION 500 /* ms */
 
+#define AN30259A_NAME "an30259a"
+
 #define STATE_OFF 0
 #define STATE_KEEP 1
 #define STATE_ON 2
@@ -62,11 +63,11 @@ struct an30259a;
 
 struct an30259a_led {
 	struct an30259a *chip;
+	struct fwnode_handle *fwnode;
 	struct led_classdev cdev;
 	u32 num;
 	u32 default_state;
 	bool sloping;
-	char label[LED_MAX_NAME_SIZE];
 };
 
 struct an30259a {
@@ -201,13 +202,13 @@ error:
 static int an30259a_dt_init(struct i2c_client *client,
 			    struct an30259a *chip)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_node *np = dev_of_node(&client->dev), *child;
 	int count, ret;
 	int i = 0;
 	const char *str;
 	struct an30259a_led *led;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > AN30259A_MAX_LEDS)
 		return -EINVAL;
 
@@ -226,14 +227,7 @@ static int an30259a_dt_init(struct i2c_client *client,
 
 		led->num = source;
 		led->chip = chip;
-
-		if (of_property_read_string(child, "label", &str))
-			snprintf(led->label, sizeof(led->label), "an30259a::");
-		else
-			snprintf(led->label, sizeof(led->label), "an30259a:%s",
-				 str);
-
-		led->cdev.name = led->label;
+		led->fwnode = of_fwnode_handle(child);
 
 		if (!of_property_read_string(child, "default-state", &str)) {
 			if (!strcmp(str, "on"))
@@ -243,9 +237,6 @@ static int an30259a_dt_init(struct i2c_client *client,
 			else
 				led->default_state = STATE_OFF;
 		}
-
-		of_property_read_string(child, "linux,default-trigger",
-					&led->cdev.default_trigger);
 
 		i++;
 	}
@@ -311,14 +302,28 @@ static int an30259a_probe(struct i2c_client *client)
 
 	chip->regmap = devm_regmap_init_i2c(client, &an30259a_regmap_config);
 
+	if (IS_ERR(chip->regmap)) {
+		err = PTR_ERR(chip->regmap);
+		dev_err(&client->dev, "Failed to allocate register map: %d\n",
+			err);
+		goto exit;
+	}
+
 	for (i = 0; i < chip->num_leds; i++) {
+		struct led_init_data init_data = {};
+
 		an30259a_init_default_state(&chip->leds[i]);
 		chip->leds[i].cdev.brightness_set_blocking =
 			an30259a_brightness_set;
 		chip->leds[i].cdev.blink_set = an30259a_blink_set;
 
-		err = devm_led_classdev_register(&client->dev,
-						 &chip->leds[i].cdev);
+		init_data.fwnode = chip->leds[i].fwnode;
+		init_data.devicename = AN30259A_NAME;
+		init_data.default_label = ":";
+
+		err = devm_led_classdev_register_ext(&client->dev,
+						 &chip->leds[i].cdev,
+						 &init_data);
 		if (err < 0)
 			goto exit;
 	}
@@ -353,7 +358,7 @@ MODULE_DEVICE_TABLE(i2c, an30259a_id);
 
 static struct i2c_driver an30259a_driver = {
 	.driver = {
-		.name = "leds-an32059a",
+		.name = "leds-an30259a",
 		.of_match_table = of_match_ptr(an30259a_match_table),
 	},
 	.probe_new = an30259a_probe,
@@ -364,5 +369,5 @@ static struct i2c_driver an30259a_driver = {
 module_i2c_driver(an30259a_driver);
 
 MODULE_AUTHOR("Simon Shields <simon@lineageos.org>");
-MODULE_DESCRIPTION("AN32059A LED driver");
+MODULE_DESCRIPTION("AN30259A LED driver");
 MODULE_LICENSE("GPL v2");

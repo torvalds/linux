@@ -12,11 +12,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/sysfs.h>
 
 #include <trace/events/thermal.h>
 
@@ -113,6 +114,18 @@ exit:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_temp);
 
+/**
+ * thermal_zone_set_trips - Computes the next trip points for the driver
+ * @tz: a pointer to a thermal zone device structure
+ *
+ * The function computes the next temperature boundaries by browsing
+ * the trip points. The result is the closer low and high trip points
+ * to the current temperature. These values are passed to the backend
+ * driver to let it set its own notification mechanism (usually an
+ * interrupt).
+ *
+ * It does not return a value
+ */
 void thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
 	int low = -INT_MAX;
@@ -161,19 +174,28 @@ void thermal_zone_set_trips(struct thermal_zone_device *tz)
 exit:
 	mutex_unlock(&tz->lock);
 }
-EXPORT_SYMBOL_GPL(thermal_zone_set_trips);
 
-void thermal_cdev_update(struct thermal_cooling_device *cdev)
+void thermal_set_delay_jiffies(unsigned long *delay_jiffies, int delay_ms)
+{
+	*delay_jiffies = msecs_to_jiffies(delay_ms);
+	if (delay_ms > 1000)
+		*delay_jiffies = round_jiffies(*delay_jiffies);
+}
+
+static void thermal_cdev_set_cur_state(struct thermal_cooling_device *cdev,
+				       int target)
+{
+	if (cdev->ops->set_cur_state(cdev, target))
+		return;
+
+	thermal_notify_cdev_state_update(cdev->id, target);
+	thermal_cooling_device_stats_update(cdev, target);
+}
+
+void __thermal_cdev_update(struct thermal_cooling_device *cdev)
 {
 	struct thermal_instance *instance;
 	unsigned long target = 0;
-
-	mutex_lock(&cdev->lock);
-	/* cooling device is updated*/
-	if (cdev->updated) {
-		mutex_unlock(&cdev->lock);
-		return;
-	}
 
 	/* Make sure cdev enters the deepest cooling state */
 	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
@@ -185,13 +207,26 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 			target = instance->target;
 	}
 
-	if (!cdev->ops->set_cur_state(cdev, target))
-		thermal_cooling_device_stats_update(cdev, target);
+	thermal_cdev_set_cur_state(cdev, target);
 
-	cdev->updated = true;
-	mutex_unlock(&cdev->lock);
 	trace_cdev_update(cdev, target);
 	dev_dbg(&cdev->device, "set to state %lu\n", target);
+}
+
+/**
+ * thermal_cdev_update - update cooling device state if needed
+ * @cdev:	pointer to struct thermal_cooling_device
+ *
+ * Update the cooling device state if there is a need.
+ */
+void thermal_cdev_update(struct thermal_cooling_device *cdev)
+{
+	mutex_lock(&cdev->lock);
+	if (!cdev->updated) {
+		__thermal_cdev_update(cdev);
+		cdev->updated = true;
+	}
+	mutex_unlock(&cdev->lock);
 }
 EXPORT_SYMBOL(thermal_cdev_update);
 

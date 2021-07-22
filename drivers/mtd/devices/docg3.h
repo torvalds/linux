@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Handles the M-Systems DiskOnChip G3 chip
  *
  * Copyright (C) 2011 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #ifndef _MTD_DOCG3_H
@@ -317,17 +303,6 @@ struct docg3 {
 #define doc_info(fmt, arg...) dev_info(docg3->dev, (fmt), ## arg)
 #define doc_dbg(fmt, arg...) dev_dbg(docg3->dev, (fmt), ## arg)
 #define doc_vdbg(fmt, arg...) dev_vdbg(docg3->dev, (fmt), ## arg)
-
-#define DEBUGFS_RO_ATTR(name, show_fct) \
-	static int name##_open(struct inode *inode, struct file *file) \
-	{ return single_open(file, show_fct, inode->i_private); }      \
-	static const struct file_operations name##_fops = { \
-		.owner = THIS_MODULE, \
-		.open = name##_open, \
-		.llseek = seq_lseek, \
-		.read = seq_read, \
-		.release = single_release \
-	};
 #endif
 
 /*

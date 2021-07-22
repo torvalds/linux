@@ -207,7 +207,7 @@ static int cougar_probe(struct hid_device *hdev,
 	error = hid_parse(hdev);
 	if (error) {
 		hid_err(hdev, "parse failed\n");
-		goto fail;
+		return error;
 	}
 
 	if (hdev->collection->usage == COUGAR_VENDOR_USAGE) {
@@ -219,7 +219,7 @@ static int cougar_probe(struct hid_device *hdev,
 	error = hid_hw_start(hdev, connect_mask);
 	if (error) {
 		hid_err(hdev, "hw start failed\n");
-		goto fail;
+		return error;
 	}
 
 	error = cougar_bind_shared_data(hdev, cougar);
@@ -249,8 +249,6 @@ static int cougar_probe(struct hid_device *hdev,
 
 fail_stop_and_cleanup:
 	hid_hw_stop(hdev);
-fail:
-	hid_set_drvdata(hdev, NULL);
 	return error;
 }
 
@@ -323,9 +321,11 @@ static const struct kernel_param_ops cougar_g6_is_space_ops = {
 };
 module_param_cb(g6_is_space, &cougar_g6_is_space_ops, &g6_is_space, 0644);
 
-static struct hid_device_id cougar_id_table[] = {
+static const struct hid_device_id cougar_id_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
 			 USB_DEVICE_ID_COUGAR_500K_GAMING_KEYBOARD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
+			 USB_DEVICE_ID_COUGAR_700K_GAMING_KEYBOARD) },
 	{}
 };
 MODULE_DEVICE_TABLE(hid, cougar_id_table);

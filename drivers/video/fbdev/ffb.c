@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ffb.c: Creator/Elite3D frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -43,7 +44,7 @@ static int ffb_pan_display(struct fb_var_screeninfo *, struct fb_info *);
  *  Frame buffer operations
  */
 
-static struct fb_ops ffb_ops = {
+static const struct fb_ops ffb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= ffb_setcolreg,
 	.fb_blank		= ffb_blank,
@@ -666,7 +667,7 @@ static int ffb_setcolreg(unsigned regno,
 
 /**
  *	ffb_blank - Optional function.  Blanks the display.
- *	@blank_mode: the blank mode we want.
+ *	@blank: the blank mode we want.
  *	@info: frame buffer structure that represents a single frame buffer
  */
 static int ffb_blank(int blank, struct fb_info *info)
@@ -944,7 +945,7 @@ static int ffb_probe(struct platform_device *op)
 
 	info->var.accel_flags = FB_ACCELF_TEXT;
 
-	if (!strcmp(dp->name, "SUNW,afb"))
+	if (of_node_name_eq(dp, "SUNW,afb"))
 		par->flags |= FFB_FLAG_AFB;
 
 	par->board_type = of_getintprop_default(dp, "board_type", 0);

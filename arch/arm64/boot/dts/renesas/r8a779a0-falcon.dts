@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Falcon CPU and BreakOut boards
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r8a779a0-falcon-cpu.dtsi"
+#include "r8a779a0-falcon-csi-dsi.dtsi"
+#include "r8a779a0-falcon-ethernet.dtsi"
+
+/ {
+	model = "Renesas Falcon CPU and Breakout boards based on r8a779a0";
+	compatible = "renesas,falcon-breakout", "renesas,falcon-cpu", "renesas,r8a779a0";
+
+	aliases {
+		ethernet0 = &avb0;
+	};
+};
+
+&avb0 {
+	pinctrl-0 = <&avb0_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&phy0>;
+	tx-internal-delay-ps = <2000>;
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		rxc-skew-ps = <1500>;
+		reg = <0>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&i2c0 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
+	};
+};
+
+&pfc {
+	avb0_pins: avb0 {
+		mux {
+			groups = "avb0_link", "avb0_mdio", "avb0_rgmii",
+				 "avb0_txcrefclk";
+			function = "avb0";
+		};
+
+		pins_mdio {
+			groups = "avb0_mdio";
+			drive-strength = <21>;
+		};
+
+		pins_mii {
+			groups = "avb0_rgmii";
+			drive-strength = <21>;
+		};
+
+	};
+};

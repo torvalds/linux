@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  tm6000-dvb.c - dvb-t support for TM5600/TM6000/TM6010 USB video capture devices
  *
  *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -30,8 +22,6 @@
 MODULE_DESCRIPTION("DVB driver extension module for tm5600/6000/6010 based TV cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
-
-MODULE_SUPPORTED_DEVICE("{{Trident, tm5600},{{Trident, tm6000},{{Trident, tm6010}");
 
 static int debug;
 
@@ -105,6 +95,7 @@ static void tm6000_urb_received(struct urb *urb)
 			printk(KERN_ERR "tm6000:  error %s\n", __func__);
 			kfree(urb->transfer_buffer);
 			usb_free_urb(urb);
+			dev->dvb->bulk_urb = NULL;
 		}
 	}
 }
@@ -135,6 +126,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 	dvb->bulk_urb->transfer_buffer = kzalloc(size, GFP_KERNEL);
 	if (!dvb->bulk_urb->transfer_buffer) {
 		usb_free_urb(dvb->bulk_urb);
+		dvb->bulk_urb = NULL;
 		return -ENOMEM;
 	}
 
@@ -147,9 +139,13 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 	if (ret < 0) {
 		printk(KERN_ERR "tm6000: error %i in %s during pipe reset\n",
 							ret, __func__);
+
+		kfree(dvb->bulk_urb->transfer_buffer);
+		usb_free_urb(dvb->bulk_urb);
+		dvb->bulk_urb = NULL;
 		return ret;
 	} else
-		printk(KERN_ERR "tm6000: pipe resetted\n");
+		printk(KERN_ERR "tm6000: pipe reset\n");
 
 /*	mutex_lock(&tm6000_driver.open_close_mutex); */
 	ret = usb_submit_urb(dvb->bulk_urb, GFP_ATOMIC);
@@ -161,6 +157,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 
 		kfree(dvb->bulk_urb->transfer_buffer);
 		usb_free_urb(dvb->bulk_urb);
+		dvb->bulk_urb = NULL;
 		return ret;
 	}
 

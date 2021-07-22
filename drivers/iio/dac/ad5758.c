@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AD5758 Digital to analog converters driver
  *
@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 
@@ -72,8 +74,6 @@
 #define AD5758_DCDC_CONFIG1_DCDC_VPROG_MODE(x)	(((x) & 0x1F) << 0)
 #define AD5758_DCDC_CONFIG1_DCDC_MODE_MSK	GENMASK(6, 5)
 #define AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(x)	(((x) & 0x3) << 5)
-#define AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK	BIT(7)
-#define AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(x)	(((x) & 0x1) << 7)
 
 /* AD5758_DCDC_CONFIG2 */
 #define AD5758_DCDC_CONFIG2_ILIMIT_MSK		GENMASK(3, 1)
@@ -84,21 +84,13 @@
 /* AD5758_DIGITAL_DIAG_RESULTS */
 #define AD5758_CAL_MEM_UNREFRESHED_MSK		BIT(15)
 
+/* AD5758_ADC_CONFIG */
+#define AD5758_ADC_CONFIG_PPC_BUF_EN(x)		(((x) & 0x1) << 11)
+#define AD5758_ADC_CONFIG_PPC_BUF_MSK		BIT(11)
+
 #define AD5758_WR_FLAG_MSK(x)		(0x80 | ((x) & 0x1F))
 
 #define AD5758_FULL_SCALE_MICRO	65535000000ULL
-
-/**
- * struct ad5758_state - driver instance specific data
- * @spi:	spi_device
- * @lock:	mutex lock
- * @out_range:	struct which stores the output range
- * @dc_dc_mode:	variable which stores the mode of operation
- * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
- * @slew_time:	variable which stores the target slew time
- * @pwr_down:	variable which contains whether a channel is powered down or not
- * @data:	spi transfer buffers
- */
 
 struct ad5758_range {
 	int reg;
@@ -106,6 +98,18 @@ struct ad5758_range {
 	int max;
 };
 
+/**
+ * struct ad5758_state - driver instance specific data
+ * @spi:	spi_device
+ * @lock:	mutex lock
+ * @gpio_reset:	gpio descriptor for the reset line
+ * @out_range:	struct which stores the output range
+ * @dc_dc_mode:	variable which stores the mode of operation
+ * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
+ * @slew_time:	variable which stores the target slew time
+ * @pwr_down:	variable which contains whether a channel is powered down or not
+ * @d32:	spi transfer buffers
+ */
 struct ad5758_state {
 	struct spi_device *spi;
 	struct mutex lock;
@@ -118,7 +122,7 @@ struct ad5758_state {
 	__be32 d32[3];
 };
 
-/**
+/*
  * Output ranges corresponding to bits [3:0] from DAC_CONFIG register
  * 0000: 0 V to 5 V voltage range
  * 0001: 0 V to 10 V voltage range
@@ -315,6 +319,18 @@ static int ad5758_set_dc_dc_conv_mode(struct ad5758_state *st,
 {
 	int ret;
 
+	/*
+	 * The ENABLE_PPC_BUFFERS bit must be set prior to enabling PPC current
+	 * mode.
+	 */
+	if (mode == AD5758_DCDC_MODE_PPC_CURRENT) {
+		ret  = ad5758_spi_write_mask(st, AD5758_ADC_CONFIG,
+				    AD5758_ADC_CONFIG_PPC_BUF_MSK,
+				    AD5758_ADC_CONFIG_PPC_BUF_EN(1));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
 				    AD5758_DCDC_CONFIG1_DCDC_MODE_MSK,
 				    AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(mode));
@@ -444,23 +460,6 @@ static int ad5758_set_out_range(struct ad5758_state *st, int range)
 					     AD5758_CAL_MEM_UNREFRESHED_MSK);
 }
 
-static int ad5758_fault_prot_switch_en(struct ad5758_state *st, bool enable)
-{
-	int ret;
-
-	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
-			AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK,
-			AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(enable));
-	if (ret < 0)
-		return ret;
-	/*
-	 * Poll the BUSY_3WI bit in the DCDC_CONFIG2 register until it is 0.
-	 * This allows the 3-wire interface communication to complete.
-	 */
-	return ad5758_wait_for_task_complete(st, AD5758_DCDC_CONFIG2,
-					     AD5758_DCDC_CONFIG2_BUSY_3WI_MSK);
-}
-
 static int ad5758_internal_buffers_en(struct ad5758_state *st, bool enable)
 {
 	int ret;
@@ -575,7 +574,7 @@ static ssize_t ad5758_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", st->pwr_down);
+	return sysfs_emit(buf, "%d\n", st->pwr_down);
 }
 
 static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
@@ -585,8 +584,8 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 	bool pwr_down;
-	unsigned int dcdc_config1_mode, dc_dc_mode, dac_config_mode, val;
-	unsigned long int dcdc_config1_msk, dac_config_msk;
+	unsigned int dac_config_mode, val;
+	unsigned long int dac_config_msk;
 	int ret;
 
 	ret = kstrtobool(buf, &pwr_down);
@@ -594,24 +593,10 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 		return ret;
 
 	mutex_lock(&st->lock);
-	if (pwr_down) {
-		dc_dc_mode = AD5758_DCDC_MODE_POWER_OFF;
+	if (pwr_down)
 		val = 0;
-	} else {
-		dc_dc_mode = st->dc_dc_mode;
+	else
 		val = 1;
-	}
-
-	dcdc_config1_mode = AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(dc_dc_mode) |
-			    AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(val);
-	dcdc_config1_msk = AD5758_DCDC_CONFIG1_DCDC_MODE_MSK |
-			   AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK;
-
-	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
-				    dcdc_config1_msk,
-				    dcdc_config1_mode);
-	if (ret < 0)
-		goto err_unlock;
 
 	dac_config_mode = AD5758_DAC_CONFIG_OUT_EN_MODE(val) |
 			  AD5758_DAC_CONFIG_INT_EN_MODE(val);
@@ -841,11 +826,6 @@ static int ad5758_init(struct ad5758_state *st)
 			return ret;
 	}
 
-	/* Enable the VIOUT fault protection switch (FPS is closed) */
-	ret = ad5758_fault_prot_switch_en(st, 1);
-	if (ret < 0)
-		return ret;
-
 	/* Power up the DAC and internal (INT) amplifiers */
 	ret = ad5758_internal_buffers_en(st, 1);
 	if (ret < 0)
@@ -874,7 +854,6 @@ static int ad5758_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5758_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -904,9 +883,16 @@ static const struct spi_device_id ad5758_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad5758_id);
 
+static const struct of_device_id ad5758_of_match[] = {
+        { .compatible = "adi,ad5758" },
+        { },
+};
+MODULE_DEVICE_TABLE(of, ad5758_of_match);
+
 static struct spi_driver ad5758_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad5758_of_match,
 	},
 	.probe = ad5758_probe,
 	.id_table = ad5758_id,

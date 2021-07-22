@@ -33,11 +33,14 @@ struct data_insert_op {
 	BKEY_PADDED(replace_key);
 };
 
-unsigned int bch_get_congested(struct cache_set *c);
+unsigned int bch_get_congested(const struct cache_set *c);
 void bch_data_insert(struct closure *cl);
 
 void bch_cached_dev_request_init(struct cached_dev *dc);
+blk_qc_t cached_dev_submit_bio(struct bio *bio);
+
 void bch_flash_dev_request_init(struct bcache_device *d);
+blk_qc_t flash_dev_submit_bio(struct bio *bio);
 
 extern struct kmem_cache *bch_search_cache;
 

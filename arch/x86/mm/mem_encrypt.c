@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Memory Encryption Support
  *
  * Copyright (C) 2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define DISABLE_BRANCH_PROFILING
@@ -18,6 +15,11 @@
 #include <linux/dma-direct.h>
 #include <linux/swiotlb.h>
 #include <linux/mem_encrypt.h>
+#include <linux/device.h>
+#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/dma-mapping.h>
+#include <linux/virtio_config.h>
 
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
@@ -36,15 +38,15 @@
  * reside in the .data section so as not to be zeroed out when the .bss
  * section is later cleared.
  */
-u64 sme_me_mask __section(.data) = 0;
+u64 sme_me_mask __section(".data") = 0;
+u64 sev_status __section(".data") = 0;
+u64 sev_check_data __section(".data") = 0;
 EXPORT_SYMBOL(sme_me_mask);
 DEFINE_STATIC_KEY_FALSE(sev_enable_key);
 EXPORT_SYMBOL_GPL(sev_enable_key);
 
-bool sev_enabled __section(.data);
-
 /* Buffer used for early in-place encryption by BSP, no locking needed */
-static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
+static char sme_early_buffer[PAGE_SIZE] __initdata __aligned(PAGE_SIZE);
 
 /*
  * This routine does not change the underlying encryption setting of the
@@ -133,7 +135,7 @@ static void __init __sme_early_map_unmap_mem(void *vaddr, unsigned long size,
 		size = (size <= PMD_SIZE) ? 0 : size - PMD_SIZE;
 	} while (size);
 
-	__native_flush_tlb();
+	flush_tlb_local();
 }
 
 void __init sme_unmap_bootdata(char *real_mode_data)
@@ -195,6 +197,37 @@ void __init sme_early_init(void)
 		swiotlb_force = SWIOTLB_FORCE;
 }
 
+void __init sev_setup_arch(void)
+{
+	phys_addr_t total_mem = memblock_phys_mem_size();
+	unsigned long size;
+
+	if (!sev_active())
+		return;
+
+	/*
+	 * For SEV, all DMA has to occur via shared/unencrypted pages.
+	 * SEV uses SWIOTLB to make this happen without changing device
+	 * drivers. However, depending on the workload being run, the
+	 * default 64MB of SWIOTLB may not be enough and SWIOTLB may
+	 * run out of buffers for DMA, resulting in I/O errors and/or
+	 * performance degradation especially with high I/O workloads.
+	 *
+	 * Adjust the default size of SWIOTLB for SEV guests using
+	 * a percentage of guest memory for SWIOTLB buffers.
+	 * Also, as the SWIOTLB bounce buffer memory is allocated
+	 * from low memory, ensure that the adjusted size is within
+	 * the limits of low available memory.
+	 *
+	 * The percentage of guest memory used here for SWIOTLB buffers
+	 * is more of an approximation of the static adjustment which
+	 * 64MB for <1G, and ~128M to 256M for 1G-to-4G, i.e., the 6%
+	 */
+	size = total_mem * 6 / 100;
+	size = clamp_val(size, IO_TLB_DEFAULT_SIZE, SZ_1G);
+	swiotlb_adjust_size(size);
+}
+
 static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 {
 	pgprot_t old_prot, new_prot;
@@ -228,7 +261,7 @@ static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 	if (pgprot_val(old_prot) == pgprot_val(new_prot))
 		return;
 
-	pa = pfn << page_level_shift(level);
+	pa = pfn << PAGE_SHIFT;
 	size = page_level_size(level);
 
 	/*
@@ -301,9 +334,13 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 		else
 			split_page_size_mask = 1 << PG_LEVEL_2M;
 
-		kernel_physical_mapping_init(__pa(vaddr & pmask),
-					     __pa((vaddr_end & pmask) + psize),
-					     split_page_size_mask);
+		/*
+		 * kernel_physical_mapping_change() does not flush the TLBs, so
+		 * a TLB flush is required after we exit from the for loop.
+		 */
+		kernel_physical_mapping_change(__pa(vaddr & pmask),
+					       __pa((vaddr_end & pmask) + psize),
+					       split_page_size_mask);
 	}
 
 	ret = 0;
@@ -335,19 +372,49 @@ int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size)
  * up under SME the trampoline area cannot be encrypted, whereas under SEV
  * the trampoline area must be encrypted.
  */
-bool sme_active(void)
-{
-	return sme_me_mask && !sev_enabled;
-}
-EXPORT_SYMBOL(sme_active);
-
 bool sev_active(void)
 {
-	return sme_me_mask && sev_enabled;
+	return sev_status & MSR_AMD64_SEV_ENABLED;
 }
-EXPORT_SYMBOL(sev_active);
 
-/* Architecture __weak replacement functions */
+bool sme_active(void)
+{
+	return sme_me_mask && !sev_active();
+}
+EXPORT_SYMBOL_GPL(sev_active);
+
+/* Needs to be called from non-instrumentable code */
+bool noinstr sev_es_active(void)
+{
+	return sev_status & MSR_AMD64_SEV_ES_ENABLED;
+}
+
+/* Override for DMA direct allocation check - ARCH_HAS_FORCE_DMA_UNENCRYPTED */
+bool force_dma_unencrypted(struct device *dev)
+{
+	/*
+	 * For SEV, all DMA must be to unencrypted addresses.
+	 */
+	if (sev_active())
+		return true;
+
+	/*
+	 * For SME, all DMA must be to unencrypted addresses if the
+	 * device does not support DMA to addresses that include the
+	 * encryption mask.
+	 */
+	if (sme_active()) {
+		u64 dma_enc_mask = DMA_BIT_MASK(__ffs64(sme_me_mask));
+		u64 dma_dev_mask = min_not_zero(dev->coherent_dma_mask,
+						dev->bus_dma_limit);
+
+		if (dma_dev_mask <= dma_enc_mask)
+			return true;
+	}
+
+	return false;
+}
+
 void __init mem_encrypt_free_decrypted_mem(void)
 {
 	unsigned long vaddr, vaddr_end, npages;
@@ -372,6 +439,32 @@ void __init mem_encrypt_free_decrypted_mem(void)
 	free_init_pages("unused decrypted", vaddr, vaddr_end);
 }
 
+static void print_mem_encrypt_feature_info(void)
+{
+	pr_info("AMD Memory Encryption Features active:");
+
+	/* Secure Memory Encryption */
+	if (sme_active()) {
+		/*
+		 * SME is mutually exclusive with any of the SEV
+		 * features below.
+		 */
+		pr_cont(" SME\n");
+		return;
+	}
+
+	/* Secure Encrypted Virtualization */
+	if (sev_active())
+		pr_cont(" SEV");
+
+	/* Encrypted Register State */
+	if (sev_es_active())
+		pr_cont(" SEV-ES");
+
+	pr_cont("\n");
+}
+
+/* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
 {
 	if (!sme_me_mask)
@@ -381,20 +474,17 @@ void __init mem_encrypt_init(void)
 	swiotlb_update_mem_attributes();
 
 	/*
-	 * With SEV, DMA operations cannot use encryption, we need to use
-	 * SWIOTLB to bounce buffer DMA operation.
+	 * With SEV, we need to unroll the rep string I/O instructions,
+	 * but SEV-ES supports them through the #VC handler.
 	 */
-	if (sev_active())
-		dma_ops = &swiotlb_dma_ops;
-
-	/*
-	 * With SEV, we need to unroll the rep string I/O instructions.
-	 */
-	if (sev_active())
+	if (sev_active() && !sev_es_active())
 		static_branch_enable(&sev_enable_key);
 
-	pr_info("AMD %s active\n",
-		sev_active() ? "Secure Encrypted Virtualization (SEV)"
-			     : "Secure Memory Encryption (SME)");
+	print_mem_encrypt_feature_info();
 }
 
+int arch_has_restricted_virtio_memory_access(void)
+{
+	return sev_active();
+}
+EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);

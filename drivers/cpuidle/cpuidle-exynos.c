@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -5,10 +6,6 @@
  * Coupled cpuidle support based on the work of:
  *	Colin Cross <ccross@android.com>
  *	Daniel Lezcano <daniel.lezcano@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/cpuidle.h>
@@ -84,7 +81,7 @@ static struct cpuidle_driver exynos_idle_driver = {
 		[1] = {
 			.enter			= exynos_enter_lowpower,
 			.exit_latency		= 300,
-			.target_residency	= 100000,
+			.target_residency	= 10000,
 			.name			= "C1",
 			.desc			= "ARM power down",
 		},

@@ -30,7 +30,7 @@
  * not do like this.
  */
 #define _INTEL_BIOS_PRIVATE
-#include "intel_vbt_defs.h"
+#include "display/intel_vbt_defs.h"
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
 #define MBOX_VBT      (1<<3)
@@ -147,15 +147,14 @@ static void virt_vbt_generation(struct vbt *v)
 	/* there's features depending on version! */
 	v->header.version = 155;
 	v->header.header_size = sizeof(v->header);
-	v->header.vbt_size = sizeof(struct vbt) - sizeof(v->header);
+	v->header.vbt_size = sizeof(struct vbt);
 	v->header.bdb_offset = offsetof(struct vbt, bdb_header);
 
 	strcpy(&v->bdb_header.signature[0], "BIOS_DATA_BLOCK");
 	v->bdb_header.version = 186; /* child_dev_size = 33 */
 	v->bdb_header.header_size = sizeof(v->bdb_header);
 
-	v->bdb_header.bdb_size = sizeof(struct vbt) - sizeof(struct vbt_header)
-		- sizeof(struct bdb_header);
+	v->bdb_header.bdb_size = sizeof(struct vbt) - sizeof(struct vbt_header);
 
 	/* general features */
 	v->general_features_header.id = BDB_GENERAL_FEATURES;

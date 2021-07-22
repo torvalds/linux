@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung s3c24xx/s3c64xx SoC CAMIF driver
  *
  * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  * Copyright (C) 2012 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -556,7 +553,7 @@ void camif_hw_disable_capture(struct camif_vp *vp)
 
 void camif_hw_dump_regs(struct camif_dev *camif, const char *label)
 {
-	struct {
+	static const struct {
 		u32 offset;
 		const char * const name;
 	} registers[] = {

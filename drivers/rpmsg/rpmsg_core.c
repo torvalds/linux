@@ -21,6 +21,50 @@
 #include "rpmsg_internal.h"
 
 /**
+ * rpmsg_create_channel() - create a new rpmsg channel
+ * using its name and address info.
+ * @rpdev: rpmsg device
+ * @chinfo: channel_info to bind
+ *
+ * Returns a pointer to the new rpmsg device on success, or NULL on error.
+ */
+struct rpmsg_device *rpmsg_create_channel(struct rpmsg_device *rpdev,
+					  struct rpmsg_channel_info *chinfo)
+{
+	if (WARN_ON(!rpdev))
+		return NULL;
+	if (!rpdev->ops || !rpdev->ops->create_channel) {
+		dev_err(&rpdev->dev, "no create_channel ops found\n");
+		return NULL;
+	}
+
+	return rpdev->ops->create_channel(rpdev, chinfo);
+}
+EXPORT_SYMBOL(rpmsg_create_channel);
+
+/**
+ * rpmsg_release_channel() - release a rpmsg channel
+ * using its name and address info.
+ * @rpdev: rpmsg device
+ * @chinfo: channel_info to bind
+ *
+ * Returns 0 on success or an appropriate error value.
+ */
+int rpmsg_release_channel(struct rpmsg_device *rpdev,
+			  struct rpmsg_channel_info *chinfo)
+{
+	if (WARN_ON(!rpdev))
+		return -EINVAL;
+	if (!rpdev->ops || !rpdev->ops->release_channel) {
+		dev_err(&rpdev->dev, "no release_channel ops found\n");
+		return -ENXIO;
+	}
+
+	return rpdev->ops->release_channel(rpdev, chinfo);
+}
+EXPORT_SYMBOL(rpmsg_release_channel);
+
+/**
  * rpmsg_create_ept() - create a new rpmsg_endpoint
  * @rpdev: rpmsg channel device
  * @cb: rx callback handler
@@ -46,7 +90,7 @@
  * equals to the src address of their rpmsg channel), the driver's handler
  * is invoked to process it.
  *
- * That said, more complicated drivers might do need to allocate
+ * That said, more complicated drivers might need to allocate
  * additional rpmsg addresses, and bind them to different rx callbacks.
  * To accomplish that, those drivers need to call this function.
  *
@@ -81,7 +125,7 @@ EXPORT_SYMBOL(rpmsg_create_ept);
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	if (ept)
+	if (ept && ept->ops)
 		ept->ops->destroy_ept(ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
@@ -177,7 +221,7 @@ int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 EXPORT_SYMBOL(rpmsg_send_offchannel);
 
 /**
- * rpmsg_send() - send a message across to the remote processor
+ * rpmsg_trysend() - send a message across to the remote processor
  * @ept: the rpmsg endpoint
  * @data: payload of message
  * @len: length of payload
@@ -205,7 +249,7 @@ int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 EXPORT_SYMBOL(rpmsg_trysend);
 
 /**
- * rpmsg_sendto() - send a message across to the remote processor, specify dst
+ * rpmsg_trysendto() - send a message across to the remote processor, specify dst
  * @ept: the rpmsg endpoint
  * @data: payload of message
  * @len: length of payload
@@ -253,7 +297,7 @@ __poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 EXPORT_SYMBOL(rpmsg_poll);
 
 /**
- * rpmsg_send_offchannel() - send a message using explicit src/dst addresses
+ * rpmsg_trysend_offchannel() - send a message using explicit src/dst addresses
  * @ept: the rpmsg endpoint
  * @src: source address
  * @dst: destination address
@@ -284,7 +328,7 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
 
 /*
- * match an rpmsg channel with a channel info struct.
+ * match a rpmsg channel with a channel info struct.
  * this is used to make sure we're not creating rpmsg devices for channels
  * that already exist.
  */
@@ -415,8 +459,10 @@ static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
 
 	if (ids)
 		for (i = 0; ids[i].name[0]; i++)
-			if (rpmsg_id_match(rpdev, &ids[i]))
+			if (rpmsg_id_match(rpdev, &ids[i])) {
+				rpdev->id.driver_data = ids[i].driver_data;
 				return 1;
+			}
 
 	return of_driver_match_device(dev, drv);
 }
@@ -493,7 +539,8 @@ static int rpmsg_dev_remove(struct device *dev)
 	if (rpdev->ops->announce_destroy)
 		err = rpdev->ops->announce_destroy(rpdev);
 
-	rpdrv->remove(rpdev);
+	if (rpdrv->remove)
+		rpdrv->remove(rpdev);
 
 	dev_pm_domain_detach(dev, true);
 

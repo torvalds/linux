@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016, Chris Smart, IBM Corporation.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  * Calls to copy_first which are not 128-byte aligned should be
  * caught and sent a SIGBUS.
- *
  */
 
 #include <signal.h>

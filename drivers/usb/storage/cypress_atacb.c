@@ -22,6 +22,7 @@
 MODULE_DESCRIPTION("SAT support for Cypress USB/ATA bridges with ATACB");
 MODULE_AUTHOR("Matthieu Castet <castet.matthieu@free.fr>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(USB_STORAGE);
 
 /*
  * The table of devices
@@ -220,11 +221,11 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		desc[12] = regs[6];  /* device */
 		desc[13] = regs[7];  /* command */
 
-		srb->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+		srb->result = SAM_STAT_CHECK_CONDITION;
 	}
 	goto end;
 invalid_fld:
-	srb->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+	srb->result = SAM_STAT_CHECK_CONDITION;
 
 	memcpy(srb->sense_buffer,
 			usb_stor_sense_invalidCDB,

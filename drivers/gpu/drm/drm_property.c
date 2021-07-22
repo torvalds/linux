@@ -21,7 +21,12 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_property.h>
 
 #include "drm_crtc_internal.h"
@@ -38,7 +43,7 @@
  * property types and ranges.
  *
  * Properties don't store the current value directly, but need to be
- * instatiated by attaching them to a &drm_mode_object with
+ * instantiated by attaching them to a &drm_mode_object with
  * drm_object_attach_property().
  *
  * Property values are only 64bit. To support bigger piles of data (like gamma
@@ -556,7 +561,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
+	if (!length || length > INT_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
 	blob = kvzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
@@ -639,7 +644,7 @@ EXPORT_SYMBOL(drm_property_blob_get);
  * @id: id of the blob property
  *
  * If successful, this takes an additional reference to the blob property.
- * callers need to make sure to eventually unreference the returned property
+ * callers need to make sure to eventually unreferenced the returned property
  * again, using drm_property_blob_put().
  *
  * Return:
@@ -866,7 +871,7 @@ err:
  * value doesn't become invalid part way through the property update due to
  * race).  The value returned by reference via 'obj' should be passed back
  * to drm_property_change_valid_put() after the property is set (and the
- * object to which the property is attached has a chance to take it's own
+ * object to which the property is attached has a chance to take its own
  * reference).
  */
 bool drm_property_change_valid_get(struct drm_property *property,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * device driver for Conexant 2388x based TV cards
  * driver core
@@ -8,16 +9,6 @@
  *     - Multituner support
  *     - video_ioctl2 conversion
  *     - PAL/M fixes
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -40,7 +31,7 @@
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 /* ------------------------------------------------------------------ */
 
@@ -161,7 +152,8 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	instructions += 4;
 	risc->size = instructions * 8;
 	risc->dma = 0;
-	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (!risc->cpu)
 		return -ENOMEM;
 
@@ -199,7 +191,8 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	instructions += 3;
 	risc->size = instructions * 8;
 	risc->dma = 0;
-	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
+	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
+				       GFP_KERNEL);
 	if (!risc->cpu)
 		return -ENOMEM;
 
@@ -1079,8 +1072,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (core->i2c_rc == 0) {
-		if (core->i2c_rtc)
-			i2c_unregister_device(core->i2c_rtc);
+		i2c_unregister_device(core->i2c_rtc);
 		i2c_del_adapter(&core->i2c_adap);
 	}
 	list_del(&core->devlist);

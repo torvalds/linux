@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Renesas R-Car CAN FD device driver
  *
  * Copyright (C) 2015 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /* The R-Car CAN FD controller can operate in either one of the below two modes
@@ -621,7 +617,7 @@ static void rcar_canfd_tx_failure_cleanup(struct net_device *ndev)
 	u32 i;
 
 	for (i = 0; i < RCANFD_FIFO_DEPTH; i++)
-		can_free_echo_skb(ndev, i);
+		can_free_echo_skb(ndev, i, NULL);
 }
 
 static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
@@ -1029,7 +1025,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 	rcar_canfd_write(priv->base, RCANFD_CERFL(ch),
 			 RCANFD_CERFL_ERR(~cerfl));
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 }
 
@@ -1048,7 +1044,7 @@ static void rcar_canfd_tx_done(struct net_device *ndev)
 		stats->tx_packets++;
 		stats->tx_bytes += priv->tx_len[sent];
 		priv->tx_len[sent] = 0;
-		can_get_echo_skb(ndev, sent);
+		can_get_echo_skb(ndev, sent, NULL);
 
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		priv->tx_tail++;
@@ -1138,7 +1134,7 @@ static void rcar_canfd_state_change(struct net_device *ndev,
 
 		can_change_state(ndev, cf, tx_state, rx_state);
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		netif_rx(skb);
 	}
 }
@@ -1361,7 +1357,7 @@ static netdev_tx_t rcar_canfd_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG)
 		id |= RCANFD_CFID_CFRTR;
 
-	dlc = RCANFD_CFPTR_CFDLC(can_len2dlc(cf->len));
+	dlc = RCANFD_CFPTR_CFDLC(can_fd_len2dlc(cf->len));
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		rcar_canfd_write(priv->base,
@@ -1394,7 +1390,7 @@ static netdev_tx_t rcar_canfd_start_xmit(struct sk_buff *skb,
 	}
 
 	priv->tx_len[priv->tx_head % RCANFD_FIFO_DEPTH] = cf->len;
-	can_put_echo_skb(skb, ndev, priv->tx_head % RCANFD_FIFO_DEPTH);
+	can_put_echo_skb(skb, ndev, priv->tx_head % RCANFD_FIFO_DEPTH, 0);
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	priv->tx_head++;
@@ -1450,9 +1446,9 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		if (sts & RCANFD_RFFDSTS_RFFDF)
-			cf->len = can_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
+			cf->len = can_fd_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 		else
-			cf->len = get_can_dlc(RCANFD_RFPTR_RFDLC(dlc));
+			cf->len = can_cc_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 
 		if (sts & RCANFD_RFFDSTS_RFESI) {
 			cf->flags |= CANFD_ESI;
@@ -1468,7 +1464,7 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 			rcar_canfd_get_data(priv, cf, RCANFD_F_RFDF(ridx, 0));
 		}
 	} else {
-		cf->len = get_can_dlc(RCANFD_RFPTR_RFDLC(dlc));
+		cf->len = can_cc_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 		if (id & RCANFD_RFID_RFRTR)
 			cf->can_id |= CAN_RTR_FLAG;
 		else
@@ -1512,10 +1508,11 @@ static int rcar_canfd_rx_poll(struct napi_struct *napi, int quota)
 
 	/* All packets processed */
 	if (num_pkts < quota) {
-		napi_complete_done(napi, num_pkts);
-		/* Enable Rx FIFO interrupts */
-		rcar_canfd_set_bit(priv->base, RCANFD_RFCC(ridx),
-				   RCANFD_RFCC_RFIE);
+		if (napi_complete_done(napi, num_pkts)) {
+			/* Enable Rx FIFO interrupts */
+			rcar_canfd_set_bit(priv->base, RCANFD_RFCC(ridx),
+					   RCANFD_RFCC_RFIE);
+		}
 	}
 	return num_pkts;
 }
@@ -1633,7 +1630,6 @@ static void rcar_canfd_channel_remove(struct rcar_canfd_global *gpriv, u32 ch)
 
 static int rcar_canfd_probe(struct platform_device *pdev)
 {
-	struct resource *mem;
 	void __iomem *addr;
 	u32 sts, ch, fcan_freq;
 	struct rcar_canfd_global *gpriv;
@@ -1655,14 +1651,12 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 
 	ch_irq = platform_get_irq(pdev, 0);
 	if (ch_irq < 0) {
-		dev_err(&pdev->dev, "no Channel IRQ resource\n");
 		err = ch_irq;
 		goto fail_dev;
 	}
 
 	g_irq = platform_get_irq(pdev, 1);
 	if (g_irq < 0) {
-		dev_err(&pdev->dev, "no Global IRQ resource\n");
 		err = g_irq;
 		goto fail_dev;
 	}
@@ -1709,8 +1703,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		/* CANFD clock is further divided by (1/2) within the IP */
 		fcan_freq /= 2;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(&pdev->dev, mem);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
 		goto fail_dev;

@@ -16,7 +16,7 @@
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 
-#if IS_ENABLED(CONFIG_OPROFILE) || IS_ENABLED(CONFIG_PERF_EVENTS)
+#if IS_ENABLED(CONFIG_PERF_EVENTS)
 
 /* Address of common_exception_return, used to check the
  * transition from kernel to user space.
@@ -42,6 +42,11 @@ void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 	frame.sp = a1;
 
 	if (pc == 0 || pc >= TASK_SIZE || ufn(&frame, data))
+		return;
+
+	if (IS_ENABLED(CONFIG_USER_ABI_CALL0_ONLY) ||
+	    (IS_ENABLED(CONFIG_USER_ABI_CALL0_PROBE) &&
+	     !(regs->ps & PS_WOE_MASK)))
 		return;
 
 	/* Two steps:
@@ -91,7 +96,7 @@ void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 		pc = MAKE_PC_FROM_RA(a0, pc);
 
 		/* Check if the region is OK to access. */
-		if (!access_ok(VERIFY_READ, &SPILL_SLOT(a1, 0), 8))
+		if (!access_ok(&SPILL_SLOT(a1, 0), 8))
 			return;
 		/* Copy a1, a0 from user space stack frame. */
 		if (__get_user(a0, &SPILL_SLOT(a1, 0)) ||
@@ -253,10 +258,14 @@ static int return_address_cb(struct stackframe *frame, void *data)
 	return 1;
 }
 
+/*
+ * level == 0 is for the return address from the caller of this function,
+ * not from this function itself.
+ */
 unsigned long return_address(unsigned level)
 {
 	struct return_addr_data r = {
-		.skip = level + 1,
+		.skip = level,
 	};
 	walk_stackframe(stack_pointer(NULL), return_address_cb, &r);
 	return r.addr;

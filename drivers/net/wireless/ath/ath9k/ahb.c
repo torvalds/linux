@@ -92,7 +92,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	mem = devm_ioremap_nocache(&pdev->dev, res->start, resource_size(res));
+	mem = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		return -ENOMEM;

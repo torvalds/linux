@@ -148,8 +148,8 @@ static int tracing_map_cmp_atomic64(void *val_a, void *val_b)
 #define DEFINE_TRACING_MAP_CMP_FN(type)					\
 static int tracing_map_cmp_##type(void *val_a, void *val_b)		\
 {									\
-	type a = *(type *)val_a;					\
-	type b = *(type *)val_b;					\
+	type a = (type)(*(u64 *)val_a);					\
+	type b = (type)(*(u64 *)val_b);					\
 									\
 	return (a > b) ? 1 : ((a < b) ? -1 : 0);			\
 }
@@ -260,7 +260,7 @@ int tracing_map_add_var(struct tracing_map *map)
  * to use cmp_fn.
  *
  * A key can be a subset of a compound key; for that purpose, the
- * offset param is used to describe where within the the compound key
+ * offset param is used to describe where within the compound key
  * the key referenced by this key field resides.
  *
  * Return: The index identifying the field in the map and associated
@@ -283,7 +283,7 @@ int tracing_map_add_key_field(struct tracing_map *map,
 	return idx;
 }
 
-void tracing_map_array_clear(struct tracing_map_array *a)
+static void tracing_map_array_clear(struct tracing_map_array *a)
 {
 	unsigned int i;
 
@@ -294,7 +294,7 @@ void tracing_map_array_clear(struct tracing_map_array *a)
 		memset(a->pages[i], 0, PAGE_SIZE);
 }
 
-void tracing_map_array_free(struct tracing_map_array *a)
+static void tracing_map_array_free(struct tracing_map_array *a)
 {
 	unsigned int i;
 
@@ -316,7 +316,7 @@ void tracing_map_array_free(struct tracing_map_array *a)
 	kfree(a);
 }
 
-struct tracing_map_array *tracing_map_array_alloc(unsigned int n_elts,
+static struct tracing_map_array *tracing_map_array_alloc(unsigned int n_elts,
 						  unsigned int entry_size)
 {
 	struct tracing_map_array *a;
@@ -609,7 +609,7 @@ __tracing_map_insert(struct tracing_map *map, void *key, bool lookup_only)
  * signal that state.  There are two user-visible tracing_map
  * variables, 'hits' and 'drops', which are updated by this function.
  * Every time an element is either successfully inserted or retrieved,
- * the 'hits' value is incrememented.  Every time an element insertion
+ * the 'hits' value is incremented.  Every time an element insertion
  * fails, the 'drops' value is incremented.
  *
  * This is a lock-free tracing map insertion function implementing a
@@ -642,9 +642,9 @@ struct tracing_map_elt *tracing_map_insert(struct tracing_map *map, void *key)
  * tracing_map_elt.  This is a lock-free lookup; see
  * tracing_map_insert() for details on tracing_map and how it works.
  * Every time an element is retrieved, the 'hits' value is
- * incrememented.  There is one user-visible tracing_map variable,
+ * incremented.  There is one user-visible tracing_map variable,
  * 'hits', which is updated by this function.  Every time an element
- * is successfully retrieved, the 'hits' value is incrememented.  The
+ * is successfully retrieved, the 'hits' value is incremented.  The
  * 'drops' value is never updated by this function.
  *
  * Return: the tracing_map_elt pointer val associated with the key.

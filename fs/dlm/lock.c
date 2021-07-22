@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) 2005-2010 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -61,7 +59,7 @@
 #include "dlm_internal.h"
 #include <linux/dlm_device.h>
 #include "memory.h"
-#include "lowcomms.h"
+#include "midcomms.h"
 #include "requestqueue.h"
 #include "util.h"
 #include "dir.h"
@@ -1209,6 +1207,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 
 	if (rv < 0) {
 		log_error(ls, "create_lkb idr error %d", rv);
+		dlm_free_lkb(lkb);
 		return rv;
 	}
 
@@ -3535,19 +3534,17 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 	char *mb;
 
 	/* get_buffer gives us a message handle (mh) that we need to
-	   pass into lowcomms_commit and a message buffer (mb) that we
+	   pass into midcomms_commit and a message buffer (mb) that we
 	   write our data into */
 
-	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, GFP_NOFS, &mb);
 	if (!mh)
 		return -ENOBUFS;
-
-	memset(mb, 0, mb_len);
 
 	ms = (struct dlm_message *) mb;
 
 	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	ms->m_header.h_lockspace = ls->ls_global_id;
+	ms->m_header.u.h_lockspace = ls->ls_global_id;
 	ms->m_header.h_nodeid = dlm_our_nodeid();
 	ms->m_header.h_length = mb_len;
 	ms->m_header.h_cmd = DLM_MSG;
@@ -3592,7 +3589,7 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 static int send_message(struct dlm_mhandle *mh, struct dlm_message *ms)
 {
 	dlm_message_out(ms);
-	dlm_lowcomms_commit_buffer(mh);
+	dlm_midcomms_commit_mhandle(mh);
 	return 0;
 }
 
@@ -4179,6 +4176,7 @@ static int receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 			  (unsigned long long)lkb->lkb_recover_seq,
 			  ms->m_header.h_nodeid, ms->m_lkid);
 		error = -ENOENT;
+		dlm_put_lkb(lkb);
 		goto fail;
 	}
 
@@ -4232,6 +4230,7 @@ static int receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
 			  lkb->lkb_id, lkb->lkb_remid,
 			  ms->m_header.h_nodeid, ms->m_lkid);
 		error = -ENOENT;
+		dlm_put_lkb(lkb);
 		goto fail;
 	}
 
@@ -5039,16 +5038,16 @@ void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 
 	if (hd->h_nodeid != nodeid) {
 		log_print("invalid h_nodeid %d from %d lockspace %x",
-			  hd->h_nodeid, nodeid, hd->h_lockspace);
+			  hd->h_nodeid, nodeid, hd->u.h_lockspace);
 		return;
 	}
 
-	ls = dlm_find_lockspace_global(hd->h_lockspace);
+	ls = dlm_find_lockspace_global(hd->u.h_lockspace);
 	if (!ls) {
 		if (dlm_config.ci_log_debug) {
 			printk_ratelimited(KERN_DEBUG "dlm: invalid lockspace "
 				"%u from %d cmd %d type %d\n",
-				hd->h_lockspace, nodeid, hd->h_cmd, type);
+				hd->u.h_lockspace, nodeid, hd->h_cmd, type);
 		}
 
 		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
@@ -5792,20 +5791,20 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 			goto out;
 		}
 	}
-
-	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
-	   When DLM_IFL_USER is set, the dlm knows that this is a userspace
-	   lock and that lkb_astparam is the dlm_user_args structure. */
-
 	error = set_lock_args(mode, &ua->lksb, flags, namelen, timeout_cs,
 			      fake_astfn, ua, fake_bastfn, &args);
-	lkb->lkb_flags |= DLM_IFL_USER;
-
 	if (error) {
+		kfree(ua->lksb.sb_lvbptr);
+		ua->lksb.sb_lvbptr = NULL;
+		kfree(ua);
 		__put_lkb(ls, lkb);
 		goto out;
 	}
 
+	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
+	   When DLM_IFL_USER is set, the dlm knows that this is a userspace
+	   lock and that lkb_astparam is the dlm_user_args structure. */
+	lkb->lkb_flags |= DLM_IFL_USER;
 	error = request_lock(ls, lkb, name, namelen, &args);
 
 	switch (error) {
@@ -5816,7 +5815,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		break;
 	case -EAGAIN:
 		error = 0;
-		/* fall through */
+		fallthrough;
 	default:
 		__put_lkb(ls, lkb);
 		goto out;

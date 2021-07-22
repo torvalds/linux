@@ -152,13 +152,12 @@ static ssize_t alignment_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations alignment_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= alignment_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= alignment_proc_write,
+static const struct proc_ops alignment_proc_ops = {
+	.proc_open	= alignment_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= alignment_proc_write,
 };
 
 /*
@@ -176,12 +175,12 @@ static int __init alignment_init(void)
 		return -ENOMEM;
 
 	res = proc_create_data("alignment", S_IWUSR | S_IRUGO, dir,
-			       &alignment_proc_fops, &se_usermode);
+			       &alignment_proc_ops, &se_usermode);
 	if (!res)
 		return -ENOMEM;
 
         res = proc_create_data("kernel_alignment", S_IWUSR | S_IRUGO, dir,
-			       &alignment_proc_fops, &se_kernmode_warn);
+			       &alignment_proc_ops, &se_kernmode_warn);
         if (!res)
                 return -ENOMEM;
 

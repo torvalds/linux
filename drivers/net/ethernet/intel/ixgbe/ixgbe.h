@@ -12,6 +12,7 @@
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
+#include <linux/phy.h>
 
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
@@ -48,8 +49,6 @@
 #endif
 #define IXGBE_MAX_RXD			   4096
 #define IXGBE_MIN_RXD			     64
-
-#define IXGBE_ETH_P_LLDP		 0x88CC
 
 /* flow control */
 #define IXGBE_MIN_FCRTL			   0x40
@@ -225,17 +224,17 @@ struct ixgbe_tx_buffer {
 };
 
 struct ixgbe_rx_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
 	union {
 		struct {
+			struct sk_buff *skb;
+			dma_addr_t dma;
 			struct page *page;
 			__u32 page_offset;
 			__u16 pagecnt_bias;
 		};
 		struct {
-			void *addr;
-			u64 handle;
+			bool discard;
+			struct xdp_buff *xdp;
 		};
 	};
 };
@@ -350,9 +349,9 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
+	u16 rx_offset;
 	struct xdp_rxq_info xdp_rxq;
-	struct xdp_umem *xsk_umem;
-	struct zero_copy_allocator zca; /* ZC allocator anchor */
+	struct xsk_buff_pool *xsk_pool;
 	u16 ring_idx;		/* {rx,tx,xdp}_ring back reference idx */
 	u16 rx_buf_len;
 } ____cacheline_internodealigned_in_smp;
@@ -463,7 +462,7 @@ struct ixgbe_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct ixgbe_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 #ifdef CONFIG_IXGBE_HWMON
@@ -561,6 +560,7 @@ struct ixgbe_adapter {
 	struct net_device *netdev;
 	struct bpf_prog *xdp_prog;
 	struct pci_dev *pdev;
+	struct mii_bus *mii_bus;
 
 	unsigned long state;
 
@@ -589,11 +589,9 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_FCOE_ENABLED			BIT(21)
 #define IXGBE_FLAG_SRIOV_CAPABLE		BIT(22)
 #define IXGBE_FLAG_SRIOV_ENABLED		BIT(23)
-#define IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE	BIT(24)
 #define IXGBE_FLAG_RX_HWTSTAMP_ENABLED		BIT(25)
 #define IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER	BIT(26)
 #define IXGBE_FLAG_DCB_CAPABLE			BIT(27)
-#define IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE	BIT(28)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE			BIT(0)
@@ -607,7 +605,6 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		BIT(9)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		BIT(10)
 #define IXGBE_FLAG2_PHY_INTERRUPT		BIT(11)
-#define IXGBE_FLAG2_UDP_TUN_REREG_NEEDED	BIT(12)
 #define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
 #define IXGBE_FLAG2_EEE_CAPABLE			BIT(14)
 #define IXGBE_FLAG2_EEE_ENABLED			BIT(15)
@@ -633,6 +630,7 @@ struct ixgbe_adapter {
 	/* XDP */
 	int num_xdp_queues;
 	struct ixgbe_ring *xdp_ring[MAX_XDP_QUEUES];
+	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled rings */
 
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;
@@ -769,14 +767,9 @@ struct ixgbe_adapter {
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 	struct ixgbe_ipsec *ipsec;
-#endif /* CONFIG_XFRM_OFFLOAD */
-
-	/* AF_XDP zero-copy */
-	struct xdp_umem **xsk_umems;
-	u16 num_xsk_umems_used;
-	u16 num_xsk_umems;
+#endif /* CONFIG_IXGBE_IPSEC */
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
@@ -851,7 +844,6 @@ extern const struct dcbnl_rtnl_ops ixgbe_dcbnl_ops;
 #endif
 
 extern char ixgbe_driver_name[];
-extern const char ixgbe_driver_version[];
 #ifdef IXGBE_FCOE
 extern char ixgbe_default_device_descr[];
 #endif /* IXGBE_FCOE */
@@ -1008,7 +1000,7 @@ void ixgbe_store_key(struct ixgbe_adapter *adapter);
 void ixgbe_store_reta(struct ixgbe_adapter *adapter);
 s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter);
 void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter);
 void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter);
@@ -1036,5 +1028,11 @@ static inline int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter,
 					u32 *mbuf, u32 vf) { return -EACCES; }
 static inline int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter,
 					u32 *mbuf, u32 vf) { return -EACCES; }
-#endif /* CONFIG_XFRM_OFFLOAD */
+#endif /* CONFIG_IXGBE_IPSEC */
+
+static inline bool ixgbe_enabled_xdp_adapter(struct ixgbe_adapter *adapter)
+{
+	return !!adapter->xdp_prog;
+}
+
 #endif /* _IXGBE_H_ */

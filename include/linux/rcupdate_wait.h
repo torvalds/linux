@@ -37,13 +37,15 @@ do {									\
  *
  * This macro waits concurrently for multiple types of RCU grace periods.
  * For example, synchronize_rcu_mult(call_rcu, call_rcu_tasks) would wait
- * on concurrent RCU and RCU-tasks grace periods.  Waiting on a give SRCU
+ * on concurrent RCU and RCU-tasks grace periods.  Waiting on a given SRCU
  * domain requires you to write a wrapper function for that SRCU domain's
- * call_srcu() function, supplying the corresponding srcu_struct.
+ * call_srcu() function, with this wrapper supplying the pointer to the
+ * corresponding srcu_struct.
  *
- * If Tiny RCU, tell _wait_rcu_gp() does not bother waiting for RCU,
- * given that anywhere synchronize_rcu_mult() can be called is automatically
- * a grace period.
+ * The first argument tells Tiny RCU's _wait_rcu_gp() not to
+ * bother waiting for RCU.  The reason for this is because anywhere
+ * synchronize_rcu_mult() can be called is automatically already a full
+ * grace period.
  */
 #define synchronize_rcu_mult(...) \
 	_wait_rcu_gp(IS_ENABLED(CONFIG_TINY_RCU), __VA_ARGS__)

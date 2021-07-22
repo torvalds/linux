@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2003 Herbert Valerio Riedel <hvr@gnu.org>
  *  Copyright (C) 2004 Luis R. Rodriguez <mcgrof@ruslug.rutgers.edu>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #if !defined(_ISL_OID_H)
@@ -49,7 +37,7 @@ struct obj_mlmeex {
 	u16 state;
 	u16 code;
 	u16 size;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct obj_buffer {
@@ -80,12 +68,12 @@ struct obj_bss {
 
 struct obj_bsslist {
 	u32 nr;
-	struct obj_bss bsslist[0];
+	struct obj_bss bsslist[];
 } __packed;
 
 struct obj_frequencies {
 	u16 nr;
-	u16 mhz[0];
+	u16 mhz[];
 } __packed;
 
 struct obj_attachment {
@@ -93,7 +81,7 @@ struct obj_attachment {
 	char reserved;
 	short id;
 	short size;
-	char data[0];
+	char data[];
 } __packed;
 
 /*
@@ -155,7 +143,7 @@ enum dot11_priv_t {
  * together with a CSMA contention. Without this all frames are
  * sent with a CSMA contention.
  * Bibliography:
- * http://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
+ * https://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
  */
 enum dot11_maxframeburst_t {
 	/* Values for DOT11_OID_MAXFRAMEBURST */

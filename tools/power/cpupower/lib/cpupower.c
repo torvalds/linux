@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  */
 
 #include <sys/types.h>
@@ -15,10 +14,10 @@
 #include "cpupower.h"
 #include "cpupower_intern.h"
 
-unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
+unsigned int cpupower_read_sysfs(const char *path, char *buf, size_t buflen)
 {
-	int fd;
 	ssize_t numread;
+	int fd;
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
@@ -34,6 +33,27 @@ unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 	close(fd);
 
 	return (unsigned int) numread;
+}
+
+unsigned int cpupower_write_sysfs(const char *path, char *buf, size_t buflen)
+{
+	ssize_t numwritten;
+	int fd;
+
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return 0;
+
+	numwritten = write(fd, buf, buflen - 1);
+	if (numwritten < 1) {
+		perror(path);
+		close(fd);
+		return -1;
+	}
+
+	close(fd);
+
+	return (unsigned int) numwritten;
 }
 
 /*
@@ -95,7 +115,7 @@ static int sysfs_topology_read_file(unsigned int cpu, const char *fname, int *re
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/topology/%s",
 			 cpu, fname);
-	if (sysfs_read_file(path, linebuf, MAX_LINE_LEN) == 0)
+	if (cpupower_read_sysfs(path, linebuf, MAX_LINE_LEN) == 0)
 		return -1;
 	*result = strtol(linebuf, &endp, 0);
 	if (endp == linebuf || errno == ERANGE)

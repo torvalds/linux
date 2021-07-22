@@ -243,6 +243,7 @@ done:
 		/* Fall back to a 3 byte encoding */
 		word.bytes = 3;
 		word.word &= 0x00ffffff;
+		fallthrough;
 	case 3:
 		/* 3 byte encoding */
 		word.word |= 0x82000000;
@@ -839,11 +840,11 @@ static int mips_ejtag_fdc_tty_write(struct tty_struct *tty,
 	return total;
 }
 
-static int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
+static unsigned int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
 {
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
 	struct mips_ejtag_fdc_tty *priv = dport->driver;
-	int room;
+	unsigned int room;
 
 	/* Report the space in the xmit buffer */
 	spin_lock(&dport->xmit_lock);
@@ -853,10 +854,10 @@ static int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
-	int chars;
+	unsigned int chars;
 
 	/* Report the number of bytes in the xmit buffer */
 	spin_lock(&dport->xmit_lock);
@@ -898,7 +899,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	atomic_set(&priv->xmit_total, 0);
 	raw_spin_lock_init(&priv->lock);
 
-	priv->reg = devm_ioremap_nocache(priv->dev, dev->res.start,
+	priv->reg = devm_ioremap(priv->dev, dev->res.start,
 					 resource_size(&dev->res));
 	if (!priv->reg) {
 		dev_err(priv->dev, "ioremap failed for resource %pR\n",

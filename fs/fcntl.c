@@ -25,6 +25,7 @@
 #include <linux/user_namespace.h>
 #include <linux/memfd.h>
 #include <linux/compat.h>
+#include <linux/mount.h>
 
 #include <linux/poll.h>
 #include <asm/siginfo.h>
@@ -46,7 +47,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 
 	/* O_NOATIME can only be set by the owner or superuser */
 	if ((arg & O_NOATIME) && !(filp->f_flags & O_NOATIME))
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_or_capable(file_mnt_user_ns(filp), inode))
 			return -EPERM;
 
 	/* required for strict SunOS emulation */
@@ -148,11 +149,15 @@ void f_delown(struct file *filp)
 
 pid_t f_getown(struct file *filp)
 {
-	pid_t pid;
+	pid_t pid = 0;
 	read_lock(&filp->f_owner.lock);
-	pid = pid_vnr(filp->f_owner.pid);
-	if (filp->f_owner.pid_type == PIDTYPE_PGID)
-		pid = -pid;
+	rcu_read_lock();
+	if (pid_task(filp->f_owner.pid, filp->f_owner.pid_type)) {
+		pid = pid_vnr(filp->f_owner.pid);
+		if (filp->f_owner.pid_type == PIDTYPE_PGID)
+			pid = -pid;
+	}
+	rcu_read_unlock();
 	read_unlock(&filp->f_owner.lock);
 	return pid;
 }
@@ -200,11 +205,14 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 static int f_getown_ex(struct file *filp, unsigned long arg)
 {
 	struct f_owner_ex __user *owner_p = (void __user *)arg;
-	struct f_owner_ex owner;
+	struct f_owner_ex owner = {};
 	int ret = 0;
 
 	read_lock(&filp->f_owner.lock);
-	owner.pid = pid_vnr(filp->f_owner.pid);
+	rcu_read_lock();
+	if (pid_task(filp->f_owner.pid, filp->f_owner.pid_type))
+		owner.pid = pid_vnr(filp->f_owner.pid);
+	rcu_read_unlock();
 	switch (filp->f_owner.pid_type) {
 	case PIDTYPE_PID:
 		owner.type = F_OWNER_TID;
@@ -261,7 +269,7 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 static bool rw_hint_valid(enum rw_hint hint)
 {
 	switch (hint) {
-	case RWF_WRITE_LIFE_NOT_SET:
+	case RWH_WRITE_LIFE_NOT_SET:
 	case RWH_WRITE_LIFE_NONE:
 	case RWH_WRITE_LIFE_SHORT:
 	case RWH_WRITE_LIFE_MEDIUM:
@@ -277,7 +285,7 @@ static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
 	struct inode *inode = file_inode(file);
-	u64 *argp = (u64 __user *)arg;
+	u64 __user *argp = (u64 __user *)arg;
 	enum rw_hint hint;
 	u64 h;
 
@@ -361,8 +369,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	/* 32-bit arches must use fcntl64() */
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
+		fallthrough;
 #endif
-		/* Fallthrough */
 	case F_SETLK:
 	case F_SETLKW:
 		if (copy_from_user(&flock, argp, sizeof(flock)))
@@ -735,8 +743,9 @@ static void send_sigio_to_task(struct task_struct *p,
 		return;
 
 	switch (signum) {
-		kernel_siginfo_t si;
-		default:
+		default: {
+			kernel_siginfo_t si;
+
 			/* Queue a rt signal with the appropriate fd as its
 			   value.  We use SI_SIGIO as the source, not 
 			   SI_KERNEL, since kernel signals always get 
@@ -769,7 +778,8 @@ static void send_sigio_to_task(struct task_struct *p,
 			si.si_fd    = fd;
 			if (!do_send_sig_info(signum, &si, p, type))
 				break;
-		/* fall-through: fall back on the old plain SIGIO signal */
+		}
+			fallthrough;	/* fall back on the old plain SIGIO signal */
 		case 0:
 			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, type);
 	}
@@ -779,9 +789,10 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 {
 	struct task_struct *p;
 	enum pid_type type;
+	unsigned long flags;
 	struct pid *pid;
 	
-	read_lock(&fown->lock);
+	read_lock_irqsave(&fown->lock, flags);
 
 	type = fown->pid_type;
 	pid = fown->pid;
@@ -802,7 +813,7 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 		read_unlock(&tasklist_lock);
 	}
  out_unlock_fown:
-	read_unlock(&fown->lock);
+	read_unlock_irqrestore(&fown->lock, flags);
 }
 
 static void send_sigurg_to_task(struct task_struct *p,
@@ -817,9 +828,10 @@ int send_sigurg(struct fown_struct *fown)
 	struct task_struct *p;
 	enum pid_type type;
 	struct pid *pid;
+	unsigned long flags;
 	int ret = 0;
 	
-	read_lock(&fown->lock);
+	read_lock_irqsave(&fown->lock, flags);
 
 	type = fown->pid_type;
 	pid = fown->pid;
@@ -842,7 +854,7 @@ int send_sigurg(struct fown_struct *fown)
 		read_unlock(&tasklist_lock);
 	}
  out_unlock_fown:
-	read_unlock(&fown->lock);
+	read_unlock_irqrestore(&fown->lock, flags);
 	return ret;
 }
 

@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <getopt.h>
@@ -8,25 +10,14 @@
 /*
  * Copyright 2011 The Chromium Authors, All Rights Reserved.
  * Copyright 2008 Jon Loeliger, Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 #ifdef __GNUC__
+#ifdef __clang__
 #define PRINTF(i, j)	__attribute__((format (printf, i, j)))
+#else
+#define PRINTF(i, j)	__attribute__((format (gnu_printf, i, j)))
+#endif
 #define NORETURN	__attribute__((noreturn))
 #else
 #define PRINTF(i, j)
@@ -72,6 +63,8 @@ static inline void *xrealloc(void *p, size_t len)
 extern char *xstrdup(const char *s);
 
 extern int PRINTF(2, 3) xasprintf(char **strp, const char *fmt, ...);
+extern int PRINTF(2, 3) xasprintf_append(char **strp, const char *fmt, ...);
+extern int xavsprintf_append(char **strp, const char *fmt, va_list ap);
 extern char *join_path(const char *path, const char *name);
 
 /**
@@ -120,7 +113,7 @@ int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
  * stderr.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, -1 on error
  */
 int utilfdt_write(const char *filename, const void *blob);
@@ -131,7 +124,7 @@ int utilfdt_write(const char *filename, const void *blob);
  * an error message for the user.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, else an errno value representing the error
  */
 int utilfdt_write_err(const char *filename, const void *blob);

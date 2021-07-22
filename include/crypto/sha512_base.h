@@ -1,17 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sha512_base.h - core logic for SHA-512 implementations
  *
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#ifndef _CRYPTO_SHA512_BASE_H
+#define _CRYPTO_SHA512_BASE_H
+
 #include <crypto/internal/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include <asm/unaligned.h>
 
@@ -126,6 +127,8 @@ static inline int sha512_base_finish(struct shash_desc *desc, u8 *out)
 	for (i = 0; digest_size > 0; i++, digest_size -= sizeof(__be64))
 		put_unaligned_be64(sctx->state[i], digest++);
 
-	*sctx = (struct sha512_state){};
+	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
+
+#endif /* _CRYPTO_SHA512_BASE_H */

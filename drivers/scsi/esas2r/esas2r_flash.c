@@ -1197,6 +1197,7 @@ bool esas2r_nvram_read_direct(struct esas2r_adapter *a)
 	if (!esas2r_read_flash_block(a, a->nvram, FLS_OFFSET_NVR,
 				     sizeof(struct esas2r_sas_nvram))) {
 		esas2r_hdebug("NVRAM read failed, using defaults");
+		up(&a->nvram_semaphore);
 		return false;
 	}
 
@@ -1499,7 +1500,7 @@ bool esas2r_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi,
 			return complete_fmapi_req(a, rq, FI_STAT_SUCCESS);
 		}
 
-	/* fall through */
+		fallthrough;
 
 	case FI_ACT_UP: /* Upload the components */
 	default:

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_ICCSENSE_PRIV_H__
 #define __NVKM_ICCSENSE_PRIV_H__
 #define nvkm_iccsense(p) container_of((p), struct nvkm_iccsense, subdev)
@@ -22,6 +22,6 @@ struct nvkm_iccsense_rail {
 	u8 mohm;
 };
 
-void nvkm_iccsense_ctor(struct nvkm_device *, int, struct nvkm_iccsense *);
-int nvkm_iccsense_new_(struct nvkm_device *, int, struct nvkm_iccsense **);
+void nvkm_iccsense_ctor(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_iccsense *);
+int nvkm_iccsense_new_(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_iccsense **);
 #endif

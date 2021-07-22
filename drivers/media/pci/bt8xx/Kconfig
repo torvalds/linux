@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on VIDEO_DEV && PCI && I2C && VIDEO_V4L2
@@ -13,10 +14,10 @@ config VIDEO_BT848
 	select VIDEO_SAA6588 if MEDIA_SUBDRV_AUTOSELECT
 	select RADIO_ADAPTERS
 	select RADIO_TEA575X
-	---help---
+	help
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in
-	  <file:Documentation/media/v4l-drivers/bttv.rst> for more information.
+	  <file:Documentation/admin-guide/media/bttv.rst> for more information.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bttv.

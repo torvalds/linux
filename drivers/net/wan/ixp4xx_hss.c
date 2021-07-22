@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx HSS (synchronous serial port) driver for Linux
  *
  * Copyright (C) 2007-2008 Krzysztof Hałasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -20,10 +17,12 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/wan_ixp4xx_hss.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
@@ -84,7 +83,6 @@
 #define PKT_HDLC_IDLE_ONES		0x1 /* default = flags */
 #define PKT_HDLC_CRC_32			0x2 /* default = CRC-16 */
 #define PKT_HDLC_MSB_ENDIAN		0x4 /* default = LE */
-
 
 /* hss_config, PCRs */
 /* Frame sync sampling, default = active low */
@@ -152,26 +150,24 @@
 /* HSS number, default = 0 (first) */
 #define CCR_SECOND_HSS			0x01000000
 
-
 /* hss_config, clkCR: main:10, num:10, denom:12 */
-#define CLK42X_SPEED_EXP	((0x3FF << 22) | (  2 << 12) |   15) /*65 KHz*/
+#define CLK42X_SPEED_EXP	((0x3FF << 22) | (2 << 12) |   15) /*65 KHz*/
 
-#define CLK42X_SPEED_512KHZ	((  130 << 22) | (  2 << 12) |   15)
-#define CLK42X_SPEED_1536KHZ	((   43 << 22) | ( 18 << 12) |   47)
-#define CLK42X_SPEED_1544KHZ	((   43 << 22) | ( 33 << 12) |  192)
-#define CLK42X_SPEED_2048KHZ	((   32 << 22) | ( 34 << 12) |   63)
-#define CLK42X_SPEED_4096KHZ	((   16 << 22) | ( 34 << 12) |  127)
-#define CLK42X_SPEED_8192KHZ	((    8 << 22) | ( 34 << 12) |  255)
+#define CLK42X_SPEED_512KHZ	((130 << 22) | (2 << 12) |   15)
+#define CLK42X_SPEED_1536KHZ	((43 << 22) | (18 << 12) |   47)
+#define CLK42X_SPEED_1544KHZ	((43 << 22) | (33 << 12) |  192)
+#define CLK42X_SPEED_2048KHZ	((32 << 22) | (34 << 12) |   63)
+#define CLK42X_SPEED_4096KHZ	((16 << 22) | (34 << 12) |  127)
+#define CLK42X_SPEED_8192KHZ	((8 << 22) | (34 << 12) |  255)
 
-#define CLK46X_SPEED_512KHZ	((  130 << 22) | ( 24 << 12) |  127)
-#define CLK46X_SPEED_1536KHZ	((   43 << 22) | (152 << 12) |  383)
-#define CLK46X_SPEED_1544KHZ	((   43 << 22) | ( 66 << 12) |  385)
-#define CLK46X_SPEED_2048KHZ	((   32 << 22) | (280 << 12) |  511)
-#define CLK46X_SPEED_4096KHZ	((   16 << 22) | (280 << 12) | 1023)
-#define CLK46X_SPEED_8192KHZ	((    8 << 22) | (280 << 12) | 2047)
+#define CLK46X_SPEED_512KHZ	((130 << 22) | (24 << 12) |  127)
+#define CLK46X_SPEED_1536KHZ	((43 << 22) | (152 << 12) |  383)
+#define CLK46X_SPEED_1544KHZ	((43 << 22) | (66 << 12) |  385)
+#define CLK46X_SPEED_2048KHZ	((32 << 22) | (280 << 12) |  511)
+#define CLK46X_SPEED_4096KHZ	((16 << 22) | (280 << 12) | 1023)
+#define CLK46X_SPEED_8192KHZ	((8 << 22) | (280 << 12) | 2047)
 
-/*
- * HSS_CONFIG_CLOCK_CR register consists of 3 parts:
+/* HSS_CONFIG_CLOCK_CR register consists of 3 parts:
  *     A (10 bits), B (10 bits) and C (12 bits).
  * IXP42x HSS clock generator operation (verified with an oscilloscope):
  * Each clock bit takes 7.5 ns (1 / 133.xx MHz).
@@ -210,7 +206,6 @@
 #define HSS_CONFIG_TX_LUT	0x18 /* channel look-up tables */
 #define HSS_CONFIG_RX_LUT	0x38
 
-
 /* NPE command codes */
 /* writes the ConfigWord value to the location specified by offset */
 #define PORT_CONFIG_WRITE		0x40
@@ -222,7 +217,8 @@
 #define PORT_ERROR_READ			0x42
 
 /* triggers the NPE to reset internal status and enable the HssPacketized
-   operation for the flow specified by pPipe */
+ * operation for the flow specified by pPipe
+ */
 #define PKT_PIPE_FLOW_ENABLE		0x50
 #define PKT_PIPE_FLOW_DISABLE		0x51
 #define PKT_NUM_PIPES_WRITE		0x52
@@ -237,16 +233,16 @@
 #define ERR_HDLC_ALIGN		2 /* HDLC alignment error */
 #define ERR_HDLC_FCS		3 /* HDLC Frame Check Sum error */
 #define ERR_RXFREE_Q_EMPTY	4 /* RX-free queue became empty while receiving
-				     this packet (if buf_len < pkt_len) */
+				   * this packet (if buf_len < pkt_len)
+				   */
 #define ERR_HDLC_TOO_LONG	5 /* HDLC frame size too long */
 #define ERR_HDLC_ABORT		6 /* abort sequence received */
 #define ERR_DISCONNECTING	7 /* disconnect is in progress */
 
-
 #ifdef __ARMEB__
 typedef struct sk_buff buffer_t;
 #define free_buffer dev_kfree_skb
-#define free_buffer_irq dev_kfree_skb_irq
+#define free_buffer_irq dev_consume_skb_irq
 #else
 typedef void buffer_t;
 #define free_buffer kfree
@@ -261,7 +257,7 @@ struct port {
 	struct hss_plat_info *plat;
 	buffer_t *rx_buff_tab[RX_DESCS], *tx_buff_tab[TX_DESCS];
 	struct desc *desc_tab;	/* coherent */
-	u32 desc_tab_phys;
+	dma_addr_t desc_tab_phys;
 	unsigned int id;
 	unsigned int clock_type, clock_rate, loopback;
 	unsigned int initialized, carrier;
@@ -310,7 +306,6 @@ struct desc {
 	u32 __reserved1[4];
 };
 
-
 #define rx_desc_phys(port, n)	((port)->desc_tab_phys +		\
 				 (n) * sizeof(struct desc))
 #define rx_desc_ptr(port, n)	(&(port)->desc_tab[n])
@@ -325,11 +320,11 @@ struct desc {
 
 static int ports_open;
 static struct dma_pool *dma_pool;
-static spinlock_t npe_lock;
+static DEFINE_SPINLOCK(npe_lock);
 
 static const struct {
 	int tx, txdone, rx, rxfree;
-}queue_ids[2] = {{HSS0_PKT_TX0_QUEUE, HSS0_PKT_TXDONE_QUEUE, HSS0_PKT_RX_QUEUE,
+} queue_ids[2] = {{HSS0_PKT_TX0_QUEUE, HSS0_PKT_TXDONE_QUEUE, HSS0_PKT_RX_QUEUE,
 		  HSS0_PKT_RXFREE0_QUEUE},
 		 {HSS1_PKT_TX0_QUEUE, HSS1_PKT_TXDONE_QUEUE, HSS1_PKT_RX_QUEUE,
 		  HSS1_PKT_RXFREE0_QUEUE},
@@ -339,7 +334,7 @@ static const struct {
  * utility functions
  ****************************************************************************/
 
-static inline struct port* dev_to_port(struct net_device *dev)
+static inline struct port *dev_to_port(struct net_device *dev)
 {
 	return dev_to_hdlc(dev)->priv;
 }
@@ -348,6 +343,7 @@ static inline struct port* dev_to_port(struct net_device *dev)
 static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 {
 	int i;
+
 	for (i = 0; i < cnt; i++)
 		dest[i] = swab32(src[i]);
 }
@@ -357,9 +353,10 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
  * HSS access
  ****************************************************************************/
 
-static void hss_npe_send(struct port *port, struct msg *msg, const char* what)
+static void hss_npe_send(struct port *port, struct msg *msg, const char *what)
 {
-	u32 *val = (u32*)msg;
+	u32 *val = (u32 *)msg;
+
 	if (npe_send_message(port->npe, msg, what)) {
 		pr_crit("HSS-%i: unable to send command [%08X:%08X] to %s\n",
 			port->id, val[0], val[1], npe_name(port->npe));
@@ -515,10 +512,12 @@ static int hss_load_firmware(struct port *port)
 	if (port->initialized)
 		return 0;
 
-	if (!npe_running(port->npe) &&
-	    (err = npe_load_firmware(port->npe, npe_name(port->npe),
-				     port->dev)))
-		return err;
+	if (!npe_running(port->npe)) {
+		err = npe_load_firmware(port->npe, npe_name(port->npe),
+					port->dev);
+		if (err)
+			return err;
+	}
 
 	/* HDLC mode configuration */
 	memset(&msg, 0, sizeof(msg));
@@ -569,7 +568,6 @@ static inline void debug_pkt(struct net_device *dev, const char *func,
 #endif
 }
 
-
 static inline void debug_desc(u32 phys, struct desc *desc)
 {
 #if DEBUG_DESC
@@ -585,7 +583,8 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 	u32 phys, tab_phys, n_desc;
 	struct desc *tab;
 
-	if (!(phys = qmgr_get_entry(queue)))
+	phys = qmgr_get_entry(queue);
+	if (!phys)
 		return -1;
 
 	BUG_ON(phys & 0x1F);
@@ -605,9 +604,9 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
 	/* Don't check for queue overflow here, we've allocated sufficient
-	   length and queues >= 32 don't support this check anyway. */
+	 * length and queues >= 32 don't support this check anyway.
+	 */
 }
-
 
 static inline void dma_unmap_tx(struct port *port, struct desc *desc)
 {
@@ -620,7 +619,6 @@ static inline void dma_unmap_tx(struct port *port, struct desc *desc)
 			 DMA_TO_DEVICE);
 #endif
 }
-
 
 static void hss_hdlc_set_carrier(void *pdev, int carrier)
 {
@@ -672,7 +670,8 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		u32 phys;
 #endif
 
-		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
+		n = queue_get_desc(rxq, port, 0);
+		if (n < 0) {
 #if DEBUG_RX
 			printk(KERN_DEBUG "%s: hss_hdlc_poll"
 			       " napi_complete\n", dev->name);
@@ -707,7 +706,8 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		switch (desc->status) {
 		case 0:
 #ifdef __ARMEB__
-			if ((skb = netdev_alloc_skb(dev, RX_SIZE)) != NULL) {
+			skb = netdev_alloc_skb(dev, RX_SIZE);
+			if (skb) {
 				phys = dma_map_single(&dev->dev, skb->data,
 						      RX_SIZE,
 						      DMA_FROM_DEVICE);
@@ -786,7 +786,6 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 	return received;	/* not all work done */
 }
 
-
 static void hss_hdlc_txdone_irq(void *pdev)
 {
 	struct net_device *dev = pdev;
@@ -856,12 +855,13 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 #else
 	offset = (int)skb->data & 3; /* keep 32-bit alignment */
 	bytes = ALIGN(offset + len, 4);
-	if (!(mem = kmalloc(bytes, GFP_ATOMIC))) {
+	mem = kmalloc(bytes, GFP_ATOMIC);
+	if (!mem) {
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	memcpy_swab32(mem, (u32 *)((int)skb->data & ~3), bytes / 4);
+	memcpy_swab32(mem, (u32 *)((uintptr_t)skb->data & ~3), bytes / 4);
 	dev_kfree_skb(skb);
 #endif
 
@@ -911,7 +911,6 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	return NETDEV_TX_OK;
 }
-
 
 static int request_hdlc_queues(struct port *port)
 {
@@ -976,8 +975,9 @@ static int init_hdlc_queues(struct port *port)
 			return -ENOMEM;
 	}
 
-	if (!(port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
-					      &port->desc_tab_phys)))
+	port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
+					&port->desc_tab_phys);
+	if (!port->desc_tab)
 		return -ENOMEM;
 	memset(port->desc_tab, 0, POOL_ALLOC_SIZE);
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
@@ -989,11 +989,13 @@ static int init_hdlc_queues(struct port *port)
 		buffer_t *buff;
 		void *data;
 #ifdef __ARMEB__
-		if (!(buff = netdev_alloc_skb(port->netdev, RX_SIZE)))
+		buff = netdev_alloc_skb(port->netdev, RX_SIZE);
+		if (!buff)
 			return -ENOMEM;
 		data = buff->data;
 #else
-		if (!(buff = kmalloc(RX_SIZE, GFP_KERNEL)))
+		buff = kmalloc(RX_SIZE, GFP_KERNEL);
+		if (!buff)
 			return -ENOMEM;
 		data = buff;
 #endif
@@ -1018,6 +1020,7 @@ static void destroy_hdlc_queues(struct port *port)
 		for (i = 0; i < RX_DESCS; i++) {
 			struct desc *desc = rx_desc_ptr(port, i);
 			buffer_t *buff = port->rx_buff_tab[i];
+
 			if (buff) {
 				dma_unmap_single(&port->netdev->dev,
 						 desc->data, RX_SIZE,
@@ -1028,6 +1031,7 @@ static void destroy_hdlc_queues(struct port *port)
 		for (i = 0; i < TX_DESCS; i++) {
 			struct desc *desc = tx_desc_ptr(port, i);
 			buffer_t *buff = port->tx_buff_tab[i];
+
 			if (buff) {
 				dma_unmap_tx(port, desc);
 				free_buffer(buff);
@@ -1049,23 +1053,29 @@ static int hss_hdlc_open(struct net_device *dev)
 	unsigned long flags;
 	int i, err = 0;
 
-	if ((err = hdlc_open(dev)))
+	err = hdlc_open(dev);
+	if (err)
 		return err;
 
-	if ((err = hss_load_firmware(port)))
+	err = hss_load_firmware(port);
+	if (err)
 		goto err_hdlc_close;
 
-	if ((err = request_hdlc_queues(port)))
+	err = request_hdlc_queues(port);
+	if (err)
 		goto err_hdlc_close;
 
-	if ((err = init_hdlc_queues(port)))
+	err = init_hdlc_queues(port);
+	if (err)
 		goto err_destroy_queues;
 
 	spin_lock_irqsave(&npe_lock, flags);
-	if (port->plat->open)
-		if ((err = port->plat->open(port->id, dev,
-					    hss_hdlc_set_carrier)))
+	if (port->plat->open) {
+		err = port->plat->open(port->id, dev, hss_hdlc_set_carrier);
+		if (err)
 			goto err_unlock;
+	}
+
 	spin_unlock_irqrestore(&npe_lock, flags);
 
 	/* Populate queues with buffers, no failure after this point */
@@ -1162,7 +1172,6 @@ static int hss_hdlc_close(struct net_device *dev)
 	return 0;
 }
 
-
 static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 			   unsigned short parity)
 {
@@ -1171,7 +1180,7 @@ static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 	if (encoding != ENCODING_NRZ)
 		return -EINVAL;
 
-	switch(parity) {
+	switch (parity) {
 	case PARITY_CRC16_PR1_CCITT:
 		port->hdlc_cfg = 0;
 		return 0;
@@ -1185,14 +1194,14 @@ static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 	}
 }
 
-static u32 check_clock(u32 rate, u32 a, u32 b, u32 c,
+static u32 check_clock(u32 timer_freq, u32 rate, u32 a, u32 b, u32 c,
 		       u32 *best, u32 *best_diff, u32 *reg)
 {
 	/* a is 10-bit, b is 10-bit, c is 12-bit */
 	u64 new_rate;
 	u32 new_diff;
 
-	new_rate = ixp4xx_timer_freq * (u64)(c + 1);
+	new_rate = timer_freq * (u64)(c + 1);
 	do_div(new_rate, a * (c + 1) + b + 1);
 	new_diff = abs((u32)new_rate - rate);
 
@@ -1204,40 +1213,44 @@ static u32 check_clock(u32 rate, u32 a, u32 b, u32 c,
 	return new_diff;
 }
 
-static void find_best_clock(u32 rate, u32 *best, u32 *reg)
+static void find_best_clock(u32 timer_freq, u32 rate, u32 *best, u32 *reg)
 {
 	u32 a, b, diff = 0xFFFFFFFF;
 
-	a = ixp4xx_timer_freq / rate;
+	a = timer_freq / rate;
 
 	if (a > 0x3FF) { /* 10-bit value - we can go as slow as ca. 65 kb/s */
-		check_clock(rate, 0x3FF, 1, 1, best, &diff, reg);
+		check_clock(timer_freq, rate, 0x3FF, 1, 1, best, &diff, reg);
 		return;
 	}
 	if (a == 0) { /* > 66.666 MHz */
 		a = 1; /* minimum divider is 1 (a = 0, b = 1, c = 1) */
-		rate = ixp4xx_timer_freq;
+		rate = timer_freq;
 	}
 
-	if (rate * a == ixp4xx_timer_freq) { /* don't divide by 0 later */
-		check_clock(rate, a - 1, 1, 1, best, &diff, reg);
+	if (rate * a == timer_freq) { /* don't divide by 0 later */
+		check_clock(timer_freq, rate, a - 1, 1, 1, best, &diff, reg);
 		return;
 	}
 
 	for (b = 0; b < 0x400; b++) {
 		u64 c = (b + 1) * (u64)rate;
-		do_div(c, ixp4xx_timer_freq - rate * a);
+
+		do_div(c, timer_freq - rate * a);
 		c--;
 		if (c >= 0xFFF) { /* 12-bit - no need to check more 'b's */
 			if (b == 0 && /* also try a bit higher rate */
-			    !check_clock(rate, a - 1, 1, 1, best, &diff, reg))
+			    !check_clock(timer_freq, rate, a - 1, 1, 1, best,
+					 &diff, reg))
 				return;
-			check_clock(rate, a, b, 0xFFF, best, &diff, reg);
+			check_clock(timer_freq, rate, a, b, 0xFFF, best,
+				    &diff, reg);
 			return;
 		}
-		if (!check_clock(rate, a, b, c, best, &diff, reg))
+		if (!check_clock(timer_freq, rate, a, b, c, best, &diff, reg))
 			return;
-		if (!check_clock(rate, a, b, c + 1, best, &diff, reg))
+		if (!check_clock(timer_freq, rate, a, b, c + 1, best, &diff,
+				 reg))
 			return;
 	}
 }
@@ -1254,7 +1267,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
-	switch(ifr->ifr_settings.type) {
+	switch (ifr->ifr_settings.type) {
 	case IF_GET_IFACE:
 		ifr->ifr_settings.type = IF_IFACE_V35;
 		if (ifr->ifr_settings.size < size) {
@@ -1271,7 +1284,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case IF_IFACE_SYNC_SERIAL:
 	case IF_IFACE_V35:
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (copy_from_user(&new_line, line, size))
 			return -EFAULT;
@@ -1287,10 +1300,11 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 
 		port->clock_type = clk; /* Update settings */
-		if (clk == CLOCK_INT)
-			find_best_clock(new_line.clock_rate, &port->clock_rate,
-					&port->clock_reg);
-		else {
+		if (clk == CLOCK_INT) {
+			find_best_clock(port->plat->timer_freq,
+					new_line.clock_rate,
+					&port->clock_rate, &port->clock_reg);
+		} else {
 			port->clock_rate = 0;
 			port->clock_reg = CLK42X_SPEED_2048KHZ;
 		}
@@ -1332,15 +1346,19 @@ static int hss_init_one(struct platform_device *pdev)
 	hdlc_device *hdlc;
 	int err;
 
-	if ((port = kzalloc(sizeof(*port), GFP_KERNEL)) == NULL)
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port)
 		return -ENOMEM;
 
-	if ((port->npe = npe_request(0)) == NULL) {
+	port->npe = npe_request(0);
+	if (!port->npe) {
 		err = -ENODEV;
 		goto err_free;
 	}
 
-	if ((port->netdev = dev = alloc_hdlcdev(port)) == NULL) {
+	dev = alloc_hdlcdev(port);
+	port->netdev = alloc_hdlcdev(port);
+	if (!port->netdev) {
 		err = -ENOMEM;
 		goto err_plat;
 	}
@@ -1359,7 +1377,8 @@ static int hss_init_one(struct platform_device *pdev)
 	port->plat = pdev->dev.platform_data;
 	netif_napi_add(dev, &port->napi, hss_hdlc_poll, NAPI_WEIGHT);
 
-	if ((err = register_hdlc_device(dev)))
+	err = register_hdlc_device(dev);
+	if (err)
 		goto err_free_netdev;
 
 	platform_set_drvdata(pdev, port);
@@ -1399,8 +1418,6 @@ static int __init hss_init_module(void)
 	     (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
 	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS))
 		return -ENODEV;
-
-	spin_lock_init(&npe_lock);
 
 	return platform_driver_register(&ixp4xx_hss_driver);
 }

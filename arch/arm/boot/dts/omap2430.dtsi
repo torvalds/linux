@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for OMAP243x SoC
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -81,10 +81,23 @@
 				};
 			};
 
-			counter32k: counter@20000 {
-				compatible = "ti,omap-counter32k";
-				reg = <0x20000 0x20>;
-				ti,hwmods = "counter_32k";
+			target-module@20000 {
+				compatible = "ti,sysc-omap2", "ti,sysc";
+				reg = <0x20000 0x4>,
+				      <0x20004 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				clocks = <&func_32k_ck>;
+				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x20000 0x1000>;
+
+				counter32k: counter@0 {
+					compatible = "ti,omap-counter32k";
+					reg = <0 0x20>;
+				};
 			};
 		};
 
@@ -271,18 +284,39 @@
 			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <6>;
-			mbox_dsp: dsp {
+			mbox_dsp: mbox-dsp {
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <1 0 0>;
 			};
 		};
 
-		timer1: timer@49018000 {
-			compatible = "ti,omap2420-timer";
-			reg = <0x49018000 0x400>;
-			interrupts = <37>;
-			ti,hwmods = "timer1";
-			ti,timer-alwon;
+		timer1_target: target-module@49018000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x49018000 0x4>,
+			      <0x49018010 0x4>,
+			      <0x49018014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt1_fck>, <&gpt1_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49018000 0x1000>;
+
+			timer1: timer@0 {
+				compatible = "ti,omap2420-timer";
+				reg = <0 0x400>;
+				interrupts = <37>;
+				ti,timer-alwon;
+			};
 		};
 
 		mcspi3: spi@480b8000 {
@@ -309,6 +343,10 @@
 	};
 };
 
+&sdma {
+	compatible = "ti,omap2430-sdma", "ti,omap-sdma";
+};
+
 &i2c1 {
 	compatible = "ti,omap2430-i2c";
 };
@@ -317,5 +355,15 @@
 	compatible = "ti,omap2430-i2c";
 };
 
-/include/ "omap24xx-clocks.dtsi"
-/include/ "omap2430-clocks.dtsi"
+#include "omap24xx-clocks.dtsi"
+#include "omap2430-clocks.dtsi"
+
+/* Preferred always-on timer for clockevent */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&func_32k_ck>;
+	};
+};

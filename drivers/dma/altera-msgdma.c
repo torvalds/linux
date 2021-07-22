@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DMA driver for Altera mSGDMA IP core
  *
@@ -5,11 +6,6 @@
  *
  * Based on drivers/dma/xilinx/zynqmp_dma.c, which is:
  * Copyright (C) 2016 Xilinx, Inc. All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitops.h>
@@ -23,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of_dma.h>
 
 #include "dmaengine.h"
 
@@ -157,7 +154,8 @@ struct msgdma_extended_desc {
  * struct msgdma_sw_desc - implements a sw descriptor
  * @async_tx: support for the async_tx api
  * @hw_desc: assosiated HW descriptor
- * @free_list: node of the free SW descriprots list
+ * @node: node to move from the free list to the tx list
+ * @tx_list: transmit list node
  */
 struct msgdma_sw_desc {
 	struct dma_async_tx_descriptor async_tx;
@@ -166,7 +164,7 @@ struct msgdma_sw_desc {
 	struct list_head tx_list;
 };
 
-/**
+/*
  * struct msgdma_device - DMA device structure
  */
 struct msgdma_device {
@@ -262,6 +260,7 @@ static void msgdma_free_desc_list(struct msgdma_device *mdev,
  * @dst: Destination buffer address
  * @src: Source buffer address
  * @len: Transfer length
+ * @stride: Read/write stride value to set
  */
 static void msgdma_desc_config(struct msgdma_extended_desc *desc,
 			       dma_addr_t dst, dma_addr_t src, size_t len,
@@ -680,11 +679,11 @@ static int msgdma_alloc_chan_resources(struct dma_chan *dchan)
 
 /**
  * msgdma_tasklet - Schedule completion tasklet
- * @data: Pointer to the Altera sSGDMA channel structure
+ * @t: Pointer to the Altera sSGDMA channel structure
  */
-static void msgdma_tasklet(unsigned long data)
+static void msgdma_tasklet(struct tasklet_struct *t)
 {
-	struct msgdma_device *mdev = (struct msgdma_device *)data;
+	struct msgdma_device *mdev = from_tasklet(mdev, t, irq_tasklet);
 	u32 count;
 	u32 __maybe_unused size;
 	u32 __maybe_unused status;
@@ -776,10 +775,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap of %s failed!", name);
 		return -ENOMEM;
 	}
 
@@ -832,7 +831,7 @@ static int msgdma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	tasklet_init(&mdev->irq_tasklet, msgdma_tasklet, (unsigned long)mdev);
+	tasklet_setup(&mdev->irq_tasklet, msgdma_tasklet);
 
 	dma_cookie_init(&mdev->dmachan);
 
@@ -890,6 +889,13 @@ static int msgdma_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
+	ret = of_dma_controller_register(pdev->dev.of_node,
+					 of_dma_xlate_by_chan_id, dma_dev);
+	if (ret == -EINVAL)
+		dev_warn(&pdev->dev, "device was not probed from DT");
+	else if (ret && ret != -ENODEV)
+		goto fail;
+
 	dev_notice(&pdev->dev, "Altera mSGDMA driver probe success\n");
 
 	return 0;
@@ -910,6 +916,8 @@ static int msgdma_remove(struct platform_device *pdev)
 {
 	struct msgdma_device *mdev = platform_get_drvdata(pdev);
 
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&mdev->dmadev);
 	msgdma_dev_remove(mdev);
 
@@ -918,9 +926,19 @@ static int msgdma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id msgdma_match[] = {
+	{ .compatible = "altr,socfpga-msgdma", },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, msgdma_match);
+#endif
+
 static struct platform_driver msgdma_driver = {
 	.driver = {
 		.name = "altera-msgdma",
+		.of_match_table = of_match_ptr(msgdma_match),
 	},
 	.probe = msgdma_probe,
 	.remove = msgdma_remove,

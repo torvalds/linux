@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -8,22 +9,6 @@
  *
  * These functions manipulate an sctp event.   The struct ulpevent is used
  * to carry notifications and data to the ULP (sockets).
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -253,7 +238,7 @@ fail:
  * When a destination address on a multi-homed peer encounters a change
  * an interface details event is sent.
  */
-struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
+static struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	const struct sctp_association *asoc,
 	const struct sockaddr_storage *aaddr,
 	int flags, int state, int error, gfp_t gfp)
@@ -349,6 +334,25 @@ struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 
 fail:
 	return NULL;
+}
+
+void sctp_ulpevent_notify_peer_addr_change(struct sctp_transport *transport,
+					   int state, int error)
+{
+	struct sctp_association *asoc = transport->asoc;
+	struct sockaddr_storage addr;
+	struct sctp_ulpevent *event;
+
+	if (asoc->state < SCTP_STATE_ESTABLISHED)
+		return;
+
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
+
+	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr, 0, state,
+						    error, GFP_ATOMIC);
+	if (event)
+		asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 }
 
 /* Create and initialize an SCTP_REMOTE_ERROR notification.
@@ -526,6 +530,45 @@ fail:
 	return NULL;
 }
 
+struct sctp_ulpevent *sctp_ulpevent_make_send_failed_event(
+	const struct sctp_association *asoc, struct sctp_chunk *chunk,
+	__u16 flags, __u32 error, gfp_t gfp)
+{
+	struct sctp_send_failed_event *ssf;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+	int len;
+
+	skb = skb_copy_expand(chunk->skb, sizeof(*ssf), 0, gfp);
+	if (!skb)
+		return NULL;
+
+	len = ntohs(chunk->chunk_hdr->length);
+	len -= sctp_datachk_len(&asoc->stream);
+
+	skb_pull(skb, sctp_datachk_len(&asoc->stream));
+	event = sctp_skb2event(skb);
+	sctp_ulpevent_init(event, MSG_NOTIFICATION, skb->truesize);
+
+	ssf = skb_push(skb, sizeof(*ssf));
+	ssf->ssf_type = SCTP_SEND_FAILED_EVENT;
+	ssf->ssf_flags = flags;
+	ssf->ssf_length = sizeof(*ssf) + len;
+	skb_trim(skb, ssf->ssf_length);
+	ssf->ssf_error = error;
+
+	ssf->ssfe_info.snd_sid = chunk->sinfo.sinfo_stream;
+	ssf->ssfe_info.snd_ppid = chunk->sinfo.sinfo_ppid;
+	ssf->ssfe_info.snd_context = chunk->sinfo.sinfo_context;
+	ssf->ssfe_info.snd_assoc_id = chunk->sinfo.sinfo_assoc_id;
+	ssf->ssfe_info.snd_flags = chunk->chunk_hdr->flags;
+
+	sctp_ulpevent_set_owner(event, asoc);
+	ssf->ssf_assoc_id = sctp_assoc2id(asoc);
+
+	return event;
+}
+
 /* Create and initialize a SCTP_SHUTDOWN_EVENT notification.
  *
  * Socket Extensions for SCTP - draft-01
@@ -634,8 +677,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 						gfp_t gfp)
 {
 	struct sctp_ulpevent *event = NULL;
-	struct sk_buff *skb;
-	size_t padding, len;
+	struct sk_buff *skb = chunk->skb;
+	struct sock *sk = asoc->base.sk;
+	size_t padding, datalen;
 	int rx_count;
 
 	/*
@@ -646,15 +690,12 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	if (asoc->ep->rcvbuf_policy)
 		rx_count = atomic_read(&asoc->rmem_alloc);
 	else
-		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+		rx_count = atomic_read(&sk->sk_rmem_alloc);
 
-	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
+	datalen = ntohs(chunk->chunk_hdr->length);
 
-		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb,
-				       chunk->skb->truesize)))
-			goto fail;
-	}
+	if (rx_count >= sk->sk_rcvbuf || !sk_rmem_schedule(sk, skb, datalen))
+		goto fail;
 
 	/* Clone the original skb, sharing the data.  */
 	skb = skb_clone(chunk->skb, gfp);
@@ -681,8 +722,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * The sender should never pad with more than 3 bytes.  The receiver
 	 * MUST ignore the padding bytes.
 	 */
-	len = ntohs(chunk->chunk_hdr->length);
-	padding = SCTP_PAD4(len) - len;
+	padding = SCTP_PAD4(datalen) - datalen;
 
 	/* Fixup cloned skb with just this chunks data.  */
 	skb_trim(skb, chunk->chunk_end - padding - skb->data);

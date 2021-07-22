@@ -25,7 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "atom.h"
@@ -44,7 +44,7 @@ int r520_mc_wait_for_idle(struct radeon_device *rdev)
 		if (tmp & R520_MC_STATUS_IDLE) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -299,9 +299,7 @@ int r520_init(struct radeon_device *rdev)
 	r520_mc_init(rdev);
 	rv515_debugfs(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r)

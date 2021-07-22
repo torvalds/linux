@@ -90,7 +90,7 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 	.core_chipsel	= 0,
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
-	.ecc_mode	= NAND_ECC_HW,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 };
@@ -214,7 +214,7 @@ static __init void davinci_ntosd2_init(void)
 	 * Mux the pins to be GPIOs, VLYNQEN is already done at startup.
 	 * The AEAWx are five new AEAW pins that can be muxed by separately.
 	 * They are a bitmask for GPIO management. According TI
-	 * documentation (http://www.ti.com/lit/gpn/tms320dm6446) to employ
+	 * documentation (https://www.ti.com/lit/gpn/tms320dm6446) to employ
 	 * gpio(10,11,12,13) for leds any combination of bits works except
 	 * four last. So we are to reset all five.
 	 */
@@ -231,7 +231,7 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	/* Maintainer: Neuros Technologies <neuros@groups.google.com> */
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
-	.init_irq	= davinci_irq_init,
+	.init_irq	= dm644x_init_irq,
 	.init_time	= dm644x_init_time,
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,

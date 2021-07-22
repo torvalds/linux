@@ -116,11 +116,14 @@ out:
 	return error;
 }
 
-int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int orangefs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		     struct posix_acl *acl, int type)
 {
 	int error;
 	struct iattr iattr;
 	int rc;
+
+	memset(&iattr, 0, sizeof iattr);
 
 	if (type == ACL_TYPE_ACCESS && acl) {
 		/*
@@ -130,7 +133,8 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
 		 */
-		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+		error = posix_acl_update_mode(&init_user_ns, inode,
+					      &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
 				   __func__,
@@ -138,18 +142,17 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return error;
 		}
 
-		if (acl) {
-			rc = __orangefs_set_acl(inode, acl, type);
-		} else {
+		if (inode->i_mode != iattr.ia_mode)
 			iattr.ia_valid = ATTR_MODE;
-			rc = orangefs_inode_setattr(inode, &iattr);
-		}
 
-		return rc;
-
-	} else {
-		return -EINVAL;
 	}
+
+	rc = __orangefs_set_acl(inode, acl, type);
+
+	if (!rc && (iattr.ia_valid == ATTR_MODE))
+		rc = __orangefs_setattr(inode, &iattr);
+
+	return rc;
 }
 
 int orangefs_init_acl(struct inode *inode, struct inode *dir)
@@ -185,7 +188,7 @@ int orangefs_init_acl(struct inode *inode, struct inode *dir)
 		inode->i_mode = mode;
 		iattr.ia_mode = mode;
 		iattr.ia_valid |= ATTR_MODE;
-		orangefs_inode_setattr(inode, &iattr);
+		__orangefs_setattr(inode, &iattr);
 	}
 
 	return error;

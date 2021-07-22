@@ -133,7 +133,7 @@
 
 /*
  * kernel variables
- * Note: maximum error = NTP synch distance = dispersion + delay / 2;
+ * Note: maximum error = NTP sync distance = dispersion + delay / 2;
  * estimated error = NTP dispersion.
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */
@@ -151,11 +151,12 @@ extern unsigned long tick_nsec;		/* SHIFTED_HZ period (nsec) */
 #define NTP_INTERVAL_FREQ  (HZ)
 #define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
-extern int do_adjtimex(struct timex *);
+extern int do_adjtimex(struct __kernel_timex *);
+extern int do_clock_adjtime(const clockid_t which_clock, struct __kernel_timex * ktx);
+
 extern void hardpps(const struct timespec64 *, const struct timespec64 *);
 
 int read_current_timer(unsigned long *timer_val);
-void ntp_notify_cmos_timer(void);
 
 /* The clock frequency of the i8253/i8254 PIT */
 #define PIT_TICK_RATE 1193182ul

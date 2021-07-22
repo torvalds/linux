@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DMA implementation for Hexagon
  *
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
-#include <linux/dma-noncoherent.h>
-#include <linux/bootmem.h>
+#include <linux/dma-map-ops.h>
+#include <linux/memblock.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
 #include <asm/page.h>
@@ -68,8 +55,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	gen_pool_free(coherent_pool, (unsigned long) vaddr, size);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	void *addr = phys_to_virt(paddr);
 

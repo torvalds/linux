@@ -24,6 +24,7 @@
 #include <linux/blkdev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/super.h>
+#include <linux/fs_context.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/mutex.h>
@@ -202,7 +203,8 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 			continue;
 		blk_offset = (blocknr - buffer_blocknr[i]) << PAGE_SHIFT;
 		blk_offset += offset;
-		if (blk_offset + len > BUFFER_SIZE)
+		if (blk_offset > BUFFER_SIZE ||
+		    blk_offset + len > BUFFER_SIZE)
 			continue;
 		return read_buffers[i] + blk_offset;
 	}
@@ -390,8 +392,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* Don't map the last page if it contains some other data */
 	if (pgoff + pages == max_pages && cramfs_last_page_is_shared(inode)) {
-		pr_debug("mmap: %s: last page is shared\n",
-			 file_dentry(file)->d_name.name);
+		pr_debug("mmap: %pD: last page is shared\n", file);
 		pages--;
 	}
 
@@ -428,16 +429,15 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (!ret)
-		pr_debug("mapped %s[%lu] at 0x%08lx (%u/%lu pages) "
-			 "to vma 0x%08lx, page_prot 0x%llx\n",
-			 file_dentry(file)->d_name.name, pgoff,
-			 address, pages, vma_pages(vma), vma->vm_start,
+		pr_debug("mapped %pD[%lu] at 0x%08lx (%u/%lu pages) "
+			 "to vma 0x%08lx, page_prot 0x%llx\n", file,
+			 pgoff, address, pages, vma_pages(vma), vma->vm_start,
 			 (unsigned long long)pgprot_val(vma->vm_page_prot));
 	return ret;
 
 bailout:
-	pr_debug("%s[%lu]: direct mmap impossible: %s\n",
-		 file_dentry(file)->d_name.name, pgoff, bailout_reason);
+	pr_debug("%pD[%lu]: direct mmap impossible: %s\n",
+		 file, pgoff, bailout_reason);
 	/* Didn't manage any direct map, but normal paging is still possible */
 	return 0;
 }
@@ -467,8 +467,8 @@ static unsigned long cramfs_physmem_get_unmapped_area(struct file *file,
 	if (!offset || block_pages != pages)
 		return -ENOSYS;
 	addr = sbi->linear_phys_addr + offset;
-	pr_debug("get_unmapped for %s ofs %#lx siz %lu at 0x%08lx\n",
-		 file_dentry(file)->d_name.name, pgoff*PAGE_SIZE, len, addr);
+	pr_debug("get_unmapped for %pD ofs %#lx siz %lu at 0x%08lx\n",
+		 file, pgoff*PAGE_SIZE, len, addr);
 	return addr;
 }
 
@@ -505,18 +505,19 @@ static void cramfs_kill_sb(struct super_block *sb)
 	kfree(sbi);
 }
 
-static int cramfs_remount(struct super_block *sb, int *flags, char *data)
+static int cramfs_reconfigure(struct fs_context *fc)
 {
-	sync_filesystem(sb);
-	*flags |= SB_RDONLY;
+	sync_filesystem(fc->root->d_sb);
+	fc->sb_flags |= SB_RDONLY;
 	return 0;
 }
 
-static int cramfs_read_super(struct super_block *sb,
-			     struct cramfs_super *super, int silent)
+static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
+			     struct cramfs_super *super)
 {
 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 	unsigned long root_offset;
+	bool silent = fc->sb_flags & SB_SILENT;
 
 	/* We don't know the real size yet */
 	sbi->size = PAGE_SIZE;
@@ -531,7 +532,7 @@ static int cramfs_read_super(struct super_block *sb,
 		/* check for wrong endianness */
 		if (super->magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
-				pr_err("wrong endianness\n");
+				errorfc(fc, "wrong endianness");
 			return -EINVAL;
 		}
 
@@ -543,22 +544,22 @@ static int cramfs_read_super(struct super_block *sb,
 		mutex_unlock(&read_mutex);
 		if (super->magic != CRAMFS_MAGIC) {
 			if (super->magic == CRAMFS_MAGIC_WEND && !silent)
-				pr_err("wrong endianness\n");
+				errorfc(fc, "wrong endianness");
 			else if (!silent)
-				pr_err("wrong magic\n");
+				errorfc(fc, "wrong magic");
 			return -EINVAL;
 		}
 	}
 
 	/* get feature flags first */
 	if (super->flags & ~CRAMFS_SUPPORTED_FLAGS) {
-		pr_err("unsupported filesystem features\n");
+		errorfc(fc, "unsupported filesystem features");
 		return -EINVAL;
 	}
 
 	/* Check that the root inode is in a sane state */
 	if (!S_ISDIR(super->root.mode)) {
-		pr_err("root is not a directory\n");
+		errorfc(fc, "root is not a directory");
 		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
@@ -577,12 +578,12 @@ static int cramfs_read_super(struct super_block *sb,
 	sbi->magic = super->magic;
 	sbi->flags = super->flags;
 	if (root_offset == 0)
-		pr_info("empty filesystem");
+		infofc(fc, "empty filesystem");
 	else if (!(super->flags & CRAMFS_FLAG_SHIFTED_ROOT_OFFSET) &&
 		 ((root_offset != sizeof(struct cramfs_super)) &&
 		  (root_offset != 512 + sizeof(struct cramfs_super))))
 	{
-		pr_err("bad root offset %lu\n", root_offset);
+		errorfc(fc, "bad root offset %lu", root_offset);
 		return -EINVAL;
 	}
 
@@ -596,6 +597,8 @@ static int cramfs_finalize_super(struct super_block *sb,
 
 	/* Set it all up.. */
 	sb->s_flags |= SB_RDONLY;
+	sb->s_time_min = 0;
+	sb->s_time_max = 0;
 	sb->s_op = &cramfs_ops;
 	root = get_cramfs_inode(sb, cramfs_root, 0);
 	if (IS_ERR(root))
@@ -606,8 +609,7 @@ static int cramfs_finalize_super(struct super_block *sb,
 	return 0;
 }
 
-static int cramfs_blkdev_fill_super(struct super_block *sb, void *data,
-				    int silent)
+static int cramfs_blkdev_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct cramfs_sb_info *sbi;
 	struct cramfs_super super;
@@ -622,14 +624,13 @@ static int cramfs_blkdev_fill_super(struct super_block *sb, void *data,
 	for (i = 0; i < READ_BUFFERS; i++)
 		buffer_blocknr[i] = -1;
 
-	err = cramfs_read_super(sb, &super, silent);
+	err = cramfs_read_super(sb, fc, &super);
 	if (err)
 		return err;
 	return cramfs_finalize_super(sb, &super.root);
 }
 
-static int cramfs_mtd_fill_super(struct super_block *sb, void *data,
-				 int silent)
+static int cramfs_mtd_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct cramfs_sb_info *sbi;
 	struct cramfs_super super;
@@ -651,7 +652,7 @@ static int cramfs_mtd_fill_super(struct super_block *sb, void *data,
 
 	pr_info("checking physical address %pap for linear cramfs image\n",
 		&sbi->linear_phys_addr);
-	err = cramfs_read_super(sb, &super, silent);
+	err = cramfs_read_super(sb, fc, &super);
 	if (err)
 		return err;
 
@@ -687,8 +688,7 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = 0;
 	buf->f_files = CRAMFS_SB(sb)->files;
 	buf->f_ffree = 0;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = CRAMFS_MAXPATHLEN;
 	return 0;
 }
@@ -872,8 +872,8 @@ static int cramfs_readpage(struct file *file, struct page *page)
 			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
 				/* See comments on earlier code. */
 				u32 prev_start = block_start;
-			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
-			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
+				block_start = prev_start & ~CRAMFS_BLK_FLAGS;
+				block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
 				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
 					block_start += PAGE_SIZE;
 				} else {
@@ -946,32 +946,41 @@ static const struct inode_operations cramfs_dir_inode_operations = {
 };
 
 static const struct super_operations cramfs_ops = {
-	.remount_fs	= cramfs_remount,
 	.statfs		= cramfs_statfs,
 };
 
-static struct dentry *cramfs_mount(struct file_system_type *fs_type, int flags,
-				   const char *dev_name, void *data)
+static int cramfs_get_tree(struct fs_context *fc)
 {
-	struct dentry *ret = ERR_PTR(-ENOPROTOOPT);
+	int ret = -ENOPROTOOPT;
 
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD)) {
-		ret = mount_mtd(fs_type, flags, dev_name, data,
-				cramfs_mtd_fill_super);
-		if (!IS_ERR(ret))
-			return ret;
+		ret = get_tree_mtd(fc, cramfs_mtd_fill_super);
+		if (!ret)
+			return 0;
 	}
-	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV)) {
-		ret = mount_bdev(fs_type, flags, dev_name, data,
-				 cramfs_blkdev_fill_super);
-	}
+	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV))
+		ret = get_tree_bdev(fc, cramfs_blkdev_fill_super);
 	return ret;
+}
+
+static const struct fs_context_operations cramfs_context_ops = {
+	.get_tree	= cramfs_get_tree,
+	.reconfigure	= cramfs_reconfigure,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+static int cramfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &cramfs_context_ops;
+	return 0;
 }
 
 static struct file_system_type cramfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "cramfs",
-	.mount		= cramfs_mount,
+	.init_fs_context = cramfs_init_fs_context,
 	.kill_sb	= cramfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

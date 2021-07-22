@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2006-2008, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -53,7 +49,7 @@ static void dump_fir(int cpu)
 
 }
 
-void cbe_system_error_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_system_error_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -62,7 +58,7 @@ void cbe_system_error_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_maintenance_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_maintenance_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -74,7 +70,7 @@ void cbe_maintenance_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_thermal_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_thermal_exception)
 {
 	int cpu = smp_processor_id();
 

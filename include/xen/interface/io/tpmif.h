@@ -46,7 +46,7 @@ struct vtpm_shared_page {
 	uint8_t pad;
 
 	uint8_t nr_extra_pages;  /* extra pages for long packets; may be zero */
-	uint32_t extra_pages[0]; /* grant IDs; length in nr_extra_pages */
+	uint32_t extra_pages[]; /* grant IDs; length in nr_extra_pages */
 };
 
 #endif

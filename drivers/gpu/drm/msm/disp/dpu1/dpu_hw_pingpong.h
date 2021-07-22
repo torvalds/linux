@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_HW_PINGPONG_H
@@ -17,6 +9,8 @@
 #include "dpu_hw_mdss.h"
 #include "dpu_hw_util.h"
 #include "dpu_hw_blk.h"
+
+#define DITHER_MATRIX_SZ 16
 
 struct dpu_hw_pingpong;
 
@@ -43,12 +37,34 @@ struct dpu_hw_pp_vsync_info {
 };
 
 /**
+ * struct dpu_hw_dither_cfg - dither feature structure
+ * @flags: for customizing operations
+ * @temporal_en: temperal dither enable
+ * @c0_bitdepth: c0 component bit depth
+ * @c1_bitdepth: c1 component bit depth
+ * @c2_bitdepth: c2 component bit depth
+ * @c3_bitdepth: c2 component bit depth
+ * @matrix: dither strength matrix
+ */
+struct dpu_hw_dither_cfg {
+	u64 flags;
+	u32 temporal_en;
+	u32 c0_bitdepth;
+	u32 c1_bitdepth;
+	u32 c2_bitdepth;
+	u32 c3_bitdepth;
+	u32 matrix[DITHER_MATRIX_SZ];
+};
+
+/**
  *
  * struct dpu_hw_pingpong_ops : Interface to the pingpong Hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
  *  @setup_tearcheck : program tear check values
  *  @enable_tearcheck : enables tear check
  *  @get_vsync_info : retries timing info of the panel
+ *  @setup_autorefresh : configure and enable the autorefresh config
+ *  @get_autorefresh : retrieve autorefresh config from hardware
  *  @setup_dither : function to program the dither hw block
  *  @get_line_count: obtain current vertical line counter
  */
@@ -81,6 +97,18 @@ struct dpu_hw_pingpong_ops {
 			struct dpu_hw_pp_vsync_info  *info);
 
 	/**
+	 * configure and enable the autorefresh config
+	 */
+	void (*setup_autorefresh)(struct dpu_hw_pingpong *pp,
+				  u32 frame_count, bool enable);
+
+	/**
+	 * retrieve autorefresh config from hardware
+	 */
+	bool (*get_autorefresh)(struct dpu_hw_pingpong *pp,
+				u32 *frame_count);
+
+	/**
 	 * poll until write pointer transmission starts
 	 * @Return: 0 on success, -ETIMEDOUT on timeout
 	 */
@@ -90,7 +118,15 @@ struct dpu_hw_pingpong_ops {
 	 * Obtain current vertical line counter
 	 */
 	u32 (*get_line_count)(struct dpu_hw_pingpong *pp);
+
+	/**
+	 * Setup dither matix for pingpong block
+	 */
+	void (*setup_dither)(struct dpu_hw_pingpong *pp,
+			struct dpu_hw_dither_cfg *cfg);
 };
+
+struct dpu_hw_merge_3d;
 
 struct dpu_hw_pingpong {
 	struct dpu_hw_blk base;
@@ -99,13 +135,14 @@ struct dpu_hw_pingpong {
 	/* pingpong */
 	enum dpu_pingpong idx;
 	const struct dpu_pingpong_cfg *caps;
+	struct dpu_hw_merge_3d *merge_3d;
 
 	/* ops */
 	struct dpu_hw_pingpong_ops ops;
 };
 
 /**
- * dpu_hw_pingpong - convert base object dpu_hw_base to container
+ * to_dpu_hw_pingpong - convert base object dpu_hw_base to container
  * @hw: Pointer to base hardware block
  * return: Pointer to hardware block container
  */
@@ -124,7 +161,7 @@ static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
  */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_pingpong_destroy - destroys pingpong driver context

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2005-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 /* Common definitions for all Efx net driver code */
@@ -291,7 +288,7 @@ struct ef4_rx_buffer {
 struct ef4_rx_page_state {
 	dma_addr_t dma_addr;
 
-	unsigned int __pad[0] ____cacheline_aligned;
+	unsigned int __pad[] ____cacheline_aligned;
 };
 
 /**
@@ -640,7 +637,7 @@ union ef4_multicast_hash {
  * struct ef4_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
- * @node: List node for maintaning primary/secondary function lists
+ * @node: List node for maintaining primary/secondary function lists
  * @primary: &struct ef4_nic instance for the primary function of this
  *	controller.  May be the same structure, and may be %NULL if no
  *	primary function is bound.  Serialised by rtnl_lock.

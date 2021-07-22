@@ -1,23 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Intel SOC Telemetry Driver Header File
  * Copyright (C) 2015, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 #ifndef INTEL_TELEMETRY_H
 #define INTEL_TELEMETRY_H
 
 #define TELEM_MAX_EVENTS_SRAM		28
 #define TELEM_MAX_OS_ALLOCATED_EVENTS	20
+
+#include <asm/intel_scu_ipc.h>
 
 enum telemetry_unit {
 	TELEM_PSS = 0,
@@ -49,13 +42,10 @@ struct telemetry_evtmap {
 struct telemetry_unit_config {
 	struct telemetry_evtmap *telem_evts;
 	void __iomem *regmap;
-	u32 ssram_base_addr;
 	u8 ssram_evts_used;
 	u8 curr_period;
 	u8 max_period;
 	u8 min_period;
-	u32 ssram_size;
-
 };
 
 struct telemetry_plt_config {
@@ -63,6 +53,8 @@ struct telemetry_plt_config {
 	struct telemetry_unit_config ioss_config;
 	struct mutex telem_trace_lock;
 	struct mutex telem_lock;
+	struct intel_pmc_dev *pmc;
+	struct intel_scu_ipc_dev *scu;
 	bool telem_in_use;
 };
 
@@ -104,7 +96,7 @@ int telemetry_set_pltdata(const struct telemetry_core_ops *ops,
 
 int telemetry_clear_pltdata(void);
 
-int telemetry_pltconfig_valid(void);
+struct telemetry_plt_config *telemetry_get_pltdata(void);
 
 int telemetry_get_evtname(enum telemetry_unit telem_unit,
 			  const char **name, int len);

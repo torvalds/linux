@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm70.c
  *
@@ -8,20 +9,6 @@
  * interface. The complete datasheet is available at National's website
  * here:
  * http://www.national.com/pf/LM/LM70.html
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,10 +22,10 @@
 #include <linux/hwmon.h>
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
-
 
 #define DRVNAME		"lm70"
 
@@ -163,19 +150,18 @@ MODULE_DEVICE_TABLE(of, lm70_of_ids);
 
 static int lm70_probe(struct spi_device *spi)
 {
-	const struct of_device_id *match;
 	struct device *hwmon_dev;
 	struct lm70 *p_lm70;
 	int chip;
 
-	match = of_match_device(lm70_of_ids, &spi->dev);
-	if (match)
-		chip = (int)(uintptr_t)match->data;
+	if (dev_fwnode(&spi->dev))
+		chip = (int)(uintptr_t)device_get_match_data(&spi->dev);
 	else
 		chip = spi_get_device_id(spi)->driver_data;
 
+
 	/* signaling is SPI_MODE_0 */
-	if (spi->mode & (SPI_CPOL | SPI_CPHA))
+	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)
 		return -EINVAL;
 
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */

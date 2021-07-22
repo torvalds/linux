@@ -35,6 +35,7 @@
 #include "t4_regs.h"
 #include "t4_values.h"
 #include "t4_msg.h"
+#include "t4_tcb.h"
 #include "t4fw_ri_api.h"
 
 #define T4_MAX_NUM_PD 65536
@@ -486,11 +487,6 @@ static inline int t4_rq_empty(struct t4_wq *wq)
 	return wq->rq.in_use == 0;
 }
 
-static inline int t4_rq_full(struct t4_wq *wq)
-{
-	return wq->rq.in_use == (wq->rq.size - 1);
-}
-
 static inline u32 t4_rq_avail(struct t4_wq *wq)
 {
 	return wq->rq.size - 1 - wq->rq.in_use;
@@ -531,11 +527,6 @@ static inline int t4_sq_onchip(struct t4_sq *sq)
 static inline int t4_sq_empty(struct t4_wq *wq)
 {
 	return wq->sq.in_use == 0;
-}
-
-static inline int t4_sq_full(struct t4_wq *wq)
-{
-	return wq->sq.in_use == (wq->sq.size - 1);
 }
 
 static inline u32 t4_sq_avail(struct t4_wq *wq)
@@ -678,11 +669,6 @@ static inline void t4_enable_wq_db(struct t4_wq *wq)
 	wq->rq.queue[wq->rq.size].status.db_off = 0;
 }
 
-static inline int t4_wq_db_enabled(struct t4_wq *wq)
-{
-	return !wq->rq.queue[wq->rq.size].status.db_off;
-}
-
 enum t4_cq_flags {
 	CQ_ARMED	= 1,
 };
@@ -816,19 +802,6 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 	return ret;
 }
 
-static inline struct t4_cqe *t4_next_sw_cqe(struct t4_cq *cq)
-{
-	if (cq->sw_in_use == cq->size) {
-		pr_warn("%s cxgb4 sw cq overflow cqid %u\n",
-			__func__, cq->cqid);
-		cq->error = 1;
-		return NULL;
-	}
-	if (cq->sw_in_use)
-		return &cq->sw_queue[cq->sw_cidx];
-	return NULL;
-}
-
 static inline int t4_next_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 {
 	int ret = 0;
@@ -840,11 +813,6 @@ static inline int t4_next_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 	else
 		ret = t4_next_hw_cqe(cq, cqe);
 	return ret;
-}
-
-static inline int t4_cq_in_error(struct t4_cq *cq)
-{
-	return *cq->qp_errp;
 }
 
 static inline void t4_set_cq_in_error(struct t4_cq *cq)

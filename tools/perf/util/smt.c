@@ -15,6 +15,9 @@ int smt_on(void)
 	if (cached)
 		return cached_result;
 
+	if (sysfs__read_int("devices/system/cpu/smt/active", &cached_result) > 0)
+		goto done;
+
 	ncpu = sysconf(_SC_NPROCESSORS_CONF);
 	for (cpu = 0; cpu < ncpu; cpu++) {
 		unsigned long long siblings;
@@ -23,10 +26,14 @@ int smt_on(void)
 		char fn[256];
 
 		snprintf(fn, sizeof fn,
-			"devices/system/cpu/cpu%d/topology/thread_siblings",
-			cpu);
-		if (sysfs__read_str(fn, &str, &strlen) < 0)
-			continue;
+			"devices/system/cpu/cpu%d/topology/core_cpus", cpu);
+		if (sysfs__read_str(fn, &str, &strlen) < 0) {
+			snprintf(fn, sizeof fn,
+				"devices/system/cpu/cpu%d/topology/thread_siblings",
+				cpu);
+			if (sysfs__read_str(fn, &str, &strlen) < 0)
+				continue;
+		}
 		/* Entry is hex, but does not have 0x, so need custom parser */
 		siblings = strtoull(str, NULL, 16);
 		free(str);
@@ -38,6 +45,7 @@ int smt_on(void)
 	}
 	if (!cached) {
 		cached_result = 0;
+done:
 		cached = true;
 	}
 	return cached_result;

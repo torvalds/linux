@@ -73,6 +73,7 @@
 #define PCIE_MSI_VECTOR		0x0c0
 
 #define PCIE_CONF_VEND_ID	0x100
+#define PCIE_CONF_DEVICE_ID	0x102
 #define PCIE_CONF_CLASS_ID	0x106
 
 #define PCIE_INT_MASK		0x420
@@ -90,6 +91,12 @@
 #define AHB2PCIE_SIZE(x)	((x) & GENMASK(4, 0))
 #define PCIE_AXI_WINDOW0	0x448
 #define WIN_ENABLE		BIT(7)
+/*
+ * Define PCIe to AHB window size as 2^33 to support max 8GB address space
+ * translate, support least 4GB DRAM size access from EP DMA(physical DRAM
+ * start from 0x40000000).
+ */
+#define PCIE2AHB_SIZE	0x21
 
 /* PCIe V2 configuration transaction header */
 #define PCIE_CFG_HEADER0	0x460
@@ -135,12 +142,18 @@ struct mtk_pcie_port;
 /**
  * struct mtk_pcie_soc - differentiate between host generations
  * @need_fix_class_id: whether this host's class ID needed to be fixed or not
+ * @need_fix_device_id: whether this host's device ID needed to be fixed or not
+ * @no_msi: Bridge has no MSI support, and relies on an external block
+ * @device_id: device ID which this host need to be fixed
  * @ops: pointer to configuration access functions
  * @startup: pointer to controller setting functions
  * @setup_irq: pointer to initialize IRQ functions
  */
 struct mtk_pcie_soc {
 	bool need_fix_class_id;
+	bool need_fix_device_id;
+	bool no_msi;
+	unsigned int device_id;
 	struct pci_ops *ops;
 	int (*startup)(struct mtk_pcie_port *port);
 	int (*setup_irq)(struct mtk_pcie_port *port, struct device_node *node);
@@ -161,7 +174,6 @@ struct mtk_pcie_soc {
  * @obff_ck: pointer to OBFF functional block operating clock
  * @pipe_ck: pointer to LTSSM and PHY/MAC layer operating clock
  * @phy: pointer to PHY control block
- * @lane: lane count
  * @slot: port slot
  * @irq: GIC irq
  * @irq_domain: legacy INTx IRQ domain
@@ -182,7 +194,6 @@ struct mtk_pcie_port {
 	struct clk *obff_ck;
 	struct clk *pipe_ck;
 	struct phy *phy;
-	u32 lane;
 	u32 slot;
 	int irq;
 	struct irq_domain *irq_domain;
@@ -197,11 +208,7 @@ struct mtk_pcie_port {
  * @dev: pointer to PCIe device
  * @base: IO mapped register base
  * @free_ck: free-run reference clock
- * @io: IO resource
- * @pio: PIO resource
  * @mem: non-prefetchable memory resource
- * @busn: bus range
- * @offset: IO / Memory offset
  * @ports: pointer to PCIe port information
  * @soc: pointer to SoC-dependent operations
  */
@@ -210,14 +217,6 @@ struct mtk_pcie {
 	void __iomem *base;
 	struct clk *free_ck;
 
-	struct resource io;
-	struct resource pio;
-	struct resource mem;
-	struct resource busn;
-	struct {
-		resource_size_t mem;
-		resource_size_t io;
-	} offset;
 	struct list_head ports;
 	const struct mtk_pcie_soc *soc;
 };
@@ -583,6 +582,7 @@ static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
 
 	port->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
 						 &intx_domain_ops, port);
+	of_node_put(pcie_intc_node);
 	if (!port->irq_domain) {
 		dev_err(dev, "failed to get INTx IRQ domain\n");
 		return -ENODEV;
@@ -634,8 +634,6 @@ static void mtk_pcie_intr_handler(struct irq_desc *desc)
 	}
 
 	chained_irq_exit(irqchip, desc);
-
-	return;
 }
 
 static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
@@ -653,6 +651,9 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
 	}
 
 	port->irq = platform_get_irq(pdev, port->slot);
+	if (port->irq < 0)
+		return port->irq;
+
 	irq_set_chained_handler_and_data(port->irq,
 					 mtk_pcie_intr_handler, port);
 
@@ -662,11 +663,18 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
 static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 {
 	struct mtk_pcie *pcie = port->pcie;
-	struct resource *mem = &pcie->mem;
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
+	struct resource *mem = NULL;
+	struct resource_entry *entry;
 	const struct mtk_pcie_soc *soc = port->pcie->soc;
 	u32 val;
-	size_t size;
 	int err;
+
+	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
+	if (entry)
+		mem = entry->res;
+	if (!mem)
+		return -EINVAL;
 
 	/* MT7622 platforms need to enable LTSSM and ASPM from PCIe subsys */
 	if (pcie->base) {
@@ -701,6 +709,9 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 		writew(val, port->base + PCIE_CONF_CLASS_ID);
 	}
 
+	if (soc->need_fix_device_id)
+		writew(soc->device_id, port->base + PCIE_CONF_DEVICE_ID);
+
 	/* 100ms timeout value should be enough for Gen1/2 training */
 	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS_V2, val,
 				 !!(val & PCIE_PORT_LINKUP_V2), 20,
@@ -717,15 +728,15 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 		mtk_pcie_enable_msi(port);
 
 	/* Set AHB to PCIe translation windows */
-	size = mem->end - mem->start;
-	val = lower_32_bits(mem->start) | AHB2PCIE_SIZE(fls(size));
+	val = lower_32_bits(mem->start) |
+	      AHB2PCIE_SIZE(fls(resource_size(mem)));
 	writel(val, port->base + PCIE_AHB_TRANS_BASE0_L);
 
 	val = upper_32_bits(mem->start);
 	writel(val, port->base + PCIE_AHB_TRANS_BASE0_H);
 
 	/* Set PCIe to AXI translation memory space.*/
-	val = fls(0xffffffff) | WIN_ENABLE;
+	val = PCIE2AHB_SIZE | WIN_ENABLE;
 	writel(val, port->base + PCIE_AXI_WINDOW0);
 
 	return 0;
@@ -751,7 +762,7 @@ static struct pci_ops mtk_pcie_ops = {
 static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 {
 	struct mtk_pcie *pcie = port->pcie;
-	u32 func = PCI_FUNC(port->slot << 3);
+	u32 func = PCI_FUNC(port->slot);
 	u32 slot = PCI_SLOT(port->slot << 3);
 	u32 val;
 	int err;
@@ -894,7 +905,6 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 			       int slot)
 {
 	struct mtk_pcie_port *port;
-	struct resource *regs;
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	char name[10];
@@ -904,15 +914,8 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 	if (!port)
 		return -ENOMEM;
 
-	err = of_property_read_u32(node, "num-lanes", &port->lane);
-	if (err) {
-		dev_err(dev, "missing num-lanes property\n");
-		return err;
-	}
-
 	snprintf(name, sizeof(name), "port%d", slot);
-	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	port->base = devm_ioremap_resource(dev, regs);
+	port->base = devm_platform_ioremap_resource_byname(pdev, name);
 	if (IS_ERR(port->base)) {
 		dev_err(dev, "failed to map port%d base\n", slot);
 		return PTR_ERR(port->base);
@@ -927,49 +930,29 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 
 	/* sys_ck might be divided into the following parts in some chips */
 	snprintf(name, sizeof(name), "ahb_ck%d", slot);
-	port->ahb_ck = devm_clk_get(dev, name);
-	if (IS_ERR(port->ahb_ck)) {
-		if (PTR_ERR(port->ahb_ck) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		port->ahb_ck = NULL;
-	}
+	port->ahb_ck = devm_clk_get_optional(dev, name);
+	if (IS_ERR(port->ahb_ck))
+		return PTR_ERR(port->ahb_ck);
 
 	snprintf(name, sizeof(name), "axi_ck%d", slot);
-	port->axi_ck = devm_clk_get(dev, name);
-	if (IS_ERR(port->axi_ck)) {
-		if (PTR_ERR(port->axi_ck) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		port->axi_ck = NULL;
-	}
+	port->axi_ck = devm_clk_get_optional(dev, name);
+	if (IS_ERR(port->axi_ck))
+		return PTR_ERR(port->axi_ck);
 
 	snprintf(name, sizeof(name), "aux_ck%d", slot);
-	port->aux_ck = devm_clk_get(dev, name);
-	if (IS_ERR(port->aux_ck)) {
-		if (PTR_ERR(port->aux_ck) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		port->aux_ck = NULL;
-	}
+	port->aux_ck = devm_clk_get_optional(dev, name);
+	if (IS_ERR(port->aux_ck))
+		return PTR_ERR(port->aux_ck);
 
 	snprintf(name, sizeof(name), "obff_ck%d", slot);
-	port->obff_ck = devm_clk_get(dev, name);
-	if (IS_ERR(port->obff_ck)) {
-		if (PTR_ERR(port->obff_ck) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		port->obff_ck = NULL;
-	}
+	port->obff_ck = devm_clk_get_optional(dev, name);
+	if (IS_ERR(port->obff_ck))
+		return PTR_ERR(port->obff_ck);
 
 	snprintf(name, sizeof(name), "pipe_ck%d", slot);
-	port->pipe_ck = devm_clk_get(dev, name);
-	if (IS_ERR(port->pipe_ck)) {
-		if (PTR_ERR(port->pipe_ck) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		port->pipe_ck = NULL;
-	}
+	port->pipe_ck = devm_clk_get_optional(dev, name);
+	if (IS_ERR(port->pipe_ck))
+		return PTR_ERR(port->pipe_ck);
 
 	snprintf(name, sizeof(name), "pcie-rst%d", slot);
 	port->reset = devm_reset_control_get_optional_exclusive(dev, name);
@@ -1008,10 +991,8 @@ static int mtk_pcie_subsys_powerup(struct mtk_pcie *pcie)
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "subsys");
 	if (regs) {
 		pcie->base = devm_ioremap_resource(dev, regs);
-		if (IS_ERR(pcie->base)) {
-			dev_err(dev, "failed to map shared register\n");
+		if (IS_ERR(pcie->base))
 			return PTR_ERR(pcie->base);
-		}
 	}
 
 	pcie->free_ck = devm_clk_get(dev, "free_ck");
@@ -1045,54 +1026,8 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node, *child;
-	struct of_pci_range_parser parser;
-	struct of_pci_range range;
-	struct resource res;
 	struct mtk_pcie_port *port, *tmp;
 	int err;
-
-	if (of_pci_range_parser_init(&parser, node)) {
-		dev_err(dev, "missing \"ranges\" property\n");
-		return -EINVAL;
-	}
-
-	for_each_of_pci_range(&parser, &range) {
-		err = of_pci_range_to_resource(&range, node, &res);
-		if (err < 0)
-			return err;
-
-		switch (res.flags & IORESOURCE_TYPE_BITS) {
-		case IORESOURCE_IO:
-			pcie->offset.io = res.start - range.pci_addr;
-
-			memcpy(&pcie->pio, &res, sizeof(res));
-			pcie->pio.name = node->full_name;
-
-			pcie->io.start = range.cpu_addr;
-			pcie->io.end = range.cpu_addr + range.size - 1;
-			pcie->io.flags = IORESOURCE_MEM;
-			pcie->io.name = "I/O";
-
-			memcpy(&res, &pcie->io, sizeof(res));
-			break;
-
-		case IORESOURCE_MEM:
-			pcie->offset.mem = res.start - range.pci_addr;
-
-			memcpy(&pcie->mem, &res, sizeof(res));
-			pcie->mem.name = "non-prefetchable";
-			break;
-		}
-	}
-
-	err = of_pci_parse_bus_range(node, &pcie->busn);
-	if (err < 0) {
-		dev_err(dev, "failed to parse bus ranges property: %d\n", err);
-		pcie->busn.name = node->name;
-		pcie->busn.start = 0;
-		pcie->busn.end = 0xff;
-		pcie->busn.flags = IORESOURCE_BUS;
-	}
 
 	for_each_available_child_of_node(node, child) {
 		int slot;
@@ -1100,14 +1035,14 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 		err = of_pci_get_devfn(child);
 		if (err < 0) {
 			dev_err(dev, "failed to parse devfn: %d\n", err);
-			return err;
+			goto error_put_node;
 		}
 
 		slot = PCI_SLOT(err);
 
 		err = mtk_pcie_parse_port(pcie, child, slot);
 		if (err)
-			return err;
+			goto error_put_node;
 	}
 
 	err = mtk_pcie_subsys_powerup(pcie);
@@ -1123,28 +1058,9 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 		mtk_pcie_subsys_powerdown(pcie);
 
 	return 0;
-}
-
-static int mtk_pcie_request_resources(struct mtk_pcie *pcie)
-{
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct list_head *windows = &host->windows;
-	struct device *dev = pcie->dev;
-	int err;
-
-	pci_add_resource_offset(windows, &pcie->pio, pcie->offset.io);
-	pci_add_resource_offset(windows, &pcie->mem, pcie->offset.mem);
-	pci_add_resource(windows, &pcie->busn);
-
-	err = devm_request_pci_bus_resources(dev, windows);
-	if (err < 0)
-		return err;
-
-	err = devm_pci_remap_iospace(dev, &pcie->pio, pcie->io.start);
-	if (err)
-		return err;
-
-	return 0;
+error_put_node:
+	of_node_put(child);
+	return err;
 }
 
 static int mtk_pcie_probe(struct platform_device *pdev)
@@ -1169,16 +1085,9 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = mtk_pcie_request_resources(pcie);
-	if (err)
-		goto put_resources;
-
-	host->busnr = pcie->busn.start;
-	host->dev.parent = pcie->dev;
 	host->ops = pcie->soc->ops;
-	host->map_irq = of_irq_parse_and_map_pci;
-	host->swizzle_irq = pci_common_swizzle;
 	host->sysdata = pcie;
+	host->msi_domain = pcie->soc->no_msi;
 
 	err = pci_host_probe(host);
 	if (err)
@@ -1268,6 +1177,7 @@ static const struct dev_pm_ops mtk_pcie_pm_ops = {
 };
 
 static const struct mtk_pcie_soc mtk_pcie_soc_v1 = {
+	.no_msi = true,
 	.ops = &mtk_pcie_ops,
 	.startup = mtk_pcie_startup_port,
 };
@@ -1285,13 +1195,24 @@ static const struct mtk_pcie_soc mtk_pcie_soc_mt7622 = {
 	.setup_irq = mtk_pcie_setup_irq,
 };
 
+static const struct mtk_pcie_soc mtk_pcie_soc_mt7629 = {
+	.need_fix_class_id = true,
+	.need_fix_device_id = true,
+	.device_id = PCI_DEVICE_ID_MEDIATEK_7629,
+	.ops = &mtk_pcie_ops_v2,
+	.startup = mtk_pcie_startup_port_v2,
+	.setup_irq = mtk_pcie_setup_irq,
+};
+
 static const struct of_device_id mtk_pcie_ids[] = {
 	{ .compatible = "mediatek,mt2701-pcie", .data = &mtk_pcie_soc_v1 },
 	{ .compatible = "mediatek,mt7623-pcie", .data = &mtk_pcie_soc_v1 },
 	{ .compatible = "mediatek,mt2712-pcie", .data = &mtk_pcie_soc_mt2712 },
 	{ .compatible = "mediatek,mt7622-pcie", .data = &mtk_pcie_soc_mt7622 },
+	{ .compatible = "mediatek,mt7629-pcie", .data = &mtk_pcie_soc_mt7629 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mtk_pcie_ids);
 
 static struct platform_driver mtk_pcie_driver = {
 	.probe = mtk_pcie_probe,

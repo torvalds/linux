@@ -233,7 +233,7 @@ static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
 	int ret;
 
-	check_disk_change(bdev);
+	bdev_check_media_change(bdev);
 
 	mutex_lock(&pcd_mutex);
 	ret = cdrom_open(&cd->info, bdev, mode);
@@ -275,6 +275,9 @@ static const struct block_device_operations pcd_bdops = {
 	.open		= pcd_block_open,
 	.release	= pcd_block_release,
 	.ioctl		= pcd_block_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= blkdev_compat_ptr_ioctl,
+#endif
 	.check_events	= pcd_block_check_events,
 };
 
@@ -306,20 +309,19 @@ static void pcd_init_units(void)
 
 	pcd_drive_count = 0;
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
-		struct gendisk *disk = alloc_disk(1);
+		struct gendisk *disk;
 
-		if (!disk)
+		if (blk_mq_alloc_sq_tag_set(&cd->tag_set, &pcd_mq_ops, 1,
+				BLK_MQ_F_SHOULD_MERGE))
 			continue;
 
-		disk->queue = blk_mq_init_sq_queue(&cd->tag_set, &pcd_mq_ops,
-						   1, BLK_MQ_F_SHOULD_MERGE);
-		if (IS_ERR(disk->queue)) {
-			disk->queue = NULL;
+		disk = blk_mq_alloc_disk(&cd->tag_set, cd);
+		if (IS_ERR(disk)) {
+			blk_mq_free_tag_set(&cd->tag_set);
 			continue;
 		}
 
 		INIT_LIST_HEAD(&cd->rq_list);
-		disk->queue->queuedata = cd;
 		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		cd->disk = disk;
 		cd->pi = &cd->pia;
@@ -339,9 +341,11 @@ static void pcd_init_units(void)
 		cd->info.mask = 0;
 		disk->major = major;
 		disk->first_minor = unit;
+		disk->minors = 1;
 		strcpy(disk->disk_name, cd->name);	/* umm... */
 		disk->fops = &pcd_bdops;
 		disk->flags = GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
+		disk->events = DISK_EVENT_MEDIA_CHANGE;
 	}
 }
 
@@ -721,9 +725,9 @@ static int pcd_detect(void)
 	k = 0;
 	if (pcd_drive_count == 0) { /* nothing spec'd - so autoprobe for 1 */
 		cd = pcd;
-		if (pi_init(cd->pi, 1, -1, -1, -1, -1, -1, pcd_buffer,
-			    PI_PCD, verbose, cd->name)) {
-			if (!pcd_probe(cd, -1, id) && cd->disk) {
+		if (cd->disk && pi_init(cd->pi, 1, -1, -1, -1, -1, -1,
+			    pcd_buffer, PI_PCD, verbose, cd->name)) {
+			if (!pcd_probe(cd, -1, id)) {
 				cd->present = 1;
 				k++;
 			} else
@@ -734,11 +738,13 @@ static int pcd_detect(void)
 			int *conf = *drives[unit];
 			if (!conf[D_PRT])
 				continue;
+			if (!cd->disk)
+				continue;
 			if (!pi_init(cd->pi, 0, conf[D_PRT], conf[D_MOD],
 				     conf[D_UNI], conf[D_PRO], conf[D_DLY],
 				     pcd_buffer, PI_PCD, verbose, cd->name)) 
 				continue;
-			if (!pcd_probe(cd, conf[D_SLV], id) && cd->disk) {
+			if (!pcd_probe(cd, conf[D_SLV], id)) {
 				cd->present = 1;
 				k++;
 			} else
@@ -749,8 +755,12 @@ static int pcd_detect(void)
 		return 0;
 
 	printk("%s: No CD-ROM drive found\n", name);
-	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++)
-		put_disk(cd->disk);
+	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+		if (!cd->disk)
+			continue;
+		blk_cleanup_disk(cd->disk);
+		blk_mq_free_tag_set(&cd->tag_set);
+	}
 	pi_unregister_driver(par_drv);
 	return -1;
 }
@@ -1006,14 +1016,20 @@ static int __init pcd_init(void)
 	pcd_probe_capabilities();
 
 	if (register_blkdev(major, name)) {
-		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++)
+		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+			if (!cd->disk)
+				continue;
+
+			blk_cleanup_queue(cd->disk->queue);
+			blk_mq_free_tag_set(&cd->tag_set);
 			put_disk(cd->disk);
+		}
 		return -EBUSY;
 	}
 
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
 		if (cd->present) {
-			register_cdrom(&cd->info);
+			register_cdrom(cd->disk, &cd->info);
 			cd->disk->private_data = cd;
 			add_disk(cd->disk);
 		}
@@ -1028,6 +1044,9 @@ static void __exit pcd_exit(void)
 	int unit;
 
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+		if (!cd->disk)
+			continue;
+
 		if (cd->present) {
 			del_gendisk(cd->disk);
 			pi_release(cd->pi);

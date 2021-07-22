@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARC_CMPXCHG_H
@@ -23,7 +20,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 	/*
 	 * Explicit full memory barrier needed before/after as
-	 * LLOCK/SCOND thmeselves don't provide any such semantics
+	 * LLOCK/SCOND themselves don't provide any such semantics
 	 */
 	smp_mb();
 
@@ -44,7 +41,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
-#elif !defined(CONFIG_ARC_PLAT_EZNPS)
+#else /* !CONFIG_ARC_HAS_LLSC */
 
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
@@ -64,36 +61,13 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
-#else /* CONFIG_ARC_PLAT_EZNPS */
+#endif
 
-static inline unsigned long
-__cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
-{
-	/*
-	 * Explicit full memory barrier needed before/after
-	 */
-	smp_mb();
-
-	write_aux_reg(CTOP_AUX_GPA1, expected);
-
-	__asm__ __volatile__(
-	"	mov r2, %0\n"
-	"	mov r3, %1\n"
-	"	.word %2\n"
-	"	mov %0, r2"
-	: "+r"(new)
-	: "r"(ptr), "i"(CTOP_INST_EXC_DI_R2_R2_R3)
-	: "r2", "r3", "memory");
-
-	smp_mb();
-
-	return new;
-}
-
-#endif /* CONFIG_ARC_HAS_LLSC */
-
-#define cmpxchg(ptr, o, n) ((typeof(*(ptr)))__cmpxchg((ptr), \
-				(unsigned long)(o), (unsigned long)(n)))
+#define arch_cmpxchg(ptr, o, n) ({			\
+	(typeof(*(ptr)))__cmpxchg((ptr),		\
+				  (unsigned long)(o),	\
+				  (unsigned long)(n));	\
+})
 
 /*
  * atomic_cmpxchg is same as cmpxchg
@@ -101,10 +75,8 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
  *  !LLSC: cmpxchg() has to use an external lock atomic_ops_lock to guarantee
  *         semantics, and this lock also happens to be used by atomic_*()
  */
-#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
 
-
-#ifndef CONFIG_ARC_PLAT_EZNPS
 
 /*
  * xchg (reg with memory) based on "Native atomic" EX insn
@@ -144,14 +116,14 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *
  * Technically the lock is also needed for UP (boils down to irq save/restore)
  * but we can cheat a bit since cmpxchg() atomic_ops_lock() would cause irqs to
- * be disabled thus can't possibly be interrpted/preempted/clobbered by xchg()
+ * be disabled thus can't possibly be interrupted/preempted/clobbered by xchg()
  * Other way around, xchg is one instruction anyways, so can't be interrupted
  * as such
  */
 
 #if !defined(CONFIG_ARC_HAS_LLSC) && defined(CONFIG_SMP)
 
-#define xchg(ptr, with)			\
+#define arch_xchg(ptr, with)		\
 ({					\
 	unsigned long flags;		\
 	typeof(*(ptr)) old_val;		\
@@ -164,49 +136,14 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 #else
 
-#define xchg(ptr, with)  _xchg(ptr, with)
+#define arch_xchg(ptr, with)  _xchg(ptr, with)
 
 #endif
-
-#else /* CONFIG_ARC_PLAT_EZNPS */
-
-static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
-				   int size)
-{
-	extern unsigned long __xchg_bad_pointer(void);
-
-	switch (size) {
-	case 4:
-		/*
-		 * Explicit full memory barrier needed before/after
-		 */
-		smp_mb();
-
-		__asm__ __volatile__(
-		"	mov r2, %0\n"
-		"	mov r3, %1\n"
-		"	.word %2\n"
-		"	mov %0, r2\n"
-		: "+r"(val)
-		: "r"(ptr), "i"(CTOP_INST_XEX_DI_R2_R2_R3)
-		: "r2", "r3", "memory");
-
-		smp_mb();
-
-		return val;
-	}
-	return __xchg_bad_pointer();
-}
-
-#define xchg(ptr, with) ((typeof(*(ptr)))__xchg((unsigned long)(with), (ptr), \
-						 sizeof(*(ptr))))
-
-#endif /* CONFIG_ARC_PLAT_EZNPS */
 
 /*
  * "atomic" variant of xchg()
  * REQ: It needs to follow the same serialization rules as other atomic_xxx()
- * Since xchg() doesn't always do that, it would seem that following defintion
+ * Since xchg() doesn't always do that, it would seem that following definition
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
  *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC
@@ -216,6 +153,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *         can't be clobbered by others. Thus no serialization required when
  *         atomic_xchg is involved.
  */
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #endif

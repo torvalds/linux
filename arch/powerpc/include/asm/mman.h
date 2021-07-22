@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_MMAN_H
 #define _ASM_POWERPC_MMAN_H
@@ -16,10 +13,6 @@
 #include <linux/pkeys.h>
 #include <asm/cpu_has_feature.h>
 
-/*
- * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
- * here.  How important is the optimization?
- */
 static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 		unsigned long pkey)
 {
@@ -47,8 +40,13 @@ static inline bool arch_validate_prot(unsigned long prot, unsigned long addr)
 {
 	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | PROT_SAO))
 		return false;
-	if ((prot & PROT_SAO) && !cpu_has_feature(CPU_FTR_SAO))
-		return false;
+	if (prot & PROT_SAO) {
+		if (!cpu_has_feature(CPU_FTR_SAO))
+			return false;
+		if (firmware_has_feature(FW_FEATURE_LPAR) &&
+		    !IS_ENABLED(CONFIG_PPC_PROT_SAO_LPAR))
+			return false;
+	}
 	return true;
 }
 #define arch_validate_prot arch_validate_prot

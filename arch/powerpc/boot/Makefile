@@ -7,7 +7,7 @@
 # Based on coffboot by Paul Mackerras
 # Simplified for ppc64 by Todd Inglett
 #
-# NOTE:	this code is built for 32 bit in ELF32 format even though
+# NOTE:	this code may be built for 32 bit in ELF32 format even though
 #	it packages a 64 bit kernel.  We do this to simplify the
 #	bootloader and increase compatibility with OpenFirmware.
 #
@@ -20,11 +20,12 @@
 
 all: $(obj)/zImage
 
-compress-$(CONFIG_KERNEL_GZIP) := CONFIG_KERNEL_GZIP
-compress-$(CONFIG_KERNEL_XZ)   := CONFIG_KERNEL_XZ
-
 ifdef CROSS32_COMPILE
+ifdef CONFIG_CC_IS_CLANG
+    BOOTCC := $(CROSS32_COMPILE)clang
+else
     BOOTCC := $(CROSS32_COMPILE)gcc
+endif
     BOOTAR := $(CROSS32_COMPILE)ar
 else
     BOOTCC := $(CC)
@@ -34,7 +35,8 @@ endif
 BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		 -fno-strict-aliasing -O2 -msoft-float -mno-altivec -mno-vsx \
 		 -pipe -fomit-frame-pointer -fno-builtin -fPIC -nostdinc \
-		 -D$(compress-y)
+		 -include $(srctree)/include/linux/compiler_attributes.h \
+		 $(LINUXINCLUDE)
 
 ifdef CONFIG_PPC64_BOOT_WRAPPER
 BOOTCFLAGS	+= -m64
@@ -51,9 +53,14 @@ BOOTCFLAGS	+= -mlittle-endian
 BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
 endif
 
-BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -traditional -nostdinc
+BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -nostdinc
 
-BOOTARFLAGS	:= -cr$(KBUILD_ARFLAGS)
+BOOTARFLAGS	:= -crD
+
+ifdef CONFIG_CC_IS_CLANG
+BOOTCFLAGS += $(CLANG_FLAGS)
+BOOTAFLAGS += $(CLANG_FLAGS)
+endif
 
 ifdef CONFIG_DEBUG_INFO
 BOOTCFLAGS	+= -g
@@ -68,16 +75,14 @@ BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
 DTC_FLAGS	?= -p 1024
 
 $(obj)/4xx.o: BOOTCFLAGS += -mcpu=405
-$(obj)/ebony.o: BOOTCFLAGS += -mcpu=405
+$(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
 $(obj)/cuboot-hotfoot.o: BOOTCFLAGS += -mcpu=405
-$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=405
-$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=405
+$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=440
+$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=440
 $(obj)/cuboot-acadia.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-iss4xx.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-currituck.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-akebono.o: BOOTCFLAGS += -mcpu=405
-$(obj)/virtex405-head.o: BOOTAFLAGS += -mcpu=405
 
 # The pre-boot decompressors pull in a lot of kernel headers and other source
 # files. This creates a bit of a dependency headache since we need to copy
@@ -117,7 +122,7 @@ src-wlib-y := string.S crt0.S stdio.c decompress.c main.c \
 		elf_util.c $(zlib-y) devtree.c stdlib.c \
 		oflib.c ofconsole.c cuboot.c
 
-src-wlib-$(CONFIG_PPC_MPC52XX) += mpc52xx-psc.c
+src-wlib-$(CONFIG_PPC_MPC52xx) += mpc52xx-psc.c
 src-wlib-$(CONFIG_PPC64_BOOT_WRAPPER) += opal-calls.S opal.c
 ifndef CONFIG_PPC64_BOOT_WRAPPER
 src-wlib-y += crtsavres.S
@@ -127,14 +132,12 @@ src-wlib-$(CONFIG_44x) += 4xx.c ebony.c bamboo.c
 src-wlib-$(CONFIG_PPC_8xx) += mpc8xx.c planetcore.c fsl-soc.c
 src-wlib-$(CONFIG_PPC_82xx) += pq2.c fsl-soc.c planetcore.c
 src-wlib-$(CONFIG_EMBEDDED6xx) += ugecon.c fsl-soc.c
-src-wlib-$(CONFIG_XILINX_VIRTEX) += uartlite.c
 src-wlib-$(CONFIG_CPM) += cpm-serial.c
 
 src-plat-y := of.c epapr.c
-src-plat-$(CONFIG_40x) += fixed-head.S ep405.c cuboot-hotfoot.c \
-				treeboot-walnut.c cuboot-acadia.c \
-				cuboot-kilauea.c simpleboot.c \
-				virtex405-head.S virtex.c
+src-plat-$(CONFIG_40x) += fixed-head.S cuboot-hotfoot.c \
+				cuboot-acadia.c \
+				cuboot-kilauea.c simpleboot.c
 src-plat-$(CONFIG_44x) += treeboot-ebony.c cuboot-ebony.c treeboot-bamboo.c \
 				cuboot-bamboo.c cuboot-sam440ep.c \
 				cuboot-sequoia.c cuboot-rainier.c \
@@ -142,7 +145,7 @@ src-plat-$(CONFIG_44x) += treeboot-ebony.c cuboot-ebony.c treeboot-bamboo.c \
 				cuboot-warp.c cuboot-yosemite.c \
 				treeboot-iss4xx.c treeboot-currituck.c \
 				treeboot-akebono.c \
-				simpleboot.c fixed-head.S virtex.c
+				simpleboot.c fixed-head.S
 src-plat-$(CONFIG_PPC_8xx) += cuboot-8xx.c fixed-head.S ep88xc.c redboot-8xx.c
 src-plat-$(CONFIG_PPC_MPC52xx) += cuboot-52xx.c
 src-plat-$(CONFIG_PPC_82xx) += cuboot-pq2.c fixed-head.S ep8248e.c cuboot-824x.c
@@ -159,6 +162,8 @@ src-plat-$(CONFIG_PPC_PSERIES) += pseries-head.S
 src-plat-$(CONFIG_PPC_POWERNV) += pseries-head.S
 src-plat-$(CONFIG_PPC_IBM_CELL_BLADE) += pseries-head.S
 src-plat-$(CONFIG_MVME7100) += motload-head.S mvme7100.c
+
+src-plat-$(CONFIG_PPC_MICROWATT) += fixed-head.S microwatt.c
 
 src-wlib := $(sort $(src-wlib-y))
 src-plat := $(sort $(src-plat-y))
@@ -197,14 +202,9 @@ $(obj)/empty.c:
 $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(srctree)/$(src)/%.S
 	$(Q)cp $< $@
 
-$(obj)/serial.c: $(obj)/autoconf.h
-
-$(obj)/autoconf.h: $(obj)/%: $(objtree)/include/generated/%
-	$(Q)cp $< $@
-
 clean-files := $(zlib-) $(zlibheader-) $(zliblinuxheader-) \
 		$(zlib-decomp-) $(libfdt) $(libfdtheader) \
-		autoconf.h empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
+		empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
@@ -213,7 +213,7 @@ quiet_cmd_bootas = BOOTAS  $@
       cmd_bootas = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
 
 quiet_cmd_bootar = BOOTAR  $@
-      cmd_bootar = $(BOOTAR) $(BOOTARFLAGS) $@.$$$$ $(filter-out FORCE,$^); mv $@.$$$$ $@
+      cmd_bootar = $(BOOTAR) $(BOOTARFLAGS) $@.$$$$ $(real-prereqs); mv $@.$$$$ $@
 
 $(obj-libfdt): $(obj)/%.o: $(srctree)/scripts/dtc/libfdt/%.c FORCE
 	$(call if_changed_dep,bootcc)
@@ -227,9 +227,9 @@ $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
 $(obj)/wrapper.a: $(obj-wlib) FORCE
 	$(call if_changed,bootar)
 
-hostprogs-y	:= addnote hack-coff mktree
+hostprogs	:= addnote hack-coff mktree
 
-targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
+targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a) zImage.lds
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
@@ -252,6 +252,8 @@ endif
 
 compressor-$(CONFIG_KERNEL_GZIP) := gz
 compressor-$(CONFIG_KERNEL_XZ)   := xz
+compressor-$(CONFIG_KERNEL_LZMA)   := lzma
+compressor-$(CONFIG_KERNEL_LZO) := lzo
 
 # args (to if_changed): 1 = (this rule), 2 = platform, 3 = dts 4=dtb 5=initrd
 quiet_cmd_wrap	= WRAP    $@
@@ -280,9 +282,7 @@ image-$(CONFIG_EPAPR_BOOT)		+= zImage.epapr
 #
 
 # Board ports in arch/powerpc/platform/40x/Kconfig
-image-$(CONFIG_EP405)			+= dtbImage.ep405
 image-$(CONFIG_HOTFOOT)			+= cuImage.hotfoot
-image-$(CONFIG_WALNUT)			+= treeImage.walnut
 image-$(CONFIG_ACADIA)			+= cuImage.acadia
 image-$(CONFIG_OBS600)			+= uImage.obs600
 
@@ -357,6 +357,8 @@ image-$(CONFIG_MVME5100)		+= dtbImage.mvme5100
 # Board port in arch/powerpc/platform/amigaone/Kconfig
 image-$(CONFIG_AMIGAONE)		+= cuImage.amigaone
 
+image-$(CONFIG_PPC_MICROWATT)		+= dtbImage.microwatt
+
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
 ifdef CONFIG_PPC32
@@ -373,6 +375,10 @@ initrd-y := $(patsubst zImage%, zImage.initrd%, \
 		$(patsubst treeImage%, treeImage.initrd%, $(image-y)))))
 initrd-y := $(filter-out $(image-y), $(initrd-y))
 targets	+= $(image-y) $(initrd-y)
+targets += $(foreach x, dtbImage uImage cuImage simpleImage treeImage, \
+		$(patsubst $(x).%, dts/%.dtb, $(filter $(x).%, $(image-y))))
+targets += $(foreach x, dtbImage uImage cuImage simpleImage treeImage, \
+		$(patsubst $(x).%, dts/fsl/%.dtb, $(filter $(x).%, $(image-y))))
 
 $(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
 
@@ -446,6 +452,8 @@ install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 zInstall: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $^
 
+PHONY += install zInstall
+
 # anything not in $(targets)
 clean-files += $(image-) $(initrd-) cuImage.* dtbImage.* treeImage.* \
 	zImage zImage.initrd zImage.chrp zImage.coff zImage.holly \
@@ -465,7 +473,7 @@ WRAPPER_BINDIR := /usr/sbin
 INSTALL := install
 
 extra-installed		:= $(patsubst $(obj)/%, $(DESTDIR)$(WRAPPER_OBJDIR)/%, $(extra-y))
-hostprogs-installed	:= $(patsubst %, $(DESTDIR)$(WRAPPER_BINDIR)/%, $(hostprogs-y))
+hostprogs-installed	:= $(patsubst %, $(DESTDIR)$(WRAPPER_BINDIR)/%, $(hostprogs))
 wrapper-installed	:= $(DESTDIR)$(WRAPPER_BINDIR)/wrapper
 dts-installed		:= $(patsubst $(dtstree)/%, $(DESTDIR)$(WRAPPER_DTSDIR)/%, $(wildcard $(dtstree)/*.dts))
 

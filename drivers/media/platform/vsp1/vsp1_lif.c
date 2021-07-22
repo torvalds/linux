@@ -40,27 +40,28 @@ static const unsigned int lif_codes[] = {
 };
 
 static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
-	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, lif_codes,
+	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, lif_codes,
 					  ARRAY_SIZE(lif_codes));
 }
 
 static int lif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, LIF_MIN_SIZE,
+	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
+					   LIF_MIN_SIZE,
 					   LIF_MIN_SIZE, LIF_MAX_SIZE,
 					   LIF_MAX_SIZE);
 }
 
 static int lif_set_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, cfg, fmt, lif_codes,
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, lif_codes,
 					  ARRAY_SIZE(lif_codes),
 					  LIF_MIN_SIZE, LIF_MIN_SIZE,
 					  LIF_MAX_SIZE, LIF_MAX_SIZE);
@@ -84,6 +85,7 @@ static const struct v4l2_subdev_ops lif_ops = {
 
 static void lif_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	const struct v4l2_mbus_framefmt *format;
@@ -95,7 +97,7 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
 					    LIF_PAD_SOURCE);
 
-	switch (entity->vsp1->version & VI6_IP_VERSION_SOC_MASK) {
+	switch (entity->vsp1->version & VI6_IP_VERSION_MODEL_MASK) {
 	case VI6_IP_VERSION_MODEL_VSPD_GEN2:
 	case VI6_IP_VERSION_MODEL_VSPD_V2H:
 		hbth = 1536;

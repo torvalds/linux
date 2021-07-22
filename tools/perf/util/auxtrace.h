@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * auxtrace.h: AUX area trace support
  * Copyright (c) 2013-2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef __PERF_AUXTRACE_H
@@ -20,25 +11,34 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h> // FILE
 #include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <asm/bitsperlong.h>
-
-#include "../perf.h"
-#include "event.h"
-#include "session.h"
-#include "debug.h"
+#include <asm/barrier.h>
 
 union perf_event;
 struct perf_session;
-struct perf_evlist;
+struct evlist;
+struct evsel;
 struct perf_tool;
-struct perf_mmap;
+struct mmap;
+struct perf_sample;
 struct option;
 struct record_opts;
-struct auxtrace_info_event;
+struct perf_record_auxtrace_error;
+struct perf_record_auxtrace_info;
 struct events_stats;
+struct perf_pmu;
+
+enum auxtrace_error_type {
+       PERF_AUXTRACE_ERROR_ITRACE  = 1,
+       PERF_AUXTRACE_ERROR_MAX
+};
+
+/* Auxtrace records must have the same alignment as perf event records */
+#define PERF_AUXTRACE_RECORD_ALIGNMENT 8
 
 enum auxtrace_type {
 	PERF_AUXTRACE_UNKNOWN,
@@ -55,53 +55,100 @@ enum itrace_period_type {
 	PERF_ITRACE_PERIOD_NANOSECS,
 };
 
+#define AUXTRACE_ERR_FLG_OVERFLOW	(1 << ('o' - 'a'))
+#define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
+
+#define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
  * @set: indicates whether or not options have been set
+ * @default_no_sample: Default to no sampling.
  * @inject: indicates the event (not just the sample) must be fully synthesized
  *          because 'perf inject' will write it out
  * @instructions: whether to synthesize 'instructions' events
  * @branches: whether to synthesize 'branches' events
+ *            (branch misses only for Arm SPE)
  * @transactions: whether to synthesize events for transactions
  * @ptwrites: whether to synthesize events for ptwrites
  * @pwr_events: whether to synthesize power events
+ * @other_events: whether to synthesize other events recorded due to the use of
+ *                aux_output
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
  * @calls: limit branch samples to calls (can be combined with @returns)
  * @returns: limit branch samples to returns (can be combined with @calls)
  * @callchain: add callchain to 'instructions' events
+ * @add_callchain: add callchain to existing event records
  * @thread_stack: feed branches to the thread_stack
  * @last_branch: add branch context to 'instruction' events
+ * @add_last_branch: add branch context to existing event records
+ * @flc: whether to synthesize first level cache events
+ * @llc: whether to synthesize last level cache events
+ * @tlb: whether to synthesize TLB events
+ * @remote_access: whether to synthesize remote access events
+ * @mem: whether to synthesize memory events
+ * @timeless_decoding: prefer "timeless" decoding i.e. ignore timestamps
+ * @vm_time_correlation: perform VM Time Correlation
+ * @vm_tm_corr_dry_run: VM Time Correlation dry-run
+ * @vm_tm_corr_args:  VM Time Correlation implementation-specific arguments
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
  * @initial_skip: skip N events at the beginning.
  * @cpu_bitmap: CPUs for which to synthesize events, or NULL for all
+ * @ptime_range: time intervals to trace or NULL
+ * @range_num: number of time intervals to trace
+ * @error_plus_flags: flags to affect what errors are reported
+ * @error_minus_flags: flags to affect what errors are reported
+ * @log_plus_flags: flags to affect what is logged
+ * @log_minus_flags: flags to affect what is logged
+ * @quick: quicker (less detailed) decoding
  */
 struct itrace_synth_opts {
 	bool			set;
+	bool			default_no_sample;
 	bool			inject;
 	bool			instructions;
 	bool			branches;
 	bool			transactions;
 	bool			ptwrites;
 	bool			pwr_events;
+	bool			other_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
 	bool			calls;
 	bool			returns;
 	bool			callchain;
+	bool			add_callchain;
 	bool			thread_stack;
 	bool			last_branch;
+	bool			add_last_branch;
+	bool			flc;
+	bool			llc;
+	bool			tlb;
+	bool			remote_access;
+	bool			mem;
+	bool			timeless_decoding;
+	bool			vm_time_correlation;
+	bool			vm_tm_corr_dry_run;
+	char			*vm_tm_corr_args;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
 	unsigned long		initial_skip;
 	unsigned long		*cpu_bitmap;
+	struct perf_time_interval *ptime_range;
+	int			range_num;
+	unsigned int		error_plus_flags;
+	unsigned int		error_minus_flags;
+	unsigned int		log_plus_flags;
+	unsigned int		log_minus_flags;
+	unsigned int		quick;
 };
 
 /**
@@ -134,6 +181,9 @@ struct auxtrace_index {
  * struct auxtrace - session callbacks to allow AUX area data decoding.
  * @process_event: lets the decoder see all session events
  * @process_auxtrace_event: process a PERF_RECORD_AUXTRACE event
+ * @queue_data: queue an AUX sample or PERF_RECORD_AUXTRACE event for later
+ *              processing
+ * @dump_auxtrace_sample: dump AUX area sample data
  * @flush_events: process any remaining data
  * @free_events: free resources associated with event processing
  * @free: free resources associated with the session
@@ -146,10 +196,17 @@ struct auxtrace {
 	int (*process_auxtrace_event)(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_tool *tool);
+	int (*queue_data)(struct perf_session *session,
+			  struct perf_sample *sample, union perf_event *event,
+			  u64 data_offset);
+	void (*dump_auxtrace_sample)(struct perf_session *session,
+				     struct perf_sample *sample);
 	int (*flush_events)(struct perf_session *session,
 			    struct perf_tool *tool);
 	void (*free_events)(struct perf_session *session);
 	void (*free)(struct perf_session *session);
+	bool (*evsel_is_auxtrace)(struct perf_session *session,
+				  struct evsel *evsel);
 };
 
 /**
@@ -306,16 +363,19 @@ struct auxtrace_mmap_params {
  * @reference: provide a 64-bit reference number for auxtrace_event
  * @read_finish: called after reading from an auxtrace mmap
  * @alignment: alignment (if any) for AUX area data
+ * @default_aux_sample_size: default sample size for --aux sample option
+ * @pmu: associated pmu
+ * @evlist: selected events list
  */
 struct auxtrace_record {
 	int (*recording_options)(struct auxtrace_record *itr,
-				 struct perf_evlist *evlist,
+				 struct evlist *evlist,
 				 struct record_opts *opts);
 	size_t (*info_priv_size)(struct auxtrace_record *itr,
-				 struct perf_evlist *evlist);
+				 struct evlist *evlist);
 	int (*info_fill)(struct auxtrace_record *itr,
 			 struct perf_session *session,
-			 struct auxtrace_info_event *auxtrace_info,
+			 struct perf_record_auxtrace_info *auxtrace_info,
 			 size_t priv_size);
 	void (*free)(struct auxtrace_record *itr);
 	int (*snapshot_start)(struct auxtrace_record *itr);
@@ -329,6 +389,9 @@ struct auxtrace_record {
 	u64 (*reference)(struct auxtrace_record *itr);
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 	unsigned int alignment;
+	unsigned int default_aux_sample_size;
+	struct perf_pmu *pmu;
+	struct evlist *evlist;
 };
 
 /**
@@ -373,6 +436,8 @@ struct addr_filters {
 	int			cnt;
 };
 
+struct auxtrace_cache;
+
 #ifdef HAVE_AUXTRACE_SUPPORT
 
 /*
@@ -387,7 +452,7 @@ static inline u64 auxtrace_mmap__read_snapshot_head(struct auxtrace_mmap *mm)
 	u64 head = READ_ONCE(pc->aux_head);
 
 	/* Ensure all reads are done after we read the head */
-	rmb();
+	smp_rmb();
 	return head;
 }
 
@@ -401,7 +466,7 @@ static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
 #endif
 
 	/* Ensure all reads are done after we read the head */
-	rmb();
+	smp_rmb();
 	return head;
 }
 
@@ -413,7 +478,7 @@ static inline void auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
 #endif
 
 	/* Ensure all reads are done before we write the tail out */
-	mb();
+	smp_mb();
 #if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
 	pc->aux_tail = tail;
 #else
@@ -432,18 +497,18 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct perf_evlist *evlist, int idx,
+				   struct evlist *evlist, int idx,
 				   bool per_cpu);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
-				  struct perf_mmap *map,
+				  struct mmap *map,
 				  union perf_event *event, void *data1,
 				  size_t len1, void *data2, size_t len2);
 
-int auxtrace_mmap__read(struct perf_mmap *map, struct auxtrace_record *itr,
+int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn);
 
-int auxtrace_mmap__read_snapshot(struct perf_mmap *map,
+int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size);
@@ -453,12 +518,26 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       struct perf_session *session,
 			       union perf_event *event, off_t data_offset,
 			       struct auxtrace_buffer **buffer_ptr);
+struct auxtrace_queue *
+auxtrace_queues__sample_queue(struct auxtrace_queues *queues,
+			      struct perf_sample *sample,
+			      struct perf_session *session);
+int auxtrace_queues__add_sample(struct auxtrace_queues *queues,
+				struct perf_session *session,
+				struct perf_sample *sample, u64 data_offset,
+				u64 reference);
 void auxtrace_queues__free(struct auxtrace_queues *queues);
 int auxtrace_queues__process_index(struct auxtrace_queues *queues,
 				   struct perf_session *session);
+int auxtrace_queue_data(struct perf_session *session, bool samples,
+			bool events);
 struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
 					      struct auxtrace_buffer *buffer);
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw);
+static inline void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+{
+	return auxtrace_buffer__get_data_rw(buffer, fd, false);
+}
 void auxtrace_buffer__put_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__drop_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__free(struct auxtrace_buffer *buffer);
@@ -480,30 +559,36 @@ void *auxtrace_cache__alloc_entry(struct auxtrace_cache *c);
 void auxtrace_cache__free_entry(struct auxtrace_cache *c, void *entry);
 int auxtrace_cache__add(struct auxtrace_cache *c, u32 key,
 			struct auxtrace_cache_entry *entry);
+void auxtrace_cache__remove(struct auxtrace_cache *c, u32 key);
 void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key);
 
-struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
+struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 					      int *err);
 
 int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 				    struct record_opts *opts,
 				    const char *str);
+int auxtrace_parse_sample_options(struct auxtrace_record *itr,
+				  struct evlist *evlist,
+				  struct record_opts *opts, const char *str);
+void auxtrace_regroup_aux_output(struct evlist *evlist);
 int auxtrace_record__options(struct auxtrace_record *itr,
-			     struct perf_evlist *evlist,
+			     struct evlist *evlist,
 			     struct record_opts *opts);
 size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
-				       struct perf_evlist *evlist);
+				       struct evlist *evlist);
 int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
-			       struct auxtrace_info_event *auxtrace_info,
+			       struct perf_record_auxtrace_info *auxtrace_info,
 			       size_t priv_size);
 void auxtrace_record__free(struct auxtrace_record *itr);
 int auxtrace_record__snapshot_start(struct auxtrace_record *itr);
-int auxtrace_record__snapshot_finish(struct auxtrace_record *itr);
+int auxtrace_record__snapshot_finish(struct auxtrace_record *itr, bool on_exit);
 int auxtrace_record__find_snapshot(struct auxtrace_record *itr, int idx,
 				   struct auxtrace_mmap *mm,
 				   unsigned char *data, u64 *head, u64 *old);
 u64 auxtrace_record__reference(struct auxtrace_record *itr);
+int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx);
 
 int auxtrace_index__auxtrace_event(struct list_head *head, union perf_event *event,
 				   off_t file_offset);
@@ -512,23 +597,22 @@ int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
 			    bool needs_swap);
 void auxtrace_index__free(struct list_head *head);
 
-void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
+void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
-			  const char *msg);
+			  const char *msg, u64 timestamp);
 
-int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
-					 struct perf_tool *tool,
-					 struct perf_session *session,
-					 perf_event__handler_t process);
 int perf_event__process_auxtrace_info(struct perf_session *session,
 				      union perf_event *event);
 s64 perf_event__process_auxtrace(struct perf_session *session,
 				 union perf_event *event);
 int perf_event__process_auxtrace_error(struct perf_session *session,
 				       union perf_event *event);
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset);
 int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			    int unset);
-void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts);
+void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
+				    bool no_sample);
 
 size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp);
 void perf_session__auxtrace_error_inc(struct perf_session *session,
@@ -539,65 +623,69 @@ void addr_filters__init(struct addr_filters *filts);
 void addr_filters__exit(struct addr_filters *filts);
 int addr_filters__parse_bare_filter(struct addr_filters *filts,
 				    const char *filter);
-int auxtrace_parse_filters(struct perf_evlist *evlist);
+int auxtrace_parse_filters(struct evlist *evlist);
 
-static inline int auxtrace__process_event(struct perf_session *session,
-					  union perf_event *event,
-					  struct perf_sample *sample,
-					  struct perf_tool *tool)
-{
-	if (!session->auxtrace)
-		return 0;
-
-	return session->auxtrace->process_event(session, event, sample, tool);
-}
-
-static inline int auxtrace__flush_events(struct perf_session *session,
-					 struct perf_tool *tool)
-{
-	if (!session->auxtrace)
-		return 0;
-
-	return session->auxtrace->flush_events(session, tool);
-}
-
-static inline void auxtrace__free_events(struct perf_session *session)
-{
-	if (!session->auxtrace)
-		return;
-
-	return session->auxtrace->free_events(session);
-}
-
-static inline void auxtrace__free(struct perf_session *session)
-{
-	if (!session->auxtrace)
-		return;
-
-	return session->auxtrace->free(session);
-}
+int auxtrace__process_event(struct perf_session *session, union perf_event *event,
+			    struct perf_sample *sample, struct perf_tool *tool);
+void auxtrace__dump_auxtrace_sample(struct perf_session *session,
+				    struct perf_sample *sample);
+int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool);
+void auxtrace__free_events(struct perf_session *session);
+void auxtrace__free(struct perf_session *session);
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
+				 struct evsel *evsel);
 
 #define ITRACE_HELP \
-"				i:	    		synthesize instructions events\n"		\
-"				b:	    		synthesize branches events\n"		\
+"				i[period]:    		synthesize instructions events\n" \
+"				b:	    		synthesize branches events (branch misses for Arm SPE)\n" \
 "				c:	    		synthesize branches events (calls only)\n"	\
 "				r:	    		synthesize branches events (returns only)\n" \
 "				x:	    		synthesize transactions events\n"		\
 "				w:	    		synthesize ptwrite events\n"		\
 "				p:	    		synthesize power events\n"			\
-"				e:	    		synthesize error events\n"			\
-"				d:	    		create a debug log\n"			\
+"				o:			synthesize other events recorded due to the use\n" \
+"							of aux-output (refer to perf record)\n"	\
+"				e[flags]:		synthesize error events\n" \
+"							each flag must be preceded by + or -\n" \
+"							error flags are: o (overflow)\n" \
+"									 l (data lost)\n" \
+"				d[flags]:		create a debug log\n" \
+"							each flag must be preceded by + or -\n" \
+"							log flags are: a (all perf events)\n" \
+"				f:	    		synthesize first level cache events\n" \
+"				m:	    		synthesize last level cache events\n" \
+"				t:	    		synthesize TLB events\n" \
+"				a:	    		synthesize remote access events\n" \
 "				g[len]:     		synthesize a call chain (use with i or x)\n" \
+"				G[len]:			synthesize a call chain on existing event records\n" \
 "				l[len]:     		synthesize last branch entries (use with i or x)\n" \
+"				L[len]:			synthesize last branch entries on existing event records\n" \
 "				sNUMBER:    		skip initial number of events\n"		\
+"				q:			quicker (less detailed) decoding\n" \
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is ibxwpe or cewp\n"
 
+static inline
+void itrace_synth_opts__set_time_range(struct itrace_synth_opts *opts,
+				       struct perf_time_interval *ptime_range,
+				       int range_num)
+{
+	opts->ptime_range = ptime_range;
+	opts->range_num = range_num;
+}
+
+static inline
+void itrace_synth_opts__clear_time_range(struct itrace_synth_opts *opts)
+{
+	opts->ptime_range = NULL;
+	opts->range_num = 0;
+}
 
 #else
+#include "debug.h"
 
 static inline struct auxtrace_record *
-auxtrace_record__init(struct perf_evlist *evlist __maybe_unused,
+auxtrace_record__init(struct evlist *evlist __maybe_unused,
 		      int *err)
 {
 	*err = 0;
@@ -609,26 +697,34 @@ void auxtrace_record__free(struct auxtrace_record *itr __maybe_unused)
 {
 }
 
-static inline int
-perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr __maybe_unused,
-				     struct perf_tool *tool __maybe_unused,
-				     struct perf_session *session __maybe_unused,
-				     perf_event__handler_t process __maybe_unused)
-{
-	return -EINVAL;
-}
-
 static inline
 int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
-			     struct perf_evlist *evlist __maybe_unused,
+			     struct evlist *evlist __maybe_unused,
 			     struct record_opts *opts __maybe_unused)
 {
 	return 0;
 }
 
-#define perf_event__process_auxtrace_info		0
-#define perf_event__process_auxtrace			0
-#define perf_event__process_auxtrace_error		0
+static inline
+int perf_event__process_auxtrace_info(struct perf_session *session __maybe_unused,
+				      union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+s64 perf_event__process_auxtrace(struct perf_session *session __maybe_unused,
+				 union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+int perf_event__process_auxtrace_error(struct perf_session *session __maybe_unused,
+				       union perf_event *event __maybe_unused)
+{
+	return 0;
+}
 
 static inline
 void perf_session__auxtrace_error_inc(struct perf_session *session
@@ -642,6 +738,14 @@ static inline
 void events_stats__auxtrace_error_warn(const struct events_stats *stats
 				       __maybe_unused)
 {
+}
+
+static inline
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts __maybe_unused,
+			       const char *str __maybe_unused, int unset __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
 }
 
 static inline
@@ -665,12 +769,35 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
 }
 
 static inline
+int auxtrace_parse_sample_options(struct auxtrace_record *itr __maybe_unused,
+				  struct evlist *evlist __maybe_unused,
+				  struct record_opts *opts __maybe_unused,
+				  const char *str)
+{
+	if (!str)
+		return 0;
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+static inline
+void auxtrace_regroup_aux_output(struct evlist *evlist __maybe_unused)
+{
+}
+
+static inline
 int auxtrace__process_event(struct perf_session *session __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
 			    struct perf_tool *tool __maybe_unused)
 {
 	return 0;
+}
+
+static inline
+void auxtrace__dump_auxtrace_sample(struct perf_session *session __maybe_unused,
+				    struct perf_sample *sample __maybe_unused)
+{
 }
 
 static inline
@@ -717,7 +844,14 @@ void auxtrace_index__free(struct list_head *head __maybe_unused)
 }
 
 static inline
-int auxtrace_parse_filters(struct perf_evlist *evlist __maybe_unused)
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session __maybe_unused,
+				 struct evsel *evsel __maybe_unused)
+{
+	return false;
+}
+
+static inline
+int auxtrace_parse_filters(struct evlist *evlist __maybe_unused)
 {
 	return 0;
 }
@@ -731,10 +865,25 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct perf_evlist *evlist, int idx,
+				   struct evlist *evlist, int idx,
 				   bool per_cpu);
 
 #define ITRACE_HELP ""
+
+static inline
+void itrace_synth_opts__set_time_range(struct itrace_synth_opts *opts
+				       __maybe_unused,
+				       struct perf_time_interval *ptime_range
+				       __maybe_unused,
+				       int range_num __maybe_unused)
+{
+}
+
+static inline
+void itrace_synth_opts__clear_time_range(struct itrace_synth_opts *opts
+					 __maybe_unused)
+{
+}
 
 #endif
 
