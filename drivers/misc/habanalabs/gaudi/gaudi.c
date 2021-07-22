@@ -108,6 +108,8 @@
 
 #define BIN_REG_STRING_SIZE	sizeof("0b10101010101010101010101010101010")
 
+#define MONITOR_SOB_STRING_SIZE		256
+
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -9184,6 +9186,34 @@ static int gaudi_monitor_valid(struct hl_mon_state_dump *mon)
 		mon->status);
 }
 
+static void gaudi_fill_sobs_from_mon(char *sobs, struct hl_mon_state_dump *mon)
+{
+	const size_t max_write = 10;
+	u32 gid, mask, sob;
+	int i, offset;
+
+	/* Sync object ID is calculated as follows:
+	 * (8 * group_id + cleared bits in mask)
+	 */
+	gid = FIELD_GET(SYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_ARM_0_SID_MASK,
+			mon->arm_data);
+	mask = FIELD_GET(SYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_ARM_0_MASK_MASK,
+			mon->arm_data);
+
+	for (i = 0, offset = 0; mask && offset < MONITOR_SOB_STRING_SIZE -
+		max_write; mask >>= 1, i++) {
+		if (!(mask & 1)) {
+			sob = gid * MONITOR_MAX_SOBS + i;
+
+			if (offset > 0)
+				offset += snprintf(sobs + offset, max_write,
+							", ");
+
+			offset += snprintf(sobs + offset, max_write, "%u", sob);
+		}
+	}
+}
+
 static int gaudi_print_single_monitor(char **buf, size_t *size, size_t *offset,
 				struct hl_device *hdev,
 				struct hl_mon_state_dump *mon)
@@ -9191,14 +9221,17 @@ static int gaudi_print_single_monitor(char **buf, size_t *size, size_t *offset,
 	const char *name;
 	char scratch_buf1[BIN_REG_STRING_SIZE],
 		scratch_buf2[BIN_REG_STRING_SIZE];
+	char monitored_sobs[MONITOR_SOB_STRING_SIZE] = {0};
 
 	name = hl_state_dump_get_monitor_name(hdev, mon);
 	if (!name)
 		name = "";
 
+	gaudi_fill_sobs_from_mon(monitored_sobs, mon);
+
 	return hl_snprintf_resize(
 		buf, size, offset,
-		"Mon id: %u%s, wait for group id: %u mask %s to reach val: %u and write %u to address 0x%llx. Pending: %s",
+		"Mon id: %u%s, wait for group id: %u mask %s to reach val: %u and write %u to address 0x%llx. Pending: %s. Means sync objects [%s] are being monitored.",
 		mon->id, name,
 		FIELD_GET(SYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_ARM_0_SID_MASK,
 				mon->arm_data),
@@ -9215,7 +9248,8 @@ static int gaudi_print_single_monitor(char **buf, size_t *size, size_t *offset,
 			scratch_buf2, sizeof(scratch_buf2),
 			FIELD_GET(
 				SYNC_MNGR_W_S_SYNC_MNGR_OBJS_MON_STATUS_0_PENDING_MASK,
-				mon->status)));
+				mon->status)),
+		monitored_sobs);
 }
 
 
