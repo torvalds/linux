@@ -48,6 +48,8 @@ int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb
 		skb_set_network_header(skb, depth);
 	}
 
+	skb->offload_fwd_mark = br_switchdev_frame_uses_tx_fwd_offload(skb);
+
 	dev_queue_xmit(skb);
 
 	return 0;
@@ -75,6 +77,11 @@ static void __br_forward(const struct net_bridge_port *to,
 	struct net_device *indev;
 	struct net *net;
 	int br_hook;
+
+	/* Mark the skb for forwarding offload early so that br_handle_vlan()
+	 * can know whether to pop the VLAN header on egress or keep it.
+	 */
+	nbp_switchdev_frame_mark_tx_fwd_offload(to, skb);
 
 	vg = nbp_vlan_group_rcu(to);
 	skb = br_handle_vlan(to->br, to, vg, skb);
@@ -173,6 +180,8 @@ static struct net_bridge_port *maybe_deliver(
 
 	if (!should_deliver(p, skb))
 		return prev;
+
+	nbp_switchdev_frame_mark_tx_fwd_to_hwdom(p, skb);
 
 	if (!prev)
 		goto out;

@@ -552,12 +552,20 @@ struct br_input_skb_cb {
 #endif
 
 #ifdef CONFIG_NET_SWITCHDEV
+	/* Set if TX data plane offloading is used towards at least one
+	 * hardware domain.
+	 */
+	u8 tx_fwd_offload:1;
 	/* The switchdev hardware domain from which this packet was received.
 	 * If skb->offload_fwd_mark was set, then this packet was already
 	 * forwarded by hardware to the other ports in the source hardware
 	 * domain, otherwise it wasn't.
 	 */
 	int src_hwdom;
+	/* Bit mask of hardware domains towards this packet has already been
+	 * transmitted using the TX data plane offload.
+	 */
+	unsigned long fwd_hwdoms;
 #endif
 };
 
@@ -1871,6 +1879,12 @@ static inline void br_sysfs_delbr(struct net_device *dev) { return; }
 
 /* br_switchdev.c */
 #ifdef CONFIG_NET_SWITCHDEV
+bool br_switchdev_frame_uses_tx_fwd_offload(struct sk_buff *skb);
+
+void nbp_switchdev_frame_mark_tx_fwd_offload(const struct net_bridge_port *p,
+					     struct sk_buff *skb);
+void nbp_switchdev_frame_mark_tx_fwd_to_hwdom(const struct net_bridge_port *p,
+					      struct sk_buff *skb);
 void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
 			      struct sk_buff *skb);
 bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
@@ -1891,6 +1905,23 @@ static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 	skb->offload_fwd_mark = 0;
 }
 #else
+static inline bool br_switchdev_frame_uses_tx_fwd_offload(struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline void
+nbp_switchdev_frame_mark_tx_fwd_offload(const struct net_bridge_port *p,
+					struct sk_buff *skb)
+{
+}
+
+static inline void
+nbp_switchdev_frame_mark_tx_fwd_to_hwdom(const struct net_bridge_port *p,
+					 struct sk_buff *skb)
+{
+}
+
 static inline void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
 					    struct sk_buff *skb)
 {

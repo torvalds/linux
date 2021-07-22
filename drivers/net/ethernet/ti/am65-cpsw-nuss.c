@@ -2097,7 +2097,7 @@ static int am65_cpsw_netdevice_port_link(struct net_device *ndev,
 	}
 
 	err = switchdev_bridge_port_offload(ndev, ndev, NULL, NULL, NULL,
-					    extack);
+					    false, extack);
 	if (err)
 		return err;
 
