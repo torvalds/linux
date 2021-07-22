@@ -585,18 +585,13 @@ void del_gendisk(struct gendisk *disk)
 	disk_del_events(disk);
 
 	mutex_lock(&disk->open_mutex);
+	remove_inode_hash(disk->part0->bd_inode);
 	disk->flags &= ~GENHD_FL_UP;
 	blk_drop_partitions(disk);
 	mutex_unlock(&disk->open_mutex);
 
 	fsync_bdev(disk->part0);
 	__invalidate_device(disk->part0, true);
-
-	/*
-	 * Unhash the bdev inode for this device so that it can't be looked
-	 * up any more even if openers still hold references to it.
-	 */
-	remove_inode_hash(disk->part0->bd_inode);
 
 	set_capacity(disk, 0);
 
