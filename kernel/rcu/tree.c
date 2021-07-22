@@ -1219,7 +1219,6 @@ static int dyntick_save_progress_counter(struct rcu_data *rdp)
 static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 {
 	unsigned long jtsq;
-	bool *rnhqp;
 	bool *ruqp;
 	struct rcu_node *rnp = rdp->mynode;
 
@@ -1286,12 +1285,11 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 */
 	jtsq = READ_ONCE(jiffies_to_sched_qs);
 	ruqp = per_cpu_ptr(&rcu_data.rcu_urgent_qs, rdp->cpu);
-	rnhqp = per_cpu_ptr(&rcu_data.rcu_need_heavy_qs, rdp->cpu);
-	if (!READ_ONCE(*rnhqp) &&
+	if (!READ_ONCE(rdp->rcu_need_heavy_qs) &&
 	    (time_after(jiffies, rcu_state.gp_start + jtsq * 2) ||
 	     time_after(jiffies, rcu_state.jiffies_resched) ||
 	     rcu_state.cbovld)) {
-		WRITE_ONCE(*rnhqp, true);
+		WRITE_ONCE(rdp->rcu_need_heavy_qs, true);
 		/* Store rcu_need_heavy_qs before rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
 	} else if (time_after(jiffies, rcu_state.gp_start + jtsq)) {
