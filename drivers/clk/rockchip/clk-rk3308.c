@@ -921,6 +921,18 @@ static struct rockchip_clk_branch rk3308b_dclk_vop_frac[] __initdata = {
 			&rk3308_dclk_vop_fracmux, RK3308B_VOP_FRAC_MAX_PRATE),
 };
 
+static void __iomem *rk3308_cru_base;
+
+void rk3308_dump_cru(void)
+{
+	if (rk3308_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3308_cru_base,
+			       0x500, false);
+	}
+}
+
 static void __init rk3308_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -964,6 +976,11 @@ static void __init rk3308_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RK3308_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rk3308_cru_base = reg_base;
+		rk_dump_cru = rk3308_dump_cru;
+	}
 }
 
 CLK_OF_DECLARE(rk3308_cru, "rockchip,rk3308-cru", rk3308_clk_init);
