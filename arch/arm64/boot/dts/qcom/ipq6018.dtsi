@@ -258,9 +258,9 @@
 			reg = <0x0 0x01905000 0x0 0x8000>;
 		};
 
-		tcsr_q6: syscon@1945000 {
+		tcsr: syscon@1937000 {
 			compatible = "syscon";
-			reg = <0x0 0x01945000 0x0 0xe000>;
+			reg = <0x0 0x01937000 0x0 0x21000>;
 		};
 
 		blsp_dma: dma-controller@7884000 {
@@ -504,7 +504,7 @@
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "prng";
 
-			qcom,halt-regs = <&tcsr_q6 0xa000 0xd000 0x0>;
+			qcom,halt-regs = <&tcsr 0x18000 0x1b000 0xe000>;
 
 			qcom,smem-states = <&wcss_smp2p_out 0>,
 					   <&wcss_smp2p_out 1>;
