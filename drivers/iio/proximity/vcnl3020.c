@@ -57,12 +57,14 @@ static const int vcnl3020_prox_sampling_frequency[][2] = {
  * @dev:	vcnl3020 device.
  * @rev:	revision id.
  * @lock:	lock for protecting access to device hardware registers.
+ * @buf:	DMA safe __be16 buffer.
  */
 struct vcnl3020_data {
 	struct regmap *regmap;
 	struct device *dev;
 	u8 rev;
 	struct mutex lock;
+	__be16 buf ____cacheline_aligned;
 };
 
 /**
@@ -144,7 +146,6 @@ static int vcnl3020_measure_proximity(struct vcnl3020_data *data, int *val)
 {
 	int rc;
 	unsigned int reg;
-	__be16 res;
 
 	mutex_lock(&data->lock);
 
@@ -163,12 +164,12 @@ static int vcnl3020_measure_proximity(struct vcnl3020_data *data, int *val)
 	}
 
 	/* high & low result bytes read */
-	rc = regmap_bulk_read(data->regmap, VCNL_PS_RESULT_HI, &res,
-			      sizeof(res));
+	rc = regmap_bulk_read(data->regmap, VCNL_PS_RESULT_HI, &data->buf,
+			      sizeof(data->buf));
 	if (rc)
 		goto err_unlock;
 
-	*val = be16_to_cpu(res);
+	*val = be16_to_cpu(data->buf);
 
 err_unlock:
 	mutex_unlock(&data->lock);
