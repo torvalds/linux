@@ -478,9 +478,18 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 	struct nfp_fl_key_ls key_layer, tmp_layer;
 	struct nfp_flower_priv *priv = zt->priv;
 	u16 key_map[_FLOW_PAY_LAYERS_MAX];
+	struct nfp_fl_payload *flow_pay;
 
 	struct flow_rule *rules[_CT_TYPE_MAX];
+	u8 *key, *msk, *kdata, *mdata;
+	struct net_device *netdev;
+	bool qinq_sup;
+	u32 port_id;
+	u16 offset;
 	int i, err;
+
+	netdev = m_entry->netdev;
+	qinq_sup = !!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ);
 
 	rules[CT_TYPE_PRE_CT] = m_entry->tc_m_parent->pre_ct_parent->rule;
 	rules[CT_TYPE_NFT] = m_entry->nft_parent->rule;
@@ -503,7 +512,220 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 	}
 	key_layer.key_size = nfp_fl_calc_key_layers_sz(key_layer, key_map);
 
-	return 0;
+	flow_pay = nfp_flower_allocate_new(&key_layer);
+	if (!flow_pay)
+		return -ENOMEM;
+
+	memset(flow_pay->unmasked_data, 0, key_layer.key_size);
+	memset(flow_pay->mask_data, 0, key_layer.key_size);
+
+	kdata = flow_pay->unmasked_data;
+	mdata = flow_pay->mask_data;
+
+	offset = key_map[FLOW_PAY_META_TCI];
+	key = kdata + offset;
+	msk = mdata + offset;
+	nfp_flower_compile_meta((struct nfp_flower_meta_tci *)key,
+				(struct nfp_flower_meta_tci *)msk,
+				key_layer.key_layer);
+
+	if (NFP_FLOWER_LAYER_EXT_META & key_layer.key_layer) {
+		offset =  key_map[FLOW_PAY_EXT_META];
+		key = kdata + offset;
+		msk = mdata + offset;
+		nfp_flower_compile_ext_meta((struct nfp_flower_ext_meta *)key,
+					    key_layer.key_layer_two);
+		nfp_flower_compile_ext_meta((struct nfp_flower_ext_meta *)msk,
+					    key_layer.key_layer_two);
+	}
+
+	/* Using in_port from the -trk rule. The tc merge checks should already
+	 * be checking that the ingress netdevs are the same
+	 */
+	port_id = nfp_flower_get_port_id_from_netdev(priv->app, netdev);
+	offset = key_map[FLOW_PAY_INPORT];
+	key = kdata + offset;
+	msk = mdata + offset;
+	err = nfp_flower_compile_port((struct nfp_flower_in_port *)key,
+				      port_id, false, tun_type, NULL);
+	if (err)
+		goto ct_offload_err;
+	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
+				      port_id, true, tun_type, NULL);
+	if (err)
+		goto ct_offload_err;
+
+	/* This following part works on the assumption that previous checks has
+	 * already filtered out flows that has different values for the different
+	 * layers. Here we iterate through all three rules and merge their respective
+	 * masked value(cared bits), basic method is:
+	 * final_key = (r1_key & r1_mask) | (r2_key & r2_mask) | (r3_key & r3_mask)
+	 * final_mask = r1_mask | r2_mask | r3_mask
+	 * If none of the rules contains a match that is also fine, that simply means
+	 * that the layer is not present.
+	 */
+	if (!qinq_sup) {
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			offset = key_map[FLOW_PAY_META_TCI];
+			key = kdata + offset;
+			msk = mdata + offset;
+			nfp_flower_compile_tci((struct nfp_flower_meta_tci *)key,
+					       (struct nfp_flower_meta_tci *)msk,
+					       rules[i]);
+		}
+	}
+
+	if (NFP_FLOWER_LAYER_MAC & key_layer.key_layer) {
+		offset = key_map[FLOW_PAY_MAC_MPLS];
+		key = kdata + offset;
+		msk = mdata + offset;
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			nfp_flower_compile_mac((struct nfp_flower_mac_mpls *)key,
+					       (struct nfp_flower_mac_mpls *)msk,
+					       rules[i]);
+			err = nfp_flower_compile_mpls((struct nfp_flower_mac_mpls *)key,
+						      (struct nfp_flower_mac_mpls *)msk,
+						      rules[i], NULL);
+			if (err)
+				goto ct_offload_err;
+		}
+	}
+
+	if (NFP_FLOWER_LAYER_IPV4 & key_layer.key_layer) {
+		offset = key_map[FLOW_PAY_IPV4];
+		key = kdata + offset;
+		msk = mdata + offset;
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			nfp_flower_compile_ipv4((struct nfp_flower_ipv4 *)key,
+						(struct nfp_flower_ipv4 *)msk,
+						rules[i]);
+		}
+	}
+
+	if (NFP_FLOWER_LAYER_IPV6 & key_layer.key_layer) {
+		offset = key_map[FLOW_PAY_IPV6];
+		key = kdata + offset;
+		msk = mdata + offset;
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			nfp_flower_compile_ipv6((struct nfp_flower_ipv6 *)key,
+						(struct nfp_flower_ipv6 *)msk,
+						rules[i]);
+		}
+	}
+
+	if (NFP_FLOWER_LAYER_TP & key_layer.key_layer) {
+		offset = key_map[FLOW_PAY_L4];
+		key = kdata + offset;
+		msk = mdata + offset;
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			nfp_flower_compile_tport((struct nfp_flower_tp_ports *)key,
+						 (struct nfp_flower_tp_ports *)msk,
+						 rules[i]);
+		}
+	}
+
+	if (key_layer.key_layer_two & NFP_FLOWER_LAYER2_GRE) {
+		offset = key_map[FLOW_PAY_GRE];
+		key = kdata + offset;
+		msk = mdata + offset;
+		if (key_layer.key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
+			struct nfp_flower_ipv6_gre_tun *gre_match;
+			struct nfp_ipv6_addr_entry *entry;
+			struct in6_addr *dst;
+
+			for (i = 0; i < _CT_TYPE_MAX; i++) {
+				nfp_flower_compile_ipv6_gre_tun((void *)key,
+								(void *)msk, rules[i]);
+			}
+			gre_match = (struct nfp_flower_ipv6_gre_tun *)key;
+			dst = &gre_match->ipv6.dst;
+
+			entry = nfp_tunnel_add_ipv6_off(priv->app, dst);
+			if (!entry)
+				goto ct_offload_err;
+
+			flow_pay->nfp_tun_ipv6 = entry;
+		} else {
+			__be32 dst;
+
+			for (i = 0; i < _CT_TYPE_MAX; i++) {
+				nfp_flower_compile_ipv4_gre_tun((void *)key,
+								(void *)msk, rules[i]);
+			}
+			dst = ((struct nfp_flower_ipv4_gre_tun *)key)->ipv4.dst;
+
+			/* Store the tunnel destination in the rule data.
+			 * This must be present and be an exact match.
+			 */
+			flow_pay->nfp_tun_ipv4_addr = dst;
+			nfp_tunnel_add_ipv4_off(priv->app, dst);
+		}
+	}
+
+	if (NFP_FLOWER_LAYER2_QINQ & key_layer.key_layer_two) {
+		offset = key_map[FLOW_PAY_QINQ];
+		key = kdata + offset;
+		msk = mdata + offset;
+		for (i = 0; i < _CT_TYPE_MAX; i++) {
+			nfp_flower_compile_vlan((struct nfp_flower_vlan *)key,
+						(struct nfp_flower_vlan *)msk,
+						rules[i]);
+		}
+	}
+
+	if (key_layer.key_layer & NFP_FLOWER_LAYER_VXLAN ||
+	    key_layer.key_layer_two & NFP_FLOWER_LAYER2_GENEVE) {
+		offset = key_map[FLOW_PAY_UDP_TUN];
+		key = kdata + offset;
+		msk = mdata + offset;
+		if (key_layer.key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
+			struct nfp_flower_ipv6_udp_tun *udp_match;
+			struct nfp_ipv6_addr_entry *entry;
+			struct in6_addr *dst;
+
+			for (i = 0; i < _CT_TYPE_MAX; i++) {
+				nfp_flower_compile_ipv6_udp_tun((void *)key,
+								(void *)msk, rules[i]);
+			}
+			udp_match = (struct nfp_flower_ipv6_udp_tun *)key;
+			dst = &udp_match->ipv6.dst;
+
+			entry = nfp_tunnel_add_ipv6_off(priv->app, dst);
+			if (!entry)
+				goto ct_offload_err;
+
+			flow_pay->nfp_tun_ipv6 = entry;
+		} else {
+			__be32 dst;
+
+			for (i = 0; i < _CT_TYPE_MAX; i++) {
+				nfp_flower_compile_ipv4_udp_tun((void *)key,
+								(void *)msk, rules[i]);
+			}
+			dst = ((struct nfp_flower_ipv4_udp_tun *)key)->ipv4.dst;
+
+			/* Store the tunnel destination in the rule data.
+			 * This must be present and be an exact match.
+			 */
+			flow_pay->nfp_tun_ipv4_addr = dst;
+			nfp_tunnel_add_ipv4_off(priv->app, dst);
+		}
+
+		if (key_layer.key_layer_two & NFP_FLOWER_LAYER2_GENEVE_OP) {
+			offset = key_map[FLOW_PAY_GENEVE_OPT];
+			key = kdata + offset;
+			msk = mdata + offset;
+			for (i = 0; i < _CT_TYPE_MAX; i++)
+				nfp_flower_compile_geneve_opt(key, msk, rules[i]);
+		}
+	}
+
+ct_offload_err:
+	kfree(flow_pay->action_data);
+	kfree(flow_pay->mask_data);
+	kfree(flow_pay->unmasked_data);
+	kfree(flow_pay);
+	return err;
 }
 
 static int nfp_fl_ct_del_offload(struct nfp_app *app, unsigned long cookie,
