@@ -9278,15 +9278,17 @@ out:
 }
 
 /**
- * ufshcd_system_suspend - system suspend routine
- * @hba: per adapter instance
+ * ufshcd_system_suspend - system suspend callback
+ * @dev: Device associated with the UFS controller.
  *
- * Check the description of ufshcd_suspend() function for more details.
+ * Executed before putting the system into a sleep state in which the contents
+ * of main memory are preserved.
  *
  * Returns 0 for success and non-zero for failure
  */
-int ufshcd_system_suspend(struct ufs_hba *hba)
+int ufshcd_system_suspend(struct device *dev)
 {
+	struct ufs_hba *hba = dev_get_drvdata(dev);
 	int ret = 0;
 	ktime_t start = ktime_get();
 
@@ -9303,16 +9305,19 @@ out:
 EXPORT_SYMBOL(ufshcd_system_suspend);
 
 /**
- * ufshcd_system_resume - system resume routine
- * @hba: per adapter instance
+ * ufshcd_system_resume - system resume callback
+ * @dev: Device associated with the UFS controller.
+ *
+ * Executed after waking the system up from a sleep state in which the contents
+ * of main memory were preserved.
  *
  * Returns 0 for success and non-zero for failure
  */
-
-int ufshcd_system_resume(struct ufs_hba *hba)
+int ufshcd_system_resume(struct device *dev)
 {
-	int ret = 0;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
 	ktime_t start = ktime_get();
+	int ret = 0;
 
 	if (pm_runtime_suspended(hba->dev))
 		goto out;
@@ -9329,15 +9334,16 @@ out:
 EXPORT_SYMBOL(ufshcd_system_resume);
 
 /**
- * ufshcd_runtime_suspend - runtime suspend routine
- * @hba: per adapter instance
+ * ufshcd_runtime_suspend - runtime suspend callback
+ * @dev: Device associated with the UFS controller.
  *
  * Check the description of ufshcd_suspend() function for more details.
  *
  * Returns 0 for success and non-zero for failure
  */
-int ufshcd_runtime_suspend(struct ufs_hba *hba)
+int ufshcd_runtime_suspend(struct device *dev)
 {
+	struct ufs_hba *hba = dev_get_drvdata(dev);
 	int ret;
 	ktime_t start = ktime_get();
 
@@ -9352,7 +9358,7 @@ EXPORT_SYMBOL(ufshcd_runtime_suspend);
 
 /**
  * ufshcd_runtime_resume - runtime resume routine
- * @hba: per adapter instance
+ * @dev: Device associated with the UFS controller.
  *
  * This function basically brings controller
  * to active state. Following operations are done in this function:
@@ -9360,8 +9366,9 @@ EXPORT_SYMBOL(ufshcd_runtime_suspend);
  * 1. Turn on all the controller related clocks
  * 2. Turn ON VCC rail
  */
-int ufshcd_runtime_resume(struct ufs_hba *hba)
+int ufshcd_runtime_resume(struct device *dev)
 {
+	struct ufs_hba *hba = dev_get_drvdata(dev);
 	int ret;
 	ktime_t start = ktime_get();
 
@@ -9373,12 +9380,6 @@ int ufshcd_runtime_resume(struct ufs_hba *hba)
 	return ret;
 }
 EXPORT_SYMBOL(ufshcd_runtime_resume);
-
-int ufshcd_runtime_idle(struct ufs_hba *hba)
-{
-	return 0;
-}
-EXPORT_SYMBOL(ufshcd_runtime_idle);
 
 /**
  * ufshcd_shutdown - shutdown routine
