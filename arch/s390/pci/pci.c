@@ -653,12 +653,14 @@ void zpci_free_domain(int domain)
 
 int zpci_enable_device(struct zpci_dev *zdev)
 {
+	u32 fh = zdev->fh;
 	int rc;
 
-	if (clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES)) {
+	if (clp_enable_fh(zdev, &fh, ZPCI_NR_DMA_SPACES)) {
 		rc = -EIO;
 		goto out;
 	}
+	zdev->fh = fh;
 
 	rc = zpci_dma_init_device(zdev);
 	if (rc)
@@ -667,29 +669,33 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	return 0;
 
 out_dma:
-	clp_disable_fh(zdev);
+	clp_disable_fh(zdev, &fh);
 out:
+	zdev->fh = fh;
 	return rc;
 }
 
 int zpci_disable_device(struct zpci_dev *zdev)
 {
+	u32 fh = zdev->fh;
 	int cc, rc = 0;
 
 	zpci_dma_exit_device(zdev);
-	/*
-	 * The zPCI function may already be disabled by the platform, this is
-	 * detected in clp_disable_fh() which becomes a no-op.
-	 */
-	cc = clp_disable_fh(zdev);
-	if (cc == CLP_RC_SETPCIFN_ALRDY) {
+	if (!zdev_enabled(zdev))
+		return 0;
+	cc = clp_disable_fh(zdev, &fh);
+	if (!cc) {
+		zdev->fh = fh;
+	} else if (cc == CLP_RC_SETPCIFN_ALRDY) {
 		pr_info("Disabling PCI function %08x had no effect as it was already disabled\n",
 			zdev->fid);
 		/* Function is already disabled - update handle */
-		rc = clp_refresh_fh(zdev->fid);
-		if (!rc)
+		rc = clp_refresh_fh(zdev->fid, &fh);
+		if (!rc) {
+			zdev->fh = fh;
 			rc = -EINVAL;
-	} else if (cc) {
+		}
+	} else {
 		rc = -EIO;
 	}
 	return rc;

@@ -216,10 +216,10 @@ void zpci_remove_reserved_devices(void);
 int clp_setup_writeback_mio(void);
 int clp_scan_pci_devices(void);
 int clp_query_pci_fn(struct zpci_dev *zdev);
-int clp_enable_fh(struct zpci_dev *, u8);
-int clp_disable_fh(struct zpci_dev *);
+int clp_enable_fh(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as);
+int clp_disable_fh(struct zpci_dev *zdev, u32 *fh);
 int clp_get_state(u32 fid, enum zpci_state *state);
-int clp_refresh_fh(u32 fid);
+int clp_refresh_fh(u32 fid, u32 *fh);
 
 /* UID */
 void update_uid_checking(bool new);
