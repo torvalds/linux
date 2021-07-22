@@ -1856,8 +1856,14 @@ static int scarlett2_mute_ctl_get(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
-	struct scarlett2_data *private = elem->head.mixer->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
 	int index = line_out_remap(private, elem->control);
+
+	mutex_lock(&private->data_mutex);
+	if (private->vol_updated)
+		scarlett2_update_volumes(mixer);
+	mutex_unlock(&private->data_mutex);
 
 	ucontrol->value.integer.value[0] = private->mute_switch[index];
 	return 0;
