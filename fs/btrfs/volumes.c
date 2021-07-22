@@ -38,7 +38,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.sub_stripes	= 2,
 		.dev_stripes	= 1,
 		.devs_max	= 0,	/* 0 == as many as possible */
-		.devs_min	= 4,
+		.devs_min	= 2,
 		.tolerated_failures = 1,
 		.devs_increment	= 2,
 		.ncopies	= 2,
@@ -103,7 +103,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.sub_stripes	= 1,
 		.dev_stripes	= 1,
 		.devs_max	= 0,
-		.devs_min	= 2,
+		.devs_min	= 1,
 		.tolerated_failures = 0,
 		.devs_increment	= 1,
 		.ncopies	= 1,
