@@ -674,12 +674,25 @@ out:
 
 int zpci_disable_device(struct zpci_dev *zdev)
 {
+	int cc, rc = 0;
+
 	zpci_dma_exit_device(zdev);
 	/*
 	 * The zPCI function may already be disabled by the platform, this is
 	 * detected in clp_disable_fh() which becomes a no-op.
 	 */
-	return clp_disable_fh(zdev) ? -EIO : 0;
+	cc = clp_disable_fh(zdev);
+	if (cc == CLP_RC_SETPCIFN_ALRDY) {
+		pr_info("Disabling PCI function %08x had no effect as it was already disabled\n",
+			zdev->fid);
+		/* Function is already disabled - update handle */
+		rc = clp_refresh_fh(zdev->fid);
+		if (!rc)
+			rc = -EINVAL;
+	} else if (cc) {
+		rc = -EIO;
+	}
+	return rc;
 }
 
 /**

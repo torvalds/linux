@@ -212,7 +212,6 @@ out:
 	return rc;
 }
 
-static int clp_refresh_fh(u32 fid);
 /**
  * clp_set_pci_fn() - Execute a command on a PCI function
  * @zdev: Function that will be affected
@@ -251,9 +250,6 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u8 nr_dma_as, u8 command)
 
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK) {
 		zdev->fh = rrb->response.fh;
-	} else if (!rc && rrb->response.hdr.rsp == CLP_RC_SETPCIFN_ALRDY) {
-		/* Function is already in desired state - update handle */
-		rc = clp_refresh_fh(zdev->fid);
 	} else {
 		zpci_err("Set PCI FN:\n");
 		zpci_err_clp(rrb->response.hdr.rsp, rc);
@@ -409,7 +405,7 @@ static void __clp_refresh_fh(struct clp_fh_list_entry *entry, void *data)
 /*
  * Refresh the function handle of the function matching @fid
  */
-static int clp_refresh_fh(u32 fid)
+int clp_refresh_fh(u32 fid)
 {
 	struct clp_req_rsp_list_pci *rrb;
 	int rc;
