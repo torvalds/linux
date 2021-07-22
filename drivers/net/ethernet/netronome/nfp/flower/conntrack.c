@@ -1521,6 +1521,139 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 	return 0;
 }
 
+static void
+nfp_fl_ct_sub_stats(struct nfp_fl_nft_tc_merge *nft_merge,
+		    enum ct_entry_type type, u64 *m_pkts,
+		    u64 *m_bytes, u64 *m_used)
+{
+	struct nfp_flower_priv *priv = nft_merge->zt->priv;
+	struct nfp_fl_payload *nfp_flow;
+	u32 ctx_id;
+
+	nfp_flow = nft_merge->flow_pay;
+	if (!nfp_flow)
+		return;
+
+	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
+	*m_pkts += priv->stats[ctx_id].pkts;
+	*m_bytes += priv->stats[ctx_id].bytes;
+	*m_used = max_t(u64, *m_used, priv->stats[ctx_id].used);
+
+	/* If request is for a sub_flow which is part of a tunnel merged
+	 * flow then update stats from tunnel merged flows first.
+	 */
+	if (!list_empty(&nfp_flow->linked_flows))
+		nfp_flower_update_merge_stats(priv->app, nfp_flow);
+
+	if (type != CT_TYPE_NFT) {
+		/* Update nft cached stats */
+		flow_stats_update(&nft_merge->nft_parent->stats,
+				  priv->stats[ctx_id].bytes,
+				  priv->stats[ctx_id].pkts,
+				  0, priv->stats[ctx_id].used,
+				  FLOW_ACTION_HW_STATS_DELAYED);
+	} else {
+		/* Update pre_ct cached stats */
+		flow_stats_update(&nft_merge->tc_m_parent->pre_ct_parent->stats,
+				  priv->stats[ctx_id].bytes,
+				  priv->stats[ctx_id].pkts,
+				  0, priv->stats[ctx_id].used,
+				  FLOW_ACTION_HW_STATS_DELAYED);
+		/* Update post_ct cached stats */
+		flow_stats_update(&nft_merge->tc_m_parent->post_ct_parent->stats,
+				  priv->stats[ctx_id].bytes,
+				  priv->stats[ctx_id].pkts,
+				  0, priv->stats[ctx_id].used,
+				  FLOW_ACTION_HW_STATS_DELAYED);
+	}
+	/* Reset stats from the nfp */
+	priv->stats[ctx_id].pkts = 0;
+	priv->stats[ctx_id].bytes = 0;
+}
+
+int nfp_fl_ct_stats(struct flow_cls_offload *flow,
+		    struct nfp_fl_ct_map_entry *ct_map_ent)
+{
+	struct nfp_fl_ct_flow_entry *ct_entry = ct_map_ent->ct_entry;
+	struct nfp_fl_nft_tc_merge *nft_merge, *nft_m_tmp;
+	struct nfp_fl_ct_tc_merge *tc_merge, *tc_m_tmp;
+
+	u64 pkts = 0, bytes = 0, used = 0;
+	u64 m_pkts, m_bytes, m_used;
+
+	spin_lock_bh(&ct_entry->zt->priv->stats_lock);
+
+	if (ct_entry->type == CT_TYPE_PRE_CT) {
+		/* Iterate tc_merge entries associated with this flow */
+		list_for_each_entry_safe(tc_merge, tc_m_tmp, &ct_entry->children,
+					 pre_ct_list) {
+			m_pkts = 0;
+			m_bytes = 0;
+			m_used = 0;
+			/* Iterate nft_merge entries associated with this tc_merge flow */
+			list_for_each_entry_safe(nft_merge, nft_m_tmp, &tc_merge->children,
+						 tc_merge_list) {
+				nfp_fl_ct_sub_stats(nft_merge, CT_TYPE_PRE_CT,
+						    &m_pkts, &m_bytes, &m_used);
+			}
+			pkts += m_pkts;
+			bytes += m_bytes;
+			used = max_t(u64, used, m_used);
+			/* Update post_ct partner */
+			flow_stats_update(&tc_merge->post_ct_parent->stats,
+					  m_bytes, m_pkts, 0, m_used,
+					  FLOW_ACTION_HW_STATS_DELAYED);
+		}
+	} else if (ct_entry->type == CT_TYPE_POST_CT) {
+		/* Iterate tc_merge entries associated with this flow */
+		list_for_each_entry_safe(tc_merge, tc_m_tmp, &ct_entry->children,
+					 post_ct_list) {
+			m_pkts = 0;
+			m_bytes = 0;
+			m_used = 0;
+			/* Iterate nft_merge entries associated with this tc_merge flow */
+			list_for_each_entry_safe(nft_merge, nft_m_tmp, &tc_merge->children,
+						 tc_merge_list) {
+				nfp_fl_ct_sub_stats(nft_merge, CT_TYPE_POST_CT,
+						    &m_pkts, &m_bytes, &m_used);
+			}
+			pkts += m_pkts;
+			bytes += m_bytes;
+			used = max_t(u64, used, m_used);
+			/* Update pre_ct partner */
+			flow_stats_update(&tc_merge->pre_ct_parent->stats,
+					  m_bytes, m_pkts, 0, m_used,
+					  FLOW_ACTION_HW_STATS_DELAYED);
+		}
+	} else  {
+		/* Iterate nft_merge entries associated with this nft flow */
+		list_for_each_entry_safe(nft_merge, nft_m_tmp, &ct_entry->children,
+					 nft_flow_list) {
+			nfp_fl_ct_sub_stats(nft_merge, CT_TYPE_NFT,
+					    &pkts, &bytes, &used);
+		}
+	}
+
+	/* Add stats from this request to stats potentially cached by
+	 * previous requests.
+	 */
+	flow_stats_update(&ct_entry->stats, bytes, pkts, 0, used,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+	/* Finally update the flow stats from the original stats request */
+	flow_stats_update(&flow->stats, ct_entry->stats.bytes,
+			  ct_entry->stats.pkts, 0,
+			  ct_entry->stats.lastused,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+	/* Stats has been synced to original flow, can now clear
+	 * the cache.
+	 */
+	ct_entry->stats.pkts = 0;
+	ct_entry->stats.bytes = 0;
+	spin_unlock_bh(&ct_entry->zt->priv->stats_lock);
+
+	return 0;
+}
+
 static int
 nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offload *flow)
 {
@@ -1553,7 +1686,11 @@ nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offl
 						    nfp_ct_map_params);
 		return nfp_fl_ct_del_flow(ct_map_ent);
 	case FLOW_CLS_STATS:
-		return 0;
+		ct_map_ent = rhashtable_lookup_fast(&zt->priv->ct_map_table, &flow->cookie,
+						    nfp_ct_map_params);
+		if (ct_map_ent)
+			return nfp_fl_ct_stats(flow, ct_map_ent);
+		break;
 	default:
 		break;
 	}

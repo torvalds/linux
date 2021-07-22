@@ -246,4 +246,12 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent);
  */
 int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data,
 			      void *cb_priv);
+
+/**
+ * nfp_fl_ct_stats() - Handle flower stats callbacks for ct flows
+ * @flow:	TC flower classifier offload structure.
+ * @ct_map_ent:	ct map entry for the flow that needs deleting
+ */
+int nfp_fl_ct_stats(struct flow_cls_offload *flow,
+		    struct nfp_fl_ct_map_entry *ct_map_ent);
 #endif

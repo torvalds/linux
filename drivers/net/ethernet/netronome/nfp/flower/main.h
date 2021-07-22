@@ -566,4 +566,7 @@ nfp_flower_del_linked_merge_flows(struct nfp_app *app,
 int
 nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 		     u8 mtype);
+void
+nfp_flower_update_merge_stats(struct nfp_app *app,
+			      struct nfp_fl_payload *sub_flow);
 #endif

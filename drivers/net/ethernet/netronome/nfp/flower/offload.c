@@ -1595,7 +1595,7 @@ __nfp_flower_update_merge_stats(struct nfp_app *app,
 	}
 }
 
-static void
+void
 nfp_flower_update_merge_stats(struct nfp_app *app,
 			      struct nfp_fl_payload *sub_flow)
 {
@@ -1622,9 +1622,16 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		     struct flow_cls_offload *flow)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_ct_map_entry *ct_map_ent;
 	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *nfp_flow;
 	u32 ctx_id;
+
+	/* Check ct_map table first */
+	ct_map_ent = rhashtable_lookup_fast(&priv->ct_map_table, &flow->cookie,
+					    nfp_ct_map_params);
+	if (ct_map_ent)
+		return nfp_fl_ct_stats(flow, ct_map_ent);
 
 	extack = flow->common.extack;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
