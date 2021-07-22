@@ -163,7 +163,7 @@ static void print_pstate(struct pt_regs *regs)
 	u64 pstate = regs->pstate;
 
 	if (compat_user_mode(regs)) {
-		printk("pstate: %08llx (%c%c%c%c %c %s %s %c%c%c)\n",
+		printk("pstate: %08llx (%c%c%c%c %c %s %s %c%c%c %cDIT %cSSBS)\n",
 			pstate,
 			pstate & PSR_AA32_N_BIT ? 'N' : 'n',
 			pstate & PSR_AA32_Z_BIT ? 'Z' : 'z',
@@ -174,12 +174,14 @@ static void print_pstate(struct pt_regs *regs)
 			pstate & PSR_AA32_E_BIT ? "BE" : "LE",
 			pstate & PSR_AA32_A_BIT ? 'A' : 'a',
 			pstate & PSR_AA32_I_BIT ? 'I' : 'i',
-			pstate & PSR_AA32_F_BIT ? 'F' : 'f');
+			pstate & PSR_AA32_F_BIT ? 'F' : 'f',
+			pstate & PSR_AA32_DIT_BIT ? '+' : '-',
+			pstate & PSR_AA32_SSBS_BIT ? '+' : '-');
 	} else {
 		const char *btype_str = btypes[(pstate & PSR_BTYPE_MASK) >>
 					       PSR_BTYPE_SHIFT];
 
-		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO %cTCO BTYPE=%s)\n",
+		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO %cTCO %cDIT %cSSBS BTYPE=%s)\n",
 			pstate,
 			pstate & PSR_N_BIT ? 'N' : 'n',
 			pstate & PSR_Z_BIT ? 'Z' : 'z',
@@ -192,6 +194,8 @@ static void print_pstate(struct pt_regs *regs)
 			pstate & PSR_PAN_BIT ? '+' : '-',
 			pstate & PSR_UAO_BIT ? '+' : '-',
 			pstate & PSR_TCO_BIT ? '+' : '-',
+			pstate & PSR_DIT_BIT ? '+' : '-',
+			pstate & PSR_SSBS_BIT ? '+' : '-',
 			btype_str);
 	}
 }
