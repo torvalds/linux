@@ -96,8 +96,6 @@
 #define IPV6_MAX_STRLEN \
 	sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
 
-static u32 ioam6_if_id_max = U16_MAX;
-
 static inline u32 cstamp_delta(unsigned long cstamp)
 {
 	return (cstamp - INITIAL_JIFFIES) * 100UL / HZ;
@@ -6550,6 +6548,7 @@ static int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
 
 static int minus_one = -1;
 static const int two_five_five = 255;
+static u32 ioam6_if_id_max = U16_MAX;
 
 static const struct ctl_table addrconf_sysctl[] = {
 	{
