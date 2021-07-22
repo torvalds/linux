@@ -264,7 +264,6 @@ __tracepoint_android_rvh_preempt_disable
 __tracepoint_android_rvh_preempt_enable
 __tracepoint_android_rvh_replace_next_task_fair
 __tracepoint_android_rvh_report_bug
-__tracepoint_android_rvh_report_bug
 __tracepoint_android_rvh_resume_cpus
 __tracepoint_android_rvh_sched_balance_rt
 __tracepoint_android_rvh_sched_cpu_dying
@@ -318,6 +317,7 @@ __tracepoint_android_vh_ftrace_oops_exit
 __tracepoint_android_vh_ftrace_size_check
 __tracepoint_android_vh_iommu_setup_dma_ops
 __tracepoint_android_vh_ipi_stop
+__tracepoint_android_vh_is_fpsimd_save
 __tracepoint_android_vh_jiffies_update
 __tracepoint_android_vh_kfree_skb
 __tracepoint_android_vh_logbuf
@@ -335,6 +335,7 @@ __tracepoint_android_vh_rwsem_write_wait_start
 __tracepoint_android_vh_sched_show_task
 __tracepoint_android_vh_scheduler_tick
 __tracepoint_android_vh_show_max_freq
+__tracepoint_android_vh_show_mem
 __tracepoint_android_vh_show_resume_epoch_val
 __tracepoint_android_vh_show_suspend_epoch_val
 __tracepoint_android_vh_timer_calc_index
@@ -628,6 +629,7 @@ blk_sync_queue
 blk_unregister_region
 blk_update_request
 blk_verify_command
+blkdev_fsync
 blkdev_get_by_dev
 blkdev_get_by_path
 blkdev_issue_flush
@@ -656,6 +658,7 @@ bpf_trace_run9
 bpf_warn_invalid_xdp_action
 bsearch
 bt_err
+bt_info
 build_skb
 bus_find_device
 bus_for_each_dev
@@ -701,6 +704,7 @@ class_destroy
 class_find_device
 class_for_each_device
 class_interface_unregister
+class_remove_file_ns
 class_unregister
 cleancache_register_ops
 cleanup_srcu_struct
@@ -835,6 +839,7 @@ cpufreq_table_index_unsorted
 cpufreq_this_cpu_can_update
 cpufreq_unregister_driver
 cpufreq_unregister_notifier
+cpufreq_update_policy
 cpuhp_tasks_frozen
 cpuidle_governor_latency_req
 cpuidle_register_governor
@@ -848,6 +853,7 @@ cpus_read_unlock
 crc32_le
 crc8
 crc8_populate_msb
+create_function_device
 crypto_aead_encrypt
 crypto_aead_setauthsize
 crypto_aead_setkey
@@ -1172,6 +1178,7 @@ devres_free
 devres_release
 disable_irq
 disable_irq_nosync
+disable_kprobe
 disable_percpu_irq
 disk_end_io_acct
 disk_start_io_acct
@@ -1271,8 +1278,8 @@ dmaengine_unmap_put
 dmam_alloc_attrs
 dmam_free_coherent
 dmam_pool_create
-do_exit
 do_SAK
+do_exit
 do_trace_rcu_torture_read
 do_wait_intr
 do_wait_intr_irq
@@ -1460,6 +1467,7 @@ drm_dp_update_payload_part1
 drm_dp_update_payload_part2
 drm_edid_block_valid
 drm_edid_duplicate
+drm_edid_get_monitor_name
 drm_edid_header_is_valid
 drm_edid_is_valid
 drm_edid_to_sad
@@ -1704,6 +1712,7 @@ elv_rqhash_del
 elv_unregister
 emergency_restart
 enable_irq
+enable_kprobe
 enable_percpu_irq
 eth_commit_mac_addr_change
 eth_mac_addr
@@ -1736,6 +1745,7 @@ fasync_helper
 fd_install
 fget
 file_path
+file_ra_state_init
 filp_close
 filp_open
 filp_open_block
@@ -1749,6 +1759,7 @@ find_vma
 find_vpid
 finish_wait
 firmware_request_nowarn
+fixed_size_llseek
 flow_keys_basic_dissector
 flush_dcache_page
 flush_delayed_work
@@ -1806,9 +1817,12 @@ gen_pool_virt_to_phys
 generic_delete_inode
 generic_device_group
 generic_file_llseek
+generic_file_read_iter
 generic_handle_irq
 generic_iommu_put_resv_regions
 generic_mii_ioctl
+generic_perform_write
+generic_write_checks
 genl_notify
 genl_register_family
 genl_unregister_family
@@ -1829,6 +1843,7 @@ get_pid_task
 get_random_bytes
 get_random_bytes_arch
 get_random_u32
+get_random_u64
 get_sg_io_hdr
 get_state_synchronize_rcu
 get_task_exe_file
@@ -1863,6 +1878,7 @@ gpio_request_one
 gpio_to_desc
 gpiochip_add_data_with_key
 gpiochip_add_pin_range
+gpiochip_find
 gpiochip_generic_config
 gpiochip_generic_free
 gpiochip_generic_request
@@ -1872,6 +1888,7 @@ gpiochip_lock_as_irq
 gpiochip_populate_parent_fwspec_fourcell
 gpiochip_remove
 gpiochip_unlock_as_irq
+gpiod_cansleep
 gpiod_count
 gpiod_direction_input
 gpiod_direction_output
@@ -1887,6 +1904,7 @@ gpiod_set_raw_value
 gpiod_set_raw_value_cansleep
 gpiod_set_value
 gpiod_set_value_cansleep
+gpiod_to_chip
 gpiod_to_irq
 gro_cells_destroy
 gro_cells_init
@@ -1916,9 +1934,9 @@ hdmi_audio_infoframe_pack
 hdmi_avi_infoframe_init
 hdmi_avi_infoframe_pack
 hdmi_infoframe_pack
+hex2bin
 hex_dump_to_buffer
 hex_to_bin
-hex2bin
 hmm_range_fault
 hrtimer_active
 hrtimer_cancel
@@ -1942,6 +1960,7 @@ i2c_adapter_type
 i2c_add_adapter
 i2c_add_numbered_adapter
 i2c_bit_add_bus
+i2c_bit_add_numbered_bus
 i2c_bus_type
 i2c_client_type
 i2c_del_adapter
@@ -2022,11 +2041,12 @@ iio_device_free
 iio_device_unregister
 iio_push_to_buffers
 iio_read_channel_processed
+iio_read_channel_raw
 import_iovec
-in_aton
-in_egroup_p
 in4_pton
 in6_pton
+in_aton
+in_egroup_p
 inc_zone_page_state
 inet_proto_csum_replace4
 init_dummy_netdev
@@ -2122,6 +2142,7 @@ iommu_unmap
 iommu_unregister_device_fault_handler
 iounmap
 iov_iter_bvec
+iov_iter_kvec
 ip_compute_csum
 ip_send_check
 ipi_desc_get
@@ -2183,10 +2204,10 @@ irq_work_sync
 is_dma_buf_file
 is_vmalloc_addr
 jiffies
+jiffies64_to_msecs
 jiffies_64_to_clock_t
 jiffies_to_msecs
 jiffies_to_usecs
-jiffies64_to_msecs
 kasan_flag_enabled
 kasprintf
 kern_mount
@@ -2228,6 +2249,8 @@ kmem_cache_destroy
 kmem_cache_free
 kmemdup
 kmemdup_nul
+kmsg_dump_get_line
+kmsg_dump_rewind
 kobj_sysfs_ops
 kobject_add
 kobject_create_and_add
@@ -2469,6 +2492,7 @@ mutex_lock_interruptible
 mutex_trylock
 mutex_trylock_recursive
 mutex_unlock
+name_to_dev_t
 names_cachep
 napi_complete_done
 napi_consume_skb
@@ -2508,6 +2532,7 @@ netif_set_real_num_tx_queues
 netif_stacked_transfer_operstate
 netif_tx_stop_all_queues
 netif_tx_wake_queue
+netlink_ack
 netlink_broadcast
 netlink_capable
 netlink_has_listeners
@@ -2860,6 +2885,7 @@ pinctrl_utils_free_map
 pipe_lock
 pipe_unlock
 pktgen_xfrm_outer_mode_output
+platform_add_devices
 platform_bus_type
 platform_device_add
 platform_device_add_data
@@ -2960,6 +2986,8 @@ ps2_init
 ps2_sendbyte
 ps2_sliced_command
 pskb_expand_head
+pstore_register
+pstore_unregister
 put_device
 put_disk
 put_iova_domain
@@ -4107,7 +4135,6 @@ usleep_range
 uuid_gen
 uuid_null
 uuid_parse
-v4l_bound_align_image
 v4l2_compat_ioctl32
 v4l2_ctrl_find
 v4l2_ctrl_handler_free
@@ -4164,6 +4191,7 @@ v4l2_m2m_try_schedule
 v4l2_s_ctrl
 v4l2_subdev_call_wrappers
 v4l2_subdev_init
+v4l_bound_align_image
 vabits_actual
 vb2_buffer_done
 vb2_common_vm_ops
@@ -4204,6 +4232,7 @@ vchan_init
 vchan_tx_desc_free
 vchan_tx_submit
 vfree
+vfs_fsync_range
 video_devdata
 video_device_alloc
 video_device_release
