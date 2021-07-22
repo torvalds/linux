@@ -261,6 +261,7 @@ static void part_release(struct device *dev)
 {
 	if (MAJOR(dev->devt) == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(MINOR(dev->devt));
+	put_disk(dev_to_bdev(dev)->bd_disk);
 	bdput(dev_to_bdev(dev));
 }
 
@@ -349,9 +350,13 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	if (xa_load(&disk->part_tbl, partno))
 		return ERR_PTR(-EBUSY);
 
+	/* ensure we always have a reference to the whole disk */
+	get_device(disk_to_dev(disk));
+
+	err = -ENOMEM;
 	bdev = bdev_alloc(disk, partno);
 	if (!bdev)
-		return ERR_PTR(-ENOMEM);
+		goto out_put_disk;
 
 	bdev->bd_start_sect = start;
 	bdev_set_nr_sectors(bdev, len);
@@ -420,6 +425,8 @@ out_del:
 	device_del(pdev);
 out_put:
 	put_device(pdev);
+out_put_disk:
+	put_disk(disk);
 	return ERR_PTR(err);
 }
 

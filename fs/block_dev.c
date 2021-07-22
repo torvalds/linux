@@ -921,16 +921,6 @@ void bdev_add(struct block_device *bdev, dev_t dev)
 	insert_inode_hash(bdev->bd_inode);
 }
 
-static struct block_device *bdget(dev_t dev)
-{
-	struct inode *inode;
-
-	inode = ilookup(blockdev_superblock, dev);
-	if (!inode)
-		return NULL;
-	return &BDEV_I(inode)->bdev;
-}
-
 /**
  * bdgrab -- Grab a reference to an already referenced block device
  * @bdev:	Block device to grab a reference to.
@@ -1282,16 +1272,14 @@ static void blkdev_put_whole(struct block_device *bdev, fmode_t mode)
 static int blkdev_get_part(struct block_device *part, fmode_t mode)
 {
 	struct gendisk *disk = part->bd_disk;
-	struct block_device *whole;
 	int ret;
 
 	if (part->bd_openers)
 		goto done;
 
-	whole = bdgrab(disk->part0);
-	ret = blkdev_get_whole(whole, mode);
+	ret = blkdev_get_whole(bdev_whole(part), mode);
 	if (ret)
-		goto out_put_whole;
+		return ret;
 
 	ret = -ENXIO;
 	if (!bdev_nr_sectors(part))
@@ -1306,9 +1294,7 @@ done:
 	return 0;
 
 out_blkdev_put:
-	blkdev_put_whole(whole, mode);
-out_put_whole:
-	bdput(whole);
+	blkdev_put_whole(bdev_whole(part), mode);
 	return ret;
 }
 
@@ -1321,42 +1307,42 @@ static void blkdev_put_part(struct block_device *part, fmode_t mode)
 	blkdev_flush_mapping(part);
 	whole->bd_disk->open_partitions--;
 	blkdev_put_whole(whole, mode);
-	bdput(whole);
 }
 
 struct block_device *blkdev_get_no_open(dev_t dev)
 {
 	struct block_device *bdev;
-	struct gendisk *disk;
+	struct inode *inode;
 
-	bdev = bdget(dev);
-	if (!bdev) {
+	inode = ilookup(blockdev_superblock, dev);
+	if (!inode) {
 		blk_request_module(dev);
-		bdev = bdget(dev);
-		if (!bdev)
+		inode = ilookup(blockdev_superblock, dev);
+		if (!inode)
 			return NULL;
 	}
 
-	disk = bdev->bd_disk;
-	if (!kobject_get_unless_zero(&disk_to_dev(disk)->kobj))
-		goto bdput;
-	if (disk->flags & GENHD_FL_HIDDEN)
-		goto put_disk;
-	if (!try_module_get(bdev->bd_disk->fops->owner))
-		goto put_disk;
+	/* switch from the inode reference to a device mode one: */
+	bdev = &BDEV_I(inode)->bdev;
+	if (!kobject_get_unless_zero(&bdev->bd_device.kobj))
+		bdev = NULL;
+	iput(inode);
+
+	if (!bdev)
+		return NULL;
+	if ((bdev->bd_disk->flags & GENHD_FL_HIDDEN) ||
+	    !try_module_get(bdev->bd_disk->fops->owner)) {
+		put_device(&bdev->bd_device);
+		return NULL;
+	}
+
 	return bdev;
-put_disk:
-	put_disk(disk);
-bdput:
-	bdput(bdev);
-	return NULL;
 }
 
 void blkdev_put_no_open(struct block_device *bdev)
 {
 	module_put(bdev->bd_disk->fops->owner);
-	put_disk(bdev->bd_disk);
-	bdput(bdev);
+	put_device(&bdev->bd_device);
 }
 
 /**
