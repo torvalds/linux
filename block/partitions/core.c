@@ -356,13 +356,6 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	bdev->bd_start_sect = start;
 	bdev_set_nr_sectors(bdev, len);
 
-	if (info) {
-		err = -ENOMEM;
-		bdev->bd_meta_info = kmemdup(info, sizeof(*info), GFP_KERNEL);
-		if (!bdev->bd_meta_info)
-			goto out_bdput;
-	}
-
 	pdev = &bdev->bd_device;
 	dname = dev_name(ddev);
 	if (isdigit(dname[strlen(dname) - 1]))
@@ -385,6 +378,13 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 		devt = MKDEV(BLOCK_EXT_MAJOR, err);
 	}
 	pdev->devt = devt;
+
+	if (info) {
+		err = -ENOMEM;
+		bdev->bd_meta_info = kmemdup(info, sizeof(*info), GFP_KERNEL);
+		if (!bdev->bd_meta_info)
+			goto out_put;
+	}
 
 	/* delay uevent until 'holders' subdir is created */
 	dev_set_uevent_suppress(pdev, 1);
@@ -415,9 +415,6 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 	return bdev;
 
-out_bdput:
-	bdput(bdev);
-	return ERR_PTR(err);
 out_del:
 	kobject_put(bdev->bd_holder_dir);
 	device_del(pdev);
