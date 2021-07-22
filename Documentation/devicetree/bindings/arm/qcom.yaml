@@ -44,6 +44,7 @@ description: |
         sdm660
         sdm845
         sdx55
+        sdx65
         sm8150
         sm8250
         sm8350
@@ -205,6 +206,11 @@ properties:
               - qcom,sdx55-telit-fn980-tlb
               - qcom,sdx55-t55
           - const: qcom,sdx55
+
+      - items:
+          - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
 
       - items:
           - enum:
