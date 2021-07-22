@@ -1825,6 +1825,7 @@
   __traceiter_android_rvh_find_busiest_group
   __traceiter_android_rvh_find_energy_efficient_cpu
   __traceiter_android_rvh_finish_prio_fork
+  __traceiter_android_rvh_media_device_setup_link
   __traceiter_android_rvh_prepare_prio_fork
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_sched_newidle_balance
@@ -1833,6 +1834,9 @@
   __traceiter_android_rvh_set_user_nice
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_v4l2subdev_set_fmt
+  __traceiter_android_rvh_v4l2subdev_set_frame_interval
+  __traceiter_android_rvh_v4l2subdev_set_selection
   __traceiter_android_vh_alter_futex_plist_add
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
@@ -1882,6 +1886,7 @@
   __tracepoint_android_rvh_find_busiest_group
   __tracepoint_android_rvh_find_energy_efficient_cpu
   __tracepoint_android_rvh_finish_prio_fork
+  __tracepoint_android_rvh_media_device_setup_link
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_sched_newidle_balance
@@ -1890,6 +1895,9 @@
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_v4l2subdev_set_fmt
+  __tracepoint_android_rvh_v4l2subdev_set_frame_interval
+  __tracepoint_android_rvh_v4l2subdev_set_selection
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
