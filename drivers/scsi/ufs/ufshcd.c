@@ -17,6 +17,8 @@
 #include <linux/blk-pm.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_driver.h>
+#include <scsi/scsi_transport.h>
+#include "../scsi_transport_api.h"
 #include "ufshcd.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
@@ -233,7 +235,6 @@ static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up);
 static irqreturn_t ufshcd_intr(int irq, void *__hba);
 static int ufshcd_change_power_mode(struct ufs_hba *hba,
 			     struct ufs_pa_layer_attr *pwr_mode);
-static void ufshcd_schedule_eh_work(struct ufs_hba *hba);
 static int ufshcd_setup_hba_vreg(struct ufs_hba *hba, bool on);
 static int ufshcd_setup_vreg(struct ufs_hba *hba, bool on);
 static inline int ufshcd_config_vreg_hpm(struct ufs_hba *hba,
@@ -3914,6 +3915,35 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufshcd_dme_get_attr);
 
+static inline bool ufshcd_is_saved_err_fatal(struct ufs_hba *hba)
+{
+	lockdep_assert_held(hba->host->host_lock);
+
+	return (hba->saved_uic_err & UFSHCD_UIC_DL_PA_INIT_ERROR) ||
+	       (hba->saved_err & (INT_FATAL_ERRORS | UFSHCD_UIC_HIBERN8_MASK));
+}
+
+static void ufshcd_schedule_eh(struct ufs_hba *hba)
+{
+	bool schedule_eh = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	/* handle fatal errors only when link is not in error state */
+	if (hba->ufshcd_state != UFSHCD_STATE_ERROR) {
+		if (hba->force_reset || ufshcd_is_link_broken(hba) ||
+		    ufshcd_is_saved_err_fatal(hba))
+			hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED_FATAL;
+		else
+			hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED_NON_FATAL;
+		schedule_eh = true;
+	}
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	if (schedule_eh)
+		scsi_schedule_eh(hba->host);
+}
+
 /**
  * ufshcd_uic_pwr_ctrl - executes UIC commands (which affects the link power
  * state) and waits for it to take effect.
@@ -3934,6 +3964,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 {
 	DECLARE_COMPLETION_ONSTACK(uic_async_done);
 	unsigned long flags;
+	bool schedule_eh = false;
 	u8 status;
 	int ret;
 	bool reenable_intr = false;
@@ -4003,10 +4034,14 @@ out:
 		ufshcd_enable_intr(hba, UIC_COMMAND_COMPL);
 	if (ret) {
 		ufshcd_set_link_broken(hba);
-		ufshcd_schedule_eh_work(hba);
+		schedule_eh = true;
 	}
+
 out_unlock:
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	if (schedule_eh)
+		ufshcd_schedule_eh(hba);
 	mutex_unlock(&hba->uic_cmd_mutex);
 
 	return ret;
@@ -5838,27 +5873,6 @@ out:
 	return err_handling;
 }
 
-/* host lock must be held before calling this func */
-static inline bool ufshcd_is_saved_err_fatal(struct ufs_hba *hba)
-{
-	return (hba->saved_uic_err & UFSHCD_UIC_DL_PA_INIT_ERROR) ||
-	       (hba->saved_err & (INT_FATAL_ERRORS | UFSHCD_UIC_HIBERN8_MASK));
-}
-
-/* host lock must be held before calling this func */
-static inline void ufshcd_schedule_eh_work(struct ufs_hba *hba)
-{
-	/* handle fatal errors only when link is not in error state */
-	if (hba->ufshcd_state != UFSHCD_STATE_ERROR) {
-		if (hba->force_reset || ufshcd_is_link_broken(hba) ||
-		    ufshcd_is_saved_err_fatal(hba))
-			hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED_FATAL;
-		else
-			hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED_NON_FATAL;
-		queue_work(hba->eh_wq, &hba->eh_work);
-	}
-}
-
 static void ufshcd_clk_scaling_allow(struct ufs_hba *hba, bool allow)
 {
 	down_write(&hba->clk_scaling_lock);
@@ -5992,11 +6006,11 @@ static bool ufshcd_is_pwr_mode_restore_needed(struct ufs_hba *hba)
 
 /**
  * ufshcd_err_handler - handle UFS errors that require s/w attention
- * @work: pointer to work structure
+ * @host: SCSI host pointer
  */
-static void ufshcd_err_handler(struct work_struct *work)
+static void ufshcd_err_handler(struct Scsi_Host *host)
 {
-	struct ufs_hba *hba;
+	struct ufs_hba *hba = shost_priv(host);
 	unsigned long flags;
 	bool err_xfer = false;
 	bool err_tm = false;
@@ -6004,10 +6018,9 @@ static void ufshcd_err_handler(struct work_struct *work)
 	int tag;
 	bool needs_reset = false, needs_restore = false;
 
-	hba = container_of(work, struct ufs_hba, eh_work);
-
 	down(&hba->host_sem);
 	spin_lock_irqsave(hba->host->host_lock, flags);
+	hba->host->host_eh_scheduled = 0;
 	if (ufshcd_err_handling_should_stop(hba)) {
 		if (hba->ufshcd_state != UFSHCD_STATE_ERROR)
 			hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
@@ -6321,7 +6334,6 @@ static irqreturn_t ufshcd_check_errors(struct ufs_hba *hba, u32 intr_status)
 					 "host_regs: ");
 			ufshcd_print_pwr_info(hba);
 		}
-		ufshcd_schedule_eh_work(hba);
 		retval |= IRQ_HANDLED;
 	}
 	/*
@@ -6333,6 +6345,10 @@ static irqreturn_t ufshcd_check_errors(struct ufs_hba *hba, u32 intr_status)
 	hba->errors = 0;
 	hba->uic_error = 0;
 	spin_unlock(hba->host->host_lock);
+
+	if (queue_eh_work)
+		ufshcd_schedule_eh(hba);
+
 	return retval;
 }
 
@@ -6995,15 +7011,17 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	 * will be to send LU reset which, again, is a spec violation.
 	 * To avoid these unnecessary/illegal steps, first we clean up
 	 * the lrb taken by this cmd and re-set it in outstanding_reqs,
-	 * then queue the eh_work and bail.
+	 * then queue the error handler and bail.
 	 */
 	if (lrbp->lun == UFS_UPIU_UFS_DEVICE_WLUN) {
 		ufshcd_update_evt_hist(hba, UFS_EVT_ABORT, lrbp->lun);
 
 		spin_lock_irqsave(host->host_lock, flags);
 		hba->force_reset = true;
-		ufshcd_schedule_eh_work(hba);
 		spin_unlock_irqrestore(host->host_lock, flags);
+
+		ufshcd_schedule_eh(hba);
+
 		goto release;
 	}
 
@@ -7136,11 +7154,10 @@ static int ufshcd_eh_host_reset_handler(struct scsi_cmnd *cmd)
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	hba->force_reset = true;
-	ufshcd_schedule_eh_work(hba);
 	dev_err(hba->dev, "%s: reset in progress - 1\n", __func__);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
-	flush_work(&hba->eh_work);
+	ufshcd_err_handler(hba->host);
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	if (hba->ufshcd_state == UFSHCD_STATE_ERROR)
@@ -8528,8 +8545,6 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 	if (hba->is_powered) {
 		ufshcd_exit_clk_scaling(hba);
 		ufshcd_exit_clk_gating(hba);
-		if (hba->eh_wq)
-			destroy_workqueue(hba->eh_wq);
 		ufs_debugfs_hba_exit(hba);
 		ufshcd_variant_hba_exit(hba);
 		ufshcd_setup_vreg(hba, false);
@@ -9374,6 +9389,10 @@ static int ufshcd_set_dma_mask(struct ufs_hba *hba)
 	return dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(32));
 }
 
+static struct scsi_transport_template ufshcd_transport_template = {
+	.eh_strategy_handler = ufshcd_err_handler,
+};
+
 /**
  * ufshcd_alloc_host - allocate Host Bus Adapter (HBA)
  * @dev: pointer to device handle
@@ -9400,6 +9419,7 @@ int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 		err = -ENOMEM;
 		goto out_error;
 	}
+	host->transportt = &ufshcd_transport_template;
 	hba = shost_priv(host);
 	hba->host = host;
 	hba->dev = dev;
@@ -9438,7 +9458,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	int err;
 	struct Scsi_Host *host = hba->host;
 	struct device *dev = hba->dev;
-	char eh_wq_name[sizeof("ufs_eh_wq_00")];
 
 	if (!mmio_base) {
 		dev_err(hba->dev,
@@ -9492,17 +9511,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 	hba->max_pwr_info.is_valid = false;
 
-	/* Initialize work queues */
-	snprintf(eh_wq_name, sizeof(eh_wq_name), "ufs_eh_wq_%d",
-		 hba->host->host_no);
-	hba->eh_wq = create_singlethread_workqueue(eh_wq_name);
-	if (!hba->eh_wq) {
-		dev_err(hba->dev, "%s: failed to create eh workqueue\n",
-				__func__);
-		err = -ENOMEM;
-		goto out_disable;
-	}
-	INIT_WORK(&hba->eh_work, ufshcd_err_handler);
 	INIT_WORK(&hba->eeh_work, ufshcd_exception_event_handler);
 
 	sema_init(&hba->host_sem, 1);
