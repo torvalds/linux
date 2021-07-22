@@ -279,11 +279,6 @@ static void v253_receive(struct tty_struct *tty, const unsigned char *cp,
 	}
 }
 
-/* Line discipline .write_wakeup() */
-static void v253_wakeup(struct tty_struct *tty)
-{
-}
-
 struct tty_ldisc_ops v253_ops = {
 	.name = "cx20442",
 	.owner = THIS_MODULE,
@@ -291,7 +286,6 @@ struct tty_ldisc_ops v253_ops = {
 	.close = v253_close,
 	.hangup = v253_hangup,
 	.receive_buf = v253_receive,
-	.write_wakeup = v253_wakeup,
 };
 EXPORT_SYMBOL_GPL(v253_ops);
 
