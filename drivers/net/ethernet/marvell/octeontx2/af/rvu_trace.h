@@ -14,6 +14,8 @@
 #include <linux/tracepoint.h>
 #include <linux/pci.h>
 
+#include "mbox.h"
+
 TRACE_EVENT(otx2_msg_alloc,
 	    TP_PROTO(const struct pci_dev *pdev, u16 id, u64 size),
 	    TP_ARGS(pdev, id, size),
@@ -25,8 +27,8 @@ TRACE_EVENT(otx2_msg_alloc,
 			   __entry->id = id;
 			   __entry->size = size;
 	    ),
-	    TP_printk("[%s] msg:(0x%x) size:%lld\n", __get_str(dev),
-		      __entry->id, __entry->size)
+	    TP_printk("[%s] msg:(%s) size:%lld\n", __get_str(dev),
+		      otx2_mbox_id2name(__entry->id), __entry->size)
 );
 
 TRACE_EVENT(otx2_msg_send,
@@ -88,8 +90,8 @@ TRACE_EVENT(otx2_msg_process,
 			   __entry->id = id;
 			   __entry->err = err;
 	    ),
-	    TP_printk("[%s] msg:(0x%x) error:%d\n", __get_str(dev),
-		      __entry->id, __entry->err)
+	    TP_printk("[%s] msg:(%s) error:%d\n", __get_str(dev),
+		      otx2_mbox_id2name(__entry->id), __entry->err)
 );
 
 #endif /* __RVU_TRACE_H */
