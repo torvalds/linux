@@ -56,7 +56,7 @@ static struct monitor_dev_profile mali_mdevp = {
  * This function will be called only when the opp table which is compatible with
  * "operating-points-v2-mali", is not present in the devicetree for GPU device.
  *
- * Return: Voltage value in milli volts, 0 in case of error.
+ * Return: Voltage value in uV, 0 in case of error.
  */
 static unsigned long get_voltage(struct kbase_device *kbdev, unsigned long freq)
 {
@@ -82,8 +82,8 @@ static unsigned long get_voltage(struct kbase_device *kbdev, unsigned long freq)
 	rcu_read_unlock();
 #endif
 
-	/* Return the voltage in milli volts */
-	return voltage / 1000;
+	/* Return the voltage in uV. */
+	return voltage;
 }
 
 void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
