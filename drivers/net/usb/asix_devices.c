@@ -714,7 +714,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	u8 buf[ETH_ALEN] = {0}, chipcode = 0;
 	struct asix_common_private *priv;
 	int ret, i;
-	u32 phyid;
 
 	usbnet_get_endpoints(dev, intf);
 
@@ -761,10 +760,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		netdev_dbg(dev->net, "Failed to reset AX88772: %d\n", ret);
 		return ret;
 	}
-
-	/* Read PHYID register *AFTER* the PHY was reset properly */
-	phyid = asix_get_phyid(dev);
-	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
