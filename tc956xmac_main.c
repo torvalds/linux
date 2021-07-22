@@ -41,6 +41,8 @@
  *  VERSION     : 01-00-03
  *  22 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
  *  VERSION     : 01-00-04
+ *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
+ *  VERSION     : 01-00-05
  */
 
 #include <linux/clk.h>
@@ -9687,6 +9689,7 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv->port_interface = res->port_interface;
 #ifdef DMA_OFFLOAD_ENABLE
 	priv->client_priv = NULL;
+	memset(priv->cm3_tamap, 0, sizeof(struct tc956xmac_cm3_tamap) * MAX_CM3_TAMAP_ENTRIES);
 #endif
 
 #ifdef TC956X

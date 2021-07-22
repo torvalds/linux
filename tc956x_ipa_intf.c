@@ -35,6 +35,8 @@
  *  VERSION     : 01-00-02
  *  20 Jul 2021 : 1. IPA statistics print function removed
  *  VERSION     : 01-00-03
+ *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
+ *  VERSION     : 01-00-05
  */
 
 #include <linux/dma-mapping.h>
@@ -65,7 +67,13 @@
 #define IPA_MAX_DESC_CNT    512
 #define MAX_WDT		0xFF
 
-extern int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
+static DEFINE_SPINLOCK(cm3_tamap_lock);
+
+extern int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv);
+extern void tc956x_config_CM3_tamap(struct device *dev,
+				void __iomem *reg_pci_base_addr,
+				struct tc956xmac_cm3_tamap *tamap,
+				u8 table_entry);
 /*!
  * \brief This API will return the version of IPA I/F maintained by Toshiba
  *	  The API will check for NULL pointers
@@ -826,21 +834,28 @@ EXPORT_SYMBOL_GPL(release_channel);
  *
  * \param[in] ndev : TC956x netdev  data structure
  * \param[in] channel : Pointer to channel info containing the channel information
- * \param[in] addr : TAMAP'ed Address location to which the PCIe write is to be performed from CM3 FW
+ * \param[in] addr : PCIe Address location to which the PCIe write is to be performed from CM3 FW
  *
- * \return : O for success if TAMAP'ed address of the PCIe location is within accessible range
+ * \return : O for success
  *	     -EPERM if non IPA channels are accessed, out of range PCIe access location for CM3
  *	     -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
  *	     -EINVAL if channel pointer NULL
  *
- * \remarks : TAMAP will be set for 0x6000_0000 - 0xC000_0000 region.
- *	     PCIe write location should be within this region.
+ * \remarks :
  *	     If this API is invoked for a channel without calling release_event(),
  *	     then the PCIe address and value for that channel will be overwritten
+ * 	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
+ *	     TRSL_ADDR = DMA_PCIe_ADDR & ~((2 ^ (ATR_SIZE + 1) - 1) = TRSL_ADDR = DMA_PCIe_ADDR & ~Mask
+ *	     CM3 Target Address = DMA_PCIe_ADDR & Mask | SRC_ADDR
  */
-int request_event(struct net_device *ndev, struct channel_info *channel, u32 addr)
+int request_event(struct net_device *ndev, struct channel_info *channel, dma_addr_t addr)
 {
 	struct tc956xmac_priv *priv;
+	u8 table_entry = 1; /* Table entry 0 is for eMAC */
+	struct tc956xmac_cm3_tamap tamap;
+	u32 val, cm3_target_addr;
+	dma_addr_t trsl_addr;
+	unsigned long flags;
 
 	if (!ndev) {
 		pr_err("%s: ERROR: Invalid netdevice pointer\n", __func__);
@@ -873,7 +888,67 @@ int request_event(struct net_device *ndev, struct channel_info *channel, u32 add
 			return -EPERM;
 	}
 
-	if (addr < CM3_PCIE_REGION_LOW_BOUND || addr > CM3_PCIE_REGION_UP_BOUND) {
+	spin_lock_irqsave(&cm3_tamap_lock, flags);
+	while (table_entry <= MAX_CM3_TAMAP_ENTRIES) {
+		val = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry));
+
+		KPRINT_INFO("SL0%d TRSL_ADDR HI = 0x%08x\n", table_entry,
+			readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry)));
+		KPRINT_INFO("SL0%d TRSL_ADDR LO = 0x%08x\n", table_entry,
+			readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry)));
+		KPRINT_INFO("SL0%d SRC_ADDR HI = 0x%08x\n", table_entry,
+			readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_HI(0, table_entry)));
+		KPRINT_INFO("SL0%d SRC_ADDR LO = 0x%08x\n", table_entry,
+			readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)));
+
+		if (((val & TC956X_ATR_SIZE_MASK) >> TC956x_ATR_SIZE_SHIFT) != 0x3F) {
+			/* If a entry already exists, then check the range */
+			trsl_addr = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry));
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+			trsl_addr |= (dma_addr_t)readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry)) << 32U;
+#endif
+			if ((trsl_addr <= addr) && (addr <= (trsl_addr + CM3_TAMAP_SIZE - 1))) {
+#ifndef CONFIG_ARCH_DMA_ADDR_T_64BIT
+				netdev_info(priv->dev, "TAMAP Table %d manages address = 0x%x\n", table_entry, addr);
+#else
+				netdev_info(priv->dev, "TAMAP Table %d manages address = 0x%llx\n", table_entry, addr);
+#endif
+				break;
+			}
+		} else {
+
+			/* Create a new tamap entry */
+			tamap.src_addr_hi = 0x0;
+			tamap.src_addr_low = CM3_TAMAP_SRC_ADDR_START + (CM3_TAMAP_SIZE * (table_entry - 1));
+			trsl_addr = addr & ~CM3_TAMAP_MASK;
+			tamap.trsl_addr_hi = upper_32_bits(trsl_addr);
+			tamap.trsl_addr_low = lower_32_bits(trsl_addr);
+			tamap.atr_size = CM3_TAMAP_ATR_SIZE;
+
+			tc956x_config_CM3_tamap(priv->device, priv->tc956x_BRIDGE_CFG_pci_base_addr,
+							&tamap, table_entry);
+			break;
+		}
+		table_entry++;
+	}
+	spin_unlock_irqrestore(&cm3_tamap_lock, flags);
+
+	if (table_entry > MAX_CM3_TAMAP_ENTRIES) {
+#ifndef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		netdev_err(priv->dev,
+				"%s: ERROR: TAMAP Table full. Cannot map PCIe address = 0x%x\n", __func__, addr);
+#else
+		netdev_err(priv->dev,
+				"%s: ERROR: TAMAP Table full. Cannot map PCIe address = 0x%llx\n", __func__, addr);
+#endif
+		return -EPERM;
+	}
+
+	/* Derive CM3 target address */
+	cm3_target_addr = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)) & TC956X_SRC_LO_MASK;
+	cm3_target_addr |= (addr & CM3_TAMAP_MASK);
+
+	if (cm3_target_addr < CM3_PCIE_REGION_LOW_BOUND || cm3_target_addr >= CM3_PCIE_REGION_UP_BOUND) {
 		netdev_err(priv->dev,
 				"%s: ERROR: PCIe address out of range\n", __func__);
 		return -EPERM;
@@ -881,13 +956,13 @@ int request_event(struct net_device *ndev, struct channel_info *channel, u32 add
 
 	if (channel->direction == CH_DIR_TX) {
 #ifdef TC956X
-		writel(addr, priv->tc956x_SRAM_pci_base_addr +
+		writel(cm3_target_addr, priv->tc956x_SRAM_pci_base_addr +
 			SRAM_TX_PCIE_ADDR_LOC + (priv->port_num * TC956XMAC_CH_MAX * 4) +
 			(channel->channel_num * 4));
 #endif
 	} else if (channel->direction == CH_DIR_RX) {
 #ifdef TC956X
-		writel(addr, priv->tc956x_SRAM_pci_base_addr +
+		writel(cm3_target_addr, priv->tc956x_SRAM_pci_base_addr +
 			SRAM_RX_PCIE_ADDR_LOC + (priv->port_num * TC956XMAC_CH_MAX * 4) +
 			(channel->channel_num * 4));
 #endif

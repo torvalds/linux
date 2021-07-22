@@ -41,6 +41,8 @@
  *  22 Jul 2021 : 1. Version update
  *		: 2. USXGMII/XFI/SGMII/RGMII interface supported with module parameter
  *  VERSION     : 01-00-04
+ *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
+ *  VERSION     : 01-00-05
  */
 
 #include <linux/clk-provider.h>
@@ -70,7 +72,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 4};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 5};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1320,48 +1322,42 @@ s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res)
  *
  * param[in] dev  - pointer to device structure.
  * param[in] id   - pointer to base address of registers.
+ * param[in] id	  - pointer to structure containing the TAMAP parameters
  */
-static void tc956x_config_CM3_tamap(struct device *dev,
-				void __iomem *reg_pci_base_addr)
+void tc956x_config_CM3_tamap(struct device *dev,
+				void __iomem *reg_pci_base_addr,
+				struct tc956xmac_cm3_tamap *tamap,
+				u8 table_entry)
 {
-	/* The TAMAP is set for the below configuration
-	 * DMA_BIT_MASK for the device = 28
-	 * The dma_addr_t is OR'ed with 0x6000_0000
-	 */
 #ifdef TC956X
 	DBGPR_FUNC(dev, "-->%s\n", __func__);
 
-	/* AXI4 Slave 0 - Table 0 Entry */
-	/* EDMA address region 0x10 0000 0000 - 0x1F FFFF FFFF is
-	 * translated to 0x0 0000 0000 - 0xF FFFF FFFF
-	 */
 	writel(TC956X_AXI4_SLV01_TRSL_PARAM_VAL, reg_pci_base_addr +
-					TC956X_AXI4_SLV_TRSL_PARAM(0, 1));
-	writel(TC956X_AXI4_SLV01_TRSL_ADDR_HI_VAL, reg_pci_base_addr +
-					TC956X_AXI4_SLV_TRSL_ADDR_HI(0, 1));
-	writel(TC956X_AXI4_SLV01_TRSL_ADDR_LO_VAL, reg_pci_base_addr +
-					TC956X_AXI4_SLV_TRSL_ADDR_LO(0, 1));
-	writel(TC956X_AXI4_SLV01_SRC_ADDR_HI_VAL, reg_pci_base_addr +
-					TC956X_AXI4_SLV_SRC_ADDR_HI(0, 1));
-	writel(TC956X_AXI4_SLV01_SRC_ADDR_LO_VAL |
-				TC956X_ATR_SIZE(TC956X_AXI4_SLV01_ATR_SIZE) |
-				TC956X_ATR_IMPL, reg_pci_base_addr +
-				TC956X_AXI4_SLV_SRC_ADDR_LO(0, 1));
+					TC956X_AXI4_SLV_TRSL_PARAM(0, table_entry));
+	writel(tamap->trsl_addr_hi, reg_pci_base_addr +
+					TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry));
+	writel(tamap->trsl_addr_low, reg_pci_base_addr +
+					TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry));
+	writel(tamap->src_addr_hi, reg_pci_base_addr +
+					TC956X_AXI4_SLV_SRC_ADDR_HI(0, table_entry));
+	writel((tamap->src_addr_low & TC956X_SRC_LO_MASK) |
+				(tamap->atr_size << 1) | TC956X_ATR_IMPL,
+				reg_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry));
 
-	KPRINT_INFO("SL01 TRSL_MASK = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_MASK1(0, 1)));
-	KPRINT_INFO("SL01 TRSL_MASK = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_MASK2(0, 1)));
-	KPRINT_INFO("SL01 TRSL_PARAM = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_PARAM(0, 1)));
-	KPRINT_INFO("SL01 TRSL_ADDR HI = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_HI(0, 1)));
-	KPRINT_INFO("SL01 TRSL_ADDR LO = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_LO(0, 1)));
-	KPRINT_INFO("SL01 SRC_ADDR HI = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_HI(0, 1)));
-	KPRINT_INFO("SL01 SRC_ADDR LO = 0x%08x\n",
-		readl(reg_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, 1)));
+	KPRINT_INFO("SL0%d TRSL_MASK = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_MASK1(0, table_entry)));
+	KPRINT_INFO("SL0%d TRSL_MASK = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_MASK2(0, table_entry)));
+	KPRINT_INFO("SL0%d TRSL_PARAM = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_PARAM(0, table_entry)));
+	KPRINT_INFO("SL0%d TRSL_ADDR HI = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry)));
+	KPRINT_INFO("SL0%d TRSL_ADDR LO = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry)));
+	KPRINT_INFO("SL0%d SRC_ADDR HI = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_HI(0, table_entry)));
+	KPRINT_INFO("SL0%d SRC_ADDR LO = 0x%08x\n", table_entry,
+		readl(reg_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)));
 
 #endif
 	DBGPR_FUNC(dev, "<--%s\n", __func__);
@@ -1945,9 +1941,6 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		 * Bridge Base address to be passed for TC956X
 		 */
 		tc956x_config_tamap(&pdev->dev, res.tc956x_BRIDGE_CFG_pci_base_addr);
-#ifdef DMA_OFFLOAD_ENABLE
-		tc956x_config_CM3_tamap(&pdev->dev, res.tc956x_BRIDGE_CFG_pci_base_addr);
-#endif
 	}
 
 #endif
@@ -2204,12 +2197,42 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 static s32 tc956x_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	s32 ret = 0;
+#ifdef DMA_OFFLOAD_ENABLE
+	u8 i;
+	u32 val;
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct tc956xmac_priv *priv = netdev_priv(ndev);
+#endif
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 
 	/* Call tc956xmac_suspend() */
 	tc956xmac_suspend(&pdev->dev);
 
+#ifdef DMA_OFFLOAD_ENABLE
+	if (priv->port_num == RM_PF0_ID) {
+		/* Since TAMAP is common for Port0 and Port1,
+		 * Store CM3 TAMAP entries of one Port0*/
+		for (i = 1; i <= MAX_CM3_TAMAP_ENTRIES; i++) {
+			priv->cm3_tamap[i-1].valid = false;
+
+			val = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + TC956X_AXI4_SLV_SRC_ADDR_LO(0, i));
+			if (((val & TC956X_ATR_SIZE_MASK) >> TC956x_ATR_SIZE_SHIFT) != 0x3F) {
+				priv->cm3_tamap[i-1].trsl_addr_hi = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr +
+									TC956X_AXI4_SLV_TRSL_ADDR_HI(0, i));
+				priv->cm3_tamap[i-1].trsl_addr_low = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr +
+									TC956X_AXI4_SLV_TRSL_ADDR_LO(0, i));
+				priv->cm3_tamap[i-1].src_addr_hi = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr +
+									TC956X_AXI4_SLV_SRC_ADDR_HI(0, i));
+				priv->cm3_tamap[i-1].src_addr_low = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr +
+									TC956X_AXI4_SLV_SRC_ADDR_LO(0, i)) & TC956X_SRC_LO_MASK;
+				priv->cm3_tamap[i-1].atr_size = (readl(priv->tc956x_BRIDGE_CFG_pci_base_addr +
+									TC956X_AXI4_SLV_SRC_ADDR_LO(0, i)) & TC956X_ATR_SIZE_MASK) >> TC956x_ATR_SIZE_SHIFT;
+				priv->cm3_tamap[i-1].valid = true;
+			}
+		}
+	}
+#endif
 	/* Save the PCI Config Space of the device */
 	ret = pci_save_state(pdev);
 
@@ -2421,6 +2444,9 @@ static s32 tc956x_pcie_resume(struct pci_dev *pdev)
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
 	s32 ret = 0;
+#ifdef DMA_OFFLOAD_ENABLE
+	u8 i;
+#endif
 
 #ifdef TC956X_PCIE_LOGSTAT
 	struct tc956x_ltssm_log ltssm_data;
@@ -2444,7 +2470,12 @@ static s32 tc956x_pcie_resume(struct pci_dev *pdev)
 	if (priv->port_num == RM_PF0_ID) {
 		tc956x_config_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr);
 #ifdef DMA_OFFLOAD_ENABLE
-		tc956x_config_CM3_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr);
+		for (i = 1; i <= MAX_CM3_TAMAP_ENTRIES; i++) {
+			if (priv->cm3_tamap[i-1].valid)
+				tc956x_config_CM3_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr,
+							&priv->cm3_tamap[i-1], i);
+		}
+
 #endif
 	}
 #endif

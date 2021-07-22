@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
 Release Date: 22 Jul 2021
 
-Release Version: V_01-00-04 : Limited-tested version
+Release Version: V_01-00-05 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -11,10 +11,16 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
     #make clean
 
     #make
-2.	Load phylink module
+2.  By default, DMA_OFFLOAD_ENABLE is disabled.
+    If IPA offload is needed, enable macro DMA_OFFLOAD_ENABLE in tc956xmac.h and execute following commands:
+
+    #make clean
+
+    #make DMA_OFFLOAD=1
+3.	Load phylink module
 
 	#modprobe phylink
-3.  Load the driver
+4.  Load the driver
 
 	#insmod tc956x_pcie_eth.ko tc956x_speed=X
 
@@ -54,6 +60,10 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 ## TC956X_Host_Driver_20210722_V_01-00-04:
 
 1. Module parameters for selection of Port0 and Port1 interface
+
+## TC956X_Host_Driver_20210722_V_01-00-05:
+
+1. Dynamic CM3 TAMAP configuration 
 
 # Note:
 

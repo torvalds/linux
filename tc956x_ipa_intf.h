@@ -37,6 +37,8 @@
  *  VERSION     : 01-00-02
  *  20 Jul 2021 : 1. IPA statistics print function removed
  *  VERSION     : 01-00-03
+ *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
+ *  VERSION     : 01-00-05
  */
 
 #ifndef __TC956x_IPA_INTF_H
@@ -222,19 +224,21 @@ int release_channel(struct net_device *ndev, struct channel_info *channel);
  *
  * \param[in] ndev : TC956x netdev  data structure
  * \param[in] channel : Pointer to channel info containing the channel information
- * \param[in] addr : TAMAP'ed Address location to which the PCIe write is to be performed from CM3 FW
+ * \param[in] addr : PCIe Address location to which the PCIe write is to be performed from CM3 FW
  *
- * \return : O for success if TAMAP'ed address of the PCIe location is within accessible range
+ * \return : O for success
  *	     -EPERM if non IPA channels are accessed, out of range PCIe access location for CM3
  *	     -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
  *	     -EINVAL if channel pointer NULL
  *
- * \remarks : TAMAP will be set for 0x6000_0000 - 0xC000_0000 region.
- *	     PCIe write location should be within this region.
+ * \remarks :
  *	     If this API is invoked for a channel without calling release_event(),
  *	     then the PCIe address and value for that channel will be overwritten
+ * 	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
+ *	     TRSL_ADDR = DMA_PCIe_ADDR & ~((2 ^ (ATR_SIZE + 1) - 1) = TRSL_ADDR = DMA_PCIe_ADDR & ~Mask
+ *	     CM3 Target Address = DMA_PCIe_ADDR & Mask | SRC_ADDR
  */
-int request_event(struct net_device *ndev, struct channel_info *channel, u32 addr);
+int request_event(struct net_device *ndev, struct channel_info *channel, dma_addr_t addr);
 
 
 /*!
