@@ -792,7 +792,7 @@ static int dump_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(dump);
 
-static void dma_debug_fs_init(void)
+static int __init dma_debug_fs_init(void)
 {
 	struct dentry *dentry = debugfs_create_dir("dma-api", NULL);
 
@@ -805,7 +805,10 @@ static void dma_debug_fs_init(void)
 	debugfs_create_u32("nr_total_entries", 0444, dentry, &nr_total_entries);
 	debugfs_create_file("driver_filter", 0644, dentry, NULL, &filter_fops);
 	debugfs_create_file("dump", 0444, dentry, NULL, &dump_fops);
+
+	return 0;
 }
+core_initcall_sync(dma_debug_fs_init);
 
 static int device_dma_allocations(struct device *dev, struct dma_debug_entry **out_entry)
 {
@@ -889,8 +892,6 @@ static int dma_debug_init(void)
 		INIT_LIST_HEAD(&dma_entry_hash[i].list);
 		spin_lock_init(&dma_entry_hash[i].lock);
 	}
-
-	dma_debug_fs_init();
 
 	nr_pages = DIV_ROUND_UP(nr_prealloc_entries, DMA_DEBUG_DYNAMIC_ENTRIES);
 	for (i = 0; i < nr_pages; ++i)
