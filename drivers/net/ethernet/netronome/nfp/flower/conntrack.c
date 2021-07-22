@@ -471,6 +471,73 @@ nfp_fl_calc_key_layers_sz(struct nfp_fl_key_ls in_key_ls, uint16_t *map)
 	return key_size;
 }
 
+static int nfp_fl_merge_actions_offload(struct flow_rule **rules,
+					struct nfp_flower_priv *priv,
+					struct net_device *netdev,
+					struct nfp_fl_payload *flow_pay)
+{
+	struct flow_action_entry *a_in;
+	int i, j, num_actions, id;
+	struct flow_rule *a_rule;
+	int err = 0, offset = 0;
+
+	num_actions = rules[CT_TYPE_PRE_CT]->action.num_entries +
+		      rules[CT_TYPE_NFT]->action.num_entries +
+		      rules[CT_TYPE_POST_CT]->action.num_entries;
+
+	a_rule = flow_rule_alloc(num_actions);
+	if (!a_rule)
+		return -ENOMEM;
+
+	/* Actions need a BASIC dissector. */
+	a_rule->match = rules[CT_TYPE_PRE_CT]->match;
+
+	/* Copy actions */
+	for (j = 0; j < _CT_TYPE_MAX; j++) {
+		if (flow_rule_match_key(rules[j], FLOW_DISSECTOR_KEY_BASIC)) {
+			struct flow_match_basic match;
+
+			/* ip_proto is the only field that needed in later compile_action,
+			 * needed to set the correct checksum flags. It doesn't really matter
+			 * which input rule's ip_proto field we take as the earlier merge checks
+			 * would have made sure that they don't conflict. We do not know which
+			 * of the subflows would have the ip_proto filled in, so we need to iterate
+			 * through the subflows and assign the proper subflow to a_rule
+			 */
+			flow_rule_match_basic(rules[j], &match);
+			if (match.mask->ip_proto)
+				a_rule->match = rules[j]->match;
+		}
+
+		for (i = 0; i < rules[j]->action.num_entries; i++) {
+			a_in = &rules[j]->action.entries[i];
+			id = a_in->id;
+
+			/* Ignore CT related actions as these would already have
+			 * been taken care of by previous checks, and we do not send
+			 * any CT actions to the firmware.
+			 */
+			switch (id) {
+			case FLOW_ACTION_CT:
+			case FLOW_ACTION_GOTO:
+			case FLOW_ACTION_CT_METADATA:
+				continue;
+			default:
+				memcpy(&a_rule->action.entries[offset++],
+				       a_in, sizeof(struct flow_action_entry));
+				break;
+			}
+		}
+	}
+
+	/* Some actions would have been ignored, so update the num_entries field */
+	a_rule->action.num_entries = offset;
+	err = nfp_flower_compile_action(priv->app, a_rule, netdev, flow_pay, NULL);
+	kfree(a_rule);
+
+	return err;
+}
+
 static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
@@ -719,6 +786,11 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 				nfp_flower_compile_geneve_opt(key, msk, rules[i]);
 		}
 	}
+
+	/* Merge actions into flow_pay */
+	err = nfp_fl_merge_actions_offload(rules, priv, netdev, flow_pay);
+	if (err)
+		goto ct_offload_err;
 
 ct_offload_err:
 	kfree(flow_pay->action_data);
