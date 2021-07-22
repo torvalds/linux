@@ -13,8 +13,14 @@
 #define IPCC_MPROC_SIGNAL_PING		3
 #define IPCC_MPROC_SIGNAL_MAX		4 /* Used by driver only */
 
-#define IPCC_COMPUTE_L0_SIGNAL_MAX	32 /* Used by driver only */
-#define IPCC_COMPUTE_L1_SIGNAL_MAX	32 /* Used by driver only */
+/* Signal IDs for COMPUTE_L0 protocol */
+#define IPCC_COMPUTE_L0_SIGNAL_IPCLITE_MSG			0
+#define IPCC_COMPUTE_L0_SIGNAL_IPCLITE_MEM_INIT		1
+#define IPCC_COMPUTE_L0_SIGNAL_IPCLITE_VERSION		2
+#define IPCC_COMPUTE_L0_SIGNAL_IPCLITE_TEST			3
+#define IPCC_COMPUTE_L0_SIGNAL_MAX					32 /* Used by driver only */
+
+#define IPCC_COMPUTE_L1_SIGNAL_MAX					32 /* Used by driver only */
 
 /* Client IDs */
 #define IPCC_CLIENT_AOP			0
@@ -36,6 +42,7 @@
 #define IPCC_CLIENT_SPSS		16
 #define IPCC_CLIENT_TME			23
 #define IPCC_CLIENT_WPSS		24
-#define IPCC_CLIENT_MAX			25 /* Used by driver only */
+#define IPCC_CLIENT_BROADCAST	0xF000
+#define IPCC_CLIENT_MAX			26 /* Used by driver only */
 
 #endif
