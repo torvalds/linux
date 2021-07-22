@@ -56,7 +56,7 @@
 #define GFX10_NUM_GFX_RINGS_Sienna_Cichlid	1
 #define GFX10_MEC_HPD_SIZE	2048
 
-#define RLCG_INTERFACE_NOT_ENABLED	0x4000000
+#define RLCG_VFGATE_DISABLED	0x4000000
 #define RLCG_WRONG_OPERATION_TYPE	0x2000000
 #define RLCG_NOT_IN_RANGE	0x1000000
 
@@ -1571,8 +1571,8 @@ static u32 gfx_v10_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32
 
 		if (i >= retries) {
 			if (RLCG_ERROR_REPORT_ENABLED(adev)) {
-				if (tmp & RLCG_INTERFACE_NOT_ENABLED)
-					pr_err("The interface is not enabled, program reg:0x%05x failed!\n", offset);
+				if (tmp & RLCG_VFGATE_DISABLED)
+					pr_err("The vfgate is disabled, program reg:0x%05x failed!\n", offset);
 				else if (tmp & RLCG_WRONG_OPERATION_TYPE)
 					pr_err("Wrong operation type, program reg:0x%05x failed!\n", offset);
 				else if (tmp & RLCG_NOT_IN_RANGE)
