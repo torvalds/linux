@@ -206,7 +206,7 @@ static int cx20442_write(struct snd_soc_component *component, unsigned int reg,
  */
 
 /* Modem init: echo off, digital speaker off, quiet off, voice mode */
-static const char *v253_init = "ate0m0q0+fclass=8\r";
+static const char v253_init[] = "ate0m0q0+fclass=8\r";
 
 /* Line discipline .open() */
 static int v253_open(struct tty_struct *tty)
