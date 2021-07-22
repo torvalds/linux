@@ -40,22 +40,28 @@ u32 sfc_get_max_iosize(void)
 		return SFC_MAX_IOSIZE_VER3;
 }
 
+u32 sfc_get_max_dll_cells(void)
+{
+	if (sfc_get_version() == SFC_VER_5)
+		return SCLK_SMP_SEL_MAX_V5;
+	else if (sfc_get_version() == SFC_VER_4)
+		return SCLK_SMP_SEL_MAX_V4;
+	else
+		return 0;
+}
+
 void sfc_set_delay_lines(u16 cells)
 {
-	u16 cell_max = SCLK_SMP_SEL_MAX_V4;
-
-	if (sfc_get_version() >= SFC_VER_5)
-		cell_max = SCLK_SMP_SEL_MAX_V5;
+	u16 cell_max = (u16)sfc_get_max_dll_cells();
+	u32 val = 0;
 
 	if (cells > cell_max)
 		cells = cell_max;
 
-	writel(SCLK_SMP_SEL_EN | cells, g_sfc_reg + SFC_DLL_CTRL0);
-}
+	if (cells)
+		val = SCLK_SMP_SEL_EN | cells;
 
-void sfc_disable_delay_lines(void)
-{
-	writel(0, g_sfc_reg + SFC_DLL_CTRL0);
+	writel(val, g_sfc_reg + SFC_DLL_CTRL0);
 }
 
 int sfc_init(void __iomem *reg_addr)
