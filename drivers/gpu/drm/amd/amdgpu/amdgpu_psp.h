@@ -54,6 +54,9 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_SYSDRV		= 0x10000,
 	PSP_BL__LOAD_SOSDRV		= 0x20000,
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
+	PSP_BL__LOAD_SOCDRV             = 0x90000,
+	PSP_BL__LOAD_INTFDRV            = 0xA0000,
+	PSP_BL__LOAD_DBGDRV             = 0xB0000,
 	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
 	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 	PSP_BL__LOAD_TOS_SPL_TABLE	= 0x10000000,
@@ -94,6 +97,9 @@ struct psp_funcs
 	int (*bootloader_load_kdb)(struct psp_context *psp);
 	int (*bootloader_load_spl)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
+	int (*bootloader_load_soc_drv)(struct psp_context *psp);
+	int (*bootloader_load_intf_drv)(struct psp_context *psp);
+	int (*bootloader_load_dbg_drv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
 	int (*ring_create)(struct psp_context *psp,
@@ -306,12 +312,15 @@ struct psp_context
 
 	/* sos firmware */
 	const struct firmware		*sos_fw;
-	struct psp_bin_desc			sys;
-	struct psp_bin_desc			sos;
-	struct psp_bin_desc			toc;
-	struct psp_bin_desc			kdb;
-	struct psp_bin_desc			spl;
-	struct psp_bin_desc			rl;
+	struct psp_bin_desc		sys;
+	struct psp_bin_desc		sos;
+	struct psp_bin_desc		toc;
+	struct psp_bin_desc		kdb;
+	struct psp_bin_desc		spl;
+	struct psp_bin_desc		rl;
+	struct psp_bin_desc		soc_drv;
+	struct psp_bin_desc		intf_drv;
+	struct psp_bin_desc		dbg_drv;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
@@ -401,6 +410,12 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->bootloader_load_spl ? (psp)->funcs->bootloader_load_spl((psp)) : 0)
 #define psp_bootloader_load_sysdrv(psp) \
 		((psp)->funcs->bootloader_load_sysdrv ? (psp)->funcs->bootloader_load_sysdrv((psp)) : 0)
+#define psp_bootloader_load_soc_drv(psp) \
+		((psp)->funcs->bootloader_load_soc_drv ? (psp)->funcs->bootloader_load_soc_drv((psp)) : 0)
+#define psp_bootloader_load_intf_drv(psp) \
+		((psp)->funcs->bootloader_load_intf_drv ? (psp)->funcs->bootloader_load_intf_drv((psp)) : 0)
+#define psp_bootloader_load_dbg_drv(psp) \
+		((psp)->funcs->bootloader_load_dbg_drv ? (psp)->funcs->bootloader_load_dbg_drv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \

@@ -2158,7 +2158,34 @@ static int psp_hw_start(struct psp_context *psp)
 		    (psp->funcs->bootloader_load_sysdrv != NULL)) {
 			ret = psp_bootloader_load_sysdrv(psp);
 			if (ret) {
-				DRM_ERROR("PSP load sysdrv failed!\n");
+				DRM_ERROR("PSP load sys drv failed!\n");
+				return ret;
+			}
+		}
+
+		if ((is_psp_fw_valid(psp->soc_drv)) &&
+		    (psp->funcs->bootloader_load_soc_drv != NULL)) {
+			ret = psp_bootloader_load_soc_drv(psp);
+			if (ret) {
+				DRM_ERROR("PSP load soc drv failed!\n");
+				return ret;
+			}
+		}
+
+		if ((is_psp_fw_valid(psp->intf_drv)) &&
+		    (psp->funcs->bootloader_load_intf_drv != NULL)) {
+			ret = psp_bootloader_load_intf_drv(psp);
+			if (ret) {
+				DRM_ERROR("PSP load intf drv failed!\n");
+				return ret;
+			}
+		}
+
+		if ((is_psp_fw_valid(psp->dbg_drv)) &&
+		    (psp->funcs->bootloader_load_dbg_drv != NULL)) {
+			ret = psp_bootloader_load_dbg_drv(psp);
+			if (ret) {
+				DRM_ERROR("PSP load dbg drv failed!\n");
 				return ret;
 			}
 		}
@@ -3073,6 +3100,24 @@ static int parse_sos_bin_descriptor(struct psp_context *psp,
 		psp->rl.feature_version    = le32_to_cpu(desc->fw_version);
 		psp->rl.size_bytes         = le32_to_cpu(desc->size_bytes);
 		psp->rl.start_addr         = ucode_start_addr;
+		break;
+	case PSP_FW_TYPE_PSP_SOC_DRV:
+		psp->soc_drv.fw_version         = le32_to_cpu(desc->fw_version);
+		psp->soc_drv.feature_version    = le32_to_cpu(desc->fw_version);
+		psp->soc_drv.size_bytes         = le32_to_cpu(desc->size_bytes);
+		psp->soc_drv.start_addr         = ucode_start_addr;
+		break;
+	case PSP_FW_TYPE_PSP_INTF_DRV:
+		psp->intf_drv.fw_version        = le32_to_cpu(desc->fw_version);
+		psp->intf_drv.feature_version   = le32_to_cpu(desc->fw_version);
+		psp->intf_drv.size_bytes        = le32_to_cpu(desc->size_bytes);
+		psp->intf_drv.start_addr        = ucode_start_addr;
+		break;
+	case PSP_FW_TYPE_PSP_DBG_DRV:
+		psp->dbg_drv.fw_version         = le32_to_cpu(desc->fw_version);
+		psp->dbg_drv.feature_version    = le32_to_cpu(desc->fw_version);
+		psp->dbg_drv.size_bytes         = le32_to_cpu(desc->size_bytes);
+		psp->dbg_drv.start_addr         = ucode_start_addr;
 		break;
 	default:
 		dev_warn(psp->adev->dev, "Unsupported PSP FW type: %d\n", desc->fw_type);
