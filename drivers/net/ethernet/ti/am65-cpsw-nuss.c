@@ -7,6 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -2077,10 +2078,13 @@ bool am65_cpsw_port_dev_check(const struct net_device *ndev)
 	return false;
 }
 
-static int am65_cpsw_netdevice_port_link(struct net_device *ndev, struct net_device *br_ndev)
+static int am65_cpsw_netdevice_port_link(struct net_device *ndev,
+					 struct net_device *br_ndev,
+					 struct netlink_ext_ack *extack)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(ndev);
+	int err;
 
 	if (!common->br_members) {
 		common->hw_bridge_dev = br_ndev;
@@ -2091,6 +2095,11 @@ static int am65_cpsw_netdevice_port_link(struct net_device *ndev, struct net_dev
 		if (common->hw_bridge_dev != br_ndev)
 			return -EOPNOTSUPP;
 	}
+
+	err = switchdev_bridge_port_offload(ndev, ndev, NULL, NULL, NULL,
+					    extack);
+	if (err)
+		return err;
 
 	common->br_members |= BIT(priv->port->port_id);
 
@@ -2104,6 +2113,8 @@ static void am65_cpsw_netdevice_port_unlink(struct net_device *ndev)
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(ndev);
 
+	switchdev_bridge_port_unoffload(ndev, NULL, NULL, NULL);
+
 	common->br_members &= ~BIT(priv->port->port_id);
 
 	am65_cpsw_port_offload_fwd_mark_update(common);
@@ -2116,6 +2127,7 @@ static void am65_cpsw_netdevice_port_unlink(struct net_device *ndev)
 static int am65_cpsw_netdevice_event(struct notifier_block *unused,
 				     unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	struct netdev_notifier_changeupper_info *info;
 	int ret = NOTIFY_DONE;
@@ -2129,7 +2141,9 @@ static int am65_cpsw_netdevice_event(struct notifier_block *unused,
 
 		if (netif_is_bridge_master(info->upper_dev)) {
 			if (info->linking)
-				ret = am65_cpsw_netdevice_port_link(ndev, info->upper_dev);
+				ret = am65_cpsw_netdevice_port_link(ndev,
+								    info->upper_dev,
+								    extack);
 			else
 				am65_cpsw_netdevice_port_unlink(ndev);
 		}
