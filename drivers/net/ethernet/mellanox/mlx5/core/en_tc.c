@@ -3707,8 +3707,7 @@ static int verify_uplink_forwarding(struct mlx5e_priv *priv,
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
-				struct netlink_ext_ack *extack,
-				struct net_device *filter_dev)
+				struct netlink_ext_ack *extack)
 {
 	struct pedit_headers_action hdrs[2] = {};
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -3773,7 +3772,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						   "mpls pop supported only as first action");
 				return -EOPNOTSUPP;
 			}
-			if (!netif_is_bareudp(filter_dev)) {
+			if (!netif_is_bareudp(parse_attr->filter_dev)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "mpls pop supported only on bareudp devices");
 				return -EOPNOTSUPP;
@@ -4275,7 +4274,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
-	err = parse_tc_fdb_actions(priv, &rule->action, flow, extack, filter_dev);
+	err = parse_tc_fdb_actions(priv, &rule->action, flow, extack);
 	if (err)
 		goto err_free;
 
