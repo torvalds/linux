@@ -2527,8 +2527,8 @@ static int mcp251xfd_open(struct net_device *ndev)
 	can_rx_offload_enable(&priv->offload);
 
 	err = request_threaded_irq(spi->irq, NULL, mcp251xfd_irq,
-				   IRQF_ONESHOT, dev_name(&spi->dev),
-				   priv);
+				   IRQF_SHARED | IRQF_ONESHOT,
+				   dev_name(&spi->dev), priv);
 	if (err)
 		goto out_can_rx_offload_disable;
 
