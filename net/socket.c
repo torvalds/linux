@@ -3121,6 +3121,54 @@ void socket_seq_show(struct seq_file *seq)
 }
 #endif				/* CONFIG_PROC_FS */
 
+/* Handle the fact that while struct ifreq has the same *layout* on
+ * 32/64 for everything but ifreq::ifru_ifmap and ifreq::ifru_data,
+ * which are handled elsewhere, it still has different *size* due to
+ * ifreq::ifru_ifmap (which is 16 bytes on 32 bit, 24 bytes on 64-bit,
+ * resulting in struct ifreq being 32 and 40 bytes respectively).
+ * As a result, if the struct happens to be at the end of a page and
+ * the next page isn't readable/writable, we get a fault. To prevent
+ * that, copy back and forth to the full size.
+ */
+int get_user_ifreq(struct ifreq *ifr, void __user **ifrdata, void __user *arg)
+{
+	if (in_compat_syscall()) {
+		struct compat_ifreq *ifr32 = (struct compat_ifreq *)ifr;
+
+		memset(ifr, 0, sizeof(*ifr));
+		if (copy_from_user(ifr32, arg, sizeof(*ifr32)))
+			return -EFAULT;
+
+		if (ifrdata)
+			*ifrdata = compat_ptr(ifr32->ifr_data);
+
+		return 0;
+	}
+
+	if (copy_from_user(ifr, arg, sizeof(*ifr)))
+		return -EFAULT;
+
+	if (ifrdata)
+		*ifrdata = ifr->ifr_data;
+
+	return 0;
+}
+EXPORT_SYMBOL(get_user_ifreq);
+
+int put_user_ifreq(struct ifreq *ifr, void __user *arg)
+{
+	size_t size = sizeof(*ifr);
+
+	if (in_compat_syscall())
+		size = sizeof(struct compat_ifreq);
+
+	if (copy_to_user(arg, ifr, size))
+		return -EFAULT;
+
+	return 0;
+}
+EXPORT_SYMBOL(put_user_ifreq);
+
 #ifdef CONFIG_COMPAT
 static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32)
 {
@@ -3129,7 +3177,7 @@ static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32
 	void __user *saved;
 	int err;
 
-	if (copy_from_user(&ifr, uifr32, sizeof(struct compat_ifreq)))
+	if (get_user_ifreq(&ifr, NULL, uifr32))
 		return -EFAULT;
 
 	if (get_user(uptr32, &uifr32->ifr_settings.ifs_ifsu))
@@ -3141,7 +3189,7 @@ static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32
 	err = dev_ioctl(net, SIOCWANDEV, &ifr, NULL);
 	if (!err) {
 		ifr.ifr_settings.ifs_ifsu.raw_hdlc = saved;
-		if (copy_to_user(uifr32, &ifr, sizeof(struct compat_ifreq)))
+		if (put_user_ifreq(&ifr, uifr32))
 			err = -EFAULT;
 	}
 	return err;
@@ -3165,49 +3213,28 @@ static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 
 static int compat_ifreq_ioctl(struct net *net, struct socket *sock,
 			      unsigned int cmd,
+			      unsigned long arg,
 			      struct compat_ifreq __user *uifr32)
 {
-	struct ifreq __user *uifr;
+	struct ifreq ifr;
+	bool need_copyout;
 	int err;
 
-	/* Handle the fact that while struct ifreq has the same *layout* on
-	 * 32/64 for everything but ifreq::ifru_ifmap and ifreq::ifru_data,
-	 * which are handled elsewhere, it still has different *size* due to
-	 * ifreq::ifru_ifmap (which is 16 bytes on 32 bit, 24 bytes on 64-bit,
-	 * resulting in struct ifreq being 32 and 40 bytes respectively).
-	 * As a result, if the struct happens to be at the end of a page and
-	 * the next page isn't readable/writable, we get a fault. To prevent
-	 * that, copy back and forth to the full size.
+	err = sock->ops->ioctl(sock, cmd, arg);
+
+	/* If this ioctl is unknown try to hand it down
+	 * to the NIC driver.
 	 */
+	if (err != -ENOIOCTLCMD)
+		return err;
 
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(*uifr32)))
+	if (get_user_ifreq(&ifr, NULL, uifr32))
 		return -EFAULT;
+	err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+	if (!err && need_copyout)
+		if (put_user_ifreq(&ifr, uifr32))
+			return -EFAULT;
 
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)uifr);
-
-	if (!err) {
-		switch (cmd) {
-		case SIOCGIFFLAGS:
-		case SIOCGIFMETRIC:
-		case SIOCGIFMTU:
-		case SIOCGIFMEM:
-		case SIOCGIFHWADDR:
-		case SIOCGIFINDEX:
-		case SIOCGIFADDR:
-		case SIOCGIFBRDADDR:
-		case SIOCGIFDSTADDR:
-		case SIOCGIFNETMASK:
-		case SIOCGIFPFLAGS:
-		case SIOCGIFTXQLEN:
-		case SIOCGMIIPHY:
-		case SIOCGMIIREG:
-		case SIOCGIFNAME:
-			if (copy_in_user(uifr32, uifr, sizeof(*uifr32)))
-				err = -EFAULT;
-			break;
-		}
-	}
 	return err;
 }
 
@@ -3310,7 +3337,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:
 	case SIOCBONDCHANGEACTIVE:
-		return compat_ifreq_ioctl(net, sock, cmd, argp);
+		return compat_ifreq_ioctl(net, sock, cmd, arg, argp);
 
 	case SIOCSARP:
 	case SIOCGARP:
