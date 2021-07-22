@@ -584,7 +584,7 @@ void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev)
 {
 	int i, j, k;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) || amdgpu_passthrough(adev))
 		amdgpu_restore_msix(adev);
 
 	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
