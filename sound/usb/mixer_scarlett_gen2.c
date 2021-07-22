@@ -1961,10 +1961,12 @@ static void scarlett2_vol_ctl_set_writable(struct usb_mixer_interface *mixer,
 			~SNDRV_CTL_ELEM_ACCESS_WRITE;
 	}
 
-	/* Notify of write bit change */
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+	/* Notify of write bit and possible value change */
+	snd_ctl_notify(card,
+		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->vol_ctls[index]->id);
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+	snd_ctl_notify(card,
+		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->mute_ctls[index]->id);
 }
 
@@ -2599,7 +2601,9 @@ static int scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
 
 		/* disable the line out SW/HW switch */
 		scarlett2_sw_hw_ctl_ro(private, i);
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_notify(card,
+			       SNDRV_CTL_EVENT_MASK_VALUE |
+				 SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->sw_hw_ctls[i]->id);
 	}
 
@@ -2923,7 +2927,7 @@ static int scarlett2_dim_mute_ctl_put(struct snd_kcontrol *kctl,
 			if (private->vol_sw_hw_switch[line_index]) {
 				private->mute_switch[line_index] = val;
 				snd_ctl_notify(mixer->chip->card,
-					       SNDRV_CTL_EVENT_MASK_INFO,
+					       SNDRV_CTL_EVENT_MASK_VALUE,
 					       &private->mute_ctls[i]->id);
 			}
 		}
