@@ -281,12 +281,10 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-/*
- * Must be called either with open_mutex held, before a disk can be opened or
- * after all disk users are gone.
- */
 static void delete_partition(struct block_device *part)
 {
+	lockdep_assert_held(&part->bd_disk->open_mutex);
+
 	fsync_bdev(part);
 	__invalidate_device(part, true);
 
