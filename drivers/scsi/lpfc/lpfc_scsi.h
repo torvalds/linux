@@ -142,6 +142,10 @@ struct lpfc_scsicmd_bkt {
 #define FC_PORTSPEED_128GBIT	0x2000
 #endif
 
+#ifndef FC_PORTSPEED_256GBIT
+#define FC_PORTSPEED_256GBIT	0x4000
+#endif
+
 #define TXRDY_PAYLOAD_LEN	12
 
 /* For sysfs/debugfs tmp string max len */

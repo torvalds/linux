@@ -4679,6 +4679,8 @@ static void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
 	if (phba->hba_flag & HBA_FCOE_MODE)
 		return;
 
+	if (phba->lmt & LMT_256Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_256GBIT;
 	if (phba->lmt & LMT_128Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_128GBIT;
 	if (phba->lmt & LMT_64Gb)
@@ -5086,6 +5088,9 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 			break;
 		case LPFC_FC_LA_SPEED_128G:
 			port_speed = 128000;
+			break;
+		case LPFC_FC_LA_SPEED_256G:
+			port_speed = 256000;
 			break;
 		default:
 			port_speed = 0;

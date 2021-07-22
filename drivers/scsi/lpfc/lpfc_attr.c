@@ -6745,6 +6745,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		case LPFC_LINK_SPEED_128GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_128GBIT;
 			break;
+		case LPFC_LINK_SPEED_256GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_256GBIT;
+			break;
 		default:
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
