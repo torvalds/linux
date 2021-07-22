@@ -511,14 +511,13 @@ nfp_flower_compile_ipv6_gre_tun(struct nfp_flower_ipv6_gre_tun *ext,
 }
 
 int nfp_flower_compile_flow_match(struct nfp_app *app,
-				  struct flow_cls_offload *flow,
+				  struct flow_rule *rule,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type,
 				  struct netlink_ext_ack *extack)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct nfp_flower_priv *priv = app->priv;
 	bool qinq_sup;
 	u32 port_id;
