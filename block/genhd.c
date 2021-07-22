@@ -1076,7 +1076,7 @@ static void disk_release(struct device *dev)
 	xa_destroy(&disk->part_tbl);
 	if (test_bit(GD_QUEUE_REF, &disk->state) && disk->queue)
 		blk_put_queue(disk->queue);
-	bdput(disk->part0);	/* frees the disk */
+	iput(disk->part0->bd_inode);	/* frees the disk */
 }
 struct class block_class = {
 	.name		= "block",
@@ -1261,7 +1261,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 
 out_destroy_part_tbl:
 	xa_destroy(&disk->part_tbl);
-	bdput(disk->part0);
+	iput(disk->part0->bd_inode);
 out_free_disk:
 	kfree(disk);
 	return NULL;

@@ -262,7 +262,7 @@ static void part_release(struct device *dev)
 	if (MAJOR(dev->devt) == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(MINOR(dev->devt));
 	put_disk(dev_to_bdev(dev)->bd_disk);
-	bdput(dev_to_bdev(dev));
+	iput(dev_to_bdev(dev)->bd_inode);
 }
 
 static int part_uevent(struct device *dev, struct kobj_uevent_env *env)

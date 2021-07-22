@@ -934,12 +934,6 @@ long nr_blockdev_pages(void)
 	return ret;
 }
 
-void bdput(struct block_device *bdev)
-{
-	iput(bdev->bd_inode);
-}
-EXPORT_SYMBOL(bdput);
- 
 /**
  * bd_may_claim - test whether a block device can be claimed
  * @bdev: block device of interest
