@@ -31,6 +31,7 @@
   amba_bustype
   amba_driver_register
   amba_driver_unregister
+  android_debug_for_each_module
   android_debug_per_cpu_symbol
   android_debug_symbol
   android_rvh_probe_register
