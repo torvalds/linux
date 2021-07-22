@@ -24,6 +24,7 @@
 #include "unipro.h"
 #include "ufs-sysfs.h"
 #include "ufs-debugfs.h"
+#include "ufs-fault-injection.h"
 #include "ufs_bsg.h"
 #include "ufshcd-crypto.h"
 #include "ufshpb.h"
@@ -2758,6 +2759,10 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	ufshcd_send_command(hba, tag);
 out:
 	up_read(&hba->clk_scaling_lock);
+
+	if (ufs_trigger_eh())
+		scsi_schedule_eh(hba->host);
+
 	return err;
 }
 
@@ -5313,6 +5318,9 @@ static irqreturn_t ufshcd_transfer_req_compl(struct ufs_hba *hba,
 	if (ufshcd_is_intr_aggr_allowed(hba) &&
 	    !(hba->quirks & UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR))
 		ufshcd_reset_intr_aggr(hba);
+
+	if (ufs_fail_completion())
+		return IRQ_HANDLED;
 
 	spin_lock_irqsave(&hba->outstanding_lock, flags);
 	tr_doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);

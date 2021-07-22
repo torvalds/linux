@@ -192,3 +192,10 @@ config SCSI_UFS_HPB
 	  L2P (logical to physical) map of UFS to host DRAM. The driver uses HPB
 	  read command by piggybacking physical page number for bypassing FTL (flash
 	  translation layer)'s L2P address translation.
+
+config SCSI_UFS_FAULT_INJECTION
+	bool "UFS Fault Injection Support"
+	depends on SCSI_UFSHCD && FAULT_INJECTION
+	help
+	  Enable fault injection support in the UFS driver. This makes it easier
+	  to test the UFS error handler and abort handler.
