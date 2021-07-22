@@ -236,10 +236,15 @@ static int vcnl3020_write_proxy_samp_freq(struct vcnl3020_data *data, int val,
 {
 	unsigned int i;
 	int index = -1;
+	int rc;
+
+	mutex_lock(&data->lock);
 
 	/* Protect against event capture. */
-	if (vcnl3020_is_in_periodic_mode(data))
-		return -EBUSY;
+	if (vcnl3020_is_in_periodic_mode(data)) {
+		rc = -EBUSY;
+		goto err_unlock;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(vcnl3020_prox_sampling_frequency); i++) {
 		if (val == vcnl3020_prox_sampling_frequency[i][0] &&
@@ -249,10 +254,20 @@ static int vcnl3020_write_proxy_samp_freq(struct vcnl3020_data *data, int val,
 		}
 	}
 
-	if (index < 0)
-		return -EINVAL;
+	if (index < 0) {
+		rc = -EINVAL;
+		goto err_unlock;
+	}
 
-	return regmap_write(data->regmap, VCNL_PROXIMITY_RATE, index);
+	rc = regmap_write(data->regmap, VCNL_PROXIMITY_RATE, index);
+	if (rc)
+		dev_err(data->dev,
+			"Error (%d) writing proximity rate register\n", rc);
+
+err_unlock:
+	mutex_unlock(&data->lock);
+
+	return rc;
 }
 
 static bool vcnl3020_is_thr_enabled(struct vcnl3020_data *data)
@@ -513,17 +528,11 @@ static int vcnl3020_write_raw(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
 			      int val, int val2, long mask)
 {
-	int rc;
 	struct vcnl3020_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		rc = iio_device_claim_direct_mode(indio_dev);
-		if (rc)
-			return rc;
-		rc = vcnl3020_write_proxy_samp_freq(data, val, val2);
-		iio_device_release_direct_mode(indio_dev);
-		return rc;
+		return vcnl3020_write_proxy_samp_freq(data, val, val2);
 	default:
 		return -EINVAL;
 	}
