@@ -2,6 +2,7 @@
 /* Copyright (C) 2021 Corigine, Inc. */
 
 #include "conntrack.h"
+#include "../nfp_port.h"
 
 const struct rhashtable_params nfp_tc_ct_merge_params = {
 	.head_offset		= offsetof(struct nfp_fl_ct_tc_merge,
@@ -549,6 +550,7 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 
 	struct flow_rule *rules[_CT_TYPE_MAX];
 	u8 *key, *msk, *kdata, *mdata;
+	struct nfp_port *port = NULL;
 	struct net_device *netdev;
 	bool qinq_sup;
 	u32 port_id;
@@ -792,7 +794,40 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 	if (err)
 		goto ct_offload_err;
 
+	/* Use the pointer address as the cookie, but set the last bit to 1.
+	 * This is to avoid the 'is_merge_flow' check from detecting this as
+	 * an already merged flow. This works since address alignment means
+	 * that the last bit for pointer addresses will be 0.
+	 */
+	flow_pay->tc_flower_cookie = ((unsigned long)flow_pay) | 0x1;
+	err = nfp_compile_flow_metadata(priv->app, flow_pay->tc_flower_cookie,
+					flow_pay, netdev, NULL);
+	if (err)
+		goto ct_offload_err;
+
+	if (nfp_netdev_is_nfp_repr(netdev))
+		port = nfp_port_from_netdev(netdev);
+
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+				     nfp_flower_table_params);
+	if (err)
+		goto ct_release_offload_meta_err;
+
+	m_entry->tc_flower_cookie = flow_pay->tc_flower_cookie;
+	m_entry->flow_pay = flow_pay;
+
+	if (port)
+		port->tc_offload_cnt++;
+
+	return err;
+
+ct_release_offload_meta_err:
+	nfp_modify_flow_metadata(priv->app, flow_pay);
 ct_offload_err:
+	if (flow_pay->nfp_tun_ipv4_addr)
+		nfp_tunnel_del_ipv4_off(priv->app, flow_pay->nfp_tun_ipv4_addr);
+	if (flow_pay->nfp_tun_ipv6)
+		nfp_tunnel_put_ipv6_off(priv->app, flow_pay->nfp_tun_ipv6);
 	kfree(flow_pay->action_data);
 	kfree(flow_pay->mask_data);
 	kfree(flow_pay->unmasked_data);
@@ -803,7 +838,45 @@ ct_offload_err:
 static int nfp_fl_ct_del_offload(struct nfp_app *app, unsigned long cookie,
 				 struct net_device *netdev)
 {
-	return 0;
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_payload *flow_pay;
+	struct nfp_port *port = NULL;
+	int err = 0;
+
+	if (nfp_netdev_is_nfp_repr(netdev))
+		port = nfp_port_from_netdev(netdev);
+
+	flow_pay = nfp_flower_search_fl_table(app, cookie, netdev);
+	if (!flow_pay)
+		return -ENOENT;
+
+	err = nfp_modify_flow_metadata(app, flow_pay);
+	if (err)
+		goto err_free_merge_flow;
+
+	if (flow_pay->nfp_tun_ipv4_addr)
+		nfp_tunnel_del_ipv4_off(app, flow_pay->nfp_tun_ipv4_addr);
+
+	if (flow_pay->nfp_tun_ipv6)
+		nfp_tunnel_put_ipv6_off(app, flow_pay->nfp_tun_ipv6);
+
+	if (!flow_pay->in_hw) {
+		err = 0;
+		goto err_free_merge_flow;
+	}
+
+err_free_merge_flow:
+	nfp_flower_del_linked_merge_flows(app, flow_pay);
+	if (port)
+		port->tc_offload_cnt--;
+	kfree(flow_pay->action_data);
+	kfree(flow_pay->mask_data);
+	kfree(flow_pay->unmasked_data);
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &flow_pay->fl_node,
+					    nfp_flower_table_params));
+	kfree_rcu(flow_pay, rcu);
+	return err;
 }
 
 static int nfp_ct_do_nft_merge(struct nfp_fl_ct_zone_entry *zt,

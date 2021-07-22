@@ -560,4 +560,7 @@ int nfp_flower_calculate_key_layers(struct nfp_app *app,
 				    struct flow_rule *flow,
 				    enum nfp_flower_tun_type *tun_type,
 				    struct netlink_ext_ack *extack);
+void
+nfp_flower_del_linked_merge_flows(struct nfp_app *app,
+				  struct nfp_fl_payload *sub_flow);
 #endif
