@@ -12,7 +12,7 @@
 #define _DNS_RESOLVE_H
 
 #ifdef __KERNEL__
-extern int dns_resolve_server_name_to_ip(const char *unc, char **ip_addr);
+extern int dns_resolve_server_name_to_ip(const char *unc, char **ip_addr, time64_t *expiry);
 #endif /* KERNEL */
 
 #endif /* _DNS_RESOLVE_H */

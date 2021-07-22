@@ -282,7 +282,9 @@ done
 #
 echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 for memory in `hotpluggable_online_memory`; do
-	offline_memory_expect_fail $memory
+	if [ $((RANDOM % 100)) -lt $ratio ]; then
+		offline_memory_expect_fail $memory
+	fi
 done
 
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error

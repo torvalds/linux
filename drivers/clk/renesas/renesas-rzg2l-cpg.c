@@ -47,9 +47,9 @@
 #define SDIV(val)		DIV_RSMASK(val, 0, 0x7)
 
 #define CLK_ON_R(reg)		(reg)
-#define CLK_MON_R(reg)		(0x680 - 0x500 + (reg))
-#define CLK_RST_R(reg)		(0x800 - 0x500 + (reg))
-#define CLK_MRST_R(reg)		(0x980 - 0x500 + (reg))
+#define CLK_MON_R(reg)		(0x180 + (reg))
+#define CLK_RST_R(reg)		(reg)
+#define CLK_MRST_R(reg)		(0x180 + (reg))
 
 #define GET_REG_OFFSET(val)		((val >> 20) & 0xfff)
 #define GET_REG_SAMPLL_CLK1(val)	((val >> 22) & 0xfff)
@@ -78,6 +78,7 @@ struct rzg2l_cpg_priv {
 	struct clk **clks;
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
+	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
 
 	struct raw_notifier_head notifiers;
@@ -315,15 +316,13 @@ fail:
  *
  * @hw: handle between common and hardware-specific interfaces
  * @off: register offset
- * @onoff: ON/MON bits
- * @reset: reset bits
+ * @bit: ON/MON bit
  * @priv: CPG/MSTP private data
  */
 struct mstp_clock {
 	struct clk_hw hw;
 	u16 off;
-	u8 onoff;
-	u8 reset;
+	u8 bit;
 	struct rzg2l_cpg_priv *priv;
 };
 
@@ -337,6 +336,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	struct device *dev = priv->dev;
 	unsigned long flags;
 	unsigned int i;
+	u32 bitmask = BIT(clock->bit);
 	u32 value;
 
 	if (!clock->off) {
@@ -349,9 +349,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	spin_lock_irqsave(&priv->rmw_lock, flags);
 
 	if (enable)
-		value = (clock->onoff << 16) | clock->onoff;
+		value = (bitmask << 16) | bitmask;
 	else
-		value = clock->onoff << 16;
+		value = bitmask << 16;
 	writel(value, priv->base + CLK_ON_R(reg));
 
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
@@ -360,7 +360,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
-		if (((readl(priv->base + CLK_MON_R(reg))) & clock->onoff))
+		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
 			break;
 		cpu_relax();
 	}
@@ -388,6 +388,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mstp_clock *clock = to_mod_clock(hw);
 	struct rzg2l_cpg_priv *priv = clock->priv;
+	u32 bitmask = BIT(clock->bit);
 	u32 value;
 
 	if (!clock->off) {
@@ -397,7 +398,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 
 	value = readl(priv->base + CLK_MON_R(clock->off));
 
-	return !(value & clock->onoff);
+	return !(value & bitmask);
 }
 
 static const struct clk_ops rzg2l_mod_clock_ops = {
@@ -457,8 +458,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	init.num_parents = 1;
 
 	clock->off = mod->off;
-	clock->onoff = mod->onoff;
-	clock->reset = mod->reset;
+	clock->bit = mod->bit;
 	clock->priv = priv;
 	clock->hw.init = &init;
 
@@ -483,12 +483,11 @@ static int rzg2l_cpg_reset(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = info->mod_clks[id].off;
-	u32 dis = info->mod_clks[id].reset;
+	unsigned int reg = info->resets[id].off;
+	u32 dis = BIT(info->resets[id].bit);
 	u32 we = dis << 16;
 
-	dev_dbg(rcdev->dev, "reset name:%s id:%ld offset:0x%x\n",
-		info->mod_clks[id].name, id, CLK_RST_R(reg));
+	dev_dbg(rcdev->dev, "reset id:%ld offset:0x%x\n", id, CLK_RST_R(reg));
 
 	/* Reset module */
 	writel(we, priv->base + CLK_RST_R(reg));
@@ -507,11 +506,10 @@ static int rzg2l_cpg_assert(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = info->mod_clks[id].off;
-	u32 value = info->mod_clks[id].reset << 16;
+	unsigned int reg = info->resets[id].off;
+	u32 value = BIT(info->resets[id].bit) << 16;
 
-	dev_dbg(rcdev->dev, "assert name:%s id:%ld offset:0x%x\n",
-		info->mod_clks[id].name, id, CLK_RST_R(reg));
+	dev_dbg(rcdev->dev, "assert id:%ld offset:0x%x\n", id, CLK_RST_R(reg));
 
 	writel(value, priv->base + CLK_RST_R(reg));
 	return 0;
@@ -522,12 +520,12 @@ static int rzg2l_cpg_deassert(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = info->mod_clks[id].off;
-	u32 dis = info->mod_clks[id].reset;
+	unsigned int reg = info->resets[id].off;
+	u32 dis = BIT(info->resets[id].bit);
 	u32 value = (dis << 16) | dis;
 
-	dev_dbg(rcdev->dev, "deassert name:%s id:%ld offset:0x%x\n",
-		info->mod_clks[id].name, id, CLK_RST_R(reg));
+	dev_dbg(rcdev->dev, "deassert id:%ld offset:0x%x\n", id,
+		CLK_RST_R(reg));
 
 	writel(value, priv->base + CLK_RST_R(reg));
 	return 0;
@@ -538,8 +536,8 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = info->mod_clks[id].off;
-	u32 bitmask = info->mod_clks[id].reset;
+	unsigned int reg = info->resets[id].off;
+	u32 bitmask = BIT(info->resets[id].bit);
 
 	return !(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
 }
@@ -554,9 +552,11 @@ static const struct reset_control_ops rzg2l_cpg_reset_ops = {
 static int rzg2l_cpg_reset_xlate(struct reset_controller_dev *rcdev,
 				 const struct of_phandle_args *reset_spec)
 {
+	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
+	const struct rzg2l_cpg_info *info = priv->info;
 	unsigned int id = reset_spec->args[0];
 
-	if (id >= rcdev->nr_resets) {
+	if (id >= rcdev->nr_resets || !info->resets[id].off) {
 		dev_err(rcdev->dev, "Invalid reset index %u\n", id);
 		return -EINVAL;
 	}
@@ -571,7 +571,7 @@ static int rzg2l_cpg_reset_controller_register(struct rzg2l_cpg_priv *priv)
 	priv->rcdev.dev = priv->dev;
 	priv->rcdev.of_reset_n_cells = 1;
 	priv->rcdev.of_xlate = rzg2l_cpg_reset_xlate;
-	priv->rcdev.nr_resets = priv->num_mod_clks;
+	priv->rcdev.nr_resets = priv->num_resets;
 
 	return devm_reset_controller_register(priv->dev, &priv->rcdev);
 }
@@ -594,42 +594,49 @@ static int rzg2l_cpg_attach_dev(struct generic_pm_domain *unused, struct device 
 {
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args clkspec;
+	bool once = true;
 	struct clk *clk;
 	int error;
 	int i = 0;
 
 	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i,
 					   &clkspec)) {
-		if (rzg2l_cpg_is_pm_clk(&clkspec))
-			goto found;
+		if (rzg2l_cpg_is_pm_clk(&clkspec)) {
+			if (once) {
+				once = false;
+				error = pm_clk_create(dev);
+				if (error) {
+					of_node_put(clkspec.np);
+					goto err;
+				}
+			}
+			clk = of_clk_get_from_provider(&clkspec);
+			of_node_put(clkspec.np);
+			if (IS_ERR(clk)) {
+				error = PTR_ERR(clk);
+				goto fail_destroy;
+			}
 
-		of_node_put(clkspec.np);
+			error = pm_clk_add_clk(dev, clk);
+			if (error) {
+				dev_err(dev, "pm_clk_add_clk failed %d\n",
+					error);
+				goto fail_put;
+			}
+		} else {
+			of_node_put(clkspec.np);
+		}
 		i++;
 	}
 
 	return 0;
 
-found:
-	clk = of_clk_get_from_provider(&clkspec);
-	of_node_put(clkspec.np);
-
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	error = pm_clk_create(dev);
-	if (error)
-		goto fail_put;
-
-	error = pm_clk_add_clk(dev, clk);
-	if (error)
-		goto fail_destroy;
-
-	return 0;
+fail_put:
+	clk_put(clk);
 
 fail_destroy:
 	pm_clk_destroy(dev);
-fail_put:
-	clk_put(clk);
+err:
 	return error;
 }
 
@@ -692,6 +699,7 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	priv->clks = clks;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
+	priv->num_resets = info->num_resets;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
 
 	for (i = 0; i < nclks; i++)

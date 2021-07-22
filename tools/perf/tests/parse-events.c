@@ -6,6 +6,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "pmu.h"
+#include "pmu-hybrid.h"
 #include <dirent.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -1596,6 +1597,13 @@ static int test__hybrid_raw1(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
 
+	if (!perf_pmu__hybrid_mounted("cpu_atom")) {
+		TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
+		TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
+		TEST_ASSERT_VAL("wrong config", 0x1a == evsel->core.attr.config);
+		return 0;
+	}
+
 	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", 0x1a == evsel->core.attr.config);
@@ -1620,13 +1628,9 @@ static int test__hybrid_cache_event(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HW_CACHE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", 0x2 == (evsel->core.attr.config & 0xffffffff));
-
-	evsel = evsel__next(evsel);
-	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HW_CACHE == evsel->core.attr.type);
-	TEST_ASSERT_VAL("wrong config", 0x10002 == (evsel->core.attr.config & 0xffffffff));
 	return 0;
 }
 
@@ -2028,7 +2032,7 @@ static struct evlist_test test__hybrid_events[] = {
 		.id    = 7,
 	},
 	{
-		.name  = "cpu_core/LLC-loads/,cpu_atom/LLC-load-misses/",
+		.name  = "cpu_core/LLC-loads/",
 		.check = test__hybrid_cache_event,
 		.id    = 8,
 	},
