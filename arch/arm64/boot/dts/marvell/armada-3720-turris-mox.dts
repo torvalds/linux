@@ -19,6 +19,8 @@
 	aliases {
 		spi0 = &spi0;
 		ethernet1 = &eth1;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
 	};
 
 	chosen {
