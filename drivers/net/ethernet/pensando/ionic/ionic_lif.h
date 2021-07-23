@@ -302,7 +302,7 @@ int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 int ionic_lif_size(struct ionic *ionic);
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
-int ionic_lif_hwstamp_replay(struct ionic_lif *lif);
+void ionic_lif_hwstamp_replay(struct ionic_lif *lif);
 int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr);
 int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr);
 ktime_t ionic_lif_phc_ktime(struct ionic_lif *lif, u64 counter);
@@ -311,10 +311,7 @@ void ionic_lif_unregister_phc(struct ionic_lif *lif);
 void ionic_lif_alloc_phc(struct ionic_lif *lif);
 void ionic_lif_free_phc(struct ionic_lif *lif);
 #else
-static inline int ionic_lif_hwstamp_replay(struct ionic_lif *lif)
-{
-	return -EOPNOTSUPP;
-}
+static inline void ionic_lif_hwstamp_replay(struct ionic_lif *lif) {}
 
 static inline int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 {
