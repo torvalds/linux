@@ -225,6 +225,10 @@ static int imx8ulp_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	const struct imx_pin_reg *pin_reg;
 	u32 reg;
 
+	pin_reg = &ipctl->pin_regs[offset];
+	if (pin_reg->mux_reg == -1)
+		return -EINVAL;
+
 	reg = readl(ipctl->base + pin_reg->mux_reg);
 	if (input)
 		reg = (reg & ~BM_OBE_ENABLED) | BM_IBE_ENABLED;
