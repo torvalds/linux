@@ -174,18 +174,18 @@ rkisp1_stats_init_vb2_queue(struct vb2_queue *q, struct rkisp1_stats *stats)
 	return vb2_queue_init(q);
 }
 
-static void rkisp1_stats_get_awb_meas(struct rkisp1_stats *stats,
-				      struct rkisp1_stat_buffer *pbuf)
+static void rkisp1_stats_get_awb_meas_v10(struct rkisp1_stats *stats,
+					  struct rkisp1_stat_buffer *pbuf)
 {
 	/* Protect against concurrent access from ISR? */
 	struct rkisp1_device *rkisp1 = stats->rkisp1;
 	u32 reg_val;
 
 	pbuf->meas_type |= RKISP1_CIF_ISP_STAT_AWB;
-	reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_AWB_WHITE_CNT);
+	reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_AWB_WHITE_CNT_V10);
 	pbuf->params.awb.awb_mean[0].cnt =
 				RKISP1_CIF_ISP_AWB_GET_PIXEL_CNT(reg_val);
-	reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_AWB_MEAN);
+	reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_AWB_MEAN_V10);
 
 	pbuf->params.awb.awb_mean[0].mean_cr_or_r =
 				RKISP1_CIF_ISP_AWB_GET_MEAN_CR_R(reg_val);
@@ -195,8 +195,8 @@ static void rkisp1_stats_get_awb_meas(struct rkisp1_stats *stats,
 				RKISP1_CIF_ISP_AWB_GET_MEAN_Y_G(reg_val);
 }
 
-static void rkisp1_stats_get_aec_meas(struct rkisp1_stats *stats,
-				      struct rkisp1_stat_buffer *pbuf)
+static void rkisp1_stats_get_aec_meas_v10(struct rkisp1_stats *stats,
+					  struct rkisp1_stat_buffer *pbuf)
 {
 	struct rkisp1_device *rkisp1 = stats->rkisp1;
 	unsigned int i;
@@ -205,7 +205,7 @@ static void rkisp1_stats_get_aec_meas(struct rkisp1_stats *stats,
 	for (i = 0; i < RKISP1_CIF_ISP_AE_MEAN_MAX_V10; i++)
 		pbuf->params.ae.exp_mean[i] =
 			(u8)rkisp1_read(rkisp1,
-					RKISP1_CIF_ISP_EXP_MEAN_00 + i * 4);
+					RKISP1_CIF_ISP_EXP_MEAN_00_V10 + i * 4);
 }
 
 static void rkisp1_stats_get_afc_meas(struct rkisp1_stats *stats,
@@ -225,17 +225,17 @@ static void rkisp1_stats_get_afc_meas(struct rkisp1_stats *stats,
 	af->window[2].lum = rkisp1_read(rkisp1, RKISP1_CIF_ISP_AFM_LUM_C);
 }
 
-static void rkisp1_stats_get_hst_meas(struct rkisp1_stats *stats,
-				      struct rkisp1_stat_buffer *pbuf)
+static void rkisp1_stats_get_hst_meas_v10(struct rkisp1_stats *stats,
+					  struct rkisp1_stat_buffer *pbuf)
 {
 	struct rkisp1_device *rkisp1 = stats->rkisp1;
 	unsigned int i;
 
 	pbuf->meas_type |= RKISP1_CIF_ISP_STAT_HIST;
 	for (i = 0; i < RKISP1_CIF_ISP_HIST_BIN_N_MAX_V10; i++) {
-		u32 reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_HIST_BIN_0 + i * 4);
+		u32 reg_val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_HIST_BIN_0_V10 + i * 4);
 
-		pbuf->params.hist.hist_bins[i] = RKISP1_CIF_ISP_HIST_GET_BIN(reg_val);
+		pbuf->params.hist.hist_bins[i] = RKISP1_CIF_ISP_HIST_GET_BIN_V10(reg_val);
 	}
 }
 
@@ -286,10 +286,10 @@ static void rkisp1_stats_get_bls_meas(struct rkisp1_stats *stats,
 	}
 }
 
-static const struct rkisp1_stats_ops rkisp1_stats_ops = {
-	.get_awb_meas = rkisp1_stats_get_awb_meas,
-	.get_aec_meas = rkisp1_stats_get_aec_meas,
-	.get_hst_meas = rkisp1_stats_get_hst_meas,
+static const struct rkisp1_stats_ops rkisp1_v10_stats_ops = {
+	.get_awb_meas = rkisp1_stats_get_awb_meas_v10,
+	.get_aec_meas = rkisp1_stats_get_aec_meas_v10,
+	.get_hst_meas = rkisp1_stats_get_hst_meas_v10,
 };
 
 static void
@@ -359,7 +359,7 @@ static void rkisp1_init_stats(struct rkisp1_stats *stats)
 	stats->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp1_stat_buffer);
 
-	stats->ops = &rkisp1_stats_ops;
+	stats->ops = &rkisp1_v10_stats_ops;
 }
 
 int rkisp1_stats_register(struct rkisp1_device *rkisp1)
