@@ -1438,7 +1438,7 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-		/**
+	/**
 	 * PSR control version.
 	 */
 	uint8_t cmd_version;
