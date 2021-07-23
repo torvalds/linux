@@ -381,8 +381,7 @@ static void tcp_destroy_socket(struct socket *ksmbd_socket)
 	ret = kernel_sock_shutdown(ksmbd_socket, SHUT_RDWR);
 	if (ret)
 		pr_err("Failed to shutdown socket: %d\n", ret);
-	else
-		sock_release(ksmbd_socket);
+	sock_release(ksmbd_socket);
 }
 
 /**
