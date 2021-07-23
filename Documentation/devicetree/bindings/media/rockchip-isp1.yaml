@@ -21,7 +21,14 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    items:
+      - const: isp
+      - const: mi
+      - const: mipi
 
   clocks:
     minItems: 3
@@ -90,19 +97,29 @@ required:
   - power-domains
   - ports
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: rockchip,rk3399-cif-isp
-then:
-  properties:
-    clocks:
-      minItems: 3
-      maxItems: 4
-    clock-names:
-      minItems: 3
-      maxItems: 4
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3399-cif-isp
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 4
+        clock-names:
+          minItems: 3
+          maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,px30-cif-isp
+    then:
+      required:
+        - interrupt-names
 
 additionalProperties: false
 
