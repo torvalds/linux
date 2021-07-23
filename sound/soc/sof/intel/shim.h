@@ -164,6 +164,8 @@ struct sof_intel_dsp_desc {
 	int rom_init_timeout;
 	int ssp_count;			/* ssp count of the platform */
 	int ssp_base_offset;		/* base address of the SSPs */
+	u32 sdw_shim_base;
+	u32 sdw_alh_base;
 };
 
 extern const struct snd_sof_dsp_ops sof_tng_ops;
