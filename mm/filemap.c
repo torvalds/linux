@@ -225,7 +225,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	struct folio *folio = page_folio(page);
 	struct address_space *mapping = page->mapping;
 
-	trace_mm_filemap_delete_from_page_cache(page);
+	trace_mm_filemap_delete_from_page_cache(folio);
 
 	filemap_unaccount_folio(mapping, folio);
 	page_cache_delete(mapping, folio, shadow);
@@ -346,9 +346,10 @@ void delete_from_page_cache_batch(struct address_space *mapping,
 	spin_lock(&mapping->host->i_lock);
 	xa_lock_irq(&mapping->i_pages);
 	for (i = 0; i < pagevec_count(pvec); i++) {
-		trace_mm_filemap_delete_from_page_cache(pvec->pages[i]);
+		struct folio *folio = page_folio(pvec->pages[i]);
 
-		filemap_unaccount_folio(mapping, page_folio(pvec->pages[i]));
+		trace_mm_filemap_delete_from_page_cache(folio);
+		filemap_unaccount_folio(mapping, folio);
 	}
 	page_cache_delete_batch(mapping, pvec);
 	xa_unlock_irq(&mapping->i_pages);
@@ -959,7 +960,7 @@ unlock:
 		goto error;
 	}
 
-	trace_mm_filemap_add_to_page_cache(&folio->page);
+	trace_mm_filemap_add_to_page_cache(folio);
 	return 0;
 error:
 	folio->mapping = NULL;
