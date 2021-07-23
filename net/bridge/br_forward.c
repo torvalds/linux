@@ -48,7 +48,7 @@ int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb
 		skb_set_network_header(skb, depth);
 	}
 
-	skb->offload_fwd_mark = br_switchdev_frame_uses_tx_fwd_offload(skb);
+	br_switchdev_frame_set_offload_fwd_mark(skb);
 
 	dev_queue_xmit(skb);
 

@@ -1881,6 +1881,8 @@ static inline void br_sysfs_delbr(struct net_device *dev) { return; }
 #ifdef CONFIG_NET_SWITCHDEV
 bool br_switchdev_frame_uses_tx_fwd_offload(struct sk_buff *skb);
 
+void br_switchdev_frame_set_offload_fwd_mark(struct sk_buff *skb);
+
 void nbp_switchdev_frame_mark_tx_fwd_offload(const struct net_bridge_port *p,
 					     struct sk_buff *skb);
 void nbp_switchdev_frame_mark_tx_fwd_to_hwdom(const struct net_bridge_port *p,
@@ -1908,6 +1910,10 @@ static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 static inline bool br_switchdev_frame_uses_tx_fwd_offload(struct sk_buff *skb)
 {
 	return false;
+}
+
+static inline void br_switchdev_frame_set_offload_fwd_mark(struct sk_buff *skb)
+{
 }
 
 static inline void

@@ -28,6 +28,11 @@ bool br_switchdev_frame_uses_tx_fwd_offload(struct sk_buff *skb)
 	return BR_INPUT_SKB_CB(skb)->tx_fwd_offload;
 }
 
+void br_switchdev_frame_set_offload_fwd_mark(struct sk_buff *skb)
+{
+	skb->offload_fwd_mark = br_switchdev_frame_uses_tx_fwd_offload(skb);
+}
+
 /* Mark the frame for TX forwarding offload if this egress port supports it */
 void nbp_switchdev_frame_mark_tx_fwd_offload(const struct net_bridge_port *p,
 					     struct sk_buff *skb)
