@@ -2501,6 +2501,13 @@ static void pkey_change_handler(struct work_struct *work)
 		container_of(work, struct mlx5_ib_port_resources,
 			     pkey_change_work);
 
+	if (!ports->gsi)
+		/*
+		 * We got this event before device was fully configured
+		 * and MAD registration code wasn't called/finished yet.
+		 */
+		return;
+
 	mlx5_ib_gsi_pkey_change(ports->gsi);
 }
 
@@ -2794,8 +2801,6 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 
 	if (!MLX5_CAP_GEN(dev->mdev, xrc))
 		return -EOPNOTSUPP;
-
-	mutex_init(&devr->mutex);
 
 	devr->p0 = rdma_zalloc_drv_obj(ibdev, ib_pd);
 	if (!devr->p0)
