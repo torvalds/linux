@@ -1490,34 +1490,35 @@ static const struct tty_port_operations amiga_port_ops = {
 static int __init amiga_serial_probe(struct platform_device *pdev)
 {
 	struct serial_state *state = &serial_state;
+	struct tty_driver *driver;
 	unsigned long flags;
 	int error;
 
-	serial_driver = alloc_tty_driver(1);
-	if (!serial_driver)
+	driver = alloc_tty_driver(1);
+	if (!driver)
 		return -ENOMEM;
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->driver_name = "amiserial";
-	serial_driver->name = "ttyS";
-	serial_driver->major = TTY_MAJOR;
-	serial_driver->minor_start = 64;
-	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	serial_driver->subtype = SERIAL_TYPE_NORMAL;
-	serial_driver->init_termios = tty_std_termios;
-	serial_driver->init_termios.c_cflag =
+	driver->driver_name = "amiserial";
+	driver->name = "ttyS";
+	driver->major = TTY_MAJOR;
+	driver->minor_start = 64;
+	driver->type = TTY_DRIVER_TYPE_SERIAL;
+	driver->subtype = SERIAL_TYPE_NORMAL;
+	driver->init_termios = tty_std_termios;
+	driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	serial_driver->flags = TTY_DRIVER_REAL_RAW;
-	tty_set_operations(serial_driver, &serial_ops);
+	driver->flags = TTY_DRIVER_REAL_RAW;
+	tty_set_operations(driver, &serial_ops);
 
 	memset(state, 0, sizeof(*state));
 	state->port = (int)&amiga_custom.serdatr; /* Just to give it a value */
 	tty_port_init(&state->tport);
 	state->tport.ops = &amiga_port_ops;
-	tty_port_link_device(&state->tport, serial_driver, 0);
+	tty_port_link_device(&state->tport, driver, 0);
 
-	error = tty_register_driver(serial_driver);
+	error = tty_register_driver(driver);
 	if (error)
 		goto fail_put_tty_driver;
 
@@ -1558,15 +1559,17 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, state);
 
+	serial_driver = driver;
+
 	return 0;
 
 fail_free_irq:
 	free_irq(IRQ_AMIGA_TBE, state);
 fail_unregister:
-	tty_unregister_driver(serial_driver);
+	tty_unregister_driver(driver);
 fail_put_tty_driver:
 	tty_port_destroy(&state->tport);
-	put_tty_driver(serial_driver);
+	put_tty_driver(driver);
 	return error;
 }
 
