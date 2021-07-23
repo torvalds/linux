@@ -9198,6 +9198,9 @@ verify_mpllb_state(struct intel_atomic_state *state,
 	if (!new_crtc_state->hw.active)
 		return;
 
+	if (new_crtc_state->bigjoiner_slave)
+		return;
+
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
 
