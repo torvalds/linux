@@ -552,11 +552,8 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	kernel_map.phys_addr = (uintptr_t)(&_start);
 	kernel_map.size = (uintptr_t)(&_end) - kernel_map.phys_addr;
 #endif
-
 	kernel_map.va_pa_offset = PAGE_OFFSET - kernel_map.phys_addr;
-#ifdef CONFIG_64BIT
 	kernel_map.va_kernel_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr;
-#endif
 
 	pfn_base = PFN_DOWN(kernel_map.phys_addr);
 
