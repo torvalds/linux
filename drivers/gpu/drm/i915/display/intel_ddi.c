@@ -51,6 +51,7 @@
 #include "intel_panel.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
+#include "intel_snps_phy.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
@@ -3754,6 +3755,15 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 						     &crtc_state->dpll_hw_state);
 }
 
+static void dg2_ddi_get_config(struct intel_encoder *encoder,
+				struct intel_crtc_state *crtc_state)
+{
+	intel_mpllb_readout_hw_state(encoder, &crtc_state->mpllb_state);
+	crtc_state->port_clock = intel_mpllb_calc_port_clock(encoder, &crtc_state->mpllb_state);
+
+	intel_ddi_get_config(encoder, crtc_state);
+}
+
 static void adls_ddi_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *crtc_state)
 {
@@ -4616,7 +4626,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_ALDERLAKE_S(dev_priv)) {
+	if (IS_DG2(dev_priv)) {
+		encoder->get_config = dg2_ddi_get_config;
+	} else if (IS_ALDERLAKE_S(dev_priv)) {
 		encoder->enable_clock = adls_ddi_enable_clock;
 		encoder->disable_clock = adls_ddi_disable_clock;
 		encoder->is_clock_enabled = adls_ddi_is_clock_enabled;

@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/util_macros.h>
+
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_snps_phy.h"
@@ -375,14 +377,172 @@ static const struct intel_mpllb_state *dg2_edp_tables[] = {
 	NULL,
 };
 
-int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
-			   struct intel_encoder *encoder)
-{
-	const struct intel_mpllb_state **tables;
-	int i;
+/*
+ * HDMI link rates with 100 MHz reference clock.
+ */
 
+static const struct intel_mpllb_state dg2_hdmi_25_175 = {
+	.clock = 25175,
+	.ref_control =
+		REG_FIELD_PREP(SNPS_PHY_REF_CONTROL_REF_RANGE, 3),
+	.mpllb_cp =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT, 5) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP, 15) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT_GS, 64) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP_GS, 124),
+	.mpllb_div =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_DIV5_CLK_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_TX_CLK_DIV, 5) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2),
+	.mpllb_div2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_MULTIPLIER, 128) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_HDMI_DIV, 1),
+	.mpllb_fracn1 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_CGG_UPDATE_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 143),
+	.mpllb_fracn2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 36663) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, 71),
+	.mpllb_sscen =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
+};
+
+static const struct intel_mpllb_state dg2_hdmi_27_0 = {
+	.clock = 27000,
+	.ref_control =
+		REG_FIELD_PREP(SNPS_PHY_REF_CONTROL_REF_RANGE, 3),
+	.mpllb_cp =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT, 5) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP, 15) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT_GS, 64) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP_GS, 124),
+	.mpllb_div =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_DIV5_CLK_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_TX_CLK_DIV, 5) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2),
+	.mpllb_div2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_MULTIPLIER, 140) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_HDMI_DIV, 1),
+	.mpllb_fracn1 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_CGG_UPDATE_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 5),
+	.mpllb_fracn2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 26214) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, 2),
+	.mpllb_sscen =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
+};
+
+static const struct intel_mpllb_state dg2_hdmi_74_25 = {
+	.clock = 74250,
+	.ref_control =
+		REG_FIELD_PREP(SNPS_PHY_REF_CONTROL_REF_RANGE, 3),
+	.mpllb_cp =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT, 4) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP, 15) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT_GS, 64) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP_GS, 124),
+	.mpllb_div =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_DIV5_CLK_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_TX_CLK_DIV, 3) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FREQ_VCO, 3),
+	.mpllb_div2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_MULTIPLIER, 86) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_HDMI_DIV, 1),
+	.mpllb_fracn1 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_CGG_UPDATE_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 5),
+	.mpllb_fracn2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 26214) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, 2),
+	.mpllb_sscen =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
+};
+
+static const struct intel_mpllb_state dg2_hdmi_148_5 = {
+	.clock = 148500,
+	.ref_control =
+		REG_FIELD_PREP(SNPS_PHY_REF_CONTROL_REF_RANGE, 3),
+	.mpllb_cp =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT, 4) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP, 15) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT_GS, 64) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP_GS, 124),
+	.mpllb_div =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_DIV5_CLK_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_TX_CLK_DIV, 2) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FREQ_VCO, 3),
+	.mpllb_div2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_MULTIPLIER, 86) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_HDMI_DIV, 1),
+	.mpllb_fracn1 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_CGG_UPDATE_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 5),
+	.mpllb_fracn2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 26214) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, 2),
+	.mpllb_sscen =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
+};
+
+static const struct intel_mpllb_state dg2_hdmi_594 = {
+	.clock = 594000,
+	.ref_control =
+		REG_FIELD_PREP(SNPS_PHY_REF_CONTROL_REF_RANGE, 3),
+	.mpllb_cp =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT, 4) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP, 15) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_INT_GS, 64) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_CP_PROP_GS, 124),
+	.mpllb_div =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_DIV5_CLK_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FREQ_VCO, 3),
+	.mpllb_div2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_MULTIPLIER, 86) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_HDMI_DIV, 1),
+	.mpllb_fracn1 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_CGG_UPDATE_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_EN, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 5),
+	.mpllb_fracn2 =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 26214) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_REM, 2),
+	.mpllb_sscen =
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
+};
+
+static const struct intel_mpllb_state *dg2_hdmi_tables[] = {
+	&dg2_hdmi_25_175,
+	&dg2_hdmi_27_0,
+	&dg2_hdmi_74_25,
+	&dg2_hdmi_148_5,
+	&dg2_hdmi_594,
+	NULL,
+};
+
+static const struct intel_mpllb_state **
+intel_mpllb_tables_get(struct intel_crtc_state *crtc_state,
+		       struct intel_encoder *encoder)
+{
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP)) {
-		tables = dg2_edp_tables;
+		return dg2_edp_tables;
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		/*
 		 * FIXME: Initially we're just enabling the "combo" outputs on
@@ -397,14 +557,40 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 		 * that to determine which table to use.
 		 */
 		if (0)
-			tables = dg2_dp_38_4_tables;
+			return dg2_dp_38_4_tables;
 		else
-			tables = dg2_dp_100_tables;
-	} else {
-		/* TODO: Add HDMI support */
-		MISSING_CASE(encoder->type);
-		return -EINVAL;
+			return dg2_dp_100_tables;
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		return dg2_hdmi_tables;
 	}
+
+	MISSING_CASE(encoder->type);
+	return NULL;
+}
+
+int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
+			   struct intel_encoder *encoder)
+{
+	const struct intel_mpllb_state **tables;
+	int i;
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		if (intel_snps_phy_check_hdmi_link_rate(crtc_state->port_clock)
+		    != MODE_OK) {
+			/*
+			 * FIXME: Can only support fixed HDMI frequencies
+			 * until we have a proper algorithm under a valid
+			 * license.
+			 */
+			DRM_DEBUG_KMS("Can't support HDMI link rate %d\n",
+				      crtc_state->port_clock);
+			return -EINVAL;
+		}
+	}
+
+	tables = intel_mpllb_tables_get(crtc_state, encoder);
+	if (!tables)
+		return -EINVAL;
 
 	for (i = 0; tables[i]; i++) {
 		if (crtc_state->port_clock <= tables[i]->clock) {
@@ -514,4 +700,80 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	 *
 	 * We handle this step in bxt_set_cdclk().
 	 */
+}
+
+int intel_mpllb_calc_port_clock(struct intel_encoder *encoder,
+				const struct intel_mpllb_state *pll_state)
+{
+	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
+	unsigned int multiplier, tx_clk_div, refclk;
+	bool frac_en;
+
+	if (0)
+		refclk = 38400;
+	else
+		refclk = 100000;
+
+	refclk >>= REG_FIELD_GET(SNPS_PHY_MPLLB_REF_CLK_DIV, pll_state->mpllb_div2) - 1;
+
+	frac_en = REG_FIELD_GET(SNPS_PHY_MPLLB_FRACN_EN, pll_state->mpllb_fracn1);
+
+	if (frac_en) {
+		frac_quot = REG_FIELD_GET(SNPS_PHY_MPLLB_FRACN_QUOT, pll_state->mpllb_fracn2);
+		frac_rem = REG_FIELD_GET(SNPS_PHY_MPLLB_FRACN_REM, pll_state->mpllb_fracn2);
+		frac_den = REG_FIELD_GET(SNPS_PHY_MPLLB_FRACN_DEN, pll_state->mpllb_fracn1);
+	}
+
+	multiplier = REG_FIELD_GET(SNPS_PHY_MPLLB_MULTIPLIER, pll_state->mpllb_div2) / 2 + 16;
+
+	tx_clk_div = REG_FIELD_GET(SNPS_PHY_MPLLB_TX_CLK_DIV, pll_state->mpllb_div);
+
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
+				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
+				     10 << (tx_clk_div + 16));
+}
+
+void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
+				  struct intel_mpllb_state *pll_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
+	pll_state->mpllb_cp = intel_de_read(dev_priv, SNPS_PHY_MPLLB_CP(phy));
+	pll_state->mpllb_div = intel_de_read(dev_priv, SNPS_PHY_MPLLB_DIV(phy));
+	pll_state->mpllb_div2 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_DIV2(phy));
+	pll_state->mpllb_sscen = intel_de_read(dev_priv, SNPS_PHY_MPLLB_SSCEN(phy));
+	pll_state->mpllb_sscstep = intel_de_read(dev_priv, SNPS_PHY_MPLLB_SSCSTEP(phy));
+	pll_state->mpllb_fracn1 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_FRACN1(phy));
+	pll_state->mpllb_fracn2 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_FRACN2(phy));
+
+	/*
+	 * REF_CONTROL is under firmware control and never programmed by the
+	 * driver; we read it only for sanity checking purposes.  The bspec
+	 * only tells us the expected value for one field in this register,
+	 * so we'll only read out those specific bits here.
+	 */
+	pll_state->ref_control = intel_de_read(dev_priv, SNPS_PHY_REF_CONTROL(phy)) &
+		SNPS_PHY_REF_CONTROL_REF_RANGE;
+
+	/*
+	 * MPLLB_DIV is programmed twice, once with the software-computed
+	 * state, then again with the MPLLB_FORCE_EN bit added.  Drop that
+	 * extra bit during readout so that we return the actual expected
+	 * software state.
+	 */
+	pll_state->mpllb_div &= ~SNPS_PHY_MPLLB_FORCE_EN;
+}
+
+int intel_snps_phy_check_hdmi_link_rate(int clock)
+{
+	const struct intel_mpllb_state **tables = dg2_hdmi_tables;
+	int i;
+
+	for (i = 0; tables[i]; i++) {
+		if (clock == tables[i]->clock)
+			return MODE_OK;
+	}
+
+	return MODE_CLOCK_RANGE;
 }
