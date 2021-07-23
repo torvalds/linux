@@ -41,7 +41,7 @@ properties:
       - const: aclk
       - const: hclk
       # only for isp1
-      - const: pclk_isp
+      - const: pclk
 
   iommus:
     maxItems: 1
