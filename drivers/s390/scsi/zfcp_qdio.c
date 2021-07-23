@@ -79,7 +79,7 @@ static void zfcp_qdio_request_tasklet(struct tasklet_struct *tasklet)
 	unsigned int start, error;
 	int completed;
 
-	completed = qdio_inspect_queue(cdev, 0, false, &start, &error);
+	completed = qdio_inspect_output_queue(cdev, 0, &start, &error);
 	if (completed > 0) {
 		if (error) {
 			zfcp_qdio_handler_error(qdio, "qdreqt1", error);
@@ -169,7 +169,7 @@ static void zfcp_qdio_irq_tasklet(struct tasklet_struct *tasklet)
 		tasklet_schedule(&qdio->request_tasklet);
 
 	/* Check the Response Queue: */
-	completed = qdio_inspect_queue(cdev, 0, true, &start, &error);
+	completed = qdio_inspect_input_queue(cdev, 0, &start, &error);
 	if (completed < 0)
 		return;
 	if (completed > 0)

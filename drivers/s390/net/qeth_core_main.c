@@ -5850,10 +5850,10 @@ static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 		/* Fetch completed RX buffers: */
 		if (!card->rx.b_count) {
 			card->rx.qdio_err = 0;
-			card->rx.b_count = qdio_inspect_queue(CARD_DDEV(card),
-							      0, true,
-							      &card->rx.b_index,
-							      &card->rx.qdio_err);
+			card->rx.b_count =
+				qdio_inspect_input_queue(CARD_DDEV(card), 0,
+							 &card->rx.b_index,
+							 &card->rx.qdio_err);
 			if (card->rx.b_count <= 0) {
 				card->rx.b_count = 0;
 				break;
@@ -5900,8 +5900,8 @@ static void qeth_cq_poll(struct qeth_card *card)
 		unsigned int start, error;
 		int completed;
 
-		completed = qdio_inspect_queue(CARD_DDEV(card), 1, true, &start,
-					       &error);
+		completed = qdio_inspect_input_queue(CARD_DDEV(card), 1, &start,
+						     &error);
 		if (completed <= 0)
 			return;
 
@@ -6038,8 +6038,8 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 			return 0;
 		}
 
-		completed = qdio_inspect_queue(CARD_DDEV(card), queue_no, false,
-					       &start, &error);
+		completed = qdio_inspect_output_queue(CARD_DDEV(card), queue_no,
+						      &start, &error);
 		if (completed <= 0) {
 			/* Ensure we see TX completion for pending work: */
 			if (napi_complete_done(napi, 0) &&

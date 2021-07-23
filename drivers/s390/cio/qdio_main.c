@@ -500,6 +500,31 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	}
 }
 
+int qdio_inspect_input_queue(struct ccw_device *cdev, unsigned int nr,
+			     unsigned int *bufnr, unsigned int *error)
+{
+	struct qdio_irq *irq = cdev->private->qdio_data;
+	unsigned int start;
+	struct qdio_q *q;
+	int count;
+
+	if (!irq)
+		return -ENODEV;
+
+	q = irq->input_qs[nr];
+	start = q->first_to_check;
+	*error = 0;
+
+	count = get_inbound_buffer_frontier(q, start, error);
+	if (count == 0)
+		return 0;
+
+	*bufnr = start;
+	q->first_to_check = add_buf(start, count);
+	return count;
+}
+EXPORT_SYMBOL_GPL(qdio_inspect_input_queue);
+
 static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 {
 	unsigned char state = 0;
@@ -578,6 +603,31 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 		return 0;
 	}
 }
+
+int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
+			      unsigned int *bufnr, unsigned int *error)
+{
+	struct qdio_irq *irq = cdev->private->qdio_data;
+	unsigned int start;
+	struct qdio_q *q;
+	int count;
+
+	if (!irq)
+		return -ENODEV;
+
+	q = irq->output_qs[nr];
+	start = q->first_to_check;
+	*error = 0;
+
+	count = get_outbound_buffer_frontier(q, start, error);
+	if (count == 0)
+		return 0;
+
+	*bufnr = start;
+	q->first_to_check = add_buf(start, count);
+	return count;
+}
+EXPORT_SYMBOL_GPL(qdio_inspect_output_queue);
 
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
 				unsigned long aob)
@@ -1283,40 +1333,6 @@ rescan:
 
 }
 EXPORT_SYMBOL(qdio_start_irq);
-
-static int __qdio_inspect_queue(struct qdio_q *q, unsigned int *bufnr,
-				unsigned int *error)
-{
-	unsigned int start = q->first_to_check;
-	int count;
-
-	*error = 0;
-	count = q->is_input_q ? get_inbound_buffer_frontier(q, start, error) :
-				get_outbound_buffer_frontier(q, start, error);
-	if (count == 0)
-		return 0;
-
-	*bufnr = start;
-
-	/* for the next time */
-	q->first_to_check = add_buf(start, count);
-
-	return count;
-}
-
-int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr, bool is_input,
-		       unsigned int *bufnr, unsigned int *error)
-{
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-	struct qdio_q *q;
-
-	if (!irq_ptr)
-		return -ENODEV;
-	q = is_input ? irq_ptr->input_qs[nr] : irq_ptr->output_qs[nr];
-
-	return __qdio_inspect_queue(q, bufnr, error);
-}
-EXPORT_SYMBOL_GPL(qdio_inspect_queue);
 
 /**
  * qdio_stop_irq - disable interrupt processing for the device

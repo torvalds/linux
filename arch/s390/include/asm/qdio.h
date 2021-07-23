@@ -352,9 +352,10 @@ extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags, int q_nr,
 		   unsigned int bufnr, unsigned int count, struct qaob *aob);
 extern int qdio_start_irq(struct ccw_device *cdev);
 extern int qdio_stop_irq(struct ccw_device *cdev);
-extern int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr,
-			      bool is_input, unsigned int *bufnr,
-			      unsigned int *error);
+extern int qdio_inspect_input_queue(struct ccw_device *cdev, unsigned int nr,
+				    unsigned int *bufnr, unsigned int *error);
+extern int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
+				     unsigned int *bufnr, unsigned int *error);
 extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);
