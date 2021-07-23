@@ -17,8 +17,6 @@
 #include <linux/compat.h>
 #include <uapi/linux/ethtool.h>
 
-#ifdef CONFIG_COMPAT
-
 struct compat_ethtool_rx_flow_spec {
 	u32		flow_type;
 	union ethtool_flow_union h_u;
@@ -37,8 +35,6 @@ struct compat_ethtool_rxnfc {
 	u32				rule_cnt;
 	u32				rule_locs[];
 };
-
-#endif /* CONFIG_COMPAT */
 
 #include <linux/rculist.h>
 
