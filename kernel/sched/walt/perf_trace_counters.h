@@ -26,9 +26,9 @@
 #include <linux/tracepoint.h>
 
 DECLARE_PER_CPU(u32, cntenset_val);
-DECLARE_PER_CPU(u32, previous_ccnt);
-DECLARE_PER_CPU(u32[NUM_L1_CTRS], previous_l1_cnts);
-DECLARE_PER_CPU(u64[NUM_AMU_CTRS], previous_amu_cnts);
+DECLARE_PER_CPU(unsigned long, previous_ccnt);
+DECLARE_PER_CPU(unsigned long[NUM_L1_CTRS], previous_l1_cnts);
+DECLARE_PER_CPU(unsigned long[NUM_AMU_CTRS], previous_amu_cnts);
 TRACE_EVENT(sched_switch_with_ctrs,
 
 		TP_PROTO(pid_t prev, pid_t next),
@@ -38,26 +38,26 @@ TRACE_EVENT(sched_switch_with_ctrs,
 		TP_STRUCT__entry(
 			__field(pid_t,	old_pid)
 			__field(pid_t,	new_pid)
-			__field(u32, cctr)
-			__field(u32, ctr0)
-			__field(u32, ctr1)
-			__field(u32, ctr2)
-			__field(u32, ctr3)
-			__field(u32, ctr4)
-			__field(u32, ctr5)
-			__field(u64, amu0)
-			__field(u64, amu1)
+			__field(unsigned long, cctr)
+			__field(unsigned long, ctr0)
+			__field(unsigned long, ctr1)
+			__field(unsigned long, ctr2)
+			__field(unsigned long, ctr3)
+			__field(unsigned long, ctr4)
+			__field(unsigned long, ctr5)
+			__field(unsigned long, amu0)
+			__field(unsigned long, amu1)
 		),
 
 		TP_fast_assign(
 			u32 cpu = smp_processor_id();
 			u32 i;
 			u32 cnten_val;
-			u32 total_ccnt = 0;
-			u32 total_cnt = 0;
-			u64 amu_cnt = 0;
-			u32 delta_l1_cnts[NUM_L1_CTRS];
-			u64 delta_amu_cnts[NUM_AMU_CTRS] = {0};
+			unsigned long total_ccnt = 0;
+			unsigned long total_cnt = 0;
+			unsigned long amu_cnt = 0;
+			unsigned long delta_l1_cnts[NUM_L1_CTRS] = {0};
+			unsigned long delta_amu_cnts[NUM_AMU_CTRS] = {0};
 
 			__entry->old_pid	= prev;
 			__entry->new_pid	= next;
@@ -108,7 +108,7 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__entry->amu1 = delta_amu_cnts[1];
 		),
 
-		TP_printk("prev_pid=%d, next_pid=%d, CCNTR: %u, CTR0: %u, CTR1: %u, CTR2: %u, CTR3: %u, CTR4: %u, CTR5: %u, CYC: %llu, INST: %llu",
+		TP_printk("prev_pid=%d, next_pid=%d, CCNTR: %lu, CTR0: %lu, CTR1: %lu, CTR2: %lu, CTR3: %lu, CTR4: %lu, CTR5: %lu, CYC: %lu, INST: %lu",
 				__entry->old_pid, __entry->new_pid,
 				__entry->cctr,
 				__entry->ctr0, __entry->ctr1,
