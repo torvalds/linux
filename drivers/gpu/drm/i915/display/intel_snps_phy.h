@@ -8,9 +8,12 @@
 
 #include <linux/types.h>
 
+struct drm_i915_private;
 struct intel_encoder;
 struct intel_crtc_state;
 struct intel_mpllb_state;
+
+void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv);
 
 int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			   struct intel_encoder *encoder);

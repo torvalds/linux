@@ -21,6 +21,21 @@
  * since it is not handled by the shared DPLL framework as on other platforms.
  */
 
+void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv)
+{
+	enum phy phy;
+
+	for_each_phy_masked(phy, ~0) {
+		if (!intel_phy_is_snps(dev_priv, phy))
+			continue;
+
+		if (intel_de_wait_for_clear(dev_priv, ICL_PHY_MISC(phy),
+					    DG2_PHY_DP_TX_ACK_MASK, 25))
+			DRM_ERROR("SNPS PHY %c failed to calibrate after 25ms.\n",
+				  phy);
+	}
+}
+
 static const u32 dg2_ddi_translations[] = {
 	/* VS 0, pre-emph 0 */
 	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 26),

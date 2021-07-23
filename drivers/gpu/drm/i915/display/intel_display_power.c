@@ -18,6 +18,7 @@
 #include "intel_pm.h"
 #include "intel_pps.h"
 #include "intel_sideband.h"
+#include "intel_snps_phy.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
 
@@ -5900,6 +5901,10 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	/* 7. Program arbiter BW_BUDDY registers */
 	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_bw_buddy_init(dev_priv);
+
+	/* 8. Ensure PHYs have completed calibration and adaptation */
+	if (IS_DG2(dev_priv))
+		intel_snps_phy_wait_for_calibration(dev_priv);
 
 	if (resume && intel_dmc_has_payload(dev_priv))
 		intel_dmc_load_program(dev_priv);
