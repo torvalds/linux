@@ -942,6 +942,15 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		dev_priv->texture_max_height = 8192;
 		dev_priv->max_primary_mem = dev_priv->vram_size;
 	}
+	drm_info(&dev_priv->drm,
+		 "Legacy memory limits: VRAM = %llu kB, FIFO = %llu kB, surface = %u kB\n",
+		 (u64)dev_priv->vram_size / 1024,
+		 (u64)dev_priv->fifo_mem_size / 1024,
+		 dev_priv->memory_size / 1024);
+
+	drm_info(&dev_priv->drm,
+		 "MOB limits: max mob size = %u kB, max mob pages = %u\n",
+		 dev_priv->max_mob_size / 1024, dev_priv->max_mob_pages);
 
 	vmw_print_bitmap(&dev_priv->drm, "Capabilities",
 			 dev_priv->capabilities,
