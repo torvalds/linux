@@ -1963,30 +1963,32 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata)
 		rdma_rw_cleanup_mrs(qp);
 
 	rdma_counter_unbind_qp(qp, true);
-	rdma_restrack_del(&qp->res);
 	ret = qp->device->ops.destroy_qp(qp, udata);
-	if (!ret) {
-		if (alt_path_sgid_attr)
-			rdma_put_gid_attr(alt_path_sgid_attr);
-		if (av_sgid_attr)
-			rdma_put_gid_attr(av_sgid_attr);
-		if (pd)
-			atomic_dec(&pd->usecnt);
-		if (scq)
-			atomic_dec(&scq->usecnt);
-		if (rcq)
-			atomic_dec(&rcq->usecnt);
-		if (srq)
-			atomic_dec(&srq->usecnt);
-		if (ind_tbl)
-			atomic_dec(&ind_tbl->usecnt);
-		if (sec)
-			ib_destroy_qp_security_end(sec);
-	} else {
+	if (ret) {
 		if (sec)
 			ib_destroy_qp_security_abort(sec);
+		return ret;
 	}
 
+	if (alt_path_sgid_attr)
+		rdma_put_gid_attr(alt_path_sgid_attr);
+	if (av_sgid_attr)
+		rdma_put_gid_attr(av_sgid_attr);
+	if (pd)
+		atomic_dec(&pd->usecnt);
+	if (scq)
+		atomic_dec(&scq->usecnt);
+	if (rcq)
+		atomic_dec(&rcq->usecnt);
+	if (srq)
+		atomic_dec(&srq->usecnt);
+	if (ind_tbl)
+		atomic_dec(&ind_tbl->usecnt);
+	if (sec)
+		ib_destroy_qp_security_end(sec);
+
+	rdma_restrack_del(&qp->res);
+	kfree(qp);
 	return ret;
 }
 EXPORT_SYMBOL(ib_destroy_qp_user);

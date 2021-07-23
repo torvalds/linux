@@ -52,9 +52,8 @@
 
 int rvt_driver_qp_init(struct rvt_dev_info *rdi);
 void rvt_qp_exit(struct rvt_dev_info *rdi);
-struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata);
+int rvt_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		  struct ib_udata *udata);
 int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata);
 int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);

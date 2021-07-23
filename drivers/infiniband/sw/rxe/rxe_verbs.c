@@ -391,59 +391,52 @@ static int rxe_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 	return err;
 }
 
-static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
-				   struct ib_qp_init_attr *init,
-				   struct ib_udata *udata)
+static int rxe_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init,
+			 struct ib_udata *udata)
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(ibpd->device);
-	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_qp *qp;
+	struct rxe_dev *rxe = to_rdev(ibqp->device);
+	struct rxe_pd *pd = to_rpd(ibqp->pd);
+	struct rxe_qp *qp = to_rqp(ibqp);
 	struct rxe_create_qp_resp __user *uresp = NULL;
 
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		uresp = udata->outbuf;
 	}
 
 	if (init->create_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	err = rxe_qp_chk_init(rxe, init);
 	if (err)
-		goto err1;
-
-	qp = rxe_alloc(&rxe->qp_pool);
-	if (!qp) {
-		err = -ENOMEM;
-		goto err1;
-	}
+		return err;
 
 	if (udata) {
-		if (udata->inlen) {
-			err = -EINVAL;
-			goto err2;
-		}
+		if (udata->inlen)
+			return -EINVAL;
+
 		qp->is_user = true;
 	} else {
 		qp->is_user = false;
 	}
 
-	rxe_add_index(qp);
-
-	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd, udata);
+	err = rxe_add_to_pool(&rxe->qp_pool, qp);
 	if (err)
-		goto err3;
+		return err;
 
-	return &qp->ibqp;
+	rxe_add_index(qp);
+	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibqp->pd, udata);
+	if (err)
+		goto qp_init;
 
-err3:
+	return 0;
+
+qp_init:
 	rxe_drop_index(qp);
-err2:
 	rxe_drop_ref(qp);
-err1:
-	return ERR_PTR(err);
+	return err;
 }
 
 static int rxe_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
@@ -1145,6 +1138,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, rxe_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, rxe_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, rxe_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
 	INIT_RDMA_OBJ_SIZE(ib_mw, rxe_mw, ibmw),

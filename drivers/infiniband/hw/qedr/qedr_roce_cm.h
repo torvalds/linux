@@ -50,9 +50,8 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_wr);
 int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		       const struct ib_send_wr **bad_wr);
-struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
-				 struct ib_qp_init_attr *attrs,
-				 struct qedr_qp *qp);
+int qedr_create_gsi_qp(struct qedr_dev *dev, struct ib_qp_init_attr *attrs,
+		       struct qedr_qp *qp);
 void qedr_store_gsi_qp_cq(struct qedr_dev *dev,
 			  struct qedr_qp *qp, struct ib_qp_init_attr *attrs);
 int qedr_destroy_gsi_qp(struct qedr_dev *dev);

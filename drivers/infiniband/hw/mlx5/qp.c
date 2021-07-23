@@ -3114,7 +3114,6 @@ static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
 	}
 
 	kfree(mqp->dct.in);
-	kfree(mqp);
 	return 0;
 }
 
@@ -3152,25 +3151,23 @@ static int check_ucmd_data(struct mlx5_ib_dev *dev,
 	return ret ? 0 : -EINVAL;
 }
 
-struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
-				struct ib_udata *udata)
+int mlx5_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
+		      struct ib_udata *udata)
 {
 	struct mlx5_create_qp_params params = {};
-	struct mlx5_ib_dev *dev;
-	struct mlx5_ib_qp *qp;
+	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	struct ib_pd *pd = ibqp->pd;
 	enum ib_qp_type type;
 	int err;
 
-	dev = pd ? to_mdev(pd->device) :
-		   to_mdev(to_mxrcd(attr->xrcd)->ibxrcd.device);
-
 	err = check_qp_type(dev, attr, &type);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = check_valid_flow(dev, pd, attr, udata);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	params.udata = udata;
 	params.uidx = MLX5_IB_DEFAULT_UIDX;
@@ -3180,25 +3177,19 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	if (udata) {
 		err = process_udata_size(dev, &params);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 
 		err = check_ucmd_data(dev, &params);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 
 		params.ucmd = kzalloc(params.ucmd_size, GFP_KERNEL);
 		if (!params.ucmd)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
 		err = ib_copy_from_udata(params.ucmd, udata, params.inlen);
 		if (err)
 			goto free_ucmd;
-	}
-
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		err = -ENOMEM;
-		goto free_ucmd;
 	}
 
 	mutex_init(&qp->mutex);
@@ -3206,23 +3197,23 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	if (udata) {
 		err = process_vendor_flags(dev, qp, params.ucmd, attr);
 		if (err)
-			goto free_qp;
+			goto free_ucmd;
 
 		err = get_qp_uidx(qp, &params);
 		if (err)
-			goto free_qp;
+			goto free_ucmd;
 	}
 	err = process_create_flags(dev, qp, attr);
 	if (err)
-		goto free_qp;
+		goto free_ucmd;
 
 	err = check_qp_attr(dev, qp, attr);
 	if (err)
-		goto free_qp;
+		goto free_ucmd;
 
 	err = create_qp(dev, pd, qp, &params);
 	if (err)
-		goto free_qp;
+		goto free_ucmd;
 
 	kfree(params.ucmd);
 	params.ucmd = NULL;
@@ -3237,7 +3228,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	if (err)
 		goto destroy_qp;
 
-	return &qp->ibqp;
+	return 0;
 
 destroy_qp:
 	switch (qp->type) {
@@ -3248,22 +3239,12 @@ destroy_qp:
 		mlx5_ib_destroy_gsi(qp);
 		break;
 	default:
-		/*
-		 * These lines below are temp solution till QP allocation
-		 * will be moved to be under IB/core responsiblity.
-		 */
-		qp->ibqp.send_cq = attr->send_cq;
-		qp->ibqp.recv_cq = attr->recv_cq;
-		qp->ibqp.pd = pd;
 		destroy_qp_common(dev, qp, udata);
 	}
 
-	qp = NULL;
-free_qp:
-	kfree(qp);
 free_ucmd:
 	kfree(params.ucmd);
-	return ERR_PTR(err);
+	return err;
 }
 
 int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
@@ -3278,9 +3259,6 @@ int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 		return mlx5_ib_destroy_dct(mqp);
 
 	destroy_qp_common(dev, mqp, udata);
-
-	kfree(mqp);
-
 	return 0;
 }
 

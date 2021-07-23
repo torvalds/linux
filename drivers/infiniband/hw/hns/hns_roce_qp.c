@@ -959,8 +959,6 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
 
-	hr_qp->ibqp.qp_type = init_attr->qp_type;
-
 	if (init_attr->cap.max_inline_data > hr_dev->caps.max_sq_inline)
 		init_attr->cap.max_inline_data = hr_dev->caps.max_sq_inline;
 
@@ -1121,8 +1119,6 @@ void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	free_qp_buf(hr_dev, hr_qp);
 	free_kernel_wrid(hr_qp);
 	free_qp_db(hr_dev, hr_qp, udata);
-
-	kfree(hr_qp);
 }
 
 static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
@@ -1154,22 +1150,18 @@ out:
 	return -EOPNOTSUPP;
 }
 
-struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
-				 struct ib_qp_init_attr *init_attr,
-				 struct ib_udata *udata)
+int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
+		       struct ib_udata *udata)
 {
-	struct ib_device *ibdev = pd ? pd->device : init_attr->xrcd->device;
+	struct ib_device *ibdev = qp->device;
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibdev);
-	struct hns_roce_qp *hr_qp;
+	struct hns_roce_qp *hr_qp = to_hr_qp(qp);
+	struct ib_pd *pd = qp->pd;
 	int ret;
 
 	ret = check_qp_type(hr_dev, init_attr->qp_type, !!udata);
 	if (ret)
-		return ERR_PTR(ret);
-
-	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
-	if (!hr_qp)
-		return ERR_PTR(-ENOMEM);
+		return ret;
 
 	if (init_attr->qp_type == IB_QPT_XRC_TGT)
 		hr_qp->xrcdn = to_hr_xrcd(init_attr->xrcd)->xrcdn;
@@ -1180,15 +1172,11 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	}
 
 	ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, hr_qp);
-	if (ret) {
+	if (ret)
 		ibdev_err(ibdev, "Create QP type 0x%x failed(%d)\n",
 			  init_attr->qp_type, ret);
 
-		kfree(hr_qp);
-		return ERR_PTR(ret);
-	}
-
-	return &hr_qp->ibqp;
+	return ret;
 }
 
 int to_hr_qp_type(int qp_type)

@@ -450,7 +450,6 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 				qp->rq_size, DMA_TO_DEVICE);
 	}
 
-	kfree(qp);
 	return 0;
 }
 
@@ -609,17 +608,16 @@ static int efa_qp_validate_attr(struct efa_dev *dev,
 	return 0;
 }
 
-struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata)
+int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		  struct ib_udata *udata)
 {
 	struct efa_com_create_qp_params create_qp_params = {};
 	struct efa_com_create_qp_result create_qp_resp;
-	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_dev *dev = to_edev(ibqp->device);
 	struct efa_ibv_create_qp_resp resp = {};
 	struct efa_ibv_create_qp cmd = {};
+	struct efa_qp *qp = to_eqp(ibqp);
 	struct efa_ucontext *ucontext;
-	struct efa_qp *qp;
 	int err;
 
 	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
@@ -664,14 +662,8 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 		goto err_out;
 	}
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	create_qp_params.uarn = ucontext->uarn;
-	create_qp_params.pd = to_epd(ibpd)->pdn;
+	create_qp_params.pd = to_epd(ibqp->pd)->pdn;
 
 	if (init_attr->qp_type == IB_QPT_UD) {
 		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_UD;
@@ -682,7 +674,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			  "Unsupported qp type %d driver qp type %d\n",
 			  init_attr->qp_type, cmd.driver_qp_type);
 		err = -EOPNOTSUPP;
-		goto err_free_qp;
+		goto err_out;
 	}
 
 	ibdev_dbg(&dev->ibdev, "Create QP: qp type %d driver qp type %#x\n",
@@ -700,7 +692,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 						    qp->rq_size, DMA_TO_DEVICE);
 		if (!qp->rq_cpu_addr) {
 			err = -ENOMEM;
-			goto err_free_qp;
+			goto err_out;
 		}
 
 		ibdev_dbg(&dev->ibdev,
@@ -746,7 +738,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	ibdev_dbg(&dev->ibdev, "Created qp[%d]\n", qp->ibqp.qp_num);
 
-	return &qp->ibqp;
+	return 0;
 
 err_remove_mmap_entries:
 	efa_qp_user_mmap_entries_remove(qp);
@@ -756,11 +748,9 @@ err_free_mapped:
 	if (qp->rq_size)
 		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
 				qp->rq_size, DMA_TO_DEVICE);
-err_free_qp:
-	kfree(qp);
 err_out:
 	atomic64_inc(&dev->stats.create_qp_err);
-	return ERR_PTR(err);
+	return err;
 }
 
 static const struct {

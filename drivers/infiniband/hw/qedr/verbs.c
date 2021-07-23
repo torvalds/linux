@@ -2239,34 +2239,30 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp,
 	return 0;
 }
 
-struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
-			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+int qedr_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata)
 {
 	struct qedr_xrcd *xrcd = NULL;
-	struct qedr_pd *pd = NULL;
-	struct qedr_dev *dev;
-	struct qedr_qp *qp;
-	struct ib_qp *ibqp;
+	struct ib_pd *ibpd = ibqp->pd;
+	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
+	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	int rc = 0;
 
 	if (attrs->create_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
-	if (attrs->qp_type == IB_QPT_XRC_TGT) {
+	if (attrs->qp_type == IB_QPT_XRC_TGT)
 		xrcd = get_qedr_xrcd(attrs->xrcd);
-		dev = get_qedr_dev(xrcd->ibxrcd.device);
-	} else {
+	else
 		pd = get_qedr_pd(ibpd);
-		dev = get_qedr_dev(ibpd->device);
-	}
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
 		 udata ? "user library" : "kernel", pd);
 
 	rc = qedr_check_qp_attrs(ibpd, dev, attrs, udata);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "create qp: called from %s, event_handler=%p, eepd=%p sq_cq=%p, sq_icid=%d, rq_cq=%p, rq_icid=%d\n",
@@ -2276,20 +2272,10 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 		 get_qedr_cq(attrs->recv_cq),
 		 attrs->recv_cq ? get_qedr_cq(attrs->recv_cq)->icid : 0);
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		DP_ERR(dev, "create qp: failed allocating memory\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
 	qedr_set_common_qp_params(dev, qp, pd, attrs);
 
-	if (attrs->qp_type == IB_QPT_GSI) {
-		ibqp = qedr_create_gsi_qp(dev, attrs, qp);
-		if (IS_ERR(ibqp))
-			kfree(qp);
-		return ibqp;
-	}
+	if (attrs->qp_type == IB_QPT_GSI)
+		return qedr_create_gsi_qp(dev, attrs, qp);
 
 	if (udata || xrcd)
 		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs);
@@ -2297,7 +2283,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 		rc = qedr_create_kernel_qp(dev, qp, ibpd, attrs);
 
 	if (rc)
-		goto out_free_qp;
+		return rc;
 
 	qp->ibqp.qp_num = qp->qp_id;
 
@@ -2307,14 +2293,11 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			goto out_free_qp_resources;
 	}
 
-	return &qp->ibqp;
+	return 0;
 
 out_free_qp_resources:
 	qedr_free_qp_resources(dev, qp, udata);
-out_free_qp:
-	kfree(qp);
-
-	return ERR_PTR(-EFAULT);
+	return -EFAULT;
 }
 
 static enum ib_qp_state qedr_get_ibqp_state(enum qed_roce_qp_state qp_state)
@@ -2874,8 +2857,6 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	if (rdma_protocol_iwarp(&dev->ibdev, 1))
 		qedr_iw_qp_rem_ref(&qp->ibqp);
-	else
-		kfree(qp);
 
 	return 0;
 }

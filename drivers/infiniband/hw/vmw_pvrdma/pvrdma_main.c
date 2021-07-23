@@ -185,6 +185,7 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, pvrdma_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, pvrdma_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
 

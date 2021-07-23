@@ -193,8 +193,6 @@ int mlx5_ib_destroy_gsi(struct mlx5_ib_qp *mqp)
 
 	kfree(gsi->outstanding_wrs);
 	kfree(gsi->tx_qps);
-	kfree(mqp);
-
 	return 0;
 }
 
