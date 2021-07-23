@@ -27,7 +27,7 @@ static struct stm_console {
 	},
 };
 
-static void
+static void notrace __nocfi
 stm_console_write(struct console *con, const char *buf, unsigned len)
 {
 	struct stm_console *sc = container_of(con, struct stm_console, console);
