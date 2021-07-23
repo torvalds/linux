@@ -49,6 +49,17 @@ properties:
       - qcom,sc7280-mmss-noc
       - qcom,sc7280-nsp-noc
       - qcom,sc7280-system-noc
+      - qcom,sc8180x-aggre1-noc
+      - qcom,sc8180x-aggre2-noc
+      - qcom,sc8180x-camnoc-virt
+      - qcom,sc8180x-compute-noc
+      - qcom,sc8180x-config-noc
+      - qcom,sc8180x-dc-noc
+      - qcom,sc8180x-gem-noc
+      - qcom,sc8180x-ipa-virt
+      - qcom,sc8180x-mc-virt
+      - qcom,sc8180x-mmss-noc
+      - qcom,sc8180x-system-noc
       - qcom,sdm845-aggre1-noc
       - qcom,sdm845-aggre2-noc
       - qcom,sdm845-config-noc
