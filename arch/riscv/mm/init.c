@@ -607,18 +607,14 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 			   pa + PMD_SIZE, PMD_SIZE, PAGE_KERNEL);
 	dtb_early_va = (void *)DTB_EARLY_BASE_VA + (dtb_pa & (PMD_SIZE - 1));
 #else /* CONFIG_BUILTIN_DTB */
-#ifdef CONFIG_64BIT
 	/*
 	 * __va can't be used since it would return a linear mapping address
 	 * whereas dtb_early_va will be used before setup_vm_final installs
 	 * the linear mapping.
 	 */
 	dtb_early_va = kernel_mapping_pa_to_va(XIP_FIXUP(dtb_pa));
-#else
-	dtb_early_va = __va(dtb_pa);
-#endif /* CONFIG_64BIT */
 #endif /* CONFIG_BUILTIN_DTB */
-#else
+#else /* __PAGETABLE_PMD_FOLDED */
 #ifndef CONFIG_BUILTIN_DTB
 	/* Create two consecutive PGD mappings for FDT early scan */
 	pa = dtb_pa & ~(PGDIR_SIZE - 1);
@@ -628,13 +624,9 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 			   pa + PGDIR_SIZE, PGDIR_SIZE, PAGE_KERNEL);
 	dtb_early_va = (void *)DTB_EARLY_BASE_VA + (dtb_pa & (PGDIR_SIZE - 1));
 #else /* CONFIG_BUILTIN_DTB */
-#ifdef CONFIG_64BIT
-	dtb_early_va = kernel_mapping_pa_to_va(XIP_FIXUP(dtb_pa));
-#else
 	dtb_early_va = __va(dtb_pa);
-#endif /* CONFIG_64BIT */
 #endif /* CONFIG_BUILTIN_DTB */
-#endif
+#endif /* __PAGETABLE_PMD_FOLDED */
 	dtb_early_pa = dtb_pa;
 
 	/*
