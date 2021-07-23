@@ -451,11 +451,12 @@ void ionic_rx_empty(struct ionic_queue *q)
 	q->tail_idx = 0;
 }
 
-static void ionic_dim_update(struct ionic_qcq *qcq)
+static void ionic_dim_update(struct ionic_qcq *qcq, int napi_mode)
 {
 	struct dim_sample dim_sample;
 	struct ionic_lif *lif;
 	unsigned int qi;
+	u64 pkts, bytes;
 
 	if (!qcq->intr.dim_coal_hw)
 		return;
@@ -463,10 +464,23 @@ static void ionic_dim_update(struct ionic_qcq *qcq)
 	lif = qcq->q.lif;
 	qi = qcq->cq.bound_q->index;
 
+	switch (napi_mode) {
+	case IONIC_LIF_F_TX_DIM_INTR:
+		pkts = lif->txqstats[qi].pkts;
+		bytes = lif->txqstats[qi].bytes;
+		break;
+	case IONIC_LIF_F_RX_DIM_INTR:
+		pkts = lif->rxqstats[qi].pkts;
+		bytes = lif->rxqstats[qi].bytes;
+		break;
+	default:
+		pkts = lif->txqstats[qi].pkts + lif->rxqstats[qi].pkts;
+		bytes = lif->txqstats[qi].bytes + lif->rxqstats[qi].bytes;
+		break;
+	}
+
 	dim_update_sample(qcq->cq.bound_intr->rearm_count,
-			  lif->txqstats[qi].pkts,
-			  lif->txqstats[qi].bytes,
-			  &dim_sample);
+			  pkts, bytes, &dim_sample);
 
 	net_dim(&qcq->dim, dim_sample);
 }
@@ -487,7 +501,7 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 				     ionic_tx_service, NULL, NULL);
 
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
-		ionic_dim_update(qcq);
+		ionic_dim_update(qcq, IONIC_LIF_F_TX_DIM_INTR);
 		flags |= IONIC_INTR_CRED_UNMASK;
 		cq->bound_intr->rearm_count++;
 	}
@@ -526,7 +540,7 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 		ionic_rx_fill(cq->bound_q);
 
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
-		ionic_dim_update(qcq);
+		ionic_dim_update(qcq, IONIC_LIF_F_RX_DIM_INTR);
 		flags |= IONIC_INTR_CRED_UNMASK;
 		cq->bound_intr->rearm_count++;
 	}
@@ -572,7 +586,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 		ionic_rx_fill(rxcq->bound_q);
 
 	if (rx_work_done < budget && napi_complete_done(napi, rx_work_done)) {
-		ionic_dim_update(qcq);
+		ionic_dim_update(qcq, 0);
 		flags |= IONIC_INTR_CRED_UNMASK;
 		rxcq->bound_intr->rearm_count++;
 	}
