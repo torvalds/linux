@@ -117,7 +117,9 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
+static int psp_v13_0_bootloader_load_component(struct psp_context  	*psp,
+					       struct psp_bin_desc 	*bin_desc,
+					       enum psp_bootloader_cmd  bl_cmd)
 {
 	int ret;
 	uint32_t psp_gfxdrv_command_reg = 0;
@@ -136,12 +138,12 @@ static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 
 	/* Copy PSP KDB binary to memory */
-	memcpy(psp->fw_pri_buf, psp->kdb.start_addr, psp->kdb.size_bytes);
+	memcpy(psp->fw_pri_buf, bin_desc->start_addr, bin_desc->size_bytes);
 
 	/* Provide the PSP KDB to bootloader */
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
-	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
+	psp_gfxdrv_command_reg = bl_cmd;
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
@@ -150,40 +152,14 @@ static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
 	return ret;
 }
 
+static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_KEY_DATABASE);
+}
+
 static int psp_v13_0_bootloader_load_sysdrv(struct psp_context *psp)
 {
-	int ret;
-	uint32_t psp_gfxdrv_command_reg = 0;
-	struct amdgpu_device *adev = psp->adev;
-
-	/* Check sOS sign of life register to confirm sys driver and sOS
-	 * are already been loaded.
-	 */
-	if (psp_v13_0_is_sos_alive(psp))
-		return 0;
-
-	ret = psp_v13_0_wait_for_bootloader(psp);
-	if (ret)
-		return ret;
-
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-
-	/* Copy PSP System Driver binary to memory */
-	memcpy(psp->fw_pri_buf, psp->sys.start_addr, psp->sys.size_bytes);
-
-	/* Provide the sys driver to bootloader */
-	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
-	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
-	psp_gfxdrv_command_reg = PSP_BL__LOAD_SYSDRV;
-	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
-	       psp_gfxdrv_command_reg);
-
-	/* there might be handshake issue with hardware which needs delay */
-	mdelay(20);
-
-	ret = psp_v13_0_wait_for_bootloader(psp);
-
-	return ret;
+	return psp_v13_0_bootloader_load_component(psp, &psp->sys, PSP_BL__LOAD_SYSDRV);
 }
 
 static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
