@@ -574,6 +574,16 @@ config DRM_PANEL_VISIONOX_RM69299
 	  Say Y here if you want to enable support for Visionox
 	  RM69299  DSI Video Mode panel.
 
+config DRM_PANEL_WIDECHIPS_WS2401
+	tristate "Widechips WS2401 DPI panel driver"
+	depends on SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Widechips WS2401 DPI
+	  480x800 display controller used in panels such as Samsung LMS380KF01.
+	  This display is used in the Samsung Galaxy Ace 2 GT-I8160 (Codina).
+
 config DRM_PANEL_XINPENG_XPP055C272
 	tristate "Xinpeng XPP055C272 panel driver"
 	depends on OF
