@@ -64,7 +64,6 @@ struct drm_atomic_helper_damage_iter {
 	bool full_update;
 };
 
-void drm_plane_enable_fb_damage_clips(struct drm_plane *plane);
 void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
 					  struct drm_plane_state *plane_state);
 int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,

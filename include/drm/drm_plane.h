@@ -897,9 +897,10 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 
 bool drm_any_plane_has_format(struct drm_device *dev,
 			      u32 format, u64 modifier);
+
+void drm_plane_enable_fb_damage_clips(struct drm_plane *plane);
 unsigned int
 drm_plane_get_damage_clips_count(const struct drm_plane_state *state);
-
 struct drm_mode_rect *
 drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
