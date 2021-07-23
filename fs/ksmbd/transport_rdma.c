@@ -58,7 +58,7 @@
 
 /*
  * User configurable initial values per SMB_DIRECT transport connection
- * as defined in [MS-KSMBD] 3.1.1.1
+ * as defined in [MS-SMBD] 3.1.1.1
  * Those may change after a SMB_DIRECT negotiation
  */
 /* The local peer's maximum number of credits to grant to the peer */

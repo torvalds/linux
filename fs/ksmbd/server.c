@@ -101,8 +101,8 @@ static inline int check_conn_state(struct ksmbd_work *work)
 	return 0;
 }
 
-#define TCP_HANDLER_CONTINUE	0
-#define TCP_HANDLER_ABORT	1
+#define SERVER_HANDLER_CONTINUE		0
+#define SERVER_HANDLER_ABORT		1
 
 static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
 			     u16 *cmd)
@@ -112,10 +112,10 @@ static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
 	int ret;
 
 	if (check_conn_state(work))
-		return TCP_HANDLER_CONTINUE;
+		return SERVER_HANDLER_CONTINUE;
 
 	if (ksmbd_verify_smb_message(work))
-		return TCP_HANDLER_ABORT;
+		return SERVER_HANDLER_ABORT;
 
 	command = conn->ops->get_cmd_val(work);
 	*cmd = command;
@@ -123,21 +123,21 @@ static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
 andx_again:
 	if (command >= conn->max_cmds) {
 		conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
-		return TCP_HANDLER_CONTINUE;
+		return SERVER_HANDLER_CONTINUE;
 	}
 
 	cmds = &conn->cmds[command];
 	if (!cmds->proc) {
 		ksmbd_debug(SMB, "*** not implemented yet cmd = %x\n", command);
 		conn->ops->set_rsp_status(work, STATUS_NOT_IMPLEMENTED);
-		return TCP_HANDLER_CONTINUE;
+		return SERVER_HANDLER_CONTINUE;
 	}
 
 	if (work->sess && conn->ops->is_sign_req(work, command)) {
 		ret = conn->ops->check_sign_req(work);
 		if (!ret) {
 			conn->ops->set_rsp_status(work, STATUS_ACCESS_DENIED);
-			return TCP_HANDLER_CONTINUE;
+			return SERVER_HANDLER_CONTINUE;
 		}
 	}
 
@@ -153,8 +153,8 @@ andx_again:
 	}
 
 	if (work->send_no_response)
-		return TCP_HANDLER_ABORT;
-	return TCP_HANDLER_CONTINUE;
+		return SERVER_HANDLER_ABORT;
+	return SERVER_HANDLER_CONTINUE;
 }
 
 static void __handle_ksmbd_work(struct ksmbd_work *work,
@@ -203,7 +203,7 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 
 	do {
 		rc = __process_request(work, conn, &command);
-		if (rc == TCP_HANDLER_ABORT)
+		if (rc == SERVER_HANDLER_ABORT)
 			break;
 
 		/*

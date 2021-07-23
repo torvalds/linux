@@ -385,6 +385,12 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		}
 	}
 
+	if ((work->conn->vals->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) &&
+	    smb2_validate_credit_charge(hdr)) {
+		work->conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
+		return 1;
+	}
+
 	clc_len = smb2_calc_size(hdr);
 	if (len != clc_len) {
 		/* server can return one byte more due to implied bcc[0] */
@@ -423,8 +429,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		return 1;
 	}
 
-	return work->conn->vals->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU ?
-		smb2_validate_credit_charge(hdr) : 0;
+	return 0;
 }
 
 int smb2_negotiate_request(struct ksmbd_work *work)

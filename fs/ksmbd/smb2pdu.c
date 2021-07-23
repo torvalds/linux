@@ -786,6 +786,18 @@ static void build_compression_ctxt(struct smb2_compression_ctx *pneg_ctxt,
 	pneg_ctxt->CompressionAlgorithms[0] = comp_algo;
 }
 
+static void build_sign_cap_ctxt(struct smb2_signing_capabilities *pneg_ctxt,
+				__le16 sign_algo)
+{
+	pneg_ctxt->ContextType = SMB2_SIGNING_CAPABILITIES;
+	pneg_ctxt->DataLength =
+		cpu_to_le16((sizeof(struct smb2_signing_capabilities) + 2)
+			- sizeof(struct smb2_neg_context));
+	pneg_ctxt->Reserved = cpu_to_le32(0);
+	pneg_ctxt->SigningAlgorithmCount = cpu_to_le16(1);
+	pneg_ctxt->SigningAlgorithms[0] = sign_algo;
+}
+
 static void build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_POSIX_EXTENSIONS_AVAILABLE;
@@ -835,10 +847,10 @@ static void assemble_neg_contexts(struct ksmbd_conn *conn,
 		build_encrypt_ctxt((struct smb2_encryption_neg_context *)pneg_ctxt,
 				   conn->cipher_type);
 		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
-		ctxt_size += sizeof(struct smb2_encryption_neg_context);
+		ctxt_size += sizeof(struct smb2_encryption_neg_context) + 2;
 		/* Round to 8 byte boundary */
 		pneg_ctxt +=
-			round_up(sizeof(struct smb2_encryption_neg_context),
+			round_up(sizeof(struct smb2_encryption_neg_context) + 2,
 				 8);
 	}
 
@@ -850,9 +862,10 @@ static void assemble_neg_contexts(struct ksmbd_conn *conn,
 		build_compression_ctxt((struct smb2_compression_ctx *)pneg_ctxt,
 				       conn->compress_algorithm);
 		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
-		ctxt_size += sizeof(struct smb2_compression_ctx);
+		ctxt_size += sizeof(struct smb2_compression_ctx) + 2;
 		/* Round to 8 byte boundary */
-		pneg_ctxt += round_up(sizeof(struct smb2_compression_ctx), 8);
+		pneg_ctxt += round_up(sizeof(struct smb2_compression_ctx) + 2,
+				      8);
 	}
 
 	if (conn->posix_ext_supported) {
@@ -862,6 +875,18 @@ static void assemble_neg_contexts(struct ksmbd_conn *conn,
 		build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
 		ctxt_size += sizeof(struct smb2_posix_neg_context);
+		/* Round to 8 byte boundary */
+		pneg_ctxt += round_up(sizeof(struct smb2_posix_neg_context), 8);
+	}
+
+	if (conn->signing_negotiated) {
+		ctxt_size = round_up(ctxt_size, 8);
+		ksmbd_debug(SMB,
+			    "assemble SMB2_SIGNING_CAPABILITIES context\n");
+		build_sign_cap_ctxt((struct smb2_signing_capabilities *)pneg_ctxt,
+				    conn->signing_algorithm);
+		rsp->NegotiateContextCount = cpu_to_le16(++neg_ctxt_cnt);
+		ctxt_size += sizeof(struct smb2_signing_capabilities) + 2;
 	}
 
 	inc_rfc1001_len(rsp, ctxt_size);
@@ -881,16 +906,23 @@ static __le32 decode_preauth_ctxt(struct ksmbd_conn *conn,
 	return err;
 }
 
-static int decode_encrypt_ctxt(struct ksmbd_conn *conn,
-			       struct smb2_encryption_neg_context *pneg_ctxt)
+static void decode_encrypt_ctxt(struct ksmbd_conn *conn,
+				struct smb2_encryption_neg_context *pneg_ctxt,
+				int len_of_ctxts)
 {
-	int i;
 	int cph_cnt = le16_to_cpu(pneg_ctxt->CipherCount);
+	int i, cphs_size = cph_cnt * sizeof(__le16);
 
 	conn->cipher_type = 0;
 
+	if (sizeof(struct smb2_encryption_neg_context) + cphs_size >
+	    len_of_ctxts) {
+		pr_err("Invalid cipher count(%d)\n", cph_cnt);
+		return;
+	}
+
 	if (!(server_conf.flags & KSMBD_GLOBAL_FLAG_SMB2_ENCRYPTION))
-		goto out;
+		return;
 
 	for (i = 0; i < cph_cnt; i++) {
 		if (pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES128_GCM ||
@@ -903,90 +935,122 @@ static int decode_encrypt_ctxt(struct ksmbd_conn *conn,
 			break;
 		}
 	}
-
-out:
-	/*
-	 * Return encrypt context size in request.
-	 * So need to plus extra number of ciphers size.
-	 */
-	return sizeof(struct smb2_encryption_neg_context) +
-		((cph_cnt - 1) * 2);
 }
 
-static int decode_compress_ctxt(struct ksmbd_conn *conn,
-				struct smb2_compression_ctx *pneg_ctxt)
+static void decode_compress_ctxt(struct ksmbd_conn *conn,
+				 struct smb2_compression_ctx *pneg_ctxt)
 {
-	int algo_cnt = le16_to_cpu(pneg_ctxt->CompressionAlgorithmCount);
-
 	conn->compress_algorithm = SMB3_COMPRESS_NONE;
+}
 
-	/*
-	 * Return compression context size in request.
-	 * So need to plus extra number of CompressionAlgorithms size.
-	 */
-	return sizeof(struct smb2_encryption_neg_context) +
-		((algo_cnt - 1) * 2);
+static void decode_sign_cap_ctxt(struct ksmbd_conn *conn,
+				 struct smb2_signing_capabilities *pneg_ctxt,
+				 int len_of_ctxts)
+{
+	int sign_algo_cnt = le16_to_cpu(pneg_ctxt->SigningAlgorithmCount);
+	int i, sign_alos_size = sign_algo_cnt * sizeof(__le16);
+
+	conn->signing_negotiated = false;
+
+	if (sizeof(struct smb2_signing_capabilities) + sign_alos_size >
+	    len_of_ctxts) {
+		pr_err("Invalid signing algorithm count(%d)\n", sign_algo_cnt);
+		return;
+	}
+
+	for (i = 0; i < sign_algo_cnt; i++) {
+		if (pneg_ctxt->SigningAlgorithms[i] == SIGNING_ALG_HMAC_SHA256 ||
+		    pneg_ctxt->SigningAlgorithms[i] == SIGNING_ALG_AES_CMAC) {
+			ksmbd_debug(SMB, "Signing Algorithm ID = 0x%x\n",
+				    pneg_ctxt->SigningAlgorithms[i]);
+			conn->signing_negotiated = true;
+			conn->signing_algorithm =
+				pneg_ctxt->SigningAlgorithms[i];
+			break;
+		}
+	}
 }
 
 static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 				      struct smb2_negotiate_req *req)
 {
-	int i = 0;
-	__le32 status = 0;
 	/* +4 is to account for the RFC1001 len field */
-	char *pneg_ctxt = (char *)req +
-			le32_to_cpu(req->NegotiateContextOffset) + 4;
-	__le16 *ContextType = (__le16 *)pneg_ctxt;
+	struct smb2_neg_context *pctx = (struct smb2_neg_context *)((char *)req + 4);
+	int i = 0, len_of_ctxts;
+	int offset = le32_to_cpu(req->NegotiateContextOffset);
 	int neg_ctxt_cnt = le16_to_cpu(req->NegotiateContextCount);
-	int ctxt_size;
+	int len_of_smb = be32_to_cpu(req->hdr.smb2_buf_length);
+	__le32 status = STATUS_INVALID_PARAMETER;
 
-	ksmbd_debug(SMB, "negotiate context count = %d\n", neg_ctxt_cnt);
-	status = STATUS_INVALID_PARAMETER;
+	ksmbd_debug(SMB, "decoding %d negotiate contexts\n", neg_ctxt_cnt);
+	if (len_of_smb <= offset) {
+		ksmbd_debug(SMB, "Invalid response: negotiate context offset\n");
+		return status;
+	}
+
+	len_of_ctxts = len_of_smb - offset;
+
 	while (i++ < neg_ctxt_cnt) {
-		if (*ContextType == SMB2_PREAUTH_INTEGRITY_CAPABILITIES) {
+		int clen;
+
+		/* check that offset is not beyond end of SMB */
+		if (len_of_ctxts == 0)
+			break;
+
+		if (len_of_ctxts < sizeof(struct smb2_neg_context))
+			break;
+
+		pctx = (struct smb2_neg_context *)((char *)pctx + offset);
+		clen = le16_to_cpu(pctx->DataLength);
+		if (clen + sizeof(struct smb2_neg_context) > len_of_ctxts)
+			break;
+
+		if (pctx->ContextType == SMB2_PREAUTH_INTEGRITY_CAPABILITIES) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_PREAUTH_INTEGRITY_CAPABILITIES context\n");
 			if (conn->preauth_info->Preauth_HashId)
 				break;
 
 			status = decode_preauth_ctxt(conn,
-						     (struct smb2_preauth_neg_context *)pneg_ctxt);
-			pneg_ctxt += DIV_ROUND_UP(sizeof(struct smb2_preauth_neg_context), 8) * 8;
-		} else if (*ContextType == SMB2_ENCRYPTION_CAPABILITIES) {
+						     (struct smb2_preauth_neg_context *)pctx);
+			if (status != STATUS_SUCCESS)
+				break;
+		} else if (pctx->ContextType == SMB2_ENCRYPTION_CAPABILITIES) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_ENCRYPTION_CAPABILITIES context\n");
 			if (conn->cipher_type)
 				break;
 
-			ctxt_size = decode_encrypt_ctxt(conn,
-				(struct smb2_encryption_neg_context *)pneg_ctxt);
-			pneg_ctxt += DIV_ROUND_UP(ctxt_size, 8) * 8;
-		} else if (*ContextType == SMB2_COMPRESSION_CAPABILITIES) {
+			decode_encrypt_ctxt(conn,
+					    (struct smb2_encryption_neg_context *)pctx,
+					    len_of_ctxts);
+		} else if (pctx->ContextType == SMB2_COMPRESSION_CAPABILITIES) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_COMPRESSION_CAPABILITIES context\n");
 			if (conn->compress_algorithm)
 				break;
 
-			ctxt_size = decode_compress_ctxt(conn,
-				(struct smb2_compression_ctx *)pneg_ctxt);
-			pneg_ctxt += DIV_ROUND_UP(ctxt_size, 8) * 8;
-		} else if (*ContextType == SMB2_NETNAME_NEGOTIATE_CONTEXT_ID) {
+			decode_compress_ctxt(conn,
+					     (struct smb2_compression_ctx *)pctx);
+		} else if (pctx->ContextType == SMB2_NETNAME_NEGOTIATE_CONTEXT_ID) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_NETNAME_NEGOTIATE_CONTEXT_ID context\n");
-			ctxt_size = sizeof(struct smb2_netname_neg_context);
-			ctxt_size += DIV_ROUND_UP(le16_to_cpu(((struct smb2_netname_neg_context *)
-							       pneg_ctxt)->DataLength), 8) * 8;
-			pneg_ctxt += ctxt_size;
-		} else if (*ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE) {
+		} else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_POSIX_EXTENSIONS_AVAILABLE context\n");
 			conn->posix_ext_supported = true;
-			pneg_ctxt += DIV_ROUND_UP(sizeof(struct smb2_posix_neg_context), 8) * 8;
+		} else if (pctx->ContextType == SMB2_SIGNING_CAPABILITIES) {
+			ksmbd_debug(SMB,
+				    "deassemble SMB2_SIGNING_CAPABILITIES context\n");
+			decode_sign_cap_ctxt(conn,
+					     (struct smb2_signing_capabilities *)pctx,
+					     len_of_ctxts);
 		}
-		ContextType = (__le16 *)pneg_ctxt;
 
-		if (status != STATUS_SUCCESS)
-			break;
+		/* offsets must be 8 byte aligned */
+		clen = (clen + 7) & ~0x7;
+		offset = clen + sizeof(struct smb2_neg_context);
+		len_of_ctxts -= clen + sizeof(struct smb2_neg_context);
 	}
 	return status;
 }
@@ -1338,8 +1402,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	user = session_user(conn, req);
 	if (!user) {
 		ksmbd_debug(SMB, "Unknown user name or an error\n");
-		rsp->hdr.Status = STATUS_LOGON_FAILURE;
-		return -EINVAL;
+		return -EPERM;
 	}
 
 	/* Check for previous session */
@@ -1363,8 +1426,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	if (user_guest(sess->user)) {
 		if (conn->sign) {
 			ksmbd_debug(SMB, "Guest login not allowed when signing enabled\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return -EACCES;
+			return -EPERM;
 		}
 
 		rsp->SessionFlags = SMB2_SESSION_FLAG_IS_GUEST_LE;
@@ -1377,8 +1439,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 		if (rc) {
 			set_user_flag(sess->user, KSMBD_USER_FLAG_BAD_PASSWORD);
 			ksmbd_debug(SMB, "authentication failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return -EINVAL;
+			return -EPERM;
 		}
 
 		/*
@@ -1403,8 +1464,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 			if (rc) {
 				ksmbd_debug(SMB,
 					    "SMB3 encryption key generation failed\n");
-				rsp->hdr.Status = STATUS_LOGON_FAILURE;
-				return rc;
+				return -EINVAL;
 			}
 			sess->enc = true;
 			rsp->SessionFlags = SMB2_SESSION_FLAG_ENCRYPT_DATA_LE;
@@ -1434,16 +1494,14 @@ binding_session:
 		rc = conn->ops->generate_signingkey(sess, conn);
 		if (rc) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return rc;
+			return -EINVAL;
 		}
 	}
 
 	if (conn->dialect > SMB20_PROT_ID) {
 		if (!ksmbd_conn_lookup_dialect(conn)) {
 			pr_err("fail to verify the dialect\n");
-			rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
-			return -EPERM;
+			return -ENOENT;
 		}
 	}
 	return 0;
@@ -1483,8 +1541,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 					 out_blob, &out_len);
 	if (retval) {
 		ksmbd_debug(SMB, "krb5 authentication failed\n");
-		rsp->hdr.Status = STATUS_LOGON_FAILURE;
-		return retval;
+		return -EINVAL;
 	}
 	rsp->SecurityBufferLength = cpu_to_le16(out_len);
 	inc_rfc1001_len(rsp, out_len - 1);
@@ -1499,8 +1556,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 		if (retval) {
 			ksmbd_debug(SMB,
 				    "SMB3 encryption key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return retval;
+			return -EINVAL;
 		}
 		sess->enc = true;
 		rsp->SessionFlags = SMB2_SESSION_FLAG_ENCRYPT_DATA_LE;
@@ -1524,16 +1580,14 @@ static int krb5_authenticate(struct ksmbd_work *work)
 		retval = conn->ops->generate_signingkey(sess, conn);
 		if (retval) {
 			ksmbd_debug(SMB, "SMB3 signing key generation failed\n");
-			rsp->hdr.Status = STATUS_LOGON_FAILURE;
-			return retval;
+			return -EINVAL;
 		}
 	}
 
 	if (conn->dialect > SMB20_PROT_ID) {
 		if (!ksmbd_conn_lookup_dialect(conn)) {
 			pr_err("fail to verify the dialect\n");
-			rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
-			return -EPERM;
+			return -ENOENT;
 		}
 	}
 	return 0;
@@ -1709,6 +1763,8 @@ out_err:
 		rsp->hdr.Status = STATUS_REQUEST_NOT_ACCEPTED;
 	else if (rc == -EFAULT)
 		rsp->hdr.Status = STATUS_NETWORK_SESSION_EXPIRED;
+	else if (rc == -ENOMEM)
+		rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
 	else if (rc)
 		rsp->hdr.Status = STATUS_LOGON_FAILURE;
 

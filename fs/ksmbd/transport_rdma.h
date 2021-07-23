@@ -9,7 +9,7 @@
 
 #define SMB_DIRECT_PORT	5445
 
-/* SMB DIRECT negotiation request packet [MS-KSMBD] 2.2.1 */
+/* SMB DIRECT negotiation request packet [MS-SMBD] 2.2.1 */
 struct smb_direct_negotiate_req {
 	__le16 min_version;
 	__le16 max_version;
@@ -20,7 +20,7 @@ struct smb_direct_negotiate_req {
 	__le32 max_fragmented_size;
 } __packed;
 
-/* SMB DIRECT negotiation response packet [MS-KSMBD] 2.2.2 */
+/* SMB DIRECT negotiation response packet [MS-SMBD] 2.2.2 */
 struct smb_direct_negotiate_resp {
 	__le16 min_version;
 	__le16 max_version;
@@ -37,7 +37,7 @@ struct smb_direct_negotiate_resp {
 
 #define SMB_DIRECT_RESPONSE_REQUESTED 0x0001
 
-/* SMB DIRECT data transfer packet with payload [MS-KSMBD] 2.2.3 */
+/* SMB DIRECT data transfer packet with payload [MS-SMBD] 2.2.3 */
 struct smb_direct_data_transfer {
 	__le16 credits_requested;
 	__le16 credits_granted;
