@@ -101,9 +101,16 @@
  *  +-----------+    +-----------+
  */
 
+struct rkisp1_isr_data {
+	const char *name;
+	irqreturn_t (*isr)(int irq, void *ctx);
+};
+
 struct rkisp1_match_data {
 	const char * const *clks;
-	unsigned int size;
+	unsigned int clk_size;
+	const struct rkisp1_isr_data *isrs;
+	unsigned int isr_size;
 	enum rkisp1_cif_isp_version isp_ver;
 };
 
@@ -386,18 +393,15 @@ err_unreg_isp_subdev:
 
 static irqreturn_t rkisp1_isr(int irq, void *ctx)
 {
-	struct device *dev = ctx;
-	struct rkisp1_device *rkisp1 = dev_get_drvdata(dev);
-
 	/*
 	 * Call rkisp1_capture_isr() first to handle the frame that
 	 * potentially completed using the current frame_sequence number before
 	 * it is potentially incremented by rkisp1_isp_isr() in the vertical
 	 * sync.
 	 */
-	rkisp1_capture_isr(rkisp1);
-	rkisp1_isp_isr(rkisp1);
-	rkisp1_mipi_isr(rkisp1);
+	rkisp1_capture_isr(irq, ctx);
+	rkisp1_isp_isr(irq, ctx);
+	rkisp1_mipi_isr(irq, ctx);
 
 	return IRQ_HANDLED;
 }
@@ -408,9 +412,15 @@ static const char * const rk3399_isp_clks[] = {
 	"hclk",
 };
 
+static const struct rkisp1_isr_data rk3399_isp_isrs[] = {
+	{ NULL, rkisp1_isr },
+};
+
 static const struct rkisp1_match_data rk3399_isp_match_data = {
 	.clks = rk3399_isp_clks,
-	.size = ARRAY_SIZE(rk3399_isp_clks),
+	.clk_size = ARRAY_SIZE(rk3399_isp_clks),
+	.isrs = rk3399_isp_isrs,
+	.isr_size = ARRAY_SIZE(rk3399_isp_isrs),
 	.isp_ver = RKISP1_V10,
 };
 
@@ -479,23 +489,27 @@ static int rkisp1_probe(struct platform_device *pdev)
 	if (IS_ERR(rkisp1->base_addr))
 		return PTR_ERR(rkisp1->base_addr);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
+	for (i = 0; i < match_data->isr_size; i++) {
+		irq = (match_data->isrs[i].name) ?
+				platform_get_irq_byname(pdev, match_data->isrs[i].name) :
+				platform_get_irq(pdev, i);
+		if (irq < 0)
+			return irq;
 
-	ret = devm_request_irq(dev, irq, rkisp1_isr, IRQF_SHARED,
-			       dev_driver_string(dev), dev);
-	if (ret) {
-		dev_err(dev, "request irq failed: %d\n", ret);
-		return ret;
+		ret = devm_request_irq(dev, irq, match_data->isrs[i].isr, IRQF_SHARED,
+				       dev_driver_string(dev), dev);
+		if (ret) {
+			dev_err(dev, "request irq failed: %d\n", ret);
+			return ret;
+		}
 	}
 
-	for (i = 0; i < match_data->size; i++)
+	for (i = 0; i < match_data->clk_size; i++)
 		rkisp1->clks[i].id = match_data->clks[i];
-	ret = devm_clk_bulk_get(dev, match_data->size, rkisp1->clks);
+	ret = devm_clk_bulk_get(dev, match_data->clk_size, rkisp1->clks);
 	if (ret)
 		return ret;
-	rkisp1->clk_size = match_data->size;
+	rkisp1->clk_size = match_data->clk_size;
 
 	pm_runtime_enable(&pdev->dev);
 
