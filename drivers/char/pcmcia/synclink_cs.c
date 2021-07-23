@@ -2841,7 +2841,7 @@ static int __init synclink_cs_init(void)
 err_unreg_tty:
 	tty_unregister_driver(serial_driver);
 err_put_tty:
-	put_tty_driver(serial_driver);
+	tty_driver_kref_put(serial_driver);
 err:
 	return rc;
 }
@@ -2850,7 +2850,7 @@ static void __exit synclink_cs_exit(void)
 {
 	pcmcia_unregister_driver(&mgslpc_driver);
 	tty_unregister_driver(serial_driver);
-	put_tty_driver(serial_driver);
+	tty_driver_kref_put(serial_driver);
 }
 
 module_init(synclink_cs_init);

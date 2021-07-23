@@ -3269,7 +3269,7 @@ static int __init hso_init(void)
 err_unreg_tty:
 	tty_unregister_driver(tty_drv);
 err_free_tty:
-	put_tty_driver(tty_drv);
+	tty_driver_kref_put(tty_drv);
 	return result;
 }
 
@@ -3280,7 +3280,7 @@ static void __exit hso_exit(void)
 	tty_unregister_driver(tty_drv);
 	/* deregister the usb driver */
 	usb_deregister(&hso_driver);
-	put_tty_driver(tty_drv);
+	tty_driver_kref_put(tty_drv);
 }
 
 /* Module definitions */

@@ -3279,7 +3279,7 @@ static int __init gsm_init(void)
 			gsm_tty_driver->major, gsm_tty_driver->minor_start);
 	return 0;
 err_put_driver:
-	put_tty_driver(gsm_tty_driver);
+	tty_driver_kref_put(gsm_tty_driver);
 err_unreg_ldisc:
 	tty_unregister_ldisc(&tty_ldisc_packet);
 	return status;
@@ -3289,7 +3289,7 @@ static void __exit gsm_exit(void)
 {
 	tty_unregister_ldisc(&tty_ldisc_packet);
 	tty_unregister_driver(gsm_tty_driver);
-	put_tty_driver(gsm_tty_driver);
+	tty_driver_kref_put(gsm_tty_driver);
 }
 
 module_init(gsm_init);

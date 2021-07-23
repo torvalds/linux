@@ -2008,7 +2008,7 @@ static int __init mxser_module_init(void)
 err_unr:
 	tty_unregister_driver(mxvar_sdriver);
 err_put:
-	put_tty_driver(mxvar_sdriver);
+	tty_driver_kref_put(mxvar_sdriver);
 	return retval;
 }
 
@@ -2016,7 +2016,7 @@ static void __exit mxser_module_exit(void)
 {
 	pci_unregister_driver(&mxser_driver);
 	tty_unregister_driver(mxvar_sdriver);
-	put_tty_driver(mxvar_sdriver);
+	tty_driver_kref_put(mxvar_sdriver);
 }
 
 module_init(mxser_module_init);

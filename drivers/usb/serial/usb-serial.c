@@ -1366,7 +1366,7 @@ exit_reg_driver:
 
 exit_bus:
 	pr_err("%s - returning with error %d\n", __func__, result);
-	put_tty_driver(usb_serial_tty_driver);
+	tty_driver_kref_put(usb_serial_tty_driver);
 	return result;
 }
 
@@ -1378,7 +1378,7 @@ static void __exit usb_serial_exit(void)
 	usb_serial_generic_deregister();
 
 	tty_unregister_driver(usb_serial_tty_driver);
-	put_tty_driver(usb_serial_tty_driver);
+	tty_driver_kref_put(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
 	idr_destroy(&serial_minors);
 }

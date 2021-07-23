@@ -3438,12 +3438,6 @@ void tty_driver_kref_put(struct tty_driver *driver)
 }
 EXPORT_SYMBOL(tty_driver_kref_put);
 
-void put_tty_driver(struct tty_driver *d)
-{
-	tty_driver_kref_put(d);
-}
-EXPORT_SYMBOL(put_tty_driver);
-
 /*
  * Called by a tty driver to register itself.
  */

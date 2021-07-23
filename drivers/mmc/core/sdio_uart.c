@@ -1165,7 +1165,7 @@ static int __init sdio_uart_init(void)
 err2:
 	tty_unregister_driver(tty_drv);
 err1:
-	put_tty_driver(tty_drv);
+	tty_driver_kref_put(tty_drv);
 	return ret;
 }
 
@@ -1173,7 +1173,7 @@ static void __exit sdio_uart_exit(void)
 {
 	sdio_unregister_driver(&sdio_uart_driver);
 	tty_unregister_driver(sdio_uart_tty_driver);
-	put_tty_driver(sdio_uart_tty_driver);
+	tty_driver_kref_put(sdio_uart_tty_driver);
 }
 
 module_init(sdio_uart_init);

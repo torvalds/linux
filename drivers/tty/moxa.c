@@ -1053,7 +1053,7 @@ static int __init moxa_init(void)
 
 	if (tty_register_driver(moxaDriver)) {
 		printk(KERN_ERR "can't register MOXA Smartio tty driver!\n");
-		put_tty_driver(moxaDriver);
+		tty_driver_kref_put(moxaDriver);
 		return -1;
 	}
 
@@ -1119,7 +1119,7 @@ static void __exit moxa_exit(void)
 	del_timer_sync(&moxaTimer);
 
 	tty_unregister_driver(moxaDriver);
-	put_tty_driver(moxaDriver);
+	tty_driver_kref_put(moxaDriver);
 }
 
 module_init(moxa_init);

@@ -1063,7 +1063,7 @@ stop_thread:
 	kthread_stop(hvc_task);
 	hvc_task = NULL;
 put_tty:
-	put_tty_driver(drv);
+	tty_driver_kref_put(drv);
 out:
 	return err;
 }

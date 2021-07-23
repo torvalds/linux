@@ -274,7 +274,7 @@ static int goldfish_tty_create_driver(void)
 	return 0;
 
 err_tty_register_driver_failed:
-	put_tty_driver(tty);
+	tty_driver_kref_put(tty);
 err_tty_alloc_driver_failed:
 	kfree(goldfish_ttys);
 	goldfish_ttys = NULL;
@@ -285,7 +285,7 @@ err_alloc_goldfish_ttys_failed:
 static void goldfish_tty_delete_driver(void)
 {
 	tty_unregister_driver(goldfish_tty_driver);
-	put_tty_driver(goldfish_tty_driver);
+	tty_driver_kref_put(goldfish_tty_driver);
 	goldfish_tty_driver = NULL;
 	kfree(goldfish_ttys);
 	goldfish_ttys = NULL;

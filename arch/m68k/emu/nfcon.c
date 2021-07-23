@@ -144,7 +144,7 @@ static int __init nfcon_init(void)
 	res = tty_register_driver(driver);
 	if (res) {
 		pr_err("failed to register nfcon tty driver\n");
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		tty_port_destroy(&nfcon_tty_port);
 		return res;
 	}
@@ -161,7 +161,7 @@ static void __exit nfcon_exit(void)
 {
 	unregister_console(&nf_console);
 	tty_unregister_driver(nfcon_tty_driver);
-	put_tty_driver(nfcon_tty_driver);
+	tty_driver_kref_put(nfcon_tty_driver);
 	tty_port_destroy(&nfcon_tty_port);
 }
 

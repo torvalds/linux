@@ -763,7 +763,7 @@ out_reg:
 out_init:
 	__sclp_vt220_cleanup();
 out_driver:
-	put_tty_driver(driver);
+	tty_driver_kref_put(driver);
 	return rc;
 }
 __initcall(sclp_vt220_tty_init);

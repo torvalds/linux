@@ -299,7 +299,7 @@ int register_lte_tty_driver(void)
 
 		ret = tty_register_driver(tty_driver);
 		if (ret) {
-			put_tty_driver(tty_driver);
+			tty_driver_kref_put(tty_driver);
 			return ret;
 		}
 
@@ -318,7 +318,7 @@ void unregister_lte_tty_driver(void)
 		tty_driver = gdm_driver[i];
 		if (tty_driver) {
 			tty_unregister_driver(tty_driver);
-			put_tty_driver(tty_driver);
+			tty_driver_kref_put(tty_driver);
 		}
 	}
 }

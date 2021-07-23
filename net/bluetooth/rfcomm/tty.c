@@ -1146,7 +1146,7 @@ int __init rfcomm_init_ttys(void)
 	error = tty_register_driver(rfcomm_tty_driver);
 	if (error) {
 		BT_ERR("Can't register RFCOMM TTY driver");
-		put_tty_driver(rfcomm_tty_driver);
+		tty_driver_kref_put(rfcomm_tty_driver);
 		return error;
 	}
 
@@ -1158,5 +1158,5 @@ int __init rfcomm_init_ttys(void)
 void rfcomm_cleanup_ttys(void)
 {
 	tty_unregister_driver(rfcomm_tty_driver);
-	put_tty_driver(rfcomm_tty_driver);
+	tty_driver_kref_put(rfcomm_tty_driver);
 }

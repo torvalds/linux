@@ -329,7 +329,6 @@ extern struct list_head tty_drivers;
 
 extern struct tty_driver *__tty_alloc_driver(unsigned int lines,
 		struct module *owner, unsigned long flags);
-extern void put_tty_driver(struct tty_driver *driver);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 extern void tty_driver_kref_put(struct tty_driver *driver);

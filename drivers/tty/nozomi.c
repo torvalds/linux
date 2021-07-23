@@ -1857,7 +1857,7 @@ static __init int nozomi_init(void)
 unr_tty:
 	tty_unregister_driver(ntty_driver);
 free_tty:
-	put_tty_driver(ntty_driver);
+	tty_driver_kref_put(ntty_driver);
 	return ret;
 }
 
@@ -1865,7 +1865,7 @@ static __exit void nozomi_exit(void)
 {
 	pci_unregister_driver(&nozomi_driver);
 	tty_unregister_driver(ntty_driver);
-	put_tty_driver(ntty_driver);
+	tty_driver_kref_put(ntty_driver);
 }
 
 module_init(nozomi_init);

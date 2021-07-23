@@ -178,7 +178,7 @@ static int __init rs_init(void)
 static __exit void rs_exit(void)
 {
 	tty_unregister_driver(serial_driver);
-	put_tty_driver(serial_driver);
+	tty_driver_kref_put(serial_driver);
 	tty_port_destroy(&serial_port);
 }
 

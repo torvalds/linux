@@ -1519,7 +1519,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 
 	error = tty_register_driver(driver);
 	if (error)
-		goto fail_put_tty_driver;
+		goto fail_tty_driver_kref_put;
 
 	printk(KERN_INFO "ttyS0 is the amiga builtin serial port\n");
 
@@ -1566,9 +1566,9 @@ fail_free_irq:
 	free_irq(IRQ_AMIGA_TBE, state);
 fail_unregister:
 	tty_unregister_driver(driver);
-fail_put_tty_driver:
+fail_tty_driver_kref_put:
 	tty_port_destroy(&state->tport);
-	put_tty_driver(driver);
+	tty_driver_kref_put(driver);
 	return error;
 }
 
@@ -1577,7 +1577,7 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	struct serial_state *state = platform_get_drvdata(pdev);
 
 	tty_unregister_driver(serial_driver);
-	put_tty_driver(serial_driver);
+	tty_driver_kref_put(serial_driver);
 	tty_port_destroy(&state->tport);
 
 	free_irq(IRQ_AMIGA_TBE, state);

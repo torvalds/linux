@@ -509,14 +509,14 @@ sclp_tty_init(void)
 
 	rc = sclp_rw_init();
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return rc;
 	}
 	/* Allocate pages for output buffering */
 	for (i = 0; i < MAX_KMEM_PAGES; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (page == NULL) {
-			put_tty_driver(driver);
+			tty_driver_kref_put(driver);
 			return -ENOMEM;
 		}
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
@@ -532,7 +532,7 @@ sclp_tty_init(void)
 
 	rc = sclp_register(&sclp_input_event);
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return rc;
 	}
 
@@ -552,7 +552,7 @@ sclp_tty_init(void)
 	tty_port_link_device(&sclp_port, driver, 0);
 	rc = tty_register_driver(driver);
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		tty_port_destroy(&sclp_port);
 		return rc;
 	}

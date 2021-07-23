@@ -221,7 +221,7 @@ srmcons_init(void)
 		tty_port_link_device(&srmcons_singleton.port, driver, 0);
 		err = tty_register_driver(driver);
 		if (err) {
-			put_tty_driver(driver);
+			tty_driver_kref_put(driver);
 			tty_port_destroy(&srmcons_singleton.port);
 			return err;
 		}

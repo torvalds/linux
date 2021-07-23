@@ -371,7 +371,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	res = tty_register_driver(tty);
 	if (res) {
 		dev_err(&ipoctal->dev->dev, "Can't register tty driver.\n");
-		put_tty_driver(tty);
+		tty_driver_kref_put(tty);
 		return res;
 	}
 
@@ -696,7 +696,7 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 	}
 
 	tty_unregister_driver(ipoctal->tty_drv);
-	put_tty_driver(ipoctal->tty_drv);
+	tty_driver_kref_put(ipoctal->tty_drv);
 	kfree(ipoctal);
 }
 
