@@ -162,6 +162,21 @@ static int psp_v13_0_bootloader_load_sysdrv(struct psp_context *psp)
 	return psp_v13_0_bootloader_load_component(psp, &psp->sys, PSP_BL__LOAD_SYSDRV);
 }
 
+static int psp_v13_0_bootloader_load_soc_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->soc_drv, PSP_BL__LOAD_SOCDRV);
+}
+
+static int psp_v13_0_bootloader_load_intf_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->intf_drv, PSP_BL__LOAD_INTFDRV);
+}
+
+static int psp_v13_0_bootloader_load_dbg_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->dbg_drv, PSP_BL__LOAD_DBGDRV);
+}
+
 static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 {
 	int ret;
@@ -426,6 +441,9 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
+	.bootloader_load_soc_drv = psp_v13_0_bootloader_load_soc_drv,
+	.bootloader_load_intf_drv = psp_v13_0_bootloader_load_intf_drv,
+	.bootloader_load_dbg_drv = psp_v13_0_bootloader_load_dbg_drv,
 	.bootloader_load_sos = psp_v13_0_bootloader_load_sos,
 	.ring_init = psp_v13_0_ring_init,
 	.ring_create = psp_v13_0_ring_create,
