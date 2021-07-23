@@ -607,11 +607,14 @@ int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
 	mr = i915->mm.regions[id];
 	GEM_BUG_ON(!mr);
 
-	if (obj->mm.region == mr)
-		return 0;
-
 	if (!i915_gem_object_can_migrate(obj, id))
 		return -EINVAL;
+
+	if (!obj->ops->migrate) {
+		if (GEM_WARN_ON(obj->mm.region != mr))
+			return -EINVAL;
+		return 0;
+	}
 
 	return obj->ops->migrate(obj, mr);
 }
