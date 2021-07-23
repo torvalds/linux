@@ -515,8 +515,14 @@ static int gen11_reset_engines(struct intel_gt *gt,
 		[VCS1]  = GEN11_GRDOM_MEDIA2,
 		[VCS2]  = GEN11_GRDOM_MEDIA3,
 		[VCS3]  = GEN11_GRDOM_MEDIA4,
+		[VCS4]  = GEN11_GRDOM_MEDIA5,
+		[VCS5]  = GEN11_GRDOM_MEDIA6,
+		[VCS6]  = GEN11_GRDOM_MEDIA7,
+		[VCS7]  = GEN11_GRDOM_MEDIA8,
 		[VECS0] = GEN11_GRDOM_VECS,
 		[VECS1] = GEN11_GRDOM_VECS2,
+		[VECS2] = GEN11_GRDOM_VECS3,
+		[VECS3] = GEN11_GRDOM_VECS4,
 	};
 	struct intel_engine_cs *engine;
 	intel_engine_mask_t tmp;
