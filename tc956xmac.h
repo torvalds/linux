@@ -44,6 +44,8 @@
  *  VERSION     : 01-00-04
  *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
  *  VERSION     : 01-00-05
+ *  23 Jul 2021 : 1. Add support for contiguous allocation of memory
+ *  VERSION     : 01-00-06
  */
 
 #ifndef __TC956XMAC_H__
@@ -65,7 +67,6 @@
 #define TC956X_LOAD_FW_HEADER
 #define PF_DRIVER 4
 
-//#define DMA_OFFLOAD_ENABLE
 // #define CONFIG_TC956XMAC_SELFTESTS  /*Enable this macro to test Feature selftest*/
 
 #ifdef TC956X
@@ -91,7 +92,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-05"
+#define DRV_MODULE_VERSION	"V_01-00-06"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -273,6 +274,8 @@ struct tc956xmac_tx_queue {
 #ifdef DMA_OFFLOAD_ENABLE
 	struct sk_buff **tx_offload_skbuff;
 	dma_addr_t *tx_offload_skbuff_dma;
+	dma_addr_t buff_tx_phy;
+	void *buffer_tx_va_addr;
 #endif
 };
 
@@ -305,6 +308,8 @@ struct tc956xmac_rx_queue {
 #ifdef DMA_OFFLOAD_ENABLE
 	struct sk_buff **rx_offload_skbuff;
 	dma_addr_t *rx_offload_skbuff_dma;
+	dma_addr_t buff_rx_phy;
+	void *buffer_rx_va_addr;
 #endif
 };
 

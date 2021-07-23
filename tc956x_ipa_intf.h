@@ -39,6 +39,8 @@
  *  VERSION     : 01-00-03
  *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
  *  VERSION     : 01-00-05
+ *  23 Jul 2021 : 1. Add support for contiguous allocation of memory
+ *  VERSION     : 01-00-06
  */
 
 #ifndef __TC956x_IPA_INTF_H
@@ -72,7 +74,6 @@ struct ipa_buff_pool_addr {
 	dma_addr_t *buff_pool_dma_addrs_base;	/* array to hold each buffer DMA addr */
 };
 
-#ifdef TC956X
 struct rxp_filter_entry {
 	u32 match_data;
 	u32 match_en;
@@ -88,12 +89,16 @@ struct rxp_filter_entry {
 	u16 dma_ch_no;
 	u16 res4;
 };
-#endif
 
 struct rx_filter_info{
 	u32 nve;	/* Max block entries user want to write */
 	u32 npe;	/* number of parsable entries in the Instruction Table. */
 	struct rxp_filter_entry entries[128];	/* FRP table entries */
+};
+
+enum tc956x_ch_flags {
+	TC956X_CONTIG_BUFS = BIT(0), /* Alloc entire ring buffer memory as a contiguous block */
+	/*...*/
 };
 
 /* Represents Tx/Rx channel allocated for IPA offload data path */
@@ -110,6 +115,23 @@ struct channel_info {
 
 	struct mem_ops *mem_ops;	/* store mem ops to use for allocate/freeing */
 	void *client_ch_priv;		/* channel specific private data */
+	unsigned int ch_flags;
+};
+
+struct request_channel_input {
+	unsigned int desc_cnt;   /* No. of required descriptors for the Tx/Rx Channel */
+	enum channel_dir ch_dir; /* CH_DIR_RX for Rx Channel, CH_DIR_TX for Tx Channel */
+
+	unsigned int buf_size;   /* Data buffer size */
+	unsigned long flags;	 /* flags for memory allocation Same as gfp_t? */
+	struct net_device *ndev; /* TC956x netdev data structure */
+
+	struct mem_ops *mem_ops; /* If NULL, use default flags for memory allocation.
+				    otherwise use the function pointers provided for
+				    descriptor and buffer allocation */
+	void *client_ch_priv;    /* To store in channel_info and pass it to mem_ops */
+	unsigned int ch_flags;
+	phys_addr_t tail_ptr_addr;
 };
 
 struct mem_ops {
@@ -173,25 +195,14 @@ void* get_client_priv_data(struct net_device *ndev);
  *	  The API will check for NULL pointers and Invalid arguments such as,
  *	  out of bounds buf size > 9K bytes, descriptor count > 512
  *
- * \param[in] ndev : TC956x netdev data structure.
- * \param[in] desc_cnt : No. of required descriptors for the Tx/Rx Channel
- * \param[in] ch_dir : CH_DIR_RX for Rx Channel, CH_DIR_TX for Tx Channel
- * \param[in] buf_size : Data buffer size
- * \param[in] flags : flags for memory allocation. Same as gfp_t?
- * \param[in] mem_ops : If NULL, use default flags for memory allocation.
- *			otherwise use the function pointers provided for
- *			descriptor and buffer allocation
- * \param[in] client_ch_priv : To store in channel_info and pass it to mem_ops
+ * \param[in] channel_input : data structure specifying all input needed to request a channel
  *
  * \return channel_info : Allocate memory for channel_info structure and initialize the structure members
  *			  NULL on fail
  * \remarks :In case of Tx, only TDES0 and TDES1 will be updated with buffer addresses. TDES2 and TDES3
  *	    must be updated by the offloading driver.
  */
-struct channel_info* request_channel(struct net_device *ndev, unsigned int desc_cnt,
-					enum channel_dir ch_dir, unsigned int buf_size,
-					unsigned long flags, struct mem_ops *mem_ops,
-					void *client_ch_priv);
+struct channel_info* request_channel(struct request_channel_input *channel_input);
 
 
 /*!
