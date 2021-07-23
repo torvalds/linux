@@ -303,12 +303,22 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	return (cc) ? -EIO : 0;
 }
 
+static inline int qdio_sync_input_queue(struct qdio_q *q)
+{
+	return qdio_siga_sync(q, 0, q->mask);
+}
+
+static inline int qdio_sync_output_queue(struct qdio_q *q)
+{
+	return qdio_siga_sync(q, q->mask, 0);
+}
+
 static inline int qdio_siga_sync_q(struct qdio_q *q)
 {
 	if (q->is_input_q)
-		return qdio_siga_sync(q, 0, q->mask);
+		return qdio_sync_input_queue(q);
 	else
-		return qdio_siga_sync(q, q->mask, 0);
+		return qdio_sync_output_queue(q);
 }
 
 static int qdio_siga_output(struct qdio_q *q, unsigned int count,
@@ -442,10 +452,9 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	if (!count)
 		return 0;
 
-	/*
-	 * No siga sync here, as a PCI or we after a thin interrupt
-	 * already sync'ed the queues.
-	 */
+	if (qdio_need_siga_sync(q->irq_ptr))
+		qdio_sync_input_queue(q);
+
 	count = get_buf_states(q, start, &state, count, 1);
 	if (!count)
 		return 0;
@@ -498,7 +507,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 		return 1;
 
 	if (qdio_need_siga_sync(q->irq_ptr))
-		qdio_siga_sync_q(q);
+		qdio_sync_input_queue(q);
 	get_buf_state(q, start, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
@@ -519,6 +528,9 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	count = atomic_read(&q->nr_buf_used);
 	if (!count)
 		return 0;
+
+	if (qdio_need_siga_sync(q->irq_ptr))
+		qdio_sync_output_queue(q);
 
 	count = get_buf_states(q, start, &state, count, 0);
 	if (!count)
@@ -1160,7 +1172,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
 		WARN_ON_ONCE(!IS_ALIGNED(phys_aob, 256));
 		rc = qdio_kick_outbound_q(q, count, phys_aob);
 	} else if (qdio_need_siga_sync(q->irq_ptr)) {
-		rc = qdio_siga_sync_q(q);
+		rc = qdio_sync_output_queue(q);
 	} else if (count < QDIO_MAX_BUFFERS_PER_Q &&
 		   get_buf_state(q, prev_buf(bufnr), &state, 0) > 0 &&
 		   state == SLSB_CU_OUTPUT_PRIMED) {
@@ -1282,9 +1294,6 @@ int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr, bool is_input,
 	if (!irq_ptr)
 		return -ENODEV;
 	q = is_input ? irq_ptr->input_qs[nr] : irq_ptr->output_qs[nr];
-
-	if (qdio_need_siga_sync(irq_ptr))
-		qdio_siga_sync_q(q);
 
 	return __qdio_inspect_queue(q, bufnr, error);
 }
