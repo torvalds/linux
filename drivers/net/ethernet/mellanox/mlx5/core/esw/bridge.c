@@ -76,6 +76,15 @@ mlx5_esw_bridge_fdb_offload_notify(struct net_device *dev, const unsigned char *
 	call_switchdev_notifiers(val, dev, &send_info.info, NULL);
 }
 
+static void
+mlx5_esw_bridge_fdb_del_notify(struct mlx5_esw_bridge_fdb_entry *entry)
+{
+	if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
+		mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
+						   entry->key.vid,
+						   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+}
+
 static struct mlx5_flow_table *
 mlx5_esw_bridge_table_create(int max_fte, u32 level, struct mlx5_eswitch *esw)
 {
@@ -699,10 +708,7 @@ static void mlx5_esw_bridge_fdb_flush(struct mlx5_esw_bridge *bridge)
 	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list) {
-		if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
-			mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
-							   entry->key.vid,
-							   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+		mlx5_esw_bridge_fdb_del_notify(entry);
 		mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 	}
 }
@@ -850,10 +856,7 @@ static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list) {
-		if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
-			mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
-							   entry->key.vid,
-							   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+		mlx5_esw_bridge_fdb_del_notify(entry);
 		mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 	}
 
@@ -1241,9 +1244,7 @@ void mlx5_esw_bridge_fdb_remove(struct net_device *dev, u16 vport_num, u16 esw_o
 		return;
 	}
 
-	if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
-		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
-						   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+	mlx5_esw_bridge_fdb_del_notify(entry);
 	mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 }
 
@@ -1263,9 +1264,7 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 			if (time_after(lastuse, entry->lastuse)) {
 				mlx5_esw_bridge_fdb_entry_refresh(lastuse, entry);
 			} else if (time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
-				mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
-								   entry->key.vid,
-								   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+				mlx5_esw_bridge_fdb_del_notify(entry);
 				mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 			}
 		}
