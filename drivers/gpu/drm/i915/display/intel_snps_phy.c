@@ -36,6 +36,20 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv)
 	}
 }
 
+void intel_snps_phy_update_psr_power_state(struct drm_i915_private *dev_priv,
+					   enum phy phy, bool enable)
+{
+	u32 val;
+
+	if (!intel_phy_is_snps(dev_priv, phy))
+		return;
+
+	val = REG_FIELD_PREP(SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR,
+			     enable ? 2 : 3);
+	intel_uncore_rmw(&dev_priv->uncore, SNPS_PHY_TX_REQ(phy),
+			 SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
+}
+
 static const u32 dg2_ddi_translations[] = {
 	/* VS 0, pre-emph 0 */
 	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 26),
