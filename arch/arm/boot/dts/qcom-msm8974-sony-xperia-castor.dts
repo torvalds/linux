@@ -11,6 +11,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart2;
+		serial1 = &blsp2_uart7;
 	};
 
 	chosen {
@@ -336,6 +337,27 @@
 		pinctrl-0 = <&blsp1_uart2_pin_a>;
 	};
 
+	serial@f995d000 {
+		status = "ok";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&blsp2_uart7_pin_a>;
+
+		bluetooth {
+			compatible = "brcm,bcm43438-bt";
+			max-speed = <3000000>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&bt_host_wake_pin>,
+				    <&bt_dev_wake_pin>,
+				    <&bt_reg_on_pin>;
+
+			host-wakeup-gpios = <&msmgpio 95 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&msmgpio 96 GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&pm8941_gpios 16 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	usb@f9a55000 {
 		status = "okay";
 
@@ -376,6 +398,40 @@
 				function = "blsp_uart2";
 
 				drive-strength = <4>;
+				bias-disable;
+			};
+		};
+
+		blsp2_uart7_pin_a: blsp2-uart7-pin-active {
+			tx {
+				pins = "gpio41";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			rx {
+				pins = "gpio42";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			cts {
+				pins = "gpio43";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			rts {
+				pins = "gpio44";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
 				bias-disable;
 			};
 		};
@@ -478,6 +534,23 @@
 				bias-disable;
 				input-enable;
 			};
+		};
+
+		bt_host_wake_pin: bt-host-wake {
+			pins = "gpio95";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+
+		bt_dev_wake_pin: bt-dev-wake {
+			pins = "gpio96";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
 		};
 	};
 
@@ -603,6 +676,14 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			bt_reg_on_pin: bt-reg-on {
+				pins = "gpio16";
+				function = "normal";
+
+				output-low;
 				power-source = <PM8941_GPIO_S3>;
 			};
 
