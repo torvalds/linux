@@ -18,12 +18,6 @@
 #include "cadence_master.h"
 #include "intel.h"
 
-#define SDW_SHIM_LCAP		0x0
-#define SDW_SHIM_BASE		0x2C000
-#define SDW_ALH_BASE		0x2C800
-#define SDW_LINK_BASE		0x30000
-#define SDW_LINK_SIZE		0x10000
-
 static void intel_link_dev_release(struct device *dev)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
