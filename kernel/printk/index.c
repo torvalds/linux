@@ -137,13 +137,13 @@ static const char *pi_get_module_name(struct module *mod)
 }
 #endif
 
-void pi_create_file(struct module *mod)
+static void pi_create_file(struct module *mod)
 {
 	debugfs_create_file(pi_get_module_name(mod), 0444, dfs_index,
 				       mod, &dfs_index_fops);
 }
 
-void pi_remove_file(struct module *mod)
+static void pi_remove_file(struct module *mod)
 {
 	debugfs_remove(debugfs_lookup(pi_get_module_name(mod), dfs_index));
 }
