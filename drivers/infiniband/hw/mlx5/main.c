@@ -2802,30 +2802,15 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 	if (!MLX5_CAP_GEN(dev->mdev, xrc))
 		return -EOPNOTSUPP;
 
-	devr->p0 = rdma_zalloc_drv_obj(ibdev, ib_pd);
-	if (!devr->p0)
-		return -ENOMEM;
+	devr->p0 = ib_alloc_pd(ibdev, 0);
+	if (IS_ERR(devr->p0))
+		return PTR_ERR(devr->p0);
 
-	devr->p0->device  = ibdev;
-	devr->p0->uobject = NULL;
-	atomic_set(&devr->p0->usecnt, 0);
-
-	ret = mlx5_ib_alloc_pd(devr->p0, NULL);
-	if (ret)
-		goto error0;
-
-	devr->c0 = rdma_zalloc_drv_obj(ibdev, ib_cq);
-	if (!devr->c0) {
-		ret = -ENOMEM;
+	devr->c0 = ib_create_cq(ibdev, NULL, NULL, NULL, &cq_attr);
+	if (IS_ERR(devr->c0)) {
+		ret = PTR_ERR(devr->c0);
 		goto error1;
 	}
-
-	devr->c0->device = &dev->ib_dev;
-	atomic_set(&devr->c0->usecnt, 0);
-
-	ret = mlx5_ib_create_cq(devr->c0, &cq_attr, NULL);
-	if (ret)
-		goto err_create_cq;
 
 	ret = mlx5_cmd_xrcd_alloc(dev->mdev, &devr->xrcdn0, 0);
 	if (ret)
@@ -2841,45 +2826,22 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 	attr.srq_type = IB_SRQT_XRC;
 	attr.ext.cq = devr->c0;
 
-	devr->s0 = rdma_zalloc_drv_obj(ibdev, ib_srq);
-	if (!devr->s0) {
-		ret = -ENOMEM;
-		goto error4;
-	}
-
-	devr->s0->device	= &dev->ib_dev;
-	devr->s0->pd		= devr->p0;
-	devr->s0->srq_type      = IB_SRQT_XRC;
-	devr->s0->ext.cq	= devr->c0;
-	ret = mlx5_ib_create_srq(devr->s0, &attr, NULL);
-	if (ret)
+	devr->s0 = ib_create_srq(devr->p0, &attr);
+	if (IS_ERR(devr->s0)) {
+		ret = PTR_ERR(devr->s0);
 		goto err_create;
-
-	atomic_inc(&devr->s0->ext.cq->usecnt);
-	atomic_inc(&devr->p0->usecnt);
-	atomic_set(&devr->s0->usecnt, 0);
+	}
 
 	memset(&attr, 0, sizeof(attr));
 	attr.attr.max_sge = 1;
 	attr.attr.max_wr = 1;
 	attr.srq_type = IB_SRQT_BASIC;
-	devr->s1 = rdma_zalloc_drv_obj(ibdev, ib_srq);
-	if (!devr->s1) {
-		ret = -ENOMEM;
-		goto error5;
-	}
 
-	devr->s1->device	= &dev->ib_dev;
-	devr->s1->pd		= devr->p0;
-	devr->s1->srq_type      = IB_SRQT_BASIC;
-	devr->s1->ext.cq	= devr->c0;
-
-	ret = mlx5_ib_create_srq(devr->s1, &attr, NULL);
-	if (ret)
+	devr->s1 = ib_create_srq(devr->p0, &attr);
+	if (IS_ERR(devr->s1)) {
+		ret = PTR_ERR(devr->s1);
 		goto error6;
-
-	atomic_inc(&devr->p0->usecnt);
-	atomic_set(&devr->s1->usecnt, 0);
+	}
 
 	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
 		INIT_WORK(&devr->ports[port].pkey_change_work,
@@ -2888,23 +2850,15 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 	return 0;
 
 error6:
-	kfree(devr->s1);
-error5:
-	mlx5_ib_destroy_srq(devr->s0, NULL);
+	ib_destroy_srq(devr->s0);
 err_create:
-	kfree(devr->s0);
-error4:
 	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn1, 0);
 error3:
 	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn0, 0);
 error2:
-	mlx5_ib_destroy_cq(devr->c0, NULL);
-err_create_cq:
-	kfree(devr->c0);
+	ib_destroy_cq(devr->c0);
 error1:
-	mlx5_ib_dealloc_pd(devr->p0, NULL);
-error0:
-	kfree(devr->p0);
+	ib_dealloc_pd(devr->p0);
 	return ret;
 }
 
@@ -2922,16 +2876,12 @@ static void mlx5_ib_dev_res_cleanup(struct mlx5_ib_dev *dev)
 	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
 		cancel_work_sync(&devr->ports[port].pkey_change_work);
 
-	mlx5_ib_destroy_srq(devr->s1, NULL);
-	kfree(devr->s1);
-	mlx5_ib_destroy_srq(devr->s0, NULL);
-	kfree(devr->s0);
+	ib_destroy_srq(devr->s1);
+	ib_destroy_srq(devr->s0);
 	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn1, 0);
 	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn0, 0);
-	mlx5_ib_destroy_cq(devr->c0, NULL);
-	kfree(devr->c0);
-	mlx5_ib_dealloc_pd(devr->p0, NULL);
-	kfree(devr->p0);
+	ib_destroy_cq(devr->c0);
+	ib_dealloc_pd(devr->p0);
 }
 
 static u32 get_core_cap_flags(struct ib_device *ibdev,

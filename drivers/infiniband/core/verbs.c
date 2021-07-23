@@ -1035,7 +1035,8 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	}
 	if (srq->srq_type == IB_SRQT_XRC) {
 		srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
-		atomic_inc(&srq->ext.xrc.xrcd->usecnt);
+		if (srq->ext.xrc.xrcd)
+			atomic_inc(&srq->ext.xrc.xrcd->usecnt);
 	}
 	atomic_inc(&pd->usecnt);
 
@@ -1046,7 +1047,7 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	if (ret) {
 		rdma_restrack_put(&srq->res);
 		atomic_dec(&srq->pd->usecnt);
-		if (srq->srq_type == IB_SRQT_XRC)
+		if (srq->srq_type == IB_SRQT_XRC && srq->ext.xrc.xrcd)
 			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 		if (ib_srq_has_cq(srq->srq_type))
 			atomic_dec(&srq->ext.cq->usecnt);
@@ -1090,7 +1091,7 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 		return ret;
 
 	atomic_dec(&srq->pd->usecnt);
-	if (srq->srq_type == IB_SRQT_XRC)
+	if (srq->srq_type == IB_SRQT_XRC && srq->ext.xrc.xrcd)
 		atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 	if (ib_srq_has_cq(srq->srq_type))
 		atomic_dec(&srq->ext.cq->usecnt);
