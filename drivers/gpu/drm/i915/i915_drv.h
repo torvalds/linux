@@ -1560,8 +1560,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_ALDERLAKE_P(__i915) && \
 	 IS_GT_STEP(__i915, since, until))
 
-#define IS_XEHPSDV_GT_STEP(p, since, until) \
-	(IS_XEHPSDV(p) && IS_GT_STEP(__i915, since, until))
+#define IS_XEHPSDV_GT_STEP(__i915, since, until) \
+	(IS_XEHPSDV(__i915) && IS_GT_STEP(__i915, since, until))
 
 /*
  * DG2 hardware steppings are a bit unusual.  The hardware design was forked
