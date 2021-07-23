@@ -68,6 +68,11 @@ static struct perf_cpu_map *cpu_map__default_new(void)
 	return cpus;
 }
 
+struct perf_cpu_map *perf_cpu_map__default_new(void)
+{
+	return cpu_map__default_new();
+}
+
 static int cmp_int(const void *a, const void *b)
 {
 	return *(const int *)a - *(const int*)b;
