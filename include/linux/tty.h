@@ -622,9 +622,6 @@ static inline int tty_port_users(struct tty_port *port)
 	return port->count + port->blocked_open;
 }
 
-extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-				 const char *f, int count);
-
 /* n_tty.c */
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
 #ifdef CONFIG_TTY
