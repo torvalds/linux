@@ -282,7 +282,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	if (!state || !state->crtc || !state->fb || !state->visible)
 		return;
 
-	iter->clips = drm_helper_get_plane_damage_clips(state);
+	iter->clips = (struct drm_rect *)drm_plane_get_damage_clips(state);
 	iter->num_clips = drm_plane_get_damage_clips_count(state);
 
 	/* Round down for x1/y1 and round up for x2/y2 to catch all pixels */

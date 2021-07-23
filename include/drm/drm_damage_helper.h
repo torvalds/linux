@@ -82,21 +82,4 @@ bool drm_atomic_helper_damage_merged(const struct drm_plane_state *old_state,
 				     struct drm_plane_state *state,
 				     struct drm_rect *rect);
 
-/**
- * drm_helper_get_plane_damage_clips - Returns damage clips in &drm_rect.
- * @state: Plane state.
- *
- * Returns plane damage rectangles in internal &drm_rect. Currently &drm_rect
- * can be obtained by simply typecasting &drm_mode_rect. This is because both
- * are signed 32 and during drm_atomic_check_only() it is verified that damage
- * clips are inside fb.
- *
- * Return: Clips in plane fb_damage_clips blob property.
- */
-static inline struct drm_rect *
-drm_helper_get_plane_damage_clips(const struct drm_plane_state *state)
-{
-	return (struct drm_rect *)drm_plane_get_damage_clips(state);
-}
-
 #endif
