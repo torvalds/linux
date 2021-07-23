@@ -1936,7 +1936,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	err = switchdev_bridge_port_offload(netdev, netdev, NULL,
 					    &dpaa2_switch_port_switchdev_nb,
 					    &dpaa2_switch_port_switchdev_blocking_nb,
-					    extack);
+					    false, extack);
 	if (err)
 		goto err_switchdev_offload;
 

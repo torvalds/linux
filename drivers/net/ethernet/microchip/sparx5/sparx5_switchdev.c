@@ -113,7 +113,7 @@ static int sparx5_port_bridge_join(struct sparx5_port *port,
 	set_bit(port->portno, sparx5->bridge_mask);
 
 	err = switchdev_bridge_port_offload(ndev, ndev, NULL, NULL, NULL,
-					    extack);
+					    false, extack);
 	if (err)
 		goto err_switchdev_offload;
 
