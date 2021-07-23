@@ -217,7 +217,7 @@ struct port100_protocol {
 	u8 value;
 } __packed;
 
-static struct port100_protocol
+static const struct port100_protocol
 in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	[NFC_DIGITAL_FRAMING_NFCA_SHORT] = {
 		{ PORT100_IN_PROT_INITIAL_GUARD_TIME,      6 },
@@ -391,7 +391,7 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	},
 };
 
-static struct port100_protocol
+static const struct port100_protocol
 tg_protocols[][PORT100_TG_MAX_NUM_PROTOCOLS + 1] = {
 	[NFC_DIGITAL_FRAMING_NFCA_SHORT] = {
 		{ PORT100_TG_PROT_END, 0 },
@@ -1098,7 +1098,7 @@ static int port100_in_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 static int port100_in_set_framing(struct nfc_digital_dev *ddev, int param)
 {
 	struct port100 *dev = nfc_digital_get_drvdata(ddev);
-	struct port100_protocol *protocols;
+	const struct port100_protocol *protocols;
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 	int num_protocols;
@@ -1255,7 +1255,7 @@ static int port100_tg_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 static int port100_tg_set_framing(struct nfc_digital_dev *ddev, int param)
 {
 	struct port100 *dev = nfc_digital_get_drvdata(ddev);
-	struct port100_protocol *protocols;
+	const struct port100_protocol *protocols;
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 	int rc;
