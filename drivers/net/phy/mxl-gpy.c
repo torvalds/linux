@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/bitfield.h>
 #include <linux/phy.h>
