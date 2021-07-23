@@ -731,14 +731,18 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 		status = RGA2_MALLOC_ERROR;
 		goto out;
 	}
-	pages = rga2_mmu_buf.pages;
-	mutex_lock(&rga2_service.lock);
-        MMU_Base = rga2_mmu_buf.buf_virtual +
-				(rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
-        MMU_Base_phys = rga2_mmu_buf.buf +
-				(rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
 
-        mutex_unlock(&rga2_service.lock);
+	pages = rga2_mmu_buf.pages;
+	if(pages == NULL) {
+		pr_err("RGA MMU malloc pages mem failed\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&rga2_service.lock);
+	MMU_Base = rga2_mmu_buf.buf_virtual + rga2_mmu_buf.front;
+	MMU_Base_phys = rga2_mmu_buf.buf + rga2_mmu_buf.front;
+	mutex_unlock(&rga2_service.lock);
+
         if (Src0MemSize) {
 		if (req->sg_src0) {
 			ret = rga2_MapION(req->sg_src0,
@@ -947,8 +951,8 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
         }
 
         mutex_lock(&rga2_service.lock);
-        MMU_Base = rga2_mmu_buf.buf_virtual + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
-        MMU_Base_phys = rga2_mmu_buf.buf + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
+        MMU_Base = rga2_mmu_buf.buf_virtual + rga2_mmu_buf.front;
+        MMU_Base_phys = rga2_mmu_buf.buf + rga2_mmu_buf.front;
         mutex_unlock(&rga2_service.lock);
 
         if(SrcMemSize) {
@@ -1039,6 +1043,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
 
     DstMemSize = 0;
     DstPageCount = 0;
+    DstStart = 0;
     MMU_Base = NULL;
 
     do {
@@ -1054,17 +1059,21 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
         DstMemSize = (DstPageCount + 15) & (~15);
 	AllSize = DstMemSize;
 
-        pages = rga2_mmu_buf.pages;
-
         if(rga2_mmu_buf_get_try(&rga2_mmu_buf, AllSize)) {
            pr_err("RGA2 Get MMU mem failed\n");
            status = RGA2_MALLOC_ERROR;
            break;
         }
 
+        pages = rga2_mmu_buf.pages;
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed\n");
+            return -EINVAL;
+        }
+
         mutex_lock(&rga2_service.lock);
-        MMU_Base_phys = rga2_mmu_buf.buf + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
-        MMU_Base = rga2_mmu_buf.buf_virtual + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
+        MMU_Base_phys = rga2_mmu_buf.buf + rga2_mmu_buf.front;
+        MMU_Base = rga2_mmu_buf.buf_virtual + rga2_mmu_buf.front;
         mutex_unlock(&rga2_service.lock);
 
         if (DstMemSize) {
@@ -1156,8 +1165,8 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
         }
 
         mutex_lock(&rga2_service.lock);
-        MMU_Base = rga2_mmu_buf.buf_virtual + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
-        MMU_Base_phys = rga2_mmu_buf.buf + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
+        MMU_Base = rga2_mmu_buf.buf_virtual + rga2_mmu_buf.front;
+        MMU_Base_phys = rga2_mmu_buf.buf + rga2_mmu_buf.front;
         mutex_unlock(&rga2_service.lock);
 
         if (LutMemSize) {
