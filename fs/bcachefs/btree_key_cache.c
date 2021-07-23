@@ -376,10 +376,9 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 				     BTREE_ITER_CACHED_NOFILL|
 				     BTREE_ITER_CACHED_NOCREATE|
 				     BTREE_ITER_INTENT);
-retry:
 	ret = bch2_btree_iter_traverse(c_iter);
 	if (ret)
-		goto err;
+		goto out;
 
 	ck = (void *) c_iter->l[0].b;
 	if (!ck ||
@@ -410,15 +409,10 @@ retry:
 				   ? BTREE_INSERT_JOURNAL_RESERVED
 				   : 0)|
 				  commit_flags);
-err:
-	if (ret == -EINTR)
-		goto retry;
-
-	if (ret == -EAGAIN)
-		goto out;
-
 	if (ret) {
-		bch2_fs_fatal_err_on(!bch2_journal_error(j), c,
+		bch2_fs_fatal_err_on(ret != -EINTR &&
+				     ret != -EAGAIN &&
+				     !bch2_journal_error(j), c,
 			"error flushing key cache: %i", ret);
 		goto out;
 	}
@@ -466,7 +460,6 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 	struct bkey_cached *ck =
 		container_of(pin, struct bkey_cached, journal);
 	struct bkey_cached_key key;
-	struct btree_trans trans;
 	int ret = 0;
 
 	int srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
@@ -481,10 +474,9 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 	}
 	six_unlock_read(&ck->c.lock);
 
-	bch2_trans_init(&trans, c, 0, 0);
-	ret = btree_key_cache_flush_pos(&trans, key, seq,
-				  BTREE_INSERT_JOURNAL_RECLAIM, false);
-	bch2_trans_exit(&trans);
+	ret = bch2_trans_do(c, NULL, NULL, 0,
+		btree_key_cache_flush_pos(&trans, key, seq,
+				BTREE_INSERT_JOURNAL_RECLAIM, false));
 unlock:
 	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
 
