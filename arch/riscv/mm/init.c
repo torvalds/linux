@@ -532,9 +532,7 @@ static void __init create_kernel_page_table(pgd_t *pgdir, bool early)
 asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 {
 	uintptr_t __maybe_unused pa;
-#ifndef __PAGETABLE_PMD_FOLDED
-	pmd_t fix_bmap_spmd, fix_bmap_epmd;
-#endif
+	pmd_t __maybe_unused fix_bmap_spmd, fix_bmap_epmd;
 
 	kernel_map.virt_addr = KERNEL_LINK_ADDR;
 
