@@ -90,7 +90,6 @@ struct iwpm_remote_info {
 };
 
 struct iwpm_admin_data {
-	refcount_t refcount;
 	atomic_t nlmsg_seq;
 	int      client_list[RDMA_NL_NUM_CLIENTS];
 	u32      reg_list[RDMA_NL_NUM_CLIENTS];
