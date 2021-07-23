@@ -10,7 +10,6 @@
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
 #include <linux/tty_flags.h>
-#include <linux/seq_file.h>
 #include <uapi/linux/tty.h>
 #include <linux/rwsem.h>
 #include <linux/llist.h>
@@ -493,13 +492,7 @@ extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
 extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 
-extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
-extern void tty_ldisc_deref(struct tty_ldisc *);
-extern struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *);
-extern const struct seq_operations tty_ldiscs_seq_ops;
-
 extern void tty_wakeup(struct tty_struct *tty);
-extern void tty_ldisc_flush(struct tty_struct *tty);
 
 extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
@@ -629,9 +622,6 @@ static inline int tty_port_users(struct tty_port *port)
 	return port->count + port->blocked_open;
 }
 
-extern int tty_register_ldisc(struct tty_ldisc_ops *new_ldisc);
-extern void tty_unregister_ldisc(struct tty_ldisc_ops *ldisc);
-extern int tty_set_ldisc(struct tty_struct *tty, int disc);
 extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 				 const char *f, int count);
 
