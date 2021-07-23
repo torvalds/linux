@@ -1135,9 +1135,10 @@ static int __init sdio_uart_init(void)
 	int ret;
 	struct tty_driver *tty_drv;
 
-	sdio_uart_tty_driver = tty_drv = alloc_tty_driver(UART_NR);
-	if (!tty_drv)
-		return -ENOMEM;
+	sdio_uart_tty_driver = tty_drv = tty_alloc_driver(UART_NR,
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(tty_drv))
+		return PTR_ERR(tty_drv);
 
 	tty_drv->driver_name = "sdio_uart";
 	tty_drv->name =   "ttySDIO";
@@ -1145,7 +1146,6 @@ static int __init sdio_uart_init(void)
 	tty_drv->minor_start = 0;
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
-	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_drv->init_termios = tty_std_termios;
 	tty_drv->init_termios.c_cflag = B4800 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_drv->init_termios.c_ispeed = 4800;

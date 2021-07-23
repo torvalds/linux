@@ -1319,9 +1319,10 @@ static int __init usb_serial_init(void)
 {
 	int result;
 
-	usb_serial_tty_driver = alloc_tty_driver(USB_SERIAL_TTY_MINORS);
-	if (!usb_serial_tty_driver)
-		return -ENOMEM;
+	usb_serial_tty_driver = tty_alloc_driver(USB_SERIAL_TTY_MINORS,
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(usb_serial_tty_driver))
+		return PTR_ERR(usb_serial_tty_driver);
 
 	/* Initialize our global data */
 	result = bus_register(&usb_serial_bus_type);
@@ -1336,8 +1337,6 @@ static int __init usb_serial_init(void)
 	usb_serial_tty_driver->minor_start = 0;
 	usb_serial_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	usb_serial_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	usb_serial_tty_driver->flags = TTY_DRIVER_REAL_RAW |
-						TTY_DRIVER_DYNAMIC_DEV;
 	usb_serial_tty_driver->init_termios = tty_std_termios;
 	usb_serial_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD
 							| HUPCL | CLOCAL;

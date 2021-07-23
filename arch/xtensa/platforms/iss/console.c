@@ -139,9 +139,9 @@ static int __init rs_init(void)
 	struct tty_driver *driver;
 	int ret;
 
-	driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(SERIAL_MAX_NUM_LINES, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	tty_port_init(&serial_port);
 
@@ -156,7 +156,6 @@ static int __init rs_init(void)
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(driver, &serial_ops);
 	tty_port_link_device(&serial_port, driver, 0);

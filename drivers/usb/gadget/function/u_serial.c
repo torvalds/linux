@@ -1449,9 +1449,10 @@ static int userial_init(void)
 	unsigned			i;
 	int				status;
 
-	driver = alloc_tty_driver(MAX_U_SERIAL_PORTS);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(MAX_U_SERIAL_PORTS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	driver->driver_name = "g_serial";
 	driver->name = "ttyGS";
@@ -1459,7 +1460,6 @@ static int userial_init(void)
 
 	driver->type = TTY_DRIVER_TYPE_SERIAL;
 	driver->subtype = SERIAL_TYPE_NORMAL;
-	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	driver->init_termios = tty_std_termios;
 
 	/* 9600-8-N-1 ... matches defaults expected by "usbser.sys" on

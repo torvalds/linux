@@ -503,9 +503,9 @@ sclp_tty_init(void)
 		return 0;
 	if (!sclp.has_linemode)
 		return 0;
-	driver = alloc_tty_driver(1);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	rc = sclp_rw_init();
 	if (rc) {
@@ -548,7 +548,6 @@ sclp_tty_init(void)
 	driver->init_termios.c_iflag = IGNBRK | IGNPAR;
 	driver->init_termios.c_oflag = ONLCR;
 	driver->init_termios.c_lflag = ISIG | ECHO;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_ops);
 	tty_port_link_device(&sclp_port, driver, 0);
 	rc = tty_register_driver(driver);

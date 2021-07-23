@@ -774,9 +774,10 @@ static int __init ehv_bc_init(void)
 	if (!bcs)
 		return -ENOMEM;
 
-	driver = alloc_tty_driver(count);
-	if (!driver) {
-		ret = -ENOMEM;
+	driver = tty_alloc_driver(count, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(driver)) {
+		ret = PTR_ERR(driver);
 		goto err_free_bcs;
 	}
 
@@ -785,7 +786,6 @@ static int __init ehv_bc_init(void)
 	driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	driver->subtype = SYSTEM_TYPE_CONSOLE;
 	driver->init_termios = tty_std_termios;
-	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(driver, &ehv_bc_ops);
 
 	ret = tty_register_driver(driver);

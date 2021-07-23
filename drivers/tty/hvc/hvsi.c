@@ -1041,9 +1041,9 @@ static int __init hvsi_init(void)
 	struct tty_driver *driver;
 	int i, ret;
 
-	driver = alloc_tty_driver(hvsi_count);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(hvsi_count, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	driver->driver_name = "hvsi";
 	driver->name = "hvsi";
@@ -1054,7 +1054,6 @@ static int __init hvsi_init(void)
 	driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
 	driver->init_termios.c_ispeed = 9600;
 	driver->init_termios.c_ospeed = 9600;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &hvsi_ops);
 
 	for (i=0; i < hvsi_count; i++) {

@@ -1824,16 +1824,16 @@ static __init int nozomi_init(void)
 {
 	int ret;
 
-	ntty_driver = alloc_tty_driver(NTTY_TTY_MAXMINORS);
-	if (!ntty_driver)
-		return -ENOMEM;
+	ntty_driver = tty_alloc_driver(NTTY_TTY_MAXMINORS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(ntty_driver))
+		return PTR_ERR(ntty_driver);
 
 	ntty_driver->driver_name = NOZOMI_NAME_TTY;
 	ntty_driver->name = "noz";
 	ntty_driver->major = 0;
 	ntty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	ntty_driver->subtype = SERIAL_TYPE_NORMAL;
-	ntty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	ntty_driver->init_termios = tty_std_termios;
 	ntty_driver->init_termios.c_cflag = B115200 | CS8 | CREAD | \
 						HUPCL | CLOCAL;

@@ -1494,9 +1494,9 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	unsigned long flags;
 	int error;
 
-	driver = alloc_tty_driver(1);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	/* Initialize the tty_driver structure */
 
@@ -1509,7 +1509,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &serial_ops);
 
 	memset(state, 0, sizeof(*state));

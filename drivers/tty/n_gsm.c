@@ -3252,10 +3252,11 @@ static int __init gsm_init(void)
 		return status;
 	}
 
-	gsm_tty_driver = alloc_tty_driver(256);
-	if (!gsm_tty_driver) {
+	gsm_tty_driver = tty_alloc_driver(256, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK);
+	if (IS_ERR(gsm_tty_driver)) {
 		pr_err("gsm_init: tty allocation failed.\n");
-		status = -ENOMEM;
+		status = PTR_ERR(gsm_tty_driver);
 		goto err_unreg_ldisc;
 	}
 	gsm_tty_driver->driver_name	= "gsmtty";
@@ -3264,8 +3265,6 @@ static int __init gsm_init(void)
 	gsm_tty_driver->minor_start	= 0;
 	gsm_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	gsm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
-	gsm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV
-						| TTY_DRIVER_HARDWARE_BREAK;
 	gsm_tty_driver->init_termios	= tty_std_termios;
 	/* Fixme */
 	gsm_tty_driver->init_termios.c_lflag &= ~ECHO;

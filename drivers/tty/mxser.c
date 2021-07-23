@@ -1976,9 +1976,10 @@ static int __init mxser_module_init(void)
 {
 	int retval;
 
-	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS);
-	if (!mxvar_sdriver)
-		return -ENOMEM;
+	mxvar_sdriver = tty_alloc_driver(MXSER_PORTS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(mxvar_sdriver))
+		return PTR_ERR(mxvar_sdriver);
 
 	/* Initialize the tty_driver structure */
 	mxvar_sdriver->name = "ttyMI";
@@ -1988,7 +1989,6 @@ static int __init mxser_module_init(void)
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;
 	mxvar_sdriver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
-	mxvar_sdriver->flags = TTY_DRIVER_REAL_RAW|TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(mxvar_sdriver, &mxser_ops);
 
 	retval = tty_register_driver(mxvar_sdriver);

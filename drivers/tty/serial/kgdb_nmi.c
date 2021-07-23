@@ -330,17 +330,16 @@ int kgdb_register_nmi_console(void)
 	if (!arch_kgdb_ops.enable_nmi)
 		return 0;
 
-	kgdb_nmi_tty_driver = alloc_tty_driver(1);
-	if (!kgdb_nmi_tty_driver) {
+	kgdb_nmi_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(kgdb_nmi_tty_driver)) {
 		pr_err("%s: cannot allocate tty\n", __func__);
-		return -ENOMEM;
+		return PTR_ERR(kgdb_nmi_tty_driver);
 	}
 	kgdb_nmi_tty_driver->driver_name	= "ttyNMI";
 	kgdb_nmi_tty_driver->name		= "ttyNMI";
 	kgdb_nmi_tty_driver->num		= 1;
 	kgdb_nmi_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	kgdb_nmi_tty_driver->subtype		= SERIAL_TYPE_NORMAL;
-	kgdb_nmi_tty_driver->flags		= TTY_DRIVER_REAL_RAW;
 	kgdb_nmi_tty_driver->init_termios	= tty_std_termios;
 	tty_termios_encode_baud_rate(&kgdb_nmi_tty_driver->init_termios,
 				     KGDB_NMI_BAUD, KGDB_NMI_BAUD);

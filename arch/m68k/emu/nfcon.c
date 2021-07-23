@@ -127,9 +127,9 @@ static int __init nfcon_init(void)
 	if (!stderr_id)
 		return -ENODEV;
 
-	driver = alloc_tty_driver(1);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	tty_port_init(&nfcon_tty_port);
 
@@ -138,7 +138,6 @@ static int __init nfcon_init(void)
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(driver, &nfcon_tty_ops);
 	tty_port_link_device(&nfcon_tty_port, driver, 0);
