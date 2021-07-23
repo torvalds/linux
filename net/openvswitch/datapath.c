@@ -168,7 +168,7 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 	free_percpu(dp->stats_percpu);
 	kfree(dp->ports);
 	ovs_meters_exit(dp);
-	kfree(dp->upcall_portids);
+	kfree(rcu_dereference_raw(dp->upcall_portids));
 	kfree(dp);
 }
 
