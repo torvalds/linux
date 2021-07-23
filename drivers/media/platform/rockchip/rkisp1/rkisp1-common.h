@@ -250,11 +250,35 @@ struct rkisp1_stats {
 	struct v4l2_format vdev_fmt;
 };
 
+struct rkisp1_params;
+struct rkisp1_params_ops {
+	void (*lsc_matrix_config)(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_lsc_config *pconfig);
+	void (*goc_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_goc_config *arg);
+	void (*awb_meas_config)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_meas_config *arg);
+	void (*awb_meas_enable)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_meas_config *arg,
+				bool en);
+	void (*awb_gain_config)(struct rkisp1_params *params,
+				const struct rkisp1_cif_isp_awb_gain_config *arg);
+	void (*aec_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_aec_config *arg);
+	void (*hst_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_hst_config *arg);
+	void (*hst_enable)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_hst_config *arg, bool en);
+	void (*afm_config)(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_afc_config *arg);
+};
+
 /*
  * struct rkisp1_params - ISP input parameters device
  *
  * @vnode:		video node
  * @rkisp1:		pointer to the rkisp1 device
+ * @ops:		pointer to the variant-specific operations
  * @config_lock:	locks the buffer list 'params'
  * @params:		queue of rkisp1_buffer
  * @vdev_fmt:		v4l2_format of the metadata format
@@ -264,6 +288,7 @@ struct rkisp1_stats {
 struct rkisp1_params {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
+	const struct rkisp1_params_ops *ops;
 
 	spinlock_t config_lock; /* locks the buffers list 'params' */
 	struct list_head params;

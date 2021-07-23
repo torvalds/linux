@@ -185,8 +185,8 @@ static void rkisp1_bls_config(struct rkisp1_params *params,
 
 /* ISP LS correction interface function */
 static void
-rkisp1_lsc_correct_matrix_config(struct rkisp1_params *params,
-				 const struct rkisp1_cif_isp_lsc_config *pconfig)
+rkisp1_lsc_matrix_config(struct rkisp1_params *params,
+			 const struct rkisp1_cif_isp_lsc_config *pconfig)
 {
 	unsigned int isp_lsc_status, sram_addr, isp_lsc_table_sel, i, j, data;
 
@@ -265,7 +265,7 @@ static void rkisp1_lsc_config(struct rkisp1_params *params,
 	lsc_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_LSC_CTRL);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_LSC_CTRL,
 				RKISP1_CIF_ISP_LSC_CTRL_ENA);
-	rkisp1_lsc_correct_matrix_config(params, arg);
+	params->ops->lsc_matrix_config(params, arg);
 
 	for (i = 0; i < RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE / 2; i++) {
 		/* program x size tables */
@@ -955,7 +955,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 
 	/* update awb gains */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
-		rkisp1_awb_gain_config(params, &new_params->others.awb_gain_config);
+		params->ops->awb_gain_config(params, &new_params->others.awb_gain_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
@@ -1010,8 +1010,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 
 	/* update goc config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)
-		rkisp1_goc_config(params,
-				  &new_params->others.goc_config);
+		params->ops->goc_config(params, &new_params->others.goc_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_GOC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_GOC)
@@ -1081,17 +1080,17 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 
 	/* update awb config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)
-		rkisp1_awb_meas_config(params, &new_params->meas.awb_meas_config);
+		params->ops->awb_meas_config(params, &new_params->meas.awb_meas_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB)
-		rkisp1_awb_meas_enable(params,
-				       &new_params->meas.awb_meas_config,
-				       !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
+		params->ops->awb_meas_enable(params,
+					     &new_params->meas.awb_meas_config,
+					     !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
 
 	/* update afc config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)
-		rkisp1_afm_config(params,
-				  &new_params->meas.afc_config);
+		params->ops->afm_config(params,
+					&new_params->meas.afc_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AFC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AFC)
@@ -1106,18 +1105,18 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 
 	/* update hst config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)
-		rkisp1_hst_config(params,
-				  &new_params->meas.hst_config);
+		params->ops->hst_config(params,
+					&new_params->meas.hst_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_HST)
-		rkisp1_hst_enable(params,
-				  &new_params->meas.hst_config,
-				  !!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
+		params->ops->hst_enable(params,
+					&new_params->meas.hst_config,
+					!!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
 
 	/* update aec config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)
-		rkisp1_aec_config(params,
-				  &new_params->meas.aec_config);
+		params->ops->aec_config(params,
+					&new_params->meas.aec_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AEC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AEC)
@@ -1218,20 +1217,20 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 {
 	struct rkisp1_cif_isp_hst_config hst = rkisp1_hst_params_default_config;
 
-	rkisp1_awb_meas_config(params, &rkisp1_awb_params_default_config);
-	rkisp1_awb_meas_enable(params, &rkisp1_awb_params_default_config,
-			       true);
+	params->ops->awb_meas_config(params, &rkisp1_awb_params_default_config);
+	params->ops->awb_meas_enable(params, &rkisp1_awb_params_default_config,
+				     true);
 
-	rkisp1_aec_config(params, &rkisp1_aec_params_default_config);
+	params->ops->aec_config(params, &rkisp1_aec_params_default_config);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_EXP_CTRL,
 			      RKISP1_CIF_ISP_EXP_ENA);
 
-	rkisp1_afm_config(params, &rkisp1_afc_params_default_config);
+	params->ops->afm_config(params, &rkisp1_afc_params_default_config);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_AFM_CTRL,
 			      RKISP1_CIF_ISP_AFM_ENA);
 
 	memset(hst.hist_weight, 0x01, sizeof(hst.hist_weight));
-	rkisp1_hst_config(params, &hst);
+	params->ops->hst_config(params, &hst);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP,
 			      rkisp1_hst_params_default_config.mode);
 
@@ -1278,7 +1277,7 @@ void rkisp1_params_disable(struct rkisp1_params *params)
 				RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_FILT_MODE,
 				RKISP1_CIF_ISP_FLT_ENA);
-	rkisp1_awb_meas_enable(params, NULL, false);
+	params->ops->awb_meas_enable(params, NULL, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
 				RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_EXP_CTRL,
@@ -1286,13 +1285,25 @@ void rkisp1_params_disable(struct rkisp1_params *params)
 	rkisp1_ctk_enable(params, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_C_PROC_CTRL,
 				RKISP1_CIF_C_PROC_CTR_ENABLE);
-	rkisp1_hst_enable(params, NULL, false);
+	params->ops->hst_enable(params, NULL, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_AFM_CTRL,
 				RKISP1_CIF_ISP_AFM_ENA);
 	rkisp1_ie_enable(params, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_DPF_MODE,
 				RKISP1_CIF_ISP_DPF_MODE_EN);
 }
+
+static const struct rkisp1_params_ops rkisp1_params_ops = {
+	.lsc_matrix_config = rkisp1_lsc_matrix_config,
+	.goc_config = rkisp1_goc_config,
+	.awb_meas_config = rkisp1_awb_meas_config,
+	.awb_meas_enable = rkisp1_awb_meas_enable,
+	.awb_gain_config = rkisp1_awb_gain_config,
+	.aec_config = rkisp1_aec_config,
+	.hst_config = rkisp1_hst_config,
+	.hst_enable = rkisp1_hst_enable,
+	.afm_config = rkisp1_afm_config,
+};
 
 static int rkisp1_params_enum_fmt_meta_out(struct file *file, void *priv,
 					   struct v4l2_fmtdesc *f)
@@ -1459,6 +1470,8 @@ static void rkisp1_init_params(struct rkisp1_params *params)
 		V4L2_META_FMT_RK_ISP1_PARAMS;
 	params->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp1_params_cfg);
+
+	params->ops = &rkisp1_params_ops;
 }
 
 int rkisp1_params_register(struct rkisp1_device *rkisp1)
