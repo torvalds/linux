@@ -172,7 +172,6 @@ struct intel_device_info {
 	u8 media_ver;
 	u8 media_rel;
 
-	u8 gt; /* GT number, 0 if undefined */
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
 	enum intel_platform platform;
@@ -187,6 +186,8 @@ struct intel_device_info {
 	u32 memory_regions; /* regions supported by the HW */
 
 	u32 display_mmio_offset;
+
+	u8 gt; /* GT number, 0 if undefined */
 
 	u8 pipe_mask;
 	u8 cpu_transcoder_mask;

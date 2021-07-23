@@ -174,12 +174,13 @@ struct intel_gt {
 
 	struct intel_gt_info {
 		intel_engine_mask_t engine_mask;
+
+		u32 l3bank_mask;
+
 		u8 num_engines;
 
 		/* Media engine access to SFC per instance */
 		u8 vdbox_sfc_access;
-
-		u32 l3bank_mask;
 
 		/* Slice/subslice/EU info */
 		struct sseu_dev_info sseu;

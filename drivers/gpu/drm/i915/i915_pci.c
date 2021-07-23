@@ -1001,8 +1001,9 @@ static const struct intel_device_info xehpsdv_info = {
 	.pipe_mask = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
-		BIT(VECS0) | BIT(VECS1) |
-		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3),
+		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
+		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
+		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7),
 	.require_force_probe = 1,
 };
 
