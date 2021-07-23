@@ -1980,10 +1980,12 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 		tipc_node_distr_xmit(sock_net(sk), &xmitq);
 	}
 
-	if (!skb_cb->bytes_read)
-		tsk_advance_rx_queue(sk);
+	if (skb_cb->bytes_read)
+		goto exit;
 
-	if (likely(!connected) || skb_cb->bytes_read)
+	tsk_advance_rx_queue(sk);
+
+	if (likely(!connected))
 		goto exit;
 
 	/* Send connection flow control advertisement when applicable */
