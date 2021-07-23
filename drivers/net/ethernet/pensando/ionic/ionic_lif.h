@@ -108,7 +108,6 @@ struct ionic_deferred_work {
 	struct list_head list;
 	enum ionic_deferred_work_type type;
 	union {
-		unsigned int rx_mode;
 		u8 addr[ETH_ALEN];
 		u8 fw_status;
 	};
@@ -179,6 +178,7 @@ struct ionic_lif {
 	unsigned int index;
 	unsigned int hw_index;
 	struct mutex queue_lock;	/* lock for queue structures */
+	struct mutex config_lock;	/* lock for config actions */
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
 	struct ionic_qcq *notifyqcq;
@@ -199,7 +199,7 @@ struct ionic_lif {
 	unsigned int nrxq_descs;
 	u32 rx_copybreak;
 	u64 rxq_features;
-	unsigned int rx_mode;
+	u16 rx_mode;
 	u64 hw_features;
 	bool registered;
 	bool mc_overflow;
@@ -302,7 +302,7 @@ int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 int ionic_lif_size(struct ionic *ionic);
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
-int ionic_lif_hwstamp_replay(struct ionic_lif *lif);
+void ionic_lif_hwstamp_replay(struct ionic_lif *lif);
 int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr);
 int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr);
 ktime_t ionic_lif_phc_ktime(struct ionic_lif *lif, u64 counter);
@@ -311,10 +311,7 @@ void ionic_lif_unregister_phc(struct ionic_lif *lif);
 void ionic_lif_alloc_phc(struct ionic_lif *lif);
 void ionic_lif_free_phc(struct ionic_lif *lif);
 #else
-static inline int ionic_lif_hwstamp_replay(struct ionic_lif *lif)
-{
-	return -EOPNOTSUPP;
-}
+static inline void ionic_lif_hwstamp_replay(struct ionic_lif *lif) {}
 
 static inline int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 {
