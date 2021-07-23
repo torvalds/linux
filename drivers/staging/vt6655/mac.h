@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: mac.h
- *
  * Purpose: MAC routines
  *
  * Author: Tevin Chen
