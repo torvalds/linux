@@ -13,12 +13,13 @@
  * GNU General Public License for more details.
  *
  */
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 
 #include "iep_iommu_ops.h"
 

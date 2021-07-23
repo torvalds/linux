@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/iommu.h>
 #include <asm/cacheflush.h>
 #include "iep_drv.h"
 #include "hw_iep_reg.h"
@@ -870,54 +871,16 @@ static struct miscdevice iep_dev = {
 	.fops  = &iep_fops,
 };
 
-static struct device* rockchip_get_sysmmu_device_by_compatible(
-	const char *compt)
-{
-	struct device_node *dn = NULL;
-	struct platform_device *pd = NULL;
-	struct device *ret = NULL;
-
-	dn = of_find_compatible_node(NULL, NULL, compt);
-	if (!dn) {
-		printk("can't find device node %s \r\n", compt);
-		return NULL;
-	}
-
-	pd = of_find_device_by_node(dn);
-	if (!pd) {
-		printk("can't find platform device in device node %s \r\n",
-			compt);
-		return  NULL;
-	}
-	ret = &pd->dev;
-
-	return ret;
-
-}
-#ifdef CONFIG_IOMMU_API
-static inline void platform_set_sysmmu(struct device *iommu,
-	struct device *dev)
-{
-	dev->archdata.iommu = iommu;
-}
-#else
-static inline void platform_set_sysmmu(struct device *iommu,
-	struct device *dev)
-{
-}
-#endif
-
-static int iep_sysmmu_fault_handler(struct device *dev,
-	enum rk_iommu_inttype itype,
-	unsigned long pgtable_base,
-	unsigned long fault_addr, unsigned int status)
+static int iep_sysmmu_fault_handler(struct iommu_domain *domain,
+				    struct device *iommu_dev,
+				    unsigned long iova, int status, void *arg)
 {
 	struct iep_reg *reg = list_entry(iep_service.running.next,
 		struct iep_reg, status_link);
 	if (reg != NULL) {
 		struct iep_mem_region *mem, *n;
 		int i = 0;
-		pr_info("iep, fault addr 0x%08x\n", (u32)fault_addr);
+		pr_info("iep, fault addr 0x%08x\n", (u32)iova);
 		list_for_each_entry_safe(mem, n,
 			&reg->mem_region_list,
 			reg_lnk) {
@@ -944,7 +907,8 @@ static int iep_drv_probe(struct platform_device *pdev)
 	struct platform_device *sub_dev = NULL;
 	struct device_node *sub_np = NULL;
 	u32 iommu_en = 0;
-	struct device *mmu_dev = NULL;
+	struct iommu_domain *domain;
+
 	of_property_read_u32(np, "iommu_enabled", &iommu_en);
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data),
@@ -1081,21 +1045,10 @@ static int iep_drv_probe(struct platform_device *pdev)
 	if (sub_np) {
 		sub_dev = of_find_device_by_node(sub_np);
 		iep_service.iommu_dev = &sub_dev->dev;
+		domain = iommu_get_domain_for_dev(&pdev->dev);
+		iommu_set_fault_handler(domain, iep_sysmmu_fault_handler, data);
 	}
 
-	if (!iep_service.iommu_dev) {
-		mmu_dev = rockchip_get_sysmmu_device_by_compatible(
-			IEP_IOMMU_COMPATIBLE_NAME);
-
-		if (mmu_dev) {
-			platform_set_sysmmu(mmu_dev, &pdev->dev);
-		}
-
-		rockchip_iovmm_set_fault_handler(&pdev->dev,
-						 iep_sysmmu_fault_handler);
-
-		iep_service.iommu_dev = mmu_dev;
-	}
 	of_property_read_u32(np, "allocator", (u32 *)&iep_service.alloc_type);
 	iep_power_on();
 	iep_service.iommu_info = iep_iommu_info_create(data->dev,
@@ -1194,11 +1147,11 @@ static int proc_iep_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_iep_show, NULL);
 }
 
-static const struct file_operations proc_iep_fops = {
-	.open		= proc_iep_open,
-	.read		= seq_read,
-	.llseek 	= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops proc_iep_fops = {
+	.proc_open	= proc_iep_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init iep_proc_init(void)
