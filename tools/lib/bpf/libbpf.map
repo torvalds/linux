@@ -371,6 +371,7 @@ LIBBPF_0.4.0 {
 LIBBPF_0.5.0 {
 	global:
 		bpf_map__initial_value;
+		bpf_map__pin_path;
 		bpf_map_lookup_and_delete_elem_flags;
 		bpf_program__attach_kprobe_opts;
 		bpf_object__gen_loader;

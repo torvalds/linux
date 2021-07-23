@@ -8511,6 +8511,11 @@ const char *bpf_map__get_pin_path(const struct bpf_map *map)
 	return map->pin_path;
 }
 
+const char *bpf_map__pin_path(const struct bpf_map *map)
+{
+	return map->pin_path;
+}
+
 bool bpf_map__is_pinned(const struct bpf_map *map)
 {
 	return map->pinned;
