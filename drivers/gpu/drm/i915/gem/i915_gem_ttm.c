@@ -662,13 +662,14 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 		i915_ttm_adjust_gem_after_move(obj);
 	}
 
-	GEM_WARN_ON(obj->mm.pages);
-	/* Object either has a page vector or is an iomem object */
-	st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
-	if (IS_ERR(st))
-		return PTR_ERR(st);
+	if (!i915_gem_object_has_pages(obj)) {
+		/* Object either has a page vector or is an iomem object */
+		st = bo->ttm ? i915_ttm_tt_get_st(bo->ttm) : obj->ttm.cached_io_st;
+		if (IS_ERR(st))
+			return PTR_ERR(st);
 
-	__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+		__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+	}
 
 	return ret;
 }
