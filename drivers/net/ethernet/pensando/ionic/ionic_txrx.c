@@ -429,10 +429,6 @@ static void ionic_dim_update(struct ionic_qcq *qcq)
 	lif = qcq->q.lif;
 	qi = qcq->cq.bound_q->index;
 
-	ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
-			     lif->rxqcqs[qi]->intr.index,
-			     qcq->intr.dim_coal_hw);
-
 	dim_update_sample(qcq->cq.bound_intr->rearm_count,
 			  lif->txqstats[qi].pkts,
 			  lif->txqstats[qi].bytes,
