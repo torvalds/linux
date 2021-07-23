@@ -35,7 +35,7 @@ int ima_appraise = IMA_APPRAISE_ENFORCE;
 int ima_appraise;
 #endif
 
-int ima_hash_algo = HASH_ALGO_SHA1;
+int __ro_after_init ima_hash_algo = HASH_ALGO_SHA1;
 static int hash_setup_done;
 
 static struct notifier_block ima_lsm_policy_notifier = {
@@ -75,6 +75,11 @@ out:
 	return 1;
 }
 __setup("ima_hash=", hash_setup);
+
+enum hash_algo ima_get_current_hash_algo(void)
+{
+	return ima_hash_algo;
+}
 
 /* Prevent mmap'ing a file execute that is already mmap'ed write */
 static int mmap_violation_check(enum ima_hooks func, struct file *file,
