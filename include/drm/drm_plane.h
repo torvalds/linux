@@ -897,39 +897,11 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 
 bool drm_any_plane_has_format(struct drm_device *dev,
 			      u32 format, u64 modifier);
-/**
- * drm_plane_get_damage_clips_count - Returns damage clips count.
- * @state: Plane state.
- *
- * Simple helper to get the number of &drm_mode_rect clips set by user-space
- * during plane update.
- *
- * Return: Number of clips in plane fb_damage_clips blob property.
- */
-static inline unsigned int
-drm_plane_get_damage_clips_count(const struct drm_plane_state *state)
-{
-	return (state && state->fb_damage_clips) ?
-		state->fb_damage_clips->length/sizeof(struct drm_mode_rect) : 0;
-}
+unsigned int
+drm_plane_get_damage_clips_count(const struct drm_plane_state *state);
 
-/**
- * drm_plane_get_damage_clips - Returns damage clips.
- * @state: Plane state.
- *
- * Note that this function returns uapi type &drm_mode_rect. Drivers might want
- * to use the helper functions drm_atomic_helper_damage_iter_init() and
- * drm_atomic_helper_damage_iter_next() or drm_atomic_helper_damage_merged() if
- * the driver can only handle a single damage region at most.
- *
- * Return: Damage clips in plane fb_damage_clips blob property.
- */
-static inline struct drm_mode_rect *
-drm_plane_get_damage_clips(const struct drm_plane_state *state)
-{
-	return (struct drm_mode_rect *)((state && state->fb_damage_clips) ?
-					state->fb_damage_clips->data : NULL);
-}
+struct drm_mode_rect *
+drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
 int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
 					     unsigned int supported_filters);
