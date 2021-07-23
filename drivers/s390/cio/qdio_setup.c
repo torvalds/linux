@@ -270,16 +270,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	}
 }
 
-static void process_ac_flags(struct qdio_irq *irq_ptr, unsigned char qdioac)
-{
-	if (qdioac & AC1_SIGA_INPUT_NEEDED)
-		irq_ptr->siga_flag.input = 1;
-	if (qdioac & AC1_SIGA_OUTPUT_NEEDED)
-		irq_ptr->siga_flag.output = 1;
-	if (qdioac & AC1_SIGA_SYNC_NEEDED)
-		irq_ptr->siga_flag.sync = 1;
-}
-
 static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
 				  unsigned char qdioac, unsigned long token)
 {
@@ -356,7 +346,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 		qdioac = irq_ptr->ssqd_desc.qdioac1;
 
 	check_and_setup_qebsm(irq_ptr, qdioac, irq_ptr->ssqd_desc.sch_token);
-	process_ac_flags(irq_ptr, qdioac);
+	irq_ptr->qdioac1 = qdioac;
 	DBF_EVENT("ac 1:%2x 2:%4x", qdioac, irq_ptr->ssqd_desc.qdioac2);
 	DBF_EVENT("3:%4x qib:%4x", irq_ptr->ssqd_desc.qdioac3, irq_ptr->qib.ac);
 }
@@ -420,7 +410,7 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	struct ciw *ciw;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
-	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
+	irq_ptr->qdioac1 = 0;
 	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
@@ -500,9 +490,9 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 		 (irq_ptr->sch_token) ? 1 : 0,
 		 pci_out_supported(irq_ptr) ? 1 : 0,
 		 css_general_characteristics.aif_tdd,
-		 (irq_ptr->siga_flag.input) ? "R" : " ",
-		 (irq_ptr->siga_flag.output) ? "W" : " ",
-		 (irq_ptr->siga_flag.sync) ? "S" : " ");
+		 qdio_need_siga_in(irq_ptr) ? "R" : " ",
+		 qdio_need_siga_out(irq_ptr) ? "W" : " ",
+		 qdio_need_siga_sync(irq_ptr) ? "S" : " ");
 	printk(KERN_INFO "%s", s);
 }
 
