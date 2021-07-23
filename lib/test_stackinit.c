@@ -1,14 +1,76 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Test cases for compiler-based stack variable zeroing via future
- * compiler flags or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
+ * Test cases for compiler-based stack variable zeroing via
+ * -ftrivial-auto-var-init={zero,pattern} or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
+ *
+ * External build example:
+ *	clang -O2 -Wall -ftrivial-auto-var-init=pattern \
+ *		-o test_stackinit test_stackinit.c
  */
+#ifdef __KERNEL__
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
+
+#else
+
+/* Userspace headers. */
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <sys/types.h>
+
+/* Linux kernel-ism stubs for stand-alone userspace build. */
+#define KBUILD_MODNAME		"stackinit"
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
+#define pr_err(fmt, ...)	fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warn(fmt, ...)	fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
+#define __init			/**/
+#define __exit			/**/
+#define __user			/**/
+#define noinline		__attribute__((__noinline__))
+#define __aligned(x)		__attribute__((__aligned__(x)))
+#ifdef __clang__
+# define __compiletime_error(message) /**/
+#else
+# define __compiletime_error(message) __attribute__((__error__(message)))
+#endif
+#define __compiletime_assert(condition, msg, prefix, suffix)		\
+	do {								\
+		extern void prefix ## suffix(void) __compiletime_error(msg); \
+		if (!(condition))					\
+			prefix ## suffix();				\
+	} while (0)
+#define _compiletime_assert(condition, msg, prefix, suffix) \
+	__compiletime_assert(condition, msg, prefix, suffix)
+#define compiletime_assert(condition, msg) \
+	_compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
+#define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+#define BUILD_BUG_ON(condition) \
+	BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+typedef uint8_t			u8;
+typedef uint16_t		u16;
+typedef uint32_t		u32;
+typedef uint64_t		u64;
+
+#define module_init(func)	static int (*do_init)(void) = func
+#define module_exit(func)	static void (*do_exit)(void) = func
+#define MODULE_LICENSE(str)	int main(void) {		\
+					int rc;			\
+					/* License: str */	\
+					rc = do_init();		\
+					if (rc == 0)		\
+						do_exit();	\
+					return rc;		\
+				}
+
+#endif /* __KERNEL__ */
 
 /* Exfiltration buffer. */
 #define MAX_VAR_SIZE	128
@@ -279,6 +341,10 @@ DEFINE_TEST(user, struct test_user, STRUCT, none);
 static int noinline __leaf_switch_none(int path, bool fill)
 {
 	switch (path) {
+		/*
+		 * This is intentionally unreachable. To silence the
+		 * warning, build with -Wno-switch-unreachable
+		 */
 		uint64_t var;
 
 	case 1:
