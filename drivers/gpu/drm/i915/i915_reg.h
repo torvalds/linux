@@ -2586,7 +2586,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   ARB_MODE_BWGTLB_DISABLE (1 << 9)
 #define   ARB_MODE_SWIZZLE_BDW	(1 << 1)
 #define RENDER_HWS_PGA_GEN7	_MMIO(0x04080)
-#define RING_FAULT_REG(engine)	_MMIO(0x4094 + 0x100 * (engine)->gen6_hw_id)
+
+#define _RING_FAULT_REG_RCS        0x4094
+#define _RING_FAULT_REG_VCS        0x4194
+#define _RING_FAULT_REG_BCS        0x4294
+#define _RING_FAULT_REG_VECS       0x4394
+#define RING_FAULT_REG(engine)     _MMIO(_PICK((engine)->class, \
+					       _RING_FAULT_REG_RCS, \
+					       _RING_FAULT_REG_VCS, \
+					       _RING_FAULT_REG_VECS, \
+					       _RING_FAULT_REG_BCS))
 #define GEN8_RING_FAULT_REG	_MMIO(0x4094)
 #define GEN12_RING_FAULT_REG	_MMIO(0xcec4)
 #define   GEN8_RING_FAULT_ENGINE_ID(x)	(((x) >> 12) & 0x7)

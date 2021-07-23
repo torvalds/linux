@@ -28,14 +28,7 @@
 #include "intel_wakeref.h"
 #include "intel_workarounds_types.h"
 
-/* Legacy HW Engine ID */
-
-#define RCS0_HW		0
-#define VCS0_HW		1
-#define BCS0_HW		2
-#define VECS0_HW	3
-
-/* Gen11+ HW Engine class + instance */
+/* HW Engine class + instance */
 #define RENDER_CLASS		0
 #define VIDEO_DECODE_CLASS	1
 #define VIDEO_ENHANCEMENT_CLASS	2
@@ -274,7 +267,6 @@ struct intel_engine_cs {
 
 	intel_engine_mask_t mask;
 
-	u8 gen6_hw_id;
 	u8 class;
 	u8 instance;
 
