@@ -11,6 +11,7 @@
 #include "intel_lvds.h"
 #include "intel_panel.h"
 #include "intel_sideband.h"
+#include "display/intel_snps_phy.h"
 
 struct intel_limit {
 	struct {
@@ -923,12 +924,13 @@ static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->uapi.state);
+	struct intel_encoder *encoder =
+		intel_get_crtc_new_encoder(state, crtc_state);
 
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
-	    DISPLAY_VER(dev_priv) >= 11) {
-		struct intel_encoder *encoder =
-			intel_get_crtc_new_encoder(state, crtc_state);
-
+	if (IS_DG2(dev_priv)) {
+		return intel_mpllb_calc_state(crtc_state, encoder);
+	} else if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
+		   DISPLAY_VER(dev_priv) >= 11) {
 		if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "failed to find PLL for pipe %c\n",
