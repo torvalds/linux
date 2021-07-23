@@ -3357,6 +3357,10 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(base));
 		execlists->ctrl_reg = uncore->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(base));
+
+		engine->fw_domain = intel_uncore_forcewake_for_reg(engine->uncore,
+				    RING_EXECLIST_CONTROL(engine->mmio_base),
+				    FW_REG_WRITE);
 	} else {
 		execlists->submit_reg = uncore->regs +
 			i915_mmio_reg_offset(RING_ELSP(base));
