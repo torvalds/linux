@@ -415,6 +415,12 @@ struct drm_i915_gem_object {
 	 * Note that on shared LLC platforms we still apply the heavy flush for
 	 * I915_CACHE_NONE objects, under the assumption that this is going to
 	 * be used for scanout.
+	 *
+	 * Update: On some hardware there is now also the 'Bypass LLC' MOCS
+	 * entry, which defeats our @cache_coherent tracking, since userspace
+	 * can freely bypass the CPU cache when touching the pages with the GPU,
+	 * where the kernel is completely unaware. On such platform we need
+	 * apply the sledgehammer-on-acquire regardless of the @cache_coherent.
 	 */
 	unsigned int cache_dirty:1;
 
