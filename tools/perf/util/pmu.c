@@ -1927,3 +1927,38 @@ int perf_pmu__match(char *pattern, char *name, char *tok)
 
 	return 0;
 }
+
+int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
+			 struct perf_cpu_map **mcpus_ptr,
+			 struct perf_cpu_map **ucpus_ptr)
+{
+	struct perf_cpu_map *pmu_cpus = pmu->cpus;
+	struct perf_cpu_map *matched_cpus, *unmatched_cpus;
+	int matched_nr = 0, unmatched_nr = 0;
+
+	matched_cpus = perf_cpu_map__default_new();
+	if (!matched_cpus)
+		return -1;
+
+	unmatched_cpus = perf_cpu_map__default_new();
+	if (!unmatched_cpus) {
+		perf_cpu_map__put(matched_cpus);
+		return -1;
+	}
+
+	for (int i = 0; i < cpus->nr; i++) {
+		int cpu;
+
+		cpu = perf_cpu_map__idx(pmu_cpus, cpus->map[i]);
+		if (cpu == -1)
+			unmatched_cpus->map[unmatched_nr++] = cpus->map[i];
+		else
+			matched_cpus->map[matched_nr++] = cpus->map[i];
+	}
+
+	unmatched_cpus->nr = unmatched_nr;
+	matched_cpus->nr = matched_nr;
+	*mcpus_ptr = matched_cpus;
+	*ucpus_ptr = unmatched_cpus;
+	return 0;
+}

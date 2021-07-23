@@ -2430,6 +2430,12 @@ int cmd_stat(int argc, const char **argv)
 	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
 		target.per_thread = true;
 
+	if (evlist__fix_hybrid_cpus(evsel_list, target.cpu_list)) {
+		pr_err("failed to use cpu list %s\n", target.cpu_list);
+		goto out;
+	}
+
+	target.hybrid = perf_pmu__has_hybrid();
 	if (evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
