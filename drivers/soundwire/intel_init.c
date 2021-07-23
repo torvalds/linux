@@ -63,8 +63,8 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 	link->mmio_base = res->mmio_base;
 	link->registers = res->mmio_base + SDW_LINK_BASE
 		+ (SDW_LINK_SIZE * link_id);
-	link->shim = res->mmio_base + SDW_SHIM_BASE;
-	link->alh = res->mmio_base + SDW_ALH_BASE;
+	link->shim = res->mmio_base + res->shim_base;
+	link->alh = res->mmio_base + res->alh_base;
 
 	link->ops = res->ops;
 	link->dev = res->dev;
@@ -214,6 +214,8 @@ static struct sdw_intel_ctx
 	}
 
 	ctx->mmio_base = res->mmio_base;
+	ctx->shim_base = res->shim_base;
+	ctx->alh_base = res->alh_base;
 	ctx->link_mask = res->link_mask;
 	ctx->handle = res->handle;
 	mutex_init(&ctx->shim_lock);
@@ -302,7 +304,7 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 		return -EINVAL;
 
 	/* Check SNDWLCAP.LCOUNT */
-	caps = ioread32(ctx->mmio_base + SDW_SHIM_BASE + SDW_SHIM_LCAP);
+	caps = ioread32(ctx->mmio_base + ctx->shim_base + SDW_SHIM_LCAP);
 	caps &= GENMASK(2, 0);
 
 	/* Check HW supported vs property value */
