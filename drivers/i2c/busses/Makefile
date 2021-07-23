@@ -145,5 +145,6 @@ obj-$(CONFIG_I2C_SIBYTE)	+= i2c-sibyte.o
 obj-$(CONFIG_I2C_XGENE_SLIMPRO) += i2c-xgene-slimpro.o
 obj-$(CONFIG_SCx200_ACB)	+= scx200_acb.o
 obj-$(CONFIG_I2C_FSI)		+= i2c-fsi.o
+obj-$(CONFIG_I2C_VIRTIO)	+= i2c-virtio.o
 
 ccflags-$(CONFIG_I2C_DEBUG_BUS) := -DDEBUG
