@@ -422,6 +422,34 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 
 #endif
 
+static int
+probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
+{
+	const unsigned long end = addr + len;
+	struct vm_area_struct *vma;
+	int ret = -EFAULT;
+
+	mmap_read_lock(mm);
+	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
+		/* Check for holes, note that we also update the addr below */
+		if (vma->vm_start > addr)
+			break;
+
+		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
+			break;
+
+		if (vma->vm_end >= end) {
+			ret = 0;
+			break;
+		}
+
+		addr = vma->vm_end;
+	}
+	mmap_read_unlock(mm);
+
+	return ret;
+}
+
 /*
  * Creates a new mm object that wraps some normal memory from the process
  * context - user memory.
@@ -477,7 +505,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	}
 
 	if (args->flags & ~(I915_USERPTR_READ_ONLY |
-			    I915_USERPTR_UNSYNCHRONIZED))
+			    I915_USERPTR_UNSYNCHRONIZED |
+			    I915_USERPTR_PROBE))
 		return -EINVAL;
 
 	if (i915_gem_object_size_2big(args->user_size))
@@ -502,6 +531,16 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		 */
 		if (!dev_priv->gt.vm->has_read_only)
 			return -ENODEV;
+	}
+
+	if (args->flags & I915_USERPTR_PROBE) {
+		/*
+		 * Check that the range pointed to represents real struct
+		 * pages and not iomappings (at this moment in time!)
+		 */
+		ret = probe_range(current->mm, args->user_ptr, args->user_size);
+		if (ret)
+			return ret;
 	}
 
 #ifdef CONFIG_MMU_NOTIFIER
