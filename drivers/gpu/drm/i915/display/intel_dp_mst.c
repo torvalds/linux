@@ -542,7 +542,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
+	enum transcoder trans = pipe_config->cpu_transcoder;
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
@@ -550,12 +550,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
-	val = intel_de_read(dev_priv,
-			    TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
-	val |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	intel_de_write(dev_priv,
-		       TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder),
-		       val);
+	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(trans), 0,
+		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
@@ -563,6 +559,10 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	wait_for_act_sent(encoder, pipe_config);
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
+
+	if (DISPLAY_VER(dev_priv) >= 12 && pipe_config->fec_enable)
+		intel_de_rmw(dev_priv, CHICKEN_TRANS(trans), 0,
+			     FECSTALL_DIS_DPTSTREAM_DPTTG);
 
 	intel_enable_pipe(pipe_config);
 
