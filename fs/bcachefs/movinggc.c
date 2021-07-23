@@ -147,7 +147,8 @@ static int bch2_copygc(struct bch_fs *c)
 	size_t b, heap_size = 0;
 	int ret;
 
-	memset(&move_stats, 0, sizeof(move_stats));
+	bch_move_stats_init(&move_stats, "copygc");
+
 	/*
 	 * Find buckets with lowest sector counts, skipping completely
 	 * empty buckets, by building a maxheap sorted by sector count,

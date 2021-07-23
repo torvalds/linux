@@ -19,7 +19,6 @@ struct bch_fs_rebalance {
 	enum rebalance_state	state;
 	u64			throttled_until_iotime;
 	unsigned long		throttled_until_cputime;
-	struct bch_move_stats	move_stats;
 
 	unsigned		enabled:1;
 };

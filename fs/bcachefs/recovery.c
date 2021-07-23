@@ -1216,7 +1216,9 @@ use_clean:
 
 	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done))) {
-		struct bch_move_stats stats = { 0 };
+		struct bch_move_stats stats;
+
+		bch_move_stats_init(&stats, "recovery");
 
 		bch_info(c, "scanning for old btree nodes");
 		ret = bch2_fs_read_write(c);

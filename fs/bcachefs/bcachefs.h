@@ -792,6 +792,10 @@ mempool_t		bio_bounce_pages;
 	struct write_point	copygc_write_point;
 	s64			copygc_wait;
 
+	/* DATA PROGRESS STATS */
+	struct list_head	data_progress_list;
+	struct mutex		data_progress_lock;
+
 	/* STRIPES: */
 	GENRADIX(struct stripe) stripes[2];
 

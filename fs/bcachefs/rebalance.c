@@ -166,6 +166,7 @@ static int bch2_rebalance_thread(void *arg)
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct io_clock *clock = &c->io_clock[WRITE];
 	struct rebalance_work w, p;
+	struct bch_move_stats move_stats;
 	unsigned long start, prev_start;
 	unsigned long prev_run_time, prev_run_cputime;
 	unsigned long cputime, prev_cputime;
@@ -179,6 +180,7 @@ static int bch2_rebalance_thread(void *arg)
 	prev_start	= jiffies;
 	prev_cputime	= curr_cputime();
 
+	bch_move_stats_init(&move_stats, "rebalance");
 	while (!kthread_wait_freezable(r->enabled)) {
 		cond_resched();
 
@@ -235,7 +237,7 @@ static int bch2_rebalance_thread(void *arg)
 		prev_cputime	= cputime;
 
 		r->state = REBALANCE_RUNNING;
-		memset(&r->move_stats, 0, sizeof(r->move_stats));
+		memset(&move_stats, 0, sizeof(move_stats));
 		rebalance_work_reset(c);
 
 		bch2_move_data(c,
@@ -245,7 +247,7 @@ static int bch2_rebalance_thread(void *arg)
 			       NULL, /*  &r->pd.rate, */
 			       writepoint_ptr(&c->rebalance_write_point),
 			       rebalance_pred, NULL,
-			       &r->move_stats);
+			       &move_stats);
 	}
 
 	return 0;
@@ -281,10 +283,7 @@ void bch2_rebalance_work_to_text(struct printbuf *out, struct bch_fs *c)
 		       h1);
 		break;
 	case REBALANCE_RUNNING:
-		pr_buf(out, "running\n"
-		       "pos ");
-		bch2_bpos_to_text(out, r->move_stats.pos);
-		pr_buf(out, "\n");
+		pr_buf(out, "running\n");
 		break;
 	}
 }
