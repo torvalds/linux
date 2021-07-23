@@ -434,6 +434,7 @@ static int qeth_l3_correct_routing_type(struct qeth_card *card,
 			if (qeth_is_ipafunc_supported(card, prot,
 						      IPA_OSA_MC_ROUTER))
 				return 0;
+			goto out_inval;
 		default:
 			goto out_inval;
 		}

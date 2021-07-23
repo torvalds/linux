@@ -190,12 +190,9 @@ static int berlin_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	if (state->period != pwm->state.period ||
-	    state->duty_cycle != pwm->state.duty_cycle) {
-		err = berlin_pwm_config(chip, pwm, state->duty_cycle, state->period);
-		if (err)
-			return err;
-	}
+	err = berlin_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
 
 	if (!enabled)
 		return berlin_pwm_enable(chip, pwm);

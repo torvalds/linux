@@ -789,6 +789,8 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 				break;
 			}
 		}
+		fallthrough;
+
 	case JZ4740_MMC_STATE_DONE:
 		break;
 	}
