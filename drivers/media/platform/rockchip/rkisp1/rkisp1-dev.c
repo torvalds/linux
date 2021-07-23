@@ -406,6 +406,27 @@ static irqreturn_t rkisp1_isr(int irq, void *ctx)
 	return IRQ_HANDLED;
 }
 
+static const char * const px30_isp_clks[] = {
+	"isp",
+	"aclk",
+	"hclk",
+	"pclk",
+};
+
+static const struct rkisp1_isr_data px30_isp_isrs[] = {
+	{ "isp", rkisp1_isp_isr },
+	{ "mi", rkisp1_capture_isr },
+	{ "mipi", rkisp1_mipi_isr },
+};
+
+static const struct rkisp1_match_data px30_isp_match_data = {
+	.clks = px30_isp_clks,
+	.clk_size = ARRAY_SIZE(px30_isp_clks),
+	.isrs = px30_isp_isrs,
+	.isr_size = ARRAY_SIZE(px30_isp_isrs),
+	.isp_ver = RKISP1_V12,
+};
+
 static const char * const rk3399_isp_clks[] = {
 	"isp",
 	"aclk",
@@ -425,6 +446,10 @@ static const struct rkisp1_match_data rk3399_isp_match_data = {
 };
 
 static const struct of_device_id rkisp1_of_match[] = {
+	{
+		.compatible = "rockchip,px30-cif-isp",
+		.data = &px30_isp_match_data,
+	},
 	{
 		.compatible = "rockchip,rk3399-cif-isp",
 		.data = &rk3399_isp_match_data,
