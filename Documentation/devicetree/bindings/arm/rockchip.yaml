@@ -466,6 +466,11 @@ properties:
           - const: pine64,rockpro64
           - const: rockchip,rk3399
 
+      - description: Pine64 Quartz64 Model A
+        items:
+          - const: pine64,quartz64-a
+          - const: rockchip,rk3566
+
       - description: Radxa Rock
         items:
           - const: radxa,rock
