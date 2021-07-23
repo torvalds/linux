@@ -244,7 +244,8 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		upcall.cmd = OVS_PACKET_CMD_MISS;
 
 		if (dp->user_features & OVS_DP_F_DISPATCH_UPCALL_PER_CPU)
-			upcall.portid = ovs_dp_get_upcall_portid(dp, smp_processor_id());
+			upcall.portid =
+			    ovs_dp_get_upcall_portid(dp, smp_processor_id());
 		else
 			upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 
@@ -1636,13 +1637,16 @@ u32 ovs_dp_get_upcall_portid(const struct datapath *dp, uint32_t cpu_id)
 	if (dp_nlsk_pids) {
 		if (cpu_id < dp_nlsk_pids->n_pids) {
 			return dp_nlsk_pids->pids[cpu_id];
-		} else if (dp_nlsk_pids->n_pids > 0 && cpu_id >= dp_nlsk_pids->n_pids) {
-			/* If the number of netlink PIDs is mismatched with the number of
-			 * CPUs as seen by the kernel, log this and send the upcall to an
-			 * arbitrary socket (0) in order to not drop packets
+		} else if (dp_nlsk_pids->n_pids > 0 &&
+			   cpu_id >= dp_nlsk_pids->n_pids) {
+			/* If the number of netlink PIDs is mismatched with
+			 * the number of CPUs as seen by the kernel, log this
+			 * and send the upcall to an arbitrary socket (0) in
+			 * order to not drop packets
 			 */
 			pr_info_ratelimited("cpu_id mismatch with handler threads");
-			return dp_nlsk_pids->pids[cpu_id % dp_nlsk_pids->n_pids];
+			return dp_nlsk_pids->pids[cpu_id %
+						  dp_nlsk_pids->n_pids];
 		} else {
 			return 0;
 		}

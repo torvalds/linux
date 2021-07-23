@@ -89,8 +89,8 @@ enum ovs_datapath_attr {
 	OVS_DP_ATTR_USER_FEATURES,	/* OVS_DP_F_*  */
 	OVS_DP_ATTR_PAD,
 	OVS_DP_ATTR_MASKS_CACHE_SIZE,
-	OVS_DP_ATTR_PER_CPU_PIDS,   /* Netlink PIDS to receive upcalls in per-cpu
-				     * dispatch mode
+	OVS_DP_ATTR_PER_CPU_PIDS,   /* Netlink PIDS to receive upcalls in
+				     * per-cpu dispatch mode
 				     */
 	__OVS_DP_ATTR_MAX
 };
