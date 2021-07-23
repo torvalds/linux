@@ -446,15 +446,6 @@ extern const char *tty_driver_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern void stop_tty(struct tty_struct *tty);
 extern void start_tty(struct tty_struct *tty);
-extern int tty_register_driver(struct tty_driver *driver);
-extern void tty_unregister_driver(struct tty_driver *driver);
-extern struct device *tty_register_device(struct tty_driver *driver,
-					  unsigned index, struct device *dev);
-extern struct device *tty_register_device_attr(struct tty_driver *driver,
-				unsigned index, struct device *device,
-				void *drvdata,
-				const struct attribute_group **attr_grp);
-extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
 extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
@@ -690,13 +681,5 @@ extern void tty_unlock(struct tty_struct *tty);
 extern void tty_lock_slave(struct tty_struct *tty);
 extern void tty_unlock_slave(struct tty_struct *tty);
 extern void tty_set_lock_subclass(struct tty_struct *tty);
-
-#ifdef CONFIG_PROC_FS
-extern void proc_tty_register_driver(struct tty_driver *);
-extern void proc_tty_unregister_driver(struct tty_driver *);
-#else
-static inline void proc_tty_register_driver(struct tty_driver *d) {}
-static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
-#endif
 
 #endif

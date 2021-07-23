@@ -434,4 +434,21 @@ static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 /* serial subtype definitions */
 #define SERIAL_TYPE_NORMAL	1
 
+int tty_register_driver(struct tty_driver *driver);
+void tty_unregister_driver(struct tty_driver *driver);
+struct device *tty_register_device(struct tty_driver *driver, unsigned index,
+		struct device *dev);
+struct device *tty_register_device_attr(struct tty_driver *driver,
+		unsigned index, struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp);
+void tty_unregister_device(struct tty_driver *driver, unsigned index);
+
+#ifdef CONFIG_PROC_FS
+void proc_tty_register_driver(struct tty_driver *);
+void proc_tty_unregister_driver(struct tty_driver *);
+#else
+static inline void proc_tty_register_driver(struct tty_driver *d) {}
+static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
+#endif
+
 #endif /* #ifdef _LINUX_TTY_DRIVER_H */
