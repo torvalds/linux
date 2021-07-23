@@ -367,7 +367,8 @@ enum vmw_display_unit_type {
 	vmw_du_invalid = 0,
 	vmw_du_legacy,
 	vmw_du_screen_object,
-	vmw_du_screen_target
+	vmw_du_screen_target,
+	vmw_du_max
 };
 
 struct vmw_validation_context;

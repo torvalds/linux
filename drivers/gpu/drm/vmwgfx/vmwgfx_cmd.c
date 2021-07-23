@@ -140,7 +140,8 @@ struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv)
 	min = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_MIN);
 	fifo->capabilities = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_CAPABILITIES);
 
-	DRM_INFO("Fifo max 0x%08x min 0x%08x cap 0x%08x\n",
+	drm_info(&dev_priv->drm,
+		 "Fifo max 0x%08x min 0x%08x cap 0x%08x\n",
 		 (unsigned int) max,
 		 (unsigned int) min,
 		 (unsigned int) fifo->capabilities);

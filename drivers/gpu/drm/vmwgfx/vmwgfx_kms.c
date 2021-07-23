@@ -1793,6 +1793,13 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	int ret;
+	static const char *display_unit_names[] = {
+		"Invalid",
+		"Legacy",
+		"Screen Object",
+		"Screen Target",
+		"Invalid (max)"
+	};
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = &vmw_kms_funcs;
@@ -1810,6 +1817,9 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 		if (ret) /* Fallback */
 			ret = vmw_kms_ldu_init_display(dev_priv);
 	}
+	BUILD_BUG_ON(ARRAY_SIZE(display_unit_names) != (vmw_du_max + 1));
+	drm_info(&dev_priv->drm, "%s display unit initialized\n",
+		 display_unit_names[dev_priv->active_display_unit]);
 
 	return ret;
 }
