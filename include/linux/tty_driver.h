@@ -340,18 +340,6 @@ extern void tty_driver_kref_put(struct tty_driver *driver);
 #define tty_alloc_driver(lines, flags) \
 		__tty_alloc_driver(lines, THIS_MODULE, flags)
 
-/*
- * DEPRECATED Do not use this in new code, use tty_alloc_driver instead.
- * (And change the return value checks.)
- */
-static inline struct tty_driver *alloc_tty_driver(unsigned int lines)
-{
-	struct tty_driver *ret = tty_alloc_driver(lines, 0);
-	if (IS_ERR(ret))
-		return NULL;
-	return ret;
-}
-
 static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 {
 	kref_get(&d->kref);
