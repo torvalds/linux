@@ -817,21 +817,6 @@ int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mod
 }
 EXPORT_SYMBOL(scsi_cmd_ioctl);
 
-/**
- * scsi_req_init - initialize certain fields of a scsi_request structure
- * @req: Pointer to a scsi_request structure.
- * Initializes .__cmd[], .cmd, .cmd_len and .sense_len but no other members
- * of struct scsi_request.
- */
-void scsi_req_init(struct scsi_request *req)
-{
-	memset(req->__cmd, 0, sizeof(req->__cmd));
-	req->cmd = req->__cmd;
-	req->cmd_len = BLK_MAX_CDB;
-	req->sense_len = 0;
-}
-EXPORT_SYMBOL(scsi_req_init);
-
 static int __init blk_scsi_ioctl_init(void)
 {
 	blk_set_cmd_filter_defaults(&blk_default_cmd_filter);

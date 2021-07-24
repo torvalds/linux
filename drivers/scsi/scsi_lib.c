@@ -1083,8 +1083,13 @@ EXPORT_SYMBOL(scsi_alloc_sgtables);
 static void scsi_initialize_rq(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+	struct scsi_request *req = &cmd->req;
 
-	scsi_req_init(&cmd->req);
+	memset(req->__cmd, 0, sizeof(req->__cmd));
+	req->cmd = req->__cmd;
+	req->cmd_len = BLK_MAX_CDB;
+	req->sense_len = 0;
+
 	init_rcu_head(&cmd->rcu);
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->retries = 0;
