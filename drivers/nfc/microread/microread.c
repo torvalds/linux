@@ -625,7 +625,7 @@ static int microread_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 	return r;
 }
 
-static struct nfc_hci_ops microread_hci_ops = {
+static const struct nfc_hci_ops microread_hci_ops = {
 	.open = microread_open,
 	.close = microread_close,
 	.hci_ready = microread_hci_ready,

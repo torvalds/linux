@@ -118,7 +118,7 @@ struct nfc_hci_dev {
 
 	struct sk_buff_head msg_rx_queue;
 
-	struct nfc_hci_ops *ops;
+	const struct nfc_hci_ops *ops;
 
 	struct nfc_llc *llc;
 
@@ -151,7 +151,7 @@ struct nfc_hci_dev {
 };
 
 /* hci device allocation */
-struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
+struct nfc_hci_dev *nfc_hci_allocate_device(const struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    unsigned long quirks,
 					    u32 protocols,

@@ -947,7 +947,7 @@ static const struct nfc_ops hci_nfc_ops = {
 	.se_io = hci_se_io,
 };
 
-struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
+struct nfc_hci_dev *nfc_hci_allocate_device(const struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    unsigned long quirks,
 					    u32 protocols,

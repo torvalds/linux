@@ -912,7 +912,7 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 	}
 }
 
-static struct nfc_hci_ops st21nfca_hci_ops = {
+static const struct nfc_hci_ops st21nfca_hci_ops = {
 	.open = st21nfca_hci_open,
 	.close = st21nfca_hci_close,
 	.load_session = st21nfca_hci_load_session,

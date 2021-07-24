@@ -881,7 +881,7 @@ static int pn544_hci_disable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	}
 }
 
-static struct nfc_hci_ops pn544_hci_ops = {
+static const struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
 	.hci_ready = pn544_hci_ready,
