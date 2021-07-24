@@ -64,29 +64,6 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 	return 1;
 }
 
-/*
-
- * The SCSI_IOCTL_SEND_COMMAND ioctl sends a command out to the SCSI host.
- * The IOCTL_NORMAL_TIMEOUT and NORMAL_RETRIES  variables are used.  
- * 
- * dev is the SCSI device struct ptr, *(int *) arg is the length of the
- * input data, if any, not including the command string & counts, 
- * *((int *)arg + 1) is the output buffer size in bytes.
- * 
- * *(char *) ((int *) arg)[2] the actual command byte.   
- * 
- * Note that if more than MAX_BUF bytes are requested to be transferred,
- * the ioctl will fail with error EINVAL.
- * 
- * This size *does not* include the initial lengths that were passed.
- * 
- * The SCSI command is read from the memory location immediately after the
- * length words, and the input data is right after the command.  The SCSI
- * routines know the command size based on the opcode decode.  
- * 
- * The output area is then filled in starting from the command byte. 
- */
-
 static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 				  int timeout, int retries)
 {
