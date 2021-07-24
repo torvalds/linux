@@ -7,8 +7,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
+
+MODULE_LICENSE("GPL v2");
 
 /* Command group 3 is reserved and should never be used.  */
 const unsigned char scsi_command_size_tbl[8] = {

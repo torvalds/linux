@@ -14,12 +14,15 @@ config RAID_ATTRS
 	help
 	  Provides RAID
 
+config SCSI_COMMON
+	tristate
+
 config SCSI
 	tristate "SCSI device support"
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
 	select SG_POOL
-	select BLK_SCSI_REQUEST
+	select SCSI_COMMON
 	select BLK_DEV_BSG_COMMON if BLK_DEV_BSG
 	help
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
