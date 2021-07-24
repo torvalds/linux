@@ -842,18 +842,6 @@ int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mod
 }
 EXPORT_SYMBOL(scsi_cmd_ioctl);
 
-int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
-{
-	if (bd && !bdev_is_partition(bd))
-		return 0;
-
-	if (capable(CAP_SYS_RAWIO))
-		return 0;
-
-	return -ENOIOCTLCMD;
-}
-EXPORT_SYMBOL(scsi_verify_blk_ioctl);
-
 /**
  * scsi_req_init - initialize certain fields of a scsi_request structure
  * @req: Pointer to a scsi_request structure.
