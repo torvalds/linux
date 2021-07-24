@@ -191,14 +191,14 @@ struct nfc_dev {
 	const struct nfc_vendor_cmd *vendor_cmds;
 	int n_vendor_cmds;
 
-	struct nfc_ops *ops;
+	const struct nfc_ops *ops;
 	struct genl_info *cur_cmd_info;
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)
 
 extern struct class nfc_class;
 
-struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
+struct nfc_dev *nfc_allocate_device(const struct nfc_ops *ops,
 				    u32 supported_protocols,
 				    int tx_headroom,
 				    int tx_tailroom);

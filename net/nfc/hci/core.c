@@ -928,7 +928,7 @@ static int hci_fw_download(struct nfc_dev *nfc_dev, const char *firmware_name)
 	return hdev->ops->fw_download(hdev, firmware_name);
 }
 
-static struct nfc_ops hci_nfc_ops = {
+static const struct nfc_ops hci_nfc_ops = {
 	.dev_up = hci_dev_up,
 	.dev_down = hci_dev_down,
 	.start_poll = hci_start_poll,
