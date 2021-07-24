@@ -1081,7 +1081,7 @@ cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
-DEVICE_ATTR_RO(cpu0_vid);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 
 /* Case open detection */
