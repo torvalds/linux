@@ -524,14 +524,8 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
 	if (u64s_delta > 0)
 		return 0;
 
-	ret = bch2_foreground_maybe_merge(trans, iter, iter->level,
+	return bch2_foreground_maybe_merge(trans, iter, iter->level,
 				trans->flags & ~BTREE_INSERT_NOUNLOCK);
-	if (!ret) {
-		ret = -EINTR;
-		trans->restarted = true;
-	}
-
-	return ret;
 }
 
 /*
@@ -664,50 +658,17 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			    int ret, unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
-	unsigned flags = trans->flags;
-
-	/*
-	 * BTREE_INSERT_NOUNLOCK means don't unlock _after_ successful btree
-	 * update; if we haven't done anything yet it doesn't apply
-	 */
-	flags &= ~BTREE_INSERT_NOUNLOCK;
 
 	switch (ret) {
 	case BTREE_INSERT_BTREE_NODE_FULL:
-		ret = bch2_btree_split_leaf(trans, i->iter, flags);
-
-		/*
-		 * if the split succeeded without dropping locks the insert will
-		 * still be atomic (what the caller peeked() and is overwriting
-		 * won't have changed)
-		 */
-#if 0
-		/*
-		 * XXX:
-		 * split -> btree node merging (of parent node) might still drop
-		 * locks when we're not passing it BTREE_INSERT_NOUNLOCK
-		 *
-		 * we don't want to pass BTREE_INSERT_NOUNLOCK to split as that
-		 * will inhibit merging - but we don't have a reliable way yet
-		 * (do we?) of checking if we dropped locks in this path
-		 */
+		ret = bch2_btree_split_leaf(trans, i->iter, trans->flags);
 		if (!ret)
-			goto retry;
-#endif
+			return 0;
 
-		/*
-		 * don't care if we got ENOSPC because we told split it
-		 * couldn't block:
-		 */
-		if (!ret ||
-		    ret == -EINTR ||
-		    (flags & BTREE_INSERT_NOUNLOCK)) {
+		if (ret == -EINTR)
 			trace_trans_restart_btree_node_split(trans->ip, trace_ip,
 							     i->iter->btree_id,
 							     &i->iter->real_pos);
-			trans->restarted = true;
-			ret = -EINTR;
-		}
 		break;
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
 		bch2_trans_unlock(trans);
@@ -764,7 +725,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	}
 
 	BUG_ON((ret == EINTR || ret == -EAGAIN) && !trans->restarted);
-	BUG_ON(ret == -ENOSPC && (flags & BTREE_INSERT_NOFAIL));
+	BUG_ON(ret == -ENOSPC && (trans->flags & BTREE_INSERT_NOFAIL));
 
 	return ret;
 }
