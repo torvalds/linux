@@ -720,7 +720,8 @@ static inline struct acpi_device *acpi_dev_get(struct acpi_device *adev)
 
 static inline void acpi_dev_put(struct acpi_device *adev)
 {
-	put_device(&adev->dev);
+	if (adev)
+		put_device(&adev->dev);
 }
 
 struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle);
