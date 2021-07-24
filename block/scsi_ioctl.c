@@ -29,14 +29,6 @@ struct blk_cmd_filter {
 
 static struct blk_cmd_filter blk_default_cmd_filter;
 
-/* Command group 3 is reserved and should never be used.  */
-const unsigned char scsi_command_size_tbl[8] =
-{
-	6, 10, 10, 12,
-	16, 12, 10, 10
-};
-EXPORT_SYMBOL(scsi_command_size_tbl);
-
 static int sg_get_version(int __user *p)
 {
 	static const int sg_version_num = 30527;

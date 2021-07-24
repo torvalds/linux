@@ -10,6 +10,12 @@
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 
+/* Command group 3 is reserved and should never be used.  */
+const unsigned char scsi_command_size_tbl[8] = {
+	6, 10, 10, 12, 16, 12, 10, 10
+};
+EXPORT_SYMBOL(scsi_command_size_tbl);
+
 /* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
  * You may not alter any existing entry (although adding new ones is
  * encouraged once assigned by ANSI/INCITS T10).
