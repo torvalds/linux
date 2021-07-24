@@ -556,7 +556,8 @@ static void sr_block_release(struct gendisk *disk, fmode_t mode)
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			  unsigned long arg)
 {
-	struct scsi_cd *cd = scsi_cd(bdev->bd_disk);
+	struct gendisk *disk = bdev->bd_disk;
+	struct scsi_cd *cd = scsi_cd(disk);
 	struct scsi_device *sdev = cd->device;
 	void __user *argp = (void __user *)arg;
 	int ret;
@@ -579,7 +580,10 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		break;
 	default:
-		ret = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
+		ret = scsi_verify_blk_ioctl(bdev, cmd);
+		if (ret < 0)
+			goto put;
+		ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
 		if (ret != -ENOTTY)
 			goto put;
 		ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, arg);

@@ -854,19 +854,6 @@ int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
 }
 EXPORT_SYMBOL(scsi_verify_blk_ioctl);
 
-int scsi_cmd_blk_ioctl(struct block_device *bd, fmode_t mode,
-		       unsigned int cmd, void __user *arg)
-{
-	int ret;
-
-	ret = scsi_verify_blk_ioctl(bd, cmd);
-	if (ret < 0)
-		return ret;
-
-	return scsi_cmd_ioctl(bd->bd_disk->queue, bd->bd_disk, mode, cmd, arg);
-}
-EXPORT_SYMBOL(scsi_cmd_blk_ioctl);
-
 /**
  * scsi_req_init - initialize certain fields of a scsi_request structure
  * @req: Pointer to a scsi_request structure.

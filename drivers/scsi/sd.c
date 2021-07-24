@@ -1583,7 +1583,10 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		break;
 	default:
-		error = scsi_cmd_blk_ioctl(bdev, mode, cmd, p);
+		error = scsi_verify_blk_ioctl(bdev, cmd);
+		if (error < 0)
+			return error;
+		error = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, p);
 		if (error != -ENOTTY)
 			return error;
 	}
