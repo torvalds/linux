@@ -168,7 +168,7 @@ void nfc_hci_set_clientdata(struct nfc_hci_dev *hdev, void *clientdata);
 void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 
 static inline int nfc_hci_set_vendor_cmds(struct nfc_hci_dev *hdev,
-					  struct nfc_vendor_cmd *cmds,
+					  const struct nfc_vendor_cmd *cmds,
 					  int n_cmds)
 {
 	return nfc_set_vendor_cmds(hdev->ndev, cmds, n_cmds);
