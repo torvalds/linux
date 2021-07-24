@@ -374,7 +374,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 				percpu_ref_put(&ca->ref);
 				goto err;
 			}
-			bch2_btree_iter_next_slot(iter);
+			bch2_btree_iter_advance(iter);
 		}
 	}
 err:

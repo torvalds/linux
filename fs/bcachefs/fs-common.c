@@ -168,6 +168,10 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		goto err;
 
 	k = bch2_btree_iter_peek_slot(dirent_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
 	inum = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum);
 
 	inode_iter = bch2_inode_peek(trans, inode_u, inum, BTREE_ITER_INTENT);

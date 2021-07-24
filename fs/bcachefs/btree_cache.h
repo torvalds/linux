@@ -27,8 +27,8 @@ struct btree *bch2_btree_node_get(struct btree_trans *, struct btree_iter *,
 struct btree *bch2_btree_node_get_noiter(struct bch_fs *, const struct bkey_i *,
 					 enum btree_id, unsigned, bool);
 
-void bch2_btree_node_prefetch(struct bch_fs *, struct btree_iter *,
-			      const struct bkey_i *, enum btree_id, unsigned);
+int bch2_btree_node_prefetch(struct bch_fs *, struct btree_iter *,
+			     const struct bkey_i *, enum btree_id, unsigned);
 
 void bch2_btree_node_evict(struct bch_fs *, const struct bkey_i *);
 

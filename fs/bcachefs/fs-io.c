@@ -2668,13 +2668,13 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		/* already reserved */
 		if (k.k->type == KEY_TYPE_reservation &&
 		    bkey_s_c_to_reservation(k).v->nr_replicas >= replicas) {
-			bch2_btree_iter_next_slot(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 
 		if (bkey_extent_is_data(k.k) &&
 		    !(mode & FALLOC_FL_ZERO_RANGE)) {
-			bch2_btree_iter_next_slot(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 

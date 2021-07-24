@@ -124,6 +124,7 @@ static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info
 	struct bch_hash_info hash = bch2_hash_info_init(trans->c, &inode->ei_inode);
 	struct btree_iter *iter;
 	struct bkey_s_c_xattr xattr;
+	struct bkey_s_c k;
 	int ret;
 
 	iter = bch2_hash_lookup(trans, bch2_xattr_hash_desc, &hash,
@@ -134,7 +135,12 @@ static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info
 	if (ret)
 		goto err;
 
-	xattr = bkey_s_c_to_xattr(bch2_btree_iter_peek_slot(iter));
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	xattr = bkey_s_c_to_xattr(k);
 	ret = le16_to_cpu(xattr.v->x_val_len);
 	if (buffer) {
 		if (ret > size)

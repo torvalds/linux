@@ -519,7 +519,7 @@ again:
 		if (k.k->p.snapshot == snapshot &&
 		    k.k->type != KEY_TYPE_inode &&
 		    !bch2_btree_key_cache_find(c, BTREE_ID_inodes, SPOS(0, pos, snapshot))) {
-			bch2_btree_iter_next(iter);
+			bch2_btree_iter_advance(iter);
 			continue;
 		}
 

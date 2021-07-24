@@ -1142,7 +1142,7 @@ static inline int btree_iter_lock_root(struct btree_iter *iter,
 }
 
 noinline
-static void btree_iter_prefetch(struct btree_iter *iter)
+static int btree_iter_prefetch(struct btree_iter *iter)
 {
 	struct bch_fs *c = iter->trans->c;
 	struct btree_iter_level *l = &iter->l[iter->level];
@@ -1153,10 +1153,11 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 		? (iter->level > 1 ? 0 :  2)
 		: (iter->level > 1 ? 1 : 16);
 	bool was_locked = btree_node_locked(iter, iter->level);
+	int ret = 0;
 
 	bch2_bkey_buf_init(&tmp);
 
-	while (nr) {
+	while (nr && !ret) {
 		if (!bch2_btree_node_relock(iter, iter->level))
 			break;
 
@@ -1166,14 +1167,15 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 			break;
 
 		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
-		bch2_btree_node_prefetch(c, iter, tmp.k, iter->btree_id,
-					 iter->level - 1);
+		ret = bch2_btree_node_prefetch(c, iter, tmp.k, iter->btree_id,
+					       iter->level - 1);
 	}
 
 	if (!was_locked)
 		btree_node_unlock(iter, iter->level);
 
 	bch2_bkey_buf_exit(&tmp, c);
+	return ret;
 }
 
 static noinline void btree_node_mem_ptr_set(struct btree_iter *iter,
@@ -1228,7 +1230,7 @@ static __always_inline int btree_iter_down(struct btree_iter *iter,
 		btree_node_mem_ptr_set(iter, level + 1, b);
 
 	if (iter->flags & BTREE_ITER_PREFETCH)
-		btree_iter_prefetch(iter);
+		ret = btree_iter_prefetch(iter);
 
 	if (btree_node_read_locked(iter, level + 1))
 		btree_node_unlock(iter, level + 1);

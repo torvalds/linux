@@ -245,8 +245,12 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			 * writing to, because i_size could be up to one block
 			 * less:
 			 */
-			if (!bkey_cmp(old.k->p, new->k.p))
+			if (!bkey_cmp(old.k->p, new->k.p)) {
 				old = bch2_btree_iter_next(iter);
+				ret = bkey_err(old);
+				if (ret)
+					break;
+			}
 
 			if (old.k && !bkey_err(old) &&
 			    old.k->p.inode == extent_iter->pos.inode &&

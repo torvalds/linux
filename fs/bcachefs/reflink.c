@@ -192,8 +192,9 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 			return k;
 	}
 
-	bch2_btree_iter_set_pos(iter, end);
-	return bkey_s_c_null;
+	if (bkey_cmp(iter->pos, end) >= 0)
+		bch2_btree_iter_set_pos(iter, end);
+	return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 }
 
 s64 bch2_remap_range(struct bch_fs *c,

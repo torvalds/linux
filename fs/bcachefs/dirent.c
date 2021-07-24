@@ -210,6 +210,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		goto out;
 
 	old_dst = bch2_btree_iter_peek_slot(dst_iter);
+	ret = bkey_err(old_dst);
+	if (ret)
+		goto out;
 
 	if (mode != BCH_RENAME)
 		*dst_inum = le64_to_cpu(bkey_s_c_to_dirent(old_dst).v->d_inum);
@@ -225,6 +228,10 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		goto out;
 
 	old_src = bch2_btree_iter_peek_slot(src_iter);
+	ret = bkey_err(old_src);
+	if (ret)
+		goto out;
+
 	*src_inum = le64_to_cpu(bkey_s_c_to_dirent(old_src).v->d_inum);
 
 	/* Create new dst key: */
@@ -329,20 +336,25 @@ u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 inum = 0;
+	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = __bch2_dirent_lookup_trans(&trans, dir_inum,
 					  hash_info, name, 0);
-	if (IS_ERR(iter)) {
-		BUG_ON(PTR_ERR(iter) == -EINTR);
+	ret = PTR_ERR_OR_ZERO(iter);
+	if (ret)
 		goto out;
-	}
 
 	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto out;
+
 	inum = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum);
 	bch2_trans_iter_put(&trans, iter);
 out:
+	BUG_ON(ret == -EINTR);
 	bch2_trans_exit(&trans);
 	return inum;
 }

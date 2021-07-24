@@ -190,7 +190,7 @@ nomatch:
 		}
 		atomic_long_inc(&c->extent_migrate_raced);
 		trace_move_race(&new->k);
-		bch2_btree_iter_next_slot(iter);
+		bch2_btree_iter_advance(iter);
 		goto next;
 	}
 out:

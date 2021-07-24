@@ -209,7 +209,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 	iter = bch2_trans_copy_iter(trans, start);
 
-	bch2_btree_iter_next_slot(iter);
+	bch2_btree_iter_advance(iter);
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->type != desc.key_type &&
