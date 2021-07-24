@@ -651,7 +651,7 @@ static int fdp_nci_core_get_config_rsp_packet(struct nci_dev *ndev,
 	return 0;
 }
 
-static struct nci_driver_ops fdp_core_ops[] = {
+static const struct nci_driver_ops fdp_core_ops[] = {
 	{
 		.opcode = NCI_OP_CORE_GET_CONFIG_RSP,
 		.rsp = fdp_nci_core_get_config_rsp_packet,
@@ -662,7 +662,7 @@ static struct nci_driver_ops fdp_core_ops[] = {
 	},
 };
 
-static struct nci_driver_ops fdp_prop_ops[] = {
+static const struct nci_driver_ops fdp_prop_ops[] = {
 	{
 		.opcode = nci_opcode_pack(NCI_GID_PROP, NCI_OP_PROP_PATCH_OID),
 		.rsp = fdp_nci_prop_patch_rsp_packet,

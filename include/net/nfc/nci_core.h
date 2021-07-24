@@ -82,10 +82,10 @@ struct nci_ops {
 	void  (*hci_cmd_received)(struct nci_dev *ndev, u8 pipe, u8 cmd,
 				  struct sk_buff *skb);
 
-	struct nci_driver_ops *prop_ops;
+	const struct nci_driver_ops *prop_ops;
 	size_t n_prop_ops;
 
-	struct nci_driver_ops *core_ops;
+	const struct nci_driver_ops *core_ops;
 	size_t n_core_ops;
 };
 
