@@ -197,16 +197,15 @@ struct iomap_readpage_ctx {
 /**
  * iomap_read_inline_data - copy inline data into the page cache
  * @iter: iteration structure
- * @page: page to copy to
+ * @folio: folio to copy to
  *
- * Copy the inline data in @iter into @page and zero out the rest of the page.
+ * Copy the inline data in @iter into @folio and zero out the rest of the folio.
  * Only a single IOMAP_INLINE extent is allowed at the end of each file.
  * Returns zero for success to complete the read, or the usual negative errno.
  */
 static int iomap_read_inline_data(const struct iomap_iter *iter,
-		struct page *page)
+		struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct iomap_page *iop;
 	const struct iomap *iomap = iomap_iter_srcmap(iter);
 	size_t size = i_size_read(iter->inode) - iomap->offset;
@@ -214,7 +213,7 @@ static int iomap_read_inline_data(const struct iomap_iter *iter,
 	size_t offset = offset_in_folio(folio, iomap->offset);
 	void *addr;
 
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		return 0;
 
 	if (WARN_ON_ONCE(size > PAGE_SIZE - poff))
@@ -229,7 +228,7 @@ static int iomap_read_inline_data(const struct iomap_iter *iter,
 	else
 		iop = to_iomap_page(folio);
 
-	addr = kmap_local_page(page) + poff;
+	addr = kmap_local_folio(folio, offset);
 	memcpy(addr, iomap->inline_data, size);
 	memset(addr + size, 0, PAGE_SIZE - poff - size);
 	kunmap_local(addr);
@@ -261,7 +260,7 @@ static loff_t iomap_readpage_iter(const struct iomap_iter *iter,
 	sector_t sector;
 
 	if (iomap->type == IOMAP_INLINE)
-		return iomap_read_inline_data(iter, page);
+		return iomap_read_inline_data(iter, folio);
 
 	/* zero post-eof blocks as the page may be mapped */
 	iop = iomap_page_create(iter->inode, folio);
@@ -597,10 +596,12 @@ static int __iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 static int iomap_write_begin_inline(const struct iomap_iter *iter,
 		struct page *page)
 {
+	struct folio *folio = page_folio(page);
+
 	/* needs more work for the tailpacking case; disable for now */
 	if (WARN_ON_ONCE(iomap_iter_srcmap(iter)->offset != 0))
 		return -EIO;
-	return iomap_read_inline_data(iter, page);
+	return iomap_read_inline_data(iter, folio);
 }
 
 static int iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
