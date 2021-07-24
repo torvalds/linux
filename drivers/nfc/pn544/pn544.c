@@ -108,7 +108,7 @@ static struct nfc_hci_gate pn544_gates[] = {
 #define PN544_CMDS_HEADROOM	2
 
 struct pn544_hci_info {
-	struct nfc_phy_ops *phy_ops;
+	const struct nfc_phy_ops *phy_ops;
 	void *phy_id;
 
 	struct nfc_hci_dev *hdev;
@@ -901,9 +901,10 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.disable_se = pn544_hci_disable_se,
 };
 
-int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
-		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    fw_download_t fw_download, struct nfc_hci_dev **hdev)
+int pn544_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
+		    char *llc_name, int phy_headroom, int phy_tailroom,
+		    int phy_payload, fw_download_t fw_download,
+		    struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
 	u32 protocols;

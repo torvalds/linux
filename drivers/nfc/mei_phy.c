@@ -362,7 +362,7 @@ static void nfc_mei_phy_disable(void *phy_id)
 	phy->powered = 0;
 }
 
-struct nfc_phy_ops mei_phy_ops = {
+const struct nfc_phy_ops mei_phy_ops = {
 	.write = nfc_mei_phy_write,
 	.enable = nfc_mei_phy_enable,
 	.disable = nfc_mei_phy_disable,

@@ -152,7 +152,7 @@ static struct nfc_hci_gate microread_gates[] = {
 #define MICROREAD_CMD_TAILROOM	2
 
 struct microread_info {
-	struct nfc_phy_ops *phy_ops;
+	const struct nfc_phy_ops *phy_ops;
 	void *phy_id;
 
 	struct nfc_hci_dev *hdev;
@@ -641,9 +641,9 @@ static struct nfc_hci_ops microread_hci_ops = {
 	.event_received = microread_event_received,
 };
 
-int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
-		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    struct nfc_hci_dev **hdev)
+int microread_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
+		    char *llc_name, int phy_headroom, int phy_tailroom,
+		    int phy_payload, struct nfc_hci_dev **hdev)
 {
 	struct microread_info *info;
 	unsigned long quirks = 0;
