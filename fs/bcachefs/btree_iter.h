@@ -148,8 +148,6 @@ void bch2_btree_iter_reinit_node(struct btree_iter *, struct btree *);
 
 int __must_check bch2_btree_iter_traverse(struct btree_iter *);
 
-int bch2_btree_iter_traverse_all(struct btree_trans *);
-
 struct btree *bch2_btree_iter_peek_node(struct btree_iter *);
 struct btree *bch2_btree_iter_next_node(struct btree_iter *);
 

@@ -960,9 +960,6 @@ retry:
 	if (flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
 	else if (!down_read_trylock(&c->gc_lock)) {
-		if (flags & BTREE_INSERT_NOUNLOCK)
-			return ERR_PTR(-EINTR);
-
 		bch2_trans_unlock(trans);
 		down_read(&c->gc_lock);
 		if (!bch2_trans_relock(trans)) {
@@ -1005,16 +1002,6 @@ retry:
 				      BTREE_UPDATE_JOURNAL_RES,
 				      journal_flags|JOURNAL_RES_GET_NONBLOCK);
 	if (ret == -EAGAIN) {
-		/*
-		 * this would be cleaner if bch2_journal_preres_get() took a
-		 * closure argument
-		 */
-		if (flags & BTREE_INSERT_NOUNLOCK) {
-			trace_trans_restart_journal_preres_get(trans->ip, _RET_IP_);
-			ret = -EINTR;
-			goto err;
-		}
-
 		bch2_trans_unlock(trans);
 
 		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
@@ -1043,8 +1030,7 @@ retry:
 	if (ret)
 		goto err;
 
-	ret = bch2_btree_reserve_get(as, nr_nodes, flags,
-		!(flags & BTREE_INSERT_NOUNLOCK) ? &cl : NULL);
+	ret = bch2_btree_reserve_get(as, nr_nodes, flags, &cl);
 	if (ret)
 		goto err;
 
@@ -1057,8 +1043,6 @@ err:
 	bch2_btree_update_free(as);
 
 	if (ret == -EAGAIN) {
-		BUG_ON(flags & BTREE_INSERT_NOUNLOCK);
-
 		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 		ret = -EINTR;
@@ -1593,12 +1577,12 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	size_t sib_u64s;
 	int ret = 0, ret2 = 0;
 
-	BUG_ON(!btree_node_locked(iter, level));
 retry:
 	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
-		goto err;
+		return ret;
 
+	BUG_ON(!iter->should_be_locked);
 	BUG_ON(!btree_node_locked(iter, level));
 
 	b = iter->l[level].b;
@@ -1750,13 +1734,6 @@ err:
 
 	if (ret == -EINTR && bch2_trans_relock(trans))
 		goto retry;
-
-	if (ret == -EINTR && !(flags & BTREE_INSERT_NOUNLOCK)) {
-		ret2 = ret;
-		ret = bch2_btree_iter_traverse_all(trans);
-		if (!ret)
-			goto retry;
-	}
 
 	goto out;
 }

@@ -1335,7 +1335,7 @@ out:
 	return ret;
 }
 
-int bch2_btree_iter_traverse_all(struct btree_trans *trans)
+static int bch2_btree_iter_traverse_all(struct btree_trans *trans)
 {
 	return __btree_iter_traverse_all(trans, 0, _RET_IP_);
 }
