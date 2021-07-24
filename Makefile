@@ -191,10 +191,9 @@ endif
 ifneq ($(abs_srctree),$(abs_objtree))
 # Look for make include files relative to root of kernel src
 #
-# This does not become effective immediately because MAKEFLAGS is re-parsed
-# once after the Makefile is read. We need to invoke sub-make.
+# --included-dir is added for backward compatibility, but you should not rely on
+# it. Please add $(srctree)/ prefix to include Makefiles in the source tree.
 MAKEFLAGS += --include-dir=$(abs_srctree)
-need-sub-make := 1
 endif
 
 ifneq ($(filter 3.%,$(MAKE_VERSION)),)

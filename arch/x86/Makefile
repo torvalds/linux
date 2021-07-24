@@ -75,7 +75,7 @@ ifeq ($(CONFIG_X86_32),y)
         KBUILD_CFLAGS += $(call cc-option,$(cc_stack_align4))
 
         # CPU-specific tuning. Anything which can be shared with UML should go here.
-        include arch/x86/Makefile_32.cpu
+        include $(srctree)/arch/x86/Makefile_32.cpu
         KBUILD_CFLAGS += $(cflags-y)
 
         # temporary until string.h is fixed
