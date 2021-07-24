@@ -877,8 +877,6 @@ static long ch_ioctl(struct file *file,
 	}
 
 	default:
-		if (in_compat_syscall())
-			return scsi_compat_ioctl(ch->device, cmd, argp);
 		return scsi_ioctl(ch->device, cmd, argp);
 
 	}

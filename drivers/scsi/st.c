@@ -3886,7 +3886,7 @@ static long st_compat_ioctl(struct file *file, unsigned int cmd_in, unsigned lon
 	if (ret != -ENOTTY)
 		return ret;
 
-	return scsi_compat_ioctl(STp->device, cmd_in, p);
+	return scsi_ioctl(STp->device, cmd_in, p);
 }
 #endif
 

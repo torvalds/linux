@@ -1588,8 +1588,6 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 			return error;
 	}
 
-	if (in_compat_syscall())
-		return scsi_compat_ioctl(sdp, cmd, p);
 	return scsi_ioctl(sdp, cmd, p);
 }
 

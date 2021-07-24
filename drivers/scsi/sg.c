@@ -1165,9 +1165,6 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 	ret = sg_ioctl_common(filp, sdp, sfp, cmd_in, p);
 	if (ret != -ENOIOCTLCMD)
 		return ret;
-
-	if (in_compat_syscall())
-		return scsi_compat_ioctl(sdp->device, cmd_in, p);
 	return scsi_ioctl(sdp->device, cmd_in, p);
 }
 

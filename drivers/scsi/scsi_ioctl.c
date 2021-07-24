@@ -189,8 +189,17 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 		? -EFAULT: 0;
 }
 
-
-static int scsi_ioctl_common(struct scsi_device *sdev, int cmd, void __user *arg)
+/**
+ * scsi_ioctl - Dispatch ioctl to scsi device
+ * @sdev: scsi device receiving ioctl
+ * @cmd: which ioctl is it
+ * @arg: data associated with ioctl
+ *
+ * Description: The scsi_ioctl() function differs from most ioctls in that it
+ * does not take a major/minor number as the dev field.  Rather, it takes
+ * a pointer to a &struct scsi_device.
+ */
+int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	char scsi_cmd[MAX_COMMAND_SIZE];
 	struct scsi_sense_hdr sense_hdr;
@@ -258,48 +267,19 @@ static int scsi_ioctl_common(struct scsi_device *sdev, int cmd, void __user *arg
 	case SG_SCSI_RESET:
 		return scsi_ioctl_reset(sdev, arg);
 	}
-	return -ENOIOCTLCMD;
-}
-
-/**
- * scsi_ioctl - Dispatch ioctl to scsi device
- * @sdev: scsi device receiving ioctl
- * @cmd: which ioctl is it
- * @arg: data associated with ioctl
- *
- * Description: The scsi_ioctl() function differs from most ioctls in that it
- * does not take a major/minor number as the dev field.  Rather, it takes
- * a pointer to a &struct scsi_device.
- */
-int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
-{
-	int ret = scsi_ioctl_common(sdev, cmd, arg);
-
-	if (ret != -ENOIOCTLCMD)
-		return ret;
-
-	if (sdev->host->hostt->ioctl)
-		return sdev->host->hostt->ioctl(sdev, cmd, arg);
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL(scsi_ioctl);
 
 #ifdef CONFIG_COMPAT
-int scsi_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
-{
-	int ret = scsi_ioctl_common(sdev, cmd, arg);
-
-	if (ret != -ENOIOCTLCMD)
-		return ret;
-
-	if (sdev->host->hostt->compat_ioctl)
+	if (in_compat_syscall()) {
+		if (!sdev->host->hostt->compat_ioctl)
+			return -EINVAL;
 		return sdev->host->hostt->compat_ioctl(sdev, cmd, arg);
-
-	return ret;
-}
-EXPORT_SYMBOL(scsi_compat_ioctl);
+	}
 #endif
+	if (!sdev->host->hostt->ioctl)
+		return -EINVAL;
+	return sdev->host->hostt->ioctl(sdev, cmd, arg);
+}
+EXPORT_SYMBOL(scsi_ioctl);
 
 /*
  * We can process a reset even when a device isn't fully operable.

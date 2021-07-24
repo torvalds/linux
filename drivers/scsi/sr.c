@@ -584,10 +584,7 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			goto put;
 	}
 
-	if (in_compat_syscall())
-		ret = scsi_compat_ioctl(sdev, cmd, argp);
-	else
-		ret = scsi_ioctl(sdev, cmd, argp);
+	ret = scsi_ioctl(sdev, cmd, argp);
 
 put:
 	scsi_autopm_put_device(sdev);
