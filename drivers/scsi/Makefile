@@ -168,6 +168,7 @@ scsi_mod-$(CONFIG_BLK_DEBUG_FS)	+= scsi_debugfs.o
 scsi_mod-y			+= scsi_trace.o scsi_logging.o
 scsi_mod-$(CONFIG_PM)		+= scsi_pm.o
 scsi_mod-$(CONFIG_SCSI_DH)	+= scsi_dh.o
+scsi_mod-$(CONFIG_BLK_DEV_BSG)	+= scsi_bsg.o
 
 hv_storvsc-y			:= storvsc_drv.o
 

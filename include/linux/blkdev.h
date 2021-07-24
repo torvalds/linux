@@ -537,7 +537,7 @@ struct request_queue {
 
 	int			mq_freeze_depth;
 
-#if defined(CONFIG_BLK_DEV_BSG)
+#if IS_ENABLED(CONFIG_BLK_DEV_BSG_COMMON)
 	struct bsg_class_device bsg_dev;
 #endif
 

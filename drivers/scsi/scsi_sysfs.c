@@ -1366,7 +1366,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	transport_add_device(&sdev->sdev_gendev);
 	sdev->is_visible = 1;
 
-	error = bsg_scsi_register_queue(rq, &sdev->sdev_gendev);
+	error = scsi_bsg_register_queue(rq, &sdev->sdev_gendev);
 	if (error)
 		/* we're treating error on bsg register as non-fatal,
 		 * so pretend nothing went wrong */
