@@ -205,7 +205,6 @@ static inline bool btree_iter_get_locks(struct btree_iter *iter, bool upgrade,
 					is_btree_node(iter, l)
 					? iter->l[l].b->c.lock.state.seq
 					: 0);
-
 			fail_idx = l;
 			btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
 		}
@@ -381,6 +380,34 @@ void bch2_btree_trans_verify_locks(struct btree_trans *trans)
 #else
 static inline void bch2_btree_iter_verify_locks(struct btree_iter *iter) {}
 #endif
+
+/*
+ * Only for btree_cache.c - only relocks intent locks
+ */
+bool bch2_btree_iter_relock_intent(struct btree_iter *iter)
+{
+	unsigned l;
+
+	for (l = iter->level;
+	     l < iter->locks_want && btree_iter_node(iter, l);
+	     l++) {
+		if (!bch2_btree_node_relock(iter, l)) {
+			trace_node_relock_fail(iter->trans->ip, _RET_IP_,
+					iter->btree_id, &iter->real_pos,
+					l, iter->l[l].lock_seq,
+					is_btree_node(iter, l)
+					? 0
+					: (unsigned long) iter->l[l].b,
+					is_btree_node(iter, l)
+					? iter->l[l].b->c.lock.state.seq
+					: 0);
+			btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
+			return false;
+		}
+	}
+
+	return true;
+}
 
 __flatten
 bool bch2_btree_iter_relock(struct btree_iter *iter, unsigned long trace_ip)
@@ -1172,7 +1199,8 @@ static noinline void btree_node_mem_ptr_set(struct btree_iter *iter,
 static __always_inline int btree_iter_down(struct btree_iter *iter,
 					   unsigned long trace_ip)
 {
-	struct bch_fs *c = iter->trans->c;
+	struct btree_trans *trans  = iter->trans;
+	struct bch_fs *c = trans->c;
 	struct btree_iter_level *l = &iter->l[iter->level];
 	struct btree *b;
 	unsigned level = iter->level - 1;
@@ -1186,7 +1214,7 @@ static __always_inline int btree_iter_down(struct btree_iter *iter,
 	bch2_bkey_buf_unpack(&tmp, c, l->b,
 			 bch2_btree_node_iter_peek(&l->iter, l->b));
 
-	b = bch2_btree_node_get(c, iter, tmp.k, level, lock_type, trace_ip);
+	b = bch2_btree_node_get(trans, iter, tmp.k, level, lock_type, trace_ip);
 	ret = PTR_ERR_OR_ZERO(b);
 	if (unlikely(ret))
 		goto err;

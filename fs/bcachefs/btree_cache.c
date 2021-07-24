@@ -693,14 +693,9 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	if (!sync)
 		return NULL;
 
-	/*
-	 * XXX: this will probably always fail because btree_iter_relock()
-	 * currently fails for iterators that aren't pointed at a valid btree
-	 * node
-	 */
 	if (iter &&
 	    (!bch2_trans_relock(iter->trans) ||
-	     !bch2_btree_iter_relock(iter, _THIS_IP_)))
+	     !bch2_btree_iter_relock_intent(iter)))
 		return ERR_PTR(-EINTR);
 
 	if (!six_relock_type(&b->c.lock, lock_type, seq))
@@ -760,11 +755,12 @@ static inline void btree_check_header(struct bch_fs *c, struct btree *b)
  * The btree node will have either a read or a write lock held, depending on
  * the @write parameter.
  */
-struct btree *bch2_btree_node_get(struct bch_fs *c, struct btree_iter *iter,
+struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_iter *iter,
 				  const struct bkey_i *k, unsigned level,
 				  enum six_lock_type lock_type,
 				  unsigned long trace_ip)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 	struct bset_tree *t;
@@ -838,7 +834,7 @@ lock_node:
 			if (bch2_btree_node_relock(iter, level + 1))
 				goto retry;
 
-			trace_trans_restart_btree_node_reused(iter->trans->ip,
+			trace_trans_restart_btree_node_reused(trans->ip,
 							      trace_ip,
 							      iter->btree_id,
 							      &iter->real_pos);
@@ -850,18 +846,17 @@ lock_node:
 		u32 seq = b->c.lock.state.seq;
 
 		six_unlock_type(&b->c.lock, lock_type);
-		bch2_trans_unlock(iter->trans);
+		bch2_trans_unlock(trans);
 
 		bch2_btree_node_wait_on_read(b);
 
 		/*
-		 * XXX: check if this always fails - btree_iter_relock()
-		 * currently fails for iterators that aren't pointed at a valid
-		 * btree node
+		 * should_be_locked is not set on this iterator yet, so we need
+		 * to relock it specifically:
 		 */
 		if (iter &&
-		    (!bch2_trans_relock(iter->trans) ||
-		     !bch2_btree_iter_relock(iter, _THIS_IP_)))
+		    (!bch2_trans_relock(trans) ||
+		     !bch2_btree_iter_relock_intent(iter)))
 			return ERR_PTR(-EINTR);
 
 		if (!six_relock_type(&b->c.lock, lock_type, seq))
