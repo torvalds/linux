@@ -864,6 +864,23 @@ static int scsi_cdrom_send_packet(struct request_queue *q,
 	return err;
 }
 
+static int scsi_ioctl_sg_io(struct request_queue *q, struct gendisk *disk,
+		fmode_t mode, void __user *argp)
+{
+	struct sg_io_hdr hdr;
+	int error;
+
+	error = get_sg_io_hdr(&hdr, argp);
+	if (error)
+		return error;
+	error = sg_io(q, disk, &hdr, mode);
+	if (error == -EFAULT)
+		return error;
+	if (put_sg_io_hdr(&hdr, argp))
+		return -EFAULT;
+	return 0;
+}
+
 /**
  * scsi_ioctl - Dispatch ioctl to scsi device
  * @sdev: scsi device receiving ioctl
@@ -881,7 +898,6 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 {
 	struct request_queue *q = sdev->request_queue;
 	struct scsi_sense_hdr sense_hdr;
-	int error;
 
 	/* Check for deprecated ioctls ... all the ioctls which don't
 	 * follow the new unique numbering scheme are deprecated */
@@ -912,21 +928,8 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 		return sg_set_reserved_size(q, arg);
 	case SG_EMULATED_HOST:
 		return sg_emulated_host(q, arg);
-	case SG_IO: {
-		struct sg_io_hdr hdr;
-
-		error = get_sg_io_hdr(&hdr, arg);
-		if (error)
-			return error;
-
-		error = sg_io(q, disk, &hdr, mode);
-		if (error == -EFAULT)
-			return error;
-
-		if (put_sg_io_hdr(&hdr, arg))
-			return -EFAULT;
-		return 0;
-	}
+	case SG_IO:
+		return scsi_ioctl_sg_io(q, disk, mode, arg);
 	case SCSI_IOCTL_SEND_COMMAND:
 		return sg_scsi_ioctl(q, disk, mode, arg);
 	case CDROM_SEND_PACKET:
