@@ -775,14 +775,16 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_traverse,
 TRACE_EVENT(iter_traverse,
 	TP_PROTO(unsigned long	trans_ip,
 		 unsigned long	caller_ip,
+		 bool key_cache,
 		 enum btree_id	btree_id,
 		 struct bpos	*pos,
 		 int ret),
-	TP_ARGS(trans_ip, caller_ip, btree_id, pos, ret),
+	TP_ARGS(trans_ip, caller_ip, key_cache, btree_id, pos, ret),
 
 	TP_STRUCT__entry(
 		__field(unsigned long,		trans_ip	)
 		__field(unsigned long,		caller_ip	)
+		__field(u8,			key_cache	)
 		__field(u8,			btree_id	)
 		__field(u64,			pos_inode	)
 		__field(u64,			pos_offset	)
@@ -793,6 +795,7 @@ TRACE_EVENT(iter_traverse,
 	TP_fast_assign(
 		__entry->trans_ip		= trans_ip;
 		__entry->caller_ip		= caller_ip;
+		__entry->key_cache		= key_cache;
 		__entry->btree_id		= btree_id;
 		__entry->pos_inode		= pos->inode;
 		__entry->pos_offset		= pos->offset;
@@ -800,9 +803,10 @@ TRACE_EVENT(iter_traverse,
 		__entry->ret			= ret;
 	),
 
-	TP_printk("%ps %pS pos %u %llu:%llu:%u ret %i",
+	TP_printk("%ps %pS key cache %u btree %u %llu:%llu:%u ret %i",
 		  (void *) __entry->trans_ip,
 		  (void *) __entry->caller_ip,
+		  __entry->key_cache,
 		  __entry->btree_id,
 		  __entry->pos_inode,
 		  __entry->pos_offset,
@@ -953,15 +957,17 @@ TRACE_EVENT(trans_restart_mem_realloced,
 DECLARE_EVENT_CLASS(node_lock_fail,
 	TP_PROTO(unsigned long trans_ip,
 		 unsigned long caller_ip,
+		 bool key_cache,
 		 enum btree_id btree_id,
 		 struct bpos *pos,
 		 unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
-	TP_ARGS(trans_ip, caller_ip, btree_id, pos,
+	TP_ARGS(trans_ip, caller_ip, key_cache, btree_id, pos,
 		level, iter_seq, node, node_seq),
 
 	TP_STRUCT__entry(
 		__field(unsigned long,		trans_ip	)
 		__field(unsigned long,		caller_ip	)
+		__field(u8,			key_cache	)
 		__field(u8,			btree_id	)
 		__field(u64,			pos_inode	)
 		__field(u64,			pos_offset	)
@@ -975,6 +981,7 @@ DECLARE_EVENT_CLASS(node_lock_fail,
 	TP_fast_assign(
 		__entry->trans_ip		= trans_ip;
 		__entry->caller_ip		= caller_ip;
+		__entry->key_cache		= key_cache;
 		__entry->btree_id		= btree_id;
 		__entry->pos_inode		= pos->inode;
 		__entry->pos_offset		= pos->offset;
@@ -985,9 +992,10 @@ DECLARE_EVENT_CLASS(node_lock_fail,
 		__entry->node_seq		= node_seq;
 	),
 
-	TP_printk("%ps %pS btree %u pos %llu:%llu:%u level %u iter seq %u node %u node seq %u",
+	TP_printk("%ps %pS key cache %u btree %u pos %llu:%llu:%u level %u iter seq %u node %u node seq %u",
 		  (void *) __entry->trans_ip,
 		  (void *) __entry->caller_ip,
+		  __entry->key_cache,
 		  __entry->btree_id,
 		  __entry->pos_inode,
 		  __entry->pos_offset,
@@ -999,20 +1007,22 @@ DECLARE_EVENT_CLASS(node_lock_fail,
 DEFINE_EVENT(node_lock_fail, node_upgrade_fail,
 	TP_PROTO(unsigned long trans_ip,
 		 unsigned long caller_ip,
+		 bool key_cache,
 		 enum btree_id btree_id,
 		 struct bpos *pos,
 		 unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
-	TP_ARGS(trans_ip, caller_ip, btree_id, pos,
+	TP_ARGS(trans_ip, caller_ip, key_cache, btree_id, pos,
 		level, iter_seq, node, node_seq)
 );
 
 DEFINE_EVENT(node_lock_fail, node_relock_fail,
 	TP_PROTO(unsigned long trans_ip,
 		 unsigned long caller_ip,
+		 bool key_cache,
 		 enum btree_id btree_id,
 		 struct bpos *pos,
 		 unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
-	TP_ARGS(trans_ip, caller_ip, btree_id, pos,
+	TP_ARGS(trans_ip, caller_ip, key_cache, btree_id, pos,
 		level, iter_seq, node, node_seq)
 );
 
