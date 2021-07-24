@@ -3823,24 +3823,16 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 	mutex_unlock(&STp->lock);
 
 	switch (cmd_in) {
-	case SCSI_IOCTL_GET_IDLUN:
-	case SCSI_IOCTL_GET_BUS_NUMBER:
-		break;
 	case SG_IO:
 	case SCSI_IOCTL_SEND_COMMAND:
 	case CDROM_SEND_PACKET:
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
-		fallthrough;
 	default:
-		retval = scsi_cmd_ioctl(STp->disk->queue, STp->disk,
-					file->f_mode, cmd_in, p);
-		if (retval != -ENOTTY)
-			return retval;
 		break;
 	}
 
-	retval = scsi_ioctl(STp->device, cmd_in, p);
+	retval = scsi_ioctl(STp->device, STp->disk, file->f_mode, cmd_in, p);
 	if (!retval && cmd_in == SCSI_IOCTL_STOP_UNIT) {
 		/* unload */
 		STp->rew_at_close = 0;

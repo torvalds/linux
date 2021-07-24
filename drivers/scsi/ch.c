@@ -877,7 +877,7 @@ static long ch_ioctl(struct file *file,
 	}
 
 	default:
-		return scsi_ioctl(ch->device, cmd, argp);
+		return scsi_ioctl(ch->device, NULL, file->f_mode, cmd, argp);
 
 	}
 }

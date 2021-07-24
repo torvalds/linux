@@ -192,6 +192,8 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 /**
  * scsi_ioctl - Dispatch ioctl to scsi device
  * @sdev: scsi device receiving ioctl
+ * @disk: disk receiving the ioctl
+ * @mode: mode the block/char device is opened with
  * @cmd: which ioctl is it
  * @arg: data associated with ioctl
  *
@@ -199,10 +201,13 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
  * does not take a major/minor number as the dev field.  Rather, it takes
  * a pointer to a &struct scsi_device.
  */
-int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
+		int cmd, void __user *arg)
 {
+	struct request_queue *q = sdev->request_queue;
 	char scsi_cmd[MAX_COMMAND_SIZE];
 	struct scsi_sense_hdr sense_hdr;
+	int error;
 
 	/* Check for deprecated ioctls ... all the ioctls which don't
 	 * follow the new unique numbering scheme are deprecated */
@@ -218,6 +223,12 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 		break;
 	default:
 		break;
+	}
+
+	if (cmd != SCSI_IOCTL_GET_IDLUN && cmd != SCSI_IOCTL_GET_BUS_NUMBER) {
+		error = scsi_cmd_ioctl(q, disk, mode, cmd, arg);
+		if (error != -ENOTTY)
+			return error;
 	}
 
 	switch (cmd) {
@@ -237,10 +248,6 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 		return put_user(sdev->host->host_no, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:
 		return ioctl_probe(sdev->host, arg);
-	case SCSI_IOCTL_SEND_COMMAND:
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		return sg_scsi_ioctl(sdev->request_queue, NULL, 0, arg);
 	case SCSI_IOCTL_DOORLOCK:
 		return scsi_set_medium_removal(sdev, SCSI_REMOVAL_PREVENT);
 	case SCSI_IOCTL_DOORUNLOCK:

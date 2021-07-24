@@ -18,6 +18,7 @@
 
 #ifdef __KERNEL__
 
+struct gendisk;
 struct scsi_device;
 
 /*
@@ -43,7 +44,8 @@ typedef struct scsi_fctargaddress {
 
 int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev,
 		int cmd, bool ndelay);
-extern int scsi_ioctl(struct scsi_device *, int, void __user *);
+int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
+		int cmd, void __user *arg);
 
 #endif /* __KERNEL__ */
 #endif /* _SCSI_IOCTL_H */

@@ -1571,23 +1571,7 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (is_sed_ioctl(cmd))
 		return sed_ioctl(sdkp->opal_dev, cmd, p);
-
-	/*
-	 * Send SCSI addressing ioctls directly to mid level, send other
-	 * ioctls to block level and then onto mid level if they can't be
-	 * resolved.
-	 */
-	switch (cmd) {
-	case SCSI_IOCTL_GET_IDLUN:
-	case SCSI_IOCTL_GET_BUS_NUMBER:
-		break;
-	default:
-		error = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, p);
-		if (error != -ENOTTY)
-			return error;
-	}
-
-	return scsi_ioctl(sdp, cmd, p);
+	return scsi_ioctl(sdp, disk, mode, cmd, p);
 }
 
 static void set_media_not_present(struct scsi_disk *sdkp)

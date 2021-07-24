@@ -574,24 +574,12 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 
 	scsi_autopm_get_device(sdev);
 
-	/*
-	 * Send SCSI addressing ioctls directly to mid level, send other
-	 * ioctls to cdrom/block level.
-	 */
-	switch (cmd) {
-	case SCSI_IOCTL_GET_IDLUN:
-	case SCSI_IOCTL_GET_BUS_NUMBER:
-		break;
-	default:
-		ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
-		if (ret != -ENOTTY)
-			goto put;
+	if (ret != CDROMCLOSETRAY && ret != CDROMEJECT) {
 		ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, arg);
 		if (ret != -ENOSYS)
 			goto put;
 	}
-
-	ret = scsi_ioctl(sdev, cmd, argp);
+	ret = scsi_ioctl(sdev, disk, mode, cmd, argp);
 
 put:
 	scsi_autopm_put_device(sdev);
