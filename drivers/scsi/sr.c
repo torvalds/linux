@@ -579,6 +579,9 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		break;
 	default:
+		ret = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
+		if (ret != -ENOTTY)
+			goto put;
 		ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, arg);
 		if (ret != -ENOSYS)
 			goto put;
