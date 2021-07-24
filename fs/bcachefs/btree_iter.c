@@ -1249,7 +1249,6 @@ static int __btree_iter_traverse_all(struct btree_trans *trans, int ret,
 	struct btree_iter *iter;
 	u8 sorted[BTREE_ITER_MAX];
 	int i, nr_sorted = 0;
-	bool relock_fail;
 
 	if (trans->in_traverse_all)
 		return -EINTR;
@@ -1257,17 +1256,10 @@ static int __btree_iter_traverse_all(struct btree_trans *trans, int ret,
 	trans->in_traverse_all = true;
 retry_all:
 	nr_sorted = 0;
-	relock_fail = false;
 
 	trans_for_each_iter(trans, iter) {
-		if (!bch2_btree_iter_relock(iter, _THIS_IP_))
-			relock_fail = true;
 		sorted[nr_sorted++] = iter->idx;
-	}
-
-	if (!relock_fail) {
-		trans->in_traverse_all = false;
-		return 0;
+		iter->should_be_locked = false;
 	}
 
 #define btree_iter_cmp_by_idx(_l, _r)				\
@@ -2372,11 +2364,9 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 {
 	struct btree_iter *iter;
 
-	trans_for_each_iter(trans, iter) {
+	trans_for_each_iter(trans, iter)
 		iter->flags &= ~(BTREE_ITER_KEEP_UNTIL_COMMIT|
 				 BTREE_ITER_SET_POS_AFTER_COMMIT);
-		iter->should_be_locked = false;
-	}
 
 	bch2_trans_unlink_iters(trans);
 
