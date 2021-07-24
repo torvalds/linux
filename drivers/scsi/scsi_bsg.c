@@ -36,7 +36,7 @@ static int scsi_bsg_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
 
 	if (copy_from_user(sreq->cmd, uptr64(hdr->request), sreq->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(sreq->cmd, mode))
+	if (!scsi_cmd_allowed(sreq->cmd, mode))
 		return -EPERM;
 	return 0;
 }

@@ -1343,7 +1343,7 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 				    gfp_mask, 0);
 }
 
-extern int blk_verify_command(unsigned char *cmd, fmode_t mode);
+bool scsi_cmd_allowed(unsigned char *cmd, fmode_t mode);
 
 static inline bool bdev_is_partition(struct block_device *bdev)
 {
