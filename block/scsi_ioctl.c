@@ -43,16 +43,6 @@ static int sg_get_version(int __user *p)
 	return put_user(sg_version_num, p);
 }
 
-static int scsi_get_idlun(struct request_queue *q, int __user *p)
-{
-	return put_user(0, p);
-}
-
-static int scsi_get_bus(struct request_queue *q, int __user *p)
-{
-	return put_user(0, p);
-}
-
 static int sg_get_timeout(struct request_queue *q)
 {
 	return jiffies_to_clock_t(q->sg_timeout);
@@ -768,12 +758,6 @@ int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mod
 		 */
 		case SG_GET_VERSION_NUM:
 			err = sg_get_version(arg);
-			break;
-		case SCSI_IOCTL_GET_IDLUN:
-			err = scsi_get_idlun(q, arg);
-			break;
-		case SCSI_IOCTL_GET_BUS_NUMBER:
-			err = scsi_get_bus(q, arg);
 			break;
 		case SG_SET_TIMEOUT:
 			err = sg_set_timeout(q, arg);

@@ -351,7 +351,10 @@ static int bsg_set_command_q(struct bsg_device *bd, int __user *uarg)
 static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct bsg_device *bd = file->private_data;
+	struct request_queue *q = bd->queue;
 	void __user *uarg = (void __user *) arg;
+	int __user *intp = uarg;
+	int val;
 
 	switch (cmd) {
 	/*
@@ -366,16 +369,33 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 * SCSI/sg ioctls
 	 */
 	case SG_GET_VERSION_NUM:
+		return put_user(30527, intp);
 	case SCSI_IOCTL_GET_IDLUN:
+		return put_user(0, intp);
 	case SCSI_IOCTL_GET_BUS_NUMBER:
+		return put_user(0, intp);
 	case SG_SET_TIMEOUT:
+		if (get_user(val, intp))
+			return -EFAULT;
+		q->sg_timeout = clock_t_to_jiffies(val);
+		return 0;
 	case SG_GET_TIMEOUT:
+		return jiffies_to_clock_t(q->sg_timeout);
 	case SG_GET_RESERVED_SIZE:
+		return put_user(min(q->sg_reserved_size, queue_max_bytes(q)),
+				intp);
 	case SG_SET_RESERVED_SIZE:
+		if (get_user(val, intp))
+			return -EFAULT;
+		if (val < 0)
+			return -EINVAL;
+		q->sg_reserved_size =
+			min_t(unsigned int, val, queue_max_bytes(q));
+		return 0;
 	case SG_EMULATED_HOST:
-		return scsi_cmd_ioctl(bd->queue, NULL, file->f_mode, cmd, uarg);
+		return put_user(1, intp);
 	case SG_IO:
-		return bsg_sg_io(bd->queue, file->f_mode, uarg);
+		return bsg_sg_io(q, file->f_mode, uarg);
 	case SCSI_IOCTL_SEND_COMMAND:
 		pr_warn_ratelimited("%s: calling unsupported SCSI_IOCTL_SEND_COMMAND\n",
 				current->comm);
