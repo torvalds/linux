@@ -218,6 +218,20 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 	return put_user(1, p);
 }
 
+static int scsi_get_idlun(struct scsi_device *sdev, void __user *argp)
+{
+	struct scsi_idlun v = {
+		.dev_id = (sdev->id & 0xff) +
+			((sdev->lun & 0xff) << 8) +
+			((sdev->channel & 0xff) << 16) +
+			((sdev->host->host_no & 0xff) << 24),
+		.host_unique_id = sdev->host->unique_id
+	};
+	if (copy_to_user(argp, &v, sizeof(struct scsi_idlun)))
+		return -EFAULT;
+	return 0;
+}
+
 static int scsi_send_start_stop(struct scsi_device *sdev, int data)
 {
 	u8 cdb[MAX_COMMAND_SIZE] = { };
@@ -921,18 +935,8 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 		return scsi_send_start_stop(sdev, 3);
 	case CDROMEJECT:
 		return scsi_send_start_stop(sdev, 2);
-	case SCSI_IOCTL_GET_IDLUN: {
-		struct scsi_idlun v = {
-			.dev_id = (sdev->id & 0xff)
-				 + ((sdev->lun & 0xff) << 8)
-				 + ((sdev->channel & 0xff) << 16)
-				 + ((sdev->host->host_no & 0xff) << 24),
-			.host_unique_id = sdev->host->unique_id
-		};
-		if (copy_to_user(arg, &v, sizeof(struct scsi_idlun)))
-			return -EFAULT;
-		return 0;
-	}
+	case SCSI_IOCTL_GET_IDLUN:
+		return scsi_get_idlun(sdev, arg);
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		return put_user(sdev->host->host_no, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:
