@@ -218,31 +218,14 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 	return put_user(1, p);
 }
 
-/* Send basic block requests */
-static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
-			      int cmd, int data)
+static int scsi_send_start_stop(struct scsi_device *sdev, int data)
 {
-	struct request *rq;
-	int err;
+	u8 cdb[MAX_COMMAND_SIZE] = { };
 
-	rq = blk_get_request(q, REQ_OP_DRV_OUT, 0);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
-	scsi_req(rq)->cmd[0] = cmd;
-	scsi_req(rq)->cmd[4] = data;
-	scsi_req(rq)->cmd_len = 6;
-	blk_execute_rq(bd_disk, rq, 0);
-	err = scsi_req(rq)->result ? -EIO : 0;
-	blk_put_request(rq);
-
-	return err;
-}
-
-static inline int blk_send_start_stop(struct request_queue *q,
-				      struct gendisk *bd_disk, int data)
-{
-	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
+	cdb[0] = START_STOP;
+	cdb[4] = data;
+	return ioctl_internal_command(sdev, cdb, START_STOP_TIMEOUT,
+				      NORMAL_RETRIES);
 }
 
 /*
@@ -883,7 +866,6 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 		int cmd, void __user *arg)
 {
 	struct request_queue *q = sdev->request_queue;
-	char scsi_cmd[MAX_COMMAND_SIZE];
 	struct scsi_sense_hdr sense_hdr;
 	int error;
 
@@ -936,9 +918,9 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 	case CDROM_SEND_PACKET:
 		return scsi_cdrom_send_packet(q, disk, mode, arg);
 	case CDROMCLOSETRAY:
-		return blk_send_start_stop(q, disk, 0x03);
+		return scsi_send_start_stop(sdev, 3);
 	case CDROMEJECT:
-		return blk_send_start_stop(q, disk, 0x02);
+		return scsi_send_start_stop(sdev, 2);
 	case SCSI_IOCTL_GET_IDLUN: {
 		struct scsi_idlun v = {
 			.dev_id = (sdev->id & 0xff)
@@ -963,19 +945,9 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 		return scsi_test_unit_ready(sdev, IOCTL_NORMAL_TIMEOUT,
 					    NORMAL_RETRIES, &sense_hdr);
 	case SCSI_IOCTL_START_UNIT:
-		scsi_cmd[0] = START_STOP;
-		scsi_cmd[1] = 0;
-		scsi_cmd[2] = scsi_cmd[3] = scsi_cmd[5] = 0;
-		scsi_cmd[4] = 1;
-		return ioctl_internal_command(sdev, scsi_cmd,
-				     START_STOP_TIMEOUT, NORMAL_RETRIES);
+		return scsi_send_start_stop(sdev, 1);
 	case SCSI_IOCTL_STOP_UNIT:
-		scsi_cmd[0] = START_STOP;
-		scsi_cmd[1] = 0;
-		scsi_cmd[2] = scsi_cmd[3] = scsi_cmd[5] = 0;
-		scsi_cmd[4] = 0;
-		return ioctl_internal_command(sdev, scsi_cmd,
-				     START_STOP_TIMEOUT, NORMAL_RETRIES);
+		return scsi_send_start_stop(sdev, 0);
         case SCSI_IOCTL_GET_PCI:
                 return scsi_ioctl_get_pci(sdev, arg);
 	case SG_SCSI_RESET:
