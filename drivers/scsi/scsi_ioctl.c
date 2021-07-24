@@ -530,8 +530,8 @@ out_put_request:
  *      Positive numbers returned are the compacted SCSI error codes (4
  *      bytes in one int) where the lowest byte is the SCSI status.
  */
-int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
-		struct scsi_ioctl_command __user *sic)
+static int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk,
+		fmode_t mode, struct scsi_ioctl_command __user *sic)
 {
 	enum { OMAX_SB_LEN = 16 };	/* For backward compatibility */
 	struct request *rq;
@@ -643,7 +643,6 @@ error_free_buffer:
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(sg_scsi_ioctl);
 
 int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp)
 {
