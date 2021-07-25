@@ -280,7 +280,7 @@ void startup_kernel(void)
 			__kaslr_offset = random_lma - vmlinux.default_lma;
 			img = (void *)vmlinux.default_lma;
 			vmlinux.default_lma += __kaslr_offset;
-			vmlinux.entry += __kaslr_offset;
+			*(unsigned long *)(&vmlinux.entry) += __kaslr_offset;
 			vmlinux.bootdata_off += __kaslr_offset;
 			vmlinux.bootdata_preserved_off += __kaslr_offset;
 			vmlinux.rela_dyn_start += __kaslr_offset;
