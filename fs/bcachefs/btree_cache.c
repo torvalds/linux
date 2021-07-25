@@ -655,8 +655,10 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
 	 */
-	if (iter && !bch2_btree_node_relock(iter, level + 1))
+	if (iter && !bch2_btree_node_relock(iter, level + 1)) {
+		btree_trans_restart(iter->trans);
 		return ERR_PTR(-EINTR);
+	}
 
 	b = bch2_btree_node_mem_alloc(c);
 	if (IS_ERR(b))
@@ -695,11 +697,15 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 
 	if (iter &&
 	    (!bch2_trans_relock(iter->trans) ||
-	     !bch2_btree_iter_relock_intent(iter)))
+	     !bch2_btree_iter_relock_intent(iter))) {
+		BUG_ON(!iter->trans->restarted);
 		return ERR_PTR(-EINTR);
+	}
 
-	if (!six_relock_type(&b->c.lock, lock_type, seq))
+	if (!six_relock_type(&b->c.lock, lock_type, seq)) {
+		btree_trans_restart(iter->trans);
 		return ERR_PTR(-EINTR);
+	}
 
 	return b;
 }
@@ -824,7 +830,7 @@ lock_node:
 
 		if (!btree_node_lock(b, k->k.p, level, iter, lock_type,
 				     lock_node_check_fn, (void *) k, trace_ip)) {
-			if (b->hash_val != btree_ptr_hash_val(k))
+			if (!trans->restarted)
 				goto retry;
 			return ERR_PTR(-EINTR);
 		}
@@ -840,6 +846,7 @@ lock_node:
 							      trace_ip,
 							      iter->btree_id,
 							      &iter->real_pos);
+			btree_trans_restart(trans);
 			return ERR_PTR(-EINTR);
 		}
 	}
@@ -858,8 +865,10 @@ lock_node:
 		 */
 		if (iter &&
 		    (!bch2_trans_relock(trans) ||
-		     !bch2_btree_iter_relock_intent(iter)))
+		     !bch2_btree_iter_relock_intent(iter))) {
+			BUG_ON(!trans->restarted);
 			return ERR_PTR(-EINTR);
+		}
 
 		if (!six_relock_type(&b->c.lock, lock_type, seq))
 			goto retry;

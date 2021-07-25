@@ -117,6 +117,14 @@ bool bch2_btree_iter_relock(struct btree_iter *, unsigned long);
 bool bch2_trans_relock(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
 
+__always_inline
+static inline int btree_trans_restart(struct btree_trans *trans)
+{
+	trans->restarted = true;
+	bch2_trans_unlock(trans);
+	return -EINTR;
+}
+
 bool __bch2_btree_iter_upgrade(struct btree_iter *, unsigned);
 
 static inline bool bch2_btree_iter_upgrade(struct btree_iter *iter,

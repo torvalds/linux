@@ -1006,6 +1006,7 @@ retry:
 
 		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
 			bch2_btree_update_free(as);
+			btree_trans_restart(trans);
 			return ERR_PTR(ret);
 		}
 

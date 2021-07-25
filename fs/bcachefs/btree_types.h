@@ -380,9 +380,10 @@ struct btree_trans {
 	int			srcu_idx;
 
 	u8			nr_updates;
-	unsigned		used_mempool:1;
-	unsigned		error:1;
-	unsigned		in_traverse_all:1;
+	bool			used_mempool:1;
+	bool			error:1;
+	bool			in_traverse_all:1;
+	bool			restarted:1;
 	/*
 	 * For when bch2_trans_update notices we'll be splitting a compressed
 	 * extent:

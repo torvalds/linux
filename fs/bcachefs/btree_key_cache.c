@@ -215,7 +215,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 
 	if (!bch2_btree_node_relock(ck_iter, 0)) {
 		trace_transaction_restart_ip(trans->ip, _THIS_IP_);
-		ret = -EINTR;
+		ret = btree_trans_restart(trans);
 		goto err;
 	}
 
@@ -234,6 +234,10 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		}
 	}
 
+	/*
+	 * XXX: not allowed to be holding read locks when we take a write lock,
+	 * currently
+	 */
 	bch2_btree_node_lock_write(ck_iter->l[0].b, ck_iter);
 	if (new_k) {
 		kfree(ck->k);
@@ -300,10 +304,8 @@ retry:
 
 		if (!btree_node_lock((void *) ck, iter->pos, 0, iter, lock_want,
 				     bkey_cached_check_fn, iter, _THIS_IP_)) {
-			if (ck->key.btree_id != iter->btree_id ||
-			    bpos_cmp(ck->key.pos, iter->pos)) {
+			if (!trans->restarted)
 				goto retry;
-			}
 
 			trace_transaction_restart_ip(trans->ip, _THIS_IP_);
 			ret = -EINTR;
@@ -323,10 +325,10 @@ retry:
 	iter->l[0].b		= (void *) ck;
 fill:
 	if (!ck->valid && !(iter->flags & BTREE_ITER_CACHED_NOFILL)) {
-		if (!btree_node_intent_locked(iter, 0))
-			bch2_btree_iter_upgrade(iter, 1);
-		if (!btree_node_intent_locked(iter, 0)) {
+		if (!iter->locks_want &&
+		    !!__bch2_btree_iter_upgrade(iter, 1)) {
 			trace_transaction_restart_ip(trans->ip, _THIS_IP_);
+			BUG_ON(!trans->restarted);
 			ret = -EINTR;
 			goto err;
 		}
@@ -342,9 +344,12 @@ fill:
 	iter->uptodate = BTREE_ITER_NEED_PEEK;
 
 	if ((iter->flags & BTREE_ITER_INTENT) &&
-	    !iter->locks_want &&
-	    __bch2_btree_iter_upgrade(iter, 1))
+	    !bch2_btree_iter_upgrade(iter, 1)) {
+		BUG_ON(!trans->restarted);
 		ret = -EINTR;
+	}
+
+	BUG_ON(!ret && !btree_node_locked(iter, 0));
 
 	return ret;
 err:

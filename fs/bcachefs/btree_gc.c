@@ -1735,7 +1735,8 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 				   BTREE_ITER_NOT_EXTENTS|
 				   BTREE_ITER_ALL_SNAPSHOTS);
 
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((bch2_trans_begin(&trans),
+		k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
 		c->gc_gens_pos = iter->pos;
 

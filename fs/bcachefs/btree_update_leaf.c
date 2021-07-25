@@ -384,6 +384,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 	if (race_fault()) {
 		trace_trans_restart_fault_inject(trans->ip, trace_ip);
+		trans->restarted = true;
 		return -EINTR;
 	}
 
@@ -520,10 +521,17 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
 		u64s_delta -= !bkey_deleted(old.k) ? old.k->u64s : 0;
 	}
 
-	return u64s_delta <= 0
-		? (bch2_foreground_maybe_merge(trans, iter, iter->level,
-				trans->flags & ~BTREE_INSERT_NOUNLOCK) ?: -EINTR)
-		: 0;
+	if (u64s_delta > 0)
+		return 0;
+
+	ret = bch2_foreground_maybe_merge(trans, iter, iter->level,
+				trans->flags & ~BTREE_INSERT_NOUNLOCK);
+	if (!ret) {
+		ret = -EINTR;
+		trans->restarted = true;
+	}
+
+	return ret;
 }
 
 /*
@@ -587,6 +595,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 					trace_trans_restart_upgrade(trans->ip, trace_ip,
 								    iter->btree_id,
 								    &iter->real_pos);
+					trans->restarted = true;
 					return -EINTR;
 				}
 			} else {
@@ -696,6 +705,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			trace_trans_restart_btree_node_split(trans->ip, trace_ip,
 							     i->iter->btree_id,
 							     &i->iter->real_pos);
+			trans->restarted = true;
 			ret = -EINTR;
 		}
 		break;
@@ -704,7 +714,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		ret = bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas);
 		if (ret)
-			return ret;
+			break;
 
 		if (bch2_trans_relock(trans))
 			return 0;
@@ -716,12 +726,15 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		bch2_trans_unlock(trans);
 
 		if ((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
-		    !(trans->flags & BTREE_INSERT_JOURNAL_RESERVED))
-			return -EAGAIN;
+		    !(trans->flags & BTREE_INSERT_JOURNAL_RESERVED)) {
+			trans->restarted = true;
+			ret = -EAGAIN;
+			break;
+		}
 
 		ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_CHECK);
 		if (ret)
-			return ret;
+			break;
 
 		if (bch2_trans_relock(trans))
 			return 0;
@@ -737,7 +750,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		wait_event_freezable(c->journal.reclaim_wait,
 				     (ret = journal_reclaim_wait_done(c)));
 		if (ret < 0)
-			return ret;
+			break;
 
 		if (bch2_trans_relock(trans))
 			return 0;
@@ -750,6 +763,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		break;
 	}
 
+	BUG_ON((ret == EINTR || ret == -EAGAIN) && !trans->restarted);
 	BUG_ON(ret == -ENOSPC && (flags & BTREE_INSERT_NOFAIL));
 
 	return ret;
@@ -972,6 +986,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			trace_trans_restart_upgrade(trans->ip, _RET_IP_,
 						    i->iter->btree_id,
 						    &i->iter->pos);
+			trans->restarted = true;
 			ret = -EINTR;
 			goto out;
 		}
@@ -994,6 +1009,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto err;
 	}
 retry:
+	BUG_ON(trans->restarted);
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
 	ret = do_bch2_trans_commit(trans, &i, _RET_IP_);
