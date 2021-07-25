@@ -2449,7 +2449,7 @@ static int __init rcu_torture_fwd_prog_init(void)
 	}
 	if (stall_cpu > 0) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, conflicts with CPU-stall testing");
-		if (IS_MODULE(CONFIG_RCU_TORTURE_TESTS))
+		if (IS_MODULE(CONFIG_RCU_TORTURE_TEST))
 			return -EINVAL; /* In module, can fail back to user. */
 		WARN_ON(1); /* Make sure rcutorture notices conflict. */
 		return 0;
