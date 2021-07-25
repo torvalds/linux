@@ -952,10 +952,10 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 	}
 }
 
-static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
+static void phy_lc_calibrate(struct adapter *adapt)
 {
 	u8 tmpreg;
-	u32 rf_a_mode = 0, rf_b_mode = 0, lc_cal;
+	u32 rf_a_mode = 0, lc_cal;
 
 	/* Check continuous TX and Packet TX */
 	tmpreg = usb_read8(adapt, 0xd03);
@@ -971,20 +971,10 @@ static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
 		rf_a_mode = rtw_hal_read_rfreg(adapt, RF_PATH_A, RF_AC,
 					       bMask12Bits);
 
-		/* Path-B */
-		if (is2t)
-			rf_b_mode = rtw_hal_read_rfreg(adapt, RF_PATH_B, RF_AC,
-						       bMask12Bits);
-
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */
 		phy_set_rf_reg(adapt, RF_PATH_A, RF_AC, bMask12Bits,
 			       (rf_a_mode & 0x8FFFF) | 0x10000);
-
-		/* Path-B */
-		if (is2t)
-			phy_set_rf_reg(adapt, RF_PATH_B, RF_AC, bMask12Bits,
-				       (rf_b_mode & 0x8FFFF) | 0x10000);
 	}
 
 	/* 3. Read RF reg18 */
@@ -1003,10 +993,6 @@ static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
 		usb_write8(adapt, 0xd03, tmpreg);
 		phy_set_rf_reg(adapt, RF_PATH_A, RF_AC, bMask12Bits, rf_a_mode);
 
-		/* Path-B */
-		if (is2t)
-			phy_set_rf_reg(adapt, RF_PATH_B, RF_AC, bMask12Bits,
-				       rf_b_mode);
 	} else {
 		/* Deal with Packet TX case */
 		usb_write8(adapt, REG_TXPAUSE, 0x00);
@@ -1126,7 +1112,7 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = true;
 
-	phy_lc_calibrate(adapt, false);
+	phy_lc_calibrate(adapt);
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
 }
