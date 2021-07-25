@@ -230,9 +230,6 @@ struct hal_data_8188e {
 	/* for host message to fw */
 	u8	LastHMEBoxNum;
 
-	u8	RegTxPause;
-	/*  Beacon function related global variable. */
-	u32	RegBcnCtrlVal;
 	u8	RegFwHwTxQCtrl;
 	u8	RegReg542;
 	u8	RegCR_1;

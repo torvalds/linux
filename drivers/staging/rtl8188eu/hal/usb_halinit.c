@@ -563,8 +563,6 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 	/*  beacause test chip does not contension before sending beacon. by tynli. 2009.11.03 */
 	usb_write16(Adapter, REG_BCNTCFG, 0x660F);
 
-	haldata->RegBcnCtrlVal = usb_read8(Adapter, REG_BCN_CTRL);
-	haldata->RegTxPause = usb_read8(Adapter, REG_TXPAUSE);
 	haldata->RegFwHwTxQCtrl = usb_read8(Adapter, REG_FWHW_TXQ_CTRL + 2);
 	haldata->RegReg542 = usb_read8(Adapter, REG_TBTT_PROHIBIT + 2);
 	haldata->RegCR_1 = usb_read8(Adapter, REG_CR + 1);
