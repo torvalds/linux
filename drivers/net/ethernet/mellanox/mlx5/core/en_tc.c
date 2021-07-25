@@ -3139,6 +3139,39 @@ add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 }
 
 static int
+parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
+		 struct flow_action *flow_action)
+{
+	struct netlink_ext_ack *extack = parse_state->extack;
+	struct mlx5e_tc_flow *flow = parse_state->flow;
+	struct mlx5_flow_attr *attr = flow->attr;
+	enum mlx5_flow_namespace_type ns_type;
+	struct mlx5e_priv *priv = flow->priv;
+	const struct flow_action_entry *act;
+	struct mlx5e_tc_act *tc_act;
+	int err, i;
+
+	ns_type = mlx5e_get_flow_namespace(flow);
+
+	flow_action_for_each(i, act, flow_action) {
+		tc_act = mlx5e_tc_act_get(act->id, ns_type);
+		if (!tc_act) {
+			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
+			return -EOPNOTSUPP;
+		}
+
+		if (!tc_act->can_offload(parse_state, act, i))
+			return -EOPNOTSUPP;
+
+		err = tc_act->parse_action(parse_state, act, priv, attr);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
 actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
 				struct mlx5_flow_attr *attr,
@@ -3204,11 +3237,8 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
-	enum mlx5_flow_namespace_type ns_type;
-	const struct flow_action_entry *act;
 	struct pedit_headers_action *hdrs;
-	struct mlx5e_tc_act *tc_act;
-	int err, i;
+	int err;
 
 	err = flow_action_supported(flow_action, extack);
 	if (err)
@@ -3219,23 +3249,11 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
 	parse_state->ct_priv = get_ct_priv(priv);
-	ns_type = mlx5e_get_flow_namespace(flow);
 	hdrs = parse_state->hdrs;
 
-	flow_action_for_each(i, act, flow_action) {
-		tc_act = mlx5e_tc_act_get(act->id, ns_type);
-		if (!tc_act) {
-			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
-			return -EOPNOTSUPP;
-		}
-
-		if (!tc_act->can_offload(parse_state, act, i))
-			return -EOPNOTSUPP;
-
-		err = tc_act->parse_action(parse_state, act, priv, attr);
-		if (err)
-			return err;
-	}
+	err = parse_tc_actions(parse_state, flow_action);
+	if (err)
+		return err;
 
 	if (attr->dest_chain && parse_attr->mirred_ifindex[0]) {
 		NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
@@ -3337,21 +3355,19 @@ int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
-				struct flow_action *flow_action,
-				struct mlx5e_tc_flow *flow,
-				struct netlink_ext_ack *extack)
+static int
+parse_tc_fdb_actions(struct mlx5e_priv *priv,
+		     struct flow_action *flow_action,
+		     struct mlx5e_tc_flow *flow,
+		     struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
-	enum mlx5_flow_namespace_type ns_type;
-	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct pedit_headers_action *hdrs;
-	struct mlx5e_tc_act *tc_act;
-	int err, i;
+	int err;
 
 	err = flow_action_supported(flow_action, extack);
 	if (err)
@@ -3362,23 +3378,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
 	parse_state->ct_priv = get_ct_priv(priv);
-	ns_type = mlx5e_get_flow_namespace(flow);
 	hdrs = parse_state->hdrs;
 
-	flow_action_for_each(i, act, flow_action) {
-		tc_act = mlx5e_tc_act_get(act->id, ns_type);
-		if (!tc_act) {
-			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");
-			return -EOPNOTSUPP;
-		}
-
-		if (!tc_act->can_offload(parse_state, act, i))
-			return -EOPNOTSUPP;
-
-		err = tc_act->parse_action(parse_state, act, priv, attr);
-		if (err)
-			return err;
-	}
+	err = parse_tc_actions(parse_state, flow_action);
+	if (err)
+		return err;
 
 	/* Forward to/from internal port can only have 1 dest */
 	if ((netif_is_ovs_master(parse_attr->filter_dev) || esw_attr->dest_int_port) &&
