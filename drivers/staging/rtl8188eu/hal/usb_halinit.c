@@ -950,19 +950,16 @@ static void Hal_EfuseParsePIDVID_8188EU(struct adapter *adapt, u8 *hwinfo, bool 
 	}
 }
 
-static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool AutoLoadFail)
+static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt)
 {
-	u16 i;
-	u8 sMacAddr[6] = {0x00, 0xE0, 0x4C, 0x81, 0x88, 0x02};
+	u8 sMacAddr[] = {0x00, 0xE0, 0x4C, 0x81, 0x88, 0x02};
 	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(adapt);
+	u8 *hwinfo = eeprom->efuse_eeprom_data;
 
-	if (AutoLoadFail) {
-		for (i = 0; i < 6; i++)
-			eeprom->mac_addr[i] = sMacAddr[i];
-	} else {
-		/* Read Permanent MAC address */
+	if (eeprom->bautoload_fail_flag)
+		memcpy(eeprom->mac_addr, sMacAddr, sizeof(sMacAddr));
+	else
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
-	}
 }
 
 static void readAdapterInfo_8188EU(struct adapter *adapt)
@@ -972,7 +969,7 @@ static void readAdapterInfo_8188EU(struct adapter *adapt)
 	/* parse the eeprom/efuse content */
 	Hal_EfuseParseIDCode88E(adapt, eeprom->efuse_eeprom_data);
 	Hal_EfuseParsePIDVID_8188EU(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	Hal_EfuseParseMACAddr_8188EU(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
+	Hal_EfuseParseMACAddr_8188EU(adapt);
 
 	Hal_ReadPowerSavingMode88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 	Hal_ReadTxPowerInfo88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
