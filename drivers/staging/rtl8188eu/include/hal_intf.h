@@ -105,11 +105,6 @@ enum hal_odm_variable {
 	HAL_ODM_WIFI_DISPLAY_STATE,
 };
 
-enum hal_intf_ps_func {
-	HAL_USB_SELECT_SUSPEND,
-	HAL_MAX_ID,
-};
-
 enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
