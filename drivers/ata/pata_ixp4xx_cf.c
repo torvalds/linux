@@ -107,29 +107,28 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 
 	ata_sff_std_ports(ioaddr);
 
-#ifndef __ARMEB__
+	if (!IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+		/* adjust the addresses to handle the address swizzling of the
+		 * ixp4xx in little endian mode.
+		 */
 
-	/* adjust the addresses to handle the address swizzling of the
-	 * ixp4xx in little endian mode.
-	 */
+		*(unsigned long *)&ioaddr->data_addr		^= 0x02;
+		*(unsigned long *)&ioaddr->cmd_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->altstatus_addr	^= 0x03;
+		*(unsigned long *)&ioaddr->ctl_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->error_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->feature_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->nsect_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->lbal_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->lbam_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->lbah_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->device_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->status_addr		^= 0x03;
+		*(unsigned long *)&ioaddr->command_addr		^= 0x03;
 
-	*(unsigned long *)&ioaddr->data_addr		^= 0x02;
-	*(unsigned long *)&ioaddr->cmd_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->altstatus_addr	^= 0x03;
-	*(unsigned long *)&ioaddr->ctl_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->error_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->feature_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->nsect_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->lbal_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->lbam_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->lbah_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->device_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->status_addr		^= 0x03;
-	*(unsigned long *)&ioaddr->command_addr		^= 0x03;
-
-	raw_cmd ^= 0x03;
-	raw_ctl ^= 0x03;
-#endif
+		raw_cmd ^= 0x03;
+		raw_ctl ^= 0x03;
+	}
 
 	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", raw_cmd, raw_ctl);
 }
