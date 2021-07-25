@@ -1133,15 +1133,6 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 			usb_write8(Adapter, MSR, val8);
 		}
 		break;
-	case HW_VAR_MEDIA_STATUS1:
-		{
-			u8 val8;
-
-			val8 = usb_read8(Adapter, MSR) & 0x03;
-			val8 |= *((u8 *)val) << 2;
-			usb_write8(Adapter, MSR, val8);
-		}
-		break;
 	case HW_VAR_SET_OPMODE:
 		hw_var_set_opmode(Adapter, variable, val);
 		break;
