@@ -15,6 +15,7 @@
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 
 #include "sc7180.h"
+#include "sc8180x.h"
 #include "sdm845.h"
 #include "sm8150.h"
 #include "sm8250.h"
@@ -108,6 +109,22 @@ static const struct qcom_icc_node *sc7180_osm_l3_nodes[] = {
 static const struct qcom_icc_desc sc7180_icc_osm_l3 = {
 	.nodes = sc7180_osm_l3_nodes,
 	.num_nodes = ARRAY_SIZE(sc7180_osm_l3_nodes),
+	.lut_row_size = OSM_LUT_ROW_SIZE,
+	.reg_freq_lut = OSM_REG_FREQ_LUT,
+	.reg_perf_state = OSM_REG_PERF_STATE,
+};
+
+DEFINE_QNODE(sc8180x_osm_apps_l3, SC8180X_MASTER_OSM_L3_APPS, 32, SC8180X_SLAVE_OSM_L3);
+DEFINE_QNODE(sc8180x_osm_l3, SC8180X_SLAVE_OSM_L3, 32);
+
+static const struct qcom_icc_node *sc8180x_osm_l3_nodes[] = {
+	[MASTER_OSM_L3_APPS] = &sc8180x_osm_apps_l3,
+	[SLAVE_OSM_L3] = &sc8180x_osm_l3,
+};
+
+static const struct qcom_icc_desc sc8180x_icc_osm_l3 = {
+	.nodes = sc8180x_osm_l3_nodes,
+	.num_nodes = ARRAY_SIZE(sc8180x_osm_l3_nodes),
 	.lut_row_size = OSM_LUT_ROW_SIZE,
 	.reg_freq_lut = OSM_REG_FREQ_LUT,
 	.reg_perf_state = OSM_REG_PERF_STATE,
@@ -311,6 +328,7 @@ static const struct of_device_id osm_l3_of_match[] = {
 	{ .compatible = "qcom,sc7180-osm-l3", .data = &sc7180_icc_osm_l3 },
 	{ .compatible = "qcom,sdm845-osm-l3", .data = &sdm845_icc_osm_l3 },
 	{ .compatible = "qcom,sm8150-osm-l3", .data = &sm8150_icc_osm_l3 },
+	{ .compatible = "qcom,sc8180x-osm-l3", .data = &sc8180x_icc_osm_l3 },
 	{ .compatible = "qcom,sm8250-epss-l3", .data = &sm8250_icc_epss_l3 },
 	{ }
 };
