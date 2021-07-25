@@ -151,7 +151,10 @@ enum npc_kpu_lh_ltype {
  * Software assigns pkind for each incoming port such as CGX
  * Ethernet interfaces, LBK interfaces, etc.
  */
+#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_VLAN_EXDSA_PKIND
+
 enum npc_pkind_type {
+	NPC_RX_LBK_PKIND = 0ULL,
 	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
 	NPC_RX_CHLEN24B_PKIND = 57ULL,
 	NPC_RX_CPT_HDR_PKIND,
