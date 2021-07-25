@@ -966,13 +966,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	} while (trans_trigger_run);
 
 	trans_for_each_update(trans, i) {
-		ret = bch2_btree_iter_traverse(i->iter);
-		if (unlikely(ret)) {
-			trace_trans_restart_traverse(trans->ip, _RET_IP_,
-						     i->iter->btree_id,
-						     &i->iter->pos);
-			goto out;
-		}
+		BUG_ON(!i->iter->should_be_locked);
 
 		if (unlikely(!bch2_btree_iter_upgrade(i->iter, i->level + 1))) {
 			trace_trans_restart_upgrade(trans->ip, _RET_IP_,
@@ -1072,7 +1066,11 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		n.iter = bch2_trans_get_iter(trans, n.btree_id, n.k->k.p,
 					     BTREE_ITER_INTENT|
 					     BTREE_ITER_NOT_EXTENTS);
+		ret = bch2_btree_iter_traverse(n.iter);
 		bch2_trans_iter_put(trans, n.iter);
+
+		if (ret)
+			return ret;
 	}
 
 	BUG_ON(n.iter->flags & BTREE_ITER_IS_EXTENTS);
