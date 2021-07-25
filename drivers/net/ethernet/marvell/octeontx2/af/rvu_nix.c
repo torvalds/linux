@@ -196,11 +196,22 @@ static void nix_rx_sync(struct rvu *rvu, int blkaddr)
 {
 	int err;
 
-	/*Sync all in flight RX packets to LLC/DRAM */
+	/* Sync all in flight RX packets to LLC/DRAM */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
 	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
 	if (err)
-		dev_err(rvu->dev, "NIX RX software sync failed\n");
+		dev_err(rvu->dev, "SYNC1: NIX RX software sync failed\n");
+
+	/* SW_SYNC ensures all existing transactions are finished and pkts
+	 * are written to LLC/DRAM, queues should be teared down after
+	 * successful SW_SYNC. Due to a HW errata, in some rare scenarios
+	 * an existing transaction might end after SW_SYNC operation. To
+	 * ensure operation is fully done, do the SW_SYNC twice.
+	 */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
+	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
+	if (err)
+		dev_err(rvu->dev, "SYNC2: NIX RX software sync failed\n");
 }
 
 static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
