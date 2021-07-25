@@ -263,6 +263,7 @@ bool sctp_transport_pl_send(struct sctp_transport *t)
 	if (t->pl.probe_count < SCTP_MAX_PROBES)
 		goto out;
 
+	t->pl.last_rtx_chunks = t->asoc->rtx_data_chunks;
 	t->pl.probe_count = 0;
 	if (t->pl.state == SCTP_PL_BASE) {
 		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
@@ -298,8 +299,10 @@ bool sctp_transport_pl_send(struct sctp_transport *t)
 
 out:
 	if (t->pl.state == SCTP_PL_COMPLETE && t->pl.raise_count < 30 &&
-	    !t->pl.probe_count)
+	    !t->pl.probe_count && t->pl.last_rtx_chunks == t->asoc->rtx_data_chunks) {
 		t->pl.raise_count++;
+		return false;
+	}
 
 	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
 		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
@@ -313,6 +316,7 @@ bool sctp_transport_pl_recv(struct sctp_transport *t)
 	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
 		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
 
+	t->pl.last_rtx_chunks = t->asoc->rtx_data_chunks;
 	t->pl.pmtu = t->pl.probe_size;
 	t->pl.probe_count = 0;
 	if (t->pl.state == SCTP_PL_BASE) {

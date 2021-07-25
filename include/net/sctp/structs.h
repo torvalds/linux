@@ -984,6 +984,7 @@ struct sctp_transport {
 	} cacc;
 
 	struct {
+		__u32 last_rtx_chunks;
 		__u16 pmtu;
 		__u16 probe_size;
 		__u16 probe_high;
