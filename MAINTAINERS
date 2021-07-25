@@ -15468,6 +15468,8 @@ M:	Pan, Xinhui <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
+B:	https://gitlab.freedesktop.org/drm/amd/-/issues
+C:	irc://irc.oftc.net/radeon
 F:	drivers/gpu/drm/amd/
 F:	drivers/gpu/drm/radeon/
 F:	include/uapi/drm/amdgpu_drm.h
