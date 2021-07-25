@@ -906,7 +906,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {
-		v4l2_err(&stream->ispdev->v4l2_dev,
+		v4l2_err(&dev->v4l2_dev,
 			 "nonsupport pixelformat:%c%c%c%c\n",
 			 pixm->pixelformat,
 			 pixm->pixelformat >> 8,
@@ -924,10 +924,27 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 				      config->min_rsz_width, max_rsz.width);
 		pixm->height = clamp_t(u32, pixm->height,
 				       config->min_rsz_height, max_rsz.height);
-	} else if (stream->id == RKISP_STREAM_FBC || stream->id == RKISP_STREAM_BP) {
-		/* full resolution equal to isp output size */
-		pixm->width = dev->isp_sdev.out_crop.width;
-		pixm->height = dev->isp_sdev.out_crop.height;
+	} else if (dev->isp_ver == ISP_V30) {
+		if (stream->id == RKISP_STREAM_BP &&
+		    pixm->width != dev->isp_sdev.out_crop.width &&
+		    pixm->height != dev->isp_sdev.out_crop.height) {
+			v4l2_warn(&dev->v4l2_dev,
+				  "fullpath %dx%d no equal to isp output %dx%d\n",
+				  pixm->width, pixm->height,
+				  dev->isp_sdev.out_crop.width,
+				  dev->isp_sdev.out_crop.height);
+			pixm->width = dev->isp_sdev.out_crop.width;
+			pixm->height = dev->isp_sdev.out_crop.height;
+		} else if (stream->id == RKISP_STREAM_FBC &&
+			   pixm->width != stream->dcrop.width &&
+			   pixm->height != stream->dcrop.height) {
+			v4l2_warn(&dev->v4l2_dev,
+				  "fbcpatch no scale %dx%d should equal to crop %dx%d\n",
+				  pixm->width, pixm->height,
+				  stream->dcrop.width, stream->dcrop.height);
+			pixm->width = stream->dcrop.width;
+			pixm->height = stream->dcrop.height;
+		}
 	}
 
 	pixm->num_planes = fmt->mplanes;
@@ -1058,14 +1075,15 @@ void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 		pixm.pixelformat = stream->out_isp_fmt.fourcc;
 	if (!pixm.pixelformat)
 		return;
-	pixm.width = width;
-	pixm.height = height;
-	rkisp_set_fmt(stream, &pixm, false);
 
 	stream->dcrop.left = 0;
 	stream->dcrop.top = 0;
 	stream->dcrop.width = width;
 	stream->dcrop.height = height;
+
+	pixm.width = width;
+	pixm.height = height;
+	rkisp_set_fmt(stream, &pixm, false);
 }
 
 /************************* v4l2_file_operations***************************/

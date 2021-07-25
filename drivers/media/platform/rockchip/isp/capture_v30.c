@@ -73,6 +73,7 @@ struct stream_config rkisp_fbc_stream_config = {
 	.frame_end_id = ISP3X_MI_MPFBC_FRAME,
 	.dual_crop = {
 		.ctrl = ISP3X_DUAL_CROP_CTRL,
+		.yuvmode_mask = ISP3X_DUAL_CROP_FBC_MODE,
 		.h_offset = ISP3X_DUAL_CROP_FBC_H_OFFS,
 		.v_offset = ISP3X_DUAL_CROP_FBC_V_OFFS,
 		.h_size = ISP3X_DUAL_CROP_FBC_H_SIZE,
@@ -89,6 +90,14 @@ struct stream_config rkisp_bp_stream_config = {
 	.fmts = bp_fmts,
 	.fmt_size = ARRAY_SIZE(bp_fmts),
 	.frame_end_id = ISP3X_MI_BP_FRAME,
+	.dual_crop = {
+		.ctrl = ISP3X_DUAL_CROP_CTRL,
+		.yuvmode_mask = ISP3X_DUAL_CROP_FBC_MODE,
+		.h_offset = ISP3X_DUAL_CROP_FBC_H_OFFS,
+		.v_offset = ISP3X_DUAL_CROP_FBC_V_OFFS,
+		.h_size = ISP3X_DUAL_CROP_FBC_H_SIZE,
+		.v_size = ISP3X_DUAL_CROP_FBC_V_SIZE,
+	},
 	.mi = {
 		.y_size_init = ISP3X_MI_BP_WR_Y_SIZE,
 		.cb_size_init = ISP3X_MI_BP_WR_CB_SIZE,
@@ -751,10 +760,9 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	stream->stopping = false;
 	stream->streaming = false;
 	stream->ops->disable_mi(stream);
-	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP) {
-		rkisp_disable_dcrop(stream, true);
+	rkisp_disable_dcrop(stream, true);
+	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
 		rkisp_disable_rsz(stream, true);
-	}
 	ret = get_stream_irq_mask(stream);
 	dev->irq_ends_mask &= ~ret;
 
@@ -962,10 +970,6 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 	bool async = false;
 	int ret;
 
-	/* TODO: STREAM don't have rsz and dcrop */
-	if (stream->id != RKISP_STREAM_MP && stream->id != RKISP_STREAM_SP)
-		goto end;
-
 	async = (stream->id == RKISP_STREAM_MP) ?
 		dev->cap_dev.stream[RKISP_STREAM_SP].streaming :
 		dev->cap_dev.stream[RKISP_STREAM_MP].streaming;
@@ -979,6 +983,9 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 		v4l2_err(v4l2_dev, "config dcrop failed with error %d\n", ret);
 		return ret;
 	}
+
+	if (stream->id == RKISP_STREAM_FBC || stream->id == RKISP_STREAM_BP)
+		goto end;
 
 	ret = rkisp_stream_config_rsz(stream, async);
 	if (ret < 0) {

@@ -58,8 +58,11 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 	struct v4l2_rect tmp = *rect;
 	u32 reg;
 
-	if (is_unite)
+	if (is_unite) {
 		tmp.width /= 2;
+		if (stream->id == RKISP_STREAM_FBC)
+			tmp.width &= ~0xf;
+	}
 	reg = stream->config->dual_crop.h_offset;
 	rkisp_write(dev, reg, tmp.left, false);
 	reg = stream->config->dual_crop.h_size;
@@ -78,6 +81,8 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		reg = stream->config->dual_crop.h_offset;
 		rkisp_next_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, false);
 		reg = stream->config->dual_crop.h_size;
+		if (stream->id == RKISP_STREAM_FBC)
+			tmp.width = rect->width - tmp.width;
 		rkisp_next_write(dev, reg, tmp.width, false);
 
 		reg = stream->config->dual_crop.ctrl;
