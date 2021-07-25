@@ -107,11 +107,6 @@ enum hal_odm_variable {
 
 #define RF_CHANGE_BY_PS		BIT(29)
 
-enum hardware_type {
-	HARDWARE_TYPE_RTL8188EU,
-	HARDWARE_TYPE_MAX,
-};
-
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 
 void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level);
