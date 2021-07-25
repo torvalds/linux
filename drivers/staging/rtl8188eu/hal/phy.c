@@ -1087,12 +1087,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		patha_fill_iqk(adapt, pathaok, result, final,
 			       (reg_ea4 == 0));
 
-	if (final < 4) {
-		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].Value[0][i] = result[final][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].bIQKDone = true;
-	}
-
 	save_adda_registers(adapt, iqk_bb_reg_92c,
 			    dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
 }

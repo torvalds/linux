@@ -241,7 +241,6 @@ struct odm_rate_adapt {
 #define HP_THERMAL_NUM		8
 
 #define AVG_THERMAL_NUM		8
-#define IQK_Matrix_REG_NUM	8
 #define IQK_Matrix_Settings_NUM	(1 + 24 + 21)
 
 #define	DM_Type_ByFWi		0
@@ -565,11 +564,6 @@ struct odm_ra_info {
 	u8 PTSmoothFactor;
 };
 
-struct ijk_matrix_regs_set {
-	bool	bIQKDone;
-	s32	Value[1][IQK_Matrix_REG_NUM];
-};
-
 struct odm_rf_cal {
 	/* for tx power tracking */
 	u32	RegA24; /*  for TempCCK */
@@ -613,7 +607,6 @@ struct odm_rf_cal {
 
 	u8	ThermalValue_HP[HP_THERMAL_NUM];
 	u8	ThermalValue_HP_index;
-	struct ijk_matrix_regs_set IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
 
 	u8	Delta_IQK;
 	u8	Delta_LCK;
