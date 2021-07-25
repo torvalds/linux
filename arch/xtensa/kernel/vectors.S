@@ -650,6 +650,25 @@ ENTRY(_Level\level\()InterruptVector)
 	irq_entry_level 5
 	irq_entry_level 6
 
+#if XCHAL_EXCM_LEVEL >= 2
+	/*
+	 *  Continuation of medium priority interrupt dispatch code.
+	 *  On entry here, a0 contains PS, and EPC2 contains saved a0:
+	 */
+	__XTENSA_HANDLER
+	.align 4
+_SimulateUserKernelVectorException:
+	addi	a0, a0, (1 << PS_EXCM_BIT)
+#if !XTENSA_FAKE_NMI
+	wsr	a0, ps
+#endif
+	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
+	xsr	a0, excsave2		# restore a0
+	j	_KernelExceptionVector	# simulate kernel vector exception
+1:	xsr	a0, excsave2		# restore a0
+	j	_UserExceptionVector	# simulate user vector exception
+#endif
+
 
 /* Window overflow and underflow handlers.
  * The handlers must be 64 bytes apart, first starting with the underflow
@@ -679,27 +698,6 @@ ENTRY_ALIGN64(_WindowOverflow4)
 	rfwo
 
 ENDPROC(_WindowOverflow4)
-
-
-#if XCHAL_EXCM_LEVEL >= 2
-	/*  Not a window vector - but a convenient location
-	 *  (where we know there's space) for continuation of
-	 *  medium priority interrupt dispatch code.
-	 *  On entry here, a0 contains PS, and EPC2 contains saved a0:
-	 */
-	.align 4
-_SimulateUserKernelVectorException:
-	addi	a0, a0, (1 << PS_EXCM_BIT)
-#if !XTENSA_FAKE_NMI
-	wsr	a0, ps
-#endif
-	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
-	xsr	a0, excsave2		# restore a0
-	j	_KernelExceptionVector	# simulate kernel vector exception
-1:	xsr	a0, excsave2		# restore a0
-	j	_UserExceptionVector	# simulate user vector exception
-#endif
-
 
 /* 4-Register Window Underflow Vector (Handler) */
 
