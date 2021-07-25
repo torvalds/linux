@@ -323,22 +323,7 @@ static inline void set_btree_iter_dontneed(struct btree_trans *trans, struct btr
 	trans->iters_touched &= ~(1ULL << iter->idx);
 }
 
-#define TRANS_RESET_NOTRAVERSE		(1 << 0)
-#define TRANS_RESET_NOUNLOCK		(1 << 1)
-
-void bch2_trans_reset(struct btree_trans *, unsigned);
-
-/**
- * bch2_trans_begin() - ensure lock consistency of transaction on retry
- * @trans: transaction to prepare
- *
- * Ensure lock ordering is correct before potentially retrying a transaction
- * after a failed trylock.
- */
-static inline void bch2_trans_begin(struct btree_trans *trans)
-{
-	return bch2_trans_reset(trans, 0);
-}
+void bch2_trans_begin(struct btree_trans *);
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned, size_t);

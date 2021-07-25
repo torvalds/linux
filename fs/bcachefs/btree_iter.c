@@ -2382,22 +2382,14 @@ inline void bch2_trans_unlink_iters(struct btree_trans *trans)
 }
 
 /**
- * bch2_trans_reset() - reset a transaction after a interrupted attempt
+ * bch2_trans_begin() - reset a transaction after a interrupted attempt
  * @trans: transaction to reset
- * @flags: transaction reset flags.
  *
  * While iterating over nodes or updating nodes a attempt to lock a btree
  * node may return EINTR when the trylock fails. When this occurs
- * bch2_trans_reset() or bch2_trans_begin() should be called and the
- * transaction retried.
- *
- * Transaction reset flags include:
- *
- *  - TRANS_RESET_NOUNLOCK   - Do not attempt to unlock and reschedule the
- *			       transaction.
- *  - TRANS_RESET_NOTRAVERSE - Do not traverse all linked iters.
+ * bch2_trans_begin() should be called and the transaction retried.
  */
-void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
+void bch2_trans_begin(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
@@ -2405,8 +2397,11 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 		iter->flags &= ~(BTREE_ITER_KEEP_UNTIL_COMMIT|
 				 BTREE_ITER_SET_POS_AFTER_COMMIT);
 
+	/*
+	 * XXX: we shouldn't be doing this if the transaction was restarted, but
+	 * currently we still overflow transaction iterators if we do that
+	 * */
 	bch2_trans_unlink_iters(trans);
-
 	trans->iters_touched &= trans->iters_live;
 
 	trans->extra_journal_res	= 0;
@@ -2425,11 +2420,9 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 		       (void *) &trans->fs_usage_deltas->memset_start);
 	}
 
-	if (!(flags & TRANS_RESET_NOUNLOCK))
-		bch2_trans_cond_resched(trans);
+	bch2_trans_cond_resched(trans);
 
-	if (!(flags & TRANS_RESET_NOTRAVERSE) &&
-	    trans->iters_linked)
+	if (trans->restarted)
 		bch2_btree_iter_traverse_all(trans);
 
 	trans->restarted = false;

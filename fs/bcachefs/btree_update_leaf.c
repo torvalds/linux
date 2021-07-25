@@ -923,7 +923,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	struct btree_insert_entry *i = NULL;
 	struct btree_iter *iter;
 	bool trans_trigger_run;
-	unsigned u64s, reset_flags = 0;
+	unsigned u64s;
 	int ret = 0;
 
 	if (!trans->nr_updates &&
@@ -1030,11 +1030,19 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&trans->c->writes);
 out_reset:
-	if (!ret)
-		reset_flags |= TRANS_RESET_NOTRAVERSE;
-	if (!ret && (trans->flags & BTREE_INSERT_NOUNLOCK))
-		reset_flags |= TRANS_RESET_NOUNLOCK;
-	bch2_trans_reset(trans, reset_flags);
+	trans->extra_journal_res	= 0;
+	trans->nr_updates		= 0;
+	trans->hooks			= NULL;
+	trans->extra_journal_entries	= NULL;
+	trans->extra_journal_entry_u64s	= 0;
+
+	if (trans->fs_usage_deltas) {
+		trans->fs_usage_deltas->used = 0;
+		memset((void *) trans->fs_usage_deltas +
+		       offsetof(struct replicas_delta_list, memset_start), 0,
+		       (void *) &trans->fs_usage_deltas->memset_end -
+		       (void *) &trans->fs_usage_deltas->memset_start);
+	}
 
 	return ret;
 err:
