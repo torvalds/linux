@@ -95,9 +95,6 @@ void _8051Reset88E(struct adapter *padapter)
 
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
 {
-	/*  Init Fw LPS related. */
-	padapter->pwrctrlpriv.bFwCurrentInPSMode = false;
-
 	/*  Init H2C counter. by tynli. 2009.12.09. */
 	padapter->HalData->LastHMEBoxNum = 0;
 }

@@ -174,7 +174,6 @@ struct pwrctrl_priv {
 	bool	bLeisurePs;
 	u8	LpsIdleCount;
 	u8	power_mgnt;
-	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
 	u8	btcoex_rfon;
 	s32		pnp_current_pwr_state;
