@@ -78,20 +78,38 @@ ENTRY(__sys_clone3)
 
 ENTRY(sys_sigreturn)
 	SAVE_SWITCH_STACK
-	movel	%sp,%sp@-		  | switch_stack pointer
-	pea	%sp@(SWITCH_STACK_SIZE+4) | pt_regs pointer
+	movel	%sp,%a1			  	| switch_stack pointer
+	lea	%sp@(SWITCH_STACK_SIZE),%a0	| pt_regs pointer
+	lea     %sp@(-84),%sp			| leave a gap
+	movel	%a1,%sp@-
+	movel	%a0,%sp@-
 	jbsr	do_sigreturn
-	addql	#8,%sp
-	RESTORE_SWITCH_STACK
-	rts
+	jra	1f				| shared with rt_sigreturn()
 
 ENTRY(sys_rt_sigreturn)
 	SAVE_SWITCH_STACK
-	movel	%sp,%sp@-		  | switch_stack pointer
-	pea	%sp@(SWITCH_STACK_SIZE+4) | pt_regs pointer
+	movel	%sp,%a1			  	| switch_stack pointer
+	lea	%sp@(SWITCH_STACK_SIZE),%a0	| pt_regs pointer
+	lea     %sp@(-84),%sp			| leave a gap
+	movel	%a1,%sp@-
+	movel	%a0,%sp@-
+	| stack contents:
+	|   [original pt_regs address] [original switch_stack address]
+	|   [gap] [switch_stack] [pt_regs] [exception frame]
 	jbsr	do_rt_sigreturn
-	addql	#8,%sp
+
+1:
+	| stack contents now:
+	|   [original pt_regs address] [original switch_stack address]
+	|   [unused part of the gap] [moved switch_stack] [moved pt_regs]
+	|   [replacement exception frame]
+	| return value of do_{rt_,}sigreturn() points to moved switch_stack.
+
+	movel	%d0,%sp				| discard the leftover junk
 	RESTORE_SWITCH_STACK
+	| stack contents now is just [syscall return address] [pt_regs] [frame]
+	| return pt_regs.d0
+	movel	%sp@(PT_OFF_D0+4),%d0
 	rts
 
 ENTRY(buserr)
@@ -180,27 +198,6 @@ do_trace_exit:
 	jbsr	syscall_trace
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	jra	.Lret_from_exception
-
-ENTRY(ret_from_signal)
-	movel	%curptr@(TASK_STACK),%a1
-	tstb	%a1@(TINFO_FLAGS+2)
-	jge	1f
-	lea	%sp@(SWITCH_STACK_SIZE),%a1
-	movel	%a1,%curptr@(TASK_THREAD+THREAD_ESP0)
-	jbsr	syscall_trace
-1:	RESTORE_SWITCH_STACK
-	addql	#4,%sp
-/* on 68040 complete pending writebacks if any */
-#ifdef CONFIG_M68040
-	bfextu	%sp@(PT_OFF_FORMATVEC){#0,#4},%d0
-	subql	#7,%d0				| bus error frame ?
-	jbne	1f
-	movel	%sp,%sp@-
-	jbsr	berr_040cleanup
-	addql	#4,%sp
-1:
-#endif
 	jra	.Lret_from_exception
 
 ENTRY(system_call)
