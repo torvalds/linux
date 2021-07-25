@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 
-#define _HAL_INTF_C_
 #include <hal_intf.h>
 
 uint rtw_hal_init(struct adapter *adapt)
