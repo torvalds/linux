@@ -305,11 +305,11 @@ s64 bch2_remap_range(struct bch_fs *c,
 	dst_done = dst_iter->pos.offset - dst_start.offset;
 	new_i_size = min(dst_iter->pos.offset << 9, new_i_size);
 
-	bch2_trans_begin(&trans);
-
 	do {
 		struct bch_inode_unpacked inode_u;
 		struct btree_iter *inode_iter;
+
+		bch2_trans_begin(&trans);
 
 		inode_iter = bch2_inode_peek(&trans, &inode_u,
 				dst_start.inode, BTREE_ITER_INTENT);

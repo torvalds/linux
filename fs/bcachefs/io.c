@@ -376,13 +376,12 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 	struct bkey_s_c k;
 	int ret = 0, ret2 = 0;
 
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((bch2_trans_begin(trans),
+		(k = bch2_btree_iter_peek(iter)).k) &&
 	       bkey_cmp(iter->pos, end) < 0) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
-
-		bch2_trans_begin(trans);
 
 		ret = bkey_err(k);
 		if (ret)
@@ -2278,12 +2277,13 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
-retry:
-	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(inode, bvec_iter.bi_sector),
 				   BTREE_ITER_SLOTS);
+retry:
+	bch2_trans_begin(&trans);
+
 	while (1) {
 		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
@@ -2339,10 +2339,13 @@ retry:
 		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 	}
-	bch2_trans_iter_put(&trans, iter);
 
 	if (ret == -EINTR || ret == READ_RETRY || ret == READ_RETRY_AVOID)
 		goto retry;
+
+	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&sk, c);
 
 	if (ret) {
 		bch_err_inum_ratelimited(c, inode,
@@ -2350,8 +2353,6 @@ retry:
 		rbio->bio.bi_status = BLK_STS_IOERR;
 		bch2_rbio_done(rbio);
 	}
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&sk, c);
 }
 
 void bch2_fs_io_exit(struct bch_fs *c)

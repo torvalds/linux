@@ -114,7 +114,7 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 		_ret = (_do);						\
 		if (_ret != -EINTR)					\
 			break;						\
-		bch2_trans_reset(_trans, 0);				\
+		bch2_trans_begin(_trans);				\
 	}								\
 									\
 	_ret;								\

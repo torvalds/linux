@@ -784,6 +784,8 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 
 	bch2_bkey_buf_init(&sk);
 retry:
+	bch2_trans_begin(trans);
+
 	while (1) {
 		struct bkey_s_c k;
 		unsigned bytes, sectors, offset_into_extent;
@@ -2540,6 +2542,8 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		struct bpos move_pos = POS(inode->v.i_ino, offset >> 9);
 		struct bpos atomic_end;
 		unsigned trigger_flags = 0;
+
+		bch2_trans_begin(&trans);
 
 		k = insert
 			? bch2_btree_iter_peek_prev(src)

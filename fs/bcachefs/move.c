@@ -83,7 +83,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 		bool extending = false, should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 
-		bch2_trans_reset(&trans, 0);
+		bch2_trans_begin(&trans);
 
 		k = bch2_btree_iter_peek_slot(iter);
 		ret = bkey_err(k);
@@ -597,6 +597,8 @@ static int __bch2_move_data(struct bch_fs *c,
 			}
 		} while (delay);
 
+		bch2_trans_begin(&trans);
+
 		k = bch2_btree_iter_peek(iter);
 
 		stats->pos = iter->pos;
@@ -652,8 +654,7 @@ static int __bch2_move_data(struct bch_fs *c,
 					data_cmd, data_opts);
 		if (ret2) {
 			if (ret2 == -EINTR) {
-				bch2_trans_reset(&trans, 0);
-				bch2_trans_cond_resched(&trans);
+				bch2_trans_begin(&trans);
 				continue;
 			}
 
