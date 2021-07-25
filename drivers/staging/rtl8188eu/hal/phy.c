@@ -711,19 +711,13 @@ static void reload_mac_registers(struct adapter *adapt, const u32 *mac_reg,
 	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
-static void path_adda_on(struct adapter *adapt, const u32 *adda_reg,
-			 bool is_path_a_on, bool is2t)
+static void path_adda_on(struct adapter *adapt, const u32 *adda_reg, bool is_path_a_on)
 {
 	u32 path_on;
 	u32 i;
 
-	if (!is2t) {
-		path_on = 0x0bdb25a0;
-		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, 0x0b1b25a0);
-	} else {
-		path_on = is_path_a_on ? 0x04db25a4 : 0x0b1b25a4;
-		phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, path_on);
-	}
+	path_on = 0x0bdb25a0;
+	phy_set_bb_reg(adapt, adda_reg[0], bMaskDWord, 0x0b1b25a0);
 
 	for (i = 1; i < IQK_ADDA_REG_NUM; i++)
 		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, path_on);
@@ -870,7 +864,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 				    dm_odm->RFCalibrateInfo.IQK_BB_backup, IQK_BB_REG_NUM);
 	}
 
-	path_adda_on(adapt, adda_reg, true, false);
+	path_adda_on(adapt, adda_reg, true);
 	if (t == 0)
 		dm_odm->RFCalibrateInfo.bRfPiEnable = (u8)phy_query_bb_reg(adapt, rFPGA0_XA_HSSIParameter1,
 									   BIT(8));
