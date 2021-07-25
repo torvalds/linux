@@ -258,16 +258,12 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 	sctp_transport_pl_update(transport);
 }
 
-void sctp_transport_pl_send(struct sctp_transport *t)
+bool sctp_transport_pl_send(struct sctp_transport *t)
 {
-	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
-		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+	if (t->pl.probe_count < SCTP_MAX_PROBES)
+		goto out;
 
-	if (t->pl.probe_count < SCTP_MAX_PROBES) {
-		t->pl.probe_count++;
-		return;
-	}
-
+	t->pl.probe_count = 0;
 	if (t->pl.state == SCTP_PL_BASE) {
 		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
 			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
@@ -299,10 +295,20 @@ void sctp_transport_pl_send(struct sctp_transport *t)
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
 	}
-	t->pl.probe_count = 1;
+
+out:
+	if (t->pl.state == SCTP_PL_COMPLETE && t->pl.raise_count < 30 &&
+	    !t->pl.probe_count)
+		t->pl.raise_count++;
+
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+
+	t->pl.probe_count++;
+	return true;
 }
 
-void sctp_transport_pl_recv(struct sctp_transport *t)
+bool sctp_transport_pl_recv(struct sctp_transport *t)
 {
 	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
 		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
@@ -323,7 +329,7 @@ void sctp_transport_pl_recv(struct sctp_transport *t)
 		if (!t->pl.probe_high) {
 			t->pl.probe_size = min(t->pl.probe_size + SCTP_PL_BIG_STEP,
 					       SCTP_MAX_PLPMTU);
-			return;
+			return false;
 		}
 		t->pl.probe_size += SCTP_PL_MIN_STEP;
 		if (t->pl.probe_size >= t->pl.probe_high) {
@@ -335,14 +341,13 @@ void sctp_transport_pl_recv(struct sctp_transport *t)
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
-	} else if (t->pl.state == SCTP_PL_COMPLETE) {
-		t->pl.raise_count++;
-		if (t->pl.raise_count == 30) {
-			/* Raise probe_size again after 30 * interval in Search Complete */
-			t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
-			t->pl.probe_size += SCTP_PL_MIN_STEP;
-		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE && t->pl.raise_count == 30) {
+		/* Raise probe_size again after 30 * interval in Search Complete */
+		t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
+		t->pl.probe_size += SCTP_PL_MIN_STEP;
 	}
+
+	return t->pl.state == SCTP_PL_COMPLETE;
 }
 
 static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
