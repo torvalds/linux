@@ -858,8 +858,10 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 							  BTREE_ITER_NOT_EXTENTS|
 							  BTREE_ITER_INTENT);
 			ret = bch2_btree_iter_traverse(update_iter);
-			if (ret)
+			if (ret) {
+				bch2_trans_iter_put(trans, update_iter);
 				goto out;
+			}
 
 			bch2_trans_update(trans, update_iter, update,
 					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
