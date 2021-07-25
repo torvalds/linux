@@ -186,7 +186,7 @@ unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long pc;
 
-	if (!p || p == current || p->state == TASK_RUNNING)
+	if (!p || p == current || task_is_running(p))
 		return 0;
 
 	/*

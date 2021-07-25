@@ -264,6 +264,7 @@
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
 				resets = <&syscon ASPEED_RESET_CRT1>;
+				syscon = <&syscon>;
 				status = "disabled";
 				interrupts = <0x19>;
 			};

@@ -434,7 +434,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 	unsigned int nsecs = 0, overhead = mi->overhead;
 	unsigned int ampdu_len = 1;
 
-	/* do not account throughput if sucess prob is below 10% */
+	/* do not account throughput if success prob is below 10% */
 	if (prob_avg < MINSTREL_FRAC(10, 100))
 		return 0;
 
@@ -1176,29 +1176,6 @@ minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
 }
 
 static void
-minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	u16 tid;
-
-	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
-		return;
-
-	if (unlikely(!ieee80211_is_data_qos(hdr->frame_control)))
-		return;
-
-	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
-		return;
-
-	tid = ieee80211_get_tid(hdr);
-	if (likely(sta->ampdu_mlme.tid_tx[tid]))
-		return;
-
-	ieee80211_start_tx_ba_session(pubsta, tid, 0);
-}
-
-static void
 minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
                       void *priv_sta, struct ieee80211_tx_status *st)
 {
@@ -1210,6 +1187,10 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	u32 update_interval = mp->update_interval;
 	bool last, update = false;
 	int i;
+
+	/* Ignore packet that was sent with noAck flag */
+	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+		return;
 
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
@@ -1497,10 +1478,6 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct minstrel_ht_sta *mi = priv_sta;
 	struct minstrel_priv *mp = priv;
 	u16 sample_idx;
-
-	if (!(info->flags & IEEE80211_TX_CTL_AMPDU) &&
-	    !minstrel_ht_is_legacy_group(MI_RATE_GROUP(mi->max_prob_rate)))
-		minstrel_aggr_check(sta, txrc->skb);
 
 	info->flags |= mi->tx_flags;
 
@@ -1907,6 +1884,7 @@ static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
 
 static const struct rate_control_ops mac80211_minstrel_ht = {
 	.name = "minstrel_ht",
+	.capa = RATE_CTRL_CAPA_AMPDU_TRIGGER,
 	.tx_status_ext = minstrel_ht_tx_status,
 	.get_rate = minstrel_ht_get_rate,
 	.rate_init = minstrel_ht_rate_init,

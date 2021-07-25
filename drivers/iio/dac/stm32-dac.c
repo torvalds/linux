@@ -69,9 +69,8 @@ static int stm32_dac_set_enable_state(struct iio_dev *indio_dev, int ch,
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(dev);
 			mutex_unlock(&dac->lock);
 			return ret;
 		}

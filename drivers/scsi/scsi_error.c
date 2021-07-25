@@ -742,41 +742,35 @@ static enum scsi_disposition scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		return FAILED;
 
 	/*
-	 * next, check the message byte.
-	 */
-	if (msg_byte(scmd->result) != COMMAND_COMPLETE)
-		return FAILED;
-
-	/*
 	 * now, check the status byte to see if this indicates
 	 * anything special.
 	 */
-	switch (status_byte(scmd->result)) {
-	case GOOD:
+	switch (get_status_byte(scmd)) {
+	case SAM_STAT_GOOD:
 		scsi_handle_queue_ramp_up(scmd->device);
 		fallthrough;
-	case COMMAND_TERMINATED:
+	case SAM_STAT_COMMAND_TERMINATED:
 		return SUCCESS;
-	case CHECK_CONDITION:
+	case SAM_STAT_CHECK_CONDITION:
 		return scsi_check_sense(scmd);
-	case CONDITION_GOOD:
-	case INTERMEDIATE_GOOD:
-	case INTERMEDIATE_C_GOOD:
+	case SAM_STAT_CONDITION_MET:
+	case SAM_STAT_INTERMEDIATE:
+	case SAM_STAT_INTERMEDIATE_CONDITION_MET:
 		/*
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
-	case RESERVATION_CONFLICT:
+	case SAM_STAT_RESERVATION_CONFLICT:
 		if (scmd->cmnd[0] == TEST_UNIT_READY)
 			/* it is a success, we probed the device and
 			 * found it */
 			return SUCCESS;
 		/* otherwise, we failed to send the command */
 		return FAILED;
-	case QUEUE_FULL:
+	case SAM_STAT_TASK_SET_FULL:
 		scsi_handle_queue_full(scmd->device);
 		fallthrough;
-	case BUSY:
+	case SAM_STAT_BUSY:
 		return NEEDS_RETRY;
 	default:
 		return FAILED;
@@ -1258,7 +1252,7 @@ int scsi_eh_get_sense(struct list_head *work_q,
 					     current->comm));
 			break;
 		}
-		if (status_byte(scmd->result) != CHECK_CONDITION)
+		if (!scsi_status_is_check_condition(scmd->result))
 			/*
 			 * don't request sense if there's no check condition
 			 * status because the error we're processing isn't one
@@ -1766,15 +1760,14 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 	case DID_PARITY:
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
 	case DID_ERROR:
-		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
-		    status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (get_status_byte(scmd) == SAM_STAT_RESERVATION_CONFLICT)
 			return 0;
 		fallthrough;
 	case DID_SOFT_ERROR:
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DRIVER);
 	}
 
-	if (status_byte(scmd->result) != CHECK_CONDITION)
+	if (!scsi_status_is_check_condition(scmd->result))
 		return 0;
 
 check_type:
@@ -1883,8 +1876,7 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 */
 		return SUCCESS;
 	case DID_ERROR:
-		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
-		    status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (get_status_byte(scmd) == SAM_STAT_RESERVATION_CONFLICT)
 			/*
 			 * execute reservation conflict processing code
 			 * lower down
@@ -1913,23 +1905,17 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 	}
 
 	/*
-	 * next, check the message byte.
-	 */
-	if (msg_byte(scmd->result) != COMMAND_COMPLETE)
-		return FAILED;
-
-	/*
 	 * check the status byte to see if this indicates anything special.
 	 */
-	switch (status_byte(scmd->result)) {
-	case QUEUE_FULL:
+	switch (get_status_byte(scmd)) {
+	case SAM_STAT_TASK_SET_FULL:
 		scsi_handle_queue_full(scmd->device);
 		/*
 		 * the case of trying to send too many commands to a
 		 * tagged queueing device.
 		 */
 		fallthrough;
-	case BUSY:
+	case SAM_STAT_BUSY:
 		/*
 		 * device can't talk to us at the moment.  Should only
 		 * occur (SAM-3) when the task queue is empty, so will cause
@@ -1937,16 +1923,16 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * device.
 		 */
 		return ADD_TO_MLQUEUE;
-	case GOOD:
+	case SAM_STAT_GOOD:
 		if (scmd->cmnd[0] == REPORT_LUNS)
 			scmd->device->sdev_target->expecting_lun_change = 0;
 		scsi_handle_queue_ramp_up(scmd->device);
 		fallthrough;
-	case COMMAND_TERMINATED:
+	case SAM_STAT_COMMAND_TERMINATED:
 		return SUCCESS;
-	case TASK_ABORTED:
+	case SAM_STAT_TASK_ABORTED:
 		goto maybe_retry;
-	case CHECK_CONDITION:
+	case SAM_STAT_CHECK_CONDITION:
 		rtn = scsi_check_sense(scmd);
 		if (rtn == NEEDS_RETRY)
 			goto maybe_retry;
@@ -1955,16 +1941,16 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * to collect the sense and redo the decide
 		 * disposition */
 		return rtn;
-	case CONDITION_GOOD:
-	case INTERMEDIATE_GOOD:
-	case INTERMEDIATE_C_GOOD:
-	case ACA_ACTIVE:
+	case SAM_STAT_CONDITION_MET:
+	case SAM_STAT_INTERMEDIATE:
+	case SAM_STAT_INTERMEDIATE_CONDITION_MET:
+	case SAM_STAT_ACA_ACTIVE:
 		/*
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
 
-	case RESERVATION_CONFLICT:
+	case SAM_STAT_RESERVATION_CONFLICT:
 		sdev_printk(KERN_INFO, scmd->device,
 			    "reservation conflict\n");
 		set_host_byte(scmd, DID_NEXUS_FAILURE);
@@ -2011,7 +1997,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	struct request *req;
 	struct scsi_request *rq;
 
-	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, 0);
+	req = blk_get_request(sdev->request_queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);
@@ -2137,10 +2123,10 @@ void scsi_eh_flush_done_q(struct list_head *done_q)
 			/*
 			 * If just we got sense for the device (called
 			 * scsi_eh_get_sense), scmd->result is already
-			 * set, do not set DRIVER_TIMEOUT.
+			 * set, do not set DID_TIME_OUT.
 			 */
 			if (!scmd->result)
-				scmd->result |= (DRIVER_TIMEOUT << 24);
+				scmd->result |= (DID_TIME_OUT << 16);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				scmd_printk(KERN_INFO, scmd,
 					     "%s: flush finish cmd\n",

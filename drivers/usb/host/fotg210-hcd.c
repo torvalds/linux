@@ -850,7 +850,6 @@ static inline void create_debug_files(struct fotg210_hcd *fotg210)
 	struct dentry *root;
 
 	root = debugfs_create_dir(bus->bus_name, fotg210_debug_root);
-	fotg210->debug_dir = root;
 
 	debugfs_create_file("async", S_IRUGO, root, bus, &debug_async_fops);
 	debugfs_create_file("periodic", S_IRUGO, root, bus,
@@ -861,7 +860,9 @@ static inline void create_debug_files(struct fotg210_hcd *fotg210)
 
 static inline void remove_debug_files(struct fotg210_hcd *fotg210)
 {
-	debugfs_remove_recursive(fotg210->debug_dir);
+	struct usb_bus *bus = &fotg210_to_hcd(fotg210)->self;
+
+	debugfs_remove(debugfs_lookup(bus->bus_name, fotg210_debug_root));
 }
 
 /* handshake - spin reading hc until handshake completes or fails

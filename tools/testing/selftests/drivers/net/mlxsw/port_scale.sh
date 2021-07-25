@@ -7,6 +7,8 @@
 
 PORT_NUM_NETIFS=0
 
+declare -a unsplit
+
 port_setup_prepare()
 {
 	:
@@ -20,12 +22,12 @@ port_cleanup()
 		devlink port unsplit $port
 		check_err $? "Did not unsplit $netdev"
 	done
+	unsplit=()
 }
 
 split_all_ports()
 {
 	local should_fail=$1; shift
-	local -a unsplit
 
 	# Loop over the splittable netdevs and create tuples of netdev along
 	# with its width. For example:

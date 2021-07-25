@@ -2631,6 +2631,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	apic_manage_nmi_watchdog(apic, kvm_lapic_get_reg(apic, APIC_LVT0));
 	update_divide_count(apic);
 	__start_apic_timer(apic, APIC_TMCCT);
+	kvm_lapic_set_reg(apic, APIC_TMCCT, 0);
 	kvm_apic_update_apicv(vcpu);
 	apic->highest_isr_cache = -1;
 	if (vcpu->arch.apicv_active) {
@@ -2872,7 +2873,7 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data, unsigned long len)
 	return kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, addr, new_len);
 }
 
-void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
+int kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	u8 sipi_vector;
@@ -2880,7 +2881,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 	unsigned long pe;
 
 	if (!lapic_in_kernel(vcpu))
-		return;
+		return 0;
 
 	/*
 	 * Read pending events before calling the check_events
@@ -2888,12 +2889,12 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 	 */
 	pe = smp_load_acquire(&apic->pending_events);
 	if (!pe)
-		return;
+		return 0;
 
 	if (is_guest_mode(vcpu)) {
 		r = kvm_check_nested_events(vcpu);
 		if (r < 0)
-			return;
+			return r == -EBUSY ? 0 : r;
 		/*
 		 * If an event has happened and caused a vmexit,
 		 * we know INITs are latched and therefore
@@ -2914,7 +2915,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED);
 		if (test_bit(KVM_APIC_SIPI, &pe))
 			clear_bit(KVM_APIC_SIPI, &apic->pending_events);
-		return;
+		return 0;
 	}
 
 	if (test_bit(KVM_APIC_INIT, &pe)) {
@@ -2935,6 +2936,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		}
 	}
+	return 0;
 }
 
 void kvm_lapic_exit(void)

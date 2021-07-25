@@ -19,6 +19,7 @@ properties:
           - ingenic,jz4740-mmc
           - ingenic,jz4725b-mmc
           - ingenic,jz4760-mmc
+          - ingenic,jz4775-mmc
           - ingenic,jz4780-mmc
           - ingenic,x1000-mmc
       - items:

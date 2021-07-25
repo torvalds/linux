@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
@@ -341,7 +342,9 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "mgag200drmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "mgag200drmfb");
+	if (ret)
+		return ret;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)

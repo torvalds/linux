@@ -14,32 +14,12 @@
 
 load("//build/kleaf:kernel.bzl", "kernel_build")
 
-filegroup(
-    name = "build_configs",
-    srcs = glob(["build.config.*"]),
-)
-
-filegroup(
-    name = "sources",
-    srcs = glob(
-        ["**"],
-        exclude = [
-            "build.config.*",
-            "android/*",
-            "BUILD.bazel",
-            "**/*.bzl",
-        ],
-    ),
-)
-
 common_outs = [
     "System.map",
     "modules.builtin",
     "modules.builtin.modinfo",
     "vmlinux",
     "vmlinux.symvers",
-    "kernel-headers.tar.gz",
-    "kernel-uapi-headers.tar.gz",
 ]
 
 aarch64_outs = common_outs + [
@@ -51,29 +31,35 @@ x86_64_outs = common_outs + ["bzImage"]
 
 [kernel_build(
     name = name,
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "android/*",
+            "BUILD.bazel",
+            "**/*.bzl",
+        ],
+    ),
     outs = outs,
     build_config = config,
-    build_configs = "//common:build_configs",
-    sources = "//common:sources",
 ) for name, config, outs in [
     (
         "kernel_aarch64",
-        "common/build.config.gki.aarch64",
+        "build.config.gki.aarch64",
         aarch64_outs,
     ),
     (
         "kernel_aarch64_debug",
-        "common/build.config.gki-debug.aarch64",
+        "build.config.gki-debug.aarch64",
         aarch64_outs,
     ),
     (
         "kernel_x86_64",
-        "common/build.config.gki.x86_64",
+        "build.config.gki.x86_64",
         x86_64_outs,
     ),
     (
         "kernel_x86_64_debug",
-        "common/build.config.gki-debug.x86_64",
+        "build.config.gki-debug.x86_64",
         x86_64_outs,
     ),
 ]]

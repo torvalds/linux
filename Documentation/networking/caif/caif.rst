@@ -69,9 +69,9 @@ There are debugfs parameters provided for serial communication.
 
   - 0x01 - tty->warned is on.
   - 0x04 - tty->packed is on.
-  - 0x08 - tty->flow_stopped is on.
+  - 0x08 - tty->flow.tco_stopped is on.
   - 0x10 - tty->hw_stopped is on.
-  - 0x20 - tty->stopped is on.
+  - 0x20 - tty->flow.stopped is on.
 
 * last_tx_msg: Binary blob Prints the last transmitted frame.
 

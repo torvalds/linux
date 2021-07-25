@@ -1213,7 +1213,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		 * cleanup the command and return that I/O was successfully
 		 * aborted.
 		 */
-		rc = bnx2fc_abts_cleanup(io_req);
+		bnx2fc_abts_cleanup(io_req);
 		/* This only occurs when an task abort was requested while ABTS
 		   is in progress.  Setting the IO_CLEANUP flag will skip the
 		   RRQ process in the case when the fw generated SCSI_CMD cmpl

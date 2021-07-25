@@ -45,6 +45,7 @@ enum nfs4_client_state {
 	NFS4CLNT_RECALL_RUNNING,
 	NFS4CLNT_RECALL_ANY_LAYOUT_READ,
 	NFS4CLNT_RECALL_ANY_LAYOUT_RW,
+	NFS4CLNT_DELEGRETURN_DELAYED,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01
@@ -322,7 +323,8 @@ extern int update_open_stateid(struct nfs4_state *state,
 				const nfs4_stateid *open_stateid,
 				const nfs4_stateid *deleg_stateid,
 				fmode_t fmode);
-
+extern int nfs4_proc_setlease(struct file *file, long arg,
+			      struct file_lock **lease, void **priv);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
 extern void nfs4_update_changeattr(struct inode *dir,

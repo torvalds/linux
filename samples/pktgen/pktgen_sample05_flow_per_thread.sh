@@ -62,6 +62,8 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 	pg_set $dev "udp_dst_max $UDP_DST_MAX"
     fi
 
+    [ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
+
     # Setup source IP-addresses based on thread number
     pg_set $dev "src_min 198.18.$((thread+1)).1"
     pg_set $dev "src_max 198.18.$((thread+1)).1"

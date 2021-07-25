@@ -284,7 +284,7 @@
 			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <6>;
-			mbox_dsp: dsp {
+			mbox_dsp: mbox-dsp {
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <1 0 0>;
 			};

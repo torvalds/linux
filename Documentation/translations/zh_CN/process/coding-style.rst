@@ -61,7 +61,7 @@ Linux 内核代码风格
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}

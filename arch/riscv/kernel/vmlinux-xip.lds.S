@@ -12,7 +12,6 @@
 
 #include <asm/vmlinux.lds.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 

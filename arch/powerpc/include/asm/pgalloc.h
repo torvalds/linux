@@ -70,9 +70,4 @@ extern struct kmem_cache *pgtable_cache[];
 #include <asm/nohash/pgalloc.h>
 #endif
 
-static inline pgtable_t pmd_pgtable(pmd_t pmd)
-{
-	return (pgtable_t)pmd_page_vaddr(pmd);
-}
-
 #endif /* _ASM_POWERPC_PGALLOC_H */

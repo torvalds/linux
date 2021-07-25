@@ -357,16 +357,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &tc3589x_gpio->chip,
-				     tc3589x_gpio);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, tc3589x_gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &tc3589x_gpio->chip, tc3589x_gpio);
 }
 
 static struct platform_driver tc3589x_gpio_driver = {

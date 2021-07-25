@@ -678,12 +678,14 @@ static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selectio
 		sel->r.height = zr->jpg_settings.img_height;
 		break;
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.top = sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.left = 0;
 		sel->r.width = BUZ_MIN_WIDTH;
 		sel->r.height = BUZ_MIN_HEIGHT;
 		break;
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		sel->r.top = sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.left = 0;
 		sel->r.width = BUZ_MAX_WIDTH;
 		sel->r.height = BUZ_MAX_HEIGHT;
 		break;

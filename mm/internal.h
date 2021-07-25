@@ -116,6 +116,11 @@ extern void putback_lru_page(struct page *page);
 extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
 
 /*
+ * in mm/memcontrol.c:
+ */
+extern bool cgroup_memory_nokmem;
+
+/*
  * in mm/page_alloc.c
  */
 
@@ -198,10 +203,10 @@ extern void post_alloc_hook(struct page *page, unsigned int order,
 					gfp_t gfp_flags);
 extern int user_min_free_kbytes;
 
-extern void free_unref_page(struct page *page);
+extern void free_unref_page(struct page *page, unsigned int order);
 extern void free_unref_page_list(struct list_head *list);
 
-extern void zone_pcp_update(struct zone *zone);
+extern void zone_pcp_update(struct zone *zone, int cpu_online);
 extern void zone_pcp_reset(struct zone *zone);
 extern void zone_pcp_disable(struct zone *zone);
 extern void zone_pcp_enable(struct zone *zone);
@@ -269,10 +274,9 @@ isolate_freepages_range(struct compact_control *cc,
 int
 isolate_migratepages_range(struct compact_control *cc,
 			   unsigned long low_pfn, unsigned long end_pfn);
+#endif
 int find_suitable_fallback(struct free_area *area, unsigned int order,
 			int migratetype, bool only_stealable, bool *can_steal);
-
-#endif
 
 /*
  * This function returns the order of a free page in the buddy system. In
@@ -339,7 +343,10 @@ void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma);
 
 #ifdef CONFIG_MMU
 extern long populate_vma_page_range(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end, int *nonblocking);
+		unsigned long start, unsigned long end, int *locked);
+extern long faultin_vma_page_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end,
+				   bool write, int *locked);
 extern void munlock_vma_pages_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end);
 static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
@@ -353,6 +360,9 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
 extern void mlock_vma_page(struct page *page);
 extern unsigned int munlock_vma_page(struct page *page);
 
+extern int mlock_future_check(struct mm_struct *mm, unsigned long flags,
+			      unsigned long len);
+
 /*
  * Clear the page's PageMlocked().  This can be useful in a situation where
  * we want to unconditionally remove a page from the pagecache -- e.g.,
@@ -363,23 +373,6 @@ extern unsigned int munlock_vma_page(struct page *page);
  * is revert to lazy LRU behaviour -- semantics are not broken.
  */
 extern void clear_page_mlock(struct page *page);
-
-/*
- * mlock_migrate_page - called only from migrate_misplaced_transhuge_page()
- * (because that does not go through the full procedure of migration ptes):
- * to migrate the Mlocked page flag; update statistics.
- */
-static inline void mlock_migrate_page(struct page *newpage, struct page *page)
-{
-	if (TestClearPageMlocked(page)) {
-		int nr_pages = thp_nr_pages(page);
-
-		/* Holding pmd lock, no change in irq context: __mod is safe */
-		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-		SetPageMlocked(newpage);
-		__mod_zone_page_state(page_zone(newpage), NR_MLOCK, nr_pages);
-	}
-}
 
 extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
 
@@ -456,7 +449,6 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 #else /* !CONFIG_MMU */
 static inline void clear_page_mlock(struct page *page) { }
 static inline void mlock_vma_page(struct page *page) { }
-static inline void mlock_migrate_page(struct page *new, struct page *old) { }
 static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
 {
 }
@@ -666,5 +658,8 @@ int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
 #endif
 
 void vunmap_range_noflush(unsigned long start, unsigned long end);
+
+int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
+		      unsigned long addr, int page_nid, int *flags);
 
 #endif	/* __MM_INTERNAL_H */

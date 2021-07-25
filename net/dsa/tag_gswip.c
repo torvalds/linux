@@ -103,7 +103,7 @@ static const struct dsa_device_ops gswip_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_GSWIP,
 	.xmit = gswip_tag_xmit,
 	.rcv = gswip_tag_rcv,
-	.overhead = GSWIP_RX_HEADER_LEN,
+	.needed_headroom = GSWIP_RX_HEADER_LEN,
 };
 
 MODULE_LICENSE("GPL");

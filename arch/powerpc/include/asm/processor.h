@@ -276,7 +276,15 @@ struct thread_struct {
 #define SPEFSCR_INIT
 #endif
 
-#ifdef CONFIG_PPC32
+#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
+#define INIT_THREAD { \
+	.ksp = INIT_SP, \
+	.pgdir = swapper_pg_dir, \
+	.kuap = ~0UL, /* KUAP_NONE */ \
+	.fpexc_mode = MSR_FE0 | MSR_FE1, \
+	SPEFSCR_INIT \
+}
+#elif defined(CONFIG_PPC32)
 #define INIT_THREAD { \
 	.ksp = INIT_SP, \
 	.pgdir = swapper_pg_dir, \
@@ -338,17 +346,6 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 #define spin_cpu_relax()	barrier()
 
 #define spin_end()	HMT_medium()
-
-#define spin_until_cond(cond)					\
-do {								\
-	if (unlikely(!(cond))) {				\
-		spin_begin();					\
-		do {						\
-			spin_cpu_relax();			\
-		} while (!(cond));				\
-		spin_end();					\
-	}							\
-} while (0)
 
 #endif
 

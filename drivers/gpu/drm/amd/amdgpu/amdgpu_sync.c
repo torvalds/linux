@@ -210,10 +210,10 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		return -EINVAL;
 
 	/* always sync to the exclusive fence */
-	f = dma_resv_get_excl(resv);
+	f = dma_resv_excl_fence(resv);
 	r = amdgpu_sync_fence(sync, f);
 
-	flist = dma_resv_get_list(resv);
+	flist = dma_resv_shared_list(resv);
 	if (!flist || r)
 		return r;
 

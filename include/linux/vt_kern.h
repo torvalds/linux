@@ -166,7 +166,6 @@ int vt_get_kbd_mode_bit(int console, int bit);
 void vt_set_kbd_mode_bit(int console, int bit);
 void vt_clr_kbd_mode_bit(int console, int bit);
 void vt_set_led_state(int console, int leds);
-void vt_set_led_state(int console, int leds);
 void vt_kbd_con_start(int console);
 void vt_kbd_con_stop(int console);
 

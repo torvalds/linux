@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2020	Intel Corporation
+ * Copyright 2018-2021	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -942,7 +942,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	struct ieee80211_sta_vht_cap *vht_cap;
 	struct ieee80211_edmg *edmg_cap;
 	u32 width, control_freq, cap;
-	bool support_80_80 = false;
+	bool ext_nss_cap, support_80_80 = false;
 
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return false;
@@ -950,6 +950,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	ht_cap = &wiphy->bands[chandef->chan->band]->ht_cap;
 	vht_cap = &wiphy->bands[chandef->chan->band]->vht_cap;
 	edmg_cap = &wiphy->bands[chandef->chan->band]->edmg_cap;
+	ext_nss_cap = __le16_to_cpu(vht_cap->vht_mcs.tx_highest) &
+			IEEE80211_VHT_EXT_NSS_BW_CAPABLE;
 
 	if (edmg_cap->channels &&
 	    !cfg80211_edmg_usable(wiphy,
@@ -1015,7 +1017,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			(cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ) ||
 			(cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
 			 cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) ||
-			u32_get_bits(cap, IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) > 1;
+			(ext_nss_cap &&
+			 u32_get_bits(cap, IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) > 1);
 		if (chandef->chan->band != NL80211_BAND_6GHZ && !support_80_80)
 			return false;
 		fallthrough;
@@ -1037,7 +1040,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
 		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ &&
-		    !(vht_cap->cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK))
+		    !(ext_nss_cap &&
+		      (vht_cap->cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK)))
 			return false;
 		break;
 	default:
@@ -1335,3 +1339,34 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 		WARN_ON(1);
 	}
 }
+
+bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+				  unsigned long sband_mask,
+				  u32 prohibited_flags)
+{
+	int idx;
+
+	prohibited_flags |= IEEE80211_CHAN_DISABLED;
+
+	for_each_set_bit(idx, &sband_mask, NUM_NL80211_BANDS) {
+		struct ieee80211_supported_band *sband = wiphy->bands[idx];
+		int chanidx;
+
+		if (!sband)
+			continue;
+
+		for (chanidx = 0; chanidx < sband->n_channels; chanidx++) {
+			struct ieee80211_channel *chan;
+
+			chan = &sband->channels[chanidx];
+
+			if (chan->flags & prohibited_flags)
+				continue;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(cfg80211_any_usable_channels);

@@ -10,7 +10,7 @@ struct {
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
 
-static volatile int count;
+int count = 0;
 
 SEC("classifier/0")
 int bpf_func_0(struct __sk_buff *skb)

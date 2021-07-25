@@ -20,6 +20,7 @@
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
+#include "xfs_ag.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -245,8 +246,8 @@ xrep_agf_calc_from_btrees(
 	int			error;
 
 	/* Update the AGF counters from the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
-			XFS_BTNUM_BNO);
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
+			sc->sa.pag, XFS_BTNUM_BNO);
 	error = xfs_alloc_query_all(cur, xrep_agf_walk_allocbt, &raa);
 	if (error)
 		goto err;
@@ -259,8 +260,8 @@ xrep_agf_calc_from_btrees(
 	agf->agf_longest = cpu_to_be32(raa.longest);
 
 	/* Update the AGF counters from the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
-			XFS_BTNUM_CNT);
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
+			sc->sa.pag, XFS_BTNUM_CNT);
 	error = xfs_btree_count_blocks(cur, &blocks);
 	if (error)
 		goto err;
@@ -268,7 +269,7 @@ xrep_agf_calc_from_btrees(
 	btreeblks += blocks - 1;
 
 	/* Update the AGF counters from the rmapbt. */
-	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
+	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xfs_btree_count_blocks(cur, &blocks);
 	if (error)
 		goto err;
@@ -281,7 +282,7 @@ xrep_agf_calc_from_btrees(
 	/* Update the AGF counters from the refcountbt. */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 		cur = xfs_refcountbt_init_cursor(mp, sc->tp, agf_bp,
-				sc->sa.agno);
+				sc->sa.pag);
 		error = xfs_btree_count_blocks(cur, &blocks);
 		if (error)
 			goto err;
@@ -453,7 +454,7 @@ xrep_agfl_walk_rmap(
 
 	/* Record all the OWN_AG blocks. */
 	if (rec->rm_owner == XFS_RMAP_OWN_AG) {
-		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.agno,
+		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.pag->pag_agno,
 				rec->rm_startblock);
 		error = xbitmap_set(ra->freesp, fsb, rec->rm_blockcount);
 		if (error)
@@ -489,23 +490,23 @@ xrep_agfl_collect_blocks(
 	xbitmap_init(&ra.agmetablocks);
 
 	/* Find all space used by the free space btrees & rmapbt. */
-	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
+	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xfs_rmap_query_all(cur, xrep_agfl_walk_rmap, &ra);
 	if (error)
 		goto err;
 	xfs_btree_del_cursor(cur, error);
 
 	/* Find all blocks currently being used by the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
-			XFS_BTNUM_BNO);
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
+			sc->sa.pag, XFS_BTNUM_BNO);
 	error = xbitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
 		goto err;
 	xfs_btree_del_cursor(cur, error);
 
 	/* Find all blocks currently being used by the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
-			XFS_BTNUM_CNT);
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
+			sc->sa.pag, XFS_BTNUM_CNT);
 	error = xbitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
 		goto err;
@@ -805,8 +806,8 @@ xrep_agi_calc_from_btrees(
 	xfs_agino_t		freecount;
 	int			error;
 
-	cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp, sc->sa.agno,
-			XFS_BTNUM_INO);
+	cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp,
+			sc->sa.pag, XFS_BTNUM_INO);
 	error = xfs_ialloc_count_inodes(cur, &count, &freecount);
 	if (error)
 		goto err;
@@ -827,8 +828,8 @@ xrep_agi_calc_from_btrees(
 	    xfs_sb_version_hasinobtcounts(&mp->m_sb)) {
 		xfs_agblock_t	blocks;
 
-		cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp, sc->sa.agno,
-				XFS_BTNUM_FINO);
+		cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp,
+				sc->sa.pag, XFS_BTNUM_FINO);
 		error = xfs_btree_count_blocks(cur, &blocks);
 		if (error)
 			goto err;

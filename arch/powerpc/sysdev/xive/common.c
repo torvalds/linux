@@ -1153,11 +1153,10 @@ static int __init xive_request_ipi(void)
 		 * Since the HW interrupt number doesn't have any meaning,
 		 * simply use the node number.
 		 */
-		xid->irq = irq_domain_alloc_irqs(ipi_domain, 1, node, &info);
-		if (xid->irq < 0) {
-			ret = xid->irq;
+		ret = irq_domain_alloc_irqs(ipi_domain, 1, node, &info);
+		if (ret < 0)
 			goto out_free_xive_ipis;
-		}
+		xid->irq = ret;
 
 		snprintf(xid->name, sizeof(xid->name), "IPI-%d", node);
 

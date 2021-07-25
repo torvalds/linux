@@ -39,8 +39,6 @@
 #include <linux/hdreg.h>  /* HDIO_GETGEO */
 #include <linux/device.h>
 #include <linux/bio.h>
-#include <linux/suspend.h>
-#include <linux/platform_device.h>
 #include <linux/gfp.h>
 #include <linux/uaccess.h>
 
@@ -56,7 +54,6 @@ typedef struct {
 static xpram_device_t xpram_devices[XPRAM_MAX_DEVS];
 static unsigned int xpram_sizes[XPRAM_MAX_DEVS];
 static struct gendisk *xpram_disks[XPRAM_MAX_DEVS];
-static struct request_queue *xpram_queues[XPRAM_MAX_DEVS];
 static unsigned int xpram_pages;
 static int xpram_devs;
 
@@ -141,7 +138,7 @@ static long xpram_page_out (unsigned long page_addr, unsigned int xpage_index)
 /*
  * Check if xpram is available.
  */
-static int xpram_present(void)
+static int __init xpram_present(void)
 {
 	unsigned long mem_page;
 	int rc;
@@ -157,7 +154,7 @@ static int xpram_present(void)
 /*
  * Return index of the last available xpram page.
  */
-static unsigned long xpram_highest_page_index(void)
+static unsigned long __init xpram_highest_page_index(void)
 {
 	unsigned int page_index, add_bit;
 	unsigned long mem_page;
@@ -341,17 +338,13 @@ static int __init xpram_setup_blkdev(void)
 	int i, rc = -ENOMEM;
 
 	for (i = 0; i < xpram_devs; i++) {
-		xpram_disks[i] = alloc_disk(1);
+		xpram_disks[i] = blk_alloc_disk(NUMA_NO_NODE);
 		if (!xpram_disks[i])
 			goto out;
-		xpram_queues[i] = blk_alloc_queue(NUMA_NO_NODE);
-		if (!xpram_queues[i]) {
-			put_disk(xpram_disks[i]);
-			goto out;
-		}
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, xpram_queues[i]);
-		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, xpram_queues[i]);
-		blk_queue_logical_block_size(xpram_queues[i], 4096);
+		blk_queue_flag_set(QUEUE_FLAG_NONROT, xpram_disks[i]->queue);
+		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM,
+				xpram_disks[i]->queue);
+		blk_queue_logical_block_size(xpram_disks[i]->queue, 4096);
 	}
 
 	/*
@@ -373,9 +366,9 @@ static int __init xpram_setup_blkdev(void)
 		offset += xpram_devices[i].size;
 		disk->major = XPRAM_MAJOR;
 		disk->first_minor = i;
+		disk->minors = 1;
 		disk->fops = &xpram_devops;
 		disk->private_data = &xpram_devices[i];
-		disk->queue = xpram_queues[i];
 		sprintf(disk->disk_name, "slram%d", i);
 		set_capacity(disk, xpram_sizes[i] << 1);
 		add_disk(disk);
@@ -383,48 +376,10 @@ static int __init xpram_setup_blkdev(void)
 
 	return 0;
 out:
-	while (i--) {
-		blk_cleanup_queue(xpram_queues[i]);
-		put_disk(xpram_disks[i]);
-	}
+	while (i--)
+		blk_cleanup_disk(xpram_disks[i]);
 	return rc;
 }
-
-/*
- * Resume failed: Print error message and call panic.
- */
-static void xpram_resume_error(const char *message)
-{
-	pr_err("Resuming the system failed: %s\n", message);
-	panic("xpram resume error\n");
-}
-
-/*
- * Check if xpram setup changed between suspend and resume.
- */
-static int xpram_restore(struct device *dev)
-{
-	if (!xpram_pages)
-		return 0;
-	if (xpram_present() != 0)
-		xpram_resume_error("xpram disappeared");
-	if (xpram_pages != xpram_highest_page_index() + 1)
-		xpram_resume_error("Size of xpram changed");
-	return 0;
-}
-
-static const struct dev_pm_ops xpram_pm_ops = {
-	.restore	= xpram_restore,
-};
-
-static struct platform_driver xpram_pdrv = {
-	.driver = {
-		.name	= XPRAM_NAME,
-		.pm	= &xpram_pm_ops,
-	},
-};
-
-static struct platform_device *xpram_pdev;
 
 /*
  * Finally, the init/exit functions.
@@ -434,12 +389,9 @@ static void __exit xpram_exit(void)
 	int i;
 	for (i = 0; i < xpram_devs; i++) {
 		del_gendisk(xpram_disks[i]);
-		blk_cleanup_queue(xpram_queues[i]);
-		put_disk(xpram_disks[i]);
+		blk_cleanup_disk(xpram_disks[i]);
 	}
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
-	platform_device_unregister(xpram_pdev);
-	platform_driver_unregister(&xpram_pdrv);
 }
 
 static int __init xpram_init(void)
@@ -457,24 +409,7 @@ static int __init xpram_init(void)
 	rc = xpram_setup_sizes(xpram_pages);
 	if (rc)
 		return rc;
-	rc = platform_driver_register(&xpram_pdrv);
-	if (rc)
-		return rc;
-	xpram_pdev = platform_device_register_simple(XPRAM_NAME, -1, NULL, 0);
-	if (IS_ERR(xpram_pdev)) {
-		rc = PTR_ERR(xpram_pdev);
-		goto fail_platform_driver_unregister;
-	}
-	rc = xpram_setup_blkdev();
-	if (rc)
-		goto fail_platform_device_unregister;
-	return 0;
-
-fail_platform_device_unregister:
-	platform_device_unregister(xpram_pdev);
-fail_platform_driver_unregister:
-	platform_driver_unregister(&xpram_pdrv);
-	return rc;
+	return xpram_setup_blkdev();
 }
 
 module_init(xpram_init);

@@ -23,7 +23,7 @@
 		};
 	};
 
-	memory {
+	memory@200000 {
 		compatible = "memory";
 		device_type = "memory";
 		reg = <0x00000000 0x00200000 0x00000000 0x0ee00000>, /* 238 MB at 2 MB */
@@ -114,6 +114,52 @@
 			ranges = <0x01000000 0x0 0x00000000 0x0 0x18000000  0x0 0x00010000>,
 				 <0x02000000 0x0 0x40000000 0x0 0x40000000  0x0 0x40000000>;
 
+			gmac@3,0 {
+				compatible = "pci0014,7a03.0",
+						   "pci0014,7a03",
+						   "pciclass0c0320",
+						   "pciclass0c03",
+						   "loongson, pci-gmac";
+
+				reg = <0x1800 0x0 0x0 0x0 0x0>;
+				interrupts = <12 IRQ_TYPE_LEVEL_LOW>,
+					     <13 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-names = "macirq", "eth_lpi";
+				interrupt-parent = <&liointc0>;
+				phy-mode = "rgmii";
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "snps,dwmac-mdio";
+					phy0: ethernet-phy@0 {
+						reg = <0>;
+					};
+				};
+			};
+
+			gmac@3,1 {
+				compatible = "pci0014,7a03.0",
+						   "pci0014,7a03",
+						   "pciclass0c0320",
+						   "pciclass0c03",
+						   "loongson, pci-gmac";
+
+				reg = <0x1900 0x0 0x0 0x0 0x0>;
+				interrupts = <14 IRQ_TYPE_LEVEL_LOW>,
+					     <15 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-names = "macirq", "eth_lpi";
+				interrupt-parent = <&liointc0>;
+				phy-mode = "rgmii";
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "snps,dwmac-mdio";
+					phy1: ethernet-phy@1 {
+						reg = <0>;
+					};
+				};
+			};
+
 			ehci@4,1 {
 				compatible = "pci0014,7a14.0",
 						   "pci0014,7a14",
@@ -163,8 +209,8 @@
 			};
 
 			pci_bridge@a,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -178,8 +224,8 @@
 			};
 
 			pci_bridge@b,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -193,8 +239,8 @@
 			};
 
 			pci_bridge@c,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -223,8 +269,8 @@
 			};
 
 			pci_bridge@e,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 

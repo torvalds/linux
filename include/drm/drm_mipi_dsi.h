@@ -19,8 +19,6 @@ struct drm_dsc_picture_parameter_set;
 #define MIPI_DSI_MSG_REQ_ACK	BIT(0)
 /* use Low Power Mode to transmit message */
 #define MIPI_DSI_MSG_USE_LPM	BIT(1)
-/* Stack all commands until lastcommand bit and trigger all in one go */
-#define MIPI_DSI_MSG_LASTCOMMAND BIT(3)
 
 /**
  * struct mipi_dsi_msg - read/write DSI buffer

@@ -8,7 +8,6 @@
 
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
 #include <linux/math64.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -17,9 +16,6 @@
 
 #include <linux/platform_data/ntc_thermistor.h>
 
-#include <linux/iio/iio.h>
-#include <linux/iio/machine.h>
-#include <linux/iio/driver.h>
 #include <linux/iio/consumer.h>
 
 #include <linux/hwmon.h>

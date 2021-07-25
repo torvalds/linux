@@ -1223,14 +1223,14 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 		st->dready_trig = devm_iio_trigger_alloc(dev,
 							 "%s-dev%d",
 							 indio_dev->name,
-							 indio_dev->id);
+							 iio_device_id(indio_dev));
 		if (st->dready_trig == NULL)
 			return -ENOMEM;
 
 		st->peak_datardy_trig = devm_iio_trigger_alloc(dev,
 							       "%s-dev%d-peak",
 							       indio_dev->name,
-							       indio_dev->id);
+							       iio_device_id(indio_dev));
 		if (!st->peak_datardy_trig)
 			return -ENOMEM;
 

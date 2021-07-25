@@ -223,10 +223,12 @@ enum amd_harvest_ip_mask {
 };
 
 enum DC_FEATURE_MASK {
-	DC_FBC_MASK = 0x1,
-	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
-	DC_DISABLE_FRACTIONAL_PWM_MASK = 0x4,
-	DC_PSR_MASK = 0x8,
+	//Default value can be found at "uint amdgpu_dc_feature_mask"
+	DC_FBC_MASK = (1 << 0), //0x1, disabled by default
+	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = (1 << 1), //0x2, enabled by default
+	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
+	DC_PSR_MASK = (1 << 3), //0x8, disabled by default
+	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 };
 
 enum DC_DEBUG_MASK {
@@ -246,6 +248,7 @@ enum amd_dpm_forced_level;
  * @late_init: sets up late driver/hw state (post hw_init) - Optional
  * @sw_init: sets up driver state, does not configure hw
  * @sw_fini: tears down driver state, does not configure hw
+ * @early_fini: tears down stuff before dev detached from driver
  * @hw_init: sets up the hw state
  * @hw_fini: tears down the hw state
  * @late_fini: final cleanup
@@ -274,6 +277,7 @@ struct amd_ip_funcs {
 	int (*late_init)(void *handle);
 	int (*sw_init)(void *handle);
 	int (*sw_fini)(void *handle);
+	int (*early_fini)(void *handle);
 	int (*hw_init)(void *handle);
 	int (*hw_fini)(void *handle);
 	void (*late_fini)(void *handle);

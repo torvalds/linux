@@ -607,7 +607,6 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 	struct ras_ih_if ih_info = {
 		.cb = amdgpu_gfx_process_ras_data_cb,
 	};
-	struct ras_query_if info = { 0 };
 
 	if (!adev->gfx.ras_if) {
 		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
@@ -625,12 +624,8 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 		goto free;
 
 	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
-		if (adev->gmc.xgmi.connected_to_cpu) {
-			info.head = *adev->gfx.ras_if;
-			amdgpu_ras_query_error_status(adev, &info);
-		} else {
+		if (!amdgpu_persistent_edc_harvesting_supported(adev))
 			amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
-		}
 
 		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 		if (r)

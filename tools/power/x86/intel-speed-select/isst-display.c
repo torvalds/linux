@@ -446,7 +446,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		if (ctdp_level->mem_freq) {
 			snprintf(header, sizeof(header), "mem-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->mem_freq * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->mem_freq);
 			format_and_print(outf, level + 2, header, value);
 		}
 

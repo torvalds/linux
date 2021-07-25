@@ -417,18 +417,24 @@ See also the examples in :ref:`control`.
       - any
       - An unsigned 32-bit valued control ranging from minimum to maximum
 	inclusive. The step value indicates the increment between values.
-    * - ``V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS``
+    * - ``V4L2_CTRL_TYPE_MPEG2_QUANTISATION``
       - n/a
       - n/a
       - n/a
-      - A struct :c:type:`v4l2_ctrl_mpeg2_slice_params`, containing MPEG-2
-	slice parameters for stateless video decoders.
-    * - ``V4L2_CTRL_TYPE_MPEG2_QUANTIZATION``
+      - A struct :c:type:`v4l2_ctrl_mpeg2_quantisation`, containing MPEG-2
+	quantisation matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_MPEG2_SEQUENCE``
       - n/a
       - n/a
       - n/a
-      - A struct :c:type:`v4l2_ctrl_mpeg2_quantization`, containing MPEG-2
-	quantization matrices for stateless video decoders.
+      - A struct :c:type:`v4l2_ctrl_mpeg2_sequence`, containing MPEG-2
+	sequence parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_MPEG2_PICTURE``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_mpeg2_picture`, containing MPEG-2
+	picture parameters for stateless video decoders.
     * - ``V4L2_CTRL_TYPE_AREA``
       - n/a
       - n/a
@@ -495,6 +501,12 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_vp8_frame`, containing VP8
 	frame parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_HEVC_DECODE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_hevc_decode_params`, containing HEVC
+	decoding parameters for stateless video decoders.
 
 .. raw:: latex
 

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_debugfs.h>
@@ -1124,8 +1125,6 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	drm->mode_config.max_width = 0;
 	drm->mode_config.max_height = 0;
 
-	drm->mode_config.allow_fb_modifiers = true;
-
 	drm->mode_config.normalize_zpos = true;
 
 	drm->mode_config.funcs = &tegra_drm_mode_config_funcs;
@@ -1205,8 +1204,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	drm_mode_config_reset(drm);
 
-	err = drm_fb_helper_remove_conflicting_framebuffers(NULL, "tegradrmfb",
-							    false);
+	err = drm_aperture_remove_framebuffers(false, "tegradrmfb");
 	if (err < 0)
 		goto hub;
 

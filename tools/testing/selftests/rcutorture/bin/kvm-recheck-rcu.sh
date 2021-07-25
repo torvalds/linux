@@ -31,7 +31,7 @@ then
 	echo "$configfile ------- " $stopstate
 else
 	title="$configfile ------- $ngps GPs"
-	dur=`sed -e 's/^.* rcutorture.shutdown_secs=//' -e 's/ .*$//' < $i/qemu-cmd 2> /dev/null`
+	dur=`grep -v '^#' $i/qemu-cmd | sed -e 's/^.* rcutorture.shutdown_secs=//' -e 's/ .*$//'`
 	if test -z "$dur"
 	then
 		:

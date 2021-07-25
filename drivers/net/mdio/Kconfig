@@ -19,6 +19,13 @@ config MDIO_BUS
 	  reflects whether the mdio_bus/mdio_device code is built as a
 	  loadable module or built-in.
 
+config FWNODE_MDIO
+	def_tristate PHYLIB
+	depends on (ACPI || OF) || COMPILE_TEST
+	select FIXED_PHY
+	help
+	  FWNODE MDIO bus (Ethernet PHY) accessors
+
 config OF_MDIO
 	def_tristate PHYLIB
 	depends on OF
@@ -26,6 +33,13 @@ config OF_MDIO
 	select FIXED_PHY
 	help
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
+
+config ACPI_MDIO
+	def_tristate PHYLIB
+	depends on ACPI
+	depends on PHYLIB
+	help
+	  ACPI MDIO bus (Ethernet PHY) accessors
 
 if MDIO_BUS
 

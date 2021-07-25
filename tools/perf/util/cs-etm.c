@@ -38,8 +38,6 @@
 #include <tools/libc_compat.h>
 #include "util/synthetic-events.h"
 
-#define MAX_TIMESTAMP (~0ULL)
-
 struct cs_etm_auxtrace {
 	struct auxtrace auxtrace;
 	struct auxtrace_queues queues;
@@ -56,6 +54,7 @@ struct cs_etm_auxtrace {
 	u8 sample_instructions;
 
 	int num_cpu;
+	u64 latest_kernel_timestamp;
 	u32 auxtrace_type;
 	u64 branches_sample_type;
 	u64 branches_id;
@@ -86,7 +85,7 @@ struct cs_etm_queue {
 	struct cs_etm_decoder *decoder;
 	struct auxtrace_buffer *buffer;
 	unsigned int queue_nr;
-	u8 pending_timestamp;
+	u8 pending_timestamp_chan_id;
 	u64 offset;
 	const unsigned char *buf;
 	size_t buf_len, buf_used;
@@ -208,7 +207,7 @@ void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
 	 * be more than one channel per cs_etm_queue, we need to specify
 	 * what traceID queue needs servicing.
 	 */
-	etmq->pending_timestamp = trace_chan_id;
+	etmq->pending_timestamp_chan_id = trace_chan_id;
 }
 
 static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
@@ -216,22 +215,22 @@ static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
 {
 	struct cs_etm_packet_queue *packet_queue;
 
-	if (!etmq->pending_timestamp)
+	if (!etmq->pending_timestamp_chan_id)
 		return 0;
 
 	if (trace_chan_id)
-		*trace_chan_id = etmq->pending_timestamp;
+		*trace_chan_id = etmq->pending_timestamp_chan_id;
 
 	packet_queue = cs_etm__etmq_get_packet_queue(etmq,
-						     etmq->pending_timestamp);
+						     etmq->pending_timestamp_chan_id);
 	if (!packet_queue)
 		return 0;
 
 	/* Acknowledge pending status */
-	etmq->pending_timestamp = 0;
+	etmq->pending_timestamp_chan_id = 0;
 
 	/* See function cs_etm_decoder__do_{hard|soft}_timestamp() */
-	return packet_queue->timestamp;
+	return packet_queue->cs_timestamp;
 }
 
 static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
@@ -814,7 +813,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	int ret = 0;
 	unsigned int cs_queue_nr;
 	u8 trace_chan_id;
-	u64 timestamp;
+	u64 cs_timestamp;
 	struct cs_etm_queue *etmq = queue->priv;
 
 	if (list_empty(&queue->head) || etmq)
@@ -854,7 +853,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 
 		/*
 		 * Run decoder on the trace block.  The decoder will stop when
-		 * encountering a timestamp, a full packet queue or the end of
+		 * encountering a CS timestamp, a full packet queue or the end of
 		 * trace for that block.
 		 */
 		ret = cs_etm__decode_data_block(etmq);
@@ -865,10 +864,10 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 		 * Function cs_etm_decoder__do_{hard|soft}_timestamp() does all
 		 * the timestamp calculation for us.
 		 */
-		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+		cs_timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
 
 		/* We found a timestamp, no need to continue. */
-		if (timestamp)
+		if (cs_timestamp)
 			break;
 
 		/*
@@ -892,7 +891,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	 * queue and will be processed in cs_etm__process_queues().
 	 */
 	cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
-	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
+	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 out:
 	return ret;
 }
@@ -1194,6 +1193,8 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
+	if (!etm->timeless_decoding)
+		sample.time = etm->latest_kernel_timestamp;
 	sample.ip = addr;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -1250,6 +1251,8 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
+	if (!etm->timeless_decoding)
+		sample.time = etm->latest_kernel_timestamp;
 	sample.ip = ip;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -2221,7 +2224,7 @@ static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
 	int ret = 0;
 	unsigned int cs_queue_nr, queue_nr;
 	u8 trace_chan_id;
-	u64 timestamp;
+	u64 cs_timestamp;
 	struct auxtrace_queue *queue;
 	struct cs_etm_queue *etmq;
 	struct cs_etm_traceid_queue *tidq;
@@ -2283,9 +2286,9 @@ refetch:
 		if (ret)
 			goto out;
 
-		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+		cs_timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
 
-		if (!timestamp) {
+		if (!cs_timestamp) {
 			/*
 			 * Function cs_etm__decode_data_block() returns when
 			 * there is no more traces to decode in the current
@@ -2308,7 +2311,7 @@ refetch:
 		 * this queue/traceID.
 		 */
 		cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
-		ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
+		ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 	}
 
 out:
@@ -2380,7 +2383,7 @@ static int cs_etm__process_event(struct perf_session *session,
 				 struct perf_tool *tool)
 {
 	int err = 0;
-	u64 timestamp;
+	u64 sample_kernel_timestamp;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
@@ -2394,16 +2397,21 @@ static int cs_etm__process_event(struct perf_session *session,
 	}
 
 	if (sample->time && (sample->time != (u64) -1))
-		timestamp = sample->time;
+		sample_kernel_timestamp = sample->time;
 	else
-		timestamp = 0;
+		sample_kernel_timestamp = 0;
 
-	if (timestamp || etm->timeless_decoding) {
+	if (sample_kernel_timestamp || etm->timeless_decoding) {
 		err = cs_etm__update_queues(etm);
 		if (err)
 			return err;
 	}
 
+	/*
+	 * Don't wait for cs_etm__flush_events() in per-thread/timeless mode to start the decode. We
+	 * need the tid of the PERF_RECORD_EXIT event to assign to the synthesised samples because
+	 * ETM_OPT_CTXTID is not enabled.
+	 */
 	if (etm->timeless_decoding &&
 	    event->header.type == PERF_RECORD_EXIT)
 		return cs_etm__process_timeless_queues(etm,
@@ -2414,9 +2422,14 @@ static int cs_etm__process_event(struct perf_session *session,
 	else if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
 		return cs_etm__process_switch_cpu_wide(etm, event);
 
-	if (!etm->timeless_decoding &&
-	    event->header.type == PERF_RECORD_AUX)
-		return cs_etm__process_queues(etm);
+	if (!etm->timeless_decoding && event->header.type == PERF_RECORD_AUX) {
+		/*
+		 * Record the latest kernel timestamp available in the header
+		 * for samples so that synthesised samples occur from this point
+		 * onwards.
+		 */
+		etm->latest_kernel_timestamp = sample_kernel_timestamp;
+	}
 
 	return 0;
 }
@@ -2463,6 +2476,10 @@ static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 	struct evsel *evsel;
 	struct evlist *evlist = etm->session->evlist;
 	bool timeless_decoding = true;
+
+	/* Override timeless mode with user input from --itrace=Z */
+	if (etm->synth_opts.timeless_decoding)
+		return true;
 
 	/*
 	 * Circle through the list of event and complain if we find one
@@ -2666,6 +2683,172 @@ static u64 *cs_etm__create_meta_blk(u64 *buff_in, int *buff_in_offset,
 	return metadata;
 }
 
+/**
+ * Puts a fragment of an auxtrace buffer into the auxtrace queues based
+ * on the bounds of aux_event, if it matches with the buffer that's at
+ * file_offset.
+ *
+ * Normally, whole auxtrace buffers would be added to the queue. But we
+ * want to reset the decoder for every PERF_RECORD_AUX event, and the decoder
+ * is reset across each buffer, so splitting the buffers up in advance has
+ * the same effect.
+ */
+static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_offset, size_t sz,
+				      struct perf_record_aux *aux_event, struct perf_sample *sample)
+{
+	int err;
+	char buf[PERF_SAMPLE_MAX_SIZE];
+	union perf_event *auxtrace_event_union;
+	struct perf_record_auxtrace *auxtrace_event;
+	union perf_event auxtrace_fragment;
+	__u64 aux_offset, aux_size;
+
+	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
+						   struct cs_etm_auxtrace,
+						   auxtrace);
+
+	/*
+	 * There should be a PERF_RECORD_AUXTRACE event at the file_offset that we got
+	 * from looping through the auxtrace index.
+	 */
+	err = perf_session__peek_event(session, file_offset, buf,
+				       PERF_SAMPLE_MAX_SIZE, &auxtrace_event_union, NULL);
+	if (err)
+		return err;
+	auxtrace_event = &auxtrace_event_union->auxtrace;
+	if (auxtrace_event->header.type != PERF_RECORD_AUXTRACE)
+		return -EINVAL;
+
+	if (auxtrace_event->header.size < sizeof(struct perf_record_auxtrace) ||
+		auxtrace_event->header.size != sz) {
+		return -EINVAL;
+	}
+
+	/*
+	 * In per-thread mode, CPU is set to -1, but TID will be set instead. See
+	 * auxtrace_mmap_params__set_idx(). Return 'not found' if neither CPU nor TID match.
+	 */
+	if ((auxtrace_event->cpu == (__u32) -1 && auxtrace_event->tid != sample->tid) ||
+			auxtrace_event->cpu != sample->cpu)
+		return 1;
+
+	if (aux_event->flags & PERF_AUX_FLAG_OVERWRITE) {
+		/*
+		 * Clamp size in snapshot mode. The buffer size is clamped in
+		 * __auxtrace_mmap__read() for snapshots, so the aux record size doesn't reflect
+		 * the buffer size.
+		 */
+		aux_size = min(aux_event->aux_size, auxtrace_event->size);
+
+		/*
+		 * In this mode, the head also points to the end of the buffer so aux_offset
+		 * needs to have the size subtracted so it points to the beginning as in normal mode
+		 */
+		aux_offset = aux_event->aux_offset - aux_size;
+	} else {
+		aux_size = aux_event->aux_size;
+		aux_offset = aux_event->aux_offset;
+	}
+
+	if (aux_offset >= auxtrace_event->offset &&
+	    aux_offset + aux_size <= auxtrace_event->offset + auxtrace_event->size) {
+		/*
+		 * If this AUX event was inside this buffer somewhere, create a new auxtrace event
+		 * based on the sizes of the aux event, and queue that fragment.
+		 */
+		auxtrace_fragment.auxtrace = *auxtrace_event;
+		auxtrace_fragment.auxtrace.size = aux_size;
+		auxtrace_fragment.auxtrace.offset = aux_offset;
+		file_offset += aux_offset - auxtrace_event->offset + auxtrace_event->header.size;
+
+		pr_debug3("CS ETM: Queue buffer size: %#"PRI_lx64" offset: %#"PRI_lx64
+			  " tid: %d cpu: %d\n", aux_size, aux_offset, sample->tid, sample->cpu);
+		return auxtrace_queues__add_event(&etm->queues, session, &auxtrace_fragment,
+						  file_offset, NULL);
+	}
+
+	/* Wasn't inside this buffer, but there were no parse errors. 1 == 'not found' */
+	return 1;
+}
+
+static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf_event *event,
+					u64 offset __maybe_unused, void *data __maybe_unused)
+{
+	struct perf_sample sample;
+	int ret;
+	struct auxtrace_index_entry *ent;
+	struct auxtrace_index *auxtrace_index;
+	struct evsel *evsel;
+	size_t i;
+
+	/* Don't care about any other events, we're only queuing buffers for AUX events */
+	if (event->header.type != PERF_RECORD_AUX)
+		return 0;
+
+	if (event->header.size < sizeof(struct perf_record_aux))
+		return -EINVAL;
+
+	/* Truncated Aux records can have 0 size and shouldn't result in anything being queued. */
+	if (!event->aux.aux_size)
+		return 0;
+
+	/*
+	 * Parse the sample, we need the sample_id_all data that comes after the event so that the
+	 * CPU or PID can be matched to an AUXTRACE buffer's CPU or PID.
+	 */
+	evsel = evlist__event2evsel(session->evlist, event);
+	if (!evsel)
+		return -EINVAL;
+	ret = evsel__parse_sample(evsel, event, &sample);
+	if (ret)
+		return ret;
+
+	/*
+	 * Loop through the auxtrace index to find the buffer that matches up with this aux event.
+	 */
+	list_for_each_entry(auxtrace_index, &session->auxtrace_index, list) {
+		for (i = 0; i < auxtrace_index->nr; i++) {
+			ent = &auxtrace_index->entries[i];
+			ret = cs_etm__queue_aux_fragment(session, ent->file_offset,
+							 ent->sz, &event->aux, &sample);
+			/*
+			 * Stop search on error or successful values. Continue search on
+			 * 1 ('not found')
+			 */
+			if (ret != 1)
+				return ret;
+		}
+	}
+
+	/*
+	 * Couldn't find the buffer corresponding to this aux record, something went wrong. Warn but
+	 * don't exit with an error because it will still be possible to decode other aux records.
+	 */
+	pr_err("CS ETM: Couldn't find auxtrace buffer for aux_offset: %#"PRI_lx64
+	       " tid: %d cpu: %d\n", event->aux.aux_offset, sample.tid, sample.cpu);
+	return 0;
+}
+
+static int cs_etm__queue_aux_records(struct perf_session *session)
+{
+	struct auxtrace_index *index = list_first_entry_or_null(&session->auxtrace_index,
+								struct auxtrace_index, list);
+	if (index && index->nr > 0)
+		return perf_session__peek_events(session, session->header.data_offset,
+						 session->header.data_size,
+						 cs_etm__queue_aux_records_cb, NULL);
+
+	/*
+	 * We would get here if there are no entries in the index (either no auxtrace
+	 * buffers or no index at all). Fail silently as there is the possibility of
+	 * queueing them in cs_etm__process_auxtrace_event() if etm->data_queued is still
+	 * false.
+	 *
+	 * In that scenario, buffers will not be split by AUX records.
+	 */
+	return 0;
+}
+
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session)
 {
@@ -2810,6 +2993,14 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	if (err)
 		goto err_free_etm;
 
+	if (session->itrace_synth_opts->set) {
+		etm->synth_opts = *session->itrace_synth_opts;
+	} else {
+		itrace_synth_opts__set_default(&etm->synth_opts,
+				session->itrace_synth_opts->default_no_sample);
+		etm->synth_opts.callchain = false;
+	}
+
 	etm->session = session;
 	etm->machine = &session->machines.host;
 
@@ -2854,19 +3045,11 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		return 0;
 	}
 
-	if (session->itrace_synth_opts->set) {
-		etm->synth_opts = *session->itrace_synth_opts;
-	} else {
-		itrace_synth_opts__set_default(&etm->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
-		etm->synth_opts.callchain = false;
-	}
-
 	err = cs_etm__synth_events(etm, session);
 	if (err)
 		goto err_delete_thread;
 
-	err = auxtrace_queues__process_index(&etm->queues, session);
+	err = cs_etm__queue_aux_records(session);
 	if (err)
 		goto err_delete_thread;
 

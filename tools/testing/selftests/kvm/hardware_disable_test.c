@@ -105,7 +105,7 @@ static void run_test(uint32_t run)
 		CPU_SET(i, &cpu_set);
 
 	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+	kvm_vm_elf_load(vm, program_invocation_name);
 	vm_create_irqchip(vm);
 
 	pr_debug("%s: [%d] start vcpus\n", __func__, run);

@@ -51,11 +51,14 @@ void kasan_enable_current(void)
 {
 	current->kasan_depth++;
 }
+EXPORT_SYMBOL(kasan_enable_current);
 
 void kasan_disable_current(void)
 {
 	current->kasan_depth--;
 }
+EXPORT_SYMBOL(kasan_disable_current);
+
 #endif /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
 
 void __kasan_unpoison_range(const void *address, size_t size)
@@ -97,7 +100,7 @@ slab_flags_t __kasan_never_merge(void)
 	return 0;
 }
 
-void __kasan_alloc_pages(struct page *page, unsigned int order, bool init)
+void __kasan_unpoison_pages(struct page *page, unsigned int order, bool init)
 {
 	u8 tag;
 	unsigned long i;
@@ -111,7 +114,7 @@ void __kasan_alloc_pages(struct page *page, unsigned int order, bool init)
 	kasan_unpoison(page_address(page), PAGE_SIZE << order, init);
 }
 
-void __kasan_free_pages(struct page *page, unsigned int order, bool init)
+void __kasan_poison_pages(struct page *page, unsigned int order, bool init)
 {
 	if (likely(!PageHighMem(page)))
 		kasan_poison(page_address(page), PAGE_SIZE << order,
@@ -327,6 +330,9 @@ static inline bool ____kasan_slab_free(struct kmem_cache *cache, void *object,
 {
 	u8 tag;
 	void *tagged_object;
+
+	if (!kasan_arch_is_ready())
+		return false;
 
 	tag = get_tag(object);
 	tagged_object = object;

@@ -107,6 +107,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_QCA6390_HW20,
 	ATH11K_HW_IPQ6018_HW10,
 	ATH11K_HW_QCN9074_HW10,
+	ATH11K_HW_WCN6855_HW20,
 };
 
 enum ath11k_firmware_mode {
@@ -795,8 +796,8 @@ struct ath11k_fw_stats_pdev {
 	s32 underrun;
 	/* Num PPDUs cleaned up in TX abort */
 	s32 tx_abort;
-	/* Num MPDUs requed by SW */
-	s32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	s32 mpdus_requeued;
 	/* excessive retries */
 	u32 tx_ko;
 	/* data hw rate code */

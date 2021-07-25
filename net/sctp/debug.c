@@ -154,6 +154,7 @@ static const char *const sctp_timer_tbl[] = {
 	"TIMEOUT_T5_SHUTDOWN_GUARD",
 	"TIMEOUT_HEARTBEAT",
 	"TIMEOUT_RECONF",
+	"TIMEOUT_PROBE",
 	"TIMEOUT_SACK",
 	"TIMEOUT_AUTOCLOSE",
 };

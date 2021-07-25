@@ -18,6 +18,21 @@ void xfs_ag_resv_alloc_extent(struct xfs_perag *pag, enum xfs_ag_resv_type type,
 void xfs_ag_resv_free_extent(struct xfs_perag *pag, enum xfs_ag_resv_type type,
 		struct xfs_trans *tp, xfs_extlen_t len);
 
+static inline struct xfs_ag_resv *
+xfs_perag_resv(
+	struct xfs_perag	*pag,
+	enum xfs_ag_resv_type	type)
+{
+	switch (type) {
+	case XFS_AG_RESV_METADATA:
+		return &pag->pag_meta_resv;
+	case XFS_AG_RESV_RMAPBT:
+		return &pag->pag_rmapbt_resv;
+	default:
+		return NULL;
+	}
+}
+
 /*
  * RMAPBT reservation accounting wrappers. Since rmapbt blocks are sourced from
  * the AGFL, they are allocated one at a time and the reservation updates don't

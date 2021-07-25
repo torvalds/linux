@@ -12,12 +12,15 @@ maintainers:
 
 properties:
   compatible:
-    enum:
+    oneOf:
       # FIXME: This is documented in the PRCM binding, but needs to be
       # migrated here at some point
       # - allwinner,sun8i-a23-codec-analog
-      - allwinner,sun8i-h3-codec-analog
-      - allwinner,sun8i-v3s-codec-analog
+      - const: allwinner,sun8i-h3-codec-analog
+      - items:
+          - const: allwinner,sun8i-v3-codec-analog
+          - const: allwinner,sun8i-h3-codec-analog
+      - const: allwinner,sun8i-v3s-codec-analog
 
   reg:
     maxItems: 1

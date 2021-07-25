@@ -3059,9 +3059,6 @@ static int iommu_change_dev_def_domain(struct iommu_group *group,
 	int ret, dev_def_dom;
 	struct device *dev;
 
-	if (!group)
-		return -EINVAL;
-
 	mutex_lock(&group->mutex);
 
 	if (group->default_domain != group->domain) {

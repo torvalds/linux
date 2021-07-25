@@ -84,6 +84,7 @@ patternProperties:
       idt,slew-percent:
         description: The Slew rate control for CMOS single-ended.
         enum: [ 80, 85, 90, 100 ]
+    additionalProperties: false
 
 required:
   - compatible
@@ -139,13 +140,13 @@ examples:
             clock-names = "xin";
 
             OUT1 {
-                idt,drive-mode = <VC5_CMOSD>;
-                idt,voltage-microvolts = <1800000>;
+                idt,mode = <VC5_CMOSD>;
+                idt,voltage-microvolt = <1800000>;
                 idt,slew-percent = <80>;
             };
 
             OUT4 {
-                idt,drive-mode = <VC5_LVDS>;
+                idt,mode = <VC5_LVDS>;
             };
         };
     };

@@ -124,7 +124,8 @@ static inline u32 gic_read_rpr(void)
 #define gic_read_lpir(c)		readq_relaxed(c)
 #define gic_write_lpir(v, c)		writeq_relaxed(v, c)
 
-#define gic_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define gic_flush_dcache_to_poc(a,l)	\
+	dcache_clean_inval_poc((unsigned long)(a), (unsigned long)(a)+(l))
 
 #define gits_read_baser(c)		readq_relaxed(c)
 #define gits_write_baser(v, c)		writeq_relaxed(v, c)

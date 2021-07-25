@@ -646,7 +646,7 @@ extern u32 psb_get_vblank_counter(struct drm_crtc *crtc);
 extern int psbfb_probed(struct drm_device *dev);
 extern int psbfb_remove(struct drm_device *dev,
 			struct drm_framebuffer *fb);
-/* accel_2d.c */
+/* psb_drv.c */
 extern void psb_spank(struct drm_psb_private *dev_priv);
 
 /* psb_reset.c */

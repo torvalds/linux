@@ -149,8 +149,8 @@ int skl_nhlt_update_topology_bin(struct skl_dev *skl)
 	return 0;
 }
 
-static ssize_t skl_nhlt_platform_id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t platform_id_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_bus *bus = pci_get_drvdata(pci);
@@ -166,7 +166,7 @@ static ssize_t skl_nhlt_platform_id_show(struct device *dev,
 	return sprintf(buf, "%s\n", platform_id);
 }
 
-static DEVICE_ATTR(platform_id, 0444, skl_nhlt_platform_id_show, NULL);
+static DEVICE_ATTR_RO(platform_id);
 
 int skl_nhlt_create_sysfs(struct skl_dev *skl)
 {

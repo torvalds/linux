@@ -769,7 +769,7 @@ static void vcn_1_0_enable_static_power_gating(struct amdgpu_device *adev)
 }
 
 /**
- * vcn_v1_0_start - start VCN block
+ * vcn_v1_0_start_spg_mode - start VCN block
  *
  * @adev: amdgpu_device pointer
  *
@@ -1105,7 +1105,7 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 }
 
 /**
- * vcn_v1_0_stop - stop VCN block
+ * vcn_v1_0_stop_spg_mode - stop VCN block
  *
  * @adev: amdgpu_device pointer
  *

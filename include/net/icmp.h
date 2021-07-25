@@ -57,5 +57,6 @@ int icmp_rcv(struct sk_buff *skb);
 int icmp_err(struct sk_buff *skb, u32 info);
 int icmp_init(void);
 void icmp_out_count(struct net *net, unsigned char type);
+bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr);
 
 #endif	/* _ICMP_H */

@@ -12,6 +12,7 @@
 #include "cpumap.h"
 #include "debug.h"
 #include "env.h"
+#include "pmu-hybrid.h"
 
 #define CORE_SIB_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/core_siblings_list"
@@ -348,6 +349,85 @@ void numa_topology__delete(struct numa_topology *tp)
 
 	for (i = 0; i < tp->nr; i++)
 		zfree(&tp->nodes[i].cpus);
+
+	free(tp);
+}
+
+static int load_hybrid_node(struct hybrid_topology_node *node,
+			    struct perf_pmu *pmu)
+{
+	const char *sysfs;
+	char path[PATH_MAX];
+	char *buf = NULL, *p;
+	FILE *fp;
+	size_t len = 0;
+
+	node->pmu_name = strdup(pmu->name);
+	if (!node->pmu_name)
+		return -1;
+
+	sysfs = sysfs__mountpoint();
+	if (!sysfs)
+		goto err;
+
+	snprintf(path, PATH_MAX, CPUS_TEMPLATE_CPU, sysfs, pmu->name);
+	fp = fopen(path, "r");
+	if (!fp)
+		goto err;
+
+	if (getline(&buf, &len, fp) <= 0) {
+		fclose(fp);
+		goto err;
+	}
+
+	p = strchr(buf, '\n');
+	if (p)
+		*p = '\0';
+
+	fclose(fp);
+	node->cpus = buf;
+	return 0;
+
+err:
+	zfree(&node->pmu_name);
+	free(buf);
+	return -1;
+}
+
+struct hybrid_topology *hybrid_topology__new(void)
+{
+	struct perf_pmu *pmu;
+	struct hybrid_topology *tp = NULL;
+	u32 nr, i = 0;
+
+	nr = perf_pmu__hybrid_pmu_num();
+	if (nr == 0)
+		return NULL;
+
+	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0]) * nr);
+	if (!tp)
+		return NULL;
+
+	tp->nr = nr;
+	perf_pmu__for_each_hybrid_pmu(pmu) {
+		if (load_hybrid_node(&tp->nodes[i], pmu)) {
+			hybrid_topology__delete(tp);
+			return NULL;
+		}
+		i++;
+	}
+
+	return tp;
+}
+
+void hybrid_topology__delete(struct hybrid_topology *tp)
+{
+	u32 i;
+
+	for (i = 0; i < tp->nr; i++) {
+		zfree(&tp->nodes[i].pmu_name);
+		zfree(&tp->nodes[i].cpus);
+	}
 
 	free(tp);
 }

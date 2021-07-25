@@ -700,8 +700,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_direct_req *dreq = hdr->dreq;
 	struct nfs_commit_info cinfo;
-	bool request_commit = false;
 	struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+	int flags = NFS_ODIRECT_DONE;
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
 
@@ -713,15 +713,9 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 	nfs_direct_count_bytes(dreq, hdr);
 	if (hdr->good_bytes != 0 && nfs_write_need_commit(hdr)) {
-		switch (dreq->flags) {
-		case 0:
+		if (!dreq->flags)
 			dreq->flags = NFS_ODIRECT_DO_COMMIT;
-			request_commit = true;
-			break;
-		case NFS_ODIRECT_RESCHED_WRITES:
-		case NFS_ODIRECT_DO_COMMIT:
-			request_commit = true;
-		}
+		flags = dreq->flags;
 	}
 	spin_unlock(&dreq->lock);
 
@@ -729,12 +723,15 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 		req = nfs_list_entry(hdr->pages.next);
 		nfs_list_remove_request(req);
-		if (request_commit) {
+		if (flags == NFS_ODIRECT_DO_COMMIT) {
 			kref_get(&req->wb_kref);
 			memcpy(&req->wb_verf, &hdr->verf.verifier,
 			       sizeof(req->wb_verf));
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo,
 				hdr->ds_commit_idx);
+		} else if (flags == NFS_ODIRECT_RESCHED_WRITES) {
+			kref_get(&req->wb_kref);
+			nfs_mark_request_commit(req, NULL, &cinfo, 0);
 		}
 		nfs_unlock_and_release_request(req);
 	}

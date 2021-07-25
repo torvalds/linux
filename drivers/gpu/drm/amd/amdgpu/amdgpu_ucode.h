@@ -71,43 +71,39 @@ struct smc_firmware_header_v2_1 {
         uint32_t pptable_entry_offset;
 };
 
+struct psp_fw_bin_desc {
+	uint32_t fw_version;
+	uint32_t offset_bytes;
+	uint32_t size_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct psp_firmware_header_v1_0 {
 	struct common_firmware_header header;
-	uint32_t ucode_feature_version;
-	uint32_t sos_offset_bytes;
-	uint32_t sos_size_bytes;
+	struct psp_fw_bin_desc sos;
 };
 
 /* version_major=1, version_minor=1 */
 struct psp_firmware_header_v1_1 {
 	struct psp_firmware_header_v1_0 v1_0;
-	uint32_t toc_header_version;
-	uint32_t toc_offset_bytes;
-	uint32_t toc_size_bytes;
-	uint32_t kdb_header_version;
-	uint32_t kdb_offset_bytes;
-	uint32_t kdb_size_bytes;
+	struct psp_fw_bin_desc toc;
+	struct psp_fw_bin_desc kdb;
 };
 
 /* version_major=1, version_minor=2 */
 struct psp_firmware_header_v1_2 {
 	struct psp_firmware_header_v1_0 v1_0;
-	uint32_t reserve[3];
-	uint32_t kdb_header_version;
-	uint32_t kdb_offset_bytes;
-	uint32_t kdb_size_bytes;
+	struct psp_fw_bin_desc res;
+	struct psp_fw_bin_desc kdb;
 };
 
 /* version_major=1, version_minor=3 */
 struct psp_firmware_header_v1_3 {
 	struct psp_firmware_header_v1_1 v1_1;
-	uint32_t spl_header_version;
-	uint32_t spl_offset_bytes;
-	uint32_t spl_size_bytes;
-	uint32_t rl_header_version;
-	uint32_t rl_offset_bytes;
-	uint32_t rl_size_bytes;
+	struct psp_fw_bin_desc spl;
+	struct psp_fw_bin_desc rl;
+	struct psp_fw_bin_desc sys_drv_aux;
+	struct psp_fw_bin_desc sos_aux;
 };
 
 /* version_major=1, version_minor=0 */

@@ -118,6 +118,7 @@
 #include "intel_engine_stats.h"
 #include "intel_execlists_submission.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
 #include "intel_lrc.h"
@@ -1768,7 +1769,6 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 	 */
 	GEM_BUG_ON(!tasklet_is_locked(&execlists->tasklet) &&
 		   !reset_in_progress(execlists));
-	GEM_BUG_ON(!intel_engine_in_execlists_submission_mode(engine));
 
 	/*
 	 * Note that csb_write, csb_status may be either in HWSP or mmio.
@@ -1847,7 +1847,7 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER(engine->i915) >= 12)
 			promote = gen12_csb_parse(csb);
 		else
 			promote = gen8_csb_parse(csb);
@@ -2385,6 +2385,45 @@ static void execlists_submission_tasklet(struct tasklet_struct *t)
 	rcu_read_unlock();
 }
 
+static void execlists_irq_handler(struct intel_engine_cs *engine, u16 iir)
+{
+	bool tasklet = false;
+
+	if (unlikely(iir & GT_CS_MASTER_ERROR_INTERRUPT)) {
+		u32 eir;
+
+		/* Upper 16b are the enabling mask, rsvd for internal errors */
+		eir = ENGINE_READ(engine, RING_EIR) & GENMASK(15, 0);
+		ENGINE_TRACE(engine, "CS error: %x\n", eir);
+
+		/* Disable the error interrupt until after the reset */
+		if (likely(eir)) {
+			ENGINE_WRITE(engine, RING_EMR, ~0u);
+			ENGINE_WRITE(engine, RING_EIR, eir);
+			WRITE_ONCE(engine->execlists.error_interrupt, eir);
+			tasklet = true;
+		}
+	}
+
+	if (iir & GT_WAIT_SEMAPHORE_INTERRUPT) {
+		WRITE_ONCE(engine->execlists.yield,
+			   ENGINE_READ_FW(engine, RING_EXECLIST_STATUS_HI));
+		ENGINE_TRACE(engine, "semaphore yield: %08x\n",
+			     engine->execlists.yield);
+		if (del_timer(&engine->execlists.timer))
+			tasklet = true;
+	}
+
+	if (iir & GT_CONTEXT_SWITCH_INTERRUPT)
+		tasklet = true;
+
+	if (iir & GT_RENDER_USER_INTERRUPT)
+		intel_engine_signal_breadcrumbs(engine);
+
+	if (tasklet)
+		tasklet_hi_schedule(&engine->execlists.tasklet);
+}
+
 static void __execlists_kick(struct intel_engine_execlists *execlists)
 {
 	/* Kick the tasklet for some interrupt coalescing and reset handling */
@@ -2733,7 +2772,7 @@ static void enable_execlists(struct intel_engine_cs *engine)
 
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
-	if (INTEL_GEN(engine->i915) >= 11)
+	if (GRAPHICS_VER(engine->i915) >= 11)
 		mode = _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
 	else
 		mode = _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE);
@@ -3064,7 +3103,7 @@ static void execlists_park(struct intel_engine_cs *engine)
 
 static bool can_preempt(struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) > 8)
+	if (GRAPHICS_VER(engine->i915) > 8)
 		return true;
 
 	/* GPGPU on bdw requires extra w/a; not implemented */
@@ -3076,29 +3115,6 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = execlists_submit_request;
 	engine->schedule = i915_schedule;
 	engine->execlists.tasklet.callback = execlists_submission_tasklet;
-
-	engine->reset.prepare = execlists_reset_prepare;
-	engine->reset.rewind = execlists_reset_rewind;
-	engine->reset.cancel = execlists_reset_cancel;
-	engine->reset.finish = execlists_reset_finish;
-
-	engine->park = execlists_park;
-	engine->unpark = NULL;
-
-	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
-	if (!intel_vgpu_active(engine->i915)) {
-		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
-		if (can_preempt(engine)) {
-			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
-			if (IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
-				engine->flags |= I915_ENGINE_HAS_TIMESLICES;
-		}
-	}
-
-	if (intel_engine_has_preemption(engine))
-		engine->emit_bb_start = gen8_emit_bb_start;
-	else
-		engine->emit_bb_start = gen8_emit_bb_start_noarb;
 }
 
 static void execlists_shutdown(struct intel_engine_cs *engine)
@@ -3129,16 +3145,24 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->cops = &execlists_context_ops;
 	engine->request_alloc = execlists_request_alloc;
 
+	engine->reset.prepare = execlists_reset_prepare;
+	engine->reset.rewind = execlists_reset_rewind;
+	engine->reset.cancel = execlists_reset_cancel;
+	engine->reset.finish = execlists_reset_finish;
+
+	engine->park = execlists_park;
+	engine->unpark = NULL;
+
 	engine->emit_flush = gen8_emit_flush_xcs;
 	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
 	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_xcs;
-	if (INTEL_GEN(engine->i915) >= 12) {
+	if (GRAPHICS_VER(engine->i915) >= 12) {
 		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_xcs;
 		engine->emit_flush = gen12_emit_flush_xcs;
 	}
 	engine->set_default_submission = execlists_set_default_submission;
 
-	if (INTEL_GEN(engine->i915) < 11) {
+	if (GRAPHICS_VER(engine->i915) < 11) {
 		engine->irq_enable = gen8_logical_ring_enable_irq;
 		engine->irq_disable = gen8_logical_ring_disable_irq;
 	} else {
@@ -3149,13 +3173,29 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		 * until a more refined solution exists.
 		 */
 	}
+	intel_engine_set_irq_handler(engine, execlists_irq_handler);
+
+	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+	if (!intel_vgpu_active(engine->i915)) {
+		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
+		if (can_preempt(engine)) {
+			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+			if (IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+				engine->flags |= I915_ENGINE_HAS_TIMESLICES;
+		}
+	}
+
+	if (intel_engine_has_preemption(engine))
+		engine->emit_bb_start = gen8_emit_bb_start;
+	else
+		engine->emit_bb_start = gen8_emit_bb_start_noarb;
 }
 
 static void logical_ring_default_irqs(struct intel_engine_cs *engine)
 {
 	unsigned int shift = 0;
 
-	if (INTEL_GEN(engine->i915) < 11) {
+	if (GRAPHICS_VER(engine->i915) < 11) {
 		const u8 irq_shifts[] = {
 			[RCS0]  = GEN8_RCS_IRQ_SHIFT,
 			[BCS0]  = GEN8_BCS_IRQ_SHIFT,
@@ -3175,7 +3215,7 @@ static void logical_ring_default_irqs(struct intel_engine_cs *engine)
 
 static void rcs_submission_override(struct intel_engine_cs *engine)
 {
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	case 12:
 		engine->emit_flush = gen12_emit_flush_rcs;
 		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_rcs;
@@ -3226,13 +3266,13 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
-	if (INTEL_GEN(i915) < 11)
+	if (GRAPHICS_VER(i915) < 11)
 		execlists->csb_size = GEN8_CSB_ENTRIES;
 	else
 		execlists->csb_size = GEN11_CSB_ENTRIES;
 
 	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
-	if (INTEL_GEN(engine->i915) >= 11) {
+	if (GRAPHICS_VER(engine->i915) >= 11) {
 		execlists->ccid |= engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		execlists->ccid |= engine->class << (GEN11_ENGINE_CLASS_SHIFT - 32);
 	}
@@ -3882,13 +3922,6 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 	}
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
-}
-
-bool
-intel_engine_in_execlists_submission_mode(const struct intel_engine_cs *engine)
-{
-	return engine->set_default_submission ==
-	       execlists_set_default_submission;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

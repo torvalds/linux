@@ -64,7 +64,7 @@ struct wm_adsp {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 
-	struct wm_adsp_ops *ops;
+	const struct wm_adsp_ops *ops;
 
 	unsigned int base;
 	unsigned int base_sysinfo;

@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/dsa/nxp,sja1105.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP SJA1105 Automotive Ethernet Switch Family Device Tree Bindings
+
+description:
+  The SJA1105 SPI interface requires a CS-to-CLK time (t2 in UM10944.pdf) of at
+  least one half of t_CLK. At an SPI frequency of 1MHz, this means a minimum
+  cs_sck_delay of 500ns. Ensuring that this SPI timing requirement is observed
+  depends on the SPI bus master driver.
+
+allOf:
+  - $ref: "dsa.yaml#"
+
+maintainers:
+  - Vladimir Oltean <vladimir.oltean@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - nxp,sja1105e
+      - nxp,sja1105t
+      - nxp,sja1105p
+      - nxp,sja1105q
+      - nxp,sja1105r
+      - nxp,sja1105s
+      - nxp,sja1110a
+      - nxp,sja1110b
+      - nxp,sja1110c
+      - nxp,sja1110d
+
+  reg:
+    maxItems: 1
+
+  # Optional container node for the 2 internal MDIO buses of the SJA1110
+  # (one for the internal 100base-T1 PHYs and the other for the single
+  # 100base-TX PHY). The "reg" property does not have physical significance.
+  # The PHY addresses to port correspondence is as follows: for 100base-T1,
+  # port 5 has PHY 1, port 6 has PHY 2 etc, while for 100base-TX, port 1 has
+  # PHY 1.
+  mdios:
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^mdio@[0-1]$":
+        type: object
+
+        allOf:
+          - $ref: "http://devicetree.org/schemas/net/mdio.yaml#"
+
+        properties:
+          compatible:
+            oneOf:
+              - enum:
+                  - nxp,sja1110-base-t1-mdio
+                  - nxp,sja1110-base-tx-mdio
+
+          reg:
+            oneOf:
+              - enum:
+                  - 0
+                  - 1
+
+        required:
+          - compatible
+          - reg
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ethernet-switch@1 {
+                    reg = <0x1>;
+                    compatible = "nxp,sja1105t";
+
+                    ethernet-ports {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            port@0 {
+                                    phy-handle = <&rgmii_phy6>;
+                                    phy-mode = "rgmii-id";
+                                    reg = <0>;
+                            };
+
+                            port@1 {
+                                    phy-handle = <&rgmii_phy3>;
+                                    phy-mode = "rgmii-id";
+                                    reg = <1>;
+                            };
+
+                            port@2 {
+                                    phy-handle = <&rgmii_phy4>;
+                                    phy-mode = "rgmii-id";
+                                    reg = <2>;
+                            };
+
+                            port@3 {
+                                    phy-mode = "rgmii-id";
+                                    reg = <3>;
+                            };
+
+                            port@4 {
+                                    ethernet = <&enet2>;
+                                    phy-mode = "rgmii";
+                                    reg = <4>;
+
+                                    fixed-link {
+                                            speed = <1000>;
+                                            full-duplex;
+                                    };
+                            };
+                    };
+            };
+    };

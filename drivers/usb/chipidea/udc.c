@@ -238,7 +238,7 @@ static int hw_ep_set_halt(struct ci_hdrc *ci, int num, int dir, int value)
 }
 
 /**
- * hw_is_port_high_speed: test if port is high speed
+ * hw_port_is_high_speed: test if port is high speed
  * @ci: the controller
  *
  * This function returns true if high speed port

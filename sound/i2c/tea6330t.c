@@ -115,7 +115,8 @@ static int snd_tea6330t_put_master_volume(struct snd_kcontrol *kcontrol,
 		bytes[count++] = tea->regs[TEA6330T_SADDR_VOLUME_RIGHT] = tea->mright;
 	}
 	if (count > 0) {
-		if ((err = snd_i2c_sendbytes(tea->device, bytes, count)) < 0)
+		err = snd_i2c_sendbytes(tea->device, bytes, count);
+		if (err < 0)
 			change = err;
 	}
 	snd_i2c_unlock(tea->bus);
@@ -160,7 +161,8 @@ static int snd_tea6330t_put_master_switch(struct snd_kcontrol *kcontrol,
 	bytes[0] = TEA6330T_SADDR_VOLUME_LEFT;
 	bytes[1] = tea->regs[TEA6330T_SADDR_VOLUME_LEFT];
 	bytes[2] = tea->regs[TEA6330T_SADDR_VOLUME_RIGHT];
-	if ((err = snd_i2c_sendbytes(tea->device, bytes, 3)) < 0)
+	err = snd_i2c_sendbytes(tea->device, bytes, 3);
+	if (err < 0)
 		change = err;
 	snd_i2c_unlock(tea->bus);
 	return change;
@@ -207,7 +209,8 @@ static int snd_tea6330t_put_bass(struct snd_kcontrol *kcontrol,
 	change = tea->regs[TEA6330T_SADDR_BASS] != val1;
 	bytes[0] = TEA6330T_SADDR_BASS;
 	bytes[1] = tea->regs[TEA6330T_SADDR_BASS] = val1;
-	if ((err = snd_i2c_sendbytes(tea->device, bytes, 2)) < 0)
+	err = snd_i2c_sendbytes(tea->device, bytes, 2);
+	if (err < 0)
 		change = err;
 	snd_i2c_unlock(tea->bus);
 	return change;
@@ -254,7 +257,8 @@ static int snd_tea6330t_put_treble(struct snd_kcontrol *kcontrol,
 	change = tea->regs[TEA6330T_SADDR_TREBLE] != val1;
 	bytes[0] = TEA6330T_SADDR_TREBLE;
 	bytes[1] = tea->regs[TEA6330T_SADDR_TREBLE] = val1;
-	if ((err = snd_i2c_sendbytes(tea->device, bytes, 2)) < 0)
+	err = snd_i2c_sendbytes(tea->device, bytes, 2);
+	if (err < 0)
 		change = err;
 	snd_i2c_unlock(tea->bus);
 	return change;
@@ -280,14 +284,15 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 	struct tea6330t *tea;
 	const struct snd_kcontrol_new *knew;
 	unsigned int idx;
-	int err = -ENOMEM;
+	int err;
 	u8 default_treble, default_bass;
 	unsigned char bytes[7];
 
 	tea = kzalloc(sizeof(*tea), GFP_KERNEL);
 	if (tea == NULL)
 		return -ENOMEM;
-	if ((err = snd_i2c_device_create(bus, "TEA6330T", TEA6330T_ADDR, &device)) < 0) {
+	err = snd_i2c_device_create(bus, "TEA6330T", TEA6330T_ADDR, &device);
+	if (err < 0) {
 		kfree(tea);
 		return err;
 	}
@@ -327,18 +332,21 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 	bytes[0] = TEA6330T_SADDR_VOLUME_LEFT;
 	for (idx = 0; idx < 6; idx++)
 		bytes[idx+1] = tea->regs[idx];
-	if ((err = snd_i2c_sendbytes(device, bytes, 7)) < 0)
+	err = snd_i2c_sendbytes(device, bytes, 7);
+	if (err < 0)
 		goto __error;
 
 	strcat(card->mixername, ",TEA6330T");
-	if ((err = snd_component_add(card, "TEA6330T")) < 0)
+	err = snd_component_add(card, "TEA6330T");
+	if (err < 0)
 		goto __error;
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_tea6330t_controls); idx++) {
 		knew = &snd_tea6330t_controls[idx];
 		if (tea->treble == 0 && !strcmp(knew->name, "Tone Control - Treble"))
 			continue;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(knew, tea))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(knew, tea));
+		if (err < 0)
 			goto __error;
 	}
 

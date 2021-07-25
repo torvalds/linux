@@ -1542,6 +1542,8 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 		}
 	}
 
+	sdhci_get_of_property(pdev);
+
 	sdhci_arasan->clk_ahb = devm_clk_get(dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
 		ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->clk_ahb),
@@ -1561,13 +1563,21 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
+	/* If clock-frequency property is set, use the provided value */
+	if (pltfm_host->clock &&
+	    pltfm_host->clock != clk_get_rate(clk_xin)) {
+		ret = clk_set_rate(clk_xin, pltfm_host->clock);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to set SD clock rate\n");
+			goto clk_dis_ahb;
+		}
+	}
+
 	ret = clk_prepare_enable(clk_xin);
 	if (ret) {
 		dev_err(dev, "Unable to enable SD clock.\n");
 		goto clk_dis_ahb;
 	}
-
-	sdhci_get_of_property(pdev);
 
 	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
 		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_FORCE_CDTEST;

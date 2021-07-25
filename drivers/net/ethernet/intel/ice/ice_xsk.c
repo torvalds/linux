@@ -236,7 +236,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 		xdp_ring->xsk_pool = ice_xsk_pool(xdp_ring);
 	}
 
-	err = ice_setup_rx_ctx(rx_ring);
+	err = ice_vsi_cfg_rxq(rx_ring);
 	if (err)
 		goto free_buf;
 
@@ -466,7 +466,6 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 	struct ice_ring *xdp_ring;
 	u32 act;
 
-	rcu_read_lock();
 	/* ZC patch is enabled only when XDP program is set,
 	 * so here it can not be NULL
 	 */
@@ -478,7 +477,6 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
 		if (err)
 			goto out_failure;
-		rcu_read_unlock();
 		return ICE_XDP_REDIR;
 	}
 
@@ -503,7 +501,6 @@ out_failure:
 		break;
 	}
 
-	rcu_read_unlock();
 	return result;
 }
 
@@ -528,7 +525,7 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		struct sk_buff *skb;
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
-		u8 rx_ptype;
+		u16 rx_ptype;
 
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 

@@ -32,6 +32,7 @@
 #include <trace/hooks/cgroup.h>
 #include <trace/hooks/sys.h>
 #include <trace/hooks/iommu.h>
+#include <trace/hooks/net.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -126,3 +127,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_tm_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_check_int_errors);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cgroup_attach);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_iommu_setup_dma_ops);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ptype_head);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_kfree_skb);

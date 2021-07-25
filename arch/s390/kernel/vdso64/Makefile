@@ -74,3 +74,11 @@ vdso64.so: $(obj)/vdso64.so.dbg
 	$(call cmd,vdso_install)
 
 vdso_install: vdso64.so
+
+# Generate VDSO offsets using helper script
+gen-vdsosym := $(srctree)/$(src)/gen_vdso_offsets.sh
+quiet_cmd_vdsosym = VDSOSYM $@
+	cmd_vdsosym = $(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
+
+include/generated/vdso64-offsets.h: $(obj)/vdso64.so.dbg FORCE
+	$(call if_changed,vdsosym)

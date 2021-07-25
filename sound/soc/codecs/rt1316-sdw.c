@@ -701,7 +701,7 @@ static int __maybe_unused rt1316_dev_resume(struct device *dev)
 	struct rt1316_sdw_priv *rt1316 = dev_get_drvdata(dev);
 	unsigned long time;
 
-	if (!rt1316->hw_init)
+	if (!rt1316->first_hw_init)
 		return 0;
 
 	if (!slave->unattach_request)

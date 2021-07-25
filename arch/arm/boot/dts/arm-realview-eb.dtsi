@@ -148,7 +148,7 @@
 	usb: usb@4f000000 {
 		compatible = "nxp,usb-isp1761";
 		reg = <0x4f000000 0x20000>;
-		port1-otg;
+		dr_mode = "peripheral";
 	};
 
 	bridge {

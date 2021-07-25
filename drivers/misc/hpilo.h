@@ -10,6 +10,9 @@
 
 #define ILO_NAME "hpilo"
 
+/* iLO ASIC PCI revision id */
+#define PCI_REV_ID_NECHES	7
+
 /* max number of open channel control blocks per device, hw limited to 32 */
 #define MAX_CCB	       24
 /* min number of open channel control blocks per device, hw limited to 32 */

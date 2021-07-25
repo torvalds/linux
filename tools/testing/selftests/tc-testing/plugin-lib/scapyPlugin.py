@@ -29,22 +29,26 @@ class SubPlugin(TdcPlugin):
             return
 
         # Check for required fields
-        scapyinfo = self.args.caseinfo['scapy']
-        scapy_keys = ['iface', 'count', 'packet']
-        missing_keys = []
-        keyfail = False
-        for k in scapy_keys:
-            if k not in scapyinfo:
-                keyfail = True
-                missing_keys.add(k)
-        if keyfail:
-            print('{}: Scapy block present in the test, but is missing info:'
-                .format(self.sub_class))
-            print('{}'.format(missing_keys))
+        lscapyinfo = self.args.caseinfo['scapy']
+        if type(lscapyinfo) != list:
+            lscapyinfo = [ lscapyinfo, ]
 
-        pkt = eval(scapyinfo['packet'])
-        if '$' in scapyinfo['iface']:
-            tpl = Template(scapyinfo['iface'])
-            scapyinfo['iface'] = tpl.safe_substitute(NAMES)
-        for count in range(scapyinfo['count']):
-            sendp(pkt, iface=scapyinfo['iface'])
+        for scapyinfo in lscapyinfo:
+            scapy_keys = ['iface', 'count', 'packet']
+            missing_keys = []
+            keyfail = False
+            for k in scapy_keys:
+                if k not in scapyinfo:
+                    keyfail = True
+                    missing_keys.append(k)
+            if keyfail:
+                print('{}: Scapy block present in the test, but is missing info:'
+                    .format(self.sub_class))
+                print('{}'.format(missing_keys))
+
+            pkt = eval(scapyinfo['packet'])
+            if '$' in scapyinfo['iface']:
+                tpl = Template(scapyinfo['iface'])
+                scapyinfo['iface'] = tpl.safe_substitute(NAMES)
+            for count in range(scapyinfo['count']):
+                sendp(pkt, iface=scapyinfo['iface'])

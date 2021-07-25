@@ -540,7 +540,6 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	struct device *codec_dev = NULL;
 	const char *codec_dai_name;
 	const char *codec_dev_name;
-	unsigned int daifmt;
 	u32 width;
 	int ret;
 
@@ -684,10 +683,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	}
 
 	/* Format info from DT is optional. */
-	daifmt = snd_soc_of_parse_daifmt(np, NULL,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
+	snd_soc_daifmt_parse_clock_provider_as_phandle(np, NULL, &bitclkmaster, &framemaster);
 	if (bitclkmaster || framemaster) {
+		unsigned int daifmt = snd_soc_daifmt_parse_format(np, NULL);
+
 		if (codec_np == bitclkmaster)
 			daifmt |= (codec_np == framemaster) ?
 				SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
@@ -709,7 +708,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	of_node_put(framemaster);
 
 	if (!fsl_asoc_card_is_ac97(priv) && !codec_dev) {
-		dev_err(&pdev->dev, "failed to find codec device\n");
+		dev_dbg(&pdev->dev, "failed to find codec device\n");
 		ret = -EPROBE_DEFER;
 		goto asrc_fail;
 	}

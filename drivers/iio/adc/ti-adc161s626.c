@@ -169,6 +169,11 @@ static const struct iio_info ti_adc_info = {
 	.read_raw = ti_adc_read_raw,
 };
 
+static void ti_adc_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int ti_adc_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -182,7 +187,6 @@ static int ti_adc_probe(struct spi_device *spi)
 	indio_dev->info = &ti_adc_info;
 	indio_dev->name = TI_ADC_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	spi_set_drvdata(spi, indio_dev);
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;
@@ -203,42 +207,24 @@ static int ti_adc_probe(struct spi_device *spi)
 	}
 
 	data->ref = devm_regulator_get(&spi->dev, "vdda");
-	if (!IS_ERR(data->ref)) {
-		ret = regulator_enable(data->ref);
-		if (ret < 0)
-			return ret;
-	}
+	if (IS_ERR(data->ref))
+		return PTR_ERR(data->ref);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 ti_adc_trigger_handler, NULL);
+	ret = regulator_enable(data->ref);
+	if (ret < 0)
+		return ret;
+
+	ret = devm_add_action_or_reset(&spi->dev, ti_adc_reg_disable,
+				       data->ref);
 	if (ret)
-		goto error_regulator_disable;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      ti_adc_trigger_handler, NULL);
 	if (ret)
-		goto error_unreg_buffer;
+		return ret;
 
-	return 0;
-
-error_unreg_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-error_regulator_disable:
-	regulator_disable(data->ref);
-
-	return ret;
-}
-
-static int ti_adc_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ti_adc_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(data->ref);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id ti_adc_dt_ids[] = {
@@ -261,7 +247,6 @@ static struct spi_driver ti_adc_driver = {
 		.of_match_table = ti_adc_dt_ids,
 	},
 	.probe		= ti_adc_probe,
-	.remove		= ti_adc_remove,
 	.id_table	= ti_adc_id,
 };
 module_spi_driver(ti_adc_driver);

@@ -1162,7 +1162,7 @@ static int do_proc_control(struct usb_dev_state *ps,
 			tbuf, ctrl->wLength);
 
 		usb_unlock_device(dev);
-		i = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ctrl->bRequest,
+		i = usb_control_msg(dev, pipe, ctrl->bRequest,
 				    ctrl->bRequestType, ctrl->wValue, ctrl->wIndex,
 				    tbuf, ctrl->wLength, tmo);
 		usb_lock_device(dev);

@@ -54,8 +54,6 @@ struct kretprobe_instance;
 typedef int (*kprobe_pre_handler_t) (struct kprobe *, struct pt_regs *);
 typedef void (*kprobe_post_handler_t) (struct kprobe *, struct pt_regs *,
 				       unsigned long flags);
-typedef int (*kprobe_fault_handler_t) (struct kprobe *, struct pt_regs *,
-				       int trapnr);
 typedef int (*kretprobe_handler_t) (struct kretprobe_instance *,
 				    struct pt_regs *);
 
@@ -82,12 +80,6 @@ struct kprobe {
 
 	/* Called after addr is executed, unless... */
 	kprobe_post_handler_t post_handler;
-
-	/*
-	 * ... called if executing addr causes a fault (eg. page fault).
-	 * Return 1 if it handled fault, otherwise kernel will see it.
-	 */
-	kprobe_fault_handler_t fault_handler;
 
 	/* Saved opcode (which has been replaced with breakpoint) */
 	kprobe_opcode_t opcode;
@@ -407,7 +399,9 @@ int enable_kprobe(struct kprobe *kp);
 void dump_kprobe(struct kprobe *kp);
 
 void *alloc_insn_page(void);
-void free_insn_page(void *page);
+
+void *alloc_optinsn_page(void);
+void free_optinsn_page(void *page);
 
 int kprobe_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		       char *sym);

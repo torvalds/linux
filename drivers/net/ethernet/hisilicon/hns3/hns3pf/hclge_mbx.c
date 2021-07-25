@@ -231,19 +231,15 @@ static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 	return ret;
 }
 
-static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
-				     struct hclge_mbx_vf_to_pf_cmd *req)
+static void hclge_set_vf_promisc_mode(struct hclge_vport *vport,
+				      struct hclge_mbx_vf_to_pf_cmd *req)
 {
-	bool en_bc = req->msg.en_bc ? true : false;
-	bool en_uc = req->msg.en_uc ? true : false;
-	bool en_mc = req->msg.en_mc ? true : false;
 	struct hnae3_handle *handle = &vport->nic;
-	int ret;
+	struct hclge_dev *hdev = vport->back;
 
-	if (!vport->vf_info.trusted) {
-		en_uc = false;
-		en_mc = false;
-	}
+	vport->vf_info.request_uc_en = req->msg.en_uc;
+	vport->vf_info.request_mc_en = req->msg.en_mc;
+	vport->vf_info.request_bc_en = req->msg.en_bc;
 
 	if (req->msg.en_limit_promisc)
 		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
@@ -251,22 +247,8 @@ static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 		clear_bit(HNAE3_PFLAG_LIMIT_PROMISC,
 			  &handle->priv_flags);
 
-	ret = hclge_set_vport_promisc_mode(vport, en_uc, en_mc, en_bc);
-
-	vport->vf_info.promisc_enable = (en_uc || en_mc) ? 1 : 0;
-
-	return ret;
-}
-
-void hclge_inform_vf_promisc_info(struct hclge_vport *vport)
-{
-	u8 dest_vfid = (u8)vport->vport_id;
-	u8 msg_data[2];
-
-	memcpy(&msg_data[0], &vport->vf_info.promisc_enable, sizeof(u16));
-
-	hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
-			   HCLGE_MBX_PUSH_PROMISC_INFO, dest_vfid);
+	set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
+	hclge_task_schedule(hdev, 0);
 }
 
 static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
@@ -336,17 +318,17 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 }
 
 int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
-				      u16 state, u16 vlan_tag, u16 qos,
-				      u16 vlan_proto)
+				      u16 state,
+				      struct hclge_vlan_info *vlan_info)
 {
 #define MSG_DATA_SIZE	8
 
 	u8 msg_data[MSG_DATA_SIZE];
 
 	memcpy(&msg_data[0], &state, sizeof(u16));
-	memcpy(&msg_data[2], &vlan_proto, sizeof(u16));
-	memcpy(&msg_data[4], &qos, sizeof(u16));
-	memcpy(&msg_data[6], &vlan_tag, sizeof(u16));
+	memcpy(&msg_data[2], &vlan_info->vlan_proto, sizeof(u16));
+	memcpy(&msg_data[4], &vlan_info->qos, sizeof(u16));
+	memcpy(&msg_data[6], &vlan_info->vlan_tag, sizeof(u16));
 
 	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
 				  HCLGE_MBX_PUSH_VLAN_INFO, vfid);
@@ -359,49 +341,35 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 #define HCLGE_MBX_VLAN_STATE_OFFSET	0
 #define HCLGE_MBX_VLAN_INFO_OFFSET	2
 
+	struct hnae3_handle *handle = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 	struct hclge_vf_vlan_cfg *msg_cmd;
-	int status = 0;
 
 	msg_cmd = (struct hclge_vf_vlan_cfg *)&mbx_req->msg;
-	if (msg_cmd->subcode == HCLGE_MBX_VLAN_FILTER) {
-		struct hnae3_handle *handle = &vport->nic;
-		u16 vlan, proto;
-		bool is_kill;
-
-		is_kill = !!msg_cmd->is_kill;
-		vlan =  msg_cmd->vlan;
-		proto =  msg_cmd->proto;
-		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
-					       vlan, is_kill);
-	} else if (msg_cmd->subcode == HCLGE_MBX_VLAN_RX_OFF_CFG) {
-		struct hnae3_handle *handle = &vport->nic;
-		bool en = msg_cmd->is_kill ? true : false;
-
-		status = hclge_en_hw_strip_rxvtag(handle, en);
-	} else if (msg_cmd->subcode == HCLGE_MBX_PORT_BASE_VLAN_CFG) {
-		struct hclge_vlan_info *vlan_info;
-		u16 *state;
-
-		state = (u16 *)&mbx_req->msg.data[HCLGE_MBX_VLAN_STATE_OFFSET];
-		vlan_info = (struct hclge_vlan_info *)
-			&mbx_req->msg.data[HCLGE_MBX_VLAN_INFO_OFFSET];
-		status = hclge_update_port_base_vlan_cfg(vport, *state,
-							 vlan_info);
-	} else if (msg_cmd->subcode == HCLGE_MBX_GET_PORT_BASE_VLAN_STATE) {
-		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(vport->nic.pdev);
+	switch (msg_cmd->subcode) {
+	case HCLGE_MBX_VLAN_FILTER:
+		return hclge_set_vlan_filter(handle,
+					     cpu_to_be16(msg_cmd->proto),
+					     msg_cmd->vlan, msg_cmd->is_kill);
+	case HCLGE_MBX_VLAN_RX_OFF_CFG:
+		return hclge_en_hw_strip_rxvtag(handle, msg_cmd->enable);
+	case HCLGE_MBX_GET_PORT_BASE_VLAN_STATE:
 		/* vf does not need to know about the port based VLAN state
 		 * on device HNAE3_DEVICE_VERSION_V3. So always return disable
 		 * on device HNAE3_DEVICE_VERSION_V3 if vf queries the port
 		 * based VLAN state.
 		 */
 		resp_msg->data[0] =
-			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3 ?
+			hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3 ?
 			HNAE3_PORT_BASE_VLAN_DISABLE :
 			vport->port_base_vlan_cfg.state;
 		resp_msg->len = sizeof(u8);
+		return 0;
+	case HCLGE_MBX_ENABLE_VLAN_FILTER:
+		return hclge_enable_vport_vlan_filter(vport, msg_cmd->enable);
+	default:
+		return 0;
 	}
-
-	return status;
 }
 
 static int hclge_set_vf_alive(struct hclge_vport *vport,
@@ -418,16 +386,23 @@ static int hclge_set_vf_alive(struct hclge_vport *vport,
 	return ret;
 }
 
-static void hclge_get_vf_tcinfo(struct hclge_vport *vport,
-				struct hclge_respond_to_vf_msg *resp_msg)
+static void hclge_get_basic_info(struct hclge_vport *vport,
+				 struct hclge_respond_to_vf_msg *resp_msg)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_ae_dev *ae_dev = vport->back->ae_dev;
+	struct hclge_basic_info *basic_info;
 	unsigned int i;
 
+	basic_info = (struct hclge_basic_info *)resp_msg->data;
 	for (i = 0; i < kinfo->tc_info.num_tc; i++)
-		resp_msg->data[0] |= BIT(i);
+		basic_info->hw_tc_map |= BIT(i);
 
-	resp_msg->len = sizeof(u8);
+	if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		hnae3_set_bit(basic_info->pf_caps,
+			      HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, 1);
+
+	resp_msg->len = HCLGE_MBX_MAX_RESP_DATA_SIZE;
 }
 
 static void hclge_get_vf_queue_info(struct hclge_vport *vport,
@@ -750,11 +725,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 								req);
 			break;
 		case HCLGE_MBX_SET_PROMISC_MODE:
-			ret = hclge_set_vf_promisc_mode(vport, req);
-			if (ret)
-				dev_err(&hdev->pdev->dev,
-					"PF fail(%d) to set VF promisc mode\n",
-					ret);
+			hclge_set_vf_promisc_mode(vport, req);
 			break;
 		case HCLGE_MBX_SET_UNICAST:
 			ret = hclge_set_vf_uc_mac_addr(vport, req);
@@ -790,8 +761,8 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		case HCLGE_MBX_GET_QDEPTH:
 			hclge_get_vf_queue_depth(vport, &resp_msg);
 			break;
-		case HCLGE_MBX_GET_TCINFO:
-			hclge_get_vf_tcinfo(vport, &resp_msg);
+		case HCLGE_MBX_GET_BASIC_INFO:
+			hclge_get_basic_info(vport, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_LINK_STATUS:
 			ret = hclge_push_vf_link_status(vport);

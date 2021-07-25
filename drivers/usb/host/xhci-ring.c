@@ -3076,6 +3076,11 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		if (event_loop++ < TRBS_PER_SEGMENT / 2)
 			continue;
 		xhci_update_erst_dequeue(xhci, event_ring_deq);
+
+		/* ring is half-full, force isoc trbs to interrupt more often */
+		if (xhci->isoc_bei_interval > AVOID_BEI_INTERVAL_MIN)
+			xhci->isoc_bei_interval = xhci->isoc_bei_interval / 2;
+
 		event_loop = 0;
 	}
 
@@ -3956,7 +3961,7 @@ static bool trb_block_event_intr(struct xhci_hcd *xhci, int num_tds, int i)
 	 * generate an event at least every 8th TD to clear the event ring
 	 */
 	if (i && xhci->quirks & XHCI_AVOID_BEI)
-		return !!(i % 8);
+		return !!(i % xhci->isoc_bei_interval);
 
 	return true;
 }

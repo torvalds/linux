@@ -363,11 +363,7 @@ static int tpm_tis_force_device(void)
 {
 	struct platform_device *pdev;
 	static const struct resource x86_resources[] = {
-		{
-			.start = 0xFED40000,
-			.end = 0xFED40000 + TIS_MEM_LEN - 1,
-			.flags = IORESOURCE_MEM,
-		},
+		DEFINE_RES_MEM(0xFED40000, TIS_MEM_LEN)
 	};
 
 	if (!force)

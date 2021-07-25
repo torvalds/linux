@@ -84,12 +84,22 @@ struct otx2_cptlf_info {
 	struct otx2_cptlf_wqe *wqe;       /* Tasklet work info */
 };
 
+struct cpt_hw_ops {
+	void (*send_cmd)(union otx2_cpt_inst_s *cptinst, u32 insts_num,
+			 struct otx2_cptlf_info *lf);
+	u8 (*cpt_get_compcode)(union otx2_cpt_res_s *result);
+	u8 (*cpt_get_uc_compcode)(union otx2_cpt_res_s *result);
+};
+
 struct otx2_cptlfs_info {
 	/* Registers start address of VF/PF LFs are attached to */
 	void __iomem *reg_base;
+#define LMTLINE_SIZE  128
+	void __iomem *lmt_base;
 	struct pci_dev *pdev;   /* Device LFs are attached to */
 	struct otx2_cptlf_info lf[OTX2_CPT_MAX_LFS_NUM];
 	struct otx2_mbox *mbox;
+	struct cpt_hw_ops *ops;
 	u8 are_lfs_attached;	/* Whether CPT LFs are attached */
 	u8 lfs_num;		/* Number of CPT LFs */
 	u8 kcrypto_eng_grp_num;	/* Kernel crypto engine group number */

@@ -590,13 +590,13 @@ void intel_sseu_info_init(struct intel_gt *gt)
 		cherryview_sseu_info_init(gt);
 	else if (IS_BROADWELL(i915))
 		bdw_sseu_info_init(gt);
-	else if (IS_GEN(i915, 9))
+	else if (GRAPHICS_VER(i915) == 9)
 		gen9_sseu_info_init(gt);
-	else if (IS_GEN(i915, 10))
+	else if (GRAPHICS_VER(i915) == 10)
 		gen10_sseu_info_init(gt);
-	else if (IS_GEN(i915, 11))
+	else if (GRAPHICS_VER(i915) == 11)
 		gen11_sseu_info_init(gt);
-	else if (INTEL_GEN(i915) >= 12)
+	else if (GRAPHICS_VER(i915) >= 12)
 		gen12_sseu_info_init(gt);
 }
 
@@ -613,7 +613,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * No explicit RPCS request is needed to ensure full
 	 * slice/subslice/EU enablement prior to Gen9.
 	 */
-	if (INTEL_GEN(i915) < 9)
+	if (GRAPHICS_VER(i915) < 9)
 		return 0;
 
 	/*
@@ -651,7 +651,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * subslices are enabled, or a count between one and four on the first
 	 * slice.
 	 */
-	if (IS_GEN(i915, 11) &&
+	if (GRAPHICS_VER(i915) == 11 &&
 	    slices == 1 &&
 	    subslices > min_t(u8, 4, hweight8(sseu->subslice_mask[0]) / 2)) {
 		GEM_BUG_ON(subslices & 1);
@@ -669,7 +669,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	if (sseu->has_slice_pg) {
 		u32 mask, val = slices;
 
-		if (INTEL_GEN(i915) >= 11) {
+		if (GRAPHICS_VER(i915) >= 11) {
 			mask = GEN11_RPCS_S_CNT_MASK;
 			val <<= GEN11_RPCS_S_CNT_SHIFT;
 		} else {

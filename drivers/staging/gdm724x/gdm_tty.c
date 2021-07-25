@@ -183,7 +183,7 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	return len;
 }
 
-static int gdm_tty_write_room(struct tty_struct *tty)
+static unsigned int gdm_tty_write_room(struct tty_struct *tty)
 {
 	struct gdm *gdm = tty->driver_data;
 

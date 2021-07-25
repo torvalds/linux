@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * 3-axis accelerometer driver supporting following Bosch-Sensortec chips:
- *  - BMC150
- *  - BMI055
- *  - BMA255
- *  - BMA250E
- *  - BMA222
- *  - BMA222E
- *  - BMA280
- *
+ * 3-axis accelerometer driver supporting many Bosch-Sensortec chips
  * Copyright (c) 2014, Intel Corporation.
  */
 
@@ -155,59 +147,6 @@ struct bmc150_accel_chip_info {
 	const struct iio_chan_spec *channels;
 	int num_channels;
 	const struct bmc150_scale_info scale_table[4];
-};
-
-struct bmc150_accel_interrupt {
-	const struct bmc150_accel_interrupt_info *info;
-	atomic_t users;
-};
-
-struct bmc150_accel_trigger {
-	struct bmc150_accel_data *data;
-	struct iio_trigger *indio_trig;
-	int (*setup)(struct bmc150_accel_trigger *t, bool state);
-	int intr;
-	bool enabled;
-};
-
-enum bmc150_accel_interrupt_id {
-	BMC150_ACCEL_INT_DATA_READY,
-	BMC150_ACCEL_INT_ANY_MOTION,
-	BMC150_ACCEL_INT_WATERMARK,
-	BMC150_ACCEL_INTERRUPTS,
-};
-
-enum bmc150_accel_trigger_id {
-	BMC150_ACCEL_TRIGGER_DATA_READY,
-	BMC150_ACCEL_TRIGGER_ANY_MOTION,
-	BMC150_ACCEL_TRIGGERS,
-};
-
-struct bmc150_accel_data {
-	struct regmap *regmap;
-	struct regulator_bulk_data regulators[2];
-	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
-	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
-	struct mutex mutex;
-	u8 fifo_mode, watermark;
-	s16 buffer[8];
-	/*
-	 * Ensure there is sufficient space and correct alignment for
-	 * the timestamp if enabled
-	 */
-	struct {
-		__le16 channels[3];
-		s64 ts __aligned(8);
-	} scan;
-	u8 bw_bits;
-	u32 slope_dur;
-	u32 slope_thres;
-	u32 range;
-	int ev_enable_state;
-	int64_t timestamp, old_timestamp; /* Only used in hw fifo mode. */
-	const struct bmc150_accel_chip_info *chip_info;
-	struct i2c_client *second_device;
-	struct iio_mount_matrix orientation;
 };
 
 static const struct {
@@ -389,7 +328,7 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 	int ret;
 
 	if (on) {
-		ret = pm_runtime_get_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
@@ -398,9 +337,6 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 	if (ret < 0) {
 		dev_err(dev,
 			"Failed: %s for %d\n", __func__, on);
-		if (on)
-			pm_runtime_put_noidle(dev);
-
 		return ret;
 	}
 
@@ -439,8 +375,8 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
  * Onda V80 plus
  * Predia Basic Tablet
  */
-static bool bmc150_apply_acpi_orientation(struct device *dev,
-					  struct iio_mount_matrix *orientation)
+static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
+						   struct iio_mount_matrix *orientation)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -449,9 +385,6 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 	union acpi_object *obj, *elements;
 	acpi_status status;
 	int i, j, val[3];
-
-	if (!adev || !acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
-		return false;
 
 	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
 		alt_name = "ROMK";
@@ -506,6 +439,33 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 unknown_format:
 	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
 	kfree(buffer.pointer);
+	return false;
+}
+
+static bool bmc150_apply_dual250e_acpi_orientation(struct device *dev,
+						   struct iio_mount_matrix *orientation)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	if (strcmp(dev_name(dev), "i2c-DUAL250E:base") == 0)
+		indio_dev->label = "accel-base";
+	else
+		indio_dev->label = "accel-display";
+
+	return false; /* DUAL250E fwnodes have no mount matrix info */
+}
+
+static bool bmc150_apply_acpi_orientation(struct device *dev,
+					  struct iio_mount_matrix *orientation)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	if (adev && acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
+		return bmc150_apply_bosc0200_acpi_orientation(dev, orientation);
+
+	if (adev && acpi_dev_hid_uid_match(adev, "DUAL250E", NULL))
+		return bmc150_apply_dual250e_acpi_orientation(dev, orientation);
+
 	return false;
 }
 #else
@@ -1128,80 +1088,63 @@ static const struct iio_chan_spec bmc150_accel_channels[] =
 static const struct iio_chan_spec bma280_accel_channels[] =
 	BMC150_ACCEL_CHANNELS(14);
 
+/*
+ * The range for the Bosch sensors is typically +-2g/4g/8g/16g, distributed
+ * over the amount of bits (see above). The scale table can be calculated using
+ *     (range / 2^bits) * g = (range / 2^bits) * 9.80665 m/s^2
+ * e.g. for +-2g and 12 bits: (4 / 2^12) * 9.80665 m/s^2 = 0.0095768... m/s^2
+ * Multiply 10^6 and round to get the values listed below.
+ */
 static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
-	[bmc150] = {
-		.name = "BMC150A",
-		.chip_id = 0xFA,
-		.channels = bmc150_accel_channels,
-		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
-		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	[bmi055] = {
-		.name = "BMI055A",
-		.chip_id = 0xFA,
-		.channels = bmc150_accel_channels,
-		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
-		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	[bma255] = {
-		.name = "BMA0255",
-		.chip_id = 0xFA,
-		.channels = bmc150_accel_channels,
-		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
-		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	[bma250e] = {
-		.name = "BMA250E",
-		.chip_id = 0xF9,
-		.channels = bma250e_accel_channels,
-		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
-		.scale_table = { {38344, BMC150_ACCEL_DEF_RANGE_2G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_4G},
-				 {153277, BMC150_ACCEL_DEF_RANGE_8G},
-				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	[bma222] = {
+	{
 		.name = "BMA222",
 		.chip_id = 0x03,
 		.channels = bma222e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
-		/*
-		 * The datasheet page 17 says:
-		 * 15.6, 31.3, 62.5 and 125 mg per LSB.
-		 */
-		.scale_table = { {156000, BMC150_ACCEL_DEF_RANGE_2G},
-				 {313000, BMC150_ACCEL_DEF_RANGE_4G},
-				 {625000, BMC150_ACCEL_DEF_RANGE_8G},
-				 {1250000, BMC150_ACCEL_DEF_RANGE_16G} },
+		.scale_table = { {153229, BMC150_ACCEL_DEF_RANGE_2G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_4G},
+				 {612916, BMC150_ACCEL_DEF_RANGE_8G},
+				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
-	[bma222e] = {
+	{
 		.name = "BMA222E",
 		.chip_id = 0xF8,
 		.channels = bma222e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
-		.scale_table = { {153277, BMC150_ACCEL_DEF_RANGE_2G},
-				 {306457, BMC150_ACCEL_DEF_RANGE_4G},
-				 {612915, BMC150_ACCEL_DEF_RANGE_8G},
+		.scale_table = { {153229, BMC150_ACCEL_DEF_RANGE_2G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_4G},
+				 {612916, BMC150_ACCEL_DEF_RANGE_8G},
 				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
-	[bma280] = {
-		.name = "BMA0280",
+	{
+		.name = "BMA250E",
+		.chip_id = 0xF9,
+		.channels = bma250e_accel_channels,
+		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
+		.scale_table = { {38307, BMC150_ACCEL_DEF_RANGE_2G},
+				 {76614, BMC150_ACCEL_DEF_RANGE_4G},
+				 {153229, BMC150_ACCEL_DEF_RANGE_8G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	{
+		.name = "BMA253/BMA254/BMA255/BMC150/BMI055",
+		.chip_id = 0xFA,
+		.channels = bmc150_accel_channels,
+		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
+		.scale_table = { {9577, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19154, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38307, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76614, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	{
+		.name = "BMA280",
 		.chip_id = 0xFB,
 		.channels = bma280_accel_channels,
 		.num_channels = ARRAY_SIZE(bma280_accel_channels),
-		.scale_table = { {2392, BMC150_ACCEL_DEF_RANGE_2G},
-				 {4785, BMC150_ACCEL_DEF_RANGE_4G},
-				 {9581, BMC150_ACCEL_DEF_RANGE_8G},
-				 {19152, BMC150_ACCEL_DEF_RANGE_16G} },
+		.scale_table = { {2394, BMC150_ACCEL_DEF_RANGE_2G},
+				 {4788, BMC150_ACCEL_DEF_RANGE_4G},
+				 {9577, BMC150_ACCEL_DEF_RANGE_8G},
+				 {19154, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 };
 
@@ -1470,9 +1413,9 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 		struct bmc150_accel_trigger *t = &data->triggers[i];
 
 		t->indio_trig = devm_iio_trigger_alloc(dev,
-					bmc150_accel_triggers[i].name,
+						       bmc150_accel_triggers[i].name,
 						       indio_dev->name,
-						       indio_dev->id);
+						       iio_device_id(indio_dev));
 		if (!t->indio_trig) {
 			ret = -ENOMEM;
 			break;
@@ -1688,8 +1631,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	data->regmap = regmap;
 
 	if (!bmc150_apply_acpi_orientation(dev, &data->orientation)) {
-		ret = iio_read_mount_matrix(dev, "mount-matrix",
-					     &data->orientation);
+		ret = iio_read_mount_matrix(dev, &data->orientation);
 		if (ret)
 			return ret;
 	}
@@ -1807,26 +1749,6 @@ err_disable_regulators:
 }
 EXPORT_SYMBOL_GPL(bmc150_accel_core_probe);
 
-struct i2c_client *bmc150_get_second_device(struct i2c_client *client)
-{
-	struct bmc150_accel_data *data = i2c_get_clientdata(client);
-
-	if (!data)
-		return NULL;
-
-	return data->second_device;
-}
-EXPORT_SYMBOL_GPL(bmc150_get_second_device);
-
-void bmc150_set_second_device(struct i2c_client *client)
-{
-	struct bmc150_accel_data *data = i2c_get_clientdata(client);
-
-	if (data)
-		data->second_device = client;
-}
-EXPORT_SYMBOL_GPL(bmc150_set_second_device);
-
 int bmc150_accel_core_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -1836,7 +1758,6 @@ int bmc150_accel_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
 
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 
@@ -1875,6 +1796,9 @@ static int bmc150_accel_resume(struct device *dev)
 	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
 	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
+
+	if (data->resume_callback)
+		data->resume_callback(dev);
 
 	return 0;
 }

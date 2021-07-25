@@ -386,7 +386,7 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 		if (rule->type != SJA1105_RULE_VL)
 			continue;
 
-		for_each_set_bit(port, &rule->port_mask, SJA1105_NUM_PORTS) {
+		for_each_set_bit(port, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
 			vl_lookup[k].format = SJA1105_VL_FORMAT_PSFP;
 			vl_lookup[k].port = port;
 			vl_lookup[k].macaddr = rule->key.vl.dmac;
