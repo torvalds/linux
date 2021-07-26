@@ -3400,7 +3400,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 						   "device is not on same HW, can't offload");
 				netdev_warn(priv->netdev, "device %s not on same HW, can't offload\n",
 					    peer_dev->name);
-				return -EINVAL;
+				return -EOPNOTSUPP;
 			}
 			}
 			break;
@@ -3410,7 +3410,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 			if (mark & ~MLX5E_TC_FLOW_ID_MASK) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Bad flow mark - only 16 bit is supported");
-				return -EINVAL;
+				return -EOPNOTSUPP;
 			}
 
 			nic_attr->flow_tag = mark;
@@ -3921,7 +3921,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					    "devices %s %s not on same switch HW, can't offload forwarding\n",
 					    priv->netdev->name,
 					    out_dev->name);
-				return -EINVAL;
+				return -EOPNOTSUPP;
 			}
 			}
 			break;
