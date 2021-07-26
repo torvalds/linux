@@ -1343,10 +1343,10 @@ static int prepare_uptodate_page(struct inode *inode,
 
 		/*
 		 * Since btrfs_readpage() will unlock the page before it
-		 * returns, there is a window where btrfs_releasepage() can
-		 * be called to release the page.
-		 * Here we check both inode mapping and PagePrivate() to
-		 * make sure the page was not released.
+		 * returns, there is a window where btrfs_releasepage() can be
+		 * called to release the page.  Here we check both inode
+		 * mapping and PagePrivate() to make sure the page was not
+		 * released.
 		 *
 		 * The private flag check is essential for subpage as we need
 		 * to store extra bitmap using page->private.
