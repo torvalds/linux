@@ -1364,6 +1364,44 @@ static void rvu_health_reporters_destroy(struct rvu *rvu)
 	rvu_nix_health_reporters_destroy(rvu_dl);
 }
 
+static int rvu_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct rvu_switch *rswitch;
+
+	rswitch = &rvu->rswitch;
+	*mode = rswitch->mode;
+
+	return 0;
+}
+
+static int rvu_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
+					struct netlink_ext_ack *extack)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct rvu_switch *rswitch;
+
+	rswitch = &rvu->rswitch;
+	switch (mode) {
+	case DEVLINK_ESWITCH_MODE_LEGACY:
+	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+		if (rswitch->mode == mode)
+			return 0;
+		rswitch->mode = mode;
+		if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
+			rvu_switch_enable(rvu);
+		else
+			rvu_switch_disable(rvu);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rvu_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 				struct netlink_ext_ack *extack)
 {
@@ -1372,6 +1410,8 @@ static int rvu_devlink_info_get(struct devlink *devlink, struct devlink_info_req
 
 static const struct devlink_ops rvu_devlink_ops = {
 	.info_get = rvu_devlink_info_get,
+	.eswitch_mode_get = rvu_devlink_eswitch_mode_get,
+	.eswitch_mode_set = rvu_devlink_eswitch_mode_set,
 };
 
 int rvu_register_dl(struct rvu *rvu)
@@ -1380,14 +1420,9 @@ int rvu_register_dl(struct rvu *rvu)
 	struct devlink *dl;
 	int err;
 
-	rvu_dl = kzalloc(sizeof(*rvu_dl), GFP_KERNEL);
-	if (!rvu_dl)
-		return -ENOMEM;
-
 	dl = devlink_alloc(&rvu_devlink_ops, sizeof(struct rvu_devlink));
 	if (!dl) {
 		dev_warn(rvu->dev, "devlink_alloc failed\n");
-		kfree(rvu_dl);
 		return -ENOMEM;
 	}
 
@@ -1395,10 +1430,10 @@ int rvu_register_dl(struct rvu *rvu)
 	if (err) {
 		dev_err(rvu->dev, "devlink register failed with error %d\n", err);
 		devlink_free(dl);
-		kfree(rvu_dl);
 		return err;
 	}
 
+	rvu_dl = devlink_priv(dl);
 	rvu_dl->dl = dl;
 	rvu_dl->rvu = rvu;
 	rvu->rvu_dl = rvu_dl;
@@ -1417,5 +1452,4 @@ void rvu_unregister_dl(struct rvu *rvu)
 	rvu_health_reporters_destroy(rvu);
 	devlink_unregister(dl);
 	devlink_free(dl);
-	kfree(rvu_dl);
 }
