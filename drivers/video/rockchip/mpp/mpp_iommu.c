@@ -8,9 +8,6 @@
  *	Ding Wei, leo.ding@rock-chips.com
  *
  */
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
-#include <asm/dma-iommu.h>
-#endif
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-iommu.h>
@@ -20,6 +17,10 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+#include <asm/dma-iommu.h>
+#endif
 
 #include "mpp_debug.h"
 #include "mpp_iommu.h"
