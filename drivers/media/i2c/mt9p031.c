@@ -76,40 +76,38 @@
 #define	MT9P031_PLL_CONFIG_1				0x11
 #define	MT9P031_PLL_CONFIG_2				0x12
 #define MT9P031_PIXEL_CLOCK_CONTROL			0x0a
-#define		MT9P031_PIXEL_CLOCK_INVERT		(1 << 15)
+#define		MT9P031_PIXEL_CLOCK_INVERT		BIT(15)
 #define		MT9P031_PIXEL_CLOCK_SHIFT(n)		((n) << 8)
 #define		MT9P031_PIXEL_CLOCK_DIVIDE(n)		((n) << 0)
 #define MT9P031_RESTART					0x0b
-#define		MT9P031_FRAME_PAUSE_RESTART		(1 << 1)
-#define		MT9P031_FRAME_RESTART			(1 << 0)
+#define		MT9P031_FRAME_PAUSE_RESTART		BIT(1)
+#define		MT9P031_FRAME_RESTART			BIT(0)
 #define MT9P031_SHUTTER_DELAY				0x0c
 #define MT9P031_RST					0x0d
-#define		MT9P031_RST_ENABLE			1
-#define		MT9P031_RST_DISABLE			0
+#define		MT9P031_RST_ENABLE			BIT(0)
 #define MT9P031_READ_MODE_1				0x1e
 #define MT9P031_READ_MODE_2				0x20
-#define		MT9P031_READ_MODE_2_ROW_MIR		(1 << 15)
-#define		MT9P031_READ_MODE_2_COL_MIR		(1 << 14)
-#define		MT9P031_READ_MODE_2_ROW_BLC		(1 << 6)
+#define		MT9P031_READ_MODE_2_ROW_MIR		BIT(15)
+#define		MT9P031_READ_MODE_2_COL_MIR		BIT(14)
+#define		MT9P031_READ_MODE_2_ROW_BLC		BIT(6)
 #define MT9P031_ROW_ADDRESS_MODE			0x22
 #define MT9P031_COLUMN_ADDRESS_MODE			0x23
 #define MT9P031_GLOBAL_GAIN				0x35
 #define		MT9P031_GLOBAL_GAIN_MIN			8
 #define		MT9P031_GLOBAL_GAIN_MAX			1024
 #define		MT9P031_GLOBAL_GAIN_DEF			8
-#define		MT9P031_GLOBAL_GAIN_MULT		(1 << 6)
+#define		MT9P031_GLOBAL_GAIN_MULT		BIT(6)
 #define MT9P031_ROW_BLACK_TARGET			0x49
 #define MT9P031_ROW_BLACK_DEF_OFFSET			0x4b
 #define MT9P031_GREEN1_OFFSET				0x60
 #define MT9P031_GREEN2_OFFSET				0x61
 #define MT9P031_BLACK_LEVEL_CALIBRATION			0x62
-#define		MT9P031_BLC_MANUAL_BLC			(1 << 0)
+#define		MT9P031_BLC_MANUAL_BLC			BIT(0)
 #define MT9P031_RED_OFFSET				0x63
 #define MT9P031_BLUE_OFFSET				0x64
 #define MT9P031_TEST_PATTERN				0xa0
 #define		MT9P031_TEST_PATTERN_SHIFT		3
-#define		MT9P031_TEST_PATTERN_ENABLE		(1 << 0)
-#define		MT9P031_TEST_PATTERN_DISABLE		(0 << 0)
+#define		MT9P031_TEST_PATTERN_ENABLE		BIT(0)
 #define MT9P031_TEST_PATTERN_GREEN			0xa1
 #define MT9P031_TEST_PATTERN_RED			0xa2
 #define MT9P031_TEST_PATTERN_BLUE			0xa3
@@ -199,7 +197,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_ENABLE);
 	if (ret < 0)
 		return ret;
-	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_DISABLE);
+	ret = mt9p031_write(client, MT9P031_RST, 0);
 	if (ret < 0)
 		return ret;
 
@@ -794,8 +792,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 			if (ret < 0)
 				return ret;
 
-			return mt9p031_write(client, MT9P031_TEST_PATTERN,
-					     MT9P031_TEST_PATTERN_DISABLE);
+			return mt9p031_write(client, MT9P031_TEST_PATTERN, 0);
 		}
 
 		ret = mt9p031_write(client, MT9P031_TEST_PATTERN_GREEN, 0x05a0);
