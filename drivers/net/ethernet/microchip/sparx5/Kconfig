@@ -1,5 +1,6 @@
 config SPARX5_SWITCH
 	tristate "Sparx5 switch driver"
+	depends on BRIDGE || BRIDGE=n
 	depends on NET_SWITCHDEV
 	depends on HAS_IOMEM
 	depends on OF
