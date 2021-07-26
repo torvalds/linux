@@ -205,11 +205,6 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 			mhi_netdev->skbagg_head = NULL;
 		}
 
-		u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
-		u64_stats_inc(&mhi_netdev->stats.rx_packets);
-		u64_stats_add(&mhi_netdev->stats.rx_bytes, skb->len);
-		u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
-
 		switch (skb->data[0] & 0xf0) {
 		case 0x40:
 			skb->protocol = htons(ETH_P_IP);
@@ -222,10 +217,15 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 			break;
 		}
 
-		if (proto && proto->rx)
+		if (proto && proto->rx) {
 			proto->rx(mhi_netdev, skb);
-		else
+		} else {
+			u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
+			u64_stats_inc(&mhi_netdev->stats.rx_packets);
+			u64_stats_add(&mhi_netdev->stats.rx_bytes, skb->len);
+			u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
 			netif_rx(skb);
+		}
 	}
 
 	/* Refill if RX buffers queue becomes low */

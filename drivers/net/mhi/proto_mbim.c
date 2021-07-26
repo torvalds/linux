@@ -211,6 +211,10 @@ static void mbim_rx(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb)
 				continue;
 			}
 
+			u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
+			u64_stats_inc(&mhi_netdev->stats.rx_packets);
+			u64_stats_add(&mhi_netdev->stats.rx_bytes, skbn->len);
+			u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
 			netif_rx(skbn);
 		}
 next_ndp:
