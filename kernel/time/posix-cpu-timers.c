@@ -744,8 +744,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 		 */
 		cpu_timer_fire(timer);
 	}
-
-	ret = 0;
  out:
 	rcu_read_unlock();
 	if (old)
