@@ -20,8 +20,30 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
 
+static bool is_rockchip_logo_fb(struct drm_framebuffer *fb)
+{
+	return fb->flags & ROCKCHIP_DRM_MODE_LOGO_FB ? true : false;
+}
+
+static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
+{
+	int i = 0;
+
+	for (i = 0; i < 4; i++)
+		drm_gem_object_put(fb->obj[i]);
+	drm_framebuffer_cleanup(fb);
+
+	if (is_rockchip_logo_fb(fb)) {
+		struct rockchip_drm_logo_fb *rockchip_logo_fb = to_rockchip_logo_fb(fb);
+
+		kfree(rockchip_logo_fb);
+	} else {
+		kfree(fb);
+	}
+}
+
 static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
-	.destroy       = drm_gem_fb_destroy,
+	.destroy       = rockchip_drm_fb_destroy,
 	.create_handle = drm_gem_fb_create_handle,
 	.dirty	       = drm_atomic_helper_dirtyfb,
 };
@@ -53,6 +75,37 @@ rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cm
 	}
 
 	return fb;
+}
+
+struct drm_framebuffer *
+rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
+			   struct rockchip_logo *logo)
+{
+	int ret = 0;
+	struct rockchip_drm_logo_fb *rockchip_logo_fb;
+	struct drm_framebuffer *fb;
+
+	rockchip_logo_fb = kzalloc(sizeof(*rockchip_logo_fb), GFP_KERNEL);
+	if (!rockchip_logo_fb)
+		return ERR_PTR(-ENOMEM);
+	fb = &rockchip_logo_fb->fb;
+
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+
+	ret = drm_framebuffer_init(dev, fb, &rockchip_drm_fb_funcs);
+	if (ret) {
+		DRM_DEV_ERROR(dev->dev,
+			      "Failed to initialize rockchip logo fb: %d\n",
+			      ret);
+		kfree(rockchip_logo_fb);
+		return ERR_PTR(ret);
+	}
+
+	fb->flags |= ROCKCHIP_DRM_MODE_LOGO_FB;
+	rockchip_logo_fb->logo = logo;
+	logo->count++;
+
+	return &rockchip_logo_fb->fb;
 }
 
 static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
