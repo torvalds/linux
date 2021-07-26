@@ -1053,6 +1053,15 @@
   i2c_register_driver
   i2c_transfer
   i2c_transfer_buffer_flags
+  i3c_device_disable_ibi
+  i3c_device_do_priv_xfers
+  i3c_device_enable_ibi
+  i3c_device_free_ibi
+  i3c_device_get_info
+  i3c_device_request_ibi
+  i3cdev_to_dev
+  i3c_driver_register_with_owner
+  i3c_driver_unregister
   i3c_generic_ibi_alloc_pool
   i3c_generic_ibi_free_pool
   i3c_generic_ibi_get_free_slot
