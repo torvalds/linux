@@ -680,6 +680,14 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	list_del(&submit->node);
 	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
+	/* Update devfreq on transition from active->idle: */
+	mutex_lock(&gpu->active_lock);
+	gpu->active_submits--;
+	WARN_ON(gpu->active_submits < 0);
+	if (!gpu->active_submits)
+		msm_devfreq_idle(gpu);
+	mutex_unlock(&gpu->active_lock);
+
 	msm_gem_submit_put(submit);
 }
 
@@ -781,6 +789,13 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	list_add_tail(&submit->node, &ring->submits);
 	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
+	/* Update devfreq on transition from idle->active: */
+	mutex_lock(&gpu->active_lock);
+	if (!gpu->active_submits)
+		msm_devfreq_active(gpu);
+	gpu->active_submits++;
+	mutex_unlock(&gpu->active_lock);
+
 	gpu->funcs->submit(gpu, submit);
 	priv->lastctx = submit->queue->ctx;
 
@@ -866,6 +881,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	sched_set_fifo_low(gpu->worker->task);
 
 	INIT_LIST_HEAD(&gpu->active_list);
+	mutex_init(&gpu->active_lock);
 	kthread_init_work(&gpu->retire_work, retire_worker);
 	kthread_init_work(&gpu->recover_work, recover_worker);
 	kthread_init_work(&gpu->fault_work, fault_worker);

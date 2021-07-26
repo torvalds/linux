@@ -98,6 +98,20 @@ struct msm_gpu_devfreq {
 
 	/** time: Time of last sampling period. */
 	ktime_t time;
+
+	/** idle_time: Time of last transition to idle: */
+	ktime_t idle_time;
+
+	/**
+	 * idle_freq:
+	 *
+	 * Shadow frequency used while the GPU is idle.  From the PoV of
+	 * the devfreq governor, we are continuing to sample busyness and
+	 * adjust frequency while the GPU is idle, but we use this shadow
+	 * value as the GPU is actually clamped to minimum frequency while
+	 * it is inactive.
+	 */
+	unsigned long idle_freq;
 };
 
 struct msm_gpu {
@@ -128,6 +142,19 @@ struct msm_gpu {
 	 * msm_drm_private::mm_lock
 	 */
 	struct list_head active_list;
+
+	/**
+	 * active_submits:
+	 *
+	 * The number of submitted but not yet retired submits, used to
+	 * determine transitions between active and idle.
+	 *
+	 * Protected by lock
+	 */
+	int active_submits;
+
+	/** lock: protects active_submits and idle/active transitions */
+	struct mutex active_lock;
 
 	/* does gpu need hw_init? */
 	bool needs_hw_init;
@@ -322,6 +349,8 @@ void msm_devfreq_init(struct msm_gpu *gpu);
 void msm_devfreq_cleanup(struct msm_gpu *gpu);
 void msm_devfreq_resume(struct msm_gpu *gpu);
 void msm_devfreq_suspend(struct msm_gpu *gpu);
+void msm_devfreq_active(struct msm_gpu *gpu);
+void msm_devfreq_idle(struct msm_gpu *gpu);
 
 int msm_gpu_hw_init(struct msm_gpu *gpu);
 

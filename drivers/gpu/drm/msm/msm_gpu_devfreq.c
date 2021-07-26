@@ -22,6 +22,15 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 
 	opp = devfreq_recommended_opp(dev, freq, flags);
 
+	/*
+	 * If the GPU is idle, devfreq is not aware, so just ignore
+	 * it's requests
+	 */
+	if (gpu->devfreq.idle_freq) {
+		gpu->devfreq.idle_freq = *freq;
+		return 0;
+	}
+
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
@@ -39,6 +48,9 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 
 static unsigned long get_freq(struct msm_gpu *gpu)
 {
+	if (gpu->devfreq.idle_freq)
+		return gpu->devfreq.idle_freq;
+
 	if (gpu->funcs->gpu_get_freq)
 		return gpu->funcs->gpu_get_freq(gpu);
 
@@ -69,7 +81,8 @@ static int msm_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
 }
 
 static struct devfreq_dev_profile msm_devfreq_profile = {
-	.polling_ms = 10,
+	.timer = DEVFREQ_TIMER_DELAYED,
+	.polling_ms = 50,
 	.target = msm_devfreq_target,
 	.get_dev_status = msm_devfreq_get_dev_status,
 	.get_cur_freq = msm_devfreq_get_cur_freq,
@@ -129,4 +142,62 @@ void msm_devfreq_resume(struct msm_gpu *gpu)
 void msm_devfreq_suspend(struct msm_gpu *gpu)
 {
 	devfreq_suspend_device(gpu->devfreq.devfreq);
+}
+
+void msm_devfreq_active(struct msm_gpu *gpu)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	struct devfreq_dev_status status;
+	unsigned int idle_time;
+	unsigned long target_freq = df->idle_freq;
+
+	/*
+	 * Hold devfreq lock to synchronize with get_dev_status()/
+	 * target() callbacks
+	 */
+	mutex_lock(&df->devfreq->lock);
+
+	idle_time = ktime_to_ms(ktime_sub(ktime_get(), df->idle_time));
+
+	/*
+	 * If we've been idle for a significant fraction of a polling
+	 * interval, then we won't meet the threshold of busyness for
+	 * the governor to ramp up the freq.. so give some boost
+	 */
+	if (idle_time > msm_devfreq_profile.polling_ms/2) {
+		target_freq *= 2;
+	}
+
+	df->idle_freq = 0;
+
+	msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
+
+	/*
+	 * Reset the polling interval so we aren't inconsistent
+	 * about freq vs busy/total cycles
+	 */
+	msm_devfreq_get_dev_status(&gpu->pdev->dev, &status);
+
+	mutex_unlock(&df->devfreq->lock);
+}
+
+void msm_devfreq_idle(struct msm_gpu *gpu)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	unsigned long idle_freq, target_freq = 0;
+
+	/*
+	 * Hold devfreq lock to synchronize with get_dev_status()/
+	 * target() callbacks
+	 */
+	mutex_lock(&df->devfreq->lock);
+
+	idle_freq = get_freq(gpu);
+
+	msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
+
+	df->idle_time = ktime_get();
+	df->idle_freq = idle_freq;
+
+	mutex_unlock(&df->devfreq->lock);
 }
