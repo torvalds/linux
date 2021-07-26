@@ -532,6 +532,12 @@ config COMMON_CLK_MT8192_IMP_IIC_WRAP
 	help
 	  This driver supports MediaTek MT8192 imp_iic_wrap clocks.
 
+config COMMON_CLK_MT8192_IPESYS
+	bool "Clock driver for MediaTek MT8192 ipesys"
+	depends on COMMON_CLK_MT8192
+	help
+	  This driver supports MediaTek MT8192 ipesys clocks.
+
 config COMMON_CLK_MT8516
 	bool "Clock driver for MediaTek MT8516"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
