@@ -162,8 +162,8 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	}
 }
 
-/* ipa_uc_setup() - Set up the microcontroller */
-void ipa_uc_setup(struct ipa *ipa)
+/* Configure the IPA microcontroller subsystem */
+void ipa_uc_config(struct ipa *ipa)
 {
 	/* The microcontroller needs the IPA clock running until it has
 	 * completed its initialization.  It signals this by sending an
@@ -180,8 +180,8 @@ void ipa_uc_setup(struct ipa *ipa)
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_1, ipa_uc_response_hdlr);
 }
 
-/* Inverse of ipa_uc_setup() */
-void ipa_uc_teardown(struct ipa *ipa)
+/* Inverse of ipa_uc_config() */
+void ipa_uc_deconfig(struct ipa *ipa)
 {
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);

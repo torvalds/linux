@@ -127,11 +127,9 @@ int ipa_setup(struct ipa *ipa)
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
 			  ipa_suspend_handler);
 
-	ipa_uc_setup(ipa);
-
 	ret = device_init_wakeup(dev, true);
 	if (ret)
-		goto err_uc_teardown;
+		goto err_interrupt_remove;
 
 	ipa_endpoint_setup(ipa);
 
@@ -180,8 +178,7 @@ err_command_disable:
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
 	(void)device_init_wakeup(dev, false);
-err_uc_teardown:
-	ipa_uc_teardown(ipa);
+err_interrupt_remove:
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 	gsi_teardown(&ipa->gsi);
 
@@ -205,7 +202,6 @@ static void ipa_teardown(struct ipa *ipa)
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
 	(void)device_init_wakeup(&ipa->pdev->dev, false);
-	ipa_uc_teardown(ipa);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 	gsi_teardown(&ipa->gsi);
 }
@@ -471,6 +467,8 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 		goto err_mem_deconfig;
 	}
 
+	ipa_uc_config(ipa);
+
 	ret = ipa_endpoint_config(ipa);
 	if (ret)
 		goto err_interrupt_deconfig;
@@ -491,6 +489,7 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 err_endpoint_deconfig:
 	ipa_endpoint_deconfig(ipa);
 err_interrupt_deconfig:
+	ipa_uc_deconfig(ipa);
 	ipa_interrupt_deconfig(ipa->interrupt);
 	ipa->interrupt = NULL;
 err_mem_deconfig:
@@ -510,6 +509,7 @@ static void ipa_deconfig(struct ipa *ipa)
 {
 	ipa_modem_deconfig(ipa);
 	ipa_endpoint_deconfig(ipa);
+	ipa_uc_deconfig(ipa);
 	ipa_interrupt_deconfig(ipa->interrupt);
 	ipa->interrupt = NULL;
 	ipa_mem_deconfig(ipa);

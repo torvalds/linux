@@ -9,16 +9,16 @@
 struct ipa;
 
 /**
- * ipa_uc_setup() - set up the IPA microcontroller subsystem
+ * ipa_uc_config() - Configure the IPA microcontroller subsystem
  * @ipa:	IPA pointer
  */
-void ipa_uc_setup(struct ipa *ipa);
+void ipa_uc_config(struct ipa *ipa);
 
 /**
- * ipa_uc_teardown() - inverse of ipa_uc_setup()
+ * ipa_uc_deconfig() - Inverse of ipa_uc_config()
  * @ipa:	IPA pointer
  */
-void ipa_uc_teardown(struct ipa *ipa);
+void ipa_uc_deconfig(struct ipa *ipa);
 
 /**
  * ipa_uc_panic_notifier()
