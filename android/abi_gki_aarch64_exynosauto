@@ -1474,10 +1474,12 @@
   sysfs_remove_bin_file
 
 # required by vlx-vdmaheap-module.ko
+  devm_get_free_pages
   idr_alloc_cyclic
   idr_find
   radix_tree_iter_delete
   uuid_gen
+  __vmalloc
 
 # required by vlx-vipc-module.ko
   sigprocmask
