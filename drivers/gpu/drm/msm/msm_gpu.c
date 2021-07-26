@@ -13,114 +13,12 @@
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
-#include <linux/devfreq.h>
-#include <linux/devfreq_cooling.h>
 #include <linux/devcoredump.h>
 #include <linux/sched/task.h>
 
 /*
  * Power Management:
  */
-
-static int msm_devfreq_target(struct device *dev, unsigned long *freq,
-		u32 flags)
-{
-	struct msm_gpu *gpu = dev_to_gpu(dev);
-	struct dev_pm_opp *opp;
-
-	opp = devfreq_recommended_opp(dev, freq, flags);
-
-	if (IS_ERR(opp))
-		return PTR_ERR(opp);
-
-	trace_msm_gpu_freq_change(dev_pm_opp_get_freq(opp));
-
-	if (gpu->funcs->gpu_set_freq)
-		gpu->funcs->gpu_set_freq(gpu, opp);
-	else
-		clk_set_rate(gpu->core_clk, *freq);
-
-	dev_pm_opp_put(opp);
-
-	return 0;
-}
-
-static int msm_devfreq_get_dev_status(struct device *dev,
-		struct devfreq_dev_status *status)
-{
-	struct msm_gpu *gpu = dev_to_gpu(dev);
-	ktime_t time;
-
-	if (gpu->funcs->gpu_get_freq)
-		status->current_frequency = gpu->funcs->gpu_get_freq(gpu);
-	else
-		status->current_frequency = clk_get_rate(gpu->core_clk);
-
-	status->busy_time = gpu->funcs->gpu_busy(gpu);
-
-	time = ktime_get();
-	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
-	gpu->devfreq.time = time;
-
-	return 0;
-}
-
-static int msm_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
-{
-	struct msm_gpu *gpu = dev_to_gpu(dev);
-
-	if (gpu->funcs->gpu_get_freq)
-		*freq = gpu->funcs->gpu_get_freq(gpu);
-	else
-		*freq = clk_get_rate(gpu->core_clk);
-
-	return 0;
-}
-
-static struct devfreq_dev_profile msm_devfreq_profile = {
-	.polling_ms = 10,
-	.target = msm_devfreq_target,
-	.get_dev_status = msm_devfreq_get_dev_status,
-	.get_cur_freq = msm_devfreq_get_cur_freq,
-};
-
-static void msm_devfreq_init(struct msm_gpu *gpu)
-{
-	/* We need target support to do devfreq */
-	if (!gpu->funcs->gpu_busy)
-		return;
-
-	msm_devfreq_profile.initial_freq = gpu->fast_rate;
-
-	/*
-	 * Don't set the freq_table or max_state and let devfreq build the table
-	 * from OPP
-	 * After a deferred probe, these may have be left to non-zero values,
-	 * so set them back to zero before creating the devfreq device
-	 */
-	msm_devfreq_profile.freq_table = NULL;
-	msm_devfreq_profile.max_state = 0;
-
-	gpu->devfreq.devfreq = devm_devfreq_add_device(&gpu->pdev->dev,
-			&msm_devfreq_profile, DEVFREQ_GOV_SIMPLE_ONDEMAND,
-			NULL);
-
-	if (IS_ERR(gpu->devfreq.devfreq)) {
-		DRM_DEV_ERROR(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
-		gpu->devfreq.devfreq = NULL;
-		return;
-	}
-
-	devfreq_suspend_device(gpu->devfreq.devfreq);
-
-	gpu->cooling = of_devfreq_cooling_register(gpu->pdev->dev.of_node,
-			gpu->devfreq.devfreq);
-	if (IS_ERR(gpu->cooling)) {
-		DRM_DEV_ERROR(&gpu->pdev->dev,
-				"Couldn't register GPU cooling device\n");
-		gpu->cooling = NULL;
-	}
-}
 
 static int enable_pwrrail(struct msm_gpu *gpu)
 {
@@ -196,14 +94,6 @@ static int disable_axi(struct msm_gpu *gpu)
 	return 0;
 }
 
-void msm_gpu_resume_devfreq(struct msm_gpu *gpu)
-{
-	gpu->devfreq.busy_cycles = 0;
-	gpu->devfreq.time = ktime_get();
-
-	devfreq_resume_device(gpu->devfreq.devfreq);
-}
-
 int msm_gpu_pm_resume(struct msm_gpu *gpu)
 {
 	int ret;
@@ -223,7 +113,7 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
-	msm_gpu_resume_devfreq(gpu);
+	msm_devfreq_resume(gpu);
 
 	gpu->needs_hw_init = true;
 
@@ -237,7 +127,7 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 	DBG("%s", gpu->name);
 	trace_msm_gpu_suspend(0);
 
-	devfreq_suspend_device(gpu->devfreq.devfreq);
+	msm_devfreq_suspend(gpu);
 
 	ret = disable_axi(gpu);
 	if (ret)
@@ -1116,5 +1006,5 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		kthread_destroy_worker(gpu->worker);
 	}
 
-	devfreq_cooling_unregister(gpu->cooling);
+	msm_devfreq_cleanup(gpu);
 }
