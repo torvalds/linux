@@ -334,7 +334,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 				if (time_after(jiffies, timeout))
 					break;
 
-#define FMT(type) "%s: queuing " type " CIS tuple 0x%02x (%u bytes)\n"
+#define FMT(type) "%s: queuing " type " CIS tuple 0x%02x [%*ph] (%u bytes)\n"
 				/*
 				 * Tuples in this range are reserved for
 				 * vendors, so don't warn about them
@@ -342,11 +342,13 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 				if (tpl_code >= 0x80 && tpl_code <= 0x8f)
 					pr_debug_ratelimited(FMT("vendor"),
 						mmc_hostname(card->host),
-						tpl_code, tpl_link);
+						tpl_code, tpl_link, this->data,
+						tpl_link);
 				else
 					pr_warn_ratelimited(FMT("unknown"),
 						mmc_hostname(card->host),
-						tpl_code, tpl_link);
+						tpl_code, tpl_link, this->data,
+						tpl_link);
 			}
 
 			/* keep on analyzing tuples */
