@@ -34,8 +34,75 @@ static int hclgevf_devlink_info_get(struct devlink *devlink,
 						version_str);
 }
 
+static int hclgevf_devlink_reload_down(struct devlink *devlink,
+				       bool netns_change,
+				       enum devlink_reload_action action,
+				       enum devlink_reload_limit limit,
+				       struct netlink_ext_ack *extack)
+{
+	struct hclgevf_devlink_priv *priv = devlink_priv(devlink);
+	struct hclgevf_dev *hdev = priv->hdev;
+	struct hnae3_handle *h = &hdev->nic;
+	struct pci_dev *pdev = hdev->pdev;
+	int ret;
+
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) {
+		dev_err(&pdev->dev, "reset is handling\n");
+		return -EBUSY;
+	}
+
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
+		rtnl_lock();
+		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_DOWN_CLIENT);
+		if (ret) {
+			rtnl_unlock();
+			return ret;
+		}
+
+		ret = hdev->nic_client->ops->reset_notify(h,
+							  HNAE3_UNINIT_CLIENT);
+		rtnl_unlock();
+		return ret;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int hclgevf_devlink_reload_up(struct devlink *devlink,
+				     enum devlink_reload_action action,
+				     enum devlink_reload_limit limit,
+				     u32 *actions_performed,
+				     struct netlink_ext_ack *extack)
+{
+	struct hclgevf_devlink_priv *priv = devlink_priv(devlink);
+	struct hclgevf_dev *hdev = priv->hdev;
+	struct hnae3_handle *h = &hdev->nic;
+	int ret;
+
+	*actions_performed = BIT(action);
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
+		rtnl_lock();
+		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_INIT_CLIENT);
+		if (ret) {
+			rtnl_unlock();
+			return ret;
+		}
+
+		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_UP_CLIENT);
+		rtnl_unlock();
+		return ret;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct devlink_ops hclgevf_devlink_ops = {
 	.info_get = hclgevf_devlink_info_get,
+	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
+	.reload_down = hclgevf_devlink_reload_down,
+	.reload_up = hclgevf_devlink_reload_up,
 };
 
 int hclgevf_devlink_init(struct hclgevf_dev *hdev)
@@ -62,6 +129,8 @@ int hclgevf_devlink_init(struct hclgevf_dev *hdev)
 
 	hdev->devlink = devlink;
 
+	devlink_reload_enable(devlink);
+
 	return 0;
 
 out_reg_fail:
@@ -75,6 +144,8 @@ void hclgevf_devlink_uninit(struct hclgevf_dev *hdev)
 
 	if (!devlink)
 		return;
+
+	devlink_reload_disable(devlink);
 
 	devlink_unregister(devlink);
 
