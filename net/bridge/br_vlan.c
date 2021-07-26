@@ -840,11 +840,14 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val,
 	if (br_opt_get(br, BROPT_VLAN_ENABLED) == !!val)
 		return 0;
 
-	err = switchdev_port_attr_set(br->dev, &attr, extack);
-	if (err && err != -EOPNOTSUPP)
-		return err;
-
 	br_opt_toggle(br, BROPT_VLAN_ENABLED, !!val);
+
+	err = switchdev_port_attr_set(br->dev, &attr, extack);
+	if (err && err != -EOPNOTSUPP) {
+		br_opt_toggle(br, BROPT_VLAN_ENABLED, !val);
+		return err;
+	}
+
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
