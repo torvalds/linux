@@ -1229,6 +1229,7 @@ config VIDEO_MT9P031
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
+	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Aptina
 	  (Micron) mt9p031 5 Mpixel camera.
