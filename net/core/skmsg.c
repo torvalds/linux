@@ -508,10 +508,8 @@ static int sk_psock_skb_ingress_enqueue(struct sk_buff *skb,
 	if (skb_linearize(skb))
 		return -EAGAIN;
 	num_sge = skb_to_sgvec(skb, msg->sg.data, 0, skb->len);
-	if (unlikely(num_sge < 0)) {
-		kfree(msg);
+	if (unlikely(num_sge < 0))
 		return num_sge;
-	}
 
 	copied = skb->len;
 	msg->sg.start = 0;
@@ -530,6 +528,7 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 {
 	struct sock *sk = psock->sk;
 	struct sk_msg *msg;
+	int err;
 
 	/* If we are receiving on the same sock skb->sk is already assigned,
 	 * skip memory accounting and owner transition seeing it already set
@@ -548,7 +547,10 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 	 * into user buffers.
 	 */
 	skb_set_owner_r(skb, sk);
-	return sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
+	err = sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
+	if (err < 0)
+		kfree(msg);
+	return err;
 }
 
 /* Puts an skb on the ingress queue of the socket already assigned to the
@@ -559,12 +561,16 @@ static int sk_psock_skb_ingress_self(struct sk_psock *psock, struct sk_buff *skb
 {
 	struct sk_msg *msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_ATOMIC);
 	struct sock *sk = psock->sk;
+	int err;
 
 	if (unlikely(!msg))
 		return -EAGAIN;
 	sk_msg_init(msg);
 	skb_set_owner_r(skb, sk);
-	return sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
+	err = sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
+	if (err < 0)
+		kfree(msg);
+	return err;
 }
 
 static int sk_psock_handle_skb(struct sk_psock *psock, struct sk_buff *skb,
