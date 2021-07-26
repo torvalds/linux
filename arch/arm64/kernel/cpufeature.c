@@ -1561,8 +1561,6 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 
 	if (!cpu)
 		arm64_use_ng_mappings = true;
-
-	return;
 }
 #else
 static void
