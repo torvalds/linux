@@ -703,53 +703,6 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
 	}
 }
 
-static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
-			   u8 final_candidate, bool txonly)
-{
-	u32 oldval_1, x, tx1_a, reg;
-	s32 y, tx1_c;
-
-	if (final_candidate == 0xFF) {
-		return;
-	} else if (iqkok) {
-		oldval_1 = (phy_query_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
-
-		x = result[final_candidate][4];
-		if ((x & 0x00000200) != 0)
-			x = x | 0xFFFFFC00;
-		tx1_a = (x * oldval_1) >> 8;
-		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x3FF, tx1_a);
-
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(27),
-			       ((x * oldval_1 >> 7) & 0x1));
-
-		y = result[final_candidate][5];
-		if ((y & 0x00000200) != 0)
-			y = y | 0xFFFFFC00;
-
-		tx1_c = (y * oldval_1) >> 8;
-
-		phy_set_bb_reg(adapt, rOFDM0_XDTxAFE, 0xF0000000,
-			       ((tx1_c & 0x3C0) >> 6));
-		phy_set_bb_reg(adapt, rOFDM0_XBTxIQImbalance, 0x003F0000,
-			       (tx1_c & 0x3F));
-		phy_set_bb_reg(adapt, rOFDM0_ECCAThreshold, BIT(25),
-			       ((y * oldval_1 >> 7) & 0x1));
-
-		if (txonly)
-			return;
-
-		reg = result[final_candidate][6];
-		phy_set_bb_reg(adapt, rOFDM0_XBRxIQImbalance, 0x3FF, reg);
-
-		reg = result[final_candidate][7] & 0x3F;
-		phy_set_bb_reg(adapt, rOFDM0_XBRxIQImbalance, 0xFC00, reg);
-
-		reg = (result[final_candidate][7] >> 6) & 0xF;
-		phy_set_bb_reg(adapt, rOFDM0_AGCRSSITable, 0x0000F000, reg);
-	}
-}
-
 static void save_adda_registers(struct adapter *adapt, const u32 *addareg,
 				u32 *backup, u32 register_num)
 {
@@ -1150,8 +1103,8 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	s32 result[4][8];
 	u8 i, final;
-	bool pathaok, pathbok;
-	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
+	bool pathaok;
+	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc;
 	bool is12simular, is13simular, is23simular;
 	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
 		rOFDM0_XARxIQImbalance, rOFDM0_XBRxIQImbalance,
@@ -1159,9 +1112,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		rOFDM0_XATxIQImbalance, rOFDM0_XBTxIQImbalance,
 		rOFDM0_XCTxAFE, rOFDM0_XDTxAFE,
 		rOFDM0_RxIQExtAnta};
-	bool is2t;
-
-	is2t = false;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
@@ -1178,13 +1128,12 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 
 	final = 0xff;
 	pathaok = false;
-	pathbok = false;
 	is12simular = false;
 	is23simular = false;
 	is13simular = false;
 
 	for (i = 0; i < 3; i++) {
-		phy_iq_calibrate(adapt, result, i, is2t);
+		phy_iq_calibrate(adapt, result, i, false);
 
 		if (i == 1) {
 			is12simular = simularity_compare(adapt, result, 0, 1);
@@ -1214,7 +1163,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		reg_ea4 = result[i][2];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
-		reg_ec4 = result[i][6];
 	}
 
 	if (final != 0xff) {
@@ -1227,9 +1175,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegE9C = reg_e9c;
 		dm_odm->RFCalibrateInfo.RegEB4 = reg_eb4;
 		dm_odm->RFCalibrateInfo.RegEBC = reg_ebc;
-		reg_ec4 = result[final][6];
 		pathaok = true;
-		pathbok = true;
 	} else {
 		dm_odm->RFCalibrateInfo.RegE94 = 0x100;
 		dm_odm->RFCalibrateInfo.RegEB4 = 0x100;
@@ -1239,11 +1185,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	if (reg_e94 != 0)
 		patha_fill_iqk(adapt, pathaok, result, final,
 			       (reg_ea4 == 0));
-	if (is2t) {
-		if (reg_eb4 != 0)
-			pathb_fill_iqk(adapt, pathbok, result, final,
-				       (reg_ec4 == 0));
-	}
 
 	if (final < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
