@@ -3204,12 +3204,6 @@ static void intel_disable_ddi_dp(struct intel_atomic_state *state,
 
 	intel_dp->link_trained = false;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
-
-	intel_edp_drrs_disable(intel_dp, old_crtc_state);
-	intel_psr_disable(intel_dp, old_crtc_state);
 	intel_edp_backlight_off(old_conn_state);
 	/* Disable the decompression in DP Sink */
 	intel_dp_sink_set_decompression_state(intel_dp, old_crtc_state,
@@ -3227,15 +3221,30 @@ static void intel_disable_ddi_hdmi(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct drm_connector *connector = old_conn_state->connector;
 
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
-
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       false, false))
 		drm_dbg_kms(&i915->drm,
 			    "[CONNECTOR:%d:%s] Failed to reset sink scrambling/TMDS bit clock ratio\n",
 			    connector->base.id, connector->name);
+}
+
+static void intel_pre_disable_ddi(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
+				  const struct intel_crtc_state *old_crtc_state,
+				  const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp *intel_dp;
+
+	if (old_crtc_state->has_audio)
+		intel_audio_codec_disable(encoder, old_crtc_state,
+					  old_conn_state);
+
+	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
+		return;
+
+	intel_dp = enc_to_intel_dp(encoder);
+	intel_edp_drrs_disable(intel_dp, old_crtc_state);
+	intel_psr_disable(intel_dp, old_crtc_state);
 }
 
 static void intel_disable_ddi(struct intel_atomic_state *state,
@@ -4590,6 +4599,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->enable = intel_enable_ddi;
 	encoder->pre_pll_enable = intel_ddi_pre_pll_enable;
 	encoder->pre_enable = intel_ddi_pre_enable;
+	encoder->pre_disable = intel_pre_disable_ddi;
 	encoder->disable = intel_disable_ddi;
 	encoder->post_disable = intel_ddi_post_disable;
 	encoder->update_pipe = intel_ddi_update_pipe;
