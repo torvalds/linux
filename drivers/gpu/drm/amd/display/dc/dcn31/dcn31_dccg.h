@@ -130,6 +130,24 @@ struct dccg *dccg31_create(
 
 void dccg31_init(struct dccg *dccg);
 
+void dccg31_enable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst,
+		enum phyd32clk_clock_source phyd32clk);
+
+void dccg31_disable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst);
+
+void dccg31_enable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		enum phyd32clk_clock_source phyd32clk);
+
+void dccg31_disable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst);
+
 void dccg31_set_physymclk(
 		struct dccg *dccg,
 		int phy_inst,
