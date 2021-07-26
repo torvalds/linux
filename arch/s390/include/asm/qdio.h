@@ -311,8 +311,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @qib_param_field_format: format for qib_parm_field
  * @qib_param_field: pointer to 128 bytes or NULL, if no param field
  * @qib_rflags: rflags to set
- * @input_slib_elements: pointer to no_input_qs * 128 words of data or NULL
- * @output_slib_elements: pointer to no_output_qs * 128 words of data or NULL
  * @no_input_qs: number of input queues
  * @no_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
@@ -329,8 +327,6 @@ struct qdio_initialize {
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
 	unsigned char qib_rflags;
-	unsigned long *input_slib_elements;
-	unsigned long *output_slib_elements;
 	unsigned int no_input_qs;
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;

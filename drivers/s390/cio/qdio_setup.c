@@ -89,39 +89,6 @@ void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count)
 }
 EXPORT_SYMBOL_GPL(qdio_reset_buffers);
 
-/*
- * qib_param_field: pointer to 128 bytes or NULL, if no param field
- * nr_input_qs: pointer to nr_queues*128 words of data or NULL
- */
-static void set_impl_params(struct qdio_irq *irq_ptr,
-			    unsigned long *input_slib_elements,
-			    unsigned long *output_slib_elements)
-{
-	struct qdio_q *q;
-	int i, j;
-
-	if (!irq_ptr)
-		return;
-
-	if (!input_slib_elements)
-		goto output;
-
-	for_each_input_queue(irq_ptr, q, i) {
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
-			q->slib->slibe[j].parms =
-				input_slib_elements[i * QDIO_MAX_BUFFERS_PER_Q + j];
-	}
-output:
-	if (!output_slib_elements)
-		return;
-
-	for_each_output_queue(irq_ptr, q, i) {
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
-			q->slib->slibe[j].parms =
-				output_slib_elements[i * QDIO_MAX_BUFFERS_PER_Q + j];
-	}
-}
-
 static void __qdio_free_queues(struct qdio_q **queues, unsigned int count)
 {
 	struct qdio_q *q;
@@ -421,9 +388,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
 
 	setup_qib(irq_ptr, init_data);
-	set_impl_params(irq_ptr,
-			init_data->input_slib_elements,
-			init_data->output_slib_elements);
 
 	/* fill input and output descriptors */
 	setup_qdr(irq_ptr, init_data);
