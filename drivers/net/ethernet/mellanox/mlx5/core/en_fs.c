@@ -1320,11 +1320,11 @@ err:
 void mlx5e_set_ttc_basic_params(struct mlx5e_priv *priv,
 				struct ttc_params *ttc_params)
 {
-	ttc_params->any_tt_tirn = priv->direct_tir[0].tirn;
+	ttc_params->any_tt_tirn = priv->rx_res->channels[0].direct_tir.tirn;
 	ttc_params->inner_ttc = &priv->fs.inner_ttc;
 }
 
-void mlx5e_set_inner_ttc_ft_params(struct ttc_params *ttc_params)
+static void mlx5e_set_inner_ttc_ft_params(struct ttc_params *ttc_params)
 {
 	struct mlx5_flow_table_attr *ft_attr = &ttc_params->ft_attr;
 
@@ -1343,14 +1343,11 @@ void mlx5e_set_ttc_ft_params(struct ttc_params *ttc_params)
 	ft_attr->prio = MLX5E_NIC_PRIO;
 }
 
-int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
-				 struct mlx5e_ttc_table *ttc)
+static int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
+					struct mlx5e_ttc_table *ttc)
 {
 	struct mlx5e_flow_table *ft = &ttc->ft;
 	int err;
-
-	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
-		return 0;
 
 	ft->t = mlx5_create_flow_table(priv->fs.ns, &params->ft_attr);
 	if (IS_ERR(ft->t)) {
@@ -1374,12 +1371,9 @@ err:
 	return err;
 }
 
-void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv,
-				   struct mlx5e_ttc_table *ttc)
+static void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv,
+					  struct mlx5e_ttc_table *ttc)
 {
-	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
-		return;
-
 	mlx5e_cleanup_ttc_rules(ttc);
 	mlx5e_destroy_flow_table(&ttc->ft);
 }
@@ -1788,20 +1782,23 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 	}
 
 	mlx5e_set_ttc_basic_params(priv, &ttc_params);
-	mlx5e_set_inner_ttc_ft_params(&ttc_params);
-	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->inner_indir_tir[tt].tirn;
 
-	err = mlx5e_create_inner_ttc_table(priv, &ttc_params, &priv->fs.inner_ttc);
-	if (err) {
-		netdev_err(priv->netdev, "Failed to create inner ttc table, err=%d\n",
-			   err);
-		goto err_destroy_arfs_tables;
+	if (mlx5e_tunnel_inner_ft_supported(priv->mdev)) {
+		mlx5e_set_inner_ttc_ft_params(&ttc_params);
+		for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+			ttc_params.indir_tirn[tt] = priv->rx_res->rss[tt].inner_indir_tir.tirn;
+
+		err = mlx5e_create_inner_ttc_table(priv, &ttc_params, &priv->fs.inner_ttc);
+		if (err) {
+			netdev_err(priv->netdev, "Failed to create inner ttc table, err=%d\n",
+				   err);
+			goto err_destroy_arfs_tables;
+		}
 	}
 
 	mlx5e_set_ttc_ft_params(&ttc_params);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->indir_tir[tt].tirn;
+		ttc_params.indir_tirn[tt] = priv->rx_res->rss[tt].indir_tir.tirn;
 
 	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
@@ -1839,7 +1836,8 @@ err_destroy_l2_table:
 err_destroy_ttc_table:
 	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
 err_destroy_inner_ttc_table:
-	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
+	if (mlx5e_tunnel_inner_ft_supported(priv->mdev))
+		mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 err_destroy_arfs_tables:
 	mlx5e_arfs_destroy_tables(priv);
 
@@ -1852,7 +1850,8 @@ void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 	mlx5e_destroy_vlan_table(priv);
 	mlx5e_destroy_l2_table(priv);
 	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
-	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
+	if (mlx5e_tunnel_inner_ft_supported(priv->mdev))
+		mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 	mlx5e_arfs_destroy_tables(priv);
 	mlx5e_ethtool_cleanup_steering(priv);
 }

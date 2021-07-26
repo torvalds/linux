@@ -83,12 +83,6 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_INDIR_TIRS = MLX5E_TT_ANY,
 };
 
-struct mlx5e_tirc_config {
-	u8 l3_prot_type;
-	u8 l4_prot_type;
-	u32 rx_hash_fields;
-};
-
 #define MLX5_HASH_IP		(MLX5_HASH_FIELD_SEL_SRC_IP   |\
 				 MLX5_HASH_FIELD_SEL_DST_IP)
 #define MLX5_HASH_IP_L4PORTS	(MLX5_HASH_FIELD_SEL_SRC_IP   |\
@@ -159,6 +153,8 @@ enum {
 #define MLX5E_INNER_TTC_TABLE_SIZE	(MLX5E_INNER_TTC_GROUP1_SIZE +\
 					 MLX5E_INNER_TTC_GROUP2_SIZE +\
 					 MLX5E_INNER_TTC_GROUP3_SIZE)
+
+struct mlx5e_priv;
 
 #ifdef CONFIG_MLX5_EN_RXNFC
 
@@ -248,17 +244,11 @@ struct ttc_params {
 
 void mlx5e_set_ttc_basic_params(struct mlx5e_priv *priv, struct ttc_params *ttc_params);
 void mlx5e_set_ttc_ft_params(struct ttc_params *ttc_params);
-void mlx5e_set_inner_ttc_ft_params(struct ttc_params *ttc_params);
 
 int mlx5e_create_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
 			   struct mlx5e_ttc_table *ttc);
 void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv,
 			     struct mlx5e_ttc_table *ttc);
-
-int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
-				 struct mlx5e_ttc_table *ttc);
-void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv,
-				   struct mlx5e_ttc_table *ttc);
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 int mlx5e_ttc_fwd_dest(struct mlx5e_priv *priv, enum mlx5e_traffic_types type,

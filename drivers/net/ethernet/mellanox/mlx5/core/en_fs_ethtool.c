@@ -421,11 +421,9 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	} else {
 		struct mlx5e_params *params = &priv->channels.params;
 		enum mlx5e_rq_group group;
-		struct mlx5e_tir *tir;
 		u16 ix;
 
 		mlx5e_qid_get_ch_and_group(params, fs->ring_cookie, &ix, &group);
-		tir = group == MLX5E_RQ_GROUP_XSK ? priv->xsk_tir : priv->direct_tir;
 
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
@@ -434,7 +432,10 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		}
 
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-		dst->tir_num = tir[ix].tirn;
+		if (group == MLX5E_RQ_GROUP_XSK)
+			dst->tir_num = priv->rx_res->channels[ix].xsk_tir.tirn;
+		else
+			dst->tir_num = priv->rx_res->channels[ix].direct_tir.tirn;
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
@@ -816,10 +817,8 @@ static enum mlx5e_traffic_types flow_type_to_traffic_type(u32 flow_type)
 static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 				  struct ethtool_rxnfc *nfc)
 {
-	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	enum mlx5e_traffic_types tt;
 	u8 rx_hash_field = 0;
-	void *in;
 
 	tt = flow_type_to_traffic_type(nfc->flow_type);
 	if (tt == MLX5E_NUM_INDIR_TIRS)
@@ -848,21 +847,16 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 	if (nfc->data & RXH_L4_B_2_3)
 		rx_hash_field |= MLX5_HASH_FIELD_SEL_L4_DPORT;
 
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
 	mutex_lock(&priv->state_lock);
 
-	if (rx_hash_field == priv->rss_params.rx_hash_fields[tt])
+	if (rx_hash_field == priv->rx_res->rss_params.rx_hash_fields[tt])
 		goto out;
 
-	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
-	mlx5e_modify_tirs_hash(priv, in);
+	priv->rx_res->rss_params.rx_hash_fields[tt] = rx_hash_field;
+	mlx5e_modify_tirs_hash(priv);
 
 out:
 	mutex_unlock(&priv->state_lock);
-	kvfree(in);
 	return 0;
 }
 
@@ -876,7 +870,7 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	if (tt == MLX5E_NUM_INDIR_TIRS)
 		return -EINVAL;
 
-	hash_field = priv->rss_params.rx_hash_fields[tt];
+	hash_field = priv->rx_res->rss_params.rx_hash_fields[tt];
 	nfc->data = 0;
 
 	if (hash_field & MLX5_HASH_FIELD_SEL_SRC_IP)

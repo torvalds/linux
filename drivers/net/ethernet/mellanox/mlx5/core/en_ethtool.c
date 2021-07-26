@@ -1172,7 +1172,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
 {
-	return sizeof(priv->rss_params.toeplitz_hash_key);
+	return sizeof(priv->rx_res->rss_params.hash.toeplitz_hash_key);
 }
 
 static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
@@ -1198,18 +1198,18 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		   u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rss_params *rss = &priv->rss_params;
+	struct mlx5e_rss_params *rss;
+
+	rss = &priv->rx_res->rss_params;
 
 	if (indir)
-		memcpy(indir, rss->indirection_rqt,
-		       sizeof(rss->indirection_rqt));
+		memcpy(indir, rss->indir.table, sizeof(rss->indir.table));
 
 	if (key)
-		memcpy(key, rss->toeplitz_hash_key,
-		       sizeof(rss->toeplitz_hash_key));
+		memcpy(key, rss->hash.toeplitz_hash_key, sizeof(rss->hash.toeplitz_hash_key));
 
 	if (hfunc)
-		*hfunc = rss->hfunc;
+		*hfunc = rss->hash.hfunc;
 
 	return 0;
 }
@@ -1218,62 +1218,56 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		   const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_rss_params *rss = &priv->rss_params;
-	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	struct mlx5e_rss_params *rss;
 	bool refresh_tirs = false;
 	bool refresh_rqt = false;
-	void *in;
 
 	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
 	    (hfunc != ETH_RSS_HASH_XOR) &&
 	    (hfunc != ETH_RSS_HASH_TOP))
 		return -EINVAL;
 
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
 	mutex_lock(&priv->state_lock);
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hfunc) {
-		rss->hfunc = hfunc;
+	rss = &priv->rx_res->rss_params;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hash.hfunc) {
+		rss->hash.hfunc = hfunc;
 		refresh_rqt = true;
 		refresh_tirs = true;
 	}
 
 	if (indir) {
-		memcpy(rss->indirection_rqt, indir,
-		       sizeof(rss->indirection_rqt));
+		memcpy(rss->indir.table, indir, sizeof(rss->indir.table));
 		refresh_rqt = true;
 	}
 
 	if (key) {
-		memcpy(rss->toeplitz_hash_key, key,
-		       sizeof(rss->toeplitz_hash_key));
-		refresh_tirs = refresh_tirs || rss->hfunc == ETH_RSS_HASH_TOP;
+		memcpy(rss->hash.toeplitz_hash_key, key, sizeof(rss->hash.toeplitz_hash_key));
+		refresh_tirs = refresh_tirs || rss->hash.hfunc == ETH_RSS_HASH_TOP;
 	}
 
 	if (refresh_rqt && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_redirect_rqt_param rrp = {
-			.is_rss = true,
-			{
-				.rss = {
-					.hfunc = rss->hfunc,
-					.channels  = &priv->channels,
-				},
-			},
-		};
-		u32 rqtn = priv->indir_rqt.rqtn;
+		u32 *rqns;
 
-		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
+		rqns = kvmalloc_array(priv->channels.num, sizeof(*rqns), GFP_KERNEL);
+		if (rqns) {
+			unsigned int ix;
+
+			for (ix = 0; ix < priv->channels.num; ix++)
+				rqns[ix] = priv->channels.c[ix]->rq.rqn;
+
+			mlx5e_rqt_redirect_indir(&priv->rx_res->indir_rqt, rqns,
+						 priv->channels.num,
+						 rss->hash.hfunc, &rss->indir);
+			kvfree(rqns);
+		}
 	}
 
 	if (refresh_tirs)
-		mlx5e_modify_tirs_hash(priv, in);
+		mlx5e_modify_tirs_hash(priv);
 
 	mutex_unlock(&priv->state_lock);
-
-	kvfree(in);
 
 	return 0;
 }

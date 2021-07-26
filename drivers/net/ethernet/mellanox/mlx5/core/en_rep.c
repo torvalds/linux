@@ -585,9 +585,6 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	params->tunneled_offload_en = false;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
-
-	/* RSS */
-	mlx5e_build_rss_params(&priv->rss_params, params->num_channels);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev,
@@ -650,6 +647,7 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5e_rx_res *res = priv->rx_res;
 	struct ttc_params ttc_params = {};
 	int tt, err;
 
@@ -657,7 +655,7 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 					      MLX5_FLOW_NAMESPACE_KERNEL);
 
 	/* The inner_ttc in the ttc params is intentionally not set */
-	ttc_params.any_tt_tirn = priv->direct_tir[0].tirn;
+	ttc_params.any_tt_tirn = res->channels[0].direct_tir.tirn;
 	mlx5e_set_ttc_ft_params(&ttc_params);
 
 	if (rep->vport != MLX5_VPORT_UPLINK)
@@ -665,7 +663,7 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 		ttc_params.ft_attr.level = MLX5E_TTC_FT_LEVEL + 1;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->indir_tir[tt].tirn;
+		ttc_params.indir_tirn[tt] = res->rss[tt].indir_tir.tirn;
 
 	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
@@ -760,8 +758,13 @@ int mlx5e_rep_bond_update(struct mlx5e_priv *priv, bool cleanup)
 static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 max_nch = priv->max_nch;
 	int err;
+
+	priv->rx_res = kvzalloc(sizeof(*priv->rx_res), GFP_KERNEL);
+	if (!priv->rx_res)
+		return -ENOMEM;
+
+	mlx5e_build_rss_params(&priv->rx_res->rss_params, priv->channels.params.num_channels);
 
 	mlx5e_init_l2_addr(priv);
 
@@ -775,7 +778,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_direct_rqts(priv, priv->direct_tir, max_nch);
+	err = mlx5e_create_direct_rqts(priv);
 	if (err)
 		goto err_destroy_indirect_rqts;
 
@@ -783,7 +786,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_direct_rqts;
 
-	err = mlx5e_create_direct_tirs(priv, priv->direct_tir, max_nch);
+	err = mlx5e_create_direct_tirs(priv);
 	if (err)
 		goto err_destroy_indirect_tirs;
 
@@ -808,31 +811,33 @@ err_destroy_root_ft:
 err_destroy_ttc_table:
 	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
 err_destroy_direct_tirs:
-	mlx5e_destroy_direct_tirs(priv, priv->direct_tir, max_nch);
+	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
 	mlx5e_destroy_indirect_tirs(priv);
 err_destroy_direct_rqts:
-	mlx5e_destroy_direct_rqts(priv, priv->direct_tir, max_nch);
+	mlx5e_destroy_direct_rqts(priv);
 err_destroy_indirect_rqts:
-	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
+	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
+	kvfree(priv->rx_res);
+	priv->rx_res = NULL;
 	return err;
 }
 
 static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 {
-	u16 max_nch = priv->max_nch;
-
 	mlx5e_ethtool_cleanup_steering(priv);
 	rep_vport_rx_rule_destroy(priv);
 	mlx5e_destroy_rep_root_ft(priv);
 	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
-	mlx5e_destroy_direct_tirs(priv, priv->direct_tir, max_nch);
+	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
-	mlx5e_destroy_direct_rqts(priv, priv->direct_tir, max_nch);
-	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
+	mlx5e_destroy_direct_rqts(priv);
+	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
 	mlx5e_close_drop_rq(&priv->drop_rq);
+	kvfree(priv->rx_res);
+	priv->rx_res = NULL;
 }
 
 static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
