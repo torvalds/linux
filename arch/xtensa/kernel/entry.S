@@ -940,12 +940,14 @@ unrecoverable_text:
 
 ENTRY(unrecoverable_exception)
 
+#if XCHAL_HAVE_WINDOWED
 	movi	a0, 1
 	movi	a1, 0
 
 	wsr	a0, windowstart
 	wsr	a1, windowbase
 	rsync
+#endif
 
 	movi	a1, KERNEL_PS_WOE_MASK | LOCKLEVEL
 	wsr	a1, ps

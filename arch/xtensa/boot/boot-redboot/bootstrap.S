@@ -56,13 +56,13 @@ _start:
 	movi	a4, 1
 	wsr	a4, ps
 	rsync
-
+#if XCHAL_HAVE_WINDOWED
 	rsr	a5, windowbase
 	ssl	a5
 	sll	a4, a4
 	wsr	a4, windowstart
 	rsync
-
+#endif
 	movi	a4, KERNEL_PS_WOE_MASK
 	wsr	a4, ps
 	rsync
