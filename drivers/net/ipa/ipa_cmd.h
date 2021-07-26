@@ -68,8 +68,6 @@ struct ipa_cmd_info {
 bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
 			    bool route);
 
-#ifdef IPA_VALIDATE
-
 /**
  * ipa_cmd_data_valid() - Validate command-realted configuration is valid
  * @ipa:	- IPA pointer
@@ -77,15 +75,6 @@ bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
  * Return:	true if assumptions required for command are valid
  */
 bool ipa_cmd_data_valid(struct ipa *ipa);
-
-#else /* !IPA_VALIDATE */
-
-static inline bool ipa_cmd_data_valid(struct ipa *ipa)
-{
-	return true;
-}
-
-#endif /* !IPA_VALIDATE */
 
 /**
  * ipa_cmd_pool_init() - initialize command channel pools

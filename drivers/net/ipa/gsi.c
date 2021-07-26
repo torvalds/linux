@@ -1964,7 +1964,6 @@ static void gsi_evt_ring_init(struct gsi *gsi)
 static bool gsi_channel_data_valid(struct gsi *gsi,
 				   const struct ipa_gsi_endpoint_data *data)
 {
-#ifdef IPA_VALIDATION
 	u32 channel_id = data->channel_id;
 	struct device *dev = gsi->dev;
 
@@ -2010,7 +2009,6 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 			channel_id, data->channel.event_count);
 		return false;
 	}
-#endif /* IPA_VALIDATION */
 
 	return true;
 }

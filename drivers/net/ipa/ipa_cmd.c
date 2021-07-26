@@ -207,8 +207,6 @@ bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem, bool route)
 	return true;
 }
 
-#ifdef IPA_VALIDATE
-
 /* Validate the memory region that holds headers */
 static bool ipa_cmd_header_valid(struct ipa *ipa)
 {
@@ -343,7 +341,6 @@ bool ipa_cmd_data_valid(struct ipa *ipa)
 	return true;
 }
 
-#endif /* IPA_VALIDATE */
 
 int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 {
