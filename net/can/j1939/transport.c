@@ -822,7 +822,7 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 		memcpy(&dat[1], &tpdat[offset], len);
 		ret = j1939_tp_tx_dat(session, dat, len + 1);
 		if (ret < 0) {
-			/* ENOBUS == CAN interface TX queue is full */
+			/* ENOBUFS == CAN interface TX queue is full */
 			if (ret != -ENOBUFS)
 				netdev_alert(priv->ndev,
 					     "%s: 0x%p: queue data error: %i\n",
