@@ -233,8 +233,8 @@ ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 	interrupt->handler[ipa_irq] = NULL;
 }
 
-/* Set up the IPA interrupt framework */
-struct ipa_interrupt *ipa_interrupt_setup(struct ipa *ipa)
+/* Configure the IPA interrupt framework */
+struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
 	struct ipa_interrupt *interrupt;
@@ -283,8 +283,8 @@ err_kfree:
 	return ERR_PTR(ret);
 }
 
-/* Tear down the IPA interrupt framework */
-void ipa_interrupt_teardown(struct ipa_interrupt *interrupt)
+/* Inverse of ipa_interrupt_config() */
+void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt)
 {
 	struct device *dev = &interrupt->ipa->pdev->dev;
 	int ret;
