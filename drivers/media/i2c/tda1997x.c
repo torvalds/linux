@@ -563,7 +563,7 @@ static void tda1997x_delayed_work_enable_hpd(struct work_struct *work)
 						    delayed_work_enable_hpd);
 	struct v4l2_subdev *sd = &state->sd;
 
-	v4l2_dbg(2, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(2, debug, sd, "%s\n", __func__);
 
 	/* Set HPD high */
 	tda1997x_manual_hpd(sd, HPD_HIGH_OTHER);
