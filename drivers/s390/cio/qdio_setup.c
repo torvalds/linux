@@ -90,21 +90,10 @@ void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count)
 EXPORT_SYMBOL_GPL(qdio_reset_buffers);
 
 /*
- * qebsm is only available under 64bit but the adapter sets the feature
- * flag anyway, so we manually override it.
- */
-static inline int qebsm_possible(void)
-{
-	return css_general_characteristics.qebsm;
-}
-
-/*
  * qib_param_field: pointer to 128 bytes or NULL, if no param field
  * nr_input_qs: pointer to nr_queues*128 words of data or NULL
  */
 static void set_impl_params(struct qdio_irq *irq_ptr,
-			    unsigned int qib_param_field_format,
-			    unsigned char *qib_param_field,
 			    unsigned long *input_slib_elements,
 			    unsigned long *output_slib_elements)
 {
@@ -113,11 +102,6 @@ static void set_impl_params(struct qdio_irq *irq_ptr,
 
 	if (!irq_ptr)
 		return;
-
-	irq_ptr->qib.pfmt = qib_param_field_format;
-	if (qib_param_field)
-		memcpy(irq_ptr->qib.parm, qib_param_field,
-		       sizeof(irq_ptr->qib.parm));
 
 	if (!input_slib_elements)
 		goto output;
@@ -369,6 +353,8 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	struct qdesfmt0 *desc = &irq_ptr->qdr->qdf0[0];
 	int i;
 
+	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
+
 	irq_ptr->qdr->qfmt = qdio_init->q_format;
 	irq_ptr->qdr->ac = qdio_init->qdr_ac;
 	irq_ptr->qdr->iqdcnt = qdio_init->no_input_qs;
@@ -388,12 +374,15 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 static void setup_qib(struct qdio_irq *irq_ptr,
 		      struct qdio_initialize *init_data)
 {
-	if (qebsm_possible())
-		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
-
-	irq_ptr->qib.rflags |= init_data->qib_rflags;
+	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 
 	irq_ptr->qib.qfmt = init_data->q_format;
+	irq_ptr->qib.pfmt = init_data->qib_param_field_format;
+
+	irq_ptr->qib.rflags = init_data->qib_rflags;
+	if (css_general_characteristics.qebsm)
+		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
+
 	if (init_data->no_input_qs)
 		irq_ptr->qib.isliba =
 			(unsigned long)(irq_ptr->input_qs[0]->slib);
@@ -402,6 +391,10 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 			(unsigned long)(irq_ptr->output_qs[0]->slib);
 	memcpy(irq_ptr->qib.ebcnam, dev_name(&irq_ptr->cdev->dev), 8);
 	ASCEBC(irq_ptr->qib.ebcnam, 8);
+
+	if (init_data->qib_param_field)
+		memcpy(irq_ptr->qib.parm, init_data->qib_param_field,
+		       sizeof(irq_ptr->qib.parm));
 }
 
 int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
@@ -409,7 +402,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	struct ccw_device *cdev = irq_ptr->cdev;
 	struct ciw *ciw;
 
-	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	irq_ptr->qdioac1 = 0;
 	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
@@ -418,9 +410,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->debugfs_dev = NULL;
 	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
 	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
-
-	/* wipes qib.ac, required by ar7063 */
-	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
 
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
@@ -432,8 +421,7 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
 
 	setup_qib(irq_ptr, init_data);
-	set_impl_params(irq_ptr, init_data->qib_param_field_format,
-			init_data->qib_param_field,
+	set_impl_params(irq_ptr,
 			init_data->input_slib_elements,
 			init_data->output_slib_elements);
 
@@ -517,7 +505,7 @@ int __init qdio_setup_init(void)
 		  (css_general_characteristics.aif_osa) ? 1 : 0);
 
 	/* Check for QEBSM support in general (bit 58). */
-	DBF_EVENT("cssQEBSM:%1d", (qebsm_possible()) ? 1 : 0);
+	DBF_EVENT("cssQEBSM:%1d", css_general_characteristics.qebsm);
 	rc = 0;
 out:
 	return rc;
