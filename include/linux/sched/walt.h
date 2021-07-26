@@ -114,6 +114,7 @@ struct walt_task_struct {
 	cpumask_t			cpus_requested;
 	bool				iowaited;
 	int				prev_on_rq;
+	int				prev_on_rq_cpu;
 	struct list_head		mvp_list;
 	u64				sum_exec_snapshot;
 	u64				total_exec;
