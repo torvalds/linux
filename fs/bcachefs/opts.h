@@ -178,6 +178,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH_SB_INODES_USE_KEY_CACHE,	true,				\
 	  NULL,		"Use the btree key cache for the inodes btree")	\
+	x(btree_node_mem_ptr_optimization, u8,				\
+	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			true,				\
+	  NULL,		"Stash pointer to in memory btree node in btree ptr")\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_UINT(5, 21),						\

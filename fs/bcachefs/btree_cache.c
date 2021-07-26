@@ -767,9 +767,11 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_iter *
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
-	b = btree_node_mem_ptr(k);
-	if (b)
-		goto lock_node;
+	if (c->opts.btree_node_mem_ptr_optimization) {
+		b = btree_node_mem_ptr(k);
+		if (b)
+			goto lock_node;
+	}
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
@@ -902,9 +904,11 @@ struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
-	b = btree_node_mem_ptr(k);
-	if (b)
-		goto lock_node;
+	if (c->opts.btree_node_mem_ptr_optimization) {
+		b = btree_node_mem_ptr(k);
+		if (b)
+			goto lock_node;
+	}
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
