@@ -550,6 +550,12 @@ config COMMON_CLK_MT8192_MFGCFG
 	help
 	  This driver supports MediaTek MT8192 mfgcfg clocks.
 
+config COMMON_CLK_MT8192_MMSYS
+	bool "Clock driver for MediaTek MT8192 mmsys"
+	depends on COMMON_CLK_MT8192
+	help
+	  This driver supports MediaTek MT8192 mmsys clocks.
+
 config COMMON_CLK_MT8516
 	bool "Clock driver for MediaTek MT8516"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
