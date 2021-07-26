@@ -349,8 +349,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_VECTORS_ADDR
+#ifdef SUPPORT_WINDOWED
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
+#endif
 
 	mem_reserve(__pa(&_DebugInterruptVector_text_start),
 		    __pa(&_DebugInterruptVector_text_end));

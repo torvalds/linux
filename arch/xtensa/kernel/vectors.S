@@ -226,6 +226,7 @@ ENTRY(_DoubleExceptionVector)
 
 	xsr	a0, depc		# get DEPC, save a0
 
+#ifdef SUPPORT_WINDOWED
 	movi	a2, WINDOW_VECTORS_VADDR
 	_bltu	a0, a2, .Lfixup
 	addi	a2, a2, WINDOW_VECTORS_SIZE
@@ -274,6 +275,10 @@ _DoubleExceptionVector_WindowUnderflow:
 	xsr	a3, excsave1
 	l32i	a0, a0, EXC_TABLE_FAST_USER
 	jx	a0
+
+#else
+	j	.Lfixup
+#endif
 
 	/*
 	 * We only allow the ITLB miss exception if we are in kernel space.
@@ -343,6 +348,7 @@ _DoubleExceptionVector_WindowUnderflow:
 	l32i	a0, a0, EXC_TABLE_FAST_USER
 	jx	a0
 
+#ifdef SUPPORT_WINDOWED
 	/*
 	 * Restart window OVERFLOW exception.
 	 * Currently:
@@ -475,8 +481,11 @@ _DoubleExceptionVector_handle_exception:
 	rsr	a0, depc
 	rotw	-3
 	j	1b
+#endif
 
 ENDPROC(_DoubleExceptionVector)
+
+#ifdef SUPPORT_WINDOWED
 
 /*
  * Fixup handler for TLB miss in double exception handler for window owerflow.
@@ -590,6 +599,8 @@ ENTRY(window_overflow_restore_a0_fixup)
 
 ENDPROC(window_overflow_restore_a0_fixup)
 
+#endif
+
 /*
  * Debug interrupt vector
  *
@@ -686,6 +697,8 @@ _SimulateUserKernelVectorException:
 
 	.section		.WindowVectors.text, "ax"
 
+
+#ifdef SUPPORT_WINDOWED
 
 /* 4-Register Window Overflow Vector (Handler) */
 
@@ -786,5 +799,7 @@ ENTRY_ALIGN64(_WindowUnderflow12)
 	rfwu
 
 ENDPROC(_WindowUnderflow12)
+
+#endif
 
 	.text

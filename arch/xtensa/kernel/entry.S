@@ -969,6 +969,7 @@ ENDPROC(unrecoverable_exception)
 	__XTENSA_HANDLER
 	.literal_position
 
+#ifdef SUPPORT_WINDOWED
 /*
  * Fast-handler for alloca exceptions
  *
@@ -1032,6 +1033,7 @@ ENTRY(fast_alloca)
 8:	j	_WindowUnderflow8
 4:	j	_WindowUnderflow4
 ENDPROC(fast_alloca)
+#endif
 
 #ifdef CONFIG_USER_ABI_CALL0_PROBE
 /*
@@ -1228,7 +1230,8 @@ ENDPROC(fast_syscall_xtensa)
  * Note: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
  */
 
-#ifdef CONFIG_FAST_SYSCALL_SPILL_REGISTERS
+#if defined(CONFIG_FAST_SYSCALL_SPILL_REGISTERS) && \
+		defined(USER_SUPPORT_WINDOWED)
 
 ENTRY(fast_syscall_spill_registers)
 
