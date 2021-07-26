@@ -2252,6 +2252,20 @@ static int sja1105_dsa_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	return sja1105_vlan_del(priv, port, vid);
 }
 
+static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
+				  struct netdev_notifier_changeupper_info *info)
+{
+	struct netlink_ext_ack *extack = info->info.extack;
+	struct net_device *upper = info->upper_dev;
+
+	if (is_vlan_dev(upper)) {
+		NL_SET_ERR_MSG_MOD(extack, "8021q uppers are not supported");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /* The programming model for the SJA1105 switch is "all-at-once" via static
  * configuration tables. Some of these can be dynamically modified at runtime,
  * but not the xMII mode parameters table.
@@ -2846,6 +2860,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.devlink_info_get	= sja1105_devlink_info_get,
 	.tag_8021q_vlan_add	= sja1105_dsa_8021q_vlan_add,
 	.tag_8021q_vlan_del	= sja1105_dsa_8021q_vlan_del,
+	.port_prechangeupper	= sja1105_prechangeupper,
 };
 
 static const struct of_device_id sja1105_dt_ids[];
