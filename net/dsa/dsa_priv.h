@@ -397,6 +397,49 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 	return skb;
 }
 
+/* For switches without hardware support for DSA tagging to be able
+ * to support termination through the bridge.
+ */
+static inline struct net_device *
+dsa_find_designated_bridge_port_by_vid(struct net_device *master, u16 vid)
+{
+	struct dsa_port *cpu_dp = master->dsa_ptr;
+	struct dsa_switch_tree *dst = cpu_dp->dst;
+	struct bridge_vlan_info vinfo;
+	struct net_device *slave;
+	struct dsa_port *dp;
+	int err;
+
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->type != DSA_PORT_TYPE_USER)
+			continue;
+
+		if (!dp->bridge_dev)
+			continue;
+
+		if (dp->stp_state != BR_STATE_LEARNING &&
+		    dp->stp_state != BR_STATE_FORWARDING)
+			continue;
+
+		/* Since the bridge might learn this packet, keep the CPU port
+		 * affinity with the port that will be used for the reply on
+		 * xmit.
+		 */
+		if (dp->cpu_dp != cpu_dp)
+			continue;
+
+		slave = dp->slave;
+
+		err = br_vlan_get_info_rcu(slave, vid, &vinfo);
+		if (err)
+			continue;
+
+		return slave;
+	}
+
+	return NULL;
+}
+
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);

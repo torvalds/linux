@@ -35,6 +35,16 @@ struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 
 void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id);
 
+int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
+					struct net_device *br,
+					int bridge_num);
+
+void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
+					   struct net_device *br,
+					   int bridge_num);
+
+u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num);
+
 u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port);
 
 u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port);

@@ -888,7 +888,6 @@ int dsa_port_mrp_del_ring_role(const struct dsa_port *dp,
 void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 			       const struct dsa_device_ops *tag_ops)
 {
-	cpu_dp->filter = tag_ops->filter;
 	cpu_dp->rcv = tag_ops->rcv;
 	cpu_dp->tag_ops = tag_ops;
 }
