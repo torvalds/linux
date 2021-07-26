@@ -1469,7 +1469,7 @@ static int amdgpu_pmops_suspend(struct device *dev)
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int r;
 
-	if (amdgpu_acpi_is_s0ix_supported(adev))
+	if (amdgpu_acpi_is_s0ix_active(adev))
 		adev->in_s0ix = true;
 	adev->in_s3 = true;
 	r = amdgpu_device_suspend(drm_dev, true);
@@ -1485,7 +1485,7 @@ static int amdgpu_pmops_resume(struct device *dev)
 	int r;
 
 	r = amdgpu_device_resume(drm_dev, true);
-	if (amdgpu_acpi_is_s0ix_supported(adev))
+	if (amdgpu_acpi_is_s0ix_active(adev))
 		adev->in_s0ix = false;
 	return r;
 }
