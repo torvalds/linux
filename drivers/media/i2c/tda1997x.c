@@ -1107,7 +1107,8 @@ tda1997x_detect_std(struct tda1997x_state *state,
 	hper = io_read16(sd, REG_H_PER) & MASK_HPER;
 	hsper = io_read16(sd, REG_HS_WIDTH) & MASK_HSWIDTH;
 	v4l2_dbg(1, debug, sd, "Signal Timings: %u/%u/%u\n", vper, hper, hsper);
-	if (!vper || !hper || !hsper)
+
+	if (!state->input_detect[0] && !state->input_detect[1])
 		return -ENOLINK;
 
 	for (i = 0; v4l2_dv_timings_presets[i].bt.width; i++) {
