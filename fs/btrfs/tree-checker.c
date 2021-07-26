@@ -873,13 +873,18 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 		}
 	}
 
-	if (unlikely((type & BTRFS_BLOCK_GROUP_RAID10 && sub_stripes != 2) ||
-		     (type & BTRFS_BLOCK_GROUP_RAID1 && num_stripes != 2) ||
-		     (type & BTRFS_BLOCK_GROUP_RAID5 && num_stripes < 2) ||
-		     (type & BTRFS_BLOCK_GROUP_RAID6 && num_stripes < 3) ||
-		     (type & BTRFS_BLOCK_GROUP_DUP && num_stripes != 2) ||
+	if (unlikely((type & BTRFS_BLOCK_GROUP_RAID10 &&
+		      sub_stripes != btrfs_raid_array[BTRFS_RAID_RAID10].sub_stripes) ||
+		     (type & BTRFS_BLOCK_GROUP_RAID1 &&
+		      num_stripes != btrfs_raid_array[BTRFS_RAID_RAID1].devs_min) ||
+		     (type & BTRFS_BLOCK_GROUP_RAID5 &&
+		      num_stripes < btrfs_raid_array[BTRFS_RAID_RAID5].devs_min) ||
+		     (type & BTRFS_BLOCK_GROUP_RAID6 &&
+		      num_stripes < btrfs_raid_array[BTRFS_RAID_RAID6].devs_min) ||
+		     (type & BTRFS_BLOCK_GROUP_DUP &&
+		      num_stripes != btrfs_raid_array[BTRFS_RAID_DUP].dev_stripes) ||
 		     ((type & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0 &&
-		      num_stripes != 1))) {
+		      num_stripes != btrfs_raid_array[BTRFS_RAID_SINGLE].dev_stripes))) {
 		chunk_err(leaf, chunk, logical,
 			"invalid num_stripes:sub_stripes %u:%u for profile %llu",
 			num_stripes, sub_stripes,
