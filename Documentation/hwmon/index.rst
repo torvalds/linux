@@ -160,6 +160,7 @@ Hardware Monitoring Kernel Drivers
    pwm-fan
    q54sj108a2
    raspberrypi-hwmon
+   sbrmi
    sbtsi_temp
    sch5627
    sch5636
