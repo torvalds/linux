@@ -37,6 +37,7 @@
 #define JZ_ADC_REG_CFG_SAMPLE_NUM(n)	((n) << 10)
 #define JZ_ADC_REG_CFG_PULL_UP(n)	((n) << 16)
 #define JZ_ADC_REG_CFG_CMD_SEL		BIT(22)
+#define JZ_ADC_REG_CFG_VBAT_SEL		BIT(30)
 #define JZ_ADC_REG_CFG_TOUCH_OPS_MASK	(BIT(31) | GENMASK(23, 10))
 #define JZ_ADC_REG_ADCLK_CLKDIV_LSB	0
 #define JZ4725B_ADC_REG_ADCLK_CLKDIV10US_LSB	16
@@ -879,6 +880,14 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 	/* Put hardware in a known passive state. */
 	writeb(0x00, adc->base + JZ_ADC_REG_ENABLE);
 	writeb(0xff, adc->base + JZ_ADC_REG_CTRL);
+
+	/* JZ4760B specific */
+	if (device_property_present(dev, "ingenic,use-internal-divider"))
+		ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_VBAT_SEL,
+					    JZ_ADC_REG_CFG_VBAT_SEL);
+	else
+		ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_VBAT_SEL, 0);
+
 	usleep_range(2000, 3000); /* Must wait at least 2ms. */
 	clk_disable(adc->clk);
 
@@ -906,6 +915,7 @@ static const struct of_device_id ingenic_adc_of_match[] = {
 	{ .compatible = "ingenic,jz4725b-adc", .data = &jz4725b_adc_soc_data, },
 	{ .compatible = "ingenic,jz4740-adc", .data = &jz4740_adc_soc_data, },
 	{ .compatible = "ingenic,jz4760-adc", .data = &jz4760_adc_soc_data, },
+	{ .compatible = "ingenic,jz4760b-adc", .data = &jz4760_adc_soc_data, },
 	{ .compatible = "ingenic,jz4770-adc", .data = &jz4770_adc_soc_data, },
 	{ },
 };
