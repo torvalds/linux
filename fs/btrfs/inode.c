@@ -8554,7 +8554,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 		spin_unlock_irq(&inode->ordered_tree.lock);
 
 		if (btrfs_dec_test_ordered_pending(inode, &ordered,
-					cur, range_end + 1 - cur, 1)) {
+						   cur, range_end + 1 - cur)) {
 			btrfs_finish_ordered_io(ordered);
 			/*
 			 * The ordered extent has finished, now we're again
