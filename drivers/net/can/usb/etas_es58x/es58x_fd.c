@@ -357,8 +357,7 @@ static int es58x_fd_tx_can_msg(struct es58x_priv *priv,
 		return ret;
 
 	/* Fill message contents. */
-	tx_can_msg = (struct es58x_fd_tx_can_msg *)
-	    &es58x_fd_urb_cmd->tx_can_msg_buf[msg_len];
+	tx_can_msg = (typeof(tx_can_msg))&es58x_fd_urb_cmd->raw_msg[msg_len];
 	tx_can_msg->packet_idx = (u8)priv->tx_head;
 	put_unaligned_le32(es58x_get_raw_can_id(cf), &tx_can_msg->can_id);
 	tx_can_msg->flags = (u8)es58x_get_flags(skb);
@@ -463,9 +462,9 @@ static int es58x_fd_get_timestamp(struct es58x_device *es58x_dev)
 }
 
 /* Nominal bittiming constants for ES582.1 and ES584.1 as specified in
- * the microcontroller datasheet: "SAM E701/S70/V70/V71 Family"
- * section 49.6.8 "MCAN Nominal Bit Timing and Prescaler Register"
- * from Microchip.
+ * the microcontroller datasheet: "SAM E70/S70/V70/V71 Family" section
+ * 49.6.8 "MCAN Nominal Bit Timing and Prescaler Register" from
+ * Microchip.
  *
  * The values from the specification are the hardware register
  * values. To convert them to the functional values, all ranges were
@@ -484,8 +483,8 @@ static const struct can_bittiming_const es58x_fd_nom_bittiming_const = {
 };
 
 /* Data bittiming constants for ES582.1 and ES584.1 as specified in
- * the microcontroller datasheet: "SAM E701/S70/V70/V71 Family"
- * section 49.6.4 "MCAN Data Bit Timing and Prescaler Register" from
+ * the microcontroller datasheet: "SAM E70/S70/V70/V71 Family" section
+ * 49.6.4 "MCAN Data Bit Timing and Prescaler Register" from
  * Microchip.
  */
 static const struct can_bittiming_const es58x_fd_data_bittiming_const = {
@@ -501,9 +500,9 @@ static const struct can_bittiming_const es58x_fd_data_bittiming_const = {
 };
 
 /* Transmission Delay Compensation constants for ES582.1 and ES584.1
- * as specified in the microcontroller datasheet: "SAM
- * E701/S70/V70/V71 Family" section 49.6.15 "MCAN Transmitter Delay
- * Compensation Register" from Microchip.
+ * as specified in the microcontroller datasheet: "SAM E70/S70/V70/V71
+ * Family" section 49.6.15 "MCAN Transmitter Delay Compensation
+ * Register" from Microchip.
  */
 static const struct can_tdc_const es58x_tdc_const = {
 	.tdcv_max = 0, /* Manual mode not supported. */
