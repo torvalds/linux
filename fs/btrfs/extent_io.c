@@ -3487,7 +3487,6 @@ int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 	size_t pg_offset = 0;
 	size_t iosize;
 	size_t blocksize = inode->i_sb->s_blocksize;
-	unsigned long this_bio_flag = 0;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
 	ret = set_page_extent_mapped(page);
@@ -3518,6 +3517,7 @@ int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 	}
 	begin_page_read(fs_info, page);
 	while (cur <= end) {
+		unsigned long this_bio_flag = 0;
 		bool force_bio_submit = false;
 		u64 disk_bytenr;
 
