@@ -755,6 +755,11 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		}
 	}
 
+	if (need_idle && available_idle_cpu(max_cap_cpu)) {
+		best_energy_cpu = max_cap_cpu;
+		goto unlock;
+	}
+
 	for_each_cpu(cpu, candidates) {
 		if (capacity_orig_of(max_cap_cpu) < capacity_orig_of(cpu))
 			max_cap_cpu = cpu;
