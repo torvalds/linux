@@ -2367,6 +2367,8 @@ static int sja1105_setup(struct dsa_switch *ds)
 	 */
 	ds->vlan_filtering_is_global = true;
 	ds->untag_bridge_pvid = true;
+	/* tag_8021q has 3 bits for the VBID, and the value 0 is reserved */
+	ds->num_fwd_offloading_bridges = 7;
 
 	/* Advertise the 8 egress queues */
 	ds->num_tx_queues = SJA1105_NUM_TC;
@@ -2880,6 +2882,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.tag_8021q_vlan_add	= sja1105_dsa_8021q_vlan_add,
 	.tag_8021q_vlan_del	= sja1105_dsa_8021q_vlan_del,
 	.port_prechangeupper	= sja1105_prechangeupper,
+	.port_bridge_tx_fwd_offload = dsa_tag_8021q_bridge_tx_fwd_offload,
+	.port_bridge_tx_fwd_unoffload = dsa_tag_8021q_bridge_tx_fwd_unoffload,
 };
 
 static const struct of_device_id sja1105_dt_ids[];

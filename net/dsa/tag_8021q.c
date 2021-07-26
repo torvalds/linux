@@ -17,7 +17,7 @@
  *
  * | 11  | 10  |  9  |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
  * +-----------+-----+-----------------+-----------+-----------------------+
- * |    DIR    | RSV |    SWITCH_ID    |    RSV    |          PORT         |
+ * |    DIR    | VBID|    SWITCH_ID    |   VBID    |          PORT         |
  * +-----------+-----+-----------------+-----------+-----------------------+
  *
  * DIR - VID[11:10]:
@@ -30,9 +30,10 @@
  * SWITCH_ID - VID[8:6]:
  *	Index of switch within DSA tree. Must be between 0 and 7.
  *
- * RSV - VID[5:4]:
- *	To be used for further expansion of PORT or for other purposes.
- *	Must be transmitted as zero and ignored on receive.
+ * VBID - { VID[9], VID[5:4] }:
+ *	Virtual bridge ID. If between 1 and 7, packet targets the broadcast
+ *	domain of a bridge. If transmitted as zero, packet targets a single
+ *	port. Field only valid on transmit, must be ignored on receive.
  *
  * PORT - VID[3:0]:
  *	Index of switch port. Must be between 0 and 15.
@@ -50,10 +51,29 @@
 #define DSA_8021Q_SWITCH_ID(x)		(((x) << DSA_8021Q_SWITCH_ID_SHIFT) & \
 						 DSA_8021Q_SWITCH_ID_MASK)
 
+#define DSA_8021Q_VBID_HI_SHIFT		9
+#define DSA_8021Q_VBID_HI_MASK		GENMASK(9, 9)
+#define DSA_8021Q_VBID_LO_SHIFT		4
+#define DSA_8021Q_VBID_LO_MASK		GENMASK(5, 4)
+#define DSA_8021Q_VBID_HI(x)		(((x) & GENMASK(2, 2)) >> 2)
+#define DSA_8021Q_VBID_LO(x)		((x) & GENMASK(1, 0))
+#define DSA_8021Q_VBID(x)		\
+		(((DSA_8021Q_VBID_LO(x) << DSA_8021Q_VBID_LO_SHIFT) & \
+		  DSA_8021Q_VBID_LO_MASK) | \
+		 ((DSA_8021Q_VBID_HI(x) << DSA_8021Q_VBID_HI_SHIFT) & \
+		  DSA_8021Q_VBID_HI_MASK))
+
 #define DSA_8021Q_PORT_SHIFT		0
 #define DSA_8021Q_PORT_MASK		GENMASK(3, 0)
 #define DSA_8021Q_PORT(x)		(((x) << DSA_8021Q_PORT_SHIFT) & \
 						 DSA_8021Q_PORT_MASK)
+
+u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num)
+{
+	/* The VBID value of 0 is reserved for precise TX */
+	return DSA_8021Q_DIR_TX | DSA_8021Q_VBID(bridge_num + 1);
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_bridge_tx_fwd_offload_vid);
 
 /* Returns the VID to be inserted into the frame from xmit for switch steering
  * instructions on egress. Encodes switch ID and port ID.
@@ -386,6 +406,26 @@ int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 
 	return 0;
 }
+
+int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
+					struct net_device *br,
+					int bridge_num)
+{
+	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+
+	return dsa_port_tag_8021q_vlan_add(dsa_to_port(ds, port), tx_vid);
+}
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_offload);
+
+void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
+					   struct net_device *br,
+					   int bridge_num)
+{
+	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+
+	dsa_port_tag_8021q_vlan_del(dsa_to_port(ds, port), tx_vid);
+}
+EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_unoffload);
 
 /* Set up a port's tag_8021q RX and TX VLAN for standalone mode operation */
 static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
