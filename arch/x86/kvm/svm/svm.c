@@ -1406,8 +1406,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		goto error_free_vmsa_page;
 	}
 
-	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
-
 	svm->vmcb01.ptr = page_address(vmcb01_page);
 	svm->vmcb01.pa = __sme_set(page_to_pfn(vmcb01_page) << PAGE_SHIFT);
 
@@ -1418,6 +1416,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
 	init_vmcb(vcpu);
+
+	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 
 	svm_init_osvw(vcpu);
 	vcpu->arch.microcode_version = 0x01000065;
