@@ -115,40 +115,6 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 	return true;
 }
 
-static bool sja1105_can_use_vlan_as_tags(const struct sk_buff *skb)
-{
-	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
-	u16 vlan_tci;
-
-	if (hdr->h_vlan_proto == htons(ETH_P_SJA1105))
-		return true;
-
-	if (hdr->h_vlan_proto != htons(ETH_P_8021Q) &&
-	    !skb_vlan_tag_present(skb))
-		return false;
-
-	if (skb_vlan_tag_present(skb))
-		vlan_tci = skb_vlan_tag_get(skb);
-	else
-		vlan_tci = ntohs(hdr->h_vlan_TCI);
-
-	return vid_is_dsa_8021q(vlan_tci & VLAN_VID_MASK);
-}
-
-/* This is the first time the tagger sees the frame on RX.
- * Figure out if we can decode it.
- */
-static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
-{
-	if (sja1105_can_use_vlan_as_tags(skb))
-		return true;
-	if (sja1105_is_link_local(skb))
-		return true;
-	if (sja1105_is_meta_frame(skb))
-		return true;
-	return false;
-}
-
 /* Calls sja1105_port_deferred_xmit in sja1105_main.c */
 static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
 					  struct sk_buff *skb)
@@ -371,15 +337,42 @@ static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
 	return ntohs(eth_hdr(skb)->h_proto) == ETH_P_SJA1110;
 }
 
+/* Returns true for imprecise RX and sets the @vid.
+ * Returns false for precise RX and sets @source_port and @switch_id.
+ */
+static bool sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
+			     int *switch_id, u16 *vid)
+{
+	struct vlan_ethhdr *hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	u16 vlan_tci;
+
+	if (skb_vlan_tag_present(skb))
+		vlan_tci = skb_vlan_tag_get(skb);
+	else
+		vlan_tci = ntohs(hdr->h_vlan_TCI);
+
+	if (vid_is_dsa_8021q_rxvlan(vlan_tci & VLAN_VID_MASK)) {
+		dsa_8021q_rcv(skb, source_port, switch_id);
+		return false;
+	}
+
+	/* Try our best with imprecise RX */
+	*vid = vlan_tci & VLAN_VID_MASK;
+
+	return true;
+}
+
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
+	int source_port = -1, switch_id = -1;
 	struct sja1105_meta meta = {0};
-	int source_port, switch_id;
+	bool imprecise_rx = false;
 	struct ethhdr *hdr;
 	bool is_link_local;
 	bool is_meta;
+	u16 vid;
 
 	hdr = eth_hdr(skb);
 	is_link_local = sja1105_is_link_local(skb);
@@ -389,7 +382,8 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		dsa_8021q_rcv(skb, &source_port, &switch_id);
+		imprecise_rx = sja1105_vlan_rcv(skb, &source_port, &switch_id,
+						&vid);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -408,7 +402,10 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		return NULL;
 	}
 
-	skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+	if (imprecise_rx)
+		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
+	else
+		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
@@ -522,6 +519,8 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 				   struct packet_type *pt)
 {
 	int source_port = -1, switch_id = -1;
+	bool imprecise_rx = false;
+	u16 vid;
 
 	skb->offload_fwd_mark = 1;
 
@@ -534,13 +533,15 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 
 	/* Packets with in-band control extensions might still have RX VLANs */
 	if (likely(sja1105_skb_has_tag_8021q(skb)))
-		dsa_8021q_rcv(skb, &source_port, &switch_id);
+		imprecise_rx = sja1105_vlan_rcv(skb, &source_port, &switch_id,
+						&vid);
 
-	skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+	if (imprecise_rx)
+		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
+	else
+		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
 	if (!skb->dev) {
-		netdev_warn(netdev,
-			    "Couldn't decode source port %d and switch id %d\n",
-			    source_port, switch_id);
+		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
 	}
 
@@ -576,7 +577,6 @@ static const struct dsa_device_ops sja1105_netdev_ops = {
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
-	.filter = sja1105_filter,
 	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
 	.promisc_on_master = true,
@@ -590,7 +590,6 @@ static const struct dsa_device_ops sja1110_netdev_ops = {
 	.proto = DSA_TAG_PROTO_SJA1110,
 	.xmit = sja1110_xmit,
 	.rcv = sja1110_rcv,
-	.filter = sja1105_filter,
 	.flow_dissect = sja1110_flow_dissect,
 	.needed_headroom = SJA1110_HEADER_LEN + VLAN_HLEN,
 	.needed_tailroom = SJA1110_RX_TRAILER_LEN + SJA1110_MAX_PADDING_LEN,
