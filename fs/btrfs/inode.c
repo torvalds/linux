@@ -972,7 +972,7 @@ retry:
 
 			p->mapping = inode->vfs_inode.i_mapping;
 			btrfs_writepage_endio_finish_ordered(inode, p, start,
-							     end, 0);
+							     end, false);
 
 			p->mapping = NULL;
 			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
@@ -3170,7 +3170,7 @@ static void finish_ordered_fn(struct btrfs_work *work)
 
 void btrfs_writepage_endio_finish_ordered(struct btrfs_inode *inode,
 					  struct page *page, u64 start,
-					  u64 end, int uptodate)
+					  u64 end, bool uptodate)
 {
 	trace_btrfs_writepage_end_io_hook(inode, start, end, uptodate);
 
