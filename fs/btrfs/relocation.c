@@ -2782,9 +2782,69 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 	u64 num_bytes;
 	int nr;
 	int ret = 0;
+	u64 i_size = i_size_read(&inode->vfs_inode);
 	u64 prealloc_start = cluster->start - offset;
 	u64 prealloc_end = cluster->end - offset;
 	u64 cur_offset = prealloc_start;
+
+	/*
+	 * For subpage case, previous i_size may not be aligned to PAGE_SIZE.
+	 * This means the range [i_size, PAGE_END + 1) is filled with zeros by
+	 * btrfs_do_readpage() call of previously relocated file cluster.
+	 *
+	 * If the current cluster starts in the above range, btrfs_do_readpage()
+	 * will skip the read, and relocate_one_page() will later writeback
+	 * the padding zeros as new data, causing data corruption.
+	 *
+	 * Here we have to manually invalidate the range (i_size, PAGE_END + 1).
+	 */
+	if (!IS_ALIGNED(i_size, PAGE_SIZE)) {
+		struct address_space *mapping = inode->vfs_inode.i_mapping;
+		struct btrfs_fs_info *fs_info = inode->root->fs_info;
+		const u32 sectorsize = fs_info->sectorsize;
+		struct page *page;
+
+		ASSERT(sectorsize < PAGE_SIZE);
+		ASSERT(IS_ALIGNED(i_size, sectorsize));
+
+		/*
+		 * Subpage can't handle page with DIRTY but without UPTODATE
+		 * bit as it can lead to the following deadlock:
+		 *
+		 * btrfs_readpage()
+		 * | Page already *locked*
+		 * |- btrfs_lock_and_flush_ordered_range()
+		 *    |- btrfs_start_ordered_extent()
+		 *       |- extent_write_cache_pages()
+		 *          |- lock_page()
+		 *             We try to lock the page we already hold.
+		 *
+		 * Here we just writeback the whole data reloc inode, so that
+		 * we will be ensured to have no dirty range in the page, and
+		 * are safe to clear the uptodate bits.
+		 *
+		 * This shouldn't cause too much overhead, as we need to write
+		 * the data back anyway.
+		 */
+		ret = filemap_write_and_wait(mapping);
+		if (ret < 0)
+			return ret;
+
+		clear_extent_bits(&inode->io_tree, i_size,
+				  round_up(i_size, PAGE_SIZE) - 1,
+				  EXTENT_UPTODATE);
+		page = find_lock_page(mapping, i_size >> PAGE_SHIFT);
+		/*
+		 * If page is freed we don't need to do anything then, as we
+		 * will re-read the whole page anyway.
+		 */
+		if (page) {
+			btrfs_subpage_clear_uptodate(fs_info, page, i_size,
+					round_up(i_size, PAGE_SIZE) - i_size);
+			unlock_page(page);
+			put_page(page);
+		}
+	}
 
 	BUG_ON(cluster->start != cluster->boundary[0]);
 	ret = btrfs_alloc_data_chunk_ondemand(inode,
