@@ -2096,16 +2096,15 @@ restore:
 }
 
 /* Used to sort the devices by max_avail(descending sort) */
-static inline int btrfs_cmp_device_free_bytes(const void *dev_info1,
-				       const void *dev_info2)
+static int btrfs_cmp_device_free_bytes(const void *a, const void *b)
 {
-	if (((struct btrfs_device_info *)dev_info1)->max_avail >
-	    ((struct btrfs_device_info *)dev_info2)->max_avail)
+	const struct btrfs_device_info *dev_info1 = a;
+	const struct btrfs_device_info *dev_info2 = b;
+
+	if (dev_info1->max_avail > dev_info2->max_avail)
 		return -1;
-	else if (((struct btrfs_device_info *)dev_info1)->max_avail <
-		 ((struct btrfs_device_info *)dev_info2)->max_avail)
+	else if (dev_info1->max_avail < dev_info2->max_avail)
 		return 1;
-	else
 	return 0;
 }
 

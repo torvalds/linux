@@ -4191,7 +4191,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 static int extent_cmp(void *priv, const struct list_head *a,
 		      const struct list_head *b)
 {
-	struct extent_map *em1, *em2;
+	const struct extent_map *em1, *em2;
 
 	em1 = list_entry(a, struct extent_map, list);
 	em2 = list_entry(b, struct extent_map, list);

@@ -1216,7 +1216,7 @@ static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
 static int devid_cmp(void *priv, const struct list_head *a,
 		     const struct list_head *b)
 {
-	struct btrfs_device *dev1, *dev2;
+	const struct btrfs_device *dev1, *dev2;
 
 	dev1 = list_entry(a, struct btrfs_device, dev_list);
 	dev2 = list_entry(b, struct btrfs_device, dev_list);

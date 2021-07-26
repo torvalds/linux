@@ -1198,7 +1198,7 @@ struct backref_ctx {
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 {
 	u64 root = (u64)(uintptr_t)key;
-	struct clone_root *cr = (struct clone_root *)elt;
+	const struct clone_root *cr = elt;
 
 	if (root < cr->root->root_key.objectid)
 		return -1;
@@ -1209,8 +1209,8 @@ static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 
 static int __clone_root_cmp_sort(const void *e1, const void *e2)
 {
-	struct clone_root *cr1 = (struct clone_root *)e1;
-	struct clone_root *cr2 = (struct clone_root *)e2;
+	const struct clone_root *cr1 = e1;
+	const struct clone_root *cr2 = e2;
 
 	if (cr1->root->root_key.objectid < cr2->root->root_key.objectid)
 		return -1;
