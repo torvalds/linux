@@ -3568,10 +3568,7 @@ static u64 calc_data_stripes(u64 type, int num_stripes)
 	const int ncopies = btrfs_raid_array[index].ncopies;
 	const int nparity = btrfs_raid_array[index].nparity;
 
-	if (nparity)
-		return num_stripes - nparity;
-	else
-		return num_stripes / ncopies;
+	return (num_stripes - nparity) / ncopies;
 }
 
 /* [pstart, pend) */
@@ -6879,15 +6876,7 @@ static void btrfs_report_missing_device(struct btrfs_fs_info *fs_info,
 
 static u64 calc_stripe_length(u64 type, u64 chunk_len, int num_stripes)
 {
-	int index = btrfs_bg_flags_to_raid_index(type);
-	int ncopies = btrfs_raid_array[index].ncopies;
-	const int nparity = btrfs_raid_array[index].nparity;
-	int data_stripes;
-
-	if (nparity)
-		data_stripes = num_stripes - nparity;
-	else
-		data_stripes = num_stripes / ncopies;
+	const int data_stripes = calc_data_stripes(type, num_stripes);
 
 	return div_u64(chunk_len, data_stripes);
 }
