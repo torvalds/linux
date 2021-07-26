@@ -37,22 +37,9 @@ static int versal_fpga_ops_write(struct fpga_manager *mgr,
 	return ret;
 }
 
-static int versal_fpga_ops_write_complete(struct fpga_manager *mgr,
-					  struct fpga_image_info *info)
-{
-	return 0;
-}
-
-static enum fpga_mgr_states versal_fpga_ops_state(struct fpga_manager *mgr)
-{
-	return FPGA_MGR_STATE_UNKNOWN;
-}
-
 static const struct fpga_manager_ops versal_fpga_ops = {
-	.state = versal_fpga_ops_state,
 	.write_init = versal_fpga_ops_write_init,
 	.write = versal_fpga_ops_write,
-	.write_complete = versal_fpga_ops_write_complete,
 };
 
 static int versal_fpga_probe(struct platform_device *pdev)
