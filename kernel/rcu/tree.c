@@ -1775,6 +1775,8 @@ static noinline_for_stack bool rcu_gp_init(void)
 	 */
 	WRITE_ONCE(rcu_state.gp_state, RCU_GP_ONOFF);
 	rcu_for_each_leaf_node(rnp) {
+		// Wait for CPU-hotplug operations that might have
+		// started before this grace period did.
 		smp_mb(); // Pair with barriers used when updating ->ofl_seq to odd values.
 		firstseq = READ_ONCE(rnp->ofl_seq);
 		if (firstseq & 0x1)
