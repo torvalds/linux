@@ -378,8 +378,6 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 	table->entry_count = 1;
 
 	for (port = 0; port < ds->num_ports; port++) {
-		struct sja1105_bridge_vlan *v;
-
 		if (dsa_is_unused_port(ds, port))
 			continue;
 
@@ -387,22 +385,10 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		pvid.vlan_bc |= BIT(port);
 		pvid.tag_port &= ~BIT(port);
 
-		v = kzalloc(sizeof(*v), GFP_KERNEL);
-		if (!v)
-			return -ENOMEM;
-
-		v->port = port;
-		v->vid = SJA1105_DEFAULT_VLAN;
-		v->untagged = true;
-		if (dsa_is_cpu_port(ds, port))
-			v->pvid = true;
-		list_add(&v->list, &priv->dsa_8021q_vlans);
-
-		v = kmemdup(v, sizeof(*v), GFP_KERNEL);
-		if (!v)
-			return -ENOMEM;
-
-		list_add(&v->list, &priv->bridge_vlans);
+		if (dsa_is_cpu_port(ds, port)) {
+			priv->tag_8021q_pvid[port] = SJA1105_DEFAULT_VLAN;
+			priv->bridge_pvid[port] = SJA1105_DEFAULT_VLAN;
+		}
 	}
 
 	((struct sja1105_vlan_lookup_entry *)table->entries)[0] = pvid;
@@ -1990,10 +1976,27 @@ static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
+	if (mac[port].vlanid == pvid)
+		return 0;
+
 	mac[port].vlanid = pvid;
 
 	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
 					   &mac[port], true);
+}
+
+static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct sja1105_private *priv = ds->priv;
+	u16 pvid;
+
+	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
+		pvid = priv->bridge_pvid[port];
+	else
+		pvid = priv->tag_8021q_pvid[port];
+
+	return sja1105_pvid_apply(priv, port, pvid);
 }
 
 static enum dsa_tag_protocol
@@ -2019,179 +2022,6 @@ static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
 
 	/* Return an invalid entry index if not found */
 	return -1;
-}
-
-static int sja1105_commit_vlans(struct sja1105_private *priv,
-				struct sja1105_vlan_lookup_entry *new_vlan)
-{
-	struct sja1105_vlan_lookup_entry *vlan;
-	struct sja1105_table *table;
-	int num_vlans = 0;
-	int rc, i, k = 0;
-
-	/* VLAN table */
-	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
-	vlan = table->entries;
-
-	for (i = 0; i < VLAN_N_VID; i++) {
-		int match = sja1105_is_vlan_configured(priv, i);
-
-		if (new_vlan[i].vlanid != VLAN_N_VID)
-			num_vlans++;
-
-		if (new_vlan[i].vlanid == VLAN_N_VID && match >= 0) {
-			/* Was there before, no longer is. Delete */
-			dev_dbg(priv->ds->dev, "Deleting VLAN %d\n", i);
-			rc = sja1105_dynamic_config_write(priv,
-							  BLK_IDX_VLAN_LOOKUP,
-							  i, &vlan[match], false);
-			if (rc < 0)
-				return rc;
-		} else if (new_vlan[i].vlanid != VLAN_N_VID) {
-			/* Nothing changed, don't do anything */
-			if (match >= 0 &&
-			    vlan[match].vlanid == new_vlan[i].vlanid &&
-			    vlan[match].tag_port == new_vlan[i].tag_port &&
-			    vlan[match].vlan_bc == new_vlan[i].vlan_bc &&
-			    vlan[match].vmemb_port == new_vlan[i].vmemb_port)
-				continue;
-			/* Update entry */
-			dev_dbg(priv->ds->dev, "Updating VLAN %d\n", i);
-			rc = sja1105_dynamic_config_write(priv,
-							  BLK_IDX_VLAN_LOOKUP,
-							  i, &new_vlan[i],
-							  true);
-			if (rc < 0)
-				return rc;
-		}
-	}
-
-	if (table->entry_count)
-		kfree(table->entries);
-
-	table->entries = kcalloc(num_vlans, table->ops->unpacked_entry_size,
-				 GFP_KERNEL);
-	if (!table->entries)
-		return -ENOMEM;
-
-	table->entry_count = num_vlans;
-	vlan = table->entries;
-
-	for (i = 0; i < VLAN_N_VID; i++) {
-		if (new_vlan[i].vlanid == VLAN_N_VID)
-			continue;
-		vlan[k++] = new_vlan[i];
-	}
-
-	return 0;
-}
-
-static int sja1105_commit_pvid(struct sja1105_private *priv)
-{
-	struct sja1105_bridge_vlan *v;
-	struct list_head *vlan_list;
-	int rc = 0;
-
-	if (priv->vlan_aware)
-		vlan_list = &priv->bridge_vlans;
-	else
-		vlan_list = &priv->dsa_8021q_vlans;
-
-	list_for_each_entry(v, vlan_list, list) {
-		if (v->pvid) {
-			rc = sja1105_pvid_apply(priv, v->port, v->vid);
-			if (rc)
-				break;
-		}
-	}
-
-	return rc;
-}
-
-static int
-sja1105_build_bridge_vlans(struct sja1105_private *priv,
-			   struct sja1105_vlan_lookup_entry *new_vlan)
-{
-	struct sja1105_bridge_vlan *v;
-
-	if (!priv->vlan_aware)
-		return 0;
-
-	list_for_each_entry(v, &priv->bridge_vlans, list) {
-		int match = v->vid;
-
-		new_vlan[match].vlanid = v->vid;
-		new_vlan[match].vmemb_port |= BIT(v->port);
-		new_vlan[match].vlan_bc |= BIT(v->port);
-		if (!v->untagged)
-			new_vlan[match].tag_port |= BIT(v->port);
-		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
-	}
-
-	return 0;
-}
-
-static int
-sja1105_build_dsa_8021q_vlans(struct sja1105_private *priv,
-			      struct sja1105_vlan_lookup_entry *new_vlan)
-{
-	struct sja1105_bridge_vlan *v;
-
-	list_for_each_entry(v, &priv->dsa_8021q_vlans, list) {
-		int match = v->vid;
-
-		new_vlan[match].vlanid = v->vid;
-		new_vlan[match].vmemb_port |= BIT(v->port);
-		new_vlan[match].vlan_bc |= BIT(v->port);
-		if (!v->untagged)
-			new_vlan[match].tag_port |= BIT(v->port);
-		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
-	}
-
-	return 0;
-}
-
-static int sja1105_build_vlan_table(struct sja1105_private *priv)
-{
-	struct sja1105_vlan_lookup_entry *new_vlan;
-	struct sja1105_table *table;
-	int rc, i;
-
-	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
-	new_vlan = kcalloc(VLAN_N_VID,
-			   table->ops->unpacked_entry_size, GFP_KERNEL);
-	if (!new_vlan)
-		return -ENOMEM;
-
-	for (i = 0; i < VLAN_N_VID; i++)
-		new_vlan[i].vlanid = VLAN_N_VID;
-
-	/* Bridge VLANs */
-	rc = sja1105_build_bridge_vlans(priv, new_vlan);
-	if (rc)
-		goto out;
-
-	/* VLANs necessary for dsa_8021q operation, given to us by tag_8021q.c:
-	 * - RX VLANs
-	 * - TX VLANs
-	 * - Crosschip links
-	 */
-	rc = sja1105_build_dsa_8021q_vlans(priv, new_vlan);
-	if (rc)
-		goto out;
-
-	rc = sja1105_commit_vlans(priv, new_vlan);
-	if (rc)
-		goto out;
-
-	rc = sja1105_commit_pvid(priv);
-	if (rc)
-		goto out;
-
-out:
-	kfree(new_vlan);
-
-	return rc;
 }
 
 /* The TPID setting belongs to the General Parameters table,
@@ -2275,9 +2105,14 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	l2_lookup_params = table->entries;
 	l2_lookup_params->shared_learn = !priv->vlan_aware;
 
-	rc = sja1105_build_vlan_table(priv);
-	if (rc)
-		return rc;
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		rc = sja1105_commit_pvid(ds, port);
+		if (rc)
+			return rc;
+	}
 
 	rc = sja1105_static_config_reload(priv, SJA1105_VLAN_FILTERING);
 	if (rc)
@@ -2286,71 +2121,86 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	return rc;
 }
 
-/* Returns number of VLANs added (0 or 1) on success,
- * or a negative error code.
- */
-static int sja1105_vlan_add_one(struct dsa_switch *ds, int port, u16 vid,
-				u16 flags, struct list_head *vlan_list)
+static int sja1105_vlan_add(struct sja1105_private *priv, int port, u16 vid,
+			    u16 flags)
 {
-	bool untagged = flags & BRIDGE_VLAN_INFO_UNTAGGED;
-	bool pvid = flags & BRIDGE_VLAN_INFO_PVID;
-	struct sja1105_bridge_vlan *v;
+	struct sja1105_vlan_lookup_entry *vlan;
+	struct sja1105_table *table;
+	int match, rc;
 
-	list_for_each_entry(v, vlan_list, list) {
-		if (v->port == port && v->vid == vid) {
-			/* Already added */
-			if (v->untagged == untagged && v->pvid == pvid)
-				/* Nothing changed */
-				return 0;
+	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
 
-			/* It's the same VLAN, but some of the flags changed
-			 * and the user did not bother to delete it first.
-			 * Update it and trigger sja1105_build_vlan_table.
-			 */
-			v->untagged = untagged;
-			v->pvid = pvid;
-			return 1;
-		}
+	match = sja1105_is_vlan_configured(priv, vid);
+	if (match < 0) {
+		rc = sja1105_table_resize(table, table->entry_count + 1);
+		if (rc)
+			return rc;
+		match = table->entry_count - 1;
 	}
 
-	v = kzalloc(sizeof(*v), GFP_KERNEL);
-	if (!v) {
-		dev_err(ds->dev, "Out of memory while storing VLAN\n");
-		return -ENOMEM;
-	}
+	/* Assign pointer after the resize (it's new memory) */
+	vlan = table->entries;
 
-	v->port = port;
-	v->vid = vid;
-	v->untagged = untagged;
-	v->pvid = pvid;
-	list_add(&v->list, vlan_list);
+	vlan[match].type_entry = SJA1110_VLAN_D_TAG;
+	vlan[match].vlanid = vid;
+	vlan[match].vlan_bc |= BIT(port);
+	vlan[match].vmemb_port |= BIT(port);
+	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
+		vlan[match].tag_port &= ~BIT(port);
+	else
+		vlan[match].tag_port |= BIT(port);
 
-	return 1;
+	return sja1105_dynamic_config_write(priv, BLK_IDX_VLAN_LOOKUP, vid,
+					    &vlan[match], true);
 }
 
-/* Returns number of VLANs deleted (0 or 1) */
-static int sja1105_vlan_del_one(struct dsa_switch *ds, int port, u16 vid,
-				struct list_head *vlan_list)
+static int sja1105_vlan_del(struct sja1105_private *priv, int port, u16 vid)
 {
-	struct sja1105_bridge_vlan *v, *n;
+	struct sja1105_vlan_lookup_entry *vlan;
+	struct sja1105_table *table;
+	bool keep = true;
+	int match, rc;
 
-	list_for_each_entry_safe(v, n, vlan_list, list) {
-		if (v->port == port && v->vid == vid) {
-			list_del(&v->list);
-			kfree(v);
-			return 1;
-		}
-	}
+	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
+
+	match = sja1105_is_vlan_configured(priv, vid);
+	/* Can't delete a missing entry. */
+	if (match < 0)
+		return 0;
+
+	/* Assign pointer after the resize (it's new memory) */
+	vlan = table->entries;
+
+	vlan[match].vlanid = vid;
+	vlan[match].vlan_bc &= ~BIT(port);
+	vlan[match].vmemb_port &= ~BIT(port);
+	/* Also unset tag_port, just so we don't have a confusing bitmap
+	 * (no practical purpose).
+	 */
+	vlan[match].tag_port &= ~BIT(port);
+
+	/* If there's no port left as member of this VLAN,
+	 * it's time for it to go.
+	 */
+	if (!vlan[match].vmemb_port)
+		keep = false;
+
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_VLAN_LOOKUP, vid,
+					  &vlan[match], keep);
+	if (rc < 0)
+		return rc;
+
+	if (!keep)
+		return sja1105_table_delete_entry(table, match);
 
 	return 0;
 }
 
-static int sja1105_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct netlink_ext_ack *extack)
+static int sja1105_bridge_vlan_add(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan,
+				   struct netlink_ext_ack *extack)
 {
 	struct sja1105_private *priv = ds->priv;
-	bool vlan_table_changed = false;
 	int rc;
 
 	/* Be sure to deny alterations to the configuration done by tag_8021q.
@@ -2361,34 +2211,22 @@ static int sja1105_vlan_add(struct dsa_switch *ds, int port,
 		return -EBUSY;
 	}
 
-	rc = sja1105_vlan_add_one(ds, port, vlan->vid, vlan->flags,
-				  &priv->bridge_vlans);
-	if (rc < 0)
+	rc = sja1105_vlan_add(priv, port, vlan->vid, vlan->flags);
+	if (rc)
 		return rc;
-	if (rc > 0)
-		vlan_table_changed = true;
 
-	if (!vlan_table_changed)
-		return 0;
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
+		priv->bridge_pvid[port] = vlan->vid;
 
-	return sja1105_build_vlan_table(priv);
+	return sja1105_commit_pvid(ds, port);
 }
 
-static int sja1105_vlan_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan)
+static int sja1105_bridge_vlan_del(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
-	bool vlan_table_changed = false;
-	int rc;
 
-	rc = sja1105_vlan_del_one(ds, port, vlan->vid, &priv->bridge_vlans);
-	if (rc > 0)
-		vlan_table_changed = true;
-
-	if (!vlan_table_changed)
-		return 0;
-
-	return sja1105_build_vlan_table(priv);
+	return sja1105_vlan_del(priv, port, vlan->vid);
 }
 
 static int sja1105_dsa_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
@@ -2397,23 +2235,21 @@ static int sja1105_dsa_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	struct sja1105_private *priv = ds->priv;
 	int rc;
 
-	rc = sja1105_vlan_add_one(ds, port, vid, flags, &priv->dsa_8021q_vlans);
-	if (rc <= 0)
+	rc = sja1105_vlan_add(priv, port, vid, flags);
+	if (rc)
 		return rc;
 
-	return sja1105_build_vlan_table(priv);
+	if (flags & BRIDGE_VLAN_INFO_PVID)
+		priv->tag_8021q_pvid[port] = vid;
+
+	return sja1105_commit_pvid(ds, port);
 }
 
 static int sja1105_dsa_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
-	int rc;
 
-	rc = sja1105_vlan_del_one(ds, port, vid, &priv->dsa_8021q_vlans);
-	if (!rc)
-		return 0;
-
-	return sja1105_build_vlan_table(priv);
+	return sja1105_vlan_del(priv, port, vid);
 }
 
 /* The programming model for the SJA1105 switch is "all-at-once" via static
@@ -2531,7 +2367,6 @@ out_static_config_free:
 static void sja1105_teardown(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
-	struct sja1105_bridge_vlan *v, *n;
 	int port;
 
 	rtnl_lock();
@@ -2553,16 +2388,6 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_static_config_free(&priv->static_config);
-
-	list_for_each_entry_safe(v, n, &priv->dsa_8021q_vlans, list) {
-		list_del(&v->list);
-		kfree(v);
-	}
-
-	list_for_each_entry_safe(v, n, &priv->bridge_vlans, list) {
-		list_del(&v->list);
-		kfree(v);
-	}
 }
 
 static void sja1105_port_disable(struct dsa_switch *ds, int port)
@@ -3002,8 +2827,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_bridge_flags	= sja1105_port_bridge_flags,
 	.port_stp_state_set	= sja1105_bridge_stp_state_set,
 	.port_vlan_filtering	= sja1105_vlan_filtering,
-	.port_vlan_add		= sja1105_vlan_add,
-	.port_vlan_del		= sja1105_vlan_del,
+	.port_vlan_add		= sja1105_bridge_vlan_add,
+	.port_vlan_del		= sja1105_bridge_vlan_del,
 	.port_mdb_add		= sja1105_mdb_add,
 	.port_mdb_del		= sja1105_mdb_del,
 	.port_hwtstamp_get	= sja1105_hwtstamp_get,
@@ -3163,9 +2988,6 @@ static int sja1105_probe(struct spi_device *spi)
 
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->mgmt_lock);
-
-	INIT_LIST_HEAD(&priv->bridge_vlans);
-	INIT_LIST_HEAD(&priv->dsa_8021q_vlans);
 
 	sja1105_tas_setup(ds);
 	sja1105_flower_setup(ds);
