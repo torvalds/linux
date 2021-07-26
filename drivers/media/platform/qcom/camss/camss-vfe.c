@@ -1299,7 +1299,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 		return -EINVAL;
 	}
 	vfe->ops->subdev_init(dev, vfe);
-	vfe->ops->hw_version_read(vfe, dev);
+	vfe->ops->hw_version_read(vfe);
 
 	/* Memory */
 
