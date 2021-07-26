@@ -47,15 +47,12 @@ static u32 set_hsync_pulse_width(struct mxsfb_drm_private *mxsfb, u32 val)
  * Setup the MXSFB registers for decoding the pixels out of the framebuffer and
  * outputting them on the bus.
  */
-static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb)
+static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb,
+			      const u32 bus_format)
 {
 	struct drm_device *drm = mxsfb->drm;
 	const u32 format = mxsfb->crtc.primary->state->fb->format->format;
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 ctrl, ctrl1;
-
-	if (mxsfb->connector->display_info.num_bus_formats)
-		bus_format = mxsfb->connector->display_info.bus_formats[0];
 
 	DRM_DEV_DEBUG_DRIVER(drm->dev, "Using bus_format: 0x%08X\n",
 			     bus_format);
@@ -222,7 +219,8 @@ static dma_addr_t mxsfb_get_fb_paddr(struct drm_plane *plane)
 	return gem->paddr;
 }
 
-static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
+static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
+				     const u32 bus_format)
 {
 	struct drm_device *drm = mxsfb->crtc.dev;
 	struct drm_display_mode *m = &mxsfb->crtc.state->adjusted_mode;
@@ -247,7 +245,7 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	if (mxsfb->devdata->has_overlay)
 		writel(0, mxsfb->base + LCDC_AS_CTRL);
 
-	mxsfb_set_formats(mxsfb);
+	mxsfb_set_formats(mxsfb, bus_format);
 
 	clk_set_rate(mxsfb->clk, m->crtc_clock * 1000);
 
@@ -345,7 +343,9 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
+	struct drm_bridge_state *bridge_state;
 	struct drm_device *drm = mxsfb->drm;
+	u32 bus_format = 0;
 	dma_addr_t paddr;
 
 	pm_runtime_get_sync(drm->dev);
@@ -353,7 +353,23 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	drm_crtc_vblank_on(crtc);
 
-	mxsfb_crtc_mode_set_nofb(mxsfb);
+	/* If there is a bridge attached to the LCDIF, use its bus format */
+	if (mxsfb->bridge) {
+		bridge_state =
+			drm_atomic_get_new_bridge_state(state,
+							mxsfb->bridge);
+		bus_format = bridge_state->input_bus_cfg.format;
+	}
+
+	/* If there is no bridge, use bus format from connector */
+	if (!bus_format && mxsfb->connector->display_info.num_bus_formats)
+		bus_format = mxsfb->connector->display_info.bus_formats[0];
+
+	/* If all else fails, default to RGB888_1X24 */
+	if (!bus_format)
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
+	mxsfb_crtc_mode_set_nofb(mxsfb, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = mxsfb_get_fb_paddr(crtc->primary);
