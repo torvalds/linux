@@ -24,6 +24,18 @@ properties:
     description: I2C device address
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  vdd-supply:
+    description: Digital supply voltage, 1.8 V
+
+  vdd_io-supply:
+    description: I/O supply voltage, 1.8 or 2.8 V
+
+  vaa-supply:
+    description: Analog supply voltage, 2.8 V
+
   reset-gpios:
     maxItems: 1
     description: Chip reset GPIO
@@ -59,6 +71,10 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
+  - vdd-supply
+  - vdd_io-supply
+  - vaa-supply
   - port
 
 additionalProperties: false
@@ -73,6 +89,12 @@ examples:
             compatible = "aptina,mt9p031";
             reg = <0x5d>;
             reset-gpios = <&gpio_sensor 0 0>;
+
+            clocks = <&sensor_clk>;
+
+            vdd-supply = <&reg_vdd>;
+            vdd_io-supply = <&reg_vdd_io>;
+            vaa-supply = <&reg_vaa>;
 
             port {
                 mt9p031_1: endpoint {
