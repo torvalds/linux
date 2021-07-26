@@ -877,6 +877,10 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 		      sub_stripes != btrfs_raid_array[BTRFS_RAID_RAID10].sub_stripes) ||
 		     (type & BTRFS_BLOCK_GROUP_RAID1 &&
 		      num_stripes != btrfs_raid_array[BTRFS_RAID_RAID1].devs_min) ||
+		     (type & BTRFS_BLOCK_GROUP_RAID1C3 &&
+		      num_stripes != btrfs_raid_array[BTRFS_RAID_RAID1C3].devs_min) ||
+		     (type & BTRFS_BLOCK_GROUP_RAID1C4 &&
+		      num_stripes != btrfs_raid_array[BTRFS_RAID_RAID1C4].devs_min) ||
 		     (type & BTRFS_BLOCK_GROUP_RAID5 &&
 		      num_stripes < btrfs_raid_array[BTRFS_RAID_RAID5].devs_min) ||
 		     (type & BTRFS_BLOCK_GROUP_RAID6 &&
