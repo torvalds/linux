@@ -11,7 +11,8 @@
 
 
 struct msm_fence_context *
-msm_fence_context_alloc(struct drm_device *dev, const char *name)
+msm_fence_context_alloc(struct drm_device *dev, volatile uint32_t *fenceptr,
+		const char *name)
 {
 	struct msm_fence_context *fctx;
 
@@ -22,6 +23,7 @@ msm_fence_context_alloc(struct drm_device *dev, const char *name)
 	fctx->dev = dev;
 	strncpy(fctx->name, name, sizeof(fctx->name));
 	fctx->context = dma_fence_context_alloc(1);
+	fctx->fenceptr = fenceptr;
 	init_waitqueue_head(&fctx->event);
 	spin_lock_init(&fctx->spinlock);
 
@@ -35,7 +37,12 @@ void msm_fence_context_free(struct msm_fence_context *fctx)
 
 static inline bool fence_completed(struct msm_fence_context *fctx, uint32_t fence)
 {
-	return (int32_t)(fctx->completed_fence - fence) >= 0;
+	/*
+	 * Note: Check completed_fence first, as fenceptr is in a write-combine
+	 * mapping, so it will be more expensive to read.
+	 */
+	return (int32_t)(fctx->completed_fence - fence) >= 0 ||
+		(int32_t)(*fctx->fenceptr - fence) >= 0;
 }
 
 /* legacy path for WAIT_FENCE ioctl: */
