@@ -229,6 +229,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+	unsigned long ext_freq;
 	int ret;
 
 	mt9p031->clk = devm_clk_get(&client->dev, NULL);
@@ -239,13 +240,15 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 	if (ret < 0)
 		return ret;
 
+	ext_freq = clk_get_rate(mt9p031->clk);
+
 	/* If the external clock frequency is out of bounds for the PLL use the
 	 * pixel clock divider only and disable the PLL.
 	 */
-	if (pdata->ext_freq > limits.ext_clock_max) {
+	if (ext_freq > limits.ext_clock_max) {
 		unsigned int div;
 
-		div = DIV_ROUND_UP(pdata->ext_freq, pdata->target_freq);
+		div = DIV_ROUND_UP(ext_freq, pdata->target_freq);
 		div = roundup_pow_of_two(div) / 2;
 
 		mt9p031->clk_div = min_t(unsigned int, div, 64);
@@ -254,7 +257,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 		return 0;
 	}
 
-	mt9p031->pll.ext_clock = pdata->ext_freq;
+	mt9p031->pll.ext_clock = ext_freq;
 	mt9p031->pll.pix_clock = pdata->target_freq;
 	mt9p031->use_pll = true;
 
