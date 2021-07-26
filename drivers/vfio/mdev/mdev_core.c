@@ -398,7 +398,7 @@ static void __exit mdev_exit(void)
 	mdev_bus_unregister();
 }
 
-module_init(mdev_init)
+subsys_initcall(mdev_init)
 module_exit(mdev_exit)
 
 MODULE_VERSION(DRIVER_VERSION);
