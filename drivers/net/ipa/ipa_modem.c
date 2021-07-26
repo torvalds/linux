@@ -377,13 +377,3 @@ void ipa_modem_deconfig(struct ipa *ipa)
 	ipa->notifier = NULL;
 	memset(&ipa->nb, 0, sizeof(ipa->nb));
 }
-
-int ipa_modem_setup(struct ipa *ipa)
-{
-	return ipa_qmi_setup(ipa);
-}
-
-void ipa_modem_teardown(struct ipa *ipa)
-{
-	ipa_qmi_teardown(ipa);
-}

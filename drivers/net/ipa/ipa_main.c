@@ -167,7 +167,7 @@ int ipa_setup(struct ipa *ipa)
 	ipa_endpoint_default_route_set(ipa, exception_endpoint->endpoint_id);
 
 	/* We're all set.  Now prepare for communication with the modem */
-	ret = ipa_modem_setup(ipa);
+	ret = ipa_qmi_setup(ipa);
 	if (ret)
 		goto err_default_route_clear;
 
@@ -204,7 +204,7 @@ static void ipa_teardown(struct ipa *ipa)
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
 
-	ipa_modem_teardown(ipa);
+	ipa_qmi_teardown(ipa);
 	ipa_endpoint_default_route_clear(ipa);
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_endpoint_disable_one(exception_endpoint);
