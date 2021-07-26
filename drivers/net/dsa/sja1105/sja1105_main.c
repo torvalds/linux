@@ -2257,10 +2257,23 @@ static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
 {
 	struct netlink_ext_ack *extack = info->info.extack;
 	struct net_device *upper = info->upper_dev;
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
 
 	if (is_vlan_dev(upper)) {
 		NL_SET_ERR_MSG_MOD(extack, "8021q uppers are not supported");
 		return -EBUSY;
+	}
+
+	if (netif_is_bridge_master(upper)) {
+		list_for_each_entry(dp, &dst->ports, list) {
+			if (dp->bridge_dev && dp->bridge_dev != upper &&
+			    br_vlan_enabled(dp->bridge_dev)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Only one VLAN-aware bridge is supported");
+				return -EBUSY;
+			}
+		}
 	}
 
 	return 0;
