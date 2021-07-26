@@ -51,6 +51,7 @@ enum ipa_flag {
  * @table_addr:		DMA address of filter/route table content
  * @table_virt:		Virtual address of filter/route table content
  * @interrupt:		IPA Interrupt information
+ * @uc_clocked:		true if clock is active by proxy for microcontroller
  * @uc_loaded:		true after microcontroller has reported it's ready
  * @reg_addr:		DMA address used for IPA register access
  * @reg_virt:		Virtual address used for IPA register access
@@ -95,6 +96,7 @@ struct ipa {
 	__le64 *table_virt;
 
 	struct ipa_interrupt *interrupt;
+	bool uc_clocked;
 	bool uc_loaded;
 
 	dma_addr_t reg_addr;

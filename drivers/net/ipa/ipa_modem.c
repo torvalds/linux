@@ -19,6 +19,7 @@
 #include "ipa_modem.h"
 #include "ipa_smp2p.h"
 #include "ipa_qmi.h"
+#include "ipa_uc.h"
 
 #define IPA_NETDEV_NAME		"rmnet_ipa%d"
 #define IPA_NETDEV_TAILROOM	0	/* for padding by mux layer */
@@ -314,6 +315,7 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 	switch (action) {
 	case QCOM_SSR_BEFORE_POWERUP:
 		dev_info(dev, "received modem starting event\n");
+		ipa_uc_clock(ipa);
 		ipa_smp2p_notify_reset(ipa);
 		break;
 
