@@ -278,16 +278,18 @@ static void update_fences(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 		uint32_t fence)
 {
 	struct msm_gem_submit *submit;
+	unsigned long flags;
 
-	spin_lock(&ring->submit_lock);
+	spin_lock_irqsave(&ring->submit_lock, flags);
 	list_for_each_entry(submit, &ring->submits, node) {
 		if (submit->seqno > fence)
 			break;
 
 		msm_update_fence(submit->ring->fctx,
 			submit->fence->seqno);
+		dma_fence_signal(submit->fence);
 	}
-	spin_unlock(&ring->submit_lock);
+	spin_unlock_irqrestore(&ring->submit_lock, flags);
 }
 
 #ifdef CONFIG_DEV_COREDUMP
@@ -443,15 +445,16 @@ static struct msm_gem_submit *
 find_submit(struct msm_ringbuffer *ring, uint32_t fence)
 {
 	struct msm_gem_submit *submit;
+	unsigned long flags;
 
-	spin_lock(&ring->submit_lock);
+	spin_lock_irqsave(&ring->submit_lock, flags);
 	list_for_each_entry(submit, &ring->submits, node) {
 		if (submit->seqno == fence) {
-			spin_unlock(&ring->submit_lock);
+			spin_unlock_irqrestore(&ring->submit_lock, flags);
 			return submit;
 		}
 	}
-	spin_unlock(&ring->submit_lock);
+	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 	return NULL;
 }
@@ -547,11 +550,12 @@ static void recover_worker(struct kthread_work *work)
 		 */
 		for (i = 0; i < gpu->nr_rings; i++) {
 			struct msm_ringbuffer *ring = gpu->rb[i];
+			unsigned long flags;
 
-			spin_lock(&ring->submit_lock);
+			spin_lock_irqsave(&ring->submit_lock, flags);
 			list_for_each_entry(submit, &ring->submits, node)
 				gpu->funcs->submit(gpu, submit);
-			spin_unlock(&ring->submit_lock);
+			spin_unlock_irqrestore(&ring->submit_lock, flags);
 		}
 	}
 
@@ -641,7 +645,7 @@ static void hangcheck_handler(struct timer_list *t)
 		hangcheck_timer_reset(gpu);
 
 	/* workaround for missing irq: */
-	kthread_queue_work(gpu->worker, &gpu->retire_work);
+	msm_gpu_retire(gpu);
 }
 
 /*
@@ -752,6 +756,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
 	volatile struct msm_gpu_submit_stats *stats;
 	u64 elapsed, clock = 0;
+	unsigned long flags;
 	int i;
 
 	stats = &ring->memptrs->stats[index];
@@ -781,9 +786,9 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	pm_runtime_mark_last_busy(&gpu->pdev->dev);
 	pm_runtime_put_autosuspend(&gpu->pdev->dev);
 
-	spin_lock(&ring->submit_lock);
+	spin_lock_irqsave(&ring->submit_lock, flags);
 	list_del(&submit->node);
-	spin_unlock(&ring->submit_lock);
+	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 	msm_gem_submit_put(submit);
 }
@@ -798,11 +803,12 @@ static void retire_submits(struct msm_gpu *gpu)
 
 		while (true) {
 			struct msm_gem_submit *submit = NULL;
+			unsigned long flags;
 
-			spin_lock(&ring->submit_lock);
+			spin_lock_irqsave(&ring->submit_lock, flags);
 			submit = list_first_entry_or_null(&ring->submits,
 					struct msm_gem_submit, node);
-			spin_unlock(&ring->submit_lock);
+			spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 			/*
 			 * If no submit, we are done.  If submit->fence hasn't
@@ -821,10 +827,6 @@ static void retire_submits(struct msm_gpu *gpu)
 static void retire_worker(struct kthread_work *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, retire_work);
-	int i;
-
-	for (i = 0; i < gpu->nr_rings; i++)
-		update_fences(gpu, gpu->rb[i], gpu->rb[i]->memptrs->fence);
 
 	retire_submits(gpu);
 }
@@ -832,6 +834,11 @@ static void retire_worker(struct kthread_work *work)
 /* call from irq handler to schedule work to retire bo's */
 void msm_gpu_retire(struct msm_gpu *gpu)
 {
+	int i;
+
+	for (i = 0; i < gpu->nr_rings; i++)
+		update_fences(gpu, gpu->rb[i], gpu->rb[i]->memptrs->fence);
+
 	kthread_queue_work(gpu->worker, &gpu->retire_work);
 	update_sw_cntrs(gpu);
 }
@@ -842,6 +849,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
+	unsigned long flags;
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -879,9 +887,9 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	 */
 	msm_gem_submit_get(submit);
 
-	spin_lock(&ring->submit_lock);
+	spin_lock_irqsave(&ring->submit_lock, flags);
 	list_add_tail(&submit->node, &ring->submits);
-	spin_unlock(&ring->submit_lock);
+	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 	gpu->funcs->submit(gpu, submit);
 	priv->lastctx = submit->queue->ctx;
