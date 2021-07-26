@@ -146,7 +146,7 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 	u32 offset;
 	u32 val;
 
-	/* assert(mask & ipa->available); */
+	WARN_ON(!(mask & ipa->available));
 
 	/* IPA version 3.0 does not support TX_SUSPEND interrupt control */
 	if (ipa->version == IPA_VERSION_3_0)
@@ -206,7 +206,8 @@ void ipa_interrupt_add(struct ipa_interrupt *interrupt,
 	struct ipa *ipa = interrupt->ipa;
 	u32 offset;
 
-	/* assert(ipa_irq < IPA_IRQ_COUNT); */
+	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
+
 	interrupt->handler[ipa_irq] = handler;
 
 	/* Update the IPA interrupt mask to enable it */
@@ -222,7 +223,8 @@ ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 	struct ipa *ipa = interrupt->ipa;
 	u32 offset;
 
-	/* assert(ipa_irq < IPA_IRQ_COUNT); */
+	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
+
 	/* Update the IPA interrupt mask to disable it */
 	interrupt->enabled &= ~BIT(ipa_irq);
 	offset = ipa_reg_irq_en_offset(ipa->version);
