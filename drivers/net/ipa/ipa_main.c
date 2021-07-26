@@ -468,31 +468,31 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 
 	ipa_hardware_config(ipa, data);
 
-	ret = ipa_endpoint_config(ipa);
+	ret = ipa_mem_config(ipa);
 	if (ret)
 		goto err_hardware_deconfig;
 
-	ret = ipa_mem_config(ipa);
+	ret = ipa_endpoint_config(ipa);
 	if (ret)
-		goto err_endpoint_deconfig;
+		goto err_mem_deconfig;
 
 	ipa_table_config(ipa);		/* No deconfig required */
 
 	/* Assign resource limitation to each group; no deconfig required */
 	ret = ipa_resource_config(ipa, data->resource_data);
 	if (ret)
-		goto err_mem_deconfig;
+		goto err_endpoint_deconfig;
 
 	ret = ipa_modem_config(ipa);
 	if (ret)
-		goto err_mem_deconfig;
+		goto err_endpoint_deconfig;
 
 	return 0;
 
-err_mem_deconfig:
-	ipa_mem_deconfig(ipa);
 err_endpoint_deconfig:
 	ipa_endpoint_deconfig(ipa);
+err_mem_deconfig:
+	ipa_mem_deconfig(ipa);
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
@@ -507,8 +507,8 @@ err_hardware_deconfig:
 static void ipa_deconfig(struct ipa *ipa)
 {
 	ipa_modem_deconfig(ipa);
-	ipa_mem_deconfig(ipa);
 	ipa_endpoint_deconfig(ipa);
+	ipa_mem_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
 }
