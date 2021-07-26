@@ -4357,16 +4357,6 @@ next:
 	return 1;
 }
 
-/*
- * search the tree again to find a leaf with greater keys
- * returns 0 if it found something or 1 if there are no greater leaves.
- * returns < 0 on io errors.
- */
-int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
-{
-	return btrfs_next_old_leaf(root, path, 0);
-}
-
 int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 			u64 time_seq)
 {
