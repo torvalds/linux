@@ -213,13 +213,13 @@ struct mtk_pll_div_table {
 struct mtk_pll_data {
 	int id;
 	const char *name;
-	uint32_t reg;
-	uint32_t pwr_reg;
-	uint32_t en_mask;
-	uint32_t pd_reg;
-	uint32_t tuner_reg;
-	uint32_t tuner_en_reg;
-	uint8_t tuner_en_bit;
+	u32 reg;
+	u32 pwr_reg;
+	u32 en_mask;
+	u32 pd_reg;
+	u32 tuner_reg;
+	u32 tuner_en_reg;
+	u8 tuner_en_bit;
 	int pd_shift;
 	unsigned int flags;
 	const struct clk_ops *ops;
@@ -228,11 +228,13 @@ struct mtk_pll_data {
 	unsigned long fmax;
 	int pcwbits;
 	int pcwibits;
-	uint32_t pcw_reg;
+	u32 pcw_reg;
 	int pcw_shift;
-	uint32_t pcw_chg_reg;
+	u32 pcw_chg_reg;
 	const struct mtk_pll_div_table *div_table;
 	const char *parent_name;
+	u32 en_reg;
+	u8 pll_en_bit; /* Assume 0, indicates BIT(0) by default */
 };
 
 void mtk_clk_register_plls(struct device_node *node,
