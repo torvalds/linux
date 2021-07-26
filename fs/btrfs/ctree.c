@@ -364,49 +364,6 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static struct extent_buffer *alloc_tree_block_no_bg_flush(
-					  struct btrfs_trans_handle *trans,
-					  struct btrfs_root *root,
-					  u64 parent_start,
-					  const struct btrfs_disk_key *disk_key,
-					  int level,
-					  u64 hint,
-					  u64 empty_size,
-					  enum btrfs_lock_nesting nest)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct extent_buffer *ret;
-
-	/*
-	 * If we are COWing a node/leaf from the extent, chunk, device or free
-	 * space trees, make sure that we do not finish block group creation of
-	 * pending block groups. We do this to avoid a deadlock.
-	 * COWing can result in allocation of a new chunk, and flushing pending
-	 * block groups (btrfs_create_pending_block_groups()) can be triggered
-	 * when finishing allocation of a new chunk. Creation of a pending block
-	 * group modifies the extent, chunk, device and free space trees,
-	 * therefore we could deadlock with ourselves since we are holding a
-	 * lock on an extent buffer that btrfs_create_pending_block_groups() may
-	 * try to COW later.
-	 * For similar reasons, we also need to delay flushing pending block
-	 * groups when splitting a leaf or node, from one of those trees, since
-	 * we are holding a write lock on it and its parent or when inserting a
-	 * new root node for one of those trees.
-	 */
-	if (root == fs_info->extent_root ||
-	    root == fs_info->chunk_root ||
-	    root == fs_info->dev_root ||
-	    root == fs_info->free_space_root)
-		trans->can_flush_pending_bgs = false;
-
-	ret = btrfs_alloc_tree_block(trans, root, parent_start,
-				     root->root_key.objectid, disk_key, level,
-				     hint, empty_size, nest);
-	trans->can_flush_pending_bgs = true;
-
-	return ret;
-}
-
 /*
  * does the dirty work in cow of a single block.  The parent block (if
  * supplied) is updated to point to the new cow copy.  The new buffer is marked
@@ -455,8 +412,9 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if ((root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) && parent)
 		parent_start = parent->start;
 
-	cow = alloc_tree_block_no_bg_flush(trans, root, parent_start, &disk_key,
-					   level, search_start, empty_size, nest);
+	cow = btrfs_alloc_tree_block(trans, root, parent_start,
+				     root->root_key.objectid, &disk_key, level,
+				     search_start, empty_size, nest);
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
@@ -2458,9 +2416,9 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	else
 		btrfs_node_key(lower, &lower_key, 0);
 
-	c = alloc_tree_block_no_bg_flush(trans, root, 0, &lower_key, level,
-					 root->node->start, 0,
-					 BTRFS_NESTING_NEW_ROOT);
+	c = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+				   &lower_key, level, root->node->start, 0,
+				   BTRFS_NESTING_NEW_ROOT);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 
@@ -2589,8 +2547,9 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	mid = (c_nritems + 1) / 2;
 	btrfs_node_key(c, &disk_key, mid);
 
-	split = alloc_tree_block_no_bg_flush(trans, root, 0, &disk_key, level,
-					     c->start, 0, BTRFS_NESTING_SPLIT);
+	split = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+				       &disk_key, level, c->start, 0,
+				       BTRFS_NESTING_SPLIT);
 	if (IS_ERR(split))
 		return PTR_ERR(split);
 
@@ -3381,10 +3340,10 @@ again:
 	 * BTRFS_NESTING_SPLIT_THE_SPLITTENING if we need to, but for now just
 	 * use BTRFS_NESTING_NEW_ROOT.
 	 */
-	right = alloc_tree_block_no_bg_flush(trans, root, 0, &disk_key, 0,
-					     l->start, 0, num_doubles ?
-					     BTRFS_NESTING_NEW_ROOT :
-					     BTRFS_NESTING_SPLIT);
+	right = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+				       &disk_key, 0, l->start, 0,
+				       num_doubles ? BTRFS_NESTING_NEW_ROOT :
+				       BTRFS_NESTING_SPLIT);
 	if (IS_ERR(right))
 		return PTR_ERR(right);
 

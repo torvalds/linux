@@ -735,11 +735,12 @@ static int emac_remove(struct platform_device *pdev)
 
 	put_device(&adpt->phydev->mdio.dev);
 	mdiobus_unregister(adpt->mii_bus);
-	free_netdev(netdev);
 
 	if (adpt->phy.digital)
 		iounmap(adpt->phy.digital);
 	iounmap(adpt->phy.base);
+
+	free_netdev(netdev);
 
 	return 0;
 }

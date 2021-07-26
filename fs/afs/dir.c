@@ -656,7 +656,6 @@ static int afs_do_lookup_one(struct inode *dir, struct dentry *dentry,
 		return ret;
 	}
 
-	ret = -ENOENT;
 	if (!cookie.found) {
 		_leave(" = -ENOENT [not found]");
 		return -ENOENT;
@@ -2020,17 +2019,20 @@ static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 		if (d_count(new_dentry) > 2) {
 			/* copy the target dentry's name */
-			ret = -ENOMEM;
 			op->rename.tmp = d_alloc(new_dentry->d_parent,
 						 &new_dentry->d_name);
-			if (!op->rename.tmp)
+			if (!op->rename.tmp) {
+				op->error = -ENOMEM;
 				goto error;
+			}
 
 			ret = afs_sillyrename(new_dvnode,
 					      AFS_FS_I(d_inode(new_dentry)),
 					      new_dentry, op->key);
-			if (ret)
+			if (ret) {
+				op->error = ret;
 				goto error;
+			}
 
 			op->dentry_2 = op->rename.tmp;
 			op->rename.rehash = NULL;
