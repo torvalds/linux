@@ -95,15 +95,14 @@ static struct ata_port_operations ixp4xx_port_ops = {
 
 static void ixp4xx_setup_port(struct ata_port *ap,
 			      struct ixp4xx_pata_data *data,
-			      unsigned long raw_cs0, unsigned long raw_cs1)
+			      unsigned long raw_cmd, unsigned long raw_ctl)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	unsigned long raw_cmd = raw_cs0;
-	unsigned long raw_ctl = raw_cs1 + 0x06;
 
-	ioaddr->cmd_addr	= data->cs0;
-	ioaddr->altstatus_addr	= data->cs1 + 0x06;
-	ioaddr->ctl_addr	= data->cs1 + 0x06;
+	raw_ctl += 0x06;
+	ioaddr->cmd_addr	= data->cmd;
+	ioaddr->altstatus_addr	= data->ctl + 0x06;
+	ioaddr->ctl_addr	= data->ctl + 0x06;
 
 	ata_sff_std_ports(ioaddr);
 
@@ -135,7 +134,7 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 
 static int ixp4xx_pata_probe(struct platform_device *pdev)
 {
-	struct resource *cs0, *cs1;
+	struct resource *cmd, *ctl;
 	struct ata_host *host;
 	struct ata_port *ap;
 	struct device *dev = &pdev->dev;
@@ -143,10 +142,10 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cs1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	cmd = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ctl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
-	if (!cs0 || !cs1)
+	if (!cmd || !ctl)
 		return -EINVAL;
 
 	/* allocate host */
@@ -159,10 +158,10 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->cs0 = devm_ioremap(dev, cs0->start, 0x1000);
-	data->cs1 = devm_ioremap(dev, cs1->start, 0x1000);
+	data->cmd = devm_ioremap(dev, cmd->start, 0x1000);
+	data->ctl = devm_ioremap(dev, ctl->start, 0x1000);
 
-	if (!data->cs0 || !data->cs1)
+	if (!data->cmd || !data->ctl)
 		return -ENOMEM;
 
 	irq = platform_get_irq(pdev, 0);
@@ -183,7 +182,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_NO_ATAPI;
 
-	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
+	ixp4xx_setup_port(ap, data, cmd->start, ctl->start);
 
 	ata_print_version_once(dev, DRV_VERSION);
 
