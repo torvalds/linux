@@ -131,7 +131,7 @@ static void ipa_uc_event_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	if (shared->event == IPA_UC_EVENT_ERROR)
 		dev_err(dev, "microcontroller error event\n");
 	else if (shared->event != IPA_UC_EVENT_LOG_INFO)
-		dev_err(dev, "unsupported microcontroller event %hhu\n",
+		dev_err(dev, "unsupported microcontroller event %u\n",
 			shared->event);
 	/* The LOG_INFO event can be safely ignored */
 }
@@ -140,53 +140,63 @@ static void ipa_uc_event_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
+	struct device *dev = &ipa->pdev->dev;
 
 	/* An INIT_COMPLETED response message is sent to the AP by the
 	 * microcontroller when it is operational.  Other than this, the AP
 	 * should only receive responses from the microcontroller when it has
 	 * sent it a request message.
 	 *
-	 * We can drop the clock reference taken in ipa_uc_setup() once we
+	 * We can drop the clock reference taken in ipa_uc_clock() once we
 	 * know the microcontroller has finished its initialization.
 	 */
 	switch (shared->response) {
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
-		ipa->uc_loaded = true;
-		ipa_clock_put(ipa);
+		if (ipa->uc_clocked) {
+			ipa->uc_loaded = true;
+			ipa_clock_put(ipa);
+			ipa->uc_clocked = false;
+		} else {
+			dev_warn(dev, "unexpected init_completed response\n");
+		}
 		break;
 	default:
-		dev_warn(&ipa->pdev->dev,
-			 "unsupported microcontroller response %hhu\n",
+		dev_warn(dev, "unsupported microcontroller response %u\n",
 			 shared->response);
 		break;
 	}
 }
 
-/* ipa_uc_setup() - Set up the microcontroller */
-void ipa_uc_setup(struct ipa *ipa)
+/* Configure the IPA microcontroller subsystem */
+void ipa_uc_config(struct ipa *ipa)
 {
-	/* The microcontroller needs the IPA clock running until it has
-	 * completed its initialization.  It signals this by sending an
-	 * INIT_COMPLETED response message to the AP.  This could occur after
-	 * we have finished doing the rest of the IPA initialization, so we
-	 * need to take an extra "proxy" reference, and hold it until we've
-	 * received that signal.  (This reference is dropped in
-	 * ipa_uc_response_hdlr(), above.)
-	 */
-	ipa_clock_get(ipa);
-
+	ipa->uc_clocked = false;
 	ipa->uc_loaded = false;
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_0, ipa_uc_event_handler);
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_1, ipa_uc_response_hdlr);
 }
 
-/* Inverse of ipa_uc_setup() */
-void ipa_uc_teardown(struct ipa *ipa)
+/* Inverse of ipa_uc_config() */
+void ipa_uc_deconfig(struct ipa *ipa)
 {
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
-	if (!ipa->uc_loaded)
+	if (ipa->uc_clocked)
 		ipa_clock_put(ipa);
+}
+
+/* Take a proxy clock reference for the microcontroller */
+void ipa_uc_clock(struct ipa *ipa)
+{
+	static bool already;
+
+	if (already)
+		return;
+	already = true;		/* Only do this on first boot */
+
+	/* This clock reference dropped in ipa_uc_response_hdlr() above */
+	ipa_clock_get(ipa);
+	ipa->uc_clocked = true;
 }
 
 /* Send a command to the microcontroller */

@@ -124,19 +124,12 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		return ret;
 
-	ipa->interrupt = ipa_interrupt_setup(ipa);
-	if (IS_ERR(ipa->interrupt)) {
-		ret = PTR_ERR(ipa->interrupt);
-		goto err_gsi_teardown;
-	}
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
 			  ipa_suspend_handler);
 
-	ipa_uc_setup(ipa);
-
 	ret = device_init_wakeup(dev, true);
 	if (ret)
-		goto err_uc_teardown;
+		goto err_interrupt_remove;
 
 	ipa_endpoint_setup(ipa);
 
@@ -167,7 +160,7 @@ int ipa_setup(struct ipa *ipa)
 	ipa_endpoint_default_route_set(ipa, exception_endpoint->endpoint_id);
 
 	/* We're all set.  Now prepare for communication with the modem */
-	ret = ipa_modem_setup(ipa);
+	ret = ipa_qmi_setup(ipa);
 	if (ret)
 		goto err_default_route_clear;
 
@@ -185,11 +178,8 @@ err_command_disable:
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
 	(void)device_init_wakeup(dev, false);
-err_uc_teardown:
-	ipa_uc_teardown(ipa);
+err_interrupt_remove:
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
-	ipa_interrupt_teardown(ipa->interrupt);
-err_gsi_teardown:
 	gsi_teardown(&ipa->gsi);
 
 	return ret;
@@ -204,7 +194,7 @@ static void ipa_teardown(struct ipa *ipa)
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
 
-	ipa_modem_teardown(ipa);
+	ipa_qmi_teardown(ipa);
 	ipa_endpoint_default_route_clear(ipa);
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_endpoint_disable_one(exception_endpoint);
@@ -212,9 +202,7 @@ static void ipa_teardown(struct ipa *ipa)
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
 	(void)device_init_wakeup(&ipa->pdev->dev, false);
-	ipa_uc_teardown(ipa);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
-	ipa_interrupt_teardown(ipa->interrupt);
 	gsi_teardown(&ipa->gsi);
 }
 
@@ -468,31 +456,44 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 
 	ipa_hardware_config(ipa, data);
 
-	ret = ipa_endpoint_config(ipa);
+	ret = ipa_mem_config(ipa);
 	if (ret)
 		goto err_hardware_deconfig;
 
-	ret = ipa_mem_config(ipa);
+	ipa->interrupt = ipa_interrupt_config(ipa);
+	if (IS_ERR(ipa->interrupt)) {
+		ret = PTR_ERR(ipa->interrupt);
+		ipa->interrupt = NULL;
+		goto err_mem_deconfig;
+	}
+
+	ipa_uc_config(ipa);
+
+	ret = ipa_endpoint_config(ipa);
 	if (ret)
-		goto err_endpoint_deconfig;
+		goto err_interrupt_deconfig;
 
 	ipa_table_config(ipa);		/* No deconfig required */
 
 	/* Assign resource limitation to each group; no deconfig required */
 	ret = ipa_resource_config(ipa, data->resource_data);
 	if (ret)
-		goto err_mem_deconfig;
+		goto err_endpoint_deconfig;
 
 	ret = ipa_modem_config(ipa);
 	if (ret)
-		goto err_mem_deconfig;
+		goto err_endpoint_deconfig;
 
 	return 0;
 
-err_mem_deconfig:
-	ipa_mem_deconfig(ipa);
 err_endpoint_deconfig:
 	ipa_endpoint_deconfig(ipa);
+err_interrupt_deconfig:
+	ipa_uc_deconfig(ipa);
+	ipa_interrupt_deconfig(ipa->interrupt);
+	ipa->interrupt = NULL;
+err_mem_deconfig:
+	ipa_mem_deconfig(ipa);
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
@@ -507,8 +508,11 @@ err_hardware_deconfig:
 static void ipa_deconfig(struct ipa *ipa)
 {
 	ipa_modem_deconfig(ipa);
-	ipa_mem_deconfig(ipa);
 	ipa_endpoint_deconfig(ipa);
+	ipa_uc_deconfig(ipa);
+	ipa_interrupt_deconfig(ipa->interrupt);
+	ipa->interrupt = NULL;
+	ipa_mem_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
 	ipa_clock_put(ipa);
 }

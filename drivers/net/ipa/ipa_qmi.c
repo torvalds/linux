@@ -467,10 +467,7 @@ static const struct qmi_ops ipa_client_ops = {
 	.new_server	= ipa_client_new_server,
 };
 
-/* This is called by ipa_setup().  We can be informed via remoteproc that
- * the modem has shut down, in which case this function will be called
- * again to prepare for it coming back up again.
- */
+/* Set up for QMI message exchange */
 int ipa_qmi_setup(struct ipa *ipa)
 {
 	struct ipa_qmi *ipa_qmi = &ipa->qmi;
@@ -526,6 +523,7 @@ err_server_handle_release:
 	return ret;
 }
 
+/* Tear down IPA QMI handles */
 void ipa_qmi_teardown(struct ipa *ipa)
 {
 	cancel_work_sync(&ipa->qmi.init_driver_work);
