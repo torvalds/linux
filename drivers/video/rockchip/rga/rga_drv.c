@@ -97,27 +97,7 @@ unsigned char RGA_NONUSE;
 unsigned char RGA_INT_FLAG;
 #endif
 
-struct rga_drvdata {
-  	struct miscdevice miscdev;
-	struct device *dev;
-	void *rga_base;
-	int irq;
-
-	struct delayed_work power_off_work;
-	void (*rga_irq_callback)(int rga_retval);   //callback function used by aync call
-	struct wake_lock wake_lock;
-
-    struct clk *pd_rga;
-	struct clk *aclk_rga;
-    struct clk *hclk_rga;
-
-    //#if defined(CONFIG_ION_ROCKCHIP)
-	struct ion_client *ion_client;
-    //#endif
-	char *version;
-};
-
-static struct rga_drvdata *drvdata;
+struct rga_drvdata *drvdata;
 rga_service_info rga_service;
 struct rga_mmu_buf_t rga_mmu_buf;
 
@@ -842,12 +822,7 @@ static void rga_try_set_reg(void)
 
             rga_copy_reg(reg, 0);
             rga_reg_from_wait_to_run(reg);
-            #ifdef CONFIG_ARM
-            dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[32]);
-            outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[32]));
-            #elif defined(CONFIG_ARM64)
-            __dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[32]);
-            #endif
+			rga_dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[32]);
 
             rga_soft_reset();
 
@@ -2235,15 +2210,7 @@ void rga_slt(void)
 	memset(src1_buf, 0x50, 400 * 200 * 4);
 	memset(dst1_buf, 0x00, 400 * 200 * 4);
 
-#ifdef CONFIG_ARM
-	dmac_flush_range(&src1_buf[0], &src1_buf[400 * 200]);
-	outer_flush_range(virt_to_phys(&src1_buf[0]), virt_to_phys(&src1_buf[400 * 200]));
-	dmac_flush_range(&dst1_buf[0], &dst1_buf[400 * 200]);
-	outer_flush_range(virt_to_phys(&dst1_buf[0]), virt_to_phys(&dst1_buf[400 * 200]));
-#elif defined(CONFIG_ARM64)
-	__dma_flush_range(&src1_buf[0], &src1_buf[400 * 200]);
-	__dma_flush_range(&dst1_buf[0], &dst1_buf[400 * 200]);
-#endif
+	rga_dma_flush_range(&src1_buf[0], &src1_buf[400 * 200]);
 
 	DBG("\n********************************\n");
 	DBG("************ RGA_TEST ************\n");
