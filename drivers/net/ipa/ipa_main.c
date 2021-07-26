@@ -253,9 +253,6 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 	const struct ipa_qsb_data *data1;
 	u32 val;
 
-	/* assert(data->qsb_count > 0); */
-	/* assert(data->qsb_count < 3); */
-
 	/* QMB 0 represents DDR; QMB 1 (if present) represents PCIe */
 	data0 = &data->qsb_data[IPA_QSB_MASTER_DDR];
 	if (data->qsb_count > 1)
@@ -293,7 +290,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
  */
 static u32 ipa_aggr_granularity_val(u32 usec)
 {
-	/* assert(usec != 0); */
+	WARN_ON(!usec);
 
 	return DIV_ROUND_CLOSEST(usec * TIMER_FREQUENCY, USEC_PER_SEC) - 1;
 }

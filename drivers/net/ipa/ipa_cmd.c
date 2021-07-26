@@ -165,6 +165,10 @@ static void ipa_cmd_validate_build(void)
 		     field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
 	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_ADDR_FMASK) !=
 		     field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK));
+
+	/* Valid endpoint numbers must fit in the IP packet init command */
+	BUILD_BUG_ON(field_max(IPA_PACKET_INIT_DEST_ENDPOINT_FMASK) <
+		     IPA_ENDPOINT_MAX - 1);
 }
 
 /* Validate a memory region holding a table */
@@ -531,9 +535,6 @@ static void ipa_cmd_ip_packet_init_add(struct gsi_trans *trans, u8 endpoint_id)
 	union ipa_cmd_payload *cmd_payload;
 	dma_addr_t payload_addr;
 
-	/* assert(endpoint_id <
-		  field_max(IPA_PACKET_INIT_DEST_ENDPOINT_FMASK)); */
-
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_init;
 
@@ -557,8 +558,9 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset, u16 size,
 	u16 flags;
 
 	/* size and offset must fit in 16 bit fields */
-	/* assert(size > 0 && size <= U16_MAX); */
-	/* assert(offset <= U16_MAX && ipa->mem_offset <= U16_MAX - offset); */
+	WARN_ON(!size);
+	WARN_ON(size > U16_MAX);
+	WARN_ON(offset > U16_MAX || ipa->mem_offset > U16_MAX - offset);
 
 	offset += ipa->mem_offset;
 
@@ -596,8 +598,6 @@ static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans)
 	struct ipa_cmd_ip_packet_tag_status *payload;
 	union ipa_cmd_payload *cmd_payload;
 	dma_addr_t payload_addr;
-
-	/* assert(tag <= field_max(IP_PACKET_TAG_STATUS_TAG_FMASK)); */
 
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_tag_status;
