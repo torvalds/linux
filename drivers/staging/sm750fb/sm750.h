@@ -123,7 +123,7 @@ struct lynx_cursor {
 	int size;
 	/* hardware limitation */
 	int maxW;
-	int maxH;
+	int max_h;
 	/* base virtual address and offset  of cursor image */
 	char __iomem *vstart;
 	int offset;
