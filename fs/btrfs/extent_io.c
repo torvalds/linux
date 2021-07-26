@@ -2789,8 +2789,14 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	btrfs_writepage_endio_finish_ordered(inode, page, start, end, uptodate);
 
 	if (!uptodate) {
-		ClearPageUptodate(page);
-		SetPageError(page);
+		const struct btrfs_fs_info *fs_info = inode->root->fs_info;
+		u32 len;
+
+		ASSERT(end + 1 - start <= U32_MAX);
+		len = end + 1 - start;
+
+		btrfs_page_clear_uptodate(fs_info, page, start, len);
+		btrfs_page_set_error(fs_info, page, start, len);
 		ret = err < 0 ? err : -EIO;
 		mapping_set_error(page->mapping, ret);
 	}
@@ -3793,7 +3799,8 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		ret = btrfs_run_delalloc_range(inode, page, delalloc_start,
 				delalloc_end, &page_started, nr_written, wbc);
 		if (ret) {
-			SetPageError(page);
+			btrfs_page_set_error(inode->root->fs_info, page,
+					     page_offset(page), PAGE_SIZE);
 			/*
 			 * btrfs_run_delalloc_range should return < 0 for error
 			 * but just in case, we use > 0 here meaning the IO is
@@ -4067,7 +4074,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	WARN_ON(!PageLocked(page));
 
-	ClearPageError(page);
+	btrfs_page_clear_error(btrfs_sb(inode->i_sb), page,
+			       page_offset(page), PAGE_SIZE);
 
 	pg_offset = offset_in_page(i_size);
 	if (page->index > end_index ||
@@ -4108,10 +4116,39 @@ done:
 		set_page_writeback(page);
 		end_page_writeback(page);
 	}
-	if (PageError(page)) {
-		ret = ret < 0 ? ret : -EIO;
+	/*
+	 * Here we used to have a check for PageError() and then set @ret and
+	 * call end_extent_writepage().
+	 *
+	 * But in fact setting @ret here will cause different error paths
+	 * between subpage and regular sectorsize.
+	 *
+	 * For regular page size, we never submit current page, but only add
+	 * current page to current bio.
+	 * The bio submission can only happen in next page.
+	 * Thus if we hit the PageError() branch, @ret is already set to
+	 * non-zero value and will not get updated for regular sectorsize.
+	 *
+	 * But for subpage case, it's possible we submit part of current page,
+	 * thus can get PageError() set by submitted bio of the same page,
+	 * while our @ret is still 0.
+	 *
+	 * So here we unify the behavior and don't set @ret.
+	 * Error can still be properly passed to higher layer as page will
+	 * be set error, here we just don't handle the IO failure.
+	 *
+	 * NOTE: This is just a hotfix for subpage.
+	 * The root fix will be properly ending ordered extent when we hit
+	 * an error during writeback.
+	 *
+	 * But that needs a bigger refactoring, as we not only need to grab the
+	 * submitted OE, but also need to know exactly at which bytenr we hit
+	 * the error.
+	 * Currently the full page based __extent_writepage_io() is not
+	 * capable of that.
+	 */
+	if (PageError(page))
 		end_extent_writepage(page, ret, start, page_end);
-	}
 	unlock_page(page);
 	ASSERT(ret <= 0);
 	return ret;
