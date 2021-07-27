@@ -10077,7 +10077,7 @@ static int btrfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	if (err)
 		goto out_unlock;
 
-	inode = btrfs_new_inode(trans, root, &init_user_ns, dir,
+	inode = btrfs_new_inode(trans, root, mnt_userns, dir,
 				dentry->d_name.name, dentry->d_name.len,
 				btrfs_ino(BTRFS_I(dir)), objectid,
 				S_IFLNK | S_IRWXUGO, &index);
