@@ -140,17 +140,6 @@ static inline void extent_changeset_free(struct extent_changeset *changeset)
 	kfree(changeset);
 }
 
-static inline void extent_set_compress_type(unsigned long *bio_flags,
-					    int compress_type)
-{
-	*bio_flags = compress_type;
-}
-
-static inline int extent_compress_type(unsigned long bio_flags)
-{
-	return bio_flags;
-}
-
 struct extent_map_tree;
 
 typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,

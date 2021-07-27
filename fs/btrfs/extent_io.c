@@ -2562,7 +2562,7 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	logical = em->block_start + logical;
 	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		logical = em->block_start;
-		extent_set_compress_type(&failrec->bio_flags, em->compress_type);
+		failrec->bio_flags = em->compress_type;
 	}
 
 	btrfs_debug(fs_info,
@@ -3681,10 +3681,8 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		BUG_ON(extent_map_end(em) <= cur);
 		BUG_ON(end < cur);
 
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-			extent_set_compress_type(&this_bio_flag,
-						 em->compress_type);
-		}
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+			this_bio_flag = em->compress_type;
 
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
 		cur_end = min(extent_map_end(em) - 1, end);
