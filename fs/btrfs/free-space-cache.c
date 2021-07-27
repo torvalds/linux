@@ -344,19 +344,13 @@ fail:
 
 static void readahead_cache(struct inode *inode)
 {
-	struct file_ra_state *ra;
+	struct file_ra_state ra;
 	unsigned long last_index;
 
-	ra = kzalloc(sizeof(*ra), GFP_NOFS);
-	if (!ra)
-		return;
-
-	file_ra_state_init(ra, inode->i_mapping);
+	file_ra_state_init(&ra, inode->i_mapping);
 	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 
-	page_cache_sync_readahead(inode->i_mapping, ra, NULL, 0, last_index);
-
-	kfree(ra);
+	page_cache_sync_readahead(inode->i_mapping, &ra, NULL, 0, last_index);
 }
 
 static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
