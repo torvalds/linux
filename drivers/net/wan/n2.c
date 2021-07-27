@@ -227,6 +227,18 @@ static int n2_close(struct net_device *dev)
 	return 0;
 }
 
+static int n2_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			     void __user *data, int cmd)
+{
+#ifdef DEBUG_RINGS
+	if (cmd == SIOCDEVPRIVATE) {
+		sca_dump_rings(dev);
+		return 0;
+	}
+#endif
+	return -EOPNOTSUPP;
+}
+
 static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	const size_t size = sizeof(sync_serial_settings);
@@ -234,12 +246,6 @@ static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
-	if (cmd == SIOCDEVPRIVATE) {
-		sca_dump_rings(dev);
-		return 0;
-	}
-#endif
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
@@ -312,6 +318,7 @@ static const struct net_device_ops n2_ops = {
 	.ndo_stop       = n2_close,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = n2_ioctl,
+	.ndo_siocdevprivate = n2_siocdevprivate,
 };
 
 static int __init n2_run(unsigned long io, unsigned long irq,

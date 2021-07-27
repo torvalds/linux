@@ -174,6 +174,18 @@ static int pc300_close(struct net_device *dev)
 	return 0;
 }
 
+static int pc300_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				void __user *data, int cmd)
+{
+#ifdef DEBUG_RINGS
+	if (cmd == SIOCDEVPRIVATE) {
+		sca_dump_rings(dev);
+		return 0;
+	}
+#endif
+	return -EOPNOTSUPP;
+}
+
 static int pc300_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	const size_t size = sizeof(sync_serial_settings);
@@ -182,12 +194,6 @@ static int pc300_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int new_type;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
-	if (cmd == SIOCDEVPRIVATE) {
-		sca_dump_rings(dev);
-		return 0;
-	}
-#endif
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
@@ -273,6 +279,7 @@ static const struct net_device_ops pc300_ops = {
 	.ndo_stop       = pc300_close,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = pc300_ioctl,
+	.ndo_siocdevprivate = pc300_siocdevprivate,
 };
 
 static int pc300_pci_init_one(struct pci_dev *pdev,

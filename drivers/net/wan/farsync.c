@@ -1909,7 +1909,7 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 }
 
 static int
-fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+fst_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd)
 {
 	struct fst_card_info *card;
 	struct fst_port_info *port;
@@ -1918,7 +1918,7 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	unsigned long flags;
 	void *buf;
 
-	dbg(DBG_IOCTL, "ioctl: %x, %p\n", cmd, ifr->ifr_data);
+	dbg(DBG_IOCTL, "ioctl: %x, %p\n", cmd, data);
 
 	port = dev_to_port(dev);
 	card = port->card;
@@ -1942,11 +1942,10 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		/* First copy in the header with the length and offset of data
 		 * to write
 		 */
-		if (!ifr->ifr_data)
+		if (!data)
 			return -EINVAL;
 
-		if (copy_from_user(&wrthdr, ifr->ifr_data,
-				   sizeof(struct fstioc_write)))
+		if (copy_from_user(&wrthdr, data, sizeof(struct fstioc_write)))
 			return -EFAULT;
 
 		/* Sanity check the parameters. We don't support partial writes
@@ -1958,7 +1957,7 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		/* Now copy the data to the card. */
 
-		buf = memdup_user(ifr->ifr_data + sizeof(struct fstioc_write),
+		buf = memdup_user(data + sizeof(struct fstioc_write),
 				  wrthdr.size);
 		if (IS_ERR(buf))
 			return PTR_ERR(buf);
@@ -1991,12 +1990,12 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			}
 		}
 
-		if (!ifr->ifr_data)
+		if (!data)
 			return -EINVAL;
 
 		gather_conf_info(card, port, &info);
 
-		if (copy_to_user(ifr->ifr_data, &info, sizeof(info)))
+		if (copy_to_user(data, &info, sizeof(info)))
 			return -EFAULT;
 
 		return 0;
@@ -2011,11 +2010,30 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			       card->card_no, card->state);
 			return -EIO;
 		}
-		if (copy_from_user(&info, ifr->ifr_data, sizeof(info)))
+		if (copy_from_user(&info, data, sizeof(info)))
 			return -EFAULT;
 
 		return set_conf_from_info(card, port, &info);
+	default:
+		return -EINVAL;
+	}
+}
 
+static int
+fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct fst_card_info *card;
+	struct fst_port_info *port;
+
+	dbg(DBG_IOCTL, "ioctl: %x, %x\n", cmd, ifr->ifr_settings.type);
+
+	port = dev_to_port(dev);
+	card = port->card;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	switch (cmd) {
 	case SIOCWANDEV:
 		switch (ifr->ifr_settings.type) {
 		case IF_GET_IFACE:
@@ -2310,7 +2328,8 @@ static const struct net_device_ops fst_ops = {
 	.ndo_open       = fst_open,
 	.ndo_stop       = fst_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = fst_ioctl,
+	.ndo_do_ioctl	= fst_ioctl,
+	.ndo_siocdevprivate = fst_siocdevprivate,
 	.ndo_tx_timeout = fst_tx_timeout,
 };
 

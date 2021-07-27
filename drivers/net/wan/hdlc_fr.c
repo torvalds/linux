@@ -362,6 +362,9 @@ static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct pvc_device *pvc = dev->ml_priv;
 	fr_proto_pvc_info info;
 
+	if (cmd != SIOCWANDEV)
+		return -EOPNOTSUPP;
+
 	if (ifr->ifr_settings.type == IF_GET_PROTO) {
 		if (dev->type == ARPHRD_ETHER)
 			ifr->ifr_settings.type = IF_PROTO_FR_ETH_PVC;
