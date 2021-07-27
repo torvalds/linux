@@ -81,8 +81,7 @@ static void guc_policies_init(struct guc_policies *policies)
 {
 	policies->dpc_promote_time = GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US;
 	policies->max_num_work_items = GLOBAL_POLICY_MAX_NUM_WI;
-	/* Disable automatic resets as not yet supported. */
-	policies->global_flags = GLOBAL_POLICY_DISABLE_ENGINE_RESET;
+	policies->global_flags = 0;
 	policies->is_valid = 1;
 }
 
