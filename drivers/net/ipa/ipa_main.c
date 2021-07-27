@@ -194,6 +194,9 @@ static void ipa_teardown(struct ipa *ipa)
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
 
+	/* We're going to tear everything down, as if setup never completed */
+	ipa->setup_complete = false;
+
 	ipa_qmi_teardown(ipa);
 	ipa_endpoint_default_route_clear(ipa);
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
@@ -770,9 +773,12 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_table_exit;
 
+	/* The clock needs to be active for config and setup */
+	ipa_clock_get(ipa);
+
 	ret = ipa_config(ipa, data);
 	if (ret)
-		goto err_modem_exit;
+		goto err_clock_put;	/* Error */
 
 	dev_info(dev, "IPA driver initialized");
 
@@ -781,7 +787,7 @@ static int ipa_probe(struct platform_device *pdev)
 	 * we're done here.
 	 */
 	if (modem_init)
-		return 0;
+		goto out_clock_put;	/* Done; no error */
 
 	/* Otherwise we need to load the firmware and have Trust Zone validate
 	 * and install it.  If that succeeds we can proceed with setup.
@@ -794,11 +800,15 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_deconfig;
 
+out_clock_put:
+	ipa_clock_put(ipa);
+
 	return 0;
 
 err_deconfig:
 	ipa_deconfig(ipa);
-err_modem_exit:
+err_clock_put:
+	ipa_clock_put(ipa);
 	ipa_modem_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
@@ -824,6 +834,8 @@ static int ipa_remove(struct platform_device *pdev)
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
+	ipa_clock_get(ipa);
+
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
 		/* If starting or stopping is in progress, try once more */
@@ -838,6 +850,9 @@ static int ipa_remove(struct platform_device *pdev)
 	}
 
 	ipa_deconfig(ipa);
+
+	ipa_clock_put(ipa);
+
 	ipa_modem_exit(ipa);
 	ipa_table_exit(ipa);
 	ipa_endpoint_exit(ipa);
@@ -873,13 +888,11 @@ static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
 
-	/* When a suspended RX endpoint has a packet ready to receive, we
-	 * get an IPA SUSPEND interrupt.  We trigger a system resume in
-	 * that case, but only on the first such interrupt since suspend.
-	 */
-	__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
-
-	ipa_endpoint_suspend(ipa);
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
+		ipa_endpoint_suspend(ipa);
+	}
 
 	ipa_clock_put(ipa);
 
@@ -905,7 +918,9 @@ static int ipa_resume(struct device *dev)
 	 */
 	ipa_clock_get(ipa);
 
-	ipa_endpoint_resume(ipa);
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete)
+		ipa_endpoint_resume(ipa);
 
 	return 0;
 }

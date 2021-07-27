@@ -156,11 +156,16 @@ static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 	if (!smp2p->disabled) {
 		int ret;
 
+		/* The clock needs to be active for setup */
+		ipa_clock_get(smp2p->ipa);
+
 		ret = ipa_setup(smp2p->ipa);
 		if (ret)
 			dev_err(&smp2p->ipa->pdev->dev,
 				"error %d from ipa_setup()\n", ret);
 		smp2p->disabled = true;
+
+		ipa_clock_put(smp2p->ipa);
 	}
 
 	mutex_unlock(&smp2p->mutex);
