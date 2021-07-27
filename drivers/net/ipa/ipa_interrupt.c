@@ -116,26 +116,11 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 {
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
-	u32 offset;
-	u32 mask;
 
 	ipa_clock_get(ipa);
 
-	offset = ipa_reg_irq_stts_offset(ipa->version);
-	mask = ioread32(ipa->reg_virt + offset);
-	if (mask & interrupt->enabled) {
-		ipa_interrupt_process_all(interrupt);
-		goto out_clock_put;
-	}
+	ipa_interrupt_process_all(interrupt);
 
-	/* Nothing in the mask was supposed to cause an interrupt */
-	offset = ipa_reg_irq_clr_offset(ipa->version);
-	iowrite32(mask, ipa->reg_virt + offset);
-
-	dev_err(&ipa->pdev->dev, "%s: unexpected interrupt, mask 0x%08x\n",
-		__func__, mask);
-
-out_clock_put:
 	ipa_clock_put(ipa);
 
 	return IRQ_HANDLED;
