@@ -315,7 +315,8 @@ intermediate links as required.
 
 Note: ``cti_sys0`` appears in two of the connections lists above.
 CTIs can connect to multiple devices and are arranged in a star topology
-via the CTM. See (:doc:`coresight-ect`) [#fourth]_ for further details.
+via the CTM. See (Documentation/trace/coresight/coresight-ect.rst)
+[#fourth]_ for further details.
 Looking at this device we see 4 connections::
 
   linaro-developer:~# ls -l /sys/bus/coresight/devices/cti_sys0/connections
@@ -606,7 +607,8 @@ interface provided for that purpose by the generic STM API::
     crw-------    1 root     root       10,  61 Jan  3 18:11 /dev/stm0
     root@genericarmv8:~#
 
-Details on how to use the generic STM API can be found here:- :doc:`../stm` [#second]_.
+Details on how to use the generic STM API can be found here:
+- Documentation/trace/stm.rst [#second]_.
 
 The CTI & CTM Modules
 ---------------------
@@ -616,7 +618,7 @@ individual CTIs and components, and can propagate these between all CTIs via
 channels on the CTM (Cross Trigger Matrix).
 
 A separate documentation file is provided to explain the use of these devices.
-(:doc:`coresight-ect`) [#fourth]_.
+(Documentation/trace/coresight/coresight-ect.rst) [#fourth]_.
 
 
 .. [#first] Documentation/ABI/testing/sysfs-bus-coresight-devices-stm

@@ -1117,7 +1117,7 @@ u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 	return s;
 }
 
-void frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
+void FPU_frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
 {
 	int i, regnr;
 	u_char __user *s = fldenv(addr_modes, data_address);

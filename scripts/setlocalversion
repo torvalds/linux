@@ -59,32 +59,19 @@ scm_version()
 			fi
 			# If we are past a tagged commit (like
 			# "v2.6.30-rc5-302-g72357d5"), we pretty print it.
-			#
-			# Ensure the abbreviated sha1 has exactly 12
-			# hex characters, to make the output
-			# independent of git version, local
-			# core.abbrev settings and/or total number of
-			# objects in the current repository - passing
-			# --abbrev=12 ensures a minimum of 12, and the
-			# awk substr() then picks the 'g' and first 12
-			# hex chars.
-			if atag="$(git describe --abbrev=12 2>/dev/null)"; then
-				echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),substr($(NF),0,13))}'
-
-			# If we don't have a tag at all we print -g{commitish},
-			# again using exactly 12 hex chars.
-			else
-				head="$(echo $head | cut -c1-12)"
-				printf '%s%s' -g $head
+			if atag="$(git describe 2>/dev/null)"; then
+				echo "$atag" | awk -F- '{printf("-%05d", $(NF-1))}'
 			fi
-		fi
 
-		# Is this git on svn?
-		if git config --get svn-remote.svn.url >/dev/null; then
-			printf -- '-svn%s' "$(git svn find-rev $head)"
+			# Add -g and exactly 12 hex chars.
+			printf '%s%s' -g "$(echo $head | cut -c1-12)"
 		fi
 
 		# Check for uncommitted changes.
+		# This script must avoid any write attempt to the source tree,
+		# which might be read-only.
+		# You cannot use 'git describe --dirty' because it tries to
+		# create .git/index.lock .
 		# First, with git-status, but --no-optional-locks is only
 		# supported in git >= 2.14, so fall back to git-diff-index if
 		# it fails. Note that git-diff-index does not refresh the
@@ -93,45 +80,9 @@ scm_version()
 		if {
 			git --no-optional-locks status -uno --porcelain 2>/dev/null ||
 			git diff-index --name-only HEAD
-		} | grep -qvE '^(.. )?scripts/package'; then
+		} | read dummy; then
 			printf '%s' -dirty
 		fi
-
-		# All done with git
-		return
-	fi
-
-	# Check for mercurial and a mercurial repo.
-	if test -d .hg && hgid=$(hg id 2>/dev/null); then
-		# Do we have an tagged version?  If so, latesttagdistance == 1
-		if [ "$(hg log -r . --template '{latesttagdistance}')" = "1" ]; then
-			id=$(hg log -r . --template '{latesttag}')
-			printf '%s%s' -hg "$id"
-		else
-			tag=$(printf '%s' "$hgid" | cut -d' ' -f2)
-			if [ -z "$tag" -o "$tag" = tip ]; then
-				id=$(printf '%s' "$hgid" | sed 's/[+ ].*//')
-				printf '%s%s' -hg "$id"
-			fi
-		fi
-
-		# Are there uncommitted changes?
-		# These are represented by + after the changeset id.
-		case "$hgid" in
-			*+|*+\ *) printf '%s' -dirty ;;
-		esac
-
-		# All done with mercurial
-		return
-	fi
-
-	# Check for svn and a svn repo.
-	if rev=$(LC_ALL=C svn info 2>/dev/null | grep '^Last Changed Rev'); then
-		rev=$(echo $rev | awk '{print $NF}')
-		printf -- '-svn%s' "$rev"
-
-		# All done with svn
-		return
 	fi
 }
 
@@ -180,15 +131,13 @@ res="${res}${CONFIG_LOCALVERSION}${LOCALVERSION}"
 if test "$CONFIG_LOCALVERSION_AUTO" = "y"; then
 	# full scm version string
 	res="$res$(scm_version)"
-else
+elif [ -z "${LOCALVERSION}" ]; then
 	# append a plus sign if the repository is not in a clean
 	# annotated or signed tagged state (as git describe only
 	# looks at signed or annotated tags - git tag -a/-s) and
 	# LOCALVERSION= is not specified
-	if test "${LOCALVERSION+set}" != "set"; then
-		scm=$(scm_version --short)
-		res="$res${scm:++}"
-	fi
+	scm=$(scm_version --short)
+	res="$res${scm:++}"
 fi
 
 echo "$res"

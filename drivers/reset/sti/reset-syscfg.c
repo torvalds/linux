@@ -153,7 +153,7 @@ static int syscfg_reset_controller_register(struct device *dev,
 	if (!rc->channels)
 		return -ENOMEM;
 
-	rc->rst.ops = &syscfg_reset_ops,
+	rc->rst.ops = &syscfg_reset_ops;
 	rc->rst.of_node = dev->of_node;
 	rc->rst.nr_resets = data->nr_channels;
 	rc->active_low = data->active_low;

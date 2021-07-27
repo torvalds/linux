@@ -135,12 +135,12 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 				ret += perf_gtk__get_percent(s + ret,
 							     sizeof(s) - ret,
 							     sym, pos,
-							     evsel->idx + i);
+							     evsel->core.idx + i);
 				ret += scnprintf(s + ret, sizeof(s) - ret, " ");
 			}
 		} else {
 			ret = perf_gtk__get_percent(s, sizeof(s), sym, pos,
-						    evsel->idx);
+						    evsel->core.idx);
 		}
 
 		if (ret)

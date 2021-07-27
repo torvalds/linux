@@ -4,8 +4,9 @@
 # subsystems should select the appropriate symbols.
 
 config REGMAP
-	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ || REGMAP_SOUNDWIRE || REGMAP_SOUNDWIRE_MBQ || REGMAP_SCCB || REGMAP_I3C || REGMAP_SPI_AVMM)
+	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ || REGMAP_SOUNDWIRE || REGMAP_SOUNDWIRE_MBQ || REGMAP_SCCB || REGMAP_I3C || REGMAP_SPI_AVMM || REGMAP_MDIO)
 	select IRQ_DOMAIN if REGMAP_IRQ
+	select MDIO_BUS if REGMAP_MDIO
 	bool
 
 config REGCACHE_COMPRESSED
@@ -35,6 +36,9 @@ config REGMAP_SPMI
 config REGMAP_W1
 	tristate
 	depends on W1
+
+config REGMAP_MDIO
+	tristate
 
 config REGMAP_MMIO
 	tristate

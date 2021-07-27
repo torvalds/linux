@@ -122,17 +122,7 @@ static struct rpmsg_driver imx_audio_rpmsg_driver = {
 	.remove		= imx_audio_rpmsg_remove,
 };
 
-static int __init imx_audio_rpmsg_init(void)
-{
-	return register_rpmsg_driver(&imx_audio_rpmsg_driver);
-}
-
-static void __exit imx_audio_rpmsg_exit(void)
-{
-	unregister_rpmsg_driver(&imx_audio_rpmsg_driver);
-}
-module_init(imx_audio_rpmsg_init);
-module_exit(imx_audio_rpmsg_exit);
+module_rpmsg_driver(imx_audio_rpmsg_driver);
 
 MODULE_DESCRIPTION("Freescale SoC Audio RPMSG interface");
 MODULE_AUTHOR("Shengjiu Wang <shengjiu.wang@nxp.com>");

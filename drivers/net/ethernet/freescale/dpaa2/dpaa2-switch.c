@@ -1625,7 +1625,7 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 	return 0;
 }
 
-static int dpaa2_switch_port_attr_set(struct net_device *netdev,
+static int dpaa2_switch_port_attr_set(struct net_device *netdev, const void *ctx,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
 {

@@ -778,7 +778,7 @@ static struct attribute *base_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group base_attr_group = {
+static const struct attribute_group base_attr_group = {
 	.attrs = base_attrs
 };
 
@@ -823,7 +823,7 @@ static struct attribute *hubless_base_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group hubless_base_attr_group = {
+static const struct attribute_group hubless_base_attr_group = {
 	.attrs = hubless_base_attrs
 };
 

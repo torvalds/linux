@@ -16,10 +16,10 @@ static void write_pm_imr(struct intel_gt *gt)
 	u32 mask = gt->pm_imr;
 	i915_reg_t reg;
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (GRAPHICS_VER(i915) >= 11) {
 		reg = GEN11_GPM_WGBOXPERF_INTR_MASK;
 		mask <<= 16; /* pm is in upper half */
-	} else if (INTEL_GEN(i915) >= 8) {
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		reg = GEN8_GT_IMR(2);
 	} else {
 		reg = GEN6_PMIMR;
@@ -61,7 +61,7 @@ void gen6_gt_pm_mask_irq(struct intel_gt *gt, u32 mask)
 void gen6_gt_pm_reset_iir(struct intel_gt *gt, u32 reset_mask)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	i915_reg_t reg = INTEL_GEN(gt->i915) >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
+	i915_reg_t reg = GRAPHICS_VER(gt->i915) >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
 
 	lockdep_assert_held(&gt->irq_lock);
 
@@ -77,10 +77,10 @@ static void write_pm_ier(struct intel_gt *gt)
 	u32 mask = gt->pm_ier;
 	i915_reg_t reg;
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (GRAPHICS_VER(i915) >= 11) {
 		reg = GEN11_GPM_WGBOXPERF_INTR_ENABLE;
 		mask <<= 16; /* pm is in upper half */
-	} else if (INTEL_GEN(i915) >= 8) {
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		reg = GEN8_GT_IER(2);
 	} else {
 		reg = GEN6_PMIER;

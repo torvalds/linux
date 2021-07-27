@@ -36,8 +36,7 @@
 #include <linux/slab.h>
 #include <net/net_namespace.h>
 
-
-static const char* version = "HDLC support module revision 1.22";
+static const char *version = "HDLC support module revision 1.22";
 
 #undef DEBUG_LINK
 
@@ -74,24 +73,23 @@ netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return hdlc->xmit(skb, dev); /* call hardware driver directly */
 }
+EXPORT_SYMBOL(hdlc_start_xmit);
 
 static inline void hdlc_proto_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+
 	if (hdlc->proto->start)
 		hdlc->proto->start(dev);
 }
 
-
-
 static inline void hdlc_proto_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+
 	if (hdlc->proto->stop)
 		hdlc->proto->stop(dev);
 }
-
-
 
 static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 			     void *ptr)
@@ -141,8 +139,6 @@ carrier_exit:
 	return NOTIFY_DONE;
 }
 
-
-
 /* Must be called by hardware driver when HDLC device is being opened */
 int hdlc_open(struct net_device *dev)
 {
@@ -152,11 +148,12 @@ int hdlc_open(struct net_device *dev)
 	       hdlc->carrier, hdlc->open);
 #endif
 
-	if (hdlc->proto == NULL)
+	if (!hdlc->proto)
 		return -ENOSYS;	/* no protocol attached */
 
 	if (hdlc->proto->open) {
 		int result = hdlc->proto->open(dev);
+
 		if (result)
 			return result;
 	}
@@ -166,16 +163,16 @@ int hdlc_open(struct net_device *dev)
 	if (hdlc->carrier) {
 		netdev_info(dev, "Carrier detected\n");
 		hdlc_proto_start(dev);
-	} else
+	} else {
 		netdev_info(dev, "No carrier\n");
+	}
 
 	hdlc->open = 1;
 
 	spin_unlock_irq(&hdlc->state_lock);
 	return 0;
 }
-
-
+EXPORT_SYMBOL(hdlc_open);
 
 /* Must be called by hardware driver when HDLC device is being closed */
 void hdlc_close(struct net_device *dev)
@@ -197,8 +194,7 @@ void hdlc_close(struct net_device *dev)
 	if (hdlc->proto->close)
 		hdlc->proto->close(dev);
 }
-
-
+EXPORT_SYMBOL(hdlc_close);
 
 int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -217,12 +213,14 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	/* Not handled by currently attached protocol (if any) */
 
 	while (proto) {
-		if ((result = proto->ioctl(dev, ifr)) != -EINVAL)
+		result = proto->ioctl(dev, ifr);
+		if (result != -EINVAL)
 			return result;
 		proto = proto->next;
 	}
 	return -EINVAL;
 }
+EXPORT_SYMBOL(hdlc_ioctl);
 
 static const struct header_ops hdlc_null_ops;
 
@@ -256,12 +254,14 @@ static void hdlc_setup(struct net_device *dev)
 struct net_device *alloc_hdlcdev(void *priv)
 {
 	struct net_device *dev;
+
 	dev = alloc_netdev(sizeof(struct hdlc_device), "hdlc%d",
 			   NET_NAME_UNKNOWN, hdlc_setup);
 	if (dev)
 		dev_to_hdlc(dev)->priv = priv;
 	return dev;
 }
+EXPORT_SYMBOL(alloc_hdlcdev);
 
 void unregister_hdlc_device(struct net_device *dev)
 {
@@ -270,8 +270,7 @@ void unregister_hdlc_device(struct net_device *dev)
 	unregister_netdevice(dev);
 	rtnl_unlock();
 }
-
-
+EXPORT_SYMBOL(unregister_hdlc_device);
 
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size)
@@ -287,7 +286,7 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 
 	if (size) {
 		dev_to_hdlc(dev)->state = kmalloc(size, GFP_KERNEL);
-		if (dev_to_hdlc(dev)->state == NULL) {
+		if (!dev_to_hdlc(dev)->state) {
 			module_put(proto->module);
 			return -ENOBUFS;
 		}
@@ -296,7 +295,7 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 
 	return 0;
 }
-
+EXPORT_SYMBOL(attach_hdlc_protocol);
 
 int detach_hdlc_protocol(struct net_device *dev)
 {
@@ -322,7 +321,7 @@ int detach_hdlc_protocol(struct net_device *dev)
 
 	return 0;
 }
-
+EXPORT_SYMBOL(detach_hdlc_protocol);
 
 void register_hdlc_protocol(struct hdlc_proto *proto)
 {
@@ -331,7 +330,7 @@ void register_hdlc_protocol(struct hdlc_proto *proto)
 	first_proto = proto;
 	rtnl_unlock();
 }
-
+EXPORT_SYMBOL(register_hdlc_protocol);
 
 void unregister_hdlc_protocol(struct hdlc_proto *proto)
 {
@@ -346,54 +345,38 @@ void unregister_hdlc_protocol(struct hdlc_proto *proto)
 	*p = proto->next;
 	rtnl_unlock();
 }
-
-
+EXPORT_SYMBOL(unregister_hdlc_protocol);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("HDLC support module");
 MODULE_LICENSE("GPL v2");
-
-EXPORT_SYMBOL(hdlc_start_xmit);
-EXPORT_SYMBOL(hdlc_open);
-EXPORT_SYMBOL(hdlc_close);
-EXPORT_SYMBOL(hdlc_ioctl);
-EXPORT_SYMBOL(alloc_hdlcdev);
-EXPORT_SYMBOL(unregister_hdlc_device);
-EXPORT_SYMBOL(register_hdlc_protocol);
-EXPORT_SYMBOL(unregister_hdlc_protocol);
-EXPORT_SYMBOL(attach_hdlc_protocol);
-EXPORT_SYMBOL(detach_hdlc_protocol);
 
 static struct packet_type hdlc_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_HDLC),
 	.func = hdlc_rcv,
 };
 
-
 static struct notifier_block hdlc_notifier = {
 	.notifier_call = hdlc_device_event,
 };
-
 
 static int __init hdlc_module_init(void)
 {
 	int result;
 
 	pr_info("%s\n", version);
-	if ((result = register_netdevice_notifier(&hdlc_notifier)) != 0)
+	result = register_netdevice_notifier(&hdlc_notifier);
+	if (result)
 		return result;
 	dev_add_pack(&hdlc_packet_type);
 	return 0;
 }
-
-
 
 static void __exit hdlc_module_exit(void)
 {
 	dev_remove_pack(&hdlc_packet_type);
 	unregister_netdevice_notifier(&hdlc_notifier);
 }
-
 
 module_init(hdlc_module_init);
 module_exit(hdlc_module_exit);

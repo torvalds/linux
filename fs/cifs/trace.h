@@ -12,6 +12,11 @@
 
 #include <linux/tracepoint.h>
 
+/*
+ * Please use this 3-part article as a reference for writing new tracepoints:
+ * https://lwn.net/Articles/379903/
+ */
+
 /* For logging errors in read or write */
 DECLARE_EVENT_CLASS(smb3_rw_err_class,
 	TP_PROTO(unsigned int xid,
@@ -529,16 +534,16 @@ DECLARE_EVENT_CLASS(smb3_exit_err_class,
 	TP_ARGS(xid, func_name, rc),
 	TP_STRUCT__entry(
 		__field(unsigned int, xid)
-		__field(const char *, func_name)
+		__string(func_name, func_name)
 		__field(int, rc)
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
-		__entry->func_name = func_name;
+		__assign_str(func_name, func_name);
 		__entry->rc = rc;
 	),
 	TP_printk("\t%s: xid=%u rc=%d",
-		__entry->func_name, __entry->xid, __entry->rc)
+		__get_str(func_name), __entry->xid, __entry->rc)
 )
 
 #define DEFINE_SMB3_EXIT_ERR_EVENT(name)          \
@@ -583,14 +588,14 @@ DECLARE_EVENT_CLASS(smb3_enter_exit_class,
 	TP_ARGS(xid, func_name),
 	TP_STRUCT__entry(
 		__field(unsigned int, xid)
-		__field(const char *, func_name)
+		__string(func_name, func_name)
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
-		__entry->func_name = func_name;
+		__assign_str(func_name, func_name);
 	),
 	TP_printk("\t%s: xid=%u",
-		__entry->func_name, __entry->xid)
+		__get_str(func_name), __entry->xid)
 )
 
 #define DEFINE_SMB3_ENTER_EXIT_EVENT(name)        \
@@ -857,16 +862,16 @@ DECLARE_EVENT_CLASS(smb3_reconnect_class,
 	TP_STRUCT__entry(
 		__field(__u64, currmid)
 		__field(__u64, conn_id)
-		__field(char *, hostname)
+		__string(hostname, hostname)
 	),
 	TP_fast_assign(
 		__entry->currmid = currmid;
 		__entry->conn_id = conn_id;
-		__entry->hostname = hostname;
+		__assign_str(hostname, hostname);
 	),
 	TP_printk("conn_id=0x%llx server=%s current_mid=%llu",
 		__entry->conn_id,
-		__entry->hostname,
+		__get_str(hostname),
 		__entry->currmid)
 )
 
@@ -891,7 +896,7 @@ DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_STRUCT__entry(
 		__field(__u64, currmid)
 		__field(__u64, conn_id)
-		__field(char *, hostname)
+		__string(hostname, hostname)
 		__field(int, credits)
 		__field(int, credits_to_add)
 		__field(int, in_flight)
@@ -899,7 +904,7 @@ DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_fast_assign(
 		__entry->currmid = currmid;
 		__entry->conn_id = conn_id;
-		__entry->hostname = hostname;
+		__assign_str(hostname, hostname);
 		__entry->credits = credits;
 		__entry->credits_to_add = credits_to_add;
 		__entry->in_flight = in_flight;
@@ -907,7 +912,7 @@ DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_printk("conn_id=0x%llx server=%s current_mid=%llu "
 			"credits=%d credit_change=%d in_flight=%d",
 		__entry->conn_id,
-		__entry->hostname,
+		__get_str(hostname),
 		__entry->currmid,
 		__entry->credits,
 		__entry->credits_to_add,

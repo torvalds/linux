@@ -359,10 +359,8 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	icu->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(icu->base)) {
-		dev_err(&pdev->dev, "Failed to map icu base address.\n");
+	if (IS_ERR(icu->base))
 		return PTR_ERR(icu->base);
-	}
 
 	/*
 	 * Legacy bindings: ICU is one node with one MSI parent: force manually

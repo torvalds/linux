@@ -5,7 +5,6 @@
 struct cy8ctmg110_pdata
 {
 	int reset_pin;		/* Reset pin is wired to this GPIO (optional) */
-	int irq_pin;		/* IRQ pin is wired to this GPIO */
 };
 
 #endif

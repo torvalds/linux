@@ -19,6 +19,7 @@
 #include <linux/trace_events.h>
 #include <asm/fpu/internal.h>
 
+#include <asm/pkru.h>
 #include <asm/trapnr.h>
 
 #include "x86.h"
@@ -199,9 +200,19 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 	sev->misc_cg = NULL;
 }
 
-static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
+static void sev_decommission(unsigned int handle)
 {
 	struct sev_data_decommission decommission;
+
+	if (!handle)
+		return;
+
+	decommission.handle = handle;
+	sev_guest_decommission(&decommission, NULL);
+}
+
+static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
+{
 	struct sev_data_deactivate deactivate;
 
 	if (!handle)
@@ -214,9 +225,7 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 	sev_guest_deactivate(&deactivate, NULL);
 	up_read(&sev_deactivate_lock);
 
-	/* decommission handle */
-	decommission.handle = handle;
-	sev_guest_decommission(&decommission, NULL);
+	sev_decommission(handle);
 }
 
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -341,8 +350,10 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Bind ASID to this guest */
 	ret = sev_bind_asid(kvm, start.handle, error);
-	if (ret)
+	if (ret) {
+		sev_decommission(start.handle);
 		goto e_free_session;
+	}
 
 	/* return handle to userspace */
 	params.handle = start.handle;
@@ -763,7 +774,7 @@ static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
 }
 
 static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
-				  unsigned long __user dst_uaddr,
+				  void __user *dst_uaddr,
 				  unsigned long dst_paddr,
 				  int size, int *err)
 {
@@ -787,8 +798,7 @@ static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
 
 	if (tpage) {
 		offset = paddr & 15;
-		if (copy_to_user((void __user *)(uintptr_t)dst_uaddr,
-				 page_address(tpage) + offset, size))
+		if (copy_to_user(dst_uaddr, page_address(tpage) + offset, size))
 			ret = -EFAULT;
 	}
 
@@ -800,9 +810,9 @@ e_free:
 }
 
 static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
-				  unsigned long __user vaddr,
+				  void __user *vaddr,
 				  unsigned long dst_paddr,
-				  unsigned long __user dst_vaddr,
+				  void __user *dst_vaddr,
 				  int size, int *error)
 {
 	struct page *src_tpage = NULL;
@@ -810,13 +820,12 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	int ret, len = size;
 
 	/* If source buffer is not aligned then use an intermediate buffer */
-	if (!IS_ALIGNED(vaddr, 16)) {
+	if (!IS_ALIGNED((unsigned long)vaddr, 16)) {
 		src_tpage = alloc_page(GFP_KERNEL);
 		if (!src_tpage)
 			return -ENOMEM;
 
-		if (copy_from_user(page_address(src_tpage),
-				(void __user *)(uintptr_t)vaddr, size)) {
+		if (copy_from_user(page_address(src_tpage), vaddr, size)) {
 			__free_page(src_tpage);
 			return -EFAULT;
 		}
@@ -830,7 +839,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	 *   - copy the source buffer in an intermediate buffer
 	 *   - use the intermediate buffer as source buffer
 	 */
-	if (!IS_ALIGNED(dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
+	if (!IS_ALIGNED((unsigned long)dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
 		int dst_offset;
 
 		dst_tpage = alloc_page(GFP_KERNEL);
@@ -855,7 +864,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 			       page_address(src_tpage), size);
 		else {
 			if (copy_from_user(page_address(dst_tpage) + dst_offset,
-					   (void __user *)(uintptr_t)vaddr, size)) {
+					   vaddr, size)) {
 				ret = -EFAULT;
 				goto e_free;
 			}
@@ -935,15 +944,15 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 		if (dec)
 			ret = __sev_dbg_decrypt_user(kvm,
 						     __sme_page_pa(src_p[0]) + s_off,
-						     dst_vaddr,
+						     (void __user *)dst_vaddr,
 						     __sme_page_pa(dst_p[0]) + d_off,
 						     len, &argp->error);
 		else
 			ret = __sev_dbg_encrypt_user(kvm,
 						     __sme_page_pa(src_p[0]) + s_off,
-						     vaddr,
+						     (void __user *)vaddr,
 						     __sme_page_pa(dst_p[0]) + d_off,
-						     dst_vaddr,
+						     (void __user *)dst_vaddr,
 						     len, &argp->error);
 
 		sev_unpin_memory(kvm, src_p, n);
@@ -1105,10 +1114,9 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_start data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->session_len = data.session_len;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
@@ -1217,10 +1225,9 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_update_data data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->hdr_len = data.hdr_len;
 	params->trans_len = data.trans_len;
@@ -1764,7 +1771,8 @@ e_mirror_unlock:
 e_source_unlock:
 	mutex_unlock(&source_kvm->lock);
 e_source_put:
-	fput(source_kvm_file);
+	if (source_kvm_file)
+		fput(source_kvm_file);
 	return ret;
 }
 
@@ -2198,7 +2206,7 @@ vmgexit_err:
 	return -EINVAL;
 }
 
-static void pre_sev_es_run(struct vcpu_svm *svm)
+void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 {
 	if (!svm->ghcb)
 		return;
@@ -2233,9 +2241,6 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	int asid = sev_get_asid(svm->vcpu.kvm);
-
-	/* Perform any SEV-ES pre-run actions */
-	pre_sev_es_run(svm);
 
 	/* Assign the asid allocated with this SEV guest */
 	svm->asid = asid;

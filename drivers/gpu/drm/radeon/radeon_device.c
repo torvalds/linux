@@ -1098,7 +1098,8 @@ static bool radeon_check_pot_argument(int arg)
 }
 
 /**
- * Determine a sensible default GART size according to ASIC family.
+ * radeon_gart_size_auto - Determine a sensible default GART size
+ *                         according to ASIC family.
  *
  * @family: ASIC family name
  */

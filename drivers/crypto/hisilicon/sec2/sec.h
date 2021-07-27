@@ -13,14 +13,14 @@ struct sec_alg_res {
 	dma_addr_t pbuf_dma;
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
 };
 
 /* Cipher request of SEC private */
 struct sec_cipher_req {
-	struct hisi_acc_hw_sgl *c_in;
-	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
 	u8 *c_ivin;
@@ -33,15 +33,25 @@ struct sec_cipher_req {
 struct sec_aead_req {
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	struct aead_request *aead_req;
 };
 
 /* SEC request of Crypto */
 struct sec_req {
-	struct sec_sqe sec_sqe;
+	union {
+		struct sec_sqe sec_sqe;
+		struct sec_sqe3 sec_sqe3;
+	};
 	struct sec_ctx *ctx;
 	struct sec_qp_ctx *qp_ctx;
 
+	/**
+	 * Common parameter of the SEC request.
+	 */
+	struct hisi_acc_hw_sgl *in;
+	dma_addr_t in_dma;
 	struct sec_cipher_req c_req;
 	struct sec_aead_req aead_req;
 	struct list_head backlog_head;
@@ -81,7 +91,9 @@ struct sec_auth_ctx {
 	u8 a_key_len;
 	u8 mac_len;
 	u8 a_alg;
+	bool fallback;
 	struct crypto_shash *hash_tfm;
+	struct crypto_aead *fallback_aead_tfm;
 };
 
 /* SEC cipher context which cipher's relatives */
@@ -94,6 +106,10 @@ struct sec_cipher_ctx {
 	u8 c_mode;
 	u8 c_alg;
 	u8 c_key_len;
+
+	/* add software support */
+	bool fallback;
+	struct crypto_sync_skcipher *fbtfm;
 };
 
 /* SEC queue context which defines queue's relatives */
@@ -137,6 +153,7 @@ struct sec_ctx {
 	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
+	u8 type_supported;
 	struct device *dev;
 };
 

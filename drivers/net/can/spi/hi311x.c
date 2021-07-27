@@ -871,7 +871,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 		CAN_CTRLMODE_BERR_REPORTING;
 
 	if (of_id)
-		priv->model = (enum hi3110_model)of_id->data;
+		priv->model = (enum hi3110_model)(uintptr_t)of_id->data;
 	else
 		priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;

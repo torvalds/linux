@@ -589,7 +589,7 @@ static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
 
 	st->dready_trig = devm_iio_trigger_alloc(&st->spi->dev, "%s-dev%d",
 						 indio_dev->name,
-						 indio_dev->id);
+						 iio_device_id(indio_dev));
 	if (!st->dready_trig)
 		return -ENOMEM;
 

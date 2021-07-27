@@ -557,7 +557,7 @@ int btrfs_test_extent_map(void)
 		{
 			/*
 			 * Test a chunk with 2 data stripes one of which
-			 * interesects the physical address of the super block
+			 * intersects the physical address of the super block
 			 * is correctly recognised.
 			 */
 			.raid_type = BTRFS_BLOCK_GROUP_RAID1,

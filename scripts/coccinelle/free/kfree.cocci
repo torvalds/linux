@@ -22,9 +22,9 @@ position p1;
 @@
 
 (
-* kfree@p1(E)
+ kfree@p1(E)
 |
-* kfree_sensitive@p1(E)
+ kfree_sensitive@p1(E)
 )
 
 @print expression@
@@ -66,9 +66,9 @@ position ok;
 
 while (1) { ...
 (
-* kfree@ok(E)
+ kfree@ok(E)
 |
-* kfree_sensitive@ok(E)
+ kfree_sensitive@ok(E)
 )
   ... when != break;
       when != goto l;
@@ -84,9 +84,9 @@ position free.p1!=loop.ok,p2!={print.p,sz.p};
 @@
 
 (
-* kfree@p1(E,...)
+ kfree@p1(E,...)
 |
-* kfree_sensitive@p1(E,...)
+ kfree_sensitive@p1(E,...)
 )
 ...
 (

@@ -1,4 +1,4 @@
-This ABI is renamed and moved to a new location /sys/kernel/fadump/registered.¬
+This ABI is renamed and moved to a new location /sys/kernel/fadump/registered.
 
 What:		/sys/kernel/fadump_registered
 Date:		Feb 2012

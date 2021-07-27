@@ -1134,9 +1134,10 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	char name[32];
 
 	snprintf(name, sizeof(name), "pcxhr %d", chip->chip_idx);
-	if ((err = snd_pcm_new(chip->card, name, 0,
-			       chip->nb_streams_play,
-			       chip->nb_streams_capt, &pcm)) < 0) {
+	err = snd_pcm_new(chip->card, name, 0,
+			  chip->nb_streams_play,
+			  chip->nb_streams_capt, &pcm);
+	if (err < 0) {
 		dev_err(chip->card->dev, "cannot create pcm %s\n", name);
 		return err;
 	}
@@ -1202,7 +1203,8 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 			chip->nb_streams_capt = 1;	/* or 1 stereo stream */
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		pcxhr_chip_free(chip);
 		return err;
 	}
@@ -1492,7 +1494,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 	}
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
@@ -1537,7 +1540,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 		mgr->granularity = PCXHR_GRANULARITY;
 
 	/* resource assignment */
-	if ((err = pci_request_regions(pci, card_name)) < 0) {
+	err = pci_request_regions(pci, card_name);
+	if (err < 0) {
 		kfree(mgr);
 		pci_disable_device(pci);
 		return err;
@@ -1608,7 +1612,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 		snprintf(card->longname, sizeof(card->longname),
 			 "%s [PCM #%d]", mgr->name, i);
 
-		if ((err = pcxhr_create(mgr, card, i)) < 0) {
+		err = pcxhr_create(mgr, card, i);
+		if (err < 0) {
 			snd_card_free(card);
 			pcxhr_free(mgr);
 			return err;
@@ -1618,7 +1623,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 			/* init proc interface only for chip0 */
 			pcxhr_proc_init(mgr->chip[i]);
 
-		if ((err = snd_card_register(card)) < 0) {
+		err = snd_card_register(card);
+		if (err < 0) {
 			pcxhr_free(mgr);
 			return err;
 		}

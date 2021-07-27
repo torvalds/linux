@@ -12,7 +12,6 @@ config MLX5_CORE
 	depends on MLXFW || !MLXFW
 	depends on PTP_1588_CLOCK || !PTP_1588_CLOCK
 	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
-	default n
 	help
 	  Core driver for low level functionality of the ConnectX-4 and
 	  Connect-IB cards by Mellanox Technologies.
@@ -36,7 +35,6 @@ config MLX5_CORE_EN
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
 	select PAGE_POOL
 	select DIMLIB
-	default n
 	help
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
 
@@ -78,6 +76,16 @@ config MLX5_ESWITCH
 	  enabled VFs and PF in two available modes:
 	        Legacy SRIOV mode (L2 mac vlan steering based).
 	        Switchdev mode (eswitch offloads).
+
+config MLX5_BRIDGE
+	bool
+	depends on MLX5_ESWITCH && BRIDGE
+	default y
+	help
+	  mlx5 ConnectX offloads support for Ethernet Bridging (BRIDGE).
+	  Enable adding representors of mlx5 uplink and VF ports to Bridge and
+	  offloading rules for traffic between such ports. Supports VLANs (trunk and
+	  access modes).
 
 config MLX5_CLS_ACT
 	bool "MLX5 TC classifier action support"
@@ -131,7 +139,6 @@ config MLX5_CORE_EN_DCB
 config MLX5_CORE_IPOIB
 	bool "Mellanox 5th generation network adapters (connectX series) IPoIB offloads support"
 	depends on MLX5_CORE_EN
-	default n
 	help
 	  MLX5 IPoIB offloads & acceleration support.
 
@@ -139,7 +146,6 @@ config MLX5_FPGA_IPSEC
 	bool "Mellanox Technologies IPsec Innova support"
 	depends on MLX5_CORE
 	depends on MLX5_FPGA
-	default n
 	help
 	Build IPsec support for the Innova family of network cards by Mellanox
 	Technologies. Innova network cards are comprised of a ConnectX chip
@@ -153,7 +159,6 @@ config MLX5_IPSEC
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
 	select MLX5_ACCEL
-	default n
 	help
 	Build IPsec support for the Connect-X family of network cards by Mellanox
 	Technologies.
@@ -166,7 +171,6 @@ config MLX5_EN_IPSEC
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
 	depends on MLX5_FPGA_IPSEC || MLX5_IPSEC
-	default n
 	help
 	  Build support for IPsec cryptography-offload acceleration in the NIC.
 	  Note: Support for hardware with this capability needs to be selected
@@ -179,7 +183,6 @@ config MLX5_FPGA_TLS
 	depends on MLX5_CORE_EN
 	depends on MLX5_FPGA
 	select MLX5_EN_TLS
-	default n
 	help
 	Build TLS support for the Innova family of network cards by Mellanox
 	Technologies. Innova network cards are comprised of a ConnectX chip
@@ -194,7 +197,6 @@ config MLX5_TLS
 	depends on MLX5_CORE_EN
 	select MLX5_ACCEL
 	select MLX5_EN_TLS
-	default n
 	help
 	Build TLS support for the Connect-X family of network cards by Mellanox
 	Technologies.
@@ -217,7 +219,6 @@ config MLX5_SW_STEERING
 config MLX5_SF
 	bool "Mellanox Technologies subfunction device support using auxiliary device"
 	depends on MLX5_CORE && MLX5_CORE_EN
-	default n
 	help
 	Build support for subfuction device in the NIC. A Mellanox subfunction
 	device can support RDMA, netdevice and vdpa device.

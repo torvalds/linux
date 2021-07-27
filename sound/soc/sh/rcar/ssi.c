@@ -11,7 +11,7 @@
 /*
  * you can enable below define if you don't need
  * SSI interrupt status debug message when debugging
- * see rsnd_dbg_irq_status()
+ * see rsnd_print_irq_status()
  *
  * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
@@ -116,8 +116,6 @@ struct rsnd_ssi {
 #define rsnd_ssi_is_run_mods(mod, io) \
 	(rsnd_ssi_run_mods(io) & (1 << rsnd_mod_id(mod)))
 #define rsnd_ssi_can_output_clk(mod) (!__rsnd_ssi_is_pin_sharing(mod))
-
-static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -359,96 +357,6 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
-/* enable busif buffer over/under run interrupt. */
-#define rsnd_ssi_busif_err_irq_enable(mod)  rsnd_ssi_busif_err_irq_ctrl(mod, 1)
-#define rsnd_ssi_busif_err_irq_disable(mod) rsnd_ssi_busif_err_irq_ctrl(mod, 0)
-static void rsnd_ssi_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
-{
-	u32 sys_int_enable = 0;
-	int id = rsnd_mod_id(mod);
-	int i;
-
-	switch (id) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		for (i = 0; i < 4; i++) {
-			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE(i * 2));
-			if (enable)
-				sys_int_enable |= 0xf << (id * 4);
-			else
-				sys_int_enable &= ~(0xf << (id * 4));
-			rsnd_mod_write(mod,
-				       SSI_SYS_INT_ENABLE(i * 2),
-				       sys_int_enable);
-		}
-		break;
-	case 9:
-		for (i = 0; i < 4; i++) {
-			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE((i * 2) + 1));
-			if (enable)
-				sys_int_enable |= 0xf << 4;
-			else
-				sys_int_enable &= ~(0xf << 4);
-			rsnd_mod_write(mod,
-				       SSI_SYS_INT_ENABLE((i * 2) + 1),
-				       sys_int_enable);
-		}
-		break;
-	}
-}
-
-static bool rsnd_ssi_busif_err_status_clear(struct rsnd_mod *mod)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 status;
-	bool stop = false;
-	int id = rsnd_mod_id(mod);
-	int i;
-
-	switch (id) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		for (i = 0; i < 4; i++) {
-			status = rsnd_mod_read(mod, SSI_SYS_STATUS(i * 2));
-			status &= 0xf << (id * 4);
-
-			if (status) {
-				rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-						    rsnd_mod_name(mod), status);
-				rsnd_mod_write(mod,
-					       SSI_SYS_STATUS(i * 2),
-					       0xf << (id * 4));
-				stop = true;
-			}
-		}
-		break;
-	case 9:
-		for (i = 0; i < 4; i++) {
-			status = rsnd_mod_read(mod, SSI_SYS_STATUS((i * 2) + 1));
-			status &= 0xf << 4;
-
-			if (status) {
-				rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-						    rsnd_mod_name(mod), status);
-				rsnd_mod_write(mod,
-					       SSI_SYS_STATUS((i * 2) + 1),
-					       0xf << 4);
-				stop = true;
-			}
-		}
-		break;
-	}
-
-	return stop;
-}
-
 static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
@@ -536,10 +444,6 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_mode = DIEN;		/* PIO : enable Data interrupt */
 	}
 
-	/* enable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split)
-		rsnd_ssi_busif_err_irq_enable(mod);
-
 init_end:
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
@@ -594,10 +498,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int is_tdm, is_tdm_split;
-
-	is_tdm		= rsnd_runtime_is_tdm(io);
-	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
@@ -618,10 +518,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 		ssi->cr_mode	= 0;
 		ssi->wsr	= 0;
 	}
-
-	/* disable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split)
-		rsnd_ssi_busif_err_irq_disable(mod);
 
 	return 0;
 }
@@ -775,10 +671,6 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	u32 status;
 	bool elapsed = false;
 	bool stop = false;
-	int is_tdm, is_tdm_split;
-
-	is_tdm		= rsnd_runtime_is_tdm(io);
-	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
 
 	spin_lock(&priv->lock);
 
@@ -794,14 +686,13 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ))) {
-		rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-			rsnd_mod_name(mod), status);
+		rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+				      rsnd_mod_name(mod), status);
 
 		stop = true;
 	}
 
-	if (is_tdm || is_tdm_split)
-		stop |= rsnd_ssi_busif_err_status_clear(mod);
+	stop |= rsnd_ssiu_busif_err_status_clear(mod);
 
 	rsnd_ssi_status_clear(mod);
 rsnd_ssi_interrupt_out:
@@ -1128,8 +1019,36 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 		name = is_play ? "rx" : "tx";
 
 	return rsnd_dma_request_channel(rsnd_ssi_of_node(priv),
-					mod, name);
+					SSI_NAME, mod, name);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_ssi_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	seq_printf(m, "clock:           %s\n",		rsnd_rdai_is_clk_master(rdai) ?
+								"provider" : "consumer");
+	seq_printf(m, "bit_clk_inv:     %d\n",		rdai->bit_clk_inv);
+	seq_printf(m, "frm_clk_inv:     %d\n",		rdai->frm_clk_inv);
+	seq_printf(m, "pin share:       %d\n",		__rsnd_ssi_is_pin_sharing(mod));
+	seq_printf(m, "can out clk:     %d\n",		rsnd_ssi_can_output_clk(mod));
+	seq_printf(m, "multi secondary: %d\n",		rsnd_ssi_is_multi_secondary(mod, io));
+	seq_printf(m, "tdm:             %d, %d\n",	rsnd_runtime_is_tdm(io),
+							rsnd_runtime_is_tdm_split(io));
+	seq_printf(m, "chan:            %d\n",		ssi->chan);
+	seq_printf(m, "user:            %d\n",		ssi->usrcnt);
+
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSI,
+				  rsnd_mod_id(mod) * 0x40, 0x40);
+}
+#define DEBUG_INFO .debug_info = rsnd_ssi_debug_info
+#else
+#define DEBUG_INFO
+#endif
 
 static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.name		= SSI_NAME,
@@ -1145,9 +1064,10 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.fallback	= rsnd_ssi_fallback,
 	.hw_params	= rsnd_ssi_hw_params,
 	.get_status	= rsnd_ssi_get_status,
+	DEBUG_INFO
 };
 
-static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
+int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
 {
 	return mod->ops == &rsnd_ssi_dma_ops;
 }
@@ -1195,7 +1115,11 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		struct rsnd_mod *mod = rsnd_ssi_mod_get(priv, i);
+		struct rsnd_mod *mod;
+
+		i = rsnd_node_fixed_index(np, SSI_NAME, i);
+
+		mod = rsnd_ssi_mod_get(priv, i);
 
 		if (np == playback)
 			rsnd_ssi_connect(mod, &rdai->playback);
@@ -1238,7 +1162,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	if (!node)
 		return -EINVAL;
 
-	nr = of_get_child_count(node);
+	nr = rsnd_node_count(priv, node, SSI_NAME);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_ssi_probe_done;
@@ -1257,6 +1181,8 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	for_each_child_of_node(node, np) {
 		if (!of_device_is_available(np))
 			goto skip;
+
+		i = rsnd_node_fixed_index(np, SSI_NAME, i);
 
 		ssi = rsnd_ssi_get(priv, i);
 

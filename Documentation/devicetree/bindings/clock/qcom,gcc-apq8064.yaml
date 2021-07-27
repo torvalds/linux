@@ -46,7 +46,6 @@ properties:
 
   nvmem-cell-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: calib
       - const: calib_backup

@@ -49,7 +49,7 @@ enum i915_drm_suspend_mode {
  */
 struct intel_runtime_pm {
 	atomic_t wakeref_count;
-	struct device *kdev; /* points to i915->drm.pdev->dev */
+	struct device *kdev; /* points to i915->drm.dev */
 	bool available;
 	bool suspended;
 	bool irqs_enabled;

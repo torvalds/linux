@@ -35,3 +35,6 @@ Description:
 
 		This file will always return the originally written repeat
 		number.
+
+		It should be noticed that some leds, like EL15203000 may
+		only support indefinitely patterns, so they always store -1.

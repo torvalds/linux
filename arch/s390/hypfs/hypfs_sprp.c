@@ -25,14 +25,13 @@
 
 static inline unsigned long __hypfs_sprp_diag304(void *data, unsigned long cmd)
 {
-	register unsigned long _data asm("2") = (unsigned long) data;
-	register unsigned long _rc asm("3");
-	register unsigned long _cmd asm("4") = cmd;
+	union register_pair r1 = { .even = (unsigned long)data, };
 
-	asm volatile("diag %1,%2,0x304\n"
-		     : "=d" (_rc) : "d" (_data), "d" (_cmd) : "memory");
-
-	return _rc;
+	asm volatile("diag %[r1],%[r3],0x304\n"
+		     : [r1] "+&d" (r1.pair)
+		     : [r3] "d" (cmd)
+		     : "memory");
+	return r1.odd;
 }
 
 static unsigned long hypfs_sprp_diag304(void *data, unsigned long cmd)

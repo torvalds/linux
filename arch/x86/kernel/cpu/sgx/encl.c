@@ -383,7 +383,7 @@ const struct vm_operations_struct sgx_vm_ops = {
 
 /**
  * sgx_encl_release - Destroy an enclave instance
- * @kref:	address of a kref inside &sgx_encl
+ * @ref:	address of a kref inside &sgx_encl
  *
  * Used together with kref_put(). Frees all the resources associated with the
  * enclave and the instance itself.

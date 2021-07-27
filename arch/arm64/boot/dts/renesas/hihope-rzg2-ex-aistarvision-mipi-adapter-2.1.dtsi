@@ -14,7 +14,6 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			csi20_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
@@ -29,7 +28,6 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			csi40_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;

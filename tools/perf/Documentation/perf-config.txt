@@ -706,6 +706,12 @@ intel-pt.*::
 		If set, Intel PT decoder will set the mispred flag on all
 		branches.
 
+	intel-pt.max-loops::
+		If set and non-zero, the maximum number of unconditional
+		branches decoded without consuming any trace packets. If
+		the maximum is exceeded there will be a "Never-ending loop"
+		error. The default is 100000.
+
 auxtrace.*::
 
 	auxtrace.dumpdir::

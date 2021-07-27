@@ -284,7 +284,9 @@ static int sprd_pwm_remove(struct platform_device *pdev)
 {
 	struct sprd_pwm_chip *spc = platform_get_drvdata(pdev);
 
-	return pwmchip_remove(&spc->chip);
+	pwmchip_remove(&spc->chip);
+
+	return 0;
 }
 
 static const struct of_device_id sprd_pwm_of_match[] = {

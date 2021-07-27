@@ -2,6 +2,7 @@
 obj-$(CONFIG_PRESTERA)	+= prestera.o
 prestera-objs		:= prestera_main.o prestera_hw.o prestera_dsa.o \
 			   prestera_rxtx.o prestera_devlink.o prestera_ethtool.o \
-			   prestera_switchdev.o
+			   prestera_switchdev.o prestera_acl.o prestera_flow.o \
+			   prestera_flower.o prestera_span.o
 
 obj-$(CONFIG_PRESTERA_PCI)	+= prestera_pci.o

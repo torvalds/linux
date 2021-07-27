@@ -132,7 +132,7 @@ static struct kvm_vm *spawn_vm(pthread_t *vcpu_thread, void *guest_code)
 	gpa = vm_phy_pages_alloc(vm, 2, MEM_REGION_GPA, MEM_REGION_SLOT);
 	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc\n");
 
-	virt_map(vm, MEM_REGION_GPA, MEM_REGION_GPA, 2, 0);
+	virt_map(vm, MEM_REGION_GPA, MEM_REGION_GPA, 2);
 
 	/* Ditto for the host mapping so that both pages can be zeroed. */
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);
@@ -376,7 +376,7 @@ static void test_add_max_memory_regions(void)
 	pr_info("Adding slots 0..%i, each memory region with %dK size\n",
 		(max_mem_slots - 1), MEM_REGION_SIZE >> 10);
 
-	mem = mmap(NULL, MEM_REGION_SIZE * max_mem_slots + alignment,
+	mem = mmap(NULL, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment,
 		   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
 	mem_aligned = (void *)(((size_t) mem + alignment - 1) & ~(alignment - 1));
@@ -401,7 +401,7 @@ static void test_add_max_memory_regions(void)
 	TEST_ASSERT(ret == -1 && errno == EINVAL,
 		    "Adding one more memory slot should fail with EINVAL");
 
-	munmap(mem, MEM_REGION_SIZE * max_mem_slots + alignment);
+	munmap(mem, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment);
 	munmap(mem_extra, MEM_REGION_SIZE);
 	kvm_vm_free(vm);
 }

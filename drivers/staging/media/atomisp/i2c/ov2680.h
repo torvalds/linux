@@ -459,8 +459,8 @@ static struct ov2680_reg const ov2680_656x496_30fps[] = {
 };
 
 /*
-* 800x600 30fps  VBlanking 1lane 10Bit (binning)
-*/
+ * 800x600 30fps  VBlanking 1lane 10Bit (binning)
+ */
 static struct ov2680_reg const ov2680_720x592_30fps[] = {
 	{0x3086, 0x01},
 	{0x3501, 0x26},
@@ -504,8 +504,8 @@ static struct ov2680_reg const ov2680_720x592_30fps[] = {
 };
 
 /*
-* 800x600 30fps  VBlanking 1lane 10Bit (binning)
-*/
+ * 800x600 30fps  VBlanking 1lane 10Bit (binning)
+ */
 static struct ov2680_reg const ov2680_800x600_30fps[] = {
 	{0x3086, 0x01},
 	{0x3501, 0x26},
@@ -634,7 +634,7 @@ static struct ov2680_reg const ov2680_1296x976_30fps[] = {
 
 /*
  *   1456*1096 30fps  VBlanking 1lane 10bit(no-scaling)
-*/
+ */
 static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
 	{0x3086, 0x00},
 	{0x3501, 0x48},

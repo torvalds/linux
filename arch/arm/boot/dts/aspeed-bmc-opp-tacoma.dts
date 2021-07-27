@@ -13,7 +13,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200n8";
+		bootargs = "console=ttyS4,115200n8 earlycon";
 	};
 
 	memory@80000000 {

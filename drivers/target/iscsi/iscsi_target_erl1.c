@@ -871,8 +871,6 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 
 		if (iscsit_execute_cmd(cmd, 1) < 0)
 			return -1;
-
-		continue;
 	}
 
 	return ooo_count;

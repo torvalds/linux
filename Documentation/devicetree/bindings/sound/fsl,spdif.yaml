@@ -25,6 +25,7 @@ properties:
       - fsl,imx8mq-spdif
       - fsl,imx8mm-spdif
       - fsl,imx8mn-spdif
+      - fsl,imx8ulp-spdif
 
   reg:
     maxItems: 1

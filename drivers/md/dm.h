@@ -45,6 +45,8 @@ struct dm_dev_internal {
 
 struct dm_table;
 struct dm_md_mempools;
+struct dm_target_io;
+struct dm_io;
 
 /*-----------------------------------------------------------------
  * Internal table functions.
@@ -56,8 +58,8 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
 bool dm_table_has_no_data_devices(struct dm_table *table);
 int dm_calculate_queue_limits(struct dm_table *table,
 			      struct queue_limits *limits);
-void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
-			       struct queue_limits *limits);
+int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+			      struct queue_limits *limits);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_presuspend_undo_targets(struct dm_table *t);
@@ -99,6 +101,30 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t);
  * either request-based or bio-based).
  */
 #define dm_target_hybrid(t) (dm_target_bio_based(t) && dm_target_request_based(t))
+
+/*
+ * Zoned targets related functions.
+ */
+int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q);
+void dm_zone_endio(struct dm_io *io, struct bio *clone);
+#ifdef CONFIG_BLK_DEV_ZONED
+void dm_cleanup_zoned_dev(struct mapped_device *md);
+int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
+			unsigned int nr_zones, report_zones_cb cb, void *data);
+bool dm_is_zone_write(struct mapped_device *md, struct bio *bio);
+int dm_zone_map_bio(struct dm_target_io *io);
+#else
+static inline void dm_cleanup_zoned_dev(struct mapped_device *md) {}
+#define dm_blk_report_zones	NULL
+static inline bool dm_is_zone_write(struct mapped_device *md, struct bio *bio)
+{
+	return false;
+}
+static inline int dm_zone_map_bio(struct dm_target_io *tio)
+{
+	return DM_MAPIO_KILL;
+}
+#endif
 
 /*-----------------------------------------------------------------
  * A registry of target types.

@@ -169,6 +169,20 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 };
+/**
+ * iio_device_id() - query the unique ID for the device
+ * @indio_dev:		Device structure whose ID is being queried
+ *
+ * The IIO device ID is a unique index used for example for the naming
+ * of the character device /dev/iio\:device[ID]
+ */
+int iio_device_id(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->id;
+}
+EXPORT_SYMBOL_GPL(iio_device_id);
 
 /**
  * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
@@ -257,12 +271,24 @@ int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
-	indio_dev->clock_id = clock_id;
+	iio_dev_opaque->clock_id = clock_id;
 	mutex_unlock(&indio_dev->mlock);
 
 	return 0;
 }
 EXPORT_SYMBOL(iio_device_set_clock);
+
+/**
+ * iio_device_get_clock() - Retrieve current timestamping clock for the device
+ * @indio_dev: IIO device structure containing the device
+ */
+clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->clock_id;
+}
+EXPORT_SYMBOL(iio_device_get_clock);
 
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
@@ -591,7 +617,6 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  * iio_read_mount_matrix() - retrieve iio device mounting matrix from
  *                           device "mount-matrix" property
  * @dev:	device the mounting matrix property is assigned to
- * @propname:	device specific mounting matrix property name
  * @matrix:	where to store retrieved matrix
  *
  * If device is assigned no mounting matrix property, a default 3x3 identity
@@ -599,14 +624,12 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  *
  * Return: 0 if success, or a negative error code on failure.
  */
-int iio_read_mount_matrix(struct device *dev, const char *propname,
-			  struct iio_mount_matrix *matrix)
+int iio_read_mount_matrix(struct device *dev, struct iio_mount_matrix *matrix)
 {
 	size_t len = ARRAY_SIZE(iio_mount_idmatrix.rotation);
 	int err;
 
-	err = device_property_read_string_array(dev, propname,
-						matrix->rotation, len);
+	err = device_property_read_string_array(dev, "mount-matrix", matrix->rotation, len);
 	if (err == len)
 		return 0;
 
@@ -1588,7 +1611,7 @@ static void iio_dev_release(struct device *device)
 
 	iio_device_detach_buffers(indio_dev);
 
-	ida_simple_remove(&iio_ida, indio_dev->id);
+	ida_simple_remove(&iio_ida, iio_dev_opaque->id);
 	kfree(iio_dev_opaque);
 }
 
@@ -1628,17 +1651,17 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	device_initialize(&indio_dev->dev);
 	iio_device_set_drvdata(indio_dev, (void *)indio_dev);
 	mutex_init(&indio_dev->mlock);
-	mutex_init(&indio_dev->info_exist_lock);
+	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
-	indio_dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
-	if (indio_dev->id < 0) {
+	iio_dev_opaque->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
+	if (iio_dev_opaque->id < 0) {
 		/* cannot use a dev_err as the name isn't available */
 		pr_err("failed to get device id\n");
 		kfree(iio_dev_opaque);
 		return NULL;
 	}
-	dev_set_name(&indio_dev->dev, "iio:device%d", indio_dev->id);
+	dev_set_name(&indio_dev->dev, "iio:device%d", iio_dev_opaque->id);
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
@@ -1657,9 +1680,9 @@ void iio_device_free(struct iio_dev *dev)
 }
 EXPORT_SYMBOL(iio_device_free);
 
-static void devm_iio_device_release(struct device *dev, void *res)
+static void devm_iio_device_release(void *iio_dev)
 {
-	iio_device_free(*(struct iio_dev **)res);
+	iio_device_free(iio_dev);
 }
 
 /**
@@ -1675,20 +1698,17 @@ static void devm_iio_device_release(struct device *dev, void *res)
  */
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv)
 {
-	struct iio_dev **ptr, *iio_dev;
-
-	ptr = devres_alloc(devm_iio_device_release, sizeof(*ptr),
-			   GFP_KERNEL);
-	if (!ptr)
-		return NULL;
+	struct iio_dev *iio_dev;
+	int ret;
 
 	iio_dev = iio_device_alloc(parent, sizeof_priv);
-	if (iio_dev) {
-		*ptr = iio_dev;
-		devres_add(parent, ptr);
-	} else {
-		devres_free(ptr);
-	}
+	if (!iio_dev)
+		return NULL;
+
+	ret = devm_add_action_or_reset(parent, devm_iio_device_release,
+				       iio_dev);
+	if (ret)
+		return NULL;
 
 	return iio_dev;
 }
@@ -1704,11 +1724,12 @@ EXPORT_SYMBOL_GPL(devm_iio_device_alloc);
  **/
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
-						struct iio_dev, chrdev);
+	struct iio_dev_opaque *iio_dev_opaque =
+		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
+	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	struct iio_dev_buffer_pair *ib;
 
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags))
 		return -EBUSY;
 
 	iio_device_get(indio_dev);
@@ -1716,7 +1737,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	ib = kmalloc(sizeof(*ib), GFP_KERNEL);
 	if (!ib) {
 		iio_device_put(indio_dev);
-		clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+		clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
 		return -ENOMEM;
 	}
 
@@ -1738,10 +1759,11 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
 	struct iio_dev_buffer_pair *ib = filp->private_data;
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
-						struct iio_dev, chrdev);
+	struct iio_dev_opaque *iio_dev_opaque =
+		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
+	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	kfree(ib);
-	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+	clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
 	iio_device_put(indio_dev);
 
 	return 0;
@@ -1768,7 +1790,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct iio_ioctl_handler *h;
 	int ret = -ENODEV;
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
 	/**
 	 * The NULL check here is required to prevent crashing when a device
@@ -1778,7 +1800,6 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (!indio_dev->info)
 		goto out_unlock;
 
-	ret = -EINVAL;
 	list_for_each_entry(h, &iio_dev_opaque->ioctl_handlers, entry) {
 		ret = h->ioctl(indio_dev, filp, cmd, arg);
 		if (ret != IIO_IOCTL_UNHANDLED)
@@ -1786,10 +1807,10 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 	if (ret == IIO_IOCTL_UNHANDLED)
-		ret = -EINVAL;
+		ret = -ENODEV;
 
 out_unlock:
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	return ret;
 }
@@ -1848,7 +1869,7 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 	if (!indio_dev->info)
 		return -EINVAL;
 
-	indio_dev->driver_module = this_mod;
+	iio_dev_opaque->driver_module = this_mod;
 	/* If the calling driver did not initialize of_node, do it here */
 	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
 		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
@@ -1890,19 +1911,19 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		indio_dev->setup_ops = &noop_ring_setup_ops;
 
 	if (iio_dev_opaque->attached_buffers_cnt)
-		cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
+		cdev_init(&iio_dev_opaque->chrdev, &iio_buffer_fileops);
 	else if (iio_dev_opaque->event_interface)
-		cdev_init(&indio_dev->chrdev, &iio_event_fileops);
+		cdev_init(&iio_dev_opaque->chrdev, &iio_event_fileops);
 
 	if (iio_dev_opaque->attached_buffers_cnt || iio_dev_opaque->event_interface) {
-		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
-		indio_dev->chrdev.owner = this_mod;
+		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), iio_dev_opaque->id);
+		iio_dev_opaque->chrdev.owner = this_mod;
 	}
 
 	/* assign device groups now; they should be all registered now */
 	indio_dev->dev.groups = iio_dev_opaque->groups;
 
-	ret = cdev_device_add(&indio_dev->chrdev, &indio_dev->dev);
+	ret = cdev_device_add(&iio_dev_opaque->chrdev, &indio_dev->dev);
 	if (ret < 0)
 		goto error_unreg_eventset;
 
@@ -1927,11 +1948,10 @@ EXPORT_SYMBOL(__iio_device_register);
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	struct iio_ioctl_handler *h, *t;
 
-	cdev_device_del(&indio_dev->chrdev, &indio_dev->dev);
+	cdev_device_del(&iio_dev_opaque->chrdev, &indio_dev->dev);
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
 	iio_device_unregister_debugfs(indio_dev);
 
@@ -1939,41 +1959,30 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 
 	indio_dev->info = NULL;
 
-	list_for_each_entry_safe(h, t, &iio_dev_opaque->ioctl_handlers, entry)
-		list_del(&h->entry);
-
 	iio_device_wakeup_eventset(indio_dev);
 	iio_buffer_wakeup_poll(indio_dev);
 
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	iio_buffers_free_sysfs_and_mask(indio_dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 
-static void devm_iio_device_unreg(struct device *dev, void *res)
+static void devm_iio_device_unreg(void *indio_dev)
 {
-	iio_device_unregister(*(struct iio_dev **)res);
+	iio_device_unregister(indio_dev);
 }
 
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod)
 {
-	struct iio_dev **ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_iio_device_unreg, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	*ptr = indio_dev;
 	ret = __iio_device_register(indio_dev, this_mod);
-	if (!ret)
-		devres_add(dev, ptr);
-	else
-		devres_free(ptr);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(dev, devm_iio_device_unreg, indio_dev);
 }
 EXPORT_SYMBOL_GPL(__devm_iio_device_register);
 

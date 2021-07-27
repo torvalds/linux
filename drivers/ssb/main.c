@@ -37,7 +37,8 @@ static LIST_HEAD(buses);
 /* Software ID counter */
 static unsigned int next_busnumber;
 /* buses_mutes locks the two buslists and the next_busnumber.
- * Don't lock this directly, but use ssb_buses_[un]lock() below. */
+ * Don't lock this directly, but use ssb_buses_[un]lock() below.
+ */
 static DEFINE_MUTEX(buses_mutex);
 
 /* There are differences in the codeflow, if the bus is
@@ -45,7 +46,8 @@ static DEFINE_MUTEX(buses_mutex);
  * are not available early. This is a mechanism to delay
  * these initializations to after early boot has finished.
  * It's also used to avoid mutex locking, as that's not
- * available and needed early. */
+ * available and needed early.
+ */
 static bool ssb_is_early_boot = 1;
 
 static void ssb_buses_lock(void);
@@ -161,7 +163,8 @@ int ssb_bus_resume(struct ssb_bus *bus)
 	int err;
 
 	/* Reset HW state information in memory, so that HW is
-	 * completely reinitialized. */
+	 * completely reinitialized.
+	 */
 	bus->mapped_device = NULL;
 #ifdef CONFIG_SSB_DRIVER_PCICORE
 	bus->pcicore.setup_done = 0;
@@ -431,9 +434,7 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 	int err;
 
 	err = ssb_gpio_unregister(bus);
-	if (err == -EBUSY)
-		pr_debug("Some GPIOs are still in use\n");
-	else if (err)
+	if (err)
 		pr_debug("Can not unregister GPIO driver: %i\n", err);
 
 	ssb_buses_lock();
@@ -467,7 +468,8 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		sdev = &(bus->devices[i]);
 
 		/* We don't register SSB-system devices to the kernel,
-		 * as the drivers for them are built into SSB. */
+		 * as the drivers for them are built into SSB.
+		 */
 		switch (sdev->id.coreid) {
 		case SSB_DEV_CHIPCOMMON:
 		case SSB_DEV_PCI:
@@ -521,7 +523,8 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		if (err) {
 			pr_err("Could not register %s\n", dev_name(dev));
 			/* Set dev to NULL to not unregister
-			 * dev on error unwinding. */
+			 * dev on error unwinding.
+			 */
 			sdev->dev = NULL;
 			put_device(dev);
 			goto error;
@@ -667,7 +670,8 @@ ssb_bus_register(struct ssb_bus *bus,
 	ssb_bus_may_powerdown(bus);
 
 	/* Queue it for attach.
-	 * See the comment at the ssb_is_early_boot definition. */
+	 * See the comment at the ssb_is_early_boot definition.
+	 */
 	list_add_tail(&bus->list, &attach_queue);
 	if (!ssb_is_early_boot) {
 		/* This is not early boot, so we must attach the bus now */
@@ -1007,7 +1011,8 @@ static void ssb_flush_tmslow(struct ssb_device *dev)
 	 * a machine check exception otherwise.
 	 * Do this by reading the register back to commit the
 	 * PCI write and delay an additional usec for the device
-	 * to react to the change. */
+	 * to react to the change.
+	 */
 	ssb_read32(dev, SSB_TMSLOW);
 	udelay(1);
 }
@@ -1044,7 +1049,8 @@ void ssb_device_enable(struct ssb_device *dev, u32 core_specific_flags)
 EXPORT_SYMBOL(ssb_device_enable);
 
 /* Wait for bitmask in a register to get set or cleared.
- * timeout is in units of ten-microseconds */
+ * timeout is in units of ten-microseconds
+ */
 static int ssb_wait_bits(struct ssb_device *dev, u16 reg, u32 bitmask,
 			 int timeout, int set)
 {
@@ -1153,7 +1159,8 @@ int ssb_bus_may_powerdown(struct ssb_bus *bus)
 
 	/* On buses where more than one core may be working
 	 * at a time, we must not powerdown stuff if there are
-	 * still cores that may want to run. */
+	 * still cores that may want to run.
+	 */
 	if (bus->bustype == SSB_BUSTYPE_SSB)
 		goto out;
 
@@ -1303,13 +1310,11 @@ static int __init ssb_modinit(void)
 	if (err) {
 		pr_err("Broadcom 43xx PCI-SSB-bridge initialization failed\n");
 		/* don't fail SSB init because of this */
-		err = 0;
 	}
 	err = ssb_host_pcmcia_init();
 	if (err) {
 		pr_err("PCMCIA host initialization failed\n");
 		/* don't fail SSB init because of this */
-		err = 0;
 	}
 	err = ssb_gige_init();
 	if (err) {
@@ -1322,7 +1327,8 @@ out:
 }
 /* ssb must be initialized after PCI but before the ssb drivers.
  * That means we must use some initcall between subsys_initcall
- * and device_initcall. */
+ * and device_initcall.
+ */
 fs_initcall(ssb_modinit);
 
 static void __exit ssb_modexit(void)

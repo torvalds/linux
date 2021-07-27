@@ -4,6 +4,8 @@
 #ifndef _MLXSW_CORE_ENV_H
 #define _MLXSW_CORE_ENV_H
 
+#include <linux/ethtool.h>
+
 struct ethtool_modinfo;
 struct ethtool_eeprom;
 
@@ -16,6 +18,11 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 				struct mlxsw_core *mlxsw_core, int module,
 				struct ethtool_eeprom *ee, u8 *data);
+
+int
+mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
+				    const struct ethtool_module_eeprom *page,
+				    struct netlink_ext_ack *extack);
 
 int
 mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,

@@ -550,7 +550,7 @@ static void nvmet_tcp_queue_response(struct nvmet_req *req)
 		 * nvmet_req_init is completed.
 		 */
 		if (queue->rcv_state == NVMET_TCP_RECV_PDU &&
-		    len && len < cmd->req.port->inline_data_size &&
+		    len && len <= cmd->req.port->inline_data_size &&
 		    nvme_is_write(cmd->req.cmd))
 			return;
 	}
@@ -1497,7 +1497,6 @@ static void nvmet_tcp_state_change(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
 		/* FALLTHRU */
-		sk->sk_user_data = NULL;
 		nvmet_tcp_schedule_release_queue(queue);
 		break;
 	default:

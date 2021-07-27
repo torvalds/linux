@@ -46,6 +46,14 @@
 	};
 
 	reserved-memory {
+		/* The rmtfs_mem needs to be guarded due to "XPU limitations"
+		 * it is otherwise possible for an allocation adjacent to the
+		 * rmtfs_mem region to trigger an XPU violation, causing a crash.
+		 */
+		rmtfs_lower_guard: memory@f5b00000 {
+			no-map;
+			reg = <0 0xf5b00000 0 0x1000>;
+		};
 		/*
 		 * The rmtfs memory region in downstream is 'dynamically allocated'
 		 * but given the same address every time. Hard code it as this address is
@@ -58,6 +66,10 @@
 
 			qcom,client-id = <1>;
 			qcom,vmid = <15>;
+		};
+		rmtfs_upper_guard: memory@f5d01000 {
+			no-map;
+			reg = <0 0xf5d01000 0 0x2000>;
 		};
 
 		/*
@@ -385,6 +397,12 @@
 			syna,rezero-wait-ms = <200>;
 		};
 	};
+};
+
+&ipa {
+	status = "okay";
+
+	memory-region = <&ipa_fw_mem>;
 };
 
 &mdss {

@@ -31,7 +31,7 @@ endif
 
 
 ifdef CONFIG_ARC_CURR_IN_REG
-# For a global register defintion, make sure it gets passed to every file
+# For a global register definition, make sure it gets passed to every file
 # We had a customer reported bug where some code built in kernel was NOT using
 # any kernel headers, and missing the r25 global register
 # Can't do unconditionally because of recursive include issues
@@ -84,9 +84,6 @@ KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
 KBUILD_LDFLAGS	+= $(ldflags-y)
 
 head-y		:= arch/arc/kernel/head.o
-
-# See arch/arc/Kbuild for content of core part of the kernel
-core-y		+= arch/arc/
 
 # w/o this dtb won't embed into kernel binary
 core-y		+= arch/arc/boot/dts/

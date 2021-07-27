@@ -597,7 +597,7 @@ bad:
 	return -EINVAL;
 }
 
-static int handle_auth_session_key(struct ceph_auth_client *ac,
+static int handle_auth_session_key(struct ceph_auth_client *ac, u64 global_id,
 				   void **p, void *end,
 				   u8 *session_key, int *session_key_len,
 				   u8 *con_secret, int *con_secret_len)
@@ -613,6 +613,7 @@ static int handle_auth_session_key(struct ceph_auth_client *ac,
 	if (ret)
 		return ret;
 
+	ceph_auth_set_global_id(ac, global_id);
 	if (*p == end) {
 		/* pre-nautilus (or didn't request service tickets!) */
 		WARN_ON(session_key || con_secret);
@@ -661,7 +662,7 @@ e_inval:
 	return -EINVAL;
 }
 
-static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
+static int ceph_x_handle_reply(struct ceph_auth_client *ac, u64 global_id,
 			       void *buf, void *end,
 			       u8 *session_key, int *session_key_len,
 			       u8 *con_secret, int *con_secret_len)
@@ -669,12 +670,10 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 	struct ceph_x_info *xi = ac->private;
 	struct ceph_x_ticket_handler *th;
 	int len = end - buf;
+	int result;
 	void *p;
 	int op;
 	int ret;
-
-	if (result)
-		return result;  /* XXX hmm? */
 
 	if (xi->starting) {
 		/* it's a hello */
@@ -697,9 +696,9 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 	switch (op) {
 	case CEPHX_GET_AUTH_SESSION_KEY:
 		/* AUTH ticket + [connection secret] + service tickets */
-		ret = handle_auth_session_key(ac, &p, end, session_key,
-					      session_key_len, con_secret,
-					      con_secret_len);
+		ret = handle_auth_session_key(ac, global_id, &p, end,
+					      session_key, session_key_len,
+					      con_secret, con_secret_len);
 		break;
 
 	case CEPHX_GET_PRINCIPAL_SESSION_KEY:

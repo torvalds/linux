@@ -66,9 +66,8 @@ static ssize_t direction_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	gpiod_get_direction(desc);
-	status = sprintf(buf, "%s\n",
-			test_bit(FLAG_IS_OUT, &desc->flags)
-				? "out" : "in");
+	status = sysfs_emit(buf, "%s\n",
+			    test_bit(FLAG_IS_OUT, &desc->flags) ? "out" : "in");
 
 	mutex_unlock(&data->mutex);
 
@@ -109,13 +108,9 @@ static ssize_t value_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	status = gpiod_get_value_cansleep(desc);
-	if (status < 0)
-		goto err;
+	if (status >= 0)
+		status = sysfs_emit(buf, "%zd\n", status);
 
-	buf[0] = '0' + status;
-	buf[1] = '\n';
-	status = 2;
-err:
 	mutex_unlock(&data->mutex);
 
 	return status;
@@ -249,11 +244,11 @@ static ssize_t edge_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
-		if (data->irq_flags == trigger_types[i].flags) {
-			status = sprintf(buf, "%s\n", trigger_types[i].name);
+		if (data->irq_flags == trigger_types[i].flags)
 			break;
-		}
 	}
+	if (i < ARRAY_SIZE(trigger_types))
+		status = sysfs_emit(buf, "%s\n", trigger_types[i].name);
 
 	mutex_unlock(&data->mutex);
 
@@ -312,10 +307,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
 
-	if (value)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	else
-		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	assign_bit(FLAG_ACTIVE_LOW, &desc->flags, value);
 
 	/* reconfigure poll(2) support if enabled on one edge only */
 	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
@@ -336,8 +328,8 @@ static ssize_t active_low_show(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	status = sprintf(buf, "%d\n",
-				!!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
+	status = sysfs_emit(buf, "%d\n",
+			    !!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
 
 	mutex_unlock(&data->mutex);
 
@@ -415,7 +407,7 @@ static ssize_t base_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", chip->base);
+	return sysfs_emit(buf, "%d\n", chip->base);
 }
 static DEVICE_ATTR_RO(base);
 
@@ -424,7 +416,7 @@ static ssize_t label_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", chip->label ? : "");
+	return sysfs_emit(buf, "%s\n", chip->label ?: "");
 }
 static DEVICE_ATTR_RO(label);
 
@@ -433,7 +425,7 @@ static ssize_t ngpio_show(struct device *dev,
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", chip->ngpio);
+	return sysfs_emit(buf, "%u\n", chip->ngpio);
 }
 static DEVICE_ATTR_RO(ngpio);
 

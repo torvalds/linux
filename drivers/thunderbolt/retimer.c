@@ -103,6 +103,7 @@ static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 	unsigned int image_size, hdr_size;
 	const u8 *buf = rt->nvm->buf;
 	u16 ds_size, device;
+	int ret;
 
 	image_size = rt->nvm->buf_data_size;
 	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
@@ -140,8 +141,43 @@ static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 	buf += hdr_size;
 	image_size -= hdr_size;
 
-	return usb4_port_retimer_nvm_write(rt->port, rt->index, 0, buf,
-					   image_size);
+	ret = usb4_port_retimer_nvm_write(rt->port, rt->index, 0, buf,
+					 image_size);
+	if (!ret)
+		rt->nvm->flushed = true;
+
+	return ret;
+}
+
+static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
+{
+	u32 status;
+	int ret;
+
+	if (auth_only) {
+		ret = usb4_port_retimer_nvm_set_offset(rt->port, rt->index, 0);
+		if (ret)
+			return ret;
+	}
+
+	ret = usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
+	if (ret)
+		return ret;
+
+	usleep_range(100, 150);
+
+	/*
+	 * Check the status now if we still can access the retimer. It
+	 * is expected that the below fails.
+	 */
+	ret = usb4_port_retimer_nvm_authenticate_status(rt->port, rt->index,
+							&status);
+	if (!ret) {
+		rt->auth_status = status;
+		return status ? -EINVAL : 0;
+	}
+
+	return 0;
 }
 
 static ssize_t device_show(struct device *dev, struct device_attribute *attr,
@@ -176,8 +212,7 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct tb_retimer *rt = tb_to_retimer(dev);
-	bool val;
-	int ret;
+	int val, ret;
 
 	pm_runtime_get_sync(&rt->dev);
 
@@ -191,7 +226,7 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		goto exit_unlock;
 	}
 
-	ret = kstrtobool(buf, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		goto exit_unlock;
 
@@ -199,16 +234,22 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	rt->auth_status = 0;
 
 	if (val) {
-		if (!rt->nvm->buf) {
-			ret = -EINVAL;
-			goto exit_unlock;
+		if (val == AUTHENTICATE_ONLY) {
+			ret = tb_retimer_nvm_authenticate(rt, true);
+		} else {
+			if (!rt->nvm->flushed) {
+				if (!rt->nvm->buf) {
+					ret = -EINVAL;
+					goto exit_unlock;
+				}
+
+				ret = tb_retimer_nvm_validate_and_write(rt);
+				if (ret || val == WRITE_ONLY)
+					goto exit_unlock;
+			}
+			if (val == WRITE_AND_AUTHENTICATE)
+				ret = tb_retimer_nvm_authenticate(rt, false);
 		}
-
-		ret = tb_retimer_nvm_validate_and_write(rt);
-		if (ret)
-			goto exit_unlock;
-
-		ret = usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
 	}
 
 exit_unlock:
@@ -283,11 +324,13 @@ struct device_type tb_retimer_type = {
 
 static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 {
+	struct usb4_port *usb4;
 	struct tb_retimer *rt;
 	u32 vendor, device;
 	int ret;
 
-	if (!port->cap_usb4)
+	usb4 = port->usb4;
+	if (!usb4)
 		return -EINVAL;
 
 	ret = usb4_port_retimer_read(port, index, USB4_SB_VENDOR_ID, &vendor,
@@ -331,7 +374,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	rt->port = port;
 	rt->tb = port->sw->tb;
 
-	rt->dev.parent = &port->sw->dev;
+	rt->dev.parent = &usb4->dev;
 	rt->dev.bus = &tb_bus_type;
 	rt->dev.type = &tb_retimer_type;
 	dev_set_name(&rt->dev, "%s:%u.%u", dev_name(&port->sw->dev),
@@ -389,7 +432,7 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
 	struct tb_retimer_lookup lookup = { .port = port, .index = index };
 	struct device *dev;
 
-	dev = device_find_child(&port->sw->dev, &lookup, retimer_match);
+	dev = device_find_child(&port->usb4->dev, &lookup, retimer_match);
 	if (dev)
 		return tb_to_retimer(dev);
 
@@ -399,18 +442,17 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
 /**
  * tb_retimer_scan() - Scan for on-board retimers under port
  * @port: USB4 port to scan
+ * @add: If true also registers found retimers
  *
- * Tries to enumerate on-board retimers connected to @port. Found
- * retimers are registered as children of @port. Does not scan for cable
- * retimers for now.
+ * Brings the sideband into a state where retimers can be accessed.
+ * Then Tries to enumerate on-board retimers connected to @port. Found
+ * retimers are registered as children of @port if @add is set.  Does
+ * not scan for cable retimers for now.
  */
-int tb_retimer_scan(struct tb_port *port)
+int tb_retimer_scan(struct tb_port *port, bool add)
 {
 	u32 status[TB_MAX_RETIMER_INDEX + 1] = {};
 	int ret, i, last_idx = 0;
-
-	if (!port->cap_usb4)
-		return 0;
 
 	/*
 	 * Send broadcast RT to make sure retimer indices facing this
@@ -419,6 +461,13 @@ int tb_retimer_scan(struct tb_port *port)
 	ret = usb4_port_enumerate_retimers(port);
 	if (ret)
 		return ret;
+
+	/*
+	 * Enable sideband channel for each retimer. We can do this
+	 * regardless whether there is device connected or not.
+	 */
+	for (i = 1; i <= TB_MAX_RETIMER_INDEX; i++)
+		usb4_port_retimer_set_inbound_sbtx(port, i);
 
 	/*
 	 * Before doing anything else, read the authentication status.
@@ -451,10 +500,10 @@ int tb_retimer_scan(struct tb_port *port)
 		rt = tb_port_find_retimer(port, i);
 		if (rt) {
 			put_device(&rt->dev);
-		} else {
+		} else if (add) {
 			ret = tb_retimer_add(port, i, status[i]);
 			if (ret && ret != -EOPNOTSUPP)
-				return ret;
+				break;
 		}
 	}
 
@@ -479,7 +528,10 @@ static int remove_retimer(struct device *dev, void *data)
  */
 void tb_retimer_remove_all(struct tb_port *port)
 {
-	if (port->cap_usb4)
-		device_for_each_child_reverse(&port->sw->dev, port,
+	struct usb4_port *usb4;
+
+	usb4 = port->usb4;
+	if (usb4)
+		device_for_each_child_reverse(&usb4->dev, port,
 					      remove_retimer);
 }

@@ -13,7 +13,9 @@
 #include <linux/gcd.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/clkdev.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
@@ -84,16 +86,16 @@ struct tnetd7200_clocks {
 	struct tnetd7200_clock usb;
 };
 
-static struct clk bus_clk = {
+struct clk_rate {
+	u32 rate;
+};
+static struct clk_rate bus_clk = {
 	.rate	= 125000000,
 };
 
-static struct clk cpu_clk = {
+static struct clk_rate cpu_clk = {
 	.rate	= 150000000,
 };
-
-static struct clk dsp_clk;
-static struct clk vbus_clk;
 
 static void approximate(int base, int target, int *prediv,
 			int *postdiv, int *mul)
@@ -240,6 +242,8 @@ static void __init tnetd7300_init_clocks(void)
 	struct tnetd7300_clocks *clocks =
 					ioremap(UR8_REGS_CLOCKS,
 					sizeof(struct tnetd7300_clocks));
+	u32 dsp_clk;
+	struct clk *clk;
 
 	bus_clk.rate = tnetd7300_get_clock(BUS_PLL_SOURCE_SHIFT,
 		&clocks->bus, bootcr, AR7_AFE_CLOCK);
@@ -250,12 +254,18 @@ static void __init tnetd7300_init_clocks(void)
 	else
 		cpu_clk.rate = bus_clk.rate;
 
-	if (dsp_clk.rate == 250000000)
+	dsp_clk = tnetd7300_dsp_clock();
+	if (dsp_clk == 250000000)
 		tnetd7300_set_clock(DSP_PLL_SOURCE_SHIFT, &clocks->dsp,
-			bootcr, dsp_clk.rate);
+			bootcr, dsp_clk);
 
 	iounmap(clocks);
 	iounmap(bootcr);
+
+	clk = clk_register_fixed_rate(NULL, "cpu", NULL, 0, cpu_clk.rate);
+	clkdev_create(clk, "cpu", NULL);
+	clk = clk_register_fixed_rate(NULL, "dsp", NULL, 0, dsp_clk);
+	clkdev_create(clk, "dsp", NULL);
 }
 
 static void tnetd7200_set_clock(int base, struct tnetd7200_clock *clock,
@@ -327,6 +337,7 @@ static void __init tnetd7200_init_clocks(void)
 	int cpu_base, cpu_mul, cpu_prediv, cpu_postdiv;
 	int dsp_base, dsp_mul, dsp_prediv, dsp_postdiv;
 	int usb_base, usb_mul, usb_prediv, usb_postdiv;
+	struct clk *clk;
 
 	cpu_base = tnetd7200_get_clock_base(TNETD7200_CLOCK_ID_CPU, bootcr);
 	dsp_base = tnetd7200_get_clock_base(TNETD7200_CLOCK_ID_DSP, bootcr);
@@ -395,100 +406,34 @@ static void __init tnetd7200_init_clocks(void)
 		usb_prediv, usb_postdiv, -1, usb_mul,
 		TNETD7200_DEF_USB_CLK);
 
-	dsp_clk.rate = cpu_clk.rate;
-
 	iounmap(clocks);
 	iounmap(bootcr);
-}
 
-/*
- * Linux clock API
- */
-int clk_enable(struct clk *clk)
-{
-	return 0;
+	clk = clk_register_fixed_rate(NULL, "cpu", NULL, 0, cpu_clk.rate);
+	clkdev_create(clk, "cpu", NULL);
+	clkdev_create(clk, "dsp", NULL);
 }
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	if (!clk)
-		return 0;
-
-	return clk->rate;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	if (!strcmp(id, "bus"))
-		return &bus_clk;
-	/* cpmac and vbus share the same rate */
-	if (!strcmp(id, "cpmac"))
-		return &vbus_clk;
-	if (!strcmp(id, "cpu"))
-		return &cpu_clk;
-	if (!strcmp(id, "dsp"))
-		return &dsp_clk;
-	if (!strcmp(id, "vbus"))
-		return &vbus_clk;
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
 
 void __init ar7_init_clocks(void)
 {
+	struct clk *clk;
+
 	switch (ar7_chip_id()) {
 	case AR7_CHIP_7100:
 	case AR7_CHIP_7200:
 		tnetd7200_init_clocks();
 		break;
 	case AR7_CHIP_7300:
-		dsp_clk.rate = tnetd7300_dsp_clock();
 		tnetd7300_init_clocks();
 		break;
 	default:
 		break;
 	}
+	clk = clk_register_fixed_rate(NULL, "bus", NULL, 0, bus_clk.rate);
+	clkdev_create(clk, "bus", NULL);
 	/* adjust vbus clock rate */
-	vbus_clk.rate = bus_clk.rate / 2;
+	clk = clk_register_fixed_factor(NULL, "vbus", "bus", 0, 1, 2);
+	clkdev_create(clk, "vbus", NULL);
+	clkdev_create(clk, "cpmac", "cpmac.1");
+	clkdev_create(clk, "cpmac", "cpmac.1");
 }
-
-/* dummy functions, should not be called */
-long clk_round_rate(struct clk *clk, unsigned long rate)
-{
-	WARN_ON(clk);
-	return 0;
-}
-EXPORT_SYMBOL(clk_round_rate);
-
-int clk_set_rate(struct clk *clk, unsigned long rate)
-{
-	WARN_ON(clk);
-	return 0;
-}
-EXPORT_SYMBOL(clk_set_rate);
-
-int clk_set_parent(struct clk *clk, struct clk *parent)
-{
-	WARN_ON(clk);
-	return 0;
-}
-EXPORT_SYMBOL(clk_set_parent);
-
-struct clk *clk_get_parent(struct clk *clk)
-{
-	WARN_ON(clk);
-	return NULL;
-}
-EXPORT_SYMBOL(clk_get_parent);

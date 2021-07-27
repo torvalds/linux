@@ -82,7 +82,7 @@ struct vmw_validation_res_node {
 	u32 reserved : 1;
 	u32 dirty : 1;
 	u32 dirty_set : 1;
-	unsigned long private[0];
+	unsigned long private[];
 };
 
 /**
@@ -809,7 +809,7 @@ void vmw_validation_revert(struct vmw_validation_context *ctx)
 }
 
 /**
- * vmw_validation_cone - Commit validation actions after command submission
+ * vmw_validation_done - Commit validation actions after command submission
  * success.
  * @ctx: The validation context.
  * @fence: Fence with which to fence all buffer objects taking part in the

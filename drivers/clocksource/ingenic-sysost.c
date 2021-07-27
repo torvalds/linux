@@ -186,7 +186,7 @@ static const struct clk_ops ingenic_ost_global_timer_ops = {
 
 static const char * const ingenic_ost_clk_parents[] = { "ext" };
 
-static const struct ingenic_ost_clk_info ingenic_ost_clk_info[] = {
+static const struct ingenic_ost_clk_info x1000_ost_clk_info[] = {
 	[OST_CLK_PERCPU_TIMER] = {
 		.init_data = {
 			.name = "percpu timer",
@@ -414,14 +414,14 @@ static const struct ingenic_soc_info x1000_soc_info = {
 	.num_channels = 2,
 };
 
-static const struct of_device_id __maybe_unused ingenic_ost_of_match[] __initconst = {
-	{ .compatible = "ingenic,x1000-ost", .data = &x1000_soc_info, },
+static const struct of_device_id __maybe_unused ingenic_ost_of_matches[] __initconst = {
+	{ .compatible = "ingenic,x1000-ost", .data = &x1000_soc_info },
 	{ /* sentinel */ }
 };
 
 static int __init ingenic_ost_probe(struct device_node *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_ost_of_match, np);
+	const struct of_device_id *id = of_match_node(ingenic_ost_of_matches, np);
 	struct ingenic_ost *ost;
 	unsigned int i;
 	int ret;
@@ -462,7 +462,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	ost->clocks->num = ost->soc_info->num_channels;
 
 	for (i = 0; i < ost->clocks->num; i++) {
-		ret = ingenic_ost_register_clock(ost, i, &ingenic_ost_clk_info[i], ost->clocks);
+		ret = ingenic_ost_register_clock(ost, i, &x1000_ost_clk_info[i], ost->clocks);
 		if (ret) {
 			pr_crit("%s: Cannot register clock %d\n", __func__, i);
 			goto err_unregister_ost_clocks;

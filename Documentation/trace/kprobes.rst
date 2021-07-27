@@ -362,14 +362,11 @@ register_kprobe
 	#include <linux/kprobes.h>
 	int register_kprobe(struct kprobe *kp);
 
-Sets a breakpoint at the address kp->addr.  When the breakpoint is
-hit, Kprobes calls kp->pre_handler.  After the probed instruction
-is single-stepped, Kprobe calls kp->post_handler.  If a fault
-occurs during execution of kp->pre_handler or kp->post_handler,
-or during single-stepping of the probed instruction, Kprobes calls
-kp->fault_handler.  Any or all handlers can be NULL. If kp->flags
-is set KPROBE_FLAG_DISABLED, that kp will be registered but disabled,
-so, its handlers aren't hit until calling enable_kprobe(kp).
+Sets a breakpoint at the address kp->addr.  When the breakpoint is hit, Kprobes
+calls kp->pre_handler.  After the probed instruction is single-stepped, Kprobe
+calls kp->post_handler.  Any or all handlers can be NULL. If kp->flags is set
+KPROBE_FLAG_DISABLED, that kp will be registered but disabled, so, its handlers
+aren't hit until calling enable_kprobe(kp).
 
 .. note::
 
@@ -414,17 +411,6 @@ User's post-handler (kp->post_handler)::
 
 p and regs are as described for the pre_handler.  flags always seems
 to be zero.
-
-User's fault-handler (kp->fault_handler)::
-
-	#include <linux/kprobes.h>
-	#include <linux/ptrace.h>
-	int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr);
-
-p and regs are as described for the pre_handler.  trapnr is the
-architecture-specific trap number associated with the fault (e.g.,
-on i386, 13 for a general protection fault or 14 for a page fault).
-Returns 1 if it successfully handled the exception.
 
 register_kretprobe
 ------------------

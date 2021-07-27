@@ -233,7 +233,16 @@ struct amdgpu_virt {
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;
 	uint32_t vf2pf_update_interval_ms;
+
+	/* multimedia bandwidth config */
+	bool     is_mm_bw_enabled;
+	uint32_t decode_max_dimension_pixels;
+	uint32_t decode_max_frame_pixels;
+	uint32_t encode_max_dimension_pixels;
+	uint32_t encode_max_frame_pixels;
 };
+
+struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_enabled(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
@@ -307,4 +316,8 @@ int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);
 void amdgpu_virt_disable_access_debugfs(struct amdgpu_device *adev);
 
 enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *adev);
+
+void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
+			struct amdgpu_video_codec_info *encode, uint32_t encode_array_size,
+			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size);
 #endif

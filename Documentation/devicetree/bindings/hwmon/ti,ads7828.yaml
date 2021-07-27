@@ -49,7 +49,7 @@ examples:
         #size-cells = <0>;
 
         adc@48 {
-            comatible = "ti,ads7828";
+            compatible = "ti,ads7828";
             reg = <0x48>;
             vref-supply = <&vref>;
             ti,differential-input;

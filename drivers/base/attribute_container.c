@@ -284,8 +284,8 @@ fail:
  * matching classdev or fail all of them.
  *
  * @dev:  The generic device to run the trigger for
- * @fn	  the function to execute for each classdev.
- * @undo  A function to undo the work previously done in case of error
+ * @fn:   the function to execute for each classdev.
+ * @undo: A function to undo the work previously done in case of error
  *
  * This function is a safe version of
  * attribute_container_device_trigger. It stops on the first error and
@@ -343,7 +343,7 @@ attribute_container_device_trigger_safe(struct device *dev,
  * attribute_container_device_trigger - execute a trigger for each matching classdev
  *
  * @dev:  The generic device to run the trigger for
- * @fn	  the function to execute for each classdev.
+ * @fn:   the function to execute for each classdev.
  *
  * This function is for executing a trigger when you need to know both
  * the container and the classdev.  If you only care about the

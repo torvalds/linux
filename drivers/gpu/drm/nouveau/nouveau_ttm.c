@@ -26,12 +26,12 @@
 #include <linux/limits.h>
 #include <linux/swiotlb.h>
 
+#include <drm/ttm/ttm_range_manager.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
-
-#include <drm/drm_legacy.h>
 
 #include <core/tegra.h>
 
@@ -45,7 +45,7 @@ static int
 nouveau_vram_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_resource *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -54,13 +54,15 @@ nouveau_vram_manager_new(struct ttm_resource_manager *man,
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
+	ttm_resource_init(bo, place, *res);
+
+	ret = nouveau_mem_vram(*res, nvbo->contig, nvbo->page);
 	if (ret) {
-		nouveau_mem_del(reg);
+		nouveau_mem_del(*res);
 		return ret;
 	}
 
@@ -76,17 +78,18 @@ static int
 nouveau_gart_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_resource *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	reg->start = 0;
+	ttm_resource_init(bo, place, *res);
+	(*res)->start = 0;
 	return 0;
 }
 
@@ -99,26 +102,27 @@ static int
 nv04_gart_manager_new(struct ttm_resource_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_resource *reg)
+		      struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
+	mem = nouveau_mem(*res);
+	ttm_resource_init(bo, place, *res);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   (long)reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)(*res)->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
-		nouveau_mem_del(reg);
+		nouveau_mem_del(*res);
 		return ret;
 	}
 
-	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
+	(*res)->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }
 
@@ -126,55 +130,6 @@ const struct ttm_resource_manager_func nv04_gart_manager = {
 	.alloc = nv04_gart_manager_new,
 	.free = nouveau_manager_del,
 };
-
-static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct ttm_buffer_object *bo = vma->vm_private_data;
-	pgprot_t prot;
-	vm_fault_t ret;
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ttm_fault_reserve_notify(bo);
-	if (ret)
-		goto error_unlock;
-
-	nouveau_bo_del_io_reserve_lru(bo);
-	prot = vm_get_page_prot(vma->vm_flags);
-	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT, 1);
-	nouveau_bo_add_io_reserve_lru(bo);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
-
-error_unlock:
-	dma_resv_unlock(bo->base.resv);
-	return ret;
-}
-
-static const struct vm_operations_struct nouveau_ttm_vm_ops = {
-	.fault = nouveau_ttm_fault,
-	.open = ttm_bo_vm_open,
-	.close = ttm_bo_vm_close,
-	.access = ttm_bo_vm_access
-};
-
-int
-nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
-	int ret;
-
-	ret = ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
-	if (ret)
-		return ret;
-
-	vma->vm_ops = &nouveau_ttm_vm_ops;
-	return 0;
-}
 
 static int
 nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)

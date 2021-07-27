@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/component.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -932,26 +933,6 @@ static int __maybe_unused ab8500_btemp_suspend(struct device *dev)
 	return 0;
 }
 
-static int ab8500_btemp_remove(struct platform_device *pdev)
-{
-	struct ab8500_btemp *di = platform_get_drvdata(pdev);
-	int i, irq;
-
-	/* Disable interrupts */
-	for (i = 0; i < ARRAY_SIZE(ab8500_btemp_irq); i++) {
-		irq = platform_get_irq_byname(pdev, ab8500_btemp_irq[i].name);
-		free_irq(irq, di);
-	}
-
-	/* Delete the work queue */
-	destroy_workqueue(di->btemp_wq);
-
-	flush_scheduled_work();
-	power_supply_unregister(di->btemp_psy);
-
-	return 0;
-}
-
 static char *supply_interface[] = {
 	"ab8500_chargalg",
 	"ab8500_fg",
@@ -966,9 +947,42 @@ static const struct power_supply_desc ab8500_btemp_desc = {
 	.external_power_changed	= ab8500_btemp_external_power_changed,
 };
 
+static int ab8500_btemp_bind(struct device *dev, struct device *master,
+			     void *data)
+{
+	struct ab8500_btemp *di = dev_get_drvdata(dev);
+
+	/* Create a work queue for the btemp */
+	di->btemp_wq =
+		alloc_workqueue("ab8500_btemp_wq", WQ_MEM_RECLAIM, 0);
+	if (di->btemp_wq == NULL) {
+		dev_err(dev, "failed to create work queue\n");
+		return -ENOMEM;
+	}
+
+	/* Kick off periodic temperature measurements */
+	ab8500_btemp_periodic(di, true);
+
+	return 0;
+}
+
+static void ab8500_btemp_unbind(struct device *dev, struct device *master,
+				void *data)
+{
+	struct ab8500_btemp *di = dev_get_drvdata(dev);
+
+	/* Delete the work queue */
+	destroy_workqueue(di->btemp_wq);
+	flush_scheduled_work();
+}
+
+static const struct component_ops ab8500_btemp_component_ops = {
+	.bind = ab8500_btemp_bind,
+	.unbind = ab8500_btemp_unbind,
+};
+
 static int ab8500_btemp_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct power_supply_config psy_cfg = {};
 	struct device *dev = &pdev->dev;
 	struct ab8500_btemp *di;
@@ -980,12 +994,6 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	di->bm = &ab8500_bm_data;
-
-	ret = ab8500_bm_of_probe(dev, np, di->bm);
-	if (ret) {
-		dev_err(dev, "failed to get battery information\n");
-		return ret;
-	}
 
 	/* get parent data */
 	di->dev = dev;
@@ -1011,14 +1019,6 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	psy_cfg.drv_data = di;
 
-	/* Create a work queue for the btemp */
-	di->btemp_wq =
-		alloc_workqueue("ab8500_btemp_wq", WQ_MEM_RECLAIM, 0);
-	if (di->btemp_wq == NULL) {
-		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
-	}
-
 	/* Init work for measuring temperature periodically */
 	INIT_DEFERRABLE_WORK(&di->btemp_periodic_work,
 		ab8500_btemp_periodic_work);
@@ -1031,7 +1031,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 		AB8500_BTEMP_HIGH_TH, &val);
 	if (ret < 0) {
 		dev_err(dev, "%s ab8500 read failed\n", __func__);
-		goto free_btemp_wq;
+		return ret;
 	}
 	switch (val) {
 	case BTEMP_HIGH_TH_57_0:
@@ -1050,30 +1050,28 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	}
 
 	/* Register BTEMP power supply class */
-	di->btemp_psy = power_supply_register(dev, &ab8500_btemp_desc,
-					      &psy_cfg);
+	di->btemp_psy = devm_power_supply_register(dev, &ab8500_btemp_desc,
+						   &psy_cfg);
 	if (IS_ERR(di->btemp_psy)) {
 		dev_err(dev, "failed to register BTEMP psy\n");
-		ret = PTR_ERR(di->btemp_psy);
-		goto free_btemp_wq;
+		return PTR_ERR(di->btemp_psy);
 	}
 
 	/* Register interrupts */
 	for (i = 0; i < ARRAY_SIZE(ab8500_btemp_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_btemp_irq[i].name);
-		if (irq < 0) {
-			ret = irq;
-			goto free_irq;
-		}
+		if (irq < 0)
+			return irq;
 
-		ret = request_threaded_irq(irq, NULL, ab8500_btemp_irq[i].isr,
+		ret = devm_request_threaded_irq(dev, irq, NULL,
+			ab8500_btemp_irq[i].isr,
 			IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 			ab8500_btemp_irq[i].name, di);
 
 		if (ret) {
 			dev_err(dev, "failed to request %s IRQ %d: %d\n"
 				, ab8500_btemp_irq[i].name, irq, ret);
-			goto free_irq;
+			return ret;
 		}
 		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
 			ab8500_btemp_irq[i].name, irq, ret);
@@ -1081,23 +1079,16 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, di);
 
-	/* Kick off periodic temperature measurements */
-	ab8500_btemp_periodic(di, true);
 	list_add_tail(&di->node, &ab8500_btemp_list);
 
-	return ret;
+	return component_add(dev, &ab8500_btemp_component_ops);
+}
 
-free_irq:
-	/* We also have to free all successfully registered irqs */
-	for (i = i - 1; i >= 0; i--) {
-		irq = platform_get_irq_byname(pdev, ab8500_btemp_irq[i].name);
-		free_irq(irq, di);
-	}
+static int ab8500_btemp_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &ab8500_btemp_component_ops);
 
-	power_supply_unregister(di->btemp_psy);
-free_btemp_wq:
-	destroy_workqueue(di->btemp_wq);
-	return ret;
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_btemp_pm_ops, ab8500_btemp_suspend, ab8500_btemp_resume);
@@ -1106,8 +1097,9 @@ static const struct of_device_id ab8500_btemp_match[] = {
 	{ .compatible = "stericsson,ab8500-btemp", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ab8500_btemp_match);
 
-static struct platform_driver ab8500_btemp_driver = {
+struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
 	.remove = ab8500_btemp_remove,
 	.driver = {
@@ -1116,20 +1108,6 @@ static struct platform_driver ab8500_btemp_driver = {
 		.pm = &ab8500_btemp_pm_ops,
 	},
 };
-
-static int __init ab8500_btemp_init(void)
-{
-	return platform_driver_register(&ab8500_btemp_driver);
-}
-
-static void __exit ab8500_btemp_exit(void)
-{
-	platform_driver_unregister(&ab8500_btemp_driver);
-}
-
-device_initcall(ab8500_btemp_init);
-module_exit(ab8500_btemp_exit);
-
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski, Arun R Murthy");
 MODULE_ALIAS("platform:ab8500-btemp");

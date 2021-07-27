@@ -99,8 +99,8 @@ static void print_err(char *s)
  * partial_decompress - decompresses part or all of a compressed buffer
  * @inbuf:       input buffer
  * @input_size:  length of the input buffer
- * @outbuf:      input buffer
- * @output_size: length of the input buffer
+ * @outbuf:      output buffer
+ * @output_size: length of the output buffer
  * @skip         number of output bytes to ignore
  *
  * This function takes compressed data from inbuf, decompresses and write it to

@@ -36,6 +36,7 @@
 
 #include "fs_core.h"
 #include "fs_cmd.h"
+#include "fs_ft_pool.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
 
@@ -49,9 +50,11 @@ static int mlx5_cmd_stub_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_stub_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					   struct mlx5_flow_table *ft,
-					   unsigned int log_size,
+					   unsigned int size,
 					   struct mlx5_flow_table *next_ft)
 {
+	ft->max_fte = size ? roundup_pow_of_two(size) : 1;
+
 	return 0;
 }
 
@@ -108,9 +111,7 @@ static int mlx5_cmd_stub_delete_fte(struct mlx5_flow_root_namespace *ns,
 }
 
 static int mlx5_cmd_stub_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
-					       int reformat_type,
-					       size_t size,
-					       void *reformat_data,
+					       struct mlx5_pkt_reformat_params *params,
 					       enum mlx5_flow_namespace_type namespace,
 					       struct mlx5_pkt_reformat *pkt_reformat)
 {
@@ -181,7 +182,7 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
-				      unsigned int log_size,
+				      unsigned int size,
 				      struct mlx5_flow_table *next_ft)
 {
 	int en_encap = !!(ft->flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
@@ -192,12 +193,18 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	struct mlx5_core_dev *dev = ns->dev;
 	int err;
 
+	if (size != POOL_NEXT_SIZE)
+		size = roundup_pow_of_two(size);
+	size = mlx5_ft_pool_get_avail_sz(dev, ft->type, size);
+	if (!size)
+		return -ENOSPC;
+
 	MLX5_SET(create_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_CREATE_FLOW_TABLE);
 
 	MLX5_SET(create_flow_table_in, in, table_type, ft->type);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.level, ft->level);
-	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size, log_size);
+	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size, size ? ilog2(size) : 0);
 	MLX5_SET(create_flow_table_in, in, vport_number, ft->vport);
 	MLX5_SET(create_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
@@ -234,9 +241,14 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	}
 
 	err = mlx5_cmd_exec_inout(dev, create_flow_table, in, out);
-	if (!err)
+	if (!err) {
 		ft->id = MLX5_GET(create_flow_table_out, out,
 				  table_id);
+		ft->max_fte = size;
+	} else {
+		mlx5_ft_pool_put_sz(ns->dev, size);
+	}
+
 	return err;
 }
 
@@ -245,6 +257,7 @@ static int mlx5_cmd_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_flow_table_in)] = {};
 	struct mlx5_core_dev *dev = ns->dev;
+	int err;
 
 	MLX5_SET(destroy_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_DESTROY_FLOW_TABLE);
@@ -254,7 +267,11 @@ static int mlx5_cmd_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(destroy_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
 
-	return mlx5_cmd_exec_in(dev, destroy_flow_table, in);
+	err = mlx5_cmd_exec_in(dev, destroy_flow_table, in);
+	if (!err)
+		mlx5_ft_pool_put_sz(ns->dev, ft->max_fte);
+
+	return err;
 }
 
 static int mlx5_cmd_modify_flow_table(struct mlx5_flow_root_namespace *ns,
@@ -682,9 +699,7 @@ int mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, u32 base_id, int bulk_len,
 }
 
 static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
-					  int reformat_type,
-					  size_t size,
-					  void *reformat_data,
+					  struct mlx5_pkt_reformat_params *params,
 					  enum mlx5_flow_namespace_type namespace,
 					  struct mlx5_pkt_reformat *pkt_reformat)
 {
@@ -702,14 +717,14 @@ static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 	else
 		max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
 
-	if (size > max_encap_size) {
+	if (params->size > max_encap_size) {
 		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
-			       size, max_encap_size);
+			       params->size, max_encap_size);
 		return -EINVAL;
 	}
 
-	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) + size,
-		     GFP_KERNEL);
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) +
+		     params->size, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -718,15 +733,20 @@ static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 	reformat = MLX5_ADDR_OF(packet_reformat_context_in,
 				packet_reformat_context_in,
 				reformat_data);
-	inlen = reformat - (void *)in  + size;
+	inlen = reformat - (void *)in + params->size;
 
 	MLX5_SET(alloc_packet_reformat_context_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT);
 	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
-		 reformat_data_size, size);
+		 reformat_data_size, params->size);
 	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
-		 reformat_type, reformat_type);
-	memcpy(reformat, reformat_data, size);
+		 reformat_type, params->type);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_param_0, params->param_0);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_param_1, params->param_1);
+	if (params->data && params->size)
+		memcpy(reformat, params->data, params->size);
 
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 

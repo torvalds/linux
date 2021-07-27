@@ -7,8 +7,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	2500
-#define FW_ISO_RESOURCE_DELAY	1000
+#define READY_TIMEOUT_MS	4000
 
 /*
  * NOTE;
@@ -402,12 +401,6 @@ static void break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
 	cmp_connection_break(&bebob->out_conn);
-
-	// These models seem to be in transition state for a longer time. When
-	// accessing in the state, any transactions is corrupted. In the worst
-	// case, the device is going to reboot.
-	if (bebob->version < 2)
-		msleep(600);
 }
 
 static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
@@ -437,6 +430,7 @@ static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 
 static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
+	unsigned int flags = CIP_BLOCKING;
 	enum amdtp_stream_direction dir_stream;
 	struct cmp_connection *conn;
 	enum cmp_direction dir_conn;
@@ -452,30 +446,19 @@ static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 		dir_conn = CMP_INPUT;
 	}
 
+	if (stream == &bebob->tx_stream) {
+		if (bebob->quirks & SND_BEBOB_QUIRK_WRONG_DBC)
+			flags |= CIP_EMPTY_HAS_WRONG_DBC;
+	}
+
 	err = cmp_connection_init(conn, bebob->unit, dir_conn, 0);
 	if (err < 0)
 		return err;
 
-	err = amdtp_am824_init(stream, bebob->unit, dir_stream, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, bebob->unit, dir_stream, flags);
 	if (err < 0) {
 		cmp_connection_destroy(conn);
 		return err;
-	}
-
-	if (stream == &bebob->tx_stream) {
-		// BeBoB v3 transfers packets with these qurks:
-		//  - In the beginning of streaming, the value of dbc is
-		//    incremented even if no data blocks are transferred.
-		//  - The value of dbc is reset suddenly.
-		if (bebob->version > 2)
-			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
-						  CIP_SKIP_DBC_ZERO_CHECK;
-
-		// At high sampling rate, M-Audio special firmware transmits
-		// empty packet with the value of dbc incremented by 8 but the
-		// others are valid to IEC 61883-1.
-		if (bebob->maudio_special_quirk)
-			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
 	}
 
 	return 0;
@@ -624,9 +607,8 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
 		enum snd_bebob_clock_type src;
-		struct amdtp_stream *master, *slave;
 		unsigned int curr_rate;
-		unsigned int ir_delay_cycle;
+		unsigned int tx_init_skip_cycles;
 
 		if (bebob->maudio_special_quirk) {
 			err = bebob->spec->rate->get(bebob, &curr_rate);
@@ -638,36 +620,28 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			return err;
 
-		if (src != SND_BEBOB_CLOCK_TYPE_SYT) {
-			master = &bebob->tx_stream;
-			slave = &bebob->rx_stream;
-		} else {
-			master = &bebob->rx_stream;
-			slave = &bebob->tx_stream;
-		}
-
-		err = start_stream(bebob, master);
+		err = start_stream(bebob, &bebob->rx_stream);
 		if (err < 0)
 			goto error;
 
-		err = start_stream(bebob, slave);
+		err = start_stream(bebob, &bebob->tx_stream);
 		if (err < 0)
 			goto error;
 
-		// The device postpones start of transmission mostly for 1 sec
-		// after receives packets firstly. For safe, IR context starts
-		// 0.4 sec (=3200 cycles) later to version 1 or 2 firmware,
-		// 2.0 sec (=16000 cycles) for version 3 firmware. This is
-		// within 2.5 sec (=CALLBACK_TIMEOUT).
-		// Furthermore, some devices transfer isoc packets with
-		// discontinuous counter in the beginning of packet streaming.
-		// The delay has an effect to avoid detection of this
-		// discontinuity.
-		if (bebob->version < 2)
-			ir_delay_cycle = 3200;
+		if (!(bebob->quirks & SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC))
+			tx_init_skip_cycles = 0;
 		else
-			ir_delay_cycle = 16000;
-		err = amdtp_domain_start(&bebob->domain, ir_delay_cycle);
+			tx_init_skip_cycles = 16000;
+
+		// MEMO: Some devices start packet transmission long enough after establishment of
+		// CMP connection. In the early stage of packet streaming, any device transfers
+		// NODATA packets. After several hundred cycles, it begins to multiplex event into
+		// the packet with adequate value of syt field in CIP header. Some devices are
+		// strictly to generate any discontinuity in the sequence of tx packet when they
+		// receives inadequate sequence of value in syt field of CIP header. In the case,
+		// the request to break CMP connection is often corrupted, then any transaction
+		// results in unrecoverable error, sometimes generate bus-reset.
+		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles, true, false);
 		if (err < 0)
 			goto error;
 
@@ -684,10 +658,9 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 			}
 		}
 
-		if (!amdtp_stream_wait_callback(&bebob->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&bebob->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		// Some devices postpone start of transmission mostly for 1 sec after receives
+		// packets firstly.
+		if (!amdtp_domain_wait_ready(&bebob->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}
@@ -883,6 +856,11 @@ static int detect_midi_ports(struct snd_bebob *bebob,
 		err = avc_bridgeco_get_plug_ch_count(bebob->unit, addr, &ch_count);
 		if (err < 0)
 			break;
+		// Yamaha GO44, GO46, Terratec Phase 24, Phase x24 reports 0 for the number of
+		// channels in external output plug 3 (MIDI type) even if it has a pair of physical
+		// MIDI jacks. As a workaround, assume it as one.
+		if (ch_count == 0)
+			ch_count = 1;
 		*midi_ports += ch_count;
 	}
 
@@ -961,12 +939,12 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 	if (err < 0)
 		goto end;
 
-	err = detect_midi_ports(bebob, bebob->rx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_IN,
+	err = detect_midi_ports(bebob, bebob->tx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_IN,
 				plugs[2], &bebob->midi_input_ports);
 	if (err < 0)
 		goto end;
 
-	err = detect_midi_ports(bebob, bebob->tx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_OUT,
+	err = detect_midi_ports(bebob, bebob->rx_stream_formations, addr, AVC_BRIDGECO_PLUG_DIR_OUT,
 				plugs[3], &bebob->midi_output_ports);
 	if (err < 0)
 		goto end;

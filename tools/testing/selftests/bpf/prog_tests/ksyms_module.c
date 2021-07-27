@@ -4,7 +4,7 @@
 #include <test_progs.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
-#include "test_ksyms_module.skel.h"
+#include "test_ksyms_module.lskel.h"
 
 static int duration;
 

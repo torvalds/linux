@@ -70,7 +70,7 @@ endif
 # off, this will be overridden if we are using branch protection.
 branch-prot-flags-y += $(call cc-option,-mbranch-protection=none)
 
-ifeq ($(CONFIG_ARM64_PTR_AUTH),y)
+ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
 branch-prot-flags-$(CONFIG_CC_HAS_SIGN_RETURN_ADDRESS) := -msign-return-address=all
 # We enable additional protection for leaf functions as there is some
 # narrow potential for ROP protection benefits and no substantial
@@ -149,7 +149,6 @@ KBUILD_CFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_CPPFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_AFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 
-core-y		+= arch/arm64/
 libs-y		:= arch/arm64/lib/ $(libs-y)
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
@@ -174,6 +173,9 @@ vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
 	$(if $(CONFIG_COMPAT_VDSO), \
 		$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@)
+
+archprepare:
+	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:

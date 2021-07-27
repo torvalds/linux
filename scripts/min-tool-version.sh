@@ -30,7 +30,12 @@ icc)
 	echo 16.0.3
 	;;
 llvm)
-	echo 10.0.1
+	# https://lore.kernel.org/r/YMtib5hKVyNknZt3@osiris/
+	if [ "$SRCARCH" = s390 ]; then
+		echo 13.0.0
+	else
+		echo 10.0.1
+	fi
 	;;
 *)
 	echo "$1: unknown tool" >&2

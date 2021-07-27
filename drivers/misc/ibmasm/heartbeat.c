@@ -9,6 +9,7 @@
  */
 
 #include <linux/notifier.h>
+#include <linux/panic_notifier.h>
 #include "ibmasm.h"
 #include "dot_command.h"
 #include "lowlevel.h"

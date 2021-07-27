@@ -20,7 +20,7 @@
 #include <asm/vdso.h>
 
 extern char vdso64_start[], vdso64_end[];
-static unsigned int vdso_pages;
+extern char vdso32_start[], vdso32_end[];
 
 static struct vm_special_mapping vvar_mapping;
 
@@ -36,18 +36,6 @@ enum vvar_pages {
 	VVAR_TIMENS_PAGE_OFFSET,
 	VVAR_NR_PAGES,
 };
-
-unsigned int __read_mostly vdso_enabled = 1;
-
-static int __init vdso_setup(char *str)
-{
-	bool enabled;
-
-	if (!kstrtobool(str, &enabled))
-		vdso_enabled = enabled;
-	return 1;
-}
-__setup("vdso=", vdso_setup);
 
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
@@ -155,7 +143,12 @@ static struct vm_special_mapping vvar_mapping = {
 	.fault = vvar_fault,
 };
 
-static struct vm_special_mapping vdso_mapping = {
+static struct vm_special_mapping vdso64_mapping = {
+	.name = "[vdso]",
+	.mremap = vdso_mremap,
+};
+
+static struct vm_special_mapping vdso32_mapping = {
 	.name = "[vdso]",
 	.mremap = vdso_mremap,
 };
@@ -171,16 +164,22 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	unsigned long vdso_text_len, vdso_mapping_len;
 	unsigned long vvar_start, vdso_text_start;
+	struct vm_special_mapping *vdso_mapping;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	int rc;
 
 	BUILD_BUG_ON(VVAR_NR_PAGES != __VVAR_PAGES);
-	if (!vdso_enabled || is_compat_task())
-		return 0;
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
-	vdso_text_len = vdso_pages << PAGE_SHIFT;
+
+	if (is_compat_task()) {
+		vdso_text_len = vdso32_end - vdso32_start;
+		vdso_mapping = &vdso32_mapping;
+	} else {
+		vdso_text_len = vdso64_end - vdso64_start;
+		vdso_mapping = &vdso64_mapping;
+	}
 	vdso_mapping_len = vdso_text_len + VVAR_NR_PAGES * PAGE_SIZE;
 	vvar_start = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	rc = vvar_start;
@@ -198,7 +197,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	vma = _install_special_mapping(mm, vdso_text_start, vdso_text_len,
 				       VM_READ|VM_EXEC|
 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &vdso_mapping);
+				       vdso_mapping);
 	if (IS_ERR(vma)) {
 		do_munmap(mm, vvar_start, PAGE_SIZE, NULL);
 		rc = PTR_ERR(vma);
@@ -211,21 +210,25 @@ out:
 	return rc;
 }
 
-static int __init vdso_init(void)
+static struct page ** __init vdso_setup_pages(void *start, void *end)
 {
-	struct page **pages;
+	int pages = (end - start) >> PAGE_SHIFT;
+	struct page **pagelist;
 	int i;
 
-	vdso_pages = (vdso64_end - vdso64_start) >> PAGE_SHIFT;
-	pages = kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
-	if (!pages) {
-		vdso_enabled = 0;
-		return -ENOMEM;
-	}
-	for (i = 0; i < vdso_pages; i++)
-		pages[i] = virt_to_page(vdso64_start + i * PAGE_SIZE);
-	pages[vdso_pages] = NULL;
-	vdso_mapping.pages = pages;
+	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
+	if (!pagelist)
+		panic("%s: Cannot allocate page list for VDSO", __func__);
+	for (i = 0; i < pages; i++)
+		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
+	return pagelist;
+}
+
+static int __init vdso_init(void)
+{
+	vdso64_mapping.pages = vdso_setup_pages(vdso64_start, vdso64_end);
+	if (IS_ENABLED(CONFIG_COMPAT))
+		vdso32_mapping.pages = vdso_setup_pages(vdso32_start, vdso32_end);
 	return 0;
 }
 arch_initcall(vdso_init);

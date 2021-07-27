@@ -127,11 +127,6 @@ struct hwseq_private_funcs {
 			const struct dc_stream_state *stream,
 			struct dc_state *context);
 	bool (*s0i3_golden_init_wa)(struct dc *dc);
-	void (*get_surface_visual_confirm_color)(
-			const struct pipe_ctx *pipe_ctx,
-			struct tg_color *color);
-	void (*get_hdr_visual_confirm_color)(struct pipe_ctx *pipe_ctx,
-			struct tg_color *color);
 	void (*set_hdr_multiplier)(struct pipe_ctx *pipe_ctx);
 	void (*verify_allow_pstate_change_high)(struct dc *dc);
 	void (*program_pipe)(struct dc *dc,

@@ -9,8 +9,8 @@ __u32 map1_id = 0, map2_id = 0;
 __u32 map1_accessed = 0, map2_accessed = 0;
 __u64 map1_seqnum = 0, map2_seqnum1 = 0, map2_seqnum2 = 0;
 
-static volatile const __u32 print_len;
-static volatile const __u32 ret1;
+volatile const __u32 print_len;
+volatile const __u32 ret1;
 
 SEC("iter/bpf_map")
 int dump_bpf_map(struct bpf_iter__bpf_map *ctx)

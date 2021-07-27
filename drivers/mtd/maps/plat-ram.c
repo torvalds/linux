@@ -127,7 +127,6 @@ static int platram_probe(struct platform_device *pdev)
 	info->map.virt = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->map.virt)) {
 		err = PTR_ERR(info->map.virt);
-		dev_err(&pdev->dev, "failed to ioremap() region\n");
 		goto exit_free;
 	}
 
