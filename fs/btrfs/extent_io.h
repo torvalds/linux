@@ -9,13 +9,6 @@
 #include <linux/btrfs_tree.h>
 #include "ulist.h"
 
-/*
- * flags for bio submission. The high bits indicate the compression
- * type for this bio
- */
-#define EXTENT_BIO_COMPRESSED 1
-#define EXTENT_BIO_FLAG_SHIFT 16
-
 enum {
 	EXTENT_BUFFER_UPTODATE,
 	EXTENT_BUFFER_DIRTY,
@@ -150,12 +143,12 @@ static inline void extent_changeset_free(struct extent_changeset *changeset)
 static inline void extent_set_compress_type(unsigned long *bio_flags,
 					    int compress_type)
 {
-	*bio_flags |= compress_type << EXTENT_BIO_FLAG_SHIFT;
+	*bio_flags = compress_type;
 }
 
 static inline int extent_compress_type(unsigned long bio_flags)
 {
-	return bio_flags >> EXTENT_BIO_FLAG_SHIFT;
+	return bio_flags;
 }
 
 struct extent_map_tree;

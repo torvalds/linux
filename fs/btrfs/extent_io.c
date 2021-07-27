@@ -29,6 +29,7 @@
 #include "subpage.h"
 #include "zoned.h"
 #include "block-group.h"
+#include "compression.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -2561,7 +2562,6 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	logical = em->block_start + logical;
 	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		logical = em->block_start;
-		failrec->bio_flags = EXTENT_BIO_COMPRESSED;
 		extent_set_compress_type(&failrec->bio_flags, em->compress_type);
 	}
 
@@ -3273,7 +3273,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	if (bio_ctrl->bio_flags != bio_flags)
 		return 0;
 
-	if (bio_ctrl->bio_flags & EXTENT_BIO_COMPRESSED)
+	if (bio_ctrl->bio_flags != BTRFS_COMPRESS_NONE)
 		contig = bio->bi_iter.bi_sector == sector;
 	else
 		contig = bio_end_sector(bio) == sector;
@@ -3316,7 +3316,7 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 	 * The split happens for real compressed bio, which happens in
 	 * btrfs_submit_compressed_read/write().
 	 */
-	if (bio_ctrl->bio_flags & EXTENT_BIO_COMPRESSED) {
+	if (bio_ctrl->bio_flags != BTRFS_COMPRESS_NONE) {
 		bio_ctrl->len_to_oe_boundary = U32_MAX;
 		bio_ctrl->len_to_stripe_boundary = U32_MAX;
 		return 0;
@@ -3370,7 +3370,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	 * For compressed page range, its disk_bytenr is always @disk_bytenr
 	 * passed in, no matter if we have added any range into previous bio.
 	 */
-	if (bio_flags & EXTENT_BIO_COMPRESSED)
+	if (bio_flags != BTRFS_COMPRESS_NONE)
 		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
@@ -3476,7 +3476,7 @@ static int submit_extent_page(unsigned int opf,
 		 * We must go through btrfs_bio_add_page() to ensure each
 		 * page range won't cross various boundaries.
 		 */
-		if (bio_flags & EXTENT_BIO_COMPRESSED)
+		if (bio_flags != BTRFS_COMPRESS_NONE)
 			added = btrfs_bio_add_page(bio_ctrl, page, disk_bytenr,
 					size - offset, pg_offset + offset,
 					bio_flags);
@@ -3682,7 +3682,6 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		BUG_ON(end < cur);
 
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-			this_bio_flag |= EXTENT_BIO_COMPRESSED;
 			extent_set_compress_type(&this_bio_flag,
 						 em->compress_type);
 		}
@@ -3690,7 +3689,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
 		cur_end = min(extent_map_end(em) - 1, end);
 		iosize = ALIGN(iosize, blocksize);
-		if (this_bio_flag & EXTENT_BIO_COMPRESSED)
+		if (this_bio_flag != BTRFS_COMPRESS_NONE)
 			disk_bytenr = em->block_start;
 		else
 			disk_bytenr = em->block_start + extent_offset;

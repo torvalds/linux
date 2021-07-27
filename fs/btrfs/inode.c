@@ -2602,7 +2602,7 @@ void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 		if (ret)
 			goto out;
 
-		if (bio_flags & EXTENT_BIO_COMPRESSED) {
+		if (bio_flags != BTRFS_COMPRESS_NONE) {
 			/*
 			 * btrfs_submit_compressed_read will handle completing
 			 * the bio if there were any errors, so just return
