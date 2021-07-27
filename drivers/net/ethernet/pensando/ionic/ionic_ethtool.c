@@ -32,6 +32,9 @@ static void ionic_get_stats(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 	u32 i;
 
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
+
 	memset(buf, 0, stats->n_stats * sizeof(*buf));
 	for (i = 0; i < ionic_num_stats_grps; i++)
 		ionic_stats_groups[i].get_values(lif, &buf);
@@ -274,6 +277,9 @@ static int ionic_set_link_ksettings(struct net_device *netdev,
 	struct ionic *ionic = lif->ionic;
 	int err = 0;
 
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
+
 	/* set autoneg */
 	if (ks->base.autoneg != idev->port_info->config.an_enable) {
 		mutex_lock(&ionic->dev_cmd_lock);
@@ -319,6 +325,9 @@ static int ionic_set_pauseparam(struct net_device *netdev,
 	struct ionic *ionic = lif->ionic;
 	u32 requested_pause;
 	int err;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
 
 	if (pause->autoneg)
 		return -EOPNOTSUPP;
@@ -371,6 +380,9 @@ static int ionic_set_fecparam(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 	u8 fec_type;
 	int ret = 0;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
 
 	if (lif->ionic->idev.port_info->config.an_enable) {
 		netdev_err(netdev, "FEC request not allowed while autoneg is enabled\n");
@@ -528,6 +540,9 @@ static int ionic_set_ringparam(struct net_device *netdev,
 	struct ionic_queue_params qparam;
 	int err;
 
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
+
 	ionic_init_queue_params(lif, &qparam);
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
@@ -596,6 +611,9 @@ static int ionic_set_channels(struct net_device *netdev,
 	struct ionic_queue_params qparam;
 	int max_cnt;
 	int err;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
 
 	ionic_init_queue_params(lif, &qparam);
 
@@ -946,6 +964,9 @@ static int ionic_nway_reset(struct net_device *netdev)
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
 	int err = 0;
+
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return -EBUSY;
 
 	/* flap the link to force auto-negotiation */
 

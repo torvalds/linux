@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/cpumask.h>
+#include <linux/crash_dump.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -1606,13 +1607,15 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 	features = NETIF_F_HW_VLAN_CTAG_TX |
 		   NETIF_F_HW_VLAN_CTAG_RX |
 		   NETIF_F_HW_VLAN_CTAG_FILTER |
-		   NETIF_F_RXHASH |
 		   NETIF_F_SG |
 		   NETIF_F_HW_CSUM |
 		   NETIF_F_RXCSUM |
 		   NETIF_F_TSO |
 		   NETIF_F_TSO6 |
 		   NETIF_F_TSO_ECN;
+
+	if (lif->nxqs > 1)
+		features |= NETIF_F_RXHASH;
 
 	err = ionic_set_nic_features(lif, features);
 	if (err)
@@ -2587,22 +2590,26 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	struct ionic_qcq **tx_qcqs = NULL;
 	struct ionic_qcq **rx_qcqs = NULL;
 	unsigned int flags, i;
-	int err = -ENOMEM;
+	int err = 0;
 
 	/* allocate temporary qcq arrays to hold new queue structs */
 	if (qparam->nxqs != lif->nxqs || qparam->ntxq_descs != lif->ntxq_descs) {
 		tx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->ntxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
-		if (!tx_qcqs)
+		if (!tx_qcqs) {
+			err = -ENOMEM;
 			goto err_out;
+		}
 	}
 	if (qparam->nxqs != lif->nxqs ||
 	    qparam->nrxq_descs != lif->nrxq_descs ||
 	    qparam->rxq_features != lif->rxq_features) {
 		rx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->nrxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
-		if (!rx_qcqs)
+		if (!rx_qcqs) {
+			err = -ENOMEM;
 			goto err_out;
+		}
 	}
 
 	/* allocate new desc_info and rings, but leave the interrupt setup
@@ -2781,6 +2788,9 @@ err_out:
 		ionic_qcq_free(lif, lif->rxqcqs[i]);
 	}
 
+	if (err)
+		netdev_info(lif->netdev, "%s: failed %d\n", __func__, err);
+
 	return err;
 }
 
@@ -2834,8 +2844,14 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 	lif->ionic = ionic;
 	lif->index = 0;
-	lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
-	lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
+
+	if (is_kdump_kernel()) {
+		lif->ntxq_descs = IONIC_MIN_TXRX_DESC;
+		lif->nrxq_descs = IONIC_MIN_TXRX_DESC;
+	} else {
+		lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
+		lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
+	}
 
 	/* Convert the default coalesce value to actual hw resolution */
 	lif->rx_coalesce_usecs = IONIC_ITR_COAL_USEC_DEFAULT;
@@ -3519,12 +3535,22 @@ int ionic_lif_size(struct ionic *ionic)
 	unsigned int min_intrs;
 	int err;
 
+	/* retrieve basic values from FW */
 	lc = &ident->lif.eth.config;
 	dev_nintrs = le32_to_cpu(ident->dev.nintrs);
 	neqs_per_lif = le32_to_cpu(ident->lif.rdma.eq_qtype.qid_count);
 	nnqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_NOTIFYQ]);
 	ntxqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_TXQ]);
 	nrxqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_RXQ]);
+
+	/* limit values to play nice with kdump */
+	if (is_kdump_kernel()) {
+		dev_nintrs = 2;
+		neqs_per_lif = 0;
+		nnqs_per_lif = 0;
+		ntxqs_per_lif = 1;
+		nrxqs_per_lif = 1;
+	}
 
 	/* reserve last queue id for hardware timestamping */
 	if (lc->features & cpu_to_le64(IONIC_ETH_HW_TIMESTAMP)) {

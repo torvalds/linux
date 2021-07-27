@@ -119,8 +119,8 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
-	dev_dbg(ionic->dev, "config_rx_filter %d rx_filt %#llx rx_all %d\n",
-		config->rx_filter, rx_filt, rx_all);
+	dev_dbg(ionic->dev, "%s: config_rx_filter %d rx_filt %#llx rx_all %d\n",
+		__func__, config->rx_filter, rx_filt, rx_all);
 
 	if (tx_mode) {
 		err = ionic_lif_create_hwstamp_txq(lif);
