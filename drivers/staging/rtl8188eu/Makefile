@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-r8188eu-y :=				\
+rtl8188eu-y :=				\
 		core/mac_cfg.o		\
 		core/rtw_ap.o		\
 		core/rtw_cmd.o		\
@@ -51,6 +51,6 @@ r8188eu-y :=				\
 		os_dep/usb_ops_linux.o	\
 		os_dep/xmit_linux.o
 
-obj-$(CONFIG_R8188EU)	:= r8188eu.o
+obj-$(CONFIG_R8188EU_OLD)	:= rtl8188eu.o
 
 ccflags-y += -I$(srctree)/$(src)/include

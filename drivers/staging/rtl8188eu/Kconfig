@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-config R8188EU
-	tristate "Realtek RTL8188EU Wireless LAN NIC driver"
+config R8188EU_OLD
+	tristate "Realtek RTL8188EU Wireless LAN NIC driver (DEPRECATED)"
 	depends on WLAN && USB && CFG80211
 	depends on m
 	select WIRELESS_EXT
@@ -10,9 +10,10 @@ config R8188EU
 	select LIB80211_CRYPT_CCMP
 	help
 	This option adds the Realtek RTL8188EU USB device such as TP-Link TL-WN725N.
-	If built as a module, it will be called r8188eu.
+	If built as a module, it will be called rtl8188eu. This driver is now due to
+	be dropped due to the import of a newer version.
 
-if R8188EU
+if R8188EU_OLD
 
 config 88EU_AP_MODE
 	bool "Realtek RTL8188EU AP mode"
