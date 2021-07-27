@@ -523,6 +523,37 @@
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
 #define IGC_RXCSUM_PCSD		0x00002000   /* packet checksum disabled */
 
+/* PCIe PTM Control */
+#define IGC_PTM_CTRL_START_NOW	BIT(29) /* Start PTM Now */
+#define IGC_PTM_CTRL_EN		BIT(30) /* Enable PTM */
+#define IGC_PTM_CTRL_TRIG	BIT(31) /* PTM Cycle trigger */
+#define IGC_PTM_CTRL_SHRT_CYC(usec)	(((usec) & 0x2f) << 2)
+#define IGC_PTM_CTRL_PTM_TO(usec)	(((usec) & 0xff) << 8)
+
+#define IGC_PTM_SHORT_CYC_DEFAULT	10  /* Default Short/interrupted cycle interval */
+#define IGC_PTM_CYC_TIME_DEFAULT	5   /* Default PTM cycle time */
+#define IGC_PTM_TIMEOUT_DEFAULT		255 /* Default timeout for PTM errors */
+
+/* PCIe Digital Delay */
+#define IGC_PCIE_DIG_DELAY_DEFAULT	0x01440000
+
+/* PCIe PHY Delay */
+#define IGC_PCIE_PHY_DELAY_DEFAULT	0x40900000
+
+#define IGC_TIMADJ_ADJUST_METH		0x40000000
+
+/* PCIe PTM Status */
+#define IGC_PTM_STAT_VALID		BIT(0) /* PTM Status */
+#define IGC_PTM_STAT_RET_ERR		BIT(1) /* Root port timeout */
+#define IGC_PTM_STAT_BAD_PTM_RES	BIT(2) /* PTM Response msg instead of PTM Response Data */
+#define IGC_PTM_STAT_T4M1_OVFL		BIT(3) /* T4 minus T1 overflow */
+#define IGC_PTM_STAT_ADJUST_1ST		BIT(4) /* 1588 timer adjusted during 1st PTM cycle */
+#define IGC_PTM_STAT_ADJUST_CYC		BIT(5) /* 1588 timer adjusted during non-1st PTM cycle */
+
+/* PCIe PTM Cycle Control */
+#define IGC_PTM_CYCLE_CTRL_CYC_TIME(msec)	((msec) & 0x3ff) /* PTM Cycle Time (msec) */
+#define IGC_PTM_CYCLE_CTRL_AUTO_CYC_EN		BIT(31) /* PTM Cycle Control */
+
 /* GPY211 - I225 defines */
 #define GPY_MMD_MASK		0xFFFF0000
 #define GPY_MMD_SHIFT		16
