@@ -2588,22 +2588,26 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	struct ionic_qcq **tx_qcqs = NULL;
 	struct ionic_qcq **rx_qcqs = NULL;
 	unsigned int flags, i;
-	int err = -ENOMEM;
+	int err = 0;
 
 	/* allocate temporary qcq arrays to hold new queue structs */
 	if (qparam->nxqs != lif->nxqs || qparam->ntxq_descs != lif->ntxq_descs) {
 		tx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->ntxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
-		if (!tx_qcqs)
+		if (!tx_qcqs) {
+			err = -ENOMEM;
 			goto err_out;
+		}
 	}
 	if (qparam->nxqs != lif->nxqs ||
 	    qparam->nrxq_descs != lif->nrxq_descs ||
 	    qparam->rxq_features != lif->rxq_features) {
 		rx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->nrxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
-		if (!rx_qcqs)
+		if (!rx_qcqs) {
+			err = -ENOMEM;
 			goto err_out;
+		}
 	}
 
 	/* allocate new desc_info and rings, but leave the interrupt setup
@@ -2781,6 +2785,9 @@ err_out:
 		lif->rxqcqs[i]->flags &= ~IONIC_QCQ_F_INTR;
 		ionic_qcq_free(lif, lif->rxqcqs[i]);
 	}
+
+	if (err)
+		netdev_info(lif->netdev, "%s: failed %d\n", __func__, err);
 
 	return err;
 }
