@@ -30,6 +30,7 @@
 
 #include "display/intel_fbdev.h"
 
+#include "i915_active.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
 #include "i915_globals.h"
@@ -1259,6 +1260,7 @@ static const struct {
    void (*exit)(void);
 } init_funcs[] = {
 	{ i915_check_nomodeset, NULL },
+	{ i915_active_module_init, i915_active_module_exit },
 	{ i915_globals_init, i915_globals_exit },
 	{ i915_mock_selftests, NULL },
 	{ i915_pmu_init, i915_pmu_exit },
