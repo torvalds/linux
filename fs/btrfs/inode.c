@@ -9028,7 +9028,8 @@ out:
  */
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *new_root,
-			     struct btrfs_root *parent_root)
+			     struct btrfs_root *parent_root,
+			     struct user_namespace *mnt_userns)
 {
 	struct inode *inode;
 	int err;
@@ -9039,7 +9040,7 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	if (err < 0)
 		return err;
 
-	inode = btrfs_new_inode(trans, new_root, &init_user_ns, NULL, "..", 2,
+	inode = btrfs_new_inode(trans, new_root, mnt_userns, NULL, "..", 2,
 				ino, ino,
 				S_IFDIR | (~current_umask() & S_IRWXUGO),
 				&index);
