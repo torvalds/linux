@@ -100,32 +100,22 @@ static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
 	}
 }
 
-/* Threaded part of the IPA IRQ handler */
+/* IPA IRQ handler is threaded */
 static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
-{
-	struct ipa_interrupt *interrupt = dev_id;
-
-	ipa_clock_get(interrupt->ipa);
-
-	ipa_interrupt_process_all(interrupt);
-
-	ipa_clock_put(interrupt->ipa);
-
-	return IRQ_HANDLED;
-}
-
-/* Hard part (i.e., "real" IRQ handler) of the IRQ handler */
-static irqreturn_t ipa_isr(int irq, void *dev_id)
 {
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 offset;
 	u32 mask;
 
+	ipa_clock_get(ipa);
+
 	offset = ipa_reg_irq_stts_offset(ipa->version);
 	mask = ioread32(ipa->reg_virt + offset);
-	if (mask & interrupt->enabled)
-		return IRQ_WAKE_THREAD;
+	if (mask & interrupt->enabled) {
+		ipa_interrupt_process_all(interrupt);
+		goto out_clock_put;
+	}
 
 	/* Nothing in the mask was supposed to cause an interrupt */
 	offset = ipa_reg_irq_clr_offset(ipa->version);
@@ -133,6 +123,9 @@ static irqreturn_t ipa_isr(int irq, void *dev_id)
 
 	dev_err(&ipa->pdev->dev, "%s: unexpected interrupt, mask 0x%08x\n",
 		__func__, mask);
+
+out_clock_put:
+	ipa_clock_put(ipa);
 
 	return IRQ_HANDLED;
 }
@@ -260,7 +253,7 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 	offset = ipa_reg_irq_en_offset(ipa->version);
 	iowrite32(0, ipa->reg_virt + offset);
 
-	ret = request_threaded_irq(irq, ipa_isr, ipa_isr_thread, IRQF_ONESHOT,
+	ret = request_threaded_irq(irq, NULL, ipa_isr_thread, IRQF_ONESHOT,
 				   "ipa", interrupt);
 	if (ret) {
 		dev_err(dev, "error %d requesting \"ipa\" IRQ\n", ret);
