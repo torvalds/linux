@@ -81,6 +81,7 @@ static bool memslot_is_logging(struct kvm_memory_slot *memslot)
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
 	kvm_call_hyp(__kvm_tlb_flush_vmid, &kvm->arch.mmu);
+	++kvm->stat.generic.remote_tlb_flush;
 }
 
 static bool kvm_is_device_pfn(unsigned long pfn)
