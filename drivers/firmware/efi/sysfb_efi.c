@@ -332,6 +332,7 @@ static const struct fwnode_operations efifb_fwnode_ops = {
 	.add_links = efifb_add_links,
 };
 
+#ifdef CONFIG_EFI
 static struct fwnode_handle efifb_fwnode;
 
 __init void sysfb_apply_efi_quirks(struct platform_device *pd)
@@ -354,3 +355,4 @@ __init void sysfb_apply_efi_quirks(struct platform_device *pd)
 		pd->dev.fwnode = &efifb_fwnode;
 	}
 }
+#endif
