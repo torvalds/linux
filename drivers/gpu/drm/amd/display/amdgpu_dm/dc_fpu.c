@@ -34,6 +34,19 @@
 #endif
 
 /**
+ * DOC: DC FPU manipulation overview
+ *
+ * DC core uses FPU operations in multiple parts of the code, which requires a
+ * more specialized way to manage these areas' entrance. To fulfill this
+ * requirement, we created some wrapper functions that encapsulate
+ * kernel_fpu_begin/end to better fit our need in the display component. In
+ * summary, in this file, you can find functions related to FPU operation
+ * management.
+ */
+
+static DEFINE_PER_CPU(int, fpu_recursion_depth);
+
+/**
  * dc_fpu_begin - Enables FPU protection
  * @function_name: A string containing the function name for debug purposes
  *   (usually __func__)
@@ -48,22 +61,30 @@
  */
 void dc_fpu_begin(const char *function_name, const int line)
 {
-	TRACE_DCN_FPU(true, function_name, line);
+	int *pcpu;
 
+	pcpu = get_cpu_ptr(&fpu_recursion_depth);
+	*pcpu += 1;
+
+	if (*pcpu == 1) {
 #if defined(CONFIG_X86)
-	kernel_fpu_begin();
+		kernel_fpu_begin();
 #elif defined(CONFIG_PPC64)
-	if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
-		preempt_disable();
-		enable_kernel_vsx();
-	} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
-		preempt_disable();
-		enable_kernel_altivec();
-	} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
-		preempt_disable();
-		enable_kernel_fp();
-	}
+		if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
+			preempt_disable();
+			enable_kernel_vsx();
+		} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
+			preempt_disable();
+			enable_kernel_altivec();
+		} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
+			preempt_disable();
+			enable_kernel_fp();
+		}
 #endif
+	}
+
+	TRACE_DCN_FPU(true, function_name, line, *pcpu);
+	put_cpu_ptr(&fpu_recursion_depth);
 }
 
 /**
@@ -78,19 +99,27 @@ void dc_fpu_begin(const char *function_name, const int line)
  */
 void dc_fpu_end(const char *function_name, const int line)
 {
-	TRACE_DCN_FPU(false, function_name, line);
+	int *pcpu;
+
+	pcpu = get_cpu_ptr(&fpu_recursion_depth);
+	*pcpu -= 1;
+	if (*pcpu <= 0) {
 #if defined(CONFIG_X86)
-	kernel_fpu_end();
+		kernel_fpu_end();
 #elif defined(CONFIG_PPC64)
-	if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
-		disable_kernel_vsx();
-		preempt_enable();
-	} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
-		disable_kernel_altivec();
-		preempt_enable();
-	} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
-		disable_kernel_fp();
-		preempt_enable();
-	}
+		if (cpu_has_feature(CPU_FTR_VSX_COMP)) {
+			disable_kernel_vsx();
+			preempt_enable();
+		} else if (cpu_has_feature(CPU_FTR_ALTIVEC_COMP)) {
+			disable_kernel_altivec();
+			preempt_enable();
+		} else if (!cpu_has_feature(CPU_FTR_FPU_UNAVAILABLE)) {
+			disable_kernel_fp();
+			preempt_enable();
+		}
 #endif
+	}
+
+	TRACE_DCN_FPU(false, function_name, line, *pcpu);
+	put_cpu_ptr(&fpu_recursion_depth);
 }
