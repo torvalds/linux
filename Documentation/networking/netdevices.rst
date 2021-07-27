@@ -222,6 +222,13 @@ ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
+ndo_siocdevprivate:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+	This is used to implement SIOCDEVPRIVATE ioctl helpers.
+	These should not be added to new drivers, so don't use.
+
 ndo_get_stats:
 	Synchronization: rtnl_lock() semaphore, dev_base_lock rwlock, or RCU.
 	Context: atomic (can't sleep under rwlock or RCU)
