@@ -143,6 +143,7 @@ struct ionic_dev {
 	u32 last_fw_hb;
 	bool fw_hb_ready;
 	bool fw_status_ready;
+	u8 fw_generation;
 
 	u64 __iomem *db_pages;
 	dma_addr_t phy_db_pages;
