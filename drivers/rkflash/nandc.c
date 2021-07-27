@@ -323,26 +323,29 @@ static void nandc_xfer_done(void)
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_V9_FLCTL);
 				stat_reg.d32 = nandc_readl(NANDC_V9_MTRANS_STAT);
+				usleep_range(20, 30);
 			} while (stat_reg.V9.mtrans_cnt < fl_reg.V9.page_num ||
 				 fl_reg.V9.tr_rdy == 0);
+			udelay(5);
 			if (master.mapped) {
 				rknandc_dma_unmap_single((u64)master.page_phy,
-					fl_reg.V6.page_num * 1024,
+					fl_reg.V9.page_num * 1024,
 					0);
 				rknandc_dma_unmap_single((u64)master.spare_phy,
-					fl_reg.V6.page_num * 64,
+					fl_reg.V9.page_num * 64,
 					0);
 			}
 		} else {
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_V9_FLCTL);
+				usleep_range(20, 30);
 			} while (fl_reg.V9.tr_rdy == 0);
 			if (master.mapped) {
 				rknandc_dma_unmap_single((u64)master.page_phy,
-					fl_reg.V6.page_num * 1024,
+					fl_reg.V9.page_num * 1024,
 					1);
 				rknandc_dma_unmap_single((u64)master.spare_phy,
-					fl_reg.V6.page_num * 64,
+					fl_reg.V9.page_num * 64,
 					1);
 			}
 		}
@@ -355,6 +358,7 @@ static void nandc_xfer_done(void)
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_FLCTL);
 				stat_reg.d32 = nandc_readl(NANDC_MTRANS_STAT);
+				usleep_range(20, 30);
 			} while (stat_reg.V6.mtrans_cnt < fl_reg.V6.page_num ||
 				 fl_reg.V6.tr_rdy == 0);
 
@@ -371,6 +375,7 @@ static void nandc_xfer_done(void)
 		} else {
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_FLCTL);
+				usleep_range(20, 30);
 			} while (fl_reg.V6.tr_rdy == 0);
 			if (master.mapped) {
 				rknandc_dma_unmap_single(
