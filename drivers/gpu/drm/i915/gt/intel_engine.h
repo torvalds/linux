@@ -245,7 +245,7 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
 				   ktime_t *now);
 
 struct i915_request *
-intel_engine_find_active_request(struct intel_engine_cs *engine);
+intel_engine_execlist_find_hung_request(struct intel_engine_cs *engine);
 
 u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
 struct intel_context *
@@ -311,6 +311,25 @@ intel_engine_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
 {
 	GEM_BUG_ON(!intel_engine_is_virtual(engine));
 	return engine->cops->get_sibling(engine, sibling);
+}
+
+static inline void
+intel_engine_set_hung_context(struct intel_engine_cs *engine,
+			      struct intel_context *ce)
+{
+	engine->hung_ce = ce;
+}
+
+static inline void
+intel_engine_clear_hung_context(struct intel_engine_cs *engine)
+{
+	intel_engine_set_hung_context(engine, NULL);
+}
+
+static inline struct intel_context *
+intel_engine_get_hung_context(struct intel_engine_cs *engine)
+{
+	return engine->hung_ce;
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

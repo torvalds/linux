@@ -1731,7 +1731,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "\tRequests:\n");
 
 	spin_lock_irqsave(&engine->sched_engine->lock, flags);
-	rq = intel_engine_find_active_request(engine);
+	rq = intel_engine_execlist_find_hung_request(engine);
 	if (rq) {
 		struct intel_timeline *tl = get_timeline(rq);
 
@@ -1842,9 +1842,16 @@ static bool match_ring(struct i915_request *rq)
 }
 
 struct i915_request *
-intel_engine_find_active_request(struct intel_engine_cs *engine)
+intel_engine_execlist_find_hung_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *request, *active = NULL;
+
+	/*
+	 * This search does not work in GuC submission mode. However, the GuC
+	 * will report the hanging context directly to the driver itself. So
+	 * the driver should never get here when in GuC mode.
+	 */
+	GEM_BUG_ON(intel_uc_uses_guc_submission(&engine->gt->uc));
 
 	/*
 	 * We are called by the error capture, reset and to dump engine

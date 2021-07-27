@@ -726,24 +726,6 @@ __unwind_incomplete_requests(struct intel_context *ce)
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
 }
 
-static struct i915_request *context_find_active_request(struct intel_context *ce)
-{
-	struct i915_request *rq, *active = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ce->guc_active.lock, flags);
-	list_for_each_entry_reverse(rq, &ce->guc_active.requests,
-				    sched.link) {
-		if (i915_request_completed(rq))
-			break;
-
-		active = rq;
-	}
-	spin_unlock_irqrestore(&ce->guc_active.lock, flags);
-
-	return active;
-}
-
 static void __guc_reset_context(struct intel_context *ce, bool stalled)
 {
 	struct i915_request *rq;
@@ -757,7 +739,7 @@ static void __guc_reset_context(struct intel_context *ce, bool stalled)
 	 */
 	clr_context_enabled(ce);
 
-	rq = context_find_active_request(ce);
+	rq = intel_context_find_active_request(ce);
 	if (!rq) {
 		head = ce->ring->tail;
 		stalled = false;
@@ -2201,6 +2183,20 @@ int intel_guc_sched_done_process_msg(struct intel_guc *guc,
 	return 0;
 }
 
+static void capture_error_state(struct intel_guc *guc,
+				struct intel_context *ce)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_engine_cs *engine = __context_to_physical_engine(ce);
+	intel_wakeref_t wakeref;
+
+	intel_engine_set_hung_context(engine, ce);
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		i915_capture_error_state(gt, engine->mask);
+	atomic_inc(&i915->gpu_error.reset_engine_count[engine->uabi_class]);
+}
+
 static void guc_context_replay(struct intel_context *ce)
 {
 	struct i915_sched_engine *sched_engine = ce->engine->sched_engine;
@@ -2213,6 +2209,7 @@ static void guc_handle_context_reset(struct intel_guc *guc,
 				     struct intel_context *ce)
 {
 	trace_intel_context_reset(ce);
+	capture_error_state(guc, ce);
 	guc_context_replay(ce);
 }
 
