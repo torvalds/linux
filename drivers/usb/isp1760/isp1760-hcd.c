@@ -250,7 +250,7 @@ static int isp1760_hcd_set_and_wait(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_set(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      val, 10, timeout_us);
+					      val, 0, timeout_us);
 }
 
 static int isp1760_hcd_set_and_wait_swap(struct usb_hcd *hcd, u32 field,
@@ -262,7 +262,7 @@ static int isp1760_hcd_set_and_wait_swap(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_set(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      !val, 10, timeout_us);
+					      !val, 0, timeout_us);
 }
 
 static int isp1760_hcd_clear_and_wait(struct usb_hcd *hcd, u32 field,
@@ -274,7 +274,7 @@ static int isp1760_hcd_clear_and_wait(struct usb_hcd *hcd, u32 field,
 	isp1760_hcd_clear(hcd, field);
 
 	return regmap_field_read_poll_timeout(priv->fields[field], val,
-					      !val, 10, timeout_us);
+					      !val, 0, timeout_us);
 }
 
 static bool isp1760_hcd_is_set(struct usb_hcd *hcd, u32 field)
