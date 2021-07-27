@@ -678,7 +678,6 @@ void __init printk_all_partitions(void)
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
 		struct block_device *part;
-		char name_buf[BDEVNAME_SIZE];
 		char devt_buf[BDEVT_SIZE];
 		unsigned long idx;
 
@@ -698,11 +697,10 @@ void __init printk_all_partitions(void)
 		xa_for_each(&disk->part_tbl, idx, part) {
 			if (!bdev_nr_sectors(part))
 				continue;
-			printk("%s%s %10llu %s %s",
+			printk("%s%s %10llu %pg %s",
 			       bdev_is_partition(part) ? "  " : "",
 			       bdevt_str(part->bd_dev, devt_buf),
-			       bdev_nr_sectors(part) >> 1,
-			       disk_name(disk, part->bd_partno, name_buf),
+			       bdev_nr_sectors(part) >> 1, part,
 			       part->bd_meta_info ?
 					part->bd_meta_info->uuid : "");
 			if (bdev_is_partition(part))
