@@ -4193,6 +4193,11 @@ static int gaudi_hw_init(struct hl_device *hdev)
 		goto disable_msi;
 	}
 
+	/* Scrub both SRAM and DRAM */
+	rc = hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
+	if (rc)
+		return rc;
+
 	/* Perform read from the device to flush all configuration */
 	RREG32(mmHW_STATE);
 
@@ -4757,8 +4762,8 @@ static int gaudi_hbm_scrubbing(struct hl_device *hdev)
 				"Doing HBM scrubbing for 0x%09llx - 0x%09llx\n",
 				cur_addr, cur_addr + chunk_size);
 
-			WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset, 0);
-			WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset, 0);
+			WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset, 0xdeadbeaf);
+			WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset, 0xdeadbeaf);
 			WREG32(mmDMA0_CORE_DST_BASE_LO + dma_offset,
 						lower_32_bits(cur_addr));
 			WREG32(mmDMA0_CORE_DST_BASE_HI + dma_offset,
