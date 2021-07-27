@@ -161,8 +161,6 @@ struct ionic_dev {
 struct ionic_cq_info {
 	union {
 		void *cq_desc;
-		struct ionic_txq_comp *txcq;
-		struct ionic_rxq_comp *rxcq;
 		struct ionic_admin_comp *admincq;
 		struct ionic_notifyq_event *notifyq;
 	};
