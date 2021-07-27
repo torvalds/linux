@@ -499,6 +499,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int refresh_rate;
 	bool synchronize_timings;
 	unsigned int odm_combine_policy;
+	bool drr_display;
 };
 
 struct _vcs_dpi_display_pipe_params_st {

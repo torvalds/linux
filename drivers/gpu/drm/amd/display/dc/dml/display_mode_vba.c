@@ -697,6 +697,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.PixelClock[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.PixelClockBackEnd[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.DPPCLK[mode_lib->vba.NumberOfActivePlanes] = clks->dppclk_mhz;
+		mode_lib->vba.DRRDisplay[mode_lib->vba.NumberOfActiveSurfaces] = dst->drr_display;
 		if (ip->is_line_buffer_bpp_fixed)
 			mode_lib->vba.LBBitPerPixel[mode_lib->vba.NumberOfActivePlanes] =
 					ip->line_buffer_fixed_bpp;
