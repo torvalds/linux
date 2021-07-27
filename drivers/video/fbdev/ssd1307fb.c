@@ -186,16 +186,18 @@ static int ssd1307fb_set_page_range(struct ssd1307fb_par *par, u8 page_start,
 	return ssd1307fb_write_cmd(par->client, page_end);
 }
 
-static int ssd1307fb_update_display(struct ssd1307fb_par *par)
+static int ssd1307fb_update_rect(struct ssd1307fb_par *par, unsigned int x,
+				 unsigned int y, unsigned int width,
+				 unsigned int height)
 {
 	struct ssd1307fb_array *array;
 	u8 *vmem = par->info->screen_buffer;
 	unsigned int line_length = par->info->fix.line_length;
-	unsigned int pages = DIV_ROUND_UP(par->height, 8);
+	unsigned int pages = DIV_ROUND_UP(y % 8 + height, 8);
 	u32 array_idx = 0;
 	int ret, i, j, k;
 
-	array = ssd1307fb_alloc_array(par->width * pages, SSD1307FB_DATA);
+	array = ssd1307fb_alloc_array(width * pages, SSD1307FB_DATA);
 	if (!array)
 		return -ENOMEM;
 
@@ -228,13 +230,21 @@ static int ssd1307fb_update_display(struct ssd1307fb_par *par)
 	 *  (5) A4 B4 C4 D4 E4 F4 G4 H4
 	 */
 
-	for (i = 0; i < pages; i++) {
+	ret = ssd1307fb_set_col_range(par, par->col_offset + x, width);
+	if (ret < 0)
+		goto out_free;
+
+	ret = ssd1307fb_set_page_range(par, par->page_offset + y / 8, pages);
+	if (ret < 0)
+		goto out_free;
+
+	for (i = y / 8; i < y / 8 + pages; i++) {
 		int m = 8;
 
 		/* Last page may be partial */
-		if (i + 1 == pages && par->height % 8)
+		if (8 * (i + 1) > par->height)
 			m = par->height % 8;
-		for (j = 0; j < par->width; j++) {
+		for (j = x; j < x + width; j++) {
 			u8 data = 0;
 
 			for (k = 0; k < m; k++) {
@@ -247,11 +257,17 @@ static int ssd1307fb_update_display(struct ssd1307fb_par *par)
 		}
 	}
 
-	ret = ssd1307fb_write_array(par->client, array, par->width * pages);
+	ret = ssd1307fb_write_array(par->client, array, width * pages);
+
+out_free:
 	kfree(array);
 	return ret;
 }
 
+static int ssd1307fb_update_display(struct ssd1307fb_par *par)
+{
+	return ssd1307fb_update_rect(par, 0, 0, par->width, par->height);
+}
 
 static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
@@ -301,21 +317,24 @@ static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *r
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_fillrect(info, rect);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, rect->dx, rect->dy, rect->width,
+			      rect->height);
 }
 
 static void ssd1307fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_copyarea(info, area);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, area->dx, area->dy, area->width,
+			      area->height);
 }
 
 static void ssd1307fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_imageblit(info, image);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, image->dx, image->dy, image->width,
+			      image->height);
 }
 
 static const struct fb_ops ssd1307fb_ops = {
@@ -492,17 +511,6 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 
 	ret = ssd1307fb_write_cmd(par->client,
 				  SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
-	if (ret < 0)
-		return ret;
-
-	/* Set column range */
-	ret = ssd1307fb_set_col_range(par, par->col_offset, par->width);
-	if (ret < 0)
-		return ret;
-
-	/* Set page range */
-	ret = ssd1307fb_set_page_range(par, par->page_offset,
-				       DIV_ROUND_UP(par->height, 8));
 	if (ret < 0)
 		return ret;
 
