@@ -920,6 +920,11 @@ DECLARE_EVENT_CLASS(intel_context,
 			      __entry->guc_sched_state_no_lock)
 );
 
+DEFINE_EVENT(intel_context, intel_context_reset,
+	     TP_PROTO(struct intel_context *ce),
+	     TP_ARGS(ce)
+);
+
 DEFINE_EVENT(intel_context, intel_context_register,
 	     TP_PROTO(struct intel_context *ce),
 	     TP_ARGS(ce)
@@ -1004,6 +1009,11 @@ trace_i915_request_in(struct i915_request *rq, unsigned int port)
 
 static inline void
 trace_i915_request_out(struct i915_request *rq)
+{
+}
+
+static inline void
+trace_intel_context_reset(struct intel_context *ce)
 {
 }
 
