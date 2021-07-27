@@ -1216,7 +1216,7 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 		printk_deferred("WALT-BUG picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
 				(*p)->comm, (*p)->pid, (*p)->on_cpu,
 				(*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
-		SCHED_BUG_ON(1);
+		WALT_PANIC(1);
 	}
 
 	/* We don't have MVP tasks queued */
@@ -1237,7 +1237,7 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 		printk_deferred("WALT-BUG picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
 				(*p)->comm, (*p)->pid, (*p)->on_cpu,
 				(*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
-		SCHED_BUG_ON(1);
+		WALT_PANIC(1);
 	}
 
 	trace_walt_cfs_mvp_pick_next(mvp, wts, walt_cfs_mvp_task_limit(mvp));
