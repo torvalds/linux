@@ -78,11 +78,17 @@ bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 EXPORT_SYMBOL_GPL(set_capacity_and_notify);
 
 /*
- * Format the device name of the indicated disk into the supplied buffer and
- * return a pointer to that same buffer for convenience.
+ * Format the device name of the indicated block device into the supplied buffer
+ * and return a pointer to that same buffer for convenience.
+ *
+ * Note: do not use this in new code, use the %pg specifier to sprintf and
+ * printk insted.
  */
-char *disk_name(struct gendisk *hd, int partno, char *buf)
+const char *bdevname(struct block_device *bdev, char *buf)
 {
+	struct gendisk *hd = bdev->bd_disk;
+	int partno = bdev->bd_partno;
+
 	if (!partno)
 		snprintf(buf, BDEVNAME_SIZE, "%s", hd->disk_name);
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
@@ -91,11 +97,6 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
 		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
 
 	return buf;
-}
-
-const char *bdevname(struct block_device *bdev, char *buf)
-{
-	return disk_name(bdev->bd_disk, bdev->bd_partno, buf);
 }
 EXPORT_SYMBOL(bdevname);
 

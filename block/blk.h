@@ -344,7 +344,6 @@ static inline void blk_queue_clear_zone_settings(struct request_queue *q) {}
 
 int blk_alloc_ext_minor(void);
 void blk_free_ext_minor(unsigned int minor);
-char *disk_name(struct gendisk *hd, int partno, char *buf);
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
