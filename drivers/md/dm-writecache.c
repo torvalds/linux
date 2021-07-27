@@ -206,6 +206,19 @@ struct dm_writecache {
 
 	struct bio_set bio_set;
 	mempool_t copy_pool;
+
+	struct {
+		unsigned long long reads;
+		unsigned long long read_hits;
+		unsigned long long writes;
+		unsigned long long write_hits_uncommitted;
+		unsigned long long write_hits_committed;
+		unsigned long long writes_around;
+		unsigned long long writes_allocate;
+		unsigned long long writes_blocked_on_freelist;
+		unsigned long long flushes;
+		unsigned long long discards;
+	} stats;
 };
 
 #define WB_LIST_INLINE		16
@@ -1157,6 +1170,18 @@ static int process_cleaner_mesg(unsigned argc, char **argv, struct dm_writecache
 	return 0;
 }
 
+static int process_clear_stats_mesg(unsigned argc, char **argv, struct dm_writecache *wc)
+{
+	if (argc != 1)
+		return -EINVAL;
+
+	wc_lock(wc);
+	memset(&wc->stats, 0, sizeof wc->stats);
+	wc_unlock(wc);
+
+	return 0;
+}
+
 static int writecache_message(struct dm_target *ti, unsigned argc, char **argv,
 			      char *result, unsigned maxlen)
 {
@@ -1169,6 +1194,8 @@ static int writecache_message(struct dm_target *ti, unsigned argc, char **argv,
 		r = process_flush_on_suspend_mesg(argc, argv, wc);
 	else if (!strcasecmp(argv[0], "cleaner"))
 		r = process_cleaner_mesg(argc, argv, wc);
+	else if (!strcasecmp(argv[0], "clear_stats"))
+		r = process_clear_stats_mesg(argc, argv, wc);
 	else
 		DMERR("unrecognised message received: %s", argv[0]);
 
@@ -1320,8 +1347,10 @@ static enum wc_map_op writecache_map_read(struct dm_writecache *wc, struct bio *
 	struct wc_entry *e;
 
 read_next_block:
+	wc->stats.reads++;
 	e = writecache_find_entry(wc, bio->bi_iter.bi_sector, WFE_RETURN_FOLLOWING);
 	if (e && read_original_sector(wc, e) == bio->bi_iter.bi_sector) {
+		wc->stats.read_hits++;
 		if (WC_MODE_PMEM(wc)) {
 			bio_copy_block(wc, bio, memory_data(wc, e));
 			if (bio->bi_iter.bi_size)
@@ -1400,14 +1429,17 @@ static enum wc_map_op writecache_map_write(struct dm_writecache *wc, struct bio 
 	do {
 		bool found_entry = false;
 		bool search_used = false;
+		wc->stats.writes++;
 		if (writecache_has_error(wc))
 			return WC_MAP_ERROR;
 		e = writecache_find_entry(wc, bio->bi_iter.bi_sector, 0);
 		if (e) {
 			if (!writecache_entry_is_committed(wc, e)) {
+				wc->stats.write_hits_uncommitted++;
 				search_used = true;
 				goto bio_copy;
 			}
+			wc->stats.write_hits_committed++;
 			if (!WC_MODE_PMEM(wc) && !e->write_in_progress) {
 				wc->overwrote_committed = true;
 				search_used = true;
@@ -1423,15 +1455,18 @@ static enum wc_map_op writecache_map_write(struct dm_writecache *wc, struct bio 
 		if (unlikely(!e)) {
 			if (!WC_MODE_PMEM(wc) && !found_entry) {
 direct_write:
+				wc->stats.writes_around++;
 				e = writecache_find_entry(wc, bio->bi_iter.bi_sector, WFE_RETURN_FOLLOWING);
 				return writecache_map_remap_origin(wc, bio, e);
 			}
+			wc->stats.writes_blocked_on_freelist++;
 			writecache_wait_on_freelist(wc);
 			continue;
 		}
 		write_original_sector_seq_count(wc, e, bio->bi_iter.bi_sector, wc->seq_count);
 		writecache_insert_entry(wc, e);
 		wc->uncommitted_blocks++;
+		wc->stats.writes_allocate++;
 bio_copy:
 		if (WC_MODE_PMEM(wc))
 			bio_copy_block(wc, bio, memory_data(wc, e));
@@ -1453,6 +1488,7 @@ static enum wc_map_op writecache_map_flush(struct dm_writecache *wc, struct bio 
 		return WC_MAP_ERROR;
 
 	if (WC_MODE_PMEM(wc)) {
+		wc->stats.flushes++;
 		writecache_flush(wc);
 		if (writecache_has_error(wc))
 			return WC_MAP_ERROR;
@@ -1463,12 +1499,15 @@ static enum wc_map_op writecache_map_flush(struct dm_writecache *wc, struct bio 
 	/* SSD: */
 	if (dm_bio_get_target_bio_nr(bio))
 		return WC_MAP_REMAP_ORIGIN;
+	wc->stats.flushes++;
 	writecache_offload_bio(wc, bio);
 	return WC_MAP_RETURN;
 }
 
 static enum wc_map_op writecache_map_discard(struct dm_writecache *wc, struct bio *bio)
 {
+	wc->stats.discards++;
+
 	if (writecache_has_error(wc))
 		return WC_MAP_ERROR;
 
@@ -2618,9 +2657,20 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%ld %llu %llu %llu", writecache_has_error(wc),
+		DMEMIT("%ld %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+		       writecache_has_error(wc),
 		       (unsigned long long)wc->n_blocks, (unsigned long long)wc->freelist_size,
-		       (unsigned long long)wc->writeback_size);
+		       (unsigned long long)wc->writeback_size,
+		       wc->stats.reads,
+		       wc->stats.read_hits,
+		       wc->stats.writes,
+		       wc->stats.write_hits_uncommitted,
+		       wc->stats.write_hits_committed,
+		       wc->stats.writes_around,
+		       wc->stats.writes_allocate,
+		       wc->stats.writes_blocked_on_freelist,
+		       wc->stats.flushes,
+		       wc->stats.discards);
 		break;
 	case STATUSTYPE_TABLE:
 		DMEMIT("%c %s %s %u ", WC_MODE_PMEM(wc) ? 'p' : 's',
@@ -2678,7 +2728,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type writecache_target = {
 	.name			= "writecache",
-	.version		= {1, 5, 0},
+	.version		= {1, 6, 0},
 	.module			= THIS_MODULE,
 	.ctr			= writecache_ctr,
 	.dtr			= writecache_dtr,
