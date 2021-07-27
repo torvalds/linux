@@ -3828,9 +3828,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				 int *nr_ret)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	u64 start = page_offset(page);
-	u64 end = start + PAGE_SIZE - 1;
-	u64 cur = start;
+	u64 cur = page_offset(page);
+	u64 end = cur + PAGE_SIZE - 1;
 	u64 extent_offset;
 	u64 block_start;
 	struct extent_map *em;
@@ -3840,7 +3839,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	const unsigned int write_flags = wbc_to_write_flags(wbc);
 	bool compressed;
 
-	ret = btrfs_writepage_cow_fixup(page, start, end);
+	ret = btrfs_writepage_cow_fixup(page);
 	if (ret) {
 		/* Fixup worker will requeue */
 		redirty_page_for_writepage(wbc, page);
