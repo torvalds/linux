@@ -366,6 +366,12 @@ static int __intel_context_active(struct i915_active *active)
 	return 0;
 }
 
+static int sw_fence_dummy_notify(struct i915_sw_fence *sf,
+				 enum i915_sw_fence_notify state)
+{
+	return NOTIFY_DONE;
+}
+
 void
 intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 {
@@ -398,6 +404,13 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	ce->guc_id = GUC_INVALID_LRC_ID;
 	INIT_LIST_HEAD(&ce->guc_id_link);
+
+	/*
+	 * Initialize fence to be complete as this is expected to be complete
+	 * unless there is a pending schedule disable outstanding.
+	 */
+	i915_sw_fence_init(&ce->guc_blocked, sw_fence_dummy_notify);
+	i915_sw_fence_commit(&ce->guc_blocked);
 
 	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire, 0);

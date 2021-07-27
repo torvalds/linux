@@ -16,6 +16,7 @@
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
+#include "intel_engine_heartbeat.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -604,8 +605,23 @@ static void ring_context_ban(struct intel_context *ce,
 		}
 }
 
+static void ring_context_cancel_request(struct intel_context *ce,
+					struct i915_request *rq)
+{
+	struct intel_engine_cs *engine = NULL;
+
+	i915_request_active_engine(rq, &engine);
+
+	if (engine && intel_engine_pulse(engine))
+		intel_gt_handle_error(engine->gt, engine->mask, 0,
+				      "request cancellation by %s",
+				      current->comm);
+}
+
 static const struct intel_context_ops ring_context_ops = {
 	.alloc = ring_context_alloc,
+
+	.cancel_request = ring_context_cancel_request,
 
 	.ban = ring_context_ban,
 
