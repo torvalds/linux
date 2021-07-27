@@ -22,6 +22,8 @@ void rtw_stop_drv_threads(struct adapter *padapter);
 void rtw_cancel_all_timer(struct adapter *padapter);
 
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+int rtw_android_priv_cmd(struct net_device *dev, struct ifreq *rq,
+			 void __user *data, int cmd);
 
 struct net_device *rtw_init_netdev(void);
 u16 rtw_recv_select_queue(struct sk_buff *skb);
