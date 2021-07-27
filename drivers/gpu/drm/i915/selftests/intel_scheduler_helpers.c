@@ -12,7 +12,7 @@
 
 #define REDUCED_TIMESLICE	5
 #define REDUCED_PREEMPT		10
-#define WAIT_FOR_RESET_TIME	1000
+#define WAIT_FOR_RESET_TIME	10000
 
 int intel_selftest_modify_policy(struct intel_engine_cs *engine,
 				 struct intel_selftest_saved_policy *saved,
