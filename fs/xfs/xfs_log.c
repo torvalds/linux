@@ -827,13 +827,6 @@ xlog_write_unmount_record(
 	/* account for space used by record data */
 	ticket->t_curr_res -= sizeof(ulf);
 
-	/*
-	 * For external log devices, we need to flush the data device cache
-	 * first to ensure all metadata writeback is on stable storage before we
-	 * stamp the tail LSN into the unmount record.
-	 */
-	if (log->l_targ != log->l_mp->m_ddev_targp)
-		blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev);
 	return xlog_write(log, &vec, ticket, NULL, NULL, XLOG_UNMOUNT_TRANS);
 }
 
@@ -1796,10 +1789,20 @@ xlog_write_iclog(
 	 * metadata writeback and causing priority inversions.
 	 */
 	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_IDLE;
-	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH)
+	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH) {
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
+		/*
+		 * For external log devices, we also need to flush the data
+		 * device cache first to ensure all metadata writeback covered
+		 * by the LSN in this iclog is on stable storage. This is slow,
+		 * but it *must* complete before we issue the external log IO.
+		 */
+		if (log->l_targ != log->l_mp->m_ddev_targp)
+			blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev);
+	}
 	if (iclog->ic_flags & XLOG_ICL_NEED_FUA)
 		iclog->ic_bio.bi_opf |= REQ_FUA;
+
 	iclog->ic_flags &= ~(XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA);
 
 	if (xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count)) {
