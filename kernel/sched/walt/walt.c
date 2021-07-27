@@ -175,7 +175,7 @@ __read_mostly unsigned int walt_scale_demand_divisor;
 #define SCHED_PRINT(arg)	printk_deferred("%s=%llu", #arg, arg)
 #define STRG(arg)		#arg
 
-static inline void walt_task_dump(struct task_struct *p)
+void walt_task_dump(struct task_struct *p)
 {
 	char buff[WALT_NR_CPUS * 16];
 	int i, j = 0;
@@ -216,7 +216,7 @@ static inline void walt_task_dump(struct task_struct *p)
 	SCHED_PRINT(p->on_rq);
 }
 
-static inline void walt_rq_dump(int cpu)
+void walt_rq_dump(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	struct task_struct *tsk = cpu_curr(cpu);
@@ -260,7 +260,7 @@ static inline void walt_rq_dump(int cpu)
 	SCHED_PRINT(sched_capacity_margin_down[cpu]);
 }
 
-static inline void walt_dump(void)
+void walt_dump(void)
 {
 	int cpu;
 
@@ -275,15 +275,7 @@ static inline void walt_dump(void)
 	printk_deferred("============ WALT RQ DUMP END ==============\n");
 }
 
-static int in_sched_bug;
-#define SCHED_BUG_ON(condition)				\
-({							\
-	if (unlikely(!!(condition)) && !in_sched_bug) {	\
-		in_sched_bug = 1;			\
-		walt_dump();				\
-		BUG_ON(condition);			\
-	}						\
-})
+int in_sched_bug;
 
 static inline void
 fixup_cumulative_runnable_avg(struct rq *rq,

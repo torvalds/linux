@@ -901,4 +901,19 @@ struct compute_energy_output {
 	u16		cost[MAX_CLUSTERS];
 	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
 };
+
+extern void walt_task_dump(struct task_struct *p);
+extern void walt_rq_dump(int cpu);
+extern void walt_dump(void);
+extern int in_sched_bug;
+
+#define SCHED_BUG_ON(condition)				\
+({							\
+	if (unlikely(!!(condition)) && !in_sched_bug) {	\
+		in_sched_bug = 1;			\
+		walt_dump();				\
+		BUG_ON(condition);			\
+	}						\
+})
+
 #endif /* _WALT_H */
