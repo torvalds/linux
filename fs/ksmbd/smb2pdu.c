@@ -2768,8 +2768,13 @@ int smb2_open(struct ksmbd_work *work)
 	if (!file_present) {
 		rc = smb2_creat(work, &path, name, open_flags, posix_mode,
 				req->CreateOptions & FILE_DIRECTORY_FILE_LE);
-		if (rc)
+		if (rc) {
+			if (rc == -ENOENT) {
+				rc = -EIO;
+				rsp->hdr.Status = STATUS_OBJECT_PATH_NOT_FOUND;
+			}
 			goto err_out;
+		}
 
 		created = true;
 		user_ns = mnt_user_ns(path.mnt);
