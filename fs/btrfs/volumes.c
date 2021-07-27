@@ -1745,19 +1745,14 @@ again:
 		extent = btrfs_item_ptr(leaf, path->slots[0],
 					struct btrfs_dev_extent);
 	} else {
-		btrfs_handle_fs_error(fs_info, ret, "Slot search failed");
 		goto out;
 	}
 
 	*dev_extent_len = btrfs_dev_extent_length(leaf, extent);
 
 	ret = btrfs_del_item(trans, root, path);
-	if (ret) {
-		btrfs_handle_fs_error(fs_info, ret,
-				      "Failed to remove dev extent item");
-	} else {
+	if (ret == 0)
 		set_bit(BTRFS_TRANS_HAVE_FREE_BGS, &trans->transaction->flags);
-	}
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -2942,7 +2937,7 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	u32 cur;
 	struct btrfs_key key;
 
-	mutex_lock(&fs_info->chunk_mutex);
+	lockdep_assert_held(&fs_info->chunk_mutex);
 	array_size = btrfs_super_sys_array_size(super_copy);
 
 	ptr = super_copy->sys_chunk_array;
@@ -2972,7 +2967,6 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 			cur += len;
 		}
 	}
-	mutex_unlock(&fs_info->chunk_mutex);
 	return ret;
 }
 
@@ -3012,6 +3006,29 @@ struct extent_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 	return em;
 }
 
+static int remove_chunk_item(struct btrfs_trans_handle *trans,
+			     struct map_lookup *map, u64 chunk_offset)
+{
+	int i;
+
+	/*
+	 * Removing chunk items and updating the device items in the chunks btree
+	 * requires holding the chunk_mutex.
+	 * See the comment at btrfs_chunk_alloc() for the details.
+	 */
+	lockdep_assert_held(&trans->fs_info->chunk_mutex);
+
+	for (i = 0; i < map->num_stripes; i++) {
+		int ret;
+
+		ret = btrfs_update_device(trans, map->stripes[i].dev);
+		if (ret)
+			return ret;
+	}
+
+	return btrfs_free_chunk(trans, chunk_offset);
+}
+
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -3032,14 +3049,16 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		return PTR_ERR(em);
 	}
 	map = em->map_lookup;
-	mutex_lock(&fs_info->chunk_mutex);
-	check_system_chunk(trans, map->type);
-	mutex_unlock(&fs_info->chunk_mutex);
 
 	/*
-	 * Take the device list mutex to prevent races with the final phase of
-	 * a device replace operation that replaces the device object associated
-	 * with map stripes (dev-replace.c:btrfs_dev_replace_finishing()).
+	 * First delete the device extent items from the devices btree.
+	 * We take the device_list_mutex to avoid racing with the finishing phase
+	 * of a device replace operation. See the comment below before acquiring
+	 * fs_info->chunk_mutex. Note that here we do not acquire the chunk_mutex
+	 * because that can result in a deadlock when deleting the device extent
+	 * items from the devices btree - COWing an extent buffer from the btree
+	 * may result in allocating a new metadata chunk, which would attempt to
+	 * lock again fs_info->chunk_mutex.
 	 */
 	mutex_lock(&fs_devices->device_list_mutex);
 	for (i = 0; i < map->num_stripes; i++) {
@@ -3061,18 +3080,73 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 			btrfs_clear_space_info_full(fs_info);
 			mutex_unlock(&fs_info->chunk_mutex);
 		}
-
-		ret = btrfs_update_device(trans, device);
-		if (ret) {
-			mutex_unlock(&fs_devices->device_list_mutex);
-			btrfs_abort_transaction(trans, ret);
-			goto out;
-		}
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-	ret = btrfs_free_chunk(trans, chunk_offset);
-	if (ret) {
+	/*
+	 * We acquire fs_info->chunk_mutex for 2 reasons:
+	 *
+	 * 1) Just like with the first phase of the chunk allocation, we must
+	 *    reserve system space, do all chunk btree updates and deletions, and
+	 *    update the system chunk array in the superblock while holding this
+	 *    mutex. This is for similar reasons as explained on the comment at
+	 *    the top of btrfs_chunk_alloc();
+	 *
+	 * 2) Prevent races with the final phase of a device replace operation
+	 *    that replaces the device object associated with the map's stripes,
+	 *    because the device object's id can change at any time during that
+	 *    final phase of the device replace operation
+	 *    (dev-replace.c:btrfs_dev_replace_finishing()), so we could grab the
+	 *    replaced device and then see it with an ID of
+	 *    BTRFS_DEV_REPLACE_DEVID, which would cause a failure when updating
+	 *    the device item, which does not exists on the chunk btree.
+	 *    The finishing phase of device replace acquires both the
+	 *    device_list_mutex and the chunk_mutex, in that order, so we are
+	 *    safe by just acquiring the chunk_mutex.
+	 */
+	trans->removing_chunk = true;
+	mutex_lock(&fs_info->chunk_mutex);
+
+	check_system_chunk(trans, map->type);
+
+	ret = remove_chunk_item(trans, map, chunk_offset);
+	/*
+	 * Normally we should not get -ENOSPC since we reserved space before
+	 * through the call to check_system_chunk().
+	 *
+	 * Despite our system space_info having enough free space, we may not
+	 * be able to allocate extents from its block groups, because all have
+	 * an incompatible profile, which will force us to allocate a new system
+	 * block group with the right profile, or right after we called
+	 * check_system_space() above, a scrub turned the only system block group
+	 * with enough free space into RO mode.
+	 * This is explained with more detail at do_chunk_alloc().
+	 *
+	 * So if we get -ENOSPC, allocate a new system chunk and retry once.
+	 */
+	if (ret == -ENOSPC) {
+		const u64 sys_flags = btrfs_system_alloc_profile(fs_info);
+		struct btrfs_block_group *sys_bg;
+
+		sys_bg = btrfs_alloc_chunk(trans, sys_flags);
+		if (IS_ERR(sys_bg)) {
+			ret = PTR_ERR(sys_bg);
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+
+		ret = btrfs_chunk_alloc_add_chunk_item(trans, sys_bg);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+
+		ret = remove_chunk_item(trans, map, chunk_offset);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+	} else if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3087,6 +3161,15 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		}
 	}
 
+	mutex_unlock(&fs_info->chunk_mutex);
+	trans->removing_chunk = false;
+
+	/*
+	 * We are done with chunk btree updates and deletions, so release the
+	 * system space we previously reserved (with check_system_chunk()).
+	 */
+	btrfs_trans_release_chunk_metadata(trans);
+
 	ret = btrfs_remove_block_group(trans, chunk_offset, em);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -3094,6 +3177,10 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	}
 
 out:
+	if (trans->removing_chunk) {
+		mutex_unlock(&fs_info->chunk_mutex);
+		trans->removing_chunk = false;
+	}
 	/* once for us */
 	free_extent_map(em);
 	return ret;
@@ -4860,13 +4947,12 @@ static int btrfs_add_system_chunk(struct btrfs_fs_info *fs_info,
 	u32 array_size;
 	u8 *ptr;
 
-	mutex_lock(&fs_info->chunk_mutex);
+	lockdep_assert_held(&fs_info->chunk_mutex);
+
 	array_size = btrfs_super_sys_array_size(super_copy);
 	if (array_size + item_size + sizeof(disk_key)
-			> BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
-		mutex_unlock(&fs_info->chunk_mutex);
+			> BTRFS_SYSTEM_CHUNK_ARRAY_SIZE)
 		return -EFBIG;
-	}
 
 	ptr = super_copy->sys_chunk_array + array_size;
 	btrfs_cpu_key_to_disk(&disk_key, key);
@@ -4875,7 +4961,6 @@ static int btrfs_add_system_chunk(struct btrfs_fs_info *fs_info,
 	memcpy(ptr, chunk, item_size);
 	item_size += sizeof(disk_key);
 	btrfs_set_super_sys_array_size(super_copy, array_size + item_size);
-	mutex_unlock(&fs_info->chunk_mutex);
 
 	return 0;
 }
@@ -5225,13 +5310,14 @@ static int decide_stripe_size(struct btrfs_fs_devices *fs_devices,
 	}
 }
 
-static int create_chunk(struct btrfs_trans_handle *trans,
+static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 			struct alloc_chunk_ctl *ctl,
 			struct btrfs_device_info *devices_info)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct map_lookup *map = NULL;
 	struct extent_map_tree *em_tree;
+	struct btrfs_block_group *block_group;
 	struct extent_map *em;
 	u64 start = ctl->start;
 	u64 type = ctl->type;
@@ -5241,7 +5327,7 @@ static int create_chunk(struct btrfs_trans_handle *trans,
 
 	map = kmalloc(map_lookup_size(ctl->num_stripes), GFP_NOFS);
 	if (!map)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	map->num_stripes = ctl->num_stripes;
 
 	for (i = 0; i < ctl->ndevs; ++i) {
@@ -5263,7 +5349,7 @@ static int create_chunk(struct btrfs_trans_handle *trans,
 	em = alloc_extent_map();
 	if (!em) {
 		kfree(map);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->map_lookup = map;
@@ -5279,12 +5365,12 @@ static int create_chunk(struct btrfs_trans_handle *trans,
 	if (ret) {
 		write_unlock(&em_tree->lock);
 		free_extent_map(em);
-		return ret;
+		return ERR_PTR(ret);
 	}
 	write_unlock(&em_tree->lock);
 
-	ret = btrfs_make_block_group(trans, 0, type, start, ctl->chunk_size);
-	if (ret)
+	block_group = btrfs_make_block_group(trans, 0, type, start, ctl->chunk_size);
+	if (IS_ERR(block_group))
 		goto error_del_extent;
 
 	for (i = 0; i < map->num_stripes; i++) {
@@ -5304,7 +5390,7 @@ static int create_chunk(struct btrfs_trans_handle *trans,
 	check_raid56_incompat_flag(info, type);
 	check_raid1c34_incompat_flag(info, type);
 
-	return 0;
+	return block_group;
 
 error_del_extent:
 	write_lock(&em_tree->lock);
@@ -5316,34 +5402,36 @@ error_del_extent:
 	/* One for the tree reference */
 	free_extent_map(em);
 
-	return ret;
+	return block_group;
 }
 
-int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type)
+struct btrfs_block_group *btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
+					    u64 type)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_fs_devices *fs_devices = info->fs_devices;
 	struct btrfs_device_info *devices_info = NULL;
 	struct alloc_chunk_ctl ctl;
+	struct btrfs_block_group *block_group;
 	int ret;
 
 	lockdep_assert_held(&info->chunk_mutex);
 
 	if (!alloc_profile_is_valid(type, 0)) {
 		ASSERT(0);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (list_empty(&fs_devices->alloc_list)) {
 		if (btrfs_test_opt(info, ENOSPC_DEBUG))
 			btrfs_debug(info, "%s: no writable device", __func__);
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
 	}
 
 	if (!(type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
 		btrfs_err(info, "invalid chunk type 0x%llx requested", type);
 		ASSERT(0);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	ctl.start = find_next_chunk(info);
@@ -5353,46 +5441,43 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type)
 	devices_info = kcalloc(fs_devices->rw_devices, sizeof(*devices_info),
 			       GFP_NOFS);
 	if (!devices_info)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = gather_device_info(fs_devices, &ctl, devices_info);
-	if (ret < 0)
+	if (ret < 0) {
+		block_group = ERR_PTR(ret);
 		goto out;
+	}
 
 	ret = decide_stripe_size(fs_devices, &ctl, devices_info);
-	if (ret < 0)
+	if (ret < 0) {
+		block_group = ERR_PTR(ret);
 		goto out;
+	}
 
-	ret = create_chunk(trans, &ctl, devices_info);
+	block_group = create_chunk(trans, &ctl, devices_info);
 
 out:
 	kfree(devices_info);
-	return ret;
+	return block_group;
 }
 
 /*
- * Chunk allocation falls into two parts. The first part does work
- * that makes the new allocated chunk usable, but does not do any operation
- * that modifies the chunk tree. The second part does the work that
- * requires modifying the chunk tree. This division is important for the
- * bootstrap process of adding storage to a seed btrfs.
+ * This function, btrfs_finish_chunk_alloc(), belongs to phase 2.
+ *
+ * See the comment at btrfs_chunk_alloc() for details about the chunk allocation
+ * phases.
  */
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 			     u64 chunk_offset, u64 chunk_size)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_root *extent_root = fs_info->extent_root;
-	struct btrfs_root *chunk_root = fs_info->chunk_root;
-	struct btrfs_key key;
 	struct btrfs_device *device;
-	struct btrfs_chunk *chunk;
-	struct btrfs_stripe *stripe;
 	struct extent_map *em;
 	struct map_lookup *map;
-	size_t item_size;
 	u64 dev_offset;
 	u64 stripe_size;
-	int i = 0;
+	int i;
 	int ret = 0;
 
 	em = btrfs_get_chunk_map(fs_info, chunk_offset, chunk_size);
@@ -5400,53 +5485,117 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		return PTR_ERR(em);
 
 	map = em->map_lookup;
-	item_size = btrfs_chunk_item_size(map->num_stripes);
 	stripe_size = em->orig_block_len;
-
-	chunk = kzalloc(item_size, GFP_NOFS);
-	if (!chunk) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	/*
 	 * Take the device list mutex to prevent races with the final phase of
 	 * a device replace operation that replaces the device object associated
 	 * with the map's stripes, because the device object's id can change
 	 * at any time during that final phase of the device replace operation
-	 * (dev-replace.c:btrfs_dev_replace_finishing()).
+	 * (dev-replace.c:btrfs_dev_replace_finishing()), so we could grab the
+	 * replaced device and then see it with an ID of BTRFS_DEV_REPLACE_DEVID,
+	 * resulting in persisting a device extent item with such ID.
 	 */
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	for (i = 0; i < map->num_stripes; i++) {
 		device = map->stripes[i].dev;
 		dev_offset = map->stripes[i].physical;
 
-		ret = btrfs_update_device(trans, device);
-		if (ret)
-			break;
 		ret = btrfs_alloc_dev_extent(trans, device, chunk_offset,
 					     dev_offset, stripe_size);
 		if (ret)
 			break;
 	}
-	if (ret) {
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+
+	free_extent_map(em);
+	return ret;
+}
+
+/*
+ * This function, btrfs_chunk_alloc_add_chunk_item(), typically belongs to the
+ * phase 1 of chunk allocation. It belongs to phase 2 only when allocating system
+ * chunks.
+ *
+ * See the comment at btrfs_chunk_alloc() for details about the chunk allocation
+ * phases.
+ */
+int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
+				     struct btrfs_block_group *bg)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_root *chunk_root = fs_info->chunk_root;
+	struct btrfs_key key;
+	struct btrfs_chunk *chunk;
+	struct btrfs_stripe *stripe;
+	struct extent_map *em;
+	struct map_lookup *map;
+	size_t item_size;
+	int i;
+	int ret;
+
+	/*
+	 * We take the chunk_mutex for 2 reasons:
+	 *
+	 * 1) Updates and insertions in the chunk btree must be done while holding
+	 *    the chunk_mutex, as well as updating the system chunk array in the
+	 *    superblock. See the comment on top of btrfs_chunk_alloc() for the
+	 *    details;
+	 *
+	 * 2) To prevent races with the final phase of a device replace operation
+	 *    that replaces the device object associated with the map's stripes,
+	 *    because the device object's id can change at any time during that
+	 *    final phase of the device replace operation
+	 *    (dev-replace.c:btrfs_dev_replace_finishing()), so we could grab the
+	 *    replaced device and then see it with an ID of BTRFS_DEV_REPLACE_DEVID,
+	 *    which would cause a failure when updating the device item, which does
+	 *    not exists, or persisting a stripe of the chunk item with such ID.
+	 *    Here we can't use the device_list_mutex because our caller already
+	 *    has locked the chunk_mutex, and the final phase of device replace
+	 *    acquires both mutexes - first the device_list_mutex and then the
+	 *    chunk_mutex. Using any of those two mutexes protects us from a
+	 *    concurrent device replace.
+	 */
+	lockdep_assert_held(&fs_info->chunk_mutex);
+
+	em = btrfs_get_chunk_map(fs_info, bg->start, bg->length);
+	if (IS_ERR(em)) {
+		ret = PTR_ERR(em);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
+
+	map = em->map_lookup;
+	item_size = btrfs_chunk_item_size(map->num_stripes);
+
+	chunk = kzalloc(item_size, GFP_NOFS);
+	if (!chunk) {
+		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
+
+	for (i = 0; i < map->num_stripes; i++) {
+		struct btrfs_device *device = map->stripes[i].dev;
+
+		ret = btrfs_update_device(trans, device);
+		if (ret)
+			goto out;
 	}
 
 	stripe = &chunk->stripe;
 	for (i = 0; i < map->num_stripes; i++) {
-		device = map->stripes[i].dev;
-		dev_offset = map->stripes[i].physical;
+		struct btrfs_device *device = map->stripes[i].dev;
+		const u64 dev_offset = map->stripes[i].physical;
 
 		btrfs_set_stack_stripe_devid(stripe, device->devid);
 		btrfs_set_stack_stripe_offset(stripe, dev_offset);
 		memcpy(stripe->dev_uuid, device->uuid, BTRFS_UUID_SIZE);
 		stripe++;
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
-	btrfs_set_stack_chunk_length(chunk, chunk_size);
+	btrfs_set_stack_chunk_length(chunk, bg->length);
 	btrfs_set_stack_chunk_owner(chunk, extent_root->root_key.objectid);
 	btrfs_set_stack_chunk_stripe_len(chunk, map->stripe_len);
 	btrfs_set_stack_chunk_type(chunk, map->type);
@@ -5458,15 +5607,18 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	key.type = BTRFS_CHUNK_ITEM_KEY;
-	key.offset = chunk_offset;
+	key.offset = bg->start;
 
 	ret = btrfs_insert_item(trans, chunk_root, &key, chunk, item_size);
-	if (ret == 0 && map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
-		/*
-		 * TODO: Cleanup of inserted chunk root in case of
-		 * failure.
-		 */
+	if (ret)
+		goto out;
+
+	bg->chunk_item_inserted = 1;
+
+	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_add_system_chunk(fs_info, &key, chunk, item_size);
+		if (ret)
+			goto out;
 	}
 
 out:
@@ -5479,16 +5631,41 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	u64 alloc_profile;
-	int ret;
+	struct btrfs_block_group *meta_bg;
+	struct btrfs_block_group *sys_bg;
+
+	/*
+	 * When adding a new device for sprouting, the seed device is read-only
+	 * so we must first allocate a metadata and a system chunk. But before
+	 * adding the block group items to the extent, device and chunk btrees,
+	 * we must first:
+	 *
+	 * 1) Create both chunks without doing any changes to the btrees, as
+	 *    otherwise we would get -ENOSPC since the block groups from the
+	 *    seed device are read-only;
+	 *
+	 * 2) Add the device item for the new sprout device - finishing the setup
+	 *    of a new block group requires updating the device item in the chunk
+	 *    btree, so it must exist when we attempt to do it. The previous step
+	 *    ensures this does not fail with -ENOSPC.
+	 *
+	 * After that we can add the block group items to their btrees:
+	 * update existing device item in the chunk btree, add a new block group
+	 * item to the extent btree, add a new chunk item to the chunk btree and
+	 * finally add the new device extent items to the devices btree.
+	 */
 
 	alloc_profile = btrfs_metadata_alloc_profile(fs_info);
-	ret = btrfs_alloc_chunk(trans, alloc_profile);
-	if (ret)
-		return ret;
+	meta_bg = btrfs_alloc_chunk(trans, alloc_profile);
+	if (IS_ERR(meta_bg))
+		return PTR_ERR(meta_bg);
 
 	alloc_profile = btrfs_system_alloc_profile(fs_info);
-	ret = btrfs_alloc_chunk(trans, alloc_profile);
-	return ret;
+	sys_bg = btrfs_alloc_chunk(trans, alloc_profile);
+	if (IS_ERR(sys_bg))
+		return PTR_ERR(sys_bg);
+
+	return 0;
 }
 
 static inline int btrfs_chunk_max_errors(struct map_lookup *map)
@@ -7415,10 +7592,18 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 			total_dev++;
 		} else if (found_key.type == BTRFS_CHUNK_ITEM_KEY) {
 			struct btrfs_chunk *chunk;
+
+			/*
+			 * We are only called at mount time, so no need to take
+			 * fs_info->chunk_mutex. Plus, to avoid lockdep warnings,
+			 * we always lock first fs_info->chunk_mutex before
+			 * acquiring any locks on the chunk tree. This is a
+			 * requirement for chunk allocation, see the comment on
+			 * top of btrfs_chunk_alloc() for details.
+			 */
+			ASSERT(!test_bit(BTRFS_FS_OPEN, &fs_info->flags));
 			chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
-			mutex_lock(&fs_info->chunk_mutex);
 			ret = read_one_chunk(&found_key, leaf, chunk);
-			mutex_unlock(&fs_info->chunk_mutex);
 			if (ret)
 				goto error;
 		}

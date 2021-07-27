@@ -23,15 +23,21 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
 	u64 last_jiffies;
+	u32 last_set = 0;
 	int err;
 
-	if (tb[NFTA_LAST_MSECS]) {
+	if (tb[NFTA_LAST_SET]) {
+		last_set = ntohl(nla_get_be32(tb[NFTA_LAST_SET]));
+		if (last_set == 1)
+			priv->last_set = 1;
+	}
+
+	if (last_set && tb[NFTA_LAST_MSECS]) {
 		err = nf_msecs_to_jiffies64(tb[NFTA_LAST_MSECS], &last_jiffies);
 		if (err < 0)
 			return err;
 
-		priv->last_jiffies = jiffies + (unsigned long)last_jiffies;
-		priv->last_set = 1;
+		priv->last_jiffies = jiffies - (unsigned long)last_jiffies;
 	}
 
 	return 0;
