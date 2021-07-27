@@ -144,7 +144,7 @@ struct tree_entry {
  */
 struct btrfs_bio_ctrl {
 	struct bio *bio;
-	unsigned long bio_flags;
+	enum btrfs_compression_type compress_type;
 	u32 len_to_stripe_boundary;
 	u32 len_to_oe_boundary;
 };
@@ -3271,10 +3271,10 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
 	ASSERT(bio_ctrl->len_to_oe_boundary && bio_ctrl->len_to_stripe_boundary);
-	if (bio_ctrl->bio_flags != compress_type)
+	if (bio_ctrl->compress_type != compress_type)
 		return 0;
 
-	if (bio_ctrl->bio_flags != BTRFS_COMPRESS_NONE)
+	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 		contig = bio->bi_iter.bi_sector == sector;
 	else
 		contig = bio_end_sector(bio) == sector;
@@ -3317,7 +3317,7 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 	 * The split happens for real compressed bio, which happens in
 	 * btrfs_submit_compressed_read/write().
 	 */
-	if (bio_ctrl->bio_flags != BTRFS_COMPRESS_NONE) {
+	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE) {
 		bio_ctrl->len_to_oe_boundary = U32_MAX;
 		bio_ctrl->len_to_stripe_boundary = U32_MAX;
 		return 0;
@@ -3376,7 +3376,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
 	bio_ctrl->bio = bio;
-	bio_ctrl->bio_flags = compress_type;
+	bio_ctrl->compress_type = compress_type;
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = &inode->io_tree;
 	bio->bi_opf = opf;
@@ -3456,7 +3456,7 @@ static int submit_extent_page(unsigned int opf,
 	ASSERT(pg_offset < PAGE_SIZE && size <= PAGE_SIZE &&
 	       pg_offset + size <= PAGE_SIZE);
 	if (force_bio_submit && bio_ctrl->bio) {
-		submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->bio_flags);
+		submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->compress_type);
 		bio_ctrl->bio = NULL;
 	}
 
@@ -3498,7 +3498,7 @@ static int submit_extent_page(unsigned int opf,
 		if (added < size - offset) {
 			/* The bio should contain some page(s) */
 			ASSERT(bio_ctrl->bio->bi_iter.bi_size);
-			submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->bio_flags);
+			submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->compress_type);
 			bio_ctrl->bio = NULL;
 		}
 		cur += added;
@@ -3815,7 +3815,7 @@ int btrfs_readpage(struct file *file, struct page *page)
 	 * bio to do the cleanup.
 	 */
 	if (bio_ctrl.bio)
-		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
+		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.compress_type);
 	return ret;
 }
 
@@ -5274,7 +5274,7 @@ void extent_readahead(struct readahead_control *rac)
 		free_extent_map(em_cached);
 
 	if (bio_ctrl.bio)
-		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
+		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.compress_type);
 }
 
 /*
@@ -6761,7 +6761,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 	}
 
 	if (bio_ctrl.bio) {
-		submit_one_bio(bio_ctrl.bio, mirror_num, bio_ctrl.bio_flags);
+		submit_one_bio(bio_ctrl.bio, mirror_num, bio_ctrl.compress_type);
 		bio_ctrl.bio = NULL;
 	}
 
