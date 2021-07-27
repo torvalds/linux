@@ -2420,9 +2420,10 @@ out:
 
 static void __ibmvnic_reset(struct work_struct *work)
 {
-	struct ibmvnic_rwi *rwi;
 	struct ibmvnic_adapter *adapter;
 	bool saved_state = false;
+	struct ibmvnic_rwi *tmprwi;
+	struct ibmvnic_rwi *rwi;
 	unsigned long flags;
 	u32 reset_state;
 	int rc = 0;
@@ -2489,7 +2490,7 @@ static void __ibmvnic_reset(struct work_struct *work)
 		} else {
 			rc = do_reset(adapter, rwi, reset_state);
 		}
-		kfree(rwi);
+		tmprwi = rwi;
 		adapter->last_reset_time = jiffies;
 
 		if (rc)
@@ -2497,8 +2498,23 @@ static void __ibmvnic_reset(struct work_struct *work)
 
 		rwi = get_next_rwi(adapter);
 
+		/*
+		 * If there is another reset queued, free the previous rwi
+		 * and process the new reset even if previous reset failed
+		 * (the previous reset could have failed because of a fail
+		 * over for instance, so process the fail over).
+		 *
+		 * If there are no resets queued and the previous reset failed,
+		 * the adapter would be in an undefined state. So retry the
+		 * previous reset as a hard reset.
+		 */
+		if (rwi)
+			kfree(tmprwi);
+		else if (rc)
+			rwi = tmprwi;
+
 		if (rwi && (rwi->reset_reason == VNIC_RESET_FAILOVER ||
-			    rwi->reset_reason == VNIC_RESET_MOBILITY))
+			    rwi->reset_reason == VNIC_RESET_MOBILITY || rc))
 			adapter->force_reset_recovery = true;
 	}
 

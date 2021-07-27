@@ -58,14 +58,13 @@ static int idxd_config_bus_probe(struct device *dev)
 	return idxd_drv->probe(idxd_dev);
 }
 
-static int idxd_config_bus_remove(struct device *dev)
+static void idxd_config_bus_remove(struct device *dev)
 {
 	struct idxd_device_driver *idxd_drv =
 		container_of(dev->driver, struct idxd_device_driver, drv);
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 
 	idxd_drv->remove(idxd_dev);
-	return 0;
 }
 
 struct bus_type dsa_bus_type = {

@@ -566,13 +566,6 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		return 0;
 	}
 
-	/* Prefetch the payload header. */
-	prefetch((char *)buf_state->addr + buf_state->page_info.page_offset);
-#if L1_CACHE_BYTES < 128
-	prefetch((char *)buf_state->addr + buf_state->page_info.page_offset +
-		 L1_CACHE_BYTES);
-#endif
-
 	if (eop && buf_len <= priv->rx_copybreak) {
 		rx->skb_head = gve_rx_copy(priv->dev, napi,
 					   &buf_state->page_info, buf_len, 0);

@@ -35,7 +35,8 @@ enum rvu_block_addr_e {
 	BLKADDR_NDC_NPA0	= 0xeULL,
 	BLKADDR_NDC_NIX1_RX	= 0x10ULL,
 	BLKADDR_NDC_NIX1_TX	= 0x11ULL,
-	BLK_COUNT		= 0x12ULL,
+	BLKADDR_APR		= 0x16ULL,
+	BLK_COUNT		= 0x17ULL,
 };
 
 /* RVU Block Type Enumeration */

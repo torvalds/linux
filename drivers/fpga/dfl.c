@@ -284,15 +284,13 @@ static int dfl_bus_probe(struct device *dev)
 	return ddrv->probe(ddev);
 }
 
-static int dfl_bus_remove(struct device *dev)
+static void dfl_bus_remove(struct device *dev)
 {
 	struct dfl_driver *ddrv = to_dfl_drv(dev->driver);
 	struct dfl_device *ddev = to_dfl_dev(dev);
 
 	if (ddrv->remove)
 		ddrv->remove(ddev);
-
-	return 0;
 }
 
 static int dfl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)

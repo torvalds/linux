@@ -514,7 +514,7 @@ static int ac97_bus_probe(struct device *dev)
 	return ret;
 }
 
-static int ac97_bus_remove(struct device *dev)
+static void ac97_bus_remove(struct device *dev)
 {
 	struct ac97_codec_device *adev = to_ac97_device(dev);
 	struct ac97_codec_driver *adrv = to_ac97_driver(dev->driver);
@@ -522,7 +522,7 @@ static int ac97_bus_remove(struct device *dev)
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
-		return ret;
+		return;
 
 	ret = adrv->remove(adev);
 	pm_runtime_put_noidle(dev);
@@ -530,8 +530,6 @@ static int ac97_bus_remove(struct device *dev)
 		ac97_put_disable_clk(adev);
 
 	pm_runtime_disable(dev);
-
-	return ret;
 }
 
 static struct bus_type ac97_bus_type = {

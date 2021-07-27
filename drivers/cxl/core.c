@@ -1034,13 +1034,12 @@ static int cxl_bus_probe(struct device *dev)
 	return to_cxl_drv(dev->driver)->probe(dev);
 }
 
-static int cxl_bus_remove(struct device *dev)
+static void cxl_bus_remove(struct device *dev)
 {
 	struct cxl_driver *cxl_drv = to_cxl_drv(dev->driver);
 
 	if (cxl_drv->remove)
 		cxl_drv->remove(dev);
-	return 0;
 }
 
 struct bus_type cxl_bus_type = {

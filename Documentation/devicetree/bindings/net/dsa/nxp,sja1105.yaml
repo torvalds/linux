@@ -67,8 +67,8 @@ properties:
           reg:
             oneOf:
               - enum:
-                - 0
-                - 1
+                  - 0
+                  - 1
 
         required:
           - compatible
