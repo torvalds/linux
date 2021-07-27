@@ -24,6 +24,7 @@
 static const struct mfd_cell tps65086_cells[] = {
 	{ .name = "tps65086-regulator", },
 	{ .name = "tps65086-gpio", },
+	{ .name = "tps65086-reset", },
 };
 
 static const struct regmap_range tps65086_yes_ranges[] = {
