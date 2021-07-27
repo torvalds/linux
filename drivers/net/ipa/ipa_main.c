@@ -194,6 +194,9 @@ static void ipa_teardown(struct ipa *ipa)
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
 
+	/* We're going to tear everything down, as if setup never completed */
+	ipa->setup_complete = false;
+
 	ipa_qmi_teardown(ipa);
 	ipa_endpoint_default_route_clear(ipa);
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
@@ -885,13 +888,11 @@ static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
 
-	/* When a suspended RX endpoint has a packet ready to receive, we
-	 * get an IPA SUSPEND interrupt.  We trigger a system resume in
-	 * that case, but only on the first such interrupt since suspend.
-	 */
-	__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
-
-	ipa_endpoint_suspend(ipa);
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
+		ipa_endpoint_suspend(ipa);
+	}
 
 	ipa_clock_put(ipa);
 
@@ -917,7 +918,9 @@ static int ipa_resume(struct device *dev)
 	 */
 	ipa_clock_get(ipa);
 
-	ipa_endpoint_resume(ipa);
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete)
+		ipa_endpoint_resume(ipa);
 
 	return 0;
 }
