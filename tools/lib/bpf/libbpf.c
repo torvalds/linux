@@ -5958,7 +5958,7 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 
 	for (i = 0; i < obj->nr_programs; i++) {
 		struct bpf_program *p = &obj->programs[i];
-		
+
 		if (!p->nr_reloc)
 			continue;
 
@@ -8260,7 +8260,7 @@ static int find_btf_by_prefix_kind(const struct btf *btf, const char *prefix,
 	ret = snprintf(btf_type_name, sizeof(btf_type_name),
 		       "%s%s", prefix, name);
 	/* snprintf returns the number of characters written excluding the
-	 * the terminating null. So, if >= BTF_MAX_NAME_SIZE are written, it
+	 * terminating null. So, if >= BTF_MAX_NAME_SIZE are written, it
 	 * indicates truncation.
 	 */
 	if (ret < 0 || ret >= sizeof(btf_type_name))
@@ -8802,7 +8802,7 @@ struct bpf_link {
 int bpf_link__update_program(struct bpf_link *link, struct bpf_program *prog)
 {
 	int ret;
-	
+
 	ret = bpf_link_update(bpf_link__fd(link), bpf_program__fd(prog), NULL);
 	return libbpf_err_errno(ret);
 }
