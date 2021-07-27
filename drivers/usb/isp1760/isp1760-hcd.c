@@ -733,7 +733,6 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 
 	/* Change bus pattern */
 	scratch = isp1760_hcd_read(hcd, HC_CHIP_ID_HIGH);
-	dev_err(hcd->self.controller, "Scratch test 0x%08x\n", scratch);
 	scratch = isp1760_hcd_read(hcd, HC_SCRATCH);
 	if (scratch != pattern) {
 		dev_err(hcd->self.controller, "Scratch test failed. 0x%08x\n", scratch);
