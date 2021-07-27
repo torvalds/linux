@@ -184,7 +184,6 @@ alternative_else_nop_endif
 	ldr_l	\tmp, gcr_kernel_excl
 
 	mte_set_gcr \tmp, \tmp2
-	isb
 1:
 #endif
 	.endm
@@ -257,13 +256,25 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	orr	x0, x0, SCTLR_ELx_ENIA
 	msr	sctlr_el1, x0
 2:
-	isb
 alternative_else_nop_endif
 #endif
 
 	apply_ssbd 1, x22, x23
 
 	mte_set_kernel_gcr x22, x23
+
+	/*
+	 * Any non-self-synchronizing system register updates required for
+	 * kernel entry should be placed before this point.
+	 */
+alternative_if ARM64_MTE
+	isb
+	b	1f
+alternative_else_nop_endif
+alternative_if ARM64_HAS_ADDRESS_AUTH
+	isb
+alternative_else_nop_endif
+1:
 
 	scs_load tsk
 	.else
