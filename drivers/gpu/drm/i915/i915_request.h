@@ -649,4 +649,14 @@ i915_request_active_engine(struct i915_request *rq,
 
 void i915_request_notify_execute_cb_imm(struct i915_request *rq);
 
+enum i915_request_state {
+	I915_REQUEST_UNKNOWN = 0,
+	I915_REQUEST_COMPLETE,
+	I915_REQUEST_PENDING,
+	I915_REQUEST_QUEUED,
+	I915_REQUEST_ACTIVE,
+};
+
+enum i915_request_state i915_test_request_state(struct i915_request *rq);
+
 #endif /* I915_REQUEST_H */

@@ -156,7 +156,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 	if (guilty) {
 		i915_request_set_error_once(rq, -EIO);
 		__i915_request_skip(rq);
-		if (mark_guilty(rq))
+		if (mark_guilty(rq) && !intel_engine_uses_guc(rq->engine))
 			skip_context(rq);
 	} else {
 		i915_request_set_error_once(rq, -EAGAIN);
