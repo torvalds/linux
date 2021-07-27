@@ -102,4 +102,7 @@ i915_sched_engine_disabled(struct i915_sched_engine *sched_engine)
 	return sched_engine->disabled(sched_engine);
 }
 
+void i915_scheduler_module_exit(void);
+int i915_scheduler_module_init(void);
+
 #endif /* _I915_SCHEDULER_H_ */
