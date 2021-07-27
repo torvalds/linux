@@ -260,14 +260,14 @@ static int dev_eth_ioctl(struct net_device *dev,
 	return err;
 }
 
-static int dev_do_ioctl(struct net_device *dev,
+static int dev_siocbond(struct net_device *dev,
 			struct ifreq *ifr, unsigned int cmd)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
-	if (ops->ndo_do_ioctl) {
+	if (ops->ndo_siocbond) {
 		if (netif_device_present(dev))
-			return ops->ndo_do_ioctl(dev, ifr, cmd);
+			return ops->ndo_siocbond(dev, ifr, cmd);
 		else
 			return -ENODEV;
 	}
@@ -407,7 +407,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		    cmd == SIOCBONDSLAVEINFOQUERY ||
 		    cmd == SIOCBONDINFOQUERY ||
 		    cmd == SIOCBONDCHANGEACTIVE) {
-			err = dev_do_ioctl(dev, ifr, cmd);
+			err = dev_siocbond(dev, ifr, cmd);
 		} else
 			err = -EINVAL;
 

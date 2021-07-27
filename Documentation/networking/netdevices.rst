@@ -222,6 +222,17 @@ ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
+        This is only called by network subsystems internally,
+        not by user space calling ioctl as it was in before
+        linux-5.14.
+
+ndo_siocbond:
+        Synchronization: rtnl_lock() semaphore.
+        Context: process
+
+        Used by the bonding driver for the SIOCBOND family of
+        ioctl commands.
+
 ndo_siocwandev:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
