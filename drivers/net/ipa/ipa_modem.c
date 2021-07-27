@@ -45,9 +45,12 @@ static int ipa_open(struct net_device *netdev)
 	struct ipa *ipa = priv->ipa;
 	int ret;
 
+	ipa_clock_get(ipa);
+
 	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 	if (ret)
-		return ret;
+		goto err_clock_put;
+
 	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 	if (ret)
 		goto err_disable_tx;
@@ -58,6 +61,8 @@ static int ipa_open(struct net_device *netdev)
 
 err_disable_tx:
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+err_clock_put:
+	ipa_clock_put(ipa);
 
 	return ret;
 }
@@ -72,6 +77,8 @@ static int ipa_stop(struct net_device *netdev)
 
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+
+	ipa_clock_put(ipa);
 
 	return 0;
 }
