@@ -1949,12 +1949,8 @@ static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info,
 		if (!(all_avail & btrfs_raid_array[i].bg_flag))
 			continue;
 
-		if (num_devices < btrfs_raid_array[i].devs_min) {
-			int ret = btrfs_raid_array[i].mindev_error;
-
-			if (ret)
-				return ret;
-		}
+		if (num_devices < btrfs_raid_array[i].devs_min)
+			return btrfs_raid_array[i].mindev_error;
 	}
 
 	return 0;
