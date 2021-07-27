@@ -450,6 +450,8 @@ int ionic_identify(struct ionic *ionic)
 	}
 	mutex_unlock(&ionic->dev_cmd_lock);
 
+	dev_info(ionic->dev, "FW: %s\n", idev->dev_info.fw_version);
+
 	if (err) {
 		dev_err(ionic->dev, "Cannot identify ionic: %dn", err);
 		goto err_out;
