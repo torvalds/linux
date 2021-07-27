@@ -17,22 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config MACH_AVILA
-	bool "Avila"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the Gateworks
-	  Avila Network Platform. For more information on this platform,
-	  see <file:Documentation/arm/ixp4xx.rst>.
-
-config MACH_LOFT
-    bool "Loft"
-    depends on MACH_AVILA
-    help
-	  Say 'Y' here if you want your kernel to support the Giant
-	  Shoulder Inc Loft board (a minor variation on the standard
-	  Gateworks Avila Network Platform).
-
 config ARCH_ADI_COYOTE
 	bool "Coyote"
 	depends on IXP4XX_PCI_LEGACY
