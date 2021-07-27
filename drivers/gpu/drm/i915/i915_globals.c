@@ -8,7 +8,7 @@
 #include <linux/workqueue.h>
 
 #include "i915_globals.h"
-#include "i915_vma.h"
+#include "i915_drv.h"
 
 static LIST_HEAD(globals);
 
@@ -28,7 +28,6 @@ static void __i915_globals_cleanup(void)
 }
 
 static __initconst int (* const initfn[])(void) = {
-	i915_global_vma_init,
 };
 
 int __init i915_globals_init(void)

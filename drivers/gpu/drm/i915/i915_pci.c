@@ -40,6 +40,7 @@
 #include "i915_globals.h"
 #include "i915_selftest.h"
 #include "i915_scheduler.h"
+#include "i915_vma.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
@@ -1272,6 +1273,7 @@ static const struct {
 	{ i915_objects_module_init, i915_objects_module_exit },
 	{ i915_request_module_init, i915_request_module_exit },
 	{ i915_scheduler_module_init, i915_scheduler_module_exit },
+	{ i915_vma_module_init, i915_vma_module_exit },
 	{ i915_globals_init, i915_globals_exit },
 	{ i915_mock_selftests, NULL },
 	{ i915_pmu_init, i915_pmu_exit },
