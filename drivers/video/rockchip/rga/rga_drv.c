@@ -199,6 +199,7 @@ static const char *rga_get_rotate_mode_str(struct rga_req *req_rga)
 		else if (req_rga->sina == -65536 && req_rga->cosa == 0)
 			/* totate 270 */
 			return "rotate 270 ";
+		return "UNF";
 	case 0x2:
 		return "xmirror";
 	case 0x3:
