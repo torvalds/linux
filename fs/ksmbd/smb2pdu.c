@@ -8150,7 +8150,8 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 		len = ALIGN(len, 8);
 	}
 
-	if (le16_to_cpu(hdr->Command) == SMB2_SESSION_SETUP_HE) {
+	if (conn->binding == false &&
+	    le16_to_cpu(hdr->Command) == SMB2_SESSION_SETUP_HE) {
 		signing_key = work->sess->smb3signingkey;
 	} else {
 		chann = lookup_chann_list(work->sess, work->conn);
