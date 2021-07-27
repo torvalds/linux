@@ -10403,7 +10403,7 @@ static int btrfs_permission(struct user_namespace *mnt_userns,
 		if (BTRFS_I(inode)->flags & BTRFS_INODE_READONLY)
 			return -EACCES;
 	}
-	return generic_permission(&init_user_ns, inode, mask);
+	return generic_permission(mnt_userns, inode, mask);
 }
 
 static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
