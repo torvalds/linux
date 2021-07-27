@@ -668,4 +668,7 @@ enum i915_request_state {
 
 enum i915_request_state i915_test_request_state(struct i915_request *rq);
 
+void i915_request_module_exit(void);
+int i915_request_module_init(void);
+
 #endif /* I915_REQUEST_H */
