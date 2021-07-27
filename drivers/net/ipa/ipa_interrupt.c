@@ -74,14 +74,17 @@ static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 		iowrite32(mask, ipa->reg_virt + offset);
 }
 
-/* Process all IPA interrupt types that have been signaled */
-static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
+/* IPA IRQ handler is threaded */
+static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 {
+	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
 	u32 pending;
 	u32 offset;
 	u32 mask;
+
+	ipa_clock_get(ipa);
 
 	/* The status register indicates which conditions are present,
 	 * including conditions whose interrupt is not enabled.  Handle
@@ -109,17 +112,6 @@ static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
 		offset = ipa_reg_irq_clr_offset(ipa->version);
 		iowrite32(pending, ipa->reg_virt + offset);
 	}
-}
-
-/* IPA IRQ handler is threaded */
-static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
-{
-	struct ipa_interrupt *interrupt = dev_id;
-	struct ipa *ipa = interrupt->ipa;
-
-	ipa_clock_get(ipa);
-
-	ipa_interrupt_process_all(interrupt);
 
 	ipa_clock_put(ipa);
 
