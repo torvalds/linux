@@ -20,6 +20,7 @@
 #include "ipa_smp2p.h"
 #include "ipa_qmi.h"
 #include "ipa_uc.h"
+#include "ipa_clock.h"
 
 #define IPA_NETDEV_NAME		"rmnet_ipa%d"
 #define IPA_NETDEV_TAILROOM	0	/* for padding by mux layer */
@@ -279,6 +280,8 @@ static void ipa_modem_crashed(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	int ret;
 
+	ipa_clock_get(ipa);
+
 	ipa_endpoint_modem_pause_all(ipa, true);
 
 	ipa_endpoint_modem_hol_block_clear_all(ipa);
@@ -303,6 +306,8 @@ static void ipa_modem_crashed(struct ipa *ipa)
 	ret = ipa_mem_zero_modem(ipa);
 	if (ret)
 		dev_err(dev, "error %d zeroing modem memory regions\n", ret);
+
+	ipa_clock_put(ipa);
 }
 
 static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
