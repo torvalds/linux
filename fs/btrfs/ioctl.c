@@ -4403,25 +4403,20 @@ drop_write:
 static long btrfs_ioctl_quota_rescan_status(struct btrfs_fs_info *fs_info,
 						void __user *arg)
 {
-	struct btrfs_ioctl_quota_rescan_args *qsa;
+	struct btrfs_ioctl_quota_rescan_args qsa = {0};
 	int ret = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	qsa = kzalloc(sizeof(*qsa), GFP_KERNEL);
-	if (!qsa)
-		return -ENOMEM;
-
 	if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
-		qsa->flags = 1;
-		qsa->progress = fs_info->qgroup_rescan_progress.objectid;
+		qsa.flags = 1;
+		qsa.progress = fs_info->qgroup_rescan_progress.objectid;
 	}
 
-	if (copy_to_user(arg, qsa, sizeof(*qsa)))
+	if (copy_to_user(arg, &qsa, sizeof(qsa)))
 		ret = -EFAULT;
 
-	kfree(qsa);
 	return ret;
 }
 
