@@ -3839,12 +3839,6 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 	}
 }
 
-static void update_nr_written(struct writeback_control *wbc,
-			      unsigned long nr_written)
-{
-	wbc->nr_to_write -= nr_written;
-}
-
 /*
  * helper for __extent_writepage, doing all of the delayed allocation setup.
  *
@@ -4007,7 +4001,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	 * we don't want to touch the inode after unlocking the page,
 	 * so we update the mapping writeback index now
 	 */
-	update_nr_written(wbc, 1);
+	wbc->nr_to_write--;
 
 	while (cur <= end) {
 		u64 disk_bytenr;
@@ -4620,7 +4614,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 	 * dirty anymore, we have submitted a page.  Update nr_written in wbc.
 	 */
 	if (no_dirty_ebs)
-		update_nr_written(wbc, 1);
+		wbc->nr_to_write--;
 	return ret;
 }
 
@@ -4656,7 +4650,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			break;
 		}
 		disk_bytenr += PAGE_SIZE;
-		update_nr_written(wbc, 1);
+		wbc->nr_to_write--;
 		unlock_page(p);
 	}
 
