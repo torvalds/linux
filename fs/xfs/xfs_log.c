@@ -3144,6 +3144,35 @@ xlog_state_switch_iclogs(
 }
 
 /*
+ * Force the iclog to disk and check if the iclog has been completed before
+ * xlog_force_iclog() returns. This can happen on synchronous (e.g.
+ * pmem) or fast async storage because we drop the icloglock to issue the IO.
+ * If completion has already occurred, tell the caller so that it can avoid an
+ * unnecessary wait on the iclog.
+ */
+static int
+xlog_force_and_check_iclog(
+	struct xlog_in_core	*iclog,
+	bool			*completed)
+{
+	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+	int			error;
+
+	*completed = false;
+	error = xlog_force_iclog(iclog);
+	if (error)
+		return error;
+
+	/*
+	 * If the iclog has already been completed and reused the header LSN
+	 * will have been rewritten by completion
+	 */
+	if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn)
+		*completed = true;
+	return 0;
+}
+
+/*
  * Write out all data in the in-core log as of this exact moment in time.
  *
  * Data may be written to the in-core log during this call.  However,
@@ -3177,7 +3206,6 @@ xfs_log_force(
 {
 	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
-	xfs_lsn_t		lsn;
 
 	XFS_STATS_INC(mp, xs_log_force);
 	trace_xfs_log_force(mp, 0, _RET_IP_);
@@ -3206,11 +3234,12 @@ xfs_log_force(
 	} else if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		if (atomic_read(&iclog->ic_refcnt) == 0) {
 			/* We have exclusive access to this iclog. */
-			lsn = be64_to_cpu(iclog->ic_header.h_lsn);
-			if (xlog_force_iclog(iclog))
+			bool	completed;
+
+			if (xlog_force_and_check_iclog(iclog, &completed))
 				goto out_error;
 
-			if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn)
+			if (completed)
 				goto out_unlock;
 		} else {
 			/*
@@ -3250,6 +3279,7 @@ xlog_force_lsn(
 	bool			already_slept)
 {
 	struct xlog_in_core	*iclog;
+	bool			completed;
 
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
@@ -3287,10 +3317,12 @@ xlog_force_lsn(
 					&log->l_icloglock);
 			return -EAGAIN;
 		}
-		if (xlog_force_iclog(iclog))
+		if (xlog_force_and_check_iclog(iclog, &completed))
 			goto out_error;
 		if (log_flushed)
 			*log_flushed = 1;
+		if (completed)
+			goto out_unlock;
 		break;
 	case XLOG_STATE_WANT_SYNC:
 		/*
