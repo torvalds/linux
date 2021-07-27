@@ -222,6 +222,13 @@ ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
+ndo_siocwandev:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+	Used by the drivers/net/wan framework to handle
+	the SIOCWANDEV ioctl with the if_settings structure.
+
 ndo_siocdevprivate:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process

@@ -616,14 +616,6 @@ static int lmc_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
     return ret;
 }
 
-int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	if (cmd != SIOCWANDEV)
-		return -EOPNOTSUPP;
-
-	return lmc_proto_ioctl(dev_to_sc(dev), ifr, cmd);
-}
-
 
 /* the watchdog process that cruises around */
 static void lmc_watchdog(struct timer_list *t) /*fold00*/
@@ -794,7 +786,7 @@ static const struct net_device_ops lmc_ops = {
 	.ndo_open       = lmc_open,
 	.ndo_stop       = lmc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = lmc_ioctl,
+	.ndo_siocwandev = hdlc_ioctl,
 	.ndo_siocdevprivate = lmc_siocdevprivate,
 	.ndo_tx_timeout = lmc_driver_timeout,
 	.ndo_get_stats  = lmc_get_stats,

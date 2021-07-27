@@ -1784,16 +1784,15 @@ gather_conf_info(struct fst_card_info *card, struct fst_port_info *port,
 
 static int
 fst_set_iface(struct fst_card_info *card, struct fst_port_info *port,
-	      struct ifreq *ifr)
+	      struct if_settings *ifs)
 {
 	sync_serial_settings sync;
 	int i;
 
-	if (ifr->ifr_settings.size != sizeof(sync))
+	if (ifs->size != sizeof(sync))
 		return -ENOMEM;
 
-	if (copy_from_user
-	    (&sync, ifr->ifr_settings.ifs_ifsu.sync, sizeof(sync)))
+	if (copy_from_user(&sync, ifs->ifs_ifsu.sync, sizeof(sync)))
 		return -EFAULT;
 
 	if (sync.loopback)
@@ -1801,7 +1800,7 @@ fst_set_iface(struct fst_card_info *card, struct fst_port_info *port,
 
 	i = port->index;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_IFACE_V35:
 		FST_WRW(card, portConfig[i].lineInterface, V35);
 		port->hwif = V35;
@@ -1857,7 +1856,7 @@ fst_set_iface(struct fst_card_info *card, struct fst_port_info *port,
 
 static int
 fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
-	      struct ifreq *ifr)
+	      struct if_settings *ifs)
 {
 	sync_serial_settings sync;
 	int i;
@@ -1868,29 +1867,29 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 	 */
 	switch (port->hwif) {
 	case E1:
-		ifr->ifr_settings.type = IF_IFACE_E1;
+		ifs->type = IF_IFACE_E1;
 		break;
 	case T1:
-		ifr->ifr_settings.type = IF_IFACE_T1;
+		ifs->type = IF_IFACE_T1;
 		break;
 	case V35:
-		ifr->ifr_settings.type = IF_IFACE_V35;
+		ifs->type = IF_IFACE_V35;
 		break;
 	case V24:
-		ifr->ifr_settings.type = IF_IFACE_V24;
+		ifs->type = IF_IFACE_V24;
 		break;
 	case X21D:
-		ifr->ifr_settings.type = IF_IFACE_X21D;
+		ifs->type = IF_IFACE_X21D;
 		break;
 	case X21:
 	default:
-		ifr->ifr_settings.type = IF_IFACE_X21;
+		ifs->type = IF_IFACE_X21;
 		break;
 	}
-	if (ifr->ifr_settings.size == 0)
+	if (!ifs->size)
 		return 0;	/* only type requested */
 
-	if (ifr->ifr_settings.size < sizeof(sync))
+	if (ifs->size < sizeof(sync))
 		return -ENOMEM;
 
 	i = port->index;
@@ -1901,10 +1900,10 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 	    INTCLK ? CLOCK_INT : CLOCK_EXT;
 	sync.loopback = 0;
 
-	if (copy_to_user(ifr->ifr_settings.ifs_ifsu.sync, &sync, sizeof(sync)))
+	if (copy_to_user(ifs->ifs_ifsu.sync, &sync, sizeof(sync)))
 		return -EFAULT;
 
-	ifr->ifr_settings.size = sizeof(sync);
+	ifs->size = sizeof(sync);
 	return 0;
 }
 
@@ -2020,12 +2019,12 @@ fst_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data,
 }
 
 static int
-fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+fst_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	struct fst_card_info *card;
 	struct fst_port_info *port;
 
-	dbg(DBG_IOCTL, "ioctl: %x, %x\n", cmd, ifr->ifr_settings.type);
+	dbg(DBG_IOCTL, "SIOCDEVPRIVATE, %x\n", ifs->type);
 
 	port = dev_to_port(dev);
 	card = port->card;
@@ -2033,42 +2032,35 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	switch (cmd) {
-	case SIOCWANDEV:
-		switch (ifr->ifr_settings.type) {
-		case IF_GET_IFACE:
-			return fst_get_iface(card, port, ifr);
+	switch (ifs->type) {
+	case IF_GET_IFACE:
+		return fst_get_iface(card, port, ifs);
 
-		case IF_IFACE_SYNC_SERIAL:
-		case IF_IFACE_V35:
-		case IF_IFACE_V24:
-		case IF_IFACE_X21:
-		case IF_IFACE_X21D:
-		case IF_IFACE_T1:
-		case IF_IFACE_E1:
-			return fst_set_iface(card, port, ifr);
+	case IF_IFACE_SYNC_SERIAL:
+	case IF_IFACE_V35:
+	case IF_IFACE_V24:
+	case IF_IFACE_X21:
+	case IF_IFACE_X21D:
+	case IF_IFACE_T1:
+	case IF_IFACE_E1:
+		return fst_set_iface(card, port, ifs);
 
-		case IF_PROTO_RAW:
-			port->mode = FST_RAW;
+	case IF_PROTO_RAW:
+		port->mode = FST_RAW;
+		return 0;
+
+	case IF_GET_PROTO:
+		if (port->mode == FST_RAW) {
+			ifs->type = IF_PROTO_RAW;
 			return 0;
-
-		case IF_GET_PROTO:
-			if (port->mode == FST_RAW) {
-				ifr->ifr_settings.type = IF_PROTO_RAW;
-				return 0;
-			}
-			return hdlc_ioctl(dev, ifr, cmd);
-
-		default:
-			port->mode = FST_GEN_HDLC;
-			dbg(DBG_IOCTL, "Passing this type to hdlc %x\n",
-			    ifr->ifr_settings.type);
-			return hdlc_ioctl(dev, ifr, cmd);
 		}
+		return hdlc_ioctl(dev, ifs);
 
 	default:
-		/* Not one of ours. Pass through to HDLC package */
-		return hdlc_ioctl(dev, ifr, cmd);
+		port->mode = FST_GEN_HDLC;
+		dbg(DBG_IOCTL, "Passing this type to hdlc %x\n",
+		    ifs->type);
+		return hdlc_ioctl(dev, ifs);
 	}
 }
 
@@ -2328,7 +2320,7 @@ static const struct net_device_ops fst_ops = {
 	.ndo_open       = fst_open,
 	.ndo_stop       = fst_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl	= fst_ioctl,
+	.ndo_siocwandev	= fst_ioctl,
 	.ndo_siocdevprivate = fst_siocdevprivate,
 	.ndo_tx_timeout = fst_tx_timeout,
 };

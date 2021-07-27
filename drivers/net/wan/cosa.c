@@ -414,7 +414,7 @@ static const struct net_device_ops cosa_ops = {
 	.ndo_open       = cosa_net_open,
 	.ndo_stop       = cosa_net_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = hdlc_ioctl,
+	.ndo_siocwandev = hdlc_ioctl,
 	.ndo_tx_timeout = cosa_net_timeout,
 };
 

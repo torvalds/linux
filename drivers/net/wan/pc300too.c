@@ -186,21 +186,18 @@ static int pc300_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-static int pc300_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int pc300_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	const size_t size = sizeof(sync_serial_settings);
 	sync_serial_settings new_line;
-	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
+	sync_serial_settings __user *line = ifs->ifs_ifsu.sync;
 	int new_type;
 	port_t *port = dev_to_port(dev);
 
-	if (cmd != SIOCWANDEV)
-		return hdlc_ioctl(dev, ifr, cmd);
-
-	if (ifr->ifr_settings.type == IF_GET_IFACE) {
-		ifr->ifr_settings.type = port->iface;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+	if (ifs->type == IF_GET_IFACE) {
+		ifs->type = port->iface;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(line, &port->settings, size))
@@ -209,21 +206,21 @@ static int pc300_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	if (port->card->type == PC300_X21 &&
-	    (ifr->ifr_settings.type == IF_IFACE_SYNC_SERIAL ||
-	     ifr->ifr_settings.type == IF_IFACE_X21))
+	    (ifs->type == IF_IFACE_SYNC_SERIAL ||
+	     ifs->type == IF_IFACE_X21))
 		new_type = IF_IFACE_X21;
 
 	else if (port->card->type == PC300_RSV &&
-		 (ifr->ifr_settings.type == IF_IFACE_SYNC_SERIAL ||
-		  ifr->ifr_settings.type == IF_IFACE_V35))
+		 (ifs->type == IF_IFACE_SYNC_SERIAL ||
+		  ifs->type == IF_IFACE_V35))
 		new_type = IF_IFACE_V35;
 
 	else if (port->card->type == PC300_RSV &&
-		 ifr->ifr_settings.type == IF_IFACE_V24)
+		 ifs->type == IF_IFACE_V24)
 		new_type = IF_IFACE_V24;
 
 	else
-		return hdlc_ioctl(dev, ifr, cmd);
+		return hdlc_ioctl(dev, ifs);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -278,7 +275,7 @@ static const struct net_device_ops pc300_ops = {
 	.ndo_open       = pc300_open,
 	.ndo_stop       = pc300_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = pc300_ioctl,
+	.ndo_siocwandev = pc300_ioctl,
 	.ndo_siocdevprivate = pc300_siocdevprivate,
 };
 
