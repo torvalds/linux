@@ -182,7 +182,7 @@ static bool irq_work_imm(struct irq_work *wrk)
 	return false;
 }
 
-static void __notify_execute_cb_imm(struct i915_request *rq)
+void i915_request_notify_execute_cb_imm(struct i915_request *rq)
 {
 	__notify_execute_cb(rq, irq_work_imm);
 }
@@ -254,37 +254,6 @@ i915_request_active_engine(struct i915_request *rq,
 	spin_unlock_irq(&locked->sched_engine->lock);
 
 	return ret;
-}
-
-
-static void remove_from_engine(struct i915_request *rq)
-{
-	struct intel_engine_cs *engine, *locked;
-
-	/*
-	 * Virtual engines complicate acquiring the engine timeline lock,
-	 * as their rq->engine pointer is not stable until under that
-	 * engine lock. The simple ploy we use is to take the lock then
-	 * check that the rq still belongs to the newly locked engine.
-	 */
-	locked = READ_ONCE(rq->engine);
-	spin_lock_irq(&locked->sched_engine->lock);
-	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
-		spin_unlock(&locked->sched_engine->lock);
-		spin_lock(&engine->sched_engine->lock);
-		locked = engine;
-	}
-	list_del_init(&rq->sched.link);
-
-	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
-	clear_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
-
-	/* Prevent further __await_execution() registering a cb, then flush */
-	set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
-
-	spin_unlock_irq(&locked->sched_engine->lock);
-
-	__notify_execute_cb_imm(rq);
 }
 
 static void __rq_init_watchdog(struct i915_request *rq)
@@ -383,9 +352,7 @@ bool i915_request_retire(struct i915_request *rq)
 	 * after removing the breadcrumb and signaling it, so that we do not
 	 * inadvertently attach the breadcrumb to a completed request.
 	 */
-	if (!list_empty(&rq->sched.link))
-		remove_from_engine(rq);
-	atomic_dec(&rq->context->guc_id_ref);
+	rq->engine->remove_active_request(rq);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 
 	__list_del_entry(&rq->link); /* poison neither prev/next (RCU walks) */
@@ -516,7 +483,7 @@ __await_execution(struct i915_request *rq,
 	if (llist_add(&cb->work.node.llist, &signal->execute_cb)) {
 		if (i915_request_is_active(signal) ||
 		    __request_in_flight(signal))
-			__notify_execute_cb_imm(signal);
+			i915_request_notify_execute_cb_imm(signal);
 	}
 
 	return 0;
@@ -655,7 +622,7 @@ bool __i915_request_submit(struct i915_request *request)
 	result = true;
 
 	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
-	list_move_tail(&request->sched.link, &engine->sched_engine->requests);
+	engine->add_active_request(request);
 active:
 	clear_bit(I915_FENCE_FLAG_PQUEUE, &request->fence.flags);
 	set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);

@@ -162,6 +162,13 @@ struct intel_context {
 		struct list_head fences;
 	} guc_state;
 
+	struct {
+		/** lock: protects everything in guc_active */
+		spinlock_t lock;
+		/** requests: active requests on this context */
+		struct list_head requests;
+	} guc_active;
+
 	/* GuC scheduling state flags that do not require a lock. */
 	atomic_t guc_sched_state_no_lock;
 

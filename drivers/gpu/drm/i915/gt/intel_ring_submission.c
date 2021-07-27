@@ -1047,6 +1047,25 @@ static void setup_irq(struct intel_engine_cs *engine)
 	}
 }
 
+static void add_to_engine(struct i915_request *rq)
+{
+	lockdep_assert_held(&rq->engine->sched_engine->lock);
+	list_move_tail(&rq->sched.link, &rq->engine->sched_engine->requests);
+}
+
+static void remove_from_engine(struct i915_request *rq)
+{
+	spin_lock_irq(&rq->engine->sched_engine->lock);
+	list_del_init(&rq->sched.link);
+
+	/* Prevent further __await_execution() registering a cb, then flush */
+	set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
+
+	spin_unlock_irq(&rq->engine->sched_engine->lock);
+
+	i915_request_notify_execute_cb_imm(rq);
+}
+
 static void setup_common(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -1063,6 +1082,9 @@ static void setup_common(struct intel_engine_cs *engine)
 	engine->reset.rewind = reset_rewind;
 	engine->reset.cancel = reset_cancel;
 	engine->reset.finish = reset_finish;
+
+	engine->add_active_request = add_to_engine;
+	engine->remove_active_request = remove_from_engine;
 
 	engine->cops = &ring_context_ops;
 	engine->request_alloc = ring_request_alloc;

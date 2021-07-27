@@ -414,6 +414,12 @@ struct intel_engine_cs {
 
 	void		(*release)(struct intel_engine_cs *engine);
 
+	/*
+	 * Add / remove request from engine active tracking
+	 */
+	void		(*add_active_request)(struct i915_request *rq);
+	void		(*remove_active_request)(struct i915_request *rq);
+
 	struct intel_engine_execlists execlists;
 
 	/*
