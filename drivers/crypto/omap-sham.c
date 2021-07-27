@@ -2221,32 +2221,11 @@ static int omap_sham_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int omap_sham_suspend(struct device *dev)
-{
-	pm_runtime_put_sync(dev);
-	return 0;
-}
-
-static int omap_sham_resume(struct device *dev)
-{
-	int err = pm_runtime_resume_and_get(dev);
-	if (err < 0) {
-		dev_err(dev, "failed to get sync: %d\n", err);
-		return err;
-	}
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(omap_sham_pm_ops, omap_sham_suspend, omap_sham_resume);
-
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
 	.remove	= omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
-		.pm	= &omap_sham_pm_ops,
 		.of_match_table	= omap_sham_of_match,
 	},
 };
