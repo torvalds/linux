@@ -164,6 +164,11 @@ struct i915_sched_engine {
 	void *private_data;
 
 	/**
+	 * @destroy: destroy schedule engine / cleanup in backend
+	 */
+	void	(*destroy)(struct kref *kref);
+
+	/**
 	 * @kick_backend: kick backend after a request's priority has changed
 	 */
 	void	(*kick_backend)(const struct i915_request *rq,
