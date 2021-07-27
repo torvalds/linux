@@ -1084,7 +1084,7 @@ static void kill_engines(struct i915_gem_engines *engines, bool ban)
 	for_each_gem_engine(ce, engines, it) {
 		struct intel_engine_cs *engine;
 
-		if (ban && intel_context_set_banned(ce))
+		if (ban && intel_context_ban(ce, NULL))
 			continue;
 
 		/*

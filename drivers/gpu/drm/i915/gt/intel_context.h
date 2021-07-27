@@ -16,6 +16,7 @@
 #include "intel_engine_types.h"
 #include "intel_ring_types.h"
 #include "intel_timeline_types.h"
+#include "i915_trace.h"
 
 #define CE_TRACE(ce, fmt, ...) do {					\
 	const struct intel_context *ce__ = (ce);			\
@@ -241,6 +242,18 @@ static inline bool intel_context_is_banned(const struct intel_context *ce)
 static inline bool intel_context_set_banned(struct intel_context *ce)
 {
 	return test_and_set_bit(CONTEXT_BANNED, &ce->flags);
+}
+
+static inline bool intel_context_ban(struct intel_context *ce,
+				     struct i915_request *rq)
+{
+	bool ret = intel_context_set_banned(ce);
+
+	trace_intel_context_ban(ce);
+	if (ce->ops->ban)
+		ce->ops->ban(ce, rq);
+
+	return ret;
 }
 
 static inline bool

@@ -22,7 +22,6 @@
 #include "intel_reset.h"
 
 #include "uc/intel_guc.h"
-#include "uc/intel_guc_submission.h"
 
 #define RESET_MAX_RETRIES 3
 
@@ -37,21 +36,6 @@ static void rmw_set_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
 static void rmw_clear_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
 {
 	intel_uncore_rmw_fw(uncore, reg, clr, 0);
-}
-
-static void skip_context(struct i915_request *rq)
-{
-	struct intel_context *hung_ctx = rq->context;
-
-	list_for_each_entry_from_rcu(rq, &hung_ctx->timeline->requests, link) {
-		if (!i915_request_is_active(rq))
-			return;
-
-		if (rq->context == hung_ctx) {
-			i915_request_set_error_once(rq, -EIO);
-			__i915_request_skip(rq);
-		}
-	}
 }
 
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
@@ -88,10 +72,8 @@ static bool mark_guilty(struct i915_request *rq)
 	bool banned;
 	int i;
 
-	if (intel_context_is_closed(rq->context)) {
-		intel_context_set_banned(rq->context);
+	if (intel_context_is_closed(rq->context))
 		return true;
-	}
 
 	rcu_read_lock();
 	ctx = rcu_dereference(rq->context->gem_context);
@@ -123,11 +105,9 @@ static bool mark_guilty(struct i915_request *rq)
 	banned = !i915_gem_context_is_recoverable(ctx);
 	if (time_before(jiffies, prev_hang + CONTEXT_FAST_HANG_JIFFIES))
 		banned = true;
-	if (banned) {
+	if (banned)
 		drm_dbg(&ctx->i915->drm, "context %s: guilty %d, banned\n",
 			ctx->name, atomic_read(&ctx->guilty_count));
-		intel_context_set_banned(rq->context);
-	}
 
 	client_mark_guilty(ctx, banned);
 
@@ -149,6 +129,8 @@ static void mark_innocent(struct i915_request *rq)
 
 void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
+	bool banned = false;
+
 	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
@@ -156,13 +138,15 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 	if (guilty) {
 		i915_request_set_error_once(rq, -EIO);
 		__i915_request_skip(rq);
-		if (mark_guilty(rq) && !intel_engine_uses_guc(rq->engine))
-			skip_context(rq);
+		banned = mark_guilty(rq);
 	} else {
 		i915_request_set_error_once(rq, -EAGAIN);
 		mark_innocent(rq);
 	}
 	rcu_read_unlock();
+
+	if (banned)
+		intel_context_ban(rq->context, rq);
 }
 
 static bool i915_in_reset(struct pci_dev *pdev)

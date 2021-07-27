@@ -586,8 +586,28 @@ static void ring_context_reset(struct intel_context *ce)
 	clear_bit(CONTEXT_VALID_BIT, &ce->flags);
 }
 
+static void ring_context_ban(struct intel_context *ce,
+			     struct i915_request *rq)
+{
+	struct intel_engine_cs *engine;
+
+	if (!rq || !i915_request_is_active(rq))
+		return;
+
+	engine = rq->engine;
+	lockdep_assert_held(&engine->sched_engine->lock);
+	list_for_each_entry_continue(rq, &engine->sched_engine->requests,
+				     sched.link)
+		if (rq->context == ce) {
+			i915_request_set_error_once(rq, -EIO);
+			__i915_request_skip(rq);
+		}
+}
+
 static const struct intel_context_ops ring_context_ops = {
 	.alloc = ring_context_alloc,
+
+	.ban = ring_context_ban,
 
 	.pre_pin = ring_context_pre_pin,
 	.pin = ring_context_pin,
