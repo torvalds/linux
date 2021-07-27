@@ -2198,6 +2198,7 @@ err_engine:
 	list_del(&dd->list);
 	spin_unlock(&sham.lock);
 err_pm:
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 	if (!dd->polling_mode)
 		dma_release_channel(dd->dma_lch);
@@ -2225,6 +2226,7 @@ static int omap_sham_remove(struct platform_device *pdev)
 			dd->pdata->algs_info[i].registered--;
 		}
 	tasklet_kill(&dd->done_task);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	if (!dd->polling_mode)
