@@ -2096,7 +2096,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
 	.ndo_bpf		= nicvf_xdp,
-	.ndo_do_ioctl           = nicvf_ioctl,
+	.ndo_eth_ioctl           = nicvf_ioctl,
 	.ndo_set_rx_mode        = nicvf_set_rx_mode,
 };
 

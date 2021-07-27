@@ -684,7 +684,7 @@ static const struct net_device_ops sr9800_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address	= sr_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= sr_ioctl,
+	.ndo_eth_ioctl		= sr_ioctl,
 	.ndo_set_rx_mode        = sr_set_multicast,
 };
 

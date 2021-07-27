@@ -2198,7 +2198,7 @@ static const struct net_device_ops b44_netdev_ops = {
 	.ndo_set_rx_mode	= b44_set_rx_mode,
 	.ndo_set_mac_address	= b44_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= b44_ioctl,
+	.ndo_eth_ioctl		= b44_ioctl,
 	.ndo_tx_timeout		= b44_tx_timeout,
 	.ndo_change_mtu		= b44_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER

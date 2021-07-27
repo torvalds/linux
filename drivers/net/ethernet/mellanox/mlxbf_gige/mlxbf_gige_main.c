@@ -199,7 +199,7 @@ static int mlxbf_gige_stop(struct net_device *netdev)
 	return 0;
 }
 
-static int mlxbf_gige_do_ioctl(struct net_device *netdev,
+static int mlxbf_gige_eth_ioctl(struct net_device *netdev,
 			       struct ifreq *ifr, int cmd)
 {
 	if (!(netif_running(netdev)))
@@ -253,7 +253,7 @@ static const struct net_device_ops mlxbf_gige_netdev_ops = {
 	.ndo_start_xmit		= mlxbf_gige_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= mlxbf_gige_do_ioctl,
+	.ndo_eth_ioctl		= mlxbf_gige_eth_ioctl,
 	.ndo_set_rx_mode        = mlxbf_gige_set_rx_mode,
 	.ndo_get_stats64        = mlxbf_gige_get_stats64,
 };

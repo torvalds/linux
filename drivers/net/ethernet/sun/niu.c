@@ -9667,7 +9667,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_set_rx_mode	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
-	.ndo_do_ioctl		= niu_ioctl,
+	.ndo_eth_ioctl		= niu_ioctl,
 	.ndo_tx_timeout		= niu_tx_timeout,
 	.ndo_change_mtu		= niu_change_mtu,
 };

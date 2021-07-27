@@ -2214,7 +2214,7 @@ static const struct net_device_ops spider_net_ops = {
 	.ndo_start_xmit		= spider_net_xmit,
 	.ndo_set_rx_mode	= spider_net_set_multi,
 	.ndo_set_mac_address	= spider_net_set_mac,
-	.ndo_do_ioctl		= spider_net_do_ioctl,
+	.ndo_eth_ioctl		= spider_net_do_ioctl,
 	.ndo_tx_timeout		= spider_net_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 	/* HW VLAN */

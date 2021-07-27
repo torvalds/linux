@@ -197,7 +197,7 @@ static const struct net_device_ops ax88172_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= asix_ioctl,
+	.ndo_eth_ioctl		= asix_ioctl,
 	.ndo_set_rx_mode	= ax88172_set_multicast,
 };
 
@@ -589,7 +589,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
@@ -1095,7 +1095,7 @@ static const struct net_device_ops ax88178_netdev_ops = {
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= asix_set_multicast,
-	.ndo_do_ioctl 		= asix_ioctl,
+	.ndo_eth_ioctl		= asix_ioctl,
 	.ndo_change_mtu 	= ax88178_change_mtu,
 };
 

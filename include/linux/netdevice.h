@@ -1090,6 +1090,10 @@ struct netdev_net_notifier {
  *	the generic interface code. If not defined ioctls return
  *	not supported error code.
  *
+ * * int (*ndo_eth_ioctl)(struct net_device *dev, struct ifreq *ifr, int cmd);
+ *	Called for ethernet specific ioctls: SIOCGMIIPHY, SIOCGMIIREG,
+ *	SIOCSMIIREG, SIOCSHWTSTAMP and SIOCGHWTSTAMP.
+ *
  * int (*ndo_set_config)(struct net_device *dev, struct ifmap *map);
  *	Used to set network devices bus interface parameters. This interface
  *	is retained for legacy reasons; new devices should use the bus
@@ -1361,6 +1365,8 @@ struct net_device_ops {
 	int			(*ndo_validate_addr)(struct net_device *dev);
 	int			(*ndo_do_ioctl)(struct net_device *dev,
 					        struct ifreq *ifr, int cmd);
+	int			(*ndo_eth_ioctl)(struct net_device *dev,
+						 struct ifreq *ifr, int cmd);
 	int			(*ndo_siocdevprivate)(struct net_device *dev,
 						      struct ifreq *ifr,
 						      void __user *data, int cmd);

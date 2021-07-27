@@ -50,7 +50,7 @@ static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_init                = mlx5i_dev_init,
 	.ndo_uninit              = mlx5i_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_change_mtu,
-	.ndo_do_ioctl            = mlx5i_ioctl,
+	.ndo_eth_ioctl            = mlx5i_ioctl,
 };
 
 /* IPoIB mlx5 netdev profile */

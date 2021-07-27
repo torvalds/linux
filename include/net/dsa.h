@@ -106,8 +106,8 @@ struct dsa_device_ops {
  * function pointers.
  */
 struct dsa_netdevice_ops {
-	int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr,
-			    int cmd);
+	int (*ndo_eth_ioctl)(struct net_device *dev, struct ifreq *ifr,
+			     int cmd);
 };
 
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
@@ -1019,8 +1019,8 @@ static inline int __dsa_netdevice_ops_check(struct net_device *dev)
 	return 0;
 }
 
-static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-				   int cmd)
+static inline int dsa_ndo_eth_ioctl(struct net_device *dev, struct ifreq *ifr,
+				    int cmd)
 {
 	const struct dsa_netdevice_ops *ops;
 	int err;
@@ -1031,11 +1031,11 @@ static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 	ops = dev->dsa_ptr->netdev_ops;
 
-	return ops->ndo_do_ioctl(dev, ifr, cmd);
+	return ops->ndo_eth_ioctl(dev, ifr, cmd);
 }
 #else
-static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-				   int cmd)
+static inline int dsa_ndo_eth_ioctl(struct net_device *dev, struct ifreq *ifr,
+				    int cmd)
 {
 	return -EOPNOTSUPP;
 }

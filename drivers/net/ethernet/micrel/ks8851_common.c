@@ -689,7 +689,7 @@ static int ks8851_net_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_open		= ks8851_net_open,
 	.ndo_stop		= ks8851_net_stop,
-	.ndo_do_ioctl		= ks8851_net_ioctl,
+	.ndo_eth_ioctl		= ks8851_net_ioctl,
 	.ndo_start_xmit		= ks8851_start_xmit,
 	.ndo_set_mac_address	= ks8851_set_mac_address,
 	.ndo_set_rx_mode	= ks8851_set_rx_mode,

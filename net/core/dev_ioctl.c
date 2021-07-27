@@ -239,24 +239,39 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	return 0;
 }
 
-static int dev_do_ioctl(struct net_device *dev,
-			struct ifreq *ifr, unsigned int cmd)
+static int dev_eth_ioctl(struct net_device *dev,
+			 struct ifreq *ifr, unsigned int cmd)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
-	err = dsa_ndo_do_ioctl(dev, ifr, cmd);
+	err = dsa_ndo_eth_ioctl(dev, ifr, cmd);
 	if (err == 0 || err != -EOPNOTSUPP)
 		return err;
 
-	if (ops->ndo_do_ioctl) {
+	if (ops->ndo_eth_ioctl) {
 		if (netif_device_present(dev))
-			err = ops->ndo_do_ioctl(dev, ifr, cmd);
+			err = ops->ndo_eth_ioctl(dev, ifr, cmd);
 		else
 			err = -ENODEV;
 	}
 
 	return err;
+}
+
+static int dev_do_ioctl(struct net_device *dev,
+			struct ifreq *ifr, unsigned int cmd)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (ops->ndo_do_ioctl) {
+		if (netif_device_present(dev))
+			return ops->ndo_do_ioctl(dev, ifr, cmd);
+		else
+			return -ENODEV;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static int dev_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
@@ -358,19 +373,20 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		    cmd <= SIOCDEVPRIVATE + 15)
 			return dev_siocdevprivate(dev, ifr, data, cmd);
 
-		if (cmd == SIOCBONDENSLAVE ||
+		if (cmd == SIOCGMIIPHY ||
+		    cmd == SIOCGMIIREG ||
+		    cmd == SIOCSMIIREG ||
+		    cmd == SIOCSHWTSTAMP ||
+		    cmd == SIOCGHWTSTAMP) {
+			err = dev_eth_ioctl(dev, ifr, cmd);
+		} else if (cmd == SIOCBONDENSLAVE ||
 		    cmd == SIOCBONDRELEASE ||
 		    cmd == SIOCBONDSETHWADDR ||
 		    cmd == SIOCBONDSLAVEINFOQUERY ||
 		    cmd == SIOCBONDINFOQUERY ||
 		    cmd == SIOCBONDCHANGEACTIVE ||
-		    cmd == SIOCGMIIPHY ||
-		    cmd == SIOCGMIIREG ||
-		    cmd == SIOCSMIIREG ||
 		    cmd == SIOCBRADDIF ||
 		    cmd == SIOCBRDELIF ||
-		    cmd == SIOCSHWTSTAMP ||
-		    cmd == SIOCGHWTSTAMP ||
 		    cmd == SIOCWANDEV) {
 			err = dev_do_ioctl(dev, ifr, cmd);
 		} else

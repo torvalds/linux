@@ -2637,7 +2637,7 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_rx_mode	= velocity_set_multi,
 	.ndo_change_mtu		= velocity_change_mtu,
-	.ndo_do_ioctl		= velocity_ioctl,
+	.ndo_eth_ioctl		= velocity_ioctl,
 	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
