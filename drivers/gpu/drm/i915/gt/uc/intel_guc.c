@@ -573,19 +573,6 @@ int intel_guc_suspend(struct intel_guc *guc)
 }
 
 /**
- * intel_guc_reset_engine() - ask GuC to reset an engine
- * @guc:	intel_guc structure
- * @engine:	engine to be reset
- */
-int intel_guc_reset_engine(struct intel_guc *guc,
-			   struct intel_engine_cs *engine)
-{
-	/* XXX: to be implemented with submission interface rework */
-
-	return -ENODEV;
-}
-
-/**
  * intel_guc_resume() - notify GuC resuming from suspend state
  * @guc:	the guc
  */

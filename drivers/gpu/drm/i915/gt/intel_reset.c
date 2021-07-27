@@ -832,6 +832,8 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 	local_bh_enable();
 
+	intel_uc_reset(&gt->uc, true);
+
 	intel_ggtt_restore_fences(gt->ggtt);
 
 	return err;
@@ -856,6 +858,8 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 		if (awake & engine->mask)
 			intel_engine_pm_put(engine);
 	}
+
+	intel_uc_reset_finish(&gt->uc);
 }
 
 static void nop_submit_request(struct i915_request *request)
@@ -909,6 +913,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	for_each_engine(engine, gt, id)
 		if (engine->reset.cancel)
 			engine->reset.cancel(engine);
+	intel_uc_cancel_requests(&gt->uc);
 	local_bh_enable();
 
 	reset_finish(gt, awake);
@@ -1197,6 +1202,9 @@ int __intel_engine_reset_bh(struct intel_engine_cs *engine, const char *msg)
 	ENGINE_TRACE(engine, "flags=%lx\n", gt->reset.flags);
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &gt->reset.flags));
 
+	if (intel_engine_uses_guc(engine))
+		return -ENODEV;
+
 	if (!intel_engine_pm_get_if_awake(engine))
 		return 0;
 
@@ -1207,13 +1215,10 @@ int __intel_engine_reset_bh(struct intel_engine_cs *engine, const char *msg)
 			   "Resetting %s for %s\n", engine->name, msg);
 	atomic_inc(&engine->i915->gpu_error.reset_engine_count[engine->uabi_class]);
 
-	if (intel_engine_uses_guc(engine))
-		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
-	else
-		ret = intel_gt_reset_engine(engine);
+	ret = intel_gt_reset_engine(engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		ENGINE_TRACE(engine, "Failed to reset, err: %d\n", ret);
+		ENGINE_TRACE(engine, "Failed to reset %s, err: %d\n", engine->name, ret);
 		goto out;
 	}
 
@@ -1347,7 +1352,8 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
+	if (!intel_uc_uses_guc_submission(&gt->uc) &&
+	    intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
 		local_bh_disable();
 		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);

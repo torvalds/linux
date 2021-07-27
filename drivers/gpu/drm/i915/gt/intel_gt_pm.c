@@ -170,8 +170,6 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
-	intel_uc_sanitize(&gt->uc);
-
 	for_each_engine(engine, gt, id)
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
@@ -186,6 +184,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 		for_each_engine(engine, gt, id)
 			__intel_engine_reset(engine, false);
 	}
+
+	intel_uc_reset(&gt->uc, false);
 
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
@@ -238,6 +238,8 @@ int intel_gt_resume(struct intel_gt *gt)
 				 "Failed to initialize GPU, declaring it wedged!\n");
 		goto err_wedged;
 	}
+
+	intel_uc_reset_finish(&gt->uc);
 
 	intel_rps_enable(&gt->rps);
 	intel_llc_enable(&gt->llc);
