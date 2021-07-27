@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/cpumask.h>
+#include <linux/crash_dump.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -2834,8 +2835,14 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 	lif->ionic = ionic;
 	lif->index = 0;
-	lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
-	lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
+
+	if (is_kdump_kernel()) {
+		lif->ntxq_descs = IONIC_MIN_TXRX_DESC;
+		lif->nrxq_descs = IONIC_MIN_TXRX_DESC;
+	} else {
+		lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
+		lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
+	}
 
 	/* Convert the default coalesce value to actual hw resolution */
 	lif->rx_coalesce_usecs = IONIC_ITR_COAL_USEC_DEFAULT;
@@ -3519,12 +3526,22 @@ int ionic_lif_size(struct ionic *ionic)
 	unsigned int min_intrs;
 	int err;
 
+	/* retrieve basic values from FW */
 	lc = &ident->lif.eth.config;
 	dev_nintrs = le32_to_cpu(ident->dev.nintrs);
 	neqs_per_lif = le32_to_cpu(ident->lif.rdma.eq_qtype.qid_count);
 	nnqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_NOTIFYQ]);
 	ntxqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_TXQ]);
 	nrxqs_per_lif = le32_to_cpu(lc->queue_count[IONIC_QTYPE_RXQ]);
+
+	/* limit values to play nice with kdump */
+	if (is_kdump_kernel()) {
+		dev_nintrs = 2;
+		neqs_per_lif = 0;
+		nnqs_per_lif = 0;
+		ntxqs_per_lif = 1;
+		nrxqs_per_lif = 1;
+	}
 
 	/* reserve last queue id for hardware timestamping */
 	if (lc->features & cpu_to_le64(IONIC_ETH_HW_TIMESTAMP)) {
