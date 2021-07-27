@@ -6587,7 +6587,7 @@ int smb2_lock(struct ksmbd_work *work)
 	int lock_count;
 	int flags = 0;
 	int cmd = 0;
-	int err = 0, i;
+	int err = -EIO, i, rc = 0;
 	u64 lock_start, lock_length;
 	struct ksmbd_lock *smb_lock = NULL, *cmp_lock, *tmp, *tmp2;
 	struct ksmbd_conn *conn;
@@ -6603,7 +6603,7 @@ int smb2_lock(struct ksmbd_work *work)
 	if (!fp) {
 		ksmbd_debug(SMB, "Invalid file id for lock : %llu\n",
 			    le64_to_cpu(req->VolatileFileId));
-		rsp->hdr.Status = STATUS_FILE_CLOSED;
+		err = -ENOENT;
 		goto out2;
 	}
 
@@ -6613,7 +6613,7 @@ int smb2_lock(struct ksmbd_work *work)
 
 	ksmbd_debug(SMB, "lock count is %d\n", lock_count);
 	if (!lock_count) {
-		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+		err = -EINVAL;
 		goto out2;
 	}
 
@@ -6621,10 +6621,8 @@ int smb2_lock(struct ksmbd_work *work)
 		flags = le32_to_cpu(lock_ele[i].Flags);
 
 		flock = smb_flock_init(filp);
-		if (!flock) {
-			rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
+		if (!flock)
 			goto out;
-		}
 
 		cmd = smb2_set_flock_flags(flock, flags);
 
@@ -6662,8 +6660,7 @@ int smb2_lock(struct ksmbd_work *work)
 				if (cmp_lock->fl->fl_type != F_UNLCK &&
 				    flock->fl_type != F_UNLCK) {
 					pr_err("conflict two locks in one request\n");
-					rsp->hdr.Status =
-						STATUS_INVALID_PARAMETER;
+					err = -EINVAL;
 					goto out;
 				}
 			}
@@ -6671,19 +6668,19 @@ int smb2_lock(struct ksmbd_work *work)
 
 		smb_lock = smb2_lock_init(flock, cmd, flags, &lock_list);
 		if (!smb_lock) {
-			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+			err = -EINVAL;
 			goto out;
 		}
 	}
 
 	list_for_each_entry_safe(smb_lock, tmp, &lock_list, llist) {
 		if (smb_lock->cmd < 0) {
-			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+			err = -EINVAL;
 			goto out;
 		}
 
 		if (!(smb_lock->flags & SMB2_LOCKFLAG_MASK)) {
-			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+			err = -EINVAL;
 			goto out;
 		}
 
@@ -6691,7 +6688,7 @@ int smb2_lock(struct ksmbd_work *work)
 		     smb_lock->flags & SMB2_LOCKFLAG_UNLOCK) ||
 		    (prior_lock == SMB2_LOCKFLAG_UNLOCK &&
 		     !(smb_lock->flags & SMB2_LOCKFLAG_UNLOCK))) {
-			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+			err = -EINVAL;
 			goto out;
 		}
 
@@ -6744,8 +6741,7 @@ int smb2_lock(struct ksmbd_work *work)
 					spin_unlock(&conn->llist_lock);
 					read_unlock(&conn_list_lock);
 					pr_err("previous lock conflict with zero byte lock range\n");
-					rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
-						goto out;
+					goto out;
 				}
 
 				if (smb_lock->zero_len && !cmp_lock->zero_len &&
@@ -6754,8 +6750,7 @@ int smb2_lock(struct ksmbd_work *work)
 					spin_unlock(&conn->llist_lock);
 					read_unlock(&conn_list_lock);
 					pr_err("current lock conflict with zero byte lock range\n");
-					rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
-						goto out;
+					goto out;
 				}
 
 				if (((cmp_lock->start <= smb_lock->start &&
@@ -6766,8 +6761,6 @@ int smb2_lock(struct ksmbd_work *work)
 					spin_unlock(&conn->llist_lock);
 					read_unlock(&conn_list_lock);
 					pr_err("Not allow lock operation on exclusive lock range\n");
-					rsp->hdr.Status =
-						STATUS_LOCK_NOT_GRANTED;
 					goto out;
 				}
 			}
@@ -6790,19 +6783,19 @@ no_check_cl:
 		flock = smb_lock->fl;
 		list_del(&smb_lock->llist);
 retry:
-		err = vfs_lock_file(filp, smb_lock->cmd, flock, NULL);
+		rc = vfs_lock_file(filp, smb_lock->cmd, flock, NULL);
 skip:
 		if (flags & SMB2_LOCKFLAG_UNLOCK) {
-			if (!err) {
+			if (!rc) {
 				ksmbd_debug(SMB, "File unlocked\n");
-			} else if (err == -ENOENT) {
+			} else if (rc == -ENOENT) {
 				rsp->hdr.Status = STATUS_NOT_LOCKED;
 				goto out;
 			}
 			locks_free_lock(flock);
 			kfree(smb_lock);
 		} else {
-			if (err == FILE_LOCK_DEFERRED) {
+			if (rc == FILE_LOCK_DEFERRED) {
 				void **argv;
 
 				ksmbd_debug(SMB,
@@ -6820,12 +6813,11 @@ skip:
 				}
 				argv[0] = flock;
 
-				err = setup_async_work(work,
-						       smb2_remove_blocked_lock,
-						       argv);
-				if (err) {
-					rsp->hdr.Status =
-					   STATUS_INSUFFICIENT_RESOURCES;
+				rc = setup_async_work(work,
+						      smb2_remove_blocked_lock,
+						      argv);
+				if (rc) {
+					err = -ENOMEM;
 					goto out;
 				}
 				spin_lock(&fp->f_lock);
@@ -6872,7 +6864,7 @@ skip:
 				list_del(&work->fp_entry);
 				spin_unlock(&fp->f_lock);
 				goto retry;
-			} else if (!err) {
+			} else if (!rc) {
 				spin_lock(&work->conn->llist_lock);
 				list_add_tail(&smb_lock->clist,
 					      &work->conn->lock_list);
@@ -6882,7 +6874,6 @@ skip:
 				list_add(&smb_lock->llist, &rollback_list);
 				ksmbd_debug(SMB, "successful in taking lock\n");
 			} else {
-				rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
 				goto out;
 			}
 		}
@@ -6908,7 +6899,6 @@ out:
 
 	list_for_each_entry_safe(smb_lock, tmp, &rollback_list, llist) {
 		struct file_lock *rlock = NULL;
-		int rc;
 
 		rlock = smb_flock_init(filp);
 		rlock->fl_type = F_UNLCK;
@@ -6931,7 +6921,19 @@ out:
 		kfree(smb_lock);
 	}
 out2:
-	ksmbd_debug(SMB, "failed in taking lock(flags : %x)\n", flags);
+	ksmbd_debug(SMB, "failed in taking lock(flags : %x), err : %d\n", flags, err);
+
+	if (!rsp->hdr.Status) {
+		if (err == -EINVAL)
+			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+		else if (err == -ENOMEM)
+			rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
+		else if (err == -ENOENT)
+			rsp->hdr.Status = STATUS_FILE_CLOSED;
+		else
+			rsp->hdr.Status = STATUS_LOCK_NOT_GRANTED;
+	}
+
 	smb2_set_err_rsp(work);
 	ksmbd_fd_put(work, fp);
 	return err;
