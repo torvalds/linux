@@ -477,7 +477,13 @@ static void compat_thread_switch(struct task_struct *next)
 		set_tsk_thread_flag(next, TIF_NOTIFY_RESUME);
 }
 
-static void update_sctlr_el1(u64 sctlr)
+/*
+ * __switch_to() checks current->thread.sctlr_user as an optimisation. Therefore
+ * this function must be called with preemption disabled and the update to
+ * sctlr_user must be made in the same preemption disabled block so that
+ * __switch_to() does not see the variable update before the SCTLR_EL1 one.
+ */
+void update_sctlr_el1(u64 sctlr)
 {
 	/*
 	 * EnIA must not be cleared while in the kernel as this is necessary for
@@ -487,19 +493,6 @@ static void update_sctlr_el1(u64 sctlr)
 
 	/* ISB required for the kernel uaccess routines when setting TCF0. */
 	isb();
-}
-
-void set_task_sctlr_el1(u64 sctlr)
-{
-	/*
-	 * __switch_to() checks current->thread.sctlr as an
-	 * optimisation. Disable preemption so that it does not see
-	 * the variable update before the SCTLR_EL1 one.
-	 */
-	preempt_disable();
-	current->thread.sctlr_user = sctlr;
-	update_sctlr_el1(sctlr);
-	preempt_enable();
 }
 
 /*

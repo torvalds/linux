@@ -218,9 +218,7 @@ void mte_thread_init_user(void)
 	write_sysreg_s(0, SYS_TFSRE0_EL1);
 	clear_thread_flag(TIF_MTE_ASYNC_FAULT);
 	/* disable tag checking and reset tag generation mask */
-	current->thread.mte_ctrl = MTE_CTRL_GCR_USER_EXCL_MASK;
-	mte_update_sctlr_user(current);
-	set_task_sctlr_el1(current->thread.sctlr_user);
+	set_mte_ctrl(current, 0);
 }
 
 void mte_thread_switch(struct task_struct *next)
@@ -278,8 +276,10 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 
 	task->thread.mte_ctrl = mte_ctrl;
 	if (task == current) {
+		preempt_disable();
 		mte_update_sctlr_user(task);
-		set_task_sctlr_el1(task->thread.sctlr_user);
+		update_sctlr_el1(task->thread.sctlr_user);
+		preempt_enable();
 	}
 
 	return 0;
