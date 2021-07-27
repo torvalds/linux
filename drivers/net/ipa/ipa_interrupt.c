@@ -79,6 +79,7 @@ static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
 {
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
+	u32 pending;
 	u32 offset;
 	u32 mask;
 
@@ -87,8 +88,8 @@ static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
 	 * only the enabled ones.
 	 */
 	offset = ipa_reg_irq_stts_offset(ipa->version);
-	mask = ioread32(ipa->reg_virt + offset);
-	while ((mask &= enabled)) {
+	pending = ioread32(ipa->reg_virt + offset);
+	while ((mask = pending & enabled)) {
 		do {
 			u32 irq_id = __ffs(mask);
 
@@ -96,7 +97,17 @@ static void ipa_interrupt_process_all(struct ipa_interrupt *interrupt)
 
 			ipa_interrupt_process(interrupt, irq_id);
 		} while (mask);
-		mask = ioread32(ipa->reg_virt + offset);
+		pending = ioread32(ipa->reg_virt + offset);
+	}
+
+	/* If any disabled interrupts are pending, clear them */
+	if (pending) {
+		struct device *dev = &ipa->pdev->dev;
+
+		dev_dbg(dev, "clearing disabled IPA interrupts 0x%08x\n",
+			pending);
+		offset = ipa_reg_irq_clr_offset(ipa->version);
+		iowrite32(pending, ipa->reg_virt + offset);
 	}
 }
 
