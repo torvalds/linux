@@ -1092,6 +1092,7 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	bool need_copyout;
 	int err;
 	void __user *argp = (void __user *)arg;
+	void __user *data;
 
 	err = sock->ops->ioctl(sock, cmd, arg);
 
@@ -1102,11 +1103,11 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	if (err != -ENOIOCTLCMD)
 		return err;
 
-	if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+	if (get_user_ifreq(&ifr, &data, argp))
 		return -EFAULT;
-	err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+	err = dev_ioctl(net, cmd, &ifr, data, &need_copyout);
 	if (!err && need_copyout)
-		if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+		if (put_user_ifreq(&ifr, argp))
 			return -EFAULT;
 
 	return err;
@@ -1130,12 +1131,13 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	net = sock_net(sk);
 	if (unlikely(cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))) {
 		struct ifreq ifr;
+		void __user *data;
 		bool need_copyout;
-		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+		if (get_user_ifreq(&ifr, &data, argp))
 			return -EFAULT;
-		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+		err = dev_ioctl(net, cmd, &ifr, data, &need_copyout);
 		if (!err && need_copyout)
-			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+			if (put_user_ifreq(&ifr, argp))
 				return -EFAULT;
 	} else
 #ifdef CONFIG_WEXT_CORE
@@ -3186,7 +3188,7 @@ static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32
 	saved = ifr.ifr_settings.ifs_ifsu.raw_hdlc;
 	ifr.ifr_settings.ifs_ifsu.raw_hdlc = compat_ptr(uptr32);
 
-	err = dev_ioctl(net, SIOCWANDEV, &ifr, NULL);
+	err = dev_ioctl(net, SIOCWANDEV, &ifr, NULL, NULL);
 	if (!err) {
 		ifr.ifr_settings.ifs_ifsu.raw_hdlc = saved;
 		if (put_user_ifreq(&ifr, uifr32))
@@ -3200,42 +3202,13 @@ static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 				 struct compat_ifreq __user *u_ifreq32)
 {
 	struct ifreq ifreq;
-	u32 data32;
+	void __user *data;
 
-	if (copy_from_user(ifreq.ifr_name, u_ifreq32->ifr_name, IFNAMSIZ))
+	if (get_user_ifreq(&ifreq, &data, u_ifreq32))
 		return -EFAULT;
-	if (get_user(data32, &u_ifreq32->ifr_data))
-		return -EFAULT;
-	ifreq.ifr_data = compat_ptr(data32);
+	ifreq.ifr_data = data;
 
-	return dev_ioctl(net, cmd, &ifreq, NULL);
-}
-
-static int compat_ifreq_ioctl(struct net *net, struct socket *sock,
-			      unsigned int cmd,
-			      unsigned long arg,
-			      struct compat_ifreq __user *uifr32)
-{
-	struct ifreq ifr;
-	bool need_copyout;
-	int err;
-
-	err = sock->ops->ioctl(sock, cmd, arg);
-
-	/* If this ioctl is unknown try to hand it down
-	 * to the NIC driver.
-	 */
-	if (err != -ENOIOCTLCMD)
-		return err;
-
-	if (get_user_ifreq(&ifr, NULL, uifr32))
-		return -EFAULT;
-	err = dev_ioctl(net, cmd, &ifr, &need_copyout);
-	if (!err && need_copyout)
-		if (put_user_ifreq(&ifr, uifr32))
-			return -EFAULT;
-
-	return err;
+	return dev_ioctl(net, cmd, &ifreq, data, NULL);
 }
 
 /* Since old style bridge ioctl's endup using SIOCDEVPRIVATE
@@ -3337,8 +3310,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:
 	case SIOCBONDCHANGEACTIVE:
-		return compat_ifreq_ioctl(net, sock, cmd, arg, argp);
-
 	case SIOCSARP:
 	case SIOCGARP:
 	case SIOCDARP:
