@@ -1238,13 +1238,11 @@ static int haptics_wait_hboost_ready(struct haptics_chip *chip)
 			return 0;
 
 		/*
-		 * If the coming request is not FIFO play and there is
-		 * already a SWR play in the background, then HBoost will
-		 * be kept as on always hence no need to wait its ready.
+		 * If there is already a SWR play in the background, then HBoost
+		 * will be kept as on hence no need to wait its ready.
 		 */
 		mutex_lock(&chip->play.lock);
-		if (chip->play.pattern_src != FIFO &&
-				is_swr_play_enabled(chip)) {
+		if (is_swr_play_enabled(chip)) {
 			dev_dbg(chip->dev, "Ignore waiting hBoost when SWR play is in progress\n");
 			mutex_unlock(&chip->play.lock);
 			return 0;
