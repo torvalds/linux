@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/overflow.h>
 
-#include "intel_pmt_class.h"
+#include "class.h"
 
 #define TELEM_DEV_NAME		"pmt_telemetry"
 
