@@ -593,7 +593,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	}
 
 	delay = (2 * 1000000) / min_speed_hz;
-	if (likely(delay < 10))	/* SCLK is faster than 100 kHz */
+	if (likely(delay < 10))	/* SCLK is faster than 200 kHz */
 		udelay(delay);
 	else			/* SCLK is _very_ slow */
 		usleep_range(delay, delay + 10);
