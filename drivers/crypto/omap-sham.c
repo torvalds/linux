@@ -2113,7 +2113,6 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->fallback_sz = OMAP_SHA_DMA_THRESHOLD;
 
 	pm_runtime_enable(dev);
-	pm_runtime_irq_safe(dev);
 
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
