@@ -1093,11 +1093,11 @@ static int omap_sham_hash_one_req(struct crypto_engine *engine, void *areq)
 	dev_dbg(dd->dev, "hash-one: op: %u, total: %u, digcnt: %zd, final: %d",
 		ctx->op, ctx->total, ctx->digcnt, final);
 
-	dd->req = req;
-
 	err = omap_sham_hw_init(dd);
 	if (err)
 		return err;
+
+	dd->req = req;
 
 	if (ctx->digcnt)
 		dd->pdata->copy_hash(req, 0);
