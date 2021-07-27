@@ -10,6 +10,9 @@
 
 # This file is called by the Linux build system.
 
+# make $(src) as absolute path if it isn't already, by prefixing $(srctree)
+src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
+
 # set up defaults if not defined by the user
 TIMESTAMP ?= default
 OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 16
