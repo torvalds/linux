@@ -11178,8 +11178,10 @@ static void scsih_remove(struct pci_dev *pdev)
 
 	ioc->remove_host = 1;
 
-	if (!pci_device_is_present(pdev))
+	if (!pci_device_is_present(pdev)) {
+		mpt3sas_base_pause_mq_polling(ioc);
 		_scsih_flush_running_cmds(ioc);
+	}
 
 	_scsih_fw_event_cleanup_queue(ioc);
 
@@ -11274,8 +11276,10 @@ scsih_shutdown(struct pci_dev *pdev)
 
 	ioc->remove_host = 1;
 
-	if (!pci_device_is_present(pdev))
+	if (!pci_device_is_present(pdev)) {
+		mpt3sas_base_pause_mq_polling(ioc);
 		_scsih_flush_running_cmds(ioc);
+	}
 
 	_scsih_fw_event_cleanup_queue(ioc);
 
@@ -11780,12 +11784,41 @@ static int scsih_map_queues(struct Scsi_Host *shost)
 {
 	struct MPT3SAS_ADAPTER *ioc =
 	    (struct MPT3SAS_ADAPTER *)shost->hostdata;
+	struct blk_mq_queue_map *map;
+	int i, qoff, offset;
+	int nr_msix_vectors = ioc->iopoll_q_start_index;
+	int iopoll_q_count = ioc->reply_queue_count - nr_msix_vectors;
 
-	if (ioc->shost->nr_hw_queues == 1)
+	if (shost->nr_hw_queues == 1)
 		return 0;
 
-	return blk_mq_pci_map_queues(&shost->tag_set.map[HCTX_TYPE_DEFAULT],
-	    ioc->pdev, ioc->high_iops_queues);
+	for (i = 0, qoff = 0; i < shost->nr_maps; i++) {
+		map = &shost->tag_set.map[i];
+		map->nr_queues = 0;
+		offset = 0;
+		if (i == HCTX_TYPE_DEFAULT) {
+			map->nr_queues =
+			    nr_msix_vectors - ioc->high_iops_queues;
+			offset = ioc->high_iops_queues;
+		} else if (i == HCTX_TYPE_POLL)
+			map->nr_queues = iopoll_q_count;
+
+		if (!map->nr_queues)
+			BUG_ON(i == HCTX_TYPE_DEFAULT);
+
+		/*
+		 * The poll queue(s) doesn't have an IRQ (and hence IRQ
+		 * affinity), so use the regular blk-mq cpu mapping
+		 */
+		map->queue_offset = qoff;
+		if (i != HCTX_TYPE_POLL)
+			blk_mq_pci_map_queues(map, ioc->pdev, offset);
+		else
+			blk_mq_map_queues(map);
+
+		qoff += map->nr_queues;
+	}
+	return 0;
 }
 
 /* shost template for SAS 2.0 HBA devices */
@@ -11856,6 +11889,7 @@ static struct scsi_host_template mpt3sas_driver_template = {
 	.track_queue_depth		= 1,
 	.cmd_size			= sizeof(struct scsiio_tracker),
 	.map_queues			= scsih_map_queues,
+	.mq_poll			= mpt3sas_blk_mq_poll,
 };
 
 /* raid transport support for SAS 3.0 HBA devices */
@@ -11952,6 +11986,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *shost = NULL;
 	int rv;
 	u16 hba_mpi_version;
+	int iopoll_q_count = 0;
 
 	/* Determine in which MPI version class this pci device belongs */
 	hba_mpi_version = _scsih_determine_hba_mpi_version(pdev);
@@ -12199,6 +12234,11 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_thread_fail;
 	}
 
+	shost->host_tagset = 0;
+
+	if (ioc->is_gen35_ioc && host_tagset_enable)
+		shost->host_tagset = 1;
+
 	ioc->is_driver_loading = 1;
 	if ((mpt3sas_base_attach(ioc))) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
@@ -12221,15 +12261,16 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else
 		ioc->hide_drives = 0;
 
-	shost->host_tagset = 0;
 	shost->nr_hw_queues = 1;
 
-	if (ioc->is_gen35_ioc && ioc->reply_queue_count > 1 &&
-	    host_tagset_enable && ioc->smp_affinity_enable) {
-
-		shost->host_tagset = 1;
+	if (shost->host_tagset) {
 		shost->nr_hw_queues =
 		    ioc->reply_queue_count - ioc->high_iops_queues;
+
+		iopoll_q_count =
+		    ioc->reply_queue_count - ioc->iopoll_q_start_index;
+
+		shost->nr_maps = iopoll_q_count ? 3 : 1;
 
 		dev_info(&ioc->pdev->dev,
 		    "Max SCSIIO MPT commands: %d shared with nr_hw_queues = %d\n",
@@ -12354,6 +12395,7 @@ scsih_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		/* Permanent error, prepare for device removal */
 		ioc->pci_error_recovery = 1;
 		mpt3sas_base_stop_watchdog(ioc);
+		mpt3sas_base_pause_mq_polling(ioc);
 		_scsih_flush_running_cmds(ioc);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
