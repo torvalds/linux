@@ -7,6 +7,7 @@
 #include <linux/refcount.h>
 #include <linux/fiemap.h>
 #include <linux/btrfs_tree.h>
+#include "compression.h"
 #include "ulist.h"
 
 enum {
@@ -266,7 +267,7 @@ struct io_failure_record {
 	u64 start;
 	u64 len;
 	u64 logical;
-	unsigned long bio_flags;
+	enum btrfs_compression_type compress_type;
 	int this_mirror;
 	int failed_mirror;
 };

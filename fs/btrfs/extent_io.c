@@ -2538,7 +2538,7 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	failrec->start = start;
 	failrec->len = sectorsize;
 	failrec->this_mirror = 0;
-	failrec->bio_flags = 0;
+	failrec->compress_type = BTRFS_COMPRESS_NONE;
 
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, failrec->len);
@@ -2562,7 +2562,7 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	logical = em->block_start + logical;
 	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		logical = em->block_start;
-		failrec->bio_flags = em->compress_type;
+		failrec->compress_type = em->compress_type;
 	}
 
 	btrfs_debug(fs_info,
@@ -2694,7 +2694,7 @@ int btrfs_repair_one_sector(struct inode *inode,
 	 * will be handled by the endio on the repair_bio, so we can't return an
 	 * error here.
 	 */
-	submit_bio_hook(inode, repair_bio, failrec->this_mirror, failrec->bio_flags);
+	submit_bio_hook(inode, repair_bio, failrec->this_mirror, failrec->compress_type);
 	return BLK_STS_OK;
 }
 
