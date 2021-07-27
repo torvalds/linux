@@ -1566,6 +1566,11 @@ static int gaudi_late_init(struct hl_device *hdev)
 		return rc;
 	}
 
+	/* Scrub both SRAM and DRAM */
+	rc = hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
+	if (rc)
+		goto disable_pci_access;
+
 	rc = gaudi_fetch_psoc_frequency(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to fetch psoc frequency\n");
@@ -4192,11 +4197,6 @@ static int gaudi_hw_init(struct hl_device *hdev)
 			rc);
 		goto disable_msi;
 	}
-
-	/* Scrub both SRAM and DRAM */
-	rc = hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
-	if (rc)
-		return rc;
 
 	/* Perform read from the device to flush all configuration */
 	RREG32(mmHW_STATE);
