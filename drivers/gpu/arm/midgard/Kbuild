@@ -18,6 +18,9 @@ KBUILD_CFLAGS += -include rename.h
 MALI_RELEASE_NAME ?= "r18p0-01rel0"
 
 # Paths required for build
+
+# make $(src) as absolute path if it isn't already, by prefixing $(srctree)
+src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
 KBASE_PATH = $(src)
 KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
 UMP_PATH = $(src)/../../../base
