@@ -2060,6 +2060,12 @@ static void io_req_task_queue(struct io_kiocb *req)
 	io_req_task_work_add(req);
 }
 
+static void io_req_task_queue_reissue(struct io_kiocb *req)
+{
+	req->io_task_work.func = io_queue_async_work;
+	io_req_task_work_add(req);
+}
+
 static inline void io_queue_next(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt = io_req_find_next(req);
@@ -2248,7 +2254,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		    !(req->flags & REQ_F_DONT_REISSUE)) {
 			req->iopoll_completed = 0;
 			req_ref_get(req);
-			io_queue_async_work(req);
+			io_req_task_queue_reissue(req);
 			continue;
 		}
 
@@ -2771,7 +2777,7 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 		req->flags &= ~REQ_F_REISSUE;
 		if (io_resubmit_prep(req)) {
 			req_ref_get(req);
-			io_queue_async_work(req);
+			io_req_task_queue_reissue(req);
 		} else {
 			int cflags = 0;
 
