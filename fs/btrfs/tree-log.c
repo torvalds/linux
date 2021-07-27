@@ -3421,14 +3421,10 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 }
 
 /*
- * Check if an inode was logged in the current transaction. We can't always rely
- * on an inode's logged_trans value, because it's an in-memory only field and
- * therefore not persisted. This means that its value is lost if the inode gets
- * evicted and loaded again from disk (in which case it has a value of 0, and
- * certainly it is smaller then any possible transaction ID), when that happens
- * the full_sync flag is set in the inode's runtime flags, so on that case we
- * assume eviction happened and ignore the logged_trans value, assuming the
- * worst case, that the inode was logged before in the current transaction.
+ * Check if an inode was logged in the current transaction. This may often
+ * return some false positives, because logged_trans is an in memory only field,
+ * not persisted anywhere. This is meant to be used in contexts where a false
+ * positive has no functional consequences.
  */
 static bool inode_logged(struct btrfs_trans_handle *trans,
 			 struct btrfs_inode *inode)
@@ -3436,7 +3432,18 @@ static bool inode_logged(struct btrfs_trans_handle *trans,
 	if (inode->logged_trans == trans->transid)
 		return true;
 
-	if (inode->last_trans == trans->transid &&
+	/*
+	 * The inode's logged_trans is always 0 when we load it (because it is
+	 * not persisted in the inode item or elsewhere). So if it is 0, the
+	 * inode was last modified in the current transaction and has the
+	 * full_sync flag set, then the inode may have been logged before in
+	 * the current transaction, then evicted and loaded again in the current
+	 * transaction - or may have never been logged in the current transaction,
+	 * but since we can not be sure, we have to assume it was, otherwise our
+	 * callers can leave an inconsistent log.
+	 */
+	if (inode->logged_trans == 0 &&
+	    inode->last_trans == trans->transid &&
 	    test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) &&
 	    !test_bit(BTRFS_FS_LOG_RECOVERING, &trans->fs_info->flags))
 		return true;
