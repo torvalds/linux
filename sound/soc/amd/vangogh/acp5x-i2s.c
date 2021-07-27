@@ -399,8 +399,8 @@ static int acp5x_dai_probe(struct platform_device *pdev)
 	}
 	adata->acp5x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
-	if (IS_ERR(adata->acp5x_base))
-		return PTR_ERR(adata->acp5x_base);
+	if (!adata->acp5x_base)
+		return -ENOMEM;
 
 	adata->master_mode = I2S_MASTER_MODE_ENABLE;
 	dev_set_drvdata(&pdev->dev, adata);
