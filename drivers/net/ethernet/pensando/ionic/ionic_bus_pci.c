@@ -165,10 +165,10 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 			goto out;
 		}
 
+		ionic->num_vfs++;
 		/* ignore failures from older FW, we just won't get stats */
 		(void)ionic_set_vf_config(ionic, i, IONIC_VF_ATTR_STATSADDR,
 					  (u8 *)&v->stats_pa);
-		ionic->num_vfs++;
 	}
 
 out:
