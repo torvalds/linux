@@ -2626,7 +2626,7 @@ void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 		if (btrfs_is_data_reloc_root(root))
 			goto mapit;
 		/* we're doing a write, do the async checksumming */
-		ret = btrfs_wq_submit_bio(inode, bio, mirror_num, bio_flags,
+		ret = btrfs_wq_submit_bio(inode, bio, mirror_num,
 					  0, btrfs_submit_bio_start);
 		goto out;
 	} else if (!skip_sum) {
@@ -7961,7 +7961,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		goto map;
 
 	if (write && async_submit) {
-		ret = btrfs_wq_submit_bio(inode, bio, 0, 0, file_offset,
+		ret = btrfs_wq_submit_bio(inode, bio, 0, file_offset,
 					  btrfs_submit_bio_start_direct_io);
 		goto err;
 	} else if (write) {
