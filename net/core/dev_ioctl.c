@@ -6,6 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/net_tstamp.h>
 #include <linux/wireless.h>
+#include <linux/if_bridge.h>
 #include <net/dsa.h>
 #include <net/wext.h>
 
@@ -374,6 +375,12 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 	case SIOCWANDEV:
 		return dev_siocwandev(dev, &ifr->ifr_settings);
 
+	case SIOCBRADDIF:
+	case SIOCBRDELIF:
+		if (!netif_device_present(dev))
+			return -ENODEV;
+		return br_ioctl_call(net, netdev_priv(dev), cmd, ifr, NULL);
+
 	case SIOCSHWTSTAMP:
 		err = net_hwtstamp_validate(ifr);
 		if (err)
@@ -399,9 +406,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		    cmd == SIOCBONDSETHWADDR ||
 		    cmd == SIOCBONDSLAVEINFOQUERY ||
 		    cmd == SIOCBONDINFOQUERY ||
-		    cmd == SIOCBONDCHANGEACTIVE ||
-		    cmd == SIOCBRADDIF ||
-		    cmd == SIOCBRDELIF) {
+		    cmd == SIOCBONDCHANGEACTIVE) {
 			err = dev_do_ioctl(dev, ifr, cmd);
 		} else
 			err = -EINVAL;

@@ -366,7 +366,8 @@ static int old_deviceless(struct net *net, void __user *uarg)
 	return -EOPNOTSUPP;
 }
 
-int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *uarg)
+int br_ioctl_stub(struct net *net, struct net_bridge *br, unsigned int cmd,
+		  struct ifreq *ifr, void __user *uarg)
 {
 	switch (cmd) {
 	case SIOCGIFBR:
@@ -390,21 +391,11 @@ int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *uar
 
 		return br_del_bridge(net, buf);
 	}
-	}
-	return -EOPNOTSUPP;
-}
 
-int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	switch (cmd) {
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
-		return add_del_if(br, rq->ifr_ifindex, cmd == SIOCBRADDIF);
+		return add_del_if(br, ifr->ifr_ifindex, cmd == SIOCBRADDIF);
 
 	}
-
-	br_debug(br, "Bridge does not support ioctl 0x%x\n", cmd);
 	return -EOPNOTSUPP;
 }
