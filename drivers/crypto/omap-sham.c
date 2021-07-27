@@ -105,7 +105,6 @@
 #define FLAGS_FINAL		1
 #define FLAGS_DMA_ACTIVE	2
 #define FLAGS_OUTPUT_READY	3
-#define FLAGS_INIT		4
 #define FLAGS_CPU		5
 #define FLAGS_DMA_READY		6
 #define FLAGS_AUTO_XOR		7
@@ -366,24 +365,6 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 	else
 		for (i = 0; i < d; i++)
 			hash[i] = le32_to_cpup((__le32 *)in + i);
-}
-
-static int omap_sham_hw_init(struct omap_sham_dev *dd)
-{
-	int err;
-
-	err = pm_runtime_resume_and_get(dd->dev);
-	if (err < 0) {
-		dev_err(dd->dev, "failed to get sync: %d\n", err);
-		return err;
-	}
-
-	if (!test_bit(FLAGS_INIT, &dd->flags)) {
-		set_bit(FLAGS_INIT, &dd->flags);
-		dd->err = 0;
-	}
-
-	return 0;
 }
 
 static void omap_sham_write_ctrl_omap2(struct omap_sham_dev *dd, size_t length,
@@ -1093,10 +1074,13 @@ static int omap_sham_hash_one_req(struct crypto_engine *engine, void *areq)
 	dev_dbg(dd->dev, "hash-one: op: %u, total: %u, digcnt: %zd, final: %d",
 		ctx->op, ctx->total, ctx->digcnt, final);
 
-	err = omap_sham_hw_init(dd);
-	if (err)
+	err = pm_runtime_resume_and_get(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "failed to get sync: %d\n", err);
 		return err;
+	}
 
+	dd->err = 0;
 	dd->req = req;
 
 	if (ctx->digcnt)
