@@ -1476,8 +1476,10 @@ static int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 
 	ret =   bch2_trans_cond_resched(trans) ?:
 		btree_iter_traverse_one(iter, _RET_IP_);
-	if (unlikely(ret))
+	if (unlikely(ret) && hweight64(trans->iters_linked) == 1) {
 		ret = __btree_iter_traverse_all(trans, ret, _RET_IP_);
+		BUG_ON(ret == -EINTR);
+	}
 
 	return ret;
 }
