@@ -633,10 +633,10 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
-	int i, r, ret = 0;
+	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component) {
-		r = snd_soc_component_close(component, substream, rollback);
+		int r = snd_soc_component_close(component, substream, rollback);
 		if (r < 0)
 			ret = r; /* use last ret */
 
