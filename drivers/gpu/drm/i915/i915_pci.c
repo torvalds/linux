@@ -37,7 +37,6 @@
 #include "gem/i915_gem_object.h"
 #include "i915_request.h"
 #include "i915_perf.h"
-#include "i915_globals.h"
 #include "i915_selftest.h"
 #include "i915_scheduler.h"
 #include "i915_vma.h"
@@ -1274,7 +1273,6 @@ static const struct {
 	{ i915_request_module_init, i915_request_module_exit },
 	{ i915_scheduler_module_init, i915_scheduler_module_exit },
 	{ i915_vma_module_init, i915_vma_module_exit },
-	{ i915_globals_init, i915_globals_exit },
 	{ i915_mock_selftests, NULL },
 	{ i915_pmu_init, i915_pmu_exit },
 	{ i915_register_pci_driver, i915_unregister_pci_driver },
