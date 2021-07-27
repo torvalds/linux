@@ -1718,8 +1718,14 @@
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_mmc_attach_sd
+  __traceiter_android_vh_mmc_blk_mq_rw_recovery
+  __traceiter_android_vh_mmc_blk_reset
+  __traceiter_android_vh_mmc_gpio_cd_irqt
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_sdhci_get_cd
+  __traceiter_android_vh_sd_update_bus_speed_mode
   __traceiter_android_vh_show_max_freq
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
@@ -1731,12 +1737,17 @@
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
+  __traceiter_dwc3_complete_trb
+  __traceiter_dwc3_ctrl_req
+  __traceiter_dwc3_event
   __traceiter_ipi_entry
   __traceiter_ipi_raise
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_read
   __traceiter_rwmmio_write
   __traceiter_suspend_resume
+  __traceiter_usb_gadget_connect
+  __traceiter_usb_gadget_disconnect
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
@@ -1789,8 +1800,14 @@
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_mmc_attach_sd
+  __tracepoint_android_vh_mmc_blk_mq_rw_recovery
+  __tracepoint_android_vh_mmc_blk_reset
+  __tracepoint_android_vh_mmc_gpio_cd_irqt
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_sdhci_get_cd
+  __tracepoint_android_vh_sd_update_bus_speed_mode
   __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
@@ -1802,6 +1819,9 @@
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
+  __tracepoint_dwc3_complete_trb
+  __tracepoint_dwc3_ctrl_req
+  __tracepoint_dwc3_event
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
   tracepoint_probe_register
@@ -1811,6 +1831,8 @@
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write
   __tracepoint_suspend_resume
+  __tracepoint_usb_gadget_connect
+  __tracepoint_usb_gadget_disconnect
   trace_print_array_seq
   trace_print_flags_seq
   trace_print_symbols_seq
