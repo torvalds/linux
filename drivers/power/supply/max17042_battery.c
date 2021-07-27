@@ -1196,6 +1196,7 @@ static const struct of_device_id max17042_dt_match[] = {
 	{ .compatible = "maxim,max17047" },
 	{ .compatible = "maxim,max17050" },
 	{ .compatible = "maxim,max17055" },
+	{ .compatible = "maxim,max77849-battery" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max17042_dt_match);
@@ -1206,6 +1207,7 @@ static const struct i2c_device_id max17042_id[] = {
 	{ "max17047", MAXIM_DEVICE_TYPE_MAX17047 },
 	{ "max17050", MAXIM_DEVICE_TYPE_MAX17050 },
 	{ "max17055", MAXIM_DEVICE_TYPE_MAX17055 },
+	{ "max77849-battery", MAXIM_DEVICE_TYPE_MAX17047 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max17042_id);
