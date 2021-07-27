@@ -2595,6 +2595,8 @@ void omap3_gpmc_restore_context(void)
 				gpmc_context.cs_context[i].config6);
 			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7,
 				gpmc_context.cs_context[i].config7);
+		} else {
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7, 0);
 		}
 	}
 }
