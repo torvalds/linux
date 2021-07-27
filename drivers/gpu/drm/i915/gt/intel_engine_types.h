@@ -21,7 +21,6 @@
 #include "i915_pmu.h"
 #include "i915_priolist_types.h"
 #include "i915_selftest.h"
-#include "intel_breadcrumbs_types.h"
 #include "intel_sseu.h"
 #include "intel_timeline_types.h"
 #include "intel_uncore.h"
@@ -52,6 +51,7 @@ struct i915_sched_engine;
 struct intel_gt;
 struct intel_ring;
 struct intel_uncore;
+struct intel_breadcrumbs;
 
 typedef u32 intel_engine_mask_t;
 #define ALL_ENGINES ((intel_engine_mask_t)~0ul)

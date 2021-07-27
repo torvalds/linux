@@ -212,6 +212,9 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);
 
+bool intel_engine_irq_enable(struct intel_engine_cs *engine);
+void intel_engine_irq_disable(struct intel_engine_cs *engine);
+
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 					bool stalled)
 {

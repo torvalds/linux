@@ -3457,7 +3457,7 @@ static void rcu_virtual_context_destroy(struct work_struct *wrk)
 	intel_context_fini(&ve->context);
 
 	if (ve->base.breadcrumbs)
-		intel_breadcrumbs_free(ve->base.breadcrumbs);
+		intel_breadcrumbs_put(ve->base.breadcrumbs);
 	if (ve->base.sched_engine)
 		i915_sched_engine_put(ve->base.sched_engine);
 	intel_engine_free_request_pool(&ve->base);

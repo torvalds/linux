@@ -284,7 +284,7 @@ static void mock_engine_release(struct intel_engine_cs *engine)
 	GEM_BUG_ON(timer_pending(&mock->hw_delay));
 
 	i915_sched_engine_put(engine->sched_engine);
-	intel_breadcrumbs_free(engine->breadcrumbs);
+	intel_breadcrumbs_put(engine->breadcrumbs);
 
 	intel_context_unpin(engine->kernel_context);
 	intel_context_put(engine->kernel_context);
@@ -370,7 +370,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	return 0;
 
 err_breadcrumbs:
-	intel_breadcrumbs_free(engine->breadcrumbs);
+	intel_breadcrumbs_put(engine->breadcrumbs);
 err_schedule:
 	i915_sched_engine_put(engine->sched_engine);
 	return -ENOMEM;

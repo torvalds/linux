@@ -798,7 +798,7 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 err_cmd_parser:
 	i915_sched_engine_put(engine->sched_engine);
 err_sched_engine:
-	intel_breadcrumbs_free(engine->breadcrumbs);
+	intel_breadcrumbs_put(engine->breadcrumbs);
 err_status:
 	cleanup_status_page(engine);
 	return err;
@@ -1007,7 +1007,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!list_empty(&engine->sched_engine->requests));
 
 	i915_sched_engine_put(engine->sched_engine);
-	intel_breadcrumbs_free(engine->breadcrumbs);
+	intel_breadcrumbs_put(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
 	intel_engine_cleanup_cmd_parser(engine);
@@ -1322,6 +1322,30 @@ bool intel_engines_are_idle(struct intel_gt *gt)
 	}
 
 	return true;
+}
+
+bool intel_engine_irq_enable(struct intel_engine_cs *engine)
+{
+	if (!engine->irq_enable)
+		return false;
+
+	/* Caller disables interrupts */
+	spin_lock(&engine->gt->irq_lock);
+	engine->irq_enable(engine);
+	spin_unlock(&engine->gt->irq_lock);
+
+	return true;
+}
+
+void intel_engine_irq_disable(struct intel_engine_cs *engine)
+{
+	if (!engine->irq_disable)
+		return;
+
+	/* Caller disables interrupts */
+	spin_lock(&engine->gt->irq_lock);
+	engine->irq_disable(engine);
+	spin_unlock(&engine->gt->irq_lock);
 }
 
 void intel_engines_reset_default_submission(struct intel_gt *gt)
