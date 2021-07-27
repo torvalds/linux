@@ -959,7 +959,7 @@ config SERIAL_VT8500_CONSOLE
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on (ARCH_OMAP2PLUS && !SERIAL_8250_OMAP) || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  If you have a machine based on an Texas Instruments OMAP CPU you
