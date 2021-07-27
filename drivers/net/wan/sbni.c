@@ -119,7 +119,8 @@ static int  sbni_open( struct net_device * );
 static int  sbni_close( struct net_device * );
 static netdev_tx_t sbni_start_xmit(struct sk_buff *,
 					 struct net_device * );
-static int  sbni_ioctl( struct net_device *, struct ifreq *, int );
+static int  sbni_siocdevprivate(struct net_device *, struct ifreq *,
+				void __user *, int);
 static void  set_multicast_list( struct net_device * );
 
 static irqreturn_t sbni_interrupt( int, void * );
@@ -211,7 +212,7 @@ static const struct net_device_ops sbni_netdev_ops = {
 	.ndo_stop		= sbni_close,
 	.ndo_start_xmit		= sbni_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_do_ioctl		= sbni_ioctl,
+	.ndo_siocdevprivate	= sbni_siocdevprivate,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1297,7 +1298,7 @@ sbni_card_probe( unsigned long  ioaddr )
 /* -------------------------------------------------------------------------- */
 
 static int
-sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
+sbni_siocdevprivate(struct net_device  *dev,  struct ifreq  *ifr, void __user *data, int  cmd)
 {
 	struct net_local  *nl = netdev_priv(dev);
 	struct sbni_flags  flags;
@@ -1310,8 +1311,8 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
   
 	switch( cmd ) {
 	case  SIOCDEVGETINSTATS :
-		if (copy_to_user( ifr->ifr_data, &nl->in_stats,
-					sizeof(struct sbni_in_stats) ))
+		if (copy_to_user(data, &nl->in_stats,
+				 sizeof(struct sbni_in_stats)))
 			error = -EFAULT;
 		break;
 
@@ -1328,7 +1329,7 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
 		flags.rxl	= nl->cur_rxl_index;
 		flags.fixed_rxl	= nl->delta_rxl == 0;
 
-		if (copy_to_user( ifr->ifr_data, &flags, sizeof flags ))
+		if (copy_to_user(data, &flags, sizeof(flags)))
 			error = -EFAULT;
 		break;
 
@@ -1358,7 +1359,7 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
 		if (!capable(CAP_NET_ADMIN))
 			return  -EPERM;
 
-		if (copy_from_user( slave_name, ifr->ifr_data, sizeof slave_name ))
+		if (copy_from_user(slave_name, data, sizeof(slave_name)))
 			return -EFAULT;
 		slave_dev = dev_get_by_name(&init_net, slave_name );
 		if( !slave_dev  ||  !(slave_dev->flags & IFF_UP) ) {

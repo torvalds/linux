@@ -1207,7 +1207,7 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
 	.ndo_set_features	= mlxsw_sp_set_features,
 	.ndo_get_devlink_port	= mlxsw_sp_port_get_devlink_port,
-	.ndo_do_ioctl		= mlxsw_sp_port_ioctl,
+	.ndo_eth_ioctl		= mlxsw_sp_port_ioctl,
 };
 
 static int

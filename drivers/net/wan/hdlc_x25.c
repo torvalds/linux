@@ -29,7 +29,7 @@ struct x25_state {
 	struct tasklet_struct rx_tasklet;
 };
 
-static int x25_ioctl(struct net_device *dev, struct ifreq *ifr);
+static int x25_ioctl(struct net_device *dev, struct if_settings *ifs);
 
 static struct x25_state *state(hdlc_device *hdlc)
 {
@@ -274,21 +274,21 @@ static struct hdlc_proto proto = {
 	.module		= THIS_MODULE,
 };
 
-static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int x25_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
-	x25_hdlc_proto __user *x25_s = ifr->ifr_settings.ifs_ifsu.x25;
+	x25_hdlc_proto __user *x25_s = ifs->ifs_ifsu.x25;
 	const size_t size = sizeof(x25_hdlc_proto);
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	x25_hdlc_proto new_settings;
 	int result;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_PROTO:
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
-		ifr->ifr_settings.type = IF_PROTO_X25;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_PROTO_X25;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(x25_s, &state(hdlc)->settings, size))
@@ -303,7 +303,7 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 			return -EBUSY;
 
 		/* backward compatibility */
-		if (ifr->ifr_settings.size == 0) {
+		if (ifs->size == 0) {
 			new_settings.dce = 0;
 			new_settings.modulo = 8;
 			new_settings.window = 7;

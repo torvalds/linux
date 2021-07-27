@@ -483,23 +483,25 @@ static int hdlcdrv_close(struct net_device *dev)
 
 /* --------------------------------------------------------------------- */
 
-static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int hdlcdrv_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				  void __user *data, int cmd)
 {
 	struct hdlcdrv_state *s = netdev_priv(dev);
 	struct hdlcdrv_ioctl bi;
 
-	if (cmd != SIOCDEVPRIVATE) {
-		if (s->ops && s->ops->ioctl)
-			return s->ops->ioctl(dev, ifr, &bi, cmd);
+	if (cmd != SIOCDEVPRIVATE)
 		return -ENOIOCTLCMD;
-	}
-	if (copy_from_user(&bi, ifr->ifr_data, sizeof(bi)))
+
+	if (in_compat_syscall()) /* to be implemented */
+		return -ENOIOCTLCMD;
+
+	if (copy_from_user(&bi, data, sizeof(bi)))
 		return -EFAULT;
 
 	switch (bi.cmd) {
 	default:
 		if (s->ops && s->ops->ioctl)
-			return s->ops->ioctl(dev, ifr, &bi, cmd);
+			return s->ops->ioctl(dev, data, &bi, cmd);
 		return -ENOIOCTLCMD;
 
 	case HDLCDRVCTL_GETCHANNELPAR:
@@ -605,7 +607,7 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 		
 	}
-	if (copy_to_user(ifr->ifr_data, &bi, sizeof(bi)))
+	if (copy_to_user(data, &bi, sizeof(bi)))
 		return -EFAULT;
 	return 0;
 
@@ -617,7 +619,7 @@ static const struct net_device_ops hdlcdrv_netdev = {
 	.ndo_open	= hdlcdrv_open,
 	.ndo_stop	= hdlcdrv_close,
 	.ndo_start_xmit = hdlcdrv_send_packet,
-	.ndo_do_ioctl	= hdlcdrv_ioctl,
+	.ndo_siocdevprivate  = hdlcdrv_siocdevprivate,
 	.ndo_set_mac_address = hdlcdrv_set_mac_address,
 };
 

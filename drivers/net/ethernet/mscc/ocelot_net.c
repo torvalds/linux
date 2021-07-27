@@ -823,7 +823,7 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_vlan_rx_kill_vid		= ocelot_vlan_rx_kill_vid,
 	.ndo_set_features		= ocelot_set_features,
 	.ndo_setup_tc			= ocelot_setup_tc,
-	.ndo_do_ioctl			= ocelot_ioctl,
+	.ndo_eth_ioctl			= ocelot_ioctl,
 	.ndo_get_devlink_port		= ocelot_get_devlink_port,
 };
 

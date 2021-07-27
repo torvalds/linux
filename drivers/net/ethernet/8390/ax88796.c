@@ -635,7 +635,7 @@ static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 static const struct net_device_ops ax_netdev_ops = {
 	.ndo_open		= ax_open,
 	.ndo_stop		= ax_close,
-	.ndo_do_ioctl		= ax_ioctl,
+	.ndo_eth_ioctl		= ax_ioctl,
 
 	.ndo_start_xmit		= ax_ei_start_xmit,
 	.ndo_tx_timeout		= ax_ei_tx_timeout,

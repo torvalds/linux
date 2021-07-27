@@ -359,7 +359,7 @@ static int __init br_init(void)
 	if (err)
 		goto err_out5;
 
-	brioctl_set(br_ioctl_deviceless_stub);
+	brioctl_set(br_ioctl_stub);
 
 #if IS_ENABLED(CONFIG_ATM_LANE)
 	br_fdb_test_addr_hook = br_fdb_test_addr;

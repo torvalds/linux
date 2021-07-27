@@ -222,6 +222,35 @@ ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
+        This is only called by network subsystems internally,
+        not by user space calling ioctl as it was in before
+        linux-5.14.
+
+ndo_siocbond:
+        Synchronization: rtnl_lock() semaphore.
+        Context: process
+
+        Used by the bonding driver for the SIOCBOND family of
+        ioctl commands.
+
+ndo_siocwandev:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+	Used by the drivers/net/wan framework to handle
+	the SIOCWANDEV ioctl with the if_settings structure.
+
+ndo_siocdevprivate:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+	This is used to implement SIOCDEVPRIVATE ioctl helpers.
+	These should not be added to new drivers, so don't use.
+
+ndo_eth_ioctl:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
 ndo_get_stats:
 	Synchronization: rtnl_lock() semaphore, dev_base_lock rwlock, or RCU.
 	Context: atomic (can't sleep under rwlock or RCU)

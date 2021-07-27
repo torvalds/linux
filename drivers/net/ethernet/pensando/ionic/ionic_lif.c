@@ -2264,7 +2264,7 @@ static int ionic_stop(struct net_device *netdev)
 	return 0;
 }
 
-static int ionic_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+static int ionic_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
@@ -2526,7 +2526,7 @@ static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_open               = ionic_open,
 	.ndo_stop               = ionic_stop,
-	.ndo_do_ioctl		= ionic_do_ioctl,
+	.ndo_eth_ioctl		= ionic_eth_ioctl,
 	.ndo_start_xmit		= ionic_start_xmit,
 	.ndo_get_stats64	= ionic_get_stats64,
 	.ndo_set_rx_mode	= ionic_ndo_set_rx_mode,
