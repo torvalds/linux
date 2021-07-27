@@ -82,6 +82,11 @@ struct ssd1307fb_par {
 	struct regulator *vbat_reg;
 	u32 vcomh;
 	u32 width;
+	/* Cached address ranges */
+	u8 col_start;
+	u8 col_end;
+	u8 page_start;
+	u8 page_end;
 };
 
 struct ssd1307fb_array {
@@ -158,6 +163,9 @@ static int ssd1307fb_set_col_range(struct ssd1307fb_par *par, u8 col_start,
 	u8 col_end = col_start + cols - 1;
 	int ret;
 
+	if (col_start == par->col_start && col_end == par->col_end)
+		return 0;
+
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
 	if (ret < 0)
 		return ret;
@@ -166,7 +174,13 @@ static int ssd1307fb_set_col_range(struct ssd1307fb_par *par, u8 col_start,
 	if (ret < 0)
 		return ret;
 
-	return ssd1307fb_write_cmd(par->client, col_end);
+	ret = ssd1307fb_write_cmd(par->client, col_end);
+	if (ret < 0)
+		return ret;
+
+	par->col_start = col_start;
+	par->col_end = col_end;
+	return 0;
 }
 
 static int ssd1307fb_set_page_range(struct ssd1307fb_par *par, u8 page_start,
@@ -174,6 +188,9 @@ static int ssd1307fb_set_page_range(struct ssd1307fb_par *par, u8 page_start,
 {
 	u8 page_end = page_start + pages - 1;
 	int ret;
+
+	if (page_start == par->page_start && page_end == par->page_end)
+		return 0;
 
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
 	if (ret < 0)
@@ -183,7 +200,13 @@ static int ssd1307fb_set_page_range(struct ssd1307fb_par *par, u8 page_start,
 	if (ret < 0)
 		return ret;
 
-	return ssd1307fb_write_cmd(par->client, page_end);
+	ret = ssd1307fb_write_cmd(par->client, page_end);
+	if (ret < 0)
+		return ret;
+
+	par->page_start = page_start;
+	par->page_end = page_end;
+	return 0;
 }
 
 static int ssd1307fb_update_rect(struct ssd1307fb_par *par, unsigned int x,
