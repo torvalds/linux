@@ -399,7 +399,7 @@
 		};
 
 		d3 {
-			label = "d3";
+			label = "d3"; /* Conflict with EBI CS0, USART2 CTS. */
 			gpios = <&pioE 24 GPIO_ACTIVE_HIGH>;
 		};
 	};
