@@ -225,7 +225,8 @@
 	__SMU_DUMMY_MAP(DisableDeterminism),		\
 	__SMU_DUMMY_MAP(SetUclkDpmMode),		\
 	__SMU_DUMMY_MAP(LightSBR),			\
-	__SMU_DUMMY_MAP(GfxDriverResetRecovery),
+	__SMU_DUMMY_MAP(GfxDriverResetRecovery),	\
+	__SMU_DUMMY_MAP(BoardPowerCalibration),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

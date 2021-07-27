@@ -33,6 +33,7 @@ config MAC
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select HAVE_PATA_PLATFORM
 	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Apple Macintosh series of

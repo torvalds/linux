@@ -397,6 +397,12 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		if (dsa_is_cpu_port(ds, port))
 			v->pvid = true;
 		list_add(&v->list, &priv->dsa_8021q_vlans);
+
+		v = kmemdup(v, sizeof(*v), GFP_KERNEL);
+		if (!v)
+			return -ENOMEM;
+
+		list_add(&v->list, &priv->bridge_vlans);
 	}
 
 	((struct sja1105_vlan_lookup_entry *)table->entries)[0] = pvid;
