@@ -2936,17 +2936,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			if (err)
 				goto out;
 		} else {
-			/*
-			 * Deleting by subvolume id can be used to delete
-			 * subvolumes/snapshots anywhere in the filesystem.
-			 * Ensure that users can't abuse idmapped mounts of
-			 * btrfs subvolumes/snapshots to perform operations in
-			 * the whole filesystem.
-			 */
-			if (mnt_userns != &init_user_ns) {
-				err = -EOPNOTSUPP;
-				goto out;
-			}
+			struct inode *old_dir;
 
 			if (vol_args2->subvolid < BTRFS_FIRST_FREE_OBJECTID) {
 				err = -EINVAL;
@@ -2984,6 +2974,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 				err = PTR_ERR(parent);
 				goto out_drop_write;
 			}
+			old_dir = dir;
 			dir = d_inode(parent);
 
 			/*
@@ -2993,6 +2984,20 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			 * new parent dentry.
 			 */
 			destroy_parent = true;
+
+			/*
+			 * On idmapped mounts, deletion via subvolid is
+			 * restricted to subvolumes that are immediate
+			 * ancestors of the inode referenced by the file
+			 * descriptor in the ioctl. Otherwise the idmapping
+			 * could potentially be abused to delete subvolumes
+			 * anywhere in the filesystem the user wouldn't be able
+			 * to delete without an idmapped mount.
+			 */
+			if (old_dir != dir && mnt_userns != &init_user_ns) {
+				err = -EOPNOTSUPP;
+				goto free_parent;
+			}
 
 			subvol_name_ptr = btrfs_get_subvol_name_from_objectid(
 						fs_info, vol_args2->subvolid);
