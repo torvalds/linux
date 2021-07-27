@@ -491,6 +491,11 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 		return -EINVAL;
 	}
 
+	if (intel_engine_uses_guc(master)) {
+		DRM_DEBUG("bonding extension not supported with GuC submission");
+		return -ENODEV;
+	}
+
 	if (get_user(num_bonds, &ext->num_bonds))
 		return -EFAULT;
 
