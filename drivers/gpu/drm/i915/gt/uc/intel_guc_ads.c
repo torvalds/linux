@@ -92,6 +92,20 @@ static void guc_policies_init(struct intel_guc *guc, struct guc_policies *polici
 	policies->is_valid = 1;
 }
 
+void intel_guc_ads_print_policy_info(struct intel_guc *guc,
+				     struct drm_printer *dp)
+{
+	struct __guc_ads_blob *blob = guc->ads_blob;
+
+	if (unlikely(!blob))
+		return;
+
+	drm_printf(dp, "Global scheduling policies:\n");
+	drm_printf(dp, "  DPC promote time   = %u\n", blob->policies.dpc_promote_time);
+	drm_printf(dp, "  Max num work items = %u\n", blob->policies.max_num_work_items);
+	drm_printf(dp, "  Flags              = %u\n", blob->policies.global_flags);
+}
+
 static int guc_action_policies_update(struct intel_guc *guc, u32 policy_offset)
 {
 	u32 action[] = {
