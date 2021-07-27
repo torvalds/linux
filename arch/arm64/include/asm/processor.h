@@ -16,6 +16,9 @@
  */
 #define NET_IP_ALIGN	0
 
+#define MTE_CTRL_GCR_USER_EXCL_SHIFT	0
+#define MTE_CTRL_GCR_USER_EXCL_MASK	0xffff
+
 #ifndef __ASSEMBLY__
 
 #include <linux/build_bug.h>
@@ -153,7 +156,7 @@ struct thread_struct {
 #endif
 #endif
 #ifdef CONFIG_ARM64_MTE
-	u64			gcr_user_excl;
+	u64			mte_ctrl;
 #endif
 	u64			sctlr_user;
 };

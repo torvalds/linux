@@ -195,7 +195,7 @@ void mte_check_tfsr_el1(void)
 
 static void set_gcr_el1_excl(u64 excl)
 {
-	current->thread.gcr_user_excl = excl;
+	current->thread.mte_ctrl = excl;
 
 	/*
 	 * SYS_GCR_EL1 will be set to current->thread.gcr_user_excl value
@@ -260,8 +260,8 @@ void mte_suspend_exit(void)
 long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 {
 	u64 sctlr = task->thread.sctlr_user & ~SCTLR_EL1_TCF0_MASK;
-	u64 gcr_excl = ~((arg & PR_MTE_TAG_MASK) >> PR_MTE_TAG_SHIFT) &
-		       SYS_GCR_EL1_EXCL_MASK;
+	u64 mte_ctrl = (~((arg & PR_MTE_TAG_MASK) >> PR_MTE_TAG_SHIFT) &
+			SYS_GCR_EL1_EXCL_MASK) << MTE_CTRL_GCR_USER_EXCL_SHIFT;
 
 	if (!system_supports_mte())
 		return 0;
@@ -282,10 +282,10 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 
 	if (task != current) {
 		task->thread.sctlr_user = sctlr;
-		task->thread.gcr_user_excl = gcr_excl;
+		task->thread.mte_ctrl = mte_ctrl;
 	} else {
 		set_task_sctlr_el1(sctlr);
-		set_gcr_el1_excl(gcr_excl);
+		set_gcr_el1_excl(mte_ctrl);
 	}
 
 	return 0;
@@ -294,7 +294,9 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 long get_mte_ctrl(struct task_struct *task)
 {
 	unsigned long ret;
-	u64 incl = ~task->thread.gcr_user_excl & SYS_GCR_EL1_EXCL_MASK;
+	u64 mte_ctrl = task->thread.mte_ctrl;
+	u64 incl = (~mte_ctrl >> MTE_CTRL_GCR_USER_EXCL_SHIFT) &
+		   SYS_GCR_EL1_EXCL_MASK;
 
 	if (!system_supports_mte())
 		return 0;
