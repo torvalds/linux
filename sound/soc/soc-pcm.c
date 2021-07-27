@@ -2580,9 +2580,7 @@ open_end:
 static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 				    int *playback, int *capture)
 {
-	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	int stream;
 	int i;
 
 	if (rtd->dai_link->dynamic && rtd->num_cpus > 1) {
@@ -2592,6 +2590,8 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+		int stream;
+
 		if (rtd->dai_link->dpcm_playback) {
 			stream = SNDRV_PCM_STREAM_PLAYBACK;
 
@@ -2626,6 +2626,8 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 			}
 		}
 	} else {
+		struct snd_soc_dai *codec_dai;
+
 		/* Adapt stream for codec2codec links */
 		int cpu_capture = rtd->dai_link->params ?
 			SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
