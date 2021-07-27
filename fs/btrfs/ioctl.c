@@ -877,6 +877,8 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
+	if (!fsuidgid_has_mapping(dir->i_sb, &init_user_ns))
+		return -EOVERFLOW;
 	return inode_permission(&init_user_ns, dir, MAY_WRITE | MAY_EXEC);
 }
 
