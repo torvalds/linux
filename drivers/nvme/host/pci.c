@@ -3087,8 +3087,13 @@ static int nvme_resume(struct device *dev)
 
 	if (ndev->last_ps == U32_MAX ||
 	    nvme_set_power_state(ctrl, ndev->last_ps) != 0)
-		return nvme_try_sched_reset(&ndev->ctrl);
+		goto reset;
+	if (ctrl->hmpre && nvme_setup_host_mem(ndev))
+		goto reset;
+
 	return 0;
+reset:
+	return nvme_try_sched_reset(ctrl);
 }
 
 static int nvme_suspend(struct device *dev)
@@ -3112,15 +3117,9 @@ static int nvme_suspend(struct device *dev)
 	 * the PCI bus layer to put it into D3 in order to take the PCIe link
 	 * down, so as to allow the platform to achieve its minimum low-power
 	 * state (which may not be possible if the link is up).
-	 *
-	 * If a host memory buffer is enabled, shut down the device as the NVMe
-	 * specification allows the device to access the host memory buffer in
-	 * host DRAM from all power states, but hosts will fail access to DRAM
-	 * during S3.
 	 */
 	if (pm_suspend_via_firmware() || !ctrl->npss ||
 	    !pcie_aspm_enabled(pdev) ||
-	    ndev->nr_host_mem_descs ||
 	    (ndev->ctrl.quirks & NVME_QUIRK_SIMPLE_SUSPEND))
 		return nvme_disable_prepare_reset(ndev, true);
 
@@ -3130,6 +3129,17 @@ static int nvme_suspend(struct device *dev)
 
 	if (ctrl->state != NVME_CTRL_LIVE)
 		goto unfreeze;
+
+	/*
+	 * Host memory access may not be successful in a system suspend state,
+	 * but the specification allows the controller to access memory in a
+	 * non-operational power state.
+	 */
+	if (ndev->hmb) {
+		ret = nvme_set_host_mem(ndev, 0);
+		if (ret < 0)
+			goto unfreeze;
+	}
 
 	ret = nvme_get_power_state(ctrl, &ndev->last_ps);
 	if (ret < 0)
