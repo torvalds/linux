@@ -163,7 +163,7 @@ static inline int hyperv_pipe_init(struct hyperv_drm_device *hv)
 					   &hyperv_pipe_funcs,
 					   hyperv_formats,
 					   ARRAY_SIZE(hyperv_formats),
-					   NULL,
+					   hyperv_modifiers,
 					   &hv->connector);
 	if (ret)
 		return ret;

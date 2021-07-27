@@ -147,6 +147,4 @@ ATOMIC64_OPS(xor)
 #define arch_atomic64_fetch_sub(_i, _v)  arch_atomic64_fetch_add(-(s64)(_i), _v)
 #define arch_atomic64_sub(_i, _v)	 arch_atomic64_add(-(s64)(_i), _v)
 
-#define ARCH_ATOMIC
-
 #endif /* __ARCH_S390_ATOMIC__  */

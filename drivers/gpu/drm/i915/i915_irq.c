@@ -33,7 +33,6 @@
 #include <linux/sysrq.h>
 
 #include <drm/drm_drv.h>
-#include <drm/drm_irq.h>
 
 #include "display/intel_de.h"
 #include "display/intel_display_types.h"
@@ -2881,14 +2880,14 @@ static bool gen11_dsi_configure_te(struct intel_crtc *intel_crtc,
 	return true;
 }
 
-int bdw_enable_vblank(struct drm_crtc *crtc)
+int bdw_enable_vblank(struct drm_crtc *_crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	unsigned long irqflags;
 
-	if (gen11_dsi_configure_te(intel_crtc, true))
+	if (gen11_dsi_configure_te(crtc, true))
 		return 0;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -2899,7 +2898,7 @@ int bdw_enable_vblank(struct drm_crtc *crtc)
 	 * PSR is active as no frames are generated, so check only for PSR.
 	 */
 	if (HAS_PSR(dev_priv))
-		drm_crtc_vblank_restore(crtc);
+		drm_crtc_vblank_restore(&crtc->base);
 
 	return 0;
 }
@@ -2953,14 +2952,14 @@ void ilk_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-void bdw_disable_vblank(struct drm_crtc *crtc)
+void bdw_disable_vblank(struct drm_crtc *_crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	unsigned long irqflags;
 
-	if (gen11_dsi_configure_te(intel_crtc, false))
+	if (gen11_dsi_configure_te(crtc, false))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -4564,14 +4563,15 @@ void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 
 bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 {
-	/*
-	 * We only use drm_irq_uninstall() at unload and VT switch, so
-	 * this is the only thing we need to check.
-	 */
 	return dev_priv->runtime_pm.irqs_enabled;
 }
 
 void intel_synchronize_irq(struct drm_i915_private *i915)
 {
 	synchronize_irq(to_pci_dev(i915->drm.dev)->irq);
+}
+
+void intel_synchronize_hardirq(struct drm_i915_private *i915)
+{
+	synchronize_hardirq(to_pci_dev(i915->drm.dev)->irq);
 }

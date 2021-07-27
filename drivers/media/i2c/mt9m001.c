@@ -217,9 +217,9 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 		goto done;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
 		if (ret < 0)
-			goto put_unlock;
+			goto unlock;
 
 		ret = mt9m001_apply_selection(sd);
 		if (ret)
@@ -247,13 +247,14 @@ done:
 
 put_unlock:
 	pm_runtime_put(&client->dev);
+unlock:
 	mutex_unlock(&mt9m001->mutex);
 
 	return ret;
 }
 
 static int mt9m001_set_selection(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -294,7 +295,7 @@ static int mt9m001_set_selection(struct v4l2_subdev *sd,
 }
 
 static int mt9m001_get_selection(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -319,7 +320,7 @@ static int mt9m001_get_selection(struct v4l2_subdev *sd,
 }
 
 static int mt9m001_get_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -330,7 +331,7 @@ static int mt9m001_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mf;
 		return 0;
 	}
@@ -376,7 +377,7 @@ static int mt9m001_s_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9m001_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -410,7 +411,7 @@ static int mt9m001_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return mt9m001_s_fmt(sd, fmt, mf);
-	cfg->try_fmt = *mf;
+	sd_state->pads->try_fmt = *mf;
 	return 0;
 }
 
@@ -656,12 +657,12 @@ static const struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 };
 
 static int mt9m001_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg)
+			    struct v4l2_subdev_state *sd_state)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, cfg, 0);
+		v4l2_subdev_get_try_format(sd, sd_state, 0);
 
 	try_fmt->width		= MT9M001_MAX_WIDTH;
 	try_fmt->height		= MT9M001_MAX_HEIGHT;
@@ -676,7 +677,7 @@ static int mt9m001_init_cfg(struct v4l2_subdev *sd,
 }
 
 static int mt9m001_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -834,6 +835,10 @@ static int mt9m001_remove(struct i2c_client *client)
 {
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 
+	/*
+	 * As it increments RPM usage_count even on errors, we don't need to
+	 * check the returned code here.
+	 */
 	pm_runtime_get_sync(&client->dev);
 
 	v4l2_async_unregister_subdev(&mt9m001->subdev);

@@ -302,7 +302,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 
 	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	return 0;
 }
 

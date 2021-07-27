@@ -128,12 +128,7 @@ void __qdisc_run(struct Qdisc *q);
 static inline void qdisc_run(struct Qdisc *q)
 {
 	if (qdisc_run_begin(q)) {
-		/* NOLOCK qdisc must check 'state' under the qdisc seqlock
-		 * to avoid racing with dev_qdisc_reset()
-		 */
-		if (!(q->flags & TCQ_F_NOLOCK) ||
-		    likely(!test_bit(__QDISC_STATE_DEACTIVATED, &q->state)))
-			__qdisc_run(q);
+		__qdisc_run(q);
 		qdisc_run_end(q);
 	}
 }

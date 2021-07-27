@@ -403,8 +403,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48070000 0x80>;
 			interrupts = <56>;
-			dmas = <&sdma 27 &sdma 28>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c1";
@@ -414,8 +412,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48072000 0x80>;
 			interrupts = <57>;
-			dmas = <&sdma 29 &sdma 30>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c2";
@@ -425,8 +421,6 @@
 			compatible = "ti,omap3-i2c";
 			reg = <0x48060000 0x80>;
 			interrupts = <61>;
-			dmas = <&sdma 25 &sdma 26>;
-			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c3";
@@ -440,7 +434,7 @@
 			#mbox-cells = <1>;
 			ti,mbox-num-users = <2>;
 			ti,mbox-num-fifos = <2>;
-			mbox_dsp: dsp {
+			mbox_dsp: mbox-dsp {
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <1 0 0>;
 			};

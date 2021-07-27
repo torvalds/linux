@@ -51,7 +51,7 @@ void test_xdp_link(void)
 
 	/* BPF link is not allowed to replace prog attachment */
 	link = bpf_program__attach_xdp(skel1->progs.xdp_handler, IFINDEX_LO);
-	if (CHECK(!IS_ERR(link), "link_attach_fail", "unexpected success\n")) {
+	if (!ASSERT_ERR_PTR(link, "link_attach_should_fail")) {
 		bpf_link__destroy(link);
 		/* best-effort detach prog */
 		opts.old_fd = prog_fd1;
@@ -67,7 +67,7 @@ void test_xdp_link(void)
 
 	/* now BPF link should attach successfully */
 	link = bpf_program__attach_xdp(skel1->progs.xdp_handler, IFINDEX_LO);
-	if (CHECK(IS_ERR(link), "link_attach", "failed: %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "link_attach"))
 		goto cleanup;
 	skel1->links.xdp_handler = link;
 
@@ -95,7 +95,7 @@ void test_xdp_link(void)
 
 	/* BPF link is not allowed to replace another BPF link */
 	link = bpf_program__attach_xdp(skel2->progs.xdp_handler, IFINDEX_LO);
-	if (CHECK(!IS_ERR(link), "link_attach_fail", "unexpected success\n")) {
+	if (!ASSERT_ERR_PTR(link, "link_attach_should_fail")) {
 		bpf_link__destroy(link);
 		goto cleanup;
 	}
@@ -105,7 +105,7 @@ void test_xdp_link(void)
 
 	/* new link attach should succeed */
 	link = bpf_program__attach_xdp(skel2->progs.xdp_handler, IFINDEX_LO);
-	if (CHECK(IS_ERR(link), "link_attach", "failed: %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "link_attach"))
 		goto cleanup;
 	skel2->links.xdp_handler = link;
 

@@ -1553,6 +1553,7 @@ config SERIAL_LITEUART_CONSOLE
 	bool "LiteUART serial port console support"
 	depends on SERIAL_LITEUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say 'Y' or 'M' here if you wish to use the FPGA-based LiteUART serial
 	  controller from LiteX SoC builder as the system console

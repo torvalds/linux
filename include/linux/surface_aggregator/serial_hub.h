@@ -6,7 +6,7 @@
  * Surface System Aggregator Module (SSAM). Provides the interface for basic
  * packet- and request-based communication with the SSAM EC via SSH.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _LINUX_SURFACE_AGGREGATOR_SERIAL_HUB_H

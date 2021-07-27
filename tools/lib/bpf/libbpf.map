@@ -361,4 +361,17 @@ LIBBPF_0.4.0 {
 		bpf_linker__new;
 		bpf_map__inner_map;
 		bpf_object__set_kversion;
+		bpf_tc_attach;
+		bpf_tc_detach;
+		bpf_tc_hook_create;
+		bpf_tc_hook_destroy;
+		bpf_tc_query;
 } LIBBPF_0.3.0;
+
+LIBBPF_0.5.0 {
+	global:
+		bpf_map__initial_value;
+		bpf_map_lookup_and_delete_elem_flags;
+		bpf_object__gen_loader;
+		libbpf_set_strict_mode;
+} LIBBPF_0.4.0;

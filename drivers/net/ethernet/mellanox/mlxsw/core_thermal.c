@@ -149,22 +149,27 @@ mlxsw_thermal_module_trips_reset(struct mlxsw_thermal_module *tz)
 
 static int
 mlxsw_thermal_module_trips_update(struct device *dev, struct mlxsw_core *core,
-				  struct mlxsw_thermal_module *tz)
+				  struct mlxsw_thermal_module *tz,
+				  int crit_temp, int emerg_temp)
 {
-	int crit_temp, emerg_temp;
 	int err;
 
-	err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
-						   SFP_TEMP_HIGH_WARN,
-						   &crit_temp);
-	if (err)
-		return err;
+	/* Do not try to query temperature thresholds directly from the module's
+	 * EEPROM if we got valid thresholds from MTMP.
+	 */
+	if (!emerg_temp || !crit_temp) {
+		err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
+							   SFP_TEMP_HIGH_WARN,
+							   &crit_temp);
+		if (err)
+			return err;
 
-	err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
-						   SFP_TEMP_HIGH_ALARM,
-						   &emerg_temp);
-	if (err)
-		return err;
+		err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
+							   SFP_TEMP_HIGH_ALARM,
+							   &emerg_temp);
+		if (err)
+			return err;
+	}
 
 	if (crit_temp > emerg_temp) {
 		dev_warn(dev, "%s : Critical threshold %d is above emergency threshold %d\n",
@@ -281,7 +286,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 		dev_err(dev, "Failed to query temp sensor\n");
 		return err;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	if (temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, thermal->trips,
 					      temp);
@@ -420,36 +425,57 @@ static int mlxsw_thermal_module_unbind(struct thermal_zone_device *tzdev,
 	return err;
 }
 
+static void
+mlxsw_thermal_module_temp_and_thresholds_get(struct mlxsw_core *core,
+					     u16 sensor_index, int *p_temp,
+					     int *p_crit_temp,
+					     int *p_emerg_temp)
+{
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	int err;
+
+	/* Read module temperature and thresholds. */
+	mlxsw_reg_mtmp_pack(mtmp_pl, sensor_index, false, false);
+	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		/* Set temperature and thresholds to zero to avoid passing
+		 * uninitialized data back to the caller.
+		 */
+		*p_temp = 0;
+		*p_crit_temp = 0;
+		*p_emerg_temp = 0;
+
+		return;
+	}
+	mlxsw_reg_mtmp_unpack(mtmp_pl, p_temp, NULL, p_crit_temp, p_emerg_temp,
+			      NULL);
+}
+
 static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 					 int *p_temp)
 {
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
-	struct device *dev = thermal->bus_info->dev;
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	int temp;
+	int temp, crit_temp, emerg_temp;
+	struct device *dev;
+	u16 sensor_index;
 	int err;
 
-	/* Read module temperature. */
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN +
-			    tz->module, false, false);
-	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
-	if (err) {
-		/* Do not return error - in case of broken module's sensor
-		 * it will cause error message flooding.
-		 */
-		temp = 0;
-		*p_temp = (int) temp;
-		return 0;
-	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	dev = thermal->bus_info->dev;
+	sensor_index = MLXSW_REG_MTMP_MODULE_INDEX_MIN + tz->module;
+
+	/* Read module temperature and thresholds. */
+	mlxsw_thermal_module_temp_and_thresholds_get(thermal->core,
+						     sensor_index, &temp,
+						     &crit_temp, &emerg_temp);
 	*p_temp = temp;
 
 	if (!temp)
 		return 0;
 
 	/* Update trip points. */
-	err = mlxsw_thermal_module_trips_update(dev, thermal->core, tz);
+	err = mlxsw_thermal_module_trips_update(dev, thermal->core, tz,
+						crit_temp, emerg_temp);
 	if (!err && temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, tz->trips, temp);
 
@@ -560,7 +586,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	if (err)
 		return err;
 
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	if (temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, tz->trips, temp);
 
@@ -693,7 +719,8 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 							MLXSW_THERMAL_TRIP_MASK,
 							module_tz,
 							&mlxsw_thermal_module_ops,
-							NULL, 0, 0);
+							NULL, 0,
+							module_tz->parent->polling_delay);
 	if (IS_ERR(module_tz->tzdev)) {
 		err = PTR_ERR(module_tz->tzdev);
 		return err;
@@ -716,7 +743,10 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 			  struct mlxsw_thermal *thermal, u8 module)
 {
 	struct mlxsw_thermal_module *module_tz;
+	int dummy_temp, crit_temp, emerg_temp;
+	u16 sensor_index;
 
+	sensor_index = MLXSW_REG_MTMP_MODULE_INDEX_MIN + module;
 	module_tz = &thermal->tz_module_arr[module];
 	/* Skip if parent is already set (case of port split). */
 	if (module_tz->parent)
@@ -727,8 +757,12 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	       sizeof(thermal->trips));
 	/* Initialize all trip point. */
 	mlxsw_thermal_module_trips_reset(module_tz);
+	/* Read module temperature and thresholds. */
+	mlxsw_thermal_module_temp_and_thresholds_get(core, sensor_index, &dummy_temp,
+						     &crit_temp, &emerg_temp);
 	/* Update trip point according to the module data. */
-	return mlxsw_thermal_module_trips_update(dev, core, module_tz);
+	return mlxsw_thermal_module_trips_update(dev, core, module_tz,
+						 crit_temp, emerg_temp);
 }
 
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
@@ -815,7 +849,8 @@ mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 						MLXSW_THERMAL_TRIP_MASK,
 						gearbox_tz,
 						&mlxsw_thermal_gearbox_ops,
-						NULL, 0, 0);
+						NULL, 0,
+						gearbox_tz->parent->polling_delay);
 	if (IS_ERR(gearbox_tz->tzdev))
 		return PTR_ERR(gearbox_tz->tzdev);
 

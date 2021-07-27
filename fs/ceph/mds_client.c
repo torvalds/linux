@@ -664,6 +664,9 @@ struct ceph_mds_session *ceph_get_mds_session(struct ceph_mds_session *s)
 
 void ceph_put_mds_session(struct ceph_mds_session *s)
 {
+	if (IS_ERR_OR_NULL(s))
+		return;
+
 	dout("mdsc put_session %p %d -> %d\n", s,
 	     refcount_read(&s->s_ref), refcount_read(&s->s_ref)-1);
 	if (refcount_dec_and_test(&s->s_ref)) {
@@ -746,8 +749,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 
 	ceph_con_init(&s->s_con, s, &mds_con_ops, &mdsc->fsc->client->msgr);
 
-	spin_lock_init(&s->s_gen_ttl_lock);
-	s->s_cap_gen = 1;
+	atomic_set(&s->s_cap_gen, 1);
 	s->s_cap_ttl = jiffies - 1;
 
 	spin_lock_init(&s->s_cap_lock);
@@ -822,14 +824,13 @@ void ceph_mdsc_release_request(struct kref *kref)
 		ceph_msg_put(req->r_reply);
 	if (req->r_inode) {
 		ceph_put_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
-		/* avoid calling iput_final() in mds dispatch threads */
-		ceph_async_iput(req->r_inode);
+		iput(req->r_inode);
 	}
 	if (req->r_parent) {
 		ceph_put_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
-		ceph_async_iput(req->r_parent);
+		iput(req->r_parent);
 	}
-	ceph_async_iput(req->r_target_inode);
+	iput(req->r_target_inode);
 	if (req->r_dentry)
 		dput(req->r_dentry);
 	if (req->r_old_dentry)
@@ -843,7 +844,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 		 */
 		ceph_put_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
-		ceph_async_iput(req->r_old_dentry_dir);
+		iput(req->r_old_dentry_dir);
 	}
 	kfree(req->r_path1);
 	kfree(req->r_path2);
@@ -958,8 +959,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 	}
 
 	if (req->r_unsafe_dir) {
-		/* avoid calling iput_final() in mds dispatch threads */
-		ceph_async_iput(req->r_unsafe_dir);
+		iput(req->r_unsafe_dir);
 		req->r_unsafe_dir = NULL;
 	}
 
@@ -1130,7 +1130,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		cap = rb_entry(rb_first(&ci->i_caps), struct ceph_cap, ci_node);
 	if (!cap) {
 		spin_unlock(&ci->i_ceph_lock);
-		ceph_async_iput(inode);
+		iput(inode);
 		goto random;
 	}
 	mds = cap->session->s_mds;
@@ -1139,9 +1139,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	     cap == ci->i_auth_cap ? "auth " : "", cap);
 	spin_unlock(&ci->i_ceph_lock);
 out:
-	/* avoid calling iput_final() while holding mdsc->mutex or
-	 * in mds dispatch threads */
-	ceph_async_iput(inode);
+	iput(inode);
 	return mds;
 
 random:
@@ -1438,8 +1436,7 @@ static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
 
 	for (i = 0; i < mi->num_export_targets; i++) {
 		ts = __open_export_target_session(mdsc, mi->export_targets[i]);
-		if (!IS_ERR(ts))
-			ceph_put_mds_session(ts);
+		ceph_put_mds_session(ts);
 	}
 }
 
@@ -1545,9 +1542,7 @@ int ceph_iterate_session_caps(struct ceph_mds_session *session,
 		spin_unlock(&session->s_cap_lock);
 
 		if (last_inode) {
-			/* avoid calling iput_final() while holding
-			 * s_mutex or in mds dispatch threads */
-			ceph_async_iput(last_inode);
+			iput(last_inode);
 			last_inode = NULL;
 		}
 		if (old_cap) {
@@ -1581,7 +1576,7 @@ out:
 	session->s_cap_iterator = NULL;
 	spin_unlock(&session->s_cap_lock);
 
-	ceph_async_iput(last_inode);
+	iput(last_inode);
 	if (old_cap)
 		ceph_put_cap(session->s_mdsc, old_cap);
 
@@ -1721,8 +1716,7 @@ static void remove_session_caps(struct ceph_mds_session *session)
 			spin_unlock(&session->s_cap_lock);
 
 			inode = ceph_find_inode(sb, vino);
-			 /* avoid calling iput_final() while holding s_mutex */
-			ceph_async_iput(inode);
+			iput(inode);
 
 			spin_lock(&session->s_cap_lock);
 		}
@@ -1761,7 +1755,7 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 		ci->i_requested_max_size = 0;
 		spin_unlock(&ci->i_ceph_lock);
 	} else if (ev == RENEWCAPS) {
-		if (cap->cap_gen < cap->session->s_cap_gen) {
+		if (cap->cap_gen < atomic_read(&cap->session->s_cap_gen)) {
 			/* mds did not re-issue stale cap */
 			spin_lock(&ci->i_ceph_lock);
 			cap->issued = cap->implemented = CEPH_CAP_PIN;
@@ -2988,7 +2982,6 @@ int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct inode *dir,
 		ceph_take_cap_refs(ci, CEPH_CAP_PIN, false);
 		__ceph_touch_fmode(ci, mdsc, fmode);
 		spin_unlock(&ci->i_ceph_lock);
-		ihold(req->r_parent);
 	}
 	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
@@ -3499,10 +3492,8 @@ static void handle_session(struct ceph_mds_session *session,
 	case CEPH_SESSION_STALE:
 		pr_info("mds%d caps went stale, renewing\n",
 			session->s_mds);
-		spin_lock(&session->s_gen_ttl_lock);
-		session->s_cap_gen++;
+		atomic_inc(&session->s_cap_gen);
 		session->s_cap_ttl = jiffies - 1;
-		spin_unlock(&session->s_gen_ttl_lock);
 		send_renew_caps(mdsc, session);
 		break;
 
@@ -3771,7 +3762,7 @@ static int reconnect_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	cap->seq = 0;        /* reset cap seq */
 	cap->issue_seq = 0;  /* and issue_seq */
 	cap->mseq = 0;       /* and migrate_seq */
-	cap->cap_gen = cap->session->s_cap_gen;
+	cap->cap_gen = atomic_read(&cap->session->s_cap_gen);
 
 	/* These are lost when the session goes away */
 	if (S_ISDIR(inode->i_mode)) {
@@ -4011,9 +4002,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	dout("session %p state %s\n", session,
 	     ceph_session_state_name(session->s_state));
 
-	spin_lock(&session->s_gen_ttl_lock);
-	session->s_cap_gen++;
-	spin_unlock(&session->s_gen_ttl_lock);
+	atomic_inc(&session->s_cap_gen);
 
 	spin_lock(&session->s_cap_lock);
 	/* don't know if session is readonly */
@@ -4344,7 +4333,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 
 	case CEPH_MDS_LEASE_RENEW:
 		if (di->lease_session == session &&
-		    di->lease_gen == session->s_cap_gen &&
+		    di->lease_gen == atomic_read(&session->s_cap_gen) &&
 		    di->lease_renew_from &&
 		    di->lease_renew_after == 0) {
 			unsigned long duration =
@@ -4372,8 +4361,7 @@ release:
 
 out:
 	mutex_unlock(&session->s_mutex);
-	/* avoid calling iput_final() in mds dispatch threads */
-	ceph_async_iput(inode);
+	iput(inode);
 	return;
 
 bad:
@@ -4468,7 +4456,7 @@ bool check_session_state(struct ceph_mds_session *s)
 		break;
 	case CEPH_MDS_SESSION_CLOSING:
 		/* Should never reach this when we're unmounting */
-		WARN_ON_ONCE(true);
+		WARN_ON_ONCE(s->s_ttl);
 		fallthrough;
 	case CEPH_MDS_SESSION_NEW:
 	case CEPH_MDS_SESSION_RESTARTING:

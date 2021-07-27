@@ -31,7 +31,7 @@ static inline bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, int as_id,
 }
 static inline bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	gfn_t end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level);
+	gfn_t end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level + 1);
 
 	/*
 	 * Don't allow yielding, as the caller may have a flush pending.  Note,
@@ -74,37 +74,40 @@ bool kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 				       bool flush);
 
 bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
-				   struct kvm_memory_slot *slot, gfn_t gfn);
+				   struct kvm_memory_slot *slot, gfn_t gfn,
+				   int min_level);
 
 int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 			 int *root_level);
 
 #ifdef CONFIG_X86_64
-void kvm_mmu_init_tdp_mmu(struct kvm *kvm);
+bool kvm_mmu_init_tdp_mmu(struct kvm *kvm);
 void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
 static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return kvm->arch.tdp_mmu_enabled; }
 static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return sp->tdp_mmu_page; }
-#else
-static inline void kvm_mmu_init_tdp_mmu(struct kvm *kvm) {}
-static inline void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm) {}
-static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return false; }
-static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return false; }
-#endif
 
-static inline bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
+static inline bool is_tdp_mmu(struct kvm_mmu *mmu)
 {
 	struct kvm_mmu_page *sp;
+	hpa_t hpa = mmu->root_hpa;
 
-	if (!is_tdp_mmu_enabled(kvm))
-		return false;
 	if (WARN_ON(!VALID_PAGE(hpa)))
 		return false;
 
+	/*
+	 * A NULL shadow page is legal when shadowing a non-paging guest with
+	 * PAE paging, as the MMU will be direct with root_hpa pointing at the
+	 * pae_root page, not a shadow page.
+	 */
 	sp = to_shadow_page(hpa);
-	if (WARN_ON(!sp))
-		return false;
-
-	return is_tdp_mmu_page(sp) && sp->root_count;
+	return sp && is_tdp_mmu_page(sp) && sp->root_count;
 }
+#else
+static inline bool kvm_mmu_init_tdp_mmu(struct kvm *kvm) { return false; }
+static inline void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm) {}
+static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return false; }
+static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return false; }
+static inline bool is_tdp_mmu(struct kvm_mmu *mmu) { return false; }
+#endif
 
 #endif /* __KVM_X86_MMU_TDP_MMU_H */

@@ -439,7 +439,7 @@ static void sdio_uart_transmit_chars(struct sdio_uart_port *port)
 	tty = tty_port_tty_get(&port->port);
 
 	if (tty == NULL || !kfifo_len(xmit) ||
-				tty->stopped || tty->hw_stopped) {
+				tty->flow.stopped || tty->hw_stopped) {
 		sdio_uart_stop_tx(port);
 		tty_kref_put(tty);
 		return;
@@ -797,13 +797,13 @@ static int sdio_uart_write(struct tty_struct *tty, const unsigned char *buf,
 	return ret;
 }
 
-static int sdio_uart_write_room(struct tty_struct *tty)
+static unsigned int sdio_uart_write_room(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	return FIFO_SIZE - kfifo_len(&port->xmit_fifo);
 }
 
-static int sdio_uart_chars_in_buffer(struct tty_struct *tty)
+static unsigned int sdio_uart_chars_in_buffer(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	return kfifo_len(&port->xmit_fifo);

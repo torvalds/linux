@@ -8,7 +8,7 @@
 #ifndef HL_BOOT_IF_H
 #define HL_BOOT_IF_H
 
-#define LKD_HARD_RESET_MAGIC		0xED7BD694
+#define LKD_HARD_RESET_MAGIC		0xED7BD694 /* deprecated - do not use */
 #define HL_POWER9_HOST_MAGIC		0x1DA30009
 
 #define BOOT_FIT_SRAM_OFFSET		0x200000
@@ -99,6 +99,7 @@
 #define CPU_BOOT_ERR0_PLL_FAIL			(1 << 12)
 #define CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	(1 << 13)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
+#define CPU_BOOT_ERR1_ENABLED			(1 << 31)
 
 /*
  * BOOT DEVICE STATUS bits in BOOT_DEVICE_STS registers
@@ -190,6 +191,24 @@
  *					PLLs.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN	GIC access permission only from
+ *					previleged entity. FW sets this status
+ *					bit for host. If this bit is set then
+ *					GIC can not be accessed from host.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_EQ_INDEX_EN	Event Queue (EQ) index is a running
+ *					index for each new event sent to host.
+ *					This is used as a method in host to
+ *					identify that the waiting event in
+ *					queue is actually a new event which
+ *					was not served before.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN  Use multiple scratchpad interfaces to
+ *					prevent IRQs overriding each other.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -218,7 +237,11 @@
 #define CPU_BOOT_DEV_STS0_FW_LD_COM_EN			(1 << 16)
 #define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
 #define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
+#define CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN		(1 << 20)
+#define CPU_BOOT_DEV_STS0_EQ_INDEX_EN			(1 << 21)
+#define CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN		(1 << 22)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
+#define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
 	CPU_BOOT_STATUS_NA = 0,		/* Default value after reset of chip */
@@ -264,46 +287,98 @@ enum cpu_msg_status {
 
 /* communication registers mapping - consider ABI when changing */
 struct cpu_dyn_regs {
-	uint32_t cpu_pq_base_addr_low;
-	uint32_t cpu_pq_base_addr_high;
-	uint32_t cpu_pq_length;
-	uint32_t cpu_pq_init_status;
-	uint32_t cpu_eq_base_addr_low;
-	uint32_t cpu_eq_base_addr_high;
-	uint32_t cpu_eq_length;
-	uint32_t cpu_eq_ci;
-	uint32_t cpu_cq_base_addr_low;
-	uint32_t cpu_cq_base_addr_high;
-	uint32_t cpu_cq_length;
-	uint32_t cpu_pf_pq_pi;
-	uint32_t cpu_boot_dev_sts0;
-	uint32_t cpu_boot_dev_sts1;
-	uint32_t cpu_boot_err0;
-	uint32_t cpu_boot_err1;
-	uint32_t cpu_boot_status;
-	uint32_t fw_upd_sts;
-	uint32_t fw_upd_cmd;
-	uint32_t fw_upd_pending_sts;
-	uint32_t fuse_ver_offset;
-	uint32_t preboot_ver_offset;
-	uint32_t uboot_ver_offset;
-	uint32_t hw_state;
-	uint32_t kmd_msg_to_cpu;
-	uint32_t cpu_cmd_status_to_host;
-	uint32_t reserved1[32];		/* reserve for future use */
+	__le32 cpu_pq_base_addr_low;
+	__le32 cpu_pq_base_addr_high;
+	__le32 cpu_pq_length;
+	__le32 cpu_pq_init_status;
+	__le32 cpu_eq_base_addr_low;
+	__le32 cpu_eq_base_addr_high;
+	__le32 cpu_eq_length;
+	__le32 cpu_eq_ci;
+	__le32 cpu_cq_base_addr_low;
+	__le32 cpu_cq_base_addr_high;
+	__le32 cpu_cq_length;
+	__le32 cpu_pf_pq_pi;
+	__le32 cpu_boot_dev_sts0;
+	__le32 cpu_boot_dev_sts1;
+	__le32 cpu_boot_err0;
+	__le32 cpu_boot_err1;
+	__le32 cpu_boot_status;
+	__le32 fw_upd_sts;
+	__le32 fw_upd_cmd;
+	__le32 fw_upd_pending_sts;
+	__le32 fuse_ver_offset;
+	__le32 preboot_ver_offset;
+	__le32 uboot_ver_offset;
+	__le32 hw_state;
+	__le32 kmd_msg_to_cpu;
+	__le32 cpu_cmd_status_to_host;
+	union {
+		__le32 gic_host_irq_ctrl;
+		__le32 gic_host_pi_upd_irq;
+	};
+	__le32 gic_tpc_qm_irq_ctrl;
+	__le32 gic_mme_qm_irq_ctrl;
+	__le32 gic_dma_qm_irq_ctrl;
+	__le32 gic_nic_qm_irq_ctrl;
+	__le32 gic_dma_core_irq_ctrl;
+	__le32 gic_host_halt_irq;
+	__le32 gic_host_ints_irq;
+	__le32 reserved1[24];		/* reserve for future use */
 };
 
+/* TODO: remove the desc magic after the code is updated to use message */
 /* HCDM - Habana Communications Descriptor Magic */
 #define HL_COMMS_DESC_MAGIC	0x4843444D
 #define HL_COMMS_DESC_VER	1
 
+/* HCMv - Habana Communications Message + header version */
+#define HL_COMMS_MSG_MAGIC_VALUE	0x48434D00
+#define HL_COMMS_MSG_MAGIC_MASK		0xFFFFFF00
+#define HL_COMMS_MSG_MAGIC_VER_MASK	0xFF
+
+#define HL_COMMS_MSG_MAGIC_VER(ver)	(HL_COMMS_MSG_MAGIC_VALUE |	\
+					((ver) & HL_COMMS_MSG_MAGIC_VER_MASK))
+#define HL_COMMS_MSG_MAGIC_V0		HL_COMMS_DESC_MAGIC
+#define HL_COMMS_MSG_MAGIC_V1		HL_COMMS_MSG_MAGIC_VER(1)
+
+#define HL_COMMS_MSG_MAGIC		HL_COMMS_MSG_MAGIC_V1
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE_MAGIC(magic)			\
+		(((magic) & HL_COMMS_MSG_MAGIC_MASK) ==			\
+		HL_COMMS_MSG_MAGIC_VALUE)
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE_VERSION(magic, ver)			\
+		(((magic) & HL_COMMS_MSG_MAGIC_VER_MASK) >=		\
+		((ver) & HL_COMMS_MSG_MAGIC_VER_MASK))
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE(magic, ver)				\
+		(HL_COMMS_MSG_MAGIC_VALIDATE_MAGIC((magic)) &&		\
+		HL_COMMS_MSG_MAGIC_VALIDATE_VERSION((magic), (ver)))
+
+enum comms_msg_type {
+	HL_COMMS_DESC_TYPE = 0,
+	HL_COMMS_RESET_CAUSE_TYPE = 1,
+};
+
+/* TODO: remove this struct after the code is updated to use message */
 /* this is the comms descriptor header - meta data */
 struct comms_desc_header {
-	uint32_t magic;		/* magic for validation */
-	uint32_t crc32;		/* CRC32 of the descriptor w/o header */
-	uint16_t size;		/* size of the descriptor w/o header */
-	uint8_t version;	/* descriptor version */
-	uint8_t reserved[5];	/* pad to 64 bit */
+	__le32 magic;		/* magic for validation */
+	__le32 crc32;		/* CRC32 of the descriptor w/o header */
+	__le16 size;		/* size of the descriptor w/o header */
+	__u8 version;	/* descriptor version */
+	__u8 reserved[5];	/* pad to 64 bit */
+};
+
+/* this is the comms message header - meta data */
+struct comms_msg_header {
+	__le32 magic;		/* magic for validation */
+	__le32 crc32;		/* CRC32 of the message w/o header */
+	__le16 size;		/* size of the message w/o header */
+	__u8 version;	/* message payload version */
+	__u8 type;		/* message type */
+	__u8 reserved[4];	/* pad to 64 bit */
 };
 
 /* this is the main FW descriptor - consider ABI when changing */
@@ -314,7 +389,36 @@ struct lkd_fw_comms_desc {
 	char cur_fw_ver[VERSION_MAX_LEN];
 	/* can be used for 1 more version w/o ABI change */
 	char reserved0[VERSION_MAX_LEN];
-	uint64_t img_addr;	/* address for next FW component load */
+	__le64 img_addr;	/* address for next FW component load */
+};
+
+enum comms_reset_cause {
+	HL_RESET_CAUSE_UNKNOWN = 0,
+	HL_RESET_CAUSE_HEARTBEAT = 1,
+	HL_RESET_CAUSE_TDR = 2,
+};
+
+/* TODO: remove define after struct name is aligned on all projects */
+#define lkd_msg_comms lkd_fw_comms_msg
+
+/* this is the comms message descriptor */
+struct lkd_fw_comms_msg {
+	struct comms_msg_header header;
+	/* union for future expantions of new messages */
+	union {
+		struct {
+			struct cpu_dyn_regs cpu_dyn_regs;
+			char fuse_ver[VERSION_MAX_LEN];
+			char cur_fw_ver[VERSION_MAX_LEN];
+			/* can be used for 1 more version w/o ABI change */
+			char reserved0[VERSION_MAX_LEN];
+			/* address for next FW component load */
+			__le64 img_addr;
+		};
+		struct {
+			__u8 reset_cause;
+		};
+	};
 };
 
 /*
@@ -386,11 +490,11 @@ enum comms_cmd {
 struct comms_command {
 	union {		/* bit fields are only for FW use */
 		struct {
-			unsigned int size :25;		/* 32MB max. */
-			unsigned int reserved :2;
+			u32 size :25;		/* 32MB max. */
+			u32 reserved :2;
 			enum comms_cmd cmd :5;		/* 32 commands */
 		};
-		unsigned int val;
+		__le32 val;
 	};
 };
 
@@ -449,11 +553,11 @@ enum comms_ram_types {
 struct comms_status {
 	union {		/* bit fields are only for FW use */
 		struct {
-			unsigned int offset :26;
-			unsigned int ram_type :2;
+			u32 offset :26;
+			enum comms_ram_types ram_type :2;
 			enum comms_sts status :4;	/* 16 statuses */
 		};
-		unsigned int val;
+		__le32 val;
 	};
 };
 

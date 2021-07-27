@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/property.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 
 #include "cyttsp_core.h"
 
@@ -45,8 +46,15 @@
 #define CY_MAXZ				255
 #define CY_DELAY_DFLT			20 /* ms */
 #define CY_DELAY_MAX			500
-#define CY_ACT_DIST_DFLT		0xF8
+/* Active distance in pixels for a gesture to be reported */
+#define CY_ACT_DIST_DFLT		0xF8 /* pixels */
 #define CY_ACT_DIST_MASK		0x0F
+/* Active Power state scanning/processing refresh interval */
+#define CY_ACT_INTRVL_DFLT		0x00 /* ms */
+/* Low Power state scanning/processing refresh interval */
+#define CY_LP_INTRVL_DFLT		0x0A /* ms */
+/* touch timeout for the Active power */
+#define CY_TCH_TMOUT_DFLT		0xFF /* ms */
 #define CY_HNDSHK_BIT			0x80
 /* device mode bits */
 #define CY_OPERATE_MODE			0x00
@@ -608,6 +616,14 @@ static int cyttsp_parse_properties(struct cyttsp *ts)
 	return 0;
 }
 
+static void cyttsp_disable_regulators(void *_ts)
+{
+	struct cyttsp *ts = _ts;
+
+	regulator_bulk_disable(ARRAY_SIZE(ts->regulators),
+			       ts->regulators);
+}
+
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size)
 {
@@ -627,6 +643,32 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	ts->input = input_dev;
 	ts->bus_ops = bus_ops;
 	ts->irq = irq;
+
+	/*
+	 * VCPIN is the analog voltage supply
+	 * VDD is the digital voltage supply
+	 */
+	ts->regulators[0].supply = "vcpin";
+	ts->regulators[1].supply = "vdd";
+	error = devm_regulator_bulk_get(dev, ARRAY_SIZE(ts->regulators),
+					ts->regulators);
+	if (error) {
+		dev_err(dev, "Failed to get regulators: %d\n", error);
+		return ERR_PTR(error);
+	}
+
+	error = regulator_bulk_enable(ARRAY_SIZE(ts->regulators),
+				      ts->regulators);
+	if (error) {
+		dev_err(dev, "Cannot enable regulators: %d\n", error);
+		return ERR_PTR(error);
+	}
+
+	error = devm_add_action_or_reset(dev, cyttsp_disable_regulators, ts);
+	if (error) {
+		dev_err(dev, "failed to install chip disable handler\n");
+		return ERR_PTR(error);
+	}
 
 	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ts->reset_gpio)) {
@@ -664,8 +706,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	}
 
 	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
-					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
-					  IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					  "cyttsp", ts);
 	if (error) {
 		dev_err(ts->dev, "failed to request IRQ %d, err: %d\n",

@@ -869,8 +869,8 @@
 
 		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 118 0x4>, /* controller interrupt */
 				     <0 117 0x4>; /* PME interrupt */
@@ -895,8 +895,8 @@
 
 		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-			       0x48 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 128 0x4>,
 				     <0 127 0x4>;
@@ -921,8 +921,8 @@
 
 		pcie3: pcie@3600000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-			       0x50 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+			      <0x50 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 162 0x4>,
 				     <0 161 0x4>;

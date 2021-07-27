@@ -73,6 +73,8 @@ properties:
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
+          # Delta Electronics DPS920AB 920W 54V Power Supply
+          - delta,dps920ab
             # 1/4 Brick DC/DC Regulated Power Module
           - delta,q54sj108a2
             # Devantech SRF02 ultrasonic ranger in I2C mode
@@ -103,6 +105,8 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
+            # Monolithic Power Systems Inc. multi-phase controller mp2888
+          - mps,mp2888
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
             # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
@@ -173,8 +177,14 @@ properties:
           - meas,tsys01
             # MEMSIC magnetometer
           - memsic,mmc35240
+            # MEMSIC 3-axis accelerometer
+          - memsic,mx4005
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # MEMSIC 2-axis 8-bit digital accelerometer
+          - memsic,mxc6255
+            # MEMSIC 3-axis accelerometer
+          - memsic,mxc6655
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -259,6 +269,10 @@ properties:
           - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
           - sensirion,sgp30
+            # Sensortek 3 axis accelerometer
+          - sensortek,stk8312
+            # Sensortek 3 axis accelerometer
+          - sensortek,stk8ba50
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
             # Relative Humidity and Temperature Sensors
@@ -268,6 +282,8 @@ properties:
             # Socionext SynQuacer TPM MMIO module
           - socionext,synquacer-tpm-mmio
             # i2c serial eeprom  (24cxx)
+          - sparkfun,qwiic-joystick
+            # SparkFun Qwiic Joystick (COM-15168) with i2c interface
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550

@@ -308,7 +308,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
  * Return Value:    None
  */
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const char *flags, int count)
 {
 	struct nci_uart *nu = (void *)tty->disc_data;
 
@@ -442,6 +442,7 @@ EXPORT_SYMBOL_GPL(nci_uart_set_config);
 
 static struct tty_ldisc_ops nci_uart_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_NCI,
 	.name		= "n_nci",
 	.open		= nci_uart_tty_open,
 	.close		= nci_uart_tty_close,
@@ -456,12 +457,12 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 
 static int __init nci_uart_init(void)
 {
-	return tty_register_ldisc(N_NCI, &nci_uart_ldisc);
+	return tty_register_ldisc(&nci_uart_ldisc);
 }
 
 static void __exit nci_uart_exit(void)
 {
-	tty_unregister_ldisc(N_NCI);
+	tty_unregister_ldisc(&nci_uart_ldisc);
 }
 
 module_init(nci_uart_init);

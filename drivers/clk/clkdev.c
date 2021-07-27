@@ -190,34 +190,6 @@ vclkdev_create(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	return cl;
 }
 
-struct clk_lookup * __ref
-clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
-{
-	struct clk_lookup *cl;
-	va_list ap;
-
-	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(__clk_get_hw(clk), con_id, dev_fmt, ap);
-	va_end(ap);
-
-	return cl;
-}
-EXPORT_SYMBOL(clkdev_alloc);
-
-struct clk_lookup *
-clkdev_hw_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt, ...)
-{
-	struct clk_lookup *cl;
-	va_list ap;
-
-	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(hw, con_id, dev_fmt, ap);
-	va_end(ap);
-
-	return cl;
-}
-EXPORT_SYMBOL(clkdev_hw_alloc);
-
 /**
  * clkdev_create - allocate and add a clkdev lookup structure
  * @clk: struct clk to associate with all clk_lookups

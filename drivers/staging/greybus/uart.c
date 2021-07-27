@@ -440,7 +440,7 @@ static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	return count;
 }
 
-static int gb_tty_write_room(struct tty_struct *tty)
+static unsigned int gb_tty_write_room(struct tty_struct *tty)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
 	unsigned long flags;
@@ -457,11 +457,11 @@ static int gb_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int gb_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int gb_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
 	unsigned long flags;
-	int chars;
+	unsigned int chars;
 
 	spin_lock_irqsave(&gb_tty->write_lock, flags);
 	chars = kfifo_len(&gb_tty->write_fifo);
@@ -494,21 +494,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 				(termios->c_cflag & PARODD ? 1 : 2) +
 				(termios->c_cflag & CMSPAR ? 2 : 0) : 0;
 
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		newline.data_bits = 5;
-		break;
-	case CS6:
-		newline.data_bits = 6;
-		break;
-	case CS7:
-		newline.data_bits = 7;
-		break;
-	case CS8:
-	default:
-		newline.data_bits = 8;
-		break;
-	}
+	newline.data_bits = tty_get_char_size(termios->c_cflag);
 
 	/* FIXME: needs to clear unsupported bits in the termios */
 	gb_tty->clocal = ((termios->c_cflag & CLOCAL) != 0);

@@ -58,6 +58,13 @@ OPTIONS
 --ignore-vmlinux::
 	Ignore vmlinux files.
 
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel.

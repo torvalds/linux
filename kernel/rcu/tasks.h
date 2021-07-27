@@ -23,7 +23,7 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
  * @cbs_head: Head of callback list.
  * @cbs_tail: Tail pointer for callback list.
- * @cbs_wq: Wait queue allowning new callback to get kthread's attention.
+ * @cbs_wq: Wait queue allowing new callback to get kthread's attention.
  * @cbs_lock: Lock protecting callback list.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @gp_func: This flavor's grace-period-wait function.
@@ -377,6 +377,46 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 // Finally, this implementation does not support high call_rcu_tasks()
 // rates from multiple CPUs.  If this is required, per-CPU callback lists
 // will be needed.
+//
+// The implementation uses rcu_tasks_wait_gp(), which relies on function
+// pointers in the rcu_tasks structure.  The rcu_spawn_tasks_kthread()
+// function sets these function pointers up so that rcu_tasks_wait_gp()
+// invokes these functions in this order:
+//
+// rcu_tasks_pregp_step():
+//	Invokes synchronize_rcu() in order to wait for all in-flight
+//	t->on_rq and t->nvcsw transitions to complete.	This works because
+//	all such transitions are carried out with interrupts disabled.
+// rcu_tasks_pertask(), invoked on every non-idle task:
+//	For every runnable non-idle task other than the current one, use
+//	get_task_struct() to pin down that task, snapshot that task's
+//	number of voluntary context switches, and add that task to the
+//	holdout list.
+// rcu_tasks_postscan():
+//	Invoke synchronize_srcu() to ensure that all tasks that were
+//	in the process of exiting (and which thus might not know to
+//	synchronize with this RCU Tasks grace period) have completed
+//	exiting.
+// check_all_holdout_tasks(), repeatedly until holdout list is empty:
+//	Scans the holdout list, attempting to identify a quiescent state
+//	for each task on the list.  If there is a quiescent state, the
+//	corresponding task is removed from the holdout list.
+// rcu_tasks_postgp():
+//	Invokes synchronize_rcu() in order to ensure that all prior
+//	t->on_rq and t->nvcsw transitions are seen by all CPUs and tasks
+//	to have happened before the end of this RCU Tasks grace period.
+//	Again, this works because all such transitions are carried out
+//	with interrupts disabled.
+//
+// For each exiting task, the exit_tasks_rcu_start() and
+// exit_tasks_rcu_finish() functions begin and end, respectively, the SRCU
+// read-side critical sections waited for by rcu_tasks_postscan().
+//
+// Pre-grace-period update-side code is ordered before the grace via the
+// ->cbs_lock and the smp_mb__after_spinlock().  Pre-grace-period read-side
+// code is ordered before the grace period via synchronize_rcu() call
+// in rcu_tasks_pregp_step() and by the scheduler's locks and interrupt
+// disabling.
 
 /* Pre-grace-period preparation. */
 static void rcu_tasks_pregp_step(void)
@@ -504,7 +544,7 @@ DEFINE_RCU_TASKS(rcu_tasks, rcu_tasks_wait_gp, call_rcu_tasks, "RCU Tasks");
  * or transition to usermode execution.  As such, there are no read-side
  * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
  * this primitive is intended to determine that all tasks have passed
- * through a safe state, not so much for data-strcuture synchronization.
+ * through a safe state, not so much for data-structure synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -605,8 +645,13 @@ void exit_tasks_rcu_finish(void) { exit_tasks_rcu_finish_trace(current); }
 // passing an empty function to schedule_on_each_cpu().  This approach
 // provides an asynchronous call_rcu_tasks_rude() API and batching
 // of concurrent calls to the synchronous synchronize_rcu_rude() API.
-// This sends IPIs far and wide and induces otherwise unnecessary context
-// switches on all online CPUs, whether idle or not.
+// This invokes schedule_on_each_cpu() in order to send IPIs far and wide
+// and induces otherwise unnecessary context switches on all online CPUs,
+// whether idle or not.
+//
+// Callback handling is provided by the rcu_tasks_kthread() function.
+//
+// Ordering is provided by the scheduler's context-switch code.
 
 // Empty function to allow workqueues to force a context switch.
 static void rcu_tasks_be_rude(struct work_struct *work)
@@ -637,7 +682,7 @@ DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
  * there are no read-side primitives analogous to rcu_read_lock() and
  * rcu_read_unlock() because this primitive is intended to determine
  * that all tasks have passed through a safe state, not so much for
- * data-strcuture synchronization.
+ * data-structure synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -908,10 +953,9 @@ static bool trc_inspect_reader(struct task_struct *t, void *arg)
 		in_qs = likely(!t->trc_reader_nesting);
 	}
 
-	// Mark as checked.  Because this is called from the grace-period
-	// kthread, also remove the task from the holdout list.
+	// Mark as checked so that the grace-period kthread will
+	// remove it from the holdout list.
 	t->trc_reader_checked = true;
-	trc_del_holdout(t);
 
 	if (in_qs)
 		return true;  // Already in quiescent state, done!!!
@@ -938,7 +982,6 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 	// The current task had better be in a quiescent state.
 	if (t == current) {
 		t->trc_reader_checked = true;
-		trc_del_holdout(t);
 		WARN_ON_ONCE(t->trc_reader_nesting);
 		return;
 	}
@@ -1163,7 +1206,7 @@ static void exit_tasks_rcu_finish_trace(struct task_struct *t)
  * there are no read-side primitives analogous to rcu_read_lock() and
  * rcu_read_unlock() because this primitive is intended to determine
  * that all tasks have passed through a safe state, not so much for
- * data-strcuture synchronization.
+ * data-structure synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -1356,5 +1399,4 @@ void __init rcu_init_tasks_generic(void)
 
 #else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
 static inline void rcu_tasks_bootup_oddness(void) {}
-void show_rcu_tasks_gp_kthreads(void) {}
 #endif /* #else #ifdef CONFIG_TASKS_RCU_GENERIC */

@@ -164,7 +164,6 @@ patternProperties:
 
       interrupts:
         minItems: 1
-        maxItems: 2
         items:
           - description: UART core irq
           - description: Wakeup irq (RX GPIO)

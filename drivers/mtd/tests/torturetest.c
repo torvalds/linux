@@ -230,8 +230,6 @@ static int __init tort_init(void)
 	if (!bad_ebs)
 		goto out_check_buf;
 
-	err = 0;
-
 	/* Initialize patterns */
 	memset(patt_FF, 0xFF, mtd->erasesize);
 	for (i = 0; i < mtd->erasesize / pgsize; i++) {

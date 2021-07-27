@@ -110,15 +110,17 @@ static int on_async_stack(void)
 {
 	unsigned long frame = current_frame_address();
 
-	return !!!((S390_lowcore.async_stack - frame) >> (PAGE_SHIFT + THREAD_SIZE_ORDER));
+	return ((S390_lowcore.async_stack ^ frame) & ~(THREAD_SIZE - 1)) == 0;
 }
 
 static void do_irq_async(struct pt_regs *regs, int irq)
 {
-	if (on_async_stack())
+	if (on_async_stack()) {
 		do_IRQ(regs, irq);
-	else
-		CALL_ON_STACK(do_IRQ, S390_lowcore.async_stack, 2, regs, irq);
+	} else {
+		call_on_stack(2, S390_lowcore.async_stack, void, do_IRQ,
+			      struct pt_regs *, regs, int, irq);
+	}
 }
 
 static int irq_pending(struct pt_regs *regs)
@@ -146,8 +148,8 @@ void noinstr do_io_irq(struct pt_regs *regs)
 		account_idle_time_irq();
 
 	do {
-		memcpy(&regs->int_code, &S390_lowcore.subchannel_id, 12);
-		if (S390_lowcore.io_int_word & BIT(31))
+		regs->tpi_info = S390_lowcore.tpi_info;
+		if (S390_lowcore.tpi_info.adapter_IO)
 			do_irq_async(regs, THIN_INTERRUPT);
 		else
 			do_irq_async(regs, IO_INTERRUPT);
@@ -172,7 +174,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	if (user_mode(regs))
 		update_timer_sys();
 
-	memcpy(&regs->int_code, &S390_lowcore.ext_cpu_addr, 4);
+	regs->int_code = S390_lowcore.ext_int_code_addr;
 	regs->int_parm = S390_lowcore.ext_params;
 	regs->int_parm_long = S390_lowcore.ext_params2;
 
@@ -263,24 +265,6 @@ out:
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
 	return from < NR_IRQS_BASE ? NR_IRQS_BASE : from;
-}
-
-/*
- * Switch to the asynchronous interrupt stack for softirq execution.
- */
-void do_softirq_own_stack(void)
-{
-	unsigned long old, new;
-
-	old = current_stack_pointer();
-	/* Check against async. stack address range. */
-	new = S390_lowcore.async_stack;
-	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
-		CALL_ON_STACK(__do_softirq, new, 0);
-	} else {
-		/* We are already on the async stack. */
-		__do_softirq();
-	}
 }
 
 /*

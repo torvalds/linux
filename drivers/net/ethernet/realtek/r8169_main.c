@@ -34,8 +34,6 @@
 #include "r8169.h"
 #include "r8169_firmware.h"
 
-#define MODULENAME "r8169"
-
 #define FIRMWARE_8168D_1	"rtl_nic/rtl8168d-1.fw"
 #define FIRMWARE_8168D_2	"rtl_nic/rtl8168d-2.fw"
 #define FIRMWARE_8168E_1	"rtl_nic/rtl8168e-1.fw"
@@ -1454,7 +1452,7 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct rtl_fw *rtl_fw = tp->rtl_fw;
 
-	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
 	if (rtl_fw)
@@ -1671,7 +1669,7 @@ static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	switch(stringset) {
 	case ETH_SS_STATS:
-		memcpy(data, *rtl8169_gstrings, sizeof(rtl8169_gstrings));
+		memcpy(data, rtl8169_gstrings, sizeof(rtl8169_gstrings));
 		break;
 	}
 }
@@ -3510,7 +3508,6 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0x1b0, ERIAR_MASK_0011, 0x0000);
 
 	rtl_pcie_state_l2l3_disable(tp);
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 DECLARE_RTL_COND(rtl_mac_ocp_e00e_cond)
@@ -4117,6 +4114,7 @@ static unsigned int rtl_quirk_packet_padto(struct rtl8169_private *tp,
 	case RTL_GIGA_MAC_VER_61:
 	case RTL_GIGA_MAC_VER_63:
 		padto = max_t(unsigned int, padto, ETH_ZLEN);
+		break;
 	default:
 		break;
 	}
@@ -5086,7 +5084,8 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	new_bus->priv = tp;
 	new_bus->parent = &pdev->dev;
 	new_bus->irq[0] = PHY_MAC_INTERRUPT;
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "r8169-%x", pci_dev_id(pdev));
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "r8169-%x-%x",
+		 pci_domain_nr(pdev->bus), pci_dev_id(pdev));
 
 	new_bus->read = r8169_mdio_read_reg;
 	new_bus->write = r8169_mdio_write_reg;
@@ -5305,7 +5304,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	rc = pcim_iomap_regions(pdev, BIT(region), MODULENAME);
+	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
 		return rc;
@@ -5440,7 +5439,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 static struct pci_driver rtl8169_pci_driver = {
-	.name		= MODULENAME,
+	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8169_pci_tbl,
 	.probe		= rtl_init_one,
 	.remove		= rtl_remove_one,

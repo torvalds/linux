@@ -226,7 +226,7 @@ So, "source.c:100-120" shows lines between 100th to l20th in source.c file. And 
 
 LAZY MATCHING
 -------------
- The lazy line matching is similar to glob matching but ignoring spaces in both of pattern and target. So this accepts wildcards('*', '?') and character classes(e.g. [a-z], [!A-Z]).
+The lazy line matching is similar to glob matching but ignoring spaces in both of pattern and target. So this accepts wildcards('*', '?') and character classes(e.g. [a-z], [!A-Z]).
 
 e.g.
  'a=*' can matches 'a=b', 'a = b', 'a == b' and so on.
@@ -235,8 +235,8 @@ This provides some sort of flexibility and robustness to probe point definitions
 
 FILTER PATTERN
 --------------
- The filter pattern is a glob matching pattern(s) to filter variables.
- In addition, you can use "!" for specifying filter-out rule. You also can give several rules combined with "&" or "|", and fold those rules as one rule by using "(" ")".
+The filter pattern is a glob matching pattern(s) to filter variables.
+In addition, you can use "!" for specifying filter-out rule. You also can give several rules combined with "&" or "|", and fold those rules as one rule by using "(" ")".
 
 e.g.
  With --filter "foo* | bar*", perf probe -V shows variables which start with "foo" or "bar".
@@ -293,6 +293,19 @@ Add a probe on specific versioned symbol by backslash escape
 Add a probe in a source file using special characters by backslash escape
 
  ./perf probe -x /opt/test/a.out 'foo\+bar.c:4'
+
+
+PERMISSIONS AND SYSCTL
+----------------------
+Since perf probe depends on ftrace (tracefs) and kallsyms (/proc/kallsyms), you have to care about the permission and some sysctl knobs.
+
+ - Since tracefs and kallsyms requires root or privileged user to access it, the following perf probe commands also require it; --add, --del, --list (except for --cache option)
+
+ - The system admin can remount the tracefs with 755 (`sudo mount -o remount,mode=755 /sys/kernel/tracing/`) to allow unprivileged user to run the perf probe --list command.
+
+ - /proc/sys/kernel/kptr_restrict = 2 (restrict all users) also prevents perf probe to retrieve the important information from kallsyms. You also need to set to 1 (restrict non CAP_SYSLOG users) for the above commands. Since the user-space probe doesn't need to access kallsyms, this is only for probing the kernel function (kprobes).
+
+ - Since the perf probe commands read the vmlinux (for kernel) and/or the debuginfo file (including user-space application), you need to ensure that you can read those files.
 
 
 SEE ALSO

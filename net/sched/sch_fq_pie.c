@@ -138,8 +138,15 @@ static int fq_pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	/* Classifies packet into corresponding flow */
 	idx = fq_pie_classify(skb, sch, &ret);
-	sel_flow = &q->flows[idx];
+	if (idx == 0) {
+		if (ret & __NET_XMIT_BYPASS)
+			qdisc_qstats_drop(sch);
+		__qdisc_drop(skb, to_free);
+		return ret;
+	}
+	idx--;
 
+	sel_flow = &q->flows[idx];
 	/* Checks whether adding a new packet would exceed memory limit */
 	get_pie_cb(skb)->mem_usage = skb->truesize;
 	memory_limited = q->memory_usage > q->memory_limit + skb->truesize;
@@ -297,9 +304,9 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 			goto flow_error;
 		}
 		q->flows_cnt = nla_get_u32(tb[TCA_FQ_PIE_FLOWS]);
-		if (!q->flows_cnt || q->flows_cnt >= 65536) {
+		if (!q->flows_cnt || q->flows_cnt > 65536) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Number of flows must range in [1..65535]");
+					   "Number of flows must range in [1..65536]");
 			goto flow_error;
 		}
 	}
@@ -367,7 +374,7 @@ static void fq_pie_timer(struct timer_list *t)
 	struct fq_pie_sched_data *q = from_timer(q, t, adapt_timer);
 	struct Qdisc *sch = q->sch;
 	spinlock_t *root_lock; /* to lock qdisc for probability calculations */
-	u16 idx;
+	u32 idx;
 
 	root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 	spin_lock(root_lock);
@@ -388,7 +395,7 @@ static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
 {
 	struct fq_pie_sched_data *q = qdisc_priv(sch);
 	int err;
-	u16 idx;
+	u32 idx;
 
 	pie_params_init(&q->p_params);
 	sch->limit = 10 * 1024;
@@ -500,7 +507,7 @@ static int fq_pie_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 static void fq_pie_reset(struct Qdisc *sch)
 {
 	struct fq_pie_sched_data *q = qdisc_priv(sch);
-	u16 idx;
+	u32 idx;
 
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);

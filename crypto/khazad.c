@@ -819,7 +819,7 @@ static void khazad_crypt(const u64 roundKey[KHAZAD_ROUNDS + 1],
 			T6[(int)(state >>  8) & 0xff] ^
 			T7[(int)(state      ) & 0xff] ^
 			roundKey[r];
-    	}
+	}
 
 	state = (T0[(int)(state >> 56)       ] & 0xff00000000000000ULL) ^
 		(T1[(int)(state >> 48) & 0xff] & 0x00ff000000000000ULL) ^

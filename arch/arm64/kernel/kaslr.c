@@ -72,7 +72,9 @@ u64 __init kaslr_early_init(void)
 	 * we end up running with module randomization disabled.
 	 */
 	module_alloc_base = (u64)_etext - MODULES_VSIZE;
-	__flush_dcache_area(&module_alloc_base, sizeof(module_alloc_base));
+	dcache_clean_inval_poc((unsigned long)&module_alloc_base,
+			    (unsigned long)&module_alloc_base +
+				    sizeof(module_alloc_base));
 
 	/*
 	 * Try to map the FDT early. If this fails, we simply bail,
@@ -170,8 +172,12 @@ u64 __init kaslr_early_init(void)
 	module_alloc_base += (module_range * (seed & ((1 << 21) - 1))) >> 21;
 	module_alloc_base &= PAGE_MASK;
 
-	__flush_dcache_area(&module_alloc_base, sizeof(module_alloc_base));
-	__flush_dcache_area(&memstart_offset_seed, sizeof(memstart_offset_seed));
+	dcache_clean_inval_poc((unsigned long)&module_alloc_base,
+			    (unsigned long)&module_alloc_base +
+				    sizeof(module_alloc_base));
+	dcache_clean_inval_poc((unsigned long)&memstart_offset_seed,
+			    (unsigned long)&memstart_offset_seed +
+				    sizeof(memstart_offset_seed));
 
 	return offset;
 }

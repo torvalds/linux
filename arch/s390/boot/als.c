@@ -68,7 +68,7 @@ void print_missing_facilities(void)
 
 	first = 1;
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
-		val = ~S390_lowcore.stfle_fac_list[i] & als[i];
+		val = ~stfle_fac_list[i] & als[i];
 		for (j = 0; j < BITS_PER_LONG; j++) {
 			if (!(val & (1UL << (BITS_PER_LONG - 1 - j))))
 				continue;
@@ -106,9 +106,9 @@ void verify_facilities(void)
 {
 	int i;
 
-	__stfle(S390_lowcore.stfle_fac_list, ARRAY_SIZE(S390_lowcore.stfle_fac_list));
+	__stfle(stfle_fac_list, ARRAY_SIZE(stfle_fac_list));
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
-		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i])
+		if ((stfle_fac_list[i] & als[i]) != als[i])
 			facility_mismatch();
 	}
 }

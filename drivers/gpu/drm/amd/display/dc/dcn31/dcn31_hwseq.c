@@ -33,7 +33,6 @@
 #include "clk_mgr.h"
 #include "reg_helper.h"
 #include "abm.h"
-#include "clk_mgr.h"
 #include "hubp.h"
 #include "dchubbub.h"
 #include "timing_generator.h"
@@ -47,6 +46,8 @@
 #include "dpcd_defs.h"
 #include "dce/dmub_outbox.h"
 #include "dc_link_dp.h"
+#include "inc/link_dpcd.h"
+#include "dcn10/dcn10_hw_sequencer.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -299,10 +300,8 @@ void dcn31_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
 		dc->res_pool->hubbub->funcs->force_pstate_change_control(
 				dc->res_pool->hubbub, false, false);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	if (dc->res_pool->hubbub->funcs->init_crb)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
-#endif
 }
 
 void dcn31_dsc_pg_control(
@@ -392,7 +391,7 @@ void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi_tmds)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
 	if (is_hdmi_tmds)
@@ -595,4 +594,21 @@ bool dcn31_is_abm_supported(struct dc *dc,
 			return true;
 	}
 	return false;
+}
+
+static void apply_riommu_invalidation_wa(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+
+	if (!hws->wa.early_riommu_invalidation)
+		return;
+
+	REG_UPDATE(DCHUBBUB_ARB_HOSTVM_CNTL, DISABLE_HOSTVM_FORCE_ALLOW_PSTATE, 0);
+}
+
+void dcn31_init_pipes(struct dc *dc, struct dc_state *context)
+{
+	dcn10_init_pipes(dc, context);
+	apply_riommu_invalidation_wa(dc);
+
 }

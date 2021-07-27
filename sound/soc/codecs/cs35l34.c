@@ -34,6 +34,7 @@
 #include <sound/cs35l34.h>
 
 #include "cs35l34.h"
+#include "cirrus_legacy.h"
 
 #define PDN_DONE_ATTEMPTS 10
 #define CS35L34_START_DELAY 50
@@ -800,6 +801,9 @@ static struct regmap_config cs35l34_regmap = {
 	.readable_reg = cs35l34_readable_register,
 	.precious_reg = cs35l34_precious_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int cs35l34_handle_of_data(struct i2c_client *i2c_client,
@@ -996,9 +1000,8 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l34_private *cs35l34;
 	struct cs35l34_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
-	int i;
+	int i, devid;
 	int ret;
-	unsigned int devid = 0;
 	unsigned int reg;
 
 	cs35l34 = devm_kzalloc(&i2c_client->dev, sizeof(*cs35l34), GFP_KERNEL);
@@ -1039,13 +1042,15 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
 	} else {
 		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
 				     GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+		if (!pdata) {
+			ret = -ENOMEM;
+			goto err_regulator;
+		}
 
 		if (i2c_client->dev.of_node) {
 			ret = cs35l34_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
-				return ret;
+				goto err_regulator;
 
 		}
 		cs35l34->pdata = *pdata;
@@ -1059,33 +1064,34 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
 
 	cs35l34->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 				"reset-gpios", GPIOD_OUT_LOW);
-	if (IS_ERR(cs35l34->reset_gpio))
-		return PTR_ERR(cs35l34->reset_gpio);
+	if (IS_ERR(cs35l34->reset_gpio)) {
+		ret = PTR_ERR(cs35l34->reset_gpio);
+		goto err_regulator;
+	}
 
 	gpiod_set_value_cansleep(cs35l34->reset_gpio, 1);
 
 	msleep(CS35L34_START_DELAY);
 
-	ret = regmap_read(cs35l34->regmap, CS35L34_DEVID_AB, &reg);
-
-	devid = (reg & 0xFF) << 12;
-	ret = regmap_read(cs35l34->regmap, CS35L34_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-	ret = regmap_read(cs35l34->regmap, CS35L34_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs35l34->regmap, CS35L34_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_reset;
+	}
 
 	if (devid != CS35L34_CHIP_ID) {
 		dev_err(&i2c_client->dev,
 			"CS35l34 Device ID (%X). Expected ID %X\n",
 			devid, CS35L34_CHIP_ID);
 		ret = -ENODEV;
-		goto err_regulator;
+		goto err_reset;
 	}
 
 	ret = regmap_read(cs35l34->regmap, CS35L34_REV_ID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		goto err_regulator;
+		goto err_reset;
 	}
 
 	dev_info(&i2c_client->dev,
@@ -1110,11 +1116,13 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0) {
 		dev_err(&i2c_client->dev,
 			"%s: Register component failed\n", __func__);
-		goto err_regulator;
+		goto err_reset;
 	}
 
 	return 0;
 
+err_reset:
+	gpiod_set_value_cansleep(cs35l34->reset_gpio, 0);
 err_regulator:
 	regulator_bulk_disable(cs35l34->num_core_supplies,
 		cs35l34->core_supplies);

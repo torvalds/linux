@@ -777,9 +777,12 @@ struct drm_get_cap {
 /**
  * DRM_CLIENT_CAP_STEREO_3D
  *
- * if set to 1, the DRM core will expose the stereo 3D capabilities of the
+ * If set to 1, the DRM core will expose the stereo 3D capabilities of the
  * monitor by advertising the supported 3D layouts in the flags of struct
- * drm_mode_modeinfo.
+ * drm_mode_modeinfo. See ``DRM_MODE_FLAG_3D_*``.
+ *
+ * This capability is always supported for all drivers starting from kernel
+ * version 3.13.
  */
 #define DRM_CLIENT_CAP_STEREO_3D	1
 
@@ -788,6 +791,9 @@ struct drm_get_cap {
  *
  * If set to 1, the DRM core will expose all planes (overlay, primary, and
  * cursor) to userspace.
+ *
+ * This capability has been introduced in kernel version 3.15. Starting from
+ * kernel version 3.17, this capability is always supported for all drivers.
  */
 #define DRM_CLIENT_CAP_UNIVERSAL_PLANES  2
 
@@ -797,6 +803,13 @@ struct drm_get_cap {
  * If set to 1, the DRM core will expose atomic properties to userspace. This
  * implicitly enables &DRM_CLIENT_CAP_UNIVERSAL_PLANES and
  * &DRM_CLIENT_CAP_ASPECT_RATIO.
+ *
+ * If the driver doesn't support atomic mode-setting, enabling this capability
+ * will fail with -EOPNOTSUPP.
+ *
+ * This capability has been introduced in kernel version 4.0. Starting from
+ * kernel version 4.2, this capability is always supported for atomic-capable
+ * drivers.
  */
 #define DRM_CLIENT_CAP_ATOMIC	3
 
@@ -804,6 +817,10 @@ struct drm_get_cap {
  * DRM_CLIENT_CAP_ASPECT_RATIO
  *
  * If set to 1, the DRM core will provide aspect ratio information in modes.
+ * See ``DRM_MODE_FLAG_PIC_AR_*``.
+ *
+ * This capability is always supported for all drivers starting from kernel
+ * version 4.18.
  */
 #define DRM_CLIENT_CAP_ASPECT_RATIO    4
 
@@ -811,8 +828,11 @@ struct drm_get_cap {
  * DRM_CLIENT_CAP_WRITEBACK_CONNECTORS
  *
  * If set to 1, the DRM core will expose special connectors to be used for
- * writing back to memory the scene setup in the commit. Depends on client
- * also supporting DRM_CLIENT_CAP_ATOMIC
+ * writing back to memory the scene setup in the commit. The client must enable
+ * &DRM_CLIENT_CAP_ATOMIC first.
+ *
+ * This capability is always supported for atomic-capable drivers starting from
+ * kernel version 4.19.
  */
 #define DRM_CLIENT_CAP_WRITEBACK_CONNECTORS	5
 

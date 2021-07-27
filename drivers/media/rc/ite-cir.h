@@ -167,7 +167,7 @@ struct ite_dev {
  * hardware data obtained from:
  *
  * IT8712F
- * Environment Control – Low Pin Count Input / Output
+ * Environment Control - Low Pin Count Input / Output
  * (EC - LPC I/O)
  * Preliminary Specification V0. 81
  */

@@ -8,8 +8,8 @@ Required Properties:
 
   The following required properties are defined externally:
 
-  - Standard I2C mux properties. See i2c-mux.txt in this directory.
-  - I2C child bus nodes. See i2c-mux.txt in this directory.
+  - Standard I2C mux properties. See i2c-mux.yaml in this directory.
+  - I2C child bus nodes. See i2c-mux.yaml in this directory.
 
 Optional Properties:
 

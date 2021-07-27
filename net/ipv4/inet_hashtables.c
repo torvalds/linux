@@ -697,7 +697,7 @@ void inet_unhash(struct sock *sk)
 		goto unlock;
 
 	if (rcu_access_pointer(sk->sk_reuseport_cb))
-		reuseport_detach_sock(sk);
+		reuseport_stop_listen_sock(sk);
 	if (ilb) {
 		inet_unhash2(hashinfo, sk);
 		ilb->count--;

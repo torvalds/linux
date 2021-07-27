@@ -163,6 +163,7 @@ static size_t ipoib_get_size(const struct net_device *dev)
 
 static struct rtnl_link_ops ipoib_link_ops __read_mostly = {
 	.kind		= "ipoib",
+	.netns_refund   = true,
 	.maxtype	= IFLA_IPOIB_MAX,
 	.policy		= ipoib_policy,
 	.priv_size	= sizeof(struct ipoib_dev_priv),

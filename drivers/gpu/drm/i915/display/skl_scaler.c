@@ -96,9 +96,8 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 {
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 
@@ -141,7 +140,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 			drm_dbg_kms(&dev_priv->drm,
 				    "scaler_user index %u.%u: "
 				    "Staged freeing scaler id %d scaler_users = 0x%x\n",
-				    intel_crtc->pipe, scaler_user, *scaler_id,
+				    crtc->pipe, scaler_user, *scaler_id,
 				    scaler_state->scaler_users);
 			*scaler_id = -1;
 		}
@@ -167,7 +166,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		drm_dbg_kms(&dev_priv->drm,
 			    "scaler_user index %u.%u: src %ux%u dst %ux%u "
 			    "size is out of scaler range\n",
-			    intel_crtc->pipe, scaler_user, src_w, src_h,
+			    crtc->pipe, scaler_user, src_w, src_h,
 			    dst_w, dst_h);
 		return -EINVAL;
 	}
@@ -176,7 +175,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	scaler_state->scaler_users |= (1 << scaler_user);
 	drm_dbg_kms(&dev_priv->drm, "scaler_user index %u.%u: "
 		    "staged scaling request for %ux%u->%ux%u scaler_users = 0x%x\n",
-		    intel_crtc->pipe, scaler_user, src_w, src_h, dst_w, dst_h,
+		    crtc->pipe, scaler_user, src_w, src_h, dst_w, dst_h,
 		    scaler_state->scaler_users);
 
 	return 0;
@@ -515,17 +514,17 @@ skl_program_plane_scaler(struct intel_plane *plane,
 			  (crtc_w << 16) | crtc_h);
 }
 
-static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
+static void skl_detach_scaler(struct intel_crtc *crtc, int id)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, SKL_PS_CTRL(intel_crtc->pipe, id), 0);
-	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(intel_crtc->pipe, id), 0);
-	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(intel_crtc->pipe, id), 0);
+	intel_de_write_fw(dev_priv, SKL_PS_CTRL(crtc->pipe, id), 0);
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(crtc->pipe, id), 0);
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, id), 0);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -535,15 +534,15 @@ static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
  */
 void skl_detach_scalers(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
 	int i;
 
 	/* loop through and disable scalers that aren't in use */
-	for (i = 0; i < intel_crtc->num_scalers; i++) {
+	for (i = 0; i < crtc->num_scalers; i++) {
 		if (!scaler_state->scalers[i].in_use)
-			skl_detach_scaler(intel_crtc, i);
+			skl_detach_scaler(crtc, i);
 	}
 }
 

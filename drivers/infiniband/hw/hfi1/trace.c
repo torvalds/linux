@@ -189,6 +189,11 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 
+static u16 ib_get_len(const struct ib_header *hdr)
+{
+	return be16_to_cpu(hdr->lrh[2]);
+}
+
 void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
 			     u8 *lnh, u8 *lver, u8 *sl, u8 *sc,
 			     u16 *len, u32 *dlid, u32 *slid)

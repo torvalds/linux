@@ -43,7 +43,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 3
     items:
       - description: AXI bus interface clock
       - description: Peripheral clock

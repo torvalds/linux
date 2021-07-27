@@ -422,7 +422,9 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct frame_buffer *buf, *node;
 	int ret;
 
-	pm_runtime_get_sync(isi->dev);
+	ret = pm_runtime_resume_and_get(isi->dev);
+	if (ret < 0)
+		return ret;
 
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isi->entity.subdev, video, s_stream, 1);
@@ -555,7 +557,7 @@ static const struct isi_format *find_format_by_fourcc(struct atmel_isi *isi,
 }
 
 static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
-			struct v4l2_subdev_pad_config *pad_cfg)
+			struct v4l2_subdev_state *sd_state)
 {
 	int ret;
 	struct v4l2_subdev_frame_size_enum fse = {
@@ -564,17 +566,17 @@ static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 	};
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, enum_frame_size,
-			       pad_cfg, &fse);
+			       sd_state, &fse);
 	/*
 	 * Attempt to obtain format size from subdev. If not available,
 	 * just use the maximum ISI can receive.
 	 */
 	if (ret) {
-		pad_cfg->try_crop.width = MAX_SUPPORT_WIDTH;
-		pad_cfg->try_crop.height = MAX_SUPPORT_HEIGHT;
+		sd_state->pads->try_crop.width = MAX_SUPPORT_WIDTH;
+		sd_state->pads->try_crop.height = MAX_SUPPORT_HEIGHT;
 	} else {
-		pad_cfg->try_crop.width = fse.max_width;
-		pad_cfg->try_crop.height = fse.max_height;
+		sd_state->pads->try_crop.width = fse.max_width;
+		sd_state->pads->try_crop.height = fse.max_height;
 	}
 }
 
@@ -584,6 +586,9 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	const struct isi_format *isi_fmt;
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
+	struct v4l2_subdev_state pad_state = {
+		.pads = &pad_cfg
+		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -601,10 +606,10 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, isi_fmt->mbus_code);
 
-	isi_try_fse(isi, isi_fmt, &pad_cfg);
+	isi_try_fse(isi, isi_fmt, &pad_state);
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, set_fmt,
-			       &pad_cfg, &format);
+			       &pad_state, &format);
 	if (ret < 0)
 		return ret;
 
@@ -782,9 +787,10 @@ static int isi_enum_frameintervals(struct file *file, void *fh,
 	return 0;
 }
 
-static void isi_camera_set_bus_param(struct atmel_isi *isi)
+static int isi_camera_set_bus_param(struct atmel_isi *isi)
 {
 	u32 cfg1 = 0;
+	int ret;
 
 	/* set bus param for ISI */
 	if (isi->pdata.hsync_act_low)
@@ -801,12 +807,16 @@ static void isi_camera_set_bus_param(struct atmel_isi *isi)
 	cfg1 |= ISI_CFG1_THMASK_BEATS_16;
 
 	/* Enable PM and peripheral clock before operate isi registers */
-	pm_runtime_get_sync(isi->dev);
+	ret = pm_runtime_resume_and_get(isi->dev);
+	if (ret < 0)
+		return ret;
 
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 	isi_writel(isi, ISI_CFG1, cfg1);
 
 	pm_runtime_put(isi->dev);
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------*/
@@ -1085,7 +1095,11 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 		dev_err(isi->dev, "No supported mediabus format found\n");
 		return ret;
 	}
-	isi_camera_set_bus_param(isi);
+	ret = isi_camera_set_bus_param(isi);
+	if (ret) {
+		dev_err(isi->dev, "Can't wake up device\n");
+		return ret;
+	}
 
 	ret = isi_set_default_fmt(isi);
 	if (ret) {

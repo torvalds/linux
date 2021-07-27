@@ -1493,7 +1493,8 @@ static int snd_wss_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.period_bytes_max);
 
 	if (chip->claim_dma) {
-		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma1)) < 0)
+		err = chip->claim_dma(chip, chip->dma_private_data, chip->dma1);
+		if (err < 0)
 			return err;
 	}
 
@@ -1533,7 +1534,8 @@ static int snd_wss_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.period_bytes_max);
 
 	if (chip->claim_dma) {
-		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma2)) < 0)
+		err = chip->claim_dma(chip, chip->dma_private_data, chip->dma2);
+		if (err < 0)
 			return err;
 	}
 
@@ -1934,7 +1936,8 @@ int snd_wss_timer(struct snd_wss *chip, int device)
 	tid.card = chip->card->number;
 	tid.device = device;
 	tid.subdevice = 0;
-	if ((err = snd_timer_new(chip->card, "CS4231", &tid, &timer)) < 0)
+	err = snd_timer_new(chip->card, "CS4231", &tid, &timer);
+	if (err < 0)
 		return err;
 	strcpy(timer->name, snd_wss_chip_id(chip));
 	timer->private_data = chip;

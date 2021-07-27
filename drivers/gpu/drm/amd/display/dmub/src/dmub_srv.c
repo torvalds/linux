@@ -31,9 +31,7 @@
 #include "dmub_dcn301.h"
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 #include "dmub_dcn31.h"
-#endif
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -176,6 +174,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn20_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn20_set_outbox0_rptr;
 
+		funcs->get_diagnostic_data = dmub_dcn20_get_diagnostic_data;
+
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
 
@@ -206,9 +206,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->setup_windows = dmub_dcn30_setup_windows;
 		}
 		break;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_1
 
 	case DMUB_ASIC_DCN31:
+		dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
 		funcs->reset = dmub_dcn31_reset;
 		funcs->reset_release = dmub_dcn31_reset_release;
 		funcs->backdoor_load = dmub_dcn31_backdoor_load;
@@ -232,14 +232,11 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn31_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
-		if (asic == DMUB_ASIC_DCN31) {
-			dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
-		}
+		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
 
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
 		break;
-#endif
 
 	default:
 		return false;
@@ -793,4 +790,12 @@ bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entr
 	dmub->outbox0_rb.wrpt = dmub->hw_funcs.get_outbox0_wptr(dmub);
 
 	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
+}
+
+bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+{
+	if (!dmub || !dmub->hw_funcs.get_diagnostic_data || !diag_data)
+		return false;
+	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
+	return true;
 }

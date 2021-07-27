@@ -392,7 +392,7 @@ static struct notifier_block eurwdt_notifier = {
 };
 
 /**
- * cleanup_module:
+ * eurwdt_exit:
  *
  * Unload the watchdog. You cannot do this with any file handles open.
  * If your watchdog is set to continue ticking on close and you unload

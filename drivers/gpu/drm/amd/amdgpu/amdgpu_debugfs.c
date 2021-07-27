@@ -1304,11 +1304,11 @@ static int amdgpu_debugfs_vm_info_show(struct seq_file *m, void *unused)
 
 		seq_printf(m, "pid:%d\tProcess:%s ----------\n",
 				vm->task_info.pid, vm->task_info.process_name);
-		r = amdgpu_bo_reserve(vm->root.base.bo, true);
+		r = amdgpu_bo_reserve(vm->root.bo, true);
 		if (r)
 			break;
 		amdgpu_debugfs_vm_bo_info(vm, m);
-		amdgpu_bo_unreserve(vm->root.base.bo);
+		amdgpu_bo_unreserve(vm->root.bo);
 	}
 
 	mutex_unlock(&dev->filelist_mutex);

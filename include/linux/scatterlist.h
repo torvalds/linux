@@ -474,7 +474,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
  * Iterates over sg entries mapping page-by-page.  On each successful
  * iteration, @miter->page points to the mapped page and
  * @miter->length bytes of data can be accessed at @miter->addr.  As
- * long as an interation is enclosed between start and stop, the user
+ * long as an iteration is enclosed between start and stop, the user
  * is free to choose control structure and when to stop.
  *
  * @miter->consumed is set to @miter->length on each iteration.  It

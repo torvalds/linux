@@ -79,7 +79,7 @@ enum { \
 	ICH_REG_##name##_PICB	= base + 0x08,	/* word - position in current buffer */ \
 	ICH_REG_##name##_PIV	= base + 0x0a,	/* byte - prefetched index value */ \
 	ICH_REG_##name##_CR	= base + 0x0b,	/* byte - control register */ \
-};
+}
 
 /* busmaster blocks */
 DEFINE_REGSET(OFF, 0);		/* offset */
@@ -538,7 +538,8 @@ static unsigned short snd_intel8x0_codec_read(struct snd_ac97 *ac97,
 		res = 0xffff;
 	} else {
 		res = iagetword(chip, reg + ac97->num * 0x80);
-		if ((tmp = igetdword(chip, ICHREG(GLOB_STA))) & ICH_RCS) {
+		tmp = igetdword(chip, ICHREG(GLOB_STA));
+		if (tmp & ICH_RCS) {
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp &
 				  ~(chip->codec_ready_bits | ICH_GSCI));
@@ -559,7 +560,8 @@ static void snd_intel8x0_codec_read_test(struct intel8x0 *chip,
 
 	if (snd_intel8x0_codec_semaphore(chip, codec) >= 0) {
 		iagetword(chip, codec * 0x80);
-		if ((tmp = igetdword(chip, ICHREG(GLOB_STA))) & ICH_RCS) {
+		tmp = igetdword(chip, ICHREG(GLOB_STA));
+		if (tmp & ICH_RCS) {
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp &
 				  ~(chip->codec_ready_bits | ICH_GSCI));
@@ -692,7 +694,7 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 	int status, civ, i, step;
 	int ack = 0;
 
-	if (!ichdev->prepared || ichdev->suspended)
+	if (!(ichdev->prepared || chip->in_measurement) || ichdev->suspended)
 		return;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1105,7 +1107,8 @@ static int snd_intel8x0_pcm_open(struct snd_pcm_substream *substream, struct ich
 		runtime->hw.buffer_bytes_max = 64*1024;
 		runtime->hw.period_bytes_max = 64*1024;
 	}
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
 	runtime->private_data = ichdev;
 	return 0;
@@ -2190,7 +2193,8 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 			udelay(1);
 		}
 	}
-	if ((err = snd_ac97_bus(chip->card, 0, ops, chip, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, ops, chip, &pbus);
+	if (err < 0)
 		goto __err;
 	pbus->private_free = snd_intel8x0_mixer_free_ac97_bus;
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
@@ -2206,7 +2210,8 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	ac97.pci = chip->pci;
 	for (i = 0; i < codecs; i++) {
 		ac97.num = i;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
+		err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i]);
+		if (err < 0) {
 			if (err != -EACCES)
 				dev_err(chip->card->dev,
 					"Unable to initialize codec #%d\n", i);
@@ -2491,11 +2496,13 @@ static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 	int err;
 	
 	if (chip->device_type != DEVICE_ALI) {
-		if ((err = snd_intel8x0_ich_chip_init(chip, probing)) < 0)
+		err = snd_intel8x0_ich_chip_init(chip, probing);
+		if (err < 0)
 			return err;
 		iagetword(chip, 0);	/* clear semaphore flag */
 	} else {
-		if ((err = snd_intel8x0_ali_chip_init(chip, probing)) < 0)
+		err = snd_intel8x0_ali_chip_init(chip, probing);
+		if (err < 0)
 			return err;
 	}
 
@@ -2918,7 +2925,8 @@ static int snd_intel8x0_create(struct snd_card *card,
 
 	*r_intel8x0 = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -2950,7 +2958,8 @@ static int snd_intel8x0_create(struct snd_card *card,
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
 		chip->fix_nocache = 1; /* enable workaround */
 
-	if ((err = pci_request_regions(pci, card->shortname)) < 0) {
+	err = pci_request_regions(pci, card->shortname);
+	if (err < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return err;
@@ -3064,7 +3073,8 @@ static int snd_intel8x0_create(struct snd_card *card,
 	for (i = 0; i < chip->max_codecs; i++)
 		chip->codec_isr_bits |= chip->codec_bit[i];
 
-	if ((err = snd_intel8x0_chip_init(chip, 1)) < 0) {
+	err = snd_intel8x0_chip_init(chip, 1);
+	if (err < 0) {
 		snd_intel8x0_free(chip);
 		return err;
 	}
@@ -3079,7 +3089,8 @@ static int snd_intel8x0_create(struct snd_card *card,
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_intel8x0_free(chip);
 		return err;
 	}
@@ -3186,18 +3197,20 @@ static int snd_intel8x0_probe(struct pci_dev *pci,
 			buggy_irq = 0;
 	}
 
-	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
-				       &chip)) < 0) {
+	err = snd_intel8x0_create(card, pci, pci_id->driver_data, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	card->private_data = chip;
 
-	if ((err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk)) < 0) {
+	err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_intel8x0_pcm(chip)) < 0) {
+	err = snd_intel8x0_pcm(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -3217,7 +3230,8 @@ static int snd_intel8x0_probe(struct pci_dev *pci,
 		}
 	}
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

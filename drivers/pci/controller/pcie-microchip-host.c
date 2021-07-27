@@ -341,7 +341,7 @@ static struct event_map local_status_to_event[] = {
 	LOCAL_STATUS_TO_EVENT_MAP(PM_MSI_INT_SYS_ERR),
 };
 
-struct {
+static struct {
 	u32 base;
 	u32 offset;
 	u32 mask;

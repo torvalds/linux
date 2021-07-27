@@ -59,7 +59,6 @@ MODULE_PARM_DESC(hwrng_seed, "Turn on/off hwrng auto seed, default is 1 (on).");
 
 DEFINE_SPINLOCK(zcrypt_list_lock);
 LIST_HEAD(zcrypt_card_list);
-int zcrypt_device_count;
 
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
 static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
@@ -901,6 +900,9 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 		if (xcRB->user_defined != AUTOSELECT &&
 		    xcRB->user_defined != zc->card->id)
 			continue;
+		/* check if request size exceeds card max msg size */
+		if (ap_msg.len > zc->card->maxmsgsize)
+			continue;
 		/* check if device node has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
@@ -1068,6 +1070,9 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		/* Check for user selected EP11 card */
 		if (targets &&
 		    !is_desired_ep11_card(zc->card->id, target_num, targets))
+			continue;
+		/* check if request size exceeds card max msg size */
+		if (ap_msg.len > zc->card->maxmsgsize)
 			continue;
 		/* check if device node has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))

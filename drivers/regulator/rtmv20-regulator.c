@@ -27,6 +27,7 @@
 #define RTMV20_REG_LDIRQ	0x30
 #define RTMV20_REG_LDSTAT	0x40
 #define RTMV20_REG_LDMASK	0x50
+#define RTMV20_MAX_REGS		(RTMV20_REG_LDMASK + 1)
 
 #define RTMV20_VID_MASK		GENMASK(7, 4)
 #define RICHTEK_VID		0x80
@@ -36,7 +37,7 @@
 #define RTMV20_WIDTH2_MASK	GENMASK(7, 0)
 #define RTMV20_LBPLVL_MASK	GENMASK(3, 0)
 #define RTMV20_LBPEN_MASK	BIT(7)
-#define RTMV20_STROBEPOL_MASK	BIT(1)
+#define RTMV20_STROBEPOL_MASK	BIT(0)
 #define RTMV20_VSYNPOL_MASK	BIT(1)
 #define RTMV20_FSINEN_MASK	BIT(7)
 #define RTMV20_ESEN_MASK	BIT(6)
@@ -103,9 +104,47 @@ static int rtmv20_lsw_disable(struct regulator_dev *rdev)
 	return 0;
 }
 
+static int rtmv20_lsw_set_current_limit(struct regulator_dev *rdev, int min_uA,
+					int max_uA)
+{
+	int sel;
+
+	if (min_uA > RTMV20_LSW_MAXUA || max_uA < RTMV20_LSW_MINUA)
+		return -EINVAL;
+
+	if (max_uA > RTMV20_LSW_MAXUA)
+		max_uA = RTMV20_LSW_MAXUA;
+
+	sel = (max_uA - RTMV20_LSW_MINUA) / RTMV20_LSW_STEPUA;
+
+	/* Ensure the selected setting is still in range */
+	if ((sel * RTMV20_LSW_STEPUA + RTMV20_LSW_MINUA) < min_uA)
+		return -EINVAL;
+
+	sel <<= ffs(rdev->desc->csel_mask) - 1;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->csel_reg,
+				  rdev->desc->csel_mask, sel);
+}
+
+static int rtmv20_lsw_get_current_limit(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->csel_reg, &val);
+	if (ret)
+		return ret;
+
+	val &= rdev->desc->csel_mask;
+	val >>= ffs(rdev->desc->csel_mask) - 1;
+
+	return val * RTMV20_LSW_STEPUA + RTMV20_LSW_MINUA;
+}
+
 static const struct regulator_ops rtmv20_regulator_ops = {
-	.set_current_limit = regulator_set_current_limit_regmap,
-	.get_current_limit = regulator_get_current_limit_regmap,
+	.set_current_limit = rtmv20_lsw_set_current_limit,
+	.get_current_limit = rtmv20_lsw_get_current_limit,
 	.enable = rtmv20_lsw_enable,
 	.disable = rtmv20_lsw_disable,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -275,6 +314,7 @@ static const struct regmap_config rtmv20_regmap_config = {
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,
 	.max_register = RTMV20_REG_LDMASK,
+	.num_reg_defaults_raw = RTMV20_MAX_REGS,
 
 	.writeable_reg = rtmv20_is_accessible_reg,
 	.readable_reg = rtmv20_is_accessible_reg,

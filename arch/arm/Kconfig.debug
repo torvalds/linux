@@ -66,6 +66,8 @@ config UNWINDER_FRAME_POINTER
 config UNWINDER_ARM
 	bool "ARM EABI stack unwinder"
 	depends on AEABI && !FUNCTION_GRAPH_TRACER
+	# https://github.com/ClangBuiltLinux/linux/issues/732
+	depends on !LD_IS_LLD || LLD_VERSION >= 110000
 	select ARM_UNWIND
 	help
 	  This option enables stack unwinding support in the kernel
@@ -606,6 +608,14 @@ choice
 		  If the wrong DEBUG_MVEBU_UART* option is selected,
 		  when u-boot hands over to the kernel, the system
 		  silently crashes, with no serial output at all.
+
+	config DEBUG_MSTARV7_PMUART
+		bool "Kernel low-level debugging messages via MSTARV7 PM UART"
+		depends on ARCH_MSTARV7
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  for MSTAR ARMv7-based platforms on PM UART.
 
 	config DEBUG_MT6589_UART0
 		bool "Mediatek mt6589 UART0"
@@ -1605,6 +1615,7 @@ config DEBUG_UART_PHYS
 	default 0x18000400 if DEBUG_BCM_HR2
 	default 0x18023000 if DEBUG_BCM_IPROC_UART3
 	default 0x1c090000 if DEBUG_VEXPRESS_UART0_RS1
+	default 0x1f221000 if DEBUG_MSTARV7_PMUART
 	default 0x20001000 if DEBUG_HIP01_UART
 	default 0x20060000 if DEBUG_RK29_UART0
 	default 0x20064000 if DEBUG_RK29_UART1 || DEBUG_RK3X_UART2
@@ -1722,6 +1733,7 @@ config DEBUG_UART_VIRT
 	default 0xf0100000 if DEBUG_DIGICOLOR_UA0
 	default 0xf01fb000 if DEBUG_NOMADIK_UART
 	default 0xf0201000 if DEBUG_BCM2835 || DEBUG_BCM2836
+	default 0xf0221000 if DEBUG_MSTARV7_PMUART
 	default 0xf1000300 if DEBUG_BCM_5301X
 	default 0xf1000400 if DEBUG_BCM_HR2
 	default 0xf1002000 if DEBUG_MT8127_UART0
@@ -1803,8 +1815,8 @@ config DEBUG_UART_VIRT
 	default 0xfedc0000 if DEBUG_EP93XX
 	default 0xfee003f8 if DEBUG_FOOTBRIDGE_COM1
 	default 0xfee20000 if DEBUG_NSPIRE_CLASSIC_UART || DEBUG_NSPIRE_CX_UART
-	default 0xfef00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
-	default 0xfef00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
+	default 0xfec00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
+	default 0xfec00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xfef36000 if DEBUG_HIGHBANK_UART
 	default 0xfefb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
 	default 0xfefb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
@@ -1827,6 +1839,7 @@ config DEBUG_UART_8250_SHIFT
 	default 0 if DEBUG_FOOTBRIDGE_COM1 || ARCH_IOP32X || DEBUG_BCM_5301X || \
 		DEBUG_BCM_HR2 || DEBUG_OMAP7XXUART1 || DEBUG_OMAP7XXUART2 || \
 		DEBUG_OMAP7XXUART3
+	default 3 if DEBUG_MSTARV7_PMUART
 	default 2
 
 config DEBUG_UART_8250_WORD

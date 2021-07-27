@@ -103,11 +103,9 @@ EXPORT_SYMBOL(cpu_have_feature);
 static void show_facilities(struct seq_file *m)
 {
 	unsigned int bit;
-	long *facilities;
 
-	facilities = (long *)&S390_lowcore.stfle_fac_list;
 	seq_puts(m, "facilities      :");
-	for_each_set_bit_inv(bit, facilities, MAX_FACILITY_BIT)
+	for_each_set_bit_inv(bit, (long *)&stfle_fac_list, MAX_FACILITY_BIT)
 		seq_printf(m, " %d", bit);
 	seq_putc(m, '\n');
 }

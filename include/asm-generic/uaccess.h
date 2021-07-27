@@ -19,7 +19,7 @@ __get_user_fn(size_t size, const void __user *from, void *to)
 
 	switch (size) {
 	case 1:
-		*(u8 *)to = get_unaligned((u8 __force *)from);
+		*(u8 *)to = *((u8 __force *)from);
 		return 0;
 	case 2:
 		*(u16 *)to = get_unaligned((u16 __force *)from);
@@ -45,7 +45,7 @@ __put_user_fn(size_t size, void __user *to, void *from)
 
 	switch (size) {
 	case 1:
-		put_unaligned(*(u8 *)from, (u8 __force *)to);
+		*(u8 __force *)to = *(u8 *)from;
 		return 0;
 	case 2:
 		put_unaligned(*(u16 *)from, (u16 __force *)to);

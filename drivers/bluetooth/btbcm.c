@@ -404,6 +404,7 @@ static const struct bcm_subver_table bcm_uart_subver_table[] = {
 	{ 0x4217, "BCM4329B1"   },	/* 002.002.023 */
 	{ 0x6106, "BCM4359C0"	},	/* 003.001.006 */
 	{ 0x4106, "BCM4335A0"	},	/* 002.001.006 */
+	{ 0x410c, "BCM43430B0"	},	/* 002.001.012 */
 	{ }
 };
 

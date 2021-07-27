@@ -25,7 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
-#include "smu_v13_0_1.h"
+#include "smu_v13_0.h"
 #include "smu13_driver_if_yellow_carp.h"
 #include "yellow_carp_ppt.h"
 #include "smu_v13_0_1_ppsmc.h"
@@ -186,13 +186,30 @@ err0_out:
 	return -ENOMEM;
 }
 
+static int yellow_carp_fini_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	kfree(smu_table->clocks_table);
+	smu_table->clocks_table = NULL;
+
+	kfree(smu_table->metrics_table);
+	smu_table->metrics_table = NULL;
+
+	kfree(smu_table->watermarks_table);
+	smu_table->watermarks_table = NULL;
+
+	return 0;
+}
+
 static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	struct amdgpu_device *adev = smu->adev;
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	if (!en)
+	if (!en && !adev->in_s0ix)
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
 
 	bitmap_zero(feature->enabled, feature->feature_num);
@@ -281,13 +298,9 @@ static int yellow_carp_mode_reset(struct smu_context *smu, int type)
 	if (index < 0)
 		return index == -EACCES ? 0 : index;
 
-	mutex_lock(&smu->message_lock);
-
-	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
-
-	mutex_unlock(&smu->message_lock);
-
-	mdelay(10);
+	ret = smu_cmn_send_smc_msg_with_param(smu, (uint16_t)index, type, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to mode reset!\n");
 
 	return ret;
 }
@@ -355,6 +368,28 @@ static int yellow_carp_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_VOLTAGE_VDDSOC:
 		*value = metrics->Voltage[1];
+		break;
+	case METRICS_SS_APU_SHARE:
+		/* return the percentage of APU power with respect to APU's power limit.
+		 * percentage is reported, this isn't boost value. Smartshift power
+		 * boost/shift is only when the percentage is more than 100.
+		 */
+		if (metrics->StapmOpnLimit > 0)
+			*value =  (metrics->ApuPower * 100) / metrics->StapmOpnLimit;
+		else
+			*value = 0;
+		break;
+	case METRICS_SS_DGPU_SHARE:
+		/* return the percentage of dGPU power with respect to dGPU's power limit.
+		 * percentage is reported, this isn't boost value. Smartshift power
+		 * boost/shift is only when the percentage is more than 100.
+		 */
+		if ((metrics->dGpuPower > 0) &&
+		    (metrics->StapmCurrentLimit > metrics->StapmOpnLimit))
+			*value = (metrics->dGpuPower * 100) /
+				  (metrics->StapmCurrentLimit - metrics->StapmOpnLimit);
+		else
+			*value = 0;
 		break;
 	default:
 		*value = UINT_MAX;
@@ -425,6 +460,18 @@ static int yellow_carp_read_sensor(struct smu_context *smu,
 		ret = yellow_carp_get_smu_metrics_data(smu,
 								METRICS_VOLTAGE_VDDSOC,
 								(uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
+		ret = yellow_carp_get_smu_metrics_data(smu,
+						       METRICS_SS_APU_SHARE,
+						       (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
+		ret = yellow_carp_get_smu_metrics_data(smu,
+						       METRICS_SS_DGPU_SHARE,
+						       (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
@@ -622,6 +669,13 @@ static ssize_t yellow_carp_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_1);
+}
+
+static int yellow_carp_set_default_dpm_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
 static int yellow_carp_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type,
@@ -1168,17 +1222,17 @@ static int yellow_carp_set_fine_grain_gfx_freq_parameters(struct smu_context *sm
 }
 
 static const struct pptable_funcs yellow_carp_ppt_funcs = {
-	.check_fw_status = smu_v13_0_1_check_fw_status,
-	.check_fw_version = smu_v13_0_1_check_fw_version,
+	.check_fw_status = smu_v13_0_check_fw_status,
+	.check_fw_version = smu_v13_0_check_fw_version,
 	.init_smc_tables = yellow_carp_init_smc_tables,
-	.fini_smc_tables = smu_v13_0_1_fini_smc_tables,
-	.get_vbios_bootup_values = smu_v13_0_1_get_vbios_bootup_values,
+	.fini_smc_tables = yellow_carp_fini_smc_tables,
+	.get_vbios_bootup_values = smu_v13_0_get_vbios_bootup_values,
 	.system_features_control = yellow_carp_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = yellow_carp_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = yellow_carp_dpm_set_jpeg_enable,
-	.set_default_dpm_table = smu_v13_0_1_set_default_dpm_tables,
+	.set_default_dpm_table = yellow_carp_set_default_dpm_tables,
 	.read_sensor = yellow_carp_read_sensor,
 	.is_dpm_running = yellow_carp_is_dpm_running,
 	.set_watermarks_table = yellow_carp_set_watermarks_table,
@@ -1187,8 +1241,8 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.get_gpu_metrics = yellow_carp_get_gpu_metrics,
 	.get_enabled_mask = smu_cmn_get_enabled_32_bits_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
-	.set_driver_table_location = smu_v13_0_1_set_driver_table_location,
-	.gfx_off_control = smu_v13_0_1_gfx_off_control,
+	.set_driver_table_location = smu_v13_0_set_driver_table_location,
+	.gfx_off_control = smu_v13_0_gfx_off_control,
 	.post_init = yellow_carp_post_smu_init,
 	.mode2_reset = yellow_carp_mode2_reset,
 	.get_dpm_ultimate_freq = yellow_carp_get_dpm_ultimate_freq,

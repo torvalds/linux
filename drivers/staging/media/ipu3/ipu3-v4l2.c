@@ -36,7 +36,7 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	for (i = 0; i < IMGU_NODE_NUM; i++) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(sd, fh->pad, i);
+			v4l2_subdev_get_try_format(sd, fh->state, i);
 
 		try_fmt->width = try_crop.width;
 		try_fmt->height = try_crop.height;
@@ -44,8 +44,8 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		try_fmt->field = V4L2_FIELD_NONE;
 	}
 
-	*v4l2_subdev_get_try_crop(sd, fh->pad, IMGU_NODE_IN) = try_crop;
-	*v4l2_subdev_get_try_compose(sd, fh->pad, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_get_try_crop(sd, fh->state, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_get_try_compose(sd, fh->state, IMGU_NODE_IN) = try_crop;
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int imgu_subdev_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct imgu_device *imgu = v4l2_get_subdevdata(sd);
@@ -136,7 +136,7 @@ static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		fmt->format = imgu_pipe->nodes[pad].pad_fmt;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, cfg, pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
 		fmt->format = *mf;
 	}
 
@@ -144,7 +144,7 @@ static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct imgu_media_pipe *imgu_pipe;
@@ -161,7 +161,7 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	imgu_pipe = &imgu->imgu_pipe[pipe];
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mf = v4l2_subdev_get_try_format(sd, cfg, pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
 	else
 		mf = &imgu_pipe->nodes[pad].pad_fmt;
 
@@ -189,7 +189,7 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct v4l2_rect *try_sel, *r;
@@ -202,11 +202,11 @@ static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
 		r = &imgu_sd->rect.eff;
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, sd_state, sel->pad);
 		r = &imgu_sd->rect.bds;
 		break;
 	default:
@@ -222,7 +222,7 @@ static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_set_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct imgu_device *imgu = v4l2_get_subdevdata(sd);
@@ -241,11 +241,11 @@ static int imgu_subdev_set_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
 		rect = &imgu_sd->rect.eff;
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, sd_state, sel->pad);
 		rect = &imgu_sd->rect.bds;
 		break;
 	default:

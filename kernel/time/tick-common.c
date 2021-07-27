@@ -373,7 +373,7 @@ out_bc:
 	/*
 	 * Can the new device be used as a broadcast device ?
 	 */
-	tick_install_broadcast_device(newdev);
+	tick_install_broadcast_device(newdev, cpu);
 }
 
 /**

@@ -128,6 +128,34 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	return gpiochip_get_desc(chip, pin);
 }
 
+/**
+ * acpi_get_and_request_gpiod - Translate ACPI GPIO pin to GPIO descriptor and
+ *                              hold a refcount to the GPIO device.
+ * @path:      ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
+ * @pin:       ACPI GPIO pin number (0-based, controller-relative)
+ * @label:     Label to pass to gpiod_request()
+ *
+ * This function is a simple pass-through to acpi_get_gpiod(), except that
+ * as it is intended for use outside of the GPIO layer (in a similar fashion to
+ * gpiod_get_index() for example) it also holds a reference to the GPIO device.
+ */
+struct gpio_desc *acpi_get_and_request_gpiod(char *path, int pin, char *label)
+{
+	struct gpio_desc *gpio;
+	int ret;
+
+	gpio = acpi_get_gpiod(path, pin);
+	if (IS_ERR(gpio))
+		return gpio;
+
+	ret = gpiod_request(gpio, label);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return gpio;
+}
+EXPORT_SYMBOL_GPL(acpi_get_and_request_gpiod);
+
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 {
 	struct acpi_gpio_event *event = data;
@@ -167,6 +195,29 @@ bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 	return true;
 }
 EXPORT_SYMBOL_GPL(acpi_gpio_get_irq_resource);
+
+/**
+ * acpi_gpio_get_io_resource - Fetch details of an ACPI resource if it is a GPIO
+ *			       I/O resource or return False if not.
+ * @ares:	Pointer to the ACPI resource to fetch
+ * @agpio:	Pointer to a &struct acpi_resource_gpio to store the output pointer
+ */
+bool acpi_gpio_get_io_resource(struct acpi_resource *ares,
+			       struct acpi_resource_gpio **agpio)
+{
+	struct acpi_resource_gpio *gpio;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
+		return false;
+
+	gpio = &ares->data.gpio;
+	if (gpio->connection_type != ACPI_RESOURCE_GPIO_TYPE_IO)
+		return false;
+
+	*agpio = gpio;
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_gpio_get_io_resource);
 
 static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 				      struct acpi_gpio_event *event)
@@ -1233,14 +1284,14 @@ static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_gpio_chip *acpi_gpio;
-	acpi_handle handle;
+	struct acpi_device *adev;
 	acpi_status status;
 
 	if (!chip || !chip->parent)
 		return;
 
-	handle = ACPI_HANDLE(chip->parent);
-	if (!handle)
+	adev = ACPI_COMPANION(chip->parent);
+	if (!adev)
 		return;
 
 	acpi_gpio = kzalloc(sizeof(*acpi_gpio), GFP_KERNEL);
@@ -1254,7 +1305,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	INIT_LIST_HEAD(&acpi_gpio->events);
 	INIT_LIST_HEAD(&acpi_gpio->deferred_req_irqs_list_entry);
 
-	status = acpi_attach_data(handle, acpi_gpio_chip_dh, acpi_gpio);
+	status = acpi_attach_data(adev->handle, acpi_gpio_chip_dh, acpi_gpio);
 	if (ACPI_FAILURE(status)) {
 		dev_err(chip->parent, "Failed to attach ACPI GPIO chip\n");
 		kfree(acpi_gpio);
@@ -1263,7 +1314,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 
 	acpi_gpiochip_request_regions(acpi_gpio);
 	acpi_gpiochip_scan_gpios(acpi_gpio);
-	acpi_walk_dep_device_list(handle);
+	acpi_dev_clear_dependencies(adev);
 }
 
 void acpi_gpiochip_remove(struct gpio_chip *chip)

@@ -206,6 +206,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
+	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK

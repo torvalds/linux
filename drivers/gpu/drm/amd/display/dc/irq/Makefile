@@ -117,9 +117,7 @@ IRQ_DCN3_03 = irq_service_dcn303.o
 AMD_DAL_IRQ_DCN3_03 = $(addprefix $(AMDDALPATH)/dc/irq/dcn303/,$(IRQ_DCN3_03))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN3_03)
-endif
 
-ifdef CONFIG_DRM_AMD_DC_DCN3_1
 ###############################################################################
 # DCN 31
 ###############################################################################

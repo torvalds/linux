@@ -470,7 +470,7 @@
 			status = "disabled";
 		};
 
-		uart0: uart@100000 {
+		uart0: serial@100000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00100000 0x1000>;
@@ -481,7 +481,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@110000 {
+		uart1: serial@110000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00110000 0x1000>;
@@ -492,7 +492,7 @@
 			status = "disabled";
 		};
 
-		uart2: uart@120000 {
+		uart2: serial@120000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00120000 0x1000>;
@@ -503,7 +503,7 @@
 			status = "disabled";
 		};
 
-		uart3: uart@130000 {
+		uart3: serial@130000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00130000 0x1000>;

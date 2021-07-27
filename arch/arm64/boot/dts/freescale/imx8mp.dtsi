@@ -37,6 +37,7 @@
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
+		spi0 = &flexspi;
 	};
 
 	cpus {
@@ -407,7 +408,6 @@
 						  <&clk IMX8MP_CLK_GIC>,
 						  <&clk IMX8MP_CLK_AUDIO_AHB>,
 						  <&clk IMX8MP_CLK_AUDIO_AXI_SRC>,
-						  <&clk IMX8MP_CLK_IPG_AUDIO_ROOT>,
 						  <&clk IMX8MP_AUDIO_PLL1>,
 						  <&clk IMX8MP_AUDIO_PLL2>;
 				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
@@ -423,7 +423,6 @@
 						       <500000000>,
 						       <400000000>,
 						       <800000000>,
-						       <400000000>,
 						       <393216000>,
 						       <361267200>;
 			};
@@ -761,6 +760,21 @@
 				status = "disabled";
 			};
 
+			flexspi: spi@30bb0000 {
+				compatible = "nxp,imx8mp-fspi";
+				reg = <0x30bb0000 0x10000>, <0x8000000 0x10000000>;
+				reg-names = "fspi_base", "fspi_mmap";
+				interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_QSPI_ROOT>,
+					 <&clk IMX8MP_CLK_QSPI_ROOT>;
+				clock-names = "fspi", "fspi_en";
+				assigned-clock-rates = <80000000>;
+				assigned-clocks = <&clk IMX8MP_CLK_QSPI>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			sdma1: dma-controller@30bd0000 {
 				compatible = "fsl,imx8mp-sdma", "fsl,imx8mq-sdma";
 				reg = <0x30bd0000 0x10000>;
@@ -807,9 +821,9 @@
 			eqos: ethernet@30bf0000 {
 				compatible = "nxp,imx8mp-dwmac-eqos", "snps,dwmac-5.10a";
 				reg = <0x30bf0000 0x10000>;
-				interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "eth_wake_irq", "macirq";
+				interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_wake_irq";
 				clocks = <&clk IMX8MP_CLK_ENET_QOS_ROOT>,
 					 <&clk IMX8MP_CLK_QOS_ENET_ROOT>,
 					 <&clk IMX8MP_CLK_ENET_QOS_TIMER>,

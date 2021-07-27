@@ -34,6 +34,7 @@
 #include <linux/if_bridge.h>
 #include <linux/ctype.h>
 #include <linux/bpf.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/avf/virtchnl.h>
 #include <linux/cpu_rmap.h>
 #include <linux/dim.h>
@@ -55,8 +56,10 @@
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
+#include "ice_idc_int.h"
 #include "ice_virtchnl_pf.h"
 #include "ice_sriov.h"
+#include "ice_ptp.h"
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
@@ -72,12 +75,15 @@
 
 #define ICE_DFLT_TRAFFIC_CLASS	BIT(0)
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
-#define ICE_AQ_LEN		64
+#define ICE_AQ_LEN		192
 #define ICE_MBXSQ_LEN		64
+#define ICE_SBQ_LEN		64
 #define ICE_MIN_LAN_TXRX_MSIX	1
 #define ICE_MIN_LAN_OICR_MSIX	1
 #define ICE_MIN_MSIX		(ICE_MIN_LAN_TXRX_MSIX + ICE_MIN_LAN_OICR_MSIX)
 #define ICE_FDIR_MSIX		2
+#define ICE_RDMA_NUM_AEQ_MSIX	4
+#define ICE_MIN_RDMA_MSIX	2
 #define ICE_NO_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
@@ -88,8 +94,9 @@
 #define ICE_MAX_LG_RSS_QS	256
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
+#define ICE_RES_RDMA_VEC_ID	(ICE_RES_MISC_VEC_ID - 1)
 /* All VF control VSIs share the same IRQ, so assign a unique ID for them */
-#define ICE_RES_VF_CTRL_VEC_ID	(ICE_RES_MISC_VEC_ID - 1)
+#define ICE_RES_VF_CTRL_VEC_ID	(ICE_RES_RDMA_VEC_ID - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
 #define ICE_INVAL_VFID		256
 
@@ -203,9 +210,9 @@ enum ice_pf_state {
 	ICE_NEEDS_RESTART,
 	ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
 	ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
-	ICE_PFR_REQ,			/* set by driver and peers */
-	ICE_CORER_REQ,		/* set by driver and peers */
-	ICE_GLOBR_REQ,		/* set by driver and peers */
+	ICE_PFR_REQ,		/* set by driver */
+	ICE_CORER_REQ,		/* set by driver */
+	ICE_GLOBR_REQ,		/* set by driver */
 	ICE_CORER_RECV,		/* set by OICR handler */
 	ICE_GLOBR_RECV,		/* set by OICR handler */
 	ICE_EMPR_RECV,		/* set by OICR handler */
@@ -222,6 +229,7 @@ enum ice_pf_state {
 	ICE_STATE_NOMINAL_CHECK_BITS,
 	ICE_ADMINQ_EVENT_PENDING,
 	ICE_MAILBOXQ_EVENT_PENDING,
+	ICE_SIDEBANDQ_EVENT_PENDING,
 	ICE_MDD_EVENT_PENDING,
 	ICE_VFLR_EVENT_PENDING,
 	ICE_FLTR_OVERFLOW_PROMISC,
@@ -332,9 +340,11 @@ struct ice_vsi {
 	u16 req_rxq;			 /* User requested Rx queues */
 	u16 num_rx_desc;
 	u16 num_tx_desc;
+	u16 qset_handle[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_tc_cfg tc_cfg;
 	struct bpf_prog *xdp_prog;
 	struct ice_ring **xdp_rings;	 /* XDP ring array */
+	unsigned long *af_xdp_zc_qps;	 /* tracks AF_XDP ZC enabled qps */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
 
@@ -373,17 +383,22 @@ struct ice_q_vector {
 
 enum ice_pf_flags {
 	ICE_FLAG_FLTR_SYNC,
+	ICE_FLAG_RDMA_ENA,
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_FLAG_DCB_CAPABLE,
 	ICE_FLAG_DCB_ENA,
 	ICE_FLAG_FD_ENA,
+	ICE_FLAG_PTP_SUPPORTED,		/* PTP is supported by NVM */
+	ICE_FLAG_PTP,			/* PTP is enabled by software */
+	ICE_FLAG_AUX_ENA,
 	ICE_FLAG_ADV_FEATURES,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
 	ICE_FLAG_NO_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
+	ICE_FLAG_MOD_POWER_UNSUPPORTED,
 	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
 	ICE_FLAG_LEGACY_RX,
 	ICE_FLAG_VF_TRUE_PROMISC_ENA,
@@ -439,11 +454,16 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	struct mutex tc_mutex;		/* lock to protect TC changes */
 	u32 msg_enable;
+	struct ice_ptp ptp;
+	u16 num_rdma_msix;		/* Total MSIX vectors for RDMA driver */
+	u16 rdma_base_vector;
 
 	/* spinlock to protect the AdminQ wait list */
 	spinlock_t aq_wait_lock;
 	struct hlist_head aq_wait_list;
 	wait_queue_head_t aq_wait_queue;
+
+	wait_queue_head_t reset_wait_queue;
 
 	u32 hw_csum_rx_error;
 	u16 oicr_idx;		/* Other interrupt cause MSIX vector index */
@@ -471,6 +491,8 @@ struct ice_pf {
 	unsigned long tx_timeout_last_recovery;
 	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
+	struct auxiliary_device *adev;
+	int aux_idx;
 	u32 sw_int_count;
 
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
@@ -547,15 +569,16 @@ static inline void ice_set_ring_xdp(struct ice_ring *ring)
  */
 static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_ring *ring)
 {
+	struct ice_vsi *vsi = ring->vsi;
 	u16 qid = ring->q_index;
 
 	if (ice_ring_is_xdp(ring))
-		qid -= ring->vsi->num_xdp_txq;
+		qid -= vsi->num_xdp_txq;
 
-	if (!ice_is_xdp_ena_vsi(ring->vsi))
+	if (!ice_is_xdp_ena_vsi(vsi) || !test_bit(qid, vsi->af_xdp_zc_qps))
 		return NULL;
 
-	return xsk_get_pool_from_qid(ring->vsi->netdev, qid);
+	return xsk_get_pool_from_qid(vsi->netdev, qid);
 }
 
 /**
@@ -636,6 +659,9 @@ int ice_get_rss_key(struct ice_vsi *vsi, u8 *seed);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
+int ice_plug_aux_dev(struct ice_pf *pf);
+void ice_unplug_aux_dev(struct ice_pf *pf);
+int ice_init_rdma(struct ice_pf *pf);
 const char *ice_stat_str(enum ice_status stat_err);
 const char *ice_aq_str(enum ice_aq_err aq_err);
 bool ice_is_wol_supported(struct ice_hw *hw);
@@ -660,4 +686,25 @@ int ice_open_internal(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
 void ice_service_task_schedule(struct ice_pf *pf);
 
+/**
+ * ice_set_rdma_cap - enable RDMA support
+ * @pf: PF struct
+ */
+static inline void ice_set_rdma_cap(struct ice_pf *pf)
+{
+	if (pf->hw.func_caps.common_cap.rdma && pf->num_rdma_msix) {
+		set_bit(ICE_FLAG_RDMA_ENA, pf->flags);
+		ice_plug_aux_dev(pf);
+	}
+}
+
+/**
+ * ice_clear_rdma_cap - disable RDMA support
+ * @pf: PF struct
+ */
+static inline void ice_clear_rdma_cap(struct ice_pf *pf)
+{
+	ice_unplug_aux_dev(pf);
+	clear_bit(ICE_FLAG_RDMA_ENA, pf->flags);
+}
 #endif /* _ICE_H_ */

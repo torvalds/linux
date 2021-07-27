@@ -1309,7 +1309,7 @@ static int get_osdmap_client_data_v(void **p, void *end,
 			return -EINVAL;
 		}
 
-		/* old osdmap enconding */
+		/* old osdmap encoding */
 		struct_v = 0;
 	}
 
@@ -3010,7 +3010,7 @@ static bool is_valid_crush_name(const char *name)
  * parent, returns 0.
  *
  * Does a linear search, as there are no parent pointers of any
- * kind.  Note that the result is ambigous for items that occur
+ * kind.  Note that the result is ambiguous for items that occur
  * multiple times in the map.
  */
 static int get_immediate_parent(struct crush_map *c, int id,

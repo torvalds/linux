@@ -65,7 +65,7 @@ static void flush_work_handle(struct work_struct *work)
 	 * make sure we signal QP destroy leg that flush QP was completed
 	 * so that it can safely proceed ahead now and destroy QP
 	 */
-	if (atomic_dec_and_test(&hr_qp->refcount))
+	if (refcount_dec_and_test(&hr_qp->refcount))
 		complete(&hr_qp->free);
 }
 
@@ -75,8 +75,23 @@ void init_flush_work(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	flush_work->hr_dev = hr_dev;
 	INIT_WORK(&flush_work->work, flush_work_handle);
-	atomic_inc(&hr_qp->refcount);
+	refcount_inc(&hr_qp->refcount);
 	queue_work(hr_dev->irq_workq, &flush_work->work);
+}
+
+void flush_cqe(struct hns_roce_dev *dev, struct hns_roce_qp *qp)
+{
+	/*
+	 * Hip08 hardware cannot flush the WQEs in SQ/RQ if the QP state
+	 * gets into errored mode. Hence, as a workaround to this
+	 * hardware limitation, driver needs to assist in flushing. But
+	 * the flushing operation uses mailbox to convey the QP state to
+	 * the hardware and which can sleep due to the mutex protection
+	 * around the mailbox calls. Hence, use the deferred flush for
+	 * now.
+	 */
+	if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
+		init_flush_work(dev, qp);
 }
 
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
@@ -87,7 +102,7 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	xa_lock(&hr_dev->qp_table_xa);
 	qp = __hns_roce_qp_lookup(hr_dev, qpn);
 	if (qp)
-		atomic_inc(&qp->refcount);
+		refcount_inc(&qp->refcount);
 	xa_unlock(&hr_dev->qp_table_xa);
 
 	if (!qp) {
@@ -102,13 +117,13 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	     event_type == HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION ||
 	     event_type == HNS_ROCE_EVENT_TYPE_INVALID_XRCETH)) {
 		qp->state = IB_QPS_ERR;
-		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
-			init_flush_work(hr_dev, qp);
+
+		flush_cqe(hr_dev, qp);
 	}
 
 	qp->event(qp, (enum hns_roce_event)event_type);
 
-	if (atomic_dec_and_test(&qp->refcount))
+	if (refcount_dec_and_test(&qp->refcount))
 		complete(&qp->free);
 }
 
@@ -379,7 +394,7 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		list_del(&hr_qp->rq_node);
 
 	xa_lock_irqsave(xa, flags);
-	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
+	__xa_erase(xa, hr_qp->qpn);
 	xa_unlock_irqrestore(xa, flags);
 }
 
@@ -648,9 +663,7 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 
 	if (!cap->max_send_wr || cap->max_send_wr > hr_dev->caps.max_wqes ||
 	    cap->max_send_sge > hr_dev->caps.max_sq_sg) {
-		ibdev_err(ibdev,
-			  "failed to check SQ WR or SGE num, ret = %d.\n",
-			  -EINVAL);
+		ibdev_err(ibdev, "failed to check SQ WR or SGE num.\n");
 		return -EINVAL;
 	}
 
@@ -761,7 +774,7 @@ static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		goto err_inline;
 	}
 	ret = hns_roce_mtr_create(hr_dev, &hr_qp->mtr, &buf_attr,
-				  HNS_HW_PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz,
+				  PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz,
 				  udata, addr);
 	if (ret) {
 		ibdev_err(ibdev, "failed to create WQE mtr, ret = %d.\n", ret);
@@ -826,7 +839,7 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 
 	if (udata) {
 		if (user_qp_has_sdb(hr_dev, init_attr, udata, resp, ucmd)) {
-			ret = hns_roce_db_map_user(uctx, udata, ucmd->sdb_addr,
+			ret = hns_roce_db_map_user(uctx, ucmd->sdb_addr,
 						   &hr_qp->sdb);
 			if (ret) {
 				ibdev_err(ibdev,
@@ -839,7 +852,7 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		}
 
 		if (user_qp_has_rdb(hr_dev, init_attr, udata, resp)) {
-			ret = hns_roce_db_map_user(uctx, udata, ucmd->db_addr,
+			ret = hns_roce_db_map_user(uctx, ucmd->db_addr,
 						   &hr_qp->rdb);
 			if (ret) {
 				ibdev_err(ibdev,
@@ -1076,7 +1089,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	hr_qp->ibqp.qp_num = hr_qp->qpn;
 	hr_qp->event = hns_roce_ib_qp_event;
-	atomic_set(&hr_qp->refcount, 1);
+	refcount_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
 
 	return 0;
@@ -1099,7 +1112,7 @@ err_buf:
 void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			 struct ib_udata *udata)
 {
-	if (atomic_dec_and_test(&hr_qp->refcount))
+	if (refcount_dec_and_test(&hr_qp->refcount))
 		complete(&hr_qp->free);
 	wait_for_completion(&hr_qp->free);
 
@@ -1416,7 +1429,7 @@ bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, u32 nreq,
 	return cur + nreq >= hr_wq->wqe_cnt;
 }
 
-int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
+void hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	unsigned int reserved_from_bot;
@@ -1439,8 +1452,6 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 					       HNS_ROCE_QP_BANK_NUM - 1;
 		hr_dev->qp_table.bank[i].next = hr_dev->qp_table.bank[i].min;
 	}
-
-	return 0;
 }
 
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev)

@@ -119,7 +119,7 @@ bool dal_irq_service_set(
 
 	dal_irq_service_ack(irq_service, source);
 
-	if (info->funcs->set)
+	if (info->funcs && info->funcs->set)
 		return info->funcs->set(irq_service, info, enable);
 
 	dal_irq_service_set_generic(irq_service, info, enable);
@@ -153,7 +153,7 @@ bool dal_irq_service_ack(
 		return false;
 	}
 
-	if (info->funcs->ack)
+	if (info->funcs && info->funcs->ack)
 		return info->funcs->ack(irq_service, info);
 
 	dal_irq_service_ack_generic(irq_service, info);

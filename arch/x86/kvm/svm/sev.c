@@ -19,6 +19,7 @@
 #include <linux/trace_events.h>
 #include <asm/fpu/internal.h>
 
+#include <asm/pkru.h>
 #include <asm/trapnr.h>
 
 #include "x86.h"
@@ -199,9 +200,19 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 	sev->misc_cg = NULL;
 }
 
-static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
+static void sev_decommission(unsigned int handle)
 {
 	struct sev_data_decommission decommission;
+
+	if (!handle)
+		return;
+
+	decommission.handle = handle;
+	sev_guest_decommission(&decommission, NULL);
+}
+
+static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
+{
 	struct sev_data_deactivate deactivate;
 
 	if (!handle)
@@ -214,9 +225,7 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 	sev_guest_deactivate(&deactivate, NULL);
 	up_read(&sev_deactivate_lock);
 
-	/* decommission handle */
-	decommission.handle = handle;
-	sev_guest_decommission(&decommission, NULL);
+	sev_decommission(handle);
 }
 
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -341,8 +350,10 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Bind ASID to this guest */
 	ret = sev_bind_asid(kvm, start.handle, error);
-	if (ret)
+	if (ret) {
+		sev_decommission(start.handle);
 		goto e_free_session;
+	}
 
 	/* return handle to userspace */
 	params.handle = start.handle;
@@ -1103,10 +1114,9 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_start data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->session_len = data.session_len;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
@@ -1215,10 +1225,9 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	struct sev_data_send_update_data data;
 	int ret;
 
+	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
-	if (ret < 0)
-		return ret;
 
 	params->hdr_len = data.hdr_len;
 	params->trans_len = data.trans_len;
@@ -1263,8 +1272,8 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	/* Pin guest memory */
 	guest_page = sev_pin_memory(kvm, params.guest_uaddr & PAGE_MASK,
 				    PAGE_SIZE, &n, 0);
-	if (!guest_page)
-		return -EFAULT;
+	if (IS_ERR(guest_page))
+		return PTR_ERR(guest_page);
 
 	/* allocate memory for header and transport buffer */
 	ret = -ENOMEM;
@@ -1301,8 +1310,9 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 
 	/* Copy packet header to userspace. */
-	ret = copy_to_user((void __user *)(uintptr_t)params.hdr_uaddr, hdr,
-				params.hdr_len);
+	if (copy_to_user((void __user *)(uintptr_t)params.hdr_uaddr, hdr,
+			 params.hdr_len))
+		ret = -EFAULT;
 
 e_free_trans_data:
 	kfree(trans_data);
@@ -1454,11 +1464,12 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data.trans_len = params.trans_len;
 
 	/* Pin guest memory */
-	ret = -EFAULT;
 	guest_page = sev_pin_memory(kvm, params.guest_uaddr & PAGE_MASK,
 				    PAGE_SIZE, &n, 0);
-	if (!guest_page)
+	if (IS_ERR(guest_page)) {
+		ret = PTR_ERR(guest_page);
 		goto e_free_trans;
+	}
 
 	/* The RECEIVE_UPDATE_DATA command requires C-bit to be always set. */
 	data.guest_address = (page_to_pfn(guest_page[0]) << PAGE_SHIFT) + offset;

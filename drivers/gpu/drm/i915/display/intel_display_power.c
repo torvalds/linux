@@ -961,8 +961,9 @@ static void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 static void assert_dmc_loaded(struct drm_i915_private *dev_priv)
 {
 	drm_WARN_ONCE(&dev_priv->drm,
-		      !intel_de_read(dev_priv, DMC_PROGRAM(0)),
-		      "DMC program storage start is NULL\n");
+		      !intel_de_read(dev_priv,
+				     DMC_PROGRAM(dev_priv->dmc.dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)),
+				     "DMC program storage start is NULL\n");
 	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, DMC_SSP_BASE),
 		      "DMC SSP Base Not fine\n");
 	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, DMC_HTP_SKL),

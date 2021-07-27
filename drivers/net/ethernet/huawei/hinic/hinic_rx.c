@@ -118,6 +118,7 @@ static void rx_csum(struct hinic_rxq *rxq, u32 status,
 		skb->ip_summed = CHECKSUM_NONE;
 	}
 }
+
 /**
  * rx_alloc_skb - allocate skb and map it to dma address
  * @rxq: rx queue

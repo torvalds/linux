@@ -200,8 +200,9 @@ endif
 KBUILD_LDFLAGS += -m elf_$(UTS_MACHINE)
 
 ifdef CONFIG_LTO_CLANG
-KBUILD_LDFLAGS	+= -plugin-opt=-code-model=kernel \
-		   -plugin-opt=-stack-alignment=$(if $(CONFIG_X86_32),4,8)
+ifeq ($(shell test $(CONFIG_LLD_VERSION) -lt 130000; echo $$?),0)
+KBUILD_LDFLAGS	+= -plugin-opt=-stack-alignment=$(if $(CONFIG_X86_32),4,8)
+endif
 endif
 
 ifdef CONFIG_X86_NEED_RELOCS
@@ -239,9 +240,6 @@ head-y += arch/x86/kernel/platform-quirks.o
 
 libs-y  += arch/x86/lib/
 
-# See arch/x86/Kbuild for content of core part of the kernel
-core-y += arch/x86/
-
 # drivers-y are linked after core-y
 drivers-$(CONFIG_MATH_EMULATION) += arch/x86/math-emu/
 drivers-$(CONFIG_PCI)            += arch/x86/pci/
@@ -256,7 +254,7 @@ drivers-$(CONFIG_FB) += arch/x86/video/
 
 boot := arch/x86/boot
 
-BOOT_TARGETS = bzdisk fdimage fdimage144 fdimage288 isoimage
+BOOT_TARGETS = bzdisk fdimage fdimage144 fdimage288 hdimage isoimage
 
 PHONY += bzImage $(BOOT_TARGETS)
 
@@ -314,8 +312,9 @@ define archhelp
   echo  '  fdimage		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
   echo  '  fdimage144		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
   echo  '  fdimage288		- Create 2.8MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  hdimage		- Create a BIOS/EFI hard disk image (arch/x86/boot/hdimage)'
   echo  '  isoimage		- Create a boot CD-ROM image (arch/x86/boot/image.iso)'
-  echo  '			  bzdisk/fdimage*/isoimage also accept:'
+  echo  '			  bzdisk/fdimage*/hdimage/isoimage also accept:'
   echo  '			  FDARGS="..."  arguments for the booted kernel'
   echo  '                  	  FDINITRD=file initrd for the booted kernel'
   echo  ''

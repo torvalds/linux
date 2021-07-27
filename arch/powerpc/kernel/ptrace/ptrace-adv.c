@@ -12,7 +12,7 @@ void user_enable_single_step(struct task_struct *task)
 	if (regs != NULL) {
 		task->thread.debug.dbcr0 &= ~DBCR0_BT;
 		task->thread.debug.dbcr0 |= DBCR0_IDM | DBCR0_IC;
-		regs->msr |= MSR_DE;
+		regs_set_return_msr(regs, regs->msr | MSR_DE);
 	}
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
@@ -24,7 +24,7 @@ void user_enable_block_step(struct task_struct *task)
 	if (regs != NULL) {
 		task->thread.debug.dbcr0 &= ~DBCR0_IC;
 		task->thread.debug.dbcr0 = DBCR0_IDM | DBCR0_BT;
-		regs->msr |= MSR_DE;
+		regs_set_return_msr(regs, regs->msr | MSR_DE);
 	}
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
@@ -50,7 +50,7 @@ void user_disable_single_step(struct task_struct *task)
 			 * All debug events were off.....
 			 */
 			task->thread.debug.dbcr0 &= ~DBCR0_IDM;
-			regs->msr &= ~MSR_DE;
+			regs_set_return_msr(regs, regs->msr & ~MSR_DE);
 		}
 	}
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
@@ -82,6 +82,7 @@ int ptrace_get_debugreg(struct task_struct *child, unsigned long addr,
 
 int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned long data)
 {
+	struct pt_regs *regs = task->thread.regs;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	int ret;
 	struct thread_struct *thread = &task->thread;
@@ -112,7 +113,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 		dbcr_dac(task) &= ~(DBCR_DAC1R | DBCR_DAC1W);
 		if (!DBCR_ACTIVE_EVENTS(task->thread.debug.dbcr0,
 					task->thread.debug.dbcr1)) {
-			task->thread.regs->msr &= ~MSR_DE;
+			regs_set_return_msr(regs, regs->msr & ~MSR_DE);
 			task->thread.debug.dbcr0 &= ~DBCR0_IDM;
 		}
 		return 0;
@@ -132,7 +133,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 		dbcr_dac(task) |= DBCR_DAC1R;
 	if (data & 0x2UL)
 		dbcr_dac(task) |= DBCR_DAC1W;
-	task->thread.regs->msr |= MSR_DE;
+	regs_set_return_msr(regs, regs->msr | MSR_DE);
 	return 0;
 }
 
@@ -220,7 +221,7 @@ static long set_instruction_bp(struct task_struct *child,
 	}
 out:
 	child->thread.debug.dbcr0 |= DBCR0_IDM;
-	child->thread.regs->msr |= MSR_DE;
+	regs_set_return_msr(child->thread.regs, child->thread.regs->msr | MSR_DE);
 
 	return slot;
 }
@@ -336,7 +337,7 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 		return -ENOSPC;
 	}
 	child->thread.debug.dbcr0 |= DBCR0_IDM;
-	child->thread.regs->msr |= MSR_DE;
+	regs_set_return_msr(child->thread.regs, child->thread.regs->msr | MSR_DE);
 
 	return slot + 4;
 }
@@ -430,7 +431,7 @@ static int set_dac_range(struct task_struct *child,
 		child->thread.debug.dbcr2  |= DBCR2_DAC12MX;
 	else	/* PPC_BREAKPOINT_MODE_MASK */
 		child->thread.debug.dbcr2  |= DBCR2_DAC12MM;
-	child->thread.regs->msr |= MSR_DE;
+	regs_set_return_msr(child->thread.regs, child->thread.regs->msr | MSR_DE);
 
 	return 5;
 }
@@ -485,7 +486,8 @@ long ppc_del_hwdebug(struct task_struct *child, long data)
 		if (!DBCR_ACTIVE_EVENTS(child->thread.debug.dbcr0,
 					child->thread.debug.dbcr1)) {
 			child->thread.debug.dbcr0 &= ~DBCR0_IDM;
-			child->thread.regs->msr &= ~MSR_DE;
+			regs_set_return_msr(child->thread.regs,
+					child->thread.regs->msr & ~MSR_DE);
 		}
 	}
 	return rc;

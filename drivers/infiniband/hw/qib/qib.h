@@ -521,10 +521,6 @@ struct qib_pportdata {
 
 	struct qib_devdata *dd;
 	struct qib_chippport_specific *cpspec; /* chip-specific per-port */
-	struct kobject pport_kobj;
-	struct kobject pport_cc_kobj;
-	struct kobject sl2vl_kobj;
-	struct kobject diagc_kobj;
 
 	/* GUID for this interface, in network order */
 	__be64 guid;
@@ -1365,13 +1361,11 @@ static inline u32 qib_get_rcvhdrtail(const struct qib_ctxtdata *rcd)
 
 extern const char ib_qib_version[];
 extern const struct attribute_group qib_attr_group;
+extern const struct attribute_group *qib_attr_port_groups[];
 
 int qib_device_create(struct qib_devdata *);
 void qib_device_remove(struct qib_devdata *);
 
-int qib_create_port_files(struct ib_device *ibdev, u32 port_num,
-			  struct kobject *kobj);
-void qib_verbs_unregister_sysfs(struct qib_devdata *);
 /* Hook for sysfs read of QSFP */
 extern int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len);
 

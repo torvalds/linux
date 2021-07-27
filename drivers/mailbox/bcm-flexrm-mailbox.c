@@ -1523,7 +1523,6 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	mbox->regs = devm_ioremap_resource(&pdev->dev, iomem);
 	if (IS_ERR(mbox->regs)) {
 		ret = PTR_ERR(mbox->regs);
-		dev_err(&pdev->dev, "Failed to remap mailbox regs: %d\n", ret);
 		goto fail;
 	}
 	regs_end = mbox->regs + resource_size(iomem);

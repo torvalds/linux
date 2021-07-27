@@ -1022,30 +1022,23 @@ static int ks8851_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
  *
  * Read and check the TX/RX memory selftest information.
  */
-static int ks8851_read_selftest(struct ks8851_net *ks)
+static void ks8851_read_selftest(struct ks8851_net *ks)
 {
 	unsigned both_done = MBIR_TXMBF | MBIR_RXMBF;
-	int ret = 0;
 	unsigned rd;
 
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
 		netdev_warn(ks->netdev, "Memory selftest not finished\n");
-		return 0;
+		return;
 	}
 
-	if (rd & MBIR_TXMBFA) {
+	if (rd & MBIR_TXMBFA)
 		netdev_err(ks->netdev, "TX memory selftest fail\n");
-		ret |= 1;
-	}
 
-	if (rd & MBIR_RXMBFA) {
+	if (rd & MBIR_RXMBFA)
 		netdev_err(ks->netdev, "RX memory selftest fail\n");
-		ret |= 2;
-	}
-
-	return 0;
 }
 
 /* driver bus management functions */

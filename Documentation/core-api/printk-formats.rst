@@ -37,14 +37,13 @@ Integer types
 		u64			%llu or %llx
 
 
-If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
-format specifier of its largest possible type and explicitly cast to it.
+If <type> is architecture-dependent for its size (e.g., cycles_t, tcflag_t) or
+is dependent on a config option for its size (e.g., blk_status_t), use a format
+specifier of its largest possible type and explicitly cast to it.
 
 Example::
 
-	printk("test: sector number/total blocks: %llu/%llu\n",
-		(unsigned long long)sector, (unsigned long long)blockcount);
+	printk("test: latency: %llu cycles\n", (unsigned long long)time);
 
 Reminder: sizeof() returns type size_t.
 
@@ -125,6 +124,17 @@ The ``B`` specifier results in the symbol name with offsets and should be
 used when printing stack backtraces. The specifier takes into
 consideration the effect of compiler optimisations which may occur
 when tail-calls are used and marked with the noreturn GCC attribute.
+
+If the pointer is within a module, the module name and optionally build ID is
+printed after the symbol name with an extra ``b`` appended to the end of the
+specifier.
+
+::
+	%pS	versatile_init+0x0/0x110 [module_name]
+	%pSb	versatile_init+0x0/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+	%pSRb	versatile_init+0x9/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+		(with __builtin_extract_return_addr() translation)
+	%pBb	prev_fn_of_versatile_init+0x88/0x88 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
 
 Probed Pointers from BPF / tracing
 ----------------------------------
@@ -514,9 +524,10 @@ Time and date
 ::
 
 	%pt[RT]			YYYY-mm-ddTHH:MM:SS
+	%pt[RT]s		YYYY-mm-dd HH:MM:SS
 	%pt[RT]d		YYYY-mm-dd
 	%pt[RT]t		HH:MM:SS
-	%pt[RT][dt][r]
+	%pt[RT][dt][r][s]
 
 For printing date and time as represented by::
 
@@ -527,6 +538,10 @@ in human readable format.
 
 By default year will be incremented by 1900 and month by 1.
 Use %pt[RT]r (raw) to suppress this behaviour.
+
+The %pt[RT]s (space) will override ISO 8601 separator by using ' ' (space)
+instead of 'T' (Capital T) between date and time. It won't have any effect
+when date or time is omitted.
 
 Passed by reference.
 

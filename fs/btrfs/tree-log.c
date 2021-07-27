@@ -1574,7 +1574,9 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			if (ret)
 				goto out;
 
-			btrfs_update_inode(trans, root, BTRFS_I(inode));
+			ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+			if (ret)
+				goto out;
 		}
 
 		ref_ptr = (unsigned long)(ref_ptr + ref_struct_size) + namelen;
@@ -1749,7 +1751,9 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (nlink != inode->i_nlink) {
 		set_nlink(inode, nlink);
-		btrfs_update_inode(trans, root, BTRFS_I(inode));
+		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+		if (ret)
+			goto out;
 	}
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 
@@ -1787,6 +1791,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 
 		if (ret == 1) {
+			ret = 0;
 			if (path->slots[0] == 0)
 				break;
 			path->slots[0]--;
@@ -1799,17 +1804,19 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_del_item(trans, root, path);
 		if (ret)
-			goto out;
+			break;
 
 		btrfs_release_path(path);
 		inode = read_one_inode(root, key.offset);
-		if (!inode)
-			return -EIO;
+		if (!inode) {
+			ret = -EIO;
+			break;
+		}
 
 		ret = fixup_inode_link_count(trans, root, inode);
 		iput(inode);
 		if (ret)
-			goto out;
+			break;
 
 		/*
 		 * fixup on a directory may create new entries,
@@ -1818,8 +1825,6 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 		 */
 		key.offset = (u64)-1;
 	}
-	ret = 0;
-out:
 	btrfs_release_path(path);
 	return ret;
 }
@@ -3168,7 +3173,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		if (!log_root_tree->node) {
 			ret = btrfs_alloc_log_tree_node(trans, log_root_tree);
 			if (ret) {
-				mutex_unlock(&fs_info->tree_log_mutex);
+				mutex_unlock(&fs_info->tree_root->log_mutex);
 				goto out;
 			}
 		}
@@ -3297,6 +3302,22 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 *    begins and releases it only after writing its superblock.
 	 */
 	mutex_lock(&fs_info->tree_log_mutex);
+
+	/*
+	 * The previous transaction writeout phase could have failed, and thus
+	 * marked the fs in an error state.  We must not commit here, as we
+	 * could have updated our generation in the super_for_commit and
+	 * writing the super here would result in transid mismatches.  If there
+	 * is an error here just bail.
+	 */
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
+		ret = -EIO;
+		btrfs_set_log_full_commit(trans);
+		btrfs_abort_transaction(trans, ret);
+		mutex_unlock(&fs_info->tree_log_mutex);
+		goto out_wake_log_root;
+	}
+
 	btrfs_set_super_log_root(fs_info->super_for_commit, log_root_start);
 	btrfs_set_super_log_root_level(fs_info->super_for_commit, log_root_level);
 	ret = write_all_supers(fs_info, 1);
@@ -4447,7 +4468,8 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 				ret = btrfs_truncate_inode_items(trans,
 							 root->log_root,
 							 inode, truncate_offset,
-							 BTRFS_EXTENT_DATA_KEY);
+							 BTRFS_EXTENT_DATA_KEY,
+							 NULL);
 			} while (ret == -EAGAIN);
 			if (ret)
 				goto out;
@@ -5395,7 +5417,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 					  &inode->runtime_flags);
 				while(1) {
 					ret = btrfs_truncate_inode_items(trans,
-						log, inode, 0, 0);
+						log, inode, 0, 0, NULL);
 					if (ret != -EAGAIN)
 						break;
 				}
@@ -5445,13 +5467,23 @@ log_extents:
 	btrfs_release_path(dst_path);
 	if (need_log_inode_item) {
 		err = log_inode_item(trans, log, dst_path, inode);
-		if (!err && !xattrs_logged) {
-			err = btrfs_log_all_xattrs(trans, root, inode, path,
-						   dst_path);
-			btrfs_release_path(path);
-		}
 		if (err)
 			goto out_unlock;
+		/*
+		 * If we are doing a fast fsync and the inode was logged before
+		 * in this transaction, we don't need to log the xattrs because
+		 * they were logged before. If xattrs were added, changed or
+		 * deleted since the last time we logged the inode, then we have
+		 * already logged them because the inode had the runtime flag
+		 * BTRFS_INODE_COPY_EVERYTHING set.
+		 */
+		if (!xattrs_logged && inode->logged_trans < trans->transid) {
+			err = btrfs_log_all_xattrs(trans, root, inode, path,
+						   dst_path);
+			if (err)
+				goto out_unlock;
+			btrfs_release_path(path);
+		}
 	}
 	if (fast_search) {
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path,
@@ -5494,16 +5526,29 @@ log_extents:
 		spin_lock(&inode->lock);
 		inode->logged_trans = trans->transid;
 		/*
-		 * Don't update last_log_commit if we logged that an inode exists
-		 * after it was loaded to memory (full_sync bit set).
-		 * This is to prevent data loss when we do a write to the inode,
-		 * then the inode gets evicted after all delalloc was flushed,
-		 * then we log it exists (due to a rename for example) and then
-		 * fsync it. This last fsync would do nothing (not logging the
-		 * extents previously written).
+		 * Don't update last_log_commit if we logged that an inode exists.
+		 * We do this for two reasons:
+		 *
+		 * 1) We might have had buffered writes to this inode that were
+		 *    flushed and had their ordered extents completed in this
+		 *    transaction, but we did not previously log the inode with
+		 *    LOG_INODE_ALL. Later the inode was evicted and after that
+		 *    it was loaded again and this LOG_INODE_EXISTS log operation
+		 *    happened. We must make sure that if an explicit fsync against
+		 *    the inode is performed later, it logs the new extents, an
+		 *    updated inode item, etc, and syncs the log. The same logic
+		 *    applies to direct IO writes instead of buffered writes.
+		 *
+		 * 2) When we log the inode with LOG_INODE_EXISTS, its inode item
+		 *    is logged with an i_size of 0 or whatever value was logged
+		 *    before. If later the i_size of the inode is increased by a
+		 *    truncate operation, the log is synced through an fsync of
+		 *    some other inode and then finally an explicit fsync against
+		 *    this inode is made, we must make sure this fsync logs the
+		 *    inode with the new i_size, the hole between old i_size and
+		 *    the new i_size, and syncs the log.
 		 */
-		if (inode_only != LOG_INODE_EXISTS ||
-		    !test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags))
+		if (inode_only != LOG_INODE_EXISTS)
 			inode->last_log_commit = inode->last_sub_trans;
 		spin_unlock(&inode->lock);
 	}
@@ -6350,6 +6395,7 @@ next:
 error:
 	if (wc.trans)
 		btrfs_end_transaction(wc.trans);
+	clear_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 	btrfs_free_path(path);
 	return ret;
 }

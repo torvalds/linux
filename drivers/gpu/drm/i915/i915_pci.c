@@ -845,7 +845,6 @@ static const struct intel_device_info icl_info = {
 static const struct intel_device_info ehl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
-	.require_force_probe = 1,
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.ppgtt_size = 36,
 };
@@ -853,7 +852,6 @@ static const struct intel_device_info ehl_info = {
 static const struct intel_device_info jsl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_JASPERLAKE),
-	.require_force_probe = 1,
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.ppgtt_size = 36,
 };
@@ -939,15 +937,48 @@ static const struct intel_device_info adl_s_info = {
 	.dma_mask_size = 46,
 };
 
+#define XE_LPD_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
+		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
+		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
+	}
+
 #define XE_LPD_FEATURES \
-	.display.ver = 13,						\
-	.display.has_psr_hw_tracking = 0,				\
-	.abox_mask = GENMASK(1, 0),					\
-	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
-	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |	\
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),			\
-	.dbuf.size = 4096,						\
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) | BIT(DBUF_S4)
+	.abox_mask = GENMASK(1, 0),						\
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 },		\
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |		\
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),				\
+	.dbuf.size = 4096,							\
+	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |		\
+		BIT(DBUF_S4),							\
+	.display.has_ddi = 1,							\
+	.display.has_dmc = 1,							\
+	.display.has_dp_mst = 1,						\
+	.display.has_dsb = 1,							\
+	.display.has_dsc = 1,							\
+	.display.has_fbc = 1,							\
+	.display.has_fpga_dbg = 1,						\
+	.display.has_hdcp = 1,							\
+	.display.has_hotplug = 1,						\
+	.display.has_ipc = 1,							\
+	.display.has_psr = 1,							\
+	.display.ver = 13,							\
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
+	.pipe_offsets = {							\
+		[TRANSCODER_A] = PIPE_A_OFFSET,					\
+		[TRANSCODER_B] = PIPE_B_OFFSET,					\
+		[TRANSCODER_C] = PIPE_C_OFFSET,					\
+		[TRANSCODER_D] = PIPE_D_OFFSET,					\
+	},									\
+	.trans_offsets = {							\
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET,				\
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET,				\
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET,				\
+		[TRANSCODER_D] = TRANSCODER_D_OFFSET,				\
+	},									\
+	XE_LPD_CURSOR_OFFSETS
 
 static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,
@@ -956,6 +987,7 @@ static const struct intel_device_info adl_p_info = {
 	.has_cdclk_crawl = 1,
 	.require_force_probe = 1,
 	.display.has_modular_fia = 1,
+	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.ppgtt_size = 48,

@@ -261,7 +261,6 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = &wm831x->pdata;
 	struct wm831x_gpio *wm831x_gpio;
-	int ret;
 
 	wm831x_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm831x_gpio),
 				   GFP_KERNEL);
@@ -280,16 +279,7 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	wm831x_gpio->gpio_chip.of_node = wm831x->dev->of_node;
 #endif
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &wm831x_gpio->gpio_chip,
-				     wm831x_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, wm831x_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &wm831x_gpio->gpio_chip, wm831x_gpio);
 }
 
 static struct platform_driver wm831x_gpio_driver = {

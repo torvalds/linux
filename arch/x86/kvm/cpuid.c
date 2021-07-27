@@ -202,10 +202,10 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
 
 	/*
-	 * Except for the MMU, which needs to be reset after any vendor
-	 * specific adjustments to the reserved GPA bits.
+	 * Except for the MMU, which needs to do its thing any vendor specific
+	 * adjustments to the reserved GPA bits.
 	 */
-	kvm_mmu_reset_context(vcpu);
+	kvm_mmu_after_set_cpuid(vcpu);
 }
 
 static int is_efer_nx(void)
@@ -655,6 +655,7 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 		if (kvm_cpu_cap_has(X86_FEATURE_RDTSCP))
 			entry->ecx = F(RDPID);
 		++array->nent;
+		break;
 	default:
 		break;
 	}
@@ -764,7 +765,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		edx.split.num_counters_fixed = min(cap.num_counters_fixed, MAX_FIXED_COUNTERS);
 		edx.split.bit_width_fixed = cap.bit_width_fixed;
-		edx.split.anythread_deprecated = 1;
+		if (cap.version)
+			edx.split.anythread_deprecated = 1;
 		edx.split.reserved1 = 0;
 		edx.split.reserved2 = 0;
 
@@ -939,8 +941,21 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		unsigned virt_as = max((entry->eax >> 8) & 0xff, 48U);
 		unsigned phys_as = entry->eax & 0xff;
 
-		if (!g_phys_as)
+		/*
+		 * If TDP (NPT) is disabled use the adjusted host MAXPHYADDR as
+		 * the guest operates in the same PA space as the host, i.e.
+		 * reductions in MAXPHYADDR for memory encryption affect shadow
+		 * paging, too.
+		 *
+		 * If TDP is enabled but an explicit guest MAXPHYADDR is not
+		 * provided, use the raw bare metal MAXPHYADDR as reductions to
+		 * the HPAs do not affect GPAs.
+		 */
+		if (!tdp_enabled)
+			g_phys_as = boot_cpu_data.x86_phys_bits;
+		else if (!g_phys_as)
 			g_phys_as = phys_as;
+
 		entry->eax = g_phys_as | (virt_as << 8);
 		entry->edx = 0;
 		cpuid_entry_override(entry, CPUID_8000_0008_EBX);
@@ -963,12 +978,18 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	case 0x8000001a:
 	case 0x8000001e:
 		break;
-	/* Support memory encryption cpuid if host supports it */
 	case 0x8000001F:
-		if (!kvm_cpu_cap_has(X86_FEATURE_SEV))
+		if (!kvm_cpu_cap_has(X86_FEATURE_SEV)) {
 			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
-		else
+		} else {
 			cpuid_entry_override(entry, CPUID_8000_001F_EAX);
+
+			/*
+			 * Enumerate '0' for "PA bits reduction", the adjusted
+			 * MAXPHYADDR is enumerated directly (see 0x80000008).
+			 */
+			entry->ebx &= ~GENMASK(11, 6);
+		}
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:

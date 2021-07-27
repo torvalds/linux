@@ -53,14 +53,12 @@ properties:
       apb and smi are mandatory. the async is only for generation 1 smi HW.
       gals(global async local sync) also is optional, see below.
     minItems: 2
-    maxItems: 4
     items:
       - description: apb is Advanced Peripheral Bus clock, It's the clock for
           setting the register.
       - description: smi is the clock for transfer data and command.
-      - description: async is asynchronous clock, it help transform the smi
-          clock into the emi clock domain.
-      - description: gals0 is the path0 clock of gals.
+      - description: Either asynchronous clock to help transform the smi clock
+          into the emi clock domain on Gen1 h/w, or the path0 clock of gals.
       - description: gals1 is the path1 clock of gals.
 
   clock-names:

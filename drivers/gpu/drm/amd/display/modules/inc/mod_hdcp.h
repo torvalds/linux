@@ -97,9 +97,7 @@ enum mod_hdcp_status {
 	MOD_HDCP_STATUS_HDCP2_REAUTH_REQUEST,
 	MOD_HDCP_STATUS_HDCP2_REAUTH_LINK_INTEGRITY_FAILURE,
 	MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	MOD_HDCP_STATUS_UNSUPPORTED_PSP_VER_FAILURE,
-#endif
 };
 
 struct mod_hdcp_displayport {
@@ -123,13 +121,11 @@ enum mod_hdcp_display_state {
 	MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 struct mod_hdcp_psp_caps {
 	uint8_t dtm_v3_supported;
 	uint8_t opm_state_query_supported;
 };
 
-#endif
 enum mod_hdcp_display_disable_option {
 	MOD_HDCP_DISPLAY_NOT_DISABLE = 0,
 	MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION,
@@ -162,9 +158,7 @@ struct mod_hdcp_ddc {
 struct mod_hdcp_psp {
 	void *handle;
 	void *funcs;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	struct mod_hdcp_psp_caps caps;
-#endif
 };
 
 struct mod_hdcp_display_adjustment {
@@ -240,9 +234,7 @@ struct mod_hdcp_display {
 	uint8_t index;
 	uint8_t controller;
 	uint8_t dig_fe;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	uint8_t stream_enc_idx;
-#endif
 	union {
 		uint8_t vc_id;
 	};
@@ -255,11 +247,9 @@ struct mod_hdcp_link {
 	enum mod_hdcp_operation_mode mode;
 	uint8_t dig_be;
 	uint8_t ddc_line;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	uint8_t link_enc_idx;
 	uint8_t phy_idx;
 	uint8_t hdcp_supported_informational;
-#endif
 	union {
 		struct mod_hdcp_displayport dp;
 		struct mod_hdcp_hdmi hdmi;

@@ -47,6 +47,14 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 	id->nows = to0based(ql->io_opt / ql->logical_block_size);
 }
 
+void nvmet_bdev_ns_disable(struct nvmet_ns *ns)
+{
+	if (ns->bdev) {
+		blkdev_put(ns->bdev, FMODE_WRITE | FMODE_READ);
+		ns->bdev = NULL;
+	}
+}
+
 static void nvmet_bdev_ns_enable_integrity(struct nvmet_ns *ns)
 {
 	struct blk_integrity *bi = bdev_get_integrity(ns->bdev);
@@ -86,15 +94,15 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
 	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY_T10))
 		nvmet_bdev_ns_enable_integrity(ns);
 
-	return 0;
-}
-
-void nvmet_bdev_ns_disable(struct nvmet_ns *ns)
-{
-	if (ns->bdev) {
-		blkdev_put(ns->bdev, FMODE_WRITE | FMODE_READ);
-		ns->bdev = NULL;
+	if (bdev_is_zoned(ns->bdev)) {
+		if (!nvmet_bdev_zns_enable(ns)) {
+			nvmet_bdev_ns_disable(ns);
+			return -EINVAL;
+		}
+		ns->csi = NVME_CSI_ZNS;
 	}
+
+	return 0;
 }
 
 void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns)
@@ -102,7 +110,7 @@ void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns)
 	ns->size = i_size_read(ns->bdev->bd_inode);
 }
 
-static u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
+u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 {
 	u16 status = NVME_SC_SUCCESS;
 
@@ -164,8 +172,7 @@ static void nvmet_bio_done(struct bio *bio)
 	struct nvmet_req *req = bio->bi_private;
 
 	nvmet_req_complete(req, blk_to_nvme_status(req, bio->bi_status));
-	if (bio != &req->b.inline_bio)
-		bio_put(bio);
+	nvmet_req_bio_put(req, bio);
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
@@ -174,11 +181,10 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 {
 	struct blk_integrity *bi;
 	struct bio_integrity_payload *bip;
-	struct block_device *bdev = req->ns->bdev;
 	int rc;
 	size_t resid, len;
 
-	bi = bdev_get_integrity(bdev);
+	bi = bdev_get_integrity(req->ns->bdev);
 	if (unlikely(!bi)) {
 		pr_err("Unable to locate bio_integrity\n");
 		return -ENODEV;
@@ -430,9 +436,7 @@ static void nvmet_bdev_execute_write_zeroes(struct nvmet_req *req)
 
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req)
 {
-	struct nvme_command *cmd = req->cmd;
-
-	switch (cmd->common.opcode) {
+	switch (req->cmd->common.opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 		req->execute = nvmet_bdev_execute_rw;

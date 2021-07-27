@@ -31,7 +31,7 @@
  * Windows/Mac drivers do send a couple of such frames to the device
  * during initialisation, with protocol set to 0x0906 or 0x0b06 and (what
  * seems to be) a flag in the .dummy_flags.  This doesn't seem necessary
- * for modem operation but can possibly be used for GPS or other funcitons.
+ * for modem operation but can possibly be used for GPS or other functions.
  */
 
 struct vl600_frame_hdr {
@@ -72,7 +72,7 @@ static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* ARP packets don't go through, but they're also of no use.  The
 	 * subnet has only two hosts anyway: us and the gateway / DHCP
 	 * server (probably simulated by modem firmware or network operator)
-	 * whose address changes everytime we connect to the intarwebz and
+	 * whose address changes every time we connect to the intarwebz and
 	 * who doesn't bother answering ARP requests either.  So hardware
 	 * addresses have no meaning, the destination and the source of every
 	 * packet depend only on whether it is on the IN or OUT endpoint.  */

@@ -412,8 +412,8 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 		 int override_rlimit, const unsigned int sigqueue_flags)
 {
 	struct sigqueue *q = NULL;
-	struct user_struct *user;
-	int sigpending;
+	struct ucounts *ucounts = NULL;
+	long sigpending;
 
 	/*
 	 * Protect access to @t credentials. This can go away when all
@@ -424,77 +424,50 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 	 * changes from/to zero.
 	 */
 	rcu_read_lock();
-	user = __task_cred(t)->user;
-	sigpending = atomic_inc_return(&user->sigpending);
-	if (sigpending == 1)
-		get_uid(user);
+	ucounts = task_ucounts(t);
+	sigpending = inc_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_SIGPENDING, 1);
+	switch (sigpending) {
+	case 1:
+		if (likely(get_ucounts(ucounts)))
+			break;
+		fallthrough;
+	case LONG_MAX:
+		/*
+		 * we need to decrease the ucount in the userns tree on any
+		 * failure to avoid counts leaking.
+		 */
+		dec_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_SIGPENDING, 1);
+		rcu_read_unlock();
+		return NULL;
+	}
 	rcu_read_unlock();
 
 	if (override_rlimit || likely(sigpending <= task_rlimit(t, RLIMIT_SIGPENDING))) {
-		/*
-		 * Preallocation does not hold sighand::siglock so it can't
-		 * use the cache. The lockless caching requires that only
-		 * one consumer and only one producer run at a time.
-		 */
-		q = READ_ONCE(t->sigqueue_cache);
-		if (!q || sigqueue_flags)
-			q = kmem_cache_alloc(sigqueue_cachep, gfp_flags);
-		else
-			WRITE_ONCE(t->sigqueue_cache, NULL);
+		q = kmem_cache_alloc(sigqueue_cachep, gfp_flags);
 	} else {
 		print_dropped_signal(sig);
 	}
 
 	if (unlikely(q == NULL)) {
-		if (atomic_dec_and_test(&user->sigpending))
-			free_uid(user);
+		if (dec_rlimit_ucounts(ucounts, UCOUNT_RLIMIT_SIGPENDING, 1))
+			put_ucounts(ucounts);
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = sigqueue_flags;
-		q->user = user;
+		q->ucounts = ucounts;
 	}
-
 	return q;
-}
-
-void exit_task_sigqueue_cache(struct task_struct *tsk)
-{
-	/* Race free because @tsk is mopped up */
-	struct sigqueue *q = tsk->sigqueue_cache;
-
-	if (q) {
-		tsk->sigqueue_cache = NULL;
-		/*
-		 * Hand it back to the cache as the task might
-		 * be self reaping which would leak the object.
-		 */
-		 kmem_cache_free(sigqueue_cachep, q);
-	}
-}
-
-static void sigqueue_cache_or_free(struct sigqueue *q)
-{
-	/*
-	 * Cache one sigqueue per task. This pairs with the consumer side
-	 * in __sigqueue_alloc() and needs READ/WRITE_ONCE() to prevent the
-	 * compiler from store tearing and to tell KCSAN that the data race
-	 * is intentional when run without holding current->sighand->siglock,
-	 * which is fine as current obviously cannot run __sigqueue_free()
-	 * concurrently.
-	 */
-	if (!READ_ONCE(current->sigqueue_cache))
-		WRITE_ONCE(current->sigqueue_cache, q);
-	else
-		kmem_cache_free(sigqueue_cachep, q);
 }
 
 static void __sigqueue_free(struct sigqueue *q)
 {
 	if (q->flags & SIGQUEUE_PREALLOC)
 		return;
-	if (atomic_dec_and_test(&q->user->sigpending))
-		free_uid(q->user);
-	sigqueue_cache_or_free(q);
+	if (q->ucounts && dec_rlimit_ucounts(q->ucounts, UCOUNT_RLIMIT_SIGPENDING, 1)) {
+		put_ucounts(q->ucounts);
+		q->ucounts = NULL;
+	}
+	kmem_cache_free(sigqueue_cachep, q);
 }
 
 void flush_sigqueue(struct sigpending *queue)
@@ -2869,6 +2842,8 @@ static void signal_delivered(struct ksignal *ksig, int stepping)
 	if (!(ksig->ka.sa.sa_flags & SA_NODEFER))
 		sigaddset(&blocked, ksig->sig);
 	set_current_blocked(&blocked);
+	if (current->sas_ss_flags & SS_AUTODISARM)
+		sas_ss_reset(current);
 	tracehook_signal_handler(stepping);
 }
 
@@ -4187,11 +4162,7 @@ int __save_altstack(stack_t __user *uss, unsigned long sp)
 	int err = __put_user((void __user *)t->sas_ss_sp, &uss->ss_sp) |
 		__put_user(t->sas_ss_flags, &uss->ss_flags) |
 		__put_user(t->sas_ss_size, &uss->ss_size);
-	if (err)
-		return err;
-	if (t->sas_ss_flags & SS_AUTODISARM)
-		sas_ss_reset(t);
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_COMPAT
@@ -4246,11 +4217,7 @@ int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
 			 &uss->ss_sp) |
 		__put_user(t->sas_ss_flags, &uss->ss_flags) |
 		__put_user(t->sas_ss_size, &uss->ss_size);
-	if (err)
-		return err;
-	if (t->sas_ss_flags & SS_AUTODISARM)
-		sas_ss_reset(t);
-	return 0;
+	return err;
 }
 #endif
 
@@ -4719,7 +4686,7 @@ void kdb_send_sig(struct task_struct *t, int sig)
 	}
 	new_t = kdb_prev_t != t;
 	kdb_prev_t = t;
-	if (t->state != TASK_RUNNING && new_t) {
+	if (!task_is_running(t) && new_t) {
 		spin_unlock(&t->sighand->siglock);
 		kdb_printf("Process is not RUNNING, sending a signal from "
 			   "kdb risks deadlock\n"

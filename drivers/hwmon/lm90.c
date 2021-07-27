@@ -465,6 +465,7 @@ enum lm90_temp11_reg_index {
 
 struct lm90_data {
 	struct i2c_client *client;
+	struct device *hwmon_dev;
 	u32 channel_config[4];
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[3];
@@ -1028,8 +1029,11 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 	int err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
-	if (data->kind == lm99 && index <= 2)
+	if (data->kind == lm99 && index <= 2) {
+		/* prevent integer underflow */
+		val = max(val, -128000l);
 		val -= 16000;
+	}
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp11[index] = temp_to_u16_adt7461(data, val);
@@ -1088,8 +1092,11 @@ static int lm90_set_temp8(struct lm90_data *data, int index, long val)
 	int err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
-	if (data->kind == lm99 && index == 3)
+	if (data->kind == lm99 && index == 3) {
+		/* prevent integer underflow */
+		val = max(val, -128000l);
 		val -= 16000;
+	}
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp8[index] = temp_to_u8_adt7461(data, val);
@@ -1135,6 +1142,9 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 		temp = temp_from_u8(data->temp8[LOCAL_CRIT]);
 	else
 		temp = temp_from_s8(data->temp8[LOCAL_CRIT]);
+
+	/* prevent integer underflow */
+	val = max(val, -128000l);
 
 	data->temp_hyst = hyst_to_reg(temp - val);
 	err = i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
@@ -1703,6 +1713,13 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	if (data->kind == max6696)
 		config &= ~0x08;
 
+	/*
+	 * Interrupt is enabled by default on reset, but it may be disabled
+	 * by bootloader, unmask it.
+	 */
+	if (client->irq)
+		config &= ~0x80;
+
 	config &= 0xBF;	/* run */
 	lm90_update_confreg(data, config);
 
@@ -1731,22 +1748,41 @@ static bool lm90_is_tripped(struct i2c_client *client, u16 *status)
 
 	if ((st & (LM90_STATUS_LLOW | LM90_STATUS_LHIGH | LM90_STATUS_LTHRM)) ||
 	    (st2 & MAX6696_STATUS2_LOT2))
-		dev_warn(&client->dev,
-			 "temp%d out of range, please check!\n", 1);
+		dev_dbg(&client->dev,
+			"temp%d out of range, please check!\n", 1);
 	if ((st & (LM90_STATUS_RLOW | LM90_STATUS_RHIGH | LM90_STATUS_RTHRM)) ||
 	    (st2 & MAX6696_STATUS2_ROT2))
-		dev_warn(&client->dev,
-			 "temp%d out of range, please check!\n", 2);
+		dev_dbg(&client->dev,
+			"temp%d out of range, please check!\n", 2);
 	if (st & LM90_STATUS_ROPEN)
-		dev_warn(&client->dev,
-			 "temp%d diode open, please check!\n", 2);
+		dev_dbg(&client->dev,
+			"temp%d diode open, please check!\n", 2);
 	if (st2 & (MAX6696_STATUS2_R2LOW | MAX6696_STATUS2_R2HIGH |
 		   MAX6696_STATUS2_R2THRM | MAX6696_STATUS2_R2OT2))
-		dev_warn(&client->dev,
-			 "temp%d out of range, please check!\n", 3);
+		dev_dbg(&client->dev,
+			"temp%d out of range, please check!\n", 3);
 	if (st2 & MAX6696_STATUS2_R2OPEN)
-		dev_warn(&client->dev,
-			 "temp%d diode open, please check!\n", 3);
+		dev_dbg(&client->dev,
+			"temp%d diode open, please check!\n", 3);
+
+	if (st & LM90_STATUS_LLOW)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_min, 0);
+	if (st & LM90_STATUS_RLOW)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_min, 1);
+	if (st2 & MAX6696_STATUS2_R2LOW)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_min, 2);
+	if (st & LM90_STATUS_LHIGH)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_max, 0);
+	if (st & LM90_STATUS_RHIGH)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_max, 1);
+	if (st2 & MAX6696_STATUS2_R2HIGH)
+		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+				   hwmon_temp_max, 2);
 
 	return true;
 }
@@ -1904,12 +1940,13 @@ static int lm90_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
+	data->hwmon_dev = hwmon_dev;
+
 	if (client->irq) {
 		dev_dbg(dev, "IRQ: %d\n", client->irq);
 		err = devm_request_threaded_irq(dev, client->irq,
 						NULL, lm90_irq_thread,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-						"lm90", client);
+						IRQF_ONESHOT, "lm90", client);
 		if (err < 0) {
 			dev_err(dev, "cannot request IRQ %d\n", client->irq);
 			return err;
@@ -1941,15 +1978,40 @@ static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 			lm90_update_confreg(data, data->config | 0x80);
 		}
 	} else {
-		dev_info(&client->dev, "Everything OK\n");
+		dev_dbg(&client->dev, "Everything OK\n");
 	}
 }
+
+static int __maybe_unused lm90_suspend(struct device *dev)
+{
+	struct lm90_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	if (client->irq)
+		disable_irq(client->irq);
+
+	return 0;
+}
+
+static int __maybe_unused lm90_resume(struct device *dev)
+{
+	struct lm90_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	if (client->irq)
+		enable_irq(client->irq);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(lm90_pm_ops, lm90_suspend, lm90_resume);
 
 static struct i2c_driver lm90_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm90",
 		.of_match_table = of_match_ptr(lm90_of_match),
+		.pm	= &lm90_pm_ops,
 	},
 	.probe_new	= lm90_probe,
 	.alert		= lm90_alert,

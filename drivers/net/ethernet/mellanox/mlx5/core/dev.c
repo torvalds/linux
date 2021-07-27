@@ -303,6 +303,7 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 	int ret = 0, i;
 
 	mutex_lock(&mlx5_intf_mutex);
+	priv->flags &= ~MLX5_PRIV_FLAGS_DETACH;
 	for (i = 0; i < ARRAY_SIZE(mlx5_adev_devices); i++) {
 		if (!priv->adev[i]) {
 			bool is_supported = false;
@@ -320,6 +321,16 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 			}
 		} else {
 			adev = &priv->adev[i]->adev;
+
+			/* Pay attention that this is not PCI driver that
+			 * mlx5_core_dev is connected, but auxiliary driver.
+			 *
+			 * Here we can race of module unload with devlink
+			 * reload, but we don't need to take extra lock because
+			 * we are holding global mlx5_intf_mutex.
+			 */
+			if (!adev->dev.driver)
+				continue;
 			adrv = to_auxiliary_drv(adev->dev.driver);
 
 			if (adrv->resume)
@@ -350,6 +361,10 @@ void mlx5_detach_device(struct mlx5_core_dev *dev)
 			continue;
 
 		adev = &priv->adev[i]->adev;
+		/* Auxiliary driver was unbind manually through sysfs */
+		if (!adev->dev.driver)
+			goto skip_suspend;
+
 		adrv = to_auxiliary_drv(adev->dev.driver);
 
 		if (adrv->suspend) {
@@ -357,9 +372,11 @@ void mlx5_detach_device(struct mlx5_core_dev *dev)
 			continue;
 		}
 
+skip_suspend:
 		del_adev(&priv->adev[i]->adev);
 		priv->adev[i] = NULL;
 	}
+	priv->flags |= MLX5_PRIV_FLAGS_DETACH;
 	mutex_unlock(&mlx5_intf_mutex);
 }
 
@@ -448,6 +465,8 @@ int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	lockdep_assert_held(&mlx5_intf_mutex);
+	if (priv->flags & MLX5_PRIV_FLAGS_DETACH)
+		return 0;
 
 	delete_drivers(dev);
 	if (priv->flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)

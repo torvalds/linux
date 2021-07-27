@@ -78,6 +78,7 @@ static void _scsih_pcie_device_remove_from_sml(struct MPT3SAS_ADAPTER *ioc,
 static void
 _scsih_pcie_check_device(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 static u8 _scsih_check_for_pending_tm(struct MPT3SAS_ADAPTER *ioc, u16 smid);
+static void _scsih_complete_devices_scanning(struct MPT3SAS_ADAPTER *ioc);
 
 /* global parameters */
 LIST_HEAD(mpt3sas_ioc_list);
@@ -3631,8 +3632,6 @@ _scsih_error_recovery_delete_devices(struct MPT3SAS_ADAPTER *ioc)
 {
 	struct fw_event_work *fw_event;
 
-	if (ioc->is_driver_loading)
-		return;
 	fw_event = alloc_fw_event_work(0);
 	if (!fw_event)
 		return;
@@ -3693,10 +3692,53 @@ _scsih_fw_event_cleanup_queue(struct MPT3SAS_ADAPTER *ioc)
 	if ((list_empty(&ioc->fw_event_list) && !ioc->current_event) ||
 	    !ioc->firmware_event_thread)
 		return;
+	/*
+	 * Set current running event as ignore, so that
+	 * current running event will exit quickly.
+	 * As diag reset has occurred it is of no use
+	 * to process remaining stale event data entries.
+	 */
+	if (ioc->shost_recovery && ioc->current_event)
+		ioc->current_event->ignore = 1;
 
 	ioc->fw_events_cleanup = 1;
 	while ((fw_event = dequeue_next_fw_event(ioc)) ||
 	     (fw_event = ioc->current_event)) {
+
+		/*
+		 * Don't call cancel_work_sync() for current_event
+		 * other than MPT3SAS_REMOVE_UNRESPONDING_DEVICES;
+		 * otherwise we may observe deadlock if current
+		 * hard reset issued as part of processing the current_event.
+		 *
+		 * Orginal logic of cleaning the current_event is added
+		 * for handling the back to back host reset issued by the user.
+		 * i.e. during back to back host reset, driver use to process
+		 * the two instances of MPT3SAS_REMOVE_UNRESPONDING_DEVICES
+		 * event back to back and this made the drives to unregister
+		 * the devices from SML.
+		 */
+
+		if (fw_event == ioc->current_event &&
+		    ioc->current_event->event !=
+		    MPT3SAS_REMOVE_UNRESPONDING_DEVICES) {
+			ioc->current_event = NULL;
+			continue;
+		}
+
+		/*
+		 * Driver has to clear ioc->start_scan flag when
+		 * it is cleaning up MPT3SAS_PORT_ENABLE_COMPLETE,
+		 * otherwise scsi_scan_host() API waits for the
+		 * 5 minute timer to expire. If we exit from
+		 * scsi_scan_host() early then we can issue the
+		 * new port enable request as part of current diag reset.
+		 */
+		if (fw_event->event == MPT3SAS_PORT_ENABLE_COMPLETE) {
+			ioc->port_enable_cmds.status |= MPT3_CMD_RESET;
+			ioc->start_scan = 0;
+		}
+
 		/*
 		 * Wait on the fw_event to complete. If this returns 1, then
 		 * the event was never executed, and we need a put for the
@@ -5077,10 +5119,8 @@ _scsih_eedp_error_handling(struct scsi_cmnd *scmd, u16 ioc_status)
 		ascq = 0x00;
 		break;
 	}
-	scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST, 0x10,
-	    ascq);
-	scmd->result = DRIVER_SENSE << 24 | (DID_ABORT << 16) |
-	    SAM_STAT_CHECK_CONDITION;
+	scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x10, ascq);
+	set_host_byte(scmd, DID_ABORT);
 }
 
 /**
@@ -5837,12 +5877,8 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		else if (!xfer_cnt && scmd->cmnd[0] == REPORT_LUNS) {
 			mpi_reply->SCSIState = MPI2_SCSI_STATE_AUTOSENSE_VALID;
 			mpi_reply->SCSIStatus = SAM_STAT_CHECK_CONDITION;
-			scmd->result = (DRIVER_SENSE << 24) |
-			    SAM_STAT_CHECK_CONDITION;
-			scmd->sense_buffer[0] = 0x70;
-			scmd->sense_buffer[2] = ILLEGAL_REQUEST;
-			scmd->sense_buffer[12] = 0x20;
-			scmd->sense_buffer[13] = 0;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST,
+					 0x20, 0);
 		}
 		break;
 
@@ -6884,8 +6920,10 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 		 handle, parent_handle,
 		 (u64)sas_expander->sas_address, sas_expander->num_phys);
 
-	if (!sas_expander->num_phys)
+	if (!sas_expander->num_phys) {
+		rc = -1;
 		goto out_fail;
+	}
 	sas_expander->phy = kcalloc(sas_expander->num_phys,
 	    sizeof(struct _sas_phy), GFP_KERNEL);
 	if (!sas_expander->phy) {
@@ -10118,6 +10156,17 @@ _scsih_remove_unresponding_devices(struct MPT3SAS_ADAPTER *ioc)
 	 * owner for the reference the list had on any object we prune.
 	 */
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+
+	/*
+	 * Clean up the sas_device_init_list list as
+	 * driver goes for fresh scan as part of diag reset.
+	 */
+	list_for_each_entry_safe(sas_device, sas_device_next,
+	    &ioc->sas_device_init_list, list) {
+		list_del_init(&sas_device->list);
+		sas_device_put(sas_device);
+	}
+
 	list_for_each_entry_safe(sas_device, sas_device_next,
 	    &ioc->sas_device_list, list) {
 		if (!sas_device->responding)
@@ -10139,6 +10188,16 @@ _scsih_remove_unresponding_devices(struct MPT3SAS_ADAPTER *ioc)
 	ioc_info(ioc, "Removing unresponding devices: pcie end-devices\n");
 	INIT_LIST_HEAD(&head);
 	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
+	/*
+	 * Clean up the pcie_device_init_list list as
+	 * driver goes for fresh scan as part of diag reset.
+	 */
+	list_for_each_entry_safe(pcie_device, pcie_device_next,
+	    &ioc->pcie_device_init_list, list) {
+		list_del_init(&pcie_device->list);
+		pcie_device_put(pcie_device);
+	}
+
 	list_for_each_entry_safe(pcie_device, pcie_device_next,
 	    &ioc->pcie_device_list, list) {
 		if (!pcie_device->responding)
@@ -10541,8 +10600,7 @@ void
 mpt3sas_scsih_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
 {
 	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_DONE_RESET\n", __func__));
-	if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
-					   !ioc->sas_hba.num_phys)) {
+	if (!(disable_discovery > 0 && !ioc->sas_hba.num_phys)) {
 		if (ioc->multipath_on_hba) {
 			_scsih_sas_port_refresh(ioc);
 			_scsih_update_vphys_after_reset(ioc);
@@ -10597,6 +10655,18 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		_scsih_del_dirty_vphy(ioc);
 		_scsih_del_dirty_port_entries(ioc);
 		_scsih_scan_for_devices_after_reset(ioc);
+		/*
+		 * If diag reset has occurred during the driver load
+		 * then driver has to complete the driver load operation
+		 * by executing the following items:
+		 *- Register the devices from sas_device_init_list to SML
+		 *- clear is_driver_loading flag,
+		 *- start the watchdog thread.
+		 * In happy driver load path, above things are taken care of when
+		 * driver executes scsih_scan_finished().
+		 */
+		if (ioc->is_driver_loading)
+			_scsih_complete_devices_scanning(ioc);
 		_scsih_set_nvme_max_shutdown_latency(ioc);
 		break;
 	case MPT3SAS_PORT_ENABLE_COMPLETE:
@@ -10742,11 +10812,23 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		_scsih_check_topo_delete_events(ioc,
 		    (Mpi2EventDataSasTopologyChangeList_t *)
 		    mpi_reply->EventData);
+		/*
+		 * No need to add the topology change list
+		 * event to fw event work queue when
+		 * diag reset is going on. Since during diag
+		 * reset driver scan the devices by reading
+		 * sas device page0's not by processing the
+		 * events.
+		 */
+		if (ioc->shost_recovery)
+			return 1;
 		break;
 	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	_scsih_check_pcie_topo_remove_events(ioc,
 		    (Mpi26EventDataPCIeTopologyChangeList_t *)
 		    mpi_reply->EventData);
+		if (ioc->shost_recovery)
+			return 1;
 		break;
 	case MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST:
 		_scsih_check_ir_config_unhide_events(ioc,
@@ -11213,7 +11295,12 @@ scsih_shutdown(struct pci_dev *pdev)
 
 	_scsih_ir_shutdown(ioc);
 	_scsih_nvme_shutdown(ioc);
-	mpt3sas_base_detach(ioc);
+	mpt3sas_base_mask_interrupts(ioc);
+	ioc->shost_recovery = 1;
+	mpt3sas_base_make_ioc_ready(ioc, SOFT_RESET);
+	ioc->shost_recovery = 0;
+	mpt3sas_base_free_irq(ioc);
+	mpt3sas_base_disable_msix(ioc);
 }
 
 
@@ -11262,13 +11349,27 @@ _scsih_probe_boot_devices(struct MPT3SAS_ADAPTER *ioc)
 
 	if (channel == RAID_CHANNEL) {
 		raid_device = device;
+		/*
+		 * If this boot vd is already registered with SML then
+		 * no need to register it again as part of device scanning
+		 * after diag reset during driver load operation.
+		 */
+		if (raid_device->starget)
+			return;
 		rc = scsi_add_device(ioc->shost, RAID_CHANNEL,
 		    raid_device->id, 0);
 		if (rc)
 			_scsih_raid_device_remove(ioc, raid_device);
 	} else if (channel == PCIE_CHANNEL) {
-		spin_lock_irqsave(&ioc->pcie_device_lock, flags);
 		pcie_device = device;
+		/*
+		 * If this boot NVMe device is already registered with SML then
+		 * no need to register it again as part of device scanning
+		 * after diag reset during driver load operation.
+		 */
+		if (pcie_device->starget)
+			return;
+		spin_lock_irqsave(&ioc->pcie_device_lock, flags);
 		tid = pcie_device->id;
 		list_move_tail(&pcie_device->list, &ioc->pcie_device_list);
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
@@ -11276,8 +11377,15 @@ _scsih_probe_boot_devices(struct MPT3SAS_ADAPTER *ioc)
 		if (rc)
 			_scsih_pcie_device_remove(ioc, pcie_device);
 	} else {
-		spin_lock_irqsave(&ioc->sas_device_lock, flags);
 		sas_device = device;
+		/*
+		 * If this boot sas/sata device is already registered with SML
+		 * then no need to register it again as part of device scanning
+		 * after diag reset during driver load operation.
+		 */
+		if (sas_device->starget)
+			return;
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
 		handle = sas_device->handle;
 		sas_address_parent = sas_device->sas_address_parent;
 		sas_address = sas_device->sas_address;
@@ -11576,6 +11684,25 @@ scsih_scan_start(struct Scsi_Host *shost)
 }
 
 /**
+ * _scsih_complete_devices_scanning - add the devices to sml and
+ * complete ioc initialization.
+ * @ioc: per adapter object
+ *
+ * Return nothing.
+ */
+static void _scsih_complete_devices_scanning(struct MPT3SAS_ADAPTER *ioc)
+{
+
+	if (ioc->wait_for_discovery_to_complete) {
+		ioc->wait_for_discovery_to_complete = 0;
+		_scsih_probe_devices(ioc);
+	}
+
+	mpt3sas_base_start_watchdog(ioc);
+	ioc->is_driver_loading = 0;
+}
+
+/**
  * scsih_scan_finished - scsi lld callback for .scan_finished
  * @shost: SCSI host pointer
  * @time: elapsed time of the scan in jiffies
@@ -11588,6 +11715,8 @@ static int
 scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	u32 ioc_state;
+	int issue_hard_reset = 0;
 
 	if (disable_discovery > 0) {
 		ioc->is_driver_loading = 0;
@@ -11602,9 +11731,30 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		return 1;
 	}
 
-	if (ioc->start_scan)
+	if (ioc->start_scan) {
+		ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
+		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
+			mpt3sas_print_fault_code(ioc, ioc_state &
+			    MPI2_DOORBELL_DATA_MASK);
+			issue_hard_reset = 1;
+			goto out;
+		} else if ((ioc_state & MPI2_IOC_STATE_MASK) ==
+				MPI2_IOC_STATE_COREDUMP) {
+			mpt3sas_base_coredump_info(ioc, ioc_state &
+			    MPI2_DOORBELL_DATA_MASK);
+			mpt3sas_base_wait_for_coredump_completion(ioc, __func__);
+			issue_hard_reset = 1;
+			goto out;
+		}
 		return 0;
+	}
 
+	if (ioc->port_enable_cmds.status & MPT3_CMD_RESET) {
+		ioc_info(ioc,
+		    "port enable: aborted due to diag reset\n");
+		ioc->port_enable_cmds.status = MPT3_CMD_NOT_USED;
+		goto out;
+	}
 	if (ioc->start_scan_failed) {
 		ioc_info(ioc, "port enable: FAILED with (ioc_status=0x%08x)\n",
 			 ioc->start_scan_failed);
@@ -11616,13 +11766,14 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 	ioc_info(ioc, "port enable: SUCCESS\n");
 	ioc->port_enable_cmds.status = MPT3_CMD_NOT_USED;
+	_scsih_complete_devices_scanning(ioc);
 
-	if (ioc->wait_for_discovery_to_complete) {
-		ioc->wait_for_discovery_to_complete = 0;
-		_scsih_probe_devices(ioc);
+out:
+	if (issue_hard_reset) {
+		ioc->port_enable_cmds.status = MPT3_CMD_NOT_USED;
+		if (mpt3sas_base_hard_reset_handler(ioc, SOFT_RESET))
+			ioc->is_driver_loading = 0;
 	}
-	mpt3sas_base_start_watchdog(ioc);
-	ioc->is_driver_loading = 0;
 	return 1;
 }
 
@@ -11932,6 +12083,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				ioc->multipath_on_hba = 1;
 			else
 				ioc->multipath_on_hba = 0;
+			break;
 		default:
 			break;
 		}

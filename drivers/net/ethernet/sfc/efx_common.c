@@ -1160,8 +1160,9 @@ void efx_fini_io(struct efx_nic *efx)
 }
 
 #ifdef CONFIG_SFC_MCDI_LOGGING
-static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t mcdi_logging_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
@@ -1169,8 +1170,9 @@ static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", mcdi->logging_enabled);
 }
 
-static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t mcdi_logging_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
@@ -1180,7 +1182,7 @@ static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(mcdi_logging, 0644, show_mcdi_log, set_mcdi_log);
+static DEVICE_ATTR_RW(mcdi_logging);
 
 void efx_init_mcdi_logging(struct efx_nic *efx)
 {

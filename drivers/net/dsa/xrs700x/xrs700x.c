@@ -79,6 +79,9 @@ static const struct xrs700x_mib xrs700x_mibs[] = {
 	XRS700X_MIB(XRS_EARLY_DROP_L, "early_drop", tx_dropped),
 };
 
+static const u8 eth_hsrsup_addr[ETH_ALEN] = {
+	0x01, 0x15, 0x4e, 0x00, 0x01, 0x00};
+
 static void xrs700x_get_strings(struct dsa_switch *ds, int port,
 				u32 stringset, u8 *data)
 {
@@ -329,6 +332,54 @@ static int xrs700x_port_add_bpdu_ipf(struct dsa_switch *ds, int port)
 	return 0;
 }
 
+/* Add an inbound policy filter which matches the HSR/PRP supervision MAC
+ * range and forwards to the CPU port without discarding duplicates.
+ * This is required to correctly populate the HSR/PRP node_table.
+ * Leave the policy disabled, it will be enabled as needed.
+ */
+static int xrs700x_port_add_hsrsup_ipf(struct dsa_switch *ds, int port,
+				       int fwdport)
+{
+	struct xrs700x *priv = ds->priv;
+	unsigned int val = 0;
+	int i = 0;
+	int ret;
+
+	/* Compare 40 bits of the destination MAC address. */
+	ret = regmap_write(priv->regmap, XRS_ETH_ADDR_CFG(port, 1), 40 << 2);
+	if (ret)
+		return ret;
+
+	/* match HSR/PRP supervision destination 01:15:4e:00:01:XX */
+	for (i = 0; i < sizeof(eth_hsrsup_addr); i += 2) {
+		ret = regmap_write(priv->regmap, XRS_ETH_ADDR_0(port, 1) + i,
+				   eth_hsrsup_addr[i] |
+				   (eth_hsrsup_addr[i + 1] << 8));
+		if (ret)
+			return ret;
+	}
+
+	/* Mirror HSR/PRP supervision to CPU port */
+	for (i = 0; i < ds->num_ports; i++) {
+		if (dsa_is_cpu_port(ds, i))
+			val |= BIT(i);
+	}
+
+	ret = regmap_write(priv->regmap, XRS_ETH_ADDR_FWD_MIRROR(port, 1), val);
+	if (ret)
+		return ret;
+
+	if (fwdport >= 0)
+		val |= BIT(fwdport);
+
+	/* Allow must be set prevent duplicate discard */
+	ret = regmap_write(priv->regmap, XRS_ETH_ADDR_FWD_ALLOW(port, 1), val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int xrs700x_port_setup(struct dsa_switch *ds, int port)
 {
 	bool cpu_port = dsa_is_cpu_port(ds, port);
@@ -511,6 +562,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	struct net_device *slave;
 	int ret, i, hsr_pair[2];
 	enum hsr_version ver;
+	bool fwd = false;
 
 	ret = hsr_get_version(hsr, &ver);
 	if (ret)
@@ -556,6 +608,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	if (ver == HSR_V1) {
 		val &= ~BIT(partner->index);
 		val &= ~BIT(port);
+		fwd = true;
 	}
 	val &= ~BIT(dsa_upstream_port(ds, port));
 	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(partner->index), val);
@@ -564,6 +617,23 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	regmap_fields_write(priv->ps_forward, partner->index,
 			    XRS_PORT_FORWARDING);
 	regmap_fields_write(priv->ps_forward, port, XRS_PORT_FORWARDING);
+
+	/* Enable inbound policy which allows HSR/PRP supervision forwarding
+	 * to the CPU port without discarding duplicates. Continue to
+	 * forward to redundant ports when in HSR mode while discarding
+	 * duplicates.
+	 */
+	ret = xrs700x_port_add_hsrsup_ipf(ds, partner->index, fwd ? port : -1);
+	if (ret)
+		return ret;
+
+	ret = xrs700x_port_add_hsrsup_ipf(ds, port, fwd ? partner->index : -1);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(priv->regmap,
+			   XRS_ETH_ADDR_CFG(partner->index, 1), 1, 1);
+	regmap_update_bits(priv->regmap, XRS_ETH_ADDR_CFG(port, 1), 1, 1);
 
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;
@@ -610,6 +680,14 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 	regmap_fields_write(priv->ps_forward, partner->index,
 			    XRS_PORT_FORWARDING);
 	regmap_fields_write(priv->ps_forward, port, XRS_PORT_FORWARDING);
+
+	/* Disable inbound policy added by xrs700x_port_add_hsrsup_ipf()
+	 * which allows HSR/PRP supervision forwarding to the CPU port without
+	 * discarding duplicates.
+	 */
+	regmap_update_bits(priv->regmap,
+			   XRS_ETH_ADDR_CFG(partner->index, 1), 1, 0);
+	regmap_update_bits(priv->regmap, XRS_ETH_ADDR_CFG(port, 1), 1, 0);
 
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;

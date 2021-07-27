@@ -42,7 +42,15 @@ enum {
 	/* to avoid infinite loop where-in the receiver
 	 * switches between different VS
 	 */
-	LINK_TRAINING_MAX_CR_RETRY = 100
+	LINK_TRAINING_MAX_CR_RETRY = 100,
+	/*
+	 * Some receivers fail to train on first try and are good
+	 * on subsequent tries. 2 retries should be plenty. If we
+	 * don't have a successful training then we don't expect to
+	 * ever get one.
+	 */
+	LINK_TRAINING_MAX_VERIFY_RETRY = 2,
+	PEAK_FACTOR_X1000 = 1006,
 };
 
 bool dp_verify_link_cap(
@@ -182,4 +190,5 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
+bool dp_retrieve_lttpr_cap(struct dc_link *link);
 #endif /* __DC_LINK_DP_H__ */

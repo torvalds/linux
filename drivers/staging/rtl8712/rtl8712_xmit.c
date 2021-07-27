@@ -482,9 +482,9 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 				ptxdesc->txdw1 |= cpu_to_le32((0x01 << 22) &
 						  0x00c00000);
 				/*KEY_ID when WEP is used;*/
-				ptxdesc->txdw1 |= cpu_to_le32((psecuritypriv->
-						  PrivacyKeyIndex << 17) &
-						  0x00060000);
+				ptxdesc->txdw1 |=
+					cpu_to_le32((psecuritypriv->PrivacyKeyIndex << 17) &
+						    0x00060000);
 				break;
 			case _TKIP_:
 			case _TKIP_WTMIC_:

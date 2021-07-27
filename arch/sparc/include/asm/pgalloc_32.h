@@ -51,7 +51,6 @@ static inline void free_pmd_fast(pmd_t * pmd)
 #define __pmd_free_tlb(tlb, pmd, addr)	pmd_free((tlb)->mm, pmd)
 
 #define pmd_populate(mm, pmd, pte)	pmd_set(pmd, pte)
-#define pmd_pgtable(pmd)		(pgtable_t)__pmd_page(pmd)
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep);
 #define pmd_populate_kernel		pmd_populate

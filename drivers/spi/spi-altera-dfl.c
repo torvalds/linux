@@ -148,10 +148,8 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 
 	base = devm_ioremap_resource(dev, &dfl_dev->mmio_res);
 
-	if (IS_ERR(base)) {
-		dev_err(dev, "%s get mem resource fail!\n", __func__);
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	config_spi_master(base, master);
 	dev_dbg(dev, "%s cs %u bpm 0x%x mode 0x%x\n", __func__,

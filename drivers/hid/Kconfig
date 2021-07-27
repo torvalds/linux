@@ -93,11 +93,11 @@ menu "Special HID drivers"
 	depends on HID
 
 config HID_A4TECH
-	tristate "A4 tech mice"
+	tristate "A4TECH mice"
 	depends on HID
 	default !EXPERT
 	help
-	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
+	Support for some A4TECH mice with two scroll wheels.
 
 config HID_ACCUTOUCH
 	tristate "Accutouch touch device"
@@ -921,6 +921,21 @@ config HID_SAMSUNG
 	depends on HID
 	help
 	Support for Samsung InfraRed remote control or keyboards.
+
+config HID_SEMITEK
+	tristate "Semitek USB keyboards"
+	depends on HID
+	help
+	Support for Semitek USB keyboards that are not fully compliant
+	with the HID standard.
+
+	There are many variants, including:
+	- GK61, GK64, GK68, GK84, GK96, etc.
+	- SK61, SK64, SK68, SK84, SK96, etc.
+	- Dierya DK61/DK66
+	- Tronsmart TK09R
+	- Woo-dy
+	- X-Bows Nature/Knight
 
 config HID_SONY
 	tristate "Sony PS2/3/4 accessories"

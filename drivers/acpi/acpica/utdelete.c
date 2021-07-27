@@ -285,6 +285,14 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		}
 		break;
 
+	case ACPI_TYPE_LOCAL_ADDRESS_HANDLER:
+
+		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+				  "***** Address handler %p\n", object));
+
+		acpi_os_delete_mutex(object->address_space.context_mutex);
+		break;
+
 	default:
 
 		break;

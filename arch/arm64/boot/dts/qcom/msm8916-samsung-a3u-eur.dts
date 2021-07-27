@@ -20,6 +20,37 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_vdd3_default>;
 	};
+
+	reg_touch_key: regulator-touch-key {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_key";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		gpio = <&msmgpio 86 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_en_default>;
+	};
+
+	reg_key_led: regulator-key-led {
+		compatible = "regulator-fixed";
+		regulator-name = "key_led";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 60 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_led_en_default>;
+	};
+};
+
+&touchkey {
+	vcc-supply = <&reg_touch_key>;
+	vdd-supply = <&reg_key_led>;
 };
 
 &accelerometer {
@@ -75,6 +106,22 @@
 &msmgpio {
 	panel_vdd3_default: panel-vdd3-default {
 		pins = "gpio9";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tkey_en_default: tkey-en-default {
+		pins = "gpio86";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tkey_led_en_default: tkey-led-en-default {
+		pins = "gpio60";
 		function = "gpio";
 
 		drive-strength = <2>;

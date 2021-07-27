@@ -29,14 +29,16 @@ void __init reserve_real_mode(void)
 
 	/* Has to be under 1M so we can execute real-mode AP code. */
 	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
-	if (!mem) {
+	if (!mem)
 		pr_info("No sub-1M memory is available for the trampoline\n");
-		return;
-	}
+	else
+		set_real_mode_mem(mem);
 
-	memblock_reserve(mem, size);
-	set_real_mode_mem(mem);
-	crash_reserve_low_1M();
+	/*
+	 * Unconditionally reserve the entire fisrt 1M, see comment in
+	 * setup_arch().
+	 */
+	memblock_reserve(0, SZ_1M);
 }
 
 static void sme_sev_setup_real_mode(struct trampoline_header *th)

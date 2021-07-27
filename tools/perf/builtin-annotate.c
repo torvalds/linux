@@ -474,6 +474,9 @@ int cmd_annotate(int argc, const char **argv)
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
 			.tracing_data   = perf_event__process_tracing_data,
+			.id_index	= perf_event__process_id_index,
+			.auxtrace_info	= perf_event__process_auxtrace_info,
+			.auxtrace	= perf_event__process_auxtrace,
 			.feature	= process_feature_event,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
@@ -482,6 +485,9 @@ int cmd_annotate(int argc, const char **argv)
 	};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
+	};
+	struct itrace_synth_opts itrace_synth_opts = {
+		.set = 0,
 	};
 	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -547,6 +553,9 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK(0, "percent-type", &annotate.opts, "local-period",
 		     "Set percent type local/global-period/hits",
 		     annotate_parse_percent_type),
+	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
+			    "Instruction Tracing options\n" ITRACE_HELP,
+			    itrace_parse_synth_opts),
 
 	OPT_END()
 	};
@@ -590,6 +599,8 @@ int cmd_annotate(int argc, const char **argv)
 	annotate.session = perf_session__new(&data, false, &annotate.tool);
 	if (IS_ERR(annotate.session))
 		return PTR_ERR(annotate.session);
+
+	annotate.session->itrace_synth_opts = &itrace_synth_opts;
 
 	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
 						      HEADER_BRANCH_STACK);

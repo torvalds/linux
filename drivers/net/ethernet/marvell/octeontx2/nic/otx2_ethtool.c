@@ -286,6 +286,12 @@ static int otx2_set_channels(struct net_device *dev,
 	if (!channel->rx_count || !channel->tx_count)
 		return -EINVAL;
 
+	if (bitmap_weight(&pfvf->rq_bmap, pfvf->hw.rx_queues) > 1) {
+		netdev_err(dev,
+			   "Receive queues are in use by TC police action\n");
+		return -EINVAL;
+	}
+
 	if (if_up)
 		dev->netdev_ops->ndo_stop(dev);
 
@@ -785,6 +791,10 @@ static int otx2_set_rxfh_context(struct net_device *dev, const u32 *indir,
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
+
+	if (*rss_context != ETH_RXFH_CONTEXT_ALLOC &&
+	    *rss_context >= MAX_RSS_GROUPS)
+		return -EINVAL;
 
 	rss = &pfvf->hw.rss_info;
 

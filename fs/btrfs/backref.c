@@ -1488,15 +1488,15 @@ static int btrfs_find_all_roots_safe(struct btrfs_trans_handle *trans,
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 bytenr,
 			 u64 time_seq, struct ulist **roots,
-			 bool ignore_offset)
+			 bool ignore_offset, bool skip_commit_root_sem)
 {
 	int ret;
 
-	if (!trans)
+	if (!trans && !skip_commit_root_sem)
 		down_read(&fs_info->commit_root_sem);
 	ret = btrfs_find_all_roots_safe(trans, fs_info, bytenr,
 					time_seq, roots, ignore_offset);
-	if (!trans)
+	if (!trans && !skip_commit_root_sem)
 		up_read(&fs_info->commit_root_sem);
 	return ret;
 }
@@ -2675,7 +2675,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
  *
  * @ref_key:	The same as @ref_key in  handle_direct_tree_backref()
  * @tree_key:	The first key of this tree block.
- * @path:	A clean (released) path, to avoid allocating path everytime
+ * @path:	A clean (released) path, to avoid allocating path every time
  *		the function get called.
  */
 static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,

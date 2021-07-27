@@ -17,7 +17,6 @@
 #include "util.h"
 #include "bf.h"
 #include "efuse.h"
-#include "coex.h"
 
 #define IQK_DONE_8822C 0xaa
 
@@ -78,6 +77,13 @@ static void rtw8822c_header_file_init(struct rtw_dev *rtwdev, bool pre)
 		rtw_write32_clr(rtwdev, REG_ENCCK, BIT_CCK_OFDM_BLK_EN);
 	else
 		rtw_write32_set(rtwdev, REG_ENCCK, BIT_CCK_OFDM_BLK_EN);
+}
+
+static void rtw8822c_bb_reset(struct rtw_dev *rtwdev)
+{
+	rtw_write16_set(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
+	rtw_write16_clr(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
+	rtw_write16_set(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
 }
 
 static void rtw8822c_dac_backup_reg(struct rtw_dev *rtwdev,
@@ -2103,13 +2109,51 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static void rtw8822c_dump_fw_crash(struct rtw_dev *rtwdev)
+#define FWCD_SIZE_REG_8822C 0x2000
+#define FWCD_SIZE_DMEM_8822C 0x10000
+#define FWCD_SIZE_IMEM_8822C 0x10000
+#define FWCD_SIZE_EMEM_8822C 0x20000
+#define FWCD_SIZE_ROM_8822C 0x10000
+
+static const u32 __fwcd_segs_8822c[] = {
+	FWCD_SIZE_REG_8822C,
+	FWCD_SIZE_DMEM_8822C,
+	FWCD_SIZE_IMEM_8822C,
+	FWCD_SIZE_EMEM_8822C,
+	FWCD_SIZE_ROM_8822C,
+};
+
+static const struct rtw_fwcd_segs rtw8822c_fwcd_segs = {
+	.segs = __fwcd_segs_8822c,
+	.num = ARRAY_SIZE(__fwcd_segs_8822c),
+};
+
+static int rtw8822c_dump_fw_crash(struct rtw_dev *rtwdev)
 {
-	rtw_dump_reg(rtwdev, 0x0, 0x2000, "rtw8822c reg_");
-	rtw_dump_fw(rtwdev, OCPBASE_DMEM_88XX, 0x10000, "rtw8822c DMEM_");
-	rtw_dump_fw(rtwdev, OCPBASE_IMEM_88XX, 0x10000, "rtw8822c IMEM_");
-	rtw_dump_fw(rtwdev, OCPBASE_EMEM_88XX, 0x20000, "rtw8822c EMEM_");
-	rtw_dump_fw(rtwdev, OCPBASE_ROM_88XX, 0x10000, "rtw8822c ROM_");
+#define __dump_fw_8822c(_dev, _mem) \
+	rtw_dump_fw(_dev, OCPBASE_ ## _mem ## _88XX, \
+		    FWCD_SIZE_ ## _mem ## _8822C, RTW_FWCD_ ## _mem)
+	int ret;
+
+	ret = rtw_dump_reg(rtwdev, 0x0, FWCD_SIZE_REG_8822C);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, DMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, IMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, EMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, ROM);
+	if (ret)
+		return ret;
+
+	return 0;
+
+#undef __dump_fw_8822c
 }
 
 static void rtw8822c_rstb_3wire(struct rtw_dev *rtwdev, bool enable)
@@ -2424,10 +2468,11 @@ static void rtw8822c_config_cck_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
 		else
 			rtw_write32_mask(rtwdev, REG_RXCCKSEL, 0xf0000000, 0x8);
 	}
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_ofdm_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
-					 bool is_tx2_path)
+					 enum rtw_bb_path tx_path_sel_1ss)
 {
 	if (tx_path == BB_PATH_A) {
 		rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x11);
@@ -2436,21 +2481,28 @@ static void rtw8822c_config_ofdm_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
 		rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x12);
 		rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xff, 0x0);
 	} else {
-		if (is_tx2_path) {
+		if (tx_path_sel_1ss == BB_PATH_AB) {
 			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x33);
 			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0404);
-		} else {
+		} else if (tx_path_sel_1ss == BB_PATH_B) {
+			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x32);
+			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0400);
+		} else if (tx_path_sel_1ss == BB_PATH_A) {
 			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x31);
 			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0400);
 		}
 	}
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
+				    enum rtw_bb_path tx_path_sel_1ss,
+				    enum rtw_bb_path tx_path_cck,
 				    bool is_tx2_path)
 {
-	rtw8822c_config_cck_tx_path(rtwdev, tx_path, is_tx2_path);
-	rtw8822c_config_ofdm_tx_path(rtwdev, tx_path, is_tx2_path);
+	rtw8822c_config_cck_tx_path(rtwdev, tx_path_cck, is_tx2_path);
+	rtw8822c_config_ofdm_tx_path(rtwdev, tx_path, tx_path_sel_1ss);
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
@@ -2466,7 +2518,8 @@ static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 		rtw_write32_mask(rtwdev, REG_ORITXCODE2, MASK20BITS, 0x11111);
 
 	rtw8822c_config_rx_path(rtwdev, rx_path);
-	rtw8822c_config_tx_path(rtwdev, tx_path, is_tx2_path);
+	rtw8822c_config_tx_path(rtwdev, tx_path, BB_PATH_A, BB_PATH_A,
+				is_tx2_path);
 
 	rtw8822c_toggle_igi(rtwdev);
 }
@@ -2517,6 +2570,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_path_div *p_div = &rtwdev->dm_path_div;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 rxsc, bw;
 	s8 min_rx_power = -120;
@@ -2559,6 +2613,13 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 	for (path = 0; path <= rtwdev->hal.rf_path_num; path++) {
 		rssi = rtw_phy_rf_power_2_rssi(&pkt_stat->rx_power[path], 1);
 		dm_info->rssi[path] = rssi;
+		if (path == RF_PATH_A) {
+			p_div->path_a_sum += rssi;
+			p_div->path_a_cnt++;
+		} else if (path == RF_PATH_B) {
+			p_div->path_b_sum += rssi;
+			p_div->path_b_cnt++;
+		}
 		dm_info->rx_snr[path] = pkt_stat->rx_snr[path] >> 1;
 		dm_info->cfo_tail[path] = (pkt_stat->cfo_tail[path] * 5) >> 1;
 
@@ -4371,26 +4432,28 @@ static void rtw8822c_pwrtrack_set(struct rtw_dev *rtwdev, u8 rf_path)
 	}
 }
 
-static void rtw8822c_pwr_track_path(struct rtw_dev *rtwdev,
-				    struct rtw_swing_table *swing_table,
-				    u8 path)
+static void rtw8822c_pwr_track_stats(struct rtw_dev *rtwdev, u8 path)
 {
-	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
-	u8 thermal_value, delta;
+	u8 thermal_value;
 
 	if (rtwdev->efuse.thermal_meter[path] == 0xff)
 		return;
 
 	thermal_value = rtw_read_rf(rtwdev, path, RF_T_METER, 0x7e);
-
 	rtw_phy_pwrtrack_avg(rtwdev, thermal_value, path);
+}
+
+static void rtw8822c_pwr_track_path(struct rtw_dev *rtwdev,
+				    struct rtw_swing_table *swing_table,
+				    u8 path)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 delta;
 
 	delta = rtw_phy_pwrtrack_get_delta(rtwdev, path);
-
 	dm_info->delta_power_index[path] =
 		rtw_phy_pwrtrack_get_pwridx(rtwdev, swing_table, path, path,
 					    delta);
-
 	rtw8822c_pwrtrack_set(rtwdev, path);
 }
 
@@ -4401,12 +4464,12 @@ static void __rtw8822c_pwr_track(struct rtw_dev *rtwdev)
 
 	rtw_phy_config_swing_table(rtwdev, &swing_table);
 
+	for (i = 0; i < rtwdev->hal.rf_path_num; i++)
+		rtw8822c_pwr_track_stats(rtwdev, i);
 	if (rtw_phy_pwrtrack_need_lck(rtwdev))
 		rtw8822c_do_lck(rtwdev);
-
 	for (i = 0; i < rtwdev->hal.rf_path_num; i++)
 		rtw8822c_pwr_track_path(rtwdev, &swing_table, i);
-
 }
 
 static void rtw8822c_pwr_track(struct rtw_dev *rtwdev)
@@ -4851,6 +4914,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 	.cfo_init		= rtw8822c_cfo_init,
 	.cfo_track		= rtw8822c_cfo_track,
+	.config_tx_path		= rtw8822c_config_tx_path,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -5192,6 +5256,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.band = RTW_BAND_2G | RTW_BAND_5G,
 	.page_size = 128,
 	.dig_min = 0x20,
+	.default_1ss_tx_path = BB_PATH_A,
+	.path_div_supported = true,
 	.ht_supported = true,
 	.vht_supported = true,
 	.lps_deep_mode_supported = BIT(LPS_DEEP_MODE_LCLK) | BIT(LPS_DEEP_MODE_PG),
@@ -5259,6 +5325,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.coex_info_hw_regs = coex_info_hw_regs_8822c,
 
 	.fw_fifo_addr = {0x780, 0x700, 0x780, 0x660, 0x650, 0x680},
+	.fwcd_segs = &rtw8822c_fwcd_segs,
 };
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 

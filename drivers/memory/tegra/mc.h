@@ -129,6 +129,31 @@ extern const struct tegra_mc_soc tegra132_mc_soc;
 extern const struct tegra_mc_soc tegra210_mc_soc;
 #endif
 
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+extern const struct tegra_mc_soc tegra186_mc_soc;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_194_SOC
+extern const struct tegra_mc_soc tegra194_mc_soc;
+#endif
+
+#if defined(CONFIG_ARCH_TEGRA_3x_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_114_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_124_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_132_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_210_SOC)
+int tegra30_mc_probe(struct tegra_mc *mc);
+extern const struct tegra_mc_ops tegra30_mc_ops;
+#endif
+
+#if defined(CONFIG_ARCH_TEGRA_186_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_194_SOC)
+extern const struct tegra_mc_ops tegra186_mc_ops;
+#endif
+
+extern const char * const tegra_mc_status_names[32];
+extern const char * const tegra_mc_error_names[8];
+
 /*
  * These IDs are for internal use of Tegra ICC drivers. The ID numbers are
  * chosen such that they don't conflict with the device-tree ICC node IDs.

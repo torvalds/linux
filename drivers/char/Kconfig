@@ -218,19 +218,6 @@ config XILINX_HWICAP
 
 	  If unsure, say N.
 
-config R3964
-	tristate "Siemens R3964 line discipline"
-	depends on TTY && BROKEN
-	help
-	  This driver allows synchronous communication with devices using the
-	  Siemens R3964 packet protocol. Unless you are dealing with special
-	  hardware like PLCs, you are unlikely to need this.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called n_r3964.
-
-	  If unsure, say N.
-
 config APPLICOM
 	tristate "Applicom intelligent fieldbus card support"
 	depends on PCI
@@ -356,27 +343,6 @@ config NVRAM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvram.
-
-config RAW_DRIVER
-	tristate "RAW driver (/dev/raw/rawN)"
-	depends on BLOCK
-	help
-	  The raw driver permits block devices to be bound to /dev/raw/rawN.
-	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
-	  See the raw(8) manpage for more details.
-
-	  Applications should preferably open the device (eg /dev/hda1)
-	  with the O_DIRECT flag.
-
-config MAX_RAW_DEVS
-	int "Maximum number of RAW devices to support (1-65536)"
-	depends on RAW_DRIVER
-	range 1 65536
-	default "256"
-	help
-	  The maximum number of RAW devices that are supported.
-	  Default is 256. Increase this number in case you need lots of
-	  raw devices.
 
 config DEVPORT
 	bool "/dev/port character device"

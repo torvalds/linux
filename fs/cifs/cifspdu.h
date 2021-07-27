@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/cifspdu.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSPDU_H
@@ -148,7 +136,8 @@
 #define SMB3_SIGN_KEY_SIZE (16)
 
 /*
- * Size of the smb3 encryption/decryption keys
+ * Size of the smb3 encryption/decryption key storage.
+ * This size is big enough to store any cipher key types.
  */
 #define SMB3_ENC_DEC_KEY_SIZE (32)
 
@@ -1796,6 +1785,7 @@ struct smb_com_transaction2_sfi_req {
 	__u16 Fid;
 	__le16 InformationLevel;
 	__u16 Reserved4;
+	__u8  payload[];
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_rsp {

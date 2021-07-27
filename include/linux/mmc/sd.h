@@ -29,6 +29,10 @@
 #define SD_APP_OP_COND           41   /* bcr  [31:0] OCR         R3  */
 #define SD_APP_SEND_SCR          51   /* adtc                    R1  */
 
+  /* class 11 */
+#define SD_READ_EXTR_SINGLE      48   /* adtc [31:0]             R1  */
+#define SD_WRITE_EXTR_SINGLE     49   /* adtc [31:0]             R1  */
+
 /* OCR bit definitions */
 #define SD_OCR_S18R		(1 << 24)    /* 1.8V switching request */
 #define SD_ROCR_S18A		SD_OCR_S18R  /* 1.8V switching accepted by card */

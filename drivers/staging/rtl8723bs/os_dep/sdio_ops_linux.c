@@ -26,34 +26,6 @@ inline void rtw_sdio_set_irq_thd(struct dvobj_priv *dvobj, void *thd_hdl)
 	sdio_data->sys_sdio_irq_thd = thd_hdl;
 }
 
-u8 sd_f0_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
-{
-	struct adapter *padapter;
-	struct dvobj_priv *psdiodev;
-	struct sdio_data *psdio;
-
-	u8 v = 0;
-	struct sdio_func *func;
-	bool claim_needed;
-
-	padapter = pintfhdl->padapter;
-	psdiodev = pintfhdl->pintf_dev;
-	psdio = &psdiodev->intf_data;
-
-	if (padapter->bSurpriseRemoved)
-		return v;
-
-	func = psdio->func;
-	claim_needed = rtw_sdio_claim_host_needed(func);
-
-	if (claim_needed)
-		sdio_claim_host(func);
-	v = sdio_f0_readb(func, addr, err);
-	if (claim_needed)
-		sdio_release_host(func);
-	return v;
-}
-
 /*
  * Return:
  *0		Success

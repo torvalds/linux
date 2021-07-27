@@ -780,7 +780,7 @@ lance_open(struct net_device *dev)
 		outw(0x0002, ioaddr+LANCE_ADDR);
 		/* Only touch autoselect bit. */
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
- 	}
+	}
 
 	if (lance_debug > 1)
 		printk("%s: lance_open() irq %d dma %d tx/rx rings %#x/%#x init %#x.\n",
@@ -812,7 +812,7 @@ lance_open(struct net_device *dev)
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
 	 * reports that doing so triggers a bug in the '974.
 	 */
- 	outw(0x0042, ioaddr+LANCE_DATA);
+	outw(0x0042, ioaddr+LANCE_DATA);
 
 	if (lance_debug > 2)
 		printk("%s: LANCE open after %d ticks, init block %#x csr0 %4.4x.\n",

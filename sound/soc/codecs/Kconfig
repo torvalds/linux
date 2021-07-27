@@ -155,6 +155,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
 	imply SND_SOC_RK3328
+	imply SND_SOC_RK817
 	imply SND_SOC_RT274
 	imply SND_SOC_RT286
 	imply SND_SOC_RT298
@@ -211,6 +212,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
+	imply SND_SOC_TFA989X
 	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
 	imply SND_SOC_TLV320AIC23_SPI
@@ -232,6 +234,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_UDA1380
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
+	imply SND_SOC_WCD937X
+	imply SND_SOC_WCD938X
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
 	imply SND_SOC_WL1273
@@ -689,7 +693,7 @@ config SND_SOC_CS47L15
 
 config SND_SOC_CS47L24
 	tristate
-	depends on MFD_CS47L24
+	depends on MFD_CS47L24 && MFD_ARIZONA
 
 config SND_SOC_CS47L35
 	tristate
@@ -1063,6 +1067,11 @@ config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
 	select REGMAP_MMIO
 
+config SND_SOC_RK817
+	tristate "Rockchip RK817 audio CODEC"
+	depends on MFD_RK808
+	select REGMAP_I2C
+
 config SND_SOC_RL6231
 	tristate
 	default y if SND_SOC_RT5514=y
@@ -1180,7 +1189,7 @@ config SND_SOC_RT5631
 	depends on I2C
 
 config SND_SOC_RT5640
-	tristate
+	tristate "Realtek RT5640/RT5639 Codec"
 	depends on I2C
 
 config SND_SOC_RT5645
@@ -1316,7 +1325,7 @@ config SND_SOC_SSM2305
 	  high-efficiency mono Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
-	tristate
+	tristate "Analog Devices SSM2518 Class-D Amplifier"
 	depends on I2C
 
 config SND_SOC_SSM2602
@@ -1407,6 +1416,16 @@ config SND_SOC_TDA7419
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
+
+config SND_SOC_TFA989X
+	tristate "NXP/Goodix TFA989X (TFA1) amplifiers"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for NXP (now Goodix) TFA989X (TFA1 family) speaker
+	  amplifiers, e.g. TFA9895.
+	  Note that the driver currently bypasses the built-in "CoolFlux DSP"
+	  and does not support (hardware) volume control.
 
 config SND_SOC_TLV320AIC23
 	tristate
@@ -1525,13 +1544,30 @@ config SND_SOC_WCD9335
 	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
 	  including the MSM8996, MSM8976, and MSM8956 chipsets.
 
+config SND_SOC_WCD_MBHC
+	tristate
+
 config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
 	depends on COMMON_CLK
+	select SND_SOC_WCD_MBHC
 	depends on MFD_WCD934X
 	help
 	  The WCD9340/9341 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SDM845.
+
+config SND_SOC_WCD938X
+	depends on SND_SOC_WCD938X_SDW
+	tristate
+
+config SND_SOC_WCD938X_SDW
+	tristate "WCD9380/WCD9385 Codec - SDW"
+	select SND_SOC_WCD938X
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9380/9385 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SM8250.
 
 config SND_SOC_WL1273
 	tristate
@@ -1558,11 +1594,11 @@ config SND_SOC_WM5100
 
 config SND_SOC_WM5102
 	tristate
-	depends on MFD_WM5102
+	depends on MFD_WM5102 && MFD_ARIZONA
 
 config SND_SOC_WM5110
 	tristate
-	depends on MFD_WM5110
+	depends on MFD_WM5110 && MFD_ARIZONA
 
 config SND_SOC_WM8350
 	tristate
@@ -1727,11 +1763,11 @@ config SND_SOC_WM8996
 
 config SND_SOC_WM8997
 	tristate
-	depends on MFD_WM8997
+	depends on MFD_WM8997 && MFD_ARIZONA
 
 config SND_SOC_WM8998
 	tristate
-	depends on MFD_WM8998
+	depends on MFD_WM8998 && MFD_ARIZONA
 
 config SND_SOC_WM9081
 	tristate
@@ -1777,11 +1813,6 @@ config SND_SOC_ZL38060
 	  Support for ZL38060 Connected Home Audio Processor from Microsemi,
 	  which consists of a Digital Signal Processor (DSP), several Digital
 	  Audio Interfaces (DAIs), analog outputs, and a block of 14 GPIOs.
-
-config SND_SOC_ZX_AUD96P22
-	tristate "ZTE ZX AUD96P22 CODEC"
-	depends on I2C
-	select REGMAP_I2C
 
 # Amp
 config SND_SOC_LM4857
@@ -1871,18 +1902,22 @@ config SND_SOC_TPA6130A2
 
 config SND_SOC_LPASS_WSA_MACRO
 	depends on COMMON_CLK
+	select REGMAP_MMIO
 	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_VA_MACRO
 	depends on COMMON_CLK
+	select REGMAP_MMIO
 	tristate "Qualcomm VA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_RX_MACRO
 	depends on COMMON_CLK
+	select REGMAP_MMIO
 	tristate "Qualcomm RX Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_TX_MACRO
 	depends on COMMON_CLK
+	select REGMAP_MMIO
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"
 
 endmenu

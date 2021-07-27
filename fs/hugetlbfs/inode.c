@@ -77,7 +77,7 @@ enum hugetlb_param {
 static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
 	fsparam_u32   ("gid",		Opt_gid),
 	fsparam_string("min_size",	Opt_min_size),
-	fsparam_u32   ("mode",		Opt_mode),
+	fsparam_u32oct("mode",		Opt_mode),
 	fsparam_string("nr_inodes",	Opt_nr_inodes),
 	fsparam_string("pagesize",	Opt_pagesize),
 	fsparam_string("size",		Opt_size),
@@ -735,6 +735,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		__SetPageUptodate(page);
 		error = huge_add_to_page_cache(page, mapping, index);
 		if (unlikely(error)) {
+			restore_reserve_on_error(h, &pseudo_vma, addr, page);
 			put_page(page);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 			goto out;
@@ -1445,7 +1446,7 @@ static int get_hstate_idx(int page_size_log)
  * otherwise hugetlb_reserve_pages reserves one less hugepages than intended.
  */
 struct file *hugetlb_file_setup(const char *name, size_t size,
-				vm_flags_t acctflag, struct user_struct **user,
+				vm_flags_t acctflag, struct ucounts **ucounts,
 				int creat_flags, int page_size_log)
 {
 	struct inode *inode;
@@ -1457,20 +1458,20 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	if (hstate_idx < 0)
 		return ERR_PTR(-ENODEV);
 
-	*user = NULL;
+	*ucounts = NULL;
 	mnt = hugetlbfs_vfsmount[hstate_idx];
 	if (!mnt)
 		return ERR_PTR(-ENOENT);
 
 	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
-		*user = current_user();
-		if (user_shm_lock(size, *user)) {
+		*ucounts = current_ucounts();
+		if (user_shm_lock(size, *ucounts)) {
 			task_lock(current);
 			pr_warn_once("%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
 				current->comm, current->pid);
 			task_unlock(current);
 		} else {
-			*user = NULL;
+			*ucounts = NULL;
 			return ERR_PTR(-EPERM);
 		}
 	}
@@ -1497,9 +1498,9 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 
 	iput(inode);
 out:
-	if (*user) {
-		user_shm_unlock(size, *user);
-		*user = NULL;
+	if (*ucounts) {
+		user_shm_unlock(size, *ucounts);
+		*ucounts = NULL;
 	}
 	return file;
 }

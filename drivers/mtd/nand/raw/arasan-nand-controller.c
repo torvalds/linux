@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -53,6 +54,7 @@
 #define   PROG_RST			BIT(8)
 #define   PROG_GET_FEATURE		BIT(9)
 #define   PROG_SET_FEATURE		BIT(10)
+#define   PROG_CHG_RD_COL_ENH		BIT(14)
 
 #define INTR_STS_EN_REG			0x14
 #define INTR_SIG_EN_REG			0x18
@@ -69,6 +71,15 @@
 #define DMA_ADDR1_REG			0x24
 
 #define FLASH_STS_REG			0x28
+
+#define TIMING_REG			0x2C
+#define   TCCS_TIME_500NS		0
+#define   TCCS_TIME_300NS		3
+#define   TCCS_TIME_200NS		2
+#define   TCCS_TIME_100NS		1
+#define   FAST_TCAD			BIT(2)
+#define   DQS_BUFF_SEL_IN(x)		FIELD_PREP(GENMASK(6, 3), (x))
+#define   DQS_BUFF_SEL_OUT(x)		FIELD_PREP(GENMASK(18, 15), (x))
 
 #define DATA_PORT_REG			0x30
 
@@ -91,7 +102,7 @@
 
 #define DATA_INTERFACE_REG		0x6C
 #define   DIFACE_SDR_MODE(x)		FIELD_PREP(GENMASK(2, 0), (x))
-#define   DIFACE_DDR_MODE(x)		FIELD_PREP(GENMASK(5, 3), (X))
+#define   DIFACE_DDR_MODE(x)		FIELD_PREP(GENMASK(5, 3), (x))
 #define   DIFACE_SDR			0
 #define   DIFACE_NVDDR			BIT(9)
 
@@ -106,6 +117,8 @@
 
 #define ANFC_XLNX_SDR_DFLT_CORE_CLK	100000000
 #define ANFC_XLNX_SDR_HS_CORE_CLK	80000000
+
+static struct gpio_desc *anfc_default_cs_array[2] = {NULL, NULL};
 
 /**
  * struct anfc_op - Defines how to execute an operation
@@ -137,11 +150,11 @@ struct anfc_op {
  * struct anand - Defines the NAND chip related information
  * @node:		Used to store NAND chips into a list
  * @chip:		NAND chip information structure
- * @cs:			Chip select line
  * @rb:			Ready-busy line
  * @page_sz:		Register value of the page_sz field to use
  * @clk:		Expected clock frequency to use
- * @timings:		Data interface timing mode to use
+ * @data_iface:		Data interface timing mode to use
+ * @timings:		NV-DDR specific timings to use
  * @ecc_conf:		Hardware ECC configuration value
  * @strength:		Register value of the ECC strength
  * @raddr_cycles:	Row address cycle information
@@ -151,14 +164,17 @@ struct anfc_op {
  * @errloc:		Array of errors located with soft BCH
  * @hw_ecc:		Buffer to store syndromes computed by hardware
  * @bch:		BCH structure
+ * @cs_idx:		Array of chip-select for this device, values are indexes
+ *			of the controller structure @gpio_cs array
+ * @ncs_idx:		Size of the @cs_idx array
  */
 struct anand {
 	struct list_head node;
 	struct nand_chip chip;
-	unsigned int cs;
 	unsigned int rb;
 	unsigned int page_sz;
 	unsigned long clk;
+	u32 data_iface;
 	u32 timings;
 	u32 ecc_conf;
 	u32 strength;
@@ -169,6 +185,8 @@ struct anand {
 	unsigned int *errloc;
 	u8 *hw_ecc;
 	struct bch_control *bch;
+	int *cs_idx;
+	int ncs_idx;
 };
 
 /**
@@ -179,8 +197,14 @@ struct anand {
  * @bus_clk:		Pointer to the flash clock
  * @controller:		Base controller structure
  * @chips:		List of all NAND chips attached to the controller
- * @assigned_cs:	Bitmask describing already assigned CS lines
  * @cur_clk:		Current clock rate
+ * @cs_array:		CS array. Native CS are left empty, the other cells are
+ *			populated with their corresponding GPIO descriptor.
+ * @ncs:		Size of @cs_array
+ * @cur_cs:		Index in @cs_array of the currently in use CS
+ * @native_cs:		Currently selected native CS
+ * @spare_cs:		Native CS that is not wired (may be selected when a GPIO
+ *			CS is in use)
  */
 struct arasan_nfc {
 	struct device *dev;
@@ -189,8 +213,12 @@ struct arasan_nfc {
 	struct clk *bus_clk;
 	struct nand_controller controller;
 	struct list_head chips;
-	unsigned long assigned_cs;
 	unsigned int cur_clk;
+	struct gpio_desc **cs_array;
+	unsigned int ncs;
+	int cur_cs;
+	unsigned int native_cs;
+	unsigned int spare_cs;
 };
 
 static struct anand *to_anand(struct nand_chip *nand)
@@ -273,6 +301,72 @@ static int anfc_pkt_len_config(unsigned int len, unsigned int *steps,
 	return 0;
 }
 
+static bool anfc_is_gpio_cs(struct arasan_nfc *nfc, int nfc_cs)
+{
+	return nfc_cs >= 0 && nfc->cs_array[nfc_cs];
+}
+
+static int anfc_relative_to_absolute_cs(struct anand *anand, int num)
+{
+	return anand->cs_idx[num];
+}
+
+static void anfc_assert_cs(struct arasan_nfc *nfc, unsigned int nfc_cs_idx)
+{
+	/* CS did not change: do nothing */
+	if (nfc->cur_cs == nfc_cs_idx)
+		return;
+
+	/* Deassert the previous CS if it was a GPIO */
+	if (anfc_is_gpio_cs(nfc, nfc->cur_cs))
+		gpiod_set_value_cansleep(nfc->cs_array[nfc->cur_cs], 1);
+
+	/* Assert the new one */
+	if (anfc_is_gpio_cs(nfc, nfc_cs_idx)) {
+		nfc->native_cs = nfc->spare_cs;
+		gpiod_set_value_cansleep(nfc->cs_array[nfc_cs_idx], 0);
+	} else {
+		nfc->native_cs = nfc_cs_idx;
+	}
+
+	nfc->cur_cs = nfc_cs_idx;
+}
+
+static int anfc_select_target(struct nand_chip *chip, int target)
+{
+	struct anand *anand = to_anand(chip);
+	struct arasan_nfc *nfc = to_anfc(chip->controller);
+	unsigned int nfc_cs_idx = anfc_relative_to_absolute_cs(anand, target);
+	int ret;
+
+	anfc_assert_cs(nfc, nfc_cs_idx);
+
+	/* Update the controller timings and the potential ECC configuration */
+	writel_relaxed(anand->data_iface, nfc->base + DATA_INTERFACE_REG);
+	writel_relaxed(anand->timings, nfc->base + TIMING_REG);
+
+	/* Update clock frequency */
+	if (nfc->cur_clk != anand->clk) {
+		clk_disable_unprepare(nfc->controller_clk);
+		ret = clk_set_rate(nfc->controller_clk, anand->clk);
+		if (ret) {
+			dev_err(nfc->dev, "Failed to change clock rate\n");
+			return ret;
+		}
+
+		ret = clk_prepare_enable(nfc->controller_clk);
+		if (ret) {
+			dev_err(nfc->dev,
+				"Failed to re-enable the controller clock\n");
+			return ret;
+		}
+
+		nfc->cur_clk = anand->clk;
+	}
+
+	return 0;
+}
+
 /*
  * When using the embedded hardware ECC engine, the controller is in charge of
  * feeding the engine with, first, the ECC residue present in the data array.
@@ -315,7 +409,7 @@ static int anfc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 		.addr2_reg =
 			((page >> 16) & 0xFF) |
 			ADDR2_STRENGTH(anand->strength) |
-			ADDR2_CS(anand->cs),
+			ADDR2_CS(nfc->native_cs),
 		.cmd_reg =
 			CMD_1(NAND_CMD_READ0) |
 			CMD_2(NAND_CMD_READSTART) |
@@ -401,6 +495,18 @@ static int anfc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 	return 0;
 }
 
+static int anfc_sel_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
+				     int oob_required, int page)
+{
+	int ret;
+
+	ret = anfc_select_target(chip, chip->cur_cs);
+	if (ret)
+		return ret;
+
+	return anfc_read_page_hw_ecc(chip, buf, oob_required, page);
+};
+
 static int anfc_write_page_hw_ecc(struct nand_chip *chip, const u8 *buf,
 				  int oob_required, int page)
 {
@@ -420,7 +526,7 @@ static int anfc_write_page_hw_ecc(struct nand_chip *chip, const u8 *buf,
 		.addr2_reg =
 			((page >> 16) & 0xFF) |
 			ADDR2_STRENGTH(anand->strength) |
-			ADDR2_CS(anand->cs),
+			ADDR2_CS(nfc->native_cs),
 		.cmd_reg =
 			CMD_1(NAND_CMD_SEQIN) |
 			CMD_2(NAND_CMD_PAGEPROG) |
@@ -461,11 +567,24 @@ static int anfc_write_page_hw_ecc(struct nand_chip *chip, const u8 *buf,
 	return ret;
 }
 
+static int anfc_sel_write_page_hw_ecc(struct nand_chip *chip, const u8 *buf,
+				      int oob_required, int page)
+{
+	int ret;
+
+	ret = anfc_select_target(chip, chip->cur_cs);
+	if (ret)
+		return ret;
+
+	return anfc_write_page_hw_ecc(chip, buf, oob_required, page);
+};
+
 /* NAND framework ->exec_op() hooks and related helpers */
 static int anfc_parse_instructions(struct nand_chip *chip,
 				   const struct nand_subop *subop,
 				   struct anfc_op *nfc_op)
 {
+	struct arasan_nfc *nfc = to_anfc(chip->controller);
 	struct anand *anand = to_anand(chip);
 	const struct nand_op_instr *instr = NULL;
 	bool first_cmd = true;
@@ -473,7 +592,7 @@ static int anfc_parse_instructions(struct nand_chip *chip,
 	int ret, i;
 
 	memset(nfc_op, 0, sizeof(*nfc_op));
-	nfc_op->addr2_reg = ADDR2_CS(anand->cs);
+	nfc_op->addr2_reg = ADDR2_CS(nfc->native_cs);
 	nfc_op->cmd_reg = CMD_PAGE_SIZE(anand->page_sz);
 
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
@@ -622,7 +741,23 @@ static int anfc_param_read_type_exec(struct nand_chip *chip,
 static int anfc_data_read_type_exec(struct nand_chip *chip,
 				    const struct nand_subop *subop)
 {
-	return anfc_misc_data_type_exec(chip, subop, PROG_PGRD);
+	u32 prog_reg = PROG_PGRD;
+
+	/*
+	 * Experience shows that while in SDR mode sending a CHANGE READ COLUMN
+	 * command through the READ PAGE "type" always works fine, when in
+	 * NV-DDR mode the same command simply fails. However, it was also
+	 * spotted that any CHANGE READ COLUMN command sent through the CHANGE
+	 * READ COLUMN ENHANCED "type" would correctly work in both cases (SDR
+	 * and NV-DDR). So, for simplicity, let's program the controller with
+	 * the CHANGE READ COLUMN ENHANCED "type" whenever we are requested to
+	 * perform a CHANGE READ COLUMN operation.
+	 */
+	if (subop->instrs[0].ctx.cmd.opcode == NAND_CMD_RNDOUT &&
+	    subop->instrs[2].ctx.cmd.opcode == NAND_CMD_RNDOUTSTART)
+		prog_reg = PROG_CHG_RD_COL_ENH;
+
+	return anfc_misc_data_type_exec(chip, subop, prog_reg);
 }
 
 static int anfc_param_write_type_exec(struct nand_chip *chip,
@@ -753,37 +888,6 @@ static const struct nand_op_parser anfc_op_parser = NAND_OP_PARSER(
 		NAND_OP_PARSER_PAT_WAITRDY_ELEM(false)),
 	);
 
-static int anfc_select_target(struct nand_chip *chip, int target)
-{
-	struct anand *anand = to_anand(chip);
-	struct arasan_nfc *nfc = to_anfc(chip->controller);
-	int ret;
-
-	/* Update the controller timings and the potential ECC configuration */
-	writel_relaxed(anand->timings, nfc->base + DATA_INTERFACE_REG);
-
-	/* Update clock frequency */
-	if (nfc->cur_clk != anand->clk) {
-		clk_disable_unprepare(nfc->controller_clk);
-		ret = clk_set_rate(nfc->controller_clk, anand->clk);
-		if (ret) {
-			dev_err(nfc->dev, "Failed to change clock rate\n");
-			return ret;
-		}
-
-		ret = clk_prepare_enable(nfc->controller_clk);
-		if (ret) {
-			dev_err(nfc->dev,
-				"Failed to re-enable the controller clock\n");
-			return ret;
-		}
-
-		nfc->cur_clk = anand->clk;
-	}
-
-	return 0;
-}
-
 static int anfc_check_op(struct nand_chip *chip,
 			 const struct nand_operation *op)
 {
@@ -861,21 +965,79 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 	struct anand *anand = to_anand(chip);
 	struct arasan_nfc *nfc = to_anfc(chip->controller);
 	struct device_node *np = nfc->dev->of_node;
+	const struct nand_sdr_timings *sdr;
+	const struct nand_nvddr_timings *nvddr;
+	unsigned int tccs_min, dqs_mode, fast_tcad;
+
+	if (nand_interface_is_nvddr(conf)) {
+		nvddr = nand_get_nvddr_timings(conf);
+		if (IS_ERR(nvddr))
+			return PTR_ERR(nvddr);
+	} else {
+		sdr = nand_get_sdr_timings(conf);
+		if (IS_ERR(sdr))
+			return PTR_ERR(sdr);
+	}
 
 	if (target < 0)
 		return 0;
 
-	anand->timings = DIFACE_SDR | DIFACE_SDR_MODE(conf->timings.mode);
+	if (nand_interface_is_sdr(conf)) {
+		anand->data_iface = DIFACE_SDR |
+				    DIFACE_SDR_MODE(conf->timings.mode);
+		anand->timings = 0;
+	} else {
+		anand->data_iface = DIFACE_NVDDR |
+				    DIFACE_DDR_MODE(conf->timings.mode);
+
+		if (conf->timings.nvddr.tCCS_min <= 100000)
+			tccs_min = TCCS_TIME_100NS;
+		else if (conf->timings.nvddr.tCCS_min <= 200000)
+			tccs_min = TCCS_TIME_200NS;
+		else if (conf->timings.nvddr.tCCS_min <= 300000)
+			tccs_min = TCCS_TIME_300NS;
+		else
+			tccs_min = TCCS_TIME_500NS;
+
+		fast_tcad = 0;
+		if (conf->timings.nvddr.tCAD_min < 45000)
+			fast_tcad = FAST_TCAD;
+
+		switch (conf->timings.mode) {
+		case 5:
+		case 4:
+			dqs_mode = 2;
+			break;
+		case 3:
+			dqs_mode = 3;
+			break;
+		case 2:
+			dqs_mode = 4;
+			break;
+		case 1:
+			dqs_mode = 5;
+			break;
+		case 0:
+		default:
+			dqs_mode = 6;
+			break;
+		}
+
+		anand->timings = tccs_min | fast_tcad |
+				 DQS_BUFF_SEL_IN(dqs_mode) |
+				 DQS_BUFF_SEL_OUT(dqs_mode);
+	}
+
 	anand->clk = ANFC_XLNX_SDR_DFLT_CORE_CLK;
 
 	/*
 	 * Due to a hardware bug in the ZynqMP SoC, SDR timing modes 0-1 work
 	 * with f > 90MHz (default clock is 100MHz) but signals are unstable
 	 * with higher modes. Hence we decrease a little bit the clock rate to
-	 * 80MHz when using modes 2-5 with this SoC.
+	 * 80MHz when using SDR modes 2-5 with this SoC.
 	 */
 	if (of_device_is_compatible(np, "xlnx,zynqmp-nand-controller") &&
-	    conf->timings.mode >= 2)
+	    nand_interface_is_sdr(conf) && conf->timings.mode >= 2)
 		anand->clk = ANFC_XLNX_SDR_HS_CORE_CLK;
 
 	return 0;
@@ -1007,8 +1169,8 @@ static int anfc_init_hw_ecc_controller(struct arasan_nfc *nfc,
 	if (!anand->bch)
 		return -EINVAL;
 
-	ecc->read_page = anfc_read_page_hw_ecc;
-	ecc->write_page = anfc_write_page_hw_ecc;
+	ecc->read_page = anfc_sel_read_page_hw_ecc;
+	ecc->write_page = anfc_sel_write_page_hw_ecc;
 
 	return 0;
 }
@@ -1094,37 +1256,43 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 	struct anand *anand;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
-	int cs, rb, ret;
+	int rb, ret, i;
 
 	anand = devm_kzalloc(nfc->dev, sizeof(*anand), GFP_KERNEL);
 	if (!anand)
 		return -ENOMEM;
 
-	/* We do not support multiple CS per chip yet */
-	if (of_property_count_elems_of_size(np, "reg", sizeof(u32)) != 1) {
+	/* Chip-select init */
+	anand->ncs_idx = of_property_count_elems_of_size(np, "reg", sizeof(u32));
+	if (anand->ncs_idx <= 0 || anand->ncs_idx > nfc->ncs) {
 		dev_err(nfc->dev, "Invalid reg property\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(np, "reg", &cs);
-	if (ret)
-		return ret;
+	anand->cs_idx = devm_kcalloc(nfc->dev, anand->ncs_idx,
+				     sizeof(*anand->cs_idx), GFP_KERNEL);
+	if (!anand->cs_idx)
+		return -ENOMEM;
 
+	for (i = 0; i < anand->ncs_idx; i++) {
+		ret = of_property_read_u32_index(np, "reg", i,
+						 &anand->cs_idx[i]);
+		if (ret) {
+			dev_err(nfc->dev, "invalid CS property: %d\n", ret);
+			return ret;
+		}
+	}
+
+	/* Ready-busy init */
 	ret = of_property_read_u32(np, "nand-rb", &rb);
 	if (ret)
 		return ret;
 
-	if (cs >= ANFC_MAX_CS || rb >= ANFC_MAX_CS) {
-		dev_err(nfc->dev, "Wrong CS %d or RB %d\n", cs, rb);
+	if (rb >= ANFC_MAX_CS) {
+		dev_err(nfc->dev, "Wrong RB %d\n", rb);
 		return -EINVAL;
 	}
 
-	if (test_and_set_bit(cs, &nfc->assigned_cs)) {
-		dev_err(nfc->dev, "Already assigned CS %d\n", cs);
-		return -EINVAL;
-	}
-
-	anand->cs = cs;
 	anand->rb = rb;
 
 	chip = &anand->chip;
@@ -1140,7 +1308,7 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 		return -EINVAL;
 	}
 
-	ret = nand_scan(chip, 1);
+	ret = nand_scan(chip, anand->ncs_idx);
 	if (ret) {
 		dev_err(nfc->dev, "Scan operation failed\n");
 		return ret;
@@ -1178,7 +1346,7 @@ static int anfc_chips_init(struct arasan_nfc *nfc)
 	int nchips = of_get_child_count(np);
 	int ret;
 
-	if (!nchips || nchips > ANFC_MAX_CS) {
+	if (!nchips) {
 		dev_err(nfc->dev, "Incorrect number of NAND chips (%d)\n",
 			nchips);
 		return -EINVAL;
@@ -1203,6 +1371,47 @@ static void anfc_reset(struct arasan_nfc *nfc)
 
 	/* Enable interrupt status */
 	writel_relaxed(EVENT_MASK, nfc->base + INTR_STS_EN_REG);
+
+	nfc->cur_cs = -1;
+}
+
+static int anfc_parse_cs(struct arasan_nfc *nfc)
+{
+	int ret;
+
+	/* Check the gpio-cs property */
+	ret = rawnand_dt_parse_gpio_cs(nfc->dev, &nfc->cs_array, &nfc->ncs);
+	if (ret)
+		return ret;
+
+	/*
+	 * The controller native CS cannot be both disabled at the same time.
+	 * Hence, only one native CS can be used if GPIO CS are needed, so that
+	 * the other is selected when a non-native CS must be asserted (not
+	 * wired physically or configured as GPIO instead of NAND CS). In this
+	 * case, the "not" chosen CS is assigned to nfc->spare_cs and selected
+	 * whenever a GPIO CS must be asserted.
+	 */
+	if (nfc->cs_array && nfc->ncs > 2) {
+		if (!nfc->cs_array[0] && !nfc->cs_array[1]) {
+			dev_err(nfc->dev,
+				"Assign a single native CS when using GPIOs\n");
+			return -EINVAL;
+		}
+
+		if (nfc->cs_array[0])
+			nfc->spare_cs = 0;
+		else
+			nfc->spare_cs = 1;
+	}
+
+	if (!nfc->cs_array) {
+		nfc->cs_array = anfc_default_cs_array;
+		nfc->ncs = ANFC_MAX_CS;
+		return 0;
+	}
+
+	return 0;
 }
 
 static int anfc_probe(struct platform_device *pdev)
@@ -1240,6 +1449,14 @@ static int anfc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(nfc->bus_clk);
 	if (ret)
 		goto disable_controller_clk;
+
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (ret)
+		goto disable_bus_clk;
+
+	ret = anfc_parse_cs(nfc);
+	if (ret)
+		goto disable_bus_clk;
 
 	ret = anfc_chips_init(nfc);
 	if (ret)

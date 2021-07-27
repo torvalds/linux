@@ -7,12 +7,8 @@
 #include <unistd.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 #include <linux/err.h>
 #include <linux/zalloc.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
 #include <api/fs/fs.h>
 #include <perf/bpf_perf.h>
 
@@ -22,6 +18,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "target.h"
+#include "cgroup.h"
 #include "cpumap.h"
 #include "thread_map.h"
 
@@ -35,13 +32,6 @@
 static inline void *u64_to_ptr(__u64 ptr)
 {
 	return (void *)(unsigned long)ptr;
-}
-
-static void set_max_rlimit(void)
-{
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static struct bpf_counter *bpf_counter_alloc(void)
@@ -297,33 +287,6 @@ struct bpf_counter_ops bpf_program_profiler_ops = {
 	.install_pe = bpf_program_profiler__install_pe,
 };
 
-static __u32 bpf_link_get_id(int fd)
-{
-	struct bpf_link_info link_info = {0};
-	__u32 link_info_len = sizeof(link_info);
-
-	bpf_obj_get_info_by_fd(fd, &link_info, &link_info_len);
-	return link_info.id;
-}
-
-static __u32 bpf_link_get_prog_id(int fd)
-{
-	struct bpf_link_info link_info = {0};
-	__u32 link_info_len = sizeof(link_info);
-
-	bpf_obj_get_info_by_fd(fd, &link_info, &link_info_len);
-	return link_info.prog_id;
-}
-
-static __u32 bpf_map_get_id(int fd)
-{
-	struct bpf_map_info map_info = {0};
-	__u32 map_info_len = sizeof(map_info);
-
-	bpf_obj_get_info_by_fd(fd, &map_info, &map_info_len);
-	return map_info.id;
-}
-
 static bool bperf_attr_map_compatible(int attr_map_fd)
 {
 	struct bpf_map_info map_info = {0};
@@ -385,26 +348,12 @@ static int bperf_lock_attr_map(struct target *target)
 	return map_fd;
 }
 
-/* trigger the leader program on a cpu */
-static int bperf_trigger_reading(int prog_fd, int cpu)
-{
-	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
-			    .ctx_in = NULL,
-			    .ctx_size_in = 0,
-			    .flags = BPF_F_TEST_RUN_ON_CPU,
-			    .cpu = cpu,
-			    .retval = 0,
-		);
-
-	return bpf_prog_test_run_opts(prog_fd, &opts);
-}
-
 static int bperf_check_target(struct evsel *evsel,
 			      struct target *target,
 			      enum bperf_filter_type *filter_type,
 			      __u32 *filter_entry_cnt)
 {
-	if (evsel->leader->core.nr_members > 1) {
+	if (evsel->core.leader->nr_members > 1) {
 		pr_err("bpf managed perf events do not yet support groups.\n");
 		return -1;
 	}
@@ -451,10 +400,10 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 		goto out;
 	}
 
-	err = -1;
 	link = bpf_program__attach(skel->progs.on_switch);
-	if (!link) {
+	if (IS_ERR(link)) {
 		pr_err("Failed to attach leader program\n");
+		err = PTR_ERR(link);
 		goto out;
 	}
 
@@ -521,9 +470,10 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 
 	evsel->bperf_leader_link_fd = bpf_link_get_fd_by_id(entry.link_id);
 	if (evsel->bperf_leader_link_fd < 0 &&
-	    bperf_reload_leader_program(evsel, attr_map_fd, &entry))
+	    bperf_reload_leader_program(evsel, attr_map_fd, &entry)) {
+		err = -1;
 		goto out;
-
+	}
 	/*
 	 * The bpf_link holds reference to the leader program, and the
 	 * leader program holds reference to the maps. Therefore, if
@@ -550,6 +500,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 	/* Step 2: load the follower skeleton */
 	evsel->follower_skel = bperf_follower_bpf__open();
 	if (!evsel->follower_skel) {
+		err = -1;
 		pr_err("Failed to open follower skeleton\n");
 		goto out;
 	}
@@ -792,6 +743,8 @@ struct bpf_counter_ops bperf_ops = {
 	.destroy    = bperf__destroy,
 };
 
+extern struct bpf_counter_ops bperf_cgrp_ops;
+
 static inline bool bpf_counter_skip(struct evsel *evsel)
 {
 	return list_empty(&evsel->bpf_counter_list) &&
@@ -809,6 +762,8 @@ int bpf_counter__load(struct evsel *evsel, struct target *target)
 {
 	if (target->bpf_str)
 		evsel->bpf_counter_ops = &bpf_program_profiler_ops;
+	else if (cgrp_event_expanded && target->use_bpf)
+		evsel->bpf_counter_ops = &bperf_cgrp_ops;
 	else if (target->use_bpf || evsel->bpf_counter ||
 		 evsel__match_bpf_counter_events(evsel->name))
 		evsel->bpf_counter_ops = &bperf_ops;

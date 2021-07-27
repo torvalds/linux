@@ -396,7 +396,7 @@ int main(int argc, char **argv)
 	 * on different systems with different compilers. The right way is
 	 * to parse the ELF file. We took a shortcut here.
 	 */
-	uprobe_file_offset = (__u64)main - (__u64)&__executable_start;
+	uprobe_file_offset = (unsigned long)main - (unsigned long)&__executable_start;
 	CHECK_AND_RET(test_nondebug_fs_probe("uprobe", (char *)argv[0],
 					     uprobe_file_offset, 0x0, false,
 					     BPF_FD_TYPE_UPROBE,
