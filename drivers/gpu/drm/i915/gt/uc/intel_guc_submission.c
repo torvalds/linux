@@ -302,10 +302,10 @@ static int guc_submission_send_busy_loop(struct intel_guc *guc,
 	return err;
 }
 
-static int guc_wait_for_pending_msg(struct intel_guc *guc,
-				    atomic_t *wait_var,
-				    bool interruptible,
-				    long timeout)
+int intel_guc_wait_for_pending_msg(struct intel_guc *guc,
+				   atomic_t *wait_var,
+				   bool interruptible,
+				   long timeout)
 {
 	const int state = interruptible ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
@@ -348,8 +348,9 @@ int intel_guc_wait_for_idle(struct intel_guc *guc, long timeout)
 	if (!intel_uc_uses_guc_submission(&guc_to_gt(guc)->uc))
 		return 0;
 
-	return guc_wait_for_pending_msg(guc, &guc->outstanding_submission_g2h,
-					true, timeout);
+	return intel_guc_wait_for_pending_msg(guc,
+					      &guc->outstanding_submission_g2h,
+					      true, timeout);
 }
 
 static int guc_lrc_desc_pin(struct intel_context *ce, bool loop);
@@ -623,7 +624,7 @@ void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 	for (i = 0; i < 4 && atomic_read(&guc->outstanding_submission_g2h); ++i) {
 		intel_guc_to_host_event_handler(guc);
 #define wait_for_reset(guc, wait_var) \
-		guc_wait_for_pending_msg(guc, wait_var, false, (HZ / 20))
+		intel_guc_wait_for_pending_msg(guc, wait_var, false, (HZ / 20))
 		do {
 			wait_for_reset(guc, &guc->outstanding_submission_g2h);
 		} while (!list_empty(&guc->ct.requests.incoming));

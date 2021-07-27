@@ -595,14 +595,18 @@ void intel_uc_cancel_requests(struct intel_uc *uc)
 void intel_uc_runtime_suspend(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
-	int err;
 
 	if (!intel_guc_is_ready(guc))
 		return;
 
-	err = intel_guc_suspend(guc);
-	if (err)
-		DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+	/*
+	 * Wait for any outstanding CTB before tearing down communication /w the
+	 * GuC.
+	 */
+#define OUTSTANDING_CTB_TIMEOUT_PERIOD	(HZ / 5)
+	intel_guc_wait_for_pending_msg(guc, &guc->outstanding_submission_g2h,
+				       false, OUTSTANDING_CTB_TIMEOUT_PERIOD);
+	GEM_WARN_ON(atomic_read(&guc->outstanding_submission_g2h));
 
 	guc_disable_communication(guc);
 }
@@ -611,12 +615,16 @@ void intel_uc_suspend(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 	intel_wakeref_t wakeref;
+	int err;
 
 	if (!intel_guc_is_ready(guc))
 		return;
 
-	with_intel_runtime_pm(uc_to_gt(uc)->uncore->rpm, wakeref)
-		intel_uc_runtime_suspend(uc);
+	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref) {
+		err = intel_guc_suspend(guc);
+		if (err)
+			DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+	}
 }
 
 static int __uc_resume(struct intel_uc *uc, bool enable_communication)
