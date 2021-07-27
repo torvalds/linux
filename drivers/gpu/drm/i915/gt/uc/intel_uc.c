@@ -550,6 +550,8 @@ void intel_uc_reset_prepare(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
+	uc->reset_in_progress = true;
+
 	/* Nothing to do if GuC isn't supported */
 	if (!intel_uc_supports_guc(uc))
 		return;
@@ -577,6 +579,8 @@ void intel_uc_reset(struct intel_uc *uc, bool stalled)
 void intel_uc_reset_finish(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
+
+	uc->reset_in_progress = false;
 
 	/* Firmware expected to be running when this function is called */
 	if (intel_guc_is_fw_running(guc) && intel_uc_uses_guc_submission(uc))
