@@ -1607,13 +1607,15 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 	features = NETIF_F_HW_VLAN_CTAG_TX |
 		   NETIF_F_HW_VLAN_CTAG_RX |
 		   NETIF_F_HW_VLAN_CTAG_FILTER |
-		   NETIF_F_RXHASH |
 		   NETIF_F_SG |
 		   NETIF_F_HW_CSUM |
 		   NETIF_F_RXCSUM |
 		   NETIF_F_TSO |
 		   NETIF_F_TSO6 |
 		   NETIF_F_TSO_ECN;
+
+	if (lif->nxqs > 1)
+		features |= NETIF_F_RXHASH;
 
 	err = ionic_set_nic_features(lif, features);
 	if (err)
