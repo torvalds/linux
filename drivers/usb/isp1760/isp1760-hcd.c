@@ -2527,17 +2527,23 @@ int __init isp1760_init_kmem_once(void)
 			SLAB_MEM_SPREAD, NULL);
 
 	if (!qtd_cachep)
-		return -ENOMEM;
+		goto destroy_urb_listitem;
 
 	qh_cachep = kmem_cache_create("isp1760_qh", sizeof(struct isp1760_qh),
 			0, SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
 
-	if (!qh_cachep) {
-		kmem_cache_destroy(qtd_cachep);
-		return -ENOMEM;
-	}
+	if (!qh_cachep)
+		goto destroy_qtd;
 
 	return 0;
+
+destroy_qtd:
+	kmem_cache_destroy(qtd_cachep);
+
+destroy_urb_listitem:
+	kmem_cache_destroy(urb_listitem_cachep);
+
+	return -ENOMEM;
 }
 
 void isp1760_deinit_kmem_cache(void)
