@@ -1307,13 +1307,12 @@ void dpcm_path_put(struct snd_soc_dapm_widget_list **list)
 static bool dpcm_be_is_active(struct snd_soc_dpcm *dpcm, int stream,
 			      struct snd_soc_dapm_widget_list *list)
 {
-	struct snd_soc_dapm_widget *widget;
 	struct snd_soc_dai *dai;
 	unsigned int i;
 
 	/* is there a valid DAI widget for this BE */
 	for_each_rtd_dais(dpcm->be, i, dai) {
-		widget = snd_soc_dai_get_widget(dai, stream);
+		struct snd_soc_dapm_widget *widget = snd_soc_dai_get_widget(dai, stream);
 
 		/*
 		 * The BE is pruned only if none of the dai
