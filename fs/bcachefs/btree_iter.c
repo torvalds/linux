@@ -495,8 +495,7 @@ void bch2_trans_downgrade(struct btree_trans *trans)
 
 /* Btree transaction locking: */
 
-static inline bool btree_iter_should_be_locked(struct btree_trans *trans,
-					       struct btree_iter *iter)
+static inline bool btree_iter_should_be_locked(struct btree_iter *iter)
 {
 	return (iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) ||
 		iter->should_be_locked;
@@ -507,8 +506,8 @@ bool bch2_trans_relock(struct btree_trans *trans)
 	struct btree_iter *iter;
 
 	trans_for_each_iter(trans, iter)
-		if (!bch2_btree_iter_relock(iter, _RET_IP_) &&
-		    btree_iter_should_be_locked(trans, iter)) {
+		if (btree_iter_should_be_locked(iter) &&
+		    !bch2_btree_iter_relock(iter, _RET_IP_)) {
 			trace_trans_restart_relock(trans->ip, _RET_IP_,
 					iter->btree_id, &iter->real_pos);
 			return false;
