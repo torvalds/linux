@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +20,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
-#include "amdgpu_dm_trace.h"
+#ifndef __DC_FPU_H__
+#define __DC_FPU_H__
 
-#define TRACE_DC_PIPE_STATE(pipe_ctx, index, max_pipes) \
-	for (index = 0; index < max_pipes; ++index) { \
-		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[index]; \
-		if (pipe_ctx->plane_state) \
-			trace_amdgpu_dm_dc_pipe_state(pipe_ctx->pipe_idx, pipe_ctx->plane_state, \
-						      pipe_ctx->stream, &pipe_ctx->plane_res, \
-						      pipe_ctx->update_flags.raw); \
-	}
+void dc_fpu_begin(const char *function_name, const int line);
+void dc_fpu_end(const char *function_name, const int line);
 
-#define TRACE_DCE_CLOCK_STATE(dce_clocks) \
-	trace_amdgpu_dm_dce_clocks_state(dce_clocks)
-
-#define TRACE_DCN_CLOCK_STATE(dcn_clocks) \
-	trace_amdgpu_dm_dc_clocks_state(dcn_clocks)
-
-#define TRACE_DCN_FPU(begin, function, line) \
-	trace_dcn_fpu(begin, function, line)
+#endif /* __DC_FPU_H__ */
