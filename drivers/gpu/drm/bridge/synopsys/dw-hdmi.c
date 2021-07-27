@@ -2509,6 +2509,15 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static struct drm_encoder *
+dw_hdmi_connector_best_encoder(struct drm_connector *connector)
+{
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					    connector);
+
+	return hdmi->bridge.encoder;
+}
+
 static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 			       const struct drm_connector_state *new_state)
 {
@@ -2572,6 +2581,7 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
+	.best_encoder = dw_hdmi_connector_best_encoder,
 	.atomic_check = dw_hdmi_connector_atomic_check,
 };
 
@@ -2926,6 +2936,7 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
+	struct drm_connector *connector = &hdmi->connector;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	enum drm_mode_status mode_status = MODE_OK;
 
@@ -2934,8 +2945,8 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 		return MODE_BAD;
 
 	if (pdata->mode_valid)
-		mode_status = pdata->mode_valid(hdmi, pdata->priv_data, info,
-						mode);
+		mode_status = pdata->mode_valid(connector, pdata->priv_data,
+						info, mode);
 
 	return mode_status;
 }

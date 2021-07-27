@@ -273,21 +273,16 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 }
 
 static enum drm_mode_status
-dw_hdmi_rockchip_mode_valid(struct dw_hdmi *hdmi, void *data,
+dw_hdmi_rockchip_mode_valid(struct drm_connector *connector, void *data,
 			    const struct drm_display_info *info,
 			    const struct drm_display_mode *mode)
 {
-	const struct dw_hdmi_mpll_config *mpll_cfg = rockchip_mpll_cfg;
-	int pclk = mode->clock * 1000;
-	bool valid = false;
-	int i;
+	struct drm_encoder *encoder = connector->encoder;
+	enum drm_mode_status status = MODE_OK;
+	struct drm_device *dev = connector->dev;
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
 
-	for (i = 0; mpll_cfg[i].mpixelclock != (~0UL); i++) {
-		if (pclk == mpll_cfg[i].mpixelclock) {
-			valid = true;
-			break;
-		}
-	}
 	/*
 	 * Pixel clocks we support are always < 2GHz and so fit in an
 	 * int.  We should make sure source rate does too so we don't get
@@ -296,7 +291,41 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *hdmi, void *data,
 	if (mode->clock > INT_MAX / 1000)
 		return MODE_BAD;
 
-	return (valid) ? MODE_OK : MODE_BAD;
+	if (!encoder) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		funcs = connector->helper_private;
+		if (funcs->atomic_best_encoder)
+			encoder = funcs->atomic_best_encoder(connector,
+							     connector->state);
+		else
+			encoder = funcs->best_encoder(connector);
+	}
+
+	if (!encoder || !encoder->possible_crtcs)
+		return MODE_BAD;
+	/*
+	 * ensure all drm display mode can work, if someone want support more
+	 * resolutions, please limit the possible_crtc, only connect to
+	 * needed crtc.
+	 */
+	drm_for_each_crtc(crtc, connector->dev) {
+		int pipe = drm_crtc_index(crtc);
+		const struct rockchip_crtc_funcs *funcs =
+						priv->crtc_funcs[pipe];
+
+		if (!(encoder->possible_crtcs & drm_crtc_mask(crtc)))
+			continue;
+		if (!funcs || !funcs->mode_valid)
+			continue;
+
+		status = funcs->mode_valid(crtc, mode,
+					   DRM_MODE_CONNECTOR_HDMIA);
+		if (status != MODE_OK)
+			return status;
+	}
+
+	return status;
 }
 
 static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
