@@ -74,7 +74,6 @@
 #include "gt/intel_context_param.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
-#include "gt/intel_execlists_submission.h" /* virtual_engine */
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
@@ -362,9 +361,6 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 
 	if (!HAS_EXECLISTS(i915))
 		return -ENODEV;
-
-	if (intel_uc_uses_guc_submission(&i915->gt.uc))
-		return -ENODEV; /* not implement yet */
 
 	if (get_user(idx, &ext->engine_index))
 		return -EFAULT;
@@ -950,8 +946,8 @@ static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 			break;
 
 		case I915_GEM_ENGINE_TYPE_BALANCED:
-			ce = intel_execlists_create_virtual(pe[n].siblings,
-							    pe[n].num_siblings);
+			ce = intel_engine_create_virtual(pe[n].siblings,
+							 pe[n].num_siblings);
 			break;
 
 		case I915_GEM_ENGINE_TYPE_INVALID:

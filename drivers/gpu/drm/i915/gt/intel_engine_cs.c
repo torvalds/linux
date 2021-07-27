@@ -1796,6 +1796,20 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine, ktime_t *now)
 	return total;
 }
 
+struct intel_context *
+intel_engine_create_virtual(struct intel_engine_cs **siblings,
+			    unsigned int count)
+{
+	if (count == 0)
+		return ERR_PTR(-EINVAL);
+
+	if (count == 1)
+		return intel_context_create(siblings[0]);
+
+	GEM_BUG_ON(!siblings[0]->cops->create_virtual);
+	return siblings[0]->cops->create_virtual(siblings, count);
+}
+
 static bool match_ring(struct i915_request *rq)
 {
 	u32 ring = ENGINE_READ(rq->engine, RING_START);

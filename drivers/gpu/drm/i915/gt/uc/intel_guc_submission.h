@@ -26,6 +26,8 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 void intel_guc_submission_print_context_info(struct intel_guc *guc,
 					     struct drm_printer *p);
 
+bool intel_guc_virtual_engine_has_heartbeat(const struct intel_engine_cs *ve);
+
 static inline bool intel_guc_submission_is_supported(struct intel_guc *guc)
 {
 	/* XXX: GuC submission is unavailable for now */

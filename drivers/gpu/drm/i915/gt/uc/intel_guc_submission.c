@@ -60,6 +60,15 @@
  *
  */
 
+/* GuC Virtual Engine */
+struct guc_virtual_engine {
+	struct intel_engine_cs base;
+	struct intel_context context;
+};
+
+static struct intel_context *
+guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count);
+
 #define GUC_REQUEST_SIZE 64 /* bytes */
 
 /*
@@ -931,14 +940,17 @@ static int guc_lrc_desc_pin(struct intel_context *ce)
 	return ret;
 }
 
-static int guc_context_pre_pin(struct intel_context *ce,
-			       struct i915_gem_ww_ctx *ww,
-			       void **vaddr)
+static int __guc_context_pre_pin(struct intel_context *ce,
+				 struct intel_engine_cs *engine,
+				 struct i915_gem_ww_ctx *ww,
+				 void **vaddr)
 {
-	return lrc_pre_pin(ce, ce->engine, ww, vaddr);
+	return lrc_pre_pin(ce, engine, ww, vaddr);
 }
 
-static int guc_context_pin(struct intel_context *ce, void *vaddr)
+static int __guc_context_pin(struct intel_context *ce,
+			     struct intel_engine_cs *engine,
+			     void *vaddr)
 {
 	if (i915_ggtt_offset(ce->state) !=
 	    (ce->lrc.lrca & CTX_GTT_ADDRESS_MASK))
@@ -949,7 +961,19 @@ static int guc_context_pin(struct intel_context *ce, void *vaddr)
 	 * explaination of why.
 	 */
 
-	return lrc_pin(ce, ce->engine, vaddr);
+	return lrc_pin(ce, engine, vaddr);
+}
+
+static int guc_context_pre_pin(struct intel_context *ce,
+			       struct i915_gem_ww_ctx *ww,
+			       void **vaddr)
+{
+	return __guc_context_pre_pin(ce, ce->engine, ww, vaddr);
+}
+
+static int guc_context_pin(struct intel_context *ce, void *vaddr)
+{
+	return __guc_context_pin(ce, ce->engine, vaddr);
 }
 
 static void guc_context_unpin(struct intel_context *ce)
@@ -1054,6 +1078,21 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 	deregister_context(ce, ce->guc_id);
 }
 
+static void __guc_context_destroy(struct intel_context *ce)
+{
+	lrc_fini(ce);
+	intel_context_fini(ce);
+
+	if (intel_engine_is_virtual(ce->engine)) {
+		struct guc_virtual_engine *ve =
+			container_of(ce, typeof(*ve), context);
+
+		kfree(ve);
+	} else {
+		intel_context_free(ce);
+	}
+}
+
 static void guc_context_destroy(struct kref *kref)
 {
 	struct intel_context *ce = container_of(kref, typeof(*ce), ref);
@@ -1068,11 +1107,11 @@ static void guc_context_destroy(struct kref *kref)
 	 * registered with the GuC.
 	 */
 	if (context_guc_id_invalid(ce)) {
-		lrc_destroy(kref);
+		__guc_context_destroy(ce);
 		return;
 	} else if (!lrc_desc_registered(guc, ce->guc_id)) {
 		release_guc_id(guc, ce);
-		lrc_destroy(kref);
+		__guc_context_destroy(ce);
 		return;
 	}
 
@@ -1087,7 +1126,7 @@ static void guc_context_destroy(struct kref *kref)
 	spin_lock_irqsave(&guc->contexts_lock, flags);
 	if (context_guc_id_invalid(ce)) {
 		spin_unlock_irqrestore(&guc->contexts_lock, flags);
-		lrc_destroy(kref);
+		__guc_context_destroy(ce);
 		return;
 	}
 
@@ -1132,6 +1171,8 @@ static const struct intel_context_ops guc_context_ops = {
 
 	.reset = lrc_reset,
 	.destroy = guc_context_destroy,
+
+	.create_virtual = guc_create_virtual,
 };
 
 static void __guc_signal_context_fence(struct intel_context *ce)
@@ -1259,6 +1300,83 @@ out:
 
 	return 0;
 }
+
+static struct intel_engine_cs *
+guc_virtual_get_sibling(struct intel_engine_cs *ve, unsigned int sibling)
+{
+	struct intel_engine_cs *engine;
+	intel_engine_mask_t tmp, mask = ve->mask;
+	unsigned int num_siblings = 0;
+
+	for_each_engine_masked(engine, ve->gt, mask, tmp)
+		if (num_siblings++ == sibling)
+			return engine;
+
+	return NULL;
+}
+
+static int guc_virtual_context_pre_pin(struct intel_context *ce,
+				       struct i915_gem_ww_ctx *ww,
+				       void **vaddr)
+{
+	struct intel_engine_cs *engine = guc_virtual_get_sibling(ce->engine, 0);
+
+	return __guc_context_pre_pin(ce, engine, ww, vaddr);
+}
+
+static int guc_virtual_context_pin(struct intel_context *ce, void *vaddr)
+{
+	struct intel_engine_cs *engine = guc_virtual_get_sibling(ce->engine, 0);
+
+	return __guc_context_pin(ce, engine, vaddr);
+}
+
+static void guc_virtual_context_enter(struct intel_context *ce)
+{
+	intel_engine_mask_t tmp, mask = ce->engine->mask;
+	struct intel_engine_cs *engine;
+
+	for_each_engine_masked(engine, ce->engine->gt, mask, tmp)
+		intel_engine_pm_get(engine);
+
+	intel_timeline_enter(ce->timeline);
+}
+
+static void guc_virtual_context_exit(struct intel_context *ce)
+{
+	intel_engine_mask_t tmp, mask = ce->engine->mask;
+	struct intel_engine_cs *engine;
+
+	for_each_engine_masked(engine, ce->engine->gt, mask, tmp)
+		intel_engine_pm_put(engine);
+
+	intel_timeline_exit(ce->timeline);
+}
+
+static int guc_virtual_context_alloc(struct intel_context *ce)
+{
+	struct intel_engine_cs *engine = guc_virtual_get_sibling(ce->engine, 0);
+
+	return lrc_alloc(ce, engine);
+}
+
+static const struct intel_context_ops virtual_guc_context_ops = {
+	.alloc = guc_virtual_context_alloc,
+
+	.pre_pin = guc_virtual_context_pre_pin,
+	.pin = guc_virtual_context_pin,
+	.unpin = guc_context_unpin,
+	.post_unpin = guc_context_post_unpin,
+
+	.enter = guc_virtual_context_enter,
+	.exit = guc_virtual_context_exit,
+
+	.sched_disable = guc_context_sched_disable,
+
+	.destroy = guc_context_destroy,
+
+	.get_sibling = guc_virtual_get_sibling,
+};
 
 static void sanitize_hwsp(struct intel_engine_cs *engine)
 {
@@ -1566,7 +1684,7 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 	} else if (context_destroyed(ce)) {
 		/* Context has been destroyed */
 		release_guc_id(guc, ce);
-		lrc_destroy(&ce->ref);
+		__guc_context_destroy(ce);
 	}
 
 	decr_outstanding_submission_g2h(guc);
@@ -1680,4 +1798,108 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 			   ce->guc_state.sched_state,
 			   atomic_read(&ce->guc_sched_state_no_lock));
 	}
+}
+
+static struct intel_context *
+guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count)
+{
+	struct guc_virtual_engine *ve;
+	struct intel_guc *guc;
+	unsigned int n;
+	int err;
+
+	ve = kzalloc(sizeof(*ve), GFP_KERNEL);
+	if (!ve)
+		return ERR_PTR(-ENOMEM);
+
+	guc = &siblings[0]->gt->uc.guc;
+
+	ve->base.i915 = siblings[0]->i915;
+	ve->base.gt = siblings[0]->gt;
+	ve->base.uncore = siblings[0]->uncore;
+	ve->base.id = -1;
+
+	ve->base.uabi_class = I915_ENGINE_CLASS_INVALID;
+	ve->base.instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
+	ve->base.uabi_instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
+	ve->base.saturated = ALL_ENGINES;
+	ve->base.breadcrumbs = intel_breadcrumbs_create(&ve->base);
+	if (!ve->base.breadcrumbs) {
+		kfree(ve);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	snprintf(ve->base.name, sizeof(ve->base.name), "virtual");
+
+	ve->base.sched_engine = i915_sched_engine_get(guc->sched_engine);
+
+	ve->base.cops = &virtual_guc_context_ops;
+	ve->base.request_alloc = guc_request_alloc;
+
+	ve->base.submit_request = guc_submit_request;
+
+	ve->base.flags = I915_ENGINE_IS_VIRTUAL;
+
+	intel_context_init(&ve->context, &ve->base);
+
+	for (n = 0; n < count; n++) {
+		struct intel_engine_cs *sibling = siblings[n];
+
+		GEM_BUG_ON(!is_power_of_2(sibling->mask));
+		if (sibling->mask & ve->base.mask) {
+			DRM_DEBUG("duplicate %s entry in load balancer\n",
+				  sibling->name);
+			err = -EINVAL;
+			goto err_put;
+		}
+
+		ve->base.mask |= sibling->mask;
+
+		if (n != 0 && ve->base.class != sibling->class) {
+			DRM_DEBUG("invalid mixing of engine class, sibling %d, already %d\n",
+				  sibling->class, ve->base.class);
+			err = -EINVAL;
+			goto err_put;
+		} else if (n == 0) {
+			ve->base.class = sibling->class;
+			ve->base.uabi_class = sibling->uabi_class;
+			snprintf(ve->base.name, sizeof(ve->base.name),
+				 "v%dx%d", ve->base.class, count);
+			ve->base.context_size = sibling->context_size;
+
+			ve->base.emit_bb_start = sibling->emit_bb_start;
+			ve->base.emit_flush = sibling->emit_flush;
+			ve->base.emit_init_breadcrumb =
+				sibling->emit_init_breadcrumb;
+			ve->base.emit_fini_breadcrumb =
+				sibling->emit_fini_breadcrumb;
+			ve->base.emit_fini_breadcrumb_dw =
+				sibling->emit_fini_breadcrumb_dw;
+
+			ve->base.flags |= sibling->flags;
+
+			ve->base.props.timeslice_duration_ms =
+				sibling->props.timeslice_duration_ms;
+			ve->base.props.preempt_timeout_ms =
+				sibling->props.preempt_timeout_ms;
+		}
+	}
+
+	return &ve->context;
+
+err_put:
+	intel_context_put(&ve->context);
+	return ERR_PTR(err);
+}
+
+bool intel_guc_virtual_engine_has_heartbeat(const struct intel_engine_cs *ve)
+{
+	struct intel_engine_cs *engine;
+	intel_engine_mask_t tmp, mask = ve->mask;
+
+	for_each_engine_masked(engine, ve->gt, mask, tmp)
+		if (READ_ONCE(engine->props.heartbeat_interval_ms))
+			return true;
+
+	return false;
 }
