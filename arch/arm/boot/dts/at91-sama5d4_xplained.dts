@@ -7,6 +7,7 @@
  */
 /dts-v1/;
 #include "sama5d4.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Atmel SAMA5D4 Xplained";
@@ -250,7 +251,7 @@
 		pb_user1 {
 			label = "pb_user1";
 			gpios = <&pioE 8 GPIO_ACTIVE_HIGH>;
-			linux,code = <0x100>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};
