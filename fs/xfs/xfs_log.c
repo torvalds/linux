@@ -833,7 +833,7 @@ xlog_write_unmount_record(
 	 * stamp the tail LSN into the unmount record.
 	 */
 	if (log->l_targ != log->l_mp->m_ddev_targp)
-		blkdev_issue_flush(log->l_targ->bt_bdev);
+		blkdev_issue_flush(log->l_mp->m_ddev_targp->bt_bdev);
 	return xlog_write(log, &vec, ticket, NULL, NULL, XLOG_UNMOUNT_TRANS);
 }
 
