@@ -77,7 +77,7 @@ put_task_struct:
 	return found;
 }
 
-static void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
+static void android_rvh_show_max_freq(void *unused, struct cpufreq_policy *policy,
 				     unsigned int *max_freq)
 {
 	if (!cpuinfo_max_freq_cached)
@@ -92,5 +92,5 @@ static void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy
 
 void walt_fixup_init(void)
 {
-	register_trace_android_vh_show_max_freq(android_vh_show_max_freq, NULL);
+	register_trace_android_rvh_show_max_freq(android_rvh_show_max_freq, NULL);
 }
