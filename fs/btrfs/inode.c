@@ -2573,7 +2573,7 @@ out:
  *    c-3) otherwise:			async submit
  */
 void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
-			   int mirror_num, unsigned long bio_flags)
+			   int mirror_num, enum btrfs_compression_type compress_type)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -2602,7 +2602,7 @@ void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 		if (ret)
 			goto out;
 
-		if (bio_flags != BTRFS_COMPRESS_NONE) {
+		if (compress_type != BTRFS_COMPRESS_NONE) {
 			/*
 			 * btrfs_submit_compressed_read will handle completing
 			 * the bio if there were any errors, so just return
@@ -7834,7 +7834,8 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 }
 
 static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
-				  int mirror_num, unsigned long bio_flags)
+				  int mirror_num,
+				  enum btrfs_compression_type compress_type)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);

@@ -178,7 +178,8 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 	return ret;
 }
 
-static void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_flags)
+static void submit_one_bio(struct bio *bio, int mirror_num,
+			   enum btrfs_compression_type compress_type)
 {
 	struct extent_io_tree *tree = bio->bi_private;
 
@@ -189,7 +190,7 @@ static void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_fl
 
 	if (is_data_inode(tree->private_data))
 		btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
-					    bio_flags);
+					    compress_type);
 	else
 		btrfs_submit_metadata_bio(tree->private_data, bio, mirror_num);
 	/*
@@ -3246,7 +3247,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
  *                a contiguous page to the previous one
  * @size:	portion of page that we want to write
  * @pg_offset:	starting offset in the page
- * @bio_flags:	flags of the current bio to see if we can merge them
+ * @compress_type:   compression type of the current bio to see if we can merge them
  *
  * Attempt to add a page to bio considering stripe alignment etc.
  *
@@ -3258,7 +3259,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 			      struct page *page,
 			      u64 disk_bytenr, unsigned int size,
 			      unsigned int pg_offset,
-			      unsigned long bio_flags)
+			      enum btrfs_compression_type compress_type)
 {
 	struct bio *bio = bio_ctrl->bio;
 	u32 bio_size = bio->bi_iter.bi_size;
@@ -3270,7 +3271,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
 	ASSERT(bio_ctrl->len_to_oe_boundary && bio_ctrl->len_to_stripe_boundary);
-	if (bio_ctrl->bio_flags != bio_flags)
+	if (bio_ctrl->bio_flags != compress_type)
 		return 0;
 
 	if (bio_ctrl->bio_flags != BTRFS_COMPRESS_NONE)
@@ -3359,7 +3360,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 			 unsigned int opf,
 			 bio_end_io_t end_io_func,
 			 u64 disk_bytenr, u32 offset, u64 file_offset,
-			 unsigned long bio_flags)
+			 enum btrfs_compression_type compress_type)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio;
@@ -3370,12 +3371,12 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	 * For compressed page range, its disk_bytenr is always @disk_bytenr
 	 * passed in, no matter if we have added any range into previous bio.
 	 */
-	if (bio_flags != BTRFS_COMPRESS_NONE)
+	if (compress_type != BTRFS_COMPRESS_NONE)
 		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
 	bio_ctrl->bio = bio;
-	bio_ctrl->bio_flags = bio_flags;
+	bio_ctrl->bio_flags = compress_type;
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = &inode->io_tree;
 	bio->bi_opf = opf;
@@ -3434,7 +3435,7 @@ error:
  * @end_io_func:     end_io callback for new bio
  * @mirror_num:	     desired mirror to read/write
  * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
- * @bio_flags:	flags of the current bio to see if we can merge them
+ * @compress_type:   compress type for current bio
  */
 static int submit_extent_page(unsigned int opf,
 			      struct writeback_control *wbc,
@@ -3443,7 +3444,7 @@ static int submit_extent_page(unsigned int opf,
 			      size_t size, unsigned long pg_offset,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
-			      unsigned long bio_flags,
+			      enum btrfs_compression_type compress_type,
 			      bool force_bio_submit)
 {
 	int ret = 0;
@@ -3468,7 +3469,7 @@ static int submit_extent_page(unsigned int opf,
 			ret = alloc_new_bio(inode, bio_ctrl, wbc, opf,
 					    end_io_func, disk_bytenr, offset,
 					    page_offset(page) + cur,
-					    bio_flags);
+					    compress_type);
 			if (ret < 0)
 				return ret;
 		}
@@ -3476,14 +3477,14 @@ static int submit_extent_page(unsigned int opf,
 		 * We must go through btrfs_bio_add_page() to ensure each
 		 * page range won't cross various boundaries.
 		 */
-		if (bio_flags != BTRFS_COMPRESS_NONE)
+		if (compress_type != BTRFS_COMPRESS_NONE)
 			added = btrfs_bio_add_page(bio_ctrl, page, disk_bytenr,
 					size - offset, pg_offset + offset,
-					bio_flags);
+					compress_type);
 		else
 			added = btrfs_bio_add_page(bio_ctrl, page,
 					disk_bytenr + offset, size - offset,
-					pg_offset + offset, bio_flags);
+					pg_offset + offset, compress_type);
 
 		/* Metadata page range should never be split */
 		if (!is_data_inode(&inode->vfs_inode))

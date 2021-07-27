@@ -67,7 +67,7 @@ struct extent_io_tree;
 
 typedef void (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
-					 unsigned long bio_flags);
+					 enum btrfs_compression_type compress_type);
 
 typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
 		struct bio *bio, u64 dio_file_offset);
