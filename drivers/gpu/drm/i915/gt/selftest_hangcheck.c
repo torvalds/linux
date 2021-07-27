@@ -17,6 +17,8 @@
 #include "selftests/igt_flush_test.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_atomic.h"
+#include "selftests/igt_spinner.h"
+#include "selftests/intel_scheduler_helpers.h"
 
 #include "selftests/mock_drm.h"
 
@@ -450,6 +452,14 @@ static int igt_reset_nop_engine(void *arg)
 		IGT_TIMEOUT(end_time);
 		int err;
 
+		if (intel_engine_uses_guc(engine)) {
+			/* Engine level resets are triggered by GuC when a hang
+			 * is detected. They can't be triggered by the KMD any
+			 * more. Thus a nop batch cannot be used as a reset test
+			 */
+			continue;
+		}
+
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			pr_err("[%s] Create context failed: %d!\n", engine->name, err);
@@ -560,6 +570,10 @@ static int igt_reset_fail_engine(void *arg)
 		struct intel_context *ce;
 		IGT_TIMEOUT(end_time);
 		int err;
+
+		/* Can't manually break the reset if i915 doesn't perform it */
+		if (intel_engine_uses_guc(engine))
+			continue;
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
@@ -700,7 +714,11 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
 		unsigned long count;
+		bool using_guc = intel_engine_uses_guc(engine);
 		IGT_TIMEOUT(end_time);
+
+		if (using_guc && !active)
+			continue;
 
 		if (active && !intel_engine_can_store_dword(engine))
 			continue;
@@ -719,15 +737,24 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		count = 0;
 		do {
-			if (active) {
-				struct i915_request *rq;
+			struct i915_request *rq = NULL;
+			struct intel_selftest_saved_policy saved;
+			int err2;
 
+			err = intel_selftest_modify_policy(engine, &saved,
+							   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
+			if (err) {
+				pr_err("[%s] Modify policy failed: %d!\n", engine->name, err);
+				break;
+			}
+
+			if (active) {
 				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					pr_err("[%s] Create hang request failed: %d!\n",
 					       engine->name, err);
-					break;
+					goto restore;
 				}
 
 				i915_request_get(rq);
@@ -743,34 +770,59 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 					i915_request_put(rq);
 					err = -EIO;
-					break;
+					goto restore;
 				}
+			}
 
+			if (!using_guc) {
+				err = intel_engine_reset(engine, NULL);
+				if (err) {
+					pr_err("intel_engine_reset(%s) failed, err:%d\n",
+					       engine->name, err);
+					goto skip;
+				}
+			}
+
+			if (rq) {
+				/* Ensure the reset happens and kills the engine */
+				err = intel_selftest_wait_for_rq(rq);
+				if (err)
+					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
+					       engine->name, rq->fence.context,
+					       rq->fence.seqno, rq->context->guc_id, err);
+			}
+
+skip:
+			if (rq)
 				i915_request_put(rq);
-			}
-
-			err = intel_engine_reset(engine, NULL);
-			if (err) {
-				pr_err("intel_engine_reset(%s) failed, err:%d\n",
-				       engine->name, err);
-				break;
-			}
 
 			if (i915_reset_count(global) != reset_count) {
 				pr_err("Full GPU reset recorded! (engine reset expected)\n");
 				err = -EINVAL;
-				break;
+				goto restore;
 			}
 
-			if (i915_reset_engine_count(global, engine) !=
-			    ++reset_engine_count) {
-				pr_err("%s engine reset not recorded!\n",
-				       engine->name);
-				err = -EINVAL;
-				break;
+			/* GuC based resets are not logged per engine */
+			if (!using_guc) {
+				if (i915_reset_engine_count(global, engine) !=
+				    ++reset_engine_count) {
+					pr_err("%s engine reset not recorded!\n",
+					       engine->name);
+					err = -EINVAL;
+					goto restore;
+				}
 			}
 
 			count++;
+
+restore:
+			err2 = intel_selftest_restore_policy(engine, &saved);
+			if (err2)
+				pr_err("[%s] Restore policy failed: %d!\n", engine->name, err);
+			if (err == 0)
+				err = err2;
+			if (err)
+				break;
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		st_engine_heartbeat_enable(engine);
@@ -943,10 +995,13 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
+		bool using_guc = intel_engine_uses_guc(engine);
 		IGT_TIMEOUT(end_time);
 
-		if (flags & TEST_ACTIVE &&
-		    !intel_engine_can_store_dword(engine))
+		if (flags & TEST_ACTIVE) {
+			if (!intel_engine_can_store_dword(engine))
+				continue;
+		} else if (using_guc)
 			continue;
 
 		if (!wait_for_idle(engine)) {
@@ -986,10 +1041,19 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 		yield(); /* start all threads before we begin */
 
-		st_engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable_no_pm(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			struct i915_request *rq = NULL;
+			struct intel_selftest_saved_policy saved;
+			int err2;
+
+			err = intel_selftest_modify_policy(engine, &saved,
+							   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
+			if (err) {
+				pr_err("[%s] Modify policy failed: %d!\n", engine->name, err);
+				break;
+			}
 
 			if (flags & TEST_ACTIVE) {
 				rq = hang_create_request(&h, engine);
@@ -997,7 +1061,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 					err = PTR_ERR(rq);
 					pr_err("[%s] Create hang request failed: %d!\n",
 					       engine->name, err);
-					break;
+					goto restore;
 				}
 
 				i915_request_get(rq);
@@ -1013,15 +1077,28 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 					i915_request_put(rq);
 					err = -EIO;
-					break;
+					goto restore;
+				}
+			} else {
+				intel_engine_pm_get(engine);
+			}
+
+			if (!using_guc) {
+				err = intel_engine_reset(engine, NULL);
+				if (err) {
+					pr_err("i915_reset_engine(%s:%s): failed, err=%d\n",
+					       engine->name, test_name, err);
+					goto restore;
 				}
 			}
 
-			err = intel_engine_reset(engine, NULL);
-			if (err) {
-				pr_err("i915_reset_engine(%s:%s): failed, err=%d\n",
-				       engine->name, test_name, err);
-				break;
+			if (rq) {
+				/* Ensure the reset happens and kills the engine */
+				err = intel_selftest_wait_for_rq(rq);
+				if (err)
+					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
+					       engine->name, rq->fence.context,
+					       rq->fence.seqno, rq->context->guc_id, err);
 			}
 
 			count++;
@@ -1037,7 +1114,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 					GEM_TRACE_DUMP();
 					intel_gt_set_wedged(gt);
 					err = -EIO;
-					break;
+					goto restore;
 				}
 
 				if (i915_request_wait(rq, 0, HZ / 5) < 0) {
@@ -1056,11 +1133,14 @@ static int __igt_reset_engines(struct intel_gt *gt,
 					GEM_TRACE_DUMP();
 					intel_gt_set_wedged(gt);
 					err = -EIO;
-					break;
+					goto restore;
 				}
 
 				i915_request_put(rq);
 			}
+
+			if (!(flags & TEST_ACTIVE))
+				intel_engine_pm_put(engine);
 
 			if (!(flags & TEST_SELF) && !wait_for_idle(engine)) {
 				struct drm_printer p =
@@ -1073,22 +1153,34 @@ static int __igt_reset_engines(struct intel_gt *gt,
 						  "%s\n", engine->name);
 
 				err = -EIO;
-				break;
+				goto restore;
 			}
+
+restore:
+			err2 = intel_selftest_restore_policy(engine, &saved);
+			if (err2)
+				pr_err("[%s] Restore policy failed: %d!\n", engine->name, err2);
+			if (err == 0)
+				err = err2;
+			if (err)
+				break;
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		st_engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable_no_pm(engine);
 
 		pr_info("i915_reset_engine(%s:%s): %lu resets\n",
 			engine->name, test_name, count);
 
-		reported = i915_reset_engine_count(global, engine);
-		reported -= threads[engine->id].resets;
-		if (reported != count) {
-			pr_err("i915_reset_engine(%s:%s): reset %lu times, but reported %lu\n",
-			       engine->name, test_name, count, reported);
-			if (!err)
-				err = -EINVAL;
+		/* GuC based resets are not logged per engine */
+		if (!using_guc) {
+			reported = i915_reset_engine_count(global, engine);
+			reported -= threads[engine->id].resets;
+			if (reported != count) {
+				pr_err("i915_reset_engine(%s:%s): reset %lu times, but reported %lu\n",
+				       engine->name, test_name, count, reported);
+				if (!err)
+					err = -EINVAL;
+			}
 		}
 
 unwind:
@@ -1107,15 +1199,18 @@ unwind:
 			}
 			put_task_struct(threads[tmp].task);
 
-			if (other->uabi_class != engine->uabi_class &&
-			    threads[tmp].resets !=
-			    i915_reset_engine_count(global, other)) {
-				pr_err("Innocent engine %s was reset (count=%ld)\n",
-				       other->name,
-				       i915_reset_engine_count(global, other) -
-				       threads[tmp].resets);
-				if (!err)
-					err = -EINVAL;
+			/* GuC based resets are not logged per engine */
+			if (!using_guc) {
+				if (other->uabi_class != engine->uabi_class &&
+				    threads[tmp].resets !=
+				    i915_reset_engine_count(global, other)) {
+					pr_err("Innocent engine %s was reset (count=%ld)\n",
+					       other->name,
+					       i915_reset_engine_count(global, other) -
+					       threads[tmp].resets);
+					if (!err)
+						err = -EINVAL;
+				}
 			}
 		}
 
@@ -1555,18 +1650,29 @@ static int igt_reset_queue(void *arg)
 		goto unlock;
 
 	for_each_engine(engine, gt, id) {
+		struct intel_selftest_saved_policy saved;
 		struct i915_request *prev;
 		IGT_TIMEOUT(end_time);
 		unsigned int count;
+		bool using_guc = intel_engine_uses_guc(engine);
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;
+
+		if (using_guc) {
+			err = intel_selftest_modify_policy(engine, &saved,
+							   SELFTEST_SCHEDULER_MODIFY_NO_HANGCHECK);
+			if (err) {
+				pr_err("[%s] Modify policy failed: %d!\n", engine->name, err);
+				goto fini;
+			}
+		}
 
 		prev = hang_create_request(&h, engine);
 		if (IS_ERR(prev)) {
 			err = PTR_ERR(prev);
 			pr_err("[%s] Create 'prev' hang request failed: %d!\n", engine->name, err);
-			goto fini;
+			goto restore;
 		}
 
 		i915_request_get(prev);
@@ -1581,7 +1687,7 @@ static int igt_reset_queue(void *arg)
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
 				pr_err("[%s] Create hang request failed: %d!\n", engine->name, err);
-				goto fini;
+				goto restore;
 			}
 
 			i915_request_get(rq);
@@ -1606,7 +1712,7 @@ static int igt_reset_queue(void *arg)
 
 				GEM_TRACE_DUMP();
 				intel_gt_set_wedged(gt);
-				goto fini;
+				goto restore;
 			}
 
 			if (!wait_until_running(&h, prev)) {
@@ -1624,7 +1730,7 @@ static int igt_reset_queue(void *arg)
 				intel_gt_set_wedged(gt);
 
 				err = -EIO;
-				goto fini;
+				goto restore;
 			}
 
 			reset_count = fake_hangcheck(gt, BIT(id));
@@ -1635,7 +1741,7 @@ static int igt_reset_queue(void *arg)
 				i915_request_put(rq);
 				i915_request_put(prev);
 				err = -EINVAL;
-				goto fini;
+				goto restore;
 			}
 
 			if (rq->fence.error) {
@@ -1644,7 +1750,7 @@ static int igt_reset_queue(void *arg)
 				i915_request_put(rq);
 				i915_request_put(prev);
 				err = -EINVAL;
-				goto fini;
+				goto restore;
 			}
 
 			if (i915_reset_count(global) == reset_count) {
@@ -1652,7 +1758,7 @@ static int igt_reset_queue(void *arg)
 				i915_request_put(rq);
 				i915_request_put(prev);
 				err = -EINVAL;
-				goto fini;
+				goto restore;
 			}
 
 			i915_request_put(prev);
@@ -1666,6 +1772,19 @@ static int igt_reset_queue(void *arg)
 		intel_gt_chipset_flush(engine->gt);
 
 		i915_request_put(prev);
+
+restore:
+		if (using_guc) {
+			int err2 = intel_selftest_restore_policy(engine, &saved);
+
+			if (err2)
+				pr_err("%s:%d> [%s] Restore policy failed: %d!\n",
+				       __func__, __LINE__, engine->name, err2);
+			if (err == 0)
+				err = err2;
+		}
+		if (err)
+			goto fini;
 
 		err = igt_flush_test(gt->i915);
 		if (err) {

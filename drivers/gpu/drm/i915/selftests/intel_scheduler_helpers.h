@@ -18,8 +18,14 @@ struct intel_selftest_saved_policy {
 	u64 preempt_timeout;
 };
 
+enum selftest_scheduler_modify {
+	SELFTEST_SCHEDULER_MODIFY_NO_HANGCHECK = 0,
+	SELFTEST_SCHEDULER_MODIFY_FAST_RESET,
+};
+
 int intel_selftest_modify_policy(struct intel_engine_cs *engine,
-				 struct intel_selftest_saved_policy *saved);
+				 struct intel_selftest_saved_policy *saved,
+				 enum selftest_scheduler_modify modify_type);
 int intel_selftest_restore_policy(struct intel_engine_cs *engine,
 				  struct intel_selftest_saved_policy *saved);
 int intel_selftest_wait_for_rq(struct i915_request *rq);

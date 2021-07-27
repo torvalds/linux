@@ -810,7 +810,8 @@ static int live_reset_whitelist(void *arg)
 				struct intel_selftest_saved_policy saved;
 				int err2;
 
-				err = intel_selftest_modify_policy(engine, &saved);
+				err = intel_selftest_modify_policy(engine, &saved,
+								   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
 				if (err)
 					goto out;
 
@@ -1278,7 +1279,8 @@ live_engine_reset_workarounds(void *arg)
 		int ret2;
 
 		pr_info("Verifying after %s reset...\n", engine->name);
-		ret = intel_selftest_modify_policy(engine, &saved);
+		ret = intel_selftest_modify_policy(engine, &saved,
+						   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
 		if (ret)
 			break;
 

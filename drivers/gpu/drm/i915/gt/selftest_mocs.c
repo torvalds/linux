@@ -408,7 +408,8 @@ static int live_mocs_reset(void *arg)
 		struct intel_context *ce;
 		int err2;
 
-		err = intel_selftest_modify_policy(engine, &saved);
+		err = intel_selftest_modify_policy(engine, &saved,
+						   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
 		if (err)
 			break;
 
