@@ -180,6 +180,18 @@ struct i915_sched_engine {
 				int prio);
 
 	/**
+	 * @bump_inflight_request_prio: update priority of an inflight request
+	 */
+	void	(*bump_inflight_request_prio)(struct i915_request *rq,
+					      int prio);
+
+	/**
+	 * @retire_inflight_request_prio: indicate request is retired to
+	 * priority tracking
+	 */
+	void	(*retire_inflight_request_prio)(struct i915_request *rq);
+
+	/**
 	 * @schedule: adjust priority of request
 	 *
 	 * Call when the priority on a request has changed and it and its

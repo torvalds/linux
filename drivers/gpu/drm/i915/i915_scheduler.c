@@ -241,6 +241,9 @@ static void __i915_schedule(struct i915_sched_node *node,
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	sched_engine = lock_sched_engine(node, sched_engine, &cache);
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
+		struct i915_request *from = container_of(dep->signaler,
+							 struct i915_request,
+							 sched);
 		INIT_LIST_HEAD(&dep->dfs_link);
 
 		node = dep->signaler;
@@ -253,6 +256,10 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		GEM_BUG_ON(node_to_request(node)->engine->sched_engine !=
 			   sched_engine);
+
+		/* Must be called before changing the nodes priority */
+		if (sched_engine->bump_inflight_request_prio)
+			sched_engine->bump_inflight_request_prio(from, prio);
 
 		WRITE_ONCE(node->attr.priority, prio);
 

@@ -245,6 +245,9 @@ static void signal_irq_work(struct irq_work *work)
 			llist_entry(signal, typeof(*rq), signal_node);
 		struct list_head cb_list;
 
+		if (rq->engine->sched_engine->retire_inflight_request_prio)
+			rq->engine->sched_engine->retire_inflight_request_prio(rq);
+
 		spin_lock(&rq->lock);
 		list_replace(&rq->fence.cb_list, &cb_list);
 		__dma_fence_signal__timestamp(&rq->fence, timestamp);

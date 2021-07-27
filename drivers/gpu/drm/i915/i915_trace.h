@@ -904,6 +904,7 @@ DECLARE_EVENT_CLASS(intel_context,
 			     __field(int, pin_count)
 			     __field(u32, sched_state)
 			     __field(u32, guc_sched_state_no_lock)
+			     __field(u8, guc_prio)
 			     ),
 
 		    TP_fast_assign(
@@ -912,12 +913,19 @@ DECLARE_EVENT_CLASS(intel_context,
 			   __entry->sched_state = ce->guc_state.sched_state;
 			   __entry->guc_sched_state_no_lock =
 			   atomic_read(&ce->guc_sched_state_no_lock);
+			   __entry->guc_prio = ce->guc_prio;
 			   ),
 
-		    TP_printk("guc_id=%d, pin_count=%d sched_state=0x%x,0x%x",
+		    TP_printk("guc_id=%d, pin_count=%d sched_state=0x%x,0x%x, guc_prio=%u",
 			      __entry->guc_id, __entry->pin_count,
 			      __entry->sched_state,
-			      __entry->guc_sched_state_no_lock)
+			      __entry->guc_sched_state_no_lock,
+			      __entry->guc_prio)
+);
+
+DEFINE_EVENT(intel_context, intel_context_set_prio,
+	     TP_PROTO(struct intel_context *ce),
+	     TP_ARGS(ce)
 );
 
 DEFINE_EVENT(intel_context, intel_context_reset,
@@ -1014,6 +1022,11 @@ trace_i915_request_in(struct i915_request *rq, unsigned int port)
 
 static inline void
 trace_i915_request_out(struct i915_request *rq)
+{
+}
+
+static inline void
+trace_intel_context_set_prio(struct intel_context *ce)
 {
 }
 
