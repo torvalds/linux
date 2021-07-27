@@ -55,6 +55,7 @@ struct intel_guc {
 	struct ida guc_ids;
 	struct list_head guc_id_list;
 
+	bool submission_supported;
 	bool submission_selected;
 
 	struct i915_vma *ads_vma;
