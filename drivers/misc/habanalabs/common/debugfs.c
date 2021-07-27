@@ -209,12 +209,12 @@ static int userptr_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " user virtual address     size             dma dir\n");
+			seq_puts(s, " pid      user virtual address     size             dma dir\n");
 			seq_puts(s, "----------------------------------------------------------\n");
 		}
-		seq_printf(s,
-			"    0x%-14llx      %-10llu    %-30s\n",
-			userptr->addr, userptr->size, dma_dir[userptr->dir]);
+		seq_printf(s, " %-7d  0x%-14llx      %-10llu    %-30s\n",
+				userptr->pid, userptr->addr, userptr->size,
+				dma_dir[userptr->dir]);
 	}
 
 	spin_unlock(&dev_entry->userptr_spinlock);

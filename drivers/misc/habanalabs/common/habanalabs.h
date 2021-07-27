@@ -1434,6 +1434,7 @@ struct hl_ctx_mgr {
  * @sgt: pointer to the scatter-gather table that holds the pages.
  * @dir: for DMA unmapping, the direction must be supplied, so save it.
  * @debugfs_list: node in debugfs list of command submissions.
+ * @pid: the pid of the user process owning the memory
  * @addr: user-space virtual address of the start of the memory area.
  * @size: size of the memory area to pin & map.
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
@@ -1446,6 +1447,7 @@ struct hl_userptr {
 	struct sg_table		*sgt;
 	enum dma_data_direction dir;
 	struct list_head	debugfs_list;
+	pid_t			pid;
 	u64			addr;
 	u64			size;
 	u8			dma_mapped;
