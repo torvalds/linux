@@ -743,8 +743,6 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	s->s_mdsc = mdsc;
 	s->s_mds = mds;
 	s->s_state = CEPH_MDS_SESSION_NEW;
-	s->s_ttl = 0;
-	s->s_seq = 0;
 	mutex_init(&s->s_mutex);
 
 	ceph_con_init(&s->s_con, s, &mds_con_ops, &mdsc->fsc->client->msgr);
@@ -753,17 +751,11 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	s->s_cap_ttl = jiffies - 1;
 
 	spin_lock_init(&s->s_cap_lock);
-	s->s_renew_requested = 0;
-	s->s_renew_seq = 0;
 	INIT_LIST_HEAD(&s->s_caps);
-	s->s_nr_caps = 0;
 	refcount_set(&s->s_ref, 1);
 	INIT_LIST_HEAD(&s->s_waiting);
 	INIT_LIST_HEAD(&s->s_unsafe);
 	xa_init(&s->s_delegated_inos);
-	s->s_num_cap_releases = 0;
-	s->s_cap_reconnect = 0;
-	s->s_cap_iterator = NULL;
 	INIT_LIST_HEAD(&s->s_cap_releases);
 	INIT_WORK(&s->s_cap_release_work, ceph_cap_release_work);
 
@@ -4601,21 +4593,12 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	init_completion(&mdsc->safe_umount_waiters);
 	init_waitqueue_head(&mdsc->session_close_wq);
 	INIT_LIST_HEAD(&mdsc->waiting_for_map);
-	mdsc->sessions = NULL;
-	atomic_set(&mdsc->num_sessions, 0);
-	mdsc->max_sessions = 0;
-	mdsc->stopping = 0;
-	atomic64_set(&mdsc->quotarealms_count, 0);
 	mdsc->quotarealms_inodes = RB_ROOT;
 	mutex_init(&mdsc->quotarealms_inodes_mutex);
-	mdsc->last_snap_seq = 0;
 	init_rwsem(&mdsc->snap_rwsem);
 	mdsc->snap_realms = RB_ROOT;
 	INIT_LIST_HEAD(&mdsc->snap_empty);
-	mdsc->num_snap_realms = 0;
 	spin_lock_init(&mdsc->snap_empty_lock);
-	mdsc->last_tid = 0;
-	mdsc->oldest_tid = 0;
 	mdsc->request_tree = RB_ROOT;
 	INIT_DELAYED_WORK(&mdsc->delayed_work, delayed_work);
 	mdsc->last_renew_caps = jiffies;
@@ -4627,11 +4610,9 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	mdsc->last_cap_flush_tid = 1;
 	INIT_LIST_HEAD(&mdsc->cap_flush_list);
 	INIT_LIST_HEAD(&mdsc->cap_dirty_migrating);
-	mdsc->num_cap_flushing = 0;
 	spin_lock_init(&mdsc->cap_dirty_lock);
 	init_waitqueue_head(&mdsc->cap_flushing_wq);
 	INIT_WORK(&mdsc->cap_reclaim_work, ceph_cap_reclaim_work);
-	atomic_set(&mdsc->cap_reclaim_pending, 0);
 	err = ceph_metric_init(&mdsc->metric);
 	if (err)
 		goto err_mdsmap;
