@@ -68,25 +68,12 @@ static __init int init_emergency_pool(void)
 __initcall(init_emergency_pool);
 
 /*
- * highmem version, map in to vec
- */
-static void bounce_copy_vec(struct bio_vec *to, unsigned char *vfrom)
-{
-	unsigned char *vto;
-
-	vto = kmap_atomic(to->bv_page);
-	memcpy(vto + to->bv_offset, vfrom, to->bv_len);
-	kunmap_atomic(vto);
-}
-
-/*
  * Simple bounce buffer support for highmem pages. Depending on the
  * queue gfp mask set, *to may or may not be a highmem page. kmap it
  * always, it will do the Right Thing
  */
 static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
 {
-	unsigned char *vfrom;
 	struct bio_vec tovec, fromvec;
 	struct bvec_iter iter;
 	/*
@@ -104,11 +91,8 @@ static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
 			 * been modified by the block layer, so use the original
 			 * copy, bounce_copy_vec already uses tovec->bv_len
 			 */
-			vfrom = page_address(fromvec.bv_page) +
-				tovec.bv_offset;
-
-			bounce_copy_vec(&tovec, vfrom);
-			flush_dcache_page(tovec.bv_page);
+			memcpy_to_bvec(&tovec, page_address(fromvec.bv_page) +
+				       tovec.bv_offset);
 		}
 		bio_advance_iter(from, &from_iter, tovec.bv_len);
 	}
