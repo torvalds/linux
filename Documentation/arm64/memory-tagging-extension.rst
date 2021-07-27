@@ -77,13 +77,19 @@ configurable behaviours:
   address is unknown).
 
 The user can select the above modes, per thread, using the
-``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where
-``flags`` contain one of the following values in the ``PR_MTE_TCF_MASK``
+``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where ``flags``
+contains any number of the following values in the ``PR_MTE_TCF_MASK``
 bit-field:
 
-- ``PR_MTE_TCF_NONE``  - *Ignore* tag check faults
+- ``PR_MTE_TCF_NONE``  - *Ignore* tag check faults
+                         (ignored if combined with other options)
 - ``PR_MTE_TCF_SYNC``  - *Synchronous* tag check fault mode
 - ``PR_MTE_TCF_ASYNC`` - *Asynchronous* tag check fault mode
+
+If no modes are specified, tag check faults are ignored. If a single
+mode is specified, the program will run in that mode. If multiple
+modes are specified, the mode is selected as described in the "Per-CPU
+preferred tag checking modes" section below.
 
 The current tag check fault mode can be read using the
 ``prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0)`` system call.
@@ -120,13 +126,39 @@ in the ``PR_MTE_TAG_MASK`` bit-field.
 interface provides an include mask. An include mask of ``0`` (exclusion
 mask ``0xffff``) results in the CPU always generating tag ``0``.
 
+Per-CPU preferred tag checking mode
+-----------------------------------
+
+On some CPUs the performance of MTE in stricter tag checking modes
+is similar to that of less strict tag checking modes. This makes it
+worthwhile to enable stricter checks on those CPUs when a less strict
+checking mode is requested, in order to gain the error detection
+benefits of the stricter checks without the performance downsides. To
+support this scenario, a privileged user may configure a stricter
+tag checking mode as the CPU's preferred tag checking mode.
+
+The preferred tag checking mode for each CPU is controlled by
+``/sys/devices/system/cpu/cpu<N>/mte_tcf_preferred``, to which a
+privileged user may write the value ``async`` or ``sync``.  The default
+preferred mode for each CPU is ``async``.
+
+To allow a program to potentially run in the CPU's preferred tag
+checking mode, the user program may set multiple tag check fault mode
+bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
+flags, 0, 0, 0)`` system call. If the CPU's preferred tag checking
+mode is in the task's set of provided tag checking modes (this will
+always be the case at present because the kernel only supports two
+tag checking modes, but future kernels may support more modes), that
+mode will be selected. Otherwise, one of the modes in the task's mode
+set will be selected in a currently unspecified manner.
+
 Initial process state
 ---------------------
 
 On ``execve()``, the new process has the following configuration:
 
 - ``PR_TAGGED_ADDR_ENABLE`` set to 0 (disabled)
-- Tag checking mode set to ``PR_MTE_TCF_NONE``
+- No tag checking modes are selected (tag check faults ignored)
 - ``PR_MTE_TAG_MASK`` set to 0 (all tags excluded)
 - ``PSTATE.TCO`` set to 0
 - ``PROT_MTE`` not set on any of the initial memory maps
@@ -251,11 +283,13 @@ Example of correct usage
                     return EXIT_FAILURE;
 
             /*
-             * Enable the tagged address ABI, synchronous MTE tag check faults and
-             * allow all non-zero tags in the randomly generated set.
+             * Enable the tagged address ABI, synchronous or asynchronous MTE
+             * tag check faults (based on per-CPU preference) and allow all
+             * non-zero tags in the randomly generated set.
              */
             if (prctl(PR_SET_TAGGED_ADDR_CTRL,
-                      PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC | (0xfffe << PR_MTE_TAG_SHIFT),
+                      PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC |
+                      (0xfffe << PR_MTE_TAG_SHIFT),
                       0, 0, 0)) {
                     perror("prctl() failed");
                     return EXIT_FAILURE;
