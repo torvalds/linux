@@ -460,7 +460,7 @@ static inline void core_alua_state_nonoptimized(
 
 static inline int core_alua_state_lba_dependent(
 	struct se_cmd *cmd,
-	struct t10_alua_tg_pt_gp *tg_pt_gp)
+	u16 tg_pt_gp_id)
 {
 	struct se_device *dev = cmd->se_dev;
 	u64 segment_size, segment_mult, sectors, lba;
@@ -511,8 +511,7 @@ static inline int core_alua_state_lba_dependent(
 		}
 		list_for_each_entry(map_mem, &cur_map->lba_map_mem_list,
 				    lba_map_mem_list) {
-			if (map_mem->lba_map_mem_alua_pg_id !=
-			    tg_pt_gp->tg_pt_gp_id)
+			if (map_mem->lba_map_mem_alua_pg_id != tg_pt_gp_id)
 				continue;
 			switch(map_mem->lba_map_mem_alua_state) {
 			case ALUA_ACCESS_STATE_STANDBY:
@@ -674,6 +673,7 @@ target_alua_state_check(struct se_cmd *cmd)
 	struct se_lun *lun = cmd->se_lun;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	int out_alua_state, nonop_delay_msecs;
+	u16 tg_pt_gp_id;
 
 	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
 		return 0;
@@ -698,8 +698,8 @@ target_alua_state_check(struct se_cmd *cmd)
 	tg_pt_gp = lun->lun_tg_pt_gp;
 	out_alua_state = tg_pt_gp->tg_pt_gp_alua_access_state;
 	nonop_delay_msecs = tg_pt_gp->tg_pt_gp_nonop_delay_msecs;
+	tg_pt_gp_id = tg_pt_gp->tg_pt_gp_id;
 
-	// XXX: keeps using tg_pt_gp witout reference after unlock
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
 	/*
 	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED in a separate conditional
@@ -727,7 +727,7 @@ target_alua_state_check(struct se_cmd *cmd)
 			return TCM_CHECK_CONDITION_NOT_READY;
 		break;
 	case ALUA_ACCESS_STATE_LBA_DEPENDENT:
-		if (core_alua_state_lba_dependent(cmd, tg_pt_gp))
+		if (core_alua_state_lba_dependent(cmd, tg_pt_gp_id))
 			return TCM_CHECK_CONDITION_NOT_READY;
 		break;
 	/*
