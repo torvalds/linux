@@ -12,26 +12,54 @@
 
 static void rtw_wow_show_wakeup_reason(struct rtw_dev *rtwdev)
 {
+	struct cfg80211_wowlan_nd_info nd_info;
+	struct cfg80211_wowlan_wakeup wakeup = {
+		.pattern_idx = -1,
+	};
 	u8 reason;
 
 	reason = rtw_read8(rtwdev, REG_WOWLAN_WAKE_REASON);
 
-	if (reason == RTW_WOW_RSN_RX_DEAUTH)
+	switch (reason) {
+	case RTW_WOW_RSN_RX_DEAUTH:
+		wakeup.disconnect = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx deauth\n");
-	else if (reason == RTW_WOW_RSN_DISCONNECT)
+		break;
+	case RTW_WOW_RSN_DISCONNECT:
+		wakeup.disconnect = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: AP is off\n");
-	else if (reason == RTW_WOW_RSN_RX_MAGIC_PKT)
+		break;
+	case RTW_WOW_RSN_RX_MAGIC_PKT:
+		wakeup.magic_pkt = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx magic packet\n");
-	else if (reason == RTW_WOW_RSN_RX_GTK_REKEY)
+		break;
+	case RTW_WOW_RSN_RX_GTK_REKEY:
+		wakeup.gtk_rekey_failure = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx gtk rekey\n");
-	else if (reason == RTW_WOW_RSN_RX_PTK_REKEY)
-		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx ptk rekey\n");
-	else if (reason == RTW_WOW_RSN_RX_PATTERN_MATCH)
+		break;
+	case RTW_WOW_RSN_RX_PATTERN_MATCH:
+		/* Current firmware and driver don't report pattern index
+		 * Use pattern_idx to 0 defaultly.
+		 */
+		wakeup.pattern_idx = 0;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx pattern match packet\n");
-	else if (reason == RTW_WOW_RSN_RX_NLO)
+		break;
+	case RTW_WOW_RSN_RX_NLO:
+		/* Current firmware and driver don't report ssid index.
+		 * Use 0 for n_matches based on its comment.
+		 */
+		nd_info.n_matches = 0;
+		wakeup.net_detect = &nd_info;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "Rx NLO\n");
-	else
+		break;
+	default:
 		rtw_warn(rtwdev, "Unknown wakeup reason %x\n", reason);
+		ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, NULL,
+					       GFP_KERNEL);
+		return;
+	}
+	ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, &wakeup,
+				       GFP_KERNEL);
 }
 
 static void rtw_wow_pattern_write_cam(struct rtw_dev *rtwdev, u8 addr,
