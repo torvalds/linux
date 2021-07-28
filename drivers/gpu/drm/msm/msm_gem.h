@@ -88,13 +88,6 @@ struct msm_gem_object {
 	 */
 	struct list_head mm_list;
 
-	/* Transiently in the process of submit ioctl, objects associated
-	 * with the submit are on submit->bo_list.. this only lasts for
-	 * the duration of the ioctl, so one bo can never be on multiple
-	 * submit lists.
-	 */
-	struct list_head submit_entry;
-
 	struct page **pages;
 	struct sg_table *sgt;
 	void *vaddr;
@@ -316,7 +309,6 @@ struct msm_gem_submit {
 	struct msm_gpu *gpu;
 	struct msm_gem_address_space *aspace;
 	struct list_head node;   /* node in ring submit list */
-	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */
 

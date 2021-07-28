@@ -63,7 +63,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit->fault_dumped = false;
 
 	INIT_LIST_HEAD(&submit->node);
-	INIT_LIST_HEAD(&submit->bo_list);
 
 	return submit;
 }
@@ -143,7 +142,6 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_gem_object *obj;
-		struct msm_gem_object *msm_obj;
 
 		/* normally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
@@ -155,20 +153,9 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 			goto out_unlock;
 		}
 
-		msm_obj = to_msm_bo(obj);
-
-		if (!list_empty(&msm_obj->submit_entry)) {
-			DRM_ERROR("handle %u at index %u already on submit list\n",
-					submit->bos[i].handle, i);
-			ret = -EINVAL;
-			goto out_unlock;
-		}
-
 		drm_gem_object_get(obj);
 
-		submit->bos[i].obj = msm_obj;
-
-		list_add_tail(&msm_obj->submit_entry, &submit->bo_list);
+		submit->bos[i].obj = to_msm_bo(obj);
 	}
 
 out_unlock:
@@ -299,6 +286,12 @@ retry:
 	return 0;
 
 fail:
+	if (ret == -EALREADY) {
+		DRM_ERROR("handle %u at index %u already on submit list\n",
+				submit->bos[i].handle, i);
+		ret = -EINVAL;
+	}
+
 	for (; i >= 0; i--)
 		submit_unlock_unpin_bo(submit, i);
 
@@ -315,6 +308,12 @@ fail:
 			slow_locked = contended;
 			goto retry;
 		}
+
+		/* Not expecting -EALREADY here, if the bo was already
+		 * locked, we should have gotten -EALREADY already from
+		 * the dma_resv_lock_interruptable() call.
+		 */
+		WARN_ON_ONCE(ret == -EALREADY);
 	}
 
 	return ret;
@@ -508,7 +507,6 @@ static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		submit_cleanup_bo(submit, i, cleanup_flags);
-		list_del_init(&msm_obj->submit_entry);
 		if (error)
 			drm_gem_object_put(&msm_obj->base);
 	}
