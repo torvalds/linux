@@ -43,6 +43,7 @@
 #define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
 /* STATUS_DATA_MSB in V2 when MOD_STATUS_SEL is 5 and MOD_STATUS_XT.SEL is 1 */
 #define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2	GENMASK(1, 0)
+#define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V3	GENMASK(2, 0)
 #define FIFO_EMPTY_FLAG_BIT_V2			BIT(6)
 #define FIFO_FULL_FLAG_BIT_V2			BIT(5)
 
@@ -1682,7 +1683,7 @@ static int haptics_update_fifo_sample_v2(struct haptics_chip *chip,
 static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 {
 	int rc;
-	u8 val[2];
+	u8 val[2], fill_status_mask;
 	bool empty = false, full = false;
 
 	if (chip->ptn_revision == HAP_PTN_V1) {
@@ -1716,8 +1717,10 @@ static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 		if (rc < 0)
 			return rc;
 
-		*fill = ((val[0] & FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2)
-				<< 8) | val[1];
+		fill_status_mask = (chip->cfg_revision == HAP_CFG_V2) ?
+				FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2 :
+				FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V3;
+		*fill = ((val[0] & fill_status_mask) << 8) | val[1];
 		empty = !!(val[0] & FIFO_EMPTY_FLAG_BIT_V2);
 		full = !!(val[0] & FIFO_FULL_FLAG_BIT_V2);
 	}
