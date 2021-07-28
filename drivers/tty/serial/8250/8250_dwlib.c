@@ -135,4 +135,6 @@ void dw8250_setup_port(struct uart_port *p)
 	if (reg & DW_UART_CPR_SIR_MODE)
 		up->capabilities |= UART_CAP_IRDA;
 }
+#ifndef MODULE
 EXPORT_SYMBOL_GPL(dw8250_setup_port);
+#endif

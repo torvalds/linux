@@ -29,7 +29,11 @@
 
 #include <asm/byteorder.h>
 
+#ifdef MODULE
+#include "8250_dwlib.c"
+#else
 #include "8250_dwlib.h"
+#endif
 
 /* Offsets for the DesignWare specific registers */
 #define DW_UART_USR	0x1f /* UART Status Register */
