@@ -422,7 +422,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GEN12_HCP_SFC_LOCK_ACK_BIT		REG_BIT(1)
 #define   GEN12_HCP_SFC_USAGE_BIT			REG_BIT(0)
 
-#define GEN12_SFC_DONE(n)		_MMIO(0x1cc00 + (n) * 0x100)
+#define GEN12_SFC_DONE(n)		_MMIO(0x1cc000 + (n) * 0x1000)
 #define GEN12_SFC_DONE_MAX		4
 
 #define RING_PP_DIR_BASE(base)		_MMIO((base) + 0x228)
