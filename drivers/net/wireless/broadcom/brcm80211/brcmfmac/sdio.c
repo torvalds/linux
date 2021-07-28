@@ -3910,7 +3910,7 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 	 * It can be identified as 4339 by looking at the chip revision. It
 	 * is corrected here so the chip.c module has the right info.
 	 */
-	if (addr == CORE_CC_REG(SI_ENUM_BASE, chipid) &&
+	if (addr == CORE_CC_REG(SI_ENUM_BASE_DEFAULT, chipid) &&
 	    (sdiodev->func1->device == SDIO_DEVICE_ID_BROADCOM_4339 ||
 	     sdiodev->func1->device == SDIO_DEVICE_ID_BROADCOM_4335_4339)) {
 		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
@@ -3946,12 +3946,15 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	int reg_addr;
 	u32 reg_val;
 	u32 drivestrength;
+	u32 enum_base;
 
 	sdiodev = bus->sdiodev;
 	sdio_claim_host(sdiodev->func1);
 
-	pr_debug("F1 signature read @0x18000000=0x%4x\n",
-		 brcmf_sdiod_readl(sdiodev, SI_ENUM_BASE, NULL));
+	enum_base = brcmf_chip_enum_base(sdiodev->func1->device);
+
+	pr_debug("F1 signature read @0x%08x=0x%4x\n", enum_base,
+		 brcmf_sdiod_readl(sdiodev, enum_base, NULL));
 
 	/*
 	 * Force PLL off until brcmf_chip_attach()
@@ -3970,7 +3973,8 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		goto fail;
 	}
 
-	bus->ci = brcmf_chip_attach(sdiodev, &brcmf_sdio_buscore_ops);
+	bus->ci = brcmf_chip_attach(sdiodev, sdiodev->func1->device,
+				    &brcmf_sdio_buscore_ops);
 	if (IS_ERR(bus->ci)) {
 		brcmf_err("brcmf_chip_attach failed!\n");
 		bus->ci = NULL;

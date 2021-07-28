@@ -896,7 +896,8 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 	u32 base, wrap;
 	int err;
 
-	eromaddr = ci->ops->read32(ci->ctx, CORE_CC_REG(SI_ENUM_BASE, eromptr));
+	eromaddr = ci->ops->read32(ci->ctx,
+				   CORE_CC_REG(ci->pub.enum_base, eromptr));
 
 	while (desc_type != DMP_DESC_EOT) {
 		val = brcmf_chip_dmp_get_desc(ci, &eromaddr, &desc_type);
@@ -944,6 +945,11 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 	return 0;
 }
 
+u32 brcmf_chip_enum_base(u16 devid)
+{
+	return SI_ENUM_BASE_DEFAULT;
+}
+
 static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 {
 	struct brcmf_core *core;
@@ -956,7 +962,8 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	 * For different chiptypes or old sdio hosts w/o chipcommon,
 	 * other ways of recognition should be added here.
 	 */
-	regdata = ci->ops->read32(ci->ctx, CORE_CC_REG(SI_ENUM_BASE, chipid));
+	regdata = ci->ops->read32(ci->ctx,
+				  CORE_CC_REG(ci->pub.enum_base, chipid));
 	ci->pub.chip = regdata & CID_ID_MASK;
 	ci->pub.chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 	socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
@@ -976,7 +983,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 		ci->resetcore = brcmf_chip_sb_resetcore;
 
 		core = brcmf_chip_add_core(ci, BCMA_CORE_CHIPCOMMON,
-					   SI_ENUM_BASE, 0);
+					   SI_ENUM_BASE_DEFAULT, 0);
 		brcmf_chip_sb_corerev(ci, core);
 		core = brcmf_chip_add_core(ci, BCMA_CORE_SDIO_DEV,
 					   BCM4329_CORE_BUS_BASE, 0);
@@ -1090,7 +1097,7 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 	return ret;
 }
 
-struct brcmf_chip *brcmf_chip_attach(void *ctx,
+struct brcmf_chip *brcmf_chip_attach(void *ctx, u16 devid,
 				     const struct brcmf_buscore_ops *ops)
 {
 	struct brcmf_chip_priv *chip;
@@ -1115,6 +1122,7 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx,
 	chip->num_cores = 0;
 	chip->ops = ops;
 	chip->ctx = ctx;
+	chip->pub.enum_base = brcmf_chip_enum_base(devid);
 
 	err = ops->prepare(ctx);
 	if (err < 0)
