@@ -1340,12 +1340,15 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = register_netdev(dev);
 	if (err)
-		goto abort_with_wq;
+		goto abort_with_gve_init;
 
 	dev_info(&pdev->dev, "GVE version %s\n", gve_version_str);
 	gve_clear_probe_in_progress(priv);
 	queue_work(priv->gve_wq, &priv->service_task);
 	return 0;
+
+abort_with_gve_init:
+	gve_teardown_priv_resources(priv);
 
 abort_with_wq:
 	destroy_workqueue(priv->gve_wq);

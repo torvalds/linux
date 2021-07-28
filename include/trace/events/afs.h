@@ -174,6 +174,34 @@ enum afs_vl_operation {
 	afs_VL_GetCapabilities	= 65537,	/* AFS Get VL server capabilities */
 };
 
+enum afs_cm_operation {
+	afs_CB_CallBack			= 204,	/* AFS break callback promises */
+	afs_CB_InitCallBackState	= 205,	/* AFS initialise callback state */
+	afs_CB_Probe			= 206,	/* AFS probe client */
+	afs_CB_GetLock			= 207,	/* AFS get contents of CM lock table */
+	afs_CB_GetCE			= 208,	/* AFS get cache file description */
+	afs_CB_GetXStatsVersion		= 209,	/* AFS get version of extended statistics */
+	afs_CB_GetXStats		= 210,	/* AFS get contents of extended statistics data */
+	afs_CB_InitCallBackState3	= 213,	/* AFS initialise callback state, version 3 */
+	afs_CB_ProbeUuid		= 214,	/* AFS check the client hasn't rebooted */
+};
+
+enum yfs_cm_operation {
+	yfs_CB_Probe			= 206,	/* YFS probe client */
+	yfs_CB_GetLock			= 207,	/* YFS get contents of CM lock table */
+	yfs_CB_XStatsVersion		= 209,	/* YFS get version of extended statistics */
+	yfs_CB_GetXStats		= 210,	/* YFS get contents of extended statistics data */
+	yfs_CB_InitCallBackState3	= 213,	/* YFS initialise callback state, version 3 */
+	yfs_CB_ProbeUuid		= 214,	/* YFS check the client hasn't rebooted */
+	yfs_CB_GetServerPrefs		= 215,
+	yfs_CB_GetCellServDV		= 216,
+	yfs_CB_GetLocalCell		= 217,
+	yfs_CB_GetCacheConfig		= 218,
+	yfs_CB_GetCellByNum		= 65537,
+	yfs_CB_TellMeAboutYourself	= 65538, /* get client capabilities */
+	yfs_CB_CallBack			= 64204,
+};
+
 enum afs_edit_dir_op {
 	afs_edit_dir_create,
 	afs_edit_dir_create_error,
@@ -435,6 +463,32 @@ enum afs_cb_break_reason {
 	EM(afs_YFSVL_GetCellName,		"YFSVL.GetCellName") \
 	E_(afs_VL_GetCapabilities,		"VL.GetCapabilities")
 
+#define afs_cm_operations \
+	EM(afs_CB_CallBack,			"CB.CallBack") \
+	EM(afs_CB_InitCallBackState,		"CB.InitCallBackState") \
+	EM(afs_CB_Probe,			"CB.Probe") \
+	EM(afs_CB_GetLock,			"CB.GetLock") \
+	EM(afs_CB_GetCE,			"CB.GetCE") \
+	EM(afs_CB_GetXStatsVersion,		"CB.GetXStatsVersion") \
+	EM(afs_CB_GetXStats,			"CB.GetXStats") \
+	EM(afs_CB_InitCallBackState3,		"CB.InitCallBackState3") \
+	E_(afs_CB_ProbeUuid,			"CB.ProbeUuid")
+
+#define yfs_cm_operations \
+	EM(yfs_CB_Probe,			"YFSCB.Probe") \
+	EM(yfs_CB_GetLock,			"YFSCB.GetLock") \
+	EM(yfs_CB_XStatsVersion,		"YFSCB.XStatsVersion") \
+	EM(yfs_CB_GetXStats,			"YFSCB.GetXStats") \
+	EM(yfs_CB_InitCallBackState3,		"YFSCB.InitCallBackState3") \
+	EM(yfs_CB_ProbeUuid,			"YFSCB.ProbeUuid") \
+	EM(yfs_CB_GetServerPrefs,		"YFSCB.GetServerPrefs") \
+	EM(yfs_CB_GetCellServDV,		"YFSCB.GetCellServDV") \
+	EM(yfs_CB_GetLocalCell,			"YFSCB.GetLocalCell") \
+	EM(yfs_CB_GetCacheConfig,		"YFSCB.GetCacheConfig") \
+	EM(yfs_CB_GetCellByNum,			"YFSCB.GetCellByNum") \
+	EM(yfs_CB_TellMeAboutYourself,		"YFSCB.TellMeAboutYourself") \
+	E_(yfs_CB_CallBack,			"YFSCB.CallBack")
+
 #define afs_edit_dir_ops				  \
 	EM(afs_edit_dir_create,			"create") \
 	EM(afs_edit_dir_create_error,		"c_fail") \
@@ -567,6 +621,8 @@ afs_server_traces;
 afs_cell_traces;
 afs_fs_operations;
 afs_vl_operations;
+afs_cm_operations;
+yfs_cm_operations;
 afs_edit_dir_ops;
 afs_edit_dir_reasons;
 afs_eproto_causes;
@@ -647,20 +703,21 @@ TRACE_EVENT(afs_cb_call,
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(const char *,		name		)
 		    __field(u32,			op		)
+		    __field(u16,			service_id	)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
-		    __entry->name	= call->type->name;
 		    __entry->op		= call->operation_ID;
+		    __entry->service_id	= call->service_id;
 			   ),
 
-	    TP_printk("c=%08x %s o=%u",
+	    TP_printk("c=%08x %s",
 		      __entry->call,
-		      __entry->name,
-		      __entry->op)
+		      __entry->service_id == 2501 ?
+		      __print_symbolic(__entry->op, yfs_cm_operations) :
+		      __print_symbolic(__entry->op, afs_cm_operations))
 	    );
 
 TRACE_EVENT(afs_call,

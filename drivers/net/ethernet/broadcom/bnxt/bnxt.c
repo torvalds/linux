@@ -1633,11 +1633,16 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 
 	if ((tpa_info->flags2 & RX_CMP_FLAGS2_META_FORMAT_VLAN) &&
 	    (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
-		u16 vlan_proto = tpa_info->metadata >>
-			RX_CMP_FLAGS2_METADATA_TPID_SFT;
+		__be16 vlan_proto = htons(tpa_info->metadata >>
+					  RX_CMP_FLAGS2_METADATA_TPID_SFT);
 		u16 vtag = tpa_info->metadata & RX_CMP_FLAGS2_METADATA_TCI_MASK;
 
-		__vlan_hwaccel_put_tag(skb, htons(vlan_proto), vtag);
+		if (eth_type_vlan(vlan_proto)) {
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		} else {
+			dev_kfree_skb(skb);
+			return NULL;
+		}
 	}
 
 	skb_checksum_none_assert(skb);
@@ -1858,9 +1863,15 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	    (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
 		u32 meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
 		u16 vtag = meta_data & RX_CMP_FLAGS2_METADATA_TCI_MASK;
-		u16 vlan_proto = meta_data >> RX_CMP_FLAGS2_METADATA_TPID_SFT;
+		__be16 vlan_proto = htons(meta_data >>
+					  RX_CMP_FLAGS2_METADATA_TPID_SFT);
 
-		__vlan_hwaccel_put_tag(skb, htons(vlan_proto), vtag);
+		if (eth_type_vlan(vlan_proto)) {
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		} else {
+			dev_kfree_skb(skb);
+			goto next_rx;
+		}
 	}
 
 	skb_checksum_none_assert(skb);
@@ -9830,6 +9841,12 @@ int bnxt_half_open_nic(struct bnxt *bp)
 {
 	int rc = 0;
 
+	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
+		netdev_err(bp->dev, "A previous firmware reset has not completed, aborting half open\n");
+		rc = -ENODEV;
+		goto half_open_err;
+	}
+
 	rc = bnxt_alloc_mem(bp, false);
 	if (rc) {
 		netdev_err(bp->dev, "bnxt_alloc_mem err: %x\n", rc);
@@ -11480,6 +11497,10 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->fw_reset_timestamp = jiffies;
 		rtnl_lock();
+		if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
+			rtnl_unlock();
+			goto fw_reset_abort;
+		}
 		bnxt_fw_reset_close(bp);
 		if (bp->fw_cap & BNXT_FW_CAP_ERR_RECOVER_RELOAD) {
 			bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW_DOWN;
@@ -12901,7 +12922,8 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		bnxt_close(netdev);
 
-	pci_disable_device(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 	bnxt_free_ctx_mem(bp);
 	kfree(bp->ctx);
 	bp->ctx = NULL;

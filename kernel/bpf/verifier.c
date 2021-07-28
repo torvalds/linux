@@ -3356,6 +3356,8 @@ continue_func:
 	if (tail_call_reachable)
 		for (j = 0; j < frame; j++)
 			subprog[ret_prog[j]].tail_call_reachable = true;
+	if (subprog[0].tail_call_reachable)
+		env->prog->aux->tail_call_reachable = true;
 
 	/* end of for() loop means the last insn of the 'subprog'
 	 * was reached. Doesn't matter whether it was JA or EXIT

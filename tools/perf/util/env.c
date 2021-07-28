@@ -178,10 +178,12 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->cpuid);
 	zfree(&env->cmdline);
 	zfree(&env->cmdline_argv);
+	zfree(&env->sibling_dies);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+	zfree(&env->cpu_pmu_caps);
 	zfree(&env->numa_map);
 
 	for (i = 0; i < env->nr_numa_nodes; i++)
