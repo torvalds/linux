@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/qcom,gcc-sdm660.h>
+#include <dt-bindings/clock/qcom,mmcc-sdm660.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -516,9 +517,36 @@
 			clock-names = "core";
 		};
 
+		bimc: interconnect@1008000 {
+			compatible = "qcom,sdm660-bimc";
+			reg = <0x01008000 0x78000>;
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
+				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
+		};
+
 		restart@10ac000 {
 			compatible = "qcom,pshold";
 			reg = <0x010ac000 0x4>;
+		};
+
+		cnoc: interconnect@1500000 {
+			compatible = "qcom,sdm660-cnoc";
+			reg = <0x01500000 0x10000>;
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
+				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
+		};
+
+		snoc: interconnect@1626000 {
+			compatible = "qcom,sdm660-snoc";
+			reg = <0x01626000 0x7090>;
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
+				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
 		};
 
 		anoc2_smmu: iommu@16c0000 {
@@ -562,6 +590,25 @@
 				<GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
 
 			status = "disabled";
+		};
+
+		a2noc: interconnect@1704000 {
+			compatible = "qcom,sdm660-a2noc";
+			reg = <0x01704000 0xc100>;
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_AGGR2_NOC_CLK>,
+				 <&rpmcc RPM_SMD_AGGR2_NOC_A_CLK>;
+		};
+
+		mnoc: interconnect@1745000 {
+			compatible = "qcom,sdm660-mnoc";
+			reg = <0x01745000 0xA010>;
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a", "iface";
+			clocks = <&rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
+				 <&rpmcc RPM_SMD_MMSSNOC_AXI_CLK_A>,
+				 <&mmcc AHB_CLK_SRC>;
 		};
 
 		tcsr_mutex_regs: syscon@1f40000 {
@@ -1154,6 +1201,18 @@
 				<GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>;
 
 			status = "disabled";
+		};
+
+		gnoc: interconnect@17900000 {
+			compatible = "qcom,sdm660-gnoc";
+			reg = <0x17900000 0xe000>;
+			#interconnect-cells = <1>;
+			/*
+			 * This one apparently features no clocks,
+			 * so let's not mess with the driver needlessly
+			 */
+			clock-names = "bus", "bus_a";
+			clocks = <&xo_board>, <&xo_board>;
 		};
 
 		apcs_glb: mailbox@17911000 {
