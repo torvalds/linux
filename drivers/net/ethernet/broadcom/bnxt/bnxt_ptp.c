@@ -414,6 +414,9 @@ int bnxt_ptp_init(struct bnxt *bp)
 	if (rc)
 		return rc;
 
+	if (ptp->ptp_clock)
+		return 0;
+
 	atomic_set(&ptp->tx_avail, BNXT_MAX_TX_TS);
 	spin_lock_init(&ptp->ptp_lock);
 
