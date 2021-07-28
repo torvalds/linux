@@ -161,7 +161,29 @@
 &blsp_i2c1 {
 	status = "okay";
 
-	/* Synaptics touchscreen */
+	touchscreen: synaptics-rmi4-i2c@70 {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts-extended = <&tlmm 45 0x2008>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_active &ts_lcd_id_active>;
+
+		syna,reset-delay-ms = <200>;
+		syna,startup-delay-ms = <220>;
+
+		rmi4-f01@1 {
+			reg = <0x01>;
+			syna,nosleep-mode = <1>;
+		};
+
+		rmi4-f11@11 {
+			reg = <0x11>;
+			syna,sensor-type = <1>;
+		};
+	};
 };
 
 &blsp_i2c2 {
@@ -539,6 +561,18 @@
 
 &tlmm {
 	gpio-reserved-ranges = <8 4>;
+
+	ts_int_active: ts-int-active {
+		pins = "gpio45";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_lcd_id_active: ts-lcd-id-active {
+		pins = "gpio56";
+		drive-strength = <8>;
+		bias-disable;
+	};
 
 	imx300_vana_default: imx300-vana-default {
 		pins = "gpio50";

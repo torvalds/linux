@@ -20,4 +20,6 @@
 	};
 };
 
+/* Ganges devices feature a Novatek touchscreen instead. */
+/delete-node/ &touchscreen;
 /delete-node/ &vreg_l18a_1v8;
