@@ -1035,13 +1035,6 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 	return bytes_to_frames(runtime, pos);
 }
 
-static int acp_dma_mmap(struct snd_soc_component *component,
-			struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp_dma_prepare(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
@@ -1205,7 +1198,6 @@ static const struct snd_soc_component_driver acp_asoc_platform = {
 	.hw_params	= acp_dma_hw_params,
 	.trigger	= acp_dma_trigger,
 	.pointer	= acp_dma_pointer,
-	.mmap		= acp_dma_mmap,
 	.prepare	= acp_dma_prepare,
 	.pcm_construct	= acp_dma_new,
 };
