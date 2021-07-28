@@ -2003,7 +2003,6 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_ADDRESS_OUT_OF_RANGE:
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
-	case TCM_CHECK_CONDITION_NOT_READY:
 	case TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED:
@@ -2013,6 +2012,10 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_TOO_MANY_SEGMENT_DESCS:
 	case TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE:
 	case TCM_INVALID_FIELD_IN_COMMAND_IU:
+	case TCM_ALUA_TG_PT_STANDBY:
+	case TCM_ALUA_TG_PT_UNAVAILABLE:
+	case TCM_ALUA_STATE_TRANSITION:
+	case TCM_ALUA_OFFLINE:
 		break;
 	case TCM_OUT_OF_RESOURCES:
 		cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
@@ -3277,9 +3280,6 @@ static const struct sense_detail sense_detail_table[] = {
 	[TCM_CHECK_CONDITION_UNIT_ATTENTION] = {
 		.key = UNIT_ATTENTION,
 	},
-	[TCM_CHECK_CONDITION_NOT_READY] = {
-		.key = NOT_READY,
-	},
 	[TCM_MISCOMPARE_VERIFY] = {
 		.key = MISCOMPARE,
 		.asc = 0x1d, /* MISCOMPARE DURING VERIFY OPERATION */
@@ -3340,6 +3340,26 @@ static const struct sense_detail sense_detail_table[] = {
 		.asc = 0x0e,
 		.ascq = 0x03, /* INVALID FIELD IN COMMAND INFORMATION UNIT */
 	},
+	[TCM_ALUA_TG_PT_STANDBY] = {
+		.key = NOT_READY,
+		.asc = 0x04,
+		.ascq = ASCQ_04H_ALUA_TG_PT_STANDBY,
+	},
+	[TCM_ALUA_TG_PT_UNAVAILABLE] = {
+		.key = NOT_READY,
+		.asc = 0x04,
+		.ascq = ASCQ_04H_ALUA_TG_PT_UNAVAILABLE,
+	},
+	[TCM_ALUA_STATE_TRANSITION] = {
+		.key = NOT_READY,
+		.asc = 0x04,
+		.ascq = ASCQ_04H_ALUA_STATE_TRANSITION,
+	},
+	[TCM_ALUA_OFFLINE] = {
+		.key = NOT_READY,
+		.asc = 0x04,
+		.ascq = ASCQ_04H_ALUA_OFFLINE,
+	},
 };
 
 /**
@@ -3374,11 +3394,8 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 			cmd->scsi_status = SAM_STAT_BUSY;
 			return;
 		}
-	} else if (sd->asc == 0) {
-		WARN_ON_ONCE(cmd->scsi_asc == 0);
-		asc = cmd->scsi_asc;
-		ascq = cmd->scsi_ascq;
 	} else {
+		WARN_ON_ONCE(sd->asc == 0);
 		asc = sd->asc;
 		ascq = sd->ascq;
 	}
