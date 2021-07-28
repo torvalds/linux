@@ -1212,12 +1212,10 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 
 	if ((*p) && (*p) != prev && ((*p)->on_cpu == 1 || (*p)->on_rq == 0 ||
 				     (*p)->on_rq == TASK_ON_RQ_MIGRATING ||
-				     (*p)->cpu != cpu_of(rq))) {
-		printk_deferred("WALT-BUG picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
-				(*p)->comm, (*p)->pid, (*p)->on_cpu,
-				(*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
-		WALT_PANIC(1);
-	}
+				     (*p)->cpu != cpu_of(rq)))
+		WALT_BUG(*p, "picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
+			 (*p)->comm, (*p)->pid, (*p)->on_cpu,
+			 (*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
 
 	/* We don't have MVP tasks queued */
 	if (list_empty(&wrq->mvp_tasks))
@@ -1233,12 +1231,10 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 
 	if ((*p) && (*p) != prev && ((*p)->on_cpu == 1 || (*p)->on_rq == 0 ||
 				     (*p)->on_rq == TASK_ON_RQ_MIGRATING ||
-				     (*p)->cpu != cpu_of(rq))) {
-		printk_deferred("WALT-BUG picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
-				(*p)->comm, (*p)->pid, (*p)->on_cpu,
-				(*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
-		WALT_PANIC(1);
-	}
+				     (*p)->cpu != cpu_of(rq)))
+		WALT_BUG(*p, "picked %s(%d) on_cpu=%d on_rq=%d p->cpu=%d cpu_of(rq)=%d kthread=%d\n",
+			 (*p)->comm, (*p)->pid, (*p)->on_cpu,
+			 (*p)->on_rq, (*p)->cpu, cpu_of(rq), ((*p)->flags & PF_KTHREAD));
 
 	trace_walt_cfs_mvp_pick_next(mvp, wts, walt_cfs_mvp_task_limit(mvp));
 }
