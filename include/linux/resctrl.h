@@ -121,6 +121,7 @@ struct resctrl_membw {
 };
 
 struct rdt_parse_data;
+struct resctrl_schema;
 
 /**
  * struct rdt_resource - attributes of a resctrl resource
@@ -158,7 +159,7 @@ struct rdt_resource {
 	u32			default_ctrl;
 	const char		*format_str;
 	int			(*parse_ctrlval)(struct rdt_parse_data *data,
-						 struct rdt_resource *r,
+						 struct resctrl_schema *s,
 						 struct rdt_domain *d);
 	struct list_head	evt_list;
 	unsigned long		fflags;
