@@ -1263,7 +1263,7 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		 * Autodetect fan multiplier based on nominal rpm
 		 * If fan reports rpm value too high then set multiplier to 1
 		 */
-		for (fan = 0; fan < 2; ++fan) {
+		for (fan = 0; fan < DELL_SMM_NO_FANS; ++fan) {
 			ret = i8k_get_fan_nominal_speed(data, fan, data->i8k_fan_max);
 			if (ret < 0)
 				continue;
