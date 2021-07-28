@@ -278,6 +278,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
 	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
 	ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
+	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2043,6 +2044,19 @@ static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
 	return INVALID_HW_RING_ID;
 }
 
+static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
+{
+	switch (BNXT_EVENT_ERROR_REPORT_TYPE(data1)) {
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_INVALID_SIGNAL:
+		netdev_err(bp->dev, "1PPS: Received invalid signal on pin%lu from the external source. Please fix the signal and reconfigure the pin\n",
+			   BNXT_EVENT_INVALID_SIGNAL_DATA(data2));
+		break;
+	default:
+		netdev_err(bp->dev, "FW reported unknown error type\n");
+		break;
+	}
+}
+
 #define BNXT_GET_EVENT_PORT(data)	\
 	((data) &			\
 	 ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
@@ -2205,6 +2219,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP: {
 		bnxt_ptp_pps_event(bp, data1, data2);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT: {
+		bnxt_event_error_report(bp, data1, data2);
 		goto async_event_process_exit;
 	}
 	default:
