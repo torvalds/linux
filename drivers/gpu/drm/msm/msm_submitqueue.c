@@ -12,6 +12,8 @@ void msm_submitqueue_destroy(struct kref *kref)
 	struct msm_gpu_submitqueue *queue = container_of(kref,
 		struct msm_gpu_submitqueue, ref);
 
+	idr_destroy(&queue->fence_idr);
+
 	msm_file_private_put(queue->ctx);
 
 	kfree(queue);
@@ -88,6 +90,9 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 
 	if (id)
 		*id = queue->id;
+
+	idr_init(&queue->fence_idr);
+	mutex_init(&queue->lock);
 
 	list_add_tail(&queue->node, &ctx->submitqueues);
 
