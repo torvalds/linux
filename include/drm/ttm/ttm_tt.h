@@ -135,13 +135,6 @@ void ttm_tt_fini(struct ttm_tt *ttm);
 void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm);
 
 /**
- * ttm_tt_destroy_common:
- *
- * Called from driver to destroy common path.
- */
-void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm);
-
-/**
  * ttm_tt_swapin:
  *
  * @ttm: The struct ttm_tt.

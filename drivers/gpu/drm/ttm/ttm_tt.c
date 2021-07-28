@@ -123,17 +123,6 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 	return 0;
 }
 
-void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm)
-{
-	ttm_tt_unpopulate(bdev, ttm);
-
-	if (ttm->swap_storage)
-		fput(ttm->swap_storage);
-
-	ttm->swap_storage = NULL;
-}
-EXPORT_SYMBOL(ttm_tt_destroy_common);
-
 void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	bdev->funcs->ttm_tt_destroy(bdev, ttm);
@@ -168,6 +157,12 @@ EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
+	WARN_ON(ttm->page_flags & TTM_PAGE_FLAG_PRIV_POPULATED);
+
+	if (ttm->swap_storage)
+		fput(ttm->swap_storage);
+	ttm->swap_storage = NULL;
+
 	if (ttm->pages)
 		kvfree(ttm->pages);
 	else
