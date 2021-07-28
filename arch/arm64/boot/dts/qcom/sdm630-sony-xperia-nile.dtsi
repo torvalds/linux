@@ -5,8 +5,6 @@
  *                     <angelogioacchino.delregno@somainline.org>
  */
 
-/dts-v1/;
-
 #include "sdm630.dtsi"
 #include "pm660.dtsi"
 #include "pm660l.dtsi"
@@ -150,40 +148,38 @@
 			no-map;
 		};
 	};
+};
 
-	soc {
-		sdhci@c0c4000 {
-			status = "okay";
+&blsp_i2c1 {
+	status = "okay";
 
-			mmc-ddr-1_8v;
-			/* SoMC Nile platform's eMMC doesn't support HS200 mode */
-			mmc-hs400-1_8v;
-		};
+	/* Synaptics touchscreen */
+};
 
-		i2c@c175000 {
-			status = "okay";
+&blsp_i2c2 {
+	status = "okay";
 
-			/* Synaptics touchscreen */
-		};
+	/* SMB1351 charger */
+};
 
-		i2c@c176000 {
-			status = "okay";
+/* I2C3, 4, 5, 7 and 8 are disabled on this board. */
 
-			/* SMB1351 charger */
-		};
+&blsp_i2c6 {
+	status = "okay";
 
-		serial@c1af000 {
-			status = "okay";
-		};
+	/* NXP NFC */
+};
 
-		/* I2C3, 4, 5, 7 and 8 are disabled on this board. */
+&blsp1_uart2 {
+	status = "okay";
 
-		i2c@c1b6000 {
-			status = "okay";
+	/* MSM serial console */
+};
 
-			/* NXP NFC */
-		};
-	};
+&blsp2_uart1 {
+	status = "okay";
+
+	/* HCI Bluetooth */
 };
 
 &rpm_requests {
@@ -500,6 +496,19 @@
 			regulator-allow-set-load;
 		};
 	};
+};
+
+&sdhc_1 {
+	status = "okay";
+	supports-cqe;
+
+	/* SoMC Nile platform's eMMC doesn't support HS200 mode */
+	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+
+	vmmc-supply = <&vreg_l4b_29p5>;
+	vqmmc-supply = <&vreg_l8a_1p8>;
 };
 
 &tlmm {
