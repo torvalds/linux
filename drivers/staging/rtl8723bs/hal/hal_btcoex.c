@@ -17,51 +17,7 @@ struct btc_coexist GLBtCoexist;
 static u8 GLBtcWiFiInScanState;
 static u8 GLBtcWiFiInIQKState;
 
-static u8 GLBtcDbgBuf[BT_TMP_BUF_SIZE];
-
-struct btcdbginfo { /* _btcoexdbginfo */
-	u8 *info;
-	u32 size; /*  buffer total size */
-	u32 len; /*  now used length */
-};
-
-static struct btcdbginfo GLBtcDbgInfo;
-
 #define	BT_Operation(Adapter)						false
-
-static void DBG_BT_INFO_INIT(struct btcdbginfo *pinfo, u8 *pbuf, u32 size)
-{
-	if (!pinfo)
-		return;
-
-	memset(pinfo, 0, sizeof(struct btcdbginfo));
-
-	if (pbuf && size) {
-		pinfo->info = pbuf;
-		pinfo->size = size;
-	}
-}
-
-void DBG_BT_INFO(u8 *dbgmsg)
-{
-	struct btcdbginfo *pinfo;
-	u32 msglen;
-	u8 *pbuf;
-
-
-	pinfo = &GLBtcDbgInfo;
-
-	if (!pinfo->info)
-		return;
-
-	msglen = strlen(dbgmsg);
-	if (pinfo->len + msglen > pinfo->size)
-		return;
-
-	pbuf = pinfo->info + pinfo->len;
-	memcpy(pbuf, dbgmsg, msglen);
-	pinfo->len += msglen;
-}
 
 /*  */
 /* 		Debug related function */
@@ -608,17 +564,6 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 	return ret;
 }
 
-static void halbtcoutsrc_DisplayFwPwrModeCmd(struct btc_coexist *pBtCoexist)
-{
-	u8 *cliBuf = pBtCoexist->cliBuf;
-
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x %02x %02x %02x ", "Power mode cmd ", \
-		pBtCoexist->pwrModeVal[0], pBtCoexist->pwrModeVal[1],
-		pBtCoexist->pwrModeVal[2], pBtCoexist->pwrModeVal[3],
-		pBtCoexist->pwrModeVal[4], pBtCoexist->pwrModeVal[5]);
-	CL_PRINTF(cliBuf);
-}
-
 /*  */
 /* 		IO related function */
 /*  */
@@ -830,25 +775,6 @@ static void halbtcoutsrc_FillH2cCmd(void *pBtcContext, u8 elementId, u32 cmdLen,
 	rtw_hal_fill_h2c_cmd(padapter, elementId, cmdLen, pCmdBuffer);
 }
 
-static void halbtcoutsrc_DisplayDbgMsg(void *pBtcContext, u8 dispType)
-{
-	struct btc_coexist *pBtCoexist;
-
-
-	pBtCoexist = (struct btc_coexist *)pBtcContext;
-	switch (dispType) {
-	case BTC_DBG_DISP_COEX_STATISTICS:
-		break;
-	case BTC_DBG_DISP_BT_LINK_INFO:
-		break;
-	case BTC_DBG_DISP_FW_PWR_MODE_CMD:
-		halbtcoutsrc_DisplayFwPwrModeCmd(pBtCoexist);
-		break;
-	default:
-		break;
-	}
-}
-
 /*  */
 /* 		Extern functions called by other module */
 /*  */
@@ -908,14 +834,11 @@ void hal_btcoex_Initialize(void *padapter)
 	pBtCoexist->fBtcGetRfReg = halbtcoutsrc_GetRfReg;
 
 	pBtCoexist->fBtcFillH2c = halbtcoutsrc_FillH2cCmd;
-	pBtCoexist->fBtcDispDbgMsg = halbtcoutsrc_DisplayDbgMsg;
 
 	pBtCoexist->fBtcGet = halbtcoutsrc_Get;
 	pBtCoexist->fBtcSet = halbtcoutsrc_Set;
 	pBtCoexist->fBtcGetBtReg = halbtcoutsrc_GetBtReg;
 	pBtCoexist->fBtcSetBtReg = halbtcoutsrc_SetBtReg;
-
-	pBtCoexist->cliBuf = &GLBtcDbgBuf[0];
 
 	pBtCoexist->boardInfo.singleAntPath = 0;
 
@@ -1220,21 +1143,6 @@ void EXhalbtcoutsrc_SetSingleAntPath(u8 singleAntPath)
 	GLBtCoexist.boardInfo.singleAntPath = singleAntPath;
 }
 
-void EXhalbtcoutsrc_DisplayBtCoexInfo(struct btc_coexist *pBtCoexist)
-{
-	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
-		return;
-
-	halbtcoutsrc_LeaveLowPower(pBtCoexist);
-
-	if (pBtCoexist->boardInfo.btdmAntNum == 2)
-		EXhalbtc8723b2ant_DisplayCoexInfo(pBtCoexist);
-	else if (pBtCoexist->boardInfo.btdmAntNum == 1)
-		EXhalbtc8723b1ant_DisplayCoexInfo(pBtCoexist);
-
-	halbtcoutsrc_NormalLowPower(pBtCoexist);
-}
-
 /*
  * Description:
  *Run BT-Coexist mechanism or not
@@ -1447,15 +1355,3 @@ void hal_btcoex_RecordPwrMode(struct adapter *padapter, u8 *pCmdBuf, u8 cmdLen)
 {
 	memcpy(GLBtCoexist.pwrModeVal, pCmdBuf, cmdLen);
 }
-
-void hal_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
-{
-	struct btcdbginfo *pinfo;
-
-
-	pinfo = &GLBtcDbgInfo;
-	DBG_BT_INFO_INIT(pinfo, pbuf, bufsize);
-	EXhalbtcoutsrc_DisplayBtCoexInfo(&GLBtCoexist);
-	DBG_BT_INFO_INIT(pinfo, NULL, 0);
-}
-
