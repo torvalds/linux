@@ -19,6 +19,7 @@
   blocking_notifier_chain_unregister
   bpf_trace_run2
   bpf_trace_run4
+  cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
   capable
@@ -113,6 +114,7 @@
   dma_buf_detach
   dma_buf_end_cpu_access
   dma_buf_export
+  dma_buf_fd
   dma_buf_get
   dma_buf_map_attachment
   dma_buf_mmap
@@ -131,6 +133,7 @@
   dma_free_attrs
   dma_heap_buffer_alloc
   dma_heap_find
+  dma_heap_get_drvdata
   dma_heap_put
   dma_map_page_attrs
   dma_map_sg_attrs
@@ -215,6 +218,7 @@
   i2c_register_driver
   i2c_transfer
   i2c_unregister_device
+  idr_remove
   __init_rwsem
   __init_swait_queue_head
   init_timer_key
@@ -240,6 +244,7 @@
   irq_to_desc
   is_vmalloc_addr
   jiffies
+  jiffies_to_msecs
   kasan_flag_enabled
   kasprintf
   kfree
@@ -247,7 +252,11 @@
   __kmalloc
   kmalloc_caches
   kmalloc_order_trace
+  kmem_cache_alloc
   kmem_cache_alloc_trace
+  kmem_cache_create
+  kmem_cache_destroy
+  kmem_cache_free
   kmemdup
   kobject_create_and_add
   kobject_get
@@ -256,6 +265,7 @@
   krealloc
   kset_unregister
   kstrdup
+  kstrtobool
   kstrtoint
   kstrtou8
   kstrtouint
@@ -361,6 +371,9 @@
   pinctrl_lookup_state
   pinctrl_select_state
   platform_bus_type
+  platform_device_register_full
+  platform_device_unregister
+  __platform_driver_probe
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
@@ -387,6 +400,10 @@
   put_unused_fd
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete
+  radix_tree_insert
+  radix_tree_lookup
+  radix_tree_next_chunk
   ___ratelimit
   _raw_spin_lock
   _raw_spin_lock_irq
@@ -398,6 +415,7 @@
   __rcu_read_unlock
   rdev_get_drvdata
   rdev_get_id
+  refcount_dec_and_mutex_lock
   refcount_warn_saturate
   __refrigerator
   regcache_mark_dirty
@@ -674,7 +692,6 @@
   platform_device_alloc
   platform_device_del
   platform_device_put
-  platform_device_unregister
   platform_get_irq_byname_optional
   __pm_relax
   pm_runtime_allow
@@ -865,7 +882,6 @@
   drm_release
   drm_universal_plane_init
   drm_vblank_init
-  kstrtobool
   mipi_dsi_host_register
   mipi_dsi_host_unregister
   mutex_is_locked
@@ -927,7 +943,6 @@
 
 # required by g2d.ko
   add_timer
-  cancel_delayed_work
   device_get_dma_attr
   dma_fence_signal_locked
   frame_vector_create
@@ -978,6 +993,7 @@
   module_put
   of_machine_is_compatible
   __page_pinner_migration_failed
+  param_array_ops
   param_ops_byte
   __put_page
   rb_erase
@@ -997,7 +1013,6 @@
   __sw_hweight32
   synchronize_rcu
   sysfs_streq
-  system_highpri_wq
   __traceiter_gpu_mem_total
   trace_output_call
   __tracepoint_gpu_mem_total
@@ -1121,7 +1136,6 @@
   fasync_helper
   idr_alloc
   idr_get_next
-  idr_remove
   kill_fasync
 
 # required by ptp.ko
@@ -1158,7 +1172,6 @@
   get_task_pid
   i2c_get_adapter
   i2c_new_client_device
-  jiffies_to_msecs
   kobject_del
   kstrtou16
   kthread_flush_work
@@ -1285,7 +1298,6 @@
   dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
-  dma_heap_get_drvdata
   dma_heap_get_name
   is_dma_buf_file
   iterate_fd
@@ -1316,10 +1328,6 @@
   iommu_group_set_iommudata
   iommu_put_dma_cookie
   iommu_report_device_fault
-  kmem_cache_alloc
-  kmem_cache_create
-  kmem_cache_destroy
-  kmem_cache_free
   of_get_dma_window
   pfn_valid
 
@@ -1366,6 +1374,7 @@
   pm_runtime_no_callbacks
   snd_pcm_hw_constraint_integer
   snd_pcm_lib_free_pages
+  snd_pcm_lib_ioctl
   snd_pcm_lib_malloc_pages
   snd_pcm_lib_preallocate_free_for_all
   snd_pcm_lib_preallocate_pages
@@ -1409,6 +1418,7 @@
 
 # required by ufs-exynosauto-core.ko
   blk_ksm_init_passthrough
+  device_get_match_data
   __traceiter_android_vh_ufs_fill_prdt
   __tracepoint_android_vh_ufs_fill_prdt
   ufshcd_config_pwr_mode
@@ -1423,10 +1433,6 @@
 
 # required by vbufq-be-module.ko
   drain_workqueue
-  radix_tree_delete
-  radix_tree_insert
-  radix_tree_lookup
-  radix_tree_next_chunk
 
 # required by vdriver-lib-module.ko
   kset_create_and_add
@@ -1467,6 +1473,14 @@
   sysfs_create_bin_file
   sysfs_remove_bin_file
 
+# required by vlx-vdmaheap-module.ko
+  devm_get_free_pages
+  idr_alloc_cyclic
+  idr_find
+  radix_tree_iter_delete
+  uuid_gen
+  __vmalloc
+
 # required by vlx-vipc-module.ko
   sigprocmask
 
@@ -1476,3 +1490,10 @@
 
 # required by vrpc-module.ko
   current_work
+
+# required by vvideo2-fe-module.ko
+  __task_pid_nr_ns
+  vprintk
+
+# preserved by --additions-only
+  system_highpri_wq

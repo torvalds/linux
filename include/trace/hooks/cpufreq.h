@@ -11,6 +11,10 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+DECLARE_RESTRICTED_HOOK(android_rvh_show_max_freq,
+	TP_PROTO(struct cpufreq_policy *policy, unsigned int *max_freq),
+	TP_ARGS(policy, max_freq), 1);
+
 DECLARE_HOOK(android_vh_show_max_freq,
 	TP_PROTO(struct cpufreq_policy *policy, unsigned int *max_freq),
 	TP_ARGS(policy, max_freq));
