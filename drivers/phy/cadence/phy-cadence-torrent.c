@@ -573,6 +573,24 @@ static const struct coefficients vltg_coeff[4][4] = {
 	}
 };
 
+static const char *cdns_torrent_get_phy_type(enum cdns_torrent_phy_type phy_type)
+{
+	switch (phy_type) {
+	case TYPE_DP:
+		return "DisplayPort";
+	case TYPE_PCIE:
+		return "PCIe";
+	case TYPE_SGMII:
+		return "SGMII";
+	case TYPE_QSGMII:
+		return "QSGMII";
+	case TYPE_USB:
+		return "USB";
+	default:
+		return "None";
+	}
+}
+
 /*
  * Set registers responsible for enabling and configuring SSC, with second and
  * third register values provided by parameters.
@@ -2392,10 +2410,9 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 				init_dp_regmap++;
 			}
 
-			dev_info(dev, "%d lanes, max bit rate %d.%03d Gbps\n",
-				 cdns_phy->phys[node].num_lanes,
-				 cdns_phy->max_bit_rate / 1000,
-				 cdns_phy->max_bit_rate % 1000);
+			dev_dbg(dev, "DP max bit rate %d.%03d Gbps\n",
+				cdns_phy->max_bit_rate / 1000,
+				cdns_phy->max_bit_rate % 1000);
 
 			gphy->attrs.bus_width = cdns_phy->phys[node].num_lanes;
 			gphy->attrs.max_link_rate = cdns_phy->max_bit_rate;
@@ -2426,6 +2443,17 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		ret = PTR_ERR(phy_provider);
 		goto put_lnk_rst;
 	}
+
+	if (cdns_phy->nsubnodes > 1)
+		dev_dbg(dev, "Multi-link: %s (%d lanes) & %s (%d lanes)",
+			cdns_torrent_get_phy_type(cdns_phy->phys[0].phy_type),
+			cdns_phy->phys[0].num_lanes,
+			cdns_torrent_get_phy_type(cdns_phy->phys[1].phy_type),
+			cdns_phy->phys[1].num_lanes);
+	else
+		dev_dbg(dev, "Single link: %s (%d lanes)",
+			cdns_torrent_get_phy_type(cdns_phy->phys[0].phy_type),
+			cdns_phy->phys[0].num_lanes);
 
 	return 0;
 
