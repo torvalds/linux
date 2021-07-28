@@ -2567,6 +2567,11 @@ static void __init btrfs_print_mod_info(void)
 #else
 			", zoned=no"
 #endif
+#ifdef CONFIG_FS_VERITY
+			", fsverity=yes"
+#else
+			", fsverity=no"
+#endif
 			;
 	pr_info("Btrfs loaded, crc32c=%s%s\n", crc32c_impl(), options);
 }
