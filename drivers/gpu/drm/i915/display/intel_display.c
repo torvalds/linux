@@ -3575,7 +3575,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	crtc->active = true;
 
-	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
+	/* Display WA #1180: WaDisableScalarClockGating: glk */
 	psl_clkgate_wa = DISPLAY_VER(dev_priv) == 10 &&
 		new_crtc_state->pch_pfit.enabled;
 	if (psl_clkgate_wa)
@@ -9870,7 +9870,7 @@ static int intel_atomic_check_async(struct intel_atomic_state *state)
 
 		/*
 		 * FIXME: This check is kept generic for all platforms.
-		 * Need to verify this for all gen9 and gen10 platforms to enable
+		 * Need to verify this for all gen9 platforms to enable
 		 * this selectively if required.
 		 */
 		switch (new_plane_state->hw.fb->modifier) {
@@ -13257,7 +13257,7 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 static void intel_early_display_was(struct drm_i915_private *dev_priv)
 {
 	/*
-	 * Display WA #1185 WaDisableDARBFClkGating:cnl,glk,icl,ehl,tgl
+	 * Display WA #1185 WaDisableDARBFClkGating:glk,icl,ehl,tgl
 	 * Also known as Wa_14010480278.
 	 */
 	if (IS_DISPLAY_VER(dev_priv, 10, 12))

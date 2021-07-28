@@ -1270,7 +1270,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	int pipe_src_w = crtc_state->pipe_src_w;
 
 	/*
-	 * Display WA #1175: cnl,glk
+	 * Display WA #1175: glk
 	 * Planes other than the cursor may cause FIFO underflow and display
 	 * corruption if starting less than 4 pixels from the right edge of
 	 * the screen.
