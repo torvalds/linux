@@ -442,8 +442,12 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	hw_dom_mba = resctrl_to_arch_dom(dom_mba);
 
 	cur_bw = pmbm_data->prev_bw;
-	user_bw = hw_dom_mba->mbps_val[closid];
+	resctrl_arch_get_config(r_mba, dom_mba, closid, &user_bw);
 	delta_bw = pmbm_data->delta_bw;
+	/*
+	 * resctrl_arch_get_config() chooses the mbps/ctrl value to return
+	 * based on is_mba_sc(). For now, reach into the hw_dom.
+	 */
 	cur_msr_val = hw_dom_mba->ctrl_val[closid];
 
 	/*
