@@ -93,7 +93,6 @@
 		input-name = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		autorepeat;
 
 		camera_focus {
 			label = "Camera Focus";
