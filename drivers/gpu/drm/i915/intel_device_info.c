@@ -59,7 +59,6 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(GEMINILAKE),
 	PLATFORM_NAME(COFFEELAKE),
 	PLATFORM_NAME(COMETLAKE),
-	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
 	PLATFORM_NAME(ELKHARTLAKE),
 	PLATFORM_NAME(JASPERLAKE),
@@ -175,7 +174,6 @@ static const u16 subplatform_ulx_ids[] = {
 };
 
 static const u16 subplatform_portf_ids[] = {
-	INTEL_CNL_PORT_F_IDS(0),
 	INTEL_ICL_PORT_F_IDS(0),
 };
 

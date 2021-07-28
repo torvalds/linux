@@ -4309,7 +4309,6 @@ static void oa_init_supported_formats(struct i915_perf *perf)
 	case INTEL_GEMINILAKE:
 	case INTEL_COFFEELAKE:
 	case INTEL_COMETLAKE:
-	case INTEL_CANNONLAKE:
 	case INTEL_ICELAKE:
 	case INTEL_ELKHARTLAKE:
 	case INTEL_JASPERLAKE:
