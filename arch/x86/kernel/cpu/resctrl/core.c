@@ -374,6 +374,10 @@ static void rdt_get_cdp_config(int level, int type)
 	 * "cdp" during resctrl file system mount time.
 	 */
 	r->alloc_enabled = false;
+	rdt_resources_all[level].cdp_enabled = false;
+	rdt_resources_all[type].cdp_enabled = false;
+	r_l->cdp_capable = true;
+	r->cdp_capable = true;
 }
 
 static void rdt_get_cdp_l3_config(void)

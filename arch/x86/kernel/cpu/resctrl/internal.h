@@ -380,6 +380,7 @@ struct rdt_parse_data {
  * @msr_update:		Function pointer to update QOS MSRs
  * @mon_scale:		cqm counter * mon_scale = occupancy in bytes
  * @mbm_width:		Monitor width, to detect and correct for overflow.
+ * @cdp_enabled:	CDP state of this resource
  *
  * Members of this structure are either private to the architecture
  * e.g. mbm_width, or accessed via helpers that provide abstraction. e.g.
@@ -394,6 +395,7 @@ struct rdt_hw_resource {
 				 struct rdt_resource *r);
 	unsigned int		mon_scale;
 	unsigned int		mbm_width;
+	bool			cdp_enabled;
 };
 
 static inline struct rdt_hw_resource *resctrl_to_arch_res(struct rdt_resource *r)
@@ -414,7 +416,7 @@ DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 
 extern struct dentry *debugfs_resctrl;
 
-enum {
+enum resctrl_res_level {
 	RDT_RESOURCE_L3,
 	RDT_RESOURCE_L3DATA,
 	RDT_RESOURCE_L3CODE,
@@ -434,6 +436,13 @@ static inline struct rdt_resource *resctrl_inc(struct rdt_resource *res)
 	hw_res++;
 	return &hw_res->r_resctrl;
 }
+
+static inline bool resctrl_arch_get_cdp_enabled(enum resctrl_res_level l)
+{
+	return rdt_resources_all[l].cdp_enabled;
+}
+
+int resctrl_arch_set_cdp_enabled(enum resctrl_res_level l, bool enable);
 
 /*
  * To return the common struct rdt_resource, which is contained in struct

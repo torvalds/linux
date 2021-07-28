@@ -688,8 +688,8 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 *   resource, the portion of cache used by it should be made
 	 *   unavailable to all future allocations from both resources.
 	 */
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].r_resctrl.alloc_enabled ||
-	    rdt_resources_all[RDT_RESOURCE_L2DATA].r_resctrl.alloc_enabled) {
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L3) ||
+	    resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L2)) {
 		rdt_last_cmd_puts("CDP enabled\n");
 		return -EINVAL;
 	}

@@ -1940,14 +1940,16 @@ static int set_cache_qos_cfg(int level, bool enable)
 /* Restore the qos cfg state when a domain comes online */
 void rdt_domain_reconfigure_cdp(struct rdt_resource *r)
 {
-	if (!r->alloc_capable)
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
+
+	if (!r->cdp_capable)
 		return;
 
 	if (r == &rdt_resources_all[RDT_RESOURCE_L2DATA].r_resctrl)
-		l2_qos_cfg_update(&r->alloc_enabled);
+		l2_qos_cfg_update(&hw_res->cdp_enabled);
 
 	if (r == &rdt_resources_all[RDT_RESOURCE_L3DATA].r_resctrl)
-		l3_qos_cfg_update(&r->alloc_enabled);
+		l3_qos_cfg_update(&hw_res->cdp_enabled);
 }
 
 /*
@@ -1991,51 +1993,62 @@ static int cdp_enable(int level, int data_type, int code_type)
 		r_l->alloc_enabled = false;
 		r_ldata->alloc_enabled = true;
 		r_lcode->alloc_enabled = true;
+		rdt_resources_all[level].cdp_enabled = true;
+		rdt_resources_all[data_type].cdp_enabled = true;
+		rdt_resources_all[code_type].cdp_enabled = true;
 	}
 	return ret;
 }
 
-static int cdpl3_enable(void)
-{
-	return cdp_enable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
-			  RDT_RESOURCE_L3CODE);
-}
-
-static int cdpl2_enable(void)
-{
-	return cdp_enable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
-			  RDT_RESOURCE_L2CODE);
-}
-
 static void cdp_disable(int level, int data_type, int code_type)
 {
-	struct rdt_resource *r = &rdt_resources_all[level].r_resctrl;
+	struct rdt_hw_resource *r_hw = &rdt_resources_all[level];
+	struct rdt_resource *r = &r_hw->r_resctrl;
 
 	r->alloc_enabled = r->alloc_capable;
 
-	if (rdt_resources_all[data_type].r_resctrl.alloc_enabled) {
+	if (r_hw->cdp_enabled) {
 		rdt_resources_all[data_type].r_resctrl.alloc_enabled = false;
 		rdt_resources_all[code_type].r_resctrl.alloc_enabled = false;
 		set_cache_qos_cfg(level, false);
+		r_hw->cdp_enabled = false;
+		rdt_resources_all[data_type].cdp_enabled = false;
+		rdt_resources_all[code_type].cdp_enabled = false;
 	}
 }
 
-static void cdpl3_disable(void)
+int resctrl_arch_set_cdp_enabled(enum resctrl_res_level l, bool enable)
 {
-	cdp_disable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA, RDT_RESOURCE_L3CODE);
-}
+	struct rdt_hw_resource *hw_res = &rdt_resources_all[l];
+	enum resctrl_res_level code_type, data_type;
 
-static void cdpl2_disable(void)
-{
-	cdp_disable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA, RDT_RESOURCE_L2CODE);
+	if (!hw_res->r_resctrl.cdp_capable)
+		return -EINVAL;
+
+	if (l == RDT_RESOURCE_L3) {
+		code_type = RDT_RESOURCE_L3CODE;
+		data_type = RDT_RESOURCE_L3DATA;
+	} else if (l == RDT_RESOURCE_L2) {
+		code_type = RDT_RESOURCE_L2CODE;
+		data_type = RDT_RESOURCE_L2DATA;
+	} else {
+		return -EINVAL;
+	}
+
+	if (enable)
+		return cdp_enable(l, data_type, code_type);
+
+	cdp_disable(l, data_type, code_type);
+
+	return 0;
 }
 
 static void cdp_disable_all(void)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].r_resctrl.alloc_enabled)
-		cdpl3_disable();
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].r_resctrl.alloc_enabled)
-		cdpl2_disable();
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L3))
+		resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L3, false);
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L2))
+		resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L2, false);
 }
 
 /*
@@ -2113,10 +2126,10 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 	int ret = 0;
 
 	if (ctx->enable_cdpl2)
-		ret = cdpl2_enable();
+		ret = resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L2, true);
 
 	if (!ret && ctx->enable_cdpl3)
-		ret = cdpl3_enable();
+		ret = resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L3, true);
 
 	if (!ret && ctx->enable_mba_mbps)
 		ret = set_mba_sc(true);
@@ -3199,10 +3212,10 @@ out:
 
 static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].r_resctrl.alloc_enabled)
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L3))
 		seq_puts(seq, ",cdp");
 
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].r_resctrl.alloc_enabled)
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L2))
 		seq_puts(seq, ",cdpl2");
 
 	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA].r_resctrl))
