@@ -294,12 +294,12 @@ int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static int cnl_coef_tap(int i)
+static int glk_coef_tap(int i)
 {
 	return i % 7;
 }
 
-static u16 cnl_nearest_filter_coef(int t)
+static u16 glk_nearest_filter_coef(int t)
 {
 	return t == 3 ? 0x0800 : 0x3000;
 }
@@ -341,29 +341,29 @@ static u16 cnl_nearest_filter_coef(int t)
  *
  */
 
-static void cnl_program_nearest_filter_coefs(struct drm_i915_private *dev_priv,
+static void glk_program_nearest_filter_coefs(struct drm_i915_private *dev_priv,
 					     enum pipe pipe, int id, int set)
 {
 	int i;
 
-	intel_de_write_fw(dev_priv, CNL_PS_COEF_INDEX_SET(pipe, id, set),
+	intel_de_write_fw(dev_priv, GLK_PS_COEF_INDEX_SET(pipe, id, set),
 			  PS_COEE_INDEX_AUTO_INC);
 
 	for (i = 0; i < 17 * 7; i += 2) {
 		u32 tmp;
 		int t;
 
-		t = cnl_coef_tap(i);
-		tmp = cnl_nearest_filter_coef(t);
+		t = glk_coef_tap(i);
+		tmp = glk_nearest_filter_coef(t);
 
-		t = cnl_coef_tap(i + 1);
-		tmp |= cnl_nearest_filter_coef(t) << 16;
+		t = glk_coef_tap(i + 1);
+		tmp |= glk_nearest_filter_coef(t) << 16;
 
-		intel_de_write_fw(dev_priv, CNL_PS_COEF_DATA_SET(pipe, id, set),
+		intel_de_write_fw(dev_priv, GLK_PS_COEF_DATA_SET(pipe, id, set),
 				  tmp);
 	}
 
-	intel_de_write_fw(dev_priv, CNL_PS_COEF_INDEX_SET(pipe, id, set), 0);
+	intel_de_write_fw(dev_priv, GLK_PS_COEF_INDEX_SET(pipe, id, set), 0);
 }
 
 static u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
@@ -386,7 +386,7 @@ static void skl_scaler_setup_filter(struct drm_i915_private *dev_priv, enum pipe
 	case DRM_SCALING_FILTER_DEFAULT:
 		break;
 	case DRM_SCALING_FILTER_NEAREST_NEIGHBOR:
-		cnl_program_nearest_filter_coefs(dev_priv, pipe, id, set);
+		glk_program_nearest_filter_coefs(dev_priv, pipe, id, set);
 		break;
 	default:
 		MISSING_CASE(filter);
