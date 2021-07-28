@@ -22,8 +22,12 @@
 				 PORT_TS_QUERY_REQ_ENABLES_TS_REQ_TIMEOUT)
 
 struct pps_pin {
+	u8 event;
 	u8 usage;
+	u8 state;
 };
+
+#define TSIO_PIN_VALID(pin) ((pin) < (BNXT_MAX_TSIO_PINS))
 
 #define BNXT_PPS_PIN_DISABLE	0
 #define BNXT_PPS_PIN_ENABLE	1
@@ -93,6 +97,7 @@ do {						\
 #endif
 
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id);
+void bnxt_ptp_reapply_pps(struct bnxt *bp);
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
 int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb);

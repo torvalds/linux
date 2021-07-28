@@ -155,10 +155,180 @@ static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
 	return rc;
 }
 
-static int bnxt_ptp_enable(struct ptp_clock_info *ptp,
+static int bnxt_ptp_cfg_pin(struct bnxt *bp, u8 pin, u8 usage)
+{
+	struct hwrm_func_ptp_pin_cfg_input req = {0};
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	u8 state = usage != BNXT_PPS_PIN_NONE;
+	u8 *pin_state, *pin_usg;
+	u32 enables;
+	int rc;
+
+	if (!TSIO_PIN_VALID(pin)) {
+		netdev_err(ptp->bp->dev, "1PPS: Invalid pin. Check pin-function configuration\n");
+		return -EOPNOTSUPP;
+	}
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_PTP_PIN_CFG, -1, -1);
+	enables = (FUNC_PTP_PIN_CFG_REQ_ENABLES_PIN0_STATE |
+		   FUNC_PTP_PIN_CFG_REQ_ENABLES_PIN0_USAGE) << (pin * 2);
+	req.enables = cpu_to_le32(enables);
+
+	pin_state = &req.pin0_state;
+	pin_usg = &req.pin0_usage;
+
+	*(pin_state + (pin * 2)) = state;
+	*(pin_usg + (pin * 2)) = usage;
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return rc;
+
+	ptp->pps_info.pins[pin].usage = usage;
+	ptp->pps_info.pins[pin].state = state;
+
+	return 0;
+}
+
+static int bnxt_ptp_cfg_event(struct bnxt *bp, u8 event)
+{
+	struct hwrm_func_ptp_cfg_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_PTP_CFG, -1, -1);
+	req.enables = cpu_to_le16(FUNC_PTP_CFG_REQ_ENABLES_PTP_PPS_EVENT);
+	req.ptp_pps_event = event;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+void bnxt_ptp_reapply_pps(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	struct bnxt_pps *pps;
+	u32 pin = 0;
+	int rc;
+
+	if (!ptp || !(bp->fw_cap & BNXT_FW_CAP_PTP_PPS) ||
+	    !(ptp->ptp_info.pin_config))
+		return;
+	pps = &ptp->pps_info;
+	for (pin = 0; pin < BNXT_MAX_TSIO_PINS; pin++) {
+		if (pps->pins[pin].state) {
+			rc = bnxt_ptp_cfg_pin(bp, pin, pps->pins[pin].usage);
+			if (!rc && pps->pins[pin].event)
+				rc = bnxt_ptp_cfg_event(bp,
+							pps->pins[pin].event);
+			if (rc)
+				netdev_err(bp->dev, "1PPS: Failed to configure pin%d\n",
+					   pin);
+		}
+	}
+}
+
+static int bnxt_get_target_cycles(struct bnxt_ptp_cfg *ptp, u64 target_ns,
+				  u64 *cycles_delta)
+{
+	u64 cycles_now;
+	u64 nsec_now, nsec_delta;
+	int rc;
+
+	spin_lock_bh(&ptp->ptp_lock);
+	rc = bnxt_refclk_read(ptp->bp, NULL, &cycles_now);
+	if (rc) {
+		spin_unlock_bh(&ptp->ptp_lock);
+		return rc;
+	}
+	nsec_now = timecounter_cyc2time(&ptp->tc, cycles_now);
+	spin_unlock_bh(&ptp->ptp_lock);
+
+	nsec_delta = target_ns - nsec_now;
+	*cycles_delta = div64_u64(nsec_delta << ptp->cc.shift, ptp->cc.mult);
+	return 0;
+}
+
+static int bnxt_ptp_perout_cfg(struct bnxt_ptp_cfg *ptp,
+			       struct ptp_clock_request *rq)
+{
+	struct hwrm_func_ptp_cfg_input req = {0};
+	struct bnxt *bp = ptp->bp;
+	struct timespec64 ts;
+	u64 target_ns, delta;
+	u16 enables;
+	int rc;
+
+	ts.tv_sec = rq->perout.start.sec;
+	ts.tv_nsec = rq->perout.start.nsec;
+	target_ns = timespec64_to_ns(&ts);
+
+	rc = bnxt_get_target_cycles(ptp, target_ns, &delta);
+	if (rc)
+		return rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_PTP_CFG, -1, -1);
+
+	enables = FUNC_PTP_CFG_REQ_ENABLES_PTP_FREQ_ADJ_EXT_PERIOD |
+		  FUNC_PTP_CFG_REQ_ENABLES_PTP_FREQ_ADJ_EXT_UP |
+		  FUNC_PTP_CFG_REQ_ENABLES_PTP_FREQ_ADJ_EXT_PHASE;
+	req.enables = cpu_to_le16(enables);
+	req.ptp_pps_event = 0;
+	req.ptp_freq_adj_dll_source = 0;
+	req.ptp_freq_adj_dll_phase = 0;
+	req.ptp_freq_adj_ext_period = cpu_to_le32(NSEC_PER_SEC);
+	req.ptp_freq_adj_ext_up = 0;
+	req.ptp_freq_adj_ext_phase_lower = cpu_to_le32(delta);
+
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_ptp_enable(struct ptp_clock_info *ptp_info,
 			   struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
+						ptp_info);
+	struct bnxt *bp = ptp->bp;
+	u8 pin_id;
+	int rc;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		/* Configure an External PPS IN */
+		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_EXTTS,
+				      rq->extts.index);
+		if (!on)
+			break;
+		rc = bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_PPS_IN);
+		if (rc)
+			return rc;
+		rc = bnxt_ptp_cfg_event(bp, BNXT_PPS_EVENT_EXTERNAL);
+		if (!rc)
+			ptp->pps_info.pins[pin_id].event = BNXT_PPS_EVENT_EXTERNAL;
+		return rc;
+	case PTP_CLK_REQ_PEROUT:
+		/* Configure a Periodic PPS OUT */
+		pin_id = ptp_find_pin(ptp->ptp_clock, PTP_PF_PEROUT,
+				      rq->perout.index);
+		if (!on)
+			break;
+
+		rc = bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_PPS_OUT);
+		if (!rc)
+			rc = bnxt_ptp_perout_cfg(ptp, rq);
+
+		return rc;
+	case PTP_CLK_REQ_PPS:
+		/* Configure PHC PPS IN */
+		rc = bnxt_ptp_cfg_pin(bp, 0, BNXT_PPS_PIN_PPS_IN);
+		if (rc)
+			return rc;
+		rc = bnxt_ptp_cfg_event(bp, BNXT_PPS_EVENT_INTERNAL);
+		if (!rc)
+			ptp->pps_info.pins[0].event = BNXT_PPS_EVENT_INTERNAL;
+		return rc;
+	default:
+		netdev_err(ptp->bp->dev, "Unrecognized PIN function\n");
+		return -EOPNOTSUPP;
+	}
+
+	return bnxt_ptp_cfg_pin(bp, pin_id, BNXT_PPS_PIN_NONE);
 }
 
 static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
