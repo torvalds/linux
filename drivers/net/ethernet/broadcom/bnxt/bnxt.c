@@ -277,6 +277,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
 	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
+	ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2200,6 +2201,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			set_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event);
 			break;
 		}
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP: {
+		bnxt_ptp_pps_event(bp, data1, data2);
 		goto async_event_process_exit;
 	}
 	default:

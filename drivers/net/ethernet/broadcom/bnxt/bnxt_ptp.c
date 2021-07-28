@@ -155,6 +155,33 @@ static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
 	return rc;
 }
 
+void bnxt_ptp_pps_event(struct bnxt *bp, u32 data1, u32 data2)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	struct ptp_clock_event event;
+	u64 ns, pps_ts;
+
+	pps_ts = EVENT_PPS_TS(data2, data1);
+	spin_lock_bh(&ptp->ptp_lock);
+	ns = timecounter_cyc2time(&ptp->tc, pps_ts);
+	spin_unlock_bh(&ptp->ptp_lock);
+
+	switch (EVENT_DATA2_PPS_EVENT_TYPE(data2)) {
+	case ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE_INTERNAL:
+		event.pps_times.ts_real = ns_to_timespec64(ns);
+		event.type = PTP_CLOCK_PPSUSR;
+		event.index = EVENT_DATA2_PPS_PIN_NUM(data2);
+		break;
+	case ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE_EXTERNAL:
+		event.timestamp = ns;
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = EVENT_DATA2_PPS_PIN_NUM(data2);
+		break;
+	}
+
+	ptp_clock_event(bp->ptp_cfg->ptp_clock, &event);
+}
+
 static int bnxt_ptp_cfg_pin(struct bnxt *bp, u8 pin, u8 usage)
 {
 	struct hwrm_func_ptp_pin_cfg_input req = {0};

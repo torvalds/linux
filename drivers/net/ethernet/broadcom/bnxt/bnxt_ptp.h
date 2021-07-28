@@ -29,6 +29,31 @@ struct pps_pin {
 
 #define TSIO_PIN_VALID(pin) ((pin) < (BNXT_MAX_TSIO_PINS))
 
+#define EVENT_DATA2_PPS_EVENT_TYPE(data2)				\
+	((data2) & ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE)
+
+#define EVENT_DATA2_PPS_PIN_NUM(data2)					\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PIN_NUMBER_MASK) >>\
+	 ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PIN_NUMBER_SFT)
+
+#define BNXT_DATA2_UPPER_MSK						\
+	ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PPS_TIMESTAMP_UPPER_MASK
+
+#define BNXT_DATA2_UPPER_SFT						\
+	(32 -								\
+	 ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PPS_TIMESTAMP_UPPER_SFT)
+
+#define BNXT_DATA1_LOWER_MSK						\
+	ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA1_PPS_TIMESTAMP_LOWER_MASK
+
+#define BNXT_DATA1_LOWER_SFT						\
+	  ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA1_PPS_TIMESTAMP_LOWER_SFT
+
+#define EVENT_PPS_TS(data2, data1)					\
+	(((u64)((data2) & BNXT_DATA2_UPPER_MSK) << BNXT_DATA2_UPPER_SFT) |\
+	 (((data1) & BNXT_DATA1_LOWER_MSK) >> BNXT_DATA1_LOWER_SFT))
+
 #define BNXT_PPS_PIN_DISABLE	0
 #define BNXT_PPS_PIN_ENABLE	1
 #define BNXT_PPS_PIN_NONE	0
@@ -97,6 +122,7 @@ do {						\
 #endif
 
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id);
+void bnxt_ptp_pps_event(struct bnxt *bp, u32 data1, u32 data2);
 void bnxt_ptp_reapply_pps(struct bnxt *bp);
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
