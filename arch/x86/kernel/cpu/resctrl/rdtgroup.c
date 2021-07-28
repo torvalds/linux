@@ -2154,6 +2154,8 @@ static int schemata_list_create(void)
 		s->res = r;
 		s->conf_type = resctrl_to_arch_res(r)->conf_type;
 		s->num_closid = resctrl_arch_get_num_closid(r);
+		if (resctrl_arch_get_cdp_enabled(r->rid))
+			s->num_closid /= 2;
 
 		ret = snprintf(s->name, sizeof(s->name), r->name);
 		if (ret >= sizeof(s->name)) {
@@ -2375,6 +2377,13 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	msr_param.res = r;
 	msr_param.low = 0;
 	msr_param.high = hw_res->num_closid;
+
+	/*
+	 * temporary: the array is full-sized, but cat_wrmsr() still re-maps
+	 * the index.
+	 */
+	if (hw_res->cdp_enabled)
+		msr_param.high /= 2;
 
 	/*
 	 * Disable resource control for this resource by setting all
