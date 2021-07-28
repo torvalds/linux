@@ -2,6 +2,8 @@
 #ifndef _RESCTRL_H
 #define _RESCTRL_H
 
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/pid.h>
 
 #ifdef CONFIG_PROC_CPU_RESCTRL
@@ -12,5 +14,113 @@ int proc_resctrl_show(struct seq_file *m,
 		      struct task_struct *tsk);
 
 #endif
+
+struct rdt_domain;
+
+/**
+ * struct resctrl_cache - Cache allocation related data
+ * @cbm_len:		Length of the cache bit mask
+ * @min_cbm_bits:	Minimum number of consecutive bits to be set
+ * @cbm_idx_mult:	Multiplier of CBM index
+ * @cbm_idx_offset:	Offset of CBM index. CBM index is computed by:
+ *			closid * cbm_idx_multi + cbm_idx_offset
+ *			in a cache bit mask
+ * @shareable_bits:	Bitmask of shareable resource with other
+ *			executing entities
+ * @arch_has_sparse_bitmaps:	True if a bitmap like f00f is valid.
+ * @arch_has_empty_bitmaps:	True if the '0' bitmap is valid.
+ * @arch_has_per_cpu_cfg:	True if QOS_CFG register for this cache
+ *				level has CPU scope.
+ */
+struct resctrl_cache {
+	unsigned int	cbm_len;
+	unsigned int	min_cbm_bits;
+	unsigned int	cbm_idx_mult;	// TODO remove this
+	unsigned int	cbm_idx_offset; // TODO remove this
+	unsigned int	shareable_bits;
+	bool		arch_has_sparse_bitmaps;
+	bool		arch_has_empty_bitmaps;
+	bool		arch_has_per_cpu_cfg;
+};
+
+/**
+ * enum membw_throttle_mode - System's memory bandwidth throttling mode
+ * @THREAD_THROTTLE_UNDEFINED:	Not relevant to the system
+ * @THREAD_THROTTLE_MAX:	Memory bandwidth is throttled at the core
+ *				always using smallest bandwidth percentage
+ *				assigned to threads, aka "max throttling"
+ * @THREAD_THROTTLE_PER_THREAD:	Memory bandwidth is throttled at the thread
+ */
+enum membw_throttle_mode {
+	THREAD_THROTTLE_UNDEFINED = 0,
+	THREAD_THROTTLE_MAX,
+	THREAD_THROTTLE_PER_THREAD,
+};
+
+/**
+ * struct resctrl_membw - Memory bandwidth allocation related data
+ * @min_bw:		Minimum memory bandwidth percentage user can request
+ * @bw_gran:		Granularity at which the memory bandwidth is allocated
+ * @delay_linear:	True if memory B/W delay is in linear scale
+ * @arch_needs_linear:	True if we can't configure non-linear resources
+ * @throttle_mode:	Bandwidth throttling mode when threads request
+ *			different memory bandwidths
+ * @mba_sc:		True if MBA software controller(mba_sc) is enabled
+ * @mb_map:		Mapping of memory B/W percentage to memory B/W delay
+ */
+struct resctrl_membw {
+	u32				min_bw;
+	u32				bw_gran;
+	u32				delay_linear;
+	bool				arch_needs_linear;
+	enum membw_throttle_mode	throttle_mode;
+	bool				mba_sc;
+	u32				*mb_map;
+};
+
+struct rdt_parse_data;
+
+/**
+ * struct rdt_resource - attributes of a resctrl resource
+ * @rid:		The index of the resource
+ * @alloc_enabled:	Is allocation enabled on this machine
+ * @mon_enabled:	Is monitoring enabled for this feature
+ * @alloc_capable:	Is allocation available on this machine
+ * @mon_capable:	Is monitor feature available on this machine
+ * @num_rmid:		Number of RMIDs available
+ * @cache_level:	Which cache level defines scope of this resource
+ * @cache:		Cache allocation related data
+ * @membw:		If the component has bandwidth controls, their properties.
+ * @domains:		All domains for this resource
+ * @name:		Name to use in "schemata" file.
+ * @data_width:		Character width of data when displaying
+ * @default_ctrl:	Specifies default cache cbm or memory B/W percent.
+ * @format_str:		Per resource format string to show domain value
+ * @parse_ctrlval:	Per resource function pointer to parse control values
+ * @evt_list:		List of monitoring events
+ * @fflags:		flags to choose base and info files
+ */
+struct rdt_resource {
+	int			rid;
+	bool			alloc_enabled;
+	bool			mon_enabled;
+	bool			alloc_capable;
+	bool			mon_capable;
+	int			num_rmid;
+	int			cache_level;
+	struct resctrl_cache	cache;
+	struct resctrl_membw	membw;
+	struct list_head	domains;
+	char			*name;
+	int			data_width;
+	u32			default_ctrl;
+	const char		*format_str;
+	int			(*parse_ctrlval)(struct rdt_parse_data *data,
+						 struct rdt_resource *r,
+						 struct rdt_domain *d);
+	struct list_head	evt_list;
+	unsigned long		fflags;
+
+};
 
 #endif /* _RESCTRL_H */
