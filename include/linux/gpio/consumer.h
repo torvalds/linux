@@ -609,7 +609,7 @@ struct gpio_desc *devm_fwnode_get_gpiod_from_child(struct device *dev,
 #if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_OF_GPIO)
 struct device_node;
 
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label);
@@ -619,7 +619,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 struct device_node;
 
 static inline
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label)
@@ -633,7 +633,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 struct device_node;
 
 struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+					      const struct device_node *node,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label);
@@ -644,7 +644,7 @@ struct device_node;
 
 static inline
 struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+					      const struct device_node *node,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label)
