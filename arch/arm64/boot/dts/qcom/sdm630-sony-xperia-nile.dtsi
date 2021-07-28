@@ -334,6 +334,7 @@
 			regulator-enable-ramp-delay = <250>;
 			regulator-ramp-delay = <0>;
 			regulator-allow-set-load;
+			regulator-system-load = <800000>;
 		};
 
 		vreg_l6b_3p3: l6 {
@@ -561,6 +562,13 @@
 
 	vmmc-supply = <&vreg_l4b_29p5>;
 	vqmmc-supply = <&vreg_l8a_1p8>;
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	vmmc-supply = <&vreg_l5b_29p5>;
+	vqmmc-supply = <&vreg_l2b_2p95>;
 };
 
 &tlmm {
