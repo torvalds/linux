@@ -128,7 +128,7 @@ struct smm_regs {
 	unsigned int edi __packed;
 };
 
-static inline const char *i8k_get_dmi_data(int field)
+static inline const char __init *i8k_get_dmi_data(int field)
 {
 	const char *dmi_data = dmi_get_system_info(field);
 
@@ -384,7 +384,7 @@ static int i8k_get_temp(int sensor)
 	return temp;
 }
 
-static int i8k_get_dell_signature(int req_fn)
+static int __init i8k_get_dell_signature(int req_fn)
 {
 	struct smm_regs regs = { .eax = req_fn, };
 	int rc;
