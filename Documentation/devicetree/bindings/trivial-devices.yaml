@@ -61,6 +61,8 @@ properties:
           - capella,cm32181
             # CM3232: Ambient Light Sensor
           - capella,cm3232
+            # CM3323: Ambient Light Sensor
+          - capella,cm3323
             # High-Precision Digital Thermometer
           - dallas,ds1631
             # Total-Elapsed-Time Recorder with Alarm
