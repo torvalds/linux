@@ -848,7 +848,7 @@ static void rcu_read_unlock_iw(struct irq_work *iwp)
 static DEFINE_IRQ_WORK(rcu_tasks_trace_iw, rcu_read_unlock_iw);
 
 /* If we are the last reader, wake up the grace-period kthread. */
-void rcu_read_unlock_trace_special(struct task_struct *t, int nesting)
+void rcu_read_unlock_trace_special(struct task_struct *t)
 {
 	int nq = READ_ONCE(t->trc_reader_special.b.need_qs);
 
@@ -858,7 +858,7 @@ void rcu_read_unlock_trace_special(struct task_struct *t, int nesting)
 	// Update .need_qs before ->trc_reader_nesting for irq/NMI handlers.
 	if (nq)
 		WRITE_ONCE(t->trc_reader_special.b.need_qs, false);
-	WRITE_ONCE(t->trc_reader_nesting, nesting);
+	WRITE_ONCE(t->trc_reader_nesting, 0);
 	if (nq && atomic_dec_and_test(&trc_n_readers_need_end))
 		irq_work_queue(&rcu_tasks_trace_iw);
 }
@@ -1200,7 +1200,7 @@ static void exit_tasks_rcu_finish_trace(struct task_struct *t)
 	WARN_ON_ONCE(READ_ONCE(t->trc_reader_nesting));
 	WRITE_ONCE(t->trc_reader_nesting, 0);
 	if (WARN_ON_ONCE(READ_ONCE(t->trc_reader_special.b.need_qs)))
-		rcu_read_unlock_trace_special(t, 0);
+		rcu_read_unlock_trace_special(t);
 }
 
 /**
