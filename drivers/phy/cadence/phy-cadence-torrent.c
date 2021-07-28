@@ -1472,24 +1472,11 @@ static int cdns_torrent_phy_off(struct phy *phy)
 	return reset_control_assert(inst->lnk_rst);
 }
 
-static int cdns_torrent_dp_init(struct phy *phy)
+static void cdns_torrent_dp_common_init(struct cdns_torrent_phy *cdns_phy,
+					struct cdns_torrent_inst *inst)
 {
-	unsigned char lane_bits;
-	int ret;
-	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
-	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	struct regmap *regmap = cdns_phy->regmap_dptx_phy_reg;
-
-	switch (cdns_phy->ref_clk_rate) {
-	case CLK_19_2_MHZ:
-	case CLK_25_MHZ:
-	case CLK_100_MHZ:
-		/* Valid Ref Clock Rate */
-		break;
-	default:
-		dev_err(cdns_phy->dev, "Unsupported Ref Clock Rate\n");
-		return -EINVAL;
-	}
+	unsigned char lane_bits;
 
 	cdns_torrent_dp_write(regmap, PHY_AUX_CTRL, 0x0003); /* enable AUX */
 
@@ -1510,8 +1497,10 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	/* release pma_xcvr_pllclk_en_ln_*, only for the master lane */
 	cdns_torrent_dp_write(regmap, PHY_PMA_XCVR_PLLCLK_EN, 0x0001);
 
-	/* PHY PMA registers configuration functions */
-	/* Initialize PHY with max supported link rate, without SSC. */
+	/*
+	 * PHY PMA registers configuration functions
+	 * Initialize PHY with max supported link rate, without SSC.
+	 */
 	if (cdns_phy->ref_clk_rate == CLK_19_2_MHZ)
 		cdns_torrent_dp_pma_cmn_vco_cfg_19_2mhz(cdns_phy,
 							cdns_phy->max_bit_rate,
@@ -1530,6 +1519,13 @@ static int cdns_torrent_dp_init(struct phy *phy)
 
 	/* take out of reset */
 	regmap_field_write(cdns_phy->phy_reset_ctrl, 0x1);
+}
+
+static int cdns_torrent_dp_start(struct cdns_torrent_phy *cdns_phy,
+				 struct cdns_torrent_inst *inst,
+				 struct phy *phy)
+{
+	int ret;
 
 	cdns_torrent_phy_on(phy);
 
@@ -1540,6 +1536,27 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	ret = cdns_torrent_dp_run(cdns_phy, inst->num_lanes);
 
 	return ret;
+}
+
+static int cdns_torrent_dp_init(struct phy *phy)
+{
+	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
+	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
+
+	switch (cdns_phy->ref_clk_rate) {
+	case CLK_19_2_MHZ:
+	case CLK_25_MHZ:
+	case CLK_100_MHZ:
+		/* Valid Ref Clock Rate */
+		break;
+	default:
+		dev_err(cdns_phy->dev, "Unsupported Ref Clock Rate\n");
+		return -EINVAL;
+	}
+
+	cdns_torrent_dp_common_init(cdns_phy, inst);
+
+	return cdns_torrent_dp_start(cdns_phy, inst, phy);
 }
 
 static int cdns_torrent_derived_refclk_enable(struct clk_hw *hw)
