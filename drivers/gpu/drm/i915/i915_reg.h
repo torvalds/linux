@@ -11086,8 +11086,8 @@ enum skl_power_gate {
 #define   BXT_DE_PLL_LOCK		(1 << 30)
 #define   BXT_DE_PLL_FREQ_REQ		(1 << 23)
 #define   BXT_DE_PLL_FREQ_REQ_ACK	(1 << 22)
-#define   CNL_CDCLK_PLL_RATIO(x)	(x)
-#define   CNL_CDCLK_PLL_RATIO_MASK	0xff
+#define   ICL_CDCLK_PLL_RATIO(x)	(x)
+#define   ICL_CDCLK_PLL_RATIO_MASK	0xff
 
 /* GEN9 DC */
 #define DC_STATE_EN			_MMIO(0x45504)
