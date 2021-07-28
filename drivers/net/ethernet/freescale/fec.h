@@ -472,6 +472,19 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_HAS_MULTI_QUEUES	(1 << 19)
 
+/* i.MX8MQ ENET IP version add new feature to support IEEE 802.3az EEE
+ * standard. For the transmission, MAC supply two user registers to set
+ * Sleep (TS) and Wake (TW) time.
+ */
+#define FEC_QUIRK_HAS_EEE		(1 << 20)
+
+/* i.MX8QM ENET IP version add new feture to generate delayed TXC/RXC
+ * as an alternative option to make sure it works well with various PHYs.
+ * For the implementation of delayed clock, ENET takes synchronized 250MHz
+ * clocks to generate 2ns delay.
+ */
+#define FEC_QUIRK_DELAYED_CLKS_SUPPORT	(1 << 21)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
