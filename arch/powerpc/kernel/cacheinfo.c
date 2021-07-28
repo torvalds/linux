@@ -675,45 +675,6 @@ static ssize_t level_show(struct kobject *k, struct kobj_attribute *attr, char *
 static struct kobj_attribute cache_level_attr =
 	__ATTR(level, 0444, level_show, NULL);
 
-static unsigned int index_dir_to_cpu(struct cache_index_dir *index)
-{
-	struct kobject *index_dir_kobj = &index->kobj;
-	struct kobject *cache_dir_kobj = index_dir_kobj->parent;
-	struct kobject *cpu_dev_kobj = cache_dir_kobj->parent;
-	struct device *dev = kobj_to_dev(cpu_dev_kobj);
-
-	return dev->id;
-}
-
-/*
- * On big-core systems, each core has two groups of CPUs each of which
- * has its own L1-cache. The thread-siblings which share l1-cache with
- * @cpu can be obtained via cpu_smallcore_mask().
- *
- * On some big-core systems, the L2 cache is shared only between some
- * groups of siblings. This is already parsed and encoded in
- * cpu_l2_cache_mask().
- *
- * TODO: cache_lookup_or_instantiate() needs to be made aware of the
- *       "ibm,thread-groups" property so that cache->shared_cpu_map
- *       reflects the correct siblings on platforms that have this
- *       device-tree property. This helper function is only a stop-gap
- *       solution so that we report the correct siblings to the
- *       userspace via sysfs.
- */
-static const struct cpumask *get_shared_cpu_map(struct cache_index_dir *index, struct cache *cache)
-{
-	if (has_big_cores) {
-		int cpu = index_dir_to_cpu(index);
-		if (cache->level == 1)
-			return cpu_smallcore_mask(cpu);
-		if (cache->level == 2 && thread_group_shares_l2)
-			return cpu_l2_cache_mask(cpu);
-	}
-
-	return &cache->shared_cpu_map;
-}
-
 static ssize_t
 show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bool list)
 {
@@ -724,7 +685,7 @@ show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bo
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
 
-	mask = get_shared_cpu_map(index, cache);
+	mask = &cache->shared_cpu_map;
 
 	return cpumap_print_to_pagebuf(list, buf, mask);
 }
