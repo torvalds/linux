@@ -2500,7 +2500,7 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 				    connector, &i915_hdcp_sink_capability_fops);
 	}
 
-	if ((DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) &&
+	if (DISPLAY_VER(dev_priv) >= 11 &&
 	    ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
 	    !to_intel_connector(connector)->mst_port) ||
 	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
