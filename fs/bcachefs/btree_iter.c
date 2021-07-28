@@ -1335,15 +1335,6 @@ retry_all:
 		if (ret)
 			goto retry_all;
 	}
-
-	if (hweight64(trans->iters_live) > 1)
-		ret = btree_trans_restart(trans);
-	else
-		trans_for_each_iter(trans, iter)
-			if (iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) {
-				ret = btree_trans_restart(trans);
-				break;
-			}
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 
