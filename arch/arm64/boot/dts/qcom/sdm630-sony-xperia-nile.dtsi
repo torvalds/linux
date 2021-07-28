@@ -158,6 +158,10 @@
 	};
 };
 
+&adsp_pil {
+	firmware-name = "adsp.mdt";
+};
+
 &blsp_i2c1 {
 	status = "okay";
 
