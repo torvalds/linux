@@ -403,7 +403,8 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	}
 
 	/* set the user dpm fan configurations */
-	if (smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_MANUAL) {
+	if (smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_MANUAL ||
+	    smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_NONE) {
 		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to set manual fan control mode\n");
@@ -620,6 +621,7 @@ static int smu_early_init(void *handle)
 	mutex_init(&smu->smu_baco.mutex);
 	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
+	smu->user_dpm_profile.fan_mode = -1;
 
 	adev->powerplay.pp_handle = smu;
 	adev->powerplay.pp_funcs = &swsmu_pm_funcs;
