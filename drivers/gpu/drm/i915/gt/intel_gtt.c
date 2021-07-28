@@ -426,7 +426,7 @@ static void tgl_setup_private_ppat(struct intel_uncore *uncore)
 	intel_uncore_write(uncore, GEN12_PAT_INDEX(7), GEN8_PPAT_WB);
 }
 
-static void cnl_setup_private_ppat(struct intel_uncore *uncore)
+static void icl_setup_private_ppat(struct intel_uncore *uncore)
 {
 	intel_uncore_write(uncore,
 			   GEN10_PAT_INDEX(0),
@@ -526,8 +526,8 @@ void setup_private_pat(struct intel_uncore *uncore)
 
 	if (GRAPHICS_VER(i915) >= 12)
 		tgl_setup_private_ppat(uncore);
-	else if (GRAPHICS_VER(i915) >= 10)
-		cnl_setup_private_ppat(uncore);
+	else if (GRAPHICS_VER(i915) >= 11)
+		icl_setup_private_ppat(uncore);
 	else if (IS_CHERRYVIEW(i915) || IS_GEN9_LP(i915))
 		chv_setup_private_ppat(uncore);
 	else

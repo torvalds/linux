@@ -999,7 +999,7 @@ static void gen6_rps_init(struct intel_rps *rps)
 
 	rps->efficient_freq = rps->rp1_freq;
 	if (IS_HASWELL(i915) || IS_BROADWELL(i915) ||
-	    IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 10) {
+	    IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 11) {
 		u32 ddcc_status = 0;
 
 		if (sandybridge_pcode_read(i915,
@@ -1012,7 +1012,7 @@ static void gen6_rps_init(struct intel_rps *rps)
 					rps->max_freq);
 	}
 
-	if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 10) {
+	if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 11) {
 		/* Store the frequency values in 16.66 MHZ units, which is
 		 * the natural hardware unit for SKL
 		 */

@@ -126,7 +126,7 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	enum intel_engine_id id;
 
 	/* 2b: Program RC6 thresholds.*/
-	if (GRAPHICS_VER(rc6_to_i915(rc6)) >= 10) {
+	if (GRAPHICS_VER(rc6_to_i915(rc6)) >= 11) {
 		set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
 		set(uncore, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
 	} else if (IS_SKYLAKE(rc6_to_i915(rc6))) {

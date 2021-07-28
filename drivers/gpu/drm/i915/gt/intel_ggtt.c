@@ -826,13 +826,13 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	phys_addr = pci_resource_start(pdev, 0) + pci_resource_len(pdev, 0) / 2;
 
 	/*
-	 * On BXT+/CNL+ writes larger than 64 bit to the GTT pagetable range
+	 * On BXT+/ICL+ writes larger than 64 bit to the GTT pagetable range
 	 * will be dropped. For WC mappings in general we have 64 byte burst
 	 * writes when the WC buffer is flushed, so we can't use it, but have to
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_GEN9_LP(i915) || GRAPHICS_VER(i915) >= 10)
+	if (IS_GEN9_LP(i915) || GRAPHICS_VER(i915) >= 11)
 		ggtt->gsm = ioremap(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
