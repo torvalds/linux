@@ -57,6 +57,35 @@ static bool sja1105_can_forward(struct sja1105_l2_forwarding_entry *l2_fwd,
 	return !!(l2_fwd[from].reach_port & BIT(to));
 }
 
+static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
+{
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	if (mac[port].vlanid == pvid)
+		return 0;
+
+	mac[port].vlanid = pvid;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					    &mac[port], true);
+}
+
+static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct sja1105_private *priv = ds->priv;
+	u16 pvid;
+
+	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
+		pvid = priv->bridge_pvid[port];
+	else
+		pvid = priv->tag_8021q_pvid[port];
+
+	return sja1105_pvid_apply(priv, port, pvid);
+}
+
 static int sja1105_init_mac_settings(struct sja1105_private *priv)
 {
 	struct sja1105_mac_config_entry default_mac = {
@@ -1656,6 +1685,10 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
+	rc = sja1105_commit_pvid(ds, port);
+	if (rc)
+		return rc;
+
 	return sja1105_manage_flood_domains(priv);
 }
 
@@ -1953,35 +1986,6 @@ out:
 	mutex_unlock(&priv->mgmt_lock);
 
 	return rc;
-}
-
-static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
-{
-	struct sja1105_mac_config_entry *mac;
-
-	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
-
-	if (mac[port].vlanid == pvid)
-		return 0;
-
-	mac[port].vlanid = pvid;
-
-	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
-					   &mac[port], true);
-}
-
-static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct sja1105_private *priv = ds->priv;
-	u16 pvid;
-
-	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
-		pvid = priv->bridge_pvid[port];
-	else
-		pvid = priv->tag_8021q_pvid[port];
-
-	return sja1105_pvid_apply(priv, port, pvid);
 }
 
 static enum dsa_tag_protocol
