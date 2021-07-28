@@ -4129,7 +4129,6 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	rdp->n_force_qs_snap = READ_ONCE(rcu_state.n_force_qs);
 	rdp->blimit = blimit;
 	rdp->dynticks_nesting = 1;	/* CPU not up, no tearing. */
-	rcu_dynticks_eqs_online();
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 
 	/*
@@ -4249,6 +4248,7 @@ void rcu_cpu_starting(unsigned int cpu)
 	mask = rdp->grpmask;
 	WRITE_ONCE(rnp->ofl_seq, rnp->ofl_seq + 1);
 	WARN_ON_ONCE(!(rnp->ofl_seq & 0x1));
+	rcu_dynticks_eqs_online();
 	smp_mb(); // Pair with rcu_gp_cleanup()'s ->ofl_seq barrier().
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	WRITE_ONCE(rnp->qsmaskinitnext, rnp->qsmaskinitnext | mask);
