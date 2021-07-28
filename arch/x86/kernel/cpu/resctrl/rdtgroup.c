@@ -1880,10 +1880,10 @@ void rdt_domain_reconfigure_cdp(struct rdt_resource *r)
 	if (!r->cdp_capable)
 		return;
 
-	if (r == &rdt_resources_all[RDT_RESOURCE_L2DATA].r_resctrl)
+	if (r->rid == RDT_RESOURCE_L2)
 		l2_qos_cfg_update(&hw_res->cdp_enabled);
 
-	if (r == &rdt_resources_all[RDT_RESOURCE_L3DATA].r_resctrl)
+	if (r->rid == RDT_RESOURCE_L3)
 		l3_qos_cfg_update(&hw_res->cdp_enabled);
 }
 
@@ -1912,68 +1912,42 @@ static int set_mba_sc(bool mba_sc)
 	return 0;
 }
 
-static int cdp_enable(int level, int data_type, int code_type)
+static int cdp_enable(int level)
 {
-	struct rdt_resource *r_ldata = &rdt_resources_all[data_type].r_resctrl;
-	struct rdt_resource *r_lcode = &rdt_resources_all[code_type].r_resctrl;
 	struct rdt_resource *r_l = &rdt_resources_all[level].r_resctrl;
 	int ret;
 
-	if (!r_l->alloc_capable || !r_ldata->alloc_capable ||
-	    !r_lcode->alloc_capable)
+	if (!r_l->alloc_capable)
 		return -EINVAL;
 
 	ret = set_cache_qos_cfg(level, true);
-	if (!ret) {
-		r_l->alloc_enabled = false;
-		r_ldata->alloc_enabled = true;
-		r_lcode->alloc_enabled = true;
+	if (!ret)
 		rdt_resources_all[level].cdp_enabled = true;
-		rdt_resources_all[data_type].cdp_enabled = true;
-		rdt_resources_all[code_type].cdp_enabled = true;
-	}
+
 	return ret;
 }
 
-static void cdp_disable(int level, int data_type, int code_type)
+static void cdp_disable(int level)
 {
 	struct rdt_hw_resource *r_hw = &rdt_resources_all[level];
-	struct rdt_resource *r = &r_hw->r_resctrl;
-
-	r->alloc_enabled = r->alloc_capable;
 
 	if (r_hw->cdp_enabled) {
-		rdt_resources_all[data_type].r_resctrl.alloc_enabled = false;
-		rdt_resources_all[code_type].r_resctrl.alloc_enabled = false;
 		set_cache_qos_cfg(level, false);
 		r_hw->cdp_enabled = false;
-		rdt_resources_all[data_type].cdp_enabled = false;
-		rdt_resources_all[code_type].cdp_enabled = false;
 	}
 }
 
 int resctrl_arch_set_cdp_enabled(enum resctrl_res_level l, bool enable)
 {
 	struct rdt_hw_resource *hw_res = &rdt_resources_all[l];
-	enum resctrl_res_level code_type, data_type;
 
 	if (!hw_res->r_resctrl.cdp_capable)
 		return -EINVAL;
 
-	if (l == RDT_RESOURCE_L3) {
-		code_type = RDT_RESOURCE_L3CODE;
-		data_type = RDT_RESOURCE_L3DATA;
-	} else if (l == RDT_RESOURCE_L2) {
-		code_type = RDT_RESOURCE_L2CODE;
-		data_type = RDT_RESOURCE_L2DATA;
-	} else {
-		return -EINVAL;
-	}
-
 	if (enable)
-		return cdp_enable(l, data_type, code_type);
+		return cdp_enable(l);
 
-	cdp_disable(l, data_type, code_type);
+	cdp_disable(l);
 
 	return 0;
 }
@@ -2072,48 +2046,80 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 	return ret;
 }
 
-static int schemata_list_create(void)
+static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type)
 {
 	struct resctrl_schema *s;
-	struct rdt_resource *r;
+	const char *suffix = "";
 	int ret, cl;
 
-	for_each_alloc_enabled_rdt_resource(r) {
-		s = kzalloc(sizeof(*s), GFP_KERNEL);
-		if (!s)
-			return -ENOMEM;
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
 
-		s->res = r;
-		s->conf_type = resctrl_to_arch_res(r)->conf_type;
-		s->num_closid = resctrl_arch_get_num_closid(r);
-		if (resctrl_arch_get_cdp_enabled(r->rid))
-			s->num_closid /= 2;
+	s->res = r;
+	s->num_closid = resctrl_arch_get_num_closid(r);
+	if (resctrl_arch_get_cdp_enabled(r->rid))
+		s->num_closid /= 2;
 
-		ret = snprintf(s->name, sizeof(s->name), r->name);
-		if (ret >= sizeof(s->name)) {
-			kfree(s);
-			return -EINVAL;
-		}
-
-		cl = strlen(s->name);
-
-		/*
-		 * If CDP is supported by this resource, but not enabled,
-		 * include the suffix. This ensures the tabular format of the
-		 * schemata file does not change between mounts of the
-		 * filesystem.
-		 */
-		if (r->cdp_capable && !resctrl_arch_get_cdp_enabled(r->rid))
-			cl += 4;
-
-		if (cl > max_name_width)
-			max_name_width = cl;
-
-		INIT_LIST_HEAD(&s->list);
-		list_add(&s->list, &resctrl_schema_all);
+	s->conf_type = type;
+	switch (type) {
+	case CDP_CODE:
+		suffix = "CODE";
+		break;
+	case CDP_DATA:
+		suffix = "DATA";
+		break;
+	case CDP_NONE:
+		suffix = "";
+		break;
 	}
 
+	ret = snprintf(s->name, sizeof(s->name), "%s%s", r->name, suffix);
+	if (ret >= sizeof(s->name)) {
+		kfree(s);
+		return -EINVAL;
+	}
+
+	cl = strlen(s->name);
+
+	/*
+	 * If CDP is supported by this resource, but not enabled,
+	 * include the suffix. This ensures the tabular format of the
+	 * schemata file does not change between mounts of the filesystem.
+	 */
+	if (r->cdp_capable && !resctrl_arch_get_cdp_enabled(r->rid))
+		cl += 4;
+
+	if (cl > max_name_width)
+		max_name_width = cl;
+
+	INIT_LIST_HEAD(&s->list);
+	list_add(&s->list, &resctrl_schema_all);
+
 	return 0;
+}
+
+static int schemata_list_create(void)
+{
+	struct rdt_resource *r;
+	int ret = 0;
+
+	for_each_alloc_enabled_rdt_resource(r) {
+		if (resctrl_arch_get_cdp_enabled(r->rid)) {
+			ret = schemata_list_add(r, CDP_CODE);
+			if (ret)
+				break;
+
+			ret = schemata_list_add(r, CDP_DATA);
+		} else {
+			ret = schemata_list_add(r, CDP_NONE);
+		}
+
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 static void schemata_list_destroy(void)
