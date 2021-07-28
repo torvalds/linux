@@ -11152,18 +11152,18 @@ enum skl_power_gate {
 #define  SKL_DRAM_RANK_1			(0x0 << 10)
 #define  SKL_DRAM_RANK_2			(0x1 << 10)
 #define  SKL_DRAM_RANK_MASK			(0x1 << 10)
-#define  CNL_DRAM_SIZE_MASK			0x7F
-#define  CNL_DRAM_WIDTH_MASK			(0x3 << 7)
-#define  CNL_DRAM_WIDTH_SHIFT			7
-#define  CNL_DRAM_WIDTH_X8			(0x0 << 7)
-#define  CNL_DRAM_WIDTH_X16			(0x1 << 7)
-#define  CNL_DRAM_WIDTH_X32			(0x2 << 7)
-#define  CNL_DRAM_RANK_MASK			(0x3 << 9)
-#define  CNL_DRAM_RANK_SHIFT			9
-#define  CNL_DRAM_RANK_1			(0x0 << 9)
-#define  CNL_DRAM_RANK_2			(0x1 << 9)
-#define  CNL_DRAM_RANK_3			(0x2 << 9)
-#define  CNL_DRAM_RANK_4			(0x3 << 9)
+#define  ICL_DRAM_SIZE_MASK			0x7F
+#define  ICL_DRAM_WIDTH_MASK			(0x3 << 7)
+#define  ICL_DRAM_WIDTH_SHIFT			7
+#define  ICL_DRAM_WIDTH_X8			(0x0 << 7)
+#define  ICL_DRAM_WIDTH_X16			(0x1 << 7)
+#define  ICL_DRAM_WIDTH_X32			(0x2 << 7)
+#define  ICL_DRAM_RANK_MASK			(0x3 << 9)
+#define  ICL_DRAM_RANK_SHIFT			9
+#define  ICL_DRAM_RANK_1			(0x0 << 9)
+#define  ICL_DRAM_RANK_2			(0x1 << 9)
+#define  ICL_DRAM_RANK_3			(0x2 << 9)
+#define  ICL_DRAM_RANK_4			(0x3 << 9)
 
 #define SA_PERF_STATUS_0_0_0_MCHBAR_PC		_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5918)
 #define  DG1_QCLK_RATIO_MASK			REG_GENMASK(9, 2)
