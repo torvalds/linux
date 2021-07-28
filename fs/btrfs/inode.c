@@ -2992,7 +2992,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	if (ordered_extent->disk)
+	if (ordered_extent->bdev)
 		btrfs_rewrite_logical_zoned(ordered_extent);
 
 	btrfs_free_io_failure_record(inode, start, end);

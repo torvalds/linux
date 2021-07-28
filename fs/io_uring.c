@@ -1294,6 +1294,17 @@ static void io_queue_async_work(struct io_kiocb *req)
 
 	/* init ->work of the whole link before punting */
 	io_prep_async_link(req);
+
+	/*
+	 * Not expected to happen, but if we do have a bug where this _can_
+	 * happen, catch it here and ensure the request is marked as
+	 * canceled. That will make io-wq go through the usual work cancel
+	 * procedure rather than attempt to run this request (or create a new
+	 * worker for it).
+	 */
+	if (WARN_ON_ONCE(!same_thread_group(req->task, current)))
+		req->work.flags |= IO_WQ_WORK_CANCEL;
+
 	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
 					&req->work, req->flags);
 	io_wq_enqueue(tctx->io_wq, &req->work);
@@ -2205,7 +2216,7 @@ static inline bool io_run_task_work(void)
  * Find and free completed poll iocbs
  */
 static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
-			       struct list_head *done)
+			       struct list_head *done, bool resubmit)
 {
 	struct req_batch rb;
 	struct io_kiocb *req;
@@ -2220,7 +2231,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
 		list_del(&req->inflight_entry);
 
-		if (READ_ONCE(req->result) == -EAGAIN &&
+		if (READ_ONCE(req->result) == -EAGAIN && resubmit &&
 		    !(req->flags & REQ_F_DONT_REISSUE)) {
 			req->iopoll_completed = 0;
 			req_ref_get(req);
@@ -2244,7 +2255,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 }
 
 static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
-			long min)
+			long min, bool resubmit)
 {
 	struct io_kiocb *req, *tmp;
 	LIST_HEAD(done);
@@ -2287,7 +2298,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	}
 
 	if (!list_empty(&done))
-		io_iopoll_complete(ctx, nr_events, &done);
+		io_iopoll_complete(ctx, nr_events, &done, resubmit);
 
 	return ret;
 }
@@ -2305,7 +2316,7 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 	while (!list_empty(&ctx->iopoll_list)) {
 		unsigned int nr_events = 0;
 
-		io_do_iopoll(ctx, &nr_events, 0);
+		io_do_iopoll(ctx, &nr_events, 0, false);
 
 		/* let it sleep and repeat later if can't complete a request */
 		if (nr_events == 0)
@@ -2367,7 +2378,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			    list_empty(&ctx->iopoll_list))
 				break;
 		}
-		ret = io_do_iopoll(ctx, &nr_events, min);
+		ret = io_do_iopoll(ctx, &nr_events, min, true);
 	} while (!ret && nr_events < min && !need_resched());
 out:
 	mutex_unlock(&ctx->uring_lock);
@@ -4802,6 +4813,7 @@ IO_NETOP_FN(recv);
 struct io_poll_table {
 	struct poll_table_struct pt;
 	struct io_kiocb *req;
+	int nr_entries;
 	int error;
 };
 
@@ -4995,11 +5007,11 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 	struct io_kiocb *req = pt->req;
 
 	/*
-	 * If poll->head is already set, it's because the file being polled
-	 * uses multiple waitqueues for poll handling (eg one for read, one
-	 * for write). Setup a separate io_poll_iocb if this happens.
+	 * The file being polled uses multiple waitqueues for poll handling
+	 * (e.g. one for read, one for write). Setup a separate io_poll_iocb
+	 * if this happens.
 	 */
-	if (unlikely(poll->head)) {
+	if (unlikely(pt->nr_entries)) {
 		struct io_poll_iocb *poll_one = poll;
 
 		/* already have a 2nd entry, fail a third attempt */
@@ -5027,7 +5039,7 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 		*poll_ptr = poll;
 	}
 
-	pt->error = 0;
+	pt->nr_entries++;
 	poll->head = head;
 
 	if (poll->events & EPOLLEXCLUSIVE)
@@ -5104,11 +5116,16 @@ static __poll_t __io_arm_poll_handler(struct io_kiocb *req,
 
 	ipt->pt._key = mask;
 	ipt->req = req;
-	ipt->error = -EINVAL;
+	ipt->error = 0;
+	ipt->nr_entries = 0;
 
 	mask = vfs_poll(req->file, &ipt->pt) & poll->events;
+	if (unlikely(!ipt->nr_entries) && !ipt->error)
+		ipt->error = -EINVAL;
 
 	spin_lock_irq(&ctx->completion_lock);
+	if (ipt->error)
+		io_poll_remove_double(req);
 	if (likely(poll->head)) {
 		spin_lock(&poll->head->lock);
 		if (unlikely(list_empty(&poll->wait.entry))) {
@@ -6792,7 +6809,7 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 
 		mutex_lock(&ctx->uring_lock);
 		if (!list_empty(&ctx->iopoll_list))
-			io_do_iopoll(ctx, &nr_events, 0);
+			io_do_iopoll(ctx, &nr_events, 0, true);
 
 		/*
 		 * Don't submit if refs are dying, good for io_uring_register(),
@@ -7899,15 +7916,19 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 	struct io_wq_data data;
 	unsigned int concurrency;
 
+	mutex_lock(&ctx->uring_lock);
 	hash = ctx->hash_map;
 	if (!hash) {
 		hash = kzalloc(sizeof(*hash), GFP_KERNEL);
-		if (!hash)
+		if (!hash) {
+			mutex_unlock(&ctx->uring_lock);
 			return ERR_PTR(-ENOMEM);
+		}
 		refcount_set(&hash->refs, 1);
 		init_waitqueue_head(&hash->wait);
 		ctx->hash_map = hash;
 	}
+	mutex_unlock(&ctx->uring_lock);
 
 	data.hash = hash;
 	data.task = task;
@@ -7981,9 +8002,11 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		f = fdget(p->wq_fd);
 		if (!f.file)
 			return -ENXIO;
-		fdput(f);
-		if (f.file->f_op != &io_uring_fops)
+		if (f.file->f_op != &io_uring_fops) {
+			fdput(f);
 			return -EINVAL;
+		}
+		fdput(f);
 	}
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		struct task_struct *tsk;

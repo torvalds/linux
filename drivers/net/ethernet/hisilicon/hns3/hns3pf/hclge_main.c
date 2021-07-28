@@ -9552,13 +9552,17 @@ static int hclge_set_vport_vlan_filter(struct hclge_vport *vport, bool enable)
 	if (ret)
 		return ret;
 
-	if (test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B, ae_dev->caps))
+	if (test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B, ae_dev->caps)) {
 		ret = hclge_set_port_vlan_filter_bypass(hdev, vport->vport_id,
 							!enable);
-	else if (!vport->vport_id)
+	} else if (!vport->vport_id) {
+		if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+			enable = false;
+
 		ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_PORT,
 						 HCLGE_FILTER_FE_INGRESS,
 						 enable, 0);
+	}
 
 	return ret;
 }

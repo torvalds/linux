@@ -52,5 +52,6 @@ void dcn31_reset_hw_ctx_wrap(
 		struct dc_state *context);
 bool dcn31_is_abm_supported(struct dc *dc,
 		struct dc_state *context, struct dc_stream_state *stream);
+void dcn31_init_pipes(struct dc *dc, struct dc_state *context);
 
 #endif /* __DC_HWSS_DCN31_H__ */
