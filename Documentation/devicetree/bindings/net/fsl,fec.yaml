@@ -96,6 +96,8 @@ properties:
       SOC internal PLL.
       The "enet_out"(option), output clock for external device, like supply clock
       for PHY. The clock is required if PHY clock source from SOC.
+      The "enet_2x_txclk"(option), for RGMII sampling clock which fixed at 250Mhz.
+      The clock is required if SoC RGMII enable clock delay.
 
   clock-names:
     minItems: 2
@@ -107,6 +109,7 @@ properties:
         - ptp
         - enet_clk_ref
         - enet_out
+        - enet_2x_txclk
 
   phy-mode: true
 
@@ -117,6 +120,12 @@ properties:
   local-mac-address: true
 
   mac-address: true
+
+  tx-internal-delay-ps:
+    enum: [0, 2000]
+
+  rx-internal-delay-ps:
+    enum: [0, 2000]
 
   phy-supply:
     description:
