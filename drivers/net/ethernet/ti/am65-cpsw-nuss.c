@@ -2398,21 +2398,6 @@ static const struct devlink_param am65_cpsw_devlink_params[] = {
 			     am65_cpsw_dl_switch_mode_set, NULL),
 };
 
-static void am65_cpsw_unregister_devlink_ports(struct am65_cpsw_common *common)
-{
-	struct devlink_port *dl_port;
-	struct am65_cpsw_port *port;
-	int i;
-
-	for (i = 1; i <= common->port_num; i++) {
-		port = am65_common_get_port(common, i);
-		dl_port = &port->devlink_port;
-
-		if (dl_port->registered)
-			devlink_port_unregister(dl_port);
-	}
-}
-
 static int am65_cpsw_nuss_register_devlink(struct am65_cpsw_common *common)
 {
 	struct devlink_port_attrs attrs = {};
@@ -2474,7 +2459,12 @@ static int am65_cpsw_nuss_register_devlink(struct am65_cpsw_common *common)
 	return ret;
 
 dl_port_unreg:
-	am65_cpsw_unregister_devlink_ports(common);
+	for (i = i - 1; i >= 1; i--) {
+		port = am65_common_get_port(common, i);
+		dl_port = &port->devlink_port;
+
+		devlink_port_unregister(dl_port);
+	}
 dl_unreg:
 	devlink_unregister(common->devlink);
 dl_free:
@@ -2485,6 +2475,17 @@ dl_free:
 
 static void am65_cpsw_unregister_devlink(struct am65_cpsw_common *common)
 {
+	struct devlink_port *dl_port;
+	struct am65_cpsw_port *port;
+	int i;
+
+	for (i = 1; i <= common->port_num; i++) {
+		port = am65_common_get_port(common, i);
+		dl_port = &port->devlink_port;
+
+		devlink_port_unregister(dl_port);
+	}
+
 	if (!AM65_CPSW_IS_CPSW2G(common) &&
 	    IS_ENABLED(CONFIG_TI_K3_AM65_CPSW_SWITCHDEV)) {
 		devlink_params_unpublish(common->devlink);
@@ -2492,7 +2493,6 @@ static void am65_cpsw_unregister_devlink(struct am65_cpsw_common *common)
 					  ARRAY_SIZE(am65_cpsw_devlink_params));
 	}
 
-	am65_cpsw_unregister_devlink_ports(common);
 	devlink_unregister(common->devlink);
 	devlink_free(common->devlink);
 }
