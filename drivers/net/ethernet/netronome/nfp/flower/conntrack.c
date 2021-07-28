@@ -710,8 +710,10 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 			dst = &gre_match->ipv6.dst;
 
 			entry = nfp_tunnel_add_ipv6_off(priv->app, dst);
-			if (!entry)
+			if (!entry) {
+				err = -ENOMEM;
 				goto ct_offload_err;
+			}
 
 			flow_pay->nfp_tun_ipv6 = entry;
 		} else {
@@ -760,8 +762,10 @@ static int nfp_fl_ct_add_offload(struct nfp_fl_nft_tc_merge *m_entry)
 			dst = &udp_match->ipv6.dst;
 
 			entry = nfp_tunnel_add_ipv6_off(priv->app, dst);
-			if (!entry)
+			if (!entry) {
+				err = -ENOMEM;
 				goto ct_offload_err;
+			}
 
 			flow_pay->nfp_tun_ipv6 = entry;
 		} else {
