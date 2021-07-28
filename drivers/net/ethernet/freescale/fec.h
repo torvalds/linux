@@ -77,6 +77,8 @@
 #define FEC_R_DES_ACTIVE_2	0x1e8 /* Rx descriptor active for ring 2 */
 #define FEC_X_DES_ACTIVE_2	0x1ec /* Tx descriptor active for ring 2 */
 #define FEC_QOS_SCHEME		0x1f0 /* Set multi queues Qos scheme */
+#define FEC_LPI_SLEEP		0x1f4 /* Set IEEE802.3az LPI Sleep Ts time */
+#define FEC_LPI_WAKE		0x1f8 /* Set IEEE802.3az LPI Wake Tw time */
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
@@ -601,6 +603,10 @@ struct fec_enet_private {
 	unsigned int tx_pkts_itr;
 	unsigned int tx_time_itr;
 	unsigned int itr_clk_rate;
+
+	/* tx lpi eee mode */
+	struct ethtool_eee eee;
+	unsigned int clk_ref_rate;
 
 	u32 rx_copybreak;
 

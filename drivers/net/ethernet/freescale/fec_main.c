@@ -2722,6 +2722,92 @@ static int fec_enet_set_tunable(struct net_device *netdev,
 	return ret;
 }
 
+/* LPI Sleep Ts count base on tx clk (clk_ref).
+ * The lpi sleep cnt value = X us / (cycle_ns).
+ */
+static int fec_enet_us_to_tx_cycle(struct net_device *ndev, int us)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	return us * (fep->clk_ref_rate / 1000) / 1000;
+}
+
+static int fec_enet_eee_mode_set(struct net_device *ndev, bool enable)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct ethtool_eee *p = &fep->eee;
+	unsigned int sleep_cycle, wake_cycle;
+	int ret = 0;
+
+	if (enable) {
+		ret = phy_init_eee(ndev->phydev, 0);
+		if (ret)
+			return ret;
+
+		sleep_cycle = fec_enet_us_to_tx_cycle(ndev, p->tx_lpi_timer);
+		wake_cycle = sleep_cycle;
+	} else {
+		sleep_cycle = 0;
+		wake_cycle = 0;
+	}
+
+	p->tx_lpi_enabled = enable;
+	p->eee_enabled = enable;
+	p->eee_active = enable;
+
+	writel(sleep_cycle, fep->hwp + FEC_LPI_SLEEP);
+	writel(wake_cycle, fep->hwp + FEC_LPI_WAKE);
+
+	return 0;
+}
+
+static int
+fec_enet_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct ethtool_eee *p = &fep->eee;
+
+	if (!(fep->quirks & FEC_QUIRK_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	if (!netif_running(ndev))
+		return -ENETDOWN;
+
+	edata->eee_enabled = p->eee_enabled;
+	edata->eee_active = p->eee_active;
+	edata->tx_lpi_timer = p->tx_lpi_timer;
+	edata->tx_lpi_enabled = p->tx_lpi_enabled;
+
+	return phy_ethtool_get_eee(ndev->phydev, edata);
+}
+
+static int
+fec_enet_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct ethtool_eee *p = &fep->eee;
+	int ret = 0;
+
+	if (!(fep->quirks & FEC_QUIRK_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	if (!netif_running(ndev))
+		return -ENETDOWN;
+
+	p->tx_lpi_timer = edata->tx_lpi_timer;
+
+	if (!edata->eee_enabled || !edata->tx_lpi_enabled ||
+	    !edata->tx_lpi_timer)
+		ret = fec_enet_eee_mode_set(ndev, false);
+	else
+		ret = fec_enet_eee_mode_set(ndev, true);
+
+	if (ret)
+		return ret;
+
+	return phy_ethtool_set_eee(ndev->phydev, edata);
+}
+
 static void
 fec_enet_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
@@ -2782,6 +2868,8 @@ static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.set_tunable		= fec_enet_set_tunable,
 	.get_wol		= fec_enet_get_wol,
 	.set_wol		= fec_enet_set_wol,
+	.get_eee		= fec_enet_get_eee,
+	.set_eee		= fec_enet_set_eee,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.self_test		= net_selftest,
@@ -3722,6 +3810,7 @@ fec_probe(struct platform_device *pdev)
 	fep->clk_ref = devm_clk_get(&pdev->dev, "enet_clk_ref");
 	if (IS_ERR(fep->clk_ref))
 		fep->clk_ref = NULL;
+	fep->clk_ref_rate = clk_get_rate(fep->clk_ref);
 
 	fep->bufdesc_ex = fep->quirks & FEC_QUIRK_HAS_BUFDESC_EX;
 	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
