@@ -605,24 +605,22 @@ static const struct proc_ops i8k_proc_ops = {
 	.proc_ioctl	= i8k_ioctl,
 };
 
-static void __init i8k_init_procfs(void)
-{
-	/* Register the proc entry */
-	proc_create("i8k", 0, NULL, &i8k_proc_ops);
-}
-
-static void __exit i8k_exit_procfs(void)
+static void i8k_exit_procfs(void *param)
 {
 	remove_proc_entry("i8k", NULL);
 }
 
-#else
-
-static inline void __init i8k_init_procfs(void)
+static void __init i8k_init_procfs(struct device *dev)
 {
+	/* Register the proc entry */
+	proc_create("i8k", 0, NULL, &i8k_proc_ops);
+
+	devm_add_action_or_reset(dev, i8k_exit_procfs, NULL);
 }
 
-static inline void __exit i8k_exit_procfs(void)
+#else
+
+static void __init i8k_init_procfs(struct device *dev)
 {
 }
 
@@ -1287,14 +1285,7 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	i8k_init_procfs();
-
-	return 0;
-}
-
-static int dell_smm_remove(struct platform_device *pdev)
-{
-	i8k_exit_procfs();
+	i8k_init_procfs(&pdev->dev);
 
 	return 0;
 }
@@ -1303,7 +1294,6 @@ static struct platform_driver dell_smm_driver = {
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 	},
-	.remove		= dell_smm_remove,
 };
 
 static struct platform_device *dell_smm_device;
