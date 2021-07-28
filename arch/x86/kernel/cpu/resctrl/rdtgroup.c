@@ -2379,13 +2379,6 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	msr_param.high = hw_res->num_closid;
 
 	/*
-	 * temporary: the array is full-sized, but cat_wrmsr() still re-maps
-	 * the index.
-	 */
-	if (hw_res->cdp_enabled)
-		msr_param.high /= 2;
-
-	/*
 	 * Disable resource control for this resource by setting all
 	 * CBMs in all domains to the maximum mask value. Pick one CPU
 	 * from each domain to update the MSRs below.
