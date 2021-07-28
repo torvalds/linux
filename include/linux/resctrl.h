@@ -172,10 +172,14 @@ struct rdt_resource {
  * @conf_type:	Whether this schema is specific to code/data.
  * @res:	The resource structure exported by the architecture to describe
  *		the hardware that is configured by this schema.
+ * @num_closid:	The number of closid that can be used with this schema. When
+ *		features like CDP are enabled, this will be lower than the
+ *		hardware supports for the resource.
  */
 struct resctrl_schema {
 	struct list_head		list;
 	enum resctrl_conf_type		conf_type;
 	struct rdt_resource		*res;
+	int				num_closid;
 };
 #endif /* _RESCTRL_H */
