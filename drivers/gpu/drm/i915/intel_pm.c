@@ -7469,7 +7469,7 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	/*Wa_14010594013:icl, ehl */
 	intel_uncore_rmw(&dev_priv->uncore, GEN8_CHICKEN_DCPR_1,
-			 0, CNL_DELAY_PMRSP);
+			 0, ICL_DELAY_PMRSP);
 }
 
 static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7519,43 +7519,6 @@ static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
 	intel_uncore_write(&dev_priv->uncore, SOUTH_DSPCLK_GATE_D, intel_uncore_read(&dev_priv->uncore, SOUTH_DSPCLK_GATE_D) |
 		   CNP_PWM_CGE_GATING_DISABLE);
-}
-
-static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
-{
-	u32 val;
-	cnp_init_clock_gating(dev_priv);
-
-	/* This is not an Wa. Enable for better image quality */
-	intel_uncore_write(&dev_priv->uncore, _3D_CHICKEN3,
-		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
-
-	/* WaEnableChickenDCPR:cnl */
-	intel_uncore_write(&dev_priv->uncore, GEN8_CHICKEN_DCPR_1,
-		   intel_uncore_read(&dev_priv->uncore, GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
-
-	/*
-	 * WaFbcWakeMemOn:cnl
-	 * Display WA #0859: cnl
-	 */
-	intel_uncore_write(&dev_priv->uncore, DISP_ARB_CTL, intel_uncore_read(&dev_priv->uncore, DISP_ARB_CTL) |
-		   DISP_FBC_MEMORY_WAKE);
-
-	val = intel_uncore_read(&dev_priv->uncore, SLICE_UNIT_LEVEL_CLKGATE);
-	/* ReadHitWriteOnlyDisable:cnl */
-	val |= RCCUNIT_CLKGATE_DIS;
-	intel_uncore_write(&dev_priv->uncore, SLICE_UNIT_LEVEL_CLKGATE, val);
-
-	/* Wa_2201832410:cnl */
-	val = intel_uncore_read(&dev_priv->uncore, SUBSLICE_UNIT_LEVEL_CLKGATE);
-	val |= GWUNIT_CLKGATE_DIS;
-	intel_uncore_write(&dev_priv->uncore, SUBSLICE_UNIT_LEVEL_CLKGATE, val);
-
-	/* WaDisableVFclkgate:cnl */
-	/* WaVFUnitClockGatingDisable:cnl */
-	val = intel_uncore_read(&dev_priv->uncore, UNSLICE_UNIT_LEVEL_CLKGATE);
-	val |= VFUNIT_CLKGATE_DIS;
-	intel_uncore_write(&dev_priv->uncore, UNSLICE_UNIT_LEVEL_CLKGATE, val);
 }
 
 static void cfl_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7986,8 +7949,6 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = gen12lp_init_clock_gating;
 	else if (GRAPHICS_VER(dev_priv) == 11)
 		dev_priv->display.init_clock_gating = icl_init_clock_gating;
-	else if (IS_CANNONLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
 	else if (IS_COFFEELAKE(dev_priv) || IS_COMETLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cfl_init_clock_gating;
 	else if (IS_SKYLAKE(dev_priv))
