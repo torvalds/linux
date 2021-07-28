@@ -220,7 +220,6 @@ config ARCH_ROCKCHIP
 	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
 	select PM
-	select ROCKCHIP_TIMER
 	help
 	  This enables support for the ARMv8 based Rockchip chipsets,
 	  like the RK3368.

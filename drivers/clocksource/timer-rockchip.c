@@ -8,11 +8,13 @@
 #include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/sched_clock.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 
 #define TIMER_NAME "rk_timer"
 
@@ -45,7 +47,9 @@ struct rk_clkevt {
 };
 
 static struct rk_clkevt *rk_clkevt;
+#ifndef MODULE
 static struct rk_timer *rk_clksrc;
+#endif
 
 static inline struct rk_timer *rk_timer(struct clock_event_device *ce)
 {
@@ -119,10 +123,12 @@ static irqreturn_t rk_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifndef MODULE
 static u64 notrace rk_timer_sched_read(void)
 {
 	return ~readl_relaxed(rk_clksrc->base + TIMER_CURRENT_VALUE0);
 }
+#endif
 
 static int __init
 rk_timer_probe(struct rk_timer *timer, struct device_node *np)
@@ -250,6 +256,7 @@ out:
 	return ret;
 }
 
+#ifndef MODULE
 static int __init rk_clksrc_init(struct device_node *np)
 {
 	int ret = -EINVAL;
@@ -287,14 +294,17 @@ out:
 	rk_clksrc = ERR_PTR(ret);
 	return ret;
 }
+#endif
 
 static int __init rk_timer_init(struct device_node *np)
 {
 	if (!rk_clkevt)
 		return rk_clkevt_init(np);
 
+#ifndef MODULE
 	if (!rk_clksrc)
 		return rk_clksrc_init(np);
+#endif
 
 	pr_err("Too many timer definitions for '%s'\n", TIMER_NAME);
 	return -EINVAL;
@@ -302,3 +312,26 @@ static int __init rk_timer_init(struct device_node *np)
 
 TIMER_OF_DECLARE(rk3288_timer, "rockchip,rk3288-timer", rk_timer_init);
 TIMER_OF_DECLARE(rk3399_timer, "rockchip,rk3399-timer", rk_timer_init);
+
+#ifdef MODULE
+static int __init rk_timer_driver_probe(struct platform_device *pdev)
+{
+	return rk_timer_init(pdev->dev.of_node);
+}
+
+static const struct of_device_id rk_timer_match_table[] = {
+	{ .compatible = "rockchip,rk3288-timer" },
+	{ .compatible = "rockchip,rk3399-timer" },
+	{ /* sentinel */ },
+};
+
+static struct platform_driver rk_timer_driver = {
+	.driver = {
+		.name = TIMER_NAME,
+		.of_match_table = rk_timer_match_table,
+	},
+};
+module_platform_driver_probe(rk_timer_driver, rk_timer_driver_probe);
+
+MODULE_LICENSE("GPL");
+#endif
