@@ -348,11 +348,6 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 	}
 }
 
-static noinline void bch2_btree_iter_unlock_noinline(struct btree_iter *iter)
-{
-	__bch2_btree_iter_unlock(iter);
-}
-
 static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
@@ -582,21 +577,15 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	 * or anything else that might call bch2_trans_relock(), since that
 	 * would just retake the read locks:
 	 */
-	trans_for_each_iter(trans, iter) {
-		if (iter->nodes_locked != iter->nodes_intent_locked) {
-			if (btree_iter_keep(trans, iter)) {
-				if (!bch2_btree_iter_upgrade(iter, 1)) {
-					trace_trans_restart_upgrade(trans->ip, trace_ip,
-								    iter->btree_id,
-								    &iter->real_pos);
-					trans->restarted = true;
-					return -EINTR;
-				}
-			} else {
-				bch2_btree_iter_unlock_noinline(iter);
-			}
+	trans_for_each_iter(trans, iter)
+		if (iter->nodes_locked != iter->nodes_intent_locked &&
+		    !bch2_btree_iter_upgrade(iter, 1)) {
+			trace_trans_restart_upgrade(trans->ip, trace_ip,
+						    iter->btree_id,
+						    &iter->real_pos);
+			trans->restarted = true;
+			return -EINTR;
 		}
-	}
 
 	trans_for_each_update(trans, i) {
 		const char *invalid = bch2_bkey_invalid(c,
