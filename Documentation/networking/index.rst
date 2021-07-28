@@ -57,6 +57,7 @@ Contents:
    gen_stats
    gtp
    ila
+   ioam6-sysctl
    ipddp
    ip_dynaddr
    ipsec
