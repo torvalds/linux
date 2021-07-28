@@ -1541,6 +1541,8 @@ static int machines__deliver_event(struct machines *machines,
 				evlist->stats.total_aux_lost += 1;
 			if (event->aux.flags & PERF_AUX_FLAG_PARTIAL)
 				evlist->stats.total_aux_partial += 1;
+			if (event->aux.flags & PERF_AUX_FLAG_COLLISION)
+				evlist->stats.total_aux_collision += 1;
 		}
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
@@ -1894,6 +1896,13 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    "\nReloading kvm_intel module with vmm_exclusive=0\n"
 			    "will reduce the gaps to only guest's timeslices." :
 			    "");
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_collision != 0) {
+		ui__warning("AUX data detected collision  %" PRIu64 " times out of %u!\n\n",
+			    stats->total_aux_collision,
+			    stats->nr_events[PERF_RECORD_AUX]);
 	}
 
 	if (stats->nr_unknown_events != 0) {
