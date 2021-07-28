@@ -110,12 +110,10 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 ({									\
 	int _ret;							\
 									\
-	while (1) {							\
-		_ret = (_do);						\
-		if (_ret != -EINTR)					\
-			break;						\
+	do {								\
 		bch2_trans_begin(_trans);				\
-	}								\
+		_ret = (_do);						\
+	} while (_ret == -EINTR);					\
 									\
 	_ret;								\
 })
