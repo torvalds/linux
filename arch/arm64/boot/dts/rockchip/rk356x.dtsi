@@ -222,6 +222,8 @@
 		reg = <0x0 0xfdd20000 0x0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		assigned-clocks = <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
+		assigned-clock-rates = <1200000000>, <200000000>;
 	};
 
 	i2c0: i2c@fdd40000 {
