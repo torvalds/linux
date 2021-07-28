@@ -110,6 +110,7 @@ extern unsigned int resctrl_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
+extern struct list_head resctrl_schema_all;
 
 enum rdt_group_type {
 	RDTCTRL_GROUP = 0,

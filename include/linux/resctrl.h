@@ -153,4 +153,15 @@ struct rdt_resource {
 
 };
 
+/**
+ * struct resctrl_schema - configuration abilities of a resource presented to
+ *			   user-space
+ * @list:	Member of resctrl_schema_all.
+ * @res:	The resource structure exported by the architecture to describe
+ *		the hardware that is configured by this schema.
+ */
+struct resctrl_schema {
+	struct list_head		list;
+	struct rdt_resource		*res;
+};
 #endif /* _RESCTRL_H */
