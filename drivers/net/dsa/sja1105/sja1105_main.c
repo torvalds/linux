@@ -1501,18 +1501,6 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 
-	/* dsa_8021q is in effect when the bridge's vlan_filtering isn't,
-	 * so the switch still does some VLAN processing internally.
-	 * But Shared VLAN Learning (SVL) is also active, and it will take
-	 * care of autonomous forwarding between the unique pvid's of each
-	 * port.  Here we just make sure that users can't add duplicate FDB
-	 * entries when in this mode - the actual VID doesn't matter except
-	 * for what gets printed in 'bridge fdb show'.  In the case of zero,
-	 * no VID gets printed at all.
-	 */
-	if (!priv->vlan_aware)
-		vid = 0;
-
 	return priv->info->fdb_add_cmd(ds, port, addr, vid);
 }
 
@@ -1520,9 +1508,6 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
-
-	if (!priv->vlan_aware)
-		vid = 0;
 
 	return priv->info->fdb_del_cmd(ds, port, addr, vid);
 }
