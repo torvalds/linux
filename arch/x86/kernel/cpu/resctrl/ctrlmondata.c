@@ -238,6 +238,7 @@ next:
 
 int update_domains(struct rdt_resource *r, int closid)
 {
+	struct rdt_hw_domain *hw_dom;
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
@@ -254,7 +255,8 @@ int update_domains(struct rdt_resource *r, int closid)
 
 	mba_sc = is_mba_sc(r);
 	list_for_each_entry(d, &r->domains, list) {
-		dc = !mba_sc ? d->ctrl_val : d->mbps_val;
+		hw_dom = resctrl_to_arch_dom(d);
+		dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
 		if (d->have_new_ctrl && d->new_ctrl != dc[closid]) {
 			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 			dc[closid] = d->new_ctrl;
@@ -375,17 +377,19 @@ out:
 
 static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 {
+	struct rdt_hw_domain *hw_dom;
 	struct rdt_domain *dom;
 	bool sep = false;
 	u32 ctrl_val;
 
 	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {
+		hw_dom = resctrl_to_arch_dom(dom);
 		if (sep)
 			seq_puts(s, ";");
 
-		ctrl_val = (!is_mba_sc(r) ? dom->ctrl_val[closid] :
-			    dom->mbps_val[closid]);
+		ctrl_val = (!is_mba_sc(r) ? hw_dom->ctrl_val[closid] :
+			    hw_dom->mbps_val[closid]);
 		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   ctrl_val);
 		sep = true;

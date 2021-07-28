@@ -915,7 +915,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_putc(seq, ';');
-		ctrl = dom->ctrl_val;
+		ctrl = resctrl_to_arch_dom(dom)->ctrl_val;
 		sw_shareable = 0;
 		exclusive = 0;
 		seq_printf(seq, "%d=", dom->id);
@@ -1193,7 +1193,7 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
 	}
 
 	/* Check for overlap with other resource groups */
-	ctrl = d->ctrl_val;
+	ctrl = resctrl_to_arch_dom(d)->ctrl_val;
 	for (i = 0; i < closids_supported(); i++, ctrl++) {
 		ctrl_b = *ctrl;
 		mode = rdtgroup_mode_by_closid(i);
@@ -1262,6 +1262,7 @@ bool rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
  */
 static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
+	struct rdt_hw_domain *hw_dom;
 	int closid = rdtgrp->closid;
 	struct rdt_resource *r;
 	bool has_cache = false;
@@ -1272,7 +1273,8 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 			continue;
 		has_cache = true;
 		list_for_each_entry(d, &r->domains, list) {
-			if (rdtgroup_cbm_overlaps(r, d, d->ctrl_val[closid],
+			hw_dom = resctrl_to_arch_dom(d);
+			if (rdtgroup_cbm_overlaps(r, d, hw_dom->ctrl_val[closid],
 						  rdtgrp->closid, false)) {
 				rdt_last_cmd_puts("Schemata overlaps\n");
 				return false;
@@ -1404,6 +1406,7 @@ unsigned int rdtgroup_cbm_to_size(struct rdt_resource *r,
 static int rdtgroup_size_show(struct kernfs_open_file *of,
 			      struct seq_file *s, void *v)
 {
+	struct rdt_hw_domain *hw_dom;
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
 	struct rdt_domain *d;
@@ -1438,14 +1441,15 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 		sep = false;
 		seq_printf(s, "%*s:", max_name_width, r->name);
 		list_for_each_entry(d, &r->domains, list) {
+			hw_dom = resctrl_to_arch_dom(d);
 			if (sep)
 				seq_putc(s, ';');
 			if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 				size = 0;
 			} else {
 				ctrl = (!is_mba_sc(r) ?
-						d->ctrl_val[rdtgrp->closid] :
-						d->mbps_val[rdtgrp->closid]);
+						hw_dom->ctrl_val[rdtgrp->closid] :
+						hw_dom->mbps_val[rdtgrp->closid]);
 				if (r->rid == RDT_RESOURCE_MBA)
 					size = ctrl;
 				else
@@ -1940,6 +1944,7 @@ void rdt_domain_reconfigure_cdp(struct rdt_resource *r)
 static int set_mba_sc(bool mba_sc)
 {
 	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA].r_resctrl;
+	struct rdt_hw_domain *hw_dom;
 	struct rdt_domain *d;
 
 	if (!is_mbm_enabled() || !is_mba_linear() ||
@@ -1947,8 +1952,10 @@ static int set_mba_sc(bool mba_sc)
 		return -EINVAL;
 
 	r->membw.mba_sc = mba_sc;
-	list_for_each_entry(d, &r->domains, list)
-		setup_default_ctrlval(r, d->ctrl_val, d->mbps_val);
+	list_for_each_entry(d, &r->domains, list) {
+		hw_dom = resctrl_to_arch_dom(d);
+		setup_default_ctrlval(r, hw_dom->ctrl_val, hw_dom->mbps_val);
+	}
 
 	return 0;
 }
@@ -2265,6 +2272,7 @@ static int rdt_init_fs_context(struct fs_context *fc)
 static int reset_all_ctrls(struct rdt_resource *r)
 {
 	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
+	struct rdt_hw_domain *hw_dom;
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
@@ -2283,10 +2291,11 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	 * from each domain to update the MSRs below.
 	 */
 	list_for_each_entry(d, &r->domains, list) {
+		hw_dom = resctrl_to_arch_dom(d);
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 
 		for (i = 0; i < hw_res->num_closid; i++)
-			d->ctrl_val[i] = r->default_ctrl;
+			hw_dom->ctrl_val[i] = r->default_ctrl;
 	}
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
@@ -2665,7 +2674,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 	d->have_new_ctrl = false;
 	d->new_ctrl = r->cache.shareable_bits;
 	used_b = r->cache.shareable_bits;
-	ctrl = d->ctrl_val;
+	ctrl = resctrl_to_arch_dom(d)->ctrl_val;
 	for (i = 0; i < closids_supported(); i++, ctrl++) {
 		if (closid_allocated(i) && i != closid) {
 			mode = rdtgroup_mode_by_closid(i);
@@ -2682,7 +2691,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 			 * with an exclusive group.
 			 */
 			if (d_cdp)
-				peer_ctl = d_cdp->ctrl_val[i];
+				peer_ctl = resctrl_to_arch_dom(d_cdp)->ctrl_val[i];
 			else
 				peer_ctl = 0;
 			used_b |= *ctrl | peer_ctl;

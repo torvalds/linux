@@ -304,43 +304,24 @@ struct mbm_state {
 };
 
 /**
- * struct rdt_domain - group of cpus sharing an RDT resource
- * @list:	all instances of this resource
- * @id:		unique id for this instance
- * @cpu_mask:	which cpus share this resource
- * @rmid_busy_llc:
- *		bitmap of which limbo RMIDs are above threshold
- * @mbm_total:	saved state for MBM total bandwidth
- * @mbm_local:	saved state for MBM local bandwidth
- * @mbm_over:	worker to periodically read MBM h/w counters
- * @cqm_limbo:	worker to periodically read CQM h/w counters
- * @mbm_work_cpu:
- *		worker cpu for MBM h/w counters
- * @cqm_work_cpu:
- *		worker cpu for CQM h/w counters
+ * struct rdt_hw_domain - Arch private attributes of a set of CPUs that share
+ *			  a resource
+ * @d_resctrl:	Properties exposed to the resctrl file system
  * @ctrl_val:	array of cache or mem ctrl values (indexed by CLOSID)
  * @mbps_val:	When mba_sc is enabled, this holds the bandwidth in MBps
- * @new_ctrl:	new ctrl value to be loaded
- * @have_new_ctrl: did user provide new_ctrl for this domain
- * @plr:	pseudo-locked region (if any) associated with domain
+ *
+ * Members of this structure are accessed via helpers that provide abstraction.
  */
-struct rdt_domain {
-	struct list_head		list;
-	int				id;
-	struct cpumask			cpu_mask;
-	unsigned long			*rmid_busy_llc;
-	struct mbm_state		*mbm_total;
-	struct mbm_state		*mbm_local;
-	struct delayed_work		mbm_over;
-	struct delayed_work		cqm_limbo;
-	int				mbm_work_cpu;
-	int				cqm_work_cpu;
+struct rdt_hw_domain {
+	struct rdt_domain		d_resctrl;
 	u32				*ctrl_val;
 	u32				*mbps_val;
-	u32				new_ctrl;
-	bool				have_new_ctrl;
-	struct pseudo_lock_region	*plr;
 };
+
+static inline struct rdt_hw_domain *resctrl_to_arch_dom(struct rdt_domain *r)
+{
+	return container_of(r, struct rdt_hw_domain, d_resctrl);
+}
 
 /**
  * struct msr_param - set a range of MSRs from a domain
