@@ -14,7 +14,6 @@ config ALPHA
 	select PCI_SYSCALL if PCI
 	select HAVE_AOUT
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_IDE
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
 	select NEED_DMA_MAP_STATE
