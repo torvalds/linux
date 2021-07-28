@@ -1927,8 +1927,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_JOURNAL_RECLAIM|
-				BTREE_INSERT_JOURNAL_RESERVED|
-				BTREE_INSERT_NOUNLOCK);
+				BTREE_INSERT_JOURNAL_RESERVED);
 	if (ret)
 		goto err;
 

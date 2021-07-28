@@ -803,8 +803,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		ret = __write_inode(trans, &target, target_snapshot) ?:
 			bch2_trans_commit(trans, NULL, NULL,
 					  BTREE_INSERT_NOFAIL|
-					  BTREE_INSERT_LAZY_RW|
-					  BTREE_INSERT_NOUNLOCK);
+					  BTREE_INSERT_LAZY_RW);
 		if (ret)
 			return ret;
 		return -EINTR;

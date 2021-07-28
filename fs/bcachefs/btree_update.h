@@ -15,7 +15,6 @@ bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
 void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 
 enum btree_insert_flags {
-	__BTREE_INSERT_NOUNLOCK,
 	__BTREE_INSERT_NOFAIL,
 	__BTREE_INSERT_NOCHECK_RW,
 	__BTREE_INSERT_LAZY_RW,
@@ -28,11 +27,6 @@ enum btree_insert_flags {
 	__BCH_HASH_SET_MUST_CREATE,
 	__BCH_HASH_SET_MUST_REPLACE,
 };
-
-/*
- * Don't drop locks _after_ successfully updating btree:
- */
-#define BTREE_INSERT_NOUNLOCK		(1 << __BTREE_INSERT_NOUNLOCK)
 
 /* Don't check for -ENOSPC: */
 #define BTREE_INSERT_NOFAIL		(1 << __BTREE_INSERT_NOFAIL)

@@ -524,8 +524,8 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
 	if (u64s_delta > 0)
 		return 0;
 
-	return bch2_foreground_maybe_merge(trans, iter, iter->level,
-				trans->flags & ~BTREE_INSERT_NOUNLOCK);
+	return bch2_foreground_maybe_merge(trans, iter,
+				iter->level, trans->flags);
 }
 
 /*
