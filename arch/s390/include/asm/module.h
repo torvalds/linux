@@ -28,6 +28,14 @@ struct mod_arch_specific {
 	int nsyms;
 	/* Additional symbol information (got and plt offsets). */
 	struct mod_arch_syminfo *syminfo;
+#ifdef CONFIG_FUNCTION_TRACER
+	/* Start of memory reserved for ftrace hotpatch trampolines. */
+	struct ftrace_hotpatch_trampoline *trampolines_start;
+	/* End of memory reserved for ftrace hotpatch trampolines. */
+	struct ftrace_hotpatch_trampoline *trampolines_end;
+	/* Next unused ftrace hotpatch trampoline slot. */
+	struct ftrace_hotpatch_trampoline *next_trampoline;
+#endif /* CONFIG_FUNCTION_TRACER */
 };
 
 #endif /* _ASM_S390_MODULE_H */

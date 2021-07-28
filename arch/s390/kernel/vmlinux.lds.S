@@ -5,6 +5,7 @@
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/ftrace.lds.h>
 
 /*
  * Put .bss..swapper_pg_dir as the first thing in .bss. This will
@@ -46,6 +47,7 @@ SECTIONS
 		KPROBES_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+		FTRACE_HOTPATCH_TRAMPOLINES_TEXT
 		*(.text.*_indirect_*)
 		*(.fixup)
 		*(.gnu.warning)
