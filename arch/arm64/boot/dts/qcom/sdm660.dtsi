@@ -141,12 +141,105 @@
 	compatible = "qcom,gpucc-sdm660";
 };
 
+&mdp {
+	ports {
+		port@1 {
+			reg = <1>;
+			mdp5_intf2_out: endpoint {
+				remote-endpoint = <&dsi1_in>;
+			};
+		};
+	};
+};
+
+&mdss {
+	dsi1: dsi@c996000 {
+		compatible = "qcom,mdss-dsi-ctrl";
+		reg = <0x0c996000 0x400>;
+		reg-names = "dsi_ctrl";
+
+		/* DSI1 shares the OPP table with DSI0 */
+		operating-points-v2 = <&dsi_opp_table>;
+		power-domains = <&rpmpd SDM660_VDDCX>;
+
+		interrupt-parent = <&mdss>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+
+		assigned-clocks = <&mmcc BYTE1_CLK_SRC>,
+					<&mmcc PCLK1_CLK_SRC>;
+		assigned-clock-parents = <&dsi1_phy 0>,
+						<&dsi1_phy 1>;
+
+		clocks = <&mmcc MDSS_MDP_CLK>,
+				<&mmcc MDSS_BYTE1_CLK>,
+				<&mmcc MDSS_BYTE1_INTF_CLK>,
+				<&mmcc MNOC_AHB_CLK>,
+				<&mmcc MDSS_AHB_CLK>,
+				<&mmcc MDSS_AXI_CLK>,
+				<&mmcc MISC_AHB_CLK>,
+				<&mmcc MDSS_PCLK1_CLK>,
+				<&mmcc MDSS_ESC1_CLK>;
+		clock-names = "mdp_core",
+					"byte",
+					"byte_intf",
+					"mnoc",
+					"iface",
+					"bus",
+					"core_mmss",
+					"pixel",
+					"core";
+
+		phys = <&dsi1_phy>;
+		phy-names = "dsi";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				dsi1_in: endpoint {
+					remote-endpoint = <&mdp5_intf2_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				dsi1_out: endpoint {
+				};
+			};
+		};
+	};
+
+	dsi1_phy: dsi-phy@c996400 {
+		compatible = "qcom,dsi-phy-14nm-660";
+		reg = <0x0c996400 0x100>,
+				<0x0c996500 0x300>,
+				<0x0c996800 0x188>;
+		reg-names = "dsi_phy",
+				"dsi_phy_lane",
+				"dsi_pll";
+
+		#clock-cells = <1>;
+		#phy-cells = <0>;
+
+		clocks = <&mmcc MDSS_AHB_CLK>, <&rpmcc RPM_SMD_XO_CLK_SRC>;
+		clock-names = "iface", "ref";
+	};
+};
+
 &mmcc {
 	compatible = "qcom,mmcc-sdm660";
-	/*
-	 * 660 has one more dsi host/phy, which - when implemented
-	 * and tested - should be added to the clocks property.
-	 */
+	clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
+			<&sleep_clk>,
+			<&gcc GCC_MMSS_GPLL0_CLK>,
+			<&gcc GCC_MMSS_GPLL0_DIV_CLK>,
+			<&dsi0_phy 1>,
+			<&dsi0_phy 0>,
+			<&dsi1_phy 1>,
+			<&dsi1_phy 0>,
+			<0>,
+			<0>;
 };
 
 &tlmm {
