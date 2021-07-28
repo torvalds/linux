@@ -20,6 +20,13 @@ config TYPEC_TCPCI
 
 if TYPEC_TCPCI
 
+config TYPEC_HUSB311
+	tristate "Hynetek HUSB311 Type-C chip driver"
+	help
+	  Hynetek HUSB311 Type-C chip driver that works with
+	  Type-C Port Controller Manager to provide USB PD and USB
+	  Type-C functionalities.
+
 config TYPEC_RT1711H
 	tristate "Richtek RT1711H Type-C chip driver"
 	help
