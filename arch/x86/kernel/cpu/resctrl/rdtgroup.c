@@ -2751,6 +2751,7 @@ static u32 cbm_ensure_valid(u32 _val, struct rdt_resource *r)
 static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 				 u32 closid)
 {
+	enum resctrl_conf_type t = s->conf_type;
 	struct rdt_resource *r_cdp = NULL;
 	struct resctrl_staged_config *cfg;
 	struct rdt_domain *d_cdp = NULL;
@@ -2762,7 +2763,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 	int i;
 
 	rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
-	cfg = &d->staged_config;
+	cfg = &d->staged_config[t];
 	cfg->have_new_ctrl = false;
 	cfg->new_ctrl = r->cache.shareable_bits;
 	used_b = r->cache.shareable_bits;
@@ -2846,7 +2847,7 @@ static void rdtgroup_init_mba(struct rdt_resource *r)
 	struct rdt_domain *d;
 
 	list_for_each_entry(d, &r->domains, list) {
-		cfg = &d->staged_config;
+		cfg = &d->staged_config[CDP_NONE];
 		cfg->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
 		cfg->have_new_ctrl = true;
 	}
