@@ -139,6 +139,8 @@ struct sbconfig {
 	u32 sbidhigh;	/* identification */
 };
 
+#define INVALID_RAMBASE			((u32)(~0))
+
 /* bankidx and bankinfo reg defines corerev >= 8 */
 #define SOCRAM_BANKINFO_RETNTRAM_MASK	0x00010000
 #define SOCRAM_BANKINFO_SZMASK		0x0000007f
@@ -731,7 +733,7 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 		brcmf_err("unknown chip: %s\n", ci->pub.name);
 		break;
 	}
-	return 0;
+	return INVALID_RAMBASE;
 }
 
 int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
@@ -746,7 +748,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 		mem_core = container_of(mem, struct brcmf_core_priv, pub);
 		ci->pub.ramsize = brcmf_chip_tcm_ramsize(mem_core);
 		ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
-		if (!ci->pub.rambase) {
+		if (ci->pub.rambase == INVALID_RAMBASE) {
 			brcmf_err("RAM base not provided with ARM CR4 core\n");
 			return -EINVAL;
 		}
@@ -757,7 +759,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 						pub);
 			ci->pub.ramsize = brcmf_chip_sysmem_ramsize(mem_core);
 			ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
-			if (!ci->pub.rambase) {
+			if (ci->pub.rambase == INVALID_RAMBASE) {
 				brcmf_err("RAM base not provided with ARM CA7 core\n");
 				return -EINVAL;
 			}
