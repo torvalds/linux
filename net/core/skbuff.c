@@ -6449,6 +6449,7 @@ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
 	new->chunks = newlen;
 	new->offset[id] = newoff;
 set_active:
+	skb->slow_gro = 1;
 	skb->extensions = new;
 	skb->active_extensions |= 1 << id;
 	return skb_ext_get_ptr(new, id);
