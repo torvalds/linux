@@ -469,6 +469,9 @@ static int get_group_id(unsigned int cpu_id, int level)
 	else if (thread_group_shares_l2 && level == 2)
 		return cpumask_first(per_cpu(thread_group_l2_cache_map,
 					     cpu_id));
+	else if (thread_group_shares_l3 && level == 3)
+		return cpumask_first(per_cpu(thread_group_l3_cache_map,
+					     cpu_id));
 	return -1;
 }
 

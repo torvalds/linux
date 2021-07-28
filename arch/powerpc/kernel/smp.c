@@ -78,6 +78,7 @@ struct task_struct *secondary_current;
 bool has_big_cores;
 bool coregroup_enabled;
 bool thread_group_shares_l2;
+bool thread_group_shares_l3;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
@@ -101,7 +102,7 @@ enum {
 
 #define MAX_THREAD_LIST_SIZE	8
 #define THREAD_GROUP_SHARE_L1   1
-#define THREAD_GROUP_SHARE_L2   2
+#define THREAD_GROUP_SHARE_L2_L3 2
 struct thread_groups {
 	unsigned int property;
 	unsigned int nr_groups;
@@ -130,6 +131,12 @@ DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
  * L2-cache.
  */
 DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
+
+/*
+ * On P10, thread_group_l3_cache_map for each CPU is equal to the
+ * thread_group_l2_cache_map
+ */
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l3_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -889,33 +896,10 @@ out:
 	return tg;
 }
 
-static int __init init_thread_group_cache_map(int cpu, int cache_property)
-
+static int update_mask_from_threadgroup(cpumask_var_t *mask, struct thread_groups *tg, int cpu, int cpu_group_start)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
-	int i, cpu_group_start = -1, err = 0;
-	struct thread_groups *tg = NULL;
-	cpumask_var_t *mask = NULL;
-
-	if (cache_property != THREAD_GROUP_SHARE_L1 &&
-	    cache_property != THREAD_GROUP_SHARE_L2)
-		return -EINVAL;
-
-	tg = get_thread_groups(cpu, cache_property, &err);
-	if (!tg)
-		return err;
-
-	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
-
-	if (unlikely(cpu_group_start == -1)) {
-		WARN_ON_ONCE(1);
-		return -ENODATA;
-	}
-
-	if (cache_property == THREAD_GROUP_SHARE_L1)
-		mask = &per_cpu(thread_group_l1_cache_map, cpu);
-	else if (cache_property == THREAD_GROUP_SHARE_L2)
-		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+	int i;
 
 	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
 
@@ -930,6 +914,44 @@ static int __init init_thread_group_cache_map(int cpu, int cache_property)
 		if (i_group_start == cpu_group_start)
 			cpumask_set_cpu(i, *mask);
 	}
+
+	return 0;
+}
+
+static int __init init_thread_group_cache_map(int cpu, int cache_property)
+
+{
+	int cpu_group_start = -1, err = 0;
+	struct thread_groups *tg = NULL;
+	cpumask_var_t *mask = NULL;
+
+	if (cache_property != THREAD_GROUP_SHARE_L1 &&
+	    cache_property != THREAD_GROUP_SHARE_L2_L3)
+		return -EINVAL;
+
+	tg = get_thread_groups(cpu, cache_property, &err);
+
+	if (!tg)
+		return err;
+
+	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
+
+	if (unlikely(cpu_group_start == -1)) {
+		WARN_ON_ONCE(1);
+		return -ENODATA;
+	}
+
+	if (cache_property == THREAD_GROUP_SHARE_L1) {
+		mask = &per_cpu(thread_group_l1_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+	}
+	else if (cache_property == THREAD_GROUP_SHARE_L2_L3) {
+		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+		mask = &per_cpu(thread_group_l3_cache_map, cpu);
+		update_mask_from_threadgroup(mask, tg, cpu, cpu_group_start);
+	}
+
 
 	return 0;
 }
@@ -1020,14 +1042,16 @@ static int __init init_big_cores(void)
 	has_big_cores = true;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2);
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2_L3);
 
 		if (err)
 			return err;
 	}
 
 	thread_group_shares_l2 = true;
-	pr_debug("L2 cache only shared by the threads in the small core\n");
+	thread_group_shares_l3 = true;
+	pr_debug("L2/L3 cache only shared by the threads in the small core\n");
+
 	return 0;
 }
 
