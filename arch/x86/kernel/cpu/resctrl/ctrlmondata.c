@@ -292,6 +292,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid)
 		return -ENOMEM;
 
 	mba_sc = is_mba_sc(r);
+	msr_param.res = NULL;
 	list_for_each_entry(d, &r->domains, list) {
 		hw_dom = resctrl_to_arch_dom(d);
 		for (t = 0; t < CDP_NUM_TYPES; t++) {
@@ -303,9 +304,14 @@ int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid)
 			if (!apply_config(hw_dom, cfg, idx, cpu_mask, mba_sc))
 				continue;
 
-			msr_param.low = idx;
-			msr_param.high = msr_param.low + 1;
-			msr_param.res = r;
+			if (!msr_param.res) {
+				msr_param.low = idx;
+				msr_param.high = msr_param.low + 1;
+				msr_param.res = r;
+			} else {
+				msr_param.low = min(msr_param.low, idx);
+				msr_param.high = max(msr_param.high, idx + 1);
+			}
 		}
 	}
 
