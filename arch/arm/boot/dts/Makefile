@@ -263,6 +263,7 @@ dtb-$(CONFIG_ARCH_IXP4XX) += \
 	intel-ixp46x-ixdp465.dtb \
 	intel-ixp42x-adi-coyote.dtb \
 	intel-ixp42x-ixdpg425.dtb \
+	intel-ixp42x-goramo-multilink.dtb \
 	intel-ixp42x-iomega-nas100d.dtb \
 	intel-ixp42x-dlink-dsm-g600.dtb \
 	intel-ixp42x-gateworks-gw2348.dtb \
