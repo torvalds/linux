@@ -5,7 +5,6 @@
  *                     <angelogioacchino.delregno@somainline.org>
  */
 
-#include "sdm630.dtsi"
 #include "pm660.dtsi"
 #include "pm660l.dtsi"
 #include <dt-bindings/gpio/gpio.h>
