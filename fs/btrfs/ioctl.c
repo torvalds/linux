@@ -4430,7 +4430,6 @@ static long btrfs_ioctl_quota_rescan_status(struct btrfs_fs_info *fs_info,
 						void __user *arg)
 {
 	struct btrfs_ioctl_quota_rescan_args qsa = {0};
-	int ret = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -4441,9 +4440,9 @@ static long btrfs_ioctl_quota_rescan_status(struct btrfs_fs_info *fs_info,
 	}
 
 	if (copy_to_user(arg, &qsa, sizeof(qsa)))
-		ret = -EFAULT;
+		return -EFAULT;
 
-	return ret;
+	return 0;
 }
 
 static long btrfs_ioctl_quota_rescan_wait(struct btrfs_fs_info *fs_info,
