@@ -521,6 +521,7 @@ struct xfrm_user_offload {
 #define XFRM_OFFLOAD_INBOUND	2
 
 struct xfrm_userpolicy_default {
+#define XFRM_USERPOLICY_DIRMASK_MAX	(sizeof(__u8) * 8)
 	__u8				dirmask;
 	__u8				action;
 };
