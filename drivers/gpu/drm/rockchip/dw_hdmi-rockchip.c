@@ -89,6 +89,7 @@ struct rockchip_hdmi {
 	u32 max_tmdsclk;
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
+	unsigned long bus_format;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -467,7 +468,26 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 	s->output_if = VOP_OUTPUT_IF_HDMI0;
 
+	hdmi->bus_format = s->bus_format;
+
 	return 0;
+}
+
+
+static unsigned long
+dw_hdmi_rockchip_get_input_bus_format(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->bus_format;
+}
+
+static unsigned long
+dw_hdmi_rockchip_get_output_bus_format(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->bus_format;
 }
 
 static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
@@ -728,6 +748,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	hdmi->chip_data = plat_data->phy_data;
 	plat_data->phy_data = hdmi;
+	plat_data->get_input_bus_format =
+		dw_hdmi_rockchip_get_input_bus_format;
+	plat_data->get_output_bus_format =
+		dw_hdmi_rockchip_get_output_bus_format;
 	encoder = &hdmi->encoder;
 
 	encoder->possible_crtcs = rockchip_drm_of_find_possible_crtcs(drm, dev->of_node);
