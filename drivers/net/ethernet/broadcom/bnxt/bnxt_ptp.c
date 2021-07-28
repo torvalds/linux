@@ -412,6 +412,80 @@ static const struct ptp_clock_info bnxt_ptp_caps = {
 	.enable		= bnxt_ptp_enable,
 };
 
+static int bnxt_ptp_verify(struct ptp_clock_info *ptp_info, unsigned int pin,
+			   enum ptp_pin_function func, unsigned int chan)
+{
+	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
+						ptp_info);
+	/* Allow only PPS pin function configuration */
+	if (ptp->pps_info.pins[pin].usage <= BNXT_PPS_PIN_PPS_OUT &&
+	    func != PTP_PF_PHYSYNC)
+		return 0;
+	else
+		return -EOPNOTSUPP;
+}
+
+/* bp->hwrm_cmd_lock held by the caller */
+static int bnxt_ptp_pps_init(struct bnxt *bp)
+{
+	struct hwrm_func_ptp_pin_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_ptp_pin_qcfg_input req = {0};
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	struct ptp_clock_info *ptp_info;
+	struct bnxt_pps *pps_info;
+	u8 *pin_usg;
+	u32 i, rc;
+
+	/* Query current/default PIN CFG */
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_PTP_PIN_QCFG, -1, -1);
+
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc || !resp->num_pins)
+		return -EOPNOTSUPP;
+
+	ptp_info = &ptp->ptp_info;
+	pps_info = &ptp->pps_info;
+	pps_info->num_pins = resp->num_pins;
+	ptp_info->n_pins = pps_info->num_pins;
+	ptp_info->pin_config = kcalloc(ptp_info->n_pins,
+				       sizeof(*ptp_info->pin_config),
+				       GFP_KERNEL);
+	if (!ptp_info->pin_config)
+		return -ENOMEM;
+
+	/* Report the TSIO capability to kernel */
+	pin_usg = &resp->pin0_usage;
+	for (i = 0; i < pps_info->num_pins; i++, pin_usg++) {
+		snprintf(ptp_info->pin_config[i].name,
+			 sizeof(ptp_info->pin_config[i].name), "bnxt_pps%d", i);
+		ptp_info->pin_config[i].index = i;
+		ptp_info->pin_config[i].chan = i;
+		if (*pin_usg == BNXT_PPS_PIN_PPS_IN)
+			ptp_info->pin_config[i].func = PTP_PF_EXTTS;
+		else if (*pin_usg == BNXT_PPS_PIN_PPS_OUT)
+			ptp_info->pin_config[i].func = PTP_PF_PEROUT;
+		else
+			ptp_info->pin_config[i].func = PTP_PF_NONE;
+
+		pps_info->pins[i].usage = *pin_usg;
+	}
+
+	/* Only 1 each of ext_ts and per_out pins is available in HW */
+	ptp_info->n_ext_ts = 1;
+	ptp_info->n_per_out = 1;
+	ptp_info->pps = 1;
+	ptp_info->verify = bnxt_ptp_verify;
+
+	return 0;
+}
+
+static bool bnxt_pps_config_ok(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	return !(bp->fw_cap & BNXT_FW_CAP_PTP_PPS) == !ptp->ptp_info.pin_config;
+}
+
 int bnxt_ptp_init(struct bnxt *bp)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
@@ -424,9 +498,15 @@ int bnxt_ptp_init(struct bnxt *bp)
 	if (rc)
 		return rc;
 
-	if (ptp->ptp_clock)
+	if (ptp->ptp_clock && bnxt_pps_config_ok(bp))
 		return 0;
 
+	if (ptp->ptp_clock) {
+		ptp_clock_unregister(ptp->ptp_clock);
+		ptp->ptp_clock = NULL;
+		kfree(ptp->ptp_info.pin_config);
+		ptp->ptp_info.pin_config = NULL;
+	}
 	atomic_set(&ptp->tx_avail, BNXT_MAX_TX_TS);
 	spin_lock_init(&ptp->ptp_lock);
 
@@ -439,6 +519,10 @@ int bnxt_ptp_init(struct bnxt *bp)
 	timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
 
 	ptp->ptp_info = bnxt_ptp_caps;
+	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PPS)) {
+		if (bnxt_ptp_pps_init(bp))
+			netdev_err(bp->dev, "1pps not initialized, continuing without 1pps support\n");
+	}
 	ptp->ptp_clock = ptp_clock_register(&ptp->ptp_info, &bp->pdev->dev);
 	if (IS_ERR(ptp->ptp_clock)) {
 		int err = PTR_ERR(ptp->ptp_clock);
@@ -468,6 +552,9 @@ void bnxt_ptp_clear(struct bnxt *bp)
 		ptp_clock_unregister(ptp->ptp_clock);
 
 	ptp->ptp_clock = NULL;
+	kfree(ptp->ptp_info.pin_config);
+	ptp->ptp_info.pin_config = NULL;
+
 	if (ptp->tx_skb) {
 		dev_kfree_skb_any(ptp->tx_skb);
 		ptp->tx_skb = NULL;

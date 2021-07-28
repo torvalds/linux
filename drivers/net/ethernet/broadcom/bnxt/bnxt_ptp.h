@@ -21,11 +21,33 @@
 #define BNXT_PTP_QTS_TX_ENABLES	(PORT_TS_QUERY_REQ_ENABLES_PTP_SEQ_ID |	\
 				 PORT_TS_QUERY_REQ_ENABLES_TS_REQ_TIMEOUT)
 
+struct pps_pin {
+	u8 usage;
+};
+
+#define BNXT_PPS_PIN_DISABLE	0
+#define BNXT_PPS_PIN_ENABLE	1
+#define BNXT_PPS_PIN_NONE	0
+#define BNXT_PPS_PIN_PPS_IN	1
+#define BNXT_PPS_PIN_PPS_OUT	2
+#define BNXT_PPS_PIN_SYNC_IN	3
+#define BNXT_PPS_PIN_SYNC_OUT	4
+
+#define BNXT_PPS_EVENT_INTERNAL	1
+#define BNXT_PPS_EVENT_EXTERNAL	2
+
+struct bnxt_pps {
+	u8 num_pins;
+#define BNXT_MAX_TSIO_PINS	4
+	struct pps_pin pins[BNXT_MAX_TSIO_PINS];
+};
+
 struct bnxt_ptp_cfg {
 	struct ptp_clock_info	ptp_info;
 	struct ptp_clock	*ptp_clock;
 	struct cyclecounter	cc;
 	struct timecounter	tc;
+	struct bnxt_pps		pps_info;
 	/* serialize timecounter access */
 	spinlock_t		ptp_lock;
 	struct sk_buff		*tx_skb;
