@@ -6034,6 +6034,7 @@ static void gro_list_prepare(const struct list_head *head,
 			struct tc_skb_ext *p_ext;
 #endif
 
+			diffs |= p->sk != skb->sk;
 			diffs |= skb_metadata_dst_cmp(p, skb);
 			diffs |= skb_get_nfct(p) ^ skb_get_nfct(skb);
 
@@ -6311,6 +6312,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb_shinfo(skb)->gso_type = 0;
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 	if (unlikely(skb->slow_gro)) {
+		skb_orphan(skb);
 		skb_ext_reset(skb);
 		nf_reset_ct(skb);
 		skb->slow_gro = 0;
