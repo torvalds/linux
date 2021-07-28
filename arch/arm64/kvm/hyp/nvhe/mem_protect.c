@@ -204,16 +204,19 @@ bool addr_is_memory(phys_addr_t phys)
 	return find_mem_range(phys, &range);
 }
 
+static bool is_in_mem_range(u64 addr, struct kvm_mem_range *range)
+{
+	return range->start <= addr && addr < range->end;
+}
+
 static bool range_is_memory(u64 start, u64 end)
 {
-	struct kvm_mem_range r1, r2;
+	struct kvm_mem_range r;
 
-	if (!find_mem_range(start, &r1) || !find_mem_range(end - 1, &r2))
-		return false;
-	if (r1.start != r2.start)
+	if (!find_mem_range(start, &r))
 		return false;
 
-	return true;
+	return is_in_mem_range(end - 1, &r);
 }
 
 static inline int __host_stage2_idmap(u64 start, u64 end,
