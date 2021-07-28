@@ -33,6 +33,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 {
 	struct msm_gem_submit *submit;
 	uint64_t sz;
+	int ret;
 
 	sz = struct_size(submit, bos, nr_bos) +
 			((u64)nr_cmds * sizeof(submit->cmd[0]));
@@ -43,6 +44,14 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit = kzalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (!submit)
 		return ERR_PTR(-ENOMEM);
+
+	ret = drm_sched_job_init(&submit->base, &queue->entity, queue);
+	if (ret) {
+		kfree(submit);
+		return ERR_PTR(ret);
+	}
+
+	xa_init_flags(&submit->deps, XA_FLAGS_ALLOC);
 
 	kref_init(&submit->ref);
 	submit->dev = dev;
@@ -63,6 +72,8 @@ void __msm_gem_submit_destroy(struct kref *kref)
 {
 	struct msm_gem_submit *submit =
 			container_of(kref, struct msm_gem_submit, ref);
+	unsigned long index;
+	struct dma_fence *fence;
 	unsigned i;
 
 	if (submit->fence_id) {
@@ -71,7 +82,14 @@ void __msm_gem_submit_destroy(struct kref *kref)
 		mutex_unlock(&submit->queue->lock);
 	}
 
-	dma_fence_put(submit->fence);
+	xa_for_each (&submit->deps, index, fence) {
+		dma_fence_put(fence);
+	}
+
+	xa_destroy(&submit->deps);
+
+	dma_fence_put(submit->user_fence);
+	dma_fence_put(submit->hw_fence);
 
 	put_pid(submit->pid);
 	msm_submitqueue_put(submit->queue);
@@ -307,7 +325,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 	int i, ret = 0;
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		struct msm_gem_object *msm_obj = submit->bos[i].obj;
+		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 		bool write = submit->bos[i].flags & MSM_SUBMIT_BO_WRITE;
 
 		if (!write) {
@@ -316,8 +334,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = dma_resv_reserve_shared(msm_obj->base.resv,
-								1);
+			ret = dma_resv_reserve_shared(obj->resv, 1);
 			if (ret)
 				return ret;
 		}
@@ -325,7 +342,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if (no_implicit)
 			continue;
 
-		ret = msm_gem_sync_object(&msm_obj->base, submit->ring->fctx,
+		ret = drm_gem_fence_array_add_implicit(&submit->deps, obj,
 			write);
 		if (ret)
 			break;
@@ -376,9 +393,9 @@ static void submit_attach_object_fences(struct msm_gem_submit *submit)
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
-			dma_resv_add_excl_fence(obj->resv, submit->fence);
+			dma_resv_add_excl_fence(obj->resv, submit->user_fence);
 		else if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
-			dma_resv_add_shared_fence(obj->resv, submit->fence);
+			dma_resv_add_shared_fence(obj->resv, submit->user_fence);
 	}
 }
 
@@ -517,12 +534,12 @@ struct msm_submit_post_dep {
 	struct dma_fence_chain *chain;
 };
 
-static struct drm_syncobj **msm_wait_deps(struct drm_device *dev,
-                                          struct drm_file *file,
-                                          uint64_t in_syncobjs_addr,
-                                          uint32_t nr_in_syncobjs,
-                                          size_t syncobj_stride,
-                                          struct msm_ringbuffer *ring)
+static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
+                                           struct drm_file *file,
+                                           uint64_t in_syncobjs_addr,
+                                           uint32_t nr_in_syncobjs,
+                                           size_t syncobj_stride,
+                                           struct msm_ringbuffer *ring)
 {
 	struct drm_syncobj **syncobjs = NULL;
 	struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
@@ -546,7 +563,7 @@ static struct drm_syncobj **msm_wait_deps(struct drm_device *dev,
 		}
 
 		if (syncobj_desc.point &&
-		    !drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE)) {
+		    !drm_core_check_feature(submit->dev, DRIVER_SYNCOBJ_TIMELINE)) {
 			ret = -EOPNOTSUPP;
 			break;
 		}
@@ -561,10 +578,7 @@ static struct drm_syncobj **msm_wait_deps(struct drm_device *dev,
 		if (ret)
 			break;
 
-		if (!dma_fence_match_context(fence, ring->fctx->context))
-			ret = dma_fence_wait(fence, true);
-
-		dma_fence_put(fence);
+		ret = drm_gem_fence_array_add(&submit->deps, fence);
 		if (ret)
 			break;
 
@@ -741,47 +755,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	trace_msm_gpu_submit(pid_nr(pid), ring->id, submitid,
 		args->nr_bos, args->nr_cmds);
 
-	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
-		struct dma_fence *in_fence;
-
-		in_fence = sync_file_get_fence(args->fence_fd);
-
-		if (!in_fence)
-			return -EINVAL;
-
-		/*
-		 * Wait if the fence is from a foreign context, or if the fence
-		 * array contains any fence from a foreign context.
-		 */
-		ret = 0;
-		if (!dma_fence_match_context(in_fence, ring->fctx->context))
-			ret = dma_fence_wait(in_fence, true);
-
-		dma_fence_put(in_fence);
-		if (ret)
-			return ret;
-	}
-
-	if (args->flags & MSM_SUBMIT_SYNCOBJ_IN) {
-		syncobjs_to_reset = msm_wait_deps(dev, file,
-		                                  args->in_syncobjs,
-		                                  args->nr_in_syncobjs,
-		                                  args->syncobj_stride, ring);
-		if (IS_ERR(syncobjs_to_reset))
-			return PTR_ERR(syncobjs_to_reset);
-	}
-
-	if (args->flags & MSM_SUBMIT_SYNCOBJ_OUT) {
-		post_deps = msm_parse_post_deps(dev, file,
-		                                args->out_syncobjs,
-		                                args->nr_out_syncobjs,
-		                                args->syncobj_stride);
-		if (IS_ERR(post_deps)) {
-			ret = PTR_ERR(post_deps);
-			goto out_post_unlock;
-		}
-	}
-
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		goto out_post_unlock;
@@ -807,22 +780,50 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->flags & MSM_SUBMIT_SUDO)
 		submit->in_rb = true;
 
+	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
+		struct dma_fence *in_fence;
+
+		in_fence = sync_file_get_fence(args->fence_fd);
+
+		if (!in_fence) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+
+		ret = drm_gem_fence_array_add(&submit->deps, in_fence);
+		if (ret)
+			goto out_unlock;
+	}
+
+	if (args->flags & MSM_SUBMIT_SYNCOBJ_IN) {
+		syncobjs_to_reset = msm_parse_deps(submit, file,
+		                                   args->in_syncobjs,
+		                                   args->nr_in_syncobjs,
+		                                   args->syncobj_stride, ring);
+		if (IS_ERR(syncobjs_to_reset)) {
+			ret = PTR_ERR(syncobjs_to_reset);
+			goto out_unlock;
+		}
+	}
+
+	if (args->flags & MSM_SUBMIT_SYNCOBJ_OUT) {
+		post_deps = msm_parse_post_deps(dev, file,
+		                                args->out_syncobjs,
+		                                args->nr_out_syncobjs,
+		                                args->syncobj_stride);
+		if (IS_ERR(post_deps)) {
+			ret = PTR_ERR(post_deps);
+			goto out_unlock;
+		}
+	}
+
 	ret = submit_lookup_objects(submit, args, file);
 	if (ret)
-		goto out_pre_pm;
+		goto out;
 
 	ret = submit_lookup_cmds(submit, args, file);
 	if (ret)
-		goto out_pre_pm;
-
-	/*
-	 * Thanks to dev_pm_opp opp_table_lock interactions with mm->mmap_sem
-	 * in the resume path, we need to to rpm get before we lock objs.
-	 * Which unfortunately might involve powering up the GPU sooner than
-	 * is necessary.  But at least in the explicit fencing case, we will
-	 * have already done all the fence waiting.
-	 */
-	pm_runtime_get_sync(&gpu->pdev->dev);
+		goto out;
 
 	/* copy_*_user while holding a ww ticket upsets lockdep */
 	ww_acquire_init(&submit->ticket, &reservation_ww_class);
@@ -869,12 +870,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
-	submit->fence = msm_fence_alloc(ring->fctx);
-	if (IS_ERR(submit->fence)) {
-		ret = PTR_ERR(submit->fence);
-		submit->fence = NULL;
-		goto out;
-	}
+	submit->user_fence = dma_fence_get(&submit->base.s_fence->finished);
 
 	/*
 	 * Allocate an id which can be used by WAIT_FENCE ioctl to map back
@@ -882,7 +878,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 */
 	mutex_lock(&queue->lock);
 	submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
-			submit->fence, 0, INT_MAX, GFP_KERNEL);
+			submit->user_fence, 0, INT_MAX, GFP_KERNEL);
 	mutex_unlock(&queue->lock);
 	if (submit->fence_id < 0) {
 		ret = submit->fence_id = 0;
@@ -891,7 +887,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
-		struct sync_file *sync_file = sync_file_create(submit->fence);
+		struct sync_file *sync_file = sync_file_create(submit->user_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
 			goto out;
@@ -902,18 +898,19 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit_attach_object_fences(submit);
 
-	msm_gpu_submit(gpu, submit);
+	/* The scheduler owns a ref now: */
+	msm_gem_submit_get(submit);
+
+	drm_sched_entity_push_job(&submit->base, &queue->entity);
 
 	args->fence = submit->fence_id;
 
 	msm_reset_syncobjs(syncobjs_to_reset, args->nr_in_syncobjs);
 	msm_process_post_deps(post_deps, args->nr_out_syncobjs,
-	                      submit->fence);
+	                      submit->user_fence);
 
 
 out:
-	pm_runtime_put(&gpu->pdev->dev);
-out_pre_pm:
 	submit_cleanup(submit, !!ret);
 	if (has_ww_ticket)
 		ww_acquire_fini(&submit->ticket);

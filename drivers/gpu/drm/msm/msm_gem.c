@@ -804,41 +804,6 @@ void msm_gem_vunmap(struct drm_gem_object *obj)
 	msm_obj->vaddr = NULL;
 }
 
-/* must be called before _move_to_active().. */
-int msm_gem_sync_object(struct drm_gem_object *obj,
-		struct msm_fence_context *fctx, bool exclusive)
-{
-	struct dma_resv_list *fobj;
-	struct dma_fence *fence;
-	int i, ret;
-
-	fobj = dma_resv_shared_list(obj->resv);
-	if (!fobj || (fobj->shared_count == 0)) {
-		fence = dma_resv_excl_fence(obj->resv);
-		/* don't need to wait on our own fences, since ring is fifo */
-		if (fence && (fence->context != fctx->context)) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	if (!exclusive || !fobj)
-		return 0;
-
-	for (i = 0; i < fobj->shared_count; i++) {
-		fence = rcu_dereference_protected(fobj->shared[i],
-						dma_resv_held(obj->resv));
-		if (fence->context != fctx->context) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-
 void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);

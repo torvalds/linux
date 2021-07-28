@@ -14,6 +14,8 @@ void msm_submitqueue_destroy(struct kref *kref)
 
 	idr_destroy(&queue->fence_idr);
 
+	drm_sched_entity_destroy(&queue->entity);
+
 	msm_file_private_put(queue->ctx);
 
 	kfree(queue);
@@ -64,6 +66,9 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 {
 	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu_submitqueue *queue;
+	struct msm_ringbuffer *ring;
+	struct drm_gpu_scheduler *sched;
+	int ret;
 
 	if (!ctx)
 		return -ENODEV;
@@ -82,6 +87,27 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	kref_init(&queue->ref);
 	queue->flags = flags;
 	queue->prio = prio;
+
+	ring = priv->gpu->rb[prio];
+	sched = &ring->sched;
+
+	/*
+	 * TODO we can allow more priorities than we have ringbuffers by
+	 * mapping:
+	 *
+	 *    ring = prio / 3;
+	 *    ent_prio = DRM_SCHED_PRIORITY_MIN + (prio % 3);
+	 *
+	 * Probably avoid using DRM_SCHED_PRIORITY_KERNEL as that is
+	 * treated specially in places.
+	 */
+	ret = drm_sched_entity_init(&queue->entity,
+			DRM_SCHED_PRIORITY_NORMAL,
+			&sched, 1, NULL);
+	if (ret) {
+		kfree(queue);
+		return ret;
+	}
 
 	write_lock(&ctx->queuelock);
 

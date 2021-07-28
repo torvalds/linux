@@ -9,6 +9,7 @@
 
 #include <linux/kref.h>
 #include <linux/dma-resv.h>
+#include "drm/gpu_scheduler.h"
 #include "msm_drv.h"
 
 /* Make all GEM related WARN_ON()s ratelimited.. when things go wrong they
@@ -143,8 +144,6 @@ void *msm_gem_get_vaddr_active(struct drm_gem_object *obj);
 void msm_gem_put_vaddr_locked(struct drm_gem_object *obj);
 void msm_gem_put_vaddr(struct drm_gem_object *obj);
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
-int msm_gem_sync_object(struct drm_gem_object *obj,
-		struct msm_fence_context *fctx, bool exclusive);
 void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu);
 void msm_gem_active_put(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout);
@@ -311,6 +310,7 @@ void msm_gem_vunmap(struct drm_gem_object *obj);
  * make it easier to unwind when things go wrong, etc).
  */
 struct msm_gem_submit {
+	struct drm_sched_job base;
 	struct kref ref;
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
@@ -319,7 +319,22 @@ struct msm_gem_submit {
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */
-	struct dma_fence *fence;
+
+	/* Array of struct dma_fence * to block on before submitting this job.
+	 */
+	struct xarray deps;
+	unsigned long last_dep;
+
+	/* Hw fence, which is created when the scheduler executes the job, and
+	 * is signaled when the hw finishes (via seqno write from cmdstream)
+	 */
+	struct dma_fence *hw_fence;
+
+	/* Userspace visible fence, which is signaled by the scheduler after
+	 * the hw_fence is signaled.
+	 */
+	struct dma_fence *user_fence;
+
 	int fence_id;       /* key into queue->fence_idr */
 	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
@@ -349,6 +364,11 @@ struct msm_gem_submit {
 		uint64_t iova;
 	} bos[];
 };
+
+static inline struct msm_gem_submit *to_msm_submit(struct drm_sched_job *job)
+{
+	return container_of(job, struct msm_gem_submit, base);
+}
 
 void __msm_gem_submit_destroy(struct kref *kref);
 

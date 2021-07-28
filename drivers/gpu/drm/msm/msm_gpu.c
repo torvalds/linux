@@ -176,8 +176,8 @@ static void update_fences(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 			break;
 
 		msm_update_fence(submit->ring->fctx,
-			submit->fence->seqno);
-		dma_fence_signal(submit->fence);
+			submit->hw_fence->seqno);
+		dma_fence_signal(submit->hw_fence);
 	}
 	spin_unlock_irqrestore(&ring->submit_lock, flags);
 }
@@ -380,10 +380,6 @@ static void recover_worker(struct kthread_work *work)
 			put_task_struct(task);
 		}
 
-		/* msm_rd_dump_submit() needs bo locked to dump: */
-		for (i = 0; i < submit->nr_bos; i++)
-			msm_gem_lock(&submit->bos[i].obj->base);
-
 		if (comm && cmd) {
 			DRM_DEV_ERROR(dev->dev, "%s: offending task: %s (%s)\n",
 				gpu->name, comm, cmd);
@@ -393,9 +389,6 @@ static void recover_worker(struct kthread_work *work)
 		} else {
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 		}
-
-		for (i = 0; i < submit->nr_bos; i++)
-			msm_gem_unlock(&submit->bos[i].obj->base);
 	}
 
 	/* Record the crash state */
@@ -704,7 +697,7 @@ static void retire_submits(struct msm_gpu *gpu)
 			 * been signalled, then later submits are not signalled
 			 * either, so we are also done.
 			 */
-			if (submit && dma_fence_is_signaled(submit->fence)) {
+			if (submit && dma_fence_is_signaled(submit->hw_fence)) {
 				retire_submit(gpu, ring, submit);
 			} else {
 				break;

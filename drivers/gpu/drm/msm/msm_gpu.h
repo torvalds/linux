@@ -267,6 +267,7 @@ struct msm_gpu_perfcntr {
  *             seqno, protected by submitqueue lock
  * @lock:      submitqueue lock
  * @ref:       reference count
+ * @entity: the submit job-queue
  */
 struct msm_gpu_submitqueue {
 	int id;
@@ -278,6 +279,7 @@ struct msm_gpu_submitqueue {
 	struct idr fence_idr;
 	struct mutex lock;
 	struct kref ref;
+	struct drm_sched_entity entity;
 };
 
 struct msm_gpu_state_bo {
