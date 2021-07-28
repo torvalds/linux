@@ -70,11 +70,6 @@ MODULE_FIRMWARE(TGL_DMC_PATH);
 #define ICL_DMC_MAX_FW_SIZE		0x6000
 MODULE_FIRMWARE(ICL_DMC_PATH);
 
-#define CNL_DMC_PATH			DMC_PATH(cnl, 1, 07)
-#define CNL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
-#define CNL_DMC_MAX_FW_SIZE		GLK_DMC_MAX_FW_SIZE
-MODULE_FIRMWARE(CNL_DMC_PATH);
-
 #define GLK_DMC_PATH			DMC_PATH(glk, 1, 04)
 #define GLK_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
 #define GLK_DMC_MAX_FW_SIZE		0x4000
@@ -718,10 +713,6 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 		dmc->fw_path = ICL_DMC_PATH;
 		dmc->required_version = ICL_DMC_VERSION_REQUIRED;
 		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		dmc->fw_path = CNL_DMC_PATH;
-		dmc->required_version = CNL_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = CNL_DMC_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		dmc->fw_path = GLK_DMC_PATH;
 		dmc->required_version = GLK_DMC_VERSION_REQUIRED;
