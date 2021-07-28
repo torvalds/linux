@@ -104,7 +104,7 @@ int closids_supported(void)
 static void closid_init(void)
 {
 	struct resctrl_schema *s;
-	int rdt_min_closid = 32;
+	u32 rdt_min_closid = 32;
 
 	/* Compute rdt_min_closid across all resources */
 	list_for_each_entry(s, &resctrl_schema_all, list)
@@ -2134,7 +2134,7 @@ static int schemata_list_create(void)
 
 		s->res = r;
 		s->conf_type = resctrl_to_arch_res(r)->conf_type;
-		s->num_closid = resctrl_to_arch_res(r)->num_closid;
+		s->num_closid = resctrl_arch_get_num_closid(r);
 
 		INIT_LIST_HEAD(&s->list);
 		list_add(&s->list, &resctrl_schema_all);
