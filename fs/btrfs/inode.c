@@ -1962,6 +1962,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		ret = cow_file_range_async(inode, wbc, locked_page, start, end,
 					   page_started, nr_written);
 	}
+	ASSERT(ret <= 0);
 	if (ret)
 		btrfs_cleanup_ordered_extents(inode, locked_page, start,
 					      end - start + 1);

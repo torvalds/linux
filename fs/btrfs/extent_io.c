@@ -3803,13 +3803,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		if (ret) {
 			btrfs_page_set_error(inode->root->fs_info, page,
 					     page_offset(page), PAGE_SIZE);
-			/*
-			 * btrfs_run_delalloc_range should return < 0 for error
-			 * but just in case, we use > 0 here meaning the IO is
-			 * started, so we don't want to return > 0 unless
-			 * things are going well.
-			 */
-			return ret < 0 ? ret : -EIO;
+			return ret;
 		}
 		/*
 		 * delalloc_end is already one less than the total length, so
