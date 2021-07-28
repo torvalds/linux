@@ -25,7 +25,6 @@
 #include <linux/capability.h>
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/sched.h>
@@ -60,11 +59,13 @@
 #define I8K_POWER_AC		0x05
 #define I8K_POWER_BATTERY	0x01
 
+#define DELL_SMM_NO_TEMP	10
+#define DELL_SMM_NO_FANS	3
+
 struct dell_smm_data {
 	struct mutex i8k_mutex; /* lock for sensors writes */
 	char bios_version[4];
 	char bios_machineid[16];
-	u32 i8k_hwmon_flags;
 	uint i8k_fan_mult;
 	uint i8k_pwm_mult;
 	uint i8k_fan_max;
@@ -72,22 +73,10 @@ struct dell_smm_data {
 	bool disallow_fan_support;
 	unsigned int manual_fan;
 	unsigned int auto_fan;
-	int types[3];
+	int temp_type[DELL_SMM_NO_TEMP];
+	bool fan[DELL_SMM_NO_FANS];
+	int fan_type[DELL_SMM_NO_FANS];
 };
-
-#define I8K_HWMON_HAVE_TEMP1	(1 << 0)
-#define I8K_HWMON_HAVE_TEMP2	(1 << 1)
-#define I8K_HWMON_HAVE_TEMP3	(1 << 2)
-#define I8K_HWMON_HAVE_TEMP4	(1 << 3)
-#define I8K_HWMON_HAVE_TEMP5	(1 << 4)
-#define I8K_HWMON_HAVE_TEMP6	(1 << 5)
-#define I8K_HWMON_HAVE_TEMP7	(1 << 6)
-#define I8K_HWMON_HAVE_TEMP8	(1 << 7)
-#define I8K_HWMON_HAVE_TEMP9	(1 << 8)
-#define I8K_HWMON_HAVE_TEMP10	(1 << 9)
-#define I8K_HWMON_HAVE_FAN1	(1 << 10)
-#define I8K_HWMON_HAVE_FAN2	(1 << 11)
-#define I8K_HWMON_HAVE_FAN3	(1 << 12)
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
 MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
@@ -128,6 +117,33 @@ struct smm_regs {
 	unsigned int edx __packed;
 	unsigned int esi __packed;
 	unsigned int edi __packed;
+};
+
+static const char * const temp_labels[] = {
+	"CPU",
+	"GPU",
+	"SODIMM",
+	"Other",
+	"Ambient",
+	"Other",
+};
+
+static const char * const fan_labels[] = {
+	"Processor Fan",
+	"Motherboard Fan",
+	"Video Fan",
+	"Power Supply Fan",
+	"Chipset Fan",
+	"Other Fan",
+};
+
+static const char * const docking_labels[] = {
+	"Docking Processor Fan",
+	"Docking Motherboard Fan",
+	"Docking Video Fan",
+	"Docking Power Supply Fan",
+	"Docking Chipset Fan",
+	"Docking Other Fan",
 };
 
 static inline const char __init *i8k_get_dmi_data(int field)
@@ -284,10 +300,10 @@ static int _i8k_get_fan_type(const struct dell_smm_data *data, int fan)
 static int i8k_get_fan_type(struct dell_smm_data *data, int fan)
 {
 	/* I8K_SMM_GET_FAN_TYPE SMM call is expensive, so cache values */
-	if (data->types[fan] == INT_MIN)
-		data->types[fan] = _i8k_get_fan_type(data, fan);
+	if (data->fan_type[fan] == INT_MIN)
+		data->fan_type[fan] = _i8k_get_fan_type(data, fan);
 
-	return data->types[fan];
+	return data->fan_type[fan];
 }
 
 /*
@@ -334,7 +350,7 @@ static int i8k_set_fan(const struct dell_smm_data *data, int fan, int speed)
 	return i8k_smm(&regs) ? : i8k_get_fan_status(data, fan);
 }
 
-static int i8k_get_temp_type(int sensor)
+static int __init i8k_get_temp_type(int sensor)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_TEMP_TYPE, };
 
@@ -634,343 +650,299 @@ static void __init i8k_init_procfs(struct device *dev)
  * Hwmon interface
  */
 
-static ssize_t i8k_hwmon_temp_label_show(struct device *dev,
-					 struct device_attribute *devattr,
-					 char *buf)
+static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
+				   int channel)
 {
-	static const char * const labels[] = {
-		"CPU",
-		"GPU",
-		"SODIMM",
-		"Other",
-		"Ambient",
-		"Other",
-	};
-	int index = to_sensor_dev_attr(devattr)->index;
-	int type;
+	const struct dell_smm_data *data = drvdata;
 
-	type = i8k_get_temp_type(index);
-	if (type < 0)
-		return type;
-	if (type >= ARRAY_SIZE(labels))
-		type = ARRAY_SIZE(labels) - 1;
-	return sprintf(buf, "%s\n", labels[type]);
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+		case hwmon_temp_label:
+			if (data->temp_type[channel] >= 0)
+				return 0444;
+
+			break;
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		if (data->disallow_fan_support)
+			break;
+
+		switch (attr) {
+		case hwmon_fan_input:
+			if (data->fan[channel])
+				return 0444;
+
+			break;
+		case hwmon_fan_label:
+			if (data->fan[channel] && !data->disallow_fan_type_call)
+				return 0444;
+
+			break;
+		default:
+			break;
+		}
+		break;
+	case hwmon_pwm:
+		if (data->disallow_fan_support)
+			break;
+
+		switch (attr) {
+		case hwmon_pwm_input:
+			if (data->fan[channel])
+				return 0644;
+
+			break;
+		case hwmon_pwm_enable:
+			if (data->auto_fan)
+				/*
+				 * There is no command for retrieve the current status
+				 * from BIOS, and userspace/firmware itself can change
+				 * it.
+				 * Thus we can only provide write-only access for now.
+				 */
+				return 0200;
+
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
-static ssize_t i8k_hwmon_temp_show(struct device *dev,
-				   struct device_attribute *devattr,
-				   char *buf)
-{
-	int index = to_sensor_dev_attr(devattr)->index;
-	int temp;
-
-	temp = i8k_get_temp(index);
-	if (temp < 0)
-		return temp;
-	return sprintf(buf, "%d\n", temp * 1000);
-}
-
-static ssize_t i8k_hwmon_fan_label_show(struct device *dev,
-					struct device_attribute *devattr,
-					char *buf)
+static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
+			 long *val)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
-	static const char * const labels[] = {
-		"Processor Fan",
-		"Motherboard Fan",
-		"Video Fan",
-		"Power Supply Fan",
-		"Chipset Fan",
-		"Other Fan",
-	};
-	int index = to_sensor_dev_attr(devattr)->index;
-	bool dock = false;
-	int type;
+	int ret;
 
-	type = i8k_get_fan_type(data, index);
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+			ret = i8k_get_temp(channel);
+			if (ret < 0)
+				return ret;
+
+			*val = ret * 1000;
+
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		switch (attr) {
+		case hwmon_fan_input:
+			ret = i8k_get_fan_speed(data, channel);
+			if (ret < 0)
+				return ret;
+
+			*val = ret;
+
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_input:
+			ret = i8k_get_fan_status(data, channel);
+			if (ret < 0)
+				return ret;
+
+			*val = clamp_val(ret * data->i8k_pwm_mult, 0, 255);
+
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static const char *dell_smm_fan_label(struct dell_smm_data *data, int channel)
+{
+	bool dock = false;
+	int type = i8k_get_fan_type(data, channel);
+
 	if (type < 0)
-		return type;
+		return ERR_PTR(type);
 
 	if (type & 0x10) {
 		dock = true;
 		type &= 0x0F;
 	}
 
-	if (type >= ARRAY_SIZE(labels))
-		type = (ARRAY_SIZE(labels) - 1);
+	if (type >= ARRAY_SIZE(fan_labels))
+		type = ARRAY_SIZE(fan_labels) - 1;
 
-	return sprintf(buf, "%s%s\n", (dock ? "Docking " : ""), labels[type]);
+	return dock ? docking_labels[type] : fan_labels[type];
 }
 
-static ssize_t i8k_hwmon_fan_show(struct device *dev,
-				  struct device_attribute *devattr, char *buf)
+static int dell_smm_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+				int channel, const char **str)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(devattr)->index;
-	int fan_speed;
 
-	fan_speed = i8k_get_fan_speed(data, index);
-	if (fan_speed < 0)
-		return fan_speed;
-	return sprintf(buf, "%d\n", fan_speed);
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_label:
+			*str = temp_labels[data->temp_type[channel]];
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		switch (attr) {
+		case hwmon_fan_label:
+			*str = dell_smm_fan_label(data, channel);
+			return PTR_ERR_OR_ZERO(*str);
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
-static ssize_t i8k_hwmon_pwm_show(struct device *dev,
-				  struct device_attribute *devattr, char *buf)
+static int dell_smm_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
+			  long val)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(devattr)->index;
-	int status;
-
-	status = i8k_get_fan_status(data, index);
-	if (status < 0)
-		return -EIO;
-	return sprintf(buf, "%d\n", clamp_val(status * data->i8k_pwm_mult, 0, 255));
-}
-
-static ssize_t i8k_hwmon_pwm_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	struct dell_smm_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	unsigned long val;
-	int err;
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-	val = clamp_val(DIV_ROUND_CLOSEST(val, data->i8k_pwm_mult), 0, data->i8k_fan_max);
-
-	mutex_lock(&data->i8k_mutex);
-	err = i8k_set_fan(data, index, val);
-	mutex_unlock(&data->i8k_mutex);
-
-	return err < 0 ? -EIO : count;
-}
-
-static ssize_t i8k_hwmon_pwm_enable_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-	struct dell_smm_data *data = dev_get_drvdata(dev);
-	int err;
+	unsigned long pwm;
 	bool enable;
-	unsigned long val;
+	int err;
 
-	if (!data->auto_fan)
-		return -ENODEV;
+	switch (type) {
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_input:
+			pwm = clamp_val(DIV_ROUND_CLOSEST(val, data->i8k_pwm_mult), 0,
+					data->i8k_fan_max);
 
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
+			mutex_lock(&data->i8k_mutex);
+			err = i8k_set_fan(data, channel, pwm);
+			mutex_unlock(&data->i8k_mutex);
 
-	if (val == 1)
-		enable = false;
-	else if (val == 2)
-		enable = true;
-	else
-		return -EINVAL;
+			if (err < 0)
+				return err;
 
-	mutex_lock(&data->i8k_mutex);
-	err = i8k_enable_fan_auto_mode(data, enable);
-	mutex_unlock(&data->i8k_mutex);
+			return 0;
+		case hwmon_pwm_enable:
+			if (!val)
+				return -EINVAL;
 
-	return err ? err : count;
+			if (val == 1)
+				enable = false;
+			else
+				enable = true;
+
+			mutex_lock(&data->i8k_mutex);
+			err = i8k_enable_fan_auto_mode(data, enable);
+			mutex_unlock(&data->i8k_mutex);
+
+			if (err < 0)
+				return err;
+
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
-static SENSOR_DEVICE_ATTR_RO(temp1_input, i8k_hwmon_temp, 0);
-static SENSOR_DEVICE_ATTR_RO(temp1_label, i8k_hwmon_temp_label, 0);
-static SENSOR_DEVICE_ATTR_RO(temp2_input, i8k_hwmon_temp, 1);
-static SENSOR_DEVICE_ATTR_RO(temp2_label, i8k_hwmon_temp_label, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_input, i8k_hwmon_temp, 2);
-static SENSOR_DEVICE_ATTR_RO(temp3_label, i8k_hwmon_temp_label, 2);
-static SENSOR_DEVICE_ATTR_RO(temp4_input, i8k_hwmon_temp, 3);
-static SENSOR_DEVICE_ATTR_RO(temp4_label, i8k_hwmon_temp_label, 3);
-static SENSOR_DEVICE_ATTR_RO(temp5_input, i8k_hwmon_temp, 4);
-static SENSOR_DEVICE_ATTR_RO(temp5_label, i8k_hwmon_temp_label, 4);
-static SENSOR_DEVICE_ATTR_RO(temp6_input, i8k_hwmon_temp, 5);
-static SENSOR_DEVICE_ATTR_RO(temp6_label, i8k_hwmon_temp_label, 5);
-static SENSOR_DEVICE_ATTR_RO(temp7_input, i8k_hwmon_temp, 6);
-static SENSOR_DEVICE_ATTR_RO(temp7_label, i8k_hwmon_temp_label, 6);
-static SENSOR_DEVICE_ATTR_RO(temp8_input, i8k_hwmon_temp, 7);
-static SENSOR_DEVICE_ATTR_RO(temp8_label, i8k_hwmon_temp_label, 7);
-static SENSOR_DEVICE_ATTR_RO(temp9_input, i8k_hwmon_temp, 8);
-static SENSOR_DEVICE_ATTR_RO(temp9_label, i8k_hwmon_temp_label, 8);
-static SENSOR_DEVICE_ATTR_RO(temp10_input, i8k_hwmon_temp, 9);
-static SENSOR_DEVICE_ATTR_RO(temp10_label, i8k_hwmon_temp_label, 9);
-static SENSOR_DEVICE_ATTR_RO(fan1_input, i8k_hwmon_fan, 0);
-static SENSOR_DEVICE_ATTR_RO(fan1_label, i8k_hwmon_fan_label, 0);
-static SENSOR_DEVICE_ATTR_RW(pwm1, i8k_hwmon_pwm, 0);
-static SENSOR_DEVICE_ATTR_WO(pwm1_enable, i8k_hwmon_pwm_enable, 0);
-static SENSOR_DEVICE_ATTR_RO(fan2_input, i8k_hwmon_fan, 1);
-static SENSOR_DEVICE_ATTR_RO(fan2_label, i8k_hwmon_fan_label, 1);
-static SENSOR_DEVICE_ATTR_RW(pwm2, i8k_hwmon_pwm, 1);
-static SENSOR_DEVICE_ATTR_RO(fan3_input, i8k_hwmon_fan, 2);
-static SENSOR_DEVICE_ATTR_RO(fan3_label, i8k_hwmon_fan_label, 2);
-static SENSOR_DEVICE_ATTR_RW(pwm3, i8k_hwmon_pwm, 2);
+static const struct hwmon_ops dell_smm_ops = {
+	.is_visible = dell_smm_is_visible,
+	.read = dell_smm_read,
+	.read_string = dell_smm_read_string,
+	.write = dell_smm_write,
+};
 
-static struct attribute *i8k_attrs[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,	/* 0 */
-	&sensor_dev_attr_temp1_label.dev_attr.attr,	/* 1 */
-	&sensor_dev_attr_temp2_input.dev_attr.attr,	/* 2 */
-	&sensor_dev_attr_temp2_label.dev_attr.attr,	/* 3 */
-	&sensor_dev_attr_temp3_input.dev_attr.attr,	/* 4 */
-	&sensor_dev_attr_temp3_label.dev_attr.attr,	/* 5 */
-	&sensor_dev_attr_temp4_input.dev_attr.attr,	/* 6 */
-	&sensor_dev_attr_temp4_label.dev_attr.attr,	/* 7 */
-	&sensor_dev_attr_temp5_input.dev_attr.attr,	/* 8 */
-	&sensor_dev_attr_temp5_label.dev_attr.attr,	/* 9 */
-	&sensor_dev_attr_temp6_input.dev_attr.attr,	/* 10 */
-	&sensor_dev_attr_temp6_label.dev_attr.attr,	/* 11 */
-	&sensor_dev_attr_temp7_input.dev_attr.attr,	/* 12 */
-	&sensor_dev_attr_temp7_label.dev_attr.attr,	/* 13 */
-	&sensor_dev_attr_temp8_input.dev_attr.attr,	/* 14 */
-	&sensor_dev_attr_temp8_label.dev_attr.attr,	/* 15 */
-	&sensor_dev_attr_temp9_input.dev_attr.attr,	/* 16 */
-	&sensor_dev_attr_temp9_label.dev_attr.attr,	/* 17 */
-	&sensor_dev_attr_temp10_input.dev_attr.attr,	/* 18 */
-	&sensor_dev_attr_temp10_label.dev_attr.attr,	/* 19 */
-	&sensor_dev_attr_fan1_input.dev_attr.attr,	/* 20 */
-	&sensor_dev_attr_fan1_label.dev_attr.attr,	/* 21 */
-	&sensor_dev_attr_pwm1.dev_attr.attr,		/* 22 */
-	&sensor_dev_attr_pwm1_enable.dev_attr.attr,	/* 23 */
-	&sensor_dev_attr_fan2_input.dev_attr.attr,	/* 24 */
-	&sensor_dev_attr_fan2_label.dev_attr.attr,	/* 25 */
-	&sensor_dev_attr_pwm2.dev_attr.attr,		/* 26 */
-	&sensor_dev_attr_fan3_input.dev_attr.attr,	/* 27 */
-	&sensor_dev_attr_fan3_label.dev_attr.attr,	/* 28 */
-	&sensor_dev_attr_pwm3.dev_attr.attr,		/* 29 */
+static const struct hwmon_channel_info *dell_smm_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL
+			   ),
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL
+			   ),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT,
+			   HWMON_PWM_INPUT
+			   ),
 	NULL
 };
 
-static umode_t i8k_is_visible(struct kobject *kobj, struct attribute *attr,
-			      int index)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct dell_smm_data *data = dev_get_drvdata(dev);
-
-	if (data->disallow_fan_support && index >= 20)
-		return 0;
-	if (data->disallow_fan_type_call &&
-	    (index == 21 || index == 25 || index == 28))
-		return 0;
-	if (index >= 0 && index <= 1 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP1))
-		return 0;
-	if (index >= 2 && index <= 3 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP2))
-		return 0;
-	if (index >= 4 && index <= 5 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP3))
-		return 0;
-	if (index >= 6 && index <= 7 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP4))
-		return 0;
-	if (index >= 8 && index <= 9 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP5))
-		return 0;
-	if (index >= 10 && index <= 11 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP6))
-		return 0;
-	if (index >= 12 && index <= 13 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP7))
-		return 0;
-	if (index >= 14 && index <= 15 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP8))
-		return 0;
-	if (index >= 16 && index <= 17 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP9))
-		return 0;
-	if (index >= 18 && index <= 19 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP10))
-		return 0;
-
-	if (index >= 20 && index <= 23 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_FAN1))
-		return 0;
-	if (index >= 24 && index <= 26 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_FAN2))
-		return 0;
-	if (index >= 27 && index <= 29 &&
-	    !(data->i8k_hwmon_flags & I8K_HWMON_HAVE_FAN3))
-		return 0;
-
-	if (index == 23 && !data->auto_fan)
-		return 0;
-
-	return attr->mode;
-}
-
-static const struct attribute_group i8k_group = {
-	.attrs = i8k_attrs,
-	.is_visible = i8k_is_visible,
+static const struct hwmon_chip_info dell_smm_chip_info = {
+	.ops = &dell_smm_ops,
+	.info = dell_smm_info,
 };
-__ATTRIBUTE_GROUPS(i8k);
 
 static int __init dell_smm_init_hwmon(struct device *dev)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
-	struct device *i8k_hwmon_dev;
-	int err;
+	struct device *dell_smm_hwmon_dev;
+	int i, err;
 
-	/* CPU temperature attributes, if temperature type is OK */
-	err = i8k_get_temp_type(0);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP1;
-	/* check for additional temperature sensors */
-	err = i8k_get_temp_type(1);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP2;
-	err = i8k_get_temp_type(2);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP3;
-	err = i8k_get_temp_type(3);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP4;
-	err = i8k_get_temp_type(4);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP5;
-	err = i8k_get_temp_type(5);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP6;
-	err = i8k_get_temp_type(6);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP7;
-	err = i8k_get_temp_type(7);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP8;
-	err = i8k_get_temp_type(8);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP9;
-	err = i8k_get_temp_type(9);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP10;
+	for (i = 0; i < DELL_SMM_NO_TEMP; i++) {
+		data->temp_type[i] = i8k_get_temp_type(i);
+		if (data->temp_type[i] < 0)
+			continue;
 
-	/* First fan attributes, if fan status or type is OK */
-	err = i8k_get_fan_status(data, 0);
-	if (err < 0)
-		err = i8k_get_fan_type(data, 0);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN1;
+		if (data->temp_type[i] >= ARRAY_SIZE(temp_labels))
+			data->temp_type[i] = ARRAY_SIZE(temp_labels) - 1;
+	}
 
-	/* Second fan attributes, if fan status or type is OK */
-	err = i8k_get_fan_status(data, 1);
-	if (err < 0)
-		err = i8k_get_fan_type(data, 1);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN2;
+	for (i = 0; i < DELL_SMM_NO_FANS; i++) {
+		data->fan_type[i] = INT_MIN;
+		err = i8k_get_fan_status(data, i);
+		if (err < 0)
+			err = i8k_get_fan_type(data, i);
+		if (err >= 0)
+			data->fan[i] = true;
+	}
 
-	/* Third fan attributes, if fan status or type is OK */
-	err = i8k_get_fan_status(data, 2);
-	if (err < 0)
-		err = i8k_get_fan_type(data, 2);
-	if (err >= 0)
-		data->i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN3;
+	dell_smm_hwmon_dev = devm_hwmon_device_register_with_info(dev, "dell_smm", data,
+								  &dell_smm_chip_info, NULL);
 
-	i8k_hwmon_dev = devm_hwmon_device_register_with_groups(dev, "dell_smm", data, i8k_groups);
-
-	return PTR_ERR_OR_ZERO(i8k_hwmon_dev);
+	return PTR_ERR_OR_ZERO(dell_smm_hwmon_dev);
 }
 
 struct i8k_config_data {
@@ -1240,9 +1212,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	mutex_init(&data->i8k_mutex);
 	data->i8k_fan_mult = I8K_FAN_MULT;
 	data->i8k_fan_max = I8K_FAN_HIGH;
-	data->types[0] = INT_MIN;
-	data->types[1] = INT_MIN;
-	data->types[2] = INT_MIN;
 	platform_set_drvdata(pdev, data);
 
 	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
