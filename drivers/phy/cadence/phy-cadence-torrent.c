@@ -26,11 +26,13 @@
 
 #define REF_CLK_19_2MHZ		19200000
 #define REF_CLK_25MHZ		25000000
+#define REF_CLK_100MHZ		100000000
 
 #define MAX_NUM_LANES		4
 #define DEFAULT_MAX_BIT_RATE	8100 /* in Mbps */
 
 #define NUM_SSC_MODE		3
+#define NUM_REF_CLK		3
 #define NUM_PHY_TYPE		6
 
 #define POLL_TIMEOUT_US		5000
@@ -273,6 +275,12 @@ enum cdns_torrent_phy_type {
 	TYPE_USB,
 };
 
+enum cdns_torrent_ref_clk {
+	CLK_19_2_MHZ,
+	CLK_25_MHZ,
+	CLK_100_MHZ
+};
+
 enum cdns_torrent_ssc_mode {
 	NO_SSC,
 	EXTERNAL_SSC,
@@ -296,7 +304,7 @@ struct cdns_torrent_phy {
 	struct reset_control *apb_rst;
 	struct device *dev;
 	struct clk *clk;
-	unsigned long ref_clk_rate;
+	enum cdns_torrent_ref_clk ref_clk_rate;
 	struct cdns_torrent_inst phys[MAX_NUM_LANES];
 	int nsubnodes;
 	const struct cdns_torrent_data *init_data;
@@ -960,10 +968,10 @@ static void cdns_torrent_dp_pma_lane_cfg(struct cdns_torrent_phy *cdns_phy,
 					 unsigned int lane)
 {
 	/* Per lane, refclock-dependent receiver detection setting */
-	if (cdns_phy->ref_clk_rate == REF_CLK_19_2MHZ)
+	if (cdns_phy->ref_clk_rate == CLK_19_2_MHZ)
 		cdns_torrent_phy_write(cdns_phy->regmap_tx_lane_cdb[lane],
 				       TX_RCVDET_ST_TMR, 0x0780);
-	else if (cdns_phy->ref_clk_rate == REF_CLK_25MHZ)
+	else if (cdns_phy->ref_clk_rate == CLK_25_MHZ)
 		cdns_torrent_phy_write(cdns_phy->regmap_tx_lane_cdb[lane],
 				       TX_RCVDET_ST_TMR, 0x09C4);
 
@@ -1004,10 +1012,10 @@ static void cdns_torrent_dp_pma_cfg(struct cdns_torrent_phy *cdns_phy,
 {
 	unsigned int i;
 
-	if (cdns_phy->ref_clk_rate == REF_CLK_19_2MHZ)
+	if (cdns_phy->ref_clk_rate == CLK_19_2_MHZ)
 		/* PMA common configuration 19.2MHz */
 		cdns_torrent_dp_pma_cmn_cfg_19_2mhz(cdns_phy);
-	else if (cdns_phy->ref_clk_rate == REF_CLK_25MHZ)
+	else if (cdns_phy->ref_clk_rate == CLK_25_MHZ)
 		/* PMA common configuration 25MHz */
 		cdns_torrent_dp_pma_cmn_cfg_25mhz(cdns_phy);
 
@@ -1254,12 +1262,12 @@ static int cdns_torrent_dp_configure_rate(struct cdns_torrent_phy *cdns_phy,
 	ndelay(200);
 
 	/* DP Rate Change - VCO Output settings. */
-	if (cdns_phy->ref_clk_rate == REF_CLK_19_2MHZ) {
+	if (cdns_phy->ref_clk_rate == CLK_19_2_MHZ) {
 		/* PMA common configuration 19.2MHz */
 		cdns_torrent_dp_pma_cmn_vco_cfg_19_2mhz(cdns_phy, dp->link_rate,
 							dp->ssc);
 		cdns_torrent_dp_pma_cmn_cfg_19_2mhz(cdns_phy);
-	} else if (cdns_phy->ref_clk_rate == REF_CLK_25MHZ) {
+	} else if (cdns_phy->ref_clk_rate == CLK_25_MHZ) {
 		/* PMA common configuration 25MHz */
 		cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(cdns_phy, dp->link_rate,
 						      dp->ssc);
@@ -1602,8 +1610,8 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	struct regmap *regmap = cdns_phy->regmap_dptx_phy_reg;
 
 	switch (cdns_phy->ref_clk_rate) {
-	case REF_CLK_19_2MHZ:
-	case REF_CLK_25MHZ:
+	case CLK_19_2_MHZ:
+	case CLK_25_MHZ:
 		/* Valid Ref Clock Rate */
 		break;
 	default:
@@ -1635,11 +1643,11 @@ static int cdns_torrent_dp_init(struct phy *phy)
 
 	/* PHY PMA registers configuration functions */
 	/* Initialize PHY with max supported link rate, without SSC. */
-	if (cdns_phy->ref_clk_rate == REF_CLK_19_2MHZ)
+	if (cdns_phy->ref_clk_rate == CLK_19_2_MHZ)
 		cdns_torrent_dp_pma_cmn_vco_cfg_19_2mhz(cdns_phy,
 							cdns_phy->max_bit_rate,
 							false);
-	else if (cdns_phy->ref_clk_rate == REF_CLK_25MHZ)
+	else if (cdns_phy->ref_clk_rate == CLK_25_MHZ)
 		cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(cdns_phy,
 						      cdns_phy->max_bit_rate,
 						      false);
@@ -2255,6 +2263,7 @@ static int cdns_torrent_reset(struct cdns_torrent_phy *cdns_phy)
 static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 {
 	struct device *dev = cdns_phy->dev;
+	unsigned long ref_clk_rate;
 	int ret;
 
 	cdns_phy->clk = devm_clk_get(dev, "refclk");
@@ -2269,9 +2278,25 @@ static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 		return ret;
 	}
 
-	cdns_phy->ref_clk_rate = clk_get_rate(cdns_phy->clk);
-	if (!(cdns_phy->ref_clk_rate)) {
+	ref_clk_rate = clk_get_rate(cdns_phy->clk);
+	if (!ref_clk_rate) {
 		dev_err(cdns_phy->dev, "Failed to get ref clock rate\n");
+		clk_disable_unprepare(cdns_phy->clk);
+		return -EINVAL;
+	}
+
+	switch (ref_clk_rate) {
+	case REF_CLK_19_2MHZ:
+		cdns_phy->ref_clk_rate = CLK_19_2_MHZ;
+		break;
+	case REF_CLK_25MHZ:
+		cdns_phy->ref_clk_rate = CLK_25_MHZ;
+		break;
+	case REF_CLK_100MHZ:
+		cdns_phy->ref_clk_rate = CLK_100_MHZ;
+		break;
+	default:
+		dev_err(cdns_phy->dev, "Invalid Ref Clock Rate\n");
 		clk_disable_unprepare(cdns_phy->clk);
 		return -EINVAL;
 	}
