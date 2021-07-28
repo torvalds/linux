@@ -171,6 +171,7 @@ struct rdt_resource {
  * struct resctrl_schema - configuration abilities of a resource presented to
  *			   user-space
  * @list:	Member of resctrl_schema_all.
+ * @name:	The name to use in the "schemata" file.
  * @conf_type:	Whether this schema is specific to code/data.
  * @res:	The resource structure exported by the architecture to describe
  *		the hardware that is configured by this schema.
@@ -180,6 +181,7 @@ struct rdt_resource {
  */
 struct resctrl_schema {
 	struct list_head		list;
+	char				name[8];
 	enum resctrl_conf_type		conf_type;
 	struct rdt_resource		*res;
 	u32				num_closid;
