@@ -16,6 +16,18 @@ int proc_resctrl_show(struct seq_file *m,
 #endif
 
 /**
+ * enum resctrl_conf_type - The type of configuration.
+ * @CDP_NONE:	No prioritisation, both code and data are controlled or monitored.
+ * @CDP_CODE:	Configuration applies to instruction fetches.
+ * @CDP_DATA:	Configuration applies to reads and writes.
+ */
+enum resctrl_conf_type {
+	CDP_NONE,
+	CDP_CODE,
+	CDP_DATA,
+};
+
+/**
  * struct rdt_domain - group of CPUs sharing a resctrl resource
  * @list:		all instances of this resource
  * @id:			unique id for this instance
@@ -157,11 +169,13 @@ struct rdt_resource {
  * struct resctrl_schema - configuration abilities of a resource presented to
  *			   user-space
  * @list:	Member of resctrl_schema_all.
+ * @conf_type:	Whether this schema is specific to code/data.
  * @res:	The resource structure exported by the architecture to describe
  *		the hardware that is configured by this schema.
  */
 struct resctrl_schema {
 	struct list_head		list;
+	enum resctrl_conf_type		conf_type;
 	struct rdt_resource		*res;
 };
 #endif /* _RESCTRL_H */

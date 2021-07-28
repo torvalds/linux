@@ -2135,6 +2135,7 @@ static int schemata_list_create(void)
 			return -ENOMEM;
 
 		s->res = r;
+		s->conf_type = resctrl_to_arch_res(r)->conf_type;
 
 		INIT_LIST_HEAD(&s->list);
 		list_add(&s->list, &resctrl_schema_all);

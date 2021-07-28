@@ -62,6 +62,7 @@ mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m,
 struct rdt_hw_resource rdt_resources_all[] = {
 	[RDT_RESOURCE_L3] =
 	{
+		.conf_type			= CDP_NONE,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L3,
 			.name			= "L3",
@@ -81,6 +82,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L3DATA] =
 	{
+		.conf_type			= CDP_DATA,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L3DATA,
 			.name			= "L3DATA",
@@ -100,6 +102,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L3CODE] =
 	{
+		.conf_type			= CDP_CODE,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L3CODE,
 			.name			= "L3CODE",
@@ -119,6 +122,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L2] =
 	{
+		.conf_type			= CDP_NONE,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L2,
 			.name			= "L2",
@@ -138,6 +142,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L2DATA] =
 	{
+		.conf_type			= CDP_DATA,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L2DATA,
 			.name			= "L2DATA",
@@ -157,6 +162,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L2CODE] =
 	{
+		.conf_type			= CDP_CODE,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_L2CODE,
 			.name			= "L2CODE",
@@ -176,6 +182,7 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_MBA] =
 	{
+		.conf_type			= CDP_NONE,
 		.r_resctrl = {
 			.rid			= RDT_RESOURCE_MBA,
 			.name			= "MB",
