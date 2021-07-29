@@ -147,6 +147,12 @@ extern bool snd_usb_skip_validation;
  * QUIRK_FLAG_ITF_USB_DSD_DAC:
  *  Indicates the device is for ITF-USB DSD based DACs that need a vendor cmd
  *  to switch between PCM and native DSD mode
+ * QUIRK_FLAG_CTL_MSG_DELAY:
+ *  Add a delay of 20ms at each control message handling
+ * QUIRK_FLAG_CTL_MSG_DELAY_1M:
+ *  Add a delay of 1-2ms at each control message handling
+ * QUIRK_FLAG_CTL_MSG_DELAY_5M:
+ *  Add a delay of 5-6ms at each control message handling
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -157,5 +163,8 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_SKIP_CLOCK_SELECTOR	(1U << 5)
 #define QUIRK_FLAG_IGNORE_CLOCK_SOURCE	(1U << 6)
 #define QUIRK_FLAG_ITF_USB_DSD_DAC	(1U << 7)
+#define QUIRK_FLAG_CTL_MSG_DELAY	(1U << 8)
+#define QUIRK_FLAG_CTL_MSG_DELAY_1M	(1U << 9)
+#define QUIRK_FLAG_CTL_MSG_DELAY_5M	(1U << 10)
 
 #endif /* __USBAUDIO_H */

@@ -1593,57 +1593,14 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 {
 	struct snd_usb_audio *chip = dev_get_drvdata(&dev->dev);
 
-	if (!chip)
+	if (!chip || (requesttype & USB_TYPE_MASK) != USB_TYPE_CLASS)
 		return;
-	/*
-	 * "Playback Design" products need a 20ms delay after each
-	 * class compliant request
-	 */
-	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
-		msleep(20);
 
-	/*
-	 * "TEAC Corp." products need a 20ms delay after each
-	 * class compliant request
-	 */
-	if (USB_ID_VENDOR(chip->usb_id) == 0x0644 &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+	if (chip->quirk_flags & QUIRK_FLAG_CTL_MSG_DELAY)
 		msleep(20);
-
-	/* ITF-USB DSD based DACs functionality need a delay
-	 * after each class compliant request
-	 */
-	if ((chip->quirk_flags & QUIRK_FLAG_ITF_USB_DSD_DAC)
-	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
-		msleep(20);
-
-	/*
-	 * Plantronics headsets (C320, C320-M, etc) need a delay to avoid
-	 * random microhpone failures.
-	 */
-	if (USB_ID_VENDOR(chip->usb_id) == 0x047f &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
-		msleep(20);
-
-	/* Zoom R16/24, many Logitech(at least H650e/H570e/BCC950),
-	 * Jabra 550a, Kingston HyperX needs a tiny delay here,
-	 * otherwise requests like get/set frequency return
-	 * as failed despite actually succeeding.
-	 */
-	if ((chip->usb_id == USB_ID(0x1686, 0x00dd) ||
-	     USB_ID_VENDOR(chip->usb_id) == 0x046d  || /* Logitech */
-	     chip->usb_id == USB_ID(0x0b0e, 0x0349) ||
-	     chip->usb_id == USB_ID(0x0951, 0x16ad)) &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+	else if (chip->quirk_flags & QUIRK_FLAG_CTL_MSG_DELAY_1M)
 		usleep_range(1000, 2000);
-
-	/*
-	 * Samsung USBC Headset (AKG) need a tiny delay after each
-	 * class compliant request. (Model number: AAM625R or AAM627R)
-	 */
-	if (chip->usb_id == USB_ID(0x04e8, 0xa051) &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+	else if (chip->quirk_flags & QUIRK_FLAG_CTL_MSG_DELAY_5M)
 		usleep_range(5000, 6000);
 }
 
@@ -1868,11 +1825,11 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x041e, 0x4080, /* Creative Live Cam VF0610 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x046d, 0x084c, /* Logitech ConferenceCam Connect */
-		   QUIRK_FLAG_GET_SAMPLE_RATE),
+		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x04d8, 0xfeea, /* Benchmark DAC1 Pre */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x04e8, 0xa051, /* Samsung USBC Headset (AKG) */
-		   QUIRK_FLAG_SKIP_CLOCK_SELECTOR),
+		   QUIRK_FLAG_SKIP_CLOCK_SELECTOR | QUIRK_FLAG_CTL_MSG_DELAY_5M),
 	DEVICE_FLG(0x0556, 0x0014, /* Phoenix Audio TMX320VC */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x05a3, 0x9420, /* ELP HD USB Camera */
@@ -1884,31 +1841,35 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x05e1, 0x0480, /* Hauppauge Woodbury */
 		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x0644, 0x8043, /* TEAC UD-501/UD-501V2/UD-503/NT-503 */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x0644, 0x8044, /* Esoteric D-05X */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x0644, 0x804a, /* TEAC UD-301 */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x074d, 0x3553, /* Outlaw RR2150 (Micronas UAC3553B) */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x0951, 0x16ad, /* Kingston HyperX */
+		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
+	DEVICE_FLG(0x0b0e, 0x0349, /* Jabra 550a */
+		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x0fd9, 0x0008, /* Hauppauge HVR-950Q */
 		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x1395, 0x740a, /* Sennheiser DECT */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x154e, 0x1002, /* Denon DCD-1500RE */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x154e, 0x1003, /* Denon DA-300USB */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x154e, 0x3005, /* Marantz HD-DAC1 */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x154e, 0x3006, /* Marantz SA-14S1 */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x154e, 0x500e, /* Denon DN-X1600 */
 		   QUIRK_FLAG_IGNORE_CLOCK_SOURCE),
 	DEVICE_FLG(0x1686, 0x00dd, /* Zoom R16/24 */
-		   QUIRK_FLAG_TX_LENGTH),
+		   QUIRK_FLAG_TX_LENGTH | QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x1852, 0x5065, /* Luxman DA-06 */
-		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x1901, 0x0191, /* GE B850V3 CP2114 audio interface */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2040, 0x7200, /* Hauppauge HVR-950Q */
@@ -1953,10 +1914,16 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	/* Vendor matches */
 	VENDOR_FLG(0x045e, /* MS Lifecam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	VENDOR_FLG(0x046d, /* Logitech */
+		   QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	VENDOR_FLG(0x047f, /* Plantronics */
-		   QUIRK_FLAG_GET_SAMPLE_RATE),
+		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_CTL_MSG_DELAY),
+	VENDOR_FLG(0x0644, /* TEAC Corp. */
+		   QUIRK_FLAG_CTL_MSG_DELAY),
 	VENDOR_FLG(0x1de7, /* Phoenix Audio */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	VENDOR_FLG(0x23ba, /* Playback Design */
+		   QUIRK_FLAG_CTL_MSG_DELAY),
 
 	{} /* terminator */
 };
