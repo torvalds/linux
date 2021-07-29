@@ -3970,6 +3970,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 		if (pci_match_id(pci_use_msi, dev)) {
 			dev_dbg(&dev->dev, "Using MSI(-X) interrupts\n");
 			pci_set_master(dev);
+			uart.port.flags &= ~UPF_SHARE_IRQ;
 			rc = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_ALL_TYPES);
 		} else {
 			dev_dbg(&dev->dev, "Using legacy interrupts\n");
