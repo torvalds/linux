@@ -18,6 +18,10 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,sdm660-gold-saw2-v4.1-l2
+          - qcom,sdm660-silver-saw2-v4.1-l2
+          - qcom,msm8998-gold-saw2-v4.1-l2
+          - qcom,msm8998-silver-saw2-v4.1-l2
           - qcom,msm8226-saw2-v2.1-cpu
           - qcom,msm8974-saw2-v2.1-cpu
           - qcom,apq8084-saw2-v2.1-cpu
@@ -36,6 +40,8 @@ additionalProperties: false
 
 examples:
   - |
+
+    /* Example 1: SoC using SAW2 and kpss-acc-v2 CPUIdle */
     cpus {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -53,6 +59,22 @@ examples:
     saw0: power-manager@f9089000 {
         compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
         reg = <0xf9089000 0x1000>;
+    };
+
+  - |
+
+    /*
+     * Example 2: New-gen multi cluster SoC using SAW only for L2;
+     * This does not require any cpuidle driver, nor any cpu phandle.
+     */
+    power-manager@17812000 {
+        compatible = "qcom,msm8998-gold-saw2-v4.1-l2", "qcom,saw2";
+        reg = <0x17812000 0x1000>;
+    };
+
+    power-manager@17912000 {
+        compatible = "qcom,msm8998-silver-saw2-v4.1-l2", "qcom,saw2";
+        reg = <0x17912000 0x1000>;
     };
 
 ...
