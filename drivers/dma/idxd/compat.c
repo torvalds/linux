@@ -45,23 +45,16 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t cou
 	idxd_dev = confdev_to_idxd_dev(dev);
 	if (is_idxd_dev(idxd_dev)) {
 		alt_drv = driver_find("idxd", bus);
-		if (!alt_drv)
-			return -ENODEV;
 	} else if (is_idxd_wq_dev(idxd_dev)) {
 		struct idxd_wq *wq = confdev_to_wq(dev);
 
-		if (is_idxd_wq_kernel(wq)) {
+		if (is_idxd_wq_kernel(wq))
 			alt_drv = driver_find("dmaengine", bus);
-			if (!alt_drv)
-				return -ENODEV;
-		} else if (is_idxd_wq_user(wq)) {
+		else if (is_idxd_wq_user(wq))
 			alt_drv = driver_find("user", bus);
-			if (!alt_drv)
-				return -ENODEV;
-		} else {
-			return -ENODEV;
-		}
 	}
+	if (!alt_drv)
+		return -ENODEV;
 
 	rc = device_driver_attach(alt_drv, dev);
 	if (rc < 0)
