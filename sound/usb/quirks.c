@@ -1518,36 +1518,6 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	}
 }
 
-bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
-{
-	/* devices which do not support reading the sample rate. */
-	switch (chip->usb_id) {
-	case USB_ID(0x041e, 0x4080): /* Creative Live Cam VF0610 */
-	case USB_ID(0x04d8, 0xfeea): /* Benchmark DAC1 Pre */
-	case USB_ID(0x0556, 0x0014): /* Phoenix Audio TMX320VC */
-	case USB_ID(0x05a3, 0x9420): /* ELP HD USB Camera */
-	case USB_ID(0x05a7, 0x1020): /* Bose Companion 5 */
-	case USB_ID(0x074d, 0x3553): /* Outlaw RR2150 (Micronas UAC3553B) */
-	case USB_ID(0x1395, 0x740a): /* Sennheiser DECT */
-	case USB_ID(0x1901, 0x0191): /* GE B850V3 CP2114 audio interface */
-	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
-	case USB_ID(0x2912, 0x30c8): /* Audioengine D1 */
-	case USB_ID(0x413c, 0xa506): /* Dell AE515 sound bar */
-	case USB_ID(0x046d, 0x084c): /* Logitech ConferenceCam Connect */
-		return true;
-	}
-
-	/* devices of these vendors don't support reading rate, either */
-	switch (USB_ID_VENDOR(chip->usb_id)) {
-	case 0x045e: /* MS Lifecam */
-	case 0x047f: /* Plantronics */
-	case 0x1de7: /* Phoenix Audio */
-		return true;
-	}
-
-	return false;
-}
-
 /* ITF-USB DSD based DACs need a vendor cmd to switch
  * between PCM and native DSD mode
  */
@@ -1915,4 +1885,72 @@ bool snd_usb_registration_quirk(struct snd_usb_audio *chip, int iface)
 
 	/* Register as normal */
 	return false;
+}
+
+/*
+ * driver behavior quirk flags
+ */
+struct usb_audio_quirk_flags_table {
+	u32 id;
+	u32 flags;
+};
+
+#define DEVICE_FLG(vid, pid, _flags) \
+	{ .id = USB_ID(vid, pid), .flags = (_flags) }
+#define VENDOR_FLG(vid, _flags) DEVICE_FLG(vid, 0, _flags)
+
+static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
+	/* Device matches */
+	DEVICE_FLG(0x041e, 0x4080, /* Creative Live Cam VF0610 */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x046d, 0x084c, /* Logitech ConferenceCam Connect */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x04d8, 0xfeea, /* Benchmark DAC1 Pre */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x0556, 0x0014, /* Phoenix Audio TMX320VC */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x05a3, 0x9420, /* ELP HD USB Camera */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x05a7, 0x1020, /* Bose Companion 5 */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x074d, 0x3553, /* Outlaw RR2150 (Micronas UAC3553B) */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x1395, 0x740a, /* Sennheiser DECT */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x1901, 0x0191, /* GE B850V3 CP2114 audio interface */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x21b4, 0x0081, /* AudioQuest DragonFly */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x2912, 0x30c8, /* Audioengine D1 */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x413c, 0xa506, /* Dell AE515 sound bar */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+
+	/* Vendor matches */
+	VENDOR_FLG(0x045e, /* MS Lifecam */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	VENDOR_FLG(0x047f, /* Plantronics */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	VENDOR_FLG(0x1de7, /* Phoenix Audio */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+
+	{} /* terminator */
+};
+
+void snd_usb_init_quirk_flags(struct snd_usb_audio *chip)
+{
+	const struct usb_audio_quirk_flags_table *p;
+
+	for (p = quirk_flags_table; p->id; p++) {
+		if (chip->usb_id == p->id ||
+		    (!USB_ID_PRODUCT(p->id) &&
+		     USB_ID_VENDOR(chip->usb_id) == USB_ID_VENDOR(p->id))) {
+			usb_audio_dbg(chip,
+				      "Set quirk_flags 0x%x for device %04x:%04x\n",
+				      p->flags, USB_ID_VENDOR(chip->usb_id),
+				      USB_ID_PRODUCT(chip->usb_id));
+			chip->quirk_flags |= p->flags;
+			return;
+		}
+	}
 }

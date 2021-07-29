@@ -34,6 +34,7 @@ struct snd_usb_audio {
 	atomic_t shutdown;
 	atomic_t usage_count;
 	wait_queue_head_t shutdown_wait;
+	unsigned int quirk_flags;
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
@@ -128,5 +129,15 @@ void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
 extern bool snd_usb_use_vmalloc;
 extern bool snd_usb_skip_validation;
+
+/*
+ * Driver behavior quirk flags, stored in chip->quirk_flags
+ *
+ * QUIRK_FLAG_GET_SAMPLE_RATE:
+ *  Skip reading sample rate for devices, as some devices behave inconsistently
+ *  or return error
+ */
+
+#define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
 
 #endif /* __USBAUDIO_H */

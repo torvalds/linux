@@ -28,8 +28,6 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      const struct audioformat *fmt);
 
-bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip);
-
 int snd_usb_is_big_endian_format(struct snd_usb_audio *chip,
 				 const struct audioformat *fp);
 
@@ -52,5 +50,7 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 					  int stream);
 
 bool snd_usb_registration_quirk(struct snd_usb_audio *chip, int iface);
+
+void snd_usb_init_quirk_flags(struct snd_usb_audio *chip);
 
 #endif /* __USBAUDIO_QUIRKS_H */

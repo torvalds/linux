@@ -610,6 +610,8 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	INIT_LIST_HEAD(&chip->midi_list);
 	INIT_LIST_HEAD(&chip->mixer_list);
 
+	snd_usb_init_quirk_flags(chip);
+
 	card->private_free = snd_usb_audio_free;
 
 	strcpy(card->driver, "USB-Audio");
@@ -789,7 +791,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 	if (!chip->ctrl_intf)
 		chip->ctrl_intf = alts;
 
-	chip->txfr_quirk = 0;
 	err = 1; /* continue */
 	if (quirk && quirk->ifnum != QUIRK_NO_INTERFACE) {
 		/* need some special handlings */
