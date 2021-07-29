@@ -11,6 +11,10 @@
 struct netns_mctp {
 	/* Only updated under RTNL, entries freed via RCU */
 	struct list_head routes;
+
+	/* neighbour table */
+	struct mutex neigh_lock;
+	struct list_head neighbours;
 };
 
 #endif /* __NETNS_MCTP_H__ */

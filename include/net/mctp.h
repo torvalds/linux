@@ -117,6 +117,31 @@ int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr);
 int mctp_route_remove_local(struct mctp_dev *mdev, mctp_eid_t addr);
 void mctp_route_remove_dev(struct mctp_dev *mdev);
 
+/* neighbour definitions */
+enum mctp_neigh_source {
+	MCTP_NEIGH_STATIC,
+	MCTP_NEIGH_DISCOVER,
+};
+
+struct mctp_neigh {
+	struct mctp_dev		*dev;
+	mctp_eid_t		eid;
+	enum mctp_neigh_source	source;
+
+	unsigned char		ha[MAX_ADDR_LEN];
+
+	struct list_head	list;
+	struct rcu_head		rcu;
+};
+
+int mctp_neigh_init(void);
+void mctp_neigh_exit(void);
+
+// ret_hwaddr may be NULL, otherwise must have space for MAX_ADDR_LEN
+int mctp_neigh_lookup(struct mctp_dev *dev, mctp_eid_t eid,
+		      void *ret_hwaddr);
+void mctp_neigh_remove_dev(struct mctp_dev *mdev);
+
 int mctp_routes_init(void);
 void mctp_routes_exit(void);
 

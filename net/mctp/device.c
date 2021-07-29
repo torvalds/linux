@@ -342,6 +342,7 @@ static void mctp_unregister(struct net_device *dev)
 	RCU_INIT_POINTER(mdev->dev->mctp_ptr, NULL);
 
 	mctp_route_remove_dev(mdev);
+	mctp_neigh_remove_dev(mdev);
 	kfree(mdev->addrs);
 
 	mctp_dev_destroy(mdev);
