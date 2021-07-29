@@ -129,14 +129,6 @@ void __weak arch_restore_msi_irqs(struct pci_dev *dev)
 	return default_restore_msi_irqs(dev);
 }
 
-static inline __attribute_const__ u32 msi_mask(unsigned x)
-{
-	/* Don't shift by >= width of type */
-	if (x >= 5)
-		return 0xffffffff;
-	return (1 << (1 << x)) - 1;
-}
-
 /*
  * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
  * mask all MSI interrupts by clearing the MSI enable bit does not work
@@ -209,6 +201,14 @@ static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 		unsigned offset = data->irq - desc->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
+}
+
+static inline __attribute_const__ u32 msi_multi_mask(struct msi_desc *desc)
+{
+	/* Don't shift by >= width of type */
+	if (desc->msi_attrib.multi_cap >= 5)
+		return 0xffffffff;
+	return (1 << (1 << desc->msi_attrib.multi_cap)) - 1;
 }
 
 /**
@@ -419,8 +419,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	arch_restore_msi_irqs(dev);
 
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
-	msi_mask_irq(entry, msi_mask(entry->msi_attrib.multi_cap),
-		     entry->msi_mask);
+	msi_mask_irq(entry, msi_multi_mask(entry), entry->msi_mask);
 	control &= ~PCI_MSI_FLAGS_QSIZE;
 	control |= (entry->msi_attrib.multiple << 4) | PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
@@ -642,7 +641,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 		return -ENOMEM;
 
 	/* All MSIs are unmasked by default; mask them all */
-	mask = msi_mask(entry->msi_attrib.multi_cap);
+	mask = msi_multi_mask(entry);
 	msi_mask_irq(entry, mask, mask);
 
 	list_add_tail(&entry->list, dev_to_msi_list(&dev->dev));
@@ -938,7 +937,6 @@ EXPORT_SYMBOL(pci_msi_vec_count);
 static void pci_msi_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *desc;
-	u32 mask;
 
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
@@ -951,8 +949,7 @@ static void pci_msi_shutdown(struct pci_dev *dev)
 	dev->msi_enabled = 0;
 
 	/* Return the device with MSI unmasked as initial states */
-	mask = msi_mask(desc->msi_attrib.multi_cap);
-	msi_mask_irq(desc, mask, 0);
+	msi_mask_irq(desc, msi_multi_mask(desc), 0);
 
 	/* Restore dev->irq to its default pin-assertion IRQ */
 	dev->irq = desc->msi_attrib.default_irq;
