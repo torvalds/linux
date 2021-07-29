@@ -161,6 +161,71 @@ static struct pmu_events_map *__test_pmu_get_events_map(void)
 	return NULL;
 }
 
+static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
+{
+	if (!is_same(e1->desc, e2->desc)) {
+		pr_debug2("testing event e1 %s: mismatched desc, %s vs %s\n",
+			  e1->name, e1->desc, e2->desc);
+		return -1;
+	}
+
+	if (!is_same(e1->topic, e2->topic)) {
+		pr_debug2("testing event e1 %s: mismatched topic, %s vs %s\n",
+			  e1->name, e1->topic, e2->topic);
+		return -1;
+	}
+
+	if (!is_same(e1->long_desc, e2->long_desc)) {
+		pr_debug2("testing event e1 %s: mismatched long_desc, %s vs %s\n",
+			  e1->name, e1->long_desc, e2->long_desc);
+		return -1;
+	}
+
+	if (!is_same(e1->unit, e2->unit)) {
+		pr_debug2("testing event e1 %s: mismatched unit, %s vs %s\n",
+			  e1->name, e1->unit, e2->unit);
+		return -1;
+	}
+
+	if (!is_same(e1->perpkg, e2->perpkg)) {
+		pr_debug2("testing event e1 %s: mismatched perpkg, %s vs %s\n",
+			  e1->name, e1->perpkg, e2->perpkg);
+		return -1;
+	}
+
+	if (!is_same(e1->metric_expr, e2->metric_expr)) {
+		pr_debug2("testing event e1 %s: mismatched metric_expr, %s vs %s\n",
+			  e1->name, e1->metric_expr, e2->metric_expr);
+		return -1;
+	}
+
+	if (!is_same(e1->metric_name, e2->metric_name)) {
+		pr_debug2("testing event e1 %s: mismatched metric_name, %s vs %s\n",
+			  e1->name,	e1->metric_name, e2->metric_name);
+		return -1;
+	}
+
+	if (!is_same(e1->deprecated, e2->deprecated)) {
+		pr_debug2("testing event e1 %s: mismatched deprecated, %s vs %s\n",
+			  e1->name, e1->deprecated, e2->deprecated);
+		return -1;
+	}
+
+	if (!is_same(e1->pmu, e2->pmu)) {
+		pr_debug2("testing event e1 %s: mismatched pmu string, %s vs %s\n",
+			  e1->name, e1->pmu, e2->pmu);
+		return -1;
+	}
+
+	if (!is_same(e1->compat, e2->compat)) {
+		pr_debug2("testing event e1 %s: mismatched compat string, %s vs %s\n",
+			  e1->name, e1->compat, e2->compat);
+		return -1;
+	}
+
+	return 0;
+}
+
 /* Verify generated events from pmu-events.c is as expected */
 static int test_pmu_event_table(void)
 {
@@ -193,60 +258,8 @@ static int test_pmu_event_table(void)
 			found = true;
 			map_events++;
 
-			if (!is_same(table->desc, te->desc)) {
-				pr_debug2("testing event table %s: mismatched desc, %s vs %s\n",
-					  table->name, table->desc, te->desc);
+			if (compare_pmu_events(table, te))
 				return -1;
-			}
-
-			if (!is_same(table->topic, te->topic)) {
-				pr_debug2("testing event table %s: mismatched topic, %s vs %s\n",
-					  table->name, table->topic,
-					  te->topic);
-				return -1;
-			}
-
-			if (!is_same(table->long_desc, te->long_desc)) {
-				pr_debug2("testing event table %s: mismatched long_desc, %s vs %s\n",
-					  table->name, table->long_desc,
-					  te->long_desc);
-				return -1;
-			}
-
-			if (!is_same(table->unit, te->unit)) {
-				pr_debug2("testing event table %s: mismatched unit, %s vs %s\n",
-					  table->name, table->unit,
-					  te->unit);
-				return -1;
-			}
-
-			if (!is_same(table->perpkg, te->perpkg)) {
-				pr_debug2("testing event table %s: mismatched perpkg, %s vs %s\n",
-					  table->name, table->perpkg,
-					  te->perpkg);
-				return -1;
-			}
-
-			if (!is_same(table->metric_expr, te->metric_expr)) {
-				pr_debug2("testing event table %s: mismatched metric_expr, %s vs %s\n",
-					  table->name, table->metric_expr,
-					  te->metric_expr);
-				return -1;
-			}
-
-			if (!is_same(table->metric_name, te->metric_name)) {
-				pr_debug2("testing event table %s: mismatched metric_name, %s vs %s\n",
-					  table->name,  table->metric_name,
-					  te->metric_name);
-				return -1;
-			}
-
-			if (!is_same(table->deprecated, te->deprecated)) {
-				pr_debug2("testing event table %s: mismatched deprecated, %s vs %s\n",
-					  table->name, table->deprecated,
-					  te->deprecated);
-				return -1;
-			}
 
 			pr_debug("testing event table %s: pass\n", table->name);
 		}
