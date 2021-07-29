@@ -3435,16 +3435,14 @@ static bool inode_logged(struct btrfs_trans_handle *trans,
 	/*
 	 * The inode's logged_trans is always 0 when we load it (because it is
 	 * not persisted in the inode item or elsewhere). So if it is 0, the
-	 * inode was last modified in the current transaction and has the
-	 * full_sync flag set, then the inode may have been logged before in
-	 * the current transaction, then evicted and loaded again in the current
-	 * transaction - or may have never been logged in the current transaction,
-	 * but since we can not be sure, we have to assume it was, otherwise our
-	 * callers can leave an inconsistent log.
+	 * inode was last modified in the current transaction then the inode may
+	 * have been logged before in the current transaction, then evicted and
+	 * loaded again in the current transaction - or may have never been logged
+	 * in the current transaction, but since we can not be sure, we have to
+	 * assume it was, otherwise our callers can leave an inconsistent log.
 	 */
 	if (inode->logged_trans == 0 &&
 	    inode->last_trans == trans->transid &&
-	    test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) &&
 	    !test_bit(BTRFS_FS_LOG_RECOVERING, &trans->fs_info->flags))
 		return true;
 
