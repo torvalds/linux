@@ -560,6 +560,7 @@
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,dis_rxdet_inp3_quirk;
 			snps,xhci-trb-ent-quirk;
 			status = "disabled";
 		};
@@ -591,6 +592,7 @@
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,dis_rxdet_inp3_quirk;
 			snps,xhci-trb-ent-quirk;
 			status = "disabled";
 		};
