@@ -172,3 +172,46 @@ Example 4: Use a single shared filter block on both eth5 and eth6::
                 action trap
         $ tc filter add block 1 ingress protocol ipv4 flower src_ip 192.168.1.1 skip_sw \
                 action mirred egress redirect dev eth3
+
+Mirroring
+~~~~~~~~~
+
+The DPAA2 switch supports only per port mirroring and per VLAN mirroring.
+Adding mirroring filters in shared blocks is also supported.
+
+When using the tc-flower classifier with the 802.1q protocol, only the
+''vlan_id'' key will be accepted. Mirroring based on any other fields from the
+802.1q protocol will be rejected::
+
+        $ tc qdisc add dev eth8 ingress_block 1 clsact
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_prio 3 action mirred egress mirror dev eth6
+        Error: fsl_dpaa2_switch: Only matching on VLAN ID supported.
+        We have an error talking to the kernel
+
+If a mirroring VLAN filter is requested on a port, the VLAN must to be
+installed on the switch port in question either using ''bridge'' or by creating
+a VLAN upper device if the switch port is used as a standalone interface::
+
+        $ tc qdisc add dev eth8 ingress_block 1 clsact
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
+        Error: VLAN must be installed on the switch port.
+        We have an error talking to the kernel
+
+        $ bridge vlan add vid 200 dev eth8
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
+
+        $ ip link add link eth8 name eth8.200 type vlan id 200
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
+
+Also, it should be noted that the mirrored traffic will be subject to the same
+egress restrictions as any other traffic. This means that when a mirrored
+packet will reach the mirror port, if the VLAN found in the packet is not
+installed on the port it will get dropped.
+
+The DPAA2 switch supports only a single mirroring destination, thus multiple
+mirror rules can be installed but their ''to'' port has to be the same::
+
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 200 action mirred egress mirror dev eth6
+        $ tc filter add block 1 ingress protocol 802.1q flower skip_sw vlan_id 100 action mirred egress mirror dev eth7
+        Error: fsl_dpaa2_switch: Multiple mirror ports not supported.
+        We have an error talking to the kernel
