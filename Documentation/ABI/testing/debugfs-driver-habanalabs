@@ -241,6 +241,14 @@ Description:    Displays a list with information about the currently user
                 pointers (user virtual addresses) that are pinned and mapped
                 to DMA addresses
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/userptr_lookup
+Date:           Aug 2021
+KernelVersion:  5.15
+Contact:        ogabbay@kernel.org
+Description:    Allows to search for specific user pointers (user virtual
+                addresses) that are pinned and mapped to DMA addresses, and see
+                their resolution to the specific dma address.
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/vm
 Date:           Jan 2019
 KernelVersion:  5.1

@@ -1816,6 +1816,7 @@ struct hl_debugfs_entry {
  * @state_dump_sem: protects state_dump.
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
+ * @userptr_lookup: the target user ptr to look up for on demand.
  * @mmu_asid: ASID to use while translating in mmu_show.
  * @state_dump_head: index of the latest state dump
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
@@ -1843,6 +1844,7 @@ struct hl_dbg_device_entry {
 	struct rw_semaphore		state_dump_sem;
 	u64				addr;
 	u64				mmu_addr;
+	u64				userptr_lookup;
 	u32				mmu_asid;
 	u32				state_dump_head;
 	u8				i2c_bus;
@@ -2646,6 +2648,23 @@ struct hl_ioctl_desc {
 /*
  * Kernel module functions that can be accessed by entire module
  */
+
+/**
+ * hl_get_sg_info() - get number of pages and the DMA address from SG list.
+ * @sg: the SG list.
+ * @dma_addr: pointer to DMA address to return.
+ *
+ * Calculate the number of consecutive pages described by the SG list. Take the
+ * offset of the address in the first page, add to it the length and round it up
+ * to the number of needed pages.
+ */
+static inline u32 hl_get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
+{
+	*dma_addr = sg_dma_address(sg);
+
+	return ((((*dma_addr) & (PAGE_SIZE - 1)) + sg_dma_len(sg)) +
+			(PAGE_SIZE - 1)) >> PAGE_SHIFT;
+}
 
 /**
  * hl_mem_area_inside_range() - Checks whether address+size are inside a range.

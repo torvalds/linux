@@ -320,6 +320,77 @@ static int vm_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int userptr_lookup_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct scatterlist *sg;
+	struct hl_userptr *userptr;
+	bool first = true;
+	u64 total_npages, npages, sg_start, sg_end;
+	dma_addr_t dma_addr;
+	int i;
+
+	spin_lock(&dev_entry->userptr_spinlock);
+
+	list_for_each_entry(userptr, &dev_entry->userptr_list, debugfs_list) {
+		if (dev_entry->userptr_lookup >= userptr->addr &&
+		dev_entry->userptr_lookup < userptr->addr + userptr->size) {
+			total_npages = 0;
+			for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents,
+					i) {
+				npages = hl_get_sg_info(sg, &dma_addr);
+				sg_start = userptr->addr +
+					total_npages * PAGE_SIZE;
+				sg_end = userptr->addr +
+					(total_npages + npages) * PAGE_SIZE;
+
+				if (dev_entry->userptr_lookup >= sg_start &&
+				    dev_entry->userptr_lookup < sg_end) {
+					dma_addr += (dev_entry->userptr_lookup -
+							sg_start);
+					if (first) {
+						first = false;
+						seq_puts(s, "\n");
+						seq_puts(s, " user virtual address         dma address       pid        region start     region size\n");
+						seq_puts(s, "---------------------------------------------------------------------------------------\n");
+					}
+					seq_printf(s, " 0x%-18llx  0x%-16llx  %-8u  0x%-16llx %-12llu\n",
+						dev_entry->userptr_lookup,
+						(u64)dma_addr, userptr->pid,
+						userptr->addr, userptr->size);
+				}
+				total_npages += npages;
+			}
+		}
+	}
+
+	spin_unlock(&dev_entry->userptr_spinlock);
+
+	if (!first)
+		seq_puts(s, "\n");
+
+	return 0;
+}
+
+static ssize_t userptr_lookup_write(struct file *file, const char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	ssize_t rc;
+	u64 value;
+
+	rc = kstrtoull_from_user(buf, count, 16, &value);
+	if (rc)
+		return rc;
+
+	dev_entry->userptr_lookup = value;
+
+	return count;
+}
+
 static int mmu_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
@@ -1175,6 +1246,7 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_submission_jobs", command_submission_jobs_show, NULL},
 	{"userptr", userptr_show, NULL},
 	{"vm", vm_show, NULL},
+	{"userptr_lookup", userptr_lookup_show, userptr_lookup_write},
 	{"mmu", mmu_show, mmu_asid_va_write},
 	{"engines", engines_show, NULL}
 };

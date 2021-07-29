@@ -797,23 +797,6 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 }
 
 /**
- * get_sg_info() - get number of pages and the DMA address from SG list.
- * @sg: the SG list.
- * @dma_addr: pointer to DMA address to return.
- *
- * Calculate the number of consecutive pages described by the SG list. Take the
- * offset of the address in the first page, add to it the length and round it up
- * to the number of needed pages.
- */
-static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
-{
-	*dma_addr = sg_dma_address(sg);
-
-	return ((((*dma_addr) & (PAGE_SIZE - 1)) + sg_dma_len(sg)) +
-			(PAGE_SIZE - 1)) >> PAGE_SHIFT;
-}
-
-/**
  * init_phys_pg_pack_from_userptr() - initialize physical page pack from host
  *                                    memory
  * @ctx: pointer to the context structure.
@@ -863,7 +846,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	 */
 	total_npages = 0;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
-		npages = get_sg_info(sg, &dma_addr);
+		npages = hl_get_sg_info(sg, &dma_addr);
 
 		total_npages += npages;
 
@@ -892,7 +875,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	j = 0;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
-		npages = get_sg_info(sg, &dma_addr);
+		npages = hl_get_sg_info(sg, &dma_addr);
 
 		/* align down to physical page size and save the offset */
 		if (first) {
