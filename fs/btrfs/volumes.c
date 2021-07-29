@@ -1586,14 +1586,9 @@ again:
 	key.offset = search_start;
 	key.type = BTRFS_DEV_EXTENT_KEY;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	ret = btrfs_search_backwards(root, &key, path);
 	if (ret < 0)
 		goto out;
-	if (ret > 0) {
-		ret = btrfs_previous_item(root, path, key.objectid, key.type);
-		if (ret < 0)
-			goto out;
-	}
 
 	while (1) {
 		l = path->nodes[0];

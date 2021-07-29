@@ -2389,23 +2389,16 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	key.offset = (u64)-1;
 
 	while (1) {
-		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		ret = btrfs_search_backwards(root, &key, path);
 		if (ret < 0)
 			goto out;
 		else if (ret > 0) {
-			ret = btrfs_previous_item(root, path, dirid,
-						  BTRFS_INODE_REF_KEY);
-			if (ret < 0)
-				goto out;
-			else if (ret > 0) {
-				ret = -ENOENT;
-				goto out;
-			}
+			ret = -ENOENT;
+			goto out;
 		}
 
 		l = path->nodes[0];
 		slot = path->slots[0];
-		btrfs_item_key_to_cpu(l, &key, slot);
 
 		iref = btrfs_item_ptr(l, slot, struct btrfs_inode_ref);
 		len = btrfs_inode_ref_name_len(l, iref);
@@ -2480,23 +2473,16 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 		key.type = BTRFS_INODE_REF_KEY;
 		key.offset = (u64)-1;
 		while (1) {
-			ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-			if (ret < 0) {
+			ret = btrfs_search_backwards(root, &key, path);
+			if (ret < 0)
 				goto out_put;
-			} else if (ret > 0) {
-				ret = btrfs_previous_item(root, path, dirid,
-							  BTRFS_INODE_REF_KEY);
-				if (ret < 0) {
-					goto out_put;
-				} else if (ret > 0) {
-					ret = -ENOENT;
-					goto out_put;
-				}
+			else if (ret > 0) {
+				ret = -ENOENT;
+				goto out_put;
 			}
 
 			leaf = path->nodes[0];
 			slot = path->slots[0];
-			btrfs_item_key_to_cpu(leaf, &key, slot);
 
 			iref = btrfs_item_ptr(leaf, slot, struct btrfs_inode_ref);
 			len = btrfs_inode_ref_name_len(leaf, iref);

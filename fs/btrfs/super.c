@@ -1201,21 +1201,14 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 
-		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		ret = btrfs_search_backwards(root, &key, path);
 		if (ret < 0) {
 			goto err;
 		} else if (ret > 0) {
-			ret = btrfs_previous_item(root, path, subvol_objectid,
-						  BTRFS_ROOT_BACKREF_KEY);
-			if (ret < 0) {
-				goto err;
-			} else if (ret > 0) {
-				ret = -ENOENT;
-				goto err;
-			}
+			ret = -ENOENT;
+			goto err;
 		}
 
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 		subvol_objectid = key.offset;
 
 		root_ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
@@ -1248,21 +1241,14 @@ char *btrfs_get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 			key.type = BTRFS_INODE_REF_KEY;
 			key.offset = (u64)-1;
 
-			ret = btrfs_search_slot(NULL, fs_root, &key, path, 0, 0);
+			ret = btrfs_search_backwards(fs_root, &key, path);
 			if (ret < 0) {
 				goto err;
 			} else if (ret > 0) {
-				ret = btrfs_previous_item(fs_root, path, dirid,
-							  BTRFS_INODE_REF_KEY);
-				if (ret < 0) {
-					goto err;
-				} else if (ret > 0) {
-					ret = -ENOENT;
-					goto err;
-				}
+				ret = -ENOENT;
+				goto err;
 			}
 
-			btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 			dirid = key.offset;
 
 			inode_ref = btrfs_item_ptr(path->nodes[0],
