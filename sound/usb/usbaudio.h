@@ -144,6 +144,9 @@ extern bool snd_usb_skip_validation;
  *  Skip clock selector setup; the device may reset to invalid state
  * QUIRK_FLAG_IGNORE_CLOCK_SOURCE:
  *  Ignore errors from clock source search; i.e. hardcoded clock
+ * QUIRK_FLAG_ITF_USB_DSD_DAC:
+ *  Indicates the device is for ITF-USB DSD based DACs that need a vendor cmd
+ *  to switch between PCM and native DSD mode
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -153,5 +156,6 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_PLAYBACK_FIRST	(1U << 4)
 #define QUIRK_FLAG_SKIP_CLOCK_SELECTOR	(1U << 5)
 #define QUIRK_FLAG_IGNORE_CLOCK_SOURCE	(1U << 6)
+#define QUIRK_FLAG_ITF_USB_DSD_DAC	(1U << 7)
 
 #endif /* __USBAUDIO_H */

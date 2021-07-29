@@ -1501,32 +1501,13 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	}
 }
 
-/* ITF-USB DSD based DACs need a vendor cmd to switch
- * between PCM and native DSD mode
- */
-static bool is_itf_usb_dsd_dac(unsigned int id)
-{
-	switch (id) {
-	case USB_ID(0x154e, 0x1002): /* Denon DCD-1500RE */
-	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
-	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
-	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
-	case USB_ID(0x1852, 0x5065): /* Luxman DA-06 */
-	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-501V2/UD-503/NT-503 */
-	case USB_ID(0x0644, 0x8044): /* Esoteric D-05X */
-	case USB_ID(0x0644, 0x804a): /* TEAC UD-301 */
-		return true;
-	}
-	return false;
-}
-
 int snd_usb_select_mode_quirk(struct snd_usb_audio *chip,
 			      const struct audioformat *fmt)
 {
 	struct usb_device *dev = chip->dev;
 	int err;
 
-	if (is_itf_usb_dsd_dac(chip->usb_id)) {
+	if (chip->quirk_flags & QUIRK_FLAG_ITF_USB_DSD_DAC) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1633,7 +1614,7 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	/* ITF-USB DSD based DACs functionality need a delay
 	 * after each class compliant request
 	 */
-	if (is_itf_usb_dsd_dac(chip->usb_id)
+	if ((chip->quirk_flags & QUIRK_FLAG_ITF_USB_DSD_DAC)
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		msleep(20);
 
@@ -1749,7 +1730,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	}
 
 	/* ITF-USB DSD based DACs */
-	if (is_itf_usb_dsd_dac(chip->usb_id)) {
+	if (chip->quirk_flags & QUIRK_FLAG_ITF_USB_DSD_DAC) {
 		iface = usb_ifnum_to_if(chip->dev, fp->iface);
 
 		/* Altsetting 2 support native DSD if the num of altsets is
@@ -1902,16 +1883,32 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x05e1, 0x0480, /* Hauppauge Woodbury */
 		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
+	DEVICE_FLG(0x0644, 0x8043, /* TEAC UD-501/UD-501V2/UD-503/NT-503 */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+	DEVICE_FLG(0x0644, 0x8044, /* Esoteric D-05X */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+	DEVICE_FLG(0x0644, 0x804a, /* TEAC UD-301 */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
 	DEVICE_FLG(0x074d, 0x3553, /* Outlaw RR2150 (Micronas UAC3553B) */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x0fd9, 0x0008, /* Hauppauge HVR-950Q */
 		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x1395, 0x740a, /* Sennheiser DECT */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x154e, 0x1002, /* Denon DCD-1500RE */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+	DEVICE_FLG(0x154e, 0x1003, /* Denon DA-300USB */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+	DEVICE_FLG(0x154e, 0x3005, /* Marantz HD-DAC1 */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
+	DEVICE_FLG(0x154e, 0x3006, /* Marantz SA-14S1 */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
 	DEVICE_FLG(0x154e, 0x500e, /* Denon DN-X1600 */
 		   QUIRK_FLAG_IGNORE_CLOCK_SOURCE),
 	DEVICE_FLG(0x1686, 0x00dd, /* Zoom R16/24 */
 		   QUIRK_FLAG_TX_LENGTH),
+	DEVICE_FLG(0x1852, 0x5065, /* Luxman DA-06 */
+		   QUIRK_FLAG_ITF_USB_DSD_DAC),
 	DEVICE_FLG(0x1901, 0x0191, /* GE B850V3 CP2114 audio interface */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2040, 0x7200, /* Hauppauge HVR-950Q */
