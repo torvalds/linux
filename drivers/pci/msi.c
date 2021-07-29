@@ -143,7 +143,7 @@ static inline __attribute_const__ u32 msi_mask(unsigned x)
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
  */
-void __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
+static void __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
 	raw_spinlock_t *lock = &desc->dev->msi_lock;
 	unsigned long flags;
@@ -180,7 +180,7 @@ static void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
  * file.  This saves a few milliseconds when initialising devices with lots
  * of MSI-X interrupts.
  */
-u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag)
+static u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag)
 {
 	u32 mask_bits = desc->masked;
 	void __iomem *desc_addr;
