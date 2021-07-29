@@ -84,9 +84,21 @@ struct mctp_sock {
  *        updates to either list are performed under the netns_mctp->keys
  *        lock.
  *
- * - there is a single destruction path for a mctp_sk_key - through socket
- *   unhash (see mctp_sk_unhash). This performs the list removal under
- *   keys_lock.
+ * - a key may have a sk_buff attached as part of an in-progress message
+ *   reassembly (->reasm_head). The reassembly context is protected by
+ *   reasm_lock, which may be acquired with the keys lock (above) held, if
+ *   necessary. Consequently, keys lock *cannot* be acquired with the
+ *   reasm_lock held.
+ *
+ * - there are two destruction paths for a mctp_sk_key:
+ *
+ *    - through socket unhash (see mctp_sk_unhash). This performs the list
+ *      removal under keys_lock.
+ *
+ *    - where a key is established to receive a reply message: after receiving
+ *      the (complete) reply, or during reassembly errors. Here, we clean up
+ *      the reassembly context (marking reasm_dead, to prevent another from
+ *      starting), and remove the socket from the netns & socket lists.
  */
 struct mctp_sk_key {
 	mctp_eid_t	peer_addr;
@@ -101,6 +113,13 @@ struct mctp_sk_key {
 
 	/* per-socket list */
 	struct hlist_node sklist;
+
+	/* incoming fragment reassembly context */
+	spinlock_t	reasm_lock;
+	struct sk_buff	*reasm_head;
+	struct sk_buff	**reasm_tailp;
+	bool		reasm_dead;
+	u8		last_seq;
 
 	struct rcu_head	rcu;
 };

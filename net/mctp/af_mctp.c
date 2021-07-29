@@ -263,6 +263,14 @@ static void mctp_sk_unhash(struct sock *sk)
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
 		hlist_del_rcu(&key->sklist);
 		hlist_del_rcu(&key->hlist);
+
+		spin_lock(&key->reasm_lock);
+		if (key->reasm_head)
+			kfree_skb(key->reasm_head);
+		key->reasm_head = NULL;
+		key->reasm_dead = true;
+		spin_unlock(&key->reasm_lock);
+
 		kfree_rcu(key, rcu);
 	}
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
