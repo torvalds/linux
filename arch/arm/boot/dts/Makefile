@@ -241,6 +241,7 @@ dtb-$(CONFIG_ARCH_INTEGRATOR) += \
 	integratorcp.dtb
 dtb-$(CONFIG_ARCH_IXP4XX) += \
 	intel-ixp42x-linksys-nslu2.dtb \
+	intel-ixp42x-linksys-wrv54g.dtb \
 	intel-ixp42x-welltech-epbx100.dtb \
 	intel-ixp42x-ixdp425.dtb \
 	intel-ixp43x-kixrp435.dtb \
