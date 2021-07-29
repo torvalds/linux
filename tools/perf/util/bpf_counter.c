@@ -74,9 +74,14 @@ static char *bpf_target_prog_name(int tgt_fd)
 		return NULL;
 	}
 
-	if (info_linear->info.btf_id == 0 ||
-	    btf__get_from_id(info_linear->info.btf_id, &btf)) {
+	if (info_linear->info.btf_id == 0) {
 		pr_debug("prog FD %d doesn't have valid btf\n", tgt_fd);
+		goto out;
+	}
+
+	btf = btf__load_from_kernel_by_id(info_linear->info.btf_id);
+	if (libbpf_get_error(btf)) {
+		pr_debug("failed to load btf for prog FD %d\n", tgt_fd);
 		goto out;
 	}
 

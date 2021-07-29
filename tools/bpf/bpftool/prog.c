@@ -249,10 +249,10 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 	struct bpf_map_info map_info;
 	struct btf_var_secinfo *vsi;
 	bool printed_header = false;
-	struct btf *btf = NULL;
 	unsigned int i, vlen;
 	void *value = NULL;
 	const char *name;
+	struct btf *btf;
 	int err;
 
 	if (!num_maps)
@@ -263,8 +263,8 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 	if (!value)
 		return;
 
-	err = btf__get_from_id(map_info.btf_id, &btf);
-	if (err || !btf)
+	btf = btf__load_from_kernel_by_id(map_info.btf_id);
+	if (libbpf_get_error(btf))
 		goto out_free;
 
 	t_datasec = btf__type_by_id(btf, map_info.btf_value_type_id);
@@ -646,9 +646,12 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		member_len = info->xlated_prog_len;
 	}
 
-	if (info->btf_id && btf__get_from_id(info->btf_id, &btf)) {
-		p_err("failed to get btf");
-		return -1;
+	if (info->btf_id) {
+		btf = btf__load_from_kernel_by_id(info->btf_id);
+		if (libbpf_get_error(btf)) {
+			p_err("failed to get btf");
+			return -1;
+		}
 	}
 
 	func_info = u64_to_ptr(info->func_info);
@@ -2014,9 +2017,14 @@ static char *profile_target_name(int tgt_fd)
 		return NULL;
 	}
 
-	if (info_linear->info.btf_id == 0 ||
-	    btf__get_from_id(info_linear->info.btf_id, &btf)) {
+	if (info_linear->info.btf_id == 0) {
 		p_err("prog FD %d doesn't have valid btf", tgt_fd);
+		goto out;
+	}
+
+	btf = btf__load_from_kernel_by_id(info_linear->info.btf_id);
+	if (libbpf_get_error(btf)) {
+		p_err("failed to load btf for prog FD %d", tgt_fd);
 		goto out;
 	}
 

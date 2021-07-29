@@ -580,14 +580,10 @@ static int do_dump(int argc, char **argv)
 	}
 
 	if (!btf) {
-		err = btf__get_from_id(btf_id, &btf);
+		btf = btf__load_from_kernel_by_id(btf_id);
+		err = libbpf_get_error(btf);
 		if (err) {
 			p_err("get btf by id (%u): %s", btf_id, strerror(err));
-			goto done;
-		}
-		if (!btf) {
-			err = -ENOENT;
-			p_err("can't find btf with ID (%u)", btf_id);
 			goto done;
 		}
 	}

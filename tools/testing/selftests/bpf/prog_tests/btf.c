@@ -4350,7 +4350,8 @@ static void do_test_file(unsigned int test_num)
 		goto done;
 	}
 
-	err = btf__get_from_id(info.btf_id, &btf);
+	btf = btf__load_from_kernel_by_id(info.btf_id);
+	err = libbpf_get_error(btf);
 	if (CHECK(err, "cannot get btf from kernel, err: %d", err))
 		goto done;
 
