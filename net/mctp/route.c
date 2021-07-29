@@ -30,10 +30,139 @@ static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
 	return 0;
 }
 
+static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
+{
+	struct mctp_skb_cb *cb = mctp_cb(skb);
+	struct mctp_hdr *mh;
+	struct sock *sk;
+	u8 type;
+
+	WARN_ON(!rcu_read_lock_held());
+
+	/* TODO: look up in skb->cb? */
+	mh = mctp_hdr(skb);
+
+	if (!skb_headlen(skb))
+		return NULL;
+
+	type = (*(u8 *)skb->data) & 0x7f;
+
+	sk_for_each_rcu(sk, &net->mctp.binds) {
+		struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+		if (msk->bind_net != MCTP_NET_ANY && msk->bind_net != cb->net)
+			continue;
+
+		if (msk->bind_type != type)
+			continue;
+
+		if (msk->bind_addr != MCTP_ADDR_ANY &&
+		    msk->bind_addr != mh->dest)
+			continue;
+
+		return msk;
+	}
+
+	return NULL;
+}
+
+static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
+			   mctp_eid_t peer, u8 tag)
+{
+	if (key->local_addr != local)
+		return false;
+
+	if (key->peer_addr != peer)
+		return false;
+
+	if (key->tag != tag)
+		return false;
+
+	return true;
+}
+
+static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
+					   mctp_eid_t peer)
+{
+	struct mctp_sk_key *key, *ret;
+	struct mctp_hdr *mh;
+	u8 tag;
+
+	WARN_ON(!rcu_read_lock_held());
+
+	mh = mctp_hdr(skb);
+	tag = mh->flags_seq_tag & (MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO);
+
+	ret = NULL;
+
+	hlist_for_each_entry_rcu(key, &net->mctp.keys, hlist) {
+		if (mctp_key_match(key, mh->dest, peer, tag)) {
+			ret = key;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 {
-	/* -> to local stack */
-	/* TODO: socket lookup, reassemble */
+	struct net *net = dev_net(skb->dev);
+	struct mctp_sk_key *key;
+	struct mctp_sock *msk;
+	struct mctp_hdr *mh;
+
+	msk = NULL;
+
+	/* we may be receiving a locally-routed packet; drop source sk
+	 * accounting
+	 */
+	skb_orphan(skb);
+
+	/* ensure we have enough data for a header and a type */
+	if (skb->len < sizeof(struct mctp_hdr) + 1)
+		goto drop;
+
+	/* grab header, advance data ptr */
+	mh = mctp_hdr(skb);
+	skb_pull(skb, sizeof(struct mctp_hdr));
+
+	if (mh->ver != 1)
+		goto drop;
+
+	/* TODO: reassembly */
+	if ((mh->flags_seq_tag & (MCTP_HDR_FLAG_SOM | MCTP_HDR_FLAG_EOM))
+				!= (MCTP_HDR_FLAG_SOM | MCTP_HDR_FLAG_EOM))
+		goto drop;
+
+	rcu_read_lock();
+	/* 1. lookup socket matching (src,dest,tag) */
+	key = mctp_lookup_key(net, skb, mh->src);
+
+	/* 2. lookup socket macthing (BCAST,dest,tag) */
+	if (!key)
+		key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY);
+
+	/* 3. SOM? -> lookup bound socket, conditionally (!EOM) create
+	 * mapping for future (1)/(2).
+	 */
+	if (key)
+		msk = container_of(key->sk, struct mctp_sock, sk);
+	else if (!msk && (mh->flags_seq_tag & MCTP_HDR_FLAG_SOM))
+		msk = mctp_lookup_bind(net, skb);
+
+	if (!msk)
+		goto unlock_drop;
+
+	sock_queue_rcv_skb(&msk->sk, skb);
+
+	rcu_read_unlock();
+
+	return 0;
+
+unlock_drop:
+	rcu_read_unlock();
+drop:
 	kfree_skb(skb);
 	return 0;
 }
@@ -91,6 +220,80 @@ static struct mctp_route *mctp_route_alloc(void)
 	return rt;
 }
 
+/* tag management */
+static void mctp_reserve_tag(struct net *net, struct mctp_sk_key *key,
+			     struct mctp_sock *msk)
+{
+	struct netns_mctp *mns = &net->mctp;
+
+	lockdep_assert_held(&mns->keys_lock);
+
+	key->sk = &msk->sk;
+
+	/* we hold the net->key_lock here, allowing updates to both
+	 * then net and sk
+	 */
+	hlist_add_head_rcu(&key->hlist, &mns->keys);
+	hlist_add_head_rcu(&key->sklist, &msk->keys);
+}
+
+/* Allocate a locally-owned tag value for (saddr, daddr), and reserve
+ * it for the socket msk
+ */
+static int mctp_alloc_local_tag(struct mctp_sock *msk,
+				mctp_eid_t saddr, mctp_eid_t daddr, u8 *tagp)
+{
+	struct net *net = sock_net(&msk->sk);
+	struct netns_mctp *mns = &net->mctp;
+	struct mctp_sk_key *key, *tmp;
+	unsigned long flags;
+	int rc = -EAGAIN;
+	u8 tagbits;
+
+	/* be optimistic, alloc now */
+	key = kzalloc(sizeof(*key), GFP_KERNEL);
+	if (!key)
+		return -ENOMEM;
+	key->local_addr = saddr;
+	key->peer_addr = daddr;
+
+	/* 8 possible tag values */
+	tagbits = 0xff;
+
+	spin_lock_irqsave(&mns->keys_lock, flags);
+
+	/* Walk through the existing keys, looking for potential conflicting
+	 * tags. If we find a conflict, clear that bit from tagbits
+	 */
+	hlist_for_each_entry(tmp, &mns->keys, hlist) {
+		/* if we don't own the tag, it can't conflict */
+		if (tmp->tag & MCTP_HDR_FLAG_TO)
+			continue;
+
+		if ((tmp->peer_addr == daddr ||
+		     tmp->peer_addr == MCTP_ADDR_ANY) &&
+		    tmp->local_addr == saddr)
+			tagbits &= ~(1 << tmp->tag);
+
+		if (!tagbits)
+			break;
+	}
+
+	if (tagbits) {
+		key->tag = __ffs(tagbits);
+		mctp_reserve_tag(net, key, msk);
+		*tagp = key->tag;
+		rc = 0;
+	}
+
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+
+	if (!tagbits)
+		kfree(key);
+
+	return rc;
+}
+
 /* routing lookups */
 static bool mctp_rt_match_eid(struct mctp_route *rt,
 			      unsigned int net, mctp_eid_t eid)
@@ -140,11 +343,13 @@ int mctp_do_route(struct mctp_route *rt, struct sk_buff *skb)
 int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag)
 {
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb = mctp_cb(skb);
 	struct mctp_hdr *hdr;
 	unsigned long flags;
 	mctp_eid_t saddr;
 	int rc;
+	u8 tag;
 
 	if (WARN_ON(!rt->dev))
 		return -EINVAL;
@@ -162,6 +367,15 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	if (rc)
 		return rc;
 
+	if (req_tag & MCTP_HDR_FLAG_TO) {
+		rc = mctp_alloc_local_tag(msk, saddr, daddr, &tag);
+		if (rc)
+			return rc;
+		tag |= MCTP_HDR_FLAG_TO;
+	} else {
+		tag = req_tag;
+	}
+
 	/* TODO: we have the route MTU here; packetise */
 
 	skb_reset_transport_header(skb);
@@ -171,8 +385,10 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	hdr->ver = 1;
 	hdr->dest = daddr;
 	hdr->src = saddr;
-	hdr->flags_seq_tag = MCTP_HDR_FLAG_SOM | MCTP_HDR_FLAG_EOM; /* TODO */
+	hdr->flags_seq_tag = MCTP_HDR_FLAG_SOM | MCTP_HDR_FLAG_EOM | /* TODO */
+		tag;
 
+	skb->dev = rt->dev->dev;
 	skb->protocol = htons(ETH_P_MCTP);
 	skb->priority = 0;
 
@@ -529,6 +745,10 @@ static int __net_init mctp_routes_net_init(struct net *net)
 	struct netns_mctp *ns = &net->mctp;
 
 	INIT_LIST_HEAD(&ns->routes);
+	INIT_HLIST_HEAD(&ns->binds);
+	mutex_init(&ns->bind_lock);
+	INIT_HLIST_HEAD(&ns->keys);
+	spin_lock_init(&ns->keys_lock);
 	return 0;
 }
 

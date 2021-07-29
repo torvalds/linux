@@ -12,6 +12,7 @@
 #include <linux/bits.h>
 #include <linux/mctp.h>
 #include <net/net_namespace.h>
+#include <net/sock.h>
 
 /* MCTP packet definitions */
 struct mctp_hdr {
@@ -45,6 +46,64 @@ static inline struct mctp_hdr *mctp_hdr(struct sk_buff *skb)
 {
 	return (struct mctp_hdr *)skb_network_header(skb);
 }
+
+/* socket implementation */
+struct mctp_sock {
+	struct sock	sk;
+
+	/* bind() params */
+	int		bind_net;
+	mctp_eid_t	bind_addr;
+	__u8		bind_type;
+
+	/* list of mctp_sk_key, for incoming tag lookup. updates protected
+	 * by sk->net->keys_lock
+	 */
+	struct hlist_head keys;
+};
+
+/* Key for matching incoming packets to sockets or reassembly contexts.
+ * Packets are matched on (src,dest,tag).
+ *
+ * Lifetime requirements:
+ *
+ *  - keys are free()ed via RCU
+ *
+ *  - a mctp_sk_key contains a reference to a struct sock; this is valid
+ *    for the life of the key. On sock destruction (through unhash), the key is
+ *    removed from lists (see below), and will not be observable after a RCU
+ *    grace period.
+ *
+ *    any RX occurring within that grace period may still queue to the socket,
+ *    but will hit the SOCK_DEAD case before the socket is freed.
+ *
+ * - these mctp_sk_keys appear on two lists:
+ *     1) the struct mctp_sock->keys list
+ *     2) the struct netns_mctp->keys list
+ *
+ *        updates to either list are performed under the netns_mctp->keys
+ *        lock.
+ *
+ * - there is a single destruction path for a mctp_sk_key - through socket
+ *   unhash (see mctp_sk_unhash). This performs the list removal under
+ *   keys_lock.
+ */
+struct mctp_sk_key {
+	mctp_eid_t	peer_addr;
+	mctp_eid_t	local_addr;
+	__u8		tag; /* incoming tag match; invert TO for local */
+
+	/* we hold a ref to sk when set */
+	struct sock	*sk;
+
+	/* routing lookup list */
+	struct hlist_node hlist;
+
+	/* per-socket list */
+	struct hlist_node sklist;
+
+	struct rcu_head	rcu;
+};
 
 struct mctp_skb_cb {
 	unsigned int	magic;

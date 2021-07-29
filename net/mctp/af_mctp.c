@@ -18,10 +18,6 @@
 
 /* socket implementation */
 
-struct mctp_sock {
-	struct sock	sk;
-};
-
 static int mctp_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -36,18 +32,160 @@ static int mctp_release(struct socket *sock)
 
 static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 {
-	return 0;
+	struct sock *sk = sock->sk;
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+	struct sockaddr_mctp *smctp;
+	int rc;
+
+	if (addrlen < sizeof(*smctp))
+		return -EINVAL;
+
+	if (addr->sa_family != AF_MCTP)
+		return -EAFNOSUPPORT;
+
+	if (!capable(CAP_NET_BIND_SERVICE))
+		return -EACCES;
+
+	/* it's a valid sockaddr for MCTP, cast and do protocol checks */
+	smctp = (struct sockaddr_mctp *)addr;
+
+	lock_sock(sk);
+
+	/* TODO: allow rebind */
+	if (sk_hashed(sk)) {
+		rc = -EADDRINUSE;
+		goto out_release;
+	}
+	msk->bind_net = smctp->smctp_network;
+	msk->bind_addr = smctp->smctp_addr.s_addr;
+	msk->bind_type = smctp->smctp_type & 0x7f; /* ignore the IC bit */
+
+	rc = sk->sk_prot->hash(sk);
+
+out_release:
+	release_sock(sk);
+
+	return rc;
 }
 
 static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
-	return 0;
+	DECLARE_SOCKADDR(struct sockaddr_mctp *, addr, msg->msg_name);
+	const int hlen = MCTP_HEADER_MAXLEN + sizeof(struct mctp_hdr);
+	int rc, addrlen = msg->msg_namelen;
+	struct sock *sk = sock->sk;
+	struct mctp_skb_cb *cb;
+	struct mctp_route *rt;
+	struct sk_buff *skb;
+
+	if (addr) {
+		if (addrlen < sizeof(struct sockaddr_mctp))
+			return -EINVAL;
+		if (addr->smctp_family != AF_MCTP)
+			return -EINVAL;
+		if (addr->smctp_tag & ~(MCTP_TAG_MASK | MCTP_TAG_OWNER))
+			return -EINVAL;
+
+	} else {
+		/* TODO: connect()ed sockets */
+		return -EDESTADDRREQ;
+	}
+
+	if (!capable(CAP_NET_RAW))
+		return -EACCES;
+
+	rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
+			       addr->smctp_addr.s_addr);
+	if (!rt)
+		return -EHOSTUNREACH;
+
+	skb = sock_alloc_send_skb(sk, hlen + 1 + len,
+				  msg->msg_flags & MSG_DONTWAIT, &rc);
+	if (!skb)
+		return rc;
+
+	skb_reserve(skb, hlen);
+
+	/* set type as fist byte in payload */
+	*(u8 *)skb_put(skb, 1) = addr->smctp_type;
+
+	rc = memcpy_from_msg((void *)skb_put(skb, len), msg, len);
+	if (rc < 0) {
+		kfree_skb(skb);
+		return rc;
+	}
+
+	/* set up cb */
+	cb = __mctp_cb(skb);
+	cb->net = addr->smctp_network;
+
+	rc = mctp_local_output(sk, rt, skb, addr->smctp_addr.s_addr,
+			       addr->smctp_tag);
+
+	return rc ? : len;
 }
 
 static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			int flags)
 {
-	return 0;
+	DECLARE_SOCKADDR(struct sockaddr_mctp *, addr, msg->msg_name);
+	struct sock *sk = sock->sk;
+	struct sk_buff *skb;
+	size_t msglen;
+	u8 type;
+	int rc;
+
+	if (flags & ~(MSG_DONTWAIT | MSG_TRUNC | MSG_PEEK))
+		return -EOPNOTSUPP;
+
+	skb = skb_recv_datagram(sk, flags, flags & MSG_DONTWAIT, &rc);
+	if (!skb)
+		return rc;
+
+	if (!skb->len) {
+		rc = 0;
+		goto out_free;
+	}
+
+	/* extract message type, remove from data */
+	type = *((u8 *)skb->data);
+	msglen = skb->len - 1;
+
+	if (len < msglen)
+		msg->msg_flags |= MSG_TRUNC;
+	else
+		len = msglen;
+
+	rc = skb_copy_datagram_msg(skb, 1, msg, len);
+	if (rc < 0)
+		goto out_free;
+
+	sock_recv_ts_and_drops(msg, sk, skb);
+
+	if (addr) {
+		struct mctp_skb_cb *cb = mctp_cb(skb);
+		/* TODO: expand mctp_skb_cb for header fields? */
+		struct mctp_hdr *hdr = mctp_hdr(skb);
+
+		hdr = mctp_hdr(skb);
+		addr = msg->msg_name;
+		addr->smctp_family = AF_MCTP;
+		addr->smctp_network = cb->net;
+		addr->smctp_addr.s_addr = hdr->src;
+		addr->smctp_type = type;
+		addr->smctp_tag = hdr->flags_seq_tag &
+					(MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO);
+		msg->msg_namelen = sizeof(*addr);
+	}
+
+	rc = len;
+
+	if (flags & MSG_TRUNC)
+		rc = msglen;
+
+out_free:
+	skb_free_datagram(sk, skb);
+	return rc;
 }
 
 static int mctp_setsockopt(struct socket *sock, int level, int optname,
@@ -83,16 +221,63 @@ static const struct proto_ops mctp_dgram_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static int mctp_sk_init(struct sock *sk)
+{
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+	INIT_HLIST_HEAD(&msk->keys);
+	return 0;
+}
+
 static void mctp_sk_close(struct sock *sk, long timeout)
 {
 	sk_common_release(sk);
+}
+
+static int mctp_sk_hash(struct sock *sk)
+{
+	struct net *net = sock_net(sk);
+
+	mutex_lock(&net->mctp.bind_lock);
+	sk_add_node_rcu(sk, &net->mctp.binds);
+	mutex_unlock(&net->mctp.bind_lock);
+
+	return 0;
+}
+
+static void mctp_sk_unhash(struct sock *sk)
+{
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+	struct net *net = sock_net(sk);
+	struct mctp_sk_key *key;
+	struct hlist_node *tmp;
+	unsigned long flags;
+
+	/* remove from any type-based binds */
+	mutex_lock(&net->mctp.bind_lock);
+	sk_del_node_init_rcu(sk);
+	mutex_unlock(&net->mctp.bind_lock);
+
+	/* remove tag allocations */
+	spin_lock_irqsave(&net->mctp.keys_lock, flags);
+	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
+		hlist_del_rcu(&key->sklist);
+		hlist_del_rcu(&key->hlist);
+		kfree_rcu(key, rcu);
+	}
+	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
+
+	synchronize_rcu();
 }
 
 static struct proto mctp_proto = {
 	.name		= "MCTP",
 	.owner		= THIS_MODULE,
 	.obj_size	= sizeof(struct mctp_sock),
+	.init		= mctp_sk_init,
 	.close		= mctp_sk_close,
+	.hash		= mctp_sk_hash,
+	.unhash		= mctp_sk_unhash,
 };
 
 static int mctp_pf_create(struct net *net, struct socket *sock,
@@ -146,6 +331,10 @@ static struct net_proto_family mctp_pf = {
 static __init int mctp_init(void)
 {
 	int rc;
+
+	/* ensure our uapi tag definitions match the header format */
+	BUILD_BUG_ON(MCTP_TAG_OWNER != MCTP_HDR_FLAG_TO);
+	BUILD_BUG_ON(MCTP_TAG_MASK != MCTP_HDR_TAG_MASK);
 
 	pr_info("mctp: management component transport protocol core\n");
 
