@@ -814,7 +814,7 @@ static void print_mapping_test_table(FILE *outfp)
 	fprintf(outfp, "\t.cpuid = \"testcpu\",\n");
 	fprintf(outfp, "\t.version = \"v1\",\n");
 	fprintf(outfp, "\t.type = \"core\",\n");
-	fprintf(outfp, "\t.table = pme_test_cpu,\n");
+	fprintf(outfp, "\t.table = pme_test_soc_cpu,\n");
 	fprintf(outfp, "},\n");
 }
 
