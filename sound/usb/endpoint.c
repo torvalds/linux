@@ -808,7 +808,8 @@ static int endpoint_set_interface(struct snd_usb_audio *chip,
 		return err;
 	}
 
-	snd_usb_set_interface_quirk(chip);
+	if (chip->quirk_flags & QUIRK_FLAG_IFACE_DELAY)
+		msleep(50);
 	return 0;
 }
 

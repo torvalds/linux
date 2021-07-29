@@ -153,6 +153,8 @@ extern bool snd_usb_skip_validation;
  *  Add a delay of 1-2ms at each control message handling
  * QUIRK_FLAG_CTL_MSG_DELAY_5M:
  *  Add a delay of 5-6ms at each control message handling
+ * QUIRK_FLAG_IFACE_DELAY:
+ *  Add a delay of 50ms at each interface setup
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -166,5 +168,6 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_CTL_MSG_DELAY	(1U << 8)
 #define QUIRK_FLAG_CTL_MSG_DELAY_1M	(1U << 9)
 #define QUIRK_FLAG_CTL_MSG_DELAY_5M	(1U << 10)
+#define QUIRK_FLAG_IFACE_DELAY		(1U << 11)
 
 #endif /* __USBAUDIO_H */
