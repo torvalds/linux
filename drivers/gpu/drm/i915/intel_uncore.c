@@ -945,9 +945,6 @@ static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 #define __gen11_fwtable_reg_read_fw_domains(uncore, offset) \
 	find_fw_domain(uncore, offset)
 
-#define __gen12_fwtable_reg_read_fw_domains(uncore, offset) \
-	find_fw_domain(uncore, offset)
-
 /* *Must* be sorted by offset! See intel_shadow_table_check(). */
 static const i915_reg_t gen8_shadowed_regs[] = {
 	RING_TAIL(RENDER_RING_BASE),	/* 0x2000 (base) */
@@ -1644,7 +1641,6 @@ __gen_read(func, 16) \
 __gen_read(func, 32) \
 __gen_read(func, 64)
 
-__gen_reg_read_funcs(gen12_fwtable);
 __gen_reg_read_funcs(gen11_fwtable);
 __gen_reg_read_funcs(fwtable);
 __gen_reg_read_funcs(gen6);
@@ -2122,7 +2118,7 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
-		ASSIGN_READ_MMIO_VFUNCS(uncore, gen12_fwtable);
+		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) == 11) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
