@@ -984,23 +984,28 @@ static const struct i915_range gen11_shadowed_regs[] = {
 
 static const struct i915_range gen12_shadowed_regs[] = {
 	{ .start =   0x2030, .end =   0x2030 },
-	{ .start =   0x2550, .end =   0x2550 },
+	{ .start =   0x2510, .end =   0x2550 },
 	{ .start =   0xA008, .end =   0xA00C },
+	{ .start =   0xA188, .end =   0xA188 },
+	{ .start =   0xA278, .end =   0xA278 },
+	{ .start =   0xA540, .end =   0xA56C },
+	{ .start =   0xC4C8, .end =   0xC4C8 },
+	{ .start =   0xC4D4, .end =   0xC4D4 },
+	{ .start =   0xC600, .end =   0xC600 },
 	{ .start =  0x22030, .end =  0x22030 },
-	{ .start =  0x22550, .end =  0x22550 },
+	{ .start =  0x22510, .end =  0x22550 },
 	{ .start = 0x1C0030, .end = 0x1C0030 },
-	{ .start = 0x1C0550, .end = 0x1C0550 },
+	{ .start = 0x1C0510, .end = 0x1C0550 },
 	{ .start = 0x1C4030, .end = 0x1C4030 },
-	{ .start = 0x1C4550, .end = 0x1C4550 },
+	{ .start = 0x1C4510, .end = 0x1C4550 },
 	{ .start = 0x1C8030, .end = 0x1C8030 },
-	{ .start = 0x1C8550, .end = 0x1C8550 },
+	{ .start = 0x1C8510, .end = 0x1C8550 },
 	{ .start = 0x1D0030, .end = 0x1D0030 },
-	{ .start = 0x1D0550, .end = 0x1D0550 },
+	{ .start = 0x1D0510, .end = 0x1D0550 },
 	{ .start = 0x1D4030, .end = 0x1D4030 },
-	{ .start = 0x1D4550, .end = 0x1D4550 },
+	{ .start = 0x1D4510, .end = 0x1D4550 },
 	{ .start = 0x1D8030, .end = 0x1D8030 },
-	{ .start = 0x1D8550, .end = 0x1D8550 },
-	/* TODO: Other registers are not yet used */
+	{ .start = 0x1D8510, .end = 0x1D8550 },
 };
 
 static const struct i915_range xehp_shadowed_regs[] = {
