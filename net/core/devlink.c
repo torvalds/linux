@@ -108,19 +108,6 @@ struct net *devlink_net(const struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_net);
 
-static void __devlink_net_set(struct devlink *devlink, struct net *net)
-{
-	write_pnet(&devlink->_net, net);
-}
-
-void devlink_net_set(struct devlink *devlink, struct net *net)
-{
-	if (WARN_ON(devlink->dev))
-		return;
-	__devlink_net_set(devlink, net);
-}
-EXPORT_SYMBOL_GPL(devlink_net_set);
-
 static struct devlink *devlink_get_from_attrs(struct net *net,
 					      struct nlattr **attrs)
 {
@@ -3921,7 +3908,7 @@ static int devlink_reload(struct devlink *devlink, struct net *dest_net,
 		return err;
 
 	if (dest_net && !net_eq(dest_net, curr_net))
-		__devlink_net_set(devlink, dest_net);
+		write_pnet(&devlink->_net, dest_net);
 
 	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
@@ -8776,15 +8763,18 @@ static bool devlink_reload_actions_valid(const struct devlink_ops *ops)
 }
 
 /**
- *	devlink_alloc - Allocate new devlink instance resources
+ *	devlink_alloc_ns - Allocate new devlink instance resources
+ *	in specific namespace
  *
  *	@ops: ops
  *	@priv_size: size of user private data
+ *	@net: net namespace
  *
  *	Allocate new devlink instance resources, including devlink index
  *	and name.
  */
-struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
+struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
+				 size_t priv_size, struct net *net)
 {
 	struct devlink *devlink;
 
@@ -8799,7 +8789,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 		return NULL;
 	devlink->ops = ops;
 	xa_init_flags(&devlink->snapshot_ids, XA_FLAGS_ALLOC);
-	__devlink_net_set(devlink, &init_net);
+	write_pnet(&devlink->_net, net);
 	INIT_LIST_HEAD(&devlink->port_list);
 	INIT_LIST_HEAD(&devlink->rate_list);
 	INIT_LIST_HEAD(&devlink->sb_list);
@@ -8815,7 +8805,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	mutex_init(&devlink->reporters_lock);
 	return devlink;
 }
-EXPORT_SYMBOL_GPL(devlink_alloc);
+EXPORT_SYMBOL_GPL(devlink_alloc_ns);
 
 /**
  *	devlink_register - Register devlink instance
