@@ -35,6 +35,7 @@
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
 #define DWCMSHC_EMMC_DLL_TXCLK		0x808
 #define DWCMSHC_EMMC_DLL_STRBIN		0x80c
+#define DECMSHC_EMMC_DLL_CMDOUT		0x810
 #define DWCMSHC_EMMC_DLL_STATUS0	0x840
 #define DWCMSHC_EMMC_DLL_START		BIT(0)
 #define DWCMSHC_EMMC_DLL_RXCLK_SRCSEL	29
@@ -42,6 +43,7 @@
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
 #define DLL_TXCLK_TAPNUM_DEFAULT	0x10
+#define DLL_TXCLK_TAPNUM_90_DEGREES	0x8
 #define DLL_STRBIN_TAPNUM_DEFAULT	0x8
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
 #define DLL_STRBIN_TAPNUM_FROM_SW	BIT(24)
@@ -50,6 +52,10 @@
 #define DLL_RXCLK_NO_INVERTER		1
 #define DLL_RXCLK_INVERTER		0
 #define DWCMSHC_ENHANCED_STROBE		BIT(8)
+#define DLL_CMDOUT_TAPNUM_90_DEGREES	0x8
+#define DLL_CMDOUT_TAPNUM_FROM_SW	BIT(24)
+#define DLL_CMDOUT_SRC_CLK_NEG		BIT(28)
+
 #define DLL_LOCK_WO_TMOUT(x) \
 	((((x) & DWCMSHC_EMMC_DLL_LOCKED) == DWCMSHC_EMMC_DLL_LOCKED) && \
 	(((x) & DWCMSHC_EMMC_DLL_TIMEOUT) == 0))
@@ -65,6 +71,15 @@ struct dwcmshc_priv {
 	struct clk_bulk_data rockchip_clks[ROCKCHIP_MAX_CLKS];
 	int txclk_tapnum;
 	unsigned int actual_clk;
+	u32 flags;
+};
+
+struct dwcmshc_driver_data {
+	const struct sdhci_pltfm_data *pdata;
+	u32 flags;
+#define RK_PLATFROM		BIT(0)
+#define RK_DLL_CMD_OUT		BIT(1)
+#define RK_RXCLK_NO_INVERTER	BIT(2)
 };
 
 /*
@@ -163,7 +178,6 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-
 	if (clock == 0)
 		return;
 
@@ -187,6 +201,7 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
+		sdhci_writel(host, 0, DECMSHC_EMMC_DLL_CMDOUT);
 		return;
 	}
 
@@ -199,9 +214,9 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	 * We shouldn't set DLL_RXCLK_NO_INVERTER for identify mode but
 	 * we must set it in higher speed mode.
 	 */
-	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-
+	extra = DWCMSHC_EMMC_DLL_DLYENA;
+	if (priv->flags & RK_RXCLK_NO_INVERTER)
+		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	/* Init DLL settings */
@@ -225,6 +240,17 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
 	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400)
 		txclk_tapnum = priv->txclk_tapnum;
+
+	if ((priv->flags & RK_DLL_CMD_OUT) &&
+	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES;
+
+		extra = DWCMSHC_EMMC_DLL_DLYENA |
+			DLL_CMDOUT_TAPNUM_90_DEGREES |
+			DLL_CMDOUT_TAPNUM_FROM_SW |
+			DLL_CMDOUT_SRC_CLK_NEG;
+		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+	}
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
@@ -269,6 +295,21 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_rk_pdata = {
 		   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
 
+static const struct dwcmshc_driver_data dwcmshc_drvdata = {
+	.pdata = &sdhci_dwcmshc_pdata,
+	.flags = 0,
+};
+
+static const struct dwcmshc_driver_data rk3568_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk_pdata,
+	.flags = RK_PLATFROM | RK_RXCLK_NO_INVERTER,
+};
+
+static const struct dwcmshc_driver_data rk3588_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT,
+};
+
 static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv)
 {
 	int err;
@@ -304,11 +345,15 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "snps,dwcmshc-sdhci",
-		.data = &sdhci_dwcmshc_pdata,
+		.data = &dwcmshc_drvdata,
 	},
 	{
 		.compatible = "rockchip,dwcmshc-sdhci",
-		.data = &sdhci_dwcmshc_rk_pdata,
+		.data = &rk3568_drvdata,
+	},
+	{
+		.compatible = "rockchip,rk3588-dwcmshc",
+		.data = &rk3588_drvdata,
 	},
 	{},
 };
@@ -318,17 +363,17 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
 	struct dwcmshc_priv *priv;
-	const struct sdhci_pltfm_data *pltfm_data;
+	const struct dwcmshc_driver_data *drv_data;
 	int err;
 	u32 extra;
 
-	pltfm_data = of_device_get_match_data(&pdev->dev);
-	if (!pltfm_data) {
+	drv_data = of_device_get_match_data(&pdev->dev);
+	if (!drv_data) {
 		dev_err(&pdev->dev, "Error: No device match data found\n");
 		return -ENODEV;
 	}
 
-	host = sdhci_pltfm_init(pdev, pltfm_data,
+	host = sdhci_pltfm_init(pdev, drv_data->pdata,
 				sizeof(struct dwcmshc_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
@@ -368,7 +413,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe =
 		dwcmshc_hs400_enhanced_strobe;
 
-	if (pltfm_data == &sdhci_dwcmshc_rk_pdata) {
+	priv->flags = drv_data->flags;
+	if (drv_data->flags & RK_PLATFROM) {
 		err = rockchip_pltf_init(host, priv);
 		if (err)
 			goto err_clk;
