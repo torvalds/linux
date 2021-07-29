@@ -2717,11 +2717,10 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_component_by_driver);
  */
 void snd_soc_unregister_component(struct device *dev)
 {
-	struct snd_soc_component *component;
-
 	mutex_lock(&client_mutex);
 	while (1) {
-		component = snd_soc_lookup_component_nolocked(dev, NULL);
+		struct snd_soc_component *component = snd_soc_lookup_component_nolocked(dev, NULL);
+
 		if (!component)
 			break;
 
