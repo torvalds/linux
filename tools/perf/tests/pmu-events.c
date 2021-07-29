@@ -232,6 +232,60 @@ static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
 	return 0;
 }
 
+static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
+				struct perf_pmu_test_event const *test_event,
+				char const *pmu_name)
+{
+	struct pmu_event const *event = &test_event->event;
+
+	/* An alias was found, ensure everything is in order */
+	if (!is_same(alias->name, event->name)) {
+		pr_debug("testing aliases PMU %s: mismatched name, %s vs %s\n",
+			  pmu_name, alias->name, event->name);
+		return -1;
+	}
+
+	if (!is_same(alias->desc, event->desc)) {
+		pr_debug("testing aliases PMU %s: mismatched desc, %s vs %s\n",
+			  pmu_name, alias->desc, event->desc);
+		return -1;
+	}
+
+	if (!is_same(alias->long_desc, test_event->alias_long_desc)) {
+		pr_debug("testing aliases PMU %s: mismatched long_desc, %s vs %s\n",
+			  pmu_name, alias->long_desc,
+			  test_event->alias_long_desc);
+		return -1;
+	}
+
+	if (!is_same(alias->topic, event->topic)) {
+		pr_debug("testing aliases PMU %s: mismatched topic, %s vs %s\n",
+			  pmu_name, alias->topic, event->topic);
+		return -1;
+	}
+
+	if (!is_same(alias->str, test_event->alias_str)) {
+		pr_debug("testing aliases PMU %s: mismatched str, %s vs %s\n",
+			  pmu_name, alias->str, test_event->alias_str);
+		return -1;
+	}
+
+	if (!is_same(alias->long_desc, test_event->alias_long_desc)) {
+		pr_debug("testing aliases PMU %s: mismatched long desc, %s vs %s\n",
+			  pmu_name, alias->str, test_event->alias_long_desc);
+		return -1;
+	}
+
+
+	if (!is_same(alias->pmu_name, test_event->event.pmu)) {
+		pr_debug("testing aliases PMU %s: mismatched pmu_name, %s vs %s\n",
+			  pmu_name, alias->pmu_name, test_event->event.pmu);
+		return -1;
+	}
+
+	return 0;
+}
+
 /* Verify generated events from pmu-events.c are as expected */
 static int test_pmu_event_table(void)
 {
@@ -349,31 +403,7 @@ static int __test__pmu_event_aliases(char *pmu_name, int *count)
 			break;
 		}
 
-		if (!is_same(alias->desc, event->desc)) {
-			pr_debug2("testing aliases PMU %s: mismatched desc, %s vs %s\n",
-				  pmu_name, alias->desc, event->desc);
-			res = -1;
-			break;
-		}
-
-		if (!is_same(alias->long_desc, test_event->alias_long_desc)) {
-			pr_debug2("testing aliases PMU %s: mismatched long_desc, %s vs %s\n",
-				  pmu_name, alias->long_desc,
-				  test_event->alias_long_desc);
-			res = -1;
-			break;
-		}
-
-		if (!is_same(alias->str, test_event->alias_str)) {
-			pr_debug2("testing aliases PMU %s: mismatched str, %s vs %s\n",
-				  pmu_name, alias->str, test_event->alias_str);
-			res = -1;
-			break;
-		}
-
-		if (!is_same(alias->topic, event->topic)) {
-			pr_debug2("testing aliases PMU %s: mismatched topic, %s vs %s\n",
-				  pmu_name, alias->topic, event->topic);
+		if (compare_alias_to_test_event(alias, test_event, pmu_name)) {
 			res = -1;
 			break;
 		}
