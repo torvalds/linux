@@ -41,14 +41,14 @@ static struct dpaa2_switch_fdb *dpaa2_switch_fdb_get_unused(struct ethsw_core *e
 	return NULL;
 }
 
-static struct dpaa2_switch_acl_tbl *
-dpaa2_switch_acl_tbl_get_unused(struct ethsw_core *ethsw)
+static struct dpaa2_switch_filter_block *
+dpaa2_switch_filter_block_get_unused(struct ethsw_core *ethsw)
 {
 	int i;
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
-		if (!ethsw->acls[i].in_use)
-			return &ethsw->acls[i];
+		if (!ethsw->filter_blocks[i].in_use)
+			return &ethsw->filter_blocks[i];
 	return NULL;
 }
 
@@ -1127,28 +1127,28 @@ err_exit:
 }
 
 static int
-dpaa2_switch_setup_tc_cls_flower(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_setup_tc_cls_flower(struct dpaa2_switch_filter_block *filter_block,
 				 struct flow_cls_offload *f)
 {
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
-		return dpaa2_switch_cls_flower_replace(acl_tbl, f);
+		return dpaa2_switch_cls_flower_replace(filter_block, f);
 	case FLOW_CLS_DESTROY:
-		return dpaa2_switch_cls_flower_destroy(acl_tbl, f);
+		return dpaa2_switch_cls_flower_destroy(filter_block, f);
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
 static int
-dpaa2_switch_setup_tc_cls_matchall(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_setup_tc_cls_matchall(struct dpaa2_switch_filter_block *block,
 				   struct tc_cls_matchall_offload *f)
 {
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
-		return dpaa2_switch_cls_matchall_replace(acl_tbl, f);
+		return dpaa2_switch_cls_matchall_replace(block, f);
 	case TC_CLSMATCHALL_DESTROY:
-		return dpaa2_switch_cls_matchall_destroy(acl_tbl, f);
+		return dpaa2_switch_cls_matchall_destroy(block, f);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1170,106 +1170,108 @@ static int dpaa2_switch_port_setup_tc_block_cb_ig(enum tc_setup_type type,
 
 static LIST_HEAD(dpaa2_switch_block_cb_list);
 
-static int dpaa2_switch_port_acl_tbl_bind(struct ethsw_port_priv *port_priv,
-					  struct dpaa2_switch_acl_tbl *acl_tbl)
+static int
+dpaa2_switch_port_acl_tbl_bind(struct ethsw_port_priv *port_priv,
+			       struct dpaa2_switch_filter_block *block)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct net_device *netdev = port_priv->netdev;
 	struct dpsw_acl_if_cfg acl_if_cfg;
 	int err;
 
-	if (port_priv->acl_tbl)
+	if (port_priv->filter_block)
 		return -EINVAL;
 
 	acl_if_cfg.if_id[0] = port_priv->idx;
 	acl_if_cfg.num_ifs = 1;
 	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
-			      acl_tbl->id, &acl_if_cfg);
+			      block->acl_id, &acl_if_cfg);
 	if (err) {
 		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
 		return err;
 	}
 
-	acl_tbl->ports |= BIT(port_priv->idx);
-	port_priv->acl_tbl = acl_tbl;
+	block->ports |= BIT(port_priv->idx);
+	port_priv->filter_block = block;
 
 	return 0;
 }
 
 static int
 dpaa2_switch_port_acl_tbl_unbind(struct ethsw_port_priv *port_priv,
-				 struct dpaa2_switch_acl_tbl *acl_tbl)
+				 struct dpaa2_switch_filter_block *block)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct net_device *netdev = port_priv->netdev;
 	struct dpsw_acl_if_cfg acl_if_cfg;
 	int err;
 
-	if (port_priv->acl_tbl != acl_tbl)
+	if (port_priv->filter_block != block)
 		return -EINVAL;
 
 	acl_if_cfg.if_id[0] = port_priv->idx;
 	acl_if_cfg.num_ifs = 1;
 	err = dpsw_acl_remove_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				 acl_tbl->id, &acl_if_cfg);
+				 block->acl_id, &acl_if_cfg);
 	if (err) {
 		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
 		return err;
 	}
 
-	acl_tbl->ports &= ~BIT(port_priv->idx);
-	port_priv->acl_tbl = NULL;
+	block->ports &= ~BIT(port_priv->idx);
+	port_priv->filter_block = NULL;
 	return 0;
 }
 
 static int dpaa2_switch_port_block_bind(struct ethsw_port_priv *port_priv,
-					struct dpaa2_switch_acl_tbl *acl_tbl)
+					struct dpaa2_switch_filter_block *block)
 {
-	struct dpaa2_switch_acl_tbl *old_acl_tbl = port_priv->acl_tbl;
+	struct dpaa2_switch_filter_block *old_block = port_priv->filter_block;
 	int err;
 
 	/* If the port is already bound to this ACL table then do nothing. This
 	 * can happen when this port is the first one to join a tc block
 	 */
-	if (port_priv->acl_tbl == acl_tbl)
+	if (port_priv->filter_block == block)
 		return 0;
 
-	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, old_acl_tbl);
+	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, old_block);
 	if (err)
 		return err;
 
 	/* Mark the previous ACL table as being unused if this was the last
 	 * port that was using it.
 	 */
-	if (old_acl_tbl->ports == 0)
-		old_acl_tbl->in_use = false;
+	if (old_block->ports == 0)
+		old_block->in_use = false;
 
-	return dpaa2_switch_port_acl_tbl_bind(port_priv, acl_tbl);
+	return dpaa2_switch_port_acl_tbl_bind(port_priv, block);
 }
 
-static int dpaa2_switch_port_block_unbind(struct ethsw_port_priv *port_priv,
-					  struct dpaa2_switch_acl_tbl *acl_tbl)
+static int
+dpaa2_switch_port_block_unbind(struct ethsw_port_priv *port_priv,
+			       struct dpaa2_switch_filter_block *block)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpaa2_switch_acl_tbl *new_acl_tbl;
+	struct dpaa2_switch_filter_block *new_block;
 	int err;
 
 	/* We are the last port that leaves a block (an ACL table).
 	 * We'll continue to use this table.
 	 */
-	if (acl_tbl->ports == BIT(port_priv->idx))
+	if (block->ports == BIT(port_priv->idx))
 		return 0;
 
-	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, acl_tbl);
+	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, block);
 	if (err)
 		return err;
 
-	if (acl_tbl->ports == 0)
-		acl_tbl->in_use = false;
+	if (block->ports == 0)
+		block->in_use = false;
 
-	new_acl_tbl = dpaa2_switch_acl_tbl_get_unused(ethsw);
-	new_acl_tbl->in_use = true;
-	return dpaa2_switch_port_acl_tbl_bind(port_priv, new_acl_tbl);
+	new_block = dpaa2_switch_filter_block_get_unused(ethsw);
+	new_block->in_use = true;
+	return dpaa2_switch_port_acl_tbl_bind(port_priv, new_block);
 }
 
 static int dpaa2_switch_setup_tc_block_bind(struct net_device *netdev,
@@ -1277,7 +1279,7 @@ static int dpaa2_switch_setup_tc_block_bind(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpaa2_switch_acl_tbl *acl_tbl;
+	struct dpaa2_switch_filter_block *filter_block;
 	struct flow_block_cb *block_cb;
 	bool register_block = false;
 	int err;
@@ -1287,24 +1289,24 @@ static int dpaa2_switch_setup_tc_block_bind(struct net_device *netdev,
 					ethsw);
 
 	if (!block_cb) {
-		/* If the ACL table is not already known, then this port must
-		 * be the first to join it. In this case, we can just continue
-		 * to use our private table
+		/* If the filter block is not already known, then this port
+		 * must be the first to join it. In this case, we can just
+		 * continue to use our private table
 		 */
-		acl_tbl = port_priv->acl_tbl;
+		filter_block = port_priv->filter_block;
 
 		block_cb = flow_block_cb_alloc(dpaa2_switch_port_setup_tc_block_cb_ig,
-					       ethsw, acl_tbl, NULL);
+					       ethsw, filter_block, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
 		register_block = true;
 	} else {
-		acl_tbl = flow_block_cb_priv(block_cb);
+		filter_block = flow_block_cb_priv(block_cb);
 	}
 
 	flow_block_cb_incref(block_cb);
-	err = dpaa2_switch_port_block_bind(port_priv, acl_tbl);
+	err = dpaa2_switch_port_block_bind(port_priv, filter_block);
 	if (err)
 		goto err_block_bind;
 
@@ -1327,7 +1329,7 @@ static void dpaa2_switch_setup_tc_block_unbind(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpaa2_switch_acl_tbl *acl_tbl;
+	struct dpaa2_switch_filter_block *filter_block;
 	struct flow_block_cb *block_cb;
 	int err;
 
@@ -1337,8 +1339,8 @@ static void dpaa2_switch_setup_tc_block_unbind(struct net_device *netdev,
 	if (!block_cb)
 		return;
 
-	acl_tbl = flow_block_cb_priv(block_cb);
-	err = dpaa2_switch_port_block_unbind(port_priv, acl_tbl);
+	filter_block = flow_block_cb_priv(block_cb);
+	err = dpaa2_switch_port_block_unbind(port_priv, filter_block);
 	if (!err && !flow_block_cb_decref(block_cb)) {
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
@@ -2991,7 +2993,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 	acl_entry.cfg.precedence = 0;
 	acl_entry.cfg.result.action = DPSW_ACL_ACTION_REDIRECT_TO_CTRL_IF;
 
-	return dpaa2_switch_acl_entry_add(port_priv->acl_tbl, &acl_entry);
+	return dpaa2_switch_acl_entry_add(port_priv->filter_block, &acl_entry);
 }
 
 static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
@@ -3004,7 +3006,7 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	};
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpaa2_switch_acl_tbl *acl_tbl;
+	struct dpaa2_switch_filter_block *filter_block;
 	struct dpsw_fdb_cfg fdb_cfg = {0};
 	struct dpsw_if_attr dpsw_if_attr;
 	struct dpaa2_switch_fdb *fdb;
@@ -3059,14 +3061,14 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		return err;
 	}
 
-	acl_tbl = dpaa2_switch_acl_tbl_get_unused(ethsw);
-	acl_tbl->ethsw = ethsw;
-	acl_tbl->id = acl_tbl_id;
-	acl_tbl->in_use = true;
-	acl_tbl->num_rules = 0;
-	INIT_LIST_HEAD(&acl_tbl->entries);
+	filter_block = dpaa2_switch_filter_block_get_unused(ethsw);
+	filter_block->ethsw = ethsw;
+	filter_block->acl_id = acl_tbl_id;
+	filter_block->in_use = true;
+	filter_block->num_acl_rules = 0;
+	INIT_LIST_HEAD(&filter_block->acl_entries);
 
-	err = dpaa2_switch_port_acl_tbl_bind(port_priv, acl_tbl);
+	err = dpaa2_switch_port_acl_tbl_bind(port_priv, filter_block);
 	if (err)
 		return err;
 
@@ -3120,7 +3122,7 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	}
 
 	kfree(ethsw->fdbs);
-	kfree(ethsw->acls);
+	kfree(ethsw->filter_blocks);
 	kfree(ethsw->ports);
 
 	dpaa2_switch_takedown(sw_dev);
@@ -3248,9 +3250,10 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 		goto err_free_ports;
 	}
 
-	ethsw->acls = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->acls),
-			      GFP_KERNEL);
-	if (!ethsw->acls) {
+	ethsw->filter_blocks = kcalloc(ethsw->sw_attr.num_ifs,
+				       sizeof(*ethsw->filter_blocks),
+				       GFP_KERNEL);
+	if (!ethsw->filter_blocks) {
 		err = -ENOMEM;
 		goto err_free_fdbs;
 	}
@@ -3303,7 +3306,7 @@ err_stop:
 err_free_netdev:
 	for (i--; i >= 0; i--)
 		free_netdev(ethsw->ports[i]->netdev);
-	kfree(ethsw->acls);
+	kfree(ethsw->filter_blocks);
 err_free_fdbs:
 	kfree(ethsw->fdbs);
 err_free_ports:

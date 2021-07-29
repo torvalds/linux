@@ -111,11 +111,11 @@ static int dpaa2_switch_flower_parse_key(struct flow_cls_offload *cls,
 	return 0;
 }
 
-int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
+int dpaa2_switch_acl_entry_add(struct dpaa2_switch_filter_block *filter_block,
 			       struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpsw_acl_entry_cfg *acl_entry_cfg = &entry->cfg;
-	struct ethsw_core *ethsw = acl_tbl->ethsw;
+	struct ethsw_core *ethsw = filter_block->ethsw;
 	struct dpsw_acl_key *acl_key = &entry->key;
 	struct device *dev = ethsw->dev;
 	u8 *cmd_buff;
@@ -136,7 +136,7 @@ int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
 	}
 
 	err = dpsw_acl_add_entry(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				 acl_tbl->id, acl_entry_cfg);
+				 filter_block->acl_id, acl_entry_cfg);
 
 	dma_unmap_single(dev, acl_entry_cfg->key_iova, sizeof(cmd_buff),
 			 DMA_TO_DEVICE);
@@ -150,12 +150,13 @@ int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
 	return 0;
 }
 
-static int dpaa2_switch_acl_entry_remove(struct dpaa2_switch_acl_tbl *acl_tbl,
-					 struct dpaa2_switch_acl_entry *entry)
+static int
+dpaa2_switch_acl_entry_remove(struct dpaa2_switch_filter_block *block,
+			      struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpsw_acl_entry_cfg *acl_entry_cfg = &entry->cfg;
 	struct dpsw_acl_key *acl_key = &entry->key;
-	struct ethsw_core *ethsw = acl_tbl->ethsw;
+	struct ethsw_core *ethsw = block->ethsw;
 	struct device *dev = ethsw->dev;
 	u8 *cmd_buff;
 	int err;
@@ -175,7 +176,7 @@ static int dpaa2_switch_acl_entry_remove(struct dpaa2_switch_acl_tbl *acl_tbl,
 	}
 
 	err = dpsw_acl_remove_entry(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				    acl_tbl->id, acl_entry_cfg);
+				    block->acl_id, acl_entry_cfg);
 
 	dma_unmap_single(dev, acl_entry_cfg->key_iova, sizeof(cmd_buff),
 			 DMA_TO_DEVICE);
@@ -190,19 +191,19 @@ static int dpaa2_switch_acl_entry_remove(struct dpaa2_switch_acl_tbl *acl_tbl,
 }
 
 static int
-dpaa2_switch_acl_entry_add_to_list(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_entry_add_to_list(struct dpaa2_switch_filter_block *block,
 				   struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpaa2_switch_acl_entry *tmp;
 	struct list_head *pos, *n;
 	int index = 0;
 
-	if (list_empty(&acl_tbl->entries)) {
-		list_add(&entry->list, &acl_tbl->entries);
+	if (list_empty(&block->acl_entries)) {
+		list_add(&entry->list, &block->acl_entries);
 		return index;
 	}
 
-	list_for_each_safe(pos, n, &acl_tbl->entries) {
+	list_for_each_safe(pos, n, &block->acl_entries) {
 		tmp = list_entry(pos, struct dpaa2_switch_acl_entry, list);
 		if (entry->prio < tmp->prio)
 			break;
@@ -213,13 +214,13 @@ dpaa2_switch_acl_entry_add_to_list(struct dpaa2_switch_acl_tbl *acl_tbl,
 }
 
 static struct dpaa2_switch_acl_entry*
-dpaa2_switch_acl_entry_get_by_index(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_entry_get_by_index(struct dpaa2_switch_filter_block *block,
 				    int index)
 {
 	struct dpaa2_switch_acl_entry *tmp;
 	int i = 0;
 
-	list_for_each_entry(tmp, &acl_tbl->entries, list) {
+	list_for_each_entry(tmp, &block->acl_entries, list) {
 		if (i == index)
 			return tmp;
 		++i;
@@ -229,37 +230,38 @@ dpaa2_switch_acl_entry_get_by_index(struct dpaa2_switch_acl_tbl *acl_tbl,
 }
 
 static int
-dpaa2_switch_acl_entry_set_precedence(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_entry_set_precedence(struct dpaa2_switch_filter_block *block,
 				      struct dpaa2_switch_acl_entry *entry,
 				      int precedence)
 {
 	int err;
 
-	err = dpaa2_switch_acl_entry_remove(acl_tbl, entry);
+	err = dpaa2_switch_acl_entry_remove(block, entry);
 	if (err)
 		return err;
 
 	entry->cfg.precedence = precedence;
-	return dpaa2_switch_acl_entry_add(acl_tbl, entry);
+	return dpaa2_switch_acl_entry_add(block, entry);
 }
 
-static int dpaa2_switch_acl_tbl_add_entry(struct dpaa2_switch_acl_tbl *acl_tbl,
-					  struct dpaa2_switch_acl_entry *entry)
+static int
+dpaa2_switch_acl_tbl_add_entry(struct dpaa2_switch_filter_block *block,
+			       struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpaa2_switch_acl_entry *tmp;
 	int index, i, precedence, err;
 
 	/* Add the new ACL entry to the linked list and get its index */
-	index = dpaa2_switch_acl_entry_add_to_list(acl_tbl, entry);
+	index = dpaa2_switch_acl_entry_add_to_list(block, entry);
 
 	/* Move up in priority the ACL entries to make space
 	 * for the new filter.
 	 */
-	precedence = DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES - acl_tbl->num_rules - 1;
+	precedence = DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES - block->num_acl_rules - 1;
 	for (i = 0; i < index; i++) {
-		tmp = dpaa2_switch_acl_entry_get_by_index(acl_tbl, i);
+		tmp = dpaa2_switch_acl_entry_get_by_index(block, i);
 
-		err = dpaa2_switch_acl_entry_set_precedence(acl_tbl, tmp,
+		err = dpaa2_switch_acl_entry_set_precedence(block, tmp,
 							    precedence);
 		if (err)
 			return err;
@@ -269,19 +271,19 @@ static int dpaa2_switch_acl_tbl_add_entry(struct dpaa2_switch_acl_tbl *acl_tbl,
 
 	/* Add the new entry to hardware */
 	entry->cfg.precedence = precedence;
-	err = dpaa2_switch_acl_entry_add(acl_tbl, entry);
-	acl_tbl->num_rules++;
+	err = dpaa2_switch_acl_entry_add(block, entry);
+	block->num_acl_rules++;
 
 	return err;
 }
 
 static struct dpaa2_switch_acl_entry *
-dpaa2_switch_acl_tbl_find_entry_by_cookie(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_tbl_find_entry_by_cookie(struct dpaa2_switch_filter_block *block,
 					  unsigned long cookie)
 {
 	struct dpaa2_switch_acl_entry *tmp, *n;
 
-	list_for_each_entry_safe(tmp, n, &acl_tbl->entries, list) {
+	list_for_each_entry_safe(tmp, n, &block->acl_entries, list) {
 		if (tmp->cookie == cookie)
 			return tmp;
 	}
@@ -289,13 +291,13 @@ dpaa2_switch_acl_tbl_find_entry_by_cookie(struct dpaa2_switch_acl_tbl *acl_tbl,
 }
 
 static int
-dpaa2_switch_acl_entry_get_index(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_entry_get_index(struct dpaa2_switch_filter_block *block,
 				 struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpaa2_switch_acl_entry *tmp, *n;
 	int index = 0;
 
-	list_for_each_entry_safe(tmp, n, &acl_tbl->entries, list) {
+	list_for_each_entry_safe(tmp, n, &block->acl_entries, list) {
 		if (tmp->cookie == entry->cookie)
 			return index;
 		index++;
@@ -304,20 +306,20 @@ dpaa2_switch_acl_entry_get_index(struct dpaa2_switch_acl_tbl *acl_tbl,
 }
 
 static int
-dpaa2_switch_acl_tbl_remove_entry(struct dpaa2_switch_acl_tbl *acl_tbl,
+dpaa2_switch_acl_tbl_remove_entry(struct dpaa2_switch_filter_block *block,
 				  struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpaa2_switch_acl_entry *tmp;
 	int index, i, precedence, err;
 
-	index = dpaa2_switch_acl_entry_get_index(acl_tbl, entry);
+	index = dpaa2_switch_acl_entry_get_index(block, entry);
 
 	/* Remove from hardware the ACL entry */
-	err = dpaa2_switch_acl_entry_remove(acl_tbl, entry);
+	err = dpaa2_switch_acl_entry_remove(block, entry);
 	if (err)
 		return err;
 
-	acl_tbl->num_rules--;
+	block->num_acl_rules--;
 
 	/* Remove it from the list also */
 	list_del(&entry->list);
@@ -325,8 +327,8 @@ dpaa2_switch_acl_tbl_remove_entry(struct dpaa2_switch_acl_tbl *acl_tbl,
 	/* Move down in priority the entries over the deleted one */
 	precedence = entry->cfg.precedence;
 	for (i = index - 1; i >= 0; i--) {
-		tmp = dpaa2_switch_acl_entry_get_by_index(acl_tbl, i);
-		err = dpaa2_switch_acl_entry_set_precedence(acl_tbl, tmp,
+		tmp = dpaa2_switch_acl_entry_get_by_index(block, i);
+		err = dpaa2_switch_acl_entry_set_precedence(block, tmp,
 							    precedence);
 		if (err)
 			return err;
@@ -374,13 +376,13 @@ out:
 	return err;
 }
 
-int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 				    struct flow_cls_offload *cls)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct netlink_ext_ack *extack = cls->common.extack;
-	struct ethsw_core *ethsw = acl_tbl->ethsw;
 	struct dpaa2_switch_acl_entry *acl_entry;
+	struct ethsw_core *ethsw = block->ethsw;
 	struct flow_action_entry *act;
 	int err;
 
@@ -389,7 +391,7 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 		return -EOPNOTSUPP;
 	}
 
-	if (dpaa2_switch_acl_tbl_is_full(acl_tbl)) {
+	if (dpaa2_switch_acl_tbl_is_full(block)) {
 		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
 		return -ENOMEM;
 	}
@@ -411,7 +413,7 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 	acl_entry->prio = cls->common.prio;
 	acl_entry->cookie = cls->cookie;
 
-	err = dpaa2_switch_acl_tbl_add_entry(acl_tbl, acl_entry);
+	err = dpaa2_switch_acl_tbl_add_entry(block, acl_entry);
 	if (err)
 		goto free_acl_entry;
 
@@ -423,23 +425,23 @@ free_acl_entry:
 	return err;
 }
 
-int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_filter_block *block,
 				    struct flow_cls_offload *cls)
 {
 	struct dpaa2_switch_acl_entry *entry;
 
-	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(acl_tbl, cls->cookie);
+	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block, cls->cookie);
 	if (!entry)
 		return 0;
 
-	return dpaa2_switch_acl_tbl_remove_entry(acl_tbl, entry);
+	return dpaa2_switch_acl_tbl_remove_entry(block, entry);
 }
 
-int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {
 	struct netlink_ext_ack *extack = cls->common.extack;
-	struct ethsw_core *ethsw = acl_tbl->ethsw;
+	struct ethsw_core *ethsw = block->ethsw;
 	struct dpaa2_switch_acl_entry *acl_entry;
 	struct flow_action_entry *act;
 	int err;
@@ -449,7 +451,7 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 		return -EOPNOTSUPP;
 	}
 
-	if (dpaa2_switch_acl_tbl_is_full(acl_tbl)) {
+	if (dpaa2_switch_acl_tbl_is_full(block)) {
 		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
 		return -ENOMEM;
 	}
@@ -467,7 +469,7 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 	acl_entry->prio = cls->common.prio;
 	acl_entry->cookie = cls->cookie;
 
-	err = dpaa2_switch_acl_tbl_add_entry(acl_tbl, acl_entry);
+	err = dpaa2_switch_acl_tbl_add_entry(block, acl_entry);
 	if (err)
 		goto free_acl_entry;
 
@@ -479,14 +481,14 @@ free_acl_entry:
 	return err;
 }
 
-int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {
 	struct dpaa2_switch_acl_entry *entry;
 
-	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(acl_tbl, cls->cookie);
+	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block, cls->cookie);
 	if (!entry)
 		return 0;
 
-	return  dpaa2_switch_acl_tbl_remove_entry(acl_tbl, entry);
+	return  dpaa2_switch_acl_tbl_remove_entry(block, entry);
 }
