@@ -84,8 +84,10 @@ MODULE_DESCRIPTION("sysfs interface to BIOS iBFT information");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IBFT_ISCSI_VERSION);
 
+static struct acpi_table_ibft *ibft_addr;
+
 #ifndef CONFIG_ISCSI_IBFT_FIND
-struct acpi_table_ibft *ibft_addr;
+phys_addr_t ibft_phys_addr;
 #endif
 
 struct ibft_hdr {
@@ -858,11 +860,13 @@ static int __init ibft_init(void)
 	int rc = 0;
 
 	/*
-	   As on UEFI systems the setup_arch()/find_ibft_region()
+	   As on UEFI systems the setup_arch()/reserve_ibft_region()
 	   is called before ACPI tables are parsed and it only does
 	   legacy finding.
 	*/
-	if (!ibft_addr)
+	if (ibft_phys_addr)
+		ibft_addr = isa_bus_to_virt(ibft_phys_addr);
+	else
 		acpi_find_ibft_region();
 
 	if (ibft_addr) {
