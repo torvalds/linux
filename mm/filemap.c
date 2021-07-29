@@ -3001,25 +3001,25 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
  * was pinned if we have to drop the mmap_lock in order to do IO.
  */
 static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
-					    struct page *page)
+					    struct folio *folio)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct file_ra_state *ra = &file->f_ra;
-	struct address_space *mapping = file->f_mapping;
+	DEFINE_READAHEAD(ractl, file, ra, file->f_mapping, vmf->pgoff);
 	struct file *fpin = NULL;
 	unsigned int mmap_miss;
-	pgoff_t offset = vmf->pgoff;
 
 	/* If we don't want any read-ahead, don't bother */
 	if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
 		return fpin;
+
 	mmap_miss = READ_ONCE(ra->mmap_miss);
 	if (mmap_miss)
 		WRITE_ONCE(ra->mmap_miss, --mmap_miss);
-	if (PageReadahead(page)) {
+
+	if (folio_test_readahead(folio)) {
 		fpin = maybe_unlock_mmap_for_io(vmf, fpin);
-		page_cache_async_readahead(mapping, ra, file,
-					   page, offset, ra->ra_pages);
+		page_cache_async_ra(&ractl, folio, ra->ra_pages);
 	}
 	return fpin;
 }
@@ -3069,12 +3069,13 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 	 */
 	page = find_get_page(mapping, offset);
 	if (likely(page)) {
+		struct folio *folio = page_folio(page);
 		/*
 		 * We found the page, so try async readahead before waiting for
 		 * the lock.
 		 */
 		if (!(vmf->flags & FAULT_FLAG_TRIED))
-			fpin = do_async_mmap_readahead(vmf, page);
+			fpin = do_async_mmap_readahead(vmf, folio);
 		if (unlikely(!PageUptodate(page))) {
 			filemap_invalidate_lock_shared(mapping);
 			mapping_locked = true;
