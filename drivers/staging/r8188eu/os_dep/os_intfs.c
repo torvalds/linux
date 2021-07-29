@@ -12,7 +12,6 @@
 #include <rtw_version.h>
 
 #include <usb_osintf.h>
-#include <usb_hal.h>
 #include <rtw_br_ext.h>
 #include <linux/version.h>
 

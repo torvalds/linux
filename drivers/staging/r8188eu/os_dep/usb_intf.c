@@ -15,7 +15,6 @@
 #include <usb_vendor_req.h>
 #include <usb_ops.h>
 #include <usb_osintf.h>
-#include <usb_hal.h>
 #include <rtw_ioctl.h>
 
 int ui_pid[3] = {0, 0, 0};
@@ -628,7 +627,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter = rtw_netdev_priv(pnetdev);
 
 	/* step 2. hook HalFunc, allocate HalData */
-	hal_set_hal_ops(padapter);
+	rtl8188eu_set_hal_ops(padapter);
 
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;

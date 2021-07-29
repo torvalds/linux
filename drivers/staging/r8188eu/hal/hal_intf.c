@@ -5,7 +5,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <hal_intf.h>
-#include <usb_hal.h>
 
 void rtw_hal_chip_configure(struct adapter *adapt)
 {
