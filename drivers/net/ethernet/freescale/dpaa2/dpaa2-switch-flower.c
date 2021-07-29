@@ -457,7 +457,8 @@ int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_filter_block *block,
 	return dpaa2_switch_acl_tbl_remove_entry(block, entry);
 }
 
-int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
+static int
+dpaa2_switch_cls_matchall_replace_acl(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {
 	struct netlink_ext_ack *extack = cls->common.extack;
@@ -465,11 +466,6 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 	struct dpaa2_switch_acl_entry *acl_entry;
 	struct flow_action_entry *act;
 	int err;
-
-	if (!flow_offload_has_one_action(&cls->rule->action)) {
-		NL_SET_ERR_MSG(extack, "Only singular actions are supported");
-		return -EOPNOTSUPP;
-	}
 
 	if (dpaa2_switch_acl_tbl_is_full(block)) {
 		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
@@ -499,6 +495,29 @@ free_acl_entry:
 	kfree(acl_entry);
 
 	return err;
+}
+
+int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
+				      struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct flow_action_entry *act;
+
+	if (!flow_offload_has_one_action(&cls->rule->action)) {
+		NL_SET_ERR_MSG(extack, "Only singular actions are supported");
+		return -EOPNOTSUPP;
+	}
+
+	act = &cls->rule->action.entries[0];
+	switch (act->id) {
+	case FLOW_ACTION_REDIRECT:
+	case FLOW_ACTION_TRAP:
+	case FLOW_ACTION_DROP:
+		return dpaa2_switch_cls_matchall_replace_acl(block, cls);
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "Action not supported");
+		return -EOPNOTSUPP;
+	}
 }
 
 int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
