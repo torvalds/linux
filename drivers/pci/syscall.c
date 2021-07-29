@@ -19,8 +19,7 @@ SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
 	u8 byte;
 	u16 word;
 	u32 dword;
-	long err;
-	int cfg_ret;
+	int err, cfg_ret;
 
 	err = -EPERM;
 	dev = NULL;
