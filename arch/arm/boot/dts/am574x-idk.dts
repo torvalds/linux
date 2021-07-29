@@ -39,3 +39,11 @@
 &emif1 {
 	status = "okay";
 };
+
+&pruss1_mdio {
+	status = "disabled";
+};
+
+&pruss2_mdio {
+	status = "disabled";
+};
