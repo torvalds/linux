@@ -613,8 +613,11 @@ static int msi_verify_entries(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
+	if (!dev->no_64bit_msi)
+		return 0;
+
 	for_each_pci_msi_entry(entry, dev) {
-		if (entry->msg.address_hi && dev->no_64bit_msi) {
+		if (entry->msg.address_hi) {
 			pci_err(dev, "arch assigned 64-bit MSI address %#x%08x but device only supports 32 bits\n",
 				entry->msg.address_hi, entry->msg.address_lo);
 			return -EIO;
