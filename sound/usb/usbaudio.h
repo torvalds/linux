@@ -36,7 +36,6 @@ struct snd_usb_audio {
 	wait_queue_head_t shutdown_wait;
 	unsigned int quirk_flags;
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
-	unsigned int playback_first:1;	/* for implicit fb: don't wait for the first capture URBs */
 	int num_interfaces;
 	int num_suspended_intf;
 	int sample_rate_read_error;
@@ -139,11 +138,14 @@ extern bool snd_usb_skip_validation;
  *  slots (audio frames)
  * QUIRK_TX_LENGTH:
  *  Add length specifier to transfers
+ * QUIRK_FLAG_PLAYBACK_FIRST:
+ *  Start playback stream at first even in implement feedback mode
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
 #define QUIRK_FLAG_SHARE_MEDIA_DEVICE	(1U << 1)
 #define QUIRK_FLAG_ALIGN_TRANSFER	(1U << 2)
 #define QUIRK_FLAG_TX_LENGTH		(1U << 3)
+#define QUIRK_FLAG_PLAYBACK_FIRST	(1U << 4)
 
 #endif /* __USBAUDIO_H */
