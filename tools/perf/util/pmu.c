@@ -843,8 +843,7 @@ void pmu_add_cpu_aliases_map(struct list_head *head, struct perf_pmu *pmu,
 			break;
 		}
 
-		if (pmu_is_uncore(name) &&
-		    pmu_uncore_alias_match(pname, name))
+		if (pmu->is_uncore && pmu_uncore_alias_match(pname, name))
 			goto new_alias;
 
 		if (strcmp(pname, name))
