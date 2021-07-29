@@ -49,11 +49,10 @@
 #define QED_NVM_CFG_MAX_ATTRS		50
 
 static char version[] =
-	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
+	"QLogic FastLinQ 4xxxx Core Module qed\n";
 
 MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Core Module");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define FW_FILE_VERSION				\
 	__stringify(FW_MAJOR_VERSION) "."	\
