@@ -38,15 +38,6 @@ config ARCH_PRPMC1100
 	  PrPCM1100 Processor Mezanine Module. For more information on
 	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
-config MACH_FSG
-	bool
-	prompt "Freecom FSG-3"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Freecom's
-	  FSG-3 device. For more information on this platform,
-	  see http://www.nslu2-linux.org/wiki/FSG3/HomePage
-
 #
 # Certain registers and IRQs are only enabled if supporting IXP465 CPUs
 #
