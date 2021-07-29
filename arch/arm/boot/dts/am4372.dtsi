@@ -434,6 +434,84 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x54400000 0x80000>;
+
+			pruss1: pruss@0 {
+				compatible = "ti,am4376-pruss1";
+				reg = <0x0 0x40000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pruss1_mem: memories@0 {
+					reg = <0x0 0x2000>,
+					      <0x2000 0x2000>,
+					      <0x10000 0x8000>;
+					reg-names = "dram0", "dram1",
+						    "shrdram2";
+				};
+
+				pruss1_cfg: cfg@26000 {
+					compatible = "ti,pruss-cfg", "syscon";
+					reg = <0x26000 0x2000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x26000 0x2000>;
+
+					clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						pruss1_iepclk_mux: iepclk-mux@30 {
+							reg = <0x30>;
+							#clock-cells = <0>;
+							clocks = <&sysclk_div>,     /* icss_iep_gclk */
+								 <&pruss_ocp_gclk>; /* icss_ocp_gclk */
+						};
+					};
+				};
+
+				pruss1_mii_rt: mii-rt@32000 {
+					compatible = "ti,pruss-mii", "syscon";
+					reg = <0x32000 0x58>;
+				};
+
+				pruss1_intc: interrupt-controller@20000 {
+					compatible = "ti,pruss-intc";
+					reg = <0x20000 0x2000>;
+					interrupt-controller;
+					#interrupt-cells = <3>;
+					interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "host_intr0", "host_intr1",
+							  "host_intr2", "host_intr3",
+							  "host_intr4",
+							  "host_intr6", "host_intr7";
+					ti,irqs-reserved = /bits/ 8 <0x20>; /* BIT(5) */
+				};
+
+				pru1_0: pru@34000 {
+					compatible = "ti,am4376-pru";
+					reg = <0x34000 0x3000>,
+					      <0x22000 0x400>,
+					      <0x22400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am437x-pru1_0-fw";
+				};
+
+				pru1_1: pru@38000 {
+					compatible = "ti,am4376-pru";
+					reg = <0x38000 0x3000>,
+					      <0x24000 0x400>,
+					      <0x24400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am437x-pru1_1-fw";
+				};
+			};
 		};
 
 		target-module@50000000 {
