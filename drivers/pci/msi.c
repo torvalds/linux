@@ -659,25 +659,16 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 
 	/* Configure MSI capability structure */
 	ret = pci_msi_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSI);
-	if (ret) {
-		msi_mask_irq(entry, mask, 0);
-		free_msi_irqs(dev);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	ret = msi_verify_entries(dev);
-	if (ret) {
-		msi_mask_irq(entry, mask, 0);
-		free_msi_irqs(dev);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	ret = populate_msi_sysfs(dev);
-	if (ret) {
-		msi_mask_irq(entry, mask, 0);
-		free_msi_irqs(dev);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	/* Set MSI enabled bits	*/
 	pci_intx_for_msi(dev, 0);
@@ -687,6 +678,11 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	pcibios_free_irq(dev);
 	dev->irq = entry->irq;
 	return 0;
+
+err:
+	msi_mask_irq(entry, mask, 0);
+	free_msi_irqs(dev);
+	return ret;
 }
 
 static void __iomem *msix_map_region(struct pci_dev *dev, unsigned nr_entries)
