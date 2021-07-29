@@ -143,9 +143,54 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.matching_pmu = "uncore_cbox_0",
 };
 
+static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
+	.event = {
+		.name = "uncore_hisi_l3c.rd_hit_cpipe",
+		.event = "event=0x2",
+		.desc = "Total read hits. Unit: hisi_sccl,l3c ",
+		.topic = "uncore",
+		.long_desc = "Total read hits",
+		.pmu = "hisi_sccl,l3c",
+	},
+	.alias_str = "event=0x7",
+	.alias_long_desc = "Total read hits",
+	.matching_pmu = "hisi_sccl3_l3c7",
+};
+
+static const struct perf_pmu_test_event uncore_imc_free_running_cache_miss = {
+	.event = {
+		.name = "uncore_imc_free_running.cache_miss",
+		.event = "event=0x12",
+		.desc = "Total cache misses. Unit: uncore_imc_free_running ",
+		.topic = "uncore",
+		.long_desc = "Total cache misses",
+		.pmu = "uncore_imc_free_running",
+	},
+	.alias_str = "event=0x12",
+	.alias_long_desc = "Total cache misses",
+	.matching_pmu = "uncore_imc_free_running_0",
+};
+
+static const struct perf_pmu_test_event uncore_imc_cache_hits = {
+	.event = {
+		.name = "uncore_imc.cache_hits",
+		.event = "event=0x34",
+		.desc = "Total cache hits. Unit: uncore_imc ",
+		.topic = "uncore",
+		.long_desc = "Total cache hits",
+		.pmu = "uncore_imc",
+	},
+	.alias_str = "event=0x34",
+	.alias_long_desc = "Total cache hits",
+	.matching_pmu = "uncore_imc_0",
+};
+
 static const struct perf_pmu_test_event *uncore_events[] = {
 	&uncore_hisi_ddrc_flux_wcmd,
 	&unc_cbo_xsnp_response_miss_eviction,
+	&uncore_hisi_l3c_rd_hit_cpipe,
+	&uncore_imc_free_running_cache_miss,
+	&uncore_imc_cache_hits,
 	NULL
 };
 
@@ -502,6 +547,33 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		},
 		.aliases = {
 			&unc_cbo_xsnp_response_miss_eviction,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"hisi_sccl3_l3c7",
+			.is_uncore = 1,
+		},
+		.aliases = {
+			&uncore_hisi_l3c_rd_hit_cpipe,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"uncore_imc_free_running_0",
+			.is_uncore = 1,
+		},
+		.aliases = {
+			&uncore_imc_free_running_cache_miss,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"uncore_imc_0",
+			.is_uncore = 1,
+		},
+		.aliases = {
+			&uncore_imc_cache_hits,
 		},
 	},
 };
