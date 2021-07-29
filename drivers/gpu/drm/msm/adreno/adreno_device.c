@@ -8,8 +8,6 @@
 
 #include "adreno_gpu.h"
 
-#define ANY_ID 0xff
-
 bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
@@ -325,6 +323,15 @@ static inline bool _rev_match(uint8_t entry, uint8_t id)
 	return (entry == ANY_ID) || (entry == id);
 }
 
+bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2)
+{
+
+	return _rev_match(rev1.core, rev2.core) &&
+		_rev_match(rev1.major, rev2.major) &&
+		_rev_match(rev1.minor, rev2.minor) &&
+		_rev_match(rev1.patchid, rev2.patchid);
+}
+
 const struct adreno_info *adreno_info(struct adreno_rev rev)
 {
 	int i;
@@ -332,10 +339,7 @@ const struct adreno_info *adreno_info(struct adreno_rev rev)
 	/* identify gpu: */
 	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
 		const struct adreno_info *info = &gpulist[i];
-		if (_rev_match(info->rev.core, rev.core) &&
-				_rev_match(info->rev.major, rev.major) &&
-				_rev_match(info->rev.minor, rev.minor) &&
-				_rev_match(info->rev.patchid, rev.patchid))
+		if (adreno_cmp_rev(info->rev, rev))
 			return info;
 	}
 

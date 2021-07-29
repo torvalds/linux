@@ -42,6 +42,8 @@ struct adreno_rev {
 	uint8_t  patchid;
 };
 
+#define ANY_ID 0xff
+
 #define ADRENO_REV(core, major, minor, patchid) \
 	((struct adreno_rev){ core, major, minor, patchid })
 
@@ -140,6 +142,8 @@ struct adreno_platform_config {
 	} while (time_before(jiffies, __t));               \
 	__ret;                                             \
 })
+
+bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2);
 
 static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
 {
