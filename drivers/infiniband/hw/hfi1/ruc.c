@@ -459,7 +459,7 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
  * send engine
  * @qp: a pointer to QP
  * @ps: a pointer to a structure with commonly lookup values for
- *      the the send engine progress
+ *      the send engine progress
  * @tid: true if it is the tid leg
  *
  * This routine checks if the time slice for the QP has expired

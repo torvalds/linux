@@ -2602,7 +2602,7 @@ static inline bool hfi1_get_hdr_type(u32 lid, struct rdma_ah_attr *attr)
 			HFI1_PKT_TYPE_16B : HFI1_PKT_TYPE_9B;
 
 	/*
-	 * Return a 16B header type if either the the destination
+	 * Return a 16B header type if either the destination
 	 * or source lid is extended.
 	 */
 	if (hfi1_get_packet_type(rdma_ah_get_dlid(attr)) == HFI1_PKT_TYPE_16B)

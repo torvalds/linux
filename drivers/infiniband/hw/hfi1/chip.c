@@ -14414,7 +14414,7 @@ static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 	if (rmt->used + rmt_entries >= NUM_MAP_ENTRIES)
 		goto bail;
 
-	/* add qos entries to the the RSM map table */
+	/* add qos entries to the RSM map table */
 	for (i = 0, ctxt = FIRST_KERNEL_KCTXT; i < num_vls; i++) {
 		unsigned tctxt;
 
@@ -14893,7 +14893,7 @@ int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt)
 }
 
 /*
- * Start doing the clean up the the chip. Our clean up happens in multiple
+ * Start doing the clean up the chip. Our clean up happens in multiple
  * stages and this is just the first.
  */
 void hfi1_start_cleanup(struct hfi1_devdata *dd)
