@@ -11037,6 +11037,7 @@ M:	Jeremy Kerr <jk@codeconstruct.com.au>
 M:	Matt Johnston <matt@codeconstruct.com.au>
 L:	netdev@vger.kernel.org
 S:	Maintained
+F:	drivers/net/mctp/
 F:	include/net/mctp.h
 F:	net/mctp/
 
