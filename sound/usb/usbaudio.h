@@ -101,8 +101,6 @@ enum quirk_type {
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UAXX,
 	QUIRK_AUDIO_STANDARD_MIXER,
-	QUIRK_SETUP_FMT_AFTER_RESUME,
-	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
 
 	QUIRK_TYPE_COUNT
 };
@@ -157,6 +155,8 @@ extern bool snd_usb_skip_validation;
  *  Add a delay of 50ms at each interface setup
  * QUIRK_FLAG_VALIDATE_RATES:
  *  Perform sample rate validations at probe
+ * QUIRK_FLAG_DISABLE_AUTOSUSPEND:
+ *  Disable runtime PM autosuspend
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -172,5 +172,6 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_CTL_MSG_DELAY_5M	(1U << 10)
 #define QUIRK_FLAG_IFACE_DELAY		(1U << 11)
 #define QUIRK_FLAG_VALIDATE_RATES	(1U << 12)
+#define QUIRK_FLAG_DISABLE_AUTOSUSPEND	(1U << 13)
 
 #endif /* __USBAUDIO_H */
