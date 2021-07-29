@@ -1060,8 +1060,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW2_LN0(phy));
 	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 		 RCOMP_SCALAR_MASK);
-	val |= SWING_SEL_UPPER(ddi_translations->entries[level].cnl.dw2_swing_sel);
-	val |= SWING_SEL_LOWER(ddi_translations->entries[level].cnl.dw2_swing_sel);
+	val |= SWING_SEL_UPPER(ddi_translations->entries[level].icl.dw2_swing_sel);
+	val |= SWING_SEL_LOWER(ddi_translations->entries[level].icl.dw2_swing_sel);
 	/* Program Rcomp scalar for every table entry */
 	val |= RCOMP_SCALAR(0x98);
 	intel_de_write(dev_priv, ICL_PORT_TX_DW2_GRP(phy), val);
@@ -1072,16 +1072,16 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 		val = intel_de_read(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
-		val |= POST_CURSOR_1(ddi_translations->entries[level].cnl.dw4_post_cursor_1);
-		val |= POST_CURSOR_2(ddi_translations->entries[level].cnl.dw4_post_cursor_2);
-		val |= CURSOR_COEFF(ddi_translations->entries[level].cnl.dw4_cursor_coeff);
+		val |= POST_CURSOR_1(ddi_translations->entries[level].icl.dw4_post_cursor_1);
+		val |= POST_CURSOR_2(ddi_translations->entries[level].icl.dw4_post_cursor_2);
+		val |= CURSOR_COEFF(ddi_translations->entries[level].icl.dw4_cursor_coeff);
 		intel_de_write(dev_priv, ICL_PORT_TX_DW4_LN(ln, phy), val);
 	}
 
 	/* Program PORT_TX_DW7 */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW7_LN0(phy));
 	val &= ~N_SCALAR_MASK;
-	val |= N_SCALAR(ddi_translations->entries[level].cnl.dw7_n_scalar);
+	val |= N_SCALAR(ddi_translations->entries[level].icl.dw7_n_scalar);
 	intel_de_write(dev_priv, ICL_PORT_TX_DW7_GRP(phy), val);
 }
 
