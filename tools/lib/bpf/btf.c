@@ -1383,20 +1383,29 @@ exit_free:
 	return btf;
 }
 
+struct btf *btf__load_from_kernel_by_id(__u32 id)
+{
+	struct btf *btf;
+	int btf_fd;
+
+	btf_fd = bpf_btf_get_fd_by_id(id);
+	if (btf_fd < 0)
+		return libbpf_err_ptr(-errno);
+
+	btf = btf_get_from_fd(btf_fd, NULL);
+	close(btf_fd);
+
+	return libbpf_ptr(btf);
+}
+
 int btf__get_from_id(__u32 id, struct btf **btf)
 {
 	struct btf *res;
-	int err, btf_fd;
+	int err;
 
 	*btf = NULL;
-	btf_fd = bpf_btf_get_fd_by_id(id);
-	if (btf_fd < 0)
-		return libbpf_err(-errno);
-
-	res = btf_get_from_fd(btf_fd, NULL);
+	res = btf__load_from_kernel_by_id(id);
 	err = libbpf_get_error(res);
-
-	close(btf_fd);
 
 	if (err)
 		return libbpf_err(err);
