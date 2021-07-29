@@ -1229,6 +1229,13 @@ static int dpaa2_switch_port_block_bind(struct ethsw_port_priv *port_priv,
 	struct dpaa2_switch_filter_block *old_block = port_priv->filter_block;
 	int err;
 
+	/* Offload all the mirror entries found in the block on this new port
+	 * joining it.
+	 */
+	err = dpaa2_switch_block_offload_mirror(block, port_priv);
+	if (err)
+		return err;
+
 	/* If the port is already bound to this ACL table then do nothing. This
 	 * can happen when this port is the first one to join a tc block
 	 */
@@ -1255,6 +1262,13 @@ dpaa2_switch_port_block_unbind(struct ethsw_port_priv *port_priv,
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpaa2_switch_filter_block *new_block;
 	int err;
+
+	/* Unoffload all the mirror entries found in the block from the
+	 * port leaving it.
+	 */
+	err = dpaa2_switch_block_unoffload_mirror(block, port_priv);
+	if (err)
+		return err;
 
 	/* We are the last port that leaves a block (an ACL table).
 	 * We'll continue to use this table.

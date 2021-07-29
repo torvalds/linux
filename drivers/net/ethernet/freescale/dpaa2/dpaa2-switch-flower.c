@@ -803,6 +803,57 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 	}
 }
 
+int dpaa2_switch_block_offload_mirror(struct dpaa2_switch_filter_block *block,
+				      struct ethsw_port_priv *port_priv)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_mirror_entry *tmp;
+	int err;
+
+	list_for_each_entry(tmp, &block->mirror_entries, list) {
+		err = dpsw_if_add_reflection(ethsw->mc_io, 0,
+					     ethsw->dpsw_handle,
+					     port_priv->idx, &tmp->cfg);
+		if (err)
+			goto unwind_add;
+	}
+
+	return 0;
+
+unwind_add:
+	list_for_each_entry(tmp, &block->mirror_entries, list)
+		dpsw_if_remove_reflection(ethsw->mc_io, 0,
+					  ethsw->dpsw_handle,
+					  port_priv->idx, &tmp->cfg);
+
+	return err;
+}
+
+int dpaa2_switch_block_unoffload_mirror(struct dpaa2_switch_filter_block *block,
+					struct ethsw_port_priv *port_priv)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_mirror_entry *tmp;
+	int err;
+
+	list_for_each_entry(tmp, &block->mirror_entries, list) {
+		err = dpsw_if_remove_reflection(ethsw->mc_io, 0,
+						ethsw->dpsw_handle,
+						port_priv->idx, &tmp->cfg);
+		if (err)
+			goto unwind_remove;
+	}
+
+	return 0;
+
+unwind_remove:
+	list_for_each_entry(tmp, &block->mirror_entries, list)
+		dpsw_if_add_reflection(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				       port_priv->idx, &tmp->cfg);
+
+	return err;
+}
+
 int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {

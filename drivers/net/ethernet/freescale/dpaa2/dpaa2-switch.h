@@ -253,4 +253,10 @@ int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
 
 int dpaa2_switch_acl_entry_add(struct dpaa2_switch_filter_block *block,
 			       struct dpaa2_switch_acl_entry *entry);
+
+int dpaa2_switch_block_offload_mirror(struct dpaa2_switch_filter_block *block,
+				      struct ethsw_port_priv *port_priv);
+
+int dpaa2_switch_block_unoffload_mirror(struct dpaa2_switch_filter_block *block,
+					struct ethsw_port_priv *port_priv);
 #endif	/* __ETHSW_H */
