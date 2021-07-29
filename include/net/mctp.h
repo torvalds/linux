@@ -37,6 +37,8 @@ struct mctp_hdr {
 
 #define MCTP_HEADER_MAXLEN	4
 
+#define MCTP_INITIAL_DEFAULT_NET	1
+
 static inline bool mctp_address_ok(mctp_eid_t eid)
 {
 	return eid >= 8 && eid < 255;

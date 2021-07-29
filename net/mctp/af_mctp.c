@@ -94,6 +94,9 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (!capable(CAP_NET_RAW))
 		return -EACCES;
 
+	if (addr->smctp_network == MCTP_NET_ANY)
+		addr->smctp_network = mctp_default_net(sock_net(sk));
+
 	rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
 			       addr->smctp_addr.s_addr);
 	if (!rt)

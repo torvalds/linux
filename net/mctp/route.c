@@ -433,6 +433,19 @@ static struct mctp_route *mctp_route_alloc(void)
 	return rt;
 }
 
+unsigned int mctp_default_net(struct net *net)
+{
+	return READ_ONCE(net->mctp.default_net);
+}
+
+int mctp_default_net_set(struct net *net, unsigned int index)
+{
+	if (index == 0)
+		return -EINVAL;
+	WRITE_ONCE(net->mctp.default_net, index);
+	return 0;
+}
+
 /* tag management */
 static void mctp_reserve_tag(struct net *net, struct mctp_sk_key *key,
 			     struct mctp_sock *msk)
@@ -1045,6 +1058,7 @@ static int __net_init mctp_routes_net_init(struct net *net)
 	mutex_init(&ns->bind_lock);
 	INIT_HLIST_HEAD(&ns->keys);
 	spin_lock_init(&ns->keys_lock);
+	WARN_ON(mctp_default_net_set(net, MCTP_INITIAL_DEFAULT_NET));
 	return 0;
 }
 

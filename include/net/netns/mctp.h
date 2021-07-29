@@ -25,6 +25,9 @@ struct netns_mctp {
 	spinlock_t keys_lock;
 	struct hlist_head keys;
 
+	/* MCTP network */
+	unsigned int default_net;
+
 	/* neighbour table */
 	struct mutex neigh_lock;
 	struct list_head neighbours;
