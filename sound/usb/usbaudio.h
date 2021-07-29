@@ -116,7 +116,6 @@ struct snd_usb_audio_quirk {
 	const char *product_name;
 	int16_t ifnum;
 	uint16_t type;
-	bool shares_media_device;
 	const void *data;
 };
 
@@ -136,8 +135,11 @@ extern bool snd_usb_skip_validation;
  * QUIRK_FLAG_GET_SAMPLE_RATE:
  *  Skip reading sample rate for devices, as some devices behave inconsistently
  *  or return error
+ * QUIRK_FLAG_SHARE_MEDIA_DEVICE:
+ *  Create Media Controller API entries
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
+#define QUIRK_FLAG_SHARE_MEDIA_DEVICE	(1U << 1)
 
 #endif /* __USBAUDIO_H */

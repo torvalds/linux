@@ -826,7 +826,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 			goto __error;
 	}
 
-	if (quirk && quirk->shares_media_device) {
+	if (chip->quirk_flags & QUIRK_FLAG_SHARE_MEDIA_DEVICE) {
 		/* don't want to fail when snd_media_device_create() fails */
 		snd_media_device_create(chip, intf);
 	}
