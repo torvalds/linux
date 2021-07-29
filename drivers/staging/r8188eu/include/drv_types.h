@@ -38,6 +38,8 @@
 #include <rtw_mp.h>
 #include <rtw_br_ext.h>
 
+#define DRIVERVERSION	"v4.1.4_6773.20130222"
+
 enum _NIC_VERSION {
 	RTL8711_NIC,
 	RTL8712_NIC,

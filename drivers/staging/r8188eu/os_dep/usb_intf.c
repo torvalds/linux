@@ -8,7 +8,6 @@
 #include <recv_osdep.h>
 #include <xmit_osdep.h>
 #include <hal_intf.h>
-#include <rtw_version.h>
 #include <linux/usb.h>
 #include <osdep_intf.h>
 
