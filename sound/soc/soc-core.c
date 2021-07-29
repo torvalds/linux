@@ -2927,7 +2927,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	struct device_node *np = card->dev->of_node;
 	int num_routes;
 	struct snd_soc_dapm_route *routes;
-	int i, ret;
+	int i;
 
 	num_routes = of_property_count_strings(np, propname);
 	if (num_routes < 0 || num_routes & 1) {
@@ -2947,8 +2947,8 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	}
 
 	for (i = 0; i < num_routes; i++) {
-		ret = of_property_read_string_index(np, propname,
-			2 * i, &routes[i].sink);
+		int ret = of_property_read_string_index(np, propname,
+							2 * i, &routes[i].sink);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
