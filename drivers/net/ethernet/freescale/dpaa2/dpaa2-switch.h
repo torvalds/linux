@@ -113,6 +113,13 @@ struct dpaa2_switch_acl_entry {
 	struct dpsw_acl_key	key;
 };
 
+struct dpaa2_switch_mirror_entry {
+	struct list_head	list;
+	struct dpsw_reflection_cfg cfg;
+	unsigned long		cookie;
+	u16 if_id;
+};
+
 struct dpaa2_switch_filter_block {
 	struct ethsw_core	*ethsw;
 	u64			ports;
@@ -121,6 +128,8 @@ struct dpaa2_switch_filter_block {
 	struct list_head	acl_entries;
 	u16			acl_id;
 	u8			num_acl_rules;
+
+	struct list_head	mirror_entries;
 };
 
 static inline bool
@@ -176,6 +185,7 @@ struct ethsw_core {
 
 	struct dpaa2_switch_fdb		*fdbs;
 	struct dpaa2_switch_filter_block *filter_blocks;
+	u16				mirror_port;
 };
 
 static inline int dpaa2_switch_get_index(struct ethsw_core *ethsw,

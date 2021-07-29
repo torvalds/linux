@@ -3067,6 +3067,7 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	filter_block->in_use = true;
 	filter_block->num_acl_rules = 0;
 	INIT_LIST_HEAD(&filter_block->acl_entries);
+	INIT_LIST_HEAD(&filter_block->mirror_entries);
 
 	err = dpaa2_switch_port_acl_tbl_bind(port_priv, filter_block);
 	if (err)
@@ -3283,6 +3284,11 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	err = dpaa2_switch_setup_irqs(sw_dev);
 	if (err)
 		goto err_stop;
+
+	/* By convention, if the mirror port is equal to the number of switch
+	 * interfaces, then mirroring of any kind is disabled.
+	 */
+	ethsw->mirror_port =  ethsw->sw_attr.num_ifs;
 
 	/* Register the netdev only when the entire setup is done and the
 	 * switch port interfaces are ready to receive traffic

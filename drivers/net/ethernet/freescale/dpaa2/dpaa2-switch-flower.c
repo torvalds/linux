@@ -305,6 +305,19 @@ dpaa2_switch_acl_entry_get_index(struct dpaa2_switch_filter_block *block,
 	return -ENOENT;
 }
 
+static struct dpaa2_switch_mirror_entry *
+dpaa2_switch_mirror_find_entry_by_cookie(struct dpaa2_switch_filter_block *block,
+					 unsigned long cookie)
+{
+	struct dpaa2_switch_mirror_entry *tmp, *n;
+
+	list_for_each_entry_safe(tmp, n, &block->mirror_entries, list) {
+		if (tmp->cookie == cookie)
+			return tmp;
+	}
+	return NULL;
+}
+
 static int
 dpaa2_switch_acl_tbl_remove_entry(struct dpaa2_switch_filter_block *block,
 				  struct dpaa2_switch_acl_entry *entry)
@@ -374,6 +387,83 @@ static int dpaa2_switch_tc_parse_action_acl(struct ethsw_core *ethsw,
 
 out:
 	return err;
+}
+
+static int
+dpaa2_switch_block_add_mirror(struct dpaa2_switch_filter_block *block,
+			      struct dpaa2_switch_mirror_entry *entry,
+			      u16 to, struct netlink_ext_ack *extack)
+{
+	unsigned long block_ports = block->ports;
+	struct ethsw_core *ethsw = block->ethsw;
+	unsigned long ports_added = 0;
+	bool mirror_port_enabled;
+	int err, port;
+
+	/* Setup the mirroring port */
+	mirror_port_enabled = (ethsw->mirror_port != ethsw->sw_attr.num_ifs);
+	if (!mirror_port_enabled) {
+		err = dpsw_set_reflection_if(ethsw->mc_io, 0,
+					     ethsw->dpsw_handle, to);
+		if (err)
+			return err;
+		ethsw->mirror_port = to;
+	}
+
+	/* Setup the same egress mirroring configuration on all the switch
+	 * ports that share the same filter block.
+	 */
+	for_each_set_bit(port, &block_ports, ethsw->sw_attr.num_ifs) {
+		err = dpsw_if_add_reflection(ethsw->mc_io, 0,
+					     ethsw->dpsw_handle,
+					     port, &entry->cfg);
+		if (err)
+			goto err_remove_filters;
+
+		ports_added |= BIT(port);
+	}
+
+	list_add(&entry->list, &block->mirror_entries);
+
+	return 0;
+
+err_remove_filters:
+	for_each_set_bit(port, &ports_added, ethsw->sw_attr.num_ifs) {
+		dpsw_if_remove_reflection(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					  port, &entry->cfg);
+	}
+
+	if (!mirror_port_enabled)
+		ethsw->mirror_port = ethsw->sw_attr.num_ifs;
+
+	return err;
+}
+
+static int
+dpaa2_switch_block_remove_mirror(struct dpaa2_switch_filter_block *block,
+				 struct dpaa2_switch_mirror_entry *entry)
+{
+	struct dpsw_reflection_cfg *cfg = &entry->cfg;
+	unsigned long block_ports = block->ports;
+	struct ethsw_core *ethsw = block->ethsw;
+	int port;
+
+	/* Remove this mirroring configuration from all the ports belonging to
+	 * the filter block.
+	 */
+	for_each_set_bit(port, &block_ports, ethsw->sw_attr.num_ifs)
+		dpsw_if_remove_reflection(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					  port, cfg);
+
+	/* Also remove it from the list of mirror filters */
+	list_del(&entry->list);
+	kfree(entry);
+
+	/* If this was the last mirror filter, then unset the mirror port */
+	if (list_empty(&block->mirror_entries))
+		ethsw->mirror_port =  ethsw->sw_attr.num_ifs;
+
+	return 0;
 }
 
 static int
@@ -497,6 +587,64 @@ free_acl_entry:
 	return err;
 }
 
+static int
+dpaa2_switch_cls_matchall_replace_mirror(struct dpaa2_switch_filter_block *block,
+					 struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct dpaa2_switch_mirror_entry *mirror_entry;
+	struct ethsw_core *ethsw = block->ethsw;
+	struct dpaa2_switch_mirror_entry *tmp;
+	struct flow_action_entry *cls_act;
+	struct list_head *pos, *n;
+	bool mirror_port_enabled;
+	u16 if_id;
+
+	mirror_port_enabled = (ethsw->mirror_port != ethsw->sw_attr.num_ifs);
+	cls_act = &cls->rule->action.entries[0];
+
+	/* Offload rules only when the destination is a DPAA2 switch port */
+	if (!dpaa2_switch_port_dev_check(cls_act->dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Destination not a DPAA2 switch port");
+		return -EOPNOTSUPP;
+	}
+	if_id = dpaa2_switch_get_index(ethsw, cls_act->dev);
+
+	/* We have a single mirror port but can configure egress mirroring on
+	 * all the other switch ports. We need to allow mirroring rules only
+	 * when the destination port is the same.
+	 */
+	if (mirror_port_enabled && ethsw->mirror_port != if_id) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Multiple mirror ports not supported");
+		return -EBUSY;
+	}
+
+	/* Make sure that we don't already have a mirror rule with the same
+	 * configuration. One matchall rule per block is the maximum.
+	 */
+	list_for_each_safe(pos, n, &block->mirror_entries) {
+		tmp = list_entry(pos, struct dpaa2_switch_mirror_entry, list);
+
+		if (tmp->cfg.filter == DPSW_REFLECTION_FILTER_INGRESS_ALL) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Matchall mirror filter already installed");
+			return -EBUSY;
+		}
+	}
+
+	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
+	if (!mirror_entry)
+		return -ENOMEM;
+
+	mirror_entry->cfg.filter = DPSW_REFLECTION_FILTER_INGRESS_ALL;
+	mirror_entry->cookie = cls->cookie;
+
+	return dpaa2_switch_block_add_mirror(block, mirror_entry, if_id,
+					     extack);
+}
+
 int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {
@@ -514,6 +662,8 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 	case FLOW_ACTION_TRAP:
 	case FLOW_ACTION_DROP:
 		return dpaa2_switch_cls_matchall_replace_acl(block, cls);
+	case FLOW_ACTION_MIRRED:
+		return dpaa2_switch_cls_matchall_replace_mirror(block, cls);
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Action not supported");
 		return -EOPNOTSUPP;
@@ -523,11 +673,22 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
 				      struct tc_cls_matchall_offload *cls)
 {
-	struct dpaa2_switch_acl_entry *entry;
+	struct dpaa2_switch_mirror_entry *mirror_entry;
+	struct dpaa2_switch_acl_entry *acl_entry;
 
-	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block, cls->cookie);
-	if (!entry)
-		return 0;
+	/* If this filter is a an ACL one, remove it */
+	acl_entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block,
+							      cls->cookie);
+	if (acl_entry)
+		return dpaa2_switch_acl_tbl_remove_entry(block,
+							 acl_entry);
 
-	return  dpaa2_switch_acl_tbl_remove_entry(block, entry);
+	/* If not, then it has to be a mirror */
+	mirror_entry = dpaa2_switch_mirror_find_entry_by_cookie(block,
+								cls->cookie);
+	if (mirror_entry)
+		return dpaa2_switch_block_remove_mirror(block,
+							mirror_entry);
+
+	return 0;
 }
