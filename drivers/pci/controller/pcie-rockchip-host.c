@@ -546,9 +546,9 @@ static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 	}
 
 	if (reg & PCIE_CLIENT_INT_UDMA) {
-		rockchip_pcie_handle_dma_interrupt(rockchip);
 		rockchip_pcie_write(rockchip, sub_reg, PCIE_CLIENT_INT_STATUS);
 		rockchip_pcie_write(rockchip, reg, PCIE_CLIENT_INT_STATUS);
+		rockchip_pcie_handle_dma_interrupt(rockchip);
 	}
 
 	rockchip_pcie_write(rockchip, reg & PCIE_CLIENT_INT_LOCAL,
