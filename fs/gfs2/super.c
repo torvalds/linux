@@ -947,7 +947,7 @@ static int gfs2_drop_inode(struct inode *inode)
 		gfs2_glock_hold(gl);
 		if (!gfs2_queue_delete_work(gl, 0))
 			gfs2_glock_queue_put(gl);
-		return false;
+		return 0;
 	}
 
 	return generic_drop_inode(inode);
