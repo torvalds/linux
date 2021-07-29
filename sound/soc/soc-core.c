@@ -3201,12 +3201,11 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 				const char **dai_name)
 {
 	struct snd_soc_component *pos;
-	struct device_node *component_of_node;
 	int ret = -EPROBE_DEFER;
 
 	mutex_lock(&client_mutex);
 	for_each_component(pos) {
-		component_of_node = soc_component_to_node(pos);
+		struct device_node *component_of_node = soc_component_to_node(pos);
 
 		if (component_of_node != args->np)
 			continue;
