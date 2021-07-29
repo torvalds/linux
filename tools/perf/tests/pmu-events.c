@@ -194,6 +194,25 @@ static const struct perf_pmu_test_event *uncore_events[] = {
 	NULL
 };
 
+static const struct perf_pmu_test_event sys_ddr_pmu_write_cycles = {
+	.event = {
+		.name = "sys_ddr_pmu.write_cycles",
+		.event = "event=0x2b",
+		.desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu ",
+		.topic = "uncore",
+		.pmu = "uncore_sys_ddr_pmu",
+		.compat = "v8",
+	},
+	.alias_str = "event=0x2b",
+	.alias_long_desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu ",
+	.matching_pmu = "uncore_sys_ddr_pmu",
+};
+
+static const struct perf_pmu_test_event *sys_events[] = {
+	&sys_ddr_pmu_write_cycles,
+	NULL
+};
+
 static bool is_same(const char *reference, const char *test)
 {
 	if (!reference && !test)
@@ -218,6 +237,18 @@ static struct pmu_events_map *__test_pmu_get_events_map(void)
 	}
 
 	pr_err("could not find test events map\n");
+
+	return NULL;
+}
+
+static struct pmu_event *__test_pmu_get_sys_events_table(void)
+{
+	struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
+
+	for ( ; tables->name; tables++) {
+		if (!strcmp("pme_test_soc_sys", tables->name))
+			return tables->table;
+	}
 
 	return NULL;
 }
@@ -344,15 +375,17 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 /* Verify generated events from pmu-events.c are as expected */
 static int test_pmu_event_table(void)
 {
+	struct pmu_event *sys_event_tables = __test_pmu_get_sys_events_table();
 	struct pmu_events_map *map = __test_pmu_get_events_map();
 	struct pmu_event *table;
 	int map_events = 0, expected_events;
 
-	/* ignore 2x sentinels */
+	/* ignore 3x sentinels */
 	expected_events = ARRAY_SIZE(core_events) +
-			  ARRAY_SIZE(uncore_events) - 2;
+			  ARRAY_SIZE(uncore_events) +
+			  ARRAY_SIZE(sys_events) - 3;
 
-	if (!map)
+	if (!map || !sys_event_tables)
 		return -1;
 
 	for (table = map->table; table->name; table++) {
@@ -382,6 +415,33 @@ static int test_pmu_event_table(void)
 		if (!found) {
 			pr_err("testing event table: could not find event %s\n",
 			       table->name);
+			return -1;
+		}
+	}
+
+	for (table = sys_event_tables; table->name; table++) {
+		struct perf_pmu_test_event const **test_event_table;
+		bool found = false;
+
+		test_event_table = &sys_events[0];
+
+		for (; *test_event_table; test_event_table++) {
+			struct perf_pmu_test_event const *test_event = *test_event_table;
+			struct pmu_event const *event = &test_event->event;
+
+			if (strcmp(table->name, event->name))
+				continue;
+			found = true;
+			map_events++;
+
+			if (compare_pmu_events(table, event))
+				return -1;
+
+			pr_debug("testing sys event table %s: pass\n", table->name);
+		}
+		if (!found) {
+			pr_debug("testing event table: could not find event %s\n",
+				   table->name);
 			return -1;
 		}
 	}
@@ -474,6 +534,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	if (!map)
 		return -1;
 	pmu_add_cpu_aliases_map(&aliases, pmu, map);
+	pmu_add_sys_aliases(&aliases, pmu);
 
 	/* Count how many aliases we generated */
 	list_for_each_entry(alias, &aliases, list)
@@ -574,6 +635,16 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		},
 		.aliases = {
 			&uncore_imc_cache_hits,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"uncore_sys_ddr_pmu0",
+			.is_uncore = 1,
+			.id = (char *)"v8",
+		},
+		.aliases = {
+			&sys_ddr_pmu_write_cycles,
 		},
 	},
 };
