@@ -173,29 +173,25 @@ static int sg_get_version(int __user *p)
 	return put_user(sg_version_num, p);
 }
 
-static int sg_get_timeout(struct request_queue *q)
-{
-	return jiffies_to_clock_t(q->sg_timeout);
-}
-
-static int sg_set_timeout(struct request_queue *q, int __user *p)
+static int sg_set_timeout(struct scsi_device *sdev, int __user *p)
 {
 	int timeout, err = get_user(timeout, p);
 
 	if (!err)
-		q->sg_timeout = clock_t_to_jiffies(timeout);
+		sdev->sg_timeout = clock_t_to_jiffies(timeout);
 
 	return err;
 }
 
-static int sg_get_reserved_size(struct request_queue *q, int __user *p)
+static int sg_get_reserved_size(struct scsi_device *sdev, int __user *p)
 {
-	int val = min(q->sg_reserved_size, queue_max_bytes(q));
+	int val = min(sdev->sg_reserved_size,
+		      queue_max_bytes(sdev->request_queue));
 
 	return put_user(val, p);
 }
 
-static int sg_set_reserved_size(struct request_queue *q, int __user *p)
+static int sg_set_reserved_size(struct scsi_device *sdev, int __user *p)
 {
 	int size, err = get_user(size, p);
 
@@ -205,7 +201,8 @@ static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 	if (size < 0)
 		return -EINVAL;
 
-	q->sg_reserved_size = min_t(unsigned int, size, queue_max_bytes(q));
+	sdev->sg_reserved_size = min_t(unsigned int, size,
+				       queue_max_bytes(sdev->request_queue));
 	return 0;
 }
 
@@ -345,7 +342,7 @@ bool scsi_cmd_allowed(unsigned char *cmd, fmode_t mode)
 }
 EXPORT_SYMBOL(scsi_cmd_allowed);
 
-static int scsi_fill_sghdr_rq(struct request_queue *q, struct request *rq,
+static int scsi_fill_sghdr_rq(struct scsi_device *sdev, struct request *rq,
 		struct sg_io_hdr *hdr, fmode_t mode)
 {
 	struct scsi_request *req = scsi_req(rq);
@@ -362,7 +359,7 @@ static int scsi_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
-		rq->timeout = q->sg_timeout;
+		rq->timeout = sdev->sg_timeout;
 	if (!rq->timeout)
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	if (rq->timeout < BLK_MIN_SG_TIMEOUT)
@@ -409,7 +406,7 @@ static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	return ret;
 }
 
-static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
+static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 		struct sg_io_hdr *hdr, fmode_t mode)
 {
 	unsigned long start_time;
@@ -423,7 +420,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (hdr->interface_id != 'S')
 		return -EINVAL;
 
-	if (hdr->dxfer_len > (queue_max_hw_sectors(q) << 9))
+	if (hdr->dxfer_len > (queue_max_hw_sectors(sdev->request_queue) << 9))
 		return -EIO;
 
 	if (hdr->dxfer_len)
@@ -441,7 +438,8 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		at_head = 1;
 
 	ret = -ENOMEM;
-	rq = blk_get_request(q, writing ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	rq = blk_get_request(sdev->request_queue, writing ?
+			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 	req = scsi_req(rq);
@@ -452,7 +450,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 			goto out_put_request;
 	}
 
-	ret = scsi_fill_sghdr_rq(q, rq, hdr, mode);
+	ret = scsi_fill_sghdr_rq(sdev, rq, hdr, mode);
 	if (ret < 0)
 		goto out_free_cdb;
 
@@ -469,11 +467,11 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		/* SG_IO howto says that the shorter of the two wins */
 		iov_iter_truncate(&i, hdr->dxfer_len);
 
-		ret = blk_rq_map_user_iov(q, rq, NULL, &i, GFP_KERNEL);
+		ret = blk_rq_map_user_iov(rq->q, rq, NULL, &i, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
-		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,
-				      GFP_KERNEL);
+		ret = blk_rq_map_user(rq->q, rq, NULL, hdr->dxferp,
+				      hdr->dxfer_len, GFP_KERNEL);
 
 	if (ret)
 		goto out_free_cdb;
@@ -483,7 +481,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	start_time = jiffies;
 
-	blk_execute_rq(bd_disk, rq, at_head);
+	blk_execute_rq(disk, rq, at_head);
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
@@ -806,9 +804,8 @@ static int scsi_put_cdrom_generic_arg(const struct cdrom_generic_command *cgc,
 	return 0;
 }
 
-static int scsi_cdrom_send_packet(struct request_queue *q,
-				  struct gendisk *bd_disk,
-				  fmode_t mode, void __user *arg)
+static int scsi_cdrom_send_packet(struct scsi_device *sdev, struct gendisk *disk,
+		fmode_t mode, void __user *arg)
 {
 	struct cdrom_generic_command cgc;
 	struct sg_io_hdr hdr;
@@ -848,7 +845,7 @@ static int scsi_cdrom_send_packet(struct request_queue *q,
 	hdr.cmdp = ((struct cdrom_generic_command __user *) arg)->cmd;
 	hdr.cmd_len = sizeof(cgc.cmd);
 
-	err = sg_io(q, bd_disk, &hdr, mode);
+	err = sg_io(sdev, disk, &hdr, mode);
 	if (err == -EFAULT)
 		return -EFAULT;
 
@@ -863,7 +860,7 @@ static int scsi_cdrom_send_packet(struct request_queue *q,
 	return err;
 }
 
-static int scsi_ioctl_sg_io(struct request_queue *q, struct gendisk *disk,
+static int scsi_ioctl_sg_io(struct scsi_device *sdev, struct gendisk *disk,
 		fmode_t mode, void __user *argp)
 {
 	struct sg_io_hdr hdr;
@@ -872,7 +869,7 @@ static int scsi_ioctl_sg_io(struct request_queue *q, struct gendisk *disk,
 	error = get_sg_io_hdr(&hdr, argp);
 	if (error)
 		return error;
-	error = sg_io(q, disk, &hdr, mode);
+	error = sg_io(sdev, disk, &hdr, mode);
 	if (error == -EFAULT)
 		return error;
 	if (put_sg_io_hdr(&hdr, argp))
@@ -918,21 +915,21 @@ int scsi_ioctl(struct scsi_device *sdev, struct gendisk *disk, fmode_t mode,
 	case SG_GET_VERSION_NUM:
 		return sg_get_version(arg);
 	case SG_SET_TIMEOUT:
-		return sg_set_timeout(q, arg);
+		return sg_set_timeout(sdev, arg);
 	case SG_GET_TIMEOUT:
-		return sg_get_timeout(q);
+		return jiffies_to_clock_t(sdev->sg_timeout);
 	case SG_GET_RESERVED_SIZE:
-		return sg_get_reserved_size(q, arg);
+		return sg_get_reserved_size(sdev, arg);
 	case SG_SET_RESERVED_SIZE:
-		return sg_set_reserved_size(q, arg);
+		return sg_set_reserved_size(sdev, arg);
 	case SG_EMULATED_HOST:
 		return sg_emulated_host(q, arg);
 	case SG_IO:
-		return scsi_ioctl_sg_io(q, disk, mode, arg);
+		return scsi_ioctl_sg_io(sdev, disk, mode, arg);
 	case SCSI_IOCTL_SEND_COMMAND:
 		return sg_scsi_ioctl(q, disk, mode, arg);
 	case CDROM_SEND_PACKET:
-		return scsi_cdrom_send_packet(q, disk, mode, arg);
+		return scsi_cdrom_send_packet(sdev, disk, mode, arg);
 	case CDROMCLOSETRAY:
 		return scsi_send_start_stop(sdev, 3);
 	case CDROMEJECT:

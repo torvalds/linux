@@ -26,6 +26,8 @@ struct bsg_device {
 	struct device device;
 	struct cdev cdev;
 	int max_queue;
+	unsigned int timeout;
+	unsigned int reserved_size;
 };
 
 static inline struct bsg_device *to_bsg_device(struct inode *inode)
@@ -71,7 +73,7 @@ static int bsg_sg_io(struct bsg_device *bd, fmode_t mode, void __user *uarg)
 
 	rq->timeout = msecs_to_jiffies(hdr.timeout);
 	if (!rq->timeout)
-		rq->timeout = rq->q->sg_timeout;
+		rq->timeout = bd->timeout;
 	if (!rq->timeout)
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	if (rq->timeout < BLK_MIN_SG_TIMEOUT)
@@ -161,19 +163,19 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SG_SET_TIMEOUT:
 		if (get_user(val, intp))
 			return -EFAULT;
-		q->sg_timeout = clock_t_to_jiffies(val);
+		bd->timeout = clock_t_to_jiffies(val);
 		return 0;
 	case SG_GET_TIMEOUT:
-		return jiffies_to_clock_t(q->sg_timeout);
+		return jiffies_to_clock_t(bd->timeout);
 	case SG_GET_RESERVED_SIZE:
-		return put_user(min(q->sg_reserved_size, queue_max_bytes(q)),
+		return put_user(min(bd->reserved_size, queue_max_bytes(q)),
 				intp);
 	case SG_SET_RESERVED_SIZE:
 		if (get_user(val, intp))
 			return -EFAULT;
 		if (val < 0)
 			return -EINVAL;
-		q->sg_reserved_size =
+		bd->reserved_size =
 			min_t(unsigned int, val, queue_max_bytes(q));
 		return 0;
 	case SG_EMULATED_HOST:
@@ -219,6 +221,7 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 	if (!bd)
 		return ERR_PTR(-ENOMEM);
 	bd->max_queue = BSG_DEFAULT_CMDS;
+	bd->reserved_size = INT_MAX;
 	bd->queue = q;
 	bd->ops = ops;
 

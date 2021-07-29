@@ -236,6 +236,9 @@ struct scsi_device {
 	size_t			dma_drain_len;
 	void			*dma_drain_buf;
 
+	unsigned int		sg_timeout;
+	unsigned int		sg_reserved_size;
+
 	struct bsg_device	*bsg_dev;
 	unsigned char		access_state;
 	struct mutex		state_mutex;

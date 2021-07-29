@@ -267,6 +267,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	 */
 	sdev->borken = 1;
 
+	sdev->sg_reserved_size = INT_MAX;
+
 	q = blk_mq_init_queue(&sdev->host->tag_set);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
