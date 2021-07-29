@@ -1907,6 +1907,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_CTL_MSG_DELAY),
 	VENDOR_FLG(0x0644, /* TEAC Corp. */
 		   QUIRK_FLAG_CTL_MSG_DELAY | QUIRK_FLAG_IFACE_DELAY),
+	VENDOR_FLG(0x07fd, /* MOTU */
+		   QUIRK_FLAG_VALIDATE_RATES),
 	VENDOR_FLG(0x1de7, /* Phoenix Audio */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	VENDOR_FLG(0x23ba, /* Playback Design */
