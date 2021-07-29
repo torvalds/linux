@@ -112,6 +112,7 @@ config ARM_QCOM_SPM_CPUIDLE
 	select CPU_IDLE_MULTIPLE_DRIVERS
 	select DT_IDLE_STATES
 	select QCOM_SCM
+	select QCOM_SPM
 	help
 	  Select this to enable cpuidle for Qualcomm processors.
 	  The Subsystem Power Manager (SPM) controls low power modes for the
