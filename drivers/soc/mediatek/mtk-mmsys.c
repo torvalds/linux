@@ -68,7 +68,9 @@ void mtk_mmsys_ddp_connect(struct device *dev,
 
 	for (i = 0; i < mmsys->data->num_routes; i++)
 		if (cur == routes[i].from_comp && next == routes[i].to_comp) {
-			reg = readl_relaxed(mmsys->regs + routes[i].addr) | routes[i].val;
+			reg = readl_relaxed(mmsys->regs + routes[i].addr);
+			reg &= ~routes[i].mask;
+			reg |= routes[i].val;
 			writel_relaxed(reg, mmsys->regs + routes[i].addr);
 		}
 }
@@ -85,7 +87,8 @@ void mtk_mmsys_ddp_disconnect(struct device *dev,
 
 	for (i = 0; i < mmsys->data->num_routes; i++)
 		if (cur == routes[i].from_comp && next == routes[i].to_comp) {
-			reg = readl_relaxed(mmsys->regs + routes[i].addr) & ~routes[i].val;
+			reg = readl_relaxed(mmsys->regs + routes[i].addr);
+			reg &= ~routes[i].mask;
 			writel_relaxed(reg, mmsys->regs + routes[i].addr);
 		}
 }
