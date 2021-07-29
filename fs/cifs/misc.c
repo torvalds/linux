@@ -723,13 +723,19 @@ void
 cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *cfile = NULL;
-	struct cifs_deferred_close *dclose;
+
+	if (cifs_inode == NULL)
+		return;
 
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
-		spin_lock(&cifs_inode->deferred_lock);
-		if (cifs_is_deferred_close(cfile, &dclose))
-			mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
-		spin_unlock(&cifs_inode->deferred_lock);
+		if (delayed_work_pending(&cfile->deferred)) {
+			/*
+			 * If there is no pending work, mod_delayed_work queues new work.
+			 * So, Increase the ref count to avoid use-after-free.
+			 */
+			if (!mod_delayed_work(deferredclose_wq, &cfile->deferred, 0))
+				cifsFileInfo_get(cfile);
+		}
 	}
 }
 
