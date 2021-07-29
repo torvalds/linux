@@ -21,11 +21,13 @@ enum pm_sleep_mode {
 };
 
 struct spm_reg_data {
-	const u8 *reg_offset;
+	const u16 *reg_offset;
 	u32 spm_cfg;
 	u32 spm_dly;
 	u32 pmic_dly;
 	u32 pmic_data[MAX_PMIC_DATA];
+	u32 avs_ctl;
+	u32 avs_limit;
 	u8 seq[MAX_SEQ_DATA];
 	u8 start_index[PM_SLEEP_MODE_NR];
 };
