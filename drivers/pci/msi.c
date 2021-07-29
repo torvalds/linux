@@ -166,11 +166,7 @@ static void msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 
 static void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
 {
-	if (desc->msi_attrib.is_virtual)
-		return NULL;
-
-	return desc->mask_base +
-		desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
+	return desc->mask_base + desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
 }
 
 /*
@@ -182,14 +178,10 @@ static void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
  */
 static u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag)
 {
+	void __iomem *desc_addr = pci_msix_desc_addr(desc);
 	u32 ctrl = desc->msix_ctrl;
-	void __iomem *desc_addr;
 
-	if (pci_msi_ignore_mask)
-		return 0;
-
-	desc_addr = pci_msix_desc_addr(desc);
-	if (!desc_addr)
+	if (pci_msi_ignore_mask || desc->msi_attrib.is_virtual)
 		return 0;
 
 	ctrl &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
@@ -256,10 +248,8 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	if (entry->msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
 
-		if (!base) {
-			WARN_ON(1);
+		if (WARN_ON_ONCE(entry->msi_attrib.is_virtual))
 			return;
-		}
 
 		msg->address_lo = readl(base + PCI_MSIX_ENTRY_LOWER_ADDR);
 		msg->address_hi = readl(base + PCI_MSIX_ENTRY_UPPER_ADDR);
@@ -292,7 +282,7 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 		void __iomem *base = pci_msix_desc_addr(entry);
 		bool unmasked = !(entry->msix_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT);
 
-		if (!base)
+		if (entry->msi_attrib.is_virtual)
 			goto skip;
 
 		/*
@@ -744,9 +734,10 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 		entry->msi_attrib.default_irq	= dev->irq;
 		entry->mask_base		= base;
 
-		addr = pci_msix_desc_addr(entry);
-		if (addr)
+		if (!entry->msi_attrib.is_virtual) {
+			addr = pci_msix_desc_addr(entry);
 			entry->msix_ctrl = readl(addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
+		}
 
 		list_add_tail(&entry->list, dev_to_msi_list(&dev->dev));
 		if (masks)
