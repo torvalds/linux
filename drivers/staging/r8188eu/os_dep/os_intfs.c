@@ -3,7 +3,6 @@
 
 #define _OS_INTFS_C_
 
-#include <linux/version.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <xmit_osdep.h>

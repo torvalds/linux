@@ -163,11 +163,7 @@ struct led_priv{
 			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
 	} while (0)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 void BlinkTimerCallback(struct timer_list *t);
-#else
-void BlinkTimerCallback(void *data);
-#endif
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x * pLed);

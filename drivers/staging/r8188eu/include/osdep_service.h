@@ -4,10 +4,7 @@
 #ifndef __OSDEP_SERVICE_H_
 #define __OSDEP_SERVICE_H_
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 #include <linux/sched/signal.h>
-#endif
 #include <basic_types.h>
 
 #define _FAIL		0
@@ -75,15 +72,6 @@ static inline void rtw_list_delete(struct list_head *plist)
 {
 	list_del_init(plist);
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-static inline void _init_timer(struct timer_list *ptimer,struct  net_device *nic_hdl,void *pfunc,void* cntx)
-{
-	ptimer->function = pfunc;
-	ptimer->data = (unsigned long)cntx;
-	init_timer(ptimer);
-}
-#endif
 
 static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
 {

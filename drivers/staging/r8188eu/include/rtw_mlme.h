@@ -453,13 +453,8 @@ void indicate_wx_scan_complete_event(struct adapter *padapter);
 void rtw_indicate_wx_assoc_event(struct adapter *padapter);
 void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
 int event_thread(void *context);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-void rtw_join_timeout_handler (void *FunctionContext);
-void _rtw_scan_timeout_handler(void *FunctionContext);
-#else
 void rtw_join_timeout_handler (struct timer_list *t);
 void _rtw_scan_timeout_handler (struct timer_list *t);
-#endif
 void rtw_free_network_queue(struct adapter *adapter, u8 isfreeall);
 int rtw_init_mlme_priv(struct adapter *adapter);
 void rtw_free_mlme_priv (struct mlme_priv *pmlmepriv);

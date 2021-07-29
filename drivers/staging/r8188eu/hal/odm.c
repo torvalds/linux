@@ -1563,12 +1563,7 @@ void odm_RSSIMonitorCheckAP(struct odm_dm_struct *pDM_Odm)
 
 void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-	ODM_InitializeTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer,
-			    (void *)odm_SwAntDivChkAntSwitchCallback, NULL, "SwAntennaSwitchTimer");
-#else
 	timer_setup(&pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer, odm_SwAntDivChkAntSwitchCallback, 0);
-#endif
 }
 
 void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm)
@@ -1677,11 +1672,7 @@ void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm)
 {
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext)
-#else
 void odm_SwAntDivChkAntSwitchCallback(struct timer_list *t)
-#endif
 {
 }
 

@@ -1671,11 +1671,7 @@ static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
 	void *br_port = NULL;
 
 	rcu_read_lock();
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	br_port = rcu_dereference(padapter->pnetdev->rx_handler_data);
-#else
-	br_port = rcu_dereference(padapter->pnetdev->br_port);
-#endif
 	rcu_read_unlock();
 	spin_lock_bh(&padapter->br_ext_lock);
 	if (!(skb->data[0] & 1) && br_port &&
@@ -1859,11 +1855,7 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 	}
 
 	rcu_read_lock();
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	br_port = rcu_dereference(padapter->pnetdev->rx_handler_data);
-#else
-	br_port = rcu_dereference(padapter->pnetdev->br_port);
-#endif
 	rcu_read_unlock();
 
 	if (br_port && check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE)) {

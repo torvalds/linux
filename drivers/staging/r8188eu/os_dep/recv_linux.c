@@ -179,11 +179,7 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 	}
 
 	rcu_read_lock();
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	rcu_dereference(padapter->pnetdev->rx_handler_data);
-#else
-	rcu_dereference(padapter->pnetdev->br_port);
-#endif
 	rcu_read_unlock();
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -226,19 +222,11 @@ void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
 			      (unsigned char *)precvbuf);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-static void _rtw_reordering_ctrl_timeout_handler(void *func_context)
-#else
 static void _rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
-#endif
 {
 	struct recv_reorder_ctrl *preorder_ctrl;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-	preorder_ctrl = (struct recv_reorder_ctrl *)func_context;
-#else
 	preorder_ctrl = from_timer(preorder_ctrl, t, reordering_ctrl_timer);
-#endif
 	rtw_reordering_ctrl_timeout_handler(preorder_ctrl);
 }
 
@@ -246,9 +234,5 @@ void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
 {
 	struct adapter *padapter = preorder_ctrl->padapter;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-	_init_timer(&(preorder_ctrl->reordering_ctrl_timer), padapter->pnetdev, _rtw_reordering_ctrl_timeout_handler, preorder_ctrl);
-#else
 	timer_setup(&preorder_ctrl->reordering_ctrl_timer, _rtw_reordering_ctrl_timeout_handler, 0);
-#endif
 }

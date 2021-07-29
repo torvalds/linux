@@ -192,19 +192,11 @@ exit:
 	return;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static void pwr_state_check_handler(struct timer_list *t)
-#else
-static void pwr_state_check_handler(void *FunctionContext)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	struct adapter *padapter =
 		from_timer(padapter, t,
 			   pwrctrlpriv.pwr_state_check_timer);
-#else
-	struct adapter *padapter = (struct adapter *)FunctionContext;
-#endif
 	rtw_ps_cmd(padapter);
 }
 
@@ -492,11 +484,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->btcoex_rfon = false;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	timer_setup(&pwrctrlpriv->pwr_state_check_timer, pwr_state_check_handler, 0);
-#else
-	_init_timer(&(pwrctrlpriv->pwr_state_check_timer), padapter->pnetdev, pwr_state_check_handler, (u8 *)padapter);
-#endif
 }
 
 void rtw_free_pwrctrl_priv(struct adapter *adapter)

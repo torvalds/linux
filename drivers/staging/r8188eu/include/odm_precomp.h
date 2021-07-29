@@ -75,11 +75,7 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm);
 void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm);
 void odm_TXPowerTrackingCheckMP(struct odm_dm_struct *pDM_Odm);
 void odm_TXPowerTrackingCheckAP(struct odm_dm_struct *pDM_Odm);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
-void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext);
-#else
 void odm_SwAntDivChkAntSwitchCallback(struct timer_list *t);
-#endif
 void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm);
 void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm);
 

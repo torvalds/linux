@@ -9,17 +9,9 @@
 /*		Callback function of LED BlinkTimer, */
 /*		it just schedules to corresponding BlinkWorkItem/led_blink_hdl */
 /*  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 void BlinkTimerCallback(struct timer_list *t)
-#else
-void BlinkTimerCallback(void *data)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	struct LED_871x *pLed = from_timer(pLed, t, BlinkTimer);
-#else
-	struct LED_871x *pLed = (struct LED_871x *)data;
-#endif
 	struct adapter *padapter = pLed->padapter;
 
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
@@ -69,11 +61,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed, enum LED_PIN_8
 
 	ResetLedStatus(pLed);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	timer_setup(&pLed->BlinkTimer, BlinkTimerCallback, 0);
-#else
-	_init_timer(&(pLed->BlinkTimer), padapter->pnetdev, BlinkTimerCallback, pLed);
-#endif
 	_init_workitem(&(pLed->BlinkWorkItem), BlinkWorkItemCallback, pLed);
 }
 
