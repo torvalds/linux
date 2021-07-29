@@ -40,14 +40,6 @@ void genl_unlock(void)
 }
 EXPORT_SYMBOL(genl_unlock);
 
-#ifdef CONFIG_LOCKDEP
-bool lockdep_genl_is_held(void)
-{
-	return lockdep_is_held(&genl_mutex);
-}
-EXPORT_SYMBOL(lockdep_genl_is_held);
-#endif
-
 static void genl_lock_all(void)
 {
 	down_write(&cb_lock);
