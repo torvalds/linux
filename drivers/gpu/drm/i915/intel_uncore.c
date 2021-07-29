@@ -1006,39 +1006,24 @@ static const struct i915_range gen12_shadowed_regs[] = {
 	{ .start = 0x1D4510, .end = 0x1D4550 },
 	{ .start = 0x1D8030, .end = 0x1D8030 },
 	{ .start = 0x1D8510, .end = 0x1D8550 },
-};
 
-static const struct i915_range xehp_shadowed_regs[] = {
-	{ .start =   0x2000, .end =   0x2030 },
-	{ .start =   0x2550, .end =   0x2550 },
-	{ .start =   0xA008, .end =   0xA00C },
-	{ .start =  0x22030, .end =  0x22030 },
-	{ .start =  0x22550, .end =  0x22550 },
-	{ .start = 0x1C0030, .end = 0x1C0030 },
-	{ .start = 0x1C0550, .end = 0x1C0550 },
-	{ .start = 0x1C4030, .end = 0x1C4030 },
-	{ .start = 0x1C4550, .end = 0x1C4550 },
-	{ .start = 0x1C8030, .end = 0x1C8030 },
-	{ .start = 0x1C8550, .end = 0x1C8550 },
-	{ .start = 0x1D0030, .end = 0x1D0030 },
-	{ .start = 0x1D0550, .end = 0x1D0550 },
-	{ .start = 0x1D4030, .end = 0x1D4030 },
-	{ .start = 0x1D4550, .end = 0x1D4550 },
-	{ .start = 0x1D8030, .end = 0x1D8030 },
-	{ .start = 0x1D8550, .end = 0x1D8550 },
+	/*
+	 * The rest of these ranges are specific to Xe_HP and beyond, but
+	 * are reserved/unused ranges on earlier gen12 platforms, so they can
+	 * be safely added to the gen12 table.
+	 */
 	{ .start = 0x1E0030, .end = 0x1E0030 },
-	{ .start = 0x1E0550, .end = 0x1E0550 },
+	{ .start = 0x1E0510, .end = 0x1E0550 },
 	{ .start = 0x1E4030, .end = 0x1E4030 },
-	{ .start = 0x1E4550, .end = 0x1E4550 },
+	{ .start = 0x1E4510, .end = 0x1E4550 },
 	{ .start = 0x1E8030, .end = 0x1E8030 },
-	{ .start = 0x1E8550, .end = 0x1E8550 },
+	{ .start = 0x1E8510, .end = 0x1E8550 },
 	{ .start = 0x1F0030, .end = 0x1F0030 },
-	{ .start = 0x1F0550, .end = 0x1F0550 },
+	{ .start = 0x1F0510, .end = 0x1F0550 },
 	{ .start = 0x1F4030, .end = 0x1F4030 },
-	{ .start = 0x1F4550, .end = 0x1F4550 },
+	{ .start = 0x1F4510, .end = 0x1F4550 },
 	{ .start = 0x1F8030, .end = 0x1F8030 },
-	{ .start = 0x1F8550, .end = 0x1F8550 },
-	/* TODO: Other registers are not yet used */
+	{ .start = 0x1F8510, .end = 0x1F8550 },
 };
 
 static int mmio_range_cmp(u32 key, const struct i915_range *range)
@@ -1062,7 +1047,6 @@ static bool is_##x##_shadowed(u32 offset) \
 __is_X_shadowed(gen8)
 __is_X_shadowed(gen11)
 __is_X_shadowed(gen12)
-__is_X_shadowed(xehp)
 
 static enum forcewake_domains
 gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
@@ -1122,15 +1106,6 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	enum forcewake_domains __fwd = 0; \
 	const u32 __offset = (offset); \
 	if (!is_gen12_shadowed(__offset)) \
-		__fwd = find_fw_domain(uncore, __offset); \
-	__fwd; \
-})
-
-#define __xehp_fwtable_reg_write_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
-	const u32 __offset = (offset); \
-	if (!is_xehp_shadowed(__offset)) \
 		__fwd = find_fw_domain(uncore, __offset); \
 	__fwd; \
 })
@@ -1737,7 +1712,6 @@ __gen_write(func, 8) \
 __gen_write(func, 16) \
 __gen_write(func, 32)
 
-__gen_reg_write_funcs(xehp_fwtable);
 __gen_reg_write_funcs(gen12_fwtable);
 __gen_reg_write_funcs(gen11_fwtable);
 __gen_reg_write_funcs(fwtable);
@@ -2114,11 +2088,11 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, xehp_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __xehp_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, xehp_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);

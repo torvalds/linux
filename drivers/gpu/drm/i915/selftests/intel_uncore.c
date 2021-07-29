@@ -68,7 +68,6 @@ static int intel_shadow_table_check(void)
 		{ gen8_shadowed_regs, ARRAY_SIZE(gen8_shadowed_regs) },
 		{ gen11_shadowed_regs, ARRAY_SIZE(gen11_shadowed_regs) },
 		{ gen12_shadowed_regs, ARRAY_SIZE(gen12_shadowed_regs) },
-		{ xehp_shadowed_regs, ARRAY_SIZE(xehp_shadowed_regs) },
 	};
 	const struct i915_range *range;
 	unsigned int i, j;
