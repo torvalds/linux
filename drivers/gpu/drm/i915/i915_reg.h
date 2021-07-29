@@ -10631,7 +10631,7 @@ enum skl_power_gate {
 							ADLS_DPCLKA_DDIJ_SEL_MASK, \
 							ADLS_DPCLKA_DDIK_SEL_MASK)
 
-/* CNL PLL */
+/* ICL PLL */
 #define DPLL0_ENABLE		0x46010
 #define DPLL1_ENABLE		0x46014
 #define _ADLS_DPLL2_ENABLE	0x46018
@@ -10640,7 +10640,7 @@ enum skl_power_gate {
 #define  PLL_LOCK		(1 << 30)
 #define  PLL_POWER_ENABLE	(1 << 27)
 #define  PLL_POWER_STATE	(1 << 26)
-#define CNL_DPLL_ENABLE(pll)	_MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
+#define ICL_DPLL_ENABLE(pll)	_MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
 					   _ADLS_DPLL2_ENABLE, _ADLS_DPLL3_ENABLE)
 
 #define _DG2_PLL3_ENABLE	0x4601C
