@@ -64,7 +64,7 @@ static void mmio_debug_resume(struct intel_uncore_mmio_debug *mmio_debug)
 
 static const char * const forcewake_domain_names[] = {
 	"render",
-	"blitter",
+	"gt",
 	"media",
 	"vdbox0",
 	"vdbox1",
