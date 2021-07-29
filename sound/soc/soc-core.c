@@ -1718,7 +1718,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  */
 int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 {
-	const char *vendor, *product, *product_version, *board;
+	const char *vendor, *product, *board;
 
 	if (card->long_name)
 		return 0; /* long name already set by driver or from DMI */
@@ -1738,13 +1738,14 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (product && is_dmi_valid(product)) {
+		const char *product_version = dmi_get_system_info(DMI_PRODUCT_VERSION);
+
 		append_dmi_string(card, product);
 
 		/*
 		 * some vendors like Lenovo may only put a self-explanatory
 		 * name in the product version field
 		 */
-		product_version = dmi_get_system_info(DMI_PRODUCT_VERSION);
 		if (product_version && is_dmi_valid(product_version))
 			append_dmi_string(card, product_version);
 	}
