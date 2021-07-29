@@ -60,24 +60,6 @@ config CPU_IXP43X
 	depends on MACH_KIXRP435
 	default y
 
-config MACH_GTWX5715
-	bool "Gemtek WX5715 (Linksys WRV54G)"
-	depends on ARCH_IXP4XX
-	depends on IXP4XX_PCI_LEGACY
-	help
-		This board is currently inside the Linksys WRV54G Gateways.
-
-		IXP425 - 266mhz
-		32mb SDRAM
-		8mb Flash
-		miniPCI slot 0 does not have a card connector soldered to the board
-		miniPCI slot 1 has an ISL3880 802.11g card (Prism54)
-		npe0 is connected to a Kendin KS8995M Switch (4 ports)
-		npe1 is the "wan" port
-		"Console" UART is available on J11 as console
-		"High Speed" UART is n/c (as far as I can tell)
-		20 Pin ARM/Xscale JTAG interface on J2
-
 comment "IXP4xx Options"
 
 config IXP4XX_PCI_LEGACY
