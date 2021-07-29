@@ -2237,13 +2237,12 @@ static int snd_soc_add_controls(struct snd_card *card, struct device *dev,
 	const struct snd_kcontrol_new *controls, int num_controls,
 	const char *prefix, void *data)
 {
-	int err, i;
+	int i;
 
 	for (i = 0; i < num_controls; i++) {
 		const struct snd_kcontrol_new *control = &controls[i];
-
-		err = snd_ctl_add(card, snd_soc_cnew(control, data,
-						     control->name, prefix));
+		int err = snd_ctl_add(card, snd_soc_cnew(control, data,
+							 control->name, prefix));
 		if (err < 0) {
 			dev_err(dev, "ASoC: Failed to add %s: %d\n",
 				control->name, err);
