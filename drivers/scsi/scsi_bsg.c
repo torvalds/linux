@@ -89,7 +89,8 @@ static const struct bsg_ops scsi_bsg_ops = {
 	.free_rq		= scsi_bsg_free_rq,
 };
 
-int scsi_bsg_register_queue(struct request_queue *q, struct device *parent)
+struct bsg_device *scsi_bsg_register_queue(struct scsi_device *sdev)
 {
-	return bsg_register_queue(q, parent, dev_name(parent), &scsi_bsg_ops);
+	return bsg_register_queue(sdev->request_queue, &sdev->sdev_gendev,
+				  dev_name(&sdev->sdev_gendev), &scsi_bsg_ops);
 }

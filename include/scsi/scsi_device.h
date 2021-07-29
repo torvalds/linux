@@ -10,6 +10,7 @@
 #include <linux/atomic.h>
 #include <linux/sbitmap.h>
 
+struct bsg_device;
 struct device;
 struct request_queue;
 struct scsi_cmnd;
@@ -235,6 +236,7 @@ struct scsi_device {
 	size_t			dma_drain_len;
 	void			*dma_drain_buf;
 
+	struct bsg_device	*bsg_dev;
 	unsigned char		access_state;
 	struct mutex		state_mutex;
 	enum scsi_device_state sdev_state;

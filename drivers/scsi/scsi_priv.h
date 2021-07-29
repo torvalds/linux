@@ -7,6 +7,7 @@
 #include <scsi/scsi_device.h>
 #include <linux/sbitmap.h>
 
+struct bsg_device;
 struct request_queue;
 struct request;
 struct scsi_cmnd;
@@ -180,15 +181,7 @@ static inline void scsi_dh_add_device(struct scsi_device *sdev) { }
 static inline void scsi_dh_release_device(struct scsi_device *sdev) { }
 #endif
 
-#ifdef CONFIG_BLK_DEV_BSG
-int scsi_bsg_register_queue(struct request_queue *q, struct device *parent);
-#else
-static inline int scsi_bsg_register_queue(struct request_queue *q,
-		struct device *parent)
-{
-	return 0;
-}
-#endif
+struct bsg_device *scsi_bsg_register_queue(struct scsi_device *sdev);
 
 extern int scsi_device_max_queue_depth(struct scsi_device *sdev);
 

@@ -6,6 +6,7 @@
  *  Copyright (C) 2011   Red Hat, Inc.  All rights reserved.
  *  Copyright (C) 2011   Mike Christie
  */
+#include <linux/bsg.h>
 #include <linux/slab.h>
 #include <linux/blk-mq.h>
 #include <linux/delay.h>
@@ -19,6 +20,7 @@
 
 struct bsg_set {
 	struct blk_mq_tag_set	tag_set;
+	struct bsg_device	*bd;
 	bsg_job_fn		*job_fn;
 	bsg_timeout_fn		*timeout_fn;
 };
@@ -327,7 +329,7 @@ void bsg_remove_queue(struct request_queue *q)
 		struct bsg_set *bset =
 			container_of(q->tag_set, struct bsg_set, tag_set);
 
-		bsg_unregister_queue(q);
+		bsg_unregister_queue(bset->bd);
 		blk_cleanup_queue(q);
 		blk_mq_free_tag_set(&bset->tag_set);
 		kfree(bset);
@@ -396,10 +398,9 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	q->queuedata = dev;
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
-	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
-	if (ret) {
-		printk(KERN_ERR "%s: bsg interface failed to "
-		       "initialize - register queue\n", dev->kobj.name);
+	bset->bd = bsg_register_queue(q, dev, name, &bsg_transport_ops);
+	if (IS_ERR(bset->bd)) {
+		ret = PTR_ERR(bset->bd);
 		goto out_cleanup_queue;
 	}
 
