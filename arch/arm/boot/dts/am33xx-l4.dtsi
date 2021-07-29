@@ -923,6 +923,17 @@
 					reg-names = "iram", "control", "debug";
 					firmware-name = "am335x-pru1-fw";
 				};
+
+				pruss_mdio: mdio@32400 {
+					compatible = "ti,davinci_mdio";
+					reg = <0x32400 0x90>;
+					clocks = <&dpll_core_m4_ck>;
+					clock-names = "fck";
+					bus_freq = <1000000>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					status = "disabled";
+				};
 			};
 		};
 	};
