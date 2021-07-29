@@ -69,6 +69,7 @@ Contents:
    l2tp
    lapb-module
    mac80211-injection
+   mctp
    mpls-sysctl
    mptcp-sysctl
    multiqueue
