@@ -10,6 +10,7 @@
 #define __NET_MCTP_H
 
 #include <linux/bits.h>
+#include <linux/mctp.h>
 
 /* MCTP packet definitions */
 struct mctp_hdr {
@@ -31,5 +32,18 @@ struct mctp_hdr {
 #define MCTP_HDR_SEQ_MASK	GENMASK(1, 0)
 #define MCTP_HDR_TAG_SHIFT	0
 #define MCTP_HDR_TAG_MASK	GENMASK(2, 0)
+
+static inline bool mctp_address_ok(mctp_eid_t eid)
+{
+	return eid >= 8 && eid < 255;
+}
+
+static inline struct mctp_hdr *mctp_hdr(struct sk_buff *skb)
+{
+	return (struct mctp_hdr *)skb_network_header(skb);
+}
+
+void mctp_device_init(void);
+void mctp_device_exit(void);
 
 #endif /* __NET_MCTP_H */

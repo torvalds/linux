@@ -6,12 +6,17 @@
  * Copyright (c) 2021 Google
  */
 
+#include <linux/if_arp.h>
 #include <linux/net.h>
 #include <linux/mctp.h>
 #include <linux/module.h>
 #include <linux/socket.h>
 
+#include <net/mctp.h>
+#include <net/mctpdevice.h>
 #include <net/sock.h>
+
+/* socket implementation */
 
 struct mctp_sock {
 	struct sock	sk;
@@ -152,6 +157,8 @@ static __init int mctp_init(void)
 	if (rc)
 		goto err_unreg_sock;
 
+	mctp_device_init();
+
 	return 0;
 
 err_unreg_sock:
@@ -162,6 +169,7 @@ err_unreg_sock:
 
 static __exit void mctp_exit(void)
 {
+	mctp_device_exit();
 	proto_unregister(&mctp_proto);
 	sock_unregister(PF_MCTP);
 }

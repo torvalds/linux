@@ -26,6 +26,7 @@ struct sockaddr_mctp {
 };
 
 #define MCTP_NET_ANY		0x0
+#define MCTP_NET_DEFAULT	0x0
 
 #define MCTP_ADDR_NULL		0x00
 #define MCTP_ADDR_ANY		0xff
