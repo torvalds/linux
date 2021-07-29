@@ -107,7 +107,8 @@ struct ti_sci_inta_msi_desc {
  *			address or data changes
  * @write_msi_msg_data:	Data parameter for the callback.
  *
- * @masked:	[PCI MSI/X] Mask bits
+ * @msi_mask:	[PCI MSI]   MSI cached mask bits
+ * @msix_ctrl:	[PCI MSI-X] MSI-X cached per vector control bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
  * @multiple:	[PCI MSI/X] log2 num of messages allocated
  * @multi_cap:	[PCI MSI/X] log2 num of messages supported
@@ -139,7 +140,10 @@ struct msi_desc {
 	union {
 		/* PCI MSI/X specific data */
 		struct {
-			u32 masked;
+			union {
+				u32 msi_mask;
+				u32 msix_ctrl;
+			};
 			struct {
 				u8	is_msix		: 1;
 				u8	multiple	: 3;
