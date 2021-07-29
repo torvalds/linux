@@ -9,42 +9,57 @@
 
 #define uptr64(val) ((void __user *)(uintptr_t)(val))
 
-static int scsi_bsg_check_proto(struct sg_io_v4 *hdr)
+static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
+		fmode_t mode, unsigned int timeout)
 {
+	struct scsi_request *sreq;
+	struct request *rq;
+	struct bio *bio;
+	int ret;
+
 	if (hdr->protocol != BSG_PROTOCOL_SCSI  ||
 	    hdr->subprotocol != BSG_SUB_PROTOCOL_SCSI_CMD)
 		return -EINVAL;
-	return 0;
-}
-
-static int scsi_bsg_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
-		fmode_t mode)
-{
-	struct scsi_request *sreq = scsi_req(rq);
-
 	if (hdr->dout_xfer_len && hdr->din_xfer_len) {
 		pr_warn_once("BIDI support in bsg has been removed.\n");
 		return -EOPNOTSUPP;
 	}
 
+	rq = blk_get_request(q, hdr->dout_xfer_len ?
+			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	rq->timeout = timeout;
+
+	ret = -ENOMEM;
+	sreq = scsi_req(rq);
 	sreq->cmd_len = hdr->request_len;
 	if (sreq->cmd_len > BLK_MAX_CDB) {
 		sreq->cmd = kzalloc(sreq->cmd_len, GFP_KERNEL);
 		if (!sreq->cmd)
-			return -ENOMEM;
+			goto out_put_request;
 	}
 
+	ret = -EFAULT;
 	if (copy_from_user(sreq->cmd, uptr64(hdr->request), sreq->cmd_len))
-		return -EFAULT;
+		goto out_free_cmd;
+	ret = -EPERM;
 	if (!scsi_cmd_allowed(sreq->cmd, mode))
-		return -EPERM;
-	return 0;
-}
+		goto out_free_cmd;
 
-static int scsi_bsg_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
-{
-	struct scsi_request *sreq = scsi_req(rq);
-	int ret = 0;
+	if (hdr->dout_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->dout_xferp),
+				hdr->dout_xfer_len, GFP_KERNEL);
+	} else if (hdr->din_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->din_xferp),
+				hdr->din_xfer_len, GFP_KERNEL);
+	}
+
+	if (ret)
+		goto out_free_cmd;
+
+	bio = rq->bio;
+	blk_execute_rq(NULL, rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
 
 	/*
 	 * fill in all the output members
@@ -74,23 +89,17 @@ static int scsi_bsg_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 	else
 		hdr->dout_resid = sreq->resid_len;
 
+	blk_rq_unmap_user(bio);
+
+out_free_cmd:
+	scsi_req_free_cmd(scsi_req(rq));
+out_put_request:
+	blk_put_request(rq);
 	return ret;
 }
-
-static void scsi_bsg_free_rq(struct request *rq)
-{
-	scsi_req_free_cmd(scsi_req(rq));
-}
-
-static const struct bsg_ops scsi_bsg_ops = {
-	.check_proto		= scsi_bsg_check_proto,
-	.fill_hdr		= scsi_bsg_fill_hdr,
-	.complete_rq		= scsi_bsg_complete_rq,
-	.free_rq		= scsi_bsg_free_rq,
-};
 
 struct bsg_device *scsi_bsg_register_queue(struct scsi_device *sdev)
 {
 	return bsg_register_queue(sdev->request_queue, &sdev->sdev_gendev,
-				  dev_name(&sdev->sdev_gendev), &scsi_bsg_ops);
+			dev_name(&sdev->sdev_gendev), scsi_bsg_sg_io_fn);
 }

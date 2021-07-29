@@ -25,32 +25,39 @@ struct bsg_set {
 	bsg_timeout_fn		*timeout_fn;
 };
 
-static int bsg_transport_check_proto(struct sg_io_v4 *hdr)
+static int bsg_transport_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
+		fmode_t mode, unsigned int timeout)
 {
+	struct bsg_job *job;
+	struct request *rq;
+	struct bio *bio;
+	int ret;
+
 	if (hdr->protocol != BSG_PROTOCOL_SCSI  ||
 	    hdr->subprotocol != BSG_SUB_PROTOCOL_SCSI_TRANSPORT)
 		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	return 0;
-}
 
-static int bsg_transport_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
-		fmode_t mode)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
-	int ret;
+	rq = blk_get_request(q, hdr->dout_xfer_len ?
+			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	rq->timeout = timeout;
 
+	job = blk_mq_rq_to_pdu(rq);
 	job->request_len = hdr->request_len;
 	job->request = memdup_user(uptr64(hdr->request), hdr->request_len);
-	if (IS_ERR(job->request))
-		return PTR_ERR(job->request);
+	if (IS_ERR(job->request)) {
+		ret = PTR_ERR(job->request);
+		goto out_put_request;
+	}
 
 	if (hdr->dout_xfer_len && hdr->din_xfer_len) {
 		job->bidi_rq = blk_get_request(rq->q, REQ_OP_DRV_IN, 0);
 		if (IS_ERR(job->bidi_rq)) {
 			ret = PTR_ERR(job->bidi_rq);
-			goto out;
+			goto out_free_job_request;
 		}
 
 		ret = blk_rq_map_user(rq->q, job->bidi_rq, NULL,
@@ -65,20 +72,19 @@ static int bsg_transport_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
 		job->bidi_bio = NULL;
 	}
 
-	return 0;
+	if (hdr->dout_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->dout_xferp),
+				hdr->dout_xfer_len, GFP_KERNEL);
+	} else if (hdr->din_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->din_xferp),
+				hdr->din_xfer_len, GFP_KERNEL);
+	}
 
-out_free_bidi_rq:
-	if (job->bidi_rq)
-		blk_put_request(job->bidi_rq);
-out:
-	kfree(job->request);
-	return ret;
-}
+	if (ret)
+		goto out_unmap_bidi_rq;
 
-static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
-	int ret = 0;
+	bio = rq->bio;
+	blk_execute_rq(NULL, rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
 
 	/*
 	 * The assignments below don't make much sense, but are kept for
@@ -121,27 +127,19 @@ static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 		hdr->din_resid = 0;
 	}
 
+	blk_rq_unmap_user(bio);
+out_unmap_bidi_rq:
+	if (job->bidi_rq)
+		blk_rq_unmap_user(job->bidi_bio);
+out_free_bidi_rq:
+	if (job->bidi_rq)
+		blk_put_request(job->bidi_rq);
+out_free_job_request:
+	kfree(job->request);
+out_put_request:
+	blk_put_request(rq);
 	return ret;
 }
-
-static void bsg_transport_free_rq(struct request *rq)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
-
-	if (job->bidi_rq) {
-		blk_rq_unmap_user(job->bidi_bio);
-		blk_put_request(job->bidi_rq);
-	}
-
-	kfree(job->request);
-}
-
-static const struct bsg_ops bsg_transport_ops = {
-	.check_proto		= bsg_transport_check_proto,
-	.fill_hdr		= bsg_transport_fill_hdr,
-	.complete_rq		= bsg_transport_complete_rq,
-	.free_rq		= bsg_transport_free_rq,
-};
 
 /**
  * bsg_teardown_job - routine to teardown a bsg job
@@ -398,7 +396,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	q->queuedata = dev;
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
-	bset->bd = bsg_register_queue(q, dev, name, &bsg_transport_ops);
+	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
 	if (IS_ERR(bset->bd)) {
 		ret = PTR_ERR(bset->bd);
 		goto out_cleanup_queue;
