@@ -591,7 +591,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 3);
 		if (msg[2] != 0) {
 			/* Error clearing flags */
-			dev_warn(smi_info->io.dev,
+			dev_warn_ratelimited(smi_info->io.dev,
 				 "Error clearing flags: %2.2x\n", msg[2]);
 		}
 		smi_info->si_state = SI_NORMAL;
@@ -683,10 +683,10 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0) {
-			dev_warn(smi_info->io.dev,
-				 "Couldn't get irq info: %x.\n", msg[2]);
-			dev_warn(smi_info->io.dev,
-				 "Maybe ok, but ipmi might run very slowly.\n");
+			dev_warn_ratelimited(smi_info->io.dev,
+				"Couldn't get irq info: %x,\n"
+				"Maybe ok, but ipmi might run very slowly.\n",
+				msg[2]);
 			smi_info->si_state = SI_NORMAL;
 			break;
 		}
@@ -721,7 +721,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0)
-			dev_warn(smi_info->io.dev,
+			dev_warn_ratelimited(smi_info->io.dev,
 				 "Could not set the global enables: 0x%x.\n",
 				 msg[2]);
 
@@ -1343,7 +1343,7 @@ retry:
 
 		if (cc != IPMI_CC_NO_ERROR &&
 		    ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
-			dev_warn(smi_info->io.dev,
+			dev_warn_ratelimited(smi_info->io.dev,
 			    "BMC returned 0x%2.2x, retry get bmc device id\n",
 			    cc);
 			goto retry;
