@@ -139,17 +139,33 @@ static void gen12_sseu_info_init(struct intel_gt *gt)
 	 * Gen12 has Dual-Subslices, which behave similarly to 2 gen11 SS.
 	 * Instead of splitting these, provide userspace with an array
 	 * of DSS to more closely represent the hardware resource.
+	 *
+	 * In addition, the concept of slice has been removed in Xe_HP.
+	 * To be compatible with prior generations, assume a single slice
+	 * across the entire device. Then calculate out the DSS for each
+	 * workload type within that software slice.
 	 */
 	intel_sseu_set_info(sseu, 1, 6, 16);
 
-	s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
-		GEN11_GT_S_ENA_MASK;
+	/*
+	 * As mentioned above, Xe_HP does not have the concept of a slice.
+	 * Enable one for software backwards compatibility.
+	 */
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		s_en = 0x1;
+	else
+		s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
+		       GEN11_GT_S_ENA_MASK;
 
 	dss_en = intel_uncore_read(uncore, GEN12_GT_DSS_ENABLE);
 
 	/* one bit per pair of EUs */
-	eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
-		       GEN11_EU_DIS_MASK);
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		eu_en_fuse = intel_uncore_read(uncore, XEHP_EU_ENABLE) & XEHP_EU_ENA_MASK;
+	else
+		eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
+			       GEN11_EU_DIS_MASK);
+
 	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
 		if (eu_en_fuse & BIT(eu))
 			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
