@@ -2773,7 +2773,7 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 	struct device_node *np = card->dev->of_node;
 	struct snd_soc_dapm_widget *widgets;
 	const char *template, *wname;
-	int i, j, num_widgets, ret;
+	int i, j, num_widgets;
 
 	num_widgets = of_property_count_strings(np, propname);
 	if (num_widgets < 0) {
@@ -2803,8 +2803,8 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 	}
 
 	for (i = 0; i < num_widgets; i++) {
-		ret = of_property_read_string_index(np, propname,
-			2 * i, &template);
+		int ret = of_property_read_string_index(np, propname,
+							2 * i, &template);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d read error:%d\n",
