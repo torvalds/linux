@@ -70,7 +70,3 @@ $(obj)/compressed/vmlinux: $(obj)/startup.a FORCE
 
 $(obj)/startup.a: $(OBJECTS) FORCE
 	$(call if_changed,ar)
-
-install:
-	sh -x  $(srctree)/$(obj)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
-	      System.map "$(INSTALL_PATH)"
