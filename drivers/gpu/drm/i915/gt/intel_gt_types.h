@@ -47,9 +47,14 @@ struct intel_mmio_range {
  * of multicast registers.  If another type of steering does not have any
  * overlap in valid steering targets with 'subslice' style registers, we will
  * need to explicitly re-steer reads of registers of the other type.
+ *
+ * Only the replication types that may need additional non-default steering
+ * are listed here.
  */
 enum intel_steering_type {
 	L3BANK,
+	MSLICE,
+	LNCF,
 
 	NUM_STEERING_TYPES
 };
@@ -184,6 +189,8 @@ struct intel_gt {
 
 		/* Slice/subslice/EU info */
 		struct sseu_dev_info sseu;
+
+		unsigned long mslice_mask;
 	} info;
 };
 
