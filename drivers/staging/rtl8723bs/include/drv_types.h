@@ -139,10 +139,6 @@ struct registry_priv {
 
 	u8 channel_plan;
 
-	u8 btcoex;
-	u8 bt_iso;
-	u8 bt_sco;
-	u8 bt_ampdu;
 	s8	ant_num;
 
 	/* false:Reject AP's Add BA req, true:accept AP's Add BA req */
