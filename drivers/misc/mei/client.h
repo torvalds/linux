@@ -160,7 +160,7 @@ int mei_cl_vt_support_check(const struct mei_cl *cl);
  *
  * Return: true if the host client is connected
  */
-static inline bool mei_cl_is_connected(struct mei_cl *cl)
+static inline bool mei_cl_is_connected(const struct mei_cl *cl)
 {
 	return  cl->state == MEI_FILE_CONNECTED;
 }
