@@ -836,7 +836,8 @@ static int process_system_event_tables(FILE *outfp)
 	print_system_event_mapping_table_prefix(outfp);
 
 	list_for_each_entry(sys_event_table, &sys_event_tables, list) {
-		fprintf(outfp, "\n\t{\n\t\t.table = %s,\n\t},",
+		fprintf(outfp, "\n\t{\n\t\t.table = %s,\n\t\t.name = \"%s\",\n\t},",
+			sys_event_table->soc_id,
 			sys_event_table->soc_id);
 	}
 
