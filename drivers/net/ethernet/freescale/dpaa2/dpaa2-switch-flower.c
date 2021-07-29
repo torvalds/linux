@@ -339,10 +339,10 @@ dpaa2_switch_acl_tbl_remove_entry(struct dpaa2_switch_acl_tbl *acl_tbl,
 	return 0;
 }
 
-static int dpaa2_switch_tc_parse_action(struct ethsw_core *ethsw,
-					struct flow_action_entry *cls_act,
-					struct dpsw_acl_result *dpsw_act,
-					struct netlink_ext_ack *extack)
+static int dpaa2_switch_tc_parse_action_acl(struct ethsw_core *ethsw,
+					    struct flow_action_entry *cls_act,
+					    struct dpsw_acl_result *dpsw_act,
+					    struct netlink_ext_ack *extack)
 {
 	int err = 0;
 
@@ -403,8 +403,8 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 		goto free_acl_entry;
 
 	act = &rule->action.entries[0];
-	err = dpaa2_switch_tc_parse_action(ethsw, act,
-					   &acl_entry->cfg.result, extack);
+	err = dpaa2_switch_tc_parse_action_acl(ethsw, act,
+					       &acl_entry->cfg.result, extack);
 	if (err)
 		goto free_acl_entry;
 
@@ -459,8 +459,8 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 		return -ENOMEM;
 
 	act = &cls->rule->action.entries[0];
-	err = dpaa2_switch_tc_parse_action(ethsw, act,
-					   &acl_entry->cfg.result, extack);
+	err = dpaa2_switch_tc_parse_action_acl(ethsw, act,
+					       &acl_entry->cfg.result, extack);
 	if (err)
 		goto free_acl_entry;
 
