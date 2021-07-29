@@ -57,6 +57,81 @@ static bool sja1105_can_forward(struct sja1105_l2_forwarding_entry *l2_fwd,
 	return !!(l2_fwd[from].reach_port & BIT(to));
 }
 
+static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
+{
+	struct sja1105_vlan_lookup_entry *vlan;
+	int count, i;
+
+	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
+	count = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entry_count;
+
+	for (i = 0; i < count; i++)
+		if (vlan[i].vlanid == vid)
+			return i;
+
+	/* Return an invalid entry index if not found */
+	return -1;
+}
+
+static int sja1105_drop_untagged(struct dsa_switch *ds, int port, bool drop)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	if (mac[port].drpuntag == drop)
+		return 0;
+
+	mac[port].drpuntag = drop;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					    &mac[port], true);
+}
+
+static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
+{
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	if (mac[port].vlanid == pvid)
+		return 0;
+
+	mac[port].vlanid = pvid;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					    &mac[port], true);
+}
+
+static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_vlan_lookup_entry *vlan;
+	bool drop_untagged = false;
+	int match, rc;
+	u16 pvid;
+
+	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
+		pvid = priv->bridge_pvid[port];
+	else
+		pvid = priv->tag_8021q_pvid[port];
+
+	rc = sja1105_pvid_apply(priv, port, pvid);
+	if (rc)
+		return rc;
+
+	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
+
+	match = sja1105_is_vlan_configured(priv, pvid);
+
+	if (match < 0 || !(vlan[match].vmemb_port & BIT(port)))
+		drop_untagged = true;
+
+	return sja1105_drop_untagged(ds, port, drop_untagged);
+}
+
 static int sja1105_init_mac_settings(struct sja1105_private *priv)
 {
 	struct sja1105_mac_config_entry default_mac = {
@@ -1656,6 +1731,10 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
+	rc = sja1105_commit_pvid(ds, port);
+	if (rc)
+		return rc;
+
 	return sja1105_manage_flood_domains(priv);
 }
 
@@ -1955,35 +2034,6 @@ out:
 	return rc;
 }
 
-static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
-{
-	struct sja1105_mac_config_entry *mac;
-
-	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
-
-	if (mac[port].vlanid == pvid)
-		return 0;
-
-	mac[port].vlanid = pvid;
-
-	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
-					   &mac[port], true);
-}
-
-static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct sja1105_private *priv = ds->priv;
-	u16 pvid;
-
-	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
-		pvid = priv->bridge_pvid[port];
-	else
-		pvid = priv->tag_8021q_pvid[port];
-
-	return sja1105_pvid_apply(priv, port, pvid);
-}
-
 static enum dsa_tag_protocol
 sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 			 enum dsa_tag_protocol mp)
@@ -1991,22 +2041,6 @@ sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 
 	return priv->info->tag_proto;
-}
-
-static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
-{
-	struct sja1105_vlan_lookup_entry *vlan;
-	int count, i;
-
-	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
-	count = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entry_count;
-
-	for (i = 0; i < count; i++)
-		if (vlan[i].vlanid == vid)
-			return i;
-
-	/* Return an invalid entry index if not found */
-	return -1;
 }
 
 /* The TPID setting belongs to the General Parameters table,
@@ -2215,8 +2249,16 @@ static int sja1105_bridge_vlan_del(struct dsa_switch *ds, int port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
+	int rc;
 
-	return sja1105_vlan_del(priv, port, vlan->vid);
+	rc = sja1105_vlan_del(priv, port, vlan->vid);
+	if (rc)
+		return rc;
+
+	/* In case the pvid was deleted, make sure that untagged packets will
+	 * be dropped.
+	 */
+	return sja1105_commit_pvid(ds, port);
 }
 
 static int sja1105_dsa_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
