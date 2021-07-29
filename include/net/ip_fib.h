@@ -133,7 +133,7 @@ struct fib_info {
 	struct hlist_node	fib_lhash;
 	struct list_head	nh_list;
 	struct net		*fib_net;
-	int			fib_treeref;
+	refcount_t		fib_treeref;
 	refcount_t		fib_clntref;
 	unsigned int		fib_flags;
 	unsigned char		fib_dead;
