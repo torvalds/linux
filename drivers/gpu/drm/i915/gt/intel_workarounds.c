@@ -889,17 +889,24 @@ cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
-static void __add_mcr_wa(struct drm_i915_private *i915, struct i915_wa_list *wal,
-			 unsigned slice, unsigned subslice)
+static void __set_mcr_steering(struct i915_wa_list *wal,
+			       i915_reg_t steering_reg,
+			       unsigned int slice, unsigned int subslice)
 {
 	u32 mcr, mcr_mask;
 
 	mcr = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
 	mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
 
-	drm_dbg(&i915->drm, "MCR slice/subslice = %x\n", mcr);
+	wa_write_clr_set(wal, steering_reg, mcr_mask, mcr);
+}
 
-	wa_write_clr_set(wal, GEN8_MCR_SELECTOR, mcr_mask, mcr);
+static void __add_mcr_wa(struct drm_i915_private *i915, struct i915_wa_list *wal,
+			 unsigned int slice, unsigned int subslice)
+{
+	drm_dbg(&i915->drm, "MCR slice=0x%x, subslice=0x%x\n", slice, subslice);
+
+	__set_mcr_steering(wal, GEN8_MCR_SELECTOR, slice, subslice);
 }
 
 static void
@@ -953,7 +960,6 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * - L3 Bank (fusable)
 	 * - MSLICE (fusable)
 	 * - LNCF (sub-unit within mslice; always present if mslice is present)
-	 * - SQIDI (always on)
 	 *
 	 * We'll do our default/implicit steering based on GSLICE (in the
 	 * sliceid field) and DSS (in the subsliceid field).  If we can
@@ -1003,6 +1009,18 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	WARN_ON(dss_mask >> (slice * GEN_DSS_PER_GSLICE) == 0);
 
 	__add_mcr_wa(i915, wal, slice, subslice);
+
+	/*
+	 * SQIDI ranges are special because they use different steering
+	 * registers than everything else we work with.  On XeHP SDV and
+	 * DG2-G10, any value in the steering registers will work fine since
+	 * all instances are present, but DG2-G11 only has SQIDI instances at
+	 * ID's 2 and 3, so we need to steer to one of those.  For simplicity
+	 * we'll just steer to a hardcoded "2" since that value will work
+	 * everywhere.
+	 */
+	__set_mcr_steering(wal, MCFG_MCR_SELECTOR, 0, 2);
+	__set_mcr_steering(wal, SF_MCR_SELECTOR, 0, 2);
 }
 
 static void
