@@ -257,8 +257,8 @@ endif
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-PHONY += install bzlilo
-install bzlilo:
+PHONY += install
+install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 PHONY += vdso_install
