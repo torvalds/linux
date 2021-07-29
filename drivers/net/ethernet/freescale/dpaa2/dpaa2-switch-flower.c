@@ -396,7 +396,9 @@ dpaa2_switch_block_add_mirror(struct dpaa2_switch_filter_block *block,
 {
 	unsigned long block_ports = block->ports;
 	struct ethsw_core *ethsw = block->ethsw;
+	struct ethsw_port_priv *port_priv;
 	unsigned long ports_added = 0;
+	u16 vlan = entry->cfg.vlan_id;
 	bool mirror_port_enabled;
 	int err, port;
 
@@ -414,6 +416,19 @@ dpaa2_switch_block_add_mirror(struct dpaa2_switch_filter_block *block,
 	 * ports that share the same filter block.
 	 */
 	for_each_set_bit(port, &block_ports, ethsw->sw_attr.num_ifs) {
+		port_priv = ethsw->ports[port];
+
+		/* We cannot add a per VLAN mirroring rule if the VLAN in
+		 * question is not installed on the switch port.
+		 */
+		if (entry->cfg.filter == DPSW_REFLECTION_FILTER_INGRESS_VLAN &&
+		    !(port_priv->vlans[vlan] & ETHSW_VLAN_MEMBER)) {
+			NL_SET_ERR_MSG(extack,
+				       "VLAN must be installed on the switch port");
+			err = -EINVAL;
+			goto err_remove_filters;
+		}
+
 		err = dpsw_if_add_reflection(ethsw->mc_io, 0,
 					     ethsw->dpsw_handle,
 					     port, &entry->cfg);
@@ -511,6 +526,112 @@ free_acl_entry:
 	return err;
 }
 
+static int dpaa2_switch_flower_parse_mirror_key(struct flow_cls_offload *cls,
+						u16 *vlan)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	struct netlink_ext_ack *extack = cls->common.extack;
+
+	if (dissector->used_keys &
+	    ~(BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Mirroring is supported only per VLAN");
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(rule, &match);
+
+		if (match.mask->vlan_priority != 0 ||
+		    match.mask->vlan_dei != 0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Only matching on VLAN ID supported");
+			return -EOPNOTSUPP;
+		}
+
+		if (match.mask->vlan_id != 0xFFF) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Masked matching not supported");
+			return -EOPNOTSUPP;
+		}
+
+		*vlan = (u16)match.key->vlan_id;
+	}
+
+	return 0;
+}
+
+static int
+dpaa2_switch_cls_flower_replace_mirror(struct dpaa2_switch_filter_block *block,
+				       struct flow_cls_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct dpaa2_switch_mirror_entry *mirror_entry;
+	struct ethsw_core *ethsw = block->ethsw;
+	struct dpaa2_switch_mirror_entry *tmp;
+	struct flow_action_entry *cls_act;
+	struct list_head *pos, *n;
+	bool mirror_port_enabled;
+	u16 if_id, vlan;
+	int err;
+
+	mirror_port_enabled = (ethsw->mirror_port != ethsw->sw_attr.num_ifs);
+	cls_act = &cls->rule->action.entries[0];
+
+	/* Offload rules only when the destination is a DPAA2 switch port */
+	if (!dpaa2_switch_port_dev_check(cls_act->dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Destination not a DPAA2 switch port");
+		return -EOPNOTSUPP;
+	}
+	if_id = dpaa2_switch_get_index(ethsw, cls_act->dev);
+
+	/* We have a single mirror port but can configure egress mirroring on
+	 * all the other switch ports. We need to allow mirroring rules only
+	 * when the destination port is the same.
+	 */
+	if (mirror_port_enabled && ethsw->mirror_port != if_id) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Multiple mirror ports not supported");
+		return -EBUSY;
+	}
+
+	/* Parse the key */
+	err = dpaa2_switch_flower_parse_mirror_key(cls, &vlan);
+	if (err)
+		return err;
+
+	/* Make sure that we don't already have a mirror rule with the same
+	 * configuration.
+	 */
+	list_for_each_safe(pos, n, &block->mirror_entries) {
+		tmp = list_entry(pos, struct dpaa2_switch_mirror_entry, list);
+
+		if (tmp->cfg.filter == DPSW_REFLECTION_FILTER_INGRESS_VLAN &&
+		    tmp->cfg.vlan_id == vlan) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VLAN mirror filter already installed");
+			return -EBUSY;
+		}
+	}
+
+	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
+	if (!mirror_entry)
+		return -ENOMEM;
+
+	mirror_entry->cfg.filter = DPSW_REFLECTION_FILTER_INGRESS_VLAN;
+	mirror_entry->cfg.vlan_id = vlan;
+	mirror_entry->cookie = cls->cookie;
+
+	return dpaa2_switch_block_add_mirror(block, mirror_entry, if_id,
+					     extack);
+}
+
 int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 				    struct flow_cls_offload *cls)
 {
@@ -529,6 +650,8 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 	case FLOW_ACTION_TRAP:
 	case FLOW_ACTION_DROP:
 		return dpaa2_switch_cls_flower_replace_acl(block, cls);
+	case FLOW_ACTION_MIRRED:
+		return dpaa2_switch_cls_flower_replace_mirror(block, cls);
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Action not supported");
 		return -EOPNOTSUPP;
@@ -538,13 +661,23 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_filter_block *block,
 				    struct flow_cls_offload *cls)
 {
-	struct dpaa2_switch_acl_entry *entry;
+	struct dpaa2_switch_mirror_entry *mirror_entry;
+	struct dpaa2_switch_acl_entry *acl_entry;
 
-	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block, cls->cookie);
-	if (!entry)
-		return 0;
+	/* If this filter is a an ACL one, remove it */
+	acl_entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(block,
+							      cls->cookie);
+	if (acl_entry)
+		return dpaa2_switch_acl_tbl_remove_entry(block, acl_entry);
 
-	return dpaa2_switch_acl_tbl_remove_entry(block, entry);
+	/* If not, then it has to be a mirror */
+	mirror_entry = dpaa2_switch_mirror_find_entry_by_cookie(block,
+								cls->cookie);
+	if (mirror_entry)
+		return dpaa2_switch_block_remove_mirror(block,
+							mirror_entry);
+
+	return 0;
 }
 
 static int
