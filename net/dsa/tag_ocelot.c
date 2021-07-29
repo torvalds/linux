@@ -104,7 +104,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 		 */
 		return NULL;
 
-	skb->offload_fwd_mark = 1;
+	dsa_default_offload_fwd_mark(skb);
 	skb->priority = qos_class;
 
 	/* Ocelot switches copy frames unmodified to the CPU. However, it is

@@ -198,8 +198,8 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 				  u8 extra)
 {
+	bool trap = false, trunk = false;
 	int source_device, source_port;
-	bool trunk = false;
 	enum dsa_code code;
 	enum dsa_cmd cmd;
 	u8 *dsa_header;
@@ -210,8 +210,6 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	cmd = dsa_header[0] >> 6;
 	switch (cmd) {
 	case DSA_CMD_FORWARD:
-		skb->offload_fwd_mark = 1;
-
 		trunk = !!(dsa_header[1] & 7);
 		break;
 
@@ -230,7 +228,6 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 			 * device (like a bridge) that forwarding has
 			 * already been done by hardware.
 			 */
-			skb->offload_fwd_mark = 1;
 			break;
 		case DSA_CODE_MGMT_TRAP:
 		case DSA_CODE_IGMP_MLD_TRAP:
@@ -238,6 +235,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 			/* Traps have, by definition, not been
 			 * forwarded by hardware, so don't mark them.
 			 */
+			trap = true;
 			break;
 		default:
 			/* Reserved code, this could be anything. Drop
@@ -270,6 +268,15 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 
 	if (!skb->dev)
 		return NULL;
+
+	/* When using LAG offload, skb->dev is not a DSA slave interface,
+	 * so we cannot call dsa_default_offload_fwd_mark and we need to
+	 * special-case it.
+	 */
+	if (trunk)
+		skb->offload_fwd_mark = true;
+	else if (!trap)
+		dsa_default_offload_fwd_mark(skb);
 
 	/* If the 'tagged' bit is set; convert the DSA tag to a 802.1Q
 	 * tag, and delete the ethertype (extra) if applicable. If the

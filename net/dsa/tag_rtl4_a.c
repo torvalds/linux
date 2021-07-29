@@ -114,7 +114,7 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 		skb->data - ETH_HLEN - RTL4_A_HDR_LEN,
 		2 * ETH_ALEN);
 
-	skb->offload_fwd_mark = 1;
+	dsa_default_offload_fwd_mark(skb);
 
 	return skb;
 }

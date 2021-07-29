@@ -405,8 +405,6 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
-	skb->offload_fwd_mark = 1;
-
 	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
 		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vid);
@@ -436,6 +434,9 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
 	}
+
+	if (!is_link_local)
+		dsa_default_offload_fwd_mark(skb);
 
 	return sja1105_rcv_meta_state_machine(skb, &meta, is_link_local,
 					      is_meta);
@@ -480,7 +481,8 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 
 static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 							    int *source_port,
-							    int *switch_id)
+							    int *switch_id,
+							    bool *host_only)
 {
 	u16 rx_header;
 
@@ -493,6 +495,9 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 	 * comes afterwards.
 	 */
 	rx_header = ntohs(*(__be16 *)skb->data);
+
+	if (rx_header & SJA1110_RX_HEADER_HOST_ONLY)
+		*host_only = true;
 
 	if (rx_header & SJA1110_RX_HEADER_IS_METADATA)
 		return sja1110_rcv_meta(skb, rx_header);
@@ -545,13 +550,13 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 				   struct packet_type *pt)
 {
 	int source_port = -1, switch_id = -1;
+	bool host_only = false;
 	u16 vid;
-
-	skb->offload_fwd_mark = 1;
 
 	if (sja1110_skb_has_inband_control_extension(skb)) {
 		skb = sja1110_rcv_inband_control_extension(skb, &source_port,
-							   &switch_id);
+							   &switch_id,
+							   &host_only);
 		if (!skb)
 			return NULL;
 	}
@@ -568,6 +573,9 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
 	}
+
+	if (!host_only)
+		dsa_default_offload_fwd_mark(skb);
 
 	return skb;
 }
