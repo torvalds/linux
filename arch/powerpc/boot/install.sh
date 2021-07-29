@@ -15,7 +15,6 @@
 #   $2 - kernel image file
 #   $3 - kernel map file
 #   $4 - default install path (blank if root directory)
-#   $5 and more - kernel boot files; zImage*, uImage, cuImage.*, etc.
 #
 
 # Bail with error code if anything goes wrong
@@ -41,15 +40,3 @@ fi
 
 cat $2 > $4/$image_name
 cp $3 $4/System.map
-
-# Copy all the bootable image files
-path=$4
-shift 4
-while [ $# -ne 0 ]; do
-	image_name=`basename $1`
-	if [ -f $path/$image_name ]; then
-		mv $path/$image_name $path/$image_name.old
-	fi
-	cat $1 > $path/$image_name
-	shift
-done;
