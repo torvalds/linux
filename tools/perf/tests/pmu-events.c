@@ -28,6 +28,14 @@ struct perf_pmu_test_event {
 	 * be set in the alias.
 	 */
 	const char *alias_long_desc;
+
+	/* PMU which we should match against */
+	const char *matching_pmu;
+};
+
+struct perf_pmu_test_pmu {
+	struct perf_pmu pmu;
+	struct perf_pmu_test_event const *aliases[10];
 };
 
 static const struct perf_pmu_test_event bp_l1_btb_correct = {
@@ -118,6 +126,7 @@ static const struct perf_pmu_test_event uncore_hisi_ddrc_flux_wcmd = {
 	},
 	.alias_str = "event=0x2",
 	.alias_long_desc = "DDRC write commands",
+	.matching_pmu = "hisi_sccl1_ddrc2",
 };
 
 static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
@@ -131,6 +140,7 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	},
 	.alias_str = "umask=0x81,event=0x22",
 	.alias_long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+	.matching_pmu = "uncore_cbox_0",
 };
 
 static const struct perf_pmu_test_event *uncore_events[] = {
@@ -404,10 +414,103 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	return res;
 }
 
+static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
+{
+	int alias_count = 0, to_match_count = 0, matched_count = 0;
+	struct perf_pmu_test_event const **table;
+	struct perf_pmu *pmu = &test_pmu->pmu;
+	const char *pmu_name = pmu->name;
+	struct perf_pmu_alias *a, *tmp, *alias;
+	struct pmu_events_map *map;
+	LIST_HEAD(aliases);
+	int res = 0;
+
+	map = __test_pmu_get_events_map();
+	if (!map)
+		return -1;
+	pmu_add_cpu_aliases_map(&aliases, pmu, map);
+
+	/* Count how many aliases we generated */
+	list_for_each_entry(alias, &aliases, list)
+		alias_count++;
+
+	/* Count how many aliases we expect from the known table */
+	for (table = &test_pmu->aliases[0]; *table; table++)
+		to_match_count++;
+
+	if (alias_count != to_match_count) {
+		pr_debug("testing aliases uncore PMU %s: mismatch expected aliases (%d) vs found (%d)\n",
+			 pmu_name, to_match_count, alias_count);
+		res = -1;
+		goto out;
+	}
+
+	list_for_each_entry(alias, &aliases, list) {
+		bool matched = false;
+
+		for (table = &test_pmu->aliases[0]; *table; table++) {
+			struct perf_pmu_test_event const *test_event = *table;
+			struct pmu_event const *event = &test_event->event;
+
+			if (!strcmp(event->name, alias->name)) {
+				if (compare_alias_to_test_event(alias,
+							test_event,
+							pmu_name)) {
+					continue;
+				}
+				matched = true;
+				matched_count++;
+			}
+		}
+
+		if (matched == false) {
+			pr_debug("testing aliases uncore PMU %s: could not match alias %s\n",
+				 pmu_name, alias->name);
+			res = -1;
+			goto out;
+		}
+	}
+
+	if (alias_count != matched_count) {
+		pr_debug("testing aliases uncore PMU %s: mismatch found aliases (%d) vs matched (%d)\n",
+			 pmu_name, matched_count, alias_count);
+		res = -1;
+	}
+
+out:
+	list_for_each_entry_safe(a, tmp, &aliases, list) {
+		list_del(&a->list);
+		perf_pmu_free_alias(a);
+	}
+	return res;
+}
+
+static struct perf_pmu_test_pmu test_pmus[] = {
+	{
+		.pmu = {
+			.name = (char *)"hisi_sccl1_ddrc2",
+			.is_uncore = 1,
+		},
+		.aliases = {
+			&uncore_hisi_ddrc_flux_wcmd,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"uncore_cbox_0",
+			.is_uncore = 1,
+		},
+		.aliases = {
+			&unc_cbo_xsnp_response_miss_eviction,
+		},
+	},
+};
+
 /* Test that aliases generated are as expected */
 static int test_aliases(void)
 {
 	struct perf_pmu *pmu = NULL;
+	unsigned long i;
 
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		int count = 0;
@@ -432,6 +535,13 @@ static int test_aliases(void)
 		}
 
 		pr_debug("testing core PMU %s aliases: pass\n", pmu->name);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(test_pmus); i++) {
+		int res = __test_uncore_pmu_event_aliases(&test_pmus[i]);
+
+		if (res)
+			return res;
 	}
 
 	return 0;
