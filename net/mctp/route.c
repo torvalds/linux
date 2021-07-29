@@ -376,6 +376,9 @@ static unsigned int mctp_route_mtu(struct mctp_route *rt)
 
 static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 {
+	struct mctp_hdr *hdr = mctp_hdr(skb);
+	char daddr_buf[MAX_ADDR_LEN];
+	char *daddr = NULL;
 	unsigned int mtu;
 	int rc;
 
@@ -387,9 +390,12 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 		return -EMSGSIZE;
 	}
 
-	/* TODO: daddr (from rt->neigh), saddr (from device?)  */
+	/* If lookup fails let the device handle daddr==NULL */
+	if (mctp_neigh_lookup(route->dev, hdr->dest, daddr_buf) == 0)
+		daddr = daddr_buf;
+
 	rc = dev_hard_header(skb, skb->dev, ntohs(skb->protocol),
-			     NULL, NULL, skb->len);
+			     daddr, skb->dev->dev_addr, skb->len);
 	if (rc) {
 		kfree_skb(skb);
 		return -EHOSTUNREACH;
