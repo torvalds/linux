@@ -113,6 +113,7 @@ int ptrace_tm_gpr(void)
 	int ret, status;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid < 0) {

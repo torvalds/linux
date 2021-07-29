@@ -33,6 +33,7 @@ int tm_poison_test(void)
 	bool fail_vr = false;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	cpu = pick_online_cpu();
 	FAIL_IF(cpu < 0);
