@@ -157,6 +157,8 @@ extern bool snd_usb_skip_validation;
  *  Perform sample rate validations at probe
  * QUIRK_FLAG_DISABLE_AUTOSUSPEND:
  *  Disable runtime PM autosuspend
+ * QUIRK_FLAG_IGNORE_CTL_ERROR:
+ *  Ignore errors for mixer access
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -173,5 +175,6 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_IFACE_DELAY		(1U << 11)
 #define QUIRK_FLAG_VALIDATE_RATES	(1U << 12)
 #define QUIRK_FLAG_DISABLE_AUTOSUSPEND	(1U << 13)
+#define QUIRK_FLAG_IGNORE_CTL_ERROR	(1U << 14)
 
 #endif /* __USBAUDIO_H */

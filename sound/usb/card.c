@@ -804,6 +804,9 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 	dev_set_drvdata(&dev->dev, chip);
 
+	if (ignore_ctl_error)
+		chip->quirk_flags |= QUIRK_FLAG_IGNORE_CTL_ERROR;
+
 	if (chip->quirk_flags & QUIRK_FLAG_DISABLE_AUTOSUSPEND)
 		usb_disable_autosuspend(interface_to_usbdev(intf));
 
@@ -828,7 +831,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 		err = snd_usb_create_streams(chip, ifnum);
 		if (err < 0)
 			goto __error;
-		err = snd_usb_create_mixer(chip, ifnum, ignore_ctl_error);
+		err = snd_usb_create_mixer(chip, ifnum);
 		if (err < 0)
 			goto __error;
 	}
