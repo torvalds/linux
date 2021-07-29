@@ -328,8 +328,11 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		 * underflow.
 		 */
 		packet_queue->cs_timestamp = 0;
-		WARN_ONCE(true, "Zero Coresight timestamp found at Idx:%" OCSD_TRC_IDX_STR
-				". Decoding may be improved with --itrace=Z...\n", indx);
+		if (!cs_etm__etmq_is_timeless(etmq))
+			pr_warning_once("Zero Coresight timestamp found at Idx:%" OCSD_TRC_IDX_STR
+					". Decoding may be improved by prepending 'Z' to your current --itrace arguments.\n",
+					indx);
+
 	} else if (packet_queue->instr_count > elem->timestamp) {
 		/*
 		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
