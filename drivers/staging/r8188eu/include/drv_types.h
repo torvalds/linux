@@ -22,7 +22,6 @@
 #include <rtw_recv.h>
 #include <hal_intf.h>
 #include <hal_com.h>
-#include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_io.h>

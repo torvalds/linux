@@ -313,6 +313,12 @@ struct tdls_info {
 	u8 enable;
 };
 
+struct qos_priv {
+	/* bit mask option: u-apsd,
+	 * s-apsd, ts, block ack... */
+	unsigned int qos_option;
+};
+
 struct mlme_priv {
 	spinlock_t lock;
 	int fw_state;	/* shall we protect this variable? maybe not necessarily... */
