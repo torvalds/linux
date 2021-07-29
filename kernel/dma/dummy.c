@@ -22,7 +22,7 @@ static int dma_dummy_map_sg(struct device *dev, struct scatterlist *sgl,
 		int nelems, enum dma_data_direction dir,
 		unsigned long attrs)
 {
-	return 0;
+	return -EINVAL;
 }
 
 static int dma_dummy_supported(struct device *hwdev, u64 mask)
