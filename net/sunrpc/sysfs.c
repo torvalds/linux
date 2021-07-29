@@ -136,14 +136,16 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 		       "max_num_slots=%u\nmin_num_slots=%u\nnum_reqs=%u\n"
 		       "binding_q_len=%u\nsending_q_len=%u\npending_q_len=%u\n"
 		       "backlog_q_len=%u\nmain_xprt=%d\nsrc_port=%u\n"
-		       "tasks_queuelen=%ld\n",
+		       "tasks_queuelen=%ld\ndst_port=%s\n",
 		       xprt->last_used, xprt->cong, xprt->cwnd, xprt->max_reqs,
 		       xprt->min_reqs, xprt->num_reqs, xprt->binding.qlen,
 		       xprt->sending.qlen, xprt->pending.qlen,
 		       xprt->backlog.qlen, xprt->main,
 		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
 		       get_srcport(xprt) : 0,
-		       atomic_long_read(&xprt->queuelen));
+		       atomic_long_read(&xprt->queuelen),
+		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
+				xprt->address_strings[RPC_DISPLAY_PORT] : "0");
 	xprt_put(xprt);
 	return ret + 1;
 }
