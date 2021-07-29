@@ -60,7 +60,8 @@ $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(nios2-boot) $(nios2-boot)/$@
 
 install:
-	$(Q)$(MAKE) $(build)=$(nios2-boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+	sh $(srctree)/$(nios2-boot)/install.sh $(KERNELRELEASE) \
+	$(KBUILD_IMAGE) System.map "$(INSTALL_PATH)"
 
 define archhelp
   echo  '* vmImage         - Kernel-only image for U-Boot ($(KBUILD_IMAGE))'
