@@ -611,7 +611,8 @@ static int fdp_nci_core_get_config_rsp_packet(struct nci_dev *ndev,
 	struct fdp_nci_info *info = nci_get_drvdata(ndev);
 	struct device *dev = &info->phy->i2c_dev->dev;
 	struct nci_core_get_config_rsp *rsp = (void *) skb->data;
-	u8 i, *p;
+	unsigned int i;
+	u8 *p;
 
 	if (rsp->status == NCI_STATUS_OK) {
 
