@@ -259,7 +259,8 @@ $(BOOT_TARGETS): vmlinux
 
 PHONY += install
 install:
-	$(Q)$(MAKE) $(build)=$(boot) $@
+	$(CONFIG_SHELL) $(srctree)/$(boot)/install.sh $(KERNELRELEASE) \
+		$(KBUILD_IMAGE) System.map "$(INSTALL_PATH)"
 
 PHONY += vdso_install
 vdso_install:
