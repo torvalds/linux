@@ -22,9 +22,7 @@
 下面的文檔介紹了Linux內核原始碼的許可證（GPLv2）、如何在原始碼樹中正確標記
 單個文件的許可證、以及指向完整許可證文本的連結。
 
-TODOList:
-
-* Documentation/translations/zh_TW/process/license-rules.rst
+Documentation/translations/zh_TW/process/license-rules.rst
 
 用戶文檔
 --------
@@ -67,9 +65,13 @@ TODOlist:
 開發人員做出貢獻。與任何大型社區一樣，知道如何完成任務將使得更改合併的過程
 變得更加容易。
 
+.. toctree::
+   :maxdepth: 2
+
+   process/index
+
 TODOList:
 
-* process/index
 * dev-tools/index
 * doc-guide/index
 * kernel-hacking/index
