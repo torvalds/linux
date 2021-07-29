@@ -9523,8 +9523,7 @@ out_fail:
 		if (btrfs_inode_in_log(BTRFS_I(old_dir), fs_info->generation) ||
 		    btrfs_inode_in_log(BTRFS_I(new_dir), fs_info->generation) ||
 		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
-		    (new_inode &&
-		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
+		    btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation))
 			btrfs_set_log_full_commit(trans);
 
 		if (root_log_pinned) {
