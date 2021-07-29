@@ -78,10 +78,8 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 	while (off < old_size && pci_read_vpd(dev, off, 1, header) == 1) {
 		unsigned char tag;
 
-		if (!header[0] && !off) {
-			pci_info(dev, "Invalid VPD tag 00, assume missing optional VPD EPROM\n");
-			return 0;
-		}
+		if (off == 0 && (header[0] == 0x00 || header[0] == 0xff))
+			goto error;
 
 		if (header[0] & PCI_VPD_LRDT) {
 			/* Large Resource Data Type Tag */
@@ -112,6 +110,12 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 				return off;
 		}
 	}
+	return 0;
+
+error:
+	pci_info(dev, "invalid VPD tag %#04x at offset %zu%s\n",
+		 header[0], off, off == 0 ?
+		 "; assume missing optional EEPROM" : "");
 	return 0;
 }
 
