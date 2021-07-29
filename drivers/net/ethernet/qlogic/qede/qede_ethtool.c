@@ -625,13 +625,13 @@ static void qede_get_drvinfo(struct net_device *ndev,
 		 (edev->dev_info.common.mfw_rev >> 8) & 0xFF,
 		 edev->dev_info.common.mfw_rev & 0xFF);
 
-	if ((strlen(storm) + strlen(DRV_MODULE_VERSION) + strlen("[storm]  ")) <
+	if ((strlen(storm) + strlen("[storm]")) <
 	    sizeof(info->version))
 		snprintf(info->version, sizeof(info->version),
-			 "%s [storm %s]", DRV_MODULE_VERSION, storm);
+			 "[storm %s]", storm);
 	else
 		snprintf(info->version, sizeof(info->version),
-			 "%s %s", DRV_MODULE_VERSION, storm);
+			 "%s", storm);
 
 	if (edev->dev_info.common.mbi_version) {
 		snprintf(mbi, ETHTOOL_FWVERS_LEN, "%d.%d.%d",

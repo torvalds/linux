@@ -30,15 +30,6 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 
-#define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		37
-#define QEDE_REVISION_VERSION		0
-#define QEDE_ENGINEERING_VERSION	20
-#define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
-		__stringify(QEDE_MINOR_VERSION) "."		\
-		__stringify(QEDE_REVISION_VERSION) "."		\
-		__stringify(QEDE_ENGINEERING_VERSION)
-
 #define DRV_MODULE_SYM		qede
 
 struct qede_stats_common {
