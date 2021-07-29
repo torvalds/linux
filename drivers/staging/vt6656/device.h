@@ -77,8 +77,6 @@
 #define FIRMWARE_NAME			"vntwusb.fw"
 #define FIRMWARE_CHUNK_SIZE		0x400
 
-#define CONFIG_PATH			"/etc/vntconfiguration.dat"
-
 #define MAX_UINTS			8
 #define OPTION_DEFAULT			{ [0 ... MAX_UINTS - 1] = -1}
 

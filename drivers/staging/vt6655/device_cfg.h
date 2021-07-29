@@ -38,9 +38,6 @@
 
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#ifndef CONFIG_PATH
-#define CONFIG_PATH            "/etc/vntconfiguration.dat"
-#endif
 
 #define PKT_BUF_SZ          2390
 
