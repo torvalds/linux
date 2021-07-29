@@ -35,7 +35,6 @@ struct snd_usb_audio {
 	atomic_t usage_count;
 	wait_queue_head_t shutdown_wait;
 	unsigned int quirk_flags;
-	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	unsigned int playback_first:1;	/* for implicit fb: don't wait for the first capture URBs */
@@ -103,7 +102,6 @@ enum quirk_type {
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UAXX,
-	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
 	QUIRK_SETUP_FMT_AFTER_RESUME,
 	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
@@ -137,9 +135,13 @@ extern bool snd_usb_skip_validation;
  *  or return error
  * QUIRK_FLAG_SHARE_MEDIA_DEVICE:
  *  Create Media Controller API entries
+ * QUIRK_FLAG_ALIGN_TRANSFER:
+ *  Allow alignment on audio sub-slot (channel samples) rather than on audio
+ *  slots (audio frames)
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
 #define QUIRK_FLAG_SHARE_MEDIA_DEVICE	(1U << 1)
+#define QUIRK_FLAG_ALIGN_TRANSFER	(1U << 2)
 
 #endif /* __USBAUDIO_H */

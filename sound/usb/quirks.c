@@ -75,19 +75,6 @@ static int ignore_interface_quirk(struct snd_usb_audio *chip,
 }
 
 
-/*
- * Allow alignment on audio sub-slot (channel samples) rather than
- * on audio slots (audio frames)
- */
-static int create_align_transfer_quirk(struct snd_usb_audio *chip,
-				       struct usb_interface *iface,
-				       struct usb_driver *driver,
-				       const struct snd_usb_audio_quirk *quirk)
-{
-	chip->txfr_quirk = 1;
-	return 1;	/* Continue with creating streams and mixer */
-}
-
 static int create_any_midi_quirk(struct snd_usb_audio *chip,
 				 struct usb_interface *intf,
 				 struct usb_driver *driver,
@@ -595,7 +582,6 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
-		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
 		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
 		[QUIRK_SETUP_DISABLE_AUTOSUSPEND] = setup_disable_autosuspend,
 	};
@@ -1913,52 +1899,56 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x05a7, 0x1020, /* Bose Companion 5 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x05e1, 0x0408, /* Syntek STK1160 */
+		   QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x05e1, 0x0480, /* Hauppauge Woodbury */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x074d, 0x3553, /* Outlaw RR2150 (Micronas UAC3553B) */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x0fd9, 0x0008, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x1395, 0x740a, /* Sennheiser DECT */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x1901, 0x0191, /* GE B850V3 CP2114 audio interface */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2040, 0x7200, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7201, /* Hauppauge HVR-950Q-MXL */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7210, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7211, /* Hauppauge HVR-950Q-MXL */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7213, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7217, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x721b, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x721e, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x721f, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7240, /* Hauppauge HVR-850 */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7260, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7270, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7280, /* Hauppauge HVR-950Q */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x7281, /* Hauppauge HVR-950Q-MXL */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x2040, 0x8200, /* Hauppauge Woodbury */
-		   QUIRK_FLAG_SHARE_MEDIA_DEVICE),
+		   QUIRK_FLAG_SHARE_MEDIA_DEVICE | QUIRK_FLAG_ALIGN_TRANSFER),
 	DEVICE_FLG(0x21b4, 0x0081, /* AudioQuest DragonFly */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2912, 0x30c8, /* Audioengine D1 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x413c, 0xa506, /* Dell AE515 sound bar */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x534d, 0x2109, /* MacroSilicon MS2109 */
+		   QUIRK_FLAG_ALIGN_TRANSFER),
 
 	/* Vendor matches */
 	VENDOR_FLG(0x045e, /* MS Lifecam */
