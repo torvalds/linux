@@ -1886,7 +1886,7 @@ qla_edb_node_alloc(scsi_qla_host_t *vha, uint32_t ntype)
 	return node;
 }
 
-/* adds a already alllocated enode to the linked list */
+/* adds a already allocated enode to the linked list */
 static bool
 qla_edb_node_add(scsi_qla_host_t *vha, struct edb_node *ptr)
 {
@@ -2334,7 +2334,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	ptr = qla_enode_alloc(vha, N_PUREX);
 	if (!ptr) {
 		ql_dbg(ql_dbg_edif, vha, 0x09109,
-		    "WARNING: enode allloc failed for sid=%x\n",
+		    "WARNING: enode alloc failed for sid=%x\n",
 		    sid);
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
 		__qla_consume_iocb(vha, pkt, rsp);
