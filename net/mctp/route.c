@@ -20,6 +20,8 @@
 
 #include <net/mctp.h>
 #include <net/mctpdevice.h>
+#include <net/netlink.h>
+#include <net/sock.h>
 
 /* route output callbacks */
 static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
@@ -36,8 +38,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 	return 0;
 }
 
-static int __always_unused mctp_route_output(struct mctp_route *route,
-					     struct sk_buff *skb)
+static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 {
 	unsigned int mtu;
 	int rc;
@@ -182,20 +183,29 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 }
 
 /* route management */
-int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
+static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
+			  unsigned int daddr_extent, unsigned int mtu,
+			  bool is_local)
 {
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *ert;
+
+	if (!mctp_address_ok(daddr_start))
+		return -EINVAL;
+
+	if (daddr_extent > 0xff || daddr_start + daddr_extent >= 255)
+		return -EINVAL;
 
 	rt = mctp_route_alloc();
 	if (!rt)
 		return -ENOMEM;
 
-	rt->min = addr;
-	rt->max = addr;
+	rt->min = daddr_start;
+	rt->max = daddr_start + daddr_extent;
+	rt->mtu = mtu;
 	rt->dev = mdev;
 	dev_hold(rt->dev->dev);
-	rt->output = mctp_route_input;
+	rt->output = is_local ? mctp_route_input : mctp_route_output;
 
 	ASSERT_RTNL();
 	/* Prevent duplicate identical routes. */
@@ -211,22 +221,43 @@ int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
 	return 0;
 }
 
-int mctp_route_remove_local(struct mctp_dev *mdev, mctp_eid_t addr)
+static int mctp_route_remove(struct mctp_dev *mdev, mctp_eid_t daddr_start,
+			     unsigned int daddr_extent)
 {
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *tmp;
+	mctp_eid_t daddr_end;
+	bool dropped;
+
+	if (daddr_extent > 0xff || daddr_start + daddr_extent >= 255)
+		return -EINVAL;
+
+	daddr_end = daddr_start + daddr_extent;
+	dropped = false;
 
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(rt, tmp, &net->mctp.routes, list) {
-		if (rt->dev == mdev && rt->min == addr && rt->max == addr) {
+		if (rt->dev == mdev &&
+		    rt->min == daddr_start && rt->max == daddr_end) {
 			list_del_rcu(&rt->list);
 			/* TODO: immediate RTM_DELROUTE */
 			mctp_route_release(rt);
+			dropped = true;
 		}
 	}
 
-	return 0;
+	return dropped ? 0 : -ENOENT;
+}
+
+int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
+{
+	return mctp_route_add(mdev, addr, 0, 0, true);
+}
+
+int mctp_route_remove_local(struct mctp_dev *mdev, mctp_eid_t addr)
+{
+	return mctp_route_remove(mdev, addr, 0);
 }
 
 /* removes all entries for a given device */
@@ -294,6 +325,204 @@ static struct packet_type mctp_packet_type = {
 	.func = mctp_pkttype_receive,
 };
 
+/* netlink interface */
+
+static const struct nla_policy rta_mctp_policy[RTA_MAX + 1] = {
+	[RTA_DST]		= { .type = NLA_U8 },
+	[RTA_METRICS]		= { .type = NLA_NESTED },
+	[RTA_OIF]		= { .type = NLA_U32 },
+};
+
+/* Common part for RTM_NEWROUTE and RTM_DELROUTE parsing.
+ * tb must hold RTA_MAX+1 elements.
+ */
+static int mctp_route_nlparse(struct sk_buff *skb, struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack,
+			      struct nlattr **tb, struct rtmsg **rtm,
+			      struct mctp_dev **mdev, mctp_eid_t *daddr_start)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+	unsigned int ifindex;
+	int rc;
+
+	rc = nlmsg_parse(nlh, sizeof(struct rtmsg), tb, RTA_MAX,
+			 rta_mctp_policy, extack);
+	if (rc < 0) {
+		NL_SET_ERR_MSG(extack, "incorrect format");
+		return rc;
+	}
+
+	if (!tb[RTA_DST]) {
+		NL_SET_ERR_MSG(extack, "dst EID missing");
+		return -EINVAL;
+	}
+	*daddr_start = nla_get_u8(tb[RTA_DST]);
+
+	if (!tb[RTA_OIF]) {
+		NL_SET_ERR_MSG(extack, "ifindex missing");
+		return -EINVAL;
+	}
+	ifindex = nla_get_u32(tb[RTA_OIF]);
+
+	*rtm = nlmsg_data(nlh);
+	if ((*rtm)->rtm_family != AF_MCTP) {
+		NL_SET_ERR_MSG(extack, "route family must be AF_MCTP");
+		return -EINVAL;
+	}
+
+	dev = __dev_get_by_index(net, ifindex);
+	if (!dev) {
+		NL_SET_ERR_MSG(extack, "bad ifindex");
+		return -ENODEV;
+	}
+	*mdev = mctp_dev_get_rtnl(dev);
+	if (!*mdev)
+		return -ENODEV;
+
+	if (dev->flags & IFF_LOOPBACK) {
+		NL_SET_ERR_MSG(extack, "no routes to loopback");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RTA_MAX + 1];
+	mctp_eid_t daddr_start;
+	struct mctp_dev *mdev;
+	struct rtmsg *rtm;
+	unsigned int mtu;
+	int rc;
+
+	rc = mctp_route_nlparse(skb, nlh, extack, tb,
+				&rtm, &mdev, &daddr_start);
+	if (rc < 0)
+		return rc;
+
+	if (rtm->rtm_type != RTN_UNICAST) {
+		NL_SET_ERR_MSG(extack, "rtm_type must be RTN_UNICAST");
+		return -EINVAL;
+	}
+
+	/* TODO: parse mtu from nlparse */
+	mtu = 0;
+
+	rc = mctp_route_add(mdev, daddr_start, rtm->rtm_dst_len, mtu, false);
+	return rc;
+}
+
+static int mctp_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RTA_MAX + 1];
+	mctp_eid_t daddr_start;
+	struct mctp_dev *mdev;
+	struct rtmsg *rtm;
+	int rc;
+
+	rc = mctp_route_nlparse(skb, nlh, extack, tb,
+				&rtm, &mdev, &daddr_start);
+	if (rc < 0)
+		return rc;
+
+	/* we only have unicast routes */
+	if (rtm->rtm_type != RTN_UNICAST)
+		return -EINVAL;
+
+	rc = mctp_route_remove(mdev, daddr_start, rtm->rtm_dst_len);
+	return rc;
+}
+
+static int mctp_fill_rtinfo(struct sk_buff *skb, struct mctp_route *rt,
+			    u32 portid, u32 seq, int event, unsigned int flags)
+{
+	struct nlmsghdr *nlh;
+	struct rtmsg *hdr;
+	void *metrics;
+
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*hdr), flags);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	hdr = nlmsg_data(nlh);
+	hdr->rtm_family = AF_MCTP;
+
+	/* we use the _len fields as a number of EIDs, rather than
+	 * a number of bits in the address
+	 */
+	hdr->rtm_dst_len = rt->max - rt->min;
+	hdr->rtm_src_len = 0;
+	hdr->rtm_tos = 0;
+	hdr->rtm_table = RT_TABLE_DEFAULT;
+	hdr->rtm_protocol = RTPROT_STATIC; /* everything is user-defined */
+	hdr->rtm_scope = RT_SCOPE_LINK; /* TODO: scope in mctp_route? */
+	hdr->rtm_type = RTN_ANYCAST; /* TODO: type from route */
+
+	if (nla_put_u8(skb, RTA_DST, rt->min))
+		goto cancel;
+
+	metrics = nla_nest_start_noflag(skb, RTA_METRICS);
+	if (!metrics)
+		goto cancel;
+
+	if (rt->mtu) {
+		if (nla_put_u32(skb, RTAX_MTU, rt->mtu))
+			goto cancel;
+	}
+
+	nla_nest_end(skb, metrics);
+
+	if (rt->dev) {
+		if (nla_put_u32(skb, RTA_OIF, rt->dev->dev->ifindex))
+			goto cancel;
+	}
+
+	/* TODO: conditional neighbour physaddr? */
+
+	nlmsg_end(skb, nlh);
+
+	return 0;
+
+cancel:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static int mctp_dump_rtinfo(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct mctp_route *rt;
+	int s_idx, idx;
+
+	/* TODO: allow filtering on route data, possibly under
+	 * cb->strict_check
+	 */
+
+	/* TODO: change to struct overlay */
+	s_idx = cb->args[0];
+	idx = 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
+		if (idx++ < s_idx)
+			continue;
+		if (mctp_fill_rtinfo(skb, rt,
+				     NETLINK_CB(cb->skb).portid,
+				     cb->nlh->nlmsg_seq,
+				     RTM_NEWROUTE, NLM_F_MULTI) < 0)
+			break;
+	}
+
+	rcu_read_unlock();
+	cb->args[0] = idx;
+
+	return skb->len;
+}
+
 /* net namespace implementation */
 static int __net_init mctp_routes_net_init(struct net *net)
 {
@@ -319,11 +548,22 @@ static struct pernet_operations mctp_net_ops = {
 int __init mctp_routes_init(void)
 {
 	dev_add_pack(&mctp_packet_type);
+
+	rtnl_register_module(THIS_MODULE, PF_MCTP, RTM_GETROUTE,
+			     NULL, mctp_dump_rtinfo, 0);
+	rtnl_register_module(THIS_MODULE, PF_MCTP, RTM_NEWROUTE,
+			     mctp_newroute, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_MCTP, RTM_DELROUTE,
+			     mctp_delroute, NULL, 0);
+
 	return register_pernet_subsys(&mctp_net_ops);
 }
 
 void __exit mctp_routes_exit(void)
 {
 	unregister_pernet_subsys(&mctp_net_ops);
+	rtnl_unregister(PF_MCTP, RTM_DELROUTE);
+	rtnl_unregister(PF_MCTP, RTM_NEWROUTE);
+	rtnl_unregister(PF_MCTP, RTM_GETROUTE);
 	dev_remove_pack(&mctp_packet_type);
 }
