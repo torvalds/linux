@@ -34,6 +34,7 @@
 #include <net/netns/xdp.h>
 #include <net/netns/smc.h>
 #include <net/netns/bpf.h>
+#include <net/netns/mctp.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
@@ -166,6 +167,9 @@ struct net {
 #endif
 #ifdef CONFIG_XDP_SOCKETS
 	struct netns_xdp	xdp;
+#endif
+#if IS_ENABLED(CONFIG_MCTP)
+	struct netns_mctp	mctp;
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	struct sock		*crypto_nlsk;

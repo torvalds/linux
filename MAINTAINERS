@@ -11040,6 +11040,7 @@ S:	Maintained
 F:	drivers/net/mctp/
 F:	include/net/mctp.h
 F:	include/net/mctpdevice.h
+F:	include/net/netns/mctp.h
 F:	net/mctp/
 
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7

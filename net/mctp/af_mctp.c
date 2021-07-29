@@ -157,10 +157,16 @@ static __init int mctp_init(void)
 	if (rc)
 		goto err_unreg_sock;
 
+	rc = mctp_routes_init();
+	if (rc)
+		goto err_unreg_proto;
+
 	mctp_device_init();
 
 	return 0;
 
+err_unreg_proto:
+	proto_unregister(&mctp_proto);
 err_unreg_sock:
 	sock_unregister(PF_MCTP);
 
@@ -170,6 +176,7 @@ err_unreg_sock:
 static __exit void mctp_exit(void)
 {
 	mctp_device_exit();
+	mctp_routes_exit();
 	proto_unregister(&mctp_proto);
 	sock_unregister(PF_MCTP);
 }

@@ -197,6 +197,8 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	kfree(tmp_addrs);
 
+	mctp_route_add_local(mdev, addr->s_addr);
+
 	return 0;
 }
 
@@ -239,6 +241,11 @@ static int mctp_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	pos = memchr(mdev->addrs, addr->s_addr, mdev->num_addrs);
 	if (!pos)
 		return -ENOENT;
+
+	rc = mctp_route_remove_local(mdev, addr->s_addr);
+	// we can ignore -ENOENT in the case a route was already removed
+	if (rc < 0 && rc != -ENOENT)
+		return rc;
 
 	spin_lock_irqsave(&mdev->addrs_lock, flags);
 	memmove(pos, pos + 1, mdev->num_addrs - 1 - (pos - mdev->addrs));
@@ -334,6 +341,7 @@ static void mctp_unregister(struct net_device *dev)
 
 	RCU_INIT_POINTER(mdev->dev->mctp_ptr, NULL);
 
+	mctp_route_remove_dev(mdev);
 	kfree(mdev->addrs);
 
 	mctp_dev_destroy(mdev);
