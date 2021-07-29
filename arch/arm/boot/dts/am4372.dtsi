@@ -512,6 +512,83 @@
 					firmware-name = "am437x-pru1_1-fw";
 				};
 			};
+
+			pruss0: pruss@40000 {
+				compatible = "ti,am4376-pruss0";
+				reg = <0x40000 0x40000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pruss0_mem: memories@40000 {
+					reg = <0x40000 0x1000>,
+					      <0x42000 0x1000>;
+					reg-names = "dram0", "dram1";
+				};
+
+				pruss0_cfg: cfg@66000 {
+					compatible = "ti,pruss-cfg", "syscon";
+					reg = <0x66000 0x2000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x66000 0x2000>;
+
+					clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						pruss0_iepclk_mux: iepclk-mux@30 {
+							reg = <0x30>;
+							#clock-cells = <0>;
+							clocks = <&sysclk_div>,     /* icss_iep_gclk */
+								 <&pruss_ocp_gclk>; /* icss_ocp_gclk */
+						};
+					};
+				};
+
+				pruss0_mii_rt: mii-rt@72000 {
+					compatible = "ti,pruss-mii", "syscon";
+					reg = <0x72000 0x58>;
+					status = "disabled";
+				};
+
+				pruss0_intc: interrupt-controller@60000 {
+					compatible = "ti,pruss-intc";
+					reg = <0x60000 0x2000>;
+					interrupt-controller;
+					#interrupt-cells = <3>;
+					interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "host_intr0", "host_intr1",
+							  "host_intr2", "host_intr3",
+							  "host_intr4",
+							  "host_intr6", "host_intr7";
+					ti,irqs-reserved = /bits/ 8 <0x20>; /* BIT(5) */
+				};
+
+				pru0_0: pru@74000 {
+					compatible = "ti,am4376-pru";
+					reg = <0x74000 0x1000>,
+					      <0x62000 0x400>,
+					      <0x62400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am437x-pru0_0-fw";
+				};
+
+				pru0_1: pru@78000 {
+					compatible = "ti,am4376-pru";
+					reg = <0x78000 0x1000>,
+					      <0x64000 0x400>,
+					      <0x64400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am437x-pru0_1-fw";
+				};
+			};
 		};
 
 		target-module@50000000 {
