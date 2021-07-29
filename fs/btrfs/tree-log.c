@@ -5614,6 +5614,13 @@ static bool need_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_inode *inode)
 {
 	/*
+	 * If a directory was not modified, no dentries added or removed, we can
+	 * and should avoid logging it.
+	 */
+	if (S_ISDIR(inode->vfs_inode.i_mode) && inode->last_trans < trans->transid)
+		return false;
+
+	/*
 	 * If this inode does not have new/updated/deleted xattrs since the last
 	 * time it was logged and is flagged as logged in the current transaction,
 	 * we can skip logging it. As for new/deleted names, those are updated in
