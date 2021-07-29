@@ -140,6 +140,10 @@ extern bool snd_usb_skip_validation;
  *  Add length specifier to transfers
  * QUIRK_FLAG_PLAYBACK_FIRST:
  *  Start playback stream at first even in implement feedback mode
+ * QUIRK_FLAG_SKIP_CLOCK_SELECTOR:
+ *  Skip clock selector setup; the device may reset to invalid state
+ * QUIRK_FLAG_IGNORE_CLOCK_SOURCE:
+ *  Ignore errors from clock source search; i.e. hardcoded clock
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -147,5 +151,7 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_ALIGN_TRANSFER	(1U << 2)
 #define QUIRK_FLAG_TX_LENGTH		(1U << 3)
 #define QUIRK_FLAG_PLAYBACK_FIRST	(1U << 4)
+#define QUIRK_FLAG_SKIP_CLOCK_SELECTOR	(1U << 5)
+#define QUIRK_FLAG_IGNORE_CLOCK_SOURCE	(1U << 6)
 
 #endif /* __USBAUDIO_H */
