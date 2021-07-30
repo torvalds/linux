@@ -1717,15 +1717,7 @@ static enum dsa_tag_protocol
 mtk_get_tag_protocol(struct dsa_switch *ds, int port,
 		     enum dsa_tag_protocol mp)
 {
-	struct mt7530_priv *priv = ds->priv;
-
-	if (port != MT7530_CPU_PORT) {
-		dev_warn(priv->dev,
-			 "port not matched with tagging CPU port\n");
-		return DSA_TAG_PROTO_NONE;
-	} else {
-		return DSA_TAG_PROTO_MTK;
-	}
+	return DSA_TAG_PROTO_MTK;
 }
 
 #ifdef CONFIG_GPIOLIB
