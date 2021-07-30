@@ -48,7 +48,7 @@
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
 {
-	if (plane >= 4)
+	if (plane >= ARRAY_SIZE(fb->obj))
 		return NULL;
 
 	return fb->obj[plane];
@@ -62,7 +62,8 @@ drm_gem_fb_init(struct drm_device *dev,
 		 struct drm_gem_object **obj, unsigned int num_planes,
 		 const struct drm_framebuffer_funcs *funcs)
 {
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
@@ -86,9 +87,9 @@ drm_gem_fb_init(struct drm_device *dev,
  */
 void drm_gem_fb_destroy(struct drm_framebuffer *fb)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < ARRAY_SIZE(fb->obj); i++)
 		drm_gem_object_put(fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
@@ -145,8 +146,9 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 			       const struct drm_framebuffer_funcs *funcs)
 {
 	const struct drm_format_info *info;
-	struct drm_gem_object *objs[4];
-	int ret, i;
+	struct drm_gem_object *objs[DRM_FORMAT_MAX_PLANES];
+	unsigned int i;
+	int ret;
 
 	info = drm_get_format_info(dev, mode_cmd);
 	if (!info) {
@@ -187,9 +189,10 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 	return 0;
 
 err_gem_object_put:
-	for (i--; i >= 0; i--)
+	while (i > 0) {
+		--i;
 		drm_gem_object_put(objs[i]);
-
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_init_with_funcs);
