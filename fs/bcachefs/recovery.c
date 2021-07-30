@@ -39,6 +39,20 @@ static void drop_alloc_keys(struct journal_keys *keys)
 	keys->nr = dst;
 }
 
+/*
+ * Btree node pointers have a field to stack a pointer to the in memory btree
+ * node; we need to zero out this field when reading in btree nodes, or when
+ * reading in keys from the journal:
+ */
+static void zero_out_btree_mem_ptr(struct journal_keys *keys)
+{
+	struct journal_key *i;
+
+	for (i = keys->d; i < keys->d + keys->nr; i++)
+		if (i->k->k.type == KEY_TYPE_btree_ptr_v2)
+			bkey_i_to_btree_ptr_v2(i->k)->v.mem_ptr = 0;
+}
+
 /* iterate over keys read from the journal: */
 
 static int __journal_key_cmp(enum btree_id	l_btree_id,
@@ -1071,6 +1085,8 @@ use_clean:
 		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 		drop_alloc_keys(&c->journal_keys);
 	}
+
+	zero_out_btree_mem_ptr(&c->journal_keys);
 
 	ret = journal_replay_early(c, clean, &c->journal_entries);
 	if (ret)
