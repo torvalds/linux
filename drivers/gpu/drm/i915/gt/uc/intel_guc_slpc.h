@@ -9,6 +9,7 @@
 #include "intel_guc_submission.h"
 #include "intel_guc_slpc_types.h"
 
+struct intel_gt;
 struct drm_printer;
 
 static inline bool intel_guc_slpc_is_supported(struct intel_guc *guc)
@@ -36,5 +37,6 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val);
 int intel_guc_slpc_get_max_freq(struct intel_guc_slpc *slpc, u32 *val);
 int intel_guc_slpc_get_min_freq(struct intel_guc_slpc *slpc, u32 *val);
 int intel_guc_slpc_print_info(struct intel_guc_slpc *slpc, struct drm_printer *p);
+void intel_guc_pm_intrmsk_enable(struct intel_gt *gt);
 
 #endif
