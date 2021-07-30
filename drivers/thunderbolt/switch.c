@@ -1498,6 +1498,7 @@ static ssize_t authorized_show(struct device *dev,
 
 static int disapprove_switch(struct device *dev, void *not_used)
 {
+	char *envp[] = { "AUTHORIZED=0", NULL };
 	struct tb_switch *sw;
 
 	sw = tb_to_switch(dev);
@@ -1514,7 +1515,7 @@ static int disapprove_switch(struct device *dev, void *not_used)
 			return ret;
 
 		sw->authorized = 0;
-		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+		kobject_uevent_env(&sw->dev.kobj, KOBJ_CHANGE, envp);
 	}
 
 	return 0;
@@ -1522,7 +1523,9 @@ static int disapprove_switch(struct device *dev, void *not_used)
 
 static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 {
+	char envp_string[13];
 	int ret = -EINVAL;
+	char *envp[] = { envp_string, NULL };
 
 	if (!mutex_trylock(&sw->tb->lock))
 		return restart_syscall();
@@ -1559,8 +1562,12 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 
 	if (!ret) {
 		sw->authorized = val;
-		/* Notify status change to the userspace */
-		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+		/*
+		 * Notify status change to the userspace, informing the new
+		 * value of /sys/bus/thunderbolt/devices/.../authorized.
+		 */
+		sprintf(envp_string, "AUTHORIZED=%u", sw->authorized);
+		kobject_uevent_env(&sw->dev.kobj, KOBJ_CHANGE, envp);
 	}
 
 unlock:
