@@ -2802,6 +2802,7 @@ int rvu_mbox_handler_nix_get_hw_info(struct rvu *rvu, struct msg_req *req,
 				     struct nix_hw_info *rsp)
 {
 	u16 pcifunc = req->hdr.pcifunc;
+	u64 dwrr_mtu;
 	int blkaddr;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
@@ -2814,6 +2815,20 @@ int rvu_mbox_handler_nix_get_hw_info(struct rvu *rvu, struct msg_req *req,
 		rvu_get_lmac_link_max_frs(rvu, &rsp->max_mtu);
 
 	rsp->min_mtu = NIC_HW_MIN_FRS;
+
+	if (!rvu->hw->cap.nix_common_dwrr_mtu) {
+		/* Return '1' on OTx2 */
+		rsp->rpm_dwrr_mtu = 1;
+		rsp->sdp_dwrr_mtu = 1;
+		return 0;
+	}
+
+	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU);
+	rsp->rpm_dwrr_mtu = convert_dwrr_mtu_to_bytes(dwrr_mtu);
+
+	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_SDP_MTU);
+	rsp->sdp_dwrr_mtu = convert_dwrr_mtu_to_bytes(dwrr_mtu);
+
 	return 0;
 }
 

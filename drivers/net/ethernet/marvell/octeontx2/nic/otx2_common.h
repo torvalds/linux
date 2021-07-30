@@ -181,6 +181,7 @@ struct otx2_hw {
 	/* NIX */
 	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	u16			matchall_ipolicer;
+	u32			dwrr_mtu;
 
 	/* HW settings, coalescing etc */
 	u16			rx_chan_base;

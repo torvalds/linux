@@ -9,6 +9,20 @@
 
 #include "otx2_common.h"
 
+static inline int mtu_to_dwrr_weight(struct otx2_nic *pfvf, int mtu)
+{
+	u32 weight;
+
+	/* On OTx2, since AF returns DWRR_MTU as '1', this logic
+	 * will work on those silicons as well.
+	 */
+	weight = mtu / pfvf->hw.dwrr_mtu;
+	if (mtu % pfvf->hw.dwrr_mtu)
+		weight += 1;
+
+	return weight;
+}
+
 void cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq);
 void cn10k_sqe_flush(void *dev, struct otx2_snd_queue *sq, int size, int qidx);
 int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura);
