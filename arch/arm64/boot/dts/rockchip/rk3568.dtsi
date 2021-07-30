@@ -75,14 +75,6 @@
 			cpu-idle-states = <&CPU_SLEEP>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <187>;
-			power-model {
-				compatible = "simple-power-model";
-				leakage-range= <10 40>;
-				ls = <(-9196) 6360 0>;
-				static-coefficient = <100000>;
-				ts = <83822 206397 (-4300) 71>;
-				thermal-zone = "soc-thermal";
-			};
 		};
 
 		cpu1: cpu@100 {
@@ -360,12 +352,12 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
-			sustainable-power = <1475>; /* milliwatts */
+			sustainable-power = <905>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 			trips {
 				threshold: trip-point-0 {
-					temperature = <70000>;
+					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
