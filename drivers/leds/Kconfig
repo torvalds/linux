@@ -369,7 +369,7 @@ config LEDS_LP3952
 	  module will be called leds-lp3952.
 
 config LEDS_LP50XX
-	tristate "LED Support for TI LP5036/30/24/18/12/9 LED driver chip"
+	tristate "LED Support for TI LP5036/30/24/18/12/09 LED driver chip"
 	depends on LEDS_CLASS && REGMAP_I2C
 	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
 	help
