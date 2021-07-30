@@ -790,9 +790,9 @@ u32 process_probe_req_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pframe, uint l
 
 	ssid_len &= 0xff;	/*	Just last 1 byte is valid for ssid len of the probe request */
 	if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_DEVICE) || rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO)) {
-		p2pie = rtw_get_p2p_ie(pframe + WLAN_HDR_A3_LEN + _PROBEREQ_IE_OFFSET_ , len - WLAN_HDR_A3_LEN - _PROBEREQ_IE_OFFSET_ , NULL, &p2pielen);
+		p2pie = rtw_get_p2p_ie(pframe + WLAN_HDR_A3_LEN + _PROBEREQ_IE_OFFSET_, len - WLAN_HDR_A3_LEN - _PROBEREQ_IE_OFFSET_, NULL, &p2pielen);
 		if (p2pie) {
-			if ((p != NULL) && !memcmp((void *)(p+2), (void *)pwdinfo->p2p_wildcard_ssid , 7)) {
+			if ((p != NULL) && !memcmp((void *)(p+2), (void *)pwdinfo->p2p_wildcard_ssid, 7)) {
 				/* todo: */
 				/* Check Requested Device Type attributes in WSC IE. */
 				/* Check Device ID attribute in P2P IE */
@@ -835,7 +835,7 @@ u32 process_assoc_req_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pframe, uint l
 	ies = pframe + WLAN_HDR_A3_LEN + ie_offset;
 	ies_len = len - WLAN_HDR_A3_LEN - ie_offset;
 
-	p2p_ie = rtw_get_p2p_ie(ies , ies_len , NULL, &p2p_ielen);
+	p2p_ie = rtw_get_p2p_ie(ies, ies_len, NULL, &p2p_ielen);
 
 	if (!p2p_ie) {
 		DBG_88E("[%s] P2P IE not Found!!\n", __func__);
@@ -863,7 +863,7 @@ u32 process_assoc_req_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pframe, uint l
 				u8 num_of_secdev_type;
 				u16 dev_name_len;
 
-				rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_DEVICE_INFO , pattr_content, (uint *)&attr_contentlen);
+				rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_DEVICE_INFO, pattr_content, (uint *)&attr_contentlen);
 
 				memcpy(psta->dev_addr,	pattr_content, ETH_ALEN);/* P2P Device Address */
 
@@ -1129,7 +1129,7 @@ u8 process_p2p_group_negotation_req(struct wifidirect_info *pwdinfo, u8 *pframe,
 
 		rtw_p2p_set_state(pwdinfo, P2P_STATE_GONEGO_ING);
 
-			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen)) {
+			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, &attr_content, &attr_contentlen)) {
 			DBG_88E("[%s] GO Intent = %d, tie = %d\n", __func__, attr_content >> 1, attr_content & 0x01);
 			pwdinfo->peer_intent = attr_content;	/*	include both intent and tie breaker values. */
 
@@ -1269,7 +1269,7 @@ u8 process_p2p_group_negotation_resp(struct wifidirect_info *pwdinfo, u8 *pframe
 			/*	Try to get the peer's intent and tie breaker value. */
 			attr_content = 0x00;
 			attr_contentlen = 0;
-			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen)) {
+			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, &attr_content, &attr_contentlen)) {
 				DBG_88E("[%s] GO Intent = %d, tie = %d\n", __func__, attr_content >> 1, attr_content & 0x01);
 				pwdinfo->peer_intent = attr_content;	/*	include both intent and tie breaker values. */
 

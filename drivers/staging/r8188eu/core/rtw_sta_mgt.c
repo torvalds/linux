@@ -174,7 +174,7 @@ void rtw_mfree_all_stainfo(struct sta_priv *pstapriv)
 	plist = phead->next;
 
 	while (phead != plist) {
-		psta = container_of(plist, struct sta_info , list);
+		psta = container_of(plist, struct sta_info, list);
 		plist = plist->next;
 	}
 
@@ -218,7 +218,7 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 			while (phead != plist) {
 				int i;
-				psta = container_of(plist, struct sta_info , hash_list);
+				psta = container_of(plist, struct sta_info, hash_list);
 				plist = plist->next;
 
 				for (i = 0; i < 16; i++) {
@@ -289,7 +289,7 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
 			 ("alloc number_%d stainfo  with hwaddr = %pM\n",
-			 pstapriv->asoc_sta_count , hwaddr));
+			 pstapriv->asoc_sta_count, hwaddr));
 
 		init_addba_retry_timer(pstapriv->padapter, psta);
 
@@ -324,7 +324,7 @@ exit:
 }
 
 /*  using pstapriv->sta_hash_lock to protect */
-u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
+u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 {
 	int i;
 	struct __queue *pfree_sta_queue;
@@ -364,7 +364,7 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 	spin_unlock_bh(&pxmitpriv->lock);
 
 	list_del_init(&psta->hash_list);
-	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("\n free number_%d stainfo  with hwaddr=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n", pstapriv->asoc_sta_count , psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]));
+	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("\n free number_%d stainfo  with hwaddr=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n", pstapriv->asoc_sta_count, psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]));
 	pstapriv->asoc_sta_count--;
 
 	/*  re-init sta_info; 20061114 */
@@ -468,12 +468,12 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 		plist = phead->next;
 
 		while (phead != plist) {
-			psta = container_of(plist, struct sta_info , hash_list);
+			psta = container_of(plist, struct sta_info, hash_list);
 
 			plist = plist->next;
 
 			if (pbcmc_stainfo != psta)
-				rtw_free_stainfo(padapter , psta);
+				rtw_free_stainfo(padapter, psta);
 		}
 	}
 	spin_unlock_bh(&pstapriv->sta_hash_lock);

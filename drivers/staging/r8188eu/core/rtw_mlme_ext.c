@@ -847,7 +847,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 			/* checking for challenging txt... */
 			DBG_88E("checking for challenging txt...\n");
 
-			p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + 4 + _AUTH_IE_OFFSET_ , _CHLGETXT_IE_, (int *)&ie_len,
+			p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + 4 + _AUTH_IE_OFFSET_, _CHLGETXT_IE_, (int *)&ie_len,
 					len - WLAN_HDR_A3_LEN - _AUTH_IE_OFFSET_ - 4);
 
 			if ((p == NULL) || (ie_len <= 0)) {
@@ -889,7 +889,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 auth_fail:
 
 	if (pstat)
-		rtw_free_stainfo(padapter , pstat);
+		rtw_free_stainfo(padapter, pstat);
 
 	pstat = &stat;
 	memset((char *)pstat, '\0', sizeof(stat));
@@ -1096,7 +1096,7 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 		memcpy(supportRate, p+2, ie_len);
 		supportRateNum = ie_len;
 
-		p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, _EXT_SUPPORTEDRATES_IE_ , &ie_len,
+		p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, _EXT_SUPPORTEDRATES_IE_, &ie_len,
 				pkt_len - WLAN_HDR_A3_LEN - ie_offset);
 		if (p !=  NULL) {
 			if (supportRateNum <= sizeof(supportRate)) {
@@ -1195,7 +1195,7 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 			if (pmlmepriv->wps_beacon_ie) {
 				u8 selected_registrar = 0;
 
-				rtw_get_wps_attr_content(pmlmepriv->wps_beacon_ie, pmlmepriv->wps_beacon_ie_len, WPS_ATTR_SELECTED_REGISTRAR , &selected_registrar, NULL);
+				rtw_get_wps_attr_content(pmlmepriv->wps_beacon_ie, pmlmepriv->wps_beacon_ie_len, WPS_ATTR_SELECTED_REGISTRAR, &selected_registrar, NULL);
 
 				if (!selected_registrar) {
 					DBG_88E("selected_registrar is false , or AP is not ready to do WPS\n");
@@ -1332,7 +1332,7 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 #ifdef CONFIG_88EU_P2P
 	pstat->is_p2p_device = false;
 	if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO)) {
-		p2pie = rtw_get_p2p_ie(pframe + WLAN_HDR_A3_LEN + ie_offset , pkt_len - WLAN_HDR_A3_LEN - ie_offset , NULL, &p2pielen);
+		p2pie = rtw_get_p2p_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, pkt_len - WLAN_HDR_A3_LEN - ie_offset, NULL, &p2pielen);
 		if (p2pie) {
 			pstat->is_p2p_device = true;
 			p2p_status_code = (u8)process_assoc_req_p2p_ie(pwdinfo, pframe, pkt_len, pstat);
@@ -1593,7 +1593,7 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 		 *	Added the following code to avoid this case.
 		 */
 		if ((pmlmeinfo->state & WIFI_FW_AUTH_STATE) ||
-		    (pmlmeinfo->state & WIFI_FW_ASSOC_STATE )) {
+		    (pmlmeinfo->state & WIFI_FW_ASSOC_STATE)) {
 			if (reason == WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA) {
 				ignore_received_deauth = 1;
 			} else if (WLAN_REASON_PREV_AUTH_NOT_VALID == reason) {
@@ -2118,7 +2118,7 @@ void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr)
 	p2pielen += 2;
 
 	/*	Value: */
-	memcpy(p2pie + p2pielen, pwdinfo->device_name , pwdinfo->device_name_len);
+	memcpy(p2pie + p2pielen, pwdinfo->device_name, pwdinfo->device_name_len);
 	p2pielen += pwdinfo->device_name_len;
 
 	/*	Operating Channel */
@@ -2487,7 +2487,7 @@ static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame
 	p2pielen += 2;
 
 	/*	Value: */
-	memcpy(p2pie + p2pielen, pwdinfo->device_name , pwdinfo->device_name_len);
+	memcpy(p2pie + p2pielen, pwdinfo->device_name, pwdinfo->device_name_len);
 	p2pielen += pwdinfo->device_name_len;
 
 	if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO)) {
@@ -2501,7 +2501,7 @@ static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame
 
 		/*	Value: */
 		/*	p2P Device Address */
-		memcpy(p2pie + p2pielen , pwdinfo->device_addr, ETH_ALEN);
+		memcpy(p2pie + p2pielen, pwdinfo->device_addr, ETH_ALEN);
 		p2pielen += ETH_ALEN;
 
 		/*	SSID */
@@ -2667,7 +2667,7 @@ static void issue_p2p_GO_confirm(struct adapter *padapter, u8 *raddr, u8 result)
 
 		/*	Value: */
 		/*	p2P Device Address */
-		memcpy(p2pie + p2pielen , pwdinfo->device_addr, ETH_ALEN);
+		memcpy(p2pie + p2pielen, pwdinfo->device_addr, ETH_ALEN);
 		p2pielen += ETH_ALEN;
 
 		/*	SSID */
@@ -3418,7 +3418,7 @@ void issue_probersp_p2p(struct adapter *padapter, unsigned char *da)
 	wpsielen += 2;
 
 	/*	Value: */
-	memcpy(wpsie + wpsielen, "123456" , ETH_ALEN);
+	memcpy(wpsie + wpsielen, "123456", ETH_ALEN);
 	wpsielen += ETH_ALEN;
 
 	/*	Primary Device Type */
@@ -4042,7 +4042,7 @@ static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 							/*	The peer device address should be the destination address for the provisioning discovery request. */
 							/*	Then, this Wi-Fi device should use the iwpriv command to get the peer interface address. */
 							/*	The peer interface address should be the address for WPS mac address */
-							memcpy(pwdinfo->p2p_peer_device_addr, group_id.go_device_addr , ETH_ALEN);
+							memcpy(pwdinfo->p2p_peer_device_addr, group_id.go_device_addr, ETH_ALEN);
 							rtw_p2p_set_role(pwdinfo, P2P_ROLE_CLIENT);
 							rtw_p2p_set_state(pwdinfo, P2P_STATE_RECV_INVITE_REQ_JOIN);
 							status_code = P2P_STATUS_SUCCESS;
@@ -4880,10 +4880,10 @@ static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *ps
 	get_rate_set(padapter, bssrate, &bssrate_len);
 
 	if (bssrate_len > 8) {
-		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_ , 8, bssrate, &(pattrib->pktlen));
-		pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_ , (bssrate_len - 8), (bssrate + 8), &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, 8, bssrate, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_, (bssrate_len - 8), (bssrate + 8), &(pattrib->pktlen));
 	} else {
-		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_ , bssrate_len , bssrate, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, bssrate_len, bssrate, &(pattrib->pktlen));
 	}
 
 	/* add wps_ie for wps2.0 */
@@ -5144,13 +5144,13 @@ void issue_asocrsp(struct adapter *padapter, unsigned short status, struct sta_i
 	/* capability */
 	val = *(unsigned short *)rtw_get_capability_from_ie(ie);
 
-	pframe = rtw_set_fixed_ie(pframe, _CAPABILITY_ , (unsigned char *)&val, &(pattrib->pktlen));
+	pframe = rtw_set_fixed_ie(pframe, _CAPABILITY_, (unsigned char *)&val, &(pattrib->pktlen));
 
 	lestatus = cpu_to_le16(status);
-	pframe = rtw_set_fixed_ie(pframe , _STATUS_CODE_ , (unsigned char *)&lestatus, &(pattrib->pktlen));
+	pframe = rtw_set_fixed_ie(pframe, _STATUS_CODE_, (unsigned char *)&lestatus, &(pattrib->pktlen));
 
 	leval = cpu_to_le16(pstat->aid | BIT(14) | BIT(15));
-	pframe = rtw_set_fixed_ie(pframe, _ASOC_ID_ , (unsigned char *)&leval, &(pattrib->pktlen));
+	pframe = rtw_set_fixed_ie(pframe, _ASOC_ID_, (unsigned char *)&leval, &(pattrib->pktlen));
 
 	if (pstat->bssratelen <= 8) {
 		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, pstat->bssratelen, pstat->bssrateset, &(pattrib->pktlen));
@@ -5199,7 +5199,7 @@ void issue_asocrsp(struct adapter *padapter, unsigned short status, struct sta_i
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
-		pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, 6 , REALTEK_96B_IE, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, 6, REALTEK_96B_IE, &(pattrib->pktlen));
 
 	/* add WPS IE ie for wps 2.0 */
 	if (pmlmepriv->wps_assoc_resp_ie && pmlmepriv->wps_assoc_resp_ie_len > 0) {
@@ -5283,7 +5283,7 @@ void issue_assocreq(struct adapter *padapter)
 	/* listen interval */
 	/* todo: listen interval for power saving */
 	le_tmp = cpu_to_le16(3);
-	memcpy(pframe , (unsigned char *)&le_tmp, 2);
+	memcpy(pframe, (unsigned char *)&le_tmp, 2);
 	pframe += 2;
 	pattrib->pktlen += 2;
 
@@ -5335,10 +5335,10 @@ void issue_assocreq(struct adapter *padapter)
 	}
 
 	if (bssrate_len > 8) {
-		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_ , 8, bssrate, &(pattrib->pktlen));
-		pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_ , (bssrate_len - 8), (bssrate + 8), &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, 8, bssrate, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_, (bssrate_len - 8), (bssrate + 8), &(pattrib->pktlen));
 	} else {
-		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_ , bssrate_len , bssrate, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, bssrate_len, bssrate, &(pattrib->pktlen));
 	}
 
 	/* RSN */
@@ -5380,7 +5380,7 @@ void issue_assocreq(struct adapter *padapter)
 				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_2R, 16);
 				break;
 			}
-			pframe = rtw_set_ie(pframe, _HT_CAPABILITY_IE_, ie_len , (u8 *)(&(pmlmeinfo->HT_caps)), &(pattrib->pktlen));
+			pframe = rtw_set_ie(pframe, _HT_CAPABILITY_IE_, ie_len, (u8 *)(&(pmlmeinfo->HT_caps)), &(pattrib->pktlen));
 		}
 	}
 
@@ -5410,7 +5410,7 @@ void issue_assocreq(struct adapter *padapter)
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
-		pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, 6 , REALTEK_96B_IE, &(pattrib->pktlen));
+		pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, 6, REALTEK_96B_IE, &(pattrib->pktlen));
 
 #ifdef CONFIG_88EU_P2P
 
@@ -5849,7 +5849,7 @@ static int _issue_deauth(struct adapter *padapter, unsigned char *da, unsigned s
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 
 	le_tmp = cpu_to_le16(reason);
-	pframe = rtw_set_fixed_ie(pframe, _RSON_CODE_ , (unsigned char *)&le_tmp, &(pattrib->pktlen));
+	pframe = rtw_set_fixed_ie(pframe, _RSON_CODE_, (unsigned char *)&le_tmp, &(pattrib->pktlen));
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 

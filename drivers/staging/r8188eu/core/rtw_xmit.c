@@ -650,7 +650,7 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 	if (pattrib->psta)
 		stainfo = pattrib->psta;
 	else
-		stainfo = rtw_get_stainfo(&padapter->stapriv , &pattrib->ra[0]);
+		stainfo = rtw_get_stainfo(&padapter->stapriv, &pattrib->ra[0]);
 
 	hw_hdr_offset = TXDESC_SIZE + (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);;
 
@@ -778,7 +778,7 @@ static s32 xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxmi
 	return _SUCCESS;
 }
 
-s32 rtw_make_wlanhdr (struct adapter *padapter , u8 *hdr, struct pkt_attrib *pattrib)
+s32 rtw_make_wlanhdr (struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattrib)
 {
 	u16 *qc;
 
@@ -1826,7 +1826,7 @@ static void do_queue_select(struct adapter	*padapter, struct pkt_attrib *pattrib
 	u8 qsel;
 
 	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("### do_queue_select priority=%d , qsel = %d\n", pattrib->priority , qsel));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("### do_queue_select priority=%d , qsel = %d\n", pattrib->priority, qsel));
 
 	pattrib->qsel = qsel;
 }

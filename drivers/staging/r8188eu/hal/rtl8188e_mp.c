@@ -545,7 +545,7 @@ s32 Hal_SetThermalMeter(struct adapter *pAdapter, u8 target_ther)
 
 void Hal_TriggerRFThermalMeter(struct adapter *pAdapter)
 {
-	_write_rfreg(pAdapter, RF_PATH_A , RF_T_METER_88E , BIT17 | BIT16 , 0x03);
+	_write_rfreg(pAdapter, RF_PATH_A, RF_T_METER_88E, BIT17 | BIT16, 0x03);
 }
 
 u8 Hal_ReadRFThermalMeter(struct adapter *pAdapter)

@@ -1011,7 +1011,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 		if (p && ht_ielen > 0) {
 			pht_capie = (struct ieee80211_ht_cap *)(p+2);
 
-			memcpy(&mcs_rate , pht_capie->mcs.rx_mask, 2);
+			memcpy(&mcs_rate, pht_capie->mcs.rx_mask, 2);
 
 			/* cur_bwmod is updated by beacon, pmlmeinfo is updated by association response */
 			bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1 : 0;

@@ -431,7 +431,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 		if (blockCount_p2) {
 				RT_TRACE(_module_hal_init_c_, _drv_notice_,
 					 ("_BlockWrite: [P2] buffSize_p2(%d) blockSize_p2(%d) blockCount_p2(%d) remainSize_p2(%d)\n",
-					 (buffSize-offset), blockSize_p2 , blockCount_p2, remainSize_p2));
+					 (buffSize-offset), blockSize_p2, blockCount_p2, remainSize_p2));
 		}
 
 		for (i = 0; i < blockCount_p2; i++) {
@@ -702,7 +702,7 @@ static void rtl8188e_free_hal_data(struct adapter *padapter)
 /*  */
 enum{
 		VOLTAGE_V25						= 0x03,
-		LDOE25_SHIFT						= 28 ,
+		LDOE25_SHIFT						= 28,
 	};
 
 static bool
@@ -1112,7 +1112,7 @@ static u8 Hal_EfuseWordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr,
 		efuse_OneByteWrite(pAdapter, start_addr++, data[2], bPseudoTest);
 		efuse_OneByteWrite(pAdapter, start_addr++, data[3], bPseudoTest);
 
-		efuse_OneByteRead(pAdapter, tmpaddr    , &tmpdata[2], bPseudoTest);
+		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[2], bPseudoTest);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[3], bPseudoTest);
 		if ((data[2] != tmpdata[2]) || (data[3] != tmpdata[3]))
 			badworden &= (~BIT1);
@@ -2152,7 +2152,7 @@ void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoL
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT1) ? true : false;
 
 		DBG_88E("%s...bHWPwrPindetect(%x)-bHWPowerdown(%x) , bSupportRemoteWakeup(%x)\n", __func__,
-		padapter->pwrctrlpriv.bHWPwrPindetect, padapter->pwrctrlpriv.bHWPowerdown , padapter->pwrctrlpriv.bSupportRemoteWakeup);
+		padapter->pwrctrlpriv.bHWPwrPindetect, padapter->pwrctrlpriv.bHWPowerdown, padapter->pwrctrlpriv.bSupportRemoteWakeup);
 
 		DBG_88E("### PS params =>  power_mgnt(%x), usbss_enable(%x) ###\n", padapter->registrypriv.power_mgnt, padapter->registrypriv.usbss_enable);
 	}
@@ -2182,8 +2182,8 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 			}
 			if (bIn24G) {
 				DBG_88E("======= Path %d, Channel %d =======\n", rfPath, ch);
-				DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", rfPath, ch , pHalData->Index24G_CCK_Base[rfPath][ch]);
-				DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", rfPath, ch , pHalData->Index24G_BW40_Base[rfPath][ch]);
+				DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_CCK_Base[rfPath][ch]);
+				DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_BW40_Base[rfPath][ch]);
 			}
 		}
 		for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {

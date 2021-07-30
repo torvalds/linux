@@ -190,7 +190,7 @@ struct	wlan_network *_rtw_alloc_network(struct	mlme_priv *pmlmepriv)/* _queue *f
 	}
 	plist = (&(free_queue->queue))->next;
 
-	pnetwork = container_of(plist , struct wlan_network, list);
+	pnetwork = container_of(plist, struct wlan_network, list);
 
 	list_del_init(&pnetwork->list);
 
@@ -209,7 +209,7 @@ exit:
 	return pnetwork;
 }
 
-void _rtw_free_network(struct	mlme_priv *pmlmepriv , struct wlan_network *pnetwork, u8 isfreeall)
+void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork, u8 isfreeall)
 {
 	u32 curr_time, delta_time;
 	u32 lifetime = SCANQUEUE_LIFETIME;
@@ -268,7 +268,7 @@ struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr)
 	plist = phead->next;
 
 	while (plist != phead) {
-		pnetwork = container_of(plist, struct wlan_network , list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(addr, pnetwork->network.MacAddress, ETH_ALEN))
 			break;
 		plist = plist->next;
@@ -700,7 +700,7 @@ static int rtw_is_desired_network(struct adapter *adapter, struct wlan_network *
 }
 
 /* TODO: Perry: For Power Management */
-void rtw_atimdone_event_callback(struct adapter	*adapter , u8 *pbuf)
+void rtw_atimdone_event_callback(struct adapter	*adapter, u8 *pbuf)
 {
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("receive atimdone_evet\n"));
@@ -734,7 +734,7 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 			spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 			ibss_wlan = rtw_find_network(&pmlmepriv->scanned_queue,  pnetwork->MacAddress);
 			if (ibss_wlan) {
-				memcpy(ibss_wlan->network.IEs , pnetwork->IEs, 8);
+				memcpy(ibss_wlan->network.IEs, pnetwork->IEs, 8);
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 				goto exit;
 			}
@@ -859,11 +859,11 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 }
 
-void rtw_dummy_event_callback(struct adapter *adapter , u8 *pbuf)
+void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf)
 {
 }
 
-void rtw_fwdbg_event_callback(struct adapter *adapter , u8 *pbuf)
+void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf)
 {
 }
 
@@ -1524,7 +1524,7 @@ void _rtw_join_timeout_handler (struct adapter *adapter)
 				DBG_88E("%s try another roaming\n", __func__);
 				do_join_r = rtw_do_join(adapter);
 				if (_SUCCESS != do_join_r) {
-					DBG_88E("%s roaming do_join return %d\n", __func__ , do_join_r);
+					DBG_88E("%s roaming do_join return %d\n", __func__, do_join_r);
 					continue;
 				}
 				break;
@@ -2169,7 +2169,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 		p = rtw_get_ie(in_ie+12, _HT_ADD_INFO_IE_, &ielen, in_len-12);
 		if (p && (ielen == sizeof(struct ieee80211_ht_addt_info))) {
 			out_len = *pout_len;
-			rtw_set_ie(out_ie+out_len, _HT_ADD_INFO_IE_, ielen, p+2 , pout_len);
+			rtw_set_ie(out_ie+out_len, _HT_ADD_INFO_IE_, ielen, p+2, pout_len);
 		}
 	}
 	return phtpriv->ht_option;

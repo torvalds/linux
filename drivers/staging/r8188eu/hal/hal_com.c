@@ -340,7 +340,7 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 	*(buf+1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
 
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): ",
-		      &c2h_evt , sizeof(c2h_evt));
+		      &c2h_evt, sizeof(c2h_evt));
 
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)

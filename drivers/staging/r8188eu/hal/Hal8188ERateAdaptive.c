@@ -86,7 +86,7 @@ static u8 DROPING_NECESSARY[RATESIZE] = {
 
 static u8 PendingForRateUpFail[5] = {2, 10, 24, 40, 60};
 static u16 DynamicTxRPTTiming[6] = {
-	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12 , 0x927c}; /*  200ms-1200ms */
+	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12, 0x927c}; /*  200ms-1200ms */
 
 /*  End Rate adaptive parameters */
 
@@ -712,7 +712,7 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 					     pRAInfo->RTY[0], pRAInfo->RTY[1],
 					     pRAInfo->RTY[2], pRAInfo->RTY[3],
 					     pRAInfo->RTY[4], pRAInfo->DROP,
-					     macid_entry0 , macid_entry1));
+					     macid_entry0, macid_entry1));
 				if (pRAInfo->PTActive) {
 					if (pRAInfo->RAstage < 5)
 						odm_RateDecision_8188E(dm_odm, pRAInfo);

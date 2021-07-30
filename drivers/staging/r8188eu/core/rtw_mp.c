@@ -488,7 +488,7 @@ void SetDataRate(struct adapter *pAdapter)
 	Hal_SetDataRate(pAdapter);
 }
 
-void MP_PHY_SetRFPathSwitch(struct adapter *pAdapter , bool bMain)
+void MP_PHY_SetRFPathSwitch(struct adapter *pAdapter, bool bMain)
 {
 	PHY_SetRFPathSwitch(pAdapter, bMain);
 }

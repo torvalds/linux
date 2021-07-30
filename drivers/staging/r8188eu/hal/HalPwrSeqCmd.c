@@ -39,7 +39,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 	do {
 		pwrcfgcmd = pwrseqcmd[aryidx];
 
-		RT_TRACE(_module_hal_init_c_ , _drv_info_,
+		RT_TRACE(_module_hal_init_c_, _drv_info_,
 			 ("HalPwrSeqCmdParsing: offset(%#x) cut_msk(%#x) fab_msk(%#x) interface_msk(%#x) base(%#x) cmd(%#x) msk(%#x) value(%#x)\n",
 			 GET_PWR_CFG_OFFSET(pwrcfgcmd),
 			 GET_PWR_CFG_CUT_MASK(pwrcfgcmd),
@@ -56,10 +56,10 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 		    (GET_PWR_CFG_INTF_MASK(pwrcfgcmd) & ifacetype)) {
 			switch (GET_PWR_CFG_CMD(pwrcfgcmd)) {
 			case PWR_CMD_READ:
-				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_READ\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_READ\n"));
 				break;
 			case PWR_CMD_WRITE:
-				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_WRITE\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_WRITE\n"));
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
 
 				/*  Read the value from system register */
@@ -72,7 +72,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				rtw_write8(padapter, offset, value);
 				break;
 			case PWR_CMD_POLLING:
-				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_POLLING\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_POLLING\n"));
 
 				poll_bit = false;
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
@@ -92,7 +92,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				} while (!poll_bit);
 				break;
 			case PWR_CMD_DELAY:
-				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_DELAY\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_DELAY\n"));
 				if (GET_PWR_CFG_VALUE(pwrcfgcmd) == PWRSEQ_DELAY_US)
 					rtw_udelay_os(GET_PWR_CFG_OFFSET(pwrcfgcmd));
 				else
@@ -100,11 +100,11 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				break;
 			case PWR_CMD_END:
 				/*  When this command is parsed, end the process */
-				RT_TRACE(_module_hal_init_c_ , _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_END\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_info_, ("HalPwrSeqCmdParsing: PWR_CMD_END\n"));
 				return true;
 				break;
 			default:
-				RT_TRACE(_module_hal_init_c_ , _drv_err_, ("HalPwrSeqCmdParsing: Unknown CMD!!\n"));
+				RT_TRACE(_module_hal_init_c_, _drv_err_, ("HalPwrSeqCmdParsing: Unknown CMD!!\n"));
 				break;
 			}
 		}
