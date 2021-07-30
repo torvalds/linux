@@ -1523,7 +1523,7 @@ static struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj,
 }
 
 static struct drm_driver rockchip_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC | DRIVER_RENDER,
 	.postclose		= rockchip_drm_postclose,
 	.lastclose		= rockchip_drm_lastclose,
 	.open			= rockchip_drm_open,
