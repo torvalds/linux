@@ -807,10 +807,11 @@ static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
 	} else if (info->btf_value_type_id) {
 		int err;
 
-		err = btf__get_from_id(info->btf_id, &btf);
-		if (err || !btf) {
+		btf = btf__load_from_kernel_by_id(info->btf_id);
+		err = libbpf_get_error(btf);
+		if (err) {
 			p_err("failed to get btf");
-			btf = err ? ERR_PTR(err) : ERR_PTR(-ESRCH);
+			btf = ERR_PTR(err);
 		}
 	}
 
@@ -1039,11 +1040,10 @@ static void print_key_value(struct bpf_map_info *info, void *key,
 			    void *value)
 {
 	json_writer_t *btf_wtr;
-	struct btf *btf = NULL;
-	int err;
+	struct btf *btf;
 
-	err = btf__get_from_id(info->btf_id, &btf);
-	if (err) {
+	btf = btf__load_from_kernel_by_id(info->btf_id);
+	if (libbpf_get_error(btf)) {
 		p_err("failed to get btf");
 		return;
 	}
