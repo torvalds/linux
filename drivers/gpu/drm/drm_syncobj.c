@@ -725,7 +725,7 @@ err_put_fd:
 	return ret;
 }
 /**
- * drm_syncobj_open - initalizes syncobj file-private structures at devnode open time
+ * drm_syncobj_open - initializes syncobj file-private structures at devnode open time
  * @file_private: drm file-private structure to set up
  *
  * Called at device open time, sets up the structure for handling refcounting

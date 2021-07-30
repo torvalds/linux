@@ -772,7 +772,7 @@ int drm_dp_downstream_max_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		 * It's left up to the driver to check the
 		 * DP dual mode adapter's max TMDS clock.
 		 *
-		 * Unfortunatley it looks like branch devices
+		 * Unfortunately it looks like branch devices
 		 * may not fordward that the DP dual mode i2c
 		 * access so we just usually get i2c nak :(
 		 */
@@ -1365,7 +1365,7 @@ static int drm_dp_i2c_msg_duration(const struct drm_dp_aux_msg *msg,
 }
 
 /*
- * Deterine how many retries should be attempted to successfully transfer
+ * Determine how many retries should be attempted to successfully transfer
  * the specified message, based on the estimated durations of the
  * i2c and AUX transfers.
  */
@@ -1418,7 +1418,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			/*
 			 * While timeouts can be errors, they're usually normal
 			 * behavior (for instance, when a driver tries to
-			 * communicate with a non-existant DisplayPort device).
+			 * communicate with a non-existent DisplayPort device).
 			 * Avoid spamming the kernel log with timeout errors.
 			 */
 			if (ret == -ETIMEDOUT)
@@ -3329,7 +3329,7 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	fxp = DIV_ROUND_CLOSEST(1000 * DP_EDP_BACKLIGHT_FREQ_BASE_KHZ, driver_pwm_freq_hz);
 
 	/* Use highest possible value of Pn for more granularity of brightness adjustment while
-	 * satifying the conditions below.
+	 * satisfying the conditions below.
 	 * - Pn is in the range of Pn_min and Pn_max
 	 * - F is in the range of 1 and 255
 	 * - FxP is within 25% of desired value.

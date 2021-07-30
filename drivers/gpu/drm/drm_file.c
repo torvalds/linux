@@ -405,7 +405,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
  *
  * RETURNS:
  *
- * 0 on success or negative errno value on falure.
+ * 0 on success or negative errno value on failure.
  */
 int drm_open(struct inode *inode, struct file *filp)
 {
@@ -548,7 +548,7 @@ EXPORT_SYMBOL(drm_release_noglobal);
  * @offset: offset to read
  *
  * This function must be used by drivers as their &file_operations.read
- * method iff they use DRM events for asynchronous signalling to userspace.
+ * method if they use DRM events for asynchronous signalling to userspace.
  * Since events are used by the KMS API for vblank and page flip completion this
  * means all modern display drivers must use it.
  *
@@ -641,7 +641,7 @@ EXPORT_SYMBOL(drm_read);
  * @wait: poll waiter table
  *
  * This function must be used by drivers as their &file_operations.read method
- * iff they use DRM events for asynchronous signalling to userspace.  Since
+ * if they use DRM events for asynchronous signalling to userspace.  Since
  * events are used by the KMS API for vblank and page flip completion this means
  * all modern display drivers must use it.
  *

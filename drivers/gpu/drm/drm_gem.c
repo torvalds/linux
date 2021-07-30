@@ -901,7 +901,7 @@ err:
 }
 
 /**
- * drm_gem_open - initalizes GEM file-private structures at devnode open time
+ * drm_gem_open - initializes GEM file-private structures at devnode open time
  * @dev: drm_device which is being opened by userspace
  * @file_private: drm file-private structure to set up
  *
@@ -936,7 +936,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
  * drm_gem_object_release - release GEM buffer object resources
  * @obj: GEM buffer object
  *
- * This releases any structures and resources used by @obj and is the invers of
+ * This releases any structures and resources used by @obj and is the inverse of
  * drm_gem_object_init().
  */
 void

@@ -52,7 +52,7 @@
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
- * implicitly through closing/openeing the primary device node. See also
+ * implicitly through closing/opening the primary device node. See also
  * drm_is_current_master().
  *
  * Clients can authenticate against the current master (if it matches their own)

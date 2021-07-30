@@ -170,7 +170,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 		for (; addr < end; addr += size)
 			clflushopt(addr);
 		clflushopt(end - 1); /* force serialisation */
-		mb(); /*Ensure that evry data cache line entry is flushed*/
+		mb(); /*Ensure that every data cache line entry is flushed*/
 		return;
 	}
 

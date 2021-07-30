@@ -52,7 +52,7 @@
  *
  * The helpers for shadow-buffered planes establish and release mappings,
  * and provide struct drm_shadow_plane_state, which stores the plane's mapping
- * for commit-tail functons.
+ * for commit-tail functions.
  *
  * Shadow-buffered planes can easily be enabled by using the provided macros
  * %DRM_GEM_SHADOW_PLANE_FUNCS and %DRM_GEM_SHADOW_PLANE_HELPER_FUNCS.
@@ -374,7 +374,7 @@ EXPORT_SYMBOL(drm_gem_prepare_shadow_fb);
  * This function implements struct &drm_plane_helper_funcs.cleanup_fb.
  * This function unmaps all buffer objects of the plane's framebuffer.
  *
- * See drm_gem_prepare_shadow_fb() for more inforamtion.
+ * See drm_gem_prepare_shadow_fb() for more information.
  */
 void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state)
 {

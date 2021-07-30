@@ -78,7 +78,7 @@
  *
  * Drivers that are susceptible to being removed by other drivers, such as
  * generic EFI or VESA drivers, have to register themselves as owners of their
- * given framebuffer memory. Ownership of the framebuffer memory is achived
+ * given framebuffer memory. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_from_firmware(). On success, the driver
  * is the owner of the framebuffer range. The function fails if the
  * framebuffer is already by another driver. See below for an example.
