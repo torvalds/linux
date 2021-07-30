@@ -19,6 +19,7 @@
 #include <linux/set_memory.h>
 #include <linux/dma-map-ops.h>
 #include <linux/crash_dump.h>
+#include <linux/hugetlb.h>
 
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
@@ -202,6 +203,8 @@ static void __init setup_bootmem(void)
 
 	early_init_fdt_scan_reserved_mem();
 	dma_contiguous_reserve(dma32_phys_limit);
+	if (IS_ENABLED(CONFIG_64BIT))
+		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
 	memblock_allow_resize();
 }
 
