@@ -71,8 +71,8 @@ const char *ras_block_string[] = {
 /* inject address is 52 bits */
 #define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
 
-/* typical ECC bad page rate(1 bad page per 100MB VRAM) */
-#define RAS_BAD_PAGE_RATE		(100 * 1024 * 1024ULL)
+/* typical ECC bad page rate is 1 bad page per 100MB VRAM */
+#define RAS_BAD_PAGE_COVER              (100 * 1024 * 1024ULL)
 
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
@@ -355,8 +355,9 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *	to see which blocks support RAS on a particular asic.
  *
  */
-static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *buf,
-		size_t size, loff_t *pos)
+static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
+					     const char __user *buf,
+					     size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ras_debug_if data;
@@ -370,7 +371,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	if (data.op == 3) {
 		ret = amdgpu_reserve_page_direct(adev, data.inject.address);
@@ -403,9 +404,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		/* umc ce/ue error injection for a bad page is not allowed */
 		if ((data.head.block == AMDGPU_RAS_BLOCK__UMC) &&
 		    amdgpu_ras_check_bad_page(adev, data.inject.address)) {
-			dev_warn(adev->dev, "RAS WARN: 0x%llx has been marked "
-					"as bad before error injection!\n",
-					data.inject.address);
+			dev_warn(adev->dev, "RAS WARN: inject: 0x%llx has "
+				 "already been marked as bad!\n",
+				 data.inject.address);
 			break;
 		}
 
@@ -439,21 +440,24 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
  * will reset EEPROM table to 0 entries.
  *
  */
-static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f, const char __user *buf,
-		size_t size, loff_t *pos)
+static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f,
+					       const char __user *buf,
+					       size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev =
 		(struct amdgpu_device *)file_inode(f)->i_private;
 	int ret;
 
 	ret = amdgpu_ras_eeprom_reset_table(
-			&(amdgpu_ras_get_context(adev)->eeprom_control));
+		&(amdgpu_ras_get_context(adev)->eeprom_control));
 
-	if (ret == 1) {
+	if (!ret) {
+		/* Something was written to EEPROM.
+		 */
 		amdgpu_ras_get_context(adev)->flags = RAS_DEFAULT_FLAGS;
 		return size;
 	} else {
-		return -EIO;
+		return ret;
 	}
 }
 
@@ -1316,6 +1320,12 @@ static struct dentry *amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *
 			   &con->bad_page_cnt_threshold);
 	debugfs_create_x32("ras_hw_enabled", 0444, dir, &adev->ras_hw_enabled);
 	debugfs_create_x32("ras_enabled", 0444, dir, &adev->ras_enabled);
+	debugfs_create_file("ras_eeprom_size", S_IRUGO, dir, adev,
+			    &amdgpu_ras_debugfs_eeprom_size_ops);
+	con->de_ras_eeprom_table = debugfs_create_file("ras_eeprom_table",
+						       S_IRUGO, dir, adev,
+						       &amdgpu_ras_debugfs_eeprom_table_ops);
+	amdgpu_ras_debugfs_set_ret_size(&con->eeprom_control);
 
 	/*
 	 * After one uncorrectable error happens, usually GPU recovery will
@@ -1833,13 +1843,12 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 
 	control = &con->eeprom_control;
 	data = con->eh_data;
-	save_count = data->count - control->num_recs;
+	save_count = data->count - control->ras_num_recs;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (amdgpu_ras_eeprom_process_recods(control,
-							&data->bps[control->num_recs],
-							true,
-							save_count)) {
+		if (amdgpu_ras_eeprom_append(control,
+					     &data->bps[control->ras_num_recs],
+					     save_count)) {
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}
@@ -1857,28 +1866,24 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_eeprom_control *control =
-					&adev->psp.ras.ras->eeprom_control;
-	struct eeprom_table_record *bps = NULL;
-	int ret = 0;
+		&adev->psp.ras.ras->eeprom_control;
+	struct eeprom_table_record *bps;
+	int ret;
 
 	/* no bad page record, skip eeprom access */
-	if (!control->num_recs || (amdgpu_bad_page_threshold == 0))
-		return ret;
+	if (control->ras_num_recs == 0 || amdgpu_bad_page_threshold == 0)
+		return 0;
 
-	bps = kcalloc(control->num_recs, sizeof(*bps), GFP_KERNEL);
+	bps = kcalloc(control->ras_num_recs, sizeof(*bps), GFP_KERNEL);
 	if (!bps)
 		return -ENOMEM;
 
-	if (amdgpu_ras_eeprom_process_recods(control, bps, false,
-		control->num_recs)) {
+	ret = amdgpu_ras_eeprom_read(control, bps, control->ras_num_recs);
+	if (ret)
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
-		ret = -EIO;
-		goto out;
-	}
+	else
+		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs);
 
-	ret = amdgpu_ras_add_bad_pages(adev, bps, control->num_recs);
-
-out:
 	kfree(bps);
 	return ret;
 }
@@ -1918,11 +1923,9 @@ static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 }
 
 static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
-					uint32_t max_length)
+					  uint32_t max_count)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	int tmp_threshold = amdgpu_bad_page_threshold;
-	u64 val;
 
 	/*
 	 * Justification of value bad_page_cnt_threshold in ras structure
@@ -1943,18 +1946,15 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	 *      take no effect.
 	 */
 
-	if (tmp_threshold < -1)
-		tmp_threshold = -1;
-	else if (tmp_threshold > max_length)
-		tmp_threshold = max_length;
+	if (amdgpu_bad_page_threshold < 0) {
+		u64 val = adev->gmc.mc_vram_size;
 
-	if (tmp_threshold == -1) {
-		val = adev->gmc.mc_vram_size;
-		do_div(val, RAS_BAD_PAGE_RATE);
+		do_div(val, RAS_BAD_PAGE_COVER);
 		con->bad_page_cnt_threshold = min(lower_32_bits(val),
-						max_length);
+						  max_count);
 	} else {
-		con->bad_page_cnt_threshold = tmp_threshold;
+		con->bad_page_cnt_threshold = min_t(int, max_count,
+						    amdgpu_bad_page_threshold);
 	}
 }
 
@@ -1962,15 +1962,24 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data;
-	uint32_t max_eeprom_records_len = 0;
+	u32  max_eeprom_records_count = 0;
 	bool exc_err_limit = false;
 	int ret;
 
-	if (adev->ras_enabled && con)
-		data = &con->eh_data;
-	else
+	if (!con)
 		return 0;
 
+	/* Allow access to RAS EEPROM via debugfs, when the ASIC
+	 * supports RAS and debugfs is enabled, but when
+	 * adev->ras_enabled is unset, i.e. when "ras_enable"
+	 * module parameter is set to 0.
+	 */
+	con->adev = adev;
+
+	if (!adev->ras_enabled)
+		return 0;
+
+	data = &con->eh_data;
 	*data = kmalloc(sizeof(**data), GFP_KERNEL | __GFP_ZERO);
 	if (!*data) {
 		ret = -ENOMEM;
@@ -1980,10 +1989,9 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	mutex_init(&con->recovery_lock);
 	INIT_WORK(&con->recovery_work, amdgpu_ras_do_recovery);
 	atomic_set(&con->in_recovery, 0);
-	con->adev = adev;
 
-	max_eeprom_records_len = amdgpu_ras_eeprom_get_record_max_length();
-	amdgpu_ras_validate_threshold(adev, max_eeprom_records_len);
+	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count();
+	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
 
 	/* Todo: During test the SMU might fail to read the eeprom through I2C
 	 * when the GPU is pending on XGMI reset during probe time
@@ -1999,13 +2007,13 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	if (exc_err_limit || ret)
 		goto free;
 
-	if (con->eeprom_control.num_recs) {
+	if (con->eeprom_control.ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			goto free;
 
 		if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
-			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.num_recs);
+			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
 	}
 
 	return 0;
@@ -2015,7 +2023,7 @@ free:
 	kfree(*data);
 	con->eh_data = NULL;
 out:
-	dev_warn(adev->dev, "Failed to initialize ras recovery!\n");
+	dev_warn(adev->dev, "Failed to initialize ras recovery! (%d)\n", ret);
 
 	/*
 	 * Except error threshold exceeding case, other failure cases in this

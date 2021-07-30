@@ -53,6 +53,7 @@
 #include "mmhub_v1_7.h"
 #include "umc_v6_1.h"
 #include "umc_v6_0.h"
+#include "umc_v6_7.h"
 #include "hdp_v4_0.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
@@ -1167,6 +1168,18 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_ARCT;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
 		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->umc.max_ras_err_cnt_per_query = UMC_V6_7_TOTAL_CHANNEL_NUM;
+		adev->umc.channel_inst_num = UMC_V6_7_UMC_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V6_7_CHANNEL_INSTANCE_NUM;
+		adev->umc.channel_offs = UMC_V6_7_PER_CHANNEL_OFFSET;
+		if (!adev->gmc.xgmi.connected_to_cpu)
+			adev->umc.ras_funcs = &umc_v6_7_ras_funcs;
+		if (1 & adev->smuio.funcs->get_die_id(adev))
+			adev->umc.channel_idx_tbl = &umc_v6_7_channel_idx_tbl_first[0][0];
+		else
+			adev->umc.channel_idx_tbl = &umc_v6_7_channel_idx_tbl_second[0][0];
 		break;
 	default:
 		break;

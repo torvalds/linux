@@ -352,6 +352,8 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_response)(struct dmub_srv *dmub);
 
+	uint32_t (*get_gpint_dataout)(struct dmub_srv *dmub);
+
 	void (*send_inbox0_cmd)(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
@@ -675,6 +677,22 @@ dmub_srv_send_gpint_command(struct dmub_srv *dmub,
  */
 enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
 					     uint32_t *response);
+
+/**
+ * dmub_srv_get_gpint_dataout() - Queries the GPINT DATAOUT.
+ * @dmub: the dmub service
+ * @dataout: the data for the GPINT DATAOUT
+ *
+ * Returns the response code for the last GPINT DATAOUT interrupt.
+ *
+ * Can be called after software initialization.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_get_gpint_dataout(struct dmub_srv *dmub,
+					     uint32_t *dataout);
 
 /**
  * dmub_flush_buffer_mem() - Read back entire frame buffer region.

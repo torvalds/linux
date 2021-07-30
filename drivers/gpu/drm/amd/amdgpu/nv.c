@@ -666,6 +666,9 @@ legacy_init:
 	case CHIP_YELLOW_CARP:
 		yellow_carp_reg_base_init(adev);
 		break;
+	case CHIP_CYAN_SKILLFISH:
+		cyan_skillfish_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -682,7 +685,10 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->flags & AMD_IS_APU) {
+	if (adev->asic_type == CHIP_CYAN_SKILLFISH) {
+		adev->nbio.funcs = &nbio_v2_3_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+	} else if (adev->flags & AMD_IS_APU) {
 		adev->nbio.funcs = &nbio_v7_2_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_2_hdp_flush_reg;
 	} else {
@@ -888,6 +894,20 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+				amdgpu_device_ip_block_add(adev, &psp_v11_0_8_ip_block);
+			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		}
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -1240,6 +1260,11 @@ static int nv_common_early_init(void *handle)
 			adev->external_rev_id = adev->rev_id + 0x19;
 		else
 			adev->external_rev_id = adev->rev_id + 0x01;
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x82;
 		break;
 	default:
 		/* FIXME: not supported yet */

@@ -36,6 +36,7 @@
 #include "vangogh_ppt.h"
 #include "aldebaran_ppt.h"
 #include "yellow_carp_ppt.h"
+#include "cyan_skillfish_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -416,6 +417,15 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 		}
 	}
 
+	/* Restore user customized OD settings */
+	if (smu->user_dpm_profile.user_od) {
+		if (smu->ppt_funcs->restore_user_od_settings) {
+			ret = smu->ppt_funcs->restore_user_od_settings(smu);
+			if (ret)
+				dev_err(smu->adev->dev, "Failed to upload customized OD settings\n");
+		}
+	}
+
 	/* Disable restore flag */
 	smu->user_dpm_profile.flags &= ~SMU_DPM_USER_PROFILE_RESTORE;
 }
@@ -587,6 +597,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_YELLOW_CARP:
 		yellow_carp_set_ppt_funcs(smu);
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		cyan_skillfish_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;

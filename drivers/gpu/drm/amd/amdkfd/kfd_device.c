@@ -84,6 +84,7 @@ static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 	[CHIP_DIMGREY_CAVEFISH] = &gfx_v10_3_kfd2kgd,
 	[CHIP_BEIGE_GOBY] = &gfx_v10_3_kfd2kgd,
 	[CHIP_YELLOW_CARP] = &gfx_v10_3_kfd2kgd,
+	[CHIP_CYAN_SKILLFISH] = &gfx_v10_kfd2kgd,
 };
 
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -596,6 +597,24 @@ static const struct kfd_device_info yellow_carp_device_info = {
 	.num_sdma_queues_per_engine = 2,
 };
 
+static const struct kfd_device_info cyan_skillfish_device_info = {
+	.asic_family = CHIP_CYAN_SKILLFISH,
+	.asic_name = "cyan_skillfish",
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.needs_iommu_device = false,
+	.supports_cwsr = true,
+	.needs_pci_atomics = true,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 8,
+};
+
 /* For each entry, [0] is regular and [1] is virtualisation device. */
 static const struct kfd_device_info *kfd_supported_devices[][2] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -625,6 +644,7 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 	[CHIP_DIMGREY_CAVEFISH] = {&dimgrey_cavefish_device_info, &dimgrey_cavefish_device_info},
 	[CHIP_BEIGE_GOBY] = {&beige_goby_device_info, &beige_goby_device_info},
 	[CHIP_YELLOW_CARP] = {&yellow_carp_device_info, NULL},
+	[CHIP_CYAN_SKILLFISH] = {&cyan_skillfish_device_info, NULL},
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -1369,7 +1389,7 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
-void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 	if (kfd && kfd->init_complete)
 		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
@@ -1382,18 +1402,12 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
  */
 int kfd_debugfs_hang_hws(struct kfd_dev *dev)
 {
-	int r = 0;
-
 	if (dev->dqm->sched_policy != KFD_SCHED_POLICY_HWS) {
 		pr_err("HWS is not enabled");
 		return -EINVAL;
 	}
 
-	r = pm_debugfs_hang_hws(&dev->dqm->packets);
-	if (!r)
-		r = dqm_debugfs_execute_queues(dev->dqm);
-
-	return r;
+	return dqm_debugfs_hang_hws(dev->dqm);
 }
 
 #endif

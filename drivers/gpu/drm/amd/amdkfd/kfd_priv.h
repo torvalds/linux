@@ -1194,7 +1194,7 @@ int pm_debugfs_runlist(struct seq_file *m, void *data);
 
 int kfd_debugfs_hang_hws(struct kfd_dev *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
-int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
+int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
 #else
 

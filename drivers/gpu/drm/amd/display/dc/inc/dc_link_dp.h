@@ -174,7 +174,6 @@ bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
 void dp_decide_training_settings(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
-	const struct dc_link_training_overrides *overrides,
 	struct link_training_settings *lt_settings);
 
 /* Convert PHY repeater count read from DPCD uint8_t. */

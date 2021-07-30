@@ -231,6 +231,7 @@ struct smu_user_dpm_profile {
 	uint32_t power_limit;
 	uint32_t fan_speed_percent;
 	uint32_t flags;
+	uint32_t user_od;
 
 	/* user clock state information */
 	uint32_t clk_mask[SMU_CLK_COUNT];
@@ -352,6 +353,7 @@ struct smu_table_context
 
 	void				*overdrive_table;
 	void                            *boot_overdrive_table;
+	void				*user_overdrive_table;
 
 	uint32_t			gpu_metrics_table_size;
 	void				*gpu_metrics_table;
@@ -622,6 +624,12 @@ struct pptable_funcs {
 	int (*od_edit_dpm_table)(struct smu_context *smu,
 				 enum PP_OD_DPM_TABLE_COMMAND type,
 				 long *input, uint32_t size);
+
+	/**
+	 * @restore_user_od_settings: Restore the user customized
+	 *                            OD settings on S3/S4/Runpm resume.
+	 */
+	int (*restore_user_od_settings)(struct smu_context *smu);
 
 	/**
 	 * @get_clock_by_type_with_latency: Get the speed and latency of a clock
