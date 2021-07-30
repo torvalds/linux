@@ -1605,7 +1605,7 @@ static ssize_t name##_show(struct device *dev,			\
 									\
 	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
-static DEVICE_ATTR(name, 0444, name##_show, NULL)
+static DEVICE_ATTR_RO(name)
 
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr,
@@ -1615,7 +1615,7 @@ static ssize_t type_show(struct device *dev,
 
 	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
 }
-static DEVICE_ATTR(type, 0444, type_show, NULL);
+static DEVICE_ATTR_RO(type);
 
 static ssize_t interrupts_enabled_show(struct device *dev,
 				       struct device_attribute *attr,
@@ -1626,8 +1626,7 @@ static ssize_t interrupts_enabled_show(struct device *dev,
 
 	return snprintf(buf, 10, "%d\n", enabled);
 }
-static DEVICE_ATTR(interrupts_enabled, 0444,
-		   interrupts_enabled_show, NULL);
+static DEVICE_ATTR_RO(interrupts_enabled);
 
 IPMI_SI_ATTR(short_timeouts);
 IPMI_SI_ATTR(long_timeouts);
@@ -1658,7 +1657,7 @@ static ssize_t params_show(struct device *dev,
 			smi_info->io.irq,
 			smi_info->io.slave_addr);
 }
-static DEVICE_ATTR(params, 0444, params_show, NULL);
+static DEVICE_ATTR_RO(params);
 
 static struct attribute *ipmi_si_dev_attrs[] = {
 	&dev_attr_type.attr,
