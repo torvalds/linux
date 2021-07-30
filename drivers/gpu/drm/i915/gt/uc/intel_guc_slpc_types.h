@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#define SLPC_RESET_TIMEOUT_MS 5
+
 struct intel_guc_slpc {
 	struct i915_vma *vma;
 	struct slpc_shared_data *vaddr;
