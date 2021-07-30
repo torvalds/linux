@@ -2259,7 +2259,8 @@ static int do_help(int argc, char **argv)
 		"       ATTACH_TYPE := { msg_verdict | skb_verdict | stream_verdict |\n"
 		"                        stream_parser | flow_dissector }\n"
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
-		"       " HELP_SPEC_OPTIONS "\n"
+		"       " HELP_SPEC_OPTIONS " |\n"
+		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} }\n"
 		"",
 		bin_name, argv[-2]);
 
