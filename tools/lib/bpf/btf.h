@@ -44,6 +44,10 @@ LIBBPF_API struct btf *btf__parse_elf_split(const char *path, struct btf *base_b
 LIBBPF_API struct btf *btf__parse_raw(const char *path);
 LIBBPF_API struct btf *btf__parse_raw_split(const char *path, struct btf *base_btf);
 
+LIBBPF_API struct btf *btf__load_vmlinux_btf(void);
+LIBBPF_API struct btf *btf__load_module_btf(const char *module_name, struct btf *vmlinux_btf);
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
 LIBBPF_API struct btf *btf__load_from_kernel_by_id(__u32 id);
 LIBBPF_API struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
@@ -92,8 +96,6 @@ int btf_ext__reloc_line_info(const struct btf *btf,
 			     void **line_info, __u32 *cnt);
 LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
-
-LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
 
 LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);

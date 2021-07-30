@@ -4036,7 +4036,7 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 		 */
 		if (d->hypot_adjust_canon)
 			continue;
-		
+
 		if (t_kind == BTF_KIND_FWD && c_kind != BTF_KIND_FWD)
 			d->map[t_id] = c_id;
 
@@ -4409,7 +4409,7 @@ static int btf_dedup_remap_types(struct btf_dedup *d)
  * Probe few well-known locations for vmlinux kernel image and try to load BTF
  * data out of it to use for target BTF.
  */
-struct btf *libbpf_find_kernel_btf(void)
+struct btf *btf__load_vmlinux_btf(void)
 {
 	struct {
 		const char *path_fmt;
@@ -4453,6 +4453,16 @@ struct btf *libbpf_find_kernel_btf(void)
 
 	pr_warn("failed to find valid kernel BTF\n");
 	return libbpf_err_ptr(-ESRCH);
+}
+
+struct btf *libbpf_find_kernel_btf(void) __attribute__((alias("btf__load_vmlinux_btf")));
+
+struct btf *btf__load_module_btf(const char *module_name, struct btf *vmlinux_btf)
+{
+	char path[80];
+
+	snprintf(path, sizeof(path), "/sys/kernel/btf/%s", module_name);
+	return btf__parse_split(path, vmlinux_btf);
 }
 
 int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ctx)
