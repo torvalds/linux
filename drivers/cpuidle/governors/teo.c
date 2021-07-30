@@ -397,32 +397,46 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		intercept_sum = 0;
 		recent_sum = 0;
 
-		for (i = idx - 1; i >= idx0; i--) {
+		for (i = idx - 1; i >= 0; i--) {
 			struct teo_bin *bin = &cpu_data->state_bins[i];
 			s64 span_ns;
 
 			intercept_sum += bin->intercepts;
 			recent_sum += bin->recent;
 
-			if (dev->states_usage[i].disable)
-				continue;
-
 			span_ns = teo_middle_of_bin(i, drv);
-			if (!teo_time_ok(span_ns)) {
-				/*
-				 * The current state is too shallow, so select
-				 * the first enabled deeper state.
-				 */
-				duration_ns = last_enabled_span_ns;
-				idx = last_enabled_idx;
-				break;
-			}
 
 			if ((!alt_recent || 2 * recent_sum > idx_recent_sum) &&
 			    (!alt_intercepts ||
 			     2 * intercept_sum > idx_intercept_sum)) {
-				idx = i;
-				duration_ns = span_ns;
+				if (teo_time_ok(span_ns) &&
+				    !dev->states_usage[i].disable) {
+					idx = i;
+					duration_ns = span_ns;
+				} else {
+					/*
+					 * The current state is too shallow or
+					 * disabled, so take the first enabled
+					 * deeper state with suitable time span.
+					 */
+					idx = last_enabled_idx;
+					duration_ns = last_enabled_span_ns;
+				}
+				break;
+			}
+
+			if (dev->states_usage[i].disable)
+				continue;
+
+			if (!teo_time_ok(span_ns)) {
+				/*
+				 * The current state is too shallow, but if an
+				 * alternative candidate state has been found,
+				 * it may still turn out to be a better choice.
+				 */
+				if (last_enabled_idx != idx)
+					continue;
+
 				break;
 			}
 
