@@ -852,6 +852,11 @@ static int ctnetlink_done(struct netlink_callback *cb)
 	return 0;
 }
 
+struct ctnetlink_filter_u32 {
+	u32 val;
+	u32 mask;
+};
+
 struct ctnetlink_filter {
 	u8 family;
 
@@ -862,10 +867,7 @@ struct ctnetlink_filter {
 	struct nf_conntrack_tuple reply;
 	struct nf_conntrack_zone zone;
 
-	struct {
-		u_int32_t val;
-		u_int32_t mask;
-	} mark;
+	struct ctnetlink_filter_u32 mark;
 };
 
 static const struct nla_policy cta_filter_nla_policy[CTA_FILTER_MAX + 1] = {
@@ -907,6 +909,24 @@ static int ctnetlink_parse_tuple_filter(const struct nlattr * const cda[],
 					 struct nf_conntrack_zone *zone,
 					 u_int32_t flags);
 
+static int ctnetlink_filter_parse_mark(struct ctnetlink_filter_u32 *mark,
+				       const struct nlattr * const cda[])
+{
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	if (cda[CTA_MARK]) {
+		mark->val = ntohl(nla_get_be32(cda[CTA_MARK]));
+
+		if (cda[CTA_MARK_MASK])
+			mark->mask = ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+		else
+			mark->mask = 0xffffffff;
+	} else if (cda[CTA_MARK_MASK]) {
+		return -EINVAL;
+	}
+#endif
+	return 0;
+}
+
 static struct ctnetlink_filter *
 ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 {
@@ -924,18 +944,10 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 
 	filter->family = family;
 
-#ifdef CONFIG_NF_CONNTRACK_MARK
-	if (cda[CTA_MARK]) {
-		filter->mark.val = ntohl(nla_get_be32(cda[CTA_MARK]));
-		if (cda[CTA_MARK_MASK])
-			filter->mark.mask = ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
-		else
-			filter->mark.mask = 0xffffffff;
-	} else if (cda[CTA_MARK_MASK]) {
-		err = -EINVAL;
+	err = ctnetlink_filter_parse_mark(&filter->mark, cda);
+	if (err)
 		goto err_filter;
-	}
-#endif
+
 	if (!cda[CTA_FILTER])
 		return filter;
 
