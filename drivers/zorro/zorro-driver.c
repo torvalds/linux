@@ -67,11 +67,9 @@ static void zorro_device_remove(struct device *dev)
 	struct zorro_dev *z = to_zorro_dev(dev);
 	struct zorro_driver *drv = to_zorro_driver(dev->driver);
 
-	if (drv) {
-		if (drv->remove)
-			drv->remove(z);
-		z->driver = NULL;
-	}
+	if (drv->remove)
+		drv->remove(z);
+	z->driver = NULL;
 }
 
 
