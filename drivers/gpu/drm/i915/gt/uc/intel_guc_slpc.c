@@ -96,6 +96,9 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 		return err;
 	}
 
+	slpc->max_freq_softlimit = 0;
+	slpc->min_freq_softlimit = 0;
+
 	return err;
 }
 
@@ -124,6 +127,17 @@ static int guc_action_slpc_set_param(struct intel_guc *guc, u8 id, u32 value)
 	ret = intel_guc_send(guc, request, ARRAY_SIZE(request));
 
 	return ret > 0 ? -EPROTO : ret;
+}
+
+static int guc_action_slpc_unset_param(struct intel_guc *guc, u8 id)
+{
+	u32 request[] = {
+		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
+		SLPC_EVENT(SLPC_EVENT_PARAMETER_UNSET, 2),
+		id,
+	};
+
+	return intel_guc_send(guc, request, ARRAY_SIZE(request));
 }
 
 static bool slpc_is_running(struct intel_guc_slpc *slpc)
@@ -177,6 +191,16 @@ static int slpc_set_param(struct intel_guc_slpc *slpc, u8 id, u32 value)
 			id, value, ERR_PTR(ret));
 
 	return ret;
+}
+
+static int slpc_unset_param(struct intel_guc_slpc *slpc,
+			    u8 id)
+{
+	struct intel_guc *guc = slpc_to_guc(slpc);
+
+	GEM_BUG_ON(id >= SLPC_MAX_PARAM);
+
+	return guc_action_slpc_unset_param(guc, id);
 }
 
 static const char *slpc_global_state_to_string(enum slpc_global_state state)
@@ -300,6 +324,11 @@ int intel_guc_slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 val)
 	intel_wakeref_t wakeref;
 	int ret;
 
+	if (val < slpc->min_freq ||
+	    val > slpc->rp0_freq ||
+	    val < slpc->min_freq_softlimit)
+		return -EINVAL;
+
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		ret = slpc_set_param(slpc,
 				     SLPC_PARAM_GLOBAL_MAX_GT_UNSLICE_FREQ_MHZ,
@@ -309,6 +338,9 @@ int intel_guc_slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 val)
 		if (ret)
 			ret = -EIO;
 	}
+
+	if (!ret)
+		slpc->max_freq_softlimit = val;
 
 	return ret;
 }
@@ -356,6 +388,11 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 	intel_wakeref_t wakeref;
 	int ret;
 
+	if (val < slpc->min_freq ||
+	    val > slpc->rp0_freq ||
+	    val > slpc->max_freq_softlimit)
+		return -EINVAL;
+
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		ret = slpc_set_param(slpc,
 				     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
@@ -365,6 +402,9 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 		if (ret)
 			ret = -EIO;
 	}
+
+	if (!ret)
+		slpc->min_freq_softlimit = val;
 
 	return ret;
 }
@@ -411,6 +451,79 @@ void intel_guc_pm_intrmsk_enable(struct intel_gt *gt)
 			 GEN6_PMINTRMSK, pm_intrmsk_mbz, 0);
 }
 
+static int slpc_set_softlimits(struct intel_guc_slpc *slpc)
+{
+	int ret = 0;
+
+	/*
+	 * Softlimits are initially equivalent to platform limits
+	 * unless they have deviated from defaults, in which case,
+	 * we retain the values and set min/max accordingly.
+	 */
+	if (!slpc->max_freq_softlimit)
+		slpc->max_freq_softlimit = slpc->rp0_freq;
+	else if (slpc->max_freq_softlimit != slpc->rp0_freq)
+		ret = intel_guc_slpc_set_max_freq(slpc,
+						  slpc->max_freq_softlimit);
+
+	if (unlikely(ret))
+		return ret;
+
+	if (!slpc->min_freq_softlimit)
+		slpc->min_freq_softlimit = slpc->min_freq;
+	else if (slpc->min_freq_softlimit != slpc->min_freq)
+		return intel_guc_slpc_set_min_freq(slpc,
+						   slpc->min_freq_softlimit);
+
+	return 0;
+}
+
+static int slpc_ignore_eff_freq(struct intel_guc_slpc *slpc, bool ignore)
+{
+	int ret = 0;
+
+	if (ignore) {
+		ret = slpc_set_param(slpc,
+				     SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY,
+				     ignore);
+		if (!ret)
+			return slpc_set_param(slpc,
+					      SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
+					      slpc->min_freq);
+	} else {
+		ret = slpc_unset_param(slpc,
+				       SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY);
+		if (!ret)
+			return slpc_unset_param(slpc,
+						SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ);
+	}
+
+	return ret;
+}
+
+static int slpc_use_fused_rp0(struct intel_guc_slpc *slpc)
+{
+	/* Force SLPC to used platform rp0 */
+	return slpc_set_param(slpc,
+			      SLPC_PARAM_GLOBAL_MAX_GT_UNSLICE_FREQ_MHZ,
+			      slpc->rp0_freq);
+}
+
+static void slpc_get_rp_values(struct intel_guc_slpc *slpc)
+{
+	u32 rp_state_cap;
+
+	rp_state_cap = intel_uncore_read(slpc_to_gt(slpc)->uncore,
+					 GEN6_RP_STATE_CAP);
+
+	slpc->rp0_freq = REG_FIELD_GET(RP0_CAP_MASK, rp_state_cap) *
+					GT_FREQUENCY_MULTIPLIER;
+	slpc->rp1_freq = REG_FIELD_GET(RP1_CAP_MASK, rp_state_cap) *
+					GT_FREQUENCY_MULTIPLIER;
+	slpc->min_freq = REG_FIELD_GET(RPN_CAP_MASK, rp_state_cap) *
+					GT_FREQUENCY_MULTIPLIER;
+}
+
 /*
  * intel_guc_slpc_enable() - Start SLPC
  * @slpc: pointer to intel_guc_slpc.
@@ -445,6 +558,32 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 		return ret;
 
 	intel_guc_pm_intrmsk_enable(&i915->gt);
+
+	slpc_get_rp_values(slpc);
+
+	/* Ignore efficient freq and set min to platform min */
+	ret = slpc_ignore_eff_freq(slpc, true);
+	if (unlikely(ret)) {
+		drm_err(&i915->drm, "Failed to set SLPC min to RPn (%pe)\n",
+			ERR_PTR(ret));
+		return ret;
+	}
+
+	/* Set SLPC max limit to RP0 */
+	ret = slpc_use_fused_rp0(slpc);
+	if (unlikely(ret)) {
+		drm_err(&i915->drm, "Failed to set SLPC max to RP0 (%pe)\n",
+			ERR_PTR(ret));
+		return ret;
+	}
+
+	/* Revert SLPC min/max to softlimits if necessary */
+	ret = slpc_set_softlimits(slpc);
+	if (unlikely(ret)) {
+		drm_err(&i915->drm, "Failed to set SLPC softlimits (%pe)\n",
+			ERR_PTR(ret));
+		return ret;
+	}
 
 	return 0;
 }

@@ -15,6 +15,15 @@ struct intel_guc_slpc {
 	struct slpc_shared_data *vaddr;
 	bool supported;
 	bool selected;
+
+	/* platform frequency limits */
+	u32 min_freq;
+	u32 rp0_freq;
+	u32 rp1_freq;
+
+	/* frequency softlimits */
+	u32 min_freq_softlimit;
+	u32 max_freq_softlimit;
 };
 
 #endif
