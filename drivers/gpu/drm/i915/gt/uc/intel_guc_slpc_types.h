@@ -9,6 +9,8 @@
 #include <linux/types.h>
 
 struct intel_guc_slpc {
+	struct i915_vma *vma;
+	struct slpc_shared_data *vaddr;
 	bool supported;
 	bool selected;
 };
