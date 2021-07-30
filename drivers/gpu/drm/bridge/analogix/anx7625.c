@@ -1359,11 +1359,8 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 		err = drm_bridge_attach(bridge->encoder,
 					ctx->pdata.panel_bridge,
 					&ctx->bridge, flags);
-		if (err) {
-			DRM_DEV_ERROR(dev,
-				      "Fail to attach panel bridge: %d\n", err);
+		if (err)
 			return err;
-		}
 	}
 
 	ctx->bridge_attached = 1;
