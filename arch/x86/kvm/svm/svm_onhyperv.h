@@ -89,7 +89,7 @@ static inline void svm_hv_vmcb_dirty_nested_enlightenments(
 	 * as we mark it dirty unconditionally towards end of vcpu
 	 * init phase.
 	 */
-	if (vmcb && vmcb_is_clean(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS) &&
+	if (vmcb_is_clean(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS) &&
 	    hve->hv_enlightenments_control.msr_bitmap)
 		vmcb_mark_dirty(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
 }

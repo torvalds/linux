@@ -65,7 +65,7 @@ static long (*save_emul) (unsigned long pc);
 long do_alpha_fp_emul_imprecise(struct pt_regs *, unsigned long);
 long do_alpha_fp_emul(unsigned long);
 
-int init_module(void)
+static int alpha_fp_emul_init_module(void)
 {
 	save_emul_imprecise = alpha_fp_emul_imprecise;
 	save_emul = alpha_fp_emul;
@@ -73,12 +73,14 @@ int init_module(void)
 	alpha_fp_emul = do_alpha_fp_emul;
 	return 0;
 }
+module_init(alpha_fp_emul_init_module);
 
-void cleanup_module(void)
+static void alpha_fp_emul_cleanup_module(void)
 {
 	alpha_fp_emul_imprecise = save_emul_imprecise;
 	alpha_fp_emul = save_emul;
 }
+module_exit(alpha_fp_emul_cleanup_module);
 
 #undef  alpha_fp_emul_imprecise
 #define alpha_fp_emul_imprecise		do_alpha_fp_emul_imprecise
@@ -401,3 +403,5 @@ alpha_fp_emul_imprecise (struct pt_regs *regs, unsigned long write_mask)
 egress:
 	return si_code;
 }
+
+EXPORT_SYMBOL(__udiv_qrnnd);
