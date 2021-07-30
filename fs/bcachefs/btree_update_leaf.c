@@ -1062,7 +1062,19 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	if (i < trans->updates + trans->nr_updates &&
 	    !btree_insert_entry_cmp(&n, i)) {
 		BUG_ON(i->trans_triggers_run);
-		*i = n;
+
+		/*
+		 * This is a hack to ensure that inode creates update the btree,
+		 * not the key cache, which helps with cache coherency issues in
+		 * other areas:
+		 */
+		if (btree_iter_type(n.iter) == BTREE_ITER_CACHED &&
+		    btree_iter_type(i->iter) != BTREE_ITER_CACHED) {
+			i->k = n.k;
+			i->flags = n.flags;
+		} else {
+			*i = n;
+		}
 	} else
 		array_insert_item(trans->updates, trans->nr_updates,
 				  i - trans->updates, n);
