@@ -606,7 +606,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 		/*  probe resp(3) > beacon(1) > probe req(2) */
 		if (target->reserved[0] != 2 &&
-			target->reserved[0] >= pnetwork->network.reserved[0]
+		    target->reserved[0] >= pnetwork->network.reserved[0]
 			) {
 			update_ie = true;
 		} else {
