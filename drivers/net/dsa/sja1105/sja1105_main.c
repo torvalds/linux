@@ -1275,7 +1275,7 @@ int sja1105et_fdb_add(struct dsa_switch *ds, int port,
 		 * mask? If yes, we need to do nothing. If not, we need
 		 * to rewrite the entry by adding this port to it.
 		 */
-		if (l2_lookup.destports & BIT(port))
+		if ((l2_lookup.destports & BIT(port)) && l2_lookup.lockeds)
 			return 0;
 		l2_lookup.destports |= BIT(port);
 	} else {
@@ -1306,6 +1306,7 @@ int sja1105et_fdb_add(struct dsa_switch *ds, int port,
 						     index, NULL, false);
 		}
 	}
+	l2_lookup.lockeds = true;
 	l2_lookup.index = sja1105et_fdb_index(bin, way);
 
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
@@ -1376,10 +1377,10 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 	rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
 					 SJA1105_SEARCH, &l2_lookup);
 	if (rc == 0) {
-		/* Found and this port is already in the entry's
+		/* Found a static entry and this port is already in the entry's
 		 * port mask => job done
 		 */
-		if (l2_lookup.destports & BIT(port))
+		if ((l2_lookup.destports & BIT(port)) && l2_lookup.lockeds)
 			return 0;
 		/* l2_lookup.index is populated by the switch in case it
 		 * found something.
@@ -1402,10 +1403,11 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 		dev_err(ds->dev, "FDB is full, cannot add entry.\n");
 		return -EINVAL;
 	}
-	l2_lookup.lockeds = true;
 	l2_lookup.index = i;
 
 skip_finding_an_index:
+	l2_lookup.lockeds = true;
+
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
 					  l2_lookup.index, &l2_lookup,
 					  true);
