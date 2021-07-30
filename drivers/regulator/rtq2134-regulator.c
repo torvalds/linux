@@ -311,7 +311,7 @@ static const struct rtq2134_regulator_desc rtq2134_regulator_descs[] = {
 
 static bool rtq2134_is_accissible_reg(struct device *dev, unsigned int reg)
 {
-	if (RTQ2134_REG_IO_CHIPNAME <= reg && reg <= RTQ2134_REG_BUCK3_SLEWCTRL)
+	if (reg >= RTQ2134_REG_IO_CHIPNAME && reg <= RTQ2134_REG_BUCK3_SLEWCTRL)
 		return true;
 	return false;
 }
@@ -329,7 +329,7 @@ static int rtq2134_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regulator_dev *rdev;
-	struct regulator_config regulator_cfg= {};
+	struct regulator_config regulator_cfg = {};
 	int i;
 
 	regmap = devm_regmap_init_i2c(i2c, &rtq2134_regmap_config);
