@@ -378,19 +378,25 @@ static int lps0_device_attach(struct acpi_device *adev,
 		 * AMDI0006:
 		 * - should use rev_id 0x0
 		 * - function mask = 0x3: Should use Microsoft method
+		 * AMDI0007:
+		 * - Should use rev_id 0x2
+		 * - Should only use AMD method
 		 */
 		const char *hid = acpi_device_hid(adev);
-		rev_id = 0;
+		rev_id = strcmp(hid, "AMDI0007") ? 0 : 2;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
 		lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
-					ACPI_LPS0_DSM_UUID_MICROSOFT, rev_id,
+					ACPI_LPS0_DSM_UUID_MICROSOFT, 0,
 					&lps0_dsm_guid_microsoft);
 		if (lps0_dsm_func_mask > 0x3 && (!strcmp(hid, "AMD0004") ||
 						 !strcmp(hid, "AMDI0005"))) {
 			lps0_dsm_func_mask = (lps0_dsm_func_mask << 1) | 0x1;
 			acpi_handle_debug(adev->handle, "_DSM UUID %s: Adjusted function mask: 0x%x\n",
 					  ACPI_LPS0_DSM_UUID_AMD, lps0_dsm_func_mask);
+		} else if (lps0_dsm_func_mask_microsoft > 0 && !strcmp(hid, "AMDI0007")) {
+			lps0_dsm_func_mask_microsoft = -EINVAL;
+			acpi_handle_debug(adev->handle, "_DSM Using AMD method\n");
 		}
 	} else {
 		rev_id = 1;
