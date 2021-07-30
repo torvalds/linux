@@ -581,7 +581,7 @@ struct mlx5_priv {
 	/* end: qp staff */
 
 	/* start: alloc staff */
-	/* protect buffer alocation according to numa node */
+	/* protect buffer allocation according to numa node */
 	struct mutex            alloc_mutex;
 	int                     numa_node;
 
@@ -1111,7 +1111,7 @@ static inline u8 mlx5_mkey_variant(u32 mkey)
 }
 
 /* Async-atomic event notifier used by mlx5 core to forward FW
- * evetns recived from event queue to mlx5 consumers.
+ * evetns received from event queue to mlx5 consumers.
  * Optimise event queue dipatching.
  */
 int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);

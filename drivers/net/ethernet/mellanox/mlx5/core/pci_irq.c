@@ -18,7 +18,7 @@
 
 #define MLX5_SFS_PER_CTRL_IRQ 64
 #define MLX5_IRQ_CTRL_SF_MAX 8
-/* min num of vectores for SFs to be enabled */
+/* min num of vectors for SFs to be enabled */
 #define MLX5_IRQ_VEC_COMP_BASE_SF 2
 
 #define MLX5_EQ_SHARE_IRQ_MAX_COMP (8)
@@ -597,7 +597,7 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 		return;
 
 	/* There are cases where IRQs still will be in used when we reaching
-	 * to here. Hence, making sure all the irqs are realeased.
+	 * to here. Hence, making sure all the irqs are released.
 	 */
 	irq_pools_destroy(table);
 	pci_free_irq_vectors(dev->pdev);

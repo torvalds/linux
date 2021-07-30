@@ -1038,7 +1038,7 @@ enum {
 struct mlx5_mkey_seg {
 	/* This is a two bit field occupying bits 31-30.
 	 * bit 31 is always 0,
-	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do not have tanslation
+	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do not have translation
 	 */
 	u8		status;
 	u8		pcie_control;

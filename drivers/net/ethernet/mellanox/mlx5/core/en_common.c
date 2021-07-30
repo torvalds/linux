@@ -33,7 +33,7 @@
 #include "en.h"
 
 /* mlx5e global resources should be placed in this file.
- * Global resources are common to all the netdevices crated on the same nic.
+ * Global resources are common to all the netdevices created on the same nic.
  */
 
 void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
