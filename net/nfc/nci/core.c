@@ -53,9 +53,9 @@ struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 }
 
 int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
-					  struct dest_spec_params *params)
+					  const struct dest_spec_params *params)
 {
-	struct nci_conn_info *conn_info;
+	const struct nci_conn_info *conn_info;
 
 	list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
 		if (conn_info->dest_type == dest_type) {
@@ -210,14 +210,15 @@ static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 }
 
 struct nci_set_config_param {
-	__u8	id;
-	size_t	len;
-	__u8	*val;
+	__u8		id;
+	size_t		len;
+	const __u8	*val;
 };
 
 static void nci_set_config_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_set_config_param *param = (struct nci_set_config_param *)opt;
+	const struct nci_set_config_param *param =
+		(struct nci_set_config_param *)opt;
 	struct nci_core_set_config_cmd cmd;
 
 	BUG_ON(param->len > NCI_MAX_PARAM_LEN);
@@ -237,7 +238,7 @@ struct nci_rf_discover_param {
 
 static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_rf_discover_param *param =
+	const struct nci_rf_discover_param *param =
 		(struct nci_rf_discover_param *)opt;
 	struct nci_rf_disc_cmd cmd;
 
@@ -303,7 +304,7 @@ struct nci_rf_discover_select_param {
 
 static void nci_rf_discover_select_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_rf_discover_select_param *param =
+	const struct nci_rf_discover_select_param *param =
 		(struct nci_rf_discover_select_param *)opt;
 	struct nci_rf_discover_select_cmd cmd;
 
@@ -341,18 +342,18 @@ static void nci_rf_deactivate_req(struct nci_dev *ndev, unsigned long opt)
 struct nci_cmd_param {
 	__u16 opcode;
 	size_t len;
-	__u8 *payload;
+	const __u8 *payload;
 };
 
 static void nci_generic_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_cmd_param *param =
+	const struct nci_cmd_param *param =
 		(struct nci_cmd_param *)opt;
 
 	nci_send_cmd(ndev, param->opcode, param->len, param->payload);
 }
 
-int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload)
+int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, const __u8 *payload)
 {
 	struct nci_cmd_param param;
 
@@ -365,7 +366,8 @@ int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload)
 }
 EXPORT_SYMBOL(nci_prop_cmd);
 
-int nci_core_cmd(struct nci_dev *ndev, __u16 opcode, size_t len, __u8 *payload)
+int nci_core_cmd(struct nci_dev *ndev, __u16 opcode, size_t len,
+		 const __u8 *payload)
 {
 	struct nci_cmd_param param;
 
@@ -399,7 +401,7 @@ struct nci_loopback_data {
 
 static void nci_send_data_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_loopback_data *data = (struct nci_loopback_data *)opt;
+	const struct nci_loopback_data *data = (struct nci_loopback_data *)opt;
 
 	nci_send_data(ndev, data->conn_id, data->data);
 }
@@ -407,7 +409,7 @@ static void nci_send_data_req(struct nci_dev *ndev, unsigned long opt)
 static void nci_nfcc_loopback_cb(void *context, struct sk_buff *skb, int err)
 {
 	struct nci_dev *ndev = (struct nci_dev *)context;
-	struct nci_conn_info    *conn_info;
+	struct nci_conn_info *conn_info;
 
 	conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_conn_id);
 	if (!conn_info) {
@@ -420,7 +422,7 @@ static void nci_nfcc_loopback_cb(void *context, struct sk_buff *skb, int err)
 	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
-int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
+int nci_nfcc_loopback(struct nci_dev *ndev, const void *data, size_t data_len,
 		      struct sk_buff **resp)
 {
 	int r;
@@ -624,7 +626,7 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
-int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val)
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, const __u8 *val)
 {
 	struct nci_set_config_param param;
 
@@ -659,7 +661,7 @@ EXPORT_SYMBOL(nci_nfcee_discover);
 
 static void nci_nfcee_mode_set_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_nfcee_mode_set_cmd *cmd =
+	const struct nci_nfcee_mode_set_cmd *cmd =
 					(struct nci_nfcee_mode_set_cmd *)opt;
 
 	nci_send_cmd(ndev, NCI_OP_NFCEE_MODE_SET_CMD,
@@ -681,7 +683,7 @@ EXPORT_SYMBOL(nci_nfcee_mode_set);
 
 static void nci_core_conn_create_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct core_conn_create_data *data =
+	const struct core_conn_create_data *data =
 					(struct core_conn_create_data *)opt;
 
 	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD, data->length, data->cmd);
@@ -690,7 +692,7 @@ static void nci_core_conn_create_req(struct nci_dev *ndev, unsigned long opt)
 int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 			 u8 number_destination_params,
 			 size_t params_len,
-			 struct core_conn_create_dest_spec_params *params)
+			 const struct core_conn_create_dest_spec_params *params)
 {
 	int r;
 	struct nci_core_conn_create_cmd *cmd;
@@ -863,7 +865,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	struct nci_rf_discover_select_param param;
-	struct nfc_target *nci_target = NULL;
+	const struct nfc_target *nci_target = NULL;
 	int i;
 	int rc = 0;
 
@@ -1004,7 +1006,7 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
-	struct nci_conn_info    *conn_info;
+	struct nci_conn_info *conn_info;
 
 	conn_info = ndev->rf_conn_info;
 	if (!conn_info)
@@ -1269,7 +1271,7 @@ EXPORT_SYMBOL(nci_register_device);
  */
 void nci_unregister_device(struct nci_dev *ndev)
 {
-	struct nci_conn_info    *conn_info, *n;
+	struct nci_conn_info *conn_info, *n;
 
 	nci_close_device(ndev);
 
@@ -1441,7 +1443,7 @@ int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
 static void nci_tx_work(struct work_struct *work)
 {
 	struct nci_dev *ndev = container_of(work, struct nci_dev, tx_work);
-	struct nci_conn_info    *conn_info;
+	struct nci_conn_info *conn_info;
 	struct sk_buff *skb;
 
 	conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_conn_id);
