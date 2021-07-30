@@ -30,6 +30,8 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  29 Jul 2021 : 1. Add support to set MAC Address register
+ *  VERSION     : 01-00-07
  */
 
 
@@ -247,6 +249,9 @@
 #define XGMAC_DMA_In(x)		(MAC_OFFSET + (0x00000704 + (x) * 0x4))
 #define XGMAC_ADDR_MAX			32
 #define XGMAC_AE			BIT(31)
+#define XGMAC_AE_SHIFT			31
+#define XGMAC_MBC			GENSMASK(29, 24)
+#define XGMAC_MBC_SHIFT		24
 #define XGMAC_DCS			GENMASK(19, 16)
 #define XGMAC_DCS_SHIFT		16
 #define XGMAC_ADDRx_LOW(x)		(MAC_OFFSET + (0x00000304 + (x) * 0x8))

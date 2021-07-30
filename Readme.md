@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 23 Jul 2021
+Release Date: 29 Jul 2021
 
-Release Version: V_01-00-06 : Limited-tested version
+Release Version: V_01-00-07 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -68,6 +68,10 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. Add support for contiguous allocation of memory
 
+## TC956X_Host_Driver_20210729_V_01-00-07:
+
+1. Add support to set MAC Address register
+
 # Note:
 
 1. Use below commands to advertise with Autonegotiation ON for speeds 10Gbps, 5Gbps, 2.5Gbps, 1Gbps, 100Mbps and 10Mbps as ethtool speed command does not support.
@@ -120,3 +124,6 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
    sw_msi_n = No. of SW MSIs triggered by Systick Handler as part of optimized Tx Timer based on Systick approach.
    So total number of interrupts for Tx = tx_intr_n + sw_msi_n
    Please note that whenever Rx interruts are generated, the Host ISR will process the Tx completed descriptors too.
+
+5. With V_01-00-07, when IPA API start_channel() is invoked for Rx direction, MAC_Address1_High is updated with 0xBF000000. 
+   This register setting is almost similar to promiscuous mode. So please install appropriate FRP instructions.

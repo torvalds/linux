@@ -39,6 +39,8 @@
  *  VERSION     : 01-00-05
  *  23 Jul 2021 : 1. Add support for contiguous allocation of memory
  *  VERSION     : 01-00-06
+ *  29 Jul 2021 : 1. Add support to set MAC Address register
+ *  VERSION     : 01-00-07
  */
 
 #include <linux/dma-mapping.h>
@@ -68,6 +70,12 @@
 #define IPA_MAX_BUFFER_SIZE (9*1024) /* 9KBytes */
 #define IPA_MAX_DESC_CNT    512
 #define MAX_WDT		0xFF
+
+#define MAC_ADDR_INDEX 1
+#define MAC_ADDR_AE 1
+#define MAC_ADDR_MBC 0x3F
+#define MAC_ADDR_DCS 0x1
+static u8 mac_addr_default[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 static DEFINE_SPINLOCK(cm3_tamap_lock);
 
@@ -1471,6 +1479,7 @@ EXPORT_SYMBOL_GPL(clear_rx_filter);
 int start_channel(struct net_device *ndev, struct channel_info *channel)
 {
 	struct tc956xmac_priv *priv;
+	struct mac_addr_list mac_addr;
 
 	if (!ndev) {
 		pr_err("%s: ERROR: Invalid netdevice pointer\n", __func__);
@@ -1507,6 +1516,12 @@ int start_channel(struct net_device *ndev, struct channel_info *channel)
 		netdev_dbg(priv->dev, "DMA Tx process started in channel = %d\n", channel->channel_num);
 		tc956xmac_start_tx(priv, priv->ioaddr, channel->channel_num);
 	} else if (channel->direction == CH_DIR_RX) {
+		mac_addr.ae = MAC_ADDR_AE;
+		mac_addr.mbc = MAC_ADDR_MBC;
+		mac_addr.dcs = MAC_ADDR_DCS;
+		memcpy(&mac_addr.addr[0], &mac_addr_default[0], sizeof(mac_addr_default));
+		set_mac_addr(ndev, &mac_addr, MAC_ADDR_INDEX);
+
 		netdev_dbg(priv->dev, "DMA Rx process started in channel = %d\n", channel->channel_num);
 		tc956xmac_start_rx(priv, priv->ioaddr, channel->channel_num);
 	} else {
@@ -1585,5 +1600,60 @@ int stop_channel(struct net_device *ndev, struct channel_info *channel)
 }
 EXPORT_SYMBOL_GPL(stop_channel);
 
+/*!
+ * \brief Configure MAC registers at a particular index in the MAC Address list
+ *
+ * \param[in] ndev : TC956x netdev data structure
+ * \param[in] mac_addr : Pointer to structure containing mac_addr_list that needs to updated
+ *		     in MAC_Address_High and MAC_Address_Low registers
+ * \param[in] index : Index in the MAC Address Register list
+ *
+ * \return : Return 0 on success, -ve value on error
+ *	     -EPERM if index 0 used
+ *	     -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
+ *	     -EINVAL if mac_addr NULL
+ *
+ * \remarks : Do not use the API to set register at index 0.
+ *	      There is possibilty of kernel network subsytem overwriting these registers
+ *	      when " tc956xmac_set_rx_mode" is invoked via "ndo_set_rx_mode" callback.
+ */
+int set_mac_addr(struct net_device *ndev, struct mac_addr_list *mac_addr, u8 index)
+{
+	struct tc956xmac_priv *priv;
+	u32 data;
 
+	if (!ndev) {
+		pr_err("%s: ERROR: Invalid netdevice pointer\n", __func__);
+		return -ENODEV;
+	}
+
+	priv = netdev_priv(ndev);
+	if (!priv) {
+		pr_err("%s: ERROR: Invalid private data pointer\n", __func__);
+		return -ENODEV;
+	}
+
+	if (!mac_addr) {
+		netdev_err(priv->dev,
+				"%s: ERROR: Invalid mac addr list structure\n", __func__);
+		return -EINVAL;
+	}
+
+	if (index == 0) {
+		netdev_err(priv->dev,
+				"%s: ERROR: Do not use index 0\n", __func__);
+		return -EPERM;
+	}
+
+	data = (mac_addr->addr[5] << 8) | (mac_addr->addr[4]) |
+		(mac_addr->ae << XGMAC_AE_SHIFT) | (mac_addr->mbc << XGMAC_MBC_SHIFT);
+	writel(data, priv->ioaddr + XGMAC_ADDRx_HIGH(index));
+
+	data = (mac_addr->addr[3] << 24) | (mac_addr->addr[2] << 16) |
+		(mac_addr->addr[1] << 8) | mac_addr->addr[0];
+	writel(data, priv->ioaddr + XGMAC_ADDRx_LOW(index));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(set_mac_addr);
 

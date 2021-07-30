@@ -45,6 +45,8 @@
  *  VERSION     : 01-00-05
  *  23 Jul 2021 : 1. Add support for contiguous allocation of memory
  *  VERSION     : 01-00-06
+ *  29 Jul 2021 : 1. Add support to set MAC Address register
+ *  VERSION     : 01-00-07
  */
 
 #include <linux/clk-provider.h>
@@ -74,7 +76,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 6};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 7};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,

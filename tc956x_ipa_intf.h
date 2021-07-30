@@ -41,6 +41,8 @@
  *  VERSION     : 01-00-05
  *  23 Jul 2021 : 1. Add support for contiguous allocation of memory
  *  VERSION     : 01-00-06
+ *  29 Jul 2021 : 1. Add support to set MAC Address register
+ *  VERSION     : 01-00-07
  */
 
 #ifndef __TC956x_IPA_INTF_H
@@ -147,6 +149,14 @@ struct mem_ops {
 				dma_addr_t *daddr, struct mem_ops *ops, struct channel_info *channel);
 };
 
+struct mac_addr_list {
+	u8 addr[6];	/* 0th to 3rd bytes will be programmed in MAC_Address_Low.ADDLO
+			 * 4th - 5th bytes will be programmed in MAC_Address_High.ADDRHI
+			 */
+	u8 ae;		/* Address Enable */
+	u8 mbc;		/* Mask Byte Control */
+	u16 dcs;	/* DMA Channel Select */
+};
 
 /*!
  * \brief This API will return the version of IPA I/F maintained by Toshiba
@@ -386,6 +396,25 @@ int start_channel(struct net_device *ndev, struct channel_info *channel);
  */
 int stop_channel(struct net_device *ndev, struct channel_info *channel);
 
+
+/*!
+ * \brief Configure MAC registers at a particular index in the MAC Address list
+ *
+ * \param[in] ndev : TC956x netdev data structure
+ * \param[in] mac_addr : Pointer to structure containing mac_addr_list that needs to updated
+ *		     in MAC_Address_High and MAC_Address_Low registers
+ * \param[in] index : Index in the MAC Address Register list
+ *
+ * \return : Return 0 on success, -ve value on error
+ *	     -EPERM if index 0 used
+ *	     -ENODEV if ndev is NULL, tc956xmac_priv extracted from ndev is NULL
+ *	     -EINVAL if mac_addr NULL
+ *
+ * \remarks : Do not use the API to set register at index 0.
+ *	      There is possibilty of kernel network subsytem overwriting these registers
+ *	      when " tc956xmac_set_rx_mode" is invoked via "ndo_set_rx_mode" callback.
+ */
+int set_mac_addr(struct net_device *ndev, struct mac_addr_list *mac_addr, u8 index);
 
 #endif /* __TC956x_IPA_INTF_H */
 
