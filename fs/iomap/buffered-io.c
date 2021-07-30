@@ -1360,8 +1360,8 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		 * won't be affected by I/O completion and we must unlock it
 		 * now.
 		 */
-		if (wpc->ops->discard_page)
-			wpc->ops->discard_page(page, file_offset);
+		if (wpc->ops->discard_folio)
+			wpc->ops->discard_folio(folio, file_offset);
 		if (!count) {
 			ClearPageUptodate(page);
 			unlock_page(page);
