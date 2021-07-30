@@ -7,6 +7,7 @@
 #define _INTEL_UC_H_
 
 #include "intel_guc.h"
+#include "intel_guc_rc.h"
 #include "intel_guc_submission.h"
 #include "intel_guc_slpc.h"
 #include "intel_huc.h"
@@ -85,6 +86,7 @@ uc_state_checkers(guc, guc);
 uc_state_checkers(huc, huc);
 uc_state_checkers(guc, guc_submission);
 uc_state_checkers(guc, guc_slpc);
+uc_state_checkers(guc, guc_rc);
 
 #undef uc_state_checkers
 #undef __uc_state_checker

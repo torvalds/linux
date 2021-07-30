@@ -159,6 +159,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	intel_guc_log_init_early(&guc->log);
 	intel_guc_submission_init_early(guc);
 	intel_guc_slpc_init_early(&guc->slpc);
+	intel_guc_rc_init_early(guc);
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
