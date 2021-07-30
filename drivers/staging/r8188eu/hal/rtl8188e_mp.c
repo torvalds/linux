@@ -3,10 +3,10 @@
 
 #define _RTL8188E_MP_C_
 
-#include <drv_types.h>
-#include <rtw_mp.h>
-#include <rtl8188e_hal.h>
-#include <rtl8188e_dm.h>
+#include "../include/drv_types.h"
+#include "../include/rtw_mp.h"
+#include "../include/rtl8188e_hal.h"
+#include "../include/rtl8188e_dm.h"
 
 s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable)
 {

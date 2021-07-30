@@ -17,7 +17,7 @@ Major Change History:
 
 --*/
 
-#include <HalPwrSeqCmd.h>
+#include "../include/HalPwrSeqCmd.h"
 
 /*	Description: */
 /*		This routine deals with the Power Configuration CMDs parsing

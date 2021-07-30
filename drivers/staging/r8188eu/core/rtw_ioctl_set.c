@@ -3,13 +3,13 @@
 
 #define _RTW_IOCTL_SET_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtw_ioctl_set.h>
-#include <hal_intf.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtw_ioctl_set.h"
+#include "../include/hal_intf.h"
 
-#include <usb_osintf.h>
-#include <usb_ops.h>
+#include "../include/usb_osintf.h"
+#include "../include/usb_ops.h"
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 

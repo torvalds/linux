@@ -4,8 +4,8 @@
 #ifndef __CMD_OSDEP_H_
 #define __CMD_OSDEP_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 extern int _rtw_init_cmd_priv(struct cmd_priv *pcmdpriv);
 extern int _rtw_init_evt_priv(struct evt_priv *pevtpriv);

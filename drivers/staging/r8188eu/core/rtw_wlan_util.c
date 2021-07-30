@@ -3,9 +3,9 @@
 
 #define _RTW_WLAN_UTIL_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
 
 static unsigned char ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
 static unsigned char ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};

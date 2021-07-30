@@ -3,10 +3,9 @@
 
 #define _RTW_MP_C_
 
-#include <drv_types.h>
-
-#include "odm_precomp.h"
-#include "rtl8188e_hal.h"
+#include "../include/drv_types.h"
+#include "../include/odm_precomp.h"
+#include "../include/rtl8188e_hal.h"
 
 u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 {

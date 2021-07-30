@@ -3,13 +3,13 @@
 
 #define _RTW_XMIT_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
-#include <osdep_intf.h>
-#include <ip.h>
-#include <usb_ops.h>
-#include <usb_osintf.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
+#include "../include/osdep_intf.h"
+#include "../include/ip.h"
+#include "../include/usb_ops.h"
+#include "../include/usb_osintf.h"
 
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };

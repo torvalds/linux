@@ -3,9 +3,9 @@
 
 #define _USB_OPS_LINUX_C_
 
-#include <drv_types.h>
-#include <usb_ops_linux.h>
-#include <rtw_sreset.h>
+#include "../include/drv_types.h"
+#include "../include/usb_ops_linux.h"
+#include "../include/rtw_sreset.h"
 
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 {

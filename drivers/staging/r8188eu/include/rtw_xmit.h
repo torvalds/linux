@@ -4,8 +4,8 @@
 #ifndef _RTW_XMIT_H_
 #define _RTW_XMIT_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #define MAX_XMITBUF_SZ	(20480)	/*  20k */
 #define NR_XMITBUFF		(4)
@@ -362,6 +362,6 @@ int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms);
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status);
 
 /* include after declaring struct xmit_buf, in order to avoid warning */
-#include <xmit_osdep.h>
+#include "xmit_osdep.h"
 
 #endif	/* _RTL871X_XMIT_H_ */

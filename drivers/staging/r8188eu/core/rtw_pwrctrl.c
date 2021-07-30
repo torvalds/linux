@@ -3,10 +3,10 @@
 
 #define _RTW_PWRCTRL_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <osdep_intf.h>
-#include <linux/usb.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/osdep_intf.h"
+#include "../include/linux/usb.h"
 
 void ips_enter(struct adapter *padapter)
 {

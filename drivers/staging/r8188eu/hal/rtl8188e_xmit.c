@@ -3,9 +3,9 @@
 
 #define _RTL8188E_XMIT_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtl8188e_hal.h"
 
 void dump_txrpt_ccx_88e(void *buf)
 {

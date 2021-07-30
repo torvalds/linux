@@ -4,7 +4,7 @@
 #ifndef __RTW_EFUSE_H__
 #define __RTW_EFUSE_H__
 
-#include <osdep_service.h>
+#include "osdep_service.h"
 
 #define	EFUSE_ERROE_HANDLE		1
 

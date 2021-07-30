@@ -4,7 +4,7 @@
 #ifndef __RTW_IOCTL_SET_H_
 #define __RTW_IOCTL_SET_H_
 
-#include <drv_types.h>
+#include "drv_types.h"
 
 typedef u8 NDIS_802_11_PMKID_VALUE[16];
 

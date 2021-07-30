@@ -3,12 +3,10 @@
 
 #define _RTW_MP_IOCTL_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <mlme_osdep.h>
-
-/* include <rtw_mp.h> */
-#include <rtw_mp_ioctl.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/mlme_osdep.h"
+#include "../include/rtw_mp_ioctl.h"
 
 /*   rtl8188eu_oid_rtl_seg_81_85   section start **************** */
 int rtl8188eu_oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)

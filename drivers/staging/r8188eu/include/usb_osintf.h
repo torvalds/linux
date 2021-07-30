@@ -4,9 +4,9 @@
 #ifndef __USB_OSINTF_H
 #define __USB_OSINTF_H
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <usb_vendor_req.h>
+#include "osdep_service.h"
+#include "drv_types.h"
+#include "usb_vendor_req.h"
 
 extern char *rtw_initmac;
 extern int rtw_mc2u_disable;

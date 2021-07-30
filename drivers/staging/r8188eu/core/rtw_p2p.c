@@ -3,9 +3,9 @@
 
 #define _RTW_P2P_C_
 
-#include <drv_types.h>
-#include <rtw_p2p.h>
-#include <wifi.h>
+#include "../include/drv_types.h"
+#include "../include/rtw_p2p.h"
+#include "../include/wifi.h"
 
 #ifdef CONFIG_88EU_P2P
 

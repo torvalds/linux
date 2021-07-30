@@ -4,7 +4,7 @@
 #ifndef _RTW_HT_H_
 #define _RTW_HT_H_
 
-#include <osdep_service.h>
+#include "osdep_service.h"
 #include "wifi.h"
 
 struct ht_priv {

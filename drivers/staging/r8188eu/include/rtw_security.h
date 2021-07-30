@@ -4,8 +4,8 @@
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #define _NO_PRIVACY_			0x0
 #define _WEP40_				0x1

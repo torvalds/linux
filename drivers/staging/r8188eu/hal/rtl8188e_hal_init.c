@@ -3,15 +3,12 @@
 
 #define _HAL_INIT_C_
 
-#include <linux/firmware.h>
-#include <drv_types.h>
-#include <rtw_efuse.h>
-
-#include <rtl8188e_hal.h>
-
-#include <rtw_iol.h>
-
-#include <usb_ops.h>
+#include "../include/linux/firmware.h"
+#include "../include/drv_types.h"
+#include "../include/rtw_efuse.h"
+#include "../include/rtl8188e_hal.h"
+#include "../include/rtw_iol.h"
+#include "../include/usb_ops.h"
 
 static void iol_mode_enable(struct adapter *padapter, u8 enable)
 {

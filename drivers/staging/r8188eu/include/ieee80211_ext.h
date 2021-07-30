@@ -4,8 +4,8 @@
 #ifndef __IEEE80211_EXT_H
 #define __IEEE80211_EXT_H
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #define WMM_OUI_TYPE 2
 #define WMM_OUI_SUBTYPE_INFORMATION_ELEMENT 0

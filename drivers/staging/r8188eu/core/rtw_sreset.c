@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2012 Realtek Corporation. */
 
-#include <rtw_sreset.h>
+#include "../include/rtw_sreset.h"
 
 void sreset_init_value(struct adapter *padapter)
 {

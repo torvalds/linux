@@ -5,7 +5,7 @@
 #define __OSDEP_SERVICE_H_
 
 #include <linux/sched/signal.h>
-#include <basic_types.h>
+#include "basic_types.h"
 
 #define _FAIL		0
 #define _SUCCESS	1

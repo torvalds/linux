@@ -3,9 +3,9 @@
 
 #define _MLME_OSDEP_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <mlme_osdep.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/mlme_osdep.h"
 
 void rtw_join_timeout_handler (struct timer_list *t)
 {

@@ -4,8 +4,8 @@
 #ifndef __XMIT_OSDEP_H_
 #define __XMIT_OSDEP_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 struct pkt_file {
 	struct sk_buff *pkt;

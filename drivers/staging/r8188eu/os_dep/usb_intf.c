@@ -3,18 +3,17 @@
 
 #define _HCI_INTF_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <xmit_osdep.h>
-#include <hal_intf.h>
 #include <linux/usb.h>
-#include <osdep_intf.h>
-
-#include <usb_vendor_req.h>
-#include <usb_ops.h>
-#include <usb_osintf.h>
-#include <rtw_ioctl.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/xmit_osdep.h"
+#include "../include/hal_intf.h"
+#include "../include/osdep_intf.h"
+#include "../include/usb_vendor_req.h"
+#include "../include/usb_ops.h"
+#include "../include/usb_osintf.h"
+#include "../include/rtw_ioctl.h"
 
 int ui_pid[3] = {0, 0, 0};
 

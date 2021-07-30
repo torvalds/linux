@@ -3,15 +3,15 @@
 
 #define _OS_INTFS_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <xmit_osdep.h>
-#include <recv_osdep.h>
-#include <hal_intf.h>
-#include <rtw_ioctl.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/xmit_osdep.h"
+#include "../include/recv_osdep.h"
+#include "../include/hal_intf.h"
+#include "../include/rtw_ioctl.h"
 
-#include <usb_osintf.h>
-#include <rtw_br_ext.h>
+#include "../include/usb_osintf.h"
+#include "../include/rtw_br_ext.h"
 #include <linux/version.h>
 
 MODULE_LICENSE("GPL");

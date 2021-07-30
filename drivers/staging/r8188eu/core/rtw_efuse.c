@@ -3,9 +3,9 @@
 
 #define _RTW_EFUSE_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtw_efuse.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtw_efuse.h"
 
 /*------------------------Define local variable------------------------------*/
 u8 fakeEfuseBank;

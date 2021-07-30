@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtl8188e_hal.h>
-#include <rtl8188e_led.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtl8188e_hal.h"
+#include "../include/rtl8188e_led.h"
 
 /*  LED object. */
 

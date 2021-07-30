@@ -4,8 +4,8 @@
 #ifndef __RTW_EEPROM_H__
 #define __RTW_EEPROM_H__
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #define	RTL8712_EEPROM_ID		0x8712
 

@@ -3,12 +3,12 @@
 
 #define _HCI_OPS_OS_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <osdep_intf.h>
-#include <usb_ops.h>
-#include <recv_osdep.h>
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/osdep_intf.h"
+#include "../include/usb_ops.h"
+#include "../include/recv_osdep.h"
+#include "../include/rtl8188e_hal.h"
 
 static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
 {

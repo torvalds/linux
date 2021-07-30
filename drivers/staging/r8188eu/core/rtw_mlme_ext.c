@@ -3,13 +3,13 @@
 
 #define _RTW_MLME_EXT_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
-#include <rtw_mlme_ext.h>
-#include <wlan_bssdef.h>
-#include <mlme_osdep.h>
-#include <recv_osdep.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
+#include "../include/rtw_mlme_ext.h"
+#include "../include/wlan_bssdef.h"
+#include "../include/mlme_osdep.h"
+#include "../include/recv_osdep.h"
 
 static struct mlme_handler mlme_sta_tbl[] = {
 	{WIFI_ASSOCREQ,		"OnAssocReq",	&OnAssocReq},

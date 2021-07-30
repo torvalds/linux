@@ -11,8 +11,6 @@ EXTRA_CFLAGS += -Wno-unused
 
 EXTRA_CFLAGS += -Wno-uninitialized
 
-EXTRA_CFLAGS += -I$(src)/include
-
 ccflags-y += -D__CHECK_ENDIAN__
 
 CONFIG_R8188EU = m

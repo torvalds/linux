@@ -4,7 +4,7 @@
 #ifndef __HALPWRSEQCMD_H__
 #define __HALPWRSEQCMD_H__
 
-#include <drv_types.h>
+#include "drv_types.h"
 
 /*---------------------------------------------*/
 /* 3 The value of cmd: 4 bits */

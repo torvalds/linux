@@ -23,11 +23,11 @@ jackson@realtek.com.tw
 */
 
 #define _RTW_IO_C_
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtw_io.h>
-#include <osdep_intf.h>
-#include <usb_ops.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtw_io.h"
+#include "../include/osdep_intf.h"
+#include "../include/usb_ops.h"
 
 #define rtw_le16_to_cpu(val)		le16_to_cpu(val)
 #define rtw_le32_to_cpu(val)		le32_to_cpu(val)

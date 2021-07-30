@@ -4,8 +4,8 @@
 #ifndef __RTW_AP_H_
 #define __RTW_AP_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #ifdef CONFIG_88EU_AP_MODE
 

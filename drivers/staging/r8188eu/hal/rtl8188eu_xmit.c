@@ -2,12 +2,12 @@
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
 #define _RTL8188E_XMIT_C_
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
-#include <osdep_intf.h>
-#include <usb_ops.h>
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
+#include "../include/osdep_intf.h"
+#include "../include/usb_ops.h"
+#include "../include/rtl8188e_hal.h"
 
 s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
 {

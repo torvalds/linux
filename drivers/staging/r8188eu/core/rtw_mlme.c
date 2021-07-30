@@ -4,17 +4,17 @@
 #define _RTW_MLME_C_
 
 #include <linux/version.h>
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <xmit_osdep.h>
-#include <hal_intf.h>
-#include <mlme_osdep.h>
-#include <sta_info.h>
-#include <wifi.h>
-#include <wlan_bssdef.h>
-#include <rtw_ioctl_set.h>
-#include <usb_osintf.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/xmit_osdep.h"
+#include "../include/hal_intf.h"
+#include "../include/mlme_osdep.h"
+#include "../include/sta_info.h"
+#include "../include/wifi.h"
+#include "../include/wlan_bssdef.h"
+#include "../include/rtw_ioctl_set.h"
+#include "../include/usb_osintf.h"
 
 extern unsigned char	MCS_rate_2R[16];
 extern unsigned char	MCS_rate_1R[16];

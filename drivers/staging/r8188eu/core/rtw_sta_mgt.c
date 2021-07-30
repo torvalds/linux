@@ -3,12 +3,12 @@
 
 #define _RTW_STA_MGT_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <xmit_osdep.h>
-#include <mlme_osdep.h>
-#include <sta_info.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/xmit_osdep.h"
+#include "../include/mlme_osdep.h"
+#include "../include/sta_info.h"
 
 static void _rtw_init_stainfo(struct sta_info *psta)
 {

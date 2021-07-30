@@ -12,7 +12,7 @@ Major Change History:
 	2011-08-12 Page            Create.
 
 --*/
-#include "odm_precomp.h"
+#include "../include/odm_precomp.h"
 
 /*  Rate adaptive parameters */
 

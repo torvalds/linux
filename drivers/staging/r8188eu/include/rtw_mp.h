@@ -125,7 +125,7 @@ struct mp_tx {
 	void *PktTxThread;
 };
 
-#include <Hal8188EPhyCfg.h>
+#include "Hal8188EPhyCfg.h"
 
 #define MP_MAX_LINES		1000
 #define MP_MAX_LINES_BYTES	256

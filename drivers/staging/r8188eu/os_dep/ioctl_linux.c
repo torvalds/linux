@@ -3,21 +3,21 @@
 
 #define _IOCTL_LINUX_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wlan_bssdef.h>
-#include <rtw_debug.h>
-#include <wifi.h>
-#include <rtw_mlme.h>
-#include <rtw_mlme_ext.h>
-#include <rtw_ioctl.h>
-#include <rtw_ioctl_set.h>
-#include <rtw_mp_ioctl.h>
-#include <usb_ops.h>
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wlan_bssdef.h"
+#include "../include/rtw_debug.h"
+#include "../include/wifi.h"
+#include "../include/rtw_mlme.h"
+#include "../include/rtw_mlme_ext.h"
+#include "../include/rtw_ioctl.h"
+#include "../include/rtw_ioctl_set.h"
+#include "../include/rtw_mp_ioctl.h"
+#include "../include/usb_ops.h"
+#include "../include/rtl8188e_hal.h"
 
-#include <rtw_mp.h>
-#include <rtw_iol.h>
+#include "../include/rtw_mp.h"
+#include "../include/rtw_iol.h"
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 30)
 
@@ -5587,7 +5587,7 @@ out:
 }
 #endif
 
-#include <rtw_android.h>
+#include "../include/rtw_android.h"
 static int rtw_wx_set_priv(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *awrq,
@@ -8132,7 +8132,7 @@ exit:
 	return err;
 }
 
-#include <rtw_android.h>
+#include "../include/rtw_android.h"
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct iwreq *wrq = (struct iwreq *)rq;

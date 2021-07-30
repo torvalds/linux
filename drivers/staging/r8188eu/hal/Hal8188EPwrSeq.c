@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "Hal8188EPwrSeq.h"
-#include <rtl8188e_hal.h>
+#include "../include/Hal8188EPwrSeq.h"
+#include "../include/rtl8188e_hal.h"
 
 /*
     drivers should parse below arrays and do the corresponding actions

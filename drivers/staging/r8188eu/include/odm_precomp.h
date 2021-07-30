@@ -10,9 +10,9 @@
 
 /* 2 Config Flags and Structs - defined by each ODM Type */
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <hal_intf.h>
+#include "osdep_service.h"
+#include "drv_types.h"
+#include "hal_intf.h"
 
 /* 2 OutSrc Header Files */
 

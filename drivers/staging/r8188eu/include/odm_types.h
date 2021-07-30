@@ -25,7 +25,7 @@ enum RT_SPINLOCK_TYPE {
 	RT_TEMP = 1,
 };
 
-#include <basic_types.h>
+#include "basic_types.h"
 
 #define DEV_BUS_TYPE	RT_USB_INTERFACE
 

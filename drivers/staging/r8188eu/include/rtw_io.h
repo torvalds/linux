@@ -4,8 +4,8 @@
 #ifndef _RTW_IO_H_
 #define _RTW_IO_H_
 
-#include <osdep_service.h>
-#include <osdep_intf.h>
+#include "osdep_service.h"
+#include "osdep_intf.h"
 
 #include <asm/byteorder.h>
 #include <linux/semaphore.h>

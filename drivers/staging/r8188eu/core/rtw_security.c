@@ -3,10 +3,10 @@
 
 #define  _RTW_SECURITY_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
-#include <osdep_intf.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
+#include "../include/osdep_intf.h"
 
 /* WEP related ===== */
 

@@ -4,8 +4,8 @@
 #ifndef __RTW_IOL_H_
 #define __RTW_IOL_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 #define IOREG_CMD_END_LEN	4
 

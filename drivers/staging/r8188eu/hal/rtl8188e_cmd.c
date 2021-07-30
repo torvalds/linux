@@ -3,14 +3,14 @@
 
 #define _RTL8188E_CMD_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <cmd_osdep.h>
-#include <mlme_osdep.h>
-#include <rtw_ioctl_set.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/cmd_osdep.h"
+#include "../include/mlme_osdep.h"
+#include "../include/rtw_ioctl_set.h"
 
-#include <rtl8188e_hal.h>
+#include "../include/rtl8188e_hal.h"
 
 #define RTL88E_MAX_H2C_BOX_NUMS		4
 #define RTL88E_MAX_CMD_LEN		7

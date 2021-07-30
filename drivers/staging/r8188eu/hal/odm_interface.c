@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "odm_precomp.h"
+#include "../include/odm_precomp.h"
 /*  ODM IO Relative API. */
 
 u8 ODM_Read1Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr)

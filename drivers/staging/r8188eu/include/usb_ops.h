@@ -4,9 +4,9 @@
 #ifndef __USB_OPS_H_
 #define __USB_OPS_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <osdep_intf.h>
+#include "osdep_service.h"
+#include "drv_types.h"
+#include "osdep_intf.h"
 
 #define REALTEK_USB_VENQT_READ		0xC0
 #define REALTEK_USB_VENQT_WRITE		0x40
@@ -21,7 +21,7 @@ enum {
 #define MAX_VENDOR_REQ_CMD_SIZE	254	/* 8188cu SIE Support */
 #define MAX_USB_IO_CTL_SIZE	(MAX_VENDOR_REQ_CMD_SIZE + ALIGNMENT_UNIT)
 
-#include <usb_ops_linux.h>
+#include "usb_ops_linux.h"
 
 void rtl8188eu_set_hw_type(struct adapter *padapter);
 #define hal_set_hw_type rtl8188eu_set_hw_type

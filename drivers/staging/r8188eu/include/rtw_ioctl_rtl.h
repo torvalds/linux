@@ -4,8 +4,8 @@
 #ifndef _RTW_IOCTL_RTL_H_
 #define _RTW_IOCTL_RTL_H_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 /*  oid_rtl_seg_01_01 ************** */
 int oid_rt_get_signal_quality_hdl(struct oid_par_priv *poid_par_priv);/* 84 */

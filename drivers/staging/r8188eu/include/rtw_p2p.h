@@ -4,7 +4,7 @@
 #ifndef __RTW_P2P_H_
 #define __RTW_P2P_H_
 
-#include <drv_types.h>
+#include "drv_types.h"
 
 u32 build_beacon_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf);
 u32 build_probe_resp_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf);

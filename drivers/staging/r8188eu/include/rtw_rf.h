@@ -4,7 +4,7 @@
 #ifndef	__RTW_RF_H_
 #define __RTW_RF_H_
 
-#include <rtw_cmd.h>
+#include "rtw_cmd.h"
 
 #define OFDM_PHY		1
 #define MIXED_PHY		2

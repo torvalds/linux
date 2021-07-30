@@ -25,10 +25,9 @@
 
 #define _RTL8188E_RF6052_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtl8188e_hal.h"
 
 /*---------------------------Define Local Constant---------------------------*/
 /*  Define local structure for debug!!!!! */

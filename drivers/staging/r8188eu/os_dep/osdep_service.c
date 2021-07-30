@@ -3,11 +3,11 @@
 
 #define _OSDEP_SERVICE_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <linux/vmalloc.h>
-#include <rtw_ioctl_set.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/linux/vmalloc.h"
+#include "../include/rtw_ioctl_set.h"
 
 /*
 * Translate the OS dependent @param error_code to OS independent RTW_STATUS_CODE

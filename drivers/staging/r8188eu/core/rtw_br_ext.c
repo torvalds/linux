@@ -3,26 +3,26 @@
 
 #define _RTW_BR_EXT_C_
 
-#include <linux/if_arp.h>
-#include <net/ip.h>
-#include <net/ipx.h>
-#include <linux/atalk.h>
-#include <linux/udp.h>
-#include <linux/if_pppox.h>
+#include "../include/linux/if_arp.h"
+#include "../include/net/ip.h"
+#include "../include/net/ipx.h"
+#include "../include/linux/atalk.h"
+#include "../include/linux/udp.h"
+#include "../include/linux/if_pppox.h"
 
-#include <drv_types.h>
-#include "rtw_br_ext.h"
-#include <usb_osintf.h>
-#include <recv_osdep.h>
+#include "../include/drv_types.h"
+#include "../include/rtw_br_ext.h"
+#include "../include/usb_osintf.h"
+#include "../include/recv_osdep.h"
 
 #ifndef csum_ipv6_magic
-#include <net/ip6_checksum.h>
+#include "../include/net/ip6_checksum.h"
 #endif
 
-#include <linux/ipv6.h>
-#include <linux/icmpv6.h>
-#include <net/ndisc.h>
-#include <net/checksum.h>
+#include "../include/linux/ipv6.h"
+#include "../include/linux/icmpv6.h"
+#include "../include/net/ndisc.h"
+#include "../include/net/checksum.h"
 
 #define NAT25_IPV4		01
 #define NAT25_IPV6		02

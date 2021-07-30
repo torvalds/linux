@@ -3,10 +3,10 @@
 
 #define _RTW_AP_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <wifi.h>
-#include <ieee80211.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/wifi.h"
+#include "../include/ieee80211.h"
 
 #ifdef CONFIG_88EU_AP_MODE
 

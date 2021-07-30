@@ -3,13 +3,13 @@
 
 #define _RTW_CMD_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <recv_osdep.h>
-#include <cmd_osdep.h>
-#include <mlme_osdep.h>
-#include <rtw_br_ext.h>
-#include <rtw_mlme_ext.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/recv_osdep.h"
+#include "../include/cmd_osdep.h"
+#include "../include/mlme_osdep.h"
+#include "../include/rtw_br_ext.h"
+#include "../include/rtw_mlme_ext.h"
 
 /*
 Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.

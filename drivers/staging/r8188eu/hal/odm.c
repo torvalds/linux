@@ -3,7 +3,7 @@
 
 /*  include files */
 
-#include "odm_precomp.h"
+#include "../include/odm_precomp.h"
 
 static const u16 dB_Invert_Table[8][12] = {
 	{1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4},

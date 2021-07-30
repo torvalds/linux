@@ -4,8 +4,8 @@
 #ifndef _RTW_SRESET_C_
 #define _RTW_SRESET_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
+#include "osdep_service.h"
+#include "drv_types.h"
 
 struct sreset_priv {
 	struct mutex	silentreset_mutex;
@@ -15,7 +15,7 @@ struct sreset_priv {
 	unsigned long last_tx_complete_time;
 };
 
-#include <rtl8188e_hal.h>
+#include "rtl8188e_hal.h"
 
 #define	WIFI_STATUS_SUCCESS		0
 #define	USB_VEN_REQ_CMD_FAIL	BIT0

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "odm_precomp.h"
-
-#include <rtw_iol.h>
+#include "../include/odm_precomp.h"
+#include "../include/rtw_iol.h"
 
 #define read_next_pair(array, v1, v2, i)		\
 	 do {						\

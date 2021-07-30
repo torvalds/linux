@@ -2,9 +2,9 @@
 /* Copyright(c) 2007 - 2012 Realtek Corporation. */
 
 #define _HAL_INTF_C_
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <hal_intf.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/hal_intf.h"
 
 void rtw_hal_chip_configure(struct adapter *adapt)
 {

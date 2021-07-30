@@ -3,15 +3,15 @@
 
 #define _HCI_HAL_INIT_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-#include <rtw_efuse.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtw_efuse.h"
 
-#include <rtl8188e_hal.h>
-#include <rtl8188e_led.h>
-#include <rtw_iol.h>
-#include <usb_ops.h>
-#include <usb_osintf.h>
+#include "../include/rtl8188e_hal.h"
+#include "../include/rtl8188e_led.h"
+#include "../include/rtw_iol.h"
+#include "../include/usb_ops.h"
+#include "../include/usb_osintf.h"
 
 #define		HAL_MAC_ENABLE	1
 #define		HAL_BB_ENABLE		1

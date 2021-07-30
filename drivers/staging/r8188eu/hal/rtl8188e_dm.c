@@ -4,10 +4,9 @@
 /*  This file is for 92CE/92CU dynamic mechanism only */
 #define _RTL8188E_DM_C_
 
-#include <osdep_service.h>
-#include <drv_types.h>
-
-#include <rtl8188e_hal.h>
+#include "../include/osdep_service.h"
+#include "../include/drv_types.h"
+#include "../include/rtl8188e_hal.h"
 
 static void dm_CheckStatistics(struct adapter *Adapter)
 {

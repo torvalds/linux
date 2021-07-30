@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "odm_precomp.h"
-#include <rtw_iol.h>
+#include "../include/odm_precomp.h"
+#include "../include/rtw_iol.h"
 
 static bool Checkcondition(const u32  condition, const u32  hex)
 {
