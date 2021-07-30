@@ -396,6 +396,9 @@ struct task_group {
 	struct cfs_rq		**cfs_rq;
 	unsigned long		shares;
 
+	/* A positive value indicates that this is a SCHED_IDLE group. */
+	int			idle;
+
 #ifdef	CONFIG_SMP
 	/*
 	 * load_avg can be heavily contended at clock tick time, so put
@@ -505,6 +508,8 @@ extern void sched_move_task(struct task_struct *tsk);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
+extern int sched_group_set_idle(struct task_group *tg, long idle);
+
 #ifdef CONFIG_SMP
 extern void set_task_rq_fair(struct sched_entity *se,
 			     struct cfs_rq *prev, struct cfs_rq *next);
@@ -600,6 +605,9 @@ struct cfs_rq {
 	int			on_list;
 	struct list_head	leaf_cfs_rq_list;
 	struct task_group	*tg;	/* group that "owns" this runqueue */
+
+	/* Locally cached copy of our task_group's idle value */
+	int			idle;
 
 #ifdef CONFIG_CFS_BANDWIDTH
 	int			runtime_enabled;
