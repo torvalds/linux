@@ -7,6 +7,8 @@
 /* 3 IQ Calibration */
 /* 3============================================================ */
 
+#define ODM_TARGET_CHNL_NUM_2G_5G	59
+
 u8 ODM_GetRightChnlPlaceforIQK(u8 chnl)
 {
 	u8	channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
