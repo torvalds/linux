@@ -201,7 +201,7 @@ u8 rtw_hal_intf_ps_func(struct adapter *adapt,
 s32 rtw_hal_xmitframe_enqueue(struct adapter *padapter,
 			      struct xmit_frame *pxmitframe)
 {
-	if(padapter->HalFunc.hal_xmitframe_enqueue)
+	if (padapter->HalFunc.hal_xmitframe_enqueue)
 		return padapter->HalFunc.hal_xmitframe_enqueue(padapter, pxmitframe);
 	return false;
 }

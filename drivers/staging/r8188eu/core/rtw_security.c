@@ -1229,7 +1229,7 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 					length = pattrib->last_txcmdsz-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
 
 					aes_cipher(prwskey, pattrib->hdrlen, pframe, length);
-				} else{
+				} else {
 					length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len ;
 
 					aes_cipher(prwskey, pattrib->hdrlen, pframe, length);
@@ -1237,7 +1237,7 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 					pframe = (u8 *)RND4((size_t)(pframe));
 				}
 			}
-		} else{
+		} else {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_aes_encrypt: stainfo==NULL!!!\n"));
 			res = _FAIL;
 		}

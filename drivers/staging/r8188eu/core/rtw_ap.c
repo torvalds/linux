@@ -1028,7 +1028,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		/* set  Max Rx AMPDU size  to 64K */
 		pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_FACTOR & 0x03);
 
-		if(rf_type == RF_1T1R) {
+		if (rf_type == RF_1T1R) {
 			pht_cap->mcs.rx_mask[0] = 0xff;
 			pht_cap->mcs.rx_mask[1] = 0x0;
 		}

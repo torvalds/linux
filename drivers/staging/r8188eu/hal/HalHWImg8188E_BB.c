@@ -539,7 +539,7 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 5);
 						} else if (v1 == 0xf9) {
 							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 1);
-						} else{
+						} else {
 							if (v1 == 0xa24)
 								dm_odm->RFCalibrateInfo.RegA24 = v2;
 

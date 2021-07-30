@@ -77,7 +77,7 @@ void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 		ODM_delay_us(5);
 	} else if (Addr == 0xf9) {
 		ODM_delay_us(1);
-	} else{
+	} else {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
 			     ("===> @@@@@@@ ODM_ConfigBBWithHeaderFile: [PHY_REG] %08X %08X %08X\n",
 			     Addr, Bitmask, Data));

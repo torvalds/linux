@@ -1741,7 +1741,7 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	} else if (IS_2T2R(ChipVersion)) {
 		pHalData->rf_type = RF_2T2R;
 		pHalData->NumTotalRFPath = 2;
-	} else{
+	} else {
 		pHalData->rf_type = RF_1T1R;
 		pHalData->NumTotalRFPath = 1;
 	}

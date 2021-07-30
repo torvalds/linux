@@ -1317,7 +1317,7 @@ static u8 search_max_mac_id(struct adapter *padapter)
 }
 
 /* FOR AP , AD-HOC mode */
-void rtw_sta_media_status_rpt(struct adapter *adapter,struct sta_info *psta,
+void rtw_sta_media_status_rpt(struct adapter *adapter, struct sta_info *psta,
 			      u32 mstatus)
 {
 	u16 media_status_rpt;
@@ -1330,7 +1330,7 @@ void rtw_sta_media_status_rpt(struct adapter *adapter,struct sta_info *psta,
 	rtw_hal_set_hwreg(adapter, HW_VAR_TX_RPT_MAX_MACID, (u8 *)&macid);
 	/* MACID|OPMODE:1 connect */
 	media_status_rpt = (u16)((psta->mac_id<<8) | mstatus);
-	rtw_hal_set_hwreg(adapter,HW_VAR_H2C_MEDIA_STATUS_RPT,
+	rtw_hal_set_hwreg(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT,
 			  (u8 *)&media_status_rpt);
 }
 
@@ -1428,7 +1428,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 	spin_lock_bh(&pmlmepriv->lock);
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		if(adapter->registrypriv.wifi_spec == 1)
+		if (adapter->registrypriv.wifi_spec == 1)
 			rtw_set_roaming(adapter, 0); /* don't roam */
 		else if (rtw_to_roaming(adapter) > 0)
 			pmlmepriv->to_roaming--; /* this stadel_event is caused by roaming, decrease to_roaming */
@@ -1651,7 +1651,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	if (rtw_is_desired_network(adapter, competitor)  == false)
 		goto exit;
 
-	if(rtw_to_roaming(adapter) > 0) {
+	if (rtw_to_roaming(adapter) > 0) {
 		if (rtw_get_passing_time_ms((u32)competitor->last_scanned) >= RTW_SCAN_RESULT_EXPIRE ||
 		    is_same_ess(&competitor->network, &pmlmepriv->cur_network.network) == false)
 			goto exit;
@@ -1668,7 +1668,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 			(*candidate)->network.Ssid.Ssid,
 			(*candidate)->network.MacAddress,
 			(int)(*candidate)->network.Rssi);
-		DBG_88E("[to_roaming:%u]\n",rtw_to_roaming(adapter));
+		DBG_88E("[to_roaming:%u]\n", rtw_to_roaming(adapter));
 	}
 
 exit:
