@@ -868,6 +868,7 @@ struct ctnetlink_filter {
 	struct nf_conntrack_zone zone;
 
 	struct ctnetlink_filter_u32 mark;
+	struct ctnetlink_filter_u32 status;
 };
 
 static const struct nla_policy cta_filter_nla_policy[CTA_FILTER_MAX + 1] = {
@@ -927,6 +928,28 @@ static int ctnetlink_filter_parse_mark(struct ctnetlink_filter_u32 *mark,
 	return 0;
 }
 
+static int ctnetlink_filter_parse_status(struct ctnetlink_filter_u32 *status,
+					 const struct nlattr * const cda[])
+{
+	if (cda[CTA_STATUS]) {
+		status->val = ntohl(nla_get_be32(cda[CTA_STATUS]));
+		if (cda[CTA_STATUS_MASK])
+			status->mask = ntohl(nla_get_be32(cda[CTA_STATUS_MASK]));
+		else
+			status->mask = status->val;
+
+		/* status->val == 0? always true, else always false. */
+		if (status->mask == 0)
+			return -EINVAL;
+	} else if (cda[CTA_STATUS_MASK]) {
+		return -EINVAL;
+	}
+
+	/* CTA_STATUS is NLA_U32, if this fires UAPI needs to be extended */
+	BUILD_BUG_ON(__IPS_MAX_BIT >= 32);
+	return 0;
+}
+
 static struct ctnetlink_filter *
 ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 {
@@ -945,6 +968,10 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 	filter->family = family;
 
 	err = ctnetlink_filter_parse_mark(&filter->mark, cda);
+	if (err)
+		goto err_filter;
+
+	err = ctnetlink_filter_parse_status(&filter->status, cda);
 	if (err)
 		goto err_filter;
 
@@ -1001,7 +1028,7 @@ err_filter:
 
 static bool ctnetlink_needs_filter(u8 family, const struct nlattr * const *cda)
 {
-	return family || cda[CTA_MARK] || cda[CTA_FILTER];
+	return family || cda[CTA_MARK] || cda[CTA_FILTER] || cda[CTA_STATUS];
 }
 
 static int ctnetlink_start(struct netlink_callback *cb)
@@ -1094,6 +1121,7 @@ static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
 {
 	struct ctnetlink_filter *filter = data;
 	struct nf_conntrack_tuple *tuple;
+	u32 status;
 
 	if (filter == NULL)
 		goto out;
@@ -1125,6 +1153,9 @@ static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
 	if ((ct->mark & filter->mark.mask) != filter->mark.val)
 		goto ignore_entry;
 #endif
+	status = (u32)READ_ONCE(ct->status);
+	if ((status & filter->status.mask) != filter->status.val)
+		goto ignore_entry;
 
 out:
 	return 1;
@@ -1507,6 +1538,7 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_LABELS_MASK]	= { .type = NLA_BINARY,
 				    .len = NF_CT_LABELS_MAX_SIZE },
 	[CTA_FILTER]		= { .type = NLA_NESTED },
+	[CTA_STATUS_MASK]	= { .type = NLA_U32 },
 };
 
 static int ctnetlink_flush_iterate(struct nf_conn *ct, void *data)
