@@ -208,6 +208,9 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 	if (!intel_guc_submission_is_used(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
+	if (intel_guc_slpc_is_used(guc))
+		flags |= GUC_CTL_ENABLE_SLPC;
+
 	return flags;
 }
 
