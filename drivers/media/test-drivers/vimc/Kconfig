@@ -7,6 +7,7 @@ config VIDEO_VIMC
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_TPG
 	help
 	  Skeleton driver for Virtual Media Controller
