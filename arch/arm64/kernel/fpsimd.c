@@ -162,6 +162,8 @@ extern void __percpu *efi_sve_state;
 DEFINE_PER_CPU(bool, fpsimd_context_busy);
 EXPORT_PER_CPU_SYMBOL(fpsimd_context_busy);
 
+static void fpsimd_bind_task_to_cpu(void);
+
 static void __get_cpu_fpsimd_context(void)
 {
 	bool busy = __this_cpu_xchg(fpsimd_context_busy, true);
@@ -1112,7 +1114,7 @@ void fpsimd_signal_preserve_current_state(void)
  * The caller must have ownership of the cpu FPSIMD context before calling
  * this function.
  */
-void fpsimd_bind_task_to_cpu(void)
+static void fpsimd_bind_task_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);
