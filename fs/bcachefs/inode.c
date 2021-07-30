@@ -371,6 +371,22 @@ const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
+static void __bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
+{
+	pr_buf(out, "mode %o flags %x ", inode->bi_mode, inode->bi_flags);
+
+#define x(_name, _bits)						\
+	pr_buf(out, #_name " %llu ", (u64) inode->_name);
+	BCH_INODE_FIELDS()
+#undef  x
+}
+
+void bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
+{
+	pr_buf(out, "inum: %llu ", inode->bi_inum);
+	__bch2_inode_unpacked_to_text(out, inode);
+}
+
 void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 		       struct bkey_s_c k)
 {
@@ -382,12 +398,7 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	pr_buf(out, "mode: %o ", unpacked.bi_mode);
-
-#define x(_name, _bits)						\
-	pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
-	BCH_INODE_FIELDS()
-#undef  x
+	__bch2_inode_unpacked_to_text(out, &unpacked);
 }
 
 const char *bch2_inode_generation_invalid(const struct bch_fs *c,
