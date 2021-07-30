@@ -260,7 +260,8 @@ _bpftool()
 
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
-        local c='--version --json --pretty --bpffs --mapcompat --debug'
+        local c='--version --json --pretty --bpffs --mapcompat --debug \
+	       --use-loader --base-btf'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -278,7 +279,7 @@ _bpftool()
             _sysfs_get_netdevs
             return 0
             ;;
-        file|pinned)
+        file|pinned|-B|--base-btf)
             _filedir
             return 0
             ;;
@@ -291,7 +292,8 @@ _bpftool()
     # Remove all options so completions don't have to deal with them.
     local i
     for (( i=1; i < ${#words[@]}; )); do
-        if [[ ${words[i]::1} == - ]]; then
+        if [[ ${words[i]::1} == - ]] &&
+            [[ ${words[i]} != "-B" ]] && [[ ${words[i]} != "--base-btf" ]]; then
             words=( "${words[@]:0:i}" "${words[@]:i+1}" )
             [[ $i -le $cword ]] && cword=$(( cword - 1 ))
         else
