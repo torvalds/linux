@@ -44,7 +44,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
 	gfs2_lm(sdp, "AIL error\n");
-	gfs2_withdraw(sdp);
+	gfs2_withdraw_delayed(sdp);
 }
 
 /**
