@@ -245,6 +245,28 @@ static int slpc_reset(struct intel_guc_slpc *slpc)
 	return 0;
 }
 
+static u32 slpc_decode_min_freq(struct intel_guc_slpc *slpc)
+{
+	struct slpc_shared_data *data = slpc->vaddr;
+
+	GEM_BUG_ON(!slpc->vma);
+
+	return	DIV_ROUND_CLOSEST(REG_FIELD_GET(SLPC_MIN_UNSLICE_FREQ_MASK,
+				  data->task_state_data.freq) *
+				  GT_FREQUENCY_MULTIPLIER, GEN9_FREQ_SCALER);
+}
+
+static u32 slpc_decode_max_freq(struct intel_guc_slpc *slpc)
+{
+	struct slpc_shared_data *data = slpc->vaddr;
+
+	GEM_BUG_ON(!slpc->vma);
+
+	return	DIV_ROUND_CLOSEST(REG_FIELD_GET(SLPC_MAX_UNSLICE_FREQ_MASK,
+				  data->task_state_data.freq) *
+				  GT_FREQUENCY_MULTIPLIER, GEN9_FREQ_SCALER);
+}
+
 static void slpc_shared_data_reset(struct slpc_shared_data *data)
 {
 	memset(data, 0, sizeof(struct slpc_shared_data));
@@ -292,6 +314,33 @@ int intel_guc_slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 val)
 }
 
 /**
+ * intel_guc_slpc_get_max_freq() - Get max frequency limit for SLPC.
+ * @slpc: pointer to intel_guc_slpc.
+ * @val: pointer to val which will hold max frequency (MHz)
+ *
+ * This function will invoke GuC SLPC action to read the max frequency
+ * limit for unslice.
+ *
+ * Return: 0 on success, non-zero error code on failure.
+ */
+int intel_guc_slpc_get_max_freq(struct intel_guc_slpc *slpc, u32 *val)
+{
+	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	intel_wakeref_t wakeref;
+	int ret = 0;
+
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+		/* Force GuC to update task data */
+		ret = slpc_query_task_state(slpc);
+
+		if (!ret)
+			*val = slpc_decode_max_freq(slpc);
+	}
+
+	return ret;
+}
+
+/**
  * intel_guc_slpc_set_min_freq() - Set min frequency limit for SLPC.
  * @slpc: pointer to intel_guc_slpc.
  * @val: frequency (MHz)
@@ -315,6 +364,33 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 		/* Return standardized err code for sysfs calls */
 		if (ret)
 			ret = -EIO;
+	}
+
+	return ret;
+}
+
+/**
+ * intel_guc_slpc_get_min_freq() - Get min frequency limit for SLPC.
+ * @slpc: pointer to intel_guc_slpc.
+ * @val: pointer to val which will hold min frequency (MHz)
+ *
+ * This function will invoke GuC SLPC action to read the min frequency
+ * limit for unslice.
+ *
+ * Return: 0 on success, non-zero error code on failure.
+ */
+int intel_guc_slpc_get_min_freq(struct intel_guc_slpc *slpc, u32 *val)
+{
+	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	intel_wakeref_t wakeref;
+	int ret = 0;
+
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+		/* Force GuC to update task data */
+		ret = slpc_query_task_state(slpc);
+
+		if (!ret)
+			*val = slpc_decode_min_freq(slpc);
 	}
 
 	return ret;
