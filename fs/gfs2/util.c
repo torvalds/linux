@@ -278,6 +278,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		goto skip_recovery;
 	}
 	sdp->sd_jdesc->jd_inode = inode;
+	d_mark_dontcache(inode);
 
 	/*
 	 * Now wait until recovery is complete.
