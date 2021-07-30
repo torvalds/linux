@@ -120,7 +120,7 @@ static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 	_rtw_mutex_init(&dvobj->usb_vendor_req_mutex);
 
 	dvobj->usb_alloc_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
-	if (dvobj->usb_alloc_vendor_req_buf == NULL) {
+	if (!dvobj->usb_alloc_vendor_req_buf) {
 		DBG_88E("alloc usb_vendor_req_buf failed... /n");
 		rst = _FAIL;
 		goto exit;
@@ -152,7 +152,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_device	*pusbd;
 
 	pdvobjpriv = (struct dvobj_priv *)rtw_zmalloc(sizeof(*pdvobjpriv));
-	if (pdvobjpriv == NULL)
+	if (!pdvobjpriv)
 		goto exit;
 
 	pdvobjpriv->pusbintf = usb_intf;
@@ -603,7 +603,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	int status = _FAIL;
 
 	padapter = (struct adapter *)rtw_zvmalloc(sizeof(*padapter));
-	if (padapter == NULL)
+	if (!padapter)
 		goto exit;
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -620,7 +620,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		goto free_adapter;
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (pnetdev == NULL)
+	if (!pnetdev)
 		goto handle_dualmac;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
@@ -753,14 +753,14 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
-	if (dvobj == NULL) {
+	if (!dvobj) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
 			 ("initialize device object priv Failed!\n"));
 		goto exit;
 	}
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
-	if (if1 == NULL) {
+	if (!if1) {
 		DBG_88E("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}

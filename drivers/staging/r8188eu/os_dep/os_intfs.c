@@ -175,11 +175,11 @@ void rtw_proc_init_one(struct net_device *dev)
 	struct adapter	*padapter = rtw_netdev_priv(dev);
 	u8 rf_type;
 
-	if (rtw_proc == NULL) {
+	if (!rtw_proc) {
 		memcpy(rtw_proc_name, DRV_NAME, sizeof(DRV_NAME));
 
 		rtw_proc = create_proc_entry(rtw_proc_name, S_IFDIR, init_net.proc_net);
-		if (rtw_proc == NULL) {
+		if (!rtw_proc) {
 			DBG_88E(KERN_ERR "Unable to create rtw_proc directory\n");
 			return;
 		}
@@ -191,12 +191,12 @@ void rtw_proc_init_one(struct net_device *dev)
 		}
 	}
 
-	if (padapter->dir_dev == NULL) {
+	if (!padapter->dir_dev) {
 		padapter->dir_dev = create_proc_entry(dev->name,
 					  S_IFDIR | S_IRUGO | S_IXUGO,
 					  rtw_proc);
 		dir_dev = padapter->dir_dev;
-		if (dir_dev == NULL) {
+		if (!dir_dev) {
 			if (rtw_proc_cnt == 0) {
 				if (rtw_proc) {
 					remove_proc_entry(rtw_proc_name, init_net.proc_net);
@@ -721,7 +721,7 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
 
-	if (old_padapter != NULL)
+	if (old_padapter)
 		pnetdev = rtw_alloc_etherdev_with_old_priv(sizeof(struct adapter), (void *)old_padapter);
 	else
 		pnetdev = rtw_alloc_etherdev(sizeof(struct adapter));
@@ -1007,7 +1007,7 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	}
 
 	/*  clear pbuddystruct adapter to avoid access wrong pointer. */
-	if (padapter->pbuddy_adapter != NULL)
+	if (padapter->pbuddy_adapter)
 		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw\n"));

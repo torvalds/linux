@@ -48,7 +48,7 @@ inline u8 *_rtw_zvmalloc(u32 sz)
 {
 	u8	*pbuf;
 	pbuf = _rtw_vmalloc(sz);
-	if (pbuf != NULL)
+	if (pbuf)
 		memset(pbuf, 0, sz);
 	return pbuf;
 }
@@ -70,7 +70,7 @@ u8 *_rtw_zmalloc(u32 sz)
 {
 	u8	*pbuf = _rtw_malloc(sz);
 
-	if (pbuf != NULL)
+	if (pbuf)
 		memset(pbuf, 0, sz);
 	return pbuf;
 }
@@ -80,7 +80,7 @@ void *rtw_malloc2d(int h, int w, int size)
 	int j;
 
 	void **a = (void **)rtw_zmalloc(h*sizeof(void *) + h*w*size);
-	if (a == NULL) {
+	if (!a) {
 		pr_info("%s: alloc memory fail!\n", __func__);
 		return NULL;
 	}
