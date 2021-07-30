@@ -405,7 +405,8 @@ _bpftool()
                             ;;
                         5)
                             local BPFTOOL_PROG_ATTACH_TYPES='msg_verdict \
-                                stream_verdict stream_parser flow_dissector'
+                                skb_verdict stream_verdict stream_parser \
+                                flow_dissector'
                             COMPREPLY=( $( compgen -W "$BPFTOOL_PROG_ATTACH_TYPES" -- "$cur" ) )
                             return 0
                             ;;
@@ -706,7 +707,7 @@ _bpftool()
                                 hash_of_maps devmap devmap_hash sockmap cpumap \
                                 xskmap sockhash cgroup_storage reuseport_sockarray \
                                 percpu_cgroup_storage queue stack sk_storage \
-                                struct_ops inode_storage task_storage'
+                                struct_ops inode_storage task_storage ringbuf'
                             COMPREPLY=( $( compgen -W "$BPFTOOL_MAP_CREATE_TYPES" -- "$cur" ) )
                             return 0
                             ;;

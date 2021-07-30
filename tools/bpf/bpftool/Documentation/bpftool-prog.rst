@@ -48,7 +48,7 @@ PROG COMMANDS
 |		**struct_ops** | **fentry** | **fexit** | **freplace** | **sk_lookup**
 |	}
 |       *ATTACH_TYPE* := {
-|		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
+|		**msg_verdict** | **skb_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
 |	}
 |	*METRICs* := {
 |		**cycles** | **instructions** | **l1d_loads** | **llc_misses**
