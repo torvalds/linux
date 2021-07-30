@@ -2173,9 +2173,6 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	hc.rep_idx = (hc.param >> HV_HYPERCALL_REP_START_OFFSET) & 0xfff;
 	hc.rep = !!(hc.rep_cnt || hc.rep_idx);
 
-	if (hc.fast && is_xmm_fast_hypercall(&hc))
-		kvm_hv_hypercall_read_xmm(&hc);
-
 	trace_kvm_hv_hypercall(hc.code, hc.fast, hc.rep_cnt, hc.rep_idx,
 			       hc.ingpa, hc.outgpa);
 
@@ -2183,6 +2180,9 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		ret = HV_STATUS_ACCESS_DENIED;
 		goto hypercall_complete;
 	}
+
+	if (hc.fast && is_xmm_fast_hypercall(&hc))
+		kvm_hv_hypercall_read_xmm(&hc);
 
 	switch (hc.code) {
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
