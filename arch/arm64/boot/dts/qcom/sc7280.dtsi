@@ -442,6 +442,19 @@
 			#mbox-cells = <2>;
 		};
 
+		qfprom: efuse@784000 {
+			compatible = "qcom,sc7280-qfprom", "qcom,qfprom";
+			reg = <0 0x00784000 0 0xa20>,
+			      <0 0x00780000 0 0xa20>,
+			      <0 0x00782000 0 0x120>,
+			      <0 0x00786000 0 0x1fff>;
+			clocks = <&gcc GCC_SEC_CTRL_CLK_SRC>;
+			clock-names = "core";
+			power-domains = <&rpmhpd SC7280_MX>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		sdhc_1: sdhci@7c4000 {
 			compatible = "qcom,sc7280-sdhci", "qcom,sdhci-msm-v5";
 			status = "disabled";
