@@ -11349,8 +11349,7 @@ static int memslot_rmap_alloc(struct kvm_memory_slot *slot,
 
 	for (i = 0; i < KVM_NR_PAGE_SIZES; ++i) {
 		int level = i + 1;
-		int lpages = gfn_to_index(slot->base_gfn + npages - 1,
-					  slot->base_gfn, level) + 1;
+		int lpages = __kvm_mmu_slot_lpages(slot, npages, level);
 
 		WARN_ON(slot->arch.rmap[i]);
 
@@ -11433,8 +11432,7 @@ static int kvm_alloc_memslot_metadata(struct kvm *kvm,
 		int lpages;
 		int level = i + 1;
 
-		lpages = gfn_to_index(slot->base_gfn + npages - 1,
-				      slot->base_gfn, level) + 1;
+		lpages = __kvm_mmu_slot_lpages(slot, npages, level);
 
 		linfo = kvcalloc(lpages, sizeof(*linfo), GFP_KERNEL_ACCOUNT);
 		if (!linfo)
