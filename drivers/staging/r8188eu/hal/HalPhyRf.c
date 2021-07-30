@@ -7,10 +7,6 @@
 /* 3 IQ Calibration */
 /* 3============================================================ */
 
-void ODM_ResetIQKResult(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 u8 ODM_GetRightChnlPlaceforIQK(u8 chnl)
 {
 	u8	channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
