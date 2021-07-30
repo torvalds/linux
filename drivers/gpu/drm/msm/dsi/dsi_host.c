@@ -849,11 +849,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	if (flags & MIPI_DSI_MODE_VIDEO) {
 		if (flags & MIPI_DSI_MODE_VIDEO_HSE)
 			data |= DSI_VID_CFG0_PULSE_MODE_HSA_HE;
-		if (flags & MIPI_DSI_MODE_VIDEO_HFP)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HFP)
 			data |= DSI_VID_CFG0_HFP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_HBP)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HBP)
 			data |= DSI_VID_CFG0_HBP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_HSA)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HSA)
 			data |= DSI_VID_CFG0_HSA_POWER_STOP;
 		/* Always set low power stop mode for BLLP
 		 * to let command engine send packets
@@ -908,7 +908,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
 
 	data = 0;
-	if (!(flags & MIPI_DSI_MODE_EOT_PACKET))
+	if (!(flags & MIPI_DSI_MODE_NO_EOT_PACKET))
 		data |= DSI_EOT_PACKET_CTRL_TX_EOT_APPEND;
 	dsi_write(msm_host, REG_DSI_EOT_PACKET_CTRL, data);
 

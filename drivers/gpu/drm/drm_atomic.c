@@ -660,7 +660,7 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 		return -ENOSPC;
 	}
 
-	clips = drm_plane_get_damage_clips(new_plane_state);
+	clips = __drm_plane_get_damage_clips(new_plane_state);
 	num_clips = drm_plane_get_damage_clips_count(new_plane_state);
 
 	/* Make sure damage clips are valid and inside the fb. */

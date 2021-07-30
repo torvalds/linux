@@ -1122,6 +1122,36 @@ static const struct panel_desc auo_b133xtn01 = {
 	},
 };
 
+static const struct drm_display_mode auo_b133han05_mode = {
+	.clock = 142600,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 58,
+	.hsync_end = 1920 + 58 + 42,
+	.htotal = 1920 + 58 + 42 + 60,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 3,
+	.vsync_end = 1080 + 3 + 5,
+	.vtotal = 1080 + 3 + 5 + 54,
+};
+
+static const struct panel_desc auo_b133han05 = {
+	.modes = &auo_b133han05_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+	.delay = {
+		.prepare = 100,
+		.enable = 20,
+		.unprepare = 50,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DATA_MSB_TO_LSB,
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
+};
+
 static const struct drm_display_mode auo_b133htn01_mode = {
 	.clock = 150660,
 	.hdisplay = 1920,
@@ -1147,6 +1177,36 @@ static const struct panel_desc auo_b133htn01 = {
 		.enable = 20,
 		.unprepare = 50,
 	},
+};
+
+static const struct drm_display_mode auo_b140han06_mode = {
+	.clock = 141000,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 16,
+	.hsync_end = 1920 + 16 + 16,
+	.htotal = 1920 + 16 + 16 + 152,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 3,
+	.vsync_end = 1080 + 3 + 14,
+	.vtotal = 1080 + 3 + 14 + 19,
+};
+
+static const struct panel_desc auo_b140han06 = {
+	.modes = &auo_b140han06_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 309,
+		.height = 174,
+	},
+	.delay = {
+		.prepare = 100,
+		.enable = 20,
+		.unprepare = 50,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DATA_MSB_TO_LSB,
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
 };
 
 static const struct display_timing auo_g070vvn01_timings = {
@@ -4364,8 +4424,14 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b116xw03",
 		.data = &auo_b116xw03,
 	}, {
+		.compatible = "auo,b133han05",
+		.data = &auo_b133han05,
+	}, {
 		.compatible = "auo,b133htn01",
 		.data = &auo_b133htn01,
+	}, {
+		.compatible = "auo,b140han06",
+		.data = &auo_b140han06,
 	}, {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
@@ -5006,7 +5072,7 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		 MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-		 MIPI_DSI_MODE_EOT_PACKET,
+		 MIPI_DSI_MODE_NO_EOT_PACKET,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 };

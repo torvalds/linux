@@ -1889,14 +1889,13 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		ret = vmw_stdu_init(dev_priv, i);
 
 		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed to initialize STDU %d", i);
+			drm_err(&dev_priv->drm,
+				"Failed to initialize STDU %d", i);
 			return ret;
 		}
 	}
 
 	drm_mode_config_reset(dev);
-
-	DRM_INFO("Screen Target Display device initialized\n");
 
 	return 0;
 }

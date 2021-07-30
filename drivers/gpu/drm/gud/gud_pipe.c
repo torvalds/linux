@@ -3,7 +3,6 @@
  * Copyright 2020 Noralf Trønnes
  */
 
-#include <linux/dma-buf.h>
 #include <linux/lz4.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -15,6 +14,7 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
@@ -168,11 +168,9 @@ static int gud_prep_flush(struct gud_device *gdrm, struct drm_framebuffer *fb,
 
 	vaddr = map.vaddr + fb->offsets[0];
 
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf, DMA_FROM_DEVICE);
-		if (ret)
-			goto vunmap;
-	}
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		goto vunmap;
 retry:
 	if (compression)
 		buf = gdrm->compress_buf;
@@ -225,8 +223,7 @@ retry:
 	}
 
 end_cpu_access:
-	if (import_attach)
-		dma_buf_end_cpu_access(import_attach->dmabuf, DMA_FROM_DEVICE);
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 vunmap:
 	drm_gem_shmem_vunmap(fb->obj[0], &map);
 

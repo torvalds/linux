@@ -54,10 +54,10 @@
 
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20210218"
+#define VMWGFX_DRIVER_DATE "20210722"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 18
-#define VMWGFX_DRIVER_PATCHLEVEL 1
+#define VMWGFX_DRIVER_MINOR 19
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_VALIDATIONS 2048
@@ -367,7 +367,8 @@ enum vmw_display_unit_type {
 	vmw_du_invalid = 0,
 	vmw_du_legacy,
 	vmw_du_screen_object,
-	vmw_du_screen_target
+	vmw_du_screen_target,
+	vmw_du_max
 };
 
 struct vmw_validation_context;

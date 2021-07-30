@@ -549,7 +549,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  *
  * FIXME: The underlying helper functions are named rather inconsistently.
  *
- * Exporting buffers
+ * Importing buffers
  * ~~~~~~~~~~~~~~~~~
  *
  * Importing dma-bufs using drm_gem_prime_import() relies on

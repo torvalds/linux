@@ -1272,7 +1272,8 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 	 * submissions to be able to free up space.
 	 */
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
-	DRM_INFO("Using command buffers with %s pool.\n",
+	drm_info(&dev_priv->drm,
+		 "Using command buffers with %s pool.\n",
 		 (man->using_mob) ? "MOB" : "DMA");
 
 	return 0;

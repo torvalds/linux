@@ -7,7 +7,6 @@
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
@@ -202,21 +201,17 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 {
 	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
 	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem);
-	struct dma_buf_attachment *import_attach = gem->import_attach;
 	void *src = cma_obj->vaddr;
-	int ret = 0;
+	int ret;
 
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
-					       DMA_FROM_DEVICE);
-		if (ret)
-			return ret;
-	}
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return ret;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab(dst, src, fb, clip, !import_attach);
+			drm_fb_swab(dst, src, fb, clip, !gem->import_attach);
 		else
 			drm_fb_memcpy(dst, src, fb, clip);
 		break;
@@ -229,9 +224,8 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		return -EINVAL;
 	}
 
-	if (import_attach)
-		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+
 	return ret;
 }
 EXPORT_SYMBOL(mipi_dbi_buf_copy);
