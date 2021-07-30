@@ -9229,6 +9229,8 @@ enum {
 #define   GEN9_FREQUENCY(x)			((x) << 23)
 #define   GEN6_OFFSET(x)			((x) << 19)
 #define   GEN6_AGGRESSIVE_TURBO			(0 << 15)
+#define   GEN9_SW_REQ_UNSLICE_RATIO_SHIFT	23
+
 #define GEN6_RC_VIDEO_FREQ			_MMIO(0xA00C)
 #define GEN6_RC_CONTROL				_MMIO(0xA090)
 #define   GEN6_RC_CTL_RC6pp_ENABLE		(1 << 16)
