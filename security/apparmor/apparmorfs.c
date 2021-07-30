@@ -811,8 +811,6 @@ struct multi_transaction {
 };
 
 #define MULTI_TRANSACTION_LIMIT (PAGE_SIZE - sizeof(struct multi_transaction))
-/* TODO: replace with per file lock */
-static DEFINE_SPINLOCK(multi_transaction_lock);
 
 static void multi_transaction_kref(struct kref *kref)
 {
@@ -846,10 +844,10 @@ static void multi_transaction_set(struct file *file,
 	AA_BUG(n > MULTI_TRANSACTION_LIMIT);
 
 	new->size = n;
-	spin_lock(&multi_transaction_lock);
+	spin_lock(&file->f_lock);
 	old = (struct multi_transaction *) file->private_data;
 	file->private_data = new;
-	spin_unlock(&multi_transaction_lock);
+	spin_unlock(&file->f_lock);
 	put_multi_transaction(old);
 }
 
@@ -878,9 +876,10 @@ static ssize_t multi_transaction_read(struct file *file, char __user *buf,
 	struct multi_transaction *t;
 	ssize_t ret;
 
-	spin_lock(&multi_transaction_lock);
+	spin_lock(&file->f_lock);
 	t = get_multi_transaction(file->private_data);
-	spin_unlock(&multi_transaction_lock);
+	spin_unlock(&file->f_lock);
+
 	if (!t)
 		return 0;
 
