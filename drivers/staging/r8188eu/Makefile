@@ -15,8 +15,6 @@ EXTRA_CFLAGS += -I$(src)/include
 
 ccflags-y += -D__CHECK_ENDIAN__
 
-CONFIG_AUTOCFG_CP = n
-
 CONFIG_R8188EU = m
 
 CONFIG_USB_HCI = y
@@ -71,11 +69,6 @@ _OS_INTFS_FILES :=				\
 			os_dep/xmit_linux.o
 
 _HAL_INTFS_FILES += $(OUTSRC_FILES)
-
-ifeq ($(CONFIG_AUTOCFG_CP), y)
-
-$(shell cp $(TopDIR)/autoconf_rtl8188e_usb_linux.h $(TopDIR)/include/autoconf.h)
-endif
 
 ifeq ($(CONFIG_BT_COEXIST), y)
 EXTRA_CFLAGS += -DCONFIG_BT_COEXIST
