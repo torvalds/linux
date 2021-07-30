@@ -403,7 +403,7 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 {
 	struct icc_path **ptr, *path;
 
-	ptr = devres_alloc(devm_icc_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_icc_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
