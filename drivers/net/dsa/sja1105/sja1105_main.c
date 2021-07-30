@@ -1456,14 +1456,19 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 	}
 	l2_lookup.destports = BIT(port);
 
+	tmp = l2_lookup;
+
 	rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
-					 SJA1105_SEARCH, &l2_lookup);
-	if (rc == 0) {
+					 SJA1105_SEARCH, &tmp);
+	if (rc == 0 && tmp.index != SJA1105_MAX_L2_LOOKUP_COUNT - 1) {
 		/* Found a static entry and this port is already in the entry's
 		 * port mask => job done
 		 */
-		if ((l2_lookup.destports & BIT(port)) && l2_lookup.lockeds)
+		if ((tmp.destports & BIT(port)) && tmp.lockeds)
 			return 0;
+
+		l2_lookup = tmp;
+
 		/* l2_lookup.index is populated by the switch in case it
 		 * found something.
 		 */
