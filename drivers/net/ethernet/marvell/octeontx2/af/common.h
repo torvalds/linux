@@ -150,6 +150,7 @@ enum nix_scheduler {
 #define DFLT_RR_WEIGHT			71
 #define DFLT_RR_QTM	((DFLT_RR_WEIGHT * TXSCH_RR_QTM_MAX) \
 			 / MAX_SCHED_WEIGHT)
+#define CN10K_MAX_DWRR_WEIGHT          16384 /* Weight is 14bit on CN10K */
 
 /* Min/Max packet sizes, excluding FCS */
 #define	NIC_HW_MIN_FRS			40
