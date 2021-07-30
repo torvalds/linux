@@ -25,9 +25,6 @@ enum {
 			    value, index, data, size, timeout_ms)	\
 	usb_control_msg((dev), (pipe), (request), (requesttype), (value),\
 			(index), (data), (size), (timeout_ms))
-#define rtw_usb_bulk_msg(usb_dev, pipe, data, len, actual_length, timeout_ms) \
-	usb_bulk_msg((usb_dev), (pipe), (data), (len),			\
-		     (actual_length), (timeout_ms))
 #include <usb_ops_linux.h>
 
 void rtl8188eu_set_hw_type(struct adapter *padapter);
