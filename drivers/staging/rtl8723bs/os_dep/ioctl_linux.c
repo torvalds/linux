@@ -84,7 +84,7 @@ static char *translate_scan(struct adapter *padapter,
 	u32 i = 0;
 	u8 bw_40MHz = 0, short_GI = 0;
 	u16 mcs_rate = 0, vht_data_rate = 0;
-	u8 ie_offset = (pnetwork->network.Reserved[0] == 2 ? 0 : 12);
+	u8 ie_offset = (pnetwork->network.reserved[0] == 2 ? 0 : 12);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	u8 ss, sq;
 
@@ -102,7 +102,7 @@ static char *translate_scan(struct adapter *padapter,
 	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.ssid);
 
 	/* parsing HT_CAP_IE */
-	if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
+	if (pnetwork->network.reserved[0] == 2) { /*  Probe Request */
 		p = rtw_get_ie(&pnetwork->network.ies[0], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.ie_length);
 	} else {
 		p = rtw_get_ie(&pnetwork->network.ies[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.ie_length-12);
@@ -140,7 +140,7 @@ static char *translate_scan(struct adapter *padapter,
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_CHAR_LEN);
 
 	  /* Add mode */
-	if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
+	if (pnetwork->network.reserved[0] == 2) { /*  Probe Request */
 		cap = 0;
 	} else {
 		__le16 le_tmp;
@@ -211,7 +211,7 @@ static char *translate_scan(struct adapter *padapter,
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_PARAM_LEN);
 
 	/* parsing WPA/WPA2 IE */
-	if (pnetwork->network.Reserved[0] != 2) { /*  Probe Request */
+	if (pnetwork->network.reserved[0] != 2) { /*  Probe Request */
 		u8 *buf;
 		u8 wpa_ie[255], rsn_ie[255];
 		u16 wpa_len = 0, rsn_len = 0;
@@ -274,7 +274,7 @@ static char *translate_scan(struct adapter *padapter,
 		u8 *ie_ptr;
 		total_ielen = pnetwork->network.ie_length - ie_offset;
 
-		if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
+		if (pnetwork->network.reserved[0] == 2) { /*  Probe Request */
 			ie_ptr = pnetwork->network.ies;
 			total_ielen = pnetwork->network.ie_length;
 		} else {    /*  Beacon or Probe Respones */
@@ -324,7 +324,7 @@ static char *translate_scan(struct adapter *padapter,
 		if (!buf)
 			goto exit;
 
-		pos = pnetwork->network.Reserved;
+		pos = pnetwork->network.reserved;
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
 		iwe.u.data.length = scnprintf(buf, MAX_WPA_IE_LEN, "fm =%02X%02X", pos[1], pos[0]);

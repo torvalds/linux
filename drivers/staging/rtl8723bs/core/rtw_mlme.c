@@ -483,8 +483,8 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 	}
 
 	if (update_ie) {
-		dst->Reserved[0] = src->Reserved[0];
-		dst->Reserved[1] = src->Reserved[1];
+		dst->reserved[0] = src->reserved[0];
+		dst->reserved[1] = src->reserved[1];
 		memcpy((u8 *)dst, (u8 *)src, get_wlan_bssid_ex_sz(src));
 	}
 
@@ -600,13 +600,13 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 		pnetwork->last_scanned = jiffies;
 
-		/* target.Reserved[0]== 1, means that scanned network is a bcn frame. */
-		if ((pnetwork->network.ie_length > target->ie_length) && (target->Reserved[0] == 1))
+		/* target.reserved[0]== 1, means that scanned network is a bcn frame. */
+		if ((pnetwork->network.ie_length > target->ie_length) && (target->reserved[0] == 1))
 			update_ie = false;
 
 		/*  probe resp(3) > beacon(1) > probe req(2) */
-		if ((target->Reserved[0] != 2) &&
-			(target->Reserved[0] >= pnetwork->network.Reserved[0])
+		if ((target->reserved[0] != 2) &&
+			(target->reserved[0] >= pnetwork->network.reserved[0])
 			) {
 			update_ie = true;
 		} else {

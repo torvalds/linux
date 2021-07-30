@@ -3971,18 +3971,18 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	subtype = GetFrameSubType(pframe);
 
 	if (subtype == WIFI_BEACON) {
-		bssid->Reserved[0] = 1;
+		bssid->reserved[0] = 1;
 		ie_offset = _BEACON_IE_OFFSET_;
 	} else {
 		/*  FIXME : more type */
 		if (subtype == WIFI_PROBERSP) {
 			ie_offset = _PROBERSP_IE_OFFSET_;
-			bssid->Reserved[0] = 3;
+			bssid->reserved[0] = 3;
 		} else if (subtype == WIFI_PROBEREQ) {
 			ie_offset = _PROBEREQ_IE_OFFSET_;
-			bssid->Reserved[0] = 2;
+			bssid->reserved[0] = 2;
 		} else {
-			bssid->Reserved[0] = 0;
+			bssid->reserved[0] = 0;
 			ie_offset = _FIXED_IE_LENGTH_;
 		}
 	}

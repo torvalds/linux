@@ -1223,7 +1223,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	subtype = GetFrameSubType(pframe) >> 4;
 
 	if (subtype == WIFI_BEACON)
-		bssid->Reserved[0] = 1;
+		bssid->reserved[0] = 1;
 
 	bssid->length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
 
