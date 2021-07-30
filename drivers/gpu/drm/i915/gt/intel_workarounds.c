@@ -2000,6 +2000,7 @@ static const struct mcr_range mcr_ranges_xehp[] = {
 	{ .start =  0xdc00, .end =  0xffff },
 	{ .start = 0x17000, .end = 0x17fff },
 	{ .start = 0x24a00, .end = 0x24a7f },
+	{},
 };
 
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
