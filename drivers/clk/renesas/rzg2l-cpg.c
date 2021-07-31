@@ -29,7 +29,7 @@
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
-#include "renesas-rzg2l-cpg.h"
+#include "rzg2l-cpg.h"
 
 #ifdef DEBUG
 #define WARN_DEBUG(x)	WARN_ON(x)
@@ -125,7 +125,7 @@ rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
 						 core->flag, &priv->rmw_lock);
 
 	if (IS_ERR(clk_hw))
-		return NULL;
+		return ERR_CAST(clk_hw);
 
 	return clk_hw->clk;
 }
@@ -175,17 +175,14 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	struct clk_init_data init;
 	const char *parent_name;
 	struct pll_clk *pll_clk;
-	struct clk *clk;
 
 	parent = clks[core->parent & 0xffff];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
-	if (!pll_clk) {
-		clk = ERR_PTR(-ENOMEM);
-		return NULL;
-	}
+	if (!pll_clk)
+		return ERR_PTR(-ENOMEM);
 
 	parent_name = __clk_get_name(parent);
 	init.name = core->name;
@@ -200,11 +197,7 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	pll_clk->priv = priv;
 	pll_clk->type = core->type;
 
-	clk = clk_register(NULL, &pll_clk->hw);
-	if (IS_ERR(clk))
-		kfree(pll_clk);
-
-	return clk;
+	return clk_register(NULL, &pll_clk->hw);
 }
 
 static struct clk
@@ -229,7 +222,7 @@ static struct clk
 
 	case CPG_MOD:
 		type = "module";
-		if (clkidx > priv->num_mod_clks) {
+		if (clkidx >= priv->num_mod_clks) {
 			dev_err(dev, "Invalid %s clock index %u\n", type,
 				clkidx);
 			return ERR_PTR(-EINVAL);
@@ -297,7 +290,7 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	default:
 		goto fail;
-	};
+	}
 
 	if (IS_ERR_OR_NULL(clk))
 		goto fail;
@@ -473,7 +466,6 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 fail:
 	dev_err(dev, "Failed to register %s clock %s: %ld\n", "module",
 		mod->name, PTR_ERR(clk));
-	kfree(clock);
 }
 
 #define rcdev_to_priv(x)	container_of(x, struct rzg2l_cpg_priv, rcdev)
