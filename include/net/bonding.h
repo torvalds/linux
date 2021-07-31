@@ -258,6 +258,7 @@ struct bonding {
 	/* protecting ipsec_list */
 	spinlock_t ipsec_lock;
 #endif /* CONFIG_XFRM_OFFLOAD */
+	struct bpf_prog *xdp_prog;
 };
 
 #define bond_slave_get_rcu(dev) \
