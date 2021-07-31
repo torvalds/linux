@@ -2475,8 +2475,8 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 			goto done;
 		}
 		newpsl->sl_max = newpsl->sl_count = msf->imsf_numsrc;
-		memcpy(newpsl->sl_addr, msf->imsf_slist,
-			msf->imsf_numsrc * sizeof(msf->imsf_slist[0]));
+		memcpy(newpsl->sl_addr, msf->imsf_slist_flex,
+		       flex_array_size(msf, imsf_slist_flex, msf->imsf_numsrc));
 		err = ip_mc_add_src(in_dev, &msf->imsf_multiaddr,
 			msf->imsf_fmode, newpsl->sl_count, newpsl->sl_addr, 0);
 		if (err) {
@@ -2551,14 +2551,14 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 		count = psl->sl_count;
 	}
 	copycount = count < msf->imsf_numsrc ? count : msf->imsf_numsrc;
-	len = copycount * sizeof(psl->sl_addr[0]);
+	len = flex_array_size(psl, sl_addr, copycount);
 	msf->imsf_numsrc = count;
-	if (put_user(IP_MSFILTER_SIZE(copycount), optlen) ||
-	    copy_to_user(optval, msf, IP_MSFILTER_SIZE(0))) {
+	if (put_user(struct_size(optval, imsf_slist_flex, copycount), optlen) ||
+	    copy_to_user(optval, msf, struct_size(optval, imsf_slist_flex, 0))) {
 		return -EFAULT;
 	}
 	if (len &&
-	    copy_to_user(&optval->imsf_slist[0], psl->sl_addr, len))
+	    copy_to_user(&optval->imsf_slist_flex[0], psl->sl_addr, len))
 		return -EFAULT;
 	return 0;
 done:
