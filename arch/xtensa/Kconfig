@@ -327,7 +327,6 @@ config XTENSA_PLATFORM_ISS
 
 config XTENSA_PLATFORM_XT2000
 	bool "XT2000"
-	select HAVE_IDE
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
