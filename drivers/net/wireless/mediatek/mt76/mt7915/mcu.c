@@ -1775,7 +1775,7 @@ mt7915_mcu_sta_bfer_ht(struct ieee80211_sta *sta, struct mt7915_phy *phy,
 	bf->tx_mode = MT_PHY_TYPE_HT;
 	bf->bf_cap = MT_IBF;
 
-	if (mcs->tx_params & IEEE80211_HT_MCS_TX_RX_DIFF &&
+	if ((mcs->tx_params & IEEE80211_HT_MCS_TX_RX_DIFF) &&
 	    (mcs->tx_params & IEEE80211_HT_MCS_TX_DEFINED))
 		n = FIELD_GET(IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK,
 			      mcs->tx_params);
