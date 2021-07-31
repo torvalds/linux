@@ -104,9 +104,6 @@
 		RT_PRINTK fmt;						\
 		ASSERT(false);						\
 	}
-#define ODM_dbg_enter() { DbgPrint("==> %s\n", __func__); }
-#define ODM_dbg_exit() { DbgPrint("<== %s\n", __func__); }
-#define ODM_dbg_trace(str) { DbgPrint("%s:%s\n", __func__, str); }
 
 void ODM_InitDebugSetting(struct odm_dm_struct *pDM_Odm);
 
