@@ -29,8 +29,7 @@ static struct sk_buff *hellcreek_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *hellcreek_rcv(struct sk_buff *skb,
-				     struct net_device *dev,
-				     struct packet_type *pt)
+				     struct net_device *dev)
 {
 	/* Tag decoding */
 	u8 *tag = skb_tail_pointer(skb) - HELLCREEK_TAG_LEN;

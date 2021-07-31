@@ -25,8 +25,7 @@ static struct sk_buff *xrs700x_xmit(struct sk_buff *skb, struct net_device *dev)
 	return skb;
 }
 
-static struct sk_buff *xrs700x_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt)
+static struct sk_buff *xrs700x_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	int source_port;
 	u8 *trailer;

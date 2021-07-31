@@ -136,7 +136,6 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
  */
 static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 				       struct net_device *dev,
-				       struct packet_type *pt,
 				       unsigned int offset)
 {
 	int source_port;
@@ -182,13 +181,12 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
 }
 
 
-static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-				    struct packet_type *pt)
+static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *nskb;
 
 	/* skb->data points to the EtherType, the tag is right before it */
-	nskb = brcm_tag_rcv_ll(skb, dev, pt, 2);
+	nskb = brcm_tag_rcv_ll(skb, dev, 2);
 	if (!nskb)
 		return nskb;
 
@@ -251,8 +249,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
-					struct net_device *dev,
-					struct packet_type *pt)
+					struct net_device *dev)
 {
 	int source_port;
 	u8 *brcm_tag;
@@ -302,11 +299,10 @@ static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
 }
 
 static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
-					    struct net_device *dev,
-					    struct packet_type *pt)
+					    struct net_device *dev)
 {
 	/* tag is prepended to the packet */
-	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
+	return brcm_tag_rcv_ll(skb, dev, ETH_HLEN);
 }
 
 static const struct dsa_device_ops brcm_prepend_netdev_ops = {

@@ -44,8 +44,7 @@ static struct sk_buff *ar9331_tag_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
-				      struct net_device *ndev,
-				      struct packet_type *pt)
+				      struct net_device *ndev)
 {
 	u8 ver, port;
 	u16 hdr;

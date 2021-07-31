@@ -38,8 +38,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
-				  struct net_device *netdev,
-				  struct packet_type *pt)
+				  struct net_device *netdev)
 {
 	int src_port, switch_id;
 

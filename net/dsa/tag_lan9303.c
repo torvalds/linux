@@ -74,8 +74,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	return skb;
 }
 
-static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt)
+static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	__be16 *lan9303_tag;
 	u16 lan9303_tag1;

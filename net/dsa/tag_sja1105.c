@@ -391,8 +391,7 @@ static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 }
 
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
-				   struct net_device *netdev,
-				   struct packet_type *pt)
+				   struct net_device *netdev)
 {
 	int source_port = -1, switch_id = -1;
 	struct sja1105_meta meta = {0};
@@ -546,8 +545,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 }
 
 static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
-				   struct net_device *netdev,
-				   struct packet_type *pt)
+				   struct net_device *netdev)
 {
 	int source_port = -1, switch_id = -1;
 	bool host_only = false;
