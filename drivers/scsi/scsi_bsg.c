@@ -47,6 +47,7 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 	if (!scsi_cmd_allowed(sreq->cmd, mode))
 		goto out_free_cmd;
 
+	ret = 0;
 	if (hdr->dout_xfer_len) {
 		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->dout_xferp),
 				hdr->dout_xfer_len, GFP_KERNEL);
