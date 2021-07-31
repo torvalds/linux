@@ -72,6 +72,7 @@ static int bsg_transport_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		job->bidi_bio = NULL;
 	}
 
+	ret = 0;
 	if (hdr->dout_xfer_len) {
 		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->dout_xferp),
 				hdr->dout_xfer_len, GFP_KERNEL);
