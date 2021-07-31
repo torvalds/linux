@@ -1112,7 +1112,7 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	tegra_slink_writel(tspi, tspi->def_command2_reg, SLINK_COMMAND2);
 
 	master->dev.of_node = pdev->dev.of_node;
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = spi_register_master(master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
 		goto exit_free_irq;
@@ -1142,6 +1142,8 @@ static int tegra_slink_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_slink_data	*tspi = spi_master_get_devdata(master);
 
+	spi_unregister_master(master);
+
 	free_irq(tspi->irq, tspi);
 
 	pm_runtime_disable(&pdev->dev);
@@ -1151,6 +1153,8 @@ static int tegra_slink_remove(struct platform_device *pdev)
 
 	if (tspi->rx_dma_chan)
 		tegra_slink_deinit_dma_param(tspi, true);
+
+	spi_master_put(master);
 
 	return 0;
 }
