@@ -324,7 +324,7 @@ enum {
 	 * to execute and tries to keep idle cores idle to conserve power;
 	 * however, for example, a per-cpu work item scheduled from an
 	 * interrupt handler on an idle CPU will force the scheduler to
-	 * excute the work item on that CPU breaking the idleness, which in
+	 * execute the work item on that CPU breaking the idleness, which in
 	 * turn may lead to more scheduling choices which are sub-optimal
 	 * in terms of power consumption.
 	 *
