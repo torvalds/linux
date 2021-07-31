@@ -33,14 +33,14 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 int main(int argc, char **argv)
 {
-	struct percpu_net_cnt *percpu_netcnt;
+	union percpu_net_cnt *percpu_netcnt;
 	struct bpf_cgroup_storage_key key;
 	int map_fd, percpu_map_fd;
 	int error = EXIT_FAILURE;
-	struct net_cnt netcnt;
 	struct bpf_object *obj;
 	int prog_fd, cgroup_fd;
 	unsigned long packets;
+	union net_cnt netcnt;
 	unsigned long bytes;
 	int cpu, nproc;
 	__u32 prog_cnt;

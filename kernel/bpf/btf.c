@@ -4825,6 +4825,11 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		const struct bpf_ctx_arg_aux *ctx_arg_info = &prog->aux->ctx_arg_info[i];
 
 		if (ctx_arg_info->offset == off) {
+			if (!ctx_arg_info->btf_id) {
+				bpf_log(log,"invalid btf_id for context argument offset %u\n", off);
+				return false;
+			}
+
 			info->reg_type = ctx_arg_info->reg_type;
 			info->btf = btf_vmlinux;
 			info->btf_id = ctx_arg_info->btf_id;

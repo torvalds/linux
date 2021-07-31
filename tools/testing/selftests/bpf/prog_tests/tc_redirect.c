@@ -13,15 +13,16 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
 #include <linux/limits.h>
 #include <linux/sysctl.h>
-#include <linux/if_tun.h>
-#include <linux/if.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "test_progs.h"
 #include "network_helpers.h"
@@ -389,11 +390,21 @@ done:
 		close(client_fd);
 }
 
+static char *ping_command(int family)
+{
+	if (family == AF_INET6) {
+		/* On some systems 'ping' doesn't support IPv6, so use ping6 if it is present. */
+		if (!system("which ping6 >/dev/null 2>&1"))
+			return "ping6";
+		else
+			return "ping -6";
+	}
+	return "ping";
+}
+
 static int test_ping(int family, const char *addr)
 {
-	const char *ping = family == AF_INET6 ? "ping6" : "ping";
-
-	SYS("ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping, addr);
+	SYS("ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping_command(family), addr);
 	return 0;
 fail:
 	return -1;
