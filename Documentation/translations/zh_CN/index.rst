@@ -104,12 +104,12 @@ TODOList:
    filesystems/index
    virt/index
    infiniband/index
+   accounting/index
 
 TODOList:
 
 * driver-api/index
 * locking/index
-* accounting/index
 * block/index
 * cdrom/index
 * ide/index
