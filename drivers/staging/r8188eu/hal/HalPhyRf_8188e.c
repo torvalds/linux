@@ -364,7 +364,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
 phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
 {
-	u32 regeac, regE94, regE9C, regEA4;
+	u32 regeac, regE94, regE9C;
 	u8 result = 0x00;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
@@ -391,7 +391,6 @@ phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
 	regeac = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_A_2, bMaskDWord);
 	regE94 = ODM_GetBBReg(dm_odm, rTx_Power_Before_IQK_A, bMaskDWord);
 	regE9C = ODM_GetBBReg(dm_odm, rTx_Power_After_IQK_A, bMaskDWord);
-	regEA4 = ODM_GetBBReg(dm_odm, rRx_Power_Before_IQK_A_2, bMaskDWord);
 
 	if (!(regeac & BIT28) &&
 	    (((regE94 & 0x03FF0000)>>16) != 0x142) &&
@@ -1091,7 +1090,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate, Indexforchannel;
 	bool pathaok, pathbok;
-	s32 RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC;
+	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC, RegEC4;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
 	u32 IQK_BB_REG_92C[IQK_BB_REG_NUM] = {
@@ -1170,18 +1169,15 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		RegE94 = result[i][0];
 		RegE9C = result[i][1];
 		RegEA4 = result[i][2];
-		RegEAC = result[i][3];
 		RegEB4 = result[i][4];
 		RegEBC = result[i][5];
 		RegEC4 = result[i][6];
-		RegECC = result[i][7];
 	}
 
 	if (final_candidate != 0xff) {
 		RegE94 = result[final_candidate][0];
 		RegE9C = result[final_candidate][1];
 		RegEA4 = result[final_candidate][2];
-		RegEAC = result[final_candidate][3];
 		RegEB4 = result[final_candidate][4];
 		RegEBC = result[final_candidate][5];
 		dm_odm->RFCalibrateInfo.RegE94 = RegE94;
@@ -1189,7 +1185,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegEB4 = RegEB4;
 		dm_odm->RFCalibrateInfo.RegEBC = RegEBC;
 		RegEC4 = result[final_candidate][6];
-		RegECC = result[final_candidate][7];
 		pathaok = true;
 		pathbok = true;
 	} else {
