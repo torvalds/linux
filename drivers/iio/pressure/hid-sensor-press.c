@@ -13,17 +13,24 @@
 #include <linux/iio/buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
-#define CHANNEL_SCAN_INDEX_PRESSURE 0
+enum {
+	CHANNEL_SCAN_INDEX_PRESSURE,
+	CHANNEL_SCAN_INDEX_TIMESTAMP,
+};
 
 struct press_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info press_attr;
-	u32 press_data;
+	struct {
+		u32 press_data;
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
 	int value_offset;
+	s64 timestamp;
 };
 
 static const u32 press_sensitivity_addresses[] = {
@@ -41,7 +48,9 @@ static const struct iio_chan_spec press_channels[] = {
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_PRESSURE,
-	}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
+
 };
 
 /* Adjust channel real bits based on report descriptor */
@@ -154,14 +163,6 @@ static const struct iio_info press_info = {
 	.write_raw = &press_write_raw,
 };
 
-/* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
-					int len)
-{
-	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers(indio_dev, data);
-}
-
 /* Callback handler to send event after all samples are received and captured */
 static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 				unsigned usage_id,
@@ -171,10 +172,13 @@ static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct press_state *press_state = iio_priv(indio_dev);
 
 	dev_dbg(&indio_dev->dev, "press_proc_event\n");
-	if (atomic_read(&press_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				&press_state->press_data,
-				sizeof(press_state->press_data));
+	if (atomic_read(&press_state->common_attributes.data_ready)) {
+		if (!press_state->timestamp)
+			press_state->timestamp = iio_get_time_ns(indio_dev);
+
+		iio_push_to_buffers_with_timestamp(
+			indio_dev, &press_state->scan, press_state->timestamp);
+	}
 
 	return 0;
 }
@@ -191,8 +195,12 @@ static int press_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE:
-		press_state->press_data = *(u32 *)raw_data;
+		press_state->scan.press_data = *(u32 *)raw_data;
 		ret = 0;
+		break;
+	case HID_USAGE_SENSOR_TIME_TIMESTAMP:
+		press_state->timestamp = hid_sensor_convert_timestamp(
+			&press_state->common_attributes, *(s64 *)raw_data);
 		break;
 	default:
 		break;
