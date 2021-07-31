@@ -275,7 +275,7 @@ static void ast_set_std_reg(struct ast_private *ast,
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, stdtable->seq[0]);
 	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1) , jreg);
+		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1), jreg);
 	}
 
 	/* Set CRTC; except base address and offset */
@@ -498,13 +498,15 @@ static void ast_set_sync_reg(struct ast_private *ast,
 
 	jreg  = ast_io_read8(ast, AST_IO_MISC_PORT_READ);
 	jreg &= ~0xC0;
-	if (vbios_mode->enh_table->flags & NVSync) jreg |= 0x80;
-	if (vbios_mode->enh_table->flags & NHSync) jreg |= 0x40;
+	if (vbios_mode->enh_table->flags & NVSync)
+		jreg |= 0x80;
+	if (vbios_mode->enh_table->flags & NHSync)
+		jreg |= 0x40;
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
 }
 
 static void ast_set_start_address_crt1(struct ast_private *ast,
-				       unsigned offset)
+				       unsigned int offset)
 {
 	u32 addr;
 
@@ -1211,6 +1213,7 @@ static int ast_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret;
 	bool flags = false;
+
 	if (ast->tx_chip_type == AST_TX_DP501) {
 		ast->dp501_maxclk = 0xff;
 		edid = kmalloc(128, GFP_KERNEL);
@@ -1230,8 +1233,8 @@ static int ast_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 		return ret;
-	} else
-		drm_connector_update_edid_property(&ast_connector->base, NULL);
+	}
+	drm_connector_update_edid_property(&ast_connector->base, NULL);
 	return 0;
 }
 
@@ -1271,19 +1274,24 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 	}
 	switch (mode->hdisplay) {
 	case 640:
-		if (mode->vdisplay == 480) flags = MODE_OK;
+		if (mode->vdisplay == 480)
+			flags = MODE_OK;
 		break;
 	case 800:
-		if (mode->vdisplay == 600) flags = MODE_OK;
+		if (mode->vdisplay == 600)
+			flags = MODE_OK;
 		break;
 	case 1024:
-		if (mode->vdisplay == 768) flags = MODE_OK;
+		if (mode->vdisplay == 768)
+			flags = MODE_OK;
 		break;
 	case 1280:
-		if (mode->vdisplay == 1024) flags = MODE_OK;
+		if (mode->vdisplay == 1024)
+			flags = MODE_OK;
 		break;
 	case 1600:
-		if (mode->vdisplay == 1200) flags = MODE_OK;
+		if (mode->vdisplay == 1200)
+			flags = MODE_OK;
 		break;
 	default:
 		return flags;
@@ -1307,6 +1315,7 @@ static enum drm_connector_status ast_connector_detect(struct drm_connector
 static void ast_connector_destroy(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
+
 	ast_i2c_destroy(ast_connector->i2c);
 	drm_connector_cleanup(connector);
 }
