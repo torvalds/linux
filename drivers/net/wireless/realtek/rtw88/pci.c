@@ -268,11 +268,6 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 	int i, allocated;
 	int ret = 0;
 
-	if (len > TRX_BD_IDX_MASK) {
-		rtw_err(rtwdev, "len %d exceeds maximum RX entries\n", len);
-		return -EINVAL;
-	}
-
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate rx ring\n");
