@@ -193,7 +193,6 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	Init_ODM_ComInfo_88E(Adapter);
-	ODM_InitDebugSetting(podmpriv);
 }
 
 void rtl8188e_deinit_dm_priv(struct adapter *Adapter)

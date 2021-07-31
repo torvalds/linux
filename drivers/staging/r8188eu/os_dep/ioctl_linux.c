@@ -4455,7 +4455,6 @@ static int rtw_dbg_port(struct net_device *dev,
 		case 0x11:
 			DBG_88E("turn %s Rx RSSI display function\n", (extra_arg == 1) ? "on" : "off");
 			padapter->bRxRSSIDisplay = extra_arg;
-			rtw_hal_set_def_var(padapter, HW_DEF_FA_CNT_DUMP, &extra_arg);
 			break;
 		case 0x12: /* set rx_stbc */
 		{
@@ -4491,32 +4490,6 @@ static int rtw_dbg_port(struct net_device *dev,
 			struct registry_priv	*pregpriv = &padapter->registrypriv;
 			DBG_88E("get wifi_spec =%d\n", pregpriv->wifi_spec);
 		}
-			break;
-		case 0x16:
-			if (arg == 0xff) {
-				pr_info("ODM_COMP_DIG\t\tBIT0\n");
-				pr_info("ODM_COMP_RA_MASK\t\tBIT1\n");
-				pr_info("ODM_COMP_DYNAMIC_TXPWR\tBIT2\n");
-				pr_info("ODM_COMP_FA_CNT\t\tBIT3\n");
-				pr_info("ODM_COMP_RSSI_MONITOR\tBIT4\n");
-				pr_info("ODM_COMP_CCK_PD\t\tBIT5\n");
-				pr_info("ODM_COMP_ANT_DIV\t\tBIT6\n");
-				pr_info("ODM_COMP_PWR_SAVE\t\tBIT7\n");
-				pr_info("ODM_COMP_PWR_TRAIN\tBIT8\n");
-				pr_info("ODM_COMP_RATE_ADAPTIVE\tBIT9\n");
-				pr_info("ODM_COMP_PATH_DIV\t\tBIT10\n");
-				pr_info("ODM_COMP_PSD	\tBIT11\n");
-				pr_info("ODM_COMP_DYNAMIC_PRICCA\tBIT12\n");
-				pr_info("ODM_COMP_RXHP\t\tBIT13\n");
-				pr_info("ODM_COMP_EDCA_TURBO\tBIT16\n");
-				pr_info("ODM_COMP_EARLY_MODE\tBIT17\n");
-				pr_info("ODM_COMP_TX_PWR_TRACK\tBIT24\n");
-				pr_info("ODM_COMP_RX_GAIN_TRACK\tBIT25\n");
-				pr_info("ODM_COMP_CALIBRATION\tBIT26\n");
-				rtw_hal_get_def_var(padapter, HW_DEF_ODM_DBG_FLAG, &extra_arg);
-			} else {
-				rtw_hal_set_def_var(padapter, HW_DEF_ODM_DBG_FLAG, &extra_arg);
-			}
 			break;
 		case 0x23:
 			DBG_88E("turn %s the bNotifyChannelChange Variable\n", (extra_arg == 1) ? "on" : "off");

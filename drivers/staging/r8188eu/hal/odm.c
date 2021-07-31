@@ -416,12 +416,6 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 	case	ODM_CMNINFO_RSSI_MIN:
 		pDM_Odm->RSSI_Min = (u8)Value;
 		break;
-	case	ODM_CMNINFO_DBG_COMP:
-		pDM_Odm->DebugComponents = Value;
-		break;
-	case	ODM_CMNINFO_DBG_LEVEL:
-		pDM_Odm->DebugLevel = (u32)Value;
-		break;
 	case	ODM_CMNINFO_RA_THRESHOLD_HIGH:
 		pDM_Odm->RateAdaptive.HighRSSIThresh = (u8)Value;
 		break;
@@ -439,8 +433,6 @@ void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
 		pDM_Odm->AntDivType = CG_TRX_HW_ANTDIV;
 	if (pDM_Odm->SupportICType & (ODM_RTL8723A))
 		pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
-
-	ODM_InitDebugSetting(pDM_Odm);
 }
 
 void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)

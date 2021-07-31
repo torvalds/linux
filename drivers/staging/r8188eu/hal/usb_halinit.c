@@ -2035,12 +2035,6 @@ GetHalDefVar8188EUsb(
 			}
 		}
 		break;
-	case HW_DEF_ODM_DBG_FLAG:
-		{
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
-			pr_info("dm_ocm->DebugComponents = 0x%llx\n", dm_ocm->DebugComponents);
-		}
-		break;
 	case HAL_DEF_DBG_DUMP_RXPKT:
 		*((u8 *)pValue) = haldata->bDumpRxPkt;
 		break;
@@ -2098,23 +2092,6 @@ static u8 SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eV
 		break;
 	case HAL_DEF_DBG_DUMP_TXPKT:
 		haldata->bDumpTxPkt = *((u8 *)pValue);
-		break;
-	case HW_DEF_FA_CNT_DUMP:
-		{
-			u8 bRSSIDump = *((u8 *)pValue);
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
-			if (bRSSIDump)
-				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;
-			else
-				dm_ocm->DebugComponents	= 0;
-		}
-		break;
-	case HW_DEF_ODM_DBG_FLAG:
-		{
-			u64	DebugComponents = *((u64 *)pValue);
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
-			dm_ocm->DebugComponents = DebugComponents;
-		}
 		break;
 	default:
 		bResult = _FAIL;

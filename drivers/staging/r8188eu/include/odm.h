@@ -388,8 +388,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_WIFI_DISPLAY,
 	ODM_CMNINFO_LINK,
 	ODM_CMNINFO_RSSI_MIN,
-	ODM_CMNINFO_DBG_COMP,			/*  u64 */
-	ODM_CMNINFO_DBG_LEVEL,			/*  u32 */
 	ODM_CMNINFO_RA_THRESHOLD_HIGH,		/*  u8 */
 	ODM_CMNINFO_RA_THRESHOLD_LOW,		/*  u8 */
 	ODM_CMNINFO_RF_ANTENNA_TYPE,		/*  u8 */
@@ -748,8 +746,6 @@ struct odm_dm_struct {
 	bool	odm_ready;
 
 	struct rtl8192cd_priv *fake_priv;
-	u64	DebugComponents;
-	u32	DebugLevel;
 
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 	bool	bCckHighPower;
