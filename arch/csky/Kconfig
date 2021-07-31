@@ -82,6 +82,7 @@ config CSKY
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
 	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -137,9 +138,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config TIME_LOW_RES
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config CPU_TLB_SIZE
