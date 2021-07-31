@@ -44,6 +44,7 @@ EXPORT_SYMBOL_GPL(hv_vp_assist_page);
 
 static int hv_cpu_init(unsigned int cpu)
 {
+	union hv_vp_assist_msr_contents msr = { 0 };
 	struct hv_vp_assist_page **hvp = &hv_vp_assist_page[smp_processor_id()];
 	int ret;
 
@@ -54,25 +55,34 @@ static int hv_cpu_init(unsigned int cpu)
 	if (!hv_vp_assist_page)
 		return 0;
 
-	/*
-	 * The VP ASSIST PAGE is an "overlay" page (see Hyper-V TLFS's Section
-	 * 5.2.1 "GPA Overlay Pages"). Here it must be zeroed out to make sure
-	 * we always write the EOI MSR in hv_apic_eoi_write() *after* the
-	 * EOI optimization is disabled in hv_cpu_die(), otherwise a CPU may
-	 * not be stopped in the case of CPU offlining and the VM will hang.
-	 */
 	if (!*hvp) {
-		*hvp = __vmalloc(PAGE_SIZE, GFP_KERNEL | __GFP_ZERO);
-	}
-
-	if (*hvp) {
-		u64 val;
-
-		val = vmalloc_to_pfn(*hvp);
-		val = (val << HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT) |
-			HV_X64_MSR_VP_ASSIST_PAGE_ENABLE;
-
-		wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, val);
+		if (hv_root_partition) {
+			/*
+			 * For root partition we get the hypervisor provided VP assist
+			 * page, instead of allocating a new page.
+			 */
+			rdmsrl(HV_X64_MSR_VP_ASSIST_PAGE, msr.as_uint64);
+			*hvp = memremap(msr.pfn <<
+					HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT,
+					PAGE_SIZE, MEMREMAP_WB);
+		} else {
+			/*
+			 * The VP assist page is an "overlay" page (see Hyper-V TLFS's
+			 * Section 5.2.1 "GPA Overlay Pages"). Here it must be zeroed
+			 * out to make sure we always write the EOI MSR in
+			 * hv_apic_eoi_write() *after* the EOI optimization is disabled
+			 * in hv_cpu_die(), otherwise a CPU may not be stopped in the
+			 * case of CPU offlining and the VM will hang.
+			 */
+			*hvp = __vmalloc(PAGE_SIZE, GFP_KERNEL | __GFP_ZERO);
+			if (*hvp)
+				msr.pfn = vmalloc_to_pfn(*hvp);
+		}
+		WARN_ON(!(*hvp));
+		if (*hvp) {
+			msr.enable = 1;
+			wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, msr.as_uint64);
+		}
 	}
 
 	return 0;
@@ -170,8 +180,22 @@ static int hv_cpu_die(unsigned int cpu)
 
 	hv_common_cpu_die(cpu);
 
-	if (hv_vp_assist_page && hv_vp_assist_page[cpu])
-		wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, 0);
+	if (hv_vp_assist_page && hv_vp_assist_page[cpu]) {
+		union hv_vp_assist_msr_contents msr = { 0 };
+		if (hv_root_partition) {
+			/*
+			 * For root partition the VP assist page is mapped to
+			 * hypervisor provided page, and thus we unmap the
+			 * page here and nullify it, so that in future we have
+			 * correct page address mapped in hv_cpu_init.
+			 */
+			memunmap(hv_vp_assist_page[cpu]);
+			hv_vp_assist_page[cpu] = NULL;
+			rdmsrl(HV_X64_MSR_VP_ASSIST_PAGE, msr.as_uint64);
+			msr.enable = 0;
+		}
+		wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, msr.as_uint64);
+	}
 
 	if (hv_reenlightenment_cb == NULL)
 		return 0;
