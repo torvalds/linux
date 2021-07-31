@@ -118,8 +118,6 @@ int pcie_port_device_runtime_suspend(struct device *dev);
 int pcie_port_device_runtime_resume(struct device *dev);
 #endif
 void pcie_port_device_remove(struct pci_dev *dev);
-int __must_check pcie_port_bus_register(void);
-void pcie_port_bus_unregister(void);
 
 struct pci_dev;
 
