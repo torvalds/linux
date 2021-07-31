@@ -6266,7 +6266,6 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	if (prev) {
 		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
 		io_put_req_deferred(prev, 1);
-		io_put_req_deferred(req, 1);
 	} else {
 		io_cqring_add_event(req, -ETIME, 0);
 		io_put_req_deferred(req, 1);
