@@ -5560,7 +5560,6 @@ out:
 }
 #endif
 
-#include "../include/rtw_android.h"
 static int rtw_wx_set_priv(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *awrq,
