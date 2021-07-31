@@ -605,6 +605,15 @@ int snd_card_free(struct snd_card *card)
 	DECLARE_COMPLETION_ONSTACK(released);
 	int ret;
 
+	/* The call of snd_card_free() is allowed from various code paths;
+	 * a manual call from the driver and the call via devres_free, and
+	 * we need to avoid double-free. Moreover, the release via devres
+	 * may call snd_card_free() twice due to its nature, we need to have
+	 * the check here at the beginning.
+	 */
+	if (card->releasing)
+		return 0;
+
 	card->release_completion = &released;
 	ret = snd_card_free_when_closed(card);
 	if (ret)
@@ -813,10 +822,7 @@ EXPORT_SYMBOL_GPL(snd_card_add_dev_attr);
 
 static void trigger_card_free(void *data)
 {
-	struct snd_card *card = data;
-
-	if (!card->releasing)
-		snd_card_free(data);
+	snd_card_free(data);
 }
 
 /**
