@@ -73,7 +73,9 @@ IF_OPER_LOWERLAYERDOWN (3):
  state (f.e. VLAN).
 
 IF_OPER_TESTING (4):
- Unused in current kernel.
+ Interface is in testing mode, for example executing driver self-tests
+ or media (cable) test. It can't be used for normal traffic until tests
+ complete.
 
 IF_OPER_DORMANT (5):
  Interface is L1 up, but waiting for an external event, f.e. for a
