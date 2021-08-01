@@ -2462,6 +2462,7 @@ int smb2_open(struct ksmbd_work *work)
 			rc = PTR_ERR(name);
 			if (rc != -ENOMEM)
 				rc = -ENOENT;
+			name = NULL;
 			goto err_out1;
 		}
 
