@@ -76,7 +76,6 @@
 #define FG_LOW_CAP_CRIT_THR			4   /* 4 perc */
 #define FG_LOW_CAP_SHDN_THR			0   /* 0 perc */
 
-#define NR_RETRY_CNT				3
 #define DEV_NAME				"axp288_fuel_gauge"
 
 /* 1.1mV per LSB expressed in uV */
@@ -132,15 +131,10 @@ static enum power_supply_property fuel_gauge_props[] = {
 
 static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
 {
-	int ret, i;
 	unsigned int val;
+	int ret;
 
-	for (i = 0; i < NR_RETRY_CNT; i++) {
-		ret = regmap_read(info->regmap, reg, &val);
-		if (ret != -EBUSY)
-			break;
-	}
-
+	ret = regmap_read(info->regmap, reg, &val);
 	if (ret < 0) {
 		dev_err(&info->pdev->dev, "Error reading reg 0x%02x err: %d\n", reg, ret);
 		return ret;
