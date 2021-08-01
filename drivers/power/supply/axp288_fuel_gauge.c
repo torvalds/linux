@@ -537,9 +537,6 @@ static void fuel_gauge_init_irq(struct axp288_fg_info *info)
 				pirq, info->irq[i]);
 			info->irq[i] = -1;
 			goto intr_failed;
-		} else {
-			dev_info(&info->pdev->dev, "HW IRQ %d -> VIRQ %d\n",
-				pirq, info->irq[i]);
 		}
 	}
 	return;
