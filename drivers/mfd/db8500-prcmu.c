@@ -2565,14 +2565,16 @@ static char *fw_project_name(u32 project)
 		return "U8500 C4";
 	case PRCMU_FW_PROJECT_U9500_MBL:
 		return "U9500 MBL";
-	case PRCMU_FW_PROJECT_U8500_MBL:
-		return "U8500 MBL";
+	case PRCMU_FW_PROJECT_U8500_SSG1:
+		return "U8500 Samsung 1";
 	case PRCMU_FW_PROJECT_U8500_MBL2:
 		return "U8500 MBL2";
 	case PRCMU_FW_PROJECT_U8520:
 		return "U8520 MBL";
 	case PRCMU_FW_PROJECT_U8420:
 		return "U8420";
+	case PRCMU_FW_PROJECT_U8500_SSG2:
+		return "U8500 Samsung 2";
 	case PRCMU_FW_PROJECT_U8420_SYSCLK:
 		return "U8420-sysclk";
 	case PRCMU_FW_PROJECT_U9540:
