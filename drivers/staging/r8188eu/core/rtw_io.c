@@ -182,12 +182,8 @@ void _rtw_read_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 	struct	intf_hdl		*pintfhdl = &(pio_priv->intf);
 
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_,
-		      ("rtw_read_mem:bDriverStopped(%d) OR bSurpriseRemoved(%d)",
-		      adapter->bDriverStopped, adapter->bSurpriseRemoved));
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 	     return;
-	}
 	_read_mem = pintfhdl->io_ops._read_mem;
 	_read_mem(pintfhdl, addr, cnt, pmem);
 
@@ -216,12 +212,8 @@ void _rtw_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_,
-		      ("rtw_read_port:bDriverStopped(%d) OR bSurpriseRemoved(%d)",
-		      adapter->bDriverStopped, adapter->bSurpriseRemoved));
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 	     return;
-	}
 
 	_read_port = pintfhdl->io_ops._read_port;
 
