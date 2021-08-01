@@ -1249,11 +1249,6 @@ int mlx5_init_one(struct mlx5_core_dev *dev)
 	int err = 0;
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_warn(dev, "interface is up, NOP\n");
-		goto out;
-	}
-	/* remove any previous indication of internal error */
 	dev->state = MLX5_DEVICE_STATE_UP;
 
 	err = mlx5_function_setup(dev, true);
@@ -1294,7 +1289,6 @@ function_teardown:
 	mlx5_function_teardown(dev, true);
 err_function:
 	dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
-out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return err;
 }

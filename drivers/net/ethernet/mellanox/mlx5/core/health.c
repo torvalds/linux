@@ -213,10 +213,6 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	mutex_lock(&dev->intf_state_mutex);
 	if (!err_detected && dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		goto unlock;/* a previous error is still being handled */
-	if (dev->state == MLX5_DEVICE_STATE_UNINITIALIZED) {
-		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
-		goto unlock;
-	}
 
 	enter_error_state(dev, force);
 unlock:
