@@ -1595,6 +1595,11 @@ static int gaudi_late_init(struct hl_device *hdev)
 		goto disable_pci_access;
 	}
 
+	/* We only support a single ASID for the user, so for the sake of optimization, just
+	 * initialize the ASID one time during device initialization with the fixed value of 1
+	 */
+	gaudi_mmu_prepare(hdev, 1);
+
 	return 0;
 
 disable_pci_access:
@@ -6792,6 +6797,9 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
+	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_ARUSER, asid);
+	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_AWUSER, asid);
+
 	hdev->asic_funcs->set_clock_gating(hdev);
 
 	mutex_unlock(&gaudi->clk_gate_mutex);
@@ -6841,7 +6849,8 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 
 	dma_offset = gaudi_dma_assignment[GAUDI_PCI_DMA_1] * DMA_CORE_OFFSET;
 
-	WREG32_OR(mmDMA0_CORE_PROT + dma_offset, BIT(DMA0_CORE_PROT_VAL_SHIFT));
+	WREG32(mmDMA0_CORE_PROT + dma_offset,
+			BIT(DMA0_CORE_PROT_ERR_VAL_SHIFT) | BIT(DMA0_CORE_PROT_VAL_SHIFT));
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GAUDI_QUEUE_ID_DMA_0_0,
 					job->job_cb_size, cb->bus_address);
@@ -6862,8 +6871,7 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 	}
 
 free_fence_ptr:
-	WREG32_AND(mmDMA0_CORE_PROT + dma_offset,
-			~BIT(DMA0_CORE_PROT_VAL_SHIFT));
+	WREG32(mmDMA0_CORE_PROT + dma_offset, BIT(DMA0_CORE_PROT_ERR_VAL_SHIFT));
 
 	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
@@ -8652,7 +8660,6 @@ static int gaudi_ctx_init(struct hl_ctx *ctx)
 	if (ctx->asid == HL_KERNEL_ASID_ID)
 		return 0;
 
-	gaudi_mmu_prepare(ctx->hdev, ctx->asid);
 	return gaudi_internal_cb_pool_init(ctx->hdev, ctx);
 }
 
