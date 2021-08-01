@@ -23,34 +23,34 @@
 #include <linux/seq_file.h>
 #include <asm/unaligned.h>
 
-#define PS_STAT_VBUS_TRIGGER		(1 << 0)
-#define PS_STAT_BAT_CHRG_DIR		(1 << 2)
-#define PS_STAT_VBAT_ABOVE_VHOLD	(1 << 3)
-#define PS_STAT_VBUS_VALID		(1 << 4)
-#define PS_STAT_VBUS_PRESENT		(1 << 5)
+#define PS_STAT_VBUS_TRIGGER			(1 << 0)
+#define PS_STAT_BAT_CHRG_DIR			(1 << 2)
+#define PS_STAT_VBAT_ABOVE_VHOLD		(1 << 3)
+#define PS_STAT_VBUS_VALID			(1 << 4)
+#define PS_STAT_VBUS_PRESENT			(1 << 5)
 
-#define CHRG_STAT_BAT_SAFE_MODE		(1 << 3)
+#define CHRG_STAT_BAT_SAFE_MODE			(1 << 3)
 #define CHRG_STAT_BAT_VALID			(1 << 4)
-#define CHRG_STAT_BAT_PRESENT		(1 << 5)
+#define CHRG_STAT_BAT_PRESENT			(1 << 5)
 #define CHRG_STAT_CHARGING			(1 << 6)
 #define CHRG_STAT_PMIC_OTP			(1 << 7)
 
 #define CHRG_CCCV_CC_MASK			0xf     /* 4 bits */
-#define CHRG_CCCV_CC_BIT_POS		0
+#define CHRG_CCCV_CC_BIT_POS			0
 #define CHRG_CCCV_CC_OFFSET			200     /* 200mA */
-#define CHRG_CCCV_CC_LSB_RES		200     /* 200mA */
+#define CHRG_CCCV_CC_LSB_RES			200     /* 200mA */
 #define CHRG_CCCV_ITERM_20P			(1 << 4)    /* 20% of CC */
 #define CHRG_CCCV_CV_MASK			0x60        /* 2 bits */
-#define CHRG_CCCV_CV_BIT_POS		5
+#define CHRG_CCCV_CV_BIT_POS			5
 #define CHRG_CCCV_CV_4100MV			0x0     /* 4.10V */
 #define CHRG_CCCV_CV_4150MV			0x1     /* 4.15V */
 #define CHRG_CCCV_CV_4200MV			0x2     /* 4.20V */
 #define CHRG_CCCV_CV_4350MV			0x3     /* 4.35V */
 #define CHRG_CCCV_CHG_EN			(1 << 7)
 
-#define FG_CNTL_OCV_ADJ_STAT		(1 << 2)
+#define FG_CNTL_OCV_ADJ_STAT			(1 << 2)
 #define FG_CNTL_OCV_ADJ_EN			(1 << 3)
-#define FG_CNTL_CAP_ADJ_STAT		(1 << 4)
+#define FG_CNTL_CAP_ADJ_STAT			(1 << 4)
 #define FG_CNTL_CAP_ADJ_EN			(1 << 5)
 #define FG_CNTL_CC_EN				(1 << 6)
 #define FG_CNTL_GAUGE_EN			(1 << 7)
@@ -71,23 +71,23 @@
 #define FG_CC_CAP_VALID				(1 << 7)
 #define FG_CC_CAP_VAL_MASK			0x7F
 
-#define FG_LOW_CAP_THR1_MASK		0xf0    /* 5% tp 20% */
+#define FG_LOW_CAP_THR1_MASK			0xf0    /* 5% tp 20% */
 #define FG_LOW_CAP_THR1_VAL			0xa0    /* 15 perc */
-#define FG_LOW_CAP_THR2_MASK		0x0f    /* 0% to 15% */
+#define FG_LOW_CAP_THR2_MASK			0x0f    /* 0% to 15% */
 #define FG_LOW_CAP_WARN_THR			14  /* 14 perc */
 #define FG_LOW_CAP_CRIT_THR			4   /* 4 perc */
 #define FG_LOW_CAP_SHDN_THR			0   /* 0 perc */
 
-#define NR_RETRY_CNT    3
-#define DEV_NAME	"axp288_fuel_gauge"
+#define NR_RETRY_CNT				3
+#define DEV_NAME				"axp288_fuel_gauge"
 
 /* 1.1mV per LSB expressed in uV */
 #define VOLTAGE_FROM_ADC(a)			((a * 11) / 10)
 /* properties converted to uV, uA */
-#define PROP_VOLT(a)		((a) * 1000)
-#define PROP_CURR(a)		((a) * 1000)
+#define PROP_VOLT(a)				((a) * 1000)
+#define PROP_CURR(a)				((a) * 1000)
 
-#define AXP288_FG_INTR_NUM	6
+#define AXP288_FG_INTR_NUM			6
 enum {
 	QWBTU_IRQ = 0,
 	WBTU_IRQ,
