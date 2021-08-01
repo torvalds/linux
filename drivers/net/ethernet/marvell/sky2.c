@@ -4884,7 +4884,7 @@ static int sky2_test_msi(struct sky2_hw *hw)
 /* This driver supports yukon2 chipset only */
 static const char *sky2_name(u8 chipid, char *buf, int sz)
 {
-	const char *name[] = {
+	static const char *const name[] = {
 		"XL",		/* 0xb3 */
 		"EC Ultra", 	/* 0xb4 */
 		"Extreme",	/* 0xb5 */
