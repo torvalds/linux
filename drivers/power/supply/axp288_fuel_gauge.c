@@ -627,16 +627,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	if (dmi_check_system(axp288_no_battery_list))
 		return -ENODEV;
 
-	/*
-	 * On some devices the fuelgauge and charger parts of the axp288 are
-	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
-	 */
-	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
-	if (ret < 0)
-		return ret;
-	if (val == 0)
-		return -ENODEV;
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
@@ -669,6 +659,18 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 			goto out_free_iio_chan;
 		}
+	}
+
+	/*
+	 * On some devices the fuelgauge and charger parts of the axp288 are
+	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 */
+	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
+	if (ret < 0)
+		goto out_free_iio_chan;
+	if (val == 0) {
+		ret = -ENODEV;
+		goto out_free_iio_chan;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_DES_CAP1_REG);
