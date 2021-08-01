@@ -1021,7 +1021,7 @@ clear_diag_irq:
 
 static void qlcnic_create_loopback_buff(unsigned char *data, u8 mac[])
 {
-	unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
+	static const unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
 
 	memset(data, 0x4e, QLCNIC_ILB_PKT_SIZE);
 
