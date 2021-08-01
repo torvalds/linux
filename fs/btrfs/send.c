@@ -2720,19 +2720,12 @@ static int send_create_inode_if_needed(struct send_ctx *sctx)
 	if (S_ISDIR(sctx->cur_inode_mode)) {
 		ret = did_create_dir(sctx, sctx->cur_ino);
 		if (ret < 0)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+			return ret;
+		else if (ret > 0)
+			return 0;
 	}
 
-	ret = send_create_inode(sctx, sctx->cur_ino);
-	if (ret < 0)
-		goto out;
-
-out:
-	return ret;
+	return send_create_inode(sctx, sctx->cur_ino);
 }
 
 struct recorded_ref {
