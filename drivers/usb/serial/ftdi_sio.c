@@ -1437,27 +1437,15 @@ static int _read_latency_timer(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
-	unsigned char *buf;
+	u8 buf;
 	int rv;
 
-	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	rv = usb_control_msg(udev,
-			     usb_rcvctrlpipe(udev, 0),
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
-			     0, priv->interface,
-			     buf, 1, WDR_TIMEOUT);
-	if (rv < 1) {
-		if (rv >= 0)
-			rv = -EIO;
-	} else {
-		rv = buf[0];
-	}
-
-	kfree(buf);
+	rv = usb_control_msg_recv(udev, 0, FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
+				  FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE, 0,
+				  priv->interface, &buf, 1, WDR_TIMEOUT,
+				  GFP_KERNEL);
+	if (rv == 0)
+		rv = buf;
 
 	return rv;
 }
@@ -1852,32 +1840,21 @@ static int ftdi_read_cbus_pins(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
-	unsigned char *buf;
+	u8 buf;
 	int result;
 
 	result = usb_autopm_get_interface(serial->interface);
 	if (result)
 		return result;
 
-	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf) {
-		usb_autopm_put_interface(serial->interface);
-		return -ENOMEM;
-	}
+	result = usb_control_msg_recv(serial->dev, 0,
+				      FTDI_SIO_READ_PINS_REQUEST,
+				      FTDI_SIO_READ_PINS_REQUEST_TYPE, 0,
+				      priv->interface, &buf, 1, WDR_TIMEOUT,
+				      GFP_KERNEL);
+	if (result == 0)
+		result = buf;
 
-	result = usb_control_msg(serial->dev,
-				 usb_rcvctrlpipe(serial->dev, 0),
-				 FTDI_SIO_READ_PINS_REQUEST,
-				 FTDI_SIO_READ_PINS_REQUEST_TYPE, 0,
-				 priv->interface, buf, 1, WDR_TIMEOUT);
-	if (result < 1) {
-		if (result >= 0)
-			result = -EIO;
-	} else {
-		result = buf[0];
-	}
-
-	kfree(buf);
 	usb_autopm_put_interface(serial->interface);
 
 	return result;
