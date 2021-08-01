@@ -38,6 +38,7 @@ TARGETS += mount_setattr
 TARGETS += mqueue
 TARGETS += nci
 TARGETS += net
+TARGETS += net/af_unix
 TARGETS += net/forwarding
 TARGETS += net/mptcp
 TARGETS += netfilter

@@ -70,6 +70,9 @@ struct unix_sock {
 	struct socket_wq	peer_wq;
 	wait_queue_entry_t	peer_wake;
 	struct scm_stat		scm_stat;
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+	struct sk_buff		*oob_skb;
+#endif
 };
 
 static inline struct unix_sock *unix_sk(const struct sock *sk)
