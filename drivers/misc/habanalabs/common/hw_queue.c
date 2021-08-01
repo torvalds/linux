@@ -721,7 +721,8 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 		/* update stream map of the first CS */
 		if (hdev->supports_wait_for_multi_cs)
-			staged_cs->fence->stream_map |= cs->fence->stream_map;
+			staged_cs->fence->stream_master_qid_map |=
+					cs->fence->stream_master_qid_map;
 	}
 
 	list_add_tail(&cs->mirror_node, &hdev->cs_mirror_list);

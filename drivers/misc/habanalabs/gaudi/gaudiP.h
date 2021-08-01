@@ -36,6 +36,8 @@
 #define NUMBER_OF_INTERRUPTS		(NUMBER_OF_CMPLT_QUEUES + \
 						NUMBER_OF_CPU_HW_QUEUES)
 
+#define GAUDI_STREAM_MASTER_ARR_SIZE	8
+
 #if (NUMBER_OF_INTERRUPTS > GAUDI_MSI_ENTRIES)
 #error "Number of MSI interrupts must be smaller or equal to GAUDI_MSI_ENTRIES"
 #endif

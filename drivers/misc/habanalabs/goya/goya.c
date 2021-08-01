@@ -5588,6 +5588,11 @@ static u32 goya_get_sob_addr(struct hl_device *hdev, u32 sob_id)
 	return 0;
 }
 
+static u32 *goya_get_stream_master_qid_arr(void)
+{
+	return NULL;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5677,6 +5682,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.state_dump_init = goya_state_dump_init,
 	.get_sob_addr = &goya_get_sob_addr,
 	.set_pci_memory_regions = goya_set_pci_memory_regions,
+	.get_stream_master_qid_arr = goya_get_stream_master_qid_arr,
 };
 
 /*

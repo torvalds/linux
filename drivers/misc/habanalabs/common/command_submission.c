@@ -487,14 +487,15 @@ static void force_complete_multi_cs(struct hl_device *hdev)
  *
  * @hdev: pointer to habanalabs device structure
  * @cs: CS structure
- *
- * The function signals waiting entity that its waiting stream has common
- * stream with the completed CS.
+ * The function signals a waiting entity that has an overlapping stream masters
+ * with the completed CS.
  * For example:
- * - a completed CS worked on streams 0 and 1, multi CS completion
- *   is actively waiting on stream 3. don't send signal as no common stream
- * - a completed CS worked on streams 0 and 1, multi CS completion
- *   is actively waiting on streams 1 and 3. send signal as stream 1 is common
+ * - a completed CS worked on stream master QID 4, multi CS completion
+ *   is actively waiting on stream master QIDs 3, 5. don't send signal as no
+ *   common stream master QID
+ * - a completed CS worked on stream master QID 4, multi CS completion
+ *   is actively waiting on stream master QIDs 3, 4. send signal as stream
+ *   master QID 4 is common
  */
 static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 {
@@ -518,10 +519,11 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 		 * complete if:
 		 * 1. still waiting for completion
 		 * 2. the completed CS has at least one overlapping stream
-		 *    with the streams in the completion
+		 *    master with the stream masters in the completion
 		 */
 		if (mcs_compl->used &&
-				(fence->stream_map & mcs_compl->stream_map)) {
+				(fence->stream_master_qid_map &
+					mcs_compl->stream_master_qid_map)) {
 			/* extract the timestamp only of first completed CS */
 			if (!mcs_compl->timestamp)
 				mcs_compl->timestamp =
@@ -1228,6 +1230,17 @@ static int cs_staged_submission(struct hl_device *hdev, struct hl_cs *cs,
 	return 0;
 }
 
+static u32 get_stream_master_qid_mask(struct hl_device *hdev, u32 qid)
+{
+	int i;
+
+	for (i = 0; i < hdev->stream_master_qid_arr_size; i++)
+		if (qid == hdev->stream_master_qid_arr[i])
+			return BIT(i);
+
+	return 0;
+}
+
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 				u32 num_chunks, u64 *cs_seq, u32 flags,
 				u32 encaps_signals_handle, u32 timeout)
@@ -1241,7 +1254,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cs *cs;
 	struct hl_cb *cb;
 	u64 user_sequence;
-	u8 stream_map = 0;
+	u8 stream_master_qid_map = 0;
 	int rc, i;
 
 	cntr = &hdev->aggregated_cs_counters;
@@ -1310,7 +1323,9 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			 * queues of this CS
 			 */
 			if (hdev->supports_wait_for_multi_cs)
-				stream_map |= BIT((chunk->queue_index % 4));
+				stream_master_qid_map |=
+					get_stream_master_qid_mask(hdev,
+							chunk->queue_index);
 		}
 
 		job = hl_cs_allocate_job(hdev, queue_type,
@@ -1378,7 +1393,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	 * fence object for multi-CS completion
 	 */
 	if (hdev->supports_wait_for_multi_cs)
-		cs->fence->stream_map = stream_map;
+		cs->fence->stream_master_qid_map = stream_master_qid_map;
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
@@ -2332,7 +2347,7 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 			break;
 		}
 
-		mcs_data->stream_map |= fence->stream_map;
+		mcs_data->stream_master_qid_map |= fence->stream_master_qid_map;
 
 		if (status == CS_WAIT_STATUS_BUSY)
 			continue;
@@ -2394,7 +2409,8 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
  * hl_wait_multi_cs_completion_init - init completion structure
  *
  * @hdev: pointer to habanalabs device structure
- * @stream_map: stream map, set bit indicates stream to wait on
+ * @stream_master_bitmap: stream master QIDs map, set bit indicates stream
+ *                        master QID to wait on
  *
  * @return valid completion struct pointer on success, otherwise error pointer
  *
@@ -2404,7 +2420,7 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
  */
 static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 							struct hl_device *hdev,
-							u8 stream_map)
+							u8 stream_master_bitmap)
 {
 	struct multi_cs_completion *mcs_compl;
 	int i;
@@ -2416,7 +2432,7 @@ static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 		if (!mcs_compl->used) {
 			mcs_compl->used = 1;
 			mcs_compl->timestamp = 0;
-			mcs_compl->stream_map = stream_map;
+			mcs_compl->stream_master_qid_map = stream_master_bitmap;
 			reinit_completion(&mcs_compl->completion);
 			spin_unlock(&mcs_compl->lock);
 			break;
@@ -2464,7 +2480,7 @@ static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data)
 	long completion_rc;
 
 	mcs_compl = hl_wait_multi_cs_completion_init(hdev,
-							mcs_data->stream_map);
+					mcs_data->stream_master_qid_map);
 	if (IS_ERR(mcs_compl))
 		return PTR_ERR(mcs_compl);
 

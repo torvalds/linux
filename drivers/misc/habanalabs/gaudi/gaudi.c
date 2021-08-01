@@ -110,6 +110,17 @@
 
 #define MONITOR_SOB_STRING_SIZE		256
 
+static u32 gaudi_stream_master[GAUDI_STREAM_MASTER_ARR_SIZE] = {
+	GAUDI_QUEUE_ID_DMA_0_0,
+	GAUDI_QUEUE_ID_DMA_0_1,
+	GAUDI_QUEUE_ID_DMA_0_2,
+	GAUDI_QUEUE_ID_DMA_0_3,
+	GAUDI_QUEUE_ID_DMA_1_0,
+	GAUDI_QUEUE_ID_DMA_1_1,
+	GAUDI_QUEUE_ID_DMA_1_2,
+	GAUDI_QUEUE_ID_DMA_1_3
+};
+
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -1870,6 +1881,9 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	hdev->supports_wait_for_multi_cs = true;
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
+	hdev->stream_master_qid_arr =
+				hdev->asic_funcs->get_stream_master_qid_arr();
+	hdev->stream_master_qid_arr_size = GAUDI_STREAM_MASTER_ARR_SIZE;
 
 	return 0;
 
@@ -9352,6 +9366,11 @@ static void gaudi_state_dump_init(struct hl_device *hdev)
 	sds->funcs = gaudi_state_dump_funcs;
 }
 
+static u32 *gaudi_get_stream_master_qid_arr(void)
+{
+	return gaudi_stream_master;
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -9440,7 +9459,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.init_cpu_scrambler_dram = gaudi_init_scrambler_hbm,
 	.state_dump_init = gaudi_state_dump_init,
 	.get_sob_addr = gaudi_get_sob_addr,
-	.set_pci_memory_regions = gaudi_set_pci_memory_regions
+	.set_pci_memory_regions = gaudi_set_pci_memory_regions,
+	.get_stream_master_qid_arr = gaudi_get_stream_master_qid_arr
 };
 
 /**
