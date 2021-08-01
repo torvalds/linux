@@ -77,13 +77,13 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	u8 u1temp = 0;
 
 	efuseTbl = (u8 *)rtw_zmalloc(EFUSE_MAP_LEN_88E);
-	if (efuseTbl == NULL) {
+	if (!efuseTbl) {
 		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
 		goto exit;
 	}
 
 	eFuseWord = (u16 **)rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
-	if (eFuseWord == NULL) {
+	if (!eFuseWord) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
 		goto exit;
 	}
@@ -811,13 +811,13 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	}
 
 	efuseTbl = (u8 *)rtw_zmalloc(EFUSE_MAP_LEN_88E);
-	if (efuseTbl == NULL) {
+	if (!efuseTbl) {
 		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
 		goto exit;
 	}
 
 	eFuseWord = (u16 **)rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
-	if (eFuseWord == NULL) {
+	if (!eFuseWord) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
 		goto exit;
 	}
@@ -1240,7 +1240,7 @@ static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *
 
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, (void *)&max_section, bPseudoTest);
 
-	if (data == NULL)
+	if (!data)
 		return false;
 	if (offset > max_section)
 		return false;

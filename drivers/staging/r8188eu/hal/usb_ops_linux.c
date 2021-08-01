@@ -38,7 +38,7 @@ static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u
 	/*  Acquire IO memory for vendorreq */
 	pIo_buf = dvobjpriv->usb_vendor_req_buf;
 
-	if (pIo_buf == NULL) {
+	if (!pIo_buf) {
 		DBG_88E("[%s] pIo_buf == NULL\n", __func__);
 		status = -ENOMEM;
 		goto release_mutex;
@@ -318,7 +318,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		prxstat = (struct recv_stat *)pbuf;
 
 		precvframe = rtw_alloc_recvframe(pfree_recv_queue);
-		if (precvframe == NULL) {
+		if (!precvframe) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("recvbuf2recvframe: precvframe==NULL\n"));
 			DBG_88E("%s()-%d: rtw_alloc_recvframe() failed! RX Drop!\n", __func__, __LINE__);
 			goto _exit_recvbuf2recvframe;
@@ -587,18 +587,18 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		return _FAIL;
 	}
 
-	if ((!precvbuf->reuse) || (precvbuf->pskb == NULL)) {
+	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
-		if (NULL != precvbuf->pskb)
+		if (precvbuf->pskb)
 			precvbuf->reuse = true;
 	}
 
 		rtl8188eu_init_recvbuf(adapter, precvbuf);
 
 		/* re-assign for linux based on skb */
-		if ((!precvbuf->reuse) || (precvbuf->pskb == NULL)) {
+		if (!precvbuf->reuse || !precvbuf->pskb) {
 			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-			if (precvbuf->pskb == NULL) {
+			if (!precvbuf->pskb) {
 				RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("init_recvbuf(): alloc_skb fail!\n"));
 				DBG_88E("#### usb_read_port() alloc_skb fail!#####\n");
 				return _FAIL;

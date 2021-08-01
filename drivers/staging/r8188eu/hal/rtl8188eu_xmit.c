@@ -444,9 +444,9 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	RT_TRACE(_module_rtl8192c_xmit_c_, _drv_info_, ("+xmitframe_complete\n"));
 
 	/*  check xmitbuffer is ok */
-	if (pxmitbuf == NULL) {
+	if (!pxmitbuf) {
 		pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-		if (pxmitbuf == NULL)
+		if (!pxmitbuf)
 			return false;
 	}
 
@@ -455,7 +455,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 		pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
-		if (pxmitframe == NULL) {
+		if (!pxmitframe) {
 			/*  no more xmit frame, release xmit buffer */
 			rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 			return false;
@@ -638,7 +638,7 @@ static s32 pre_xmitframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 		goto enqueue;
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (pxmitbuf == NULL)
+	if (!pxmitbuf)
 		goto enqueue;
 
 	spin_unlock_bh(&pxmitpriv->lock);

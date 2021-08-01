@@ -163,7 +163,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 
 	if (biol) {
 		pxmit_frame = rtw_IOL_accquire_xmit_frame(Adapter);
-		if (pxmit_frame == NULL) {
+		if (!pxmit_frame) {
 			pr_info("rtw_IOL_accquire_xmit_frame failed\n");
 			return HAL_STATUS_FAILURE;
 		}

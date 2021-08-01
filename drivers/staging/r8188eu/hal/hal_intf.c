@@ -224,14 +224,14 @@ s32 rtw_hal_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
 
 s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
-	if (adapt->HalFunc.init_xmit_priv != NULL)
+	if (adapt->HalFunc.init_xmit_priv)
 		return adapt->HalFunc.init_xmit_priv(adapt);
 	return _FAIL;
 }
 
 void rtw_hal_free_xmit_priv(struct adapter *adapt)
 {
-	if (adapt->HalFunc.free_xmit_priv != NULL)
+	if (adapt->HalFunc.free_xmit_priv)
 		adapt->HalFunc.free_xmit_priv(adapt);
 }
 
