@@ -19,8 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/iio/consumer.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
 #include <asm/unaligned.h>
 
 #define PS_STAT_VBUS_TRIGGER			(1 << 0)
@@ -98,9 +96,6 @@ enum {
 };
 
 enum {
-	BAT_TEMP = 0,
-	PMIC_TEMP,
-	SYSTEM_TEMP,
 	BAT_CHRG_CURR,
 	BAT_D_CURR,
 	BAT_VOLT,
@@ -203,119 +198,6 @@ static int fuel_gauge_read_12bit_word(struct axp288_fg_info *info, int reg)
 	/* 12-bit data values have upper 8 bits in buf[0], lower 4 in buf[1] */
 	return (buf[0] << 4) | ((buf[1] >> 4) & 0x0f);
 }
-
-#ifdef CONFIG_DEBUG_FS
-static int fuel_gauge_debug_show(struct seq_file *s, void *data)
-{
-	struct axp288_fg_info *info = s->private;
-	int raw_val, ret;
-
-	seq_printf(s, " PWR_STATUS[%02x] : %02x\n",
-		AXP20X_PWR_INPUT_STATUS,
-		fuel_gauge_reg_readb(info, AXP20X_PWR_INPUT_STATUS));
-	seq_printf(s, "PWR_OP_MODE[%02x] : %02x\n",
-		AXP20X_PWR_OP_MODE,
-		fuel_gauge_reg_readb(info, AXP20X_PWR_OP_MODE));
-	seq_printf(s, " CHRG_CTRL1[%02x] : %02x\n",
-		AXP20X_CHRG_CTRL1,
-		fuel_gauge_reg_readb(info, AXP20X_CHRG_CTRL1));
-	seq_printf(s, "       VLTF[%02x] : %02x\n",
-		AXP20X_V_LTF_DISCHRG,
-		fuel_gauge_reg_readb(info, AXP20X_V_LTF_DISCHRG));
-	seq_printf(s, "       VHTF[%02x] : %02x\n",
-		AXP20X_V_HTF_DISCHRG,
-		fuel_gauge_reg_readb(info, AXP20X_V_HTF_DISCHRG));
-	seq_printf(s, "    CC_CTRL[%02x] : %02x\n",
-		AXP20X_CC_CTRL,
-		fuel_gauge_reg_readb(info, AXP20X_CC_CTRL));
-	seq_printf(s, "BATTERY CAP[%02x] : %02x\n",
-		AXP20X_FG_RES,
-		fuel_gauge_reg_readb(info, AXP20X_FG_RES));
-	seq_printf(s, "    FG_RDC1[%02x] : %02x\n",
-		AXP288_FG_RDC1_REG,
-		fuel_gauge_reg_readb(info, AXP288_FG_RDC1_REG));
-	seq_printf(s, "    FG_RDC0[%02x] : %02x\n",
-		AXP288_FG_RDC0_REG,
-		fuel_gauge_reg_readb(info, AXP288_FG_RDC0_REG));
-	seq_printf(s, "     FG_OCV[%02x] : %04x\n",
-		AXP288_FG_OCVH_REG,
-		fuel_gauge_read_12bit_word(info, AXP288_FG_OCVH_REG));
-	seq_printf(s, " FG_DES_CAP[%02x] : %04x\n",
-		AXP288_FG_DES_CAP1_REG,
-		fuel_gauge_read_15bit_word(info, AXP288_FG_DES_CAP1_REG));
-	seq_printf(s, "  FG_CC_MTR[%02x] : %04x\n",
-		AXP288_FG_CC_MTR1_REG,
-		fuel_gauge_read_15bit_word(info, AXP288_FG_CC_MTR1_REG));
-	seq_printf(s, " FG_OCV_CAP[%02x] : %02x\n",
-		AXP288_FG_OCV_CAP_REG,
-		fuel_gauge_reg_readb(info, AXP288_FG_OCV_CAP_REG));
-	seq_printf(s, "  FG_CC_CAP[%02x] : %02x\n",
-		AXP288_FG_CC_CAP_REG,
-		fuel_gauge_reg_readb(info, AXP288_FG_CC_CAP_REG));
-	seq_printf(s, " FG_LOW_CAP[%02x] : %02x\n",
-		AXP288_FG_LOW_CAP_REG,
-		fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG));
-	seq_printf(s, "TUNING_CTL0[%02x] : %02x\n",
-		AXP288_FG_TUNE0,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE0));
-	seq_printf(s, "TUNING_CTL1[%02x] : %02x\n",
-		AXP288_FG_TUNE1,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE1));
-	seq_printf(s, "TUNING_CTL2[%02x] : %02x\n",
-		AXP288_FG_TUNE2,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE2));
-	seq_printf(s, "TUNING_CTL3[%02x] : %02x\n",
-		AXP288_FG_TUNE3,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE3));
-	seq_printf(s, "TUNING_CTL4[%02x] : %02x\n",
-		AXP288_FG_TUNE4,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE4));
-	seq_printf(s, "TUNING_CTL5[%02x] : %02x\n",
-		AXP288_FG_TUNE5,
-		fuel_gauge_reg_readb(info, AXP288_FG_TUNE5));
-
-	ret = iio_read_channel_raw(info->iio_channel[BAT_TEMP], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-batttemp : %d\n", raw_val);
-	ret = iio_read_channel_raw(info->iio_channel[PMIC_TEMP], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-pmictemp : %d\n", raw_val);
-	ret = iio_read_channel_raw(info->iio_channel[SYSTEM_TEMP], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-systtemp : %d\n", raw_val);
-	ret = iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-chrgcurr : %d\n", raw_val);
-	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-dchrgcur : %d\n", raw_val);
-	ret = iio_read_channel_raw(info->iio_channel[BAT_VOLT], &raw_val);
-	if (ret >= 0)
-		seq_printf(s, "axp288-battvolt : %d\n", raw_val);
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(fuel_gauge_debug);
-
-static void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
-{
-	info->debug_file = debugfs_create_file("fuelgauge", 0666, NULL,
-		info, &fuel_gauge_debug_fops);
-}
-
-static void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
-{
-	debugfs_remove(info->debug_file);
-}
-#else
-static inline void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
-{
-}
-static inline void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
-{
-}
-#endif
 
 static void fuel_gauge_get_status(struct axp288_fg_info *info)
 {
@@ -753,9 +635,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
 	static const char * const iio_chan_name[] = {
-		[BAT_TEMP] = "axp288-batt-temp",
-		[PMIC_TEMP] = "axp288-pmic-temp",
-		[SYSTEM_TEMP] = "axp288-system-temp",
 		[BAT_CHRG_CURR] = "axp288-chrg-curr",
 		[BAT_D_CURR] = "axp288-chrg-d-curr",
 		[BAT_VOLT] = "axp288-batt-volt",
@@ -844,7 +723,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		goto out_free_iio_chan;
 	}
 
-	fuel_gauge_create_debugfs(info);
 	fuel_gauge_init_irq(info);
 
 	return 0;
@@ -869,7 +747,6 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	int i;
 
 	power_supply_unregister(info->bat);
-	fuel_gauge_remove_debugfs(info);
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
 		if (info->irq[i] >= 0)
