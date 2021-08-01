@@ -345,5 +345,4 @@ bool ODM_DynamicPrimaryCCA_DupRTS(struct odm_dm_struct *dm_odm)
 
 void odm_DynamicPrimaryCCA(struct odm_dm_struct *dm_odm)
 {
-	return;
 }

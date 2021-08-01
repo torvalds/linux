@@ -2147,8 +2147,6 @@ void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr)
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame_body, uint len, u8 result)
@@ -2512,7 +2510,6 @@ static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-	return;
 }
 
 static void issue_p2p_GO_confirm(struct adapter *padapter, u8 *raddr, u8 result)
@@ -2675,7 +2672,6 @@ static void issue_p2p_GO_confirm(struct adapter *padapter, u8 *raddr, u8 result)
 	pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *)p2pie, &pattrib->pktlen);
 	pattrib->last_txcmdsz = pattrib->pktlen;
 	dump_mgntframe(padapter, pmgntframe);
-	return;
 }
 
 void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr)
@@ -2923,8 +2919,6 @@ void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr)
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr, u8 dialogToken, u8 status_code)
@@ -3115,8 +3109,6 @@ void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr, u8 dialo
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid, u8 ussidlen, u8 *pdev_raddr)
@@ -3212,8 +3204,6 @@ void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid, u8 ussidle
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 static u8 is_matched_in_profilelist(u8 *peermacaddr, struct profile_info *profileinfo)
@@ -3478,8 +3468,6 @@ void issue_probersp_p2p(struct adapter *padapter, unsigned char *da)
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 static int _issue_probereq_p2p(struct adapter *padapter, u8 *da, int wait_ack)
@@ -4811,8 +4799,6 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, int wait_ack)
@@ -5082,8 +5068,6 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 	rtw_wep_encrypt(padapter, (u8 *)pmgntframe);
 	DBG_88E("%s\n", __func__);
 	dump_mgntframe(padapter, pmgntframe);
-
-	return;
 }
 
 void issue_asocrsp(struct adapter *padapter, unsigned short status, struct sta_info *pstat, int pkt_type)
@@ -5551,8 +5535,6 @@ exit:
 		rtw_buf_update(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len, (u8 *)pwlanhdr, pattrib->pktlen);
 	else
 		rtw_buf_free(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len);
-
-	return;
 }
 
 /* when wait_ack is ture, this function shoule be called at process context */
@@ -6468,7 +6450,6 @@ void site_survey(struct adapter *padapter)
 			issue_action_BSSCoexistPacket(padapter);
 		}
 	}
-	return;
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
@@ -7023,8 +7004,6 @@ void report_survey_event(struct adapter *padapter, struct recv_frame *precv_fram
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 
 	pmlmeext->sitesurvey_res.bss_cnt++;
-
-	return;
 }
 
 void report_surveydone_event(struct adapter *padapter)
@@ -7068,8 +7047,6 @@ void report_surveydone_event(struct adapter *padapter)
 	DBG_88E("survey done event(%x)\n", psurveydone_evt->bss_cnt);
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_join_res(struct adapter *padapter, int res)
@@ -7118,8 +7095,6 @@ void report_join_res(struct adapter *padapter, int res)
 	rtw_joinbss_event_prehandle(padapter, (u8 *)&pjoinbss_evt->network);
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsigned short reason)
@@ -7174,8 +7149,6 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	DBG_88E("report_del_sta_event: delete STA, mac_id =%d\n", mac_id);
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int cam_idx)
@@ -7220,8 +7193,6 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	DBG_88E("report_add_sta_event: add STA\n");
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 /****************************************************************************
@@ -7662,7 +7633,6 @@ void link_timer_hdl(struct adapter *padapter)
 		issue_assocreq(padapter);
 		set_link_timer(pmlmeext, REASSOC_TO);
 	}
-	return;
 }
 
 void addba_timer_hdl(struct sta_info *psta)

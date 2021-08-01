@@ -67,8 +67,6 @@ void Hal_mpt_SwitchRfSetting(struct adapter *pAdapter)
 		pmp->MptCtx.backup0x52_RF_B = (u8)PHY_QueryRFReg(pAdapter, RF_PATH_B, RF_0x52, 0x000F0);
 		PHY_SetRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0, 0xD);
 		PHY_SetRFReg(pAdapter, RF_PATH_B, RF_0x52, 0x000F0, 0xD);
-
-	return;
 }
 /*---------------------------hal\rtl8192c\MPT_Phy.c---------------------------*/
 

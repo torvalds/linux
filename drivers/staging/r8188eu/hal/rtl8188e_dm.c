@@ -182,7 +182,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 skip_dm:
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
 	/*  Check Hardware Radio ON/OFF or not */
-	return;
 }
 
 void rtl8188e_init_dm_priv(struct adapter *Adapter)
