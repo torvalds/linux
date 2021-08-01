@@ -464,12 +464,19 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 	u32 int_sts, first_drop_reason, details, address, all_drops_reason;
 	struct qed_ptt *p_ptt = p_hwfn->p_dpc_ptt;
 
+	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
+	if (int_sts == 0xdeadbeaf) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "DORQ is being reset, skipping int_sts handler\n");
+
+		return 0;
+	}
+
 	/* int_sts may be zero since all PFs were interrupted for doorbell
 	 * overflow but another one already handled it. Can abort here. If
 	 * This PF also requires overflow recovery we will be interrupted again.
 	 * The masked almost full indication may also be set. Ignoring.
 	 */
-	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
 	if (!(int_sts & ~DORQ_REG_INT_STS_DORQ_FIFO_AFULL))
 		return 0;
 
@@ -528,6 +535,9 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 
 static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 {
+	if (p_hwfn->cdev->recov_in_prog)
+		return 0;
+
 	p_hwfn->db_recovery_info.dorq_attn = true;
 	qed_dorq_attn_overflow(p_hwfn);
 
