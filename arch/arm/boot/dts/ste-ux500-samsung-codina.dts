@@ -27,6 +27,18 @@
 	model = "Samsung Galaxy Ace 2 (GT-I8160)";
 	compatible = "samsung,codina", "st-ericsson,u8500";
 
+	cpus {
+		cpu@300 {
+			/*
+			 * This has a frequency cap at ~800 MHz in the firmware.
+			 * (Changing this number here will not overclock it.)
+			 */
+			operating-points = <798720 0
+					    399360 0
+					    199680 0>;
+		};
+	};
+
 	chosen {
 		stdout-path = &serial2;
 	};
