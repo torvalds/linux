@@ -2,6 +2,7 @@
 
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/pm_runtime.h>
 #include "netlink.h"
 
 static struct genl_family ethtool_genl_family;
@@ -31,22 +32,40 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 
 int ethnl_ops_begin(struct net_device *dev)
 {
+	int ret;
+
 	if (!dev)
 		return 0;
 
-	if (!netif_device_present(dev))
-		return -ENODEV;
+	if (dev->dev.parent)
+		pm_runtime_get_sync(dev->dev.parent);
 
-	if (dev->ethtool_ops->begin)
-		return dev->ethtool_ops->begin(dev);
-	else
-		return 0;
+	if (!netif_device_present(dev)) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	if (dev->ethtool_ops->begin) {
+		ret = dev->ethtool_ops->begin(dev);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+err:
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
+
+	return ret;
 }
 
 void ethnl_ops_complete(struct net_device *dev)
 {
 	if (dev && dev->ethtool_ops->complete)
 		dev->ethtool_ops->complete(dev);
+
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
 }
 
 /**
