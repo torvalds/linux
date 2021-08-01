@@ -534,7 +534,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 		return _FAIL;
 
 	map = rtw_zmalloc(mapLen);
-	if (map == NULL)
+	if (!map)
 		return _FAIL;
 
 	ret = rtw_efuse_map_read(padapter, 0, mapLen, map);
@@ -626,7 +626,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 		return _FAIL;
 
 	map = rtw_zmalloc(mapLen);
-	if (map == NULL)
+	if (!map)
 		return _FAIL;
 
 	ret = rtw_BT_efuse_map_read(padapter, 0, mapLen, map);

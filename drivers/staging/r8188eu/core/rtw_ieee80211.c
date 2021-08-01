@@ -705,7 +705,7 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
 	u8 match = false;
 	u8 eid, wps_oui[4] = {0x0, 0x50, 0xf2, 0x04};
 
-	if (ie_ptr == NULL)
+	if (!ie_ptr)
 		return match;
 
 	eid = ie_ptr[0];
@@ -1075,7 +1075,7 @@ u8 key_2char2num(u8 hch, u8 lch)
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
-	if (mac_addr == NULL)
+	if (!mac_addr)
 		return;
 
 	if (rtw_initmac) {	/* Users specify the mac address */
@@ -1183,7 +1183,7 @@ u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 	u8 *p2p_ie_ptr;
 	u8 eid, p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
 
-	if (p2p_ielen != NULL)
+	if (p2p_ielen)
 		*p2p_ielen = 0;
 
 	while (cnt < in_len) {
@@ -1195,9 +1195,9 @@ u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 		if ((eid == _VENDOR_SPECIFIC_IE_) && !memcmp(&in_ie[cnt+2], p2p_oui, 4)) {
 			p2p_ie_ptr = in_ie + cnt;
 
-			if (p2p_ie != NULL)
+			if (p2p_ie)
 				memcpy(p2p_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-			if (p2p_ielen != NULL)
+			if (p2p_ielen)
 				*p2p_ielen = in_ie[cnt + 1] + 2;
 			return p2p_ie_ptr;
 		} else {

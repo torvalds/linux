@@ -382,7 +382,7 @@ s32 mp_start_test(struct adapter *padapter)
 		rtw_free_stainfo(padapter, psta);
 
 	psta = rtw_alloc_stainfo(&padapter->stapriv, bssid.MacAddress);
-	if (psta == NULL) {
+	if (!psta) {
 		RT_TRACE(_module_mp_, _drv_err_, ("mp_start_test: Can't alloc sta_info!\n"));
 		pmlmepriv->fw_state = pmppriv->prev_fw_state;
 		res = _FAIL;
@@ -547,11 +547,11 @@ static struct xmit_frame *alloc_mp_xmitframe(struct xmit_priv *pxmitpriv)
 	struct xmit_buf	*pxmitbuf;
 
 	pmpframe = rtw_alloc_xmitframe(pxmitpriv);
-	if (pmpframe == NULL)
+	if (!pmpframe)
 		return NULL;
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (pxmitbuf == NULL) {
+	if (!pxmitbuf) {
 		rtw_free_xmitframe(pxmitpriv, pmpframe);
 		return NULL;
 	}
@@ -585,7 +585,7 @@ static int mp_xmit_packet_thread(void *context)
 	/* DBG_88E("%s:pkTx Start\n", __func__); */
 	while (1) {
 		pxmitframe = alloc_mp_xmitframe(pxmitpriv);
-		if (pxmitframe == NULL) {
+		if (!pxmitframe) {
 			if (pmptx->stop ||
 			    padapter->bSurpriseRemoved ||
 			    padapter->bDriverStopped) {
@@ -670,7 +670,7 @@ void SetPacketTx(struct adapter *padapter)
 	pmp_priv->tx.write_size = pkt_size;
 	pmp_priv->tx.buf_size = pkt_size + XMITBUF_ALIGN_SZ;
 	pmp_priv->tx.pallocated_buf = rtw_zmalloc(pmp_priv->tx.buf_size);
-	if (pmp_priv->tx.pallocated_buf == NULL) {
+	if (!pmp_priv->tx.pallocated_buf) {
 		DBG_88E("%s: malloc(%d) fail!!\n", __func__, pmp_priv->tx.buf_size);
 		return;
 	}
@@ -938,7 +938,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 
 	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
 
-	if (pxmitpriv->pallocated_xmit_extbuf  == NULL) {
+	if (!pxmitpriv->pallocated_xmit_extbuf) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xmit_extbuf fail!\n"));
 		res = _FAIL;
 		goto exit;

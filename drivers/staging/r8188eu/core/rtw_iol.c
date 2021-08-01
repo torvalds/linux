@@ -11,13 +11,13 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(struct adapter  *adapter)
 	struct xmit_priv	*pxmitpriv = &(adapter->xmitpriv);
 
 	xmit_frame = rtw_alloc_xmitframe(pxmitpriv);
-	if (xmit_frame == NULL) {
+	if (!xmit_frame) {
 		DBG_88E("%s rtw_alloc_xmitframe return null\n", __func__);
 		goto exit;
 	}
 
 	xmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (xmitbuf == NULL) {
+	if (!xmitbuf) {
 		DBG_88E("%s rtw_alloc_xmitbuf return null\n", __func__);
 		rtw_free_xmitframe(pxmitpriv, xmit_frame);
 		xmit_frame = NULL;

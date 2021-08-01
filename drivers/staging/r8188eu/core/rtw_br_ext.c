@@ -336,7 +336,7 @@ static inline void __network_hash_link(struct adapter *priv,
 {
 	/*  Caller must spin_lock already! */
 	ent->next_hash = priv->nethash[hash];
-	if (ent->next_hash != NULL)
+	if (ent->next_hash)
 		ent->next_hash->pprev_hash = &ent->next_hash;
 	priv->nethash[hash] = ent;
 	ent->pprev_hash = &priv->nethash[hash];
@@ -346,7 +346,7 @@ static inline void __network_hash_unlink(struct nat25_network_db_entry *ent)
 {
 	/*  Caller must spin_lock already! */
 	*(ent->pprev_hash) = ent->next_hash;
-	if (ent->next_hash != NULL)
+	if (ent->next_hash)
 		ent->next_hash->pprev_hash = ent->pprev_hash;
 	ent->next_hash = NULL;
 	ent->pprev_hash = NULL;
@@ -360,7 +360,7 @@ static int __nat25_db_network_lookup_and_replace(struct adapter *priv,
 	spin_lock_bh(&priv->br_ext_lock);
 
 	db = priv->nethash[__nat25_network_hash(networkAddr)];
-	while (db != NULL) {
+	while (db) {
 		if (!memcmp(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN)) {
 			if (!__nat25_has_expired(priv, db)) {
 				/*  replace the destination mac address */
@@ -411,7 +411,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	spin_lock_bh(&priv->br_ext_lock);
 	hash = __nat25_network_hash(networkAddr);
 	db = priv->nethash[hash];
-	while (db != NULL) {
+	while (db) {
 		if (!memcmp(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN)) {
 			memcpy(db->macAddr, macAddr, ETH_ALEN);
 			db->ageing_timer = jiffies;
@@ -421,7 +421,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 		db = db->next_hash;
 	}
 	db = (struct nat25_network_db_entry *) rtw_malloc(sizeof(*db));
-	if (db == NULL) {
+	if (!db) {
 		spin_unlock_bh(&priv->br_ext_lock);
 		return;
 	}
@@ -452,7 +452,7 @@ void nat25_db_cleanup(struct adapter *priv)
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
 		f = priv->nethash[i];
-		while (f != NULL) {
+		while (f) {
 			struct nat25_network_db_entry *g;
 
 			g = f->next_hash;
@@ -479,7 +479,7 @@ void nat25_db_expire(struct adapter *priv)
 		struct nat25_network_db_entry *f;
 		f = priv->nethash[i];
 
-		while (f != NULL) {
+		while (f) {
 			struct nat25_network_db_entry *g;
 			g = f->next_hash;
 
@@ -506,7 +506,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 	unsigned char networkAddr[MAX_NETWORK_ADDR_LEN];
 	unsigned int tmp;
 
-	if (skb == NULL)
+	if (!skb)
 		return -1;
 
 	if ((method <= NAT25_MIN) || (method >= NAT25_MAX))
@@ -675,7 +675,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		}
 
 		/*   IPX   */
-		if (ipx != NULL) {
+		if (ipx) {
 			switch (method) {
 			case NAT25_CHECK:
 				if (!memcmp(skb->data+ETH_ALEN, ipx->ipx_source.node, ETH_ALEN))
@@ -732,7 +732,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			default:
 				return -1;
 			}
-		} else if (ea != NULL) {
+		} else if (ea) {
 			/* Sanity check fields. */
 			if (ea->hw_len != ETH_ALEN || ea->pa_len != AARP_PA_ALEN) {
 				DEBUG_WARN("NAT25: Appletalk AARP Sanity check fail!\n");
@@ -775,7 +775,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			default:
 				return -1;
 			}
-		} else if (ddp != NULL) {
+		} else if (ddp) {
 			switch (method) {
 			case NAT25_CHECK:
 				return -1;
@@ -900,7 +900,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					int offset = 0;
 
 					ptr = __nat25_find_pppoe_tag(ph, ntohs(PTT_RELAY_SID));
-					if (ptr == NULL) {
+					if (!ptr) {
 						DEBUG_ERR("Fail to find PTT_RELAY_SID in FADO!\n");
 						return -1;
 					}
@@ -1132,7 +1132,7 @@ struct dhcpMessage {
 
 void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb)
 {
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	if (!priv->ethBrExtInfo.dhcp_bcst_disable) {
@@ -1182,7 +1182,7 @@ void *scdb_findEntry(struct adapter *priv, unsigned char *macAddr,
 	__nat25_generate_ipv4_network_addr(networkAddr, (unsigned int *)ipAddr);
 	hash = __nat25_network_hash(networkAddr);
 	db = priv->nethash[hash];
-	while (db != NULL) {
+	while (db) {
 		if (!memcmp(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN)) {
 			return (void *)db;
 		}

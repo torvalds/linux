@@ -435,7 +435,7 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("+rtw_set_802_11_bssid_list_scan(), fw_state =%x\n", get_fwstate(pmlmepriv)));
 
-	if (padapter == NULL) {
+	if (!padapter) {
 		res = false;
 		goto exit;
 	}
@@ -568,7 +568,7 @@ u8 rtw_set_802_11_remove_wep(struct adapter *padapter, u32 keyindex)
 {
 	u8 ret = _SUCCESS;
 
-	if (keyindex >= 0x80000000 || padapter == NULL) {
+	if (keyindex >= 0x80000000 || !padapter) {
 		ret = false;
 		goto exit;
 	} else {
@@ -622,7 +622,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 		pbssid = get_bssid(&padapter->mlmepriv);
 		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
 
-		if ((stainfo != NULL) && (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)) {
+		if (stainfo && padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 				 ("OID_802_11_ADD_KEY:(stainfo!=NULL)&&(Adapter->securitypriv.dot11AuthAlgrthm==dot11AuthAlgrthm_8021X)\n"));
 			encryptionalgo = stainfo->dot118021XPrivacy;
@@ -641,7 +641,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 			 ("rtw_set_802_11_add_key: (Adapter->securitypriv.dot11AuthAlgrthm==%d)!\n",
 			 padapter->securitypriv.dot11AuthAlgrthm));
 
-		if ((stainfo != NULL))
+		if (stainfo)
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 				 ("rtw_set_802_11_add_key: (stainfo->dot118021XPrivacy==%d)!\n",
 				 stainfo->dot118021XPrivacy));
@@ -898,7 +898,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 		pbssid = get_bssid(&padapter->mlmepriv);
 		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
 
-		if (stainfo != NULL) {
+		if (stainfo) {
 			memset(&stainfo->dot118021x_UncstKey, 0, 16);/*  clear keybuffer */
 
 			memcpy(&stainfo->dot118021x_UncstKey, key->KeyMaterial, 16);
