@@ -31,7 +31,13 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 
 int ethnl_ops_begin(struct net_device *dev)
 {
-	if (dev && dev->ethtool_ops->begin)
+	if (!dev)
+		return 0;
+
+	if (!netif_device_present(dev))
+		return -ENODEV;
+
+	if (dev->ethtool_ops->begin)
 		return dev->ethtool_ops->begin(dev);
 	else
 		return 0;
@@ -113,12 +119,6 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG_ATTR(extack, header,
 				    "neither ifindex nor name specified");
 		return -EINVAL;
-	}
-
-	if (dev && !netif_device_present(dev)) {
-		dev_put(dev);
-		NL_SET_ERR_MSG(extack, "device not present");
-		return -ENODEV;
 	}
 
 	req_info->dev = dev;
