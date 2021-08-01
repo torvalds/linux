@@ -4,7 +4,6 @@
  * Copyright(c) 2013 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define __HAL_BTCOEX_C__
 
 #include <hal_data.h>
 #include <rtw_debug.h>
@@ -16,8 +15,6 @@
 struct btc_coexist GLBtCoexist;
 static u8 GLBtcWiFiInScanState;
 static u8 GLBtcWiFiInIQKState;
-
-#define	BT_Operation(Adapter)						false
 
 /*  */
 /* 		Debug related function */

@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _IEEE80211_C
 
 #include <drv_types.h>
 #include <rtw_debug.h>

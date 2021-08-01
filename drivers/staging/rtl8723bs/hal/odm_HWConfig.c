@@ -9,8 +9,6 @@
 
 #define READ_AND_CONFIG_MP(ic, txt) (ODM_ReadAndConfig_MP_##ic##txt(pDM_Odm))
 #define READ_AND_CONFIG     READ_AND_CONFIG_MP
-#define GET_VERSION_MP(ic, txt) (ODM_GetVersion_MP_##ic##txt())
-#define GET_VERSION(ic, txt) (pDM_Odm->bIsMPChip?GET_VERSION_MP(ic, txt):GET_VERSION_TC(ic, txt))
 
 static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 {

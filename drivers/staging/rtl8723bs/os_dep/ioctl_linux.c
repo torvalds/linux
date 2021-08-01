@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _IOCTL_LINUX_C_
 
 #include <linux/etherdevice.h>
 #include <drv_types.h>

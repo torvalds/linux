@@ -268,11 +268,6 @@ void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_cod
 
 /* fixed algorithm "parameters" */
 #define PHASE1_LOOP_CNT   8    /* this needs to be "big enough"     */
-#define TA_SIZE           6    /*  48-bit transmitter address       */
-#define TK_SIZE          16    /* 128-bit temporal key              */
-#define P1K_SIZE         10    /*  80-bit Phase1 key                */
-#define RC4_KEY_SIZE     16    /* 128-bit RC4KEY (104 bits unknown) */
-
 
 /* 2-unsigned char by 2-unsigned char subset of the full AES S-box table */
 static const unsigned short Sbox1[2][256] = {      /* Sbox for hash (can be in ROM)     */

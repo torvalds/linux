@@ -281,10 +281,6 @@ u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE] = {
 
 /* Remove Edca by Yu Chen */
 
-
-#define RxDefaultAnt1		0x65a9
-#define RxDefaultAnt2		0x569a
-
 static void odm_CommonInfoSelfInit(struct dm_odm_t *pDM_Odm)
 {
 	pDM_Odm->bCckHighPower = (bool) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(CCK_RPT_FORMAT, pDM_Odm), ODM_BIT(CCK_RPT_FORMAT, pDM_Odm));

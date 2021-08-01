@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _HAL_COM_C_
 
 #include <linux/kernel.h>
 #include <drv_types.h>

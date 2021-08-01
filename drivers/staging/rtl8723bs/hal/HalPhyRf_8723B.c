@@ -9,17 +9,10 @@
 #include <rtw_debug.h>
 #include "odm_precomp.h"
 
-
-
-/*---------------------------Define Local Constant---------------------------*/
-/*  2010/04/25 MH Define the max tx power tracking tx agc power. */
-#define		ODM_TXPWRTRACK_MAX_IDX8723B	6
-
 /*  MACRO definition for pRFCalibrateInfo->TxIQC_8723B[0] */
 #define		PATH_S0							1 /*  RF_PATH_B */
 #define		IDX_0xC94						0
 #define		IDX_0xC80						1
-#define		IDX_0xC4C						2
 #define		IDX_0xC14						0
 #define		IDX_0xCA0						1
 #define		KEY							0
@@ -27,12 +20,7 @@
 
 /*  MACRO definition for pRFCalibrateInfo->TxIQC_8723B[1] */
 #define		PATH_S1							0 /*  RF_PATH_A */
-#define		IDX_0xC9C						0
-#define		IDX_0xC88						1
 #define		IDX_0xC4C						2
-#define		IDX_0xC1C						0
-#define		IDX_0xC78						1
-
 
 /*---------------------------Define Local Constant---------------------------*/
 
@@ -373,7 +361,6 @@ void ConfigureTxpowerTrack_8723B(struct txpwrtrack_cfg *pConfig)
 
 /* 1 7. IQK */
 #define MAX_TOLERANCE		5
-#define IQK_DELAY_TIME		1		/* ms */
 
 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
 static u8 phy_PathA_IQK_8723B(
@@ -1582,20 +1569,6 @@ static void phy_LCCalibrate_8723B(struct dm_odm_t *pDM_Odm, bool is2T)
 	} else /*  Deal with Packet TX case */
 		rtw_write8(pDM_Odm->Adapter, REG_TXPAUSE, 0x00);
 }
-
-/* Analog Pre-distortion calibration */
-#define		APK_BB_REG_NUM	8
-#define		APK_CURVE_REG_NUM 4
-#define		PATH_NUM		2
-
-#define		DP_BB_REG_NUM		7
-#define		DP_RF_REG_NUM		1
-#define		DP_RETRY_LIMIT		10
-#define		DP_PATH_NUM	2
-#define		DP_DPK_NUM			3
-#define		DP_DPK_VALUE_NUM	2
-
-
 
 /* IQK version:V2.5    20140123 */
 /* IQK is controlled by Is2ant, RF path */

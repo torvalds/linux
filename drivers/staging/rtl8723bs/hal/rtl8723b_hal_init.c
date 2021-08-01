@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _HAL_INIT_C_
 
 #include <linux/firmware.h>
 #include <linux/slab.h>
@@ -598,14 +597,12 @@ static void Hal_GetEfuseDefinition(
 }
 
 #define VOLTAGE_V25		0x03
-#define LDOE25_SHIFT	28
 
 /*  */
 /* 	The following is for compile ok */
 /* 	That should be merged with the original in the future */
 /*  */
 #define EFUSE_ACCESS_ON_8723			0x69	/*  For RTL8723 only. */
-#define EFUSE_ACCESS_OFF_8723			0x00	/*  For RTL8723 only. */
 #define REG_EFUSE_ACCESS_8723			0x00CF	/*  Efuse access protection for RTL8723 */
 
 /*  */

@@ -7,8 +7,6 @@
 /*  Description: */
 /*  This file is for 92CE/92CU dynamic mechanism only */
 
-#define _RTL8723B_DM_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtl8723b_hal.h>

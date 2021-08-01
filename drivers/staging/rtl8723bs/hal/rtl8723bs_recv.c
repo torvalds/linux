@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTL8723BS_RECV_C_
 
 #include <drv_types.h>
 #include <rtw_debug.h>

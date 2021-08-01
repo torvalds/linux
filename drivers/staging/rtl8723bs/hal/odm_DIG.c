@@ -7,8 +7,6 @@
 
 #include "odm_precomp.h"
 
-#define ADAPTIVITY_VERSION "5.0"
-
 void odm_NHMCounterStatisticsInit(void *pDM_VOID)
 {
 	struct dm_odm_t	*pDM_Odm = (struct dm_odm_t *)pDM_VOID;
