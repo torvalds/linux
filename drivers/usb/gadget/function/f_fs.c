@@ -2081,7 +2081,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 		break;
 
 	case USB_TYPE_CLASS | 0x01:
-                if (*current_class == USB_INTERFACE_CLASS_HID) {
+		if (*current_class == USB_INTERFACE_CLASS_HID) {
 			pr_vdebug("hid descriptor\n");
 			if (length != sizeof(struct hid_descriptor))
 				goto inv_length;
