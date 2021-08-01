@@ -514,7 +514,9 @@ static int el3_common_init(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
 	int err;
-	const char *if_names[] = {"10baseT", "AUI", "undefined", "BNC"};
+	static const char * const if_names[] = {
+		"10baseT", "AUI", "undefined", "BNC"
+	};
 
 	spin_lock_init(&lp->lock);
 
