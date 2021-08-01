@@ -29,6 +29,20 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 							  ETHTOOL_FLAGS_STATS),
 };
 
+int ethnl_ops_begin(struct net_device *dev)
+{
+	if (dev && dev->ethtool_ops->begin)
+		return dev->ethtool_ops->begin(dev);
+	else
+		return 0;
+}
+
+void ethnl_ops_complete(struct net_device *dev)
+{
+	if (dev && dev->ethtool_ops->complete)
+		dev->ethtool_ops->complete(dev);
+}
+
 /**
  * ethnl_parse_header_dev_get() - parse request header
  * @req_info:    structure to put results into
