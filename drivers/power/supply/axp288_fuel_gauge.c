@@ -661,31 +661,35 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		goto out_free_iio_chan;
+
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
 	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
 	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	if (val == 0) {
 		ret = -ENODEV;
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_DES_CAP1_REG);
 	if (ret < 0)
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 
 	if (!(ret & FG_DES_CAP1_VALID)) {
 		dev_err(&pdev->dev, "axp288 not configured by firmware\n");
 		ret = -ENODEV;
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_CHRG_CTRL1);
 	if (ret < 0)
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	switch ((ret & CHRG_CCCV_CV_MASK) >> CHRG_CCCV_CV_BIT_POS) {
 	case CHRG_CCCV_CV_4100MV:
 		info->max_volt = 4100;
@@ -703,13 +707,19 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_PWR_OP_MODE);
 	if (ret < 0)
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	info->pwr_op = ret;
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG);
 	if (ret < 0)
-		goto out_free_iio_chan;
+		goto unblock_punit_i2c_access;
 	info->low_cap = ret;
+
+unblock_punit_i2c_access:
+	iosf_mbi_unblock_punit_i2c_access();
+	/* In case we arrive here by goto because of a register access error */
+	if (ret < 0)
+		goto out_free_iio_chan;
 
 	psy_cfg.drv_data = info;
 	info->bat = power_supply_register(&pdev->dev, &fuel_gauge_desc, &psy_cfg);
