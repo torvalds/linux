@@ -539,23 +539,6 @@ static int sd_write_long_data(struct realtek_pci_sdmmc *host,
 	return 0;
 }
 
-static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
-{
-	struct mmc_data *data = mrq->data;
-
-	if (host->sg_count < 0) {
-		data->error = host->sg_count;
-		dev_dbg(sdmmc_dev(host), "%s: sg_count = %d is invalid\n",
-			__func__, host->sg_count);
-		return data->error;
-	}
-
-	if (data->flags & MMC_DATA_READ)
-		return sd_read_long_data(host, mrq);
-
-	return sd_write_long_data(host, mrq);
-}
-
 static inline void sd_enable_initial_mode(struct realtek_pci_sdmmc *host)
 {
 	rtsx_pci_write_register(host->pcr, SD_CFG1,
@@ -566,6 +549,33 @@ static inline void sd_disable_initial_mode(struct realtek_pci_sdmmc *host)
 {
 	rtsx_pci_write_register(host->pcr, SD_CFG1,
 			SD_CLK_DIVIDE_MASK, SD_CLK_DIVIDE_0);
+}
+
+static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
+{
+	struct mmc_data *data = mrq->data;
+	int err;
+
+	if (host->sg_count < 0) {
+		data->error = host->sg_count;
+		dev_dbg(sdmmc_dev(host), "%s: sg_count = %d is invalid\n",
+			__func__, host->sg_count);
+		return data->error;
+	}
+
+	if (data->flags & MMC_DATA_READ) {
+		if (host->initial_mode)
+			sd_disable_initial_mode(host);
+
+		err = sd_read_long_data(host, mrq);
+
+		if (host->initial_mode)
+			sd_enable_initial_mode(host);
+
+		return err;
+	}
+
+	return sd_write_long_data(host, mrq);
 }
 
 static void sd_normal_rw(struct realtek_pci_sdmmc *host,
