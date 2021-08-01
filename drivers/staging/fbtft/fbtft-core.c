@@ -992,7 +992,7 @@ out_free:
 int fbtft_init_display(struct fbtft_par *par)
 {
 	int buf[64];
-	int i = 0;
+	int i;
 	int j;
 
 	/* sanity check */
