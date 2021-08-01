@@ -111,6 +111,8 @@ struct axp288_fg_info {
 	struct mutex lock;
 	int status;
 	int max_volt;
+	int pwr_op;
+	int low_cap;
 	struct dentry *debug_file;
 };
 
@@ -336,11 +338,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 		val->intval = PROP_CURR(value);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		ret = fuel_gauge_reg_readb(info, AXP20X_PWR_OP_MODE);
-		if (ret < 0)
-			goto fuel_gauge_read_err;
-
-		if (ret & CHRG_STAT_BAT_PRESENT)
+		if (info->pwr_op & CHRG_STAT_BAT_PRESENT)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -355,10 +353,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 		val->intval = (ret & FG_REP_CAP_VAL_MASK);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
-		ret = fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG);
-		if (ret < 0)
-			goto fuel_gauge_read_err;
-		val->intval = (ret & 0x0f);
+		val->intval = (info->low_cap & 0x0f);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -398,7 +393,7 @@ static int fuel_gauge_set_property(struct power_supply *ps,
 		const union power_supply_propval *val)
 {
 	struct axp288_fg_info *info = power_supply_get_drvdata(ps);
-	int ret = 0;
+	int new_low_cap, ret = 0;
 
 	mutex_lock(&info->lock);
 	switch (prop) {
@@ -407,12 +402,12 @@ static int fuel_gauge_set_property(struct power_supply *ps,
 			ret = -EINVAL;
 			break;
 		}
-		ret = fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG);
-		if (ret < 0)
-			break;
-		ret &= 0xf0;
-		ret |= (val->intval & 0xf);
-		ret = fuel_gauge_reg_writeb(info, AXP288_FG_LOW_CAP_REG, ret);
+		new_low_cap = info->low_cap;
+		new_low_cap &= 0xf0;
+		new_low_cap |= (val->intval & 0xf);
+		ret = fuel_gauge_reg_writeb(info, AXP288_FG_LOW_CAP_REG, new_low_cap);
+		if (ret == 0)
+			info->low_cap = new_low_cap;
 		break;
 	default:
 		ret = -EINVAL;
@@ -694,6 +689,16 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		info->max_volt = 4350;
 		break;
 	}
+
+	ret = fuel_gauge_reg_readb(info, AXP20X_PWR_OP_MODE);
+	if (ret < 0)
+		goto out_free_iio_chan;
+	info->pwr_op = ret;
+
+	ret = fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG);
+	if (ret < 0)
+		goto out_free_iio_chan;
+	info->low_cap = ret;
 
 	psy_cfg.drv_data = info;
 	info->bat = power_supply_register(&pdev->dev, &fuel_gauge_desc, &psy_cfg);
