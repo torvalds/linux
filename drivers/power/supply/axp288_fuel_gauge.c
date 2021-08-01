@@ -102,7 +102,7 @@ enum {
 };
 
 struct axp288_fg_info {
-	struct platform_device *pdev;
+	struct device *dev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[AXP288_FG_INTR_NUM];
@@ -136,7 +136,7 @@ static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
 
 	ret = regmap_read(info->regmap, reg, &val);
 	if (ret < 0) {
-		dev_err(&info->pdev->dev, "Error reading reg 0x%02x err: %d\n", reg, ret);
+		dev_err(info->dev, "Error reading reg 0x%02x err: %d\n", reg, ret);
 		return ret;
 	}
 
@@ -150,7 +150,7 @@ static int fuel_gauge_reg_writeb(struct axp288_fg_info *info, int reg, u8 val)
 	ret = regmap_write(info->regmap, reg, (unsigned int)val);
 
 	if (ret < 0)
-		dev_err(&info->pdev->dev, "Error writing reg 0x%02x err: %d\n", reg, ret);
+		dev_err(info->dev, "Error writing reg 0x%02x err: %d\n", reg, ret);
 
 	return ret;
 }
@@ -162,15 +162,13 @@ static int fuel_gauge_read_15bit_word(struct axp288_fg_info *info, int reg)
 
 	ret = regmap_bulk_read(info->regmap, reg, buf, 2);
 	if (ret < 0) {
-		dev_err(&info->pdev->dev, "Error reading reg 0x%02x err: %d\n",
-			reg, ret);
+		dev_err(info->dev, "Error reading reg 0x%02x err: %d\n", reg, ret);
 		return ret;
 	}
 
 	ret = get_unaligned_be16(buf);
 	if (!(ret & FG_15BIT_WORD_VALID)) {
-		dev_err(&info->pdev->dev, "Error reg 0x%02x contents not valid\n",
-			reg);
+		dev_err(info->dev, "Error reg 0x%02x contents not valid\n", reg);
 		return -ENXIO;
 	}
 
@@ -184,8 +182,7 @@ static int fuel_gauge_read_12bit_word(struct axp288_fg_info *info, int reg)
 
 	ret = regmap_bulk_read(info->regmap, reg, buf, 2);
 	if (ret < 0) {
-		dev_err(&info->pdev->dev, "Error reading reg 0x%02x err: %d\n",
-			reg, ret);
+		dev_err(info->dev, "Error reading reg 0x%02x err: %d\n", reg, ret);
 		return ret;
 	}
 
@@ -199,8 +196,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	pwr_stat = fuel_gauge_reg_readb(info, AXP20X_PWR_INPUT_STATUS);
 	if (pwr_stat < 0) {
-		dev_err(&info->pdev->dev,
-			"PWR STAT read failed:%d\n", pwr_stat);
+		dev_err(info->dev, "PWR STAT read failed: %d\n", pwr_stat);
 		return;
 	}
 
@@ -210,7 +206,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
 	if (fg_res < 0) {
-		dev_err(&info->pdev->dev, "FG RES read failed: %d\n", fg_res);
+		dev_err(info->dev, "FG RES read failed: %d\n", fg_res);
 		return;
 	}
 	if (!(fg_res & FG_REP_CAP_VALID))
@@ -232,7 +228,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &curr);
 	if (ret < 0) {
-		dev_err(&info->pdev->dev, "FG get current failed: %d\n", ret);
+		dev_err(info->dev, "FG get current failed: %d\n", ret);
 		return;
 	}
 	if (curr == 0) {
@@ -355,8 +351,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 			goto fuel_gauge_read_err;
 
 		if (!(ret & FG_REP_CAP_VALID))
-			dev_err(&info->pdev->dev,
-				"capacity measurement not valid\n");
+			dev_err(info->dev, "capacity measurement not valid\n");
 		val->intval = (ret & FG_REP_CAP_VAL_MASK);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
@@ -455,35 +450,31 @@ static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 	}
 
 	if (i >= AXP288_FG_INTR_NUM) {
-		dev_warn(&info->pdev->dev, "spurious interrupt!!\n");
+		dev_warn(info->dev, "spurious interrupt!!\n");
 		return IRQ_NONE;
 	}
 
 	switch (i) {
 	case QWBTU_IRQ:
-		dev_info(&info->pdev->dev,
-			"Quit Battery under temperature in work mode IRQ (QWBTU)\n");
+		dev_info(info->dev, "Quit Battery under temperature in work mode IRQ (QWBTU)\n");
 		break;
 	case WBTU_IRQ:
-		dev_info(&info->pdev->dev,
-			"Battery under temperature in work mode IRQ (WBTU)\n");
+		dev_info(info->dev, "Battery under temperature in work mode IRQ (WBTU)\n");
 		break;
 	case QWBTO_IRQ:
-		dev_info(&info->pdev->dev,
-			"Quit Battery over temperature in work mode IRQ (QWBTO)\n");
+		dev_info(info->dev, "Quit Battery over temperature in work mode IRQ (QWBTO)\n");
 		break;
 	case WBTO_IRQ:
-		dev_info(&info->pdev->dev,
-			"Battery over temperature in work mode IRQ (WBTO)\n");
+		dev_info(info->dev, "Battery over temperature in work mode IRQ (WBTO)\n");
 		break;
 	case WL2_IRQ:
-		dev_info(&info->pdev->dev, "Low Batt Warning(2) INTR\n");
+		dev_info(info->dev, "Low Batt Warning(2) INTR\n");
 		break;
 	case WL1_IRQ:
-		dev_info(&info->pdev->dev, "Low Batt Warning(1) INTR\n");
+		dev_info(info->dev, "Low Batt Warning(1) INTR\n");
 		break;
 	default:
-		dev_warn(&info->pdev->dev, "Spurious Interrupt!!!\n");
+		dev_warn(info->dev, "Spurious Interrupt!!!\n");
 	}
 
 	power_supply_changed(info->bat);
@@ -508,16 +499,15 @@ static const struct power_supply_desc fuel_gauge_desc = {
 	.external_power_changed	= fuel_gauge_external_power_changed,
 };
 
-static void fuel_gauge_init_irq(struct axp288_fg_info *info)
+static void fuel_gauge_init_irq(struct axp288_fg_info *info, struct platform_device *pdev)
 {
 	int ret, i, pirq;
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
-		pirq = platform_get_irq(info->pdev, i);
+		pirq = platform_get_irq(pdev, i);
 		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
 		if (info->irq[i] < 0) {
-			dev_warn(&info->pdev->dev,
-				"regmap_irq get virq failed for IRQ %d: %d\n",
+			dev_warn(info->dev, "regmap_irq get virq failed for IRQ %d: %d\n",
 				pirq, info->irq[i]);
 			info->irq[i] = -1;
 			goto intr_failed;
@@ -526,8 +516,7 @@ static void fuel_gauge_init_irq(struct axp288_fg_info *info)
 				NULL, fuel_gauge_thread_handler,
 				IRQF_ONESHOT, DEV_NAME, info);
 		if (ret) {
-			dev_warn(&info->pdev->dev,
-				"request irq failed for IRQ %d: %d\n",
+			dev_warn(info->dev, "request irq failed for IRQ %d: %d\n",
 				pirq, info->irq[i]);
 			info->irq[i] = -1;
 			goto intr_failed;
@@ -649,7 +638,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	info->pdev = pdev;
+	info->dev = &pdev->dev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -714,7 +703,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		goto out_free_iio_chan;
 	}
 
-	fuel_gauge_init_irq(info);
+	fuel_gauge_init_irq(info, pdev);
 
 	return 0;
 
