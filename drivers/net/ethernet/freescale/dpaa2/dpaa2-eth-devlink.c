@@ -68,7 +68,7 @@ dpaa2_eth_dl_trap_item_lookup(struct dpaa2_eth_priv *priv, u16 trap_id)
 struct dpaa2_eth_trap_item *dpaa2_eth_dl_get_trap(struct dpaa2_eth_priv *priv,
 						  struct dpaa2_fapr *fapr)
 {
-	struct dpaa2_faf_error_bit {
+	static const struct dpaa2_faf_error_bit {
 		int position;
 		enum devlink_trap_generic_id trap_id;
 	} faf_bits[] = {
