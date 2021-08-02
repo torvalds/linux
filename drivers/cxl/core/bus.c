@@ -6,8 +6,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
-#include "cxl.h"
-#include "mem.h"
+#include <cxlmem.h>
+#include <cxl.h>
 
 /**
  * DOC: cxl core
