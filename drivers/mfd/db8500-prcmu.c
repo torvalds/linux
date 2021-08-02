@@ -37,7 +37,7 @@
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <linux/platform_data/ux500_wdt.h>
-#include "dbx500-prcmu-regs.h"
+#include "db8500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
 #define PRCM_AVS_BASE		0x2FC
