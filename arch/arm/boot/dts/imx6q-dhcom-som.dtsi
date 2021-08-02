@@ -317,7 +317,17 @@
 
 &iomuxc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog_base>;
+	pinctrl-0 = <
+			&pinctrl_hog_base
+			&pinctrl_dhcom_a &pinctrl_dhcom_b &pinctrl_dhcom_c
+			&pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
+			&pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_i
+			&pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
+			&pinctrl_dhcom_m &pinctrl_dhcom_n &pinctrl_dhcom_o
+			&pinctrl_dhcom_p &pinctrl_dhcom_q &pinctrl_dhcom_r
+			&pinctrl_dhcom_s &pinctrl_dhcom_t &pinctrl_dhcom_u
+			&pinctrl_dhcom_v &pinctrl_dhcom_w &pinctrl_dhcom_int
+		>;
 
 	pinctrl_hog_base: hog-base-grp {
 		fsl,pins = <
@@ -327,6 +337,103 @@
 			MX6QDL_PAD_EIM_A16__GPIO2_IO22		0x120b0
 			MX6QDL_PAD_EIM_A17__GPIO2_IO21		0x120b0
 		>;
+	};
+
+	/* DHCOM GPIOs */
+	pinctrl_dhcom_a: dhcom-a-grp {
+		fsl,pins = <MX6QDL_PAD_GPIO_2__GPIO1_IO02	0x400120b0>;
+	};
+
+	pinctrl_dhcom_b: dhcom-b-grp {
+		fsl,pins = <MX6QDL_PAD_GPIO_4__GPIO1_IO04	0x400120b0>;
+	};
+
+	pinctrl_dhcom_c: dhcom-c-grp {
+		fsl,pins = <MX6QDL_PAD_GPIO_5__GPIO1_IO05	0x400120b0>;
+	};
+
+	pinctrl_dhcom_d: dhcom-d-grp {
+		fsl,pins = <MX6QDL_PAD_CSI0_DAT17__GPIO6_IO03	0x400120b0>;
+	};
+
+	pinctrl_dhcom_e: dhcom-e-grp {
+		fsl,pins = <MX6QDL_PAD_GPIO_19__GPIO4_IO05	0x400120b0>;
+	};
+
+	pinctrl_dhcom_f: dhcom-f-grp {
+		fsl,pins = <MX6QDL_PAD_DI0_PIN4__GPIO4_IO20	0x400120b0>;
+	};
+
+	pinctrl_dhcom_g: dhcom-g-grp {
+		fsl,pins = <MX6QDL_PAD_EIM_D27__GPIO3_IO27	0x400120b0>;
+	};
+
+	pinctrl_dhcom_h: dhcom-h-grp {
+		fsl,pins = <MX6QDL_PAD_KEY_ROW0__GPIO4_IO07	0x400120b0>;
+	};
+
+	pinctrl_dhcom_i: dhcom-i-grp {
+		fsl,pins = <MX6QDL_PAD_KEY_COL1__GPIO4_IO08	0x400120b0>;
+	};
+
+	pinctrl_dhcom_j: dhcom-j-grp {
+		fsl,pins = <MX6QDL_PAD_NANDF_CS1__GPIO6_IO14	0x400120b0>;
+	};
+
+	pinctrl_dhcom_k: dhcom-k-grp {
+		fsl,pins = <MX6QDL_PAD_NANDF_CS2__GPIO6_IO15	0x400120b0>;
+	};
+
+	pinctrl_dhcom_l: dhcom-l-grp {
+		fsl,pins = <MX6QDL_PAD_KEY_ROW1__GPIO4_IO09	0x400120b0>;
+	};
+
+	pinctrl_dhcom_m: dhcom-m-grp {
+		fsl,pins = <MX6QDL_PAD_SD3_DAT5__GPIO7_IO00	0x400120b0>;
+	};
+
+	pinctrl_dhcom_n: dhcom-n-grp {
+		fsl,pins = <MX6QDL_PAD_SD3_DAT4__GPIO7_IO01	0x400120b0>;
+	};
+
+	pinctrl_dhcom_o: dhcom-o-grp {
+		fsl,pins = <MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21	0x400120b0>;
+	};
+
+	pinctrl_dhcom_p: dhcom-p-grp {
+		fsl,pins = <MX6QDL_PAD_GPIO_18__GPIO7_IO13	0x400120b0>;
+	};
+
+	pinctrl_dhcom_q: dhcom-q-grp {
+		fsl,pins = <MX6QDL_PAD_SD1_CMD__GPIO1_IO18	0x400120b0>;
+	};
+
+	pinctrl_dhcom_r: dhcom-r-grp {
+		fsl,pins = <MX6QDL_PAD_SD1_DAT0__GPIO1_IO16	0x400120b0>;
+	};
+
+	pinctrl_dhcom_s: dhcom-s-grp {
+		fsl,pins = <MX6QDL_PAD_SD1_DAT1__GPIO1_IO17	0x400120b0>;
+	};
+
+	pinctrl_dhcom_t: dhcom-t-grp {
+		fsl,pins = <MX6QDL_PAD_SD1_DAT2__GPIO1_IO19	0x400120b0>;
+	};
+
+	pinctrl_dhcom_u: dhcom-u-grp {
+		fsl,pins = <MX6QDL_PAD_SD1_CLK__GPIO1_IO20	0x400120b0>;
+	};
+
+	pinctrl_dhcom_v: dhcom-v-grp {
+		fsl,pins = <MX6QDL_PAD_CSI0_PIXCLK__GPIO5_IO18	0x400120b0>;
+	};
+
+	pinctrl_dhcom_w: dhcom-w-grp {
+		fsl,pins = <MX6QDL_PAD_CSI0_MCLK__GPIO5_IO19	0x400120b0>;
+	};
+
+	pinctrl_dhcom_int: dhcom-int-grp {
+		fsl,pins = <MX6QDL_PAD_KEY_COL0__GPIO4_IO06	0x400120b0>;
 	};
 
 	pinctrl_ecspi1: ecspi1-grp {
