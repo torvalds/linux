@@ -387,7 +387,7 @@ static void *snd_dma_dev_alloc(struct snd_dma_buffer *dmab, size_t size)
 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
 	p = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr, gfp_flags);
 #ifdef CONFIG_X86
-	if (p && dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC)
+	if (p && dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC)
 		set_memory_wc((unsigned long)p, PAGE_ALIGN(size) >> PAGE_SHIFT);
 #endif
 	return p;
@@ -396,7 +396,7 @@ static void *snd_dma_dev_alloc(struct snd_dma_buffer *dmab, size_t size)
 static void snd_dma_dev_free(struct snd_dma_buffer *dmab)
 {
 #ifdef CONFIG_X86
-	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC)
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC)
 		set_memory_wb((unsigned long)dmab->area,
 			      PAGE_ALIGN(dmab->bytes) >> PAGE_SHIFT);
 #endif
@@ -425,14 +425,14 @@ static const struct snd_malloc_ops *dma_ops[] = {
 	[SNDRV_DMA_TYPE_VMALLOC] = &snd_dma_vmalloc_ops,
 #ifdef CONFIG_HAS_DMA
 	[SNDRV_DMA_TYPE_DEV] = &snd_dma_dev_ops,
-	[SNDRV_DMA_TYPE_DEV_UC] = &snd_dma_dev_ops,
+	[SNDRV_DMA_TYPE_DEV_WC] = &snd_dma_dev_ops,
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 #endif /* CONFIG_HAS_DMA */
 #ifdef CONFIG_SND_DMA_SGBUF
 	[SNDRV_DMA_TYPE_DEV_SG] = &snd_dma_sg_ops,
-	[SNDRV_DMA_TYPE_DEV_UC_SG] = &snd_dma_sg_ops,
+	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_ops,
 #endif
 };
 

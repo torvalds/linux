@@ -753,7 +753,7 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 	if (size > MAX_PREALLOC_SIZE)
 		size = MAX_PREALLOC_SIZE;
 	if (chip->uc_buffer)
-		type = SNDRV_DMA_TYPE_DEV_UC_SG;
+		type = SNDRV_DMA_TYPE_DEV_WC_SG;
 	snd_pcm_set_managed_buffer_all(pcm, type, chip->card->dev,
 				       size, MAX_PREALLOC_SIZE);
 	return 0;
