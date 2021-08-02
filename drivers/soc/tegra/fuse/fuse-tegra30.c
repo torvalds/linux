@@ -12,6 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/random.h>
 
 #include <soc/tegra/fuse.h>
@@ -52,15 +53,13 @@ static u32 tegra30_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 	u32 value;
 	int err;
 
-	err = clk_prepare_enable(fuse->clk);
-	if (err < 0) {
-		dev_err(fuse->dev, "failed to enable FUSE clock: %d\n", err);
+	err = pm_runtime_resume_and_get(fuse->dev);
+	if (err)
 		return 0;
-	}
 
 	value = readl_relaxed(fuse->base + FUSE_BEGIN + offset);
 
-	clk_disable_unprepare(fuse->clk);
+	pm_runtime_put(fuse->dev);
 
 	return value;
 }
