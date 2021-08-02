@@ -104,7 +104,7 @@ static __always_inline void __enter_from_user_mode(void)
 	trace_hardirqs_off_finish();
 }
 
-asmlinkage void noinstr enter_from_user_mode(void)
+static __always_inline void enter_from_user_mode(void)
 {
 	__enter_from_user_mode();
 }
@@ -123,10 +123,27 @@ static __always_inline void __exit_to_user_mode(void)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
-asmlinkage void noinstr exit_to_user_mode(void)
+static __always_inline void exit_to_user_mode(void)
 {
 	mte_check_tfsr_exit();
 	__exit_to_user_mode();
+}
+
+static __always_inline void prepare_exit_to_user_mode(struct pt_regs *regs)
+{
+	unsigned long flags;
+
+	local_daif_mask();
+
+	flags = READ_ONCE(current_thread_info()->flags);
+	if (unlikely(flags & _TIF_WORK_MASK))
+		do_notify_resume(regs, flags);
+}
+
+asmlinkage void noinstr asm_exit_to_user_mode(struct pt_regs *regs)
+{
+	prepare_exit_to_user_mode(regs);
+	exit_to_user_mode();
 }
 
 /*
