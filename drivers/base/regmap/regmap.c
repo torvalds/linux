@@ -1298,7 +1298,7 @@ EXPORT_SYMBOL_GPL(devm_regmap_field_alloc);
  */
 int regmap_field_bulk_alloc(struct regmap *regmap,
 			    struct regmap_field **rm_field,
-			    struct reg_field *reg_field,
+			    const struct reg_field *reg_field,
 			    int num_fields)
 {
 	struct regmap_field *rf;
@@ -1334,7 +1334,7 @@ EXPORT_SYMBOL_GPL(regmap_field_bulk_alloc);
 int devm_regmap_field_bulk_alloc(struct device *dev,
 				 struct regmap *regmap,
 				 struct regmap_field **rm_field,
-				 struct reg_field *reg_field,
+				 const struct reg_field *reg_field,
 				 int num_fields)
 {
 	struct regmap_field *rf;

@@ -1269,12 +1269,13 @@ void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_bulk_alloc(struct regmap *regmap,
 			     struct regmap_field **rm_field,
-			     struct reg_field *reg_field,
+			     const struct reg_field *reg_field,
 			     int num_fields);
 void regmap_field_bulk_free(struct regmap_field *field);
 int devm_regmap_field_bulk_alloc(struct device *dev, struct regmap *regmap,
 				 struct regmap_field **field,
-				 struct reg_field *reg_field, int num_fields);
+				 const struct reg_field *reg_field,
+				 int num_fields);
 void devm_regmap_field_bulk_free(struct device *dev,
 				 struct regmap_field *field);
 
