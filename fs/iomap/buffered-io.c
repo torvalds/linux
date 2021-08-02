@@ -1251,7 +1251,6 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 	sector_t sector = iomap_sector(&wpc->iomap, offset);
 	unsigned len = i_blocksize(inode);
 	unsigned poff = offset & (PAGE_SIZE - 1);
-	bool merged, same_page = false;
 
 	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, offset, sector)) {
 		if (wpc->ioend)
@@ -1259,19 +1258,13 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 		wpc->ioend = iomap_alloc_ioend(inode, wpc, offset, sector, wbc);
 	}
 
-	merged = __bio_try_merge_page(wpc->ioend->io_bio, page, len, poff,
-			&same_page);
-	if (iop)
-		atomic_add(len, &iop->write_bytes_pending);
-
-	if (!merged) {
-		if (bio_full(wpc->ioend->io_bio, len)) {
-			wpc->ioend->io_bio =
-				iomap_chain_bio(wpc->ioend->io_bio);
-		}
-		bio_add_page(wpc->ioend->io_bio, page, len, poff);
+	if (bio_add_page(wpc->ioend->io_bio, page, len, poff) != len) {
+		wpc->ioend->io_bio = iomap_chain_bio(wpc->ioend->io_bio);
+		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
 	}
 
+	if (iop)
+		atomic_add(len, &iop->write_bytes_pending);
 	wpc->ioend->io_size += len;
 	wbc_account_cgroup_owner(wbc, page, len);
 }
