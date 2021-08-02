@@ -373,19 +373,20 @@ static const struct snd_malloc_ops snd_dma_iram_ops = {
 };
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 
+#define DEFAULT_GFP \
+	(GFP_KERNEL | \
+	 __GFP_COMP |    /* compound page lets parts be mapped */ \
+	 __GFP_NORETRY | /* don't trigger OOM-killer */ \
+	 __GFP_NOWARN)   /* no stack trace print - this call is non-critical */
+
 /*
  * Coherent device pages allocator
  */
 static void *snd_dma_dev_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
-	gfp_t gfp_flags;
 	void *p;
 
-	gfp_flags = GFP_KERNEL
-		| __GFP_COMP	/* compound page lets parts be mapped */
-		| __GFP_NORETRY /* don't trigger OOM-killer */
-		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
-	p = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr, gfp_flags);
+	p = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr, DEFAULT_GFP);
 #ifdef CONFIG_X86
 	if (p && dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC)
 		set_memory_wc((unsigned long)p, PAGE_ALIGN(size) >> PAGE_SHIFT);
@@ -415,6 +416,37 @@ static const struct snd_malloc_ops snd_dma_dev_ops = {
 	.free = snd_dma_dev_free,
 	.mmap = snd_dma_dev_mmap,
 };
+
+/*
+ * Write-combined pages
+ */
+#ifdef CONFIG_X86
+/* On x86, share the same ops as the standard dev ops */
+#define snd_dma_wc_ops	snd_dma_dev_ops
+#else /* CONFIG_X86 */
+static void *snd_dma_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
+{
+	return dma_alloc_wc(dmab->dev.dev, size, &dmab->addr, DEFAULT_GFP);
+}
+
+static void snd_dma_wc_free(struct snd_dma_buffer *dmab)
+{
+	dma_free_wc(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
+}
+
+static int snd_dma_wc_mmap(struct snd_dma_buffer *dmab,
+			   struct vm_area_struct *area)
+{
+	return dma_mmap_wc(dmab->dev.dev, area,
+			   dmab->area, dmab->addr, dmab->bytes);
+}
+
+static const struct snd_malloc_ops snd_dma_wc_ops = {
+	.alloc = snd_dma_wc_alloc,
+	.free = snd_dma_wc_free,
+	.mmap = snd_dma_wc_mmap,
+};
+#endif /* CONFIG_X86 */
 #endif /* CONFIG_HAS_DMA */
 
 /*
@@ -425,7 +457,7 @@ static const struct snd_malloc_ops *dma_ops[] = {
 	[SNDRV_DMA_TYPE_VMALLOC] = &snd_dma_vmalloc_ops,
 #ifdef CONFIG_HAS_DMA
 	[SNDRV_DMA_TYPE_DEV] = &snd_dma_dev_ops,
-	[SNDRV_DMA_TYPE_DEV_WC] = &snd_dma_dev_ops,
+	[SNDRV_DMA_TYPE_DEV_WC] = &snd_dma_wc_ops,
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
