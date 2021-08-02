@@ -557,6 +557,10 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* On error, the MRs get destroyed once the QP has drained. */
 	trace_xprtrdma_post_linv_err(req, rc);
+
+	/* Force a connection loss to ensure complete recovery.
+	 */
+	rpcrdma_force_disconnect(ep);
 }
 
 /**
@@ -653,4 +657,8 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * retransmission.
 	 */
 	rpcrdma_unpin_rqst(req->rl_reply);
+
+	/* Force a connection loss to ensure complete recovery.
+	 */
+	rpcrdma_force_disconnect(ep);
 }
