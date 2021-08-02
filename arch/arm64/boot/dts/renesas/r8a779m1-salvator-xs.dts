@@ -1,18 +1,21 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0 or MIT)
 /*
- * Device Tree Source for the H3ULCB (R-Car Starter Kit Premier) board with R-Car H3 ES2.0+
+ * Device Tree Source for the Salvator-X 2nd version board with R-Car H3e-2G
  *
- * Copyright (C) 2016 Renesas Electronics Corp.
- * Copyright (C) 2016 Cogent Embedded, Inc.
+ * Copyright (C) 2021 Glider bv
+ *
+ * Based on r8a77951-salvator-xs.dts
+ * Copyright (C) 2015-2017 Renesas Electronics Corp.
  */
 
 /dts-v1/;
-#include "r8a77951.dtsi"
-#include "ulcb.dtsi"
+#include "r8a779m1.dtsi"
+#include "salvator-xs.dtsi"
 
 / {
-	model = "Renesas H3ULCB board based on r8a77951";
-	compatible = "renesas,h3ulcb", "renesas,r8a7795";
+	model = "Renesas Salvator-X 2nd version board based on r8a779m1";
+	compatible = "renesas,salvator-xs", "renesas,r8a779m1",
+		     "renesas,r8a7795";
 
 	memory@48000000 {
 		device_type = "memory";
@@ -41,10 +44,10 @@
 		 <&cpg CPG_MOD 723>,
 		 <&cpg CPG_MOD 722>,
 		 <&cpg CPG_MOD 721>,
-		 <&versaclock5 1>,
-		 <&versaclock5 3>,
-		 <&versaclock5 4>,
-		 <&versaclock5 2>;
+		 <&versaclock6 1>,
+		 <&x21_clk>,
+		 <&x22_clk>,
+		 <&versaclock6 2>;
 	clock-names = "du.0", "du.1", "du.2", "du.3",
 		      "dclkin.0", "dclkin.1", "dclkin.2", "dclkin.3";
 };

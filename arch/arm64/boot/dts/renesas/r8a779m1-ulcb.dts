@@ -1,18 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0 or MIT)
 /*
- * Device Tree Source for the H3ULCB (R-Car Starter Kit Premier) board with R-Car H3 ES2.0+
+ * Device Tree Source for the H3ULCB (R-Car Starter Kit Premier) with R-Car H3e-2G
+ *
+ * Copyright (C) 2021 Glider bv
+ *
+ * Based on r8a77951-ulcb.dts
  *
  * Copyright (C) 2016 Renesas Electronics Corp.
  * Copyright (C) 2016 Cogent Embedded, Inc.
  */
 
 /dts-v1/;
-#include "r8a77951.dtsi"
+#include "r8a779m1.dtsi"
 #include "ulcb.dtsi"
 
 / {
-	model = "Renesas H3ULCB board based on r8a77951";
-	compatible = "renesas,h3ulcb", "renesas,r8a7795";
+	model = "Renesas H3ULCB board based on r8a779m1";
+	compatible = "renesas,h3ulcb", "renesas,r8a779m1", "renesas,r8a7795";
 
 	memory@48000000 {
 		device_type = "memory";
