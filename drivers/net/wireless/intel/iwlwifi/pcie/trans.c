@@ -449,11 +449,23 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	int ret;
 
 	/* stop device's busmaster DMA activity */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	ret = iwl_poll_bit(trans, CSR_RESET,
-			   CSR_RESET_REG_FLAG_MASTER_DISABLED,
-			   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
+
+		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				   100);
+	} else {
+		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+
+		ret = iwl_poll_bit(trans, CSR_RESET,
+				   CSR_RESET_REG_FLAG_MASTER_DISABLED,
+				   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	}
+
 	if (ret < 0)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
@@ -1995,15 +2007,24 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 write = CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ;
+	u32 mask = CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+		   CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP;
+	u32 poll = CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN;
 
 	spin_lock(&trans_pcie->reg_lock);
 
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		write = CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ;
+		mask = CSR_GP_CNTRL_REG_FLAG_MAC_STATUS;
+		poll = CSR_GP_CNTRL_REG_FLAG_MAC_STATUS;
+	}
+
 	/* this bit wakes up the NIC */
-	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL, write);
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
@@ -2027,10 +2048,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
 	 * and do not save/restore SRAM when power cycling.
 	 */
-	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
+	ret = iwl_poll_bit(trans, CSR_GP_CNTRL, poll, mask, 15000);
 	if (unlikely(ret < 0)) {
 		u32 cntrl = iwl_read32(trans, CSR_GP_CNTRL);
 
