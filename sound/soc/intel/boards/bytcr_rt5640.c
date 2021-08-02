@@ -227,6 +227,20 @@ static int byt_rt5640_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
 #define BYT_CODEC_DAI1	"rt5640-aif1"
 #define BYT_CODEC_DAI2	"rt5640-aif2"
 
+static struct snd_soc_dai *byt_rt5640_get_codec_dai(struct snd_soc_dapm_context *dapm)
+{
+	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_dai *codec_dai;
+
+	codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI1);
+	if (!codec_dai)
+		codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI2);
+	if (!codec_dai)
+		dev_err(card->dev, "Error codec dai not found\n");
+
+	return codec_dai;
+}
+
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int  event)
 {
@@ -236,15 +250,9 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI1);
+	codec_dai = byt_rt5640_get_codec_dai(dapm);
 	if (!codec_dai)
-		codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI2);
-
-	if (!codec_dai) {
-		dev_err(card->dev,
-			"Codec dai not found; Unable to set platform clock\n");
 		return -EIO;
-	}
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		if (byt_rt5640_quirk & BYT_RT5640_MCLK_EN) {
