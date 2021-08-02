@@ -87,6 +87,7 @@ struct kvm_vcpu_stat_generic {
 	u64 halt_wakeup;
 	u64 halt_poll_success_ns;
 	u64 halt_poll_fail_ns;
+	u64 halt_wait_ns;
 };
 
 #define KVM_STATS_NAME_SIZE	48
