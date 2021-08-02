@@ -3710,9 +3710,15 @@ void bnxt_set_ring_params(struct bnxt *bp)
 		if (jumbo_factor > agg_factor)
 			agg_factor = jumbo_factor;
 	}
-	agg_ring_size = ring_size * agg_factor;
+	if (agg_factor) {
+		if (ring_size > BNXT_MAX_RX_DESC_CNT_JUM_ENA) {
+			ring_size = BNXT_MAX_RX_DESC_CNT_JUM_ENA;
+			netdev_warn(bp->dev, "RX ring size reduced from %d to %d because the jumbo ring is now enabled\n",
+				    bp->rx_ring_size, ring_size);
+			bp->rx_ring_size = ring_size;
+		}
+		agg_ring_size = ring_size * agg_factor;
 
-	if (agg_ring_size) {
 		bp->rx_agg_nr_pages = bnxt_calc_nr_ring_pages(agg_ring_size,
 							RX_DESC_CNT);
 		if (bp->rx_agg_nr_pages > MAX_RX_AGG_PAGES) {
