@@ -670,6 +670,11 @@ static inline bool select_cpu_same_energy(int cpu, int best_cpu, int prev_cpu)
 	return available_idle_cpu(best_cpu);
 }
 
+static inline unsigned int capacity_spare_of(int cpu)
+{
+	return capacity_orig_of(cpu) - cpu_util(cpu);
+}
+
 static DEFINE_PER_CPU(cpumask_t, energy_cpus);
 int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 				     int sync, int sibling_count_hint)
@@ -761,13 +766,13 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	}
 
 	if (!energy_eval_needed) {
-		int max_cap_cpu = first_cpu;
+		int max_spare_cpu = first_cpu;
 
 		for_each_cpu(cpu, candidates) {
-			if (capacity_orig_of(max_cap_cpu) < capacity_orig_of(cpu))
-				max_cap_cpu = cpu;
+			if (capacity_spare_of(max_spare_cpu) < capacity_spare_of(cpu))
+				max_spare_cpu = cpu;
 		}
-		best_energy_cpu = max_cap_cpu;
+		best_energy_cpu = max_spare_cpu;
 		goto unlock;
 	}
 
