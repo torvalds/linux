@@ -394,6 +394,7 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	struct rpcrdma_mr *mr;
 	unsigned int num_wrs;
+	int ret;
 
 	num_wrs = 1;
 	post_wr = send_wr;
@@ -420,7 +421,10 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	}
 
 	trace_xprtrdma_post_send(req);
-	return ib_post_send(ep->re_id->qp, post_wr, NULL);
+	ret = ib_post_send(ep->re_id->qp, post_wr, NULL);
+	if (ret)
+		trace_xprtrdma_post_send_err(r_xprt, req, ret);
+	return ret;
 }
 
 /**

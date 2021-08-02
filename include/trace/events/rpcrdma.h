@@ -793,6 +793,39 @@ TRACE_EVENT(xprtrdma_post_send,
 	)
 );
 
+TRACE_EVENT(xprtrdma_post_send_err,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		const struct rpcrdma_req *req,
+		int rc
+	),
+
+	TP_ARGS(r_xprt, req, rc),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, rc)
+	),
+
+	TP_fast_assign(
+		const struct rpc_rqst *rqst = &req->rl_slot;
+		const struct rpcrdma_ep *ep = r_xprt->rx_ep;
+
+		__entry->cq_id = ep ? ep->re_attr.recv_cq->res.id : 0;
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client ?
+				     rqst->rq_task->tk_client->cl_clid : -1;
+		__entry->rc = rc;
+	),
+
+	TP_printk("task:%u@%u cq.id=%u rc=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->cq_id, __entry->rc
+	)
+);
+
 TRACE_EVENT(xprtrdma_post_recv,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
