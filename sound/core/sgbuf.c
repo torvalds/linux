@@ -63,7 +63,7 @@ static void snd_dma_sg_free(struct snd_dma_buffer *dmab)
 
 #define MAX_ALLOC_PAGES		32
 
-static int snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
+static void *snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	struct snd_sg_buf *sgbuf;
 	unsigned int i, pages, chunk, maxpages;
@@ -72,10 +72,11 @@ static int snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
 	struct page **pgtable;
 	int type = SNDRV_DMA_TYPE_DEV;
 	pgprot_t prot = PAGE_KERNEL;
+	void *area;
 
 	dmab->private_data = sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
 	if (!sgbuf)
-		return -ENOMEM;
+		return NULL;
 	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC_SG) {
 		type = SNDRV_DMA_TYPE_DEV_UC;
 #ifdef pgprot_noncached
@@ -127,14 +128,14 @@ static int snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
 	}
 
 	sgbuf->size = size;
-	dmab->area = vmap(sgbuf->page_table, sgbuf->pages, VM_MAP, prot);
-	if (! dmab->area)
+	area = vmap(sgbuf->page_table, sgbuf->pages, VM_MAP, prot);
+	if (!area)
 		goto _failed;
-	return 0;
+	return area;
 
  _failed:
 	snd_dma_sg_free(dmab); /* free the table */
-	return -ENOMEM;
+	return NULL;
 }
 
 static dma_addr_t snd_dma_sg_get_addr(struct snd_dma_buffer *dmab,

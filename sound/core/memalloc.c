@@ -29,12 +29,12 @@ static inline gfp_t snd_mem_get_gfp_flags(const struct snd_dma_buffer *dmab,
 		return (__force gfp_t)(unsigned long)dmab->dev.dev;
 }
 
-static int __snd_dma_alloc_pages(struct snd_dma_buffer *dmab, size_t size)
+static void *__snd_dma_alloc_pages(struct snd_dma_buffer *dmab, size_t size)
 {
 	const struct snd_malloc_ops *ops = snd_dma_get_ops(dmab);
 
 	if (WARN_ON_ONCE(!ops || !ops->alloc))
-		return -EINVAL;
+		return NULL;
 	return ops->alloc(dmab, size);
 }
 
@@ -54,8 +54,6 @@ static int __snd_dma_alloc_pages(struct snd_dma_buffer *dmab, size_t size)
 int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 			struct snd_dma_buffer *dmab)
 {
-	int err;
-
 	if (WARN_ON(!size))
 		return -ENXIO;
 	if (WARN_ON(!dmab))
@@ -65,12 +63,9 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 	dmab->dev.type = type;
 	dmab->dev.dev = device;
 	dmab->bytes = 0;
-	dmab->area = NULL;
 	dmab->addr = 0;
 	dmab->private_data = NULL;
-	err = __snd_dma_alloc_pages(dmab, size);
-	if (err < 0)
-		return err;
+	dmab->area = __snd_dma_alloc_pages(dmab, size);
 	if (!dmab->area)
 		return -ENOMEM;
 	dmab->bytes = size;
@@ -244,12 +239,11 @@ EXPORT_SYMBOL(snd_sgbuf_get_chunk_size);
 /*
  * Continuous pages allocator
  */
-static int snd_dma_continuous_alloc(struct snd_dma_buffer *dmab, size_t size)
+static void *snd_dma_continuous_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	gfp_t gfp = snd_mem_get_gfp_flags(dmab, GFP_KERNEL);
 
-	dmab->area = alloc_pages_exact(size, gfp);
-	return 0;
+	return alloc_pages_exact(size, gfp);
 }
 
 static void snd_dma_continuous_free(struct snd_dma_buffer *dmab)
@@ -275,12 +269,11 @@ static const struct snd_malloc_ops snd_dma_continuous_ops = {
 /*
  * VMALLOC allocator
  */
-static int snd_dma_vmalloc_alloc(struct snd_dma_buffer *dmab, size_t size)
+static void *snd_dma_vmalloc_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	gfp_t gfp = snd_mem_get_gfp_flags(dmab, GFP_KERNEL | __GFP_HIGHMEM);
 
-	dmab->area = __vmalloc(size, gfp);
-	return 0;
+	return __vmalloc(size, gfp);
 }
 
 static void snd_dma_vmalloc_free(struct snd_dma_buffer *dmab)
@@ -332,20 +325,20 @@ static const struct snd_malloc_ops snd_dma_vmalloc_ops = {
  * IRAM allocator
  */
 #ifdef CONFIG_GENERIC_ALLOCATOR
-static int snd_dma_iram_alloc(struct snd_dma_buffer *dmab, size_t size)
+static void *snd_dma_iram_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	struct device *dev = dmab->dev.dev;
 	struct gen_pool *pool;
+	void *p;
 
 	if (dev->of_node) {
 		pool = of_gen_pool_get(dev->of_node, "iram", 0);
 		/* Assign the pool into private_data field */
 		dmab->private_data = pool;
 
-		dmab->area = gen_pool_dma_alloc_align(pool, size, &dmab->addr,
-						      PAGE_SIZE);
-		if (dmab->area)
-			return 0;
+		p = gen_pool_dma_alloc_align(pool, size, &dmab->addr, PAGE_SIZE);
+		if (p)
+			return p;
 	}
 
 	/* Internal memory might have limited size and no enough space,
@@ -383,22 +376,21 @@ static const struct snd_malloc_ops snd_dma_iram_ops = {
 /*
  * Coherent device pages allocator
  */
-static int snd_dma_dev_alloc(struct snd_dma_buffer *dmab, size_t size)
+static void *snd_dma_dev_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	gfp_t gfp_flags;
+	void *p;
 
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
 		| __GFP_NORETRY /* don't trigger OOM-killer */
 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
-	dmab->area = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr,
-					gfp_flags);
+	p = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr, gfp_flags);
 #ifdef CONFIG_X86
-	if (dmab->area && dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC)
-		set_memory_wc((unsigned long)dmab->area,
-			      PAGE_ALIGN(size) >> PAGE_SHIFT);
+	if (p && dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC)
+		set_memory_wc((unsigned long)p, PAGE_ALIGN(size) >> PAGE_SHIFT);
 #endif
-	return 0;
+	return p;
 }
 
 static void snd_dma_dev_free(struct snd_dma_buffer *dmab)
