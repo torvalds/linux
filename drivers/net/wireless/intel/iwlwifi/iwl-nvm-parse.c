@@ -596,6 +596,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB |
 					IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED,
+				.phy_cap_info[10] =
+					IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF,
 			},
 			/*
 			 * Set default Tx/Rx HE MCS NSS Support field.
