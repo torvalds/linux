@@ -1466,6 +1466,14 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status))
 		iwl_mvm_dump_nic_error_log(mvm);
 
+	/*
+	 * If the firmware crashes while we're already considering it
+	 * to be dead then don't ask for a restart, that cannot do
+	 * anything useful anyway.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status))
+		return;
+
 	iwl_mvm_nic_restart(mvm, true);
 }
 
