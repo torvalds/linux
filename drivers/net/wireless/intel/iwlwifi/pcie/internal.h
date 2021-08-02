@@ -678,19 +678,19 @@ static inline const char *queue_name(struct device *dev,
 			  IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
 
 		if (i == 0)
-			return DRV_NAME ": shared IRQ";
+			return DRV_NAME ":shared_IRQ";
 
 		return devm_kasprintf(dev, GFP_KERNEL,
-				      DRV_NAME ": queue %d", i + vec);
+				      DRV_NAME ":queue_%d", i + vec);
 	}
 	if (i == 0)
-		return DRV_NAME ": default queue";
+		return DRV_NAME ":default_queue";
 
 	if (i == trans_p->alloc_vecs - 1)
-		return DRV_NAME ": exception";
+		return DRV_NAME ":exception";
 
 	return devm_kasprintf(dev, GFP_KERNEL,
-			      DRV_NAME  ": queue %d", i);
+			      DRV_NAME  ":queue_%d", i);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
