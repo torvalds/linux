@@ -4,7 +4,6 @@
  * Copyright (C) 2018 Marek Vasut <marex@denx.de>
  */
 
-#include "imx6q.dtsi"
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/imx6qdl-clock.h>
@@ -82,18 +81,20 @@
 &can1 {
 	pinctrl-0 = <&pinctrl_flexcan1>;
 	pinctrl-names = "default";
+	status = "okay";
 };
 
 /*
- * Special hardware required which uses the pins from micro SD card. The pins
- * SD3_DAT0 and SD3_DAT1 are muxed as can2 Tx and Rx. The signals for can2 Tx
- * and Rx are output on DHCOM uart1 rts/cts pins. So to enable can2 on the board
- * device tree file, you also need to disable the micro SD card and the uart1
- * rts/cts have to be disabled or output on other DHCOM pins.
+ * Special SoM hardware required which uses the pins from micro SD card. The
+ * pins SD3_DAT0 and SD3_DAT1 are muxed as can2 Tx and Rx. The signals for can2
+ * Tx and Rx are routed to the DHCOM UART1 rts/cts pins. So to enable can2 on
+ * the board device tree file, the micro SD card must be disabled and the uart1
+ * rts/cts must be disabled or output on other DHCOM pins.
  */
 &can2 {
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &ecspi1 {
@@ -116,7 +117,7 @@
 	cs-gpios = <&gpio5 29 GPIO_ACTIVE_LOW>;
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &fec {
@@ -334,6 +335,11 @@
 	pinctrl-names = "default";
 };
 
+&pwm1 {
+	pinctrl-0 = <&pinctrl_pwm1>;
+	pinctrl-names = "default";
+};
+
 &reg_arm {
 	vin-supply = <&sw3_reg>;
 };
@@ -400,7 +406,7 @@
 	keep-power-in-suspend;
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &usdhc3 { /* Micro SD card on module */
@@ -409,7 +415,7 @@
 	keep-power-in-suspend;
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 };
 
 &usdhc4 { /* eMMC on module */
@@ -669,6 +675,12 @@
 	pinctrl_pmic: pmic-grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_A25__GPIO5_IO02		0x1b0b0
+		>;
+	};
+
+	pinctrl_pwm1: pwm1-grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_DAT3__PWM1_OUT		0x1b0b1
 		>;
 	};
 
