@@ -1049,7 +1049,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 {
 	u32 isr0_val, isr0_mask, isr0_status;
 	u32 isr1_val, isr1_mask, isr1_status;
-	int i, virq;
+	int i;
 
 	isr0_val = advk_readl(pcie, PCIE_ISR0_REG);
 	isr0_mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
@@ -1077,8 +1077,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 		advk_writel(pcie, PCIE_ISR1_INTX_ASSERT(i),
 			    PCIE_ISR1_REG);
 
-		virq = irq_find_mapping(pcie->irq_domain, i);
-		generic_handle_irq(virq);
+		generic_handle_domain_irq(pcie->irq_domain, i);
 	}
 }
 
