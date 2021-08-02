@@ -1417,6 +1417,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
 	rc = ib_post_recv(ep->re_id->qp, wr,
 			  (const struct ib_recv_wr **)&bad_wr);
 	if (rc) {
+		trace_xprtrdma_post_recvs_err(r_xprt, rc);
 		for (wr = bad_wr; wr;) {
 			struct rpcrdma_rep *rep;
 
@@ -1430,7 +1431,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
 		complete(&ep->re_done);
 
 out:
-	trace_xprtrdma_post_recvs(r_xprt, count, rc);
+	trace_xprtrdma_post_recvs(r_xprt, count);
 	ep->re_receive_count += count;
 	return;
 }
