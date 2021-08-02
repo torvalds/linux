@@ -1850,11 +1850,9 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 		return ret;
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE)) {
-		if (!amd_iommu_unmap_flush)
-			pr_info("IOMMU batching is disabled due to virtualization\n");
-
+		pr_info("Using strict mode due to virtualization\n");
+		iommu_set_dma_strict();
 		amd_iommu_np_cache = true;
-		amd_iommu_unmap_flush = true;
 	}
 
 	init_iommu_perf_ctr(iommu);
