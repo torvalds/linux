@@ -134,7 +134,7 @@ br_switchdev_fdb_notify(struct net_bridge *br,
 		.is_local = test_bit(BR_FDB_LOCAL, &fdb->flags),
 		.offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags),
 	};
-	struct net_device *dev = info.is_local ? br->dev : dst->dev;
+	struct net_device *dev = (!dst || info.is_local) ? br->dev : dst->dev;
 
 	switch (type) {
 	case RTM_DELNEIGH:

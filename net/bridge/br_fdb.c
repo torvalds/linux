@@ -745,7 +745,7 @@ static int br_fdb_replay_one(struct net_bridge *br, struct notifier_block *nb,
 	item.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags);
 	item.offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags);
 	item.is_local = test_bit(BR_FDB_LOCAL, &fdb->flags);
-	item.info.dev = item.is_local ? br->dev : p->dev;
+	item.info.dev = (!p || item.is_local) ? br->dev : p->dev;
 	item.info.ctx = ctx;
 
 	err = nb->notifier_call(nb, action, &item);
