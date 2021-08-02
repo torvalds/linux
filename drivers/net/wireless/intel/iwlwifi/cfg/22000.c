@@ -154,7 +154,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.apmg_not_supported = true,					\
 	.trans.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
-	.mac_addr_from_csr = true,					\
+	.mac_addr_from_csr = 0x380,					\
 	.ht_params = &iwl_22000_ht_params,				\
 	.nvm_ver = IWL_22000_NVM_VERSION,				\
 	.trans.use_tfh = true,						\
@@ -215,8 +215,46 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
+#define IWL_DEVICE_BZ_COMMON						\
+	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
+	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
+	.led_mode = IWL_LED_RF_STATE,					\
+	.nvm_hw_section_num = 10,					\
+	.non_shared_ant = ANT_B,					\
+	.dccm_offset = IWL_22000_DCCM_OFFSET,				\
+	.dccm_len = IWL_22000_DCCM_LEN,					\
+	.dccm2_offset = IWL_22000_DCCM2_OFFSET,				\
+	.dccm2_len = IWL_22000_DCCM2_LEN,				\
+	.smem_offset = IWL_22000_SMEM_OFFSET,				\
+	.smem_len = IWL_22000_SMEM_LEN,					\
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
+	.apmg_not_supported = true,					\
+	.trans.mq_rx_supported = true,					\
+	.vht_mu_mimo_supported = true,					\
+	.mac_addr_from_csr = 0x30,					\
+	.ht_params = &iwl_22000_ht_params,				\
+	.nvm_ver = IWL_22000_NVM_VERSION,				\
+	.trans.use_tfh = true,						\
+	.trans.rf_id = true,						\
+	.trans.gen2 = true,						\
+	.nvm_type = IWL_NVM_EXT,					\
+	.dbgc_supported = true,						\
+	.min_umac_error_event_table = 0x400000,				\
+	.d3_debug_data_base_addr = 0x401000,				\
+	.d3_debug_data_length = 60 * 1024,				\
+	.mon_smem_regs = {						\
+		.write_ptr = {						\
+			.addr = LDBG_M2S_BUF_WPTR,			\
+			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,		\
+	},								\
+		.cycle_cnt = {						\
+			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
+			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
+		},							\
+	}
+
 #define IWL_DEVICE_BZ							\
-	IWL_DEVICE_22000_COMMON,					\
+	IWL_DEVICE_BZ_COMMON,						\
 	.trans.umac_prph_offset = 0x300000,				\
 	.trans.device_family = IWL_DEVICE_FAMILY_BZ,			\
 	.trans.base_params = &iwl_ax210_base_params,			\
