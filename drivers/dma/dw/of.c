@@ -54,11 +54,6 @@ struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 	u32 nr_masters;
 	u32 nr_channels;
 
-	if (!np) {
-		dev_err(&pdev->dev, "Missing DT data\n");
-		return NULL;
-	}
-
 	if (of_property_read_u32(np, "dma-masters", &nr_masters))
 		return NULL;
 	if (nr_masters < 1 || nr_masters > DW_DMA_MAX_NR_MASTERS)
