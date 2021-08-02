@@ -2440,6 +2440,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "arp filter changed\n");
 		iwl_mvm_configure_bcast_filter(mvm);
 	}
+
+	if (changes & BSS_CHANGED_BANDWIDTH)
+		iwl_mvm_apply_fw_smps_request(vif);
 }
 
 static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
