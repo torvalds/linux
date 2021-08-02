@@ -610,7 +610,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-tx6qp-8137-mb7.dtb \
 	imx6qp-vicutp.dtb \
 	imx6qp-wandboard-revd1.dtb \
-	imx6qp-zii-rdu2.dtb
+	imx6qp-zii-rdu2.dtb \
+	imx6s-dhcom-drc02.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-tolino-shine2hd.dtb \
