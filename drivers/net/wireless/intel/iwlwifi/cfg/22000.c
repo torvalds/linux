@@ -215,6 +215,29 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
+#define IWL_DEVICE_BZ							\
+	IWL_DEVICE_22000_COMMON,					\
+	.trans.umac_prph_offset = 0x300000,				\
+	.trans.device_family = IWL_DEVICE_FAMILY_BZ,			\
+	.trans.base_params = &iwl_ax210_base_params,			\
+	.min_txq_size = 128,						\
+	.gp2_reg_addr = 0xd02c68,					\
+	.min_256_ba_txq_size = 1024,					\
+	.mon_dram_regs = {						\
+		.write_ptr = {						\
+			.addr = DBGC_CUR_DBGBUF_STATUS,			\
+			.mask = DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK,	\
+		},							\
+		.cycle_cnt = {						\
+			.addr = DBGC_DBGBUF_WRAP_AROUND,		\
+			.mask = 0xffffffff,				\
+		},							\
+		.cur_frag = {						\
+			.addr = DBGC_CUR_DBGBUF_STATUS,			\
+			.mask = DBGC_CUR_DBGBUF_STATUS_IDX_MSK,		\
+		},							\
+	}
+
 const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
 	.mq_rx_supported = true,
 	.use_tfh = true,
@@ -373,7 +396,7 @@ const struct iwl_cfg_trans_params iwl_ma_trans_cfg = {
 };
 
 const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
-	.device_family = IWL_DEVICE_FAMILY_AX210,
+	.device_family = IWL_DEVICE_FAMILY_BZ,
 	.base_params = &iwl_ax210_base_params,
 	.mq_rx_supported = true,
 	.use_tfh = true,
@@ -763,28 +786,28 @@ const struct iwl_cfg iwl_cfg_quz_a0_hr_b0 = {
 const struct iwl_cfg iwl_cfg_bz_a0_hr_b0 = {
 	.fw_name_pre = IWL_BZ_A_HR_B_FW_PRE,
 	.uhb_supported = true,
-	IWL_DEVICE_AX210,
+	IWL_DEVICE_BZ,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
 const struct iwl_cfg iwl_cfg_bz_a0_gf_a0 = {
 	.fw_name_pre = IWL_BZ_A_GF_A_FW_PRE,
 	.uhb_supported = true,
-	IWL_DEVICE_AX210,
+	IWL_DEVICE_BZ,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
 const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0 = {
 	.fw_name_pre = IWL_BZ_A_GF4_A_FW_PRE,
 	.uhb_supported = true,
-	IWL_DEVICE_AX210,
+	IWL_DEVICE_BZ,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
 const struct iwl_cfg iwl_cfg_bz_a0_mr_a0 = {
 	.fw_name_pre = IWL_BZ_A_MR_A_FW_PRE,
 	.uhb_supported = true,
-	IWL_DEVICE_AX210,
+	IWL_DEVICE_BZ,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
