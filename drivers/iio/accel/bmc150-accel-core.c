@@ -553,7 +553,8 @@ static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
 	 * Without interrupt-names, we assume the irq belongs to INT1.
 	 */
 	irq_info = bmc150_accel_interrupts_int1;
-	if (irq == of_irq_get_byname(dev->of_node, "INT2"))
+	if (data->type == BOSCH_BMC156 ||
+	    irq == of_irq_get_byname(dev->of_node, "INT2"))
 		irq_info = bmc150_accel_interrupts_int2;
 
 	for (i = 0; i < BMC150_ACCEL_INTERRUPTS; i++)
@@ -1174,7 +1175,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {306458, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	{
-		.name = "BMA253/BMA254/BMA255/BMC150/BMI055",
+		.name = "BMA253/BMA254/BMA255/BMC150/BMC156/BMI055",
 		.chip_id = 0xFA,
 		.channels = bmc150_accel_channels,
 		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
@@ -1661,7 +1662,8 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 }
 
 int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
-			    const char *name, bool block_supported)
+			    enum bmc150_type type, const char *name,
+			    bool block_supported)
 {
 	const struct attribute **fifo_attrs;
 	struct bmc150_accel_data *data;
@@ -1676,6 +1678,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	dev_set_drvdata(dev, indio_dev);
 
 	data->regmap = regmap;
+	data->type = type;
 
 	if (!bmc150_apply_acpi_orientation(dev, &data->orientation)) {
 		ret = iio_read_mount_matrix(dev, &data->orientation);
