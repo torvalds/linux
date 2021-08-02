@@ -129,7 +129,7 @@ static int mhi_alloc_aligned_ring(struct mhi_controller *mhi_cntrl,
 				  u64 len)
 {
 	ring->alloc_size = len + (len - 1);
-	ring->pre_aligned = mhi_alloc_coherent(mhi_cntrl, ring->alloc_size,
+	ring->pre_aligned = dma_alloc_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 					       &ring->dma_handle, GFP_KERNEL);
 	if (!ring->pre_aligned)
 		return -ENOMEM;
@@ -221,13 +221,13 @@ void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	mhi_cmd = mhi_cntrl->mhi_cmd;
 	for (i = 0; i < NR_OF_CMD_RINGS; i++, mhi_cmd++) {
 		ring = &mhi_cmd->ring;
-		mhi_free_coherent(mhi_cntrl, ring->alloc_size,
+		dma_free_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 				  ring->pre_aligned, ring->dma_handle);
 		ring->base = NULL;
 		ring->iommu_base = 0;
 	}
 
-	mhi_free_coherent(mhi_cntrl,
+	dma_free_coherent(mhi_cntrl->cntrl_dev,
 			  sizeof(*mhi_ctxt->cmd_ctxt) * NR_OF_CMD_RINGS,
 			  mhi_ctxt->cmd_ctxt, mhi_ctxt->cmd_ctxt_addr);
 
@@ -237,17 +237,17 @@ void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 			continue;
 
 		ring = &mhi_event->ring;
-		mhi_free_coherent(mhi_cntrl, ring->alloc_size,
+		dma_free_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 				  ring->pre_aligned, ring->dma_handle);
 		ring->base = NULL;
 		ring->iommu_base = 0;
 	}
 
-	mhi_free_coherent(mhi_cntrl, sizeof(*mhi_ctxt->er_ctxt) *
+	dma_free_coherent(mhi_cntrl->cntrl_dev, sizeof(*mhi_ctxt->er_ctxt) *
 			  mhi_cntrl->total_ev_rings, mhi_ctxt->er_ctxt,
 			  mhi_ctxt->er_ctxt_addr);
 
-	mhi_free_coherent(mhi_cntrl, sizeof(*mhi_ctxt->chan_ctxt) *
+	dma_free_coherent(mhi_cntrl->cntrl_dev, sizeof(*mhi_ctxt->chan_ctxt) *
 			  mhi_cntrl->max_chan, mhi_ctxt->chan_ctxt,
 			  mhi_ctxt->chan_ctxt_addr);
 
@@ -275,7 +275,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 		return -ENOMEM;
 
 	/* Setup channel ctxt */
-	mhi_ctxt->chan_ctxt = mhi_alloc_coherent(mhi_cntrl,
+	mhi_ctxt->chan_ctxt = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
 						 sizeof(*mhi_ctxt->chan_ctxt) *
 						 mhi_cntrl->max_chan,
 						 &mhi_ctxt->chan_ctxt_addr,
@@ -307,7 +307,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	}
 
 	/* Setup event context */
-	mhi_ctxt->er_ctxt = mhi_alloc_coherent(mhi_cntrl,
+	mhi_ctxt->er_ctxt = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
 					       sizeof(*mhi_ctxt->er_ctxt) *
 					       mhi_cntrl->total_ev_rings,
 					       &mhi_ctxt->er_ctxt_addr,
@@ -354,7 +354,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 
 	/* Setup cmd context */
 	ret = -ENOMEM;
-	mhi_ctxt->cmd_ctxt = mhi_alloc_coherent(mhi_cntrl,
+	mhi_ctxt->cmd_ctxt = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
 						sizeof(*mhi_ctxt->cmd_ctxt) *
 						NR_OF_CMD_RINGS,
 						&mhi_ctxt->cmd_ctxt_addr,
@@ -389,10 +389,10 @@ error_alloc_cmd:
 	for (--i, --mhi_cmd; i >= 0; i--, mhi_cmd--) {
 		struct mhi_ring *ring = &mhi_cmd->ring;
 
-		mhi_free_coherent(mhi_cntrl, ring->alloc_size,
+		dma_free_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 				  ring->pre_aligned, ring->dma_handle);
 	}
-	mhi_free_coherent(mhi_cntrl,
+	dma_free_coherent(mhi_cntrl->cntrl_dev,
 			  sizeof(*mhi_ctxt->cmd_ctxt) * NR_OF_CMD_RINGS,
 			  mhi_ctxt->cmd_ctxt, mhi_ctxt->cmd_ctxt_addr);
 	i = mhi_cntrl->total_ev_rings;
@@ -405,15 +405,15 @@ error_alloc_er:
 		if (mhi_event->offload_ev)
 			continue;
 
-		mhi_free_coherent(mhi_cntrl, ring->alloc_size,
+		dma_free_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 				  ring->pre_aligned, ring->dma_handle);
 	}
-	mhi_free_coherent(mhi_cntrl, sizeof(*mhi_ctxt->er_ctxt) *
+	dma_free_coherent(mhi_cntrl->cntrl_dev, sizeof(*mhi_ctxt->er_ctxt) *
 			  mhi_cntrl->total_ev_rings, mhi_ctxt->er_ctxt,
 			  mhi_ctxt->er_ctxt_addr);
 
 error_alloc_er_ctxt:
-	mhi_free_coherent(mhi_cntrl, sizeof(*mhi_ctxt->chan_ctxt) *
+	dma_free_coherent(mhi_cntrl->cntrl_dev, sizeof(*mhi_ctxt->chan_ctxt) *
 			  mhi_cntrl->max_chan, mhi_ctxt->chan_ctxt,
 			  mhi_ctxt->chan_ctxt_addr);
 
@@ -567,7 +567,7 @@ void mhi_deinit_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	if (!chan_ctxt->rbase) /* Already uninitialized */
 		return;
 
-	mhi_free_coherent(mhi_cntrl, tre_ring->alloc_size,
+	dma_free_coherent(mhi_cntrl->cntrl_dev, tre_ring->alloc_size,
 			  tre_ring->pre_aligned, tre_ring->dma_handle);
 	vfree(buf_ring->base);
 
@@ -610,7 +610,7 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	buf_ring->base = vzalloc(buf_ring->len);
 
 	if (!buf_ring->base) {
-		mhi_free_coherent(mhi_cntrl, tre_ring->alloc_size,
+		dma_free_coherent(mhi_cntrl->cntrl_dev, tre_ring->alloc_size,
 				  tre_ring->pre_aligned, tre_ring->dma_handle);
 		return -ENOMEM;
 	}
