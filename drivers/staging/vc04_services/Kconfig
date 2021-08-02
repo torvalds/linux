@@ -13,6 +13,7 @@ if BCM_VIDEOCORE
 
 config BCM2835_VCHIQ
 	tristate "BCM2835 VCHIQ"
+	imply VCHIQ_CDEV
 	help
 		Kernel to VideoCore communication interface for the
 		BCM2835 family of products.
