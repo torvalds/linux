@@ -75,8 +75,16 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	    si->mmio_base_high != upper_32_bits(mem))
 		return 0;
 
-	/* Match device by Linux vIRQ */
+	/*
+	 * acpi_gsi_to_irq() can't be used because some platforms do not save
+	 * registered IRQs in the MP table. Instead we just try to register
+	 * the GSI, which is the core part of the above mentioned function.
+	 */
 	ret = acpi_register_gsi(NULL, si->gsi_interrupt, si->interrupt_mode, si->interrupt_polarity);
+	if (ret < 0)
+		return 0;
+
+	/* Match device by Linux vIRQ */
 	if (ret != irq)
 		return 0;
 
