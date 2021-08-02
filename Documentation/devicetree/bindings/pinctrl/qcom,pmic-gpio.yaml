@@ -56,17 +56,10 @@ properties:
   reg:
     maxItems: 1
 
-  interrupts:
-    minItems: 1
-    maxItems: 44
-    description:
-      Must contain an array of encoded interrupt specifiers for
-      each available GPIO
+  interrupt-controller: true
 
   '#interrupt-cells':
     const: 2
-
-  interrupt-controller: true
 
   gpio-controller: true
 
@@ -87,6 +80,7 @@ required:
   - gpio-controller
   - '#gpio-cells'
   - gpio-ranges
+  - interrupt-controller
 
 patternProperties:
   '-state$':
@@ -223,22 +217,8 @@ examples:
     pm8921_gpio: gpio@150 {
       compatible = "qcom,pm8921-gpio", "qcom,ssbi-gpio";
       reg = <0x150 0x160>;
-      interrupts = <192 1>, <193 1>, <194 1>,
-                   <195 1>, <196 1>, <197 1>,
-                   <198 1>, <199 1>, <200 1>,
-                   <201 1>, <202 1>, <203 1>,
-                   <204 1>, <205 1>, <206 1>,
-                   <207 1>, <208 1>, <209 1>,
-                   <210 1>, <211 1>, <212 1>,
-                   <213 1>, <214 1>, <215 1>,
-                   <216 1>, <217 1>, <218 1>,
-                   <219 1>, <220 1>, <221 1>,
-                   <222 1>, <223 1>, <224 1>,
-                   <225 1>, <226 1>, <227 1>,
-                   <228 1>, <229 1>, <230 1>,
-                   <231 1>, <232 1>, <233 1>,
-                   <234 1>, <235 1>;
-
+      interrupt-controller;
+      #interrupt-cells = <2>;
       gpio-controller;
       gpio-ranges = <&pm8921_gpio 0 0 44>;
       #gpio-cells = <2>;
