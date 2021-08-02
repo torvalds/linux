@@ -240,6 +240,11 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 	call_retire_callback(ep, urb);
 }
 
+static inline bool has_tx_length_quirk(struct snd_usb_audio *chip)
+{
+	return chip->quirk_flags & QUIRK_FLAG_TX_LENGTH;
+}
+
 static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 			       struct snd_urb_ctx *ctx)
 {
@@ -250,7 +255,7 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 	int i;
 
 	/* For tx_length_quirk, put packet length at start of packet */
-	if (ep->chip->tx_length_quirk)
+	if (has_tx_length_quirk(ep->chip))
 		extra = sizeof(packet_length);
 
 	for (i = 0; i < ctx->packets; ++i) {
@@ -803,7 +808,8 @@ static int endpoint_set_interface(struct snd_usb_audio *chip,
 		return err;
 	}
 
-	snd_usb_set_interface_quirk(chip);
+	if (chip->quirk_flags & QUIRK_FLAG_IFACE_DELAY)
+		msleep(50);
 	return 0;
 }
 
@@ -952,7 +958,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep)
 	unsigned int max_urbs, i;
 	const struct audioformat *fmt = ep->cur_audiofmt;
 	int frame_bits = ep->cur_frame_bytes * 8;
-	int tx_length_quirk = (chip->tx_length_quirk &&
+	int tx_length_quirk = (has_tx_length_quirk(chip) &&
 			       usb_pipeout(ep->pipe));
 
 	usb_audio_dbg(chip, "Setting params for data EP 0x%x, pipe 0x%x\n",
@@ -1377,7 +1383,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 		goto __error;
 
 	if (snd_usb_endpoint_implicit_feedback_sink(ep) &&
-	    !ep->chip->playback_first) {
+	    !(ep->chip->quirk_flags & QUIRK_FLAG_PLAYBACK_FIRST)) {
 		for (i = 0; i < ep->nurbs; i++) {
 			struct snd_urb_ctx *ctx = ep->urb + i;
 			list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);

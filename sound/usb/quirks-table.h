@@ -2730,23 +2730,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
-/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
-{
-	USB_DEVICE(0x17aa, 0x1046),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
-	}
-},
-/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
-{
-	USB_DEVICE(0x17aa, 0x104d),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
-	}
-},
-
 /* Native Instruments MK2 series */
 {
 	/* Komplete Audio 6 */
@@ -2799,53 +2782,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.ifnum = 0,
 		.type = QUIRK_MIDI_CME
-	}
-},
-
-/*
- * Auvitek au0828 devices with audio interface.
- * This should be kept in sync with drivers/media/usb/au0828/au0828-cards.c
- * Please notice that some drivers are DVB only, and don't need to be
- * here. That's the case, for example, of DVICO_FUSIONHDTV7.
- */
-
-#define AU0828_DEVICE(vid, pid, vname, pname) { \
-	USB_AUDIO_DEVICE(vid, pid), \
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) { \
-		.vendor_name = vname, \
-		.product_name = pname, \
-		.ifnum = QUIRK_ANY_INTERFACE, \
-		.type = QUIRK_AUDIO_ALIGN_TRANSFER, \
-		.shares_media_device = 1, \
-	} \
-}
-
-AU0828_DEVICE(0x2040, 0x7200, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7240, "Hauppauge", "HVR-850"),
-AU0828_DEVICE(0x2040, 0x7210, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7217, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x721b, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x721e, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x721f, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7280, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x0fd9, 0x0008, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7201, "Hauppauge", "HVR-950Q-MXL"),
-AU0828_DEVICE(0x2040, 0x7211, "Hauppauge", "HVR-950Q-MXL"),
-AU0828_DEVICE(0x2040, 0x7281, "Hauppauge", "HVR-950Q-MXL"),
-AU0828_DEVICE(0x05e1, 0x0480, "Hauppauge", "Woodbury"),
-AU0828_DEVICE(0x2040, 0x8200, "Hauppauge", "Woodbury"),
-AU0828_DEVICE(0x2040, 0x7260, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7213, "Hauppauge", "HVR-950Q"),
-AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
-
-/* Syntek STK1160 */
-{
-	USB_AUDIO_DEVICE(0x05e1, 0x0408),
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
-		.vendor_name = "Syntek",
-		.product_name = "STK1160",
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_AUDIO_ALIGN_TRANSFER
 	}
 },
 
@@ -3811,7 +3747,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
  * MacroSilicon MS2109 based HDMI capture cards
  *
  * These claim 96kHz 1ch in the descriptors, but are actually 48kHz 2ch.
- * They also need QUIRK_AUDIO_ALIGN_TRANSFER, which makes one wonder if
+ * They also need QUIRK_FLAG_ALIGN_TRANSFER, which makes one wonder if
  * they pretend to be 96kHz mono as a workaround for stereo being broken
  * by that...
  *
@@ -3826,10 +3762,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_COMPOSITE,
 		.data = &(const struct snd_usb_audio_quirk[]) {
-			{
-				.ifnum = 2,
-				.type = QUIRK_AUDIO_ALIGN_TRANSFER,
-			},
 			{
 				.ifnum = 2,
 				.type = QUIRK_AUDIO_STANDARD_MIXER,
