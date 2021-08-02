@@ -100,7 +100,7 @@ static int vmw_cursor_update_bo(struct vmw_private *dev_priv,
 	int ret;
 
 	kmap_offset = 0;
-	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	kmap_num = PFN_UP(width*height*4);
 
 	ret = ttm_bo_reserve(&bo->base, true, false, NULL);
 	if (unlikely(ret != 0)) {
