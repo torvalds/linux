@@ -65,8 +65,8 @@ struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
 	if (!model_data)
 		return ERR_PTR(-ENOMEM);
 
-	model_node = of_find_compatible_node(dev->of_node,
-					     NULL, "simple-power-model");
+	model_node = of_get_compatible_child(dev->of_node,
+					     "simple-power-model");
 	if (!model_node) {
 		dev_err(dev, "failed to find power_model node\n");
 		ret = -ENODEV;
@@ -119,8 +119,11 @@ struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
 cal_static_coeff:
 	calculate_static_coefficient(model_data);
 
+	of_node_put(model_node);
+
 	return model_data;
 err:
+	of_node_put(model_node);
 	kfree(model_data);
 
 	return ERR_PTR(ret);
