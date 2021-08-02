@@ -2572,13 +2572,13 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 /* process the topology file headers */
 static int soc_tplg_process_headers(struct soc_tplg *tplg)
 {
-	struct snd_soc_tplg_hdr *hdr;
 	int ret;
 
 	tplg->pass = SOC_TPLG_PASS_START;
 
 	/* process the header types from start to end */
 	while (tplg->pass <= SOC_TPLG_PASS_END) {
+		struct snd_soc_tplg_hdr *hdr;
 
 		tplg->hdr_pos = tplg->fw->data;
 		hdr = (struct snd_soc_tplg_hdr *)tplg->hdr_pos;
