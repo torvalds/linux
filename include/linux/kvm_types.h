@@ -76,6 +76,8 @@ struct kvm_mmu_memory_cache {
 };
 #endif
 
+#define HALT_POLL_HIST_COUNT			32
+
 struct kvm_vm_stat_generic {
 	u64 remote_tlb_flush;
 };
@@ -88,6 +90,9 @@ struct kvm_vcpu_stat_generic {
 	u64 halt_poll_success_ns;
 	u64 halt_poll_fail_ns;
 	u64 halt_wait_ns;
+	u64 halt_poll_success_hist[HALT_POLL_HIST_COUNT];
+	u64 halt_poll_fail_hist[HALT_POLL_HIST_COUNT];
+	u64 halt_wait_hist[HALT_POLL_HIST_COUNT];
 };
 
 #define KVM_STATS_NAME_SIZE	48

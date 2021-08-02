@@ -3222,12 +3222,22 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 				++vcpu->stat.generic.halt_successful_poll;
 				if (!vcpu_valid_wakeup(vcpu))
 					++vcpu->stat.generic.halt_poll_invalid;
+
+				KVM_STATS_LOG_HIST_UPDATE(
+				      vcpu->stat.generic.halt_poll_success_hist,
+				      ktime_to_ns(ktime_get()) -
+				      ktime_to_ns(start));
 				goto out;
 			}
 			cpu_relax();
 			poll_end = cur = ktime_get();
 		} while (kvm_vcpu_can_poll(cur, stop));
+
+		KVM_STATS_LOG_HIST_UPDATE(
+				vcpu->stat.generic.halt_poll_fail_hist,
+				ktime_to_ns(ktime_get()) - ktime_to_ns(start));
 	}
+
 
 	prepare_to_rcuwait(&vcpu->wait);
 	for (;;) {
@@ -3244,6 +3254,8 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	if (waited) {
 		vcpu->stat.generic.halt_wait_ns +=
 			ktime_to_ns(cur) - ktime_to_ns(poll_end);
+		KVM_STATS_LOG_HIST_UPDATE(vcpu->stat.generic.halt_wait_hist,
+				ktime_to_ns(cur) - ktime_to_ns(poll_end));
 	}
 out:
 	kvm_arch_vcpu_unblocking(vcpu);
