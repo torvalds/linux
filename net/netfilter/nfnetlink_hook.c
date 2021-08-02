@@ -89,11 +89,15 @@ static int nfnl_hook_put_nft_chain_info(struct sk_buff *nlskb,
 	if (!nest2)
 		goto cancel_nest;
 
-	ret = nla_put_string(nlskb, NFTA_CHAIN_TABLE, chain->table->name);
+	ret = nla_put_string(nlskb, NFNLA_CHAIN_TABLE, chain->table->name);
 	if (ret)
 		goto cancel_nest;
 
-	ret = nla_put_string(nlskb, NFTA_CHAIN_NAME, chain->name);
+	ret = nla_put_string(nlskb, NFNLA_CHAIN_NAME, chain->name);
+	if (ret)
+		goto cancel_nest;
+
+	ret = nla_put_u8(nlskb, NFNLA_CHAIN_FAMILY, chain->table->family);
 	if (ret)
 		goto cancel_nest;
 
