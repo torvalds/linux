@@ -213,9 +213,12 @@ void iwl_force_nmi(struct iwl_trans *trans)
 	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
-	else
+	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
+	else
+		iwl_write32(trans, CSR_DOORBELL_VECTOR,
+			    CSR_DOORBELL_VECTOR_NMI);
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
 

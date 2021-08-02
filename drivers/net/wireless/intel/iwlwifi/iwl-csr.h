@@ -104,6 +104,10 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+/* Doorbell NMI (since Bz) */
+#define CSR_DOORBELL_VECTOR	(CSR_BASE + 0x130)
+#define CSR_DOORBELL_VECTOR_NMI	BIT(1)
+
 /* host chicken bits */
 #define CSR_HOST_CHICKEN	(CSR_BASE + 0x204)
 #define CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME	BIT(19)
