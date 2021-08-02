@@ -39,6 +39,9 @@ CXL Core
 .. kernel-doc:: drivers/cxl/core/bus.c
    :doc: cxl core
 
+.. kernel-doc:: drivers/cxl/core/pmem.c
+   :internal:
+
 External Interfaces
 ===================
 
