@@ -9,6 +9,8 @@ endif
 # Avoid generating FPU instructions
 arch-y  += -mno-ext-fpu-sp -mno-ext-fpu-dp -mfloat-abi=soft
 
+# Enable <nds32_intrinsic.h>
+KBUILD_CFLAGS	+= -isystem $(shell $(CC) -print-file-name=include)
 KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
 KBUILD_CFLAGS	+= -mcmodel=large
 
