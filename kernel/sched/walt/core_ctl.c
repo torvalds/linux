@@ -1155,7 +1155,7 @@ static void core_ctl_pause_cpus(struct cpumask *cpus_to_pause)
 
 	if (cpumask_any(cpus_to_pause) < nr_cpu_ids) {
 		if (walt_pause_cpus(cpus_to_pause) < 0)
-			pr_warn("core_ctl pause operation failed cpus=%*pbl paused_by_us=%*pbl\n",
+			printk_deferred("core_ctl pause operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				cpumask_pr_args(cpus_to_pause),
 				cpumask_pr_args(&cpus_paused_by_us));
 		else
@@ -1184,7 +1184,7 @@ static void core_ctl_resume_cpus(struct cpumask *cpus_to_unpause)
 
 	if (cpumask_any(cpus_to_unpause) < nr_cpu_ids) {
 		if (walt_resume_cpus(cpus_to_unpause) < 0)
-			pr_warn("core_ctl resume operation failed cpus=%*pbl paused_by_us=%*pbl\n",
+			printk_deferred("core_ctl resume operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				cpumask_pr_args(cpus_to_unpause),
 				cpumask_pr_args(&cpus_paused_by_us));
 		else
