@@ -1583,15 +1583,16 @@ err:
 static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_dapm_widget *widget;
-	int ret, count, i;
+	int count, i;
 
 	count = le32_to_cpu(hdr->count);
 
 	dev_dbg(tplg->dev, "ASoC: adding %d DAPM widgets\n", count);
 
 	for (i = 0; i < count; i++) {
-		widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
+		struct snd_soc_tplg_dapm_widget *widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
+		int ret;
+
 		if (le32_to_cpu(widget->size) != sizeof(*widget)) {
 			dev_err(tplg->dev, "ASoC: invalid widget size\n");
 			return -EINVAL;
