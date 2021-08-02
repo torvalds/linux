@@ -97,19 +97,18 @@ typedef __attribute__((aligned(32))) struct MKSGuestStatInfoEntry {
 } MKSGuestStatInfoEntry;
 
 #define INVALID_PPN64       ((PPN64)0x000fffffffffffffULL)
-#define vmw_num_pages(size) (PAGE_ALIGN(size) >> PAGE_SHIFT)
 
 #define MKS_GUEST_STAT_INSTANCE_DESC_LENGTH 1024
 #define MKS_GUEST_STAT_INSTANCE_MAX_STATS   4096
-#define MKS_GUEST_STAT_INSTANCE_MAX_STAT_PPNS                \
-	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+#define MKS_GUEST_STAT_INSTANCE_MAX_STAT_PPNS        \
+	(PFN_UP(MKS_GUEST_STAT_INSTANCE_MAX_STATS *  \
 		sizeof(MKSGuestStatCounterTime)))
-#define MKS_GUEST_STAT_INSTANCE_MAX_INFO_PPNS                \
-	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+#define MKS_GUEST_STAT_INSTANCE_MAX_INFO_PPNS        \
+	(PFN_UP(MKS_GUEST_STAT_INSTANCE_MAX_STATS *  \
 		sizeof(MKSGuestStatInfoEntry)))
 #define MKS_GUEST_STAT_AVERAGE_NAME_LENGTH  40
-#define MKS_GUEST_STAT_INSTANCE_MAX_STRS_PPNS                \
-	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+#define MKS_GUEST_STAT_INSTANCE_MAX_STRS_PPNS        \
+	(PFN_UP(MKS_GUEST_STAT_INSTANCE_MAX_STATS *  \
 		MKS_GUEST_STAT_AVERAGE_NAME_LENGTH))
 
 /*
