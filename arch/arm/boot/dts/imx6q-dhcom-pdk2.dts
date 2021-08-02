@@ -172,6 +172,45 @@
 	status = "disabled";
 };
 
+/* 1G ethernet */
+/delete-node/ &ethphy0;
+&fec {
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy7>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_1G>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy7: ethernet-phy@7 { /* KSZ 9021 */
+			compatible = "ethernet-phy-ieee802.3-c22";
+			interrupt-parent = <&gpio1>;
+			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-0 = <&pinctrl_ethphy7>;
+			pinctrl-names = "default";
+			reg = <7>;
+			reset-gpios = <&gpio3 29 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <1000>;
+			rxc-skew-ps = <3000>;
+			rxd0-skew-ps = <0>;
+			rxd1-skew-ps = <0>;
+			rxd2-skew-ps = <0>;
+			rxd3-skew-ps = <0>;
+			txc-skew-ps = <3000>;
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+			rxdv-skew-ps = <0>;
+			txen-skew-ps = <0>;
+		};
+	};
+};
+
 &hdmi {
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
@@ -254,9 +293,14 @@
 			MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
 			MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
 			MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
-			MX6QDL_PAD_EIM_D29__GPIO3_IO29		0x000b0
-			MX6QDL_PAD_GPIO_0__GPIO1_IO00		0x000b1
-			MX6QDL_PAD_EIM_D26__GPIO3_IO26		0x000b1
+		>;
+	};
+
+	pinctrl_ethphy7: ethphy7-grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D29__GPIO3_IO29		0xb0 /* Reset */
+			MX6QDL_PAD_GPIO_0__GPIO1_IO00		0xb1 /* Int */
+			MX6QDL_PAD_EIM_D26__GPIO3_IO26		0xb1 /* WOL */
 		>;
 	};
 
