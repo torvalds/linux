@@ -32,7 +32,7 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 	u32 byte = (35 - (pos / 8));
 	/* Calculate the Start bit position in the Start IFH byte */
 	u32 bit  = (pos % 8);
-	u64 encode = GENMASK(bit + width - 1, bit) & (value << bit);
+	u64 encode = GENMASK_ULL(bit + width - 1, bit) & (value << bit);
 
 	/* The b0-b7 goes into the start IFH byte */
 	if (encode & 0xFF)
