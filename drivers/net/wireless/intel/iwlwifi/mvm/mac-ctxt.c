@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -652,6 +652,9 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 			if (vif->bss_conf.twt_protected)
 				ctxt_sta->data_policy |=
 					cpu_to_le32(PROTECTED_TWT_SUPPORTED);
+			if (vif->bss_conf.twt_broadcast)
+				ctxt_sta->data_policy |=
+					cpu_to_le32(BROADCAST_TWT_SUPPORTED);
 		}
 	}
 
