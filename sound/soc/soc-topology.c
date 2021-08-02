@@ -2124,10 +2124,9 @@ static struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 						      const char *stream_name)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_dai_link *link;
 
 	for_each_card_rtds(card, rtd) {
-		link = rtd->dai_link;
+		struct snd_soc_dai_link *link = rtd->dai_link;
 
 		if (link->id != id)
 			continue;
