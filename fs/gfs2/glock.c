@@ -1494,12 +1494,11 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 
 	list_del_init(&gh->gh_list);
 	clear_bit(HIF_HOLDER, &gh->gh_iflags);
-	if (find_first_holder(gl) == NULL) {
-		if (list_empty(&gl->gl_holders) &&
-		    !test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
-		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
-			fast_path = 1;
-	}
+	if (list_empty(&gl->gl_holders) &&
+	    !test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
+	    !test_bit(GLF_DEMOTE, &gl->gl_flags))
+		fast_path = 1;
+
 	if (!test_bit(GLF_LFLUSH, &gl->gl_flags) && demote_ok(gl))
 		gfs2_glock_add_to_lru(gl);
 
