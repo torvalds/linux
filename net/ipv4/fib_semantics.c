@@ -1551,7 +1551,7 @@ link_it:
 		return ofi;
 	}
 
-	refcount_inc(&fi->fib_treeref);
+	refcount_set(&fi->fib_treeref, 1);
 	refcount_set(&fi->fib_clntref, 1);
 	spin_lock_bh(&fib_info_lock);
 	hlist_add_head(&fi->fib_hash,
