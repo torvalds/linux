@@ -549,7 +549,7 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 {
 	int source_port = -1, switch_id = -1;
 	bool host_only = false;
-	u16 vid;
+	u16 vid = 0;
 
 	if (sja1110_skb_has_inband_control_extension(skb)) {
 		skb = sja1110_rcv_inband_control_extension(skb, &source_port,
