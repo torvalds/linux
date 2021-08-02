@@ -207,14 +207,21 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		rc = get_report_descriptor(cl_idx, cl_data->report_descr[i]);
 		if (rc)
 			return rc;
-		rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
-		if (rc)
-			return rc;
 		privdata->mp2_ops->start(privdata, info);
 		status = amd_sfh_wait_for_response
 				(privdata, cl_data->sensor_idx[i], SENSOR_ENABLED);
-		if (status == SENSOR_ENABLED)
+		if (status == SENSOR_ENABLED) {
 			cl_data->sensor_sts[i] = SENSOR_ENABLED;
+			rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
+			if (rc) {
+				privdata->mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
+				status = amd_sfh_wait_for_response
+					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
+				if (status != SENSOR_ENABLED)
+					cl_data->sensor_sts[i] = SENSOR_DISABLED;
+				goto cleanup;
+			}
+		}
 	}
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 	return 0;
