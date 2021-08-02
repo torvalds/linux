@@ -564,8 +564,6 @@ SYM_CODE_START_LOCAL(ret_to_kernel)
 SYM_CODE_END(ret_to_kernel)
 
 SYM_CODE_START_LOCAL(ret_to_user)
-	mov	x0, sp
-	bl	asm_exit_to_user_mode
 	/* Ignore asynchronous tag check faults in the uaccess routines */
 	clear_mte_async_tcf
 	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
@@ -739,6 +737,8 @@ SYM_CODE_START(ret_from_fork)
 	mov	x0, x20
 	blr	x19
 1:	get_current_task tsk
+	mov	x0, sp
+	bl	asm_exit_to_user_mode
 	b	ret_to_user
 SYM_CODE_END(ret_from_fork)
 NOKPROBE(ret_from_fork)
