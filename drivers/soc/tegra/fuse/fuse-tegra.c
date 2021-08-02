@@ -246,6 +246,7 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	return 0;
 
 restore:
+	fuse->clk = NULL;
 	fuse->base = base;
 	return err;
 }
