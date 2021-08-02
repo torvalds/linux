@@ -369,14 +369,11 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 	if (!cmd)
 		return;
 
-	if (!trace_ufshcd_command_enabled()) {
-		/* trace UPIU W/O tracing command */
-		ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
-		return;
-	}
-
 	/* trace UPIU also */
 	ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
+	if (!trace_ufshcd_command_enabled())
+		return;
+
 	opcode = cmd->cmnd[0];
 	lba = scsi_get_lba(cmd);
 
