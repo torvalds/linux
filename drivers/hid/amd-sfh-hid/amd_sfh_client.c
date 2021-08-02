@@ -17,7 +17,6 @@
 #include "amd_sfh_pcie.h"
 #include "amd_sfh_hid.h"
 
-#define AMD_SFH_IDLE_LOOP	200
 
 struct request_list {
 	struct hid_device *hid;

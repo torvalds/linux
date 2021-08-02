@@ -264,6 +264,54 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	return amd_sfh_hid_client_init(privdata);
 }
 
+static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct amd_mp2_dev *mp2 = pci_get_drvdata(pdev);
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	struct amd_mp2_sensor_info info;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
+			info.period = AMD_SFH_IDLE_LOOP;
+			info.sensor_idx = cl_data->sensor_idx[i];
+			info.dma_address = cl_data->sensor_dma_addr[i];
+			mp2->mp2_ops->start(mp2, info);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
+			if (status == SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_ENABLED;
+		}
+	}
+
+	return 0;
+}
+
+static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct amd_mp2_dev *mp2 = pci_get_drvdata(pdev);
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_idx[i] != HPD_IDX &&
+		    cl_data->sensor_sts[i] == SENSOR_ENABLED) {
+			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
+			if (status != SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+		}
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(amd_mp2_pm_ops, amd_mp2_pci_suspend,
+		amd_mp2_pci_resume);
+
 static const struct pci_device_id amd_mp2_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2) },
 	{ }
@@ -274,6 +322,7 @@ static struct pci_driver amd_mp2_pci_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= amd_mp2_pci_tbl,
 	.probe		= amd_mp2_pci_probe,
+	.driver.pm	= &amd_mp2_pm_ops,
 };
 module_pci_driver(amd_mp2_pci_driver);
 

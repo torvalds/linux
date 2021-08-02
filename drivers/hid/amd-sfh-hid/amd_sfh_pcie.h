@@ -36,6 +36,8 @@
 
 #define HPD_IDX		16
 
+#define AMD_SFH_IDLE_LOOP	200
+
 /* SFH Command register */
 union sfh_cmd_base {
 	u32 ul;
@@ -129,6 +131,9 @@ void amd_stop_all_sensors(struct amd_mp2_dev *privdata);
 int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id);
 int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata);
 int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata);
+u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts);
+void amd_mp2_suspend(struct amd_mp2_dev *mp2);
+void amd_mp2_resume(struct amd_mp2_dev *mp2);
 
 struct amd_mp2_ops {
 	 void (*start)(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info);
