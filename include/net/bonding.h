@@ -129,6 +129,7 @@ struct bond_params {
 	int updelay;
 	int downdelay;
 	int peer_notif_delay;
+	int lacp_active;
 	int lacp_fast;
 	unsigned int min_links;
 	int ad_select;
