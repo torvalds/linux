@@ -3190,6 +3190,20 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 	return NULL;
 }
 
+static int iwl_mvm_pn_cmp(const u8 *pn1, const u8 *pn2, int len)
+{
+	int i;
+
+	for (i = len - 1; i >= 0; i--) {
+		if (pn1[i] > pn2[i])
+			return 1;
+		if (pn1[i] < pn2[i])
+			return -1;
+	}
+
+	return 0;
+}
+
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				u32 sta_id,
 				struct ieee80211_key_conf *key, bool mcast,
@@ -3273,6 +3287,45 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	u.cmd.common.key_offset = key_offset;
 	u.cmd.common.key_flags = key_flags;
 	u.cmd.common.sta_id = sta_id;
+
+	if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
+		i = 0;
+	else
+		i = -1;
+
+	for (; i < IEEE80211_NUM_TIDS; i++) {
+		struct ieee80211_key_seq seq = {};
+		u8 _rx_pn[IEEE80211_MAX_PN_LEN] = {}, *rx_pn = _rx_pn;
+		int rx_pn_len = 8;
+
+		ieee80211_get_key_rx_seq(key, i, &seq);
+
+		if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
+			rx_pn[0] = seq.tkip.iv16;
+			rx_pn[1] = seq.tkip.iv16 >> 8;
+			/* hole at 2/3 in FW format */
+			rx_pn[4] = seq.tkip.iv32;
+			rx_pn[5] = seq.tkip.iv32 >> 8;
+			rx_pn[6] = seq.tkip.iv32 >> 16;
+			rx_pn[7] = seq.tkip.iv32 >> 24;
+		} else if (key_flags & cpu_to_le16(STA_KEY_FLG_EXT)) {
+			rx_pn = seq.hw.seq;
+			rx_pn_len = seq.hw.seq_len;
+		} else {
+			rx_pn[0] = seq.ccmp.pn[0];
+			rx_pn[1] = seq.ccmp.pn[1];
+			/* hole at 2/3 in FW format */
+			rx_pn[4] = seq.ccmp.pn[2];
+			rx_pn[5] = seq.ccmp.pn[3];
+			rx_pn[6] = seq.ccmp.pn[4];
+			rx_pn[7] = seq.ccmp.pn[5];
+		}
+
+		if (iwl_mvm_pn_cmp(rx_pn, (u8 *)&u.cmd.common.rx_secur_seq_cnt,
+				   rx_pn_len) > 0)
+			memcpy(&u.cmd.common.rx_secur_seq_cnt, rx_pn,
+			       rx_pn_len);
+	}
 
 	if (new_api) {
 		u.cmd.transmit_seq_cnt = cpu_to_le64(pn);
