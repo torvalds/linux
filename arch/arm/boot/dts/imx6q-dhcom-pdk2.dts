@@ -248,6 +248,34 @@
 	};
 };
 
+&ipu1_di0_disp0 {
+	remote-endpoint = <&lcd_display_in>;
+};
+
+&pcie {
+	pinctrl-0 = <&pinctrl_pcie &pinctrl_dhcom_j>;
+	reset-gpio = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&ssi1 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&usdhc3 {
+	status = "okay";
+};
+
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <
@@ -348,32 +376,4 @@
 			MX6QDL_PAD_SD1_DAT3__PWM1_OUT		0x1b0b1
 		>;
 	};
-};
-
-&ipu1_di0_disp0 {
-	remote-endpoint = <&lcd_display_in>;
-};
-
-&pcie {
-	pinctrl-0 = <&pinctrl_pcie &pinctrl_dhcom_j>;
-	reset-gpio = <&gpio6 14 GPIO_ACTIVE_LOW>;
-	status = "okay";
-};
-
-&pwm1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "okay";
-};
-
-&ssi1 {
-	status = "okay";
-};
-
-&sata {
-	status = "okay";
-};
-
-&usdhc3 {
-	status = "okay";
 };

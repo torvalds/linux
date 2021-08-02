@@ -315,6 +315,111 @@
 	};
 };
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+};
+
+&reg_arm {
+	vin-supply = <&sw3_reg>;
+};
+
+&reg_soc {
+	vin-supply = <&sw1_reg>;
+};
+
+&reg_pu {
+	vin-supply = <&sw1_reg>;
+};
+
+&reg_vdd1p1 {
+	vin-supply = <&sw2_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&sw2_reg>;
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	uart-has-rtscts;
+	dtr-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
+	dsr-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
+	rng-gpios = <&gpio2 31 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	vbus-supply = <&reg_usb_h1_vbus>;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	disable-over-current;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	cd-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;
+	keep-power-in-suspend;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	cd-gpios = <&gpio7 8 GPIO_ACTIVE_LOW>;
+	fsl,wp-controller;
+	keep-power-in-suspend;
+	status = "disabled";
+};
+
+&usdhc4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4>;
+	non-removable;
+	bus-width = <8>;
+	no-1-8-v;
+	keep-power-in-suspend;
+	status = "okay";
+};
+
+&weim {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	fsl,weim-cs-gpr = <&gpr>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim &pinctrl_weim_cs0 &pinctrl_weim_cs1>;
+	/* It is necessary to setup 2x 64MB otherwise setting gpr fails */
+	ranges = <0 0 0x08000000 0x04000000>, /* CS0 */
+		 <1 0 0x0c000000 0x04000000>; /* CS1 */
+	status = "disabled";
+};
+
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <
@@ -679,109 +784,4 @@
 			MX6QDL_PAD_EIM_CS1__EIM_CS1_B		0xb0b1
 		>;
 	};
-};
-
-&pcie {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie>;
-};
-
-&reg_arm {
-	vin-supply = <&sw3_reg>;
-};
-
-&reg_soc {
-	vin-supply = <&sw1_reg>;
-};
-
-&reg_pu {
-	vin-supply = <&sw1_reg>;
-};
-
-&reg_vdd1p1 {
-	vin-supply = <&sw2_reg>;
-};
-
-&reg_vdd2p5 {
-	vin-supply = <&sw2_reg>;
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1>;
-	uart-has-rtscts;
-	dtr-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
-	dsr-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
-	dcd-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
-	rng-gpios = <&gpio2 31 GPIO_ACTIVE_LOW>;
-	status = "okay";
-};
-
-&uart4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart4>;
-	status = "okay";
-};
-
-&uart5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart5>;
-	uart-has-rtscts;
-	status = "okay";
-};
-
-&usbh1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbh1>;
-	vbus-supply = <&reg_usb_h1_vbus>;
-	dr_mode = "host";
-	status = "okay";
-};
-
-&usbotg {
-	vbus-supply = <&reg_usb_otg_vbus>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg>;
-	disable-over-current;
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&usdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;
-	keep-power-in-suspend;
-	status = "okay";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 8 GPIO_ACTIVE_LOW>;
-	fsl,wp-controller;
-	keep-power-in-suspend;
-	status = "disabled";
-};
-
-&usdhc4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc4>;
-	non-removable;
-	bus-width = <8>;
-	no-1-8-v;
-	keep-power-in-suspend;
-	status = "okay";
-};
-
-&weim {
-	#address-cells = <2>;
-	#size-cells = <1>;
-	fsl,weim-cs-gpr = <&gpr>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_weim &pinctrl_weim_cs0 &pinctrl_weim_cs1>;
-	/* It is necessary to setup 2x 64MB otherwise setting gpr fails */
-	ranges = <0 0 0x08000000 0x04000000>, /* CS0 */
-		 <1 0 0x0c000000 0x04000000>; /* CS1 */
-	status = "disabled";
 };
