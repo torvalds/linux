@@ -2530,51 +2530,6 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
-int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
-			   struct iwl_fwrt_dump_data *dump_data)
-{
-	struct iwl_fw_ini_trigger_tlv *trig = dump_data->trig;
-	enum iwl_fw_ini_time_point tp_id = le32_to_cpu(trig->time_point);
-	u32 occur, delay;
-	unsigned long idx;
-
-	if (!iwl_fw_ini_trigger_on(fwrt, trig)) {
-		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
-			 tp_id);
-		return -EINVAL;
-	}
-
-	delay = le32_to_cpu(trig->dump_delay);
-	occur = le32_to_cpu(trig->occurrences);
-	if (!occur)
-		return 0;
-
-	trig->occurrences = cpu_to_le32(--occur);
-
-	/* Check there is an available worker.
-	 * ffz return value is undefined if no zero exists,
-	 * so check against ~0UL first.
-	 */
-	if (fwrt->dump.active_wks == ~0UL)
-		return -EBUSY;
-
-	idx = ffz(fwrt->dump.active_wks);
-
-	if (idx >= IWL_FW_RUNTIME_DUMP_WK_NUM ||
-	    test_and_set_bit(fwrt->dump.wks[idx].idx, &fwrt->dump.active_wks))
-		return -EBUSY;
-
-	fwrt->dump.wks[idx].dump_data = *dump_data;
-
-	IWL_WARN(fwrt,
-		 "WRT: Collecting data: ini trigger %d fired (delay=%dms).\n",
-		 tp_id, (u32)(delay / USEC_PER_MSEC));
-
-	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
-
-	return 0;
-}
-
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...)
@@ -2701,6 +2656,58 @@ out:
 	}
 
 	clear_bit(wk_idx, &fwrt->dump.active_wks);
+}
+
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fwrt_dump_data *dump_data,
+			   bool sync)
+{
+	struct iwl_fw_ini_trigger_tlv *trig = dump_data->trig;
+	enum iwl_fw_ini_time_point tp_id = le32_to_cpu(trig->time_point);
+	u32 occur, delay;
+	unsigned long idx;
+
+	if (!iwl_fw_ini_trigger_on(fwrt, trig)) {
+		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
+			 tp_id);
+		return -EINVAL;
+	}
+
+	delay = le32_to_cpu(trig->dump_delay);
+	occur = le32_to_cpu(trig->occurrences);
+	if (!occur)
+		return 0;
+
+	trig->occurrences = cpu_to_le32(--occur);
+
+	/* Check there is an available worker.
+	 * ffz return value is undefined if no zero exists,
+	 * so check against ~0UL first.
+	 */
+	if (fwrt->dump.active_wks == ~0UL)
+		return -EBUSY;
+
+	idx = ffz(fwrt->dump.active_wks);
+
+	if (idx >= IWL_FW_RUNTIME_DUMP_WK_NUM ||
+	    test_and_set_bit(fwrt->dump.wks[idx].idx, &fwrt->dump.active_wks))
+		return -EBUSY;
+
+	fwrt->dump.wks[idx].dump_data = *dump_data;
+
+	if (sync)
+		delay = 0;
+
+	IWL_WARN(fwrt,
+		 "WRT: Collecting data: ini trigger %d fired (delay=%dms).\n",
+		 tp_id, (u32)(delay / USEC_PER_MSEC));
+
+	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
+
+	if (sync)
+		iwl_fw_dbg_collect_sync(fwrt, idx);
+
+	return 0;
 }
 
 void iwl_fw_error_dump_wk(struct work_struct *work)
