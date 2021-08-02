@@ -1416,11 +1416,6 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
 
 	rc = ib_post_recv(ep->re_id->qp, wr,
 			  (const struct ib_recv_wr **)&bad_wr);
-	if (atomic_dec_return(&ep->re_receiving) > 0)
-		complete(&ep->re_done);
-
-out:
-	trace_xprtrdma_post_recvs(r_xprt, count, rc);
 	if (rc) {
 		for (wr = bad_wr; wr;) {
 			struct rpcrdma_rep *rep;
@@ -1431,6 +1426,11 @@ out:
 			--count;
 		}
 	}
+	if (atomic_dec_return(&ep->re_receiving) > 0)
+		complete(&ep->re_done);
+
+out:
+	trace_xprtrdma_post_recvs(r_xprt, count, rc);
 	ep->re_receive_count += count;
 	return;
 }
