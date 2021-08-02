@@ -275,9 +275,38 @@ static int __maybe_unused tegra_fuse_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+static int __maybe_unused tegra_fuse_suspend(struct device *dev)
+{
+	int ret;
+
+	/*
+	 * Critical for RAM re-repair operation, which must occur on resume
+	 * from LP1 system suspend and as part of CCPLEX cluster switching.
+	 */
+	if (fuse->soc->clk_suspend_on)
+		ret = pm_runtime_resume_and_get(dev);
+	else
+		ret = pm_runtime_force_suspend(dev);
+
+	return ret;
+}
+
+static int __maybe_unused tegra_fuse_resume(struct device *dev)
+{
+	int ret = 0;
+
+	if (fuse->soc->clk_suspend_on)
+		pm_runtime_put(dev);
+	else
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
+}
+
 static const struct dev_pm_ops tegra_fuse_pm = {
 	SET_RUNTIME_PM_OPS(tegra_fuse_runtime_suspend, tegra_fuse_runtime_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_fuse_suspend, tegra_fuse_resume)
 };
 
 static struct platform_driver tegra_fuse_driver = {
