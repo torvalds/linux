@@ -75,6 +75,7 @@ enum {
 #define BYT_RT5640_NO_SPEAKERS		BIT(24)
 #define BYT_RT5640_LINEOUT		BIT(25)
 #define BYT_RT5640_LINEOUT_AS_HP2	BIT(26)
+#define BYT_RT5640_HSMIC2_ON_IN1	BIT(27)
 
 #define BYTCR_INPUT_DEFAULTS				\
 	(BYT_RT5640_IN3_MAP |				\
@@ -127,6 +128,8 @@ static void log_quirks(struct device *dev)
 		dev_err(dev, "quirk map 0x%x is not supported, microphone input will not work\n", map);
 		break;
 	}
+	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1)
+		dev_info(dev, "quirk HSMIC2_ON_IN1 enabled\n");
 	if (BYT_RT5640_JDSRC(byt_rt5640_quirk)) {
 		dev_info(dev, "quirk realtek,jack-detect-source %ld\n",
 			 BYT_RT5640_JDSRC(byt_rt5640_quirk));
@@ -1072,6 +1075,14 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
+	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1) {
+		ret = snd_soc_dapm_add_routes(&card->dapm,
+					byt_rt5640_intmic_in1_map,
+					ARRAY_SIZE(byt_rt5640_intmic_in1_map));
+		if (ret)
+			return ret;
+	}
+
 	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
 					byt_rt5640_ssp2_aif2_map,
@@ -1347,6 +1358,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	static const char * const map_name[] = { "dmic1", "dmic2", "in1", "in3", "none" };
 	__maybe_unused const char *spk_type;
 	const struct dmi_system_id *dmi_id;
+	const char *headset2_string = "";
 	const char *lineout_string = "";
 	struct byt_rt5640_private *priv;
 	struct snd_soc_acpi_mach *mach;
@@ -1517,10 +1529,13 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			lineout_string = " cfg-lineout:1";
 	}
 
+	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1)
+		headset2_string = " cfg-hs2:in1";
+
 	snprintf(byt_rt5640_components, sizeof(byt_rt5640_components),
-		 "cfg-spk:%d cfg-mic:%s aif:%d%s", cfg_spk,
+		 "cfg-spk:%d cfg-mic:%s aif:%d%s%s", cfg_spk,
 		 map_name[BYT_RT5640_MAP(byt_rt5640_quirk)], aif,
-		 lineout_string);
+		 lineout_string, headset2_string);
 	byt_rt5640_card.components = byt_rt5640_components;
 #if !IS_ENABLED(CONFIG_SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES)
 	snprintf(byt_rt5640_long_name, sizeof(byt_rt5640_long_name),
