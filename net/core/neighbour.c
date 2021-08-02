@@ -3315,12 +3315,13 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
+		seq_puts(seq, "entries  allocs   destroys hash_grows lookups  hits     res_failed rcv_probes_mcast rcv_probes_ucast periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
 		return 0;
 	}
 
-	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx %08lx %08lx\n",
+	seq_printf(seq, "%08x %08lx %08lx %08lx   %08lx %08lx %08lx   "
+			"%08lx         %08lx         %08lx         "
+			"%08lx       %08lx            %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
