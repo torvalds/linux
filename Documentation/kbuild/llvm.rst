@@ -38,7 +38,7 @@ Cross Compiling
 A single Clang compiler binary will typically contain all supported backends,
 which can help simplify cross compiling. ::
 
-	ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make CC=clang
+	make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu-
 
 ``CROSS_COMPILE`` is not used to prefix the Clang compiler binary, instead
 ``CROSS_COMPILE`` is used to set a command line flag: ``--target=<triple>``. For
@@ -62,6 +62,23 @@ They can be enabled individually. The full list of the parameters: ::
 
 Currently, the integrated assembler is disabled by default. You can pass
 ``LLVM_IAS=1`` to enable it.
+
+Omitting CROSS_COMPILE
+----------------------
+
+As explained above, ``CROSS_COMPILE`` is used to set ``--target=<triple>``.
+
+Unless ``LLVM_IAS=1`` is specified, ``CROSS_COMPILE`` is also used to derive
+``--prefix=<path>`` to search for the GNU assembler and linker.
+
+If ``CROSS_COMPILE`` is not specified, the ``--target=<triple>`` is inferred
+from ``ARCH``.
+
+That means if you use only LLVM tools, ``CROSS_COMPILE`` becomes unnecessary.
+
+For example, to cross-compile the arm64 kernel::
+
+	make ARCH=arm64 LLVM=1 LLVM_IAS=1
 
 Supported Architectures
 -----------------------
