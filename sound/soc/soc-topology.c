@@ -2346,15 +2346,16 @@ err:
 static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 				   struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_dai *dai;
 	int count;
-	int i, ret;
+	int i;
 
 	count = le32_to_cpu(hdr->count);
 
 	/* config the existing BE DAIs */
 	for (i = 0; i < count; i++) {
-		dai = (struct snd_soc_tplg_dai *)tplg->pos;
+		struct snd_soc_tplg_dai *dai = (struct snd_soc_tplg_dai *)tplg->pos;
+		int ret;
+
 		if (le32_to_cpu(dai->size) != sizeof(*dai)) {
 			dev_err(tplg->dev, "ASoC: invalid physical DAI size\n");
 			return -EINVAL;
