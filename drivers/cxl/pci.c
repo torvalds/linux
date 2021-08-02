@@ -806,13 +806,30 @@ static int cxl_memdev_release_file(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations cxl_memdev_fops = {
-	.owner = THIS_MODULE,
-	.unlocked_ioctl = cxl_memdev_ioctl,
-	.open = cxl_memdev_open,
-	.release = cxl_memdev_release_file,
-	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+static struct cxl_memdev *to_cxl_memdev(struct device *dev)
+{
+	return container_of(dev, struct cxl_memdev, dev);
+}
+
+static void cxl_memdev_shutdown(struct device *dev)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+
+	down_write(&cxl_memdev_rwsem);
+	cxlmd->cxlm = NULL;
+	up_write(&cxl_memdev_rwsem);
+}
+
+static const struct cdevm_file_operations cxl_memdev_fops = {
+	.fops = {
+		.owner = THIS_MODULE,
+		.unlocked_ioctl = cxl_memdev_ioctl,
+		.open = cxl_memdev_open,
+		.release = cxl_memdev_release_file,
+		.compat_ioctl = compat_ptr_ioctl,
+		.llseek = noop_llseek,
+	},
+	.shutdown = cxl_memdev_shutdown,
 };
 
 static inline struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
@@ -1161,11 +1178,6 @@ free_maps:
 	return ret;
 }
 
-static struct cxl_memdev *to_cxl_memdev(struct device *dev)
-{
-	return container_of(dev, struct cxl_memdev, dev);
-}
-
 static void cxl_memdev_release(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
@@ -1281,24 +1293,22 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
-static void cxl_memdev_shutdown(struct cxl_memdev *cxlmd)
-{
-	down_write(&cxl_memdev_rwsem);
-	cxlmd->cxlm = NULL;
-	up_write(&cxl_memdev_rwsem);
-}
-
 static void cxl_memdev_unregister(void *_cxlmd)
 {
 	struct cxl_memdev *cxlmd = _cxlmd;
 	struct device *dev = &cxlmd->dev;
+	struct cdev *cdev = &cxlmd->cdev;
+	const struct cdevm_file_operations *cdevm_fops;
+
+	cdevm_fops = container_of(cdev->ops, typeof(*cdevm_fops), fops);
+	cdevm_fops->shutdown(dev);
 
 	cdev_device_del(&cxlmd->cdev, dev);
-	cxl_memdev_shutdown(cxlmd);
 	put_device(dev);
 }
 
-static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm)
+static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
+					   const struct file_operations *fops)
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct cxl_memdev *cxlmd;
@@ -1324,7 +1334,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm)
 	device_set_pm_not_required(dev);
 
 	cdev = &cxlmd->cdev;
-	cdev_init(cdev, &cxl_memdev_fops);
+	cdev_init(cdev, fops);
 	return cxlmd;
 
 err:
@@ -1332,15 +1342,16 @@ err:
 	return ERR_PTR(rc);
 }
 
-static struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
-					      struct cxl_mem *cxlm)
+static struct cxl_memdev *
+devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
+		    const struct cdevm_file_operations *cdevm_fops)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
 	struct cdev *cdev;
 	int rc;
 
-	cxlmd = cxl_memdev_alloc(cxlm);
+	cxlmd = cxl_memdev_alloc(cxlm, &cdevm_fops->fops);
 	if (IS_ERR(cxlmd))
 		return cxlmd;
 
@@ -1370,7 +1381,7 @@ err:
 	 * The cdev was briefly live, shutdown any ioctl operations that
 	 * saw that state.
 	 */
-	cxl_memdev_shutdown(cxlmd);
+	cdevm_fops->shutdown(dev);
 	put_device(dev);
 	return ERR_PTR(rc);
 }
@@ -1611,7 +1622,7 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlm);
+	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlm, &cxl_memdev_fops);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 

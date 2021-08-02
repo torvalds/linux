@@ -35,6 +35,21 @@
 #define CXL_MEM_MAX_DEVS 65536
 
 /**
+ * struct cdevm_file_operations - devm coordinated cdev file operations
+ * @fops: file operations that are synchronized against @shutdown
+ * @shutdown: disconnect driver data
+ *
+ * @shutdown is invoked in the devres release path to disconnect any
+ * driver instance data from @dev. It assumes synchronization with any
+ * fops operation that requires driver data. After @shutdown an
+ * operation may only reference @device data.
+ */
+struct cdevm_file_operations {
+	struct file_operations fops;
+	void (*shutdown)(struct device *dev);
+};
+
+/**
  * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
  * @dev: driver core device object
  * @cdev: char dev core object for ioctl operations
