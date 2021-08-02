@@ -636,7 +636,7 @@ struct esw_vport_tbl_namespace {
 };
 
 struct mlx5_vport_tbl_attr {
-	u16 chain;
+	u32 chain;
 	u16 prio;
 	u16 vport;
 	const struct esw_vport_tbl_namespace *vport_ns;

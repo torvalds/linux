@@ -1406,8 +1406,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		goto error_free_vmsa_page;
 	}
 
-	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
-
 	svm->vmcb01.ptr = page_address(vmcb01_page);
 	svm->vmcb01.pa = __sme_set(page_to_pfn(vmcb01_page) << PAGE_SHIFT);
 
@@ -1418,6 +1416,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
 	init_vmcb(vcpu);
+
+	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 
 	svm_init_osvw(vcpu);
 	vcpu->arch.microcode_version = 0x01000065;
@@ -1568,8 +1568,11 @@ static void svm_set_vintr(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control;
 
-	/* The following fields are ignored when AVIC is enabled */
-	WARN_ON(kvm_vcpu_apicv_active(&svm->vcpu));
+	/*
+	 * The following fields are ignored when AVIC is enabled
+	 */
+	WARN_ON(kvm_apicv_activated(svm->vcpu.kvm));
+
 	svm_set_intercept(svm, INTERCEPT_VINTR);
 
 	/*
@@ -2147,11 +2150,12 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 	ret = kvm_skip_emulated_instruction(vcpu);
 
 	if (vmload) {
-		nested_svm_vmloadsave(vmcb12, svm->vmcb);
+		svm_copy_vmloadsave_state(svm->vmcb, vmcb12);
 		svm->sysenter_eip_hi = 0;
 		svm->sysenter_esp_hi = 0;
-	} else
-		nested_svm_vmloadsave(svm->vmcb, vmcb12);
+	} else {
+		svm_copy_vmloadsave_state(vmcb12, svm->vmcb);
+	}
 
 	kvm_vcpu_unmap(vcpu, &map, true);
 
@@ -4344,8 +4348,8 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 
 		BUILD_BUG_ON(offsetof(struct vmcb, save) != 0x400);
 
-		svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
-				     map_save.hva + 0x400);
+		svm_copy_vmrun_state(map_save.hva + 0x400,
+				     &svm->vmcb01.ptr->save);
 
 		kvm_vcpu_unmap(vcpu, &map_save, true);
 	}
@@ -4393,8 +4397,8 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 					 &map_save) == -EINVAL)
 				return 1;
 
-			svm_copy_vmrun_state(map_save.hva + 0x400,
-					     &svm->vmcb01.ptr->save);
+			svm_copy_vmrun_state(&svm->vmcb01.ptr->save,
+					     map_save.hva + 0x400);
 
 			kvm_vcpu_unmap(vcpu, &map_save, true);
 		}

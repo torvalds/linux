@@ -925,6 +925,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->cred_uid = uid;
 		ctx->cruid_specified = true;
 		break;
+	case Opt_backupuid:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			goto cifs_parse_mount_err;
+		ctx->backupuid = uid;
+		ctx->backupuid_specified = true;
+		break;
 	case Opt_backupgid:
 		gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(gid))
