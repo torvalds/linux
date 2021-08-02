@@ -1522,9 +1522,7 @@ report_assoc_result:
 	if (res > 0) {
 		rtw_buf_update(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len, pframe, pkt_len);
 	} else {
-		kfree(&pmlmepriv->assoc_rsp);
-		pmlmepriv->assoc_rsp = NULL;
-		pmlmepriv->assoc_rsp_len = 0;
+		rtw_buf_free(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len);
 	}
 
 	report_join_res(padapter, res);
@@ -5551,11 +5549,8 @@ void issue_assocreq(struct adapter *padapter)
 exit:
 	if (ret == _SUCCESS)
 		rtw_buf_update(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len, (u8 *)pwlanhdr, pattrib->pktlen);
-	else {
-		kfree(&pmlmepriv->assoc_req);
-		pmlmepriv->assoc_req = NULL;
-		pmlmepriv->assoc_req_len = 0;
-	}
+	else
+		rtw_buf_free(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len);
 
 	return;
 }

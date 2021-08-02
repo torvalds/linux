@@ -388,6 +388,13 @@ u64 rtw_division64(u64 x, u64 y)
 	return x;
 }
 
+void rtw_buf_free(u8 **buf, u32 *buf_len)
+{
+	*buf_len = 0;
+	kfree(*buf);
+	*buf = NULL;
+}
+
 void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len)
 {
 	u32 ori_len = 0, dup_len = 0;
