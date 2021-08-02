@@ -161,33 +161,11 @@ void rtw_mfree_stainfo(struct sta_info *psta)
 
 }
 
-/*  this function is used to free the memory of lock || sema for all stainfos */
-void rtw_mfree_all_stainfo(struct sta_priv *pstapriv);
-void rtw_mfree_all_stainfo(struct sta_priv *pstapriv)
-{
-	struct list_head *plist, *phead;
-	struct sta_info *psta = NULL;
-
-	spin_lock_bh(&pstapriv->sta_hash_lock);
-
-	phead = get_list_head(&pstapriv->free_sta_queue);
-	plist = phead->next;
-
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, list);
-		plist = plist->next;
-	}
-
-	spin_unlock_bh(&pstapriv->sta_hash_lock);
-}
-
 static void rtw_mfree_sta_priv_lock(struct sta_priv *pstapriv)
 {
 #ifdef CONFIG_88EU_AP_MODE
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 #endif
-
-	 rtw_mfree_all_stainfo(pstapriv); /* be done before free sta_hash_lock */
 
 	_rtw_spinlock_free(&pstapriv->free_sta_queue.lock);
 
