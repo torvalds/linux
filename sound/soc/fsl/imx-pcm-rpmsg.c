@@ -139,7 +139,6 @@ static int imx_rpmsg_pcm_hw_params(struct snd_soc_component *component,
 				   struct snd_pcm_hw_params *params)
 {
 	struct rpmsg_info *info = dev_get_drvdata(component->dev);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct rpmsg_msg *msg;
 	int ret = 0;
 
@@ -183,19 +182,9 @@ static int imx_rpmsg_pcm_hw_params(struct snd_soc_component *component,
 		break;
 	}
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	runtime->dma_bytes = params_buffer_bytes(params);
-
 	info->send_message(msg, info);
 
 	return ret;
-}
-
-static int imx_rpmsg_pcm_hw_free(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	return 0;
 }
 
 static snd_pcm_uframes_t imx_rpmsg_pcm_pointer(struct snd_soc_component *component,
@@ -345,18 +334,6 @@ static int imx_rpmsg_pcm_prepare(struct snd_soc_component *component,
 	}
 
 	return 0;
-}
-
-static int imx_rpmsg_pcm_mmap(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream,
-			      struct vm_area_struct *vma)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	return dma_mmap_wc(substream->pcm->card->dev, vma,
-			   runtime->dma_area,
-			   runtime->dma_addr,
-			   runtime->dma_bytes);
 }
 
 static void imx_rpmsg_pcm_dma_complete(void *arg)
@@ -609,47 +586,6 @@ static int imx_rpmsg_pcm_ack(struct snd_soc_component *component,
 	return 0;
 }
 
-static int imx_rpmsg_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
-						int stream, int size)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
-
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->private_data = NULL;
-	buf->area = dma_alloc_wc(pcm->card->dev, size,
-				 &buf->addr, GFP_KERNEL);
-	if (!buf->area)
-		return -ENOMEM;
-
-	buf->bytes = size;
-	return 0;
-}
-
-static void imx_rpmsg_pcm_free_dma_buffers(struct snd_soc_component *component,
-					   struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream;
-
-	for (stream = SNDRV_PCM_STREAM_PLAYBACK;
-	     stream < SNDRV_PCM_STREAM_LAST; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (!substream)
-			continue;
-
-		buf = &substream->dma_buffer;
-		if (!buf->area)
-			continue;
-
-		dma_free_wc(pcm->card->dev, buf->bytes,
-			    buf->area, buf->addr);
-		buf->area = NULL;
-	}
-}
-
 static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 			     struct snd_soc_pcm_runtime *rtd)
 {
@@ -663,40 +599,19 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		ret = imx_rpmsg_pcm_preallocate_dma_buffer(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-							   rpmsg->buffer_size);
-		if (ret)
-			goto out;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = imx_rpmsg_pcm_preallocate_dma_buffer(pcm, SNDRV_PCM_STREAM_CAPTURE,
-							   rpmsg->buffer_size);
-		if (ret)
-			goto out;
-	}
-
 	imx_rpmsg_pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
-out:
-	/* free preallocated buffers in case of error */
-	if (ret)
-		imx_rpmsg_pcm_free_dma_buffers(component, pcm);
-
-	return ret;
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
+					    pcm->card->dev, rpmsg->buffer_size);
 }
 
 static const struct snd_soc_component_driver imx_rpmsg_soc_component = {
 	.name		= IMX_PCM_DRV_NAME,
 	.pcm_construct	= imx_rpmsg_pcm_new,
-	.pcm_destruct	= imx_rpmsg_pcm_free_dma_buffers,
 	.open		= imx_rpmsg_pcm_open,
 	.close		= imx_rpmsg_pcm_close,
 	.hw_params	= imx_rpmsg_pcm_hw_params,
-	.hw_free	= imx_rpmsg_pcm_hw_free,
 	.trigger	= imx_rpmsg_pcm_trigger,
 	.pointer	= imx_rpmsg_pcm_pointer,
-	.mmap		= imx_rpmsg_pcm_mmap,
 	.ack		= imx_rpmsg_pcm_ack,
 	.prepare	= imx_rpmsg_pcm_prepare,
 };
