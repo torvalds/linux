@@ -3228,6 +3228,9 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	int i, size;
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
+	int api_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					    ADD_STA_KEY,
+					    new_api ? 2 : 1);
 
 	if (sta_id == IWL_MVM_INVALID_STA)
 		return -EINVAL;
@@ -3240,7 +3243,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_TKIP);
-		if (new_api) {
+		if (api_ver >= 2) {
 			memcpy((void *)&u.cmd.tx_mic_key,
 			       &key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 			       IWL_MIC_KEY_SIZE);
@@ -3261,7 +3264,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_CCM);
 		memcpy(u.cmd.common.key, key->key, key->keylen);
-		if (new_api)
+		if (api_ver >= 2)
 			pn = atomic64_read(&key->tx_pn);
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -3277,7 +3280,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	case WLAN_CIPHER_SUITE_GCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_GCMP);
 		memcpy(u.cmd.common.key, key->key, key->keylen);
-		if (new_api)
+		if (api_ver >= 2)
 			pn = atomic64_read(&key->tx_pn);
 		break;
 	default:
@@ -3303,28 +3306,28 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		struct ieee80211_key_seq seq = {};
 		u8 _rx_pn[IEEE80211_MAX_PN_LEN] = {}, *rx_pn = _rx_pn;
 		int rx_pn_len = 8;
+		/* there's a hole at 2/3 in FW format depending on version */
+		int hole = api_ver >= 3 ? 0 : 2;
 
 		ieee80211_get_key_rx_seq(key, i, &seq);
 
 		if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			rx_pn[0] = seq.tkip.iv16;
 			rx_pn[1] = seq.tkip.iv16 >> 8;
-			/* hole at 2/3 in FW format */
-			rx_pn[4] = seq.tkip.iv32;
-			rx_pn[5] = seq.tkip.iv32 >> 8;
-			rx_pn[6] = seq.tkip.iv32 >> 16;
-			rx_pn[7] = seq.tkip.iv32 >> 24;
+			rx_pn[2 + hole] = seq.tkip.iv32;
+			rx_pn[3 + hole] = seq.tkip.iv32 >> 8;
+			rx_pn[4 + hole] = seq.tkip.iv32 >> 16;
+			rx_pn[5 + hole] = seq.tkip.iv32 >> 24;
 		} else if (key_flags & cpu_to_le16(STA_KEY_FLG_EXT)) {
 			rx_pn = seq.hw.seq;
 			rx_pn_len = seq.hw.seq_len;
 		} else {
 			rx_pn[0] = seq.ccmp.pn[0];
 			rx_pn[1] = seq.ccmp.pn[1];
-			/* hole at 2/3 in FW format */
-			rx_pn[4] = seq.ccmp.pn[2];
-			rx_pn[5] = seq.ccmp.pn[3];
-			rx_pn[6] = seq.ccmp.pn[4];
-			rx_pn[7] = seq.ccmp.pn[5];
+			rx_pn[2 + hole] = seq.ccmp.pn[2];
+			rx_pn[3 + hole] = seq.ccmp.pn[3];
+			rx_pn[4 + hole] = seq.ccmp.pn[4];
+			rx_pn[5 + hole] = seq.ccmp.pn[5];
 		}
 
 		if (iwl_mvm_pn_cmp(rx_pn, (u8 *)&u.cmd.common.rx_secur_seq_cnt,
@@ -3333,7 +3336,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 			       rx_pn_len);
 	}
 
-	if (new_api) {
+	if (api_ver >= 2) {
 		u.cmd.transmit_seq_cnt = cpu_to_le64(pn);
 		size = sizeof(u.cmd);
 	} else {
