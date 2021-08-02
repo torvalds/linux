@@ -435,13 +435,16 @@ static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
 void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 {
 	const struct firmware *fw;
+	const char *yoyo_bin = "iwl-debug-yoyo.bin";
 	int res;
 
 	if (!iwlwifi_mod_params.enable_ini ||
 	    trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_9000)
 		return;
 
-	res = firmware_request_nowarn(&fw, "iwl-debug-yoyo.bin", dev);
+	res = firmware_request_nowarn(&fw, yoyo_bin, dev);
+	IWL_DEBUG_FW(trans, "%s %s\n", res ? "didn't load" : "loaded", yoyo_bin);
+
 	if (res)
 		return;
 
