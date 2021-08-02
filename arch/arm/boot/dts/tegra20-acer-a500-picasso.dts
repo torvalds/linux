@@ -482,6 +482,9 @@
 					interrupt-parent = <&gpio>;
 					interrupts = <TEGRA_GPIO(S, 7) IRQ_TYPE_EDGE_RISING>;
 
+					vdd-supply   = <&vdd_1v8_sys>;
+					vddio-supply = <&vdd_1v8_sys>;
+
 					mount-matrix =	 "0",  "1",  "0",
 							 "1",  "0",  "0",
 							 "0",  "0", "-1";
