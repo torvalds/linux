@@ -704,23 +704,7 @@ void ceph_add_cap(struct inode *inode,
 		struct ceph_snap_realm *realm = ceph_lookup_snap_realm(mdsc,
 							       realmino);
 		if (realm) {
-			struct ceph_snap_realm *oldrealm = ci->i_snap_realm;
-			if (oldrealm) {
-				spin_lock(&oldrealm->inodes_with_caps_lock);
-				list_del_init(&ci->i_snap_realm_item);
-				spin_unlock(&oldrealm->inodes_with_caps_lock);
-			}
-
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_add(&ci->i_snap_realm_item,
-				 &realm->inodes_with_caps);
-			ci->i_snap_realm = realm;
-			if (realm->ino == ci->i_vino.ino)
-				realm->inode = inode;
-			spin_unlock(&realm->inodes_with_caps_lock);
-
-			if (oldrealm)
-				ceph_put_snap_realm(mdsc, oldrealm);
+			ceph_change_snap_realm(inode, realm);
 		} else {
 			pr_err("ceph_add_cap: couldn't find snap realm %llx\n",
 			       realmino);
@@ -1112,20 +1096,6 @@ int ceph_is_any_caps(struct inode *inode)
 	return ret;
 }
 
-static void drop_inode_snap_realm(struct ceph_inode_info *ci)
-{
-	struct ceph_snap_realm *realm = ci->i_snap_realm;
-	spin_lock(&realm->inodes_with_caps_lock);
-	list_del_init(&ci->i_snap_realm_item);
-	ci->i_snap_realm_counter++;
-	ci->i_snap_realm = NULL;
-	if (realm->ino == ci->i_vino.ino)
-		realm->inode = NULL;
-	spin_unlock(&realm->inodes_with_caps_lock);
-	ceph_put_snap_realm(ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc,
-			    realm);
-}
-
 /*
  * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
  *
@@ -1201,7 +1171,7 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 		 * keep i_snap_realm.
 		 */
 		if (ci->i_wr_ref == 0 && ci->i_snap_realm)
-			drop_inode_snap_realm(ci);
+			ceph_change_snap_realm(&ci->vfs_inode, NULL);
 
 		__cap_delay_cancel(mdsc, ci);
 	}
@@ -3084,7 +3054,7 @@ static void __ceph_put_cap_refs(struct ceph_inode_info *ci, int had,
 			}
 			/* see comment in __ceph_remove_cap() */
 			if (!__ceph_is_any_real_caps(ci) && ci->i_snap_realm)
-				drop_inode_snap_realm(ci);
+				ceph_change_snap_realm(inode, NULL);
 		}
 	}
 	if (check_flushsnaps && __ceph_have_pending_cap_snap(ci)) {
