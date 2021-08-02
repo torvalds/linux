@@ -95,7 +95,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
-	trans_pcie->fw_reset_done = false;
+	trans_pcie->fw_reset_state = FW_RESET_REQUESTED;
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
@@ -106,10 +106,15 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 
 	/* wait 200ms */
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
-				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
-	if (!ret)
+				 trans_pcie->fw_reset_state != FW_RESET_REQUESTED,
+				 FW_RESET_TIMEOUT);
+	if (!ret || trans_pcie->fw_reset_state == FW_RESET_ERROR) {
 		IWL_INFO(trans,
 			 "firmware didn't ACK the reset - continue anyway\n");
+		iwl_trans_fw_error(trans, true);
+	}
+
+	trans_pcie->fw_reset_state = FW_RESET_IDLE;
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)

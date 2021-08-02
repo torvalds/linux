@@ -254,6 +254,13 @@ struct cont_rec {
 };
 #endif
 
+enum iwl_pcie_fw_reset_state {
+	FW_RESET_IDLE,
+	FW_RESET_REQUESTED,
+	FW_RESET_OK,
+	FW_RESET_ERROR,
+};
+
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
@@ -405,7 +412,7 @@ struct iwl_trans_pcie {
 	dma_addr_t base_rb_stts_dma;
 
 	bool fw_reset_handshake;
-	bool fw_reset_done;
+	enum iwl_pcie_fw_reset_state fw_reset_state;
 	wait_queue_head_t fw_reset_waitq;
 
 	char rf_name[32];
