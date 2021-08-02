@@ -60,7 +60,8 @@ static bool dual_accel_detect_bosc0200(void)
 static bool dual_accel_detect(void)
 {
 	/* Systems which use a pair of accels with KIOX010A / KIOX020A ACPI ids */
-	if (acpi_dev_present("KIOX010A", NULL, -1))
+	if (acpi_dev_present("KIOX010A", NULL, -1) &&
+	    acpi_dev_present("KIOX020A", NULL, -1))
 		return true;
 
 	/* Systems which use a single DUAL250E ACPI device to model 2 accels */
