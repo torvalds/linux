@@ -703,13 +703,12 @@ void ceph_add_cap(struct inode *inode,
 		 */
 		struct ceph_snap_realm *realm = ceph_lookup_snap_realm(mdsc,
 							       realmino);
-		if (realm) {
+		if (realm)
 			ceph_change_snap_realm(inode, realm);
-		} else {
-			pr_err("ceph_add_cap: couldn't find snap realm %llx\n",
-			       realmino);
-			WARN_ON(!realm);
-		}
+		else
+			WARN(1, "%s: couldn't find snap realm 0x%llx (ino 0x%llx oldrealm 0x%llx)\n",
+			     __func__, realmino, ci->i_vino.ino,
+			     ci->i_snap_realm ? ci->i_snap_realm->ino : 0);
 	}
 
 	__check_cap_issue(ci, cap, issued);
