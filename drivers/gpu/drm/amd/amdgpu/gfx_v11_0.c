@@ -54,11 +54,18 @@
 
 #define RLCG_UCODE_LOADING_START_ADDRESS	0x00002000L
 
+#define regCGTT_WD_CLK_CTRL		0x5086
+#define regCGTT_WD_CLK_CTRL_BASE_IDX	1
+
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_toc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_1_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_1_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_1_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_1_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_mec.bin");
@@ -77,6 +84,19 @@ static const struct soc15_reg_golden golden_settings_gc_11_0_0[] =
 static const struct soc15_reg_golden golden_settings_gc_rlc_spm_11_0[] =
 {
 	/* Pending on emulation bring up */
+};
+
+static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regCGTT_GS_NGG_CLK_CTRL, 0x9fff8fff, 0x00000010),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regCGTT_WD_CLK_CTRL, 0xffff8fff, 0x00000010),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regCPF_GCR_CNTL, 0x0007ffff, 0x0000c200),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL3, 0xffff001b, 0x00f01988),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regPA_CL_ENHANCE, 0xf0ffffff, 0x00880007),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regPA_SC_ENHANCE_3, 0xfffffffd, 0x00000008),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regPA_SC_VRS_SURFACE_CNTL_1, 0xfff891ff, 0x55480100),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTA_CNTL_AUX, 0xf7f7ffff, 0x01030000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL2, 0xfcffffff, 0x0000000a)
 };
 
 #define DEFAULT_SH_MEM_CONFIG \
@@ -262,6 +282,14 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_11_0_0,
 						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_0));
+		break;
+	case IP_VERSION(11, 0, 1):
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_11_0,
+						(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_11_0_1,
+						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_1));
 		break;
 	default:
 		break;
@@ -1134,6 +1162,13 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		break;
+	case IP_VERSION(11, 0, 1):
+		adev->gfx.config.max_hw_contexts = 8;
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x80;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x300;
+		break;
 	default:
 		BUG();
 		break;
@@ -1554,6 +1589,7 @@ static int gfx_v11_0_sw_init(void *handle)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
