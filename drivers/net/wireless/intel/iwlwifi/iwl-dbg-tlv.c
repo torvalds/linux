@@ -131,8 +131,7 @@ static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
 		goto err;
 
 	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH &&
-	    alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1 &&
-	    alloc_id != IWL_FW_INI_ALLOCATION_ID_INTERNAL)
+	    alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1)
 		goto err;
 
 	trans->dbg.fw_mon_cfg[alloc_id] = *alloc;
