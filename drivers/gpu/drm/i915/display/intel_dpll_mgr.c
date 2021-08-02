@@ -3735,6 +3735,31 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 		drm_err(&dev_priv->drm, "PLL %d not locked\n", pll->info->id);
 }
 
+static void adlp_cmtg_clock_gating_wa(struct drm_i915_private *i915, struct intel_shared_dpll *pll)
+{
+	u32 val;
+
+	if (!IS_ADLP_DISPLAY_STEP(i915, STEP_A0, STEP_B0) ||
+	    pll->info->id != DPLL_ID_ICL_DPLL0)
+		return;
+	/*
+	 * Wa_16011069516:adl-p[a0]
+	 *
+	 * All CMTG regs are unreliable until CMTG clock gating is disabled,
+	 * so we can only assume the default TRANS_CMTG_CHICKEN reg value and
+	 * sanity check this assumption with a double read, which presumably
+	 * returns the correct value even with clock gating on.
+	 *
+	 * Instead of the usual place for workarounds we apply this one here,
+	 * since TRANS_CMTG_CHICKEN is only accessible while DPLL0 is enabled.
+	 */
+	val = intel_de_read(i915, TRANS_CMTG_CHICKEN);
+	val = intel_de_read(i915, TRANS_CMTG_CHICKEN);
+	intel_de_write(i915, TRANS_CMTG_CHICKEN, DISABLE_DPT_CLK_GATING);
+	if (drm_WARN_ON(&i915->drm, val & ~DISABLE_DPT_CLK_GATING))
+		drm_dbg_kms(&i915->drm, "Unexpected flags in TRANS_CMTG_CHICKEN: %08x\n", val);
+}
+
 static void combo_pll_enable(struct drm_i915_private *dev_priv,
 			     struct intel_shared_dpll *pll)
 {
@@ -3763,6 +3788,8 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 	 */
 
 	icl_pll_enable(dev_priv, pll, enable_reg);
+
+	adlp_cmtg_clock_gating_wa(dev_priv, pll);
 
 	/* DVFS post sequence would be here. See the comment above. */
 }
@@ -4273,7 +4300,12 @@ void intel_dpll_readout_hw_state(struct drm_i915_private *i915)
 static void sanitize_dpll_state(struct drm_i915_private *i915,
 				struct intel_shared_dpll *pll)
 {
-	if (!pll->on || pll->active_mask)
+	if (!pll->on)
+		return;
+
+	adlp_cmtg_clock_gating_wa(i915, pll);
+
+	if (pll->active_mask)
 		return;
 
 	drm_dbg_kms(&i915->drm,

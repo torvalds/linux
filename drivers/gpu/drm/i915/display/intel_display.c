@@ -13281,24 +13281,6 @@ static void intel_early_display_was(struct drm_i915_private *dev_priv)
 			     KBL_ARB_FILL_SPARE_13 | KBL_ARB_FILL_SPARE_14,
 			     KBL_ARB_FILL_SPARE_14);
 	}
-
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0)) {
-		u32 val;
-
-		/*
-		 * Wa_16011069516:adl-p[a0]
-		 *
-		 * All CMTG regs are unreliable until CMTG clock gating is
-		 * disabled, so we can only assume the default CMTG_CHICKEN
-		 * reg value and sanity check this assumption with a double
-		 * read, which presumably returns the correct value even with
-		 * clock gating on.
-		 */
-		val = intel_de_read(dev_priv, TRANS_CMTG_CHICKEN);
-		val = intel_de_read(dev_priv, TRANS_CMTG_CHICKEN);
-		intel_de_write(dev_priv, TRANS_CMTG_CHICKEN, DISABLE_DPT_CLK_GATING);
-		drm_WARN_ON(&dev_priv->drm, val & ~DISABLE_DPT_CLK_GATING);
-	}
 }
 
 static void ibx_sanitize_pch_hdmi_port(struct drm_i915_private *dev_priv,
