@@ -13,6 +13,7 @@
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -30,6 +31,20 @@
 static int sensor_mask_override = -1;
 module_param_named(sensor_mask, sensor_mask_override, int, 0444);
 MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
+
+static int amd_sfh_wait_response_v2(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
+{
+	union cmd_response cmd_resp;
+
+	/* Get response with status within a max of 800 ms timeout */
+	if (!readl_poll_timeout(mp2->mmio + AMD_P2C_MSG(0), cmd_resp.resp,
+				(cmd_resp.response_v2.response == sensor_sts &&
+				cmd_resp.response_v2.status == 0 && (sid == 0xff ||
+				cmd_resp.response_v2.sensor_id == sid)), 500, 800000))
+		return cmd_resp.response_v2.response;
+
+	return SENSOR_DISABLED;
+}
 
 static void amd_start_sensor_v2(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
@@ -183,6 +198,7 @@ static const struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.start = amd_start_sensor_v2,
 	.stop = amd_stop_sensor_v2,
 	.stop_all = amd_stop_all_sensor_v2,
+	.response = amd_sfh_wait_response_v2,
 };
 
 static const struct amd_mp2_ops amd_sfh_ops = {

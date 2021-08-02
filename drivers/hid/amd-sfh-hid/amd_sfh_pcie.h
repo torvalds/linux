@@ -24,11 +24,15 @@
 #define AMD_C2P_MSG2	0x10508
 
 #define AMD_C2P_MSG(regno) (0x10500 + ((regno) * 4))
+#define AMD_P2C_MSG(regno) (0x10680 + ((regno) * 4))
 
 /* MP2 P2C Message Registers */
 #define AMD_P2C_MSG3	0x1068C /* Supported Sensors info */
 
 #define V2_STATUS	0x2
+
+#define SENSOR_ENABLED     4
+#define SENSOR_DISABLED    5
 
 #define HPD_IDX		16
 
@@ -49,6 +53,19 @@ union sfh_cmd_base {
 		u32 sensor_id : 8;
 		u32 period : 8;
 	} cmd_v2;
+};
+
+union cmd_response {
+	u32 resp;
+	struct {
+		u32 status	: 2;
+		u32 out_in_c2p	: 1;
+		u32 rsvd1	: 1;
+		u32 response	: 4;
+		u32 sub_cmd	: 8;
+		u32 sensor_id	: 6;
+		u32 rsvd2	: 10;
+	} response_v2;
 };
 
 union sfh_cmd_param {
@@ -117,5 +134,6 @@ struct amd_mp2_ops {
 	 void (*start)(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info);
 	 void (*stop)(struct amd_mp2_dev *privdata, u16 sensor_idx);
 	 void (*stop_all)(struct amd_mp2_dev *privdata);
+	 int (*response)(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts);
 };
 #endif
