@@ -24,7 +24,7 @@ static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_pnvm_init_complete_ntfy *pnvm_ntf = (void *)pkt->data;
 
 	IWL_DEBUG_FW(trans,
-		     "PNVM complete notification received with status %d\n",
+		     "PNVM complete notification received with status 0x%0x\n",
 		     le32_to_cpu(pnvm_ntf->status));
 
 	return true;
