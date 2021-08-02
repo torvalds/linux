@@ -1032,8 +1032,12 @@ struct nix_bp_cfg_rsp {
 
 struct nix_hw_info {
 	struct mbox_msghdr hdr;
+	u16 rsvs16;
 	u16 max_mtu;
 	u16 min_mtu;
+	u32 rpm_dwrr_mtu;
+	u32 sdp_dwrr_mtu;
+	u64 rsvd[16]; /* Add reserved fields for future expansion */
 };
 
 struct nix_bandprof_alloc_req {
