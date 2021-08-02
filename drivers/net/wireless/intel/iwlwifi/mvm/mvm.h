@@ -431,8 +431,6 @@ struct iwl_mvm_vif {
 static inline struct iwl_mvm_vif *
 iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 {
-	if (!vif)
-		return NULL;
 	return (void *)vif->drv_priv;
 }
 
