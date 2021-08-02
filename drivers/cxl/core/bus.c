@@ -634,12 +634,26 @@ EXPORT_SYMBOL_GPL(cxl_bus_type);
 
 static __init int cxl_core_init(void)
 {
-	return bus_register(&cxl_bus_type);
+	int rc;
+
+	rc = cxl_memdev_init();
+	if (rc)
+		return rc;
+
+	rc = bus_register(&cxl_bus_type);
+	if (rc)
+		goto err;
+	return 0;
+
+err:
+	cxl_memdev_exit();
+	return rc;
 }
 
 static void cxl_core_exit(void)
 {
 	bus_unregister(&cxl_bus_type);
+	cxl_memdev_exit();
 }
 
 module_init(cxl_core_init);

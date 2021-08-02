@@ -28,12 +28,6 @@
 	(FIELD_GET(CXLMDEV_RESET_NEEDED_MASK, status) !=                       \
 	 CXLMDEV_RESET_NEEDED_NOT)
 
-/*
- * An entire PCI topology full of devices should be enough for any
- * config
- */
-#define CXL_MEM_MAX_DEVS 65536
-
 /**
  * struct cdevm_file_operations - devm coordinated cdev file operations
  * @fops: file operations that are synchronized against @shutdown
@@ -62,6 +56,15 @@ struct cxl_memdev {
 	struct cxl_mem *cxlm;
 	int id;
 };
+
+static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
+{
+	return container_of(dev, struct cxl_memdev, dev);
+}
+
+struct cxl_memdev *
+devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
+		    const struct cdevm_file_operations *cdevm_fops);
 
 /**
  * struct cxl_mem - A CXL memory device

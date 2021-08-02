@@ -14,4 +14,7 @@ static inline void unregister_cxl_dev(void *dev)
 	device_unregister(dev);
 }
 
+int cxl_memdev_init(void);
+void cxl_memdev_exit(void);
+
 #endif /* __CXL_CORE_H__ */
