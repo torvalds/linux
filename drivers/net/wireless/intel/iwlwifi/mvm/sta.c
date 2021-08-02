@@ -3473,7 +3473,6 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 				 u8 key_offset,
 				 bool mcast)
 {
-	int ret;
 	const u8 *addr;
 	struct ieee80211_key_seq seq;
 	u16 p1k[5];
@@ -3495,30 +3494,19 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		return -EINVAL;
 	}
 
-	switch (keyconf->cipher) {
-	case WLAN_CIPHER_SUITE_TKIP:
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		addr = iwl_mvm_get_mac_addr(mvm, vif, sta);
 		/* get phase 1 key from mac80211 */
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
-		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   seq.tkip.iv32, p1k, 0, key_offset,
-					   mfp);
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   0, NULL, 0, key_offset, mfp);
-		break;
-	default:
-		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   0, NULL, 0, key_offset, mfp);
+
+		return iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
+					    seq.tkip.iv32, p1k, 0, key_offset,
+					    mfp);
 	}
 
-	return ret;
+	return iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
+				    0, NULL, 0, key_offset, mfp);
 }
 
 int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
