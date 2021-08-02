@@ -282,6 +282,8 @@ static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
 			if (status == SENSOR_ENABLED)
 				cl_data->sensor_sts[i] = SENSOR_ENABLED;
+			dev_dbg(dev, "resume sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 		}
 	}
 
@@ -303,6 +305,8 @@ static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
 					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
 			if (status != SENSOR_ENABLED)
 				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+			dev_dbg(dev, "suspend sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 		}
 	}
 

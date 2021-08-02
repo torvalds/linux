@@ -218,9 +218,13 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
 				if (status != SENSOR_ENABLED)
 					cl_data->sensor_sts[i] = SENSOR_DISABLED;
+				dev_dbg(dev, "sid 0x%x status 0x%x\n",
+					cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 				goto cleanup;
 			}
 		}
+		dev_dbg(dev, "sid 0x%x status 0x%x\n",
+			cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 	}
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 	return 0;
@@ -252,6 +256,8 @@ int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
 			if (status != SENSOR_ENABLED)
 				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+			dev_dbg(&privdata->pdev->dev, "stopping sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 		}
 	}
 
