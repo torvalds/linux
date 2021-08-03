@@ -751,6 +751,12 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	struct device *dev = info->dev;
 	struct scmi_chan_info *cinfo;
 
+	if (xfer->hdr.poll_completion && !info->desc->ops->poll_done) {
+		dev_warn_once(dev,
+			      "Polling mode is not supported by transport.\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Initialise protocol id now from protocol handle to avoid it being
 	 * overridden by mistake (or malice) by the protocol code mangling with
@@ -787,7 +793,6 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		ktime_t stop = ktime_add_ns(ktime_get(), SCMI_MAX_POLL_TO_NS);
 
 		spin_until_cond(scmi_xfer_done_no_timeout(cinfo, xfer, stop));
-
 		if (ktime_before(ktime_get(), stop)) {
 			unsigned long flags;
 
