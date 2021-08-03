@@ -2904,13 +2904,13 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
  */
 static int intel_pmu_handle_irq(struct pt_regs *regs)
 {
-	struct cpu_hw_events *cpuc;
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	bool late_ack = hybrid_bit(cpuc->pmu, late_ack);
+	bool mid_ack = hybrid_bit(cpuc->pmu, mid_ack);
 	int loops;
 	u64 status;
 	int handled;
 	int pmu_enabled;
-
-	cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	/*
 	 * Save the PMU state.
@@ -2918,10 +2918,14 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	 */
 	pmu_enabled = cpuc->enabled;
 	/*
-	 * No known reason to not always do late ACK,
-	 * but just in case do it opt-in.
+	 * In general, the early ACK is only applied for old platforms.
+	 * For the big core starts from Haswell, the late ACK should be
+	 * applied.
+	 * For the small core after Tremont, we have to do the ACK right
+	 * before re-enabling counters, which is in the middle of the
+	 * NMI handler.
 	 */
-	if (!x86_pmu.late_ack)
+	if (!late_ack && !mid_ack)
 		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	intel_bts_disable_local();
 	cpuc->enabled = 0;
@@ -2958,6 +2962,8 @@ again:
 		goto again;
 
 done:
+	if (mid_ack)
+		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	/* Only restore PMU state when it's active. See x86_pmu_disable(). */
 	cpuc->enabled = pmu_enabled;
 	if (pmu_enabled)
@@ -2969,7 +2975,7 @@ done:
 	 * have been reset. This avoids spurious NMIs on
 	 * Haswell CPUs.
 	 */
-	if (x86_pmu.late_ack)
+	if (late_ack)
 		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	return handled;
 }
@@ -6129,7 +6135,6 @@ __init int intel_pmu_init(void)
 		static_branch_enable(&perf_is_hybrid);
 		x86_pmu.num_hybrid_pmus = X86_HYBRID_NUM_PMUS;
 
-		x86_pmu.late_ack = true;
 		x86_pmu.pebs_aliases = NULL;
 		x86_pmu.pebs_prec_dist = true;
 		x86_pmu.pebs_block = true;
@@ -6167,6 +6172,7 @@ __init int intel_pmu_init(void)
 		pmu = &x86_pmu.hybrid_pmu[X86_HYBRID_PMU_CORE_IDX];
 		pmu->name = "cpu_core";
 		pmu->cpu_type = hybrid_big;
+		pmu->late_ack = true;
 		if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU)) {
 			pmu->num_counters = x86_pmu.num_counters + 2;
 			pmu->num_counters_fixed = x86_pmu.num_counters_fixed + 1;
@@ -6192,6 +6198,7 @@ __init int intel_pmu_init(void)
 		pmu = &x86_pmu.hybrid_pmu[X86_HYBRID_PMU_ATOM_IDX];
 		pmu->name = "cpu_atom";
 		pmu->cpu_type = hybrid_small;
+		pmu->mid_ack = true;
 		pmu->num_counters = x86_pmu.num_counters;
 		pmu->num_counters_fixed = x86_pmu.num_counters_fixed;
 		pmu->max_pebs_events = x86_pmu.max_pebs_events;
