@@ -925,6 +925,7 @@ out:
 
 struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
+				    struct mlx5_eswitch *from_esw,
 				    struct mlx5_eswitch_rep *rep,
 				    u32 sqn)
 {
@@ -943,10 +944,10 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
 	MLX5_SET(fte_match_set_misc, misc, source_sqn, sqn);
 	/* source vport is the esw manager */
-	MLX5_SET(fte_match_set_misc, misc, source_port, rep->esw->manager_vport);
+	MLX5_SET(fte_match_set_misc, misc, source_port, from_esw->manager_vport);
 	if (MLX5_CAP_ESW(on_esw->dev, merged_eswitch))
 		MLX5_SET(fte_match_set_misc, misc, source_eswitch_owner_vhca_id,
-			 MLX5_CAP_GEN(rep->esw->dev, vhca_id));
+			 MLX5_CAP_GEN(from_esw->dev, vhca_id));
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
 	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_sqn);

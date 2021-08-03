@@ -123,7 +123,7 @@ struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 
 	rep = dev->port[port - 1].rep;
 
-	return mlx5_eswitch_add_send_to_vport_rule(esw, rep, sq->base.mqp.qpn);
+	return mlx5_eswitch_add_send_to_vport_rule(esw, esw, rep, sq->base.mqp.qpn);
 }
 
 static int mlx5r_rep_probe(struct auxiliary_device *adev,

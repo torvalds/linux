@@ -63,6 +63,7 @@ struct mlx5_eswitch_rep *mlx5_eswitch_vport_rep(struct mlx5_eswitch *esw,
 void *mlx5_eswitch_uplink_get_proto_dev(struct mlx5_eswitch *esw, u8 rep_type);
 struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
+				    struct mlx5_eswitch *from_esw,
 				    struct mlx5_eswitch_rep *rep, u32 sqn);
 
 #ifdef CONFIG_MLX5_ESWITCH

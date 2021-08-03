@@ -337,7 +337,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		}
 
 		/* Add re-inject rule to the PF/representor sqs */
-		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, rep,
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, esw, rep,
 								sqns_array[i]);
 		if (IS_ERR(flow_rule)) {
 			err = PTR_ERR(flow_rule);
