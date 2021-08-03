@@ -132,6 +132,8 @@ struct vport_egress {
 		struct {
 			struct mlx5_flow_group *fwd_grp;
 			struct mlx5_flow_handle *fwd_rule;
+			struct mlx5_flow_handle *bounce_rule;
+			struct mlx5_flow_group *bounce_grp;
 		} offloads;
 	};
 };
@@ -714,6 +716,12 @@ void esw_vport_change_handle_locked(struct mlx5_vport *vport);
 
 bool mlx5_esw_offloads_controller_valid(const struct mlx5_eswitch *esw, u32 controller);
 
+int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
+					    struct mlx5_eswitch *slave_esw);
+void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+					      struct mlx5_eswitch *slave_esw);
+int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -743,6 +751,23 @@ mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
 				     u16 vport_num)
 {
 	return vport_num;
+}
+
+static inline int
+mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
+					struct mlx5_eswitch *slave_esw)
+{
+	return 0;
+}
+
+static inline void
+mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+					 struct mlx5_eswitch *slave_esw) {}
+
+static inline int
+mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
+{
+	return 0;
 }
 #endif /* CONFIG_MLX5_ESWITCH */
 

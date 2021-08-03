@@ -413,7 +413,7 @@ static bool check_valid_spec(const struct mlx5_flow_spec *spec)
 	return true;
 }
 
-static struct mlx5_flow_root_namespace *find_root(struct fs_node *node)
+struct mlx5_flow_root_namespace *find_root(struct fs_node *node)
 {
 	struct fs_node *root;
 	struct mlx5_flow_namespace *ns;
