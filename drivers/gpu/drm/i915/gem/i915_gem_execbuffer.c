@@ -1577,7 +1577,7 @@ static int __reloc_entry_gpu(struct i915_execbuffer *eb,
 	return true;
 }
 
-static int reloc_entry_gpu(struct i915_execbuffer *eb,
+static int __maybe_unused reloc_entry_gpu(struct i915_execbuffer *eb,
 			    struct i915_vma *vma,
 			    u64 offset,
 			    u64 target_addr)
@@ -1599,32 +1599,25 @@ relocate_entry(struct i915_vma *vma,
 {
 	u64 target_addr = relocation_target(reloc, target);
 	u64 offset = reloc->offset;
-	int reloc_gpu = reloc_entry_gpu(eb, vma, offset, target_addr);
-
-	if (reloc_gpu < 0)
-		return reloc_gpu;
-
-	if (!reloc_gpu) {
-		bool wide = eb->reloc_cache.use_64bit_reloc;
-		void *vaddr;
+	bool wide = eb->reloc_cache.use_64bit_reloc;
+	void *vaddr;
 
 repeat:
-		vaddr = reloc_vaddr(vma->obj, eb,
-				    offset >> PAGE_SHIFT);
-		if (IS_ERR(vaddr))
-			return PTR_ERR(vaddr);
+	vaddr = reloc_vaddr(vma->obj, eb,
+			    offset >> PAGE_SHIFT);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
-		GEM_BUG_ON(!IS_ALIGNED(offset, sizeof(u32)));
-		clflush_write32(vaddr + offset_in_page(offset),
-				lower_32_bits(target_addr),
-				eb->reloc_cache.vaddr);
+	GEM_BUG_ON(!IS_ALIGNED(offset, sizeof(u32)));
+	clflush_write32(vaddr + offset_in_page(offset),
+			lower_32_bits(target_addr),
+			eb->reloc_cache.vaddr);
 
-		if (wide) {
-			offset += sizeof(u32);
-			target_addr >>= 32;
-			wide = false;
-			goto repeat;
-		}
+	if (wide) {
+		offset += sizeof(u32);
+		target_addr >>= 32;
+		wide = false;
+		goto repeat;
 	}
 
 	return target->node.start | UPDATE;
