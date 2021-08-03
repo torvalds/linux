@@ -32,31 +32,6 @@ struct i2c_multi_inst_data {
 	struct i2c_client *clients[];
 };
 
-static int i2c_multi_inst_count(struct acpi_resource *ares, void *data)
-{
-	struct acpi_resource_i2c_serialbus *sb;
-	int *count = data;
-
-	if (i2c_acpi_get_i2c_resource(ares, &sb))
-		*count = *count + 1;
-
-	return 1;
-}
-
-static int i2c_multi_inst_count_resources(struct acpi_device *adev)
-{
-	LIST_HEAD(r);
-	int count = 0;
-	int ret;
-
-	ret = acpi_dev_get_resources(adev, &r, i2c_multi_inst_count, &count);
-	if (ret < 0)
-		return ret;
-
-	acpi_dev_free_resource_list(&r);
-	return count;
-}
-
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
 	struct i2c_multi_inst_data *multi;
@@ -76,7 +51,7 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	adev = ACPI_COMPANION(dev);
 
 	/* Count number of clients to instantiate */
-	ret = i2c_multi_inst_count_resources(adev);
+	ret = i2c_acpi_client_count(adev);
 	if (ret < 0)
 		return ret;
 
