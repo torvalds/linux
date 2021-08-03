@@ -80,30 +80,8 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_CS89x0_ISA
 	{cs89x0_probe, 0},
 #endif
-#if defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel */
-	{i82596_probe, 0},					/* I82596 */
-#endif
 #ifdef CONFIG_NI65
 	{ni65_probe, 0},
-#endif
-	{NULL, 0},
-};
-
-static struct devprobe2 m68k_probes[] __initdata = {
-#ifdef CONFIG_ATARILANCE	/* Lance-based Atari ethernet boards */
-	{atarilance_probe, 0},
-#endif
-#ifdef CONFIG_SUN3LANCE         /* sun3 onboard Lance chip */
-	{sun3lance_probe, 0},
-#endif
-#ifdef CONFIG_SUN3_82586        /* sun3 onboard Intel 82586 chip */
-	{sun3_82586_probe, 0},
-#endif
-#ifdef CONFIG_APNE		/* A1200 PCMCIA NE2000 */
-	{apne_probe, 0},
-#endif
-#ifdef CONFIG_MVME147_NET	/* MVME147 internal Ethernet */
-	{mvme147lance_probe, 0},
 #endif
 	{NULL, 0},
 };
@@ -119,8 +97,7 @@ static void __init ethif_probe2(int unit)
 	if (base_addr == 1)
 		return;
 
-	(void)(probe_list2(unit, m68k_probes, base_addr == 0) &&
-		probe_list2(unit, isa_probes, base_addr == 0));
+	probe_list2(unit, isa_probes, base_addr == 0);
 }
 
 /*  Statically configured drivers -- order matters here. */
