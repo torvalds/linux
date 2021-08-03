@@ -1435,22 +1435,13 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 		attr.source_qpn = cmd->source_qpn;
 	}
 
-	if (cmd->qp_type == IB_QPT_XRC_TGT)
-		qp = ib_create_qp(pd, &attr);
-	else
-		qp = _ib_create_qp(device, pd, &attr, &attrs->driver_udata, obj,
-				   NULL);
-
+	qp = ib_create_qp_user(device, pd, &attr, &attrs->driver_udata, obj,
+			       KBUILD_MODNAME);
 	if (IS_ERR(qp)) {
 		ret = PTR_ERR(qp);
 		goto err_put;
 	}
 	ib_qp_usecnt_inc(qp);
-
-	if (cmd->qp_type == IB_QPT_XRC_TGT) {
-		/* It is done in _ib_create_qp for other QP types */
-		qp->uobject = obj;
-	}
 
 	obj->uevent.uobject.object = qp;
 	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
