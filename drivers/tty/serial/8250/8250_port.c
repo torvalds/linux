@@ -2674,14 +2674,16 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 		serial_port_out(port, UART_LCR, up->lcr | UART_LCR_DLAB);
 
 	serial_dl_write(up, quot);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (quot != serial_dl_read(up))
+		dev_warn_ratelimited(port->dev, "ttyS%d set divisor fail, quot:%d != dll,dlh:%d\n",
+					serial_index(port), quot, serial_dl_read(up));
+#endif
 	if (port->type != PORT_16750)
 		serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	serial_port_out(port, UART_MCR, up->mcr);
-	if (quot != serial_dl_read(up))
-		pr_warn_ratelimited("ttyS%d set divisor fail, quot:%d != dll,dlh:%d\n",
-					 serial_index(port), quot, serial_dl_read(up));
 #endif
 }
 EXPORT_SYMBOL_GPL(serial8250_do_set_divisor);
