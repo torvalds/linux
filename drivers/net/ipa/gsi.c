@@ -1303,31 +1303,18 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* Init function for GSI IRQ lookup; there is no gsi_irq_exit() */
 static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	unsigned int irq;
 	int ret;
 
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0)
 		return ret ? : -EINVAL;
 
-	irq = ret;
-
-	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
-	if (ret) {
-		dev_err(dev, "error %d requesting \"gsi\" IRQ\n", ret);
-		return ret;
-	}
-	gsi->irq = irq;
+	gsi->irq = ret;
 
 	return 0;
-}
-
-static void gsi_irq_exit(struct gsi *gsi)
-{
-	free_irq(gsi->irq, gsi);
 }
 
 /* Return the transaction associated with a transfer completion event */
@@ -1810,6 +1797,8 @@ static void gsi_channel_teardown(struct gsi *gsi)
 /* Turn off all GSI interrupts initially */
 static int gsi_irq_setup(struct gsi *gsi)
 {
+	int ret;
+
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
 
@@ -1835,11 +1824,16 @@ static int gsi_irq_setup(struct gsi *gsi)
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 
-	return 0;
+	ret = request_irq(gsi->irq, gsi_isr, 0, "gsi", gsi);
+	if (ret)
+		dev_err(gsi->dev, "error %d requesting \"gsi\" IRQ\n", ret);
+
+	return ret;
 }
 
 static void gsi_irq_teardown(struct gsi *gsi)
 {
+	free_irq(gsi->irq, gsi);
 }
 
 /* Get # supported channel and event rings; there is no gsi_ring_teardown() */
@@ -2224,20 +2218,18 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 
 	init_completion(&gsi->completion);
 
-	ret = gsi_irq_init(gsi, pdev);
+	ret = gsi_irq_init(gsi, pdev);	/* No matching exit required */
 	if (ret)
 		goto err_iounmap;
 
 	ret = gsi_channel_init(gsi, count, data);
 	if (ret)
-		goto err_irq_exit;
+		goto err_iounmap;
 
 	mutex_init(&gsi->mutex);
 
 	return 0;
 
-err_irq_exit:
-	gsi_irq_exit(gsi);
 err_iounmap:
 	iounmap(gsi->virt_raw);
 
@@ -2249,7 +2241,6 @@ void gsi_exit(struct gsi *gsi)
 {
 	mutex_destroy(&gsi->mutex);
 	gsi_channel_exit(gsi);
-	gsi_irq_exit(gsi);
 	iounmap(gsi->virt_raw);
 }
 
