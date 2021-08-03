@@ -371,12 +371,13 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	bool do_bond, roce_lag;
 	int err;
 
-	if (!mlx5_lag_is_ready(ldev))
-		return;
+	if (!mlx5_lag_is_ready(ldev)) {
+		do_bond = false;
+	} else {
+		tracker = ldev->tracker;
 
-	tracker = ldev->tracker;
-
-	do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
+		do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
+	}
 
 	if (do_bond && !__mlx5_lag_is_active(ldev)) {
 		roce_lag = !mlx5_sriov_is_enabled(dev0) &&
@@ -733,11 +734,11 @@ void mlx5_lag_remove_netdev(struct mlx5_core_dev *dev,
 	if (!ldev)
 		return;
 
-	if (__mlx5_lag_is_active(ldev))
-		mlx5_disable_lag(ldev);
-
 	mlx5_ldev_remove_netdev(ldev, netdev);
 	ldev->flags &= ~MLX5_LAG_FLAG_READY;
+
+	if (__mlx5_lag_is_active(ldev))
+		mlx5_queue_bond_work(ldev, 0);
 }
 
 /* Must be called with intf_mutex held */
