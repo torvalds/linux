@@ -316,6 +316,13 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	int word_len = 0, master_rate = 0;
 	struct snd_soc_component *component = dai->component;
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
+	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	u8 dacc0;
+
+	dev_dbg(dai->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
+		__func__, params_rate(params), params_format(params),
+		params_width(params), params_channels(params));
+
 
 	/* bit size */
 	switch (params_width(params)) {
@@ -344,6 +351,25 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	case 36864000:
 		master_rate = AD193X_PLL_INPUT_768;
 		break;
+	}
+
+	if (is_playback) {
+		switch (params_rate(params)) {
+		case 48000:
+			dacc0 = AD193X_DAC_SR_48;
+			break;
+		case 96000:
+			dacc0 = AD193X_DAC_SR_96;
+			break;
+		case 192000:
+			dacc0 = AD193X_DAC_SR_192;
+			break;
+		default:
+			dev_err(dai->dev, "invalid sampling rate: %d\n", params_rate(params));
+			return -EINVAL;
+		}
+
+		regmap_update_bits(ad193x->regmap, AD193X_DAC_CTRL0, AD193X_DAC_SR_MASK, dacc0);
 	}
 
 	regmap_update_bits(ad193x->regmap, AD193X_PLL_CLK_CTRL0,
@@ -385,7 +411,7 @@ static struct snd_soc_dai_driver ad193x_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -407,7 +433,7 @@ static struct snd_soc_dai_driver ad193x_no_adc_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
