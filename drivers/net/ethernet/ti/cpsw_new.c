@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/irqreturn.h>
 #include <linux/interrupt.h>
-#include <linux/if_bridge.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
@@ -29,6 +28,7 @@
 #include <linux/kmemleak.h>
 #include <linux/sys_soc.h>
 
+#include <net/switchdev.h>
 #include <net/page_pool.h>
 #include <net/pkt_cls.h>
 #include <net/devlink.h>

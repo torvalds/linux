@@ -809,3 +809,51 @@ int switchdev_handle_port_attr_set(struct net_device *dev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_attr_set);
+
+int switchdev_bridge_port_offload(struct net_device *brport_dev,
+				  struct net_device *dev, const void *ctx,
+				  struct notifier_block *atomic_nb,
+				  struct notifier_block *blocking_nb,
+				  bool tx_fwd_offload,
+				  struct netlink_ext_ack *extack)
+{
+	struct switchdev_notifier_brport_info brport_info = {
+		.brport = {
+			.dev = dev,
+			.ctx = ctx,
+			.atomic_nb = atomic_nb,
+			.blocking_nb = blocking_nb,
+			.tx_fwd_offload = tx_fwd_offload,
+		},
+	};
+	int err;
+
+	ASSERT_RTNL();
+
+	err = call_switchdev_blocking_notifiers(SWITCHDEV_BRPORT_OFFLOADED,
+						brport_dev, &brport_info.info,
+						extack);
+	return notifier_to_errno(err);
+}
+EXPORT_SYMBOL_GPL(switchdev_bridge_port_offload);
+
+void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
+				     const void *ctx,
+				     struct notifier_block *atomic_nb,
+				     struct notifier_block *blocking_nb)
+{
+	struct switchdev_notifier_brport_info brport_info = {
+		.brport = {
+			.ctx = ctx,
+			.atomic_nb = atomic_nb,
+			.blocking_nb = blocking_nb,
+		},
+	};
+
+	ASSERT_RTNL();
+
+	call_switchdev_blocking_notifiers(SWITCHDEV_BRPORT_UNOFFLOADED,
+					  brport_dev, &brport_info.info,
+					  NULL);
+}
+EXPORT_SYMBOL_GPL(switchdev_bridge_port_unoffload);

@@ -7,7 +7,6 @@
 
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
-#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -28,6 +27,7 @@
 #include <linux/sys_soc.h>
 #include <linux/dma/ti-cppi5.h>
 #include <linux/dma/k3-udma-glue.h>
+#include <net/switchdev.h>
 
 #include "cpsw_ale.h"
 #include "cpsw_sl.h"

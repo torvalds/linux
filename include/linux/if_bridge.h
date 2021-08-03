@@ -190,39 +190,4 @@ static inline clock_t br_get_ageing_time(const struct net_device *br_dev)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_NET_SWITCHDEV)
-
-int switchdev_bridge_port_offload(struct net_device *brport_dev,
-				  struct net_device *dev, const void *ctx,
-				  struct notifier_block *atomic_nb,
-				  struct notifier_block *blocking_nb,
-				  bool tx_fwd_offload,
-				  struct netlink_ext_ack *extack);
-void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
-				     const void *ctx,
-				     struct notifier_block *atomic_nb,
-				     struct notifier_block *blocking_nb);
-
-#else
-
-static inline int
-switchdev_bridge_port_offload(struct net_device *brport_dev,
-			      struct net_device *dev, const void *ctx,
-			      struct notifier_block *atomic_nb,
-			      struct notifier_block *blocking_nb,
-			      bool tx_fwd_offload,
-			      struct netlink_ext_ack *extack)
-{
-	return -EINVAL;
-}
-
-static inline void
-switchdev_bridge_port_unoffload(struct net_device *brport_dev,
-				const void *ctx,
-				struct notifier_block *atomic_nb,
-				struct notifier_block *blocking_nb)
-{
-}
-#endif
-
 #endif
