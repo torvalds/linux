@@ -594,7 +594,7 @@ static int dpaa2_switch_port_change_mtu(struct net_device *netdev, int mtu)
 	return 0;
 }
 
-static int dpaa2_switch_port_carrier_state_sync(struct net_device *netdev)
+static int dpaa2_switch_port_link_state_update(struct net_device *netdev)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct dpsw_link_state state;
@@ -693,10 +693,10 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 	}
 
 	/* sync carrier state */
-	err = dpaa2_switch_port_carrier_state_sync(netdev);
+	err = dpaa2_switch_port_link_state_update(netdev);
 	if (err) {
 		netdev_err(netdev,
-			   "dpaa2_switch_port_carrier_state_sync err %d\n", err);
+			   "dpaa2_switch_port_link_state_update err %d\n", err);
 		goto err_carrier_sync;
 	}
 
@@ -1419,22 +1419,13 @@ bool dpaa2_switch_port_dev_check(const struct net_device *netdev)
 	return netdev->netdev_ops == &dpaa2_switch_port_ops;
 }
 
-static void dpaa2_switch_links_state_update(struct ethsw_core *ethsw)
-{
-	int i;
-
-	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
-		dpaa2_switch_port_carrier_state_sync(ethsw->ports[i]->netdev);
-		dpaa2_switch_port_set_mac_addr(ethsw->ports[i]);
-	}
-}
-
 static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 {
 	struct device *dev = (struct device *)arg;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
+	struct ethsw_port_priv *port_priv;
 	u32 status = ~0;
-	int err;
+	int err, if_id;
 
 	err = dpsw_get_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, &status);
@@ -1443,9 +1434,13 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 		goto out;
 	}
 
-	if (status & DPSW_IRQ_EVENT_LINK_CHANGED)
-		dpaa2_switch_links_state_update(ethsw);
+	if_id = (status & 0xFFFF0000) >> 16;
+	port_priv = ethsw->ports[if_id];
 
+	if (status & DPSW_IRQ_EVENT_LINK_CHANGED) {
+		dpaa2_switch_port_link_state_update(port_priv->netdev);
+		dpaa2_switch_port_set_mac_addr(port_priv);
+	}
 out:
 	err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				    DPSW_IRQ_INDEX_IF, status);
