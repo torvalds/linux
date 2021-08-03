@@ -320,7 +320,7 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 		nobig_en = 0;
 	}
 
-	if (params_vdev->dev->hw_dev->is_single)
+	if (params_vdev->dev->hw_dev->dev_num == 1)
 		sd32_self_en = arg->uvnr_sd32_self_en;
 	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
 	      arg->nr_gain_en << 3 | sd32_self_en << 4 |

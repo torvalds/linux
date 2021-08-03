@@ -3281,6 +3281,7 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 	      ((module == ISPP_MODULE_NR && is_single) ||
 	       (module == ISPP_MODULE_FEC && !is_single))))) {
 		dev->stream_vdev.monitor.retry = 0;
+		rkispp_soft_reset(dev->hw_dev);
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
 	}
 
@@ -3314,7 +3315,8 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	if (mis_val & err_mask) {
 		dev->isr_err_cnt++;
 		v4l2_err(&dev->v4l2_dev,
-			 "ispp err:0x%x\n", mis_val);
+			 "ispp err:0x%x, seq:%d\n",
+			 mis_val, dev->ispp_sdev.frm_sync_seq);
 	}
 
 	if (mis_val & TNR_INT) {

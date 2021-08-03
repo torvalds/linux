@@ -323,7 +323,7 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	atomic_set(&hw_dev->refcnt, 0);
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
-	hw_dev->is_single = true;
+	hw_dev->is_single = false;
 	hw_dev->is_fec_ext = false;
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_dma_sg_ops = false;
