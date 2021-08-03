@@ -389,7 +389,7 @@ link_it:
 		return ofi;
 	}
 
-	refcount_inc(&fi->fib_treeref);
+	refcount_set(&fi->fib_treeref, 1);
 	refcount_set(&fi->fib_clntref, 1);
 	spin_lock(&dn_fib_info_lock);
 	fi->fib_next = dn_fib_info_list;
