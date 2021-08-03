@@ -18,24 +18,22 @@
 #define QSLT_CMD						0x13
 
 /* For 88e early mode */
-#define SET_EARLYMODE_PKTNUM(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr, 0, 3, __Value)
+#define SET_EARLYMODE_PKTNUM(__paddr, __value)			\
+	le32p_replace_bits((__le32 *)__paddr, __value, GENMASK(2, 0))
 #define SET_EARLYMODE_LEN0(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr, 4, 12, __Value)
-#define SET_EARLYMODE_LEN1(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr, 16, 12, __Value)
-#define SET_EARLYMODE_LEN2_1(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr, 28, 4, __Value)
-#define SET_EARLYMODE_LEN2_2(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr+4, 0, 8, __Value)
+	le32p_replace_bits((__le32 *)__paddr, __value, GENMASK(15, 4))
+#define SET_EARLYMODE_LEN1(__paddr, __value)			\
+	le32p_replace_bits((__le32 *)__paddr, __value, GENMASK(27, 16))
+#define SET_EARLYMODE_LEN2_1(__pdr, __vValue)			\
+	le32p_replace_bits((__le32 *)__paddr, __value, GENMASK(31, 28))
+#define SET_EARLYMODE_LEN2_2(__paddr, __value)			\
+	le32p_replace_bits((__le32 *)(__paddr + 4), __value, GENMASK(7, 0))
 #define SET_EARLYMODE_LEN3(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr+4, 8, 12, __Value)
-#define SET_EARLYMODE_LEN4(__pAddr, __Value)			\
-	SET_BITS_TO_LE_4BYTE(__pAddr+4, 20, 12, __Value)
+	le32p_replace_bits((__le32 *)(__paddr + 4), __value, GENMASK(19, 8))
+#define SET_EARLYMODE_LEN4(__paAddr, __vValue)			\
+	le32p_replace_bits((__le32 *)(__paddr + 4), __value, GENMASK(31, 20))
 
-/*  */
 /* defined for TX DESC Operation */
-/*  */
 
 #define MAX_TID (15)
 
