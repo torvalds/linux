@@ -2974,6 +2974,50 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 #endif
 
 /**
+ *	netif_set_real_num_queues - set actual number of RX and TX queues used
+ *	@dev: Network device
+ *	@txq: Actual number of TX queues
+ *	@rxq: Actual number of RX queues
+ *
+ *	Set the real number of both TX and RX queues.
+ *	Does nothing if the number of queues is already correct.
+ */
+int netif_set_real_num_queues(struct net_device *dev,
+			      unsigned int txq, unsigned int rxq)
+{
+	unsigned int old_rxq = dev->real_num_rx_queues;
+	int err;
+
+	if (txq < 1 || txq > dev->num_tx_queues ||
+	    rxq < 1 || rxq > dev->num_rx_queues)
+		return -EINVAL;
+
+	/* Start from increases, so the error path only does decreases -
+	 * decreases can't fail.
+	 */
+	if (rxq > dev->real_num_rx_queues) {
+		err = netif_set_real_num_rx_queues(dev, rxq);
+		if (err)
+			return err;
+	}
+	if (txq > dev->real_num_tx_queues) {
+		err = netif_set_real_num_tx_queues(dev, txq);
+		if (err)
+			goto undo_rx;
+	}
+	if (rxq < dev->real_num_rx_queues)
+		WARN_ON(netif_set_real_num_rx_queues(dev, rxq));
+	if (txq < dev->real_num_tx_queues)
+		WARN_ON(netif_set_real_num_tx_queues(dev, txq));
+
+	return 0;
+undo_rx:
+	WARN_ON(netif_set_real_num_rx_queues(dev, old_rxq));
+	return err;
+}
+EXPORT_SYMBOL(netif_set_real_num_queues);
+
+/**
  * netif_get_num_default_rss_queues - default number of RSS queues
  *
  * This routine should set an upper limit on the number of RSS queues
