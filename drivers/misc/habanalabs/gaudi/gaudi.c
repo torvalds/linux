@@ -6087,7 +6087,7 @@ static int gaudi_restore_user_registers(struct hl_device *hdev)
 
 static int gaudi_context_switch(struct hl_device *hdev, u32 asid)
 {
-	return gaudi_restore_user_registers(hdev);
+	return 0;
 }
 
 static int gaudi_mmu_clear_pgt_range(struct hl_device *hdev)
@@ -8657,10 +8657,20 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 
 static int gaudi_ctx_init(struct hl_ctx *ctx)
 {
+	int rc;
+
 	if (ctx->asid == HL_KERNEL_ASID_ID)
 		return 0;
 
-	return gaudi_internal_cb_pool_init(ctx->hdev, ctx);
+	rc = gaudi_internal_cb_pool_init(ctx->hdev, ctx);
+	if (rc)
+		return rc;
+
+	rc = gaudi_restore_user_registers(ctx->hdev);
+	if (rc)
+		gaudi_internal_cb_pool_fini(ctx->hdev, ctx);
+
+	return rc;
 }
 
 static void gaudi_ctx_fini(struct hl_ctx *ctx)
