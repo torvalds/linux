@@ -1933,10 +1933,10 @@ ATTRIBUTE_GROUPS(versions);
 
 /* Each compatible listed below must have descriptor associated with it */
 static const struct of_device_id scmi_of_match[] = {
-#ifdef CONFIG_MAILBOX
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_MAILBOX
 	{ .compatible = "arm,scmi", .data = &scmi_mailbox_desc },
 #endif
-#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_SMC
 	{ .compatible = "arm,scmi-smc", .data = &scmi_smc_desc},
 #endif
 	{ /* Sentinel */ },
@@ -2007,6 +2007,8 @@ static int __init scmi_driver_init(void)
 	int ret;
 
 	scmi_bus_init();
+
+	BUILD_BUG_ON(!IS_ENABLED(CONFIG_ARM_SCMI_HAVE_TRANSPORT));
 
 	/* Initialize any compiled-in transport which provided an init/exit */
 	ret = scmi_transports_init();
