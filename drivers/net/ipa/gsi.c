@@ -1807,9 +1807,12 @@ static void gsi_channel_teardown(struct gsi *gsi)
 	gsi_irq_disable(gsi);
 }
 
-/* Turn off all GSI interrupts initially; there is no gsi_irq_teardown() */
-static void gsi_irq_setup(struct gsi *gsi)
+/* Turn off all GSI interrupts initially */
+static int gsi_irq_setup(struct gsi *gsi)
 {
+	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
+	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
+
 	/* Disable all interrupt types */
 	gsi_irq_type_update(gsi, 0);
 
@@ -1831,6 +1834,12 @@ static void gsi_irq_setup(struct gsi *gsi)
 	}
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
+
+	return 0;
+}
+
+static void gsi_irq_teardown(struct gsi *gsi)
+{
 }
 
 /* Get # supported channel and event rings; there is no gsi_ring_teardown() */
@@ -1891,25 +1900,34 @@ int gsi_setup(struct gsi *gsi)
 		return -EIO;
 	}
 
-	gsi_irq_setup(gsi);		/* No matching teardown required */
+	ret = gsi_irq_setup(gsi);
+	if (ret)
+		return ret;
 
 	ret = gsi_ring_setup(gsi);	/* No matching teardown required */
 	if (ret)
-		return ret;
+		goto err_irq_teardown;
 
 	/* Initialize the error log */
 	iowrite32(0, gsi->virt + GSI_ERROR_LOG_OFFSET);
 
-	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
-	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
+	ret = gsi_channel_setup(gsi);
+	if (ret)
+		goto err_irq_teardown;
 
-	return gsi_channel_setup(gsi);
+	return 0;
+
+err_irq_teardown:
+	gsi_irq_teardown(gsi);
+
+	return ret;
 }
 
 /* Inverse of gsi_setup() */
 void gsi_teardown(struct gsi *gsi)
 {
 	gsi_channel_teardown(gsi);
+	gsi_irq_teardown(gsi);
 }
 
 /* Initialize a channel's event ring */
