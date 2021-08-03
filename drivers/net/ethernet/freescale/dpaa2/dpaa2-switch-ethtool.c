@@ -15,18 +15,18 @@ static struct {
 	enum dpsw_counter id;
 	char name[ETH_GSTRING_LEN];
 } dpaa2_switch_ethtool_counters[] =  {
-	{DPSW_CNT_ING_FRAME,		"rx frames"},
-	{DPSW_CNT_ING_BYTE,		"rx bytes"},
-	{DPSW_CNT_ING_FLTR_FRAME,	"rx filtered frames"},
-	{DPSW_CNT_ING_FRAME_DISCARD,	"rx discarded frames"},
-	{DPSW_CNT_ING_BCAST_FRAME,	"rx b-cast frames"},
-	{DPSW_CNT_ING_BCAST_BYTES,	"rx b-cast bytes"},
-	{DPSW_CNT_ING_MCAST_FRAME,	"rx m-cast frames"},
-	{DPSW_CNT_ING_MCAST_BYTE,	"rx m-cast bytes"},
-	{DPSW_CNT_EGR_FRAME,		"tx frames"},
-	{DPSW_CNT_EGR_BYTE,		"tx bytes"},
-	{DPSW_CNT_EGR_FRAME_DISCARD,	"tx discarded frames"},
-	{DPSW_CNT_ING_NO_BUFF_DISCARD,	"rx discarded no buffer frames"},
+	{DPSW_CNT_ING_FRAME,		"[hw] rx frames"},
+	{DPSW_CNT_ING_BYTE,		"[hw] rx bytes"},
+	{DPSW_CNT_ING_FLTR_FRAME,	"[hw] rx filtered frames"},
+	{DPSW_CNT_ING_FRAME_DISCARD,	"[hw] rx discarded frames"},
+	{DPSW_CNT_ING_BCAST_FRAME,	"[hw] rx bcast frames"},
+	{DPSW_CNT_ING_BCAST_BYTES,	"[hw] rx bcast bytes"},
+	{DPSW_CNT_ING_MCAST_FRAME,	"[hw] rx mcast frames"},
+	{DPSW_CNT_ING_MCAST_BYTE,	"[hw] rx mcast bytes"},
+	{DPSW_CNT_EGR_FRAME,		"[hw] tx frames"},
+	{DPSW_CNT_EGR_BYTE,		"[hw] tx bytes"},
+	{DPSW_CNT_EGR_FRAME_DISCARD,	"[hw] tx discarded frames"},
+	{DPSW_CNT_ING_NO_BUFF_DISCARD,	"[hw] rx nobuffer discards"},
 };
 
 #define DPAA2_SWITCH_NUM_COUNTERS	ARRAY_SIZE(dpaa2_switch_ethtool_counters)
