@@ -724,6 +724,12 @@ static int tb_init_port(struct tb_port *port)
 	int res;
 	int cap;
 
+	INIT_LIST_HEAD(&port->list);
+
+	/* Control adapter does not have configuration space */
+	if (!port->port)
+		return 0;
+
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res) {
 		if (res == -ENODEV) {
@@ -736,7 +742,7 @@ static int tb_init_port(struct tb_port *port)
 	}
 
 	/* Port 0 is the switch itself and has no PHY. */
-	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
+	if (port->config.type == TB_TYPE_PORT) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_PHY);
 
 		if (cap > 0)
@@ -762,7 +768,7 @@ static int tb_init_port(struct tb_port *port)
 		if (!port->ctl_credits)
 			port->ctl_credits = 2;
 
-	} else if (port->port != 0) {
+	} else {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
 		if (cap > 0)
 			port->cap_adap = cap;
@@ -773,10 +779,7 @@ static int tb_init_port(struct tb_port *port)
 		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
 
 	tb_dump_port(port->sw->tb, port);
-
-	INIT_LIST_HEAD(&port->list);
 	return 0;
-
 }
 
 static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
