@@ -4138,7 +4138,7 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	int err;
 
 	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
-	dpmac_dev = fsl_mc_get_endpoint(dpni_dev);
+	dpmac_dev = fsl_mc_get_endpoint(dpni_dev, 0);
 
 	if (PTR_ERR(dpmac_dev) == -EPROBE_DEFER)
 		return PTR_ERR(dpmac_dev);
