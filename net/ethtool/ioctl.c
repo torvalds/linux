@@ -24,6 +24,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/sched/signal.h>
 #include <linux/net.h>
+#include <linux/pm_runtime.h>
 #include <net/devlink.h>
 #include <net/xdp_sock_drv.h>
 #include <net/flow_offload.h>
@@ -2692,7 +2693,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 	int rc;
 	netdev_features_t old_features;
 
-	if (!dev || !netif_device_present(dev))
+	if (!dev)
 		return -ENODEV;
 
 	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
@@ -2748,10 +2749,18 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 			return -EPERM;
 	}
 
+	if (dev->dev.parent)
+		pm_runtime_get_sync(dev->dev.parent);
+
+	if (!netif_device_present(dev)) {
+		rc = -ENODEV;
+		goto out;
+	}
+
 	if (dev->ethtool_ops->begin) {
 		rc = dev->ethtool_ops->begin(dev);
-		if (rc  < 0)
-			return rc;
+		if (rc < 0)
+			goto out;
 	}
 	old_features = dev->features;
 
@@ -2970,6 +2979,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 
 	if (old_features != dev->features)
 		netdev_features_change(dev);
+out:
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
 
 	return rc;
 }

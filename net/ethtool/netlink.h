@@ -247,19 +247,8 @@ struct ethnl_reply_data {
 	struct net_device		*dev;
 };
 
-static inline int ethnl_ops_begin(struct net_device *dev)
-{
-	if (dev && dev->ethtool_ops->begin)
-		return dev->ethtool_ops->begin(dev);
-	else
-		return 0;
-}
-
-static inline void ethnl_ops_complete(struct net_device *dev)
-{
-	if (dev && dev->ethtool_ops->complete)
-		dev->ethtool_ops->complete(dev);
-}
+int ethnl_ops_begin(struct net_device *dev);
+void ethnl_ops_complete(struct net_device *dev);
 
 /**
  * struct ethnl_request_ops - unified handling of GET requests
