@@ -312,6 +312,10 @@ static void walt_find_best_target(struct sched_domain *sd,
 			if (fbt_env->skip_cpu == i)
 				continue;
 
+			if (per_task_boost(cpu_rq(i)->curr) ==
+					TASK_BOOST_STRICT_MAX)
+				continue;
+
 			/*
 			 * p's blocked utilization is still accounted for on prev_cpu
 			 * so prev_cpu will receive a negative bias due to the double
@@ -385,10 +389,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 
 			/* skip visiting any more busy if idle was found */
 			if (best_idle_cpu_cluster != -1)
-				continue;
-
-			if (per_task_boost(cpu_rq(i)->curr) ==
-					TASK_BOOST_STRICT_MAX)
 				continue;
 
 			/*
