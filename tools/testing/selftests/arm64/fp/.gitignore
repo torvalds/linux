@@ -3,4 +3,5 @@ rdvl-sve
 sve-probe-vls
 sve-ptrace
 sve-test
+vec-syscfg
 vlset
