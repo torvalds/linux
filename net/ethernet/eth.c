@@ -62,8 +62,6 @@
 #include <linux/uaccess.h>
 #include <net/pkt_sched.h>
 
-__setup("ether=", netdev_boot_setup);
-
 /**
  * eth_header - create the Ethernet header
  * @skb:	buffer to alter

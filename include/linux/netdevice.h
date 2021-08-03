@@ -295,18 +295,6 @@ enum netdev_state_t {
 };
 
 
-/*
- * This structure holds boot-time configured netdevice settings. They
- * are then used in the device probing.
- */
-struct netdev_boot_setup {
-	char name[IFNAMSIZ];
-	struct ifmap map;
-};
-#define NETDEV_BOOT_SETUP_MAX 8
-
-int __init netdev_boot_setup(char *str);
-
 struct gro_list {
 	struct list_head	list;
 	int			count;
@@ -2939,7 +2927,6 @@ static inline struct net_device *first_net_device_rcu(struct net *net)
 }
 
 int netdev_boot_setup_check(struct net_device *dev);
-unsigned long netdev_boot_base(const char *prefix, int unit);
 struct net_device *dev_getbyhwaddr_rcu(struct net *net, unsigned short type,
 				       const char *hwaddr);
 struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type);
