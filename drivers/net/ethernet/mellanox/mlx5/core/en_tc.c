@@ -3359,11 +3359,9 @@ add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 static int validate_goto_chain(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow,
 			       const struct flow_action_entry *act,
-			       u32 actions,
 			       struct netlink_ext_ack *extack)
 {
 	bool is_esw = mlx5e_is_eswitch_flow(flow);
-	struct mlx5_flow_attr *attr = flow->attr;
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	u32 dest_chain = act->chain_index;
 	struct mlx5_fs_chains *chains;
@@ -3384,7 +3382,7 @@ static int validate_goto_chain(struct mlx5e_priv *priv,
 	}
 
 	if (!mlx5_chains_backwards_supported(chains) &&
-	    dest_chain <= attr->chain) {
+	    dest_chain <= flow->attr->chain) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Goto lower numbered chain isn't supported");
 		return -EOPNOTSUPP;
@@ -3396,8 +3394,8 @@ static int validate_goto_chain(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (actions & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-		       MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
+	if (flow->attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
+				  MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
 	    !reformat_and_fwd) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Goto chain is not allowed if action has reformat or decap");
@@ -3541,8 +3539,7 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			}
 			break;
 		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, attr->action,
-						  extack);
+			err = validate_goto_chain(priv, flow, act, extack);
 			if (err)
 				return err;
 
@@ -4206,8 +4203,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			decap = true;
 			break;
 		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, attr->action,
-						  extack);
+			err = validate_goto_chain(priv, flow, act, extack);
 			if (err)
 				return err;
 
