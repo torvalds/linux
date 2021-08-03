@@ -341,6 +341,7 @@ _ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
 	qp->srq = attr->srq;
 	qp->event_handler = attr->event_handler;
 	qp->port = attr->port_num;
+	qp->qp_context = attr->qp_context;
 
 	spin_lock_init(&qp->mr_lock);
 	INIT_LIST_HEAD(&qp->rdma_mrs);
