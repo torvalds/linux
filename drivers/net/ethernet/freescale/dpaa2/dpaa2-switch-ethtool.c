@@ -62,6 +62,10 @@ dpaa2_switch_get_link_ksettings(struct net_device *netdev,
 	struct dpsw_link_state state = {0};
 	int err = 0;
 
+	if (dpaa2_switch_port_is_type_phy(port_priv))
+		return phylink_ethtool_ksettings_get(port_priv->mac->phylink,
+						     link_ksettings);
+
 	err = dpsw_if_get_link_state(port_priv->ethsw_data->mc_io, 0,
 				     port_priv->ethsw_data->dpsw_handle,
 				     port_priv->idx,
@@ -94,6 +98,10 @@ dpaa2_switch_set_link_ksettings(struct net_device *netdev,
 	struct dpsw_link_cfg cfg = {0};
 	bool if_running;
 	int err = 0, ret;
+
+	if (dpaa2_switch_port_is_type_phy(port_priv))
+		return phylink_ethtool_ksettings_set(port_priv->mac->phylink,
+						     link_ksettings);
 
 	/* Interface needs to be down to change link settings */
 	if_running = netif_running(netdev);

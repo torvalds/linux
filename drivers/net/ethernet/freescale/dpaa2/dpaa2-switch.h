@@ -21,6 +21,7 @@
 #include <net/pkt_cls.h>
 #include <soc/fsl/dpaa2-io.h>
 
+#include "dpaa2-mac.h"
 #include "dpsw.h"
 
 /* Number of IRQs supported */
@@ -159,6 +160,7 @@ struct ethsw_port_priv {
 	bool			learn_ena;
 
 	struct dpaa2_switch_filter_block *filter_block;
+	struct dpaa2_mac	*mac;
 };
 
 /* Switch data */
@@ -223,6 +225,22 @@ static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 	}
 
 	return true;
+}
+
+static inline bool
+dpaa2_switch_port_is_type_phy(struct ethsw_port_priv *port_priv)
+{
+	if (port_priv->mac &&
+	    (port_priv->mac->attr.link_type == DPMAC_LINK_TYPE_PHY ||
+	     port_priv->mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE))
+		return true;
+
+	return false;
+}
+
+static inline bool dpaa2_switch_port_has_mac(struct ethsw_port_priv *port_priv)
+{
+	return port_priv->mac ? true : false;
 }
 
 bool dpaa2_switch_port_dev_check(const struct net_device *netdev);

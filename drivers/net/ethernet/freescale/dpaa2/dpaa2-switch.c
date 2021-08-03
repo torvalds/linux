@@ -600,6 +600,12 @@ static int dpaa2_switch_port_link_state_update(struct net_device *netdev)
 	struct dpsw_link_state state;
 	int err;
 
+	/* When we manage the MAC/PHY using phylink there is no need
+	 * to manually update the netif_carrier.
+	 */
+	if (dpaa2_switch_port_is_type_phy(port_priv))
+		return 0;
+
 	/* Interrupts are received even though no one issued an 'ifconfig up'
 	 * on the switch interface. Ignore these link state update interrupts
 	 */
@@ -677,12 +683,14 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	int err;
 
-	/* Explicitly set carrier off, otherwise
-	 * netif_carrier_ok() will return true and cause 'ip link show'
-	 * to report the LOWER_UP flag, even though the link
-	 * notification wasn't even received.
-	 */
-	netif_carrier_off(netdev);
+	if (!dpaa2_switch_port_is_type_phy(port_priv)) {
+		/* Explicitly set carrier off, otherwise
+		 * netif_carrier_ok() will return true and cause 'ip link show'
+		 * to report the LOWER_UP flag, even though the link
+		 * notification wasn't even received.
+		 */
+		netif_carrier_off(netdev);
+	}
 
 	err = dpsw_if_enable(port_priv->ethsw_data->mc_io, 0,
 			     port_priv->ethsw_data->dpsw_handle,
@@ -694,6 +702,9 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 
 	dpaa2_switch_enable_ctrl_if_napi(ethsw);
 
+	if (dpaa2_switch_port_is_type_phy(port_priv))
+		phylink_start(port_priv->mac->phylink);
+
 	return 0;
 }
 
@@ -702,6 +713,13 @@ static int dpaa2_switch_port_stop(struct net_device *netdev)
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	int err;
+
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		phylink_stop(port_priv->mac->phylink);
+	} else {
+		netif_tx_stop_all_queues(netdev);
+		netif_carrier_off(netdev);
+	}
 
 	err = dpsw_if_disable(port_priv->ethsw_data->mc_io, 0,
 			      port_priv->ethsw_data->dpsw_handle,
@@ -1405,6 +1423,67 @@ bool dpaa2_switch_port_dev_check(const struct net_device *netdev)
 	return netdev->netdev_ops == &dpaa2_switch_port_ops;
 }
 
+static int dpaa2_switch_port_connect_mac(struct ethsw_port_priv *port_priv)
+{
+	struct fsl_mc_device *dpsw_port_dev, *dpmac_dev;
+	struct dpaa2_mac *mac;
+	int err;
+
+	dpsw_port_dev = to_fsl_mc_device(port_priv->netdev->dev.parent);
+	dpmac_dev = fsl_mc_get_endpoint(dpsw_port_dev, port_priv->idx);
+
+	if (PTR_ERR(dpmac_dev) == -EPROBE_DEFER)
+		return PTR_ERR(dpmac_dev);
+
+	if (IS_ERR(dpmac_dev) || dpmac_dev->dev.type != &fsl_mc_bus_dpmac_type)
+		return 0;
+
+	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
+	if (!mac)
+		return -ENOMEM;
+
+	mac->mc_dev = dpmac_dev;
+	mac->mc_io = port_priv->ethsw_data->mc_io;
+	mac->net_dev = port_priv->netdev;
+
+	err = dpaa2_mac_open(mac);
+	if (err)
+		goto err_free_mac;
+	port_priv->mac = mac;
+
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		err = dpaa2_mac_connect(mac);
+		if (err) {
+			netdev_err(port_priv->netdev,
+				   "Error connecting to the MAC endpoint %pe\n",
+				   ERR_PTR(err));
+			goto err_close_mac;
+		}
+	}
+
+	return 0;
+
+err_close_mac:
+	dpaa2_mac_close(mac);
+	port_priv->mac = NULL;
+err_free_mac:
+	kfree(mac);
+	return err;
+}
+
+static void dpaa2_switch_port_disconnect_mac(struct ethsw_port_priv *port_priv)
+{
+	if (dpaa2_switch_port_is_type_phy(port_priv))
+		dpaa2_mac_disconnect(port_priv->mac);
+
+	if (!dpaa2_switch_port_has_mac(port_priv))
+		return;
+
+	dpaa2_mac_close(port_priv->mac);
+	kfree(port_priv->mac);
+	port_priv->mac = NULL;
+}
+
 static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 {
 	struct device *dev = (struct device *)arg;
@@ -1427,6 +1506,14 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_switch_port_link_state_update(port_priv->netdev);
 		dpaa2_switch_port_set_mac_addr(port_priv);
 	}
+
+	if (status & DPSW_IRQ_EVENT_ENDPOINT_CHANGED) {
+		if (dpaa2_switch_port_has_mac(port_priv))
+			dpaa2_switch_port_disconnect_mac(port_priv);
+		else
+			dpaa2_switch_port_connect_mac(port_priv);
+	}
+
 out:
 	err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				    DPSW_IRQ_INDEX_IF, status);
@@ -3112,6 +3199,7 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
 		unregister_netdev(port_priv->netdev);
+		dpaa2_switch_port_disconnect_mac(port_priv);
 		free_netdev(port_priv->netdev);
 	}
 
@@ -3190,6 +3278,10 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	if (err)
 		goto err_port_probe;
 	port_priv->learn_ena = false;
+
+	err = dpaa2_switch_port_connect_mac(port_priv);
+	if (err)
+		goto err_port_probe;
 
 	return 0;
 
