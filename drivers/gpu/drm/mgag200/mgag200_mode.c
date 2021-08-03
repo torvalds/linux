@@ -898,7 +898,7 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	mga_crtc_load_lut(crtc);
 	mgag200_enable_display(mdev);
 
-	mgag200_handle_damage(mdev, fb, &fullscreen, &shadow_plane_state->map[0]);
+	mgag200_handle_damage(mdev, fb, &fullscreen, &shadow_plane_state->data[0]);
 }
 
 static void
@@ -959,7 +959,7 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
-		mgag200_handle_damage(mdev, fb, &damage, &shadow_plane_state->map[0]);
+		mgag200_handle_damage(mdev, fb, &damage, &shadow_plane_state->data[0]);
 }
 
 static struct drm_crtc_state *
