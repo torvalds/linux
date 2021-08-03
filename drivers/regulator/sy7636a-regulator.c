@@ -33,7 +33,7 @@ static int sy7636a_get_vcom_voltage_op(struct regulator_dev *rdev)
 
 static int sy7636a_get_status(struct regulator_dev *rdev)
 {
-	struct sy7636a *sy7636a = rdev_get_drvdata(rdev);
+	struct sy7636a *sy7636a = dev_get_drvdata(rdev->dev.parent);
 	int ret = 0;
 
 	ret = gpiod_get_value_cansleep(sy7636a->pgood_gpio);
@@ -76,9 +76,9 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sy7636a);
 
-	gdp = devm_gpiod_get(sy7636a->dev, "epd-pwr-good", GPIOD_IN);
+	gdp = devm_gpiod_get(pdev->dev.parent, "epd-pwr-good", GPIOD_IN);
 	if (IS_ERR(gdp)) {
-		dev_err(sy7636a->dev, "Power good GPIO fault %ld\n", PTR_ERR(gdp));
+		dev_err(pdev->dev.parent, "Power good GPIO fault %ld\n", PTR_ERR(gdp));
 		return PTR_ERR(gdp);
 	}
 
@@ -86,18 +86,18 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 
 	ret = regmap_write(sy7636a->regmap, SY7636A_REG_POWER_ON_DELAY_TIME, 0x0);
 	if (ret) {
-		dev_err(sy7636a->dev, "Failed to initialize regulator: %d\n", ret);
+		dev_err(pdev->dev.parent, "Failed to initialize regulator: %d\n", ret);
 		return ret;
 	}
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = sy7636a->dev->of_node;
+	config.dev->of_node = pdev->dev.parent->of_node;
 	config.driver_data = sy7636a;
 	config.regmap = sy7636a->regmap;
 
 	rdev = devm_regulator_register(&pdev->dev, &desc, &config);
 	if (IS_ERR(rdev)) {
-		dev_err(sy7636a->dev, "Failed to register %s regulator\n",
+		dev_err(pdev->dev.parent, "Failed to register %s regulator\n",
 			pdev->name);
 		return PTR_ERR(rdev);
 	}
