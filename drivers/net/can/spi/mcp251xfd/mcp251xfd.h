@@ -596,8 +596,8 @@ struct mcp251xfd_priv {
 	u32 spi_max_speed_hz_slow;
 
 	struct mcp251xfd_tef_ring tef[1];
-	struct mcp251xfd_tx_ring tx[1];
 	struct mcp251xfd_rx_ring *rx[1];
+	struct mcp251xfd_tx_ring tx[1];
 
 	u8 rx_ring_num;
 

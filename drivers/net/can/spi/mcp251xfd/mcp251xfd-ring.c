@@ -215,8 +215,8 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	netdev_reset_queue(priv->ndev);
 
 	mcp251xfd_ring_init_tef(priv, &base);
-	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
 	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
+	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
 }
 
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
