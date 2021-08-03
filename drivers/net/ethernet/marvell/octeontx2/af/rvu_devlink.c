@@ -1397,7 +1397,7 @@ static int rvu_af_dl_dwrr_mtu_validate(struct devlink *devlink, u32 id,
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Changing DWRR MTU is not supported when there are active NIXLFs");
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Makesure none of the PF/VF interfaces are initialized and retry");
+				   "Make sure none of the PF/VF interfaces are initialized and retry");
 		return -EOPNOTSUPP;
 	}
 
