@@ -577,8 +577,8 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				id = dst->dest_attr.ft->id;
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
 			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
-				id = dst->dest_attr.vport.num;
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id_valid,
 					 !!(dst->dest_attr.vport.flags &
@@ -586,6 +586,12 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id,
 					 dst->dest_attr.vport.vhca_id);
+				if (type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) {
+					/* destination_id is reserved */
+					id = 0;
+					break;
+				}
+				id = dst->dest_attr.vport.num;
 				if (extended_dest &&
 				    dst->dest_attr.vport.pkt_reformat) {
 					MLX5_SET(dest_format_struct, in_dests,
