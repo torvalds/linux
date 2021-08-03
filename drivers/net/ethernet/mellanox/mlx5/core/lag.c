@@ -746,6 +746,21 @@ bool mlx5_lag_is_active(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_lag_is_active);
 
+bool mlx5_lag_is_master(struct mlx5_core_dev *dev)
+{
+	struct mlx5_lag *ldev;
+	bool res;
+
+	spin_lock(&lag_lock);
+	ldev = mlx5_lag_dev(dev);
+	res = ldev && __mlx5_lag_is_active(ldev) &&
+		dev == ldev->pf[MLX5_LAG_P1].dev;
+	spin_unlock(&lag_lock);
+
+	return res;
+}
+EXPORT_SYMBOL(mlx5_lag_is_master);
+
 bool mlx5_lag_is_sriov(struct mlx5_core_dev *dev)
 {
 	struct mlx5_lag *ldev;
@@ -759,6 +774,20 @@ bool mlx5_lag_is_sriov(struct mlx5_core_dev *dev)
 	return res;
 }
 EXPORT_SYMBOL(mlx5_lag_is_sriov);
+
+bool mlx5_lag_is_shared_fdb(struct mlx5_core_dev *dev)
+{
+	struct mlx5_lag *ldev;
+	bool res;
+
+	spin_lock(&lag_lock);
+	ldev = mlx5_lag_dev(dev);
+	res = ldev && __mlx5_lag_is_sriov(ldev) && ldev->shared_fdb;
+	spin_unlock(&lag_lock);
+
+	return res;
+}
+EXPORT_SYMBOL(mlx5_lag_is_shared_fdb);
 
 void mlx5_lag_update(struct mlx5_core_dev *dev)
 {
@@ -826,6 +855,26 @@ unlock:
 	return port;
 }
 EXPORT_SYMBOL(mlx5_lag_get_slave_port);
+
+struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_dev *peer_dev = NULL;
+	struct mlx5_lag *ldev;
+
+	spin_lock(&lag_lock);
+	ldev = mlx5_lag_dev(dev);
+	if (!ldev)
+		goto unlock;
+
+	peer_dev = ldev->pf[MLX5_LAG_P1].dev == dev ?
+			   ldev->pf[MLX5_LAG_P2].dev :
+			   ldev->pf[MLX5_LAG_P1].dev;
+
+unlock:
+	spin_unlock(&lag_lock);
+	return peer_dev;
+}
+EXPORT_SYMBOL(mlx5_lag_get_peer_mdev);
 
 int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,

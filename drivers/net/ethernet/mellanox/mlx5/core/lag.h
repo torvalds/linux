@@ -39,6 +39,7 @@ struct lag_tracker {
  */
 struct mlx5_lag {
 	u8                        flags;
+	bool			  shared_fdb;
 	u8                        v2p_map[MLX5_MAX_PORTS];
 	struct kref               ref;
 	struct lag_func           pf[MLX5_MAX_PORTS];
