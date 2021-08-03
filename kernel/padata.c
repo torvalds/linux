@@ -733,7 +733,7 @@ int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 	struct cpumask *serial_mask, *parallel_mask;
 	int err = -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&pinst->lock);
 
 	switch (cpumask_type) {
@@ -753,7 +753,7 @@ int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 
 out:
 	mutex_unlock(&pinst->lock);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return err;
 }
@@ -992,7 +992,7 @@ struct padata_instance *padata_alloc(const char *name)
 	if (!pinst->parallel_wq)
 		goto err_free_inst;
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	pinst->serial_wq = alloc_workqueue("%s_serial", WQ_MEM_RECLAIM |
 					   WQ_CPU_INTENSIVE, 1, name);
@@ -1026,7 +1026,7 @@ struct padata_instance *padata_alloc(const char *name)
 						    &pinst->cpu_dead_node);
 #endif
 
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return pinst;
 
@@ -1036,7 +1036,7 @@ err_free_masks:
 err_free_serial_wq:
 	destroy_workqueue(pinst->serial_wq);
 err_put_cpus:
-	put_online_cpus();
+	cpus_read_unlock();
 	destroy_workqueue(pinst->parallel_wq);
 err_free_inst:
 	kfree(pinst);
@@ -1074,9 +1074,9 @@ struct padata_shell *padata_alloc_shell(struct padata_instance *pinst)
 
 	ps->pinst = pinst;
 
-	get_online_cpus();
+	cpus_read_lock();
 	pd = padata_alloc_pd(ps);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (!pd)
 		goto out_free_ps;
