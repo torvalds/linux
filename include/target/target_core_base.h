@@ -457,6 +457,8 @@ enum target_core_dif_check {
 #define TCM_ACA_TAG	0x24
 
 struct se_cmd {
+	/* Used for fail with specific sense codes */
+	sense_reason_t		sense_reason;
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
 	u16			scsi_sense_length;

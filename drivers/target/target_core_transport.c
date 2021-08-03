@@ -736,8 +736,7 @@ static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 
-	transport_generic_request_failure(cmd,
-			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
+	transport_generic_request_failure(cmd, cmd->sense_reason);
 }
 
 /*
@@ -855,7 +854,8 @@ static bool target_cmd_interrupted(struct se_cmd *cmd)
 }
 
 /* May be called from interrupt context so must not sleep. */
-void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
+void target_complete_cmd_with_sense(struct se_cmd *cmd, u8 scsi_status,
+				    sense_reason_t sense_reason)
 {
 	struct se_wwn *wwn = cmd->se_sess->se_tpg->se_tpg_wwn;
 	int success, cpu;
@@ -865,6 +865,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		return;
 
 	cmd->scsi_status = scsi_status;
+	cmd->sense_reason = sense_reason;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	switch (cmd->scsi_status) {
@@ -892,6 +893,14 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		cpu = wwn->cmd_compl_affinity;
 
 	queue_work_on(cpu, target_completion_wq, &cmd->work);
+}
+EXPORT_SYMBOL(target_complete_cmd_with_sense);
+
+void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
+{
+	target_complete_cmd_with_sense(cmd, scsi_status, scsi_status ?
+			      TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE :
+			      TCM_NO_SENSE);
 }
 EXPORT_SYMBOL(target_complete_cmd);
 
