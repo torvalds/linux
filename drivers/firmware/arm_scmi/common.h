@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/hashtable.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
@@ -64,6 +66,16 @@ struct scmi_msg_resp_prot_version {
 #define MSG_TOKEN_ID_MASK	GENMASK(27, 18)
 #define MSG_XTRACT_TOKEN(hdr)	FIELD_GET(MSG_TOKEN_ID_MASK, (hdr))
 #define MSG_TOKEN_MAX		(MSG_XTRACT_TOKEN(MSG_TOKEN_ID_MASK) + 1)
+
+/*
+ * Size of @pending_xfers hashtable included in @scmi_xfers_info; ideally, in
+ * order to minimize space and collisions, this should equal max_msg, i.e. the
+ * maximum number of in-flight messages on a specific platform, but such value
+ * is only available at runtime while kernel hashtables are statically sized:
+ * pick instead as a fixed static size the maximum number of entries that can
+ * fit the whole table into one 4k page.
+ */
+#define SCMI_PENDING_XFERS_HT_ORDER_SZ		9
 
 /**
  * struct scmi_msg_hdr - Message(Tx/Rx) header
@@ -138,6 +150,9 @@ struct scmi_msg {
  *	buffer for the rx path as we use for the tx path.
  * @done: command message transmit completion event
  * @async_done: pointer to delayed response message received event completion
+ * @pending: True for xfers added to @pending_xfers hashtable
+ * @node: An hlist_node reference used to store this xfer, alternatively, on
+ *	  the free list @free_xfers or in the @pending_xfers hashtable
  */
 struct scmi_xfer {
 	int transfer_id;
@@ -146,7 +161,24 @@ struct scmi_xfer {
 	struct scmi_msg rx;
 	struct completion done;
 	struct completion *async_done;
+	bool pending;
+	struct hlist_node node;
 };
+
+/*
+ * An helper macro to lookup an xfer from the @pending_xfers hashtable
+ * using the message sequence number token as a key.
+ */
+#define XFER_FIND(__ht, __k)					\
+({								\
+	typeof(__k) k_ = __k;					\
+	struct scmi_xfer *xfer_ = NULL;				\
+								\
+	hash_for_each_possible((__ht), xfer_, node, k_)		\
+		if (xfer_->hdr.seq == k_)			\
+			break;					\
+	xfer_;							\
+})
 
 struct scmi_xfer_ops;
 
