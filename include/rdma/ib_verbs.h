@@ -3688,13 +3688,21 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 					      bad_recv_wr ? : &dummy);
 }
 
-struct ib_qp *ib_create_named_qp(struct ib_pd *pd,
-				 struct ib_qp_init_attr *qp_init_attr,
-				 const char *caller);
+struct ib_qp *ib_create_qp_kernel(struct ib_pd *pd,
+				  struct ib_qp_init_attr *qp_init_attr,
+				  const char *caller);
+/**
+ * ib_create_qp - Creates a kernel QP associated with the specific protection
+ * domain.
+ * @pd: The protection domain associated with the QP.
+ * @init_attr: A list of initial attributes required to create the
+ *   QP.  If QP creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created QP.
+ */
 static inline struct ib_qp *ib_create_qp(struct ib_pd *pd,
 					 struct ib_qp_init_attr *init_attr)
 {
-	return ib_create_named_qp(pd, init_attr, KBUILD_MODNAME);
+	return ib_create_qp_kernel(pd, init_attr, KBUILD_MODNAME);
 }
 
 /**

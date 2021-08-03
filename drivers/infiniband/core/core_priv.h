@@ -316,60 +316,10 @@ struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
 void nldev_init(void);
 void nldev_exit(void);
 
-static inline struct ib_qp *
-_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
-	      struct ib_qp_init_attr *attr, struct ib_udata *udata,
-	      struct ib_uqp_object *uobj, const char *caller)
-{
-	struct ib_qp *qp;
-	int ret;
-
-	if (!dev->ops.create_qp)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	qp = rdma_zalloc_drv_obj_numa(dev, ib_qp);
-	if (!qp)
-		return ERR_PTR(-ENOMEM);
-
-	qp->device = dev;
-	qp->pd = pd;
-	qp->uobject = uobj;
-	qp->real_qp = qp;
-
-	qp->qp_type = attr->qp_type;
-	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
-	qp->srq = attr->srq;
-	qp->event_handler = attr->event_handler;
-	qp->port = attr->port_num;
-	qp->qp_context = attr->qp_context;
-
-	spin_lock_init(&qp->mr_lock);
-	INIT_LIST_HEAD(&qp->rdma_mrs);
-	INIT_LIST_HEAD(&qp->sig_mrs);
-
-	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
-	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
-	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);
-	ret = dev->ops.create_qp(qp, attr, udata);
-	if (ret)
-		goto err_create;
-
-	/*
-	 * TODO: The mlx4 internally overwrites send_cq and recv_cq.
-	 * Unfortunately, it is not an easy task to fix that driver.
-	 */
-	qp->send_cq = attr->send_cq;
-	qp->recv_cq = attr->recv_cq;
-
-	rdma_restrack_add(&qp->res);
-	return qp;
-
-err_create:
-	rdma_restrack_put(&qp->res);
-	kfree(qp);
-	return ERR_PTR(ret);
-
-}
+struct ib_qp *_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
+			    struct ib_qp_init_attr *attr,
+			    struct ib_udata *udata, struct ib_uqp_object *uobj,
+			    const char *caller);
 
 struct rdma_dev_addr;
 int rdma_resolve_ip_route(struct sockaddr *src_addr,
