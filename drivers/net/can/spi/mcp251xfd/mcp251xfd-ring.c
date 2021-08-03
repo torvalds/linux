@@ -52,7 +52,8 @@ mcp251xfd_cmd_prepare_write_reg(const struct mcp251xfd_priv *priv,
 	return len;
 }
 
-static void mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv)
+static void
+mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv, u16 *base)
 {
 	struct mcp251xfd_tef_ring *tef_ring;
 	struct spi_transfer *xfer;
@@ -65,6 +66,9 @@ static void mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv)
 	tef_ring = priv->tef;
 	tef_ring->head = 0;
 	tef_ring->tail = 0;
+
+	/* TEF- and TX-FIFO have same number of objects */
+	*base = mcp251xfd_get_tef_obj_addr(priv->tx->obj_num);
 
 	/* FIFO increment TEF tail pointer */
 	addr = MCP251XFD_REG_TEFCON;
@@ -127,7 +131,8 @@ mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 					ARRAY_SIZE(tx_obj->xfer));
 }
 
-static void mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv)
+static void
+mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 {
 	struct mcp251xfd_tx_ring *tx_ring;
 	struct mcp251xfd_tx_obj *tx_obj;
@@ -139,9 +144,12 @@ static void mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv)
 	tx_ring = priv->tx;
 	tx_ring->head = 0;
 	tx_ring->tail = 0;
-	tx_ring->base = mcp251xfd_get_tef_obj_addr(tx_ring->obj_num);
+	tx_ring->base = *base;
 	tx_ring->nr = 0;
-	tx_ring->fifo_nr = MCP251XFD_TX_FIFO;
+	tx_ring->fifo_nr = *fifo_nr;
+
+	*base = mcp251xfd_get_tx_obj_addr(tx_ring, tx_ring->obj_num);
+	*fifo_nr += 1;
 
 	/* FIFO request to send */
 	addr = MCP251XFD_REG_FIFOCON(tx_ring->fifo_nr);
@@ -153,33 +161,25 @@ static void mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv)
 		mcp251xfd_tx_ring_init_tx_obj(priv, tx_ring, tx_obj, len, i);
 }
 
-static void mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv)
+static void
+mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 {
-	struct mcp251xfd_rx_ring *rx_ring, *prev_rx_ring = NULL;
-	struct mcp251xfd_tx_ring *tx_ring;
+	struct mcp251xfd_rx_ring *rx_ring;
 	struct spi_transfer *xfer;
 	u32 val;
 	u16 addr;
 	u8 len;
 	int i, j;
 
-	tx_ring = priv->tx;
 	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
 		rx_ring->head = 0;
 		rx_ring->tail = 0;
+		rx_ring->base = *base;
 		rx_ring->nr = i;
-		rx_ring->fifo_nr = MCP251XFD_RX_FIFO(i);
+		rx_ring->fifo_nr = *fifo_nr;
 
-		if (!prev_rx_ring)
-			rx_ring->base =
-				mcp251xfd_get_tx_obj_addr(tx_ring,
-							  tx_ring->obj_num);
-		else
-			rx_ring->base = prev_rx_ring->base +
-				prev_rx_ring->obj_size *
-				prev_rx_ring->obj_num;
-
-		prev_rx_ring = rx_ring;
+		*base = mcp251xfd_get_rx_obj_addr(rx_ring, rx_ring->obj_num);
+		*fifo_nr += 1;
 
 		/* FIFO increment RX tail pointer */
 		addr = MCP251XFD_REG_FIFOCON(rx_ring->fifo_nr);
@@ -209,11 +209,14 @@ static void mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv)
 
 void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 {
+	u16 base = 0;
+	u8 fifo_nr = 1;
+
 	netdev_reset_queue(priv->ndev);
 
-	mcp251xfd_ring_init_tef(priv);
-	mcp251xfd_ring_init_tx(priv);
-	mcp251xfd_ring_init_rx(priv);
+	mcp251xfd_ring_init_tef(priv, &base);
+	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
+	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
 }
 
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
