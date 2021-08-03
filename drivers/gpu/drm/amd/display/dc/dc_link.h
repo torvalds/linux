@@ -45,6 +45,10 @@ struct dc_link_status {
 struct link_mst_stream_allocation {
 	/* DIG front */
 	const struct stream_encoder *stream_enc;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* HPO DP Stream Encoder */
+	const struct hpo_dp_stream_encoder *hpo_dp_stream_enc;
+#endif
 	/* associate DRM payload table with DC stream encoder */
 	uint8_t vcp_id;
 	/* number of slots required for the DP stream in transport packet */

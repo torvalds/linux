@@ -497,6 +497,38 @@ void dcn10_log_hw_state(struct dc *dc,
 
 			DTN_INFO("\n");
 		}
+
+		/* log DP HPO L_ENC section if any hpo_dp_link_enc exists */
+		for (i = 0; i < dc->link_count; i++)
+			if (dc->links[i]->hpo_dp_link_enc)
+				hpo_dp_link_enc_count++;
+
+		if (hpo_dp_link_enc_count) {
+			DTN_INFO("DP HPO L_ENC:  Enabled  Mode   Lanes   Stream  Slots   VC Rate X    VC Rate Y\n");
+
+			for (i = 0; i < dc->link_count; i++) {
+				struct hpo_dp_link_encoder *hpo_dp_link_enc = dc->links[i]->hpo_dp_link_enc;
+				struct hpo_dp_link_enc_state hpo_dp_le_state = {0};
+
+				if (hpo_dp_link_enc && hpo_dp_link_enc->funcs->read_state) {
+					hpo_dp_link_enc->funcs->read_state(hpo_dp_link_enc, &hpo_dp_le_state);
+					DTN_INFO("[%d]:                 %d  %6s     %d        %d      %d     %d     %d\n",
+							hpo_dp_link_enc->inst,
+							hpo_dp_le_state.link_enc_enabled,
+							(hpo_dp_le_state.link_mode == 0) ? "TPS1" :
+									(hpo_dp_le_state.link_mode == 1) ? "TPS2" :
+									(hpo_dp_le_state.link_mode == 2) ? "ACTIVE" : "TEST",
+							hpo_dp_le_state.lane_count,
+							hpo_dp_le_state.stream_src[0],
+							hpo_dp_le_state.slot_count[0],
+							hpo_dp_le_state.vc_rate_x[0],
+							hpo_dp_le_state.vc_rate_y[0]);
+					DTN_INFO("\n");
+				}
+			}
+
+			DTN_INFO("\n");
+		}
 	}
 
 	DTN_INFO_END();
