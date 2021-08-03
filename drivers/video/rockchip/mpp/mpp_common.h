@@ -355,6 +355,18 @@ struct mpp_session {
 	struct list_head session_link;
 	/* private data */
 	void *priv;
+
+	/*
+	 * session handler from mpp_dev_ops
+	 * process_task - handle messages of sending task
+	 * wait_result  - handle messages of polling task
+	 * deinit	- handle session deinit
+	 */
+	int (*process_task)(struct mpp_session *session,
+			    struct mpp_task_msgs *msgs);
+	int (*wait_result)(struct mpp_session *session,
+			   struct mpp_task_msgs *msgs);
+	void (*deinit)(struct mpp_session *session);
 };
 
 /* task state in work thread */
@@ -367,6 +379,11 @@ enum mpp_task_state {
 	TASK_STATE_FINISH	= 5,
 	TASK_STATE_TIMEOUT	= 6,
 	TASK_STATE_DONE		= 7,
+
+	TASK_STATE_PREPARE	= 8,
+	TASK_STATE_ABORT	= 9,
+	TASK_STATE_ABORT_READY	= 10,
+	TASK_STATE_PROC_DONE	= 11,
 };
 
 /* The context for the a task */
@@ -464,6 +481,7 @@ struct mpp_service {
 	/* lock for session list */
 	struct mutex session_lock;
 	struct list_head session_list;
+	u32 session_count;
 };
 
 /*
@@ -502,11 +520,19 @@ struct mpp_hw_ops {
  * @result	Read status to userspace.
  * @free_task	Release the resource allocate which alloc.
  * @ioctl	Special cammand from userspace.
- * @open	Open a instance for hardware when set client.
- * @release	Specific instance release operation for hardware.
- * @free	Specific instance free operation for hardware.
+ * @init_session extra initialization on session init.
+ * @free_session extra cleanup on session deinit.
+ * @dump_session information dump for session.
+ * @dump_dev    information dump for hardware device.
  */
 struct mpp_dev_ops {
+	int (*process_task)(struct mpp_session *session,
+			    struct mpp_task_msgs *msgs);
+	int (*wait_result)(struct mpp_session *session,
+			   struct mpp_task_msgs *msgs);
+	void (*deinit)(struct mpp_session *session);
+	void (*task_worker)(struct kthread_work *work_s);
+
 	void *(*alloc_task)(struct mpp_session *session,
 			    struct mpp_task_msgs *msgs);
 	void *(*prepare)(struct mpp_dev *mpp, struct mpp_task *task);
@@ -522,6 +548,7 @@ struct mpp_dev_ops {
 	int (*init_session)(struct mpp_session *session);
 	int (*free_session)(struct mpp_session *session);
 	int (*dump_session)(struct mpp_session *session, struct seq_file *seq);
+	int (*dump_dev)(struct mpp_dev *mpp);
 };
 
 struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev);

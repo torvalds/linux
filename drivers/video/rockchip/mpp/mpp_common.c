@@ -8,6 +8,9 @@
  *	Ding Wei, leo.ding@rock-chips.com
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -274,15 +277,8 @@ static struct mpp_session *mpp_session_init(void)
 	return session;
 }
 
-int mpp_session_deinit(struct mpp_session *session)
+static void mpp_session_deinit_default(struct mpp_session *session)
 {
-	u32 task_count = atomic_read(&session->task_count);
-
-	mpp_dbg_session("session %p:%d task %d release\n",
-			session, session->index, task_count);
-	if (task_count)
-		return -1;
-
 	if (session->mpp) {
 		struct mpp_dev *mpp = session->mpp;
 
@@ -308,6 +304,21 @@ int mpp_session_deinit(struct mpp_session *session)
 	}
 
 	list_del_init(&session->session_link);
+}
+
+int mpp_session_deinit(struct mpp_session *session)
+{
+	u32 task_count = atomic_read(&session->task_count);
+
+	mpp_dbg_session("session %p:%d task %d release\n",
+			session, session->index, task_count);
+	if (task_count)
+		return -1;
+
+	if (likely(session->deinit))
+		session->deinit(session);
+	else
+		pr_err("invalid NULL session deinit function\n");
 
 	mpp_dbg_session("session %p:%d deinit\n", session, session->index);
 
@@ -473,14 +484,14 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	mpp_taskqueue_pop_running(mpp->queue, task);
 }
 
-static int mpp_process_task(struct mpp_session *session,
-			    struct mpp_task_msgs *msgs)
+static int mpp_process_task_default(struct mpp_session *session,
+				struct mpp_task_msgs *msgs)
 {
 	struct mpp_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
 
-	if (!mpp) {
-		mpp_err("pid %d not find clinet %d\n",
+	if (unlikely(!mpp)) {
+		mpp_err("pid %d clinet %d found invalid process function\n",
 			session->pid, session->device_type);
 		return -EINVAL;
 	}
@@ -516,6 +527,16 @@ static int mpp_process_task(struct mpp_session *session,
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
+}
+
+static int mpp_process_task(struct mpp_session *session,
+			    struct mpp_task_msgs *msgs)
+{
+	if (likely(session->process_task))
+		return session->process_task(session, msgs);
+
+	pr_err("invalid NULL process task function\n");
+	return -EINVAL;
 }
 
 struct reset_control *
@@ -728,15 +749,15 @@ done:
 	}
 }
 
-static int mpp_wait_result(struct mpp_session *session,
-			   struct mpp_task_msgs *msgs)
+static int mpp_wait_result_default(struct mpp_session *session,
+			       struct mpp_task_msgs *msgs)
 {
 	int ret;
 	struct mpp_task *task;
 	struct mpp_dev *mpp = session->mpp;
 
-	if (!mpp) {
-		mpp_err("pid %d not find clinet %d\n",
+	if (unlikely(!mpp)) {
+		mpp_err("pid %d clinet %d found invalid wait result function\n",
 			session->pid, session->device_type);
 		return -EINVAL;
 	}
@@ -791,7 +812,7 @@ static int mpp_wait_result(struct mpp_session *session,
 				task, task->task_index);
 			ret = -ETIMEDOUT;
 		} else {
-			return mpp_wait_result(session, msgs);
+			return mpp_wait_result_default(session, msgs);
 		}
 	}
 
@@ -800,6 +821,16 @@ static int mpp_wait_result(struct mpp_session *session,
 	mpp_session_pop_pending(session, task);
 
 	return ret;
+}
+
+static int mpp_wait_result(struct mpp_session *session,
+			   struct mpp_task_msgs *msgs)
+{
+	if (likely(session->wait_result))
+		return session->wait_result(session, msgs);
+
+	pr_err("invalid NULL wait result function\n");
+	return -EINVAL;
 }
 
 static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
@@ -1078,8 +1109,20 @@ static int mpp_process_request(struct mpp_session *session,
 		session->device_type = (enum MPP_DEVICE_TYPE)client_type;
 		session->dma = mpp_dma_session_create(mpp->dev, mpp->session_max_buffers);
 		session->mpp = mpp;
+		if (mpp->dev_ops) {
+			if (mpp->dev_ops->process_task)
+				session->process_task =
+					mpp->dev_ops->process_task;
+
+			if (mpp->dev_ops->wait_result)
+				session->wait_result =
+					mpp->dev_ops->wait_result;
+
+			if (mpp->dev_ops->deinit)
+				session->deinit = mpp->dev_ops->deinit;
+		}
 		session->index = atomic_fetch_inc(&mpp->session_index);
-		if (mpp->dev_ops->init_session) {
+		if (mpp->dev_ops && mpp->dev_ops->init_session) {
 			ret = mpp->dev_ops->init_session(session);
 			if (ret)
 				return ret;
@@ -1330,6 +1373,9 @@ static int mpp_dev_open(struct inode *inode, struct file *filp)
 		list_add_tail(&session->service_link, &srv->session_list);
 		mutex_unlock(&srv->session_lock);
 	}
+	session->process_task = mpp_process_task_default;
+	session->wait_result = mpp_wait_result_default;
+	session->deinit = mpp_session_deinit_default;
 	filp->private_data = (void *)session;
 
 	mpp_debug_leave();
@@ -1754,18 +1800,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	mpp->kworker_task = kthread_run(kthread_worker_fn, &mpp->worker,
 					"%s", np->name);
 
-	/* read link table capacity */
-	ret = of_property_read_u32(np, "rockchip,task-capacity",
-				   &mpp->task_capacity);
-	if (ret) {
-		mpp->task_capacity = 1;
-		kthread_init_work(&mpp->work, mpp_task_try_run);
-	} else {
-		dev_info(dev, "%d task capacity link mode detected\n",
-			 mpp->task_capacity);
-		kthread_init_work(&mpp->work, NULL);
-	}
-
 	/* Get and attach to service */
 	ret = mpp_attach_service(mpp, dev);
 	if (ret) {
@@ -1776,6 +1810,18 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	mpp->dev = dev;
 	mpp->hw_ops = mpp->var->hw_ops;
 	mpp->dev_ops = mpp->var->dev_ops;
+
+	/* read link table capacity */
+	ret = of_property_read_u32(np, "rockchip,task-capacity",
+				   &mpp->task_capacity);
+	if (ret)
+		mpp->task_capacity = 1;
+	else
+		dev_info(dev, "%d task capacity link mode detected\n",
+			 mpp->task_capacity);
+
+	kthread_init_work(&mpp->work, mpp->dev_ops->task_worker ?
+			  mpp->dev_ops->task_worker : mpp_task_try_run);
 
 	atomic_set(&mpp->reset_request, 0);
 	atomic_set(&mpp->session_index, 0);
