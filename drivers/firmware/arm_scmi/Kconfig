@@ -30,10 +30,17 @@ config ARM_SCMI_HAVE_TRANSPORT
 	  Used to trigger a build bug when trying to build SCMI without any
 	  configured transport.
 
+config ARM_SCMI_HAVE_SHMEM
+	bool
+	help
+	  This declares whether a shared memory based transport for SCMI is
+	  available.
+
 config ARM_SCMI_TRANSPORT_MAILBOX
 	bool "SCMI transport based on Mailbox"
 	depends on MAILBOX
 	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
 	default y
 	help
 	  Enable mailbox based transport for SCMI.
@@ -45,6 +52,7 @@ config ARM_SCMI_TRANSPORT_SMC
 	bool "SCMI transport based on SMC"
 	depends on HAVE_ARM_SMCCC_DISCOVERY
 	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
 	default y
 	help
 	  Enable SMC based transport for SCMI.
