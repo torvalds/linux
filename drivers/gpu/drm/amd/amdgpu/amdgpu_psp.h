@@ -143,6 +143,7 @@ struct psp_xgmi_context {
 	uint64_t                        xgmi_shared_mc_addr;
 	void                            *xgmi_shared_buf;
 	struct psp_xgmi_topology_info	top_info;
+	bool				supports_extended_data;
 };
 
 struct psp_ras_context {
@@ -433,14 +434,15 @@ int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 			uint64_t cmd_gpu_addr, int cmd_size);
 
-int psp_xgmi_initialize(struct psp_context *psp);
+int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta);
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id);
 int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id);
 int psp_xgmi_get_topology_info(struct psp_context *psp,
 			       int number_devices,
-			       struct psp_xgmi_topology_info *topology);
+			       struct psp_xgmi_topology_info *topology,
+			       bool get_extended_data);
 int psp_xgmi_set_topology_info(struct psp_context *psp,
 			       int number_devices,
 			       struct psp_xgmi_topology_info *topology);

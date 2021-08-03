@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_xgmi.h"
 #include "soc15_common.h"
 #include "psp_v3_1.h"
 #include "psp_v10_0.h"
@@ -1026,7 +1027,7 @@ int psp_xgmi_terminate(struct psp_context *psp)
 	return 0;
 }
 
-int psp_xgmi_initialize(struct psp_context *psp)
+int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -1035,6 +1036,9 @@ int psp_xgmi_initialize(struct psp_context *psp)
 	    !psp->xgmi.size_bytes ||
 	    !psp->xgmi.start_addr)
 		return -ENOENT;
+
+	if (!load_ta)
+		goto invoke;
 
 	if (!psp->xgmi_context.initialized) {
 		ret = psp_xgmi_init_shared_buf(psp);
@@ -1047,9 +1051,11 @@ int psp_xgmi_initialize(struct psp_context *psp)
 	if (ret)
 		return ret;
 
+invoke:
 	/* Initialize XGMI session */
 	xgmi_cmd = (struct ta_xgmi_shared_memory *)(psp->xgmi_context.xgmi_shared_buf);
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+	xgmi_cmd->flag_extend_link_record = set_extended_data;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__INITIALIZE;
 
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
@@ -1103,9 +1109,56 @@ static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 				psp->xgmi.feature_version >= 0x2000000b;
 }
 
+/*
+ * Chips that support extended topology information require the driver to
+ * reflect topology information in the opposite direction.  This is
+ * because the TA has already exceeded its link record limit and if the
+ * TA holds bi-directional information, the driver would have to do
+ * multiple fetches instead of just two.
+ */
+static void psp_xgmi_reflect_topology_info(struct psp_context *psp,
+					struct psp_xgmi_node_info node_info)
+{
+	struct amdgpu_device *mirror_adev;
+	struct amdgpu_hive_info *hive;
+	uint64_t src_node_id = psp->adev->gmc.xgmi.node_id;
+	uint64_t dst_node_id = node_info.node_id;
+	uint8_t dst_num_hops = node_info.num_hops;
+	uint8_t dst_num_links = node_info.num_links;
+
+	hive = amdgpu_get_xgmi_hive(psp->adev);
+	list_for_each_entry(mirror_adev, &hive->device_list, gmc.xgmi.head) {
+		struct psp_xgmi_topology_info *mirror_top_info;
+		int j;
+
+		if (mirror_adev->gmc.xgmi.node_id != dst_node_id)
+			continue;
+
+		mirror_top_info = &mirror_adev->psp.xgmi_context.top_info;
+		for (j = 0; j < mirror_top_info->num_nodes; j++) {
+			if (mirror_top_info->nodes[j].node_id != src_node_id)
+				continue;
+
+			mirror_top_info->nodes[j].num_hops = dst_num_hops;
+			/*
+			 * prevent 0 num_links value re-reflection since reflection
+			 * criteria is based on num_hops (direct or indirect).
+			 *
+			 */
+			if (dst_num_links)
+				mirror_top_info->nodes[j].num_links = dst_num_links;
+
+			break;
+		}
+
+		break;
+	}
+}
+
 int psp_xgmi_get_topology_info(struct psp_context *psp,
 			       int number_devices,
-			       struct psp_xgmi_topology_info *topology)
+			       struct psp_xgmi_topology_info *topology,
+			       bool get_extended_data)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
@@ -1118,6 +1171,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 
 	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+	xgmi_cmd->flag_extend_link_record = get_extended_data;
 
 	/* Fill in the shared memory with topology information as input */
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
@@ -1140,10 +1194,19 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
 	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
 	for (i = 0; i < topology->num_nodes; i++) {
-		topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
-		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
-		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
-		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
+		/* extended data will either be 0 or equal to non-extended data */
+		if (topology_info_output->nodes[i].num_hops)
+			topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
+
+		/* non-extended data gets everything here so no need to update */
+		if (!get_extended_data) {
+			topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
+			topology->nodes[i].is_sharing_enabled =
+					topology_info_output->nodes[i].is_sharing_enabled;
+			topology->nodes[i].sdma_engine =
+					topology_info_output->nodes[i].sdma_engine;
+		}
+
 	}
 
 	/* Invoke xgmi ta again to get the link information */
@@ -1158,9 +1221,18 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			return ret;
 
 		link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
-		for (i = 0; i < topology->num_nodes; i++)
-			topology->nodes[i].num_links =
+		for (i = 0; i < topology->num_nodes; i++) {
+			/* accumulate num_links on extended data */
+			topology->nodes[i].num_links = get_extended_data ?
+					topology->nodes[i].num_links +
+							link_info_output->nodes[i].num_links :
 					link_info_output->nodes[i].num_links;
+
+			/* reflect the topology information for bi-directionality */
+			if (psp->xgmi_context.supports_extended_data &&
+					get_extended_data && topology->nodes[i].num_hops)
+				psp_xgmi_reflect_topology_info(psp, topology->nodes[i]);
+		}
 	}
 
 	return 0;
@@ -2817,7 +2889,7 @@ static int psp_resume(void *handle)
 	}
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		ret = psp_xgmi_initialize(psp);
+		ret = psp_xgmi_initialize(psp, false, true);
 		/* Warning the XGMI seesion initialize failure
 		 * Instead of stop driver initialization
 		 */
@@ -3123,6 +3195,7 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr->sos.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr->sos.offset_bytes);
+		adev->psp.xgmi_context.supports_extended_data = false;
 	} else {
 		/* Load alternate PSP SOS FW */
 		sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
@@ -3137,6 +3210,7 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 			le32_to_cpu(sos_hdr_v1_3->sos_aux.offset_bytes);
+		adev->psp.xgmi_context.supports_extended_data = true;
 	}
 
 	if ((adev->psp.sys.size_bytes == 0) || (adev->psp.sos.size_bytes == 0)) {
