@@ -308,7 +308,7 @@ static inline void __flush_tlb_range(struct vm_area_struct *vma,
 
 	/*
 	 * When the CPU does not support TLB range operations, flush the TLB
-	 * entries one by one at the granularity of 'stride'. If the the TLB
+	 * entries one by one at the granularity of 'stride'. If the TLB
 	 * range ops are supported, then:
 	 *
 	 * 1. If 'pages' is odd, flush the first page through non-range
