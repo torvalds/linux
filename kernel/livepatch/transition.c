@@ -411,7 +411,7 @@ void klp_try_complete_transition(void)
 	/*
 	 * Ditto for the idle "swapper" tasks.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_possible_cpu(cpu) {
 		task = idle_task(cpu);
 		if (cpu_online(cpu)) {
@@ -423,7 +423,7 @@ void klp_try_complete_transition(void)
 			task->patch_state = klp_target_state;
 		}
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (!complete) {
 		if (klp_signals_cnt && !(klp_signals_cnt % SIGNALS_TIMEOUT))
