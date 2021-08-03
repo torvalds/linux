@@ -1044,10 +1044,10 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 }
 #endif
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-static void event_mall_stutter(struct work_struct *work)
+static void vblank_control_worker(struct work_struct *work)
 {
-
-	struct vblank_workqueue *vblank_work = container_of(work, struct vblank_workqueue, mall_work);
+	struct vblank_control_work *vblank_work =
+		container_of(work, struct vblank_control_work, work);
 	struct amdgpu_display_manager *dm = vblank_work->dm;
 
 	mutex_lock(&dm->dc_lock);
@@ -1062,22 +1062,9 @@ static void event_mall_stutter(struct work_struct *work)
 	DRM_DEBUG_KMS("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
 
 	mutex_unlock(&dm->dc_lock);
+	kfree(vblank_work);
 }
 
-static struct vblank_workqueue *vblank_create_workqueue(struct amdgpu_device *adev, struct dc *dc)
-{
-	struct vblank_workqueue *vblank_work;
-
-	vblank_work = kzalloc(sizeof(*vblank_work), GFP_KERNEL);
-	if (ZERO_OR_NULL_PTR(vblank_work)) {
-		kfree(vblank_work);
-		return NULL;
-	}
-
-	INIT_WORK(&vblank_work->mall_work, event_mall_stutter);
-
-	return vblank_work;
-}
 #endif
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
@@ -1220,12 +1207,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (adev->dm.dc->caps.max_links > 0) {
-		adev->dm.vblank_workqueue = vblank_create_workqueue(adev, adev->dm.dc);
-
-		if (!adev->dm.vblank_workqueue)
+		adev->dm.vblank_control_workqueue =
+			create_singlethread_workqueue("dm_vblank_control_workqueue");
+		if (!adev->dm.vblank_control_workqueue)
 			DRM_ERROR("amdgpu: failed to initialize vblank_workqueue.\n");
-		else
-			DRM_DEBUG_DRIVER("amdgpu: vblank_workqueue init done %p.\n", adev->dm.vblank_workqueue);
 	}
 #endif
 
@@ -1298,6 +1283,13 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
 	int i;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (adev->dm.vblank_control_workqueue) {
+		destroy_workqueue(adev->dm.vblank_control_workqueue);
+		adev->dm.vblank_control_workqueue = NULL;
+	}
+#endif
+
 	for (i = 0; i < adev->dm.display_indexes_num; i++) {
 		drm_encoder_cleanup(&adev->dm.mst_encoders[i].base);
 	}
@@ -1319,14 +1311,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	if (adev->dm.dc)
 		dc_deinit_callbacks(adev->dm.dc);
-#endif
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (adev->dm.vblank_workqueue) {
-		adev->dm.vblank_workqueue->dm = NULL;
-		kfree(adev->dm.vblank_workqueue);
-		adev->dm.vblank_workqueue = NULL;
-	}
 #endif
 
 	dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
@@ -6000,7 +5984,7 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct amdgpu_display_manager *dm = &adev->dm;
-	unsigned long flags;
+	struct vblank_control_work *work;
 #endif
 	int rc = 0;
 
@@ -6025,12 +6009,16 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 		return 0;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	spin_lock_irqsave(&dm->vblank_lock, flags);
-	dm->vblank_workqueue->dm = dm;
-	dm->vblank_workqueue->otg_inst = acrtc->otg_inst;
-	dm->vblank_workqueue->enable = enable;
-	spin_unlock_irqrestore(&dm->vblank_lock, flags);
-	schedule_work(&dm->vblank_workqueue->mall_work);
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work)
+		return -ENOMEM;
+
+	INIT_WORK(&work->work, vblank_control_worker);
+	work->dm = dm;
+	work->acrtc = acrtc;
+	work->enable = enable;
+
+	queue_work(dm->vblank_control_workqueue, &work->work);
 #endif
 
 	return 0;
