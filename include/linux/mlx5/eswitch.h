@@ -128,6 +128,7 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 
 u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev);
 u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
+struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 
@@ -169,6 +170,11 @@ mlx5_eswitch_get_vport_metadata_mask(void)
 static inline u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
 {
 	return 0;
+}
+
+static inline struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_MLX5_ESWITCH */
