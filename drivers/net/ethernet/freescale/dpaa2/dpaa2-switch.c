@@ -692,23 +692,9 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 		return err;
 	}
 
-	/* sync carrier state */
-	err = dpaa2_switch_port_link_state_update(netdev);
-	if (err) {
-		netdev_err(netdev,
-			   "dpaa2_switch_port_link_state_update err %d\n", err);
-		goto err_carrier_sync;
-	}
-
 	dpaa2_switch_enable_ctrl_if_napi(ethsw);
 
 	return 0;
-
-err_carrier_sync:
-	dpsw_if_disable(port_priv->ethsw_data->mc_io, 0,
-			port_priv->ethsw_data->dpsw_handle,
-			port_priv->idx);
-	return err;
 }
 
 static int dpaa2_switch_port_stop(struct net_device *netdev)
