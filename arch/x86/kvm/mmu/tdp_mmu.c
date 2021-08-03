@@ -412,7 +412,6 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 	bool was_leaf = was_present && is_last_spte(old_spte, level);
 	bool is_leaf = is_present && is_last_spte(new_spte, level);
 	bool pfn_changed = spte_to_pfn(old_spte) != spte_to_pfn(new_spte);
-	bool was_large, is_large;
 
 	WARN_ON(level > PT64_ROOT_MAX_LEVEL);
 	WARN_ON(level < PG_LEVEL_4K);
@@ -471,18 +470,8 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 		return;
 	}
 
-	/*
-	 * Update large page stats if a large page is being zapped, created, or
-	 * is replacing an existing shadow page.
-	 */
-	was_large = was_leaf && is_large_pte(old_spte);
-	is_large = is_leaf && is_large_pte(new_spte);
-	if (was_large != is_large) {
-		if (was_large)
-			atomic64_sub(1, (atomic64_t *)&kvm->stat.lpages);
-		else
-			atomic64_add(1, (atomic64_t *)&kvm->stat.lpages);
-	}
+	if (is_leaf != was_leaf)
+		kvm_update_page_stats(kvm, level, is_leaf ? 1 : -1);
 
 	if (was_leaf && is_dirty_spte(old_spte) &&
 	    (!is_present || !is_dirty_spte(new_spte) || pfn_changed))
