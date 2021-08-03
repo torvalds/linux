@@ -13,17 +13,11 @@ s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable)
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
 	struct odm_dm_struct *pDM_Odm = &(pHalData->odmpriv);
 
-	if (!netif_running(padapter->pnetdev)) {
-		RT_TRACE(_module_mp_, _drv_warning_,
-			 ("SetPowerTracking! Fail: interface not opened!\n"));
+	if (!netif_running(padapter->pnetdev))
 		return _FAIL;
-	}
 
-	if (!check_fwstate(&padapter->mlmepriv, WIFI_MP_STATE)) {
-		RT_TRACE(_module_mp_, _drv_warning_,
-			 ("SetPowerTracking! Fail: not in MP mode!\n"));
+	if (!check_fwstate(&padapter->mlmepriv, WIFI_MP_STATE))
 		return _FAIL;
-	}
 
 	if (enable)
 		pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
@@ -260,10 +254,6 @@ void Hal_SetCCKTxPower(struct adapter *pAdapter, u8 *TxPower)
 	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, TxPower[RF_PATH_B]);
 	tmpval = (TxPower[RF_PATH_B]<<16) | (TxPower[RF_PATH_B]<<8) | TxPower[RF_PATH_B];
 	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
-
-	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-SetCCKTxPower: A[0x%02x] B[0x%02x]\n",
-		  TxPower[RF_PATH_A], TxPower[RF_PATH_B]));
 }
 
 void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 *TxPower)
@@ -512,23 +502,17 @@ void Hal_SetAntenna(struct adapter *pAdapter)
 			break;
 		}
 	}
-
-	RT_TRACE(_module_mp_, _drv_notice_, ("-SwitchAntenna: finished\n"));
 }
 
 s32 Hal_SetThermalMeter(struct adapter *pAdapter, u8 target_ther)
 {
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 
-	if (!netif_running(pAdapter->pnetdev)) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetThermalMeter! Fail: interface not opened!\n"));
+	if (!netif_running(pAdapter->pnetdev))
 		return _FAIL;
-	}
 
-	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetThermalMeter: Fail! not in MP mode!\n"));
+	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false)
 		return _FAIL;
-	}
 
 	target_ther &= 0xff;
 	if (target_ther < 0x07)
@@ -566,7 +550,6 @@ void Hal_SetSingleCarrierTx(struct adapter *pAdapter, u8 bStart)
 	pAdapter->mppriv.MptCtx.bSingleCarrier = bStart;
 	if (bStart) {
 		/*  Start Single Carrier. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetSingleCarrierTx: test start\n"));
 		/*  1. if OFDM block on? */
 		if (!read_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn))
 			write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);/* set OFDM block on */
@@ -584,8 +567,6 @@ void Hal_SetSingleCarrierTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
 	} else {
 		/*  Stop Single Carrier. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetSingleCarrierTx: test stop\n"));
-
 		/*  Turn off all test modes. */
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
@@ -625,7 +606,6 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 	pAdapter->mppriv.MptCtx.bSingleTone = bStart;
 	if (bStart) {
 		/*  Start Single Tone. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetSingleToneTx: test start\n"));
 		/*  <20120326, Kordan> To amplify the power of tone for Xtal calibration. (asked by Edlu) */
 		if (IS_HARDWARE_TYPE_8188E(pAdapter)) {
 			reg58 = PHY_QueryRFReg(pAdapter, RF_PATH_A, LNA_Low_Gain_3, bRFRegOffsetMask);
@@ -658,8 +638,6 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 
 	} else {
 		/*  Stop Single Tone. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetSingleToneTx: test stop\n"));
-
 		/*  <20120326, Kordan> To amplify the power of tone for Xtal calibration. (asked by Edlu) */
 		/*  <20120326, Kordan> Only in single tone mode. (asked by Edlu) */
 		if (IS_HARDWARE_TYPE_8188E(pAdapter)) {
@@ -693,7 +671,6 @@ void Hal_SetCarrierSuppressionTx(struct adapter *pAdapter, u8 bStart)
 	pAdapter->mppriv.MptCtx.bCarrierSuppression = bStart;
 	if (bStart) {
 		/*  Start Carrier Suppression. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetCarrierSuppressionTx: test start\n"));
 		if (pAdapter->mppriv.rateidx <= MPT_RATE_11M) {
 			/*  1. if CCK block on? */
 			if (!read_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn))
@@ -716,7 +693,6 @@ void Hal_SetCarrierSuppressionTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
 	} else {
 		/*  Stop Carrier Suppression. */
-		RT_TRACE(_module_mp_, _drv_alert_, ("SetCarrierSuppressionTx: test stop\n"));
 		if (pAdapter->mppriv.rateidx <= MPT_RATE_11M) {
 			write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);    /* normal mode */
 			write_bbreg(pAdapter, rCCK0_System, bCCKScramble, 0x1);  /* turn on scramble setting */
@@ -737,9 +713,6 @@ void Hal_SetCCKContinuousTx(struct adapter *pAdapter, u8 bStart)
 	u32 cckrate;
 
 	if (bStart) {
-		RT_TRACE(_module_mp_, _drv_alert_,
-			 ("SetCCKContinuousTx: test start\n"));
-
 		/*  1. if CCK block on? */
 		if (!read_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn))
 			write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, bEnable);/* set CCK block on */
@@ -758,9 +731,6 @@ void Hal_SetCCKContinuousTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
 		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
 	} else {
-		RT_TRACE(_module_mp_, _drv_info_,
-			 ("SetCCKContinuousTx: test stop\n"));
-
 		write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);	/* normal mode */
 		write_bbreg(pAdapter, rCCK0_System, bCCKScramble, bEnable);	/* turn on scramble setting */
 
@@ -780,7 +750,6 @@ void Hal_SetCCKContinuousTx(struct adapter *pAdapter, u8 bStart)
 void Hal_SetOFDMContinuousTx(struct adapter *pAdapter, u8 bStart)
 {
 	if (bStart) {
-		RT_TRACE(_module_mp_, _drv_info_, ("SetOFDMContinuousTx: test start\n"));
 		/*  1. if OFDM block on? */
 		if (!read_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn))
 			write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);/* set OFDM block on */
@@ -800,7 +769,6 @@ void Hal_SetOFDMContinuousTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
 
 	} else {
-		RT_TRACE(_module_mp_, _drv_info_, ("SetOFDMContinuousTx: test stop\n"));
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
@@ -821,9 +789,6 @@ void Hal_SetOFDMContinuousTx(struct adapter *pAdapter, u8 bStart)
 
 void Hal_SetContinuousTx(struct adapter *pAdapter, u8 bStart)
 {
-	RT_TRACE(_module_mp_, _drv_info_,
-		 ("SetContinuousTx: rate:%d\n", pAdapter->mppriv.rateidx));
-
 	pAdapter->mppriv.MptCtx.bStartContTx = bStart;
 	if (pAdapter->mppriv.rateidx <= MPT_RATE_11M)
 		Hal_SetCCKContinuousTx(pAdapter, bStart);
