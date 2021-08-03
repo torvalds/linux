@@ -920,12 +920,13 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	/* All done! */
 }
 
-static int __gsi_channel_start(struct gsi_channel *channel, bool start)
+static int __gsi_channel_start(struct gsi_channel *channel, bool resume)
 {
 	struct gsi *gsi = channel->gsi;
 	int ret;
 
-	if (!start)
+	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
+	if (resume && gsi->version < IPA_VERSION_4_0)
 		return 0;
 
 	mutex_lock(&gsi->mutex);
@@ -947,7 +948,7 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 	napi_enable(&channel->napi);
 	gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
 
-	ret = __gsi_channel_start(channel, true);
+	ret = __gsi_channel_start(channel, false);
 	if (ret) {
 		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
 		napi_disable(&channel->napi);
@@ -971,7 +972,7 @@ static int gsi_channel_stop_retry(struct gsi_channel *channel)
 	return ret;
 }
 
-static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
+static int __gsi_channel_stop(struct gsi_channel *channel, bool suspend)
 {
 	struct gsi *gsi = channel->gsi;
 	int ret;
@@ -979,7 +980,8 @@ static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 	/* Wait for any underway transactions to complete before stopping. */
 	gsi_channel_trans_quiesce(channel);
 
-	if (!stop)
+	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
+	if (suspend && gsi->version < IPA_VERSION_4_0)
 		return 0;
 
 	mutex_lock(&gsi->mutex);
@@ -997,7 +999,7 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	int ret;
 
-	ret = __gsi_channel_stop(channel, true);
+	ret = __gsi_channel_stop(channel, false);
 	if (ret)
 		return ret;
 
@@ -1032,8 +1034,7 @@ int gsi_channel_suspend(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	int ret;
 
-	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
-	ret = __gsi_channel_stop(channel, gsi->version >= IPA_VERSION_4_0);
+	ret = __gsi_channel_stop(channel, true);
 	if (ret)
 		return ret;
 
@@ -1048,8 +1049,7 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
-	return __gsi_channel_start(channel, gsi->version >= IPA_VERSION_4_0);
+	return __gsi_channel_start(channel, true);
 }
 
 /**
