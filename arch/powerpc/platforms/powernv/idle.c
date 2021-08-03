@@ -199,12 +199,12 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	 */
 	power7_fastsleep_workaround_exit = false;
 
-	get_online_cpus();
+	cpus_read_lock();
 	primary_thread_mask = cpu_online_cores_map();
 	on_each_cpu_mask(&primary_thread_mask,
 				pnv_fastsleep_workaround_apply,
 				&err, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 	if (err) {
 		pr_err("fastsleep_workaround_applyonce change failed while running pnv_fastsleep_workaround_apply");
 		goto fail;
