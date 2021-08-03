@@ -1433,20 +1433,13 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 {
 	struct device *dev = (struct device *)arg;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-
-	/* Mask the events and the if_id reserved bits to be cleared on read */
-	u32 status = DPSW_IRQ_EVENT_LINK_CHANGED | 0xFFFF0000;
+	u32 status = ~0;
 	int err;
 
 	err = dpsw_get_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, &status);
 	if (err) {
 		dev_err(dev, "Can't get irq status (err %d)\n", err);
-
-		err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
-					    DPSW_IRQ_INDEX_IF, 0xFFFFFFFF);
-		if (err)
-			dev_err(dev, "Can't clear irq status (err %d)\n", err);
 		goto out;
 	}
 
@@ -1454,6 +1447,11 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_switch_links_state_update(ethsw);
 
 out:
+	err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				    DPSW_IRQ_INDEX_IF, status);
+	if (err)
+		dev_err(dev, "Can't clear irq status (err %d)\n", err);
+
 	return IRQ_HANDLED;
 }
 
