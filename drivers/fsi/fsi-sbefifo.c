@@ -752,7 +752,9 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
         iov_iter_kvec(&resp_iter, WRITE, &resp_iov, 1, rbytes);
 
 	/* Perform the command */
-	mutex_lock(&sbefifo->lock);
+	rc = mutex_lock_interruptible(&sbefifo->lock);
+	if (rc)
+		return rc;
 	rc = __sbefifo_submit(sbefifo, command, cmd_len, &resp_iter);
 	mutex_unlock(&sbefifo->lock);
 
@@ -832,7 +834,9 @@ static ssize_t sbefifo_user_read(struct file *file, char __user *buf,
 	iov_iter_init(&resp_iter, WRITE, &resp_iov, 1, len);
 
 	/* Perform the command */
-	mutex_lock(&sbefifo->lock);
+	rc = mutex_lock_interruptible(&sbefifo->lock);
+	if (rc)
+		goto bail;
 	rc = __sbefifo_submit(sbefifo, user->pending_cmd, cmd_len, &resp_iter);
 	mutex_unlock(&sbefifo->lock);
 	if (rc < 0)
@@ -887,7 +891,9 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 		user->pending_len = 0;
 
 		/* Trigger reset request */
-		mutex_lock(&sbefifo->lock);
+		rc = mutex_lock_interruptible(&sbefifo->lock);
+		if (rc)
+			goto bail;
 		rc = sbefifo_request_reset(user->sbefifo);
 		mutex_unlock(&sbefifo->lock);
 		if (rc == 0)
