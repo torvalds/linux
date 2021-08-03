@@ -17612,8 +17612,9 @@ F:	drivers/staging/olpc_dcon/
 
 STAGING - REALTEK RTL8188EU DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
-S:	Odd Fixes
-F:	drivers/staging/rtl8188eu/
+M:	Phillip Potter <phil@philpotter.co.uk>
+S:	Supported
+F:	drivers/staging/r8188eu/
 
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
