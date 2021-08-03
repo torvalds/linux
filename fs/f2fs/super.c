@@ -155,6 +155,7 @@ enum {
 	Opt_atgc,
 	Opt_gc_merge,
 	Opt_nogc_merge,
+	Opt_discard_unit,
 	Opt_err,
 };
 
@@ -231,6 +232,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_atgc, "atgc"},
 	{Opt_gc_merge, "gc_merge"},
 	{Opt_nogc_merge, "nogc_merge"},
+	{Opt_discard_unit, "discard_unit=%s"},
 	{Opt_err, NULL},
 };
 
@@ -1173,6 +1175,25 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 		case Opt_nogc_merge:
 			clear_opt(sbi, GC_MERGE);
 			break;
+		case Opt_discard_unit:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+			if (!strcmp(name, "block")) {
+				F2FS_OPTION(sbi).discard_unit =
+						DISCARD_UNIT_BLOCK;
+			} else if (!strcmp(name, "segment")) {
+				F2FS_OPTION(sbi).discard_unit =
+						DISCARD_UNIT_SEGMENT;
+			} else if (!strcmp(name, "section")) {
+				F2FS_OPTION(sbi).discard_unit =
+						DISCARD_UNIT_SECTION;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
 		default:
 			f2fs_err(sbi, "Unrecognized mount option \"%s\" or missing value",
 				 p);
@@ -1211,6 +1232,14 @@ default_check:
 		return -EINVAL;
 	}
 #endif
+	if (f2fs_sb_has_blkzoned(sbi)) {
+		if (F2FS_OPTION(sbi).discard_unit !=
+						DISCARD_UNIT_SECTION) {
+			f2fs_info(sbi, "Zoned block device doesn't need small discard, set discard_unit=section by default");
+			F2FS_OPTION(sbi).discard_unit =
+					DISCARD_UNIT_SECTION;
+		}
+	}
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (f2fs_test_compress_extension(sbi)) {
@@ -1925,6 +1954,14 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 
 	if (test_opt(sbi, ATGC))
 		seq_puts(seq, ",atgc");
+
+	if (F2FS_OPTION(sbi).discard_unit == DISCARD_UNIT_BLOCK)
+		seq_printf(seq, ",discard_unit=%s", "block");
+	else if (F2FS_OPTION(sbi).discard_unit == DISCARD_UNIT_SEGMENT)
+		seq_printf(seq, ",discard_unit=%s", "segment");
+	else if (F2FS_OPTION(sbi).discard_unit == DISCARD_UNIT_SECTION)
+		seq_printf(seq, ",discard_unit=%s", "section");
+
 	return 0;
 }
 
@@ -1961,10 +1998,13 @@ static void default_options(struct f2fs_sb_info *sbi)
 	sbi->sb->s_flags |= SB_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
 	set_opt(sbi, DISCARD);
-	if (f2fs_sb_has_blkzoned(sbi))
+	if (f2fs_sb_has_blkzoned(sbi)) {
 		F2FS_OPTION(sbi).fs_mode = FS_MODE_LFS;
-	else
+		F2FS_OPTION(sbi).discard_unit = DISCARD_UNIT_SECTION;
+	} else {
 		F2FS_OPTION(sbi).fs_mode = FS_MODE_ADAPTIVE;
+		F2FS_OPTION(sbi).discard_unit = DISCARD_UNIT_BLOCK;
+	}
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);
@@ -2066,6 +2106,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool no_io_align = !F2FS_IO_ALIGNED(sbi);
 	bool no_atgc = !test_opt(sbi, ATGC);
 	bool no_compress_cache = !test_opt(sbi, COMPRESS_CACHE);
+	bool block_unit_discard = f2fs_block_unit_discard(sbi);
 #ifdef CONFIG_QUOTA
 	int i, j;
 #endif
@@ -2163,6 +2204,12 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	if (no_compress_cache == !!test_opt(sbi, COMPRESS_CACHE)) {
 		err = -EINVAL;
 		f2fs_warn(sbi, "switch compress_cache option is not allowed");
+		goto restore_opts;
+	}
+
+	if (block_unit_discard != f2fs_block_unit_discard(sbi)) {
+		err = -EINVAL;
+		f2fs_warn(sbi, "switch discard_unit option is not allowed");
 		goto restore_opts;
 	}
 
@@ -3778,7 +3825,8 @@ static void f2fs_tuning_parameters(struct f2fs_sb_info *sbi)
 	/* adjust parameters according to the volume size */
 	if (sm_i->main_segments <= SMALL_VOLUME_SEGMENTS) {
 		F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
-		sm_i->dcc_info->discard_granularity = 1;
+		if (f2fs_block_unit_discard(sbi))
+			sm_i->dcc_info->discard_granularity = 1;
 		sm_i->ipu_policy = 1 << F2FS_IPU_FORCE;
 	}
 

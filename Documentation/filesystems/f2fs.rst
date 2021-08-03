@@ -312,6 +312,14 @@ inlinecrypt		 When possible, encrypt/decrypt the contents of encrypted
 			 Documentation/block/inline-encryption.rst.
 atgc			 Enable age-threshold garbage collection, it provides high
 			 effectiveness and efficiency on background GC.
+discard_unit=%s		 Control discard unit, the argument can be "block", "segment"
+			 and "section", issued discard command's offset/size will be
+			 aligned to the unit, by default, "discard_unit=block" is set,
+			 so that small discard functionality is enabled.
+			 For blkzoned device, "discard_unit=section" will be set by
+			 default, it is helpful for large sized SMR or ZNS devices to
+			 reduce memory cost by getting rid of fs metadata supports small
+			 discard.
 ======================== ============================================================
 
 Debugfs Entries

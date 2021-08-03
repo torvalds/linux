@@ -428,6 +428,8 @@ out:
 	if (!strcmp(a->attr.name, "discard_granularity")) {
 		if (t == 0 || t > MAX_PLIST_NUM)
 			return -EINVAL;
+		if (!f2fs_block_unit_discard(sbi))
+			return -EINVAL;
 		if (t == *ui)
 			return count;
 		*ui = t;
