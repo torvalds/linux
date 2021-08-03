@@ -3292,7 +3292,7 @@ int schedule_on_each_cpu(work_func_t func)
 	if (!works)
 		return -ENOMEM;
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = per_cpu_ptr(works, cpu);
@@ -3304,7 +3304,7 @@ int schedule_on_each_cpu(work_func_t func)
 	for_each_online_cpu(cpu)
 		flush_work(per_cpu_ptr(works, cpu));
 
-	put_online_cpus();
+	cpus_read_unlock();
 	free_percpu(works);
 	return 0;
 }
@@ -4015,14 +4015,14 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 static void apply_wqattrs_lock(void)
 {
 	/* CPUs should stay stable across pwq creations and installations */
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&wq_pool_mutex);
 }
 
 static void apply_wqattrs_unlock(void)
 {
 	mutex_unlock(&wq_pool_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
@@ -4067,7 +4067,7 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
  *
  * Performs GFP_KERNEL allocations.
  *
- * Assumes caller has CPU hotplug read exclusion, i.e. get_online_cpus().
+ * Assumes caller has CPU hotplug read exclusion, i.e. cpus_read_lock().
  *
  * Return: 0 on success and -errno on failure.
  */
@@ -4195,7 +4195,7 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		return 0;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (wq->flags & __WQ_ORDERED) {
 		ret = apply_workqueue_attrs(wq, ordered_wq_attrs[highpri]);
 		/* there should only be single pwq for ordering guarantee */
@@ -4205,7 +4205,7 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	} else {
 		ret = apply_workqueue_attrs(wq, unbound_std_wq_attrs[highpri]);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -5167,10 +5167,10 @@ long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg)
 {
 	long ret = -ENODEV;
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (cpu_online(cpu))
 		ret = work_on_cpu(cpu, fn, arg);
-	put_online_cpus();
+	cpus_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(work_on_cpu_safe);
@@ -5442,7 +5442,7 @@ static ssize_t wq_pool_ids_show(struct device *dev,
 	const char *delim = "";
 	int node, written = 0;
 
-	get_online_cpus();
+	cpus_read_lock();
 	rcu_read_lock();
 	for_each_node(node) {
 		written += scnprintf(buf + written, PAGE_SIZE - written,
@@ -5452,7 +5452,7 @@ static ssize_t wq_pool_ids_show(struct device *dev,
 	}
 	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
 	rcu_read_unlock();
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return written;
 }
