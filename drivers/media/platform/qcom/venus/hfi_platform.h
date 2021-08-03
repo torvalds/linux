@@ -43,11 +43,13 @@ struct hfi_platform_codec_freq_data {
 	u32 session_type;
 	unsigned long vpp_freq;
 	unsigned long vsp_freq;
+	unsigned long low_power_freq;
 };
 
 struct hfi_platform {
 	unsigned long (*codec_vpp_freq)(u32 session_type, u32 codec);
 	unsigned long (*codec_vsp_freq)(u32 session_type, u32 codec);
+	unsigned long (*codec_lp_freq)(u32 session_type, u32 codec);
 	void (*codecs)(u32 *enc_codecs, u32 *dec_codecs, u32 *count);
 	const struct hfi_plat_caps *(*capabilities)(unsigned int *entries);
 	u8 (*num_vpp_pipes)(void);
@@ -63,5 +65,7 @@ unsigned long hfi_platform_get_codec_vpp_freq(enum hfi_version version, u32 code
 					      u32 session_type);
 unsigned long hfi_platform_get_codec_vsp_freq(enum hfi_version version, u32 codec,
 					      u32 session_type);
+unsigned long hfi_platform_get_codec_lp_freq(enum hfi_version version, u32 codec,
+					     u32 session_type);
 u8 hfi_platform_num_vpp_pipes(enum hfi_version version);
 #endif

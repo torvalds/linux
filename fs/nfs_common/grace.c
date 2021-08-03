@@ -82,6 +82,7 @@ __state_in_grace(struct net *net, bool open)
 
 /**
  * locks_in_grace
+ * @net: network namespace
  *
  * Lock managers call this function to determine when it is OK for them
  * to answer ordinary lock requests, and when they should accept only

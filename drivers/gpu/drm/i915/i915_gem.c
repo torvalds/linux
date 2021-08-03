@@ -157,8 +157,18 @@ try_again:
 		if (vma) {
 			ret = -EBUSY;
 			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-			    !i915_vma_is_active(vma))
-				ret = i915_vma_unbind(vma);
+			    !i915_vma_is_active(vma)) {
+				if (flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
+					if (mutex_trylock(&vma->vm->mutex)) {
+						ret = __i915_vma_unbind(vma);
+						mutex_unlock(&vma->vm->mutex);
+					} else {
+						ret = -EBUSY;
+					}
+				} else {
+					ret = i915_vma_unbind(vma);
+				}
+			}
 
 			__i915_vma_put(vma);
 		}
@@ -432,7 +442,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* PREAD is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -712,7 +722,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	/* PWRITE is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -1098,6 +1108,7 @@ err_unlock:
 	}
 
 	i915_gem_drain_freed_objects(dev_priv);
+
 	return ret;
 }
 

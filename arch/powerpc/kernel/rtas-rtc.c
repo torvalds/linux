@@ -12,7 +12,7 @@
 
 
 #define MAX_RTC_WAIT 5000	/* 5 sec */
-#define RTAS_CLOCK_BUSY (-2)
+
 time64_t __init rtas_get_boot_time(void)
 {
 	int ret[8];

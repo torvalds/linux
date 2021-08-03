@@ -60,7 +60,6 @@ enum {
 #define WLAN_STA_HT BIT(11)
 #define WLAN_STA_WPS BIT(12)
 #define WLAN_STA_MAYBE_WPS BIT(13)
-#define WLAN_STA_VHT BIT(14)
 #define WLAN_STA_NONERP BIT(31)
 
 #define IEEE_CMD_SET_WPA_PARAM			1
@@ -135,8 +134,6 @@ enum {
 	RATEID_IDX_BG = 6,
 	RATEID_IDX_G = 7,
 	RATEID_IDX_B = 8,
-	RATEID_IDX_VHT_2SS = 9,
-	RATEID_IDX_VHT_1SS = 10,
 };
 
 enum network_type {
@@ -144,33 +141,20 @@ enum network_type {
 	/* Sub-Element */
 	WIRELESS_11B = BIT(0), /*  tx: cck only , rx: cck only, hw: cck */
 	WIRELESS_11G = BIT(1), /*  tx: ofdm only, rx: ofdm & cck, hw: cck & ofdm */
-	WIRELESS_11A = BIT(2), /*  tx: ofdm only, rx: ofdm only, hw: ofdm only */
 	WIRELESS_11_24N = BIT(3), /*  tx: MCS only, rx: MCS & cck, hw: MCS & cck */
-	WIRELESS_11_5N = BIT(4), /*  tx: MCS only, rx: MCS & ofdm, hw: ofdm only */
 	WIRELESS_AUTO = BIT(5),
-	WIRELESS_11AC = BIT(6),
 
 	/* Combination */
 	/* Type for current wireless mode */
 	WIRELESS_11BG = (WIRELESS_11B|WIRELESS_11G), /*  tx: cck & ofdm, rx: cck & ofdm & MCS, hw: cck & ofdm */
 	WIRELESS_11G_24N = (WIRELESS_11G|WIRELESS_11_24N), /*  tx: ofdm & MCS, rx: ofdm & cck & MCS, hw: cck & ofdm */
-	WIRELESS_11A_5N = (WIRELESS_11A|WIRELESS_11_5N), /*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
 	WIRELESS_11B_24N = (WIRELESS_11B|WIRELESS_11_24N), /*  tx: ofdm & cck & MCS, rx: ofdm & cck & MCS, hw: ofdm & cck */
 	WIRELESS_11BG_24N = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N), /*  tx: ofdm & cck & MCS, rx: ofdm & cck & MCS, hw: ofdm & cck */
-	WIRELESS_11_24AC = (WIRELESS_11G|WIRELESS_11AC),
-	WIRELESS_11_5AC = (WIRELESS_11A|WIRELESS_11AC),
-
-
-	/* Type for registry default wireless mode */
-	WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), /*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
-	WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
-	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11AC),
-	WIRELESS_MODE_MAX = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N|WIRELESS_11AC),
 };
 
 #define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
 
-#define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG|WIRELESS_11A)))
+#define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG)))
 
 #define IsSupported24G(NetType) ((NetType) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
 
@@ -182,11 +166,8 @@ enum network_type {
 #define IsSupportedRxHT(NetType) IsEnableHWOFDM(NetType)
 
 #define IsSupportedTxCCK(NetType) (((NetType) & (WIRELESS_11B)) ? true : false)
-#define IsSupportedTxOFDM(NetType) (((NetType) & (WIRELESS_11G|WIRELESS_11A)) ? true : false)
-#define IsSupportedHT(NetType) (((NetType) & (WIRELESS_11_24N|WIRELESS_11_5N)) ? true : false)
-
-#define IsSupportedVHT(NetType) (((NetType) & (WIRELESS_11AC)) ? true : false)
-
+#define IsSupportedTxOFDM(NetType) (((NetType) & (WIRELESS_11G) ? true : false)
+#define IsSupportedHT(NetType) (((NetType) & (WIRELESS_11_24N)) ? true : false)
 
 struct ieee_param {
 	u32 cmd;
@@ -440,51 +421,10 @@ enum {
 	MGN_MCS29,
 	MGN_MCS30,
 	MGN_MCS31,
-	MGN_VHT1SS_MCS0,
-	MGN_VHT1SS_MCS1,
-	MGN_VHT1SS_MCS2,
-	MGN_VHT1SS_MCS3,
-	MGN_VHT1SS_MCS4,
-	MGN_VHT1SS_MCS5,
-	MGN_VHT1SS_MCS6,
-	MGN_VHT1SS_MCS7,
-	MGN_VHT1SS_MCS8,
-	MGN_VHT1SS_MCS9,
-	MGN_VHT2SS_MCS0,
-	MGN_VHT2SS_MCS1,
-	MGN_VHT2SS_MCS2,
-	MGN_VHT2SS_MCS3,
-	MGN_VHT2SS_MCS4,
-	MGN_VHT2SS_MCS5,
-	MGN_VHT2SS_MCS6,
-	MGN_VHT2SS_MCS7,
-	MGN_VHT2SS_MCS8,
-	MGN_VHT2SS_MCS9,
-	MGN_VHT3SS_MCS0,
-	MGN_VHT3SS_MCS1,
-	MGN_VHT3SS_MCS2,
-	MGN_VHT3SS_MCS3,
-	MGN_VHT3SS_MCS4,
-	MGN_VHT3SS_MCS5,
-	MGN_VHT3SS_MCS6,
-	MGN_VHT3SS_MCS7,
-	MGN_VHT3SS_MCS8,
-	MGN_VHT3SS_MCS9,
-	MGN_VHT4SS_MCS0,
-	MGN_VHT4SS_MCS1,
-	MGN_VHT4SS_MCS2,
-	MGN_VHT4SS_MCS3,
-	MGN_VHT4SS_MCS4,
-	MGN_VHT4SS_MCS5,
-	MGN_VHT4SS_MCS6,
-	MGN_VHT4SS_MCS7,
-	MGN_VHT4SS_MCS8,
-	MGN_VHT4SS_MCS9,
 	MGN_UNKNOWN
 };
 
 #define IS_HT_RATE(_rate)				(_rate >= MGN_MCS0 && _rate <= MGN_MCS31)
-#define IS_VHT_RATE(_rate)				(_rate >= MGN_VHT1SS_MCS0 && _rate <= MGN_VHT4SS_MCS9)
 #define IS_CCK_RATE(_rate)				(MGN_1M == _rate || _rate == MGN_2M || _rate == MGN_5_5M || _rate == MGN_11M)
 #define IS_OFDM_RATE(_rate)				(MGN_6M <= _rate && _rate <= MGN_54M  && _rate != MGN_11M)
 
@@ -641,7 +581,6 @@ enum {
 	RTW_WLAN_CATEGORY_TDLS = 12,
 	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, none 11w also can use */
 	RTW_WLAN_CATEGORY_WMM = 17,
-	RTW_WLAN_CATEGORY_VHT = 21,
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
 

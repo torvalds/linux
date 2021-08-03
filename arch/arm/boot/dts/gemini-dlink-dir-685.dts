@@ -61,9 +61,9 @@
 		#size-cells = <0>;
 
 		/* Collides with IDE pins, that's cool (we do not use them) */
-		gpio-sck = <&gpio1 5 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 8 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
@@ -169,7 +169,7 @@
 	 * The touchpad input is connected to a GPIO bit-banged
 	 * I2C bus.
 	 */
-	gpio-i2c {
+	i2c {
 		compatible = "i2c-gpio";
 		/* Collides with ICE */
 		sda-gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -492,8 +492,7 @@
 		display-controller@6a000000 {
 			status = "okay";
 
-			port@0 {
-				reg = <0>;
+			port {
 				display_out: endpoint {
 					remote-endpoint = <&panel_in>;
 				};

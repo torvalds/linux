@@ -86,7 +86,6 @@ struct settings {
 	enum thp_enabled thp_enabled;
 	enum thp_defrag thp_defrag;
 	enum shmem_enabled shmem_enabled;
-	bool debug_cow;
 	bool use_zero_page;
 	struct khugepaged_settings khugepaged;
 };
@@ -95,7 +94,6 @@ static struct settings default_settings = {
 	.thp_enabled = THP_MADVISE,
 	.thp_defrag = THP_DEFRAG_ALWAYS,
 	.shmem_enabled = SHMEM_NEVER,
-	.debug_cow = 0,
 	.use_zero_page = 0,
 	.khugepaged = {
 		.defrag = 1,
@@ -268,7 +266,6 @@ static void write_settings(struct settings *settings)
 	write_string("defrag", thp_defrag_strings[settings->thp_defrag]);
 	write_string("shmem_enabled",
 			shmem_enabled_strings[settings->shmem_enabled]);
-	write_num("debug_cow", settings->debug_cow);
 	write_num("use_zero_page", settings->use_zero_page);
 
 	write_num("khugepaged/defrag", khugepaged->defrag);
@@ -304,7 +301,6 @@ static void save_settings(void)
 		.thp_defrag = read_string("defrag", thp_defrag_strings),
 		.shmem_enabled =
 			read_string("shmem_enabled", shmem_enabled_strings),
-		.debug_cow = read_num("debug_cow"),
 		.use_zero_page = read_num("use_zero_page"),
 	};
 	saved_settings.khugepaged = (struct khugepaged_settings) {

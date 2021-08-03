@@ -162,7 +162,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			goto fail;
 		}
 		if (pp->merge_3d && pp->merge_3d < MERGE_3D_MAX)
-			hw->merge_3d = rm->merge_3d_blks[pp->merge_3d - MERGE_3D_0];
+			hw->merge_3d = to_dpu_hw_merge_3d(rm->merge_3d_blks[pp->merge_3d - MERGE_3D_0]);
 		rm->pingpong_blks[pp->id - PINGPONG_0] = &hw->base;
 	}
 
@@ -428,7 +428,7 @@ static int _dpu_rm_reserve_ctls(
 		features = ctl->caps->features;
 		has_split_display = BIT(DPU_CTL_SPLIT_DISPLAY) & features;
 
-		DPU_DEBUG("ctl %d caps 0x%lX\n", rm->ctl_blks[j]->id, features);
+		DPU_DEBUG("ctl %d caps 0x%lX\n", j + CTL_0, features);
 
 		if (needs_split_display != has_split_display)
 			continue;

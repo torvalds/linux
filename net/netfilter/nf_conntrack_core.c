@@ -55,8 +55,6 @@
 
 #include "nf_internals.h"
 
-extern unsigned int nf_conntrack_net_id;
-
 __cacheline_aligned_in_smp spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 EXPORT_SYMBOL_GPL(nf_conntrack_locks);
 
@@ -86,8 +84,6 @@ static __read_mostly bool nf_conntrack_locks_all;
 #define GC_EVICT_RATIO	50u
 
 static struct conntrack_gc_work conntrack_gc_work;
-
-extern unsigned int nf_conntrack_net_id;
 
 void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
 {
@@ -153,7 +149,15 @@ static void nf_conntrack_all_lock(void)
 
 	spin_lock(&nf_conntrack_locks_all_lock);
 
-	nf_conntrack_locks_all = true;
+	/* For nf_contrack_locks_all, only the latest time when another
+	 * CPU will see an update is controlled, by the "release" of the
+	 * spin_lock below.
+	 * The earliest time is not controlled, an thus KCSAN could detect
+	 * a race when nf_conntract_lock() reads the variable.
+	 * WRITE_ONCE() is used to ensure the compiler will not
+	 * optimize the write.
+	 */
+	WRITE_ONCE(nf_conntrack_locks_all, true);
 
 	for (i = 0; i < CONNTRACK_LOCKS; i++) {
 		spin_lock(&nf_conntrack_locks[i]);
@@ -1404,7 +1408,7 @@ static void gc_worker(struct work_struct *work)
 				continue;
 
 			net = nf_ct_net(tmp);
-			cnet = net_generic(net, nf_conntrack_net_id);
+			cnet = nf_ct_pernet(net);
 			if (atomic_read(&cnet->count) < nf_conntrack_max95)
 				continue;
 
@@ -1484,7 +1488,7 @@ __nf_conntrack_alloc(struct net *net,
 		     const struct nf_conntrack_tuple *repl,
 		     gfp_t gfp, u32 hash)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	unsigned int ct_count;
 	struct nf_conn *ct;
 
@@ -1556,7 +1560,7 @@ void nf_conntrack_free(struct nf_conn *ct)
 
 	nf_ct_ext_destroy(ct);
 	kmem_cache_free(nf_conntrack_cachep, ct);
-	cnet = net_generic(net, nf_conntrack_net_id);
+	cnet = nf_ct_pernet(net);
 
 	smp_mb__before_atomic();
 	atomic_dec(&cnet->count);
@@ -1614,7 +1618,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			     GFP_ATOMIC);
 
 	local_bh_disable();
-	cnet = net_generic(net, nf_conntrack_net_id);
+	cnet = nf_ct_pernet(net);
 	if (cnet->expect_count) {
 		spin_lock(&nf_conntrack_expect_lock);
 		exp = nf_ct_find_expectation(net, zone, tuple);
@@ -2317,7 +2321,7 @@ __nf_ct_unconfirmed_destroy(struct net *net)
 
 void nf_ct_unconfirmed_destroy(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	might_sleep();
 
@@ -2333,7 +2337,7 @@ void nf_ct_iterate_cleanup_net(struct net *net,
 			       int (*iter)(struct nf_conn *i, void *data),
 			       void *data, u32 portid, int report)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	struct iter_data d;
 
 	might_sleep();
@@ -2367,7 +2371,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 
 	down_read(&net_rwsem);
 	for_each_net(net) {
-		struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+		struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 		if (atomic_read(&cnet->count) == 0)
 			continue;
@@ -2449,7 +2453,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+		struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 		nf_ct_iterate_cleanup(kill_all, net, 0, 0);
 		if (atomic_read(&cnet->count) != 0)
@@ -2461,7 +2465,6 @@ i_see_dead_people:
 	}
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_conntrack_proto_pernet_fini(net);
 		nf_conntrack_ecache_pernet_fini(net);
 		nf_conntrack_expect_pernet_fini(net);
 		free_percpu(net->ct.stat);
@@ -2733,7 +2736,7 @@ void nf_conntrack_init_end(void)
 
 int nf_conntrack_init_net(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	int ret = -ENOMEM;
 	int cpu;
 

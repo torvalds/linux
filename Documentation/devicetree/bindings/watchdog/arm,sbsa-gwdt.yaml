@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/arm,sbsa-gwdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SBSA (Server Base System Architecture) Generic Watchdog
+
+maintainers:
+  - Fu Wei <fu.wei@linaro.org>
+
+description: |
+  The SBSA Generic Watchdog Timer is used to force a reset of the system after
+  two stages of timeout have elapsed. A detailed definition of the watchdog
+  timer can be found in the ARM document: ARM-DEN-0029 - Server Base System
+  Architecture (SBSA)
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    const: arm,sbsa-gwdt
+
+  reg:
+    items:
+      - description: Watchdog control frame
+      - description: Refresh frame
+
+  interrupts:
+    description: The Watchdog Signal 0 (WS0) SPI (Shared Peripheral Interrupt)
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+
+    watchdog@2a440000 {
+        compatible = "arm,sbsa-gwdt";
+        reg = <0x2a440000 0x1000>,
+              <0x2a450000 0x1000>;
+        interrupts = <0 27 4>;
+        timeout-sec = <30>;
+    };
+...

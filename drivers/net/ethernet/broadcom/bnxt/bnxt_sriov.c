@@ -632,7 +632,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	vf_vnics = (hw_resc->max_vnics - bp->nr_vnics) / num_vfs;
 	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
-	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
+	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_ADMIN_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
 				  FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS |
 				  FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS |
@@ -645,7 +645,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 	mtu = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
 	req.mru = cpu_to_le16(mtu);
-	req.mtu = cpu_to_le16(mtu);
+	req.admin_mtu = cpu_to_le16(mtu);
 
 	req.num_rsscos_ctxs = cpu_to_le16(1);
 	req.num_cmpl_rings = cpu_to_le16(vf_cp_rings);

@@ -313,6 +313,7 @@ enum hl_device_status {
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
+ * HL_INFO_OPEN_STATS    - Retrieve info regarding recent device open calls
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -331,6 +332,7 @@ enum hl_device_status {
 #define HL_INFO_TOTAL_ENERGY		15
 #define HL_INFO_PLL_FREQUENCY		16
 #define HL_INFO_POWER			17
+#define HL_INFO_OPEN_STATS		18
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -442,6 +444,16 @@ struct hl_info_energy {
 
 struct hl_pll_frequency_info {
 	__u16 output[HL_PLL_NUM_OUTPUTS];
+};
+
+/**
+ * struct hl_open_stats_info - device open statistics information
+ * @open_counter: ever growing counter, increased on each successful dev open
+ * @last_open_period_ms: duration (ms) device was open last time
+ */
+struct hl_open_stats_info {
+	__u64 open_counter;
+	__u64 last_open_period_ms;
 };
 
 /**
@@ -664,6 +676,7 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_STAGED_SUBMISSION_FIRST	0x80
 #define HL_CS_FLAGS_STAGED_SUBMISSION_LAST	0x100
 #define HL_CS_FLAGS_CUSTOM_TIMEOUT		0x200
+#define HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT	0x400
 
 #define HL_CS_STATUS_SUCCESS		0
 

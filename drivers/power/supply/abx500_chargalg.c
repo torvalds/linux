@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/component.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -1149,6 +1150,7 @@ static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 				default:
 					break;
 				}
+				break;
 			default:
 				break;
 			}
@@ -1943,28 +1945,6 @@ static int __maybe_unused abx500_chargalg_suspend(struct device *dev)
 	return 0;
 }
 
-static int abx500_chargalg_remove(struct platform_device *pdev)
-{
-	struct abx500_chargalg *di = platform_get_drvdata(pdev);
-
-	/* sysfs interface to enable/disbale charging from user space */
-	abx500_chargalg_sysfs_exit(di);
-
-	hrtimer_cancel(&di->safety_timer);
-	hrtimer_cancel(&di->maintenance_timer);
-
-	cancel_delayed_work_sync(&di->chargalg_periodic_work);
-	cancel_delayed_work_sync(&di->chargalg_wd_work);
-	cancel_work_sync(&di->chargalg_work);
-
-	/* Delete the work queue */
-	destroy_workqueue(di->chargalg_wq);
-
-	power_supply_unregister(di->chargalg_psy);
-
-	return 0;
-}
-
 static char *supply_interface[] = {
 	"ab8500_fg",
 };
@@ -1978,29 +1958,63 @@ static const struct power_supply_desc abx500_chargalg_desc = {
 	.external_power_changed	= abx500_chargalg_external_power_changed,
 };
 
+static int abx500_chargalg_bind(struct device *dev, struct device *master,
+				void *data)
+{
+	struct abx500_chargalg *di = dev_get_drvdata(dev);
+
+	/* Create a work queue for the chargalg */
+	di->chargalg_wq = alloc_ordered_workqueue("abx500_chargalg_wq",
+						  WQ_MEM_RECLAIM);
+	if (di->chargalg_wq == NULL) {
+		dev_err(di->dev, "failed to create work queue\n");
+		return -ENOMEM;
+	}
+
+	/* Run the charging algorithm */
+	queue_delayed_work(di->chargalg_wq, &di->chargalg_periodic_work, 0);
+
+	return 0;
+}
+
+static void abx500_chargalg_unbind(struct device *dev, struct device *master,
+				   void *data)
+{
+	struct abx500_chargalg *di = dev_get_drvdata(dev);
+
+	/* Stop all timers and work */
+	hrtimer_cancel(&di->safety_timer);
+	hrtimer_cancel(&di->maintenance_timer);
+
+	cancel_delayed_work_sync(&di->chargalg_periodic_work);
+	cancel_delayed_work_sync(&di->chargalg_wd_work);
+	cancel_work_sync(&di->chargalg_work);
+
+	/* Delete the work queue */
+	destroy_workqueue(di->chargalg_wq);
+	flush_scheduled_work();
+}
+
+static const struct component_ops abx500_chargalg_component_ops = {
+	.bind = abx500_chargalg_bind,
+	.unbind = abx500_chargalg_unbind,
+};
+
 static int abx500_chargalg_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct power_supply_config psy_cfg = {};
 	struct abx500_chargalg *di;
 	int ret = 0;
 
-	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
-	if (!di) {
-		dev_err(&pdev->dev, "%s no mem for ab8500_chargalg\n", __func__);
+	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	if (!di)
 		return -ENOMEM;
-	}
 
 	di->bm = &ab8500_bm_data;
 
-	ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to get battery information\n");
-		return ret;
-	}
-
 	/* get device struct and parent */
-	di->dev = &pdev->dev;
+	di->dev = dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 
 	psy_cfg.supplied_to = supply_interface;
@@ -2016,14 +2030,6 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 	di->maintenance_timer.function =
 		abx500_chargalg_maintenance_timer_expired;
 
-	/* Create a work queue for the chargalg */
-	di->chargalg_wq = alloc_ordered_workqueue("abx500_chargalg_wq",
-						   WQ_MEM_RECLAIM);
-	if (di->chargalg_wq == NULL) {
-		dev_err(di->dev, "failed to create work queue\n");
-		return -ENOMEM;
-	}
-
 	/* Init work for chargalg */
 	INIT_DEFERRABLE_WORK(&di->chargalg_periodic_work,
 		abx500_chargalg_periodic_work);
@@ -2037,12 +2043,12 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 	di->chg_info.prev_conn_chg = -1;
 
 	/* Register chargalg power supply class */
-	di->chargalg_psy = power_supply_register(di->dev, &abx500_chargalg_desc,
+	di->chargalg_psy = devm_power_supply_register(di->dev,
+						 &abx500_chargalg_desc,
 						 &psy_cfg);
 	if (IS_ERR(di->chargalg_psy)) {
 		dev_err(di->dev, "failed to register chargalg psy\n");
-		ret = PTR_ERR(di->chargalg_psy);
-		goto free_chargalg_wq;
+		return PTR_ERR(di->chargalg_psy);
 	}
 
 	platform_set_drvdata(pdev, di);
@@ -2051,21 +2057,24 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 	ret = abx500_chargalg_sysfs_init(di);
 	if (ret) {
 		dev_err(di->dev, "failed to create sysfs entry\n");
-		goto free_psy;
+		return ret;
 	}
 	di->curr_status.curr_step = CHARGALG_CURR_STEP_HIGH;
 
-	/* Run the charging algorithm */
-	queue_delayed_work(di->chargalg_wq, &di->chargalg_periodic_work, 0);
-
 	dev_info(di->dev, "probe success\n");
-	return ret;
+	return component_add(dev, &abx500_chargalg_component_ops);
+}
 
-free_psy:
-	power_supply_unregister(di->chargalg_psy);
-free_chargalg_wq:
-	destroy_workqueue(di->chargalg_wq);
-	return ret;
+static int abx500_chargalg_remove(struct platform_device *pdev)
+{
+	struct abx500_chargalg *di = platform_get_drvdata(pdev);
+
+	component_del(&pdev->dev, &abx500_chargalg_component_ops);
+
+	/* sysfs interface to enable/disable charging from user space */
+	abx500_chargalg_sysfs_exit(di);
+
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(abx500_chargalg_pm_ops, abx500_chargalg_suspend, abx500_chargalg_resume);
@@ -2075,7 +2084,7 @@ static const struct of_device_id ab8500_chargalg_match[] = {
 	{ },
 };
 
-static struct platform_driver abx500_chargalg_driver = {
+struct platform_driver abx500_chargalg_driver = {
 	.probe = abx500_chargalg_probe,
 	.remove = abx500_chargalg_remove,
 	.driver = {
@@ -2084,9 +2093,6 @@ static struct platform_driver abx500_chargalg_driver = {
 		.pm = &abx500_chargalg_pm_ops,
 	},
 };
-
-module_platform_driver(abx500_chargalg_driver);
-
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski");
 MODULE_ALIAS("platform:abx500-chargalg");

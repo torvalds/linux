@@ -22,10 +22,10 @@
 #include <linux/hwmon.h>
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 
 #define DRVNAME		"lm70"
 
@@ -148,29 +148,6 @@ static const struct of_device_id lm70_of_ids[] = {
 MODULE_DEVICE_TABLE(of, lm70_of_ids);
 #endif
 
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id lm70_acpi_ids[] = {
-	{
-		.id = "LM000070",
-		.driver_data = LM70_CHIP_LM70,
-	},
-	{
-		.id = "TMP00121",
-		.driver_data = LM70_CHIP_TMP121,
-	},
-	{
-		.id = "LM000071",
-		.driver_data = LM70_CHIP_LM71,
-	},
-	{
-		.id = "LM000074",
-		.driver_data = LM70_CHIP_LM74,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, lm70_acpi_ids);
-#endif
-
 static int lm70_probe(struct spi_device *spi)
 {
 	struct device *hwmon_dev;
@@ -184,7 +161,7 @@ static int lm70_probe(struct spi_device *spi)
 
 
 	/* signaling is SPI_MODE_0 */
-	if (spi->mode & (SPI_CPOL | SPI_CPHA))
+	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)
 		return -EINVAL;
 
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
@@ -217,7 +194,6 @@ static struct spi_driver lm70_driver = {
 	.driver = {
 		.name	= "lm70",
 		.of_match_table	= of_match_ptr(lm70_of_ids),
-		.acpi_match_table = ACPI_PTR(lm70_acpi_ids),
 	},
 	.id_table = lm70_ids,
 	.probe	= lm70_probe,

@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/tests/unittest.h
  *  Simple framework for unittests for comedi drivers.

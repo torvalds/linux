@@ -21,7 +21,7 @@ config NVME_MULTIPATH
 	help
 	   This option enables support for multipath access to NVMe
 	   subsystems.  If this option is enabled only a single
-	   /dev/nvmeXnY device will show up for each NVMe namespaces,
+	   /dev/nvmeXnY device will show up for each NVMe namespace,
 	   even if it is accessible through multiple controllers.
 
 config NVME_HWMON

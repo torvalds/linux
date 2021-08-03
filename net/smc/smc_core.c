@@ -33,6 +33,7 @@
 #include "smc_close.h"
 #include "smc_ism.h"
 #include "smc_netlink.h"
+#include "smc_stats.h"
 
 #define SMC_LGR_NUM_INCR		256
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
@@ -1235,20 +1236,6 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	kfree(lgr);
 }
 
-static void smcd_unregister_all_dmbs(struct smc_link_group *lgr)
-{
-	int i;
-
-	for (i = 0; i < SMC_RMBE_SIZES; i++) {
-		struct smc_buf_desc *buf_desc;
-
-		list_for_each_entry(buf_desc, &lgr->rmbs[i], list) {
-			buf_desc->len += sizeof(struct smcd_cdc_msg);
-			smc_ism_unregister_dmb(lgr->smcd, buf_desc);
-		}
-	}
-}
-
 static void smc_sk_wake_ups(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space(&smc->sk);
@@ -1285,7 +1272,6 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 {
 	if (lgr->is_smcd) {
 		smc_ism_signal_shutdown(lgr);
-		smcd_unregister_all_dmbs(lgr);
 	} else {
 		u32 rsn = lgr->llc_termination_rsn;
 
@@ -2044,6 +2030,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 	struct smc_link_group *lgr = conn->lgr;
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
+	bool is_dgraded = false;
 	struct mutex *lock;	/* lock buffer list */
 	int sk_buf_size;
 
@@ -2071,6 +2058,8 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		/* check for reusable slot in the link group */
 		buf_desc = smc_buf_get_slot(bufsize_short, lock, buf_list);
 		if (buf_desc) {
+			SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
+			SMC_STAT_BUF_REUSE(smc, is_smcd, is_rmb);
 			memset(buf_desc->cpu_addr, 0, bufsize);
 			break; /* found reusable slot */
 		}
@@ -2082,9 +2071,16 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 		if (PTR_ERR(buf_desc) == -ENOMEM)
 			break;
-		if (IS_ERR(buf_desc))
+		if (IS_ERR(buf_desc)) {
+			if (!is_dgraded) {
+				is_dgraded = true;
+				SMC_STAT_RMB_DOWNGRADED(smc, is_smcd, is_rmb);
+			}
 			continue;
+		}
 
+		SMC_STAT_RMB_ALLOC(smc, is_smcd, is_rmb);
+		SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
 		buf_desc->used = 1;
 		mutex_lock(lock);
 		list_add(&buf_desc->list, buf_list);

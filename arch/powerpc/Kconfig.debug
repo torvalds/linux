@@ -84,6 +84,11 @@ config MSI_BITMAP_SELFTEST
 
 config PPC_IRQ_SOFT_MASK_DEBUG
 	bool "Include extra checks for powerpc irq soft masking"
+	depends on PPC64
+
+config PPC_RFI_SRR_DEBUG
+	bool "Include extra checks for RFI SRR register validity"
+	depends on PPC_BOOK3S_64
 
 config XMON
 	bool "Include xmon kernel debugger"

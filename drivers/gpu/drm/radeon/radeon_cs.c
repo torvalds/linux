@@ -400,12 +400,12 @@ static int cmp_size_smaller_first(void *priv, const struct list_head *a,
 	struct radeon_bo_list *lb = list_entry(b, struct radeon_bo_list, tv.head);
 
 	/* Sort A before B if A is smaller. */
-	return (int)la->robj->tbo.mem.num_pages -
-		(int)lb->robj->tbo.mem.num_pages;
+	return (int)la->robj->tbo.resource->num_pages -
+		(int)lb->robj->tbo.resource->num_pages;
 }
 
 /**
- * cs_parser_fini() - clean parser states
+ * radeon_cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
  * @backoff:	indicator to backoff the reservation
@@ -516,7 +516,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 	}
 
 	r = radeon_vm_bo_update(rdev, vm->ib_bo_va,
-				&rdev->ring_tmp_bo.bo->tbo.mem);
+				rdev->ring_tmp_bo.bo->tbo.resource);
 	if (r)
 		return r;
 
@@ -530,7 +530,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 
-		r = radeon_vm_bo_update(rdev, bo_va, &bo->tbo.mem);
+		r = radeon_vm_bo_update(rdev, bo_va, bo->tbo.resource);
 		if (r)
 			return r;
 

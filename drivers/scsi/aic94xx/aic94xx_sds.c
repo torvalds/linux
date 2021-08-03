@@ -718,10 +718,12 @@ static void *asd_find_ll_by_id(void * const start, const u8 id0, const u8 id1)
 	do {
 		switch (id1) {
 		default:
-			if (el->id1 == id1)
+			if (el->id1 == id1) {
+			fallthrough;
 		case 0xFF:
 				if (el->id0 == id0)
 					return el;
+			}
 		}
 		el = start + le16_to_cpu(el->next);
 	} while (el != start);

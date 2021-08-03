@@ -30,7 +30,6 @@ properties:
 
   reg-names:
     minItems: 1
-    maxItems: 13
     items:
       - const: main
       - enum: [ avlink, cec, infoframe, esdp, dpp, afe, rep, edid, hdmi, test, cp, vdp ]

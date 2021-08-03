@@ -626,7 +626,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 static unsigned int serial_omap_tx_empty(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned int ret = 0;
 
 	pm_runtime_get_sync(up->dev);
@@ -704,7 +704,7 @@ static void serial_omap_set_mctrl(struct uart_port *port, unsigned int mctrl)
 static void serial_omap_break_ctl(struct uart_port *port, int break_state)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(up->port.dev, "serial_omap_break_ctl+%d\n", up->port.line);
 	pm_runtime_get_sync(up->dev);
@@ -722,7 +722,7 @@ static void serial_omap_break_ctl(struct uart_port *port, int break_state)
 static int serial_omap_startup(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int retval;
 
 	/*
@@ -797,7 +797,7 @@ static int serial_omap_startup(struct uart_port *port)
 static void serial_omap_shutdown(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(up->port.dev, "serial_omap_shutdown+%d\n", up->port.line);
 
@@ -845,7 +845,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
 	unsigned char cval = 0;
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned int baud, quot;
 
 	switch (termios->c_cflag & CSIZE) {

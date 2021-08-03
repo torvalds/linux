@@ -214,10 +214,10 @@ static inline struct xbc_node * __init xbc_node_get_subkey(struct xbc_node *node
  * @value: Iterated value of array entry.
  *
  * Iterate array entries of given @key under @node. Each array entry node
- * is stroed to @anode and @value. If the @node doesn't have @key node,
+ * is stored to @anode and @value. If the @node doesn't have @key node,
  * it does nothing.
  * Note that even if the found key node has only one value (not array)
- * this executes block once. Hoever, if the found key node has no value
+ * this executes block once. However, if the found key node has no value
  * (key-only node), this does nothing. So don't use this for testing the
  * key-value pair existence.
  */

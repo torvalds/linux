@@ -208,7 +208,7 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
-	if (!hdev->supports_soft_reset) {
+	if (!hdev->allow_external_soft_reset) {
 		dev_err(hdev->dev, "Device does not support soft-reset\n");
 		goto out;
 	}

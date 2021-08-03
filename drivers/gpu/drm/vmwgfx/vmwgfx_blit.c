@@ -421,7 +421,7 @@ static int vmw_bo_cpu_blit_line(struct vmw_bo_blit_line_data *d,
 }
 
 /**
- * ttm_bo_cpu_blit - in-kernel cpu blit.
+ * vmw_bo_cpu_blit - in-kernel cpu blit.
  *
  * @dst: Destination buffer object.
  * @dst_offset: Destination offset of blit start in bytes.
@@ -483,10 +483,10 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 	d.src_addr = NULL;
 	d.dst_pages = dst->ttm->pages;
 	d.src_pages = src->ttm->pages;
-	d.dst_num_pages = dst->mem.num_pages;
-	d.src_num_pages = src->mem.num_pages;
-	d.dst_prot = ttm_io_prot(dst, &dst->mem, PAGE_KERNEL);
-	d.src_prot = ttm_io_prot(src, &src->mem, PAGE_KERNEL);
+	d.dst_num_pages = dst->resource->num_pages;
+	d.src_num_pages = src->resource->num_pages;
+	d.dst_prot = ttm_io_prot(dst, dst->resource, PAGE_KERNEL);
+	d.src_prot = ttm_io_prot(src, src->resource, PAGE_KERNEL);
 	d.diff = diff;
 
 	for (j = 0; j < h; ++j) {

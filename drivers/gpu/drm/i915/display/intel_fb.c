@@ -30,14 +30,6 @@ bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
 	       plane == 2;
 }
 
-bool is_aux_plane(const struct drm_framebuffer *fb, int plane)
-{
-	if (is_ccs_modifier(fb->modifier))
-		return is_ccs_plane(fb, plane);
-
-	return plane == 1;
-}
-
 bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane)
 {
 	return intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
@@ -84,7 +76,7 @@ int skl_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 
 unsigned int intel_tile_size(const struct drm_i915_private *i915)
 {
-	return IS_DISPLAY_VER(i915, 2) ? 2048 : 4096;
+	return DISPLAY_VER(i915) == 2 ? 2048 : 4096;
 }
 
 unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane)
@@ -171,17 +163,17 @@ void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
 	*vsub = 32;
 }
 
-static void intel_fb_plane_dims(int *w, int *h, struct drm_framebuffer *fb, int color_plane)
+static void intel_fb_plane_dims(const struct intel_framebuffer *fb, int color_plane, int *w, int *h)
 {
-	int main_plane = is_ccs_plane(fb, color_plane) ?
-			 skl_ccs_to_main_plane(fb, color_plane) : 0;
+	int main_plane = is_ccs_plane(&fb->base, color_plane) ?
+			 skl_ccs_to_main_plane(&fb->base, color_plane) : 0;
 	int main_hsub, main_vsub;
 	int hsub, vsub;
 
-	intel_fb_plane_get_subsampling(&main_hsub, &main_vsub, fb, main_plane);
-	intel_fb_plane_get_subsampling(&hsub, &vsub, fb, color_plane);
-	*w = fb->width / main_hsub / hsub;
-	*h = fb->height / main_vsub / vsub;
+	intel_fb_plane_get_subsampling(&main_hsub, &main_vsub, &fb->base, main_plane);
+	intel_fb_plane_get_subsampling(&hsub, &vsub, &fb->base, color_plane);
+	*w = fb->base.width / main_hsub / hsub;
+	*h = fb->base.height / main_vsub / vsub;
 }
 
 static u32 intel_adjust_tile_offset(int *x, int *y,
@@ -363,8 +355,17 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	unsigned int height;
 	u32 alignment;
 
-	if (DISPLAY_VER(i915) >= 12 &&
-	    is_semiplanar_uv_plane(fb, color_plane))
+	/*
+	 * All DPT color planes must be 512*4k aligned (the amount mapped by a
+	 * single DPT page). For ADL_P CCS FBs this only works by requiring
+	 * the allocated offsets to be 2MB aligned.  Once supoort to remap
+	 * such FBs is added we can remove this requirement, as then all the
+	 * planes can be remapped to an aligned offset.
+	 */
+	if (IS_ALDERLAKE_P(i915) && is_ccs_modifier(fb->modifier))
+		alignment = 512 * 4096;
+	else if (DISPLAY_VER(i915) >= 12 &&
+		 is_semiplanar_uv_plane(fb, color_plane))
 		alignment = intel_tile_row_size(fb, color_plane);
 	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
 		alignment = intel_tile_size(i915);
@@ -486,9 +487,12 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 	return true;
 }
 
-static bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
+bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
 {
-	return false;
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+
+	return IS_ALDERLAKE_P(i915) && fb->base.modifier != DRM_FORMAT_MOD_LINEAR &&
+	       !is_ccs_modifier(fb->base.modifier);
 }
 
 static int intel_fb_pitch(const struct intel_framebuffer *fb, int color_plane, unsigned int rotation)
@@ -609,7 +613,11 @@ plane_view_dst_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
 			    unsigned int pitch_tiles)
 {
 	if (intel_fb_needs_pot_stride_remap(fb))
-		return roundup_pow_of_two(pitch_tiles);
+		/*
+		 * ADL_P, the only platform needing a POT stride has a minimum
+		 * of 8 stride tiles.
+		 */
+		return roundup_pow_of_two(max(pitch_tiles, 8u));
 	else
 		return pitch_tiles;
 }
@@ -743,19 +751,34 @@ static void intel_fb_view_init(struct intel_fb_view *view, enum i915_ggtt_view_t
 	view->gtt.type = view_type;
 }
 
-int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb)
+bool intel_fb_supports_90_270_rotation(const struct intel_framebuffer *fb)
 {
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	if (DISPLAY_VER(to_i915(fb->base.dev)) >= 13)
+		return false;
+
+	return fb->base.modifier == I915_FORMAT_MOD_Y_TILED ||
+	       fb->base.modifier == I915_FORMAT_MOD_Yf_TILED;
+}
+
+int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb)
+{
+	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
 	u32 gtt_offset_rotated = 0;
 	u32 gtt_offset_remapped = 0;
 	unsigned int max_size = 0;
-	int i, num_planes = fb->format->num_planes;
+	int i, num_planes = fb->base.format->num_planes;
 	unsigned int tile_size = intel_tile_size(i915);
 
-	intel_fb_view_init(&intel_fb->normal_view, I915_GGTT_VIEW_NORMAL);
-	intel_fb_view_init(&intel_fb->rotated_view, I915_GGTT_VIEW_ROTATED);
-	intel_fb_view_init(&intel_fb->remapped_view, I915_GGTT_VIEW_REMAPPED);
+	intel_fb_view_init(&fb->normal_view, I915_GGTT_VIEW_NORMAL);
+
+	drm_WARN_ON(&i915->drm,
+		    intel_fb_supports_90_270_rotation(fb) &&
+		    intel_fb_needs_pot_stride_remap(fb));
+
+	if (intel_fb_supports_90_270_rotation(fb))
+		intel_fb_view_init(&fb->rotated_view, I915_GGTT_VIEW_ROTATED);
+	if (intel_fb_needs_pot_stride_remap(fb))
+		intel_fb_view_init(&fb->remapped_view, I915_GGTT_VIEW_REMAPPED);
 
 	for (i = 0; i < num_planes; i++) {
 		struct fb_plane_view_dims view_dims;
@@ -770,45 +793,43 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		 * is consumed by the driver and not passed to DE. Skip the
 		 * arithmetic related to alignment and offset calculation.
 		 */
-		if (is_gen12_ccs_cc_plane(fb, i)) {
-			if (IS_ALIGNED(fb->offsets[i], PAGE_SIZE))
+		if (is_gen12_ccs_cc_plane(&fb->base, i)) {
+			if (IS_ALIGNED(fb->base.offsets[i], PAGE_SIZE))
 				continue;
 			else
 				return -EINVAL;
 		}
 
-		cpp = fb->format->cpp[i];
-		intel_fb_plane_dims(&width, &height, fb, i);
+		cpp = fb->base.format->cpp[i];
+		intel_fb_plane_dims(fb, i, &width, &height);
 
-		ret = convert_plane_offset_to_xy(intel_fb, i, width, &x, &y);
+		ret = convert_plane_offset_to_xy(fb, i, width, &x, &y);
 		if (ret)
 			return ret;
 
-		init_plane_view_dims(intel_fb, i, width, height, &view_dims);
+		init_plane_view_dims(fb, i, width, height, &view_dims);
 
 		/*
 		 * First pixel of the framebuffer from
 		 * the start of the normal gtt mapping.
 		 */
-		intel_fb->normal_view.color_plane[i].x = x;
-		intel_fb->normal_view.color_plane[i].y = y;
-		intel_fb->normal_view.color_plane[i].stride = intel_fb->base.pitches[i];
+		fb->normal_view.color_plane[i].x = x;
+		fb->normal_view.color_plane[i].y = y;
+		fb->normal_view.color_plane[i].stride = fb->base.pitches[i];
 
-		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
+		offset = calc_plane_aligned_offset(fb, i, &x, &y);
 
-		/* Y or Yf modifiers required for 90/270 rotation */
-		if (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-		    fb->modifier == I915_FORMAT_MOD_Yf_TILED)
-			gtt_offset_rotated += calc_plane_remap_info(intel_fb, i, &view_dims,
+		if (intel_fb_supports_90_270_rotation(fb))
+			gtt_offset_rotated += calc_plane_remap_info(fb, i, &view_dims,
 								    offset, gtt_offset_rotated, x, y,
-								    &intel_fb->rotated_view);
+								    &fb->rotated_view);
 
-		if (intel_fb_needs_pot_stride_remap(intel_fb))
-			gtt_offset_remapped += calc_plane_remap_info(intel_fb, i, &view_dims,
+		if (intel_fb_needs_pot_stride_remap(fb))
+			gtt_offset_remapped += calc_plane_remap_info(fb, i, &view_dims,
 								     offset, gtt_offset_remapped, x, y,
-								     &intel_fb->remapped_view);
+								     &fb->remapped_view);
 
-		size = calc_plane_normal_size(intel_fb, i, &view_dims, x, y);
+		size = calc_plane_normal_size(fb, i, &view_dims, x, y);
 		/* how many tiles in total needed in the bo */
 		max_size = max(max_size, offset + size);
 	}

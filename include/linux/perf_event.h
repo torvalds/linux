@@ -1576,6 +1576,12 @@ static struct perf_pmu_events_attr _var = {				    \
 	.event_str	= _str,						    \
 };
 
+#define PMU_EVENT_ATTR_ID(_name, _show, _id)				\
+	(&((struct perf_pmu_events_attr[]) {				\
+		{ .attr = __ATTR(_name, 0444, _show, NULL),		\
+		  .id = _id, }						\
+	})[0].attr.attr)
+
 #define PMU_FORMAT_ATTR(_name, _format)					\
 static ssize_t								\
 _name##_show(struct device *dev,					\

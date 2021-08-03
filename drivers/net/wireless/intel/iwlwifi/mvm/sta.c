@@ -3794,8 +3794,12 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 
 	mvm_sta->disable_tx = disable;
 
-	/* Tell mac80211 to start/stop queuing tx for this station */
-	ieee80211_sta_block_awake(mvm->hw, sta, disable);
+	/*
+	 * If sta PS state is handled by mac80211, tell it to start/stop
+	 * queuing tx for this station.
+	 */
+	if (!ieee80211_hw_check(mvm->hw, AP_LINK_PS))
+		ieee80211_sta_block_awake(mvm->hw, sta, disable);
 
 	iwl_mvm_sta_modify_disable_tx(mvm, mvm_sta, disable);
 

@@ -86,6 +86,8 @@ void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct securedispla
 	(*cmd)->cmd_id = command_id;
 }
 
+#if defined(CONFIG_DEBUG_FS)
+
 static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
 {
@@ -161,6 +163,8 @@ static const struct file_operations amdgpu_securedisplay_debugfs_ops = {
 	.write = amdgpu_securedisplay_debugfs_write,
 	.llseek = default_llseek
 };
+
+#endif
 
 void amdgpu_securedisplay_debugfs_init(struct amdgpu_device *adev)
 {

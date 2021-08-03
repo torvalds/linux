@@ -29,6 +29,7 @@ struct amdgpu_smuio_funcs {
 	void (*update_rom_clock_gating)(struct amdgpu_device *adev, bool enable);
 	void (*get_clock_gating_state)(struct amdgpu_device *adev, u32 *flags);
 	u32 (*get_die_id)(struct amdgpu_device *adev);
+	u32 (*get_socket_id)(struct amdgpu_device *adev);
 	bool (*is_host_gpu_xgmi_supported)(struct amdgpu_device *adev);
 };
 

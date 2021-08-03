@@ -134,13 +134,13 @@ void xen_balloon_init(void)
 EXPORT_SYMBOL_GPL(xen_balloon_init);
 
 #define BALLOON_SHOW(name, format, args...)				\
-	static ssize_t show_##name(struct device *dev,			\
+	static ssize_t name##_show(struct device *dev,			\
 				   struct device_attribute *attr,	\
 				   char *buf)				\
 	{								\
 		return sprintf(buf, format, ##args);			\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+	static DEVICE_ATTR_RO(name)
 
 BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
 BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
@@ -152,16 +152,15 @@ static DEVICE_ULONG_ATTR(retry_count, 0444, balloon_stats.retry_count);
 static DEVICE_ULONG_ATTR(max_retry_count, 0644, balloon_stats.max_retry_count);
 static DEVICE_BOOL_ATTR(scrub_pages, 0644, xen_scrub_pages);
 
-static ssize_t show_target_kb(struct device *dev, struct device_attribute *attr,
+static ssize_t target_kb_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	return sprintf(buf, "%lu\n", PAGES2KB(balloon_stats.target_pages));
 }
 
-static ssize_t store_target_kb(struct device *dev,
+static ssize_t target_kb_store(struct device *dev,
 			       struct device_attribute *attr,
-			       const char *buf,
-			       size_t count)
+			       const char *buf, size_t count)
 {
 	char *endchar;
 	unsigned long long target_bytes;
@@ -176,22 +175,19 @@ static ssize_t store_target_kb(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(target_kb, S_IRUGO | S_IWUSR,
-		   show_target_kb, store_target_kb);
+static DEVICE_ATTR_RW(target_kb);
 
-
-static ssize_t show_target(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t target_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	return sprintf(buf, "%llu\n",
 		       (unsigned long long)balloon_stats.target_pages
 		       << PAGE_SHIFT);
 }
 
-static ssize_t store_target(struct device *dev,
+static ssize_t target_store(struct device *dev,
 			    struct device_attribute *attr,
-			    const char *buf,
-			    size_t count)
+			    const char *buf, size_t count)
 {
 	char *endchar;
 	unsigned long long target_bytes;
@@ -206,9 +202,7 @@ static ssize_t store_target(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(target, S_IRUGO | S_IWUSR,
-		   show_target, store_target);
-
+static DEVICE_ATTR_RW(target);
 
 static struct attribute *balloon_attrs[] = {
 	&dev_attr_target_kb.attr,

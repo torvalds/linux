@@ -39,6 +39,8 @@ MODULE_DESCRIPTION(DRV_STRING);
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(pci, otx2_pf_id_table);
 
+static void otx2_vf_link_event_task(struct work_struct *work);
+
 enum {
 	TYPE_PFAF,
 	TYPE_PFVF,
@@ -1108,6 +1110,11 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 	struct msg_req *msg;
 	int err;
 
+	if (enable && bitmap_weight(&pf->flow_cfg->dmacflt_bmap,
+				    pf->flow_cfg->dmacflt_max_flows))
+		netdev_warn(pf->netdev,
+			    "CGX/RPM internal loopback might not work as DMAC filters are active\n");
+
 	mutex_lock(&pf->mbox.lock);
 	if (enable)
 		msg = otx2_mbox_alloc_msg_cgx_intlbk_enable(&pf->mbox);
@@ -1459,6 +1466,9 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	otx2_free_cq_res(pf);
 
+	/* Free all ingress bandwidth profiles allocated */
+	cn10k_free_all_ipolicers(pf);
+
 	mutex_lock(&mbox->lock);
 	/* Reset NIX LF */
 	free_req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
@@ -1528,10 +1538,10 @@ int otx2_open(struct net_device *netdev)
 
 	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag)) {
 		/* Reserve LMT lines for NPA AURA batch free */
-		pf->hw.npa_lmt_base = (__force u64 *)pf->hw.lmt_base;
+		pf->hw.npa_lmt_base = pf->hw.lmt_base;
 		/* Reserve LMT lines for NIX TX */
-		pf->hw.nix_lmt_base = (__force u64 *)((u64)pf->hw.npa_lmt_base +
-				      (NIX_LMTID_BASE * LMT_LINE_SIZE));
+		pf->hw.nix_lmt_base = (u64 *)((u64)pf->hw.npa_lmt_base +
+				      (pf->npa_lmt_lines * LMT_LINE_SIZE));
 	}
 
 	err = otx2_init_hw_resources(pf);
@@ -1638,6 +1648,10 @@ int otx2_open(struct net_device *netdev)
 
 	/* Restore pause frame settings */
 	otx2_config_pause_frm(pf);
+
+	/* Install DMAC Filters */
+	if (pf->flags & OTX2_FLAG_DMACFLTR_SUPPORT)
+		otx2_dmacflt_reinstall_flows(pf);
 
 	err = otx2_rxtx_enable(pf, true);
 	if (err)
@@ -1820,8 +1834,10 @@ static void otx2_do_set_rx_mode(struct work_struct *work)
 
 	if (promisc)
 		req->mode |= NIX_RX_MODE_PROMISC;
-	else if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
+	if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
 		req->mode |= NIX_RX_MODE_ALLMULTI;
+
+	req->mode |= NIX_RX_MODE_USE_MCE;
 
 	otx2_sync_mbox_msg(&pf->mbox);
 	mutex_unlock(&pf->mbox.lock);
@@ -2044,7 +2060,7 @@ static int otx2_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!netif_running(netdev))
 		return -EAGAIN;
 
-	if (vf >= pci_num_vf(pdev))
+	if (vf >= pf->total_vfs)
 		return -EINVAL;
 
 	if (!is_valid_ether_addr(mac))
@@ -2055,7 +2071,8 @@ static int otx2_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 
 	ret = otx2_do_set_vf_mac(pf, vf, mac);
 	if (ret == 0)
-		dev_info(&pdev->dev, "Reload VF driver to apply the changes\n");
+		dev_info(&pdev->dev,
+			 "Load/Reload VF driver\n");
 
 	return ret;
 }
@@ -2104,7 +2121,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 		}
 		idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_RX_INDEX);
 		del_req->entry =
-			flow_cfg->entry[flow_cfg->vf_vlan_offset + idx];
+			flow_cfg->def_ent[flow_cfg->vf_vlan_offset + idx];
 		err = otx2_sync_mbox_msg(&pf->mbox);
 		if (err)
 			goto out;
@@ -2117,7 +2134,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 		}
 		idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_TX_INDEX);
 		del_req->entry =
-			flow_cfg->entry[flow_cfg->vf_vlan_offset + idx];
+			flow_cfg->def_ent[flow_cfg->vf_vlan_offset + idx];
 		err = otx2_sync_mbox_msg(&pf->mbox);
 
 		goto out;
@@ -2131,7 +2148,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	}
 
 	idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_RX_INDEX);
-	req->entry = flow_cfg->entry[flow_cfg->vf_vlan_offset + idx];
+	req->entry = flow_cfg->def_ent[flow_cfg->vf_vlan_offset + idx];
 	req->packet.vlan_tci = htons(vlan);
 	req->mask.vlan_tci = htons(VLAN_VID_MASK);
 	/* af fills the destination mac addr */
@@ -2182,7 +2199,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 
 	eth_zero_addr((u8 *)&req->mask.dmac);
 	idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_TX_INDEX);
-	req->entry = flow_cfg->entry[flow_cfg->vf_vlan_offset + idx];
+	req->entry = flow_cfg->def_ent[flow_cfg->vf_vlan_offset + idx];
 	req->features = BIT_ULL(NPC_DMAC);
 	req->channel = pf->hw.tx_chan_base;
 	req->intf = NIX_INTF_TX;
@@ -2241,8 +2258,61 @@ static int otx2_get_vf_config(struct net_device *netdev, int vf,
 	ivi->vf = vf;
 	ether_addr_copy(ivi->mac, config->mac);
 	ivi->vlan = config->vlan;
+	ivi->trusted = config->trusted;
 
 	return 0;
+}
+
+static int otx2_set_vf_permissions(struct otx2_nic *pf, int vf,
+				   int req_perm)
+{
+	struct set_vf_perm *req;
+	int rc;
+
+	mutex_lock(&pf->mbox.lock);
+	req = otx2_mbox_alloc_msg_set_vf_perm(&pf->mbox);
+	if (!req) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* Let AF reset VF permissions as sriov is disabled */
+	if (req_perm == OTX2_RESET_VF_PERM) {
+		req->flags |= RESET_VF_PERM;
+	} else if (req_perm == OTX2_TRUSTED_VF) {
+		if (pf->vf_configs[vf].trusted)
+			req->flags |= VF_TRUSTED;
+	}
+
+	req->vf = vf;
+	rc = otx2_sync_mbox_msg(&pf->mbox);
+out:
+	mutex_unlock(&pf->mbox.lock);
+	return rc;
+}
+
+static int otx2_ndo_set_vf_trust(struct net_device *netdev, int vf,
+				 bool enable)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+	struct pci_dev *pdev = pf->pdev;
+	int rc;
+
+	if (vf >= pci_num_vf(pdev))
+		return -EINVAL;
+
+	if (pf->vf_configs[vf].trusted == enable)
+		return 0;
+
+	pf->vf_configs[vf].trusted = enable;
+	rc = otx2_set_vf_permissions(pf, vf, OTX2_TRUSTED_VF);
+
+	if (rc)
+		pf->vf_configs[vf].trusted = !enable;
+	else
+		netdev_info(pf->netdev, "VF %d is %strusted\n",
+			    vf, enable ? "" : "not ");
+	return rc;
 }
 
 static const struct net_device_ops otx2_netdev_ops = {
@@ -2261,6 +2331,7 @@ static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_set_vf_vlan	= otx2_set_vf_vlan,
 	.ndo_get_vf_config	= otx2_get_vf_config,
 	.ndo_setup_tc		= otx2_setup_tc,
+	.ndo_set_vf_trust	= otx2_ndo_set_vf_trust,
 };
 
 static int otx2_wq_init(struct otx2_nic *pf)
@@ -2313,6 +2384,40 @@ static int otx2_realloc_msix_vectors(struct otx2_nic *pf)
 	}
 
 	return otx2_register_mbox_intr(pf, false);
+}
+
+static int otx2_sriov_vfcfg_init(struct otx2_nic *pf)
+{
+	int i;
+
+	pf->vf_configs = devm_kcalloc(pf->dev, pf->total_vfs,
+				      sizeof(struct otx2_vf_config),
+				      GFP_KERNEL);
+	if (!pf->vf_configs)
+		return -ENOMEM;
+
+	for (i = 0; i < pf->total_vfs; i++) {
+		pf->vf_configs[i].pf = pf;
+		pf->vf_configs[i].intf_down = true;
+		pf->vf_configs[i].trusted = false;
+		INIT_DELAYED_WORK(&pf->vf_configs[i].link_event_work,
+				  otx2_vf_link_event_task);
+	}
+
+	return 0;
+}
+
+static void otx2_sriov_vfcfg_cleanup(struct otx2_nic *pf)
+{
+	int i;
+
+	if (!pf->vf_configs)
+		return;
+
+	for (i = 0; i < pf->total_vfs; i++) {
+		cancel_delayed_work_sync(&pf->vf_configs[i].link_event_work);
+		otx2_set_vf_permissions(pf, i, OTX2_RESET_VF_PERM);
+	}
 }
 
 static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -2430,7 +2535,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
-	err = cn10k_pf_lmtst_init(pf);
+	err = cn10k_lmtst_init(pf);
 	if (err)
 		goto err_detach_rsrc;
 
@@ -2509,6 +2614,11 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_mcam_flow_del;
 
+	/* Initialize SR-IOV resources */
+	err = otx2_sriov_vfcfg_init(pf);
+	if (err)
+		goto err_pf_sriov_init;
+
 	/* Enable link notifications */
 	otx2_cgx_config_linkevents(pf, true);
 
@@ -2518,6 +2628,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+err_pf_sriov_init:
+	otx2_shutdown_tc(pf);
 err_mcam_flow_del:
 	otx2_mcam_flow_del(pf);
 err_unreg_netdev:
@@ -2527,8 +2639,8 @@ err_del_mcam_entries:
 err_ptp_destroy:
 	otx2_ptp_destroy(pf);
 err_detach_rsrc:
-	if (hw->lmt_base)
-		iounmap(hw->lmt_base);
+	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
+		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_detach_resources(&pf->mbox);
 err_disable_mbox_intr:
 	otx2_disable_mbox_intr(pf);
@@ -2576,7 +2688,7 @@ static int otx2_sriov_enable(struct pci_dev *pdev, int numvfs)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct otx2_nic *pf = netdev_priv(netdev);
-	int ret, i;
+	int ret;
 
 	/* Init PF <=> VF mailbox stuff */
 	ret = otx2_pfvf_mbox_init(pf, numvfs);
@@ -2587,23 +2699,9 @@ static int otx2_sriov_enable(struct pci_dev *pdev, int numvfs)
 	if (ret)
 		goto free_mbox;
 
-	pf->vf_configs = kcalloc(numvfs, sizeof(struct otx2_vf_config),
-				 GFP_KERNEL);
-	if (!pf->vf_configs) {
-		ret = -ENOMEM;
-		goto free_intr;
-	}
-
-	for (i = 0; i < numvfs; i++) {
-		pf->vf_configs[i].pf = pf;
-		pf->vf_configs[i].intf_down = true;
-		INIT_DELAYED_WORK(&pf->vf_configs[i].link_event_work,
-				  otx2_vf_link_event_task);
-	}
-
 	ret = otx2_pf_flr_init(pf, numvfs);
 	if (ret)
-		goto free_configs;
+		goto free_intr;
 
 	ret = otx2_register_flr_me_intr(pf, numvfs);
 	if (ret)
@@ -2618,8 +2716,6 @@ free_flr_intr:
 	otx2_disable_flr_me_intr(pf);
 free_flr:
 	otx2_flr_wq_destroy(pf);
-free_configs:
-	kfree(pf->vf_configs);
 free_intr:
 	otx2_disable_pfvf_mbox_intr(pf, numvfs);
 free_mbox:
@@ -2632,16 +2728,11 @@ static int otx2_sriov_disable(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct otx2_nic *pf = netdev_priv(netdev);
 	int numvfs = pci_num_vf(pdev);
-	int i;
 
 	if (!numvfs)
 		return 0;
 
 	pci_disable_sriov(pdev);
-
-	for (i = 0; i < pci_num_vf(pdev); i++)
-		cancel_delayed_work_sync(&pf->vf_configs[i].link_event_work);
-	kfree(pf->vf_configs);
 
 	otx2_disable_flr_me_intr(pf);
 	otx2_flr_wq_destroy(pf);
@@ -2682,6 +2773,7 @@ static void otx2_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 	otx2_sriov_disable(pf->pdev);
+	otx2_sriov_vfcfg_cleanup(pf);
 	if (pf->otx2_wq)
 		destroy_workqueue(pf->otx2_wq);
 
@@ -2689,9 +2781,8 @@ static void otx2_remove(struct pci_dev *pdev)
 	otx2_mcam_flow_del(pf);
 	otx2_shutdown_tc(pf);
 	otx2_detach_resources(&pf->mbox);
-	if (pf->hw.lmt_base)
-		iounmap(pf->hw.lmt_base);
-
+	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
+		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_disable_mbox_intr(pf);
 	otx2_pfaf_mbox_destroy(pf);
 	pci_free_irq_vectors(pf->pdev);

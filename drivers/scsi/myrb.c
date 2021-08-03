@@ -1397,8 +1397,7 @@ myrb_mode_sense(struct myrb_hba *cb, struct scsi_cmnd *scmd,
 static void myrb_request_sense(struct myrb_hba *cb,
 		struct scsi_cmnd *scmd)
 {
-	scsi_build_sense_buffer(0, scmd->sense_buffer,
-				NO_SENSE, 0, 0);
+	scsi_build_sense(scmd, 0, NO_SENSE, 0, 0);
 	scsi_sg_copy_from_buffer(scmd, scmd->sense_buffer,
 				 SCSI_SENSE_BUFFERSIZE);
 }
@@ -1447,10 +1446,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 	case INQUIRY:
 		if (scmd->cmnd[1] & 1) {
 			/* Illegal request, invalid field in CDB */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						ILLEGAL_REQUEST, 0x24, 0);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 		} else {
 			myrb_inquiry(cb, scmd);
 			scmd->result = (DID_OK << 16);
@@ -1465,10 +1461,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 		if ((scmd->cmnd[2] & 0x3F) != 0x3F &&
 		    (scmd->cmnd[2] & 0x3F) != 0x08) {
 			/* Illegal request, invalid field in CDB */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						ILLEGAL_REQUEST, 0x24, 0);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 		} else {
 			myrb_mode_sense(cb, scmd, ldev_info);
 			scmd->result = (DID_OK << 16);
@@ -1479,20 +1472,14 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 		if ((scmd->cmnd[1] & 1) ||
 		    (scmd->cmnd[8] & 1)) {
 			/* Illegal request, invalid field in CDB */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						ILLEGAL_REQUEST, 0x24, 0);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 			scmd->scsi_done(scmd);
 			return 0;
 		}
 		lba = get_unaligned_be32(&scmd->cmnd[2]);
 		if (lba) {
 			/* Illegal request, invalid field in CDB */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						ILLEGAL_REQUEST, 0x24, 0);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 			scmd->scsi_done(scmd);
 			return 0;
 		}
@@ -1506,10 +1493,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 	case SEND_DIAGNOSTIC:
 		if (scmd->cmnd[1] != 0x04) {
 			/* Illegal request, invalid field in CDB */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						ILLEGAL_REQUEST, 0x24, 0);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 		} else {
 			/* Assume good status */
 			scmd->result = (DID_OK << 16);
@@ -1519,10 +1503,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 	case READ_6:
 		if (ldev_info->state == MYRB_DEVICE_WO) {
 			/* Data protect, attempt to read invalid data */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						DATA_PROTECT, 0x21, 0x06);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, DATA_PROTECT, 0x21, 0x06);
 			scmd->scsi_done(scmd);
 			return 0;
 		}
@@ -1536,10 +1517,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 	case READ_10:
 		if (ldev_info->state == MYRB_DEVICE_WO) {
 			/* Data protect, attempt to read invalid data */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						DATA_PROTECT, 0x21, 0x06);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, DATA_PROTECT, 0x21, 0x06);
 			scmd->scsi_done(scmd);
 			return 0;
 		}
@@ -1553,10 +1531,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 	case READ_12:
 		if (ldev_info->state == MYRB_DEVICE_WO) {
 			/* Data protect, attempt to read invalid data */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						DATA_PROTECT, 0x21, 0x06);
-			scmd->result = (DRIVER_SENSE << 24) |
-				SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, DATA_PROTECT, 0x21, 0x06);
 			scmd->scsi_done(scmd);
 			return 0;
 		}
@@ -1569,9 +1544,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 		break;
 	default:
 		/* Illegal request, invalid opcode */
-		scsi_build_sense_buffer(0, scmd->sense_buffer,
-					ILLEGAL_REQUEST, 0x20, 0);
-		scmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+		scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x20, 0);
 		scmd->scsi_done(scmd);
 		return 0;
 	}
@@ -2352,25 +2325,19 @@ static void myrb_handle_scsi(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk,
 			"Bad Data Encountered\n");
 		if (scmd->sc_data_direction == DMA_FROM_DEVICE)
 			/* Unrecovered read error */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						MEDIUM_ERROR, 0x11, 0);
+			scsi_build_sense(scmd, 0, MEDIUM_ERROR, 0x11, 0);
 		else
 			/* Write error */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						MEDIUM_ERROR, 0x0C, 0);
-		scmd->result = (DID_OK << 16) | SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, MEDIUM_ERROR, 0x0C, 0);
 		break;
 	case MYRB_STATUS_IRRECOVERABLE_DATA_ERROR:
 		scmd_printk(KERN_ERR, scmd, "Irrecoverable Data Error\n");
 		if (scmd->sc_data_direction == DMA_FROM_DEVICE)
 			/* Unrecovered read error, auto-reallocation failed */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						MEDIUM_ERROR, 0x11, 0x04);
+			scsi_build_sense(scmd, 0, MEDIUM_ERROR, 0x11, 0x04);
 		else
 			/* Write error, auto-reallocation failed */
-			scsi_build_sense_buffer(0, scmd->sense_buffer,
-						MEDIUM_ERROR, 0x0C, 0x02);
-		scmd->result = (DID_OK << 16) | SAM_STAT_CHECK_CONDITION;
+			scsi_build_sense(scmd, 0, MEDIUM_ERROR, 0x0C, 0x02);
 		break;
 	case MYRB_STATUS_LDRV_NONEXISTENT_OR_OFFLINE:
 		dev_dbg(&scmd->device->sdev_gendev,
@@ -2381,8 +2348,7 @@ static void myrb_handle_scsi(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk,
 		dev_dbg(&scmd->device->sdev_gendev,
 			    "Attempt to Access Beyond End of Logical Drive");
 		/* Logical block address out of range */
-		scsi_build_sense_buffer(0, scmd->sense_buffer,
-					NOT_READY, 0x21, 0);
+		scsi_build_sense(scmd, 0, NOT_READY, 0x21, 0);
 		break;
 	case MYRB_STATUS_DEVICE_NONRESPONSIVE:
 		dev_dbg(&scmd->device->sdev_gendev, "Device nonresponsive\n");

@@ -11,8 +11,6 @@
 #define SDIO_ERR_VAL16	0xEAEA
 #define SDIO_ERR_VAL32	0xEAEAEAEA
 
-u8 sd_f0_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err);
-
 s32 _sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata);
 s32 _sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata);
 s32 sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata);

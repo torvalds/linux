@@ -184,9 +184,6 @@ struct fotg210_hcd {			/* one per controller */
 
 	/* silicon clock */
 	struct clk		*pclk;
-
-	/* debug files */
-	struct dentry		*debug_dir;
 };
 
 /* convert between an HCD pointer and the corresponding FOTG210_HCD */

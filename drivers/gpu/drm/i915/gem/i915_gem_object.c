@@ -62,6 +62,13 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
 			  struct lock_class_key *key, unsigned flags)
 {
+	/*
+	 * A gem object is embedded both in a struct ttm_buffer_object :/ and
+	 * in a drm_i915_gem_object. Make sure they are aliased.
+	 */
+	BUILD_BUG_ON(offsetof(typeof(*obj), base) !=
+		     offsetof(typeof(*obj), __do_not_access.base));
+
 	spin_lock_init(&obj->vma.lock);
 	INIT_LIST_HEAD(&obj->vma.list);
 
@@ -248,6 +255,12 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		if (obj->ops->release)
 			obj->ops->release(obj);
+
+		if (obj->mm.n_placements > 1)
+			kfree(obj->mm.placements);
+
+		if (obj->shares_resv_from)
+			i915_vm_resv_put(obj->shares_resv_from);
 
 		/* But keep the pointer alive for RCU-protected lookups */
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);

@@ -88,6 +88,7 @@ struct kvmgt_pgfn {
 	struct hlist_node hnode;
 };
 
+#define KVMGT_DEBUGFS_FILENAME "kvmgt_nr_cache_entries"
 struct kvmgt_guest_info {
 	struct kvm *kvm;
 	struct intel_vgpu *vgpu;
@@ -95,7 +96,6 @@ struct kvmgt_guest_info {
 #define NR_BKT (1 << 18)
 	struct hlist_head ptable[NR_BKT];
 #undef NR_BKT
-	struct dentry *debugfs_cache_entries;
 };
 
 struct gvt_dma {
@@ -1947,16 +1947,15 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	info->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
 	kvm_page_track_register_notifier(kvm, &info->track_node);
 
-	info->debugfs_cache_entries = debugfs_create_ulong(
-						"kvmgt_nr_cache_entries",
-						0444, vgpu->debugfs,
-						&vdev->nr_cache_entries);
+	debugfs_create_ulong(KVMGT_DEBUGFS_FILENAME, 0444, vgpu->debugfs,
+			     &vdev->nr_cache_entries);
 	return 0;
 }
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
-	debugfs_remove(info->debugfs_cache_entries);
+	debugfs_remove(debugfs_lookup(KVMGT_DEBUGFS_FILENAME,
+				      info->vgpu->debugfs));
 
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvm_put_kvm(info->kvm);

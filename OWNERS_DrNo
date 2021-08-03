@@ -1,0 +1,15 @@
+# Authoritative list of Dr. No reviewers to approve changes on GKI release
+# branches, such as android12-5.10.
+#
+# This file has no effect in this branch, but is referred to from release
+# branches. So, please do not move or rename.
+#
+# See the GKI release documentation (go/gki-dr-no) for further details.
+
+adelva@google.com
+maennich@google.com
+malchev@google.com
+saravanak@google.com
+smuckle@google.com
+sspatil@google.com
+tkjos@google.com

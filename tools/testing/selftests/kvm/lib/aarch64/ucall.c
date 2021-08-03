@@ -14,7 +14,7 @@ static bool ucall_mmio_init(struct kvm_vm *vm, vm_paddr_t gpa)
 	if (kvm_userspace_memory_region_find(vm, gpa, gpa + 1))
 		return false;
 
-	virt_pg_map(vm, gpa, gpa, 0);
+	virt_pg_map(vm, gpa, gpa);
 
 	ucall_exit_mmio_addr = (vm_vaddr_t *)gpa;
 	sync_global_to_guest(vm, ucall_exit_mmio_addr);

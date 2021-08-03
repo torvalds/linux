@@ -17,6 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/component.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -59,7 +60,7 @@
 	((y1) + ((((y2) - (y1)) * ((x) - (x1))) / ((x2) - (x1))));
 
 /**
- * struct ab8500_fg_interrupts - ab8500 fg interupts
+ * struct ab8500_fg_interrupts - ab8500 fg interrupts
  * @name:	name of the interrupt
  * @isr		function pointer to the isr
  */
@@ -1727,6 +1728,7 @@ static void ab8500_fg_algorithm_calibrate(struct ab8500_fg *di)
 		break;
 	case AB8500_FG_CALIB_WAIT:
 		dev_dbg(di->dev, "Calibration WFI\n");
+		break;
 	default:
 		break;
 	}
@@ -2223,6 +2225,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
 				}
+				break;
 			default:
 				break;
 			}
@@ -2980,27 +2983,6 @@ static int __maybe_unused ab8500_fg_suspend(struct device *dev)
 	return 0;
 }
 
-static int ab8500_fg_remove(struct platform_device *pdev)
-{
-	int ret = 0;
-	struct ab8500_fg *di = platform_get_drvdata(pdev);
-
-	list_del(&di->node);
-
-	/* Disable coulomb counter */
-	ret = ab8500_fg_coulomb_counter(di, false);
-	if (ret)
-		dev_err(di->dev, "failed to disable coulomb counter\n");
-
-	destroy_workqueue(di->fg_wq);
-	ab8500_fg_sysfs_exit(di);
-
-	flush_scheduled_work();
-	ab8500_fg_sysfs_psy_remove_attrs(di);
-	power_supply_unregister(di->fg_psy);
-	return ret;
-}
-
 /* ab8500 fg driver interrupts and their respective isr */
 static struct ab8500_fg_interrupts ab8500_fg_irq[] = {
 	{"NCONV_ACCU", ab8500_fg_cc_convend_handler},
@@ -3024,11 +3006,50 @@ static const struct power_supply_desc ab8500_fg_desc = {
 	.external_power_changed	= ab8500_fg_external_power_changed,
 };
 
+static int ab8500_fg_bind(struct device *dev, struct device *master,
+			  void *data)
+{
+	struct ab8500_fg *di = dev_get_drvdata(dev);
+
+	/* Create a work queue for running the FG algorithm */
+	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
+	if (di->fg_wq == NULL) {
+		dev_err(dev, "failed to create work queue\n");
+		return -ENOMEM;
+	}
+
+	/* Start the coulomb counter */
+	ab8500_fg_coulomb_counter(di, true);
+	/* Run the FG algorithm */
+	queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
+
+	return 0;
+}
+
+static void ab8500_fg_unbind(struct device *dev, struct device *master,
+			     void *data)
+{
+	struct ab8500_fg *di = dev_get_drvdata(dev);
+	int ret;
+
+	/* Disable coulomb counter */
+	ret = ab8500_fg_coulomb_counter(di, false);
+	if (ret)
+		dev_err(dev, "failed to disable coulomb counter\n");
+
+	destroy_workqueue(di->fg_wq);
+	flush_scheduled_work();
+}
+
+static const struct component_ops ab8500_fg_component_ops = {
+	.bind = ab8500_fg_bind,
+	.unbind = ab8500_fg_unbind,
+};
+
 static int ab8500_fg_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct power_supply_config psy_cfg = {};
 	struct device *dev = &pdev->dev;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_fg *di;
 	int i, irq;
 	int ret = 0;
@@ -3038,12 +3059,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	di->bm = &ab8500_bm_data;
-
-	ret = ab8500_bm_of_probe(dev, np, di->bm);
-	if (ret) {
-		dev_err(dev, "failed to get battery information\n");
-		return ret;
-	}
 
 	mutex_init(&di->cc_lock);
 
@@ -3073,13 +3088,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	ab8500_fg_charge_state_to(di, AB8500_FG_CHARGE_INIT);
 	ab8500_fg_discharge_state_to(di, AB8500_FG_DISCHARGE_INIT);
-
-	/* Create a work queue for running the FG algorithm */
-	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
-	if (di->fg_wq == NULL) {
-		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
-	}
 
 	/* Init work for running the fg algorithm instantly */
 	INIT_WORK(&di->fg_work, ab8500_fg_instant_work);
@@ -3113,7 +3121,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ret = ab8500_fg_init_hw_registers(di);
 	if (ret) {
 		dev_err(dev, "failed to initialize registers\n");
-		goto free_inst_curr_wq;
+		return ret;
 	}
 
 	/* Consider battery unknown until we're informed otherwise */
@@ -3121,15 +3129,13 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->flags.batt_id_received = false;
 
 	/* Register FG power supply class */
-	di->fg_psy = power_supply_register(dev, &ab8500_fg_desc, &psy_cfg);
+	di->fg_psy = devm_power_supply_register(dev, &ab8500_fg_desc, &psy_cfg);
 	if (IS_ERR(di->fg_psy)) {
 		dev_err(dev, "failed to register FG psy\n");
-		ret = PTR_ERR(di->fg_psy);
-		goto free_inst_curr_wq;
+		return PTR_ERR(di->fg_psy);
 	}
 
 	di->fg_samples = SEC_TO_SAMPLE(di->bm->fg_params->init_timer);
-	ab8500_fg_coulomb_counter(di, true);
 
 	/*
 	 * Initialize completion used to notify completion and start
@@ -3141,19 +3147,18 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Register primary interrupt handlers */
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
-		if (irq < 0) {
-			ret = irq;
-			goto free_irq;
-		}
+		if (irq < 0)
+			return irq;
 
-		ret = request_threaded_irq(irq, NULL, ab8500_fg_irq[i].isr,
+		ret = devm_request_threaded_irq(dev, irq, NULL,
+				  ab8500_fg_irq[i].isr,
 				  IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 				  ab8500_fg_irq[i].name, di);
 
 		if (ret != 0) {
 			dev_err(dev, "failed to request %s IRQ %d: %d\n",
 				ab8500_fg_irq[i].name, irq, ret);
-			goto free_irq;
+			return ret;
 		}
 		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
 			ab8500_fg_irq[i].name, irq, ret);
@@ -3168,14 +3173,14 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ret = ab8500_fg_sysfs_init(di);
 	if (ret) {
 		dev_err(dev, "failed to create sysfs entry\n");
-		goto free_irq;
+		return ret;
 	}
 
 	ret = ab8500_fg_sysfs_psy_create_attrs(di);
 	if (ret) {
 		dev_err(dev, "failed to create FG psy\n");
 		ab8500_fg_sysfs_exit(di);
-		goto free_irq;
+		return ret;
 	}
 
 	/* Calibrate the fg first time */
@@ -3185,24 +3190,21 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Use room temp as default value until we get an update from driver. */
 	di->bat_temp = 210;
 
-	/* Run the FG algorithm */
-	queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
-
 	list_add_tail(&di->node, &ab8500_fg_list);
 
-	return ret;
+	return component_add(dev, &ab8500_fg_component_ops);
+}
 
-free_irq:
-	/* We also have to free all registered irqs */
-	while (--i >= 0) {
-		/* Last assignment of i from primary interrupt handlers */
-		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
-		free_irq(irq, di);
-	}
+static int ab8500_fg_remove(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
-	power_supply_unregister(di->fg_psy);
-free_inst_curr_wq:
-	destroy_workqueue(di->fg_wq);
+	component_del(&pdev->dev, &ab8500_fg_component_ops);
+	list_del(&di->node);
+	ab8500_fg_sysfs_exit(di);
+	ab8500_fg_sysfs_psy_remove_attrs(di);
+
 	return ret;
 }
 
@@ -3212,8 +3214,9 @@ static const struct of_device_id ab8500_fg_match[] = {
 	{ .compatible = "stericsson,ab8500-fg", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ab8500_fg_match);
 
-static struct platform_driver ab8500_fg_driver = {
+struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
 	.remove = ab8500_fg_remove,
 	.driver = {
@@ -3222,20 +3225,6 @@ static struct platform_driver ab8500_fg_driver = {
 		.pm = &ab8500_fg_pm_ops,
 	},
 };
-
-static int __init ab8500_fg_init(void)
-{
-	return platform_driver_register(&ab8500_fg_driver);
-}
-
-static void __exit ab8500_fg_exit(void)
-{
-	platform_driver_unregister(&ab8500_fg_driver);
-}
-
-subsys_initcall_sync(ab8500_fg_init);
-module_exit(ab8500_fg_exit);
-
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski");
 MODULE_ALIAS("platform:ab8500-fg");

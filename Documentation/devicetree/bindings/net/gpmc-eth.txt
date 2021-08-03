@@ -13,7 +13,7 @@ Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 For the properties relevant to the ethernet controller connected to the GPMC
 refer to the binding documentation of the device. For example, the documentation
-for the SMSC 911x is Documentation/devicetree/bindings/net/smsc911x.txt
+for the SMSC 911x is Documentation/devicetree/bindings/net/smsc,lan9115.yaml
 
 Child nodes need to specify the GPMC bus address width using the "bank-width"
 property but is possible that an ethernet controller also has a property to

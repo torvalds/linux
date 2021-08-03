@@ -23,14 +23,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: Bus Clock
       - description: Module Clock
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: bus
       - const: mod

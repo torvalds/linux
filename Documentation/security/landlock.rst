@@ -25,7 +25,8 @@ Any user can enforce Landlock rulesets on their processes.  They are merged and
 evaluated according to the inherited ones in a way that ensures that only more
 constraints can be added.
 
-User space documentation can be found here: :doc:`/userspace-api/landlock`.
+User space documentation can be found here:
+Documentation/userspace-api/landlock.rst.
 
 Guiding principles for safe access controls
 ===========================================

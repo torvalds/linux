@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #ifndef _GVE_H_
@@ -11,7 +11,9 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
+
 #include "gve_desc.h"
+#include "gve_desc_dqo.h"
 
 #ifndef PCI_VENDOR_ID_GOOGLE
 #define PCI_VENDOR_ID_GOOGLE	0x1ae0
@@ -40,6 +42,11 @@
 
 #define GVE_DATA_SLOT_ADDR_PAGE_MASK (~(PAGE_SIZE - 1))
 
+/* PTYPEs are always 10 bits. */
+#define GVE_NUM_PTYPES	1024
+
+#define GVE_RX_BUFFER_SIZE_DQO 2048
+
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
@@ -51,7 +58,8 @@ struct gve_rx_desc_queue {
 struct gve_rx_slot_page_info {
 	struct page *page;
 	void *page_address;
-	u8 page_offset; /* flipped to second half? */
+	u32 page_offset; /* offset to write to in page */
+	int pagecnt_bias; /* expected pagecnt if only the driver has a ref */
 	u8 can_flip;
 };
 
@@ -76,17 +84,117 @@ struct gve_rx_data_queue {
 
 struct gve_priv;
 
-/* An RX ring that contains a power-of-two sized desc and data ring. */
+/* RX buffer queue for posting buffers to HW.
+ * Each RX (completion) queue has a corresponding buffer queue.
+ */
+struct gve_rx_buf_queue_dqo {
+	struct gve_rx_desc_dqo *desc_ring;
+	dma_addr_t bus;
+	u32 head; /* Pointer to start cleaning buffers at. */
+	u32 tail; /* Last posted buffer index + 1 */
+	u32 mask; /* Mask for indices to the size of the ring */
+};
+
+/* RX completion queue to receive packets from HW. */
+struct gve_rx_compl_queue_dqo {
+	struct gve_rx_compl_desc_dqo *desc_ring;
+	dma_addr_t bus;
+
+	/* Number of slots which did not have a buffer posted yet. We should not
+	 * post more buffers than the queue size to avoid HW overrunning the
+	 * queue.
+	 */
+	int num_free_slots;
+
+	/* HW uses a "generation bit" to notify SW of new descriptors. When a
+	 * descriptor's generation bit is different from the current generation,
+	 * that descriptor is ready to be consumed by SW.
+	 */
+	u8 cur_gen_bit;
+
+	/* Pointer into desc_ring where the next completion descriptor will be
+	 * received.
+	 */
+	u32 head;
+	u32 mask; /* Mask for indices to the size of the ring */
+};
+
+/* Stores state for tracking buffers posted to HW */
+struct gve_rx_buf_state_dqo {
+	/* The page posted to HW. */
+	struct gve_rx_slot_page_info page_info;
+
+	/* The DMA address corresponding to `page_info`. */
+	dma_addr_t addr;
+
+	/* Last offset into the page when it only had a single reference, at
+	 * which point every other offset is free to be reused.
+	 */
+	u32 last_single_ref_offset;
+
+	/* Linked list index to next element in the list, or -1 if none */
+	s16 next;
+};
+
+/* `head` and `tail` are indices into an array, or -1 if empty. */
+struct gve_index_list {
+	s16 head;
+	s16 tail;
+};
+
+/* Contains datapath state used to represent an RX queue. */
 struct gve_rx_ring {
 	struct gve_priv *gve;
-	struct gve_rx_desc_queue desc;
-	struct gve_rx_data_queue data;
+	union {
+		/* GQI fields */
+		struct {
+			struct gve_rx_desc_queue desc;
+			struct gve_rx_data_queue data;
+
+			/* threshold for posting new buffs and descs */
+			u32 db_threshold;
+		};
+
+		/* DQO fields. */
+		struct {
+			struct gve_rx_buf_queue_dqo bufq;
+			struct gve_rx_compl_queue_dqo complq;
+
+			struct gve_rx_buf_state_dqo *buf_states;
+			u16 num_buf_states;
+
+			/* Linked list of gve_rx_buf_state_dqo. Index into
+			 * buf_states, or -1 if empty.
+			 */
+			s16 free_buf_states;
+
+			/* Linked list of gve_rx_buf_state_dqo. Indexes into
+			 * buf_states, or -1 if empty.
+			 *
+			 * This list contains buf_states which are pointing to
+			 * valid buffers.
+			 *
+			 * We use a FIFO here in order to increase the
+			 * probability that buffers can be reused by increasing
+			 * the time between usages.
+			 */
+			struct gve_index_list recycled_buf_states;
+
+			/* Linked list of gve_rx_buf_state_dqo. Indexes into
+			 * buf_states, or -1 if empty.
+			 *
+			 * This list contains buf_states which have buffers
+			 * which cannot be reused yet.
+			 */
+			struct gve_index_list used_buf_states;
+		} dqo;
+	};
+
 	u64 rbytes; /* free-running bytes received */
 	u64 rpackets; /* free-running packets received */
 	u32 cnt; /* free-running total number of completed packets */
 	u32 fill_cnt; /* free-running total number of descs and buffs posted */
 	u32 mask; /* masks the cnt and fill_cnt to the size of the ring */
-	u32 db_threshold; /* threshold for posting new buffs and descs */
 	u64 rx_copybreak_pkt; /* free-running count of copybreak packets */
 	u64 rx_copied_pkt; /* free-running total number of copied packets */
 	u64 rx_skb_alloc_fail; /* free-running count of skb alloc fails */
@@ -97,6 +205,10 @@ struct gve_rx_ring {
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
 	dma_addr_t q_resources_bus; /* dma address for the queue resources */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
+
+	/* head and tail of skb chain for the current packet or NULL if none */
+	struct sk_buff *skb_head;
+	struct sk_buff *skb_tail;
 };
 
 /* A TX desc ring entry */
@@ -137,23 +249,161 @@ struct gve_tx_fifo {
 	struct gve_queue_page_list *qpl; /* QPL mapped into this FIFO */
 };
 
-/* A TX ring that contains a power-of-two sized desc ring and a FIFO buffer */
+/* TX descriptor for DQO format */
+union gve_tx_desc_dqo {
+	struct gve_tx_pkt_desc_dqo pkt;
+	struct gve_tx_tso_context_desc_dqo tso_ctx;
+	struct gve_tx_general_context_desc_dqo general_ctx;
+};
+
+enum gve_packet_state {
+	/* Packet is in free list, available to be allocated.
+	 * This should always be zero since state is not explicitly initialized.
+	 */
+	GVE_PACKET_STATE_UNALLOCATED,
+	/* Packet is expecting a regular data completion or miss completion */
+	GVE_PACKET_STATE_PENDING_DATA_COMPL,
+	/* Packet has received a miss completion and is expecting a
+	 * re-injection completion.
+	 */
+	GVE_PACKET_STATE_PENDING_REINJECT_COMPL,
+	/* No valid completion received within the specified timeout. */
+	GVE_PACKET_STATE_TIMED_OUT_COMPL,
+};
+
+struct gve_tx_pending_packet_dqo {
+	struct sk_buff *skb; /* skb for this packet */
+
+	/* 0th element corresponds to the linear portion of `skb`, should be
+	 * unmapped with `dma_unmap_single`.
+	 *
+	 * All others correspond to `skb`'s frags and should be unmapped with
+	 * `dma_unmap_page`.
+	 */
+	struct gve_tx_dma_buf bufs[MAX_SKB_FRAGS + 1];
+	u16 num_bufs;
+
+	/* Linked list index to next element in the list, or -1 if none */
+	s16 next;
+
+	/* Linked list index to prev element in the list, or -1 if none.
+	 * Used for tracking either outstanding miss completions or prematurely
+	 * freed packets.
+	 */
+	s16 prev;
+
+	/* Identifies the current state of the packet as defined in
+	 * `enum gve_packet_state`.
+	 */
+	u8 state;
+
+	/* If packet is an outstanding miss completion, then the packet is
+	 * freed if the corresponding re-injection completion is not received
+	 * before kernel jiffies exceeds timeout_jiffies.
+	 */
+	unsigned long timeout_jiffies;
+};
+
+/* Contains datapath state used to represent a TX queue. */
 struct gve_tx_ring {
 	/* Cacheline 0 -- Accessed & dirtied during transmit */
-	struct gve_tx_fifo tx_fifo;
-	u32 req; /* driver tracked head pointer */
-	u32 done; /* driver tracked tail pointer */
+	union {
+		/* GQI fields */
+		struct {
+			struct gve_tx_fifo tx_fifo;
+			u32 req; /* driver tracked head pointer */
+			u32 done; /* driver tracked tail pointer */
+		};
+
+		/* DQO fields. */
+		struct {
+			/* Linked list of gve_tx_pending_packet_dqo. Index into
+			 * pending_packets, or -1 if empty.
+			 *
+			 * This is a consumer list owned by the TX path. When it
+			 * runs out, the producer list is stolen from the
+			 * completion handling path
+			 * (dqo_compl.free_pending_packets).
+			 */
+			s16 free_pending_packets;
+
+			/* Cached value of `dqo_compl.hw_tx_head` */
+			u32 head;
+			u32 tail; /* Last posted buffer index + 1 */
+
+			/* Index of the last descriptor with "report event" bit
+			 * set.
+			 */
+			u32 last_re_idx;
+		} dqo_tx;
+	};
 
 	/* Cacheline 1 -- Accessed & dirtied during gve_clean_tx_done */
-	__be32 last_nic_done ____cacheline_aligned; /* NIC tail pointer */
+	union {
+		/* GQI fields */
+		struct {
+			/* NIC tail pointer */
+			__be32 last_nic_done;
+		};
+
+		/* DQO fields. */
+		struct {
+			u32 head; /* Last read on compl_desc */
+
+			/* Tracks the current gen bit of compl_q */
+			u8 cur_gen_bit;
+
+			/* Linked list of gve_tx_pending_packet_dqo. Index into
+			 * pending_packets, or -1 if empty.
+			 *
+			 * This is the producer list, owned by the completion
+			 * handling path. When the consumer list
+			 * (dqo_tx.free_pending_packets) is runs out, this list
+			 * will be stolen.
+			 */
+			atomic_t free_pending_packets;
+
+			/* Last TX ring index fetched by HW */
+			atomic_t hw_tx_head;
+
+			/* List to track pending packets which received a miss
+			 * completion but not a corresponding reinjection.
+			 */
+			struct gve_index_list miss_completions;
+
+			/* List to track pending packets that were completed
+			 * before receiving a valid completion because they
+			 * reached a specified timeout.
+			 */
+			struct gve_index_list timed_out_completions;
+		} dqo_compl;
+	} ____cacheline_aligned;
 	u64 pkt_done; /* free-running - total packets completed */
 	u64 bytes_done; /* free-running - total bytes completed */
 	u64 dropped_pkt; /* free-running - total packets dropped */
 	u64 dma_mapping_error; /* count of dma mapping errors */
 
 	/* Cacheline 2 -- Read-mostly fields */
-	union gve_tx_desc *desc ____cacheline_aligned;
-	struct gve_tx_buffer_state *info; /* Maps 1:1 to a desc */
+	union {
+		/* GQI fields */
+		struct {
+			union gve_tx_desc *desc;
+
+			/* Maps 1:1 to a desc */
+			struct gve_tx_buffer_state *info;
+		};
+
+		/* DQO fields. */
+		struct {
+			union gve_tx_desc_dqo *tx_ring;
+			struct gve_tx_compl_desc *compl_ring;
+
+			struct gve_tx_pending_packet_dqo *pending_packets;
+			s16 num_pending_packets;
+
+			u32 complq_mask; /* complq size is complq_mask + 1 */
+		} dqo;
+	} ____cacheline_aligned;
 	struct netdev_queue *netdev_txq;
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
 	struct device *dev;
@@ -167,6 +417,7 @@ struct gve_tx_ring {
 	u32 ntfy_id; /* notification block index */
 	dma_addr_t bus; /* dma address of the descr ring */
 	dma_addr_t q_resources_bus; /* dma address of the queue resources */
+	dma_addr_t complq_bus_dqo; /* dma address of the dqo.compl_ring */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
 } ____cacheline_aligned;
 
@@ -194,6 +445,31 @@ struct gve_qpl_config {
 	unsigned long *qpl_id_map; /* bitmap of used qpl ids */
 };
 
+struct gve_options_dqo_rda {
+	u16 tx_comp_ring_entries; /* number of tx_comp descriptors */
+	u16 rx_buff_ring_entries; /* number of rx_buff descriptors */
+};
+
+struct gve_ptype {
+	u8 l3_type;  /* `gve_l3_type` in gve_adminq.h */
+	u8 l4_type;  /* `gve_l4_type` in gve_adminq.h */
+};
+
+struct gve_ptype_lut {
+	struct gve_ptype ptypes[GVE_NUM_PTYPES];
+};
+
+/* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
+ * when the entire configure_device_resources command is zeroed out and the
+ * queue_format is not specified.
+ */
+enum gve_queue_format {
+	GVE_QUEUE_FORMAT_UNSPECIFIED	= 0x0,
+	GVE_GQI_RDA_FORMAT		= 0x1,
+	GVE_GQI_QPL_FORMAT		= 0x2,
+	GVE_DQO_RDA_FORMAT		= 0x3,
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -216,7 +492,6 @@ struct gve_priv {
 	u64 num_registered_pages; /* num pages registered with NIC */
 	u32 rx_copybreak; /* copy packets smaller than this */
 	u16 default_num_queues; /* default num queues to set up */
-	u8 raw_addressing; /* 1 if this dev supports raw addressing, 0 otherwise */
 
 	struct gve_queue_config tx_cfg;
 	struct gve_queue_config rx_cfg;
@@ -251,6 +526,7 @@ struct gve_priv {
 	u32 adminq_set_driver_parameter_cnt;
 	u32 adminq_report_stats_cnt;
 	u32 adminq_report_link_speed_cnt;
+	u32 adminq_get_ptype_map_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -275,6 +551,14 @@ struct gve_priv {
 
 	/* Gvnic device link speed from hypervisor. */
 	u64 link_speed;
+
+	struct gve_options_dqo_rda options_dqo_rda;
+	struct gve_ptype_lut *ptype_lut_dqo;
+
+	/* Must be a power of two. */
+	int data_buffer_size_dqo;
+
+	enum gve_queue_format queue_format;
 };
 
 enum gve_service_task_flags_bit {
@@ -454,14 +738,20 @@ static inline u32 gve_rx_idx_to_ntfy(struct gve_priv *priv, u32 queue_idx)
  */
 static inline u32 gve_num_tx_qpls(struct gve_priv *priv)
 {
-	return priv->raw_addressing ? 0 : priv->tx_cfg.num_queues;
+	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+		return 0;
+
+	return priv->tx_cfg.num_queues;
 }
 
 /* Returns the number of rx queue page lists
  */
 static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
 {
-	return priv->raw_addressing ? 0 : priv->rx_cfg.num_queues;
+	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+		return 0;
+
+	return priv->rx_cfg.num_queues;
 }
 
 /* Returns a pointer to the next available tx qpl in the list of qpls
@@ -515,6 +805,12 @@ static inline enum dma_data_direction gve_qpl_dma_dir(struct gve_priv *priv,
 		return DMA_FROM_DEVICE;
 }
 
+static inline bool gve_is_gqi(struct gve_priv *priv)
+{
+	return priv->queue_format == GVE_GQI_RDA_FORMAT ||
+		priv->queue_format == GVE_GQI_QPL_FORMAT;
+}
+
 /* buffers */
 int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   struct page **page, dma_addr_t *dma,
@@ -525,14 +821,14 @@ void gve_free_page(struct device *dev, struct page *page, dma_addr_t dma,
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
 int gve_tx_alloc_rings(struct gve_priv *priv);
-void gve_tx_free_rings(struct gve_priv *priv);
+void gve_tx_free_rings_gqi(struct gve_priv *priv);
 __be32 gve_tx_load_event_counter(struct gve_priv *priv,
 				 struct gve_tx_ring *tx);
 /* rx handling */
 void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
 bool gve_rx_poll(struct gve_notify_block *block, int budget);
 int gve_rx_alloc_rings(struct gve_priv *priv);
-void gve_rx_free_rings(struct gve_priv *priv);
+void gve_rx_free_rings_gqi(struct gve_priv *priv);
 bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 		       netdev_features_t feat);
 /* Reset */

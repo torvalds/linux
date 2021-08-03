@@ -20,7 +20,7 @@ Description:
 ------------
 
 This driver supports the STMicroelectronics PM6764TR chip. The PM6764TR is a high
-performance digital controller designed to power Intel’s VR12.5 processors and memories.
+performance digital controller designed to power Intel's VR12.5 processors and memories.
 
 The device utilizes digital technology to implement all control and power management
 functions to provide maximum flexibility and performance. The NVM is embedded to store

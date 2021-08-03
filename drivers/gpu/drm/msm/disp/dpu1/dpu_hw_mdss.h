@@ -343,7 +343,7 @@ enum dpu_3d_blend_mode {
 
 /** struct dpu_format - defines the format configuration which
  * allows DPU HW to correctly fetch and decode the format
- * @base: base msm_format struture containing fourcc code
+ * @base: base msm_format structure containing fourcc code
  * @fetch_planes: how the color components are packed in pixel format
  * @element: element color ordering
  * @bits: element bit widths

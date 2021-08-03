@@ -210,6 +210,9 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 	case CHIP_ALDEBARAN:
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 		break;
+	case CHIP_YELLOW_CARP:
+		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_YELLOW_CARP;
+		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_INV;
@@ -691,6 +694,27 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu)
 
 failed:
 	mutex_unlock(&feature->mutex);
+	return ret;
+}
+
+int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	switch (adev->asic_type) {
+	case CHIP_YELLOW_CARP:
+		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+			return 0;
+		if (enable)
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_AllowGfxOff, NULL);
+		else
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_DisallowGfxOff, NULL);
+		break;
+	default:
+		break;
+	}
+
 	return ret;
 }
 
@@ -1626,6 +1650,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    sclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->gfxclk_pstate.curr.min = sclk_min;
+		pstate_table->gfxclk_pstate.curr.max = sclk_max;
 	}
 
 	if (mclk_min && mclk_max) {
@@ -1635,6 +1662,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    mclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->uclk_pstate.curr.min = mclk_min;
+		pstate_table->uclk_pstate.curr.max = mclk_max;
 	}
 
 	if (socclk_min && socclk_max) {
@@ -1644,6 +1674,9 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 							    socclk_max);
 		if (ret)
 			return ret;
+
+		pstate_table->socclk_pstate.curr.min = socclk_min;
+		pstate_table->socclk_pstate.curr.max = socclk_max;
 	}
 
 	return ret;

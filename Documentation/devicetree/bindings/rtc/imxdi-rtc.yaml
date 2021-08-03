@@ -21,7 +21,6 @@ properties:
       - description: rtc alarm interrupt
       - description: dryice security violation interrupt
     minItems: 1
-    maxItems: 2
 
   clocks:
     maxItems: 1

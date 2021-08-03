@@ -94,8 +94,6 @@ extern int vmw_fence_obj_wait(struct vmw_fence_obj *fence,
 			      bool lazy,
 			      bool interruptible, unsigned long timeout);
 
-extern void vmw_fence_obj_flush(struct vmw_fence_obj *fence);
-
 extern int vmw_fence_create(struct vmw_fence_manager *fman,
 			    uint32_t seqno,
 			    struct vmw_fence_obj **p_fence);

@@ -330,14 +330,14 @@ static int regmap_ipc_byte_reg_write(void *context, unsigned int reg,
 
 /* sysfs interfaces to r/w PMIC registers, required by initial script */
 static unsigned long bxtwc_reg_addr;
-static ssize_t bxtwc_reg_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t addr_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "0x%lx\n", bxtwc_reg_addr);
 }
 
-static ssize_t bxtwc_reg_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t addr_store(struct device *dev,
+			  struct device_attribute *attr, const char *buf, size_t count)
 {
 	if (kstrtoul(buf, 0, &bxtwc_reg_addr)) {
 		dev_err(dev, "Invalid register address\n");
@@ -346,8 +346,8 @@ static ssize_t bxtwc_reg_store(struct device *dev,
 	return (ssize_t)count;
 }
 
-static ssize_t bxtwc_val_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t val_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	int ret;
 	unsigned int val;
@@ -362,8 +362,8 @@ static ssize_t bxtwc_val_show(struct device *dev,
 	return sprintf(buf, "0x%02x\n", val);
 }
 
-static ssize_t bxtwc_val_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t val_store(struct device *dev,
+			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret;
 	unsigned int val;
@@ -382,8 +382,8 @@ static ssize_t bxtwc_val_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(addr, S_IWUSR | S_IRUSR, bxtwc_reg_show, bxtwc_reg_store);
-static DEVICE_ATTR(val, S_IWUSR | S_IRUSR, bxtwc_val_show, bxtwc_val_store);
+static DEVICE_ATTR_ADMIN_RW(addr);
+static DEVICE_ATTR_ADMIN_RW(val);
 static struct attribute *bxtwc_attrs[] = {
 	&dev_attr_addr.attr,
 	&dev_attr_val.attr,

@@ -21,14 +21,11 @@
 
 	backlight_lcd: backlight-lcd {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_backlight>;
-		pwms = <&pwm1 0 500000>;
+		pwms = <&pwm1 0 500000 0>;
 		brightness-levels = <0 20 81 248 1000>;
 		default-brightness-level = <20>;
 		num-interpolated-steps = <21>;
 		power-supply = <&reg_bl_12v0>;
-		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 
 	keys {
@@ -223,6 +220,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
+
+	touchscreen@0 {
+		compatible = "ti,tsc2046";
+		reg = <0>;
+		pinctrl-0 = <&pinctrl_tsc>;
+		pinctrl-names ="default";
+		spi-max-frequency = <100000>;
+		interrupts-extended = <&gpio3 20 IRQ_TYPE_EDGE_FALLING>;
+		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		touchscreen-max-pressure = <4095>;
+		ti,vref-delay-usecs = /bits/ 16 <100>;
+		ti,x-plate-ohms = /bits/ 16 <800>;
+		ti,y-plate-ohms = /bits/ 16 <300>;
+		ti,debounce-max = /bits/ 16 <3>;
+		ti,debounce-tol = /bits/ 16 <70>;
+		ti,debounce-rep = /bits/ 16 <3>;
+		wakeup-source;
+	};
 };
 
 &i2c1 {
@@ -261,7 +276,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -276,16 +290,10 @@
 };
 
 &ssi1 {
-	#sound-dai-cells = <0>;
-	fsl,mode = "ac97-slave";
 	status = "okay";
 };
 
 &usbh1 {
-	status = "disabled";
-};
-
-&vpu {
 	status = "disabled";
 };
 
@@ -297,12 +305,6 @@
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
 			MX6QDL_PAD_CSI0_DAT5__AUD3_TXD		0x110b0
 			MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS		0x130b0
-		>;
-	};
-
-	pinctrl_backlight: backlightgrp {
-		fsl,pins = <
-			MX6QDL_PAD_DISP0_DAT7__GPIO4_IO28	0x1b0b0
 		>;
 	};
 

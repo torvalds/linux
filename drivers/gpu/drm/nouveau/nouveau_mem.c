@@ -178,25 +178,24 @@ void
 nouveau_mem_del(struct ttm_resource *reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
-	if (!mem)
-		return;
+
 	nouveau_mem_fini(mem);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
+	kfree(mem);
 }
 
 int
 nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
-		struct ttm_resource *reg)
+		struct ttm_resource **res)
 {
 	struct nouveau_mem *mem;
 
 	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
 		return -ENOMEM;
+
 	mem->cli = cli;
 	mem->kind = kind;
 	mem->comp = comp;
 
-	reg->mm_node = mem;
+	*res = &mem->base;
 	return 0;
 }

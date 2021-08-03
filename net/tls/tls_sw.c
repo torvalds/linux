@@ -1153,7 +1153,7 @@ static int tls_sw_do_sendpage(struct sock *sk, struct page *page,
 	int ret = 0;
 	bool eor;
 
-	eor = !(flags & (MSG_MORE | MSG_SENDPAGE_NOTLAST));
+	eor = !(flags & MSG_SENDPAGE_NOTLAST);
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	/* Call the sk_stream functions to manage the sndbuf mem. */
@@ -2019,8 +2019,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (copied < 0)
 		goto splice_read_end;
 
-	if (likely(!(flags & MSG_PEEK)))
-		tls_sw_advance_skb(sk, skb, copied);
+	tls_sw_advance_skb(sk, skb, copied);
 
 splice_read_end:
 	release_sock(sk);

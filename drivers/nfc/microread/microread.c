@@ -364,7 +364,6 @@ static void microread_im_transceive_cb(void *context, struct sk_buff *skb,
 	case MICROREAD_CB_TYPE_READER_ALL:
 		if (err == 0) {
 			if (skb->len == 0) {
-				err = -EPROTO;
 				kfree_skb(skb);
 				info->async_cb(info->async_cb_context, NULL,
 					       -EPROTO);

@@ -308,8 +308,8 @@ static int snd_echo_midi_create(struct snd_card *card,
 {
 	int err;
 
-	if ((err = snd_rawmidi_new(card, card->shortname, 0, 1, 1,
-				   &chip->rmidi)) < 0)
+	err = snd_rawmidi_new(card, card->shortname, 0, 1, 1, &chip->rmidi);
+	if (err < 0)
 		return err;
 
 	strcpy(chip->rmidi->name, card->shortname);

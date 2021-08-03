@@ -44,6 +44,32 @@
 		};
 	};
 
+	/* Powers the SATA Disk 0 regulator, which is enabled when a disk load is detected */
+	p12v_0: regulator-p12v_0 {
+		compatible = "regulator-fixed";
+		regulator-name = "P12V_0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		vin-supply = <&main_12v>;
+
+		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	/* Powers the SATA Disk 1 regulator, which is enabled when a disk load is detected */
+	p12v_1: regulator-p12v_1 {
+		compatible = "regulator-fixed";
+		regulator-name = "P12V_1";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		vin-supply = <&main_12v>;
+
+		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	sound {
 		model = "ODROID-HC4";
 	};
@@ -90,7 +116,25 @@
 	status = "disabled";
 };
 
+&spifc {
+	status = "okay";
+	pinctrl-0 = <&nor_pins>;
+	pinctrl-names = "default";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <104000000>;
+	};
+};
+
 &usb {
-	phys = <&usb2_phy0>, <&usb2_phy1>;
-	phy-names = "usb2-phy0", "usb2-phy1";
+	phys = <&usb2_phy1>;
+	phy-names = "usb2-phy1";
+};
+
+&usb2_phy0 {
+	status = "disabled";
 };

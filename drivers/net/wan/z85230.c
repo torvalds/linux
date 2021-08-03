@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- *
- *	(c) Copyright 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
+/*	(c) Copyright 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	(c) Copyright 2000, 2001 Red Hat Inc
  *
  *	Development of this driver was funded by Equiinet Ltd
@@ -12,7 +10,7 @@
  *	Asynchronous mode dropped for 2.2. For 2.5 we will attempt the
  *	unification of all the Z85x30 asynchronous drivers for real.
  *
- *	DMA now uses get_free_page as kmalloc buffers may span a 64K 
+ *	DMA now uses get_free_page as kmalloc buffers may span a 64K
  *	boundary.
  *
  *	Modified for SMP safety and SMP locking by Alan Cox
@@ -55,14 +53,13 @@
 
 #include "z85230.h"
 
-
 /**
  *	z8530_read_port - Architecture specific interface function
  *	@p: port to read
  *
  *	Provided port access methods. The Comtrol SV11 requires no delays
  *	between accesses and uses PC I/O. Some drivers may need a 5uS delay
- *	
+ *
  *	In the longer term this should become an architecture specific
  *	section so that this can become a generic driver interface for all
  *	platforms. For now we only handle PC I/O ports with or without the
@@ -74,8 +71,9 @@
 
 static inline int z8530_read_port(unsigned long p)
 {
-	u8 r=inb(Z8530_PORT_OF(p));
-	if(p&Z8530_PORT_SLEEP)	/* gcc should figure this out efficiently ! */
+	u8 r = inb(Z8530_PORT_OF(p));
+
+	if (p & Z8530_PORT_SLEEP) /* gcc should figure this out efficiently ! */
 		udelay(5);
 	return r;
 }
@@ -95,34 +93,30 @@ static inline int z8530_read_port(unsigned long p)
  *	dread 5uS sanity delay.
  */
 
-
 static inline void z8530_write_port(unsigned long p, u8 d)
 {
-	outb(d,Z8530_PORT_OF(p));
-	if(p&Z8530_PORT_SLEEP)
+	outb(d, Z8530_PORT_OF(p));
+	if (p & Z8530_PORT_SLEEP)
 		udelay(5);
 }
-
-
 
 static void z8530_rx_done(struct z8530_channel *c);
 static void z8530_tx_done(struct z8530_channel *c);
 
-
 /**
- *	read_zsreg - Read a register from a Z85230 
+ *	read_zsreg - Read a register from a Z85230
  *	@c: Z8530 channel to read from (2 per chip)
  *	@reg: Register to read
  *	FIXME: Use a spinlock.
- *	
+ *
  *	Most of the Z8530 registers are indexed off the control registers.
  *	A read is done by writing to the control register and reading the
  *	register back.  The caller must hold the lock
  */
- 
+
 static inline u8 read_zsreg(struct z8530_channel *c, u8 reg)
 {
-	if(reg)
+	if (reg)
 		z8530_write_port(c->ctrlio, reg);
 	return z8530_read_port(c->ctrlio);
 }
@@ -138,7 +132,8 @@ static inline u8 read_zsreg(struct z8530_channel *c, u8 reg)
 static inline u8 read_zsdata(struct z8530_channel *c)
 {
 	u8 r;
-	r=z8530_read_port(c->dataio);
+
+	r = z8530_read_port(c->dataio);
 	return r;
 }
 
@@ -156,10 +151,9 @@ static inline u8 read_zsdata(struct z8530_channel *c)
  */
 static inline void write_zsreg(struct z8530_channel *c, u8 reg, u8 val)
 {
-	if(reg)
+	if (reg)
 		z8530_write_port(c->ctrlio, reg);
 	z8530_write_port(c->ctrlio, val);
-
 }
 
 /**
@@ -182,108 +176,94 @@ static inline void write_zsctrl(struct z8530_channel *c, u8 val)
  *
  *	Write directly to the data register on the Z8530
  */
-
-
 static inline void write_zsdata(struct z8530_channel *c, u8 val)
 {
 	z8530_write_port(c->dataio, val);
 }
 
-/*
- *	Register loading parameters for a dead port
+/*	Register loading parameters for a dead port
  */
- 
-u8 z8530_dead_port[]=
-{
+
+u8 z8530_dead_port[] = {
 	255
 };
-
 EXPORT_SYMBOL(z8530_dead_port);
 
-/*
- *	Register loading parameters for currently supported circuit types
+/*	Register loading parameters for currently supported circuit types
  */
 
-
-/*
- *	Data clocked by telco end. This is the correct data for the UK
+/*	Data clocked by telco end. This is the correct data for the UK
  *	"kilostream" service, and most other similar services.
  */
- 
-u8 z8530_hdlc_kilostream[]=
-{
-	4,	SYNC_ENAB|SDLC|X1CLK,
+
+u8 z8530_hdlc_kilostream[] = {
+	4,	SYNC_ENAB | SDLC | X1CLK,
 	2,	0,	/* No vector */
 	1,	0,
-	3,	ENT_HM|RxCRC_ENAB|Rx8,
-	5,	TxCRC_ENAB|RTS|TxENAB|Tx8|DTR,
+	3,	ENT_HM | RxCRC_ENAB | Rx8,
+	5,	TxCRC_ENAB | RTS | TxENAB | Tx8 | DTR,
 	9,	0,		/* Disable interrupts */
 	6,	0xFF,
 	7,	FLAG,
-	10,	ABUNDER|NRZ|CRCPS,/*MARKIDLE ??*/
+	10,	ABUNDER | NRZ | CRCPS,/*MARKIDLE ??*/
 	11,	TCTRxCP,
 	14,	DISDPLL,
-	15,	DCDIE|SYNCIE|CTSIE|TxUIE|BRKIE,
-	1,	EXT_INT_ENAB|TxINT_ENAB|INT_ALL_Rx,
-	9,	NV|MIE|NORESET,
+	15,	DCDIE | SYNCIE | CTSIE | TxUIE | BRKIE,
+	1,	EXT_INT_ENAB | TxINT_ENAB | INT_ALL_Rx,
+	9,	NV | MIE | NORESET,
 	255
 };
-
 EXPORT_SYMBOL(z8530_hdlc_kilostream);
 
-/*
- *	As above but for enhanced chips.
+/*	As above but for enhanced chips.
  */
- 
-u8 z8530_hdlc_kilostream_85230[]=
-{
-	4,	SYNC_ENAB|SDLC|X1CLK,
+
+u8 z8530_hdlc_kilostream_85230[] = {
+	4,	SYNC_ENAB | SDLC | X1CLK,
 	2,	0,	/* No vector */
 	1,	0,
-	3,	ENT_HM|RxCRC_ENAB|Rx8,
-	5,	TxCRC_ENAB|RTS|TxENAB|Tx8|DTR,
+	3,	ENT_HM | RxCRC_ENAB | Rx8,
+	5,	TxCRC_ENAB | RTS | TxENAB | Tx8 | DTR,
 	9,	0,		/* Disable interrupts */
 	6,	0xFF,
 	7,	FLAG,
-	10,	ABUNDER|NRZ|CRCPS,	/* MARKIDLE?? */
+	10,	ABUNDER | NRZ | CRCPS,	/* MARKIDLE?? */
 	11,	TCTRxCP,
 	14,	DISDPLL,
-	15,	DCDIE|SYNCIE|CTSIE|TxUIE|BRKIE,
-	1,	EXT_INT_ENAB|TxINT_ENAB|INT_ALL_Rx,
-	9,	NV|MIE|NORESET,
+	15,	DCDIE | SYNCIE | CTSIE | TxUIE | BRKIE,
+	1,	EXT_INT_ENAB | TxINT_ENAB | INT_ALL_Rx,
+	9,	NV | MIE | NORESET,
 	23,	3,		/* Extended mode AUTO TX and EOM*/
-	
+
 	255
 };
-
 EXPORT_SYMBOL(z8530_hdlc_kilostream_85230);
 
 /**
  *	z8530_flush_fifo - Flush on chip RX FIFO
  *	@c: Channel to flush
  *
- *	Flush the receive FIFO. There is no specific option for this, we 
+ *	Flush the receive FIFO. There is no specific option for this, we
  *	blindly read bytes and discard them. Reading when there is no data
  *	is harmless. The 8530 has a 4 byte FIFO, the 85230 has 8 bytes.
- *	
+ *
  *	All locking is handled for the caller. On return data may still be
  *	present if it arrived during the flush.
  */
- 
+
 static void z8530_flush_fifo(struct z8530_channel *c)
 {
 	read_zsreg(c, R1);
 	read_zsreg(c, R1);
 	read_zsreg(c, R1);
 	read_zsreg(c, R1);
-	if(c->dev->type==Z85230)
-	{
+	if (c->dev->type == Z85230) {
 		read_zsreg(c, R1);
 		read_zsreg(c, R1);
 		read_zsreg(c, R1);
 		read_zsreg(c, R1);
 	}
-}	
+}
 
 /**
  *	z8530_rtsdtr - Control the outgoing DTS/RTS line
@@ -309,7 +289,7 @@ static void z8530_rtsdtr(struct z8530_channel *c, int set)
  *	z8530_rx - Handle a PIO receive event
  *	@c: Z8530 channel to process
  *
- *	Receive handler for receiving in PIO mode. This is much like the 
+ *	Receive handler for receiving in PIO mode. This is much like the
  *	async one but not quite the same or as complex
  *
  *	Note: Its intended that this handler can easily be separated from
@@ -322,76 +302,62 @@ static void z8530_rtsdtr(struct z8530_channel *c, int set)
  *	other code - this is true in the RT case too.
  *
  *	We only cover the sync cases for this. If you want 2Mbit async
- *	do it yourself but consider medical assistance first. This non DMA 
- *	synchronous mode is portable code. The DMA mode assumes PCI like 
+ *	do it yourself but consider medical assistance first. This non DMA
+ *	synchronous mode is portable code. The DMA mode assumes PCI like
  *	ISA DMA
  *
  *	Called with the device lock held
  */
- 
+
 static void z8530_rx(struct z8530_channel *c)
 {
-	u8 ch,stat;
+	u8 ch, stat;
 
-	while(1)
-	{
+	while (1) {
 		/* FIFO empty ? */
-		if(!(read_zsreg(c, R0)&1))
+		if (!(read_zsreg(c, R0) & 1))
 			break;
-		ch=read_zsdata(c);
-		stat=read_zsreg(c, R1);
-	
-		/*
-		 *	Overrun ?
+		ch = read_zsdata(c);
+		stat = read_zsreg(c, R1);
+
+		/*	Overrun ?
 		 */
-		if(c->count < c->max)
-		{
-			*c->dptr++=ch;
+		if (c->count < c->max) {
+			*c->dptr++ = ch;
 			c->count++;
 		}
 
-		if(stat&END_FR)
-		{
-		
-			/*
-			 *	Error ?
+		if (stat & END_FR) {
+			/*	Error ?
 			 */
-			if(stat&(Rx_OVR|CRC_ERR))
-			{
+			if (stat & (Rx_OVR | CRC_ERR)) {
 				/* Rewind the buffer and return */
-				if(c->skb)
-					c->dptr=c->skb->data;
-				c->count=0;
-				if(stat&Rx_OVR)
-				{
+				if (c->skb)
+					c->dptr = c->skb->data;
+				c->count = 0;
+				if (stat & Rx_OVR) {
 					pr_warn("%s: overrun\n", c->dev->name);
 					c->rx_overrun++;
 				}
-				if(stat&CRC_ERR)
-				{
+				if (stat & CRC_ERR) {
 					c->rx_crc_err++;
 					/* printk("crc error\n"); */
 				}
 				/* Shove the frame upstream */
-			}
-			else
-			{
-				/*
-				 *	Drop the lock for RX processing, or
-		 		 *	there are deadlocks
-		 		 */
+			} else {
+				/*	Drop the lock for RX processing, or
+				 *	there are deadlocks
+				 */
 				z8530_rx_done(c);
 				write_zsctrl(c, RES_Rx_CRC);
 			}
 		}
 	}
-	/*
-	 *	Clear irq
+	/*	Clear irq
 	 */
 	write_zsctrl(c, ERR_RES);
 	write_zsctrl(c, RES_H_IUS);
 }
-
 
 /**
  *	z8530_tx - Handle a PIO transmit event
@@ -402,35 +368,31 @@ static void z8530_rx(struct z8530_channel *c)
  *	in as possible, its quite possible that we won't keep up with the
  *	data rate otherwise.
  */
- 
+
 static void z8530_tx(struct z8530_channel *c)
 {
-	while(c->txcount) {
+	while (c->txcount) {
 		/* FIFO full ? */
-		if(!(read_zsreg(c, R0)&4))
+		if (!(read_zsreg(c, R0) & 4))
 			return;
 		c->txcount--;
-		/*
-		 *	Shovel out the byte
+		/*	Shovel out the byte
 		 */
 		write_zsreg(c, R8, *c->tx_ptr++);
 		write_zsctrl(c, RES_H_IUS);
 		/* We are about to underflow */
-		if(c->txcount==0)
-		{
+		if (c->txcount == 0) {
 			write_zsctrl(c, RES_EOM_L);
-			write_zsreg(c, R10, c->regs[10]&~ABUNDER);
+			write_zsreg(c, R10, c->regs[10] & ~ABUNDER);
 		}
 	}
 
-	
-	/*
-	 *	End of frame TX - fire another one
+	/*	End of frame TX - fire another one
 	 */
-	 
+
 	write_zsctrl(c, RES_Tx_P);
 
-	z8530_tx_done(c);	 
+	z8530_tx_done(c);
 	write_zsctrl(c, RES_H_IUS);
 }
 
@@ -460,8 +422,7 @@ static void z8530_status(struct z8530_channel *chan)
 		z8530_tx_done(chan);
 	}
 
-	if (altered & chan->dcdcheck)
-	{
+	if (altered & chan->dcdcheck) {
 		if (status & chan->dcdcheck) {
 			pr_info("%s: DCD raised\n", chan->dev->name);
 			write_zsreg(chan, R3, chan->regs[3] | RxENABLE);
@@ -474,7 +435,6 @@ static void z8530_status(struct z8530_channel *chan)
 			if (chan->netdevice)
 				netif_carrier_off(chan->netdevice);
 		}
-
 	}
 	write_zsctrl(chan, RES_EXT_INT);
 	write_zsctrl(chan, RES_H_IUS);
@@ -485,7 +445,6 @@ struct z8530_irqhandler z8530_sync = {
 	.tx = z8530_tx,
 	.status = z8530_status,
 };
-
 EXPORT_SYMBOL(z8530_sync);
 
 /**
@@ -497,31 +456,27 @@ EXPORT_SYMBOL(z8530_sync);
  *	events are handled by the DMA hardware. We get a kick here only if
  *	a frame ended.
  */
- 
+
 static void z8530_dma_rx(struct z8530_channel *chan)
 {
-	if(chan->rxdma_on)
-	{
+	if (chan->rxdma_on) {
 		/* Special condition check only */
 		u8 status;
-	
+
 		read_zsreg(chan, R7);
 		read_zsreg(chan, R6);
-		
-		status=read_zsreg(chan, R1);
-	
-		if(status&END_FR)
-		{
+
+		status = read_zsreg(chan, R1);
+
+		if (status & END_FR)
 			z8530_rx_done(chan);	/* Fire up the next one */
-		}		
+
 		write_zsctrl(chan, ERR_RES);
 		write_zsctrl(chan, RES_H_IUS);
-	}
-	else
-	{
+	} else {
 		/* DMA is off right now, drain the slow way */
 		z8530_rx(chan);
-	}	
+	}
 }
 
 /**
@@ -531,11 +486,9 @@ static void z8530_dma_rx(struct z8530_channel *chan)
  *	We have received an interrupt while doing DMA transmissions. It
  *	shouldn't happen. Scream loudly if it does.
  */
- 
 static void z8530_dma_tx(struct z8530_channel *chan)
 {
-	if(!chan->dma_tx)
-	{
+	if (!chan->dma_tx) {
 		pr_warn("Hey who turned the DMA off?\n");
 		z8530_tx(chan);
 		return;
@@ -548,40 +501,35 @@ static void z8530_dma_tx(struct z8530_channel *chan)
 /**
  *	z8530_dma_status - Handle a DMA status exception
  *	@chan: Z8530 channel to process
- *	
+ *
  *	A status event occurred on the Z8530. We receive these for two reasons
  *	when in DMA mode. Firstly if we finished a packet transfer we get one
  *	and kick the next packet out. Secondly we may see a DCD change.
  *
  */
- 
 static void z8530_dma_status(struct z8530_channel *chan)
 {
 	u8 status, altered;
 
-	status=read_zsreg(chan, R0);
-	altered=chan->status^status;
-	
-	chan->status=status;
+	status = read_zsreg(chan, R0);
+	altered = chan->status ^ status;
 
+	chan->status = status;
 
-	if(chan->dma_tx)
-	{
-		if(status&TxEOM)
-		{
+	if (chan->dma_tx) {
+		if (status & TxEOM) {
 			unsigned long flags;
-	
-			flags=claim_dma_lock();
+
+			flags = claim_dma_lock();
 			disable_dma(chan->txdma);
-			clear_dma_ff(chan->txdma);	
-			chan->txdma_on=0;
+			clear_dma_ff(chan->txdma);
+			chan->txdma_on = 0;
 			release_dma_lock(flags);
 			z8530_tx_done(chan);
 		}
 	}
 
-	if (altered & chan->dcdcheck)
-	{
+	if (altered & chan->dcdcheck) {
 		if (status & chan->dcdcheck) {
 			pr_info("%s: DCD raised\n", chan->dev->name);
 			write_zsreg(chan, R3, chan->regs[3] | RxENABLE);
@@ -621,21 +569,18 @@ static struct z8530_irqhandler z8530_txdma_sync = {
  *	(eg the MacII) we must clear the interrupt cause or die.
  */
 
-
 static void z8530_rx_clear(struct z8530_channel *c)
 {
-	/*
-	 *	Data and status bytes
+	/*	Data and status bytes
 	 */
 	u8 stat;
 
 	read_zsdata(c);
-	stat=read_zsreg(c, R1);
-	
-	if(stat&END_FR)
+	stat = read_zsreg(c, R1);
+
+	if (stat & END_FR)
 		write_zsctrl(c, RES_Rx_CRC);
-	/*
-	 *	Clear irq
+	/*	Clear irq
 	 */
 	write_zsctrl(c, ERR_RES);
 	write_zsctrl(c, RES_H_IUS);
@@ -667,8 +612,9 @@ static void z8530_tx_clear(struct z8530_channel *c)
 
 static void z8530_status_clear(struct z8530_channel *chan)
 {
-	u8 status=read_zsreg(chan, R0);
-	if(status&TxEOM)
+	u8 status = read_zsreg(chan, R0);
+
+	if (status & TxEOM)
 		write_zsctrl(chan, ERR_RES);
 	write_zsctrl(chan, RES_EXT_INT);
 	write_zsctrl(chan, RES_H_IUS);
@@ -679,13 +625,11 @@ struct z8530_irqhandler z8530_nop = {
 	.tx = z8530_tx_clear,
 	.status = z8530_status_clear,
 };
-
-
 EXPORT_SYMBOL(z8530_nop);
 
 /**
  *	z8530_interrupt - Handle an interrupt from a Z8530
- *	@irq: 	Interrupt number
+ *	@irq: Interrupt number
  *	@dev_id: The Z8530 device that is interrupting.
  *
  *	A Z85[2]30 device has stuck its hand in the air for attention.
@@ -701,77 +645,72 @@ EXPORT_SYMBOL(z8530_nop);
 
 irqreturn_t z8530_interrupt(int irq, void *dev_id)
 {
-	struct z8530_dev *dev=dev_id;
+	struct z8530_dev *dev = dev_id;
 	u8 intr;
 	static volatile int locker=0;
-	int work=0;
+	int work = 0;
 	struct z8530_irqhandler *irqs;
-	
-	if(locker)
-	{
+
+	if (locker) {
 		pr_err("IRQ re-enter\n");
 		return IRQ_NONE;
 	}
-	locker=1;
+	locker = 1;
 
 	spin_lock(&dev->lock);
 
-	while(++work<5000)
-	{
-
+	while (++work < 5000) {
 		intr = read_zsreg(&dev->chanA, R3);
-		if(!(intr & (CHARxIP|CHATxIP|CHAEXT|CHBRxIP|CHBTxIP|CHBEXT)))
+		if (!(intr &
+		   (CHARxIP | CHATxIP | CHAEXT | CHBRxIP | CHBTxIP | CHBEXT)))
 			break;
-	
-		/* This holds the IRQ status. On the 8530 you must read it from chan 
-		   A even though it applies to the whole chip */
-		
-		/* Now walk the chip and see what it is wanting - it may be
-		   an IRQ for someone else remember */
-		   
-		irqs=dev->chanA.irqs;
 
-		if(intr & (CHARxIP|CHATxIP|CHAEXT))
-		{
-			if(intr&CHARxIP)
+		/* This holds the IRQ status. On the 8530 you must read it
+		 * from chan A even though it applies to the whole chip
+		 */
+
+		/* Now walk the chip and see what it is wanting - it may be
+		 * an IRQ for someone else remember
+		 */
+
+		irqs = dev->chanA.irqs;
+
+		if (intr & (CHARxIP | CHATxIP | CHAEXT)) {
+			if (intr & CHARxIP)
 				irqs->rx(&dev->chanA);
-			if(intr&CHATxIP)
+			if (intr & CHATxIP)
 				irqs->tx(&dev->chanA);
-			if(intr&CHAEXT)
+			if (intr & CHAEXT)
 				irqs->status(&dev->chanA);
 		}
 
-		irqs=dev->chanB.irqs;
+		irqs = dev->chanB.irqs;
 
-		if(intr & (CHBRxIP|CHBTxIP|CHBEXT))
-		{
-			if(intr&CHBRxIP)
+		if (intr & (CHBRxIP | CHBTxIP | CHBEXT)) {
+			if (intr & CHBRxIP)
 				irqs->rx(&dev->chanB);
-			if(intr&CHBTxIP)
+			if (intr & CHBTxIP)
 				irqs->tx(&dev->chanB);
-			if(intr&CHBEXT)
+			if (intr & CHBEXT)
 				irqs->status(&dev->chanB);
 		}
 	}
 	spin_unlock(&dev->lock);
-	if(work==5000)
+	if (work == 5000)
 		pr_err("%s: interrupt jammed - abort(0x%X)!\n",
 		       dev->name, intr);
 	/* Ok all done */
-	locker=0;
+	locker = 0;
 	return IRQ_HANDLED;
 }
-
 EXPORT_SYMBOL(z8530_interrupt);
 
-static const u8 reg_init[16]=
-{
-	0,0,0,0,
-	0,0,0,0,
-	0,0,0,0,
-	0x55,0,0,0
+static const u8 reg_init[16] = {
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+	0x55, 0, 0, 0
 };
-
 
 /**
  *	z8530_sync_open - Open a Z8530 channel for PIO
@@ -781,7 +720,6 @@ static const u8 reg_init[16]=
  *	Switch a Z8530 into synchronous mode without DMA assist. We
  *	raise the RTS/DTR and commence network operation.
  */
- 
 int z8530_sync_open(struct net_device *dev, struct z8530_channel *c)
 {
 	unsigned long flags;
@@ -789,7 +727,7 @@ int z8530_sync_open(struct net_device *dev, struct z8530_channel *c)
 	spin_lock_irqsave(c->lock, flags);
 
 	c->sync = 1;
-	c->mtu = dev->mtu+64;
+	c->mtu = dev->mtu + 64;
 	c->count = 0;
 	c->skb = NULL;
 	c->skb2 = NULL;
@@ -798,17 +736,15 @@ int z8530_sync_open(struct net_device *dev, struct z8530_channel *c)
 	/* This loads the double buffer up */
 	z8530_rx_done(c);	/* Load the frame ring */
 	z8530_rx_done(c);	/* Load the backup frame */
-	z8530_rtsdtr(c,1);
+	z8530_rtsdtr(c, 1);
 	c->dma_tx = 0;
-	c->regs[R1]|=TxINT_ENAB;
+	c->regs[R1] |= TxINT_ENAB;
 	write_zsreg(c, R1, c->regs[R1]);
-	write_zsreg(c, R3, c->regs[R3]|RxENABLE);
+	write_zsreg(c, R3, c->regs[R3] | RxENABLE);
 
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
-
 EXPORT_SYMBOL(z8530_sync_open);
 
 /**
@@ -819,25 +755,23 @@ EXPORT_SYMBOL(z8530_sync_open);
  *	Close down a Z8530 interface and switch its interrupt handlers
  *	to discard future events.
  */
- 
 int z8530_sync_close(struct net_device *dev, struct z8530_channel *c)
 {
 	u8 chk;
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(c->lock, flags);
 	c->irqs = &z8530_nop;
 	c->max = 0;
 	c->sync = 0;
-	
-	chk=read_zsreg(c,R0);
+
+	chk = read_zsreg(c, R0);
 	write_zsreg(c, R3, c->regs[R3]);
-	z8530_rtsdtr(c,0);
+	z8530_rtsdtr(c, 0);
 
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_close);
 
 /**
@@ -849,91 +783,83 @@ EXPORT_SYMBOL(z8530_sync_close);
  *	ISA DMA channels must be available for this to work. We assume ISA
  *	DMA driven I/O and PC limits on access.
  */
- 
 int z8530_sync_dma_open(struct net_device *dev, struct z8530_channel *c)
 {
 	unsigned long cflags, dflags;
-	
+
 	c->sync = 1;
-	c->mtu = dev->mtu+64;
+	c->mtu = dev->mtu + 64;
 	c->count = 0;
 	c->skb = NULL;
 	c->skb2 = NULL;
-	/*
-	 *	Load the DMA interfaces up
+
+	/*	Load the DMA interfaces up
 	 */
 	c->rxdma_on = 0;
 	c->txdma_on = 0;
-	
-	/*
-	 *	Allocate the DMA flip buffers. Limit by page size.
+
+	/*	Allocate the DMA flip buffers. Limit by page size.
 	 *	Everyone runs 1500 mtu or less on wan links so this
 	 *	should be fine.
 	 */
-	 
-	if(c->mtu  > PAGE_SIZE/2)
+
+	if (c->mtu  > PAGE_SIZE / 2)
 		return -EMSGSIZE;
-	 
-	c->rx_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->rx_buf[0]==NULL)
+
+	c->rx_buf[0] = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!c->rx_buf[0])
 		return -ENOBUFS;
-	c->rx_buf[1]=c->rx_buf[0]+PAGE_SIZE/2;
-	
-	c->tx_dma_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->tx_dma_buf[0]==NULL)
-	{
+	c->rx_buf[1] = c->rx_buf[0] + PAGE_SIZE / 2;
+
+	c->tx_dma_buf[0] = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!c->tx_dma_buf[0]) {
 		free_page((unsigned long)c->rx_buf[0]);
-		c->rx_buf[0]=NULL;
+		c->rx_buf[0] = NULL;
 		return -ENOBUFS;
 	}
-	c->tx_dma_buf[1]=c->tx_dma_buf[0]+PAGE_SIZE/2;
+	c->tx_dma_buf[1] = c->tx_dma_buf[0] + PAGE_SIZE / 2;
 
-	c->tx_dma_used=0;
+	c->tx_dma_used = 0;
 	c->dma_tx = 1;
-	c->dma_num=0;
-	c->dma_ready=1;
-	
-	/*
-	 *	Enable DMA control mode
+	c->dma_num = 0;
+	c->dma_ready = 1;
+
+	/*	Enable DMA control mode
 	 */
 
 	spin_lock_irqsave(c->lock, cflags);
-	 
-	/*
-	 *	TX DMA via DIR/REQ
-	 */
-	 
-	c->regs[R14]|= DTRREQ;
-	write_zsreg(c, R14, c->regs[R14]);     
 
-	c->regs[R1]&= ~TxINT_ENAB;
-	write_zsreg(c, R1, c->regs[R1]);
-	
-	/*
-	 *	RX DMA via W/Req
-	 */	 
-
-	c->regs[R1]|= WT_FN_RDYFN;
-	c->regs[R1]|= WT_RDY_RT;
-	c->regs[R1]|= INT_ERR_Rx;
-	c->regs[R1]&= ~TxINT_ENAB;
-	write_zsreg(c, R1, c->regs[R1]);
-	c->regs[R1]|= WT_RDY_ENAB;
-	write_zsreg(c, R1, c->regs[R1]);            
-	
-	/*
-	 *	DMA interrupts
+	/*	TX DMA via DIR/REQ
 	 */
-	 
-	/*
-	 *	Set up the DMA configuration
-	 */	
-	 
-	dflags=claim_dma_lock();
-	 
+
+	c->regs[R14] |= DTRREQ;
+	write_zsreg(c, R14, c->regs[R14]);
+
+	c->regs[R1] &= ~TxINT_ENAB;
+	write_zsreg(c, R1, c->regs[R1]);
+
+	/*	RX DMA via W/Req
+	 */
+
+	c->regs[R1] |= WT_FN_RDYFN;
+	c->regs[R1] |= WT_RDY_RT;
+	c->regs[R1] |= INT_ERR_Rx;
+	c->regs[R1] &= ~TxINT_ENAB;
+	write_zsreg(c, R1, c->regs[R1]);
+	c->regs[R1] |= WT_RDY_ENAB;
+	write_zsreg(c, R1, c->regs[R1]);
+
+	/*	DMA interrupts
+	 */
+
+	/*	Set up the DMA configuration
+	 */
+
+	dflags = claim_dma_lock();
+
 	disable_dma(c->rxdma);
 	clear_dma_ff(c->rxdma);
-	set_dma_mode(c->rxdma, DMA_MODE_READ|0x10);
+	set_dma_mode(c->rxdma, DMA_MODE_READ | 0x10);
 	set_dma_addr(c->rxdma, virt_to_bus(c->rx_buf[0]));
 	set_dma_count(c->rxdma, c->mtu);
 	enable_dma(c->rxdma);
@@ -942,26 +868,24 @@ int z8530_sync_dma_open(struct net_device *dev, struct z8530_channel *c)
 	clear_dma_ff(c->txdma);
 	set_dma_mode(c->txdma, DMA_MODE_WRITE);
 	disable_dma(c->txdma);
-	
+
 	release_dma_lock(dflags);
-	
-	/*
-	 *	Select the DMA interrupt handlers
+
+	/*	Select the DMA interrupt handlers
 	 */
 
 	c->rxdma_on = 1;
 	c->txdma_on = 1;
 	c->tx_dma_used = 1;
-	 
+
 	c->irqs = &z8530_dma_sync;
-	z8530_rtsdtr(c,1);
-	write_zsreg(c, R3, c->regs[R3]|RxENABLE);
+	z8530_rtsdtr(c, 1);
+	write_zsreg(c, R3, c->regs[R3] | RxENABLE);
 
 	spin_unlock_irqrestore(c->lock, cflags);
-	
+
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_dma_open);
 
 /**
@@ -972,66 +896,60 @@ EXPORT_SYMBOL(z8530_sync_dma_open);
  *	Shut down a DMA mode synchronous interface. Halt the DMA, and
  *	free the buffers.
  */
- 
 int z8530_sync_dma_close(struct net_device *dev, struct z8530_channel *c)
 {
 	u8 chk;
 	unsigned long flags;
-	
+
 	c->irqs = &z8530_nop;
 	c->max = 0;
 	c->sync = 0;
-	
-	/*
-	 *	Disable the PC DMA channels
+
+	/*	Disable the PC DMA channels
 	 */
-	
-	flags=claim_dma_lock(); 
+
+	flags = claim_dma_lock();
 	disable_dma(c->rxdma);
 	clear_dma_ff(c->rxdma);
-	
+
 	c->rxdma_on = 0;
-	
+
 	disable_dma(c->txdma);
 	clear_dma_ff(c->txdma);
 	release_dma_lock(flags);
-	
+
 	c->txdma_on = 0;
 	c->tx_dma_used = 0;
 
 	spin_lock_irqsave(c->lock, flags);
 
-	/*
-	 *	Disable DMA control mode
+	/*	Disable DMA control mode
 	 */
-	 
-	c->regs[R1]&= ~WT_RDY_ENAB;
-	write_zsreg(c, R1, c->regs[R1]);            
-	c->regs[R1]&= ~(WT_RDY_RT|WT_FN_RDYFN|INT_ERR_Rx);
-	c->regs[R1]|= INT_ALL_Rx;
+
+	c->regs[R1] &= ~WT_RDY_ENAB;
 	write_zsreg(c, R1, c->regs[R1]);
-	c->regs[R14]&= ~DTRREQ;
-	write_zsreg(c, R14, c->regs[R14]);   
-	
-	if(c->rx_buf[0])
-	{
+	c->regs[R1] &= ~(WT_RDY_RT | WT_FN_RDYFN | INT_ERR_Rx);
+	c->regs[R1] |= INT_ALL_Rx;
+	write_zsreg(c, R1, c->regs[R1]);
+	c->regs[R14] &= ~DTRREQ;
+	write_zsreg(c, R14, c->regs[R14]);
+
+	if (c->rx_buf[0]) {
 		free_page((unsigned long)c->rx_buf[0]);
-		c->rx_buf[0]=NULL;
+		c->rx_buf[0] = NULL;
 	}
-	if(c->tx_dma_buf[0])
-	{
+	if (c->tx_dma_buf[0]) {
 		free_page((unsigned  long)c->tx_dma_buf[0]);
-		c->tx_dma_buf[0]=NULL;
+		c->tx_dma_buf[0] = NULL;
 	}
-	chk=read_zsreg(c,R0);
+	chk = read_zsreg(c, R0);
 	write_zsreg(c, R3, c->regs[R3]);
-	z8530_rtsdtr(c,0);
+	z8530_rtsdtr(c, 0);
 
 	spin_unlock_irqrestore(c->lock, flags);
 
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_dma_close);
 
 /**
@@ -1050,65 +968,58 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 
 	printk("Opening sync interface for TX-DMA\n");
 	c->sync = 1;
-	c->mtu = dev->mtu+64;
+	c->mtu = dev->mtu + 64;
 	c->count = 0;
 	c->skb = NULL;
 	c->skb2 = NULL;
-	
-	/*
-	 *	Allocate the DMA flip buffers. Limit by page size.
+
+	/*	Allocate the DMA flip buffers. Limit by page size.
 	 *	Everyone runs 1500 mtu or less on wan links so this
 	 *	should be fine.
 	 */
-	 
-	if(c->mtu  > PAGE_SIZE/2)
+
+	if (c->mtu > PAGE_SIZE / 2)
 		return -EMSGSIZE;
-	 
-	c->tx_dma_buf[0]=(void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if(c->tx_dma_buf[0]==NULL)
+
+	c->tx_dma_buf[0] = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!c->tx_dma_buf[0])
 		return -ENOBUFS;
 
-	c->tx_dma_buf[1] = c->tx_dma_buf[0] + PAGE_SIZE/2;
-
+	c->tx_dma_buf[1] = c->tx_dma_buf[0] + PAGE_SIZE / 2;
 
 	spin_lock_irqsave(c->lock, cflags);
 
-	/*
-	 *	Load the PIO receive ring
+	/*	Load the PIO receive ring
 	 */
 
 	z8530_rx_done(c);
 	z8530_rx_done(c);
 
- 	/*
-	 *	Load the DMA interfaces up
+	/*	Load the DMA interfaces up
 	 */
 
 	c->rxdma_on = 0;
 	c->txdma_on = 0;
-	
-	c->tx_dma_used=0;
-	c->dma_num=0;
-	c->dma_ready=1;
+
+	c->tx_dma_used = 0;
+	c->dma_num = 0;
+	c->dma_ready = 1;
 	c->dma_tx = 1;
 
- 	/*
-	 *	Enable DMA control mode
+	/*	Enable DMA control mode
 	 */
 
- 	/*
-	 *	TX DMA via DIR/REQ
- 	 */
-	c->regs[R14]|= DTRREQ;
-	write_zsreg(c, R14, c->regs[R14]);     
-	
-	c->regs[R1]&= ~TxINT_ENAB;
+	/*	TX DMA via DIR/REQ
+	 */
+	c->regs[R14] |= DTRREQ;
+	write_zsreg(c, R14, c->regs[R14]);
+
+	c->regs[R1] &= ~TxINT_ENAB;
 	write_zsreg(c, R1, c->regs[R1]);
-	
-	/*
-	 *	Set up the DMA configuration
-	 */	
-	 
+
+	/*	Set up the DMA configuration
+	 */
+
 	dflags = claim_dma_lock();
 
 	disable_dma(c->txdma);
@@ -1117,23 +1028,21 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 	disable_dma(c->txdma);
 
 	release_dma_lock(dflags);
-	
-	/*
-	 *	Select the DMA interrupt handlers
+
+	/*	Select the DMA interrupt handlers
 	 */
 
 	c->rxdma_on = 0;
 	c->txdma_on = 1;
 	c->tx_dma_used = 1;
-	 
+
 	c->irqs = &z8530_txdma_sync;
-	z8530_rtsdtr(c,1);
-	write_zsreg(c, R3, c->regs[R3]|RxENABLE);
+	z8530_rtsdtr(c, 1);
+	write_zsreg(c, R3, c->regs[R3] | RxENABLE);
 	spin_unlock_irqrestore(c->lock, cflags);
-	
+
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_sync_txdma_open);
 
 /**
@@ -1141,7 +1050,7 @@ EXPORT_SYMBOL(z8530_sync_txdma_open);
  *	@dev: Network device to detach
  *	@c: Z8530 channel to move into discard mode
  *
- *	Shut down a DMA/PIO split mode synchronous interface. Halt the DMA, 
+ *	Shut down a DMA/PIO split mode synchronous interface. Halt the DMA,
  *	and  free the buffers.
  */
 
@@ -1150,17 +1059,15 @@ int z8530_sync_txdma_close(struct net_device *dev, struct z8530_channel *c)
 	unsigned long dflags, cflags;
 	u8 chk;
 
-	
 	spin_lock_irqsave(c->lock, cflags);
-	
+
 	c->irqs = &z8530_nop;
 	c->max = 0;
 	c->sync = 0;
-	
-	/*
-	 *	Disable the PC DMA channels
+
+	/*	Disable the PC DMA channels
 	 */
-	 
+
 	dflags = claim_dma_lock();
 
 	disable_dma(c->txdma);
@@ -1170,41 +1077,34 @@ int z8530_sync_txdma_close(struct net_device *dev, struct z8530_channel *c)
 
 	release_dma_lock(dflags);
 
-	/*
-	 *	Disable DMA control mode
+	/*	Disable DMA control mode
 	 */
-	 
-	c->regs[R1]&= ~WT_RDY_ENAB;
-	write_zsreg(c, R1, c->regs[R1]);            
-	c->regs[R1]&= ~(WT_RDY_RT|WT_FN_RDYFN|INT_ERR_Rx);
-	c->regs[R1]|= INT_ALL_Rx;
+
+	c->regs[R1] &= ~WT_RDY_ENAB;
 	write_zsreg(c, R1, c->regs[R1]);
-	c->regs[R14]&= ~DTRREQ;
-	write_zsreg(c, R14, c->regs[R14]);   
-	
-	if(c->tx_dma_buf[0])
-	{
+	c->regs[R1] &= ~(WT_RDY_RT | WT_FN_RDYFN | INT_ERR_Rx);
+	c->regs[R1] |= INT_ALL_Rx;
+	write_zsreg(c, R1, c->regs[R1]);
+	c->regs[R14] &= ~DTRREQ;
+	write_zsreg(c, R14, c->regs[R14]);
+
+	if (c->tx_dma_buf[0]) {
 		free_page((unsigned long)c->tx_dma_buf[0]);
-		c->tx_dma_buf[0]=NULL;
+		c->tx_dma_buf[0] = NULL;
 	}
-	chk=read_zsreg(c,R0);
+	chk = read_zsreg(c, R0);
 	write_zsreg(c, R3, c->regs[R3]);
-	z8530_rtsdtr(c,0);
+	z8530_rtsdtr(c, 0);
 
 	spin_unlock_irqrestore(c->lock, cflags);
 	return 0;
 }
-
-
 EXPORT_SYMBOL(z8530_sync_txdma_close);
 
-
-/*
- *	Name strings for Z8530 chips. SGI claim to have a 130, Zilog deny
+/*	Name strings for Z8530 chips. SGI claim to have a 130, Zilog deny
  *	it exists...
  */
- 
-static const char *z8530_type_name[]={
+static const char * const z8530_type_name[] = {
 	"Z8530",
 	"Z85C30",
 	"Z85230"
@@ -1224,78 +1124,71 @@ static const char *z8530_type_name[]={
 void z8530_describe(struct z8530_dev *dev, char *mapping, unsigned long io)
 {
 	pr_info("%s: %s found at %s 0x%lX, IRQ %d\n",
-		dev->name, 
+		dev->name,
 		z8530_type_name[dev->type],
 		mapping,
 		Z8530_PORT_OF(io),
 		dev->irq);
 }
-
 EXPORT_SYMBOL(z8530_describe);
 
-/*
- *	Locked operation part of the z8530 init code
+/*	Locked operation part of the z8530 init code
  */
- 
 static inline int do_z8530_init(struct z8530_dev *dev)
 {
 	/* NOP the interrupt handlers first - we might get a
-	   floating IRQ transition when we reset the chip */
-	dev->chanA.irqs=&z8530_nop;
-	dev->chanB.irqs=&z8530_nop;
-	dev->chanA.dcdcheck=DCD;
-	dev->chanB.dcdcheck=DCD;
+	 * floating IRQ transition when we reset the chip
+	 */
+	dev->chanA.irqs = &z8530_nop;
+	dev->chanB.irqs = &z8530_nop;
+	dev->chanA.dcdcheck = DCD;
+	dev->chanB.dcdcheck = DCD;
 
 	/* Reset the chip */
 	write_zsreg(&dev->chanA, R9, 0xC0);
 	udelay(200);
 	/* Now check its valid */
 	write_zsreg(&dev->chanA, R12, 0xAA);
-	if(read_zsreg(&dev->chanA, R12)!=0xAA)
+	if (read_zsreg(&dev->chanA, R12) != 0xAA)
 		return -ENODEV;
 	write_zsreg(&dev->chanA, R12, 0x55);
-	if(read_zsreg(&dev->chanA, R12)!=0x55)
+	if (read_zsreg(&dev->chanA, R12) != 0x55)
 		return -ENODEV;
-		
-	dev->type=Z8530;
-	
-	/*
-	 *	See the application note.
+
+	dev->type = Z8530;
+
+	/*	See the application note.
 	 */
-	 
+
 	write_zsreg(&dev->chanA, R15, 0x01);
-	
-	/*
-	 *	If we can set the low bit of R15 then
+
+	/*	If we can set the low bit of R15 then
 	 *	the chip is enhanced.
 	 */
-	 
-	if(read_zsreg(&dev->chanA, R15)==0x01)
-	{
+
+	if (read_zsreg(&dev->chanA, R15) == 0x01) {
 		/* This C30 versus 230 detect is from Klaus Kudielka's dmascc */
 		/* Put a char in the fifo */
 		write_zsreg(&dev->chanA, R8, 0);
-		if(read_zsreg(&dev->chanA, R0)&Tx_BUF_EMP)
+		if (read_zsreg(&dev->chanA, R0) & Tx_BUF_EMP)
 			dev->type = Z85230;	/* Has a FIFO */
 		else
 			dev->type = Z85C30;	/* Z85C30, 1 byte FIFO */
 	}
-		
-	/*
-	 *	The code assumes R7' and friends are
+
+	/*	The code assumes R7' and friends are
 	 *	off. Use write_zsext() for these and keep
 	 *	this bit clear.
 	 */
-	 
+
 	write_zsreg(&dev->chanA, R15, 0);
-		
-	/*
-	 *	At this point it looks like the chip is behaving
+
+	/*	At this point it looks like the chip is behaving
 	 */
-	 
+
 	memcpy(dev->chanA.regs, reg_init, 16);
-	memcpy(dev->chanB.regs, reg_init ,16);
-	
+	memcpy(dev->chanB.regs, reg_init, 16);
+
 	return 0;
 }
 
@@ -1332,36 +1225,32 @@ int z8530_init(struct z8530_dev *dev)
 
 	return ret;
 }
-
-
 EXPORT_SYMBOL(z8530_init);
 
 /**
  *	z8530_shutdown - Shutdown a Z8530 device
  *	@dev: The Z8530 chip to shutdown
  *
- *	We set the interrupt handlers to silence any interrupts. We then 
+ *	We set the interrupt handlers to silence any interrupts. We then
  *	reset the chip and wait 100uS to be sure the reset completed. Just
  *	in case the caller then tries to do stuff.
  *
  *	This is called without the lock held
  */
- 
 int z8530_shutdown(struct z8530_dev *dev)
 {
 	unsigned long flags;
 	/* Reset the chip */
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->chanA.irqs=&z8530_nop;
-	dev->chanB.irqs=&z8530_nop;
+	dev->chanA.irqs = &z8530_nop;
+	dev->chanB.irqs = &z8530_nop;
 	write_zsreg(&dev->chanA, R9, 0xC0);
 	/* We must lock the udelay, the chip is offlimits here */
 	udelay(100);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_shutdown);
 
 /**
@@ -1370,7 +1259,7 @@ EXPORT_SYMBOL(z8530_shutdown);
  *	@rtable: table of register, value pairs
  *	FIXME: ioctl to allow user uploaded tables
  *
- *	Load a Z8530 channel up from the system data. We use +16 to 
+ *	Load a Z8530 channel up from the system data. We use +16 to
  *	indicate the "prime" registers. The value 255 terminates the
  *	table.
  */
@@ -1381,33 +1270,31 @@ int z8530_channel_load(struct z8530_channel *c, u8 *rtable)
 
 	spin_lock_irqsave(c->lock, flags);
 
-	while(*rtable!=255)
-	{
-		int reg=*rtable++;
-		if(reg>0x0F)
-			write_zsreg(c, R15, c->regs[15]|1);
-		write_zsreg(c, reg&0x0F, *rtable);
-		if(reg>0x0F)
-			write_zsreg(c, R15, c->regs[15]&~1);
-		c->regs[reg]=*rtable++;
+	while (*rtable != 255) {
+		int reg = *rtable++;
+
+		if (reg > 0x0F)
+			write_zsreg(c, R15, c->regs[15] | 1);
+		write_zsreg(c, reg & 0x0F, *rtable);
+		if (reg > 0x0F)
+			write_zsreg(c, R15, c->regs[15] & ~1);
+		c->regs[reg] = *rtable++;
 	}
-	c->rx_function=z8530_null_rx;
-	c->skb=NULL;
-	c->tx_skb=NULL;
-	c->tx_next_skb=NULL;
-	c->mtu=1500;
-	c->max=0;
-	c->count=0;
-	c->status=read_zsreg(c, R0);
-	c->sync=1;
-	write_zsreg(c, R3, c->regs[R3]|RxENABLE);
+	c->rx_function = z8530_null_rx;
+	c->skb = NULL;
+	c->tx_skb = NULL;
+	c->tx_next_skb = NULL;
+	c->mtu = 1500;
+	c->max = 0;
+	c->count = 0;
+	c->status = read_zsreg(c, R0);
+	c->sync = 1;
+	write_zsreg(c, R3, c->regs[R3] | RxENABLE);
 
 	spin_unlock_irqrestore(c->lock, flags);
 	return 0;
 }
-
 EXPORT_SYMBOL(z8530_channel_load);
-
 
 /**
  *	z8530_tx_begin - Begin packet transmission
@@ -1415,7 +1302,7 @@ EXPORT_SYMBOL(z8530_channel_load);
  *
  *	This is the speed sensitive side of transmission. If we are called
  *	and no buffer is being transmitted we commence the next buffer. If
- *	nothing is queued we idle the sync. 
+ *	nothing is queued we idle the sync.
  *
  *	Note: We are handling this code path in the interrupt path, keep it
  *	fast or bad things will happen.
@@ -1426,85 +1313,68 @@ EXPORT_SYMBOL(z8530_channel_load);
 static void z8530_tx_begin(struct z8530_channel *c)
 {
 	unsigned long flags;
-	if(c->tx_skb)
+
+	if (c->tx_skb)
 		return;
-		
-	c->tx_skb=c->tx_next_skb;
-	c->tx_next_skb=NULL;
-	c->tx_ptr=c->tx_next_ptr;
-	
-	if(c->tx_skb==NULL)
-	{
+
+	c->tx_skb = c->tx_next_skb;
+	c->tx_next_skb = NULL;
+	c->tx_ptr = c->tx_next_ptr;
+
+	if (!c->tx_skb) {
 		/* Idle on */
-		if(c->dma_tx)
-		{
-			flags=claim_dma_lock();
+		if (c->dma_tx) {
+			flags = claim_dma_lock();
 			disable_dma(c->txdma);
-			/*
-			 *	Check if we crapped out.
+			/*	Check if we crapped out.
 			 */
-			if (get_dma_residue(c->txdma))
-			{
+			if (get_dma_residue(c->txdma)) {
 				c->netdevice->stats.tx_dropped++;
 				c->netdevice->stats.tx_fifo_errors++;
 			}
 			release_dma_lock(flags);
 		}
-		c->txcount=0;
-	}
-	else
-	{
-		c->txcount=c->tx_skb->len;
-		
-		
-		if(c->dma_tx)
-		{
-			/*
-			 *	FIXME. DMA is broken for the original 8530,
+		c->txcount = 0;
+	} else {
+		c->txcount = c->tx_skb->len;
+
+		if (c->dma_tx) {
+			/*	FIXME. DMA is broken for the original 8530,
 			 *	on the older parts we need to set a flag and
 			 *	wait for a further TX interrupt to fire this
-			 *	stage off	
+			 *	stage off
 			 */
-			 
-			flags=claim_dma_lock();
+
+			flags = claim_dma_lock();
 			disable_dma(c->txdma);
 
-			/*
-			 *	These two are needed by the 8530/85C30
+			/*	These two are needed by the 8530/85C30
 			 *	and must be issued when idling.
 			 */
-			 
-			if(c->dev->type!=Z85230)
-			{
+			if (c->dev->type != Z85230) {
 				write_zsctrl(c, RES_Tx_CRC);
 				write_zsctrl(c, RES_EOM_L);
-			}	
-			write_zsreg(c, R10, c->regs[10]&~ABUNDER);
+			}
+			write_zsreg(c, R10, c->regs[10] & ~ABUNDER);
 			clear_dma_ff(c->txdma);
 			set_dma_addr(c->txdma, virt_to_bus(c->tx_ptr));
 			set_dma_count(c->txdma, c->txcount);
 			enable_dma(c->txdma);
 			release_dma_lock(flags);
 			write_zsctrl(c, RES_EOM_L);
-			write_zsreg(c, R5, c->regs[R5]|TxENAB);
-		}
-		else
-		{
-
+			write_zsreg(c, R5, c->regs[R5] | TxENAB);
+		} else {
 			/* ABUNDER off */
 			write_zsreg(c, R10, c->regs[10]);
 			write_zsctrl(c, RES_Tx_CRC);
-	
-			while(c->txcount && (read_zsreg(c,R0)&Tx_BUF_EMP))
-			{		
+
+			while (c->txcount && (read_zsreg(c, R0) & Tx_BUF_EMP)) {
 				write_zsreg(c, R8, *c->tx_ptr++);
 				c->txcount--;
 			}
-
 		}
 	}
-	/*
-	 *	Since we emptied tx_skb we can ask for more
+	/*	Since we emptied tx_skb we can ask for more
 	 */
 	netif_wake_queue(c->netdevice);
 }
@@ -1525,7 +1395,7 @@ static void z8530_tx_done(struct z8530_channel *c)
 	struct sk_buff *skb;
 
 	/* Actually this can happen.*/
-	if (c->tx_skb == NULL)
+	if (!c->tx_skb)
 		return;
 
 	skb = c->tx_skb;
@@ -1544,12 +1414,10 @@ static void z8530_tx_done(struct z8530_channel *c)
  *	We point the receive handler at this function when idle. Instead
  *	of processing the frames we get to throw them away.
  */
- 
 void z8530_null_rx(struct z8530_channel *c, struct sk_buff *skb)
 {
 	dev_kfree_skb_any(skb);
 }
-
 EXPORT_SYMBOL(z8530_null_rx);
 
 /**
@@ -1564,67 +1432,58 @@ EXPORT_SYMBOL(z8530_null_rx);
  *
  *	Called with the lock held
  */
- 
 static void z8530_rx_done(struct z8530_channel *c)
 {
 	struct sk_buff *skb;
 	int ct;
-	
-	/*
-	 *	Is our receive engine in DMA mode
+
+	/*	Is our receive engine in DMA mode
 	 */
-	 
-	if(c->rxdma_on)
-	{
-		/*
-		 *	Save the ready state and the buffer currently
+	if (c->rxdma_on) {
+		/*	Save the ready state and the buffer currently
 		 *	being used as the DMA target
 		 */
-		 
-		int ready=c->dma_ready;
-		unsigned char *rxb=c->rx_buf[c->dma_num];
+		int ready = c->dma_ready;
+		unsigned char *rxb = c->rx_buf[c->dma_num];
 		unsigned long flags;
-		
-		/*
-		 *	Complete this DMA. Necessary to find the length
-		 */		
-		 
-		flags=claim_dma_lock();
-		
+
+		/*	Complete this DMA. Necessary to find the length
+		 */
+		flags = claim_dma_lock();
+
 		disable_dma(c->rxdma);
 		clear_dma_ff(c->rxdma);
-		c->rxdma_on=0;
-		ct=c->mtu-get_dma_residue(c->rxdma);
-		if(ct<0)
-			ct=2;	/* Shit happens.. */
-		c->dma_ready=0;
-		
-		/*
-		 *	Normal case: the other slot is free, start the next DMA
+		c->rxdma_on = 0;
+		ct = c->mtu - get_dma_residue(c->rxdma);
+		if (ct < 0)
+			ct = 2;	/* Shit happens.. */
+		c->dma_ready = 0;
+
+		/*	Normal case: the other slot is free, start the next DMA
 		 *	into it immediately.
 		 */
-		 
-		if(ready)
-		{
-			c->dma_num^=1;
-			set_dma_mode(c->rxdma, DMA_MODE_READ|0x10);
+
+		if (ready) {
+			c->dma_num ^= 1;
+			set_dma_mode(c->rxdma, DMA_MODE_READ | 0x10);
 			set_dma_addr(c->rxdma, virt_to_bus(c->rx_buf[c->dma_num]));
 			set_dma_count(c->rxdma, c->mtu);
 			c->rxdma_on = 1;
 			enable_dma(c->rxdma);
-			/* Stop any frames that we missed the head of 
-			   from passing */
+			/* Stop any frames that we missed the head of
+			 * from passing
+			 */
 			write_zsreg(c, R0, RES_Rx_CRC);
-		}
-		else
+		} else {
 			/* Can't occur as we dont reenable the DMA irq until
-			   after the flip is done */
+			 * after the flip is done
+			 */
 			netdev_warn(c->netdevice, "DMA flip overrun!\n");
+		}
 
 		release_dma_lock(flags);
 
-		/*
-		 *	Shove the old buffer into an sk_buff. We can't DMA
+		/*	Shove the old buffer into an sk_buff. We can't DMA
 		 *	directly into one on a PC - it might be above the 16Mb
 		 *	boundary. Optimisation - we could check to see if we
 		 *	can avoid the copy. Optimisation 2 - make the memcpy
@@ -1632,7 +1491,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		 */
 
 		skb = dev_alloc_skb(ct);
-		if (skb == NULL) {
+		if (!skb) {
 			c->netdevice->stats.rx_dropped++;
 			netdev_warn(c->netdevice, "Memory squeeze\n");
 		} else {
@@ -1646,8 +1505,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		RT_LOCK;
 		skb = c->skb;
 
-		/*
-		 *	The game we play for non DMA is similar. We want to
+		/*	The game we play for non DMA is similar. We want to
 		 *	get the controller set up for the next packet as fast
 		 *	as possible. We potentially only have one byte + the
 		 *	fifo length for this. Thus we want to flip to the new
@@ -1658,7 +1516,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		 *	sync IRQ for the RT_LOCK area.
 		 *
 		 */
-		ct=c->count;
+		ct = c->count;
 
 		c->skb = c->skb2;
 		c->count = 0;
@@ -1673,15 +1531,13 @@ static void z8530_rx_done(struct z8530_channel *c)
 		RT_UNLOCK;
 
 		c->skb2 = dev_alloc_skb(c->mtu);
-		if (c->skb2 == NULL)
-			netdev_warn(c->netdevice, "memory squeeze\n");
-		else
+		if (c->skb2)
 			skb_put(c->skb2, c->mtu);
+
 		c->netdevice->stats.rx_packets++;
 		c->netdevice->stats.rx_bytes += ct;
 	}
-	/*
-	 *	If we received a frame we must now process it.
+	/*	If we received a frame we must now process it.
 	 */
 	if (skb) {
 		skb_trim(skb, ct);
@@ -1702,9 +1558,10 @@ static void z8530_rx_done(struct z8530_channel *c)
 
 static inline int spans_boundary(struct sk_buff *skb)
 {
-	unsigned long a=(unsigned long)skb->data;
-	a^=(a+skb->len);
-	if(a&0x00010000)	/* If the 64K bit is different.. */
+	unsigned long a = (unsigned long)skb->data;
+
+	a ^= (a + skb->len);
+	if (a & 0x00010000)	/* If the 64K bit is different.. */
 		return 1;
 	return 0;
 }
@@ -1715,60 +1572,54 @@ static inline int spans_boundary(struct sk_buff *skb)
  *	@skb: The packet to kick down the channel
  *
  *	Queue a packet for transmission. Because we have rather
- *	hard to hit interrupt latencies for the Z85230 per packet 
+ *	hard to hit interrupt latencies for the Z85230 per packet
  *	even in DMA mode we do the flip to DMA buffer if needed here
  *	not in the IRQ.
  *
- *	Called from the network code. The lock is not held at this 
+ *	Called from the network code. The lock is not held at this
  *	point.
  */
-
 netdev_tx_t z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 {
 	unsigned long flags;
-	
+
 	netif_stop_queue(c->netdevice);
-	if(c->tx_next_skb)
+	if (c->tx_next_skb)
 		return NETDEV_TX_BUSY;
 
-	
 	/* PC SPECIFIC - DMA limits */
-	
-	/*
-	 *	If we will DMA the transmit and its gone over the ISA bus
+	/*	If we will DMA the transmit and its gone over the ISA bus
 	 *	limit, then copy to the flip buffer
 	 */
-	 
-	if(c->dma_tx && ((unsigned long)(virt_to_bus(skb->data+skb->len))>=16*1024*1024 || spans_boundary(skb)))
-	{
-		/* 
-		 *	Send the flip buffer, and flip the flippy bit.
+
+	if (c->dma_tx &&
+	    ((unsigned long)(virt_to_bus(skb->data + skb->len)) >=
+	    16 * 1024 * 1024 || spans_boundary(skb))) {
+		/*	Send the flip buffer, and flip the flippy bit.
 		 *	We don't care which is used when just so long as
 		 *	we never use the same buffer twice in a row. Since
 		 *	only one buffer can be going out at a time the other
 		 *	has to be safe.
 		 */
-		c->tx_next_ptr=c->tx_dma_buf[c->tx_dma_used];
-		c->tx_dma_used^=1;	/* Flip temp buffer */
+		c->tx_next_ptr = c->tx_dma_buf[c->tx_dma_used];
+		c->tx_dma_used ^= 1;	/* Flip temp buffer */
 		skb_copy_from_linear_data(skb, c->tx_next_ptr, skb->len);
+	} else {
+		c->tx_next_ptr = skb->data;
 	}
-	else
-		c->tx_next_ptr=skb->data;	
 	RT_LOCK;
-	c->tx_next_skb=skb;
+	c->tx_next_skb = skb;
 	RT_UNLOCK;
-	
+
 	spin_lock_irqsave(c->lock, flags);
 	z8530_tx_begin(c);
 	spin_unlock_irqrestore(c->lock, flags);
-	
+
 	return NETDEV_TX_OK;
 }
-
 EXPORT_SYMBOL(z8530_queue_xmit);
 
-/*
- *	Module support
+/*	Module support
  */
 static const char banner[] __initconst =
 	KERN_INFO "Generic Z85C30/Z85230 interface driver v0.02\n";

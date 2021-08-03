@@ -87,10 +87,10 @@ struct seg6_end_dt_info {
 	int vrf_ifindex;
 	int vrf_table;
 
-	/* tunneled packet proto and family (IPv4 or IPv6) */
-	__be16 proto;
+	/* tunneled packet family (IPv4 or IPv6).
+	 * Protocol and header length are inferred from family.
+	 */
 	u16 family;
-	int hdrlen;
 };
 
 struct pcpu_seg6_local_counters {
@@ -521,19 +521,6 @@ static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
 	info->net = net;
 	info->vrf_ifindex = vrf_ifindex;
 
-	switch (family) {
-	case AF_INET:
-		info->proto = htons(ETH_P_IP);
-		info->hdrlen = sizeof(struct iphdr);
-		break;
-	case AF_INET6:
-		info->proto = htons(ETH_P_IPV6);
-		info->hdrlen = sizeof(struct ipv6hdr);
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	info->family = family;
 	info->mode = DT_VRF_MODE;
 
@@ -622,22 +609,44 @@ error:
 }
 
 static struct sk_buff *end_dt_vrf_core(struct sk_buff *skb,
-				       struct seg6_local_lwt *slwt)
+				       struct seg6_local_lwt *slwt, u16 family)
 {
 	struct seg6_end_dt_info *info = &slwt->dt_info;
 	struct net_device *vrf;
+	__be16 protocol;
+	int hdrlen;
 
 	vrf = end_dt_get_vrf_rcu(skb, info);
 	if (unlikely(!vrf))
 		goto drop;
 
-	skb->protocol = info->proto;
+	switch (family) {
+	case AF_INET:
+		protocol = htons(ETH_P_IP);
+		hdrlen = sizeof(struct iphdr);
+		break;
+	case AF_INET6:
+		protocol = htons(ETH_P_IPV6);
+		hdrlen = sizeof(struct ipv6hdr);
+		break;
+	case AF_UNSPEC:
+		fallthrough;
+	default:
+		goto drop;
+	}
+
+	if (unlikely(info->family != AF_UNSPEC && info->family != family)) {
+		pr_warn_once("seg6local: SRv6 End.DT* family mismatch");
+		goto drop;
+	}
+
+	skb->protocol = protocol;
 
 	skb_dst_drop(skb);
 
-	skb_set_transport_header(skb, info->hdrlen);
+	skb_set_transport_header(skb, hdrlen);
 
-	return end_dt_vrf_rcv(skb, info->family, vrf);
+	return end_dt_vrf_rcv(skb, family, vrf);
 
 drop:
 	kfree_skb(skb);
@@ -656,7 +665,7 @@ static int input_action_end_dt4(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto drop;
 
-	skb = end_dt_vrf_core(skb, slwt);
+	skb = end_dt_vrf_core(skb, slwt, AF_INET);
 	if (!skb)
 		/* packet has been processed and consumed by the VRF */
 		return 0;
@@ -739,7 +748,7 @@ static int input_action_end_dt6(struct sk_buff *skb,
 		goto legacy_mode;
 
 	/* DT6_VRF_MODE */
-	skb = end_dt_vrf_core(skb, slwt);
+	skb = end_dt_vrf_core(skb, slwt, AF_INET6);
 	if (!skb)
 		/* packet has been processed and consumed by the VRF */
 		return 0;
@@ -766,6 +775,36 @@ drop:
 	kfree_skb(skb);
 	return -EINVAL;
 }
+
+#ifdef CONFIG_NET_L3_MASTER_DEV
+static int seg6_end_dt46_build(struct seg6_local_lwt *slwt, const void *cfg,
+			       struct netlink_ext_ack *extack)
+{
+	return __seg6_end_dt_vrf_build(slwt, cfg, AF_UNSPEC, extack);
+}
+
+static int input_action_end_dt46(struct sk_buff *skb,
+				 struct seg6_local_lwt *slwt)
+{
+	unsigned int off = 0;
+	int nexthdr;
+
+	nexthdr = ipv6_find_hdr(skb, &off, -1, NULL, NULL);
+	if (unlikely(nexthdr < 0))
+		goto drop;
+
+	switch (nexthdr) {
+	case IPPROTO_IPIP:
+		return input_action_end_dt4(skb, slwt);
+	case IPPROTO_IPV6:
+		return input_action_end_dt6(skb, slwt);
+	}
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+#endif
 
 /* push an SRH on top of the current one */
 static int input_action_end_b6(struct sk_buff *skb, struct seg6_local_lwt *slwt)
@@ -967,6 +1006,17 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.optattrs	= SEG6_F_LOCAL_COUNTERS,
 #endif
 		.input		= input_action_end_dt6,
+	},
+	{
+		.action		= SEG6_LOCAL_ACTION_END_DT46,
+		.attrs		= SEG6_F_ATTR(SEG6_LOCAL_VRFTABLE),
+		.optattrs	= SEG6_F_LOCAL_COUNTERS,
+#ifdef CONFIG_NET_L3_MASTER_DEV
+		.input		= input_action_end_dt46,
+		.slwt_ops	= {
+					.build_state = seg6_end_dt46_build,
+				  },
+#endif
 	},
 	{
 		.action		= SEG6_LOCAL_ACTION_END_B6,

@@ -104,8 +104,8 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 
 	ret = smu_cmn_wait_for_response(smu);
 	if (ret != 0x1) {
-		dev_err(adev->dev, "Msg issuing pre-check failed and "
-		       "SMU may be not in the right state!\n");
+		dev_err(adev->dev, "Msg issuing pre-check failed(0x%x) and "
+		       "SMU may be not in the right state!\n", ret);
 		if (ret != -ETIME)
 			ret = -EIO;
 		return ret;
@@ -126,7 +126,7 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, index = 0;
 
-	if (smu->adev->in_pci_err_recovery)
+	if (smu->adev->no_hw_access)
 		return 0;
 
 	index = smu_cmn_to_asic_specific_index(smu,
@@ -398,6 +398,19 @@ int smu_cmn_get_enabled_32_bits_mask(struct smu_context *smu,
 
 }
 
+uint64_t smu_cmn_get_indep_throttler_status(
+					const unsigned long dep_status,
+					const uint8_t *throttler_map)
+{
+	uint64_t indep_status = 0;
+	uint8_t dep_bit = 0;
+
+	for_each_set_bit(dep_bit, &dep_status, 32)
+		indep_status |= 1ULL << throttler_map[dep_bit];
+
+	return indep_status;
+}
+
 int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 					uint64_t feature_mask,
 					bool enabled)
@@ -575,23 +588,52 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 	return ret;
 }
 
+/**
+ * smu_cmn_disable_all_features_with_exception - disable all dpm features
+ *                                               except this specified by
+ *                                               @mask
+ *
+ * @smu:               smu_context pointer
+ * @no_hw_disablement: whether real dpm disablement should be performed
+ *                     true: update the cache(about dpm enablement state) only
+ *                     false: real dpm disablement plus cache update
+ * @mask:              the dpm feature which should not be disabled
+ *                     SMU_FEATURE_COUNT: no exception, all dpm features
+ *                     to disable
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
 int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
+						bool no_hw_disablement,
 						enum smu_feature_mask mask)
 {
+	struct smu_feature *feature = &smu->smu_feature;
 	uint64_t features_to_disable = U64_MAX;
 	int skipped_feature_id;
 
-	skipped_feature_id = smu_cmn_to_asic_specific_index(smu,
-							    CMN2ASIC_MAPPING_FEATURE,
-							    mask);
-	if (skipped_feature_id < 0)
-		return -EINVAL;
+	if (mask != SMU_FEATURE_COUNT) {
+		skipped_feature_id = smu_cmn_to_asic_specific_index(smu,
+								    CMN2ASIC_MAPPING_FEATURE,
+								    mask);
+		if (skipped_feature_id < 0)
+			return -EINVAL;
 
-	features_to_disable &= ~(1ULL << skipped_feature_id);
+		features_to_disable &= ~(1ULL << skipped_feature_id);
+	}
 
-	return smu_cmn_feature_update_enable_state(smu,
-						   features_to_disable,
-						   0);
+	if (no_hw_disablement) {
+		mutex_lock(&feature->mutex);
+		bitmap_andnot(feature->enabled, feature->enabled,
+				(unsigned long *)(&features_to_disable), SMU_FEATURE_MAX);
+		mutex_unlock(&feature->mutex);
+
+		return 0;
+	} else {
+		return smu_cmn_feature_update_enable_state(smu,
+							   features_to_disable,
+							   0);
+	}
 }
 
 int smu_cmn_get_smc_version(struct smu_context *smu,
@@ -761,11 +803,20 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	case METRICS_VERSION(1, 1):
 		structure_size = sizeof(struct gpu_metrics_v1_1);
 		break;
+	case METRICS_VERSION(1, 2):
+		structure_size = sizeof(struct gpu_metrics_v1_2);
+		break;
+	case METRICS_VERSION(1, 3):
+		structure_size = sizeof(struct gpu_metrics_v1_3);
+		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);
 		break;
 	case METRICS_VERSION(2, 1):
 		structure_size = sizeof(struct gpu_metrics_v2_1);
+		break;
+	case METRICS_VERSION(2, 2):
+		structure_size = sizeof(struct gpu_metrics_v2_2);
 		break;
 	default:
 		return;

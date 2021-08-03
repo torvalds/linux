@@ -687,6 +687,7 @@ static int init_statfs(struct gfs2_sbd *sdp)
 	}
 
 	iput(pn);
+	pn = NULL;
 	ip = GFS2_I(sdp->sd_sc_inode);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);

@@ -114,10 +114,7 @@ snic_queue_exch_ver_req(struct snic *snic)
 
 	rqi = snic_req_init(snic, 0);
 	if (!rqi) {
-		SNIC_HOST_ERR(snic->shost,
-			      "Queuing Exch Ver Req failed, err = %d\n",
-			      ret);
-
+		SNIC_HOST_ERR(snic->shost, "Init Exch Ver Req failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}

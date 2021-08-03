@@ -705,7 +705,7 @@ static void hci_transceive_cb(void *context, struct sk_buff *skb, int err)
 		/*
 		 * TODO: Check RF Error indicator to make sure data is valid.
 		 * It seems that HCI cmd can complete without error, but data
-		 * can be invalid if an RF error occured? Ignore for now.
+		 * can be invalid if an RF error occurred? Ignore for now.
 		 */
 		if (err == 0)
 			skb_trim(skb, skb->len - 1); /* RF Err ind */

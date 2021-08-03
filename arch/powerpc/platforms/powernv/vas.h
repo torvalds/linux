@@ -334,11 +334,11 @@ struct vas_instance {
 	int fifo_in_progress;	/* To wake up thread or return IRQ_HANDLED */
 	spinlock_t fault_lock;	/* Protects fifo_in_progress update */
 	void *fault_fifo;
-	struct vas_window *fault_win; /* Fault window */
+	struct pnv_vas_window *fault_win; /* Fault window */
 
 	struct mutex mutex;
-	struct vas_window *rxwin[VAS_COP_TYPE_MAX];
-	struct vas_window *windows[VAS_WINDOWS_PER_CHIP];
+	struct pnv_vas_window *rxwin[VAS_COP_TYPE_MAX];
+	struct pnv_vas_window *windows[VAS_WINDOWS_PER_CHIP];
 
 	char *name;
 	char *dbgname;
@@ -346,32 +346,24 @@ struct vas_instance {
 };
 
 /*
- * In-kernel state a VAS window. One per window.
+ * In-kernel state a VAS window on PowerNV. One per window.
  */
-struct vas_window {
+struct pnv_vas_window {
+	struct vas_window vas_win;
 	/* Fields common to send and receive windows */
 	struct vas_instance *vinst;
-	int winid;
 	bool tx_win;		/* True if send window */
 	bool nx_win;		/* True if NX window */
 	bool user_win;		/* True if user space window */
 	void *hvwc_map;		/* HV window context */
 	void *uwc_map;		/* OS/User window context */
-	struct pid *pid;	/* Linux process id of owner */
-	struct pid *tgid;	/* Thread group ID of owner */
-	struct mm_struct *mm;	/* Linux process mm_struct */
-	int wcreds_max;		/* Window credits */
-
-	char *dbgname;
-	struct dentry *dbgdir;
 
 	/* Fields applicable only to send windows */
 	void *paste_kaddr;
 	char *paste_addr_name;
-	struct vas_window *rxwin;
+	struct pnv_vas_window *rxwin;
 
-	/* Feilds applicable only to receive windows */
-	enum vas_cop_type cop;
+	/* Fields applicable only to receive windows */
 	atomic_t num_txwins;
 };
 
@@ -430,32 +422,32 @@ extern struct mutex vas_mutex;
 extern struct vas_instance *find_vas_instance(int vasid);
 extern void vas_init_dbgdir(void);
 extern void vas_instance_init_dbgdir(struct vas_instance *vinst);
-extern void vas_window_init_dbgdir(struct vas_window *win);
-extern void vas_window_free_dbgdir(struct vas_window *win);
+extern void vas_window_init_dbgdir(struct pnv_vas_window *win);
+extern void vas_window_free_dbgdir(struct pnv_vas_window *win);
 extern int vas_setup_fault_window(struct vas_instance *vinst);
 extern irqreturn_t vas_fault_thread_fn(int irq, void *data);
 extern irqreturn_t vas_fault_handler(int irq, void *dev_id);
-extern void vas_return_credit(struct vas_window *window, bool tx);
-extern struct vas_window *vas_pswid_to_window(struct vas_instance *vinst,
+extern void vas_return_credit(struct pnv_vas_window *window, bool tx);
+extern struct pnv_vas_window *vas_pswid_to_window(struct vas_instance *vinst,
 						uint32_t pswid);
-extern void vas_win_paste_addr(struct vas_window *window, u64 *addr,
-					int *len);
+extern void vas_win_paste_addr(struct pnv_vas_window *window, u64 *addr,
+				int *len);
 
 static inline int vas_window_pid(struct vas_window *window)
 {
-	return pid_vnr(window->pid);
+	return pid_vnr(window->task_ref.pid);
 }
 
-static inline void vas_log_write(struct vas_window *win, char *name,
+static inline void vas_log_write(struct pnv_vas_window *win, char *name,
 			void *regptr, u64 val)
 {
 	if (val)
 		pr_debug("%swin #%d: %s reg %p, val 0x%016llx\n",
-				win->tx_win ? "Tx" : "Rx", win->winid, name,
-				regptr, val);
+				win->tx_win ? "Tx" : "Rx", win->vas_win.winid,
+				name, regptr, val);
 }
 
-static inline void write_uwc_reg(struct vas_window *win, char *name,
+static inline void write_uwc_reg(struct pnv_vas_window *win, char *name,
 			s32 reg, u64 val)
 {
 	void *regptr;
@@ -466,7 +458,7 @@ static inline void write_uwc_reg(struct vas_window *win, char *name,
 	out_be64(regptr, val);
 }
 
-static inline void write_hvwc_reg(struct vas_window *win, char *name,
+static inline void write_hvwc_reg(struct pnv_vas_window *win, char *name,
 			s32 reg, u64 val)
 {
 	void *regptr;
@@ -477,7 +469,7 @@ static inline void write_hvwc_reg(struct vas_window *win, char *name,
 	out_be64(regptr, val);
 }
 
-static inline u64 read_hvwc_reg(struct vas_window *win,
+static inline u64 read_hvwc_reg(struct pnv_vas_window *win,
 			char *name __maybe_unused, s32 reg)
 {
 	return in_be64(win->hvwc_map+reg);

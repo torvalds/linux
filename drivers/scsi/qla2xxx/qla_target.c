@@ -5481,8 +5481,7 @@ qlt_free_qfull_cmds(struct qla_qpair *qpair)
 			    "%s: Unexpected cmd in QFull list %p\n", __func__,
 			    cmd);
 
-		list_del(&cmd->cmd_list);
-		list_add_tail(&cmd->cmd_list, &free_list);
+		list_move_tail(&cmd->cmd_list, &free_list);
 
 		/* piggy back on hardware_lock for protection */
 		vha->hw->tgt.num_qfull_cmds_alloc--;

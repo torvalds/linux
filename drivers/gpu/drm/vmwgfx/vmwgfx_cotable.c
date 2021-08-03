@@ -173,7 +173,7 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 		SVGA3dCmdDXSetCOTable body;
 	} *cmd;
 
-	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON_ONCE(bo->resource->mem_type != VMW_PL_MOB);
 	dma_resv_assert_held(bo->base.resv);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
@@ -181,12 +181,12 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 		return -ENOMEM;
 
 	WARN_ON(vcotbl->ctx->id == SVGA3D_INVALID_ID);
-	WARN_ON(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON(bo->resource->mem_type != VMW_PL_MOB);
 	cmd->header.id = SVGA_3D_CMD_DX_SET_COTABLE;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = vcotbl->ctx->id;
 	cmd->body.type = vcotbl->type;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.validSizeInBytes = vcotbl->size_read_back;
 
 	vmw_cmd_commit_flush(dev_priv, sizeof(*cmd));
@@ -315,7 +315,7 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	if (!vmw_resource_mob_attached(res))
 		return 0;
 
-	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON_ONCE(bo->resource->mem_type != VMW_PL_MOB);
 	dma_resv_assert_held(bo->base.resv);
 
 	mutex_lock(&dev_priv->binding_mutex);
@@ -431,7 +431,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * Do a page by page copy of COTables. This eliminates slow vmap()s.
 	 * This should really be a TTM utility.
 	 */
-	for (i = 0; i < old_bo->mem.num_pages; ++i) {
+	for (i = 0; i < old_bo->resource->num_pages; ++i) {
 		bool dummy;
 
 		ret = ttm_bo_kmap(old_bo, i, 1, &old_map);
@@ -653,7 +653,7 @@ int vmw_cotable_notify(struct vmw_resource *res, int id)
 }
 
 /**
- * vmw_cotable_add_view - add a view to the cotable's list of active views.
+ * vmw_cotable_add_resource - add a view to the cotable's list of active views.
  *
  * @res: pointer struct vmw_resource representing the cotable.
  * @head: pointer to the struct list_head member of the resource, dedicated

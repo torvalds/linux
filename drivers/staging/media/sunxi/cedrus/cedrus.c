@@ -31,13 +31,19 @@
 static const struct cedrus_control cedrus_controls[] = {
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS,
+			.id	= V4L2_CID_STATELESS_MPEG2_SEQUENCE,
 		},
 		.codec		= CEDRUS_CODEC_MPEG2,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION,
+			.id	= V4L2_CID_STATELESS_MPEG2_PICTURE,
+		},
+		.codec		= CEDRUS_CODEC_MPEG2,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_STATELESS_MPEG2_QUANTISATION,
 		},
 		.codec		= CEDRUS_CODEC_MPEG2,
 	},
@@ -150,6 +156,12 @@ static const struct cedrus_control cedrus_controls[] = {
 			.id	= V4L2_CID_STATELESS_VP8_FRAME,
 		},
 		.codec		= CEDRUS_CODEC_VP8,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_HEVC_DECODE_PARAMS,
+		},
+		.codec		= CEDRUS_CODEC_H265,
 	},
 };
 

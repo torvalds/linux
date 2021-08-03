@@ -592,27 +592,31 @@ xfs_inode_validate_extsize(
 	/*
 	 * This comment describes a historic gap in this verifier function.
 	 *
-	 * On older kernels, the extent size hint verifier doesn't check that
-	 * the extent size hint is an integer multiple of the realtime extent
-	 * size on a directory with both RTINHERIT and EXTSZINHERIT flags set.
-	 * The verifier has always enforced the alignment rule for regular
-	 * files with the REALTIME flag set.
+	 * For a directory with both RTINHERIT and EXTSZINHERIT flags set, this
+	 * function has never checked that the extent size hint is an integer
+	 * multiple of the realtime extent size.  Since we allow users to set
+	 * this combination  on non-rt filesystems /and/ to change the rt
+	 * extent size when adding a rt device to a filesystem, the net effect
+	 * is that users can configure a filesystem anticipating one rt
+	 * geometry and change their minds later.  Directories do not use the
+	 * extent size hint, so this is harmless for them.
 	 *
 	 * If a directory with a misaligned extent size hint is allowed to
 	 * propagate that hint into a new regular realtime file, the result
 	 * is that the inode cluster buffer verifier will trigger a corruption
-	 * shutdown the next time it is run.
+	 * shutdown the next time it is run, because the verifier has always
+	 * enforced the alignment rule for regular files.
 	 *
-	 * Unfortunately, there could be filesystems with these misconfigured
-	 * directories in the wild, so we cannot add a check to this verifier
-	 * at this time because that will result a new source of directory
-	 * corruption errors when reading an existing filesystem.  Instead, we
-	 * permit the misconfiguration to pass through the verifiers so that
-	 * callers of this function can correct and mitigate externally.
+	 * Because we allow administrators to set a new rt extent size when
+	 * adding a rt section, we cannot add a check to this verifier because
+	 * that will result a new source of directory corruption errors when
+	 * reading an existing filesystem.  Instead, we rely on callers to
+	 * decide when alignment checks are appropriate, and fix things up as
+	 * needed.
 	 */
 
 	if (rt_flag)
-		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
+		blocksize_bytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
 	else
 		blocksize_bytes = mp->m_sb.sb_blocksize;
 

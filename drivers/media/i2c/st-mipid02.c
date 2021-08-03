@@ -643,7 +643,7 @@ out:
 }
 
 static int mipid02_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
@@ -670,7 +670,7 @@ static int mipid02_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int mipid02_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
@@ -687,7 +687,8 @@ static int mipid02_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&bridge->sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(&bridge->sd, sd_state,
+						 format->pad);
 	else
 		fmt = &bridge->fmt;
 
@@ -704,7 +705,7 @@ static int mipid02_get_fmt(struct v4l2_subdev *sd,
 }
 
 static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *format)
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
@@ -718,11 +719,11 @@ static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
 	if (format->which != V4L2_SUBDEV_FORMAT_TRY)
 		return;
 
-	*v4l2_subdev_get_try_format(sd, cfg, format->pad) = format->format;
+	*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = format->format;
 }
 
 static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *format)
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
@@ -731,7 +732,7 @@ static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
 	format->format.code = get_fmt_code(format->format.code);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 	else
 		fmt = &bridge->fmt;
 
@@ -739,7 +740,7 @@ static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
 }
 
 static int mipid02_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
@@ -762,9 +763,9 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->pad == MIPID02_SOURCE)
-		mipid02_set_fmt_source(sd, cfg, format);
+		mipid02_set_fmt_source(sd, sd_state, format);
 	else
-		mipid02_set_fmt_sink(sd, cfg, format);
+		mipid02_set_fmt_sink(sd, sd_state, format);
 
 error:
 	mutex_unlock(&bridge->lock);

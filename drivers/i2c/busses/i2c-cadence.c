@@ -578,6 +578,11 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 {
 	unsigned int ctrl_reg;
 	unsigned int isr_status;
+	unsigned long flags;
+	bool hold_clear = false;
+	bool irq_save = false;
+
+	u32 addr;
 
 	id->p_recv_buf = id->p_msg->buf;
 	id->recv_count = id->p_msg->len;
@@ -618,14 +623,43 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 		cdns_i2c_writereg(id->recv_count, CDNS_I2C_XFER_SIZE_OFFSET);
 	}
 
-	/* Set the slave address in address register - triggers operation */
-	cdns_i2c_writereg(id->p_msg->addr & CDNS_I2C_ADDR_MASK,
-						CDNS_I2C_ADDR_OFFSET);
-	/* Clear the bus hold flag if bytes to receive is less than FIFO size */
+	/* Determine hold_clear based on number of bytes to receive and hold flag */
 	if (!id->bus_hold_flag &&
-		((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
-		(id->recv_count <= CDNS_I2C_FIFO_DEPTH))
-			cdns_i2c_clear_bus_hold(id);
+	    ((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
+	    (id->recv_count <= CDNS_I2C_FIFO_DEPTH)) {
+		if (cdns_i2c_readreg(CDNS_I2C_CR_OFFSET) & CDNS_I2C_CR_HOLD) {
+			hold_clear = true;
+			if (id->quirks & CDNS_I2C_BROKEN_HOLD_BIT)
+				irq_save = true;
+		}
+	}
+
+	addr = id->p_msg->addr;
+	addr &= CDNS_I2C_ADDR_MASK;
+
+	if (hold_clear) {
+		ctrl_reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET) & ~CDNS_I2C_CR_HOLD;
+		/*
+		 * In case of Xilinx Zynq SOC, clear the HOLD bit before transfer size
+		 * register reaches '0'. This is an IP bug which causes transfer size
+		 * register overflow to 0xFF. To satisfy this timing requirement,
+		 * disable the interrupts on current processor core between register
+		 * writes to slave address register and control register.
+		 */
+		if (irq_save)
+			local_irq_save(flags);
+
+		cdns_i2c_writereg(addr, CDNS_I2C_ADDR_OFFSET);
+		cdns_i2c_writereg(ctrl_reg, CDNS_I2C_CR_OFFSET);
+		/* Read it back to avoid bufferring and make sure write happens */
+		cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
+
+		if (irq_save)
+			local_irq_restore(flags);
+	} else {
+		cdns_i2c_writereg(addr, CDNS_I2C_ADDR_OFFSET);
+	}
+
 	cdns_i2c_writereg(CDNS_I2C_ENABLED_INTR_MASK, CDNS_I2C_IER_OFFSET);
 }
 
@@ -1217,11 +1251,10 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		 "Cadence I2C at %08lx", (unsigned long)r_mem->start);
 
 	id->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(id->clk)) {
-		if (PTR_ERR(id->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "input clock not found.\n");
-		return PTR_ERR(id->clk);
-	}
+	if (IS_ERR(id->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(id->clk),
+				     "input clock not found.\n");
+
 	ret = clk_prepare_enable(id->clk);
 	if (ret)
 		dev_err(&pdev->dev, "Unable to enable clock.\n");

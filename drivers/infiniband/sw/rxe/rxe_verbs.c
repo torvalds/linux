@@ -216,8 +216,14 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	u32 length;
 	struct rxe_recv_wqe *recv_wqe;
 	int num_sge = ibwr->num_sge;
+	int full;
 
-	if (unlikely(queue_full(rq->queue))) {
+	if (rq->is_user)
+		full = queue_full(rq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		full = queue_full(rq->queue, QUEUE_TYPE_KERNEL);
+
+	if (unlikely(full)) {
 		err = -ENOMEM;
 		goto err1;
 	}
@@ -231,7 +237,11 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	for (i = 0; i < num_sge; i++)
 		length += ibwr->sg_list[i].length;
 
-	recv_wqe = producer_addr(rq->queue);
+	if (rq->is_user)
+		recv_wqe = producer_addr(rq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		recv_wqe = producer_addr(rq->queue, QUEUE_TYPE_KERNEL);
+
 	recv_wqe->wr_id = ibwr->wr_id;
 	recv_wqe->num_sge = num_sge;
 
@@ -244,7 +254,11 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	recv_wqe->dma.cur_sge		= 0;
 	recv_wqe->dma.sge_offset	= 0;
 
-	advance_producer(rq->queue);
+	if (rq->is_user)
+		advance_producer(rq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		advance_producer(rq->queue, QUEUE_TYPE_KERNEL);
+
 	return 0;
 
 err1:
@@ -267,6 +281,9 @@ static int rxe_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init,
 		if (udata->outlen < sizeof(*uresp))
 			return -EINVAL;
 		uresp = udata->outbuf;
+		srq->is_user = true;
+	} else {
+		srq->is_user = false;
 	}
 
 	err = rxe_srq_chk_attr(rxe, NULL, &init->attr, IB_SRQ_INIT_MASK);
@@ -408,7 +425,9 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 			err = -EINVAL;
 			goto err2;
 		}
-		qp->is_user = 1;
+		qp->is_user = true;
+	} else {
+		qp->is_user = false;
 	}
 
 	rxe_add_index(qp);
@@ -577,7 +596,7 @@ static void init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	init_send_wr(qp, &wqe->wr, ibwr);
 
 	/* local operation */
-	if (unlikely(mask & WR_REG_MASK)) {
+	if (unlikely(mask & WR_LOCAL_OP_MASK)) {
 		wqe->mask = mask;
 		wqe->state = wqe_state_posted;
 		return;
@@ -613,6 +632,7 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	struct rxe_sq *sq = &qp->sq;
 	struct rxe_send_wqe *send_wqe;
 	unsigned long flags;
+	int full;
 
 	err = validate_send_wr(qp, ibwr, mask, length);
 	if (err)
@@ -620,22 +640,31 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 
 	spin_lock_irqsave(&qp->sq.sq_lock, flags);
 
-	if (unlikely(queue_full(sq->queue))) {
-		err = -ENOMEM;
-		goto err1;
+	if (qp->is_user)
+		full = queue_full(sq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		full = queue_full(sq->queue, QUEUE_TYPE_KERNEL);
+
+	if (unlikely(full)) {
+		spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
+		return -ENOMEM;
 	}
 
-	send_wqe = producer_addr(sq->queue);
+	if (qp->is_user)
+		send_wqe = producer_addr(sq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		send_wqe = producer_addr(sq->queue, QUEUE_TYPE_KERNEL);
+
 	init_send_wqe(qp, ibwr, mask, length, send_wqe);
 
-	advance_producer(sq->queue);
+	if (qp->is_user)
+		advance_producer(sq->queue, QUEUE_TYPE_FROM_USER);
+	else
+		advance_producer(sq->queue, QUEUE_TYPE_KERNEL);
+
 	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
 
 	return 0;
-
-err1:
-	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
-	return err;
 }
 
 static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
@@ -823,12 +852,18 @@ static int rxe_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	for (i = 0; i < num_entries; i++) {
-		cqe = queue_head(cq->queue);
+		if (cq->is_user)
+			cqe = queue_head(cq->queue, QUEUE_TYPE_TO_USER);
+		else
+			cqe = queue_head(cq->queue, QUEUE_TYPE_KERNEL);
 		if (!cqe)
 			break;
 
 		memcpy(wc++, &cqe->ibwc, sizeof(*wc));
-		advance_consumer(cq->queue);
+		if (cq->is_user)
+			advance_consumer(cq->queue, QUEUE_TYPE_TO_USER);
+		else
+			advance_consumer(cq->queue, QUEUE_TYPE_KERNEL);
 	}
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
@@ -838,7 +873,12 @@ static int rxe_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
-	int count = queue_count(cq->queue);
+	int count;
+
+	if (cq->is_user)
+		count = queue_count(cq->queue, QUEUE_TYPE_TO_USER);
+	else
+		count = queue_count(cq->queue, QUEUE_TYPE_KERNEL);
 
 	return (count > wc_cnt) ? wc_cnt : count;
 }
@@ -848,12 +888,18 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	struct rxe_cq *cq = to_rcq(ibcq);
 	unsigned long irq_flags;
 	int ret = 0;
+	int empty;
 
 	spin_lock_irqsave(&cq->cq_lock, irq_flags);
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
-	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !queue_empty(cq->queue))
+	if (cq->is_user)
+		empty = queue_empty(cq->queue, QUEUE_TYPE_TO_USER);
+	else
+		empty = queue_empty(cq->queue, QUEUE_TYPE_KERNEL);
+
+	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
 		ret = 1;
 
 	spin_unlock_irqrestore(&cq->cq_lock, irq_flags);
@@ -899,7 +945,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 	rxe_add_ref(pd);
 
-	err = rxe_mr_init_user(pd, start, length, iova, access, udata, mr);
+	err = rxe_mr_init_user(pd, start, length, iova, access, mr);
 	if (err)
 		goto err3;
 
@@ -911,17 +957,6 @@ err3:
 	rxe_drop_ref(mr);
 err2:
 	return ERR_PTR(err);
-}
-
-static int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
-{
-	struct rxe_mr *mr = to_rmr(ibmr);
-
-	mr->state = RXE_MR_STATE_ZOMBIE;
-	rxe_drop_ref(mr_pd(mr));
-	rxe_drop_index(mr);
-	rxe_drop_ref(mr);
-	return 0;
 }
 
 static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
@@ -1058,8 +1093,9 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.driver_id = RDMA_DRIVER_RXE,
 	.uverbs_abi_ver = RXE_UVERBS_ABI_VERSION,
 
-	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
+	.alloc_hw_port_stats = rxe_ib_alloc_hw_port_stats,
 	.alloc_mr = rxe_alloc_mr,
+	.alloc_mw = rxe_alloc_mw,
 	.alloc_pd = rxe_alloc_pd,
 	.alloc_ucontext = rxe_alloc_ucontext,
 	.attach_mcast = rxe_attach_mcast,
@@ -1069,6 +1105,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.create_srq = rxe_create_srq,
 	.create_user_ah = rxe_create_ah,
 	.dealloc_driver = rxe_dealloc,
+	.dealloc_mw = rxe_dealloc_mw,
 	.dealloc_pd = rxe_dealloc_pd,
 	.dealloc_ucontext = rxe_dealloc_ucontext,
 	.dereg_mr = rxe_dereg_mr,
@@ -1077,6 +1114,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.destroy_qp = rxe_destroy_qp,
 	.destroy_srq = rxe_destroy_srq,
 	.detach_mcast = rxe_detach_mcast,
+	.device_group = &rxe_attr_group,
 	.enable_driver = rxe_enable_driver,
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,
@@ -1143,7 +1181,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	}
 	rxe->tfm = tfm;
 
-	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	err = ib_register_device(dev, ibdev_name, NULL);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);

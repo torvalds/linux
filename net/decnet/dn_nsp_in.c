@@ -870,7 +870,7 @@ int dn_nsp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 
 		/*
 		 * Read out ack data here, this applies equally
-		 * to data, other data, link serivce and both
+		 * to data, other data, link service and both
 		 * ack data and ack otherdata.
 		 */
 		dn_process_ack(sk, skb, other);

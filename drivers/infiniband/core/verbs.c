@@ -1834,7 +1834,7 @@ int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;
-		pr_warn("%s speed is unknown, defaulting to %d\n", netdev->name,
+		pr_warn("%s speed is unknown, defaulting to %u\n", netdev->name,
 			netdev_speed);
 	}
 
@@ -2444,27 +2444,6 @@ int ib_destroy_wq_user(struct ib_wq *wq, struct ib_udata *udata)
 	return ret;
 }
 EXPORT_SYMBOL(ib_destroy_wq_user);
-
-/**
- * ib_modify_wq - Modifies the specified WQ.
- * @wq: The WQ to modify.
- * @wq_attr: On input, specifies the WQ attributes to modify.
- * @wq_attr_mask: A bit-mask used to specify which attributes of the WQ
- *   are being modified.
- * On output, the current values of selected WQ attributes are returned.
- */
-int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
-		 u32 wq_attr_mask)
-{
-	int err;
-
-	if (!wq->device->ops.modify_wq)
-		return -EOPNOTSUPP;
-
-	err = wq->device->ops.modify_wq(wq, wq_attr, wq_attr_mask, NULL);
-	return err;
-}
-EXPORT_SYMBOL(ib_modify_wq);
 
 int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status)

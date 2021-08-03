@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <acpi/reboot.h>
@@ -63,7 +65,7 @@ void acpi_reboot(void)
 
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	case ACPI_ADR_SPACE_SYSTEM_IO:
-		printk(KERN_DEBUG "ACPI MEMORY or I/O RESET_REG.\n");
+		pr_debug("ACPI MEMORY or I/O RESET_REG.\n");
 		acpi_reset();
 		break;
 	}

@@ -275,7 +275,7 @@ static const ATOM_VOLTAGE_OBJECT_V3 *atomctrl_lookup_voltage_type_v3(
 }
 
 /**
- * atomctrl_get_memory_pll_dividers_si().
+ * atomctrl_get_memory_pll_dividers_si
  *
  * @hwmgr:           input parameter: pointer to HwMgr
  * @clock_value:     input parameter: memory clock
@@ -328,7 +328,7 @@ int atomctrl_get_memory_pll_dividers_si(
 }
 
 /**
- * atomctrl_get_memory_pll_dividers_vi().
+ * atomctrl_get_memory_pll_dividers_vi
  *
  * @hwmgr:                 input parameter: pointer to HwMgr
  * @clock_value:           input parameter: memory clock
@@ -1104,7 +1104,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 }
 
 /**
- * atomctrl_get_voltage_evv_on_sclk gets voltage via call to ATOM COMMAND table.
+ * atomctrl_get_voltage_evv_on_sclk: gets voltage via call to ATOM COMMAND table.
  * @hwmgr:              input: pointer to hwManager
  * @voltage_type:       input: type of EVV voltage VDDC or VDDGFX
  * @sclk:               input: in 10Khz unit. DPM state SCLK frequency
@@ -1144,7 +1144,7 @@ int atomctrl_get_voltage_evv_on_sclk(
 }
 
 /**
- * atomctrl_get_voltage_evv gets voltage via call to ATOM COMMAND table.
+ * atomctrl_get_voltage_evv: gets voltage via call to ATOM COMMAND table.
  * @hwmgr:              input: pointer to hwManager
  * @virtual_voltage_id: input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
  * @voltage: 	       output: real voltage level in unit of mv

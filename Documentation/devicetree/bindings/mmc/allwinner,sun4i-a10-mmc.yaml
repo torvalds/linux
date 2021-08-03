@@ -64,7 +64,6 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 4
     items:
       - description: Bus Clock
       - description: Module Clock
@@ -73,7 +72,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 4
     items:
       - const: ahb
       - const: mmc

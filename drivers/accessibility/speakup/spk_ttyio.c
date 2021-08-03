@@ -72,7 +72,8 @@ static void spk_ttyio_ldisc_close(struct tty_struct *tty)
 }
 
 static int spk_ttyio_receive_buf2(struct tty_struct *tty,
-				  const unsigned char *cp, char *fp, int count)
+				  const unsigned char *cp,
+				  const char *fp, int count)
 {
 	struct spk_ldisc_data *ldisc_data = tty->disc_data;
 	struct spk_synth *synth = ldisc_data->synth;
@@ -104,6 +105,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 
 static struct tty_ldisc_ops spk_ttyio_ldisc_ops = {
 	.owner          = THIS_MODULE,
+	.num		= N_SPEAKUP,
 	.name           = "speakup_ldisc",
 	.open           = spk_ttyio_ldisc_open,
 	.close          = spk_ttyio_ldisc_close,
@@ -211,14 +213,13 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 
 void spk_ttyio_register_ldisc(void)
 {
-	if (tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops))
+	if (tty_register_ldisc(&spk_ttyio_ldisc_ops))
 		pr_warn("speakup: Error registering line discipline. Most synths won't work.\n");
 }
 
 void spk_ttyio_unregister_ldisc(void)
 {
-	if (tty_unregister_ldisc(N_SPEAKUP))
-		pr_warn("speakup: Couldn't unregister ldisc\n");
+	tty_unregister_ldisc(&spk_ttyio_ldisc_ops);
 }
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)

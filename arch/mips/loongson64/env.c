@@ -62,7 +62,7 @@ void __init prom_lefi_init_env(void)
 	struct efi_cpuinfo_loongson *ecpu;
 	struct irq_source_routing_table *eirq_source;
 	u32 id;
-	u16 vendor, device;
+	u16 vendor;
 
 	/* firmware arguments are initialized in head.S */
 	boot_p = (struct boot_params *)fw_arg2;
@@ -166,7 +166,6 @@ void __init prom_lefi_init_env(void)
 	/* Read the ID of PCI host bridge to detect bridge type */
 	id = readl(HOST_BRIDGE_CONFIG_ADDR);
 	vendor = id & 0xffff;
-	device = (id >> 16) & 0xffff;
 
 	switch (vendor) {
 	case PCI_VENDOR_ID_LOONGSON:

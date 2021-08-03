@@ -17,8 +17,10 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_OPENED_FILES,
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,
 	CLIENT_METRIC_TYPE_OPENED_INODES,
+	CLIENT_METRIC_TYPE_READ_IO_SIZES,
+	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
 
-	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_OPENED_INODES,
+	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
 };
 
 /*
@@ -34,18 +36,22 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_OPENED_FILES,	\
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,	\
 	CLIENT_METRIC_TYPE_OPENED_INODES,	\
+	CLIENT_METRIC_TYPE_READ_IO_SIZES,	\
+	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,	\
 						\
 	CLIENT_METRIC_TYPE_MAX,			\
 }
 
-/* metric caps header */
-struct ceph_metric_cap {
+struct ceph_metric_header {
 	__le32 type;     /* ceph metric type */
-
 	__u8  ver;
 	__u8  compat;
-
 	__le32 data_len; /* length of sizeof(hit + mis + total) */
+} __packed;
+
+/* metric caps header */
+struct ceph_metric_cap {
+	struct ceph_metric_header header;
 	__le64 hit;
 	__le64 mis;
 	__le64 total;
@@ -53,48 +59,28 @@ struct ceph_metric_cap {
 
 /* metric read latency header */
 struct ceph_metric_read_latency {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(sec + nsec) */
+	struct ceph_metric_header header;
 	__le32 sec;
 	__le32 nsec;
 } __packed;
 
 /* metric write latency header */
 struct ceph_metric_write_latency {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(sec + nsec) */
+	struct ceph_metric_header header;
 	__le32 sec;
 	__le32 nsec;
 } __packed;
 
 /* metric metadata latency header */
 struct ceph_metric_metadata_latency {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(sec + nsec) */
+	struct ceph_metric_header header;
 	__le32 sec;
 	__le32 nsec;
 } __packed;
 
 /* metric dentry lease header */
 struct ceph_metric_dlease {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(hit + mis + total) */
+	struct ceph_metric_header header;
 	__le64 hit;
 	__le64 mis;
 	__le64 total;
@@ -102,38 +88,37 @@ struct ceph_metric_dlease {
 
 /* metric opened files header */
 struct ceph_opened_files {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(opened_files + total) */
+	struct ceph_metric_header header;
 	__le64 opened_files;
 	__le64 total;
 } __packed;
 
 /* metric pinned i_caps header */
 struct ceph_pinned_icaps {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(pinned_icaps + total) */
+	struct ceph_metric_header header;
 	__le64 pinned_icaps;
 	__le64 total;
 } __packed;
 
 /* metric opened inodes header */
 struct ceph_opened_inodes {
-	__le32 type;     /* ceph metric type */
-
-	__u8  ver;
-	__u8  compat;
-
-	__le32 data_len; /* length of sizeof(opened_inodes + total) */
+	struct ceph_metric_header header;
 	__le64 opened_inodes;
 	__le64 total;
+} __packed;
+
+/* metric read io size header */
+struct ceph_read_io_size {
+	struct ceph_metric_header header;
+	__le64 total_ops;
+	__le64 total_size;
+} __packed;
+
+/* metric write io size header */
+struct ceph_write_io_size {
+	struct ceph_metric_header header;
+	__le64 total_ops;
+	__le64 total_size;
 } __packed;
 
 struct ceph_metric_head {
@@ -152,6 +137,9 @@ struct ceph_client_metric {
 
 	spinlock_t read_metric_lock;
 	u64 total_reads;
+	u64 read_size_sum;
+	u64 read_size_min;
+	u64 read_size_max;
 	ktime_t read_latency_sum;
 	ktime_t read_latency_sq_sum;
 	ktime_t read_latency_min;
@@ -159,6 +147,9 @@ struct ceph_client_metric {
 
 	spinlock_t write_metric_lock;
 	u64 total_writes;
+	u64 write_size_sum;
+	u64 write_size_min;
+	u64 write_size_max;
 	ktime_t write_latency_sum;
 	ktime_t write_latency_sq_sum;
 	ktime_t write_latency_min;
@@ -206,10 +197,10 @@ static inline void ceph_update_cap_mis(struct ceph_client_metric *m)
 
 extern void ceph_update_read_metrics(struct ceph_client_metric *m,
 				     ktime_t r_start, ktime_t r_end,
-				     int rc);
+				     unsigned int size, int rc);
 extern void ceph_update_write_metrics(struct ceph_client_metric *m,
 				      ktime_t r_start, ktime_t r_end,
-				      int rc);
+				      unsigned int size, int rc);
 extern void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 				         ktime_t r_start, ktime_t r_end,
 					 int rc);

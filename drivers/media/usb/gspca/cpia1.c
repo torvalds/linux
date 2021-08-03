@@ -365,8 +365,9 @@ struct sd {
 static const struct v4l2_pix_format mode[] = {
 	{160, 120, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
 		/* The sizeimage is trial and error, as with low framerates
-		   the camera will pad out usb frames, making the image
-		   data larger then strictly necessary */
+		 *  the camera will pad out usb frames, making the image
+		 *  data larger than strictly necessary
+		 */
 		.bytesperline = 160,
 		.sizeimage = 65536,
 		.colorspace = V4L2_COLORSPACE_SRGB,

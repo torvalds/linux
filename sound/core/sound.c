@@ -357,7 +357,8 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 
 	mutex_lock(&sound_mutex);
 	for (minor = 0; minor < SNDRV_OS_MINORS; ++minor) {
-		if (!(mptr = snd_minors[minor]))
+		mptr = snd_minors[minor];
+		if (!mptr)
 			continue;
 		if (mptr->card >= 0) {
 			if (mptr->device >= 0)

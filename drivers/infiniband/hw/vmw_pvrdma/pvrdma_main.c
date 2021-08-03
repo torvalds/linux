@@ -162,6 +162,7 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.destroy_ah = pvrdma_destroy_ah,
 	.destroy_cq = pvrdma_destroy_cq,
 	.destroy_qp = pvrdma_destroy_qp,
+	.device_group = &pvrdma_attr_group,
 	.get_dev_fw_str = pvrdma_get_fw_ver_str,
 	.get_dma_mr = pvrdma_get_dma_mr,
 	.get_link_layer = pvrdma_port_link_layer,
@@ -240,7 +241,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	if (ret)
 		goto err_srq_free;
 	spin_lock_init(&dev->srq_tbl_lock);
-	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
 	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", &dev->pdev->dev);
 	if (ret)

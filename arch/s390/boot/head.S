@@ -401,6 +401,7 @@ SYM_CODE_END(startup_pgm_check_handler)
 # Must be keept in sync with struct parmarea in setup.h
 #
 	.org	PARMAREA
+SYM_DATA_START(parmarea)
 	.quad	0			# IPL_DEVICE
 	.quad	0			# INITRD_START
 	.quad	0			# INITRD_SIZE
@@ -411,6 +412,8 @@ SYM_CODE_END(startup_pgm_check_handler)
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
+	.org	PARMAREA+__PARMAREA_SIZE
+SYM_DATA_END(parmarea)
 
 	.org	EARLY_SCCB_OFFSET
 	.fill	4096
