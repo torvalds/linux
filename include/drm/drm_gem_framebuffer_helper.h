@@ -40,7 +40,8 @@ drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 			     const struct drm_mode_fb_cmd2 *mode_cmd);
 
 int drm_gem_fb_vmap(struct drm_framebuffer *fb,
-		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES]);
+		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES],
+		    struct dma_buf_map data[DRM_FORMAT_MAX_PLANES]);
 void drm_gem_fb_vunmap(struct drm_framebuffer *fb,
 		       struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES]);
 int drm_gem_fb_begin_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir);

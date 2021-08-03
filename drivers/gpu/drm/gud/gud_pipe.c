@@ -162,7 +162,7 @@ static int gud_prep_flush(struct gud_device *gdrm, struct drm_framebuffer *fb,
 	if (len > gdrm->bulk_len)
 		return -E2BIG;
 
-	ret = drm_gem_fb_vmap(fb, map);
+	ret = drm_gem_fb_vmap(fb, map, NULL);
 	if (ret)
 		return ret;
 

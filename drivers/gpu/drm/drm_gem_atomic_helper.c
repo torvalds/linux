@@ -339,7 +339,7 @@ int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *p
 	if (ret)
 		return ret;
 
-	return drm_gem_fb_vmap(fb, shadow_plane_state->map);
+	return drm_gem_fb_vmap(fb, shadow_plane_state->map, shadow_plane_state->data);
 }
 EXPORT_SYMBOL(drm_gem_prepare_shadow_fb);
 
