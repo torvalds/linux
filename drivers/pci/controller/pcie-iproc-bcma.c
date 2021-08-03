@@ -35,7 +35,6 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 {
 	struct device *dev = &bdev->dev;
 	struct iproc_pcie *pcie;
-	LIST_HEAD(resources);
 	struct pci_host_bridge *bridge;
 	int ret;
 
@@ -60,19 +59,16 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 	pcie->mem.end = bdev->addr_s[0] + SZ_128M - 1;
 	pcie->mem.name = "PCIe MEM space";
 	pcie->mem.flags = IORESOURCE_MEM;
-	pci_add_resource(&resources, &pcie->mem);
+	pci_add_resource(&bridge->windows, &pcie->mem);
+	ret = devm_request_pci_bus_resources(dev, &bridge->windows);
+	if (ret)
+		return ret;
 
 	pcie->map_irq = iproc_pcie_bcma_map_irq;
 
-	ret = iproc_pcie_setup(pcie, &resources);
-	if (ret) {
-		dev_err(dev, "PCIe controller setup failed\n");
-		pci_free_resource_list(&resources);
-		return ret;
-	}
-
 	bcma_set_drvdata(bdev, pcie);
-	return 0;
+
+	return iproc_pcie_setup(pcie, &bridge->windows);
 }
 
 static void iproc_pcie_bcma_remove(struct bcma_device *bdev)
