@@ -18,6 +18,3 @@ struct net_device *cops_probe(int unit);
 
 /* Fibre Channel adapters */
 int iph5526_probe(struct net_device *dev);
-
-/* SBNI adapters */
-int sbni_probe(int unit);

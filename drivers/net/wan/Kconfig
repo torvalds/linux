@@ -313,33 +313,6 @@ config LAPBETHER
 	  To compile this driver as a module, choose M here: the
 	  module will be called lapbether.
 
-	  If unsure, say N.
-
-config SBNI
-	tristate "Granch SBNI12 Leased Line adapter support"
-	depends on X86
-	help
-	  Driver for ISA SBNI12-xx cards which are low cost alternatives to
-	  leased line modems.
-
-	  You can find more information and last versions of drivers and
-	  utilities at <http://www.granch.ru/>. If you have any question you
-	  can send email to <sbni@granch.ru>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sbni.
-
-	  If unsure, say N.
-
-config SBNI_MULTILINE
-	bool "Multiple line feature support"
-	depends on SBNI
-	help
-	  Schedule traffic for some parallel lines, via SBNI12 adapters.
-
-	  If you have two computers connected with two parallel lines it's
-	  possible to increase transfer rate nearly twice. You should have
-	  a program named 'sbniconfig' to configure adapters.
 
 	  If unsure, say N.
 
