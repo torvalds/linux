@@ -17,7 +17,9 @@
 #include <linux/hashtable.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/refcount.h>
 #include <linux/scmi_protocol.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include <asm/unaligned.h>
@@ -153,6 +155,23 @@ struct scmi_msg {
  * @pending: True for xfers added to @pending_xfers hashtable
  * @node: An hlist_node reference used to store this xfer, alternatively, on
  *	  the free list @free_xfers or in the @pending_xfers hashtable
+ * @users: A refcount to track the active users for this xfer.
+ *	   This is meant to protect against the possibility that, when a command
+ *	   transaction times out concurrently with the reception of a valid
+ *	   response message, the xfer could be finally put on the TX path, and
+ *	   so vanish, while on the RX path scmi_rx_callback() is still
+ *	   processing it: in such a case this refcounting will ensure that, even
+ *	   though the timed-out transaction will anyway cause the command
+ *	   request to be reported as failed by time-out, the underlying xfer
+ *	   cannot be discarded and possibly reused until the last one user on
+ *	   the RX path has released it.
+ * @busy: An atomic flag to ensure exclusive write access to this xfer
+ * @state: The current state of this transfer, with states transitions deemed
+ *	   valid being:
+ *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_RESP_OK [ -> SCMI_XFER_DRESP_OK ]
+ *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_DRESP_OK
+ *	      (Missing synchronous response is assumed OK and ignored)
+ * @lock: A spinlock to protect state and busy fields.
  */
 struct scmi_xfer {
 	int transfer_id;
@@ -163,6 +182,16 @@ struct scmi_xfer {
 	struct completion *async_done;
 	bool pending;
 	struct hlist_node node;
+	refcount_t users;
+#define SCMI_XFER_FREE		0
+#define SCMI_XFER_BUSY		1
+	atomic_t busy;
+#define SCMI_XFER_SENT_OK	0
+#define SCMI_XFER_RESP_OK	1
+#define SCMI_XFER_DRESP_OK	2
+	int state;
+	/* A lock to protect state and busy fields */
+	spinlock_t lock;
 };
 
 /*
@@ -399,5 +428,4 @@ bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
 void scmi_notification_instance_data_set(const struct scmi_handle *handle,
 					 void *priv);
 void *scmi_notification_instance_data_get(const struct scmi_handle *handle);
-
 #endif /* _SCMI_COMMON_H */
