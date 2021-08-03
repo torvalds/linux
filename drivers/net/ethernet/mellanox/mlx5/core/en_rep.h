@@ -207,6 +207,8 @@ struct mlx5e_encap_entry {
 
 struct mlx5e_rep_sq {
 	struct mlx5_flow_handle	*send_to_vport_rule;
+	struct mlx5_flow_handle *send_to_vport_rule_peer;
+	u32 sqn;
 	struct list_head	 list;
 };
 

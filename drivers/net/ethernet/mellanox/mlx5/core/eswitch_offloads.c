@@ -1616,7 +1616,18 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 		goto ns_err;
 	}
 
-	table_size = esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ +
+	/* To be strictly correct:
+	 *	MLX5_MAX_PORTS * (esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ)
+	 * should be:
+	 *	esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ +
+	 *	peer_esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ
+	 * but as the peer device might not be in switchdev mode it's not
+	 * possible. We use the fact that by default FW sets max vfs and max sfs
+	 * to the same value on both devices. If it needs to be changed in the future note
+	 * the peer miss group should also be created based on the number of
+	 * total vports of the peer (currently is also uses esw->total_vports).
+	 */
+	table_size = MLX5_MAX_PORTS * (esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ) +
 		MLX5_ESW_MISS_FLOWS + esw->total_vports + esw->esw_funcs.num_vfs;
 
 	/* create the slow path fdb with encap set, so further table instances
@@ -1673,7 +1684,8 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 			 source_eswitch_owner_vhca_id_valid, 1);
 	}
 
-	ix = esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ;
+	/* See comment above table_size calculation */
+	ix = MLX5_MAX_PORTS * (esw->total_vports * MAX_SQ_NVPORTS + MAX_PF_SQ);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix - 1);
 
