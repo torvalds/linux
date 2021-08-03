@@ -142,11 +142,17 @@ dpaa2_switch_set_link_ksettings(struct net_device *netdev,
 	return err;
 }
 
-static int dpaa2_switch_ethtool_get_sset_count(struct net_device *dev, int sset)
+static int
+dpaa2_switch_ethtool_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int num_ss_stats = DPAA2_SWITCH_NUM_COUNTERS;
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return DPAA2_SWITCH_NUM_COUNTERS;
+		if (port_priv->mac)
+			num_ss_stats += dpaa2_mac_get_sset_count();
+		return num_ss_stats;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -155,14 +161,19 @@ static int dpaa2_switch_ethtool_get_sset_count(struct net_device *dev, int sset)
 static void dpaa2_switch_ethtool_get_strings(struct net_device *netdev,
 					     u32 stringset, u8 *data)
 {
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	u8 *p = data;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < DPAA2_SWITCH_NUM_COUNTERS; i++)
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       dpaa2_switch_ethtool_counters[i].name,
+		for (i = 0; i < DPAA2_SWITCH_NUM_COUNTERS; i++) {
+			memcpy(p, dpaa2_switch_ethtool_counters[i].name,
 			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		if (port_priv->mac)
+			dpaa2_mac_get_strings(p);
 		break;
 	}
 }
@@ -184,6 +195,9 @@ static void dpaa2_switch_ethtool_get_stats(struct net_device *netdev,
 			netdev_err(netdev, "dpsw_if_get_counter[%s] err %d\n",
 				   dpaa2_switch_ethtool_counters[i].name, err);
 	}
+
+	if (port_priv->mac)
+		dpaa2_mac_get_ethtool_stats(port_priv->mac, data + i);
 }
 
 const struct ethtool_ops dpaa2_switch_port_ethtool_ops = {
