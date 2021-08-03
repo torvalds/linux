@@ -3051,10 +3051,11 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (esw_mode_from_devlink(mode, &mlx5_mode))
 		return -EINVAL;
 
+	mlx5_lag_disable_change(esw->dev);
 	err = mlx5_esw_try_lock(esw);
 	if (err < 0) {
 		NL_SET_ERR_MSG_MOD(extack, "Can't change mode, E-Switch is busy");
-		return err;
+		goto enable_lag;
 	}
 	cur_mlx5_mode = err;
 	err = 0;
@@ -3071,6 +3072,8 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 
 unlock:
 	mlx5_esw_unlock(esw);
+enable_lag:
+	mlx5_lag_enable_change(esw->dev);
 	return err;
 }
 
