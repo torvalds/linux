@@ -26,6 +26,7 @@ config CS89x0_ISA
 	depends on ISA
 	depends on !PPC32
 	depends on CS89x0_PLATFORM=n
+	select NETDEV_LEGACY_INIT
 	select CS89x0
 	help
 	  Support for CS89x0 chipset based Ethernet cards. If you have a

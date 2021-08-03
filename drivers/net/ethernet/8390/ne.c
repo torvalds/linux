@@ -951,6 +951,7 @@ static int __init ne_init(void)
 }
 module_init(ne_init);
 
+#ifdef CONFIG_NETDEV_LEGACY_INIT
 struct net_device * __init ne_probe(int unit)
 {
 	int this_dev;
@@ -991,6 +992,7 @@ struct net_device * __init ne_probe(int unit)
 
 	return ERR_PTR(-ENODEV);
 }
+#endif
 #endif /* MODULE */
 
 static void __exit ne_exit(void)
