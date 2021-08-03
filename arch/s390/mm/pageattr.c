@@ -351,7 +351,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	pte_t *pte;
 
 	for (i = 0; i < numpages;) {
-		address = page_to_phys(page + i);
+		address = (unsigned long)page_to_virt(page + i);
 		pte = virt_to_kpte(address);
 		nr = (unsigned long)pte >> ilog2(sizeof(long));
 		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));
