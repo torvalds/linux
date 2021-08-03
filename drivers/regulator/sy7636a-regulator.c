@@ -13,6 +13,11 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/sy7636a.h>
 
+struct sy7636a_data {
+	struct sy7636a *sy7636a;
+	struct gpio_desc *pgood_gpio;
+};
+
 static int sy7636a_get_vcom_voltage_op(struct regulator_dev *rdev)
 {
 	int ret;
@@ -33,10 +38,10 @@ static int sy7636a_get_vcom_voltage_op(struct regulator_dev *rdev)
 
 static int sy7636a_get_status(struct regulator_dev *rdev)
 {
-	struct sy7636a *sy7636a = dev_get_drvdata(rdev->dev.parent);
+	struct sy7636a_data *data = dev_get_drvdata(rdev->dev.parent);
 	int ret = 0;
 
-	ret = gpiod_get_value_cansleep(sy7636a->pgood_gpio);
+	ret = gpiod_get_value_cansleep(data->pgood_gpio);
 	if (ret < 0)
 		dev_err(&rdev->dev, "Failed to read pgood gpio: %d\n", ret);
 
@@ -69,12 +74,11 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct gpio_desc *gdp;
+	struct sy7636a_data *data;
 	int ret;
 
 	if (!sy7636a)
 		return -EPROBE_DEFER;
-
-	platform_set_drvdata(pdev, sy7636a);
 
 	gdp = devm_gpiod_get(pdev->dev.parent, "epd-pwr-good", GPIOD_IN);
 	if (IS_ERR(gdp)) {
@@ -82,7 +86,14 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(gdp);
 	}
 
-	sy7636a->pgood_gpio = gdp;
+	data = devm_kzalloc(&pdev->dev, sizeof(struct sy7636a_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->sy7636a = sy7636a;
+	data->pgood_gpio = gdp;
+
+	platform_set_drvdata(pdev, data);
 
 	ret = regmap_write(sy7636a->regmap, SY7636A_REG_POWER_ON_DELAY_TIME, 0x0);
 	if (ret) {
