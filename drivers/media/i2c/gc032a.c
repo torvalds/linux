@@ -5,6 +5,8 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X01 init driver.
  * V0.0X01.0X02 add quick stream on/off
+ * V0.0X01.0X03 set sensor in stream off state by default
+ * to avoid sending abnormal data in the early stage.
  */
 
 #include <linux/clk.h>
@@ -115,7 +117,7 @@ struct gc032a {
 
 static const struct sensor_register gc032a_vga_regs[] = {
 	/*System*/
-	{0xf3, 0xff},
+	{0xf3, 0x00},
 	{0xf5, 0x06},
 	{0xf7, 0x01},
 	{0xf8, 0x03},
