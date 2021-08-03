@@ -1172,7 +1172,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
 {
-	return sizeof(priv->rx_res->rss_params.hash.toeplitz_hash_key);
+	return sizeof_field(struct mlx5e_rss_params_hash, toeplitz_hash_key);
 }
 
 static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
@@ -1198,18 +1198,10 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		   u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rss_params *rss;
 
-	rss = &priv->rx_res->rss_params;
-
-	if (indir)
-		memcpy(indir, rss->indir.table, sizeof(rss->indir.table));
-
-	if (key)
-		memcpy(key, rss->hash.toeplitz_hash_key, sizeof(rss->hash.toeplitz_hash_key));
-
-	if (hfunc)
-		*hfunc = rss->hash.hfunc;
+	mutex_lock(&priv->state_lock);
+	mlx5e_rx_res_rss_get_rxfh(priv->rx_res, indir, key, hfunc);
+	mutex_unlock(&priv->state_lock);
 
 	return 0;
 }
@@ -1218,58 +1210,13 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		   const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_rss_params *rss;
-	bool refresh_tirs = false;
-	bool refresh_rqt = false;
-
-	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
-	    (hfunc != ETH_RSS_HASH_XOR) &&
-	    (hfunc != ETH_RSS_HASH_TOP))
-		return -EINVAL;
+	int err;
 
 	mutex_lock(&priv->state_lock);
-
-	rss = &priv->rx_res->rss_params;
-
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hash.hfunc) {
-		rss->hash.hfunc = hfunc;
-		refresh_rqt = true;
-		refresh_tirs = true;
-	}
-
-	if (indir) {
-		memcpy(rss->indir.table, indir, sizeof(rss->indir.table));
-		refresh_rqt = true;
-	}
-
-	if (key) {
-		memcpy(rss->hash.toeplitz_hash_key, key, sizeof(rss->hash.toeplitz_hash_key));
-		refresh_tirs = refresh_tirs || rss->hash.hfunc == ETH_RSS_HASH_TOP;
-	}
-
-	if (refresh_rqt && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		u32 *rqns;
-
-		rqns = kvmalloc_array(priv->channels.num, sizeof(*rqns), GFP_KERNEL);
-		if (rqns) {
-			unsigned int ix;
-
-			for (ix = 0; ix < priv->channels.num; ix++)
-				rqns[ix] = priv->channels.c[ix]->rq.rqn;
-
-			mlx5e_rqt_redirect_indir(&priv->rx_res->indir_rqt, rqns,
-						 priv->channels.num,
-						 rss->hash.hfunc, &rss->indir);
-			kvfree(rqns);
-		}
-	}
-
-	if (refresh_tirs)
-		mlx5e_modify_tirs_hash(priv);
-
+	err = mlx5e_rx_res_rss_set_rxfh(priv->rx_res, indir, key,
+					hfunc == ETH_RSS_HASH_NO_CHANGE ? NULL : &hfunc);
 	mutex_unlock(&priv->state_lock);
-
-	return 0;
+	return err;
 }
 
 #define MLX5E_PFC_PREVEN_AUTO_TOUT_MSEC		100

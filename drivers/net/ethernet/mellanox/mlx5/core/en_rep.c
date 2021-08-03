@@ -647,27 +647,24 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5e_rx_res *res = priv->rx_res;
 	struct ttc_params ttc_params = {};
-	int tt, err;
+	int err;
 
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					      MLX5_FLOW_NAMESPACE_KERNEL);
 
 	/* The inner_ttc in the ttc params is intentionally not set */
-	ttc_params.any_tt_tirn = res->channels[0].direct_tir.tirn;
-	mlx5e_set_ttc_ft_params(&ttc_params);
+	mlx5e_set_ttc_params(priv, &ttc_params, false);
 
 	if (rep->vport != MLX5_VPORT_UPLINK)
 		/* To give uplik rep TTC a lower level for chaining from root ft */
 		ttc_params.ft_attr.level = MLX5E_TTC_FT_LEVEL + 1;
 
-	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = res->rss[tt].indir_tir.tirn;
-
-	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
-	if (err) {
-		netdev_err(priv->netdev, "Failed to create rep ttc table, err=%d\n", err);
+	priv->fs.ttc = mlx5_create_ttc_table(priv->mdev, &ttc_params);
+	if (IS_ERR(priv->fs.ttc)) {
+		err = PTR_ERR(priv->fs.ttc);
+		netdev_err(priv->netdev, "Failed to create rep ttc table, err=%d\n",
+			   err);
 		return err;
 	}
 	return 0;
@@ -685,7 +682,7 @@ static int mlx5e_create_rep_root_ft(struct mlx5e_priv *priv)
 		/* non uplik reps will skip any bypass tables and go directly to
 		 * their own ttc
 		 */
-		rpriv->root_ft = priv->fs.ttc.ft.t;
+		rpriv->root_ft = mlx5_get_ttc_flow_table(priv->fs.ttc);
 		return 0;
 	}
 
@@ -758,13 +755,12 @@ int mlx5e_rep_bond_update(struct mlx5e_priv *priv, bool cleanup)
 static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_lro_param lro_param;
 	int err;
 
-	priv->rx_res = kvzalloc(sizeof(*priv->rx_res), GFP_KERNEL);
+	priv->rx_res = mlx5e_rx_res_alloc();
 	if (!priv->rx_res)
 		return -ENOMEM;
-
-	mlx5e_build_rss_params(&priv->rx_res->rss_params, priv->channels.params.num_channels);
 
 	mlx5e_init_l2_addr(priv);
 
@@ -774,25 +770,16 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-	err = mlx5e_create_indirect_rqt(priv);
+	lro_param = mlx5e_get_lro_param(&priv->channels.params);
+	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, 0,
+				priv->max_nch, priv->drop_rq.rqn, &lro_param,
+				priv->channels.params.num_channels);
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_direct_rqts(priv);
-	if (err)
-		goto err_destroy_indirect_rqts;
-
-	err = mlx5e_create_indirect_tirs(priv, false);
-	if (err)
-		goto err_destroy_direct_rqts;
-
-	err = mlx5e_create_direct_tirs(priv);
-	if (err)
-		goto err_destroy_indirect_tirs;
-
 	err = mlx5e_create_rep_ttc_table(priv);
 	if (err)
-		goto err_destroy_direct_tirs;
+		goto err_destroy_rx_res;
 
 	err = mlx5e_create_rep_root_ft(priv);
 	if (err)
@@ -809,18 +796,12 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 err_destroy_root_ft:
 	mlx5e_destroy_rep_root_ft(priv);
 err_destroy_ttc_table:
-	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
-err_destroy_direct_tirs:
-	mlx5e_destroy_direct_tirs(priv);
-err_destroy_indirect_tirs:
-	mlx5e_destroy_indirect_tirs(priv);
-err_destroy_direct_rqts:
-	mlx5e_destroy_direct_rqts(priv);
-err_destroy_indirect_rqts:
-	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
+	mlx5_destroy_ttc_table(priv->fs.ttc);
+err_destroy_rx_res:
+	mlx5e_rx_res_destroy(priv->rx_res);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
-	kvfree(priv->rx_res);
+	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
 	return err;
 }
@@ -830,13 +811,10 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	mlx5e_ethtool_cleanup_steering(priv);
 	rep_vport_rx_rule_destroy(priv);
 	mlx5e_destroy_rep_root_ft(priv);
-	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
-	mlx5e_destroy_direct_tirs(priv);
-	mlx5e_destroy_indirect_tirs(priv);
-	mlx5e_destroy_direct_rqts(priv);
-	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
+	mlx5_destroy_ttc_table(priv->fs.ttc);
+	mlx5e_rx_res_destroy(priv->rx_res);
 	mlx5e_close_drop_rq(&priv->drop_rq);
-	kvfree(priv->rx_res);
+	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
 }
 

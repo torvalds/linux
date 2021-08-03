@@ -4,6 +4,15 @@
 #include "rqt.h"
 #include <linux/mlx5/transobj.h>
 
+void mlx5e_rss_params_indir_init_uniform(struct mlx5e_rss_params_indir *indir,
+					 unsigned int num_channels)
+{
+	unsigned int i;
+
+	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
+		indir->table[i] = i % num_channels;
+}
+
 static int mlx5e_rqt_init(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 			  u16 max_size, u32 *init_rqns, u16 init_size)
 {
