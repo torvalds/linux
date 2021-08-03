@@ -210,6 +210,10 @@
  *					configured and is ready for use.
  *					Initialized in: ppboot
  *
+ * CPU_BOOT_DEV_STS0_FW_NIC_MAC_EN	NIC MAC channels init is done by FW and
+ *					any access to them is done via the FW.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_DYN_PLL_EN		Dynamic PLL configuration is enabled.
  *					FW sends to host a bitmap of supported
  *					PLLs.
@@ -231,6 +235,21 @@
  *
  * CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN  Use multiple scratchpad interfaces to
  *					prevent IRQs overriding each other.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_FW_NIC_STAT_XPCS91_EN
+ *					NIC STAT and XPCS91 access is restricted
+ *					and is done via FW only.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_FW_NIC_STAT_EXT_EN
+ *					NIC STAT get all is supported.
+ *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_IS_IDLE_CHECK_EN
+ *					F/W checks if the device is idle by reading defined set
+ *					of registers. It returns a bitmask of all the engines,
+ *					where a bit is set if the engine is not idle.
  *					Initialized in: linux
  *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
@@ -260,10 +279,14 @@
 #define CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN			(1 << 15)
 #define CPU_BOOT_DEV_STS0_FW_LD_COM_EN			(1 << 16)
 #define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
+#define CPU_BOOT_DEV_STS0_FW_NIC_MAC_EN			(1 << 18)
 #define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
 #define CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN		(1 << 20)
 #define CPU_BOOT_DEV_STS0_EQ_INDEX_EN			(1 << 21)
 #define CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN		(1 << 22)
+#define CPU_BOOT_DEV_STS0_FW_NIC_STAT_XPCS91_EN		(1 << 23)
+#define CPU_BOOT_DEV_STS0_FW_NIC_STAT_EXT_EN		(1 << 24)
+#define CPU_BOOT_DEV_STS0_IS_IDLE_CHECK_EN		(1 << 25)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 #define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 

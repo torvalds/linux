@@ -98,6 +98,18 @@ struct hl_eq_fw_alive {
 	__u8 pad[7];
 };
 
+enum hl_pcie_addr_dec_cause {
+	PCIE_ADDR_DEC_HBW_ERR_RESP,
+	PCIE_ADDR_DEC_LBW_ERR_RESP,
+	PCIE_ADDR_DEC_TLP_BLOCKED_BY_RR
+};
+
+struct hl_eq_pcie_addr_dec_data {
+	/* enum hl_pcie_addr_dec_cause */
+	__u8 addr_dec_cause;
+	__u8 pad[7];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
@@ -106,6 +118,7 @@ struct hl_eq_entry {
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
 		struct hl_eq_fw_alive fw_alive;
+		struct hl_eq_pcie_addr_dec_data pcie_addr_dec_data;
 		__le64 data[7];
 	};
 };
@@ -116,7 +129,7 @@ struct hl_eq_entry {
 #define EQ_CTL_READY_MASK		0x80000000
 
 #define EQ_CTL_EVENT_TYPE_SHIFT		16
-#define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
+#define EQ_CTL_EVENT_TYPE_MASK		0x0FFF0000
 
 #define EQ_CTL_INDEX_SHIFT		0
 #define EQ_CTL_INDEX_MASK		0x0000FFFF
@@ -300,7 +313,7 @@ enum pq_init_status {
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * CPUCP_PACKET_PCIE_THROUGHPUT_GET
+ * CPUCP_PACKET_PCIE_THROUGHPUT_GET -
  *       Get throughput of PCIe.
  *       The packet's arguments specify the transaction direction (TX/RX).
  *       The window measurement is 10[msec], and the return value is in KB/sec.
@@ -309,19 +322,19 @@ enum pq_init_status {
  *       Replay count measures number of "replay" events, which is basicly
  *       number of retries done by PCIe.
  *
- * CPUCP_PACKET_TOTAL_ENERGY_GET
+ * CPUCP_PACKET_TOTAL_ENERGY_GET -
  *       Total Energy is measurement of energy from the time FW Linux
  *       is loaded. It is calculated by multiplying the average power
  *       by time (passed from armcp start). The units are in MilliJouls.
  *
- * CPUCP_PACKET_PLL_INFO_GET
+ * CPUCP_PACKET_PLL_INFO_GET -
  *       Fetch frequencies of PLL from the required PLL IP.
  *       The packet's arguments specify the device PLL type
  *       Pll type is the PLL from device pll_index enum.
  *       The result is composed of 4 outputs, each is 16-bit
  *       frequency in MHz.
  *
- * CPUCP_PACKET_POWER_GET
+ * CPUCP_PACKET_POWER_GET -
  *       Fetch the present power consumption of the device (Current * Voltage).
  *
  * CPUCP_PACKET_NIC_PFC_SET -
@@ -345,6 +358,24 @@ enum pq_init_status {
  * CPUCP_PACKET_MSI_INFO_SET -
  *       set the index number for each supported msi type going from
  *       host to device
+ *
+ * CPUCP_PACKET_NIC_XPCS91_REGS_GET -
+ *       Fetch the un/correctable counters values from the NIC MAC.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_GET -
+ *       Fetch various NIC MAC counters from the NIC STAT.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_CLR -
+ *       Clear the various NIC MAC counters in the NIC STAT.
+ *
+ * CPUCP_PACKET_NIC_STAT_REGS_ALL_GET -
+ *       Fetch all NIC MAC counters from the NIC STAT.
+ *
+ * CPUCP_PACKET_IS_IDLE_CHECK -
+ *       Check if the device is IDLE in regard to the DMA/compute engines
+ *       and QMANs. The f/w will return a bitmask where each bit represents
+ *       a different engine or QMAN according to enum cpucp_idle_mask.
+ *       The bit will be 1 if the engine is NOT idle.
  */
 
 enum cpucp_packet_id {
@@ -385,6 +416,11 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_NIC_LPBK_SET,		/* internal */
 	CPUCP_PACKET_NIC_MAC_CFG,		/* internal */
 	CPUCP_PACKET_MSI_INFO_SET,		/* internal */
+	CPUCP_PACKET_NIC_XPCS91_REGS_GET,	/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_GET,		/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_CLR,		/* internal */
+	CPUCP_PACKET_NIC_STAT_REGS_ALL_GET,	/* internal */
+	CPUCP_PACKET_IS_IDLE_CHECK,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -413,6 +449,11 @@ enum cpucp_packet_id {
 #define CPUCP_PKT_VAL_LPBK_IN1_MASK	0x0000000000000001ull
 #define CPUCP_PKT_VAL_LPBK_IN2_SHIFT	1
 #define CPUCP_PKT_VAL_LPBK_IN2_MASK	0x000000000000001Eull
+
+#define CPUCP_PKT_VAL_MAC_CNT_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_MAC_CNT_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_MAC_CNT_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_MAC_CNT_IN2_MASK	0x00000000FFFFFFFEull
 
 /* heartbeat status bits */
 #define CPUCP_PKT_HB_STATUS_EQ_FAULT_SHIFT		0
@@ -467,13 +508,20 @@ struct cpucp_packet {
 		__le32 status_mask;
 	};
 
-	__le32 reserved;
+	/* For NIC requests */
+	__le32 port_index;
 };
 
 struct cpucp_unmask_irq_arr_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
 	__le32 irqs[0];
+};
+
+struct cpucp_nic_status_packet {
+	struct cpucp_packet cpucp_pkt;
+	__le32 length;
+	__le32 data[0];
 };
 
 struct cpucp_array_data_packet {
@@ -593,6 +641,18 @@ enum pll_index {
 	MC_PLL = 17,
 	EMMC_PLL = 18,
 	PLL_MAX
+};
+
+enum rl_index {
+	TPC_RL = 0,
+	MME_RL,
+};
+
+enum pvt_index {
+	PVT_SW,
+	PVT_SE,
+	PVT_NW,
+	PVT_NE
 };
 
 /* Event Queue Packets */
@@ -719,6 +779,38 @@ struct cpucp_nic_info {
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__le16 serdes_type; /* enum cpucp_serdes_type */
 	__u8 reserved[6];
+};
+
+/*
+ * struct cpucp_nic_status - describes the status of a NIC port.
+ * @port: NIC port index.
+ * @bad_format_cnt: e.g. CRC.
+ * @responder_out_of_sequence_psn_cnt: e.g NAK.
+ * @high_ber_reinit_cnt: link reinit due to high BER.
+ * @correctable_err_cnt: e.g. bit-flip.
+ * @uncorrectable_err_cnt: e.g. MAC errors.
+ * @retraining_cnt: re-training counter.
+ * @up: is port up.
+ * @pcs_link: has PCS link.
+ * @phy_ready: is PHY ready.
+ * @auto_neg: is Autoneg enabled.
+ * @timeout_retransmission_cnt: timeout retransmission events
+ * @high_ber_cnt: high ber events
+ */
+struct cpucp_nic_status {
+	__le32 port;
+	__le32 bad_format_cnt;
+	__le32 responder_out_of_sequence_psn_cnt;
+	__le32 high_ber_reinit;
+	__le32 correctable_err_cnt;
+	__le32 uncorrectable_err_cnt;
+	__le32 retraining_cnt;
+	__u8 up;
+	__u8 pcs_link;
+	__u8 phy_ready;
+	__u8 auto_neg;
+	__le32 timeout_retransmission_cnt;
+	__le32 high_ber_cnt;
 };
 
 #endif /* CPUCP_IF_H */
