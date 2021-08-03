@@ -1445,18 +1445,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 		ret = PTR_ERR(qp);
 		goto err_put;
 	}
+	ib_qp_usecnt_inc(qp);
 
-	if (cmd->qp_type != IB_QPT_XRC_TGT) {
-		atomic_inc(&pd->usecnt);
-		if (attr.send_cq)
-			atomic_inc(&attr.send_cq->usecnt);
-		if (attr.recv_cq)
-			atomic_inc(&attr.recv_cq->usecnt);
-		if (attr.srq)
-			atomic_inc(&attr.srq->usecnt);
-		if (ind_tbl)
-			atomic_inc(&ind_tbl->usecnt);
-	} else {
+	if (cmd->qp_type == IB_QPT_XRC_TGT) {
 		/* It is done in _ib_create_qp for other QP types */
 		qp->uobject = obj;
 	}
