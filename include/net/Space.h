@@ -21,7 +21,6 @@ struct net_device *mvme147lance_probe(int unit);
 struct net_device *tc515_probe(int unit);
 struct net_device *lance_probe(int unit);
 struct net_device *cops_probe(int unit);
-struct net_device *ltpc_probe(void);
 
 /* Fibre Channel adapters */
 int iph5526_probe(struct net_device *dev);

@@ -142,9 +142,6 @@ static int __init net_olddevs_init(void)
 	cops_probe(1);
 	cops_probe(2);
 #endif
-#ifdef CONFIG_LTPC
-	ltpc_probe();
-#endif
 
 	return 0;
 }
