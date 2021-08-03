@@ -1952,6 +1952,23 @@
 		status = "disabled";
 	};
 
+	rkisp1_0: rkisp1@ff910000 {
+		compatible = "rockchip,rk3399-rkisp1";
+		reg = <0x0 0xff910000 0x0 0x4000>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "isp_irq";
+		clocks = <&cru SCLK_ISP0>,
+			 <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
+			 <&cru ACLK_ISP0_WRAPPER>, <&cru HCLK_ISP0_WRAPPER>;
+		clock-names = "clk_isp",
+			 "aclk_isp", "hclk_isp",
+			 "aclk_isp_wrap", "hclk_isp_wrap";
+		devfreq = <&dmc>;
+		power-domains = <&power RK3399_PD_ISP0>;
+		iommus = <&isp0_mmu>;
+		status = "disabled";
+	};
+
 	isp0_mmu: iommu@ff914000 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff914000 0x0 0x100>, <0x0 0xff915000 0x0 0x100>;
@@ -1962,6 +1979,26 @@
 		#iommu-cells = <0>;
 		power-domains = <&power RK3399_PD_ISP0>;
 		rockchip,disable-mmu-reset;
+		status = "disabled";
+	};
+
+	rkisp1_1: rkisp1@ff920000 {
+		compatible = "rockchip,rk3399-rkisp1";
+		reg = <0x0 0xff920000 0x0 0x4000>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "isp_irq";
+		clocks = <&cru SCLK_ISP1>,
+			 <&cru ACLK_ISP1>, <&cru HCLK_ISP1>,
+			 <&cru ACLK_ISP1_WRAPPER>, <&cru HCLK_ISP1_WRAPPER>,
+			 <&cru PCLK_ISP1_WRAPPER>;
+		clock-names = "clk_isp",
+			 "aclk_isp", "hclk_isp",
+			 "aclk_isp_wrap", "hclk_isp_wrap",
+			 "pclk_isp_wrap";
+		devfreq = <&dmc>;
+		power-domains = <&power RK3399_PD_ISP1>;
+		iommus = <&isp1_mmu>;
+		status = "disabled";
 	};
 
 	isp1_mmu: iommu@ff924000 {
@@ -1974,6 +2011,7 @@
 		#iommu-cells = <0>;
 		power-domains = <&power RK3399_PD_ISP1>;
 		rockchip,disable-mmu-reset;
+		status = "disabled";
 	};
 
 	hdmi_sound: hdmi-sound {
@@ -2095,6 +2133,20 @@
 				};
 			};
 		};
+	};
+
+	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@ff968000 {
+		compatible = "rockchip,rk3399-mipi-dphy";
+		reg = <0x0 0xff968000 0x0 0x8000>;
+		clocks = <&cru SCLK_MIPIDPHY_REF>,
+			 <&cru SCLK_DPHY_TX1RX1_CFG>,
+			 <&cru PCLK_VIO_GRF>,
+			 <&cru PCLK_MIPI_DSI1>;
+		clock-names = "dphy-ref", "dphy-cfg",
+			"grf", "pclk_mipi_dsi";
+		rockchip,grf = <&grf>;
+		power-domains = <&power RK3399_PD_VIO>;
+		status = "disabled";
 	};
 
 	edp: edp@ff970000 {
