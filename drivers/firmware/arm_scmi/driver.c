@@ -600,6 +600,13 @@ static inline void scmi_xfer_command_release(struct scmi_info *info,
 	__scmi_xfer_put(&info->tx_minfo, xfer);
 }
 
+static inline void scmi_clear_channel(struct scmi_info *info,
+				      struct scmi_chan_info *cinfo)
+{
+	if (info->desc->ops->clear_channel)
+		info->desc->ops->clear_channel(cinfo);
+}
+
 static void scmi_handle_notification(struct scmi_chan_info *cinfo, u32 msg_hdr)
 {
 	struct scmi_xfer *xfer;
@@ -613,7 +620,7 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo, u32 msg_hdr)
 	if (IS_ERR(xfer)) {
 		dev_err(dev, "failed to get free message slot (%ld)\n",
 			PTR_ERR(xfer));
-		info->desc->ops->clear_channel(cinfo);
+		scmi_clear_channel(info, cinfo);
 		return;
 	}
 
@@ -629,7 +636,7 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo, u32 msg_hdr)
 
 	__scmi_xfer_put(minfo, xfer);
 
-	info->desc->ops->clear_channel(cinfo);
+	scmi_clear_channel(info, cinfo);
 }
 
 static void scmi_handle_response(struct scmi_chan_info *cinfo, u32 msg_hdr)
@@ -639,7 +646,7 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo, u32 msg_hdr)
 
 	xfer = scmi_xfer_command_acquire(cinfo, msg_hdr);
 	if (IS_ERR(xfer)) {
-		info->desc->ops->clear_channel(cinfo);
+		scmi_clear_channel(info, cinfo);
 		return;
 	}
 
@@ -654,7 +661,7 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo, u32 msg_hdr)
 			   xfer->hdr.type);
 
 	if (xfer->hdr.type == MSG_TYPE_DELAYED_RESP) {
-		info->desc->ops->clear_channel(cinfo);
+		scmi_clear_channel(info, cinfo);
 		complete(xfer->async_done);
 	} else {
 		complete(&xfer->done);
