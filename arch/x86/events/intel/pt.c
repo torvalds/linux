@@ -1708,7 +1708,7 @@ static __init int pt_init(void)
 	if (!boot_cpu_has(X86_FEATURE_INTEL_PT))
 		return -ENODEV;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		u64 ctl;
 
@@ -1716,7 +1716,7 @@ static __init int pt_init(void)
 		if (!ret && (ctl & RTIT_CTL_TRACEEN))
 			prior_warn++;
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (prior_warn) {
 		x86_add_exclusive(x86_lbr_exclusive_pt);
