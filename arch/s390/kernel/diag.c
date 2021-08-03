@@ -68,7 +68,7 @@ static int show_diag_stat(struct seq_file *m, void *v)
 	unsigned long n = (unsigned long) v - 1;
 	int cpu, prec, tmp;
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (n == 0) {
 		seq_puts(m, "         ");
 
@@ -87,7 +87,7 @@ static int show_diag_stat(struct seq_file *m, void *v)
 		}
 		seq_printf(m, "    %s\n", diag_map[n-1].name);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 	return 0;
 }
 
