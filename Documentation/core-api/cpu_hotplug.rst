@@ -220,7 +220,7 @@ goes online (offline) and during initial setup (shutdown) of the driver. However
 each registration and removal function is also available with a ``_nocalls``
 suffix which does not invoke the provided callbacks if the invocation of the
 callbacks is not desired. During the manual setup (or teardown) the functions
-``get_online_cpus()`` and ``put_online_cpus()`` should be used to inhibit CPU
+``cpus_read_lock()`` and ``cpus_read_unlock()`` should be used to inhibit CPU
 hotplug operations.
 
 
