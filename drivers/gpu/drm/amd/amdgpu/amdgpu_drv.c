@@ -1870,6 +1870,16 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x7423, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_BEIGE_GOBY},
 	{0x1002, 0x743F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_BEIGE_GOBY},
 
+	{ PCI_DEVICE(0x1002, PCI_ANY_ID),
+	  .class = PCI_CLASS_DISPLAY_VGA << 8,
+	  .class_mask = 0xffffff,
+	  .driver_data = 0 },
+
+	{ PCI_DEVICE(0x1002, PCI_ANY_ID),
+	  .class = PCI_CLASS_DISPLAY_OTHER << 8,
+	  .class_mask = 0xffffff,
+	  .driver_data = 0 },
+
 	{0, 0, 0}
 };
 
@@ -1890,6 +1900,11 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
 		if (amdgpu_unsupported_pciidlist[i] == pdev->device)
 			return -ENODEV;
+	}
+
+	if (flags == 0) {
+		DRM_INFO("Unsupported asic.  Remove me when IP discovery init is in place.\n");
+		return -ENODEV;
 	}
 
 	if (amdgpu_virtual_display ||
