@@ -29,11 +29,20 @@ enum {
 	REP_LOADED,
 };
 
+enum mlx5_switchdev_event {
+	MLX5_SWITCHDEV_EVENT_PAIR,
+	MLX5_SWITCHDEV_EVENT_UNPAIR,
+};
+
 struct mlx5_eswitch_rep;
 struct mlx5_eswitch_rep_ops {
 	int (*load)(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep);
 	void (*unload)(struct mlx5_eswitch_rep *rep);
 	void *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
+	int (*event)(struct mlx5_eswitch *esw,
+		     struct mlx5_eswitch_rep *rep,
+		     enum mlx5_switchdev_event event,
+		     void *data);
 };
 
 struct mlx5_eswitch_rep_data {

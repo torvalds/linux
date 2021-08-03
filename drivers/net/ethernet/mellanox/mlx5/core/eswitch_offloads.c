@@ -2316,11 +2316,22 @@ void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
 #define ESW_OFFLOADS_DEVCOM_PAIR	(0)
 #define ESW_OFFLOADS_DEVCOM_UNPAIR	(1)
 
-static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
-				  struct mlx5_eswitch *peer_esw)
+static void mlx5_esw_offloads_rep_event_unpair(struct mlx5_eswitch *esw)
 {
+	const struct mlx5_eswitch_rep_ops *ops;
+	struct mlx5_eswitch_rep *rep;
+	unsigned long i;
+	u8 rep_type;
 
-	return esw_add_fdb_peer_miss_rules(esw, peer_esw->dev);
+	mlx5_esw_for_each_rep(esw, i, rep) {
+		rep_type = NUM_REP_TYPES;
+		while (rep_type--) {
+			ops = esw->offloads.rep_ops[rep_type];
+			if (atomic_read(&rep->rep_data[rep_type].state) == REP_LOADED &&
+			    ops->event)
+				ops->event(esw, rep, MLX5_SWITCHDEV_EVENT_UNPAIR, NULL);
+		}
+	}
 }
 
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
@@ -2328,7 +2339,40 @@ static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 	mlx5e_tc_clean_fdb_peer_flows(esw);
 #endif
+	mlx5_esw_offloads_rep_event_unpair(esw);
 	esw_del_fdb_peer_miss_rules(esw);
+}
+
+static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
+				  struct mlx5_eswitch *peer_esw)
+{
+	const struct mlx5_eswitch_rep_ops *ops;
+	struct mlx5_eswitch_rep *rep;
+	unsigned long i;
+	u8 rep_type;
+	int err;
+
+	err = esw_add_fdb_peer_miss_rules(esw, peer_esw->dev);
+	if (err)
+		return err;
+
+	mlx5_esw_for_each_rep(esw, i, rep) {
+		for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++) {
+			ops = esw->offloads.rep_ops[rep_type];
+			if (atomic_read(&rep->rep_data[rep_type].state) == REP_LOADED &&
+			    ops->event) {
+				err = ops->event(esw, rep, MLX5_SWITCHDEV_EVENT_PAIR, peer_esw);
+				if (err)
+					goto err_out;
+			}
+		}
+	}
+
+	return 0;
+
+err_out:
+	mlx5_esw_offloads_unpair(esw);
+	return err;
 }
 
 static int mlx5_esw_offloads_set_ns_peer(struct mlx5_eswitch *esw,
