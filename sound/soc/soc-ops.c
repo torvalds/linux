@@ -812,11 +812,10 @@ int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
 	long min = mc->min;
 	long max = mc->max;
 	long val = 0;
-	unsigned int regval;
 	unsigned int i;
 
 	for (i = 0; i < regcount; i++) {
-		regval = snd_soc_component_read(component, regbase+i);
+		unsigned int regval = snd_soc_component_read(component, regbase+i);
 		val |= (regval & regwmask) << (regwshift*(regcount-i-1));
 	}
 	val &= mask;
