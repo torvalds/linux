@@ -233,6 +233,18 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
 void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell);
 
 /**
+ * gsi_suspend() - Prepare the GSI subsystem for suspend
+ * @gsi:	GSI pointer
+ */
+void gsi_suspend(struct gsi *gsi);
+
+/**
+ * gsi_resume() - Resume the GSI subsystem following suspend
+ * @gsi:	GSI pointer
+ */
+void gsi_resume(struct gsi *gsi);
+
+/**
  * gsi_channel_suspend() - Suspend a GSI channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel to suspend

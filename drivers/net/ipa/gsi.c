@@ -981,6 +981,18 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id)
 	return __gsi_channel_start(channel, true);
 }
 
+/* Prevent all GSI interrupts while suspended */
+void gsi_suspend(struct gsi *gsi)
+{
+	disable_irq(gsi->irq);
+}
+
+/* Allow all GSI interrupts again when resuming */
+void gsi_resume(struct gsi *gsi)
+{
+	enable_irq(gsi->irq);
+}
+
 /**
  * gsi_channel_tx_queued() - Report queued TX transfers for a channel
  * @channel:	Channel for which to report
