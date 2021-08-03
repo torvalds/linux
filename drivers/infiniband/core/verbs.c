@@ -1216,6 +1216,7 @@ struct ib_qp *_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
 			    struct ib_udata *udata, struct ib_uqp_object *uobj,
 			    const char *caller)
 {
+	struct ib_udata dummy = {};
 	struct ib_qp *qp;
 	int ret;
 
@@ -1256,9 +1257,15 @@ struct ib_qp *_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
 	qp->send_cq = attr->send_cq;
 	qp->recv_cq = attr->recv_cq;
 
+	ret = ib_create_qp_security(qp, dev);
+	if (ret)
+		goto err_security;
+
 	rdma_restrack_add(&qp->res);
 	return qp;
 
+err_security:
+	qp->device->ops.destroy_qp(qp, udata ? &dummy : NULL);
 err_create:
 	rdma_restrack_put(&qp->res);
 	kfree(qp);
@@ -1287,10 +1294,6 @@ struct ib_qp *ib_create_qp_kernel(struct ib_pd *pd,
 	qp = _ib_create_qp(device, pd, qp_init_attr, NULL, NULL, caller);
 	if (IS_ERR(qp))
 		return qp;
-
-	ret = ib_create_qp_security(qp, device);
-	if (ret)
-		goto err;
 
 	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT) {
 		struct ib_qp *xrc_qp =

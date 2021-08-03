@@ -1447,10 +1447,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	}
 
 	if (cmd->qp_type != IB_QPT_XRC_TGT) {
-		ret = ib_create_qp_security(qp, device);
-		if (ret)
-			goto err_cb;
-
 		atomic_inc(&pd->usecnt);
 		if (attr.send_cq)
 			atomic_inc(&attr.send_cq->usecnt);
@@ -1501,9 +1497,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	resp.base.max_inline_data = attr.cap.max_inline_data;
 	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	return uverbs_response(attrs, &resp, sizeof(resp));
-
-err_cb:
-	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	if (!IS_ERR(xrcd_uobj))
