@@ -642,6 +642,9 @@ static ssize_t wq_block_on_fault_store(struct device *dev,
 	bool bof;
 	int rc;
 
+	if (!idxd->hw.gen_cap.block_on_fault)
+		return -EOPNOTSUPP;
+
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
