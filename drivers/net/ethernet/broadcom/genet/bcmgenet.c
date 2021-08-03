@@ -3972,8 +3972,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	 */
 	dev->needed_headroom += 64;
 
-	netdev_boot_setup_check(dev);
-
 	priv->dev = dev;
 	priv->pdev = pdev;
 
