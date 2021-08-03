@@ -1062,6 +1062,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		dev_err(hdev->dev,
 			"Device boot progress - Thermal Sensor initialization failed\n");
 		break;
+	case CPU_BOOT_STATUS_SECURITY_READY:
+		dev_err(hdev->dev,
+			"Device boot progress - Stuck in preboot after security initialization\n");
+		break;
 	default:
 		dev_err(hdev->dev,
 			"Device boot progress - Invalid status code %d\n",
