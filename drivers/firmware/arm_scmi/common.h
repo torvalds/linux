@@ -172,6 +172,7 @@ struct scmi_msg {
  *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_DRESP_OK
  *	      (Missing synchronous response is assumed OK and ignored)
  * @lock: A spinlock to protect state and busy fields.
+ * @priv: A pointer for transport private usage.
  */
 struct scmi_xfer {
 	int transfer_id;
@@ -192,6 +193,7 @@ struct scmi_xfer {
 	int state;
 	/* A lock to protect state and busy fields */
 	spinlock_t lock;
+	void *priv;
 };
 
 /*
@@ -417,7 +419,7 @@ extern const struct scmi_desc scmi_mailbox_desc;
 extern const struct scmi_desc scmi_smc_desc;
 #endif
 
-void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr);
+void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
 void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
 
 /* shmem related declarations */
