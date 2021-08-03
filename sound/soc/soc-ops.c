@@ -575,7 +575,6 @@ int snd_soc_limit_volume(struct snd_soc_card *card,
 	const char *name, int max)
 {
 	struct snd_kcontrol *kctl;
-	struct soc_mixer_control *mc;
 	int ret = -EINVAL;
 
 	/* Sanity check for name and max */
@@ -584,7 +583,7 @@ int snd_soc_limit_volume(struct snd_soc_card *card,
 
 	kctl = snd_soc_card_get_kcontrol(card, name);
 	if (kctl) {
-		mc = (struct soc_mixer_control *)kctl->private_value;
+		struct soc_mixer_control *mc = (struct soc_mixer_control *)kctl->private_value;
 		if (max <= mc->max) {
 			mc->platform_max = max;
 			ret = 0;
