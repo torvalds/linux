@@ -101,6 +101,13 @@ static inline struct ax_device *to_ax_dev(struct net_device *dev)
 	return (struct ax_device *)(ei_local + 1);
 }
 
+void ax_NS8390_reinit(struct net_device *dev)
+{
+	ax_NS8390_init(dev, 1);
+}
+
+EXPORT_SYMBOL_GPL(ax_NS8390_reinit);
+
 /*
  * ax_initial_check
  *
