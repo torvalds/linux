@@ -77,10 +77,8 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_SMC9194
 	{smc_init, 0},
 #endif
-#ifdef CONFIG_CS89x0
-#ifndef CONFIG_CS89x0_PLATFORM
+#ifdef CONFIG_CS89x0_ISA
 	{cs89x0_probe, 0},
-#endif
 #endif
 #if defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel */
 	{i82596_probe, 0},					/* I82596 */
