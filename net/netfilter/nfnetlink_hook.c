@@ -113,7 +113,7 @@ cancel_nest:
 static int nfnl_hook_dump_one(struct sk_buff *nlskb,
 			      const struct nfnl_dump_hook_data *ctx,
 			      const struct nf_hook_ops *ops,
-			      unsigned int seq)
+			      int family, unsigned int seq)
 {
 	u16 event = nfnl_msg_type(NFNL_SUBSYS_HOOK, NFNL_MSG_HOOK_GET);
 	unsigned int portid = NETLINK_CB(nlskb).portid;
@@ -124,7 +124,7 @@ static int nfnl_hook_dump_one(struct sk_buff *nlskb,
 	char *module_name;
 #endif
 	nlh = nfnl_msg_put(nlskb, portid, seq, event,
-			   NLM_F_MULTI, ops->pf, NFNETLINK_V0, 0);
+			   NLM_F_MULTI, family, NFNETLINK_V0, 0);
 	if (!nlh)
 		goto nla_put_failure;
 
@@ -264,7 +264,7 @@ static int nfnl_hook_dump(struct sk_buff *nlskb,
 	ops = nf_hook_entries_get_hook_ops(e);
 
 	for (; i < e->num_hook_entries; i++) {
-		err = nfnl_hook_dump_one(nlskb, ctx, ops[i],
+		err = nfnl_hook_dump_one(nlskb, ctx, ops[i], family,
 					 cb->nlh->nlmsg_seq);
 		if (err)
 			break;
