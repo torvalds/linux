@@ -126,6 +126,7 @@ static int get_port_state(struct ib_device *ibdev,
 
 static struct mlx5_roce *mlx5_get_rep_roce(struct mlx5_ib_dev *dev,
 					   struct net_device *ndev,
+					   struct net_device *upper,
 					   u32 *port_num)
 {
 	struct net_device *rep_ndev;
@@ -135,6 +136,14 @@ static struct mlx5_roce *mlx5_get_rep_roce(struct mlx5_ib_dev *dev,
 	for (i = 0; i < dev->num_ports; i++) {
 		port  = &dev->port[i];
 		if (!port->rep)
+			continue;
+
+		if (upper == ndev && port->rep->vport == MLX5_VPORT_UPLINK) {
+			*port_num = i + 1;
+			return &port->roce;
+		}
+
+		if (upper && port->rep->vport == MLX5_VPORT_UPLINK)
 			continue;
 
 		read_lock(&port->roce.netdev_lock);
@@ -196,11 +205,12 @@ static int mlx5_netdev_event(struct notifier_block *this,
 		}
 
 		if (ibdev->is_rep)
-			roce = mlx5_get_rep_roce(ibdev, ndev, &port_num);
+			roce = mlx5_get_rep_roce(ibdev, ndev, upper, &port_num);
 		if (!roce)
 			return NOTIFY_DONE;
-		if ((upper == ndev || (!upper && ndev == roce->netdev))
-		    && ibdev->ib_active) {
+		if ((upper == ndev ||
+		     ((!upper || ibdev->is_rep) && ndev == roce->netdev)) &&
+		    ibdev->ib_active) {
 			struct ib_event ibev = { };
 			enum ib_port_state port_state;
 
@@ -3012,7 +3022,7 @@ static int mlx5_eth_lag_init(struct mlx5_ib_dev *dev)
 	struct mlx5_flow_table *ft;
 	int err;
 
-	if (!ns || !mlx5_lag_is_roce(mdev))
+	if (!ns || !mlx5_lag_is_active(mdev))
 		return 0;
 
 	err = mlx5_cmd_create_vport_lag(mdev);
@@ -3074,9 +3084,11 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 {
 	int err;
 
-	err = mlx5_nic_vport_enable_roce(dev->mdev);
-	if (err)
-		return err;
+	if (!dev->is_rep && dev->profile != &raw_eth_profile) {
+		err = mlx5_nic_vport_enable_roce(dev->mdev);
+		if (err)
+			return err;
+	}
 
 	err = mlx5_eth_lag_init(dev);
 	if (err)
@@ -3085,7 +3097,8 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 	return 0;
 
 err_disable_roce:
-	mlx5_nic_vport_disable_roce(dev->mdev);
+	if (!dev->is_rep && dev->profile != &raw_eth_profile)
+		mlx5_nic_vport_disable_roce(dev->mdev);
 
 	return err;
 }
@@ -3093,7 +3106,8 @@ err_disable_roce:
 static void mlx5_disable_eth(struct mlx5_ib_dev *dev)
 {
 	mlx5_eth_lag_cleanup(dev);
-	mlx5_nic_vport_disable_roce(dev->mdev);
+	if (!dev->is_rep && dev->profile != &raw_eth_profile)
+		mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
 static int mlx5_ib_rn_get_params(struct ib_device *device, u32 port_num,
@@ -3950,12 +3964,7 @@ static int mlx5_ib_roce_init(struct mlx5_ib_dev *dev)
 
 		/* Register only for native ports */
 		err = mlx5_add_netdev_notifier(dev, port_num);
-		if (err || dev->is_rep || !mlx5_is_roce_init_enabled(mdev))
-			/*
-			 * We don't enable ETH interface for
-			 * 1. IB representors
-			 * 2. User disabled ROCE through devlink interface
-			 */
+		if (err)
 			return err;
 
 		err = mlx5_enable_eth(dev);
@@ -3980,8 +3989,7 @@ static void mlx5_ib_roce_cleanup(struct mlx5_ib_dev *dev)
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 
 	if (ll == IB_LINK_LAYER_ETHERNET) {
-		if (!dev->is_rep)
-			mlx5_disable_eth(dev);
+		mlx5_disable_eth(dev);
 
 		port_num = mlx5_core_native_port_num(dev->mdev) - 1;
 		mlx5_remove_netdev_notifier(dev, port_num);
@@ -4037,7 +4045,7 @@ static int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
 	const char *name;
 
-	if (!mlx5_lag_is_roce(dev->mdev))
+	if (!mlx5_lag_is_active(dev->mdev))
 		name = "mlx5_%d";
 	else
 		name = "mlx5_bond_%d";
