@@ -8,7 +8,9 @@
 #include <linux/debugfs.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
+
 #include "netns.h"
+#include "fail.h"
 
 static struct dentry *topdir;
 static struct dentry *rpc_clnt_dir;
@@ -297,6 +299,13 @@ static const struct file_operations fault_disconnect_fops = {
 	.release	= fault_release,
 };
 
+#if IS_ENABLED(CONFIG_FAIL_SUNRPC)
+struct fail_sunrpc_attr fail_sunrpc = {
+	.attr			= FAULT_ATTR_INITIALIZER,
+};
+EXPORT_SYMBOL_GPL(fail_sunrpc);
+#endif
+
 void __exit
 sunrpc_debugfs_exit(void)
 {
@@ -321,4 +330,9 @@ sunrpc_debugfs_init(void)
 
 	debugfs_create_file("disconnect", S_IFREG | 0400, rpc_fault_dir, NULL,
 			    &fault_disconnect_fops);
+
+#if IS_ENABLED(CONFIG_FAIL_SUNRPC)
+	fault_create_debugfs_attr("fail_sunrpc", NULL,
+				  &fail_sunrpc.attr);
+#endif
 }
