@@ -248,9 +248,9 @@ static int i8k_smm(struct smm_regs *regs)
 {
 	int ret;
 
-	get_online_cpus();
+	cpus_read_lock();
 	ret = smp_call_on_cpu(0, i8k_smm_func, regs, true);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return ret;
 }
