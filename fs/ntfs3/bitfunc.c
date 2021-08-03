@@ -4,6 +4,7 @@
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
  */
+
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
@@ -32,7 +33,7 @@ static const u8 zero_mask[] = { 0xFF, 0xFE, 0xFC, 0xF8, 0xF0,
 /*
  * are_bits_clear
  *
- * Returns true if all bits [bit, bit+nbits) are zeros "0"
+ * Return: True if all bits [bit, bit+nbits) are zeros "0".
  */
 bool are_bits_clear(const ulong *lmap, size_t bit, size_t nbits)
 {
@@ -74,14 +75,13 @@ bool are_bits_clear(const ulong *lmap, size_t bit, size_t nbits)
 	if (pos && (*map & fill_mask[pos]))
 		return false;
 
-	// All bits are zero
 	return true;
 }
 
 /*
  * are_bits_set
  *
- * Returns true if all bits [bit, bit+nbits) are ones "1"
+ * Return: True if all bits [bit, bit+nbits) are ones "1".
  */
 bool are_bits_set(const ulong *lmap, size_t bit, size_t nbits)
 {
@@ -130,6 +130,5 @@ bool are_bits_set(const ulong *lmap, size_t bit, size_t nbits)
 			return false;
 	}
 
-	// All bits are ones
 	return true;
 }

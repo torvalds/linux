@@ -6,7 +6,7 @@
  * This code builds two trees of free clusters extents.
  * Trees are sorted by start of extent and by length of extent.
  * NTFS_MAX_WND_EXTENTS defines the maximum number of elements in trees.
- * In extreme case code reads on-disk bitmap to find free clusters
+ * In extreme case code reads on-disk bitmap to find free clusters.
  *
  */
 
@@ -29,12 +29,10 @@ struct rb_node_key {
 	size_t key;
 };
 
-/*
- * Tree is sorted by start (key)
- */
+/* Tree is sorted by start (key). */
 struct e_node {
-	struct rb_node_key start; /* Tree sorted by start */
-	struct rb_node_key count; /* Tree sorted by len*/
+	struct rb_node_key start; /* Tree sorted by start. */
+	struct rb_node_key count; /* Tree sorted by len. */
 };
 
 static int wnd_rescan(struct wnd_bitmap *wnd);
@@ -62,9 +60,12 @@ static inline u32 wnd_bits(const struct wnd_bitmap *wnd, size_t i)
 }
 
 /*
- * b_pos + b_len - biggest fragment
- * Scan range [wpos wbits) window 'buf'
- * Returns -1 if not found
+ * wnd_scan
+ *
+ * b_pos + b_len - biggest fragment.
+ * Scan range [wpos wbits) window @buf.
+ *
+ * Return: -1 if not found.
  */
 static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 		       size_t to_alloc, size_t *prev_tail, size_t *b_pos,
@@ -96,7 +97,7 @@ static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 		}
 
 		/*
-		 * Now we have a fragment [wpos, wend) staring with 0
+		 * Now we have a fragment [wpos, wend) staring with 0.
 		 */
 		end = wpos + to_alloc - *prev_tail;
 		free_bits = find_next_bit(buf, min(end, wend), wpos);
@@ -125,9 +126,7 @@ static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 }
 
 /*
- * wnd_close
- *
- * Frees all resources
+ * wnd_close - Frees all resources.
  */
 void wnd_close(struct wnd_bitmap *wnd)
 {
@@ -170,9 +169,7 @@ static struct rb_node *rb_lookup(struct rb_root *root, size_t v)
 }
 
 /*
- * rb_insert_count
- *
- * Helper function to insert special kind of 'count' tree
+ * rb_insert_count - Helper function to insert special kind of 'count' tree.
  */
 static inline bool rb_insert_count(struct rb_root *root, struct e_node *e)
 {
@@ -205,9 +202,7 @@ static inline bool rb_insert_count(struct rb_root *root, struct e_node *e)
 }
 
 /*
- * inline bool rb_insert_start
- *
- * Helper function to insert special kind of 'start' tree
+ * rb_insert_start - Helper function to insert special kind of 'count' tree.
  */
 static inline bool rb_insert_start(struct rb_root *root, struct e_node *e)
 {
@@ -237,10 +232,8 @@ static inline bool rb_insert_start(struct rb_root *root, struct e_node *e)
 }
 
 /*
- * wnd_add_free_ext
- *
- * adds a new extent of free space
- * build = 1 when building tree
+ * wnd_add_free_ext - Adds a new extent of free space.
+ * @build:	1 when building tree.
  */
 static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			     bool build)
@@ -250,14 +243,14 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 	struct rb_node *n;
 
 	if (build) {
-		/* Use extent_min to filter too short extents */
+		/* Use extent_min to filter too short extents. */
 		if (wnd->count >= NTFS_MAX_WND_EXTENTS &&
 		    len <= wnd->extent_min) {
 			wnd->uptodated = -1;
 			return;
 		}
 	} else {
-		/* Try to find extent before 'bit' */
+		/* Try to find extent before 'bit'. */
 		n = rb_lookup(&wnd->start_tree, bit);
 
 		if (!n) {
@@ -266,7 +259,7 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			e = rb_entry(n, struct e_node, start.node);
 			n = rb_next(n);
 			if (e->start.key + e->count.key == bit) {
-				/* Remove left */
+				/* Remove left. */
 				bit = e->start.key;
 				len += e->count.key;
 				rb_erase(&e->start.node, &wnd->start_tree);
@@ -284,7 +277,7 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			if (e->start.key > end_in)
 				break;
 
-			/* Remove right */
+			/* Remove right. */
 			n = rb_next(n);
 			len += next_end - end_in;
 			end_in = next_end;
@@ -299,7 +292,7 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 		}
 
 		if (wnd->uptodated != 1) {
-			/* Check bits before 'bit' */
+			/* Check bits before 'bit'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     bit < wnd->zone_end
 				     ? 0
@@ -310,7 +303,7 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 				len += 1;
 			}
 
-			/* Check bits after 'end_in' */
+			/* Check bits after 'end_in'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     end_in > wnd->zone_bit
 				     ? wnd->nbits
@@ -322,29 +315,29 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			}
 		}
 	}
-	/* Insert new fragment */
+	/* Insert new fragment. */
 	if (wnd->count >= NTFS_MAX_WND_EXTENTS) {
 		if (e0)
 			kmem_cache_free(ntfs_enode_cachep, e0);
 
 		wnd->uptodated = -1;
 
-		/* Compare with smallest fragment */
+		/* Compare with smallest fragment. */
 		n = rb_last(&wnd->count_tree);
 		e = rb_entry(n, struct e_node, count.node);
 		if (len <= e->count.key)
-			goto out; /* Do not insert small fragments */
+			goto out; /* Do not insert small fragments. */
 
 		if (build) {
 			struct e_node *e2;
 
 			n = rb_prev(n);
 			e2 = rb_entry(n, struct e_node, count.node);
-			/* smallest fragment will be 'e2->count.key' */
+			/* Smallest fragment will be 'e2->count.key'. */
 			wnd->extent_min = e2->count.key;
 		}
 
-		/* Replace smallest fragment by new one */
+		/* Replace smallest fragment by new one. */
 		rb_erase(&e->start.node, &wnd->start_tree);
 		rb_erase(&e->count.node, &wnd->count_tree);
 		wnd->count -= 1;
@@ -371,9 +364,7 @@ out:;
 }
 
 /*
- * wnd_remove_free_ext
- *
- * removes a run from the cached free space
+ * wnd_remove_free_ext - Remove a run from the cached free space.
  */
 static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 {
@@ -382,7 +373,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 	size_t end_in = bit + len;
 	size_t end3, end, new_key, new_len, max_new_len;
 
-	/* Try to find extent before 'bit' */
+	/* Try to find extent before 'bit'. */
 	n = rb_lookup(&wnd->start_tree, bit);
 
 	if (!n)
@@ -394,11 +385,11 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 	new_key = new_len = 0;
 	len = e->count.key;
 
-	/* Range [bit,end_in) must be inside 'e' or outside 'e' and 'n' */
+	/* Range [bit,end_in) must be inside 'e' or outside 'e' and 'n'. */
 	if (e->start.key > bit)
 		;
 	else if (end_in <= end) {
-		/* Range [bit,end_in) inside 'e' */
+		/* Range [bit,end_in) inside 'e'. */
 		new_key = end_in;
 		new_len = end - end_in;
 		len = bit - e->start.key;
@@ -478,13 +469,13 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 	if (wnd->count >= NTFS_MAX_WND_EXTENTS) {
 		wnd->uptodated = -1;
 
-		/* Get minimal extent */
+		/* Get minimal extent. */
 		e = rb_entry(rb_last(&wnd->count_tree), struct e_node,
 			     count.node);
 		if (e->count.key > new_len)
 			goto out;
 
-		/* Replace minimum */
+		/* Replace minimum. */
 		rb_erase(&e->start.node, &wnd->start_tree);
 		rb_erase(&e->count.node, &wnd->count_tree);
 		wnd->count -= 1;
@@ -508,9 +499,7 @@ out:
 }
 
 /*
- * wnd_rescan
- *
- * Scan all bitmap. used while initialization.
+ * wnd_rescan - Scan all bitmap. Used while initialization.
  */
 static int wnd_rescan(struct wnd_bitmap *wnd)
 {
@@ -541,7 +530,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 
 		if (wnd->inited) {
 			if (!wnd->free_bits[iw]) {
-				/* all ones */
+				/* All ones. */
 				if (prev_tail) {
 					wnd_add_free_ext(wnd,
 							 vbo * 8 - prev_tail,
@@ -551,7 +540,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 				goto next_wnd;
 			}
 			if (wbits == wnd->free_bits[iw]) {
-				/* all zeroes */
+				/* All zeroes. */
 				prev_tail += wbits;
 				wnd->total_zeroes += wbits;
 				goto next_wnd;
@@ -604,14 +593,14 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			wpos = used;
 
 			if (wpos >= wbits) {
-				/* No free blocks */
+				/* No free blocks. */
 				prev_tail = 0;
 				break;
 			}
 
 			frb = find_next_bit(buf, wbits, wpos);
 			if (frb >= wbits) {
-				/* keep last free block */
+				/* Keep last free block. */
 				prev_tail += frb - wpos;
 				break;
 			}
@@ -619,9 +608,9 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			wnd_add_free_ext(wnd, wbit + wpos - prev_tail,
 					 frb + prev_tail - wpos, true);
 
-			/* Skip free block and first '1' */
+			/* Skip free block and first '1'. */
 			wpos = frb + 1;
-			/* Reset previous tail */
+			/* Reset previous tail. */
 			prev_tail = 0;
 		} while (wpos < wbits);
 
@@ -638,15 +627,15 @@ next_wnd:
 		}
 	}
 
-	/* Add last block */
+	/* Add last block. */
 	if (prev_tail)
 		wnd_add_free_ext(wnd, wnd->nbits - prev_tail, prev_tail, true);
 
 	/*
-	 * Before init cycle wnd->uptodated was 0
+	 * Before init cycle wnd->uptodated was 0.
 	 * If any errors or limits occurs while initialization then
-	 * wnd->uptodated will be -1
-	 * If 'uptodated' is still 0 then Tree is really updated
+	 * wnd->uptodated will be -1.
+	 * If 'uptodated' is still 0 then Tree is really updated.
 	 */
 	if (!wnd->uptodated)
 		wnd->uptodated = 1;
@@ -662,9 +651,6 @@ out:
 	return err;
 }
 
-/*
- * wnd_init
- */
 int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 {
 	int err;
@@ -697,9 +683,7 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 }
 
 /*
- * wnd_map
- *
- * call sb_bread for requested window
+ * wnd_map - Call sb_bread for requested window.
  */
 static struct buffer_head *wnd_map(struct wnd_bitmap *wnd, size_t iw)
 {
@@ -728,9 +712,7 @@ static struct buffer_head *wnd_map(struct wnd_bitmap *wnd, size_t iw)
 }
 
 /*
- * wnd_set_free
- *
- * Marks the bits range from bit to bit + bits as free
+ * wnd_set_free - Mark the bits range from bit to bit + bits as free.
  */
 int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
@@ -783,9 +765,7 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 }
 
 /*
- * wnd_set_used
- *
- * Marks the bits range from bit to bit + bits as used
+ * wnd_set_used - Mark the bits range from bit to bit + bits as used.
  */
 int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
@@ -839,7 +819,7 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 /*
  * wnd_is_free_hlp
  *
- * Returns true if all clusters [bit, bit+bits) are free (bitmap only)
+ * Return: True if all clusters [bit, bit+bits) are free (bitmap only).
  */
 static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
@@ -882,7 +862,7 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 /*
  * wnd_is_free
  *
- * Returns true if all clusters [bit, bit+bits) are free
+ * Return: True if all clusters [bit, bit+bits) are free.
  */
 bool wnd_is_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
@@ -914,7 +894,7 @@ use_wnd:
 /*
  * wnd_is_used
  *
- * Returns true if all clusters [bit, bit+bits) are used
+ * Return: True if all clusters [bit, bit+bits) are used.
  */
 bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
@@ -973,11 +953,11 @@ out:
 }
 
 /*
- * wnd_find
+ * wnd_find - Look for free space.
+ *
  * - flags - BITMAP_FIND_XXX flags
  *
- * looks for free space
- * Returns 0 if not found
+ * Return: 0 if not found.
  */
 size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 		size_t flags, size_t *allocated)
@@ -994,7 +974,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 	bool fbits_valid;
 	struct buffer_head *bh;
 
-	/* fast checking for available free space */
+	/* Fast checking for available free space. */
 	if (flags & BITMAP_FIND_FULL) {
 		size_t zeroes = wnd_zeroes(wnd);
 
@@ -1020,7 +1000,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 	if (RB_EMPTY_ROOT(&wnd->start_tree)) {
 		if (wnd->uptodated == 1) {
-			/* extents tree is updated -> no free space */
+			/* Extents tree is updated -> No free space. */
 			goto no_space;
 		}
 		goto scan_bitmap;
@@ -1030,7 +1010,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 	if (!hint)
 		goto allocate_biggest;
 
-	/* Use hint: enumerate extents by start >= hint */
+	/* Use hint: Enumerate extents by start >= hint. */
 	pr = NULL;
 	cr = wnd->start_tree.rb_node;
 
@@ -1059,7 +1039,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 		goto allocate_biggest;
 
 	if (e->start.key + e->count.key > hint) {
-		/* We have found extension with 'hint' inside */
+		/* We have found extension with 'hint' inside. */
 		size_t len = e->start.key + e->count.key - hint;
 
 		if (len >= to_alloc && hint + to_alloc <= max_alloc) {
@@ -1080,7 +1060,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 	}
 
 allocate_biggest:
-	/* Allocate from biggest free extent */
+	/* Allocate from biggest free extent. */
 	e = rb_entry(rb_first(&wnd->count_tree), struct e_node, count.node);
 	if (e->count.key != wnd->extent_max)
 		wnd->extent_max = e->count.key;
@@ -1090,14 +1070,14 @@ allocate_biggest:
 			;
 		} else if (flags & BITMAP_FIND_FULL) {
 			if (e->count.key < to_alloc0) {
-				/* Biggest free block is less then requested */
+				/* Biggest free block is less then requested. */
 				goto no_space;
 			}
 			to_alloc = e->count.key;
 		} else if (-1 != wnd->uptodated) {
 			to_alloc = e->count.key;
 		} else {
-			/* Check if we can use more bits */
+			/* Check if we can use more bits. */
 			size_t op, max_check;
 			struct rb_root start_tree;
 
@@ -1118,7 +1098,7 @@ allocate_biggest:
 			to_alloc = op - e->start.key;
 		}
 
-		/* Prepare to return */
+		/* Prepare to return. */
 		fnd = e->start.key;
 		if (e->start.key + to_alloc > max_alloc)
 			to_alloc = max_alloc - e->start.key;
@@ -1126,7 +1106,7 @@ allocate_biggest:
 	}
 
 	if (wnd->uptodated == 1) {
-		/* extents tree is updated -> no free space */
+		/* Extents tree is updated -> no free space. */
 		goto no_space;
 	}
 
@@ -1140,7 +1120,7 @@ scan_bitmap:
 	/* At most two ranges [hint, max_alloc) + [0, hint) */
 Again:
 
-	/* TODO: optimize request for case nbits > wbits */
+	/* TODO: Optimize request for case nbits > wbits. */
 	iw = hint >> log2_bits;
 	wbits = sb->s_blocksize * 8;
 	wpos = hint & (wbits - 1);
@@ -1155,7 +1135,7 @@ Again:
 		nwnd = likely(t > max_alloc) ? (t >> log2_bits) : wnd->nwnd;
 	}
 
-	/* Enumerate all windows */
+	/* Enumerate all windows. */
 	for (; iw < nwnd; iw++) {
 		wbit = iw << log2_bits;
 
@@ -1165,7 +1145,7 @@ Again:
 				b_len = prev_tail;
 			}
 
-			/* Skip full used window */
+			/* Skip full used window. */
 			prev_tail = 0;
 			wpos = 0;
 			continue;
@@ -1189,25 +1169,25 @@ Again:
 			zbit = max(wnd->zone_bit, wbit);
 			zend = min(wnd->zone_end, ebit);
 
-			/* Here we have a window [wbit, ebit) and zone [zbit, zend) */
+			/* Here we have a window [wbit, ebit) and zone [zbit, zend). */
 			if (zend <= zbit) {
-				/* Zone does not overlap window */
+				/* Zone does not overlap window. */
 			} else {
 				wzbit = zbit - wbit;
 				wzend = zend - wbit;
 
-				/* Zone overlaps window */
+				/* Zone overlaps window. */
 				if (wnd->free_bits[iw] == wzend - wzbit) {
 					prev_tail = 0;
 					wpos = 0;
 					continue;
 				}
 
-				/* Scan two ranges window: [wbit, zbit) and [zend, ebit) */
+				/* Scan two ranges window: [wbit, zbit) and [zend, ebit). */
 				bh = wnd_map(wnd, iw);
 
 				if (IS_ERR(bh)) {
-					/* TODO: error */
+					/* TODO: Error */
 					prev_tail = 0;
 					wpos = 0;
 					continue;
@@ -1215,9 +1195,9 @@ Again:
 
 				buf = (ulong *)bh->b_data;
 
-				/* Scan range [wbit, zbit) */
+				/* Scan range [wbit, zbit). */
 				if (wpos < wzbit) {
-					/* Scan range [wpos, zbit) */
+					/* Scan range [wpos, zbit). */
 					fnd = wnd_scan(buf, wbit, wpos, wzbit,
 						       to_alloc, &prev_tail,
 						       &b_pos, &b_len);
@@ -1229,7 +1209,7 @@ Again:
 
 				prev_tail = 0;
 
-				/* Scan range [zend, ebit) */
+				/* Scan range [zend, ebit). */
 				if (wzend < wbits) {
 					fnd = wnd_scan(buf, wbit,
 						       max(wzend, wpos), wbits,
@@ -1247,24 +1227,24 @@ Again:
 			}
 		}
 
-		/* Current window does not overlap zone */
+		/* Current window does not overlap zone. */
 		if (!wpos && fbits_valid && wnd->free_bits[iw] == wbits) {
-			/* window is empty */
+			/* Window is empty. */
 			if (prev_tail + wbits >= to_alloc) {
 				fnd = wbit + wpos - prev_tail;
 				goto found;
 			}
 
-			/* Increase 'prev_tail' and process next window */
+			/* Increase 'prev_tail' and process next window. */
 			prev_tail += wbits;
 			wpos = 0;
 			continue;
 		}
 
-		/* read window */
+		/* Read window */
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
-			// TODO: error
+			// TODO: Error.
 			prev_tail = 0;
 			wpos = 0;
 			continue;
@@ -1272,7 +1252,7 @@ Again:
 
 		buf = (ulong *)bh->b_data;
 
-		/* Scan range [wpos, eBits) */
+		/* Scan range [wpos, eBits). */
 		fnd = wnd_scan(buf, wbit, wpos, wbits, to_alloc, &prev_tail,
 			       &b_pos, &b_len);
 		put_bh(bh);
@@ -1281,15 +1261,15 @@ Again:
 	}
 
 	if (b_len < prev_tail) {
-		/* The last fragment */
+		/* The last fragment. */
 		b_len = prev_tail;
 		b_pos = max_alloc - prev_tail;
 	}
 
 	if (hint) {
 		/*
-		 * We have scanned range [hint max_alloc)
-		 * Prepare to scan range [0 hint + to_alloc)
+		 * We have scanned range [hint max_alloc).
+		 * Prepare to scan range [0 hint + to_alloc).
 		 */
 		size_t nextmax = hint + to_alloc;
 
@@ -1312,7 +1292,7 @@ Again:
 
 found:
 	if (flags & BITMAP_FIND_MARK_AS_USED) {
-		/* TODO optimize remove extent (pass 'e'?) */
+		/* TODO: Optimize remove extent (pass 'e'?). */
 		if (wnd_set_used(wnd, fnd, to_alloc))
 			goto no_space;
 	} else if (wnd->extent_max != MINUS_ONE_T &&
@@ -1328,9 +1308,7 @@ no_space:
 }
 
 /*
- * wnd_extend
- *
- * Extend bitmap ($MFT bitmap)
+ * wnd_extend - Extend bitmap ($MFT bitmap).
  */
 int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 {
@@ -1347,7 +1325,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 	if (new_bits <= old_bits)
 		return -EINVAL;
 
-	/* align to 8 byte boundary */
+	/* Align to 8 byte boundary. */
 	new_wnd = bytes_to_block(sb, bitmap_size(new_bits));
 	new_last = new_bits & (wbits - 1);
 	if (!new_last)
@@ -1367,7 +1345,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		wnd->free_bits = new_free;
 	}
 
-	/* Zero bits [old_bits,new_bits) */
+	/* Zero bits [old_bits,new_bits). */
 	bits = new_bits - old_bits;
 	b0 = old_bits & (wbits - 1);
 
@@ -1403,7 +1381,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		set_buffer_uptodate(bh);
 		mark_buffer_dirty(bh);
 		unlock_buffer(bh);
-		/*err = sync_dirty_buffer(bh);*/
+		/* err = sync_dirty_buffer(bh); */
 
 		b0 = 0;
 		bits -= op;
@@ -1418,9 +1396,6 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 	return 0;
 }
 
-/*
- * wnd_zone_set
- */
 void wnd_zone_set(struct wnd_bitmap *wnd, size_t lcn, size_t len)
 {
 	size_t zlen;
@@ -1502,7 +1477,7 @@ int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range)
 		put_bh(bh);
 	}
 
-	/* Process the last fragment */
+	/* Process the last fragment. */
 	if (len >= minlen) {
 		err = ntfs_discard(sbi, lcn, len);
 		if (err)

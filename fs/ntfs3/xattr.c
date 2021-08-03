@@ -41,7 +41,7 @@ static inline size_t packed_ea_size(const struct EA_FULL *ea)
 /*
  * find_ea
  *
- * assume there is at least one xattr in the list
+ * Assume there is at least one xattr in the list.
  */
 static inline bool find_ea(const struct EA_FULL *ea_all, u32 bytes,
 			   const char *name, u8 name_len, u32 *off)
@@ -69,11 +69,9 @@ static inline bool find_ea(const struct EA_FULL *ea_all, u32 bytes,
 }
 
 /*
- * ntfs_read_ea
- *
- * reads all extended attributes
- * ea - new allocated memory
- * info - pointer into resident data
+ * ntfs_read_ea - Read all extended attributes.
+ * @ea:		New allocated memory.
+ * @info:	Pointer into resident data.
  */
 static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 			size_t add_bytes, const struct EA_INFO **info)
@@ -101,7 +99,7 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 	if (!*info)
 		return -EINVAL;
 
-	/* Check Ea limit */
+	/* Check Ea limit. */
 	size = le32_to_cpu((*info)->size);
 	if (size > ni->mi.sbi->ea_max_size)
 		return -EFBIG;
@@ -109,7 +107,7 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 	if (attr_size(attr_ea) > ni->mi.sbi->ea_max_size)
 		return -EFBIG;
 
-	/* Allocate memory for packed Ea */
+	/* Allocate memory for packed Ea. */
 	ea_p = kmalloc(size + add_bytes, GFP_NOFS);
 	if (!ea_p)
 		return -ENOMEM;
@@ -150,11 +148,12 @@ out:
 /*
  * ntfs_list_ea
  *
- * copy a list of xattrs names into the buffer
- * provided, or compute the buffer size required
+ * Copy a list of xattrs names into the buffer
+ * provided, or compute the buffer size required.
  *
- * Returns a negative error number on failure, or the number of bytes
- * used / required on success.
+ * Return:
+ * * Number of bytes used / required on
+ * * -ERRNO - on failure
  */
 static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 			    size_t bytes_per_buffer)
@@ -175,7 +174,7 @@ static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 
 	size = le32_to_cpu(info->size);
 
-	/* Enumerate all xattrs */
+	/* Enumerate all xattrs. */
 	for (ret = 0, off = 0; off < size; off += unpacked_ea_size(ea)) {
 		ea = Add2Ptr(ea_all, off);
 
@@ -227,7 +226,7 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 	if (!info)
 		goto out;
 
-	/* Enumerate all xattrs */
+	/* Enumerate all xattrs. */
 	if (!find_ea(ea_all, le32_to_cpu(info->size), name, name_len, &off)) {
 		err = -ENODATA;
 		goto out;
@@ -322,11 +321,11 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		 */
 		if (val_size && le16_to_cpu(ea->elength) == val_size &&
 		    !memcmp(ea->name + ea->name_len + 1, value, val_size)) {
-			/* xattr already contains the required value */
+			/* xattr already contains the required value. */
 			goto out;
 		}
 
-		/* Remove current xattr */
+		/* Remove current xattr. */
 		if (ea->flags & FILE_NEED_EA)
 			le16_add_cpu(&ea_info.count, -1);
 
@@ -342,7 +341,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		ea_info.size = cpu_to_le32(size);
 
 		if ((flags & XATTR_REPLACE) && !val_size) {
-			/* remove xattr */
+			/* Remove xattr. */
 			goto update_ea;
 		}
 	} else {
@@ -360,7 +359,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		}
 	}
 
-	/* append new xattr */
+	/* Append new xattr. */
 	new_ea = Add2Ptr(ea_all, size);
 	new_ea->size = cpu_to_le32(add);
 	new_ea->flags = 0;
@@ -371,14 +370,14 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 	memcpy(new_ea->name + name_len + 1, value, val_size);
 	new_pack = le16_to_cpu(ea_info.size_pack) + packed_ea_size(new_ea);
 
-	/* should fit into 16 bits */
+	/* Should fit into 16 bits. */
 	if (new_pack > 0xffff) {
 		err = -EFBIG; // -EINVAL?
 		goto out;
 	}
 	ea_info.size_pack = cpu_to_le16(new_pack);
 
-	/* new size of ATTR_EA */
+	/* New size of ATTR_EA. */
 	size += add;
 	if (size > sbi->ea_max_size) {
 		err = -EFBIG; // -EINVAL?
@@ -389,7 +388,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 update_ea:
 
 	if (!info) {
-		/* Create xattr */
+		/* Create xattr. */
 		if (!size) {
 			err = 0;
 			goto out;
@@ -419,7 +418,7 @@ update_ea:
 	}
 
 	if (!size) {
-		/* delete xattr, ATTR_EA_INFO */
+		/* Delete xattr, ATTR_EA_INFO */
 		err = ni_remove_attr_le(ni, attr, le);
 		if (err)
 			goto out;
@@ -441,7 +440,7 @@ update_ea:
 	}
 
 	if (!size) {
-		/* delete xattr, ATTR_EA */
+		/* Delete xattr, ATTR_EA */
 		err = ni_remove_attr_le(ni, attr, le);
 		if (err)
 			goto out;
@@ -459,7 +458,7 @@ update_ea:
 		mi->dirty = true;
 	}
 
-	/* Check if we delete the last xattr */
+	/* Check if we delete the last xattr. */
 	if (size)
 		ni->ni_flags |= NI_FLAG_EA;
 	else
@@ -498,12 +497,12 @@ static struct posix_acl *ntfs_get_acl_ex(struct user_namespace *mnt_userns,
 	int err;
 	void *buf;
 
-	/* allocate PATH_MAX bytes */
+	/* Allocate PATH_MAX bytes. */
 	buf = __getname();
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	/* Possible values of 'type' was already checked above */
+	/* Possible values of 'type' was already checked above. */
 	if (type == ACL_TYPE_ACCESS) {
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		name_len = sizeof(XATTR_NAME_POSIX_ACL_ACCESS) - 1;
@@ -520,7 +519,7 @@ static struct posix_acl *ntfs_get_acl_ex(struct user_namespace *mnt_userns,
 	if (!locked)
 		ni_unlock(ni);
 
-	/* Translate extended attribute to acl */
+	/* Translate extended attribute to acl. */
 	if (err >= 0) {
 		acl = posix_acl_from_xattr(mnt_userns, buf, err);
 		if (!IS_ERR(acl))
@@ -535,9 +534,7 @@ static struct posix_acl *ntfs_get_acl_ex(struct user_namespace *mnt_userns,
 }
 
 /*
- * ntfs_get_acl
- *
- * inode_operations::get_acl
+ * ntfs_get_acl - inode_operations::get_acl
  */
 struct posix_acl *ntfs_get_acl(struct inode *inode, int type)
 {
@@ -573,8 +570,8 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 
 			if (!err) {
 				/*
-				 * acl can be exactly represented in the
-				 * traditional file mode permission bits
+				 * ACL can be exactly represented in the
+				 * traditional file mode permission bits.
 				 */
 				acl = NULL;
 			}
@@ -620,9 +617,7 @@ out:
 }
 
 /*
- * ntfs_set_acl
- *
- * inode_operations::set_acl
+ * ntfs_set_acl - inode_operations::set_acl
  */
 int ntfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		 struct posix_acl *acl, int type)
@@ -688,7 +683,9 @@ release_and_out:
 }
 
 /*
- * Initialize the ACLs of a new inode. Called from ntfs_create_inode.
+ * ntfs_init_acl - Initialize the ACLs of a new inode.
+ *
+ * Called from ntfs_create_inode().
  */
 int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		  struct inode *dir)
@@ -697,7 +694,7 @@ int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 	int err;
 
 	/*
-	 * TODO refactoring lock
+	 * TODO: Refactoring lock.
 	 * ni_lock(dir) ... -> posix_acl_create(dir,...) -> ntfs_get_acl -> ni_lock(dir)
 	 */
 	inode->i_default_acl = NULL;
@@ -749,9 +746,7 @@ out:
 #endif
 
 /*
- * ntfs_acl_chmod
- *
- * helper for 'ntfs3_setattr'
+ * ntfs_acl_chmod - Helper for ntfs3_setattr().
  */
 int ntfs_acl_chmod(struct user_namespace *mnt_userns, struct inode *inode)
 {
@@ -767,15 +762,13 @@ int ntfs_acl_chmod(struct user_namespace *mnt_userns, struct inode *inode)
 }
 
 /*
- * ntfs_permission
- *
- * inode_operations::permission
+ * ntfs_permission - inode_operations::permission
  */
 int ntfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		    int mask)
 {
 	if (ntfs_sb(inode->i_sb)->options.no_acs_rules) {
-		/* "no access rules" mode - allow all changes */
+		/* "No access rules" mode - Allow all changes. */
 		return 0;
 	}
 
@@ -783,9 +776,7 @@ int ntfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 }
 
 /*
- * ntfs_listxattr
- *
- * inode_operations::listxattr
+ * ntfs_listxattr - inode_operations::listxattr
  */
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
@@ -815,7 +806,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 	struct ntfs_inode *ni = ntfs_i(inode);
 	size_t name_len = strlen(name);
 
-	/* Dispatch request */
+	/* Dispatch request. */
 	if (name_len == sizeof(SYSTEM_DOS_ATTRIB) - 1 &&
 	    !memcmp(name, SYSTEM_DOS_ATTRIB, sizeof(SYSTEM_DOS_ATTRIB))) {
 		/* system.dos_attrib */
@@ -851,7 +842,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		size_t sd_size = 0;
 
 		if (!is_ntfs3(ni->mi.sbi)) {
-			/* we should get nt4 security */
+			/* We should get nt4 security. */
 			err = -EINVAL;
 			goto out;
 		} else if (le32_to_cpu(ni->std_security_id) <
@@ -901,7 +892,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		goto out;
 	}
 #endif
-	/* deal with ntfs extended attribute */
+	/* Deal with NTFS extended attribute. */
 	err = ntfs_get_ea(inode, name, name_len, buffer, size, NULL);
 
 out:
@@ -909,9 +900,7 @@ out:
 }
 
 /*
- * ntfs_setxattr
- *
- * inode_operations::setxattr
+ * ntfs_setxattr - inode_operations::setxattr
  */
 static noinline int ntfs_setxattr(const struct xattr_handler *handler,
 				  struct user_namespace *mnt_userns,
@@ -924,7 +913,7 @@ static noinline int ntfs_setxattr(const struct xattr_handler *handler,
 	size_t name_len = strlen(name);
 	enum FILE_ATTRIBUTE new_fa;
 
-	/* Dispatch request */
+	/* Dispatch request. */
 	if (name_len == sizeof(SYSTEM_DOS_ATTRIB) - 1 &&
 	    !memcmp(name, SYSTEM_DOS_ATTRIB, sizeof(SYSTEM_DOS_ATTRIB))) {
 		if (sizeof(u8) != size)
@@ -940,7 +929,7 @@ static noinline int ntfs_setxattr(const struct xattr_handler *handler,
 		new_fa = cpu_to_le32(*(u32 *)value);
 
 		if (S_ISREG(inode->i_mode)) {
-			/* Process compressed/sparsed in special way*/
+			/* Process compressed/sparsed in special way. */
 			ni_lock(ni);
 			err = ni_new_attr_flags(ni, new_fa);
 			ni_unlock(ni);
@@ -950,7 +939,7 @@ static noinline int ntfs_setxattr(const struct xattr_handler *handler,
 set_new_fa:
 		/*
 		 * Thanks Mark Harmstone:
-		 * keep directory bit consistency
+		 * Keep directory bit consistency.
 		 */
 		if (S_ISDIR(inode->i_mode))
 			new_fa |= FILE_ATTRIBUTE_DIRECTORY;
@@ -963,7 +952,7 @@ set_new_fa:
 				inode->i_mode &= ~0222;
 			else
 				inode->i_mode |= 0222;
-			/* std attribute always in primary record */
+			/* Std attribute always in primary record. */
 			ni->mi.dirty = true;
 			mark_inode_dirty(inode);
 		}
@@ -981,8 +970,8 @@ set_new_fa:
 
 		if (!is_ntfs3(ni->mi.sbi)) {
 			/*
-			 * we should replace ATTR_SECURE
-			 * Skip this way cause it is nt4 feature
+			 * We should replace ATTR_SECURE.
+			 * Skip this way cause it is nt4 feature.
 			 */
 			err = -EINVAL;
 			goto out;
@@ -1007,7 +996,7 @@ set_new_fa:
 			err = -EINVAL;
 		} else if (std->security_id != security_id) {
 			std->security_id = ni->std_security_id = security_id;
-			/* std attribute always in primary record */
+			/* Std attribute always in primary record. */
 			ni->mi.dirty = true;
 			mark_inode_dirty(&ni->vfs_inode);
 		}
@@ -1031,7 +1020,7 @@ set_new_fa:
 		goto out;
 	}
 #endif
-	/* deal with ntfs extended attribute */
+	/* Deal with NTFS extended attribute. */
 	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0);
 
 out:

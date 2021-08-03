@@ -17,9 +17,7 @@
 #include "ntfs_fs.h"
 
 /*
- * fill_name_de
- *
- * formats NTFS_DE in 'buf'
+ * fill_name_de - Format NTFS_DE in @buf.
  */
 int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 		 const struct cpu_str *uni)
@@ -46,7 +44,7 @@ int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 		fname->name_len = uni->len;
 
 	} else {
-		/* Convert input string to unicode */
+		/* Convert input string to unicode. */
 		err = ntfs_nls_to_utf16(sbi, name->name, name->len,
 					(struct cpu_str *)&fname->name_len,
 					NTFS_NAME_LEN, UTF16_LITTLE_ENDIAN);
@@ -66,9 +64,7 @@ int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 }
 
 /*
- * ntfs_lookup
- *
- * inode_operations::lookup
+ * ntfs_lookup - inode_operations::lookup
  */
 static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 				  u32 flags)
@@ -98,9 +94,7 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 /*
- * ntfs_create
- *
- * inode_operations::create
+ * ntfs_create - inode_operations::create
  */
 static int ntfs_create(struct user_namespace *mnt_userns, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
@@ -140,9 +134,7 @@ static int ntfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 /*
- * ntfs_link
- *
- * inode_operations::link
+ * ntfs_link - inode_operations::link
  */
 static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 {
@@ -182,9 +174,7 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 }
 
 /*
- * ntfs_unlink
- *
- * inode_operations::unlink
+ * ntfs_unlink - inode_operations::unlink
  */
 static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 {
@@ -201,9 +191,7 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 /*
- * ntfs_symlink
- *
- * inode_operations::symlink
+ * ntfs_symlink - inode_operations::symlink
  */
 static int ntfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 			struct dentry *dentry, const char *symname)
@@ -223,9 +211,7 @@ static int ntfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 /*
- * ntfs_mkdir
- *
- * inode_operations::mkdir
+ * ntfs_mkdir- inode_operations::mkdir
  */
 static int ntfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
@@ -244,9 +230,7 @@ static int ntfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 /*
- * ntfs_rmdir
- *
- * inode_operations::rm_dir
+ * ntfs_rmdir - inode_operations::rm_dir
  */
 static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
@@ -263,9 +247,7 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 /*
- * ntfs_rename
- *
- * inode_operations::rename
+ * ntfs_rename - inode_operations::rename
  */
 static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		       struct dentry *old_dentry, struct inode *new_dir,
@@ -304,7 +286,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 			  old_dentry->d_name.len);
 
 	if (is_same && old_dir == new_dir) {
-		/* Nothing to do */
+		/* Nothing to do. */
 		err = 0;
 		goto out;
 	}
@@ -315,7 +297,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	}
 
 	if (new_inode) {
-		/*target name exists. unlink it*/
+		/* Target name exists. Unlink it. */
 		dget(new_dentry);
 		ni_lock_dir(new_dir_ni);
 		err = ntfs_unlink_inode(new_dir, new_dentry);
@@ -325,7 +307,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 			goto out;
 	}
 
-	/* allocate PATH_MAX bytes */
+	/* Allocate PATH_MAX bytes. */
 	old_de = __getname();
 	if (!old_de) {
 		err = -ENOMEM;
@@ -352,7 +334,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 	mi_get_ref(&old_dir_ni->mi, &old_name->home);
 
-	/*get pointer to file_name in mft*/
+	/* Get pointer to file_name in MFT. */
 	fname = ni_fname_name(old_ni, (struct cpu_str *)&old_name->name_len,
 			      &old_name->home, &le);
 	if (!fname) {
@@ -360,19 +342,19 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		goto out2;
 	}
 
-	/* Copy fname info from record into new fname */
+	/* Copy fname info from record into new fname. */
 	new_name = (struct ATTR_FILE_NAME *)(new_de + 1);
 	memcpy(&new_name->dup, &fname->dup, sizeof(fname->dup));
 
 	name_type = paired_name(fname->type);
 
-	/* remove first name from directory */
+	/* Remove first name from directory. */
 	err = indx_delete_entry(&old_dir_ni->dir, old_dir_ni, old_de + 1,
 				le16_to_cpu(old_de->key_size), sbi);
 	if (err)
 		goto out3;
 
-	/* remove first name from mft */
+	/* Remove first name from MFT. */
 	err = ni_remove_attr_le(old_ni, attr_from_name(fname), le);
 	if (err)
 		goto out4;
@@ -381,17 +363,17 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	old_ni->mi.dirty = true;
 
 	if (name_type != FILE_NAME_POSIX) {
-		/* get paired name */
+		/* Get paired name. */
 		fname = ni_fname_type(old_ni, name_type, &le);
 		if (fname) {
-			/* remove second name from directory */
+			/* Remove second name from directory. */
 			err = indx_delete_entry(&old_dir_ni->dir, old_dir_ni,
 						fname, fname_full_size(fname),
 						sbi);
 			if (err)
 				goto out5;
 
-			/* remove second name from mft */
+			/* Remove second name from MFT. */
 			err = ni_remove_attr_le(old_ni, attr_from_name(fname),
 						le);
 			if (err)
@@ -402,13 +384,13 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		}
 	}
 
-	/* Add new name */
+	/* Add new name. */
 	mi_get_ref(&old_ni->mi, &new_de->ref);
 	mi_get_ref(&ntfs_i(new_dir)->mi, &new_name->home);
 
 	new_de_key_size = le16_to_cpu(new_de->key_size);
 
-	/* insert new name in mft */
+	/* Insert new name in MFT. */
 	err = ni_insert_resident(old_ni, new_de_key_size, ATTR_NAME, NULL, 0,
 				 &attr, NULL);
 	if (err)
@@ -421,7 +403,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	le16_add_cpu(&old_ni->mi.mrec->hard_links, 1);
 	old_ni->mi.dirty = true;
 
-	/* insert new name in directory */
+	/* Insert new name in directory. */
 	err = indx_insert_entry(&new_dir_ni->dir, new_dir_ni, new_de, sbi,
 				NULL);
 	if (err)
@@ -449,7 +431,7 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	}
 
 	err = 0;
-	/* normal way */
+	/* Normal way* */
 	goto out2;
 
 out8:

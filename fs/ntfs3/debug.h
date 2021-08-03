@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
- * useful functions for debugging
+ * Useful functions for debugging.
+ *
  */
 
 // clang-format off
@@ -33,7 +34,7 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 #endif
 
 /*
- * Logging macros ( thanks Joe Perches <joe@perches.com> for implementation )
+ * Logging macros. Thanks Joe Perches <joe@perches.com> for implementation.
  */
 
 #define ntfs_err(sb, fmt, ...)  ntfs_printk(sb, KERN_ERR fmt, ##__VA_ARGS__)

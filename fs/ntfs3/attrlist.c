@@ -14,7 +14,11 @@
 #include "ntfs.h"
 #include "ntfs_fs.h"
 
-/* Returns true if le is valid */
+/*
+ * al_is_valid_le
+ *
+ * Return: True if @le is valid.
+ */
 static inline bool al_is_valid_le(const struct ntfs_inode *ni,
 				  struct ATTR_LIST_ENTRY *le)
 {
@@ -101,8 +105,9 @@ out:
 /*
  * al_enumerate
  *
- * Returns the next list 'le'
- * if 'le' is NULL then returns the first 'le'
+ * Return:
+ * * The next list le.
+ * * If @le is NULL then return the first le.
  */
 struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
 				     struct ATTR_LIST_ENTRY *le)
@@ -115,22 +120,22 @@ struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
 	} else {
 		sz = le16_to_cpu(le->size);
 		if (sz < sizeof(struct ATTR_LIST_ENTRY)) {
-			/* Impossible 'cause we should not return such 'le' */
+			/* Impossible 'cause we should not return such le. */
 			return NULL;
 		}
 		le = Add2Ptr(le, sz);
 	}
 
-	/* Check boundary */
+	/* Check boundary. */
 	off = PtrOffset(ni->attr_list.le, le);
 	if (off + sizeof(struct ATTR_LIST_ENTRY) > ni->attr_list.size) {
-		// The regular end of list
+		/* The regular end of list. */
 		return NULL;
 	}
 
 	sz = le16_to_cpu(le->size);
 
-	/* Check 'le' for errors */
+	/* Check le for errors. */
 	if (sz < sizeof(struct ATTR_LIST_ENTRY) ||
 	    off + sz > ni->attr_list.size ||
 	    sz < le->name_off + le->name_len * sizeof(short)) {
@@ -143,8 +148,9 @@ struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
 /*
  * al_find_le
  *
- * finds the first 'le' in the list which matches type, name and vcn
- * Returns NULL if not found
+ * Find the first le in the list which matches type, name and VCN.
+ *
+ * Return: NULL if not found.
  */
 struct ATTR_LIST_ENTRY *al_find_le(struct ntfs_inode *ni,
 				   struct ATTR_LIST_ENTRY *le,
@@ -159,8 +165,9 @@ struct ATTR_LIST_ENTRY *al_find_le(struct ntfs_inode *ni,
 /*
  * al_find_ex
  *
- * finds the first 'le' in the list which matches type, name and vcn
- * Returns NULL if not found
+ * Find the first le in the list which matches type, name and VCN.
+ *
+ * Return: NULL if not found.
  */
 struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
 				   struct ATTR_LIST_ENTRY *le,
@@ -174,7 +181,7 @@ struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
 		u64 le_vcn;
 		int diff = le32_to_cpu(le->type) - type_in;
 
-		/* List entries are sorted by type, name and vcn */
+		/* List entries are sorted by type, name and VCN. */
 		if (diff < 0)
 			continue;
 
@@ -187,7 +194,7 @@ struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
 		le_vcn = le64_to_cpu(le->vcn);
 		if (!le_vcn) {
 			/*
-			 * compare entry names only for entry with vcn == 0
+			 * Compare entry names only for entry with vcn == 0.
 			 */
 			diff = ntfs_cmp_names(le_name(le), name_len, name,
 					      name_len, ni->mi.sbi->upcase,
@@ -217,7 +224,7 @@ struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
 /*
  * al_find_le_to_insert
  *
- * finds the first list entry which matches type, name and vcn
+ * Find the first list entry which matches type, name and VCN.
  */
 static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
 						    enum ATTR_TYPE type,
@@ -227,7 +234,7 @@ static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
 	struct ATTR_LIST_ENTRY *le = NULL, *prev;
 	u32 type_in = le32_to_cpu(type);
 
-	/* List entries are sorted by type, name, vcn */
+	/* List entries are sorted by type, name and VCN. */
 	while ((le = al_enumerate(ni, prev = le))) {
 		int diff = le32_to_cpu(le->type) - type_in;
 
@@ -239,7 +246,7 @@ static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
 
 		if (!le->vcn) {
 			/*
-			 * compare entry names only for entry with vcn == 0
+			 * Compare entry names only for entry with vcn == 0.
 			 */
 			diff = ntfs_cmp_names(le_name(le), le->name_len, name,
 					      name_len, ni->mi.sbi->upcase,
@@ -261,7 +268,7 @@ static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
 /*
  * al_add_le
  *
- * adds an "attribute list entry" to the list.
+ * Add an "attribute list entry" to the list.
  */
 int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	      u8 name_len, CLST svcn, __le16 id, const struct MFT_REF *ref,
@@ -335,9 +342,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 }
 
 /*
- * al_remove_le
- *
- * removes 'le' from attribute list
+ * al_remove_le - Remove @le from attribute list.
  */
 bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
 {
@@ -361,9 +366,7 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
 }
 
 /*
- * al_delete_le
- *
- * deletes from the list the first 'le' which matches its parameters.
+ * al_delete_le - Delete first le from the list which matches its parameters.
  */
 bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
 		  const __le16 *name, size_t name_len,
@@ -374,7 +377,7 @@ bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
 	size_t off;
 	typeof(ni->attr_list) *al = &ni->attr_list;
 
-	/* Scan forward to the first 'le' that matches the input */
+	/* Scan forward to the first le that matches the input. */
 	le = al_find_ex(ni, NULL, type, name, name_len, &vcn);
 	if (!le)
 		return false;
@@ -405,9 +408,9 @@ next:
 		goto next;
 	}
 
-	/* Save on stack the size of 'le' */
+	/* Save on stack the size of 'le'. */
 	size = le16_to_cpu(le->size);
-	/* Delete 'le'. */
+	/* Delete the le. */
 	memmove(le, Add2Ptr(le, size), al->size - (off + size));
 
 	al->size -= size;
@@ -416,9 +419,6 @@ next:
 	return true;
 }
 
-/*
- * al_update
- */
 int al_update(struct ntfs_inode *ni)
 {
 	int err;
@@ -429,8 +429,8 @@ int al_update(struct ntfs_inode *ni)
 		return 0;
 
 	/*
-	 * attribute list increased on demand in al_add_le
-	 * attribute list decreased here
+	 * Attribute list increased on demand in al_add_le.
+	 * Attribute list decreased here.
 	 */
 	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, al->size, NULL,
 			    false, &attr);

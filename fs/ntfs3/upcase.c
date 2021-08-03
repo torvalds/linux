@@ -4,6 +4,7 @@
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
  */
+
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/module.h>
@@ -25,14 +26,16 @@ static inline u16 upcase_unicode_char(const u16 *upcase, u16 chr)
 }
 
 /*
+ * ntfs_cmp_names
+ *
  * Thanks Kari Argillander <kari.argillander@gmail.com> for idea and implementation 'bothcase'
  *
  * Straight way to compare names:
- * - case insensitive
- * - if name equals and 'bothcases' then
- * - case sensitive
- * 'Straigth way' code scans input names twice in worst case
- * Optimized code scans input names only once
+ * - Case insensitive
+ * - If name equals and 'bothcases' then
+ * - Case sensitive
+ * 'Straigth way' code scans input names twice in worst case.
+ * Optimized code scans input names only once.
  */
 int ntfs_cmp_names(const __le16 *s1, size_t l1, const __le16 *s2, size_t l2,
 		   const u16 *upcase, bool bothcase)

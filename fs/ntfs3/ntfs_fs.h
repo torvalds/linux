@@ -17,33 +17,33 @@
 #define MAXIMUM_BYTES_PER_INDEX		4096
 #define NTFS_BLOCKS_PER_INODE		(MAXIMUM_BYTES_PER_INDEX / 512)
 
-/* ntfs specific error code when fixup failed*/
+/* NTFS specific error code when fixup failed. */
 #define E_NTFS_FIXUP			555
-/* ntfs specific error code about resident->nonresident*/
+/* NTFS specific error code about resident->nonresident. */
 #define E_NTFS_NONRESIDENT		556
-/* ntfs specific error code about punch hole*/
+/* NTFS specific error code about punch hole. */
 #define E_NTFS_NOTALIGNED		557
 
 
 /* sbi->flags */
 #define NTFS_FLAGS_NODISCARD		0x00000001
-/* Set when LogFile is replaying */
+/* Set when LogFile is replaying. */
 #define NTFS_FLAGS_LOG_REPLAYING	0x00000008
-/* Set when we changed first MFT's which copy must be updated in $MftMirr */
+/* Set when we changed first MFT's which copy must be updated in $MftMirr. */
 #define NTFS_FLAGS_MFTMIRR		0x00001000
 #define NTFS_FLAGS_NEED_REPLAY		0x04000000
 
 
 /* ni->ni_flags */
 /*
- * Data attribute is external compressed (lzx/xpress)
+ * Data attribute is external compressed (LZX/Xpress)
  * 1 - WOF_COMPRESSION_XPRESS4K
  * 2 - WOF_COMPRESSION_XPRESS8K
  * 3 - WOF_COMPRESSION_XPRESS16K
  * 4 - WOF_COMPRESSION_LZX32K
  */
 #define NI_FLAG_COMPRESSED_MASK		0x0000000f
-/* Data attribute is deduplicated */
+/* Data attribute is deduplicated. */
 #define NI_FLAG_DEDUPLICATED		0x00000010
 #define NI_FLAG_EA			0x00000020
 #define NI_FLAG_DIR			0x00000040
@@ -59,29 +59,29 @@ struct ntfs_mount_options {
 	u16 fs_fmask_inv;
 	u16 fs_dmask_inv;
 
-	unsigned uid : 1, /* uid was set */
-		gid : 1, /* gid was set */
-		fmask : 1, /* fmask was set */
-		dmask : 1, /*dmask was set*/
-		sys_immutable : 1, /* immutable system files */
-		discard : 1, /* issue discard requests on deletions */
-		sparse : 1, /*create sparse files*/
-		showmeta : 1, /*show meta files*/
-		nohidden : 1, /*do not show hidden files*/
-		force : 1, /*rw mount dirty volume*/
-		no_acs_rules : 1, /*exclude acs rules*/
-		prealloc : 1 /*preallocate space when file is growing*/
+	unsigned uid : 1,	/* uid was set. */
+		gid : 1,	/* gid was set. */
+		fmask : 1,	/* fmask was set. */
+		dmask : 1,	/* dmask was set. */
+		sys_immutable : 1,/* Immutable system files. */
+		discard : 1,	/* Issue discard requests on deletions. */
+		sparse : 1,	/* Create sparse files. */
+		showmeta : 1,	/* Show meta files. */
+		nohidden : 1, 	/* Do not show hidden files. */
+		force : 1, 	/* Rw mount dirty volume. */
+		no_acs_rules : 1,/*Exclude acs rules. */
+		prealloc : 1	/* Preallocate space when file is growing. */
 		;
 };
 
-/* special value to unpack and deallocate*/
+/* Special value to unpack and deallocate. */
 #define RUN_DEALLOCATE ((struct runs_tree *)(size_t)1)
 
-/* TODO: use rb tree instead of array */
+/* TODO: Use rb tree instead of array. */
 struct runs_tree {
 	struct ntfs_run *runs;
-	size_t count; // Currently used size a ntfs_run storage.
-	size_t allocated; // Currently allocated ntfs_run storage size.
+	size_t count; /* Currently used size a ntfs_run storage. */
+	size_t allocated; /* Currently allocated ntfs_run storage size. */
 };
 
 struct ntfs_buffers {
@@ -94,8 +94,8 @@ struct ntfs_buffers {
 };
 
 enum ALLOCATE_OPT {
-	ALLOCATE_DEF = 0, // Allocate all clusters
-	ALLOCATE_MFT = 1, // Allocate for MFT
+	ALLOCATE_DEF = 0, // Allocate all clusters.
+	ALLOCATE_MFT = 1, // Allocate for MFT.
 };
 
 enum bitmap_mutex_classes {
@@ -110,29 +110,29 @@ struct wnd_bitmap {
 	struct runs_tree run;
 	size_t nbits;
 
-	size_t total_zeroes; // total number of free bits
-	u16 *free_bits; // free bits in each window
+	size_t total_zeroes; // Total number of free bits.
+	u16 *free_bits; // Free bits in each window.
 	size_t nwnd;
-	u32 bits_last; // bits in last window
+	u32 bits_last; // Bits in last window.
 
-	struct rb_root start_tree; // extents, sorted by 'start'
-	struct rb_root count_tree; // extents, sorted by 'count + start'
-	size_t count; // extents count
+	struct rb_root start_tree; // Extents, sorted by 'start'.
+	struct rb_root count_tree; // Extents, sorted by 'count + start'.
+	size_t count; // Extents count.
 
 	/*
-	 * -1 Tree is activated but not updated (too many fragments)
-	 * 0 - Tree is not activated
-	 * 1 - Tree is activated and updated
+	 * -1 Tree is activated but not updated (too many fragments).
+	 * 0 - Tree is not activated.
+	 * 1 - Tree is activated and updated.
 	 */
 	int uptodated;
-	size_t extent_min; // Minimal extent used while building
-	size_t extent_max; // Upper estimate of biggest free block
+	size_t extent_min; // Minimal extent used while building.
+	size_t extent_max; // Upper estimate of biggest free block.
 
 	/* Zone [bit, end) */
 	size_t zone_bit;
 	size_t zone_end;
 
-	bool set_tail; // not necessary in driver
+	bool set_tail; // Not necessary in driver.
 	bool inited;
 };
 
@@ -149,14 +149,14 @@ enum index_mutex_classed {
 	INDEX_MUTEX_TOTAL
 };
 
-/* ntfs_index - allocation unit inside directory */
+/* ntfs_index - Allocation unit inside directory. */
 struct ntfs_index {
 	struct runs_tree bitmap_run;
 	struct runs_tree alloc_run;
 	/* read/write access to 'bitmap_run'/'alloc_run' while ntfs_readdir */
 	struct rw_semaphore run_lock;
 
-	/*TODO: remove 'cmp'*/
+	/*TODO: Remove 'cmp'. */
 	NTFS_CMP_FUNC cmp;
 
 	u8 index_bits; // log2(root->index_block_size)
@@ -165,10 +165,10 @@ struct ntfs_index {
 	u8 type; // index_mutex_classed
 };
 
-/* Minimum mft zone */
+/* Minimum MFT zone. */
 #define NTFS_MIN_MFT_ZONE 100
 
-/* ntfs file system in-core superblock data */
+/* Ntfs file system in-core superblock data. */
 struct ntfs_sb_info {
 	struct super_block *sb;
 
@@ -189,23 +189,23 @@ struct ntfs_sb_info {
 	u8 cluster_bits;
 	u8 record_bits;
 
-	u64 maxbytes; // Maximum size for normal files
-	u64 maxbytes_sparse; // Maximum size for sparse file
+	u64 maxbytes; // Maximum size for normal files.
+	u64 maxbytes_sparse; // Maximum size for sparse file.
 
-	u32 flags; // See NTFS_FLAGS_XXX
+	u32 flags; // See NTFS_FLAGS_XXX.
 
-	CLST bad_clusters; // The count of marked bad clusters
+	CLST bad_clusters; // The count of marked bad clusters.
 
-	u16 max_bytes_per_attr; // maximum attribute size in record
-	u16 attr_size_tr; // attribute size threshold (320 bytes)
+	u16 max_bytes_per_attr; // Maximum attribute size in record.
+	u16 attr_size_tr; // Attribute size threshold (320 bytes).
 
-	/* Records in $Extend */
+	/* Records in $Extend. */
 	CLST objid_no;
 	CLST quota_no;
 	CLST reparse_no;
 	CLST usn_jrnl_no;
 
-	struct ATTR_DEF_ENTRY *def_table; // attribute definition table
+	struct ATTR_DEF_ENTRY *def_table; // Attribute definition table.
 	u32 def_entries;
 	u32 ea_max_size;
 
@@ -218,13 +218,13 @@ struct ntfs_sb_info {
 		struct ntfs_inode *ni;
 		struct wnd_bitmap bitmap; // $MFT::Bitmap
 		/*
-		 * MFT records [11-24) used to expand MFT itself
+		 * MFT records [11-24) used to expand MFT itself.
 		 * They always marked as used in $MFT::Bitmap
-		 * 'reserved_bitmap' contains real bitmap of these records
+		 * 'reserved_bitmap' contains real bitmap of these records.
 		 */
-		ulong reserved_bitmap; // bitmap of used records [11 - 24)
+		ulong reserved_bitmap; // Bitmap of used records [11 - 24)
 		size_t next_free; // The next record to allocate from
-		size_t used; // mft valid size in records
+		size_t used; // MFT valid size in records.
 		u32 recs_mirr; // Number of records in MFTMirr
 		u8 next_reserved;
 		u8 reserved_bitmap_inited;
@@ -236,15 +236,15 @@ struct ntfs_sb_info {
 	} used;
 
 	struct {
-		u64 size; // in bytes
-		u64 blocks; // in blocks
+		u64 size; // In bytes.
+		u64 blocks; // In blocks.
 		u64 ser_num;
 		struct ntfs_inode *ni;
-		__le16 flags; // cached current VOLUME_INFO::flags, VOLUME_FLAG_DIRTY
+		__le16 flags; // Cached current VOLUME_INFO::flags, VOLUME_FLAG_DIRTY.
 		u8 major_ver;
 		u8 minor_ver;
 		char label[65];
-		bool real_dirty; /* real fs state*/
+		bool real_dirty; // Real fs state.
 	} volume;
 
 	struct {
@@ -283,9 +283,7 @@ struct ntfs_sb_info {
 	struct ratelimit_state msg_ratelimit;
 };
 
-/*
- * one MFT record(usually 1024 bytes), consists of attributes
- */
+/* One MFT record(usually 1024 bytes), consists of attributes. */
 struct mft_inode {
 	struct rb_node node;
 	struct ntfs_sb_info *sbi;
@@ -297,7 +295,7 @@ struct mft_inode {
 	bool dirty;
 };
 
-/* nested class for ntfs_inode::ni_lock */
+/* Nested class for ntfs_inode::ni_lock. */
 enum ntfs_inode_mutex_lock_class {
 	NTFS_INODE_MUTEX_DIRTY,
 	NTFS_INODE_MUTEX_SECURITY,
@@ -308,29 +306,31 @@ enum ntfs_inode_mutex_lock_class {
 };
 
 /*
- * ntfs inode - extends linux inode. consists of one or more mft inodes
+ * sturct ntfs_inode
+ *
+ * Ntfs inode - extends linux inode. consists of one or more MFT inodes.
  */
 struct ntfs_inode {
 	struct mft_inode mi; // base record
 
 	/*
-	 * Valid size: [0 - i_valid) - these range in file contains valid data
-	 * Range [i_valid - inode->i_size) - contains 0
-	 * Usually i_valid <= inode->i_size
+	 * Valid size: [0 - i_valid) - these range in file contains valid data.
+	 * Range [i_valid - inode->i_size) - contains 0.
+	 * Usually i_valid <= inode->i_size.
 	 */
 	u64 i_valid;
 	struct timespec64 i_crtime;
 
 	struct mutex ni_lock;
 
-	/* file attributes from std */
+	/* File attributes from std. */
 	enum FILE_ATTRIBUTE std_fa;
 	__le32 std_security_id;
 
 	/*
-	 * tree of mft_inode
-	 * not empty when primary MFT record (usually 1024 bytes) can't save all attributes
-	 * e.g. file becomes too fragmented or contains a lot of names
+	 * Tree of mft_inode.
+	 * Not empty when primary MFT record (usually 1024 bytes) can't save all attributes
+	 * e.g. file becomes too fragmented or contains a lot of names.
 	 */
 	struct rb_root mi_tree;
 
@@ -352,7 +352,7 @@ struct ntfs_inode {
 
 	struct {
 		struct runs_tree run;
-		struct ATTR_LIST_ENTRY *le; // 1K aligned memory
+		struct ATTR_LIST_ENTRY *le; // 1K aligned memory.
 		size_t size;
 		bool dirty;
 	} attr_list;
@@ -381,7 +381,7 @@ enum REPARSE_SIGN {
 	REPARSE_LINK = 3
 };
 
-/* functions from attrib.c*/
+/* Functions from attrib.c */
 int attr_load_runs(struct ATTRIB *attr, struct ntfs_inode *ni,
 		   struct runs_tree *run, const CLST *vcn);
 int attr_allocate_clusters(struct ntfs_sb_info *sbi, struct runs_tree *run,
@@ -416,7 +416,7 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes);
 int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size);
 
-/* functions from attrlist.c*/
+/* Functions from attrlist.c */
 void al_destroy(struct ntfs_inode *ni);
 bool al_verify(struct ntfs_inode *ni);
 int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr);
@@ -442,12 +442,12 @@ static inline size_t al_aligned(size_t size)
 	return (size + 1023) & ~(size_t)1023;
 }
 
-/* globals from bitfunc.c */
+/* Globals from bitfunc.c */
 bool are_bits_clear(const ulong *map, size_t bit, size_t nbits);
 bool are_bits_set(const ulong *map, size_t bit, size_t nbits);
 size_t get_set_bits_ex(const ulong *map, size_t bit, size_t nbits);
 
-/* globals from dir.c */
+/* Globals from dir.c */
 int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const struct le_str *uni,
 		      u8 *buf, int buf_len);
 int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
@@ -458,7 +458,7 @@ struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
 bool dir_is_empty(struct inode *dir);
 extern const struct file_operations ntfs_dir_operations;
 
-/* globals from file.c*/
+/* Globals from file.c */
 int ntfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		 struct kstat *stat, u32 request_mask, u32 flags);
 void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
@@ -472,7 +472,7 @@ extern const struct inode_operations ntfs_special_inode_operations;
 extern const struct inode_operations ntfs_file_inode_operations;
 extern const struct file_operations ntfs_file_operations;
 
-/* globals from frecord.c */
+/* Globals from frecord.c */
 void ni_remove_mi(struct ntfs_inode *ni, struct mft_inode *mi);
 struct ATTR_STD_INFO *ni_std(struct ntfs_inode *ni);
 struct ATTR_STD_INFO5 *ni_std5(struct ntfs_inode *ni);
@@ -529,10 +529,10 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		   u32 pages_per_frame);
 
-/* globals from fslog.c */
+/* Globals from fslog.c */
 int log_replay(struct ntfs_inode *ni, bool *initialized);
 
-/* globals from fsntfs.c */
+/* Globals from fsntfs.c */
 bool ntfs_fix_pre_write(struct NTFS_RECORD_HEADER *rhdr, size_t bytes);
 int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 		       bool simple);
@@ -598,7 +598,7 @@ int ntfs_remove_reparse(struct ntfs_sb_info *sbi, __le32 rtag,
 void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim);
 int run_deallocate(struct ntfs_sb_info *sbi, struct runs_tree *run, bool trim);
 
-/* globals from index.c */
+/* Globals from index.c */
 int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit);
 void fnd_clear(struct ntfs_fnd *fnd);
 static inline struct ntfs_fnd *fnd_get(void)
@@ -638,7 +638,7 @@ int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
 		    const struct ATTR_FILE_NAME *fname,
 		    const struct NTFS_DUP_INFO *dup, int sync);
 
-/* globals from inode.c */
+/* Globals from inode.c */
 struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 			 const struct cpu_str *name);
 int ntfs_set_size(struct inode *inode, u64 new_size);
@@ -662,7 +662,7 @@ extern const struct inode_operations ntfs_link_inode_operations;
 extern const struct address_space_operations ntfs_aops;
 extern const struct address_space_operations ntfs_aops_cmpr;
 
-/* globals from name_i.c*/
+/* Globals from name_i.c */
 int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 		 const struct cpu_str *uni);
 struct dentry *ntfs3_get_parent(struct dentry *child);
@@ -670,7 +670,7 @@ struct dentry *ntfs3_get_parent(struct dentry *child);
 extern const struct inode_operations ntfs_dir_inode_operations;
 extern const struct inode_operations ntfs_special_inode_operations;
 
-/* globals from record.c */
+/* Globals from record.c */
 int mi_get(struct ntfs_sb_info *sbi, CLST rno, struct mft_inode **mi);
 void mi_put(struct mft_inode *mi);
 int mi_init(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno);
@@ -724,7 +724,7 @@ static inline void mi_get_ref(const struct mft_inode *mi, struct MFT_REF *ref)
 	ref->seq = mi->mrec->seq;
 }
 
-/* globals from run.c */
+/* Globals from run.c */
 bool run_lookup_entry(const struct runs_tree *run, CLST vcn, CLST *lcn,
 		      CLST *len, size_t *index);
 void run_truncate(struct runs_tree *run, CLST vcn);
@@ -753,13 +753,13 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 #endif
 int run_get_highest_vcn(CLST vcn, const u8 *run_buf, u64 *highest_vcn);
 
-/* globals from super.c */
+/* Globals from super.c */
 void *ntfs_set_shared(void *ptr, u32 bytes);
 void *ntfs_put_shared(void *ptr);
 void ntfs_unmap_meta(struct super_block *sb, CLST lcn, CLST len);
 int ntfs_discard(struct ntfs_sb_info *sbi, CLST Lcn, CLST Len);
 
-/* globals from bitmap.c*/
+/* Globals from bitmap.c*/
 int __init ntfs3_init_bitmap(void);
 void ntfs3_exit_bitmap(void);
 void wnd_close(struct wnd_bitmap *wnd);
@@ -773,7 +773,7 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 bool wnd_is_free(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 
-/* Possible values for 'flags' 'wnd_find' */
+/* Possible values for 'flags' 'wnd_find'. */
 #define BITMAP_FIND_MARK_AS_USED 0x01
 #define BITMAP_FIND_FULL 0x02
 size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
@@ -782,7 +782,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits);
 void wnd_zone_set(struct wnd_bitmap *wnd, size_t Lcn, size_t Len);
 int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range);
 
-/* globals from upcase.c */
+/* Globals from upcase.c */
 int ntfs_cmp_names(const __le16 *s1, size_t l1, const __le16 *s2, size_t l2,
 		   const u16 *upcase, bool bothcase);
 int ntfs_cmp_names_cpu(const struct cpu_str *uni1, const struct le_str *uni2,
@@ -822,7 +822,7 @@ static inline bool is_ntfs3(struct ntfs_sb_info *sbi)
 	return sbi->volume.major_ver >= 3;
 }
 
-/*(sb->s_flags & SB_ACTIVE)*/
+/* (sb->s_flags & SB_ACTIVE) */
 static inline bool is_mounted(struct ntfs_sb_info *sbi)
 {
 	return !!sbi->sb->s_root;
@@ -897,7 +897,7 @@ static inline bool run_is_empty(struct runs_tree *run)
 	return !run->count;
 }
 
-/* NTFS uses quad aligned bitmaps */
+/* NTFS uses quad aligned bitmaps. */
 static inline size_t bitmap_size(size_t bits)
 {
 	return ALIGN((bits + 7) >> 3, 8);
@@ -909,9 +909,7 @@ static inline size_t bitmap_size(size_t bits)
 #define NTFS_TIME_GRAN 100
 
 /*
- * kernel2nt
- *
- * converts in-memory kernel timestamp into nt time
+ * kernel2nt - Converts in-memory kernel timestamp into nt time.
  */
 static inline __le64 kernel2nt(const struct timespec64 *ts)
 {
@@ -922,9 +920,7 @@ static inline __le64 kernel2nt(const struct timespec64 *ts)
 }
 
 /*
- * nt2kernel
- *
- * converts on-disk nt time into kernel timestamp
+ * nt2kernel - Converts on-disk nt time into kernel timestamp.
  */
 static inline void nt2kernel(const __le64 tm, struct timespec64 *ts)
 {
@@ -940,13 +936,17 @@ static inline struct ntfs_sb_info *ntfs_sb(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-/* Align up on cluster boundary */
+/*
+ * ntfs_up_cluster - Align up on cluster boundary.
+ */
 static inline u64 ntfs_up_cluster(const struct ntfs_sb_info *sbi, u64 size)
 {
 	return (size + sbi->cluster_mask) & sbi->cluster_mask_inv;
 }
 
-/* Align up on cluster boundary */
+/*
+ * ntfs_up_block - Align up on cluster boundary.
+ */
 static inline u64 ntfs_up_block(const struct super_block *sb, u64 size)
 {
 	return (size + sb->s_blocksize - 1) & ~(u64)(sb->s_blocksize - 1);
@@ -991,7 +991,7 @@ static inline int ni_ext_compress_bits(const struct ntfs_inode *ni)
 	return 0xb + (ni->ni_flags & NI_FLAG_COMPRESSED_MASK);
 }
 
-/* bits - 0xc, 0xd, 0xe, 0xf, 0x10 */
+/* Bits - 0xc, 0xd, 0xe, 0xf, 0x10 */
 static inline void ni_set_ext_compress_bits(struct ntfs_inode *ni, u8 bits)
 {
 	ni->ni_flags |= (bits - 0xb) & NI_FLAG_COMPRESSED_MASK;

@@ -4,6 +4,7 @@
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
  */
+
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
@@ -14,7 +15,7 @@
 #include "ntfs_fs.h"
 
 // clang-format off
-/* src buffer is zero */
+/* Src buffer is zero. */
 #define LZNT_ERROR_ALL_ZEROS	1
 #define LZNT_CHUNK_SIZE		0x1000
 // clang-format on
@@ -72,7 +73,7 @@ static size_t longest_match_std(const u8 *src, struct lznt *ctx)
 					      hash[1] + 3, ctx->max_len - 3);
 	}
 
-	/* Compare two matches and select the best one */
+	/* Compare two matches and select the best one. */
 	if (len1 < len2) {
 		ctx->best_match = hash[1];
 		len1 = len2;
@@ -129,10 +130,10 @@ static inline size_t parse_pair(u16 pair, size_t *offset, size_t index)
 /*
  * compress_chunk
  *
- * returns one of the three values:
- * 0 - ok, 'cmpr' contains 'cmpr_chunk_size' bytes of compressed data
- * 1 - input buffer is full zero
- * -2 - the compressed buffer is too small to hold the compressed data
+ * Return:
+ * * 0	- Ok, @cmpr contains @cmpr_chunk_size bytes of compressed data.
+ * * 1	- Input buffer is full zero.
+ * * -2 - The compressed buffer is too small to hold the compressed data.
  */
 static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 				 const u8 *unc, const u8 *unc_end, u8 *cmpr,
@@ -145,7 +146,7 @@ static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 	u8 *cp = cmpr + 3;
 	u8 *cp2 = cmpr + 2;
 	u8 not_zero = 0;
-	/* Control byte of 8-bit values: ( 0 - means byte as is, 1 - short pair ) */
+	/* Control byte of 8-bit values: ( 0 - means byte as is, 1 - short pair ). */
 	u8 ohdr = 0;
 	u8 *last;
 	u16 t16;
@@ -165,7 +166,7 @@ static inline int compress_chunk(size_t (*match)(const u8 *, struct lznt *),
 		while (unc + s_max_off[idx] < up)
 			ctx->max_len = s_max_len[++idx];
 
-		// Find match
+		/* Find match. */
 		max_len = up + 3 <= unc_end ? (*match)(up, ctx) : 0;
 
 		if (!max_len) {
@@ -211,7 +212,7 @@ NotCompressed:
 		return -2;
 
 	/*
-	 * Copy non cmpr data
+	 * Copy non cmpr data.
 	 * 0x3FFF == ((LZNT_CHUNK_SIZE + 2 - 3) | 0x3000)
 	 */
 	cmpr[0] = 0xff;
@@ -233,38 +234,38 @@ static inline ssize_t decompress_chunk(u8 *unc, u8 *unc_end, const u8 *cmpr,
 	u16 pair;
 	size_t offset, length;
 
-	/* Do decompression until pointers are inside range */
+	/* Do decompression until pointers are inside range. */
 	while (up < unc_end && cmpr < cmpr_end) {
 		/* Correct index */
 		while (unc + s_max_off[index] < up)
 			index += 1;
 
-		/* Check the current flag for zero */
+		/* Check the current flag for zero. */
 		if (!(ch & (1 << bit))) {
-			/* Just copy byte */
+			/* Just copy byte. */
 			*up++ = *cmpr++;
 			goto next;
 		}
 
-		/* Check for boundary */
+		/* Check for boundary. */
 		if (cmpr + 1 >= cmpr_end)
 			return -EINVAL;
 
-		/* Read a short from little endian stream */
+		/* Read a short from little endian stream. */
 		pair = cmpr[1];
 		pair <<= 8;
 		pair |= cmpr[0];
 
 		cmpr += 2;
 
-		/* Translate packed information into offset and length */
+		/* Translate packed information into offset and length. */
 		length = parse_pair(pair, &offset, index);
 
-		/* Check offset for boundary */
+		/* Check offset for boundary. */
 		if (unc + offset > up)
 			return -EINVAL;
 
-		/* Truncate the length if necessary */
+		/* Truncate the length if necessary. */
 		if (up + length >= unc_end)
 			length = unc_end - up;
 
@@ -273,7 +274,7 @@ static inline ssize_t decompress_chunk(u8 *unc, u8 *unc_end, const u8 *cmpr,
 			*up = *(up - offset);
 
 next:
-		/* Advance flag bit value */
+		/* Advance flag bit value. */
 		bit = (bit + 1) & 7;
 
 		if (!bit) {
@@ -284,13 +285,14 @@ next:
 		}
 	}
 
-	/* return the size of uncompressed data */
+	/* Return the size of uncompressed data. */
 	return up - unc;
 }
 
 /*
- * 0 - standard compression
- * !0 - best compression, requires a lot of cpu
+ * get_lznt_ctx
+ * @level: 0 - Standard compression.
+ * 	   !0 - Best compression, requires a lot of cpu.
  */
 struct lznt *get_lznt_ctx(int level)
 {
@@ -303,11 +305,11 @@ struct lznt *get_lznt_ctx(int level)
 }
 
 /*
- * compress_lznt
+ * compress_lznt - Compresses @unc into @cmpr
  *
- * Compresses "unc" into "cmpr"
- * +x - ok, 'cmpr' contains 'final_compressed_size' bytes of compressed data
- * 0 - input buffer is full zero
+ * Return:
+ * * +x - Ok, @cmpr contains 'final_compressed_size' bytes of compressed data.
+ * * 0 - Input buffer is full zero.
  */
 size_t compress_lznt(const void *unc, size_t unc_size, void *cmpr,
 		     size_t cmpr_size, struct lznt *ctx)
@@ -327,7 +329,7 @@ size_t compress_lznt(const void *unc, size_t unc_size, void *cmpr,
 		match = &longest_match_best;
 	}
 
-	/* compression cycle */
+	/* Compression cycle. */
 	for (; unc_chunk < unc_end; unc_chunk += LZNT_CHUNK_SIZE) {
 		cmpr_size = 0;
 		err = compress_chunk(match, unc_chunk, unc_end, p, end,
@@ -348,9 +350,7 @@ size_t compress_lznt(const void *unc, size_t unc_size, void *cmpr,
 }
 
 /*
- * decompress_lznt
- *
- * decompresses "cmpr" into "unc"
+ * decompress_lznt - Decompress @cmpr into @unc.
  */
 ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 			size_t unc_size)
@@ -364,24 +364,24 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 	if (cmpr_size < sizeof(short))
 		return -EINVAL;
 
-	/* read chunk header */
+	/* Read chunk header. */
 	chunk_hdr = cmpr_chunk[1];
 	chunk_hdr <<= 8;
 	chunk_hdr |= cmpr_chunk[0];
 
-	/* loop through decompressing chunks */
+	/* Loop through decompressing chunks. */
 	for (;;) {
 		size_t chunk_size_saved;
 		size_t unc_use;
 		size_t cmpr_use = 3 + (chunk_hdr & (LZNT_CHUNK_SIZE - 1));
 
-		/* Check that the chunk actually fits the supplied buffer */
+		/* Check that the chunk actually fits the supplied buffer. */
 		if (cmpr_chunk + cmpr_use > cmpr_end)
 			return -EINVAL;
 
-		/* First make sure the chunk contains compressed data */
+		/* First make sure the chunk contains compressed data. */
 		if (chunk_hdr & 0x8000) {
-			/* Decompress a chunk and return if we get an error */
+			/* Decompress a chunk and return if we get an error. */
 			ssize_t err =
 				decompress_chunk(unc_chunk, unc_end,
 						 cmpr_chunk + sizeof(chunk_hdr),
@@ -390,7 +390,7 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 				return err;
 			unc_use = err;
 		} else {
-			/* This chunk does not contain compressed data */
+			/* This chunk does not contain compressed data. */
 			unc_use = unc_chunk + LZNT_CHUNK_SIZE > unc_end
 					  ? unc_end - unc_chunk
 					  : LZNT_CHUNK_SIZE;
@@ -404,21 +404,21 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 			       unc_use);
 		}
 
-		/* Advance pointers */
+		/* Advance pointers. */
 		cmpr_chunk += cmpr_use;
 		unc_chunk += unc_use;
 
-		/* Check for the end of unc buffer */
+		/* Check for the end of unc buffer. */
 		if (unc_chunk >= unc_end)
 			break;
 
-		/* Proceed the next chunk */
+		/* Proceed the next chunk. */
 		if (cmpr_chunk > cmpr_end - 2)
 			break;
 
 		chunk_size_saved = LZNT_CHUNK_SIZE;
 
-		/* read chunk header */
+		/* Read chunk header. */
 		chunk_hdr = cmpr_chunk[1];
 		chunk_hdr <<= 8;
 		chunk_hdr |= cmpr_chunk[0];
@@ -426,12 +426,12 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 		if (!chunk_hdr)
 			break;
 
-		/* Check the size of unc buffer */
+		/* Check the size of unc buffer. */
 		if (unc_use < chunk_size_saved) {
 			size_t t1 = chunk_size_saved - unc_use;
 			u8 *t2 = unc_chunk + t1;
 
-			/* 'Zero' memory */
+			/* 'Zero' memory. */
 			if (t2 >= unc_end)
 				break;
 
@@ -440,13 +440,13 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 		}
 	}
 
-	/* Check compression boundary */
+	/* Check compression boundary. */
 	if (cmpr_chunk > cmpr_end)
 		return -EINVAL;
 
 	/*
 	 * The unc size is just a difference between current
-	 * pointer and original one
+	 * pointer and original one.
 	 */
 	return PtrOffset(unc, unc_chunk);
 }
