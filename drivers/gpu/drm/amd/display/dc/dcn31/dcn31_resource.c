@@ -561,11 +561,6 @@ static const struct dcn10_link_enc_mask le_mask = {
 	DPCS_DCN31_MASK_SH_LIST(_MASK)
 };
 
-#define dpp_regs(id)\
-[id] = {\
-	DPP_REG_LIST_DCN30(id),\
-}
-
 #define hpo_dp_stream_encoder_reg_list(id)\
 [id] = {\
 	DCN3_1_HPO_DP_STREAM_ENC_REG_LIST(id)\
@@ -608,6 +603,11 @@ static const struct dcn31_hpo_dp_link_encoder_shift hpo_dp_le_shift = {
 static const struct dcn31_hpo_dp_link_encoder_mask hpo_dp_le_mask = {
 	DCN3_1_HPO_DP_LINK_ENC_MASK_SH_LIST(_MASK)
 };
+
+#define dpp_regs(id)\
+[id] = {\
+	DPP_REG_LIST_DCN30(id),\
+}
 
 static const struct dcn3_dpp_registers dpp_regs[] = {
 	dpp_regs(0),
@@ -1449,6 +1449,13 @@ static struct dce_hwseq *dcn31_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
+		/* DCN3.1 FPGA Workaround
+		 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
+		 * To do so, move calling function enable_stream_timing to only be done AFTER calling
+		 * function core_link_enable_stream
+		 */
+		if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
+			hws->wa.dp_hpo_and_otg_sequence = true;
 	}
 	return hws;
 }
@@ -2102,6 +2109,7 @@ static bool dcn31_resource_construct(
 	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
+	dc->caps.dp_hpo = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 	dc->caps.is_apu = true;

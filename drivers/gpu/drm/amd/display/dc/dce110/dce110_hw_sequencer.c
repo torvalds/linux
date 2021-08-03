@@ -1108,8 +1108,17 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
-		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (is_dp_128b_132b_signal(pipe_ctx))
+			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
+					pipe_ctx->stream_res.hpo_dp_stream_enc, false);
+		else
+			pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 					pipe_ctx->stream_res.stream_enc, false);
+#else
+		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+				pipe_ctx->stream_res.stream_enc, false);
+#endif
 		if (pipe_ctx->stream_res.audio)
 			pipe_ctx->stream_res.audio->enabled = true;
 	}
@@ -1129,14 +1138,32 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
 		return;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(pipe_ctx))
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
+				pipe_ctx->stream_res.hpo_dp_stream_enc, true);
+	else
+		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+				pipe_ctx->stream_res.stream_enc, true);
+#else
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
+#endif
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->enabled = false;
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (is_dp_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_disable(
+						pipe_ctx->stream_res.hpo_dp_stream_enc);
+			else
+				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
+						pipe_ctx->stream_res.stream_enc);
+#else
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
+#endif
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
@@ -1166,16 +1193,37 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc);
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->stop_dp_info_packets(
+					pipe_ctx->stream_res.hpo_dp_stream_enc);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal))
+#else
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+#endif
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
 	dc->hwss.disable_audio_stream(pipe_ctx);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->disable(
+				pipe_ctx->stream_res.hpo_dp_stream_enc);
+		setup_dp_hpo_stream(pipe_ctx, false);
+	/* TODO - DP2.0 HW: unmap stream from link encoder here */
+	} else {
+		link->link_enc->funcs->connect_dig_be_to_fe(
+				link->link_enc,
+				pipe_ctx->stream_res.stream_enc->id,
+				false);
+	}
+#else
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
 			pipe_ctx->stream_res.stream_enc->id,
 			false);
+#endif
 
 }
 
@@ -1210,7 +1258,15 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_blank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+#else
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+#endif
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 
 		if (!dc_is_embedded_signal(pipe_ctx->stream->signal)) {
@@ -1451,10 +1507,23 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		build_audio_output(context, pipe_ctx, &audio_output);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (is_dp_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_setup(
+						pipe_ctx->stream_res.hpo_dp_stream_enc,
+						pipe_ctx->stream_res.audio->inst,
+						&pipe_ctx->stream->audio_info);
+			else
+				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
+						pipe_ctx->stream_res.stream_enc,
+						pipe_ctx->stream_res.audio->inst,
+						&pipe_ctx->stream->audio_info);
+#else
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
 					pipe_ctx->stream_res.stream_enc,
 					pipe_ctx->stream_res.audio->inst,
 					&pipe_ctx->stream->audio_info);
+#endif
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
 					pipe_ctx->stream_res.stream_enc,
@@ -1469,10 +1538,18 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				&pipe_ctx->stream->audio_info);
 	}
 
-	/*  */
-	/* Do not touch stream timing on seamless boot optimization. */
-	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
-		hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* DCN3.1 FPGA Workaround
+	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
+	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
+	 * function core_link_enable_stream
+	 */
+	if (!(hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)))
+#endif
+		/*  */
+		/* Do not touch stream timing on seamless boot optimization. */
+		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
+			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 
 	if (hws->funcs.setup_vupdate_interrupt)
 		hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
@@ -1525,6 +1602,18 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	if (!stream->dpms_off)
 		core_link_enable_stream(context, pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* DCN3.1 FPGA Workaround
+	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
+	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
+	 * function core_link_enable_stream
+	 */
+	if (hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)) {
+		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
+			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
+	}
+#endif
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 

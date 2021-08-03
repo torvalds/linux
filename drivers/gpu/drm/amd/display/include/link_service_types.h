@@ -53,7 +53,11 @@ enum edp_revision {
 };
 
 enum {
-	LINK_RATE_REF_FREQ_IN_KHZ = 27000 /*27MHz*/
+	LINK_RATE_REF_FREQ_IN_KHZ = 27000, /*27MHz*/
+	BITS_PER_DP_BYTE = 10,
+	DATA_EFFICIENCY_8b_10b_x10000 = 8000, /* 80% data efficiency */
+	DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100 = 97, /* 97% data efficiency when FEC is enabled */
+	DATA_EFFICIENCY_128b_132b_x10000 = 9646, /* 96.71% data efficiency x 99.75% downspread factor */
 };
 
 enum link_training_result {
@@ -70,6 +74,12 @@ enum link_training_result {
 	LINK_TRAINING_LINK_LOSS,
 	/* Abort link training (because sink unplugged) */
 	LINK_TRAINING_ABORT,
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	DP_128b_132b_LT_FAILED,
+	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
+	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
+	DP_128b_132b_CDS_DONE_TIMEOUT,
+#endif
 };
 
 enum lttpr_mode {
@@ -86,11 +96,23 @@ struct link_training_settings {
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
 	bool should_set_fec_ready;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* TODO - factor lane_settings out because it changes during LT */
+	union dc_dp_ffe_preset *ffe_preset;
+#endif
 
 	uint16_t cr_pattern_time;
 	uint16_t eq_pattern_time;
+	uint16_t cds_pattern_time;
 	enum dc_dp_training_pattern pattern_for_cr;
 	enum dc_dp_training_pattern pattern_for_eq;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	enum dc_dp_training_pattern pattern_for_cds;
+
+	uint32_t eq_wait_time_limit;
+	uint8_t eq_loop_count_limit;
+	uint32_t cds_wait_time_limit;
+#endif
 
 	bool enhanced_framing;
 	bool allow_invalid_msa_timing_param;

@@ -2135,7 +2135,12 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.tg->inst);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1)
 			params.timing.pix_clk_100hz /= 2;
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
@@ -2380,8 +2385,19 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	 * disconnect them during disable_stream
 	 * BY this, it is logic clean to separate stream and link
 	 */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		setup_dp_hpo_stream(pipe_ctx, true);
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->enable_stream(
+				pipe_ctx->stream_res.hpo_dp_stream_enc);
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->map_stream_to_link(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
+				link->hpo_dp_link_enc->inst);
+	}
+
+	if (!is_dp_128b_132b_signal(pipe_ctx))
+		link->link_enc->funcs->connect_dig_be_to_fe(
+			link->link_enc, pipe_ctx->stream_res.stream_enc->id, true);
 
 	if (pipe_ctx->plane_state && pipe_ctx->plane_state->flip_immediate != 1) {
 		if (link->dc->hwss.program_dmdata_engine)
@@ -2406,7 +2422,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 
 	/* enable audio only within mode set */
 	if (pipe_ctx->stream_res.audio != NULL) {
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		if (is_dp_128b_132b_signal(pipe_ctx))
+			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.hpo_dp_stream_enc);
+		else if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
 }

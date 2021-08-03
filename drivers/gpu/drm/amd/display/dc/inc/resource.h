@@ -200,4 +200,9 @@ int get_num_mpc_splits(struct pipe_ctx *pipe);
 
 int get_num_odm_splits(struct pipe_ctx *pipe);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+struct hpo_dp_link_encoder *resource_get_unused_hpo_dp_link_encoder(
+		const struct resource_pool *pool);
+#endif
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

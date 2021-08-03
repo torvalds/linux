@@ -160,6 +160,8 @@ void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
 
+void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz);
+
 bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable);
 
 void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us);
