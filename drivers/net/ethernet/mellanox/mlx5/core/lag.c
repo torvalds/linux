@@ -32,7 +32,9 @@
 
 #include <linux/netdevice.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
+#include "lib/devcom.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
 #include "lag.h"
@@ -45,7 +47,7 @@
 static DEFINE_SPINLOCK(lag_lock);
 
 static int mlx5_cmd_create_lag(struct mlx5_core_dev *dev, u8 remap_port1,
-			       u8 remap_port2)
+			       u8 remap_port2, bool shared_fdb)
 {
 	u32 in[MLX5_ST_SZ_DW(create_lag_in)] = {};
 	void *lag_ctx = MLX5_ADDR_OF(create_lag_in, in, ctx);
@@ -54,6 +56,7 @@ static int mlx5_cmd_create_lag(struct mlx5_core_dev *dev, u8 remap_port1,
 
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_1, remap_port1);
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_2, remap_port2);
+	MLX5_SET(lagc, lag_ctx, fdb_selection_mode, shared_fdb);
 
 	return mlx5_cmd_exec_in(dev, create_lag, in);
 }
@@ -224,35 +227,59 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 }
 
 static int mlx5_create_lag(struct mlx5_lag *ldev,
-			   struct lag_tracker *tracker)
+			   struct lag_tracker *tracker,
+			   bool shared_fdb)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	int err;
 
 	mlx5_infer_tx_affinity_mapping(tracker, &ldev->v2p_map[MLX5_LAG_P1],
 				       &ldev->v2p_map[MLX5_LAG_P2]);
 
-	mlx5_core_info(dev0, "lag map port 1:%d port 2:%d",
-		       ldev->v2p_map[MLX5_LAG_P1], ldev->v2p_map[MLX5_LAG_P2]);
+	mlx5_core_info(dev0, "lag map port 1:%d port 2:%d shared_fdb:%d",
+		       ldev->v2p_map[MLX5_LAG_P1], ldev->v2p_map[MLX5_LAG_P2],
+		       shared_fdb);
 
 	err = mlx5_cmd_create_lag(dev0, ldev->v2p_map[MLX5_LAG_P1],
-				  ldev->v2p_map[MLX5_LAG_P2]);
-	if (err)
+				  ldev->v2p_map[MLX5_LAG_P2], shared_fdb);
+	if (err) {
 		mlx5_core_err(dev0,
 			      "Failed to create LAG (%d)\n",
 			      err);
+		return err;
+	}
+
+	if (shared_fdb) {
+		err = mlx5_eswitch_offloads_config_single_fdb(dev0->priv.eswitch,
+							      dev1->priv.eswitch);
+		if (err)
+			mlx5_core_err(dev0, "Can't enable single FDB mode\n");
+		else
+			mlx5_core_info(dev0, "Operation mode is single FDB\n");
+	}
+
+	if (err) {
+		MLX5_SET(destroy_lag_in, in, opcode, MLX5_CMD_OP_DESTROY_LAG);
+		if (mlx5_cmd_exec_in(dev0, destroy_lag, in))
+			mlx5_core_err(dev0,
+				      "Failed to deactivate RoCE LAG; driver restart required\n");
+	}
+
 	return err;
 }
 
 int mlx5_activate_lag(struct mlx5_lag *ldev,
 		      struct lag_tracker *tracker,
-		      u8 flags)
+		      u8 flags,
+		      bool shared_fdb)
 {
 	bool roce_lag = !!(flags & MLX5_LAG_FLAG_ROCE);
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
 	int err;
 
-	err = mlx5_create_lag(ldev, tracker);
+	err = mlx5_create_lag(ldev, tracker, shared_fdb);
 	if (err) {
 		if (roce_lag) {
 			mlx5_core_err(dev0,
@@ -266,6 +293,7 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 	}
 
 	ldev->flags |= flags;
+	ldev->shared_fdb = shared_fdb;
 	return 0;
 }
 
@@ -277,6 +305,12 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 	int err;
 
 	ldev->flags &= ~MLX5_LAG_MODE_FLAGS;
+
+	if (ldev->shared_fdb) {
+		mlx5_eswitch_offloads_destroy_single_fdb(ldev->pf[MLX5_LAG_P1].dev->priv.eswitch,
+							 ldev->pf[MLX5_LAG_P2].dev->priv.eswitch);
+		ldev->shared_fdb = false;
+	}
 
 	MLX5_SET(destroy_lag_in, in, opcode, MLX5_CMD_OP_DESTROY_LAG);
 	err = mlx5_cmd_exec_in(dev0, destroy_lag, in);
@@ -333,6 +367,10 @@ static void mlx5_lag_remove_devices(struct mlx5_lag *ldev)
 		if (!ldev->pf[i].dev)
 			continue;
 
+		if (ldev->pf[i].dev->priv.flags &
+		    MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)
+			continue;
+
 		ldev->pf[i].dev->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 		mlx5_rescan_drivers_locked(ldev->pf[i].dev);
 	}
@@ -342,12 +380,15 @@ static void mlx5_disable_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	bool shared_fdb = ldev->shared_fdb;
 	bool roce_lag;
 	int err;
 
 	roce_lag = __mlx5_lag_is_roce(ldev);
 
-	if (roce_lag) {
+	if (shared_fdb) {
+		mlx5_lag_remove_devices(ldev);
+	} else if (roce_lag) {
 		if (!(dev0->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)) {
 			dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 			mlx5_rescan_drivers_locked(dev0);
@@ -359,8 +400,34 @@ static void mlx5_disable_lag(struct mlx5_lag *ldev)
 	if (err)
 		return;
 
-	if (roce_lag)
+	if (shared_fdb || roce_lag)
 		mlx5_lag_add_devices(ldev);
+
+	if (shared_fdb) {
+		if (!(dev0->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV))
+			mlx5_eswitch_reload_reps(dev0->priv.eswitch);
+		if (!(dev1->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV))
+			mlx5_eswitch_reload_reps(dev1->priv.eswitch);
+	}
+}
+
+static bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+
+	if (is_mdev_switchdev_mode(dev0) &&
+	    is_mdev_switchdev_mode(dev1) &&
+	    mlx5_eswitch_vport_match_metadata_enabled(dev0->priv.eswitch) &&
+	    mlx5_eswitch_vport_match_metadata_enabled(dev1->priv.eswitch) &&
+	    mlx5_devcom_is_paired(dev0->priv.devcom,
+				  MLX5_DEVCOM_ESW_OFFLOADS) &&
+	    MLX5_CAP_GEN(dev1, lag_native_fdb_selection) &&
+	    MLX5_CAP_ESW(dev1, root_ft_on_other_esw) &&
+	    MLX5_CAP_ESW(dev0, esw_shared_ingress_acl))
+		return true;
+
+	return false;
 }
 
 static void mlx5_do_bond(struct mlx5_lag *ldev)
@@ -380,6 +447,8 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	}
 
 	if (do_bond && !__mlx5_lag_is_active(ldev)) {
+		bool shared_fdb = mlx5_shared_fdb_supported(ldev);
+
 		roce_lag = !mlx5_sriov_is_enabled(dev0) &&
 			   !mlx5_sriov_is_enabled(dev1);
 
@@ -389,23 +458,40 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			   dev1->priv.eswitch->mode == MLX5_ESWITCH_NONE;
 #endif
 
-		if (roce_lag)
+		if (shared_fdb || roce_lag)
 			mlx5_lag_remove_devices(ldev);
 
 		err = mlx5_activate_lag(ldev, &tracker,
 					roce_lag ? MLX5_LAG_FLAG_ROCE :
-					MLX5_LAG_FLAG_SRIOV);
+						   MLX5_LAG_FLAG_SRIOV,
+					shared_fdb);
 		if (err) {
-			if (roce_lag)
+			if (shared_fdb || roce_lag)
 				mlx5_lag_add_devices(ldev);
 
 			return;
-		}
-
-		if (roce_lag) {
+		} else if (roce_lag) {
 			dev0->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 			mlx5_rescan_drivers_locked(dev0);
 			mlx5_nic_vport_enable_roce(dev1);
+		} else if (shared_fdb) {
+			dev0->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+			mlx5_rescan_drivers_locked(dev0);
+
+			err = mlx5_eswitch_reload_reps(dev0->priv.eswitch);
+			if (!err)
+				err = mlx5_eswitch_reload_reps(dev1->priv.eswitch);
+
+			if (err) {
+				dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+				mlx5_rescan_drivers_locked(dev0);
+				mlx5_deactivate_lag(ldev);
+				mlx5_lag_add_devices(ldev);
+				mlx5_eswitch_reload_reps(dev0->priv.eswitch);
+				mlx5_eswitch_reload_reps(dev1->priv.eswitch);
+				mlx5_core_err(dev0, "Failed to enable lag\n");
+				return;
+			}
 		}
 	} else if (do_bond && __mlx5_lag_is_active(ldev)) {
 		mlx5_modify_lag(ldev, &tracker);
