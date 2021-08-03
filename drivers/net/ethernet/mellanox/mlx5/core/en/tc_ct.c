@@ -2138,6 +2138,7 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct mlx5_core_dev *dev;
 	const char *msg;
+	u64 mapping_id;
 	int err;
 
 	dev = priv->mdev;
@@ -2153,13 +2154,17 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	if (!ct_priv)
 		goto err_alloc;
 
-	ct_priv->zone_mapping = mapping_create(sizeof(u16), 0, true);
+	mapping_id = mlx5_query_nic_system_image_guid(dev);
+
+	ct_priv->zone_mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_ZONE,
+						      sizeof(u16), 0, true);
 	if (IS_ERR(ct_priv->zone_mapping)) {
 		err = PTR_ERR(ct_priv->zone_mapping);
 		goto err_mapping_zone;
 	}
 
-	ct_priv->labels_mapping = mapping_create(sizeof(u32) * 4, 0, true);
+	ct_priv->labels_mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_LABELS,
+							sizeof(u32) * 4, 0, true);
 	if (IS_ERR(ct_priv->labels_mapping)) {
 		err = PTR_ERR(ct_priv->labels_mapping);
 		goto err_mapping_labels;

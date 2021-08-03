@@ -86,6 +86,14 @@ struct mlx5_mapped_obj {
 #define esw_chains(esw) \
 	((esw)->fdb_table.offloads.esw_chains_priv)
 
+enum {
+	MAPPING_TYPE_CHAIN,
+	MAPPING_TYPE_TUNNEL,
+	MAPPING_TYPE_TUNNEL_ENC_OPTS,
+	MAPPING_TYPE_LABELS,
+	MAPPING_TYPE_ZONE,
+};
+
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_handle *allow_rule;
