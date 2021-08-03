@@ -90,7 +90,7 @@ static int mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enabl
 
 static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
 {
-	int ret = 0;
+	int ret;
 
 	/* according to soc_pcm_prepare dai link prepare is called first */
 	ret = sdw_prepare(substream);
@@ -102,7 +102,7 @@ static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
 
 static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
 {
-	int ret = 0;
+	int ret;
 
 	/* according to soc_pcm_hw_free dai link free is called first */
 	ret = sdw_hw_free(substream);
