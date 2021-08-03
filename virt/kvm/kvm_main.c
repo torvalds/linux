@@ -496,17 +496,6 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 
 	idx = srcu_read_lock(&kvm->srcu);
 
-	/* The on_lock() path does not yet support lock elision. */
-	if (!IS_KVM_NULL_FN(range->on_lock)) {
-		locked = true;
-		KVM_MMU_LOCK(kvm);
-
-		range->on_lock(kvm, range->start, range->end);
-
-		if (IS_KVM_NULL_FN(range->handler))
-			goto out_unlock;
-	}
-
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
 		slots = __kvm_memslots(kvm, i);
 		kvm_for_each_memslot(slot, slots) {
@@ -538,6 +527,10 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 			if (!locked) {
 				locked = true;
 				KVM_MMU_LOCK(kvm);
+				if (!IS_KVM_NULL_FN(range->on_lock))
+					range->on_lock(kvm, range->start, range->end);
+				if (IS_KVM_NULL_FN(range->handler))
+					break;
 			}
 			ret |= range->handler(kvm, &gfn_range);
 		}
@@ -546,7 +539,6 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 	if (range->flush_on_ret && (ret || kvm->tlbs_dirty))
 		kvm_flush_remote_tlbs(kvm);
 
-out_unlock:
 	if (locked)
 		KVM_MMU_UNLOCK(kvm);
 
@@ -605,8 +597,14 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 
 	/*
 	 * .change_pte() must be surrounded by .invalidate_range_{start,end}().
+	 * If mmu_notifier_count is zero, then no in-progress invalidations,
+	 * including this one, found a relevant memslot at start(); rechecking
+	 * memslots here is unnecessary.  Note, a false positive (count elevated
+	 * by a different invalidation) is sub-optimal but functionally ok.
 	 */
 	WARN_ON_ONCE(!READ_ONCE(kvm->mn_active_invalidate_count));
+	if (!READ_ONCE(kvm->mmu_notifier_count))
+		return;
 
 	kvm_handle_hva_range(mn, address, address + 1, pte, kvm_set_spte_gfn);
 }
@@ -1398,7 +1396,8 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 
 	/*
 	 * Do not store the new memslots while there are invalidations in
-	 * progress (preparatory change for the next commit).
+	 * progress, otherwise the locking in invalidate_range_start and
+	 * invalidate_range_end will be unbalanced.
 	 */
 	spin_lock(&kvm->mn_invalidate_lock);
 	prepare_to_rcuwait(&kvm->mn_memslots_update_rcuwait);
