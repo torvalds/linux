@@ -923,7 +923,7 @@ static void __init ne_add_devices(void)
 }
 
 #ifdef MODULE
-int __init init_module(void)
+static int __init ne_init(void)
 {
 	int retval;
 	ne_add_devices();
@@ -940,6 +940,7 @@ int __init init_module(void)
 	ne_loop_rm_unreg(0);
 	return retval;
 }
+module_init(ne_init);
 #else /* MODULE */
 static int __init ne_init(void)
 {

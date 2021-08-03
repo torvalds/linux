@@ -1753,7 +1753,7 @@ MODULE_LICENSE("GPL");
  * (hw or software util)
  */
 
-int __init init_module(void)
+static int __init cs89x0_isa_init_module(void)
 {
 	struct net_device *dev;
 	struct net_local *lp;
@@ -1823,9 +1823,9 @@ out:
 	free_netdev(dev);
 	return ret;
 }
+module_init(cs89x0_isa_init_module);
 
-void __exit
-cleanup_module(void)
+static void __exit cs89x0_isa_cleanup_module(void)
 {
 	struct net_local *lp = netdev_priv(dev_cs89x0);
 
@@ -1835,6 +1835,7 @@ cleanup_module(void)
 	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
 	free_netdev(dev_cs89x0);
 }
+module_exit(cs89x0_isa_cleanup_module);
 #endif /* MODULE */
 #endif /* CONFIG_CS89x0_ISA */
 
