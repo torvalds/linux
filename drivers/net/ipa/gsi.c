@@ -1026,13 +1026,14 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 	mutex_unlock(&gsi->mutex);
 }
 
-/* Stop a STARTED channel for suspend (using stop if requested) */
-int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop)
+/* Stop a started channel for suspend */
+int gsi_channel_suspend(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	int ret;
 
-	ret = __gsi_channel_stop(channel, stop);
+	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
+	ret = __gsi_channel_stop(channel, gsi->version >= IPA_VERSION_4_0);
 	if (ret)
 		return ret;
 
@@ -1042,12 +1043,13 @@ int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop)
 	return 0;
 }
 
-/* Resume a suspended channel (starting will be requested if STOPPED) */
-int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start)
+/* Resume a suspended channel (starting if stopped) */
+int gsi_channel_resume(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	return __gsi_channel_start(channel, start);
+	/* Prior to IPA v4.0 suspend/resume is not implemented by GSI */
+	return __gsi_channel_start(channel, gsi->version >= IPA_VERSION_4_0);
 }
 
 /**
