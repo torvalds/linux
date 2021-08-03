@@ -126,8 +126,8 @@ static int intel_qep_count_read(struct counter_device *counter,
 	return 0;
 }
 
-static const enum counter_count_function intel_qep_count_functions[] = {
-	COUNTER_COUNT_FUNCTION_QUADRATURE_X4,
+static const enum counter_function intel_qep_count_functions[] = {
+	COUNTER_FUNCTION_QUADRATURE_X4,
 };
 
 static int intel_qep_function_get(struct counter_device *counter,
