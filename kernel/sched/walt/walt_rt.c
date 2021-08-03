@@ -23,6 +23,7 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 	bool boost_on_big = rt_boost_on_big();
 	int cluster;
 	int order_index = (boost_on_big && num_sched_clusters > 1) ? 1 : 0;
+	bool best_cpu_lt = true;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -33,6 +34,8 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 	rcu_read_lock();
 	for (cluster = 0; cluster < num_sched_clusters; cluster++) {
 		for_each_cpu_and(cpu, lowest_mask, &cpu_array[order_index][cluster]) {
+			bool lt;
+
 			trace_sched_cpu_util(cpu);
 
 			if (!cpu_active(cpu))
@@ -46,8 +49,21 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 
 			util = cpu_util(cpu);
 
-			/* Find the least loaded CPU */
-			if (util > best_cpu_util)
+			lt = (walt_low_latency_task(cpu_rq(cpu)->curr) ||
+				walt_nr_rtg_high_prio(cpu));
+
+			/*
+			 * When the best is suitable and the current is not,
+			 * skip it
+			 */
+			if (lt && !best_cpu_lt)
+				continue;
+
+			/*
+			 * Either both are sutilable or unsuitable, load takes
+			 * precedence.
+			 */
+			if (!(best_cpu_lt ^ lt) && (util > best_cpu_util))
 				continue;
 
 			/*
@@ -80,6 +96,7 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 			best_cpu_util_cum = util_cum;
 			best_cpu_util = util;
 			*best_cpu = cpu;
+			best_cpu_lt = lt;
 		}
 
 		if (*best_cpu != -1)
