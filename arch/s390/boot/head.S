@@ -317,6 +317,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
+	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
@@ -335,6 +336,22 @@ SYM_CODE_END(startup_normal)
 	.quad	0x0000000180000000,startup_pgm_check_handler
 .Lio_new_psw:
 	.quad	0x0002000180000000,0x1f0	# disabled wait
+.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
+	.quad	0			# cr1: primary space segment table
+	.quad	0			# cr2: dispatchable unit control table
+	.quad	0			# cr3: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
+	.quad	0			# cr5: primary-aste origin
+	.quad	0			# cr6:	I/O interrupts
+	.quad	0			# cr7:	secondary space segment table
+	.quad	0x0000000000008000	# cr8:	access registers translation
+	.quad	0			# cr9:	tracing off
+	.quad	0			# cr10: tracing off
+	.quad	0			# cr11: tracing off
+	.quad	0			# cr12: tracing off
+	.quad	0			# cr13: home space segment table
+	.quad	0xc0000000		# cr14: machine check handling off
+	.quad	0			# cr15: linkage stack operations
 
 #include "head_kdump.S"
 
