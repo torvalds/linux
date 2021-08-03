@@ -91,12 +91,14 @@ struct dm_compressor_info {
  * @work: Kernel work data for the work event
  * @dm: amdgpu display manager device
  * @acrtc: amdgpu CRTC instance for which the event has occurred
+ * @stream: DC stream for which the event has occurred
  * @enable: true if enabling vblank
  */
 struct vblank_control_work {
 	struct work_struct work;
 	struct amdgpu_display_manager *dm;
 	struct amdgpu_crtc *acrtc;
+	struct dc_stream_state *stream;
 	bool enable;
 };
 
