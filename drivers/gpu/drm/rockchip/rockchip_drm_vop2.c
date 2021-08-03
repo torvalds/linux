@@ -2855,6 +2855,17 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		vpstate->afbc_en = false;
 
 	/*
+	 * This is special feature at rk356x, the cluster layer only can support
+	 * afbc format and can't support linear format;
+	 */
+	if (VOP_MAJOR(vop2_data->version) == 0x40 && VOP_MINOR(vop2_data->version) == 0x15) {
+		if (vop2_cluster_window(win) && !vpstate->afbc_en) {
+			DRM_ERROR("Unsupported linear format at %s\n", win->name);
+			return -EINVAL;
+		}
+	}
+
+	/*
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
