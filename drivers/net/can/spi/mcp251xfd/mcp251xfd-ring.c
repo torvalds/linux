@@ -52,6 +52,45 @@ mcp251xfd_cmd_prepare_write_reg(const struct mcp251xfd_priv *priv,
 	return len;
 }
 
+static void mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv)
+{
+	struct mcp251xfd_tef_ring *tef_ring;
+	struct spi_transfer *xfer;
+	u32 val;
+	u16 addr;
+	u8 len;
+	int i;
+
+	/* TEF */
+	tef_ring = priv->tef;
+	tef_ring->head = 0;
+	tef_ring->tail = 0;
+
+	/* FIFO increment TEF tail pointer */
+	addr = MCP251XFD_REG_TEFCON;
+	val = MCP251XFD_REG_TEFCON_UINC;
+	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->uinc_buf,
+					      addr, val, val);
+
+	for (i = 0; i < ARRAY_SIZE(tef_ring->uinc_xfer); i++) {
+		xfer = &tef_ring->uinc_xfer[i];
+		xfer->tx_buf = &tef_ring->uinc_buf;
+		xfer->len = len;
+		xfer->cs_change = 1;
+		xfer->cs_change_delay.value = 0;
+		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	}
+
+	/* "cs_change == 1" on the last transfer results in an active
+	 * chip select after the complete SPI message. This causes the
+	 * controller to interpret the next register access as
+	 * data. Set "cs_change" of the last transfer to "0" to
+	 * properly deactivate the chip select at the end of the
+	 * message.
+	 */
+	xfer->cs_change = 0;
+}
+
 static void
 mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 			      const struct mcp251xfd_tx_ring *ring,
@@ -88,50 +127,15 @@ mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 					ARRAY_SIZE(tx_obj->xfer));
 }
 
-void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
+static void mcp251xfd_ring_init_tx(struct mcp251xfd_priv *priv)
 {
-	struct mcp251xfd_tef_ring *tef_ring;
 	struct mcp251xfd_tx_ring *tx_ring;
-	struct mcp251xfd_rx_ring *rx_ring, *prev_rx_ring = NULL;
 	struct mcp251xfd_tx_obj *tx_obj;
-	struct spi_transfer *xfer;
 	u32 val;
 	u16 addr;
 	u8 len;
-	int i, j;
+	int i;
 
-	netdev_reset_queue(priv->ndev);
-
-	/* TEF */
-	tef_ring = priv->tef;
-	tef_ring->head = 0;
-	tef_ring->tail = 0;
-
-	/* FIFO increment TEF tail pointer */
-	addr = MCP251XFD_REG_TEFCON;
-	val = MCP251XFD_REG_TEFCON_UINC;
-	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->uinc_buf,
-					      addr, val, val);
-
-	for (j = 0; j < ARRAY_SIZE(tef_ring->uinc_xfer); j++) {
-		xfer = &tef_ring->uinc_xfer[j];
-		xfer->tx_buf = &tef_ring->uinc_buf;
-		xfer->len = len;
-		xfer->cs_change = 1;
-		xfer->cs_change_delay.value = 0;
-		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
-	}
-
-	/* "cs_change == 1" on the last transfer results in an active
-	 * chip select after the complete SPI message. This causes the
-	 * controller to interpret the next register access as
-	 * data. Set "cs_change" of the last transfer to "0" to
-	 * properly deactivate the chip select at the end of the
-	 * message.
-	 */
-	xfer->cs_change = 0;
-
-	/* TX */
 	tx_ring = priv->tx;
 	tx_ring->head = 0;
 	tx_ring->tail = 0;
@@ -147,8 +151,19 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 
 	mcp251xfd_for_each_tx_obj(tx_ring, tx_obj, i)
 		mcp251xfd_tx_ring_init_tx_obj(priv, tx_ring, tx_obj, len, i);
+}
 
-	/* RX */
+static void mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv)
+{
+	struct mcp251xfd_rx_ring *rx_ring, *prev_rx_ring = NULL;
+	struct mcp251xfd_tx_ring *tx_ring;
+	struct spi_transfer *xfer;
+	u32 val;
+	u16 addr;
+	u8 len;
+	int i, j;
+
+	tx_ring = priv->tx;
 	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
 		rx_ring->head = 0;
 		rx_ring->tail = 0;
@@ -190,6 +205,15 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 		 */
 		xfer->cs_change = 0;
 	}
+}
+
+void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
+{
+	netdev_reset_queue(priv->ndev);
+
+	mcp251xfd_ring_init_tef(priv);
+	mcp251xfd_ring_init_tx(priv);
+	mcp251xfd_ring_init_rx(priv);
 }
 
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
