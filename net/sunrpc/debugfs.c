@@ -259,6 +259,9 @@ static void fail_sunrpc_init(void)
 
 	debugfs_create_bool("ignore-client-disconnect", S_IFREG | 0600, dir,
 			    &fail_sunrpc.ignore_client_disconnect);
+
+	debugfs_create_bool("ignore-server-disconnect", S_IFREG | 0600, dir,
+			    &fail_sunrpc.ignore_server_disconnect);
 }
 #else
 static void fail_sunrpc_init(void)
