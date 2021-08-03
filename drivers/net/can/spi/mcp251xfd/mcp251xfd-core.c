@@ -760,7 +760,9 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 	if (err)
 		goto out_chip_stop;
 
-	mcp251xfd_ring_init(priv);
+	err = mcp251xfd_ring_init(priv);
+	if (err)
+		goto out_chip_stop;
 
 	err = mcp251xfd_chip_fifo_init(priv);
 	if (err)

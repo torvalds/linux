@@ -207,9 +207,9 @@ mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 	}
 }
 
-void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
+int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 {
-	u16 base = 0;
+	u16 base = 0, ram_used;
 	u8 fifo_nr = 1;
 
 	netdev_reset_queue(priv->ndev);
@@ -217,6 +217,16 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	mcp251xfd_ring_init_tef(priv, &base);
 	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
 	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
+
+	ram_used = base - MCP251XFD_RAM_START;
+	if (ram_used > MCP251XFD_RAM_SIZE) {
+		netdev_err(priv->ndev,
+			   "Error during ring configuration, using more RAM (%u bytes) than available (%u bytes).\n",
+			   ram_used, MCP251XFD_RAM_SIZE);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
