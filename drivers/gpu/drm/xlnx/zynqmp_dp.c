@@ -1292,9 +1292,30 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
  * DRM Bridge
  */
 
+static const struct drm_connector_funcs zynqmp_dp_connector_funcs;
+static const struct drm_connector_helper_funcs zynqmp_dp_connector_helper_funcs;
+
 static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	struct drm_connector *connector = &dp->connector;
+	int ret;
+
+	/* Create the DRM connector. */
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	ret = drm_connector_init(dp->drm, connector,
+				 &zynqmp_dp_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret) {
+		dev_err(dp->dev, "failed to create the DRM connector\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector, &zynqmp_dp_connector_helper_funcs);
+	drm_connector_register(connector);
+	drm_connector_attach_encoder(connector, bridge->encoder);
+
 	return 0;
 }
 
@@ -1711,7 +1732,6 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 	struct zynqmp_dp *dp = dpsub->dp;
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_encoder *encoder = &dp->encoder;
-	struct drm_connector *connector = &dp->connector;
 	int ret;
 
 	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
@@ -1729,23 +1749,14 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 		    | DRM_BRIDGE_OP_HPD;
 	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
 
-	/* Create the DRM encoder and connector. */
+	/* Create the DRM encoder and attach the bridge. */
 	encoder->possible_crtcs |= zynqmp_disp_get_crtc_mask(dpsub->disp);
 	drm_simple_encoder_init(dp->drm, encoder, DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(encoder, &zynqmp_dp_encoder_helper_funcs);
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	ret = drm_connector_init(encoder->dev, connector,
-				 &zynqmp_dp_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret) {
-		dev_err(dp->dev, "failed to create the DRM connector\n");
+	ret = zynqmp_dp_bridge_attach(bridge, 0);
+	if (ret < 0)
 		return ret;
-	}
-
-	drm_connector_helper_add(connector, &zynqmp_dp_connector_helper_funcs);
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, encoder);
 
 	/* Initialize and register the AUX adapter. */
 	ret = zynqmp_dp_aux_init(dp);
