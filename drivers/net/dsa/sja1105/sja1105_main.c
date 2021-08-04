@@ -475,7 +475,8 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 	struct sja1105_l2_forwarding_entry *l2fwd;
 	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
-	int i, j;
+	int port, tc;
+	int from, to;
 
 	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING];
 
@@ -493,47 +494,82 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 
 	l2fwd = table->entries;
 
-	/* First 5 entries define the forwarding rules */
-	for (i = 0; i < ds->num_ports; i++) {
-		unsigned int upstream = dsa_upstream_port(priv->ds, i);
-
-		if (dsa_is_unused_port(ds, i))
+	/* First 5 entries in the L2 Forwarding Table define the forwarding
+	 * rules and the VLAN PCP to ingress queue mapping.
+	 * Set up the ingress queue mapping first.
+	 */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
 			continue;
 
-		for (j = 0; j < SJA1105_NUM_TC; j++)
-			l2fwd[i].vlan_pmap[j] = j;
+		for (tc = 0; tc < SJA1105_NUM_TC; tc++)
+			l2fwd[port].vlan_pmap[tc] = tc;
+	}
 
-		/* All ports start up with egress flooding enabled,
-		 * including the CPU port.
-		 */
-		priv->ucast_egress_floods |= BIT(i);
-		priv->bcast_egress_floods |= BIT(i);
-
-		if (i == upstream)
+	/* Then manage the forwarding domain for user ports. These can forward
+	 * only to the always-on domain (CPU port and DSA links)
+	 */
+	for (from = 0; from < ds->num_ports; from++) {
+		if (!dsa_is_user_port(ds, from))
 			continue;
 
-		sja1105_port_allow_traffic(l2fwd, i, upstream, true);
-		sja1105_port_allow_traffic(l2fwd, upstream, i, true);
+		for (to = 0; to < ds->num_ports; to++) {
+			if (!dsa_is_cpu_port(ds, to) &&
+			    !dsa_is_dsa_port(ds, to))
+				continue;
 
-		l2fwd[i].bc_domain = BIT(upstream);
-		l2fwd[i].fl_domain = BIT(upstream);
+			l2fwd[from].bc_domain |= BIT(to);
+			l2fwd[from].fl_domain |= BIT(to);
 
-		l2fwd[upstream].bc_domain |= BIT(i);
-		l2fwd[upstream].fl_domain |= BIT(i);
+			sja1105_port_allow_traffic(l2fwd, from, to, true);
+		}
+	}
+
+	/* Then manage the forwarding domain for DSA links and CPU ports (the
+	 * always-on domain). These can send packets to any enabled port except
+	 * themselves.
+	 */
+	for (from = 0; from < ds->num_ports; from++) {
+		if (!dsa_is_cpu_port(ds, from) && !dsa_is_dsa_port(ds, from))
+			continue;
+
+		for (to = 0; to < ds->num_ports; to++) {
+			if (dsa_is_unused_port(ds, to))
+				continue;
+
+			if (from == to)
+				continue;
+
+			l2fwd[from].bc_domain |= BIT(to);
+			l2fwd[from].fl_domain |= BIT(to);
+
+			sja1105_port_allow_traffic(l2fwd, from, to, true);
+		}
+	}
+
+	/* Finally, manage the egress flooding domain. All ports start up with
+	 * flooding enabled, including the CPU port and DSA links.
+	 */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		priv->ucast_egress_floods |= BIT(port);
+		priv->bcast_egress_floods |= BIT(port);
 	}
 
 	/* Next 8 entries define VLAN PCP mapping from ingress to egress.
 	 * Create a one-to-one mapping.
 	 */
-	for (i = 0; i < SJA1105_NUM_TC; i++) {
-		for (j = 0; j < ds->num_ports; j++) {
-			if (dsa_is_unused_port(ds, j))
+	for (tc = 0; tc < SJA1105_NUM_TC; tc++) {
+		for (port = 0; port < ds->num_ports; port++) {
+			if (dsa_is_unused_port(ds, port))
 				continue;
 
-			l2fwd[ds->num_ports + i].vlan_pmap[j] = i;
+			l2fwd[ds->num_ports + tc].vlan_pmap[port] = tc;
 		}
 
-		l2fwd[ds->num_ports + i].type_egrpcp2outputq = true;
+		l2fwd[ds->num_ports + tc].type_egrpcp2outputq = true;
 	}
 
 	return 0;
