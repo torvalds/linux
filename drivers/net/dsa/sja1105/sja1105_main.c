@@ -688,6 +688,72 @@ static void sja1110_select_tdmaconfigidx(struct sja1105_private *priv)
 	general_params->tdmaconfigidx = tdmaconfigidx;
 }
 
+static int sja1105_init_topology(struct sja1105_private *priv,
+				 struct sja1105_general_params_entry *general_params)
+{
+	struct dsa_switch *ds = priv->ds;
+	int port;
+
+	/* The host port is the destination for traffic matching mac_fltres1
+	 * and mac_fltres0 on all ports except itself. Default to an invalid
+	 * value.
+	 */
+	general_params->host_port = ds->num_ports;
+
+	/* Link-local traffic received on casc_port will be forwarded
+	 * to host_port without embedding the source port and device ID
+	 * info in the destination MAC address, and no RX timestamps will be
+	 * taken either (presumably because it is a cascaded port and a
+	 * downstream SJA switch already did that).
+	 * To disable the feature, we need to do different things depending on
+	 * switch generation. On SJA1105 we need to set an invalid port, while
+	 * on SJA1110 which support multiple cascaded ports, this field is a
+	 * bitmask so it must be left zero.
+	 */
+	if (!priv->info->multiple_cascade_ports)
+		general_params->casc_port = ds->num_ports;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		bool is_upstream = dsa_is_upstream_port(ds, port);
+		bool is_dsa_link = dsa_is_dsa_port(ds, port);
+
+		/* Upstream ports can be dedicated CPU ports or
+		 * upstream-facing DSA links
+		 */
+		if (is_upstream) {
+			if (general_params->host_port == ds->num_ports) {
+				general_params->host_port = port;
+			} else {
+				dev_err(ds->dev,
+					"Port %llu is already a host port, configuring %d as one too is not supported\n",
+					general_params->host_port, port);
+				return -EINVAL;
+			}
+		}
+
+		/* Cascade ports are downstream-facing DSA links */
+		if (is_dsa_link && !is_upstream) {
+			if (priv->info->multiple_cascade_ports) {
+				general_params->casc_port |= BIT(port);
+			} else if (general_params->casc_port == ds->num_ports) {
+				general_params->casc_port = port;
+			} else {
+				dev_err(ds->dev,
+					"Port %llu is already a cascade port, configuring %d as one too is not supported\n",
+					general_params->casc_port, port);
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (general_params->host_port == ds->num_ports) {
+		dev_err(ds->dev, "No host port configured\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int sja1105_init_general_params(struct sja1105_private *priv)
 {
 	struct sja1105_general_params_entry default_general_params = {
@@ -706,12 +772,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.mac_flt0    = SJA1105_LINKLOCAL_FILTER_B_MASK,
 		.incl_srcpt0 = false,
 		.send_meta0  = false,
-		/* The destination for traffic matching mac_fltres1 and
-		 * mac_fltres0 on all ports except host_port. Such traffic
-		 * receieved on host_port itself would be dropped, except
-		 * by installing a temporary 'management route'
-		 */
-		.host_port = priv->ds->num_ports,
 		/* Default to an invalid value */
 		.mirr_port = priv->ds->num_ports,
 		/* No TTEthernet */
@@ -731,16 +791,12 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.header_type = ETH_P_SJA1110,
 	};
 	struct sja1105_general_params_entry *general_params;
-	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
-	int port;
+	int rc;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_is_cpu_port(ds, port)) {
-			default_general_params.host_port = port;
-			break;
-		}
-	}
+	rc = sja1105_init_topology(priv, &default_general_params);
+	if (rc)
+		return rc;
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 
@@ -762,19 +818,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 	general_params[0] = default_general_params;
 
 	sja1110_select_tdmaconfigidx(priv);
-
-	/* Link-local traffic received on casc_port will be forwarded
-	 * to host_port without embedding the source port and device ID
-	 * info in the destination MAC address, and no RX timestamps will be
-	 * taken either (presumably because it is a cascaded port and a
-	 * downstream SJA switch already did that).
-	 * To disable the feature, we need to do different things depending on
-	 * switch generation. On SJA1105 we need to set an invalid port, while
-	 * on SJA1110 which support multiple cascaded ports, this field is a
-	 * bitmask so it must be left zero.
-	 */
-	if (!priv->info->multiple_cascade_ports)
-		general_params->casc_port = ds->num_ports;
 
 	return 0;
 }
