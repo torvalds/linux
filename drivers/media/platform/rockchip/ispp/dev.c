@@ -64,6 +64,10 @@ static unsigned int rkispp_wait_line;
 module_param_named(wait_line, rkispp_wait_line, uint, 0644);
 MODULE_PARM_DESC(wait_line, "rkispp wait line to buf done early");
 
+char rkispp_dump_path[128];
+module_param_string(dump_path, rkispp_dump_path, sizeof(rkispp_dump_path), 0644);
+MODULE_PARM_DESC(dump_path, "rkispp dump debug file path");
+
 void rkispp_set_clk_rate(struct clk *clk, unsigned long rate)
 {
 	if (rkispp_clk_dbg)
