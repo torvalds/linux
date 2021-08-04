@@ -144,8 +144,12 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 		ret = icc_set_bw(interconnect->path,
 				 interconnect->average_bandwidth,
 				 interconnect->peak_bandwidth);
-		if (ret)
+		if (ret) {
+			dev_err(&ipa->pdev->dev,
+				"error %d enabling %s interconnect\n",
+				ret, icc_get_name(interconnect->path));
 			goto out_unwind;
+		}
 		interconnect++;
 	}
 
@@ -159,10 +163,11 @@ out_unwind:
 }
 
 /* To disable an interconnect, we just its bandwidth to 0 */
-static void ipa_interconnect_disable(struct ipa *ipa)
+static int ipa_interconnect_disable(struct ipa *ipa)
 {
 	struct ipa_interconnect *interconnect;
 	struct ipa_clock *clock = ipa->clock;
+	struct device *dev = &ipa->pdev->dev;
 	int result = 0;
 	u32 count;
 	int ret;
@@ -172,13 +177,16 @@ static void ipa_interconnect_disable(struct ipa *ipa)
 	while (count--) {
 		interconnect--;
 		ret = icc_set_bw(interconnect->path, 0, 0);
-		if (ret && !result)
-			result = ret;
+		if (ret) {
+			dev_err(dev, "error %d disabling %s interconnect\n",
+				ret, icc_get_name(interconnect->path));
+			/* Try to disable all; record only the first error */
+			if (!result)
+				result = ret;
+		}
 	}
 
-	if (result)
-		dev_err(&ipa->pdev->dev,
-			"error %d disabling IPA interconnects\n", ret);
+	return result;
 }
 
 /* Turn on IPA clocks, including interconnects */
@@ -191,8 +199,10 @@ static int ipa_clock_enable(struct ipa *ipa)
 		return ret;
 
 	ret = clk_prepare_enable(ipa->clock->core);
-	if (ret)
-		ipa_interconnect_disable(ipa);
+	if (ret) {
+		dev_err(&ipa->pdev->dev, "error %d enabling core clock\n", ret);
+		(void)ipa_interconnect_disable(ipa);
+	}
 
 	return ret;
 }
@@ -201,7 +211,7 @@ static int ipa_clock_enable(struct ipa *ipa)
 static void ipa_clock_disable(struct ipa *ipa)
 {
 	clk_disable_unprepare(ipa->clock->core);
-	ipa_interconnect_disable(ipa);
+	(void)ipa_interconnect_disable(ipa);
 }
 
 /* Get an IPA clock reference, but only if the reference count is
@@ -238,13 +248,8 @@ void ipa_clock_get(struct ipa *ipa)
 		goto out_mutex_unlock;
 
 	ret = ipa_clock_enable(ipa);
-	if (ret) {
-		dev_err(&ipa->pdev->dev, "error %d enabling IPA clock\n", ret);
-		goto out_mutex_unlock;
-	}
-
-	refcount_set(&clock->count, 1);
-
+	if (!ret)
+		refcount_set(&clock->count, 1);
 out_mutex_unlock:
 	mutex_unlock(&clock->mutex);
 }
