@@ -241,6 +241,11 @@
 	};
 };
 
+&ipa {
+	status = "okay";
+	modem-init;
+};
+
 &pmk8350_vadc {
 	pmk8350_die_temp {
 		reg = <PMK8350_ADC7_DIE_TEMP>;
