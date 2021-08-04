@@ -1109,6 +1109,7 @@ static void zynqmp_dp_update_misc(struct zynqmp_dp *dp)
 /**
  * zynqmp_dp_set_format - Set the input format
  * @dp: DisplayPort IP core structure
+ * @info: Display info
  * @format: input format
  * @bpc: bits per component
  *
@@ -1117,10 +1118,10 @@ static void zynqmp_dp_update_misc(struct zynqmp_dp *dp)
  * Return: 0 on success, or -EINVAL.
  */
 static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
+				const struct drm_display_info *info,
 				enum zynqmp_dpsub_format format,
 				unsigned int bpc)
 {
-	static const struct drm_display_info *display;
 	struct zynqmp_dp_config *config = &dp->config;
 	unsigned int num_colors;
 
@@ -1153,12 +1154,11 @@ static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
 		return -EINVAL;
 	}
 
-	display = &dp->connector.display_info;
-	if (display->bpc && bpc > display->bpc) {
+	if (info && info->bpc && bpc > info->bpc) {
 		dev_warn(dp->dev,
 			 "downgrading requested %ubpc to display limit %ubpc\n",
-			 bpc, display->bpc);
-		bpc = display->bpc;
+			 bpc, info->bpc);
+		bpc = info->bpc;
 	}
 
 	config->misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_BPC_MASK;
@@ -1353,7 +1353,8 @@ static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	adjusted_mode = &crtc_state->adjusted_mode;
 	mode = &crtc_state->mode;
 
-	zynqmp_dp_set_format(dp, ZYNQMP_DPSUB_FORMAT_RGB, 8);
+	zynqmp_dp_set_format(dp, &connector->display_info,
+			     ZYNQMP_DPSUB_FORMAT_RGB, 8);
 
 	/* Check again as bpp or format might have been changed */
 	rate = zynqmp_dp_max_rate(dp->link_config.max_rate,
@@ -1714,7 +1715,7 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 	int ret;
 
 	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
-	zynqmp_dp_set_format(dp, ZYNQMP_DPSUB_FORMAT_RGB, 8);
+	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
 
 	/*
 	 * Initialize the bridge. Setting the device and encoder manually is a
