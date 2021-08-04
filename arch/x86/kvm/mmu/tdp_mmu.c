@@ -542,15 +542,40 @@ static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
 	return true;
 }
 
-static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
-					   struct tdp_iter *iter,
-					   u64 new_spte)
+/*
+ * tdp_mmu_map_set_spte_atomic - Set a leaf TDP MMU SPTE atomically to resolve a
+ * TDP page fault.
+ *
+ * @vcpu: The vcpu instance that took the TDP page fault.
+ * @iter: a tdp_iter instance currently on the SPTE that should be set
+ * @new_spte: The value the SPTE should be set to
+ *
+ * Returns: true if the SPTE was set, false if it was not. If false is returned,
+ *	    this function will have no side-effects.
+ */
+static inline bool tdp_mmu_map_set_spte_atomic(struct kvm_vcpu *vcpu,
+					       struct tdp_iter *iter,
+					       u64 new_spte)
 {
+	struct kvm *kvm = vcpu->kvm;
+
 	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, new_spte))
 		return false;
 
-	handle_changed_spte_dirty_log(kvm, iter->as_id, iter->gfn,
-				      iter->old_spte, new_spte, iter->level);
+	/*
+	 * Use kvm_vcpu_gfn_to_memslot() instead of going through
+	 * handle_changed_spte_dirty_log() to leverage vcpu->last_used_slot.
+	 */
+	if (is_writable_pte(new_spte)) {
+		struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, iter->gfn);
+
+		if (slot && kvm_slot_dirty_track_enabled(slot)) {
+			/* Enforced by kvm_mmu_hugepage_adjust. */
+			WARN_ON_ONCE(iter->level > PG_LEVEL_4K);
+			mark_page_dirty_in_slot(kvm, slot, iter->gfn);
+		}
+	}
+
 	return true;
 }
 
@@ -563,7 +588,7 @@ static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	 * immediately installing a present entry in its place
 	 * before the TLBs are flushed.
 	 */
-	if (!tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE))
+	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, REMOVED_SPTE))
 		return false;
 
 	kvm_flush_remote_tlbs_with_address(kvm, iter->gfn,
@@ -931,7 +956,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 
 	if (new_spte == iter->old_spte)
 		ret = RET_PF_SPURIOUS;
-	else if (!tdp_mmu_set_spte_atomic(vcpu->kvm, iter, new_spte))
+	else if (!tdp_mmu_map_set_spte_atomic(vcpu, iter, new_spte))
 		return RET_PF_RETRY;
 
 	/*
@@ -1035,8 +1060,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			new_spte = make_nonleaf_spte(child_pt,
 						     !shadow_accessed_mask);
 
-			if (tdp_mmu_set_spte_atomic(vcpu->kvm, &iter,
-						    new_spte)) {
+			if (tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, &iter, new_spte)) {
 				tdp_mmu_link_page(vcpu->kvm, sp, true,
 						  huge_page_disallowed &&
 						  req_level >= iter.level);
