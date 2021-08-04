@@ -761,6 +761,7 @@ enum mt76_phy_type {
 	MT_PHY_TYPE_HE_EXT_SU,
 	MT_PHY_TYPE_HE_TB,
 	MT_PHY_TYPE_HE_MU,
+	__MT_PHY_TYPE_HE_MAX,
 };
 
 #define CCK_RATE(_idx, _rate) {					\
