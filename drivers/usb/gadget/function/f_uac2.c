@@ -970,17 +970,13 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	std_as_in_if1_desc.iInterface = us[STR_AS_IN_ALT1].id;
 
 	if (FUOUT_EN(uac2_opts)) {
-		u8 *i_feature = (u8 *)out_feature_unit_desc;
-
-		i_feature = (u8 *)out_feature_unit_desc +
-					out_feature_unit_desc->bLength - 1;
+		u8 *i_feature = (u8 *)out_feature_unit_desc +
+				out_feature_unit_desc->bLength - 1;
 		*i_feature = us[STR_FU_OUT].id;
 	}
 	if (FUIN_EN(uac2_opts)) {
-		u8 *i_feature = (u8 *)in_feature_unit_desc;
-
-		i_feature = (u8 *)in_feature_unit_desc +
-					in_feature_unit_desc->bLength - 1;
+		u8 *i_feature = (u8 *)in_feature_unit_desc +
+				in_feature_unit_desc->bLength - 1;
 		*i_feature = us[STR_FU_IN].id;
 	}
 
