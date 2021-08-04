@@ -407,6 +407,10 @@ static void snd_dma_dev_free(struct snd_dma_buffer *dmab)
 static int snd_dma_dev_mmap(struct snd_dma_buffer *dmab,
 			    struct vm_area_struct *area)
 {
+#ifdef CONFIG_X86
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC)
+		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+#endif
 	return dma_mmap_coherent(dmab->dev.dev, area,
 				 dmab->area, dmab->addr, dmab->bytes);
 }

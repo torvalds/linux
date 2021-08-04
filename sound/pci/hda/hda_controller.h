@@ -74,8 +74,6 @@ struct azx;
 struct hda_controller_ops {
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
-	void (*pcm_mmap_prepare)(struct snd_pcm_substream *substream,
-				 struct vm_area_struct *area);
 	/* Check if current position is acceptable */
 	int (*position_check)(struct azx *chip, struct azx_dev *azx_dev);
 	/* enable/disable the link power */
