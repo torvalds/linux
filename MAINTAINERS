@@ -14639,8 +14639,10 @@ PIN CONTROLLER - MEDIATEK
 M:	Sean Wang <sean.wang@kernel.org>
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/pinctrl/pinctrl-mt65xx.txt
-F:	Documentation/devicetree/bindings/pinctrl/pinctrl-mt7622.txt
+F:	Documentation/devicetree/bindings/pinctrl/mediatek,mt65xx-pinctrl.yaml
+F:	Documentation/devicetree/bindings/pinctrl/mediatek,mt6797-pinctrl.yaml
+F:	Documentation/devicetree/bindings/pinctrl/mediatek,mt7622-pinctrl.yaml
+F:	Documentation/devicetree/bindings/pinctrl/mediatek,mt8183-pinctrl.yaml
 F:	drivers/pinctrl/mediatek/
 
 PIN CONTROLLER - MICROCHIP AT91
