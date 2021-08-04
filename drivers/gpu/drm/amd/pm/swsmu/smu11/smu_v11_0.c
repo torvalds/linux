@@ -116,12 +116,12 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	case IP_VERSION(11, 0, 13):
 		chip_name = "beige_goby";
 		break;
+	case IP_VERSION(11, 0, 2):
+		chip_name = "arcturus";
+		break;
 	default:
-		if (adev->asic_type == CHIP_ARCTURUS) {
-			chip_name = "arcturus";
-			break;
-		}
-		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
+		dev_err(adev->dev, "Unsupported IP version 0x%x\n",
+			adev->ip_versions[MP1_HWIP]);
 		return -EINVAL;
 	}
 
@@ -267,12 +267,12 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case IP_VERSION(11, 0, 8):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Cyan_Skillfish;
 		break;
+	case IP_VERSION(11, 0, 2):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
+		break;
 	default:
-		if (adev->asic_type == CHIP_ARCTURUS) {
-			smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
-			break;
-		}
-		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
+		dev_err(smu->adev->dev, "smu unsupported IP version: 0x%x.\n",
+			adev->ip_versions[MP1_HWIP]);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
 		break;
 	}
@@ -1653,7 +1653,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		default:
 			if (!ras || !adev->ras_enabled ||
 			    adev->gmc.xgmi.pending_reset) {
-				if (adev->asic_type == CHIP_ARCTURUS) {
+				if (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 2)) {
 					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
 					data |= 0x80000000;
 					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT, data);
@@ -1935,7 +1935,7 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 	 * Separate MCLK and SOCCLK soft min/max settings are not allowed
 	 * on Arcturus.
 	 */
-	if (adev->asic_type == CHIP_ARCTURUS) {
+	if (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 2)) {
 		mclk_min = mclk_max = 0;
 		socclk_min = socclk_max = 0;
 	}
