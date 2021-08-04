@@ -455,8 +455,7 @@ static int smu_get_power_num_states(void *handle,
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
-	if ((adev->asic_type >= CHIP_ARCTURUS) ||
-	    (adev->ip_versions[MP1_HWIP] >= IP_VERSION(11, 0, 0)))
+	if (adev->ip_versions[MP1_HWIP] >= IP_VERSION(11, 0, 0))
 		return true;
 
 	return false;
@@ -602,23 +601,19 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(11, 0, 8):
 		cyan_skillfish_set_ppt_funcs(smu);
 		break;
-	default:
-		switch (adev->asic_type) {
-		case CHIP_ARCTURUS:
-			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
-			arcturus_set_ppt_funcs(smu);
-			/* OD is not supported on Arcturus */
-			smu->od_enabled =false;
-			break;
-		case CHIP_ALDEBARAN:
-			aldebaran_set_ppt_funcs(smu);
-			/* Enable pp_od_clk_voltage node */
-			smu->od_enabled = true;
-			break;
-		default:
-			return -EINVAL;
-		}
+	case IP_VERSION(11, 0, 2):
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		arcturus_set_ppt_funcs(smu);
+		/* OD is not supported on Arcturus */
+		smu->od_enabled =false;
 		break;
+	case IP_VERSION(13, 0, 2):
+		aldebaran_set_ppt_funcs(smu);
+		/* Enable pp_od_clk_voltage node */
+		smu->od_enabled = true;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2306,15 +2301,20 @@ int smu_get_power_limit(void *handle,
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:
-			if ((smu->adev->asic_type == CHIP_ALDEBARAN) ||
-			     (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 7)) ||
-			     (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 11)) ||
-			     (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 12)) ||
-			     (adev->ip_versions[MP1_HWIP] == IP_VERSION(11, 0, 13)))
+			switch (adev->ip_versions[MP1_HWIP]) {
+			case IP_VERSION(13, 0, 2):
+			case IP_VERSION(11, 0, 7):
+			case IP_VERSION(11, 0, 11):
+			case IP_VERSION(11, 0, 12):
+			case IP_VERSION(11, 0, 13):
 				ret = smu_get_asic_power_limits(smu,
 								&smu->current_power_limit,
 								NULL,
 								NULL);
+				break;
+			default:
+				break;
+			}
 			*limit = smu->current_power_limit;
 			break;
 		case SMU_PPT_LIMIT_DEFAULT:
