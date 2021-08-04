@@ -1189,29 +1189,43 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args);
 
 /*
- * search_memslots() and __gfn_to_memslot() are here because they are
- * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
- * gfn_to_memslot() itself isn't here as an inline because that would
- * bloat other code too much.
+ * Returns a pointer to the memslot at slot_index if it contains gfn.
+ * Otherwise returns NULL.
+ */
+static inline struct kvm_memory_slot *
+try_get_memslot(struct kvm_memslots *slots, int slot_index, gfn_t gfn)
+{
+	struct kvm_memory_slot *slot;
+
+	if (slot_index < 0 || slot_index >= slots->used_slots)
+		return NULL;
+
+	slot = &slots->memslots[slot_index];
+
+	if (gfn >= slot->base_gfn && gfn < slot->base_gfn + slot->npages)
+		return slot;
+	else
+		return NULL;
+}
+
+/*
+ * Returns a pointer to the memslot that contains gfn and records the index of
+ * the slot in index. Otherwise returns NULL.
  *
  * IMPORTANT: Slots are sorted from highest GFN to lowest GFN!
  */
 static inline struct kvm_memory_slot *
-search_memslots(struct kvm_memslots *slots, gfn_t gfn)
+search_memslots(struct kvm_memslots *slots, gfn_t gfn, int *index)
 {
 	int start = 0, end = slots->used_slots;
-	int slot = atomic_read(&slots->last_used_slot);
 	struct kvm_memory_slot *memslots = slots->memslots;
+	struct kvm_memory_slot *slot;
 
 	if (unlikely(!slots->used_slots))
 		return NULL;
 
-	if (gfn >= memslots[slot].base_gfn &&
-	    gfn < memslots[slot].base_gfn + memslots[slot].npages)
-		return &memslots[slot];
-
 	while (start < end) {
-		slot = start + (end - start) / 2;
+		int slot = start + (end - start) / 2;
 
 		if (gfn >= memslots[slot].base_gfn)
 			end = slot;
@@ -1219,19 +1233,37 @@ search_memslots(struct kvm_memslots *slots, gfn_t gfn)
 			start = slot + 1;
 	}
 
-	if (start < slots->used_slots && gfn >= memslots[start].base_gfn &&
-	    gfn < memslots[start].base_gfn + memslots[start].npages) {
-		atomic_set(&slots->last_used_slot, start);
-		return &memslots[start];
+	slot = try_get_memslot(slots, start, gfn);
+	if (slot) {
+		*index = start;
+		return slot;
 	}
 
 	return NULL;
 }
 
+/*
+ * __gfn_to_memslot() and its descendants are here because it is called from
+ * non-modular code in arch/powerpc/kvm/book3s_64_vio{,_hv}.c. gfn_to_memslot()
+ * itself isn't here as an inline because that would bloat other code too much.
+ */
 static inline struct kvm_memory_slot *
 __gfn_to_memslot(struct kvm_memslots *slots, gfn_t gfn)
 {
-	return search_memslots(slots, gfn);
+	struct kvm_memory_slot *slot;
+	int slot_index = atomic_read(&slots->last_used_slot);
+
+	slot = try_get_memslot(slots, slot_index, gfn);
+	if (slot)
+		return slot;
+
+	slot = search_memslots(slots, gfn, &slot_index);
+	if (slot) {
+		atomic_set(&slots->last_used_slot, slot_index);
+		return slot;
+	}
+
+	return NULL;
 }
 
 static inline unsigned long
