@@ -199,8 +199,9 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 			(task_util(p) >= MIN_UTIL_FOR_ENERGY_EVAL) &&
 			!(p->in_iowait && task_in_related_thread_group(p)) &&
 			!walt_get_rtg_status(p) &&
-			!(sched_boost_type == CONSERVATIVE_BOOST && task_sched_boost(p))
-			)
+			!(sched_boost_type == CONSERVATIVE_BOOST && task_sched_boost(p)) &&
+			!sysctl_sched_suppress_region2
+		)
 		*end_index = 1;
 
 	if (p->in_iowait && task_in_related_thread_group(p))
