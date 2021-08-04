@@ -1587,7 +1587,6 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool stop_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1598,11 +1597,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
 	}
 
-	/* Starting with IPA v4.0, endpoints are suspended by stopping the
-	 * underlying GSI channel rather than using endpoint suspend mode.
-	 */
-	stop_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_suspend(gsi, endpoint->channel_id, stop_channel);
+	ret = gsi_channel_suspend(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d suspending channel %u\n", ret,
 			endpoint->channel_id);
@@ -1612,7 +1607,6 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool start_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1621,11 +1615,7 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	if (!endpoint->toward_ipa)
 		(void)ipa_endpoint_program_suspend(endpoint, false);
 
-	/* Starting with IPA v4.0, the underlying GSI channel must be
-	 * restarted for resume.
-	 */
-	start_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
+	ret = gsi_channel_resume(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d resuming channel %u\n", ret,
 			endpoint->channel_id);

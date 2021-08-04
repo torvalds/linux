@@ -892,6 +892,7 @@ static int ipa_suspend(struct device *dev)
 	if (ipa->setup_complete) {
 		__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
 		ipa_endpoint_suspend(ipa);
+		gsi_suspend(&ipa->gsi);
 	}
 
 	ipa_clock_put(ipa);
@@ -919,8 +920,10 @@ static int ipa_resume(struct device *dev)
 	ipa_clock_get(ipa);
 
 	/* Endpoints aren't usable until setup is complete */
-	if (ipa->setup_complete)
+	if (ipa->setup_complete) {
+		gsi_resume(&ipa->gsi);
 		ipa_endpoint_resume(ipa);
+	}
 
 	return 0;
 }
