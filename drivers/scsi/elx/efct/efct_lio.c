@@ -780,7 +780,7 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 {
 	struct efct_lio_vport *lio_vport;
 	struct efct *efct;
-	int ret = -1;
+	int ret;
 	u64 p_wwpn, npiv_wwpn, npiv_wwnn;
 	char *p, *pbuf, tmp[128];
 	struct efct_lio_vport_list_t *vport_list;
