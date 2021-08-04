@@ -139,14 +139,119 @@
 #define MT_LPON_TCR_SW_READ		GENMASK(1, 0)
 
 /* MIB: band 0(0x24800), band 1(0xa4800) */
+/* These counters are (mostly?) clear-on-read.  So, some should not
+ * be read at all in case firmware is already reading them.  These
+ * are commented with 'DNR' below.  The DNR stats will be read by querying
+ * the firmware API for the appropriate message.  For counters the driver
+ * does read, the driver should accumulate the counters.
+ */
 #define MT_WF_MIB_BASE(_band)		((_band) ? 0xa4800 : 0x24800)
 #define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE(_band) + (ofs))
+
+#define MT_MIB_SDR0(_band)		MT_WF_MIB(_band, 0x010)
+#define MT_MIB_SDR0_BERACON_TX_CNT_MASK	GENMASK(15, 0)
 
 #define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x014)
 #define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(15, 0)
 
+#define MT_MIB_SDR4(_band)		MT_WF_MIB(_band, 0x018)
+#define MT_MIB_SDR4_RX_FIFO_FULL_MASK	GENMASK(15, 0)
+
+/* rx mpdu counter, full 32 bits */
+#define MT_MIB_SDR5(_band)		MT_WF_MIB(_band, 0x01c)
+
+#define MT_MIB_SDR6(_band)		MT_WF_MIB(_band, 0x020)
+#define MT_MIB_SDR6_CHANNEL_IDL_CNT_MASK	GENMASK(15, 0)
+
+#define MT_MIB_SDR7(_band)		MT_WF_MIB(_band, 0x024)
+#define MT_MIB_SDR7_RX_VECTOR_MISMATCH_CNT_MASK	GENMASK(15, 0)
+
+#define MT_MIB_SDR8(_band)		MT_WF_MIB(_band, 0x028)
+#define MT_MIB_SDR8_RX_DELIMITER_FAIL_CNT_MASK	GENMASK(15, 0)
+
+/* aka CCA_NAV_TX_TIME */
+#define MT_MIB_SDR9_DNR(_band)		MT_WF_MIB(_band, 0x02c)
+#define MT_MIB_SDR9_CCA_BUSY_TIME_MASK	GENMASK(23, 0)
+
+#define MT_MIB_SDR10_DNR(_band)		MT_WF_MIB(_band, 0x030)
+#define MT_MIB_SDR10_MRDY_COUNT_MASK	GENMASK(25, 0)
+
+#define MT_MIB_SDR11(_band)		MT_WF_MIB(_band, 0x034)
+#define MT_MIB_SDR11_RX_LEN_MISMATCH_CNT_MASK	GENMASK(15, 0)
+
+/* tx ampdu cnt, full 32 bits */
+#define MT_MIB_SDR12(_band)		MT_WF_MIB(_band, 0x038)
+
+#define MT_MIB_SDR13(_band)		MT_WF_MIB(_band, 0x03c)
+#define MT_MIB_SDR13_TX_STOP_Q_EMPTY_CNT_MASK	GENMASK(15, 0)
+
+/* counts all mpdus in ampdu, regardless of success */
+#define MT_MIB_SDR14(_band)		MT_WF_MIB(_band, 0x040)
+#define MT_MIB_SDR14_TX_MPDU_ATTEMPTS_CNT_MASK	GENMASK(23, 0)
+
+/* counts all successfully tx'd mpdus in ampdu */
+#define MT_MIB_SDR15(_band)		MT_WF_MIB(_band, 0x044)
+#define MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK	GENMASK(23, 0)
+
+/* in units of 'us' */
+#define MT_MIB_SDR16_DNR(_band)		MT_WF_MIB(_band, 0x048)
+#define MT_MIB_SDR16_PRIMARY_CCA_BUSY_TIME_MASK	GENMASK(23, 0)
+
+#define MT_MIB_SDR17_DNR(_band)		MT_WF_MIB(_band, 0x04c)
+#define MT_MIB_SDR17_SECONDARY_CCA_BUSY_TIME_MASK	GENMASK(23, 0)
+
+#define MT_MIB_SDR18(_band)		MT_WF_MIB(_band, 0x050)
+#define MT_MIB_SDR18_PRIMARY_ENERGY_DETECT_TIME_MASK	GENMASK(23, 0)
+
+/* units are us */
+#define MT_MIB_SDR19_DNR(_band)		MT_WF_MIB(_band, 0x054)
+#define MT_MIB_SDR19_CCK_MDRDY_TIME_MASK	GENMASK(23, 0)
+
+#define MT_MIB_SDR20_DNR(_band)		MT_WF_MIB(_band, 0x058)
+#define MT_MIB_SDR20_OFDM_VHT_MDRDY_TIME_MASK	GENMASK(23, 0)
+
+#define MT_MIB_SDR21_DNR(_band)		MT_WF_MIB(_band, 0x05c)
+#define MT_MIB_SDR20_GREEN_MDRDY_TIME_MASK	GENMASK(23, 0)
+
+/* rx ampdu count, 32-bit */
+#define MT_MIB_SDR22(_band)		MT_WF_MIB(_band, 0x060)
+
+/* rx ampdu bytes count, 32-bit */
+#define MT_MIB_SDR23(_band)		MT_WF_MIB(_band, 0x064)
+
+/* rx ampdu valid subframe count */
+#define MT_MIB_SDR24(_band)		MT_WF_MIB(_band, 0x068)
+#define MT_MIB_SDR24_RX_AMPDU_SF_CNT_MASK	GENMASK(23, 0)
+
+/* rx ampdu valid subframe bytes count, 32bits */
+#define MT_MIB_SDR25(_band)		MT_WF_MIB(_band, 0x06c)
+
+/* remaining windows protected stats */
+#define MT_MIB_SDR27(_band)		MT_WF_MIB(_band, 0x074)
+#define MT_MIB_SDR27_TX_RWP_FAIL_CNT_MASK	GENMASK(15, 0)
+
+#define MT_MIB_SDR28(_band)		MT_WF_MIB(_band, 0x078)
+#define MT_MIB_SDR28_TX_RWP_NEED_CNT_MASK	GENMASK(15, 0)
+
+#define MT_MIB_SDR29(_band)		MT_WF_MIB(_band, 0x07c)
+#define MT_MIB_SDR29_RX_PFDROP_CNT_MASK	GENMASK(7, 0)
+
+#define MT_MIB_SDR30(_band)		MT_WF_MIB(_band, 0x080)
+#define MT_MIB_SDR30_RX_VEC_QUEUE_OVERFLOW_DROP_CNT_MASK	GENMASK(15, 0)
+
+/* rx blockack count, 32 bits */
+#define MT_MIB_SDR31(_band)		MT_WF_MIB(_band, 0x084)
+
+#define MT_MIB_SDR32(_band)		MT_WF_MIB(_band, 0x088)
+#define MT_MIB_SDR32_TX_PKT_EBF_CNT_MASK	GENMASK(15, 0)
+
+#define MT_MIB_SDR33(_band)		MT_WF_MIB(_band, 0x08c)
+#define MT_MIB_SDR33_TX_PKT_IBF_CNT_MASK	GENMASK(15, 0)
+
 #define MT_MIB_SDR34(_band)		MT_WF_MIB(_band, 0x090)
 #define MT_MIB_MU_BF_TX_CNT		GENMASK(15, 0)
+
+/* 36, 37 both DNR */
 
 #define MT_MIB_DR8(_band)		MT_WF_MIB(_band, 0x0c0)
 #define MT_MIB_DR9(_band)		MT_WF_MIB(_band, 0x0c4)
