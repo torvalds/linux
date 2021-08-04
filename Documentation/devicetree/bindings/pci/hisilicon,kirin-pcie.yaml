@@ -24,17 +24,23 @@ properties:
     contains:
       enum:
         - hisilicon,kirin960-pcie
+        - hisilicon,kirin970-pcie
 
   reg:
     description: |
       Should contain dbi, apb, config registers location and length.
-      For HiKey960, it should also contain phy.
+      For hisilicon,kirin960-pcie, it should also contain phy.
     minItems: 3
     maxItems: 4
 
   reg-names:
     minItems: 3
     maxItems: 4
+
+  hisilicon,clken-gpios:
+    description: |
+      Clock input enablement GPIOs from PCI devices like Ethernet, M.2 and
+      mini-PCIe slots.
 
 required:
   - compatible
@@ -47,6 +53,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/hi3660-clock.h>
+    #include <dt-bindings/clock/hi3670-clock.h>
 
     soc {
       #address-cells = <2>;
@@ -82,5 +89,79 @@ examples:
                  <&crg_ctrl HI3660_ACLK_GATE_PCIE>;
         clock-names = "pcie_phy_ref", "pcie_aux", "pcie_apb_phy",
                       "pcie_apb_sys", "pcie_aclk";
+      };
+
+      pcie@f5000000 {
+        compatible = "hisilicon,kirin970-pcie";
+        reg = <0x0 0xf4000000 0x0 0x1000000>,
+              <0x0 0xfc180000 0x0 0x1000>,
+              <0x0 0xf5000000 0x0 0x2000>;
+        reg-names = "dbi", "apb", "config";
+        bus-range = <0x0  0xff>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        phys = <&pcie_phy>;
+        ranges = <0x02000000 0x0 0x00000000
+                  0x0 0xf6000000
+                  0x0 0x02000000>;
+        num-lanes = <1>;
+        #interrupt-cells = <1>;
+        interrupts = <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "msi";
+        interrupt-map-mask = <0 0 0 7>;
+        interrupt-map = <0x0 0 0 1 &gic GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
+                        <0x0 0 0 2 &gic GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
+                        <0x0 0 0 3 &gic GIC_SPI 284 IRQ_TYPE_LEVEL_HIGH>,
+                        <0x0 0 0 4 &gic GIC_SPI 285 IRQ_TYPE_LEVEL_HIGH>;
+        reset-gpios = <&gpio7 0 0>;
+        hisilicon,clken-gpios = <&gpio27 3 0>, <&gpio17 0 0>, <&gpio20 6 0>;
+        pcie@0,0 { // Lane 0: PCIe switch: Bus 1, Device 0
+          reg = <0 0 0 0 0>;
+          compatible = "pciclass,0604";
+          device_type = "pci";
+          #address-cells = <3>;
+          #size-cells = <2>;
+          ranges;
+
+          pcie@0,0 { // Lane 0: upstream
+            reg = <0 0 0 0 0>;
+            compatible = "pciclass,0604";
+            device_type = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            ranges;
+
+            pcie@1,0 { // Lane 4: M.2
+              reg = <0x0800 0 0 0 0>;
+              compatible = "pciclass,0604";
+              device_type = "pci";
+              reset-gpios = <&gpio3 1 0>;
+              #address-cells = <3>;
+              #size-cells = <2>;
+              ranges;
+            };
+
+            pcie@5,0 { // Lane 5: Mini PCIe
+              reg = <0x2800 0 0 0 0>;
+              compatible = "pciclass,0604";
+              device_type = "pci";
+              reset-gpios = <&gpio27 4 0 >;
+              #address-cells = <3>;
+              #size-cells = <2>;
+              ranges;
+            };
+
+            pcie@7,0 { // Lane 6: Ethernet
+              reg = <0x03800 0 0 0 0>;
+              compatible = "pciclass,0604";
+              device_type = "pci";
+              reset-gpios = <&gpio25 2 0 >;
+              #address-cells = <3>;
+              #size-cells = <2>;
+              ranges;
+            };
+          };
+        };
       };
     };
