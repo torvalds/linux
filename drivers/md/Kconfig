@@ -342,7 +342,7 @@ config DM_WRITECACHE
 
 config DM_EBS
 	tristate "Emulated block size target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM
+	depends on BLK_DEV_DM && !HIGHMEM
 	select DM_BUFIO
 	help
 	  dm-ebs emulates smaller logical block size on backing devices
