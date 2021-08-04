@@ -16,7 +16,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/platform_data/gpio-dwapb.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/reset.h>
@@ -48,6 +47,7 @@
 
 #define DWAPB_DRIVER_NAME	"gpio-dwapb"
 #define DWAPB_MAX_PORTS		4
+#define DWAPB_MAX_GPIOS		32
 
 #define GPIO_EXT_PORT_STRIDE	0x04 /* register stride 32 bits */
 #define GPIO_SWPORT_DR_STRIDE	0x0c /* register stride 3*32 bits */
@@ -64,6 +64,19 @@
 #define DWAPB_NR_CLOCKS		2
 
 struct dwapb_gpio;
+
+struct dwapb_port_property {
+	struct fwnode_handle *fwnode;
+	unsigned int idx;
+	unsigned int ngpio;
+	unsigned int gpio_base;
+	int irq[DWAPB_MAX_GPIOS];
+};
+
+struct dwapb_platform_data {
+	struct dwapb_port_property *properties;
+	unsigned int nports;
+};
 
 #ifdef CONFIG_PM_SLEEP
 /* Store GPIO context across system-wide suspend/resume transitions */
@@ -674,17 +687,12 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	unsigned int i;
 	struct dwapb_gpio *gpio;
 	int err;
+	struct dwapb_platform_data *pdata;
 	struct device *dev = &pdev->dev;
-	struct dwapb_platform_data *pdata = dev_get_platdata(dev);
 
-	if (!pdata) {
-		pdata = dwapb_gpio_get_pdata(dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
-
-	if (!pdata->nports)
-		return -ENODEV;
+	pdata = dwapb_gpio_get_pdata(dev);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
