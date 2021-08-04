@@ -354,6 +354,13 @@ struct kvm_vcpu {
 	struct kvm_vcpu_stat stat;
 	char stats_id[KVM_STATS_NAME_SIZE];
 	struct kvm_dirty_ring dirty_ring;
+
+	/*
+	 * The index of the most recently used memslot by this vCPU. It's ok
+	 * if this becomes stale due to memslot changes since we always check
+	 * it is a valid slot.
+	 */
+	int last_used_slot;
 };
 
 /* must be called with irqs disabled */
@@ -1200,6 +1207,12 @@ try_get_memslot(struct kvm_memslots *slots, int slot_index, gfn_t gfn)
 	if (slot_index < 0 || slot_index >= slots->used_slots)
 		return NULL;
 
+	/*
+	 * slot_index can come from vcpu->last_used_slot which is not kept
+	 * in sync with userspace-controllable memslot deletion. So use nospec
+	 * to prevent the CPU from speculating past the end of memslots[].
+	 */
+	slot_index = array_index_nospec(slot_index, slots->used_slots);
 	slot = &slots->memslots[slot_index];
 
 	if (gfn >= slot->base_gfn && gfn < slot->base_gfn + slot->npages)
