@@ -517,12 +517,13 @@ SYM_CODE_START(vectors)
 SYM_CODE_END(vectors)
 
 #ifdef CONFIG_VMAP_STACK
+SYM_CODE_START_LOCAL(__bad_stack)
 	/*
 	 * We detected an overflow in kernel_ventry, which switched to the
 	 * overflow stack. Stash the exception regs, and head to our overflow
 	 * handler.
 	 */
-__bad_stack:
+
 	/* Restore the original x0 value */
 	mrs	x0, tpidrro_el0
 
@@ -542,6 +543,7 @@ __bad_stack:
 	/* Time to die */
 	bl	handle_bad_stack
 	ASM_BUG()
+SYM_CODE_END(__bad_stack)
 #endif /* CONFIG_VMAP_STACK */
 
 
