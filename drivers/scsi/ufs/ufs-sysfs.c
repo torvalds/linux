@@ -1163,6 +1163,7 @@ static DEVICE_ATTR_RO(_pname)
 #define UFS_UNIT_DESC_PARAM(_name, _uname, _size)			\
 	UFS_LUN_DESC_PARAM(_name, _uname, UNIT, _size)
 
+UFS_UNIT_DESC_PARAM(lu_enable, _LU_ENABLE, 1);
 UFS_UNIT_DESC_PARAM(boot_lun_id, _BOOT_LUN_ID, 1);
 UFS_UNIT_DESC_PARAM(lun_write_protect, _LU_WR_PROTECT, 1);
 UFS_UNIT_DESC_PARAM(lun_queue_depth, _LU_Q_DEPTH, 1);
@@ -1181,8 +1182,8 @@ UFS_UNIT_DESC_PARAM(hpb_pinned_region_start_offset, _HPB_PIN_RGN_START_OFF, 2);
 UFS_UNIT_DESC_PARAM(hpb_number_pinned_regions, _HPB_NUM_PIN_RGNS, 2);
 UFS_UNIT_DESC_PARAM(wb_buf_alloc_units, _WB_BUF_ALLOC_UNITS, 4);
 
-
 static struct attribute *ufs_sysfs_unit_descriptor[] = {
+	&dev_attr_lu_enable.attr,
 	&dev_attr_boot_lun_id.attr,
 	&dev_attr_lun_write_protect.attr,
 	&dev_attr_lun_queue_depth.attr,
