@@ -26,6 +26,7 @@
 #include "amdgpu_ras.h"
 #include <linux/bits.h>
 #include "atom.h"
+#include "amdgpu_atomfirmware.h"
 
 #define EEPROM_I2C_TARGET_ADDR_VEGA20		0xA0
 #define EEPROM_I2C_TARGET_ADDR_ARCTURUS		0xA8
@@ -95,6 +96,9 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 {
 	if (!i2c_addr)
 		return false;
+
+	if (amdgpu_atomfirmware_ras_rom_addr(adev, (uint8_t*)i2c_addr))
+		return true;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
