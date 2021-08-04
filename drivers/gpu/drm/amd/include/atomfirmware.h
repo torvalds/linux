@@ -590,7 +590,7 @@ struct atom_firmware_info_v3_4 {
 	uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
 	uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
 	uint8_t  board_i2c_feature_slave_addr;
-	uint8_t  reserved3;
+	uint8_t  ras_rom_i2c_slave_addr;
 	uint16_t bootup_mvddq_mv;
 	uint16_t bootup_mvpp_mv;
 	uint32_t zfbstartaddrin16mb;
