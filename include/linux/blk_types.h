@@ -34,7 +34,7 @@ struct block_device {
 	void *			bd_holder;
 	int			bd_holders;
 	bool			bd_write_holder;
-#ifdef CONFIG_SYSFS
+#ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
 	struct list_head	bd_holder_disks;
 #endif
 	struct kobject		*bd_holder_dir;
