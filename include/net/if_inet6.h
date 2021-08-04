@@ -82,9 +82,6 @@ struct ip6_sf_socklist {
 	struct in6_addr		sl_addr[];
 };
 
-#define IP6_SFLSIZE(count)	(sizeof(struct ip6_sf_socklist) + \
-	(count) * sizeof(struct in6_addr))
-
 #define IP6_SFBLOCK	10	/* allocate this many at once */
 
 struct ipv6_mc_socklist {
