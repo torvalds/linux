@@ -2553,8 +2553,8 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	copycount = count < msf->imsf_numsrc ? count : msf->imsf_numsrc;
 	len = flex_array_size(psl, sl_addr, copycount);
 	msf->imsf_numsrc = count;
-	if (put_user(struct_size(optval, imsf_slist_flex, copycount), optlen) ||
-	    copy_to_user(optval, msf, struct_size(optval, imsf_slist_flex, 0))) {
+	if (put_user(IP_MSFILTER_SIZE(copycount), optlen) ||
+	    copy_to_user(optval, msf, IP_MSFILTER_SIZE(0))) {
 		return -EFAULT;
 	}
 	if (len &&
