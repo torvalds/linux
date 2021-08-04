@@ -12,8 +12,11 @@
 #ifndef _ZYNQMP_DPSUB_H_
 #define _ZYNQMP_DPSUB_H_
 
+#include <drm/drm_encoder.h>
+
 struct clk;
 struct device;
+struct drm_bridge;
 struct drm_device;
 struct zynqmp_disp;
 struct zynqmp_dp;
@@ -30,6 +33,8 @@ enum zynqmp_dpsub_format {
  * @drm: The DRM/KMS device
  * @dev: The physical device
  * @apb_clk: The APB clock
+ * @encoder: The dummy DRM encoder
+ * @bridge: The DP encoder bridge
  * @disp: The display controller
  * @dp: The DisplayPort controller
  * @dma_align: DMA alignment constraint (must be a power of 2)
@@ -39,6 +44,9 @@ struct zynqmp_dpsub {
 	struct device *dev;
 
 	struct clk *apb_clk;
+
+	struct drm_encoder encoder;
+	struct drm_bridge *bridge;
 
 	struct zynqmp_disp *disp;
 	struct zynqmp_dp *dp;

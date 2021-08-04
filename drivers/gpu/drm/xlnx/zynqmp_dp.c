@@ -15,12 +15,10 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_encoder.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -277,7 +275,6 @@ struct zynqmp_dp_config {
 
 /**
  * struct zynqmp_dp - Xilinx DisplayPort core
- * @encoder: the drm encoder structure
  * @connector: the drm connector structure
  * @dev: device structure
  * @dpsub: Display subsystem
@@ -299,7 +296,6 @@ struct zynqmp_dp_config {
  * @train_set: set of training data
  */
 struct zynqmp_dp {
-	struct drm_encoder encoder;
 	struct drm_connector connector;
 	struct device *dev;
 	struct zynqmp_dpsub *dpsub;
@@ -323,11 +319,6 @@ struct zynqmp_dp {
 	struct zynqmp_dp_mode mode;
 	u8 train_set[ZYNQMP_DP_MAX_LANES];
 };
-
-static inline struct zynqmp_dp *encoder_to_dp(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct zynqmp_dp, encoder);
-}
 
 static inline struct zynqmp_dp *connector_to_dp(struct drm_connector *connector)
 {
@@ -1566,7 +1557,7 @@ zynqmp_dp_connector_best_encoder(struct drm_connector *connector)
 {
 	struct zynqmp_dp *dp = connector_to_dp(connector);
 
-	return &dp->encoder;
+	return &dp->dpsub->encoder;
 }
 
 static int zynqmp_dp_connector_mode_valid(struct drm_connector *connector,
@@ -1592,55 +1583,6 @@ zynqmp_dp_connector_helper_funcs = {
 	.get_modes	= zynqmp_dp_connector_get_modes,
 	.best_encoder	= zynqmp_dp_connector_best_encoder,
 	.mode_valid	= zynqmp_dp_connector_mode_valid,
-};
-
-/* -----------------------------------------------------------------------------
- * DRM Encoder
- */
-
-static void zynqmp_dp_encoder_atomic_enable(struct drm_encoder *encoder,
-					    struct drm_atomic_state *state)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-	struct drm_bridge_state bridge_state;
-
-	bridge_state.base.state = state;
-	zynqmp_dp_bridge_atomic_enable(&dp->bridge, &bridge_state);
-}
-
-static void zynqmp_dp_encoder_atomic_disable(struct drm_encoder *encoder,
-					     struct drm_atomic_state *state)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-	struct drm_bridge_state bridge_state;
-
-	bridge_state.base.state = state;
-	zynqmp_dp_bridge_atomic_disable(&dp->bridge, &bridge_state);
-}
-
-static void
-zynqmp_dp_encoder_atomic_mode_set(struct drm_encoder *encoder,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *connector_state)
-{
-}
-
-static int
-zynqmp_dp_encoder_atomic_check(struct drm_encoder *encoder,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_connector_state *conn_state)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-
-	return zynqmp_dp_bridge_atomic_check(&dp->bridge, NULL, crtc_state,
-					     conn_state);
-}
-
-static const struct drm_encoder_helper_funcs zynqmp_dp_encoder_helper_funcs = {
-	.atomic_enable		= zynqmp_dp_encoder_atomic_enable,
-	.atomic_disable		= zynqmp_dp_encoder_atomic_disable,
-	.atomic_mode_set	= zynqmp_dp_encoder_atomic_mode_set,
-	.atomic_check		= zynqmp_dp_encoder_atomic_check,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1731,32 +1673,17 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 {
 	struct zynqmp_dp *dp = dpsub->dp;
 	struct drm_bridge *bridge = &dp->bridge;
-	struct drm_encoder *encoder = &dp->encoder;
 	int ret;
 
 	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
 	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
 
-	/*
-	 * Initialize the bridge. Setting the device and encoder manually is a
-	 * hack, to be removed once the bridge will get attached to the encoder
-	 * using the bridge API.
-	 */
-	bridge->dev = dp->drm;
-	bridge->encoder = &dp->encoder;
+	/* Initialize the bridge. */
 	bridge->funcs = &zynqmp_dp_bridge_funcs;
 	bridge->ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
 		    | DRM_BRIDGE_OP_HPD;
 	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
-
-	/* Create the DRM encoder and attach the bridge. */
-	encoder->possible_crtcs |= zynqmp_disp_get_crtc_mask(dpsub->disp);
-	drm_simple_encoder_init(dp->drm, encoder, DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(encoder, &zynqmp_dp_encoder_helper_funcs);
-
-	ret = zynqmp_dp_bridge_attach(bridge, 0);
-	if (ret < 0)
-		return ret;
+	dpsub->bridge = bridge;
 
 	/* Initialize and register the AUX adapter. */
 	ret = zynqmp_dp_aux_init(dp);

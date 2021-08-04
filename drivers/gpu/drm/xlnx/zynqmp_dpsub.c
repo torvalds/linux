@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
@@ -27,6 +28,7 @@
 #include <drm/drm_mode_config.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "zynqmp_disp.h"
@@ -94,6 +96,7 @@ static const struct drm_driver zynqmp_dpsub_drm_driver = {
 
 static int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 {
+	struct drm_encoder *encoder = &dpsub->encoder;
 	struct drm_device *drm = &dpsub->drm;
 	int ret;
 
@@ -116,8 +119,7 @@ static int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 
 	/*
 	 * Initialize the DISP and DP components. This will creates planes,
-	 * CRTC, encoder and connector. The DISP should be initialized first as
-	 * the DP encoder needs the CRTC.
+	 * CRTC, and a bridge for the DP encoder.
 	 */
 	ret = zynqmp_disp_drm_init(dpsub);
 	if (ret)
@@ -126,6 +128,16 @@ static int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 	ret = zynqmp_dp_drm_init(dpsub);
 	if (ret)
 		goto err_poll_fini;
+
+	/* Create the encoder and attach the bridge. */
+	encoder->possible_crtcs |= zynqmp_disp_get_crtc_mask(dpsub->disp);
+	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_NONE);
+
+	ret = drm_bridge_attach(encoder, dpsub->bridge, NULL, 0);
+	if (ret) {
+		dev_err(dpsub->dev, "failed to attach bridge to encoder\n");
+		goto err_poll_fini;
+	}
 
 	/* Reset all components and register the DRM device. */
 	drm_mode_config_reset(drm);
