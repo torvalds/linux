@@ -170,7 +170,6 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		/* TODO: expand mctp_skb_cb for header fields? */
 		struct mctp_hdr *hdr = mctp_hdr(skb);
 
-		hdr = mctp_hdr(skb);
 		addr = msg->msg_name;
 		addr->smctp_family = AF_MCTP;
 		addr->smctp_network = cb->net;
