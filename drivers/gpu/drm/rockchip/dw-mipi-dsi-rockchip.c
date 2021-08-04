@@ -250,6 +250,7 @@ struct dw_mipi_dsi_rockchip {
 	struct dw_mipi_dsi_rockchip *slave;
 
 	/* optional external dphy */
+	bool phy_enabled;
 	struct phy *phy;
 	union phy_configure_opts phy_opts;
 
@@ -263,6 +264,7 @@ struct dw_mipi_dsi_rockchip {
 	struct dw_mipi_dsi_plat_data pdata;
 	int devcnt;
 	struct rockchip_drm_sub_dev sub_dev;
+	struct drm_panel *panel;
 };
 
 struct dphy_pll_parameter_map {
@@ -505,14 +507,22 @@ static void dw_mipi_dsi_phy_power_on(void *priv_data)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
 
+	if (dsi->phy_enabled)
+		return;
+
 	phy_power_on(dsi->phy);
+	dsi->phy_enabled = true;
 }
 
 static void dw_mipi_dsi_phy_power_off(void *priv_data)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
 
+	if (!dsi->phy_enabled)
+		return;
+
 	phy_power_off(dsi->phy);
+	dsi->phy_enabled = false;
 }
 
 static int
@@ -850,6 +860,38 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 	pm_runtime_put(dsi->dev);
 }
 
+static void dw_mipi_dsi_rockchip_loader_protect(struct dw_mipi_dsi_rockchip *dsi, bool on)
+{
+
+	dw_mipi_dsi_loader_protect(dsi->dmd, on);
+
+	if (on) {
+		pm_runtime_get_sync(dsi->dev);
+		phy_init(dsi->phy);
+		dsi->phy->power_count++;
+		dsi->phy_enabled = true;
+	} else {
+		pm_runtime_put(dsi->dev);
+		phy_exit(dsi->phy);
+		dsi->phy->power_count--;
+		dsi->phy_enabled = false;
+	}
+
+	if (dsi->slave)
+		dw_mipi_dsi_rockchip_loader_protect(dsi->slave, on);
+}
+
+static void dw_mipi_dsi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
+					      bool on)
+{
+	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
+
+	if (dsi->panel)
+		panel_simple_loader_protect(dsi->panel);
+
+	dw_mipi_dsi_rockchip_loader_protect(dsi, on);
+}
+
 static const struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
@@ -949,9 +991,15 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return ret;
 	}
 
+	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0,
+					  &dsi->panel, NULL);
+	if (ret)
+		dev_err(dsi->dev, "failed to find panel\n");
+
 	dsi->sub_dev.connector = dw_mipi_dsi_get_connector(dsi->dmd);
 	if (dsi->sub_dev.connector) {
 		dsi->sub_dev.of_node = dev->of_node;
+		dsi->sub_dev.loader_protect = dw_mipi_dsi_rockchip_encoder_loader_protect;
 		rockchip_drm_register_sub_dev(&dsi->sub_dev);
 	}
 
