@@ -156,31 +156,38 @@ static const struct amdgpu_video_codecs rn_video_codecs_decode =
 static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				    const struct amdgpu_video_codecs **codecs)
 {
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-		if (encode)
-			*codecs = &vega_video_codecs_encode;
-		else
-			*codecs = &vega_video_codecs_decode;
-		return 0;
-	case CHIP_RAVEN:
-		if (encode)
-			*codecs = &vega_video_codecs_encode;
-		else
-			*codecs = &rv_video_codecs_decode;
-		return 0;
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
-	case CHIP_RENOIR:
-		if (encode)
-			*codecs = &vega_video_codecs_encode;
-		else
-			*codecs = &rn_video_codecs_decode;
-		return 0;
-	default:
-		return -EINVAL;
+	if (adev->ip_versions[VCE_HWIP]) {
+		switch (adev->ip_versions[VCE_HWIP]) {
+		case IP_VERSION(4, 0, 0):
+		case IP_VERSION(4, 1, 0):
+			if (encode)
+				*codecs = &vega_video_codecs_encode;
+			else
+				*codecs = &vega_video_codecs_decode;
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (adev->ip_versions[UVD_HWIP]) {
+		case IP_VERSION(1, 0, 0):
+		case IP_VERSION(1, 0, 1):
+			if (encode)
+				*codecs = &vega_video_codecs_encode;
+			else
+				*codecs = &rv_video_codecs_decode;
+			return 0;
+		case IP_VERSION(2, 5, 0):
+		case IP_VERSION(2, 6, 0):
+		case IP_VERSION(2, 2, 0):
+			if (encode)
+				*codecs = &vega_video_codecs_encode;
+			else
+				*codecs = &rn_video_codecs_decode;
+			return 0;
+		default:
+			return -EINVAL;
+		}
 	}
 }
 
@@ -334,9 +341,11 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 {
 	u32 reference_clock = adev->clock.spll.reference_freq;
 
-	if (adev->asic_type == CHIP_RENOIR)
+	if (adev->ip_versions[MP1_HWIP] == IP_VERSION(12, 0, 0) ||
+	    adev->ip_versions[MP1_HWIP] == IP_VERSION(12, 0, 1))
 		return 10000;
-	if (adev->asic_type == CHIP_RAVEN)
+	if (adev->ip_versions[MP1_HWIP] == IP_VERSION(10, 0, 0) ||
+	    adev->ip_versions[MP1_HWIP] == IP_VERSION(10, 0, 1))
 		return reference_clock / 4;
 
 	return reference_clock;
@@ -567,28 +576,29 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
 				  amdgpu_reset_method);
 
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	switch (adev->ip_versions[MP1_HWIP]) {
+	case IP_VERSION(10, 0, 0):
+	case IP_VERSION(10, 0, 1):
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
 		return AMD_RESET_METHOD_MODE2;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_ARCTURUS:
-		baco_reset = amdgpu_dpm_is_baco_supported(adev);
-		break;
-	case CHIP_VEGA20:
-		if (adev->psp.sos.fw_version >= 0x80067)
+	case IP_VERSION(9, 0, 0):
+	case IP_VERSION(11, 0, 2):
+		if (adev->asic_type == CHIP_VEGA20) {
+			if (adev->psp.sos.fw_version >= 0x80067)
+				baco_reset = amdgpu_dpm_is_baco_supported(adev);
+			/*
+			 * 1. PMFW version > 0x284300: all cases use baco
+			 * 2. PMFW version <= 0x284300: only sGPU w/o RAS use baco
+			 */
+			if (ras && adev->ras_enabled &&
+			    adev->pm.fw_version <= 0x283400)
+				baco_reset = false;
+		} else {
 			baco_reset = amdgpu_dpm_is_baco_supported(adev);
-
-		/*
-		 * 1. PMFW version > 0x284300: all cases use baco
-		 * 2. PMFW version <= 0x284300: only sGPU w/o RAS use baco
-		 */
-		if (ras && adev->ras_enabled &&
-		    adev->pm.fw_version <= 0x283400)
-			baco_reset = false;
+		}
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(13, 0, 2):
 		 /*
 		 * 1.connected to cpu: driver issue mode2 reset
 		 * 2.discret gpu: driver issue mode1 reset
@@ -631,15 +641,17 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 static bool soc15_supports_baco(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_ARCTURUS:
-		return amdgpu_dpm_is_baco_supported(adev);
-	case CHIP_VEGA20:
-		if (adev->psp.sos.fw_version >= 0x80067)
+	switch (adev->ip_versions[MP1_HWIP]) {
+	case IP_VERSION(9, 0, 0):
+	case IP_VERSION(11, 0, 2):
+		if (adev->asic_type == CHIP_VEGA20) {
+			if (adev->psp.sos.fw_version >= 0x80067)
+				return amdgpu_dpm_is_baco_supported(adev);
+			return false;
+		} else {
 			return amdgpu_dpm_is_baco_supported(adev);
-		return false;
+		}
+		break;
 	default:
 		return false;
 	}
@@ -1157,8 +1169,11 @@ static int soc15_common_early_init(void *handle)
 
 	adev->rev_id = soc15_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
+	/* TODO: split the GC and PG flags based on the relevant IP version for which
+	 * they are relevant.
+	 */
+	switch (adev->ip_versions[GC_HWIP]) {
+	case IP_VERSION(9, 0, 1):
 		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
@@ -1182,7 +1197,7 @@ static int soc15_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
 		break;
-	case CHIP_VEGA12:
+	case IP_VERSION(9, 2, 1):
 		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
@@ -1205,7 +1220,7 @@ static int soc15_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
-	case CHIP_VEGA20:
+	case IP_VERSION(9, 4, 0):
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
@@ -1228,7 +1243,8 @@ static int soc15_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x28;
 		break;
-	case CHIP_RAVEN:
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 2):
 		adev->asic_funcs = &soc15_asic_funcs;
 
 		if (adev->rev_id >= 0x8)
@@ -1301,7 +1317,7 @@ static int soc15_common_early_init(void *handle)
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
 		}
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(9, 4, 1):
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
@@ -1320,7 +1336,7 @@ static int soc15_common_early_init(void *handle)
 		adev->pg_flags = AMD_PG_SUPPORT_VCN | AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x32;
 		break;
-	case CHIP_RENOIR:
+	case IP_VERSION(9, 3, 0):
 		adev->asic_funcs = &soc15_asic_funcs;
 
 		if (adev->apu_flags & AMD_APU_IS_RENOIR)
@@ -1351,7 +1367,7 @@ static int soc15_common_early_init(void *handle)
 				 AMD_PG_SUPPORT_JPEG |
 				 AMD_PG_SUPPORT_VCN_DPG;
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(9, 4, 2):
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
@@ -1566,10 +1582,10 @@ static int soc15_common_set_clockgating_state(void *handle,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
+	switch (adev->ip_versions[NBIO_HWIP]) {
+	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 2, 0):
+	case IP_VERSION(7, 4, 0):
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,
@@ -1585,8 +1601,9 @@ static int soc15_common_set_clockgating_state(void *handle,
 		adev->df.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
+	case IP_VERSION(2, 5, 0):
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,
@@ -1598,8 +1615,8 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(7, 4, 1):
+	case IP_VERSION(7, 4, 4):
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
@@ -1621,7 +1638,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
 
-	if (adev->asic_type != CHIP_ALDEBARAN) {
+	if (adev->ip_versions[MP0_HWIP] != IP_VERSION(13, 0, 2)) {
 
 		/* AMD_CG_SUPPORT_DRM_MGCG */
 		data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
