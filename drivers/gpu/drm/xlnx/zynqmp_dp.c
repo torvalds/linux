@@ -1400,7 +1400,8 @@ zynqmp_dp_connector_helper_funcs = {
  * DRM Encoder
  */
 
-static void zynqmp_dp_encoder_enable(struct drm_encoder *encoder)
+static void zynqmp_dp_encoder_atomic_enable(struct drm_encoder *encoder,
+					    struct drm_atomic_state *state)
 {
 	struct zynqmp_dp *dp = encoder_to_dp(encoder);
 	unsigned int i;
@@ -1432,7 +1433,8 @@ static void zynqmp_dp_encoder_enable(struct drm_encoder *encoder)
 	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_ENABLE, 1);
 }
 
-static void zynqmp_dp_encoder_disable(struct drm_encoder *encoder)
+static void zynqmp_dp_encoder_atomic_disable(struct drm_encoder *encoder,
+					     struct drm_atomic_state *state)
 {
 	struct zynqmp_dp *dp = encoder_to_dp(encoder);
 
@@ -1509,8 +1511,8 @@ zynqmp_dp_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs zynqmp_dp_encoder_helper_funcs = {
-	.enable			= zynqmp_dp_encoder_enable,
-	.disable		= zynqmp_dp_encoder_disable,
+	.atomic_enable		= zynqmp_dp_encoder_atomic_enable,
+	.atomic_disable		= zynqmp_dp_encoder_atomic_disable,
 	.atomic_mode_set	= zynqmp_dp_encoder_atomic_mode_set,
 	.atomic_check		= zynqmp_dp_encoder_atomic_check,
 };
