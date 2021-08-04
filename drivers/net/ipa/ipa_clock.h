@@ -23,6 +23,18 @@ extern const struct dev_pm_ops ipa_pm_ops;
 u32 ipa_clock_rate(struct ipa *ipa);
 
 /**
+ * ipa_power_setup() - Set up IPA power management
+ * @ipa:	IPA pointer
+ */
+void ipa_power_setup(struct ipa *ipa);
+
+/**
+ * ipa_power_teardown() - Inverse of ipa_power_setup()
+ * @ipa:	IPA pointer
+ */
+void ipa_power_teardown(struct ipa *ipa);
+
+/**
  * ipa_clock_init() - Initialize IPA clocking
  * @dev:	IPA device
  * @data:	Clock configuration data

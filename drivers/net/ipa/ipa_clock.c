@@ -279,6 +279,40 @@ u32 ipa_clock_rate(struct ipa *ipa)
 	return ipa->clock ? (u32)clk_get_rate(ipa->clock->core) : 0;
 }
 
+/**
+ * ipa_suspend_handler() - Handle the suspend IPA interrupt
+ * @ipa:	IPA pointer
+ * @irq_id:	IPA interrupt type (unused)
+ *
+ * If an RX endpoint is suspended, and the IPA has a packet destined for
+ * that endpoint, the IPA generates a SUSPEND interrupt to inform the AP
+ * that it should resume the endpoint.  If we get one of these interrupts
+ * we just wake up the system.
+ */
+static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+{
+	/* Just report the event, and let system resume handle the rest.
+	 * More than one endpoint could signal this; if so, ignore
+	 * all but the first.
+	 */
+	if (!test_and_set_bit(IPA_FLAG_RESUMED, ipa->flags))
+		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
+
+	/* Acknowledge/clear the suspend interrupt on all endpoints */
+	ipa_interrupt_suspend_clear_all(ipa->interrupt);
+}
+
+void ipa_power_setup(struct ipa *ipa)
+{
+	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
+			  ipa_suspend_handler);
+}
+
+void ipa_power_teardown(struct ipa *ipa)
+{
+	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+}
+
 /* Initialize IPA clocking */
 struct ipa_clock *
 ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)

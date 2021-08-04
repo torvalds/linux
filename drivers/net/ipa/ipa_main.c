@@ -80,29 +80,6 @@
 #define IPA_XO_CLOCK_DIVIDER	192	/* 1 is subtracted where used */
 
 /**
- * ipa_suspend_handler() - Handle the suspend IPA interrupt
- * @ipa:	IPA pointer
- * @irq_id:	IPA interrupt type (unused)
- *
- * If an RX endpoint is in suspend state, and the IPA has a packet
- * destined for that endpoint, the IPA generates a SUSPEND interrupt
- * to inform the AP that it should resume the endpoint.  If we get
- * one of these interrupts we just resume everything.
- */
-static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
-{
-	/* Just report the event, and let system resume handle the rest.
-	 * More than one endpoint could signal this; if so, ignore
-	 * all but the first.
-	 */
-	if (!test_and_set_bit(IPA_FLAG_RESUMED, ipa->flags))
-		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
-
-	/* Acknowledge/clear the suspend interrupt on all endpoints */
-	ipa_interrupt_suspend_clear_all(ipa->interrupt);
-}
-
-/**
  * ipa_setup() - Set up IPA hardware
  * @ipa:	IPA pointer
  *
@@ -124,12 +101,11 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		return ret;
 
-	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
-			  ipa_suspend_handler);
+	ipa_power_setup(ipa);
 
 	ret = device_init_wakeup(dev, true);
 	if (ret)
-		goto err_interrupt_remove;
+		goto err_gsi_teardown;
 
 	ipa_endpoint_setup(ipa);
 
@@ -177,9 +153,9 @@ err_command_disable:
 	ipa_endpoint_disable_one(command_endpoint);
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
+	ipa_power_teardown(ipa);
 	(void)device_init_wakeup(dev, false);
-err_interrupt_remove:
-	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+err_gsi_teardown:
 	gsi_teardown(&ipa->gsi);
 
 	return ret;
@@ -204,8 +180,8 @@ static void ipa_teardown(struct ipa *ipa)
 	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
+	ipa_power_teardown(ipa);
 	(void)device_init_wakeup(&ipa->pdev->dev, false);
-	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 	gsi_teardown(&ipa->gsi);
 }
 
@@ -474,7 +450,7 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 
 	ret = ipa_endpoint_config(ipa);
 	if (ret)
-		goto err_interrupt_deconfig;
+		goto err_uc_deconfig;
 
 	ipa_table_config(ipa);		/* No deconfig required */
 
@@ -491,7 +467,7 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 
 err_endpoint_deconfig:
 	ipa_endpoint_deconfig(ipa);
-err_interrupt_deconfig:
+err_uc_deconfig:
 	ipa_uc_deconfig(ipa);
 	ipa_interrupt_deconfig(ipa->interrupt);
 	ipa->interrupt = NULL;
