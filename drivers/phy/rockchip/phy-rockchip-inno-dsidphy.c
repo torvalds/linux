@@ -778,11 +778,35 @@ static int inno_dsidphy_configure(struct phy *phy,
 	return 0;
 }
 
+static int inno_dsidphy_init(struct phy *phy)
+{
+	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+
+	clk_prepare_enable(inno->pclk_phy);
+	clk_prepare_enable(inno->ref_clk);
+	pm_runtime_get_sync(inno->dev);
+
+	return 0;
+}
+
+static int inno_dsidphy_exit(struct phy *phy)
+{
+	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+
+	pm_runtime_put(inno->dev);
+	clk_disable_unprepare(inno->ref_clk);
+	clk_disable_unprepare(inno->pclk_phy);
+
+	return 0;
+}
+
 static const struct phy_ops inno_dsidphy_ops = {
 	.configure = inno_dsidphy_configure,
 	.set_mode = inno_dsidphy_set_mode,
 	.power_on = inno_dsidphy_power_on,
 	.power_off = inno_dsidphy_power_off,
+	.init = inno_dsidphy_init,
+	.exit = inno_dsidphy_exit,
 	.owner = THIS_MODULE,
 };
 
