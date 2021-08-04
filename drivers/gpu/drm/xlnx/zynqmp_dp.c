@@ -283,6 +283,7 @@ struct zynqmp_dp_config {
  * @reset: reset controller
  * @irq: irq
  * @bridge: DRM bridge for the DP encoder
+ * @next_bridge: The downstream bridge
  * @config: IP core configuration from DTS
  * @aux: aux channel
  * @phy: PHY handles for DP lanes
@@ -305,6 +306,7 @@ struct zynqmp_dp {
 	int irq;
 
 	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 
 	struct zynqmp_dp_config config;
 	struct drm_dp_aux aux;
@@ -1307,6 +1309,13 @@ static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 	drm_connector_register(connector);
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
+	if (dp->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, dp->next_bridge,
+					bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -1742,6 +1751,15 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 
 	ret = zynqmp_dp_phy_probe(dp);
 	if (ret)
+		goto err_reset;
+
+	/*
+	 * Acquire the next bridge in the chain. Ignore errors caused by port@5
+	 * not being connected for backward-compatibility with older DTs.
+	 */
+	ret = drm_of_find_panel_or_bridge(dp->dev->of_node, 5, 0, NULL,
+					  &dp->next_bridge);
+	if (ret < 0 && ret != -ENODEV)
 		goto err_reset;
 
 	/* Initialize the hardware. */
