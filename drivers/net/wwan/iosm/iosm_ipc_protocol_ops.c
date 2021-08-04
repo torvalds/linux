@@ -412,8 +412,8 @@ struct sk_buff *ipc_protocol_dl_td_process(struct iosm_protocol *ipc_protocol,
 	}
 
 	if (p_td->buffer.address != IPC_CB(skb)->mapping) {
-		dev_err(ipc_protocol->dev, "invalid buf=%p or skb=%p",
-			(void *)p_td->buffer.address, skb->data);
+		dev_err(ipc_protocol->dev, "invalid buf=%llx or skb=%p",
+			(unsigned long long)p_td->buffer.address, skb->data);
 		ipc_pcie_kfree_skb(ipc_protocol->pcie, skb);
 		skb = NULL;
 		goto ret;
