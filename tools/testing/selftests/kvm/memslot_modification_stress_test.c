@@ -105,7 +105,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_vm *vm;
 	int vcpu_id;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
+	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
 				 VM_MEM_SRC_ANONYMOUS);
 
 	perf_test_args.wr_fract = 1;
