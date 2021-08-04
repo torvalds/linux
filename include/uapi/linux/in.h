@@ -222,11 +222,22 @@ struct group_source_req {
 };
 
 struct group_filter {
-	__u32				 gf_interface;	/* interface index */
-	struct __kernel_sockaddr_storage gf_group;	/* multicast address */
-	__u32				 gf_fmode;	/* filter mode */
-	__u32				 gf_numsrc;	/* number of sources */
-	struct __kernel_sockaddr_storage gf_slist[1];	/* interface index */
+	union {
+		struct {
+			__u32				 gf_interface_aux; /* interface index */
+			struct __kernel_sockaddr_storage gf_group_aux;	   /* multicast address */
+			__u32				 gf_fmode_aux;	   /* filter mode */
+			__u32				 gf_numsrc_aux;	   /* number of sources */
+			struct __kernel_sockaddr_storage gf_slist[1];	   /* interface index */
+		};
+		struct {
+			__u32				 gf_interface;	  /* interface index */
+			struct __kernel_sockaddr_storage gf_group;	  /* multicast address */
+			__u32				 gf_fmode;	  /* filter mode */
+			__u32				 gf_numsrc;	  /* number of sources */
+			struct __kernel_sockaddr_storage gf_slist_flex[]; /* interface index */
+		};
+	};
 };
 
 #define GROUP_FILTER_SIZE(numsrc) \
