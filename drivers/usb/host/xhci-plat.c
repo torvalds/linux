@@ -199,11 +199,10 @@ EXPORT_SYMBOL_GPL(xhci_plat_register_vendor_ops);
 
 static int xhci_vendor_init(struct xhci_hcd *xhci)
 {
-	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
+	struct xhci_vendor_ops *ops = NULL;
 
 	if (xhci_plat_vendor_overwrite.vendor_ops)
-		ops = priv->vendor_ops = xhci_plat_vendor_overwrite.vendor_ops;
+		ops = xhci->vendor_ops = xhci_plat_vendor_overwrite.vendor_ops;
 
 	if (ops && ops->vendor_init)
 		return ops->vendor_init(xhci);
@@ -213,12 +212,11 @@ static int xhci_vendor_init(struct xhci_hcd *xhci)
 static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
 
 	if (ops && ops->vendor_cleanup)
 		ops->vendor_cleanup(xhci);
 
-	priv->vendor_ops = NULL;
+	xhci->vendor_ops = NULL;
 }
 
 static int xhci_plat_probe(struct platform_device *pdev)
