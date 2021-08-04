@@ -3916,6 +3916,8 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 	return 0;
 }
 #endif
+int netif_set_real_num_queues(struct net_device *dev,
+			      unsigned int txq, unsigned int rxq);
 
 static inline struct netdev_rx_queue *
 __netif_get_rx_queue(struct net_device *dev, unsigned int rxq)
