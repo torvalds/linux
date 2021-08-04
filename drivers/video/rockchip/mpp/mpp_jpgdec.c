@@ -58,6 +58,9 @@
 #define JPGDEC_IRQ_DIS			BIT(1)
 #define JPGDEC_START_EN			BIT(0)
 
+#define JPGDEC_REG_SYS_BASE		0x008
+#define JPGDEC_FORCE_SOFTRESET_VALID	BIT(17)
+
 #define JPGDEC_REG_PIC_INFO_BASE	0x00c
 #define JPGDEC_REG_PIC_INFO_INDEX	(3)
 #define JPGDEC_GET_WIDTH(x)		(((x) & 0xffff) + 1)
@@ -234,6 +237,14 @@ fail:
 	return NULL;
 }
 
+static int jpgdec_soft_reset(struct mpp_dev *mpp)
+{
+	mpp_write(mpp, JPGDEC_REG_SYS_BASE, JPGDEC_FORCE_SOFTRESET_VALID);
+	mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, JPGDEC_SOFT_REST_EN);
+
+	return 0;
+}
+
 static int jpgdec_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
@@ -289,6 +300,15 @@ static int jpgdec_finish(struct mpp_dev *mpp,
 	dec_get = mpp_read_relaxed(mpp, JPGDEC_REG_STREAM_RLC_BASE);
 	dec_length = dec_get - task->strm_addr;
 	task->reg[JPGDEC_REG_STREAM_RLC_BASE_INDEX] = dec_length << 10;
+	/*
+	 * If the softrest_rdy bit is low,
+	 * it means that the soft-reset of the previous frame
+	 * has not been completed.We have to manually trigger to do soft-reset.
+	 */
+	if (!(task->irq_status & JPGDEC_SOFT_RSET_READY) &&
+	    !atomic_read(&mpp->reset_request))
+		jpgdec_soft_reset(mpp);
+
 	mpp_debug(DEBUG_REGISTER,
 		  "dec_get %08x dec_length %d\n", dec_get, dec_length);
 
