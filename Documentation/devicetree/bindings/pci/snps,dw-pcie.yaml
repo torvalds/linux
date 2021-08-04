@@ -35,7 +35,7 @@ properties:
     maxItems: 5
     items:
       enum: [ dbi, dbi2, config, atu, app, elbi, mgmt, ctrl, parf, cfg, link,
-              ulreg, smu, mpu ]
+              ulreg, smu, mpu, apb, phy ]
 
   num-lanes:
     description: |
