@@ -2884,7 +2884,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			 seq, readl(base + RKISPP_NR_ADDR_BASE_Y_SHD),
 			 readl(base + RKISPP_SHARP_WR_Y_BASE_SHD));
 
-		for (val = STREAM_S0; val <= STREAM_S2; val++) {
+		for (val = STREAM_S0; val <= STREAM_S2 && !is_fec_en; val++) {
 			stream = &vdev->stream[val];
 			if (stream->stopping && stream->ops->stop)
 				stream->ops->stop(stream);
@@ -3467,7 +3467,8 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 			continue;
 		if (stream->stopping &&
 		    stream->ops->is_stopped &&
-		    stream->ops->is_stopped(stream)) {
+		    (stream->ops->is_stopped(stream) ||
+		     dev->ispp_sdev.state == ISPP_STOP)) {
 			stream->stopping = false;
 			stream->streaming = false;
 			stream->is_upd = false;
