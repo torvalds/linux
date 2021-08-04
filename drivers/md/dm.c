@@ -2052,9 +2052,9 @@ EXPORT_SYMBOL_GPL(dm_get_queue_limits);
  */
 int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 {
-	int r;
+	enum dm_queue_mode type = dm_table_get_type(t);
 	struct queue_limits limits;
-	enum dm_queue_mode type = dm_get_md_type(md);
+	int r;
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
@@ -2081,6 +2081,7 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 	r = dm_table_set_restrictions(t, md->queue, &limits);
 	if (r)
 		return r;
+	md->type = type;
 
 	blk_register_queue(md->disk);
 
