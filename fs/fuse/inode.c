@@ -1514,6 +1514,10 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	struct fuse_conn *fc;
 	struct fuse_mount *fm;
 
+	if (!ctx->fd_present || !ctx->rootmode_present ||
+	    !ctx->user_id_present || !ctx->group_id_present)
+		return -EINVAL;
+
 	err = -EINVAL;
 	file = fget(ctx->fd);
 	if (!file)
@@ -1570,14 +1574,9 @@ static int fuse_get_tree(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
 
-	if (!ctx->fd_present || !ctx->rootmode_present ||
-	    !ctx->user_id_present || !ctx->group_id_present)
-		return -EINVAL;
-
-#ifdef CONFIG_BLOCK
-	if (ctx->is_bdev)
+	if (IS_ENABLED(CONFIG_BLOCK) && ctx->is_bdev) {
 		return get_tree_bdev(fsc, fuse_fill_super);
-#endif
+	}
 
 	return get_tree_nodev(fsc, fuse_fill_super);
 }
