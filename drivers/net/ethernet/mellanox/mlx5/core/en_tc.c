@@ -39,6 +39,7 @@
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
 #include <linux/completion.h>
+#include <linux/if_macvlan.h>
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/psample.h>
@@ -3906,6 +3907,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					if (err)
 						return err;
 				}
+
+				if (netif_is_macvlan(out_dev))
+					out_dev = macvlan_dev_real_dev(out_dev);
 
 				err = verify_uplink_forwarding(priv, flow, out_dev, extack);
 				if (err)
