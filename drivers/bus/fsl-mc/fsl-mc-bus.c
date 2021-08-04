@@ -914,7 +914,8 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_remove);
 
-struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev)
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
+					  u16 if_id)
 {
 	struct fsl_mc_device *mc_bus_dev, *endpoint;
 	struct fsl_mc_obj_desc endpoint_desc = {{ 0 }};
@@ -925,6 +926,7 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev)
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	strcpy(endpoint1.type, mc_dev->obj_desc.type);
 	endpoint1.id = mc_dev->obj_desc.id;
+	endpoint1.if_id = if_id;
 
 	err = dprc_get_connection(mc_bus_dev->mc_io, 0,
 				  mc_bus_dev->mc_handle,

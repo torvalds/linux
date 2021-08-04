@@ -99,6 +99,11 @@ int dpsw_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token);
 #define DPSW_IRQ_EVENT_LINK_CHANGED	0x0001
 
 /**
+ * DPSW_IRQ_EVENT_ENDPOINT_CHANGED - Indicates a change in endpoint
+ */
+#define DPSW_IRQ_EVENT_ENDPOINT_CHANGED	0x0002
+
+/**
  * struct dpsw_irq_cfg - IRQ configuration
  * @addr:	Address that must be written to signal a message-based interrupt
  * @val:	Value to write into irq_addr address
