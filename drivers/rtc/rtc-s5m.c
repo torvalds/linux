@@ -786,8 +786,6 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	device_init_wakeup(&pdev->dev, 1);
-
 	info->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc_dev))
 		return PTR_ERR(info->rtc_dev);
@@ -805,6 +803,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 				info->irq, ret);
 			return ret;
 		}
+		device_init_wakeup(&pdev->dev, 1);
 	}
 
 	return devm_rtc_register_device(info->rtc_dev);
