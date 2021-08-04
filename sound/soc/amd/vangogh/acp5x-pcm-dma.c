@@ -315,13 +315,6 @@ static int acp5x_dma_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int acp5x_dma_mmap(struct snd_soc_component *component,
-			  struct snd_pcm_substream *substream,
-			  struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp5x_dma_close(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
@@ -364,7 +357,6 @@ static const struct snd_soc_component_driver acp5x_i2s_component = {
 	.close		= acp5x_dma_close,
 	.hw_params	= acp5x_dma_hw_params,
 	.pointer	= acp5x_dma_pointer,
-	.mmap		= acp5x_dma_mmap,
 	.pcm_construct	= acp5x_dma_new,
 };
 
