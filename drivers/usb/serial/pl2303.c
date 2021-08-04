@@ -432,6 +432,7 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	case 0x200:
 		switch (bcdDevice) {
 		case 0x100:
+		case 0x305:
 			/*
 			 * Assume it's an HXN-type if the device doesn't
 			 * support the old read request value.
