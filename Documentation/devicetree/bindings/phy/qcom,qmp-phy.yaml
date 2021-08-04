@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - qcom,ipq6018-qmp-pcie-phy
+      - qcom,ipq6018-qmp-usb3-phy
       - qcom,ipq8074-qmp-pcie-phy
       - qcom,ipq8074-qmp-usb3-phy
       - qcom,msm8996-qmp-pcie-phy
