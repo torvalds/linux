@@ -13,12 +13,6 @@ static struct coex_dm_8723b_1ant *pCoexDm = &GLCoexDm8723b1Ant;
 static struct coex_sta_8723b_1ant GLCoexSta8723b1Ant;
 static struct coex_sta_8723b_1ant *pCoexSta = &GLCoexSta8723b1Ant;
 
-static const char *const GLBtInfoSrc8723b1Ant[] = {
-	"BT Info[wifi fw]",
-	"BT Info[bt rsp]",
-	"BT Info[bt auto report]",
-};
-
 /*  local function proto type if needed */
 /*  local function start with halbtc8723b1ant_ */
 static u8 halbtc8723b1ant_BtRssiState(
