@@ -242,8 +242,11 @@ EXPORT_SYMBOL(snd_sgbuf_get_chunk_size);
 static void *snd_dma_continuous_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	gfp_t gfp = snd_mem_get_gfp_flags(dmab, GFP_KERNEL);
+	void *p = alloc_pages_exact(size, gfp);
 
-	return alloc_pages_exact(size, gfp);
+	if (p)
+		dmab->addr = page_to_phys(virt_to_page(p));
+	return p;
 }
 
 static void snd_dma_continuous_free(struct snd_dma_buffer *dmab)
@@ -255,7 +258,7 @@ static int snd_dma_continuous_mmap(struct snd_dma_buffer *dmab,
 				   struct vm_area_struct *area)
 {
 	return remap_pfn_range(area, area->vm_start,
-			       page_to_pfn(virt_to_page(dmab->area)),
+			       dmab->addr >> PAGE_SHIFT,
 			       area->vm_end - area->vm_start,
 			       area->vm_page_prot);
 }
