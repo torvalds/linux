@@ -1720,7 +1720,7 @@ static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
-		if (adev->asic_type == CHIP_ARCTURUS)
+		if (adev->ip_versions[UVD_HWIP] == IP_VERSION(2, 5, 0))
 			adev->vcn.inst[i].ring_dec.funcs = &vcn_v2_5_dec_ring_vm_funcs;
 		else /* CHIP_ALDEBARAN */
 			adev->vcn.inst[i].ring_dec.funcs = &vcn_v2_6_dec_ring_vm_funcs;
@@ -1737,7 +1737,7 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-			if (adev->asic_type == CHIP_ARCTURUS)
+			if (adev->ip_versions[UVD_HWIP] == IP_VERSION(2, 5, 0))
 				adev->vcn.inst[j].ring_enc[i].funcs = &vcn_v2_5_enc_ring_vm_funcs;
 			else /* CHIP_ALDEBARAN */
 				adev->vcn.inst[j].ring_enc[i].funcs = &vcn_v2_6_enc_ring_vm_funcs;
