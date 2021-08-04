@@ -231,13 +231,15 @@ int ipa_modem_start(struct ipa *ipa)
 	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
+	ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
+	ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
+	ipa->modem_netdev = netdev;
 
 	ret = register_netdev(netdev);
-	if (!ret) {
-		ipa->modem_netdev = netdev;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
-	} else {
+	if (ret) {
+		ipa->modem_netdev = NULL;
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
 		free_netdev(netdev);
 	}
 
@@ -276,10 +278,10 @@ int ipa_modem_stop(struct ipa *ipa)
 		/* If it was opened, stop it first */
 		if (netdev->flags & IFF_UP)
 			(void)ipa_stop(netdev);
+		unregister_netdev(netdev);
+		ipa->modem_netdev = NULL;
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
-		ipa->modem_netdev = NULL;
-		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
 
