@@ -1658,6 +1658,17 @@ static void xilinx_dma_issue_pending(struct dma_chan *dchan)
 }
 
 /**
+ * xilinx_dma_device_config - Configure the DMA channel
+ * @dchan: DMA channel
+ * @config: channel configuration
+ */
+static int xilinx_dma_device_config(struct dma_chan *dchan,
+				    struct dma_slave_config *config)
+{
+	return 0;
+}
+
+/**
  * xilinx_dma_complete_descriptor - Mark the active descriptor as complete
  * @chan : xilinx DMA channel
  *
@@ -3095,6 +3106,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	xdev->common.device_synchronize = xilinx_dma_synchronize;
 	xdev->common.device_tx_status = xilinx_dma_tx_status;
 	xdev->common.device_issue_pending = xilinx_dma_issue_pending;
+	xdev->common.device_config = xilinx_dma_device_config;
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		dma_cap_set(DMA_CYCLIC, xdev->common.cap_mask);
 		xdev->common.device_prep_slave_sg = xilinx_dma_prep_slave_sg;
