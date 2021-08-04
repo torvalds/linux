@@ -3698,7 +3698,7 @@ static int wcd938x_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
-	return ret;
+	return 0;
 }
 
 static int wcd938x_remove(struct platform_device *pdev)
