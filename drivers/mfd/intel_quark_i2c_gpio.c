@@ -227,7 +227,6 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev)
 	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
 	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;
 	pdata->properties->irq[0]	= pci_irq_vector(pdev, 0);
-	pdata->properties->irq_shared	= true;
 
 	cell->platform_data = pdata;
 	cell->pdata_size = sizeof(*pdata);
