@@ -311,6 +311,9 @@ static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
 	return NULL;
 }
 
+/* Assign the default CPU port (the first one in the tree) to all ports of the
+ * fabric which don't already have one as part of their own switch.
+ */
 static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *cpu_dp, *dp;
@@ -321,12 +324,45 @@ static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 		return -EINVAL;
 	}
 
-	/* Assign the default CPU port to all ports of the fabric */
-	list_for_each_entry(dp, &dst->ports, list)
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->cpu_dp)
+			continue;
+
 		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 			dp->cpu_dp = cpu_dp;
+	}
 
 	return 0;
+}
+
+/* Perform initial assignment of CPU ports to user ports and DSA links in the
+ * fabric, giving preference to CPU ports local to each switch. Default to
+ * using the first CPU port in the switch tree if the port does not have a CPU
+ * port local to this switch.
+ */
+static int dsa_tree_setup_cpu_ports(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *cpu_dp, *dp;
+
+	list_for_each_entry(cpu_dp, &dst->ports, list) {
+		if (!dsa_port_is_cpu(cpu_dp))
+			continue;
+
+		list_for_each_entry(dp, &dst->ports, list) {
+			/* Prefer a local CPU port */
+			if (dp->ds != cpu_dp->ds)
+				continue;
+
+			/* Prefer the first local CPU port found */
+			if (dp->cpu_dp)
+				continue;
+
+			if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
+				dp->cpu_dp = cpu_dp;
+		}
+	}
+
+	return dsa_tree_setup_default_cpu(dst);
 }
 
 static void dsa_tree_teardown_cpu_ports(struct dsa_switch_tree *dst)
@@ -921,7 +957,7 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 	if (!complete)
 		return 0;
 
-	err = dsa_tree_setup_default_cpu(dst);
+	err = dsa_tree_setup_cpu_ports(dst);
 	if (err)
 		return err;
 
