@@ -143,12 +143,12 @@ static void pi_create_file(struct module *mod)
 				       mod, &dfs_index_fops);
 }
 
+#ifdef CONFIG_MODULES
 static void pi_remove_file(struct module *mod)
 {
 	debugfs_remove(debugfs_lookup(pi_get_module_name(mod), dfs_index));
 }
 
-#ifdef CONFIG_MODULES
 static int pi_module_notify(struct notifier_block *nb, unsigned long op,
 			    void *data)
 {
