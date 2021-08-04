@@ -1427,7 +1427,7 @@ struct ich_pcm_table {
 };
 
 #define intel8x0_dma_type(chip) \
-	((chip)->fix_nocache ? SNDRV_DMA_TYPE_DEV_UC : SNDRV_DMA_TYPE_DEV)
+	((chip)->fix_nocache ? SNDRV_DMA_TYPE_DEV_WC : SNDRV_DMA_TYPE_DEV)
 
 static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 			     const struct ich_pcm_table *rec)

@@ -1776,7 +1776,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		/* allocate dma pages;
 		 * try to allocate 600k buffer as default which is large enough
 		 */
-		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_UC,
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
 					       card->dev, HAD_DEFAULT_BUFFER,
 					       HAD_MAX_BUFFER);
 
