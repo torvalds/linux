@@ -46,10 +46,21 @@ struct ipa_interconnect {
 };
 
 /**
+ * enum ipa_power_flag - IPA power flags
+ * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
+ * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
+ */
+enum ipa_power_flag {
+	IPA_POWER_FLAG_RESUMED,
+	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
+};
+
+/**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
  * @mutex:		Protects clock enable/disable
  * @core:		IPA core clock
+ * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
  */
@@ -57,6 +68,7 @@ struct ipa_clock {
 	refcount_t count;
 	struct mutex mutex; /* protects clock enable/disable */
 	struct clk *core;
+	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
 	struct ipa_interconnect *interconnect;
 };
@@ -295,7 +307,7 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * More than one endpoint could signal this; if so, ignore
 	 * all but the first.
 	 */
-	if (!test_and_set_bit(IPA_FLAG_RESUMED, ipa->flags))
+	if (!test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags))
 		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
@@ -388,7 +400,7 @@ static int ipa_suspend(struct device *dev)
 
 	/* Endpoints aren't usable until setup is complete */
 	if (ipa->setup_complete) {
-		__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
+		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags);
 		ipa_endpoint_suspend(ipa);
 		gsi_suspend(&ipa->gsi);
 	}
