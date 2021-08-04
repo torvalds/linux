@@ -11,28 +11,42 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/u64_stats_sync.h>
-#include <linux/wwan.h>
-
-#include "mhi.h"
 
 #define MHI_NET_MIN_MTU		ETH_MIN_MTU
 #define MHI_NET_MAX_MTU		0xffff
 #define MHI_NET_DEFAULT_MTU	0x4000
 
-/* When set to false, the default netdev (link 0) is not created, and it's up
- * to user to create the link (via wwan rtnetlink).
- */
-static bool create_default_iface = true;
-module_param(create_default_iface, bool, 0);
+struct mhi_net_stats {
+	u64_stats_t rx_packets;
+	u64_stats_t rx_bytes;
+	u64_stats_t rx_errors;
+	u64_stats_t tx_packets;
+	u64_stats_t tx_bytes;
+	u64_stats_t tx_errors;
+	u64_stats_t tx_dropped;
+	struct u64_stats_sync tx_syncp;
+	struct u64_stats_sync rx_syncp;
+};
+
+struct mhi_net_dev {
+	struct mhi_device *mdev;
+	struct net_device *ndev;
+	struct sk_buff *skbagg_head;
+	struct sk_buff *skbagg_tail;
+	struct delayed_work rx_refill;
+	struct mhi_net_stats stats;
+	u32 rx_queue_sz;
+	int msg_enable;
+	unsigned int mru;
+};
 
 struct mhi_device_info {
 	const char *netname;
-	const struct mhi_net_proto *proto;
 };
 
 static int mhi_ndo_open(struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
+	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 
 	/* Feed the rx buffer pool */
 	schedule_delayed_work(&mhi_netdev->rx_refill, 0);
@@ -47,7 +61,7 @@ static int mhi_ndo_open(struct net_device *ndev)
 
 static int mhi_ndo_stop(struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
+	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);
@@ -58,16 +72,9 @@ static int mhi_ndo_stop(struct net_device *ndev)
 
 static netdev_tx_t mhi_ndo_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
-	const struct mhi_net_proto *proto = mhi_netdev->proto;
+	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 	struct mhi_device *mdev = mhi_netdev->mdev;
 	int err;
-
-	if (proto && proto->tx_fixup) {
-		skb = proto->tx_fixup(mhi_netdev, skb);
-		if (unlikely(!skb))
-			goto exit_drop;
-	}
 
 	err = mhi_queue_skb(mdev, DMA_TO_DEVICE, skb, skb->len, MHI_EOT);
 	if (unlikely(err)) {
@@ -93,7 +100,7 @@ exit_drop:
 static void mhi_ndo_get_stats64(struct net_device *ndev,
 				struct rtnl_link_stats64 *stats)
 {
-	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
+	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 	unsigned int start;
 
 	do {
@@ -101,8 +108,6 @@ static void mhi_ndo_get_stats64(struct net_device *ndev,
 		stats->rx_packets = u64_stats_read(&mhi_netdev->stats.rx_packets);
 		stats->rx_bytes = u64_stats_read(&mhi_netdev->stats.rx_bytes);
 		stats->rx_errors = u64_stats_read(&mhi_netdev->stats.rx_errors);
-		stats->rx_dropped = u64_stats_read(&mhi_netdev->stats.rx_dropped);
-		stats->rx_length_errors = u64_stats_read(&mhi_netdev->stats.rx_length_errors);
 	} while (u64_stats_fetch_retry_irq(&mhi_netdev->stats.rx_syncp, start));
 
 	do {
@@ -165,7 +170,6 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 				struct mhi_result *mhi_res)
 {
 	struct mhi_net_dev *mhi_netdev = dev_get_drvdata(&mhi_dev->dev);
-	const struct mhi_net_proto *proto = mhi_netdev->proto;
 	struct sk_buff *skb = mhi_res->buf_addr;
 	int free_desc_count;
 
@@ -217,15 +221,11 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 			break;
 		}
 
-		if (proto && proto->rx) {
-			proto->rx(mhi_netdev, skb);
-		} else {
-			u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
-			u64_stats_inc(&mhi_netdev->stats.rx_packets);
-			u64_stats_add(&mhi_netdev->stats.rx_bytes, skb->len);
-			u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
-			netif_rx(skb);
-		}
+		u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
+		u64_stats_inc(&mhi_netdev->stats.rx_packets);
+		u64_stats_add(&mhi_netdev->stats.rx_bytes, skb->len);
+		u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
+		netif_rx(skb);
 	}
 
 	/* Refill if RX buffers queue becomes low */
@@ -248,7 +248,6 @@ static void mhi_net_ul_callback(struct mhi_device *mhi_dev,
 
 	u64_stats_update_begin(&mhi_netdev->stats.tx_syncp);
 	if (unlikely(mhi_res->transaction_status)) {
-
 		/* MHI layer stopping/resetting the UL channel */
 		if (mhi_res->transaction_status == -ENOTCONN) {
 			u64_stats_update_end(&mhi_netdev->stats.tx_syncp);
@@ -302,33 +301,17 @@ static void mhi_net_rx_refill_work(struct work_struct *work)
 		schedule_delayed_work(&mhi_netdev->rx_refill, HZ / 2);
 }
 
-static int mhi_net_newlink(void *ctxt, struct net_device *ndev, u32 if_id,
-			   struct netlink_ext_ack *extack)
+static int mhi_net_newlink(struct mhi_device *mhi_dev, struct net_device *ndev)
 {
-	const struct mhi_device_info *info;
-	struct mhi_device *mhi_dev = ctxt;
 	struct mhi_net_dev *mhi_netdev;
 	int err;
 
-	info = (struct mhi_device_info *)mhi_dev->id->driver_data;
-
-	/* For now we only support one link (link context 0), driver must be
-	 * reworked to break 1:1 relationship for net MBIM and to forward setup
-	 * call to rmnet(QMAP) otherwise.
-	 */
-	if (if_id != 0)
-		return -EINVAL;
-
-	if (dev_get_drvdata(&mhi_dev->dev))
-		return -EBUSY;
-
-	mhi_netdev = wwan_netdev_drvpriv(ndev);
+	mhi_netdev = netdev_priv(ndev);
 
 	dev_set_drvdata(&mhi_dev->dev, mhi_netdev);
 	mhi_netdev->ndev = ndev;
 	mhi_netdev->mdev = mhi_dev;
 	mhi_netdev->skbagg_head = NULL;
-	mhi_netdev->proto = info->proto;
 	mhi_netdev->mru = mhi_dev->mhi_cntrl->mru;
 
 	INIT_DELAYED_WORK(&mhi_netdev->rx_refill, mhi_net_rx_refill_work);
@@ -343,38 +326,22 @@ static int mhi_net_newlink(void *ctxt, struct net_device *ndev, u32 if_id,
 	/* Number of transfer descriptors determines size of the queue */
 	mhi_netdev->rx_queue_sz = mhi_get_free_desc_count(mhi_dev, DMA_FROM_DEVICE);
 
-	if (extack)
-		err = register_netdevice(ndev);
-	else
-		err = register_netdev(ndev);
+	err = register_netdev(ndev);
 	if (err)
-		goto out_err;
-
-	if (mhi_netdev->proto) {
-		err = mhi_netdev->proto->init(mhi_netdev);
-		if (err)
-			goto out_err_proto;
-	}
+		return err;
 
 	return 0;
 
-out_err_proto:
-	unregister_netdevice(ndev);
 out_err:
 	free_netdev(ndev);
 	return err;
 }
 
-static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
-			    struct list_head *head)
+static void mhi_net_dellink(struct mhi_device *mhi_dev, struct net_device *ndev)
 {
-	struct mhi_net_dev *mhi_netdev = wwan_netdev_drvpriv(ndev);
-	struct mhi_device *mhi_dev = ctxt;
+	struct mhi_net_dev *mhi_netdev = netdev_priv(ndev);
 
-	if (head)
-		unregister_netdevice_queue(ndev, head);
-	else
-		unregister_netdev(ndev);
+	unregister_netdev(ndev);
 
 	mhi_unprepare_from_transfer(mhi_dev);
 
@@ -383,65 +350,34 @@ static void mhi_net_dellink(void *ctxt, struct net_device *ndev,
 	dev_set_drvdata(&mhi_dev->dev, NULL);
 }
 
-static const struct wwan_ops mhi_wwan_ops = {
-	.priv_size = sizeof(struct mhi_net_dev),
-	.setup = mhi_net_setup,
-	.newlink = mhi_net_newlink,
-	.dellink = mhi_net_dellink,
-};
-
 static int mhi_net_probe(struct mhi_device *mhi_dev,
 			 const struct mhi_device_id *id)
 {
 	const struct mhi_device_info *info = (struct mhi_device_info *)id->driver_data;
-	struct mhi_controller *cntrl = mhi_dev->mhi_cntrl;
 	struct net_device *ndev;
 	int err;
 
-	err = wwan_register_ops(&cntrl->mhi_dev->dev, &mhi_wwan_ops, mhi_dev,
-				WWAN_NO_DEFAULT_LINK);
-	if (err)
-		return err;
-
-	if (!create_default_iface)
-		return 0;
-
-	/* Create a default interface which is used as either RMNET real-dev,
-	 * MBIM link 0 or ip link 0)
-	 */
 	ndev = alloc_netdev(sizeof(struct mhi_net_dev), info->netname,
 			    NET_NAME_PREDICTABLE, mhi_net_setup);
-	if (!ndev) {
-		err = -ENOMEM;
-		goto err_unregister;
-	}
+	if (!ndev)
+		return -ENOMEM;
 
 	SET_NETDEV_DEV(ndev, &mhi_dev->dev);
 
-	err = mhi_net_newlink(mhi_dev, ndev, 0, NULL);
-	if (err)
-		goto err_release;
+	err = mhi_net_newlink(mhi_dev, ndev);
+	if (err) {
+		free_netdev(ndev);
+		return err;
+	}
 
 	return 0;
-
-err_release:
-	free_netdev(ndev);
-err_unregister:
-	wwan_unregister_ops(&cntrl->mhi_dev->dev);
-
-	return err;
 }
 
 static void mhi_net_remove(struct mhi_device *mhi_dev)
 {
 	struct mhi_net_dev *mhi_netdev = dev_get_drvdata(&mhi_dev->dev);
-	struct mhi_controller *cntrl = mhi_dev->mhi_cntrl;
 
-	/* WWAN core takes care of removing remaining links */
-	wwan_unregister_ops(&cntrl->mhi_dev->dev);
-
-	if (create_default_iface)
-		mhi_net_dellink(mhi_dev, mhi_netdev->ndev, NULL);
+	mhi_net_dellink(mhi_dev, mhi_netdev->ndev);
 }
 
 static const struct mhi_device_info mhi_hwip0 = {
@@ -452,18 +388,11 @@ static const struct mhi_device_info mhi_swip0 = {
 	.netname = "mhi_swip%d",
 };
 
-static const struct mhi_device_info mhi_hwip0_mbim = {
-	.netname = "mhi_mbim%d",
-	.proto = &proto_mbim,
-};
-
 static const struct mhi_device_id mhi_net_id_table[] = {
 	/* Hardware accelerated data PATH (to modem IPA), protocol agnostic */
 	{ .chan = "IP_HW0", .driver_data = (kernel_ulong_t)&mhi_hwip0 },
 	/* Software data PATH (to modem CPU) */
 	{ .chan = "IP_SW0", .driver_data = (kernel_ulong_t)&mhi_swip0 },
-	/* Hardware accelerated data PATH (to modem IPA), MBIM protocol */
-	{ .chan = "IP_HW0_MBIM", .driver_data = (kernel_ulong_t)&mhi_hwip0_mbim },
 	{}
 };
 MODULE_DEVICE_TABLE(mhi, mhi_net_id_table);
