@@ -209,14 +209,42 @@ mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 
 int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 {
+	const struct mcp251xfd_rx_ring *rx_ring;
 	u16 base = 0, ram_used;
 	u8 fifo_nr = 1;
+	int i;
 
 	netdev_reset_queue(priv->ndev);
 
 	mcp251xfd_ring_init_tef(priv, &base);
 	mcp251xfd_ring_init_rx(priv, &base, &fifo_nr);
 	mcp251xfd_ring_init_tx(priv, &base, &fifo_nr);
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes\n",
+		   mcp251xfd_get_tef_obj_addr(0),
+		   priv->tx->obj_num, sizeof(struct mcp251xfd_hw_tef_obj),
+		   priv->tx->obj_num * sizeof(struct mcp251xfd_hw_tef_obj));
+
+	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
+		netdev_dbg(priv->ndev,
+			   "FIFO setup: RX-%u: FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
+			   rx_ring->nr, rx_ring->fifo_nr,
+			   mcp251xfd_get_rx_obj_addr(rx_ring, 0),
+			   rx_ring->obj_num, rx_ring->obj_size,
+			   rx_ring->obj_num * rx_ring->obj_size);
+	}
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: TX:   FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
+		   priv->tx->fifo_nr,
+		   mcp251xfd_get_tx_obj_addr(priv->tx, 0),
+		   priv->tx->obj_num, priv->tx->obj_size,
+		   priv->tx->obj_num * priv->tx->obj_size);
+
+	netdev_dbg(priv->ndev,
+		   "FIFO setup: free:                             %4u bytes\n",
+		   MCP251XFD_RAM_SIZE - (base - MCP251XFD_RAM_START));
 
 	ram_used = base - MCP251XFD_RAM_START;
 	if (ram_used > MCP251XFD_RAM_SIZE) {
@@ -287,22 +315,6 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		ram_free -= rx_ring->obj_num * rx_ring->obj_size;
 	}
 	priv->rx_ring_num = i;
-
-	netdev_dbg(priv->ndev,
-		   "FIFO setup: TEF: %d*%d bytes = %d bytes, TX: %d*%d bytes = %d bytes\n",
-		   tx_obj_num, tef_obj_size, tef_obj_size * tx_obj_num,
-		   tx_obj_num, tx_obj_size, tx_obj_size * tx_obj_num);
-
-	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
-		netdev_dbg(priv->ndev,
-			   "FIFO setup: RX-%d: %d*%d bytes = %d bytes\n",
-			   i, rx_ring->obj_num, rx_ring->obj_size,
-			   rx_ring->obj_size * rx_ring->obj_num);
-	}
-
-	netdev_dbg(priv->ndev,
-		   "FIFO setup: free: %d bytes\n",
-		   ram_free);
 
 	return 0;
 }
