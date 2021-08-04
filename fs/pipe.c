@@ -406,7 +406,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret = 0;
 	size_t total_len = iov_iter_count(from);
 	ssize_t chars;
-	bool do_wakeup = false;
+	bool was_empty = false;
 	bool wake_next_writer = false;
 
 	/* Null write succeeds. */
@@ -429,18 +429,18 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 #endif
 
 	/*
-	 * Wake up readers if the pipe was written to. Regardless
-	 * of whether it was empty or not. Otherwise, threads
-	 * waiting with EPOLLET will hang until the pipe is emptied.
+	 * Epoll nonsensically wants a wakeup whether the pipe
+	 * was already empty or not.
 	 *
-	 * If pipe wasn't empty we try to merge new data into
+	 * If it wasn't empty we try to merge new data into
 	 * the last buffer.
 	 *
 	 * That naturally merges small writes, but it also
-	 * page-aligs the rest of the writes for large writes
+	 * page-aligns the rest of the writes for large writes
 	 * spanning multiple pages.
 	 */
 	head = pipe->head;
+	was_empty = true;
 	chars = total_len & (PAGE_SIZE-1);
 	if (chars && !pipe_empty(head, pipe->tail)) {
 		unsigned int mask = pipe->ring_size - 1;
@@ -460,7 +460,6 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			}
 
 			buf->len += ret;
-			do_wakeup = true;
 			if (!iov_iter_count(from))
 				goto out;
 		}
@@ -527,7 +526,6 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			ret += copied;
 			buf->offset = 0;
 			buf->len = copied;
-			do_wakeup = true;
 
 			if (!iov_iter_count(from))
 				break;
@@ -555,12 +553,13 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		 * become empty while we dropped the lock.
 		 */
 		__pipe_unlock(pipe);
-		if (do_wakeup) {
+		if (was_empty) {
 			wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		}
 		wait_event_interruptible_exclusive(pipe->wr_wait, pipe_writable(pipe));
 		__pipe_lock(pipe);
+		was_empty = pipe_empty(pipe->head, pipe->tail);
 		wake_next_writer = true;
 	}
 out:
@@ -577,7 +576,7 @@ out:
 	 * how (for example) the GNU make jobserver uses small writes to
 	 * wake up pending jobs
 	 */
-	if (do_wakeup) {
+	if (was_empty) {
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
