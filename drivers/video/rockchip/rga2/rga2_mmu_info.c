@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-
+#define pr_fmt(fmt) "rga2_mmu: " fmt
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -65,6 +65,10 @@ dma_addr_t rga2_dma_flush_page(struct page *page, int map)
 			paddr = dma_map_page(rga2_drvdata->dev, page, 0,
 					     PAGE_SIZE, DMA_BIDIRECTIONAL);
 			break;
+		default:
+			paddr = 0;
+			pr_err("unknown map cmd 0x%x\n", map);
+			break;
 		}
 
 		return paddr;
@@ -83,6 +87,9 @@ dma_addr_t rga2_dma_flush_page(struct page *page, int map)
 		case MMU_UNMAP_CLEAN | MMU_UNMAP_INVALID:
 			dma_unmap_page(rga2_drvdata->dev, paddr,
 				       PAGE_SIZE, DMA_BIDIRECTIONAL);
+			break;
+		default:
+			pr_err("unknown map cmd 0x%x\n", map);
 			break;
 		}
 

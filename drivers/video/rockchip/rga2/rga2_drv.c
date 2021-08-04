@@ -12,7 +12,7 @@
  *
  */
 
-#define pr_fmt(fmt) "rga: " fmt
+#define pr_fmt(fmt) "rga2: " fmt
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
