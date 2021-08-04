@@ -204,15 +204,9 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_WEEKDAY] = 1 << tm->tm_wday;
 	data[RTC_DATE] = tm->tm_mday;
 	data[RTC_MONTH] = tm->tm_mon + 1;
-	data[RTC_YEAR1] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
+	data[RTC_YEAR1] = tm->tm_year - 100;
 
-	if (tm->tm_year < 100) {
-		pr_err("RTC cannot handle the year %d\n",
-		       1900 + tm->tm_year);
-		return -EINVAL;
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
 /*
@@ -791,6 +785,14 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->rtc_dev);
 
 	info->rtc_dev->ops = &s5m_rtc_ops;
+
+	if (info->device_type == S5M8763X) {
+		info->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_0000;
+		info->rtc_dev->range_max = RTC_TIMESTAMP_END_9999;
+	} else {
+		info->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+		info->rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
+	}
 
 	if (!info->irq) {
 		clear_bit(RTC_FEATURE_ALARM, info->rtc_dev->features);
