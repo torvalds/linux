@@ -691,12 +691,10 @@
 			clocks = <&rpmhcc RPMH_IPA_CLK>;
 			clock-names = "core";
 
-			interconnects = <&aggre2_noc MASTER_IPA &gem_noc SLAVE_LLCC>,
-					<&mc_virt MASTER_LLCC &mc_virt SLAVE_EBI1>,
+			interconnects = <&aggre2_noc MASTER_IPA &mc_virt SLAVE_EBI1>,
 					<&gem_noc MASTER_APPSS_PROC &config_noc SLAVE_IPA_CFG>;
-			interconnect-names = "ipa_to_llcc",
-					     "llcc_to_ebi1",
-					     "appss_to_ipa";
+			interconnect-names = "memory",
+					     "config";
 
 			qcom,smem-states = <&ipa_smp2p_out 0>,
 					   <&ipa_smp2p_out 1>;
