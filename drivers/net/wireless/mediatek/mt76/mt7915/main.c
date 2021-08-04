@@ -1094,6 +1094,32 @@ static const char mt7915_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_msdu_pack_6",
 	"tx_msdu_pack_7",
 	"tx_msdu_pack_8",
+	/* per vif counters */
+	"v_tx_mode_cck",
+	"v_tx_mode_ofdm",
+	"v_tx_mode_ht",
+	"v_tx_mode_ht_gf",
+	"v_tx_mode_vht",
+	"v_tx_mode_he_su",
+	"v_tx_mode_he_ext_su",
+	"v_tx_mode_he_tb",
+	"v_tx_mode_he_mu",
+	"v_tx_bw_20",
+	"v_tx_bw_40",
+	"v_tx_bw_80",
+	"v_tx_bw_160",
+	"v_tx_mcs_0",
+	"v_tx_mcs_1",
+	"v_tx_mcs_2",
+	"v_tx_mcs_3",
+	"v_tx_mcs_4",
+	"v_tx_mcs_5",
+	"v_tx_mcs_6",
+	"v_tx_mcs_7",
+	"v_tx_mcs_8",
+	"v_tx_mcs_9",
+	"v_tx_mcs_10",
+	"v_tx_mcs_11",
 };
 
 #define MT7915_SSTATS_LEN ARRAY_SIZE(mt7915_gstrings_stats)
@@ -1119,6 +1145,47 @@ int mt7915_get_et_sset_count(struct ieee80211_hw *hw,
 	return 0;
 }
 
+struct mt7915_ethtool_worker_info {
+	u64 *data;
+	struct mt7915_vif *mvif;
+	int initial_stat_idx;
+	int worker_stat_count;
+	int sta_count;
+};
+
+static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
+{
+	struct mt7915_ethtool_worker_info *wi = wi_data;
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	int ei = wi->initial_stat_idx;
+	int q;
+	u64 *data = wi->data;
+	struct mt7915_sta_stats *mstats = &msta->stats;
+
+	if (msta->vif != wi->mvif)
+		return;
+
+	wi->sta_count++;
+
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_CCK];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_OFDM];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HT];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HT_GF];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_VHT];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_SU];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_EXT_SU];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_TB];
+	data[ei++] += mstats->tx_mode[MT_PHY_TYPE_HE_MU];
+
+	for (q = 0; q < ARRAY_SIZE(mstats->tx_bw); q++)
+		data[ei++] += mstats->tx_bw[q];
+
+	for (q = 0; q < 12; q++)
+		data[ei++] += mstats->tx_mcs[q];
+
+	wi->worker_stat_count = ei - wi->initial_stat_idx;
+}
+
 static
 void mt7915_get_et_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
@@ -1126,6 +1193,8 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 {
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct mt7915_ethtool_worker_info wi;
 
 	/* See mt7915_ampdu_stat_read_phy, etc */
 	bool ext_phy = phy != &dev->phy;
@@ -1177,7 +1246,22 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	for (i = 0; i < 8; i++)
 		data[ei++] = mt76_rr(dev,  MT_PLE_AMSDU_PACK_MSDU_CNT(i));
 
-	WARN_ON(ei != MT7915_SSTATS_LEN);
+	/* Add values for all stations owned by this vif */
+	wi.data = data;
+	wi.mvif = mvif;
+	wi.initial_stat_idx = ei;
+	wi.worker_stat_count = 0;
+	wi.sta_count = 0;
+
+	ieee80211_iterate_stations_atomic(hw, mt7915_ethtool_worker, &wi);
+
+	if (wi.sta_count == 0)
+		return;
+
+	ei += wi.worker_stat_count;
+	if (ei != MT7915_SSTATS_LEN)
+		dev_err(dev->mt76.dev, "ei: %d  MT7915_SSTATS_LEN: %d",
+			ei, (int)MT7915_SSTATS_LEN);
 }
 
 const struct ieee80211_ops mt7915_ops = {
