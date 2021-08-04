@@ -86,8 +86,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
 		atomic_set(&adev->vcn.inst[i].dpg_enc_submission_cnt, 0);
 
-	switch (adev->asic_type) {
-	case CHIP_RAVEN:
+	switch (adev->ip_versions[UVD_HWIP]) {
+	case IP_VERSION(1, 0, 0):
+	case IP_VERSION(1, 0, 1):
 		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			fw_name = FIRMWARE_RAVEN2;
 		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
@@ -95,13 +96,13 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		else
 			fw_name = FIRMWARE_RAVEN;
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(2, 5, 0):
 		fw_name = FIRMWARE_ARCTURUS;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_RENOIR:
+	case IP_VERSION(2, 2, 0):
 		if (adev->apu_flags & AMD_APU_IS_RENOIR)
 			fw_name = FIRMWARE_RENOIR;
 		else
@@ -111,58 +112,52 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(2, 6, 0):
 		fw_name = FIRMWARE_ALDEBARAN;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_NAVI10:
+	case IP_VERSION(2, 0, 0):
 		fw_name = FIRMWARE_NAVI10;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_NAVI14:
-		fw_name = FIRMWARE_NAVI14;
+	case IP_VERSION(2, 0, 2):
+		if (adev->asic_type == CHIP_NAVI12)
+			fw_name = FIRMWARE_NAVI12;
+		else
+			fw_name = FIRMWARE_NAVI14;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_NAVI12:
-		fw_name = FIRMWARE_NAVI12;
+	case IP_VERSION(3, 0, 0):
+		if (adev->ip_versions[GC_HWIP] == IP_VERSION(10, 3, 0))
+			fw_name = FIRMWARE_SIENNA_CICHLID;
+		else
+			fw_name = FIRMWARE_NAVY_FLOUNDER;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_SIENNA_CICHLID:
-		fw_name = FIRMWARE_SIENNA_CICHLID;
-		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
-		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
-			adev->vcn.indirect_sram = true;
-		break;
-	case CHIP_NAVY_FLOUNDER:
-		fw_name = FIRMWARE_NAVY_FLOUNDER;
-		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
-		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
-			adev->vcn.indirect_sram = true;
-		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(3, 0, 2):
 		fw_name = FIRMWARE_VANGOGH;
 		break;
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(3, 0, 16):
 		fw_name = FIRMWARE_DIMGREY_CAVEFISH;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(3, 0, 33):
 		fw_name = FIRMWARE_BEIGE_GOBY;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
 		break;
-	case CHIP_YELLOW_CARP:
+	case IP_VERSION(3, 1, 1):
 		fw_name = FIRMWARE_YELLOW_CARP;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
