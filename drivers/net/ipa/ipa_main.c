@@ -874,65 +874,6 @@ static void ipa_shutdown(struct platform_device *pdev)
 		dev_err(&pdev->dev, "shutdown: remove returned %d\n", ret);
 }
 
-/**
- * ipa_suspend() - Power management system suspend callback
- * @dev:	IPA device structure
- *
- * Return:	Always returns zero
- *
- * Called by the PM framework when a system suspend operation is invoked.
- * Suspends endpoints and releases the clock reference held to keep
- * the IPA clock running until this point.
- */
-static int ipa_suspend(struct device *dev)
-{
-	struct ipa *ipa = dev_get_drvdata(dev);
-
-	/* Endpoints aren't usable until setup is complete */
-	if (ipa->setup_complete) {
-		__clear_bit(IPA_FLAG_RESUMED, ipa->flags);
-		ipa_endpoint_suspend(ipa);
-		gsi_suspend(&ipa->gsi);
-	}
-
-	ipa_clock_put(ipa);
-
-	return 0;
-}
-
-/**
- * ipa_resume() - Power management system resume callback
- * @dev:	IPA device structure
- *
- * Return:	Always returns 0
- *
- * Called by the PM framework when a system resume operation is invoked.
- * Takes an IPA clock reference to keep the clock running until suspend,
- * and resumes endpoints.
- */
-static int ipa_resume(struct device *dev)
-{
-	struct ipa *ipa = dev_get_drvdata(dev);
-
-	/* This clock reference will keep the IPA out of suspend
-	 * until we get a power management suspend request.
-	 */
-	ipa_clock_get(ipa);
-
-	/* Endpoints aren't usable until setup is complete */
-	if (ipa->setup_complete) {
-		gsi_resume(&ipa->gsi);
-		ipa_endpoint_resume(ipa);
-	}
-
-	return 0;
-}
-
-static const struct dev_pm_ops ipa_pm_ops = {
-	.suspend	= ipa_suspend,
-	.resume		= ipa_resume,
-};
-
 static const struct attribute_group *ipa_attribute_groups[] = {
 	&ipa_attribute_group,
 	&ipa_feature_attribute_group,

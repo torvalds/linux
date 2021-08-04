@@ -11,6 +11,9 @@ struct device;
 struct ipa;
 struct ipa_clock_data;
 
+/* IPA device power management function block */
+extern const struct dev_pm_ops ipa_pm_ops;
+
 /**
  * ipa_clock_rate() - Return the current IPA core clock rate
  * @ipa:	IPA structure
