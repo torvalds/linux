@@ -1195,7 +1195,7 @@ static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
  */
 static void
 zynqmp_dp_encoder_mode_set_transfer_unit(struct zynqmp_dp *dp,
-					 struct drm_display_mode *mode)
+					 const struct drm_display_mode *mode)
 {
 	u32 tu = ZYNQMP_DP_MSA_TRANSFER_UNIT_SIZE_TU_SIZE_DEF;
 	u32 bw, vid_kbytes, avg_bytes_per_tu, init_wait;
