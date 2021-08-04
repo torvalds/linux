@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung XCover 2 GT-S7710 also known as Skomer.
+ * Devicetree for the Samsung Galaxy Amp SGH-I407 also known as Kyle.
+ *
+ * The code also refers to "Kyle AT&T" reflecting that this mobile phone
+ * was customized for the AT&T subsidiary Aio Wireless (All In One) and
+ * offered by the company in 2013.
  */
 
 /dts-v1/;
@@ -13,8 +17,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "Samsung XCover 2 (GT-S7710)";
-	compatible = "samsung,skomer", "st-ericsson,u8500";
+	model = "Samsung Galaxy Amp (SGH-I407)";
+	compatible = "samsung,kyle", "st-ericsson,u8500";
 
 	chosen {
 		stdout-path = &serial2;
@@ -50,6 +54,35 @@
 		enable-active-high;
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_ldo_en_default_mode>;
+	};
+
+	/*
+	 * External Ricoh RP152L010B-TR LCD LDO regulator for the display.
+	 * LCD_PWR_EN controls both a 3.0V and 1.8V output.
+	 */
+	lcd_3v0_reg: regulator-gpio-lcd-3v0 {
+		compatible = "regulator-fixed";
+		/* Supplied in turn by VBAT */
+		regulator-name = "VREG_LCD_3V0";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		/* GPIO219 controls this regulator */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pwr_en_default_mode>;
+	};
+	lcd_1v8_reg: regulator-gpio-lcd-1v8 {
+		compatible = "regulator-fixed";
+		/* Supplied in turn by VBAT */
+		regulator-name = "VREG_LCD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		/* GPIO219 controls this regulator too */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pwr_en_default_mode>;
 	};
 
 	wlan_en: regulator-gpio-wlan-en {
@@ -94,18 +127,6 @@
 			label = "VOL-";
 			/* GPIO92 */
 			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
-		};
-		button-menu {
-			linux,code = <KEY_MENU>;
-			label = "MENU";
-			/* GPIO204 */
-			gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
-		};
-		button-back {
-			linux,code = <KEY_BACK>;
-			label = "BACK";
-			/* GPIO205 */
-			gpios = <&gpio6 13 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -168,7 +189,7 @@
 			compatible = "alps,hscdtd008a";
 			reg = <0x0c>;
 			avdd-supply = <&ab8500_ldo_aux1_reg>;
-			dvdd-supply = <&ab8500_ldo_aux8_reg>;
+			dvdd-supply = <&ab8500_ldo_aux6_reg>;
 		};
 	};
 
@@ -180,11 +201,6 @@
 			bus-width = <4>;
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
-			/* All direction control is used */
-			st,sig-dir-cmd;
-			st,sig-dir-dat0;
-			st,sig-dir-dat2;
-			st,sig-dir-dat31;
 			st,sig-pin-fbclk;
 			full-pwr-cycle;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
@@ -192,6 +208,7 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc0_a_1_default>;
 			pinctrl-1 = <&mc0_a_1_sleep>;
+			cd-gpios  = <&gpio6 25 GPIO_ACTIVE_LOW>; // GPIO217
 			status = "okay";
 		};
 
@@ -222,7 +239,9 @@
 			};
 		};
 
-		// eMMC
+		/*
+		 * eMMC seems to be mostly Samsung KLM4G1YE4C "4YMD1R"
+		 */
 		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
@@ -232,6 +251,8 @@
 			mmc-ddr-1_8v;
 			no-sdio;
 			no-sd;
+			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
+			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -247,7 +268,6 @@
 			pinctrl-1 = <&u0_a_1_sleep>;
 			status = "okay";
 
-			/* FIXME: not quite working yet, probably needs regulators */
 			bluetooth {
 				/* BCM4334B0 actually */
 				compatible = "brcm,bcm4330-bt";
@@ -292,7 +312,7 @@
 					};
 
 					ab8500_ldo_aux2 {
-						/* Supplies the Cypress TMA140 touchscreen only with 3.3V */
+						/* Supplies the MMS touchscreen only with 3.3V */
 						regulator-name = "AUX2";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
@@ -307,27 +327,27 @@
 
 					ab8500_ldo_aux4 {
 						regulator-name = "AUX4";
-						/* Hammer to 3.0V for the display */
-						regulator-min-microvolt = <3000000>;
-						regulator-max-microvolt = <3000000>;
+						/* Hammer to 3.3V for the touchscreen */
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
 					};
 
 					ab8500_ldo_aux5 {
 						regulator-name = "AUX5";
-						regulator-min-microvolt = <1050000>;
-						regulator-max-microvolt = <2790000>;
-						regulator-always-on;
+						/* 1.8V for the touchscreen */
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
 					};
 
 					ab8500_ldo_aux6 {
 						regulator-name = "AUX6";
-						/* Hammer to 1.8V for the display */
+						/* Used by sensors for 1.8 V in R0.1+ */
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
 					ab8500_ldo_aux8 {
-						/* Mostly VIO for sensors */
+						/* Unused */
 						regulator-name = "AUX8";
 					};
 				};
@@ -350,14 +370,13 @@
 				interrupt-parent = <&gpio4>;
 				interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vio-supply = <&ab8500_ldo_aux8_reg>;
+				vio-supply = <&ab8500_ldo_aux6_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&gp2ap002_skomer_default>;
+				pinctrl-0 = <&gp2ap002_kyle_default>;
 				sharp,proximity-far-hysteresis = /bits/ 8 <0x2f>;
 				sharp,proximity-close-hysteresis = /bits/ 8 <0x0f>;
 			};
 		};
-
 
 		/* I2C2 */
 		i2c@80128000 {
@@ -372,17 +391,11 @@
 				clock-frequency = <400000>;
 				reg = <0x18>;
 
-				/* GPIO224 used as "smart alert" interrupt */
-				interrupt-parent = <&gpio7>;
-				interrupts = <0 IRQ_TYPE_EDGE_RISING>;
-
-				mount-matrix = "0", "-1", "0",
-					      "1", "0", "0",
-					       "0", "0", "1";
+				mount-matrix = "-1", "0", "0",
+					       "0", "-1", "0",
+					       "0", "0", "-1";
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&ab8500_ldo_aux8_reg>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&bma254_skomer_default>;
+				vddio-supply = <&ab8500_ldo_aux6_reg>;
 			};
 		};
 
@@ -394,27 +407,23 @@
 			pinctrl-0 = <&i2c3_c_2_default>;
 			pinctrl-1 = <&i2c3_c_2_sleep>;
 
-			/* Cypress CY8CTMA140 touchscreen */
-			touchscreen@20 {
-				compatible = "cypress,cy8ctma140";
-				clock-frequency = <400000>;
-				reg = <0x20>;
-
-				touchscreen-size-x = <480>;
-				touchscreen-size-y = <800>;
-				touchscreen-max-pressure = <255>;
-
+			/* Melfas MMS134S touchscreen */
+			touchscreen@48 {
+				compatible = "melfas,mms134s";
+				reg = <0x48>;
 				/* GPIO218 for IRQ */
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+				/* AVDD is "analog supply", 2.57-3.47 V */
+				avdd-supply = <&ab8500_ldo_aux2_reg>;
+				/* VDD is "digital supply" 1.71-3.47V */
+				vdd-supply = <&ab8500_ldo_aux5_reg>;
 
-				/* VDD is "digital supply" nominally 1.71-3.6V */
-				vdd-supply = <&ab8500_ldo_aux2_reg>;
-				/* VCPIN is "analog supply", 2.7-3.6 V */
-				vcpin-supply = <&ab8500_ldo_aux2_reg>;
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <800>;
 
 				pinctrl-names = "default";
-				pinctrl-0 = <&tma140_skomer_default>;
+				pinctrl-0 = <&mms134s_kyle_default>;
 			};
 		};
 
@@ -425,13 +434,18 @@
 
 			dsi@a0351000 {
 				panel {
-					/* NT35510-based Hydis HVA40WV1 */
+					/*
+					 * NT35510-based Hydis HVA40WV1
+					 * Apparently some Kyle models can have a NT35512 fitted
+					 * here instead. In that case the boot loader needs to
+					 * modify this compatible.
+					 */
 					compatible = "hydis,hva40wv1", "novatek,nt35510";
 					reg = <0>;
 					/* v_lcd_3v0 2.3-4.8V */
-					vdd-supply = <&ab8500_ldo_aux4_reg>;
+					vdd-supply = <&lcd_3v0_reg>;
 					/* v_lcd_1v8 1.65-3.3V */
-					vddi-supply = <&ab8500_ldo_aux6_reg>;
+					vddi-supply = <&lcd_1v8_reg>;
 					/* GPIO 139 */
 					reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
@@ -445,30 +459,18 @@
 
 &pinctrl {
 	/*
-	 * This extends the MC0 default config to include DAT32DIR
-	 * which is used by this machine. If we don't do this the
-	 * SD card does not work.
+	 * This extends the MC0_A_1 default config to include
+	 * the card detect GPIO217 line.
 	 */
 	sdi0 {
 		mc0_a_1_default {
-			default_mux {
-				function = "mc0";
-				/* This machine uses the DAT31 pin */
-				groups = "mc0_a_1", "mc0dat31dir_a_1";
+			default_cfg1 {
+				/* GPIO18, 19 & 20 unused so pull down */
+				ste,config = <&gpio_in_pd>;
 			};
-			default_cfg5 {
-				pins = "GPIO21_AB3"; /* DAT31DIR */
-				ste,config = <&out_hi>;
-			};
-		};
-	};
-
-	/* The unused FBCLK needs to be pulled down on this machine */
-	sdi2 {
-		mc2_a_1_default {
-			default_cfg2 {
-				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_pd>;
+			default_cfg4 {
+				pins = "GPIO217_AH12"; /* card detect */
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
@@ -490,7 +492,7 @@
 	/* Two GPIO lines used by the display */
 	display {
 		display_default_mode: display_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				/*
 				 * OLED DETECT or check_pba, this appears to be high
 				 * on "PBA" which I guess is "prototype board A".
@@ -498,7 +500,7 @@
 				pins = "GPIO93_B7";
 				ste,config = <&gpio_in_nopull>;
 			};
-			skomer_cfg2 {
+			kyle_cfg2 {
 				pins = "GPIO139_C9";
 				/*
 				 * MIPI_DSI0_RESET_N resets the display, leave high
@@ -509,9 +511,21 @@
 			};
 		};
 	};
+
+	/* GPIO that enables the LDO regulator for the LCD display */
+	lcd-ldo {
+		lcd_pwr_en_default_mode: lcd_pwr_en_default {
+			/* LCD_PWR_EN on GPIO219 */
+			kyle_cfg1 {
+				pins = "GPIO219_AG10";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+
 	backlight {
 		gpio_backlight_default_mode: backlight_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO69_E2"; /* LCD_BL_CTRL */
 				ste,config = <&gpio_out_lo>;
 			};
@@ -519,7 +533,7 @@
 	};
 	flash {
 		gpio_flash_default_mode: flash_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO140_B11", "GPIO141_C12";
 				ste,config = <&gpio_out_lo>;
 			};
@@ -529,7 +543,7 @@
 	sd-level-translator {
 		sd_level_translator_default: sd_level_translator_default {
 			/* level shifter on GPIO87 */
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO87_B3";
 				ste,config = <&gpio_out_hi>;
 			};
@@ -539,7 +553,7 @@
 	emmc-ldo {
 		emmc_ldo_en_default_mode: emmc_ldo_default {
 			/* LDO enable on GPIO223 */
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO223_AH9";
 				ste,config = <&gpio_out_hi>;
 			};
@@ -548,29 +562,18 @@
 	/* GPIO keys */
 	gpio-keys {
 		gpio_keys_default_mode: gpio_keys_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO67_G2", /* VOL UP */
 				       "GPIO91_B6", /* HOME */
-				       "GPIO92_D6", /* VOL DOWN */
-				       "GPIO204_AF23", /* MENU */
-				       "GPIO205_AG23"; /* BACK */
+				       "GPIO92_D6"; /* VOL DOWN */
 					ste,config = <&gpio_in_pu>;
-			};
-		};
-	};
-	/* Interrupt line for BMA254 */
-	bma254 {
-		bma254_skomer_default: bma254_skomer {
-			skomer_cfg1 {
-				pins = "GPIO224_AG9";
-				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
 	/* Interrupt line for light/proximity sensor GP2AP002 */
 	gp2ap002 {
-		gp2ap002_skomer_default: gp2ap002_skomer {
-			skomer_cfg1 {
+		gp2ap002_kyle_default: gp2ap002_kyle {
+			kyle_cfg1 {
 				pins = "GPIO146_D13";
 				ste,config = <&gpio_in_nopull>;
 			};
@@ -579,7 +582,7 @@
 	/* GPIO-based I2C bus for NCP6914 */
 	i2c-gpio-0 {
 		i2c_gpio_0_default: i2c_gpio_0 {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
 				ste,config = <&gpio_in_nopull>;
 			};
@@ -588,7 +591,7 @@
 	/* GPIO-based I2C bus for ALPS HSCD compass */
 	i2c-gpio-1 {
 		i2c_gpio_1_default: i2c_gpio_1 {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO151_B17", "GPIO152_D16";
 				ste,config = <&gpio_in_nopull>;
 			};
@@ -596,13 +599,13 @@
 	};
 	wlan {
 		wlan_default_mode: wlan_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO216_AG12";
 				ste,config = <&gpio_in_pd>;
 			};
 		};
 		wlan_en_default_mode: wlan_en_default {
-			skomer_cfg2 {
+			kyle_cfg2 {
 				pins = "GPIO215_AH13";
 				ste,config = <&gpio_out_lo>;
 			};
@@ -610,11 +613,11 @@
 	};
 	bluetooth {
 		bluetooth_default_mode: bluetooth_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO199_AH23", "GPIO222_AJ9";
 				ste,config = <&gpio_out_lo>;
 			};
-			skomer_cfg2 {
+			kyle_cfg2 {
 				pins = "GPIO97_D9";
 				ste,config = <&gpio_in_nopull>;
 			};
@@ -622,16 +625,16 @@
 	};
 	vibrator {
 		vibrator_default: vibrator_default {
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO195_AG28";	/* MOT_EN */
 				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};
-	/* Interrupt line for the Cypress TMA140 touchscreen */
+	/* Interrupt line for the Melfas MMS134S touchscreen */
 	touchscreen {
-		tma140_skomer_default: tma140_skomer {
-			skomer_cfg1 {
+		mms134s_kyle_default: mms134s_kyle {
+			kyle_cfg1 {
 				pins = "GPIO218_AH11";
 				ste,config = <&gpio_in_nopull>;
 			};
@@ -646,13 +649,13 @@
 
 	gpio {
 		gpio_default: gpio_default {
-			skomer_mux {
+			kyle_mux {
 				/* Change unused pins to GPIO mode */
 				function = "gpio";
 				groups = "gpio3_a_1",	/* default: SysClkReq4 */
 					 "gpio14_a_1";	/* default: PWMOut1 */
 			};
-			skomer_cfg1 {
+			kyle_cfg1 {
 				pins = "GPIO11_B17", "GPIO13_D17", "GPIO50_L4";
 				bias-disable;
 			};

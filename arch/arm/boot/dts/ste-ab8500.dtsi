@@ -217,7 +217,7 @@
 					battery		= <&ab8500_battery>;
 				};
 
-				ab8500_usb {
+				ab8500_usb: ab8500_usb {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = <90 IRQ_TYPE_LEVEL_HIGH>,
 						     <96 IRQ_TYPE_LEVEL_HIGH>,
@@ -238,6 +238,7 @@
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
 					clocks = <&prcmu_clk PRCMU_SYSCLK>;
 					clock-names = "sysclk";
+					#phy-cells = <0>;
 				};
 
 				ab8500-ponkey {
@@ -385,6 +386,11 @@
 			dsi@a0353000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
+		};
+
+		usb_per5@a03e0000 {
+			phys = <&ab8500_usb>;
+			phy-names = "usb";
 		};
 	};
 };

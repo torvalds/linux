@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy S Advance GT-I9070 also known as Janice.
+ * Devicetree for the Samsung Galaxy Beam GT-I8530 also known as Gavini.
  */
 
 /dts-v1/;
@@ -13,11 +13,30 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "Samsung Galaxy S Advance (GT-I9070)";
-	compatible = "samsung,janice", "st-ericsson,u8500";
+	model = "Samsung Galaxy Beam (GT-I8530)";
+	compatible = "samsung,gavini", "st-ericsson,u8500";
 
 	chosen {
 		stdout-path = &serial2;
+	};
+
+	/* TI TXS0206 level translator for 2.9 V */
+	sd_level_translator: regulator-gpio {
+		compatible = "regulator-fixed";
+
+		/* GPIO193 EN */
+		gpios = <&gpio6 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		regulator-name = "sd-level-translator";
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-type = "voltage";
+
+		startup-delay-us = <200>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_level_translator_default>;
 	};
 
 	/* External LDO for eMMC LDO VMEM_3V3 controlled by GPIO6 */
@@ -69,44 +88,8 @@
 	};
 
 	/*
-	 * External Ricoh "TSP" regulator for the touchkeys.
-	 * Two GPIO lines controls two voltages of 3.3V and 1.8V
-	 * TSP_LDO_ON2 controls VREG_TOUCHKEY_1V8
-	 * EN_LED_LDO controls VREG_KLED_3V3 (key LED)
-	 */
-	ldo_kled_3v3_reg: regulator-gpio-vreg-kled-3v3 {
-		compatible = "regulator-fixed";
-		/* Supplied in turn by VBAT */
-		regulator-name = "VREG_KLED_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		/* GPIO68 controls this regulator */
-		gpio = <&gpio2 4 GPIO_ACTIVE_HIGH>;
-		/* 70 ms power-on delay */
-		startup-delay-us = <70000>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&en_led_ldo_default_mode>;
-	};
-	ldo_touchkey_1v8_reg: regulator-gpio-vreg-touchkey-1v8 {
-		compatible = "regulator-fixed";
-		/* Supplied in turn by VBAT */
-		regulator-name = "VREG_TOUCHKEY_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		/* GPIO89 controls this regulator */
-		gpio = <&gpio2 25 GPIO_ACTIVE_HIGH>;
-		/* 70 ms power-on delay */
-		startup-delay-us = <70000>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_ldo_on2_default_mode>;
-	};
-
-
-	/*
 	 * External Ricoh RP152L010B-TR LCD LDO regulator for the display.
-	 * LCD_PWR_EN controls a 3.0V and 1.8V output.
+	 * LCD_PWR_EN controls both a 3.0V and 1.8V output.
 	 */
 	lcd_3v0_reg: regulator-gpio-lcd-3v0 {
 		compatible = "regulator-fixed";
@@ -126,7 +109,7 @@
 		regulator-name = "VREG_LCD_1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		/* GPIO219 controls this regulator */
+		/* GPIO219 controls this regulator too */
 		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		pinctrl-names = "default";
@@ -156,12 +139,17 @@
 		pinctrl-0 = <&wlan_ldo_en_default>;
 	};
 
-
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_default_mode>;
 
+		button-projector {
+			linux,code = <KEY_SWITCHVIDEOMODE>;
+			label = "Projector";
+			/* GPIO32 "Projector On HotKey" */
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		};
 		button-home {
 			linux,code = <KEY_HOME>;
 			label = "HOME";
@@ -208,6 +196,28 @@
 		};
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_leds_default_mode>;
+		used-led {
+			label = "touchkeys";
+			/* GPIO68 */
+			gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	ktd259: backlight {
+		compatible = "kinetic,ktd259";
+		/* GPIO20 */
+		enable-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		/* Default to 13/32 brightness */
+		default-brightness = <13>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ktd259_backlight_default_mode>;
+	};
+
 	/* Bit-banged I2C on GPIO143 and GPIO144 also called "SUBPMU I2C" */
 	i2c-gpio-0 {
 		compatible = "i2c-gpio";
@@ -218,35 +228,34 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* Yamaha YAS530 magnetometer */
-		magnetometer@2e {
-			compatible = "yamaha,yas530";
-			reg = <0x2e>;
-			/* VDD 3V */
-			vdd-supply = <&ab8500_ldo_aux1_reg>;
-			/* IOVDD 1.8V */
-			iovdd-supply = <&ab8500_ldo_aux2_reg>;
-			/* GPIO204 COMPASS_RST_N */
+		/* TODO: Memsic MMC328 magnetometer */
+		magnetometer@30 {
+			compatible = "memsic,mmc328";
+			reg = <0x30>;
+			/* TODO: if you have the schematic, check if both voltages come from AUX2 */
+			/* VDA 1.8 V */
+			vda-supply = <&ab8500_ldo_aux2_reg>;
+			/* VDD 1.8V */
+			vdd-supply = <&ab8500_ldo_aux2_reg>;
+			/* GPIO204 */
 			reset-gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&yas529_default>;
+			pinctrl-0 = <&mmc328_default>;
 		};
 		/* TODO: this should also be used by the NCP6914 Camera power management unit */
 	};
 
 	/*
-	 * These pins do have an spi controller, however the controller on
-	 * these pins is not the fully featured PL022 SSP/SPI block but the
-	 * ST Micro diet "PL023" version. One of the lacking features in
-	 * this derivative is 3wire support, so it cannot be used to drive
-	 * this panel interface. We have to use GPIO bit-banging instead.
+	 * TODO: See if we can use the PL023 for this instead.
 	 */
 	spi-gpio-0 {
 		compatible = "spi-gpio";
-		/* Clock on GPIO220 */
+		/* Clock on GPIO220, pin SCL */
 		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;
-		/* MISO/MOSI on GPIO224 (no separate MISO pin) */
+		/* MOSI on GPIO224, pin SDI "slave data in" */
 		mosi-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+		/* MISO on GPIO225, pin SDO "slave data out" */
+		miso-gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
 		/* Chip select on GPIO223 */
 		cs-gpios = <&gpio6 31 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
@@ -257,64 +266,28 @@
 		#size-cells = <0>;
 
 		panel@0 {
-			compatible = "samsung,s6e63m0";
+			compatible = "samsung,lms397kf04";
+			/* 300 ns at read cycle -> 3 MHz max speed */
+			//spi-max-frequency = <3000000>;
+			spi-max-frequency = <1200000>;
+			/* TYPE 3: inverse clock polarity and phase */
+			spi-cpha;
+			spi-cpol;
+
 			reg = <0>;
-			vdd3-supply = <&lcd_3v0_reg>;
-			vci-supply = <&lcd_1v8_reg>;
+			vci-supply = <&lcd_3v0_reg>;
+			vccio-supply = <&lcd_1v8_reg>;
 			/* Reset on GPIO139 */
 			reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&panel_default_mode>;
-			spi-3wire;
+			backlight = <&ktd259>;
 
 			port {
 				panel_in: endpoint {
 					remote-endpoint = <&display_out>;
 				};
 			};
-		};
-	};
-
-	/*
-	 * Current sense amplifier on the light sensor to convert current to
-	 * voltage. We do not know if this is the actual configuration. The
-	 * sense resistor value was found by calibrating in a room ambient
-	 * light with a second mobile phone light sensor as reference. If you
-	 * pry a Janice phone apart and inspect it you may figure this out.
-	 */
-	gp2a_shunt: current-sense-shunt {
-		compatible = "current-sense-shunt";
-		io-channels = <&gpadc 0x07>;
-		shunt-resistor-micro-ohms = <15000000>; /* 15 ohms c:a */
-		#io-channel-cells = <0>;
-		io-channel-ranges;
-	};
-
-	/* Bit-banged I2C on GPIO196 and GPIO197 also called "TOUCHKEY_I2C" */
-	i2c-gpio-1 {
-		compatible = "i2c-gpio";
-		sda-gpios = <&gpio6 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&gpio6 4 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		clock-frequency = <400000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_gpio_1_default>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		touchkey@20 {
-			compatible = "coreriver,tc360-touchkey";
-			reg = <0x20>;
-			vdd-supply = <&ldo_kled_3v3_reg>;
-			vcc-supply = <&ldo_touchkey_1v8_reg>;
-			vddio-supply = <&ldo_touchkey_1v8_reg>;
-
-			/* Interrupt on GPIO 198 */
-			interrupt-parent = <&gpio6>;
-			interrupts = <6 IRQ_TYPE_EDGE_RISING>;
-
-			pinctrl-names = "default";
-			pinctrl-0 = <&touchkey_default_mode>;
-			linux,keycodes = <KEY_MENU KEY_BACK>;
 		};
 	};
 
@@ -330,29 +303,16 @@
 		/* TODO: add the Immersion ISA1200 I2C device here */
 	};
 
-	/* Bit-banged I2C on GPIO151 and GPIO152 also called "NFC_I2C" */
+	/* Bit-banged I2C on GPIO196 and GPIO197 also called "MPR_I2C" */
 	i2c-gpio-3 {
 		compatible = "i2c-gpio";
-		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&gpio4 23 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&gpio6 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio6 4 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_gpio_3_default>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		nfc@30 {
-			compatible = "nxp,pn547", "nxp,nxp-nci-i2c";
-			reg = <0x30>;
-			/* NFC IRQ on GPIO32 */
-			interrupt-parent = <&gpio1>;
-			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
-			/* GPIO 31 */
-			firmware-gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
-			/* GPIO88 */
-			enable-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pn547_janice_default>;
-		};
+		/* TODO: add the DPP2601 projector I2C device 0x1b here */
 	};
 
 	soc {
@@ -363,19 +323,17 @@
 			bus-width = <4>;
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
-			st,sig-dir-cmd;
-			st,sig-dir-dat0;
-			st,sig-dir-dat2;
 			st,sig-pin-fbclk;
 			full-pwr-cycle;
 			/* MMC is powered by AUX3 1.2V .. 2.91V */
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
-			/* 2.9 V level translator is using AUX3 at 2.9 V as well */
-			vqmmc-supply = <&ab8500_ldo_aux3_reg>;
+			/* 2.9 V level translator */
+			vqmmc-supply = <&sd_level_translator>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc0_a_2_default>;
 			pinctrl-1 = <&mc0_a_2_sleep>;
-			cd-gpios  = <&gpio6 25 GPIO_ACTIVE_LOW>; // GPIO217
+			/* "flash detect" actually card detect */
+			cd-gpios  = <&gpio6 25 GPIO_ACTIVE_LOW>;
 			status = "okay";
 		};
 
@@ -437,14 +395,12 @@
 			status = "okay";
 
 			bluetooth {
-				/* BCM4330B1 actually */
 				compatible = "brcm,bcm4330-bt";
 				/* GPIO222 rail BT_VREG_EN to BT_REG_ON */
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
 				/* BT_WAKE on GPIO199 */
 				device-wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
 				/* BT_HOST_WAKE on GPIO97 */
-				/* FIXME: convert to interrupt */
 				host-wakeup-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
 				/* BT_RST_N on GPIO209 */
 				reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>;
@@ -511,52 +467,14 @@
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
 
-			proximity@44 {
-				/* Janice has the GP2AP002A00F with light sensor */
-				compatible = "sharp,gp2ap002a00f";
+			/* FIXME: fix the proximity sensor bindings and driver */
+			proximity@39 {
+				/* Gavini has the GP2A030S00F proximity sensor */
+				compatible = "sharp,gp2a030s00f";
 				clock-frequency = <400000>;
-				reg = <0x44>;
-
-				interrupt-parent = <&gpio4>;
-				interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vio-supply = <&ab8500_ldo_aux2_reg>;
-				/* ADC channel AUX2 to read ALSOUT ambient light sensor out */
-				io-channels = <&gp2a_shunt>;
-				io-channel-names = "alsout";
-				pinctrl-names = "default";
-				pinctrl-0 = <&gp2ap002_janice_default>;
-				/* B1 mode (arch/arm/mach-ux500/include/mach/gp2a.h) */
-				sharp,proximity-far-hysteresis = /bits/ 8 <0x40>;
-				sharp,proximity-close-hysteresis = /bits/ 8 <0x0f>;
+				reg = <0x39>;
+				/* FIXME: GPIO146 provides power on, IR LED? */
 			};
-		};
-
-		/* I2C1 on GPIO16 and GPIO17 also called "MUS I2C" */
-		i2c@80122000 {
-			status = "okay";
-			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c1_b_2_default>;
-			pinctrl-1 = <&i2c1_b_2_sleep>;
-
-			/* Texas Instruments TSU6111 micro USB switch */
-			usb-switch@25 {
-				compatible = "ti,tsu6111";
-				reg = <0x25>;
-				/* Interrupt JACK_INT_N on GPIO95 */
-				interrupt-parent = <&gpio2>;
-				interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&tsu6111_janice_default>;
-			};
-		};
-
-		/* I2C2 on GPIO10 and GPIO11 also called "SENSORS I2C" */
-		i2c@80128000 {
-			status = "okay";
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&i2c2_b_2_default>;
-			pinctrl-1 = <&i2c2_b_2_sleep>;
 
 			gyroscope@68 {
 				compatible = "invensense,mpu3050";
@@ -564,14 +482,13 @@
 				/* GPIO226 interrupt */
 				interrupt-parent = <&gpio7>;
 				interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
-				/* FIXME: no idea about this */
-				mount-matrix = "1", "0", "0",
-					       "0", "1", "0",
+				mount-matrix = "0", "1", "0",
+					       "1", "0", "0",
 					       "0", "0", "1";
 				vlogic-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
 				vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 				pinctrl-names = "default";
-				pinctrl-0 = <&mpu3050_janice_default>;
+				pinctrl-0 = <&mpu3050_default>;
 
 				/*
 				 * The MPU-3050 acts as a hub for the
@@ -581,17 +498,36 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					/* Bosch BMA222 accelerometer */
-					accelerometer@08 {
-						compatible = "bosch,bma222";
-						reg = <0x08>;
+					/* Bosch BMA222E accelerometer */
+					accelerometer@18 {
+						compatible = "bosch,bma222e";
+						reg = <0x18>;
 						mount-matrix = "0", "1", "0",
 							       "-1", "0", "0",
-							       "0", "0", "-1";
+							       "0", "0", "1";
 						vddio-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
 						vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 					};
 				};
+			};
+		};
+
+		/* I2C2 "AGC I2C" */
+		i2c@80128000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c2_b_1_default>;
+			pinctrl-1 = <&i2c2_b_1_sleep>;
+
+			/* Texas Instruments TSU6111 micro USB switch */
+			usb-switch@25 {
+				compatible = "ti,tsu6111";
+				reg = <0x25>;
+				/* Interrupt JACK_INT_N on GPIO95 */
+				interrupt-parent = <&gpio2>;
+				interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tsu6111_default>;
 			};
 		};
 
@@ -603,19 +539,21 @@
 			pinctrl-0 = <&i2c3_c_2_default>;
 			pinctrl-1 = <&i2c3_c_2_sleep>;
 
-			/* Atmel mXT224E touchscreen */
-			touchscreen@4a {
-				compatible = "atmel,maxtouch";
-				reg = <0x4a>;
+			/* Melfas MMS136 touchscreen */
+			touchscreen@48 {
+				compatible = "melfas,mms136";
+				reg = <0x48>;
 				/* GPIO218 (TSP_INT_1V8) */
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
-				/* VDDA is "analog supply", 2.57-3.47 V */
-				vdda-supply = <&ldo_tsp_3v3_reg>;
+				/* AVDD is "analog supply", 2.57-3.47 V */
+				avdd-supply = <&ldo_tsp_3v3_reg>;
 				/* VDD is "digital supply" 1.71-3.47V */
 				vdd-supply = <&ldo_tsp_1v8_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&tsp_default>;
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <800>;
 			};
 		};
 
@@ -642,7 +580,7 @@
 		mc0_a_2_default {
 			default_cfg4 {
 				pins = "GPIO217_AH12"; /* card detect */
-				ste,config = <&gpio_in_pd>;
+				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
@@ -676,7 +614,7 @@
 	/* GPIO for panel reset control */
 	panel {
 		panel_default_mode: panel_default {
-			janice_cfg1 {
+			gavini_cfg1 {
 				/* Reset line */
 				pins = "GPIO139_C9";
 				ste,config = <&gpio_out_lo>;
@@ -687,7 +625,7 @@
 	emmc-ldo {
 		emmc_ldo_en_default_mode: emmc_ldo_default {
 			/* LDO enable on GPIO6 */
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO6_AF6";
 				ste,config = <&gpio_out_hi>;
 			};
@@ -697,63 +635,9 @@
 	tsp-ldo {
 		tsp_ldo_en_default_mode: tsp_ldo_default {
 			/* LDO enable on GPIO94 */
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO94_D7";
 				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
-	/* GPIO that enables the LDO regulator for the key LED */
-	key-led {
-		en_led_ldo_default_mode: en_led_ldo_default {
-			/* EN_LED_LDO on GPIO68 */
-			janice_cfg1 {
-				pins = "GPIO68_E1";
-				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
-	/* GPIO that enables the LDO regulator for the touchkeys */
-	touchkey-ldo {
-		tsp_ldo_on2_default_mode: tsp_ldo_on2_default {
-			/* TSP_LDO_ON2 on GPIO89 */
-			janice_cfg1 {
-				pins = "GPIO89_E6";
-				ste,config = <&gpio_out_lo>;
-			};
-		};
-	};
-	touchkey {
-		touchkey_default_mode: touchkey_default {
-			janice_cfg1 {
-				/* Interrupt */
-				pins = "GPIO198_AG25";
-				ste,config = <&gpio_in_nopull>;
-			};
-			janice_cfg2 {
-				/* Reset, actually completely unused (not routed) */
-				pins = "GPIO205_AG23";
-				ste,config = <&gpio_in_pd>;
-			};
-		};
-	};
-	/* GPIO that enabled the LDO regulator for the LCD display */
-	lcd-ldo {
-		lcd_pwr_en_default_mode: lcd_pwr_en_default {
-			/* LCD_PWR_EN on GPIO219 */
-			janice_cfg1 {
-				pins = "GPIO219_AG10";
-				ste,config = <&gpio_out_hi>;
-			};
-		};
-	};
-	/* GPIO that enables the WLAN internal LDO regulators */
-	wlan-ldo {
-		wlan_ldo_en_default: wlan_ldo_default {
-			/* GPIO215 named WLAN_RST_N */
-			janice_cfg1 {
-				pins = "GPIO215_AH13";
-				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};
@@ -766,11 +650,84 @@
 			};
 		};
 	};
+	/* GPIO that enables the LDO regulator for the key LED */
+	gpio-leds {
+		gpio_leds_default_mode: gpio_leds_default {
+			/* EN_LED_LDO on GPIO68 */
+			gavini_cfg1 {
+				pins = "GPIO68_E1";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	backlight {
+		ktd259_backlight_default_mode: backlight_default {
+			skomer_cfg1 {
+				pins = "GPIO20_AB4"; /* LCD_BL_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* GPIO that enables the LDO regulator for the touchkeys */
+	touchkey-ldo {
+		tsp_ldo_on2_default_mode: tsp_ldo_on2_default {
+			/* TSP_LDO_ON2 on GPIO89 */
+			gavini_cfg1 {
+				pins = "GPIO89_E6";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	touchkey {
+		touchkey_default_mode: touchkey_default {
+			gavini_cfg1 {
+				/* Interrupt */
+				pins = "GPIO198_AG25";
+				ste,config = <&gpio_in_nopull>;
+			};
+			gavini_cfg2 {
+				/* Reset, actually completely unused (not routed) */
+				pins = "GPIO205_AG23";
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+	/* GPIO that enables the LDO regulator for the LCD display */
+	lcd-ldo {
+		lcd_pwr_en_default_mode: lcd_pwr_en_default {
+			/* LCD_PWR_EN on GPIO219 */
+			gavini_cfg1 {
+				pins = "GPIO219_AG10";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	/* GPIO that enables the WLAN internal LDO regulators */
+	wlan-ldo {
+		wlan_ldo_en_default: wlan_ldo_default {
+			/* GPIO215 named WLAN_RST_N */
+			gavini_cfg1 {
+				pins = "GPIO215_AH13";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* GPIO that enables the 2.9V SD card level translator */
+	sd-level-translator {
+		sd_level_translator_default: sd_level_translator_default {
+			/* level shifter on GPIO193 */
+			skomer_cfg1 {
+				pins = "GPIO193_AH27";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
 	/* GPIO keys */
 	gpio-keys {
 		gpio_keys_default_mode: gpio_keys_default {
 			skomer_cfg1 {
-				pins = "GPIO67_G2", /* VOL UP */
+				pins = "GPIO32_V2", /* Projector On HotKey */
+				       "GPIO67_G2", /* VOL UP */
 				       "GPIO91_B6", /* HOME */
 				       "GPIO92_D6"; /* VOL DOWN */
 				ste,config = <&gpio_in_pu>;
@@ -780,34 +737,25 @@
 	/* Interrupt line for the Atmel MXT228 touchscreen */
 	tsp {
 		tsp_default: tsp_default {
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
 				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
-	/* Reset line for the Yamaha YAS529 magnetometer */
-	yas529 {
-		yas529_default: yas529_janice {
-			janice_cfg1 {
+	/* Reset line for the Memsic MMC328 magnetometer */
+	mmc328 {
+		mmc328_default: mmc328_gavini {
+			gavini_cfg1 {
 				pins = "GPIO204_AF23";
 				ste,config = <&gpio_out_hi>;
 			};
 		};
 	};
-	/* Interrupt line for light/proximity sensor GP2AP002 */
-	gp2ap002 {
-		gp2ap002_janice_default: gp2ap002_janice {
-			janice_cfg1 {
-				pins = "GPIO146_D13";
-				ste,config = <&gpio_in_nopull>;
-			};
-		};
-	};
 	/* Interrupt line for Invensense MPU3050 gyroscope */
 	mpu3050 {
-		mpu3050_janice_default: mpu3050_janice {
-			janice_cfg1 {
+		mpu3050_default: mpu3050 {
+			gavini_cfg1 {
 				/* GPIO226 used for IRQ */
 				pins = "GPIO226_AF8";
 				ste,config = <&gpio_in_nopull>;
@@ -817,17 +765,8 @@
 	/* GPIO-based I2C bus for magnetometer and NCP6914 */
 	i2c-gpio-0 {
 		i2c_gpio_0_default: i2c_gpio_0 {
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
-			};
-		};
-	};
-	/* GPIO-based I2C bus for the Cypress touchkeys */
-	i2c-gpio-1 {
-		i2c_gpio_1_default: i2c_gpio_1 {
-			janice_cfg1 {
-				pins = "GPIO196_AG26", "GPIO197_AH24";
 				ste,config = <&gpio_in_nopull>;
 			};
 		};
@@ -835,39 +774,49 @@
 	/* GPIO-based I2C bus for the Immersion ISA1200 */
 	i2c-gpio-2 {
 		i2c_gpio_2_default: i2c_gpio_2 {
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO201_AF24", "GPIO202_AF25";
 				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
-	/* GPIO-based I2C bus for the NFC */
+	/* GPIO-based I2C bus for the TI DPP2601 */
 	i2c-gpio-3 {
 		i2c_gpio_3_default: i2c_gpio_3 {
-			janice_cfg1 {
-				pins = "GPIO151_D17", "GPIO152_D16";
+			gavini_cfg1 {
+				pins = "GPIO196_AG26", "GPIO197_AH24";
 				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
 	/* GPIO-based SPI bus for the display */
 	spi-gpio-0 {
-		spi_gpio_0_default: spi_gpio_0 {
-			janice_cfg1 {
+		spi_gpio_0_default: spi_gpio_0_d {
+			gavini_cfg1 {
 				pins = "GPIO220_AH10", "GPIO223_AH9", "GPIO224_AG9";
 				ste,config = <&gpio_out_hi>;
 			};
-			/* This pin is unused but belongs with this SPI block */
-			janice_cfg2 {
+			gavini_cfg2 {
 				pins = "GPIO225_AG8";
-				ste,config = <&in_pd>;
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+		spi_gpio_0_sleep: spi_gpio_0_s {
+			gavini_cfg1 {
+				pins = "GPIO220_AH10", "GPIO223_AH9",
+				     "GPIO224_AG9", "GPIO225_AG8";
+				ste,config = <&gpio_out_hi>;
+			};
+			gavini_cfg2 {
+				pins = "GPIO225_AG8";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};
 	wlan {
 		wlan_default_mode: wlan_default {
 			/* GPIO216 for WL_HOST_WAKE */
-			janice_cfg2 {
+			gavini_cfg2 {
 				pins = "GPIO216_AG12";
 				ste,config = <&gpio_in_pd>;
 			};
@@ -876,17 +825,17 @@
 	bluetooth {
 		bluetooth_default_mode: bluetooth_default {
 			/* GPIO199 BT_WAKE and GPIO222 BT_VREG_ON */
-			janice_cfg1 {
+			gavini_cfg1 {
 				pins = "GPIO199_AH23", "GPIO222_AJ9";
 				ste,config = <&gpio_out_lo>;
 			};
 			/* GPIO97 BT_HOST_WAKE */
-			janice_cfg2 {
+			gavini_cfg2 {
 				pins = "GPIO97_D9";
 				ste,config = <&gpio_in_nopull>;
 			};
 			/* GPIO209 BT_RST_N */
-			janice_cfg3 {
+			gavini_cfg3 {
 				pins = "GPIO209_AG15";
 				ste,config = <&gpio_out_hi>;
 			};
@@ -894,25 +843,11 @@
 	};
 	/* Interrupt line for TI TSU6111 Micro USB switch */
 	tsu6111 {
-		tsu6111_janice_default: tsu6111_janice {
-			janice_cfg1 {
+		tsu6111_default: tsu6111 {
+			gavini_cfg1 {
 				/* GPIO95 used for IRQ */
 				pins = "GPIO95_E8";
 				ste,config = <&gpio_in_nopull>;
-			};
-		};
-	};
-	nfc {
-		pn547_janice_default: pn547_janice {
-			/* Interrupt line */
-			janice_cfg1 {
-				pins = "GPIO32_V2";
-				ste,config = <&gpio_in_nopull>;
-			};
-			/* Enable and firmware GPIOs */
-			janice_cfg2 {
-				pins = "GPIO31_V3", "GPIO88_C4";
-				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};
