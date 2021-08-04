@@ -21,7 +21,7 @@
 static void diag0c_fn(void *data)
 {
 	diag_stat_inc(DIAG_STAT_X00C);
-	diag_dma_ops.diag0c(((void **) data)[smp_processor_id()]);
+	diag_amode31_ops.diag0c(((void **)data)[smp_processor_id()]);
 }
 
 /*

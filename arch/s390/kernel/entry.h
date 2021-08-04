@@ -64,13 +64,13 @@ void stack_free(unsigned long stack);
 
 extern char kprobes_insn_page[];
 
-extern char _sdma[], _edma[];
-extern char _stext_dma[], _etext_dma[];
-extern struct exception_table_entry _start_dma_ex_table[];
-extern struct exception_table_entry _stop_dma_ex_table[];
+extern char _samode31[], _eamode31[];
+extern char _stext_amode31[], _etext_amode31[];
+extern struct exception_table_entry _start_amode31_ex_table[];
+extern struct exception_table_entry _stop_amode31_ex_table[];
 
-#define __dma_data __section(".dma.data")
-#define __dma_ref __section(".dma.refs")
-extern long _start_dma_refs[], _end_dma_refs[];
+#define __amode31_data __section(".amode31.data")
+#define __amode31_ref __section(".amode31.refs")
+extern long _start_amode31_refs[], _end_amode31_refs[];
 
 #endif /* _ENTRY_H */

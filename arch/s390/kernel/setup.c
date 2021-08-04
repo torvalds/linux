@@ -92,36 +92,36 @@ EXPORT_SYMBOL(console_irq);
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
  * relocated above 2 GB, because it has to use 31 bit addresses.
- * Such code and data is part of the .dma section.
+ * Such code and data is part of the .amode31 section.
  */
-unsigned long __dma_ref __sdma = __pa(&_sdma);
-unsigned long __dma_ref __edma = __pa(&_edma);
-unsigned long __dma_ref __stext_dma = __pa(&_stext_dma);
-unsigned long __dma_ref __etext_dma = __pa(&_etext_dma);
-struct exception_table_entry __dma_ref *__start_dma_ex_table = _start_dma_ex_table;
-struct exception_table_entry __dma_ref *__stop_dma_ex_table = _stop_dma_ex_table;
+unsigned long __amode31_ref __samode31 = __pa(&_samode31);
+unsigned long __amode31_ref __eamode31 = __pa(&_eamode31);
+unsigned long __amode31_ref __stext_amode31 = __pa(&_stext_amode31);
+unsigned long __amode31_ref __etext_amode31 = __pa(&_etext_amode31);
+struct exception_table_entry __amode31_ref *__start_amode31_ex_table = _start_amode31_ex_table;
+struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amode31_ex_table;
 
 /*
  * Control registers CR2, CR5 and CR15 are initialized with addresses
- * of tables that must be placed below 2G which is handled by the DMA
+ * of tables that must be placed below 2G which is handled by the AMODE31
  * sections.
- * Because the DMA sections are relocated below 2G at startup,
+ * Because the AMODE31 sections are relocated below 2G at startup,
  * the content of control registers CR2, CR5 and CR15 must be updated
  * with new addresses after the relocation. The initial initialization of
- * control registers occurs in head64.S and then gets updated again after DMA
- * relocation. We must access the relevant DMA tables indirectly via
- * pointers placed in the .dma.refs linker section. Those pointers get
- * updated automatically during DMA relocation and always contain a valid
- * address within DMA sections.
+ * control registers occurs in head64.S and then gets updated again after AMODE31
+ * relocation. We must access the relevant AMODE31 tables indirectly via
+ * pointers placed in the .amode31.refs linker section. Those pointers get
+ * updated automatically during AMODE31 relocation and always contain a valid
+ * address within AMODE31 sections.
  */
 
-static __dma_data u32 __ctl_duct_dma[16] __aligned(64);
+static __amode31_data u32 __ctl_duct_amode31[16] __aligned(64);
 
-static __dma_data u64 __ctl_aste_dma[8] __aligned(64) = {
+static __amode31_data u64 __ctl_aste_amode31[8] __aligned(64) = {
 	[1] = 0xffffffffffffffff
 };
 
-static __dma_data u32 __ctl_duald_dma[32] __aligned(128) = {
+static __amode31_data u32 __ctl_duald_amode31[32] __aligned(128) = {
 	0x80000000, 0, 0, 0,
 	0x80000000, 0, 0, 0,
 	0x80000000, 0, 0, 0,
@@ -132,15 +132,15 @@ static __dma_data u32 __ctl_duald_dma[32] __aligned(128) = {
 	0x80000000, 0, 0, 0
 };
 
-static __dma_data u32 __ctl_linkage_stack_dma[8] __aligned(64) = {
+static __amode31_data u32 __ctl_linkage_stack_amode31[8] __aligned(64) = {
 	0, 0, 0x89000000, 0,
 	0, 0, 0x8a000000, 0
 };
 
-static u64 __dma_ref *__ctl_aste = __ctl_aste_dma;
-static u32 __dma_ref *__ctl_duald = __ctl_duald_dma;
-static u32 __dma_ref *__ctl_linkage_stack = __ctl_linkage_stack_dma;
-static u32 __dma_ref *__ctl_duct = __ctl_duct_dma;
+static u64 __amode31_ref *__ctl_aste = __ctl_aste_amode31;
+static u32 __amode31_ref *__ctl_duald = __ctl_duald_amode31;
+static u32 __amode31_ref *__ctl_linkage_stack = __ctl_linkage_stack_amode31;
+static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
@@ -814,31 +814,31 @@ static void __init setup_memory(void)
 	memblock_enforce_memory_limit(memblock_end_of_DRAM());
 }
 
-static void __init relocate_dma_section(void)
+static void __init relocate_amode31_section(void)
 {
-	unsigned long dma_addr, dma_size;
-	long dma_offset;
+	unsigned long amode31_addr, amode31_size;
+	long amode31_offset;
 	long *ptr;
 
-	/* Allocate a new DMA capable memory region */
-	dma_size = __edma - __sdma;
-	pr_info("Relocating DMA section of size 0x%08lx\n", dma_size);
-	dma_addr = (unsigned long)memblock_alloc_low(dma_size, PAGE_SIZE);
-	if (!dma_addr)
-		panic("Failed to allocate memory for DMA section\n");
-	dma_offset = dma_addr - __sdma;
+	/* Allocate a new AMODE31 capable memory region */
+	amode31_size = __eamode31 - __samode31;
+	pr_info("Relocating AMODE31 section of size 0x%08lx\n", amode31_size);
+	amode31_addr = (unsigned long)memblock_alloc_low(amode31_size, PAGE_SIZE);
+	if (!amode31_addr)
+		panic("Failed to allocate memory for AMODE31 section\n");
+	amode31_offset = amode31_addr - __samode31;
 
-	/* Move original DMA section to the new one */
-	memmove((void *)dma_addr, (void *)__sdma, dma_size);
-	/* Zero out the old DMA section to catch invalid accesses within it */
-	memset((void *)__sdma, 0, dma_size);
+	/* Move original AMODE31 section to the new one */
+	memmove((void *)amode31_addr, (void *)__samode31, amode31_size);
+	/* Zero out the old AMODE31 section to catch invalid accesses within it */
+	memset((void *)__samode31, 0, amode31_size);
 
-	/* Update all DMA region references */
-	for (ptr = _start_dma_refs; ptr != _end_dma_refs; ptr++)
-		*ptr += dma_offset;
+	/* Update all AMODE31 region references */
+	for (ptr = _start_amode31_refs; ptr != _end_amode31_refs; ptr++)
+		*ptr += amode31_offset;
 }
 
-/* This must be called after DMA relocation */
+/* This must be called after AMODE31 relocation */
 static void __init setup_cr(void)
 {
 	union ctlreg2 cr2;
@@ -1002,7 +1002,7 @@ void __init setup_arch(char **cmdline_p)
 
 	free_mem_detect_info();
 
-	relocate_dma_section();
+	relocate_amode31_section();
 	setup_cr();
 
 	setup_uv();

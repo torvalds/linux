@@ -291,7 +291,7 @@ static void __init test_monitor_call(void)
 
 void __init trap_init(void)
 {
-	sort_extable(__start_dma_ex_table, __stop_dma_ex_table);
+	sort_extable(__start_amode31_ex_table, __stop_amode31_ex_table);
 	local_mcck_enable();
 	test_monitor_call();
 }

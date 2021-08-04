@@ -51,16 +51,16 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };
 
-struct diag_ops __dma_ref diag_dma_ops = {
-	.diag210 = _diag210_dma,
-	.diag26c = _diag26c_dma,
-	.diag14 = _diag14_dma,
-	.diag0c = _diag0c_dma,
-	.diag308_reset = _diag308_reset_dma
+struct diag_ops __amode31_ref diag_amode31_ops = {
+	.diag210 = _diag210_amode31,
+	.diag26c = _diag26c_amode31,
+	.diag14 = _diag14_amode31,
+	.diag0c = _diag0c_amode31,
+	.diag308_reset = _diag308_reset_amode31
 };
 
-static struct diag210 _diag210_tmp_dma __section(".dma.data");
-struct diag210 __dma_ref *__diag210_tmp_dma = &_diag210_tmp_dma;
+static struct diag210 _diag210_tmp_amode31 __section(".amode31.data");
+struct diag210 __amode31_ref *__diag210_tmp_amode31 = &_diag210_tmp_amode31;
 
 static int show_diag_stat(struct seq_file *m, void *v)
 {
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(diag_stat_inc_norecursion);
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 {
 	diag_stat_inc(DIAG_STAT_X014);
-	return diag_dma_ops.diag14(rx, ry1, subcode);
+	return diag_amode31_ops.diag14(rx, ry1, subcode);
 }
 EXPORT_SYMBOL(diag14);
 
@@ -181,12 +181,12 @@ int diag210(struct diag210 *addr)
 	int ccode;
 
 	spin_lock_irqsave(&diag210_lock, flags);
-	*__diag210_tmp_dma = *addr;
+	*__diag210_tmp_amode31 = *addr;
 
 	diag_stat_inc(DIAG_STAT_X210);
-	ccode = diag_dma_ops.diag210(__diag210_tmp_dma);
+	ccode = diag_amode31_ops.diag210(__diag210_tmp_amode31);
 
-	*addr = *__diag210_tmp_dma;
+	*addr = *__diag210_tmp_amode31;
 	spin_unlock_irqrestore(&diag210_lock, flags);
 
 	return ccode;
@@ -214,6 +214,6 @@ EXPORT_SYMBOL(diag224);
 int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 {
 	diag_stat_inc(DIAG_STAT_X26C);
-	return diag_dma_ops.diag26c(req, resp, subcode);
+	return diag_amode31_ops.diag26c(req, resp, subcode);
 }
 EXPORT_SYMBOL(diag26c);

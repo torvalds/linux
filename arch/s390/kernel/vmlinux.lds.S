@@ -74,10 +74,10 @@ SECTIONS
 	BOOT_DATA_PRESERVED
 
 	. = ALIGN(8);
-	.dma.refs : {
-		_start_dma_refs = .;
-		*(.dma.refs)
-		_end_dma_refs = .;
+	.amod31.refs : {
+		_start_amode31_refs = .;
+		*(.amode31.refs)
+		_end_amode31_refs = .;
 	}
 
 	_edata = .;		/* End of data section */
@@ -146,30 +146,30 @@ SECTIONS
 	BOOT_DATA
 
 	/*
-	 * .dma section for code, data, ex_table that need to stay below 2 GB,
-	 * even when the kernel is relocated above 2 GB.
+	 * .amode31 section for code, data, ex_table that need to stay
+	 * below 2 GB, even when the kernel is relocated above 2 GB.
 	 */
 	. = ALIGN(PAGE_SIZE);
-	_sdma = .;
-	.dma.text : {
-		_stext_dma = .;
-		*(.dma.text)
-		*(.dma.text.*_indirect_*)
+	_samode31 = .;
+	.amode31.text : {
+		_stext_amode31 = .;
+		*(.amode31.text)
+		*(.amode31.text.*_indirect_*)
 		. = ALIGN(PAGE_SIZE);
-		_etext_dma = .;
+		_etext_amode31 = .;
 	}
 	. = ALIGN(16);
-	.dma.ex_table : {
-		_start_dma_ex_table = .;
-		KEEP(*(.dma.ex_table))
-		_stop_dma_ex_table = .;
+	.amode31.ex_table : {
+		_start_amode31_ex_table = .;
+		KEEP(*(.amode31.ex_table))
+		_stop_amode31_ex_table = .;
 	}
 	. = ALIGN(PAGE_SIZE);
-	.dma.data : {
-		*(.dma.data)
+	.amode31.data : {
+		*(.amode31.data)
 	}
 	. = ALIGN(PAGE_SIZE);
-	_edma = .;
+	_eamode31 = .;
 
 	/* early.c uses stsi, which requires page aligned data. */
 	. = ALIGN(PAGE_SIZE);

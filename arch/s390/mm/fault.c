@@ -231,8 +231,8 @@ const struct exception_table_entry *s390_search_extables(unsigned long addr)
 {
 	const struct exception_table_entry *fixup;
 
-	fixup = search_extable(__start_dma_ex_table,
-			       __stop_dma_ex_table - __start_dma_ex_table,
+	fixup = search_extable(__start_amode31_ex_table,
+			       __stop_amode31_ex_table - __start_amode31_ex_table,
 			       addr);
 	if (!fixup)
 		fixup = search_exception_tables(addr);
