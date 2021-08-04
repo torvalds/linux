@@ -178,6 +178,9 @@ void ipa_modem_suspend(struct net_device *netdev)
 	struct ipa_priv *priv = netdev_priv(netdev);
 	struct ipa *ipa = priv->ipa;
 
+	if (!(netdev->flags & IFF_UP))
+		return;
+
 	netif_stop_queue(netdev);
 
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
@@ -193,6 +196,9 @@ void ipa_modem_resume(struct net_device *netdev)
 {
 	struct ipa_priv *priv = netdev_priv(netdev);
 	struct ipa *ipa = priv->ipa;
+
+	if (!(netdev->flags & IFF_UP))
+		return;
 
 	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
@@ -265,9 +271,11 @@ int ipa_modem_stop(struct ipa *ipa)
 	/* Prevent the modem from triggering a call to ipa_setup() */
 	ipa_smp2p_disable(ipa);
 
-	/* Stop the queue and disable the endpoints if it's open */
+	/* Clean up the netdev and endpoints if it was started */
 	if (netdev) {
-		(void)ipa_stop(netdev);
+		/* If it was opened, stop it first */
+		if (netdev->flags & IFF_UP)
+			(void)ipa_stop(netdev);
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
 		ipa->modem_netdev = NULL;
