@@ -199,9 +199,13 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		mac[i] = default_mac;
 
 		/* Let sja1105_bridge_stp_state_set() keep address learning
-		 * enabled for the CPU port.
+		 * enabled for the DSA ports. CPU ports use software-assisted
+		 * learning to ensure that only FDB entries belonging to the
+		 * bridge are learned, and that they are learned towards all
+		 * CPU ports in a cross-chip topology if multiple CPU ports
+		 * exist.
 		 */
-		if (dsa_is_cpu_port(ds, i))
+		if (dsa_is_dsa_port(ds, i))
 			priv->learn_ena |= BIT(i);
 	}
 
@@ -2509,6 +2513,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 	ds->num_tx_queues = SJA1105_NUM_TC;
 
 	ds->mtu_enforcement_ingress = true;
+	ds->assisted_learning_on_cpu_port = true;
 
 	rc = sja1105_devlink_setup(ds);
 	if (rc < 0)
