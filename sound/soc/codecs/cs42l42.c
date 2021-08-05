@@ -844,6 +844,13 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (channels == 1)
 		cs42l42->bclk *= 2;
 
+	/*
+	 * Assume 24-bit samples are in 32-bit slots, to prevent SCLK being
+	 * more than assumed (which would result in overclocking).
+	 */
+	if (params_width(params) == 24)
+		cs42l42->bclk = (cs42l42->bclk / 3) * 4;
+
 	switch(substream->stream) {
 	case SNDRV_PCM_STREAM_CAPTURE:
 		if (channels == 2) {
