@@ -1620,10 +1620,11 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 {
 	enum dc_status status = DC_OK;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		status = configure_lttpr_mode_non_transparent(link, lt_settings);
-	else
+	if (lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 		status = configure_lttpr_mode_transparent(link);
+
+	else if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		status = configure_lttpr_mode_non_transparent(link, lt_settings);
 
 	return status;
 }
@@ -1784,7 +1785,6 @@ bool perform_link_training_with_retries(
 		link_enc = stream->link_enc;
 	else
 		link_enc = link->link_enc;
-	ASSERT(link_enc);
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
@@ -1820,8 +1820,7 @@ bool perform_link_training_with_retries(
 					 */
 					panel_mode = DP_PANEL_MODE_DEFAULT;
 				}
-			} else
-				panel_mode = DP_PANEL_MODE_DEFAULT;
+			}
 		}
 #endif
 
@@ -4650,7 +4649,10 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 		}
 	}
 
-	if (link->dpcd_caps.panel_mode_edp) {
+	if (link->dpcd_caps.panel_mode_edp &&
+		(link->connector_signal == SIGNAL_TYPE_EDP ||
+		 (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+		  link->is_internal_display))) {
 		return DP_PANEL_MODE_EDP;
 	}
 
@@ -4914,9 +4916,7 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link)
 {
 	uint32_t default_backlight;
 
-	if (link &&
-		(link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
-		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)) {
+	if (link && link->dpcd_sink_ext_caps.bits.oled == 1) {
 		if (!dc_link_read_default_bl_aux(link, &default_backlight))
 			default_backlight = 150000;
 		// if < 5 nits or > 5000, it might be wrong readback

@@ -353,6 +353,12 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 
 	bnxt_ptp_get_current_time(bp);
 	ptp->next_period = now + HZ;
+	if (time_after_eq(now, ptp->next_overflow_check)) {
+		spin_lock_bh(&ptp->ptp_lock);
+		timecounter_read(&ptp->tc);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
+	}
 	return HZ;
 }
 
@@ -383,22 +389,6 @@ int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
 		*ts += BNXT_LO_TIMER_MASK + 1;
 
 	return 0;
-}
-
-void bnxt_ptp_start(struct bnxt *bp)
-{
-	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-
-	if (!ptp)
-		return;
-
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		spin_lock_bh(&ptp->ptp_lock);
-		ptp->current_time = bnxt_refclk_read(bp, NULL);
-		WRITE_ONCE(ptp->old_time, ptp->current_time);
-		spin_unlock_bh(&ptp->ptp_lock);
-		ptp_schedule_worker(ptp->ptp_clock, 0);
-	}
 }
 
 static const struct ptp_clock_info bnxt_ptp_caps = {
@@ -439,6 +429,7 @@ int bnxt_ptp_init(struct bnxt *bp)
 	ptp->cc.shift = 0;
 	ptp->cc.mult = 1;
 
+	ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
 
 	ptp->ptp_info = bnxt_ptp_caps;
@@ -450,7 +441,13 @@ int bnxt_ptp_init(struct bnxt *bp)
 		bnxt_unmap_ptp_regs(bp);
 		return err;
 	}
-
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		spin_lock_bh(&ptp->ptp_lock);
+		ptp->current_time = bnxt_refclk_read(bp, NULL);
+		WRITE_ONCE(ptp->old_time, ptp->current_time);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp_schedule_worker(ptp->ptp_clock, 0);
+	}
 	return 0;
 }
 

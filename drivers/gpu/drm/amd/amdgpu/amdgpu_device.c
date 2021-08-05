@@ -3504,13 +3504,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_device_get_job_timeout_settings(adev);
 	if (r) {
 		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
-		goto failed_unmap;
+		return r;
 	}
 
 	/* early init functions */
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
-		goto failed_unmap;
+		return r;
 
 	/* doorbell bar mapping and doorbell index init*/
 	amdgpu_device_doorbell_init(adev);
@@ -3735,10 +3735,6 @@ release_ras_con:
 
 failed:
 	amdgpu_vf_error_trans_all(adev);
-
-failed_unmap:
-	iounmap(adev->rmmio);
-	adev->rmmio = NULL;
 
 	return r;
 }

@@ -4247,6 +4247,9 @@ void tcp_reset(struct sock *sk, struct sk_buff *skb)
 {
 	trace_tcp_receive_reset(sk);
 
+	/* mptcp can't tell us to ignore reset pkts,
+	 * so just ignore the return value of mptcp_incoming_options().
+	 */
 	if (sk_is_mptcp(sk))
 		mptcp_incoming_options(sk, skb);
 
@@ -4941,8 +4944,13 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	bool fragstolen;
 	int eaten;
 
-	if (sk_is_mptcp(sk))
-		mptcp_incoming_options(sk, skb);
+	/* If a subflow has been reset, the packet should not continue
+	 * to be processed, drop the packet.
+	 */
+	if (sk_is_mptcp(sk) && !mptcp_incoming_options(sk, skb)) {
+		__kfree_skb(skb);
+		return;
+	}
 
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		__kfree_skb(skb);
@@ -5922,8 +5930,8 @@ void tcp_init_transfer(struct sock *sk, int bpf_op, struct sk_buff *skb)
 		tp->snd_cwnd = tcp_init_cwnd(tp, __sk_dst_get(sk));
 	tp->snd_cwnd_stamp = tcp_jiffies32;
 
-	icsk->icsk_ca_initialized = 0;
 	bpf_skops_established(sk, bpf_op, skb);
+	/* Initialize congestion control unless BPF initialized it already: */
 	if (!icsk->icsk_ca_initialized)
 		tcp_init_congestion_control(sk);
 	tcp_init_buffer_space(sk);
@@ -6523,8 +6531,11 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	case TCP_CLOSING:
 	case TCP_LAST_ACK:
 		if (!before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt)) {
-			if (sk_is_mptcp(sk))
-				mptcp_incoming_options(sk, skb);
+			/* If a subflow has been reset, the packet should not
+			 * continue to be processed, drop the packet.
+			 */
+			if (sk_is_mptcp(sk) && !mptcp_incoming_options(sk, skb))
+				goto discard;
 			break;
 		}
 		fallthrough;

@@ -576,7 +576,7 @@ config HID_LOGITECH_HIDPP
 	depends on HID_LOGITECH
 	select POWER_SUPPLY
 	help
-	Support for Logitech devices relyingon the HID++ Logitech specification
+	Support for Logitech devices relying on the HID++ Logitech specification
 
 	Say Y if you want support for Logitech devices relying on the HID++
 	specification. Such devices are the various Logitech Touchpads (T650,

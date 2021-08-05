@@ -188,6 +188,9 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	struct hwtstamp_config config;
 	int err;
 
+	if (!lif->phc || !lif->phc->ptp)
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
@@ -203,15 +206,16 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	return 0;
 }
 
-int ionic_lif_hwstamp_replay(struct ionic_lif *lif)
+void ionic_lif_hwstamp_replay(struct ionic_lif *lif)
 {
 	int err;
+
+	if (!lif->phc || !lif->phc->ptp)
+		return;
 
 	err = ionic_lif_hwstamp_set_ts_config(lif, NULL);
 	if (err)
 		netdev_info(lif->netdev, "hwstamp replay failed: %d\n", err);
-
-	return err;
 }
 
 int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
