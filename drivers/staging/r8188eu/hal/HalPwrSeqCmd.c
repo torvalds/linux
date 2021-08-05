@@ -66,7 +66,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 					if (value == (GET_PWR_CFG_VALUE(pwrcfgcmd) & GET_PWR_CFG_MASK(pwrcfgcmd)))
 						poll_bit = true;
 					else
-						rtw_udelay_os(10);
+						udelay(10);
 
 					if (poll_count++ > max_poll_count) {
 						DBG_88E("Fail to polling Offset[%#x]\n", offset);
@@ -76,9 +76,9 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				break;
 			case PWR_CMD_DELAY:
 				if (GET_PWR_CFG_VALUE(pwrcfgcmd) == PWRSEQ_DELAY_US)
-					rtw_udelay_os(GET_PWR_CFG_OFFSET(pwrcfgcmd));
+					udelay(GET_PWR_CFG_OFFSET(pwrcfgcmd));
 				else
-					rtw_udelay_os(GET_PWR_CFG_OFFSET(pwrcfgcmd)*1000);
+					udelay(GET_PWR_CFG_OFFSET(pwrcfgcmd)*1000);
 				break;
 			case PWR_CMD_END:
 				/*  When this command is parsed, end the process */

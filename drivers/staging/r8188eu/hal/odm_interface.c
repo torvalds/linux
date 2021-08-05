@@ -132,7 +132,7 @@ void ODM_IsWorkItemScheduled(void *pRtWorkItem)
 /*  ODM Timer relative API. */
 void ODM_StallExecution(u32 usDelay)
 {
-	rtw_udelay_os(usDelay);
+	udelay(usDelay);
 }
 
 void ODM_delay_ms(u32 ms)
@@ -142,7 +142,7 @@ void ODM_delay_ms(u32 ms)
 
 void ODM_delay_us(u32 us)
 {
-	rtw_udelay_os(us);
+	udelay(us);
 }
 
 void ODM_sleep_ms(u32 ms)
