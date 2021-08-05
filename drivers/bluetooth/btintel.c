@@ -1951,18 +1951,6 @@ static int btintel_bootloader_setup(struct hci_dev *hdev,
 	btintel_version_info(hdev, &new_ver);
 
 finish:
-	/* All Intel controllers that support the Microsoft vendor
-	 * extension are using 0xFC1E for VsMsftOpCode.
-	 */
-	switch (ver->hw_variant) {
-	case 0x11:	/* JfP */
-	case 0x12:	/* ThP */
-	case 0x13:	/* HrP */
-	case 0x14:	/* CcP */
-		hci_set_msft_opcode(hdev, 0xFC1E);
-		break;
-	}
-
 	/* Set the event mask for Intel specific vendor events. This enables
 	 * a few extra events that are useful during general operation. It
 	 * does not enable any debugging related events.
@@ -2166,6 +2154,28 @@ finish:
 	return 0;
 }
 
+static void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
+{
+	switch (hw_variant) {
+	/* Legacy bootloader devices that supports MSFT Extension */
+	case 0x11:	/* JfP */
+	case 0x12:	/* ThP */
+	case 0x13:	/* HrP */
+	case 0x14:	/* CcP */
+	/* All Intel new genration controllers support the Microsoft vendor
+	 * extension are using 0xFC1E for VsMsftOpCode.
+	 */
+	case 0x17:
+	case 0x18:
+	case 0x19:
+		hci_set_msft_opcode(hdev, 0xFC1E);
+		break;
+	default:
+		/* Not supported */
+		break;
+	}
+}
+
 static int btintel_setup_combined(struct hci_dev *hdev)
 {
 	const u8 param[1] = { 0xFF };
@@ -2279,6 +2289,9 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 				set_bit(HCI_QUIRK_VALID_LE_STATES,
 					&hdev->quirks);
 
+			/* Setup MSFT Extension support */
+			btintel_set_msft_opcode(hdev, ver.hw_variant);
+
 			err = btintel_bootloader_setup(hdev, &ver);
 			break;
 		default:
@@ -2348,6 +2361,10 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		/* Valid LE States quirk for GfP */
 		if (INTEL_HW_VARIANT(ver_tlv.cnvi_bt) == 0x18)
 			set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
+
+		/* Setup MSFT Extension support */
+		btintel_set_msft_opcode(hdev,
+					INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
 
 		err = btintel_bootloader_setup_tlv(hdev, &ver_tlv);
 		break;
