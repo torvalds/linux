@@ -76,6 +76,7 @@ static const char * const fips140_algorithms[] __initconst = {
 
 	"ecb(aes)",
 	"cbc(aes)",
+	"cts(cbc(aes))",
 	"ctr(aes)",
 	"xts(aes)",
 

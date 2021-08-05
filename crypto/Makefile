@@ -206,7 +206,7 @@ FIPS140_CFLAGS := -D__DISABLE_EXPORTS -DBUILD_FIPS140_KO
 # Create a separate FIPS archive containing a duplicate of each builtin generic
 # module that is in scope for FIPS 140-2 certification
 #
-crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o gcm.o xts.o hmac.o memneq.o \
+crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o cts.o gcm.o xts.o hmac.o memneq.o \
 		    gf128mul.o aes_generic.o lib-crypto-aes.o \
 		    sha1_generic.o sha256_generic.o sha512_generic.o \
 		    lib-sha1.o lib-crypto-sha256.o
