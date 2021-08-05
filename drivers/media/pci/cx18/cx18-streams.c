@@ -133,7 +133,7 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 
 		/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
 		   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
-		if (s->pixelformat == V4L2_PIX_FMT_HM12)
+		if (s->pixelformat == V4L2_PIX_FMT_NV12_16L16)
 			s->vb_bytes_per_frame = height * 720 * 3 / 2;
 		else
 			s->vb_bytes_per_frame = height * 720 * 2;
@@ -155,7 +155,7 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 
 		/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
 		   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
-		if (s->pixelformat == V4L2_PIX_FMT_HM12)
+		if (s->pixelformat == V4L2_PIX_FMT_NV12_16L16)
 			s->vb_bytes_per_frame = height * 720 * 3 / 2;
 		else
 			s->vb_bytes_per_frame = height * 720 * 2;
@@ -287,7 +287,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 			s, &cx->serialize_lock);
 
 		/* Assume the previous pixel default */
-		s->pixelformat = V4L2_PIX_FMT_HM12;
+		s->pixelformat = V4L2_PIX_FMT_NV12_16L16;
 		s->vb_bytes_per_frame = cx->cxhdl.height * 720 * 3 / 2;
 		s->vb_bytes_per_line = 720;
 	}
@@ -733,7 +733,7 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 		 * Set the MDL size to the exact size needed for one frame.
 		 * Use enough buffers per MDL to cover the MDL size
 		 */
-		if (s->pixelformat == V4L2_PIX_FMT_HM12)
+		if (s->pixelformat == V4L2_PIX_FMT_NV12_16L16)
 			s->mdl_size = 720 * s->cx->cxhdl.height * 3 / 2;
 		else
 			s->mdl_size = 720 * s->cx->cxhdl.height * 2;

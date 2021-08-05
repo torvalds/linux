@@ -61,7 +61,7 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 	     || sdev->csi.v4l2_ep.bus_type == V4L2_MBUS_BT656)
 	     && sdev->csi.v4l2_ep.bus.parallel.bus_width == 16) {
 		switch (pixformat) {
-		case V4L2_PIX_FMT_HM12:
+		case V4L2_PIX_FMT_NV12_16L16:
 		case V4L2_PIX_FMT_NV12:
 		case V4L2_PIX_FMT_NV21:
 		case V4L2_PIX_FMT_NV16:
@@ -124,7 +124,7 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 	case V4L2_PIX_FMT_VYUY:
 		return (mbus_code == MEDIA_BUS_FMT_VYUY8_2X8);
 
-	case V4L2_PIX_FMT_HM12:
+	case V4L2_PIX_FMT_NV12_16L16:
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:
@@ -269,7 +269,7 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 	case V4L2_PIX_FMT_VYUY:
 		return buf_interlaced ? CSI_FRAME_RAW_8 : CSI_FIELD_RAW_8;
 
-	case V4L2_PIX_FMT_HM12:
+	case V4L2_PIX_FMT_NV12_16L16:
 		return buf_interlaced ? CSI_FRAME_MB_YUV420 :
 					CSI_FIELD_MB_YUV420;
 	case V4L2_PIX_FMT_NV12:
@@ -311,7 +311,7 @@ static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 		return 0;
 
 	switch (pixformat) {
-	case V4L2_PIX_FMT_HM12:
+	case V4L2_PIX_FMT_NV12_16L16:
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_YUV420:
@@ -526,7 +526,7 @@ static void sun6i_csi_set_window(struct sun6i_csi_dev *sdev)
 
 	planar_offset[0] = 0;
 	switch (config->pixelformat) {
-	case V4L2_PIX_FMT_HM12:
+	case V4L2_PIX_FMT_NV12_16L16:
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:

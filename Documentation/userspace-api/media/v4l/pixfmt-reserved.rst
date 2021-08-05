@@ -48,14 +48,6 @@ please make a proposal on the linux-media mailing list.
       - ``V4L2_PIX_FMT_HI240``
       - 'HI24'
       - 8 bit RGB format used by the BTTV driver.
-    * .. _V4L2-PIX-FMT-HM12:
-
-      - ``V4L2_PIX_FMT_HM12``
-      - 'HM12'
-      - YUV 4:2:0 format used by the IVTV driver.
-
-	The format is documented in the kernel sources in the file
-	``Documentation/userspace-api/media/drivers/cx2341x-uapi.rst``
     * .. _V4L2-PIX-FMT-CPIA1:
 
       - ``V4L2_PIX_FMT_CPIA1``
