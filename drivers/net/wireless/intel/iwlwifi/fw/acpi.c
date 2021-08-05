@@ -412,7 +412,7 @@ IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
 
 static int iwl_sar_set_profile(union acpi_object *table,
 			       struct iwl_sar_profile *profile,
-			       bool enabled)
+			       bool enabled, u8 num_chains, u8 num_sub_bands)
 {
 	int i, j, idx = 0;
 
@@ -422,8 +422,8 @@ static int iwl_sar_set_profile(union acpi_object *table,
 	 * The table from ACPI is flat, but we store it in a
 	 * structured array.
 	 */
-	for (i = 0; i < ACPI_SAR_NUM_CHAINS; i++) {
-		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
+	for (i = 0; i < num_chains; i++) {
+		for (j = 0; j < num_sub_bands; j++) {
 			if (table[idx].type != ACPI_TYPE_INTEGER ||
 			    table[idx].integer.value > U8_MAX)
 				return -EINVAL;
@@ -539,7 +539,8 @@ int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled);
+	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled,
+				  ACPI_SAR_NUM_CHAINS, ACPI_SAR_NUM_SUB_BANDS);
 out_free:
 	kfree(data);
 	return ret;
@@ -598,7 +599,9 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 */
 		ret = iwl_sar_set_profile(&wifi_pkg->package.elements[pos],
 					  &fwrt->sar_profiles[i + 1],
-					  enabled);
+					  enabled,
+					  ACPI_SAR_NUM_CHAINS,
+					  ACPI_SAR_NUM_SUB_BANDS);
 		if (ret < 0)
 			break;
 
