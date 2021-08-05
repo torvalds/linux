@@ -45,7 +45,6 @@ static void *vcpu_worker(void *data)
 	struct kvm_vm *vm = perf_test_args.vm;
 	struct kvm_run *run;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
 
 	/* Let the guest access its memory until a stop signal is received */

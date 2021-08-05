@@ -222,8 +222,6 @@ static void *vcpu_thread_main(void *arg)
 	int vcpu_id = vcpu_args->vcpu_id;
 	int current_iteration = -1;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
-
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
 		case ITERATION_ACCESS_MEMORY:

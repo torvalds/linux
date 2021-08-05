@@ -52,7 +52,6 @@ static void *vcpu_worker(void *data)
 	struct timespec start;
 	struct timespec ts_diff;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);

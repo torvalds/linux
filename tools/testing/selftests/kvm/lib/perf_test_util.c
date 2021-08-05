@@ -150,6 +150,8 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 			vcpu_gpa = guest_test_phys_mem;
 		}
 
+		vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
+
 		pr_debug("Added VCPU %d with test mem gpa [%lx, %lx)\n",
 			 vcpu_id, vcpu_gpa, vcpu_gpa +
 			 (vcpu_args->pages * perf_test_args.guest_page_size));
