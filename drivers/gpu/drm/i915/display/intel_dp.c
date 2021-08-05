@@ -531,7 +531,9 @@ u32 intel_dp_mode_to_fec_clock(u32 mode_clock)
 static int
 small_joiner_ram_size_bits(struct drm_i915_private *i915)
 {
-	if (DISPLAY_VER(i915) >= 11)
+	if (DISPLAY_VER(i915) >= 13)
+		return 17280 * 8;
+	else if (DISPLAY_VER(i915) >= 11)
 		return 7680 * 8;
 	else
 		return 6144 * 8;
