@@ -83,7 +83,7 @@ void __init reserve_ibft_region(void)
 				if (pos + len <= (IBFT_END-1)) {
 					ibft_phys_addr = pos;
 					memblock_reserve(ibft_phys_addr, PAGE_ALIGN(len));
-					pr_info("iBFT found at 0x%lx.\n", ibft_phys_addr);
+					pr_info("iBFT found at %pa.\n", &ibft_phys_addr);
 					return;
 				}
 			}
