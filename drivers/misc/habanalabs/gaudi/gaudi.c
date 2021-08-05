@@ -7457,6 +7457,11 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 	bool extract_info_from_fw;
 	int rc;
 
+	if (hdev->asic_prop.fw_security_enabled) {
+		extract_info_from_fw = true;
+		goto extract_ecc_info;
+	}
+
 	switch (event_type) {
 	case GAUDI_EVENT_PCIE_CORE_SERR ... GAUDI_EVENT_PCIE_PHY_DERR:
 	case GAUDI_EVENT_DMA0_SERR_ECC ... GAUDI_EVENT_MMU_DERR:
@@ -7529,6 +7534,7 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		return;
 	}
 
+extract_ecc_info:
 	if (extract_info_from_fw) {
 		ecc_address = le64_to_cpu(ecc_data->ecc_address);
 		ecc_syndrom = le64_to_cpu(ecc_data->ecc_syndrom);
