@@ -867,12 +867,12 @@ ptp_ocp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		if (ver & 0xffff) {
 			sprintf(buf, "%d", ver);
 			err = devlink_info_version_running_put(req,
-							       "timecard",
+							       "fw",
 							       buf);
 		} else {
 			sprintf(buf, "%d", ver >> 16);
 			err = devlink_info_version_running_put(req,
-							       "golden flash",
+							       "loader",
 							       buf);
 		}
 		if (err)
