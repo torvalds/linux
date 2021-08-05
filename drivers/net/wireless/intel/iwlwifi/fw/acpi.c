@@ -596,23 +596,64 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 	bool enabled;
 	int i, n_profiles, tbl_rev, pos;
 	int ret = 0;
+	u8 num_chains, num_sub_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_EWRD_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* start by trying to read revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
-					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
+					 ACPI_EWRD_WIFI_DATA_SIZE_REV2,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 2) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV2;
+
+		goto read_table;
 	}
 
-	if (tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
+	/* then try revision 1 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE_REV1,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 1) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV1;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV1;
+
+		goto read_table;
 	}
 
+	/* then finally revision 0 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE_REV0,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 0) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV0;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV0;
+
+		goto read_table;
+	}
+
+	ret = PTR_ERR(wifi_pkg);
+	goto out_free;
+
+read_table:
 	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
 	    wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER) {
 		ret = -EINVAL;
@@ -642,13 +683,12 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 */
 		ret = iwl_sar_set_profile(&wifi_pkg->package.elements[pos],
 					  &fwrt->sar_profiles[i + 1], enabled,
-					  ACPI_SAR_NUM_CHAINS_REV0,
-					  ACPI_SAR_NUM_SUB_BANDS_REV0);
+					  num_chains, num_sub_bands);
 		if (ret < 0)
 			break;
 
 		/* go to the next table */
-		pos += ACPI_SAR_NUM_CHAINS_REV0 * ACPI_SAR_NUM_SUB_BANDS_REV0;
+		pos += num_chains * num_sub_bands;
 	}
 
 out_free:
