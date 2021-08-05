@@ -215,6 +215,8 @@ static int iomap_read_inline_data(struct inode *inode, struct page *page,
 	if (PageUptodate(page))
 		return PAGE_SIZE - poff;
 
+	if (WARN_ON_ONCE(size > PAGE_SIZE - poff))
+		return -EIO;
 	if (WARN_ON_ONCE(size > PAGE_SIZE -
 			 offset_in_page(iomap->inline_data)))
 		return -EIO;
