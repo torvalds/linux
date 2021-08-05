@@ -370,7 +370,6 @@ void rtw_free_netdev(struct net_device *netdev);
 		(a)[3] = (u8) (((u32) (val)) & 0xff);		\
 	} while (0)
 
-void rtw_buf_free(u8 **buf, u32 *buf_len);
 void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
 
 struct rtw_cbuf {
