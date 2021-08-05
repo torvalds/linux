@@ -6,10 +6,6 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 
-#if defined(CONFIG_RK_IOMMU)
-#include <linux/rockchip-iovmm.h>
-#include <linux/dma-buf.h>
-#endif
 #include "iep.h"
 
 #define IEP_REG_LEN         0x100

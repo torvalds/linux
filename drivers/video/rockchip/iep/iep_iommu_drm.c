@@ -230,10 +230,6 @@ iep_drm_unmap_iommu(struct iep_iommu_session_info *session_info,
 	struct device *dev = session_info->dev;
 	struct iep_drm_buffer *drm_buffer;
 
-	/* Force to flush iommu table */
-	if (of_machine_is_compatible("rockchip,rk3288"))
-		rockchip_iovmm_invalidate_tlb(session_info->mmu_dev);
-
 	mutex_lock(&session_info->list_mutex);
 	drm_buffer = iep_drm_get_buffer_no_lock(session_info, idx);
 	mutex_unlock(&session_info->list_mutex);
@@ -255,10 +251,6 @@ static int iep_drm_map_iommu(struct iep_iommu_session_info *session_info,
 {
 	struct device *dev = session_info->dev;
 	struct iep_drm_buffer *drm_buffer;
-
-	/* Force to flush iommu table */
-	if (of_machine_is_compatible("rockchip,rk3288"))
-		rockchip_iovmm_invalidate_tlb(session_info->mmu_dev);
 
 	mutex_lock(&session_info->list_mutex);
 	drm_buffer = iep_drm_get_buffer_no_lock(session_info, idx);
