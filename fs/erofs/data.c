@@ -6,7 +6,7 @@
 #include "internal.h"
 #include <linux/prefetch.h>
 #include <linux/iomap.h>
-
+#include <linux/dax.h>
 #include <trace/events/erofs.h>
 
 static void erofs_readendio(struct bio *bio)
@@ -323,6 +323,7 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		return ret;
 
 	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->dax_dev = EROFS_I_SB(inode)->dax_dev;
 	iomap->offset = map.m_la;
 	iomap->length = map.m_llen;
 	iomap->flags = 0;
@@ -382,6 +383,10 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (!iov_iter_count(to))
 		return 0;
 
+#ifdef CONFIG_FS_DAX
+	if (IS_DAX(iocb->ki_filp->f_mapping->host))
+		return dax_iomap_rw(iocb, to, &erofs_iomap_ops);
+#endif
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		int err = erofs_prepare_dio(iocb, to);
 
@@ -402,9 +407,42 @@ const struct address_space_operations erofs_raw_access_aops = {
 	.direct_IO = noop_direct_IO,
 };
 
+#ifdef CONFIG_FS_DAX
+static vm_fault_t erofs_dax_huge_fault(struct vm_fault *vmf,
+		enum page_entry_size pe_size)
+{
+	return dax_iomap_fault(vmf, pe_size, NULL, NULL, &erofs_iomap_ops);
+}
+
+static vm_fault_t erofs_dax_fault(struct vm_fault *vmf)
+{
+	return erofs_dax_huge_fault(vmf, PE_SIZE_PTE);
+}
+
+static const struct vm_operations_struct erofs_dax_vm_ops = {
+	.fault		= erofs_dax_fault,
+	.huge_fault	= erofs_dax_huge_fault,
+};
+
+static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!IS_DAX(file_inode(file)))
+		return generic_file_readonly_mmap(file, vma);
+
+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
+		return -EINVAL;
+
+	vma->vm_ops = &erofs_dax_vm_ops;
+	vma->vm_flags |= VM_HUGEPAGE;
+	return 0;
+}
+#else
+#define erofs_file_mmap	generic_file_readonly_mmap
+#endif
+
 const struct file_operations erofs_file_fops = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= erofs_file_read_iter,
-	.mmap		= generic_file_readonly_mmap,
+	.mmap		= erofs_file_mmap,
 	.splice_read	= generic_file_splice_read,
 };

@@ -174,6 +174,10 @@ static struct page *erofs_read_inode(struct inode *inode,
 	inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec;
 	inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec;
 
+	inode->i_flags &= ~S_DAX;
+	if (test_opt(&sbi->ctx, DAX_ALWAYS) && S_ISREG(inode->i_mode) &&
+	    vi->datalayout == EROFS_INODE_FLAT_PLAIN)
+		inode->i_flags |= S_DAX;
 	if (!nblks)
 		/* measure inode.i_blocks as generic filesystems */
 		inode->i_blocks = roundup(inode->i_size, EROFS_BLKSIZ) >> 9;
