@@ -1060,10 +1060,10 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 /* create new dapm volume control */
 static int dapm_new_pga(struct snd_soc_dapm_widget *w)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < w->num_kcontrols; i++) {
-		ret = dapm_create_or_share_kcontrol(w, i);
+		int ret = dapm_create_or_share_kcontrol(w, i);
 		if (ret < 0)
 			return ret;
 	}
