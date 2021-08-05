@@ -908,7 +908,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	/* The scheduler owns a ref now: */
 	msm_gem_submit_get(submit);
 
-	drm_sched_entity_push_job(&submit->base, &queue->entity);
+	drm_sched_entity_push_job(&submit->base);
 
 	args->fence = submit->fence_id;
 
