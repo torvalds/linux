@@ -35,7 +35,7 @@ int ethnl_ops_begin(struct net_device *dev)
 	int ret;
 
 	if (!dev)
-		return 0;
+		return -ENODEV;
 
 	if (dev->dev.parent)
 		pm_runtime_get_sync(dev->dev.parent);
@@ -61,7 +61,7 @@ err:
 
 void ethnl_ops_complete(struct net_device *dev)
 {
-	if (dev && dev->ethtool_ops->complete)
+	if (dev->ethtool_ops->complete)
 		dev->ethtool_ops->complete(dev);
 
 	if (dev->dev.parent)
