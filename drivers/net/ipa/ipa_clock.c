@@ -9,9 +9,12 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interconnect.h>
+#include <linux/pm.h>
+#include <linux/bitops.h>
 
 #include "ipa.h"
 #include "ipa_clock.h"
+#include "ipa_endpoint.h"
 #include "ipa_modem.h"
 #include "ipa_data.h"
 
@@ -43,10 +46,21 @@ struct ipa_interconnect {
 };
 
 /**
+ * enum ipa_power_flag - IPA power flags
+ * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
+ * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
+ */
+enum ipa_power_flag {
+	IPA_POWER_FLAG_RESUMED,
+	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
+};
+
+/**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
  * @mutex:		Protects clock enable/disable
  * @core:		IPA core clock
+ * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
  */
@@ -54,6 +68,7 @@ struct ipa_clock {
 	refcount_t count;
 	struct mutex mutex; /* protects clock enable/disable */
 	struct clk *core;
+	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
 	struct ipa_interconnect *interconnect;
 };
@@ -144,8 +159,12 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 		ret = icc_set_bw(interconnect->path,
 				 interconnect->average_bandwidth,
 				 interconnect->peak_bandwidth);
-		if (ret)
+		if (ret) {
+			dev_err(&ipa->pdev->dev,
+				"error %d enabling %s interconnect\n",
+				ret, icc_get_name(interconnect->path));
 			goto out_unwind;
+		}
 		interconnect++;
 	}
 
@@ -159,10 +178,11 @@ out_unwind:
 }
 
 /* To disable an interconnect, we just its bandwidth to 0 */
-static void ipa_interconnect_disable(struct ipa *ipa)
+static int ipa_interconnect_disable(struct ipa *ipa)
 {
 	struct ipa_interconnect *interconnect;
 	struct ipa_clock *clock = ipa->clock;
+	struct device *dev = &ipa->pdev->dev;
 	int result = 0;
 	u32 count;
 	int ret;
@@ -172,13 +192,16 @@ static void ipa_interconnect_disable(struct ipa *ipa)
 	while (count--) {
 		interconnect--;
 		ret = icc_set_bw(interconnect->path, 0, 0);
-		if (ret && !result)
-			result = ret;
+		if (ret) {
+			dev_err(dev, "error %d disabling %s interconnect\n",
+				ret, icc_get_name(interconnect->path));
+			/* Try to disable all; record only the first error */
+			if (!result)
+				result = ret;
+		}
 	}
 
-	if (result)
-		dev_err(&ipa->pdev->dev,
-			"error %d disabling IPA interconnects\n", ret);
+	return result;
 }
 
 /* Turn on IPA clocks, including interconnects */
@@ -191,8 +214,10 @@ static int ipa_clock_enable(struct ipa *ipa)
 		return ret;
 
 	ret = clk_prepare_enable(ipa->clock->core);
-	if (ret)
-		ipa_interconnect_disable(ipa);
+	if (ret) {
+		dev_err(&ipa->pdev->dev, "error %d enabling core clock\n", ret);
+		(void)ipa_interconnect_disable(ipa);
+	}
 
 	return ret;
 }
@@ -201,7 +226,7 @@ static int ipa_clock_enable(struct ipa *ipa)
 static void ipa_clock_disable(struct ipa *ipa)
 {
 	clk_disable_unprepare(ipa->clock->core);
-	ipa_interconnect_disable(ipa);
+	(void)ipa_interconnect_disable(ipa);
 }
 
 /* Get an IPA clock reference, but only if the reference count is
@@ -238,13 +263,8 @@ void ipa_clock_get(struct ipa *ipa)
 		goto out_mutex_unlock;
 
 	ret = ipa_clock_enable(ipa);
-	if (ret) {
-		dev_err(&ipa->pdev->dev, "error %d enabling IPA clock\n", ret);
-		goto out_mutex_unlock;
-	}
-
-	refcount_set(&clock->count, 1);
-
+	if (!ret)
+		refcount_set(&clock->count, 1);
 out_mutex_unlock:
 	mutex_unlock(&clock->mutex);
 }
@@ -269,6 +289,40 @@ void ipa_clock_put(struct ipa *ipa)
 u32 ipa_clock_rate(struct ipa *ipa)
 {
 	return ipa->clock ? (u32)clk_get_rate(ipa->clock->core) : 0;
+}
+
+/**
+ * ipa_suspend_handler() - Handle the suspend IPA interrupt
+ * @ipa:	IPA pointer
+ * @irq_id:	IPA interrupt type (unused)
+ *
+ * If an RX endpoint is suspended, and the IPA has a packet destined for
+ * that endpoint, the IPA generates a SUSPEND interrupt to inform the AP
+ * that it should resume the endpoint.  If we get one of these interrupts
+ * we just wake up the system.
+ */
+static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+{
+	/* Just report the event, and let system resume handle the rest.
+	 * More than one endpoint could signal this; if so, ignore
+	 * all but the first.
+	 */
+	if (!test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags))
+		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
+
+	/* Acknowledge/clear the suspend interrupt on all endpoints */
+	ipa_interrupt_suspend_clear_all(ipa->interrupt);
+}
+
+void ipa_power_setup(struct ipa *ipa)
+{
+	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
+			  ipa_suspend_handler);
+}
+
+void ipa_power_teardown(struct ipa *ipa)
+{
+	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 }
 
 /* Initialize IPA clocking */
@@ -329,3 +383,62 @@ void ipa_clock_exit(struct ipa_clock *clock)
 	kfree(clock);
 	clk_put(clk);
 }
+
+/**
+ * ipa_suspend() - Power management system suspend callback
+ * @dev:	IPA device structure
+ *
+ * Return:	Always returns zero
+ *
+ * Called by the PM framework when a system suspend operation is invoked.
+ * Suspends endpoints and releases the clock reference held to keep
+ * the IPA clock running until this point.
+ */
+static int ipa_suspend(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags);
+		ipa_endpoint_suspend(ipa);
+		gsi_suspend(&ipa->gsi);
+	}
+
+	ipa_clock_put(ipa);
+
+	return 0;
+}
+
+/**
+ * ipa_resume() - Power management system resume callback
+ * @dev:	IPA device structure
+ *
+ * Return:	Always returns 0
+ *
+ * Called by the PM framework when a system resume operation is invoked.
+ * Takes an IPA clock reference to keep the clock running until suspend,
+ * and resumes endpoints.
+ */
+static int ipa_resume(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+
+	/* This clock reference will keep the IPA out of suspend
+	 * until we get a power management suspend request.
+	 */
+	ipa_clock_get(ipa);
+
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		gsi_resume(&ipa->gsi);
+		ipa_endpoint_resume(ipa);
+	}
+
+	return 0;
+}
+
+const struct dev_pm_ops ipa_pm_ops = {
+	.suspend	= ipa_suspend,
+	.resume		= ipa_resume,
+};
