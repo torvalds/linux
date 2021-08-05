@@ -113,6 +113,8 @@ struct ts_reg {
 struct pps_reg {
 	u32	ctrl;
 	u32	status;
+	u32	__pad0[6];
+	u32	cable_delay;
 };
 
 #define PPS_STATUS_FILTER_ERR	BIT(0)
@@ -149,7 +151,8 @@ struct ptp_ocp {
 	spinlock_t		lock;
 	struct ocp_reg __iomem	*reg;
 	struct tod_reg __iomem	*tod;
-	struct pps_reg __iomem	*pps_monitor;
+	struct pps_reg __iomem	*pps_to_ext;
+	struct pps_reg __iomem	*pps_to_clk;
 	struct ptp_ocp_ext_src	*pps;
 	struct ptp_ocp_ext_src	*ts0;
 	struct ptp_ocp_ext_src	*ts1;
@@ -251,7 +254,11 @@ static struct ocp_resource ocp_fb_resource[] = {
 		},
 	},
 	{
-		OCP_MEM_RESOURCE(pps_monitor),
+		OCP_MEM_RESOURCE(pps_to_ext),
+		.offset = 0x01030000, .size = 0x10000,
+	},
+	{
+		OCP_MEM_RESOURCE(pps_to_clk),
 		.offset = 0x01040000, .size = 0x10000,
 	},
 	{
@@ -537,10 +544,10 @@ ptp_ocp_watchdog(struct timer_list *t)
 	unsigned long flags;
 	u32 status;
 
-	status = ioread32(&bp->pps_monitor->status);
+	status = ioread32(&bp->pps_to_clk->status);
 
 	if (status & PPS_STATUS_SUPERV_ERR) {
-		iowrite32(status, &bp->pps_monitor->status);
+		iowrite32(status, &bp->pps_to_clk->status);
 		if (!bp->gps_lost) {
 			spin_lock_irqsave(&bp->lock, flags);
 			__ptp_ocp_clear_drift_locked(bp);
