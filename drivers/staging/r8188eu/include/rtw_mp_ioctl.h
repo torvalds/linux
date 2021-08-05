@@ -11,7 +11,6 @@
 #include "rtw_efuse.h"
 #include "rtw_mp.h"
 
-/*  */
 struct cfg_dbg_msg_struct {
 	u32 DebugLevel;
 	u32 DebugComponent_H32;
@@ -52,7 +51,6 @@ struct dr_variable_struct {
 
 #define _irqlevel_changed_(a, b)
 
-/* rtl8188eu_oid_rtl_seg_81_80_00 */
 int rtl8188eu_oid_rt_pro_set_data_rate_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_stop_test_hdl(struct oid_par_priv *poid_par_priv);
@@ -60,7 +58,6 @@ int rtl8188eu_oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv *poid_p
 int rtl8188eu_oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_set_tx_power_control_hdl(struct oid_par_priv *poid_par_priv);
 
-/* rtl8188eu_oid_rtl_seg_81_80_20 */
 int rtl8188eu_oid_rt_pro_query_tx_packet_sent_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_query_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_query_rx_packet_crc32_error_hdl(struct oid_par_priv *par_priv);
@@ -78,7 +75,6 @@ int rtl8188eu_oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv);
 int rtl8188eu_oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv);
 
-/* rtl8188eu_oid_rtl_seg_81_85 */
 int rtl8188eu_oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv);
 
 /*  rtl8188eu_oid_rtl_seg_87_11_00 */
