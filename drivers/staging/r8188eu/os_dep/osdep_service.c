@@ -156,11 +156,6 @@ void rtw_udelay_os(int us)
 	udelay((unsigned long)us);
 }
 
-void rtw_yield_os(void)
-{
-	yield();
-}
-
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
 static const struct device_type wlan_type = {
