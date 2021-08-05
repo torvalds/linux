@@ -247,10 +247,19 @@ static void io_wqe_wake_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 	ret = io_wqe_activate_free_worker(wqe);
 	rcu_read_unlock();
 
-	if (!ret && acct->nr_workers < acct->max_workers) {
-		atomic_inc(&acct->nr_running);
-		atomic_inc(&wqe->wq->worker_refs);
-		create_io_worker(wqe->wq, wqe, acct->index);
+	if (!ret) {
+		bool do_create = false;
+
+		raw_spin_lock_irq(&wqe->lock);
+		if (acct->nr_workers < acct->max_workers) {
+			atomic_inc(&acct->nr_running);
+			atomic_inc(&wqe->wq->worker_refs);
+			acct->nr_workers++;
+			do_create = true;
+		}
+		raw_spin_unlock_irq(&wqe->lock);
+		if (do_create)
+			create_io_worker(wqe->wq, wqe, acct->index);
 	}
 }
 
@@ -635,6 +644,9 @@ static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 		kfree(worker);
 fail:
 		atomic_dec(&acct->nr_running);
+		raw_spin_lock_irq(&wqe->lock);
+		acct->nr_workers--;
+		raw_spin_unlock_irq(&wqe->lock);
 		io_worker_ref_put(wq);
 		return;
 	}
@@ -650,9 +662,8 @@ fail:
 	worker->flags |= IO_WORKER_F_FREE;
 	if (index == IO_WQ_ACCT_BOUND)
 		worker->flags |= IO_WORKER_F_BOUND;
-	if (!acct->nr_workers && (worker->flags & IO_WORKER_F_BOUND))
+	if ((acct->nr_workers == 1) && (worker->flags & IO_WORKER_F_BOUND))
 		worker->flags |= IO_WORKER_F_FIXED;
-	acct->nr_workers++;
 	raw_spin_unlock_irq(&wqe->lock);
 	wake_up_new_task(tsk);
 }
