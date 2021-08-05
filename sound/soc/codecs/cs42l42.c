@@ -891,10 +891,23 @@ static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
+	int i;
 
-	cs42l42->sclk = freq;
+	if (freq == 0) {
+		cs42l42->sclk = 0;
+		return 0;
+	}
 
-	return 0;
+	for (i = 0; i < ARRAY_SIZE(pll_ratio_table); i++) {
+		if (pll_ratio_table[i].sclk == freq) {
+			cs42l42->sclk = freq;
+			return 0;
+		}
+	}
+
+	dev_err(component->dev, "SCLK %u not supported\n", freq);
+
+	return -EINVAL;
 }
 
 static int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
