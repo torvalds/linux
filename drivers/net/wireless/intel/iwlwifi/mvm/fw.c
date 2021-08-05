@@ -1058,16 +1058,7 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
-	int ret;
-
-	ret = iwl_mvm_get_ppag_table(mvm);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
-				"PPAG BIOS table invalid or unavailable. (%d)\n",
-				ret);
-		return 0;
-	}
-
+	/* no need to read the table, done in INIT stage */
 	if (!dmi_check_system(dmi_ppag_approved_list)) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling PPAG.\n",
@@ -1192,12 +1183,65 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 					ret);
 	}
 }
+
+void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	/* read PPAG table */
+	ret = iwl_mvm_get_ppag_table(mvm);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG BIOS table invalid or unavailable. (%d)\n",
+				ret);
+	}
+
+	/* read SAR tables */
+	ret = iwl_sar_get_wrds_table(&mvm->fwrt);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		/*
+		 * If not available, don't fail and don't bother with EWRD and
+		 * WGDS */
+
+		if (!iwl_sar_get_wgds_table(&mvm->fwrt)) {
+			/*
+			 * If basic SAR is not available, we check for WGDS,
+			 * which should *not* be available either.  If it is
+			 * available, issue an error, because we can't use SAR
+			 * Geo without basic SAR.
+			 */
+			IWL_ERR(mvm, "BIOS contains WGDS but no WRDS\n");
+		}
+
+	} else {
+		ret = iwl_sar_get_ewrd_table(&mvm->fwrt);
+		/* if EWRD is not available, we can still use
+		* WRDS, so don't fail */
+		if (ret < 0)
+			IWL_DEBUG_RADIO(mvm,
+					"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
+					ret);
+
+		/* read geo SAR table */
+		if (iwl_sar_geo_support(&mvm->fwrt)) {
+			ret = iwl_sar_get_wgds_table(&mvm->fwrt);
+			if (ret < 0)
+				IWL_DEBUG_RADIO(mvm,
+						"Geo SAR BIOS table invalid or unavailable. (%d)\n",
+						ret);
+				/* we don't fail if the table is not available */
+		}
+	}
+}
 #else /* CONFIG_ACPI */
 
 inline int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm,
 				      int prof_a, int prof_b)
 {
-	return -ENOENT;
+	return 1;
 }
 
 inline int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
@@ -1231,6 +1275,10 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
 	return DSM_VALUE_RFI_DISABLE;
+}
+
+void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
+{
 }
 #endif /* CONFIG_ACPI */
 
@@ -1287,27 +1335,6 @@ void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 
 static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
-	int ret;
-
-	ret = iwl_sar_get_wrds_table(&mvm->fwrt);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
-				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
-				ret);
-		/*
-		 * If not available, don't fail and don't bother with EWRD.
-		 * Return 1 to tell that we can't use WGDS either.
-		 */
-		return 1;
-	}
-
-	ret = iwl_sar_get_ewrd_table(&mvm->fwrt);
-	/* if EWRD is not available, we can still use WRDS, so don't fail */
-	if (ret < 0)
-		IWL_DEBUG_RADIO(mvm,
-				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
-				ret);
-
 	return iwl_mvm_sar_select_profile(mvm, 1, 1);
 }
 
@@ -1543,19 +1570,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	ret = iwl_mvm_sar_init(mvm);
-	if (ret == 0) {
+	if (ret == 0)
 		ret = iwl_mvm_sar_geo_init(mvm);
-	} else if (ret == -ENOENT && !iwl_sar_get_wgds_table(&mvm->fwrt)) {
-		/*
-		 * If basic SAR is not available, we check for WGDS,
-		 * which should *not* be available either.  If it is
-		 * available, issue an error, because we can't use SAR
-		 * Geo without basic SAR.
-		 */
-		IWL_ERR(mvm, "BIOS contains WGDS but no WRDS\n");
-	}
-
-	if (ret < 0)
+	else if (ret < 0)
 		goto error;
 
 	iwl_mvm_tas_init(mvm);

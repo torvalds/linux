@@ -265,7 +265,7 @@ static inline int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 
 static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
-	return -ENOENT;
+	return 1;
 }
 
 static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)

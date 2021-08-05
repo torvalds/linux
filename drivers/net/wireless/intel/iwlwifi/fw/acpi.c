@@ -416,8 +416,6 @@ static int iwl_sar_set_profile(union acpi_object *table,
 {
 	int i, j, idx = 0;
 
-	profile->enabled = enabled;
-
 	/*
 	 * The table from ACPI is flat, but we store it in a
 	 * structured array.
@@ -434,6 +432,9 @@ static int iwl_sar_set_profile(union acpi_object *table,
 			idx++;
 		}
 	}
+
+	/* Only if all values were valid can the profile be enabled */
+	profile->enabled = enabled;
 
 	return 0;
 }
@@ -780,19 +781,10 @@ IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset *table, u32 n_bands)
 {
-	int ret, i, j;
+	int i, j;
 
 	if (!iwl_sar_geo_support(fwrt))
 		return -EOPNOTSUPP;
-
-	ret = iwl_sar_get_wgds_table(fwrt);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(fwrt,
-				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
-				ret);
-		/* we don't fail if the table is not available */
-		return -ENOENT;
-	}
 
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		for (j = 0; j < n_bands; j++) {
