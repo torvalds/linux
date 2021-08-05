@@ -2223,6 +2223,11 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		goto exit_error;
 	}
 
+	/* Apply the common HCI quirks for Intel device */
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
+	set_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks);
+
 	/* For Legacy device, check the HW platform value and size */
 	if (skb->len == sizeof(ver) && skb->data[1] == 0x37) {
 		bt_dev_dbg(hdev, "Read the legacy Intel version information");
@@ -2245,6 +2250,15 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 			/* Legacy ROM product */
 			btintel_set_flag(hdev, INTEL_ROM_LEGACY);
 
+			/* Apply the device specific HCI quirks
+			 *
+			 * WBS for SdP - SdP and Stp have a same hw_varaint but
+			 * different fw_variant
+			 */
+			if (ver.hw_variant == 0x08 && ver.fw_variant == 0x22)
+				set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
+					&hdev->quirks);
+
 			/* These devices have an issue with LED which doesn't
 			 * go off immediately during shutdown. Set the flag
 			 * here to send the LED OFF command during shutdown.
@@ -2259,6 +2273,18 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		case 0x12:      /* ThP */
 		case 0x13:      /* HrP */
 		case 0x14:      /* CcP */
+			/* Apply the device specific HCI quirks
+			 *
+			 * All Legacy bootloader devices support WBS
+			 */
+			set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
+				&hdev->quirks);
+
+			/* Valid LE States quirk for JfP/ThP familiy */
+			if (ver.hw_variant == 0x11 || ver.hw_variant == 0x12)
+				set_bit(HCI_QUIRK_VALID_LE_STATES,
+					&hdev->quirks);
+
 			err = btintel_bootloader_setup(hdev, &ver);
 			break;
 		default:
@@ -2297,6 +2323,16 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	case 0x19:
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);
+
+		/* Apply the device specific HCI quirks for TLV based devices
+		 *
+		 * All TLV based devices support WBS
+		 */
+		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+
+		/* Valid LE States quirk for GfP */
+		if (INTEL_HW_VARIANT(ver_tlv.cnvi_bt) == 0x18)
+			set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
 
 		err = btintel_bootloader_setup_tlv(hdev, &ver_tlv);
 		break;
