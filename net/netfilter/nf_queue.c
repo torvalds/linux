@@ -21,6 +21,8 @@
 
 #include "nf_internals.h"
 
+static const struct nf_queue_handler __rcu *nf_queue_handler;
+
 /*
  * Hook for nfnetlink_queue to register its queue handler.
  * We do this so that most of the NFQUEUE code can be modular.
@@ -29,20 +31,18 @@
  * receives, no matter what.
  */
 
-/* return EBUSY when somebody else is registered, return EEXIST if the
- * same handler is registered, return 0 in case of success. */
-void nf_register_queue_handler(struct net *net, const struct nf_queue_handler *qh)
+void nf_register_queue_handler(const struct nf_queue_handler *qh)
 {
 	/* should never happen, we only have one queueing backend in kernel */
-	WARN_ON(rcu_access_pointer(net->nf.queue_handler));
-	rcu_assign_pointer(net->nf.queue_handler, qh);
+	WARN_ON(rcu_access_pointer(nf_queue_handler));
+	rcu_assign_pointer(nf_queue_handler, qh);
 }
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-void nf_unregister_queue_handler(struct net *net)
+void nf_unregister_queue_handler(void)
 {
-	RCU_INIT_POINTER(net->nf.queue_handler, NULL);
+	RCU_INIT_POINTER(nf_queue_handler, NULL);
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
 
@@ -116,7 +116,7 @@ void nf_queue_nf_hook_drop(struct net *net)
 	const struct nf_queue_handler *qh;
 
 	rcu_read_lock();
-	qh = rcu_dereference(net->nf.queue_handler);
+	qh = rcu_dereference(nf_queue_handler);
 	if (qh)
 		qh->nf_hook_drop(net);
 	rcu_read_unlock();
@@ -157,12 +157,11 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 {
 	struct nf_queue_entry *entry = NULL;
 	const struct nf_queue_handler *qh;
-	struct net *net = state->net;
 	unsigned int route_key_size;
 	int status;
 
 	/* QUEUE == DROP if no one is waiting, to be safe. */
-	qh = rcu_dereference(net->nf.queue_handler);
+	qh = rcu_dereference(nf_queue_handler);
 	if (!qh)
 		return -ESRCH;
 
