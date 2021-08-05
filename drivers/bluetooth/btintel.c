@@ -2312,6 +2312,27 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	 * along.
 	 */
 	switch (INTEL_HW_VARIANT(ver_tlv.cnvi_bt)) {
+	case 0x11:      /* JfP */
+	case 0x12:      /* ThP */
+	case 0x13:      /* HrP */
+	case 0x14:      /* CcP */
+		/* Some legacy bootloader devices from JfP supports both old
+		 * and TLV based HCI_Intel_Read_Version command. But we don't
+		 * want to use the TLV based setup routines for those legacy
+		 * bootloader device.
+		 *
+		 * Also, it is not easy to convert TLV based version from the
+		 * legacy version format.
+		 *
+		 * So, as a workaround for those devices, use the legacy
+		 * HCI_Intel_Read_Version to get the version information and
+		 * run the legacy bootloader setup.
+		 */
+		err = btintel_read_version(hdev, &ver);
+		if (err)
+			return err;
+		err = btintel_bootloader_setup(hdev, &ver);
+		break;
 	case 0x17:
 	case 0x18:
 	case 0x19:
