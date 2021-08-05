@@ -54,6 +54,44 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 	return id == ancestor;
 }
 
+struct snapshots_seen {
+	struct bpos			pos;
+	size_t				nr;
+	size_t				size;
+	u32				*d;
+};
+
+static inline void snapshots_seen_exit(struct snapshots_seen *s)
+{
+	kfree(s->d);
+	s->d = NULL;
+}
+
+static inline void snapshots_seen_init(struct snapshots_seen *s)
+{
+	memset(s, 0, sizeof(*s));
+}
+
+static inline int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
+{
+	if (s->nr == s->size) {
+		size_t new_size = max(s->size, 128UL) * 2;
+		u32 *d = krealloc(s->d, new_size * sizeof(s->d[0]), GFP_KERNEL);
+
+		if (!d) {
+			bch_err(c, "error reallocating snapshots_seen table (new size %zu)",
+				new_size);
+			return -ENOMEM;
+		}
+
+		s->size = new_size;
+		s->d	= d;
+	}
+
+	s->d[s->nr++] = id;
+	return 0;
+}
+
 int bch2_fs_snapshots_check(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
 int bch2_fs_snapshots_start(struct bch_fs *);

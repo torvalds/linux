@@ -941,6 +941,43 @@ err:
 	goto retry;
 }
 
+static int check_pos_snapshot_overwritten(struct btree_trans *trans,
+					  enum btree_id id,
+					  struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	if (!snapshot_t(c, pos.snapshot)->children[0])
+		return 0;
+
+	bch2_trans_iter_init(trans, &iter, id, pos,
+			     BTREE_ITER_NOT_EXTENTS|
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	while (1) {
+		k = bch2_btree_iter_prev(&iter);
+		ret = bkey_err(k);
+		if (ret)
+			break;
+
+		if (!k.k)
+			break;
+
+		if (bkey_cmp(pos, k.k->p))
+			break;
+
+		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot)) {
+			ret = 1;
+			break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
+}
+
 static noinline int extent_front_merge(struct btree_trans *trans,
 				       struct btree_iter *iter,
 				       struct bkey_s_c k,
@@ -958,14 +995,40 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 
 	bkey_reassemble(update, k);
 
-	if (bch2_bkey_merge(c, bkey_i_to_s(update), bkey_i_to_s_c(*insert))) {
-		ret = bch2_btree_delete_at(trans, iter, flags);
-		if (ret)
-			return ret;
+	if (!bch2_bkey_merge(c, bkey_i_to_s(update), bkey_i_to_s_c(*insert)))
+		return 0;
 
-		*insert = update;
-	}
+	ret =   check_pos_snapshot_overwritten(trans, iter->btree_id, k.k->p) ?:
+		check_pos_snapshot_overwritten(trans, iter->btree_id, (*insert)->k.p);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		return 0;
 
+	ret = bch2_btree_delete_at(trans, iter, flags);
+	if (ret)
+		return ret;
+
+	*insert = update;
+	return 0;
+}
+
+static noinline int extent_back_merge(struct btree_trans *trans,
+				      struct btree_iter *iter,
+				      struct bkey_i *insert,
+				      struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	int ret;
+
+	ret =   check_pos_snapshot_overwritten(trans, iter->btree_id, insert->k.p) ?:
+		check_pos_snapshot_overwritten(trans, iter->btree_id, k.k->p);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		return 0;
+
+	bch2_bkey_merge(c, bkey_i_to_s(insert), k);
 	return 0;
 }
 
@@ -974,7 +1037,6 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 				    struct bkey_i *insert,
 				    enum btree_update_flags flags)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter, update_iter;
 	struct bpos start = bkey_start_pos(&insert->k);
 	struct bkey_i *update;
@@ -1001,9 +1063,6 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 
 		goto next;
 	}
-
-	if (!bkey_cmp(k.k->p, start))
-		goto next;
 
 	while (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) > 0) {
 		bool front_split = bkey_cmp(bkey_start_pos(k.k), start) < 0;
@@ -1120,7 +1179,7 @@ next:
 	}
 
 	if (bch2_bkey_maybe_mergable(&insert->k, k.k))
-		bch2_bkey_merge(c, bkey_i_to_s(insert), k);
+		extent_back_merge(trans, &iter, insert, k);
 out:
 	if (!bkey_deleted(&insert->k)) {
 		/*

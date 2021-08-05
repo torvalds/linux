@@ -48,7 +48,8 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	bch2_trans_iter_init(&trans, &iter, btree_id, POS_MIN,
-			     BTREE_ITER_PREFETCH);
+			     BTREE_ITER_PREFETCH|
+			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k))) {
@@ -74,7 +75,8 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		bch2_btree_iter_set_pos(&iter, bkey_start_pos(&sk.k->k));
 
 		ret   = bch2_btree_iter_traverse(&iter) ?:
-			bch2_trans_update(&trans, &iter, sk.k, 0) ?:
+			bch2_trans_update(&trans, &iter, sk.k,
+					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL);
 

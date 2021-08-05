@@ -14,6 +14,7 @@
 #include "keylist.h"
 #include "move.h"
 #include "replicas.h"
+#include "subvolume.h"
 #include "super-io.h"
 #include "trace.h"
 
@@ -51,6 +52,81 @@ struct moving_context {
 
 	wait_queue_head_t	wait;
 };
+
+static int insert_snapshot_whiteouts(struct btree_trans *trans,
+				     enum btree_id id,
+				     struct bpos old_pos,
+				     struct bpos new_pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter, update_iter;
+	struct bkey_s_c k;
+	struct snapshots_seen s;
+	int ret;
+
+	if (!btree_type_has_snapshots(id))
+		return 0;
+
+	snapshots_seen_init(&s);
+
+	if (!bkey_cmp(old_pos, new_pos))
+		return 0;
+
+	if (!snapshot_t(c, old_pos.snapshot)->children[0])
+		return 0;
+
+	bch2_trans_iter_init(trans, &iter, id, old_pos,
+			     BTREE_ITER_NOT_EXTENTS|
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	while (1) {
+next:
+		k = bch2_btree_iter_prev(&iter);
+		ret = bkey_err(k);
+		if (ret)
+			break;
+
+		if (bkey_cmp(old_pos, k.k->p))
+			break;
+
+		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, old_pos.snapshot)) {
+			struct bkey_i *update;
+			size_t i;
+
+			for (i = 0; i < s.nr; i++)
+				if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, s.d[i]))
+					goto next;
+
+			update = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
+
+			ret = PTR_ERR_OR_ZERO(update);
+			if (ret)
+				break;
+
+			bkey_init(&update->k);
+			update->k.p = new_pos;
+			update->k.p.snapshot = k.k->p.snapshot;
+
+			bch2_trans_iter_init(trans, &update_iter, id, update->k.p,
+					     BTREE_ITER_NOT_EXTENTS|
+					     BTREE_ITER_ALL_SNAPSHOTS|
+					     BTREE_ITER_INTENT);
+			ret   = bch2_btree_iter_traverse(&update_iter) ?:
+				bch2_trans_update(trans, &update_iter, update,
+					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_trans_iter_exit(trans, &update_iter);
+			if (ret)
+				break;
+
+			ret = snapshots_seen_add(c, &s, k.k->p.snapshot);
+			if (ret)
+				break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+	kfree(s.d);
+
+	return ret;
+}
 
 int bch2_migrate_index_update(struct bch_write_op *op)
 {
@@ -165,7 +241,10 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 
 		next_pos = insert->k.p;
 
-		ret   = bch2_trans_update(&trans, &iter, insert, 0) ?:
+		ret   = insert_snapshot_whiteouts(&trans, m->btree_id,
+						  k.k->p, insert->k.p) ?:
+			bch2_trans_update(&trans, &iter, insert,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),
 				BTREE_INSERT_NOFAIL|

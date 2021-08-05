@@ -473,24 +473,6 @@ out:
 	return ret;
 }
 
-struct snapshots_seen {
-	struct bpos			pos;
-	size_t				nr;
-	size_t				size;
-	u32				*d;
-};
-
-static void snapshots_seen_exit(struct snapshots_seen *s)
-{
-	kfree(s->d);
-	s->d = NULL;
-}
-
-static void snapshots_seen_init(struct snapshots_seen *s)
-{
-	memset(s, 0, sizeof(*s));
-}
-
 static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s, struct bpos pos)
 {
 	pos.snapshot = snapshot_t(c, pos.snapshot)->equiv;
@@ -499,26 +481,11 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s, str
 		s->nr = 0;
 	s->pos = pos;
 
-	if (s->nr == s->size) {
-		size_t new_size = max(s->size, 128UL) * 2;
-		u32 *d = krealloc(s->d, new_size * sizeof(s->d[0]), GFP_KERNEL);
-
-		if (!d) {
-			bch_err(c, "error reallocating snapshots_seen table (new size %zu)",
-				new_size);
-			return -ENOMEM;
-		}
-
-		s->size = new_size;
-		s->d	= d;
-	}
-
 	/* Might get called multiple times due to lock restarts */
 	if (s->nr && s->d[s->nr - 1] == pos.snapshot)
 		return 0;
 
-	s->d[s->nr++] = pos.snapshot;
-	return 0;
+	return snapshots_seen_add(c, s, pos.snapshot);
 }
 
 /**

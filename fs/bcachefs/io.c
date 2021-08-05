@@ -1828,7 +1828,8 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (!bch2_bkey_narrow_crcs(new, new_crc))
 		goto out;
 
-	ret = bch2_trans_update(trans, &iter, new, 0);
+	ret = bch2_trans_update(trans, &iter, new,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
