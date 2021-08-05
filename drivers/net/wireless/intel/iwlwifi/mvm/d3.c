@@ -745,8 +745,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif,
-					    u32 cmd_flags)
+					    struct ieee80211_vif *vif)
 {
 	struct iwl_wowlan_kek_kck_material_cmd_v4 kek_kck_cmd = {};
 	struct iwl_wowlan_kek_kck_material_cmd_v4 *_kek_kck_cmd = &kek_kck_cmd;
@@ -772,10 +771,9 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	 * required locks.
 	 */
 	/*
-	 * Note that currently we don't propagate cmd_flags
-	 * to the iterator. In case of key_data.configure_keys,
-	 * all the configured commands are SYNC, and
-	 * iwl_mvm_wowlan_program_keys() will take care of
+	 * Note that currently we don't use CMD_ASYNC in the iterator.
+	 * In case of key_data.configure_keys, all the configured commands
+	 * are SYNC, and iwl_mvm_wowlan_program_keys() will take care of
 	 * locking/unlocking mvm->mutex.
 	 */
 	ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_program_keys,
@@ -806,8 +804,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		}
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
-					   cmd_flags,
-					   size,
+					   CMD_ASYNC, size,
 					   key_data.rsc_tsc);
 
 		if (ret)
@@ -841,7 +838,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 			/* send relevant data according to CMD version */
 			ret = iwl_mvm_send_cmd_pdu(mvm,
 						   WOWLAN_TKIP_PARAM,
-						   cmd_flags, size,
+						   CMD_ASYNC, size,
 						   &tkip_data.tkip);
 			if (ret)
 				goto out;
@@ -885,10 +882,8 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		IWL_DEBUG_WOWLAN(mvm, "setting akm %d\n",
 				 mvmvif->rekey_data.akm);
 
-		ret = iwl_mvm_send_cmd_pdu(mvm,
-					   WOWLAN_KEK_KCK_MATERIAL, cmd_flags,
-					   cmd_size,
-					   _kek_kck_cmd);
+		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_KEK_KCK_MATERIAL,
+					   CMD_ASYNC, cmd_size, _kek_kck_cmd);
 		if (ret)
 			goto out;
 	}
@@ -927,7 +922,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 	 * that isn't really a problem though.
 	 */
 	mutex_unlock(&mvm->mutex);
-	ret = iwl_mvm_wowlan_config_key_params(mvm, vif, CMD_ASYNC);
+	ret = iwl_mvm_wowlan_config_key_params(mvm, vif);
 	mutex_lock(&mvm->mutex);
 	if (ret)
 		return ret;
