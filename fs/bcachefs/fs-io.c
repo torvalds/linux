@@ -791,6 +791,15 @@ retry:
 		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
 
+		/*
+		 * read_extent -> io_time_reset may cause a transaction restart
+		 * without returning an error, we need to check for that here:
+		 */
+		if (!bch2_trans_relock(trans)) {
+			ret = -EINTR;
+			break;
+		}
+
 		bch2_btree_iter_set_pos(iter,
 				POS(inum, rbio->bio.bi_iter.bi_sector));
 
