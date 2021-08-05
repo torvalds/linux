@@ -13,13 +13,6 @@
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 
-#define IS_MAC_ADDRESS_BROADCAST(addr) \
-(\
-	((addr[0] == 0xff) && (addr[1] == 0xff) && \
-		(addr[2] == 0xff) && (addr[3] == 0xff) && \
-		(addr[4] == 0xff) && (addr[5] == 0xff))  ? true : false \
-)
-
 u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 {
 	u8	 i;
@@ -540,7 +533,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 		}
 
 		/*  check BSSID */
-		if (IS_MAC_ADDRESS_BROADCAST(key->BSSID) == true) {
+		if (is_broadcast_ether_addr(key->BSSID)) {
 			ret = false;
 			goto exit;
 		}
@@ -592,7 +585,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 			encryptionalgo = padapter->securitypriv.dot118021XGrpPrivacy;
 		}
 
-		if ((check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE) == true) && (IS_MAC_ADDRESS_BROADCAST(key->BSSID) == false)) {
+		if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE) && !is_broadcast_ether_addr(key->BSSID)) {
 			ret = _FAIL;
 			goto exit;
 		}
