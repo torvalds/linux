@@ -599,8 +599,8 @@ static const struct fips_test fips140_selftests[] __initconst = {
 	 * Tests for AES-GCM, a.k.a. "gcm(aes)" in crypto API syntax.
 	 *
 	 * The IG requires that each underlying AES implementation be tested in
-	 * an authenticated mode, if implemented.  We therefore must test the
-	 * "gcm" template composed with each "aes" implementation.
+	 * an authenticated mode, if implemented.  We therefore test the "gcm"
+	 * template composed with each "aes" implementation.
 	 *
 	 * We also must test all standalone implementations of "gcm(aes)" such
 	 * as "gcm-aes-ce", as they don't reuse another full AES implementation
@@ -672,11 +672,11 @@ static const struct fips_test fips140_selftests[] __initconst = {
 		}
 	},
 	/*
-	 * Tests for AES-CBC, AES-CBC-CTS, AES-CTR, and AES-XTS.
+	 * Tests for AES-CBC, AES-CBC-CTS, AES-CTR, AES-XTS, and AES-CMAC.
 	 *
-	 * According to the IG, unauthenticated AES modes don't need to have
-	 * their own test as long as both directions of the underlying AES
-	 * implementation are already tested via other modes.
+	 * According to the IG, other AES modes don't need to have their own
+	 * test as long as both directions of the underlying AES implementation
+	 * are already tested via other modes.
 	 *
 	 * However we must still test standalone implementations of these modes,
 	 * as they don't reuse another full AES implementation and thus can't be
@@ -761,6 +761,22 @@ static const struct fips_test fips140_selftests[] __initconst = {
 			.plaintext	= fips_message,
 			.ciphertext	= fips_aes_xts_ciphertext,
 			.message_size	= sizeof(fips_message),
+		}
+	}, {
+		.alg		= "cmac(aes)",
+		.impls		= {
+			/* All standalone implementations of "cmac(aes)" */
+			"cmac-aes-neon",
+			"cmac-aes-ce",
+		},
+		.func		= fips_test_hash,
+		.hash		= {
+			.key		= fips_aes_key,
+			.key_size	= sizeof(fips_aes_key),
+			.message	= fips_message,
+			.message_size	= sizeof(fips_message),
+			.digest		= fips_aes_cmac_digest,
+			.digest_size	= sizeof(fips_aes_cmac_digest),
 		}
 	},
 

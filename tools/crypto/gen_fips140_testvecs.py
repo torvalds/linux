@@ -101,6 +101,10 @@ def generate_aes_testvecs():
     ciphertext = xts.update(message) + xts.finalize()
     print_value('aes_xts_ciphertext', ciphertext)
 
+    cmac = Cryptodome.Hash.CMAC.new(aes_key, ciphermod=Cryptodome.Cipher.AES)
+    cmac.update(message)
+    print_value('aes_cmac_digest', cmac.digest())
+
 def generate_sha_testvecs():
     print_value('hmac_key', hmac_key)
     for alg in ['sha1', 'sha256', 'hmac_sha256', 'sha512']:
