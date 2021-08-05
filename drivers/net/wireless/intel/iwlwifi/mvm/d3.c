@@ -211,7 +211,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 }
 
 struct wowlan_key_rsc_tsc_data {
-	struct iwl_wowlan_rsc_tsc_params_cmd *rsc_tsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_v4 *rsc_tsc;
 	bool have_rsc_tsc;
 };
 
@@ -327,6 +327,127 @@ static void iwl_mvm_wowlan_get_rsc_tsc_data(struct ieee80211_hw *hw,
 	}
 }
 
+struct wowlan_key_rsc_v5_data {
+	struct iwl_wowlan_rsc_tsc_params_cmd *rsc;
+	bool have_rsc;
+	int gtks;
+	int gtk_ids[4];
+};
+
+static void iwl_mvm_wowlan_get_rsc_v5_data(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta,
+					   struct ieee80211_key_conf *key,
+					   void *_data)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct wowlan_key_rsc_v5_data *data = _data;
+	struct ieee80211_key_seq seq;
+	__le64 *rsc;
+	int i;
+
+	/* only for ciphers that can be PTK/GTK */
+	switch (key->cipher) {
+	default:
+		return;
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		break;
+	}
+
+	if (sta) {
+		rsc = data->rsc->ucast_rsc;
+	} else {
+		if (WARN_ON(data->gtks > ARRAY_SIZE(data->gtk_ids)))
+			return;
+		data->gtk_ids[data->gtks] = key->keyidx;
+		rsc = data->rsc->mcast_rsc[data->gtks % 2];
+		if (WARN_ON(key->keyidx >
+				ARRAY_SIZE(data->rsc->mcast_key_id_map)))
+			return;
+		data->rsc->mcast_key_id_map[key->keyidx] = data->gtks % 2;
+		if (data->gtks >= 2) {
+			int prev = data->gtks - 2;
+			int prev_idx = data->gtk_ids[prev];
+
+			data->rsc->mcast_key_id_map[prev_idx] =
+				IWL_MCAST_KEY_MAP_INVALID;
+		}
+		data->gtks++;
+	}
+
+	switch (key->cipher) {
+	default:
+		WARN_ON(1);
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+
+		/*
+		 * For non-QoS this relies on the fact that both the uCode and
+		 * mac80211 use TID 0 (as they need to to avoid replay attacks)
+		 * for checking the IV in the frames.
+		 */
+		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+			ieee80211_get_key_rx_seq(key, i, &seq);
+
+			rsc[i] = cpu_to_le64(((u64)seq.tkip.iv32 << 16) |
+					     seq.tkip.iv16);
+		}
+
+		data->have_rsc = true;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/*
+		 * For non-QoS this relies on the fact that both the uCode and
+		 * mac80211/our RX code use TID 0 for checking the PN.
+		 */
+		if (sta) {
+			struct iwl_mvm_sta *mvmsta;
+			struct iwl_mvm_key_pn *ptk_pn;
+			const u8 *pn;
+
+			mvmsta = iwl_mvm_sta_from_mac80211(sta);
+			rcu_read_lock();
+			ptk_pn = rcu_dereference(mvmsta->ptk_pn[key->keyidx]);
+			if (WARN_ON(!ptk_pn)) {
+				rcu_read_unlock();
+				break;
+			}
+
+			for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+				pn = iwl_mvm_find_max_pn(key, ptk_pn, &seq, i,
+						mvm->trans->num_rx_queues);
+				rsc[i] = cpu_to_le64((u64)pn[5] |
+						     ((u64)pn[4] << 8) |
+						     ((u64)pn[3] << 16) |
+						     ((u64)pn[2] << 24) |
+						     ((u64)pn[1] << 32) |
+						     ((u64)pn[0] << 40));
+			}
+
+			rcu_read_unlock();
+		} else {
+			for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+				u8 *pn = seq.ccmp.pn;
+
+				ieee80211_get_key_rx_seq(key, i, &seq);
+				rsc[i] = cpu_to_le64((u64)pn[5] |
+						     ((u64)pn[4] << 8) |
+						     ((u64)pn[3] << 16) |
+						     ((u64)pn[2] << 24) |
+						     ((u64)pn[1] << 32) |
+						     ((u64)pn[0] << 40));
+			}
+		}
+		data->have_rsc = true;
+		break;
+	}
+}
+
 static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
@@ -334,35 +455,66 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
 					WOWLAN_TSC_RSC_PARAM,
 					IWL_FW_CMD_VER_UNKNOWN);
-	struct wowlan_key_rsc_tsc_data data = {};
-	int size;
 	int ret;
 
-	data.rsc_tsc = kzalloc(sizeof(*data.rsc_tsc), GFP_KERNEL);
-	if (!data.rsc_tsc)
-		return -ENOMEM;
+	if (ver == 5) {
+		struct wowlan_key_rsc_v5_data data = {};
+		int i;
 
-	if (ver == 4) {
-		size = sizeof(*data.rsc_tsc);
-		data.rsc_tsc->sta_id = cpu_to_le32(mvmvif->ap_sta_id);
-	} else if (ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
-		size = sizeof(data.rsc_tsc->params);
+		data.rsc = kmalloc(sizeof(*data.rsc), GFP_KERNEL);
+		if (!data.rsc)
+			return -ENOMEM;
+
+		memset(data.rsc, 0xff, sizeof(*data.rsc));
+
+		for (i = 0; i < ARRAY_SIZE(data.rsc->mcast_key_id_map); i++)
+			data.rsc->mcast_key_id_map[i] =
+				IWL_MCAST_KEY_MAP_INVALID;
+		data.rsc->sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+
+		ieee80211_iter_keys(mvm->hw, vif,
+				    iwl_mvm_wowlan_get_rsc_v5_data,
+				    &data);
+
+		if (data.have_rsc)
+			ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
+						   CMD_ASYNC, sizeof(*data.rsc),
+						   data.rsc);
+		else
+			ret = 0;
+		kfree(data.rsc);
+	} else if (ver == 4 || ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
+		struct wowlan_key_rsc_tsc_data data = {};
+		int size;
+
+		data.rsc_tsc = kzalloc(sizeof(*data.rsc_tsc), GFP_KERNEL);
+		if (!data.rsc_tsc)
+			return -ENOMEM;
+
+		if (ver == 4) {
+			size = sizeof(*data.rsc_tsc);
+			data.rsc_tsc->sta_id = cpu_to_le32(mvmvif->ap_sta_id);
+		} else {
+			/* ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN */
+			size = sizeof(data.rsc_tsc->params);
+		}
+
+		ieee80211_iter_keys(mvm->hw, vif,
+				    iwl_mvm_wowlan_get_rsc_tsc_data,
+				    &data);
+
+		if (data.have_rsc_tsc)
+			ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
+						   CMD_ASYNC, size,
+						   data.rsc_tsc);
+		else
+			ret = 0;
+		kfree(data.rsc_tsc);
 	} else {
 		ret = 0;
 		WARN_ON_ONCE(1);
-		goto out;
 	}
 
-	ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_get_rsc_tsc_data,
-			    &data);
-
-	if (data.have_rsc_tsc)
-		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
-					   CMD_ASYNC, size, data.rsc_tsc);
-	else
-		ret = 0;
-out:
-	kfree(data.rsc_tsc);
 	return ret;
 }
 
