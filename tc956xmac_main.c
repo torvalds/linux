@@ -43,6 +43,8 @@
  *  VERSION     : 01-00-04
  *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
  *  VERSION     : 01-00-05
+ *  05 Aug 2021 : 1. Register Port0 as only PCIe device, incase its PHY is not found
+ *  VERSION     : 01-00-08
  */
 
 #include <linux/clk.h>
@@ -6826,7 +6828,7 @@ static int tc956xmac_mode1_usp_lane_change_4_to_1(struct tc956xmac_priv *priv, v
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_USP_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x4 --> x1) to PLDA PCIe Switch USP
+	 * direct Link Width Change (x4 --> x1) to PCIe Switch USP
 	 */
 	writel(USP_LINK_WIDTH_CHANGE_4_TO_1, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -6908,7 +6910,7 @@ static int tc956xmac_mode1_usp_lane_change_4_to_2(struct tc956xmac_priv *priv, v
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_USP_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x4 --> x2) to PLDA PCIe Switch USP
+	 * direct Link Width Change (x4 --> x2) to PCIe Switch USP
 	 */
 	writel(USP_LINK_WIDTH_CHANGE_4_TO_2, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -7073,7 +7075,7 @@ static int tc956xmac_mode1_usp_lane_change_1_2_to_4(struct tc956xmac_priv *priv,
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_USP_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x1/x2 --> x4) to PLDA PCIe Switch USP
+	 * direct Link Width Change (x1/x2 --> x4) to PCIe Switch USP
 	 */
 	writel(USP_LINK_WIDTH_CHANGE_1_2_TO_4, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -7092,7 +7094,7 @@ static int tc956xmac_mode2_usp_lane_change_2_to_1(struct tc956xmac_priv *priv, v
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_USP_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x2 --> x1) to PLDA PCIe Switch USP
+	 * direct Link Width Change (x2 --> x1) to PCIe Switch USP
 	 */
 	writel(USP_LINK_WIDTH_CHANGE_2_TO_1, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -7203,7 +7205,7 @@ static int tc956xmac_mode2_usp_lane_change_1_to_2(struct tc956xmac_priv *priv, v
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_USP_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x1 --> x2) to PLDA PCIe Switch USP
+	 * direct Link Width Change (x1 --> x2) to PCIe Switch USP
 	 */
 	writel(USP_LINK_WIDTH_CHANGE_1_TO_2, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -7222,7 +7224,7 @@ static int tc956xmac_mode2_dsp1_lane_change_2_to_1(struct tc956xmac_priv *priv, 
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_DSP1_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x2 --> x1) to PLDA PCIe Switch DSP1
+	 * direct Link Width Change (x2 --> x1) to PCIe Switch DSP1
 	 */
 	writel(DSP1_LINK_WIDTH_CHANGE_2_TO_1, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -7333,7 +7335,7 @@ static int tc956xmac_mode2_dsp1_lane_change_1_to_2(struct tc956xmac_priv *priv, 
 	writel(0, ioaddr + TC956X_GLUE_RSVD_RW0);
 
 	/* Set SW_DSP1_TL_PM_BWCHANGE Register in Glue Logic Register rsvd_rw0 to
-	 * direct Link Width Change (x1 --> x2) to PLDA PCIe Switch DSP1
+	 * direct Link Width Change (x1 --> x2) to PCIe Switch DSP1
 	 */
 	writel(DSP1_LINK_WIDTH_CHANGE_1_TO_2, ioaddr + TC956X_GLUE_RSVD_RW0);
 
@@ -10002,10 +10004,16 @@ int tc956xmac_dvr_probe(struct device *device,
 #endif
 			ret = tc956xmac_mdio_register(ndev);
 			if (ret < 0) {
-				dev_err(priv->device,
-				"%s: MDIO bus (id: %d) registration failed",
-				__func__, priv->plat->bus_id);
-				goto error_mdio_register;
+				/* tc956xmac_mdio_register() will return -ENODEV when No PHY is found */
+				if (ret == -ENODEV) {
+					dev_info(priv->device, "Port%d will not be registered as ethernet controller", priv->port_num);
+					goto error_mdio_register;
+				} else {
+					dev_err(priv->device,
+					"%s: MDIO bus (id: %d) registration failed",
+					__func__, priv->plat->bus_id);
+					goto error_mdio_register;
+				}
 		}
 	}
 #ifdef TC956X_WITHOUT_MDIO

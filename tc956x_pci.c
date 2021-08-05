@@ -47,6 +47,8 @@
  *  VERSION     : 01-00-06
  *  29 Jul 2021 : 1. Add support to set MAC Address register
  *  VERSION     : 01-00-07
+ *  05 Aug 2021 : 1. Register Port0 as only PCIe device, incase its PHY is not found
+ *  VERSION     : 01-00-08
  */
 
 #include <linux/clk-provider.h>
@@ -76,7 +78,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 7};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 8};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -107,6 +109,11 @@ static struct tc956xmac_rx_parser_entry snps_rxp_entries[] = {
 	},
 #endif
 };
+
+#ifdef DMA_OFFLOAD_ENABLE
+struct pci_dev* port0_pdev;
+#endif
+
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static int tc956xmac_pci_find_phy_addr(struct pci_dev *pdev,
 				const struct dmi_system_id *dmi_list)
@@ -2081,8 +2088,14 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 	ret = tc956xmac_dvr_probe(&pdev->dev, plat, &res);
 	if (ret) {
-		dev_err(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
-		goto err_dvr_probe;
+		if (ret == -ENODEV) {
+			dev_info(&(pdev->dev), "Port%d will be registered as PCIe device only", res.port_num);
+			/* Make sure probe() succeeds by returning 0 to caller of probe() */
+			ret = 0;
+		} else {
+			dev_err(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
+			goto err_dvr_probe;
+		}
 	}
 #ifdef TC956X
 	if ((res.port_num == RM_PF1_ID) && (res.port_interface == ENABLE_RGMII_INTERFACE)) {
@@ -2106,6 +2119,11 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_stop_status = %d\n", __func__, ltssm_data.ltssm_stop_status);
 	}
 #endif /* TC956X_PCIE_LOGSTAT */
+
+#ifdef DMA_OFFLOAD_ENABLE
+	if (res.port_num == RM_PF0_ID)
+		port0_pdev = pdev;
+#endif
 	return ret;
 
 err_out_msi_failed:
@@ -2153,7 +2171,17 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 
-	tc956xmac_dvr_remove(&pdev->dev);
+#ifdef DMA_OFFLOAD_ENABLE
+	if (priv->port_num == RM_PF0_ID)
+		port0_pdev = NULL;
+#endif
+	/* phy_addr == -1 indicates that PHY was not found and
+	 * device is registered as only PCIe device. So skip any
+	 * ethernet device related uninitialization
+	 */
+	if (priv->plat->phy_addr != -1)
+		tc956xmac_dvr_remove(&pdev->dev);
+
 	pdev->irq = 0;
 
 	/* Enable MSI Operation */

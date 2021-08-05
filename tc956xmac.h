@@ -37,10 +37,10 @@
  *  15 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported without module parameter
  *  VERSION     : 01-00-02
  *  20 Jul 2021 : 1. Version update
-		2. Default Port1 interface selected as SGMII
+ *		2. Default Port1 interface selected as SGMII
  *  VERSION     : 01-00-03
  *  22 Jul 2021 : 1. Version update
-		2. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
+ *		2. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
  *  VERSION     : 01-00-04
  *  22 Jul 2021 : 1. Dynamic CM3 TAMAP configuration
  *  VERSION     : 01-00-05
@@ -48,6 +48,9 @@
  *  VERSION     : 01-00-06
  *  29 Jul 2021 : 1. Add support to set MAC Address register
  *  VERSION     : 01-00-07
+ *  05 Aug 2021 : 1. Store and use Port0 pci_dev for all DMA allocation/mapping for IPA path
+ *		: 2. Register Port0 as only PCIe device, incase its PHY is not found
+ *  VERSION     : 01-00-08
  */
 
 #ifndef __TC956XMAC_H__
@@ -94,7 +97,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-07"
+#define DRV_MODULE_VERSION	"V_01-00-08"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800

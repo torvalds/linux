@@ -43,6 +43,8 @@
  *  VERSION     : 01-00-06
  *  29 Jul 2021 : 1. Add support to set MAC Address register
  *  VERSION     : 01-00-07
+ *  05 Aug 2021 : Store and use Port0 pci_dev for all DMA allocation/mapping for IPA path
+ *  VERSION     : 01-00-08
  */
 
 #ifndef __TC956x_IPA_INTF_H
@@ -118,6 +120,8 @@ struct channel_info {
 	struct mem_ops *mem_ops;	/* store mem ops to use for allocate/freeing */
 	void *client_ch_priv;		/* channel specific private data */
 	unsigned int ch_flags;
+
+	struct pci_dev* dma_pdev;	/* pdev that should be used for dma allocation */
 };
 
 struct request_channel_input {
