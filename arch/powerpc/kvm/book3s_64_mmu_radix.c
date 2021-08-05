@@ -44,6 +44,9 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 					  (to != NULL) ? __pa(to): 0,
 					  (from != NULL) ? __pa(from): 0, n);
 
+	if (eaddr & (0xFFFUL << 52))
+		return ret;
+
 	quadrant = 1;
 	if (!pid)
 		quadrant = 2;
