@@ -878,6 +878,7 @@ static int nsim_dev_reload_down(struct devlink *devlink, bool netns_change,
 		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 		return -EOPNOTSUPP;
 	}
+	nsim_bus_dev->in_reload = true;
 
 	nsim_dev_reload_destroy(nsim_dev);
 	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
@@ -889,17 +890,26 @@ static int nsim_dev_reload_up(struct devlink *devlink, enum devlink_reload_actio
 			      struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	struct nsim_bus_dev *nsim_bus_dev;
+	int ret;
+
+	nsim_bus_dev = nsim_dev->nsim_bus_dev;
+	mutex_lock(&nsim_bus_dev->nsim_bus_reload_lock);
+	nsim_bus_dev->in_reload = false;
 
 	if (nsim_dev->fail_reload) {
 		/* For testing purposes, user set debugfs fail_reload
 		 * value to true. Fail right away.
 		 */
 		NL_SET_ERR_MSG_MOD(extack, "User setup the reload to fail for testing purposes");
+		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 		return -EINVAL;
 	}
 
 	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
-	return nsim_dev_reload_create(nsim_dev, extack);
+	ret = nsim_dev_reload_create(nsim_dev, extack);
+	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
+	return ret;
 }
 
 static int nsim_dev_info_get(struct devlink *devlink,

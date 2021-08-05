@@ -362,6 +362,7 @@ struct nsim_bus_dev {
 	struct nsim_vf_config *vfconfigs;
 	/* Lock for devlink->reload_enabled in netdevsim module */
 	struct mutex nsim_bus_reload_lock;
+	bool in_reload;
 	bool init;
 };
 
