@@ -51,18 +51,14 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 	struct nf_hook_state *state = &entry->state;
 
 	/* Release those devices we held, or Alexey will kill me. */
-	if (state->in)
-		dev_put(state->in);
-	if (state->out)
-		dev_put(state->out);
+	dev_put(state->in);
+	dev_put(state->out);
 	if (state->sk)
 		sock_put(state->sk);
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (entry->physin)
-		dev_put(entry->physin);
-	if (entry->physout)
-		dev_put(entry->physout);
+	dev_put(entry->physin);
+	dev_put(entry->physout);
 #endif
 }
 
@@ -95,18 +91,14 @@ void nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 {
 	struct nf_hook_state *state = &entry->state;
 
-	if (state->in)
-		dev_hold(state->in);
-	if (state->out)
-		dev_hold(state->out);
+	dev_hold(state->in);
+	dev_hold(state->out);
 	if (state->sk)
 		sock_hold(state->sk);
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (entry->physin)
-		dev_hold(entry->physin);
-	if (entry->physout)
-		dev_hold(entry->physout);
+	dev_hold(entry->physin);
+	dev_hold(entry->physout);
 #endif
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);

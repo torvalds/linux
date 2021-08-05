@@ -92,8 +92,7 @@ void dn_fib_free_info(struct dn_fib_info *fi)
 	}
 
 	change_nexthops(fi) {
-		if (nh->nh_dev)
-			dev_put(nh->nh_dev);
+		dev_put(nh->nh_dev);
 		nh->nh_dev = NULL;
 	} endfor_nexthops(fi);
 	kfree(fi);

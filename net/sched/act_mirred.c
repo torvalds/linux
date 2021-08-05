@@ -78,8 +78,7 @@ static void tcf_mirred_release(struct tc_action *a)
 
 	/* last reference to action, no need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -180,8 +179,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
 		dev = rcu_replace_pointer(m->tcfm_dev, dev,
 					  lockdep_is_held(&m->tcf_lock));
-		if (dev)
-			dev_put(dev);
+		dev_put(dev);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);

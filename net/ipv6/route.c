@@ -3626,8 +3626,7 @@ out:
 	if (err) {
 		lwtstate_put(fib6_nh->fib_nh_lws);
 		fib6_nh->fib_nh_lws = NULL;
-		if (dev)
-			dev_put(dev);
+		dev_put(dev);
 	}
 
 	return err;

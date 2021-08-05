@@ -557,8 +557,7 @@ int batadv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb)
 out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
-	if (soft_iface)
-		dev_put(soft_iface);
+	dev_put(soft_iface);
 
 	return ret;
 }

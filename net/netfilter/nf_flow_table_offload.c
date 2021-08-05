@@ -251,8 +251,7 @@ static int flow_offload_eth_src(struct net *net,
 	flow_offload_mangle(entry1, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 8,
 			    &val, &mask);
 
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return 0;
 }
