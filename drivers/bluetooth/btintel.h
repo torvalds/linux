@@ -145,7 +145,6 @@ int btintel_enter_mfg(struct hci_dev *hdev);
 int btintel_exit_mfg(struct hci_dev *hdev, bool reset, bool patched);
 int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int btintel_set_diag(struct hci_dev *hdev, bool enable);
-int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
 void btintel_hw_error(struct hci_dev *hdev, u8 code);
 
 int btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
@@ -199,11 +198,6 @@ static inline int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdadd
 }
 
 static inline int btintel_set_diag(struct hci_dev *hdev, bool enable)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable)
 {
 	return -EOPNOTSUPP;
 }
