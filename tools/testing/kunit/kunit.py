@@ -16,6 +16,7 @@ assert sys.version_info >= (3, 7), "Python version is too old"
 
 from collections import namedtuple
 from enum import Enum, auto
+from typing import Iterable
 
 import kunit_config
 import kunit_json
@@ -114,7 +115,16 @@ def parse_tests(request: KunitParseRequest) -> KunitResult:
 					      'Tests not Parsed.')
 
 	if request.raw_output:
-		kunit_parser.raw_output(request.input_data)
+		output: Iterable[str] = request.input_data
+		if request.raw_output == 'all':
+			pass
+		elif request.raw_output == 'kunit':
+			output = kunit_parser.extract_tap_lines(output)
+		else:
+			print(f'Unknown --raw_output option "{request.raw_output}"', file=sys.stderr)
+		for line in output:
+			print(line.rstrip())
+
 	else:
 		test_result = kunit_parser.parse_run_tests(request.input_data)
 	parse_end = time.time()
@@ -134,7 +144,6 @@ def parse_tests(request: KunitParseRequest) -> KunitResult:
 
 	return KunitResult(KunitStatus.SUCCESS, test_result,
 				parse_end - parse_start)
-
 
 def run_tests(linux: kunit_kernel.LinuxSourceTree,
 	      request: KunitRequest) -> KunitResult:
@@ -181,7 +190,7 @@ def add_common_opts(parser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
 			    'directory.',
-                            type=str, default='.kunit', metavar='build_dir')
+			    type=str, default='.kunit', metavar='build_dir')
 	parser.add_argument('--make_options',
 			    help='X=Y make option, can be repeated.',
 			    action='append')
@@ -246,8 +255,9 @@ def add_exec_opts(parser) -> None:
 			     action='append')
 
 def add_parse_opts(parser) -> None:
-	parser.add_argument('--raw_output', help='don\'t format output from kernel',
-			    action='store_true')
+	parser.add_argument('--raw_output', help='If set don\'t format output from kernel. '
+			    'If set to --raw_output=kunit, filters to just KUnit output.',
+			    type=str, nargs='?', const='all', default=None)
 	parser.add_argument('--json',
 			    nargs='?',
 			    help='Stores test results in a JSON, and either '

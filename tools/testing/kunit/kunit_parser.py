@@ -106,10 +106,6 @@ def extract_tap_lines(kernel_output: Iterable[str]) -> LineStream:
 				yield line_num, line[prefix_len:]
 	return LineStream(lines=isolate_kunit_output(kernel_output))
 
-def raw_output(kernel_output) -> None:
-	for line in kernel_output:
-		print(line.rstrip())
-
 DIVIDER = '=' * 60
 
 RESET = '\033[0;0m'
