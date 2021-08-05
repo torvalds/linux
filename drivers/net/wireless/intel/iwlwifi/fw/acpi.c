@@ -433,10 +433,10 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			      __le16 *per_chain, u32 n_subbands,
 			      int prof_a, int prof_b)
 {
-	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
+	int profs[ACPI_SAR_NUM_CHAINS] = { prof_a, prof_b };
 	int i, j, idx;
 
-	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
+	for (i = 0; i < ACPI_SAR_NUM_CHAINS; i++) {
 		struct iwl_sar_profile *prof;
 
 		/* don't allow SAR to be disabled (profile 0 means disable) */
@@ -486,7 +486,7 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 
 	for (i = 0; i < n_tables; i++) {
 		ret = iwl_sar_fill_table(fwrt,
-			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAIN_LIMITS],
+			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAINS],
 			 n_subbands, prof_a, prof_b);
 		if (ret)
 			break;
