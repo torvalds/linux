@@ -52,7 +52,7 @@
  *
  * The helpers for shadow-buffered planes establish and release mappings,
  * and provide struct drm_shadow_plane_state, which stores the plane's mapping
- * for commit-tail functons.
+ * for commit-tail functions.
  *
  * Shadow-buffered planes can easily be enabled by using the provided macros
  * %DRM_GEM_SHADOW_PLANE_FUNCS and %DRM_GEM_SHADOW_PLANE_HELPER_FUNCS.
@@ -330,10 +330,7 @@ int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *p
 {
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_gem_object *obj;
-	struct dma_buf_map map;
 	int ret;
-	size_t i;
 
 	if (!fb)
 		return 0;
@@ -342,27 +339,7 @@ int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *p
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(shadow_plane_state->map); ++i) {
-		obj = drm_gem_fb_get_obj(fb, i);
-		if (!obj)
-			continue;
-		ret = drm_gem_vmap(obj, &map);
-		if (ret)
-			goto err_drm_gem_vunmap;
-		shadow_plane_state->map[i] = map;
-	}
-
-	return 0;
-
-err_drm_gem_vunmap:
-	while (i) {
-		--i;
-		obj = drm_gem_fb_get_obj(fb, i);
-		if (!obj)
-			continue;
-		drm_gem_vunmap(obj, &shadow_plane_state->map[i]);
-	}
-	return ret;
+	return drm_gem_fb_vmap(fb, shadow_plane_state->map);
 }
 EXPORT_SYMBOL(drm_gem_prepare_shadow_fb);
 
@@ -374,25 +351,17 @@ EXPORT_SYMBOL(drm_gem_prepare_shadow_fb);
  * This function implements struct &drm_plane_helper_funcs.cleanup_fb.
  * This function unmaps all buffer objects of the plane's framebuffer.
  *
- * See drm_gem_prepare_shadow_fb() for more inforamtion.
+ * See drm_gem_prepare_shadow_fb() for more information.
  */
 void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state)
 {
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
-	size_t i = ARRAY_SIZE(shadow_plane_state->map);
-	struct drm_gem_object *obj;
 
 	if (!fb)
 		return;
 
-	while (i) {
-		--i;
-		obj = drm_gem_fb_get_obj(fb, i);
-		if (!obj)
-			continue;
-		drm_gem_vunmap(obj, &shadow_plane_state->map[i]);
-	}
+	drm_gem_fb_vunmap(fb, shadow_plane_state->map);
 }
 EXPORT_SYMBOL(drm_gem_cleanup_shadow_fb);
 

@@ -71,30 +71,12 @@
 
 static uint64_t drm_lease_idr_object;
 
-/**
- * drm_lease_owner - return ancestor owner drm_master
- * @master: drm_master somewhere within tree of lessees and lessors
- *
- * RETURN:
- *
- * drm_master at the top of the tree (i.e, with lessor NULL
- */
 struct drm_master *drm_lease_owner(struct drm_master *master)
 {
 	while (master->lessor != NULL)
 		master = master->lessor;
 	return master;
 }
-
-/**
- * _drm_find_lessee - find lessee by id (idr_mutex held)
- * @master: drm_master of lessor
- * @lessee_id: id
- *
- * RETURN:
- *
- * drm_master of the lessee if valid, NULL otherwise
- */
 
 static struct drm_master*
 _drm_find_lessee(struct drm_master *master, int lessee_id)
@@ -103,17 +85,6 @@ _drm_find_lessee(struct drm_master *master, int lessee_id)
 	return idr_find(&drm_lease_owner(master)->lessee_idr, lessee_id);
 }
 
-/**
- * _drm_lease_held_master - check to see if an object is leased (or owned) by master (idr_mutex held)
- * @master: the master to check the lease status of
- * @id: the id to check
- *
- * Checks if the specified master holds a lease on the object. Return
- * value:
- *
- *	true		'master' holds a lease on (or owns) the object
- *	false		'master' does not hold a lease.
- */
 static int _drm_lease_held_master(struct drm_master *master, int id)
 {
 	lockdep_assert_held(&master->dev->mode_config.idr_mutex);
@@ -122,17 +93,7 @@ static int _drm_lease_held_master(struct drm_master *master, int id)
 	return true;
 }
 
-/**
- * _drm_has_leased - check to see if an object has been leased (idr_mutex held)
- * @master: the master to check the lease status of
- * @id: the id to check
- *
- * Checks if any lessee of 'master' holds a lease on 'id'. Return
- * value:
- *
- *	true		Some lessee holds a lease on the object.
- *	false		No lessee has a lease on the object.
- */
+/* Checks if the given object has been leased to some lessee of drm_master */
 static bool _drm_has_leased(struct drm_master *master, int id)
 {
 	struct drm_master *lessee;
@@ -144,17 +105,7 @@ static bool _drm_has_leased(struct drm_master *master, int id)
 	return false;
 }
 
-/**
- * _drm_lease_held - check drm_mode_object lease status (idr_mutex held)
- * @file_priv: the master drm_file
- * @id: the object id
- *
- * Checks if the specified master holds a lease on the object. Return
- * value:
- *
- *	true		'master' holds a lease on (or owns) the object
- *	false		'master' does not hold a lease.
- */
+/* Called with idr_mutex held */
 bool _drm_lease_held(struct drm_file *file_priv, int id)
 {
 	bool ret;
@@ -172,17 +123,6 @@ bool _drm_lease_held(struct drm_file *file_priv, int id)
 	return ret;
 }
 
-/**
- * drm_lease_held - check drm_mode_object lease status (idr_mutex not held)
- * @file_priv: the master drm_file
- * @id: the object id
- *
- * Checks if the specified master holds a lease on the object. Return
- * value:
- *
- *	true		'master' holds a lease on (or owns) the object
- *	false		'master' does not hold a lease.
- */
 bool drm_lease_held(struct drm_file *file_priv, int id)
 {
 	struct drm_master *master;
@@ -207,13 +147,9 @@ out:
 	return ret;
 }
 
-/**
- * drm_lease_filter_crtcs - restricted crtc set to leased values (idr_mutex not held)
- * @file_priv: requestor file
- * @crtcs_in: bitmask of crtcs to check
- *
- * Reconstructs a crtc mask based on the crtcs which are visible
- * through the specified file.
+/*
+ * Given a bitmask of crtcs to check, reconstructs a crtc mask based on the
+ * crtcs which are visible through the specified file.
  */
 uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs_in)
 {
@@ -258,10 +194,6 @@ out:
 }
 
 /*
- * drm_lease_create - create a new drm_master with leased objects (idr_mutex not held)
- * @lessor: lease holder (or owner) of objects
- * @leases: objects to lease to the new drm_master
- *
  * Uses drm_master_create to allocate a new drm_master, then checks to
  * make sure all of the desired objects can be leased, atomically
  * leasing them to the new drmmaster.
@@ -330,15 +262,6 @@ out_lessee:
 	return ERR_PTR(error);
 }
 
-/**
- * drm_lease_destroy - a master is going away (idr_mutex not held)
- * @master: the drm_master being destroyed
- *
- * All lessees will have been destroyed as they
- * hold a reference on their lessor. Notify any
- * lessor for this master so that it can check
- * the list of lessees.
- */
 void drm_lease_destroy(struct drm_master *master)
 {
 	struct drm_device *dev = master->dev;
@@ -372,10 +295,6 @@ void drm_lease_destroy(struct drm_master *master)
 	DRM_DEBUG_LEASE("drm_lease_destroy done %d\n", master->lessee_id);
 }
 
-/**
- * _drm_lease_revoke - revoke access to all leased objects (idr_mutex held)
- * @top: the master losing its lease
- */
 static void _drm_lease_revoke(struct drm_master *top)
 {
 	int object;
@@ -414,10 +333,6 @@ static void _drm_lease_revoke(struct drm_master *top)
 	}
 }
 
-/**
- * drm_lease_revoke - revoke access to all leased objects (idr_mutex not held)
- * @top: the master losing its lease
- */
 void drm_lease_revoke(struct drm_master *top)
 {
 	mutex_lock(&top->dev->mode_config.idr_mutex);
@@ -549,12 +464,7 @@ out_free_objects:
 	return ret;
 }
 
-/**
- * drm_mode_create_lease_ioctl - create a new lease
- * @dev: the drm device
- * @data: pointer to struct drm_mode_create_lease
- * @lessor_priv: the file being manipulated
- *
+/*
  * The master associated with the specified file will have a lease
  * created containing the objects specified in the ioctl structure.
  * A file descriptor will be allocated for that and returned to the
@@ -676,18 +586,6 @@ out_lessor:
 	return ret;
 }
 
-/**
- * drm_mode_list_lessees_ioctl - list lessee ids
- * @dev: the drm device
- * @data: pointer to struct drm_mode_list_lessees
- * @lessor_priv: the file being manipulated
- *
- * Starting from the master associated with the specified file,
- * the master with the provided lessee_id is found, and then
- * an array of lessee ids associated with leases from that master
- * are returned.
- */
-
 int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *lessor_priv)
 {
@@ -734,15 +632,7 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 	return ret;
 }
 
-/**
- * drm_mode_get_lease_ioctl - list leased objects
- * @dev: the drm device
- * @data: pointer to struct drm_mode_get_lease
- * @lessee_priv: the file being manipulated
- *
- * Return the list of leased objects for the specified lessee
- */
-
+/* Return the list of leased objects for the specified lessee */
 int drm_mode_get_lease_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *lessee_priv)
 {
@@ -796,12 +686,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 	return ret;
 }
 
-/**
- * drm_mode_revoke_lease_ioctl - revoke lease
- * @dev: the drm device
- * @data: pointer to struct drm_mode_revoke_lease
- * @lessor_priv: the file being manipulated
- *
+/*
  * This removes all of the objects from the lease without
  * actually getting rid of the lease itself; that way all
  * references to it still work correctly

@@ -15,6 +15,8 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
 
+#include "drm_internal.h"
+
 #define AFBC_HEADER_SIZE		16
 #define AFBC_TH_LAYOUT_ALIGNMENT	8
 #define AFBC_HDR_ALIGN			64
@@ -48,7 +50,7 @@
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
 {
-	if (plane >= 4)
+	if (plane >= ARRAY_SIZE(fb->obj))
 		return NULL;
 
 	return fb->obj[plane];
@@ -62,7 +64,8 @@ drm_gem_fb_init(struct drm_device *dev,
 		 struct drm_gem_object **obj, unsigned int num_planes,
 		 const struct drm_framebuffer_funcs *funcs)
 {
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
@@ -86,9 +89,9 @@ drm_gem_fb_init(struct drm_device *dev,
  */
 void drm_gem_fb_destroy(struct drm_framebuffer *fb)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < ARRAY_SIZE(fb->obj); i++)
 		drm_gem_object_put(fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
@@ -145,8 +148,9 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 			       const struct drm_framebuffer_funcs *funcs)
 {
 	const struct drm_format_info *info;
-	struct drm_gem_object *objs[4];
-	int ret, i;
+	struct drm_gem_object *objs[DRM_FORMAT_MAX_PLANES];
+	unsigned int i;
+	int ret;
 
 	info = drm_get_format_info(dev, mode_cmd);
 	if (!info) {
@@ -187,9 +191,10 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 	return 0;
 
 err_gem_object_put:
-	for (i--; i >= 0; i--)
+	while (i > 0) {
+		--i;
 		drm_gem_object_put(objs[i]);
-
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_init_with_funcs);
@@ -305,6 +310,80 @@ drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 					    &drm_gem_fb_funcs_dirtyfb);
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
+
+/**
+ * drm_gem_fb_vmap - maps all framebuffer BOs into kernel address space
+ * @fb: the framebuffer
+ * @map: returns the mapping's address for each BO
+ *
+ * This function maps all buffer objects of the given framebuffer into
+ * kernel address space and stores them in struct dma_buf_map. If the
+ * mapping operation fails for one of the BOs, the function unmaps the
+ * already established mappings automatically.
+ *
+ * See drm_gem_fb_vunmap() for unmapping.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drm_gem_fb_vmap(struct drm_framebuffer *fb,
+		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES])
+{
+	struct drm_gem_object *obj;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < DRM_FORMAT_MAX_PLANES; ++i) {
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj) {
+			dma_buf_map_clear(&map[i]);
+			continue;
+		}
+		ret = drm_gem_vmap(obj, &map[i]);
+		if (ret)
+			goto err_drm_gem_vunmap;
+	}
+
+	return 0;
+
+err_drm_gem_vunmap:
+	while (i) {
+		--i;
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj)
+			continue;
+		drm_gem_vunmap(obj, &map[i]);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_fb_vmap);
+
+/**
+ * drm_gem_fb_vunmap - unmaps framebuffer BOs from kernel address space
+ * @fb: the framebuffer
+ * @map: mapping addresses as returned by drm_gem_fb_vmap()
+ *
+ * This function unmaps all buffer objects of the given framebuffer.
+ *
+ * See drm_gem_fb_vmap() for more information.
+ */
+void drm_gem_fb_vunmap(struct drm_framebuffer *fb,
+		       struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES])
+{
+	unsigned int i = DRM_FORMAT_MAX_PLANES;
+	struct drm_gem_object *obj;
+
+	while (i) {
+		--i;
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj)
+			continue;
+		if (dma_buf_map_is_null(&map[i]))
+			continue;
+		drm_gem_vunmap(obj, &map[i]);
+	}
+}
+EXPORT_SYMBOL(drm_gem_fb_vunmap);
 
 /**
  * drm_gem_fb_begin_cpu_access - prepares GEM buffer objects for CPU access

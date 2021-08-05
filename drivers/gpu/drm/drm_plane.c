@@ -38,7 +38,7 @@
 /**
  * DOC: overview
  *
- * A plane represents an image source that can be blended with or overlayed on
+ * A plane represents an image source that can be blended with or overlaid on
  * top of a CRTC during the scanout process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible area of a display

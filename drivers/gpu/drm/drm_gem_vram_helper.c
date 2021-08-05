@@ -96,7 +96,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically
  * it's used to program the hardware's scanout engine for framebuffers, set
  * the cursor overlay's image for a mouse cursor, or use it as input to the
- * hardware's draing engine.
+ * hardware's drawing engine.
  *
  * To access a buffer object's memory from the DRM driver, call
  * drm_gem_vram_vmap(). It maps the buffer into kernel address

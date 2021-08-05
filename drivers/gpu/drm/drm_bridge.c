@@ -982,7 +982,7 @@ drm_atomic_bridge_propagate_bus_flags(struct drm_bridge *bridge,
 	bridge_state->output_bus_cfg.flags = output_flags;
 
 	/*
-	 * Propage the output flags to the input end of the bridge. Again, it's
+	 * Propagate the output flags to the input end of the bridge. Again, it's
 	 * not necessarily what all bridges want, but that's what most of them
 	 * do, and by doing that by default we avoid forcing drivers to
 	 * duplicate the "dummy propagation" logic.

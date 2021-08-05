@@ -72,7 +72,7 @@
  * The DRM core provides very simple support helpers to enable IRQ handling on a
  * device through the drm_irq_install() and drm_irq_uninstall() functions. This
  * only supports devices with a single interrupt on the main device stored in
- * &drm_device.dev and set as the device paramter in drm_dev_alloc().
+ * &drm_device.dev and set as the device parameter in drm_dev_alloc().
  *
  * These IRQ helpers are strictly optional. Since these helpers don't automatically
  * clean up the requested interrupt like e.g. devm_request_irq() they're not really

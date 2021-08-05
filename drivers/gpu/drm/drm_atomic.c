@@ -723,7 +723,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * clocks, scaler units, bandwidth and fifo limits shared among a group of
  * planes or CRTCs, and so on) it makes sense to model these as independent
  * objects. Drivers then need to do similar state tracking and commit ordering for
- * such private (since not exposed to userpace) objects as the atomic core and
+ * such private (since not exposed to userspace) objects as the atomic core and
  * helpers already provide for connectors, planes and CRTCs.
  *
  * To make this easier on drivers the atomic core provides some support to track

@@ -412,7 +412,7 @@ EXPORT_SYMBOL(drm_fb_blit_rect_dstclip);
  * of the display and the framebuffer mismatch, the copy function will
  * attempt to convert between them.
  *
- * See drm_fb_blit_rect_dstclip() for more inforamtion.
+ * See drm_fb_blit_rect_dstclip() for more information.
  *
  * Returns:
  * 0 on success, or a negative error code otherwise.
