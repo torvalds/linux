@@ -456,7 +456,7 @@ int br_add_bridge(struct net *net, const char *name)
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = &br_link_ops;
 
-	res = register_netdev(dev);
+	res = register_netdevice(dev);
 	if (res)
 		free_netdev(dev);
 	return res;
@@ -467,7 +467,6 @@ int br_del_bridge(struct net *net, const char *name)
 	struct net_device *dev;
 	int ret = 0;
 
-	rtnl_lock();
 	dev = __dev_get_by_name(net, name);
 	if (dev == NULL)
 		ret =  -ENXIO; 	/* Could not find device */
@@ -485,7 +484,6 @@ int br_del_bridge(struct net *net, const char *name)
 	else
 		br_dev_delete(dev, NULL);
 
-	rtnl_unlock();
 	return ret;
 }
 

@@ -369,33 +369,44 @@ static int old_deviceless(struct net *net, void __user *uarg)
 int br_ioctl_stub(struct net *net, struct net_bridge *br, unsigned int cmd,
 		  struct ifreq *ifr, void __user *uarg)
 {
+	int ret = -EOPNOTSUPP;
+
+	rtnl_lock();
+
 	switch (cmd) {
 	case SIOCGIFBR:
 	case SIOCSIFBR:
-		return old_deviceless(net, uarg);
-
+		ret = old_deviceless(net, uarg);
+		break;
 	case SIOCBRADDBR:
 	case SIOCBRDELBR:
 	{
 		char buf[IFNAMSIZ];
 
-		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-			return -EPERM;
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+			ret = -EPERM;
+			break;
+		}
 
-		if (copy_from_user(buf, uarg, IFNAMSIZ))
-			return -EFAULT;
+		if (copy_from_user(buf, uarg, IFNAMSIZ)) {
+			ret = -EFAULT;
+			break;
+		}
 
 		buf[IFNAMSIZ-1] = 0;
 		if (cmd == SIOCBRADDBR)
-			return br_add_bridge(net, buf);
-
-		return br_del_bridge(net, buf);
+			ret = br_add_bridge(net, buf);
+		else
+			ret = br_del_bridge(net, buf);
 	}
-
+		break;
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
-		return add_del_if(br, ifr->ifr_ifindex, cmd == SIOCBRADDIF);
-
+		ret = add_del_if(br, ifr->ifr_ifindex, cmd == SIOCBRADDIF);
+		break;
 	}
-	return -EOPNOTSUPP;
+
+	rtnl_unlock();
+
+	return ret;
 }
