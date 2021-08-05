@@ -1433,3 +1433,71 @@ struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpui
 
 	return cpuid;
 }
+
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx 0x68747541
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx 0x444d4163
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_edx 0x69746e65
+
+static inline unsigned x86_family(unsigned int eax)
+{
+        unsigned int x86;
+
+        x86 = (eax >> 8) & 0xf;
+
+        if (x86 == 0xf)
+                x86 += (eax >> 20) & 0xff;
+
+        return x86;
+}
+
+unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
+{
+	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
+	unsigned long ht_gfn, max_gfn, max_pfn;
+	uint32_t eax, ebx, ecx, edx, max_ext_leaf;
+
+	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
+
+	/* Avoid reserved HyperTransport region on AMD processors.  */
+	eax = ecx = 0;
+	cpuid(&eax, &ebx, &ecx, &edx);
+	if (ebx != X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx ||
+	    ecx != X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx ||
+	    edx != X86EMUL_CPUID_VENDOR_AuthenticAMD_edx)
+		return max_gfn;
+
+	/* On parts with <40 physical address bits, the area is fully hidden */
+	if (vm->pa_bits < 40)
+		return max_gfn;
+
+	/* Before family 17h, the HyperTransport area is just below 1T.  */
+	ht_gfn = (1 << 28) - num_ht_pages;
+	eax = 1;
+	cpuid(&eax, &ebx, &ecx, &edx);
+	if (x86_family(eax) < 0x17)
+		goto done;
+
+	/*
+	 * Otherwise it's at the top of the physical address space, possibly
+	 * reduced due to SME by bits 11:6 of CPUID[0x8000001f].EBX.  Use
+	 * the old conservative value if MAXPHYADDR is not enumerated.
+	 */
+	eax = 0x80000000;
+	cpuid(&eax, &ebx, &ecx, &edx);
+	max_ext_leaf = eax;
+	if (max_ext_leaf < 0x80000008)
+		goto done;
+
+	eax = 0x80000008;
+	cpuid(&eax, &ebx, &ecx, &edx);
+	max_pfn = (1ULL << ((eax & 0xff) - vm->page_shift)) - 1;
+	if (max_ext_leaf >= 0x8000001f) {
+		eax = 0x8000001f;
+		cpuid(&eax, &ebx, &ecx, &edx);
+		max_pfn >>= (ebx >> 6) & 0x3f;
+	}
+
+	ht_gfn = max_pfn - num_ht_pages;
+done:
+	return min(max_gfn, ht_gfn - 1);
+}
