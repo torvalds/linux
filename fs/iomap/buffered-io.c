@@ -223,10 +223,10 @@ static int iomap_read_inline_data(struct inode *inode, struct page *page,
 	if (poff > 0)
 		iomap_page_create(inode, page);
 
-	addr = kmap_atomic(page) + poff;
+	addr = kmap_local_page(page) + poff;
 	memcpy(addr, iomap->inline_data, size);
 	memset(addr + size, 0, PAGE_SIZE - poff - size);
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 	iomap_set_range_uptodate(page, poff, PAGE_SIZE - poff);
 	return PAGE_SIZE - poff;
 }
@@ -682,9 +682,9 @@ static size_t iomap_write_end_inline(struct inode *inode, struct page *page,
 	BUG_ON(!iomap_inline_data_valid(iomap));
 
 	flush_dcache_page(page);
-	addr = kmap_atomic(page);
-	memcpy(iomap_inline_data(iomap, pos), addr + pos, copied);
-	kunmap_atomic(addr);
+	addr = kmap_local_page(page) + pos;
+	memcpy(iomap_inline_data(iomap, pos), addr, copied);
+	kunmap_local(addr);
 
 	mark_inode_dirty(inode);
 	return copied;
