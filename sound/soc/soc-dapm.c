@@ -782,14 +782,14 @@ static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)
 		p->sink->kcontrol_news[i].private_value;
 	unsigned int reg = mc->reg;
-	unsigned int shift = mc->shift;
-	unsigned int max = mc->max;
-	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned int val;
 
 	if (reg != SND_SOC_NOPM) {
-		val = soc_dapm_read(p->sink->dapm, reg);
+		unsigned int shift = mc->shift;
+		unsigned int max = mc->max;
+		unsigned int mask = (1 << fls(max)) - 1;
+		unsigned int val = soc_dapm_read(p->sink->dapm, reg);
+
 		/*
 		 * The nth_path argument allows this function to know
 		 * which path of a kcontrol it is setting the initial
