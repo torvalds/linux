@@ -69,8 +69,8 @@ static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* if we are here - this for sure is either CCMP or GCMP */
 	if (IS_ERR_OR_NULL(sta)) {
-		IWL_ERR(mvm,
-			"expected hw-decrypted unicast frame for station\n");
+		IWL_DEBUG_DROP(mvm,
+			       "expected hw-decrypted unicast frame for station\n");
 		return -1;
 	}
 
