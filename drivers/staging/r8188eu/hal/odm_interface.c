@@ -147,7 +147,7 @@ void ODM_delay_us(u32 us)
 
 void ODM_sleep_ms(u32 ms)
 {
-	rtw_msleep_os(ms);
+	msleep(ms);
 }
 
 void ODM_sleep_us(u32 us)

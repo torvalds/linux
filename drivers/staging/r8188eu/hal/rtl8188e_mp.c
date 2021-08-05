@@ -541,7 +541,7 @@ u8 Hal_ReadRFThermalMeter(struct adapter *pAdapter)
 void Hal_GetThermalMeter(struct adapter *pAdapter, u8 *value)
 {
 	Hal_TriggerRFThermalMeter(pAdapter);
-	rtw_msleep_os(1000);
+	msleep(1000);
 	*value = Hal_ReadRFThermalMeter(pAdapter);
 }
 
@@ -571,7 +571,7 @@ void Hal_SetSingleCarrierTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-		rtw_msleep_os(10);
+		msleep(10);
 
 		/* BB Reset */
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
@@ -773,7 +773,7 @@ void Hal_SetOFDMContinuousTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
 		/* Delay 10 ms */
-		rtw_msleep_os(10);
+		msleep(10);
 		/* BB Reset */
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);

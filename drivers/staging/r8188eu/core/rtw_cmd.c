@@ -81,7 +81,7 @@ void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 
 	_cancel_workitem_sync(&pevtpriv->c2h_wk);
 	while (pevtpriv->c2h_wk_alive)
-		rtw_msleep_os(10);
+		msleep(10);
 
 	while (!rtw_cbuf_empty(pevtpriv->c2h_queue)) {
 		void *c2h = rtw_cbuf_pop(pevtpriv->c2h_queue);
@@ -1820,7 +1820,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 		rtw_hal_get_hwreg(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &val);
 
 		while (!val) {
-			rtw_msleep_os(100);
+			msleep(100);
 
 			cnt++;
 
