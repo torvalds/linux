@@ -116,11 +116,6 @@ inline s32 rtw_get_passing_time_ms(u32 start)
 	return rtw_systime_to_ms(jiffies-start);
 }
 
-inline s32 rtw_get_time_interval_ms(u32 start, u32 end)
-{
-	return rtw_systime_to_ms(end-start);
-}
-
 void rtw_sleep_schedulable(int ms)
 {
 	u32 delta;
