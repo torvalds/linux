@@ -519,6 +519,10 @@ static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common,
 	}
 
 	napi_enable(&common->napi_rx);
+	if (common->rx_irq_disabled) {
+		common->rx_irq_disabled = false;
+		enable_irq(common->rx_chns.irq);
+	}
 
 	dev_dbg(common->dev, "cpsw_nuss started\n");
 	return 0;
@@ -872,8 +876,12 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 
 	dev_dbg(common->dev, "%s num_rx:%d %d\n", __func__, num_rx, budget);
 
-	if (num_rx < budget && napi_complete_done(napi_rx, num_rx))
-		enable_irq(common->rx_chns.irq);
+	if (num_rx < budget && napi_complete_done(napi_rx, num_rx)) {
+		if (common->rx_irq_disabled) {
+			common->rx_irq_disabled = false;
+			enable_irq(common->rx_chns.irq);
+		}
+	}
 
 	return num_rx;
 }
@@ -1091,6 +1099,7 @@ static irqreturn_t am65_cpsw_nuss_rx_irq(int irq, void *dev_id)
 {
 	struct am65_cpsw_common *common = dev_id;
 
+	common->rx_irq_disabled = true;
 	disable_irq_nosync(irq);
 	napi_schedule(&common->napi_rx);
 
