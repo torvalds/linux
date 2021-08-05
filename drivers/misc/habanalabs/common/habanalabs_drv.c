@@ -175,13 +175,6 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	/* Device is IDLE at this point so it is legal to change PLLs.
-	 * There is no need to check anything because if the PLL is
-	 * already HIGH, the set function will return without doing
-	 * anything
-	 */
-	hl_device_set_frequency(hdev, PLL_HIGH);
-
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 

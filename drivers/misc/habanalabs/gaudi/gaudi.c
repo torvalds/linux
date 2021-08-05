@@ -1636,6 +1636,8 @@ static int gaudi_late_init(struct hl_device *hdev)
 	 */
 	gaudi_mmu_prepare(hdev, 1);
 
+	hdev->asic_funcs->set_pll_profile(hdev, PLL_LAST);
+
 	return 0;
 
 disable_pci_access:

@@ -516,22 +516,6 @@ static void device_early_fini(struct hl_device *hdev)
 		hdev->asic_funcs->early_fini(hdev);
 }
 
-static void set_freq_to_low_job(struct work_struct *work)
-{
-	struct hl_device *hdev = container_of(work, struct hl_device,
-						work_freq.work);
-
-	mutex_lock(&hdev->fpriv_list_lock);
-
-	if (!hdev->compute_ctx)
-		hl_device_set_frequency(hdev, PLL_LOW);
-
-	mutex_unlock(&hdev->fpriv_list_lock);
-
-	schedule_delayed_work(&hdev->work_freq,
-			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
-}
-
 static void hl_device_heartbeat(struct work_struct *work)
 {
 	struct hl_device *hdev = container_of(work, struct hl_device,
@@ -591,18 +575,6 @@ static int device_late_init(struct hl_device *hdev)
 
 	hdev->high_pll = hdev->asic_prop.high_pll;
 
-	/* force setting to low frequency */
-	hdev->curr_pll_profile = PLL_LOW;
-
-	if (hdev->pm_mng_profile == PM_AUTO)
-		hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
-	else
-		hdev->asic_funcs->set_pll_profile(hdev, PLL_LAST);
-
-	INIT_DELAYED_WORK(&hdev->work_freq, set_freq_to_low_job);
-	schedule_delayed_work(&hdev->work_freq,
-	usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
-
 	if (hdev->heartbeat) {
 		INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
 		schedule_delayed_work(&hdev->work_heartbeat,
@@ -625,7 +597,6 @@ static void device_late_fini(struct hl_device *hdev)
 	if (!hdev->late_init_done)
 		return;
 
-	cancel_delayed_work_sync(&hdev->work_freq);
 	if (hdev->heartbeat)
 		cancel_delayed_work_sync(&hdev->work_heartbeat);
 
@@ -653,35 +624,6 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 	*utilization = (u32) div_u64(dividend, (max_power - dc_power));
 
 	return 0;
-}
-
-/*
- * hl_device_set_frequency - set the frequency of the device
- *
- * @hdev: pointer to habanalabs device structure
- * @freq: the new frequency value
- *
- * Change the frequency if needed. This function has no protection against
- * concurrency, therefore it is assumed that the calling function has protected
- * itself against the case of calling this function from multiple threads with
- * different values
- *
- * Returns 0 if no change was done, otherwise returns 1
- */
-int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
-{
-	if ((hdev->pm_mng_profile == PM_MANUAL) ||
-			(hdev->curr_pll_profile == freq))
-		return 0;
-
-	dev_dbg(hdev->dev, "Changing device frequency to %s\n",
-		freq == PLL_HIGH ? "high" : "low");
-
-	hdev->asic_funcs->set_pll_profile(hdev, freq);
-
-	hdev->curr_pll_profile = freq;
-
-	return 1;
 }
 
 int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)

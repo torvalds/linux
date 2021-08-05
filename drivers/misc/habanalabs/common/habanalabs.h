@@ -2450,7 +2450,6 @@ struct last_error_session_info {
  * @cdev_ctrl: char device for control operations only (INFO IOCTL)
  * @dev: related kernel basic device structure.
  * @dev_ctrl: related kernel device structure for the control device
- * @work_freq: delayed work to lower device frequency if possible.
  * @work_heartbeat: delayed work for CPU-CP is-alive check.
  * @device_reset_work: delayed work which performs hard reset
  * @asic_name: ASIC specific name.
@@ -2485,7 +2484,6 @@ struct last_error_session_info {
  * @asic_specific: ASIC specific information to use only from ASIC files.
  * @vm: virtual memory manager for MMU.
  * @hwmon_dev: H/W monitor device.
- * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
  * @device_status_description: device status description.
  * @hl_debugfs: device's debugfs manager.
@@ -2530,7 +2528,6 @@ struct last_error_session_info {
  * @open_counter: number of successful device open operations.
  * @fw_poll_interval_usec: FW status poll interval in usec.
  * @in_reset: is device in reset flow.
- * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
  *             type of the current device.
  * @major: habanalabs kernel driver major.
@@ -2604,7 +2601,6 @@ struct hl_device {
 	struct cdev			cdev_ctrl;
 	struct device			*dev;
 	struct device			*dev_ctrl;
-	struct delayed_work		work_freq;
 	struct delayed_work		work_heartbeat;
 	struct hl_device_reset_work	device_reset_work;
 	char				asic_name[HL_STR_MAX];
@@ -2635,7 +2631,6 @@ struct hl_device {
 	void				*asic_specific;
 	struct hl_vm			vm;
 	struct device			*hwmon_dev;
-	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
 
 	struct hl_dbg_device_entry	hl_debugfs;
@@ -2682,7 +2677,6 @@ struct hl_device {
 	u64				fw_poll_interval_usec;
 	atomic_t			in_reset;
 	ktime_t				last_successful_open_ktime;
-	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
 	u32				major;
 	u32				high_pll;
@@ -2912,7 +2906,6 @@ int hl_device_resume(struct hl_device *hdev);
 int hl_device_reset(struct hl_device *hdev, u32 flags);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 int hl_hpriv_put(struct hl_fpriv *hpriv);
-int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
 int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,

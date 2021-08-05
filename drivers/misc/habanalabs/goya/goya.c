@@ -787,9 +787,59 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	prop->psoc_pci_pll_div_factor = div_fctr;
 }
 
+/*
+ * goya_set_frequency - set the frequency of the device
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @freq: the new frequency value
+ *
+ * Change the frequency if needed. This function has no protection against
+ * concurrency, therefore it is assumed that the calling function has protected
+ * itself against the case of calling this function from multiple threads with
+ * different values
+ *
+ * Returns 0 if no change was done, otherwise returns 1
+ */
+int goya_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	if ((goya->pm_mng_profile == PM_MANUAL) ||
+			(goya->curr_pll_profile == freq))
+		return 0;
+
+	dev_dbg(hdev->dev, "Changing device frequency to %s\n",
+		freq == PLL_HIGH ? "high" : "low");
+
+	goya_set_pll_profile(hdev, freq);
+
+	goya->curr_pll_profile = freq;
+
+	return 1;
+}
+
+static void goya_set_freq_to_low_job(struct work_struct *work)
+{
+	struct goya_work_freq *goya_work = container_of(work,
+						struct goya_work_freq,
+						work_freq.work);
+	struct hl_device *hdev = goya_work->hdev;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (!hdev->compute_ctx)
+		goya_set_frequency(hdev, PLL_LOW);
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	schedule_delayed_work(&goya_work->work_freq,
+			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+}
+
 int goya_late_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
 	int rc;
 
 	goya_fetch_psoc_frequency(hdev);
@@ -838,6 +888,16 @@ int goya_late_init(struct hl_device *hdev)
 		return rc;
 	}
 
+	/* force setting to low frequency */
+	goya->curr_pll_profile = PLL_LOW;
+
+	goya->pm_mng_profile = PM_AUTO;
+
+	hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
+
+	schedule_delayed_work(&goya->goya_work->work_freq,
+		usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+
 	return 0;
 }
 
@@ -851,7 +911,10 @@ int goya_late_init(struct hl_device *hdev)
 void goya_late_fini(struct hl_device *hdev)
 {
 	const struct hwmon_channel_info **channel_info_arr;
+	struct goya_device *goya = hdev->asic_specific;
 	int i = 0;
+
+	cancel_delayed_work_sync(&goya->goya_work->work_freq);
 
 	if (!hdev->hl_chip_info->info)
 		return;
@@ -976,6 +1039,15 @@ static int goya_sw_init(struct hl_device *hdev)
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
+	goya->goya_work = kmalloc(sizeof(struct goya_work_freq), GFP_KERNEL);
+	if (!goya->goya_work) {
+		rc = -ENOMEM;
+		goto free_cpu_accessible_dma_pool;
+	}
+
+	goya->goya_work->hdev = hdev;
+	INIT_DELAYED_WORK(&goya->goya_work->work_freq, goya_set_freq_to_low_job);
+
 	return 0;
 
 free_cpu_accessible_dma_pool:
@@ -1012,6 +1084,7 @@ static int goya_sw_fini(struct hl_device *hdev)
 
 	dma_pool_destroy(hdev->dma_pool);
 
+	kfree(goya->goya_work);
 	kfree(goya);
 
 	return 0;

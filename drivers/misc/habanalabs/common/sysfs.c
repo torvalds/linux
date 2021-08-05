@@ -449,11 +449,6 @@ int hl_sysfs_init(struct hl_device *hdev)
 {
 	int rc;
 
-	if (hdev->asic_type == ASIC_GOYA)
-		hdev->pm_mng_profile = PM_AUTO;
-	else
-		hdev->pm_mng_profile = PM_MANUAL;
-
 	hdev->max_power = hdev->asic_prop.max_power_default;
 
 	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group);
