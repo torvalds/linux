@@ -692,11 +692,16 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 
 	if (ret && ret != -ERFKILL)
 		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
+	if (!ret && iwl_mvm_is_lar_supported(mvm)) {
+		mvm->hw->wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
+		ret = iwl_mvm_init_mcc(mvm);
+	}
 
 	if (!iwlmvm_mod_params.init_dbg || !ret)
 		iwl_mvm_stop_device(mvm);
 
 	mutex_unlock(&mvm->mutex);
+	rtnl_unlock();
 
 	if (ret < 0)
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);

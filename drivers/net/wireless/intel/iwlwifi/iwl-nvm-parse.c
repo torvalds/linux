@@ -1381,6 +1381,25 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		reg_query_regdb_wmm(regd->alpha2, center_freq, rule);
 	}
 
+	/*
+	 * Certain firmware versions might report no valid channels
+	 * if booted in RF-kill, i.e. not all calibrations etc. are
+	 * running. We'll get out of this situation later when the
+	 * rfkill is removed and we update the regdomain again, but
+	 * since cfg80211 doesn't accept an empty regdomain, add a
+	 * dummy (unusable) rule here in this case so we can init.
+	 */
+	if (!valid_rules) {
+		valid_rules = 1;
+		rule = &regd->reg_rules[valid_rules - 1];
+		rule->freq_range.start_freq_khz = MHZ_TO_KHZ(2412);
+		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(2413);
+		rule->freq_range.max_bandwidth_khz = MHZ_TO_KHZ(1);
+		rule->power_rule.max_antenna_gain = DBI_TO_MBI(6);
+		rule->power_rule.max_eirp =
+			DBM_TO_MBM(IWL_DEFAULT_MAX_TX_POWER);
+	}
+
 	regd->n_reg_rules = valid_rules;
 
 	/*
