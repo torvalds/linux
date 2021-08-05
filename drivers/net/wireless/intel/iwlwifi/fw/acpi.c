@@ -442,10 +442,10 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			      __le16 *per_chain, u32 n_subbands,
 			      int prof_a, int prof_b)
 {
-	int profs[ACPI_SAR_NUM_CHAINS] = { prof_a, prof_b };
+	int profs[ACPI_SAR_NUM_CHAINS_REV0] = { prof_a, prof_b };
 	int i, j;
 
-	for (i = 0; i < ACPI_SAR_NUM_CHAINS; i++) {
+	for (i = 0; i < ACPI_SAR_NUM_CHAINS_REV0; i++) {
 		struct iwl_sar_profile *prof;
 
 		/* don't allow SAR to be disabled (profile 0 means disable) */
@@ -494,7 +494,7 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 
 	for (i = 0; i < n_tables; i++) {
 		ret = iwl_sar_fill_table(fwrt,
-			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAINS],
+			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAINS_REV0],
 			 n_subbands, prof_a, prof_b);
 		if (ret)
 			break;
@@ -509,27 +509,70 @@ int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	union acpi_object *wifi_pkg, *table, *data;
 	bool enabled;
 	int ret, tbl_rev;
+	u8 num_chains, num_sub_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WRDS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* start by trying to read revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
-					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
+					 ACPI_WRDS_WIFI_DATA_SIZE_REV2,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 2) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV2;
+
+		goto read_table;
 	}
 
-	if (tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
+	/* then try revision 1 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE_REV1,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 1) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV1;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV1;
+
+		goto read_table;
 	}
 
+	/* then finally revision 0 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE_REV0,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 0) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV0;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV0;
+
+		goto read_table;
+	}
+
+	ret = PTR_ERR(wifi_pkg);
+	goto out_free;
+
+read_table:
 	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		ret = -EINVAL;
 		goto out_free;
 	}
+
+	IWL_DEBUG_RADIO(fwrt, "Reading WRDS tbl_rev=%d\n", tbl_rev);
 
 	enabled = !!(wifi_pkg->package.elements[1].integer.value);
 
@@ -540,7 +583,7 @@ int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
 	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled,
-				  ACPI_SAR_NUM_CHAINS, ACPI_SAR_NUM_SUB_BANDS);
+				  num_chains, num_sub_bands);
 out_free:
 	kfree(data);
 	return ret;
@@ -598,15 +641,14 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 * have profile 0).  So in the array we start from 1.
 		 */
 		ret = iwl_sar_set_profile(&wifi_pkg->package.elements[pos],
-					  &fwrt->sar_profiles[i + 1],
-					  enabled,
-					  ACPI_SAR_NUM_CHAINS,
-					  ACPI_SAR_NUM_SUB_BANDS);
+					  &fwrt->sar_profiles[i + 1], enabled,
+					  ACPI_SAR_NUM_CHAINS_REV0,
+					  ACPI_SAR_NUM_SUB_BANDS_REV0);
 		if (ret < 0)
 			break;
 
 		/* go to the next table */
-		pos += ACPI_SAR_NUM_CHAINS * ACPI_SAR_NUM_SUB_BANDS;
+		pos += ACPI_SAR_NUM_CHAINS_REV0 * ACPI_SAR_NUM_SUB_BANDS_REV0;
 	}
 
 out_free:

@@ -32,14 +32,22 @@
 #define ACPI_NUM_GEO_PROFILES		3
 #define ACPI_GEO_PER_CHAIN_SIZE		3
 
-#define ACPI_SAR_NUM_CHAINS		2
-#define ACPI_SAR_NUM_SUB_BANDS		5
+#define ACPI_SAR_NUM_CHAINS_REV0	2
+#define ACPI_SAR_NUM_CHAINS_REV1	2
+#define ACPI_SAR_NUM_CHAINS_REV2	4
+#define ACPI_SAR_NUM_SUB_BANDS_REV0	5
+#define ACPI_SAR_NUM_SUB_BANDS_REV1	11
+#define ACPI_SAR_NUM_SUB_BANDS_REV2	11
 
-#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_NUM_CHAINS * \
-					 ACPI_SAR_NUM_SUB_BANDS + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV0	(ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV1	(ACPI_SAR_NUM_CHAINS_REV1 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV1 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV2	(ACPI_SAR_NUM_CHAINS_REV2 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 2)
 #define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
-					 ACPI_SAR_NUM_CHAINS * \
-					 ACPI_SAR_NUM_SUB_BANDS + 3)
+					 ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 3)
 #define ACPI_WGDS_WIFI_DATA_SIZE	19
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
@@ -64,13 +72,18 @@
 #define ACPI_PPAG_MIN_HB -16
 #define ACPI_PPAG_MAX_HB 40
 
+/*
+ * The profile for revision 2 is a superset of revision 1, which is in
+ * turn a superset of revision 0.  So we can store all revisions
+ * inside revision 2, which is what we represent here.
+ */
 struct iwl_sar_profile_chain {
-	u8 subbands[ACPI_SAR_NUM_SUB_BANDS];
+	u8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
 };
 
 struct iwl_sar_profile {
 	bool enabled;
-	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS];
+	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS_REV2];
 };
 
 struct iwl_geo_profile {
