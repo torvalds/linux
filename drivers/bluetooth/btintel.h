@@ -138,6 +138,46 @@ struct intel_debug_features {
 #define INTEL_CNVX_TOP_STEP(cnvx_top)	(((cnvx_top) & 0x0f000000) >> 24)
 #define INTEL_CNVX_TOP_PACK_SWAB(t, s)	__swab16(((__u16)(((t) << 4) | (s))))
 
+enum {
+	INTEL_BOOTLOADER,
+	INTEL_DOWNLOADING,
+	INTEL_FIRMWARE_LOADED,
+	INTEL_FIRMWARE_FAILED,
+	INTEL_BOOTING,
+
+	__INTEL_NUM_FLAGS,
+};
+
+struct btintel_data {
+	DECLARE_BITMAP(flags, __INTEL_NUM_FLAGS);
+};
+
+#define btintel_set_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		set_bit((nr), intel->flags);				\
+	} while (0)
+
+#define btintel_clear_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		clear_bit((nr), intel->flags);				\
+	} while (0)
+
+#define btintel_wake_up_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		wake_up_bit(intel->flags, (nr));			\
+	} while (0)
+
+#define btintel_get_flag(hdev)						\
+	(((struct btintel_data *)hci_get_priv(hdev))->flags)
+
+#define btintel_test_flag(hdev, nr)	test_bit((nr), btintel_get_flag(hdev))
+#define btintel_test_and_clear_flag(hdev, nr) test_and_clear_bit((nr), btintel_get_flag(hdev))
+#define btintel_wait_on_flag_timeout(hdev, nr, m, to)			\
+		wait_on_bit_timeout(btintel_get_flag(hdev), (nr), m, to)
+
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
