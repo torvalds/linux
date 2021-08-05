@@ -518,7 +518,6 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 
 	dma_params.num_chan		= data->channels;
 	dma_params.has_soft_reset	= true;
-	dma_params.min_packet_size	= CPSW_MIN_PACKET_SIZE;
 	dma_params.desc_mem_size	= data->bd_ram_size;
 	dma_params.desc_align		= 16;
 	dma_params.has_ext_regs		= true;
