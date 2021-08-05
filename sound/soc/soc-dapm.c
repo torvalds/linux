@@ -4365,11 +4365,12 @@ static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 	int event)
 {
 	struct snd_soc_dapm_widget *w;
-	unsigned int ep;
 
 	w = snd_soc_dai_get_widget(dai, stream);
 
 	if (w) {
+		unsigned int ep;
+
 		dapm_mark_dirty(w, "stream event");
 
 		if (w->id == snd_soc_dapm_dai_in) {
