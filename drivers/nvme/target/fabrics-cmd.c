@@ -109,6 +109,7 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 	u16 qid = le16_to_cpu(c->qid);
 	u16 sqsize = le16_to_cpu(c->sqsize);
 	struct nvmet_ctrl *old;
+	u16 mqes = NVME_CAP_MQES(ctrl->cap);
 	u16 ret;
 
 	if (!sqsize) {
@@ -123,6 +124,14 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		pr_warn("qid %u has already been created\n", qid);
 		req->error_loc = offsetof(struct nvmf_connect_command, qid);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+
+	if (sqsize > mqes) {
+		pr_warn("sqsize %u is larger than MQES supported %u cntlid %d\n",
+				sqsize, mqes, ctrl->cntlid);
+		req->error_loc = offsetof(struct nvmf_connect_command, sqsize);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_SQE(sqsize);
+		return NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 	}
 
 	old = cmpxchg(&req->sq->ctrl, NULL, ctrl);
