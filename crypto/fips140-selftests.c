@@ -190,15 +190,6 @@ fips_handle_alloc_tfm_error(const char *impl, int err)
 		 * use, so we can't test it, nor do we need to.  So we just skip
 		 * the test.
 		 */
-
-		/*
-		 * "ghash-neon" is a bit unusual in that it is only registered
-		 * if the CPU does *not* have a feature.  Skip it silently in
-		 * order to avoid a confusing log message.
-		 */
-		if (!strcmp(impl, "gcm_base(ctr(aes-generic),ghash-neon)"))
-			return 0;
-
 		pr_info("%s is unavailable (no CPU support?), skipping testing it\n",
 			impl);
 		return 0;
@@ -581,7 +572,7 @@ static const struct fips_test fips140_selftests[] __initconst = {
 	 *
 	 * In contrast, we don't need to directly test the "aes" ciphers that
 	 * are accessible through the crypto_cipher API (e.g. "aes-ce"), as they
-	 * are covered indirectly by AES-GCM and AES-ECB tests.
+	 * are covered indirectly by AES-CMAC and AES-ECB tests.
 	 */
 	{
 		.alg		= "aes",
@@ -596,45 +587,41 @@ static const struct fips_test fips140_selftests[] __initconst = {
 		}
 	},
 	/*
-	 * Tests for AES-GCM, a.k.a. "gcm(aes)" in crypto API syntax.
+	 * Tests for AES-CMAC, a.k.a. "cmac(aes)" in crypto API syntax.
 	 *
 	 * The IG requires that each underlying AES implementation be tested in
-	 * an authenticated mode, if implemented.  We therefore test the "gcm"
-	 * template composed with each "aes" implementation.
+	 * an authenticated mode, if implemented.  Of such modes, this module
+	 * implements AES-GCM and AES-CMAC.  However, AES-GCM doesn't "count"
+	 * because this module's implementations of AES-GCM won't actually be
+	 * FIPS-approved, due to a quirk in the FIPS requirements.
 	 *
-	 * We also must test all standalone implementations of "gcm(aes)" such
-	 * as "gcm-aes-ce", as they don't reuse another full AES implementation
-	 * and thus can't be covered by another test.
+	 * Therefore, for us this requirement applies to AES-CMAC, so we must
+	 * test the "cmac" template composed with each "aes" implementation.
+	 *
+	 * Separately from the above, we also must test all standalone
+	 * implementations of "cmac(aes)" such as "cmac-aes-ce", as they don't
+	 * reuse another full AES implementation and thus can't be covered by
+	 * another test.
 	 */
 	{
-		.alg		= "gcm(aes)",
+		.alg		= "cmac(aes)",
 		.impls		= {
-			/* "gcm" template with all "aes" implementations */
-			"gcm_base(ctr(aes-generic),ghash-generic)",
-			"gcm_base(ctr(aes-arm64),ghash-generic)",
-			"gcm_base(ctr(aes-ce),ghash-generic)",
-			/*
-			 * "gcm" template with alternate "ghash" implementation.
-			 * The IG doesn't consider multiple GHASH
-			 * implementations, but we include this to be safe.
-			 */
-			"gcm_base(ctr(aes-generic),ghash-neon)",
-			/* All standalone implementations of "gcm(aes)" */
-			"gcm-aes-ce",
+			/* "cmac" template with all "aes" implementations */
+			"cmac(aes-generic)",
+			"cmac(aes-arm64)",
+			"cmac(aes-ce)",
+			/* All standalone implementations of "cmac(aes)" */
+			"cmac-aes-neon",
+			"cmac-aes-ce",
 		},
-		.func		= fips_test_aead,
-		.aead		= {
+		.func		= fips_test_hash,
+		.hash		= {
 			.key		= fips_aes_key,
 			.key_size	= sizeof(fips_aes_key),
-			.iv		= fips_aes_iv,
-			/* The GCM implementations assume an IV size of 12. */
-			.iv_size	= 12,
-			.assoc		= fips_aes_gcm_assoc,
-			.assoc_size	= sizeof(fips_aes_gcm_assoc),
-			.plaintext	= fips_message,
-			.plaintext_size	= sizeof(fips_message),
-			.ciphertext	= fips_aes_gcm_ciphertext,
-			.ciphertext_size = sizeof(fips_aes_gcm_ciphertext),
+			.message	= fips_message,
+			.message_size	= sizeof(fips_message),
+			.digest		= fips_aes_cmac_digest,
+			.digest_size	= sizeof(fips_aes_cmac_digest),
 		}
 	},
 	/*
@@ -642,13 +629,14 @@ static const struct fips_test fips140_selftests[] __initconst = {
 	 *
 	 * The IG requires that each underlying AES implementation be tested in
 	 * a mode that exercises the encryption direction of AES and in a mode
-	 * that exercises the decryption direction of AES.  GCM only covers the
-	 * encryption direction, so we add ECB to test decryption.  We therefore
+	 * that exercises the decryption direction of AES.  CMAC only covers the
+	 * encryption direction, so we choose ECB to test decryption.  Thus, we
 	 * test the "ecb" template composed with each "aes" implementation.
 	 *
-	 * We also must test all standalone implementations of "ecb(aes)" such
-	 * as "ecb-aes-ce", as they don't reuse another full AES implementation
-	 * and thus can't be covered by another test.
+	 * Separately from the above, we also must test all standalone
+	 * implementations of "ecb(aes)" such as "ecb-aes-ce", as they don't
+	 * reuse another full AES implementation and thus can't be covered by
+	 * another test.
 	 */
 	{
 		.alg		= "ecb(aes)",
@@ -672,15 +660,28 @@ static const struct fips_test fips140_selftests[] __initconst = {
 		}
 	},
 	/*
-	 * Tests for AES-CBC, AES-CBC-CTS, AES-CTR, AES-XTS, and AES-CMAC.
+	 * Tests for AES-CBC, AES-CBC-CTS, AES-CTR, AES-XTS, and AES-GCM.
 	 *
-	 * According to the IG, other AES modes don't need to have their own
-	 * test as long as both directions of the underlying AES implementation
-	 * are already tested via other modes.
+	 * According to the IG, an AES mode of operation doesn't need to have
+	 * its own test, provided that (a) both the encryption and decryption
+	 * directions of the underlying AES implementation are already tested
+	 * via other mode(s), and (b) in the case of an authenticated mode, at
+	 * least one other authenticated mode is already tested.  The tests of
+	 * the "cmac" and "ecb" templates fulfill these conditions; therefore,
+	 * we don't need to test any other AES mode templates.
 	 *
-	 * However we must still test standalone implementations of these modes,
-	 * as they don't reuse another full AES implementation and thus can't be
-	 * covered by another test.
+	 * This does *not* apply to standalone implementations of these modes
+	 * such as "cbc-aes-ce", as such implementations don't reuse another
+	 * full AES implementation and thus can't be covered by another test.
+	 * We must test all such standalone implementations.
+	 *
+	 * The AES-GCM test isn't actually required, as it's expected that this
+	 * module's AES-GCM implementation won't actually be able to be
+	 * FIPS-approved.  This is unfortunate; it's caused by the FIPS
+	 * requirements for GCM being incompatible with GCM implementations that
+	 * don't generate their own IVs.  We choose to still include the AES-GCM
+	 * test to keep it on par with the other FIPS-approved algorithms, in
+	 * case it turns out that AES-GCM can be approved after all.
 	 */
 	{
 		.alg		= "cbc(aes)",
@@ -763,20 +764,24 @@ static const struct fips_test fips140_selftests[] __initconst = {
 			.message_size	= sizeof(fips_message),
 		}
 	}, {
-		.alg		= "cmac(aes)",
+		.alg		= "gcm(aes)",
 		.impls		= {
-			/* All standalone implementations of "cmac(aes)" */
-			"cmac-aes-neon",
-			"cmac-aes-ce",
+			/* All standalone implementations of "gcm(aes)" */
+			"gcm-aes-ce",
 		},
-		.func		= fips_test_hash,
-		.hash		= {
+		.func		= fips_test_aead,
+		.aead		= {
 			.key		= fips_aes_key,
 			.key_size	= sizeof(fips_aes_key),
-			.message	= fips_message,
-			.message_size	= sizeof(fips_message),
-			.digest		= fips_aes_cmac_digest,
-			.digest_size	= sizeof(fips_aes_cmac_digest),
+			.iv		= fips_aes_iv,
+			/* The GCM implementations assume an IV size of 12. */
+			.iv_size	= 12,
+			.assoc		= fips_aes_gcm_assoc,
+			.assoc_size	= sizeof(fips_aes_gcm_assoc),
+			.plaintext	= fips_message,
+			.plaintext_size	= sizeof(fips_message),
+			.ciphertext	= fips_aes_gcm_ciphertext,
+			.ciphertext_size = sizeof(fips_aes_gcm_ciphertext),
 		}
 	},
 

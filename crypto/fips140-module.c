@@ -66,20 +66,37 @@ const u8 *__rodata_start = &__fips140_rodata_start;
 /*
  * The list of the crypto API algorithms (by cra_name) that will be unregistered
  * by this module, in preparation for the module registering its own
- * implementation(s) of them.  When adding a new algorithm here, make sure to
- * consider whether it needs a self-test added to fips140_selftests[] as well.
+ * implementation(s) of them.
+ *
+ * All algorithms that will be declared as FIPS-approved in the module
+ * certification must be listed here, to ensure that the non-FIPS-approved
+ * implementations of these algorithms in the kernel image aren't used.
+ *
+ * For every algorithm in this list, the module should contain all the "same"
+ * implementations that the kernel image does, including the C implementation as
+ * well as any architecture-specific implementations.  This is needed to avoid
+ * performance regressions as well as the possibility of an algorithm being
+ * unavailable on some CPUs.  E.g., "xcbc(aes)" isn't in this list, as the
+ * module doesn't have a C implementation of it (and it won't be FIPS-approved).
+ *
+ * Due to a quirk in the FIPS requirements, "gcm(aes)" isn't actually able to be
+ * FIPS-approved.  However, we otherwise treat it the same as the algorithms
+ * that will be FIPS-approved, and therefore it's included in this list.
+ *
+ * When adding a new algorithm here, make sure to consider whether it needs a
+ * self-test added to fips140_selftests[] as well.
  */
 static const char * const fips140_algorithms[] __initconst = {
 	"aes",
 
-	"gcm(aes)",
-
+	"cmac(aes)",
 	"ecb(aes)",
+
 	"cbc(aes)",
 	"cts(cbc(aes))",
 	"ctr(aes)",
 	"xts(aes)",
-	"cmac(aes)",
+	"gcm(aes)",
 
 	"hmac(sha1)",
 	"hmac(sha224)",
