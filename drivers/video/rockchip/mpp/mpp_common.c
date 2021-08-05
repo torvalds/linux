@@ -348,7 +348,7 @@ static void mpp_session_detach_workqueue(struct mpp_session *session)
 	mutex_lock(&queue->session_lock);
 	list_del_init(&session->session_link);
 	list_add_tail(&session->session_link, &queue->session_detach);
-	atomic_inc(&queue->detach_count);
+	queue->detach_count++;
 	mutex_unlock(&queue->session_lock);
 
 	mpp_taskqueue_trigger_work(session->mpp);
@@ -732,21 +732,20 @@ static void mpp_task_try_run(struct kthread_work *work_s)
 	}
 
 done:
-	if (atomic_read(&queue->detach_count)) {
+	mutex_lock(&queue->session_lock);
+	if (queue->detach_count) {
 		struct mpp_session *session = NULL, *n;
 
 		mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
-				atomic_read(&queue->detach_count));
+				queue->detach_count);
 
-		mutex_lock(&queue->session_lock);
 		list_for_each_entry_safe(session, n, &queue->session_detach,
 					 session_link) {
 			if (!mpp_session_deinit(session))
-				atomic_dec(&queue->detach_count);
+				queue->detach_count--;
 		}
-
-		mutex_unlock(&queue->session_lock);
 	}
+	mutex_unlock(&queue->session_lock);
 }
 
 static int mpp_wait_result_default(struct mpp_session *session,
@@ -935,7 +934,6 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 	INIT_LIST_HEAD(&queue->mmu_list);
 	INIT_LIST_HEAD(&queue->dev_list);
 
-	atomic_set(&queue->detach_count, 0);
 	/* default taskqueue has max 16 task capacity */
 	queue->task_capacity = MPP_MAX_TASK_CAPACITY;
 
@@ -1640,6 +1638,7 @@ int mpp_task_init(struct mpp_session *session,
 	INIT_LIST_HEAD(&task->pending_link);
 	INIT_LIST_HEAD(&task->queue_link);
 	INIT_LIST_HEAD(&task->mem_region_list);
+	task->state = 0;
 	task->mem_count = 0;
 	task->session = session;
 
@@ -1814,11 +1813,17 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	/* read link table capacity */
 	ret = of_property_read_u32(np, "rockchip,task-capacity",
 				   &mpp->task_capacity);
-	if (ret)
+	if (ret) {
 		mpp->task_capacity = 1;
-	else
+
+		/* power domain autosuspend delay 2s */
+		pm_runtime_set_autosuspend_delay(dev, 2000);
+		pm_runtime_use_autosuspend(dev);
+	} else {
 		dev_info(dev, "%d task capacity link mode detected\n",
 			 mpp->task_capacity);
+		/* do not setup autosuspend on multi task device */
+	}
 
 	kthread_init_work(&mpp->work, mpp->dev_ops->task_worker ?
 			  mpp->dev_ops->task_worker : mpp_task_try_run);
@@ -1829,9 +1834,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	atomic_set(&mpp->task_index, 0);
 
 	device_init_wakeup(dev, true);
-	/* power domain autosuspend delay 2s */
-	pm_runtime_set_autosuspend_delay(dev, 2000);
-	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
 	mpp->irq = platform_get_irq(pdev, 0);

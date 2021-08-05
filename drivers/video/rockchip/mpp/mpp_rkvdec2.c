@@ -7,191 +7,13 @@
  *	Ding Wei, leo.ding@rock-chips.com
  *
  */
-#include <asm/cacheflush.h>
-#include <linux/clk.h>
-#include <linux/delay.h>
-#include <linux/devfreq.h>
-#include <linux/devfreq_cooling.h>
-#include <linux/dma-iommu.h>
-#include <linux/gfp.h>
-#include <linux/interrupt.h>
-#include <linux/iopoll.h>
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/regmap.h>
-#include <linux/kernel.h>
-#include <linux/thermal.h>
-#include <linux/notifier.h>
-#include <linux/proc_fs.h>
-#include <linux/nospec.h>
-#include <linux/rockchip/rockchip_sip.h>
-#include <linux/regulator/consumer.h>
-
-#include <soc/rockchip/pm_domains.h>
-#include <soc/rockchip/rockchip_sip.h>
-
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
+
+#include "mpp_rkvdec2_link.h"
+
 #include "hack/mpp_rkvdec2_hack_rk3568.c"
-
-#define RKVDEC_DRIVER_NAME		"mpp_rkvdec2"
-
-#define	RKVDEC_SESSION_MAX_BUFFERS	40
-/* The maximum registers number of all the version */
-#define RKVDEC_REG_NUM			278
-#define RKVDEC_REG_HW_ID_INDEX		0
-#define RKVDEC_REG_START_INDEX		0
-#define RKVDEC_REG_END_INDEX		277
-
-#define REVDEC_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
-#define RKVDEC_REG_FORMAT_INDEX		9
-#define RKVDEC_GET_FORMAT(x)		((x) & 0x3ff)
-
-#define RKVDEC_REG_START_EN_BASE       0x28
-
-#define RKVDEC_REG_START_EN_INDEX      10
-
-#define RKVDEC_START_EN			BIT(0)
-
-#define RKVDEC_REG_YSTRIDE_INDEX	20
-
-#define RKVDEC_REG_RLC_BASE		0x200
-#define RKVDEC_REG_RLC_BASE_INDEX	(128)
-
-#define RKVDEC_REG_INT_EN		0x380
-#define RKVDEC_REG_INT_EN_INDEX		(224)
-#define RKVDEC_SOFT_RESET_READY		BIT(9)
-#define RKVDEC_CABAC_END_STA		BIT(8)
-#define RKVDEC_COLMV_REF_ERR_STA	BIT(7)
-#define RKVDEC_BUF_EMPTY_STA		BIT(6)
-#define RKVDEC_TIMEOUT_STA		BIT(5)
-#define RKVDEC_ERROR_STA		BIT(4)
-#define RKVDEC_BUS_STA			BIT(3)
-#define RKVDEC_READY_STA		BIT(2)
-#define RKVDEC_IRQ_RAW			BIT(1)
-#define RKVDEC_IRQ			BIT(0)
-#define RKVDEC_INT_ERROR_MASK		(RKVDEC_COLMV_REF_ERR_STA |\
-					RKVDEC_BUF_EMPTY_STA |\
-					RKVDEC_TIMEOUT_STA |\
-					RKVDEC_ERROR_STA)
-
-/* perf sel reference register */
-#define RKVDEC_PERF_SEL_OFFSET		0x20000
-#define RKVDEC_PERF_SEL_NUM		64
-#define RKVDEC_PERF_SEL_BASE		0x424
-#define RKVDEC_SEL_VAL0_BASE		0x428
-#define RKVDEC_SEL_VAL1_BASE		0x42c
-#define RKVDEC_SEL_VAL2_BASE		0x430
-#define RKVDEC_SET_PERF_SEL(a, b, c)	((a) | ((b) << 8) | ((c) << 16))
-
-/* cache reference register */
-#define RKVDEC_REG_CACHE0_SIZE_BASE	0x51c
-#define RKVDEC_REG_CACHE1_SIZE_BASE	0x55c
-#define RKVDEC_REG_CACHE2_SIZE_BASE	0x59c
-#define RKVDEC_REG_CLR_CACHE0_BASE	0x510
-#define RKVDEC_REG_CLR_CACHE1_BASE	0x550
-#define RKVDEC_REG_CLR_CACHE2_BASE	0x590
-
-#define RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS	BIT(0)
-#define RKVDEC_CACHE_PERMIT_READ_ALLOCATE	BIT(1)
-#define RKVDEC_CACHE_LINE_SIZE_64_BYTES		BIT(4)
-
-#define RKVDEC_FORMAT_H264 0X1
-
-#define to_rkvdec2_task(task)		\
-		container_of(task, struct rkvdec2_task, mpp_task)
-#define to_rkvdec2_dev(dev)		\
-		container_of(dev, struct rkvdec2_dev, mpp)
-
-enum RKVDEC_FMT {
-	RKVDEC_FMT_H265D	= 0,
-	RKVDEC_FMT_H264D	= 1,
-	RKVDEC_FMT_VP9D		= 2,
-	RKVDEC_FMT_AVS2		= 3,
-};
-
-#define RKVDEC_MAX_RCB_NUM		(16)
-struct rcb_info_elem {
-	u32 index;
-	u32 size;
-};
-
-struct rkvdec2_rcb_info {
-	u32 cnt;
-	struct rcb_info_elem elem[RKVDEC_MAX_RCB_NUM];
-};
-
-struct rkvdec2_task {
-	struct mpp_task mpp_task;
-
-	enum MPP_CLOCK_MODE clk_mode;
-	u32 reg[RKVDEC_REG_NUM];
-	struct reg_offset_info off_inf;
-
-	/* perf sel data back */
-	u32 reg_sel[RKVDEC_PERF_SEL_NUM];
-
-	u32 strm_addr;
-	u32 irq_status;
-	/* req for current task */
-	u32 w_req_cnt;
-	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
-	u32 r_req_cnt;
-	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
-	/* image info */
-	u32 width;
-	u32 height;
-	u32 pixels;
-	u32 need_hack;
-};
-
-struct rkvdec2_session_priv {
-	/* codec info from user */
-	struct {
-		/* show mode */
-		u32 flag;
-		/* item data */
-		u64 val;
-	} codec_info[DEC_INFO_BUTT];
-	/* rcb_info for sram */
-	struct rkvdec2_rcb_info rcb_inf;
-};
-
-struct rkvdec2_dev {
-	struct mpp_dev mpp;
-	/* sip smc reset lock */
-	struct mutex sip_reset_lock;
-
-	struct mpp_clk_info aclk_info;
-	struct mpp_clk_info hclk_info;
-	struct mpp_clk_info core_clk_info;
-	struct mpp_clk_info cabac_clk_info;
-	struct mpp_clk_info hevc_cabac_clk_info;
-	u32 default_max_load;
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *procfs;
-#endif
-	struct reset_control *rst_a;
-	struct reset_control *rst_h;
-	struct reset_control *rst_niu_a;
-	struct reset_control *rst_niu_h;
-	struct reset_control *rst_core;
-	struct reset_control *rst_cabac;
-	struct reset_control *rst_hevc_cabac;
-
-	/* internal rcb-memory */
-	u32 sram_size;
-	u32 rcb_size;
-	dma_addr_t rcb_iova;
-	struct page *rcb_page;
-	u32 rcb_min_width;
-	struct mpp_dma_buffer *fix;
-};
 
 /*
  * hardware information
@@ -366,8 +188,8 @@ done:
 	return 0;
 }
 
-static void *rkvdec2_alloc_task(struct mpp_session *session,
-				struct mpp_task_msgs *msgs)
+void *rkvdec2_alloc_task(struct mpp_session *session,
+			 struct mpp_task_msgs *msgs)
 {
 	int ret;
 	struct mpp_task *mpp_task = NULL;
@@ -403,6 +225,8 @@ static void *rkvdec2_alloc_task(struct mpp_session *session,
 	mpp_set_rcbbuf(mpp, session, task);
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
 	task->clk_mode = CLK_MODE_NORMAL;
+	task->slot_idx = -1;
+	init_waitqueue_head(&task->wait);
 	/* get resolution info */
 	if (session->priv) {
 		struct rkvdec2_session_priv *priv = session->priv;
@@ -442,7 +266,7 @@ static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
 	task = to_rkvdec2_task(mpp_task);
 	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
 	/* workaround for rk356x, fix the hw bug of cabac/cavlc switch only in h264d */
-	task->need_hack = (fmt == RKVDEC_FORMAT_H264);
+	task->need_hack = (fmt == RKVDEC_FMT_H264D);
 
 	return mpp_task;
 }
@@ -621,9 +445,8 @@ static int rkvdec2_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return 0;
 }
 
-static int rkvdec2_result(struct mpp_dev *mpp,
-			  struct mpp_task *mpp_task,
-			  struct mpp_task_msgs *msgs)
+int rkvdec2_result(struct mpp_dev *mpp, struct mpp_task *mpp_task,
+		   struct mpp_task_msgs *msgs)
 {
 	u32 i;
 	struct mpp_request *req;
@@ -654,8 +477,7 @@ static int rkvdec2_result(struct mpp_dev *mpp,
 	return 0;
 }
 
-static int rkvdec2_free_task(struct mpp_session *session,
-			     struct mpp_task *mpp_task)
+int rkvdec2_free_task(struct mpp_session *session, struct mpp_task *mpp_task)
 {
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 
@@ -707,7 +529,7 @@ static int rkvdec2_control(struct mpp_session *session, struct mpp_request *req)
 	return 0;
 }
 
-static int rkvdec2_free_session(struct mpp_session *session)
+int rkvdec2_free_session(struct mpp_session *session)
 {
 	if (session && session->priv) {
 		kfree(session->priv);
@@ -1027,6 +849,7 @@ static struct mpp_dev_ops rkvdec_rk3568_dev_ops = {
 	.ioctl = rkvdec2_control,
 	.init_session = rkvdec2_init_session,
 	.free_session = rkvdec2_free_session,
+	.dump_dev = rkvdec_link_dump,
 };
 
 static const struct mpp_dev_var rkvdec_v2_data = {
@@ -1186,17 +1009,31 @@ static int rkvdec2_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(dev, mpp->irq,
-					mpp_dev_irq, mpp_dev_isr_sched,
-					IRQF_SHARED, dev_name(dev), mpp);
+	rkvdec2_alloc_rcbbuf(pdev, dec);
+	rkvdec2_link_init(pdev, dec);
+
+	if (dec->link_dec) {
+		ret = devm_request_threaded_irq(dev, mpp->irq,
+						rkvdec2_link_irq_proc, NULL,
+						IRQF_SHARED, dev_name(dev), mpp);
+		mpp->dev_ops->process_task = rkvdec2_link_process_task;
+		mpp->dev_ops->wait_result = rkvdec2_link_wait_result;
+		mpp->dev_ops->task_worker = rkvdec2_link_worker;
+		mpp->dev_ops->deinit = rkvdec2_link_session_deinit;
+		kthread_init_work(&mpp->work, rkvdec2_link_worker);
+	} else {
+		ret = devm_request_threaded_irq(dev, mpp->irq,
+						mpp_dev_irq, mpp_dev_isr_sched,
+						IRQF_SHARED, dev_name(dev), mpp);
+	}
 	if (ret) {
 		dev_err(dev, "register interrupter runtime failed\n");
 		return -EINVAL;
 	}
 
-	rkvdec2_alloc_rcbbuf(pdev, dec);
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
 	rkvdec2_procfs_init(mpp);
+	rkvdec2_link_procfs_init(mpp);
 	dev_info(dev, "probing finish\n");
 
 	return 0;
@@ -1228,6 +1065,7 @@ static int rkvdec2_remove(struct platform_device *pdev)
 	rkvdec2_free_rcbbuf(pdev, dec);
 	mpp_dev_remove(&dec->mpp);
 	rkvdec2_procfs_remove(&dec->mpp);
+	rkvdec2_link_remove(&dec->mpp, dec->link_dec);
 
 	return 0;
 }

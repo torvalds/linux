@@ -424,7 +424,7 @@ struct mpp_taskqueue {
 	struct list_head session_attach;
 	/* link to session session_link for detached sessions */
 	struct list_head session_detach;
-	atomic_t detach_count;
+	u32 detach_count;
 
 	/* lock for pending list */
 	struct mutex pending_lock;
