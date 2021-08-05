@@ -26,7 +26,6 @@
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
-#define ACPI_SAR_TABLE_SIZE		10
 #define ACPI_SAR_PROFILE_NUM		4
 
 #define ACPI_GEO_TABLE_SIZE		6
@@ -37,9 +36,11 @@
 #define ACPI_SAR_NUM_SUB_BANDS		5
 #define ACPI_SAR_NUM_TABLES		1
 
-#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_NUM_CHAINS * \
+					 ACPI_SAR_NUM_SUB_BANDS + 2)
 #define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
-					 ACPI_SAR_TABLE_SIZE + 3)
+					 ACPI_SAR_NUM_CHAINS * \
+					 ACPI_SAR_NUM_SUB_BANDS + 3)
 #define ACPI_WGDS_WIFI_DATA_SIZE	19
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
@@ -64,9 +65,13 @@
 #define ACPI_PPAG_MIN_HB -16
 #define ACPI_PPAG_MAX_HB 40
 
+struct iwl_sar_profile_chain {
+	u8 subbands[ACPI_SAR_NUM_SUB_BANDS];
+};
+
 struct iwl_sar_profile {
 	bool enabled;
-	u8 table[ACPI_SAR_TABLE_SIZE];
+	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS];
 };
 
 struct iwl_geo_profile {

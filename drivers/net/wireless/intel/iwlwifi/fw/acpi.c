@@ -414,16 +414,25 @@ static int iwl_sar_set_profile(union acpi_object *table,
 			       struct iwl_sar_profile *profile,
 			       bool enabled)
 {
-	int i;
+	int i, j, idx = 0;
 
 	profile->enabled = enabled;
 
-	for (i = 0; i < ACPI_SAR_TABLE_SIZE; i++) {
-		if (table[i].type != ACPI_TYPE_INTEGER ||
-		    table[i].integer.value > U8_MAX)
-			return -EINVAL;
+	/*
+	 * The table from ACPI is flat, but we store it in a
+	 * structured array.
+	 */
+	for (i = 0; i < ACPI_SAR_NUM_CHAINS; i++) {
+		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
+			if (table[idx].type != ACPI_TYPE_INTEGER ||
+			    table[idx].integer.value > U8_MAX)
+				return -EINVAL;
 
-		profile->table[i] = table[i].integer.value;
+			profile->chains[i].subbands[j] =
+				table[idx].integer.value;
+
+			idx++;
+		}
 	}
 
 	return 0;
@@ -434,7 +443,7 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			      int prof_a, int prof_b)
 {
 	int profs[ACPI_SAR_NUM_CHAINS] = { prof_a, prof_b };
-	int i, j, idx;
+	int i, j;
 
 	for (i = 0; i < ACPI_SAR_NUM_CHAINS; i++) {
 		struct iwl_sar_profile *prof;
@@ -467,11 +476,10 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			       i, profs[i]);
 		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
 		for (j = 0; j < n_subbands; j++) {
-			idx = i * ACPI_SAR_NUM_SUB_BANDS + j;
 			per_chain[i * n_subbands + j] =
-				cpu_to_le16(prof->table[idx]);
+				cpu_to_le16(prof->chains[i].subbands[j]);
 			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
-					j, prof->table[idx]);
+					j, prof->chains[i].subbands[j]);
 		}
 	}
 
@@ -595,7 +603,7 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 			break;
 
 		/* go to the next table */
-		pos += ACPI_SAR_TABLE_SIZE;
+		pos += ACPI_SAR_NUM_CHAINS * ACPI_SAR_NUM_SUB_BANDS;
 	}
 
 out_free:
