@@ -15,6 +15,7 @@ Required properties :
 			"qcom,rpmcc-msm8226", "qcom,rpmcc"
 			"qcom,rpmcc-msm8916", "qcom,rpmcc"
 			"qcom,rpmcc-msm8936", "qcom,rpmcc"
+			"qcom,rpmcc-msm8953", "qcom,rpmcc"
 			"qcom,rpmcc-msm8974", "qcom,rpmcc"
 			"qcom,rpmcc-msm8976", "qcom,rpmcc"
 			"qcom,rpmcc-apq8064", "qcom,rpmcc"
