@@ -202,12 +202,17 @@ ifneq ($(CONFIG_CRYPTO_FIPS140_MOD),)
 
 FIPS140_CFLAGS := -D__DISABLE_EXPORTS -DBUILD_FIPS140_KO
 
+CFLAGS_jitterentropy-fips.o := -O0
+KASAN_SANITIZE_jitterentropy-fips.o = n
+UBSAN_SANITIZE_jitterentropy-fips.o = n
+
 #
 # Create a separate FIPS archive containing a duplicate of each builtin generic
 # module that is in scope for FIPS 140-2 certification
 #
 crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o cts.o gcm.o xts.o hmac.o cmac.o \
 		    memneq.o gf128mul.o aes_generic.o lib-crypto-aes.o \
+		    jitterentropy.o jitterentropy-kcapi.o \
 		    sha1_generic.o sha256_generic.o sha512_generic.o \
 		    lib-sha1.o lib-crypto-sha256.o
 crypto-fips-objs := $(foreach o,$(crypto-fips-objs),$(o:.o=-fips.o))

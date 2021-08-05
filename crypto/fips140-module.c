@@ -93,6 +93,7 @@ static const char * const fips140_algorithms[] __initconst = {
 	"sha512",
 
 	"stdrng",
+	"jitterentropy_rng",
 };
 
 static bool __init is_fips140_algo(struct crypto_alg *alg)
