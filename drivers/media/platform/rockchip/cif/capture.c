@@ -1247,6 +1247,7 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 	u32 frm0_addr_y, frm0_addr_uv;
 	u32 frm1_addr_y, frm1_addr_uv;
 	unsigned long flags;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
 
 	if (mbus_cfg->type == V4L2_MBUS_CSI2 ||
 	    mbus_cfg->type == V4L2_MBUS_CCP2) {
@@ -1308,21 +1309,19 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 		for (ch_id = 0; ch_id < RKCIF_MAX_STREAM_DVP; ch_id++) {
 			if (dev->stream[ch_id].is_dvp_yuv_addr_init)
 				continue;
-			if (stream->curr_buf) {
+			if (dummy_buf->dma_addr) {
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm0_y_addr(ch_id),
-						     stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
+						     dummy_buf->dma_addr);
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm0_uv_addr(ch_id),
-						     stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
-			}
-			if (stream->next_buf) {
+						     dummy_buf->dma_addr);
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm1_y_addr(ch_id),
-						     stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
+						     dummy_buf->dma_addr);
 				rkcif_write_register(dev,
 						     get_dvp_reg_index_of_frm1_uv_addr(ch_id),
-						     stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
+						     dummy_buf->dma_addr);
 			}
 		}
 	}
@@ -1470,7 +1469,38 @@ static int rkcif_update_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 			  mbus_cfg->type == V4L2_MBUS_CCP2) ? "mipi/lvds" : "dvp",
 			  stream->id);
 	}
+
 	return ret;
+}
+
+static void rkcif_assign_dummy_buffer(struct rkcif_stream *stream)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&stream->vbq_lock, flags);
+
+	/* for BT.656/BT.1120 multi channels function,
+	 * yuv addr of unused channel must be set
+	 */
+	if (mbus_cfg->type == V4L2_MBUS_BT656 && dummy_buf->vaddr) {
+		rkcif_write_register(dev,
+				     get_dvp_reg_index_of_frm0_y_addr(stream->id),
+				     dummy_buf->dma_addr);
+		rkcif_write_register(dev,
+				     get_dvp_reg_index_of_frm0_uv_addr(stream->id),
+				     dummy_buf->dma_addr);
+		rkcif_write_register(dev,
+				     get_dvp_reg_index_of_frm1_y_addr(stream->id),
+				     dummy_buf->dma_addr);
+		rkcif_write_register(dev,
+				     get_dvp_reg_index_of_frm1_uv_addr(stream->id),
+				     dummy_buf->dma_addr);
+	}
+
+	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 }
 
 static int rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
@@ -1860,12 +1890,14 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 					~CSI_ALL_ERROR_INTEN);
 
 	} else {
-		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
-		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
-				     val & (~ENABLE_CAPTURE));
-		rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, 0x0);
-		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, 0x3ff);
-		rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS, 0x0);
+		if (atomic_read(&cif_dev->pipe.stream_cnt) == 1) {
+			val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
+					     val & (~ENABLE_CAPTURE));
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, 0x0);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, 0x3ff);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS, 0x0);
+		}
 	}
 
 	stream->state = RKCIF_STATE_READY;
@@ -1999,6 +2031,57 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	list_add_tail(&cifbuf->queue, &stream->buf_head);
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+}
+
+static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
+{
+	u32 fourcc;
+	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
+
+	/* get a maximum plane size */
+	dummy_buf->size = max3(stream->pixm.plane_fmt[0].bytesperline *
+		stream->pixm.height,
+		stream->pixm.plane_fmt[1].sizeimage,
+		stream->pixm.plane_fmt[2].sizeimage);
+	/*
+	 * rk cif don't support output yuyv fmt data
+	 * if user request yuyv fmt, the input mode must be RAW8
+	 * and the width is double Because the real input fmt is
+	 * yuyv
+	 */
+	fourcc  = stream->cif_fmt_out->fourcc;
+	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
+	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY)
+		dummy_buf->size *= 2;
+
+	dummy_buf->vaddr = dma_alloc_coherent(hw_dev->dev, dummy_buf->size,
+					      &dummy_buf->dma_addr,
+					      GFP_KERNEL);
+	if (!dummy_buf->vaddr) {
+		v4l2_err(&dev->v4l2_dev,
+			 "Failed to allocate the memory for dummy buffer\n");
+		return -ENOMEM;
+	}
+
+	v4l2_info(&dev->v4l2_dev, "Allocate dummy buffer, size: 0x%08x\n",
+		  dummy_buf->size);
+
+	return 0;
+}
+
+static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
+
+	if (dummy_buf->vaddr)
+		dma_free_coherent(hw_dev->dev, dummy_buf->size,
+				  dummy_buf->vaddr, dummy_buf->dma_addr);
+	dummy_buf->dma_addr = 0;
+	dummy_buf->vaddr = NULL;
 }
 
 static void rkcif_do_cru_reset(struct rkcif_device *dev)
@@ -2174,6 +2257,9 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		dev->reset_work_cancel = true;
 	}
 	pm_runtime_put(dev->dev);
+
+	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
+		rkcif_destroy_dummy_buf(stream);
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished\n", stream->id);
 
@@ -2773,6 +2859,16 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	ret = rkcif_sanity_check_fmt(stream, NULL);
 	if (ret < 0)
 		goto destroy_buf;
+
+	if (dev->active_sensor &&
+	    dev->active_sensor->mbus.type == V4L2_MBUS_BT656 &&
+	    (!dev->dummy_buf.vaddr)) {
+		ret = rkcif_create_dummy_buf(stream);
+		if (ret < 0) {
+			v4l2_err(v4l2_dev, "Failed to create dummy_buf, %d\n", ret);
+			goto destroy_buf;
+		}
+	}
 
 	/* enable clocks/power-domains */
 	ret = pm_runtime_get_sync(dev->dev);
@@ -5786,6 +5882,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				if (stream->stopping) {
 					rkcif_stream_stop(stream);
 					stream->stopping = false;
+					rkcif_assign_dummy_buffer(stream);
 					wake_up(&stream->wq_stopped);
 					return;
 				}

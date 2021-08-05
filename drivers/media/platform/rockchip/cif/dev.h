@@ -170,6 +170,12 @@ struct rkcif_buffer {
 	};
 };
 
+struct rkcif_dummy_buffer {
+	void *vaddr;
+	dma_addr_t dma_addr;
+	u32 size;
+};
+
 extern int rkcif_debug;
 
 /*
@@ -541,6 +547,7 @@ struct rkcif_device {
 	unsigned int			wait_line;
 	unsigned int			wait_line_bak;
 	unsigned int			wait_line_cache;
+	struct rkcif_dummy_buffer	dummy_buf;
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;
