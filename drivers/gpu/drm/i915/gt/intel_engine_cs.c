@@ -1163,16 +1163,16 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 	u32 mmio_base = engine->mmio_base;
 	int slice;
 	int subslice;
+	int iter;
 
 	memset(instdone, 0, sizeof(*instdone));
 
-	switch (GRAPHICS_VER(i915)) {
-	default:
+	if (GRAPHICS_VER(i915) >= 8) {
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 
 		if (engine->id != RCS0)
-			break;
+			return;
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
@@ -1182,21 +1182,32 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			instdone->slice_common_extra[1] =
 				intel_uncore_read(uncore, GEN12_SC_INSTDONE_EXTRA2);
 		}
-		for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
-			instdone->sampler[slice][subslice] =
-				read_subslice_reg(engine, slice, subslice,
-						  GEN7_SAMPLER_INSTDONE);
-			instdone->row[slice][subslice] =
-				read_subslice_reg(engine, slice, subslice,
-						  GEN7_ROW_INSTDONE);
+
+		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+			for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
+				instdone->sampler[slice][subslice] =
+					read_subslice_reg(engine, slice, subslice,
+							  GEN7_SAMPLER_INSTDONE);
+				instdone->row[slice][subslice] =
+					read_subslice_reg(engine, slice, subslice,
+							  GEN7_ROW_INSTDONE);
+			}
+		} else {
+			for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
+				instdone->sampler[slice][subslice] =
+					read_subslice_reg(engine, slice, subslice,
+							  GEN7_SAMPLER_INSTDONE);
+				instdone->row[slice][subslice] =
+					read_subslice_reg(engine, slice, subslice,
+							  GEN7_ROW_INSTDONE);
+			}
 		}
-		break;
-	case 7:
+	} else if (GRAPHICS_VER(i915) >= 7) {
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 
 		if (engine->id != RCS0)
-			break;
+			return;
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
@@ -1204,22 +1215,15 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			intel_uncore_read(uncore, GEN7_SAMPLER_INSTDONE);
 		instdone->row[0][0] =
 			intel_uncore_read(uncore, GEN7_ROW_INSTDONE);
-
-		break;
-	case 6:
-	case 5:
-	case 4:
+	} else if (GRAPHICS_VER(i915) >= 4) {
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
 		if (engine->id == RCS0)
 			/* HACK: Using the wrong struct member */
 			instdone->slice_common =
 				intel_uncore_read(uncore, GEN4_INSTDONE1);
-		break;
-	case 3:
-	case 2:
+	} else {
 		instdone->instdone = intel_uncore_read(uncore, GEN2_INSTDONE);
-		break;
 	}
 }
 

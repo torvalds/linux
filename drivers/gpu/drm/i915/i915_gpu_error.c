@@ -444,15 +444,29 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) <= 6)
 		return;
 
-	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-			   slice, subslice,
-			   ee->instdone.sampler[slice][subslice]);
+	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 50)) {
+		int iter;
 
-	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-			   slice, subslice,
-			   ee->instdone.row[slice][subslice]);
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.sampler[slice][subslice]);
+
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.row[slice][subslice]);
+	} else {
+		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
+			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.sampler[slice][subslice]);
+
+		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
+			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.row[slice][subslice]);
+	}
 
 	if (GRAPHICS_VER(m->i915) < 12)
 		return;

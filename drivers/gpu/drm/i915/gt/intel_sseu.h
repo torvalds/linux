@@ -26,6 +26,9 @@ struct drm_printer;
 #define GEN_DSS_PER_CSLICE	8
 #define GEN_DSS_PER_MSLICE	8
 
+#define GEN_MAX_GSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_GSLICE)
+#define GEN_MAX_CSLICES		(GEN_MAX_SUBSLICES / GEN_DSS_PER_CSLICE)
+
 struct sseu_dev_info {
 	u8 slice_mask;
 	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
@@ -77,6 +80,10 @@ intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
 {
 	u8 mask;
 	int ss_idx = subslice / BITS_PER_BYTE;
+
+	if (slice >= sseu->max_slices ||
+	    subslice >= sseu->max_subslices)
+		return false;
 
 	GEM_BUG_ON(ss_idx >= sseu->ss_stride);
 
