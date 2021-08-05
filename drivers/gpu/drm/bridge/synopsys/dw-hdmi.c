@@ -3789,6 +3789,17 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
 		 hdmi->phy.name);
 
+	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
+	if ((ret & HDMI_PHY_TX_PHY_LOCK) && (ret & HDMI_PHY_HPD) &&
+	    hdmi_readb(hdmi, HDMI_FC_EXCTRLDUR)) {
+		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
+		hdmi->disabled = false;
+		hdmi->bridge_is_on = true;
+		hdmi->phy.enabled = true;
+	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
+		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
+	}
+
 	init_hpd_work(hdmi);
 	dw_hdmi_init_hw(hdmi);
 
