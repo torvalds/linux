@@ -913,6 +913,28 @@ static const struct rpm_smd_clk_desc rpm_clk_sdm660 = {
 	.num_clks = ARRAY_SIZE(sdm660_clks),
 };
 
+static struct clk_smd_rpm *mdm9607_clks[] = {
+	[RPM_SMD_XO_CLK_SRC]		= &sdm660_bi_tcxo,
+	[RPM_SMD_XO_A_CLK_SRC]		= &sdm660_bi_tcxo_a,
+	[RPM_SMD_PCNOC_CLK]		= &msm8916_pcnoc_clk,
+	[RPM_SMD_PCNOC_A_CLK]		= &msm8916_pcnoc_a_clk,
+	[RPM_SMD_BIMC_CLK]		= &msm8916_bimc_clk,
+	[RPM_SMD_BIMC_A_CLK]		= &msm8916_bimc_a_clk,
+	[RPM_SMD_QPIC_CLK]		= &qcs404_qpic_clk,
+	[RPM_SMD_QPIC_CLK_A]		= &qcs404_qpic_a_clk,
+	[RPM_SMD_QDSS_CLK]		= &msm8916_qdss_clk,
+	[RPM_SMD_QDSS_A_CLK]		= &msm8916_qdss_a_clk,
+	[RPM_SMD_BB_CLK1]		= &msm8916_bb_clk1,
+	[RPM_SMD_BB_CLK1_A]		= &msm8916_bb_clk1_a,
+	[RPM_SMD_BB_CLK1_PIN]		= &msm8916_bb_clk1_pin,
+	[RPM_SMD_BB_CLK1_A_PIN]		= &msm8916_bb_clk1_a_pin,
+};
+
+static const struct rpm_smd_clk_desc rpm_clk_mdm9607 = {
+	.clks = mdm9607_clks,
+	.num_clks = ARRAY_SIZE(mdm9607_clks),
+};
+
 static struct clk_smd_rpm *msm8953_clks[] = {
 	[RPM_SMD_XO_CLK_SRC]		= &sdm660_bi_tcxo,
 	[RPM_SMD_XO_A_CLK_SRC]		= &sdm660_bi_tcxo_a,
@@ -1046,6 +1068,7 @@ static const struct rpm_smd_clk_desc rpm_clk_sm6115 = {
 };
 
 static const struct of_device_id rpm_smd_clk_match_table[] = {
+	{ .compatible = "qcom,rpmcc-mdm9607", .data = &rpm_clk_mdm9607 },
 	{ .compatible = "qcom,rpmcc-msm8226", .data = &rpm_clk_msm8974 },
 	{ .compatible = "qcom,rpmcc-msm8916", .data = &rpm_clk_msm8916 },
 	{ .compatible = "qcom,rpmcc-msm8936", .data = &rpm_clk_msm8936 },
