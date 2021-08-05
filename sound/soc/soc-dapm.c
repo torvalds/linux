@@ -747,10 +747,11 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 {
 	const struct snd_kcontrol_new *kcontrol = &w->kcontrol_news[0];
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, item;
+	unsigned int item;
 	int i;
 
 	if (e->reg != SND_SOC_NOPM) {
+		unsigned int val;
 		val = soc_dapm_read(dapm, e->reg);
 		val = (val >> e->shift_l) & e->mask;
 		item = snd_soc_enum_val_to_item(e, val);
