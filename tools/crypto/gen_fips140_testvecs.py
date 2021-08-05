@@ -28,7 +28,7 @@ scriptname = os.path.basename(__file__)
 message     = bytes('This is a 32-byte test message.\0', 'ascii')
 aes_key     = bytes('128-bit AES key\0', 'ascii')
 aes_xts_key = bytes('This is an AES-128-XTS key.\0\0\0\0\0', 'ascii')
-aes_iv      = bytes('ABCDEFGHIJKL\0\0\0\0', 'ascii')
+aes_iv      = bytes('ABCDEFGHIJKLMNOP', 'ascii')
 assoc       = bytes('associated data string', 'ascii')
 hmac_key    = bytes('128-bit HMAC key', 'ascii')
 
@@ -82,7 +82,7 @@ def generate_aes_testvecs():
     print_value('aes_ecb_ciphertext', ecb.encrypt(message))
 
     ctr = Cryptodome.Cipher.AES.new(aes_key, Cryptodome.Cipher.AES.MODE_CTR,
-                                    nonce=aes_iv[:12])
+                                    nonce=bytes(), initial_value=aes_iv)
     print_value('aes_ctr_ciphertext', ctr.encrypt(message))
 
     print_value('aes_gcm_assoc', assoc)
