@@ -431,6 +431,7 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
+	int iter;
 
 	err_printf(m, "  INSTDONE: 0x%08x\n",
 		   ee->instdone.instdone);
@@ -445,8 +446,6 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 		return;
 
 	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 50)) {
-		int iter;
-
 		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
 			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
 				   slice, subslice,
@@ -470,6 +469,13 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 
 	if (GRAPHICS_VER(m->i915) < 12)
 		return;
+
+	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 55)) {
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  GEOM_SVGUNIT_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.geom_svg[slice][subslice]);
+	}
 
 	err_printf(m, "  SC_INSTDONE_EXTRA: 0x%08x\n",
 		   ee->instdone.slice_common_extra[0]);
