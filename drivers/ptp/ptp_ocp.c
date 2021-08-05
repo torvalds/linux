@@ -1381,7 +1381,6 @@ ptp_ocp_device_init(struct ptp_ocp *bp, struct pci_dev *pdev)
 	err = device_add(&bp->dev);
 	if (err) {
 		dev_err(&bp->dev, "device add failed: %d\n", err);
-		put_device(&bp->dev);
 		goto out;
 	}
 
@@ -1391,6 +1390,7 @@ ptp_ocp_device_init(struct ptp_ocp *bp, struct pci_dev *pdev)
 
 out:
 	ptp_ocp_dev_release(&bp->dev);
+	put_device(&bp->dev);
 	return err;
 }
 
