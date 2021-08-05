@@ -1509,38 +1509,33 @@ EXPORT_SYMBOL_GPL(fuse_fill_super_common);
 static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
-	struct file *file;
 	int err;
 	struct fuse_conn *fc;
 	struct fuse_mount *fm;
 
-	if (!ctx->fd_present || !ctx->rootmode_present ||
+	if (!ctx->file || !ctx->rootmode_present ||
 	    !ctx->user_id_present || !ctx->group_id_present)
 		return -EINVAL;
-
-	err = -EINVAL;
-	file = fget(ctx->fd);
-	if (!file)
-		goto err;
 
 	/*
 	 * Require mount to happen from the same user namespace which
 	 * opened /dev/fuse to prevent potential attacks.
 	 */
-	if ((file->f_op != &fuse_dev_operations) ||
-	    (file->f_cred->user_ns != sb->s_user_ns))
-		goto err_fput;
-	ctx->fudptr = &file->private_data;
+	err = -EINVAL;
+	if ((ctx->file->f_op != &fuse_dev_operations) ||
+	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
+		goto err;
+	ctx->fudptr = &ctx->file->private_data;
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!fc)
-		goto err_fput;
+		goto err;
 
 	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
 	if (!fm) {
 		kfree(fc);
-		goto err_fput;
+		goto err;
 	}
 
 	fuse_conn_init(fc, fm, sb->s_user_ns, &fuse_dev_fiq_ops, NULL);
@@ -1551,12 +1546,8 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
 		goto err_put_conn;
-	/*
-	 * atomic_dec_and_test() in fput() provides the necessary
-	 * memory barrier for file->private_data to be visible on all
-	 * CPUs after this
-	 */
-	fput(file);
+	/* file->private_data shall be visible on all CPUs after this */
+	smp_mb();
 	fuse_send_init(get_fuse_mount_super(sb));
 	return 0;
 
@@ -1564,8 +1555,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	fuse_conn_put(fc);
 	kfree(fm);
 	sb->s_fs_info = NULL;
- err_fput:
-	fput(file);
  err:
 	return err;
 }
@@ -1573,12 +1562,21 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 static int fuse_get_tree(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
+	int err;
+
+	if (ctx->fd_present)
+		ctx->file = fget(ctx->fd);
 
 	if (IS_ENABLED(CONFIG_BLOCK) && ctx->is_bdev) {
-		return get_tree_bdev(fsc, fuse_fill_super);
+		err = get_tree_bdev(fsc, fuse_fill_super);
+		goto out_fput;
 	}
 
-	return get_tree_nodev(fsc, fuse_fill_super);
+	err = get_tree_nodev(fsc, fuse_fill_super);
+out_fput:
+	if (ctx->file)
+		fput(ctx->file);
+	return err;
 }
 
 static const struct fs_context_operations fuse_context_ops = {
