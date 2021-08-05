@@ -218,7 +218,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 			pslv = PS_STATE_S3;
 	}
 
-	if ((pwrpriv->rpwm == pslv))
+	if (pwrpriv->rpwm == pslv)
 		return;
 
 	if ((padapter->bSurpriseRemoved) ||
