@@ -171,7 +171,6 @@ struct ptp_ocp {
 	u8			serial[6];
 	int			flash_start;
 	bool			has_serial;
-	bool			pending_image;
 };
 
 struct ocp_resource {
@@ -836,8 +835,6 @@ ptp_ocp_devlink_flash_update(struct devlink *devlink,
 	msg = err ? "Flash error" : "Flash complete";
 	devlink_flash_update_status_notify(devlink, msg, NULL, 0, 0);
 
-	bp->pending_image = true;
-
 	put_device(dev);
 	return err;
 }
@@ -853,13 +850,6 @@ ptp_ocp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
 	if (err)
 		return err;
-
-	if (bp->pending_image) {
-		err = devlink_info_version_stored_put(req,
-						      "timecard", "pending");
-		if (err)
-			return err;
-	}
 
 	if (bp->image) {
 		u32 ver = ioread32(&bp->image->version);
