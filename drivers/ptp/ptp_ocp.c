@@ -162,7 +162,6 @@ struct ptp_ocp {
 	struct platform_device	*i2c_ctrl;
 	struct platform_device	*spi_flash;
 	struct clk_hw		*i2c_clk;
-	struct devlink_health_reporter *health;
 	struct timer_list	watchdog;
 	time64_t		gps_lost;
 	int			id;
@@ -184,7 +183,6 @@ struct ocp_resource {
 	unsigned long bp_offset;
 };
 
-static void ptp_ocp_health_update(struct ptp_ocp *bp);
 static int ptp_ocp_register_mem(struct ptp_ocp *bp, struct ocp_resource *r);
 static int ptp_ocp_register_i2c(struct ptp_ocp *bp, struct ocp_resource *r);
 static int ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r);
@@ -553,12 +551,10 @@ ptp_ocp_watchdog(struct timer_list *t)
 			__ptp_ocp_clear_drift_locked(bp);
 			spin_unlock_irqrestore(&bp->lock, flags);
 			bp->gps_lost = ktime_get_real_seconds();
-			ptp_ocp_health_update(bp);
 		}
 
 	} else if (bp->gps_lost) {
 		bp->gps_lost = 0;
-		ptp_ocp_health_update(bp);
 	}
 
 	mod_timer(&bp->watchdog, jiffies + HZ);
@@ -740,14 +736,6 @@ ptp_ocp_info(struct ptp_ocp *bp)
 	ptp_ocp_tod_info(bp);
 }
 
-static const struct devlink_param ptp_ocp_devlink_params[] = {
-};
-
-static void
-ptp_ocp_devlink_set_params_init_values(struct devlink *devlink)
-{
-}
-
 static int
 ptp_ocp_devlink_register(struct devlink *devlink, struct device *dev)
 {
@@ -757,25 +745,12 @@ ptp_ocp_devlink_register(struct devlink *devlink, struct device *dev)
 	if (err)
 		return err;
 
-	err = devlink_params_register(devlink, ptp_ocp_devlink_params,
-				      ARRAY_SIZE(ptp_ocp_devlink_params));
-	ptp_ocp_devlink_set_params_init_values(devlink);
-	if (err)
-		goto out;
-	devlink_params_publish(devlink);
-
 	return 0;
-
-out:
-	devlink_unregister(devlink);
-	return err;
 }
 
 static void
 ptp_ocp_devlink_unregister(struct devlink *devlink)
 {
-	devlink_params_unregister(devlink, ptp_ocp_devlink_params,
-				  ARRAY_SIZE(ptp_ocp_devlink_params));
 	devlink_unregister(devlink);
 }
 
@@ -921,58 +896,6 @@ static const struct devlink_ops ptp_ocp_devlink_ops = {
 	.flash_update = ptp_ocp_devlink_flash_update,
 	.info_get = ptp_ocp_devlink_info_get,
 };
-
-static int
-ptp_ocp_health_diagnose(struct devlink_health_reporter *reporter,
-			struct devlink_fmsg *fmsg,
-			struct netlink_ext_ack *extack)
-{
-	struct ptp_ocp *bp = devlink_health_reporter_priv(reporter);
-	char buf[32];
-	int err;
-
-	if (!bp->gps_lost)
-		return 0;
-
-	sprintf(buf, "%ptT", &bp->gps_lost);
-	err = devlink_fmsg_string_pair_put(fmsg, "Lost sync at", buf);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static void
-ptp_ocp_health_update(struct ptp_ocp *bp)
-{
-	int state;
-
-	state = bp->gps_lost ? DEVLINK_HEALTH_REPORTER_STATE_ERROR
-			     : DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
-
-	if (bp->gps_lost)
-		devlink_health_report(bp->health, "No GPS signal", NULL);
-
-	devlink_health_reporter_state_update(bp->health, state);
-}
-
-static const struct devlink_health_reporter_ops ptp_ocp_health_ops = {
-	.name = "gps_sync",
-	.diagnose = ptp_ocp_health_diagnose,
-};
-
-static void
-ptp_ocp_devlink_health_register(struct devlink *devlink)
-{
-	struct ptp_ocp *bp = devlink_priv(devlink);
-	struct devlink_health_reporter *r;
-
-	r = devlink_health_reporter_create(devlink, &ptp_ocp_health_ops, 0, bp);
-	if (IS_ERR(r))
-		dev_err(&bp->pdev->dev, "Failed to create reporter, err %ld\n",
-			PTR_ERR(r));
-	bp->health = r;
-}
 
 static void __iomem *
 __ptp_ocp_get_mem(struct ptp_ocp *bp, unsigned long start, int size)
@@ -1514,8 +1437,6 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		pci_free_irq_vectors(bp->pdev);
 	if (bp->ptp)
 		ptp_clock_unregister(bp->ptp);
-	if (bp->health)
-		devlink_health_reporter_destroy(bp->health);
 	device_unregister(&bp->dev);
 }
 
@@ -1578,7 +1499,6 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ptp_ocp_info(bp);
 	ptp_ocp_resource_summary(bp);
-	ptp_ocp_devlink_health_register(devlink);
 
 	return 0;
 
