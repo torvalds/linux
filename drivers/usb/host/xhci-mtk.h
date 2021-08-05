@@ -10,6 +10,7 @@
 #define _XHCI_MTK_H_
 
 #include <linux/clk.h>
+#include <linux/rhashtable.h>
 
 #include "xhci.h"
 
@@ -25,36 +26,34 @@
 
 /**
  * @fs_bus_bw: array to keep track of bandwidth already used for FS
- * @ep_list: Endpoints using this TT
+ * @nr_eps: number of endpoints using this TT
  */
 struct mu3h_sch_tt {
 	u32 fs_bus_bw[XHCI_MTK_MAX_ESIT];
-	struct list_head ep_list;
+	int nr_eps;
 };
 
 /**
  * struct mu3h_sch_bw_info: schedule information for bandwidth domain
  *
  * @bus_bw: array to keep track of bandwidth already used at each uframes
- * @bw_ep_list: eps in the bandwidth domain
  *
  * treat a HS root port as a bandwidth domain, but treat a SS root port as
  * two bandwidth domains, one for IN eps and another for OUT eps.
  */
 struct mu3h_sch_bw_info {
 	u32 bus_bw[XHCI_MTK_MAX_ESIT];
-	struct list_head bw_ep_list;
 };
 
 /**
  * struct mu3h_sch_ep_info: schedule information for endpoint
  *
+ * @bw_info: bandwidth domain which this endpoint belongs
  * @esit: unit is 125us, equal to 2 << Interval field in ep-context
  * @num_budget_microframes: number of continuous uframes
  *		(@repeat==1) scheduled within the interval
  * @bw_cost_per_microframe: bandwidth cost per microframe
- * @endpoint: linked into bandwidth domain which it belongs to
- * @tt_endpoint: linked into mu3h_sch_tt's list which it belongs to
+ * @endpoint: linked into bw_ep_chk_list, used by check_bandwidth hook
  * @sch_tt: mu3h_sch_tt linked into
  * @ep_type: endpoint type
  * @maxpkt: max packet size of endpoint
@@ -82,11 +81,12 @@ struct mu3h_sch_ep_info {
 	u32 num_budget_microframes;
 	u32 bw_cost_per_microframe;
 	struct list_head endpoint;
-	struct list_head tt_endpoint;
+	struct mu3h_sch_bw_info *bw_info;
 	struct mu3h_sch_tt *sch_tt;
 	u32 ep_type;
 	u32 maxpkt;
 	struct usb_host_endpoint *ep;
+	struct rhash_head ep_link;
 	enum usb_device_speed speed;
 	bool allocated;
 	/*
@@ -134,6 +134,7 @@ struct xhci_hcd_mtk {
 	struct device *dev;
 	struct usb_hcd *hcd;
 	struct mu3h_sch_bw_info *sch_array;
+	struct rhashtable sch_ep_table;
 	struct list_head bw_ep_chk_list;
 	struct mu3c_ippc_regs __iomem *ippc_regs;
 	int num_u2_ports;
