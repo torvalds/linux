@@ -1165,7 +1165,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		break;
 #endif
 	case H_RANDOM:
-		if (!powernv_get_random_long(&vcpu->arch.regs.gpr[4]))
+		if (!arch_get_random_seed_long(&vcpu->arch.regs.gpr[4]))
 			ret = H_HARDWARE;
 		break;
 	case H_RPT_INVALIDATE:
