@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <uapi/linux/hid.h>
+#include <linux/android_kabi.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -512,6 +513,7 @@ struct hid_report {
 	/* tool related state */
 	bool tool_active;				/* whether the current tool is active */
 	unsigned int tool;				/* BTN_TOOL_* */
+	ANDROID_KABI_RESERVE(1);
 };
 
 #define HID_MAX_IDS 256
@@ -556,6 +558,7 @@ struct hid_input {
 	bool registered;
 	struct list_head reports;	/* the list of reports */
 	unsigned int application;	/* application usage for this input */
+	ANDROID_KABI_RESERVE(1);
 };
 
 enum hid_type {
@@ -653,6 +656,9 @@ struct hid_device {							/* device report descriptor */
 	wait_queue_head_t debug_wait;
 
 	unsigned int id;						/* system unique id */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #define to_hid_device(pdev) \
@@ -685,6 +691,7 @@ struct hid_parser {
 	unsigned int          collection_stack_size;
 	struct hid_device    *device;
 	unsigned int          scan_flags;
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct hid_class_descriptor {
@@ -806,6 +813,9 @@ struct hid_driver {
 	int (*resume)(struct hid_device *hdev);
 	int (*reset_resume)(struct hid_device *hdev);
 #endif
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
 /* private: */
 	struct device_driver driver;
 };
@@ -853,6 +863,8 @@ struct hid_ll_driver {
 
 	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 	bool (*may_wakeup)(struct hid_device *hdev);
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 extern struct hid_ll_driver i2c_hid_ll_driver;
