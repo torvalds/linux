@@ -229,8 +229,6 @@ u32  rtw_systime_to_ms(u32 systime);
 u32  rtw_ms_to_systime(u32 ms);
 s32  rtw_get_passing_time_ms(u32 start);
 
-void rtw_sleep_schedulable(int ms);
-
 void rtw_usleep_os(int us);
 
 u32  rtw_atoi(u8 *s);

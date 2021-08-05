@@ -116,18 +116,6 @@ inline s32 rtw_get_passing_time_ms(u32 start)
 	return rtw_systime_to_ms(jiffies-start);
 }
 
-void rtw_sleep_schedulable(int ms)
-{
-	u32 delta;
-
-	delta = (ms * HZ)/1000;/* ms) */
-	if (delta == 0)
-		delta = 1;/*  1 ms */
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (schedule_timeout(delta) != 0)
-		return;
-}
-
 void rtw_usleep_os(int us)
 {
 	if (1 < (us/1000))
