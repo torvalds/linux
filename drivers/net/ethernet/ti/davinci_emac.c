@@ -943,7 +943,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto fail_tx;
 	}
 
-	ret_code = skb_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
+	ret_code = skb_put_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
 	if (unlikely(ret_code < 0)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: packet pad failed");
