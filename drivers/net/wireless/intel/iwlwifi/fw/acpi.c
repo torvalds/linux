@@ -703,27 +703,49 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 	union acpi_object *wifi_pkg, *data;
 	int i, j, k, ret, tbl_rev;
 	int idx = 1; /* start from one to skip the domain */
+	u8 num_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WGDS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* start by trying to read revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
-					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
+					 ACPI_WGDS_WIFI_DATA_SIZE_REV2,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 2) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
 
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
+		num_bands = ACPI_GEO_NUM_BANDS_REV2;
+
+		goto read_table;
 	}
 
-	if (tbl_rev > 1) {
-		ret = -EINVAL;
-		goto out_free;
+	/* then try revision 0 (which is the same as 1) */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WGDS_WIFI_DATA_SIZE_REV0,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 0 && tbl_rev != 1) {
+			ret = PTR_ERR(wifi_pkg);
+			goto out_free;
+		}
+
+		num_bands = ACPI_GEO_NUM_BANDS_REV0;
+
+		goto read_table;
 	}
 
+	ret = PTR_ERR(wifi_pkg);
+	goto out_free;
+
+read_table:
 	fwrt->geo_rev = tbl_rev;
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV0; j++) {
+		for (j = 0; j < num_bands; j++) {
 			union acpi_object *entry;
 
 			entry = &wifi_pkg->package.elements[idx++];
