@@ -41,6 +41,7 @@ TEST_GEN_FILES += ioam6_parser
 TEST_GEN_FILES += gro
 TEST_GEN_PROGS = reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
 TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls
+TEST_GEN_FILES += toeplitz
 
 TEST_FILES := settings
 
