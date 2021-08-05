@@ -102,7 +102,6 @@ static const u8 *iwl_mvm_find_max_pn(struct ieee80211_key_conf *key,
 }
 
 struct wowlan_key_data {
-	struct iwl_wowlan_kek_kck_material_cmd_v4 *kek_kck_cmd;
 	bool error, configure_keys;
 	int wep_key_idx;
 };
@@ -174,10 +173,8 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		return;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_GCMP);
 		return;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
-		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_CCM);
 		/*
 		 * Ignore CMAC keys -- the WoWLAN firmware doesn't support them
 		 * but we also shouldn't abort suspend due to that. It does have
@@ -187,22 +184,11 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		 */
 		return;
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (!sta)
-			data->kek_kck_cmd->gtk_cipher =
-				cpu_to_le32(STA_KEY_FLG_TKIP);
-		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		if (!sta)
-			data->kek_kck_cmd->gtk_cipher =
-				key->cipher == WLAN_CIPHER_SUITE_CCMP ?
-				cpu_to_le32(STA_KEY_FLG_CCM) :
-				cpu_to_le32(STA_KEY_FLG_GCMP);
 		break;
 	}
-
-	IWL_DEBUG_WOWLAN(mvm, "GTK cipher %d\n", data->kek_kck_cmd->gtk_cipher);
 
 	if (data->configure_keys) {
 		mutex_lock(&mvm->mutex);
@@ -448,6 +434,42 @@ static void iwl_mvm_wowlan_get_tkip_data(struct ieee80211_hw *hw,
 		       IWL_MIC_KEY_SIZE);
 
 		data->have_tkip_keys = true;
+		break;
+	}
+}
+
+struct wowlan_key_gtk_type_iter {
+	struct iwl_wowlan_kek_kck_material_cmd_v4 *kek_kck_cmd;
+};
+
+static void iwl_mvm_wowlan_gtk_type_iter(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_sta *sta,
+					 struct ieee80211_key_conf *key,
+					 void *_data)
+{
+	struct wowlan_key_gtk_type_iter *data = _data;
+
+	switch (key->cipher) {
+	default:
+		return;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_GCMP);
+		return;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_CCM);
+		return;
+	case WLAN_CIPHER_SUITE_CCMP:
+		if (!sta)
+			data->kek_kck_cmd->gtk_cipher =
+				cpu_to_le32(STA_KEY_FLG_CCM);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (!sta)
+			data->kek_kck_cmd->gtk_cipher =
+				cpu_to_le32(STA_KEY_FLG_GCMP);
 		break;
 	}
 }
@@ -815,13 +837,10 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif)
 {
-	struct iwl_wowlan_kek_kck_material_cmd_v4 kek_kck_cmd = {};
-	struct iwl_wowlan_kek_kck_material_cmd_v4 *_kek_kck_cmd = &kek_kck_cmd;
 	bool unified = fw_has_capa(&mvm->fw->ucode_capa,
 				   IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 	struct wowlan_key_data key_data = {
 		.configure_keys = !unified,
-		.kek_kck_cmd = _kek_kck_cmd,
 	};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
@@ -884,6 +903,13 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	/* configure rekey data only if offloaded rekey is supported (d3) */
 	if (mvmvif->rekey_data.valid) {
+		struct iwl_wowlan_kek_kck_material_cmd_v4 kek_kck_cmd = {};
+		struct iwl_wowlan_kek_kck_material_cmd_v4 *_kek_kck_cmd =
+			&kek_kck_cmd;
+		struct wowlan_key_gtk_type_iter gtk_type_data = {
+			.kek_kck_cmd = _kek_kck_cmd,
+		};
+
 		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 						IWL_ALWAYS_LONG_GROUP,
 						WOWLAN_KEK_KCK_MATERIAL,
@@ -891,6 +917,9 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 && cmd_ver != 4 &&
 			    cmd_ver != IWL_FW_CMD_VER_UNKNOWN))
 			return -EINVAL;
+
+		ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_gtk_type_iter,
+				    &gtk_type_data);
 
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       mvmvif->rekey_data.kck_len);
