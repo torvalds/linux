@@ -168,6 +168,16 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		rcu_read_unlock();
 	}
 
+	if (vif->bss_conf.assoc) {
+		/*
+		 * When not associated, this will be called from
+		 * iwl_mvm_event_mlme_callback_ini()
+		 */
+		iwl_dbg_tlv_time_point(&mvm->fwrt,
+				       IWL_FW_INI_TIME_POINT_ASSOC_FAILED,
+				       NULL);
+	}
+
 	iwl_mvm_connection_loss(mvm, vif, errmsg);
 	return true;
 }
