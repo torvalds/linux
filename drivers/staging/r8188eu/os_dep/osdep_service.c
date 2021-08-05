@@ -58,32 +58,13 @@ inline void _rtw_vmfree(u8 *pbuf, u32 sz)
 	vfree(pbuf);
 }
 
-u8 *_rtw_malloc(u32 sz)
-{
-	u8	*pbuf = NULL;
-
-	pbuf = kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	return pbuf;
-}
-
-u8 *_rtw_zmalloc(u32 sz)
-{
-	u8	*pbuf = _rtw_malloc(sz);
-
-	if (pbuf)
-		memset(pbuf, 0, sz);
-	return pbuf;
-}
-
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
 
-	void **a = (void **)rtw_zmalloc(h*sizeof(void *) + h*w*size);
-	if (!a) {
-		pr_info("%s: alloc memory fail!\n", __func__);
+	void **a = kzalloc(h * sizeof(void *) + h * w * size, GFP_KERNEL);
+	if (!a)
 		return NULL;
-	}
 
 	for (j = 0; j < h; j++)
 		a[j] = ((char *)(a+h)) + j*w*size;
@@ -331,7 +312,7 @@ void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len)
 		goto keep_ori;
 
 	/* duplicate src */
-	dup = rtw_malloc(src_len);
+	dup = kmalloc(src_len, GFP_ATOMIC);
 	if (dup) {
 		dup_len = src_len;
 		memcpy(dup, src, dup_len);
@@ -423,8 +404,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = (struct rtw_cbuf *)rtw_malloc(sizeof(*cbuf) +
-	       sizeof(void *)*size);
+	cbuf = kmalloc(sizeof(*cbuf) + sizeof(void *)*size, GFP_KERNEL);
 
 	if (cbuf) {
 		cbuf->write = 0;

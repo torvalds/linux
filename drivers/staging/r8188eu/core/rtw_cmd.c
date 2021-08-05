@@ -1947,10 +1947,13 @@ static void c2h_wk_callback(struct work_struct *work)
 		if ((c2h_evt = (struct c2h_evt_hdr *)rtw_cbuf_pop(evtpriv->c2h_queue)) != NULL) {
 			/* This C2H event is read, clear it */
 			c2h_evt_clear(adapter);
-		} else if ((c2h_evt = (struct c2h_evt_hdr *)rtw_malloc(16)) != NULL) {
-			/* This C2H event is not read, read & clear now */
-			if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS)
-				continue;
+		} else {
+			c2h_evt = kmalloc(16, GFP_KERNEL);
+			if (c2h_evt) {
+				/* This C2H event is not read, read & clear now */
+				if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS)
+					continue;
+			}
 		}
 
 		/* Special pointer to trigger c2h_evt_clear only */
