@@ -1,19 +1,10 @@
- /*
- * drivers/input/sensors/hall/mh248.c
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
- * Copyright (C) 2012-2016 Rockchip Co.,Ltd.
  * Author: Bin Yang <yangbin@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
+
 
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -33,11 +24,13 @@
 #include <linux/fb.h>
 #include <linux/notifier.h>
 #include <linux/rk_keys.h>
+#include <linux/input.h>
 
 struct mh248_para {
 	struct device *dev;
 	struct notifier_block fb_notif;
 	struct mutex ops_lock;
+	struct input_dev *hall_input;
 	int is_suspend;
 	int gpio_pin;
 	int irq;
@@ -75,14 +68,18 @@ static irqreturn_t hall_mh248_interrupt(int irq, void *dev_id)
 	int gpio_value = 0;
 
 	gpio_value = gpio_get_value(mh248->gpio_pin);
-
 	if ((gpio_value != mh248->active_value) &&
 	    (mh248->is_suspend == 0)) {
-		rk_send_power_key(1);
-		rk_send_power_key(0);
+		input_report_key(mh248->hall_input, KEY_POWER, 1);
+		input_sync(mh248->hall_input);
+		input_report_key(mh248->hall_input, KEY_POWER, 0);
+		input_sync(mh248->hall_input);
 	} else if ((gpio_value == mh248->active_value) &&
 		   (mh248->is_suspend == 1)) {
-		rk_send_wakeup_key();
+		input_report_key(mh248->hall_input, KEY_WAKEUP, 1);
+		input_sync(mh248->hall_input);
+		input_report_key(mh248->hall_input, KEY_WAKEUP, 0);
+		input_sync(mh248->hall_input);
 	}
 
 	return IRQ_HANDLED;
@@ -94,7 +91,6 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	struct mh248_para *mh248;
 	enum of_gpio_flags irq_flags;
 	int hallactive = 0;
-	int gpio_value = 0;
 	int ret = 0;
 
 	mh248 = devm_kzalloc(&pdev->dev, sizeof(*mh248), GFP_KERNEL);
@@ -104,7 +100,7 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	mh248->dev = &pdev->dev;
 
 	mh248->gpio_pin = of_get_named_gpio_flags(np, "irq-gpio",
-					0, &irq_flags);
+						  0, &irq_flags);
 	if (!gpio_is_valid(mh248->gpio_pin)) {
 		dev_err(mh248->dev, "Can not read property irq-gpio\n");
 		return mh248->gpio_pin;
@@ -119,11 +115,9 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	ret = devm_gpio_request_one(mh248->dev, mh248->gpio_pin,
 				    GPIOF_DIR_IN, "hall_mh248");
 	if (ret < 0) {
-		dev_err(mh248->dev, "fail to request gpio:%d\n",
-			mh248->gpio_pin);
+		dev_err(mh248->dev, "fail to request gpio:%d\n", mh248->gpio_pin);
 		return ret;
 	}
-	gpio_value = gpio_get_value(mh248->gpio_pin);
 
 	ret = devm_request_threaded_irq(mh248->dev, mh248->irq,
 					NULL, hall_mh248_interrupt,
@@ -132,6 +126,21 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(mh248->dev, "request irq(%d) failed, ret=%d\n",
 			mh248->irq, ret);
+		return ret;
+	}
+
+	mh248->hall_input = devm_input_allocate_device(&pdev->dev);
+	if (!mh248->hall_input) {
+		dev_err(&pdev->dev, "Can't allocate hall input dev\n");
+		return -ENOMEM;
+	}
+	mh248->hall_input->name = "hall wake key";
+	input_set_capability(mh248->hall_input, EV_KEY, KEY_POWER);
+	input_set_capability(mh248->hall_input, EV_KEY, KEY_WAKEUP);
+
+	ret = input_register_device(mh248->hall_input);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to register input device, error: %d\n", ret);
 		return ret;
 	}
 
