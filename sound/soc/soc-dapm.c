@@ -650,12 +650,11 @@ static struct snd_soc_dapm_widget *
 dapm_wcache_lookup(struct snd_soc_dapm_wcache *wcache, const char *name)
 {
 	struct snd_soc_dapm_widget *w = wcache->widget;
-	struct list_head *wlist;
-	const int depth = 2;
-	int i = 0;
 
 	if (w) {
-		wlist = &w->dapm->card->widgets;
+		struct list_head *wlist = &w->dapm->card->widgets;
+		const int depth = 2;
+		int i = 0;
 
 		list_for_each_entry_from(w, wlist, list) {
 			if (!strcmp(name, w->name))
