@@ -420,6 +420,13 @@ struct dma_buf {
 	 * - Dynamic importers should set fences for any access that they can't
 	 *   disable immediately from their &dma_buf_attach_ops.move_notify
 	 *   callback.
+	 *
+	 * IMPORTANT:
+	 *
+	 * All drivers must obey the struct dma_resv rules, specifically the
+	 * rules for updating fences, see &dma_resv.fence_excl and
+	 * &dma_resv.fence. If these dependency rules are broken access tracking
+	 * can be lost resulting in use after free issues.
 	 */
 	struct dma_resv *resv;
 
