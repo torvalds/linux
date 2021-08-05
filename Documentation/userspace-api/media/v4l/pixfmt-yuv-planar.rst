@@ -254,14 +254,16 @@ of the luma plane.
 
 .. _V4L2-PIX-FMT-NV12MT:
 .. _V4L2-PIX-FMT-NV12MT-16X16:
+.. _V4L2-PIX-FMT-NV12-32L32:
 
-NV12MT and MV12MT_16X16
------------------------
+Tiled NV12
+----------
 
 Semi-planar YUV 4:2:0 formats, using macroblock tiling. The chroma plane is
 subsampled by 2 in each direction. Chroma lines contain half the number of
 pixels and the same number of bytes as luma lines, and the chroma plane
-contains half the number of lines of the luma plane.
+contains half the number of lines of the luma plane. Each tile follows the
+previous one linearly in memory (from left to right, top to bottom).
 
 ``V4L2_PIX_FMT_NV12MT_16X16`` stores pixel in 2D 16x16 macroblocks, and stores
 macroblocks linearly in memory. The line stride and image height must be
@@ -275,6 +277,11 @@ integer number of Z shapes. The image height must be a multiple of 32 pixels.
 If the vertical resolution is an odd number of macroblocks, the last row of
 macroblocks is stored in linear order. The layouts of the luma and chroma
 planes are identical.
+
+``V4L2_PIX_FMT_NV12_32L32`` stores pixel in 32x32 tiles, and stores
+tiles linearly in memory. The line stride and image height must be
+aligned to a multiple of 32. The layouts of the luma and chroma planes are
+identical.
 
 .. _nv12mt:
 
