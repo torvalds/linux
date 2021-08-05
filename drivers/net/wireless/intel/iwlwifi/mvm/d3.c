@@ -1933,9 +1933,12 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 
 		status->gtk[0] = v7->gtk[0];
 		status->igtk[0] = v7->igtk[0];
-	} else if (notif_ver == 9 || notif_ver == 10) {
+	} else if (notif_ver == 9 || notif_ver == 10 || notif_ver == 11) {
 		struct iwl_wowlan_status_v9 *v9 = (void *)cmd.resp_pkt->data;
 
+		/* these three command versions have same layout and size, the
+		 * difference is only in a few not used (reserved) fields.
+		 */
 		status = iwl_mvm_parse_wowlan_status_common_v9(mvm,
 							       cmd.resp_pkt->data,
 							       len);
