@@ -65,6 +65,8 @@
  *5. mipi csi host add cru rst
  *6. support wake up mode with mipi
  *7. add keepint time to csi2 err for resetting
+ *8. mipi supports pdaf/embedded data
+ *9. mipi supports interlaced capture
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION
