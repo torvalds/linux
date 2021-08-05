@@ -338,7 +338,7 @@ static int tracepoint_remove_func(struct tracepoint *tp,
 	} else {
 		rcu_assign_pointer(tp->funcs, tp_funcs);
 		tracepoint_update_call(tp, tp_funcs,
-				       tp_funcs[0].func != old[0].func);
+				       tp_funcs[0].data != old[0].data);
 	}
 	release_probes(old);
 	return 0;
