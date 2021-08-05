@@ -45,8 +45,14 @@
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
- * Note: the sched_list should have at least one element to schedule
- *       the entity
+ * Note that the &sched_list must have at least one element to schedule the entity.
+ *
+ * For changing @priority later on at runtime see
+ * drm_sched_entity_set_priority(). For changing the set of schedulers
+ * @sched_list at runtime see drm_sched_entity_modify_sched().
+ *
+ * An entity is cleaned up by callind drm_sched_entity_fini(). See also
+ * drm_sched_entity_destroy().
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -92,6 +98,11 @@ EXPORT_SYMBOL(drm_sched_entity_init);
  * @sched_list: the list of new drm scheds which will replace
  *		 existing entity->sched_list
  * @num_sched_list: number of drm sched in sched_list
+ *
+ * Note that this must be called under the same common lock for @entity as
+ * drm_sched_job_arm() and drm_sched_entity_push_job(), or the driver needs to
+ * guarantee through some other means that this is never called while new jobs
+ * can be pushed to @entity.
  */
 void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 				    struct drm_gpu_scheduler **sched_list,
@@ -104,13 +115,6 @@ void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_modify_sched);
 
-/**
- * drm_sched_entity_is_idle - Check if entity is idle
- *
- * @entity: scheduler entity
- *
- * Returns true if the entity does not have any unscheduled jobs.
- */
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
 	rmb(); /* for list_empty to work without lock */
@@ -123,13 +127,7 @@ static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 	return false;
 }
 
-/**
- * drm_sched_entity_is_ready - Check if entity is ready
- *
- * @entity: scheduler entity
- *
- * Return true if entity could provide a job.
- */
+/* Return true if entity could provide a job. */
 bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
 {
 	if (spsc_queue_peek(&entity->job_queue) == NULL)
@@ -192,14 +190,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 }
 EXPORT_SYMBOL(drm_sched_entity_flush);
 
-/**
- * drm_sched_entity_kill_jobs_cb - helper for drm_sched_entity_kill_jobs
- *
- * @f: signaled fence
- * @cb: our callback structure
- *
- * Signal the scheduler finished fence when the entity in question is killed.
- */
+/* Signal the scheduler finished fence when the entity in question is killed. */
 static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 					  struct dma_fence_cb *cb)
 {
@@ -224,14 +215,6 @@ drm_sched_job_dependency(struct drm_sched_job *job,
 	return NULL;
 }
 
-/**
- * drm_sched_entity_kill_jobs - Make sure all remaining jobs are killed
- *
- * @entity: entity which is cleaned up
- *
- * Makes sure that all remaining jobs in an entity are killed before it is
- * destroyed.
- */
 static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 {
 	struct drm_sched_job *job;
@@ -273,9 +256,11 @@ static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
  *
  * @entity: scheduler entity
  *
- * This should be called after @drm_sched_entity_do_release. It goes over the
- * entity and signals all jobs with an error code if the process was killed.
+ * Cleanups up @entity which has been initialized by drm_sched_entity_init().
  *
+ * If there are potentially job still in flight or getting newly queued
+ * drm_sched_entity_flush() must be called first. This function then goes over
+ * the entity and signals all jobs with an error code if the process was killed.
  */
 void drm_sched_entity_fini(struct drm_sched_entity *entity)
 {
@@ -315,10 +300,10 @@ EXPORT_SYMBOL(drm_sched_entity_fini);
 
 /**
  * drm_sched_entity_destroy - Destroy a context entity
- *
  * @entity: scheduler entity
  *
- * Calls drm_sched_entity_do_release() and drm_sched_entity_cleanup()
+ * Calls drm_sched_entity_flush() and drm_sched_entity_fini() as a
+ * convenience wrapper.
  */
 void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 {
@@ -327,9 +312,7 @@ void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 }
 EXPORT_SYMBOL(drm_sched_entity_destroy);
 
-/*
- * drm_sched_entity_clear_dep - callback to clear the entities dependency
- */
+/* drm_sched_entity_clear_dep - callback to clear the entities dependency */
 static void drm_sched_entity_clear_dep(struct dma_fence *f,
 				       struct dma_fence_cb *cb)
 {
@@ -371,11 +354,7 @@ void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_set_priority);
 
-/**
- * drm_sched_entity_add_dependency_cb - add callback for the entities dependency
- *
- * @entity: entity with dependency
- *
+/*
  * Add a callback to the current dependency of the entity to wake up the
  * scheduler when the entity becomes available.
  */
@@ -423,13 +402,6 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	return false;
 }
 
-/**
- * drm_sched_entity_pop_job - get a ready to be scheduled job from the entity
- *
- * @entity: entity to get the job from
- *
- * Process all dependencies and try to get one job from the entities queue.
- */
 struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 {
 	struct drm_sched_job *sched_job;
@@ -465,14 +437,6 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 	return sched_job;
 }
 
-/**
- * drm_sched_entity_select_rq - select a new rq for the entity
- *
- * @entity: scheduler entity
- *
- * Check all prerequisites and select a new rq for the entity for load
- * balancing.
- */
 void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 {
 	struct dma_fence *fence;
@@ -520,7 +484,8 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  *
  * Note: To guarantee that the order of insertion to queue matches the job's
  * fence sequence number this function should be called with drm_sched_job_arm()
- * under common lock.
+ * under common lock for the struct drm_sched_entity that was set up for
+ * @sched_job in drm_sched_job_init().
  *
  * Returns 0 for success, negative error code otherwise.
  */

@@ -504,3 +504,6 @@ Scheduler Function References
 
 .. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :export:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_entity.c
+   :export:
