@@ -199,9 +199,13 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		mac[i] = default_mac;
 
 		/* Let sja1105_bridge_stp_state_set() keep address learning
-		 * enabled for the CPU port.
+		 * enabled for the DSA ports. CPU ports use software-assisted
+		 * learning to ensure that only FDB entries belonging to the
+		 * bridge are learned, and that they are learned towards all
+		 * CPU ports in a cross-chip topology if multiple CPU ports
+		 * exist.
 		 */
-		if (dsa_is_cpu_port(ds, i))
+		if (dsa_is_dsa_port(ds, i))
 			priv->learn_ena |= BIT(i);
 	}
 
@@ -460,7 +464,7 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		pvid.vlan_bc |= BIT(port);
 		pvid.tag_port &= ~BIT(port);
 
-		if (dsa_is_cpu_port(ds, port)) {
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
 			priv->tag_8021q_pvid[port] = SJA1105_DEFAULT_VLAN;
 			priv->bridge_pvid[port] = SJA1105_DEFAULT_VLAN;
 		}
@@ -474,8 +478,11 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 {
 	struct sja1105_l2_forwarding_entry *l2fwd;
 	struct dsa_switch *ds = priv->ds;
+	struct dsa_switch_tree *dst;
 	struct sja1105_table *table;
-	int i, j;
+	struct dsa_link *dl;
+	int port, tc;
+	int from, to;
 
 	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING];
 
@@ -493,47 +500,109 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 
 	l2fwd = table->entries;
 
-	/* First 5 entries define the forwarding rules */
-	for (i = 0; i < ds->num_ports; i++) {
-		unsigned int upstream = dsa_upstream_port(priv->ds, i);
-
-		if (dsa_is_unused_port(ds, i))
+	/* First 5 entries in the L2 Forwarding Table define the forwarding
+	 * rules and the VLAN PCP to ingress queue mapping.
+	 * Set up the ingress queue mapping first.
+	 */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
 			continue;
 
-		for (j = 0; j < SJA1105_NUM_TC; j++)
-			l2fwd[i].vlan_pmap[j] = j;
+		for (tc = 0; tc < SJA1105_NUM_TC; tc++)
+			l2fwd[port].vlan_pmap[tc] = tc;
+	}
 
-		/* All ports start up with egress flooding enabled,
-		 * including the CPU port.
-		 */
-		priv->ucast_egress_floods |= BIT(i);
-		priv->bcast_egress_floods |= BIT(i);
-
-		if (i == upstream)
+	/* Then manage the forwarding domain for user ports. These can forward
+	 * only to the always-on domain (CPU port and DSA links)
+	 */
+	for (from = 0; from < ds->num_ports; from++) {
+		if (!dsa_is_user_port(ds, from))
 			continue;
 
-		sja1105_port_allow_traffic(l2fwd, i, upstream, true);
-		sja1105_port_allow_traffic(l2fwd, upstream, i, true);
+		for (to = 0; to < ds->num_ports; to++) {
+			if (!dsa_is_cpu_port(ds, to) &&
+			    !dsa_is_dsa_port(ds, to))
+				continue;
 
-		l2fwd[i].bc_domain = BIT(upstream);
-		l2fwd[i].fl_domain = BIT(upstream);
+			l2fwd[from].bc_domain |= BIT(to);
+			l2fwd[from].fl_domain |= BIT(to);
 
-		l2fwd[upstream].bc_domain |= BIT(i);
-		l2fwd[upstream].fl_domain |= BIT(i);
+			sja1105_port_allow_traffic(l2fwd, from, to, true);
+		}
+	}
+
+	/* Then manage the forwarding domain for DSA links and CPU ports (the
+	 * always-on domain). These can send packets to any enabled port except
+	 * themselves.
+	 */
+	for (from = 0; from < ds->num_ports; from++) {
+		if (!dsa_is_cpu_port(ds, from) && !dsa_is_dsa_port(ds, from))
+			continue;
+
+		for (to = 0; to < ds->num_ports; to++) {
+			if (dsa_is_unused_port(ds, to))
+				continue;
+
+			if (from == to)
+				continue;
+
+			l2fwd[from].bc_domain |= BIT(to);
+			l2fwd[from].fl_domain |= BIT(to);
+
+			sja1105_port_allow_traffic(l2fwd, from, to, true);
+		}
+	}
+
+	/* In odd topologies ("H" connections where there is a DSA link to
+	 * another switch which also has its own CPU port), TX packets can loop
+	 * back into the system (they are flooded from CPU port 1 to the DSA
+	 * link, and from there to CPU port 2). Prevent this from happening by
+	 * cutting RX from DSA links towards our CPU port, if the remote switch
+	 * has its own CPU port and therefore doesn't need ours for network
+	 * stack termination.
+	 */
+	dst = ds->dst;
+
+	list_for_each_entry(dl, &dst->rtable, list) {
+		if (dl->dp->ds != ds || dl->link_dp->cpu_dp == dl->dp->cpu_dp)
+			continue;
+
+		from = dl->dp->index;
+		to = dsa_upstream_port(ds, from);
+
+		dev_warn(ds->dev,
+			 "H topology detected, cutting RX from DSA link %d to CPU port %d to prevent TX packet loops\n",
+			 from, to);
+
+		sja1105_port_allow_traffic(l2fwd, from, to, false);
+
+		l2fwd[from].bc_domain &= ~BIT(to);
+		l2fwd[from].fl_domain &= ~BIT(to);
+	}
+
+	/* Finally, manage the egress flooding domain. All ports start up with
+	 * flooding enabled, including the CPU port and DSA links.
+	 */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		priv->ucast_egress_floods |= BIT(port);
+		priv->bcast_egress_floods |= BIT(port);
 	}
 
 	/* Next 8 entries define VLAN PCP mapping from ingress to egress.
 	 * Create a one-to-one mapping.
 	 */
-	for (i = 0; i < SJA1105_NUM_TC; i++) {
-		for (j = 0; j < ds->num_ports; j++) {
-			if (dsa_is_unused_port(ds, j))
+	for (tc = 0; tc < SJA1105_NUM_TC; tc++) {
+		for (port = 0; port < ds->num_ports; port++) {
+			if (dsa_is_unused_port(ds, port))
 				continue;
 
-			l2fwd[ds->num_ports + i].vlan_pmap[j] = i;
+			l2fwd[ds->num_ports + tc].vlan_pmap[port] = tc;
 		}
 
-		l2fwd[ds->num_ports + i].type_egrpcp2outputq = true;
+		l2fwd[ds->num_ports + tc].type_egrpcp2outputq = true;
 	}
 
 	return 0;
@@ -688,6 +757,72 @@ static void sja1110_select_tdmaconfigidx(struct sja1105_private *priv)
 	general_params->tdmaconfigidx = tdmaconfigidx;
 }
 
+static int sja1105_init_topology(struct sja1105_private *priv,
+				 struct sja1105_general_params_entry *general_params)
+{
+	struct dsa_switch *ds = priv->ds;
+	int port;
+
+	/* The host port is the destination for traffic matching mac_fltres1
+	 * and mac_fltres0 on all ports except itself. Default to an invalid
+	 * value.
+	 */
+	general_params->host_port = ds->num_ports;
+
+	/* Link-local traffic received on casc_port will be forwarded
+	 * to host_port without embedding the source port and device ID
+	 * info in the destination MAC address, and no RX timestamps will be
+	 * taken either (presumably because it is a cascaded port and a
+	 * downstream SJA switch already did that).
+	 * To disable the feature, we need to do different things depending on
+	 * switch generation. On SJA1105 we need to set an invalid port, while
+	 * on SJA1110 which support multiple cascaded ports, this field is a
+	 * bitmask so it must be left zero.
+	 */
+	if (!priv->info->multiple_cascade_ports)
+		general_params->casc_port = ds->num_ports;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		bool is_upstream = dsa_is_upstream_port(ds, port);
+		bool is_dsa_link = dsa_is_dsa_port(ds, port);
+
+		/* Upstream ports can be dedicated CPU ports or
+		 * upstream-facing DSA links
+		 */
+		if (is_upstream) {
+			if (general_params->host_port == ds->num_ports) {
+				general_params->host_port = port;
+			} else {
+				dev_err(ds->dev,
+					"Port %llu is already a host port, configuring %d as one too is not supported\n",
+					general_params->host_port, port);
+				return -EINVAL;
+			}
+		}
+
+		/* Cascade ports are downstream-facing DSA links */
+		if (is_dsa_link && !is_upstream) {
+			if (priv->info->multiple_cascade_ports) {
+				general_params->casc_port |= BIT(port);
+			} else if (general_params->casc_port == ds->num_ports) {
+				general_params->casc_port = port;
+			} else {
+				dev_err(ds->dev,
+					"Port %llu is already a cascade port, configuring %d as one too is not supported\n",
+					general_params->casc_port, port);
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (general_params->host_port == ds->num_ports) {
+		dev_err(ds->dev, "No host port configured\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int sja1105_init_general_params(struct sja1105_private *priv)
 {
 	struct sja1105_general_params_entry default_general_params = {
@@ -706,12 +841,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.mac_flt0    = SJA1105_LINKLOCAL_FILTER_B_MASK,
 		.incl_srcpt0 = false,
 		.send_meta0  = false,
-		/* The destination for traffic matching mac_fltres1 and
-		 * mac_fltres0 on all ports except host_port. Such traffic
-		 * receieved on host_port itself would be dropped, except
-		 * by installing a temporary 'management route'
-		 */
-		.host_port = priv->ds->num_ports,
 		/* Default to an invalid value */
 		.mirr_port = priv->ds->num_ports,
 		/* No TTEthernet */
@@ -731,16 +860,12 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.header_type = ETH_P_SJA1110,
 	};
 	struct sja1105_general_params_entry *general_params;
-	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
-	int port;
+	int rc;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_is_cpu_port(ds, port)) {
-			default_general_params.host_port = port;
-			break;
-		}
-	}
+	rc = sja1105_init_topology(priv, &default_general_params);
+	if (rc)
+		return rc;
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 
@@ -762,19 +887,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 	general_params[0] = default_general_params;
 
 	sja1110_select_tdmaconfigidx(priv);
-
-	/* Link-local traffic received on casc_port will be forwarded
-	 * to host_port without embedding the source port and device ID
-	 * info in the destination MAC address, and no RX timestamps will be
-	 * taken either (presumably because it is a cascaded port and a
-	 * downstream SJA switch already did that).
-	 * To disable the feature, we need to do different things depending on
-	 * switch generation. On SJA1105 we need to set an invalid port, while
-	 * on SJA1110 which support multiple cascaded ports, this field is a
-	 * bitmask so it must be left zero.
-	 */
-	if (!priv->info->multiple_cascade_ports)
-		general_params->casc_port = ds->num_ports;
 
 	return 0;
 }
@@ -903,7 +1015,7 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 	for (port = 0; port < ds->num_ports; port++) {
 		int mtu = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 
-		if (dsa_is_cpu_port(priv->ds, port))
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 			mtu += VLAN_HLEN;
 
 		policing[port].smax = 65535; /* Burst size in bytes */
@@ -2231,8 +2343,8 @@ static int sja1105_bridge_vlan_add(struct dsa_switch *ds, int port,
 		return -EBUSY;
 	}
 
-	/* Always install bridge VLANs as egress-tagged on the CPU port. */
-	if (dsa_is_cpu_port(ds, port))
+	/* Always install bridge VLANs as egress-tagged on CPU and DSA ports */
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		flags = 0;
 
 	rc = sja1105_vlan_add(priv, port, vlan->vid, flags);
@@ -2401,6 +2513,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 	ds->num_tx_queues = SJA1105_NUM_TC;
 
 	ds->mtu_enforcement_ingress = true;
+	ds->assisted_learning_on_cpu_port = true;
 
 	rc = sja1105_devlink_setup(ds);
 	if (rc < 0)
@@ -2585,7 +2698,7 @@ static int sja1105_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 	new_mtu += VLAN_ETH_HLEN + ETH_FCS_LEN;
 
-	if (dsa_is_cpu_port(ds, port))
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		new_mtu += VLAN_HLEN;
 
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
