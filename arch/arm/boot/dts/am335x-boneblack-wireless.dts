@@ -63,7 +63,7 @@
 	};
 };
 
-&mac {
+&mac_sw {
 	status = "disabled";
 };
 
