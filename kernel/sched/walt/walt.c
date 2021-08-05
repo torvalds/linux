@@ -4031,6 +4031,7 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 {
 	u64 wallclock = walt_ktime_get_ns();
 	struct walt_task_struct *wts = (struct walt_task_struct *) prev->android_vendor_data1;
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -4039,6 +4040,11 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 			wts->last_sleep_ts = wallclock;
 		walt_update_task_ravg(prev, rq, PUT_PREV_TASK, wallclock, 0);
 		walt_update_task_ravg(next, rq, PICK_NEXT_TASK, wallclock, 0);
+		if (is_idle_task(next))
+			if (wrq->walt_stats.cumulative_runnable_avg_scaled != 0) {
+				printk_deferred("WALT-BUG next=idle cra!=0\n");
+				SCHED_BUG_ON(1);
+			}
 	} else {
 		walt_update_task_ravg(prev, rq, TASK_UPDATE, wallclock, 0);
 	}
