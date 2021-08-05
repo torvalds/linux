@@ -28,7 +28,6 @@
 
 #define ACPI_SAR_PROFILE_NUM		4
 
-#define ACPI_GEO_TABLE_SIZE		6
 #define ACPI_NUM_GEO_PROFILES		3
 #define ACPI_GEO_PER_CHAIN_SIZE		3
 
@@ -38,6 +37,11 @@
 #define ACPI_SAR_NUM_SUB_BANDS_REV0	5
 #define ACPI_SAR_NUM_SUB_BANDS_REV1	11
 #define ACPI_SAR_NUM_SUB_BANDS_REV2	11
+
+#define ACPI_GEO_NUM_CHAINS		2
+#define ACPI_GEO_NUM_BANDS_REV0		2
+#define ACPI_GEO_NUM_BANDS_REV1		2
+#define ACPI_GEO_NUM_BANDS_REV2		3
 
 #define ACPI_WRDS_WIFI_DATA_SIZE_REV0	(ACPI_SAR_NUM_CHAINS_REV0 * \
 					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 2)
@@ -90,8 +94,14 @@ struct iwl_sar_profile {
 	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS_REV2];
 };
 
+/* Same thing as with SAR, all revisions fit in revision 2 */
+struct iwl_geo_profile_band {
+	u8 max;
+	u8 chains[ACPI_GEO_NUM_CHAINS];
+};
+
 struct iwl_geo_profile {
-	u8 values[ACPI_GEO_TABLE_SIZE];
+	struct iwl_geo_profile_band bands[ACPI_GEO_NUM_BANDS_REV2];
 };
 
 enum iwl_dsm_funcs_rev_0 {

@@ -700,8 +700,8 @@ IWL_EXPORT_SYMBOL(iwl_sar_get_ewrd_table);
 int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
-	int i, j, ret, tbl_rev;
-	int idx = 1;
+	int i, j, k, ret, tbl_rev;
+	int idx = 1; /* start from one to skip the domain */
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WGDS_METHOD);
 	if (IS_ERR(data))
@@ -722,7 +722,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 
 	fwrt->geo_rev = tbl_rev;
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < ACPI_GEO_TABLE_SIZE; j++) {
+		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV0; j++) {
 			union acpi_object *entry;
 
 			entry = &wifi_pkg->package.elements[idx++];
@@ -732,9 +732,23 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 				goto out_free;
 			}
 
-			fwrt->geo_profiles[i].values[j] = entry->integer.value;
+			fwrt->geo_profiles[i].bands[j].max =
+				entry->integer.value;
+
+			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+				entry = &wifi_pkg->package.elements[idx++];
+				if (entry->type != ACPI_TYPE_INTEGER ||
+				    entry->integer.value > U8_MAX) {
+					ret = -EINVAL;
+					goto out_free;
+				}
+
+				fwrt->geo_profiles[i].bands[j].chains[k] =
+					entry->integer.value;
+			}
 		}
 	}
+
 	ret = 0;
 out_free:
 	kfree(data);
@@ -784,25 +798,17 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		for (j = 0; j < n_bands; j++) {
 			struct iwl_per_chain_offset *chain =
 				&table[i * n_bands + j];
-			u8 *value;
 
-			if (j * ACPI_GEO_PER_CHAIN_SIZE >=
-			    ARRAY_SIZE(fwrt->geo_profiles[0].values))
-				/*
-				 * Currently we only store lb an hb values, and
-				 * don't have any special ones for uhb. So leave
-				 * those empty for the time being
-				 */
-				break;
-
-			value = &fwrt->geo_profiles[i].values[j *
-				ACPI_GEO_PER_CHAIN_SIZE];
-			chain->max_tx_power = cpu_to_le16(value[0]);
-			chain->chain_a = value[1];
-			chain->chain_b = value[2];
+			chain->max_tx_power =
+				cpu_to_le16(fwrt->geo_profiles[i].bands[j].max);
+			chain->chain_a = fwrt->geo_profiles[i].bands[j].chains[0];
+			chain->chain_b = fwrt->geo_profiles[i].bands[j].chains[1];
 			IWL_DEBUG_RADIO(fwrt,
 					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
-					i, j, value[1], value[2], value[0]);
+					i, j,
+					fwrt->geo_profiles[i].bands[j].chains[0],
+					fwrt->geo_profiles[i].bands[j].chains[1],
+					fwrt->geo_profiles[i].bands[j].max);
 		}
 	}
 
