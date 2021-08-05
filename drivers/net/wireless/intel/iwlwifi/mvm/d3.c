@@ -101,8 +101,8 @@ static const u8 *iwl_mvm_find_max_pn(struct ieee80211_key_conf *key,
 	return ret;
 }
 
-struct wowlan_key_data {
-	bool error, configure_keys;
+struct wowlan_key_reprogram_data {
+	bool error;
 	int wep_key_idx;
 };
 
@@ -114,7 +114,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct wowlan_key_data *data = _data;
+	struct wowlan_key_reprogram_data *data = _data;
 	int ret;
 
 	switch (key->cipher) {
@@ -152,18 +152,14 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			wkc.wep_key.key_offset = data->wep_key_idx;
 		}
 
-		if (data->configure_keys) {
-			mutex_lock(&mvm->mutex);
-			ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, 0,
-						   sizeof(wkc), &wkc);
-			data->error = ret != 0;
+		mutex_lock(&mvm->mutex);
+		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, 0, sizeof(wkc), &wkc);
+		data->error = ret != 0;
 
-			mvm->ptk_ivlen = key->iv_len;
-			mvm->ptk_icvlen = key->icv_len;
-			mvm->gtk_ivlen = key->iv_len;
-			mvm->gtk_icvlen = key->icv_len;
-			mutex_unlock(&mvm->mutex);
-		}
+		mvm->ptk_ivlen = key->iv_len;
+		mvm->ptk_icvlen = key->icv_len;
+		mvm->gtk_ivlen = key->iv_len;
+		mvm->gtk_icvlen = key->icv_len;
 
 		/* don't upload key again */
 		return;
@@ -190,30 +186,28 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	}
 
-	if (data->configure_keys) {
-		mutex_lock(&mvm->mutex);
+	mutex_lock(&mvm->mutex);
+	/*
+	 * The D3 firmware hardcodes the key offset 0 as the key it
+	 * uses to transmit packets to the AP, i.e. the PTK.
+	 */
+	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
+		mvm->ptk_ivlen = key->iv_len;
+		mvm->ptk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 0);
+	} else {
 		/*
-		 * The D3 firmware hardcodes the key offset 0 as the key it
-		 * uses to transmit packets to the AP, i.e. the PTK.
+		 * firmware only supports TSC/RSC for a single key,
+		 * so if there are multiple keep overwriting them
+		 * with new ones -- this relies on mac80211 doing
+		 * list_add_tail().
 		 */
-		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
-			mvm->ptk_ivlen = key->iv_len;
-			mvm->ptk_icvlen = key->icv_len;
-			ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 0);
-		} else {
-			/*
-			 * firmware only supports TSC/RSC for a single key,
-			 * so if there are multiple keep overwriting them
-			 * with new ones -- this relies on mac80211 doing
-			 * list_add_tail().
-			 */
-			mvm->gtk_ivlen = key->iv_len;
-			mvm->gtk_icvlen = key->icv_len;
-			ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 1);
-		}
-		mutex_unlock(&mvm->mutex);
-		data->error = ret != 0;
+		mvm->gtk_ivlen = key->iv_len;
+		mvm->gtk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 1);
 	}
+	mutex_unlock(&mvm->mutex);
+	data->error = ret != 0;
 }
 
 struct wowlan_key_rsc_tsc_data {
@@ -839,30 +833,30 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 {
 	bool unified = fw_has_capa(&mvm->fw->ucode_capa,
 				   IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
-	struct wowlan_key_data key_data = {
-		.configure_keys = !unified,
-	};
+	struct wowlan_key_reprogram_data key_data = {};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 	u8 cmd_ver;
 	size_t cmd_size;
 
-	/*
-	 * if we have to configure keys, call ieee80211_iter_keys(),
-	 * as we need non-atomic context in order to take the
-	 * required locks.
-	 */
-	/*
-	 * Note that currently we don't use CMD_ASYNC in the iterator.
-	 * In case of key_data.configure_keys, all the configured commands
-	 * are SYNC, and iwl_mvm_wowlan_program_keys() will take care of
-	 * locking/unlocking mvm->mutex.
-	 */
-	ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_program_keys,
-			    &key_data);
+	if (!unified) {
+		/*
+		 * if we have to configure keys, call ieee80211_iter_keys(),
+		 * as we need non-atomic context in order to take the
+		 * required locks.
+		 */
+		/*
+		 * Note that currently we don't use CMD_ASYNC in the iterator.
+		 * In case of key_data.configure_keys, all the configured
+		 * commands are SYNC, and iwl_mvm_wowlan_program_keys() will
+		 * take care of locking/unlocking mvm->mutex.
+		 */
+		ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_program_keys,
+				    &key_data);
 
-	if (key_data.error)
-		return -EIO;
+		if (key_data.error)
+			return -EIO;
+	}
 
 	ret = iwl_mvm_wowlan_config_rsc_tsc(mvm, vif);
 	if (ret)
