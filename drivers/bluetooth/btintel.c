@@ -181,6 +181,23 @@ static int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable)
 	return ret;
 }
 
+static int btintel_set_diag_combined(struct hci_dev *hdev, bool enable)
+{
+	int ret;
+
+	/* Legacy ROM device needs to be in the manufacturer mode to apply
+	 * diagnostic setting
+	 *
+	 * This flag is set after reading the Intel version.
+	 */
+	if (btintel_test_flag(hdev, INTEL_ROM_LEGACY))
+		ret = btintel_set_diag_mfg(hdev, enable);
+	else
+		ret = btintel_set_diag(hdev, enable);
+
+	return ret;
+}
+
 void btintel_hw_error(struct hci_dev *hdev, u8 code)
 {
 	struct sk_buff *skb;
@@ -1737,6 +1754,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		case 0x07:	/* WP */
 		case 0x08:	/* StP */
 			/* Legacy ROM product */
+			btintel_set_flag(hdev, INTEL_ROM_LEGACY);
 
 			/* These devices have an issue with LED which doesn't
 			 * go off immediately during shutdown. Set the flag
@@ -1828,7 +1846,7 @@ int btintel_configure_setup(struct hci_dev *hdev)
 	hdev->manufacturer = 2;
 	hdev->setup = btintel_setup_combined;
 	hdev->shutdown = btintel_shutdown_combined;
-	hdev->set_diag = btintel_set_diag_mfg;
+	hdev->set_diag = btintel_set_diag_combined;
 	hdev->set_bdaddr = btintel_set_bdaddr;
 
 	return 0;
