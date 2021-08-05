@@ -379,6 +379,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 	case SIOCBRDELIF:
 		if (!netif_device_present(dev))
 			return -ENODEV;
+		if (!netif_is_bridge_master(dev))
+			return -EOPNOTSUPP;
 		dev_hold(dev);
 		rtnl_unlock();
 		err = br_ioctl_call(net, netdev_priv(dev), cmd, ifr, NULL);
