@@ -23,10 +23,10 @@ infiniband
    :maxdepth: 1
 
    core_locking
+   ipoib
 
 TODOLIST:
 
-   ipoib
    opa_vnic
    sysfs
    tag_matching
