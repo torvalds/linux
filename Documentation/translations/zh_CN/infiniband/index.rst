@@ -28,10 +28,9 @@ infiniband
    sysfs
    tag_matching
    user_mad
-
-TODOLIST:
-
    user_verbs
+
+
 
 .. only::  subproject and html
 
