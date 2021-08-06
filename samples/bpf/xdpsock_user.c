@@ -651,15 +651,13 @@ out:
 	return result;
 }
 
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
-
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  *	This function code has been taken from
  *	Linux kernel lib/checksum.c
  */
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	return (__sum16)~do_csum(iph, ihl * 4);
 }
