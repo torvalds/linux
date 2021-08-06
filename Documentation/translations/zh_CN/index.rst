@@ -102,6 +102,7 @@ TODOList:
    iio/index
    sound/index
    filesystems/index
+   virt/index
 
 TODOList:
 
@@ -127,7 +128,6 @@ TODOList:
 * spi/index
 * w1/index
 * watchdog/index
-* virt/index
 * input/index
 * hwmon/index
 * gpu/index
