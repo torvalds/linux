@@ -16,6 +16,8 @@
 #define VCODEC_DEC_4K_CODED_HEIGHT	2304U
 #define MTK_VDEC_MAX_W	2048U
 #define MTK_VDEC_MAX_H	1088U
+#define MTK_VDEC_MIN_W	64U
+#define MTK_VDEC_MIN_H	64U
 
 #define MTK_VDEC_IRQ_STATUS_DEC_SUCCESS        0x10000
 
@@ -71,7 +73,18 @@ int mtk_vcodec_dec_queue_init(void *priv, struct vb2_queue *src_vq,
 			   struct vb2_queue *dst_vq);
 void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_ctx *ctx);
 void mtk_vcodec_dec_release(struct mtk_vcodec_ctx *ctx);
-int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx);
+
+/*
+ * VB2 ops
+ */
+int vb2ops_vdec_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
+			    unsigned int *nplanes, unsigned int sizes[],
+			    struct device *alloc_devs[]);
+int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb);
+void vb2ops_vdec_buf_finish(struct vb2_buffer *vb);
+int vb2ops_vdec_buf_init(struct vb2_buffer *vb);
+int vb2ops_vdec_start_streaming(struct vb2_queue *q, unsigned int count);
+void vb2ops_vdec_stop_streaming(struct vb2_queue *q);
 
 
 #endif /* _MTK_VCODEC_DEC_H_ */
