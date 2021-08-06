@@ -49,6 +49,28 @@ static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
 static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+static LIST_HEAD(xfs_mount_list);
+static DEFINE_SPINLOCK(xfs_mount_list_lock);
+
+static inline void xfs_mount_list_add(struct xfs_mount *mp)
+{
+	spin_lock(&xfs_mount_list_lock);
+	list_add(&mp->m_mount_list, &xfs_mount_list);
+	spin_unlock(&xfs_mount_list_lock);
+}
+
+static inline void xfs_mount_list_del(struct xfs_mount *mp)
+{
+	spin_lock(&xfs_mount_list_lock);
+	list_del(&mp->m_mount_list);
+	spin_unlock(&xfs_mount_list_lock);
+}
+#else /* !CONFIG_HOTPLUG_CPU */
+static inline void xfs_mount_list_add(struct xfs_mount *mp) {}
+static inline void xfs_mount_list_del(struct xfs_mount *mp) {}
+#endif
+
 enum xfs_dax_mode {
 	XFS_DAX_INODE = 0,
 	XFS_DAX_ALWAYS = 1,
@@ -1038,6 +1060,7 @@ xfs_fs_put_super(
 
 	xfs_freesb(mp);
 	free_percpu(mp->m_stats.xs_stats);
+	xfs_mount_list_del(mp);
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
 	xfs_close_devices(mp);
@@ -1409,6 +1432,13 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_destroy_workqueues;
 
+	/*
+	 * All percpu data structures requiring cleanup when a cpu goes offline
+	 * must be allocated before adding this @mp to the cpu-dead handler's
+	 * mount list.
+	 */
+	xfs_mount_list_add(mp);
+
 	/* Allocate stats memory before we do operations that might use it */
 	mp->m_stats.xs_stats = alloc_percpu(struct xfsstats);
 	if (!mp->m_stats.xs_stats) {
@@ -1617,6 +1647,7 @@ xfs_fs_fill_super(
  out_free_stats:
 	free_percpu(mp->m_stats.xs_stats);
  out_destroy_counters:
+	xfs_mount_list_del(mp);
 	xfs_destroy_percpu_counters(mp);
  out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
@@ -2116,6 +2147,15 @@ static int
 xfs_cpu_dead(
 	unsigned int		cpu)
 {
+	struct xfs_mount	*mp, *n;
+
+	spin_lock(&xfs_mount_list_lock);
+	list_for_each_entry_safe(mp, n, &xfs_mount_list, m_mount_list) {
+		spin_unlock(&xfs_mount_list_lock);
+		/* xfs_subsys_dead(mp, cpu); */
+		spin_lock(&xfs_mount_list_lock);
+	}
+	spin_unlock(&xfs_mount_list_lock);
 	return 0;
 }
 
