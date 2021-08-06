@@ -131,8 +131,7 @@ struct kvm_page_fault {
 	const bool is_tdp;
 };
 
-int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
-		       bool prefault);
+int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
 
 static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 					u32 err, bool prefault)
@@ -150,9 +149,9 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	};
 #ifdef CONFIG_RETPOLINE
 	if (fault.is_tdp)
-		return kvm_tdp_page_fault(vcpu, fault.addr, fault.error_code, fault.prefault);
+		return kvm_tdp_page_fault(vcpu, &fault);
 #endif
-	return vcpu->arch.mmu->page_fault(vcpu, fault.addr, fault.error_code, fault.prefault);
+	return vcpu->arch.mmu->page_fault(vcpu, &fault);
 }
 
 /*
