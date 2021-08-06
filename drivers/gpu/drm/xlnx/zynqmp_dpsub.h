@@ -14,6 +14,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_plane.h>
 
 struct clk;
 struct device;
@@ -21,6 +22,8 @@ struct drm_bridge;
 struct drm_device;
 struct zynqmp_disp;
 struct zynqmp_dp;
+
+#define ZYNQMP_DPSUB_NUM_LAYERS				2
 
 enum zynqmp_dpsub_format {
 	ZYNQMP_DPSUB_FORMAT_RGB,
@@ -38,6 +41,7 @@ enum zynqmp_dpsub_format {
  * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
  * @aud_clk: Audio clock
  * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
+ * @planes: The DRM planes
  * @crtc: The DRM CRTC
  * @encoder: The dummy DRM encoder
  * @bridge: The DP encoder bridge
@@ -55,6 +59,7 @@ struct zynqmp_dpsub {
 	struct clk *aud_clk;
 	bool aud_clk_from_ps;
 
+	struct drm_plane planes[ZYNQMP_DPSUB_NUM_LAYERS];
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_bridge *bridge;

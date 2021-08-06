@@ -72,7 +72,6 @@
 #define ZYNQMP_DISP_AV_BUF_NUM_VID_GFX_BUFFERS		4
 #define ZYNQMP_DISP_AV_BUF_NUM_BUFFERS			6
 
-#define ZYNQMP_DISP_NUM_LAYERS				2
 #define ZYNQMP_DISP_MAX_NUM_SUB_PLANES			3
 
 /**
@@ -134,8 +133,7 @@ struct zynqmp_disp_layer_info {
 };
 
 /**
- * struct zynqmp_disp_layer - Display layer (DRM plane)
- * @plane: DRM plane
+ * struct zynqmp_disp_layer - Display layer
  * @id: Layer ID
  * @disp: Back pointer to struct zynqmp_disp
  * @info: Static layer information
@@ -145,7 +143,6 @@ struct zynqmp_disp_layer_info {
  * @mode: Current operation mode
  */
 struct zynqmp_disp_layer {
-	struct drm_plane plane;
 	enum zynqmp_disp_layer_id id;
 	struct zynqmp_disp *disp;
 	const struct zynqmp_disp_layer_info *info;
@@ -182,7 +179,7 @@ struct zynqmp_disp {
 		void __iomem *base;
 	} audio;
 
-	struct zynqmp_disp_layer layers[ZYNQMP_DISP_NUM_LAYERS];
+	struct zynqmp_disp_layer layers[ZYNQMP_DPSUB_NUM_LAYERS];
 };
 
 /* -----------------------------------------------------------------------------
@@ -1091,11 +1088,6 @@ static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 	return 0;
 }
 
-static inline struct zynqmp_disp_layer *plane_to_layer(struct drm_plane *plane)
-{
-	return container_of(plane, struct zynqmp_disp_layer, plane);
-}
-
 static int
 zynqmp_disp_plane_atomic_check(struct drm_plane *plane,
 			       struct drm_atomic_state *state)
@@ -1124,7 +1116,8 @@ zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
-	struct zynqmp_disp_layer *layer = plane_to_layer(plane);
+	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
+	struct zynqmp_disp_layer *layer = &dpsub->disp->layers[plane->index];
 
 	if (!old_state->fb)
 		return;
@@ -1142,7 +1135,8 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
-	struct zynqmp_disp_layer *layer = plane_to_layer(plane);
+	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
+	struct zynqmp_disp_layer *layer = &dpsub->disp->layers[plane->index];
 	bool format_changed = false;
 
 	if (!old_state->fb ||
@@ -1194,6 +1188,7 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 
 	for (i = 0; i < ARRAY_SIZE(disp->layers); i++) {
 		struct zynqmp_disp_layer *layer = &disp->layers[i];
+		struct drm_plane *plane = &disp->dpsub->planes[i];
 		enum drm_plane_type type;
 		unsigned int num_formats;
 		u32 *formats;
@@ -1205,7 +1200,7 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 		/* Graphics layer is primary, and video layer is overlay. */
 		type = zynqmp_disp_layer_is_video(layer)
 		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
-		ret = drm_universal_plane_init(disp->drm, &layer->plane, 0,
+		ret = drm_universal_plane_init(disp->drm, plane, 0,
 					       &zynqmp_disp_plane_funcs,
 					       formats, num_formats,
 					       NULL, type, NULL);
@@ -1213,12 +1208,11 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 		if (ret)
 			return ret;
 
-		drm_plane_helper_add(&layer->plane,
-				     &zynqmp_disp_plane_helper_funcs);
+		drm_plane_helper_add(plane, &zynqmp_disp_plane_helper_funcs);
 
-		drm_plane_create_zpos_immutable_property(&layer->plane, i);
+		drm_plane_create_zpos_immutable_property(plane, i);
 		if (zynqmp_disp_layer_is_gfx(layer))
-			drm_plane_create_alpha_property(&layer->plane);
+			drm_plane_create_alpha_property(plane);
 	}
 
 	return 0;
@@ -1538,7 +1532,7 @@ static const struct drm_crtc_funcs zynqmp_disp_crtc_funcs = {
 
 static int zynqmp_disp_create_crtc(struct zynqmp_disp *disp)
 {
-	struct drm_plane *plane = &disp->layers[ZYNQMP_DISP_LAYER_GFX].plane;
+	struct drm_plane *plane = &disp->dpsub->planes[ZYNQMP_DISP_LAYER_GFX];
 	struct drm_crtc *crtc = &disp->dpsub->crtc;
 	int ret;
 
@@ -1561,7 +1555,7 @@ static void zynqmp_disp_map_crtc_to_plane(struct zynqmp_disp *disp)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(disp->layers); i++)
-		disp->layers[i].plane.possible_crtcs = possible_crtcs;
+		disp->dpsub->planes[i].possible_crtcs = possible_crtcs;
 }
 
 /* -----------------------------------------------------------------------------
