@@ -25,11 +25,12 @@
 #define ZYNQMP_DISP_MAX_DMA_BIT				44
 
 struct device;
-struct drm_atomic_state;
 struct drm_device;
-struct drm_plane;
+struct drm_format_info;
+struct drm_plane_state;
 struct platform_device;
 struct zynqmp_disp;
+struct zynqmp_disp_layer;
 struct zynqmp_dpsub;
 
 /**
@@ -47,10 +48,18 @@ void zynqmp_disp_disable(struct zynqmp_disp *disp);
 int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
 			    unsigned long mode_clock);
 
-void zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
-				      struct drm_atomic_state *state);
+void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp *disp,
+					bool enable, u32 alpha);
 
-int zynqmp_disp_drm_init(struct zynqmp_dpsub *dpsub);
+u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
+				   unsigned int *num_formats);
+void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer);
+void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer);
+void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
+				  const struct drm_format_info *info);
+int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
+			     struct drm_plane_state *state);
+
 int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm);
 void zynqmp_disp_remove(struct zynqmp_dpsub *dpsub);
 

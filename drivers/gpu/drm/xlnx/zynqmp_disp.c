@@ -9,10 +9,6 @@
  * - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_blend.h>
-#include <drm/drm_device.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -141,7 +137,6 @@ struct zynqmp_disp_layer {
 /**
  * struct zynqmp_disp - Display controller
  * @dev: Device structure
- * @drm: DRM core
  * @dpsub: Display subsystem
  * @blend.base: Register I/O base address for the blender
  * @avbuf.base: Register I/O base address for the audio/video buffer manager
@@ -150,7 +145,6 @@ struct zynqmp_disp_layer {
  */
 struct zynqmp_disp {
 	struct device *dev;
-	struct drm_device *drm;
 	struct zynqmp_dpsub *dpsub;
 
 	struct {
@@ -378,11 +372,6 @@ static u32 zynqmp_disp_avbuf_read(struct zynqmp_disp *disp, int reg)
 static void zynqmp_disp_avbuf_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
 	writel(val, disp->avbuf.base + reg);
-}
-
-static bool zynqmp_disp_layer_is_gfx(const struct zynqmp_disp_layer *layer)
-{
-	return layer->id == ZYNQMP_DPSUB_LAYER_GFX;
 }
 
 static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
@@ -722,8 +711,8 @@ static void zynqmp_disp_blend_set_bg_color(struct zynqmp_disp *disp,
  * @enable: True to enable global alpha blending
  * @alpha: Global alpha value (ignored if @enabled is false)
  */
-static void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp *disp,
-					       bool enable, u32 alpha)
+void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp *disp,
+					bool enable, u32 alpha)
 {
 	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA,
 				ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA_VALUE(alpha) |
@@ -904,8 +893,8 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
  * supported by the layer. The number of formats in the array is returned
  * through the num_formats argument.
  */
-static u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
-					  unsigned int *num_formats)
+u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
+				   unsigned int *num_formats)
 {
 	unsigned int i;
 	u32 *formats;
@@ -929,7 +918,7 @@ static u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
  * Enable the @layer in the audio/video buffer manager and the blender. DMA
  * channels are started separately by zynqmp_disp_layer_update().
  */
-static void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
+void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
 {
 	zynqmp_disp_avbuf_enable_video(layer->disp, layer,
 				       ZYNQMP_DISP_LAYER_NONLIVE);
@@ -945,7 +934,7 @@ static void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
  * Disable the layer by stopping its DMA channels and disabling it in the
  * audio/video buffer manager and the blender.
  */
-static void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
+void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
 {
 	unsigned int i;
 
@@ -963,8 +952,8 @@ static void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
  *
  * Set the format for @layer to @info. The layer must be disabled.
  */
-static void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
-					 const struct drm_format_info *info)
+void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
+				  const struct drm_format_info *info)
 {
 	unsigned int i;
 
@@ -1002,8 +991,8 @@ static void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
  *
  * Return: 0 on success, or the DMA descriptor failure error otherwise
  */
-static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
-				    struct drm_plane_state *state)
+int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
+			     struct drm_plane_state *state)
 {
 	const struct drm_format_info *info = layer->drm_fmt;
 	unsigned int i;
@@ -1038,136 +1027,6 @@ static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 
 		dmaengine_submit(desc);
 		dma_async_issue_pending(dma->chan);
-	}
-
-	return 0;
-}
-
-static int
-zynqmp_disp_plane_atomic_check(struct drm_plane *plane,
-			       struct drm_atomic_state *state)
-{
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
-										 plane);
-	struct drm_crtc_state *crtc_state;
-
-	if (!new_plane_state->crtc)
-		return 0;
-
-	crtc_state = drm_atomic_get_crtc_state(state, new_plane_state->crtc);
-	if (IS_ERR(crtc_state))
-		return PTR_ERR(crtc_state);
-
-	return drm_atomic_helper_check_plane_state(new_plane_state,
-						   crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
-						   false, false);
-}
-
-void
-zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
-				 struct drm_atomic_state *state)
-{
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
-									   plane);
-	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
-	struct zynqmp_disp_layer *layer = &dpsub->disp->layers[plane->index];
-
-	if (!old_state->fb)
-		return;
-
-	zynqmp_disp_layer_disable(layer);
-
-	if (zynqmp_disp_layer_is_gfx(layer))
-		zynqmp_disp_blend_set_global_alpha(layer->disp, false,
-						   plane->state->alpha >> 8);
-}
-
-static void
-zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
-				struct drm_atomic_state *state)
-{
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
-	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
-	struct zynqmp_disp_layer *layer = &dpsub->disp->layers[plane->index];
-	bool format_changed = false;
-
-	if (!old_state->fb ||
-	    old_state->fb->format->format != new_state->fb->format->format)
-		format_changed = true;
-
-	/*
-	 * If the format has changed (including going from a previously
-	 * disabled state to any format), reconfigure the format. Disable the
-	 * plane first if needed.
-	 */
-	if (format_changed) {
-		if (old_state->fb)
-			zynqmp_disp_layer_disable(layer);
-
-		zynqmp_disp_layer_set_format(layer, new_state->fb->format);
-	}
-
-	zynqmp_disp_layer_update(layer, new_state);
-
-	if (zynqmp_disp_layer_is_gfx(layer))
-		zynqmp_disp_blend_set_global_alpha(layer->disp, true,
-						   plane->state->alpha >> 8);
-
-	/* Enable or re-enable the plane is the format has changed. */
-	if (format_changed)
-		zynqmp_disp_layer_enable(layer);
-}
-
-static const struct drm_plane_helper_funcs zynqmp_disp_plane_helper_funcs = {
-	.atomic_check		= zynqmp_disp_plane_atomic_check,
-	.atomic_update		= zynqmp_disp_plane_atomic_update,
-	.atomic_disable		= zynqmp_disp_plane_atomic_disable,
-};
-
-static const struct drm_plane_funcs zynqmp_disp_plane_funcs = {
-	.update_plane		= drm_atomic_helper_update_plane,
-	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= drm_plane_cleanup,
-	.reset			= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
-};
-
-static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ARRAY_SIZE(disp->layers); i++) {
-		struct zynqmp_disp_layer *layer = &disp->layers[i];
-		struct drm_plane *plane = &disp->dpsub->planes[i];
-		enum drm_plane_type type;
-		unsigned int num_formats;
-		u32 *formats;
-
-		formats = zynqmp_disp_layer_drm_formats(layer, &num_formats);
-		if (!formats)
-			return -ENOMEM;
-
-		/* Graphics layer is primary, and video layer is overlay. */
-		type = zynqmp_disp_layer_is_video(layer)
-		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
-		ret = drm_universal_plane_init(disp->drm, plane, 0,
-					       &zynqmp_disp_plane_funcs,
-					       formats, num_formats,
-					       NULL, type, NULL);
-		kfree(formats);
-		if (ret)
-			return ret;
-
-		drm_plane_helper_add(plane, &zynqmp_disp_plane_helper_funcs);
-
-		drm_plane_create_zpos_immutable_property(plane, i);
-		if (zynqmp_disp_layer_is_gfx(layer))
-			drm_plane_create_alpha_property(plane);
 	}
 
 	return 0;
@@ -1280,6 +1139,8 @@ static int zynqmp_disp_create_layers(struct zynqmp_disp *disp)
 		ret = zynqmp_disp_layer_request_dma(disp, layer);
 		if (ret)
 			goto err;
+
+		disp->dpsub->layers[i] = layer;
 	}
 
 	return 0;
@@ -1364,11 +1225,6 @@ int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
  * Initialization & Cleanup
  */
 
-int zynqmp_disp_drm_init(struct zynqmp_dpsub *dpsub)
-{
-	return zynqmp_disp_create_planes(dpsub->disp);
-}
-
 int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
@@ -1383,7 +1239,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 
 	disp->dev = &pdev->dev;
 	disp->dpsub = dpsub;
-	disp->drm = drm;
 
 	dpsub->disp = disp;
 

@@ -11,12 +11,17 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_plane.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -29,6 +34,137 @@
 #include "zynqmp_dp.h"
 #include "zynqmp_dpsub.h"
 #include "zynqmp_kms.h"
+
+/* -----------------------------------------------------------------------------
+ * DRM Planes
+ */
+
+static int zynqmp_dpsub_plane_atomic_check(struct drm_plane *plane,
+					   struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_crtc_state *crtc_state;
+
+	if (!new_plane_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state, new_plane_state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	return drm_atomic_helper_check_plane_state(new_plane_state,
+						   crtc_state,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   false, false);
+}
+
+static void zynqmp_dpsub_plane_atomic_disable(struct drm_plane *plane,
+					      struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
+	struct zynqmp_disp_layer *layer = dpsub->layers[plane->index];
+
+	if (!old_state->fb)
+		return;
+
+	zynqmp_disp_layer_disable(layer);
+
+	if (plane->index == ZYNQMP_DPSUB_LAYER_GFX)
+		zynqmp_disp_blend_set_global_alpha(dpsub->disp, false,
+						   plane->state->alpha >> 8);
+}
+
+static void zynqmp_dpsub_plane_atomic_update(struct drm_plane *plane,
+					     struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(plane->dev);
+	struct zynqmp_disp_layer *layer = dpsub->layers[plane->index];
+	bool format_changed = false;
+
+	if (!old_state->fb ||
+	    old_state->fb->format->format != new_state->fb->format->format)
+		format_changed = true;
+
+	/*
+	 * If the format has changed (including going from a previously
+	 * disabled state to any format), reconfigure the format. Disable the
+	 * plane first if needed.
+	 */
+	if (format_changed) {
+		if (old_state->fb)
+			zynqmp_disp_layer_disable(layer);
+
+		zynqmp_disp_layer_set_format(layer, new_state->fb->format);
+	}
+
+	zynqmp_disp_layer_update(layer, new_state);
+
+	if (plane->index == ZYNQMP_DPSUB_LAYER_GFX)
+		zynqmp_disp_blend_set_global_alpha(dpsub->disp, true,
+						   plane->state->alpha >> 8);
+
+	/* Enable or re-enable the plane if the format has changed. */
+	if (format_changed)
+		zynqmp_disp_layer_enable(layer);
+}
+
+static const struct drm_plane_helper_funcs zynqmp_dpsub_plane_helper_funcs = {
+	.atomic_check		= zynqmp_dpsub_plane_atomic_check,
+	.atomic_update		= zynqmp_dpsub_plane_atomic_update,
+	.atomic_disable		= zynqmp_dpsub_plane_atomic_disable,
+};
+
+static const struct drm_plane_funcs zynqmp_dpsub_plane_funcs = {
+	.update_plane		= drm_atomic_helper_update_plane,
+	.disable_plane		= drm_atomic_helper_disable_plane,
+	.destroy		= drm_plane_cleanup,
+	.reset			= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+};
+
+static int zynqmp_dpsub_create_planes(struct zynqmp_dpsub *dpsub)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(dpsub->planes); i++) {
+		struct zynqmp_disp_layer *layer = dpsub->layers[i];
+		struct drm_plane *plane = &dpsub->planes[i];
+		enum drm_plane_type type;
+		unsigned int num_formats;
+		u32 *formats;
+
+		formats = zynqmp_disp_layer_drm_formats(layer, &num_formats);
+		if (!formats)
+			return -ENOMEM;
+
+		/* Graphics layer is primary, and video layer is overlay. */
+		type = i == ZYNQMP_DPSUB_LAYER_VID
+		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
+		ret = drm_universal_plane_init(&dpsub->drm, plane, 0,
+					       &zynqmp_dpsub_plane_funcs,
+					       formats, num_formats,
+					       NULL, type, NULL);
+		kfree(formats);
+		if (ret)
+			return ret;
+
+		drm_plane_helper_add(plane, &zynqmp_dpsub_plane_helper_funcs);
+
+		drm_plane_create_zpos_immutable_property(plane, i);
+		if (i == ZYNQMP_DPSUB_LAYER_GFX)
+			drm_plane_create_alpha_property(plane);
+	}
+
+	return 0;
+}
 
 /* -----------------------------------------------------------------------------
  * DRM CRTC
@@ -78,7 +214,7 @@ static void zynqmp_dpsub_crtc_atomic_disable(struct drm_crtc *crtc,
 	 */
 	old_plane_state = drm_atomic_get_old_plane_state(state, crtc->primary);
 	if (old_plane_state)
-		zynqmp_disp_plane_atomic_disable(crtc->primary, state);
+		zynqmp_dpsub_plane_atomic_disable(crtc->primary, state);
 
 	zynqmp_disp_disable(dpsub->disp);
 
@@ -212,11 +348,8 @@ int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 	struct drm_connector *connector;
 	int ret;
 
-	/*
-	 * Initialize the DISP and DP components. This will creates planes,
-	 * CRTC, and a bridge for the DP encoder.
-	 */
-	ret = zynqmp_disp_drm_init(dpsub);
+	/* Create the planes and the CRTC, and initialize the DP encoder. */
+	ret = zynqmp_dpsub_create_planes(dpsub);
 	if (ret)
 		return ret;
 

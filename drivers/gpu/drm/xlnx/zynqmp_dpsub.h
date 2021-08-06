@@ -21,6 +21,7 @@ struct device;
 struct drm_bridge;
 struct drm_device;
 struct zynqmp_disp;
+struct zynqmp_disp_layer;
 struct zynqmp_dp;
 
 #define ZYNQMP_DPSUB_NUM_LAYERS				2
@@ -65,6 +66,7 @@ struct zynqmp_dpsub {
 	struct drm_bridge *bridge;
 
 	struct zynqmp_disp *disp;
+	struct zynqmp_disp_layer *layers[ZYNQMP_DPSUB_NUM_LAYERS];
 	struct zynqmp_dp *dp;
 
 	unsigned int dma_align;
