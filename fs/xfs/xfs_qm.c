@@ -1882,3 +1882,37 @@ xfs_qm_vop_create_dqattach(
 	}
 }
 
+/* Decide if this inode's dquot is near an enforcement boundary. */
+bool
+xfs_inode_near_dquot_enforcement(
+	struct xfs_inode	*ip,
+	xfs_dqtype_t		type)
+{
+	struct xfs_dquot	*dqp;
+	int64_t			freesp;
+
+	/* We only care for quotas that are enabled and enforced. */
+	dqp = xfs_inode_dquot(ip, type);
+	if (!dqp || !xfs_dquot_is_enforced(dqp))
+		return false;
+
+	if (xfs_dquot_res_over_limits(&dqp->q_ino) ||
+	    xfs_dquot_res_over_limits(&dqp->q_rtb))
+		return true;
+
+	/* For space on the data device, check the various thresholds. */
+	if (!dqp->q_prealloc_hi_wmark)
+		return false;
+
+	if (dqp->q_blk.reserved < dqp->q_prealloc_lo_wmark)
+		return false;
+
+	if (dqp->q_blk.reserved >= dqp->q_prealloc_hi_wmark)
+		return true;
+
+	freesp = dqp->q_prealloc_hi_wmark - dqp->q_blk.reserved;
+	if (freesp < dqp->q_low_space[XFS_QLOWSP_5_PCNT])
+		return true;
+
+	return false;
+}

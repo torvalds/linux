@@ -1921,6 +1921,7 @@ xfs_inodegc_start(
  *
  *  - We've accumulated more than one inode cluster buffer's worth of inodes.
  *  - There is less than 5% free space left.
+ *  - Any of the quotas for this inode are near an enforcement limit.
  */
 static inline bool
 xfs_inodegc_want_queue_work(
@@ -1935,6 +1936,15 @@ xfs_inodegc_want_queue_work(
 	if (__percpu_counter_compare(&mp->m_fdblocks,
 				mp->m_low_space[XFS_LOWSP_5_PCNT],
 				XFS_FDBLOCKS_BATCH) < 0)
+		return true;
+
+	if (xfs_inode_near_dquot_enforcement(ip, XFS_DQTYPE_USER))
+		return true;
+
+	if (xfs_inode_near_dquot_enforcement(ip, XFS_DQTYPE_GROUP))
+		return true;
+
+	if (xfs_inode_near_dquot_enforcement(ip, XFS_DQTYPE_PROJ))
 		return true;
 
 	return false;
