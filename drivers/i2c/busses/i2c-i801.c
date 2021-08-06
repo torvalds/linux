@@ -1827,19 +1827,12 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		priv->features &= ~FEATURE_IRQ;
 
 	if (priv->features & FEATURE_IRQ) {
-		u16 pcictl, pcists;
+		u16 pcists;
 
 		/* Complain if an interrupt is already pending */
 		pci_read_config_word(priv->pci_dev, PCI_STATUS, &pcists);
 		if (pcists & PCI_STATUS_INTERRUPT)
 			dev_warn(&dev->dev, "An interrupt is pending!\n");
-
-		/* Check if interrupts have been disabled */
-		pci_read_config_word(priv->pci_dev, PCI_COMMAND, &pcictl);
-		if (pcictl & PCI_COMMAND_INTX_DISABLE) {
-			dev_info(&dev->dev, "Interrupts are disabled\n");
-			priv->features &= ~FEATURE_IRQ;
-		}
 	}
 
 	if (priv->features & FEATURE_IRQ) {
