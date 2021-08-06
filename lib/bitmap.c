@@ -487,6 +487,109 @@ int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 }
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
 
+/**
+ * bitmap_print_to_buf  - convert bitmap to list or hex format ASCII string
+ * @list: indicates whether the bitmap must be list
+ *      true:  print in decimal list format
+ *      false: print in hexadecimal bitmask format
+ */
+static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
+		int nmaskbits, loff_t off, size_t count)
+{
+	const char *fmt = list ? "%*pbl\n" : "%*pb\n";
+	ssize_t size;
+	void *data;
+
+	data = kasprintf(GFP_KERNEL, fmt, nmaskbits, maskp);
+	if (!data)
+		return -ENOMEM;
+
+	size = memory_read_from_buffer(buf, count, &off, data, strlen(data) + 1);
+	kfree(data);
+
+	return size;
+}
+
+/**
+ * bitmap_print_bitmask_to_buf  - convert bitmap to hex bitmask format ASCII string
+ *
+ * The bitmap_print_to_pagebuf() is used indirectly via its cpumap wrapper
+ * cpumap_print_to_pagebuf() or directly by drivers to export hexadecimal
+ * bitmask and decimal list to userspace by sysfs ABI.
+ * Drivers might be using a normal attribute for this kind of ABIs. A
+ * normal attribute typically has show entry as below:
+ * static ssize_t example_attribute_show(struct device *dev,
+ * 		struct device_attribute *attr, char *buf)
+ * {
+ * 	...
+ * 	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
+ * }
+ * show entry of attribute has no offset and count parameters and this
+ * means the file is limited to one page only.
+ * bitmap_print_to_pagebuf() API works terribly well for this kind of
+ * normal attribute with buf parameter and without offset, count:
+ * bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
+ * 			   int nmaskbits)
+ * {
+ * }
+ * The problem is once we have a large bitmap, we have a chance to get a
+ * bitmask or list more than one page. Especially for list, it could be
+ * as complex as 0,3,5,7,9,... We have no simple way to know it exact size.
+ * It turns out bin_attribute is a way to break this limit. bin_attribute
+ * has show entry as below:
+ * static ssize_t
+ * example_bin_attribute_show(struct file *filp, struct kobject *kobj,
+ * 		struct bin_attribute *attr, char *buf,
+ * 		loff_t offset, size_t count)
+ * {
+ * 	...
+ * }
+ * With the new offset and count parameters, this makes sysfs ABI be able
+ * to support file size more than one page. For example, offset could be
+ * >= 4096.
+ * bitmap_print_bitmask_to_buf(), bitmap_print_list_to_buf() wit their
+ * cpumap wrapper cpumap_print_bitmask_to_buf(), cpumap_print_list_to_buf()
+ * make those drivers be able to support large bitmask and list after they
+ * move to use bin_attribute. In result, we have to pass the corresponding
+ * parameters such as off, count from bin_attribute show entry to this API.
+ *
+ * @buf: buffer into which string is placed
+ * @maskp: pointer to bitmap to convert
+ * @nmaskbits: size of bitmap, in bits
+ * @off: in the string from which we are copying, We copy to @buf
+ * @count: the maximum number of bytes to print
+ *
+ * The role of cpumap_print_bitmask_to_buf() and cpumap_print_list_to_buf()
+ * is similar with cpumap_print_to_pagebuf(),  the difference is that
+ * bitmap_print_to_pagebuf() mainly serves sysfs attribute with the assumption
+ * the destination buffer is exactly one page and won't be more than one page.
+ * cpumap_print_bitmask_to_buf() and cpumap_print_list_to_buf(), on the other
+ * hand, mainly serves bin_attribute which doesn't work with exact one page,
+ * and it can break the size limit of converted decimal list and hexadecimal
+ * bitmask.
+ *
+ * Returns the number of characters actually printed to @buf
+ */
+int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp,
+				int nmaskbits, loff_t off, size_t count)
+{
+	return bitmap_print_to_buf(false, buf, maskp, nmaskbits, off, count);
+}
+EXPORT_SYMBOL(bitmap_print_bitmask_to_buf);
+
+/**
+ * bitmap_print_list_to_buf  - convert bitmap to decimal list format ASCII string
+ *
+ * Everything is same with the above bitmap_print_bitmask_to_buf() except
+ * the print format.
+ */
+int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
+			     int nmaskbits, loff_t off, size_t count)
+{
+	return bitmap_print_to_buf(true, buf, maskp, nmaskbits, off, count);
+}
+EXPORT_SYMBOL(bitmap_print_list_to_buf);
+
 /*
  * Region 9-38:4/10 describes the following bitmap structure:
  * 0	   9  12    18			38	     N
