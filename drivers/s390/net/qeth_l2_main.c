@@ -717,6 +717,15 @@ static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 	return rc;
 }
 
+struct qeth_l2_br2dev_event_work {
+	struct work_struct work;
+	struct net_device *br_dev;
+	struct net_device *lsync_dev;
+	struct net_device *dst_dev;
+	unsigned long event;
+	unsigned char addr[ETH_ALEN];
+};
+
 static const struct net_device_ops qeth_l2_netdev_ops;
 
 static bool qeth_l2_must_learn(struct net_device *netdev,
@@ -732,6 +741,116 @@ static bool qeth_l2_must_learn(struct net_device *netdev,
 		netdev->netdev_ops == &qeth_l2_netdev_ops);
 }
 
+/**
+ *	qeth_l2_br2dev_worker() - update local MACs
+ *	@work: bridge to device FDB update
+ *
+ *	Update local MACs of a learning_sync bridgeport so it can receive
+ *	messages for a destination port.
+ *	In case of an isolated learning_sync port, also update its isolated
+ *	siblings.
+ */
+static void qeth_l2_br2dev_worker(struct work_struct *work)
+{
+	struct qeth_l2_br2dev_event_work *br2dev_event_work =
+		container_of(work, struct qeth_l2_br2dev_event_work, work);
+	struct net_device *lsyncdev = br2dev_event_work->lsync_dev;
+	struct net_device *dstdev = br2dev_event_work->dst_dev;
+	struct net_device *brdev = br2dev_event_work->br_dev;
+	unsigned long event = br2dev_event_work->event;
+	unsigned char *addr = br2dev_event_work->addr;
+	struct qeth_card *card = lsyncdev->ml_priv;
+	struct net_device *lowerdev;
+	struct list_head *iter;
+	int err = 0;
+
+	kfree(br2dev_event_work);
+	QETH_CARD_TEXT_(card, 4, "b2dw%04x", event);
+	QETH_CARD_TEXT_(card, 4, "ma%012lx", ether_addr_to_u64(addr));
+
+	rcu_read_lock();
+	/* Verify preconditions are still valid: */
+	if (!netif_is_bridge_port(lsyncdev) ||
+	    brdev != netdev_master_upper_dev_get_rcu(lsyncdev))
+		goto unlock;
+	if (!qeth_l2_must_learn(lsyncdev, dstdev))
+		goto unlock;
+
+	if (br_port_flag_is_set(lsyncdev, BR_ISOLATED)) {
+		/* Update lsyncdev and its isolated sibling(s): */
+		iter = &brdev->adj_list.lower;
+		lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
+		while (lowerdev) {
+			if (br_port_flag_is_set(lowerdev, BR_ISOLATED)) {
+				switch (event) {
+				case SWITCHDEV_FDB_ADD_TO_DEVICE:
+					err = dev_uc_add(lowerdev, addr);
+					break;
+				case SWITCHDEV_FDB_DEL_TO_DEVICE:
+					err = dev_uc_del(lowerdev, addr);
+					break;
+				default:
+					break;
+				}
+				if (err) {
+					QETH_CARD_TEXT(card, 2, "b2derris");
+					QETH_CARD_TEXT_(card, 2,
+							"err%02x%03d", event,
+							lowerdev->ifindex);
+				}
+			}
+			lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
+		}
+	} else {
+		switch (event) {
+		case SWITCHDEV_FDB_ADD_TO_DEVICE:
+			err = dev_uc_add(lsyncdev, addr);
+			break;
+		case SWITCHDEV_FDB_DEL_TO_DEVICE:
+			err = dev_uc_del(lsyncdev, addr);
+			break;
+		default:
+			break;
+		}
+		if (err)
+			QETH_CARD_TEXT_(card, 2, "b2derr%02x", event);
+	}
+
+unlock:
+	rcu_read_unlock();
+	dev_put(brdev);
+	dev_put(lsyncdev);
+	dev_put(dstdev);
+}
+
+static int qeth_l2_br2dev_queue_work(struct net_device *brdev,
+				     struct net_device *lsyncdev,
+				     struct net_device *dstdev,
+				     unsigned long event,
+				     const unsigned char *addr)
+{
+	struct qeth_l2_br2dev_event_work *worker_data;
+	struct qeth_card *card;
+
+	worker_data = kzalloc(sizeof(*worker_data), GFP_ATOMIC);
+	if (!worker_data)
+		return -ENOMEM;
+	INIT_WORK(&worker_data->work, qeth_l2_br2dev_worker);
+	worker_data->br_dev = brdev;
+	worker_data->lsync_dev = lsyncdev;
+	worker_data->dst_dev = dstdev;
+	worker_data->event = event;
+	ether_addr_copy(worker_data->addr, addr);
+
+	card = lsyncdev->ml_priv;
+	/* Take a reference on the sw port devices and the bridge */
+	dev_hold(brdev);
+	dev_hold(lsyncdev);
+	dev_hold(dstdev);
+	queue_work(card->event_wq, &worker_data->work);
+	return 0;
+}
+
 /* Called under rtnl_lock */
 static int qeth_l2_switchdev_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr)
@@ -741,6 +860,7 @@ static int qeth_l2_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_info *info = ptr;
 	struct list_head *iter;
 	struct qeth_card *card;
+	int rc;
 
 	if (!(event == SWITCHDEV_FDB_ADD_TO_DEVICE ||
 	      event == SWITCHDEV_FDB_DEL_TO_DEVICE))
@@ -759,10 +879,13 @@ static int qeth_l2_switchdev_event(struct notifier_block *unused,
 		if (qeth_l2_must_learn(lowerdev, dstdev)) {
 			card = lowerdev->ml_priv;
 			QETH_CARD_TEXT_(card, 4, "b2dqw%03x", event);
-			/* tbd: rc = qeth_l2_br2dev_queue_work(brdev, lowerdev,
-			 *				       dstdev, event,
-			 *				       fdb_info->addr);
-			 */
+			rc = qeth_l2_br2dev_queue_work(brdev, lowerdev,
+						       dstdev, event,
+						       fdb_info->addr);
+			if (rc) {
+				QETH_CARD_TEXT(card, 2, "b2dqwerr");
+				return NOTIFY_BAD;
+			}
 		}
 		lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
 	}
