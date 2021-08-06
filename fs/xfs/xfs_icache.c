@@ -1920,6 +1920,7 @@ xfs_inodegc_start(
  * Schedule the inactivation worker when:
  *
  *  - We've accumulated more than one inode cluster buffer's worth of inodes.
+ *  - There is less than 5% free space left.
  */
 static inline bool
 xfs_inodegc_want_queue_work(
@@ -1929,6 +1930,11 @@ xfs_inodegc_want_queue_work(
 	struct xfs_mount	*mp = ip->i_mount;
 
 	if (items > mp->m_ino_geo.inodes_per_cluster)
+		return true;
+
+	if (__percpu_counter_compare(&mp->m_fdblocks,
+				mp->m_low_space[XFS_LOWSP_5_PCNT],
+				XFS_FDBLOCKS_BATCH) < 0)
 		return true;
 
 	return false;

@@ -1077,14 +1077,6 @@ xfs_fs_writable(
 	return true;
 }
 
-/*
- * Deltas for the block count can vary from 1 to very large, but lock contention
- * only occurs on frequent small block count updates such as in the delayed
- * allocation path for buffered writes (page a time updates). Hence we set
- * a large batch count (1024) to minimise global counter updates except when
- * we get near to ENOSPC and we have to be very accurate with our updates.
- */
-#define XFS_FDBLOCKS_BATCH	1024
 int
 xfs_mod_fdblocks(
 	struct xfs_mount	*mp,
