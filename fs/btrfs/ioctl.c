@@ -1087,7 +1087,8 @@ none:
 	return -ENOENT;
 }
 
-static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
+static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
+					       bool locked)
 {
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
@@ -1107,9 +1108,11 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
 		u64 end = start + sectorsize - 1;
 
 		/* get the big lock and read metadata off disk */
-		lock_extent_bits(io_tree, start, end, &cached);
+		if (!locked)
+			lock_extent_bits(io_tree, start, end, &cached);
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, sectorsize);
-		unlock_extent_cached(io_tree, start, end, &cached);
+		if (!locked)
+			unlock_extent_cached(io_tree, start, end, &cached);
 
 		if (IS_ERR(em))
 			return NULL;
@@ -1118,7 +1121,8 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
 	return em;
 }
 
-static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
+static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
+				     bool locked)
 {
 	struct extent_map *next;
 	bool ret = true;
@@ -1127,7 +1131,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
 	if (em->start + em->len >= i_size_read(inode))
 		return false;
 
-	next = defrag_lookup_extent(inode, em->start + em->len);
+	next = defrag_lookup_extent(inode, em->start + em->len, locked);
 	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
 		ret = false;
 	else if ((em->block_start + em->block_len == next->block_start) &&
@@ -1156,7 +1160,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u32 thresh,
 
 	*skip = 0;
 
-	em = defrag_lookup_extent(inode, start);
+	em = defrag_lookup_extent(inode, start, false);
 	if (!em)
 		return 0;
 
@@ -1169,7 +1173,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u32 thresh,
 	if (!*defrag_end)
 		prev_mergeable = false;
 
-	next_mergeable = defrag_check_next_extent(inode, em);
+	next_mergeable = defrag_check_next_extent(inode, em, false);
 	/*
 	 * we hit a real extent, if it is big or the next extent is not a
 	 * real extent, don't bother defragging it
@@ -1449,12 +1453,13 @@ struct defrag_target_range {
  * @do_compress:   whether the defrag is doing compression
  *		   if true, @extent_thresh will be ignored and all regular
  *		   file extents meeting @newer_than will be targets.
+ * @locked:	   if the range has already held extent lock
  * @target_list:   list of targets file extents
  */
 static int defrag_collect_targets(struct btrfs_inode *inode,
 				  u64 start, u64 len, u32 extent_thresh,
 				  u64 newer_than, bool do_compress,
-				  struct list_head *target_list)
+				  bool locked, struct list_head *target_list)
 {
 	u64 cur = start;
 	int ret = 0;
@@ -1465,7 +1470,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		bool next_mergeable = true;
 		u64 range_len;
 
-		em = defrag_lookup_extent(&inode->vfs_inode, cur);
+		em = defrag_lookup_extent(&inode->vfs_inode, cur, locked);
 		if (!em)
 			break;
 
@@ -1489,7 +1494,8 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		if (em->len >= extent_thresh)
 			goto next;
 
-		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em);
+		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em,
+							  locked);
 		if (!next_mergeable) {
 			struct defrag_target_range *last;
 
@@ -1603,6 +1609,83 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 	btrfs_delalloc_release_extents(inode, len);
 	extent_changeset_free(data_reserved);
 
+	return ret;
+}
+
+static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
+			    u32 extent_thresh, u64 newer_than, bool do_compress)
+{
+	struct extent_state *cached_state = NULL;
+	struct defrag_target_range *entry;
+	struct defrag_target_range *tmp;
+	LIST_HEAD(target_list);
+	struct page **pages;
+	const u32 sectorsize = inode->root->fs_info->sectorsize;
+	u64 last_index = (start + len - 1) >> PAGE_SHIFT;
+	u64 start_index = start >> PAGE_SHIFT;
+	unsigned int nr_pages = last_index - start_index + 1;
+	int ret = 0;
+	int i;
+
+	ASSERT(nr_pages <= CLUSTER_SIZE / PAGE_SIZE);
+	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(len, sectorsize));
+
+	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	if (!pages)
+		return -ENOMEM;
+
+	/* Prepare all pages */
+	for (i = 0; i < nr_pages; i++) {
+		pages[i] = defrag_prepare_one_page(inode, start_index + i);
+		if (IS_ERR(pages[i])) {
+			ret = PTR_ERR(pages[i]);
+			pages[i] = NULL;
+			goto free_pages;
+		}
+	}
+	for (i = 0; i < nr_pages; i++)
+		wait_on_page_writeback(pages[i]);
+
+	/* Lock the pages range */
+	lock_extent_bits(&inode->io_tree, start_index << PAGE_SHIFT,
+			 (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
+			 &cached_state);
+	/*
+	 * Now we have a consistent view about the extent map, re-check
+	 * which range really needs to be defragged.
+	 *
+	 * And this time we have extent locked already, pass @locked = true
+	 * so that we won't relock the extent range and cause deadlock.
+	 */
+	ret = defrag_collect_targets(inode, start, len, extent_thresh,
+				     newer_than, do_compress, true,
+				     &target_list);
+	if (ret < 0)
+		goto unlock_extent;
+
+	list_for_each_entry(entry, &target_list, list) {
+		ret = defrag_one_locked_target(inode, entry, pages, nr_pages,
+					       &cached_state);
+		if (ret < 0)
+			break;
+	}
+
+	list_for_each_entry_safe(entry, tmp, &target_list, list) {
+		list_del_init(&entry->list);
+		kfree(entry);
+	}
+unlock_extent:
+	unlock_extent_cached(&inode->io_tree, start_index << PAGE_SHIFT,
+			     (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
+			     &cached_state);
+free_pages:
+	for (i = 0; i < nr_pages; i++) {
+		if (pages[i]) {
+			unlock_page(pages[i]);
+			put_page(pages[i]);
+		}
+	}
+	kfree(pages);
 	return ret;
 }
 
