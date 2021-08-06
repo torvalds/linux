@@ -141,8 +141,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (wq->type != IDXD_WQT_KERNEL)
 		return 0;
 
-	wq->num_descs = wq->size;
-	num_descs = wq->size;
+	num_descs = wq_dedicated(wq) ? wq->size : wq->threshold;
+	wq->num_descs = num_descs;
 
 	rc = alloc_hw_descs(wq, num_descs);
 	if (rc < 0)
