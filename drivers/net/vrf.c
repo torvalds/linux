@@ -864,7 +864,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
 		skb = skb_expand_head(skb, hh_len);
 		if (!skb) {
-			skb->dev->stats.tx_errors++;
+			dev->stats.tx_errors++;
 			return -ENOMEM;
 		}
 	}
