@@ -22,6 +22,16 @@ struct zynqmp_dpsub_drm;
 
 #define ZYNQMP_DPSUB_NUM_LAYERS				2
 
+enum zynqmp_dpsub_port {
+	ZYNQMP_DPSUB_PORT_LIVE_VIDEO,
+	ZYNQMP_DPSUB_PORT_LIVE_GFX,
+	ZYNQMP_DPSUB_PORT_LIVE_AUDIO,
+	ZYNQMP_DPSUB_PORT_OUT_VIDEO,
+	ZYNQMP_DPSUB_PORT_OUT_AUDIO,
+	ZYNQMP_DPSUB_PORT_OUT_DP,
+	ZYNQMP_DPSUB_NUM_PORTS,
+};
+
 enum zynqmp_dpsub_format {
 	ZYNQMP_DPSUB_FORMAT_RGB,
 	ZYNQMP_DPSUB_FORMAT_YCRCB444,
@@ -37,6 +47,7 @@ enum zynqmp_dpsub_format {
  * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
  * @aud_clk: Audio clock
  * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
+ * @connected_ports: Bitmask of connected ports in the device tree
  * @drm: The DRM/KMS device data
  * @bridge: The DP encoder bridge
  * @disp: The display controller
@@ -51,6 +62,8 @@ struct zynqmp_dpsub {
 	bool vid_clk_from_ps;
 	struct clk *aud_clk;
 	bool aud_clk_from_ps;
+
+	unsigned int connected_ports;
 
 	struct zynqmp_dpsub_drm *drm;
 	struct drm_bridge *bridge;

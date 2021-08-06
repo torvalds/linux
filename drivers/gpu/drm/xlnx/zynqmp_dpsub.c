@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -142,6 +143,55 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 	return 0;
 }
 
+static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
+{
+	struct device_node *np;
+	unsigned int i;
+
+	/*
+	 * For backward compatibility with old device trees that don't contain
+	 * ports, consider that only the DP output port is connected if no
+	 * ports child no exists.
+	 */
+	np = of_get_child_by_name(dpsub->dev->of_node, "ports");
+	of_node_put(np);
+	if (!np) {
+		dev_warn(dpsub->dev, "missing ports, update DT bindings\n");
+		dpsub->connected_ports = BIT(ZYNQMP_DPSUB_PORT_OUT_DP);
+		return 0;
+	}
+
+	/* Check which ports are connected. */
+	for (i = 0; i < ZYNQMP_DPSUB_NUM_PORTS; ++i) {
+		struct device_node *np;
+
+		np = of_graph_get_remote_node(dpsub->dev->of_node, i, -1);
+		if (np) {
+			dpsub->connected_ports |= BIT(i);
+			of_node_put(np);
+		}
+	}
+
+	/* Sanity checks. */
+	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO)) ||
+	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX)))
+		dev_warn(dpsub->dev, "live video unsupported, ignoring\n");
+
+	if (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_AUDIO))
+		dev_warn(dpsub->dev, "live audio unsupported, ignoring\n");
+
+	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_VIDEO)) ||
+	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_AUDIO)))
+		dev_warn(dpsub->dev, "output to PL unsupported, ignoring\n");
+
+	if (!(dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_DP))) {
+		dev_err(dpsub->dev, "DP output port not connected\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void zynqmp_dpsub_release(struct zynqmp_dpsub *dpsub)
 {
 	kfree(dpsub->disp);
@@ -168,6 +218,10 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	of_reserved_mem_device_init(&pdev->dev);
 
 	ret = zynqmp_dpsub_init_clocks(dpsub);
+	if (ret < 0)
+		goto err_mem;
+
+	ret = zynqmp_dpsub_parse_dt(dpsub);
 	if (ret < 0)
 		goto err_mem;
 
