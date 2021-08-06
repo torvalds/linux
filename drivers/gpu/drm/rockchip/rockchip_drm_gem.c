@@ -980,15 +980,11 @@ static int rockchip_gem_prime_sgl_sync_range(struct device *dev,
 	for_each_sg(sgl, sg, nents, i) {
 		unsigned int sg_offset, sg_left, size = 0;
 
-		if (i == 0)
-			sg_dma_addr = sg_dma_address(sg);
-
 		len += sg->length;
-		if (len <= offset) {
-			sg_dma_addr += sg->length;
+		if (len <= offset)
 			continue;
-		}
 
+		sg_dma_addr = sg_dma_address(sg);
 		sg_left = len - offset;
 		sg_offset = sg->length - sg_left;
 
@@ -1002,7 +998,6 @@ static int rockchip_gem_prime_sgl_sync_range(struct device *dev,
 
 		offset += size;
 		length -= size;
-		sg_dma_addr += sg->length;
 
 		if (length == 0)
 			break;
