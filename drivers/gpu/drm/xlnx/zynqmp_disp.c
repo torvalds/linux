@@ -79,14 +79,12 @@
  * struct zynqmp_disp_format - Display subsystem format information
  * @drm_fmt: DRM format (4CC)
  * @buf_fmt: AV buffer format
- * @bus_fmt: Media bus formats (live formats)
  * @swap: Flag to swap R & B for RGB formats, and U & V for YUV formats
  * @sf: Scaling factors for color components
  */
 struct zynqmp_disp_format {
 	u32 drm_fmt;
 	u32 buf_fmt;
-	u32 bus_fmt;
 	bool swap;
 	const u32 *sf;
 };
