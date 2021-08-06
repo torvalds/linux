@@ -24,6 +24,8 @@
 #define DEFER_TIME (msecs_to_jiffies(1000))
 #define DEFER_WARN_INTERVAL (60 * HZ)
 
+#define BIAS_MAX	LONG_MAX
+
 static int page_pool_init(struct page_pool *pool,
 			  const struct page_pool_params *params)
 {
@@ -423,6 +425,11 @@ static __always_inline struct page *
 __page_pool_put_page(struct page_pool *pool, struct page *page,
 		     unsigned int dma_sync_size, bool allow_direct)
 {
+	/* It is not the last user for the page frag case */
+	if (pool->p.flags & PP_FLAG_PAGE_FRAG &&
+	    page_pool_atomic_sub_frag_count_return(page, 1))
+		return NULL;
+
 	/* This allocator is optimized for the XDP mode that uses
 	 * one-frame-per-page, but have fallbacks that act like the
 	 * regular page allocator APIs.
@@ -514,6 +521,84 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 		page_pool_return_page(pool, data[i]);
 }
 EXPORT_SYMBOL(page_pool_put_page_bulk);
+
+static struct page *page_pool_drain_frag(struct page_pool *pool,
+					 struct page *page)
+{
+	long drain_count = BIAS_MAX - pool->frag_users;
+
+	/* Some user is still using the page frag */
+	if (likely(page_pool_atomic_sub_frag_count_return(page,
+							  drain_count)))
+		return NULL;
+
+	if (page_ref_count(page) == 1 && !page_is_pfmemalloc(page)) {
+		if (pool->p.flags & PP_FLAG_DMA_SYNC_DEV)
+			page_pool_dma_sync_for_device(pool, page, -1);
+
+		return page;
+	}
+
+	page_pool_return_page(pool, page);
+	return NULL;
+}
+
+static void page_pool_free_frag(struct page_pool *pool)
+{
+	long drain_count = BIAS_MAX - pool->frag_users;
+	struct page *page = pool->frag_page;
+
+	pool->frag_page = NULL;
+
+	if (!page ||
+	    page_pool_atomic_sub_frag_count_return(page, drain_count))
+		return;
+
+	page_pool_return_page(pool, page);
+}
+
+struct page *page_pool_alloc_frag(struct page_pool *pool,
+				  unsigned int *offset,
+				  unsigned int size, gfp_t gfp)
+{
+	unsigned int max_size = PAGE_SIZE << pool->p.order;
+	struct page *page = pool->frag_page;
+
+	if (WARN_ON(!(pool->p.flags & PP_FLAG_PAGE_FRAG) ||
+		    size > max_size))
+		return NULL;
+
+	size = ALIGN(size, dma_get_cache_alignment());
+	*offset = pool->frag_offset;
+
+	if (page && *offset + size > max_size) {
+		page = page_pool_drain_frag(pool, page);
+		if (page)
+			goto frag_reset;
+	}
+
+	if (!page) {
+		page = page_pool_alloc_pages(pool, gfp);
+		if (unlikely(!page)) {
+			pool->frag_page = NULL;
+			return NULL;
+		}
+
+		pool->frag_page = page;
+
+frag_reset:
+		pool->frag_users = 1;
+		*offset = 0;
+		pool->frag_offset = size;
+		page_pool_set_frag_count(page, BIAS_MAX);
+		return page;
+	}
+
+	pool->frag_users++;
+	pool->frag_offset = *offset + size;
+	return page;
+}
+EXPORT_SYMBOL(page_pool_alloc_frag);
 
 static void page_pool_empty_ring(struct page_pool *pool)
 {
@@ -619,6 +704,8 @@ void page_pool_destroy(struct page_pool *pool)
 
 	if (!page_pool_put(pool))
 		return;
+
+	page_pool_free_frag(pool);
 
 	if (!page_pool_release(pool))
 		return;

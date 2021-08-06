@@ -91,6 +91,9 @@ struct page_pool {
 	unsigned long defer_warn;
 
 	u32 pages_state_hold_cnt;
+	unsigned int frag_offset;
+	struct page *frag_page;
+	long frag_users;
 
 	/*
 	 * Data structure for allocation side
@@ -138,6 +141,18 @@ static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
 	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
 
 	return page_pool_alloc_pages(pool, gfp);
+}
+
+struct page *page_pool_alloc_frag(struct page_pool *pool, unsigned int *offset,
+				  unsigned int size, gfp_t gfp);
+
+static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
+						    unsigned int *offset,
+						    unsigned int size)
+{
+	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+
+	return page_pool_alloc_frag(pool, offset, size, gfp);
 }
 
 /* get the stored dma direction. A driver might decide to treat this locally and
