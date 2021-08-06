@@ -328,6 +328,8 @@ enum mtk_chip {
  * @vdec_framesizes: supported video decoder frame sizes
  * @num_framesizes: count of video decoder frame sizes
  *
+ * @chip: chip this decoder is compatible with
+ *
  * @uses_stateless_api: whether the decoder uses the stateless API with requests
  */
 
@@ -346,6 +348,8 @@ struct mtk_vcodec_dec_pdata {
 
 	const struct mtk_codec_framesizes *vdec_framesizes;
 	const int num_framesizes;
+
+	enum mtk_chip chip;
 
 	bool uses_stateless_api;
 };
