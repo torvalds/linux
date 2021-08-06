@@ -460,6 +460,21 @@ static void cs_etm__set_trace_param_etmv4(struct cs_etm_trace_params *t_params,
 	t_params[idx].etmv4.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
 }
 
+static void cs_etm__set_trace_param_ete(struct cs_etm_trace_params *t_params,
+					  struct cs_etm_auxtrace *etm, int idx)
+{
+	u64 **metadata = etm->metadata;
+
+	t_params[idx].protocol = CS_ETM_PROTO_ETE;
+	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETMV4_TRCIDR0];
+	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETMV4_TRCIDR1];
+	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETMV4_TRCIDR2];
+	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETMV4_TRCIDR8];
+	t_params[idx].ete.reg_configr = metadata[idx][CS_ETMV4_TRCCONFIGR];
+	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
+	t_params[idx].ete.reg_devarch = metadata[idx][CS_ETE_TRCDEVARCH];
+}
+
 static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
 				     struct cs_etm_auxtrace *etm,
 				     int decoders)
@@ -478,6 +493,9 @@ static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
 			break;
 		case __perf_cs_etmv4_magic:
 			cs_etm__set_trace_param_etmv4(t_params, etm, i);
+			break;
+		case __perf_cs_ete_magic:
+			cs_etm__set_trace_param_ete(t_params, etm, i);
 			break;
 		default:
 			return -EINVAL;

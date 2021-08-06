@@ -157,6 +157,20 @@ static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 	config->core_prof = profile_CortexA;
 }
 
+static void cs_etm_decoder__gen_ete_config(struct cs_etm_trace_params *params,
+					   ocsd_ete_cfg *config)
+{
+	config->reg_configr = params->ete.reg_configr;
+	config->reg_traceidr = params->ete.reg_traceidr;
+	config->reg_idr0 = params->ete.reg_idr0;
+	config->reg_idr1 = params->ete.reg_idr1;
+	config->reg_idr2 = params->ete.reg_idr2;
+	config->reg_idr8 = params->ete.reg_idr8;
+	config->reg_devarch = params->ete.reg_devarch;
+	config->arch_ver = ARCH_AA64;
+	config->core_prof = profile_CortexA;
+}
+
 static void cs_etm_decoder__print_str_cb(const void *p_context,
 					 const char *msg,
 					 const int str_len)
@@ -604,6 +618,7 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 	const char *decoder_name;
 	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
+	ocsd_ete_cfg trace_config_ete;
 	void *trace_config;
 	u8 csid;
 
@@ -620,6 +635,11 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
 		trace_config = &trace_config_etmv4;
+		break;
+	case CS_ETM_PROTO_ETE:
+		cs_etm_decoder__gen_ete_config(t_params, &trace_config_ete);
+		decoder_name = OCSD_BUILTIN_DCD_ETE;
+		trace_config = &trace_config_ete;
 		break;
 	default:
 		return -1;
