@@ -22,9 +22,10 @@ infiniband
 .. toctree::
    :maxdepth: 1
 
+   core_locking
+
 TODOLIST:
 
-   core_locking
    ipoib
    opa_vnic
    sysfs
