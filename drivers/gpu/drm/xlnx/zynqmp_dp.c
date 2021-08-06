@@ -14,6 +14,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
 
@@ -1272,6 +1273,55 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 }
 
 /* -----------------------------------------------------------------------------
+ * DISP Configuration
+ */
+
+static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
+				  struct drm_bridge_state *old_bridge_state)
+{
+	enum zynqmp_dpsub_layer_id layer_id;
+	struct zynqmp_disp_layer *layer;
+	const struct drm_format_info *info;
+
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		layer_id = ZYNQMP_DPSUB_LAYER_VID;
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		layer_id = ZYNQMP_DPSUB_LAYER_GFX;
+	else
+		return;
+
+	layer = dp->dpsub->layers[layer_id];
+
+	/* TODO: Make the format configurable. */
+	info = drm_format_info(DRM_FORMAT_YUV422);
+	zynqmp_disp_layer_set_format(layer, info);
+	zynqmp_disp_layer_enable(layer, ZYNQMP_DPSUB_LAYER_LIVE);
+
+	if (layer_id == ZYNQMP_DPSUB_LAYER_GFX)
+		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, true, 255);
+	else
+		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, false, 0);
+
+	zynqmp_disp_enable(dp->dpsub->disp);
+}
+
+static void zynqmp_dp_disp_disable(struct zynqmp_dp *dp,
+				   struct drm_bridge_state *old_bridge_state)
+{
+	struct zynqmp_disp_layer *layer;
+
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
+	else
+		return;
+
+	zynqmp_disp_disable(dp->dpsub->disp);
+	zynqmp_disp_layer_disable(layer);
+}
+
+/* -----------------------------------------------------------------------------
  * DRM Bridge
  */
 
@@ -1355,6 +1405,8 @@ static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 
 	pm_runtime_get_sync(dp->dev);
 
+	zynqmp_dp_disp_enable(dp, old_bridge_state);
+
 	/*
 	 * Retrieve the CRTC mode and adjusted mode. This requires a little
 	 * dance to go from the bridge to the encoder, to the connector and to
@@ -1428,6 +1480,9 @@ static void zynqmp_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
 	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 0);
+
+	zynqmp_dp_disp_disable(dp, old_bridge_state);
+
 	pm_runtime_put_sync(dp->dev);
 }
 

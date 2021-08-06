@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_module.h>
 
@@ -174,11 +175,22 @@ static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 	}
 
 	/* Sanity checks. */
-	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO)) ||
-	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX)))
-		dev_warn(dpsub->dev, "live video unsupported, ignoring\n");
+	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO)) &&
+	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))) {
+		dev_err(dpsub->dev, "only one live video input is supported\n");
+		return -EINVAL;
+	}
 
-	dpsub->dma_enabled = true;
+	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO)) ||
+	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))) {
+		if (dpsub->vid_clk_from_ps) {
+			dev_err(dpsub->dev,
+				"live video input requires PL clock\n");
+			return -EINVAL;
+		}
+	} else {
+		dpsub->dma_enabled = true;
+	}
 
 	if (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_AUDIO))
 		dev_warn(dpsub->dev, "live audio unsupported, ignoring\n");
@@ -242,9 +254,13 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dp;
 
-	ret = zynqmp_dpsub_drm_init(dpsub);
-	if (ret)
-		goto err_disp;
+	if (dpsub->dma_enabled) {
+		ret = zynqmp_dpsub_drm_init(dpsub);
+		if (ret)
+			goto err_disp;
+	} else {
+		drm_bridge_add(dpsub->bridge);
+	}
 
 	dev_info(&pdev->dev, "ZynqMP DisplayPort Subsystem driver probed");
 
@@ -270,6 +286,8 @@ static int zynqmp_dpsub_remove(struct platform_device *pdev)
 
 	if (dpsub->drm)
 		zynqmp_dpsub_drm_cleanup(dpsub);
+	else
+		drm_bridge_remove(dpsub->bridge);
 
 	zynqmp_disp_remove(dpsub);
 	zynqmp_dp_remove(dpsub);
