@@ -18,6 +18,8 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_bridge_connector.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
@@ -97,6 +99,7 @@ static const struct drm_driver zynqmp_dpsub_drm_driver = {
 static int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 {
 	struct drm_encoder *encoder = &dpsub->encoder;
+	struct drm_connector *connector;
 	struct drm_device *drm = &dpsub->drm;
 	int ret;
 
@@ -133,9 +136,24 @@ static int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 	encoder->possible_crtcs |= zynqmp_disp_get_crtc_mask(dpsub->disp);
 	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_NONE);
 
-	ret = drm_bridge_attach(encoder, dpsub->bridge, NULL, 0);
+	ret = drm_bridge_attach(encoder, dpsub->bridge, NULL,
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		dev_err(dpsub->dev, "failed to attach bridge to encoder\n");
+		goto err_poll_fini;
+	}
+
+	/* Create the connector for the chain of bridges. */
+	connector = drm_bridge_connector_init(drm, encoder);
+	if (IS_ERR(connector)) {
+		dev_err(dpsub->dev, "failed to created connector\n");
+		ret = PTR_ERR(connector);
+		goto err_poll_fini;
+	}
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0) {
+		dev_err(dpsub->dev, "failed to attach connector to encoder\n");
 		goto err_poll_fini;
 	}
 

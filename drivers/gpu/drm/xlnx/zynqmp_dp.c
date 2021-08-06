@@ -11,7 +11,6 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
@@ -275,7 +274,6 @@ struct zynqmp_dp_config {
 
 /**
  * struct zynqmp_dp - Xilinx DisplayPort core
- * @connector: the drm connector structure
  * @dev: device structure
  * @dpsub: Display subsystem
  * @drm: DRM core
@@ -297,7 +295,6 @@ struct zynqmp_dp_config {
  * @train_set: set of training data
  */
 struct zynqmp_dp {
-	struct drm_connector connector;
 	struct device *dev;
 	struct zynqmp_dpsub *dpsub;
 	struct drm_device *drm;
@@ -321,11 +318,6 @@ struct zynqmp_dp {
 	struct zynqmp_dp_mode mode;
 	u8 train_set[ZYNQMP_DP_MAX_LANES];
 };
-
-static inline struct zynqmp_dp *connector_to_dp(struct drm_connector *connector)
-{
-	return container_of(connector, struct zynqmp_dp, connector);
-}
 
 static inline struct zynqmp_dp *bridge_to_dp(struct drm_bridge *bridge)
 {
@@ -1285,33 +1277,15 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
  * DRM Bridge
  */
 
-static const struct drm_connector_funcs zynqmp_dp_connector_funcs;
-static const struct drm_connector_helper_funcs zynqmp_dp_connector_helper_funcs;
-
 static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
-	struct drm_connector *connector = &dp->connector;
 	int ret;
-
-	/* Create the DRM connector. */
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	ret = drm_connector_init(dp->drm, connector,
-				 &zynqmp_dp_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret) {
-		dev_err(dp->dev, "failed to create the DRM connector\n");
-		return ret;
-	}
-
-	drm_connector_helper_add(connector, &zynqmp_dp_connector_helper_funcs);
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	if (dp->next_bridge) {
 		ret = drm_bridge_attach(bridge->encoder, dp->next_bridge,
-					bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					bridge, flags);
 		if (ret < 0)
 			return ret;
 	}
@@ -1530,68 +1504,6 @@ static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.atomic_check = zynqmp_dp_bridge_atomic_check,
 	.detect = zynqmp_dp_bridge_detect,
 	.get_edid = zynqmp_dp_bridge_get_edid,
-};
-
-/* -----------------------------------------------------------------------------
- * DRM Connector
- */
-
-static enum drm_connector_status
-zynqmp_dp_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-
-	return zynqmp_dp_bridge_detect(&dp->bridge);
-}
-
-static int zynqmp_dp_connector_get_modes(struct drm_connector *connector)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-	struct edid *edid;
-	int ret;
-
-	edid = zynqmp_dp_bridge_get_edid(&dp->bridge, connector);
-	if (!edid)
-		return 0;
-
-	drm_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-
-	return ret;
-}
-
-static struct drm_encoder *
-zynqmp_dp_connector_best_encoder(struct drm_connector *connector)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-
-	return &dp->dpsub->encoder;
-}
-
-static int zynqmp_dp_connector_mode_valid(struct drm_connector *connector,
-					  struct drm_display_mode *mode)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-
-	return zynqmp_dp_bridge_mode_valid(&dp->bridge, &connector->display_info,
-					   mode);
-}
-
-static const struct drm_connector_funcs zynqmp_dp_connector_funcs = {
-	.detect			= zynqmp_dp_connector_detect,
-	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.destroy		= drm_connector_cleanup,
-	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
-	.reset			= drm_atomic_helper_connector_reset,
-};
-
-static const struct drm_connector_helper_funcs
-zynqmp_dp_connector_helper_funcs = {
-	.get_modes	= zynqmp_dp_connector_get_modes,
-	.best_encoder	= zynqmp_dp_connector_best_encoder,
-	.mode_valid	= zynqmp_dp_connector_mode_valid,
 };
 
 /* -----------------------------------------------------------------------------
