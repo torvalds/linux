@@ -67,6 +67,10 @@ static int page_pool_init(struct page_pool *pool,
 		 */
 	}
 
+	if (PAGE_POOL_DMA_USE_PP_FRAG_COUNT &&
+	    pool->p.flags & PP_FLAG_PAGE_FRAG)
+		return -EINVAL;
+
 	if (ptr_ring_init(&pool->ring, ring_qsize, GFP_KERNEL) < 0)
 		return -ENOMEM;
 

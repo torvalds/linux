@@ -45,7 +45,10 @@
 					* Please note DMA-sync-for-CPU is still
 					* device driver responsibility
 					*/
-#define PP_FLAG_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV)
+#define PP_FLAG_PAGE_FRAG	BIT(2) /* for page frag feature */
+#define PP_FLAG_ALL		(PP_FLAG_DMA_MAP |\
+				 PP_FLAG_DMA_SYNC_DEV |\
+				 PP_FLAG_PAGE_FRAG)
 
 /*
  * Fast allocation side cache array/stack
@@ -198,19 +201,48 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
 	page_pool_put_full_page(pool, page, true);
 }
 
+#define PAGE_POOL_DMA_USE_PP_FRAG_COUNT	\
+		(sizeof(dma_addr_t) > sizeof(unsigned long))
+
 static inline dma_addr_t page_pool_get_dma_addr(struct page *page)
 {
-	dma_addr_t ret = page->dma_addr[0];
-	if (sizeof(dma_addr_t) > sizeof(unsigned long))
-		ret |= (dma_addr_t)page->dma_addr[1] << 16 << 16;
+	dma_addr_t ret = page->dma_addr;
+
+	if (PAGE_POOL_DMA_USE_PP_FRAG_COUNT)
+		ret |= (dma_addr_t)page->dma_addr_upper << 16 << 16;
+
 	return ret;
 }
 
 static inline void page_pool_set_dma_addr(struct page *page, dma_addr_t addr)
 {
-	page->dma_addr[0] = addr;
-	if (sizeof(dma_addr_t) > sizeof(unsigned long))
-		page->dma_addr[1] = upper_32_bits(addr);
+	page->dma_addr = addr;
+	if (PAGE_POOL_DMA_USE_PP_FRAG_COUNT)
+		page->dma_addr_upper = upper_32_bits(addr);
+}
+
+static inline void page_pool_set_frag_count(struct page *page, long nr)
+{
+	atomic_long_set(&page->pp_frag_count, nr);
+}
+
+static inline long page_pool_atomic_sub_frag_count_return(struct page *page,
+							  long nr)
+{
+	long ret;
+
+	/* As suggested by Alexander, atomic_long_read() may cover up the
+	 * reference count errors, so avoid calling atomic_long_read() in
+	 * the cases of freeing or draining the page_frags, where we would
+	 * not expect it to match or that are slowpath anyway.
+	 */
+	if (__builtin_constant_p(nr) &&
+	    atomic_long_read(&page->pp_frag_count) == nr)
+		return 0;
+
+	ret = atomic_long_sub_return(nr, &page->pp_frag_count);
+	WARN_ON(ret < 0);
+	return ret;
 }
 
 static inline bool is_page_pool_compiled_in(void)
