@@ -280,9 +280,10 @@ static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu, unsigned long 
 	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
-static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu)
+static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu,
+						struct kvm_arch *arch)
 {
-	__load_stage2(mmu, kern_hyp_va(mmu->arch)->vtcr);
+	__load_stage2(mmu, arch->vtcr);
 }
 
 static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)
