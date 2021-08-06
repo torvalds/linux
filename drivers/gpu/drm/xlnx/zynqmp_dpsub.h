@@ -12,17 +12,13 @@
 #ifndef _ZYNQMP_DPSUB_H_
 #define _ZYNQMP_DPSUB_H_
 
-#include <drm/drm_crtc.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_plane.h>
-
 struct clk;
 struct device;
 struct drm_bridge;
-struct drm_device;
 struct zynqmp_disp;
 struct zynqmp_disp_layer;
 struct zynqmp_dp;
+struct zynqmp_dpsub_drm;
 
 #define ZYNQMP_DPSUB_NUM_LAYERS				2
 
@@ -35,23 +31,19 @@ enum zynqmp_dpsub_format {
 
 /**
  * struct zynqmp_dpsub - ZynqMP DisplayPort Subsystem
- * @drm: The DRM/KMS device
  * @dev: The physical device
  * @apb_clk: The APB clock
  * @vid_clk: Video clock
  * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
  * @aud_clk: Audio clock
  * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
- * @planes: The DRM planes
- * @crtc: The DRM CRTC
- * @encoder: The dummy DRM encoder
+ * @drm: The DRM/KMS device data
  * @bridge: The DP encoder bridge
  * @disp: The display controller
  * @dp: The DisplayPort controller
  * @dma_align: DMA alignment constraint (must be a power of 2)
  */
 struct zynqmp_dpsub {
-	struct drm_device drm;
 	struct device *dev;
 
 	struct clk *apb_clk;
@@ -60,9 +52,7 @@ struct zynqmp_dpsub {
 	struct clk *aud_clk;
 	bool aud_clk_from_ps;
 
-	struct drm_plane planes[ZYNQMP_DPSUB_NUM_LAYERS];
-	struct drm_crtc crtc;
-	struct drm_encoder encoder;
+	struct zynqmp_dpsub_drm *drm;
 	struct drm_bridge *bridge;
 
 	struct zynqmp_disp *disp;
@@ -74,5 +64,7 @@ struct zynqmp_dpsub {
 
 bool zynqmp_dpsub_audio_enabled(struct zynqmp_dpsub *dpsub);
 unsigned int zynqmp_dpsub_get_audio_clk_rate(struct zynqmp_dpsub *dpsub);
+
+void zynqmp_dpsub_release(struct zynqmp_dpsub *dpsub);
 
 #endif /* _ZYNQMP_DPSUB_H_ */

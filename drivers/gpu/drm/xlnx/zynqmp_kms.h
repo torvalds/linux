@@ -12,9 +12,31 @@
 #ifndef _ZYNQMP_KMS_H_
 #define _ZYNQMP_KMS_H_
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_plane.h>
+
+#include "zynqmp_dpsub.h"
+
 struct zynqmp_dpsub;
 
-extern const struct drm_driver zynqmp_dpsub_drm_driver;
+/**
+ * struct zynqmp_dpsub - ZynqMP DisplayPort Subsystem DRM/KMS data
+ * @dpsub: Backpointer to the DisplayPort subsystem
+ * @drm: The DRM/KMS device
+ * @planes: The DRM planes
+ * @crtc: The DRM CRTC
+ * @encoder: The dummy DRM encoder
+ */
+struct zynqmp_dpsub_drm {
+	struct zynqmp_dpsub *dpsub;
+
+	struct drm_device dev;
+	struct drm_plane planes[ZYNQMP_DPSUB_NUM_LAYERS];
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+};
 
 void zynqmp_dpsub_handle_vblank(struct zynqmp_dpsub *dpsub);
 

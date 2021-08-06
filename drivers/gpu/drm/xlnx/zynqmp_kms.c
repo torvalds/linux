@@ -44,7 +44,7 @@
 
 static inline struct zynqmp_dpsub *to_zynqmp_dpsub(struct drm_device *drm)
 {
-	return container_of(drm, struct zynqmp_dpsub, drm);
+	return container_of(drm, struct zynqmp_dpsub_drm, dev)->dpsub;
 }
 
 /* -----------------------------------------------------------------------------
@@ -146,9 +146,9 @@ static int zynqmp_dpsub_create_planes(struct zynqmp_dpsub *dpsub)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(dpsub->planes); i++) {
+	for (i = 0; i < ARRAY_SIZE(dpsub->drm->planes); i++) {
 		struct zynqmp_disp_layer *layer = dpsub->layers[i];
-		struct drm_plane *plane = &dpsub->planes[i];
+		struct drm_plane *plane = &dpsub->drm->planes[i];
 		enum drm_plane_type type;
 		unsigned int num_formats;
 		u32 *formats;
@@ -160,7 +160,7 @@ static int zynqmp_dpsub_create_planes(struct zynqmp_dpsub *dpsub)
 		/* Graphics layer is primary, and video layer is overlay. */
 		type = i == ZYNQMP_DPSUB_LAYER_VID
 		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
-		ret = drm_universal_plane_init(&dpsub->drm, plane, 0,
+		ret = drm_universal_plane_init(&dpsub->drm->dev, plane, 0,
 					       &zynqmp_dpsub_plane_funcs,
 					       formats, num_formats,
 					       NULL, type, NULL);
@@ -184,7 +184,7 @@ static int zynqmp_dpsub_create_planes(struct zynqmp_dpsub *dpsub)
 
 static inline struct zynqmp_dpsub *crtc_to_dpsub(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct zynqmp_dpsub, crtc);
+	return container_of(crtc, struct zynqmp_dpsub_drm, crtc)->dpsub;
 }
 
 static void zynqmp_dpsub_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -312,11 +312,11 @@ static const struct drm_crtc_funcs zynqmp_dpsub_crtc_funcs = {
 
 static int zynqmp_dpsub_create_crtc(struct zynqmp_dpsub *dpsub)
 {
-	struct drm_plane *plane = &dpsub->planes[ZYNQMP_DPSUB_LAYER_GFX];
-	struct drm_crtc *crtc = &dpsub->crtc;
+	struct drm_plane *plane = &dpsub->drm->planes[ZYNQMP_DPSUB_LAYER_GFX];
+	struct drm_crtc *crtc = &dpsub->drm->crtc;
 	int ret;
 
-	ret = drm_crtc_init_with_planes(&dpsub->drm, crtc, plane,
+	ret = drm_crtc_init_with_planes(&dpsub->drm->dev, crtc, plane,
 					NULL, &zynqmp_dpsub_crtc_funcs, NULL);
 	if (ret < 0)
 		return ret;
@@ -331,11 +331,11 @@ static int zynqmp_dpsub_create_crtc(struct zynqmp_dpsub *dpsub)
 
 static void zynqmp_dpsub_map_crtc_to_plane(struct zynqmp_dpsub *dpsub)
 {
-	u32 possible_crtcs = drm_crtc_mask(&dpsub->crtc);
+	u32 possible_crtcs = drm_crtc_mask(&dpsub->drm->crtc);
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(dpsub->planes); i++)
-		dpsub->planes[i].possible_crtcs = possible_crtcs;
+	for (i = 0; i < ARRAY_SIZE(dpsub->drm->planes); i++)
+		dpsub->drm->planes[i].possible_crtcs = possible_crtcs;
 }
 
 /**
@@ -347,7 +347,7 @@ static void zynqmp_dpsub_map_crtc_to_plane(struct zynqmp_dpsub *dpsub)
  */
 void zynqmp_dpsub_handle_vblank(struct zynqmp_dpsub *dpsub)
 {
-	drm_crtc_handle_vblank(&dpsub->crtc);
+	drm_crtc_handle_vblank(&dpsub->drm->crtc);
 }
 
 /* -----------------------------------------------------------------------------
@@ -394,7 +394,7 @@ static const struct drm_mode_config_funcs zynqmp_dpsub_mode_config_funcs = {
 
 DEFINE_DRM_GEM_DMA_FOPS(zynqmp_dpsub_drm_fops);
 
-const struct drm_driver zynqmp_dpsub_drm_driver = {
+static const struct drm_driver zynqmp_dpsub_drm_driver = {
 	.driver_features		= DRIVER_MODESET | DRIVER_GEM |
 					  DRIVER_ATOMIC,
 
@@ -411,7 +411,7 @@ const struct drm_driver zynqmp_dpsub_drm_driver = {
 
 static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 {
-	struct drm_encoder *encoder = &dpsub->encoder;
+	struct drm_encoder *encoder = &dpsub->drm->encoder;
 	struct drm_connector *connector;
 	int ret;
 
@@ -427,8 +427,8 @@ static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 	zynqmp_dpsub_map_crtc_to_plane(dpsub);
 
 	/* Create the encoder and attach the bridge. */
-	encoder->possible_crtcs |= drm_crtc_mask(&dpsub->crtc);
-	drm_simple_encoder_init(&dpsub->drm, encoder, DRM_MODE_ENCODER_NONE);
+	encoder->possible_crtcs |= drm_crtc_mask(&dpsub->drm->crtc);
+	drm_simple_encoder_init(&dpsub->drm->dev, encoder, DRM_MODE_ENCODER_NONE);
 
 	ret = drm_bridge_attach(encoder, dpsub->bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
@@ -438,7 +438,7 @@ static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 	}
 
 	/* Create the connector for the chain of bridges. */
-	connector = drm_bridge_connector_init(&dpsub->drm, encoder);
+	connector = drm_bridge_connector_init(&dpsub->drm->dev, encoder);
 	if (IS_ERR(connector)) {
 		dev_err(dpsub->dev, "failed to created connector\n");
 		return PTR_ERR(connector);
@@ -453,10 +453,38 @@ static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 	return 0;
 }
 
+static void zynqmp_dpsub_drm_release(struct drm_device *drm, void *res)
+{
+	struct zynqmp_dpsub_drm *dpdrm = res;
+
+	zynqmp_dpsub_release(dpdrm->dpsub);
+}
+
 int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 {
-	struct drm_device *drm = &dpsub->drm;
+	struct zynqmp_dpsub_drm *dpdrm;
+	struct drm_device *drm;
 	int ret;
+
+	/*
+	 * Allocate the drm_device and immediately add a cleanup action to
+	 * release the zynqmp_dpsub instance. If any of those operations fail,
+	 * dpsub->drm will remain NULL, which tells the caller that it must
+	 * cleanup manually.
+	 */
+	dpdrm = devm_drm_dev_alloc(dpsub->dev, &zynqmp_dpsub_drm_driver,
+				   struct zynqmp_dpsub_drm, dev);
+	if (IS_ERR(dpdrm))
+		return PTR_ERR(dpdrm);
+
+	dpdrm->dpsub = dpsub;
+	drm = &dpdrm->dev;
+
+	ret = drmm_add_action(drm, zynqmp_dpsub_drm_release, dpdrm);
+	if (ret < 0)
+		return ret;
+
+	dpsub->drm = dpdrm;
 
 	/* Initialize mode config, vblank and the KMS poll helper. */
 	ret = drmm_mode_config_init(drm);
@@ -498,7 +526,7 @@ err_poll_fini:
 
 void zynqmp_dpsub_drm_cleanup(struct zynqmp_dpsub *dpsub)
 {
-	struct drm_device *drm = &dpsub->drm;
+	struct drm_device *drm = &dpsub->drm->dev;
 
 	drm_dev_unregister(drm);
 	drm_atomic_helper_shutdown(drm);

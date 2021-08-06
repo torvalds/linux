@@ -18,8 +18,6 @@
 #include <linux/slab.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_drv.h>
-#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_module.h>
 
@@ -36,14 +34,20 @@ static int __maybe_unused zynqmp_dpsub_suspend(struct device *dev)
 {
 	struct zynqmp_dpsub *dpsub = dev_get_drvdata(dev);
 
-	return drm_mode_config_helper_suspend(&dpsub->drm);
+	if (!dpsub->drm)
+		return 0;
+
+	return drm_mode_config_helper_suspend(&dpsub->drm->dev);
 }
 
 static int __maybe_unused zynqmp_dpsub_resume(struct device *dev)
 {
 	struct zynqmp_dpsub *dpsub = dev_get_drvdata(dev);
 
-	return drm_mode_config_helper_resume(&dpsub->drm);
+	if (!dpsub->drm)
+		return 0;
+
+	return drm_mode_config_helper_resume(&dpsub->drm->dev);
 }
 
 static const struct dev_pm_ops zynqmp_dpsub_pm_ops = {
@@ -138,12 +142,11 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 	return 0;
 }
 
-static void zynqmp_dpsub_release(struct drm_device *drm, void *res)
+void zynqmp_dpsub_release(struct zynqmp_dpsub *dpsub)
 {
-	struct zynqmp_dpsub *dpsub = res;
-
 	kfree(dpsub->disp);
 	kfree(dpsub->dp);
+	kfree(dpsub);
 }
 
 static int zynqmp_dpsub_probe(struct platform_device *pdev)
@@ -152,14 +155,9 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Allocate private data. */
-	dpsub = devm_drm_dev_alloc(&pdev->dev, &zynqmp_dpsub_drm_driver,
-				   struct zynqmp_dpsub, drm);
-	if (IS_ERR(dpsub))
-		return PTR_ERR(dpsub);
-
-	ret = drmm_add_action(&dpsub->drm, zynqmp_dpsub_release, dpsub);
-	if (ret < 0)
-		return ret;
+	dpsub = kzalloc(sizeof(*dpsub), GFP_KERNEL);
+	if (!dpsub)
+		return -ENOMEM;
 
 	dpsub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dpsub);
@@ -204,6 +202,8 @@ err_pm:
 	clk_disable_unprepare(dpsub->apb_clk);
 err_mem:
 	of_reserved_mem_device_release(&pdev->dev);
+	if (!dpsub->drm)
+		zynqmp_dpsub_release(dpsub);
 	return ret;
 }
 
@@ -211,7 +211,8 @@ static int zynqmp_dpsub_remove(struct platform_device *pdev)
 {
 	struct zynqmp_dpsub *dpsub = platform_get_drvdata(pdev);
 
-	zynqmp_dpsub_drm_cleanup(dpsub);
+	if (dpsub->drm)
+		zynqmp_dpsub_drm_cleanup(dpsub);
 
 	zynqmp_disp_remove(dpsub);
 	zynqmp_dp_remove(dpsub);
@@ -220,6 +221,9 @@ static int zynqmp_dpsub_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dpsub->apb_clk);
 	of_reserved_mem_device_release(&pdev->dev);
 
+	if (!dpsub->drm)
+		zynqmp_dpsub_release(dpsub);
+
 	return 0;
 }
 
@@ -227,7 +231,10 @@ static void zynqmp_dpsub_shutdown(struct platform_device *pdev)
 {
 	struct zynqmp_dpsub *dpsub = platform_get_drvdata(pdev);
 
-	drm_atomic_helper_shutdown(&dpsub->drm);
+	if (!dpsub->drm)
+		return;
+
+	drm_atomic_helper_shutdown(&dpsub->drm->dev);
 }
 
 static const struct of_device_id zynqmp_dpsub_of_match[] = {
