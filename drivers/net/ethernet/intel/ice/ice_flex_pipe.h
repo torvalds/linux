@@ -18,6 +18,12 @@
 
 #define ICE_PKG_CNT 4
 
+enum ice_status
+ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access);
+void ice_release_change_lock(struct ice_hw *hw);
+enum ice_status
+ice_find_prot_off(struct ice_hw *hw, enum ice_block blk, u8 prof, u16 fv_idx,
+		  u8 *prot, u16 *off);
 void
 ice_get_sw_fv_bitmap(struct ice_hw *hw, enum ice_prof_type type,
 		     unsigned long *bm);

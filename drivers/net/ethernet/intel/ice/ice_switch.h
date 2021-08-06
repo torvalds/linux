@@ -125,30 +125,110 @@ struct ice_fltr_info {
 	u8 lan_en;	/* Indicate if packet can be forwarded to the uplink */
 };
 
+struct ice_adv_lkup_elem {
+	enum ice_protocol_type type;
+	union ice_prot_hdr h_u;	/* Header values */
+	union ice_prot_hdr m_u;	/* Mask of header values to match */
+};
+
+struct ice_sw_act_ctrl {
+	/* Source VSI for LOOKUP_TX or source port for LOOKUP_RX */
+	u16 src;
+	u16 flag;
+	enum ice_sw_fwd_act_type fltr_act;
+	/* Depending on filter action */
+	union {
+		/* This is a queue ID in case of ICE_FWD_TO_Q and starting
+		 * queue ID in case of ICE_FWD_TO_QGRP.
+		 */
+		u16 q_id:11;
+		u16 vsi_id:10;
+		u16 hw_vsi_id:10;
+		u16 vsi_list_id:10;
+	} fwd_id;
+	/* software VSI handle */
+	u16 vsi_handle;
+	u8 qgrp_size;
+};
+
+struct ice_rule_query_data {
+	/* Recipe ID for which the requested rule was added */
+	u16 rid;
+	/* Rule ID that was added or is supposed to be removed */
+	u16 rule_id;
+	/* vsi_handle for which Rule was added or is supposed to be removed */
+	u16 vsi_handle;
+};
+
+struct ice_adv_rule_info {
+	struct ice_sw_act_ctrl sw_act;
+	u32 priority;
+	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
+	u16 fltr_rule_id;
+};
+
+/* A collection of one or more four word recipe */
 struct ice_sw_recipe {
-	struct list_head l_entry;
-
-	/* To protect modification of filt_rule list
-	 * defined below
+	/* For a chained recipe the root recipe is what should be used for
+	 * programming rules
 	 */
-	struct mutex filt_rule_lock;
+	u8 is_root;
+	u8 root_rid;
+	u8 recp_created;
 
-	/* List of type ice_fltr_mgmt_list_entry */
+	/* Number of extraction words */
+	u8 n_ext_words;
+	/* Protocol ID and Offset pair (extraction word) to describe the
+	 * recipe
+	 */
+	struct ice_fv_word ext_words[ICE_MAX_CHAIN_WORDS];
+	u16 word_masks[ICE_MAX_CHAIN_WORDS];
+
+	/* if this recipe is a collection of other recipe */
+	u8 big_recp;
+
+	/* if this recipe is part of another bigger recipe then chain index
+	 * corresponding to this recipe
+	 */
+	u8 chain_idx;
+
+	/* if this recipe is a collection of other recipe then count of other
+	 * recipes and recipe IDs of those recipes
+	 */
+	u8 n_grp_count;
+
+	/* Bit map specifying the IDs associated with this group of recipe */
+	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+
+	/* List of type ice_fltr_mgmt_list_entry or adv_rule */
+	u8 adv_rule;
 	struct list_head filt_rules;
 	struct list_head filt_replay_rules;
 
-	/* linked list of type recipe_list_entry */
-	struct list_head rg_list;
-	/* linked list of type ice_sw_fv_list_entry*/
-	struct list_head fv_list;
-	struct ice_aqc_recipe_data_elem *r_buf;
-	u8 recp_count;
-	u8 root_rid;
-	u8 num_profs;
-	u8 *prof_ids;
+	struct mutex filt_rule_lock;	/* protect filter rule structure */
 
-	/* recipe bitmap: what all recipes makes this recipe */
-	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+	/* Profiles this recipe should be associated with */
+	struct list_head fv_list;
+
+	/* Profiles this recipe is associated with */
+	u8 num_profs, *prof_ids;
+
+	/* Bit map for possible result indexes */
+	DECLARE_BITMAP(res_idxs, ICE_MAX_FV_WORDS);
+
+	/* This allows user to specify the recipe priority.
+	 * For now, this becomes 'fwd_priority' when recipe
+	 * is created, usually recipes can have 'fwd' and 'join'
+	 * priority.
+	 */
+	u8 priority;
+
+	struct list_head rg_list;
+
+	/* AQ buffer associated with this recipe */
+	struct ice_aqc_recipe_data_elem *root_buf;
+	/* This struct saves the fv_words for a given lookup */
+	struct ice_prot_lkup_ext lkup_exts;
 };
 
 /* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list ID */

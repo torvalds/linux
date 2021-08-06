@@ -735,7 +735,7 @@ static void ice_release_global_cfg_lock(struct ice_hw *hw)
  *
  * This function will request ownership of the change lock.
  */
-static enum ice_status
+enum ice_status
 ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access)
 {
 	return ice_acquire_res(hw, ICE_CHANGE_LOCK_RES_ID, access,
@@ -748,7 +748,7 @@ ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access)
  *
  * This function will release the change lock using the proper Admin Command.
  */
-static void ice_release_change_lock(struct ice_hw *hw)
+void ice_release_change_lock(struct ice_hw *hw)
 {
 	ice_release_res(hw, ICE_CHANGE_LOCK_RES_ID);
 }
@@ -2101,6 +2101,35 @@ int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
 			   ice_stat_str(status));
 		return -EIO;
 	}
+
+	return 0;
+}
+
+/**
+ * ice_find_prot_off - find prot ID and offset pair, based on prof and FV index
+ * @hw: pointer to the hardware structure
+ * @blk: hardware block
+ * @prof: profile ID
+ * @fv_idx: field vector word index
+ * @prot: variable to receive the protocol ID
+ * @off: variable to receive the protocol offset
+ */
+enum ice_status
+ice_find_prot_off(struct ice_hw *hw, enum ice_block blk, u8 prof, u16 fv_idx,
+		  u8 *prot, u16 *off)
+{
+	struct ice_fv_word *fv_ext;
+
+	if (prof >= hw->blk[blk].es.count)
+		return ICE_ERR_PARAM;
+
+	if (fv_idx >= hw->blk[blk].es.fvw)
+		return ICE_ERR_PARAM;
+
+	fv_ext = hw->blk[blk].es.t + (prof * hw->blk[blk].es.fvw);
+
+	*prot = fv_ext[fv_idx].prot_id;
+	*off = fv_ext[fv_idx].off;
 
 	return 0;
 }
