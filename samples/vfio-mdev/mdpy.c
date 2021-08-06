@@ -611,15 +611,11 @@ static long mdpy_ioctl(struct vfio_device *vdev, unsigned int cmd,
 
 static int mdpy_open(struct vfio_device *vdev)
 {
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
 	return 0;
 }
 
 static void mdpy_close(struct vfio_device *vdev)
 {
-	module_put(THIS_MODULE);
 }
 
 static ssize_t
