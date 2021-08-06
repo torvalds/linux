@@ -383,7 +383,6 @@ s32 mp_start_test(struct adapter *padapter)
 
 	psta = rtw_alloc_stainfo(&padapter->stapriv, bssid.MacAddress);
 	if (!psta) {
-		RT_TRACE(_module_mp_, _drv_err_, ("mp_start_test: Can't alloc sta_info!\n"));
 		pmlmepriv->fw_state = pmppriv->prev_fw_state;
 		res = _FAIL;
 		goto end_of_mp_start_test;
@@ -864,15 +863,11 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 	u32 i, psd_pts = 0, psd_start = 0, psd_stop = 0;
 	u32 psd_data = 0;
 
-	if (!netif_running(pAdapter->pnetdev)) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("mp_query_psd: Fail! interface not opened!\n"));
+	if (!netif_running(pAdapter->pnetdev))
 		return 0;
-	}
 
-	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("mp_query_psd: Fail! not in MP mode!\n"));
+	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false)
 		return 0;
-	}
 
 	if (strlen(data) == 0) { /* default value */
 		psd_pts = 128;
@@ -938,7 +933,6 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
 
 	if (!pxmitpriv->pallocated_xmit_extbuf) {
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xmit_extbuf fail!\n"));
 		res = _FAIL;
 		goto exit;
 	}
@@ -972,8 +966,6 @@ exit:
 
 void Hal_ProSetCrystalCap (struct adapter *pAdapter, u32 CrystalCapVal)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
-
 	CrystalCapVal = CrystalCapVal & 0x3F;
 
 	// write 0x24[16:11] = 0x24[22:17] = CrystalCap
