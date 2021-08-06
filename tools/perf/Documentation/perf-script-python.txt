@@ -167,7 +167,7 @@ below).
 
 Following those are the 'event handler' functions generated one for
 every event in the 'perf record' output.  The handler functions take
-the form subsystem__event_name, and contain named parameters, one for
+the form subsystem\__event_name, and contain named parameters, one for
 each field in the event; in this case, there's only one event,
 raw_syscalls__sys_enter().  (see the EVENT HANDLERS section below for
 more info on event handlers).
