@@ -3082,6 +3082,18 @@ int rtrs_clt_create_path_from_sysfs(struct rtrs_clt *clt,
 	if (IS_ERR(sess))
 		return PTR_ERR(sess);
 
+	mutex_lock(&clt->paths_mutex);
+	if (clt->paths_num == 0) {
+		/*
+		 * When all the paths are removed for a session,
+		 * the addition of the first path is like a new session for
+		 * the storage server
+		 */
+		sess->for_new_clt = 1;
+	}
+
+	mutex_unlock(&clt->paths_mutex);
+
 	/*
 	 * It is totally safe to add path in CONNECTING state: coming
 	 * IO will never grab it.  Also it is very important to add
