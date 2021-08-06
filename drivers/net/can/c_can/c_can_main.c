@@ -712,7 +712,7 @@ static void c_can_do_tx(struct net_device *dev)
 
 		/* We use IF_RX interface instead of IF_TX because we
 		 * are called from c_can_poll(), which runs inside
-		 * NAPI. We are not trasmitting.
+		 * NAPI. We are not transmitting.
 		 */
 		c_can_inval_tx_object(dev, IF_RX, obj);
 		can_get_echo_skb(dev, idx, NULL);
