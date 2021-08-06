@@ -1001,6 +1001,33 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
 }
 
 /**
+ * zynqmp_disp_layer_drm_formats - Return the DRM formats supported by the layer
+ * @layer: The layer
+ * @num_formats: Pointer to the returned number of formats
+ *
+ * Return: A newly allocated u32 array that stores all the DRM formats
+ * supported by the layer. The number of formats in the array is returned
+ * through the num_formats argument.
+ */
+static u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
+					  unsigned int *num_formats)
+{
+	unsigned int i;
+	u32 *formats;
+
+	formats = kcalloc(layer->info->num_formats, sizeof(*formats),
+			  GFP_KERNEL);
+	if (!formats)
+		return NULL;
+
+	for (i = 0; i < layer->info->num_formats; ++i)
+		formats[i] = layer->info->formats[i].drm_fmt;
+
+	*num_formats = layer->info->num_formats;
+	return formats;
+}
+
+/**
  * zynqmp_disp_layer_enable - Enable a layer
  * @layer: The layer
  *
@@ -1219,31 +1246,27 @@ static const struct drm_plane_funcs zynqmp_disp_plane_funcs = {
 
 static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 {
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(disp->layers); i++) {
 		struct zynqmp_disp_layer *layer = &disp->layers[i];
 		enum drm_plane_type type;
-		u32 *drm_formats;
+		unsigned int num_formats;
+		u32 *formats;
 
-		drm_formats = drmm_kcalloc(disp->drm, sizeof(*drm_formats),
-					   layer->info->num_formats,
-					   GFP_KERNEL);
-		if (!drm_formats)
+		formats = zynqmp_disp_layer_drm_formats(layer, &num_formats);
+		if (!formats)
 			return -ENOMEM;
-
-		for (j = 0; j < layer->info->num_formats; ++j)
-			drm_formats[j] = layer->info->formats[j].drm_fmt;
 
 		/* Graphics layer is primary, and video layer is overlay. */
 		type = zynqmp_disp_layer_is_video(layer)
 		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
 		ret = drm_universal_plane_init(disp->drm, &layer->plane, 0,
 					       &zynqmp_disp_plane_funcs,
-					       drm_formats,
-					       layer->info->num_formats,
+					       formats, num_formats,
 					       NULL, type, NULL);
+		kfree(formats);
 		if (ret)
 			return ret;
 
