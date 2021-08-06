@@ -1386,6 +1386,9 @@ err:
  */
 static void zynqmp_disp_enable(struct zynqmp_disp *disp)
 {
+	zynqmp_disp_blend_set_output_format(disp, ZYNQMP_DPSUB_FORMAT_RGB);
+	zynqmp_disp_blend_set_bg_color(disp, 0, 0, 0);
+
 	zynqmp_disp_avbuf_enable(disp);
 	/* Choose clock source based on the DT clock handle. */
 	zynqmp_disp_avbuf_set_clocks_sources(disp, disp->pclk_from_ps,
@@ -1459,9 +1462,6 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 		pm_runtime_put_sync(disp->dev);
 		return;
 	}
-
-	zynqmp_disp_blend_set_output_format(disp, ZYNQMP_DPSUB_FORMAT_RGB);
-	zynqmp_disp_blend_set_bg_color(disp, 0, 0, 0);
 
 	zynqmp_disp_enable(disp);
 
