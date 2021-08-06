@@ -25,7 +25,6 @@
 #define ZYNQMP_DISP_MAX_DMA_BIT				44
 
 struct device;
-struct drm_device;
 struct drm_format_info;
 struct drm_plane_state;
 struct platform_device;
@@ -60,7 +59,7 @@ void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
 int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 			     struct drm_plane_state *state);
 
-int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm);
+int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub);
 void zynqmp_disp_remove(struct zynqmp_dpsub *dpsub);
 
 #endif /* _ZYNQMP_DISP_H_ */

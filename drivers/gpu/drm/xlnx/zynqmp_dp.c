@@ -14,7 +14,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
 
@@ -27,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
 
 #include "zynqmp_disp.h"
 #include "zynqmp_dp.h"
@@ -1610,7 +1610,7 @@ handled:
  * Initialization & Cleanup
  */
 
-int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
+int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
 	struct drm_bridge *bridge;
@@ -1618,7 +1618,7 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	struct resource *res;
 	int ret;
 
-	dp = drmm_kzalloc(drm, sizeof(*dp), GFP_KERNEL);
+	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
 
@@ -1628,29 +1628,32 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 
 	INIT_DELAYED_WORK(&dp->hpd_work, zynqmp_dp_hpd_work_func);
 
-	dpsub->dp = dp;
-
 	/* Acquire all resources (IOMEM, IRQ and PHYs). */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dp");
 	dp->iomem = devm_ioremap_resource(dp->dev, res);
-	if (IS_ERR(dp->iomem))
-		return PTR_ERR(dp->iomem);
+	if (IS_ERR(dp->iomem)) {
+		ret = PTR_ERR(dp->iomem);
+		goto err_free;
+	}
 
 	dp->irq = platform_get_irq(pdev, 0);
-	if (dp->irq < 0)
-		return dp->irq;
+	if (dp->irq < 0) {
+		ret = dp->irq;
+		goto err_free;
+	}
 
 	dp->reset = devm_reset_control_get(dp->dev, NULL);
 	if (IS_ERR(dp->reset)) {
 		if (PTR_ERR(dp->reset) != -EPROBE_DEFER)
 			dev_err(dp->dev, "failed to get reset: %ld\n",
 				PTR_ERR(dp->reset));
-		return PTR_ERR(dp->reset);
+		ret = PTR_ERR(dp->reset);
+		goto err_free;
 	}
 
 	ret = zynqmp_dp_reset(dp, false);
 	if (ret < 0)
-		return ret;
+		goto err_free;
 
 	ret = zynqmp_dp_phy_probe(dp);
 	if (ret)
@@ -1700,6 +1703,8 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	if (ret < 0)
 		goto err_phy_exit;
 
+	dpsub->dp = dp;
+
 	dev_dbg(dp->dev, "ZynqMP DisplayPort Tx probed with %u lanes\n",
 		dp->num_lanes);
 
@@ -1709,7 +1714,8 @@ err_phy_exit:
 	zynqmp_dp_phy_exit(dp);
 err_reset:
 	zynqmp_dp_reset(dp, true);
-
+err_free:
+	kfree(dp);
 	return ret;
 }
 

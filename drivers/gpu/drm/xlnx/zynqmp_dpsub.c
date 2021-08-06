@@ -15,6 +15,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge_connector.h>
@@ -247,6 +248,14 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 	return 0;
 }
 
+static void zynqmp_dpsub_release(struct drm_device *drm, void *res)
+{
+	struct zynqmp_dpsub *dpsub = res;
+
+	kfree(dpsub->disp);
+	kfree(dpsub->dp);
+}
+
 static int zynqmp_dpsub_probe(struct platform_device *pdev)
 {
 	struct zynqmp_dpsub *dpsub;
@@ -257,6 +266,10 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 				   struct zynqmp_dpsub, drm);
 	if (IS_ERR(dpsub))
 		return PTR_ERR(dpsub);
+
+	ret = drmm_add_action(&dpsub->drm, zynqmp_dpsub_release, dpsub);
+	if (ret < 0)
+		return ret;
 
 	dpsub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dpsub);
@@ -276,11 +289,11 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	 * DP should be probed first so that the zynqmp_disp can set the output
 	 * format accordingly.
 	 */
-	ret = zynqmp_dp_probe(dpsub, &dpsub->drm);
+	ret = zynqmp_dp_probe(dpsub);
 	if (ret)
 		goto err_pm;
 
-	ret = zynqmp_disp_probe(dpsub, &dpsub->drm);
+	ret = zynqmp_disp_probe(dpsub);
 	if (ret)
 		goto err_dp;
 

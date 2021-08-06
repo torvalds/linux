@@ -12,7 +12,6 @@
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_managed.h>
 #include <drm/drm_plane.h>
 
 #include <linux/clk.h>
@@ -22,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "zynqmp_disp.h"
 #include "zynqmp_disp_regs.h"
@@ -1225,7 +1225,7 @@ int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
  * Initialization & Cleanup
  */
 
-int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
+int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
 	struct zynqmp_disp *disp;
@@ -1233,38 +1233,48 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	struct resource *res;
 	int ret;
 
-	disp = drmm_kzalloc(drm, sizeof(*disp), GFP_KERNEL);
+	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
 
 	disp->dev = &pdev->dev;
 	disp->dpsub = dpsub;
 
-	dpsub->disp = disp;
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "blend");
 	disp->blend.base = devm_ioremap_resource(disp->dev, res);
-	if (IS_ERR(disp->blend.base))
-		return PTR_ERR(disp->blend.base);
+	if (IS_ERR(disp->blend.base)) {
+		ret = PTR_ERR(disp->blend.base);
+		goto error;
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "av_buf");
 	disp->avbuf.base = devm_ioremap_resource(disp->dev, res);
-	if (IS_ERR(disp->avbuf.base))
-		return PTR_ERR(disp->avbuf.base);
+	if (IS_ERR(disp->avbuf.base)) {
+		ret = PTR_ERR(disp->avbuf.base);
+		goto error;
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "aud");
 	disp->audio.base = devm_ioremap_resource(disp->dev, res);
-	if (IS_ERR(disp->audio.base))
-		return PTR_ERR(disp->audio.base);
+	if (IS_ERR(disp->audio.base)) {
+		ret = PTR_ERR(disp->audio.base);
+		goto error;
+	}
 
 	ret = zynqmp_disp_create_layers(disp);
 	if (ret)
-		return ret;
+		goto error;
 
 	layer = &disp->layers[ZYNQMP_DPSUB_LAYER_VID];
 	dpsub->dma_align = 1 << layer->dmas[0].chan->device->copy_align;
 
+	dpsub->disp = disp;
+
 	return 0;
+
+error:
+	kfree(disp);
+	return ret;
 }
 
 void zynqmp_disp_remove(struct zynqmp_dpsub *dpsub)
