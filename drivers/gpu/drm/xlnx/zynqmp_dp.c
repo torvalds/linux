@@ -1252,7 +1252,7 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 		reg = drm_dp_bw_code_to_link_rate(dp->mode.bw_code);
 		zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_N_VID, reg);
 		zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_M_VID, mode->clock);
-		rate = zynqmp_disp_get_audio_clk_rate(dp->dpsub->disp);
+		rate = zynqmp_dpsub_get_audio_clk_rate(dp->dpsub);
 		if (rate) {
 			dev_dbg(dp->dev, "Audio rate: %d\n", rate / 512);
 			zynqmp_dp_write(dp, ZYNQMP_DP_TX_N_AUD, reg);
@@ -1261,7 +1261,7 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 	}
 
 	/* Only 2 channel audio is supported now */
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CHANNELS, 1);
 
 	zynqmp_dp_write(dp, ZYNQMP_DP_USER_PIX_WIDTH, 1);
@@ -1372,7 +1372,7 @@ static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	/* Enable the encoder */
 	dp->enabled = true;
 	zynqmp_dp_update_misc(dp);
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 1);
 	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN, 0);
 	if (dp->status == connector_status_connected) {
@@ -1406,7 +1406,7 @@ static void zynqmp_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, DP_SET_POWER_D3);
 	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN,
 			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 0);
 	pm_runtime_put_sync(dp->dev);
 }

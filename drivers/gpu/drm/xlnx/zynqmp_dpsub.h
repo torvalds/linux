@@ -35,6 +35,8 @@ enum zynqmp_dpsub_format {
  * @apb_clk: The APB clock
  * @vid_clk: Video clock
  * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
+ * @aud_clk: Audio clock
+ * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
  * @encoder: The dummy DRM encoder
  * @bridge: The DP encoder bridge
  * @disp: The display controller
@@ -48,6 +50,8 @@ struct zynqmp_dpsub {
 	struct clk *apb_clk;
 	struct clk *vid_clk;
 	bool vid_clk_from_ps;
+	struct clk *aud_clk;
+	bool aud_clk_from_ps;
 
 	struct drm_encoder encoder;
 	struct drm_bridge *bridge;
@@ -62,5 +66,8 @@ static inline struct zynqmp_dpsub *to_zynqmp_dpsub(struct drm_device *drm)
 {
 	return container_of(drm, struct zynqmp_dpsub, drm);
 }
+
+bool zynqmp_dpsub_audio_enabled(struct zynqmp_dpsub *dpsub);
+unsigned int zynqmp_dpsub_get_audio_clk_rate(struct zynqmp_dpsub *dpsub);
 
 #endif /* _ZYNQMP_DPSUB_H_ */

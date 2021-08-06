@@ -166,8 +166,6 @@ struct zynqmp_disp_layer {
  * @blend.base: Register I/O base address for the blender
  * @avbuf.base: Register I/O base address for the audio/video buffer manager
  * @audio.base: Registers I/O base address for the audio mixer
- * @audio.clk: Audio clock
- * @audio.clk_from_ps: True of the audio clock comes from PS, false from PL
  * @layers: Layers (planes)
  */
 struct zynqmp_disp {
@@ -185,8 +183,6 @@ struct zynqmp_disp {
 	} avbuf;
 	struct {
 		void __iomem *base;
-		struct clk *clk;
-		bool clk_from_ps;
 	} audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DISP_NUM_LAYERS];
@@ -892,25 +888,6 @@ static void zynqmp_disp_audio_disable(struct zynqmp_disp *disp)
 				ZYNQMP_DISP_AUD_SOFT_RESET_AUD_SRST);
 }
 
-static void zynqmp_disp_audio_init(struct zynqmp_disp *disp)
-{
-	/* Try the live PL audio clock. */
-	disp->audio.clk = devm_clk_get(disp->dev, "dp_live_audio_aclk");
-	if (!IS_ERR(disp->audio.clk)) {
-		disp->audio.clk_from_ps = false;
-		return;
-	}
-
-	/* If the live PL audio clock is not valid, fall back to PS clock. */
-	disp->audio.clk = devm_clk_get(disp->dev, "dp_aud_clk");
-	if (!IS_ERR(disp->audio.clk)) {
-		disp->audio.clk_from_ps = true;
-		return;
-	}
-
-	dev_err(disp->dev, "audio disabled due to missing clock\n");
-}
-
 /* -----------------------------------------------------------------------------
  * ZynqMP Display external functions for zynqmp_dp
  */
@@ -927,32 +904,6 @@ void zynqmp_disp_handle_vblank(struct zynqmp_disp *disp)
 	struct drm_crtc *crtc = &disp->crtc;
 
 	drm_crtc_handle_vblank(crtc);
-}
-
-/**
- * zynqmp_disp_audio_enabled - If the audio is enabled
- * @disp: Display controller
- *
- * Return if the audio is enabled depending on the audio clock.
- *
- * Return: true if audio is enabled, or false.
- */
-bool zynqmp_disp_audio_enabled(struct zynqmp_disp *disp)
-{
-	return !!disp->audio.clk;
-}
-
-/**
- * zynqmp_disp_get_audio_clk_rate - Get the current audio clock rate
- * @disp: Display controller
- *
- * Return: the current audio clock rate.
- */
-unsigned int zynqmp_disp_get_audio_clk_rate(struct zynqmp_disp *disp)
-{
-	if (zynqmp_disp_audio_enabled(disp))
-		return 0;
-	return clk_get_rate(disp->audio.clk);
 }
 
 /**
@@ -1408,7 +1359,8 @@ static void zynqmp_disp_enable(struct zynqmp_disp *disp)
 	zynqmp_disp_avbuf_enable(disp);
 	/* Choose clock source based on the DT clock handle. */
 	zynqmp_disp_avbuf_set_clocks_sources(disp, disp->dpsub->vid_clk_from_ps,
-					     disp->audio.clk_from_ps, true);
+					     disp->dpsub->aud_clk_from_ps,
+					     true);
 	zynqmp_disp_avbuf_enable_channels(disp);
 	zynqmp_disp_avbuf_enable_audio(disp);
 
@@ -1668,8 +1620,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	disp->audio.base = devm_ioremap_resource(disp->dev, res);
 	if (IS_ERR(disp->audio.base))
 		return PTR_ERR(disp->audio.base);
-
-	zynqmp_disp_audio_init(disp);
 
 	ret = zynqmp_disp_create_layers(disp);
 	if (ret)

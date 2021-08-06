@@ -197,6 +197,36 @@ static const struct dev_pm_ops zynqmp_dpsub_pm_ops = {
 };
 
 /* -----------------------------------------------------------------------------
+ * DPSUB Configuration
+ */
+
+/**
+ * zynqmp_dpsub_audio_enabled - If the audio is enabled
+ * @dpsub: DisplayPort subsystem
+ *
+ * Return if the audio is enabled depending on the audio clock.
+ *
+ * Return: true if audio is enabled, or false.
+ */
+bool zynqmp_dpsub_audio_enabled(struct zynqmp_dpsub *dpsub)
+{
+	return !!dpsub->aud_clk;
+}
+
+/**
+ * zynqmp_dpsub_get_audio_clk_rate - Get the current audio clock rate
+ * @dpsub: DisplayPort subsystem
+ *
+ * Return: the current audio clock rate.
+ */
+unsigned int zynqmp_dpsub_get_audio_clk_rate(struct zynqmp_dpsub *dpsub)
+{
+	if (zynqmp_dpsub_audio_enabled(dpsub))
+		return 0;
+	return clk_get_rate(dpsub->aud_clk);
+}
+
+/* -----------------------------------------------------------------------------
  * Probe & Remove
  */
 
@@ -214,14 +244,16 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 		return ret;
 	}
 
-	/* Try the live PL video clock */
+	/*
+	 * Try the live PL video clock, and fall back to the PS clock if the
+	 * live PL video clock isn't valid.
+	 */
 	dpsub->vid_clk = devm_clk_get(dpsub->dev, "dp_live_video_in_clk");
 	if (!IS_ERR(dpsub->vid_clk))
 		dpsub->vid_clk_from_ps = false;
 	else if (PTR_ERR(dpsub->vid_clk) == -EPROBE_DEFER)
 		return PTR_ERR(dpsub->vid_clk);
 
-	/* If the live PL video clock is not valid, fall back to PS clock */
 	if (IS_ERR_OR_NULL(dpsub->vid_clk)) {
 		dpsub->vid_clk = devm_clk_get(dpsub->dev, "dp_vtc_pixel_clk_in");
 		if (IS_ERR(dpsub->vid_clk)) {
@@ -231,6 +263,24 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 		dpsub->vid_clk_from_ps = true;
 	}
 
+	/*
+	 * Try the live PL audio clock, and fall back to the PS clock if the
+	 * live PL audio clock isn't valid. Missing audio clock disables audio
+	 * but isn't an error.
+	 */
+	dpsub->aud_clk = devm_clk_get(dpsub->dev, "dp_live_audio_aclk");
+	if (!IS_ERR(dpsub->aud_clk)) {
+		dpsub->aud_clk_from_ps = false;
+		return 0;
+	}
+
+	dpsub->aud_clk = devm_clk_get(dpsub->dev, "dp_aud_clk");
+	if (!IS_ERR(dpsub->aud_clk)) {
+		dpsub->aud_clk_from_ps = true;
+		return 0;
+	}
+
+	dev_info(dpsub->dev, "audio disabled due to missing clock\n");
 	return 0;
 }
 

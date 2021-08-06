@@ -31,8 +31,6 @@ struct zynqmp_disp;
 struct zynqmp_dpsub;
 
 void zynqmp_disp_handle_vblank(struct zynqmp_disp *disp);
-bool zynqmp_disp_audio_enabled(struct zynqmp_disp *disp);
-unsigned int zynqmp_disp_get_audio_clk_rate(struct zynqmp_disp *disp);
 uint32_t zynqmp_disp_get_crtc_mask(struct zynqmp_disp *disp);
 
 int zynqmp_disp_drm_init(struct zynqmp_dpsub *dpsub);
