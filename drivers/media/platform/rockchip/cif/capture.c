@@ -1717,7 +1717,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 					   channel->cmd_mode_en);
 
-	if (stream->vc >= 0)
+	if (dev->hdr.mode == NO_HDR ||
+	    (dev->hdr.mode == HDR_X2 && stream->vc > 1) ||
+	    (dev->hdr.mode == HDR_X3 && stream->vc > 2))
 		channel->vc = stream->vc;
 	else
 		channel->vc = channel->id;
