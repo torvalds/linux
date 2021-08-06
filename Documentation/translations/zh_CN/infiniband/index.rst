@@ -26,10 +26,10 @@ infiniband
    ipoib
    opa_vnic
    sysfs
+   tag_matching
 
 TODOLIST:
 
-   tag_matching
    user_mad
    user_verbs
 
