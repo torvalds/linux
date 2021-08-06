@@ -343,11 +343,11 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
 	int rc = -EINVAL;
 
-	zdev->zbus = zbus;
 	if (zbus->function[zdev->devfn]) {
 		pr_err("devfn %04x is already assigned\n", zdev->devfn);
 		return rc;
 	}
+	zdev->zbus = zbus;
 	zbus->function[zdev->devfn] = zdev;
 	zpci_nb_devices++;
 
@@ -367,6 +367,7 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 
 error:
 	zbus->function[zdev->devfn] = NULL;
+	zdev->zbus = NULL;
 	zpci_nb_devices--;
 	return rc;
 }
