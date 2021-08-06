@@ -101,6 +101,7 @@ struct rtrs_clt_io_req {
 	unsigned int		usr_len;
 	void			*priv;
 	bool			in_use;
+	enum rtrs_mp_policy     mp_policy;
 	struct rtrs_clt_con	*con;
 	struct rtrs_sg_desc	*desc;
 	struct ib_sge		*sge;

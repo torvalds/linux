@@ -438,7 +438,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	}
 	if (!refcount_dec_and_test(&req->ref))
 		return;
-	if (sess->clt->mp_policy == MP_POLICY_MIN_INFLIGHT)
+	if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 		atomic_dec(&sess->stats->inflight);
 
 	req->in_use = false;
@@ -964,6 +964,7 @@ static void rtrs_clt_init_req(struct rtrs_clt_io_req *req,
 	req->need_inv_comp = false;
 	req->inv_errno = 0;
 	refcount_set(&req->ref, 1);
+	req->mp_policy = sess->clt->mp_policy;
 
 	iov_iter_kvec(&iter, READ, vec, 1, usr_len);
 	len = _copy_from_iter(req->iu->buf, usr_len, &iter);
@@ -1154,7 +1155,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 			    "Write request failed: error=%d path=%s [%s:%u]\n",
 			    ret, kobject_name(&sess->kobj), sess->hca_name,
 			    sess->hca_port);
-		if (sess->clt->mp_policy == MP_POLICY_MIN_INFLIGHT)
+		if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&sess->stats->inflight);
 		if (req->sg_cnt)
 			ib_dma_unmap_sg(sess->s.dev->ib_dev, req->sglist,
@@ -1260,7 +1261,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 			    "Read request failed: error=%d path=%s [%s:%u]\n",
 			    ret, kobject_name(&sess->kobj), sess->hca_name,
 			    sess->hca_port);
-		if (sess->clt->mp_policy == MP_POLICY_MIN_INFLIGHT)
+		if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&sess->stats->inflight);
 		req->need_inv = false;
 		if (req->sg_cnt)
