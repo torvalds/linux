@@ -1409,16 +1409,9 @@ static void zynqmp_disp_disable(struct zynqmp_disp *disp)
 	zynqmp_disp_avbuf_disable(disp);
 }
 
-static inline struct zynqmp_disp *crtc_to_disp(struct drm_crtc *crtc)
+static int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
+				   unsigned long mode_clock)
 {
-	return container_of(crtc, struct zynqmp_disp, crtc);
-}
-
-static int zynqmp_disp_crtc_setup_clock(struct drm_crtc *crtc,
-					struct drm_display_mode *adjusted_mode)
-{
-	struct zynqmp_disp *disp = crtc_to_disp(crtc);
-	unsigned long mode_clock = adjusted_mode->clock * 1000;
 	unsigned long rate;
 	long diff;
 	int ret;
@@ -1443,6 +1436,11 @@ static int zynqmp_disp_crtc_setup_clock(struct drm_crtc *crtc,
 	return 0;
 }
 
+static inline struct zynqmp_disp *crtc_to_disp(struct drm_crtc *crtc)
+{
+	return container_of(crtc, struct zynqmp_disp, crtc);
+}
+
 static void
 zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 			       struct drm_atomic_state *state)
@@ -1453,7 +1451,7 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	pm_runtime_get_sync(disp->dev);
 
-	zynqmp_disp_crtc_setup_clock(crtc, adjusted_mode);
+	zynqmp_disp_setup_clock(disp, adjusted_mode->clock * 1000);
 
 	ret = clk_prepare_enable(disp->pclk);
 	if (ret) {
