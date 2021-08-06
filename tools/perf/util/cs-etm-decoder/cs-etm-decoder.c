@@ -126,6 +126,21 @@ static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
 	return 0;
 }
 
+#define TRCIDR1_TRCARCHMIN_SHIFT 4
+#define TRCIDR1_TRCARCHMIN_MASK  GENMASK(7, 4)
+#define TRCIDR1_TRCARCHMIN(x)    (((x) & TRCIDR1_TRCARCHMIN_MASK) >> TRCIDR1_TRCARCHMIN_SHIFT)
+
+static enum _ocsd_arch_version cs_etm_decoder__get_etmv4_arch_ver(u32 reg_idr1)
+{
+	/*
+	 * For ETMv4 if the trace minor version is 4 or more then we can assume
+	 * the architecture is ARCH_AA64 rather than just V8.
+	 * ARCH_V8 = V8 architecture
+	 * ARCH_AA64 = Min v8r3 plus additional AA64 PE features
+	 */
+	return TRCIDR1_TRCARCHMIN(reg_idr1) >= 4 ? ARCH_AA64 : ARCH_V8;
+}
+
 static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 					     ocsd_etmv4_cfg *config)
 {
@@ -140,7 +155,7 @@ static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 	config->reg_idr11 = 0;
 	config->reg_idr12 = 0;
 	config->reg_idr13 = 0;
-	config->arch_ver = ARCH_V8;
+	config->arch_ver = cs_etm_decoder__get_etmv4_arch_ver(params->etmv4.reg_idr1);
 	config->core_prof = profile_CortexA;
 }
 
