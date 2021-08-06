@@ -997,10 +997,11 @@ static int check_defrag_in_cache(struct inode *inode, u64 offset, u32 thresh)
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	const u32 sectorsize = btrfs_sb(inode->i_sb)->sectorsize;
 	u64 end;
 
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, offset, PAGE_SIZE);
+	em = lookup_extent_mapping(em_tree, offset, sectorsize);
 	read_unlock(&em_tree->lock);
 
 	if (em) {
@@ -1090,23 +1091,23 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em;
-	u64 len = PAGE_SIZE;
+	const u32 sectorsize = BTRFS_I(inode)->root->fs_info->sectorsize;
 
 	/*
 	 * hopefully we have this extent in the tree already, try without
 	 * the full extent lock
 	 */
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, len);
+	em = lookup_extent_mapping(em_tree, start, sectorsize);
 	read_unlock(&em_tree->lock);
 
 	if (!em) {
 		struct extent_state *cached = NULL;
-		u64 end = start + len - 1;
+		u64 end = start + sectorsize - 1;
 
 		/* get the big lock and read metadata off disk */
 		lock_extent_bits(io_tree, start, end, &cached);
-		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len);
+		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, sectorsize);
 		unlock_extent_cached(io_tree, start, end, &cached);
 
 		if (IS_ERR(em))
