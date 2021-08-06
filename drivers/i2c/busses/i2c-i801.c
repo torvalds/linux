@@ -1391,7 +1391,7 @@ static const struct dmi_system_id mux_dmi_table[] = {
 };
 
 /* Setup multiplexing if needed */
-static int i801_add_mux(struct i801_priv *priv)
+static void i801_add_mux(struct i801_priv *priv)
 {
 	struct device *dev = &priv->adapter.dev;
 	const struct i801_mux_config *mux_config;
@@ -1400,7 +1400,7 @@ static int i801_add_mux(struct i801_priv *priv)
 	int i;
 
 	if (!priv->mux_drvdata)
-		return 0;
+		return;
 	mux_config = priv->mux_drvdata;
 
 	/* Prepare the platform data */
@@ -1416,13 +1416,11 @@ static int i801_add_mux(struct i801_priv *priv)
 			      struct_size(lookup, table, mux_config->n_gpios + 1),
 			      GFP_KERNEL);
 	if (!lookup)
-		return -ENOMEM;
+		return;
 	lookup->dev_id = "i2c-mux-gpio";
-	for (i = 0; i < mux_config->n_gpios; i++) {
-		lookup->table[i] = (struct gpiod_lookup)
-			GPIO_LOOKUP(mux_config->gpio_chip,
-				    mux_config->gpios[i], "mux", 0);
-	}
+	for (i = 0; i < mux_config->n_gpios; i++)
+		lookup->table[i] = GPIO_LOOKUP(mux_config->gpio_chip,
+					       mux_config->gpios[i], "mux", 0);
 	gpiod_add_lookup_table(lookup);
 	priv->lookup = lookup;
 
@@ -1440,8 +1438,6 @@ static int i801_add_mux(struct i801_priv *priv)
 		gpiod_remove_lookup_table(lookup);
 		dev_err(dev, "Failed to register i2c-mux-gpio device\n");
 	}
-
-	return PTR_ERR_OR_ZERO(priv->mux_pdev);
 }
 
 static void i801_del_mux(struct i801_priv *priv)
@@ -1471,7 +1467,7 @@ static unsigned int i801_get_adapter_class(struct i801_priv *priv)
 	return class;
 }
 #else
-static inline int i801_add_mux(struct i801_priv *priv) { return 0; }
+static inline void i801_add_mux(struct i801_priv *priv) { }
 static inline void i801_del_mux(struct i801_priv *priv) { }
 
 static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
