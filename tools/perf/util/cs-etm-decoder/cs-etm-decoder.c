@@ -13,8 +13,6 @@
 #include <linux/zalloc.h>
 #include <stdlib.h>
 #include <opencsd/c_api/opencsd_c_api.h>
-#include <opencsd/etmv4/trc_pkt_types_etmv4.h>
-#include <opencsd/ocsd_if_types.h>
 
 #include "cs-etm.h"
 #include "cs-etm-decoder.h"
