@@ -248,6 +248,17 @@ static void setup_vmalloc_size(void)
 	vmalloc_size = max(size, vmalloc_size);
 }
 
+static void offset_vmlinux_info(unsigned long offset)
+{
+	vmlinux.default_lma += offset;
+	*(unsigned long *)(&vmlinux.entry) += offset;
+	vmlinux.bootdata_off += offset;
+	vmlinux.bootdata_preserved_off += offset;
+	vmlinux.rela_dyn_start += offset;
+	vmlinux.rela_dyn_end += offset;
+	vmlinux.dynsym_start += offset;
+}
+
 void startup_kernel(void)
 {
 	unsigned long random_lma;
@@ -273,19 +284,12 @@ void startup_kernel(void)
 	setup_vmalloc_size();
 	setup_kernel_memory_layout();
 
-	random_lma = __kaslr_offset = 0;
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);
 		if (random_lma) {
 			__kaslr_offset = random_lma - vmlinux.default_lma;
 			img = (void *)vmlinux.default_lma;
-			vmlinux.default_lma += __kaslr_offset;
-			*(unsigned long *)(&vmlinux.entry) += __kaslr_offset;
-			vmlinux.bootdata_off += __kaslr_offset;
-			vmlinux.bootdata_preserved_off += __kaslr_offset;
-			vmlinux.rela_dyn_start += __kaslr_offset;
-			vmlinux.rela_dyn_end += __kaslr_offset;
-			vmlinux.dynsym_start += __kaslr_offset;
+			offset_vmlinux_info(__kaslr_offset);
 		}
 	}
 
