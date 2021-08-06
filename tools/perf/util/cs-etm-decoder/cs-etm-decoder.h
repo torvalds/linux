@@ -104,5 +104,6 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 			       struct cs_etm_packet *packet);
 
 int cs_etm_decoder__reset(struct cs_etm_decoder *decoder);
+const char *cs_etm_decoder__get_name(struct cs_etm_decoder *decoder);
 
 #endif /* INCLUDE__CS_ETM_DECODER_H__ */
