@@ -1192,7 +1192,7 @@ static acpi_status check_acpi_smo88xx_device(acpi_handle obj_handle,
 
 	kfree(info);
 
-	*((bool *)return_value) = true;
+	*return_value = NULL;
 	return AE_CTRL_TERMINATE;
 
 smo88xx_not_found:
@@ -1202,11 +1202,9 @@ smo88xx_not_found:
 
 static bool is_dell_system_with_lis3lv02d(void)
 {
-	bool found;
-	const char *vendor;
+	void *err = ERR_PTR(-ENOENT);
 
-	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
-	if (!vendor || strcmp(vendor, "Dell Inc."))
+	if (!dmi_match(DMI_SYS_VENDOR, "Dell Inc."))
 		return false;
 
 	/*
@@ -1217,11 +1215,9 @@ static bool is_dell_system_with_lis3lv02d(void)
 	 * accelerometer but unfortunately ACPI does not provide any other
 	 * information (like I2C address).
 	 */
-	found = false;
-	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL,
-			 (void **)&found);
+	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL, &err);
 
-	return found;
+	return !IS_ERR(err);
 }
 
 /*
