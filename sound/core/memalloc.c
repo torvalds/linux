@@ -215,7 +215,7 @@ static int snd_dma_continuous_mmap(struct snd_dma_buffer *dmab,
 				   struct vm_area_struct *area)
 {
 	return remap_pfn_range(area, area->vm_start,
-			       dmab->addr >> PAGE_SHIFT,
+			       page_to_pfn(virt_to_page(dmab->area)),
 			       area->vm_end - area->vm_start,
 			       area->vm_page_prot);
 }
