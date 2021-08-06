@@ -668,7 +668,7 @@ int rtl8188eu_oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
 int rtl8188eu_oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct mp_rw_reg *RegRWStruct;
-	u32		offset, width, value;
+	u32 offset, value;
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *padapter = (struct adapter *)(poid_par_priv->adapter_context);
 
@@ -677,7 +677,6 @@ int rtl8188eu_oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 
 	RegRWStruct = (struct mp_rw_reg *)poid_par_priv->information_buf;
 	offset = RegRWStruct->offset;
-	width = RegRWStruct->width;
 	value = RegRWStruct->value;
 
 	if (offset > 0xFFF)
@@ -1093,7 +1092,6 @@ int rtl8188eu_oid_rt_set_crystal_cap_hdl(struct oid_par_priv *poid_par_priv)
 
 int rtl8188eu_oid_rt_set_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
 {
-	u8		rx_pkt_type;
 	int status = NDIS_STATUS_SUCCESS;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -1101,8 +1099,6 @@ int rtl8188eu_oid_rt_set_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
 
 	if (poid_par_priv->information_buf_len < sizeof(u8))
 		return NDIS_STATUS_INVALID_LENGTH;
-
-	rx_pkt_type = *((u8 *)poid_par_priv->information_buf);/* 4 */
 
 	return status;
 }
