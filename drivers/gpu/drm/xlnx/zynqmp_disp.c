@@ -1222,7 +1222,7 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 	unsigned int i, j;
 	int ret;
 
-	for (i = 0; i < ZYNQMP_DISP_NUM_LAYERS; i++) {
+	for (i = 0; i < ARRAY_SIZE(disp->layers); i++) {
 		struct zynqmp_disp_layer *layer = &disp->layers[i];
 		enum drm_plane_type type;
 		u32 *drm_formats;
@@ -1293,7 +1293,7 @@ static void zynqmp_disp_destroy_layers(struct zynqmp_disp *disp)
 {
 	unsigned int i;
 
-	for (i = 0; i < ZYNQMP_DISP_NUM_LAYERS; i++)
+	for (i = 0; i < ARRAY_SIZE(disp->layers); i++)
 		zynqmp_disp_layer_release_dma(disp, &disp->layers[i]);
 }
 
@@ -1355,7 +1355,7 @@ static int zynqmp_disp_create_layers(struct zynqmp_disp *disp)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ZYNQMP_DISP_NUM_LAYERS; i++) {
+	for (i = 0; i < ARRAY_SIZE(disp->layers); i++) {
 		struct zynqmp_disp_layer *layer = &disp->layers[i];
 
 		layer->id = i;
@@ -1592,7 +1592,7 @@ static void zynqmp_disp_map_crtc_to_plane(struct zynqmp_disp *disp)
 	u32 possible_crtcs = drm_crtc_mask(&disp->crtc);
 	unsigned int i;
 
-	for (i = 0; i < ZYNQMP_DISP_NUM_LAYERS; i++)
+	for (i = 0; i < ARRAY_SIZE(disp->layers); i++)
 		disp->layers[i].plane.possible_crtcs = possible_crtcs;
 }
 
