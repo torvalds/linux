@@ -75,9 +75,9 @@ __rtrs_get_permit(struct rtrs_clt *clt, enum rtrs_clt_con_type con_type)
 	 */
 	do {
 		bit = find_first_zero_bit(clt->permits_map, max_depth);
-		if (unlikely(bit >= max_depth))
+		if (bit >= max_depth)
 			return NULL;
-	} while (unlikely(test_and_set_bit_lock(bit, clt->permits_map)));
+	} while (test_and_set_bit_lock(bit, clt->permits_map));
 
 	permit = get_permit(clt, bit);
 	WARN_ON(permit->mem_id != bit);
@@ -115,14 +115,14 @@ struct rtrs_permit *rtrs_clt_get_permit(struct rtrs_clt *clt,
 	DEFINE_WAIT(wait);
 
 	permit = __rtrs_get_permit(clt, con_type);
-	if (likely(permit) || !can_wait)
+	if (permit || !can_wait)
 		return permit;
 
 	do {
 		prepare_to_wait(&clt->permits_wait, &wait,
 				TASK_UNINTERRUPTIBLE);
 		permit = __rtrs_get_permit(clt, con_type);
-		if (likely(permit))
+		if (permit)
 			break;
 
 		io_schedule();
@@ -175,7 +175,7 @@ struct rtrs_clt_con *rtrs_permit_to_clt_con(struct rtrs_clt_sess *sess,
 {
 	int id = 0;
 
-	if (likely(permit->con_type == RTRS_IO_CON))
+	if (permit->con_type == RTRS_IO_CON)
 		id = (permit->cpu_id % (sess->s.irq_con_num - 1)) + 1;
 
 	return to_clt_con(sess->s.con[id]);
@@ -329,7 +329,7 @@ static void rtrs_clt_fast_reg_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(con->c.sess, "Failed IB_WR_REG_MR: %s\n",
 			  ib_wc_status_msg(wc->status));
 		rtrs_rdma_error_recovery(con);
@@ -349,13 +349,13 @@ static void rtrs_clt_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(wc->wr_cqe, typeof(*req), inv_cqe);
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(con->c.sess, "Failed IB_WR_LOCAL_INV: %s\n",
 			  ib_wc_status_msg(wc->status));
 		rtrs_rdma_error_recovery(con);
 	}
 	req->need_inv = false;
-	if (likely(req->need_inv_comp))
+	if (req->need_inv_comp)
 		complete(&req->inv_comp);
 	else
 		/* Complete request from INV callback */
@@ -390,7 +390,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	sess = to_clt_sess(con->c.sess);
 
 	if (req->sg_cnt) {
-		if (unlikely(req->dir == DMA_FROM_DEVICE && req->need_inv)) {
+		if (req->dir == DMA_FROM_DEVICE && req->need_inv) {
 			/*
 			 * We are here to invalidate read requests
 			 * ourselves.  In normal scenario server should
@@ -405,7 +405,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 			 *        should do that ourselves.
 			 */
 
-			if (likely(can_wait)) {
+			if (can_wait) {
 				req->need_inv_comp = true;
 			} else {
 				/* This should be IO path, so always notify */
@@ -416,10 +416,10 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 
 			refcount_inc(&req->ref);
 			err = rtrs_inv_rkey(req);
-			if (unlikely(err)) {
+			if (err) {
 				rtrs_err(con->c.sess, "Send INV WR key=%#x: %d\n",
 					  req->mr->rkey, err);
-			} else if (likely(can_wait)) {
+			} else if (can_wait) {
 				wait_for_completion(&req->inv_comp);
 			} else {
 				/*
@@ -463,7 +463,7 @@ static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
 	enum ib_send_flags flags;
 	struct ib_sge sge;
 
-	if (unlikely(!req->sg_size)) {
+	if (!req->sg_size) {
 		rtrs_wrn(con->c.sess,
 			 "Doing RDMA Write failed, no data supplied\n");
 		return -EINVAL;
@@ -513,7 +513,7 @@ static void rtrs_clt_recv_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 	iu = container_of(wc->wr_cqe, struct rtrs_iu,
 			  cqe);
 	err = rtrs_iu_post_recv(&con->c, iu);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(con->c.sess, "post iu failed %d\n", err);
 		rtrs_rdma_error_recovery(con);
 	}
@@ -533,7 +533,7 @@ static void rtrs_clt_rkey_rsp_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
 
-	if (unlikely(wc->byte_len < sizeof(*msg))) {
+	if (wc->byte_len < sizeof(*msg)) {
 		rtrs_err(con->c.sess, "rkey response is malformed: size %d\n",
 			  wc->byte_len);
 		goto out;
@@ -541,7 +541,7 @@ static void rtrs_clt_rkey_rsp_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 	ib_dma_sync_single_for_cpu(sess->s.dev->ib_dev, iu->dma_addr,
 				   iu->size, DMA_FROM_DEVICE);
 	msg = iu->buf;
-	if (unlikely(le16_to_cpu(msg->type) != RTRS_MSG_RKEY_RSP)) {
+	if (le16_to_cpu(msg->type) != RTRS_MSG_RKEY_RSP) {
 		rtrs_err(sess->clt, "rkey response is malformed: type %d\n",
 			  le16_to_cpu(msg->type));
 		goto out;
@@ -551,8 +551,8 @@ static void rtrs_clt_rkey_rsp_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 		goto out;
 
 	rtrs_from_imm(be32_to_cpu(wc->ex.imm_data), &imm_type, &imm_payload);
-	if (likely(imm_type == RTRS_IO_RSP_IMM ||
-		   imm_type == RTRS_IO_RSP_W_INV_IMM)) {
+	if (imm_type == RTRS_IO_RSP_IMM ||
+	    imm_type == RTRS_IO_RSP_W_INV_IMM) {
 		u32 msg_id;
 
 		w_inval = (imm_type == RTRS_IO_RSP_W_INV_IMM);
@@ -605,7 +605,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 	bool w_inval = false;
 	int err;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			rtrs_err(sess->clt, "RDMA failed: %s\n",
 				  ib_wc_status_msg(wc->status));
@@ -625,8 +625,8 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 			return;
 		rtrs_from_imm(be32_to_cpu(wc->ex.imm_data),
 			       &imm_type, &imm_payload);
-		if (likely(imm_type == RTRS_IO_RSP_IMM ||
-			   imm_type == RTRS_IO_RSP_W_INV_IMM)) {
+		if (imm_type == RTRS_IO_RSP_IMM ||
+		    imm_type == RTRS_IO_RSP_W_INV_IMM) {
 			u32 msg_id;
 
 			w_inval = (imm_type == RTRS_IO_RSP_W_INV_IMM);
@@ -657,7 +657,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 			err = rtrs_post_recv_empty_x2(&con->c, &io_comp_cqe);
 		else
 			err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
-		if (unlikely(err)) {
+		if (err) {
 			rtrs_err(con->c.sess, "rtrs_post_recv_empty(): %d\n",
 				  err);
 			rtrs_rdma_error_recovery(con);
@@ -703,7 +703,7 @@ static int post_recv_io(struct rtrs_clt_con *con, size_t q_size)
 		} else {
 			err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
 		}
-		if (unlikely(err))
+		if (err)
 			return err;
 	}
 
@@ -728,7 +728,7 @@ static int post_recv_sess(struct rtrs_clt_sess *sess)
 		q_size *= 2;
 
 		err = post_recv_io(to_clt_con(sess->s.con[cid]), q_size);
-		if (unlikely(err)) {
+		if (err) {
 			rtrs_err(sess->clt, "post_recv_io(), err: %d\n", err);
 			return err;
 		}
@@ -789,7 +789,7 @@ static struct rtrs_clt_sess *get_next_path_rr(struct path_it *it)
 
 	ppcpu_path = this_cpu_ptr(clt->pcpu_path);
 	path = rcu_dereference(*ppcpu_path);
-	if (unlikely(!path))
+	if (!path)
 		path = list_first_or_null_rcu(&clt->paths_list,
 					      typeof(*path), s.entry);
 	else
@@ -820,10 +820,10 @@ static struct rtrs_clt_sess *get_next_path_min_inflight(struct path_it *it)
 	int inflight;
 
 	list_for_each_entry_rcu(sess, &clt->paths_list, s.entry) {
-		if (unlikely(READ_ONCE(sess->state) != RTRS_CLT_CONNECTED))
+		if (READ_ONCE(sess->state) != RTRS_CLT_CONNECTED)
 			continue;
 
-		if (unlikely(!list_empty(raw_cpu_ptr(sess->mp_skip_entry))))
+		if (!list_empty(raw_cpu_ptr(sess->mp_skip_entry)))
 			continue;
 
 		inflight = atomic_read(&sess->stats->inflight);
@@ -871,10 +871,10 @@ static struct rtrs_clt_sess *get_next_path_min_latency(struct path_it *it)
 	ktime_t latency;
 
 	list_for_each_entry_rcu(sess, &clt->paths_list, s.entry) {
-		if (unlikely(READ_ONCE(sess->state) != RTRS_CLT_CONNECTED))
+		if (READ_ONCE(sess->state) != RTRS_CLT_CONNECTED)
 			continue;
 
-		if (unlikely(!list_empty(raw_cpu_ptr(sess->mp_skip_entry))))
+		if (!list_empty(raw_cpu_ptr(sess->mp_skip_entry)))
 			continue;
 
 		latency = sess->s.hb_cur_latency;
@@ -1063,7 +1063,7 @@ static int rtrs_map_sg_fr(struct rtrs_clt_io_req *req, size_t count)
 	nr = ib_map_mr_sg(req->mr, req->sglist, count, NULL, SZ_4K);
 	if (nr < 0)
 		return nr;
-	if (unlikely(nr < req->sg_cnt))
+	if (nr < req->sg_cnt)
 		return -EINVAL;
 	ib_update_fast_reg_key(req->mr, ib_inc_rkey(req->mr->rkey));
 
@@ -1087,7 +1087,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 
 	const size_t tsize = sizeof(*msg) + req->data_len + req->usr_len;
 
-	if (unlikely(tsize > sess->chunk_size)) {
+	if (tsize > sess->chunk_size) {
 		rtrs_wrn(s, "Write request failed, size too big %zu > %d\n",
 			  tsize, sess->chunk_size);
 		return -EMSGSIZE;
@@ -1095,7 +1095,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 	if (req->sg_cnt) {
 		count = ib_dma_map_sg(sess->s.dev->ib_dev, req->sglist,
 				      req->sg_cnt, req->dir);
-		if (unlikely(!count)) {
+		if (!count) {
 			rtrs_wrn(s, "Write request failed, map failed\n");
 			return -EINVAL;
 		}
@@ -1149,7 +1149,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 	ret = rtrs_post_rdma_write_sg(req->con, req, rbuf, fr_en,
 				      req->usr_len + sizeof(*msg),
 				      imm, wr, &inv_wr);
-	if (unlikely(ret)) {
+	if (ret) {
 		rtrs_err_rl(s,
 			    "Write request failed: error=%d path=%s [%s:%u]\n",
 			    ret, kobject_name(&sess->kobj), sess->hca_name,
@@ -1180,7 +1180,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 
 	const size_t tsize = sizeof(*msg) + req->data_len + req->usr_len;
 
-	if (unlikely(tsize > sess->chunk_size)) {
+	if (tsize > sess->chunk_size) {
 		rtrs_wrn(s,
 			  "Read request failed, message size is %zu, bigger than CHUNK_SIZE %d\n",
 			  tsize, sess->chunk_size);
@@ -1190,7 +1190,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 	if (req->sg_cnt) {
 		count = ib_dma_map_sg(dev->ib_dev, req->sglist, req->sg_cnt,
 				      req->dir);
-		if (unlikely(!count)) {
+		if (!count) {
 			rtrs_wrn(s,
 				  "Read request failed, dma map failed\n");
 			return -EINVAL;
@@ -1255,7 +1255,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 
 	ret = rtrs_post_send_rdma(req->con, req, &sess->rbufs[buf_id],
 				   req->data_len, imm, wr);
-	if (unlikely(ret)) {
+	if (ret) {
 		rtrs_err_rl(s,
 			    "Read request failed: error=%d path=%s [%s:%u]\n",
 			    ret, kobject_name(&sess->kobj), sess->hca_name,
@@ -1288,15 +1288,14 @@ static int rtrs_clt_failover_req(struct rtrs_clt *clt,
 	for (path_it_init(&it, clt);
 	     (alive_sess = it.next_path(&it)) && it.i < it.clt->paths_num;
 	     it.i++) {
-		if (unlikely(READ_ONCE(alive_sess->state) !=
-			     RTRS_CLT_CONNECTED))
+		if (READ_ONCE(alive_sess->state) != RTRS_CLT_CONNECTED)
 			continue;
 		req = rtrs_clt_get_copy_req(alive_sess, fail_req);
 		if (req->dir == DMA_TO_DEVICE)
 			err = rtrs_clt_write_req(req);
 		else
 			err = rtrs_clt_read_req(req);
-		if (unlikely(err)) {
+		if (err) {
 			req->in_use = false;
 			continue;
 		}
@@ -1331,7 +1330,7 @@ static void fail_all_outstanding_reqs(struct rtrs_clt_sess *sess)
 		complete_rdma_req(req, -ECONNABORTED, false, true);
 
 		err = rtrs_clt_failover_req(clt, req);
-		if (unlikely(err))
+		if (err)
 			/* Failover failed, notify anyway */
 			req->conf(req->priv, err);
 	}
@@ -1962,7 +1961,7 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
 		cm_err = rtrs_rdma_conn_established(con, ev);
-		if (likely(!cm_err)) {
+		if (!cm_err) {
 			/*
 			 * Report success and wake up. Here we abuse state_wq,
 			 * i.e. wake up without state change, but we set cm_err.
@@ -2381,7 +2380,7 @@ static void rtrs_clt_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
 	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(sess->clt, "Sess info request send failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING_ERR, NULL);
@@ -2398,7 +2397,7 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 	int i, sgi;
 
 	sg_cnt = le16_to_cpu(msg->sg_cnt);
-	if (unlikely(!sg_cnt || (sess->queue_depth % sg_cnt))) {
+	if (!sg_cnt || (sess->queue_depth % sg_cnt)) {
 		rtrs_err(sess->clt, "Incorrect sg_cnt %d, is not multiple\n",
 			  sg_cnt);
 		return -EINVAL;
@@ -2408,9 +2407,8 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 	 * Check if IB immediate data size is enough to hold the mem_id and
 	 * the offset inside the memory chunk.
 	 */
-	if (unlikely((ilog2(sg_cnt - 1) + 1) +
-		     (ilog2(sess->chunk_size - 1) + 1) >
-		     MAX_IMM_PAYL_BITS)) {
+	if ((ilog2(sg_cnt - 1) + 1) + (ilog2(sess->chunk_size - 1) + 1) >
+	    MAX_IMM_PAYL_BITS) {
 		rtrs_err(sess->clt,
 			  "RDMA immediate size (%db) not enough to encode %d buffers of size %dB\n",
 			  MAX_IMM_PAYL_BITS, sg_cnt, sess->chunk_size);
@@ -2428,7 +2426,7 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 
 		total_len += len;
 
-		if (unlikely(!len || (len % sess->chunk_size))) {
+		if (!len || (len % sess->chunk_size)) {
 			rtrs_err(sess->clt, "Incorrect [%d].len %d\n", sgi,
 				  len);
 			return -EINVAL;
@@ -2442,11 +2440,11 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 		}
 	}
 	/* Sanity check */
-	if (unlikely(sgi != sg_cnt || i != sess->queue_depth)) {
+	if (sgi != sg_cnt || i != sess->queue_depth) {
 		rtrs_err(sess->clt, "Incorrect sg vector, not fully mapped\n");
 		return -EINVAL;
 	}
-	if (unlikely(total_len != sess->chunk_size * sess->queue_depth)) {
+	if (total_len != sess->chunk_size * sess->queue_depth) {
 		rtrs_err(sess->clt, "Incorrect total_len %d\n", total_len);
 		return -EINVAL;
 	}
@@ -2468,14 +2466,14 @@ static void rtrs_clt_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	WARN_ON(con->c.cid);
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (wc->status != IB_WC_SUCCESS) {
 		rtrs_err(sess->clt, "Sess info response recv failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		goto out;
 	}
 	WARN_ON(wc->opcode != IB_WC_RECV);
 
-	if (unlikely(wc->byte_len < sizeof(*msg))) {
+	if (wc->byte_len < sizeof(*msg)) {
 		rtrs_err(sess->clt, "Sess info response is malformed: size %d\n",
 			  wc->byte_len);
 		goto out;
@@ -2483,24 +2481,24 @@ static void rtrs_clt_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 	ib_dma_sync_single_for_cpu(sess->s.dev->ib_dev, iu->dma_addr,
 				   iu->size, DMA_FROM_DEVICE);
 	msg = iu->buf;
-	if (unlikely(le16_to_cpu(msg->type) != RTRS_MSG_INFO_RSP)) {
+	if (le16_to_cpu(msg->type) != RTRS_MSG_INFO_RSP) {
 		rtrs_err(sess->clt, "Sess info response is malformed: type %d\n",
 			  le16_to_cpu(msg->type));
 		goto out;
 	}
 	rx_sz  = sizeof(*msg);
 	rx_sz += sizeof(msg->desc[0]) * le16_to_cpu(msg->sg_cnt);
-	if (unlikely(wc->byte_len < rx_sz)) {
+	if (wc->byte_len < rx_sz) {
 		rtrs_err(sess->clt, "Sess info response is malformed: size %d\n",
 			  wc->byte_len);
 		goto out;
 	}
 	err = process_info_rsp(sess, msg);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	err = post_recv_sess(sess);
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	state = RTRS_CLT_CONNECTED;
@@ -2527,13 +2525,13 @@ static int rtrs_send_sess_info(struct rtrs_clt_sess *sess)
 			       rtrs_clt_info_req_done);
 	rx_iu = rtrs_iu_alloc(1, rx_sz, GFP_KERNEL, sess->s.dev->ib_dev,
 			       DMA_FROM_DEVICE, rtrs_clt_info_rsp_done);
-	if (unlikely(!tx_iu || !rx_iu)) {
+	if (!tx_iu || !rx_iu) {
 		err = -ENOMEM;
 		goto out;
 	}
 	/* Prepare for getting info response */
 	err = rtrs_iu_post_recv(&usr_con->c, rx_iu);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(sess->clt, "rtrs_iu_post_recv(), err: %d\n", err);
 		goto out;
 	}
@@ -2548,7 +2546,7 @@ static int rtrs_send_sess_info(struct rtrs_clt_sess *sess)
 
 	/* Send info request */
 	err = rtrs_iu_post_send(&usr_con->c, tx_iu, sizeof(*msg), NULL);
-	if (unlikely(err)) {
+	if (err) {
 		rtrs_err(sess->clt, "rtrs_iu_post_send(), err: %d\n", err);
 		goto out;
 	}
@@ -2559,7 +2557,7 @@ static int rtrs_send_sess_info(struct rtrs_clt_sess *sess)
 					 sess->state != RTRS_CLT_CONNECTING,
 					 msecs_to_jiffies(
 						 RTRS_CONNECT_TIMEOUT_MS));
-	if (unlikely(READ_ONCE(sess->state) != RTRS_CLT_CONNECTED)) {
+	if (READ_ONCE(sess->state) != RTRS_CLT_CONNECTED) {
 		if (READ_ONCE(sess->state) == RTRS_CLT_CONNECTING_ERR)
 			err = -ECONNRESET;
 		else
@@ -2571,7 +2569,7 @@ out:
 		rtrs_iu_free(tx_iu, sess->s.dev->ib_dev, 1);
 	if (rx_iu)
 		rtrs_iu_free(rx_iu, sess->s.dev->ib_dev, 1);
-	if (unlikely(err))
+	if (err)
 		/* If we've never taken async path because of malloc problems */
 		rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING_ERR, NULL);
 
@@ -2919,7 +2917,7 @@ int rtrs_clt_remove_path_from_sysfs(struct rtrs_clt_sess *sess,
 							&old_state);
 	} while (!changed && old_state != RTRS_CLT_DEAD);
 
-	if (likely(changed)) {
+	if (changed) {
 		rtrs_clt_remove_path_from_arr(sess);
 		rtrs_clt_destroy_sess_files(sess, sysfs_self);
 		kobject_put(&sess->kobj);
@@ -2991,10 +2989,10 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 	rcu_read_lock();
 	for (path_it_init(&it, clt);
 	     (sess = it.next_path(&it)) && it.i < it.clt->paths_num; it.i++) {
-		if (unlikely(READ_ONCE(sess->state) != RTRS_CLT_CONNECTED))
+		if (READ_ONCE(sess->state) != RTRS_CLT_CONNECTED)
 			continue;
 
-		if (unlikely(usr_len + hdr_len > sess->max_hdr_size)) {
+		if (usr_len + hdr_len > sess->max_hdr_size) {
 			rtrs_wrn_rl(sess->clt,
 				     "%s request failed, user message size is %zu and header length %zu, but max size is %u\n",
 				     dir == READ ? "Read" : "Write",
@@ -3009,7 +3007,7 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 			err = rtrs_clt_read_req(req);
 		else
 			err = rtrs_clt_write_req(req);
-		if (unlikely(err)) {
+		if (err) {
 			req->in_use = false;
 			continue;
 		}

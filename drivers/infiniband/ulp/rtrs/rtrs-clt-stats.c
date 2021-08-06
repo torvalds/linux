@@ -20,7 +20,7 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 
 	cpu = raw_smp_processor_id();
 	s = this_cpu_ptr(stats->pcpu_stats);
-	if (unlikely(con->cpu != cpu)) {
+	if (con->cpu != cpu) {
 		s->cpu_migr.to++;
 
 		/* Careful here, override s pointer */
