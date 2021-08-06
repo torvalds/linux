@@ -717,15 +717,79 @@ static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 	return rc;
 }
 
+static const struct net_device_ops qeth_l2_netdev_ops;
+
+static bool qeth_l2_must_learn(struct net_device *netdev,
+			       struct net_device *dstdev)
+{
+	struct qeth_priv *priv;
+
+	priv = netdev_priv(netdev);
+	return (netdev != dstdev &&
+		(priv->brport_features & BR_LEARNING_SYNC) &&
+		!(br_port_flag_is_set(netdev, BR_ISOLATED) &&
+		  br_port_flag_is_set(dstdev, BR_ISOLATED)) &&
+		netdev->netdev_ops == &qeth_l2_netdev_ops);
+}
+
+/* Called under rtnl_lock */
+static int qeth_l2_switchdev_event(struct notifier_block *unused,
+				   unsigned long event, void *ptr)
+{
+	struct net_device *dstdev, *brdev, *lowerdev;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_notifier_info *info = ptr;
+	struct list_head *iter;
+	struct qeth_card *card;
+
+	if (!(event == SWITCHDEV_FDB_ADD_TO_DEVICE ||
+	      event == SWITCHDEV_FDB_DEL_TO_DEVICE))
+		return NOTIFY_DONE;
+
+	dstdev = switchdev_notifier_info_to_dev(info);
+	brdev = netdev_master_upper_dev_get_rcu(dstdev);
+	if (!brdev || !netif_is_bridge_master(brdev))
+		return NOTIFY_DONE;
+	fdb_info = container_of(info,
+				struct switchdev_notifier_fdb_info,
+				info);
+	iter = &brdev->adj_list.lower;
+	lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
+	while (lowerdev) {
+		if (qeth_l2_must_learn(lowerdev, dstdev)) {
+			card = lowerdev->ml_priv;
+			QETH_CARD_TEXT_(card, 4, "b2dqw%03x", event);
+			/* tbd: rc = qeth_l2_br2dev_queue_work(brdev, lowerdev,
+			 *				       dstdev, event,
+			 *				       fdb_info->addr);
+			 */
+		}
+		lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block qeth_l2_sw_notifier = {
+		.notifier_call = qeth_l2_switchdev_event,
+};
+
 static refcount_t qeth_l2_switchdev_notify_refcnt;
 
 /* Called under rtnl_lock */
 static void qeth_l2_br2dev_get(void)
 {
+	int rc;
+
 	if (!refcount_inc_not_zero(&qeth_l2_switchdev_notify_refcnt)) {
-		/* tbd: register_switchdev_notifier(&qeth_l2_sw_notifier); */
-		refcount_set(&qeth_l2_switchdev_notify_refcnt, 1);
-		QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier registered\n");
+		rc = register_switchdev_notifier(&qeth_l2_sw_notifier);
+		if (rc) {
+			QETH_DBF_MESSAGE(2,
+					 "failed to register qeth_l2_sw_notifier: %d\n",
+					 rc);
+		} else {
+			refcount_set(&qeth_l2_switchdev_notify_refcnt, 1);
+			QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier registered\n");
+		}
 	}
 	QETH_DBF_TEXT_(SETUP, 2, "b2d+%04d",
 		       qeth_l2_switchdev_notify_refcnt.refs.counter);
@@ -734,9 +798,18 @@ static void qeth_l2_br2dev_get(void)
 /* Called under rtnl_lock */
 static void qeth_l2_br2dev_put(void)
 {
+	int rc;
+
 	if (refcount_dec_and_test(&qeth_l2_switchdev_notify_refcnt)) {
-		/* tbd: unregister_switchdev_notifier(&qeth_l2_sw_notifier); */
-		QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier unregistered\n");
+		rc = unregister_switchdev_notifier(&qeth_l2_sw_notifier);
+		if (rc) {
+			QETH_DBF_MESSAGE(2,
+					 "failed to unregister qeth_l2_sw_notifier: %d\n",
+					 rc);
+		} else {
+			QETH_DBF_MESSAGE(2,
+					 "qeth_l2_sw_notifier unregistered\n");
+		}
 	}
 	QETH_DBF_TEXT_(SETUP, 2, "b2d-%04d",
 		       qeth_l2_switchdev_notify_refcnt.refs.counter);
