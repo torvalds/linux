@@ -48,6 +48,7 @@
 #include "space-info.h"
 #include "delalloc-space.h"
 #include "block-group.h"
+#include "subpage.h"
 
 #ifdef CONFIG_64BIT
 /* If we have a 32-bit userspace and 64-bit kernel, then the UAPI
@@ -1548,6 +1549,60 @@ next:
 			kfree(entry);
 		}
 	}
+	return ret;
+}
+
+#define CLUSTER_SIZE	(SZ_256K)
+
+/*
+ * Defrag one contiguous target range.
+ *
+ * @inode:	target inode
+ * @target:	target range to defrag
+ * @pages:	locked pages covering the defrag range
+ * @nr_pages:	number of locked pages
+ *
+ * Caller should ensure:
+ *
+ * - Pages are prepared
+ *   Pages should be locked, no ordered extent in the pages range,
+ *   no writeback.
+ *
+ * - Extent bits are locked
+ */
+static int defrag_one_locked_target(struct btrfs_inode *inode,
+				    struct defrag_target_range *target,
+				    struct page **pages, int nr_pages,
+				    struct extent_state **cached_state)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct extent_changeset *data_reserved = NULL;
+	const u64 start = target->start;
+	const u64 len = target->len;
+	unsigned long last_index = (start + len - 1) >> PAGE_SHIFT;
+	unsigned long start_index = start >> PAGE_SHIFT;
+	unsigned long first_index = page_index(pages[0]);
+	int ret = 0;
+	int i;
+
+	ASSERT(last_index - first_index + 1 <= nr_pages);
+
+	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, start, len);
+	if (ret < 0)
+		return ret;
+	clear_extent_bit(&inode->io_tree, start, start + len - 1,
+			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
+			 EXTENT_DEFRAG, 0, 0, cached_state);
+	set_extent_defrag(&inode->io_tree, start, start + len - 1, cached_state);
+
+	/* Update the page status */
+	for (i = start_index - first_index; i <= last_index - first_index; i++) {
+		ClearPageChecked(pages[i]);
+		btrfs_page_clamp_set_dirty(fs_info, pages[i], start, len);
+	}
+	btrfs_delalloc_release_extents(inode, len);
+	extent_changeset_free(data_reserved);
+
 	return ret;
 }
 
