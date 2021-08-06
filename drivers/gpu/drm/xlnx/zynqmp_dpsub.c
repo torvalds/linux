@@ -214,6 +214,23 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 		return ret;
 	}
 
+	/* Try the live PL video clock */
+	dpsub->vid_clk = devm_clk_get(dpsub->dev, "dp_live_video_in_clk");
+	if (!IS_ERR(dpsub->vid_clk))
+		dpsub->vid_clk_from_ps = false;
+	else if (PTR_ERR(dpsub->vid_clk) == -EPROBE_DEFER)
+		return PTR_ERR(dpsub->vid_clk);
+
+	/* If the live PL video clock is not valid, fall back to PS clock */
+	if (IS_ERR_OR_NULL(dpsub->vid_clk)) {
+		dpsub->vid_clk = devm_clk_get(dpsub->dev, "dp_vtc_pixel_clk_in");
+		if (IS_ERR(dpsub->vid_clk)) {
+			dev_err(dpsub->dev, "failed to init any video clock\n");
+			return PTR_ERR(dpsub->vid_clk);
+		}
+		dpsub->vid_clk_from_ps = true;
+	}
+
 	return 0;
 }
 

@@ -169,8 +169,6 @@ struct zynqmp_disp_layer {
  * @audio.clk: Audio clock
  * @audio.clk_from_ps: True of the audio clock comes from PS, false from PL
  * @layers: Layers (planes)
- * @pclk: Pixel clock
- * @pclk_from_ps: True of the video clock comes from PS, false from PL
  */
 struct zynqmp_disp {
 	struct device *dev;
@@ -192,9 +190,6 @@ struct zynqmp_disp {
 	} audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DISP_NUM_LAYERS];
-
-	struct clk *pclk;
-	bool pclk_from_ps;
 };
 
 /* -----------------------------------------------------------------------------
@@ -1412,7 +1407,7 @@ static void zynqmp_disp_enable(struct zynqmp_disp *disp)
 
 	zynqmp_disp_avbuf_enable(disp);
 	/* Choose clock source based on the DT clock handle. */
-	zynqmp_disp_avbuf_set_clocks_sources(disp, disp->pclk_from_ps,
+	zynqmp_disp_avbuf_set_clocks_sources(disp, disp->dpsub->vid_clk_from_ps,
 					     disp->audio.clk_from_ps, true);
 	zynqmp_disp_avbuf_enable_channels(disp);
 	zynqmp_disp_avbuf_enable_audio(disp);
@@ -1440,13 +1435,13 @@ static int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
 	long diff;
 	int ret;
 
-	ret = clk_set_rate(disp->pclk, mode_clock);
+	ret = clk_set_rate(disp->dpsub->vid_clk, mode_clock);
 	if (ret) {
-		dev_err(disp->dev, "failed to set a pixel clock\n");
+		dev_err(disp->dev, "failed to set the video clock\n");
 		return ret;
 	}
 
-	rate = clk_get_rate(disp->pclk);
+	rate = clk_get_rate(disp->dpsub->vid_clk);
 	diff = rate - mode_clock;
 	if (abs(diff) > mode_clock / 20)
 		dev_info(disp->dev,
@@ -1477,9 +1472,9 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	zynqmp_disp_setup_clock(disp, adjusted_mode->clock * 1000);
 
-	ret = clk_prepare_enable(disp->pclk);
+	ret = clk_prepare_enable(disp->dpsub->vid_clk);
 	if (ret) {
-		dev_err(disp->dev, "failed to enable a pixel clock\n");
+		dev_err(disp->dev, "failed to enable the video clock\n");
 		pm_runtime_put_sync(disp->dev);
 		return;
 	}
@@ -1519,7 +1514,7 @@ zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
 
-	clk_disable_unprepare(disp->pclk);
+	clk_disable_unprepare(disp->dpsub->vid_clk);
 	pm_runtime_put_sync(disp->dev);
 }
 
@@ -1673,23 +1668,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	disp->audio.base = devm_ioremap_resource(disp->dev, res);
 	if (IS_ERR(disp->audio.base))
 		return PTR_ERR(disp->audio.base);
-
-	/* Try the live PL video clock */
-	disp->pclk = devm_clk_get(disp->dev, "dp_live_video_in_clk");
-	if (!IS_ERR(disp->pclk))
-		disp->pclk_from_ps = false;
-	else if (PTR_ERR(disp->pclk) == -EPROBE_DEFER)
-		return PTR_ERR(disp->pclk);
-
-	/* If the live PL video clock is not valid, fall back to PS clock */
-	if (IS_ERR_OR_NULL(disp->pclk)) {
-		disp->pclk = devm_clk_get(disp->dev, "dp_vtc_pixel_clk_in");
-		if (IS_ERR(disp->pclk)) {
-			dev_err(disp->dev, "failed to init any video clock\n");
-			return PTR_ERR(disp->pclk);
-		}
-		disp->pclk_from_ps = true;
-	}
 
 	zynqmp_disp_audio_init(disp);
 

@@ -33,6 +33,8 @@ enum zynqmp_dpsub_format {
  * @drm: The DRM/KMS device
  * @dev: The physical device
  * @apb_clk: The APB clock
+ * @vid_clk: Video clock
+ * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
  * @encoder: The dummy DRM encoder
  * @bridge: The DP encoder bridge
  * @disp: The display controller
@@ -44,6 +46,8 @@ struct zynqmp_dpsub {
 	struct device *dev;
 
 	struct clk *apb_clk;
+	struct clk *vid_clk;
+	bool vid_clk_from_ps;
 
 	struct drm_encoder encoder;
 	struct drm_bridge *bridge;
