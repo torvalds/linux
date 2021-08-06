@@ -1278,7 +1278,8 @@ again:
 			 * we unlocked the page above, so we need check if
 			 * it was released or not.
 			 */
-			if (page->mapping != inode->i_mapping) {
+			if (page->mapping != inode->i_mapping ||
+			    !PagePrivate(page)) {
 				unlock_page(page);
 				put_page(page);
 				goto again;
@@ -1296,7 +1297,7 @@ again:
 			}
 		}
 
-		if (page->mapping != inode->i_mapping) {
+		if (page->mapping != inode->i_mapping || !PagePrivate(page)) {
 			unlock_page(page);
 			put_page(page);
 			goto again;
