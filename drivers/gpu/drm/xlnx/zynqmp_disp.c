@@ -11,27 +11,21 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_blend.h>
-#include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_vblank.h>
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/dma/xilinx_dpdma.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
-#include <linux/spinlock.h>
 
 #include "zynqmp_disp.h"
 #include "zynqmp_disp_regs.h"
@@ -89,16 +83,6 @@ struct zynqmp_disp_format {
 };
 
 /**
- * enum zynqmp_disp_layer_id - Layer identifier
- * @ZYNQMP_DISP_LAYER_VID: Video layer
- * @ZYNQMP_DISP_LAYER_GFX: Graphics layer
- */
-enum zynqmp_disp_layer_id {
-	ZYNQMP_DISP_LAYER_VID,
-	ZYNQMP_DISP_LAYER_GFX
-};
-
-/**
  * enum zynqmp_disp_layer_mode - Layer mode
  * @ZYNQMP_DISP_LAYER_NONLIVE: non-live (memory) mode
  * @ZYNQMP_DISP_LAYER_LIVE: live (stream) mode
@@ -143,7 +127,7 @@ struct zynqmp_disp_layer_info {
  * @mode: Current operation mode
  */
 struct zynqmp_disp_layer {
-	enum zynqmp_disp_layer_id id;
+	enum zynqmp_dpsub_layer_id id;
 	struct zynqmp_disp *disp;
 	const struct zynqmp_disp_layer_info *info;
 
@@ -398,12 +382,12 @@ static void zynqmp_disp_avbuf_write(struct zynqmp_disp *disp, int reg, u32 val)
 
 static bool zynqmp_disp_layer_is_gfx(const struct zynqmp_disp_layer *layer)
 {
-	return layer->id == ZYNQMP_DISP_LAYER_GFX;
+	return layer->id == ZYNQMP_DPSUB_LAYER_GFX;
 }
 
 static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
 {
-	return layer->id == ZYNQMP_DISP_LAYER_VID;
+	return layer->id == ZYNQMP_DPSUB_LAYER_VID;
 }
 
 /**
@@ -883,35 +867,6 @@ static void zynqmp_disp_audio_disable(struct zynqmp_disp *disp)
 }
 
 /* -----------------------------------------------------------------------------
- * ZynqMP Display external functions for zynqmp_dp
- */
-
-/**
- * zynqmp_disp_handle_vblank - Handle the vblank event
- * @disp: Display controller
- *
- * This function handles the vblank interrupt, and sends an event to
- * CRTC object. This will be called by the DP vblank interrupt handler.
- */
-void zynqmp_disp_handle_vblank(struct zynqmp_disp *disp)
-{
-	struct drm_crtc *crtc = &disp->dpsub->crtc;
-
-	drm_crtc_handle_vblank(crtc);
-}
-
-/**
- * zynqmp_disp_get_crtc_mask - Return the CRTC bit mask
- * @disp: Display controller
- *
- * Return: the crtc mask of the zyqnmp_disp CRTC.
- */
-uint32_t zynqmp_disp_get_crtc_mask(struct zynqmp_disp *disp)
-{
-	return drm_crtc_mask(&disp->dpsub->crtc);
-}
-
-/* -----------------------------------------------------------------------------
  * ZynqMP Display Layer & DRM Plane
  */
 
@@ -1110,7 +1065,7 @@ zynqmp_disp_plane_atomic_check(struct drm_plane *plane,
 						   false, false);
 }
 
-static void
+void
 zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
 				 struct drm_atomic_state *state)
 {
@@ -1300,12 +1255,12 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 static int zynqmp_disp_create_layers(struct zynqmp_disp *disp)
 {
 	static const struct zynqmp_disp_layer_info layer_info[] = {
-		[ZYNQMP_DISP_LAYER_VID] = {
+		[ZYNQMP_DPSUB_LAYER_VID] = {
 			.formats = avbuf_vid_fmts,
 			.num_formats = ARRAY_SIZE(avbuf_vid_fmts),
 			.num_channels = 3,
 		},
-		[ZYNQMP_DISP_LAYER_GFX] = {
+		[ZYNQMP_DPSUB_LAYER_GFX] = {
 			.formats = avbuf_gfx_fmts,
 			.num_formats = ARRAY_SIZE(avbuf_gfx_fmts),
 			.num_channels = 1,
@@ -1335,14 +1290,14 @@ err:
 }
 
 /* -----------------------------------------------------------------------------
- * ZynqMP Display & DRM CRTC
+ * ZynqMP Display
  */
 
 /**
  * zynqmp_disp_enable - Enable the display controller
  * @disp: Display controller
  */
-static void zynqmp_disp_enable(struct zynqmp_disp *disp)
+void zynqmp_disp_enable(struct zynqmp_disp *disp)
 {
 	zynqmp_disp_blend_set_output_format(disp, ZYNQMP_DPSUB_FORMAT_RGB);
 	zynqmp_disp_blend_set_bg_color(disp, 0, 0, 0);
@@ -1362,7 +1317,7 @@ static void zynqmp_disp_enable(struct zynqmp_disp *disp)
  * zynqmp_disp_disable - Disable the display controller
  * @disp: Display controller
  */
-static void zynqmp_disp_disable(struct zynqmp_disp *disp)
+void zynqmp_disp_disable(struct zynqmp_disp *disp)
 {
 	zynqmp_disp_audio_disable(disp);
 
@@ -1371,8 +1326,15 @@ static void zynqmp_disp_disable(struct zynqmp_disp *disp)
 	zynqmp_disp_avbuf_disable(disp);
 }
 
-static int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
-				   unsigned long mode_clock)
+/**
+ * zynqmp_disp_setup_clock - Configure the display controller pixel clock rate
+ * @disp: Display controller
+ * @mode_clock: The pixel clock rate, in Hz
+ *
+ * Return: 0 on success, or a negative error clock otherwise
+ */
+int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
+			    unsigned long mode_clock)
 {
 	unsigned long rate;
 	long diff;
@@ -1398,186 +1360,13 @@ static int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
 	return 0;
 }
 
-static inline struct zynqmp_disp *crtc_to_disp(struct drm_crtc *crtc)
-{
-	return container_of(crtc, struct zynqmp_dpsub, crtc)->disp;
-}
-
-static void
-zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
-			       struct drm_atomic_state *state)
-{
-	struct zynqmp_disp *disp = crtc_to_disp(crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
-	int ret, vrefresh;
-
-	pm_runtime_get_sync(disp->dev);
-
-	zynqmp_disp_setup_clock(disp, adjusted_mode->clock * 1000);
-
-	ret = clk_prepare_enable(disp->dpsub->vid_clk);
-	if (ret) {
-		dev_err(disp->dev, "failed to enable the video clock\n");
-		pm_runtime_put_sync(disp->dev);
-		return;
-	}
-
-	zynqmp_disp_enable(disp);
-
-	/* Delay of 3 vblank intervals for timing gen to be stable */
-	vrefresh = (adjusted_mode->clock * 1000) /
-		   (adjusted_mode->vtotal * adjusted_mode->htotal);
-	msleep(3 * 1000 / vrefresh);
-}
-
-static void
-zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
-				struct drm_atomic_state *state)
-{
-	struct zynqmp_disp *disp = crtc_to_disp(crtc);
-	struct drm_plane_state *old_plane_state;
-
-	/*
-	 * Disable the plane if active. The old plane state can be NULL in the
-	 * .shutdown() path if the plane is already disabled, skip
-	 * zynqmp_disp_plane_atomic_disable() in that case.
-	 */
-	old_plane_state = drm_atomic_get_old_plane_state(state, crtc->primary);
-	if (old_plane_state)
-		zynqmp_disp_plane_atomic_disable(crtc->primary, state);
-
-	zynqmp_disp_disable(disp);
-
-	drm_crtc_vblank_off(crtc);
-
-	spin_lock_irq(&crtc->dev->event_lock);
-	if (crtc->state->event) {
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		crtc->state->event = NULL;
-	}
-	spin_unlock_irq(&crtc->dev->event_lock);
-
-	clk_disable_unprepare(disp->dpsub->vid_clk);
-	pm_runtime_put_sync(disp->dev);
-}
-
-static int zynqmp_disp_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_atomic_state *state)
-{
-	return drm_atomic_add_affected_planes(state, crtc);
-}
-
-static void
-zynqmp_disp_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state)
-{
-	drm_crtc_vblank_on(crtc);
-}
-
-static void
-zynqmp_disp_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state)
-{
-	if (crtc->state->event) {
-		struct drm_pending_vblank_event *event;
-
-		/* Consume the flip_done event from atomic helper. */
-		event = crtc->state->event;
-		crtc->state->event = NULL;
-
-		event->pipe = drm_crtc_index(crtc);
-
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_arm_vblank_event(crtc, event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-	}
-}
-
-static const struct drm_crtc_helper_funcs zynqmp_disp_crtc_helper_funcs = {
-	.atomic_enable	= zynqmp_disp_crtc_atomic_enable,
-	.atomic_disable	= zynqmp_disp_crtc_atomic_disable,
-	.atomic_check	= zynqmp_disp_crtc_atomic_check,
-	.atomic_begin	= zynqmp_disp_crtc_atomic_begin,
-	.atomic_flush	= zynqmp_disp_crtc_atomic_flush,
-};
-
-static int zynqmp_disp_crtc_enable_vblank(struct drm_crtc *crtc)
-{
-	struct zynqmp_disp *disp = crtc_to_disp(crtc);
-
-	zynqmp_dp_enable_vblank(disp->dpsub->dp);
-
-	return 0;
-}
-
-static void zynqmp_disp_crtc_disable_vblank(struct drm_crtc *crtc)
-{
-	struct zynqmp_disp *disp = crtc_to_disp(crtc);
-
-	zynqmp_dp_disable_vblank(disp->dpsub->dp);
-}
-
-static const struct drm_crtc_funcs zynqmp_disp_crtc_funcs = {
-	.destroy		= drm_crtc_cleanup,
-	.set_config		= drm_atomic_helper_set_config,
-	.page_flip		= drm_atomic_helper_page_flip,
-	.reset			= drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
-	.enable_vblank		= zynqmp_disp_crtc_enable_vblank,
-	.disable_vblank		= zynqmp_disp_crtc_disable_vblank,
-};
-
-static int zynqmp_disp_create_crtc(struct zynqmp_disp *disp)
-{
-	struct drm_plane *plane = &disp->dpsub->planes[ZYNQMP_DISP_LAYER_GFX];
-	struct drm_crtc *crtc = &disp->dpsub->crtc;
-	int ret;
-
-	ret = drm_crtc_init_with_planes(disp->drm, crtc, plane,
-					NULL, &zynqmp_disp_crtc_funcs, NULL);
-	if (ret < 0)
-		return ret;
-
-	drm_crtc_helper_add(crtc, &zynqmp_disp_crtc_helper_funcs);
-
-	/* Start with vertical blanking interrupt reporting disabled. */
-	drm_crtc_vblank_off(crtc);
-
-	return 0;
-}
-
-static void zynqmp_disp_map_crtc_to_plane(struct zynqmp_disp *disp)
-{
-	u32 possible_crtcs = drm_crtc_mask(&disp->dpsub->crtc);
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(disp->layers); i++)
-		disp->dpsub->planes[i].possible_crtcs = possible_crtcs;
-}
-
 /* -----------------------------------------------------------------------------
  * Initialization & Cleanup
  */
 
 int zynqmp_disp_drm_init(struct zynqmp_dpsub *dpsub)
 {
-	struct zynqmp_disp *disp = dpsub->disp;
-	int ret;
-
-	ret = zynqmp_disp_create_planes(disp);
-	if (ret)
-		return ret;
-
-	ret = zynqmp_disp_create_crtc(disp);
-	if (ret < 0)
-		return ret;
-
-	zynqmp_disp_map_crtc_to_plane(disp);
-
-	return 0;
+	return zynqmp_disp_create_planes(dpsub->disp);
 }
 
 int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
@@ -1617,7 +1406,7 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	if (ret)
 		return ret;
 
-	layer = &disp->layers[ZYNQMP_DISP_LAYER_VID];
+	layer = &disp->layers[ZYNQMP_DPSUB_LAYER_VID];
 	dpsub->dma_align = 1 << layer->dmas[0].chan->device->copy_align;
 
 	return 0;

@@ -14,6 +14,8 @@
 
 struct zynqmp_dpsub;
 
+void zynqmp_dpsub_handle_vblank(struct zynqmp_dpsub *dpsub);
+
 int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub);
 
 #endif /* _ZYNQMP_KMS_H_ */
