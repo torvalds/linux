@@ -57,6 +57,17 @@ struct xfs_error_cfg {
 };
 
 /*
+ * Per-cpu deferred inode inactivation GC lists.
+ */
+struct xfs_inodegc {
+	struct llist_head	list;
+	struct work_struct	work;
+
+	/* approximate count of inodes in the list */
+	unsigned int		items;
+};
+
+/*
  * The struct xfsmount layout is optimised to separate read-mostly variables
  * from variables that are frequently modified. We put the read-mostly variables
  * first, then place all the other variables at the end.
@@ -83,6 +94,8 @@ typedef struct xfs_mount {
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
 	struct list_head	m_mount_list;	/* global mount list */
+	void __percpu		*m_inodegc;	/* percpu inodegc structures */
+
 	/*
 	 * Optional cache of rt summary level per bitmap block with the
 	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
@@ -95,8 +108,9 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
 	struct workqueue_struct	*m_reclaim_workqueue;
-	struct workqueue_struct *m_gc_workqueue;
 	struct workqueue_struct	*m_sync_workqueue;
+	struct workqueue_struct *m_blockgc_wq;
+	struct workqueue_struct *m_inodegc_wq;
 
 	int			m_bsize;	/* fs logical block size */
 	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
@@ -137,6 +151,7 @@ typedef struct xfs_mount {
 	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 						/* low free space thresholds */
+	unsigned long		m_opstate;	/* dynamic state flags */
 	bool			m_always_cow;
 	bool			m_fail_unmount;
 	bool			m_finobt_nores; /* no per-AG finobt resv. */
@@ -258,6 +273,32 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_NOATTR2	(1ULL << 25)	/* disable use of attr2 format */
 #define XFS_MOUNT_DAX_ALWAYS	(1ULL << 26)
 #define XFS_MOUNT_DAX_NEVER	(1ULL << 27)
+
+/*
+ * If set, inactivation worker threads will be scheduled to process queued
+ * inodegc work.  If not, queued inodes remain in memory waiting to be
+ * processed.
+ */
+#define XFS_OPSTATE_INODEGC_ENABLED	0
+
+#define __XFS_IS_OPSTATE(name, NAME) \
+static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
+{ \
+	return test_bit(XFS_OPSTATE_ ## NAME, &mp->m_opstate); \
+} \
+static inline bool xfs_clear_ ## name (struct xfs_mount *mp) \
+{ \
+	return test_and_clear_bit(XFS_OPSTATE_ ## NAME, &mp->m_opstate); \
+} \
+static inline bool xfs_set_ ## name (struct xfs_mount *mp) \
+{ \
+	return test_and_set_bit(XFS_OPSTATE_ ## NAME, &mp->m_opstate); \
+}
+
+__XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
+
+#define XFS_OPSTATE_STRINGS \
+	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }
 
 /*
  * Max and min values for mount-option defined I/O

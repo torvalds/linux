@@ -530,21 +530,29 @@ xfs_init_mount_workqueues(
 	if (!mp->m_reclaim_workqueue)
 		goto out_destroy_cil;
 
-	mp->m_gc_workqueue = alloc_workqueue("xfs-gc/%s",
-			WQ_SYSFS | WQ_UNBOUND | WQ_FREEZABLE | WQ_MEM_RECLAIM,
+	mp->m_blockgc_wq = alloc_workqueue("xfs-blockgc/%s",
+			XFS_WQFLAGS(WQ_UNBOUND | WQ_FREEZABLE | WQ_MEM_RECLAIM),
 			0, mp->m_super->s_id);
-	if (!mp->m_gc_workqueue)
+	if (!mp->m_blockgc_wq)
 		goto out_destroy_reclaim;
+
+	mp->m_inodegc_wq = alloc_workqueue("xfs-inodegc/%s",
+			XFS_WQFLAGS(WQ_FREEZABLE | WQ_MEM_RECLAIM),
+			1, mp->m_super->s_id);
+	if (!mp->m_inodegc_wq)
+		goto out_destroy_blockgc;
 
 	mp->m_sync_workqueue = alloc_workqueue("xfs-sync/%s",
 			XFS_WQFLAGS(WQ_FREEZABLE), 0, mp->m_super->s_id);
 	if (!mp->m_sync_workqueue)
-		goto out_destroy_eofb;
+		goto out_destroy_inodegc;
 
 	return 0;
 
-out_destroy_eofb:
-	destroy_workqueue(mp->m_gc_workqueue);
+out_destroy_inodegc:
+	destroy_workqueue(mp->m_inodegc_wq);
+out_destroy_blockgc:
+	destroy_workqueue(mp->m_blockgc_wq);
 out_destroy_reclaim:
 	destroy_workqueue(mp->m_reclaim_workqueue);
 out_destroy_cil:
@@ -562,7 +570,8 @@ xfs_destroy_mount_workqueues(
 	struct xfs_mount	*mp)
 {
 	destroy_workqueue(mp->m_sync_workqueue);
-	destroy_workqueue(mp->m_gc_workqueue);
+	destroy_workqueue(mp->m_blockgc_wq);
+	destroy_workqueue(mp->m_inodegc_wq);
 	destroy_workqueue(mp->m_reclaim_workqueue);
 	destroy_workqueue(mp->m_cil_workqueue);
 	destroy_workqueue(mp->m_unwritten_workqueue);
@@ -724,6 +733,8 @@ xfs_fs_sync_fs(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	trace_xfs_fs_sync_fs(mp, __return_address);
+
 	/*
 	 * Doing anything during the async pass would be counterproductive.
 	 */
@@ -739,6 +750,22 @@ xfs_fs_sync_fs(
 		 */
 		flush_delayed_work(&mp->m_log->l_work);
 	}
+
+	/*
+	 * If we are called with page faults frozen out, it means we are about
+	 * to freeze the transaction subsystem. Take the opportunity to shut
+	 * down inodegc because once SB_FREEZE_FS is set it's too late to
+	 * prevent inactivation races with freeze. The fs doesn't get called
+	 * again by the freezing process until after SB_FREEZE_FS has been set,
+	 * so it's now or never.
+	 *
+	 * We don't care if this is a normal syncfs call that does this or
+	 * freeze that does this - we can run this multiple times without issue
+	 * and we won't race with a restart because a restart can only occur
+	 * when the state is either SB_FREEZE_FS or SB_FREEZE_COMPLETE.
+	 */
+	if (sb->s_writers.frozen == SB_FREEZE_PAGEFAULT)
+		xfs_inodegc_stop(mp);
 
 	return 0;
 }
@@ -857,6 +884,17 @@ xfs_fs_freeze(
 	xfs_save_resvblks(mp);
 	ret = xfs_log_quiesce(mp);
 	memalloc_nofs_restore(flags);
+
+	/*
+	 * For read-write filesystems, we need to restart the inodegc on error
+	 * because we stopped it at SB_FREEZE_PAGEFAULT level and a thaw is not
+	 * going to be run to restart it now.  We are at SB_FREEZE_FS level
+	 * here, so we can restart safely without racing with a stop in
+	 * xfs_fs_sync_fs().
+	 */
+	if (ret && !(mp->m_flags & XFS_MOUNT_RDONLY))
+		xfs_inodegc_start(mp);
+
 	return ret;
 }
 
@@ -869,6 +907,14 @@ xfs_fs_unfreeze(
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
 	xfs_blockgc_start(mp);
+
+	/*
+	 * Don't reactivate the inodegc worker on a readonly filesystem because
+	 * inodes are sent directly to reclaim.
+	 */
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
+		xfs_inodegc_start(mp);
+
 	return 0;
 }
 
@@ -994,6 +1040,35 @@ xfs_destroy_percpu_counters(
 	percpu_counter_destroy(&mp->m_delalloc_blks);
 }
 
+static int
+xfs_inodegc_init_percpu(
+	struct xfs_mount	*mp)
+{
+	struct xfs_inodegc	*gc;
+	int			cpu;
+
+	mp->m_inodegc = alloc_percpu(struct xfs_inodegc);
+	if (!mp->m_inodegc)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		gc = per_cpu_ptr(mp->m_inodegc, cpu);
+		init_llist_head(&gc->list);
+		gc->items = 0;
+		INIT_WORK(&gc->work, xfs_inodegc_worker);
+	}
+	return 0;
+}
+
+static void
+xfs_inodegc_free_percpu(
+	struct xfs_mount	*mp)
+{
+	if (!mp->m_inodegc)
+		return;
+	free_percpu(mp->m_inodegc);
+}
+
 static void
 xfs_fs_put_super(
 	struct super_block	*sb)
@@ -1011,6 +1086,7 @@ xfs_fs_put_super(
 	xfs_freesb(mp);
 	free_percpu(mp->m_stats.xs_stats);
 	xfs_mount_list_del(mp);
+	xfs_inodegc_free_percpu(mp);
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
 	xfs_close_devices(mp);
@@ -1382,6 +1458,10 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_destroy_workqueues;
 
+	error = xfs_inodegc_init_percpu(mp);
+	if (error)
+		goto out_destroy_counters;
+
 	/*
 	 * All percpu data structures requiring cleanup when a cpu goes offline
 	 * must be allocated before adding this @mp to the cpu-dead handler's
@@ -1393,7 +1473,7 @@ xfs_fs_fill_super(
 	mp->m_stats.xs_stats = alloc_percpu(struct xfsstats);
 	if (!mp->m_stats.xs_stats) {
 		error = -ENOMEM;
-		goto out_destroy_counters;
+		goto out_destroy_inodegc;
 	}
 
 	error = xfs_readsb(mp, flags);
@@ -1596,8 +1676,10 @@ xfs_fs_fill_super(
 	xfs_freesb(mp);
  out_free_stats:
 	free_percpu(mp->m_stats.xs_stats);
- out_destroy_counters:
+ out_destroy_inodegc:
 	xfs_mount_list_del(mp);
+	xfs_inodegc_free_percpu(mp);
+ out_destroy_counters:
 	xfs_destroy_percpu_counters(mp);
  out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
@@ -1680,6 +1762,9 @@ xfs_remount_rw(
 	if (error && error != -ENOSPC)
 		return error;
 
+	/* Re-enable the background inode inactivation worker. */
+	xfs_inodegc_start(mp);
+
 	return 0;
 }
 
@@ -1701,6 +1786,15 @@ xfs_remount_ro(
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;
 	}
+
+	/*
+	 * Stop the inodegc background worker.  xfs_fs_reconfigure already
+	 * flushed all pending inodegc work when it sync'd the filesystem.
+	 * The VFS holds s_umount, so we know that inodes cannot enter
+	 * xfs_fs_destroy_inode during a remount operation.  In readonly mode
+	 * we send inodes straight to reclaim, so no inodes will be queued.
+	 */
+	xfs_inodegc_stop(mp);
 
 	/* Free the per-AG metadata reservation pool. */
 	error = xfs_fs_unreserve_ag_blocks(mp);
@@ -2102,7 +2196,7 @@ xfs_cpu_dead(
 	spin_lock(&xfs_mount_list_lock);
 	list_for_each_entry_safe(mp, n, &xfs_mount_list, m_mount_list) {
 		spin_unlock(&xfs_mount_list_lock);
-		/* xfs_subsys_dead(mp, cpu); */
+		xfs_inodegc_cpu_dead(mp, cpu);
 		spin_lock(&xfs_mount_list_lock);
 	}
 	spin_unlock(&xfs_mount_list_lock);
