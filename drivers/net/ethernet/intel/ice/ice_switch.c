@@ -2683,6 +2683,27 @@ ice_rem_sw_rule_info(struct ice_hw *hw, struct list_head *rule_head)
 }
 
 /**
+ * ice_rem_adv_rule_info
+ * @hw: pointer to the hardware structure
+ * @rule_head: pointer to the switch list structure that we want to delete
+ */
+static void
+ice_rem_adv_rule_info(struct ice_hw *hw, struct list_head *rule_head)
+{
+	struct ice_adv_fltr_mgmt_list_entry *tmp_entry;
+	struct ice_adv_fltr_mgmt_list_entry *lst_itr;
+
+	if (list_empty(rule_head))
+		return;
+
+	list_for_each_entry_safe(lst_itr, tmp_entry, rule_head, list_entry) {
+		list_del(&lst_itr->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), lst_itr->lkups);
+		devm_kfree(ice_hw_to_dev(hw), lst_itr);
+	}
+}
+
+/**
  * ice_cfg_dflt_vsi - change state of VSI to set/clear default
  * @hw: pointer to the hardware structure
  * @vsi_handle: VSI handle to set as default
@@ -5183,12 +5204,15 @@ void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw)
 	if (!sw)
 		return;
 
-	for (i = 0; i < ICE_SW_LKUP_LAST; i++) {
+	for (i = 0; i < ICE_MAX_NUM_RECIPES; i++) {
 		if (!list_empty(&sw->recp_list[i].filt_replay_rules)) {
 			struct list_head *l_head;
 
 			l_head = &sw->recp_list[i].filt_replay_rules;
-			ice_rem_sw_rule_info(hw, l_head);
+			if (!sw->recp_list[i].adv_rule)
+				ice_rem_sw_rule_info(hw, l_head);
+			else
+				ice_rem_adv_rule_info(hw, l_head);
 		}
 	}
 }
