@@ -407,6 +407,25 @@ config PINCTRL_K210
 	  Add support for the Canaan Kendryte K210 RISC-V SOC Field
 	  Programmable IO Array (FPIOA) controller.
 
+config PINCTRL_KEEMBAY
+	tristate "Pinctrl driver for Intel Keem Bay SoC"
+	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	depends on HAS_IOMEM
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GPIO_GENERIC
+	help
+	  This selects pin control driver for the Intel Keembay SoC.
+	  It provides pin config functions such as pullup, pulldown,
+	  interrupt, drive strength, sec lock, schmitt trigger, slew
+	  rate control and direction control. This module will be
+	  called as pinctrl-keembay.
+
 source "drivers/pinctrl/actions/Kconfig"
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
