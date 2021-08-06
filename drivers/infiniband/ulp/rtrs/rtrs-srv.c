@@ -1893,7 +1893,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	err = create_con(sess, cm_id, cid);
 	if (err) {
 		rtrs_err((&sess->s), "create_con(), error %d\n", err);
-		(void)rtrs_rdma_do_reject(cm_id, err);
+		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since session has other connections we follow normal way
 		 * through workqueue, but still return an error to tell cma.c
@@ -1904,7 +1904,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	err = rtrs_rdma_do_accept(sess, cm_id);
 	if (err) {
 		rtrs_err((&sess->s), "rtrs_rdma_do_accept(), error %d\n", err);
-		(void)rtrs_rdma_do_reject(cm_id, err);
+		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since current connection was successfully added to the
 		 * session we follow normal way through workqueue to close the
