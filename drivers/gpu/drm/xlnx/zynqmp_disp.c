@@ -1037,15 +1037,13 @@ static void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
 /**
  * zynqmp_disp_layer_set_format - Set the layer format
  * @layer: The layer
- * @state: The plane state
+ * @info: The format info
  *
- * Set the format for @layer based on @state->fb->format. The layer must be
- * disabled.
+ * Set the format for @layer to @info. The layer must be disabled.
  */
 static void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
-					 struct drm_plane_state *state)
+					 const struct drm_format_info *info)
 {
-	const struct drm_format_info *info = state->fb->format;
 	unsigned int i;
 
 	layer->disp_fmt = zynqmp_disp_layer_find_format(layer, info->format);
@@ -1190,7 +1188,7 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 		if (old_state->fb)
 			zynqmp_disp_layer_disable(layer);
 
-		zynqmp_disp_layer_set_format(layer, new_state);
+		zynqmp_disp_layer_set_format(layer, new_state->fb->format);
 	}
 
 	zynqmp_disp_layer_update(layer, new_state);
