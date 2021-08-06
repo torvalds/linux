@@ -1207,17 +1207,6 @@ static long mtty_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	return -ENOTTY;
 }
 
-static int mtty_open(struct vfio_device *vdev)
-{
-	pr_info("%s\n", __func__);
-	return 0;
-}
-
-static void mtty_close(struct vfio_device *mdev)
-{
-	pr_info("%s\n", __func__);
-}
-
 static ssize_t
 sample_mtty_dev_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
@@ -1325,8 +1314,6 @@ static struct attribute_group *mdev_type_groups[] = {
 
 static const struct vfio_device_ops mtty_dev_ops = {
 	.name = "vfio-mtty",
-	.open = mtty_open,
-	.release = mtty_close,
 	.read = mtty_read,
 	.write = mtty_write,
 	.ioctl = mtty_ioctl,

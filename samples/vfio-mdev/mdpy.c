@@ -614,15 +614,6 @@ static long mdpy_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	return -ENOTTY;
 }
 
-static int mdpy_open(struct vfio_device *vdev)
-{
-	return 0;
-}
-
-static void mdpy_close(struct vfio_device *vdev)
-{
-}
-
 static ssize_t
 resolution_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -717,8 +708,6 @@ static struct attribute_group *mdev_type_groups[] = {
 };
 
 static const struct vfio_device_ops mdpy_dev_ops = {
-	.open = mdpy_open,
-	.release = mdpy_close,
 	.read = mdpy_read,
 	.write = mdpy_write,
 	.ioctl = mdpy_ioctl,
