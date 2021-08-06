@@ -14,7 +14,7 @@
 #include <linux/mfd/sy7636a.h>
 
 struct sy7636a_data {
-	struct sy7636a *sy7636a;
+	struct regmap *regmap;
 	struct gpio_desc *pgood_gpio;
 };
 
@@ -70,14 +70,14 @@ static const struct regulator_desc desc = {
 
 static int sy7636a_regulator_probe(struct platform_device *pdev)
 {
-	struct sy7636a *sy7636a = dev_get_drvdata(pdev->dev.parent);
+	struct regmap *regmap = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct gpio_desc *gdp;
 	struct sy7636a_data *data;
 	int ret;
 
-	if (!sy7636a)
+	if (!regmap)
 		return -EPROBE_DEFER;
 
 	gdp = devm_gpiod_get(pdev->dev.parent, "epd-pwr-good", GPIOD_IN);
@@ -90,12 +90,12 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->sy7636a = sy7636a;
+	data->regmap = regmap;
 	data->pgood_gpio = gdp;
 
 	platform_set_drvdata(pdev, data);
 
-	ret = regmap_write(sy7636a->regmap, SY7636A_REG_POWER_ON_DELAY_TIME, 0x0);
+	ret = regmap_write(regmap, SY7636A_REG_POWER_ON_DELAY_TIME, 0x0);
 	if (ret) {
 		dev_err(pdev->dev.parent, "Failed to initialize regulator: %d\n", ret);
 		return ret;
@@ -103,8 +103,7 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.dev->of_node = pdev->dev.parent->of_node;
-	config.driver_data = sy7636a;
-	config.regmap = sy7636a->regmap;
+	config.regmap = regmap;
 
 	rdev = devm_regulator_register(&pdev->dev, &desc, &config);
 	if (IS_ERR(rdev)) {
