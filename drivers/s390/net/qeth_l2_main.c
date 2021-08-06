@@ -717,6 +717,31 @@ static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 	return rc;
 }
 
+static refcount_t qeth_l2_switchdev_notify_refcnt;
+
+/* Called under rtnl_lock */
+static void qeth_l2_br2dev_get(void)
+{
+	if (!refcount_inc_not_zero(&qeth_l2_switchdev_notify_refcnt)) {
+		/* tbd: register_switchdev_notifier(&qeth_l2_sw_notifier); */
+		refcount_set(&qeth_l2_switchdev_notify_refcnt, 1);
+		QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier registered\n");
+	}
+	QETH_DBF_TEXT_(SETUP, 2, "b2d+%04d",
+		       qeth_l2_switchdev_notify_refcnt.refs.counter);
+}
+
+/* Called under rtnl_lock */
+static void qeth_l2_br2dev_put(void)
+{
+	if (refcount_dec_and_test(&qeth_l2_switchdev_notify_refcnt)) {
+		/* tbd: unregister_switchdev_notifier(&qeth_l2_sw_notifier); */
+		QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier unregistered\n");
+	}
+	QETH_DBF_TEXT_(SETUP, 2, "b2d-%04d",
+		       qeth_l2_switchdev_notify_refcnt.refs.counter);
+}
+
 static int qeth_l2_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				  struct net_device *dev, u32 filter_mask,
 				  int nlflags)
@@ -810,16 +835,19 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	} else if (enable) {
 		qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
 		rc = qeth_l2_dev2br_an_set(card, true);
-		if (rc)
+		if (rc) {
 			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
-		else
+		} else {
 			priv->brport_features |= BR_LEARNING_SYNC;
+			qeth_l2_br2dev_get();
+		}
 	} else {
 		rc = qeth_l2_dev2br_an_set(card, false);
 		if (!rc) {
 			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
 			priv->brport_features ^= BR_LEARNING_SYNC;
 			qeth_l2_dev2br_fdb_flush(card);
+			qeth_l2_br2dev_put();
 		}
 	}
 	mutex_unlock(&card->sbp_lock);
@@ -2072,6 +2100,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	struct qeth_priv *priv;
 
 	if (gdev->dev.type != &qeth_l2_devtype)
 		device_remove_groups(&gdev->dev, qeth_l2_attr_groups);
@@ -2083,8 +2112,15 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 		qeth_set_offline(card, card->discipline, false);
 
 	cancel_work_sync(&card->close_dev_work);
-	if (card->dev->reg_state == NETREG_REGISTERED)
+	if (card->dev->reg_state == NETREG_REGISTERED) {
+		priv = netdev_priv(card->dev);
+		if (priv->brport_features & BR_LEARNING_SYNC) {
+			rtnl_lock();
+			qeth_l2_br2dev_put();
+			rtnl_unlock();
+		}
 		unregister_netdev(card->dev);
+	}
 }
 
 static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
@@ -2207,6 +2243,7 @@ EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 static int __init qeth_l2_init(void)
 {
 	pr_info("register layer 2 discipline\n");
+	refcount_set(&qeth_l2_switchdev_notify_refcnt, 0);
 	return 0;
 }
 
