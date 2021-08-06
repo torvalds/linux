@@ -18,6 +18,14 @@
 
 #define ICE_PKG_CNT 4
 
+void
+ice_get_sw_fv_bitmap(struct ice_hw *hw, enum ice_prof_type type,
+		     unsigned long *bm);
+void
+ice_init_prof_result_bm(struct ice_hw *hw);
+enum ice_status
+ice_get_sw_fv_list(struct ice_hw *hw, u8 *prot_ids, u16 ids_cnt,
+		   unsigned long *bm, struct list_head *fv_list);
 bool
 ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port);
 int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
