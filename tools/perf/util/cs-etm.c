@@ -2981,6 +2981,11 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 
 			/* ETE shares first part of metadata with ETMv4 */
 			trcidr_idx = CS_ETMV4_TRCTRACEIDR;
+		} else {
+			ui__error("CS ETM Trace: Unrecognised magic number %#"PRIx64". File could be from a newer version of perf.\n",
+				  ptr[i]);
+			err = -EINVAL;
+			goto err_free_metadata;
 		}
 
 		if (!metadata[j]) {
