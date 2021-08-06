@@ -2383,7 +2383,7 @@ snic_host_reset(struct scsi_cmnd *sc)
 {
 	struct Scsi_Host *shost = sc->device->host;
 	u32 start_time  = jiffies;
-	int ret = FAILED;
+	int ret;
 
 	SNIC_SCSI_DBG(shost,
 		      "host reset:sc %p sc_cmd 0x%x req %p tag %d flags 0x%llx\n",
