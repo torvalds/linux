@@ -348,7 +348,7 @@ int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 	struct drm_connector *connector;
 	int ret;
 
-	/* Create the planes and the CRTC, and initialize the DP encoder. */
+	/* Create the planes and the CRTC. */
 	ret = zynqmp_dpsub_create_planes(dpsub);
 	if (ret)
 		return ret;
@@ -358,10 +358,6 @@ int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 		return ret;
 
 	zynqmp_dpsub_map_crtc_to_plane(dpsub);
-
-	ret = zynqmp_dp_drm_init(dpsub);
-	if (ret)
-		return ret;
 
 	/* Create the encoder and attach the bridge. */
 	encoder->possible_crtcs |= drm_crtc_mask(&dpsub->crtc);

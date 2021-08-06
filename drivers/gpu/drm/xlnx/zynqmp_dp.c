@@ -1610,27 +1610,10 @@ handled:
  * Initialization & Cleanup
  */
 
-int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
-{
-	struct zynqmp_dp *dp = dpsub->dp;
-	struct drm_bridge *bridge = &dp->bridge;
-
-	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
-	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
-
-	/* Initialize the bridge. */
-	bridge->funcs = &zynqmp_dp_bridge_funcs;
-	bridge->ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
-		    | DRM_BRIDGE_OP_HPD;
-	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
-	dpsub->bridge = bridge;
-
-	return 0;
-}
-
 int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
+	struct drm_bridge *bridge;
 	struct zynqmp_dp *dp;
 	struct resource *res;
 	int ret;
@@ -1673,6 +1656,14 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	if (ret)
 		goto err_reset;
 
+	/* Initialize the bridge. */
+	bridge = &dp->bridge;
+	bridge->funcs = &zynqmp_dp_bridge_funcs;
+	bridge->ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
+		    | DRM_BRIDGE_OP_HPD;
+	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
+	dpsub->bridge = bridge;
+
 	/*
 	 * Acquire the next bridge in the chain. Ignore errors caused by port@5
 	 * not being connected for backward-compatibility with older DTs.
@@ -1683,6 +1674,9 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 		goto err_reset;
 
 	/* Initialize the hardware. */
+	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
+	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
+
 	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN,
 			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
 	zynqmp_dp_set(dp, ZYNQMP_DP_PHY_RESET, ZYNQMP_DP_PHY_RESET_ALL_RESET);
