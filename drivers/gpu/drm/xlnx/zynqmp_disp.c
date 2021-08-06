@@ -1088,7 +1088,7 @@ static int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 	const struct drm_format_info *info = layer->drm_fmt;
 	unsigned int i;
 
-	for (i = 0; i < layer->drm_fmt->num_planes; i++) {
+	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = state->crtc_w / (i ? info->hsub : 1);
 		unsigned int height = state->crtc_h / (i ? info->vsub : 1);
 		struct zynqmp_disp_layer_dma *dma = &layer->dmas[i];
