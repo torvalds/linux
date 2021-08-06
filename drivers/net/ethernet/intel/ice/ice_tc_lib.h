@@ -125,5 +125,6 @@ ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 		   struct flow_cls_offload *cls_flower);
 int
 ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower);
+void ice_replay_tc_fltrs(struct ice_pf *pf);
 
 #endif /* _ICE_TC_LIB_H_ */

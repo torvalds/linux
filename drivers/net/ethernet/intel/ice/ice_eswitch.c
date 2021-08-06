@@ -7,6 +7,7 @@
 #include "ice_fltr.h"
 #include "ice_repr.h"
 #include "ice_devlink.h"
+#include "ice_tc_lib.h"
 
 /**
  * ice_eswitch_setup_env - configure switchdev HW filters
@@ -644,6 +645,8 @@ int ice_eswitch_rebuild(struct ice_pf *pf)
 		return status;
 
 	ice_eswitch_remap_rings_to_vectors(pf);
+
+	ice_replay_tc_fltrs(pf);
 
 	status = ice_vsi_open(ctrl_vsi);
 	if (status)

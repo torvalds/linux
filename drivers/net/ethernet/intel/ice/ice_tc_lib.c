@@ -836,3 +836,20 @@ ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower)
 
 	return 0;
 }
+
+/**
+ * ice_replay_tc_fltrs - replay TC filters
+ * @pf: pointer to PF struct
+ */
+void ice_replay_tc_fltrs(struct ice_pf *pf)
+{
+	struct ice_tc_flower_fltr *fltr;
+	struct hlist_node *node;
+
+	hlist_for_each_entry_safe(fltr, node,
+				  &pf->tc_flower_fltr_list,
+				  tc_flower_node) {
+		fltr->extack = NULL;
+		ice_add_switch_fltr(fltr->src_vsi, fltr);
+	}
+}
