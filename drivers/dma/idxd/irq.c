@@ -176,7 +176,6 @@ static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)
 {
 	struct idxd_desc *desc, *t;
 	struct llist_node *head;
-	unsigned long flags;
 
 	head = llist_del_all(&irq_entry->pending_llist);
 	if (!head)
@@ -197,17 +196,16 @@ static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)
 
 			complete_desc(desc, IDXD_COMPLETE_NORMAL);
 		} else {
-			spin_lock_irqsave(&irq_entry->list_lock, flags);
+			spin_lock(&irq_entry->list_lock);
 			list_add_tail(&desc->list,
 				      &irq_entry->work_list);
-			spin_unlock_irqrestore(&irq_entry->list_lock, flags);
+			spin_unlock(&irq_entry->list_lock);
 		}
 	}
 }
 
 static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 {
-	unsigned long flags;
 	LIST_HEAD(flist);
 	struct idxd_desc *desc, *n;
 
@@ -215,9 +213,9 @@ static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 	 * This lock protects list corruption from access of list outside of the irq handler
 	 * thread.
 	 */
-	spin_lock_irqsave(&irq_entry->list_lock, flags);
+	spin_lock(&irq_entry->list_lock);
 	if (list_empty(&irq_entry->work_list)) {
-		spin_unlock_irqrestore(&irq_entry->list_lock, flags);
+		spin_unlock(&irq_entry->list_lock);
 		return;
 	}
 
@@ -228,7 +226,7 @@ static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 		}
 	}
 
-	spin_unlock_irqrestore(&irq_entry->list_lock, flags);
+	spin_unlock(&irq_entry->list_lock);
 
 	list_for_each_entry(desc, &flist, list) {
 		/*

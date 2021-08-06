@@ -106,14 +106,13 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 {
 	struct idxd_desc *d, *t, *found = NULL;
 	struct llist_node *head;
-	unsigned long flags;
 
 	desc->completion->status = IDXD_COMP_DESC_ABORT;
 	/*
 	 * Grab the list lock so it will block the irq thread handler. This allows the
 	 * abort code to locate the descriptor need to be aborted.
 	 */
-	spin_lock_irqsave(&ie->list_lock, flags);
+	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
 	if (head) {
 		llist_for_each_entry_safe(d, t, head, llnode) {
@@ -127,7 +126,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 
 	if (!found)
 		found = list_abort_desc(wq, ie, desc);
-	spin_unlock_irqrestore(&ie->list_lock, flags);
+	spin_unlock(&ie->list_lock);
 
 	if (found)
 		complete_desc(found, IDXD_COMPLETE_ABORT);
