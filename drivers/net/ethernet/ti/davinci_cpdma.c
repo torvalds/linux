@@ -1034,6 +1034,11 @@ static int cpdma_chan_submit_si(struct submit_info *si)
 		return -ENOMEM;
 	}
 
+	if (len < ctlr->params.min_packet_size) {
+		len = ctlr->params.min_packet_size;
+		chan->stats.runt_transmit_buff++;
+	}
+
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
 	cpdma_desc_to_port(chan, mode, si->directed);
 

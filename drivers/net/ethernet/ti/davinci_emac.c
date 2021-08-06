@@ -1850,6 +1850,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	dma_params.txcp			= priv->emac_base + 0x640;
 	dma_params.rxcp			= priv->emac_base + 0x660;
 	dma_params.num_chan		= EMAC_MAX_TXRX_CHANNELS;
+	dma_params.min_packet_size	= EMAC_DEF_MIN_ETHPKTSIZE;
 	dma_params.desc_hw_addr		= hw_ram_addr;
 	dma_params.desc_mem_size	= pdata->ctrl_ram_size;
 	dma_params.desc_align		= 16;
