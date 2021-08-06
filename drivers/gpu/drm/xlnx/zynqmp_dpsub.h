@@ -72,11 +72,6 @@ struct zynqmp_dpsub {
 	unsigned int dma_align;
 };
 
-static inline struct zynqmp_dpsub *to_zynqmp_dpsub(struct drm_device *drm)
-{
-	return container_of(drm, struct zynqmp_dpsub, drm);
-}
-
 bool zynqmp_dpsub_audio_enabled(struct zynqmp_dpsub *dpsub);
 unsigned int zynqmp_dpsub_get_audio_clk_rate(struct zynqmp_dpsub *dpsub);
 
