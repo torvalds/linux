@@ -63,6 +63,5 @@
 		compatible = "microchip,usb2512b";
 		reg = <0x2c>;
 		reset-gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
-		/* wifi on port 4 */
 	};
 };
