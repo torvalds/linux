@@ -79,16 +79,6 @@ struct zynqmp_disp_format {
 };
 
 /**
- * enum zynqmp_disp_layer_mode - Layer mode
- * @ZYNQMP_DISP_LAYER_NONLIVE: non-live (memory) mode
- * @ZYNQMP_DISP_LAYER_LIVE: live (stream) mode
- */
-enum zynqmp_disp_layer_mode {
-	ZYNQMP_DISP_LAYER_NONLIVE,
-	ZYNQMP_DISP_LAYER_LIVE
-};
-
-/**
  * struct zynqmp_disp_layer_dma - DMA channel for one data plane of a layer
  * @chan: DMA channel
  * @xt: Interleaved DMA descriptor template
@@ -131,7 +121,7 @@ struct zynqmp_disp_layer {
 
 	const struct zynqmp_disp_format *disp_fmt;
 	const struct drm_format_info *drm_fmt;
-	enum zynqmp_disp_layer_mode mode;
+	enum zynqmp_dpsub_layer_mode mode;
 };
 
 /**
@@ -519,27 +509,25 @@ static void zynqmp_disp_avbuf_disable_audio(struct zynqmp_disp *disp)
  * zynqmp_disp_avbuf_enable_video - Enable a video layer
  * @disp: Display controller
  * @layer: The layer
- * @mode: Operating mode of layer
  *
  * Enable the video/graphics buffer for @layer.
  */
 static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp *disp,
-					   struct zynqmp_disp_layer *layer,
-					   enum zynqmp_disp_layer_mode mode)
+					   struct zynqmp_disp_layer *layer)
 {
 	u32 val;
 
 	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
 	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
-		if (mode == ZYNQMP_DISP_LAYER_NONLIVE)
+		if (layer->mode == ZYNQMP_DPSUB_LAYER_NONLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MEM;
 		else
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_LIVE;
 	} else {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MEM;
-		if (mode == ZYNQMP_DISP_LAYER_NONLIVE)
+		if (layer->mode == ZYNQMP_DPSUB_LAYER_NONLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MEM;
 		else
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_LIVE;
@@ -914,17 +902,17 @@ u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
 /**
  * zynqmp_disp_layer_enable - Enable a layer
  * @layer: The layer
+ * @mode: Operating mode of layer
  *
  * Enable the @layer in the audio/video buffer manager and the blender. DMA
  * channels are started separately by zynqmp_disp_layer_update().
  */
-void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
+void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer,
+			      enum zynqmp_dpsub_layer_mode mode)
 {
-	zynqmp_disp_avbuf_enable_video(layer->disp, layer,
-				       ZYNQMP_DISP_LAYER_NONLIVE);
+	layer->mode = mode;
+	zynqmp_disp_avbuf_enable_video(layer->disp, layer);
 	zynqmp_disp_blend_layer_enable(layer->disp, layer);
-
-	layer->mode = ZYNQMP_DISP_LAYER_NONLIVE;
 }
 
 /**
