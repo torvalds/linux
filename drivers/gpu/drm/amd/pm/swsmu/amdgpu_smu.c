@@ -407,11 +407,12 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	    smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_NONE) {
 		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
 		if (ret) {
+			smu->user_dpm_profile.fan_speed_percent = 0;
+			smu->user_dpm_profile.fan_mode = AMD_FAN_CTRL_AUTO;
 			dev_err(smu->adev->dev, "Failed to set manual fan control mode\n");
-			return;
 		}
 
-		if (!ret && smu->user_dpm_profile.fan_speed_percent) {
+		if (smu->user_dpm_profile.fan_speed_percent) {
 			ret = smu_set_fan_speed_percent(smu, smu->user_dpm_profile.fan_speed_percent);
 			if (ret)
 				dev_err(smu->adev->dev, "Failed to set manual fan speed\n");
