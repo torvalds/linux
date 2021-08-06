@@ -1600,10 +1600,6 @@ xfs_fs_fill_super(
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
 		sb->s_flags |= SB_I_VERSION;
 
-	if (xfs_sb_version_hasbigtime(&mp->m_sb))
-		xfs_warn(mp,
- "EXPERIMENTAL big timestamp feature in use. Use at your own risk!");
-
 	if (mp->m_flags & XFS_MOUNT_DAX_ALWAYS) {
 		bool rtdev_is_dax = false, datadev_is_dax;
 
@@ -1658,10 +1654,6 @@ xfs_fs_fill_super(
 		error = -EINVAL;
 		goto out_filestream_unmount;
 	}
-
-	if (xfs_sb_version_hasinobtcounts(&mp->m_sb))
-		xfs_warn(mp,
- "EXPERIMENTAL inode btree counters feature in use. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)
