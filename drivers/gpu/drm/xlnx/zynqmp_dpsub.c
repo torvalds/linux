@@ -158,6 +158,7 @@ static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 	if (!np) {
 		dev_warn(dpsub->dev, "missing ports, update DT bindings\n");
 		dpsub->connected_ports = BIT(ZYNQMP_DPSUB_PORT_OUT_DP);
+		dpsub->dma_enabled = true;
 		return 0;
 	}
 
@@ -176,6 +177,8 @@ static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO)) ||
 	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX)))
 		dev_warn(dpsub->dev, "live video unsupported, ignoring\n");
+
+	dpsub->dma_enabled = true;
 
 	if (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_AUDIO))
 		dev_warn(dpsub->dev, "live audio unsupported, ignoring\n");

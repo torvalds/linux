@@ -926,8 +926,10 @@ void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
 {
 	unsigned int i;
 
-	for (i = 0; i < layer->drm_fmt->num_planes; i++)
-		dmaengine_terminate_sync(layer->dmas[i].chan);
+	if (layer->disp->dpsub->dma_enabled) {
+		for (i = 0; i < layer->drm_fmt->num_planes; i++)
+			dmaengine_terminate_sync(layer->dmas[i].chan);
+	}
 
 	zynqmp_disp_avbuf_disable_video(layer->disp, layer);
 	zynqmp_disp_blend_layer_disable(layer->disp, layer);
@@ -949,6 +951,9 @@ void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
 	layer->drm_fmt = info;
 
 	zynqmp_disp_avbuf_set_format(layer->disp, layer, layer->disp_fmt);
+
+	if (!layer->disp->dpsub->dma_enabled)
+		return;
 
 	/*
 	 * Set pconfig for each DMA channel to indicate they're part of a
@@ -984,6 +989,9 @@ int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 {
 	const struct drm_format_info *info = layer->drm_fmt;
 	unsigned int i;
+
+	if (!layer->disp->dpsub->dma_enabled)
+		return 0;
 
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = state->crtc_w / (i ? info->hsub : 1);
@@ -1032,7 +1040,7 @@ static void zynqmp_disp_layer_release_dma(struct zynqmp_disp *disp,
 {
 	unsigned int i;
 
-	if (!layer->info)
+	if (!layer->info || !disp->dpsub->dma_enabled)
 		return;
 
 	for (i = 0; i < layer->info->num_channels; i++) {
@@ -1074,6 +1082,9 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 	static const char * const dma_names[] = { "vid", "gfx" };
 	unsigned int i;
 	int ret;
+
+	if (!disp->dpsub->dma_enabled)
+		return 0;
 
 	for (i = 0; i < layer->info->num_channels; i++) {
 		struct zynqmp_disp_layer_dma *dma = &layer->dmas[i];
@@ -1217,7 +1228,6 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
 	struct zynqmp_disp *disp;
-	struct zynqmp_disp_layer *layer;
 	struct resource *res;
 	int ret;
 
@@ -1253,8 +1263,12 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 	if (ret)
 		goto error;
 
-	layer = &disp->layers[ZYNQMP_DPSUB_LAYER_VID];
-	dpsub->dma_align = 1 << layer->dmas[0].chan->device->copy_align;
+	if (disp->dpsub->dma_enabled) {
+		struct zynqmp_disp_layer *layer;
+
+		layer = &disp->layers[ZYNQMP_DPSUB_LAYER_VID];
+		dpsub->dma_align = 1 << layer->dmas[0].chan->device->copy_align;
+	}
 
 	dpsub->disp = disp;
 

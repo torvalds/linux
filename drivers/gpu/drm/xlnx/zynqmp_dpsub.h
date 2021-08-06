@@ -48,6 +48,8 @@ enum zynqmp_dpsub_format {
  * @aud_clk: Audio clock
  * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
  * @connected_ports: Bitmask of connected ports in the device tree
+ * @dma_enabled: True if the DMA interface is enabled, false if the DPSUB is
+ *	driven by the live input
  * @drm: The DRM/KMS device data
  * @bridge: The DP encoder bridge
  * @disp: The display controller
@@ -64,6 +66,7 @@ struct zynqmp_dpsub {
 	bool aud_clk_from_ps;
 
 	unsigned int connected_ports;
+	bool dma_enabled;
 
 	struct zynqmp_dpsub_drm *drm;
 	struct drm_bridge *bridge;
