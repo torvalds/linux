@@ -1501,6 +1501,34 @@ xfs_blockgc_free_space(
 }
 
 /*
+ * Reclaim all the free space that we can by scheduling the background blockgc
+ * and inodegc workers immediately and waiting for them all to clear.
+ */
+void
+xfs_blockgc_flush_all(
+	struct xfs_mount	*mp)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+
+	trace_xfs_blockgc_flush_all(mp, __return_address);
+
+	/*
+	 * For each blockgc worker, move its queue time up to now.  If it
+	 * wasn't queued, it will not be requeued.  Then flush whatever's
+	 * left.
+	 */
+	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+		mod_delayed_work(pag->pag_mount->m_blockgc_wq,
+				&pag->pag_blockgc_work, 0);
+
+	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+		flush_delayed_work(&pag->pag_blockgc_work);
+
+	xfs_inodegc_flush(mp);
+}
+
+/*
  * Run cow/eofblocks scans on the supplied dquots.  We don't know exactly which
  * quota caused an allocation failure, so we make a best effort by including
  * each quota under low free space conditions (less than 1% free space) in the

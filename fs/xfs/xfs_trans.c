@@ -295,10 +295,7 @@ retry:
 		 * Do not perform a synchronous scan because callers can hold
 		 * other locks.
 		 */
-		error = xfs_blockgc_free_space(mp, NULL);
-		if (error)
-			return error;
-
+		xfs_blockgc_flush_all(mp);
 		want_retry = false;
 		goto retry;
 	}
