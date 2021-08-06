@@ -204,7 +204,7 @@ xfs_qm_scall_quotaon(
 	     (mp->m_qflags & XFS_GQUOTA_ACCT)))
 		return 0;
 
-	if (! XFS_IS_QUOTA_RUNNING(mp))
+	if (!XFS_IS_QUOTA_ON(mp))
 		return -ESRCH;
 
 	/*

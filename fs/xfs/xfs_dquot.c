@@ -847,9 +847,6 @@ xfs_qm_dqget_checks(
 	struct xfs_mount	*mp,
 	xfs_dqtype_t		type)
 {
-	if (WARN_ON_ONCE(!XFS_IS_QUOTA_RUNNING(mp)))
-		return -ESRCH;
-
 	switch (type) {
 	case XFS_DQTYPE_USER:
 		if (!XFS_IS_UQUOTA_ON(mp))

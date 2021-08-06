@@ -201,25 +201,20 @@ xfs_fs_show_options(
 		seq_printf(m, ",swidth=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_UQUOTA_ENFD)
-			seq_puts(m, ",usrquota");
-		else
-			seq_puts(m, ",uqnoenforce");
-	}
+	if (mp->m_qflags & XFS_UQUOTA_ENFD)
+		seq_puts(m, ",usrquota");
+	else if (mp->m_qflags & XFS_UQUOTA_ACCT)
+		seq_puts(m, ",uqnoenforce");
 
-	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_PQUOTA_ENFD)
-			seq_puts(m, ",prjquota");
-		else
-			seq_puts(m, ",pqnoenforce");
-	}
-	if (mp->m_qflags & XFS_GQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_GQUOTA_ENFD)
-			seq_puts(m, ",grpquota");
-		else
-			seq_puts(m, ",gqnoenforce");
-	}
+	if (mp->m_qflags & XFS_PQUOTA_ENFD)
+		seq_puts(m, ",prjquota");
+	else if (mp->m_qflags & XFS_PQUOTA_ACCT)
+		seq_puts(m, ",pqnoenforce");
+
+	if (mp->m_qflags & XFS_GQUOTA_ENFD)
+		seq_puts(m, ",grpquota");
+	else if (mp->m_qflags & XFS_GQUOTA_ACCT)
+		seq_puts(m, ",gqnoenforce");
 
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, ",noquota");
@@ -962,8 +957,8 @@ xfs_finish_flags(
 		return -EROFS;
 	}
 
-	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
-	    (mp->m_qflags & (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE)) &&
+	if ((mp->m_qflags & XFS_GQUOTA_ACCT) &&
+	    (mp->m_qflags & XFS_PQUOTA_ACCT) &&
 	    !xfs_sb_version_has_pquotino(&mp->m_sb)) {
 		xfs_warn(mp,
 		  "Super block does not support project and group quota together");
@@ -1228,35 +1223,31 @@ xfs_fs_parse_param(
 	case Opt_noquota:
 		parsing_mp->m_qflags &= ~XFS_ALL_QUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_ALL_QUOTA_ENFD;
-		parsing_mp->m_qflags &= ~XFS_ALL_QUOTA_ACTIVE;
 		return 0;
 	case Opt_quota:
 	case Opt_uquota:
 	case Opt_usrquota:
-		parsing_mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
-				 XFS_UQUOTA_ENFD);
+		parsing_mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ENFD);
 		return 0;
 	case Opt_qnoenforce:
 	case Opt_uqnoenforce:
-		parsing_mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
+		parsing_mp->m_qflags |= XFS_UQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_UQUOTA_ENFD;
 		return 0;
 	case Opt_pquota:
 	case Opt_prjquota:
-		parsing_mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
-				 XFS_PQUOTA_ENFD);
+		parsing_mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ENFD);
 		return 0;
 	case Opt_pqnoenforce:
-		parsing_mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
+		parsing_mp->m_qflags |= XFS_PQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_PQUOTA_ENFD;
 		return 0;
 	case Opt_gquota:
 	case Opt_grpquota:
-		parsing_mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
-				 XFS_GQUOTA_ENFD);
+		parsing_mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ENFD);
 		return 0;
 	case Opt_gqnoenforce:
-		parsing_mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
+		parsing_mp->m_qflags |= XFS_GQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_GQUOTA_ENFD;
 		return 0;
 	case Opt_discard:

@@ -132,8 +132,7 @@ xfs_trans_mod_dquot_byino(
 {
 	xfs_mount_t	*mp = tp->t_mountp;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp) ||
-	    !XFS_IS_QUOTA_ON(mp) ||
+	if (!XFS_IS_QUOTA_ON(mp) ||
 	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
 		return;
 
@@ -192,7 +191,7 @@ xfs_trans_mod_dquot(
 	struct xfs_dqtrx	*qtrx;
 
 	ASSERT(tp);
-	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
+	ASSERT(XFS_IS_QUOTA_ON(tp->t_mountp));
 	qtrx = NULL;
 
 	if (!delta)
@@ -738,7 +737,7 @@ xfs_trans_reserve_quota_bydquots(
 {
 	int		error;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
+	if (!XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	ASSERT(flags & XFS_QMOPT_RESBLK_MASK);
@@ -795,7 +794,7 @@ xfs_trans_reserve_quota_nblks(
 	unsigned int		qflags = 0;
 	int			error;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
+	if (!XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
@@ -836,7 +835,7 @@ xfs_trans_reserve_quota_icreate(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
+	if (!XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	return xfs_trans_reserve_quota_bydquots(tp, mp, udqp, gdqp, pdqp,

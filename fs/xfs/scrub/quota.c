@@ -42,7 +42,7 @@ xchk_setup_quota(
 	xfs_dqtype_t		dqtype;
 	int			error;
 
-	if (!XFS_IS_QUOTA_RUNNING(sc->mp) || !XFS_IS_QUOTA_ON(sc->mp))
+	if (!XFS_IS_QUOTA_ON(sc->mp))
 		return -ENOENT;
 
 	dqtype = xchk_quota_to_dqtype(sc);
