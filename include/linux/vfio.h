@@ -15,13 +15,28 @@
 #include <linux/poll.h>
 #include <uapi/linux/vfio.h>
 
+/*
+ * VFIO devices can be placed in a set, this allows all devices to share this
+ * structure and the VFIO core will provide a lock that is held around
+ * open_device()/close_device() for all devices in the set.
+ */
+struct vfio_device_set {
+	void *set_id;
+	struct mutex lock;
+	struct list_head device_list;
+	unsigned int device_count;
+};
+
 struct vfio_device {
 	struct device *dev;
 	const struct vfio_device_ops *ops;
 	struct vfio_group *group;
+	struct vfio_device_set *dev_set;
+	struct list_head dev_set_list;
 
 	/* Members below here are private, not for driver use */
 	refcount_t refcount;
+	unsigned int open_count;
 	struct completion comp;
 	struct list_head group_next;
 };
@@ -29,6 +44,8 @@ struct vfio_device {
 /**
  * struct vfio_device_ops - VFIO bus driver device callbacks
  *
+ * @open_device: Called when the first file descriptor is opened for this device
+ * @close_device: Opposite of open_device
  * @open: Called when userspace creates new file descriptor for device
  * @release: Called when userspace releases file descriptor for device
  * @read: Perform read(2) on device file descriptor
@@ -43,6 +60,8 @@ struct vfio_device {
  */
 struct vfio_device_ops {
 	char	*name;
+	int	(*open_device)(struct vfio_device *vdev);
+	void	(*close_device)(struct vfio_device *vdev);
 	int	(*open)(struct vfio_device *vdev);
 	void	(*release)(struct vfio_device *vdev);
 	ssize_t	(*read)(struct vfio_device *vdev, char __user *buf,
@@ -66,6 +85,8 @@ int vfio_register_group_dev(struct vfio_device *device);
 void vfio_unregister_group_dev(struct vfio_device *device);
 extern struct vfio_device *vfio_device_get_from_dev(struct device *dev);
 extern void vfio_device_put(struct vfio_device *device);
+
+int vfio_assign_device_set(struct vfio_device *device, void *set_id);
 
 /* events for the backend driver notify callback */
 enum vfio_iommu_notify_type {
