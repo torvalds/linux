@@ -642,7 +642,7 @@ struct hstt {
 }
 
 /* Table A-3 High-Speed Transition Times */
-struct hstt hstt_table[] = {
+static struct hstt hstt_table[] = {
 	HSTT(  90,  32, 20,  26, 13),
 	HSTT( 100,  35, 23,  28, 14),
 	HSTT( 110,  32, 22,  26, 13),
