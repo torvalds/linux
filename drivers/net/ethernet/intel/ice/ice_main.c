@@ -20,6 +20,7 @@
 #define CREATE_TRACE_POINTS
 #include "ice_trace.h"
 #include "ice_eswitch.h"
+#include "ice_tc_lib.h"
 
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -3107,6 +3108,9 @@ static void ice_set_netdev_features(struct net_device *netdev)
 
 	/* enable features */
 	netdev->features |= netdev->hw_features;
+
+	netdev->hw_features |= NETIF_F_HW_TC;
+
 	/* encap and VLAN devices inherit default, csumo and tso features */
 	netdev->hw_enc_features |= dflt_features | csumo_features |
 				   tso_features;
@@ -7070,6 +7074,72 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 }
 
 /**
+ * ice_setup_tc_cls_flower - flower classifier offloads
+ * @np: net device to configure
+ * @filter_dev: device on which filter is added
+ * @cls_flower: offload data
+ */
+static int
+ice_setup_tc_cls_flower(struct ice_netdev_priv *np,
+			struct net_device *filter_dev,
+			struct flow_cls_offload *cls_flower)
+{
+	struct ice_vsi *vsi = np->vsi;
+
+	if (cls_flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_flower->command) {
+	case FLOW_CLS_REPLACE:
+		return ice_add_cls_flower(filter_dev, vsi, cls_flower);
+	case FLOW_CLS_DESTROY:
+		return ice_del_cls_flower(vsi, cls_flower);
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * ice_setup_tc_block_cb - callback handler registered for TC block
+ * @type: TC SETUP type
+ * @type_data: TC flower offload data that contains user input
+ * @cb_priv: netdev private data
+ */
+static int
+ice_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+{
+	struct ice_netdev_priv *np = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return ice_setup_tc_cls_flower(np, np->vsi->netdev,
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(ice_block_cb_list);
+
+static int
+ice_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+	     void *type_data)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return flow_block_cb_setup_simple(type_data,
+						  &ice_block_cb_list,
+						  ice_setup_tc_block_cb,
+						  np, np, true);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return -EOPNOTSUPP;
+}
+
+/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -7273,6 +7343,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_get_vf_stats = ice_get_vf_stats,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
+	.ndo_setup_tc = ice_setup_tc,
 	.ndo_set_features = ice_set_features,
 	.ndo_bridge_getlink = ice_bridge_getlink,
 	.ndo_bridge_setlink = ice_bridge_setlink,
