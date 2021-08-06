@@ -1635,31 +1635,22 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 
 static int i801_acpi_probe(struct i801_priv *priv)
 {
-	struct acpi_device *adev;
+	acpi_handle ah = ACPI_HANDLE(&priv->pci_dev->dev);
 	acpi_status status;
 
-	adev = ACPI_COMPANION(&priv->pci_dev->dev);
-	if (adev) {
-		status = acpi_install_address_space_handler(adev->handle,
-				ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler,
-				NULL, priv);
-		if (ACPI_SUCCESS(status))
-			return 0;
-	}
+	status = acpi_install_address_space_handler(ah, ACPI_ADR_SPACE_SYSTEM_IO,
+						    i801_acpi_io_handler, NULL, priv);
+	if (ACPI_SUCCESS(status))
+		return 0;
 
 	return acpi_check_resource_conflict(&priv->pci_dev->resource[SMBBAR]);
 }
 
 static void i801_acpi_remove(struct i801_priv *priv)
 {
-	struct acpi_device *adev;
+	acpi_handle ah = ACPI_HANDLE(&priv->pci_dev->dev);
 
-	adev = ACPI_COMPANION(&priv->pci_dev->dev);
-	if (!adev)
-		return;
-
-	acpi_remove_address_space_handler(adev->handle,
-		ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler);
+	acpi_remove_address_space_handler(ah, ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler);
 }
 #else
 static inline int i801_acpi_probe(struct i801_priv *priv) { return 0; }
