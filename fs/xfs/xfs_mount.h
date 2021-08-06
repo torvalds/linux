@@ -147,7 +147,8 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_qflags;	/* quota status flags */
 	uint64_t		m_flags;	/* global mount flags */
-	int64_t			m_low_space[XFS_LOWSP_MAX];
+	uint64_t		m_low_space[XFS_LOWSP_MAX];
+	uint64_t		m_low_rtexts[XFS_LOWSP_MAX];
 	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 						/* low free space thresholds */

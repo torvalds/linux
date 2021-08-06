@@ -1916,6 +1916,24 @@ xfs_inodegc_start(
 	xfs_inodegc_queue_all(mp);
 }
 
+#ifdef CONFIG_XFS_RT
+static inline bool
+xfs_inodegc_want_queue_rt_file(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	uint64_t		freertx;
+
+	if (!XFS_IS_REALTIME_INODE(ip))
+		return false;
+
+	freertx = READ_ONCE(mp->m_sb.sb_frextents);
+	return freertx < mp->m_low_rtexts[XFS_LOWSP_5_PCNT];
+}
+#else
+# define xfs_inodegc_want_queue_rt_file(ip)	(false)
+#endif /* CONFIG_XFS_RT */
+
 /*
  * Schedule the inactivation worker when:
  *
@@ -1936,6 +1954,9 @@ xfs_inodegc_want_queue_work(
 	if (__percpu_counter_compare(&mp->m_fdblocks,
 				mp->m_low_space[XFS_LOWSP_5_PCNT],
 				XFS_FDBLOCKS_BATCH) < 0)
+		return true;
+
+	if (xfs_inodegc_want_queue_rt_file(ip))
 		return true;
 
 	if (xfs_inode_near_dquot_enforcement(ip, XFS_DQTYPE_USER))
