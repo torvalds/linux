@@ -75,7 +75,7 @@ static int cs_etm_set_context_id(struct auxtrace_record *itr,
 	if (!cs_etm_is_etmv4(itr, cpu))
 		goto out;
 
-	/* Get a handle on TRCIRD2 */
+	/* Get a handle on TRCIDR2 */
 	snprintf(path, PATH_MAX, "cpu%d/%s",
 		 cpu, metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
 	err = perf_pmu__scan_file(cs_etm_pmu, path, "%x", &val);
