@@ -21,12 +21,12 @@ Linux虚拟化支持
    :maxdepth: 2
 
    paravirt_ops
+   guest-halt-polling
 
 TODOLIST:
 
    kvm/index
    uml/user_mode_linux_howto_v2
-   guest-halt-polling
    ne_overview
    acrn/index
 
