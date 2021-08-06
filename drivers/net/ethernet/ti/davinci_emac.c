@@ -943,7 +943,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto fail_tx;
 	}
 
-	ret_code = skb_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
+	ret_code = skb_put_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
 	if (unlikely(ret_code < 0)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: packet pad failed");
@@ -1850,7 +1850,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	dma_params.txcp			= priv->emac_base + 0x640;
 	dma_params.rxcp			= priv->emac_base + 0x660;
 	dma_params.num_chan		= EMAC_MAX_TXRX_CHANNELS;
-	dma_params.min_packet_size	= EMAC_DEF_MIN_ETHPKTSIZE;
 	dma_params.desc_hw_addr		= hw_ram_addr;
 	dma_params.desc_mem_size	= pdata->ctrl_ram_size;
 	dma_params.desc_align		= 16;
