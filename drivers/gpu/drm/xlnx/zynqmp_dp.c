@@ -276,7 +276,6 @@ struct zynqmp_dp_config {
  * struct zynqmp_dp - Xilinx DisplayPort core
  * @dev: device structure
  * @dpsub: Display subsystem
- * @drm: DRM core
  * @iomem: device I/O memory for register access
  * @reset: reset controller
  * @irq: irq
@@ -297,7 +296,6 @@ struct zynqmp_dp_config {
 struct zynqmp_dp {
 	struct device *dev;
 	struct zynqmp_dpsub *dpsub;
-	struct drm_device *drm;
 	void __iomem *iomem;
 	struct reset_control *reset;
 	int irq;
@@ -1057,7 +1055,7 @@ static int zynqmp_dp_aux_init(struct zynqmp_dp *dp)
 
 	dp->aux.name = "ZynqMP DP AUX";
 	dp->aux.dev = dp->dev;
-	dp->aux.drm_dev = dp->drm;
+	dp->aux.drm_dev = dp->bridge.dev;
 	dp->aux.transfer = zynqmp_dp_aux_transfer;
 
 	return drm_dp_aux_register(&dp->aux);
@@ -1283,14 +1281,35 @@ static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 	int ret;
 
+	/* Initialize and register the AUX adapter. */
+	ret = zynqmp_dp_aux_init(dp);
+	if (ret) {
+		dev_err(dp->dev, "failed to initialize DP aux\n");
+		return ret;
+	}
+
 	if (dp->next_bridge) {
 		ret = drm_bridge_attach(bridge->encoder, dp->next_bridge,
 					bridge, flags);
 		if (ret < 0)
-			return ret;
+			goto error;
 	}
 
+	/* Now that initialisation is complete, enable interrupts. */
+	zynqmp_dp_write(dp, ZYNQMP_DP_INT_EN, ZYNQMP_DP_INT_ALL);
+
 	return 0;
+
+error:
+	zynqmp_dp_aux_cleanup(dp);
+	return ret;
+}
+
+static void zynqmp_dp_bridge_detach(struct drm_bridge *bridge)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+
+	zynqmp_dp_aux_cleanup(dp);
 }
 
 static int zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
@@ -1495,6 +1514,7 @@ static struct edid *zynqmp_dp_bridge_get_edid(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.attach = zynqmp_dp_bridge_attach,
+	.detach = zynqmp_dp_bridge_detach,
 	.mode_valid = zynqmp_dp_bridge_mode_valid,
 	.atomic_enable = zynqmp_dp_bridge_atomic_enable,
 	.atomic_disable = zynqmp_dp_bridge_atomic_disable,
@@ -1594,7 +1614,6 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 {
 	struct zynqmp_dp *dp = dpsub->dp;
 	struct drm_bridge *bridge = &dp->bridge;
-	int ret;
 
 	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
 	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
@@ -1605,16 +1624,6 @@ int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
 		    | DRM_BRIDGE_OP_HPD;
 	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
 	dpsub->bridge = bridge;
-
-	/* Initialize and register the AUX adapter. */
-	ret = zynqmp_dp_aux_init(dp);
-	if (ret) {
-		dev_err(dp->dev, "failed to initialize DP aux\n");
-		return ret;
-	}
-
-	/* Now that initialisation is complete, enable interrupts. */
-	zynqmp_dp_write(dp, ZYNQMP_DP_INT_EN, ZYNQMP_DP_INT_ALL);
 
 	return 0;
 }
@@ -1633,7 +1642,6 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	dp->dev = &pdev->dev;
 	dp->dpsub = dpsub;
 	dp->status = connector_status_disconnected;
-	dp->drm = drm;
 
 	INIT_DELAYED_WORK(&dp->hpd_work, zynqmp_dp_hpd_work_func);
 
@@ -1719,7 +1727,6 @@ void zynqmp_dp_remove(struct zynqmp_dpsub *dpsub)
 	disable_irq(dp->irq);
 
 	cancel_delayed_work_sync(&dp->hpd_work);
-	zynqmp_dp_aux_cleanup(dp);
 
 	zynqmp_dp_write(dp, ZYNQMP_DP_TRANSMITTER_ENABLE, 0);
 	zynqmp_dp_write(dp, ZYNQMP_DP_INT_DS, 0xffffffff);
