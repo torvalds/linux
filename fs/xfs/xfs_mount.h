@@ -65,6 +65,7 @@ struct xfs_inodegc {
 
 	/* approximate count of inodes in the list */
 	unsigned int		items;
+	unsigned int		shrinker_hits;
 };
 
 /*
@@ -210,6 +211,8 @@ typedef struct xfs_mount {
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
 	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
 
+	/* Memory shrinker to throttle and reprioritize inodegc */
+	struct shrinker		m_inodegc_shrinker;
 	/*
 	 * Workqueue item so that we can coalesce multiple inode flush attempts
 	 * into a single flush.

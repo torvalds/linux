@@ -80,5 +80,6 @@ void xfs_inodegc_flush(struct xfs_mount *mp);
 void xfs_inodegc_stop(struct xfs_mount *mp);
 void xfs_inodegc_start(struct xfs_mount *mp);
 void xfs_inodegc_cpu_dead(struct xfs_mount *mp, unsigned int cpu);
+int xfs_inodegc_register_shrinker(struct xfs_mount *mp);
 
 #endif

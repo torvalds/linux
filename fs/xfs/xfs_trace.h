@@ -157,6 +157,22 @@ DEFINE_PERAG_REF_EVENT(xfs_perag_put);
 DEFINE_PERAG_REF_EVENT(xfs_perag_set_inode_tag);
 DEFINE_PERAG_REF_EVENT(xfs_perag_clear_inode_tag);
 
+TRACE_EVENT(xfs_inodegc_worker,
+	TP_PROTO(struct xfs_mount *mp, unsigned int shrinker_hits),
+	TP_ARGS(mp, shrinker_hits),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, shrinker_hits)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->shrinker_hits = shrinker_hits;
+	),
+	TP_printk("dev %d:%d shrinker_hits %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->shrinker_hits)
+);
+
 DECLARE_EVENT_CLASS(xfs_fs_class,
 	TP_PROTO(struct xfs_mount *mp, void *caller_ip),
 	TP_ARGS(mp, caller_ip),
@@ -191,7 +207,6 @@ DEFINE_EVENT(xfs_fs_class, name,					\
 DEFINE_FS_EVENT(xfs_inodegc_flush);
 DEFINE_FS_EVENT(xfs_inodegc_start);
 DEFINE_FS_EVENT(xfs_inodegc_stop);
-DEFINE_FS_EVENT(xfs_inodegc_worker);
 DEFINE_FS_EVENT(xfs_inodegc_queue);
 DEFINE_FS_EVENT(xfs_inodegc_throttle);
 DEFINE_FS_EVENT(xfs_fs_sync_fs);
@@ -199,6 +214,26 @@ DEFINE_FS_EVENT(xfs_blockgc_start);
 DEFINE_FS_EVENT(xfs_blockgc_stop);
 DEFINE_FS_EVENT(xfs_blockgc_worker);
 DEFINE_FS_EVENT(xfs_blockgc_flush_all);
+
+TRACE_EVENT(xfs_inodegc_shrinker_scan,
+	TP_PROTO(struct xfs_mount *mp, struct shrink_control *sc,
+		 void *caller_ip),
+	TP_ARGS(mp, sc, caller_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long, nr_to_scan)
+		__field(void *, caller_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->nr_to_scan = sc->nr_to_scan;
+		__entry->caller_ip = caller_ip;
+	),
+	TP_printk("dev %d:%d nr_to_scan %lu caller %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->nr_to_scan,
+		  __entry->caller_ip)
+);
 
 DECLARE_EVENT_CLASS(xfs_ag_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),

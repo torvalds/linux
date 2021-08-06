@@ -1893,8 +1893,9 @@ xfs_inodegc_worker(
 		return;
 
 	ip = llist_entry(node, struct xfs_inode, i_gclist);
-	trace_xfs_inodegc_worker(ip->i_mount, __return_address);
+	trace_xfs_inodegc_worker(ip->i_mount, READ_ONCE(gc->shrinker_hits));
 
+	WRITE_ONCE(gc->shrinker_hits, 0);
 	llist_for_each_entry_safe(ip, n, node, i_gclist) {
 		xfs_iflags_set(ip, XFS_INACTIVATING);
 		xfs_inodegc_inactivate(ip);
@@ -2028,6 +2029,7 @@ xfs_inodegc_want_queue_work(
 /*
  * Make the frontend wait for inactivations when:
  *
+ *  - Memory shrinkers queued the inactivation worker and it hasn't finished.
  *  - The queue depth exceeds the maximum allowable percpu backlog.
  *
  * Note: If the current thread is running a transaction, we don't ever want to
@@ -2036,10 +2038,14 @@ xfs_inodegc_want_queue_work(
 static inline bool
 xfs_inodegc_want_flush_work(
 	struct xfs_inode	*ip,
-	unsigned int		items)
+	unsigned int		items,
+	unsigned int		shrinker_hits)
 {
 	if (current->journal_info)
 		return false;
+
+	if (shrinker_hits > 0)
+		return true;
 
 	if (items > XFS_INODEGC_MAX_BACKLOG)
 		return true;
@@ -2059,6 +2065,7 @@ xfs_inodegc_queue(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_inodegc	*gc;
 	int			items;
+	unsigned int		shrinker_hits;
 
 	trace_xfs_inode_set_need_inactive(ip);
 	spin_lock(&ip->i_flags_lock);
@@ -2069,6 +2076,7 @@ xfs_inodegc_queue(
 	llist_add(&ip->i_gclist, &gc->list);
 	items = READ_ONCE(gc->items);
 	WRITE_ONCE(gc->items, items + 1);
+	shrinker_hits = READ_ONCE(gc->shrinker_hits);
 	put_cpu_ptr(gc);
 
 	if (!xfs_is_inodegc_enabled(mp))
@@ -2079,7 +2087,7 @@ xfs_inodegc_queue(
 		queue_work(mp->m_inodegc_wq, &gc->work);
 	}
 
-	if (xfs_inodegc_want_flush_work(ip, items)) {
+	if (xfs_inodegc_want_flush_work(ip, items, shrinker_hits)) {
 		trace_xfs_inodegc_throttle(mp, __return_address);
 		flush_work(&gc->work);
 	}
@@ -2158,4 +2166,92 @@ xfs_inode_mark_reclaimable(
 	/* Going straight to reclaim, so drop the dquots. */
 	xfs_qm_dqdetach(ip);
 	xfs_inodegc_set_reclaimable(ip);
+}
+
+/*
+ * Register a phony shrinker so that we can run background inodegc sooner when
+ * there's memory pressure.  Inactivation does not itself free any memory but
+ * it does make inodes reclaimable, which eventually frees memory.
+ *
+ * The count function, seek value, and batch value are crafted to trigger the
+ * scan function during the second round of scanning.  Hopefully this means
+ * that we reclaimed enough memory that initiating metadata transactions won't
+ * make things worse.
+ */
+#define XFS_INODEGC_SHRINKER_COUNT	(1UL << DEF_PRIORITY)
+#define XFS_INODEGC_SHRINKER_BATCH	((XFS_INODEGC_SHRINKER_COUNT / 2) + 1)
+
+static unsigned long
+xfs_inodegc_shrinker_count(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_mount	*mp = container_of(shrink, struct xfs_mount,
+						   m_inodegc_shrinker);
+	struct xfs_inodegc	*gc;
+	int			cpu;
+
+	if (!xfs_is_inodegc_enabled(mp))
+		return 0;
+
+	for_each_online_cpu(cpu) {
+		gc = per_cpu_ptr(mp->m_inodegc, cpu);
+		if (!llist_empty(&gc->list))
+			return XFS_INODEGC_SHRINKER_COUNT;
+	}
+
+	return 0;
+}
+
+static unsigned long
+xfs_inodegc_shrinker_scan(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_mount	*mp = container_of(shrink, struct xfs_mount,
+						   m_inodegc_shrinker);
+	struct xfs_inodegc	*gc;
+	int			cpu;
+	bool			no_items = true;
+
+	if (!xfs_is_inodegc_enabled(mp))
+		return SHRINK_STOP;
+
+	trace_xfs_inodegc_shrinker_scan(mp, sc, __return_address);
+
+	for_each_online_cpu(cpu) {
+		gc = per_cpu_ptr(mp->m_inodegc, cpu);
+		if (!llist_empty(&gc->list)) {
+			unsigned int	h = READ_ONCE(gc->shrinker_hits);
+
+			WRITE_ONCE(gc->shrinker_hits, h + 1);
+			queue_work_on(cpu, mp->m_inodegc_wq, &gc->work);
+			no_items = false;
+		}
+	}
+
+	/*
+	 * If there are no inodes to inactivate, we don't want the shrinker
+	 * to think there's deferred work to call us back about.
+	 */
+	if (no_items)
+		return LONG_MAX;
+
+	return SHRINK_STOP;
+}
+
+/* Register a shrinker so we can accelerate inodegc and throttle queuing. */
+int
+xfs_inodegc_register_shrinker(
+	struct xfs_mount	*mp)
+{
+	struct shrinker		*shrink = &mp->m_inodegc_shrinker;
+
+	shrink->count_objects = xfs_inodegc_shrinker_count;
+	shrink->scan_objects = xfs_inodegc_shrinker_scan;
+	shrink->seeks = 0;
+	shrink->flags = SHRINKER_NONSLAB;
+	shrink->batch = XFS_INODEGC_SHRINKER_BATCH;
+
+	return register_shrinker(shrink);
 }
