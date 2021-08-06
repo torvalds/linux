@@ -843,44 +843,6 @@ xfs_trans_reserve_quota_icreate(
 			dblocks, 1, XFS_QMOPT_RES_REGBLKS);
 }
 
-/*
- * This routine is called to allocate a quotaoff log item.
- */
-struct xfs_qoff_logitem *
-xfs_trans_get_qoff_item(
-	struct xfs_trans	*tp,
-	struct xfs_qoff_logitem	*startqoff,
-	uint			flags)
-{
-	struct xfs_qoff_logitem	*q;
-
-	ASSERT(tp != NULL);
-
-	q = xfs_qm_qoff_logitem_init(tp->t_mountp, startqoff, flags);
-	ASSERT(q != NULL);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	xfs_trans_add_item(tp, &q->qql_item);
-	return q;
-}
-
-
-/*
- * This is called to mark the quotaoff logitem as needing
- * to be logged when the transaction is committed.  The logitem must
- * already be associated with the given transaction.
- */
-void
-xfs_trans_log_quotaoff_item(
-	struct xfs_trans	*tp,
-	struct xfs_qoff_logitem	*qlp)
-{
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &qlp->qql_item.li_flags);
-}
-
 STATIC void
 xfs_trans_alloc_dqinfo(
 	xfs_trans_t	*tp)

@@ -185,7 +185,7 @@ out_unlock:
 /*
  * Purge the dquot cache.
  */
-void
+static void
 xfs_qm_dqpurge_all(
 	struct xfs_mount	*mp,
 	uint			flags)
