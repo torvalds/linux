@@ -757,15 +757,18 @@ xfs_fs_sync_fs(
 	 * down inodegc because once SB_FREEZE_FS is set it's too late to
 	 * prevent inactivation races with freeze. The fs doesn't get called
 	 * again by the freezing process until after SB_FREEZE_FS has been set,
-	 * so it's now or never.
+	 * so it's now or never.  Same logic applies to speculative allocation
+	 * garbage collection.
 	 *
 	 * We don't care if this is a normal syncfs call that does this or
 	 * freeze that does this - we can run this multiple times without issue
 	 * and we won't race with a restart because a restart can only occur
 	 * when the state is either SB_FREEZE_FS or SB_FREEZE_COMPLETE.
 	 */
-	if (sb->s_writers.frozen == SB_FREEZE_PAGEFAULT)
+	if (sb->s_writers.frozen == SB_FREEZE_PAGEFAULT) {
 		xfs_inodegc_stop(mp);
+		xfs_blockgc_stop(mp);
+	}
 
 	return 0;
 }
@@ -883,7 +886,6 @@ xfs_fs_freeze(
 	 * set a GFP_NOFS context here to avoid recursion deadlocks.
 	 */
 	flags = memalloc_nofs_save();
-	xfs_blockgc_stop(mp);
 	xfs_save_resvblks(mp);
 	ret = xfs_log_quiesce(mp);
 	memalloc_nofs_restore(flags);
@@ -895,8 +897,10 @@ xfs_fs_freeze(
 	 * here, so we can restart safely without racing with a stop in
 	 * xfs_fs_sync_fs().
 	 */
-	if (ret && !(mp->m_flags & XFS_MOUNT_RDONLY))
+	if (ret && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
+	}
 
 	return ret;
 }
@@ -909,14 +913,17 @@ xfs_fs_unfreeze(
 
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
-	xfs_blockgc_start(mp);
 
 	/*
 	 * Don't reactivate the inodegc worker on a readonly filesystem because
-	 * inodes are sent directly to reclaim.
+	 * inodes are sent directly to reclaim.  Don't reactivate the blockgc
+	 * worker because there are no speculative preallocations on a readonly
+	 * filesystem.
 	 */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
+	}
 
 	return 0;
 }

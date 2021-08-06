@@ -281,6 +281,12 @@ typedef struct xfs_mount {
  * processed.
  */
 #define XFS_OPSTATE_INODEGC_ENABLED	0
+/*
+ * If set, background speculative prealloc gc worker threads will be scheduled
+ * to process queued blockgc work.  If not, inodes retain their preallocations
+ * until explicitly deleted.
+ */
+#define XFS_OPSTATE_BLOCKGC_ENABLED	1
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -297,9 +303,11 @@ static inline bool xfs_set_ ## name (struct xfs_mount *mp) \
 }
 
 __XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
+__XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 
 #define XFS_OPSTATE_STRINGS \
-	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }
+	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
+	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }
 
 /*
  * Max and min values for mount-option defined I/O

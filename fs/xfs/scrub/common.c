@@ -893,11 +893,12 @@ xchk_start_reaping(
 	struct xfs_scrub	*sc)
 {
 	/*
-	 * Readonly filesystems do not perform inactivation, so there's no
-	 * need to restart the worker.
+	 * Readonly filesystems do not perform inactivation or speculative
+	 * preallocation, so there's no need to restart the workers.
 	 */
-	if (!(sc->mp->m_flags & XFS_MOUNT_RDONLY))
+	if (!(sc->mp->m_flags & XFS_MOUNT_RDONLY)) {
 		xfs_inodegc_start(sc->mp);
-	xfs_blockgc_start(sc->mp);
+		xfs_blockgc_start(sc->mp);
+	}
 	sc->flags &= ~XCHK_REAPING_DISABLED;
 }
