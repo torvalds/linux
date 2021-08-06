@@ -2986,7 +2986,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 	kvm_mmu_hugepage_adjust(vcpu, fault);
 
-	trace_kvm_mmu_spte_requested(fault->addr, fault->goal_level, fault->pfn);
+	trace_kvm_mmu_spte_requested(fault);
 	for_each_shadow_entry(vcpu, fault->addr, it) {
 		/*
 		 * We cannot overwrite existing page tables with an NX
@@ -3276,7 +3276,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 	} while (true);
 
-	trace_fast_page_fault(vcpu, fault->addr, fault->error_code, sptep, spte, ret);
+	trace_fast_page_fault(vcpu, fault, sptep, spte, ret);
 	walk_shadow_page_lockless_end(vcpu);
 
 	return ret;

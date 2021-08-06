@@ -995,7 +995,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 	kvm_mmu_hugepage_adjust(vcpu, fault);
 
-	trace_kvm_mmu_spte_requested(fault->addr, fault->goal_level, fault->pfn);
+	trace_kvm_mmu_spte_requested(fault);
 
 	rcu_read_lock();
 
