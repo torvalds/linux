@@ -12,6 +12,7 @@
 #ifndef _ZYNQMP_DPSUB_H_
 #define _ZYNQMP_DPSUB_H_
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 
 struct clk;
@@ -37,6 +38,7 @@ enum zynqmp_dpsub_format {
  * @vid_clk_from_ps: True of the video clock comes from PS, false from PL
  * @aud_clk: Audio clock
  * @aud_clk_from_ps: True of the audio clock comes from PS, false from PL
+ * @crtc: The DRM CRTC
  * @encoder: The dummy DRM encoder
  * @bridge: The DP encoder bridge
  * @disp: The display controller
@@ -53,6 +55,7 @@ struct zynqmp_dpsub {
 	struct clk *aud_clk;
 	bool aud_clk_from_ps;
 
+	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_bridge *bridge;
 

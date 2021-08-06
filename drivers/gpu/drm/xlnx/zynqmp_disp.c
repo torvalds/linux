@@ -162,7 +162,6 @@ struct zynqmp_disp_layer {
  * @dev: Device structure
  * @drm: DRM core
  * @dpsub: Display subsystem
- * @crtc: DRM CRTC
  * @blend.base: Register I/O base address for the blender
  * @avbuf.base: Register I/O base address for the audio/video buffer manager
  * @audio.base: Registers I/O base address for the audio mixer
@@ -172,8 +171,6 @@ struct zynqmp_disp {
 	struct device *dev;
 	struct drm_device *drm;
 	struct zynqmp_dpsub *dpsub;
-
-	struct drm_crtc crtc;
 
 	struct {
 		void __iomem *base;
@@ -901,7 +898,7 @@ static void zynqmp_disp_audio_disable(struct zynqmp_disp *disp)
  */
 void zynqmp_disp_handle_vblank(struct zynqmp_disp *disp)
 {
-	struct drm_crtc *crtc = &disp->crtc;
+	struct drm_crtc *crtc = &disp->dpsub->crtc;
 
 	drm_crtc_handle_vblank(crtc);
 }
@@ -914,7 +911,7 @@ void zynqmp_disp_handle_vblank(struct zynqmp_disp *disp)
  */
 uint32_t zynqmp_disp_get_crtc_mask(struct zynqmp_disp *disp)
 {
-	return drm_crtc_mask(&disp->crtc);
+	return drm_crtc_mask(&disp->dpsub->crtc);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1409,7 +1406,7 @@ static int zynqmp_disp_setup_clock(struct zynqmp_disp *disp,
 
 static inline struct zynqmp_disp *crtc_to_disp(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct zynqmp_disp, crtc);
+	return container_of(crtc, struct zynqmp_dpsub, crtc)->disp;
 }
 
 static void
@@ -1457,7 +1454,7 @@ zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	zynqmp_disp_disable(disp);
 
-	drm_crtc_vblank_off(&disp->crtc);
+	drm_crtc_vblank_off(crtc);
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
@@ -1542,24 +1539,25 @@ static const struct drm_crtc_funcs zynqmp_disp_crtc_funcs = {
 static int zynqmp_disp_create_crtc(struct zynqmp_disp *disp)
 {
 	struct drm_plane *plane = &disp->layers[ZYNQMP_DISP_LAYER_GFX].plane;
+	struct drm_crtc *crtc = &disp->dpsub->crtc;
 	int ret;
 
-	ret = drm_crtc_init_with_planes(disp->drm, &disp->crtc, plane,
+	ret = drm_crtc_init_with_planes(disp->drm, crtc, plane,
 					NULL, &zynqmp_disp_crtc_funcs, NULL);
 	if (ret < 0)
 		return ret;
 
-	drm_crtc_helper_add(&disp->crtc, &zynqmp_disp_crtc_helper_funcs);
+	drm_crtc_helper_add(crtc, &zynqmp_disp_crtc_helper_funcs);
 
 	/* Start with vertical blanking interrupt reporting disabled. */
-	drm_crtc_vblank_off(&disp->crtc);
+	drm_crtc_vblank_off(crtc);
 
 	return 0;
 }
 
 static void zynqmp_disp_map_crtc_to_plane(struct zynqmp_disp *disp)
 {
-	u32 possible_crtcs = drm_crtc_mask(&disp->crtc);
+	u32 possible_crtcs = drm_crtc_mask(&disp->dpsub->crtc);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(disp->layers); i++)
