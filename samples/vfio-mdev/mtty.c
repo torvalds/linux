@@ -718,8 +718,8 @@ static int mtty_probe(struct mdev_device *mdev)
 
 	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
 	if (mdev_state == NULL) {
-		atomic_add(nr_ports, &mdev_avail_ports);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_nr_ports;
 	}
 
 	vfio_init_group_dev(&mdev_state->vdev, &mdev->dev, &mtty_dev_ops);
@@ -732,9 +732,8 @@ static int mtty_probe(struct mdev_device *mdev)
 	mdev_state->vconfig = kzalloc(MTTY_CONFIG_SPACE_SIZE, GFP_KERNEL);
 
 	if (mdev_state->vconfig == NULL) {
-		kfree(mdev_state);
-		atomic_add(nr_ports, &mdev_avail_ports);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_state;
 	}
 
 	mutex_init(&mdev_state->ops_lock);
@@ -743,14 +742,19 @@ static int mtty_probe(struct mdev_device *mdev)
 	mtty_create_config_space(mdev_state);
 
 	ret = vfio_register_group_dev(&mdev_state->vdev);
-	if (ret) {
-		kfree(mdev_state);
-		atomic_add(nr_ports, &mdev_avail_ports);
-		return ret;
-	}
-
+	if (ret)
+		goto err_vconfig;
 	dev_set_drvdata(&mdev->dev, mdev_state);
 	return 0;
+
+err_vconfig:
+	kfree(mdev_state->vconfig);
+err_state:
+	vfio_uninit_group_dev(&mdev_state->vdev);
+	kfree(mdev_state);
+err_nr_ports:
+	atomic_add(nr_ports, &mdev_avail_ports);
+	return ret;
 }
 
 static void mtty_remove(struct mdev_device *mdev)
@@ -761,6 +765,7 @@ static void mtty_remove(struct mdev_device *mdev)
 	vfio_unregister_group_dev(&mdev_state->vdev);
 
 	kfree(mdev_state->vconfig);
+	vfio_uninit_group_dev(&mdev_state->vdev);
 	kfree(mdev_state);
 	atomic_add(nr_ports, &mdev_avail_ports);
 }
