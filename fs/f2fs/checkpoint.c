@@ -465,16 +465,28 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino,
 						unsigned int devidx, int type)
 {
 	struct inode_management *im = &sbi->im[type];
-	struct ino_entry *e, *tmp;
+	struct ino_entry *e = NULL, *new = NULL;
 
-	tmp = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS);
+	if (type == FLUSH_INO) {
+		rcu_read_lock();
+		e = radix_tree_lookup(&im->ino_root, ino);
+		rcu_read_unlock();
+	}
+
+retry:
+	if (!e)
+		new = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS);
 
 	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
 
 	spin_lock(&im->ino_lock);
 	e = radix_tree_lookup(&im->ino_root, ino);
 	if (!e) {
-		e = tmp;
+		if (!new) {
+			spin_unlock(&im->ino_lock);
+			goto retry;
+		}
+		e = new;
 		if (unlikely(radix_tree_insert(&im->ino_root, ino, e)))
 			f2fs_bug_on(sbi, 1);
 
@@ -492,8 +504,8 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino,
 	spin_unlock(&im->ino_lock);
 	radix_tree_preload_end();
 
-	if (e != tmp)
-		kmem_cache_free(ino_entry_slab, tmp);
+	if (new && e != new)
+		kmem_cache_free(ino_entry_slab, new);
 }
 
 static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
