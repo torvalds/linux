@@ -1752,8 +1752,14 @@ xfs_inode_mark_reclaimable(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_perag	*pag;
+	bool			need_inactive = xfs_inode_needs_inactive(ip);
 
-	xfs_inactive(ip);
+	if (!need_inactive) {
+		/* Going straight to reclaim, so drop the dquots. */
+		xfs_qm_dqdetach(ip);
+	} else {
+		xfs_inactive(ip);
+	}
 
 	if (!XFS_FORCED_SHUTDOWN(mp) && ip->i_delayed_blks) {
 		xfs_check_delalloc(ip, XFS_DATA_FORK);
