@@ -4,9 +4,9 @@
 # Intel Platform Monitoring Technology Drivers
 #
 
-pmt_class-objs				+= class.o
 obj-$(CONFIG_INTEL_PMT_CLASS)		+= pmt_class.o
-pmt_telemetry-objs			+= telemetry.o
+pmt_class-y				:= class.o
 obj-$(CONFIG_INTEL_PMT_TELEMETRY)	+= pmt_telemetry.o
-pmt_crashlog-objs			+= crashlog.o
+pmt_telemetry-y				:= telemetry.o
 obj-$(CONFIG_INTEL_PMT_CRASHLOG)	+= pmt_crashlog.o
+pmt_crashlog-y				:= crashlog.o
