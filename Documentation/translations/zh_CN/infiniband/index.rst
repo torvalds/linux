@@ -27,10 +27,10 @@ infiniband
    opa_vnic
    sysfs
    tag_matching
+   user_mad
 
 TODOLIST:
 
-   user_mad
    user_verbs
 
 .. only::  subproject and html
