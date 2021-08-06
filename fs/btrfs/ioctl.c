@@ -1198,6 +1198,88 @@ out:
 }
 
 /*
+ * Prepare one page to be defragged.
+ *
+ * This will ensure:
+ *
+ * - Returned page is locked and has been set up properly.
+ * - No ordered extent exists in the page.
+ * - The page is uptodate.
+ *
+ * NOTE: Caller should also wait for page writeback after the cluster is
+ * prepared, here we don't do writeback wait for each page.
+ */
+static struct page *defrag_prepare_one_page(struct btrfs_inode *inode,
+					    pgoff_t index)
+{
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	gfp_t mask = btrfs_alloc_write_mask(mapping);
+	u64 page_start = (u64)index << PAGE_SHIFT;
+	u64 page_end = page_start + PAGE_SIZE - 1;
+	struct extent_state *cached_state = NULL;
+	struct page *page;
+	int ret;
+
+again:
+	page = find_or_create_page(mapping, index, mask);
+	if (!page)
+		return ERR_PTR(-ENOMEM);
+
+	ret = set_page_extent_mapped(page);
+	if (ret < 0) {
+		unlock_page(page);
+		put_page(page);
+		return ERR_PTR(ret);
+	}
+
+	/* Wait for any existing ordered extent in the range */
+	while (1) {
+		struct btrfs_ordered_extent *ordered;
+
+		lock_extent_bits(&inode->io_tree, page_start, page_end, &cached_state);
+		ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
+		unlock_extent_cached(&inode->io_tree, page_start, page_end,
+				     &cached_state);
+		if (!ordered)
+			break;
+
+		unlock_page(page);
+		btrfs_start_ordered_extent(ordered, 1);
+		btrfs_put_ordered_extent(ordered);
+		lock_page(page);
+		/*
+		 * We unlocked the page above, so we need check if it was
+		 * released or not.
+		 */
+		if (page->mapping != mapping || !PagePrivate(page)) {
+			unlock_page(page);
+			put_page(page);
+			goto again;
+		}
+	}
+
+	/*
+	 * Now the page range has no ordered extent any more.  Read the page to
+	 * make it uptodate.
+	 */
+	if (!PageUptodate(page)) {
+		btrfs_readpage(NULL, page);
+		lock_page(page);
+		if (page->mapping != mapping || !PagePrivate(page)) {
+			unlock_page(page);
+			put_page(page);
+			goto again;
+		}
+		if (!PageUptodate(page)) {
+			unlock_page(page);
+			put_page(page);
+			return ERR_PTR(-EIO);
+		}
+	}
+	return page;
+}
+
+/*
  * it doesn't do much good to defrag one or two pages
  * at a time.  This pulls in a nice chunk of pages
  * to COW and defrag.
@@ -1224,11 +1306,8 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	int ret;
 	int i;
 	int i_done;
-	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
-	struct extent_io_tree *tree;
 	struct extent_changeset *data_reserved = NULL;
-	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
 	file_end = (isize - 1) >> PAGE_SHIFT;
 	if (!isize || start_index > file_end)
@@ -1241,69 +1320,16 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	if (ret)
 		return ret;
 	i_done = 0;
-	tree = &BTRFS_I(inode)->io_tree;
 
 	/* step one, lock all the pages */
 	for (i = 0; i < page_cnt; i++) {
 		struct page *page;
-again:
-		page = find_or_create_page(inode->i_mapping,
-					   start_index + i, mask);
-		if (!page)
-			break;
 
-		ret = set_page_extent_mapped(page);
-		if (ret < 0) {
-			unlock_page(page);
-			put_page(page);
+		page = defrag_prepare_one_page(BTRFS_I(inode), start_index + i);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
 			break;
 		}
-
-		page_start = page_offset(page);
-		page_end = page_start + PAGE_SIZE - 1;
-		while (1) {
-			lock_extent_bits(tree, page_start, page_end,
-					 &cached_state);
-			ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode),
-							      page_start);
-			unlock_extent_cached(tree, page_start, page_end,
-					     &cached_state);
-			if (!ordered)
-				break;
-
-			unlock_page(page);
-			btrfs_start_ordered_extent(ordered, 1);
-			btrfs_put_ordered_extent(ordered);
-			lock_page(page);
-			/*
-			 * we unlocked the page above, so we need check if
-			 * it was released or not.
-			 */
-			if (page->mapping != inode->i_mapping ||
-			    !PagePrivate(page)) {
-				unlock_page(page);
-				put_page(page);
-				goto again;
-			}
-		}
-
-		if (!PageUptodate(page)) {
-			btrfs_readpage(NULL, page);
-			lock_page(page);
-			if (!PageUptodate(page)) {
-				unlock_page(page);
-				put_page(page);
-				ret = -EIO;
-				break;
-			}
-		}
-
-		if (page->mapping != inode->i_mapping || !PagePrivate(page)) {
-			unlock_page(page);
-			put_page(page);
-			goto again;
-		}
-
 		pages[i] = page;
 		i_done++;
 	}
@@ -1314,8 +1340,8 @@ again:
 		goto out;
 
 	/*
-	 * so now we have a nice long stream of locked
-	 * and up to date pages, lets wait on them
+	 * Now we have a nice long stream of locked and up to date pages, let's
+	 * wait on them.
 	 */
 	for (i = 0; i < i_done; i++)
 		wait_on_page_writeback(pages[i]);
