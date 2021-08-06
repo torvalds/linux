@@ -893,7 +893,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (kvm_faultin_pfn(vcpu, fault, &r))
 		return r;
 
-	if (handle_abnormal_pfn(vcpu, addr, fault->gfn, fault->pfn, walker.pte_access, &r))
+	if (handle_abnormal_pfn(vcpu, fault, walker.pte_access, &r))
 		return r;
 
 	/*

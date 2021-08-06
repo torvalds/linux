@@ -3060,18 +3060,19 @@ static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, kvm_pfn_t pfn)
 	return -EFAULT;
 }
 
-static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
-				kvm_pfn_t pfn, unsigned int access,
-				int *ret_val)
+static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
+				unsigned int access, int *ret_val)
 {
 	/* The pfn is invalid, report the error! */
-	if (unlikely(is_error_pfn(pfn))) {
-		*ret_val = kvm_handle_bad_page(vcpu, gfn, pfn);
+	if (unlikely(is_error_pfn(fault->pfn))) {
+		*ret_val = kvm_handle_bad_page(vcpu, fault->gfn, fault->pfn);
 		return true;
 	}
 
-	if (unlikely(is_noslot_pfn(pfn))) {
-		vcpu_cache_mmio_info(vcpu, gva, gfn,
+	if (unlikely(is_noslot_pfn(fault->pfn))) {
+		gva_t gva = fault->is_tdp ? 0 : fault->addr;
+
+		vcpu_cache_mmio_info(vcpu, gva, fault->gfn,
 				     access & shadow_mmio_access_mask);
 		/*
 		 * If MMIO caching is disabled, emulate immediately without
@@ -3975,8 +3976,7 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (kvm_faultin_pfn(vcpu, fault, &r))
 		return r;
 
-	if (handle_abnormal_pfn(vcpu, fault->is_tdp ? 0 : gpa,
-				fault->gfn, fault->pfn, ACC_ALL, &r))
+	if (handle_abnormal_pfn(vcpu, fault, ACC_ALL, &r))
 		return r;
 
 	r = RET_PF_RETRY;
