@@ -38,9 +38,6 @@
  * radix tree tags when convenient.  Avoid existing XFS_IWALK namespace.
  */
 enum xfs_icwalk_goal {
-	/* Goals that are not related to tags; these must be < 0. */
-	XFS_ICWALK_DQRELE	= -1,
-
 	/* Goals directly associated with tagged inodes. */
 	XFS_ICWALK_BLOCKGC	= XFS_ICI_BLOCKGC_TAG,
 	XFS_ICWALK_RECLAIM	= XFS_ICI_RECLAIM_TAG,
@@ -64,9 +61,6 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
  * Private inode cache walk flags for struct xfs_icwalk.  Must not
  * coincide with XFS_ICWALK_FLAGS_VALID.
  */
-#define XFS_ICWALK_FLAG_DROP_UDQUOT	(1U << 31)
-#define XFS_ICWALK_FLAG_DROP_GDQUOT	(1U << 30)
-#define XFS_ICWALK_FLAG_DROP_PDQUOT	(1U << 29)
 
 /* Stop scanning after icw_scan_limit inodes. */
 #define XFS_ICWALK_FLAG_SCAN_LIMIT	(1U << 28)
@@ -74,10 +68,7 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
 #define XFS_ICWALK_FLAG_RECLAIM_SICK	(1U << 27)
 #define XFS_ICWALK_FLAG_UNION		(1U << 26) /* union filter algorithm */
 
-#define XFS_ICWALK_PRIVATE_FLAGS	(XFS_ICWALK_FLAG_DROP_UDQUOT | \
-					 XFS_ICWALK_FLAG_DROP_GDQUOT | \
-					 XFS_ICWALK_FLAG_DROP_PDQUOT | \
-					 XFS_ICWALK_FLAG_SCAN_LIMIT | \
+#define XFS_ICWALK_PRIVATE_FLAGS	(XFS_ICWALK_FLAG_SCAN_LIMIT | \
 					 XFS_ICWALK_FLAG_RECLAIM_SICK | \
 					 XFS_ICWALK_FLAG_UNION)
 
@@ -816,97 +807,6 @@ xfs_icache_inode_is_allocated(
 	xfs_irele(ip);
 	return 0;
 }
-
-#ifdef CONFIG_XFS_QUOTA
-/* Decide if we want to grab this inode to drop its dquots. */
-static bool
-xfs_dqrele_igrab(
-	struct xfs_inode	*ip)
-{
-	bool			ret = false;
-
-	ASSERT(rcu_read_lock_held());
-
-	/* Check for stale RCU freed inode */
-	spin_lock(&ip->i_flags_lock);
-	if (!ip->i_ino)
-		goto out_unlock;
-
-	/*
-	 * Skip inodes that are anywhere in the reclaim machinery because we
-	 * drop dquots before tagging an inode for reclamation.
-	 */
-	if (ip->i_flags & (XFS_IRECLAIM | XFS_IRECLAIMABLE))
-		goto out_unlock;
-
-	/*
-	 * The inode looks alive; try to grab a VFS reference so that it won't
-	 * get destroyed.  If we got the reference, return true to say that
-	 * we grabbed the inode.
-	 *
-	 * If we can't get the reference, then we know the inode had its VFS
-	 * state torn down and hasn't yet entered the reclaim machinery.  Since
-	 * we also know that dquots are detached from an inode before it enters
-	 * reclaim, we can skip the inode.
-	 */
-	ret = igrab(VFS_I(ip)) != NULL;
-
-out_unlock:
-	spin_unlock(&ip->i_flags_lock);
-	return ret;
-}
-
-/* Drop this inode's dquots. */
-static void
-xfs_dqrele_inode(
-	struct xfs_inode	*ip,
-	struct xfs_icwalk	*icw)
-{
-	if (xfs_iflags_test(ip, XFS_INEW))
-		xfs_inew_wait(ip);
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (icw->icw_flags & XFS_ICWALK_FLAG_DROP_UDQUOT) {
-		xfs_qm_dqrele(ip->i_udquot);
-		ip->i_udquot = NULL;
-	}
-	if (icw->icw_flags & XFS_ICWALK_FLAG_DROP_GDQUOT) {
-		xfs_qm_dqrele(ip->i_gdquot);
-		ip->i_gdquot = NULL;
-	}
-	if (icw->icw_flags & XFS_ICWALK_FLAG_DROP_PDQUOT) {
-		xfs_qm_dqrele(ip->i_pdquot);
-		ip->i_pdquot = NULL;
-	}
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	xfs_irele(ip);
-}
-
-/*
- * Detach all dquots from incore inodes if we can.  The caller must already
- * have dropped the relevant XFS_[UGP]QUOTA_ACTIVE flags so that dquots will
- * not get reattached.
- */
-int
-xfs_dqrele_all_inodes(
-	struct xfs_mount	*mp,
-	unsigned int		qflags)
-{
-	struct xfs_icwalk	icw = { .icw_flags = 0 };
-
-	if (qflags & XFS_UQUOTA_ACCT)
-		icw.icw_flags |= XFS_ICWALK_FLAG_DROP_UDQUOT;
-	if (qflags & XFS_GQUOTA_ACCT)
-		icw.icw_flags |= XFS_ICWALK_FLAG_DROP_GDQUOT;
-	if (qflags & XFS_PQUOTA_ACCT)
-		icw.icw_flags |= XFS_ICWALK_FLAG_DROP_PDQUOT;
-
-	return xfs_icwalk(mp, XFS_ICWALK_DQRELE, &icw);
-}
-#else
-# define xfs_dqrele_igrab(ip)		(false)
-# define xfs_dqrele_inode(ip, priv)	((void)0)
-#endif /* CONFIG_XFS_QUOTA */
 
 /*
  * Grab the inode for reclaim exclusively.
@@ -1647,8 +1547,6 @@ xfs_icwalk_igrab(
 	struct xfs_icwalk	*icw)
 {
 	switch (goal) {
-	case XFS_ICWALK_DQRELE:
-		return xfs_dqrele_igrab(ip);
 	case XFS_ICWALK_BLOCKGC:
 		return xfs_blockgc_igrab(ip);
 	case XFS_ICWALK_RECLAIM:
@@ -1672,9 +1570,6 @@ xfs_icwalk_process_inode(
 	int			error = 0;
 
 	switch (goal) {
-	case XFS_ICWALK_DQRELE:
-		xfs_dqrele_inode(ip, icw);
-		break;
 	case XFS_ICWALK_BLOCKGC:
 		error = xfs_blockgc_scan_inode(ip, icw);
 		break;
