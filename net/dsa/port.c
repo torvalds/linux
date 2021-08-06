@@ -641,17 +641,6 @@ int dsa_port_bridge_flags(const struct dsa_port *dp,
 	return ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
 }
 
-int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
-		     struct netlink_ext_ack *extack)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->port_set_mrouter)
-		return -EOPNOTSUPP;
-
-	return ds->ops->port_set_mrouter(ds, dp->index, mrouter, extack);
-}
-
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
 			bool targeted_match)
 {

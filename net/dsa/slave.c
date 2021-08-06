@@ -314,12 +314,6 @@ static int dsa_slave_port_attr_set(struct net_device *dev, const void *ctx,
 
 		ret = dsa_port_bridge_flags(dp, attr->u.brport_flags, extack);
 		break;
-	case SWITCHDEV_ATTR_ID_BRIDGE_MROUTER:
-		if (!dsa_port_offloads_bridge(dp, attr->orig_dev))
-			return -EOPNOTSUPP;
-
-		ret = dsa_port_mrouter(dp->cpu_dp, attr->u.mrouter, extack);
-		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
