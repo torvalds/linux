@@ -35,6 +35,8 @@
 
 #define NHI_MAILBOX_TIMEOUT	500 /* ms */
 
+#define QUIRK_AUTO_CLEAR_INT	BIT(0)
+
 static int ring_interrupt_index(struct tb_ring *ring)
 {
 	int bit = ring->hop;
@@ -66,14 +68,17 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 		else
 			index = ring->hop + ring->nhi->hop_count;
 
-		/*
-		 * Ask the hardware to clear interrupt status bits automatically
-		 * since we already know which interrupt was triggered.
-		 */
-		misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
-		if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
-			misc |= REG_DMA_MISC_INT_AUTO_CLEAR;
-			iowrite32(misc, ring->nhi->iobase + REG_DMA_MISC);
+		if (ring->nhi->quirks & QUIRK_AUTO_CLEAR_INT) {
+			/*
+			 * Ask the hardware to clear interrupt status
+			 * bits automatically since we already know
+			 * which interrupt was triggered.
+			 */
+			misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
+			if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
+				misc |= REG_DMA_MISC_INT_AUTO_CLEAR;
+				iowrite32(misc, ring->nhi->iobase + REG_DMA_MISC);
+			}
 		}
 
 		ivr_base = ring->nhi->iobase + REG_INT_VEC_ALLOC_BASE;
@@ -1074,6 +1079,16 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 		nhi->ops->shutdown(nhi);
 }
 
+static void nhi_check_quirks(struct tb_nhi *nhi)
+{
+	/*
+	 * Intel hardware supports auto clear of the interrupt status
+	 * reqister right after interrupt is being issued.
+	 */
+	if (nhi->pdev->vendor == PCI_VENDOR_ID_INTEL)
+		nhi->quirks |= QUIRK_AUTO_CLEAR_INT;
+}
+
 static int nhi_init_msi(struct tb_nhi *nhi)
 {
 	struct pci_dev *pdev = nhi->pdev;
@@ -1189,6 +1204,8 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				     sizeof(*nhi->rx_rings), GFP_KERNEL);
 	if (!nhi->tx_rings || !nhi->rx_rings)
 		return -ENOMEM;
+
+	nhi_check_quirks(nhi);
 
 	res = nhi_init_msi(nhi);
 	if (res) {
