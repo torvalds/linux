@@ -116,16 +116,9 @@ choice
 	default ARC_CPU_770 if ISA_ARCOMPACT
 	default ARC_CPU_HS if ISA_ARCV2
 
-if ISA_ARCOMPACT
-
-config ARC_CPU_750D
-	bool "ARC750D"
-	select ARC_CANT_LLSC
-	help
-	  Support for ARC750 core
-
 config ARC_CPU_770
 	bool "ARC770"
+	depends on ISA_ARCOMPACT
 	select ARC_HAS_SWAPE
 	help
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
@@ -134,8 +127,6 @@ config ARC_CPU_770
 	           Shared Address Spaces (for sharing TLB entries in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
-
-endif #ISA_ARCOMPACT
 
 config ARC_CPU_HS
 	bool "ARC-HS"
@@ -275,7 +266,6 @@ config ARC_DCCM_BASE
 choice
 	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
-	default ARC_MMU_V2 if ARC_CPU_750D
 	default ARC_MMU_V4 if ARC_CPU_HS
 
 if ISA_ARCOMPACT
