@@ -2111,6 +2111,39 @@ xfs_destroy_workqueues(void)
 	destroy_workqueue(xfs_alloc_wq);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int
+xfs_cpu_dead(
+	unsigned int		cpu)
+{
+	return 0;
+}
+
+static int __init
+xfs_cpu_hotplug_init(void)
+{
+	int	error;
+
+	error = cpuhp_setup_state_nocalls(CPUHP_XFS_DEAD, "xfs:dead", NULL,
+			xfs_cpu_dead);
+	if (error < 0)
+		xfs_alert(NULL,
+"Failed to initialise CPU hotplug, error %d. XFS is non-functional.",
+			error);
+	return error;
+}
+
+static void
+xfs_cpu_hotplug_destroy(void)
+{
+	cpuhp_remove_state_nocalls(CPUHP_XFS_DEAD);
+}
+
+#else /* !CONFIG_HOTPLUG_CPU */
+static inline int xfs_cpu_hotplug_init(void) { return 0; }
+static inline void xfs_cpu_hotplug_destroy(void) {}
+#endif
+
 STATIC int __init
 init_xfs_fs(void)
 {
@@ -2123,9 +2156,13 @@ init_xfs_fs(void)
 
 	xfs_dir_startup();
 
-	error = xfs_init_zones();
+	error = xfs_cpu_hotplug_init();
 	if (error)
 		goto out;
+
+	error = xfs_init_zones();
+	if (error)
+		goto out_destroy_hp;
 
 	error = xfs_init_workqueues();
 	if (error)
@@ -2206,6 +2243,8 @@ init_xfs_fs(void)
 	xfs_destroy_workqueues();
  out_destroy_zones:
 	xfs_destroy_zones();
+ out_destroy_hp:
+	xfs_cpu_hotplug_destroy();
  out:
 	return error;
 }
@@ -2228,6 +2267,7 @@ exit_xfs_fs(void)
 	xfs_destroy_workqueues();
 	xfs_destroy_zones();
 	xfs_uuid_table_free();
+	xfs_cpu_hotplug_destroy();
 }
 
 module_init(init_xfs_fs);
