@@ -1403,13 +1403,22 @@ out:
 
 }
 
-int btrfs_defrag_file(struct inode *inode, struct file *file,
+/*
+ * Entry point to file defragmentation.
+ *
+ * @inode:	   inode to be defragged
+ * @ra:		   readahead state (can be NUL)
+ * @range:	   defrag options including range and flags
+ * @newer_than:	   minimum transid to defrag
+ * @max_to_defrag: max number of sectors to be defragged, if 0, the whole inode
+ *		   will be defragged.
+ */
+int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		      struct btrfs_ioctl_defrag_range_args *range,
 		      u64 newer_than, unsigned long max_to_defrag)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct file_ra_state *ra = NULL;
 	unsigned long last_index;
 	u64 isize = i_size_read(inode);
 	u64 last_len = 0;
@@ -1427,6 +1436,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	u64 new_align = ~((u64)SZ_128K - 1);
 	struct page **pages = NULL;
 	bool do_compress = range->flags & BTRFS_DEFRAG_RANGE_COMPRESS;
+	bool ra_allocated = false;
 
 	if (isize == 0)
 		return 0;
@@ -1445,16 +1455,15 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		extent_thresh = SZ_256K;
 
 	/*
-	 * If we were not given a file, allocate a readahead context. As
+	 * If we were not given a ra, allocate a readahead context. As
 	 * readahead is just an optimization, defrag will work without it so
 	 * we don't error out.
 	 */
-	if (!file) {
+	if (!ra) {
+		ra_allocated = true;
 		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
 		if (ra)
 			file_ra_state_init(ra, inode->i_mapping);
-	} else {
-		ra = &file->f_ra;
 	}
 
 	pages = kmalloc_array(max_cluster, sizeof(struct page *), GFP_KERNEL);
@@ -1536,7 +1545,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index = max(i, ra_index);
 			if (ra)
 				page_cache_sync_readahead(inode->i_mapping, ra,
-						file, ra_index, cluster);
+						NULL, ra_index, cluster);
 			ra_index += cluster;
 		}
 
@@ -1607,7 +1616,7 @@ out_ra:
 		BTRFS_I(inode)->defrag_compress = BTRFS_COMPRESS_NONE;
 		btrfs_inode_unlock(inode, 0);
 	}
-	if (!file)
+	if (ra_allocated)
 		kfree(ra);
 	kfree(pages);
 	return ret;
@@ -3176,7 +3185,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			/* the rest are all set to zero by kzalloc */
 			range.len = (u64)-1;
 		}
-		ret = btrfs_defrag_file(file_inode(file), file,
+		ret = btrfs_defrag_file(file_inode(file), &file->f_ra,
 					&range, BTRFS_OLDEST_GENERATION, 0);
 		if (ret > 0)
 			ret = 0;
