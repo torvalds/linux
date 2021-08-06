@@ -30,6 +30,8 @@
 		serial2 = &dcc;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		usb0 = &usb0;
+		usb1 = &usb1;
 		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
 	};
@@ -537,9 +539,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0_default>;
-	dr_mode = "peripheral";
 	phy-names = "usb3-phy";
 	phys = <&psgtr 2 PHY_TYPE_USB3 0 0>;
+};
+
+&dwc3_0 {
+	status = "okay";
+	dr_mode = "peripheral";
 	maximum-speed = "super-speed";
 };
 
@@ -548,9 +554,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb1_default>;
-	dr_mode = "host";
 	phy-names = "usb3-phy";
 	phys = <&psgtr 3 PHY_TYPE_USB3 1 0>;
+};
+
+&dwc3_1 {
+	status = "okay";
+	dr_mode = "host";
 	maximum-speed = "super-speed";
 };
 

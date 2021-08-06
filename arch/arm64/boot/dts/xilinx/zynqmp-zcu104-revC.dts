@@ -29,6 +29,7 @@
 		serial1 = &uart1;
 		serial2 = &dcc;
 		spi0 = &qspi;
+		usb0 = &usb0;
 	};
 
 	chosen {
@@ -493,9 +494,14 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0_default>;
-	dr_mode = "host";
 	phy-names = "usb3-phy";
 	phys = <&psgtr 2 PHY_TYPE_USB3 0 2>;
+};
+
+&dwc3_0 {
+	status = "okay";
+	dr_mode = "host";
+	snps,usb3_lpm_capable;
 	maximum-speed = "super-speed";
 };
 

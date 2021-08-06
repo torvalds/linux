@@ -24,6 +24,8 @@
 		rtc0 = &rtc;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		usb0 = &usb0;
+		usb1 = &usb1;
 	};
 
 	chosen {
@@ -147,11 +149,23 @@
 
 &usb0 {
 	status = "okay";
+};
+
+&dwc3_0 {
+	status = "okay";
 	dr_mode = "host";
+	snps,usb3_lpm_capable;
+	maximum-speed = "super-speed";
 };
 
 /* ULPI SMSC USB3320 */
 &usb1 {
 	status = "okay";
+};
+
+&dwc3_1 {
+	status = "okay";
 	dr_mode = "host";
+	snps,usb3_lpm_capable;
+	maximum-speed = "super-speed";
 };
