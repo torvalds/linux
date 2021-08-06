@@ -17,7 +17,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
-#include <drm/drm_probe_helper.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -1534,12 +1533,12 @@ void zynqmp_dp_disable_vblank(struct zynqmp_dp *dp)
 
 static void zynqmp_dp_hpd_work_func(struct work_struct *work)
 {
-	struct zynqmp_dp *dp;
+	struct zynqmp_dp *dp = container_of(work, struct zynqmp_dp,
+					    hpd_work.work);
+	enum drm_connector_status status;
 
-	dp = container_of(work, struct zynqmp_dp, hpd_work.work);
-
-	if (dp->drm)
-		drm_helper_hpd_irq_event(dp->drm);
+	status = zynqmp_dp_bridge_detect(&dp->bridge);
+	drm_bridge_hpd_notify(&dp->bridge, status);
 }
 
 static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
