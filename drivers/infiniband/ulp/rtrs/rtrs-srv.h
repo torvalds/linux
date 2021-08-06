@@ -138,10 +138,6 @@ static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
 				    char *page, size_t len);
-int rtrs_srv_reset_wc_completion_stats(struct rtrs_srv_stats *stats,
-					bool enable);
-int rtrs_srv_stats_wc_completion_to_str(struct rtrs_srv_stats *stats, char *buf,
-					 size_t len);
 int rtrs_srv_reset_all_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_reset_all_help(struct rtrs_srv_stats *stats,
 				 char *page, size_t len);

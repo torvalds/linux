@@ -229,10 +229,7 @@ int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats, char *buf,
 					 size_t len);
 int rtrs_clt_reset_reconnects_stat(struct rtrs_clt_stats *stats, bool enable);
 int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
-				      size_t len);
-int rtrs_clt_reset_wc_comp_stats(struct rtrs_clt_stats *stats, bool enable);
-int rtrs_clt_stats_wc_completion_to_str(struct rtrs_clt_stats *stats, char *buf,
-					 size_t len);
+				     size_t len);
 int rtrs_clt_reset_rdma_stats(struct rtrs_clt_stats *stats, bool enable);
 ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 				    char *page, size_t len);
