@@ -1245,9 +1245,11 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
 			   MT7530_PORT_FALLBACK_MODE);
 
-	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
+	mt7530_rmw(priv, MT7530_PVC_P(port),
+		   VLAN_ATTR_MASK | PVC_EG_TAG_MASK | ACC_FRM_MASK,
 		   VLAN_ATTR(MT7530_VLAN_TRANSPARENT) |
-		   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
+		   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT) |
+		   MT7530_VLAN_ACC_ALL);
 
 	/* Set PVID to 0 */
 	mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
@@ -1285,6 +1287,11 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 			   MT7530_PORT_SECURITY_MODE);
 		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
 			   G0_PORT_VID(priv->ports[port].pvid));
+
+		/* Only accept tagged frames if PVID is not set */
+		if (!priv->ports[port].pvid)
+			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
+				   MT7530_VLAN_ACC_TAGGED);
 	}
 
 	/* Set the port as a user port which is to be able to recognize VID
@@ -1612,11 +1619,26 @@ mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 	if (pvid) {
 		priv->ports[port].pvid = vlan->vid;
 
+		/* Accept all frames if PVID is set */
+		mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
+			   MT7530_VLAN_ACC_ALL);
+
 		/* Only configure PVID if VLAN filtering is enabled */
 		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 			mt7530_rmw(priv, MT7530_PPBV1_P(port),
 				   G0_PORT_VID_MASK,
 				   G0_PORT_VID(vlan->vid));
+	} else if (vlan->vid && priv->ports[port].pvid == vlan->vid) {
+		/* This VLAN is overwritten without PVID, so unset it */
+		priv->ports[port].pvid = G0_PORT_VID_DEF;
+
+		/* Only accept tagged frames if the port is VLAN-aware */
+		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
+			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
+				   MT7530_VLAN_ACC_TAGGED);
+
+		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
+			   G0_PORT_VID_DEF);
 	}
 
 	mutex_unlock(&priv->reg_mutex);
@@ -1642,6 +1664,12 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	 */
 	if (priv->ports[port].pvid == vlan->vid) {
 		priv->ports[port].pvid = G0_PORT_VID_DEF;
+
+		/* Only accept tagged frames if the port is VLAN-aware */
+		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
+			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
+				   MT7530_VLAN_ACC_TAGGED);
+
 		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
 			   G0_PORT_VID_DEF);
 	}
