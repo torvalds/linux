@@ -237,6 +237,13 @@ static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
 	return blk_rq_pos(scsi_cmd_to_rq(scmd)) >> shift;
 }
 
+static inline unsigned int scsi_logical_block_count(struct scsi_cmnd *scmd)
+{
+	unsigned int shift = ilog2(scmd->device->sector_size) - SECTOR_SHIFT;
+
+	return blk_rq_bytes(scsi_cmd_to_rq(scmd)) >> shift;
+}
+
 /*
  * The operations below are hints that tell the controller driver how
  * to handle I/Os with DIF or similar types of protection information.
