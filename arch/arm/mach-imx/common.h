@@ -68,7 +68,6 @@ void imx_set_cpu_arg(int cpu, u32 arg);
 void v7_secondary_startup(void);
 void imx_scu_map_io(void);
 void imx_smp_prepare(void);
-void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 #else
 static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
@@ -81,6 +80,7 @@ void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
 void imx_gpc_hwirq_unmask(unsigned int hwirq);
+void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
