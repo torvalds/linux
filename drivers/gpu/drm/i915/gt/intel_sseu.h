@@ -32,6 +32,8 @@ struct drm_printer;
 struct sseu_dev_info {
 	u8 slice_mask;
 	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
+	u8 geometry_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
+	u8 compute_subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
 	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES * GEN_MAX_EU_STRIDE];
 	u16 eu_total;
 	u8 eu_per_subslice;
@@ -104,7 +106,7 @@ intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
 u32  intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
-			      u32 ss_mask);
+			      u8 *subslice_mask, u32 ss_mask);
 
 void intel_sseu_info_init(struct intel_gt *gt);
 
