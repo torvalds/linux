@@ -103,6 +103,7 @@ TODOList:
    sound/index
    filesystems/index
    virt/index
+   infiniband/index
 
 TODOList:
 
@@ -117,7 +118,6 @@ TODOList:
 * hid/index
 * i2c/index
 * isdn/index
-* infiniband/index
 * leds/index
 * netlabel/index
 * networking/index
