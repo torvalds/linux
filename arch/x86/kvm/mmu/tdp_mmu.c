@@ -929,21 +929,20 @@ void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
  * Installs a last-level SPTE to handle a TDP page fault.
  * (NPT/EPT violation/misconfiguration)
  */
-static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
-					  int map_writable,
-					  struct tdp_iter *iter,
-					  kvm_pfn_t pfn, bool prefault)
+static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
+					  struct kvm_page_fault *fault,
+					  struct tdp_iter *iter)
 {
 	u64 new_spte;
 	int ret = RET_PF_FIXED;
 	int make_spte_ret = 0;
 
-	if (unlikely(is_noslot_pfn(pfn)))
+	if (unlikely(is_noslot_pfn(fault->pfn)))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
 		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
-					 pfn, iter->old_spte, prefault, true,
-					 map_writable, !shadow_accessed_mask,
+					 fault->pfn, iter->old_spte, fault->prefault, true,
+					 fault->map_writable, !shadow_accessed_mask,
 					 &new_spte);
 
 	if (new_spte == iter->old_spte)
@@ -957,7 +956,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 	 * the vCPU would have the same fault again.
 	 */
 	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
-		if (write)
+		if (fault->write)
 			ret = RET_PF_EMULATE;
 	}
 
@@ -1064,8 +1063,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		return RET_PF_RETRY;
 	}
 
-	ret = tdp_mmu_map_handle_target_level(vcpu, fault->write, fault->map_writable, &iter,
-					      fault->pfn, fault->prefault);
+	ret = tdp_mmu_map_handle_target_level(vcpu, fault, &iter);
 	rcu_read_unlock();
 
 	return ret;
