@@ -1908,8 +1908,12 @@ static void c2h_wk_callback(struct work_struct *work)
 			c2h_evt = kmalloc(16, GFP_KERNEL);
 			if (c2h_evt) {
 				/* This C2H event is not read, read & clear now */
-				if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS)
+				if (c2h_evt_read(adapter, (u8 *)c2h_evt) != _SUCCESS) {
+					kfree(c2h_evt);
 					continue;
+				}
+			} else {
+				return;
 			}
 		}
 
