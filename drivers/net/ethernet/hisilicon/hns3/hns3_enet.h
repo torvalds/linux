@@ -6,6 +6,7 @@
 
 #include <linux/dim.h>
 #include <linux/if_vlan.h>
+#include <net/page_pool.h>
 
 #include "hnae3.h"
 
@@ -307,6 +308,7 @@ enum hns3_desc_type {
 	DESC_TYPE_BOUNCE_ALL		= 1 << 3,
 	DESC_TYPE_BOUNCE_HEAD		= 1 << 4,
 	DESC_TYPE_SGL_SKB		= 1 << 5,
+	DESC_TYPE_PP_FRAG		= 1 << 6,
 };
 
 struct hns3_desc_cb {
@@ -451,6 +453,7 @@ struct hns3_enet_ring {
 	struct hnae3_queue *tqp;
 	int queue_index;
 	struct device *dev; /* will be used for DMA mapping of descriptors */
+	struct page_pool *page_pool;
 
 	/* statistic */
 	struct ring_stats stats;

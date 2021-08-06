@@ -91,6 +91,7 @@ config HNS3
 	tristate "Hisilicon Network Subsystem Support HNS3 (Framework)"
 	depends on PCI
 	select NET_DEVLINK
+	select PAGE_POOL
 	help
 	  This selects the framework support for Hisilicon Network Subsystem 3.
 	  This layer facilitates clients like ENET, RoCE and user-space ethernet
