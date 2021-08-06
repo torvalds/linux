@@ -124,11 +124,11 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	 *
 	 * We have already configured the guest's stage 1 translation in
 	 * kvm_vcpu_load_sysregs_vhe above.  We must now call
-	 * __load_guest_stage2 before __activate_traps, because
-	 * __load_guest_stage2 configures stage 2 translation, and
+	 * __load_stage2 before __activate_traps, because
+	 * __load_stage2 configures stage 2 translation, and
 	 * __activate_traps clear HCR_EL2.TGE (among other things).
 	 */
-	__load_guest_stage2(vcpu->arch.hw_mmu, vcpu->arch.hw_mmu->arch);
+	__load_stage2(vcpu->arch.hw_mmu, vcpu->arch.hw_mmu->arch);
 	__activate_traps(vcpu);
 
 	__kvm_adjust_pc(vcpu);

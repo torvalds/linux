@@ -126,7 +126,7 @@ int __pkvm_prot_finalize(void)
 	kvm_flush_dcache_to_poc(params, sizeof(*params));
 
 	write_sysreg(params->hcr_el2, hcr_el2);
-	__load_stage2(&host_kvm.arch.mmu, host_kvm.arch.vtcr);
+	__load_stage2(&host_kvm.arch.mmu, &host_kvm.arch);
 
 	/*
 	 * Make sure to have an ISB before the TLB maintenance below but only

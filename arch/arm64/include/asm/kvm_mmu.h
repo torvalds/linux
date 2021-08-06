@@ -267,9 +267,10 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
  * Must be called from hyp code running at EL2 with an updated VTTBR
  * and interrupts disabled.
  */
-static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu, unsigned long vtcr)
+static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
+					  struct kvm_arch *arch)
 {
-	write_sysreg(vtcr, vtcr_el2);
+	write_sysreg(arch->vtcr, vtcr_el2);
 	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
 
 	/*
@@ -278,12 +279,6 @@ static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu, unsigned long 
 	 * the guest.
 	 */
 	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
-}
-
-static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu,
-						struct kvm_arch *arch)
-{
-	__load_stage2(mmu, arch->vtcr);
 }
 
 static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)
