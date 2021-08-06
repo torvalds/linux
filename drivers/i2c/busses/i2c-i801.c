@@ -1628,7 +1628,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 		 * BIOS is accessing the host controller so prevent it from
 		 * suspending automatically from now on.
 		 */
-		pm_runtime_get_sync(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
 	}
 
 	if ((function & ACPI_IO_MASK) == ACPI_READ)
@@ -1668,11 +1668,6 @@ static void i801_acpi_remove(struct i801_priv *priv)
 
 	acpi_remove_address_space_handler(adev->handle,
 		ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler);
-
-	mutex_lock(&priv->acpi_lock);
-	if (priv->acpi_reserved)
-		pm_runtime_put(&priv->pci_dev->dev);
-	mutex_unlock(&priv->acpi_lock);
 }
 #else
 static inline int i801_acpi_probe(struct i801_priv *priv) { return 0; }
