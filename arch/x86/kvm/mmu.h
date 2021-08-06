@@ -132,6 +132,9 @@ struct kvm_page_fault {
 
 	/* Input to FNAME(fetch), __direct_map and kvm_tdp_mmu_map.  */
 	u8 max_level;
+
+	/* Shifted addr, or result of guest page table walk if addr is a gva.  */
+	gfn_t gfn;
 };
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
