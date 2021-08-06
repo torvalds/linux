@@ -3949,11 +3949,11 @@ out_retry:
 	return true;
 }
 
-static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
-			     bool prefault, int max_level, bool is_tdp)
+static int direct_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
+	gpa_t gpa = fault->addr;
+	u32 error_code = fault->error_code;
 	bool is_tdp_mmu_fault = is_tdp_mmu(vcpu->arch.mmu);
-	bool write = error_code & PFERR_WRITE_MASK;
 	bool map_writable;
 
 	gfn_t gfn = gpa >> PAGE_SHIFT;
@@ -3976,11 +3976,11 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	if (kvm_faultin_pfn(vcpu, prefault, gfn, gpa, &pfn, &hva,
-			 write, &map_writable, &r))
+	if (kvm_faultin_pfn(vcpu, fault->prefault, gfn, gpa, &pfn, &hva,
+			    fault->write, &map_writable, &r))
 		return r;
 
-	if (handle_abnormal_pfn(vcpu, is_tdp ? 0 : gpa, gfn, pfn, ACC_ALL, &r))
+	if (handle_abnormal_pfn(vcpu, fault->is_tdp ? 0 : gpa, gfn, pfn, ACC_ALL, &r))
 		return r;
 
 	r = RET_PF_RETRY;
@@ -3997,11 +3997,11 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		goto out_unlock;
 
 	if (is_tdp_mmu_fault)
-		r = kvm_tdp_mmu_map(vcpu, gpa, error_code, map_writable, max_level,
-				    pfn, prefault);
+		r = kvm_tdp_mmu_map(vcpu, gpa, error_code, map_writable, fault->max_level,
+				    pfn, fault->prefault);
 	else
-		r = __direct_map(vcpu, gpa, error_code, map_writable, max_level, pfn,
-				 prefault, is_tdp);
+		r = __direct_map(vcpu, gpa, error_code, map_writable, fault->max_level, pfn,
+				 fault->prefault, fault->is_tdp);
 
 out_unlock:
 	if (is_tdp_mmu_fault)
@@ -4015,12 +4015,11 @@ out_unlock:
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu,
 				struct kvm_page_fault *fault)
 {
-	pgprintk("%s: gva %lx error %x\n", __func__, gpa, error_code);
+	pgprintk("%s: gva %lx error %x\n", __func__, fault->addr, fault->error_code);
 
 	/* This path builds a PAE pagetable, we can map 2mb pages at maximum. */
-	return direct_page_fault(vcpu, fault->addr,
-				 fault->error_code, fault->prefault,
-				 PG_LEVEL_2M, false);
+	fault->max_level = PG_LEVEL_2M;
+	return direct_page_fault(vcpu, fault);
 }
 
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
@@ -4058,21 +4057,17 @@ EXPORT_SYMBOL_GPL(kvm_handle_page_fault);
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
-	int max_level;
-	gpa_t gpa = fault->addr;
-
-	for (max_level = KVM_MAX_HUGEPAGE_LEVEL;
-	     max_level > PG_LEVEL_4K;
-	     max_level--) {
-		int page_num = KVM_PAGES_PER_HPAGE(max_level);
-		gfn_t base = (gpa >> PAGE_SHIFT) & ~(page_num - 1);
+	while (fault->max_level > PG_LEVEL_4K) {
+		int page_num = KVM_PAGES_PER_HPAGE(fault->max_level);
+		gfn_t base = (fault->addr >> PAGE_SHIFT) & ~(page_num - 1);
 
 		if (kvm_mtrr_check_gfn_range_consistency(vcpu, base, page_num))
 			break;
+
+		--fault->max_level;
 	}
 
-	return direct_page_fault(vcpu, gpa, fault->error_code,
-				 fault->prefault, max_level, true);
+	return direct_page_fault(vcpu, fault);
 }
 
 static void nonpaging_init_context(struct kvm_mmu *context)

@@ -129,6 +129,9 @@ struct kvm_page_fault {
 
 	/* Derived from mmu.  */
 	const bool is_tdp;
+
+	/* Input to FNAME(fetch), __direct_map and kvm_tdp_mmu_map.  */
+	u8 max_level;
 };
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
@@ -146,6 +149,8 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		.user = err & PFERR_USER_MASK,
 		.prefault = prefault,
 		.is_tdp = likely(vcpu->arch.mmu->page_fault == kvm_tdp_page_fault),
+
+		.max_level = KVM_MAX_HUGEPAGE_LEVEL,
 	};
 #ifdef CONFIG_RETPOLINE
 	if (fault.is_tdp)
