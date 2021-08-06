@@ -266,6 +266,16 @@ struct ice_fltr_mgmt_list_entry {
 	u8 counter_index;
 };
 
+struct ice_adv_fltr_mgmt_list_entry {
+	struct list_head list_entry;
+
+	struct ice_adv_lkup_elem *lkups;
+	struct ice_adv_rule_info rule_info;
+	u16 lkups_cnt;
+	struct ice_vsi_list_map_info *vsi_list_info;
+	u16 vsi_count;
+};
+
 enum ice_promisc_flags {
 	ICE_PROMISC_UCAST_RX = 0x1,
 	ICE_PROMISC_UCAST_TX = 0x2,
@@ -301,6 +311,10 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 		  u16 counter_id);
 
 /* Switch/bridge related commands */
+enum ice_status
+ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
+		 u16 lkups_cnt, struct ice_adv_rule_info *rinfo,
+		 struct ice_rule_query_data *added_entry);
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
