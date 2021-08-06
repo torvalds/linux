@@ -171,7 +171,6 @@ struct zynqmp_disp_layer {
  * @audio.clk: Audio clock
  * @audio.clk_from_ps: True of the audio clock comes from PS, false from PL
  * @layers: Layers (planes)
- * @event: Pending vblank event request
  * @pclk: Pixel clock
  * @pclk_from_ps: True of the video clock comes from PS, false from PL
  */
@@ -195,8 +194,6 @@ struct zynqmp_disp {
 	} audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DISP_NUM_LAYERS];
-
-	struct drm_pending_vblank_event *event;
 
 	struct clk *pclk;
 	bool pclk_from_ps;
