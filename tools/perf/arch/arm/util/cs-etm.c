@@ -607,6 +607,28 @@ static int cs_etm_get_ro(struct perf_pmu *pmu, int cpu, const char *path)
 	return val;
 }
 
+static void cs_etm_save_etmv4_header(__u64 data[], struct auxtrace_record *itr, int cpu)
+{
+	struct cs_etm_recording *ptr = container_of(itr, struct cs_etm_recording, itr);
+	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
+
+	/* Get trace configuration register */
+	data[CS_ETMV4_TRCCONFIGR] = cs_etmv4_get_config(itr);
+	/* Get traceID from the framework */
+	data[CS_ETMV4_TRCTRACEIDR] = coresight_get_trace_id(cpu);
+	/* Get read-only information from sysFS */
+	data[CS_ETMV4_TRCIDR0] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR0]);
+	data[CS_ETMV4_TRCIDR1] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR1]);
+	data[CS_ETMV4_TRCIDR2] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
+	data[CS_ETMV4_TRCIDR8] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					       metadata_etmv4_ro[CS_ETMV4_TRCIDR8]);
+	data[CS_ETMV4_TRCAUTHSTATUS] = cs_etm_get_ro(cs_etm_pmu, cpu,
+						     metadata_etmv4_ro[CS_ETMV4_TRCAUTHSTATUS]);
+}
+
 static void cs_etm_get_metadata(int cpu, u32 *offset,
 				struct auxtrace_record *itr,
 				struct perf_record_auxtrace_info *info)
@@ -620,29 +642,7 @@ static void cs_etm_get_metadata(int cpu, u32 *offset,
 	/* first see what kind of tracer this cpu is affined to */
 	if (cs_etm_is_etmv4(itr, cpu)) {
 		magic = __perf_cs_etmv4_magic;
-		/* Get trace configuration register */
-		info->priv[*offset + CS_ETMV4_TRCCONFIGR] =
-						cs_etmv4_get_config(itr);
-		/* Get traceID from the framework */
-		info->priv[*offset + CS_ETMV4_TRCTRACEIDR] =
-						coresight_get_trace_id(cpu);
-		/* Get read-only information from sysFS */
-		info->priv[*offset + CS_ETMV4_TRCIDR0] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR0]);
-		info->priv[*offset + CS_ETMV4_TRCIDR1] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR1]);
-		info->priv[*offset + CS_ETMV4_TRCIDR2] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR2]);
-		info->priv[*offset + CS_ETMV4_TRCIDR8] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETMV4_TRCIDR8]);
-		info->priv[*offset + CS_ETMV4_TRCAUTHSTATUS] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro
-				      [CS_ETMV4_TRCAUTHSTATUS]);
+		cs_etm_save_etmv4_header(&info->priv[*offset], itr, cpu);
 
 		/* How much space was used */
 		increment = CS_ETMV4_PRIV_MAX;
