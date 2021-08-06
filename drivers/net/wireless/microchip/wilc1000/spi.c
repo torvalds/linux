@@ -154,10 +154,8 @@ static int wilc_bus_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ret = wilc_cfg80211_init(&wilc, &spi->dev, WILC_HIF_SPI, &wilc_hif_spi);
-	if (ret) {
-		kfree(spi_priv);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
 	spi_set_drvdata(spi, wilc);
 	wilc->dev = &spi->dev;
@@ -166,12 +164,18 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER) {
-		kfree(spi_priv);
-		return -EPROBE_DEFER;
+		ret = -EPROBE_DEFER;
+		goto netdev_cleanup;
 	} else if (!IS_ERR(wilc->rtc_clk))
 		clk_prepare_enable(wilc->rtc_clk);
 
 	return 0;
+
+netdev_cleanup:
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(spi_priv);
+	return ret;
 }
 
 static int wilc_bus_remove(struct spi_device *spi)

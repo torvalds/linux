@@ -129,10 +129,8 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	ret = wilc_cfg80211_init(&wilc, &func->dev, WILC_HIF_SDIO,
 				 &wilc_hif_sdio);
-	if (ret) {
-		kfree(sdio_priv);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
 	if (IS_ENABLED(CONFIG_WILC1000_HW_OOB_INTR)) {
 		struct device_node *np = func->card->dev.of_node;
@@ -150,13 +148,19 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	wilc->rtc_clk = devm_clk_get(&func->card->dev, "rtc");
 	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER) {
-		kfree(sdio_priv);
-		return -EPROBE_DEFER;
+		ret = -EPROBE_DEFER;
+		goto netdev_cleanup;
 	} else if (!IS_ERR(wilc->rtc_clk))
 		clk_prepare_enable(wilc->rtc_clk);
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
+
+netdev_cleanup:
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(sdio_priv);
+	return ret;
 }
 
 static void wilc_sdio_remove(struct sdio_func *func)
