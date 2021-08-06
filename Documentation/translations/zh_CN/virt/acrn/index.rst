@@ -22,9 +22,4 @@ ACRN超级管理器
 
    introduction
    io-request
-
-TODOLIST:
-
-
-
    cpuid
