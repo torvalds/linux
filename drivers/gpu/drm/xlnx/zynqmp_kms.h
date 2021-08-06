@@ -38,7 +38,7 @@ struct zynqmp_dpsub_drm {
 	struct drm_encoder encoder;
 };
 
-void zynqmp_dpsub_handle_vblank(struct zynqmp_dpsub *dpsub);
+void zynqmp_dpsub_drm_handle_vblank(struct zynqmp_dpsub *dpsub);
 
 int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub);
 void zynqmp_dpsub_drm_cleanup(struct zynqmp_dpsub *dpsub);

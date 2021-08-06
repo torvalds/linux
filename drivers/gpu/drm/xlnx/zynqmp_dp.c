@@ -1581,7 +1581,7 @@ static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
 	zynqmp_dp_write(dp, ZYNQMP_DP_INT_STATUS, status);
 
 	if (status & ZYNQMP_DP_INT_VBLANK_START)
-		zynqmp_dpsub_handle_vblank(dp->dpsub);
+		zynqmp_dpsub_drm_handle_vblank(dp->dpsub);
 
 	if (status & ZYNQMP_DP_INT_HPD_EVENT)
 		schedule_delayed_work(&dp->hpd_work, 0);

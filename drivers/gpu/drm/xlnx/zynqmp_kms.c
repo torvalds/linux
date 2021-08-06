@@ -339,13 +339,13 @@ static void zynqmp_dpsub_map_crtc_to_plane(struct zynqmp_dpsub *dpsub)
 }
 
 /**
- * zynqmp_dpsub_handle_vblank - Handle the vblank event
+ * zynqmp_dpsub_drm_handle_vblank - Handle the vblank event
  * @dpsub: DisplayPort subsystem
  *
  * This function handles the vblank interrupt, and sends an event to
  * CRTC object. This will be called by the DP vblank interrupt handler.
  */
-void zynqmp_dpsub_handle_vblank(struct zynqmp_dpsub *dpsub)
+void zynqmp_dpsub_drm_handle_vblank(struct zynqmp_dpsub *dpsub)
 {
 	drm_crtc_handle_vblank(&dpsub->drm->crtc);
 }
