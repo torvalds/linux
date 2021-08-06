@@ -227,55 +227,6 @@ cs_etm_decoder__init_raw_frame_logging(
 }
 #endif
 
-static int cs_etm_decoder__create_packet_printer(struct cs_etm_decoder *decoder,
-						 const char *decoder_name,
-						 void *trace_config)
-{
-	u8 csid;
-
-	if (ocsd_dt_create_decoder(decoder->dcd_tree, decoder_name,
-				   OCSD_CREATE_FLG_PACKET_PROC,
-				   trace_config, &csid))
-		return -1;
-
-	if (ocsd_dt_set_pkt_protocol_printer(decoder->dcd_tree, csid, 0))
-		return -1;
-
-	return 0;
-}
-
-static int
-cs_etm_decoder__create_etm_packet_printer(struct cs_etm_trace_params *t_params,
-					  struct cs_etm_decoder *decoder)
-{
-	const char *decoder_name;
-	ocsd_etmv3_cfg config_etmv3;
-	ocsd_etmv4_cfg trace_config_etmv4;
-	void *trace_config;
-
-	switch (t_params->protocol) {
-	case CS_ETM_PROTO_ETMV3:
-	case CS_ETM_PROTO_PTM:
-		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
-		decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
-							OCSD_BUILTIN_DCD_ETMV3 :
-							OCSD_BUILTIN_DCD_PTM;
-		trace_config = &config_etmv3;
-		break;
-	case CS_ETM_PROTO_ETMV4i:
-		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
-		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
-		trace_config = &trace_config_etmv4;
-		break;
-	default:
-		return -1;
-	}
-
-	return cs_etm_decoder__create_packet_printer(decoder,
-						     decoder_name,
-						     trace_config);
-}
-
 static ocsd_datapath_resp_t
 cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
@@ -632,9 +583,10 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	return resp;
 }
 
-static int cs_etm_decoder__create_etm_packet_decoder(
-					struct cs_etm_trace_params *t_params,
-					struct cs_etm_decoder *decoder)
+static int
+cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
+				   struct cs_etm_trace_params *t_params,
+				   struct cs_etm_decoder *decoder)
 {
 	const char *decoder_name;
 	ocsd_etmv3_cfg config_etmv3;
@@ -660,31 +612,30 @@ static int cs_etm_decoder__create_etm_packet_decoder(
 		return -1;
 	}
 
-	if (ocsd_dt_create_decoder(decoder->dcd_tree,
-				     decoder_name,
-				     OCSD_CREATE_FLG_FULL_DECODER,
-				     trace_config, &csid))
-		return -1;
+	if (d_params->operation == CS_ETM_OPERATION_DECODE) {
+		if (ocsd_dt_create_decoder(decoder->dcd_tree,
+					   decoder_name,
+					   OCSD_CREATE_FLG_FULL_DECODER,
+					   trace_config, &csid))
+			return -1;
 
-	if (ocsd_dt_set_gen_elem_outfn(decoder->dcd_tree,
-				       cs_etm_decoder__gen_trace_elem_printer,
-				       decoder))
-		return -1;
+		if (ocsd_dt_set_gen_elem_outfn(decoder->dcd_tree,
+					       cs_etm_decoder__gen_trace_elem_printer,
+					       decoder))
+			return -1;
 
-	return 0;
-}
+		return 0;
+	} else if (d_params->operation == CS_ETM_OPERATION_PRINT) {
+		if (ocsd_dt_create_decoder(decoder->dcd_tree, decoder_name,
+					   OCSD_CREATE_FLG_PACKET_PROC,
+					   trace_config, &csid))
+			return -1;
 
-static int
-cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
-				   struct cs_etm_trace_params *t_params,
-				   struct cs_etm_decoder *decoder)
-{
-	if (d_params->operation == CS_ETM_OPERATION_PRINT)
-		return cs_etm_decoder__create_etm_packet_printer(t_params,
-								 decoder);
-	else if (d_params->operation == CS_ETM_OPERATION_DECODE)
-		return cs_etm_decoder__create_etm_packet_decoder(t_params,
-								 decoder);
+		if (ocsd_dt_set_pkt_protocol_printer(decoder->dcd_tree, csid, 0))
+			return -1;
+
+		return 0;
+	}
 
 	return -1;
 }
