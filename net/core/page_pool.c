@@ -206,6 +206,19 @@ static bool page_pool_dma_map(struct page_pool *pool, struct page *page)
 	return true;
 }
 
+static void page_pool_set_pp_info(struct page_pool *pool,
+				  struct page *page)
+{
+	page->pp = pool;
+	page->pp_magic |= PP_SIGNATURE;
+}
+
+static void page_pool_clear_pp_info(struct page *page)
+{
+	page->pp_magic = 0;
+	page->pp = NULL;
+}
+
 static struct page *__page_pool_alloc_page_order(struct page_pool *pool,
 						 gfp_t gfp)
 {
@@ -222,7 +235,7 @@ static struct page *__page_pool_alloc_page_order(struct page_pool *pool,
 		return NULL;
 	}
 
-	page->pp_magic |= PP_SIGNATURE;
+	page_pool_set_pp_info(pool, page);
 
 	/* Track how many pages are held 'in-flight' */
 	pool->pages_state_hold_cnt++;
@@ -266,7 +279,8 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 			put_page(page);
 			continue;
 		}
-		page->pp_magic |= PP_SIGNATURE;
+
+		page_pool_set_pp_info(pool, page);
 		pool->alloc.cache[pool->alloc.count++] = page;
 		/* Track how many pages are held 'in-flight' */
 		pool->pages_state_hold_cnt++;
@@ -345,7 +359,7 @@ void page_pool_release_page(struct page_pool *pool, struct page *page)
 			     DMA_ATTR_SKIP_CPU_SYNC);
 	page_pool_set_dma_addr(page, 0);
 skip_dma_unmap:
-	page->pp_magic = 0;
+	page_pool_clear_pp_info(page);
 
 	/* This may be the last page returned, releasing the pool, so
 	 * it is not safe to reference pool afterwards.
@@ -644,7 +658,6 @@ bool page_pool_return_skb_page(struct page *page)
 	 * The page will be returned to the pool here regardless of the
 	 * 'flipped' fragment being in use or not.
 	 */
-	page->pp = NULL;
 	page_pool_put_full_page(pp, page, false);
 
 	return true;

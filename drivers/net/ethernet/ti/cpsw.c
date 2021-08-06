@@ -431,7 +431,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	skb->protocol = eth_type_trans(skb, ndev);
 
 	/* mark skb for recycling */
-	skb_mark_for_recycle(skb, page, pool);
+	skb_mark_for_recycle(skb);
 	netif_receive_skb(skb);
 
 	ndev->stats.rx_bytes += len;

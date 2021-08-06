@@ -253,11 +253,4 @@ static inline void page_pool_ring_unlock(struct page_pool *pool)
 		spin_unlock_bh(&pool->ring.producer_lock);
 }
 
-/* Store mem_info on struct page and use it while recycling skb frags */
-static inline
-void page_pool_store_mem_info(struct page *page, struct page_pool *pp)
-{
-	page->pp = pp;
-}
-
 #endif /* _NET_PAGE_POOL_H */
