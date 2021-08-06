@@ -366,7 +366,6 @@ xrep_agf(
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return -EOPNOTSUPP;
 
-	xchk_perag_get(sc->mp, &sc->sa);
 	/*
 	 * Make sure we have the AGF buffer, as scrub might have decided it
 	 * was corrupt after xfs_alloc_read_agf failed with -EFSCORRUPTED.
@@ -641,7 +640,6 @@ xrep_agfl(
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return -EOPNOTSUPP;
 
-	xchk_perag_get(sc->mp, &sc->sa);
 	xbitmap_init(&agfl_extents);
 
 	/*
@@ -896,7 +894,6 @@ xrep_agi(
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return -EOPNOTSUPP;
 
-	xchk_perag_get(sc->mp, &sc->sa);
 	/*
 	 * Make sure we have the AGI buffer, as scrub might have decided it
 	 * was corrupt after xfs_ialloc_read_agi failed with -EFSCORRUPTED.

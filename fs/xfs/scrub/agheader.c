@@ -36,7 +36,7 @@ xchk_superblock_xref(
 
 	agbno = XFS_SB_BLOCK(mp);
 
-	error = xchk_ag_init(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno, &sc->sa);
 	if (!xchk_xref_process_error(sc, agno, agbno, &error))
 		return;
 
@@ -63,6 +63,7 @@ xchk_superblock(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
 	struct xfs_dsb		*sb;
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	uint32_t		v2_ok;
 	__be32			features_mask;
@@ -72,6 +73,15 @@ xchk_superblock(
 	agno = sc->sm->sm_agno;
 	if (agno == 0)
 		return 0;
+
+	/*
+	 * Grab an active reference to the perag structure.  If we can't get
+	 * it, we're racing with something that's tearing down the AG, so
+	 * signal that the AG no longer exists.
+	 */
+	pag = xfs_perag_get(mp, agno);
+	if (!pag)
+		return -ENOENT;
 
 	error = xfs_sb_read_secondary(mp, sc->tp, agno, &bp);
 	/*
@@ -92,7 +102,7 @@ xchk_superblock(
 		break;
 	}
 	if (!xchk_process_error(sc, agno, XFS_SB_BLOCK(mp), &error))
-		return error;
+		goto out_pag;
 
 	sb = bp->b_addr;
 
@@ -336,7 +346,8 @@ xchk_superblock(
 		xchk_block_set_corrupt(sc, bp);
 
 	xchk_superblock_xref(sc, bp);
-
+out_pag:
+	xfs_perag_put(pag);
 	return error;
 }
 
@@ -527,6 +538,7 @@ xchk_agf(
 	xchk_buffer_recheck(sc, sc->sa.agf_bp);
 
 	agf = sc->sa.agf_bp->b_addr;
+	pag = sc->sa.pag;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agf->agf_length);
@@ -582,7 +594,6 @@ xchk_agf(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	/* Do the incore counters match? */
-	pag = xfs_perag_get(mp, agno);
 	if (pag->pagf_freeblks != be32_to_cpu(agf->agf_freeblks))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	if (pag->pagf_flcount != be32_to_cpu(agf->agf_flcount))
@@ -590,7 +601,6 @@ xchk_agf(
 	if (xfs_sb_version_haslazysbcount(&sc->mp->m_sb) &&
 	    pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
-	xfs_perag_put(pag);
 
 	xchk_agf_xref(sc);
 out:
@@ -857,6 +867,7 @@ xchk_agi(
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);
 
 	agi = sc->sa.agi_bp->b_addr;
+	pag = sc->sa.pag;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);
@@ -909,12 +920,10 @@ xchk_agi(
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Do the incore counters match? */
-	pag = xfs_perag_get(mp, agno);
 	if (pag->pagi_count != be32_to_cpu(agi->agi_count))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	if (pag->pagi_freecount != be32_to_cpu(agi->agi_freecount))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
-	xfs_perag_put(pag);
 
 	xchk_agi_xref(sc);
 out:

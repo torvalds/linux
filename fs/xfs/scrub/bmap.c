@@ -260,7 +260,7 @@ xchk_bmap_iextent_xref(
 	agbno = XFS_FSB_TO_AGBNO(mp, irec->br_startblock);
 	len = irec->br_blockcount;
 
-	error = xchk_ag_init(info->sc, agno, &info->sc->sa);
+	error = xchk_ag_init_existing(info->sc, agno, &info->sc->sa);
 	if (!xchk_fblock_process_error(info->sc, info->whichfork,
 			irec->br_startoff, &error))
 		return;

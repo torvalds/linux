@@ -148,7 +148,7 @@ xchk_fscount_btreeblks(
 	xfs_extlen_t		blocks;
 	int			error;
 
-	error = xchk_ag_init(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno, &sc->sa);
 	if (error)
 		return error;
 

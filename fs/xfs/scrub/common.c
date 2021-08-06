@@ -394,11 +394,11 @@ want_ag_read_header_failure(
 }
 
 /*
- * Grab all the headers for an AG.
+ * Grab the perag structure and all the headers for an AG.
  *
- * The headers should be released by xchk_ag_free, but as a fail
- * safe we attach all the buffers we grab to the scrub transaction so
- * they'll all be freed when we cancel it.
+ * The headers should be released by xchk_ag_free, but as a fail safe we attach
+ * all the buffers we grab to the scrub transaction so they'll all be freed
+ * when we cancel it.  Returns ENOENT if we can't grab the perag structure.
  */
 int
 xchk_ag_read_headers(
@@ -409,22 +409,26 @@ xchk_ag_read_headers(
 	struct xfs_mount	*mp = sc->mp;
 	int			error;
 
+	ASSERT(!sa->pag);
+	sa->pag = xfs_perag_get(mp, agno);
+	if (!sa->pag)
+		return -ENOENT;
+
 	sa->agno = agno;
 
 	error = xfs_ialloc_read_agi(mp, sc->tp, agno, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
-		goto out;
+		return error;
 
 	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &sa->agf_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
-		goto out;
+		return error;
 
 	error = xfs_alloc_read_agfl(mp, sc->tp, agno, &sa->agfl_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
-		goto out;
-	error = 0;
-out:
-	return error;
+		return error;
+
+	return 0;
 }
 
 /* Release all the AG btree cursors. */
@@ -461,7 +465,6 @@ xchk_ag_btcur_init(
 {
 	struct xfs_mount	*mp = sc->mp;
 
-	xchk_perag_get(sc->mp, sa);
 	if (sa->agf_bp &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
 		/* Set up a bnobt cursor for cross-referencing. */
@@ -532,11 +535,11 @@ xchk_ag_free(
 }
 
 /*
- * For scrub, grab the AGI and the AGF headers, in that order.  Locking
- * order requires us to get the AGI before the AGF.  We use the
- * transaction to avoid deadlocking on crosslinked metadata buffers;
- * either the caller passes one in (bmap scrub) or we have to create a
- * transaction ourselves.
+ * For scrub, grab the perag structure, the AGI, and the AGF headers, in that
+ * order.  Locking order requires us to get the AGI before the AGF.  We use the
+ * transaction to avoid deadlocking on crosslinked metadata buffers; either the
+ * caller passes one in (bmap scrub) or we have to create a transaction
+ * ourselves.  Returns ENOENT if the perag struct cannot be grabbed.
  */
 int
 xchk_ag_init(
@@ -552,19 +555,6 @@ xchk_ag_init(
 
 	xchk_ag_btcur_init(sc, sa);
 	return 0;
-}
-
-/*
- * Grab the per-ag structure if we haven't already gotten it.  Teardown of the
- * xchk_ag will release it for us.
- */
-void
-xchk_perag_get(
-	struct xfs_mount	*mp,
-	struct xchk_ag		*sa)
-{
-	if (!sa->pag)
-		sa->pag = xfs_perag_get(mp, sa->agno);
 }
 
 /* Per-scrubber setup functions */
