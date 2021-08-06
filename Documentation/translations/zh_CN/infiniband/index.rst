@@ -25,10 +25,10 @@ infiniband
    core_locking
    ipoib
    opa_vnic
+   sysfs
 
 TODOLIST:
 
-   sysfs
    tag_matching
    user_mad
    user_verbs
