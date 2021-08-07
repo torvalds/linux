@@ -287,6 +287,7 @@ int main(void)
 	STACK_PT_REGS_OFFSET(_XER, xer);
 	STACK_PT_REGS_OFFSET(_DAR, dar);
 	STACK_PT_REGS_OFFSET(_DSISR, dsisr);
+	STACK_PT_REGS_OFFSET(_ESR, esr);
 	STACK_PT_REGS_OFFSET(ORIG_GPR3, orig_gpr3);
 	STACK_PT_REGS_OFFSET(RESULT, result);
 	STACK_PT_REGS_OFFSET(_TRAP, trap);
@@ -298,7 +299,6 @@ int main(void)
 	 * we use them to hold SRR0 and SRR1.
 	 */
 	STACK_PT_REGS_OFFSET(_DEAR, dar);
-	STACK_PT_REGS_OFFSET(_ESR, dsisr);
 #else /* CONFIG_PPC64 */
 	STACK_PT_REGS_OFFSET(SOFTE, softe);
 	STACK_PT_REGS_OFFSET(_PPR, ppr);
