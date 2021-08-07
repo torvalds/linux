@@ -670,9 +670,6 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FLAG:
 		*((u32 *)val) = odm->SupportAbility;
 		break;
-	case HW_VAR_RF_TYPE:
-		*((u8 *)val) = hal_data->rf_type;
-		break;
 	default:
 		netdev_dbg(adapter->pnetdev,
 			   FUNC_ADPT_FMT " variable(%d) not defined!\n",

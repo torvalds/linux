@@ -1660,7 +1660,6 @@ static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 	dump_chip_info(ChipVersion);
 #endif
 	pHalData->VersionID = ChipVersion;
-	pHalData->rf_type = RF_1T1R;
 
 	return ChipVersion;
 }

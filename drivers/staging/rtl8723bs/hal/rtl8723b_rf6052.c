@@ -156,10 +156,7 @@ int PHY_RF6052_Config8723B(struct adapter *Adapter)
 	/*  */
 	/*  Initialize general global value */
 	/*  */
-	if (pHalData->rf_type == RF_1T1R)
-		pHalData->NumTotalRFPath = 1;
-	else
-		pHalData->NumTotalRFPath = 2;
+	pHalData->NumTotalRFPath = 1;
 
 	/*  */
 	/*  Config BB and RF */

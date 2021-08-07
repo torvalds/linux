@@ -116,12 +116,6 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 		case rTxAGC_A_Mcs07_Mcs04:
 			index = 3;
 			break;
-		case rTxAGC_A_Mcs11_Mcs08:
-			index = 4;
-			break;
-		case rTxAGC_A_Mcs15_Mcs12:
-			index = 5;
-			break;
 		case rTxAGC_B_Rate18_06:
 			index = 8;
 			break;
@@ -136,12 +130,6 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 			break;
 		case rTxAGC_B_Mcs07_Mcs04:
 			index = 11;
-			break;
-		case rTxAGC_B_Mcs11_Mcs08:
-			index = 12;
-			break;
-		case rTxAGC_B_Mcs15_Mcs12:
-			index = 13;
 			break;
 		default:
 			break;
@@ -395,11 +383,6 @@ void PHY_StoreTxPowerByRate(
 		PHY_StoreTxPowerByRateNew(padapter, RfPath, TxNum, RegAddr, BitMask, Data);
 	else if (pDM_Odm->PhyRegPgVersion == 0) {
 		PHY_StoreTxPowerByRateOld(padapter, RegAddr, BitMask, Data);
-
-		if (RegAddr == rTxAGC_A_Mcs15_Mcs12 && pHalData->rf_type == RF_1T1R)
-			pHalData->pwrGroupCnt++;
-		else if (RegAddr == rTxAGC_B_Mcs15_Mcs12 && pHalData->rf_type != RF_1T1R)
-			pHalData->pwrGroupCnt++;
 	}
 }
 

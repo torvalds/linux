@@ -189,7 +189,6 @@ struct hal_com_data {
 
 	/* rf_ctrl */
 	u8 rf_chip;
-	u8 rf_type;
 	u8 PackageType;
 	u8 NumTotalRFPath;
 
