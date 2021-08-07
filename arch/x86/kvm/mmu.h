@@ -135,6 +135,11 @@ struct kvm_page_fault {
 
 	/* Shifted addr, or result of guest page table walk if addr is a gva.  */
 	gfn_t gfn;
+
+	/* Outputs of kvm_faultin_pfn.  */
+	kvm_pfn_t pfn;
+	hva_t hva;
+	bool map_writable;
 };
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
