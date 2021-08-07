@@ -24,13 +24,8 @@ void odm_ConfigBB_AGC_8723B(struct dm_odm_t *pDM_Odm,
 			    u32 Data
 );
 
-void odm_ConfigBB_PHY_REG_PG_8723B(struct dm_odm_t *pDM_Odm,
-				   u32 RfPath,
-				   u32 TxNum,
-				   u32 Addr,
-				   u32 Bitmask,
-				   u32 Data
-);
+void odm_ConfigBB_PHY_REG_PG_8723B(struct dm_odm_t *pDM_Odm, u32 RfPath, u32 Addr,
+				   u32 Bitmask, u32 Data);
 
 void odm_ConfigBB_PHY_8723B(struct dm_odm_t *pDM_Odm,
 			    u32 Addr,

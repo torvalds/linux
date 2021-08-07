@@ -118,7 +118,6 @@ void odm_ConfigBB_AGC_8723B(
 void odm_ConfigBB_PHY_REG_PG_8723B(
 	struct dm_odm_t *pDM_Odm,
 	u32 RfPath,
-	u32 TxNum,
 	u32 Addr,
 	u32 Bitmask,
 	u32 Data
@@ -127,7 +126,7 @@ void odm_ConfigBB_PHY_REG_PG_8723B(
 	if (Addr == 0xfe || Addr == 0xffe)
 		msleep(50);
 	else {
-		PHY_StoreTxPowerByRate(pDM_Odm->Adapter, RfPath, TxNum, Addr, Bitmask, Data);
+		PHY_StoreTxPowerByRate(pDM_Odm->Adapter, RfPath, Addr, Bitmask, Data);
 	}
 }
 

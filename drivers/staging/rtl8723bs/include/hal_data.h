@@ -241,9 +241,7 @@ struct hal_com_data {
 	/*  CCK = 0 OFDM = 1/2 HT-MCS 0-15 =3/4/56 VHT =7/8/9/10/11 */
 	u8 TxPwrByRateTable;
 	u8 TxPwrByRateBand;
-	s8 TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_RF]
-			    [TX_PWR_BY_RATE_NUM_RF]
-			    [TX_PWR_BY_RATE_NUM_RATE];
+	s8 TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_RF][TX_PWR_BY_RATE_NUM_RATE];
 	/*  */
 
 	/* 2 Power Limit Table */
@@ -261,9 +259,7 @@ struct hal_com_data {
 						[MAX_RF_PATH_NUM];
 
 	/*  Store the original power by rate value of the base of each rate section of rf path A & B */
-	u8 TxPwrByRateBase2_4G[TX_PWR_BY_RATE_NUM_RF]
-						[TX_PWR_BY_RATE_NUM_RF]
-						[MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
+	u8 TxPwrByRateBase2_4G[TX_PWR_BY_RATE_NUM_RF][MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
 
 	/*  For power group */
 	u8 PwrGroupHT20[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];
