@@ -200,11 +200,8 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		DBG_88E("NON USB_SPEED_HIGH\n");
 	}
 
-	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't INIT rtw_init_intf_priv\n"));
+	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL)
 		goto free_dvobj;
-	}
 
 	/* 3 misc */
 	sema_init(&(pdvobjpriv->usb_suspend_sema), 0);
@@ -262,25 +259,11 @@ static void chip_by_usb_id(struct adapter *padapter,
 
 static void usb_intf_start(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
-
 	rtw_hal_inirp_init(padapter);
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_start\n"));
 }
 
 static void usb_intf_stop(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
-
-	/* disabel_hw_interrupt */
-	if (!padapter->bSurpriseRemoved) {
-		/* device still exists, so driver can do i/o operation */
-		/* TODO: */
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("SurpriseRemoved == false\n"));
-	}
-
 	/* cancel in irp */
 	rtw_hal_inirp_deinit(padapter);
 
@@ -288,14 +271,10 @@ static void usb_intf_stop(struct adapter *padapter)
 	rtw_write_port_cancel(padapter);
 
 	/* todo:cancel other irps */
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_stop\n"));
 }
 
 static void rtw_dev_unload(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_dev_unload\n"));
-
 	if (padapter->bup) {
 		DBG_88E("===> rtw_dev_unload\n");
 		padapter->bDriverStopped = true;
@@ -315,14 +294,9 @@ static void rtw_dev_unload(struct adapter *padapter)
 		}
 
 		padapter->bup = false;
-	} else {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("r871x_dev_unload():padapter->bup == false\n"));
 	}
 
 	DBG_88E("<=== rtw_dev_unload\n");
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-rtw_dev_unload\n"));
 }
 
 static void process_spec_devid(const struct usb_device_id *pdid)
@@ -643,11 +617,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_hal_read_chip_info(padapter);
 
 	/* step 5. */
-	if (rtw_init_drv_sw(padapter) == _FAIL) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("Initialize driver software resource Failed!\n"));
+	if (rtw_init_drv_sw(padapter) == _FAIL)
 		goto free_hal_data;
-	}
 
 #ifdef CONFIG_PM
 	if (padapter->pwrctrlpriv.bSupportRemoteWakeup) {
@@ -677,10 +648,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		pnetdev->dev_addr);
 
 	/* step 6. Tell the network stack we exist */
-	if (register_netdev(pnetdev) != 0) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("register_netdev() failed\n"));
+	if (register_netdev(pnetdev) != 0)
 		goto free_hal_data;
-	}
 
 	DBG_88E("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n"
 		, padapter->bDriverStopped
@@ -745,18 +714,13 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	int status;
 	struct dvobj_priv *dvobj;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
-
 	/* step 0. */
 	process_spec_devid(pdid);
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
-	if (!dvobj) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("initialize device object priv Failed!\n"));
+	if (!dvobj)
 		goto exit;
-	}
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
 	if (!if1) {
@@ -768,8 +732,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		DBG_88E("ui_pid[1]:%d\n", ui_pid[1]);
 		rtw_signal_process(ui_pid[1], SIGUSR2);
 	}
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-871x_drv - drv_init, success!\n"));
 
 	status = _SUCCESS;
 
@@ -792,7 +754,6 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 	struct adapter *padapter = dvobj->if1;
 
 	DBG_88E("+rtw_dev_remove\n");
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+dev_remove()\n"));
 
 	if (usb_drv->drv_registered)
 		padapter->bSurpriseRemoved = true;
@@ -806,14 +767,11 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 
 	usb_dvobj_deinit(pusb_intf);
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-dev_remove()\n"));
 	DBG_88E("-r871xu_dev_remove, done\n");
 }
 
 static int __init rtw_drv_entry(void)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
-
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
 
 	_rtw_mutex_init(&usb_drv->hw_init_mutex);
@@ -824,7 +782,6 @@ static int __init rtw_drv_entry(void)
 
 static void __exit rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
 	DBG_88E("+rtw_drv_halt\n");
 
 	usb_drv->drv_registered = false;
