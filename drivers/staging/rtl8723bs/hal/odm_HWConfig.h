@@ -102,6 +102,6 @@ enum hal_status ODM_ConfigFWWithHeaderFile(
 	u32 *pSize
 );
 
-s32 odm_SignalScaleMapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
+s32 odm_signal_scale_mapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
 
 #endif
