@@ -129,7 +129,7 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 
 	/* rtl8723b_query_rx_phy_status(precvframe, pphy_status); */
 	/* spin_lock_bh(&p_hal_data->odm_stainfo_lock); */
-	ODM_PhyStatusQuery(&p_hal_data->odmpriv, p_phy_info,
+	odm_phy_status_query(&p_hal_data->odmpriv, p_phy_info,
 			   (u8 *)pphy_status, &(pkt_info));
 	if (psta)
 		psta->rssi = pattrib->phy_info.RecvSignalPower;

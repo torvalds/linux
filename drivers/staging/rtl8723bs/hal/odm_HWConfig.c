@@ -393,12 +393,8 @@ static void odm_Process_RSSIForDM(
 /*  */
 /*  Endianness before calling this API */
 /*  */
-void ODM_PhyStatusQuery(
-	struct dm_odm_t *dm_odm,
-	struct odm_phy_info *phy_info,
-	u8 *phy_status,
-	struct odm_packet_info *pkt_info
-)
+void odm_phy_status_query(struct dm_odm_t *dm_odm, struct odm_phy_info *phy_info,
+			  u8 *phy_status, struct odm_packet_info *pkt_info)
 {
 
 	odm_rx_phy_status_parsing(dm_odm, phy_info, phy_status, pkt_info);
