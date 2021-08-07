@@ -9,6 +9,4 @@
 
 #define	DM_DIG_MIN_NIC_8723	0x1C
 
-s8 odm_cck_rssi(u8 LNA_idx, u8 VGA_idx);
-
 #endif
