@@ -567,8 +567,8 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 		mt7615_mcu_add_bss_info(phy, vif, NULL, true);
 		mt7615_mcu_sta_add(phy, vif, NULL, true);
 
-		if (vif->p2p)
-			mt7615_mcu_set_p2p_oppps(hw, vif);
+		if (mt7615_firmware_offload(dev) && vif->p2p)
+			mt76_connac_mcu_set_p2p_oppps(hw, vif);
 	}
 
 	if (changed & (BSS_CHANGED_BEACON |

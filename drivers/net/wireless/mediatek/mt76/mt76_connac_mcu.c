@@ -1969,6 +1969,26 @@ int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_update_arp_filter);
 
+int mt76_connac_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	int ct_window = vif->bss_conf.p2p_noa_attr.oppps_ctwindow;
+	struct mt76_phy *phy = hw->priv;
+	struct {
+		__le32 ct_win;
+		u8 bss_idx;
+		u8 rsv[3];
+	} __packed req = {
+		.ct_win = cpu_to_le32(ct_window),
+		.bss_idx = mvif->idx,
+	};
+
+	return mt76_mcu_send_msg(phy->dev, MCU_CMD_SET_P2P_OPPPS, &req,
+				 sizeof(req), false);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_set_p2p_oppps);
+
 #ifdef CONFIG_PM
 
 const struct wiphy_wowlan_support mt76_connac_wowlan_support = {
