@@ -81,6 +81,16 @@
 #define HPRE_PREFETCH_DISABLE		BIT(30)
 #define HPRE_SVA_DISABLE_READY		(BIT(4) | BIT(8))
 
+/* clock gate */
+#define HPRE_CLKGATE_CTL		0x301a10
+#define HPRE_PEH_CFG_AUTO_GATE		0x301a2c
+#define HPRE_CLUSTER_DYN_CTL		0x302010
+#define HPRE_CORE_SHB_CFG		0x302088
+#define HPRE_CLKGATE_CTL_EN		BIT(0)
+#define HPRE_PEH_CFG_AUTO_GATE_EN	BIT(0)
+#define HPRE_CLUSTER_DYN_CTL_EN		BIT(0)
+#define HPRE_CORE_GATE_EN		(BIT(30) | BIT(31))
+
 #define HPRE_AM_OOO_SHUTDOWN_ENB	0x301044
 #define HPRE_AM_OOO_SHUTDOWN_ENABLE	BIT(0)
 #define HPRE_WR_MSI_PORT		BIT(2)
@@ -417,11 +427,62 @@ static void hpre_close_sva_prefetch(struct hisi_qm *qm)
 		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
+static void hpre_enable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + HPRE_CLKGATE_CTL);
+	val |= HPRE_CLKGATE_CTL_EN;
+	writel(val, qm->io_base + HPRE_CLKGATE_CTL);
+
+	val = readl(qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
+	val |= HPRE_PEH_CFG_AUTO_GATE_EN;
+	writel(val, qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
+
+	val = readl(qm->io_base + HPRE_CLUSTER_DYN_CTL);
+	val |= HPRE_CLUSTER_DYN_CTL_EN;
+	writel(val, qm->io_base + HPRE_CLUSTER_DYN_CTL);
+
+	val = readl_relaxed(qm->io_base + HPRE_CORE_SHB_CFG);
+	val |= HPRE_CORE_GATE_EN;
+	writel(val, qm->io_base + HPRE_CORE_SHB_CFG);
+}
+
+static void hpre_disable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + HPRE_CLKGATE_CTL);
+	val &= ~HPRE_CLKGATE_CTL_EN;
+	writel(val, qm->io_base + HPRE_CLKGATE_CTL);
+
+	val = readl(qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
+	val &= ~HPRE_PEH_CFG_AUTO_GATE_EN;
+	writel(val, qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
+
+	val = readl(qm->io_base + HPRE_CLUSTER_DYN_CTL);
+	val &= ~HPRE_CLUSTER_DYN_CTL_EN;
+	writel(val, qm->io_base + HPRE_CLUSTER_DYN_CTL);
+
+	val = readl_relaxed(qm->io_base + HPRE_CORE_SHB_CFG);
+	val &= ~HPRE_CORE_GATE_EN;
+	writel(val, qm->io_base + HPRE_CORE_SHB_CFG);
+}
+
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
 	u32 val;
 	int ret;
+
+	/* disabel dynamic clock gate before sram init */
+	hpre_disable_clock_gate(qm);
 
 	writel(HPRE_QM_USR_CFG_MASK, qm->io_base + QM_ARUSER_M_CFG_ENABLE);
 	writel(HPRE_QM_USR_CFG_MASK, qm->io_base + QM_AWUSER_M_CFG_ENABLE);
@@ -472,6 +533,8 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	/* Config data buffer pasid needed by Kunpeng 920 */
 	hpre_config_pasid(qm);
+
+	hpre_enable_clock_gate(qm);
 
 	return ret;
 }
