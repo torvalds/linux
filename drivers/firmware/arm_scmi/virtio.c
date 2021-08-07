@@ -222,7 +222,7 @@ static bool virtio_chan_available(struct device *dev, int idx)
 		return false;
 	}
 
-	return vioch && !vioch->cinfo ? true : false;
+	return vioch && !vioch->cinfo;
 }
 
 static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
