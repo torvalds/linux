@@ -186,10 +186,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 			/*  */
 			/*  (3)EVM of HT rate */
 			/*  */
-			if (pPktinfo->data_rate >= DESC_RATEMCS8 && pPktinfo->data_rate <= DESC_RATEMCS15)
-				Max_spatial_stream = 2; /* both spatial stream make sense */
-			else
-				Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
+			Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
 			for (i = 0; i < Max_spatial_stream; i++) {
 				/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */

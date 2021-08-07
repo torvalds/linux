@@ -16,9 +16,6 @@ enum rate_section {
 	CCK = 0,
 	OFDM,
 	HT_MCS0_MCS7,
-	HT_MCS8_MCS15,
-	HT_MCS16_MCS23,
-	HT_MCS24_MCS31,
 };
 
 enum {
