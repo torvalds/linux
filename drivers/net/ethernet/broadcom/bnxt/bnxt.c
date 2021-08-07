@@ -426,7 +426,10 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (ptp && ptp->tx_tstamp_en && !skb_is_gso(skb) &&
 		    atomic_dec_if_positive(&ptp->tx_avail) >= 0) {
-			if (!bnxt_ptp_parse(skb, &ptp->tx_seqid)) {
+			if (!bnxt_ptp_parse(skb, &ptp->tx_seqid,
+					    &ptp->tx_hdr_off)) {
+				if (vlan_tag_flags)
+					ptp->tx_hdr_off += VLAN_HLEN;
 				lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
 				skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			} else {
