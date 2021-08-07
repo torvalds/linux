@@ -282,7 +282,6 @@ enum odm_cmninfo_e {
 	ODM_CMNINFO_PLATFORM = 0,
 	ODM_CMNINFO_ABILITY,					/*  ODM_ABILITY_E */
 	ODM_CMNINFO_INTERFACE,				/*  ODM_INTERFACE_E */
-	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,					/*  ODM_IC_TYPE_E */
 	ODM_CMNINFO_CUT_VER,					/*  ODM_CUT_VERSION_E */
 	ODM_CMNINFO_FAB_VER,					/*  ODM_FAB_E */
@@ -802,7 +801,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	bool bsta_state;
 	u8 RSSI_Min;
 	u8 InterfaceIndex; /*  Add for 92D  dual MAC: 0--Mac0 1--Mac1 */
-	bool bIsMPChip;
 	bool bOneEntryOnly;
 	/*  Common info for BTDM */
 	bool bBtEnabled;			/*  BT is disabled */

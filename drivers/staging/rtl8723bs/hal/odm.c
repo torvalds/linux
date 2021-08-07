@@ -856,10 +856,6 @@ void ODM_CmnInfoInit(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, u32 V
 		pDM_Odm->SupportInterface = (u8)Value;
 		break;
 
-	case ODM_CMNINFO_MP_TEST_CHIP:
-		pDM_Odm->bIsMPChip = (u8)Value;
-		break;
-
 	case ODM_CMNINFO_IC_TYPE:
 		pDM_Odm->SupportICType = Value;
 		break;
