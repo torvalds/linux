@@ -720,7 +720,8 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	struct partition *part;
 
-	if (mtd->type != MTD_NORFLASH || mtd->size > UINT_MAX)
+	if ((mtd->type != MTD_NORFLASH && mtd->type != MTD_RAM) ||
+	    mtd->size > UINT_MAX)
 		return;
 
 	part = kzalloc(sizeof(struct partition), GFP_KERNEL);
