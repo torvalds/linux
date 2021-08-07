@@ -44,7 +44,10 @@ struct pt_regs
 #endif
 			unsigned long trap;
 			unsigned long dar;
-			unsigned long dsisr;
+			union {
+				unsigned long dsisr;
+				unsigned long esr;
+			};
 			unsigned long result;
 		};
 	};
