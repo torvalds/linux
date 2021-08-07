@@ -2317,10 +2317,9 @@ int mt7915_mcu_set_fixed_rate(struct mt7915_dev *dev,
 	if (!rate) {
 		ra->field = cpu_to_le32(RATE_PARAM_AUTO);
 		goto out;
-	} else {
-		ra->field = cpu_to_le32(RATE_PARAM_FIXED);
 	}
 
+	ra->field = cpu_to_le32(RATE_PARAM_FIXED);
 	ra->phy.type = FIELD_GET(RATE_CFG_PHY_TYPE, rate);
 	ra->phy.bw = FIELD_GET(RATE_CFG_BW, rate);
 	ra->phy.nss = FIELD_GET(RATE_CFG_NSS, rate);
@@ -2333,10 +2332,12 @@ int mt7915_mcu_set_fixed_rate(struct mt7915_dev *dev,
 		ra->phy.ldpc = FIELD_GET(RATE_CFG_LDPC, rate) * 7;
 
 	/* HT/VHT - SGI: 1, LGI: 0; HE - SGI: 0, MGI: 1, LGI: 2 */
-	if (ra->phy.type > MT_PHY_TYPE_VHT)
-		ra->phy.sgi = ra->phy.mcs * 85;
-	else
-		ra->phy.sgi = ra->phy.mcs * 15;
+	if (ra->phy.type > MT_PHY_TYPE_VHT) {
+		ra->phy.he_ltf = FIELD_GET(RATE_CFG_HE_LTF, rate) * 85;
+		ra->phy.sgi = FIELD_GET(RATE_CFG_GI, rate) * 85;
+	} else {
+		ra->phy.sgi = FIELD_GET(RATE_CFG_GI, rate) * 15;
+	}
 
 out:
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,

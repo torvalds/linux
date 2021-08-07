@@ -365,12 +365,14 @@ int mt7915_init_debugfs(struct mt7915_dev *dev)
 #ifdef CONFIG_MAC80211_DEBUGFS
 /** per-station debugfs **/
 
-/* usage: <tx mode> <ldpc> <stbc> <bw> <gi> <nss> <mcs> */
 static int mt7915_sta_fixed_rate_set(void *data, u64 rate)
 {
 	struct ieee80211_sta *sta = data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 
+	/* usage: <he ltf> <tx mode> <ldpc> <stbc> <bw> <gi> <nss> <mcs>
+	 * <tx mode>: see enum mt76_phy_type
+	 */
 	return mt7915_mcu_set_fixed_rate(msta->vif->phy->dev, sta, rate);
 }
 

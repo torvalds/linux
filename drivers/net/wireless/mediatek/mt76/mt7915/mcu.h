@@ -948,6 +948,7 @@ struct sta_rec_ra_fixed {
 #define RATE_CFG_STBC			GENMASK(19, 16)
 #define RATE_CFG_LDPC			GENMASK(23, 20)
 #define RATE_CFG_PHY_TYPE		GENMASK(27, 24)
+#define RATE_CFG_HE_LTF			GENMASK(31, 28)
 
 struct sta_rec_bf {
 	__le16 tag;
