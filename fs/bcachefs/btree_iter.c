@@ -1727,8 +1727,7 @@ static inline bool btree_iter_set_pos_to_prev_leaf(struct btree_iter *iter)
 	return ret;
 }
 
-static noinline struct bkey_i *__btree_trans_peek_updates(struct btree_iter *iter,
-						 struct bpos pos)
+static noinline struct bkey_i *__btree_trans_peek_updates(struct btree_iter *iter)
 {
 	struct btree_insert_entry *i;
 	struct bkey_i *ret = NULL;
@@ -1738,7 +1737,7 @@ static noinline struct bkey_i *__btree_trans_peek_updates(struct btree_iter *ite
 			continue;
 		if (i->btree_id > iter->btree_id)
 			break;
-		if (bpos_cmp(i->k->k.p, pos) < 0)
+		if (bpos_cmp(i->k->k.p, iter->real_pos) < 0)
 			continue;
 		if (!ret || bpos_cmp(i->k->k.p, ret->k.p) < 0)
 			ret = i->k;
@@ -1747,11 +1746,10 @@ static noinline struct bkey_i *__btree_trans_peek_updates(struct btree_iter *ite
 	return ret;
 }
 
-static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter,
-						      struct bpos pos)
+static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
 {
 	return iter->flags & BTREE_ITER_WITH_UPDATES
-		? __btree_trans_peek_updates(iter, pos)
+		? __btree_trans_peek_updates(iter)
 		: NULL;
 }
 
@@ -1770,7 +1768,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
 start:
-	next_update = btree_trans_peek_updates(iter, search_key);
 	btree_iter_set_search_pos(iter, search_key);
 
 	while (1) {
@@ -1778,8 +1775,13 @@ start:
 		if (unlikely(ret))
 			return bkey_s_c_err(ret);
 
+		/*
+		 * btree_iter_level_peek() mutates iter->real_pos, which
+		 * btree_trans_peek_updates() checks against, so we have to call
+		 * them in this order:
+		 */
+		next_update = btree_trans_peek_updates(iter);
 		k = btree_iter_level_peek(iter, &iter->l[0]);
-
 		if (next_update &&
 		    bpos_cmp(next_update->k.p, iter->real_pos) <= 0) {
 			iter->k = next_update->k;
@@ -1931,6 +1933,8 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		struct bkey_i *next_update;
 		struct bkey_cached *ck;
 
+		next_update = btree_trans_peek_updates(iter);
+
 		switch (btree_iter_type(iter)) {
 		case BTREE_ITER_KEYS:
 			k = btree_iter_level_peek_all(iter, &iter->l[0]);
@@ -1948,7 +1952,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			BUG();
 		}
 
-		next_update = btree_trans_peek_updates(iter, search_key);
 		if (next_update &&
 		    (!k.k || bpos_cmp(next_update->k.p, k.k->p) <= 0)) {
 			iter->k = next_update->k;
