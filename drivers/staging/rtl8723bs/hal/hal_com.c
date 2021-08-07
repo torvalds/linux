@@ -70,15 +70,7 @@ void dump_chip_info(struct hal_version	ChipVersion)
 		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
 				"UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
 
-	if (IS_1T1R(ChipVersion))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
-	else if (IS_1T2R(ChipVersion))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T2R_");
-	else if (IS_2T2R(ChipVersion))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "2T2R_");
-	else
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
-				"UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", ChipVersion.ROMVer);
 }
