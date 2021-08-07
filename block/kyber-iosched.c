@@ -596,13 +596,13 @@ static void kyber_insert_requests(struct blk_mq_hw_ctx *hctx,
 		struct list_head *head = &kcq->rq_list[sched_domain];
 
 		spin_lock(&kcq->lock);
+		trace_block_rq_insert(rq);
 		if (at_head)
 			list_move(&rq->queuelist, head);
 		else
 			list_move_tail(&rq->queuelist, head);
 		sbitmap_set_bit(&khd->kcq_map[sched_domain],
 				rq->mq_ctx->index_hw[hctx->type]);
-		trace_block_rq_insert(rq);
 		spin_unlock(&kcq->lock);
 	}
 }
