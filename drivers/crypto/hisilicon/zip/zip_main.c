@@ -107,6 +107,14 @@
 #define HZIP_DELAY_1_US		1
 #define HZIP_POLL_TIMEOUT_US	1000
 
+/* clock gating */
+#define HZIP_PEH_CFG_AUTO_GATE		0x3011A8
+#define HZIP_PEH_CFG_AUTO_GATE_EN	BIT(0)
+#define HZIP_CORE_GATED_EN		GENMASK(15, 8)
+#define HZIP_CORE_GATED_OOO_EN		BIT(29)
+#define HZIP_CLOCK_GATED_EN		(HZIP_CORE_GATED_EN | \
+					 HZIP_CORE_GATED_OOO_EN)
+
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
 
@@ -312,6 +320,22 @@ static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
 		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
+static void hisi_zip_enable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + HZIP_CLOCK_GATE_CTRL);
+	val |= HZIP_CLOCK_GATED_EN;
+	writel(val, qm->io_base + HZIP_CLOCK_GATE_CTRL);
+
+	val = readl(qm->io_base + HZIP_PEH_CFG_AUTO_GATE);
+	val |= HZIP_PEH_CFG_AUTO_GATE_EN;
+	writel(val, qm->io_base + HZIP_PEH_CFG_AUTO_GATE);
+}
+
 static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	void __iomem *base = qm->io_base;
@@ -358,6 +382,8 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(SQC_CACHE_ENABLE | CQC_CACHE_ENABLE | SQC_CACHE_WB_ENABLE |
 	       CQC_CACHE_WB_ENABLE | FIELD_PREP(SQC_CACHE_WB_THRD, 1) |
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
+
+	hisi_zip_enable_clock_gate(qm);
 
 	return 0;
 }
