@@ -52,10 +52,8 @@ enum rt_ampdu_burst {
 
 /*  Tx Power Limit Table Size */
 #define MAX_REGULATION_NUM			4
-#define MAX_2_4G_BANDWIDTH_NUM			4
-#define MAX_RATE_SECTION_NUM			10
-
-#define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G		10 /*   CCK:1, OFDM:1, HT:4, VHT:4 */
+#define MAX_2_4G_BANDWIDTH_NUM			2
+#define MAX_RATE_SECTION_NUM			3 /* CCK:1, OFDM:1, HT:1 */
 
 /*  duplicate code, will move to ODM ######### */
 /* define IQK_MAC_REG_NUM		4 */
@@ -257,7 +255,7 @@ struct hal_com_data {
 						[MAX_RF_PATH_NUM];
 
 	/*  Store the original power by rate value of the base of each rate section of rf path A & B */
-	u8 TxPwrByRateBase2_4G[MAX_RF_PATH_NUM][MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
+	u8 TxPwrByRateBase2_4G[MAX_RF_PATH_NUM][MAX_RATE_SECTION_NUM];
 
 	/*  For power group */
 	u8 PwrGroupHT20[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];

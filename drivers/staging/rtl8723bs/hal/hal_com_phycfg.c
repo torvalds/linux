@@ -836,12 +836,6 @@ void PHY_SetTxPowerLimit(
 		rateSection = 1;
 	else if (eqNByte(RateSection, (u8 *)("HT"), 2) && eqNByte(RfPath, (u8 *)("1T"), 2))
 		rateSection = 2;
-	else if (eqNByte(RateSection, (u8 *)("HT"), 2) && eqNByte(RfPath, (u8 *)("2T"), 2))
-		rateSection = 3;
-	else if (eqNByte(RateSection, (u8 *)("HT"), 2) && eqNByte(RfPath, (u8 *)("3T"), 2))
-		rateSection = 4;
-	else if (eqNByte(RateSection, (u8 *)("HT"), 2) && eqNByte(RfPath, (u8 *)("4T"), 2))
-		rateSection = 5;
 	else
 		return;
 
@@ -849,10 +843,6 @@ void PHY_SetTxPowerLimit(
 		bandwidth = 0;
 	else if (eqNByte(Bandwidth, (u8 *)("40M"), 3))
 		bandwidth = 1;
-	else if (eqNByte(Bandwidth, (u8 *)("80M"), 3))
-		bandwidth = 2;
-	else if (eqNByte(Bandwidth, (u8 *)("160M"), 4))
-		bandwidth = 3;
 
 	channelIndex = phy_GetChannelIndexOfTxPowerLimit(channel);
 
