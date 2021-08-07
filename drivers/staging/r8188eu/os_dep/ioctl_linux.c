@@ -801,13 +801,6 @@ static int rtw_wx_get_name(struct net_device *dev,
 	return 0;
 }
 
-static int rtw_wx_set_freq(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
-
 static int rtw_wx_get_freq(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
@@ -7437,7 +7430,7 @@ static iw_handler rtw_handlers[] = {
 	rtw_wx_get_name,		/* SIOCGIWNAME */
 	dummy,					/* SIOCSIWNWID */
 	dummy,					/* SIOCGIWNWID */
-	rtw_wx_set_freq,		/* SIOCSIWFREQ */
+	NULL,				/* SIOCSIWFREQ */
 	rtw_wx_get_freq,		/* SIOCGIWFREQ */
 	rtw_wx_set_mode,		/* SIOCSIWMODE */
 	rtw_wx_get_mode,		/* SIOCGIWMODE */
