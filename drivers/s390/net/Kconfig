@@ -74,6 +74,7 @@ config QETH_L2
 	def_tristate y
 	prompt "qeth layer 2 device support"
 	depends on QETH
+	depends on BRIDGE || BRIDGE=n
 	help
 	  Select this option to be able to run qeth devices in layer 2 mode.
 	  To compile as a module, choose M. The module name is qeth_l2.
