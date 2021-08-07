@@ -94,7 +94,7 @@ void ODM_CfoTracking(void *pDM_VOID)
 {
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
-	int CFO_kHz_A, CFO_kHz_B, CFO_ave = 0;
+	int CFO_kHz_A, CFO_ave = 0;
 	int CFO_ave_diff;
 	int CrystalCap = (int)pCfoTrack->CrystalCap;
 	u8 Adjust_Xtal = 1;
@@ -117,12 +117,8 @@ void ODM_CfoTracking(void *pDM_VOID)
 
 		/* 4 1.2 Calculate CFO */
 		CFO_kHz_A =  (int)(pCfoTrack->CFO_tail[0] * 3125)  / 1280;
-		CFO_kHz_B =  (int)(pCfoTrack->CFO_tail[1] * 3125)  / 1280;
 
-		if (pDM_Odm->RFType < ODM_2T2R)
-			CFO_ave = CFO_kHz_A;
-		else
-			CFO_ave = (int)(CFO_kHz_A + CFO_kHz_B) >> 1;
+		CFO_ave = CFO_kHz_A;
 
 		/* 4 1.3 Avoid abnormal large CFO */
 		CFO_ave_diff =

@@ -33,10 +33,7 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 
 	pDM_Odm->noise_level.noise_all = 0;
 
-	if ((pDM_Odm->RFType == ODM_1T2R) || (pDM_Odm->RFType == ODM_2T2R))
-		max_rf_path = 2;
-	else
-		max_rf_path = 1;
+	max_rf_path = 1;
 
 	memset(&noise_data, 0, sizeof(struct noise_level));
 
