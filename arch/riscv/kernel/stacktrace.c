@@ -27,7 +27,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 		fp = frame_pointer(regs);
 		sp = user_stack_pointer(regs);
 		pc = instruction_pointer(regs);
-	} else if (task == current) {
+	} else if (task == NULL || task == current) {
 		fp = (unsigned long)__builtin_frame_address(1);
 		sp = (unsigned long)__builtin_frame_address(0);
 		pc = (unsigned long)__builtin_return_address(0);
