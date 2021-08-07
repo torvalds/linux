@@ -804,6 +804,7 @@ static struct btf *btf_new(const void *data, __u32 size, struct btf *base_btf)
 	btf->nr_types = 0;
 	btf->start_id = 1;
 	btf->start_str_off = 0;
+	btf->fd = -1;
 
 	if (base_btf) {
 		btf->base_btf = base_btf;
@@ -831,8 +832,6 @@ static struct btf *btf_new(const void *data, __u32 size, struct btf *base_btf)
 	err = err ?: btf_parse_type_sec(btf);
 	if (err)
 		goto done;
-
-	btf->fd = -1;
 
 done:
 	if (err) {
