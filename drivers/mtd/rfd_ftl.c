@@ -800,10 +800,10 @@ static void rfd_ftl_remove_dev(struct mtd_blktrans_dev *dev)
 			part->mbd.mtd->name, i, part->blocks[i].erases);
 	}
 
-	del_mtd_blktrans_dev(dev);
 	vfree(part->sector_map);
 	kfree(part->header_cache);
 	kfree(part->blocks);
+	del_mtd_blktrans_dev(dev);
 }
 
 static struct mtd_blktrans_ops rfd_ftl_tr = {
