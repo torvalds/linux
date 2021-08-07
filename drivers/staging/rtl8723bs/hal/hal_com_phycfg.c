@@ -347,7 +347,7 @@ void PHY_InitTxPowerByRate(struct adapter *padapter)
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	u8 rfPath, rate;
 
-	for (rfPath = 0; rfPath < TX_PWR_BY_RATE_NUM_RF; ++rfPath)
+	for (rfPath = RF_PATH_A; rfPath < MAX_RF_PATH_NUM; ++rfPath)
 		for (rate = 0; rate < TX_PWR_BY_RATE_NUM_RATE; ++rate)
 			pHalData->TxPwrByRateOffset[rfPath][rate] = 0;
 }
