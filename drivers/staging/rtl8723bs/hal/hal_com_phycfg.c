@@ -16,7 +16,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 RfPath,
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 	u8	value = 0;
 
-	if (RfPath > ODM_RF_PATH_D)
+	if (RfPath >= RF_PATH_MAX)
 		return 0;
 
 	switch (RateSection) {
@@ -47,7 +47,7 @@ phy_SetTxPowerByRateBase(
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 
-	if (RfPath > ODM_RF_PATH_D)
+	if (RfPath >= RF_PATH_MAX)
 		return;
 
 	switch (RateSection) {
@@ -72,7 +72,7 @@ struct adapter *padapter
 {
 	u8 path, base;
 
-	for (path = ODM_RF_PATH_A; path <= ODM_RF_PATH_B; ++path) {
+	for (path = RF_PATH_A; path <= RF_PATH_B; ++path) {
 		base = PHY_GetTxPowerByRate(padapter, path, RF_1TX, MGN_11M);
 		phy_SetTxPowerByRateBase(padapter, path, CCK, RF_1TX, base);
 
@@ -347,7 +347,7 @@ static void PHY_StoreTxPowerByRateNew(
 
 	PHY_GetRateValuesOfTxPowerByRate(padapter, RegAddr, BitMask, Data, rateIndex, PwrByRateVal, &rateNum);
 
-	if (RfPath > ODM_RF_PATH_D)
+	if (RfPath >= RF_PATH_MAX)
 		return;
 
 	if (TxNum > RF_MAX_TX_NUM)
@@ -418,7 +418,7 @@ struct adapter *padapter
 	u8 mcs0_7Rates[8] = {
 		MGN_MCS0, MGN_MCS1, MGN_MCS2, MGN_MCS3, MGN_MCS4, MGN_MCS5, MGN_MCS6, MGN_MCS7
 	};
-	for (path = ODM_RF_PATH_A; path <= ODM_RF_PATH_D; ++path) {
+	for (path = RF_PATH_A; path < RF_PATH_MAX; ++path) {
 		for (txNum = RF_1TX; txNum < RF_MAX_TX_NUM; ++txNum) {
 			/*  CCK */
 			base = PHY_GetTxPowerByRate(padapter, path, txNum, MGN_11M);
@@ -619,7 +619,7 @@ s8 PHY_GetTxPowerByRate(
 		   padapter->registrypriv.RegEnableTxPowerByRate == 0)
 		return 0;
 
-	if (RFPath > ODM_RF_PATH_D)
+	if (RFPath >= RF_PATH_MAX)
 		return value;
 
 	if (TxNum >= RF_MAX_TX_NUM)
@@ -643,7 +643,7 @@ void PHY_SetTxPowerByRate(
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	u8 rateIndex = PHY_GetRateIndexOfTxPowerByRate(Rate);
 
-	if (RFPath > ODM_RF_PATH_D)
+	if (RFPath >= RF_PATH_MAX)
 		return;
 
 	if (TxNum >= RF_MAX_TX_NUM)
@@ -809,9 +809,9 @@ void PHY_ConvertTxPowerLimitToPowerIndex(struct adapter *Adapter)
 		for (bw = 0; bw < MAX_2_4G_BANDWIDTH_NUM; ++bw) {
 			for (channel = 0; channel < CHANNEL_MAX_NUMBER_2G; ++channel) {
 				for (rateSection = 0; rateSection < MAX_RATE_SECTION_NUM; ++rateSection) {
-					tempPwrLmt = pHalData->TxPwrLimit_2_4G[regulation][bw][rateSection][channel][ODM_RF_PATH_A];
+					tempPwrLmt = pHalData->TxPwrLimit_2_4G[regulation][bw][rateSection][channel][RF_PATH_A];
 
-					for (rfPath = ODM_RF_PATH_A; rfPath < MAX_RF_PATH_NUM; ++rfPath) {
+					for (rfPath = RF_PATH_A; rfPath < MAX_RF_PATH_NUM; ++rfPath) {
 						if (pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE) {
 							if (rateSection == 2) /*  HT 1T */
 								BW40PwrBasedBm2_4G = PHY_GetTxPowerByRateBase(Adapter, rfPath, RF_1TX, HT_MCS0_MCS7);
@@ -904,10 +904,10 @@ void PHY_SetTxPowerLimit(
 	if (channelIndex == -1)
 		return;
 
-	prevPowerLimit = pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A];
+	prevPowerLimit = pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][RF_PATH_A];
 
 	if (powerLimit < prevPowerLimit)
-		pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A] = powerLimit;
+		pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][RF_PATH_A] = powerLimit;
 }
 
 void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)

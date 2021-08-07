@@ -10,7 +10,7 @@
 void odm_ConfigRFReg_8723B(struct dm_odm_t *pDM_Odm,
 			   u32 Addr,
 			   u32 Data,
-			   enum odm_rf_radio_path_e RF_PATH,
+			   enum rf_path RF_PATH,
 			   u32 RegAddr
 );
 

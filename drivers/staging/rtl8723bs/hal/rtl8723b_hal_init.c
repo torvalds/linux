@@ -2280,21 +2280,21 @@ void Hal_EfuseParseBTCoexistInfo_8723B(
 		tempval = hwinfo[EEPROM_RF_BT_SETTING_8723B];
 		if (tempval != 0xFF) {
 			pHalData->EEPROMBluetoothAntNum = tempval & BIT(0);
-			/*  EFUSE_0xC3[6] == 0, S1(Main)-ODM_RF_PATH_A; */
-			/*  EFUSE_0xC3[6] == 1, S0(Aux)-ODM_RF_PATH_B */
-			pHalData->ant_path = (tempval & BIT(6))?ODM_RF_PATH_B:ODM_RF_PATH_A;
+			/*  EFUSE_0xC3[6] == 0, S1(Main)-RF_PATH_A; */
+			/*  EFUSE_0xC3[6] == 1, S0(Aux)-RF_PATH_B */
+			pHalData->ant_path = (tempval & BIT(6))? RF_PATH_B : RF_PATH_A;
 		} else {
 			pHalData->EEPROMBluetoothAntNum = Ant_x1;
 			if (pHalData->PackageType == PACKAGE_QFN68)
-				pHalData->ant_path = ODM_RF_PATH_B;
+				pHalData->ant_path = RF_PATH_B;
 			else
-				pHalData->ant_path = ODM_RF_PATH_A;
+				pHalData->ant_path = RF_PATH_A;
 		}
 	} else {
 		pHalData->EEPROMBluetoothCoexist = false;
 		pHalData->EEPROMBluetoothType = BT_RTL8723B;
 		pHalData->EEPROMBluetoothAntNum = Ant_x1;
-		pHalData->ant_path = ODM_RF_PATH_A;
+		pHalData->ant_path = RF_PATH_A;
 	}
 
 	if (padapter->registrypriv.ant_num > 0) {

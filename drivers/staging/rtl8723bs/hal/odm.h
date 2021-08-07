@@ -998,26 +998,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	#endif
 };
 
-#define ODM_RF_PATH_MAX 2
-
-enum odm_rf_radio_path_e {
-	ODM_RF_PATH_A = 0,   /* Radio Path A */
-	ODM_RF_PATH_B = 1,   /* Radio Path B */
-	ODM_RF_PATH_C = 2,   /* Radio Path C */
-	ODM_RF_PATH_D = 3,   /* Radio Path D */
-	ODM_RF_PATH_AB,
-	ODM_RF_PATH_AC,
-	ODM_RF_PATH_AD,
-	ODM_RF_PATH_BC,
-	ODM_RF_PATH_BD,
-	ODM_RF_PATH_CD,
-	ODM_RF_PATH_ABC,
-	ODM_RF_PATH_ACD,
-	ODM_RF_PATH_BCD,
-	ODM_RF_PATH_ABCD,
-	/*   ODM_RF_PATH_MAX,    Max RF number 90 support */
-};
-
  enum odm_rf_content {
 	odm_radioa_txt = 0x1000,
 	odm_radiob_txt = 0x1001,

@@ -84,7 +84,7 @@ enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm);
 enum hal_status ODM_ConfigRFWithHeaderFile(
 	struct dm_odm_t *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
-	enum odm_rf_radio_path_e eRFPath
+	enum rf_path eRFPath
 );
 
 enum hal_status ODM_ConfigBBWithHeaderFile(

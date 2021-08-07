@@ -113,8 +113,8 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 	struct phy_status_rpt_8192cd_t *phy_sta_rpt = (struct phy_status_rpt_8192cd_t *)phy_status;
 
 	is_cck_rate = pkt_info->data_rate <= DESC_RATE11M;
-	phy_info->rx_mimo_signal_quality[ODM_RF_PATH_A] = -1;
-	phy_info->rx_mimo_signal_quality[ODM_RF_PATH_B] = -1;
+	phy_info->rx_mimo_signal_quality[RF_PATH_A] = -1;
+	phy_info->rx_mimo_signal_quality[RF_PATH_B] = -1;
 
 
 	if (is_cck_rate) {
@@ -166,8 +166,8 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 			}
 
 			phy_info->signal_quality = sq;
-			phy_info->rx_mimo_signal_quality[ODM_RF_PATH_A] = sq;
-			phy_info->rx_mimo_signal_quality[ODM_RF_PATH_B] = -1;
+			phy_info->rx_mimo_signal_quality[RF_PATH_A] = sq;
+			phy_info->rx_mimo_signal_quality[RF_PATH_B] = -1;
 		}
 	} else { /* is OFDM rate */
 		dm_odm->PhyDbgInfo.NumQryPhyStatusOFDM++;
@@ -176,7 +176,7 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 		 * (1)Get RSSI for HT rate
 		 */
 
-		for (i = ODM_RF_PATH_A; i < ODM_RF_PATH_MAX; i++) {
+		for (i = RF_PATH_A; i < RF_PATH_MAX; i++) {
 			/*  2008/01/30 MH we will judge RF RX path now. */
 			if (dm_odm->RFPathRxEnable & BIT(i))
 				rf_rx_num++;
@@ -227,7 +227,7 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 		/*  Fill value in RFD, Get the first spatial stream only */
 		phy_info->signal_quality = (u8)(evm & 0xff);
 
-		phy_info->rx_mimo_signal_quality[ODM_RF_PATH_A] = (u8)(evm & 0xff);
+		phy_info->rx_mimo_signal_quality[RF_PATH_A] = (u8)(evm & 0xff);
 
 		odm_parsing_cfo(dm_odm, pkt_info, phy_sta_rpt->path_cfotail);
 	}
@@ -290,23 +290,23 @@ static void odm_Process_RSSIForDM(
 	if (pPktinfo->to_self || pPktinfo->is_beacon) {
 
 		if (!isCCKrate) { /* ofdm rate */
-			if (pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B] == 0) {
-				RSSI_Ave = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
-				pDM_Odm->RSSI_A = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
+			if (pPhyInfo->rx_mimo_signal_strength[RF_PATH_B] == 0) {
+				RSSI_Ave = pPhyInfo->rx_mimo_signal_strength[RF_PATH_A];
+				pDM_Odm->RSSI_A = pPhyInfo->rx_mimo_signal_strength[RF_PATH_A];
 				pDM_Odm->RSSI_B = 0;
 			} else {
-				pDM_Odm->RSSI_A =  pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
-				pDM_Odm->RSSI_B = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B];
+				pDM_Odm->RSSI_A =  pPhyInfo->rx_mimo_signal_strength[RF_PATH_A];
+				pDM_Odm->RSSI_B = pPhyInfo->rx_mimo_signal_strength[RF_PATH_B];
 
 				if (
-					pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A] >
-					pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B]
+					pPhyInfo->rx_mimo_signal_strength[RF_PATH_A] >
+					pPhyInfo->rx_mimo_signal_strength[RF_PATH_B]
 				) {
-					RSSI_max = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
-					RSSI_min = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B];
+					RSSI_max = pPhyInfo->rx_mimo_signal_strength[RF_PATH_A];
+					RSSI_min = pPhyInfo->rx_mimo_signal_strength[RF_PATH_B];
 				} else {
-					RSSI_max = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_B];
-					RSSI_min = pPhyInfo->rx_mimo_signal_strength[ODM_RF_PATH_A];
+					RSSI_max = pPhyInfo->rx_mimo_signal_strength[RF_PATH_B];
+					RSSI_min = pPhyInfo->rx_mimo_signal_strength[RF_PATH_A];
 				}
 
 				if ((RSSI_max-RSSI_min) < 3)
@@ -411,7 +411,7 @@ void odm_phy_status_query(struct dm_odm_t *dm_odm, struct odm_phy_info *phy_info
 enum hal_status ODM_ConfigRFWithHeaderFile(
 	struct dm_odm_t *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
-	enum odm_rf_radio_path_e eRFPath
+	enum rf_path eRFPath
 )
 {
 	if (ConfigType == CONFIG_RF_RADIO)

@@ -203,7 +203,7 @@ void odm_parsing_cfo(void *dm_void, void *pkt_info_void, s8 *cfotail)
 		 * 3 Update CFO report for path-A & path-B
 		 * Only paht-A and path-B have CFO tail and short CFO
 		 */
-		for (i = ODM_RF_PATH_A; i <= ODM_RF_PATH_B; i++)
+		for (i = RF_PATH_A; i <= RF_PATH_B; i++)
 			cfo_track->CFO_tail[i] = (int)cfotail[i];
 
 		/* 3 Update packet counter */
