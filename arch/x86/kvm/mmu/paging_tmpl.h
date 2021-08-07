@@ -658,12 +658,10 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 			 struct guest_walker *gw)
 {
-	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
-	bool huge_page_disallowed = fault->exec && nx_huge_page_workaround_enabled;
 	struct kvm_mmu_page *sp = NULL;
 	struct kvm_shadow_walk_iterator it;
 	unsigned int direct_access, access;
-	int top_level, level, req_level, ret;
+	int top_level, ret;
 	gfn_t base_gfn = fault->gfn;
 
 	WARN_ON_ONCE(gw->gfn != base_gfn);
@@ -730,8 +728,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 			link_shadow_page(vcpu, it.sptep, sp);
 	}
 
-	level = kvm_mmu_hugepage_adjust(vcpu, gw->gfn, fault->max_level, &fault->pfn,
-					huge_page_disallowed, &req_level);
+	kvm_mmu_hugepage_adjust(vcpu, fault);
 
 	trace_kvm_mmu_spte_requested(fault->addr, gw->level, fault->pfn);
 
@@ -742,12 +739,12 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		 * We cannot overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
 		 */
-		if (nx_huge_page_workaround_enabled)
+		if (fault->nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(*it.sptep, fault->gfn, it.level,
-						   &fault->pfn, &level);
+						   &fault->pfn, &fault->goal_level);
 
 		base_gfn = fault->gfn & ~(KVM_PAGES_PER_HPAGE(it.level) - 1);
-		if (it.level == level)
+		if (it.level == fault->goal_level)
 			break;
 
 		validate_direct_spte(vcpu, it.sptep, direct_access);
@@ -758,7 +755,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 			sp = kvm_mmu_get_page(vcpu, base_gfn, fault->addr,
 					      it.level - 1, true, direct_access);
 			link_shadow_page(vcpu, it.sptep, sp);
-			if (huge_page_disallowed && req_level >= it.level)
+			if (fault->huge_page_disallowed &&
+			    fault->req_level >= it.level)
 				account_huge_nx_page(vcpu->kvm, sp);
 		}
 	}

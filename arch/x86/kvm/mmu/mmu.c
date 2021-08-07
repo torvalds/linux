@@ -2920,48 +2920,45 @@ int kvm_mmu_max_mapping_level(struct kvm *kvm,
 	return min(host_level, max_level);
 }
 
-int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
-			    int max_level, kvm_pfn_t *pfnp,
-			    bool huge_page_disallowed, int *req_level)
+void kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 	struct kvm_memory_slot *slot;
-	kvm_pfn_t pfn = *pfnp;
 	kvm_pfn_t mask;
-	int level;
 
-	*req_level = PG_LEVEL_4K;
+	fault->huge_page_disallowed = fault->exec && fault->nx_huge_page_workaround_enabled;
 
-	if (unlikely(max_level == PG_LEVEL_4K))
-		return PG_LEVEL_4K;
+	if (unlikely(fault->max_level == PG_LEVEL_4K))
+		return;
 
-	if (is_error_noslot_pfn(pfn) || kvm_is_reserved_pfn(pfn))
-		return PG_LEVEL_4K;
+	if (is_error_noslot_pfn(fault->pfn) || kvm_is_reserved_pfn(fault->pfn))
+		return;
 
-	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, true);
+	slot = gfn_to_memslot_dirty_bitmap(vcpu, fault->gfn, true);
 	if (!slot)
-		return PG_LEVEL_4K;
+		return;
 
 	/*
 	 * Enforce the iTLB multihit workaround after capturing the requested
 	 * level, which will be used to do precise, accurate accounting.
 	 */
-	*req_level = level = kvm_mmu_max_mapping_level(vcpu->kvm, slot, gfn, pfn, max_level);
-	if (level == PG_LEVEL_4K || huge_page_disallowed)
-		return PG_LEVEL_4K;
+	fault->req_level = kvm_mmu_max_mapping_level(vcpu->kvm, slot,
+						     fault->gfn, fault->pfn,
+						     fault->max_level);
+	if (fault->req_level == PG_LEVEL_4K || fault->huge_page_disallowed)
+		return;
 
 	/*
 	 * mmu_notifier_retry() was successful and mmu_lock is held, so
 	 * the pmd can't be split from under us.
 	 */
-	mask = KVM_PAGES_PER_HPAGE(level) - 1;
-	VM_BUG_ON((gfn & mask) != (pfn & mask));
-	*pfnp = pfn & ~mask;
-
-	return level;
+	fault->goal_level = fault->req_level;
+	mask = KVM_PAGES_PER_HPAGE(fault->goal_level) - 1;
+	VM_BUG_ON((fault->gfn & mask) != (fault->pfn & mask));
+	fault->pfn &= ~mask;
 }
 
 void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
-				kvm_pfn_t *pfnp, int *goal_levelp)
+				kvm_pfn_t *pfnp, u8 *goal_levelp)
 {
 	int level = *goal_levelp;
 
@@ -2984,28 +2981,25 @@ void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
 
 static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
-	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
-	bool huge_page_disallowed = fault->exec && nx_huge_page_workaround_enabled;
 	struct kvm_shadow_walk_iterator it;
 	struct kvm_mmu_page *sp;
-	int level, req_level, ret;
+	int ret;
 	gfn_t base_gfn = fault->gfn;
 
-	level = kvm_mmu_hugepage_adjust(vcpu, fault->gfn, fault->max_level, &fault->pfn,
-					huge_page_disallowed, &req_level);
+	kvm_mmu_hugepage_adjust(vcpu, fault);
 
-	trace_kvm_mmu_spte_requested(fault->addr, level, fault->pfn);
+	trace_kvm_mmu_spte_requested(fault->addr, fault->goal_level, fault->pfn);
 	for_each_shadow_entry(vcpu, fault->addr, it) {
 		/*
 		 * We cannot overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
 		 */
-		if (nx_huge_page_workaround_enabled)
+		if (fault->nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(*it.sptep, fault->gfn, it.level,
-						   &fault->pfn, &level);
+						   &fault->pfn, &fault->goal_level);
 
 		base_gfn = fault->gfn & ~(KVM_PAGES_PER_HPAGE(it.level) - 1);
-		if (it.level == level)
+		if (it.level == fault->goal_level)
 			break;
 
 		drop_large_spte(vcpu, it.sptep);
@@ -3016,13 +3010,13 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 				      it.level - 1, true, ACC_ALL);
 
 		link_shadow_page(vcpu, it.sptep, sp);
-		if (fault->is_tdp && huge_page_disallowed &&
-		    req_level >= it.level)
+		if (fault->is_tdp && fault->huge_page_disallowed &&
+		    fault->req_level >= it.level)
 			account_huge_nx_page(vcpu->kvm, sp);
 	}
 
 	ret = mmu_set_spte(vcpu, it.sptep, ACC_ALL,
-			   fault->write, level, base_gfn, fault->pfn,
+			   fault->write, fault->goal_level, base_gfn, fault->pfn,
 			   fault->prefault, fault->map_writable);
 	if (ret == RET_PF_SPURIOUS)
 		return ret;

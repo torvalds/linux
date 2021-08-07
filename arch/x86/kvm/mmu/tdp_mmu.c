@@ -986,30 +986,25 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
  */
 int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
-	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
-	bool huge_page_disallowed = fault->exec && nx_huge_page_workaround_enabled;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	struct tdp_iter iter;
 	struct kvm_mmu_page *sp;
 	u64 *child_pt;
 	u64 new_spte;
 	int ret;
-	int level;
-	int req_level;
 
-	level = kvm_mmu_hugepage_adjust(vcpu, fault->gfn, fault->max_level, &fault->pfn,
-					huge_page_disallowed, &req_level);
+	kvm_mmu_hugepage_adjust(vcpu, fault);
 
-	trace_kvm_mmu_spte_requested(fault->addr, level, fault->pfn);
+	trace_kvm_mmu_spte_requested(fault->addr, fault->goal_level, fault->pfn);
 
 	rcu_read_lock();
 
 	tdp_mmu_for_each_pte(iter, mmu, fault->gfn, fault->gfn + 1) {
-		if (nx_huge_page_workaround_enabled)
+		if (fault->nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(iter.old_spte, fault->gfn,
-						   iter.level, &fault->pfn, &level);
+						   iter.level, &fault->pfn, &fault->goal_level);
 
-		if (iter.level == level)
+		if (iter.level == fault->goal_level)
 			break;
 
 		/*
@@ -1047,8 +1042,8 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 			if (tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, &iter, new_spte)) {
 				tdp_mmu_link_page(vcpu->kvm, sp,
-						  huge_page_disallowed &&
-						  req_level >= iter.level);
+						  fault->huge_page_disallowed &&
+						  fault->req_level >= iter.level);
 
 				trace_kvm_mmu_get_page(sp, true);
 			} else {
@@ -1058,7 +1053,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		}
 	}
 
-	if (iter.level != level) {
+	if (iter.level != fault->goal_level) {
 		rcu_read_unlock();
 		return RET_PF_RETRY;
 	}
