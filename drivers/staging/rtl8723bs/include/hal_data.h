@@ -404,6 +404,5 @@ struct hal_com_data {
 #define GET_HAL_DATA(__padapter)	((struct hal_com_data *)((__padapter)->HalData))
 #define GET_HAL_RFPATH_NUM(__padapter) (((struct hal_com_data *)((__padapter)->HalData))->NumTotalRFPath)
 #define RT_GetInterfaceSelection(_Adapter)	(GET_HAL_DATA(_Adapter)->InterfaceSel)
-#define GET_RF_TYPE(__padapter)		(GET_HAL_DATA(__padapter)->rf_type)
 
 #endif /* __HAL_DATA_H__ */
