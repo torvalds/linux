@@ -545,7 +545,7 @@ u8 rtw_get_mgntframe_raid(struct adapter *adapter, unsigned char network_type)
 
 void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *psta)
 {
-	u8 i, rf_type, limit;
+	u8 i, limit;
 	u32 tx_ra_bitmap;
 
 	if (!psta)
@@ -561,11 +561,7 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 
 	/* n mode ra_bitmap */
 	if (psta->htpriv.ht_option) {
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if (rf_type == RF_2T2R)
-			limit = 16; /*  2R */
-		else
-			limit = 8; /*   1R */
+		limit = 8; /*   1R */
 
 		for (i = 0; i < limit; i++) {
 			if (psta->htpriv.ht_cap.mcs.rx_mask[i/8] & BIT(i%8))

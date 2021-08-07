@@ -541,7 +541,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	struct wlan_bssid_ex	*pcur_bss = &pmlmepriv->cur_network.network;
 	struct sta_info *psta = NULL;
 	u8 short_GI = 0;
-	u8 rf_type = 0;
 
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) != true)
 		&& (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) != true))
@@ -554,10 +553,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	short_GI = query_ra_short_GI(psta);
 
 	if (is_supported_ht(psta->wireless_mode)) {
-		rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-
-		max_rate = rtw_mcs_rate(rf_type,
-					((psta->bw_mode == CHANNEL_WIDTH_40)?1:0),
+		max_rate = rtw_mcs_rate(psta->bw_mode == CHANNEL_WIDTH_40 ? 1 : 0,
 					short_GI,
 					psta->htpriv.ht_cap.mcs.rx_mask);
 	} else {
