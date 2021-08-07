@@ -241,9 +241,9 @@ static inline int adreno_is_a630(struct adreno_gpu *gpu)
        return gpu->revn == 630;
 }
 
-static inline int adreno_is_a640(struct adreno_gpu *gpu)
+static inline int adreno_is_a640_family(struct adreno_gpu *gpu)
 {
-       return gpu->revn == 640;
+	return (gpu->revn == 640) || (gpu->revn == 680);
 }
 
 static inline int adreno_is_a650(struct adreno_gpu *gpu)
@@ -272,11 +272,6 @@ static inline int adreno_is_a650_family(struct adreno_gpu *gpu)
 {
        return gpu->revn == 650 || gpu->revn == 620 ||
 	       adreno_is_a660_family(gpu);
-}
-
-static inline int adreno_is_a680(struct adreno_gpu *gpu)
-{
-       return gpu->revn == 680;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
