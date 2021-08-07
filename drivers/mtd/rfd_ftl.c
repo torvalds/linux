@@ -705,6 +705,34 @@ err:
 	return rc;
 }
 
+static int rfd_ftl_discardsect(struct mtd_blktrans_dev *dev,
+			       unsigned long sector, unsigned int nr_sects)
+{
+	struct partition *part = (struct partition *)dev;
+	u_long addr;
+	int rc;
+
+	while (nr_sects) {
+		if (sector >= part->sector_count)
+			return -EIO;
+
+		addr = part->sector_map[sector];
+
+		if (addr != -1) {
+			rc = mark_sector_deleted(part, addr);
+			if (rc)
+				return rc;
+
+			part->sector_map[sector] = -1;
+		}
+
+		sector++;
+		nr_sects--;
+	}
+
+	return 0;
+}
+
 static int rfd_ftl_getgeo(struct mtd_blktrans_dev *dev, struct hd_geometry *geo)
 {
 	struct partition *part = (struct partition*)dev;
@@ -786,6 +814,7 @@ static struct mtd_blktrans_ops rfd_ftl_tr = {
 
 	.readsect	= rfd_ftl_readsect,
 	.writesect	= rfd_ftl_writesect,
+	.discard	= rfd_ftl_discardsect,
 	.getgeo		= rfd_ftl_getgeo,
 	.add_mtd	= rfd_ftl_add_mtd,
 	.remove_dev	= rfd_ftl_remove_dev,
