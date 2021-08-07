@@ -89,8 +89,6 @@ static int rtw_beamform_cap = 0x2;
 
 static int rtw_lowrate_two_xmit = 1;/* Use 2 path Tx to transmit MCS0~7 and legacy mode */
 
-/* int rf_config = RF_1T2R;  1T2R */
-static int rtw_rf_config = RF_MAX_TYPE;  /* auto */
 static int rtw_low_power;
 static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
@@ -144,7 +142,6 @@ module_param(rtw_ampdu_amsdu, int, 0644);
 
 module_param(rtw_lowrate_two_xmit, int, 0644);
 
-module_param(rtw_rf_config, int, 0644);
 module_param(rtw_power_mgnt, int, 0644);
 module_param(rtw_smart_ps, int, 0644);
 module_param(rtw_low_power, int, 0644);
@@ -249,7 +246,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->beamform_cap = (u8)rtw_beamform_cap;
 
 	registry_par->lowrate_two_xmit = (u8)rtw_lowrate_two_xmit;
-	registry_par->rf_config = (u8)rtw_rf_config;
 	registry_par->low_power = (u8)rtw_low_power;
 
 
