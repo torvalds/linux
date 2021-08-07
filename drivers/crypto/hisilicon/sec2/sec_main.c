@@ -57,10 +57,16 @@
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
 
+/* clock gating */
 #define SEC_CONTROL_REG		0x301200
-#define SEC_TRNG_EN_SHIFT		8
+#define SEC_DYNAMIC_GATE_REG		0x30121c
+#define SEC_CORE_AUTO_GATE		0x30212c
+#define SEC_DYNAMIC_GATE_EN		0x7bff
+#define SEC_CORE_AUTO_GATE_EN		GENMASK(3, 0)
 #define SEC_CLK_GATE_ENABLE		BIT(3)
 #define SEC_CLK_GATE_DISABLE		(~BIT(3))
+
+#define SEC_TRNG_EN_SHIFT		8
 #define SEC_AXI_SHUTDOWN_ENABLE	BIT(12)
 #define SEC_AXI_SHUTDOWN_DISABLE	0xFFFFEFFF
 
@@ -378,15 +384,43 @@ static void sec_close_sva_prefetch(struct hisi_qm *qm)
 		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
+static void sec_enable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + SEC_CONTROL_REG);
+	val |= SEC_CLK_GATE_ENABLE;
+	writel_relaxed(val, qm->io_base + SEC_CONTROL_REG);
+
+	val = readl(qm->io_base + SEC_DYNAMIC_GATE_REG);
+	val |= SEC_DYNAMIC_GATE_EN;
+	writel(val, qm->io_base + SEC_DYNAMIC_GATE_REG);
+
+	val = readl(qm->io_base + SEC_CORE_AUTO_GATE);
+	val |= SEC_CORE_AUTO_GATE_EN;
+	writel(val, qm->io_base + SEC_CORE_AUTO_GATE);
+}
+
+static void sec_disable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	/* Kunpeng920 needs to close clock gating */
+	val = readl_relaxed(qm->io_base + SEC_CONTROL_REG);
+	val &= SEC_CLK_GATE_DISABLE;
+	writel_relaxed(val, qm->io_base + SEC_CONTROL_REG);
+}
+
 static int sec_engine_init(struct hisi_qm *qm)
 {
 	int ret;
 	u32 reg;
 
-	/* disable clock gate control */
-	reg = readl_relaxed(qm->io_base + SEC_CONTROL_REG);
-	reg &= SEC_CLK_GATE_DISABLE;
-	writel_relaxed(reg, qm->io_base + SEC_CONTROL_REG);
+	/* disable clock gate control before mem init */
+	sec_disable_clock_gate(qm);
 
 	writel_relaxed(0x1, qm->io_base + SEC_MEM_START_INIT_REG);
 
@@ -432,6 +466,8 @@ static int sec_engine_init(struct hisi_qm *qm)
 	reg = readl_relaxed(qm->io_base + SEC_CONTROL_REG);
 	reg |= sec_get_endian(qm);
 	writel_relaxed(reg, qm->io_base + SEC_CONTROL_REG);
+
+	sec_enable_clock_gate(qm);
 
 	return 0;
 }
