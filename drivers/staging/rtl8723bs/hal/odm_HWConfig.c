@@ -78,7 +78,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	struct odm_packet_info *pPktinfo
 )
 {
-	u8 i, Max_spatial_stream;
+	u8 i;
 	s8 rx_pwr[4], rx_pwr_all = 0;
 	u8 EVM, PWDB_ALL = 0, PWDB_ALL_BT;
 	u8 RSSI, total_rssi = 0;
@@ -182,30 +182,27 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		pPhyInfo->rx_power = rx_pwr_all;
 		pPhyInfo->recv_signal_power = rx_pwr_all;
 
-		{/* pMgntInfo->CustomerID != RT_CID_819x_Lenovo */
-			/*  */
-			/*  (3)EVM of HT rate */
-			/*  */
-			Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
+		/*
+		 * (3)EVM of HT rate
+		 *
+		 * Only spatial stream 1 makes sense
+		 *
+		 * Do not use shift operation like "rx_evmX >>= 1"
+		 * because the compiler of free build environment
+		 * fill most significant bit to "zero" when doing
+		 * shifting operation which may change a negative
+		 * value to positive one, then the dbm value (which
+		 * is supposed to be negative) is not correct
+		 * anymore.
+		 */
+		EVM = odm_EVMdbToPercentage(pPhyStaRpt->stream_rxevm[0]);	/* dbm */
 
-			for (i = 0; i < Max_spatial_stream; i++) {
-				/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
-				/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
-				/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
-				EVM = odm_EVMdbToPercentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
+		/*  Fill value in RFD, Get the first spatial stream only */
+		pPhyInfo->signal_quality = (u8)(EVM & 0xff);
 
-				/* if (pPktinfo->bPacketMatchBSSID) */
-				{
-					if (i == ODM_RF_PATH_A) /*  Fill value in RFD, Get the first spatial stream only */
-						pPhyInfo->signal_quality = (u8)(EVM & 0xff);
-
-					pPhyInfo->rx_mimo_signal_quality[i] = (u8)(EVM & 0xff);
-				}
-			}
-		}
+		pPhyInfo->rx_mimo_signal_quality[ODM_RF_PATH_A] = (u8)(EVM & 0xff);
 
 		ODM_ParsingCFO(pDM_Odm, pPktinfo, pPhyStaRpt->path_cfotail);
-
 	}
 
 	/* UI BSS List signal strength(in percentage), make it good looking, from 0~100. */
