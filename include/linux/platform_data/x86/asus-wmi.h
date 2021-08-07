@@ -91,6 +91,9 @@
 #define ASUS_WMI_DEVID_KBD_DOCK		0x00120063
 
 /* dgpu on/off */
+#define ASUS_WMI_DEVID_EGPU		0x00090019
+
+/* dgpu on/off */
 #define ASUS_WMI_DEVID_DGPU		0x00090020
 
 /* DSTS masks */
