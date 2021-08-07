@@ -1696,37 +1696,6 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 	return ret;
 }
 
-static inline bool btree_iter_set_pos_to_next_leaf(struct btree_iter *iter)
-{
-	struct bpos next_pos = iter->l[0].b->key.k.p;
-	bool ret = bpos_cmp(next_pos, SPOS_MAX) != 0;
-
-	/*
-	 * Typically, we don't want to modify iter->pos here, since that
-	 * indicates where we searched from - unless we got to the end of the
-	 * btree, in that case we want iter->pos to reflect that:
-	 */
-	if (ret)
-		btree_iter_set_search_pos(iter, bpos_successor(next_pos));
-	else
-		bch2_btree_iter_set_pos(iter, SPOS_MAX);
-
-	return ret;
-}
-
-static inline bool btree_iter_set_pos_to_prev_leaf(struct btree_iter *iter)
-{
-	struct bpos next_pos = iter->l[0].b->data->min_key;
-	bool ret = bpos_cmp(next_pos, POS_MIN) != 0;
-
-	if (ret)
-		btree_iter_set_search_pos(iter, bpos_predecessor(next_pos));
-	else
-		bch2_btree_iter_set_pos(iter, POS_MIN);
-
-	return ret;
-}
-
 static noinline struct bkey_i *__btree_trans_peek_updates(struct btree_iter *iter)
 {
 	struct btree_insert_entry *i;
@@ -1767,10 +1736,10 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	EBUG_ON(btree_iter_type(iter) != BTREE_ITER_KEYS);
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
-start:
-	btree_iter_set_search_pos(iter, search_key);
 
 	while (1) {
+		btree_iter_set_search_pos(iter, search_key);
+
 		ret = btree_iter_traverse(iter);
 		if (unlikely(ret))
 			return bkey_s_c_err(ret);
@@ -1791,14 +1760,20 @@ start:
 		if (likely(k.k)) {
 			if (bkey_deleted(k.k)) {
 				search_key = bkey_successor(iter, k.k->p);
-				goto start;
+				continue;
 			}
 
 			break;
 		}
 
-		if (!btree_iter_set_pos_to_next_leaf(iter))
-			return bkey_s_c_null;
+		if (unlikely(!bpos_cmp(iter->l[0].b->key.k.p, SPOS_MAX))) {
+			bch2_btree_iter_set_pos(iter, SPOS_MAX);
+			k = bkey_s_c_null;
+			goto out;
+		}
+
+		/* Advance to next leaf node: */
+		search_key = bpos_successor(iter->l[0].b->key.k.p);
 	}
 
 	/*
@@ -1810,6 +1785,7 @@ start:
 	else if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
 
+out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
 	iter->should_be_locked = true;
@@ -1834,6 +1810,7 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
  */
 struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 {
+	struct bpos search_key = iter->pos;
 	struct btree_iter_level *l = &iter->l[0];
 	struct bkey_s_c k;
 	int ret;
@@ -1843,9 +1820,9 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
 
-	btree_iter_set_search_pos(iter, iter->pos);
-
 	while (1) {
+		btree_iter_set_search_pos(iter, search_key);
+
 		ret = btree_iter_traverse(iter);
 		if (unlikely(ret)) {
 			k = bkey_s_c_err(ret);
@@ -1862,10 +1839,14 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		if (likely(k.k))
 			break;
 
-		if (!btree_iter_set_pos_to_prev_leaf(iter)) {
+		if (unlikely(!bpos_cmp(iter->l[0].b->data->min_key, POS_MIN))) {
+			bch2_btree_iter_set_pos(iter, POS_MIN);
 			k = bkey_s_c_null;
 			goto no_key;
 		}
+
+		/* Advance to previous leaf node: */
+		search_key = bpos_predecessor(iter->l[0].b->data->min_key);
 	}
 
 	EBUG_ON(bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0);
