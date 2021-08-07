@@ -369,7 +369,7 @@ static int ixp4xx_exp_probe(struct platform_device *pdev)
 	/* We check that the regmap work only on first read */
 	ret = regmap_read(eb->rmap, IXP4XX_EXP_CNFG0, &val);
 	if (ret)
-		dev_err_probe(dev, ret, "cannot read regmap\n");
+		return dev_err_probe(dev, ret, "cannot read regmap\n");
 	if (val & IXP4XX_EXP_CNFG0_MEM_MAP)
 		eb->bus_base = IXP4XX_EXP_BOOT_BASE;
 	else
