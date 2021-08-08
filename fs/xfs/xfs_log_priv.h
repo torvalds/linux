@@ -456,6 +456,9 @@ struct xlog {
 	xfs_lsn_t		l_recovery_lsn;
 
 	uint32_t		l_iclog_roundoff;/* padding roundoff */
+
+	/* Users of log incompat features should take a read lock. */
+	struct rw_semaphore	l_incompat_users;
 };
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \

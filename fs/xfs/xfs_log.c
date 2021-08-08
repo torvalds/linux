@@ -1363,6 +1363,32 @@ xfs_log_work_queue(
 }
 
 /*
+ * Clear the log incompat flags if we have the opportunity.
+ *
+ * This only happens if we're about to log the second dummy transaction as part
+ * of covering the log and we can get the log incompat feature usage lock.
+ */
+static inline void
+xlog_clear_incompat(
+	struct xlog		*log)
+{
+	struct xfs_mount	*mp = log->l_mp;
+
+	if (!xfs_sb_has_incompat_log_feature(&mp->m_sb,
+				XFS_SB_FEAT_INCOMPAT_LOG_ALL))
+		return;
+
+	if (log->l_covered_state != XLOG_STATE_COVER_DONE2)
+		return;
+
+	if (!down_write_trylock(&log->l_incompat_users))
+		return;
+
+	xfs_clear_incompat_log_features(mp);
+	up_write(&log->l_incompat_users);
+}
+
+/*
  * Every sync period we need to unpin all items in the AIL and push them to
  * disk. If there is nothing dirty, then we might need to cover the log to
  * indicate that the filesystem is idle.
@@ -1388,6 +1414,7 @@ xfs_log_worker(
 		 * synchronously log the superblock instead to ensure the
 		 * superblock is immediately unpinned and can be written back.
 		 */
+		xlog_clear_incompat(log);
 		xfs_sync_sb(mp, true);
 	} else
 		xfs_log_force(mp, 0);
@@ -1474,6 +1501,8 @@ xlog_alloc_log(
 		}
 	}
 	log->l_sectBBsize = 1 << log2_size;
+
+	init_rwsem(&log->l_incompat_users);
 
 	xlog_get_iclog_buffer_size(mp, log);
 
@@ -3972,4 +4001,24 @@ xfs_log_in_recovery(
 	struct xlog		*log = mp->m_log;
 
 	return log->l_flags & XLOG_ACTIVE_RECOVERY;
+}
+
+/*
+ * Notify the log that we're about to start using a feature that is protected
+ * by a log incompat feature flag.  This will prevent log covering from
+ * clearing those flags.
+ */
+void
+xlog_use_incompat_feat(
+	struct xlog		*log)
+{
+	down_read(&log->l_incompat_users);
+}
+
+/* Notify the log that we've finished using log incompat features. */
+void
+xlog_drop_incompat_feat(
+	struct xlog		*log)
+{
+	up_read(&log->l_incompat_users);
 }

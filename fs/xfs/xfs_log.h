@@ -142,4 +142,7 @@ bool	xfs_log_in_recovery(struct xfs_mount *);
 
 xfs_lsn_t xlog_grant_push_threshold(struct xlog *log, int need_bytes);
 
+void xlog_use_incompat_feat(struct xlog *log);
+void xlog_drop_incompat_feat(struct xlog *log);
+
 #endif	/* __XFS_LOG_H__ */
