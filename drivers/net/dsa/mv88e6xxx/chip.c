@@ -5797,7 +5797,6 @@ static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
 				       struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	bool do_fast_age = false;
 	int err = -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
@@ -5809,9 +5808,6 @@ static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
 		err = mv88e6xxx_port_set_assoc_vector(chip, port, pav);
 		if (err)
 			goto out;
-
-		if (!learning)
-			do_fast_age = true;
 	}
 
 	if (flags.mask & BR_FLOOD) {
@@ -5842,9 +5838,6 @@ static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
 
 out:
 	mv88e6xxx_reg_unlock(chip);
-
-	if (do_fast_age)
-		mv88e6xxx_port_fast_age(ds, port);
 
 	return err;
 }

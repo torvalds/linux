@@ -254,6 +254,7 @@ struct dsa_port {
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	bool			vlan_filtering;
+	bool			learning;
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	int			bridge_num;

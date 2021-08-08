@@ -30,6 +30,16 @@ static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
 	return dsa_tree_notify(dp->ds->dst, e, v);
 }
 
+static void dsa_port_fast_age(const struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_fast_age)
+		return;
+
+	ds->ops->port_fast_age(ds, dp->index);
+}
+
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -40,7 +50,7 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 
 	ds->ops->port_stp_state_set(ds, port, state);
 
-	if (do_fast_age && ds->ops->port_fast_age) {
+	if (do_fast_age) {
 		/* Fast age FDB entries or flush appropriate forwarding database
 		 * for the given port, if we are moving it from Learning or
 		 * Forwarding state, to Disabled or Blocking or Listening state.
@@ -54,7 +64,7 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 		    (state == BR_STATE_DISABLED ||
 		     state == BR_STATE_BLOCKING ||
 		     state == BR_STATE_LISTENING))
-			ds->ops->port_fast_age(ds, port);
+			dsa_port_fast_age(dp);
 	}
 
 	dp->stp_state = state;
@@ -633,16 +643,33 @@ int dsa_port_pre_bridge_flags(const struct dsa_port *dp,
 	return ds->ops->port_pre_bridge_flags(ds, dp->index, flags, extack);
 }
 
-int dsa_port_bridge_flags(const struct dsa_port *dp,
+int dsa_port_bridge_flags(struct dsa_port *dp,
 			  struct switchdev_brport_flags flags,
 			  struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
+	int err;
 
 	if (!ds->ops->port_bridge_flags)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
+	err = ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
+	if (err)
+		return err;
+
+	if (flags.mask & BR_LEARNING) {
+		bool learning = flags.val & BR_LEARNING;
+
+		if (learning == dp->learning)
+			return 0;
+
+		if (dp->learning && !learning)
+			dsa_port_fast_age(dp);
+
+		dp->learning = learning;
+	}
+
+	return 0;
 }
 
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,

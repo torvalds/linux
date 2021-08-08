@@ -241,7 +241,7 @@ int dsa_port_host_mdb_del(const struct dsa_port *dp,
 int dsa_port_pre_bridge_flags(const struct dsa_port *dp,
 			      struct switchdev_brport_flags flags,
 			      struct netlink_ext_ack *extack);
-int dsa_port_bridge_flags(const struct dsa_port *dp,
+int dsa_port_bridge_flags(struct dsa_port *dp,
 			  struct switchdev_brport_flags flags,
 			  struct netlink_ext_ack *extack);
 int dsa_port_vlan_add(struct dsa_port *dp,
