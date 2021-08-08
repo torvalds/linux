@@ -735,24 +735,6 @@ ptp_ocp_info(struct ptp_ocp *bp)
 	ptp_ocp_tod_info(bp);
 }
 
-static int
-ptp_ocp_devlink_register(struct devlink *devlink, struct device *dev)
-{
-	int err;
-
-	err = devlink_register(devlink, dev);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static void
-ptp_ocp_devlink_unregister(struct devlink *devlink)
-{
-	devlink_unregister(devlink);
-}
-
 static struct device *
 ptp_ocp_find_flash(struct ptp_ocp *bp)
 {
@@ -1437,13 +1419,13 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ptp_ocp *bp;
 	int err;
 
-	devlink = devlink_alloc(&ptp_ocp_devlink_ops, sizeof(*bp));
+	devlink = devlink_alloc(&ptp_ocp_devlink_ops, sizeof(*bp), &pdev->dev);
 	if (!devlink) {
 		dev_err(&pdev->dev, "devlink_alloc failed\n");
 		return -ENOMEM;
 	}
 
-	err = ptp_ocp_devlink_register(devlink, &pdev->dev);
+	err = devlink_register(devlink);
 	if (err)
 		goto out_free;
 
@@ -1497,7 +1479,7 @@ out:
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 out_unregister:
-	ptp_ocp_devlink_unregister(devlink);
+	devlink_unregister(devlink);
 out_free:
 	devlink_free(devlink);
 
@@ -1514,7 +1496,7 @@ ptp_ocp_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	ptp_ocp_devlink_unregister(devlink);
+	devlink_unregister(devlink);
 	devlink_free(devlink);
 }
 

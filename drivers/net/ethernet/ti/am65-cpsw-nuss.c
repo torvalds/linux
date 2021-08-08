@@ -2422,14 +2422,14 @@ static int am65_cpsw_nuss_register_devlink(struct am65_cpsw_common *common)
 	int i;
 
 	common->devlink =
-		devlink_alloc(&am65_cpsw_devlink_ops, sizeof(*dl_priv));
+		devlink_alloc(&am65_cpsw_devlink_ops, sizeof(*dl_priv), dev);
 	if (!common->devlink)
 		return -ENOMEM;
 
 	dl_priv = devlink_priv(common->devlink);
 	dl_priv->common = common;
 
-	ret = devlink_register(common->devlink, dev);
+	ret = devlink_register(common->devlink);
 	if (ret) {
 		dev_err(dev, "devlink reg fail ret:%d\n", ret);
 		goto dl_free;

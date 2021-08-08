@@ -1800,14 +1800,14 @@ static int cpsw_register_devlink(struct cpsw_common *cpsw)
 	struct cpsw_devlink *dl_priv;
 	int ret = 0;
 
-	cpsw->devlink = devlink_alloc(&cpsw_devlink_ops, sizeof(*dl_priv));
+	cpsw->devlink = devlink_alloc(&cpsw_devlink_ops, sizeof(*dl_priv), dev);
 	if (!cpsw->devlink)
 		return -ENOMEM;
 
 	dl_priv = devlink_priv(cpsw->devlink);
 	dl_priv->cpsw = cpsw;
 
-	ret = devlink_register(cpsw->devlink, dev);
+	ret = devlink_register(cpsw->devlink);
 	if (ret) {
 		dev_err(dev, "DL reg fail ret:%d\n", ret);
 		goto dl_free;

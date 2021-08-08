@@ -743,14 +743,17 @@ static void bnxt_dl_params_unregister(struct bnxt *bp)
 
 int bnxt_dl_register(struct bnxt *bp)
 {
+	const struct devlink_ops *devlink_ops;
 	struct devlink_port_attrs attrs = {};
 	struct devlink *dl;
 	int rc;
 
 	if (BNXT_PF(bp))
-		dl = devlink_alloc(&bnxt_dl_ops, sizeof(struct bnxt_dl));
+		devlink_ops = &bnxt_dl_ops;
 	else
-		dl = devlink_alloc(&bnxt_vf_dl_ops, sizeof(struct bnxt_dl));
+		devlink_ops = &bnxt_vf_dl_ops;
+
+	dl = devlink_alloc(devlink_ops, sizeof(struct bnxt_dl), &bp->pdev->dev);
 	if (!dl) {
 		netdev_warn(bp->dev, "devlink_alloc failed\n");
 		return -ENOMEM;
@@ -763,7 +766,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	    bp->hwrm_spec_code > 0x10803)
 		bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 
-	rc = devlink_register(dl, &bp->pdev->dev);
+	rc = devlink_register(dl);
 	if (rc) {
 		netdev_warn(bp->dev, "devlink_register failed. rc=%d\n", rc);
 		goto err_dl_free;

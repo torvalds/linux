@@ -1544,13 +1544,15 @@ struct net *devlink_net(const struct devlink *devlink);
  * Drivers that operate on real HW must use devlink_alloc() instead.
  */
 struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
-				 size_t priv_size, struct net *net);
+				 size_t priv_size, struct net *net,
+				 struct device *dev);
 static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
-					    size_t priv_size)
+					    size_t priv_size,
+					    struct device *dev)
 {
-	return devlink_alloc_ns(ops, priv_size, &init_net);
+	return devlink_alloc_ns(ops, priv_size, &init_net, dev);
 }
-int devlink_register(struct devlink *devlink, struct device *dev);
+int devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
 void devlink_reload_enable(struct devlink *devlink);
 void devlink_reload_disable(struct devlink *devlink);

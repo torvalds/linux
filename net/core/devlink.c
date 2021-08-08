@@ -8768,24 +8768,26 @@ static bool devlink_reload_actions_valid(const struct devlink_ops *ops)
  *	@ops: ops
  *	@priv_size: size of user private data
  *	@net: net namespace
+ *	@dev: parent device
  *
  *	Allocate new devlink instance resources, including devlink index
  *	and name.
  */
 struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
-				 size_t priv_size, struct net *net)
+				 size_t priv_size, struct net *net,
+				 struct device *dev)
 {
 	struct devlink *devlink;
 
-	if (WARN_ON(!ops))
-		return NULL;
-
+	WARN_ON(!ops || !dev);
 	if (!devlink_reload_actions_valid(ops))
 		return NULL;
 
 	devlink = kzalloc(sizeof(*devlink) + priv_size, GFP_KERNEL);
 	if (!devlink)
 		return NULL;
+
+	devlink->dev = dev;
 	devlink->ops = ops;
 	xa_init_flags(&devlink->snapshot_ids, XA_FLAGS_ALLOC);
 	write_pnet(&devlink->_net, net);
@@ -8810,12 +8812,9 @@ EXPORT_SYMBOL_GPL(devlink_alloc_ns);
  *	devlink_register - Register devlink instance
  *
  *	@devlink: devlink
- *	@dev: parent device
  */
-int devlink_register(struct devlink *devlink, struct device *dev)
+int devlink_register(struct devlink *devlink)
 {
-	WARN_ON(devlink->dev);
-	devlink->dev = dev;
 	mutex_lock(&devlink_mutex);
 	list_add_tail(&devlink->list, &devlink_list);
 	devlink_notify(devlink, DEVLINK_CMD_NEW);

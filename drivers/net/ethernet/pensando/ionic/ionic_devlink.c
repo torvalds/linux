@@ -64,7 +64,7 @@ struct ionic *ionic_devlink_alloc(struct device *dev)
 {
 	struct devlink *dl;
 
-	dl = devlink_alloc(&ionic_dl_ops, sizeof(struct ionic));
+	dl = devlink_alloc(&ionic_dl_ops, sizeof(struct ionic), dev);
 
 	return devlink_priv(dl);
 }
@@ -82,7 +82,7 @@ int ionic_devlink_register(struct ionic *ionic)
 	struct devlink_port_attrs attrs = {};
 	int err;
 
-	err = devlink_register(dl, ionic->dev);
+	err = devlink_register(dl);
 	if (err) {
 		dev_warn(ionic->dev, "devlink_register failed: %d\n", err);
 		return err;

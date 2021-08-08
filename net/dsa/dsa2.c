@@ -746,13 +746,14 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	/* Add the switch to devlink before calling setup, so that setup can
 	 * add dpipe tables
 	 */
-	ds->devlink = devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv));
+	ds->devlink =
+		devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv), ds->dev);
 	if (!ds->devlink)
 		return -ENOMEM;
 	dl_priv = devlink_priv(ds->devlink);
 	dl_priv->ds = ds;
 
-	err = devlink_register(ds->devlink, ds->dev);
+	err = devlink_register(ds->devlink);
 	if (err)
 		goto free_devlink;
 

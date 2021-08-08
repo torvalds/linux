@@ -112,14 +112,14 @@ int hclge_devlink_init(struct hclge_dev *hdev)
 	int ret;
 
 	devlink = devlink_alloc(&hclge_devlink_ops,
-				sizeof(struct hclge_devlink_priv));
+				sizeof(struct hclge_devlink_priv), &pdev->dev);
 	if (!devlink)
 		return -ENOMEM;
 
 	priv = devlink_priv(devlink);
 	priv->hdev = hdev;
 
-	ret = devlink_register(devlink, &pdev->dev);
+	ret = devlink_register(devlink);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register devlink, ret = %d\n",
 			ret);

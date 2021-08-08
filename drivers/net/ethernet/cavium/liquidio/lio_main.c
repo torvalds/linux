@@ -3750,7 +3750,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	}
 
 	devlink = devlink_alloc(&liquidio_devlink_ops,
-				sizeof(struct lio_devlink_priv));
+				sizeof(struct lio_devlink_priv),
+				&octeon_dev->pci_dev->dev);
 	if (!devlink) {
 		dev_err(&octeon_dev->pci_dev->dev, "devlink alloc failed\n");
 		goto setup_nic_dev_free;
@@ -3759,7 +3760,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	lio_devlink = devlink_priv(devlink);
 	lio_devlink->oct = octeon_dev;
 
-	if (devlink_register(devlink, &octeon_dev->pci_dev->dev)) {
+	if (devlink_register(devlink)) {
 		devlink_free(devlink);
 		dev_err(&octeon_dev->pci_dev->dev,
 			"devlink registration failed\n");
