@@ -237,7 +237,9 @@ struct ufshpb_lu {
 	struct ufshpb_req *pre_req;
 	int num_inflight_pre_req;
 	int throttle_pre_req;
-	int num_inflight_map_req;
+	int num_inflight_map_req; /* hold param_lock */
+	spinlock_t param_lock;
+
 	struct list_head lh_pre_req_free;
 	int cur_read_id;
 	int pre_req_min_tr_len;
