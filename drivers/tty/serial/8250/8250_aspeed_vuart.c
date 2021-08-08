@@ -329,6 +329,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int iir, lsr;
+	unsigned long flags;
 	unsigned int space, count;
 
 	iir = serial_port_in(port, UART_IIR);
@@ -336,7 +337,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 	if (iir & UART_IIR_NO_INT)
 		return 0;
 
-	spin_lock(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 
 	lsr = serial_port_in(port, UART_LSR);
 
@@ -370,7 +371,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 	if (lsr & UART_LSR_THRE)
 		serial8250_tx_chars(up);
 
-	uart_unlock_and_check_sysrq(port);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 
 	return 1;
 }
