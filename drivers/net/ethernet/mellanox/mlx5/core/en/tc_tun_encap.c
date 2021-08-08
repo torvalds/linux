@@ -173,19 +173,29 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	list_for_each_entry(flow, flow_list, tmp_list) {
 		if (!mlx5e_is_offloaded_flow(flow) || !flow_flag_test(flow, SLOW))
 			continue;
-		attr = flow->attr;
-		esw_attr = attr->esw_attr;
-		spec = &attr->parse_attr->spec;
 
+		spec = &flow->attr->parse_attr->spec;
+
+		attr = mlx5e_tc_get_encap_attr(flow);
+		esw_attr = attr->esw_attr;
 		esw_attr->dests[flow->tmp_entry_index].pkt_reformat = e->pkt_reformat;
 		esw_attr->dests[flow->tmp_entry_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
 
 		/* Do not offload flows with unresolved neighbors */
 		if (!mlx5e_tc_flow_all_encaps_valid(esw_attr))
 			continue;
+
+		err = mlx5e_tc_offload_flow_post_acts(flow);
+		if (err) {
+			mlx5_core_warn(priv->mdev, "Failed to update flow post acts, %d\n",
+				       err);
+			continue;
+		}
+
 		/* update from slow path rule to encap rule */
-		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, attr);
+		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, flow->attr);
 		if (IS_ERR(rule)) {
+			mlx5e_tc_unoffload_flow_post_acts(flow);
 			err = PTR_ERR(rule);
 			mlx5_core_warn(priv->mdev, "Failed to update cached encapsulation flow, %d\n",
 				       err);
@@ -214,12 +224,13 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	list_for_each_entry(flow, flow_list, tmp_list) {
 		if (!mlx5e_is_offloaded_flow(flow) || flow_flag_test(flow, SLOW))
 			continue;
-		attr = flow->attr;
-		esw_attr = attr->esw_attr;
-		spec = &attr->parse_attr->spec;
+		spec = &flow->attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
 		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
+
+		attr = mlx5e_tc_get_encap_attr(flow);
+		esw_attr = attr->esw_attr;
 		/* mark the flow's encap dest as non-valid */
 		esw_attr->dests[flow->tmp_entry_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
@@ -230,7 +241,8 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
+		mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->attr);
+		mlx5e_tc_unoffload_flow_post_acts(flow);
 		flow->rule[0] = rule;
 		/* was unset when fast path rule removed */
 		flow_flag_set(flow, OFFLOADED);
@@ -494,6 +506,9 @@ void mlx5e_detach_encap(struct mlx5e_priv *priv,
 {
 	struct mlx5e_encap_entry *e = flow->encaps[out_index].e;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (!mlx5e_is_eswitch_flow(flow))
+		return;
 
 	if (attr->esw_attr->dests[out_index].flags &
 	    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
@@ -1360,17 +1375,19 @@ static void mlx5e_reoffload_encap(struct mlx5e_priv *priv,
 
 	list_for_each_entry(flow, encap_flows, tmp_list) {
 		struct mlx5e_tc_flow_parse_attr *parse_attr;
-		struct mlx5_flow_attr *attr = flow->attr;
 		struct mlx5_esw_flow_attr *esw_attr;
 		struct mlx5_flow_handle *rule;
+		struct mlx5_flow_attr *attr;
 		struct mlx5_flow_spec *spec;
 
 		if (flow_flag_test(flow, FAILED))
 			continue;
 
+		spec = &flow->attr->parse_attr->spec;
+
+		attr = mlx5e_tc_get_encap_attr(flow);
 		esw_attr = attr->esw_attr;
 		parse_attr = attr->parse_attr;
-		spec = &parse_attr->spec;
 
 		err = mlx5e_update_vf_tunnel(esw, esw_attr, &parse_attr->mod_hdr_acts,
 					     e->out_dev, e->route_dev_ifindex,
@@ -1392,9 +1409,18 @@ static void mlx5e_reoffload_encap(struct mlx5e_priv *priv,
 			esw_attr->dests[flow->tmp_entry_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
 			if (!mlx5e_tc_flow_all_encaps_valid(esw_attr))
 				goto offload_to_slow_path;
+
+			err = mlx5e_tc_offload_flow_post_acts(flow);
+			if (err) {
+				mlx5_core_warn(priv->mdev, "Failed to update flow post acts, %d\n",
+					       err);
+				goto offload_to_slow_path;
+			}
+
 			/* update from slow path rule to encap rule */
-			rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, attr);
+			rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, flow->attr);
 			if (IS_ERR(rule)) {
+				mlx5e_tc_unoffload_flow_post_acts(flow);
 				err = PTR_ERR(rule);
 				mlx5_core_warn(priv->mdev, "Failed to update cached encapsulation flow, %d\n",
 					       err);

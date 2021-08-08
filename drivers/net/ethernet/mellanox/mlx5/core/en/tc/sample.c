@@ -533,6 +533,9 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			err = PTR_ERR(post_act_handle);
 			goto err_post_act;
 		}
+		err = mlx5e_tc_post_act_offload(tc_psample->post_act, post_act_handle);
+		if (err)
+			goto err_post_rule;
 		sample_flow->post_act_handle = post_act_handle;
 	} else {
 		err = add_post_rule(esw, sample_flow, spec, attr, &default_tbl_id);

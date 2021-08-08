@@ -140,15 +140,9 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *at
 		goto err_xarray;
 
 	handle->attr = post_attr;
-	err = mlx5e_tc_post_act_offload(post_act, handle);
-	if (err)
-		goto err_rule;
-
 
 	return handle;
 
-err_rule:
-	xa_erase(&post_act->ids, handle->id);
 err_xarray:
 	kfree(post_attr);
 	kfree(handle);

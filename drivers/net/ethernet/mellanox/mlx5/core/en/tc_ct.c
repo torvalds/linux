@@ -1823,6 +1823,9 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 		ct_dbg("Failed to allocate post action handle");
 		goto err_post_act_handle;
 	}
+	err = mlx5e_tc_post_act_offload(ct_priv->post_act, handle);
+	if (err)
+		goto err_alloc_pre;
 	ct_flow->post_act_handle = handle;
 
 	/* Base flow attributes of both rules on original rule attribute */
