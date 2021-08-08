@@ -972,6 +972,20 @@ int
 xfs_log_quiesce(
 	struct xfs_mount	*mp)
 {
+	/*
+	 * Clear log incompat features since we're quiescing the log.  Report
+	 * failures, though it's not fatal to have a higher log feature
+	 * protection level than the log contents actually require.
+	 */
+	if (xfs_clear_incompat_log_features(mp)) {
+		int error;
+
+		error = xfs_sync_sb(mp, false);
+		if (error)
+			xfs_warn(mp,
+	"Failed to clear log incompat features on quiesce");
+	}
+
 	cancel_delayed_work_sync(&mp->m_log->l_work);
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
