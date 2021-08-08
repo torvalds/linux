@@ -1794,6 +1794,46 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static void sja1105_fast_age(struct dsa_switch *ds, int port)
+{
+	struct sja1105_private *priv = ds->priv;
+	int i;
+
+	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
+		struct sja1105_l2_lookup_entry l2_lookup = {0};
+		u8 macaddr[ETH_ALEN];
+		int rc;
+
+		rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+						 i, &l2_lookup);
+		/* No fdb entry at i, not an issue */
+		if (rc == -ENOENT)
+			continue;
+		if (rc) {
+			dev_err(ds->dev, "Failed to read FDB: %pe\n",
+				ERR_PTR(rc));
+			return;
+		}
+
+		if (!(l2_lookup.destports & BIT(port)))
+			continue;
+
+		/* Don't delete static FDB entries */
+		if (l2_lookup.lockeds)
+			continue;
+
+		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
+
+		rc = sja1105_fdb_del(ds, port, macaddr, l2_lookup.vlanid);
+		if (rc) {
+			dev_err(ds->dev,
+				"Failed to delete FDB entry %pM vid %lld: %pe\n",
+				macaddr, l2_lookup.vlanid, ERR_PTR(rc));
+			return;
+		}
+	}
+}
+
 static int sja1105_mdb_add(struct dsa_switch *ds, int port,
 			   const struct switchdev_obj_port_mdb *mdb)
 {
@@ -3036,6 +3076,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
+	.port_fast_age		= sja1105_fast_age,
 	.port_bridge_join	= sja1105_bridge_join,
 	.port_bridge_leave	= sja1105_bridge_leave,
 	.port_pre_bridge_flags	= sja1105_port_pre_bridge_flags,
