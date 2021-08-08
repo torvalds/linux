@@ -1889,8 +1889,7 @@ is_port_function_supported(struct mlx5_eswitch *esw, u16 vport_num)
 	       mlx5_esw_is_sf_vport(esw, vport_num);
 }
 
-int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
-					   struct devlink_port *port,
+int mlx5_devlink_port_function_hw_addr_get(struct devlink_port *port,
 					   u8 *hw_addr, int *hw_addr_len,
 					   struct netlink_ext_ack *extack)
 {
@@ -1899,7 +1898,7 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
 	int err = -EOPNOTSUPP;
 	u16 vport_num;
 
-	esw = mlx5_devlink_eswitch_get(devlink);
+	esw = mlx5_devlink_eswitch_get(port->devlink);
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
@@ -1923,8 +1922,7 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
 	return err;
 }
 
-int mlx5_devlink_port_function_hw_addr_set(struct devlink *devlink,
-					   struct devlink_port *port,
+int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
 					   const u8 *hw_addr, int hw_addr_len,
 					   struct netlink_ext_ack *extack)
 {
@@ -1933,7 +1931,7 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink *devlink,
 	int err = -EOPNOTSUPP;
 	u16 vport_num;
 
-	esw = mlx5_devlink_eswitch_get(devlink);
+	esw = mlx5_devlink_eswitch_get(port->devlink);
 	if (IS_ERR(esw)) {
 		NL_SET_ERR_MSG_MOD(extack, "Eswitch doesn't support set hw_addr");
 		return PTR_ERR(esw);
