@@ -173,7 +173,7 @@ static struct fanotify_event *get_one_event(struct fsnotify_group *group,
 	size_t event_size = FAN_EVENT_METADATA_LEN;
 	struct fanotify_event *event = NULL;
 	struct fsnotify_event *fsn_event;
-	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
+	unsigned int info_mode = FAN_GROUP_FLAG(group, FANOTIFY_INFO_MODES);
 
 	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
 
@@ -183,8 +183,8 @@ static struct fanotify_event *get_one_event(struct fsnotify_group *group,
 		goto out;
 
 	event = FANOTIFY_E(fsn_event);
-	if (fid_mode)
-		event_size += fanotify_event_info_len(fid_mode, event);
+	if (info_mode)
+		event_size += fanotify_event_info_len(info_mode, event);
 
 	if (event_size > count) {
 		event = ERR_PTR(-EINVAL);
@@ -401,6 +401,86 @@ static int copy_fid_info_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
 	return info_len;
 }
 
+static int copy_info_records_to_user(struct fanotify_event *event,
+				     struct fanotify_info *info,
+				     unsigned int info_mode,
+				     char __user *buf, size_t count)
+{
+	int ret, total_bytes = 0, info_type = 0;
+	unsigned int fid_mode = info_mode & FANOTIFY_FID_BITS;
+
+	/*
+	 * Event info records order is as follows: dir fid + name, child fid.
+	 */
+	if (fanotify_event_dir_fh_len(event)) {
+		info_type = info->name_len ? FAN_EVENT_INFO_TYPE_DFID_NAME :
+					     FAN_EVENT_INFO_TYPE_DFID;
+		ret = copy_fid_info_to_user(fanotify_event_fsid(event),
+					    fanotify_info_dir_fh(info),
+					    info_type,
+					    fanotify_info_name(info),
+					    info->name_len, buf, count);
+		if (ret < 0)
+			return ret;
+
+		buf += ret;
+		count -= ret;
+		total_bytes += ret;
+	}
+
+	if (fanotify_event_object_fh_len(event)) {
+		const char *dot = NULL;
+		int dot_len = 0;
+
+		if (fid_mode == FAN_REPORT_FID || info_type) {
+			/*
+			 * With only group flag FAN_REPORT_FID only type FID is
+			 * reported. Second info record type is always FID.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_FID;
+		} else if ((fid_mode & FAN_REPORT_NAME) &&
+			   (event->mask & FAN_ONDIR)) {
+			/*
+			 * With group flag FAN_REPORT_NAME, if name was not
+			 * recorded in an event on a directory, report the name
+			 * "." with info type DFID_NAME.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
+			dot = ".";
+			dot_len = 1;
+		} else if ((event->mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
+			   (event->mask & FAN_ONDIR)) {
+			/*
+			 * With group flag FAN_REPORT_DIR_FID, a single info
+			 * record has type DFID for directory entry modification
+			 * event and for event on a directory.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_DFID;
+		} else {
+			/*
+			 * With group flags FAN_REPORT_DIR_FID|FAN_REPORT_FID,
+			 * a single info record has type FID for event on a
+			 * non-directory, when there is no directory to report.
+			 * For example, on FAN_DELETE_SELF event.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_FID;
+		}
+
+		ret = copy_fid_info_to_user(fanotify_event_fsid(event),
+					    fanotify_event_object_fh(event),
+					    info_type, dot, dot_len,
+					    buf, count);
+		if (ret < 0)
+			return ret;
+
+		buf += ret;
+		count -= ret;
+		total_bytes += ret;
+	}
+
+	return total_bytes;
+}
+
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
 				  struct fanotify_event *event,
 				  char __user *buf, size_t count)
@@ -408,15 +488,14 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct fanotify_event_metadata metadata;
 	struct path *path = fanotify_event_path(event);
 	struct fanotify_info *info = fanotify_event_info(event);
-	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
+	unsigned int info_mode = FAN_GROUP_FLAG(group, FANOTIFY_INFO_MODES);
 	struct file *f = NULL;
 	int ret, fd = FAN_NOFD;
-	int info_type = 0;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	metadata.event_len = FAN_EVENT_METADATA_LEN +
-				fanotify_event_info_len(fid_mode, event);
+				fanotify_event_info_len(info_mode, event);
 	metadata.metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata.vers = FANOTIFY_METADATA_VERSION;
 	metadata.reserved = 0;
@@ -465,69 +544,11 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (f)
 		fd_install(fd, f);
 
-	/* Event info records order is: dir fid + name, child fid */
-	if (fanotify_event_dir_fh_len(event)) {
-		info_type = info->name_len ? FAN_EVENT_INFO_TYPE_DFID_NAME :
-					     FAN_EVENT_INFO_TYPE_DFID;
-		ret = copy_fid_info_to_user(fanotify_event_fsid(event),
-					    fanotify_info_dir_fh(info),
-					    info_type,
-					    fanotify_info_name(info),
-					    info->name_len, buf, count);
+	if (info_mode) {
+		ret = copy_info_records_to_user(event, info, info_mode,
+						buf, count);
 		if (ret < 0)
 			goto out_close_fd;
-
-		buf += ret;
-		count -= ret;
-	}
-
-	if (fanotify_event_object_fh_len(event)) {
-		const char *dot = NULL;
-		int dot_len = 0;
-
-		if (fid_mode == FAN_REPORT_FID || info_type) {
-			/*
-			 * With only group flag FAN_REPORT_FID only type FID is
-			 * reported. Second info record type is always FID.
-			 */
-			info_type = FAN_EVENT_INFO_TYPE_FID;
-		} else if ((fid_mode & FAN_REPORT_NAME) &&
-			   (event->mask & FAN_ONDIR)) {
-			/*
-			 * With group flag FAN_REPORT_NAME, if name was not
-			 * recorded in an event on a directory, report the
-			 * name "." with info type DFID_NAME.
-			 */
-			info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
-			dot = ".";
-			dot_len = 1;
-		} else if ((event->mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
-			   (event->mask & FAN_ONDIR)) {
-			/*
-			 * With group flag FAN_REPORT_DIR_FID, a single info
-			 * record has type DFID for directory entry modification
-			 * event and for event on a directory.
-			 */
-			info_type = FAN_EVENT_INFO_TYPE_DFID;
-		} else {
-			/*
-			 * With group flags FAN_REPORT_DIR_FID|FAN_REPORT_FID,
-			 * a single info record has type FID for event on a
-			 * non-directory, when there is no directory to report.
-			 * For example, on FAN_DELETE_SELF event.
-			 */
-			info_type = FAN_EVENT_INFO_TYPE_FID;
-		}
-
-		ret = copy_fid_info_to_user(fanotify_event_fsid(event),
-					    fanotify_event_object_fh(event),
-					    info_type, dot, dot_len,
-					    buf, count);
-		if (ret < 0)
-			goto out_close_fd;
-
-		buf += ret;
-		count -= ret;
 	}
 
 	return metadata.event_len;
