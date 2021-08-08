@@ -176,7 +176,7 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 	struct sja1105_mac_config_entry *mac;
 	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
-	int i;
+	struct dsa_port *dp;
 
 	table = &priv->static_config.tables[BLK_IDX_MAC_CONFIG];
 
@@ -195,8 +195,11 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 
 	mac = table->entries;
 
-	for (i = 0; i < ds->num_ports; i++) {
-		mac[i] = default_mac;
+	list_for_each_entry(dp, &ds->dst->ports, list) {
+		if (dp->ds != ds)
+			continue;
+
+		mac[dp->index] = default_mac;
 
 		/* Let sja1105_bridge_stp_state_set() keep address learning
 		 * enabled for the DSA ports. CPU ports use software-assisted
@@ -205,8 +208,8 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		 * CPU ports in a cross-chip topology if multiple CPU ports
 		 * exist.
 		 */
-		if (dsa_is_dsa_port(ds, i))
-			priv->learn_ena |= BIT(i);
+		if (dsa_port_is_dsa(dp))
+			dp->learning = true;
 	}
 
 	return 0;
@@ -1899,6 +1902,7 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 					 u8 state)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_mac_config_entry *mac;
 
@@ -1924,12 +1928,12 @@ static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 	case BR_STATE_LEARNING:
 		mac[port].ingress   = true;
 		mac[port].egress    = false;
-		mac[port].dyn_learn = !!(priv->learn_ena & BIT(port));
+		mac[port].dyn_learn = dp->learning;
 		break;
 	case BR_STATE_FORWARDING:
 		mac[port].ingress   = true;
 		mac[port].egress    = true;
-		mac[port].dyn_learn = !!(priv->learn_ena & BIT(port));
+		mac[port].dyn_learn = dp->learning;
 		break;
 	default:
 		dev_err(ds->dev, "invalid STP state: %d\n", state);
@@ -2891,23 +2895,13 @@ static int sja1105_port_set_learning(struct sja1105_private *priv, int port,
 				     bool enabled)
 {
 	struct sja1105_mac_config_entry *mac;
-	int rc;
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
 	mac[port].dyn_learn = enabled;
 
-	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
-					  &mac[port], true);
-	if (rc)
-		return rc;
-
-	if (enabled)
-		priv->learn_ena |= BIT(port);
-	else
-		priv->learn_ena &= ~BIT(port);
-
-	return 0;
+	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					    &mac[port], true);
 }
 
 static int sja1105_port_ucast_bcast_flood(struct sja1105_private *priv, int to,
