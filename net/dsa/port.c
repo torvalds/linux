@@ -60,6 +60,21 @@ static void dsa_port_fast_age(const struct dsa_port *dp)
 	dsa_port_notify_bridge_fdb_flush(dp);
 }
 
+static bool dsa_port_can_configure_learning(struct dsa_port *dp)
+{
+	struct switchdev_brport_flags flags = {
+		.mask = BR_LEARNING,
+	};
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (!ds->ops->port_bridge_flags || !ds->ops->port_pre_bridge_flags)
+		return false;
+
+	err = ds->ops->port_pre_bridge_flags(ds, dp->index, flags, NULL);
+	return !err;
+}
+
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -70,7 +85,8 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 
 	ds->ops->port_stp_state_set(ds, port, state);
 
-	if (do_fast_age && dp->learning) {
+	if (!dsa_port_can_configure_learning(dp) ||
+	    (do_fast_age && dp->learning)) {
 		/* Fast age FDB entries or flush appropriate forwarding database
 		 * for the given port, if we are moving it from Learning or
 		 * Forwarding state, to Disabled or Blocking or Listening state.
