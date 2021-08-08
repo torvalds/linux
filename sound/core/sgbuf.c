@@ -183,10 +183,19 @@ static unsigned int snd_dma_sg_get_chunk_size(struct snd_dma_buffer *dmab,
 	return size;
 }
 
+static int snd_dma_sg_mmap(struct snd_dma_buffer *dmab,
+			   struct vm_area_struct *area)
+{
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
+		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	return -ENOENT; /* continue with the default mmap handler */
+}
+
 const struct snd_malloc_ops snd_dma_sg_ops = {
 	.alloc = snd_dma_sg_alloc,
 	.free = snd_dma_sg_free,
 	.get_addr = snd_dma_sg_get_addr,
 	.get_page = snd_dma_sg_get_page,
 	.get_chunk_size = snd_dma_sg_get_chunk_size,
+	.mmap = snd_dma_sg_mmap,
 };
