@@ -30,6 +30,24 @@ static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
 	return dsa_tree_notify(dp->ds->dst, e, v);
 }
 
+static void dsa_port_notify_bridge_fdb_flush(const struct dsa_port *dp)
+{
+	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
+	struct switchdev_notifier_fdb_info info = {
+		/* flush all VLANs */
+		.vid = 0,
+	};
+
+	/* When the port becomes standalone it has already left the bridge.
+	 * Don't notify the bridge in that case.
+	 */
+	if (!brport_dev)
+		return;
+
+	call_switchdev_notifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
+				 brport_dev, &info.info, NULL);
+}
+
 static void dsa_port_fast_age(const struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -38,6 +56,8 @@ static void dsa_port_fast_age(const struct dsa_port *dp)
 		return;
 
 	ds->ops->port_fast_age(ds, dp->index);
+
+	dsa_port_notify_bridge_fdb_flush(dp);
 }
 
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
