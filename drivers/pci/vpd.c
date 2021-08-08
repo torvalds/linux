@@ -13,13 +13,7 @@
 
 /* VPD access through PCI 2.2+ VPD capability */
 
-struct pci_vpd_ops {
-	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
-	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-};
-
 struct pci_vpd {
-	const struct pci_vpd_ops *ops;
 	struct mutex	lock;
 	unsigned int	len;
 	u8		cap;
@@ -127,6 +121,9 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 	loff_t end = pos + count;
 	u8 *buf = arg;
 
+	if (!vpd)
+		return -ENODEV;
+
 	if (pos < 0)
 		return -EINVAL;
 
@@ -193,6 +190,9 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 	loff_t end = pos + count;
 	int ret = 0;
 
+	if (!vpd)
+		return -ENODEV;
+
 	if (pos < 0 || (pos & 3) || (count & 3))
 		return -EINVAL;
 
@@ -237,44 +237,6 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 	return ret ? ret : count;
 }
 
-static const struct pci_vpd_ops pci_vpd_ops = {
-	.read = pci_vpd_read,
-	.write = pci_vpd_write,
-};
-
-static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
-			       void *arg)
-{
-	struct pci_dev *tdev = pci_get_func0_dev(dev);
-	ssize_t ret;
-
-	if (!tdev)
-		return -ENODEV;
-
-	ret = pci_read_vpd(tdev, pos, count, arg);
-	pci_dev_put(tdev);
-	return ret;
-}
-
-static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
-				const void *arg)
-{
-	struct pci_dev *tdev = pci_get_func0_dev(dev);
-	ssize_t ret;
-
-	if (!tdev)
-		return -ENODEV;
-
-	ret = pci_write_vpd(tdev, pos, count, arg);
-	pci_dev_put(tdev);
-	return ret;
-}
-
-static const struct pci_vpd_ops pci_vpd_f0_ops = {
-	.read = pci_vpd_f0_read,
-	.write = pci_vpd_f0_write,
-};
-
 void pci_vpd_init(struct pci_dev *dev)
 {
 	struct pci_vpd *vpd;
@@ -289,10 +251,6 @@ void pci_vpd_init(struct pci_dev *dev)
 		return;
 
 	vpd->len = PCI_VPD_MAX_SIZE;
-	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
-		vpd->ops = &pci_vpd_f0_ops;
-	else
-		vpd->ops = &pci_vpd_ops;
 	mutex_init(&vpd->lock);
 	vpd->cap = cap;
 	vpd->valid = 0;
@@ -387,9 +345,19 @@ EXPORT_SYMBOL_GPL(pci_vpd_find_info_keyword);
  */
 ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
 {
-	if (!dev->vpd || !dev->vpd->ops)
-		return -ENODEV;
-	return dev->vpd->ops->read(dev, pos, count, buf);
+	ssize_t ret;
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		dev = pci_get_func0_dev(dev);
+		if (!dev)
+			return -ENODEV;
+
+		ret = pci_vpd_read(dev, pos, count, buf);
+		pci_dev_put(dev);
+		return ret;
+	}
+
+	return pci_vpd_read(dev, pos, count, buf);
 }
 EXPORT_SYMBOL(pci_read_vpd);
 
@@ -402,9 +370,19 @@ EXPORT_SYMBOL(pci_read_vpd);
  */
 ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
 {
-	if (!dev->vpd || !dev->vpd->ops)
-		return -ENODEV;
-	return dev->vpd->ops->write(dev, pos, count, buf);
+	ssize_t ret;
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		dev = pci_get_func0_dev(dev);
+		if (!dev)
+			return -ENODEV;
+
+		ret = pci_vpd_write(dev, pos, count, buf);
+		pci_dev_put(dev);
+		return ret;
+	}
+
+	return pci_vpd_write(dev, pos, count, buf);
 }
 EXPORT_SYMBOL(pci_write_vpd);
 
