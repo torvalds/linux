@@ -17,7 +17,6 @@ struct pci_vpd {
 	struct mutex	lock;
 	unsigned int	len;
 	u8		cap;
-	unsigned int	valid:1;
 };
 
 static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
@@ -25,7 +24,8 @@ static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
 	return pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
 }
 
-#define PCI_VPD_MAX_SIZE (PCI_VPD_ADDR_MASK + 1)
+#define PCI_VPD_MAX_SIZE	(PCI_VPD_ADDR_MASK + 1)
+#define PCI_VPD_SZ_INVALID	UINT_MAX
 
 /**
  * pci_vpd_size - determine actual size of Vital Product Data
@@ -35,6 +35,9 @@ static size_t pci_vpd_size(struct pci_dev *dev)
 {
 	size_t off = 0, size;
 	unsigned char tag, header[1+2];	/* 1 byte tag, 2 bytes length */
+
+	/* Otherwise the following reads would fail. */
+	dev->vpd->len = PCI_VPD_MAX_SIZE;
 
 	while (pci_read_vpd(dev, off, 1, header) == 1) {
 		size = 0;
@@ -47,7 +50,7 @@ static size_t pci_vpd_size(struct pci_dev *dev)
 			if (pci_read_vpd(dev, off + 1, 2, &header[1]) != 2) {
 				pci_warn(dev, "failed VPD read at offset %zu\n",
 					 off + 1);
-				return off;
+				return off ?: PCI_VPD_SZ_INVALID;
 			}
 			size = pci_vpd_lrdt_size(header);
 			if (off + size > PCI_VPD_MAX_SIZE)
@@ -72,7 +75,7 @@ error:
 	pci_info(dev, "invalid VPD tag %#04x (size %zu) at offset %zu%s\n",
 		 header[0], size, off, off == 0 ?
 		 "; assume missing optional EEPROM" : "");
-	return off;
+	return off ?: PCI_VPD_SZ_INVALID;
 }
 
 /*
@@ -127,12 +130,10 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 	if (pos < 0)
 		return -EINVAL;
 
-	if (!vpd->valid) {
-		vpd->valid = 1;
+	if (!vpd->len)
 		vpd->len = pci_vpd_size(dev);
-	}
 
-	if (vpd->len == 0)
+	if (vpd->len == PCI_VPD_SZ_INVALID)
 		return -EIO;
 
 	if (pos > vpd->len)
@@ -196,12 +197,10 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 	if (pos < 0 || (pos & 3) || (count & 3))
 		return -EINVAL;
 
-	if (!vpd->valid) {
-		vpd->valid = 1;
+	if (!vpd->len)
 		vpd->len = pci_vpd_size(dev);
-	}
 
-	if (vpd->len == 0)
+	if (vpd->len == PCI_VPD_SZ_INVALID)
 		return -EIO;
 
 	if (end > vpd->len)
@@ -250,10 +249,8 @@ void pci_vpd_init(struct pci_dev *dev)
 	if (!vpd)
 		return;
 
-	vpd->len = PCI_VPD_MAX_SIZE;
 	mutex_init(&vpd->lock);
 	vpd->cap = cap;
-	vpd->valid = 0;
 	dev->vpd = vpd;
 }
 
@@ -422,8 +419,7 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
 	if (dev->vpd) {
-		dev->vpd->len = 0;
-		dev->vpd->valid = 1;
+		dev->vpd->len = PCI_VPD_SZ_INVALID;
 		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
 	}
 }
@@ -454,7 +450,6 @@ static void pci_vpd_set_size(struct pci_dev *dev, size_t len)
 	if (!vpd || len == 0 || len > PCI_VPD_MAX_SIZE)
 		return;
 
-	vpd->valid = 1;
 	vpd->len = len;
 }
 
