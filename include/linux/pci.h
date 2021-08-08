@@ -300,9 +300,14 @@ struct pci_cap_saved_state {
 	struct pci_cap_saved_data	cap;
 };
 
+struct pci_vpd {
+	struct mutex	lock;
+	unsigned int	len;
+	u8		cap;
+};
+
 struct irq_affinity;
 struct pcie_link_state;
-struct pci_vpd;
 struct pci_sriov;
 struct pci_p2pdma;
 struct rcec_ea;
@@ -473,7 +478,7 @@ struct pci_dev {
 #ifdef CONFIG_PCI_MSI
 	const struct attribute_group **msi_irq_groups;
 #endif
-	struct pci_vpd *vpd;
+	struct pci_vpd	vpd;
 #ifdef CONFIG_PCIE_DPC
 	u16		dpc_cap;
 	unsigned int	dpc_rp_extensions:1;

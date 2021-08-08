@@ -13,12 +13,6 @@
 
 /* VPD access through PCI 2.2+ VPD capability */
 
-struct pci_vpd {
-	struct mutex	lock;
-	unsigned int	len;
-	u8		cap;
-};
-
 static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
 {
 	return pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
@@ -37,7 +31,7 @@ static size_t pci_vpd_size(struct pci_dev *dev)
 	unsigned char tag, header[1+2];	/* 1 byte tag, 2 bytes length */
 
 	/* Otherwise the following reads would fail. */
-	dev->vpd->len = PCI_VPD_MAX_SIZE;
+	dev->vpd.len = PCI_VPD_MAX_SIZE;
 
 	while (pci_read_vpd(dev, off, 1, header) == 1) {
 		size = 0;
@@ -89,7 +83,7 @@ error:
  */
 static int pci_vpd_wait(struct pci_dev *dev, bool set)
 {
-	struct pci_vpd *vpd = dev->vpd;
+	struct pci_vpd *vpd = &dev->vpd;
 	unsigned long timeout = jiffies + msecs_to_jiffies(125);
 	unsigned long max_sleep = 16;
 	u16 status;
@@ -119,12 +113,12 @@ static int pci_vpd_wait(struct pci_dev *dev, bool set)
 static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 			    void *arg)
 {
-	struct pci_vpd *vpd = dev->vpd;
+	struct pci_vpd *vpd = &dev->vpd;
 	int ret = 0;
 	loff_t end = pos + count;
 	u8 *buf = arg;
 
-	if (!vpd)
+	if (!vpd->cap)
 		return -ENODEV;
 
 	if (pos < 0)
@@ -186,12 +180,12 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 			     const void *arg)
 {
-	struct pci_vpd *vpd = dev->vpd;
+	struct pci_vpd *vpd = &dev->vpd;
 	const u8 *buf = arg;
 	loff_t end = pos + count;
 	int ret = 0;
 
-	if (!vpd)
+	if (!vpd->cap)
 		return -ENODEV;
 
 	if (pos < 0 || (pos & 3) || (count & 3))
@@ -238,25 +232,8 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 
 void pci_vpd_init(struct pci_dev *dev)
 {
-	struct pci_vpd *vpd;
-	u8 cap;
-
-	cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
-	if (!cap)
-		return;
-
-	vpd = kzalloc(sizeof(*vpd), GFP_ATOMIC);
-	if (!vpd)
-		return;
-
-	mutex_init(&vpd->lock);
-	vpd->cap = cap;
-	dev->vpd = vpd;
-}
-
-void pci_vpd_release(struct pci_dev *dev)
-{
-	kfree(dev->vpd);
+	dev->vpd.cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
+	mutex_init(&dev->vpd.lock);
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
@@ -288,7 +265,7 @@ static umode_t vpd_attr_is_visible(struct kobject *kobj,
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
-	if (!pdev->vpd)
+	if (!pdev->vpd.cap)
 		return 0;
 
 	return a->attr.mode;
@@ -400,7 +377,7 @@ static void quirk_f0_vpd_link(struct pci_dev *dev)
 	if (!f0)
 		return;
 
-	if (f0->vpd && dev->class == f0->class &&
+	if (f0->vpd.cap && dev->class == f0->class &&
 	    dev->vendor == f0->vendor && dev->device == f0->device)
 		dev->dev_flags |= PCI_DEV_FLAGS_VPD_REF_F0;
 
@@ -418,10 +395,8 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
  */
 static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
-	if (dev->vpd) {
-		dev->vpd->len = PCI_VPD_SZ_INVALID;
-		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
-	}
+	dev->vpd.len = PCI_VPD_SZ_INVALID;
+	pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0060, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x007c, quirk_blacklist_vpd);
@@ -443,16 +418,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, PCI_ANY_ID,
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
 			      PCI_CLASS_BRIDGE_PCI, 8, quirk_blacklist_vpd);
 
-static void pci_vpd_set_size(struct pci_dev *dev, size_t len)
-{
-	struct pci_vpd *vpd = dev->vpd;
-
-	if (!vpd || len == 0 || len > PCI_VPD_MAX_SIZE)
-		return;
-
-	vpd->len = len;
-}
-
 static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 {
 	int chip = (dev->device & 0xf000) >> 12;
@@ -471,9 +436,9 @@ static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 	 * limits.
 	 */
 	if (chip == 0x0 && prod >= 0x20)
-		pci_vpd_set_size(dev, 8192);
+		dev->vpd.len = 8192;
 	else if (chip >= 0x4 && func < 0x8)
-		pci_vpd_set_size(dev, 2048);
+		dev->vpd.len = 2048;
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
