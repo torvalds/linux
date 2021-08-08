@@ -152,8 +152,7 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
 	if (hardif_neigh && ret != NET_XMIT_DROP)
 		hardif_neigh->bat_v.last_unicast_tx = jiffies;
 
-	if (hardif_neigh)
-		batadv_hardif_neigh_put(hardif_neigh);
+	batadv_hardif_neigh_put(hardif_neigh);
 #endif
 
 	return ret;
@@ -309,8 +308,7 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 
 	ret = true;
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_hardif_put(primary_if);
 	return ret;
 }
 
@@ -425,8 +423,7 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 	ret = batadv_send_skb_unicast(bat_priv, skb, packet_type,
 				      packet_subtype, orig_node, vid);
 
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 
 	return ret;
 }
@@ -452,8 +449,7 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	ret = batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST_4ADDR,
 				      BATADV_P_DATA, orig_node, vid);
 
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 
 	return ret;
 }
@@ -474,10 +470,8 @@ void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
 	else
 		consume_skb(forw_packet->skb);
 
-	if (forw_packet->if_incoming)
-		batadv_hardif_put(forw_packet->if_incoming);
-	if (forw_packet->if_outgoing)
-		batadv_hardif_put(forw_packet->if_outgoing);
+	batadv_hardif_put(forw_packet->if_incoming);
+	batadv_hardif_put(forw_packet->if_outgoing);
 	if (forw_packet->queue_left)
 		atomic_inc(forw_packet->queue_left);
 	kfree(forw_packet);
@@ -867,8 +861,7 @@ static bool batadv_send_no_broadcast(struct batadv_priv *bat_priv,
 	ret = batadv_hardif_no_broadcast(if_out, bcast_packet->orig,
 					 orig_neigh);
 
-	if (neigh_node)
-		batadv_hardif_neigh_put(neigh_node);
+	batadv_hardif_neigh_put(neigh_node);
 
 	/* ok, may broadcast */
 	if (!ret)
