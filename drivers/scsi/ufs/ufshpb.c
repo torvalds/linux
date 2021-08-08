@@ -1385,7 +1385,8 @@ static int ufshpb_add_region(struct ufshpb_lu *hpb, struct ufshpb_region *rgn)
 			victim_rgn = ufshpb_victim_lru_info(hpb);
 			if (!victim_rgn) {
 				dev_warn(&hpb->sdev_ufs_lu->sdev_dev,
-				    "cannot get victim region error\n");
+				    "cannot get victim region %s\n",
+				    hpb->is_hcm ? "" : "error");
 				ret = -ENOMEM;
 				goto out;
 			}
