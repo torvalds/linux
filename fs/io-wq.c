@@ -282,16 +282,24 @@ static void create_worker_cb(struct callback_head *cb)
 	struct io_wq *wq;
 	struct io_wqe *wqe;
 	struct io_wqe_acct *acct;
+	bool do_create = false;
 
 	cwd = container_of(cb, struct create_worker_data, work);
 	wqe = cwd->wqe;
 	wq = wqe->wq;
 	acct = &wqe->acct[cwd->index];
 	raw_spin_lock_irq(&wqe->lock);
-	if (acct->nr_workers < acct->max_workers)
+	if (acct->nr_workers < acct->max_workers) {
 		acct->nr_workers++;
+		do_create = true;
+	}
 	raw_spin_unlock_irq(&wqe->lock);
-	create_io_worker(wq, cwd->wqe, cwd->index);
+	if (do_create) {
+		create_io_worker(wq, cwd->wqe, cwd->index);
+	} else {
+		atomic_dec(&acct->nr_running);
+		io_worker_ref_put(wq);
+	}
 	kfree(cwd);
 }
 
