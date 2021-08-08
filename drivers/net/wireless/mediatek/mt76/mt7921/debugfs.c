@@ -5,6 +5,32 @@
 #include "eeprom.h"
 
 static int
+mt7921_reg_set(void *data, u64 val)
+{
+	struct mt7921_dev *dev = data;
+
+	mt7921_mutex_acquire(dev);
+	mt76_wr(dev, dev->mt76.debugfs_reg, val);
+	mt7921_mutex_release(dev);
+
+	return 0;
+}
+
+static int
+mt7921_reg_get(void *data, u64 *val)
+{
+	struct mt7921_dev *dev = data;
+
+	mt7921_mutex_acquire(dev);
+	*val = mt76_rr(dev, dev->mt76.debugfs_reg);
+	mt7921_mutex_release(dev);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt7921_reg_get, mt7921_reg_set,
+			 "0x%08llx\n");
+static int
 mt7921_fw_debug_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
@@ -373,7 +399,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs(&dev->mt76);
+	dir = mt76_register_debugfs_fops(&dev->mt76, &fops_regval);
 	if (!dir)
 		return -ENOMEM;
 
