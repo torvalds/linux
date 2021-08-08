@@ -2685,7 +2685,7 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 				tpc_id < TPC_NUMBER_OF_ENGINES;
 				tpc_id++, tpc_offset += TPC_CFG_OFFSET) {
 		/* Mask all arithmetic interrupts from TPC */
-		WREG32(mmTPC0_CFG_TPC_INTR_MASK + tpc_offset, 0x8FFF);
+		WREG32(mmTPC0_CFG_TPC_INTR_MASK + tpc_offset, 0x8FFE);
 		/* Set 16 cache lines */
 		WREG32_FIELD(TPC0_CFG_MSS_CONFIG, tpc_offset,
 				ICACHE_FETCH_LINE_NUM, 2);
