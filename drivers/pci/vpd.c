@@ -124,9 +124,6 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 	if (pos < 0)
 		return -EINVAL;
 
-	if (vpd->len == PCI_VPD_SZ_INVALID)
-		return -EIO;
-
 	if (pos > vpd->len)
 		return 0;
 
@@ -188,9 +185,6 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 	if (pos < 0 || (pos & 3) || (count & 3))
 		return -EINVAL;
 
-	if (vpd->len == PCI_VPD_SZ_INVALID)
-		return -EIO;
-
 	if (end > vpd->len)
 		return -EINVAL;
 
@@ -231,6 +225,9 @@ void pci_vpd_init(struct pci_dev *dev)
 
 	if (!dev->vpd.len)
 		dev->vpd.len = pci_vpd_size(dev);
+
+	if (dev->vpd.len == PCI_VPD_SZ_INVALID)
+		dev->vpd.cap = 0;
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
