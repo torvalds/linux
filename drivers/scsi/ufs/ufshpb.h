@@ -32,7 +32,7 @@
 /* hpb support chunk size */
 #define HPB_LEGACY_CHUNK_HIGH			1
 #define HPB_MULTI_CHUNK_LOW			7
-#define HPB_MULTI_CHUNK_HIGH			256
+#define HPB_MULTI_CHUNK_HIGH			255
 
 /* hpb vender defined opcode */
 #define UFSHPB_READ				0xF8
