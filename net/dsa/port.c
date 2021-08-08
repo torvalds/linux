@@ -699,7 +699,9 @@ int dsa_port_bridge_flags(struct dsa_port *dp,
 		if (learning == dp->learning)
 			return 0;
 
-		if (dp->learning && !learning)
+		if ((dp->learning && !learning) &&
+		    (dp->stp_state == BR_STATE_LEARNING ||
+		     dp->stp_state == BR_STATE_FORWARDING))
 			dsa_port_fast_age(dp);
 
 		dp->learning = learning;
