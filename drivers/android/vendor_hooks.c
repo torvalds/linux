@@ -73,6 +73,7 @@
 #include <trace/hooks/sound.h>
 #include <trace/hooks/snd_compr.h>
 #include <trace/hooks/ipv4.h>
+#include <trace/hooks/pci.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -378,3 +379,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_tcp_recvmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_udp_sendmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_udp_recvmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_tcp_recvmsg_stat);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_pci_d3_sleep);

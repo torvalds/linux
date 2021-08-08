@@ -643,6 +643,7 @@
   drm_mode_equal
   drm_mode_equal_no_clocks
   drm_mode_object_find
+  drm_mode_object_get
   drm_mode_object_put
   drm_mode_probed_add
   drm_modeset_acquire_fini
@@ -1342,6 +1343,7 @@
   phy_init
   phy_power_off
   phy_power_on
+  pid_task
   pinconf_generic_dt_free_map
   pinconf_generic_dt_node_to_map
   pinctrl_add_gpio_range
@@ -1433,6 +1435,7 @@
   put_disk
   __put_net
   __put_page
+  put_pid
   put_sg_io_hdr
   __put_task_struct
   put_unused_fd
@@ -1491,6 +1494,7 @@
   register_netdev
   register_netdevice
   register_netdevice_notifier
+  register_oom_notifier
   register_pernet_device
   register_pernet_subsys
   register_pm_notifier
@@ -1893,6 +1897,7 @@
   time64_to_tm
   topology_set_thermal_pressure
   _totalram_pages
+  __trace_bputs
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_ignore_this_pid
@@ -1907,6 +1912,7 @@
   __traceiter_android_rvh_find_energy_efficient_cpu
   __traceiter_android_rvh_irqs_disable
   __traceiter_android_rvh_irqs_enable
+  __traceiter_android_rvh_pci_d3_sleep
   __traceiter_android_rvh_post_init_entity_util_avg
   __traceiter_android_rvh_preempt_disable
   __traceiter_android_rvh_preempt_enable
@@ -1981,6 +1987,7 @@
   __tracepoint_android_rvh_find_energy_efficient_cpu
   __tracepoint_android_rvh_irqs_disable
   __tracepoint_android_rvh_irqs_enable
+  __tracepoint_android_rvh_pci_d3_sleep
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_preempt_disable
   __tracepoint_android_rvh_preempt_enable
@@ -2104,6 +2111,7 @@
   unregister_netdevice_many
   unregister_netdevice_notifier
   unregister_netdevice_queue
+  unregister_oom_notifier
   unregister_pernet_device
   unregister_pernet_subsys
   unregister_pm_notifier
