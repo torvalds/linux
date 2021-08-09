@@ -1034,7 +1034,7 @@ static void prepare_fc(struct movable_zone_fill_control *fc)
 
 	zone = &(NODE_DATA(0)->node_zones[ZONE_MOVABLE]);
 	fc->zone = zone;
-	fc->start_pfn = zone->zone_start_pfn;
+	fc->start_pfn = ALIGN(zone->zone_start_pfn, pageblock_nr_pages);
 	fc->end_pfn = zone_end_pfn(zone);
 	fc->limit = atomic64_read(&zone->managed_pages);
 	INIT_LIST_HEAD(&fc->freepages);
@@ -1058,6 +1058,10 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 	unsigned long start_pfn = fc->start_pfn;
 	unsigned long end_pfn = fc->end_pfn;
 	LIST_HEAD(tmp);
+	struct zone *dst_zone = page_zone(pfn_to_page(start_pfn));
+
+	if (zone_page_state(dst_zone, NR_FREE_PAGES) < high_wmark_pages(dst_zone))
+		return;
 
 	spin_lock_irqsave(&fc->zone->lock, flags);
 	for (; start_pfn < end_pfn; start_pfn++) {
@@ -1099,11 +1103,17 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 
 		INIT_LIST_HEAD(&tmp);
 		isolated = isolate_and_split_free_page(page, &tmp);
+		if (!isolated) {
+			fc->start_pfn = ALIGN(fc->start_pfn, pageblock_nr_pages);
+			goto out;
+		}
+
 		list_splice(&tmp, &fc->freepages);
 		fc->nr_free_pages += isolated;
 		start_pfn += isolated - 1;
 	}
 	fc->start_pfn = start_pfn;
+out:
 	spin_unlock_irqrestore(&fc->zone->lock, flags);
 }
 
