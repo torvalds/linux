@@ -1045,7 +1045,6 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
 static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
-static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
 
 static bool io_cqring_fill_event(struct io_ring_ctx *ctx, u64 user_data,
 				 long res, unsigned int cflags);
@@ -7160,6 +7159,50 @@ static void io_rsrc_node_destroy(struct io_rsrc_node *ref_node)
 	kfree(ref_node);
 }
 
+static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
+{
+	struct io_rsrc_node *node = container_of(ref, struct io_rsrc_node, refs);
+	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
+	unsigned long flags;
+	bool first_add = false;
+
+	spin_lock_irqsave(&ctx->rsrc_ref_lock, flags);
+	node->done = true;
+
+	while (!list_empty(&ctx->rsrc_ref_list)) {
+		node = list_first_entry(&ctx->rsrc_ref_list,
+					    struct io_rsrc_node, node);
+		/* recycle ref nodes in order */
+		if (!node->done)
+			break;
+		list_del(&node->node);
+		first_add |= llist_add(&node->llist, &ctx->rsrc_put_llist);
+	}
+	spin_unlock_irqrestore(&ctx->rsrc_ref_lock, flags);
+
+	if (first_add)
+		mod_delayed_work(system_wq, &ctx->rsrc_put_work, HZ);
+}
+
+static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
+{
+	struct io_rsrc_node *ref_node;
+
+	ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
+	if (!ref_node)
+		return NULL;
+
+	if (percpu_ref_init(&ref_node->refs, io_rsrc_node_ref_zero,
+			    0, GFP_KERNEL)) {
+		kfree(ref_node);
+		return NULL;
+	}
+	INIT_LIST_HEAD(&ref_node->node);
+	INIT_LIST_HEAD(&ref_node->rsrc_list);
+	ref_node->done = false;
+	return ref_node;
+}
+
 static void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 				struct io_rsrc_data *data_to_kill)
 {
@@ -7672,50 +7715,6 @@ static void io_rsrc_put_work(struct work_struct *work)
 		__io_rsrc_put_work(ref_node);
 		node = next;
 	}
-}
-
-static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
-{
-	struct io_rsrc_node *node = container_of(ref, struct io_rsrc_node, refs);
-	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
-	unsigned long flags;
-	bool first_add = false;
-
-	spin_lock_irqsave(&ctx->rsrc_ref_lock, flags);
-	node->done = true;
-
-	while (!list_empty(&ctx->rsrc_ref_list)) {
-		node = list_first_entry(&ctx->rsrc_ref_list,
-					    struct io_rsrc_node, node);
-		/* recycle ref nodes in order */
-		if (!node->done)
-			break;
-		list_del(&node->node);
-		first_add |= llist_add(&node->llist, &ctx->rsrc_put_llist);
-	}
-	spin_unlock_irqrestore(&ctx->rsrc_ref_lock, flags);
-
-	if (first_add)
-		mod_delayed_work(system_wq, &ctx->rsrc_put_work, HZ);
-}
-
-static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
-{
-	struct io_rsrc_node *ref_node;
-
-	ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
-	if (!ref_node)
-		return NULL;
-
-	if (percpu_ref_init(&ref_node->refs, io_rsrc_node_ref_zero,
-			    0, GFP_KERNEL)) {
-		kfree(ref_node);
-		return NULL;
-	}
-	INIT_LIST_HEAD(&ref_node->node);
-	INIT_LIST_HEAD(&ref_node->rsrc_list);
-	ref_node->done = false;
-	return ref_node;
 }
 
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
