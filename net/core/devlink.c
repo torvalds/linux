@@ -1274,7 +1274,7 @@ static int devlink_port_type_set(struct devlink_port *devlink_port,
 {
 	int err;
 
-	if (devlink_port->devlink->ops->port_type_set)
+	if (!devlink_port->devlink->ops->port_type_set)
 		return -EOPNOTSUPP;
 
 	if (port_type == devlink_port->type)
