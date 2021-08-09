@@ -2182,16 +2182,12 @@ static inline void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static void io_free_req_deferred(struct io_kiocb *req)
-{
-	req->io_task_work.func = io_free_req;
-	io_req_task_work_add(req);
-}
-
 static inline void io_put_req_deferred(struct io_kiocb *req, int refs)
 {
-	if (req_ref_sub_and_test(req, refs))
-		io_free_req_deferred(req);
+	if (req_ref_sub_and_test(req, refs)) {
+		req->io_task_work.func = io_free_req;
+		io_req_task_work_add(req);
+	}
 }
 
 static unsigned io_cqring_events(struct io_ring_ctx *ctx)
