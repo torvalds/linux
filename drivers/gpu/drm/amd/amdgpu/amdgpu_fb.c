@@ -273,9 +273,6 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out:
-	if (abo) {
-
-	}
 	if (fb && ret) {
 		drm_gem_object_put(gobj);
 		drm_framebuffer_unregister_private(fb);
