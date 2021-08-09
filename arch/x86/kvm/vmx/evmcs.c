@@ -14,7 +14,6 @@ DEFINE_STATIC_KEY_FALSE(enable_evmcs);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 
-#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
 #define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
 		{EVMCS1_OFFSET(name), clean_field}
