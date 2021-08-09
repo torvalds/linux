@@ -423,7 +423,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 	if (IS_ERR(tfm)) {
 		ret = PTR_ERR(tfm);
 		dev_err(&fw_info->ndev->nfc_dev->dev,
-			"Cannot allocate shash (code=%d)\n", ret);
+			"Cannot allocate shash (code=%pe)\n", tfm);
 		goto out;
 	}
 

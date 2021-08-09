@@ -63,6 +63,9 @@ int ttm_mem_io_reserve(struct ttm_device *bdev,
 void ttm_mem_io_free(struct ttm_device *bdev,
 		     struct ttm_resource *mem)
 {
+	if (!mem)
+		return;
+
 	if (!mem->bus.offset && !mem->bus.addr)
 		return;
 

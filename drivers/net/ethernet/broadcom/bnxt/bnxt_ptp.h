@@ -32,6 +32,10 @@ struct bnxt_ptp_cfg {
 	u64			current_time;
 	u64			old_time;
 	unsigned long		next_period;
+	unsigned long		next_overflow_check;
+	/* 48-bit PHC overflows in 78 hours.  Check overflow every 19 hours. */
+	#define BNXT_PHC_OVERFLOW_PERIOD	(19 * 3600 * HZ)
+
 	u16			tx_seqid;
 	struct bnxt		*bp;
 	atomic_t		tx_avail;
@@ -75,7 +79,6 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
 int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb);
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts);
-void bnxt_ptp_start(struct bnxt *bp);
 int bnxt_ptp_init(struct bnxt *bp);
 void bnxt_ptp_clear(struct bnxt *bp);
 #endif

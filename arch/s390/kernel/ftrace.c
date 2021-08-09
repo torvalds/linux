@@ -40,6 +40,7 @@
  * trampoline (ftrace_plt), which clobbers also r1.
  */
 
+void *ftrace_func __read_mostly = ftrace_stub;
 unsigned long ftrace_plt;
 
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
@@ -85,6 +86,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
+	ftrace_func = func;
 	return 0;
 }
 

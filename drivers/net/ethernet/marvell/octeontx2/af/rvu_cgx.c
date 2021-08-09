@@ -126,6 +126,7 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 	unsigned long lmac_bmap;
 	int size, free_pkind;
 	int cgx, lmac, iter;
+	int numvfs, hwvfs;
 
 	if (!cgx_cnt_max)
 		return 0;
@@ -166,6 +167,8 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 			pkind->pfchan_map[free_pkind] = ((pf) & 0x3F) << 16;
 			rvu_map_cgx_nix_block(rvu, pf, cgx, lmac);
 			rvu->cgx_mapped_pfs++;
+			rvu_get_pf_numvfs(rvu, pf, &numvfs, &hwvfs);
+			rvu->cgx_mapped_vfs += numvfs;
 			pf++;
 		}
 	}
