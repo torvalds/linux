@@ -5749,24 +5749,12 @@ static int igc_save_launchtime_params(struct igc_adapter *adapter, int queue,
 				      bool enable)
 {
 	struct igc_ring *ring;
-	int i;
 
 	if (queue < 0 || queue >= adapter->num_tx_queues)
 		return -EINVAL;
 
 	ring = adapter->tx_ring[queue];
 	ring->launchtime_enable = enable;
-
-	if (adapter->base_time)
-		return 0;
-
-	adapter->cycle_time = NSEC_PER_SEC;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		ring = adapter->tx_ring[i];
-		ring->start_time = 0;
-		ring->end_time = NSEC_PER_SEC;
-	}
 
 	return 0;
 }
@@ -5840,16 +5828,31 @@ static int igc_tsn_enable_launchtime(struct igc_adapter *adapter,
 	return igc_tsn_offload_apply(adapter);
 }
 
+static int igc_tsn_clear_schedule(struct igc_adapter *adapter)
+{
+	int i;
+
+	adapter->base_time = 0;
+	adapter->cycle_time = NSEC_PER_SEC;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *ring = adapter->tx_ring[i];
+
+		ring->start_time = 0;
+		ring->end_time = NSEC_PER_SEC;
+	}
+
+	return 0;
+}
+
 static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 				 struct tc_taprio_qopt_offload *qopt)
 {
 	u32 start_time = 0, end_time = 0;
 	size_t n;
 
-	if (!qopt->enable) {
-		adapter->base_time = 0;
-		return 0;
-	}
+	if (!qopt->enable)
+		return igc_tsn_clear_schedule(adapter);
 
 	if (adapter->base_time)
 		return -EALREADY;
@@ -6338,6 +6341,8 @@ static int igc_probe(struct pci_dev *pdev,
 				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
 
 	igc_ptp_init(adapter);
+
+	igc_tsn_clear_schedule(adapter);
 
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
