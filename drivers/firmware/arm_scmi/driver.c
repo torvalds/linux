@@ -2067,9 +2067,11 @@ static int __init scmi_driver_init(void)
 {
 	int ret;
 
-	scmi_bus_init();
+	/* Bail out if no SCMI transport was configured */
+	if (WARN_ON(!IS_ENABLED(CONFIG_ARM_SCMI_HAVE_TRANSPORT)))
+		return -EINVAL;
 
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_ARM_SCMI_HAVE_TRANSPORT));
+	scmi_bus_init();
 
 	/* Initialize any compiled-in transport which provided an init/exit */
 	ret = scmi_transports_init();
