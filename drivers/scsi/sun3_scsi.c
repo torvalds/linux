@@ -366,8 +366,9 @@ static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
 }
 
 /* clean up after our dma is done */
-static int sun3scsi_dma_finish(int write_flag)
+static int sun3scsi_dma_finish(enum dma_data_direction data_dir)
 {
+	const bool write_flag = data_dir == DMA_TO_DEVICE;
 	unsigned short __maybe_unused count;
 	unsigned short fifo;
 	int ret = 0;
