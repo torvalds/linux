@@ -92,13 +92,8 @@
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
 #define IORING_SQPOLL_CAP_ENTRIES_VALUE 8
 
-/*
- * Shift of 9 is 512 entries, or exactly one page on 64-bit archs
- */
-#define IORING_FILE_TABLE_SHIFT	9
-#define IORING_MAX_FILES_TABLE	(1U << IORING_FILE_TABLE_SHIFT)
-#define IORING_FILE_TABLE_MASK	(IORING_MAX_FILES_TABLE - 1)
-#define IORING_MAX_FIXED_FILES	(64 * IORING_MAX_FILES_TABLE)
+/* 512 entries per page on 64-bit archs, 64 pages max */
+#define IORING_MAX_FIXED_FILES	(1U << 15)
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
@@ -235,8 +230,7 @@ struct io_rsrc_put {
 };
 
 struct io_file_table {
-	/* two level table */
-	struct io_fixed_file **files;
+	struct io_fixed_file *files;
 };
 
 struct io_rsrc_node {
@@ -6333,12 +6327,9 @@ static void io_wq_submit_work(struct io_wq_work *work)
 #define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
 
 static inline struct io_fixed_file *io_fixed_file_slot(struct io_file_table *table,
-						      unsigned i)
+						       unsigned i)
 {
-	struct io_fixed_file *table_l2;
-
-	table_l2 = table->files[i >> IORING_FILE_TABLE_SHIFT];
-	return &table_l2[i & IORING_FILE_TABLE_MASK];
+	return &table->files[i];
 }
 
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
@@ -7276,17 +7267,13 @@ fail:
 
 static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
 {
-	size_t size = nr_files * sizeof(struct io_fixed_file);
-
-	table->files = (struct io_fixed_file **)io_alloc_page_table(size);
+	table->files = kvcalloc(nr_files, sizeof(table->files[0]), GFP_KERNEL);
 	return !!table->files;
 }
 
-static void io_free_file_tables(struct io_file_table *table, unsigned nr_files)
+static void io_free_file_tables(struct io_file_table *table)
 {
-	size_t size = nr_files * sizeof(struct io_fixed_file);
-
-	io_free_page_table((void **)table->files, size);
+	kvfree(table->files);
 	table->files = NULL;
 }
 
@@ -7311,7 +7298,7 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 			fput(file);
 	}
 #endif
-	io_free_file_tables(&ctx->file_table, ctx->nr_user_files);
+	io_free_file_tables(&ctx->file_table);
 	io_rsrc_data_free(ctx->file_data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
@@ -7779,7 +7766,7 @@ out_fput:
 		if (file)
 			fput(file);
 	}
-	io_free_file_tables(&ctx->file_table, nr_args);
+	io_free_file_tables(&ctx->file_table);
 	ctx->nr_user_files = 0;
 out_free:
 	io_rsrc_data_free(ctx->file_data);
