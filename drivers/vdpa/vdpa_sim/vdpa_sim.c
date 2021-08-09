@@ -137,7 +137,8 @@ static dma_addr_t vdpasim_map_range(struct vdpasim *vdpasim, phys_addr_t paddr,
 	int ret;
 
 	/* We set the limit_pfn to the maximum (ULONG_MAX - 1) */
-	iova = alloc_iova(&vdpasim->iova, size, ULONG_MAX - 1, true);
+	iova = alloc_iova(&vdpasim->iova, size >> iova_shift(&vdpasim->iova),
+			  ULONG_MAX - 1, true);
 	if (!iova)
 		return DMA_MAPPING_ERROR;
 
