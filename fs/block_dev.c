@@ -1087,7 +1087,7 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 	if (!bdev->bd_openers) {
 		set_init_blocksize(bdev);
 		if (bdev->bd_bdi == &noop_backing_dev_info)
-			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
+			bdev->bd_bdi = bdi_get(disk->bdi);
 	}
 	if (test_bit(GD_NEED_PART_SCAN, &disk->state))
 		bdev_disk_changed(disk, false);
@@ -1122,7 +1122,7 @@ static int blkdev_get_part(struct block_device *part, fmode_t mode)
 	disk->open_partitions++;
 	set_init_blocksize(part);
 	if (part->bd_bdi == &noop_backing_dev_info)
-		part->bd_bdi = bdi_get(disk->queue->backing_dev_info);
+		part->bd_bdi = bdi_get(disk->bdi);
 done:
 	part->bd_openers++;
 	return 0;

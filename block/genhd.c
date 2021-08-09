@@ -466,10 +466,9 @@ static void register_disk(struct device *parent, struct gendisk *disk,
 	dev_set_uevent_suppress(ddev, 0);
 	disk_uevent(disk, KOBJ_ADD);
 
-	if (disk->queue->backing_dev_info->dev) {
-		err = sysfs_create_link(&ddev->kobj,
-			  &disk->queue->backing_dev_info->dev->kobj,
-			  "bdi");
+	if (disk->bdi->dev) {
+		err = sysfs_create_link(&ddev->kobj, &disk->bdi->dev->kobj,
+					"bdi");
 		WARN_ON(err);
 	}
 }
@@ -540,15 +539,14 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		disk->flags |= GENHD_FL_NO_PART_SCAN;
 	} else {
-		struct backing_dev_info *bdi = disk->queue->backing_dev_info;
 		struct device *dev = disk_to_dev(disk);
 
 		/* Register BDI before referencing it from bdev */
 		dev->devt = MKDEV(disk->major, disk->first_minor);
-		ret = bdi_register(bdi, "%u:%u",
+		ret = bdi_register(disk->bdi, "%u:%u",
 				   disk->major, disk->first_minor);
 		WARN_ON(ret);
-		bdi_set_owner(bdi, dev);
+		bdi_set_owner(disk->bdi, dev);
 		bdev_add(disk->part0, dev->devt);
 	}
 	register_disk(parent, disk, groups);
@@ -615,7 +613,7 @@ void del_gendisk(struct gendisk *disk)
 		 * Unregister bdi before releasing device numbers (as they can
 		 * get reused and we'd get clashes in sysfs).
 		 */
-		bdi_unregister(disk->queue->backing_dev_info);
+		bdi_unregister(disk->bdi);
 	}
 
 	blk_unregister_queue(disk);
@@ -1088,6 +1086,7 @@ static void disk_release(struct device *dev)
 
 	might_sleep();
 
+	bdi_put(disk->bdi);
 	if (MAJOR(dev->devt) == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(MINOR(dev->devt));
 	disk_release_events(disk);
@@ -1268,9 +1267,13 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	if (!disk)
 		return NULL;
 
+	disk->bdi = bdi_alloc(node_id);
+	if (!disk->bdi)
+		goto out_free_disk;
+
 	disk->part0 = bdev_alloc(disk, 0);
 	if (!disk->part0)
-		goto out_free_disk;
+		goto out_free_bdi;
 
 	disk->node_id = node_id;
 	mutex_init(&disk->open_mutex);
@@ -1292,6 +1295,8 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 out_destroy_part_tbl:
 	xa_destroy(&disk->part_tbl);
 	iput(disk->part0->bd_inode);
+out_free_bdi:
+	bdi_put(disk->bdi);
 out_free_disk:
 	kfree(disk);
 	return NULL;

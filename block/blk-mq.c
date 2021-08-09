@@ -525,7 +525,7 @@ void blk_mq_free_request(struct request *rq)
 		__blk_mq_dec_active_requests(hctx);
 
 	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
-		laptop_io_completion(q->backing_dev_info);
+		laptop_io_completion(queue_to_disk(q)->bdi);
 
 	rq_qos_done(q, rq);
 
