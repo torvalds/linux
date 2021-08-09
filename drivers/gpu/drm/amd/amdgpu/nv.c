@@ -608,16 +608,6 @@ static const struct amdgpu_ip_block_version nv_common_ip_block =
 	.funcs = &nv_common_ip_funcs,
 };
 
-static bool nv_is_headless_sku(struct pci_dev *pdev)
-{
-	if ((pdev->device == 0x731E &&
-	    (pdev->revision == 0xC6 || pdev->revision == 0xC7)) ||
-	    (pdev->device == 0x7340 && pdev->revision == 0xC9)  ||
-	    (pdev->device == 0x7360 && pdev->revision == 0xC7))
-		return true;
-	return false;
-}
-
 static int nv_reg_base_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -631,10 +621,6 @@ static int nv_reg_base_init(struct amdgpu_device *adev)
 		}
 
 		amdgpu_discovery_harvest_ip(adev);
-		if (nv_is_headless_sku(adev->pdev)) {
-			adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
-			adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
-		}
 
 		return 0;
 	}

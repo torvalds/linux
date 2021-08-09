@@ -434,6 +434,13 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
 	}
+	if ((adev->pdev->device == 0x731E &&
+	     (adev->pdev->revision == 0xC6 || adev->pdev->revision == 0xC7)) ||
+	    (adev->pdev->device == 0x7340 && adev->pdev->revision == 0xC9)  ||
+	    (adev->pdev->device == 0x7360 && adev->pdev->revision == 0xC7)) {
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
+	}
 }
 
 int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
