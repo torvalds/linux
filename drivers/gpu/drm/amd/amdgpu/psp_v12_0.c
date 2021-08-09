@@ -67,7 +67,7 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 
 	err = psp_init_asd_microcode(psp, chip_name);
 	if (err)
-		goto out;
+		return err;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
 	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
@@ -80,7 +80,7 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 	} else {
 		err = amdgpu_ucode_validate(adev->psp.ta_fw);
 		if (err)
-			goto out2;
+			goto out;
 
 		ta_hdr = (const struct ta_firmware_header_v1_0 *)
 				 adev->psp.ta_fw->data;
@@ -105,10 +105,9 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 
 	return 0;
 
-out2:
+out:
 	release_firmware(adev->psp.ta_fw);
 	adev->psp.ta_fw = NULL;
-out:
 	if (err) {
 		dev_err(adev->dev,
 			"psp v12.0: Failed to load firmware \"%s\"\n",

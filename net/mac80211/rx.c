@@ -730,7 +730,8 @@ ieee80211_make_monitor_skb(struct ieee80211_local *local,
 		 * Need to make a copy and possibly remove radiotap header
 		 * and FCS from the original.
 		 */
-		skb = skb_copy_expand(*origskb, needed_headroom, 0, GFP_ATOMIC);
+		skb = skb_copy_expand(*origskb, needed_headroom + NET_SKB_PAD,
+				      0, GFP_ATOMIC);
 
 		if (!skb)
 			return NULL;
