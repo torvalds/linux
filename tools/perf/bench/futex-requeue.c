@@ -77,6 +77,8 @@ static void print_summary(void)
 
 static void *workerfn(void *arg __maybe_unused)
 {
+	int ret;
+
 	pthread_mutex_lock(&thread_lock);
 	threads_starting--;
 	if (!threads_starting)
@@ -84,7 +86,18 @@ static void *workerfn(void *arg __maybe_unused)
 	pthread_cond_wait(&thread_worker, &thread_lock);
 	pthread_mutex_unlock(&thread_lock);
 
-	futex_wait(&futex1, 0, NULL, futex_flag);
+	while (1) {
+		ret = futex_wait(&futex1, 0, NULL, futex_flag);
+		if (!ret)
+			break;
+
+		if (ret && errno != EAGAIN) {
+			if (!params.silent)
+				warn("futex_wait");
+			break;
+		}
+	}
+
 	return NULL;
 }
 
