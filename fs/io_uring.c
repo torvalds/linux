@@ -2006,8 +2006,6 @@ static void io_req_task_work_add(struct io_kiocb *req)
 	if (test_bit(0, &tctx->task_state) ||
 	    test_and_set_bit(0, &tctx->task_state))
 		return;
-	if (unlikely(tsk->flags & PF_EXITING))
-		goto fail;
 
 	/*
 	 * SQPOLL kernel thread doesn't need notification, just a wakeup. For
@@ -2020,7 +2018,7 @@ static void io_req_task_work_add(struct io_kiocb *req)
 		wake_up_process(tsk);
 		return;
 	}
-fail:
+
 	clear_bit(0, &tctx->task_state);
 	spin_lock_irqsave(&tctx->task_lock, flags);
 	node = tctx->task_list.first;
