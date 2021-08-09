@@ -1856,23 +1856,6 @@ static int sdma_v4_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	switch (adev->ip_versions[SDMA0_HWIP]) {
-	case IP_VERSION(4, 1, 0):
-	case IP_VERSION(4, 1, 1):
-	case IP_VERSION(4, 1, 2):
-		adev->sdma.num_instances = 1;
-		break;
-	case IP_VERSION(4, 2, 2):
-		adev->sdma.num_instances = 8;
-		break;
-	case IP_VERSION(4, 4, 0):
-		adev->sdma.num_instances = 5;
-		break;
-	default:
-		adev->sdma.num_instances = 2;
-		break;
-	}
-
 	r = sdma_v4_0_init_microcode(adev);
 	if (r) {
 		DRM_ERROR("Failed to load sdma firmware!\n");

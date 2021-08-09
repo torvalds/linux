@@ -1217,23 +1217,6 @@ static int sdma_v5_2_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	switch (adev->ip_versions[SDMA0_HWIP]) {
-	case IP_VERSION(5, 2, 0):
-		adev->sdma.num_instances = 4;
-		break;
-	case IP_VERSION(5, 2, 2):
-	case IP_VERSION(5, 2, 4):
-		adev->sdma.num_instances = 2;
-		break;
-	case IP_VERSION(5, 2, 1):
-	case IP_VERSION(5, 2, 5):
-	case IP_VERSION(5, 2, 3):
-		adev->sdma.num_instances = 1;
-		break;
-	default:
-		break;
-	}
-
 	sdma_v5_2_set_ring_funcs(adev);
 	sdma_v5_2_set_buffer_funcs(adev);
 	sdma_v5_2_set_vm_pte_funcs(adev);
