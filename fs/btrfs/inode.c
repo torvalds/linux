@@ -2303,7 +2303,6 @@ static int split_zoned_em(struct btrfs_inode *inode, u64 start, u64 len,
 	struct extent_map *split_mid = NULL;
 	struct extent_map *split_post = NULL;
 	int ret = 0;
-	int modified;
 	unsigned long flags;
 
 	/* Sanity check */
@@ -2333,11 +2332,12 @@ static int split_zoned_em(struct btrfs_inode *inode, u64 start, u64 len,
 	ASSERT(em->len == len);
 	ASSERT(!test_bit(EXTENT_FLAG_COMPRESSED, &em->flags));
 	ASSERT(em->block_start < EXTENT_MAP_LAST_BYTE);
+	ASSERT(test_bit(EXTENT_FLAG_PINNED, &em->flags));
+	ASSERT(!test_bit(EXTENT_FLAG_LOGGING, &em->flags));
+	ASSERT(!list_empty(&em->list));
 
 	flags = em->flags;
 	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
-	clear_bit(EXTENT_FLAG_LOGGING, &flags);
-	modified = !list_empty(&em->list);
 
 	/* First, replace the em with a new extent_map starting from * em->start */
 	split_pre->start = em->start;
@@ -2351,7 +2351,7 @@ static int split_zoned_em(struct btrfs_inode *inode, u64 start, u64 len,
 	split_pre->compress_type = em->compress_type;
 	split_pre->generation = em->generation;
 
-	replace_extent_mapping(em_tree, em, split_pre, modified);
+	replace_extent_mapping(em_tree, em, split_pre, 1);
 
 	/*
 	 * Now we only have an extent_map at:
@@ -2371,7 +2371,7 @@ static int split_zoned_em(struct btrfs_inode *inode, u64 start, u64 len,
 		split_mid->flags = flags;
 		split_mid->compress_type = em->compress_type;
 		split_mid->generation = em->generation;
-		add_extent_mapping(em_tree, split_mid, modified);
+		add_extent_mapping(em_tree, split_mid, 1);
 	}
 
 	if (post) {
@@ -2385,7 +2385,7 @@ static int split_zoned_em(struct btrfs_inode *inode, u64 start, u64 len,
 		split_post->flags = flags;
 		split_post->compress_type = em->compress_type;
 		split_post->generation = em->generation;
-		add_extent_mapping(em_tree, split_post, modified);
+		add_extent_mapping(em_tree, split_post, 1);
 	}
 
 	/* Once for us */
