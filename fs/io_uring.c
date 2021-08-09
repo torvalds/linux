@@ -1231,6 +1231,20 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	return false;
 }
 
+#define FFS_ASYNC_READ		0x1UL
+#define FFS_ASYNC_WRITE		0x2UL
+#ifdef CONFIG_64BIT
+#define FFS_ISREG		0x4UL
+#else
+#define FFS_ISREG		0x0UL
+#endif
+#define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
+
+static inline bool io_req_ffs_set(struct io_kiocb *req)
+{
+	return IS_ENABLED(CONFIG_64BIT) && (req->flags & REQ_F_FIXED_FILE);
+}
+
 static void io_req_track_inflight(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_INFLIGHT)) {
@@ -2682,7 +2696,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	unsigned ioprio;
 	int ret;
 
-	if (!(req->flags & REQ_F_ISREG) && S_ISREG(file_inode(file)->i_mode))
+	if (!io_req_ffs_set(req) && S_ISREG(file_inode(file)->i_mode))
 		req->flags |= REQ_F_ISREG;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
@@ -6318,15 +6332,6 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		io_req_task_queue_fail(req, ret);
 	}
 }
-
-#define FFS_ASYNC_READ		0x1UL
-#define FFS_ASYNC_WRITE		0x2UL
-#ifdef CONFIG_64BIT
-#define FFS_ISREG		0x4UL
-#else
-#define FFS_ISREG		0x0UL
-#endif
-#define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
 
 static inline struct io_fixed_file *io_fixed_file_slot(struct io_file_table *table,
 						       unsigned i)
