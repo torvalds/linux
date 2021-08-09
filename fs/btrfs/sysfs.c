@@ -984,7 +984,8 @@ static ssize_t btrfs_bg_reclaim_threshold_show(struct kobject *kobj,
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	ssize_t ret;
 
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", fs_info->bg_reclaim_threshold);
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n",
+			READ_ONCE(fs_info->bg_reclaim_threshold));
 
 	return ret;
 }
@@ -1001,10 +1002,10 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (thresh <= 50 || thresh > 100)
+	if (thresh != 0 && (thresh <= 50 || thresh > 100))
 		return -EINVAL;
 
-	fs_info->bg_reclaim_threshold = thresh;
+	WRITE_ONCE(fs_info->bg_reclaim_threshold, thresh);
 
 	return len;
 }

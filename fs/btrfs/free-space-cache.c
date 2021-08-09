@@ -2538,6 +2538,7 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	u64 offset = bytenr - block_group->start;
 	u64 to_free, to_unusable;
+	const int bg_reclaim_threshold = READ_ONCE(fs_info->bg_reclaim_threshold);
 
 	spin_lock(&ctl->tree_lock);
 	if (!used)
@@ -2567,9 +2568,9 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	/* All the region is now unusable. Mark it as unused and reclaim */
 	if (block_group->zone_unusable == block_group->length) {
 		btrfs_mark_bg_unused(block_group);
-	} else if (block_group->zone_unusable >=
-		   div_factor_fine(block_group->length,
-				   fs_info->bg_reclaim_threshold)) {
+	} else if (bg_reclaim_threshold &&
+		   block_group->zone_unusable >=
+		   div_factor_fine(block_group->length, bg_reclaim_threshold)) {
 		btrfs_mark_bg_to_reclaim(block_group);
 	}
 
