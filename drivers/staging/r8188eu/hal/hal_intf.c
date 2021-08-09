@@ -248,7 +248,7 @@ void rtw_hal_free_recv_priv(struct adapter *adapt)
 
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
-	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);
+	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 #ifdef CONFIG_88EU_AP_MODE

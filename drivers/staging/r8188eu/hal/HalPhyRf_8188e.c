@@ -86,7 +86,7 @@ void ODM_TxPwrTrackAdjust88E(struct odm_dm_struct *dm_odm, u8 Type,/*  0 = OFDM,
 static void odm_TxPwrTrackSetPwr88E(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
-		PHY_SetTxPowerLevel8188E(dm_odm->Adapter, *(dm_odm->pChannel));
+		PHY_SetTxPowerLevel8188E(dm_odm->Adapter, *dm_odm->pChannel);
 		dm_odm->BbSwingFlagOfdm = false;
 		dm_odm->BbSwingFlagCck	= false;
 	}
@@ -318,7 +318,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][4];
 					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][5];
 
-					if ((X != 0) && (*(dm_odm->pBandType) == ODM_BAND_2_4G)) {
+					if ((X != 0) && (*dm_odm->pBandType == ODM_BAND_2_4G)) {
 						if ((X & 0x00000200) != 0)	/* consider minus */
 							X = X | 0xFFFFFC00;
 						ele_A = ((X * ele_D)>>8)&0x000003FF;
@@ -883,7 +883,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 							};
 
 	u32 retryCount = 9;
-	if (*(dm_odm->mp_mode) == 1)
+	if (*dm_odm->mp_mode == 1)
 		retryCount = 9;
 	else
 		retryCount = 2;
@@ -1086,7 +1086,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
+	struct mpt_context *pMptCtx = &adapt->mppriv.MptCtx;
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate, Indexforchannel;
 	bool pathaok, pathbok;
@@ -1108,7 +1108,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		singletone = pMptCtx->bSingleTone;
 		carrier_sup = pMptCtx->bCarrierSuppression;
 	}
@@ -1219,9 +1219,9 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
+	struct mpt_context *pMptCtx = &adapt->mppriv.MptCtx;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		singletone = pMptCtx->bSingleTone;
 		carrier_sup = pMptCtx->bCarrierSuppression;
 	}
@@ -1231,7 +1231,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	if (singletone || carrier_sup)
 		return;
 
-	while (*(dm_odm->pbScanInProcess) && timecount < timeout) {
+	while (*dm_odm->pbScanInProcess && timecount < timeout) {
 		ODM_delay_ms(50);
 		timecount += 50;
 	}

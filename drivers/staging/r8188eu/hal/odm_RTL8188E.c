@@ -16,7 +16,7 @@ static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
 		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT7, 0); /*  disable HW AntDiv */
 		ODM_SetBBReg(dm_odm, ODM_REG_LNA_SWITCH_11N, BIT31, 1);  /*  1:CG, 0:CS */
@@ -44,7 +44,7 @@ static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
 		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT7, 0); /*  disable HW AntDiv */
 		ODM_SetBBReg(dm_odm, ODM_REG_RX_ANT_CTRL_11N, BIT5|BIT4|BIT3, 0); /* Default RX   (0/1) */
@@ -83,7 +83,7 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	u32	AntCombination = 2;
 
-	if (*(dm_odm->mp_mode) == 1)
+	if (*dm_odm->mp_mode == 1)
 		return;
 
 	for (i = 0; i < 6; i++) {
@@ -327,7 +327,7 @@ void ODM_AntennaDiversity_88E(struct odm_dm_struct *dm_odm)
 
 void odm_PrimaryCCA_Init(struct odm_dm_struct *dm_odm)
 {
-	struct dyn_primary_cca *PrimaryCCA = &(dm_odm->DM_PriCCA);
+	struct dyn_primary_cca *PrimaryCCA = &dm_odm->DM_PriCCA;
 
 	PrimaryCCA->DupRTS_flag = 0;
 	PrimaryCCA->intf_flag = 0;
@@ -338,7 +338,7 @@ void odm_PrimaryCCA_Init(struct odm_dm_struct *dm_odm)
 
 bool ODM_DynamicPrimaryCCA_DupRTS(struct odm_dm_struct *dm_odm)
 {
-	struct dyn_primary_cca *PrimaryCCA = &(dm_odm->DM_PriCCA);
+	struct dyn_primary_cca *PrimaryCCA = &dm_odm->DM_PriCCA;
 
 	return	PrimaryCCA->DupRTS_flag;
 }

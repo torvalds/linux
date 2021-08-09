@@ -11,7 +11,7 @@
 s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct odm_dm_struct *pDM_Odm = &(pHalData->odmpriv);
+	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
 
 	if (!netif_running(padapter->pnetdev))
 		return _FAIL;
@@ -30,7 +30,7 @@ s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable)
 void Hal_GetPowerTracking(struct adapter *padapter, u8 *enable)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct odm_dm_struct *pDM_Odm = &(pHalData->odmpriv);
+	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
 
 	*enable = pDM_Odm->RFCalibrateInfo.TxPowerTrackControl;
 }
@@ -135,7 +135,7 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
 	struct mpt_context *pMptCtx = &pAdapter->mppriv.MptCtx;
-	struct odm_dm_struct *pDM_Odm = &(pHalData->odmpriv);
+	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
 	s32		TempCCk;
 	u8		CCK_index, CCK_index_old = 0;
 	u8		Action = 0;	/* 0: no action, 1: even->odd, 2:odd->even */
@@ -209,7 +209,7 @@ void Hal_SetChannel(struct adapter *pAdapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
 	struct mp_priv	*pmp = &pAdapter->mppriv;
-	struct odm_dm_struct *pDM_Odm = &(pHalData->odmpriv);
+	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
 	u8		eRFPath;
 	u8		channel = pmp->channel;
 
