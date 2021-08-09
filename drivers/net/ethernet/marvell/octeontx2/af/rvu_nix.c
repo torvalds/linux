@@ -196,11 +196,22 @@ static void nix_rx_sync(struct rvu *rvu, int blkaddr)
 {
 	int err;
 
-	/*Sync all in flight RX packets to LLC/DRAM */
+	/* Sync all in flight RX packets to LLC/DRAM */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
 	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
 	if (err)
-		dev_err(rvu->dev, "NIX RX software sync failed\n");
+		dev_err(rvu->dev, "SYNC1: NIX RX software sync failed\n");
+
+	/* SW_SYNC ensures all existing transactions are finished and pkts
+	 * are written to LLC/DRAM, queues should be teared down after
+	 * successful SW_SYNC. Due to a HW errata, in some rare scenarios
+	 * an existing transaction might end after SW_SYNC operation. To
+	 * ensure operation is fully done, do the SW_SYNC twice.
+	 */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
+	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
+	if (err)
+		dev_err(rvu->dev, "SYNC2: NIX RX software sync failed\n");
 }
 
 static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
@@ -298,6 +309,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 					rvu_nix_chan_lbk(rvu, lbkid, vf + 1);
 		pfvf->rx_chan_cnt = 1;
 		pfvf->tx_chan_cnt = 1;
+		rvu_npc_set_pkind(rvu, NPC_RX_LBK_PKIND, pfvf);
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
 					      pfvf->rx_chan_cnt);
@@ -1952,6 +1964,35 @@ static void nix_tl1_default_cfg(struct rvu *rvu, struct nix_hw *nix_hw,
 	pfvf_map[schq] = TXSCH_SET_FLAG(pfvf_map[schq], NIX_TXSCHQ_CFG_DONE);
 }
 
+static void rvu_nix_tx_tl2_cfg(struct rvu *rvu, int blkaddr,
+			       u16 pcifunc, struct nix_txsch *txsch)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	int lbk_link_start, lbk_links;
+	u8 pf = rvu_get_pf(pcifunc);
+	int schq;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return;
+
+	lbk_link_start = hw->cgx_links;
+
+	for (schq = 0; schq < txsch->schq.max; schq++) {
+		if (TXSCH_MAP_FUNC(txsch->pfvf_map[schq]) != pcifunc)
+			continue;
+		/* Enable all LBK links with channel 63 by default so that
+		 * packets can be sent to LBK with a NPC TX MCAM rule
+		 */
+		lbk_links = hw->lbk_links;
+		while (lbk_links--)
+			rvu_write64(rvu, blkaddr,
+				    NIX_AF_TL3_TL2X_LINKX_CFG(schq,
+							      lbk_link_start +
+							      lbk_links),
+				    BIT_ULL(12) | RVU_SWITCH_LBK_CHAN);
+	}
+}
+
 int rvu_mbox_handler_nix_txschq_cfg(struct rvu *rvu,
 				    struct nix_txschq_config *req,
 				    struct msg_rsp *rsp)
@@ -2039,6 +2080,9 @@ int rvu_mbox_handler_nix_txschq_cfg(struct rvu *rvu,
 		}
 		rvu_write64(rvu, blkaddr, reg, regval);
 	}
+
+	rvu_nix_tx_tl2_cfg(rvu, blkaddr, pcifunc,
+			   &nix_hw->txsch[NIX_TXSCH_LVL_TL2]);
 
 	return 0;
 }
@@ -3180,6 +3224,8 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 	if (test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) && from_vf)
 		ether_addr_copy(pfvf->default_mac, req->mac_addr);
 
+	rvu_switch_update_rules(rvu, pcifunc);
+
 	return 0;
 }
 
@@ -3808,7 +3854,6 @@ static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
 		vlan = &nix_hw->txvlan;
 		kfree(vlan->rsrc.bmap);
 		mutex_destroy(&vlan->rsrc_lock);
-		devm_kfree(rvu->dev, vlan->entry2pfvf_map);
 
 		mcast = &nix_hw->mcast;
 		qmem_free(rvu->dev, mcast->mce_ctx);
@@ -3848,6 +3893,8 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	set_bit(NIXLF_INITIALIZED, &pfvf->flags);
+
+	rvu_switch_update_rules(rvu, pcifunc);
 
 	return rvu_cgx_start_stop_io(rvu, pcifunc, true);
 }

@@ -2113,9 +2113,6 @@ static void rvu_print_npc_mcam_info(struct seq_file *s,
 	int entry_acnt, entry_ecnt;
 	int cntr_acnt, cntr_ecnt;
 
-	/* Skip PF0 */
-	if (!pcifunc)
-		return;
 	rvu_npc_get_mcam_entry_alloc_info(rvu, pcifunc, blkaddr,
 					  &entry_acnt, &entry_ecnt);
 	rvu_npc_get_mcam_counter_alloc_info(rvu, pcifunc, blkaddr,
@@ -2298,7 +2295,7 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
 					 struct rvu_npc_mcam_rule *rule)
 {
-	if (rule->intf == NIX_INTF_TX) {
+	if (is_npc_intf_tx(rule->intf)) {
 		switch (rule->tx_action.op) {
 		case NIX_TX_ACTIONOP_DROP:
 			seq_puts(s, "\taction: Drop\n");

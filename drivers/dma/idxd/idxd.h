@@ -294,6 +294,14 @@ struct idxd_desc {
 	struct idxd_wq *wq;
 };
 
+/*
+ * This is software defined error for the completion status. We overload the error code
+ * that will never appear in completion status and only SWERR register.
+ */
+enum idxd_completion_status {
+	IDXD_COMP_DESC_ABORT = 0xff,
+};
+
 #define confdev_to_idxd(dev) container_of(dev, struct idxd_device, conf_dev)
 #define confdev_to_wq(dev) container_of(dev, struct idxd_wq, conf_dev)
 
@@ -481,5 +489,11 @@ static inline void perfmon_counter_overflow(struct idxd_device *idxd) {}
 static inline void perfmon_init(void) {}
 static inline void perfmon_exit(void) {}
 #endif
+
+static inline void complete_desc(struct idxd_desc *desc, enum idxd_complete_type reason)
+{
+	idxd_dma_complete_txd(desc, reason);
+	idxd_free_desc(desc->wq, desc);
+}
 
 #endif

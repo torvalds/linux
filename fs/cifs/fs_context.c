@@ -13,6 +13,9 @@
 #include <linux/magic.h>
 #include <linux/security.h>
 #include <net/net_namespace.h>
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 */
 
 #include <linux/ctype.h>
@@ -779,6 +782,10 @@ static int smb3_reconfigure(struct fs_context *fc)
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);
 	smb3_update_mnt_flags(cifs_sb);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (!rc)
+		rc = dfs_cache_remount_fs(cifs_sb);
+#endif
 
 	return rc;
 }
@@ -917,6 +924,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		ctx->cred_uid = uid;
 		ctx->cruid_specified = true;
+		break;
+	case Opt_backupuid:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			goto cifs_parse_mount_err;
+		ctx->backupuid = uid;
+		ctx->backupuid_specified = true;
 		break;
 	case Opt_backupgid:
 		gid = make_kgid(current_user_ns(), result.uint_32);

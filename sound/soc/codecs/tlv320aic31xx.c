@@ -1604,6 +1604,8 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
+	regcache_cache_only(aic31xx->regmap, true);
+
 	aic31xx->dev = &i2c->dev;
 	aic31xx->irq = i2c->irq;
 
