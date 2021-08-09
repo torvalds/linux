@@ -8,7 +8,7 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(struct adapter  *adapter)
 	struct xmit_frame	*xmit_frame;
 	struct xmit_buf	*xmitbuf;
 	struct pkt_attrib	*pattrib;
-	struct xmit_priv	*pxmitpriv = &(adapter->xmitpriv);
+	struct xmit_priv	*pxmitpriv = &adapter->xmitpriv;
 
 	xmit_frame = rtw_alloc_xmitframe(pxmitpriv);
 	if (!xmit_frame) {

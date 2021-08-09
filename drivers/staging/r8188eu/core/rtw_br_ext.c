@@ -319,7 +319,7 @@ static inline void __network_hash_link(struct adapter *priv,
 static inline void __network_hash_unlink(struct nat25_network_db_entry *ent)
 {
 	/*  Caller must spin_lock already! */
-	*(ent->pprev_hash) = ent->next_hash;
+	*ent->pprev_hash = ent->next_hash;
 	if (ent->next_hash)
 		ent->next_hash->pprev_hash = ent->pprev_hash;
 	ent->next_hash = NULL;
@@ -853,7 +853,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			} else {	/*  session phase */
 				DEBUG_INFO("NAT25: Insert PPPoE, insert session packet to %s\n", skb->dev->name);
 
-				__nat25_generate_pppoe_network_addr(networkAddr, skb->data, &(ph->sid));
+				__nat25_generate_pppoe_network_addr(networkAddr, skb->data, &ph->sid);
 
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
 
@@ -921,7 +921,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			} else {
 				if (ph->sid != 0) {
 					DEBUG_INFO("NAT25: Lookup PPPoE, lookup session packet from %s\n", skb->dev->name);
-					__nat25_generate_pppoe_network_addr(networkAddr, skb->data+ETH_ALEN, &(ph->sid));
+					__nat25_generate_pppoe_network_addr(networkAddr, skb->data+ETH_ALEN, &ph->sid);
 					__nat25_db_network_lookup_and_replace(priv, skb, networkAddr);
 					__nat25_db_print(priv);
 				} else {

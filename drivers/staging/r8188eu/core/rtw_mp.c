@@ -577,7 +577,7 @@ static int mp_xmit_packet_thread(void *context)
 	pmp_priv = (struct mp_priv *)context;
 	pmptx = &pmp_priv->tx;
 	padapter = pmp_priv->papdater;
-	pxmitpriv = &(padapter->xmitpriv);
+	pxmitpriv = &padapter->xmitpriv;
 
 	thread_enter("RTW_MP_THREAD");
 
@@ -596,7 +596,7 @@ static int mp_xmit_packet_thread(void *context)
 		}
 
 		memcpy((u8 *)(pxmitframe->buf_addr+TXDESC_OFFSET), pmptx->buf, pmptx->write_size);
-		memcpy(&(pxmitframe->attrib), &(pmptx->attrib), sizeof(struct pkt_attrib));
+		memcpy(&pxmitframe->attrib, &pmptx->attrib, sizeof(struct pkt_attrib));
 
 		dump_mpframe(padapter, pxmitframe);
 
@@ -625,7 +625,7 @@ exit:
 void fill_txdesc_for_mp(struct adapter *padapter, struct tx_desc *ptxdesc)
 {
 	struct mp_priv *pmp_priv = &padapter->mppriv;
-	memcpy(ptxdesc, &(pmp_priv->tx.desc), TXDESC_SIZE);
+	memcpy(ptxdesc, &pmp_priv->tx.desc, TXDESC_SIZE);
 }
 
 void SetPacketTx(struct adapter *padapter)
@@ -676,7 +676,7 @@ void SetPacketTx(struct adapter *padapter)
 	pmp_priv->tx.buf = (u8 *)N_BYTE_ALIGMENT((size_t)(pmp_priv->tx.pallocated_buf), XMITBUF_ALIGN_SZ);
 	ptr = pmp_priv->tx.buf;
 
-	desc = &(pmp_priv->tx.desc);
+	desc = &pmp_priv->tx.desc;
 	memset(desc, 0, TXDESC_SIZE);
 	pkt_start = ptr;
 	pkt_end = pkt_start + pkt_size;
@@ -954,7 +954,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 			goto exit;
 		}
 
-		list_add_tail(&pxmitbuf->list, &(pxmitpriv->free_xmit_extbuf_queue.queue));
+		list_add_tail(&pxmitbuf->list, &pxmitpriv->free_xmit_extbuf_queue.queue);
 		pxmitbuf++;
 	}
 
