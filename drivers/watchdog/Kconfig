@@ -1036,6 +1036,7 @@ config EBC_C384_WDT
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
 	depends on X86
+	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog on the Fintek F71808E,
 	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81803, F81865, and
