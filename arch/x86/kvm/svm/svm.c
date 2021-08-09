@@ -46,8 +46,6 @@
 #include "kvm_onhyperv.h"
 #include "svm_onhyperv.h"
 
-#define __ex(x) __kvm_handle_fault_on_reboot(x)
-
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
