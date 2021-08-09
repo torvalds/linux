@@ -222,7 +222,7 @@ static noinline void kcsan_check_scoped_accesses(void)
 
 /* Rules for generic atomic accesses. Called from fast-path. */
 static __always_inline bool
-is_atomic(const volatile void *ptr, size_t size, int type, struct kcsan_ctx *ctx)
+is_atomic(struct kcsan_ctx *ctx, const volatile void *ptr, size_t size, int type)
 {
 	if (type & KCSAN_ACCESS_ATOMIC)
 		return true;
@@ -259,7 +259,7 @@ is_atomic(const volatile void *ptr, size_t size, int type, struct kcsan_ctx *ctx
 }
 
 static __always_inline bool
-should_watch(const volatile void *ptr, size_t size, int type, struct kcsan_ctx *ctx)
+should_watch(struct kcsan_ctx *ctx, const volatile void *ptr, size_t size, int type)
 {
 	/*
 	 * Never set up watchpoints when memory operations are atomic.
@@ -268,7 +268,7 @@ should_watch(const volatile void *ptr, size_t size, int type, struct kcsan_ctx *
 	 * should not count towards skipped instructions, and (2) to actually
 	 * decrement kcsan_atomic_next for consecutive instruction stream.
 	 */
-	if (is_atomic(ptr, size, type, ctx))
+	if (is_atomic(ctx, ptr, size, type))
 		return false;
 
 	if (this_cpu_dec_return(kcsan_skip) >= 0)
@@ -637,7 +637,7 @@ check_access(const volatile void *ptr, size_t size, int type, unsigned long ip)
 	else {
 		struct kcsan_ctx *ctx = get_ctx(); /* Call only once in fast-path. */
 
-		if (unlikely(should_watch(ptr, size, type, ctx)))
+		if (unlikely(should_watch(ctx, ptr, size, type)))
 			kcsan_setup_watchpoint(ptr, size, type, ip);
 		else if (unlikely(ctx->scoped_accesses.prev))
 			kcsan_check_scoped_accesses();
