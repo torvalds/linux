@@ -189,6 +189,8 @@
 #define FEC_RXIC0		0xfff
 #define FEC_RXIC1		0xfff
 #define FEC_RXIC2		0xfff
+#define FEC_LPI_SLEEP		0xfff
+#define FEC_LPI_WAKE		0xfff
 #endif /* CONFIG_M5272 */
 
 
