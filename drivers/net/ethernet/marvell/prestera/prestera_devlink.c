@@ -530,6 +530,8 @@ err_trap_register:
 		prestera_trap = &prestera_trap_items_arr[i];
 		devlink_traps_unregister(devlink, &prestera_trap->trap, 1);
 	}
+	devlink_trap_groups_unregister(devlink, prestera_trap_groups_arr,
+				       groups_count);
 err_groups_register:
 	kfree(trap_data->trap_items_arr);
 err_trap_items_alloc:
