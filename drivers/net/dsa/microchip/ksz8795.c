@@ -1150,8 +1150,10 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 	/* If a VLAN is added with untagged flag different from the
 	 * port's Remove Tag flag, we need to change the latter.
 	 * Ignore VID 0, which is always untagged.
+	 * Ignore CPU port, which will always be tagged.
 	 */
-	if (untagged != p->remove_tag && vlan->vid != 0) {
+	if (untagged != p->remove_tag && vlan->vid != 0 &&
+	    port != dev->cpu_port) {
 		unsigned int vid;
 
 		/* Reject attempts to add a VLAN that requires the
@@ -1750,6 +1752,11 @@ static int ksz8_switch_init(struct ksz_device *dev)
 
 	/* set the real number of ports */
 	dev->ds->num_ports = dev->port_cnt;
+
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	dev->ds->untag_bridge_pvid = true;
 
 	return 0;
 }
