@@ -211,6 +211,15 @@ static void deallocate_doorbell(struct qcm_process_device *qpd,
 	WARN_ON(!old);
 }
 
+static void program_trap_handler_settings(struct device_queue_manager *dqm,
+				struct qcm_process_device *qpd)
+{
+	if (dqm->dev->kfd2kgd->program_trap_handler_settings)
+		dqm->dev->kfd2kgd->program_trap_handler_settings(
+						dqm->dev->kgd, qpd->vmid,
+						qpd->tba_addr, qpd->tma_addr);
+}
+
 static int allocate_vmid(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd,
 			struct queue *q)
@@ -240,6 +249,10 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	q->properties.vmid = allocated_vmid;
 
 	program_sh_mem_settings(dqm, qpd);
+
+	if (dqm->dev->device_info->asic_family >= CHIP_VEGA10 &&
+	    dqm->dev->cwsr_enabled)
+		program_trap_handler_settings(dqm, qpd);
 
 	/* qpd->page_table_base is set earlier when register_process()
 	 * is called, i.e. when the first queue is created.
@@ -582,7 +595,9 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		}
 
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
-				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
+				(dqm->dev->cwsr_enabled?
+				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE:
+				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
 		if (retval) {
 			pr_err("destroy mqd failed\n");
@@ -675,7 +690,9 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 			continue;
 
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
-				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
+				(dqm->dev->cwsr_enabled?
+				 KFD_PREEMPT_TYPE_WAVEFRONT_SAVE:
+				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN),
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
 		if (retval && !ret)
 			/* Return the first error, but keep going to
