@@ -907,6 +907,7 @@ static const struct of_device_id clk_vc5_of_match[];
 
 static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	unsigned int oe, sd, src_mask = 0, src_val = 0;
 	struct vc5_driver_data *vc5;
 	struct clk_init_data init;
 	const char *parent_names[2];
@@ -933,6 +934,29 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(vc5->regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(vc5->regmap),
 				     "failed to allocate register map\n");
+
+	ret = of_property_read_u32(client->dev.of_node, "idt,shutdown", &sd);
+	if (!ret) {
+		src_mask |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
+		if (sd)
+			src_val |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
+	} else if (ret != -EINVAL) {
+		return dev_err_probe(&client->dev, ret,
+				     "could not read idt,shutdown\n");
+	}
+
+	ret = of_property_read_u32(client->dev.of_node,
+				   "idt,output-enable-active", &oe);
+	if (!ret) {
+		src_mask |= VC5_PRIM_SRC_SHDN_SP;
+		if (oe)
+			src_val |= VC5_PRIM_SRC_SHDN_SP;
+	} else if (ret != -EINVAL) {
+		return dev_err_probe(&client->dev, ret,
+				     "could not read idt,output-enable-active\n");
+	}
+
+	regmap_update_bits(vc5->regmap, VC5_PRIM_SRC_SHDN, src_mask, src_val);
 
 	/* Register clock input mux */
 	memset(&init, 0, sizeof(init));
