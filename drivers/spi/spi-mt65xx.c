@@ -214,7 +214,7 @@ static int mtk_spi_set_hw_cs_timing(struct spi_device *spi)
 	struct spi_delay *cs_setup = &spi->cs_setup;
 	struct spi_delay *cs_hold = &spi->cs_hold;
 	struct spi_delay *cs_inactive = &spi->cs_inactive;
-	u16 setup, hold, inactive;
+	u32 setup, hold, inactive;
 	u32 reg_val;
 	int delay;
 
@@ -239,8 +239,8 @@ static int mtk_spi_set_hw_cs_timing(struct spi_device *spi)
 
 	reg_val = readl(mdata->base + SPI_CFG0_REG);
 	if (mdata->dev_comp->enhance_timing) {
-		hold = min(hold, 0xffff);
-		setup = min(setup, 0xffff);
+		hold = min_t(u32, hold, 0x10000);
+		setup = min_t(u32, setup, 0x10000);
 		reg_val &= ~(0xffff << SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
 		reg_val |= (((hold - 1) & 0xffff)
 			   << SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
@@ -248,8 +248,8 @@ static int mtk_spi_set_hw_cs_timing(struct spi_device *spi)
 		reg_val |= (((setup - 1) & 0xffff)
 			   << SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
 	} else {
-		hold = min(hold, 0xff);
-		setup = min(setup, 0xff);
+		hold = min_t(u32, hold, 0x100);
+		setup = min_t(u32, setup, 0x100);
 		reg_val &= ~(0xff << SPI_CFG0_CS_HOLD_OFFSET);
 		reg_val |= (((hold - 1) & 0xff) << SPI_CFG0_CS_HOLD_OFFSET);
 		reg_val &= ~(0xff << SPI_CFG0_CS_SETUP_OFFSET);
@@ -258,7 +258,7 @@ static int mtk_spi_set_hw_cs_timing(struct spi_device *spi)
 	}
 	writel(reg_val, mdata->base + SPI_CFG0_REG);
 
-	inactive = min(inactive, 0xff);
+	inactive = min_t(u32, inactive, 0x100);
 	reg_val = readl(mdata->base + SPI_CFG1_REG);
 	reg_val &= ~SPI_CFG1_CS_IDLE_MASK;
 	reg_val |= (((inactive - 1) & 0xff) << SPI_CFG1_CS_IDLE_OFFSET);
