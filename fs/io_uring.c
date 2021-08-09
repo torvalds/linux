@@ -1059,7 +1059,6 @@ static void io_rsrc_put_work(struct work_struct *work);
 
 static void io_req_task_queue(struct io_kiocb *req);
 static void io_submit_flush_completions(struct io_ring_ctx *ctx);
-static bool io_poll_remove_waitqs(struct io_kiocb *req);
 static int io_req_prep_async(struct io_kiocb *req);
 
 static struct kmem_cache *req_cachep;
@@ -5251,34 +5250,24 @@ static bool __io_poll_remove_one(struct io_kiocb *req,
 	return do_complete;
 }
 
-static bool io_poll_remove_waitqs(struct io_kiocb *req)
+static bool io_poll_remove_one(struct io_kiocb *req)
 	__must_hold(&req->ctx->completion_lock)
 {
+	int refs;
 	bool do_complete;
 
 	io_poll_remove_double(req);
 	do_complete = __io_poll_remove_one(req, io_poll_get_single(req), true);
 
-	if (req->opcode != IORING_OP_POLL_ADD && do_complete) {
-		/* non-poll requests have submit ref still */
-		req_ref_put(req);
-	}
-	return do_complete;
-}
-
-static bool io_poll_remove_one(struct io_kiocb *req)
-	__must_hold(&req->ctx->completion_lock)
-{
-	bool do_complete;
-
-	do_complete = io_poll_remove_waitqs(req);
 	if (do_complete) {
 		io_cqring_fill_event(req->ctx, req->user_data, -ECANCELED, 0);
 		io_commit_cqring(req->ctx);
 		req_set_fail(req);
-		io_put_req_deferred(req, 1);
-	}
 
+		/* non-poll requests have submit ref still */
+		refs = 1 + (req->opcode != IORING_OP_POLL_ADD);
+		io_put_req_deferred(req, refs);
+	}
 	return do_complete;
 }
 
