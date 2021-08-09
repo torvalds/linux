@@ -1487,8 +1487,8 @@ xlog_alloc_log(
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
 
-		iclog->ic_data = kmem_alloc_large(log->l_iclog_size,
-						KM_MAYFAIL | KM_ZERO);
+		iclog->ic_data = kvzalloc(log->l_iclog_size,
+				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!iclog->ic_data)
 			goto out_free_iclog;
 #ifdef DEBUG

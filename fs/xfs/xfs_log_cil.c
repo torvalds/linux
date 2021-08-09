@@ -185,7 +185,15 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc_large(buf_size, KM_NOFS);
+			/*
+			 * We are in transaction context, which means this
+			 * allocation will pick up GFP_NOFS from the
+			 * memalloc_nofs_save/restore context the transaction
+			 * holds. This means we can use GFP_KERNEL here so the
+			 * generic kvmalloc() code will run vmalloc on
+			 * contiguous page allocation failure as we require.
+			 */
+			lv = kvmalloc(buf_size, GFP_KERNEL);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
