@@ -1224,7 +1224,7 @@ static void kcsan_test_exit(void)
 	tracepoint_synchronize_unregister();
 }
 
-late_initcall(kcsan_test_init);
+late_initcall_sync(kcsan_test_init);
 module_exit(kcsan_test_exit);
 
 MODULE_LICENSE("GPL v2");
