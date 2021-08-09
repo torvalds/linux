@@ -1059,7 +1059,8 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     struct io_uring_rsrc_update2 *up,
 				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
-static struct file *io_file_get(struct io_submit_state *state,
+static struct file *io_file_get(struct io_ring_ctx *ctx,
+				struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
@@ -3621,7 +3622,8 @@ static int __io_splice_prep(struct io_kiocb *req,
 	if (unlikely(sp->flags & ~valid_flags))
 		return -EINVAL;
 
-	sp->file_in = io_file_get(NULL, req, READ_ONCE(sqe->splice_fd_in),
+	sp->file_in = io_file_get(req->ctx, NULL, req,
+				  READ_ONCE(sqe->splice_fd_in),
 				  (sp->flags & SPLICE_F_FD_IN_FIXED));
 	if (!sp->file_in)
 		return -EBADF;
@@ -6353,34 +6355,46 @@ static void io_fixed_file_set(struct io_fixed_file *file_slot, struct file *file
 	file_slot->file_ptr = file_ptr;
 }
 
-static struct file *io_file_get(struct io_submit_state *state,
-				struct io_kiocb *req, int fd, bool fixed)
+static inline struct file *io_file_get_fixed(struct io_ring_ctx *ctx,
+					     struct io_kiocb *req, int fd)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file;
+	unsigned long file_ptr;
 
-	if (fixed) {
-		unsigned long file_ptr;
-
-		if (unlikely((unsigned int)fd >= ctx->nr_user_files))
-			return NULL;
-		fd = array_index_nospec(fd, ctx->nr_user_files);
-		file_ptr = io_fixed_file_slot(&ctx->file_table, fd)->file_ptr;
-		file = (struct file *) (file_ptr & FFS_MASK);
-		file_ptr &= ~FFS_MASK;
-		/* mask in overlapping REQ_F and FFS bits */
-		req->flags |= (file_ptr << REQ_F_ASYNC_READ_BIT);
-		io_req_set_rsrc_node(req);
-	} else {
-		trace_io_uring_file_get(ctx, fd);
-		file = __io_file_get(state, fd);
-
-		/* we don't allow fixed io_uring files */
-		if (file && unlikely(file->f_op == &io_uring_fops))
-			io_req_track_inflight(req);
-	}
-
+	if (unlikely((unsigned int)fd >= ctx->nr_user_files))
+		return NULL;
+	fd = array_index_nospec(fd, ctx->nr_user_files);
+	file_ptr = io_fixed_file_slot(&ctx->file_table, fd)->file_ptr;
+	file = (struct file *) (file_ptr & FFS_MASK);
+	file_ptr &= ~FFS_MASK;
+	/* mask in overlapping REQ_F and FFS bits */
+	req->flags |= (file_ptr << REQ_F_ASYNC_READ_BIT);
+	io_req_set_rsrc_node(req);
 	return file;
+}
+
+static struct file *io_file_get_normal(struct io_ring_ctx *ctx,
+				       struct io_submit_state *state,
+				       struct io_kiocb *req, int fd)
+{
+	struct file *file = __io_file_get(state, fd);
+
+	trace_io_uring_file_get(ctx, fd);
+
+	/* we don't allow fixed io_uring files */
+	if (file && unlikely(file->f_op == &io_uring_fops))
+		io_req_track_inflight(req);
+	return file;
+}
+
+static inline struct file *io_file_get(struct io_ring_ctx *ctx,
+				       struct io_submit_state *state,
+				       struct io_kiocb *req, int fd, bool fixed)
+{
+	if (fixed)
+		return io_file_get_fixed(ctx, req, fd);
+	else
+		return io_file_get_normal(ctx, state, req, fd);
 }
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
@@ -6589,9 +6603,8 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	}
 
 	if (io_op_defs[req->opcode].needs_file) {
-		bool fixed = req->flags & REQ_F_FIXED_FILE;
-
-		req->file = io_file_get(state, req, READ_ONCE(sqe->fd), fixed);
+		req->file = io_file_get(ctx, state, req, READ_ONCE(sqe->fd),
+					(sqe_flags & IOSQE_FIXED_FILE));
 		if (unlikely(!req->file))
 			ret = -EBADF;
 	}
