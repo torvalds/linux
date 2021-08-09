@@ -53,6 +53,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN( 's', "silent",   &params.silent, "Silent mode: do not display data/details"),
 	OPT_BOOLEAN( 'S', "shared",   &params.fshared, "Use shared futexes instead of private ones"),
 	OPT_BOOLEAN( 'm', "mlockall", &params.mlockall, "Lock all current and future memory"),
+	OPT_BOOLEAN( 'B', "broadcast", &params.broadcast, "Requeue all threads at once"),
 	OPT_END()
 };
 
@@ -152,6 +153,9 @@ int bench_futex_requeue(int argc, const char **argv)
 		futex_flag = FUTEX_PRIVATE_FLAG;
 
 	if (params.nrequeue > params.nthreads)
+		params.nrequeue = params.nthreads;
+
+	if (params.broadcast)
 		params.nrequeue = params.nthreads;
 
 	printf("Run summary [PID %d]: Requeuing %d threads (from [%s] %p to %p), "
