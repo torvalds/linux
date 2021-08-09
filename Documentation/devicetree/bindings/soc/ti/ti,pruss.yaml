@@ -85,6 +85,8 @@ properties:
   dma-ranges:
     maxItems: 1
 
+  dma-coherent: true
+
   power-domains:
     description: |
       This property is as per sci-pm-domain.txt.
@@ -324,18 +326,29 @@ additionalProperties: false
 # - interrupt-controller
 # - pru
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - ti,k2g-pruss
-          - ti,am654-icssg
-          - ti,j721e-icssg
-          - ti,am642-icssg
-then:
-  required:
-    - power-domains
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,k2g-pruss
+              - ti,am654-icssg
+              - ti,j721e-icssg
+              - ti,am642-icssg
+    then:
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,k2g-pruss
+    then:
+      required:
+        - dma-coherent
 
 examples:
   - |
