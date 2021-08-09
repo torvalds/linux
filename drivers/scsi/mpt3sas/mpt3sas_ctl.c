@@ -3820,9 +3820,10 @@ enable_sdev_max_qd_store(struct device *cdev,
 				}
 			} else if (sas_target_priv_data->flags &
 			    MPT_TARGET_FLAGS_PCIE_DEVICE)
-				qdepth = MPT3SAS_NVME_QUEUE_DEPTH;
+				qdepth = ioc->max_nvme_qd;
 			else
-				qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
+				qdepth = (sas_target_priv_data->sas_dev->port_type > 1) ?
+				    ioc->max_wideport_qd : ioc->max_narrowport_qd;
 
 			mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 		}

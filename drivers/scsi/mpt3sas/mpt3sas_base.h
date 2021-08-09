@@ -576,6 +576,7 @@ struct _sas_device {
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
 	struct kref refcount;
+	u8	port_type;
 	struct hba_port *port;
 	struct sas_rphy *rphy;
 };
@@ -1443,6 +1444,10 @@ struct MPT3SAS_ADAPTER {
 	u8		tm_custom_handling;
 	u8		nvme_abort_timeout;
 	u16		max_shutdown_latency;
+	u16		max_wideport_qd;
+	u16		max_narrowport_qd;
+	u16		max_nvme_qd;
+	u8		max_sata_qd;
 
 	/* static config pages */
 	struct mpt3sas_facts facts;
@@ -1848,6 +1853,9 @@ int mpt3sas_config_get_pcie_device_pg0(struct MPT3SAS_ADAPTER *ioc,
 int mpt3sas_config_get_pcie_device_pg2(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeDevicePage2_t *config_page,
 	u32 form, u32 handle);
+int mpt3sas_config_get_pcie_iounit_pg1(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeIOUnitPage1_t *config_page,
+	u16 sz);
 int mpt3sas_config_get_sas_iounit_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasIOUnitPage0_t *config_page,
 	u16 sz);

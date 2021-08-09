@@ -1803,7 +1803,7 @@ scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	 * limit max device queue for SATA to 32 if enable_sdev_max_qd
 	 * is disabled.
 	 */
-	if (ioc->enable_sdev_max_qd)
+	if (ioc->enable_sdev_max_qd || ioc->is_gen35_ioc)
 		goto not_sata;
 
 	sas_device_priv_data = sdev->hostdata;
@@ -2657,7 +2657,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 			return 1;
 		}
 
-		qdepth = MPT3SAS_NVME_QUEUE_DEPTH;
+		qdepth = ioc->max_nvme_qd;
 		ds = "NVMe";
 		sdev_printk(KERN_INFO, sdev,
 			"%s: handle(0x%04x), wwid(0x%016llx), port(%d)\n",
@@ -2709,7 +2709,8 @@ scsih_slave_configure(struct scsi_device *sdev)
 	sas_device->volume_handle = volume_handle;
 	sas_device->volume_wwid = volume_wwid;
 	if (sas_device->device_info & MPI2_SAS_DEVICE_INFO_SSP_TARGET) {
-		qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
+		qdepth = (sas_device->port_type > 1) ?
+			ioc->max_wideport_qd : ioc->max_narrowport_qd;
 		ssp_target = 1;
 		if (sas_device->device_info &
 				MPI2_SAS_DEVICE_INFO_SEP) {
@@ -2721,7 +2722,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 		} else
 			ds = "SSP";
 	} else {
-		qdepth = MPT3SAS_SATA_QUEUE_DEPTH;
+		qdepth = ioc->max_sata_qd;
 		if (sas_device->device_info & MPI2_SAS_DEVICE_INFO_STP_TARGET)
 			ds = "STP";
 		else if (sas_device->device_info &
@@ -7371,6 +7372,10 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 
 	/* get device name */
 	sas_device->device_name = le64_to_cpu(sas_device_pg0.DeviceName);
+	sas_device->port_type = sas_device_pg0.MaxPortConnections;
+	ioc_info(ioc,
+	    "handle(0x%0x) sas_address(0x%016llx) port_type(0x%0x)\n",
+	    handle, sas_device->sas_address, sas_device->port_type);
 
 	if (ioc->wait_for_discovery_to_complete)
 		_scsih_sas_device_init_add(ioc, sas_device);
@@ -9604,6 +9609,42 @@ _scsih_prep_device_scan(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _scsih_update_device_qdepth - Update QD during Reset.
+ * @ioc: per adapter object
+ *
+ */
+static void
+_scsih_update_device_qdepth(struct MPT3SAS_ADAPTER *ioc)
+{
+	struct MPT3SAS_DEVICE *sas_device_priv_data;
+	struct MPT3SAS_TARGET *sas_target_priv_data;
+	struct _sas_device *sas_device;
+	struct scsi_device *sdev;
+	u16 qdepth;
+
+	ioc_info(ioc, "Update devices with firmware reported queue depth\n");
+	shost_for_each_device(sdev, ioc->shost) {
+		sas_device_priv_data = sdev->hostdata;
+		if (sas_device_priv_data && sas_device_priv_data->sas_target) {
+			sas_target_priv_data = sas_device_priv_data->sas_target;
+			sas_device = sas_device_priv_data->sas_target->sas_dev;
+			if (sas_target_priv_data->flags & MPT_TARGET_FLAGS_PCIE_DEVICE)
+				qdepth = ioc->max_nvme_qd;
+			else if (sas_device &&
+			    sas_device->device_info & MPI2_SAS_DEVICE_INFO_SSP_TARGET)
+				qdepth = (sas_device->port_type > 1) ?
+				    ioc->max_wideport_qd : ioc->max_narrowport_qd;
+			else if (sas_device &&
+			    sas_device->device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE)
+				qdepth = ioc->max_sata_qd;
+			else
+				continue;
+			mpt3sas_scsih_change_queue_depth(sdev, qdepth);
+		}
+	}
+}
+
+/**
  * _scsih_mark_responding_sas_device - mark a sas_devices as responding
  * @ioc: per adapter object
  * @sas_device_pg0: SAS Device page 0
@@ -10654,6 +10695,8 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		_scsih_remove_unresponding_devices(ioc);
 		_scsih_del_dirty_vphy(ioc);
 		_scsih_del_dirty_port_entries(ioc);
+		if (ioc->is_gen35_ioc)
+			_scsih_update_device_qdepth(ioc);
 		_scsih_scan_for_devices_after_reset(ioc);
 		/*
 		 * If diag reset has occurred during the driver load

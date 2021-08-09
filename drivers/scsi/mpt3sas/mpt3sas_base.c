@@ -5366,6 +5366,73 @@ _base_update_diag_trigger_pages(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_assign_fw_reported_qd	- Get FW reported QD for SAS/SATA devices.
+ *				- On failure set default QD values.
+ * @ioc : per adapter object
+ *
+ * Returns 0 for success, non-zero for failure.
+ *
+ */
+static int _base_assign_fw_reported_qd(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi26PCIeIOUnitPage1_t pcie_iounit_pg1;
+	int sz;
+	int rc = 0;
+
+	ioc->max_wideport_qd = MPT3SAS_SAS_QUEUE_DEPTH;
+	ioc->max_narrowport_qd = MPT3SAS_SAS_QUEUE_DEPTH;
+	ioc->max_sata_qd = MPT3SAS_SATA_QUEUE_DEPTH;
+	ioc->max_nvme_qd = MPT3SAS_NVME_QUEUE_DEPTH;
+	if (!ioc->is_gen35_ioc)
+		goto out;
+	/* sas iounit page 1 */
+	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData);
+	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg1) {
+		pr_err("%s: failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return rc;
+	}
+	rc = mpt3sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
+	    sas_iounit_pg1, sz);
+	if (rc) {
+		pr_err("%s: failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	ioc->max_wideport_qd =
+	    (le16_to_cpu(sas_iounit_pg1->SASWideMaxQueueDepth)) ?
+	    le16_to_cpu(sas_iounit_pg1->SASWideMaxQueueDepth) :
+	    MPT3SAS_SAS_QUEUE_DEPTH;
+	ioc->max_narrowport_qd =
+	    (le16_to_cpu(sas_iounit_pg1->SASNarrowMaxQueueDepth)) ?
+	    le16_to_cpu(sas_iounit_pg1->SASNarrowMaxQueueDepth) :
+	    MPT3SAS_SAS_QUEUE_DEPTH;
+	ioc->max_sata_qd = (sas_iounit_pg1->SATAMaxQDepth) ?
+	    sas_iounit_pg1->SATAMaxQDepth : MPT3SAS_SATA_QUEUE_DEPTH;
+	/* pcie iounit page 1 */
+	rc = mpt3sas_config_get_pcie_iounit_pg1(ioc, &mpi_reply,
+	    &pcie_iounit_pg1, sizeof(Mpi26PCIeIOUnitPage1_t));
+	if (rc) {
+		pr_err("%s: failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	ioc->max_nvme_qd = (le16_to_cpu(pcie_iounit_pg1.NVMeMaxQueueDepth)) ?
+	    (le16_to_cpu(pcie_iounit_pg1.NVMeMaxQueueDepth)) :
+	    MPT3SAS_NVME_QUEUE_DEPTH;
+out:
+	dinitprintk(ioc, pr_err(
+	    "MaxWidePortQD: 0x%x MaxNarrowPortQD: 0x%x MaxSataQD: 0x%x MaxNvmeQD: 0x%x\n",
+	    ioc->max_wideport_qd, ioc->max_narrowport_qd,
+	    ioc->max_sata_qd, ioc->max_nvme_qd));
+	kfree(sas_iounit_pg1);
+	return rc;
+}
+
+/**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
  */
@@ -5434,6 +5501,9 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 			ioc_warn(ioc,
 			    "TimeSync Interval in Manuf page-11 is not enabled. Periodic Time-Sync will be disabled\n");
 	}
+	rc = _base_assign_fw_reported_qd(ioc);
+	if (rc)
+		return rc;
 	rc = mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
 	if (rc)
 		return rc;
