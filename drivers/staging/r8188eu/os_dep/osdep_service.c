@@ -96,8 +96,8 @@ void	_rtw_mutex_free(struct mutex *pmutex)
 
 void	_rtw_init_queue(struct __queue *pqueue)
 {
-	INIT_LIST_HEAD(&(pqueue->queue));
-	spin_lock_init(&(pqueue->lock));
+	INIT_LIST_HEAD(&pqueue->queue);
+	spin_lock_init(&pqueue->lock);
 }
 
 inline u32 rtw_systime_to_ms(u32 systime)
