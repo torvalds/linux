@@ -753,6 +753,14 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
 		return err;
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
+	/*
+	 * For compressed file, after release compress blocks, don't allow write
+	 * direct, but we should allow write direct after truncate to zero.
+	 */
+	if (f2fs_compressed_file(inode) && !free_from
+			&& is_inode_flag_set(inode, FI_COMPRESS_RELEASED))
+		clear_inode_flag(inode, FI_COMPRESS_RELEASED);
+
 	if (from != free_from) {
 		err = f2fs_truncate_partial_cluster(inode, from, lock);
 		if (err)

@@ -865,8 +865,11 @@ Compression implementation
   directly in order to guarantee potential data updates later to the space.
   Instead, the main goal is to reduce data writes to flash disk as much as
   possible, resulting in extending disk life time as well as relaxing IO
-  congestion. Alternatively, we've added ioctl interface to reclaim compressed
-  space and show it to user after putting the immutable bit.
+  congestion. Alternatively, we've added ioctl(F2FS_IOC_RELEASE_COMPRESS_BLOCKS)
+  interface to reclaim compressed space and show it to user after putting the
+  immutable bit. Immutable bit, after release, it doesn't allow writing/mmaping
+  on the file, until reserving compressed space via
+  ioctl(F2FS_IOC_RESERVE_COMPRESS_BLOCKS) or truncating filesize to zero.
 
 Compress metadata layout::
 
