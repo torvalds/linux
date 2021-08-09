@@ -730,7 +730,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	long error;
 
 	/* Check the UAC bits to decide what the user wants us to do
-	   with the unaliged access.  */
+	   with the unaligned access.  */
 
 	if (!(current_thread_info()->status & TS_UAC_NOPRINT)) {
 		if (__ratelimit(&ratelimit)) {

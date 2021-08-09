@@ -388,13 +388,13 @@
 
 		pinctrl_power_button: powerbutgrp {
 			fsl,pins = <
-				MX53_PAD_SD2_DATA2__GPIO1_13		0x1e4
+				MX53_PAD_SD2_DATA0__GPIO1_15		0x1e4
 			>;
 		};
 
 		pinctrl_power_out: poweroutgrp {
 			fsl,pins = <
-				MX53_PAD_SD2_DATA0__GPIO1_15		0x1e4
+				MX53_PAD_SD2_DATA2__GPIO1_13		0x1e4
 			>;
 		};
 

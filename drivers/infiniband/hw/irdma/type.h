@@ -1222,8 +1222,7 @@ enum irdma_status_code irdma_sc_aeq_init(struct irdma_sc_aeq *aeq,
 					 struct irdma_aeq_init_info *info);
 enum irdma_status_code irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 					      struct irdma_aeqe_info *info);
-enum irdma_status_code irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev,
-						   u32 count);
+void irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count);
 
 void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_id,
 		      int abi_ver);

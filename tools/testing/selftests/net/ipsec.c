@@ -484,13 +484,16 @@ enum desc_type {
 	MONITOR_ACQUIRE,
 	EXPIRE_STATE,
 	EXPIRE_POLICY,
+	SPDINFO_ATTRS,
 };
 const char *desc_name[] = {
 	"create tunnel",
 	"alloc spi",
 	"monitor acquire",
 	"expire state",
-	"expire policy"
+	"expire policy",
+	"spdinfo attributes",
+	""
 };
 struct xfrm_desc {
 	enum desc_type	type;
@@ -1593,6 +1596,155 @@ out_close:
 	return ret;
 }
 
+static int xfrm_spdinfo_set_thresh(int xfrm_sock, uint32_t *seq,
+		unsigned thresh4_l, unsigned thresh4_r,
+		unsigned thresh6_l, unsigned thresh6_r,
+		bool add_bad_attr)
+
+{
+	struct {
+		struct nlmsghdr		nh;
+		union {
+			uint32_t	unused;
+			int		error;
+		};
+		char			attrbuf[MAX_PAYLOAD];
+	} req;
+	struct xfrmu_spdhthresh thresh;
+
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len	= NLMSG_LENGTH(sizeof(req.unused));
+	req.nh.nlmsg_type	= XFRM_MSG_NEWSPDINFO;
+	req.nh.nlmsg_flags	= NLM_F_REQUEST | NLM_F_ACK;
+	req.nh.nlmsg_seq	= (*seq)++;
+
+	thresh.lbits = thresh4_l;
+	thresh.rbits = thresh4_r;
+	if (rtattr_pack(&req.nh, sizeof(req), XFRMA_SPD_IPV4_HTHRESH, &thresh, sizeof(thresh)))
+		return -1;
+
+	thresh.lbits = thresh6_l;
+	thresh.rbits = thresh6_r;
+	if (rtattr_pack(&req.nh, sizeof(req), XFRMA_SPD_IPV6_HTHRESH, &thresh, sizeof(thresh)))
+		return -1;
+
+	if (add_bad_attr) {
+		BUILD_BUG_ON(XFRMA_IF_ID <= XFRMA_SPD_MAX + 1);
+		if (rtattr_pack(&req.nh, sizeof(req), XFRMA_IF_ID, NULL, 0)) {
+			pr_err("adding attribute failed: no space");
+			return -1;
+		}
+	}
+
+	if (send(xfrm_sock, &req, req.nh.nlmsg_len, 0) < 0) {
+		pr_err("send()");
+		return -1;
+	}
+
+	if (recv(xfrm_sock, &req, sizeof(req), 0) < 0) {
+		pr_err("recv()");
+		return -1;
+	} else if (req.nh.nlmsg_type != NLMSG_ERROR) {
+		printk("expected NLMSG_ERROR, got %d", (int)req.nh.nlmsg_type);
+		return -1;
+	}
+
+	if (req.error) {
+		printk("NLMSG_ERROR: %d: %s", req.error, strerror(-req.error));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int xfrm_spdinfo_attrs(int xfrm_sock, uint32_t *seq)
+{
+	struct {
+		struct nlmsghdr			nh;
+		union {
+			uint32_t	unused;
+			int		error;
+		};
+		char			attrbuf[MAX_PAYLOAD];
+	} req;
+
+	if (xfrm_spdinfo_set_thresh(xfrm_sock, seq, 32, 31, 120, 16, false)) {
+		pr_err("Can't set SPD HTHRESH");
+		return KSFT_FAIL;
+	}
+
+	memset(&req, 0, sizeof(req));
+
+	req.nh.nlmsg_len	= NLMSG_LENGTH(sizeof(req.unused));
+	req.nh.nlmsg_type	= XFRM_MSG_GETSPDINFO;
+	req.nh.nlmsg_flags	= NLM_F_REQUEST;
+	req.nh.nlmsg_seq	= (*seq)++;
+	if (send(xfrm_sock, &req, req.nh.nlmsg_len, 0) < 0) {
+		pr_err("send()");
+		return KSFT_FAIL;
+	}
+
+	if (recv(xfrm_sock, &req, sizeof(req), 0) < 0) {
+		pr_err("recv()");
+		return KSFT_FAIL;
+	} else if (req.nh.nlmsg_type == XFRM_MSG_NEWSPDINFO) {
+		size_t len = NLMSG_PAYLOAD(&req.nh, sizeof(req.unused));
+		struct rtattr *attr = (void *)req.attrbuf;
+		int got_thresh = 0;
+
+		for (; RTA_OK(attr, len); attr = RTA_NEXT(attr, len)) {
+			if (attr->rta_type == XFRMA_SPD_IPV4_HTHRESH) {
+				struct xfrmu_spdhthresh *t = RTA_DATA(attr);
+
+				got_thresh++;
+				if (t->lbits != 32 || t->rbits != 31) {
+					pr_err("thresh differ: %u, %u",
+							t->lbits, t->rbits);
+					return KSFT_FAIL;
+				}
+			}
+			if (attr->rta_type == XFRMA_SPD_IPV6_HTHRESH) {
+				struct xfrmu_spdhthresh *t = RTA_DATA(attr);
+
+				got_thresh++;
+				if (t->lbits != 120 || t->rbits != 16) {
+					pr_err("thresh differ: %u, %u",
+							t->lbits, t->rbits);
+					return KSFT_FAIL;
+				}
+			}
+		}
+		if (got_thresh != 2) {
+			pr_err("only %d thresh returned by XFRM_MSG_GETSPDINFO", got_thresh);
+			return KSFT_FAIL;
+		}
+	} else if (req.nh.nlmsg_type != NLMSG_ERROR) {
+		printk("expected NLMSG_ERROR, got %d", (int)req.nh.nlmsg_type);
+		return KSFT_FAIL;
+	} else {
+		printk("NLMSG_ERROR: %d: %s", req.error, strerror(-req.error));
+		return -1;
+	}
+
+	/* Restore the default */
+	if (xfrm_spdinfo_set_thresh(xfrm_sock, seq, 32, 32, 128, 128, false)) {
+		pr_err("Can't restore SPD HTHRESH");
+		return KSFT_FAIL;
+	}
+
+	/*
+	 * At this moment xfrm uses nlmsg_parse_deprecated(), which
+	 * implies NL_VALIDATE_LIBERAL - ignoring attributes with
+	 * (type > maxtype). nla_parse_depricated_strict() would enforce
+	 * it. Or even stricter nla_parse().
+	 * Right now it's not expected to fail, but to be ignored.
+	 */
+	if (xfrm_spdinfo_set_thresh(xfrm_sock, seq, 32, 32, 128, 128, true))
+		return KSFT_PASS;
+
+	return KSFT_PASS;
+}
+
 static int child_serv(int xfrm_sock, uint32_t *seq,
 		unsigned int nr, int cmd_fd, void *buf, struct xfrm_desc *desc)
 {
@@ -1716,6 +1868,9 @@ static int child_f(unsigned int nr, int test_desc_fd, int cmd_fd, void *buf)
 			break;
 		case EXPIRE_POLICY:
 			ret = xfrm_expire_policy(xfrm_sock, &seq, nr, &desc);
+			break;
+		case SPDINFO_ATTRS:
+			ret = xfrm_spdinfo_attrs(xfrm_sock, &seq);
 			break;
 		default:
 			printk("Unknown desc type %d", desc.type);
@@ -1994,8 +2149,10 @@ static int write_proto_plan(int fd, int proto)
  *   sizeof(xfrm_user_polexpire)  = 168  |  sizeof(xfrm_user_polexpire)  = 176
  *
  * Check the affected by the UABI difference structures.
+ * Also, check translation for xfrm_set_spdinfo: it has it's own attributes
+ * which needs to be correctly copied, but not translated.
  */
-const unsigned int compat_plan = 4;
+const unsigned int compat_plan = 5;
 static int write_compat_struct_tests(int test_desc_fd)
 {
 	struct xfrm_desc desc = {};
@@ -2016,6 +2173,10 @@ static int write_compat_struct_tests(int test_desc_fd)
 		return -1;
 
 	desc.type = EXPIRE_POLICY;
+	if (__write_desc(test_desc_fd, &desc))
+		return -1;
+
+	desc.type = SPDINFO_ATTRS;
 	if (__write_desc(test_desc_fd, &desc))
 		return -1;
 

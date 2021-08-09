@@ -293,7 +293,7 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 		goto out;
 	}
 
-	err = ext2_delete_entry (de, page);
+	err = ext2_delete_entry (de, page, page_addr);
 	ext2_put_page(page, page_addr);
 	if (err)
 		goto out;
@@ -397,7 +397,7 @@ static int ext2_rename (struct user_namespace * mnt_userns,
 	old_inode->i_ctime = current_time(old_inode);
 	mark_inode_dirty(old_inode);
 
-	ext2_delete_entry(old_de, old_page);
+	ext2_delete_entry(old_de, old_page, old_page_addr);
 
 	if (dir_de) {
 		if (old_dir != new_dir)

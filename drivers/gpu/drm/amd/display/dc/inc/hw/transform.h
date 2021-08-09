@@ -289,6 +289,9 @@ struct dpp_caps {
 	/* DSCL processing pixel data in fixed or float format */
 	enum dscl_data_processing_format dscl_data_proc_format;
 
+	/* max LB partitions */
+	unsigned int max_lb_partitions;
+
 	/* Calculates the number of partitions in the line buffer.
 	 * The implementation of this function is overloaded for
 	 * different versions of DSCL LB.
