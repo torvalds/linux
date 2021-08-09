@@ -286,19 +286,19 @@ static union iucv_param *iucv_param_irq[NR_CPUS];
  */
 static inline int __iucv_call_b2f0(int command, union iucv_param *parm)
 {
-	register unsigned long reg0 asm ("0");
-	register unsigned long reg1 asm ("1");
-	int ccode;
+	int cc;
 
-	reg0 = command;
-	reg1 = (unsigned long)parm;
 	asm volatile(
-		"	.long 0xb2f01000\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "=m" (*parm), "+d" (reg0), "+a" (reg1)
-		:  "m" (*parm) : "cc");
-	return ccode;
+		"	lgr	0,%[reg0]\n"
+		"	lgr	1,%[reg1]\n"
+		"	.long	0xb2f01000\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (cc), "+m" (*parm)
+		: [reg0] "d" ((unsigned long)command),
+		  [reg1] "d" ((unsigned long)parm)
+		: "cc", "0", "1");
+	return cc;
 }
 
 static inline int iucv_call_b2f0(int command, union iucv_param *parm)
@@ -319,19 +319,21 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  */
 static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
 {
-	register unsigned long reg0 asm ("0");
-	register unsigned long reg1 asm ("1");
-	int ccode;
+	unsigned long reg1 = (unsigned long)param;
+	int cc;
 
-	reg0 = IUCV_QUERY;
-	reg1 = (unsigned long) param;
 	asm volatile (
+		"	lghi	0,%[cmd]\n"
+		"	lgr	1,%[reg1]\n"
 		"	.long	0xb2f01000\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		"	lgr	%[reg1],1\n"
+		: [cc] "=&d" (cc), [reg1] "+&d" (reg1)
+		: [cmd] "K" (IUCV_QUERY)
+		: "cc", "0", "1");
 	*max_pathid = reg1;
-	return ccode;
+	return cc;
 }
 
 static int iucv_query_maxconn(void)
