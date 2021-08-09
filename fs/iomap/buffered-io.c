@@ -36,7 +36,7 @@ static inline struct iomap_page *to_iomap_page(struct page *page)
 {
 	/*
 	 * per-block data is stored in the head page.  Callers should
-	 * not be dealing with tail pages (and if they are, they can
+	 * not be dealing with tail pages, and if they are, they can
 	 * call thp_head() first.
 	 */
 	VM_BUG_ON_PGFLAGS(PageTail(page), page);
@@ -98,7 +98,7 @@ iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
 	unsigned last = (poff + plen - 1) >> block_bits;
 
 	/*
-	 * If the block size is smaller than the page size we need to check the
+	 * If the block size is smaller than the page size, we need to check the
 	 * per-block uptodate status and adjust the offset and length if needed
 	 * to avoid reading in already uptodate ranges.
 	 */
@@ -126,7 +126,7 @@ iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
 	}
 
 	/*
-	 * If the extent spans the block that contains the i_size we need to
+	 * If the extent spans the block that contains the i_size, we need to
 	 * handle both halves separately so that we properly zero data in the
 	 * page cache for blocks that are entirely outside of i_size.
 	 */
@@ -205,25 +205,32 @@ struct iomap_readpage_ctx {
 	struct readahead_control *rac;
 };
 
-static void
-iomap_read_inline_data(struct inode *inode, struct page *page,
+static int iomap_read_inline_data(struct inode *inode, struct page *page,
 		struct iomap *iomap)
 {
-	size_t size = i_size_read(inode);
+	size_t size = i_size_read(inode) - iomap->offset;
+	size_t poff = offset_in_page(iomap->offset);
 	void *addr;
 
 	if (PageUptodate(page))
-		return;
+		return PAGE_SIZE - poff;
 
-	BUG_ON(page_has_private(page));
-	BUG_ON(page->index);
-	BUG_ON(size > PAGE_SIZE - offset_in_page(iomap->inline_data));
+	if (WARN_ON_ONCE(size > PAGE_SIZE - poff))
+		return -EIO;
+	if (WARN_ON_ONCE(size > PAGE_SIZE -
+			 offset_in_page(iomap->inline_data)))
+		return -EIO;
+	if (WARN_ON_ONCE(size > iomap->length))
+		return -EIO;
+	if (poff > 0)
+		iomap_page_create(inode, page);
 
-	addr = kmap_atomic(page);
+	addr = kmap_local_page(page) + poff;
 	memcpy(addr, iomap->inline_data, size);
-	memset(addr + size, 0, PAGE_SIZE - size);
-	kunmap_atomic(addr);
-	SetPageUptodate(page);
+	memset(addr + size, 0, PAGE_SIZE - poff - size);
+	kunmap_local(addr);
+	iomap_set_range_uptodate(page, poff, PAGE_SIZE - poff);
+	return PAGE_SIZE - poff;
 }
 
 static inline bool iomap_block_needs_zeroing(struct inode *inode,
@@ -241,16 +248,12 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	struct iomap_readpage_ctx *ctx = data;
 	struct page *page = ctx->cur_page;
 	struct iomap_page *iop;
-	bool same_page = false, is_contig = false;
 	loff_t orig_pos = pos;
 	unsigned poff, plen;
 	sector_t sector;
 
-	if (iomap->type == IOMAP_INLINE) {
-		WARN_ON_ONCE(pos);
-		iomap_read_inline_data(inode, page, iomap);
-		return PAGE_SIZE;
-	}
+	if (iomap->type == IOMAP_INLINE)
+		return iomap_read_inline_data(inode, page, iomap);
 
 	/* zero post-eof blocks as the page may be mapped */
 	iop = iomap_page_create(inode, page);
@@ -268,16 +271,10 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	if (iop)
 		atomic_add(plen, &iop->read_bytes_pending);
 
-	/* Try to merge into a previous segment if we can */
 	sector = iomap_sector(iomap, pos);
-	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
-		if (__bio_try_merge_page(ctx->bio, page, plen, poff,
-				&same_page))
-			goto done;
-		is_contig = true;
-	}
-
-	if (!is_contig || bio_full(ctx->bio, plen)) {
+	if (!ctx->bio ||
+	    bio_end_sector(ctx->bio) != sector ||
+	    bio_add_page(ctx->bio, page, plen, poff) != plen) {
 		gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
 		gfp_t orig_gfp = gfp;
 		unsigned int nr_vecs = DIV_ROUND_UP(length, PAGE_SIZE);
@@ -301,13 +298,12 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		ctx->bio->bi_iter.bi_sector = sector;
 		bio_set_dev(ctx->bio, iomap->bdev);
 		ctx->bio->bi_end_io = iomap_read_end_io;
+		__bio_add_page(ctx->bio, page, plen, poff);
 	}
-
-	bio_add_page(ctx->bio, page, plen, poff);
 done:
 	/*
 	 * Move the caller beyond our range so that it keeps making progress.
-	 * For that we have to include any leading non-uptodate ranges, but
+	 * For that, we have to include any leading non-uptodate ranges, but
 	 * we can skip trailing ones as they will be handled in the next
 	 * iteration.
 	 */
@@ -344,9 +340,9 @@ iomap_readpage(struct page *page, const struct iomap_ops *ops)
 	}
 
 	/*
-	 * Just like mpage_readahead and block_read_full_page we always
+	 * Just like mpage_readahead and block_read_full_page, we always
 	 * return 0 and just mark the page as PageError on errors.  This
-	 * should be cleaned up all through the stack eventually.
+	 * should be cleaned up throughout the stack eventually.
 	 */
 	return 0;
 }
@@ -467,7 +463,7 @@ iomap_releasepage(struct page *page, gfp_t gfp_mask)
 	/*
 	 * mm accommodates an old ext3 case where clean pages might not have had
 	 * the dirty bit cleared. Thus, it can send actual dirty pages to
-	 * ->releasepage() via shrink_active_list(), skip those here.
+	 * ->releasepage() via shrink_active_list(); skip those here.
 	 */
 	if (PageDirty(page) || PageWriteback(page))
 		return 0;
@@ -482,7 +478,7 @@ iomap_invalidatepage(struct page *page, unsigned int offset, unsigned int len)
 	trace_iomap_invalidatepage(page->mapping->host, offset, len);
 
 	/*
-	 * If we are invalidating the entire page, clear the dirty state from it
+	 * If we're invalidating the entire page, clear the dirty state from it
 	 * and release it to avoid unnecessary buildup of the LRU.
 	 */
 	if (offset == 0 && len == PAGE_SIZE) {
@@ -589,6 +585,20 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, int flags,
 	return 0;
 }
 
+static int iomap_write_begin_inline(struct inode *inode,
+		struct page *page, struct iomap *srcmap)
+{
+	int ret;
+
+	/* needs more work for the tailpacking case; disable for now */
+	if (WARN_ON_ONCE(srcmap->offset != 0))
+		return -EIO;
+	ret = iomap_read_inline_data(inode, page, srcmap);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
 static int
 iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, struct iomap *iomap, struct iomap *srcmap)
@@ -618,7 +628,7 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 	}
 
 	if (srcmap->type == IOMAP_INLINE)
-		iomap_read_inline_data(inode, page, srcmap);
+		status = iomap_write_begin_inline(inode, page, srcmap);
 	else if (iomap->flags & IOMAP_F_BUFFER_HEAD)
 		status = __block_write_begin_int(page, pos, len, NULL, srcmap);
 	else
@@ -650,13 +660,13 @@ static size_t __iomap_write_end(struct inode *inode, loff_t pos, size_t len,
 	/*
 	 * The blocks that were entirely written will now be uptodate, so we
 	 * don't have to worry about a readpage reading them and overwriting a
-	 * partial write.  However if we have encountered a short write and only
+	 * partial write.  However, if we've encountered a short write and only
 	 * partially written into a block, it will not be marked uptodate, so a
 	 * readpage might come in and destroy our partial write.
 	 *
-	 * Do the simplest thing, and just treat any short write to a non
-	 * uptodate page as a zero-length write, and force the caller to redo
-	 * the whole thing.
+	 * Do the simplest thing and just treat any short write to a
+	 * non-uptodate page as a zero-length write, and force the caller to
+	 * redo the whole thing.
 	 */
 	if (unlikely(copied < len && !PageUptodate(page)))
 		return 0;
@@ -671,12 +681,12 @@ static size_t iomap_write_end_inline(struct inode *inode, struct page *page,
 	void *addr;
 
 	WARN_ON_ONCE(!PageUptodate(page));
-	BUG_ON(pos + copied > PAGE_SIZE - offset_in_page(iomap->inline_data));
+	BUG_ON(!iomap_inline_data_valid(iomap));
 
 	flush_dcache_page(page);
-	addr = kmap_atomic(page);
-	memcpy(iomap->inline_data + pos, addr + pos, copied);
-	kunmap_atomic(addr);
+	addr = kmap_local_page(page) + pos;
+	memcpy(iomap_inline_data(iomap, pos), addr, copied);
+	kunmap_local(addr);
 
 	mark_inode_dirty(inode);
 	return copied;
@@ -744,7 +754,7 @@ again:
 			bytes = length;
 
 		/*
-		 * Bring in the user page that we will copy from _first_.
+		 * Bring in the user page that we'll copy from _first_.
 		 * Otherwise there's a nasty deadlock on copying from the
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
@@ -1153,7 +1163,7 @@ static void iomap_writepage_end_bio(struct bio *bio)
  * Submit the final bio for an ioend.
  *
  * If @error is non-zero, it means that we have a situation where some part of
- * the submission process has failed after we have marked paged for writeback
+ * the submission process has failed after we've marked pages for writeback
  * and unlocked them.  In this situation, we need to fail the bio instead of
  * submitting it.  This typically only happens on a filesystem shutdown.
  */
@@ -1168,7 +1178,7 @@ iomap_submit_ioend(struct iomap_writepage_ctx *wpc, struct iomap_ioend *ioend,
 		error = wpc->ops->prepare_ioend(ioend, error);
 	if (error) {
 		/*
-		 * If we are failing the IO now, just mark the ioend with an
+		 * If we're failing the IO now, just mark the ioend with an
 		 * error and finish it.  This will run IO completion immediately
 		 * as there is only one reference to the ioend at this point in
 		 * time.
@@ -1210,7 +1220,7 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
 /*
  * Allocate a new bio, and chain the old bio to the new one.
  *
- * Note that we have to do perform the chaining in this unintuitive order
+ * Note that we have to perform the chaining in this unintuitive order
  * so that the bi_private linkage is set up in the right direction for the
  * traversal in iomap_finish_ioend().
  */
@@ -1249,7 +1259,7 @@ iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t offset,
 
 /*
  * Test to see if we have an existing ioend structure that we could append to
- * first, otherwise finish off the current ioend and start another.
+ * first; otherwise finish off the current ioend and start another.
  */
 static void
 iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
@@ -1259,7 +1269,6 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 	sector_t sector = iomap_sector(&wpc->iomap, offset);
 	unsigned len = i_blocksize(inode);
 	unsigned poff = offset & (PAGE_SIZE - 1);
-	bool merged, same_page = false;
 
 	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, offset, sector)) {
 		if (wpc->ioend)
@@ -1267,19 +1276,13 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 		wpc->ioend = iomap_alloc_ioend(inode, wpc, offset, sector, wbc);
 	}
 
-	merged = __bio_try_merge_page(wpc->ioend->io_bio, page, len, poff,
-			&same_page);
-	if (iop)
-		atomic_add(len, &iop->write_bytes_pending);
-
-	if (!merged) {
-		if (bio_full(wpc->ioend->io_bio, len)) {
-			wpc->ioend->io_bio =
-				iomap_chain_bio(wpc->ioend->io_bio);
-		}
-		bio_add_page(wpc->ioend->io_bio, page, len, poff);
+	if (bio_add_page(wpc->ioend->io_bio, page, len, poff) != len) {
+		wpc->ioend->io_bio = iomap_chain_bio(wpc->ioend->io_bio);
+		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
 	}
 
+	if (iop)
+		atomic_add(len, &iop->write_bytes_pending);
 	wpc->ioend->io_size += len;
 	wbc_account_cgroup_owner(wbc, page, len);
 }
@@ -1287,9 +1290,9 @@ iomap_add_to_ioend(struct inode *inode, loff_t offset, struct page *page,
 /*
  * We implement an immediate ioend submission policy here to avoid needing to
  * chain multiple ioends and hence nest mempool allocations which can violate
- * forward progress guarantees we need to provide. The current ioend we are
- * adding blocks to is cached on the writepage context, and if the new block
- * does not append to the cached ioend it will create a new ioend and cache that
+ * the forward progress guarantees we need to provide. The current ioend we're
+ * adding blocks to is cached in the writepage context, and if the new block
+ * doesn't append to the cached ioend, it will create a new ioend and cache that
  * instead.
  *
  * If a new ioend is created and cached, the old ioend is returned and queued
@@ -1351,7 +1354,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	if (unlikely(error)) {
 		/*
 		 * Let the filesystem know what portion of the current page
-		 * failed to map. If the page wasn't been added to ioend, it
+		 * failed to map. If the page hasn't been added to ioend, it
 		 * won't be affected by I/O completion and we must unlock it
 		 * now.
 		 */
@@ -1368,7 +1371,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	unlock_page(page);
 
 	/*
-	 * Preserve the original error if there was one, otherwise catch
+	 * Preserve the original error if there was one; catch
 	 * submission errors here and propagate into subsequent ioend
 	 * submissions.
 	 */
@@ -1395,8 +1398,8 @@ done:
 /*
  * Write out a dirty page.
  *
- * For delalloc space on the page we need to allocate space and flush it.
- * For unwritten space on the page we need to start the conversion to
+ * For delalloc space on the page, we need to allocate space and flush it.
+ * For unwritten space on the page, we need to start the conversion to
  * regular allocated space.
  */
 static int
@@ -1411,7 +1414,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 	trace_iomap_writepage(inode, page_offset(page), PAGE_SIZE);
 
 	/*
-	 * Refuse to write the page out if we are called from reclaim context.
+	 * Refuse to write the page out if we're called from reclaim context.
 	 *
 	 * This avoids stack overflows when called from deeply used stacks in
 	 * random callers for direct reclaim or memcg reclaim.  We explicitly
@@ -1456,20 +1459,20 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		unsigned offset_into_page = offset & (PAGE_SIZE - 1);
 
 		/*
-		 * Skip the page if it is fully outside i_size, e.g. due to a
-		 * truncate operation that is in progress. We must redirty the
+		 * Skip the page if it's fully outside i_size, e.g. due to a
+		 * truncate operation that's in progress. We must redirty the
 		 * page so that reclaim stops reclaiming it. Otherwise
 		 * iomap_vm_releasepage() is called on it and gets confused.
 		 *
-		 * Note that the end_index is unsigned long, it would overflow
-		 * if the given offset is greater than 16TB on 32-bit system
-		 * and if we do check the page is fully outside i_size or not
-		 * via "if (page->index >= end_index + 1)" as "end_index + 1"
-		 * will be evaluated to 0.  Hence this page will be redirtied
-		 * and be written out repeatedly which would result in an
-		 * infinite loop, the user program that perform this operation
-		 * will hang.  Instead, we can verify this situation by checking
-		 * if the page to write is totally beyond the i_size or if it's
+		 * Note that the end_index is unsigned long.  If the given
+		 * offset is greater than 16TB on a 32-bit system then if we
+		 * checked if the page is fully outside i_size with
+		 * "if (page->index >= end_index + 1)", "end_index + 1" would
+		 * overflow and evaluate to 0.  Hence this page would be
+		 * redirtied and written out repeatedly, which would result in
+		 * an infinite loop; the user program performing this operation
+		 * would hang.  Instead, we can detect this situation by
+		 * checking if the page is totally beyond i_size or if its
 		 * offset is just equal to the EOF.
 		 */
 		if (page->index > end_index ||
