@@ -98,6 +98,13 @@ struct igc_ring {
 	u32 start_time;
 	u32 end_time;
 
+	/* CBS parameters */
+	bool cbs_enable;                /* indicates if CBS is enabled */
+	s32 idleslope;                  /* idleSlope in kbps */
+	s32 sendslope;                  /* sendSlope in kbps */
+	s32 hicredit;                   /* hiCredit in bytes */
+	s32 locredit;                   /* loCredit in bytes */
+
 	/* everything past this point are written often */
 	u16 next_to_clean;
 	u16 next_to_use;
@@ -290,8 +297,10 @@ extern char igc_driver_name[];
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 #define IGC_FLAG_RX_LEGACY		BIT(16)
 #define IGC_FLAG_TSN_QBV_ENABLED	BIT(17)
+#define IGC_FLAG_TSN_QAV_ENABLED	BIT(18)
 
-#define IGC_FLAG_TSN_ANY_ENABLED	IGC_FLAG_TSN_QBV_ENABLED
+#define IGC_FLAG_TSN_ANY_ENABLED \
+	(IGC_FLAG_TSN_QBV_ENABLED | IGC_FLAG_TSN_QAV_ENABLED)
 
 #define IGC_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
 #define IGC_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
