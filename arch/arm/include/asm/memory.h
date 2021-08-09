@@ -160,10 +160,11 @@ extern unsigned long vectors_base;
 
 /*
  * Physical start and end address of the kernel sections. These addresses are
- * 2MB-aligned to match the section mappings placed over the kernel.
+ * 2MB-aligned to match the section mappings placed over the kernel. We use
+ * u64 so that LPAE mappings beyond the 32bit limit will work out as well.
  */
-extern u32 kernel_sec_start;
-extern u32 kernel_sec_end;
+extern u64 kernel_sec_start;
+extern u64 kernel_sec_end;
 
 /*
  * Physical vs virtual RAM address space conversion.  These are

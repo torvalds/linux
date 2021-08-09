@@ -1609,6 +1609,13 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 		return;
 
 	/*
+	 * Offset the kernel section physical offsets so that the kernel
+	 * mapping will work out later on.
+	 */
+	kernel_sec_start += offset;
+	kernel_sec_end += offset;
+
+	/*
 	 * Get the address of the remap function in the 1:1 identity
 	 * mapping setup by the early page table assembly code.  We
 	 * must get this prior to the pv update.  The following barrier
@@ -1716,7 +1723,7 @@ void __init paging_init(const struct machine_desc *mdesc)
 {
 	void *zero_page;
 
-	pr_debug("physical kernel sections: 0x%08x-0x%08x\n",
+	pr_debug("physical kernel sections: 0x%08llx-0x%08llx\n",
 		 kernel_sec_start, kernel_sec_end);
 
 	prepare_page_table();
