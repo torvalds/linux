@@ -9,8 +9,8 @@ SYNOPSIS
 --------
 [verse]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
-'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
-'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] \-- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] \-- <command> [<options>]
 'perf stat' report [-i file]
 
 DESCRIPTION
@@ -217,8 +217,8 @@ Append to the output file designated with the -o option. Ignored if -o is not sp
 
 Log output to fd, instead of stderr.  Complementary to --output, and mutually exclusive
 with it.  --append may be used here.  Examples:
-     3>results  perf stat --log-fd 3          -- $cmd
-     3>>results perf stat --log-fd 3 --append -- $cmd
+     3>results  perf stat --log-fd 3          \-- $cmd
+     3>>results perf stat --log-fd 3 --append \-- $cmd
 
 --control=fifo:ctl-fifo[,ack-fifo]::
 --control=fd:ctl-fd[,ack-fd]::
@@ -245,7 +245,7 @@ disable events during measurements:
 
  perf stat -D -1 -e cpu-cycles -a -I 1000       \
            --control fd:${ctl_fd},${ctl_fd_ack} \
-           -- sleep 30 &
+           \-- sleep 30 &
  perf_pid=$!
 
  sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
@@ -265,7 +265,7 @@ disable events during measurements:
 --post::
 	Pre and post measurement hooks, e.g.:
 
-perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- make -s -j64 O=defconfig-build/ bzImage
+perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' \-- make -s -j64 O=defconfig-build/ bzImage
 
 -I msecs::
 --interval-print msecs::
@@ -496,7 +496,7 @@ $ perf config stat.no-csv-summary=true
 EXAMPLES
 --------
 
-$ perf stat -- make
+$ perf stat \-- make
 
    Performance counter stats for 'make':
 
