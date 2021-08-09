@@ -7,6 +7,6 @@
 latex_elements['preamble']  += '''
     \\IfFontExistsTF{Noto Sans CJK SC}{
 	% For CJK ascii-art alignment
-	\\setmonofont{Noto Sans Mono CJK SC}
+	\\setmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]
     }{}
 '''

@@ -364,49 +364,49 @@ latex_elements['preamble']  += '''
 	% This is needed for translations
 	\\usepackage{xeCJK}
 	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\setCJKmainfont{Noto Serif CJK SC}
+	    \\setCJKmainfont{Noto Serif CJK SC}[AutoFakeSlant]
 	}{
-	    \\setCJKmainfont{Noto Sans CJK SC}
+	    \\setCJKmainfont{Noto Sans CJK SC}[AutoFakeSlant]
 	}
-	\\setCJKsansfont{Noto Sans CJK SC}
-	\\setCJKmonofont{Noto Sans Mono CJK SC}
+	\\setCJKsansfont{Noto Sans CJK SC}[AutoFakeSlant]
+	\\setCJKmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]
 	% CJK Language-specific font choices
 	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Serif CJK SC}
+	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}[AutoFakeSlant]
+	    \\newCJKfontfamily[SCserif]\\scserif{Noto Serif CJK SC}[AutoFakeSlant]
 	}{
-	    \\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}
-	    \\newCJKfontfamily[SCserif]\\scserif{Noto Sans CJK SC}
+	    \\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}[AutoFakeSlant]
+	    \\newCJKfontfamily[SCserif]\\scserif{Noto Sans CJK SC}[AutoFakeSlant]
 	}
-	\\newCJKfontfamily[SCsans]\\scsans{Noto Sans CJK SC}
-	\\newCJKfontfamily[SCmono]\\scmono{Noto Sans Mono CJK SC}
+	\\newCJKfontfamily[SCsans]\\scsans{Noto Sans CJK SC}[AutoFakeSlant]
+	\\newCJKfontfamily[SCmono]\\scmono{Noto Sans Mono CJK SC}[AutoFakeSlant]
 	\\IfFontExistsTF{Noto Serif CJK TC}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Serif CJK TC}
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Serif CJK TC}
+	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Serif CJK TC}[AutoFakeSlant]
+	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Serif CJK TC}[AutoFakeSlant]
 	}{
-	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}
-	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Sans CJK TC}
+	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}[AutoFakeSlant]
+	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Sans CJK TC}[AutoFakeSlant]
 	}
-	\\newCJKfontfamily[TCsans]\\tcsans{Noto Sans CJK TC}
-	\\newCJKfontfamily[TCmono]\\tcmono{Noto Sans Mono CJK TC}
+	\\newCJKfontfamily[TCsans]\\tcsans{Noto Sans CJK TC}[AutoFakeSlant]
+	\\newCJKfontfamily[TCmono]\\tcmono{Noto Sans Mono CJK TC}[AutoFakeSlant]
 	\\IfFontExistsTF{Noto Serif CJK KR}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Serif CJK KR}
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Serif CJK KR}
+	    \\newCJKfontfamily[KRmain]\\krmain{Noto Serif CJK KR}[AutoFakeSlant]
+	    \\newCJKfontfamily[KRserif]\\krserif{Noto Serif CJK KR}[AutoFakeSlant]
 	}{
-	    \\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}
-	    \\newCJKfontfamily[KRserif]\\krserif{Noto Sans CJK KR}
+	    \\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}[AutoFakeSlant]
+	    \\newCJKfontfamily[KRserif]\\krserif{Noto Sans CJK KR}[AutoFakeSlant]
 	}
-	\\newCJKfontfamily[KRsans]\\krsans{Noto Sans CJK KR}
-	\\newCJKfontfamily[KRmono]\\krmono{Noto Sans Mono CJK KR}
+	\\newCJKfontfamily[KRsans]\\krsans{Noto Sans CJK KR}[AutoFakeSlant]
+	\\newCJKfontfamily[KRmono]\\krmono{Noto Sans Mono CJK KR}[AutoFakeSlant]
 	\\IfFontExistsTF{Noto Serif CJK JP}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Serif CJK JP}
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Serif CJK JP}
+	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Serif CJK JP}[AutoFakeSlant]
+	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Serif CJK JP}[AutoFakeSlant]
 	}{
-	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}
-	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Sans CJK JP}
+	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}[AutoFakeSlant]
+	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Sans CJK JP}[AutoFakeSlant]
 	}
-	\\newCJKfontfamily[JPsans]\\jpsans{Noto Sans CJK JP}
-	\\newCJKfontfamily[JPmono]\\jpmono{Noto Sans Mono CJK JP}
+	\\newCJKfontfamily[JPsans]\\jpsans{Noto Sans CJK JP}[AutoFakeSlant]
+	\\newCJKfontfamily[JPmono]\\jpmono{Noto Sans Mono CJK JP}[AutoFakeSlant]
 	% Dummy commands for Sphinx < 2.3 (no 'extrapackages' support)
 	\\providecommand{\\onehalfspacing}{}
 	\\providecommand{\\singlespacing}{}
