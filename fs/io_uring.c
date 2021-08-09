@@ -8622,13 +8622,11 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 		__io_remove_buffers(ctx, buf, index, -1U);
 }
 
-static void io_req_cache_free(struct list_head *list, struct task_struct *tsk)
+static void io_req_cache_free(struct list_head *list)
 {
 	struct io_kiocb *req, *nxt;
 
 	list_for_each_entry_safe(req, nxt, list, compl.list) {
-		if (tsk && req->task != tsk)
-			continue;
 		list_del(&req->compl.list);
 		kmem_cache_free(req_cachep, req);
 	}
@@ -8648,7 +8646,7 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	}
 
 	io_flush_cached_locked_reqs(ctx, cs);
-	io_req_cache_free(&cs->free_list, NULL);
+	io_req_cache_free(&cs->free_list);
 	mutex_unlock(&ctx->uring_lock);
 }
 
