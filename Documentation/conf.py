@@ -360,20 +360,48 @@ latex_elements['preamble']  += '''
     \\IfFontExistsTF{Noto Sans CJK SC}{
 	% This is needed for translations
 	\\usepackage{xeCJK}
-	\\setCJKmainfont{Noto Sans CJK SC}
+	\\IfFontExistsTF{Noto Serif CJK SC}{
+	    \\setCJKmainfont{Noto Serif CJK SC}
+	}{
+	    \\setCJKmainfont{Noto Sans CJK SC}
+	}
 	\\setCJKsansfont{Noto Sans CJK SC}
 	\\setCJKmonofont{Noto Sans Mono CJK SC}
 	% CJK Language-specific font choices
-	\\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}
+	\\IfFontExistsTF{Noto Serif CJK SC}{
+	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}
+	    \\newCJKfontfamily[SCserif]\\scserif{Noto Serif CJK SC}
+	}{
+	    \\newCJKfontfamily[SCmain]\\scmain{Noto Sans CJK SC}
+	    \\newCJKfontfamily[SCserif]\\scserif{Noto Sans CJK SC}
+	}
 	\\newCJKfontfamily[SCsans]\\scsans{Noto Sans CJK SC}
 	\\newCJKfontfamily[SCmono]\\scmono{Noto Sans Mono CJK SC}
-	\\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}
+	\\IfFontExistsTF{Noto Serif CJK TC}{
+	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Serif CJK TC}
+	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Serif CJK TC}
+	}{
+	    \\newCJKfontfamily[TCmain]\\tcmain{Noto Sans CJK TC}
+	    \\newCJKfontfamily[TCserif]\\tcserif{Noto Sans CJK TC}
+	}
 	\\newCJKfontfamily[TCsans]\\tcsans{Noto Sans CJK TC}
 	\\newCJKfontfamily[TCmono]\\tcmono{Noto Sans Mono CJK TC}
-	\\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}
+	\\IfFontExistsTF{Noto Serif CJK KR}{
+	    \\newCJKfontfamily[KRmain]\\krmain{Noto Serif CJK KR}
+	    \\newCJKfontfamily[KRserif]\\krserif{Noto Serif CJK KR}
+	}{
+	    \\newCJKfontfamily[KRmain]\\krmain{Noto Sans CJK KR}
+	    \\newCJKfontfamily[KRserif]\\krserif{Noto Sans CJK KR}
+	}
 	\\newCJKfontfamily[KRsans]\\krsans{Noto Sans CJK KR}
 	\\newCJKfontfamily[KRmono]\\krmono{Noto Sans Mono CJK KR}
-	\\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}
+	\\IfFontExistsTF{Noto Serif CJK JP}{
+	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Serif CJK JP}
+	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Serif CJK JP}
+	}{
+	    \\newCJKfontfamily[JPmain]\\jpmain{Noto Sans CJK JP}
+	    \\newCJKfontfamily[JPserif]\\jpserif{Noto Sans CJK JP}
+	}
 	\\newCJKfontfamily[JPsans]\\jpsans{Noto Sans CJK JP}
 	\\newCJKfontfamily[JPmono]\\jpmono{Noto Sans Mono CJK JP}
 	% Define custom macros to on/off CJK
@@ -387,6 +415,7 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocBeginTC}{%
 	    \\begingroup%
 	    \\tcmain%
+	    \\renewcommand{\\CJKrmdefault}{TCserif}%
 	    \\renewcommand{\\CJKsfdefault}{TCsans}%
 	    \\renewcommand{\\CJKttdefault}{TCmono}%
 	}
@@ -394,6 +423,7 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocBeginKR}{%
 	    \\begingroup%
 	    \\krmain%
+	    \\renewcommand{\\CJKrmdefault}{KRserif}%
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
 	    \\renewcommand{\\CJKttdefault}{KRmono}%
 	}
@@ -401,6 +431,7 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocBeginJP}{%
 	    \\begingroup%
 	    \\jpmain%
+	    \\renewcommand{\\CJKrmdefault}{JPserif}%
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
 	    \\renewcommand{\\CJKttdefault}{JPmono}%
 	}
