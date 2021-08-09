@@ -54,7 +54,7 @@ struct dma_buf_ops {
 	 * device), and otherwise need to fail the attach operation.
 	 *
 	 * The exporter should also in general check whether the current
-	 * allocation fullfills the DMA constraints of the new device. If this
+	 * allocation fulfills the DMA constraints of the new device. If this
 	 * is not the case, and the allocation cannot be moved, it should also
 	 * fail the attach operation.
 	 *
@@ -161,7 +161,7 @@ struct dma_buf_ops {
 	 *
 	 * Returns:
 	 *
-	 * A &sg_table scatter list of or the backing storage of the DMA buffer,
+	 * A &sg_table scatter list of the backing storage of the DMA buffer,
 	 * already mapped into the device address space of the &device attached
 	 * with the provided &dma_buf_attachment. The addresses and lengths in
 	 * the scatter list are PAGE_SIZE aligned.
@@ -183,7 +183,7 @@ struct dma_buf_ops {
 	 *
 	 * This is called by dma_buf_unmap_attachment() and should unmap and
 	 * release the &sg_table allocated in @map_dma_buf, and it is mandatory.
-	 * For static dma_buf handling this might also unpins the backing
+	 * For static dma_buf handling this might also unpin the backing
 	 * storage if this is the last mapping of the DMA buffer.
 	 */
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
@@ -252,7 +252,7 @@ struct dma_buf_ops {
 	 * This callback is used by the dma_buf_mmap() function
 	 *
 	 * Note that the mapping needs to be incoherent, userspace is expected
-	 * to braket CPU access using the DMA_BUF_IOCTL_SYNC interface.
+	 * to bracket CPU access using the DMA_BUF_IOCTL_SYNC interface.
 	 *
 	 * Because dma-buf buffers have invariant size over their lifetime, the
 	 * dma-buf core checks whether a vma is too large and rejects such
@@ -580,7 +580,7 @@ static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 
 /**
  * dma_buf_attachment_is_dynamic - check if a DMA-buf attachment uses dynamic
- * mappinsg
+ * mappings
  * @attach: the DMA-buf attachment to check
  *
  * Returns true if a DMA-buf importer wants to call the map/unmap functions with
