@@ -159,6 +159,11 @@ static int host_stage2_unmap_dev_all(void)
 	return kvm_pgtable_stage2_unmap(pgt, addr, BIT(pgt->ia_bits) - addr);
 }
 
+struct kvm_mem_range {
+	u64 start;
+	u64 end;
+};
+
 static bool find_mem_range(phys_addr_t addr, struct kvm_mem_range *range)
 {
 	int cur, left = 0, right = hyp_memblock_nr;
@@ -227,6 +232,44 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 		__ret;							\
 	 })
 
+static inline bool range_included(struct kvm_mem_range *child,
+				  struct kvm_mem_range *parent)
+{
+	return parent->start <= child->start && child->end <= parent->end;
+}
+
+static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
+{
+	struct kvm_mem_range cur;
+	kvm_pte_t pte;
+	u32 level;
+	int ret;
+
+	hyp_assert_lock_held(&host_kvm.lock);
+	ret = kvm_pgtable_get_leaf(&host_kvm.pgt, addr, &pte, &level);
+	if (ret)
+		return ret;
+
+	if (kvm_pte_valid(pte))
+		return -EAGAIN;
+
+	if (pte)
+		return -EPERM;
+
+	do {
+		u64 granule = kvm_granule_size(level);
+		cur.start = ALIGN_DOWN(addr, granule);
+		cur.end = cur.start + granule;
+		level++;
+	} while ((level < KVM_PGTABLE_MAX_LEVELS) &&
+			!(kvm_level_supports_block_mapping(level) &&
+			  range_included(&cur, range)));
+
+	*range = cur;
+
+	return 0;
+}
+
 static int host_stage2_idmap(u64 addr)
 {
 	enum kvm_pgtable_prot prot = KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_W;
@@ -238,7 +281,7 @@ static int host_stage2_idmap(u64 addr)
 		prot |= KVM_PGTABLE_PROT_X;
 
 	hyp_spin_lock(&host_kvm.lock);
-	ret = kvm_pgtable_stage2_find_range(&host_kvm.pgt, addr, prot, &range);
+	ret = host_stage2_adjust_range(addr, &range);
 	if (ret)
 		goto unlock;
 
