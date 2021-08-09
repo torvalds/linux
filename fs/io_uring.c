@@ -8795,6 +8795,7 @@ static void io_ring_exit_work(struct work_struct *work)
 {
 	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx, exit_work);
 	unsigned long timeout = jiffies + HZ * 60 * 5;
+	unsigned long interval = HZ / 20;
 	struct io_tctx_exit exit;
 	struct io_tctx_node *node;
 	int ret;
@@ -8819,8 +8820,11 @@ static void io_ring_exit_work(struct work_struct *work)
 			io_sq_thread_unpark(sqd);
 		}
 
-		WARN_ON_ONCE(time_after(jiffies, timeout));
-	} while (!wait_for_completion_timeout(&ctx->ref_comp, HZ/20));
+		if (WARN_ON_ONCE(time_after(jiffies, timeout))) {
+			/* there is little hope left, don't run it too often */
+			interval = HZ * 60;
+		}
+	} while (!wait_for_completion_timeout(&ctx->ref_comp, interval));
 
 	init_completion(&exit.completion);
 	init_task_work(&exit.task_work, io_tctx_exit_cb);
