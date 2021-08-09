@@ -350,6 +350,7 @@ void kcsan_restore_irqtrace(struct task_struct *task)
 static noinline void kcsan_found_watchpoint(const volatile void *ptr,
 					    size_t size,
 					    int type,
+					    unsigned long ip,
 					    atomic_long_t *watchpoint,
 					    long encoded_watchpoint)
 {
@@ -396,7 +397,7 @@ static noinline void kcsan_found_watchpoint(const volatile void *ptr,
 
 	if (consumed) {
 		kcsan_save_irqtrace(current);
-		kcsan_report_set_info(ptr, size, type, watchpoint - watchpoints);
+		kcsan_report_set_info(ptr, size, type, ip, watchpoint - watchpoints);
 		kcsan_restore_irqtrace(current);
 	} else {
 		/*
@@ -416,7 +417,7 @@ static noinline void kcsan_found_watchpoint(const volatile void *ptr,
 }
 
 static noinline void
-kcsan_setup_watchpoint(const volatile void *ptr, size_t size, int type)
+kcsan_setup_watchpoint(const volatile void *ptr, size_t size, int type, unsigned long ip)
 {
 	const bool is_write = (type & KCSAN_ACCESS_WRITE) != 0;
 	const bool is_assert = (type & KCSAN_ACCESS_ASSERT) != 0;
@@ -568,8 +569,8 @@ kcsan_setup_watchpoint(const volatile void *ptr, size_t size, int type)
 		if (is_assert && value_change == KCSAN_VALUE_CHANGE_TRUE)
 			atomic_long_inc(&kcsan_counters[KCSAN_COUNTER_ASSERT_FAILURES]);
 
-		kcsan_report_known_origin(ptr, size, type, value_change,
-					  watchpoint - watchpoints,
+		kcsan_report_known_origin(ptr, size, type, ip,
+					  value_change, watchpoint - watchpoints,
 					  old, new, access_mask);
 	} else if (value_change == KCSAN_VALUE_CHANGE_TRUE) {
 		/* Inferring a race, since the value should not have changed. */
@@ -578,8 +579,10 @@ kcsan_setup_watchpoint(const volatile void *ptr, size_t size, int type)
 		if (is_assert)
 			atomic_long_inc(&kcsan_counters[KCSAN_COUNTER_ASSERT_FAILURES]);
 
-		if (IS_ENABLED(CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN) || is_assert)
-			kcsan_report_unknown_origin(ptr, size, type, old, new, access_mask);
+		if (IS_ENABLED(CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN) || is_assert) {
+			kcsan_report_unknown_origin(ptr, size, type, ip,
+						    old, new, access_mask);
+		}
 	}
 
 	/*
@@ -596,8 +599,8 @@ out:
 	user_access_restore(ua_flags);
 }
 
-static __always_inline void check_access(const volatile void *ptr, size_t size,
-					 int type)
+static __always_inline void
+check_access(const volatile void *ptr, size_t size, int type, unsigned long ip)
 {
 	const bool is_write = (type & KCSAN_ACCESS_WRITE) != 0;
 	atomic_long_t *watchpoint;
@@ -625,13 +628,12 @@ static __always_inline void check_access(const volatile void *ptr, size_t size,
 	 */
 
 	if (unlikely(watchpoint != NULL))
-		kcsan_found_watchpoint(ptr, size, type, watchpoint,
-				       encoded_watchpoint);
+		kcsan_found_watchpoint(ptr, size, type, ip, watchpoint, encoded_watchpoint);
 	else {
 		struct kcsan_ctx *ctx = get_ctx(); /* Call only once in fast-path. */
 
 		if (unlikely(should_watch(ptr, size, type, ctx)))
-			kcsan_setup_watchpoint(ptr, size, type);
+			kcsan_setup_watchpoint(ptr, size, type, ip);
 		else if (unlikely(ctx->scoped_accesses.prev))
 			kcsan_check_scoped_accesses();
 	}
@@ -757,7 +759,7 @@ kcsan_begin_scoped_access(const volatile void *ptr, size_t size, int type,
 {
 	struct kcsan_ctx *ctx = get_ctx();
 
-	__kcsan_check_access(ptr, size, type);
+	check_access(ptr, size, type, _RET_IP_);
 
 	ctx->disable_count++; /* Disable KCSAN, in case list debugging is on. */
 
@@ -802,7 +804,7 @@ EXPORT_SYMBOL(kcsan_end_scoped_access);
 
 void __kcsan_check_access(const volatile void *ptr, size_t size, int type)
 {
-	check_access(ptr, size, type);
+	check_access(ptr, size, type, _RET_IP_);
 }
 EXPORT_SYMBOL(__kcsan_check_access);
 
@@ -823,7 +825,7 @@ EXPORT_SYMBOL(__kcsan_check_access);
 	void __tsan_read##size(void *ptr);                                     \
 	void __tsan_read##size(void *ptr)                                      \
 	{                                                                      \
-		check_access(ptr, size, 0);                                    \
+		check_access(ptr, size, 0, _RET_IP_);                          \
 	}                                                                      \
 	EXPORT_SYMBOL(__tsan_read##size);                                      \
 	void __tsan_unaligned_read##size(void *ptr)                            \
@@ -832,7 +834,7 @@ EXPORT_SYMBOL(__kcsan_check_access);
 	void __tsan_write##size(void *ptr);                                    \
 	void __tsan_write##size(void *ptr)                                     \
 	{                                                                      \
-		check_access(ptr, size, KCSAN_ACCESS_WRITE);                   \
+		check_access(ptr, size, KCSAN_ACCESS_WRITE, _RET_IP_);         \
 	}                                                                      \
 	EXPORT_SYMBOL(__tsan_write##size);                                     \
 	void __tsan_unaligned_write##size(void *ptr)                           \
@@ -842,7 +844,8 @@ EXPORT_SYMBOL(__kcsan_check_access);
 	void __tsan_read_write##size(void *ptr)                                \
 	{                                                                      \
 		check_access(ptr, size,                                        \
-			     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE);      \
+			     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE,       \
+			     _RET_IP_);                                        \
 	}                                                                      \
 	EXPORT_SYMBOL(__tsan_read_write##size);                                \
 	void __tsan_unaligned_read_write##size(void *ptr)                      \
@@ -858,14 +861,14 @@ DEFINE_TSAN_READ_WRITE(16);
 void __tsan_read_range(void *ptr, size_t size);
 void __tsan_read_range(void *ptr, size_t size)
 {
-	check_access(ptr, size, 0);
+	check_access(ptr, size, 0, _RET_IP_);
 }
 EXPORT_SYMBOL(__tsan_read_range);
 
 void __tsan_write_range(void *ptr, size_t size);
 void __tsan_write_range(void *ptr, size_t size)
 {
-	check_access(ptr, size, KCSAN_ACCESS_WRITE);
+	check_access(ptr, size, KCSAN_ACCESS_WRITE, _RET_IP_);
 }
 EXPORT_SYMBOL(__tsan_write_range);
 
@@ -886,7 +889,8 @@ EXPORT_SYMBOL(__tsan_write_range);
 				       IS_ALIGNED((unsigned long)ptr, size);   \
 		if (IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS) && is_atomic)      \
 			return;                                                \
-		check_access(ptr, size, is_atomic ? KCSAN_ACCESS_ATOMIC : 0);  \
+		check_access(ptr, size, is_atomic ? KCSAN_ACCESS_ATOMIC : 0,   \
+			     _RET_IP_);                                        \
 	}                                                                      \
 	EXPORT_SYMBOL(__tsan_volatile_read##size);                             \
 	void __tsan_unaligned_volatile_read##size(void *ptr)                   \
@@ -901,7 +905,8 @@ EXPORT_SYMBOL(__tsan_write_range);
 			return;                                                \
 		check_access(ptr, size,                                        \
 			     KCSAN_ACCESS_WRITE |                              \
-				     (is_atomic ? KCSAN_ACCESS_ATOMIC : 0));   \
+				     (is_atomic ? KCSAN_ACCESS_ATOMIC : 0),    \
+			     _RET_IP_);                                        \
 	}                                                                      \
 	EXPORT_SYMBOL(__tsan_volatile_write##size);                            \
 	void __tsan_unaligned_volatile_write##size(void *ptr)                  \
@@ -955,7 +960,7 @@ EXPORT_SYMBOL(__tsan_init);
 	u##bits __tsan_atomic##bits##_load(const u##bits *ptr, int memorder)                       \
 	{                                                                                          \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
-			check_access(ptr, bits / BITS_PER_BYTE, KCSAN_ACCESS_ATOMIC);              \
+			check_access(ptr, bits / BITS_PER_BYTE, KCSAN_ACCESS_ATOMIC, _RET_IP_);    \
 		}                                                                                  \
 		return __atomic_load_n(ptr, memorder);                                             \
 	}                                                                                          \
@@ -965,7 +970,7 @@ EXPORT_SYMBOL(__tsan_init);
 	{                                                                                          \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
-				     KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC);                    \
+				     KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC, _RET_IP_);          \
 		}                                                                                  \
 		__atomic_store_n(ptr, v, memorder);                                                \
 	}                                                                                          \
@@ -978,7 +983,7 @@ EXPORT_SYMBOL(__tsan_init);
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
-					     KCSAN_ACCESS_ATOMIC);                                 \
+					     KCSAN_ACCESS_ATOMIC, _RET_IP_);                       \
 		}                                                                                  \
 		return __atomic_##op##suffix(ptr, v, memorder);                                    \
 	}                                                                                          \
@@ -1010,7 +1015,7 @@ EXPORT_SYMBOL(__tsan_init);
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
-					     KCSAN_ACCESS_ATOMIC);                                 \
+					     KCSAN_ACCESS_ATOMIC, _RET_IP_);                       \
 		}                                                                                  \
 		return __atomic_compare_exchange_n(ptr, exp, val, weak, mo, fail_mo);              \
 	}                                                                                          \
@@ -1025,7 +1030,7 @@ EXPORT_SYMBOL(__tsan_init);
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
-					     KCSAN_ACCESS_ATOMIC);                                 \
+					     KCSAN_ACCESS_ATOMIC, _RET_IP_);                       \
 		}                                                                                  \
 		__atomic_compare_exchange_n(ptr, &exp, val, 0, mo, fail_mo);                       \
 		return exp;                                                                        \
