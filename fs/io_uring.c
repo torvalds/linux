@@ -6298,6 +6298,14 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
+static struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
+{
+	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+
+	req = io_put_req_find_next(req);
+	return req ? &req->work : NULL;
+}
+
 static void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -7930,14 +7938,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	return done ? done : err;
 }
 
-static struct io_wq_work *io_free_work(struct io_wq_work *work)
-{
-	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-
-	req = io_put_req_find_next(req);
-	return req ? &req->work : NULL;
-}
-
 static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 					struct task_struct *task)
 {
@@ -7961,7 +7961,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 
 	data.hash = hash;
 	data.task = task;
-	data.free_work = io_free_work;
+	data.free_work = io_wq_free_work;
 	data.do_work = io_wq_submit_work;
 
 	/* Do QD, or 4 * CPUS, whatever is smallest */
