@@ -128,8 +128,6 @@ struct mmc_blk_data {
 	 * track of the current selected device partition.
 	 */
 	unsigned int	part_curr;
-	struct device_attribute force_ro;
-	struct device_attribute power_ro_lock;
 	int	area_type;
 
 	/* debugfs files (only in main mmc_blk_data) */
@@ -281,6 +279,9 @@ out_put:
 	return count;
 }
 
+static DEVICE_ATTR(ro_lock_until_next_power_on, 0,
+		power_ro_lock_show, power_ro_lock_store);
+
 static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -312,6 +313,44 @@ out:
 	mmc_blk_put(md);
 	return ret;
 }
+
+static DEVICE_ATTR(force_ro, 0644, force_ro_show, force_ro_store);
+
+static struct attribute *mmc_disk_attrs[] = {
+	&dev_attr_force_ro.attr,
+	&dev_attr_ro_lock_until_next_power_on.attr,
+	NULL,
+};
+
+static umode_t mmc_disk_attrs_is_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
+	umode_t mode = a->mode;
+
+	if (a == &dev_attr_ro_lock_until_next_power_on.attr &&
+	    (md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
+	    md->queue.card->ext_csd.boot_ro_lockable) {
+		mode = S_IRUGO;
+		if (!(md->queue.card->ext_csd.boot_ro_lock &
+				EXT_CSD_BOOT_WP_B_PWR_WP_DIS))
+			mode |= S_IWUSR;
+	}
+
+	mmc_blk_put(md);
+	return mode;
+}
+
+static const struct attribute_group mmc_disk_attr_group = {
+	.is_visible	= mmc_disk_attrs_is_visible,
+	.attrs		= mmc_disk_attrs,
+};
+
+static const struct attribute_group *mmc_disk_attr_groups[] = {
+	&mmc_disk_attr_group,
+	NULL,
+};
 
 static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 {
@@ -2644,15 +2683,8 @@ static void mmc_blk_remove_req(struct mmc_blk_data *md)
 		 * from being accepted.
 		 */
 		card = md->queue.card;
-		if (md->disk->flags & GENHD_FL_UP) {
-			device_remove_file(disk_to_dev(md->disk), &md->force_ro);
-			if ((md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
-					card->ext_csd.boot_ro_lockable)
-				device_remove_file(disk_to_dev(md->disk),
-					&md->power_ro_lock);
-
+		if (md->disk->flags & GENHD_FL_UP)
 			del_gendisk(md->disk);
-		}
 		mmc_cleanup_queue(&md->queue);
 		mmc_blk_put(md);
 	}
@@ -2677,51 +2709,6 @@ static void mmc_blk_remove_parts(struct mmc_card *card,
 		list_del(pos);
 		mmc_blk_remove_req(part_md);
 	}
-}
-
-static int mmc_add_disk(struct mmc_blk_data *md)
-{
-	int ret;
-	struct mmc_card *card = md->queue.card;
-
-	device_add_disk(md->parent, md->disk, NULL);
-	md->force_ro.show = force_ro_show;
-	md->force_ro.store = force_ro_store;
-	sysfs_attr_init(&md->force_ro.attr);
-	md->force_ro.attr.name = "force_ro";
-	md->force_ro.attr.mode = S_IRUGO | S_IWUSR;
-	ret = device_create_file(disk_to_dev(md->disk), &md->force_ro);
-	if (ret)
-		goto force_ro_fail;
-
-	if ((md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
-	     card->ext_csd.boot_ro_lockable) {
-		umode_t mode;
-
-		if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PWR_WP_DIS)
-			mode = S_IRUGO;
-		else
-			mode = S_IRUGO | S_IWUSR;
-
-		md->power_ro_lock.show = power_ro_lock_show;
-		md->power_ro_lock.store = power_ro_lock_store;
-		sysfs_attr_init(&md->power_ro_lock.attr);
-		md->power_ro_lock.attr.mode = mode;
-		md->power_ro_lock.attr.name =
-					"ro_lock_until_next_power_on";
-		ret = device_create_file(disk_to_dev(md->disk),
-				&md->power_ro_lock);
-		if (ret)
-			goto power_ro_lock_fail;
-	}
-	return ret;
-
-power_ro_lock_fail:
-	device_remove_file(disk_to_dev(md->disk), &md->force_ro);
-force_ro_fail:
-	del_gendisk(md->disk);
-
-	return ret;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -2919,12 +2906,13 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	dev_set_drvdata(&card->dev, md);
 
-	ret = mmc_add_disk(md);
+	device_add_disk(md->parent, md->disk, mmc_disk_attr_groups);
 	if (ret)
 		goto out;
 
 	list_for_each_entry(part_md, &md->part, part) {
-		ret = mmc_add_disk(part_md);
+		device_add_disk(part_md->parent, part_md->disk,
+				mmc_disk_attr_groups);
 		if (ret)
 			goto out;
 	}
