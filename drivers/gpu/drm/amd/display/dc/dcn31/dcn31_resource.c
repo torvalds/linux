@@ -366,7 +366,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 
 #define abm_regs(id)\
 [id] = {\
-		ABM_DCN301_REG_LIST(id)\
+		ABM_DCN302_REG_LIST(id)\
 }
 
 static const struct dce_abm_registers abm_regs[] = {
