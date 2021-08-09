@@ -50,7 +50,7 @@ static u16 mpi3mr_host_tag_for_scmd(struct mpi3mr_ioc *mrioc,
 	u32 unique_tag;
 	u16 host_tag, hw_queue;
 
-	unique_tag = blk_mq_unique_tag(scmd->request);
+	unique_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
 
 	hw_queue = blk_mq_unique_tag_to_hwq(unique_tag);
 	if (hw_queue >= mrioc->num_op_reply_q)
@@ -2016,7 +2016,7 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 	case SCSI_PROT_DIF_TYPE0:
 		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
 		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scmd->request));
+		    cpu_to_be32(t10_pi_ref_tag(scsi_cmd_to_rq(scmd)));
 		break;
 	case SCSI_PROT_DIF_TYPE1:
 	case SCSI_PROT_DIF_TYPE2:
@@ -2024,7 +2024,7 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 		    MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE |
 		    MPI3_EEDPFLAGS_CHK_GUARD;
 		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scmd->request));
+		    cpu_to_be32(t10_pi_ref_tag(scsi_cmd_to_rq(scmd)));
 		break;
 	case SCSI_PROT_DIF_TYPE3:
 		eedp_flags |= MPI3_EEDPFLAGS_CHK_GUARD |
@@ -3451,7 +3451,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	u16 dev_handle;
 	u16 host_tag;
 	u32 scsiio_flags = 0;
-	struct request *rq = scmd->request;
+	struct request *rq = scsi_cmd_to_rq(scmd);
 	int iprio_class;
 
 	sdev_priv_data = scmd->device->hostdata;
