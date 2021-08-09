@@ -126,8 +126,6 @@ struct mt7921_phy {
 
 	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
 
-	struct ieee80211_vif *monitor_vif;
-
 	u32 rxfilter;
 	u64 omac_mask;
 
