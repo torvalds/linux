@@ -724,7 +724,7 @@ static void add_bio_entry(struct f2fs_sb_info *sbi, struct bio *bio,
 	struct f2fs_bio_info *io = sbi->write_io[DATA] + temp;
 	struct bio_entry *be;
 
-	be = f2fs_kmem_cache_alloc(bio_entry_slab, GFP_NOFS);
+	be = f2fs_kmem_cache_alloc(bio_entry_slab, GFP_NOFS, true, NULL);
 	be->bio = bio;
 	bio_get(bio);
 

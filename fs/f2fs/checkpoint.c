@@ -475,7 +475,8 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino,
 
 retry:
 	if (!e)
-		new = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS);
+		new = f2fs_kmem_cache_alloc(ino_entry_slab,
+						GFP_NOFS, true, NULL);
 
 	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
 

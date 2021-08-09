@@ -53,6 +53,7 @@ enum {
 	FAULT_CHECKPOINT,
 	FAULT_DISCARD,
 	FAULT_WRITE_IO,
+	FAULT_SLAB_ALLOC,
 	FAULT_MAX,
 };
 
@@ -2618,7 +2619,7 @@ static inline struct kmem_cache *f2fs_kmem_cache_create(const char *name,
 	return kmem_cache_create(name, size, 0, SLAB_RECLAIM_ACCOUNT, NULL);
 }
 
-static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
+static inline void *f2fs_kmem_cache_alloc_nofail(struct kmem_cache *cachep,
 						gfp_t flags)
 {
 	void *entry;
@@ -2627,6 +2628,20 @@ static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
 	if (!entry)
 		entry = kmem_cache_alloc(cachep, flags | __GFP_NOFAIL);
 	return entry;
+}
+
+static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
+			gfp_t flags, bool nofail, struct f2fs_sb_info *sbi)
+{
+	if (nofail)
+		return f2fs_kmem_cache_alloc_nofail(cachep, flags);
+
+	if (time_to_inject(sbi, FAULT_SLAB_ALLOC)) {
+		f2fs_show_injection_info(sbi, FAULT_SLAB_ALLOC);
+		return NULL;
+	}
+
+	return kmem_cache_alloc(cachep, flags);
 }
 
 static inline bool is_inflight_io(struct f2fs_sb_info *sbi, int type)

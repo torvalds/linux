@@ -162,14 +162,13 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 	return dst_page;
 }
 
-static struct nat_entry *__alloc_nat_entry(nid_t nid, bool no_fail)
+static struct nat_entry *__alloc_nat_entry(struct f2fs_sb_info *sbi,
+						nid_t nid, bool no_fail)
 {
 	struct nat_entry *new;
 
-	if (no_fail)
-		new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_F2FS_ZERO);
-	else
-		new = kmem_cache_alloc(nat_entry_slab, GFP_F2FS_ZERO);
+	new = f2fs_kmem_cache_alloc(nat_entry_slab,
+					GFP_F2FS_ZERO, no_fail, sbi);
 	if (new) {
 		nat_set_nid(new, nid);
 		nat_reset_flag(new);
@@ -242,7 +241,8 @@ static struct nat_entry_set *__grab_nat_entry_set(struct f2fs_nm_info *nm_i,
 
 	head = radix_tree_lookup(&nm_i->nat_set_root, set);
 	if (!head) {
-		head = f2fs_kmem_cache_alloc(nat_entry_set_slab, GFP_NOFS);
+		head = f2fs_kmem_cache_alloc(nat_entry_set_slab,
+						GFP_NOFS, true, NULL);
 
 		INIT_LIST_HEAD(&head->entry_list);
 		INIT_LIST_HEAD(&head->set_list);
@@ -329,7 +329,8 @@ static unsigned int f2fs_add_fsync_node_entry(struct f2fs_sb_info *sbi,
 	unsigned long flags;
 	unsigned int seq_id;
 
-	fn = f2fs_kmem_cache_alloc(fsync_node_entry_slab, GFP_NOFS);
+	fn = f2fs_kmem_cache_alloc(fsync_node_entry_slab,
+					GFP_NOFS, true, NULL);
 
 	get_page(page);
 	fn->page = page;
@@ -428,7 +429,7 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *new, *e;
 
-	new = __alloc_nat_entry(nid, false);
+	new = __alloc_nat_entry(sbi, nid, false);
 	if (!new)
 		return;
 
@@ -451,7 +452,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
-	struct nat_entry *new = __alloc_nat_entry(ni->nid, true);
+	struct nat_entry *new = __alloc_nat_entry(sbi, ni->nid, true);
 
 	down_write(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, ni->nid);
@@ -2252,7 +2253,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 	if (unlikely(f2fs_check_nid_range(sbi, nid)))
 		return false;
 
-	i = f2fs_kmem_cache_alloc(free_nid_slab, GFP_NOFS);
+	i = f2fs_kmem_cache_alloc(free_nid_slab, GFP_NOFS, true, NULL);
 	i->nid = nid;
 	i->state = FREE_NID;
 
@@ -2842,7 +2843,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 
 		ne = __lookup_nat_cache(nm_i, nid);
 		if (!ne) {
-			ne = __alloc_nat_entry(nid, true);
+			ne = __alloc_nat_entry(sbi, nid, true);
 			__init_nat_entry(nm_i, ne, &raw_ne, true);
 		}
 

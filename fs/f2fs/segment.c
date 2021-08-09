@@ -188,7 +188,8 @@ void f2fs_register_inmem_page(struct inode *inode, struct page *page)
 
 	set_page_private_atomic(page);
 
-	new = f2fs_kmem_cache_alloc(inmem_entry_slab, GFP_NOFS);
+	new = f2fs_kmem_cache_alloc(inmem_entry_slab,
+					GFP_NOFS, true, NULL);
 
 	/* add atomic page indices to the list */
 	new->page = page;
@@ -1001,7 +1002,7 @@ static struct discard_cmd *__create_discard_cmd(struct f2fs_sb_info *sbi,
 
 	pend_list = &dcc->pend_list[plist_idx(len)];
 
-	dc = f2fs_kmem_cache_alloc(discard_cmd_slab, GFP_NOFS);
+	dc = f2fs_kmem_cache_alloc(discard_cmd_slab, GFP_NOFS, true, NULL);
 	INIT_LIST_HEAD(&dc->list);
 	dc->bdev = bdev;
 	dc->lstart = lstart;
@@ -1962,7 +1963,7 @@ static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 
 		if (!de) {
 			de = f2fs_kmem_cache_alloc(discard_entry_slab,
-								GFP_F2FS_ZERO);
+						GFP_F2FS_ZERO, true, NULL);
 			de->start_blkaddr = START_BLOCK(sbi, cpc->trim_start);
 			list_add_tail(&de->list, head);
 		}
@@ -4099,7 +4100,8 @@ static struct page *get_next_sit_page(struct f2fs_sb_info *sbi,
 static struct sit_entry_set *grab_sit_entry_set(void)
 {
 	struct sit_entry_set *ses =
-			f2fs_kmem_cache_alloc(sit_entry_set_slab, GFP_NOFS);
+			f2fs_kmem_cache_alloc(sit_entry_set_slab,
+						GFP_NOFS, true, NULL);
 
 	ses->entry_cnt = 0;
 	INIT_LIST_HEAD(&ses->set_list);

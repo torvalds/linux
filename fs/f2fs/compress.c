@@ -28,7 +28,8 @@ static void *page_array_alloc(struct inode *inode, int nr)
 	unsigned int size = sizeof(struct page *) * nr;
 
 	if (likely(size <= sbi->page_array_slab_size))
-		return kmem_cache_zalloc(sbi->page_array_slab, GFP_NOFS);
+		return f2fs_kmem_cache_alloc(sbi->page_array_slab,
+					GFP_F2FS_ZERO, false, F2FS_I_SB(inode));
 	return f2fs_kzalloc(sbi, size, GFP_NOFS);
 }
 
@@ -1228,7 +1229,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 
 	fio.version = ni.version;
 
-	cic = kmem_cache_zalloc(cic_entry_slab, GFP_NOFS);
+	cic = f2fs_kmem_cache_alloc(cic_entry_slab, GFP_F2FS_ZERO, false, sbi);
 	if (!cic)
 		goto out_put_dnode;
 
@@ -1506,7 +1507,8 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 	pgoff_t start_idx = start_idx_of_cluster(cc);
 	int i;
 
-	dic = kmem_cache_zalloc(dic_entry_slab, GFP_NOFS);
+	dic = f2fs_kmem_cache_alloc(dic_entry_slab, GFP_F2FS_ZERO,
+					false, F2FS_I_SB(cc->inode));
 	if (!dic)
 		return ERR_PTR(-ENOMEM);
 
