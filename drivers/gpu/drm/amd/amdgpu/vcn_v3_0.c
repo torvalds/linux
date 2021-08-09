@@ -98,7 +98,6 @@ static int vcn_v3_0_early_init(void *handle)
 		if (adev->ip_versions[UVD_HWIP] == IP_VERSION(3, 0, 0)) {
 			u32 harvest;
 
-			adev->vcn.num_vcn_inst = VCN_INSTANCES_SIENNA_CICHLID;
 			for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 				harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
 				if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
@@ -109,8 +108,7 @@ static int vcn_v3_0_early_init(void *handle)
 						AMDGPU_VCN_HARVEST_VCN1))
 				/* both instances are harvested, disable the block */
 				return -ENOENT;
-		} else
-			adev->vcn.num_vcn_inst = 1;
+		}
 
 		if (adev->ip_versions[UVD_HWIP] == IP_VERSION(3, 0, 33))
 			adev->vcn.num_enc_rings = 0;

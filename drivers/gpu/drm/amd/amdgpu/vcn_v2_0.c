@@ -69,7 +69,6 @@ static int vcn_v2_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->vcn.num_vcn_inst = 1;
 	if (amdgpu_sriov_vf(adev))
 		adev->vcn.num_enc_rings = 1;
 	else

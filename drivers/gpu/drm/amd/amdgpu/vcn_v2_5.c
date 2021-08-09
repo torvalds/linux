@@ -83,7 +83,7 @@ static int vcn_v2_5_early_init(void *handle)
 	} else {
 		u32 harvest;
 		int i;
-		adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
+
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 			harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
 			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
