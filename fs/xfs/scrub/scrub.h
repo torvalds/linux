@@ -35,7 +35,6 @@ struct xchk_meta_ops {
 
 /* Buffer pointers and btree cursors for an entire AG. */
 struct xchk_ag {
-	xfs_agnumber_t		agno;
 	struct xfs_perag	*pag;
 
 	/* AG btree roots */

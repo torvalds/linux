@@ -414,8 +414,6 @@ xchk_ag_read_headers(
 	if (!sa->pag)
 		return -ENOENT;
 
-	sa->agno = agno;
-
 	error = xfs_ialloc_read_agi(mp, sc->tp, agno, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		return error;
@@ -531,7 +529,6 @@ xchk_ag_free(
 		xfs_perag_put(sa->pag);
 		sa->pag = NULL;
 	}
-	sa->agno = NULLAGNUMBER;
 }
 
 /*

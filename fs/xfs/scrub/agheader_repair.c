@@ -94,7 +94,7 @@ xrep_agf_check_agfl_block(
 {
 	struct xfs_scrub	*sc = priv;
 
-	if (!xfs_verify_agbno(mp, sc->sa.agno, agbno))
+	if (!xfs_verify_agbno(mp, sc->sa.pag->pag_agno, agbno))
 		return -EFSCORRUPTED;
 	return 0;
 }
@@ -188,8 +188,9 @@ xrep_agf_init_header(
 	memset(agf, 0, BBTOB(agf_bp->b_length));
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
-	agf->agf_seqno = cpu_to_be32(sc->sa.agno);
-	agf->agf_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agno));
+	agf->agf_seqno = cpu_to_be32(sc->sa.pag->pag_agno);
+	agf->agf_length = cpu_to_be32(xfs_ag_block_count(mp,
+							sc->sa.pag->pag_agno));
 	agf->agf_flfirst = old_agf->agf_flfirst;
 	agf->agf_fllast = old_agf->agf_fllast;
 	agf->agf_flcount = old_agf->agf_flcount;
@@ -371,7 +372,8 @@ xrep_agf(
 	 * was corrupt after xfs_alloc_read_agf failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGF_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.pag->pag_agno,
+						XFS_AGF_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agf_bp, NULL);
 	if (error)
 		return error;
@@ -387,7 +389,7 @@ xrep_agf(
 	 * btrees rooted in the AGF.  If the AGFL contents are obviously bad
 	 * then we'll bail out.
 	 */
-	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.agno, &agfl_bp);
+	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.pag->pag_agno, &agfl_bp);
 	if (error)
 		return error;
 
@@ -585,7 +587,7 @@ xrep_agfl_init_header(
 	agfl = XFS_BUF_TO_AGFL(agfl_bp);
 	memset(agfl, 0xFF, BBTOB(agfl_bp->b_length));
 	agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
-	agfl->agfl_seqno = cpu_to_be32(sc->sa.agno);
+	agfl->agfl_seqno = cpu_to_be32(sc->sa.pag->pag_agno);
 	uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
 
 	/*
@@ -598,7 +600,8 @@ xrep_agfl_init_header(
 	for_each_xbitmap_extent(br, n, agfl_extents) {
 		agbno = XFS_FSB_TO_AGBNO(mp, br->start);
 
-		trace_xrep_agfl_insert(mp, sc->sa.agno, agbno, br->len);
+		trace_xrep_agfl_insert(mp, sc->sa.pag->pag_agno, agbno,
+				br->len);
 
 		while (br->len > 0 && fl_off < flcount) {
 			agfl_bno[fl_off] = cpu_to_be32(agbno);
@@ -647,7 +650,8 @@ xrep_agfl(
 	 * nothing wrong with the AGF, but all the AG header repair functions
 	 * have this chicken-and-egg problem.
 	 */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
+	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.pag->pag_agno, 0,
+			&agf_bp);
 	if (error)
 		return error;
 
@@ -656,7 +660,8 @@ xrep_agfl(
 	 * was corrupt after xfs_alloc_read_agfl failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGFL_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.pag->pag_agno,
+						XFS_AGFL_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agfl_bp, NULL);
 	if (error)
 		return error;
@@ -721,7 +726,8 @@ xrep_agi_find_btrees(
 	int				error;
 
 	/* Read the AGF. */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
+	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.pag->pag_agno, 0,
+			&agf_bp);
 	if (error)
 		return error;
 
@@ -759,8 +765,9 @@ xrep_agi_init_header(
 	memset(agi, 0, BBTOB(agi_bp->b_length));
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
 	agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
-	agi->agi_seqno = cpu_to_be32(sc->sa.agno);
-	agi->agi_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agno));
+	agi->agi_seqno = cpu_to_be32(sc->sa.pag->pag_agno);
+	agi->agi_length = cpu_to_be32(xfs_ag_block_count(mp,
+							sc->sa.pag->pag_agno));
 	agi->agi_newino = cpu_to_be32(NULLAGINO);
 	agi->agi_dirino = cpu_to_be32(NULLAGINO);
 	if (xfs_sb_version_hascrc(&mp->m_sb))
@@ -899,7 +906,8 @@ xrep_agi(
 	 * was corrupt after xfs_ialloc_read_agi failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGI_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.pag->pag_agno,
+						XFS_AGI_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agi_bp, NULL);
 	if (error)
 		return error;

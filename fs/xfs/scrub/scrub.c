@@ -464,9 +464,6 @@ xfs_scrub_metadata(
 	struct xfs_scrub		sc = {
 		.file			= file,
 		.sm			= sm,
-		.sa			= {
-			.agno		= NULLAGNUMBER,
-		},
 	};
 	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
 	int				error = 0;

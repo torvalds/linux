@@ -640,7 +640,7 @@ xchk_agfl_block(
 {
 	struct xchk_agfl_info	*sai = priv;
 	struct xfs_scrub	*sc = sai->sc;
-	xfs_agnumber_t		agno = sc->sa.agno;
+	xfs_agnumber_t		agno = sc->sa.pag->pag_agno;
 
 	if (xfs_verify_agbno(mp, agno, agbno) &&
 	    sai->nr_entries < sai->sz_entries)
