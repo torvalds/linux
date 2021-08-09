@@ -380,8 +380,10 @@ void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
 }
 EXPORT_SYMBOL(blk_queue_alignment_offset);
 
-void blk_queue_update_readahead(struct request_queue *q)
+void disk_update_readahead(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
+
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
 	 * at least twice the optimal I/O size.
@@ -391,7 +393,7 @@ void blk_queue_update_readahead(struct request_queue *q)
 	q->backing_dev_info->io_pages =
 		queue_max_sectors(q) >> (PAGE_SHIFT - 9);
 }
-EXPORT_SYMBOL_GPL(blk_queue_update_readahead);
+EXPORT_SYMBOL_GPL(disk_update_readahead);
 
 /**
  * blk_limits_io_min - set minimum request size for a device
@@ -665,7 +667,7 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		pr_notice("%s: Warning: Device %pg is misaligned\n",
 			disk->disk_name, bdev);
 
-	blk_queue_update_readahead(disk->queue);
+	disk_update_readahead(disk);
 }
 EXPORT_SYMBOL(disk_stack_limits);
 

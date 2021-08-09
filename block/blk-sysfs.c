@@ -866,7 +866,7 @@ int blk_register_queue(struct gendisk *disk)
 		  "%s is registering an already registered queue\n",
 		  kobject_name(&dev->kobj));
 
-	blk_queue_update_readahead(q);
+	disk_update_readahead(disk);
 
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)
