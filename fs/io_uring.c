@@ -1067,8 +1067,6 @@ static void io_submit_flush_completions(struct io_ring_ctx *ctx);
 static bool io_poll_remove_waitqs(struct io_kiocb *req);
 static int io_req_prep_async(struct io_kiocb *req);
 
-static void io_fallback_req_func(struct work_struct *unused);
-
 static struct kmem_cache *req_cachep;
 
 static const struct file_operations io_uring_fops;
@@ -1143,6 +1141,19 @@ static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 static inline bool io_is_timeout_noseq(struct io_kiocb *req)
 {
 	return !req->timeout.off;
+}
+
+static void io_fallback_req_func(struct work_struct *work)
+{
+	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,
+						fallback_work.work);
+	struct llist_node *node = llist_del_all(&ctx->fallback_llist);
+	struct io_kiocb *req, *tmp;
+
+	percpu_ref_get(&ctx->refs);
+	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
+		req->io_task_work.func(req);
+	percpu_ref_put(&ctx->refs);
 }
 
 static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
@@ -2467,19 +2478,6 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	return false;
 }
 #endif
-
-static void io_fallback_req_func(struct work_struct *work)
-{
-	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,
-						fallback_work.work);
-	struct llist_node *node = llist_del_all(&ctx->fallback_llist);
-	struct io_kiocb *req, *tmp;
-
-	percpu_ref_get(&ctx->refs);
-	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
-		req->io_task_work.func(req);
-	percpu_ref_put(&ctx->refs);
-}
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     unsigned int issue_flags)
