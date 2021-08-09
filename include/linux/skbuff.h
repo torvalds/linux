@@ -4712,11 +4712,9 @@ static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
 }
 
 #ifdef CONFIG_PAGE_POOL
-static inline void skb_mark_for_recycle(struct sk_buff *skb, struct page *page,
-					struct page_pool *pp)
+static inline void skb_mark_for_recycle(struct sk_buff *skb)
 {
 	skb->pp_recycle = 1;
-	page_pool_store_mem_info(page, pp);
 }
 #endif
 

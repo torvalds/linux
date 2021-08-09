@@ -3205,6 +3205,21 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 	unsigned int order = hns3_page_order(ring);
 	struct page *p;
 
+	if (ring->page_pool) {
+		p = page_pool_dev_alloc_frag(ring->page_pool,
+					     &cb->page_offset,
+					     hns3_buf_size(ring));
+		if (unlikely(!p))
+			return -ENOMEM;
+
+		cb->priv = p;
+		cb->buf = page_address(p);
+		cb->dma = page_pool_get_dma_addr(p);
+		cb->type = DESC_TYPE_PP_FRAG;
+		cb->reuse_flag = 0;
+		return 0;
+	}
+
 	p = dev_alloc_pages(order);
 	if (!p)
 		return -ENOMEM;
@@ -3227,8 +3242,13 @@ static void hns3_free_buffer(struct hns3_enet_ring *ring,
 	if (cb->type & (DESC_TYPE_SKB | DESC_TYPE_BOUNCE_HEAD |
 			DESC_TYPE_BOUNCE_ALL | DESC_TYPE_SGL_SKB))
 		napi_consume_skb(cb->priv, budget);
-	else if (!HNAE3_IS_TX_RING(ring) && cb->pagecnt_bias)
-		__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
+	else if (!HNAE3_IS_TX_RING(ring)) {
+		if (cb->type & DESC_TYPE_PAGE && cb->pagecnt_bias)
+			__page_frag_cache_drain(cb->priv, cb->pagecnt_bias);
+		else if (cb->type & DESC_TYPE_PP_FRAG)
+			page_pool_put_full_page(ring->page_pool, cb->priv,
+						false);
+	}
 	memset(cb, 0, sizeof(*cb));
 }
 
@@ -3315,7 +3335,7 @@ static int hns3_alloc_and_map_buffer(struct hns3_enet_ring *ring,
 	int ret;
 
 	ret = hns3_alloc_buffer(ring, cb);
-	if (ret)
+	if (ret || ring->page_pool)
 		goto out;
 
 	ret = hns3_map_buffer(ring, cb);
@@ -3337,7 +3357,8 @@ static int hns3_alloc_and_attach_buffer(struct hns3_enet_ring *ring, int i)
 	if (ret)
 		return ret;
 
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
+					 ring->desc_cb[i].page_offset);
 
 	return 0;
 }
@@ -3367,7 +3388,8 @@ static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 {
 	hns3_unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
+					 ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.bd_base_info = 0;
 }
 
@@ -3538,6 +3560,12 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	u32 truesize = hns3_buf_size(ring);
 	u32 frag_size = size - pull_len;
 	bool reused;
+
+	if (ring->page_pool) {
+		skb_add_rx_frag(skb, i, desc_cb->priv, frag_offset,
+				frag_size, truesize);
+		return;
+	}
 
 	/* Avoid re-using remote or pfmem page */
 	if (unlikely(!dev_page_is_reusable(desc_cb->priv)))
@@ -3856,6 +3884,9 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		/* We can reuse buffer as-is, just make sure it is reusable */
 		if (dev_page_is_reusable(desc_cb->priv))
 			desc_cb->reuse_flag = 1;
+		else if (desc_cb->type & DESC_TYPE_PP_FRAG)
+			page_pool_put_full_page(ring->page_pool, desc_cb->priv,
+						false);
 		else /* This page cannot be reused so discard it */
 			__page_frag_cache_drain(desc_cb->priv,
 						desc_cb->pagecnt_bias);
@@ -3863,6 +3894,10 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		hns3_rx_ring_move_fw(ring);
 		return 0;
 	}
+
+	if (ring->page_pool)
+		skb_mark_for_recycle(skb);
+
 	u64_stats_update_begin(&ring->syncp);
 	ring->stats.seg_pkt_cnt++;
 	u64_stats_update_end(&ring->syncp);
@@ -3901,6 +3936,10 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 					    "alloc rx fraglist skb fail\n");
 				return -ENXIO;
 			}
+
+			if (ring->page_pool)
+				skb_mark_for_recycle(new_skb);
+
 			ring->frag_num = 0;
 
 			if (ring->tail_skb) {
@@ -4705,6 +4744,29 @@ static void hns3_put_ring_config(struct hns3_nic_priv *priv)
 	priv->ring = NULL;
 }
 
+static void hns3_alloc_page_pool(struct hns3_enet_ring *ring)
+{
+	struct page_pool_params pp_params = {
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_PAGE_FRAG |
+				PP_FLAG_DMA_SYNC_DEV,
+		.order = hns3_page_order(ring),
+		.pool_size = ring->desc_num * hns3_buf_size(ring) /
+				(PAGE_SIZE << hns3_page_order(ring)),
+		.nid = dev_to_node(ring_to_dev(ring)),
+		.dev = ring_to_dev(ring),
+		.dma_dir = DMA_FROM_DEVICE,
+		.offset = 0,
+		.max_len = PAGE_SIZE << hns3_page_order(ring),
+	};
+
+	ring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(ring->page_pool)) {
+		dev_warn(ring_to_dev(ring), "page pool creation failed: %ld\n",
+			 PTR_ERR(ring->page_pool));
+		ring->page_pool = NULL;
+	}
+}
+
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 {
 	int ret;
@@ -4724,6 +4786,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 		goto out_with_desc_cb;
 
 	if (!HNAE3_IS_TX_RING(ring)) {
+		hns3_alloc_page_pool(ring);
+
 		ret = hns3_alloc_ring_buffers(ring);
 		if (ret)
 			goto out_with_desc;
@@ -4763,6 +4827,11 @@ void hns3_fini_ring(struct hns3_enet_ring *ring)
 			   get_order(tx_spare->len));
 		devm_kfree(ring_to_dev(ring), tx_spare);
 		ring->tx_spare = NULL;
+	}
+
+	if (!HNAE3_IS_TX_RING(ring) && ring->page_pool) {
+		page_pool_destroy(ring->page_pool);
+		ring->page_pool = NULL;
 	}
 }
 
