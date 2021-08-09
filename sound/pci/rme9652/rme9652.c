@@ -2259,8 +2259,7 @@ static int snd_rme9652_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
         runtime->hw = snd_rme9652_playback_subinfo;
-	runtime->dma_area = rme9652->playback_buffer;
-	runtime->dma_bytes = RME9652_DMA_AREA_BYTES;
+	snd_pcm_set_runtime_buffer(substream, rme9652->playback_dma_buf);
 
 	if (rme9652->capture_substream == NULL) {
 		rme9652_stop(rme9652);
@@ -2319,8 +2318,7 @@ static int snd_rme9652_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	runtime->hw = snd_rme9652_capture_subinfo;
-	runtime->dma_area = rme9652->capture_buffer;
-	runtime->dma_bytes = RME9652_DMA_AREA_BYTES;
+	snd_pcm_set_runtime_buffer(substream, rme9652->capture_dma_buf);
 
 	if (rme9652->playback_substream == NULL) {
 		rme9652_stop(rme9652);
