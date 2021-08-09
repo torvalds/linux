@@ -31,7 +31,7 @@ struct bench_futex_parameters {
  * @val:	typically expected value of uaddr, but varies by op
  * @timeout:	typically an absolute struct timespec (except where noted
  *		otherwise). Overloaded by some ops
- * @uaddr2:	address of second futex for some ops\
+ * @uaddr2:	address of second futex for some ops
  * @val3:	varies by op
  * @opflags:	flags to be bitwise OR'd with op, such as FUTEX_PRIVATE_FLAG
  *
