@@ -1476,7 +1476,6 @@ xlog_alloc_log(
 	 */
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i = 0; i < log->l_iclog_bufs; i++) {
-		int align_mask = xfs_buftarg_dma_alignment(mp->m_logdev_targp);
 		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
 				sizeof(struct bio_vec);
 
@@ -1488,7 +1487,7 @@ xlog_alloc_log(
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
 
-		iclog->ic_data = kmem_alloc_io(log->l_iclog_size, align_mask,
+		iclog->ic_data = kmem_alloc_large(log->l_iclog_size,
 						KM_MAYFAIL | KM_ZERO);
 		if (!iclog->ic_data)
 			goto out_free_iclog;

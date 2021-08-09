@@ -79,8 +79,6 @@ xlog_alloc_buffer(
 	struct xlog	*log,
 	int		nbblks)
 {
-	int align_mask = xfs_buftarg_dma_alignment(log->l_targ);
-
 	/*
 	 * Pass log block 0 since we don't have an addr yet, buffer will be
 	 * verified on read.
@@ -108,7 +106,7 @@ xlog_alloc_buffer(
 	if (nbblks > 1 && log->l_sectBBsize > 1)
 		nbblks += log->l_sectBBsize;
 	nbblks = round_up(nbblks, log->l_sectBBsize);
-	return kmem_alloc_io(BBTOB(nbblks), align_mask, KM_MAYFAIL | KM_ZERO);
+	return kmem_alloc_large(BBTOB(nbblks), KM_MAYFAIL | KM_ZERO);
 }
 
 /*
