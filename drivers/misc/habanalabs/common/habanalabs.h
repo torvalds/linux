@@ -128,12 +128,17 @@ enum hl_mmu_page_table_location {
  *
  * - HL_RESET_DEVICE_RELEASE
  *       Set if reset is due to device release
+ *
+ * - HL_RESET_FW
+ *       F/W will perform the reset. No need to ask it to reset the device. This is relevant
+ *       only when running with secured f/w
  */
 #define HL_RESET_HARD			(1 << 0)
 #define HL_RESET_FROM_RESET_THREAD	(1 << 1)
 #define HL_RESET_HEARTBEAT		(1 << 2)
 #define HL_RESET_TDR			(1 << 3)
 #define HL_RESET_DEVICE_RELEASE		(1 << 4)
+#define HL_RESET_FW			(1 << 5)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 
@@ -1170,8 +1175,8 @@ struct hl_asic_funcs {
 	int (*sw_init)(struct hl_device *hdev);
 	int (*sw_fini)(struct hl_device *hdev);
 	int (*hw_init)(struct hl_device *hdev);
-	void (*hw_fini)(struct hl_device *hdev, bool hard_reset);
-	void (*halt_engines)(struct hl_device *hdev, bool hard_reset);
+	void (*hw_fini)(struct hl_device *hdev, bool hard_reset, bool fw_reset);
+	void (*halt_engines)(struct hl_device *hdev, bool hard_reset, bool fw_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
 	int (*mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
@@ -2138,11 +2143,13 @@ struct hwmon_chip_info;
  * @wq: work queue for device reset procedure.
  * @reset_work: reset work to be done.
  * @hdev: habanalabs device structure.
+ * @fw_reset: whether f/w will do the reset without us sending them a message to do it.
  */
 struct hl_device_reset_work {
 	struct workqueue_struct		*wq;
 	struct delayed_work		reset_work;
 	struct hl_device		*hdev;
+	bool				fw_reset;
 };
 
 /**

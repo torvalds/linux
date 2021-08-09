@@ -654,14 +654,14 @@ pci_init:
 					GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
-			hdev->asic_funcs->hw_fini(hdev, true);
+			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
 
 	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_info(hdev->dev,
 			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true);
+		hdev->asic_funcs->hw_fini(hdev, true, false);
 	}
 
 	if (!hdev->pldm) {
@@ -2380,7 +2380,7 @@ static void goya_disable_timestamp(struct hl_device *hdev)
 	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
 }
 
-static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
+static void goya_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	u32 wait_timeout_ms;
 
@@ -2703,14 +2703,7 @@ disable_queues:
 	return rc;
 }
 
-/*
- * goya_hw_fini - Goya hardware tear-down code
- *
- * @hdev: pointer to hl_device structure
- * @hard_reset: should we do hard reset to all engines or just reset the
- *              compute/dma engines
- */
-static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
+static void goya_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 reset_timeout_ms, cpu_timeout_ms, status;

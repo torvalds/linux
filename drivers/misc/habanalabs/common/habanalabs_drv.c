@@ -535,7 +535,7 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		result = PCI_ERS_RESULT_NONE;
 	}
 
-	hdev->asic_funcs->halt_engines(hdev, true);
+	hdev->asic_funcs->halt_engines(hdev, true, false);
 
 	return result;
 }

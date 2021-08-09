@@ -833,14 +833,14 @@ pci_init:
 					GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
-			hdev->asic_funcs->hw_fini(hdev, true);
+			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
 
 	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_info(hdev->dev,
 			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true);
+		hdev->asic_funcs->hw_fini(hdev, true, false);
 	}
 
 	return 0;
@@ -3836,7 +3836,7 @@ static void gaudi_disable_timestamp(struct hl_device *hdev)
 	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
 }
 
-static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
+static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	u32 wait_timeout_ms;
 
@@ -3847,6 +3847,9 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 		wait_timeout_ms = GAUDI_PLDM_RESET_WAIT_MSEC;
 	else
 		wait_timeout_ms = GAUDI_RESET_WAIT_MSEC;
+
+	if (fw_reset)
+		goto skip_engines;
 
 	gaudi_stop_nic_qmans(hdev);
 	gaudi_stop_mme_qmans(hdev);
@@ -3873,6 +3876,7 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 
 	gaudi_disable_timestamp(hdev);
 
+skip_engines:
 	gaudi_disable_msi(hdev);
 }
 
@@ -4240,7 +4244,7 @@ disable_queues:
 	return rc;
 }
 
-static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
+static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	struct cpu_dyn_regs *dyn_regs =
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
@@ -4259,6 +4263,14 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	} else {
 		reset_timeout_ms = GAUDI_RESET_TIMEOUT_MSEC;
 		cpu_timeout_ms = GAUDI_CPU_RESET_WAIT_MSEC;
+	}
+
+	if (fw_reset) {
+		dev_info(hdev->dev,
+			"Firmware performs HARD reset, going to wait %dms\n",
+			reset_timeout_ms);
+
+		goto skip_reset;
 	}
 
 	driver_performs_reset = !!(!hdev->asic_prop.fw_security_enabled &&
@@ -4337,6 +4349,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 			reset_timeout_ms);
 	}
 
+skip_reset:
 	/*
 	 * After hard reset, we can't poll the BTM_FSM register because the PSOC
 	 * itself is in reset. Need to wait until the reset is deasserted
@@ -7999,10 +8012,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 					tpc_dec_event_to_tpc_id(event_type),
 					"AXI_SLV_DEC_Error");
 		if (reset_required) {
-			dev_err(hdev->dev, "hard reset required due to %s\n",
+			dev_err(hdev->dev, "reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
 
-			goto reset_device;
+			hl_device_reset(hdev, 0);
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
 		}
@@ -8021,10 +8034,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 					tpc_krn_event_to_tpc_id(event_type),
 					"KRN_ERR");
 		if (reset_required) {
-			dev_err(hdev->dev, "hard reset required due to %s\n",
+			dev_err(hdev->dev, "reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
 
-			goto reset_device;
+			hl_device_reset(hdev, 0);
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
 		}
@@ -8154,7 +8167,9 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	return;
 
 reset_device:
-	if (hdev->hard_reset_on_fw_events)
+	if (hdev->asic_prop.fw_security_enabled)
+		hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_FW);
+	else if (hdev->hard_reset_on_fw_events)
 		hl_device_reset(hdev, HL_RESET_HARD);
 	else
 		hl_fw_unmask_irq(hdev, event_type);
