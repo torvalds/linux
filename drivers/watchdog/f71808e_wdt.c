@@ -81,7 +81,6 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static const int max_timeout = WATCHDOG_MAX_TIMEOUT;
 static int timeout = WATCHDOG_TIMEOUT;	/* default timeout in seconds */
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
@@ -221,7 +220,7 @@ static inline void superio_exit(int base)
 static int watchdog_set_timeout(int timeout)
 {
 	if (timeout <= 0
-	 || timeout >  max_timeout) {
+	 || timeout >  WATCHDOG_MAX_TIMEOUT) {
 		pr_err("watchdog timeout out of range\n");
 		return -EINVAL;
 	}
@@ -720,7 +719,7 @@ static int __init watchdog_init(int sioaddr)
 
 	if (start_withtimeout) {
 		if (start_withtimeout <= 0
-		 || start_withtimeout >  max_timeout) {
+		 || start_withtimeout >  WATCHDOG_MAX_TIMEOUT) {
 			pr_err("starting timeout out of range\n");
 			err = -EINVAL;
 			goto exit_miscdev;
