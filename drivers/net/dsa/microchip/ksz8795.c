@@ -790,7 +790,13 @@ static int ksz8795_port_vlan_filtering(struct dsa_switch *ds, int port,
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
+	/* Discard packets with VID not enabled on the switch */
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
+
+	/* Discard packets with VID not enabled on the ingress port */
+	for (port = 0; port < dev->phy_port_cnt; ++port)
+		ksz_port_cfg(dev, port, REG_PORT_CTRL_2, PORT_INGRESS_FILTER,
+			     flag);
 
 	return 0;
 }
@@ -1265,6 +1271,11 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 
 	/* set the real number of ports */
 	dev->ds->num_ports = dev->port_cnt + 1;
+
+	/* VLAN filtering is partly controlled by the global VLAN
+	 * Enable flag
+	 */
+	dev->ds->vlan_filtering_is_global = true;
 
 	return 0;
 }
