@@ -13,6 +13,17 @@
 #include <sys/types.h>
 #include <linux/futex.h>
 
+struct bench_futex_parameters {
+	bool silent;
+	bool fshared;
+	bool multi; /* lock-pi */
+	unsigned int runtime; /* seconds*/
+	unsigned int nthreads;
+	unsigned int nfutexes;
+	unsigned int nwakes;
+	unsigned int nrequeue;
+};
+
 /**
  * futex() - SYS_futex syscall wrapper
  * @uaddr:	address of first futex
