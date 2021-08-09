@@ -331,7 +331,11 @@ EXPORT_SYMBOL_GPL(flow_offload_add);
 void flow_offload_refresh(struct nf_flowtable *flow_table,
 			  struct flow_offload *flow)
 {
-	flow->timeout = nf_flowtable_time_stamp + flow_offload_get_timeout(flow);
+	u32 timeout;
+
+	timeout = nf_flowtable_time_stamp + flow_offload_get_timeout(flow);
+	if (READ_ONCE(flow->timeout) != timeout)
+		WRITE_ONCE(flow->timeout, timeout);
 
 	if (likely(!nf_flowtable_hw_offload(flow_table)))
 		return;

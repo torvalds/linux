@@ -626,8 +626,16 @@ static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
 	}
 	fw_reporter_ctx.err_synd = health->synd;
 	fw_reporter_ctx.miss_counter = health->miss_counter;
-	devlink_health_report(health->fw_fatal_reporter,
-			      "FW fatal error reported", &fw_reporter_ctx);
+	if (devlink_health_report(health->fw_fatal_reporter,
+				  "FW fatal error reported", &fw_reporter_ctx) == -ECANCELED) {
+		/* If recovery wasn't performed, due to grace period,
+		 * unload the driver. This ensures that the driver
+		 * closes all its resources and it is not subjected to
+		 * requests from the kernel.
+		 */
+		mlx5_core_err(dev, "Driver is in error state. Unloading\n");
+		mlx5_unload_one(dev);
+	}
 }
 
 static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {

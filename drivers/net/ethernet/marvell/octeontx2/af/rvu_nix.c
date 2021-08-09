@@ -196,11 +196,22 @@ static void nix_rx_sync(struct rvu *rvu, int blkaddr)
 {
 	int err;
 
-	/*Sync all in flight RX packets to LLC/DRAM */
+	/* Sync all in flight RX packets to LLC/DRAM */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
 	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
 	if (err)
-		dev_err(rvu->dev, "NIX RX software sync failed\n");
+		dev_err(rvu->dev, "SYNC1: NIX RX software sync failed\n");
+
+	/* SW_SYNC ensures all existing transactions are finished and pkts
+	 * are written to LLC/DRAM, queues should be teared down after
+	 * successful SW_SYNC. Due to a HW errata, in some rare scenarios
+	 * an existing transaction might end after SW_SYNC operation. To
+	 * ensure operation is fully done, do the SW_SYNC twice.
+	 */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
+	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
+	if (err)
+		dev_err(rvu->dev, "SYNC2: NIX RX software sync failed\n");
 }
 
 static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
@@ -298,6 +309,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 					rvu_nix_chan_lbk(rvu, lbkid, vf + 1);
 		pfvf->rx_chan_cnt = 1;
 		pfvf->tx_chan_cnt = 1;
+		rvu_npc_set_pkind(rvu, NPC_RX_LBK_PKIND, pfvf);
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
 					      pfvf->rx_chan_cnt);
@@ -3842,7 +3854,6 @@ static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
 		vlan = &nix_hw->txvlan;
 		kfree(vlan->rsrc.bmap);
 		mutex_destroy(&vlan->rsrc_lock);
-		devm_kfree(rvu->dev, vlan->entry2pfvf_map);
 
 		mcast = &nix_hw->mcast;
 		qmem_free(rvu->dev, mcast->mce_ctx);
