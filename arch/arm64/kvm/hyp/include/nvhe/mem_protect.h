@@ -46,6 +46,8 @@ struct host_kvm {
 };
 extern struct host_kvm host_kvm;
 
+extern const u8 pkvm_hyp_id;
+
 int __pkvm_prot_finalize(void);
 int __pkvm_mark_hyp(phys_addr_t start, phys_addr_t end);
 
