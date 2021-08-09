@@ -687,8 +687,8 @@ static void ksz8_r_vlan_entries(struct ksz_device *dev, u16 addr)
 	shifts = ksz8->shifts;
 
 	ksz8_r_table(dev, TABLE_VLAN, addr, &data);
-	addr *= dev->phy_port_cnt;
-	for (i = 0; i < dev->phy_port_cnt; i++) {
+	addr *= 4;
+	for (i = 0; i < 4; i++) {
 		dev->vlan_cache[addr + i].table[0] = (u16)data;
 		data >>= shifts[VLAN_TABLE];
 	}
@@ -702,7 +702,7 @@ static void ksz8_r_vlan_table(struct ksz_device *dev, u16 vid, u16 *vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / dev->phy_port_cnt;
+	addr = vid / 4;
 	index = vid & 3;
 	ksz8_r_table(dev, TABLE_VLAN, addr, &buf);
 	*vlan = data[index];
@@ -716,7 +716,7 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / dev->phy_port_cnt;
+	addr = vid / 4;
 	index = vid & 3;
 	ksz8_r_table(dev, TABLE_VLAN, addr, &buf);
 	data[index] = vlan;
