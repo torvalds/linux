@@ -76,11 +76,6 @@ static bool setup_dsc_config(
 		int max_dsc_target_bpp_limit_override_x16,
 		struct dc_dsc_config *dsc_cfg);
 
-static struct fixed31_32 compute_dsc_max_bandwidth_overhead(
-		const struct dc_crtc_timing *timing,
-		const int num_slices_h,
-		const bool is_dp);
-
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
 {
 
@@ -462,32 +457,6 @@ static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
 	return (value + 9) / 10;
 }
 
-static struct fixed31_32 compute_dsc_max_bandwidth_overhead(
-		const struct dc_crtc_timing *timing,
-		const int num_slices_h,
-		const bool is_dp)
-{
-	struct fixed31_32 max_dsc_overhead;
-	struct fixed31_32 refresh_rate;
-
-	if (dsc_policy_disable_dsc_stream_overhead || !is_dp)
-		return dc_fixpt_from_int(0);
-
-	/* use target bpp that can take entire target bandwidth */
-	refresh_rate = dc_fixpt_from_int(timing->pix_clk_100hz);
-	refresh_rate = dc_fixpt_div_int(refresh_rate, timing->h_total);
-	refresh_rate = dc_fixpt_div_int(refresh_rate, timing->v_total);
-	refresh_rate = dc_fixpt_mul_int(refresh_rate, 100);
-
-	max_dsc_overhead = dc_fixpt_from_int(num_slices_h);
-	max_dsc_overhead = dc_fixpt_mul_int(max_dsc_overhead, timing->v_total);
-	max_dsc_overhead = dc_fixpt_mul_int(max_dsc_overhead, 256);
-	max_dsc_overhead = dc_fixpt_div_int(max_dsc_overhead, 1000);
-	max_dsc_overhead = dc_fixpt_mul(max_dsc_overhead, refresh_rate);
-
-	return max_dsc_overhead;
-}
-
 static uint32_t compute_bpp_x16_from_target_bandwidth(
 	const uint32_t bandwidth_in_kbps,
 	const struct dc_crtc_timing *timing,
@@ -495,14 +464,14 @@ static uint32_t compute_bpp_x16_from_target_bandwidth(
 	const uint32_t bpp_increment_div,
 	const bool is_dp)
 {
-	struct fixed31_32 overhead_in_kbps;
+	uint32_t overhead_in_kbps;
 	struct fixed31_32 effective_bandwidth_in_kbps;
 	struct fixed31_32 bpp_x16;
 
-	overhead_in_kbps = compute_dsc_max_bandwidth_overhead(
+	overhead_in_kbps = dc_dsc_stream_bandwidth_overhead_in_kbps(
 				timing, num_slices_h, is_dp);
 	effective_bandwidth_in_kbps = dc_fixpt_from_int(bandwidth_in_kbps);
-	effective_bandwidth_in_kbps = dc_fixpt_sub(effective_bandwidth_in_kbps,
+	effective_bandwidth_in_kbps = dc_fixpt_sub_int(effective_bandwidth_in_kbps,
 			overhead_in_kbps);
 	bpp_x16 = dc_fixpt_mul_int(effective_bandwidth_in_kbps, 10);
 	bpp_x16 = dc_fixpt_div_int(bpp_x16, timing->pix_clk_100hz);
@@ -994,17 +963,43 @@ bool dc_dsc_compute_config(
 uint32_t dc_dsc_stream_bandwidth_in_kbps(const struct dc_crtc_timing *timing,
 	uint32_t bpp_x16, uint32_t num_slices_h, bool is_dp)
 {
-	struct fixed31_32 overhead_in_kbps;
+	uint32_t overhead_in_kbps;
 	struct fixed31_32 bpp;
 	struct fixed31_32 actual_bandwidth_in_kbps;
 
-	overhead_in_kbps = compute_dsc_max_bandwidth_overhead(
+	overhead_in_kbps = dc_dsc_stream_bandwidth_overhead_in_kbps(
 		timing, num_slices_h, is_dp);
 	bpp = dc_fixpt_from_fraction(bpp_x16, 16);
 	actual_bandwidth_in_kbps = dc_fixpt_from_fraction(timing->pix_clk_100hz, 10);
 	actual_bandwidth_in_kbps = dc_fixpt_mul(actual_bandwidth_in_kbps, bpp);
-	actual_bandwidth_in_kbps = dc_fixpt_add(actual_bandwidth_in_kbps, overhead_in_kbps);
+	actual_bandwidth_in_kbps = dc_fixpt_add_int(actual_bandwidth_in_kbps, overhead_in_kbps);
 	return dc_fixpt_ceil(actual_bandwidth_in_kbps);
+}
+
+uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
+		const struct dc_crtc_timing *timing,
+		const int num_slices_h,
+		const bool is_dp)
+{
+	struct fixed31_32 max_dsc_overhead;
+	struct fixed31_32 refresh_rate;
+
+	if (dsc_policy_disable_dsc_stream_overhead || !is_dp)
+		return 0;
+
+	/* use target bpp that can take entire target bandwidth */
+	refresh_rate = dc_fixpt_from_int(timing->pix_clk_100hz);
+	refresh_rate = dc_fixpt_div_int(refresh_rate, timing->h_total);
+	refresh_rate = dc_fixpt_div_int(refresh_rate, timing->v_total);
+	refresh_rate = dc_fixpt_mul_int(refresh_rate, 100);
+
+	max_dsc_overhead = dc_fixpt_from_int(num_slices_h);
+	max_dsc_overhead = dc_fixpt_mul_int(max_dsc_overhead, timing->v_total);
+	max_dsc_overhead = dc_fixpt_mul_int(max_dsc_overhead, 256);
+	max_dsc_overhead = dc_fixpt_div_int(max_dsc_overhead, 1000);
+	max_dsc_overhead = dc_fixpt_mul(max_dsc_overhead, refresh_rate);
+
+	return dc_fixpt_ceil(max_dsc_overhead);
 }
 
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,

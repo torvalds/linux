@@ -81,6 +81,11 @@ bool dc_dsc_compute_config(
 uint32_t dc_dsc_stream_bandwidth_in_kbps(const struct dc_crtc_timing *timing,
 		uint32_t bpp_x16, uint32_t num_slices_h, bool is_dp);
 
+uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
+		const struct dc_crtc_timing *timing,
+		const int num_slices_h,
+		const bool is_dp);
+
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		uint32_t max_target_bpp_limit_override_x16,
 		struct dc_dsc_policy *policy);
