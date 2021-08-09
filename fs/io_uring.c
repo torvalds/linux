@@ -1702,6 +1702,19 @@ static void io_req_complete_failed(struct io_kiocb *req, long res)
 	io_req_complete_post(req, res, 0);
 }
 
+/*
+ * Don't initialise the fields below on every allocation, but do that in
+ * advance and keep them valid across allocations.
+ */
+static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
+{
+	req->ctx = ctx;
+	req->link = NULL;
+	req->async_data = NULL;
+	/* not necessary, but safer to zero */
+	req->result = 0;
+}
+
 static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 					struct io_comp_state *cs)
 {
@@ -1744,45 +1757,31 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
+	int ret, i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(state->reqs) < IO_REQ_ALLOC_BATCH);
 
-	if (!state->free_reqs) {
-		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
-		int ret, i;
+	if (likely(state->free_reqs || io_flush_cached_reqs(ctx)))
+		goto got_req;
 
-		if (io_flush_cached_reqs(ctx))
-			goto got_req;
+	ret = kmem_cache_alloc_bulk(req_cachep, gfp, IO_REQ_ALLOC_BATCH,
+				    state->reqs);
 
-		ret = kmem_cache_alloc_bulk(req_cachep, gfp, IO_REQ_ALLOC_BATCH,
-					    state->reqs);
-
-		/*
-		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
-		 * retry single alloc to be on the safe side.
-		 */
-		if (unlikely(ret <= 0)) {
-			state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
-			if (!state->reqs[0])
-				return NULL;
-			ret = 1;
-		}
-
-		/*
-		 * Don't initialise the fields below on every allocation, but
-		 * do that in advance and keep valid on free.
-		 */
-		for (i = 0; i < ret; i++) {
-			struct io_kiocb *req = state->reqs[i];
-
-			req->ctx = ctx;
-			req->link = NULL;
-			req->async_data = NULL;
-			/* not necessary, but safer to zero */
-			req->result = 0;
-		}
-		state->free_reqs = ret;
+	/*
+	 * Bulk alloc is all-or-nothing. If we fail to get a batch,
+	 * retry single alloc to be on the safe side.
+	 */
+	if (unlikely(ret <= 0)) {
+		state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
+		if (!state->reqs[0])
+			return NULL;
+		ret = 1;
 	}
+
+	for (i = 0; i < ret; i++)
+		io_preinit_req(state->reqs[i], ctx);
+	state->free_reqs = ret;
 got_req:
 	state->free_reqs--;
 	return state->reqs[state->free_reqs];
@@ -6569,6 +6568,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	unsigned int sqe_flags;
 	int personality, ret = 0;
 
+	/* req is partially pre-initialised, see io_preinit_req() */
 	req->opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	req->flags = sqe_flags = READ_ONCE(sqe->flags);
