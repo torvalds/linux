@@ -801,7 +801,6 @@ static struct inode *bdev_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 	memset(&ei->bdev, 0, sizeof(ei->bdev));
-	ei->bdev.bd_bdi = &noop_backing_dev_info;
 	return &ei->vfs_inode;
 }
 
@@ -826,16 +825,11 @@ static void init_once(void *data)
 
 static void bdev_evict_inode(struct inode *inode)
 {
-	struct block_device *bdev = &BDEV_I(inode)->bdev;
 	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode); /* is it needed here? */
 	clear_inode(inode);
 	/* Detach inode from wb early as bdi_put() may free bdi->wb */
 	inode_detach_wb(inode);
-	if (bdev->bd_bdi != &noop_backing_dev_info) {
-		bdi_put(bdev->bd_bdi);
-		bdev->bd_bdi = &noop_backing_dev_info;
-	}
 }
 
 static const struct super_operations bdev_sops = {
@@ -1084,11 +1078,8 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 		}
 	}
 
-	if (!bdev->bd_openers) {
+	if (!bdev->bd_openers)
 		set_init_blocksize(bdev);
-		if (bdev->bd_bdi == &noop_backing_dev_info)
-			bdev->bd_bdi = bdi_get(disk->bdi);
-	}
 	if (test_bit(GD_NEED_PART_SCAN, &disk->state))
 		bdev_disk_changed(disk, false);
 	bdev->bd_openers++;
@@ -1121,8 +1112,6 @@ static int blkdev_get_part(struct block_device *part, fmode_t mode)
 
 	disk->open_partitions++;
 	set_init_blocksize(part);
-	if (part->bd_bdi == &noop_backing_dev_info)
-		part->bd_bdi = bdi_get(disk->bdi);
 done:
 	part->bd_openers++;
 	return 0;
