@@ -1044,7 +1044,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			if (err == 0) {
 				atomic_dec(&iucv->skbs_in_xmit);
 				skb_unlink(skb, &iucv->send_skb_q);
-				kfree_skb(skb);
+				consume_skb(skb);
 			}
 
 			/* this error should never happen since the	*/
@@ -1293,7 +1293,7 @@ static int iucv_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			}
 		}
 
-		kfree_skb(skb);
+		consume_skb(skb);
 		if (iucv->transport == AF_IUCV_TRANS_HIPER) {
 			atomic_inc(&iucv->msg_recv);
 			if (atomic_read(&iucv->msg_recv) > iucv->msglimit) {
@@ -1756,7 +1756,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (this) {
-		kfree_skb(this);
+		consume_skb(this);
 		/* wake up any process waiting for sending */
 		iucv_sock_wake_msglim(sk);
 	}
@@ -1903,17 +1903,17 @@ static int afiucv_hs_callback_synack(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
 
-	if (!iucv)
-		goto out;
-	if (sk->sk_state != IUCV_BOUND)
-		goto out;
+	if (!iucv || sk->sk_state != IUCV_BOUND) {
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
 	bh_lock_sock(sk);
 	iucv->msglimit_peer = iucv_trans_hdr(skb)->window;
 	sk->sk_state = IUCV_CONNECTED;
 	sk->sk_state_change(sk);
 	bh_unlock_sock(sk);
-out:
-	kfree_skb(skb);
+	consume_skb(skb);
 	return NET_RX_SUCCESS;
 }
 
@@ -1924,16 +1924,16 @@ static int afiucv_hs_callback_synfin(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
 
-	if (!iucv)
-		goto out;
-	if (sk->sk_state != IUCV_BOUND)
-		goto out;
+	if (!iucv || sk->sk_state != IUCV_BOUND) {
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
 	bh_lock_sock(sk);
 	sk->sk_state = IUCV_DISCONN;
 	sk->sk_state_change(sk);
 	bh_unlock_sock(sk);
-out:
-	kfree_skb(skb);
+	consume_skb(skb);
 	return NET_RX_SUCCESS;
 }
 
@@ -1945,16 +1945,18 @@ static int afiucv_hs_callback_fin(struct sock *sk, struct sk_buff *skb)
 	struct iucv_sock *iucv = iucv_sk(sk);
 
 	/* other end of connection closed */
-	if (!iucv)
-		goto out;
+	if (!iucv) {
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
 	bh_lock_sock(sk);
 	if (sk->sk_state == IUCV_CONNECTED) {
 		sk->sk_state = IUCV_DISCONN;
 		sk->sk_state_change(sk);
 	}
 	bh_unlock_sock(sk);
-out:
-	kfree_skb(skb);
+	consume_skb(skb);
 	return NET_RX_SUCCESS;
 }
 
@@ -2107,7 +2109,7 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	case (AF_IUCV_FLAG_WIN):
 		err = afiucv_hs_callback_win(sk, skb);
 		if (skb->len == sizeof(struct af_iucv_trans_hdr)) {
-			kfree_skb(skb);
+			consume_skb(skb);
 			break;
 		}
 		fallthrough;	/* and receive non-zero length data */
@@ -2262,21 +2264,11 @@ static struct packet_type iucv_packet_type = {
 	.func = afiucv_hs_rcv,
 };
 
-static int afiucv_iucv_init(void)
-{
-	return pr_iucv->iucv_register(&af_iucv_handler, 0);
-}
-
-static void afiucv_iucv_exit(void)
-{
-	pr_iucv->iucv_unregister(&af_iucv_handler, 0);
-}
-
 static int __init afiucv_init(void)
 {
 	int err;
 
-	if (MACHINE_IS_VM) {
+	if (MACHINE_IS_VM && IS_ENABLED(CONFIG_IUCV)) {
 		cpcmd("QUERY USERID", iucv_userid, sizeof(iucv_userid), &err);
 		if (unlikely(err)) {
 			WARN_ON(err);
@@ -2284,11 +2276,7 @@ static int __init afiucv_init(void)
 			goto out;
 		}
 
-		pr_iucv = try_then_request_module(symbol_get(iucv_if), "iucv");
-		if (!pr_iucv) {
-			printk(KERN_WARNING "iucv_if lookup failed\n");
-			memset(&iucv_userid, 0, sizeof(iucv_userid));
-		}
+		pr_iucv = &iucv_if;
 	} else {
 		memset(&iucv_userid, 0, sizeof(iucv_userid));
 		pr_iucv = NULL;
@@ -2302,7 +2290,7 @@ static int __init afiucv_init(void)
 		goto out_proto;
 
 	if (pr_iucv) {
-		err = afiucv_iucv_init();
+		err = pr_iucv->iucv_register(&af_iucv_handler, 0);
 		if (err)
 			goto out_sock;
 	}
@@ -2316,23 +2304,19 @@ static int __init afiucv_init(void)
 
 out_notifier:
 	if (pr_iucv)
-		afiucv_iucv_exit();
+		pr_iucv->iucv_unregister(&af_iucv_handler, 0);
 out_sock:
 	sock_unregister(PF_IUCV);
 out_proto:
 	proto_unregister(&iucv_proto);
 out:
-	if (pr_iucv)
-		symbol_put(iucv_if);
 	return err;
 }
 
 static void __exit afiucv_exit(void)
 {
-	if (pr_iucv) {
-		afiucv_iucv_exit();
-		symbol_put(iucv_if);
-	}
+	if (pr_iucv)
+		pr_iucv->iucv_unregister(&af_iucv_handler, 0);
 
 	unregister_netdevice_notifier(&afiucv_netdev_notifier);
 	dev_remove_pack(&iucv_packet_type);
