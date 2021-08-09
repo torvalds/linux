@@ -112,7 +112,7 @@ MODULE_PARM_DESC(start_withtimeout, "Start watchdog timer on module load with"
 enum chips { f71808fg, f71858fg, f71862fg, f71868, f71869, f71882fg, f71889fg,
 	     f81803, f81865, f81866};
 
-static const char *f71808e_names[] = {
+static const char * const f71808e_names[] = {
 	"f71808fg",
 	"f71858fg",
 	"f71862fg",
