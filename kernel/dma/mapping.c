@@ -219,7 +219,7 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
  * dma_unmap_sg_attrs() should be used to unmap the buffer with the
  * original sg and original nents (not the value returned by this funciton).
  */
-int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
+unsigned int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 		    int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	int ret;
