@@ -2351,7 +2351,10 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			goto nla_put_failure;
 
 		for (band = state->band_start;
-		     band < NUM_NL80211_BANDS; band++) {
+		     band < (state->split ?
+				NUM_NL80211_BANDS :
+				NL80211_BAND_60GHZ + 1);
+		     band++) {
 			struct ieee80211_supported_band *sband;
 
 			/* omit higher bands for ancient software */

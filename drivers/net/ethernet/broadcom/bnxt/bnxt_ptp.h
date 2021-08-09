@@ -32,6 +32,10 @@ struct bnxt_ptp_cfg {
 	u64			current_time;
 	u64			old_time;
 	unsigned long		next_period;
+	unsigned long		next_overflow_check;
+	/* 48-bit PHC overflows in 78 hours.  Check overflow every 19 hours. */
+	#define BNXT_PHC_OVERFLOW_PERIOD	(19 * 3600 * HZ)
+
 	u16			tx_seqid;
 	struct bnxt		*bp;
 	atomic_t		tx_avail;

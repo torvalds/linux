@@ -192,8 +192,7 @@ static void nfcsim_recv_wq(struct work_struct *work)
 
 		if (!IS_ERR(skb))
 			dev_kfree_skb(skb);
-
-		skb = ERR_PTR(-ENODEV);
+		return;
 	}
 
 	dev->cb(dev->nfc_digital_dev, dev->arg, skb);

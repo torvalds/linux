@@ -3944,6 +3944,7 @@ DECLARE_EVENT_CLASS(xlog_iclog_class,
 		__field(uint32_t, state)
 		__field(int32_t, refcount)
 		__field(uint32_t, offset)
+		__field(uint32_t, flags)
 		__field(unsigned long long, lsn)
 		__field(unsigned long, caller_ip)
 	),
@@ -3952,15 +3953,17 @@ DECLARE_EVENT_CLASS(xlog_iclog_class,
 		__entry->state = iclog->ic_state;
 		__entry->refcount = atomic_read(&iclog->ic_refcnt);
 		__entry->offset = iclog->ic_offset;
+		__entry->flags = iclog->ic_flags;
 		__entry->lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d state %s refcnt %d offset %u lsn 0x%llx caller %pS",
+	TP_printk("dev %d:%d state %s refcnt %d offset %u lsn 0x%llx flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->state, XLOG_STATE_STRINGS),
 		  __entry->refcount,
 		  __entry->offset,
 		  __entry->lsn,
+		  __print_flags(__entry->flags, "|", XLOG_ICL_STRINGS),
 		  (char *)__entry->caller_ip)
 
 );
