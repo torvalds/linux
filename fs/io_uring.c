@@ -7063,14 +7063,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			  const sigset_t __user *sig, size_t sigsz,
 			  struct __kernel_timespec __user *uts)
 {
-	struct io_wait_queue iowq = {
-		.wq = {
-			.private	= current,
-			.func		= io_wake_function,
-			.entry		= LIST_HEAD_INIT(iowq.wq.entry),
-		},
-		.ctx		= ctx,
-	};
+	struct io_wait_queue iowq;
 	struct io_rings *rings = ctx->rings;
 	signed long timeout = MAX_SCHEDULE_TIMEOUT;
 	int ret;
@@ -7104,8 +7097,13 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		timeout = timespec64_to_jiffies(&ts);
 	}
 
+	init_waitqueue_func_entry(&iowq.wq, io_wake_function);
+	iowq.wq.private = current;
+	INIT_LIST_HEAD(&iowq.wq.entry);
+	iowq.ctx = ctx;
 	iowq.nr_timeouts = atomic_read(&ctx->cq_timeouts);
 	iowq.cq_tail = READ_ONCE(ctx->rings->cq.head) + min_events;
+
 	trace_io_uring_cqring_wait(ctx, min_events);
 	do {
 		/* if we can't even flush overflow, don't wait for more */
