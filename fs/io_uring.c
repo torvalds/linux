@@ -2288,7 +2288,6 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	struct io_kiocb *req, *tmp;
 	LIST_HEAD(done);
 	bool spin;
-	int ret;
 
 	/*
 	 * Only spin for completions if we don't have multiple devices hanging
@@ -2296,9 +2295,9 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	 */
 	spin = !ctx->poll_multi_queue && *nr_events < min;
 
-	ret = 0;
 	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, inflight_entry) {
 		struct kiocb *kiocb = &req->rw.kiocb;
+		int ret;
 
 		/*
 		 * Move completed and retryable entries to our local lists.
@@ -2313,22 +2312,20 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			break;
 
 		ret = kiocb->ki_filp->f_op->iopoll(kiocb, spin);
-		if (ret < 0)
-			break;
+		if (unlikely(ret < 0))
+			return ret;
+		else if (ret)
+			spin = false;
 
 		/* iopoll may have completed current req */
 		if (READ_ONCE(req->iopoll_completed))
 			list_move_tail(&req->inflight_entry, &done);
-
-		if (ret && spin)
-			spin = false;
-		ret = 0;
 	}
 
 	if (!list_empty(&done))
 		io_iopoll_complete(ctx, nr_events, &done, resubmit);
 
-	return ret;
+	return 0;
 }
 
 /*
