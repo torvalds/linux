@@ -339,25 +339,6 @@ unlock:
 	return ret;
 }
 
-int __pkvm_mark_hyp(phys_addr_t start, phys_addr_t end)
-{
-	int ret;
-
-	/*
-	 * host_stage2_unmap_dev_all() currently relies on MMIO mappings being
-	 * non-persistent, so don't allow changing page ownership in MMIO range.
-	 */
-	if (!range_is_memory(start, end))
-		return -EINVAL;
-
-	hyp_spin_lock(&host_kvm.lock);
-	ret = host_stage2_try(kvm_pgtable_stage2_set_owner, &host_kvm.pgt,
-			      start, end - start, &host_s2_pool, pkvm_hyp_id);
-	hyp_spin_unlock(&host_kvm.lock);
-
-	return ret != -EAGAIN ? ret : 0;
-}
-
 void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 {
 	struct kvm_vcpu_fault_info fault;

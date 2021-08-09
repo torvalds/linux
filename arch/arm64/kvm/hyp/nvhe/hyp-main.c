@@ -163,14 +163,6 @@ static void handle___pkvm_prot_finalize(struct kvm_cpu_context *host_ctxt)
 {
 	cpu_reg(host_ctxt, 1) = __pkvm_prot_finalize();
 }
-
-static void handle___pkvm_mark_hyp(struct kvm_cpu_context *host_ctxt)
-{
-	DECLARE_REG(phys_addr_t, start, host_ctxt, 1);
-	DECLARE_REG(phys_addr_t, end, host_ctxt, 2);
-
-	cpu_reg(host_ctxt, 1) = __pkvm_mark_hyp(start, end);
-}
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -196,7 +188,6 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_create_mappings),
 	HANDLE_FUNC(__pkvm_create_private_mapping),
 	HANDLE_FUNC(__pkvm_prot_finalize),
-	HANDLE_FUNC(__pkvm_mark_hyp),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
