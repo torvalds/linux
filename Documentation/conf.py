@@ -16,8 +16,6 @@ import sys
 import os
 import sphinx
 
-from subprocess import check_output
-
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
 
@@ -355,15 +353,14 @@ latex_elements = {
      ''',
 }
 
-# At least one book (translations) may have Asian characters
-# with are only displayed if xeCJK is used
+# Translations have Asian (CJK) characters which are only displayed if
+# xeCJK is used
 
-cjk_cmd = check_output(['fc-list', '--format="%{family[0]}\n"']).decode('utf-8', 'ignore')
-if cjk_cmd.find("Noto Sans CJK SC") >= 0:
-    latex_elements['preamble']  += '''
+latex_elements['preamble']  += '''
+    \\IfFontExistsTF{Noto Sans CJK SC}{
 	% This is needed for translations
-        \\usepackage{xeCJK}
-        \\setCJKmainfont{Noto Sans CJK SC}
+	\\usepackage{xeCJK}
+	\\setCJKmainfont{Noto Sans CJK SC}
 	% Define custom macros to on/off CJK
 	\\newcommand{\\kerneldocCJKon}{\\makexeCJKactive}
 	\\newcommand{\\kerneldocCJKoff}{\\makexeCJKinactive}
@@ -371,13 +368,12 @@ if cjk_cmd.find("Noto Sans CJK SC") >= 0:
 	\\usepackage{etoolbox}
 	% Inactivate CJK after tableofcontents
 	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
-     '''
-else:
-    latex_elements['preamble']  += '''
+    }{ % No CJK font found
 	% Custom macros to on/off CJK (Dummy)
 	\\newcommand{\\kerneldocCJKon}{}
 	\\newcommand{\\kerneldocCJKoff}{}
-     '''
+    }
+'''
 
 # Fix reference escape troubles with Sphinx 1.4.x
 if major == 1:
