@@ -2133,6 +2133,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 }
 
 static void io_submit_flush_completions(struct io_ring_ctx *ctx)
+	__must_hold(&req->ctx->uring_lock)
 {
 	struct io_comp_state *cs = &ctx->submit_state.comp;
 	int i, nr = cs->nr;
@@ -6473,6 +6474,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 }
 
 static void __io_queue_sqe(struct io_kiocb *req)
+	__must_hold(&req->ctx->uring_lock)
 {
 	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
 	int ret;
@@ -6516,6 +6518,7 @@ issue_sqe:
 }
 
 static inline void io_queue_sqe(struct io_kiocb *req)
+	__must_hold(&req->ctx->uring_lock)
 {
 	if (unlikely(req->ctx->drain_active) && io_drain_req(req))
 		return;
@@ -6560,6 +6563,7 @@ static inline bool io_check_restriction(struct io_ring_ctx *ctx,
 
 static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       const struct io_uring_sqe *sqe)
+	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_state *state;
 	unsigned int sqe_flags;
@@ -6623,6 +6627,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			 const struct io_uring_sqe *sqe)
+	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_link *link = &ctx->submit_state.link;
 	int ret;
@@ -6755,6 +6760,7 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
+	__must_hold(&ctx->uring_lock)
 {
 	struct io_uring_task *tctx;
 	int submitted = 0;
