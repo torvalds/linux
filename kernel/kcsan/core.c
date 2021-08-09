@@ -202,6 +202,9 @@ static __always_inline struct kcsan_ctx *get_ctx(void)
 	return in_task() ? &current->kcsan_ctx : raw_cpu_ptr(&kcsan_cpu_ctx);
 }
 
+static __always_inline void
+check_access(const volatile void *ptr, size_t size, int type, unsigned long ip);
+
 /* Check scoped accesses; never inline because this is a slow-path! */
 static noinline void kcsan_check_scoped_accesses(void)
 {
@@ -210,8 +213,10 @@ static noinline void kcsan_check_scoped_accesses(void)
 	struct kcsan_scoped_access *scoped_access;
 
 	ctx->scoped_accesses.prev = NULL;  /* Avoid recursion. */
-	list_for_each_entry(scoped_access, &ctx->scoped_accesses, list)
-		__kcsan_check_access(scoped_access->ptr, scoped_access->size, scoped_access->type);
+	list_for_each_entry(scoped_access, &ctx->scoped_accesses, list) {
+		check_access(scoped_access->ptr, scoped_access->size,
+			     scoped_access->type, scoped_access->ip);
+	}
 	ctx->scoped_accesses.prev = prev_save;
 }
 
@@ -767,6 +772,7 @@ kcsan_begin_scoped_access(const volatile void *ptr, size_t size, int type,
 	sa->ptr = ptr;
 	sa->size = size;
 	sa->type = type;
+	sa->ip = _RET_IP_;
 
 	if (!ctx->scoped_accesses.prev) /* Lazy initialize list head. */
 		INIT_LIST_HEAD(&ctx->scoped_accesses);
@@ -798,7 +804,7 @@ void kcsan_end_scoped_access(struct kcsan_scoped_access *sa)
 
 	ctx->disable_count--;
 
-	__kcsan_check_access(sa->ptr, sa->size, sa->type);
+	check_access(sa->ptr, sa->size, sa->type, sa->ip);
 }
 EXPORT_SYMBOL(kcsan_end_scoped_access);
 
