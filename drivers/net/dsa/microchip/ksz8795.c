@@ -1140,13 +1140,38 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
 	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
 	if (ksz_is_ksz88x3(dev))
 		return -ENOTSUPP;
 
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+	/* If a VLAN is added with untagged flag different from the
+	 * port's Remove Tag flag, we need to change the latter.
+	 * Ignore VID 0, which is always untagged.
+	 */
+	if (untagged != p->remove_tag && vlan->vid != 0) {
+		unsigned int vid;
+
+		/* Reject attempts to add a VLAN that requires the
+		 * Remove Tag flag to be changed, unless there are no
+		 * other VLANs currently configured.
+		 */
+		for (vid = 1; vid < dev->num_vlans; ++vid) {
+			/* Skip the VID we are going to add or reconfigure */
+			if (vid == vlan->vid)
+				continue;
+
+			ksz8_from_vlan(dev, dev->vlan_cache[vid].table[0],
+				       &fid, &member, &valid);
+			if (valid && (member & BIT(port)))
+				return -EINVAL;
+		}
+
+		ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+		p->remove_tag = untagged;
+	}
 
 	ksz8_r_vlan_table(dev, vlan->vid, &data);
 	ksz8_from_vlan(dev, data, &fid, &member, &valid);
