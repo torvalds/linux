@@ -77,7 +77,8 @@ bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 	 * initial capacity during probing.
 	 */
 	if (size == capacity ||
-	    (disk->flags & (GENHD_FL_UP | GENHD_FL_HIDDEN)) != GENHD_FL_UP)
+	    !disk_live(disk) ||
+	    (disk->flags & GENHD_FL_HIDDEN))
 		return false;
 
 	pr_info("%s: detected capacity change from %lld to %lld\n",
@@ -527,8 +528,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
 
-	disk->flags |= GENHD_FL_UP;
-
 	disk_alloc_events(disk);
 
 	if (disk->flags & GENHD_FL_HIDDEN) {
@@ -597,7 +596,6 @@ void del_gendisk(struct gendisk *disk)
 
 	mutex_lock(&disk->open_mutex);
 	remove_inode_hash(disk->part0->bd_inode);
-	disk->flags &= ~GENHD_FL_UP;
 	blk_drop_partitions(disk);
 	mutex_unlock(&disk->open_mutex);
 

@@ -459,7 +459,7 @@ int bdev_add_partition(struct block_device *bdev, int partno,
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
-	if (!(disk->flags & GENHD_FL_UP)) {
+	if (!disk_live(disk)) {
 		ret = -ENXIO;
 		goto out;
 	}
@@ -669,7 +669,7 @@ int bdev_disk_changed(struct gendisk *disk, bool invalidate)
 
 	lockdep_assert_held(&disk->open_mutex);
 
-	if (!(disk->flags & GENHD_FL_UP))
+	if (!disk_live(disk))
 		return -ENXIO;
 
 rescan:

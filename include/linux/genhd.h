@@ -60,9 +60,6 @@ struct partition_meta_info {
  * device.
  * Affects responses to the ``CDROM_GET_CAPABILITY`` ioctl.
  *
- * ``GENHD_FL_UP`` (0x0010): indicates that the block device is "up",
- * with a similar meaning to network interfaces.
- *
  * ``GENHD_FL_SUPPRESS_PARTITION_INFO`` (0x0020): don't include
  * partition information in ``/proc/partitions`` or in the output of
  * printk_all_partitions().
@@ -97,7 +94,6 @@ struct partition_meta_info {
 /* 2 is unused (used to be GENHD_FL_DRIVERFS) */
 /* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
 #define GENHD_FL_CD				0x0008
-#define GENHD_FL_UP				0x0010
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
 #define GENHD_FL_EXT_DEVT			0x0040
 #define GENHD_FL_NATIVE_CAPACITY		0x0080
@@ -177,6 +173,11 @@ struct gendisk {
 	struct lockdep_map lockdep_map;
 	u64 diskseq;
 };
+
+static inline bool disk_live(struct gendisk *disk)
+{
+	return !inode_unhashed(disk->part0->bd_inode);
+}
 
 /*
  * The gendisk is refcounted by the part0 block_device, and the bd_device
