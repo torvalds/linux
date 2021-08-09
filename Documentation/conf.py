@@ -428,6 +428,8 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocEndTC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginKR}{%
 	    \\begingroup%
+	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\krmain%
 	    \\renewcommand{\\CJKrmdefault}{KRserif}%
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
@@ -437,6 +439,8 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocEndKR}{\\endgroup}
 	\\newcommand{\\kerneldocBeginJP}{%
 	    \\begingroup%
+	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\jpmain%
 	    \\renewcommand{\\CJKrmdefault}{JPserif}%
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
