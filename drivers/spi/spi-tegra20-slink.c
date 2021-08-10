@@ -1154,8 +1154,6 @@ static int tegra_slink_remove(struct platform_device *pdev)
 	if (tspi->rx_dma_chan)
 		tegra_slink_deinit_dma_param(tspi, true);
 
-	spi_master_put(master);
-
 	return 0;
 }
 
