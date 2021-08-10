@@ -105,6 +105,9 @@ static void unix_bpf_check_needs_rebuild(struct proto *ops)
 
 int unix_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 {
+	if (sk->sk_type != SOCK_DGRAM)
+		return -EOPNOTSUPP;
+
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
 		WRITE_ONCE(sk->sk_prot, psock->sk_proto);
