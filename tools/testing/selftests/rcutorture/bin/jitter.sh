@@ -68,16 +68,12 @@ do
 	cpumask=`awk -v cpus="$cpus" -v me=$me -v n=$n 'BEGIN {
 		srand(n + me + systime());
 		ncpus = split(cpus, ca);
-		curcpu = ca[int(rand() * ncpus + 1)];
-		z = "";
-		for (i = 1; 4 * i <= curcpu; i++)
-			z = z "0";
-		print "0x" 2 ^ (curcpu % 4) z;
+		print ca[int(rand() * ncpus + 1)];
 	}' < /dev/null`
 	n=$(($n+1))
-	if ! taskset -p $cpumask $$ > /dev/null 2>&1
+	if ! taskset -c -p $cpumask $$ > /dev/null 2>&1
 	then
-		echo taskset failure: '"taskset -p ' $cpumask $$ '"'
+		echo taskset failure: '"taskset -c -p ' $cpumask $$ '"'
 		exit 1
 	fi
 

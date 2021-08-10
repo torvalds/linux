@@ -25,7 +25,7 @@ then
 	echo "$configfile -------"
 else
 	title="$configfile ------- $ncs acquisitions/releases"
-	dur=`sed -e 's/^.* locktorture.shutdown_secs=//' -e 's/ .*$//' < $i/qemu-cmd 2> /dev/null`
+	dur=`grep -v '^#' $i/qemu-cmd | sed -e 's/^.* locktorture.shutdown_secs=//' -e 's/ .*$//' 2> /dev/null`
 	if test -z "$dur"
 	then
 		:
