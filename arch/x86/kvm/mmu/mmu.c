@@ -5688,6 +5688,8 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 
 	write_lock(&kvm->mmu_lock);
 
+	kvm_inc_notifier_count(kvm, gfn_start, gfn_end);
+
 	if (kvm_memslots_have_rmaps(kvm)) {
 		for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
 			slots = __kvm_memslots(kvm, i);
@@ -5722,6 +5724,8 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 
 	if (flush)
 		kvm_flush_remote_tlbs_with_address(kvm, gfn_start, gfn_end);
+
+	kvm_dec_notifier_count(kvm, gfn_start, gfn_end);
 
 	write_unlock(&kvm->mmu_lock);
 }

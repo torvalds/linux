@@ -610,7 +610,7 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 	kvm_handle_hva_range(mn, address, address + 1, pte, kvm_set_spte_gfn);
 }
 
-static void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
+void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
 				   unsigned long end)
 {
 	/*
@@ -638,6 +638,7 @@ static void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
 			max(kvm->mmu_notifier_range_end, end);
 	}
 }
+EXPORT_SYMBOL_GPL(kvm_inc_notifier_count);
 
 static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 					const struct mmu_notifier_range *range)
@@ -672,7 +673,7 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	return 0;
 }
 
-static void kvm_dec_notifier_count(struct kvm *kvm, unsigned long start,
+void kvm_dec_notifier_count(struct kvm *kvm, unsigned long start,
 				   unsigned long end)
 {
 	/*
@@ -689,6 +690,8 @@ static void kvm_dec_notifier_count(struct kvm *kvm, unsigned long start,
 	 */
 	kvm->mmu_notifier_count--;
 }
+EXPORT_SYMBOL_GPL(kvm_dec_notifier_count);
+
 
 static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 					const struct mmu_notifier_range *range)
