@@ -415,7 +415,7 @@ struct pqi_event_config {
 	u8	reserved[2];
 	u8	num_event_descriptors;
 	u8	reserved1;
-	struct pqi_event_descriptor descriptors[1];
+	struct pqi_event_descriptor descriptors[];
 };
 
 #define PQI_MAX_EVENT_DESCRIPTORS	255
