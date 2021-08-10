@@ -710,8 +710,9 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 /* route management */
 static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 			  unsigned int daddr_extent, unsigned int mtu,
-			  bool is_local)
+			  unsigned char type)
 {
+	int (*rtfn)(struct mctp_route *rt, struct sk_buff *skb);
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *ert;
 
@@ -720,6 +721,17 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 
 	if (daddr_extent > 0xff || daddr_start + daddr_extent >= 255)
 		return -EINVAL;
+
+	switch (type) {
+	case RTN_LOCAL:
+		rtfn = mctp_route_input;
+		break;
+	case RTN_UNICAST:
+		rtfn = mctp_route_output;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	rt = mctp_route_alloc();
 	if (!rt)
@@ -730,7 +742,8 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	rt->mtu = mtu;
 	rt->dev = mdev;
 	dev_hold(rt->dev->dev);
-	rt->output = is_local ? mctp_route_input : mctp_route_output;
+	rt->type = type;
+	rt->output = rtfn;
 
 	ASSERT_RTNL();
 	/* Prevent duplicate identical routes. */
@@ -777,7 +790,7 @@ static int mctp_route_remove(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 
 int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
 {
-	return mctp_route_add(mdev, addr, 0, 0, true);
+	return mctp_route_add(mdev, addr, 0, 0, RTN_LOCAL);
 }
 
 int mctp_route_remove_local(struct mctp_dev *mdev, mctp_eid_t addr)
@@ -936,7 +949,11 @@ static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	/* TODO: parse mtu from nlparse */
 	mtu = 0;
 
-	rc = mctp_route_add(mdev, daddr_start, rtm->rtm_dst_len, mtu, false);
+	if (rtm->rtm_type != RTN_UNICAST)
+		return -EINVAL;
+
+	rc = mctp_route_add(mdev, daddr_start, rtm->rtm_dst_len, mtu,
+			    rtm->rtm_type);
 	return rc;
 }
 
@@ -985,7 +1002,7 @@ static int mctp_fill_rtinfo(struct sk_buff *skb, struct mctp_route *rt,
 	hdr->rtm_table = RT_TABLE_DEFAULT;
 	hdr->rtm_protocol = RTPROT_STATIC; /* everything is user-defined */
 	hdr->rtm_scope = RT_SCOPE_LINK; /* TODO: scope in mctp_route? */
-	hdr->rtm_type = RTN_ANYCAST; /* TODO: type from route */
+	hdr->rtm_type = rt->type;
 
 	if (nla_put_u8(skb, RTA_DST, rt->min))
 		goto cancel;

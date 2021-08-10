@@ -173,6 +173,7 @@ struct mctp_route {
 
 	struct mctp_dev		*dev;
 	unsigned int		mtu;
+	unsigned char		type;
 	int			(*output)(struct mctp_route *route,
 					  struct sk_buff *skb);
 
