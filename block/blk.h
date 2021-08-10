@@ -349,7 +349,7 @@ void blk_free_ext_minor(unsigned int minor);
 #define ADDPART_FLAG_WHOLEDISK	2
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length);
-int bdev_del_partition(struct block_device *bdev, int partno);
+int bdev_del_partition(struct gendisk *disk, int partno);
 int bdev_resize_partition(struct block_device *bdev, int partno,
 		sector_t start, sector_t length);
 

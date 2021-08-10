@@ -31,7 +31,7 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 		return -EINVAL;
 
 	if (op == BLKPG_DEL_PARTITION)
-		return bdev_del_partition(bdev, p.pno);
+		return bdev_del_partition(disk, p.pno);
 
 	start = p.start >> SECTOR_SHIFT;
 	length = p.length >> SECTOR_SHIFT;
