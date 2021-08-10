@@ -390,4 +390,7 @@
 #define SRST_GRF_P		186
 #define SRST_I2S0_RX		191
 
+#define SRST_I2S0_RX_S		128
+#define SRST_DCF_P_S		191
+
 #endif
