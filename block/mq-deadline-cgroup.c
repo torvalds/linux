@@ -52,7 +52,7 @@ struct dd_blkcg *dd_blkcg_from_bio(struct bio *bio)
 	return dd_blkcg_from_pd(pd);
 }
 
-static size_t dd_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
+static bool dd_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 {
 	static const char *const prio_class_name[] = {
 		[IOPRIO_CLASS_NONE]	= "NONE",
@@ -61,12 +61,10 @@ static size_t dd_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
 		[IOPRIO_CLASS_IDLE]	= "IDLE",
 	};
 	struct dd_blkcg *blkcg = dd_blkcg_from_pd(pd);
-	int res = 0;
 	u8 prio;
 
 	for (prio = 0; prio < ARRAY_SIZE(blkcg->stats->stats); prio++)
-		res += scnprintf(buf + res, size - res,
-			" [%s] dispatched=%u inserted=%u merged=%u",
+		seq_printf(s, " [%s] dispatched=%u inserted=%u merged=%u",
 			prio_class_name[prio],
 			ddcg_sum(blkcg, dispatched, prio) +
 			ddcg_sum(blkcg, merged, prio) -
@@ -75,7 +73,7 @@ static size_t dd_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
 			ddcg_sum(blkcg, completed, prio),
 			ddcg_sum(blkcg, merged, prio));
 
-	return res;
+	return true;
 }
 
 static struct blkg_policy_data *dd_pd_alloc(gfp_t gfp, struct request_queue *q,
