@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/interconnect.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/bitops.h>
 
 #include "ipa.h"
@@ -230,6 +231,38 @@ static int ipa_clock_disable(struct ipa *ipa)
 	return ipa_interconnect_disable(ipa);
 }
 
+static int ipa_runtime_suspend(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags);
+		ipa_endpoint_suspend(ipa);
+		gsi_suspend(&ipa->gsi);
+	}
+
+	return ipa_clock_disable(ipa);
+}
+
+static int ipa_runtime_resume(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ipa_clock_enable(ipa);
+	if (WARN_ON(ret < 0))
+		return ret;
+
+	/* Endpoints aren't usable until setup is complete */
+	if (ipa->setup_complete) {
+		gsi_resume(&ipa->gsi);
+		ipa_endpoint_resume(ipa);
+	}
+
+	return 0;
+}
+
 /* Get an IPA clock reference, but only if the reference count is
  * already non-zero.  Returns true if the additional reference was
  * added successfully, or false otherwise.
@@ -265,7 +298,7 @@ int ipa_clock_get(struct ipa *ipa)
 		goto out_mutex_unlock;
 	}
 
-	ret = ipa_clock_enable(ipa);
+	ret = ipa_runtime_resume(&ipa->pdev->dev);
 
 	refcount_set(&clock->count, 1);
 
@@ -287,7 +320,7 @@ int ipa_clock_put(struct ipa *ipa)
 	if (!refcount_dec_and_mutex_lock(&clock->count, &clock->mutex))
 		return 0;
 
-	ret = ipa_clock_disable(ipa);
+	ret = ipa_runtime_suspend(&ipa->pdev->dev);
 
 	mutex_unlock(&clock->mutex);
 
@@ -405,16 +438,7 @@ void ipa_clock_exit(struct ipa_clock *clock)
  */
 static int ipa_suspend(struct device *dev)
 {
-	struct ipa *ipa = dev_get_drvdata(dev);
-
-	/* Endpoints aren't usable until setup is complete */
-	if (ipa->setup_complete) {
-		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags);
-		ipa_endpoint_suspend(ipa);
-		gsi_suspend(&ipa->gsi);
-	}
-
-	return ipa_clock_disable(ipa);
+	return ipa_runtime_suspend(dev);
 }
 
 /**
@@ -429,20 +453,7 @@ static int ipa_suspend(struct device *dev)
  */
 static int ipa_resume(struct device *dev)
 {
-	struct ipa *ipa = dev_get_drvdata(dev);
-	int ret;
-
-	ret = ipa_clock_enable(ipa);
-	if (WARN_ON(ret < 0))
-		return ret;
-
-	/* Endpoints aren't usable until setup is complete */
-	if (ipa->setup_complete) {
-		gsi_resume(&ipa->gsi);
-		ipa_endpoint_resume(ipa);
-	}
-
-	return 0;
+	return ipa_runtime_resume(dev);
 }
 
 const struct dev_pm_ops ipa_pm_ops = {
