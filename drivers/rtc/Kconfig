@@ -10,16 +10,6 @@ config RTC_MC146818_LIB
 	bool
 	select RTC_LIB
 
-config RTC_LIB_KUNIT_TEST
-	tristate "KUnit test for RTC lib functions" if !KUNIT_ALL_TESTS
-	depends on KUNIT
-	default KUNIT_ALL_TESTS
-	select RTC_LIB
-	help
-	  Enable this option to test RTC library functions.
-
-	  If unsure, say N.
-
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
@@ -84,6 +74,15 @@ config RTC_DEBUG
 	help
 	  Say yes here to enable debugging support in the RTC framework
 	  and individual RTC drivers.
+
+config RTC_LIB_KUNIT_TEST
+	tristate "KUnit test for RTC lib functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test RTC library functions.
+
+	  If unsure, say N.
 
 config RTC_NVMEM
 	bool "RTC non volatile storage support"
