@@ -474,7 +474,7 @@ static int erofs_managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
 
 	if (PagePrivate(page))
-		ret = erofs_try_to_free_cached_page(mapping, page);
+		ret = erofs_try_to_free_cached_page(page);
 
 	return ret;
 }
