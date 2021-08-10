@@ -1628,7 +1628,8 @@ static void __br_multicast_send_query(struct net_bridge_mcast *brmctx,
 	struct sk_buff *skb;
 	u8 igmp_type;
 
-	if (!br_multicast_ctx_should_use(brmctx, pmctx))
+	if (!br_multicast_ctx_should_use(brmctx, pmctx) ||
+	    !br_multicast_ctx_matches_vlan_snooping(brmctx))
 		return;
 
 again_under_lmqt:
@@ -3875,9 +3876,9 @@ void br_multicast_open(struct net_bridge *br)
 					__br_multicast_open(&vlan->br_mcast_ctx);
 			}
 		}
+	} else {
+		__br_multicast_open(&br->multicast_ctx);
 	}
-
-	__br_multicast_open(&br->multicast_ctx);
 }
 
 static void __br_multicast_stop(struct net_bridge_mcast *brmctx)
@@ -4028,9 +4029,9 @@ void br_multicast_stop(struct net_bridge *br)
 					__br_multicast_stop(&vlan->br_mcast_ctx);
 			}
 		}
+	} else {
+		__br_multicast_stop(&br->multicast_ctx);
 	}
-
-	__br_multicast_stop(&br->multicast_ctx);
 }
 
 void br_multicast_dev_del(struct net_bridge *br)
@@ -4174,6 +4175,9 @@ static void br_multicast_start_querier(struct net_bridge_mcast *brmctx,
 				       struct bridge_mcast_own_query *query)
 {
 	struct net_bridge_port *port;
+
+	if (!br_multicast_ctx_matches_vlan_snooping(brmctx))
+		return;
 
 	__br_multicast_open_query(brmctx->br, query);
 

@@ -1196,6 +1196,17 @@ br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
 #endif
 	       true;
 }
+
+static inline bool
+br_multicast_ctx_matches_vlan_snooping(const struct net_bridge_mcast *brmctx)
+{
+	bool vlan_snooping_enabled;
+
+	vlan_snooping_enabled = !!br_opt_get(brmctx->br,
+					     BROPT_MCAST_VLAN_SNOOPING_ENABLED);
+
+	return !!(vlan_snooping_enabled == br_multicast_ctx_is_vlan(brmctx));
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge_mcast **brmctx,
 				   struct net_bridge_mcast_port **pmctx,
