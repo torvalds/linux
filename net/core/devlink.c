@@ -9904,6 +9904,43 @@ void devlink_params_unregister(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_params_unregister);
 
 /**
+ * devlink_param_register - register one configuration parameter
+ *
+ * @devlink: devlink
+ * @param: one configuration parameter
+ *
+ * Register the configuration parameter supported by the driver.
+ * Return: returns 0 on successful registration or error code otherwise.
+ */
+int devlink_param_register(struct devlink *devlink,
+			   const struct devlink_param *param)
+{
+	int err;
+
+	mutex_lock(&devlink->lock);
+	err = __devlink_param_register_one(devlink, 0, &devlink->param_list,
+					   param, DEVLINK_CMD_PARAM_NEW);
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_param_register);
+
+/**
+ * devlink_param_unregister - unregister one configuration parameter
+ * @devlink: devlink
+ * @param: configuration parameter to unregister
+ */
+void devlink_param_unregister(struct devlink *devlink,
+			      const struct devlink_param *param)
+{
+	mutex_lock(&devlink->lock);
+	devlink_param_unregister_one(devlink, 0, &devlink->param_list, param,
+				     DEVLINK_CMD_PARAM_DEL);
+	mutex_unlock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_param_unregister);
+
+/**
  *	devlink_params_publish - publish configuration parameters
  *
  *	@devlink: devlink
