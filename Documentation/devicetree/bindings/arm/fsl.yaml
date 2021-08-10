@@ -996,6 +996,12 @@ properties:
               - fsl,s32v234-evb           # S32V234-EVB2 Customer Evaluation Board
           - const: fsl,s32v234
 
+      - description: Traverse LS1088A based Boards
+        items:
+          - enum:
+              - traverse,ten64            # Ten64 Networking Appliance / Board
+          - const: fsl,ls1088a
+
 additionalProperties: true
 
 ...
