@@ -452,32 +452,6 @@ static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = 0;
 }
 
-static inline u32 vmx_vmentry_ctrl(void)
-{
-	u32 vmentry_ctrl = vmcs_config.vmentry_ctrl;
-	if (vmx_pt_mode_is_system())
-		vmentry_ctrl &= ~(VM_ENTRY_PT_CONCEAL_PIP |
-				  VM_ENTRY_LOAD_IA32_RTIT_CTL);
-	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
-	return vmentry_ctrl &
-		~(VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL | VM_ENTRY_LOAD_IA32_EFER);
-}
-
-static inline u32 vmx_vmexit_ctrl(void)
-{
-	u32 vmexit_ctrl = vmcs_config.vmexit_ctrl;
-	if (vmx_pt_mode_is_system())
-		vmexit_ctrl &= ~(VM_EXIT_PT_CONCEAL_PIP |
-				 VM_EXIT_CLEAR_IA32_RTIT_CTL);
-	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
-	return vmexit_ctrl &
-		~(VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL | VM_EXIT_LOAD_IA32_EFER);
-}
-
-u32 vmx_exec_control(struct vcpu_vmx *vmx);
-u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx);
-u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx);
-
 static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
 {
 	return container_of(kvm, struct kvm_vmx, kvm);
