@@ -8579,6 +8579,8 @@ EXPORT_SYMBOL_GPL(kvm_apicv_activated);
 
 static void kvm_apicv_init(struct kvm *kvm)
 {
+	mutex_init(&kvm->arch.apicv_update_lock);
+
 	if (enable_apicv)
 		clear_bit(APICV_INHIBIT_REASON_DISABLE,
 			  &kvm->arch.apicv_inhibit_reasons);
@@ -9240,6 +9242,8 @@ void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	if (!lapic_in_kernel(vcpu))
 		return;
 
+	mutex_lock(&vcpu->kvm->arch.apicv_update_lock);
+
 	vcpu->arch.apicv_active = kvm_apicv_activated(vcpu->kvm);
 	kvm_apic_update_apicv(vcpu);
 	static_call(kvm_x86_refresh_apicv_exec_ctrl)(vcpu);
@@ -9252,39 +9256,44 @@ void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	 */
 	if (!vcpu->arch.apicv_active)
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
+
+	mutex_unlock(&vcpu->kvm->arch.apicv_update_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
 
-void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
+void __kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
-	unsigned long old, new, expected;
+	unsigned long old, new;
 
 	if (!kvm_x86_ops.check_apicv_inhibit_reasons ||
 	    !static_call(kvm_x86_check_apicv_inhibit_reasons)(bit))
 		return;
 
-	old = READ_ONCE(kvm->arch.apicv_inhibit_reasons);
-	do {
-		expected = new = old;
-		if (activate)
-			__clear_bit(bit, &new);
-		else
-			__set_bit(bit, &new);
-		if (new == old)
-			break;
-		old = cmpxchg(&kvm->arch.apicv_inhibit_reasons, expected, new);
-	} while (old != expected);
+	old = new = kvm->arch.apicv_inhibit_reasons;
+
+	if (activate)
+		__clear_bit(bit, &new);
+	else
+		__set_bit(bit, &new);
 
 	if (!!old != !!new) {
 		trace_kvm_apicv_update_request(activate, bit);
 		kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
+		kvm->arch.apicv_inhibit_reasons = new;
 		if (new) {
 			unsigned long gfn = gpa_to_gfn(APIC_DEFAULT_PHYS_BASE);
-
 			kvm_zap_gfn_range(kvm, gfn, gfn+1);
 		}
-	}
+	} else
+		kvm->arch.apicv_inhibit_reasons = new;
+}
+EXPORT_SYMBOL_GPL(__kvm_request_apicv_update);
 
+void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
+{
+	mutex_lock(&kvm->arch.apicv_update_lock);
+	__kvm_request_apicv_update(kvm, activate, bit);
+	mutex_unlock(&kvm->arch.apicv_update_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
 
