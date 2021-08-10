@@ -953,6 +953,60 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	}
 }
 
+static const struct hns3_reset_type_map hns3_reset_type[] = {
+	{ETH_RESET_MGMT, HNAE3_IMP_RESET},
+	{ETH_RESET_ALL, HNAE3_GLOBAL_RESET},
+	{ETH_RESET_DEDICATED, HNAE3_FUNC_RESET},
+};
+
+static const struct hns3_reset_type_map hns3vf_reset_type[] = {
+	{ETH_RESET_DEDICATED, HNAE3_VF_FUNC_RESET},
+};
+
+static int hns3_set_reset(struct net_device *netdev, u32 *flags)
+{
+	enum hnae3_reset_type rst_type = HNAE3_NONE_RESET;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+	const struct hns3_reset_type_map *rst_type_map;
+	u32 i, size;
+
+	if (ops->ae_dev_resetting && ops->ae_dev_resetting(h))
+		return -EBUSY;
+
+	if (!ops->set_default_reset_request || !ops->reset_event)
+		return -EOPNOTSUPP;
+
+	if (h->flags & HNAE3_SUPPORT_VF) {
+		rst_type_map = hns3vf_reset_type;
+		size = ARRAY_SIZE(hns3vf_reset_type);
+	} else {
+		rst_type_map = hns3_reset_type;
+		size = ARRAY_SIZE(hns3_reset_type);
+	}
+
+	for (i = 0; i < size; i++) {
+		if (rst_type_map[i].rst_flags == *flags) {
+			rst_type = rst_type_map[i].rst_type;
+			break;
+		}
+	}
+
+	if (rst_type == HNAE3_NONE_RESET ||
+	    (rst_type == HNAE3_IMP_RESET &&
+	     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2))
+		return -EOPNOTSUPP;
+
+	netdev_info(netdev, "Setting reset type %d\n", rst_type);
+
+	ops->set_default_reset_request(ae_dev, rst_type);
+
+	ops->reset_event(h->pdev, h);
+
+	return 0;
+}
+
 static void hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
 					u32 tx_desc_num, u32 rx_desc_num)
 {
@@ -1699,6 +1753,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.set_priv_flags = hns3_set_priv_flags,
 	.get_tunable = hns3_get_tunable,
 	.set_tunable = hns3_set_tunable,
+	.reset = hns3_set_reset,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
@@ -1740,6 +1795,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_ts_info = hns3_get_ts_info,
 	.get_tunable = hns3_get_tunable,
 	.set_tunable = hns3_set_tunable,
+	.reset = hns3_set_reset,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

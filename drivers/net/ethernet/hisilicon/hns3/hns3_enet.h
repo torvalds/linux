@@ -596,6 +596,11 @@ struct hns3_hw_error_info {
 	const char *msg;
 };
 
+struct hns3_reset_type_map {
+	enum ethtool_reset_flags rst_flags;
+	enum hnae3_reset_type rst_type;
+};
+
 static inline int ring_space(struct hns3_enet_ring *ring)
 {
 	/* This smp_load_acquire() pairs with smp_store_release() in

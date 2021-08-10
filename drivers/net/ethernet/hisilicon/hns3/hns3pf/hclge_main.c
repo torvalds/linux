@@ -3789,6 +3789,12 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 	}
 
 	switch (hdev->reset_type) {
+	case HNAE3_IMP_RESET:
+		dev_info(&pdev->dev, "IMP reset requested\n");
+		val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
+		hnae3_set_bit(val, HCLGE_TRIGGER_IMP_RESET_B, 1);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, val);
+		break;
 	case HNAE3_GLOBAL_RESET:
 		dev_info(&pdev->dev, "global reset requested\n");
 		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
