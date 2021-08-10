@@ -154,7 +154,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
 		if (ipa->uc_clocked) {
 			ipa->uc_loaded = true;
-			ipa_clock_put(ipa);
+			(void)ipa_clock_put(ipa);
 			ipa->uc_clocked = false;
 		} else {
 			dev_warn(dev, "unexpected init_completed response\n");
@@ -182,21 +182,25 @@ void ipa_uc_deconfig(struct ipa *ipa)
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
 	if (ipa->uc_clocked)
-		ipa_clock_put(ipa);
+		(void)ipa_clock_put(ipa);
 }
 
 /* Take a proxy clock reference for the microcontroller */
 void ipa_uc_clock(struct ipa *ipa)
 {
 	static bool already;
+	int ret;
 
 	if (already)
 		return;
 	already = true;		/* Only do this on first boot */
 
 	/* This clock reference dropped in ipa_uc_response_hdlr() above */
-	ipa_clock_get(ipa);
-	ipa->uc_clocked = true;
+	ret = ipa_clock_get(ipa);
+	if (WARN(ret < 0, "error %d getting proxy clock\n", ret))
+		(void)ipa_clock_put(ipa);
+
+	ipa->uc_clocked = ret >= 0;
 }
 
 /* Send a command to the microcontroller */

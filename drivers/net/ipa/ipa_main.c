@@ -431,7 +431,9 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	 * is held after initialization completes, and won't get dropped
 	 * unless/until a system suspend request arrives.
 	 */
-	ipa_clock_get(ipa);
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0))
+		goto err_clock_put;
 
 	ipa_hardware_config(ipa, data);
 
@@ -475,7 +477,8 @@ err_mem_deconfig:
 	ipa_mem_deconfig(ipa);
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
-	ipa_clock_put(ipa);
+err_clock_put:
+	(void)ipa_clock_put(ipa);
 
 	return ret;
 }
@@ -493,7 +496,7 @@ static void ipa_deconfig(struct ipa *ipa)
 	ipa->interrupt = NULL;
 	ipa_mem_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
-	ipa_clock_put(ipa);
+	(void)ipa_clock_put(ipa);
 }
 
 static int ipa_firmware_load(struct device *dev)
@@ -750,20 +753,22 @@ static int ipa_probe(struct platform_device *pdev)
 		goto err_table_exit;
 
 	/* The clock needs to be active for config and setup */
-	ipa_clock_get(ipa);
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0))
+		goto err_clock_put;
 
 	ret = ipa_config(ipa, data);
 	if (ret)
-		goto err_clock_put;	/* Error */
+		goto err_clock_put;
 
 	dev_info(dev, "IPA driver initialized");
 
 	/* If the modem is doing early initialization, it will trigger a
-	 * call to ipa_setup() call when it has finished.  In that case
-	 * we're done here.
+	 * call to ipa_setup() when it has finished.  In that case we're
+	 * done here.
 	 */
 	if (modem_init)
-		goto out_clock_put;	/* Done; no error */
+		goto done;
 
 	/* Otherwise we need to load the firmware and have Trust Zone validate
 	 * and install it.  If that succeeds we can proceed with setup.
@@ -775,16 +780,15 @@ static int ipa_probe(struct platform_device *pdev)
 	ret = ipa_setup(ipa);
 	if (ret)
 		goto err_deconfig;
-
-out_clock_put:
-	ipa_clock_put(ipa);
+done:
+	(void)ipa_clock_put(ipa);
 
 	return 0;
 
 err_deconfig:
 	ipa_deconfig(ipa);
 err_clock_put:
-	ipa_clock_put(ipa);
+	(void)ipa_clock_put(ipa);
 	ipa_modem_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
@@ -810,7 +814,9 @@ static int ipa_remove(struct platform_device *pdev)
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
-	ipa_clock_get(ipa);
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0))
+		goto out_clock_put;
 
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
@@ -826,8 +832,8 @@ static int ipa_remove(struct platform_device *pdev)
 	}
 
 	ipa_deconfig(ipa);
-
-	ipa_clock_put(ipa);
+out_clock_put:
+	(void)ipa_clock_put(ipa);
 
 	ipa_modem_exit(ipa);
 	ipa_table_exit(ipa);

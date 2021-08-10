@@ -223,10 +223,11 @@ static int ipa_clock_enable(struct ipa *ipa)
 }
 
 /* Inverse of ipa_clock_enable() */
-static void ipa_clock_disable(struct ipa *ipa)
+static int ipa_clock_disable(struct ipa *ipa)
 {
 	clk_disable_unprepare(ipa->clock->core);
-	(void)ipa_interconnect_disable(ipa);
+
+	return ipa_interconnect_disable(ipa);
 }
 
 /* Get an IPA clock reference, but only if the reference count is
@@ -246,43 +247,51 @@ bool ipa_clock_get_additional(struct ipa *ipa)
  * Incrementing the reference count is intentionally deferred until
  * after the clock is running and endpoints are resumed.
  */
-void ipa_clock_get(struct ipa *ipa)
+int ipa_clock_get(struct ipa *ipa)
 {
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
 	/* If the clock is running, just bump the reference count */
 	if (ipa_clock_get_additional(ipa))
-		return;
+		return 1;
 
 	/* Otherwise get the mutex and check again */
 	mutex_lock(&clock->mutex);
 
 	/* A reference might have been added before we got the mutex. */
-	if (ipa_clock_get_additional(ipa))
+	if (ipa_clock_get_additional(ipa)) {
+		ret = 1;
 		goto out_mutex_unlock;
+	}
 
 	ret = ipa_clock_enable(ipa);
-	if (!ret)
-		refcount_set(&clock->count, 1);
+
+	refcount_set(&clock->count, 1);
+
 out_mutex_unlock:
 	mutex_unlock(&clock->mutex);
+
+	return ret;
 }
 
 /* Attempt to remove an IPA clock reference.  If this represents the
  * last reference, disable the IPA clock under protection of the mutex.
  */
-void ipa_clock_put(struct ipa *ipa)
+int ipa_clock_put(struct ipa *ipa)
 {
 	struct ipa_clock *clock = ipa->clock;
+	int ret;
 
 	/* If this is not the last reference there's nothing more to do */
 	if (!refcount_dec_and_mutex_lock(&clock->count, &clock->mutex))
-		return;
+		return 0;
 
-	ipa_clock_disable(ipa);
+	ret = ipa_clock_disable(ipa);
 
 	mutex_unlock(&clock->mutex);
+
+	return ret;
 }
 
 /* Return the current IPA core clock rate */
@@ -388,7 +397,7 @@ void ipa_clock_exit(struct ipa_clock *clock)
  * ipa_suspend() - Power management system suspend callback
  * @dev:	IPA device structure
  *
- * Return:	Always returns zero
+ * Return:	0 on success, or a negative error code
  *
  * Called by the PM framework when a system suspend operation is invoked.
  * Suspends endpoints and releases the clock reference held to keep
@@ -405,16 +414,14 @@ static int ipa_suspend(struct device *dev)
 		gsi_suspend(&ipa->gsi);
 	}
 
-	ipa_clock_put(ipa);
-
-	return 0;
+	return ipa_clock_put(ipa);
 }
 
 /**
  * ipa_resume() - Power management system resume callback
  * @dev:	IPA device structure
  *
- * Return:	Always returns 0
+ * Return:	0 on success, or a negative error code
  *
  * Called by the PM framework when a system resume operation is invoked.
  * Takes an IPA clock reference to keep the clock running until suspend,
@@ -423,11 +430,16 @@ static int ipa_suspend(struct device *dev)
 static int ipa_resume(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
+	int ret;
 
 	/* This clock reference will keep the IPA out of suspend
 	 * until we get a power management suspend request.
 	 */
-	ipa_clock_get(ipa);
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0)) {
+		(void)ipa_clock_put(ipa);
+		return ret;
+	}
 
 	/* Endpoints aren't usable until setup is complete */
 	if (ipa->setup_complete) {
