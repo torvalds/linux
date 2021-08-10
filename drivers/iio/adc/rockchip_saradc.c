@@ -73,6 +73,7 @@ struct rockchip_saradc {
 	const struct rockchip_saradc_data *data;
 	u16			last_val;
 	const struct iio_chan_spec *last_chan;
+	struct notifier_block nb;
 	bool			suspended;
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
 	bool			test;
@@ -499,6 +500,26 @@ out:
 	return IRQ_HANDLED;
 }
 
+static int rockchip_saradc_volt_notify(struct notifier_block *nb,
+						   unsigned long event,
+						   void *data)
+{
+	struct rockchip_saradc *info =
+			container_of(nb, struct rockchip_saradc, nb);
+
+	if (event & REGULATOR_EVENT_VOLTAGE_CHANGE)
+		info->uv_vref = (unsigned long)data;
+
+	return NOTIFY_OK;
+}
+
+static void rockchip_saradc_regulator_unreg_notifier(void *data)
+{
+	struct rockchip_saradc *info = data;
+
+	regulator_unregister_notifier(info->vref, &info->nb);
+}
+
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
 static ssize_t saradc_test_chn_store(struct device *dev,
 			struct device_attribute *attr,
@@ -680,12 +701,13 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	info->uv_vref = regulator_get_voltage(info->vref);
-	if (info->uv_vref < 0) {
+	ret = regulator_get_voltage(info->vref);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get voltage\n");
-		ret = info->uv_vref;
 		return ret;
 	}
+
+	info->uv_vref = ret;
 
 	ret = clk_prepare_enable(info->pclk);
 	if (ret < 0) {
@@ -724,6 +746,17 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	ret = devm_iio_triggered_buffer_setup(&indio_dev->dev, indio_dev, NULL,
 					      rockchip_saradc_trigger_handler,
 					      NULL);
+	if (ret)
+		return ret;
+
+	info->nb.notifier_call = rockchip_saradc_volt_notify;
+	ret = regulator_register_notifier(info->vref, &info->nb);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       rockchip_saradc_regulator_unreg_notifier,
+				       info);
 	if (ret)
 		return ret;
 
