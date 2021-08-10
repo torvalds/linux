@@ -12,6 +12,62 @@
 
 #define S2MPU_MMIO_SIZE		SZ_64K
 
+#define CTX_CFG_ENTRY(ctxid, nr_ctx, vid) \
+	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
+	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
+
+static u32 gen_ctx_cfg_valid_vid(struct platform_device *pdev,
+				 unsigned int num_ctx, u32 vid_bmap)
+{
+	u8 ctx_vid[NR_CTX_IDS] = { 0 };
+	unsigned int vid, ctx = 0;
+
+	/* Check NUM_CONTEXT value is within bounds. This should not happen. */
+	if (WARN_ON(num_ctx > NR_CTX_IDS))
+		num_ctx = NR_CTX_IDS;
+
+	while (vid_bmap) {
+		/* Break if we cannot allocate more. */
+		if (ctx >= num_ctx) {
+			dev_warn(&pdev->dev,
+				 "could not allocate all context IDs, DMA may be blocked (VID bitmap: 0x%x)",
+				 vid_bmap);
+			break;
+		}
+
+		vid = __ffs(vid_bmap);
+		vid_bmap &= ~BIT(vid);
+		ctx_vid[ctx++] = vid;
+	}
+
+	/* The following loop was unrolled so bitmasks are constant. */
+	BUILD_BUG_ON(NR_CTX_IDS != 8);
+	return CTX_CFG_ENTRY(0, ctx, ctx_vid[0])
+	     | CTX_CFG_ENTRY(1, ctx, ctx_vid[1])
+	     | CTX_CFG_ENTRY(2, ctx, ctx_vid[2])
+	     | CTX_CFG_ENTRY(3, ctx, ctx_vid[3])
+	     | CTX_CFG_ENTRY(4, ctx, ctx_vid[4])
+	     | CTX_CFG_ENTRY(5, ctx, ctx_vid[5])
+	     | CTX_CFG_ENTRY(6, ctx, ctx_vid[6])
+	     | CTX_CFG_ENTRY(7, ctx, ctx_vid[7]);
+}
+
+static int s2mpu_probe_v9(struct platform_device *pdev, void __iomem *kaddr)
+{
+	unsigned int num_ctx;
+	u32 ssmt_valid_vid_bmap, ctx_cfg_valid_vid;
+
+	ssmt_valid_vid_bmap = ALL_VIDS_BITMAP;
+	num_ctx = readl_relaxed(kaddr + REG_NS_NUM_CONTEXT) & NUM_CONTEXT_MASK;
+	ctx_cfg_valid_vid = gen_ctx_cfg_valid_vid(pdev, num_ctx, ssmt_valid_vid_bmap);
+	if (!ctx_cfg_valid_vid) {
+		dev_err(&pdev->dev, "failed to allocate context IDs");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int s2mpu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -61,7 +117,11 @@ static int s2mpu_probe(struct platform_device *pdev)
 	version = readl_relaxed(kaddr + REG_NS_VERSION);
 	switch (version & VERSION_CHECK_MASK) {
 	case S2MPU_VERSION_8:
+		break;
 	case S2MPU_VERSION_9:
+		ret = s2mpu_probe_v9(pdev, kaddr);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_err(&pdev->dev, "unexpected version 0x%08x", version);
