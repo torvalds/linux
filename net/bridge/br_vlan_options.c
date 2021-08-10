@@ -272,6 +272,7 @@ bool br_vlan_global_opts_can_enter_range(const struct net_bridge_vlan *v_curr,
 bool br_vlan_global_opts_fill(struct sk_buff *skb, u16 vid, u16 vid_range,
 			      const struct net_bridge_vlan *v_opts)
 {
+	struct nlattr *nest2 __maybe_unused;
 	u64 clockval __maybe_unused;
 	struct nlattr *nest;
 
@@ -325,6 +326,23 @@ bool br_vlan_global_opts_fill(struct sk_buff *skb, u16 vid, u16 vid_range,
 	if (nla_put_u64_64bit(skb, BRIDGE_VLANDB_GOPTS_MCAST_STARTUP_QUERY_INTVL,
 			      clockval, BRIDGE_VLANDB_GOPTS_PAD))
 		goto out_err;
+
+	if (br_rports_have_mc_router(&v_opts->br_mcast_ctx)) {
+		nest2 = nla_nest_start(skb,
+				       BRIDGE_VLANDB_GOPTS_MCAST_ROUTER_PORTS);
+		if (!nest2)
+			goto out_err;
+
+		rcu_read_lock();
+		if (br_rports_fill_info(skb, &v_opts->br_mcast_ctx)) {
+			rcu_read_unlock();
+			nla_nest_cancel(skb, nest2);
+			goto out_err;
+		}
+		rcu_read_unlock();
+
+		nla_nest_end(skb, nest2);
+	}
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION,

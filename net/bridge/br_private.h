@@ -945,6 +945,8 @@ bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan, bool on);
 int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
 		  const void *ctx, bool adding, struct notifier_block *nb,
 		  struct netlink_ext_ack *extack);
+int br_rports_fill_info(struct sk_buff *skb,
+			const struct net_bridge_mcast *brmctx);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
@@ -1169,6 +1171,17 @@ br_multicast_port_ctx_state_stopped(const struct net_bridge_mcast_port *pmctx)
 }
 
 static inline bool
+br_rports_have_mc_router(const struct net_bridge_mcast *brmctx)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	return !hlist_empty(&brmctx->ip4_mc_router_list) ||
+	       !hlist_empty(&brmctx->ip6_mc_router_list);
+#else
+	return !hlist_empty(&brmctx->ip4_mc_router_list);
+#endif
+}
+
+static inline bool
 br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
 			       const struct net_bridge_mcast *brmctx2)
 {
@@ -1192,6 +1205,8 @@ br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
 	       brmctx2->multicast_startup_query_interval &&
 	       brmctx1->multicast_querier == brmctx2->multicast_querier &&
 	       brmctx1->multicast_router == brmctx2->multicast_router &&
+	       !br_rports_have_mc_router(brmctx1) &&
+	       !br_rports_have_mc_router(brmctx2) &&
 #if IS_ENABLED(CONFIG_IPV6)
 	       brmctx1->multicast_mld_version ==
 	       brmctx2->multicast_mld_version &&

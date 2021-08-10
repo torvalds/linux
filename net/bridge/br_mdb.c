@@ -16,16 +16,6 @@
 
 #include "br_private.h"
 
-static bool br_rports_have_mc_router(const struct net_bridge_mcast *brmctx)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	return !hlist_empty(&brmctx->ip4_mc_router_list) ||
-	       !hlist_empty(&brmctx->ip6_mc_router_list);
-#else
-	return !hlist_empty(&brmctx->ip4_mc_router_list);
-#endif
-}
-
 static bool
 br_ip4_rports_get_timer(struct net_bridge_mcast_port *pmctx,
 			unsigned long *timer)
@@ -47,8 +37,8 @@ br_ip6_rports_get_timer(struct net_bridge_mcast_port *pmctx,
 #endif
 }
 
-static int br_rports_fill_info(struct sk_buff *skb,
-			       const struct net_bridge_mcast *brmctx)
+int br_rports_fill_info(struct sk_buff *skb,
+			const struct net_bridge_mcast *brmctx)
 {
 	u16 vid = brmctx->vlan ? brmctx->vlan->vid : 0;
 	bool have_ip4_mc_rtr, have_ip6_mc_rtr;
@@ -97,7 +87,8 @@ static int br_rports_fill_info(struct sk_buff *skb,
 				 ip4_timer)) ||
 		    (have_ip6_mc_rtr &&
 		     nla_put_u32(skb, MDBA_ROUTER_PATTR_INET6_TIMER,
-				 ip6_timer))) {
+				 ip6_timer)) ||
+		    (vid && nla_put_u16(skb, MDBA_ROUTER_PATTR_VID, vid))) {
 			nla_nest_cancel(skb, port_nest);
 			goto fail;
 		}
