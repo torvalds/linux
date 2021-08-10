@@ -476,8 +476,8 @@ struct io_uring_task {
 
 	spinlock_t		task_lock;
 	struct io_wq_work_list	task_list;
-	unsigned long		task_state;
 	struct callback_head	task_work;
+	bool			task_running;
 };
 
 /*
@@ -1960,9 +1960,13 @@ static void tctx_task_work(struct callback_head *cb)
 		spin_lock_irq(&tctx->task_lock);
 		node = tctx->task_list.first;
 		INIT_WQ_LIST(&tctx->task_list);
+		if (!node)
+			tctx->task_running = false;
 		spin_unlock_irq(&tctx->task_lock);
+		if (!node)
+			break;
 
-		while (node) {
+		do {
 			struct io_wq_work_node *next = node->next;
 			struct io_kiocb *req = container_of(node, struct io_kiocb,
 							    io_task_work.node);
@@ -1974,19 +1978,8 @@ static void tctx_task_work(struct callback_head *cb)
 			}
 			req->io_task_work.func(req);
 			node = next;
-		}
-		if (wq_list_empty(&tctx->task_list)) {
-			spin_lock_irq(&tctx->task_lock);
-			clear_bit(0, &tctx->task_state);
-			if (wq_list_empty(&tctx->task_list)) {
-				spin_unlock_irq(&tctx->task_lock);
-				break;
-			}
-			spin_unlock_irq(&tctx->task_lock);
-			/* another tctx_task_work() is enqueued, yield */
-			if (test_and_set_bit(0, &tctx->task_state))
-				break;
-		}
+		} while (node);
+
 		cond_resched();
 	}
 
@@ -2000,16 +1993,19 @@ static void io_req_task_work_add(struct io_kiocb *req)
 	enum task_work_notify_mode notify;
 	struct io_wq_work_node *node;
 	unsigned long flags;
+	bool running;
 
 	WARN_ON_ONCE(!tctx);
 
 	spin_lock_irqsave(&tctx->task_lock, flags);
 	wq_list_add_tail(&req->io_task_work.node, &tctx->task_list);
+	running = tctx->task_running;
+	if (!running)
+		tctx->task_running = true;
 	spin_unlock_irqrestore(&tctx->task_lock, flags);
 
 	/* task_work already pending, we're done */
-	if (test_bit(0, &tctx->task_state) ||
-	    test_and_set_bit(0, &tctx->task_state))
+	if (running)
 		return;
 
 	/*
@@ -2024,8 +2020,8 @@ static void io_req_task_work_add(struct io_kiocb *req)
 		return;
 	}
 
-	clear_bit(0, &tctx->task_state);
 	spin_lock_irqsave(&tctx->task_lock, flags);
+	tctx->task_running = false;
 	node = tctx->task_list.first;
 	INIT_WQ_LIST(&tctx->task_list);
 	spin_unlock_irqrestore(&tctx->task_lock, flags);
