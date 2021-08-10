@@ -77,3 +77,5 @@ static struct kunit_suite rtc_lib_test_suite = {
 };
 
 kunit_test_suite(rtc_lib_test_suite);
+
+MODULE_LICENSE("GPL");
