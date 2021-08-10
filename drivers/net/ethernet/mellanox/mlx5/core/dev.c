@@ -181,7 +181,7 @@ static bool is_mp_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
-static bool is_ib_supported(struct mlx5_core_dev *dev)
+bool mlx5_rdma_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return false;
@@ -196,6 +196,17 @@ static bool is_ib_supported(struct mlx5_core_dev *dev)
 		return false;
 
 	return true;
+}
+
+static bool is_ib_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+						 &val);
+	return err ? false : val.vbool;
 }
 
 enum {
@@ -217,7 +228,8 @@ static const struct mlx5_adev_device {
 	[MLX5_INTERFACE_PROTOCOL_VNET] = { .suffix = "vnet",
 					   .is_supported = &is_vnet_supported },
 	[MLX5_INTERFACE_PROTOCOL_IB] = { .suffix = "rdma",
-					 .is_supported = &is_ib_supported },
+					 .is_supported = &mlx5_rdma_supported,
+					 .is_enabled = &is_ib_enabled },
 	[MLX5_INTERFACE_PROTOCOL_ETH] = { .suffix = "eth",
 					  .is_supported = &mlx5_eth_supported,
 					  .is_enabled = &is_eth_enabled },
