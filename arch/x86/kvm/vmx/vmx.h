@@ -263,8 +263,6 @@ struct vcpu_vmx {
 	u64		      spec_ctrl;
 	u32		      msr_ia32_umwait_control;
 
-	u32 secondary_exec_control;
-
 	/*
 	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
 	 * non-nested (L1) guest, it always points to vmcs01. For a nested
@@ -477,6 +475,7 @@ static inline u32 vmx_vmexit_ctrl(void)
 }
 
 u32 vmx_exec_control(struct vcpu_vmx *vmx);
+u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx);
 u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx);
 
 static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
