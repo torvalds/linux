@@ -4053,17 +4053,16 @@ void br_multicast_dev_del(struct net_bridge *br)
 	rcu_barrier();
 }
 
-int br_multicast_set_router(struct net_bridge *br, unsigned long val)
+int br_multicast_set_router(struct net_bridge_mcast *brmctx, unsigned long val)
 {
-	struct net_bridge_mcast *brmctx = &br->multicast_ctx;
 	int err = -EINVAL;
 
-	spin_lock_bh(&br->multicast_lock);
+	spin_lock_bh(&brmctx->br->multicast_lock);
 
 	switch (val) {
 	case MDB_RTR_TYPE_DISABLED:
 	case MDB_RTR_TYPE_PERM:
-		br_mc_router_state_change(br, val == MDB_RTR_TYPE_PERM);
+		br_mc_router_state_change(brmctx->br, val == MDB_RTR_TYPE_PERM);
 		del_timer(&brmctx->ip4_mc_router_timer);
 #if IS_ENABLED(CONFIG_IPV6)
 		del_timer(&brmctx->ip6_mc_router_timer);
@@ -4073,13 +4072,13 @@ int br_multicast_set_router(struct net_bridge *br, unsigned long val)
 		break;
 	case MDB_RTR_TYPE_TEMP_QUERY:
 		if (brmctx->multicast_router != MDB_RTR_TYPE_TEMP_QUERY)
-			br_mc_router_state_change(br, false);
+			br_mc_router_state_change(brmctx->br, false);
 		brmctx->multicast_router = val;
 		err = 0;
 		break;
 	}
 
-	spin_unlock_bh(&br->multicast_lock);
+	spin_unlock_bh(&brmctx->br->multicast_lock);
 
 	return err;
 }
