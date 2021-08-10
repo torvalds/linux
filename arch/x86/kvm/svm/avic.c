@@ -651,6 +651,11 @@ void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	}
 	vmcb_mark_dirty(vmcb, VMCB_AVIC);
 
+	if (activated)
+		avic_vcpu_load(vcpu, vcpu->cpu);
+	else
+		avic_vcpu_put(vcpu);
+
 	svm_set_pi_irte_mode(vcpu, activated);
 }
 
