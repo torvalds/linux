@@ -125,17 +125,21 @@ static void dr_domain_uninit_resources(struct mlx5dr_domain *dmn)
 }
 
 static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
-				 bool other_vport,
-				 u16 vport_number)
+				 u16 vport_number,
+				 struct mlx5dr_cmd_vport_cap *vport_caps)
 {
-	struct mlx5dr_cmd_vport_cap *vport_caps;
+	u16 cmd_vport = vport_number;
+	bool other_vport = true;
 	int ret;
 
-	vport_caps = &dmn->info.caps.vports_caps[vport_number];
+	if (dmn->info.caps.is_ecpf && vport_number == MLX5_VPORT_ECPF) {
+		other_vport = false;
+		cmd_vport = 0;
+	}
 
 	ret = mlx5dr_cmd_query_esw_vport_context(dmn->mdev,
 						 other_vport,
-						 vport_number,
+						 cmd_vport,
 						 &vport_caps->icm_address_rx,
 						 &vport_caps->icm_address_tx);
 	if (ret)
@@ -143,7 +147,7 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 
 	ret = mlx5dr_cmd_query_gvmi(dmn->mdev,
 				    other_vport,
-				    vport_number,
+				    cmd_vport,
 				    &vport_caps->vport_gvmi);
 	if (ret)
 		return ret;
@@ -154,6 +158,13 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 	return 0;
 }
 
+static int dr_domain_query_esw_mngr(struct mlx5dr_domain *dmn)
+{
+	return dr_domain_query_vport(dmn,
+				     dmn->info.caps.is_ecpf ? MLX5_VPORT_ECPF : 0,
+				     &dmn->info.caps.esw_manager_vport_caps);
+}
+
 static int dr_domain_query_vports(struct mlx5dr_domain *dmn)
 {
 	struct mlx5dr_esw_caps *esw_caps = &dmn->info.caps.esw_caps;
@@ -161,9 +172,15 @@ static int dr_domain_query_vports(struct mlx5dr_domain *dmn)
 	int vport;
 	int ret;
 
+	ret = dr_domain_query_esw_mngr(dmn);
+	if (ret)
+		return ret;
+
 	/* Query vports (except wire vport) */
 	for (vport = 0; vport < dmn->info.caps.num_esw_ports - 1; vport++) {
-		ret = dr_domain_query_vport(dmn, !!vport, vport);
+		ret = dr_domain_query_vport(dmn,
+					    vport,
+					    &dmn->info.caps.vports_caps[vport]);
 		if (ret)
 			return ret;
 	}
@@ -267,11 +284,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 
 		dmn->info.rx.type = DR_DOMAIN_NIC_TYPE_RX;
 		dmn->info.tx.type = DR_DOMAIN_NIC_TYPE_TX;
-		vport_cap = mlx5dr_get_vport_cap(&dmn->info.caps, 0);
-		if (!vport_cap) {
-			mlx5dr_err(dmn, "Failed to get esw manager vport\n");
-			return -ENOENT;
-		}
+		vport_cap = &dmn->info.caps.esw_manager_vport_caps;
 
 		dmn->info.supp_sw_steering = true;
 		dmn->info.tx.default_icm_addr = vport_cap->icm_address_tx;

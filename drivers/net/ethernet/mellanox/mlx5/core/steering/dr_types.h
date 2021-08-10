@@ -797,8 +797,10 @@ struct mlx5dr_cmd_caps {
 	u32 num_vports;
 	struct mlx5dr_esw_caps esw_caps;
 	struct mlx5dr_cmd_vport_cap *vports_caps;
+	struct mlx5dr_cmd_vport_cap esw_manager_vport_caps;
 	bool prio_tag_required;
 	struct mlx5dr_roce_cap roce_caps;
+	u8 is_ecpf:1;
 	u8 isolate_vl_tc:1;
 };
 
@@ -1104,6 +1106,9 @@ mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
 static inline struct mlx5dr_cmd_vport_cap *
 mlx5dr_get_vport_cap(struct mlx5dr_cmd_caps *caps, u16 vport)
 {
+	if (caps->is_ecpf && vport == MLX5_VPORT_ECPF)
+		return &caps->esw_manager_vport_caps;
+
 	if (!caps->vports_caps ||
 	    (vport >= caps->num_vports && vport != MLX5_VPORT_UPLINK))
 		return NULL;

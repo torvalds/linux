@@ -195,6 +195,8 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 
 	caps->roce_min_src_udp = MLX5_CAP_ROCE(mdev, r_roce_min_src_udp_port);
 
+	caps->is_ecpf = mlx5_core_is_ecpf_esw_manager(mdev);
+
 	return 0;
 }
 
