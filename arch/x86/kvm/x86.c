@@ -9239,12 +9239,18 @@ void kvm_make_scan_ioapic_request(struct kvm *kvm)
 
 void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 {
+	bool activate;
+
 	if (!lapic_in_kernel(vcpu))
 		return;
 
 	mutex_lock(&vcpu->kvm->arch.apicv_update_lock);
 
-	vcpu->arch.apicv_active = kvm_apicv_activated(vcpu->kvm);
+	activate = kvm_apicv_activated(vcpu->kvm);
+	if (vcpu->arch.apicv_active == activate)
+		goto out;
+
+	vcpu->arch.apicv_active = activate;
 	kvm_apic_update_apicv(vcpu);
 	static_call(kvm_x86_refresh_apicv_exec_ctrl)(vcpu);
 
@@ -9257,6 +9263,7 @@ void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.apicv_active)
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 
+out:
 	mutex_unlock(&vcpu->kvm->arch.apicv_update_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
