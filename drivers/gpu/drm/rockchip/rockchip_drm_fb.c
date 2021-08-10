@@ -29,8 +29,6 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	int i = 0;
 
-	for (i = 0; i < 4; i++)
-		drm_gem_object_put(fb->obj[i]);
 	drm_framebuffer_cleanup(fb);
 
 	if (is_rockchip_logo_fb(fb)) {
@@ -38,6 +36,11 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 
 		kfree(rockchip_logo_fb);
 	} else {
+		for (i = 0; i < 4; i++) {
+			if (fb->obj[i])
+				drm_gem_object_put(fb->obj[i]);
+		}
+
 		kfree(fb);
 	}
 }
@@ -103,6 +106,9 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 
 	fb->flags |= ROCKCHIP_DRM_MODE_LOGO_FB;
 	rockchip_logo_fb->logo = logo;
+	rockchip_logo_fb->fb.obj[0] = &rockchip_logo_fb->rk_obj.base;
+	rockchip_logo_fb->rk_obj.dma_addr = logo->dma_addr;
+	rockchip_logo_fb->rk_obj.kvaddr = logo->kvaddr;
 	logo->count++;
 
 	return &rockchip_logo_fb->fb;
@@ -196,7 +202,7 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	}
 
 	if (drm_is_afbc(mode_cmd->modifier[0])) {
-		int ret, i;
+		int i;
 
 		ret = drm_gem_fb_afbc_init(dev, mode_cmd, afbc_fb);
 		if (ret) {
@@ -213,9 +219,18 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	return &afbc_fb->base;
 }
 
+static void rockchip_drm_output_poll_changed(struct drm_device *dev)
+{
+	struct rockchip_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = private->fbdev_helper;
+
+	if (fb_helper && dev->mode_config.poll_enabled && !private->loader_protect)
+		drm_fb_helper_hotplug_event(fb_helper);
+}
+
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
+	.output_poll_changed = rockchip_drm_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
