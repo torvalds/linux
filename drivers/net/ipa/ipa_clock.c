@@ -414,7 +414,7 @@ static int ipa_suspend(struct device *dev)
 		gsi_suspend(&ipa->gsi);
 	}
 
-	return ipa_clock_put(ipa);
+	return ipa_clock_disable(ipa);
 }
 
 /**
@@ -432,14 +432,9 @@ static int ipa_resume(struct device *dev)
 	struct ipa *ipa = dev_get_drvdata(dev);
 	int ret;
 
-	/* This clock reference will keep the IPA out of suspend
-	 * until we get a power management suspend request.
-	 */
-	ret = ipa_clock_get(ipa);
-	if (WARN_ON(ret < 0)) {
-		(void)ipa_clock_put(ipa);
+	ret = ipa_clock_enable(ipa);
+	if (WARN_ON(ret < 0))
 		return ret;
-	}
 
 	/* Endpoints aren't usable until setup is complete */
 	if (ipa->setup_complete) {
