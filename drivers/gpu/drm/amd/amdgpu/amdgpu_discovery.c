@@ -820,7 +820,9 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		switch (adev->ip_versions[UVD_HWIP][0]) {
 		case IP_VERSION(7, 0, 0):
 		case IP_VERSION(7, 2, 0):
-			amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
+			/* UVD is not supported on vega20 SR-IOV */
+			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
+				amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
 			break;
 		default:
 			return -EINVAL;
@@ -828,7 +830,9 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		switch (adev->ip_versions[VCE_HWIP][0]) {
 		case IP_VERSION(4, 0, 0):
 		case IP_VERSION(4, 1, 0):
-			amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
+			/* VCE is not supported on vega20 SR-IOV */
+			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
+				amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
 			break;
 		default:
 			return -EINVAL;
@@ -860,7 +864,8 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 1):
 		case IP_VERSION(3, 0, 2):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
-			amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
+			if (!amdgpu_sriov_vf(adev))
+				amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
 			break;
 		case IP_VERSION(3, 0, 33):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
@@ -1202,14 +1207,24 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = amdgpu_discovery_set_ih_ip_blocks(adev);
-	if (r)
-		return r;
-
-	if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+	/* For SR-IOV, PSP needs to be initialized before IH */
+	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_discovery_set_psp_ip_blocks(adev);
 		if (r)
 			return r;
+		r = amdgpu_discovery_set_ih_ip_blocks(adev);
+		if (r)
+			return r;
+	} else {
+		r = amdgpu_discovery_set_ih_ip_blocks(adev);
+		if (r)
+			return r;
+
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+			r = amdgpu_discovery_set_psp_ip_blocks(adev);
+			if (r)
+				return r;
+		}
 	}
 
 	if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
@@ -1230,7 +1245,8 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
+	    !amdgpu_sriov_vf(adev)) {
 		r = amdgpu_discovery_set_smu_ip_blocks(adev);
 		if (r)
 			return r;
