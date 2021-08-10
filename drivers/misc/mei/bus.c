@@ -884,7 +884,7 @@ static int mei_cl_device_probe(struct device *dev)
  *
  * Return:  0 on success; < 0 otherwise
  */
-static int mei_cl_device_remove(struct device *dev)
+static void mei_cl_device_remove(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	struct mei_cl_driver *cldrv = to_mei_cl_driver(dev->driver);
@@ -896,8 +896,6 @@ static int mei_cl_device_remove(struct device *dev)
 
 	mei_cl_bus_module_put(cldev);
 	module_put(THIS_MODULE);
-
-	return 0;
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *a,

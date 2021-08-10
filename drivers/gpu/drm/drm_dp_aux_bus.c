@@ -67,9 +67,8 @@ static int dp_aux_ep_probe(struct device *dev)
  *
  * Calls through to the endpoint driver remove.
  *
- * Return: 0 if no error or negative error code.
  */
-static int dp_aux_ep_remove(struct device *dev)
+static void dp_aux_ep_remove(struct device *dev)
 {
 	struct dp_aux_ep_driver *aux_ep_drv = to_dp_aux_ep_drv(dev->driver);
 	struct dp_aux_ep_device *aux_ep = to_dp_aux_ep_dev(dev);
@@ -77,8 +76,6 @@ static int dp_aux_ep_remove(struct device *dev)
 	if (aux_ep_drv->remove)
 		aux_ep_drv->remove(aux_ep);
 	dev_pm_domain_detach(dev, true);
-
-	return 0;
 }
 
 /**

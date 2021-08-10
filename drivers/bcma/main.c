@@ -27,7 +27,7 @@ static DEFINE_MUTEX(bcma_buses_mutex);
 
 static int bcma_bus_match(struct device *dev, struct device_driver *drv);
 static int bcma_device_probe(struct device *dev);
-static int bcma_device_remove(struct device *dev);
+static void bcma_device_remove(struct device *dev);
 static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env);
 
 static ssize_t manuf_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -614,7 +614,7 @@ static int bcma_device_probe(struct device *dev)
 	return err;
 }
 
-static int bcma_device_remove(struct device *dev)
+static void bcma_device_remove(struct device *dev)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
 	struct bcma_driver *adrv = container_of(dev->driver, struct bcma_driver,
@@ -623,8 +623,6 @@ static int bcma_device_remove(struct device *dev)
 	if (adrv->remove)
 		adrv->remove(core);
 	put_device(dev);
-
-	return 0;
 }
 
 static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env)

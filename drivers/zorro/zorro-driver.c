@@ -62,7 +62,7 @@ static int zorro_device_probe(struct device *dev)
 }
 
 
-static int zorro_device_remove(struct device *dev)
+static void zorro_device_remove(struct device *dev)
 {
 	struct zorro_dev *z = to_zorro_dev(dev);
 	struct zorro_driver *drv = to_zorro_driver(dev->driver);
@@ -72,7 +72,6 @@ static int zorro_device_remove(struct device *dev)
 			drv->remove(z);
 		z->driver = NULL;
 	}
-	return 0;
 }
 
 

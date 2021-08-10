@@ -439,17 +439,13 @@ module_exit(cleanup_ccwgroup);
 
 /************************** driver stuff ******************************/
 
-static int ccwgroup_remove(struct device *dev)
+static void ccwgroup_remove(struct device *dev)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(dev->driver);
 
-	if (!dev->driver)
-		return 0;
 	if (gdrv->remove)
 		gdrv->remove(gdev);
-
-	return 0;
 }
 
 static void ccwgroup_shutdown(struct device *dev)

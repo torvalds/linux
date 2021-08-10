@@ -1019,7 +1019,7 @@ static int acpi_device_probe(struct device *dev)
 	return 0;
 }
 
-static int acpi_device_remove(struct device *dev)
+static void acpi_device_remove(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
@@ -1034,7 +1034,6 @@ static int acpi_device_remove(struct device *dev)
 	acpi_dev->driver_data = NULL;
 
 	put_device(dev);
-	return 0;
 }
 
 struct bus_type acpi_bus_type = {
