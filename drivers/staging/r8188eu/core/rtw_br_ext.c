@@ -394,7 +394,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 		}
 		db = db->next_hash;
 	}
-	db = kmalloc(sizeof(*db), GFP_KERNEL);
+	db = kmalloc(sizeof(*db), GFP_ATOMIC);
 	if (!db) {
 		spin_unlock_bh(&priv->br_ext_lock);
 		return;

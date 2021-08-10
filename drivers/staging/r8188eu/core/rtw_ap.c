@@ -98,7 +98,7 @@ static void update_BCNTIM(struct adapter *padapter)
 		}
 
 		if (remainder_ielen > 0) {
-			pbackup_remainder_ie = kmalloc(remainder_ielen, GFP_KERNEL);
+			pbackup_remainder_ie = kmalloc(remainder_ielen, GFP_ATOMIC);
 			if (pbackup_remainder_ie && premainder_ie)
 				memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
 		}
