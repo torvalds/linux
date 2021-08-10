@@ -225,31 +225,26 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
  * field of the VMCB. Therefore, we set up the
  * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
  */
-static int avic_update_access_page(struct kvm *kvm, bool activate)
+static int avic_alloc_access_page(struct kvm *kvm)
 {
 	void __user *ret;
 	int r = 0;
 
 	mutex_lock(&kvm->slots_lock);
-	/*
-	 * During kvm_destroy_vm(), kvm_pit_set_reinject() could trigger
-	 * APICv mode change, which update APIC_ACCESS_PAGE_PRIVATE_MEMSLOT
-	 * memory region. So, we need to ensure that kvm->mm == current->mm.
-	 */
-	if ((kvm->arch.apic_access_memslot_enabled == activate) ||
-	    (kvm->mm != current->mm))
+
+	if (kvm->arch.apic_access_memslot_enabled)
 		goto out;
 
 	ret = __x86_set_memory_region(kvm,
 				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE,
-				      activate ? PAGE_SIZE : 0);
+				      PAGE_SIZE);
 	if (IS_ERR(ret)) {
 		r = PTR_ERR(ret);
 		goto out;
 	}
 
-	kvm->arch.apic_access_memslot_enabled = activate;
+	kvm->arch.apic_access_memslot_enabled = true;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -270,7 +265,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	if (kvm_apicv_activated(vcpu->kvm)) {
 		int ret;
 
-		ret = avic_update_access_page(vcpu->kvm, true);
+		ret = avic_alloc_access_page(vcpu->kvm);
 		if (ret)
 			return ret;
 	}
@@ -918,10 +913,6 @@ bool svm_check_apicv_inhibit_reasons(ulong bit)
 	return supported & BIT(bit);
 }
 
-void svm_pre_update_apicv_exec_ctrl(struct kvm *kvm, bool activate)
-{
-	avic_update_access_page(kvm, activate);
-}
 
 static inline int
 avic_update_iommu_vcpu_affinity(struct kvm_vcpu *vcpu, int cpu, bool r)

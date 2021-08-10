@@ -9255,13 +9255,6 @@ void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
 
-/*
- * NOTE: Do not hold any lock prior to calling this.
- *
- * In particular, kvm_request_apicv_update() expects kvm->srcu not to be
- * locked, because it calls __x86_set_memory_region() which does
- * synchronize_srcu(&kvm->srcu).
- */
 void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
 	unsigned long old, new, expected;
@@ -9282,14 +9275,16 @@ void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 		old = cmpxchg(&kvm->arch.apicv_inhibit_reasons, expected, new);
 	} while (old != expected);
 
-	if (!!old == !!new)
-		return;
+	if (!!old != !!new) {
+		trace_kvm_apicv_update_request(activate, bit);
+		kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
+		if (new) {
+			unsigned long gfn = gpa_to_gfn(APIC_DEFAULT_PHYS_BASE);
 
-	trace_kvm_apicv_update_request(activate, bit);
-	if (kvm_x86_ops.pre_update_apicv_exec_ctrl)
-		static_call(kvm_x86_pre_update_apicv_exec_ctrl)(kvm, activate);
+			kvm_zap_gfn_range(kvm, gfn, gfn+1);
+		}
+	}
 
-	kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
 
