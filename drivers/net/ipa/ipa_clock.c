@@ -264,15 +264,6 @@ static int ipa_runtime_idle(struct device *dev)
 	return -EAGAIN;
 }
 
-/* Get an IPA clock reference, but only if the reference count is
- * already non-zero.  Returns true if the additional reference was
- * added successfully, or false otherwise.
- */
-bool ipa_clock_get_additional(struct ipa *ipa)
-{
-	return pm_runtime_get_if_active(&ipa->pdev->dev, true) > 0;
-}
-
 /* Get an IPA clock reference.  If the reference count is non-zero, it is
  * incremented and return is immediate.  Otherwise the IPA clock is
  * enabled.

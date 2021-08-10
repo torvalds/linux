@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/panic_notifier.h>
+#include <linux/pm_runtime.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
@@ -84,13 +85,15 @@ struct ipa_smp2p {
  */
 static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
 {
+	struct device *dev;
 	u32 value;
 	u32 mask;
 
 	if (smp2p->notified)
 		return;
 
-	smp2p->clock_on = ipa_clock_get_additional(smp2p->ipa);
+	dev = &smp2p->ipa->pdev->dev;
+	smp2p->clock_on = pm_runtime_get_if_active(dev, true) > 0;
 
 	/* Signal whether the clock is enabled */
 	mask = BIT(smp2p->enabled_bit);

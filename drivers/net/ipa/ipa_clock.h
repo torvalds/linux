@@ -63,16 +63,6 @@ void ipa_clock_exit(struct ipa_clock *clock);
 int ipa_clock_get(struct ipa *ipa);
 
 /**
- * ipa_clock_get_additional() - Get an IPA clock reference if not first
- * @ipa:	IPA pointer
- *
- * Return:	true if reference taken, false otherwise
- *
- * This returns immediately, and only takes a reference if not the first
- */
-bool ipa_clock_get_additional(struct ipa *ipa);
-
-/**
  * ipa_clock_put() - Drop an IPA clock reference
  * @ipa:	IPA pointer
  *
