@@ -399,7 +399,6 @@ cifs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-	cifs_fscache_release_inode_cookie(inode);
 }
 
 static void
