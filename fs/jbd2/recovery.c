@@ -179,8 +179,8 @@ static int jbd2_descriptor_block_csum_verify(journal_t *j, void *buf)
 	if (!jbd2_journal_has_csum_v2or3(j))
 		return 1;
 
-	tail = (struct jbd2_journal_block_tail *)(buf + j->j_blocksize -
-			sizeof(struct jbd2_journal_block_tail));
+	tail = (struct jbd2_journal_block_tail *)((char *)buf +
+		j->j_blocksize - sizeof(struct jbd2_journal_block_tail));
 	provided = tail->t_checksum;
 	tail->t_checksum = 0;
 	calculated = jbd2_chksum(j, j->j_csum_seed, buf, j->j_blocksize);
@@ -896,7 +896,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 {
 	jbd2_journal_revoke_header_t *header;
 	int offset, max;
-	int csum_size = 0;
+	unsigned csum_size = 0;
 	__u32 rcount;
 	int record_len = 4;
 
