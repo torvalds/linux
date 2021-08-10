@@ -451,11 +451,10 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 	return overlap;
 }
 
-int bdev_add_partition(struct block_device *bdev, int partno,
-		sector_t start, sector_t length)
+int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
+		sector_t length)
 {
 	struct block_device *part;
-	struct gendisk *disk = bdev->bd_disk;
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
