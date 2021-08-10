@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
@@ -23,7 +23,7 @@
 #include <mali_kbase.h>
 #include <linux/seq_file.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 
 bool kbase_csf_cpu_queue_read_dump_req(struct kbase_context *kctx,
 					struct base_csf_notification *req)

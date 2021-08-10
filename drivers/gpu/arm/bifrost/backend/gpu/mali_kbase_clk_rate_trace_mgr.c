@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
@@ -27,7 +27,7 @@
 #include <mali_kbase_config_defaults.h>
 #include <linux/clk.h>
 #include <asm/div64.h>
-#include "mali_kbase_clk_rate_trace_mgr.h"
+#include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #ifdef CONFIG_TRACE_POWER_GPU_FREQUENCY
 #include <trace/events/power_gpu_frequency.h>
@@ -299,8 +299,8 @@ void kbase_clk_rate_trace_manager_notify_all(
 
 	kbdev = container_of(clk_rtm, struct kbase_device, pm.clk_rtm);
 
-	dev_dbg(kbdev->dev, "GPU clock %u rate changed to %lu",
-		clk_index, new_rate);
+	dev_dbg(kbdev->dev, "%s - GPU clock %u rate changed to %lu, pid: %d",
+		__func__, clk_index, new_rate, current->pid);
 
 	/* Raise standard `power/gpu_frequency` ftrace event */
 	{

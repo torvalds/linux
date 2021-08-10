@@ -183,8 +183,7 @@ config SOC_BUS
 
 source "drivers/base/regmap/Kconfig"
 
-source "drivers/base/arm/memory_group_manager/Kconfig"
-source "drivers/base/arm/protected_memory_allocator/Kconfig"
+source "drivers/base/arm/Kconfig"
 
 config DMA_SHARED_BUFFER
 	bool

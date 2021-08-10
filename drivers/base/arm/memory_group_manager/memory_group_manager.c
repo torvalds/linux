@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -25,7 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/module.h>
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <linux/debugfs.h>
 #endif
 #include <linux/mm.h>
@@ -97,12 +97,12 @@ struct mgm_group {
 struct mgm_groups {
 	struct mgm_group groups[MEMORY_GROUP_MANAGER_NR_GROUPS];
 	struct device *dev;
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *mgm_debugfs_root;
 #endif
 };
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 
 static int mgm_size_get(void *data, u64 *val)
 {

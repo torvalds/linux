@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2012-2016, 2018-2021 ARM Limited. All rights reserved.
@@ -23,7 +23,7 @@
 #include <linux/spinlock.h>
 #include <mali_kbase_hwaccess_jm.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 
 static bool kbase_is_job_fault_event_pending(struct kbase_device *kbdev)
 {

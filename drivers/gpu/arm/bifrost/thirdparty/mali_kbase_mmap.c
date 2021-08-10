@@ -10,7 +10,7 @@
  */
 
 #include "linux/mman.h"
-#include "../mali_kbase.h"
+#include <mali_kbase.h>
 
 /* mali_kbase_mmap.c
  *
@@ -275,7 +275,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 	if ((flags & MAP_FIXED) || addr)
 		return -EINVAL;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	/* too big? */
 	if (len > TASK_SIZE - SZ_2M)
 		return -ENOMEM;

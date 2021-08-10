@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2016-2021 ARM Limited. All rights reserved.
@@ -23,9 +23,7 @@
 
 #include "mali_kbase_ipa_counter_common_jm.h"
 #include "mali_kbase.h"
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif
+
 
 /* Performance counter blocks base offsets */
 #define JM_BASE             (0 * KBASE_IPA_NR_BYTES_PER_BLOCK)
@@ -96,15 +94,9 @@ static u32 kbase_g7x_power_model_get_memsys_counter(struct kbase_ipa_model_vinst
 static u32 kbase_g7x_power_model_get_sc_counter(struct kbase_ipa_model_vinstr_data *model_data,
 						u32 counter_block_offset)
 {
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	const u32 sc_base = MEMSYS_BASE +
-		(KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS *
-		 KBASE_IPA_NR_BYTES_PER_BLOCK);
-#else
 	const u32 sc_base = MEMSYS_BASE +
 		(model_data->kbdev->gpu_props.props.l2_props.num_l2_slices *
 		 KBASE_IPA_NR_BYTES_PER_BLOCK);
-#endif
 	return sc_base + counter_block_offset;
 }
 

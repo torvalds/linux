@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2013-2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,9 +26,6 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
-#ifdef MALI_BIFROST_NO_MALI
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif
 #include <mali_kbase_dummy_job_wa.h>
 
 int kbase_pm_ca_init(struct kbase_device *kbdev)
@@ -123,9 +120,7 @@ u64 kbase_pm_ca_get_instr_core_mask(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	return (((1ull) << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1);
-#elif MALI_USE_CSF
+#if   MALI_USE_CSF
 	return kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_SHADER);
 #else
 	return kbdev->pm.backend.pm_shaders_core_mask;

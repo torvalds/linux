@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -23,14 +23,11 @@
 #include "mali_kbase_hwcnt_gpu.h"
 #include "mali_kbase_hwcnt_types.h"
 #include "mali_kbase.h"
-#include "mali_kbase_pm_ca.h"
+#include "backend/gpu/mali_kbase_pm_ca.h"
 #include "mali_kbase_hwaccess_instr.h"
 #include "mali_kbase_hwaccess_time.h"
 #include "mali_kbase_ccswe.h"
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-#include "backend/gpu/mali_kbase_model_dummy.h"
-#endif
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #include "backend/gpu/mali_kbase_pm_internal.h"
@@ -108,10 +105,6 @@ kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
 	if (!kbdev || !info)
 		return -EINVAL;
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	info->l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
-	info->core_mask = (1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
-#else /* CONFIG_MALI_BIFROST_NO_MALI */
 	{
 		const struct base_gpu_props *props = &kbdev->gpu_props.props;
 		const size_t l2_count = props->l2_props.num_l2_slices;
@@ -120,8 +113,9 @@ kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
 
 		info->l2_count = l2_count;
 		info->core_mask = core_mask;
+		info->prfcnt_values_per_block =
+			KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK;
 	}
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	/* Determine the number of available clock domains. */
 	for (clk = 0; clk < BASE_MAX_NR_CLOCKS_REGULATORS; clk++) {
@@ -483,11 +477,6 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 	struct kbase_hwcnt_backend_jm *backend_jm =
 		(struct kbase_hwcnt_backend_jm *)backend;
 	size_t clk;
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	struct kbase_device *kbdev;
-	unsigned long flags;
-	int errcode;
-#endif
 
 	if (!backend_jm || !dst || !dst_enable_map ||
 	    (backend_jm->info->metadata != dst->metadata) ||
@@ -506,21 +495,6 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 		/* Extract elapsed cycle count for each clock domain. */
 		dst->clk_cnt_buf[clk] = backend_jm->cycle_count_elapsed[clk];
 	}
-
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	kbdev = backend_jm->kctx->kbdev;
-
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-	/* Update the current configuration information. */
-	errcode = kbasep_hwcnt_gpu_update_curr_config(kbdev,
-		&backend_jm->curr_config);
-
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-	if (errcode)
-		return errcode;
-#endif
 
 	return kbase_hwcnt_jm_dump_get(dst, backend_jm->cpu_dump_va,
 				       dst_enable_map, backend_jm->pm_core_mask,
@@ -655,10 +629,6 @@ static int kbasep_hwcnt_backend_jm_create(
 	kbase_ccswe_init(&backend->ccswe_shader_cores);
 	backend->rate_listener.notify = kbasep_hwcnt_backend_jm_on_freq_change;
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	/* The dummy model needs the CPU mapping. */
-	gpu_model_set_dummy_prfcnt_base_cpu(backend->cpu_dump_va);
-#endif
 
 	*out_backend = backend;
 	return 0;

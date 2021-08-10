@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
@@ -228,7 +228,7 @@ struct kbase_hwcnt_backend_csf {
 	struct work_struct hwc_threshold_work;
 };
 
-bool kbasep_hwcnt_backend_csf_backend_exists(
+static bool kbasep_hwcnt_backend_csf_backend_exists(
 	struct kbase_hwcnt_backend_csf_info *csf_info)
 {
 	WARN_ON(!csf_info);
@@ -347,8 +347,10 @@ static void kbasep_hwcnt_backend_csf_init_layout(
 	phys_layout->shader_avail_mask = prfcnt_info->core_mask;
 
 	phys_layout->headers_per_block = KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
-	phys_layout->counters_per_block = KBASE_HWCNT_V5_COUNTERS_PER_BLOCK;
-	phys_layout->values_per_block = KBASE_HWCNT_V5_VALUES_PER_BLOCK;
+	phys_layout->values_per_block =
+		prfcnt_info->prfcnt_block_size / KBASE_HWCNT_VALUE_BYTES;
+	phys_layout->counters_per_block =
+		phys_layout->values_per_block - phys_layout->headers_per_block;
 	phys_layout->offset_enable_mask = KBASE_HWCNT_V5_PRFCNT_EN_HEADER;
 }
 
@@ -1783,6 +1785,9 @@ int kbase_hwcnt_backend_csf_metadata_init(
 	gpu_info.l2_count = csf_info->prfcnt_info.l2_count;
 	gpu_info.core_mask = csf_info->prfcnt_info.core_mask;
 	gpu_info.clk_cnt = csf_info->prfcnt_info.clk_cnt;
+	gpu_info.prfcnt_values_per_block =
+		csf_info->prfcnt_info.prfcnt_block_size /
+		KBASE_HWCNT_VALUE_BYTES;
 	errcode = kbase_hwcnt_csf_metadata_create(
 		&gpu_info, csf_info->counter_set, &csf_info->metadata);
 	if (errcode)

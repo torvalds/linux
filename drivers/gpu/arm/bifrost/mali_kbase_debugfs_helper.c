@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,10 +45,9 @@
  *
  * Return: 0 if success, negative error code otherwise.
  */
-static int set_attr_from_string(
-	char *const buf,
-	void *const array, size_t const nelems,
-	kbase_debugfs_helper_set_attr_fn const set_attr_fn)
+static int
+set_attr_from_string(char *const buf, void *const array, size_t const nelems,
+		     kbase_debugfs_helper_set_attr_fn *const set_attr_fn)
 {
 	size_t index, err = 0;
 	char *ptr = buf;
@@ -144,7 +143,7 @@ int kbase_debugfs_string_validator(char *const buf)
 
 int kbase_debugfs_helper_set_attr_from_string(
 	const char *const buf, void *const array, size_t const nelems,
-	kbase_debugfs_helper_set_attr_fn const set_attr_fn)
+	kbase_debugfs_helper_set_attr_fn *const set_attr_fn)
 {
 	char *const wbuf = kstrdup(buf, GFP_KERNEL);
 	int err = 0;
@@ -167,9 +166,9 @@ int kbase_debugfs_helper_set_attr_from_string(
 }
 
 ssize_t kbase_debugfs_helper_get_attr_to_string(
-	char *const buf, size_t const size,
-	void *const array, size_t const nelems,
-	kbase_debugfs_helper_get_attr_fn const get_attr_fn)
+	char *const buf, size_t const size, void *const array,
+	size_t const nelems,
+	kbase_debugfs_helper_get_attr_fn *const get_attr_fn)
 {
 	ssize_t total = 0;
 	size_t index;
@@ -187,10 +186,10 @@ ssize_t kbase_debugfs_helper_get_attr_to_string(
 	return total;
 }
 
-int kbase_debugfs_helper_seq_write(struct file *const file,
-	const char __user *const ubuf, size_t const count,
-	size_t const nelems,
-	kbase_debugfs_helper_set_attr_fn const set_attr_fn)
+int kbase_debugfs_helper_seq_write(
+	struct file *const file, const char __user *const ubuf,
+	size_t const count, size_t const nelems,
+	kbase_debugfs_helper_set_attr_fn *const set_attr_fn)
 {
 	const struct seq_file *const sfile = file->private_data;
 	void *const array = sfile->private;
@@ -228,9 +227,9 @@ int kbase_debugfs_helper_seq_write(struct file *const file,
 	return err;
 }
 
-int kbase_debugfs_helper_seq_read(struct seq_file *const sfile,
-	size_t const nelems,
-	kbase_debugfs_helper_get_attr_fn const get_attr_fn)
+int kbase_debugfs_helper_seq_read(
+	struct seq_file *const sfile, size_t const nelems,
+	kbase_debugfs_helper_get_attr_fn *const get_attr_fn)
 {
 	void *const array = sfile->private;
 	size_t index;

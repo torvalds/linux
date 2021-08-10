@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
@@ -289,9 +289,11 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 		katom->gpu_rb_state = KBASE_ATOM_GPU_RB_READY;
 		kbase_pm_metrics_update(kbdev, end_timestamp);
 
+		/* Inform platform at start/finish of atom */
+		kbasep_platform_event_atom_complete(katom);
+
 		if (katom->core_req & BASE_JD_REQ_PERMON)
 			kbase_pm_release_gpu_cycle_counter_nolock(kbdev);
-		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 		KBASE_TLSTREAM_TL_NRET_ATOM_LPU(kbdev, katom,
 			&kbdev->gpu_props.props.raw_props.js_features
@@ -300,6 +302,8 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 		KBASE_TLSTREAM_TL_NRET_CTX_LPU(kbdev, kctx,
 			&kbdev->gpu_props.props.raw_props.js_features
 				[katom->slot_nr]);
+
+		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 	case KBASE_ATOM_GPU_RB_READY:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
@@ -847,7 +851,7 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 					break;
 
 				katom[idx]->gpu_rb_state =
-				KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_PREV;
+					KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_PREV;
 
 				/* ***TRANSITION TO HIGHER STATE*** */
 				/* fallthrough */
@@ -987,7 +991,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 
 				kbase_job_hw_submit(kbdev, katom[idx], js);
 				katom[idx]->gpu_rb_state =
-						KBASE_ATOM_GPU_RB_SUBMITTED;
+					KBASE_ATOM_GPU_RB_SUBMITTED;
+
+				/* ***TRANSITION TO HIGHER STATE*** */
+				/* fallthrough */
+			case KBASE_ATOM_GPU_RB_SUBMITTED:
 
 				/* Inform power management at start/finish of
 				 * atom so it can update its GPU utilisation
@@ -996,10 +1004,9 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 				kbase_pm_metrics_update(kbdev,
 						&katom[idx]->start_timestamp);
 
-				/* ***TRANSITION TO HIGHER STATE*** */
-				/* fallthrough */
-			case KBASE_ATOM_GPU_RB_SUBMITTED:
-				/* Atom submitted to HW, nothing else to do */
+				/* Inform platform at start/finish of atom */
+				kbasep_platform_event_atom_submit(katom[idx]);
+
 				break;
 
 			case KBASE_ATOM_GPU_RB_RETURN_TO_JS:
@@ -1225,7 +1232,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 	 * - Schedule out the parent context if necessary, and schedule a new
 	 *   one in.
 	 */
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	{
 		/* The atom in the HEAD */
 		struct kbase_jd_atom *next_katom = kbase_gpu_inspect(kbdev, js,

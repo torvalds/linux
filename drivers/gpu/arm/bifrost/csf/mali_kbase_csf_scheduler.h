@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -168,10 +168,23 @@ int kbase_csf_scheduler_context_init(struct kbase_context *kctx);
  * The scheduler does the arbitration for the CSG slots
  * provided by the firmware between the GPU command queue groups created
  * by the Clients.
+ * This function must be called after loading firmware and parsing its capabilities.
  *
  * Return: 0 on success, or negative on failure.
  */
 int kbase_csf_scheduler_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_early_init - Early initialization for the CSF scheduler
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Initialize necessary resources such as locks, workqueue for CSF scheduler.
+ * This must be called at kbase probe.
+ *
+ * Return: 0 on success, or negative on failure.
+ */
+int kbase_csf_scheduler_early_init(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_context_term() - Terminate the context-specific part
@@ -192,6 +205,15 @@ void kbase_csf_scheduler_context_term(struct kbase_context *kctx);
  * termination.
  */
 void kbase_csf_scheduler_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_early_term - Early termination of the CSF scheduler.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * This should be called only when kbase probe fails or gets rmmoded.
+ */
+void kbase_csf_scheduler_early_term(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_reset - Reset the state of all active GPU command
@@ -422,8 +444,11 @@ kbase_csf_scheduler_advance_tick_nolock(struct kbase_device *kbdev)
 	lockdep_assert_held(&scheduler->interrupt_lock);
 
 	if (scheduler->tick_timer_active) {
+		KBASE_KTRACE_ADD(kbdev, SCHEDULER_ADVANCE_TICK, NULL, 0u);
 		scheduler->tick_timer_active = false;
 		queue_work(scheduler->wq, &scheduler->tick_work);
+	} else {
+		KBASE_KTRACE_ADD(kbdev, SCHEDULER_NOADVANCE_TICK, NULL, 0u);
 	}
 }
 
@@ -444,6 +469,26 @@ static inline void kbase_csf_scheduler_advance_tick(struct kbase_device *kbdev)
 	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
 	kbase_csf_scheduler_advance_tick_nolock(kbdev);
 	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+}
+
+/**
+ * kbase_csf_scheduler_queue_has_trace() - report whether the queue has been
+ *                                         configured to operate with the
+ *                                         cs_trace feature.
+ *
+ * @queue: Pointer to the queue.
+ *
+ * Return: True if the gpu queue is configured to operate with the cs_trace
+ *         feature, otherwise false.
+ */
+static inline bool kbase_csf_scheduler_queue_has_trace(struct kbase_queue *queue)
+{
+	lockdep_assert_held(&queue->kctx->kbdev->csf.scheduler.lock);
+	/* In the current arrangement, it is possible for the context to enable
+	 * the cs_trace after some queues have been registered with cs_trace in
+	 * disabled state. So each queue has its own enabled/disabled condition.
+	 */
+	return (queue->trace_buffer_size && queue->trace_buffer_base);
 }
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

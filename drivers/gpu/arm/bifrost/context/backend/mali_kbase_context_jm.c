@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -34,7 +34,7 @@
 #include <mmu/mali_kbase_mmu.h>
 #include <tl/mali_kbase_timeline.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <mali_kbase_debug_mem_view.h>
 #include <mali_kbase_mem_pool_debugfs.h>
 
@@ -147,7 +147,7 @@ static const struct kbase_context_init context_init[] = {
 	  "JS kctx initialization failed" },
 	{ kbase_jd_init, kbase_jd_exit, "JD initialization failed" },
 	{ kbase_context_submit_check, NULL, "Enabling job submission failed" },
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	{ kbase_debug_job_fault_context_init,
 	  kbase_debug_job_fault_context_term,
 	  "Job fault context initialization failed" },
@@ -155,6 +155,8 @@ static const struct kbase_context_init context_init[] = {
 	{ NULL, kbase_context_flush_jobs, NULL },
 	{ kbase_context_add_to_dev_list, kbase_context_remove_from_dev_list,
 	  "Adding kctx to device failed" },
+	{ kbasep_platform_context_init, kbasep_platform_context_term,
+	  "Platform callback for kctx initialization failed" },
 };
 
 static void kbase_context_term_partial(

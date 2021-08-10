@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -168,7 +168,7 @@ bool kbase_csf_firmware_trace_buffer_is_empty(
 unsigned int kbase_csf_firmware_trace_buffer_read_data(
 	struct firmware_trace_buffer *trace_buffer, u8 *data, unsigned int num_bytes);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
  * kbase_csf_fw_trace_buffer_debugfs_init() - Add debugfs entries for setting
  *                                         enable mask and dumping the binary

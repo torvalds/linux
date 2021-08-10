@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
 #include <mali_kbase_as_fault_debugfs.h>
 #include <device/mali_kbase_device.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 
 static int kbase_as_fault_read(struct seq_file *sfile, void *data)
@@ -79,7 +79,7 @@ static const struct file_operations as_fault_fops = {
  */
 void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 {
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	uint i;
 	char as_name[64];

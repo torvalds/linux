@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
@@ -25,14 +25,17 @@
  * both mali_kbase and the test modules. */
 bob_defaults {
     name: "mali_kbase_shared_config_defaults",
+    defaults: [
+        "kernel_defaults",
+    ],
     no_mali: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_NO_MALI=y"],
+        kbuild_options: [
+            "CONFIG_MALI_BIFROST_NO_MALI=y",
+            "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
+        ],
     },
-    mali_real_hw: {
-        kbuild_options: ["CONFIG_MALI_REAL_HW=y"],
-    },
-    mali_dma_fence: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_DMA_FENCE=y"],
+    gpu_has_csf: {
+        kbuild_options: ["CONFIG_MALI_CSF_SUPPORT=y"],
     },
     mali_devfreq: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DEVFREQ=y"],
@@ -40,8 +43,62 @@ bob_defaults {
     mali_midgard_dvfs: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DVFS=y"],
     },
+    mali_gator_support: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
+    },
+    mali_midgard_enable_trace: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_ENABLE_TRACE=y"],
+    },
+    mali_dma_fence: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_DMA_FENCE=y"],
+    },
+    mali_arbiter_support: {
+        kbuild_options: ["CONFIG_MALI_ARBITER_SUPPORT=y"],
+    },
+    mali_dma_buf_map_on_demand: {
+        kbuild_options: ["CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND=y"],
+    },
+    mali_dma_buf_legacy_compat: {
+        kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
+    },
+    mali_2mb_alloc: {
+        kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
+    },
+    mali_memory_fully_backed: {
+        kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
+    },
+    mali_corestack: {
+        kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
+    },
+    mali_real_hw: {
+        kbuild_options: ["CONFIG_MALI_REAL_HW=y"],
+    },
+    mali_error_inject_none: {
+        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_NONE=y"],
+    },
+    mali_error_inject_track_list: {
+        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_TRACK_LIST=y"],
+    },
+    mali_error_inject_random: {
+        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_RANDOM=y"],
+    },
+    mali_error_inject: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
+    },
+    mali_gem5_build: {
+       kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
+    },
     mali_debug: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_DEBUG=y"],
+        kbuild_options: [
+            "CONFIG_MALI_BIFROST_DEBUG=y",
+            "MALI_KERNEL_TEST_API={{.debug}}",
+        ],
+    },
+    mali_fence_debug: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_FENCE_DEBUG=y"],
+    },
+    mali_system_trace: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
     },
     buslog: {
         kbuild_options: ["CONFIG_MALI_BUSLOG=y"],
@@ -52,91 +109,8 @@ bob_defaults {
     cinstr_gwt: {
         kbuild_options: ["CONFIG_MALI_CINSTR_GWT=y"],
     },
-    mali_gator_support: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
-    },
-    mali_midgard_enable_trace: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_ENABLE_TRACE=y"],
-    },
-    mali_system_trace: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
-    },
-    mali_pwrsoft_765: {
-        kbuild_options: ["CONFIG_MALI_PWRSOFT_765=y"],
-    },
-    mali_memory_fully_backed: {
-        kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
-    },
-    mali_dma_buf_map_on_demand: {
-        kbuild_options: ["CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND=y"],
-    },
-    mali_dma_buf_legacy_compat: {
-        kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
-    },
-    mali_arbiter_support: {
-        kbuild_options: ["CONFIG_MALI_ARBITER_SUPPORT=y"],
-    },
-    mali_gem5_build: {
-       kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
-    },
-    kbuild_options: [
-        "MALI_UNIT_TEST={{.unit_test_code}}",
-        "MALI_CUSTOMER_RELEASE={{.release}}",
-        "MALI_USE_CSF={{.gpu_has_csf}}",
-        "MALI_KERNEL_TEST_API={{.debug}}",
-    ],
-    defaults: ["kernel_defaults"],
-}
-
-bob_kernel_module {
-    name: "mali_kbase",
-    srcs: [
-        "*.c",
-        "*.h",
-        "Kbuild",
-        "backend/gpu/*.c",
-        "backend/gpu/*.h",
-        "backend/gpu/Kbuild",
-        "context/*.c",
-        "context/*.h",
-        "ipa/*.c",
-        "ipa/*.h",
-        "ipa/Kbuild",
-        "platform/*.h",
-        "platform/*/*.c",
-        "platform/*/*.h",
-        "platform/*/Kbuild",
-        "thirdparty/*.c",
-        "debug/*.c",
-        "debug/*.h",
-        "device/*.c",
-        "device/*.h",
-        "gpu/*.c",
-        "gpu/*.h",
-        "tl/*.c",
-        "tl/*.h",
-        "mmu/*.c",
-        "mmu/*.h",
-    ],
-    kbuild_options: [
-        "CONFIG_MALI_KUTF=n",
-        "CONFIG_MALI_MIDGARD=m",
-        "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
-        "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
-    ],
-    buslog: {
-        extra_symbols: [
-            "bus_logger",
-        ],
-    },
-    mali_corestack: {
-        kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
-    },
-    mali_error_inject: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
-    },
-    mali_error_inject_random: {
-        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_RANDOM=y"],
+    cinstr_primary_hwc: {
+        kbuild_options: ["CONFIG_MALI_PRFCNT_SET_PRIMARY=y"],
     },
     cinstr_secondary_hwc: {
         kbuild_options: ["CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY=y"],
@@ -147,8 +121,11 @@ bob_kernel_module {
     cinstr_hwc_set_select_via_debug_fs: {
         kbuild_options: ["CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS=y"],
     },
-    mali_2mb_alloc: {
-        kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
+    mali_job_dump: {
+        kbuild_options: ["CONFIG_MALI_JOB_DUMP"],
+    },
+    mali_pwrsoft_765: {
+        kbuild_options: ["CONFIG_MALI_PWRSOFT_765=y"],
     },
     mali_hw_errata_1485982_not_affected: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_NOT_AFFECTED=y"],
@@ -156,6 +133,71 @@ bob_kernel_module {
     mali_hw_errata_1485982_use_clock_alternative: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
     },
+    kbuild_options: [
+        "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
+        "MALI_CUSTOMER_RELEASE={{.release}}",
+        "MALI_UNIT_TEST={{.unit_test_code}}",
+        "MALI_USE_CSF={{.gpu_has_csf}}",
+        "MALI_JIT_PRESSURE_LIMIT_BASE={{.jit_pressure_limit_base}}",
+
+        // Start of CS experimental features definitions.
+        // If there is nothing below, definition should be added as follows:
+        // "MALI_EXPERIMENTAL_FEATURE={{.experimental_feature}}"
+        // experimental_feature above comes from Mconfig in
+        // <ddk_root>/product/base/
+        // However, in Mconfig, experimental_feature should be looked up (for
+        // similar explanation to this one) as ALLCAPS, i.e.
+        // EXPERIMENTAL_FEATURE.
+        //
+        // IMPORTANT: MALI_CS_EXPERIMENTAL should NEVER be defined below as it
+        // is an umbrella feature that would be open for inappropriate use
+        // (catch-all for experimental CS code without separating it into
+        // different features).
+        "MALI_INCREMENTAL_RENDERING={{.incremental_rendering}}",
+        "GPU_TIMESTAMP_CORRECTION={{.gpu_timestamp_correction}}",
+    ],
+}
+
+bob_kernel_module {
+    name: "mali_kbase",
+    defaults: [
+        "mali_kbase_shared_config_defaults",
+    ],
+    srcs: [
+        "*.c",
+        "*.h",
+        "Kbuild",
+        "backend/gpu/*.c",
+        "backend/gpu/*.h",
+        "backend/gpu/Kbuild",
+        "context/*.c",
+        "context/*.h",
+        "context/Kbuild",
+        "ipa/*.c",
+        "ipa/*.h",
+        "ipa/Kbuild",
+        "platform/*.h",
+        "platform/*/*.c",
+        "platform/*/*.h",
+        "platform/*/Kbuild",
+        "thirdparty/*.c",
+        "thirdparty/Kbuild",
+        "debug/*.c",
+        "debug/*.h",
+        "debug/Kbuild",
+        "device/*.c",
+        "device/*.h",
+        "device/Kbuild",
+        "gpu/*.c",
+        "gpu/*.h",
+        "gpu/Kbuild",
+        "tl/*.c",
+        "tl/*.h",
+        "tl/Kbuild",
+        "mmu/*.c",
+        "mmu/*.h",
+        "mmu/Kbuild",
+    ],
     gpu_has_job_manager: {
         srcs: [
             "context/backend/*_jm.c",
@@ -172,7 +214,6 @@ bob_kernel_module {
         ],
     },
     gpu_has_csf: {
-        kbuild_options: ["CONFIG_MALI_CSF_SUPPORT=y"],
         srcs: [
             "context/backend/*_csf.c",
             "csf/*.c",
@@ -199,5 +240,13 @@ bob_kernel_module {
             "arbiter/Kbuild",
         ],
     },
-    defaults: ["mali_kbase_shared_config_defaults"],
+    kbuild_options: [
+        "CONFIG_MALI_BIFROST=m",
+        "CONFIG_MALI_KUTF=n",
+    ],
+    buslog: {
+        extra_symbols: [
+            "bus_logger",
+        ],
+    },
 }

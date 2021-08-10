@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -21,14 +21,16 @@
 
 bob_kernel_module {
     name: "protected_memory_allocator",
+    defaults: [
+        "kernel_defaults"
+    ],
     srcs: [
         "Kbuild",
         "protected_memory_allocator.c",
     ],
-    kbuild_options: ["CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=m"],
-    defaults: ["kernel_defaults"],
     enabled: false,
-    build_csf_only_module: {
+    mali_protected_memory_allocator: {
+        kbuild_options: ["CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y"],
         enabled: true,
     },
 }

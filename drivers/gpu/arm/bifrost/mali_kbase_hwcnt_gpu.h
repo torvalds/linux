@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2018, 2020-2021 ARM Limited. All rights reserved.
@@ -31,9 +31,10 @@ struct kbase_hwcnt_dump_buffer;
 
 #define KBASE_HWCNT_V5_BLOCK_TYPE_COUNT 4
 #define KBASE_HWCNT_V5_HEADERS_PER_BLOCK 4
-#define KBASE_HWCNT_V5_COUNTERS_PER_BLOCK 60
-#define KBASE_HWCNT_V5_VALUES_PER_BLOCK                                        \
-	(KBASE_HWCNT_V5_HEADERS_PER_BLOCK + KBASE_HWCNT_V5_COUNTERS_PER_BLOCK)
+#define KBASE_HWCNT_V5_DEFAULT_COUNTERS_PER_BLOCK 60
+#define KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK                                \
+	(KBASE_HWCNT_V5_HEADERS_PER_BLOCK +                                    \
+	 KBASE_HWCNT_V5_DEFAULT_COUNTERS_PER_BLOCK)
 /** Index of the PRFCNT_EN header into a V5 counter block */
 #define KBASE_HWCNT_V5_PRFCNT_EN_HEADER 2
 
@@ -117,14 +118,17 @@ enum kbase_hwcnt_physical_set {
 
 /**
  * struct kbase_hwcnt_gpu_info - Information about hwcnt blocks on the GPUs.
- * @l2_count:   L2 cache count.
- * @core_mask:  Shader core mask. May be sparse.
- * @clk_cnt:    Number of clock domains available.
+ * @l2_count:                L2 cache count.
+ * @core_mask:               Shader core mask. May be sparse.
+ * @clk_cnt:                 Number of clock domains available.
+ * @prfcnt_values_per_block: Total entries (header + counters) of performance
+ *                           counter per block.
  */
 struct kbase_hwcnt_gpu_info {
 	size_t l2_count;
 	u64 core_mask;
 	u8 clk_cnt;
+	size_t prfcnt_values_per_block;
 };
 
 /**
@@ -219,6 +223,48 @@ int kbase_hwcnt_csf_metadata_create(
  */
 void kbase_hwcnt_csf_metadata_destroy(
 	const struct kbase_hwcnt_metadata *metadata);
+
+/**
+ * kbase_hwcnt_gpu_metadata_create_truncate_64() - Create HWC metadata with HWC
+ *                                                 block entries truncated
+ *                                                 to 64.
+ *
+ * @dst_md: Non-NULL pointer to where created metadata is stored on success.
+ * @src_md: Non-NULL pointer to the HWC metadata used as the source to create
+ *          dst_md.
+ *
+ * If the total block entries in src_md is 64, metadata dst_md returns NULL
+ * since no need to truncate.
+ * if the total block entries in src_md is 128, then a new metadata with block
+ * entries truncated to 64 will be created for dst_md, which keeps the interface
+ * to user clients backward compatible.
+ * If the total block entries in src_md is other values, function returns error
+ * since it's not supported.
+ *
+ * Return: 0 on success, else error code.
+ */
+int kbase_hwcnt_gpu_metadata_create_truncate_64(
+	const struct kbase_hwcnt_metadata **dst_md,
+	const struct kbase_hwcnt_metadata *src_md);
+
+/**
+ * kbase_hwcnt_dump_buffer_copy_strict_narrow() - Copy all enabled values from
+ *                                                src to dst.
+ *
+ * @dst:            Non-NULL pointer to dst dump buffer.
+ * @src:            Non-NULL pointer to src dump buffer.
+ * @dst_enable_map: Non-NULL pointer to enable map specifying enabled values.
+ *
+ * After the operation, all non-enabled values (including padding bytes) will be
+ * zero.
+ *
+ * The dst and src have different metadata, and the dst metadata is narrower
+ * than src metadata.
+ */
+void kbase_hwcnt_dump_buffer_copy_strict_narrow(
+	struct kbase_hwcnt_dump_buffer *dst,
+	const struct kbase_hwcnt_dump_buffer *src,
+	const struct kbase_hwcnt_enable_map *dst_enable_map);
 
 /**
  * kbase_hwcnt_jm_dump_get() - Copy or accumulate enabled counters from the raw

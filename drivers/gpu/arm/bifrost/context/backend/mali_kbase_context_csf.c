@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,7 +32,7 @@
 #include <mmu/mali_kbase_mmu.h>
 #include <tl/mali_kbase_timeline.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <csf/mali_kbase_csf_csg_debugfs.h>
 #include <csf/mali_kbase_csf_kcpu_debugfs.h>
 #include <csf/mali_kbase_csf_tiler_heap_debugfs.h>

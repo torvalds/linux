@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
@@ -28,9 +28,6 @@
 
 #include "mali_kbase_pm_always_on.h"
 #include "mali_kbase_pm_coarse_demand.h"
-#if !MALI_CUSTOMER_RELEASE
-#include "mali_kbase_pm_always_on_demand.h"
-#endif
 
 /* Forward definition - see mali_kbase.h */
 struct kbase_device;
@@ -179,8 +176,12 @@ struct kbasep_pm_metrics_state {
  * @work: Work item which cancels the timer
  * @timer: Timer for powering off the shader cores
  * @configured_interval: Period of GPU poweroff timer
- * @configured_ticks: User-configured number of ticks to wait after the shader
- *                    power down request is received before turning off the cores
+ * @default_ticks: User-configured number of ticks to wait after the shader
+ *                 power down request is received before turning off the cores
+ * @configured_ticks: Power-policy configured number of ticks to wait after the
+ *                    shader power down request is received before turning off
+ *                    the cores. For simple power policies, this is equivalent
+ *                    to @default_ticks.
  * @remaining_ticks: Number of remaining timer ticks until shaders are powered off
  * @cancel_queued: True if the cancellation work item has been queued. This is
  *                 required to ensure that it is not queued twice, e.g. after
@@ -194,6 +195,7 @@ struct kbasep_pm_tick_timer_state {
 	struct hrtimer timer;
 
 	ktime_t configured_interval;
+	unsigned int default_ticks;
 	unsigned int configured_ticks;
 	unsigned int remaining_ticks;
 
@@ -204,9 +206,6 @@ struct kbasep_pm_tick_timer_state {
 union kbase_pm_policy_data {
 	struct kbasep_pm_policy_always_on always_on;
 	struct kbasep_pm_policy_coarse_demand coarse_demand;
-#if !MALI_CUSTOMER_RELEASE
-	struct kbasep_pm_policy_always_on_demand always_on_demand;
-#endif
 };
 
 /**
@@ -217,7 +216,8 @@ union kbase_pm_policy_data {
  *
  * @pm_current_policy: The policy that is currently actively controlling the
  *                     power state.
- * @pm_policy_data:    Private data for current PM policy
+ * @pm_policy_data:    Private data for current PM policy. This is automatically
+ *                     zeroed when a policy change occurs.
  * @reset_done:        Flag when a reset is complete
  * @reset_done_wait:   Wait queue to wait for changes to @reset_done
  * @gpu_cycle_counter_requests: The reference count of active gpu cycle counter
@@ -465,6 +465,33 @@ enum kbase_pm_policy_id {
 };
 
 /**
+ * enum kbase_pm_policy_event - PM Policy event ID
+ */
+enum kbase_pm_policy_event {
+	/**
+	 * @KBASE_PM_POLICY_EVENT_IDLE: Indicates that the GPU power state
+	 * model has determined that the GPU has gone idle.
+	 */
+	KBASE_PM_POLICY_EVENT_IDLE,
+	/**
+	 * @KBASE_PM_POLICY_EVENT_POWER_ON: Indicates that the GPU state model
+	 * is preparing to power on the GPU.
+	 */
+	KBASE_PM_POLICY_EVENT_POWER_ON,
+	/**
+	 * @KBASE_PM_POLICY_EVENT_TIMER_HIT: Indicates that the GPU became
+	 * active while the Shader Tick Timer was holding the GPU in a powered
+	 * on state.
+	 */
+	KBASE_PM_POLICY_EVENT_TIMER_HIT,
+	/**
+	 * @KBASE_PM_POLICY_EVENT_TIMER_MISS: Indicates that the GPU did not
+	 * become active before the Shader Tick Timer timeout occurred.
+	 */
+	KBASE_PM_POLICY_EVENT_TIMER_MISS,
+};
+
+/**
  * struct kbase_pm_policy - Power policy structure.
  *
  * Each power policy exposes a (static) instance of this structure which
@@ -476,6 +503,9 @@ enum kbase_pm_policy_id {
  * @shaders_needed:     Function called to find out if shader cores are needed
  * @get_core_active:    Function called to get the current overall GPU power
  *                      state
+ * @handle_event:       Function called when a PM policy event occurs. Should be
+ *                      set to NULL if the power policy doesn't require any
+ *                      event notifications.
  * @id:                 Field indicating an ID for this policy. This is not
  *                      necessarily the same as its index in the list returned
  *                      by kbase_pm_list_policies().
@@ -535,6 +565,16 @@ struct kbase_pm_policy {
 	 * Return: true if the GPU should be powered, false otherwise
 	 */
 	bool (*get_core_active)(struct kbase_device *kbdev);
+
+	/**
+	 * Function called when a power event occurs
+	 *
+	 * @kbdev: The kbase device structure for the device (must be a
+	 *         valid pointer)
+	 * @event: The id of the power event that has occurred
+	 */
+	void (*handle_event)(struct kbase_device *kbdev,
+			     enum kbase_pm_policy_event event);
 
 	enum kbase_pm_policy_id id;
 

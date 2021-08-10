@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2013, 2016-2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2013, 2016-2017, 2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -19,6 +19,6 @@
 #
 
 bifrost_kbase-y += \
-	$(MALI_PLATFORM_DIR)/mali_kbase_config_vexpress.o \
-	$(MALI_PLATFORM_DIR)/mali_kbase_cpu_vexpress.o \
-	mali_kbase_platform_fake.o
+    platform/$(MALI_PLATFORM_DIR)/mali_kbase_config_vexpress.o \
+    platform/$(MALI_PLATFORM_DIR)/mali_kbase_cpu_vexpress.o \
+    mali_kbase_platform_fake.o

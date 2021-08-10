@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2016, 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -57,6 +57,7 @@ const struct kbase_pm_policy kbase_pm_coarse_demand_policy_ops = {
 	coarse_demand_term,			/* term */
 	coarse_demand_shaders_needed,		/* shaders_needed */
 	coarse_demand_get_core_active,		/* get_core_active */
+	NULL,					/* handle_event */
 	KBASE_PM_POLICY_ID_COARSE_DEMAND,	/* id */
 #if MALI_USE_CSF
 	COARSE_ON_DEMAND_PM_SCHED_FLAGS,	/* pm_sched_flags */

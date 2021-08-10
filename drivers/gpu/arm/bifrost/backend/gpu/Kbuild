@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
 # (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
 #
@@ -18,47 +18,32 @@
 #
 #
 
-BACKEND += \
-	backend/gpu/mali_kbase_cache_policy_backend.c \
-	backend/gpu/mali_kbase_gpuprops_backend.c \
-	backend/gpu/mali_kbase_irq_linux.c \
-	backend/gpu/mali_kbase_js_backend.c \
-	backend/gpu/mali_kbase_pm_backend.c \
-	backend/gpu/mali_kbase_pm_driver.c \
-	backend/gpu/mali_kbase_pm_metrics.c \
-	backend/gpu/mali_kbase_pm_ca.c \
-	backend/gpu/mali_kbase_pm_always_on.c \
-	backend/gpu/mali_kbase_pm_coarse_demand.c \
-	backend/gpu/mali_kbase_pm_policy.c \
-	backend/gpu/mali_kbase_time.c \
-	backend/gpu/mali_kbase_l2_mmu_config.c \
-	backend/gpu/mali_kbase_clk_rate_trace_mgr.c
+bifrost_kbase-y += \
+    backend/gpu/mali_kbase_cache_policy_backend.o \
+    backend/gpu/mali_kbase_gpuprops_backend.o \
+    backend/gpu/mali_kbase_irq_linux.o \
+    backend/gpu/mali_kbase_js_backend.o \
+    backend/gpu/mali_kbase_pm_backend.o \
+    backend/gpu/mali_kbase_pm_driver.o \
+    backend/gpu/mali_kbase_pm_metrics.o \
+    backend/gpu/mali_kbase_pm_ca.o \
+    backend/gpu/mali_kbase_pm_always_on.o \
+    backend/gpu/mali_kbase_pm_coarse_demand.o \
+    backend/gpu/mali_kbase_pm_policy.o \
+    backend/gpu/mali_kbase_time.o \
+    backend/gpu/mali_kbase_l2_mmu_config.o \
+    backend/gpu/mali_kbase_clk_rate_trace_mgr.o
 
-ifeq ($(MALI_USE_CSF),1)
-# empty
-else
-	BACKEND += \
-		backend/gpu/mali_kbase_instr_backend.c \
-		backend/gpu/mali_kbase_jm_as.c \
-		backend/gpu/mali_kbase_debug_job_fault_backend.c \
-		backend/gpu/mali_kbase_jm_hw.c \
-		backend/gpu/mali_kbase_jm_rb.c
+ifeq ($(MALI_USE_CSF),0)
+    bifrost_kbase-y += \
+        backend/gpu/mali_kbase_instr_backend.o \
+        backend/gpu/mali_kbase_jm_as.o \
+        backend/gpu/mali_kbase_debug_job_fault_backend.o \
+        backend/gpu/mali_kbase_jm_hw.o \
+        backend/gpu/mali_kbase_jm_rb.o
 endif
 
-ifeq ($(MALI_CUSTOMER_RELEASE),0)
-BACKEND += \
-	backend/gpu/mali_kbase_pm_always_on_demand.c
-endif
 
-ifeq ($(CONFIG_MALI_BIFROST_DEVFREQ),y)
-BACKEND += \
-	backend/gpu/mali_kbase_devfreq.c
-endif
+bifrost_kbase-$(CONFIG_MALI_BIFROST_DEVFREQ) += \
+    backend/gpu/mali_kbase_devfreq.o
 
-ifeq ($(CONFIG_MALI_BIFROST_NO_MALI),y)
-	# Dummy model
-	BACKEND += backend/gpu/mali_kbase_model_dummy.c
-	BACKEND += backend/gpu/mali_kbase_model_linux.c
-	# HW error simulation
-	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
-endif

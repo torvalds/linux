@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -1932,7 +1932,7 @@ struct kbase_tlstream;
  *
  * @kbdev: Kbase device
  * @kcpu_queue: KCPU queue
- * @cqs_obj_gpu_addr: CQS Object GPU ptr
+ * @cqs_obj_gpu_addr: CQS Object GPU pointer
  * @cqs_obj_compare_value: Semaphore value that should be exceeded
  * for the WAIT to pass
  * @cqs_obj_inherit_error: Indicates the error state should be inherited into the queue or not
@@ -1969,7 +1969,7 @@ struct kbase_tlstream;
  *
  * @kbdev: Kbase device
  * @kcpu_queue: KCPU queue
- * @cqs_obj_gpu_addr: CQS Object GPU ptr
+ * @cqs_obj_gpu_addr: CQS Object GPU pointer
  */
 #if MALI_USE_CSF
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_CQS_SET(	\
@@ -1999,7 +1999,7 @@ struct kbase_tlstream;
  *
  * @kbdev: Kbase device
  * @kcpu_queue: KCPU queue
- * @map_import_buf_gpu_addr: Map import buffer GPU ptr
+ * @map_import_buf_gpu_addr: Map import buffer GPU pointer
  */
 #if MALI_USE_CSF
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_MAP_IMPORT(	\
@@ -2029,7 +2029,7 @@ struct kbase_tlstream;
  *
  * @kbdev: Kbase device
  * @kcpu_queue: KCPU queue
- * @map_import_buf_gpu_addr: Map import buffer GPU ptr
+ * @map_import_buf_gpu_addr: Map import buffer GPU pointer
  */
 #if MALI_USE_CSF
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT(	\
@@ -2059,7 +2059,7 @@ struct kbase_tlstream;
  *
  * @kbdev: Kbase device
  * @kcpu_queue: KCPU queue
- * @map_import_buf_gpu_addr: Map import buffer GPU ptr
+ * @map_import_buf_gpu_addr: Map import buffer GPU pointer
  */
 #if MALI_USE_CSF
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE(	\

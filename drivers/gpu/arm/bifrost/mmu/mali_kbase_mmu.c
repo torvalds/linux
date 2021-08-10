@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -29,7 +29,7 @@
 #include <gpu/mali_kbase_gpu_fault.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <tl/mali_kbase_tracepoints.h>
-#include <mali_kbase_instr_defs.h>
+#include <backend/gpu/mali_kbase_instr_defs.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_debug.h>
 #include <mali_kbase_defs.h>
@@ -982,7 +982,11 @@ static phys_addr_t kbase_mmu_alloc_pgd(struct kbase_device *kbdev,
 	int i;
 	struct page *p;
 
+#ifdef CONFIG_MALI_2MB_ALLOC
+	p = kbase_mem_pool_alloc(&kbdev->mem_pools.large[mmut->group_id]);
+#else /* CONFIG_MALI_2MB_ALLOC */
 	p = kbase_mem_pool_alloc(&kbdev->mem_pools.small[mmut->group_id]);
+#endif /* CONFIG_MALI_2MB_ALLOC */
 	if (!p)
 		return 0;
 
@@ -1019,8 +1023,12 @@ static phys_addr_t kbase_mmu_alloc_pgd(struct kbase_device *kbdev,
 	return page_to_phys(p);
 
 alloc_free:
-	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id], p,
-		false);
+
+#ifdef CONFIG_MALI_2MB_ALLOC
+	kbase_mem_pool_free(&kbdev->mem_pools.large[mmut->group_id], p, false);
+#else /* CONFIG_MALI_2MB_ALLOC */
+	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id], p, false);
+#endif /* CONFIG_MALI_2MB_ALLOC */
 
 	return 0;
 }
@@ -1246,7 +1254,11 @@ int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 			 */
 			mutex_unlock(&kctx->mmu.mmu_lock);
 			err = kbase_mem_pool_grow(
+#ifdef CONFIG_MALI_2MB_ALLOC
+				&kbdev->mem_pools.large[
+#else
 				&kbdev->mem_pools.small[
+#endif
 					kctx->mmu.group_id],
 				MIDGARD_MMU_BOTTOMLEVEL);
 			mutex_lock(&kctx->mmu.mmu_lock);
@@ -1325,7 +1337,11 @@ static inline void cleanup_empty_pte(struct kbase_device *kbdev,
 
 	tmp_pgd = kbdev->mmu_mode->pte_to_phy_addr(*pte);
 	tmp_p = phys_to_page(tmp_pgd);
+#ifdef CONFIG_MALI_2MB_ALLOC
+	kbase_mem_pool_free(&kbdev->mem_pools.large[mmut->group_id],
+#else
 	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id],
+#endif
 		tmp_p, false);
 
 	/* If the MMU tables belong to a context then we accounted the memory
@@ -1409,7 +1425,11 @@ int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev,
 			 */
 			mutex_unlock(&mmut->mmu_lock);
 			err = kbase_mem_pool_grow(
+#ifdef CONFIG_MALI_2MB_ALLOC
+				&kbdev->mem_pools.large[mmut->group_id],
+#else
 				&kbdev->mem_pools.small[mmut->group_id],
+#endif
 				cur_level);
 			mutex_lock(&mmut->mmu_lock);
 		} while (!err);
@@ -1897,7 +1917,11 @@ static int kbase_mmu_update_pages_no_flush(struct kbase_context *kctx, u64 vpfn,
 			 */
 			mutex_unlock(&kctx->mmu.mmu_lock);
 			err = kbase_mem_pool_grow(
+#ifdef CONFIG_MALI_2MB_ALLOC
+				&kbdev->mem_pools.large[
+#else
 				&kbdev->mem_pools.small[
+#endif
 					kctx->mmu.group_id],
 				MIDGARD_MMU_BOTTOMLEVEL);
 			mutex_lock(&kctx->mmu.mmu_lock);
@@ -1992,8 +2016,11 @@ static void mmu_teardown_level(struct kbase_device *kbdev,
 	}
 
 	p = pfn_to_page(PFN_DOWN(pgd));
-
+#ifdef CONFIG_MALI_2MB_ALLOC
+	kbase_mem_pool_free(&kbdev->mem_pools.large[mmut->group_id],
+#else
 	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id],
+#endif
 		p, true);
 
 	atomic_sub(1, &kbdev->memdev.used_pages);
@@ -2036,7 +2063,11 @@ int kbase_mmu_init(struct kbase_device *const kbdev,
 		int err;
 
 		err = kbase_mem_pool_grow(
+#ifdef CONFIG_MALI_2MB_ALLOC
+			&kbdev->mem_pools.large[mmut->group_id],
+#else
 			&kbdev->mem_pools.small[mmut->group_id],
+#endif
 			MIDGARD_MMU_BOTTOMLEVEL);
 		if (err) {
 			kbase_mmu_term(kbdev, mmut);

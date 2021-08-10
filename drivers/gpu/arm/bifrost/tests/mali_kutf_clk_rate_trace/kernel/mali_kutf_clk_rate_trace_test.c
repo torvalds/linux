@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,9 +32,9 @@
 #include <linux/sched.h>
 #endif
 #include "mali_kbase.h"
-#include "mali_kbase_irq_internal.h"
-#include "mali_kbase_pm_internal.h"
-#include "mali_kbase_clk_rate_trace_mgr.h"
+#include "backend/gpu/mali_kbase_irq_internal.h"
+#include "backend/gpu/mali_kbase_pm_internal.h"
+#include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #include <kutf/kutf_suite.h>
 #include <kutf/kutf_utils.h>
@@ -114,14 +114,15 @@ struct kbasep_cmd_name_pair {
 };
 
 struct kbasep_cmd_name_pair kbasep_portal_cmd_name_map[] = {
-			{PORTAL_CMD_GET_CLK_RATE_MGR, GET_CLK_RATE_MGR},
-			{PORTAL_CMD_GET_CLK_RATE_TRACE, GET_CLK_RATE_TRACE},
-			{PORTAL_CMD_GET_TRACE_SNAPSHOT, GET_TRACE_SNAPSHOT},
-			{PORTAL_CMD_INC_PM_CTX_CNT, INC_PM_CTX_CNT},
-			{PORTAL_CMD_DEC_PM_CTX_CNT, DEC_PM_CTX_CNT},
-			{PORTAL_CMD_CLOSE_PORTAL, CLOSE_PORTAL},
-			{PORTAL_CMD_INVOKE_NOTIFY_42KHZ, INVOKE_NOTIFY_42KHZ},
-		};
+	{ PORTAL_CMD_GET_PLATFORM, GET_PLATFORM },
+	{ PORTAL_CMD_GET_CLK_RATE_MGR, GET_CLK_RATE_MGR },
+	{ PORTAL_CMD_GET_CLK_RATE_TRACE, GET_CLK_RATE_TRACE },
+	{ PORTAL_CMD_GET_TRACE_SNAPSHOT, GET_TRACE_SNAPSHOT },
+	{ PORTAL_CMD_INC_PM_CTX_CNT, INC_PM_CTX_CNT },
+	{ PORTAL_CMD_DEC_PM_CTX_CNT, DEC_PM_CTX_CNT },
+	{ PORTAL_CMD_CLOSE_PORTAL, CLOSE_PORTAL },
+	{ PORTAL_CMD_INVOKE_NOTIFY_42KHZ, INVOKE_NOTIFY_42KHZ },
+};
 
 /* Global pointer for the kutf_portal_trace_write() to use. When
  * this pointer is engaged, new requests for create fixture will fail
@@ -137,8 +138,16 @@ static void kutf_portal_trace_write(
 	u32 index, u32 new_rate)
 {
 	struct clk_trace_snapshot *snapshot;
-	struct kutf_clk_rate_trace_fixture_data *data = container_of(
-		listener, struct kutf_clk_rate_trace_fixture_data, listener);
+	struct kutf_clk_rate_trace_fixture_data *data;
+
+	if (listener == NULL) {
+		pr_err("%s - index: %u, new_rate: %u, listener is NULL\n",
+			__func__, index, new_rate);
+		return;
+	}
+
+	data = container_of(listener, struct kutf_clk_rate_trace_fixture_data,
+		       listener);
 
 	lockdep_assert_held(&data->kbdev->pm.clk_rtm.lock);
 
@@ -180,11 +189,10 @@ static void kutf_set_pm_ctx_idle(struct kutf_context *context)
 
 	if (WARN_ON(data->pm_ctx_cnt > 0))
 		return;
-
-	kbase_pm_context_idle(data->kbdev);
 #if !MALI_USE_CSF
 	kbase_pm_release_gpu_cycle_counter(data->kbdev);
 #endif
+	kbase_pm_context_idle(data->kbdev);
 }
 
 static char const *kutf_clk_trace_do_change_pm_ctx(struct kutf_context *context,
@@ -408,6 +416,63 @@ static char const *kutf_clk_trace_do_close_portal(struct kutf_context *context,
 	return errmsg;
 }
 
+/**
+ * kutf_clk_trace_do_get_platform() - Gets platform information
+ * @context:  KUTF context
+ * @cmd:      The decoded portal input request
+ *
+ * Checks the gpu node in the device tree to see if arbitration is enabled
+ * If so determines device tree whether platform is PV or PTM
+ *
+ * Return: A string to indicate the platform (PV/PTM/GPU/UNKNOWN)
+ */
+static char const *kutf_clk_trace_do_get_platform(
+	struct kutf_context *context,
+	struct clk_trace_portal_input *cmd)
+{
+	int seq = cmd->cmd_input.u.val_u64 & 0xFF;
+	char const *errmsg = NULL;
+	const void *arbiter_if_node = NULL;
+	const void *power_node = NULL;
+	const char *platform = "GPU";
+#if defined(CONFIG_MALI_ARBITER_SUPPORT) && defined(CONFIG_OF)
+	struct kutf_clk_rate_trace_fixture_data *data = context->fixture;
+
+	arbiter_if_node =
+		of_get_property(data->kbdev->dev->of_node, "arbiter_if", NULL);
+#endif
+	if (arbiter_if_node) {
+		power_node = of_find_compatible_node(NULL, NULL,
+						     "arm,mali-gpu-power");
+		if (power_node) {
+			platform = "PV";
+		} else {
+			power_node = of_find_compatible_node(NULL, NULL,
+							     "arm,mali-ptm");
+			if (power_node)
+				platform = "PTM";
+			else
+				platform = "UNKNOWN";
+		}
+	} else {
+		platform = "GPU";
+	}
+
+	pr_debug("%s - platform is %s\n", __func__, platform);
+	snprintf(portal_msg_buf, PORTAL_MSG_LEN,
+			  "{SEQ:%d, PLATFORM:%s}", seq, platform);
+
+	WARN_ON(cmd->portal_cmd != PORTAL_CMD_GET_PLATFORM);
+
+	if (kutf_helper_send_named_str(context, "ACK", portal_msg_buf)) {
+		pr_warn("Error in sending ack for " CLOSE_PORTAL "reuquest\n");
+		errmsg = kutf_dsprintf(&context->fixture_pool,
+			"Error in sending ack for " GET_PLATFORM "request");
+	}
+
+	return errmsg;
+}
+
 static bool kutf_clk_trace_dequeue_portal_cmd(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
 {
@@ -461,6 +526,9 @@ static bool kutf_clk_trace_process_portal_cmd(struct kutf_context *context,
 	WARN_ON(cmd->portal_cmd == PORTAL_CMD_INVALID);
 
 	switch (cmd->portal_cmd) {
+	case PORTAL_CMD_GET_PLATFORM:
+		errmsg = kutf_clk_trace_do_get_platform(context, cmd);
+		break;
 	case PORTAL_CMD_GET_CLK_RATE_MGR:
 		/* Fall through */
 	case PORTAL_CMD_GET_CLK_RATE_TRACE:
@@ -613,7 +681,7 @@ void kutf_clk_trace_barebone_check(struct kutf_context *context)
 		kutf_clk_trace_flag_result(context, KUTF_RESULT_FAIL, msg);
 	else if (!data->total_update_cnt) {
 		msg = kutf_dsprintf(&context->fixture_pool,
-				"No trace update seen during the test!");
+				    "No trace update seen during the test!");
 		kutf_clk_trace_flag_result(context, KUTF_RESULT_WARN, msg);
 	}
 }

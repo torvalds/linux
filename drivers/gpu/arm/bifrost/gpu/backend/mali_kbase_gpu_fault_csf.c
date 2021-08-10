@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -21,7 +21,7 @@
 
 #include <mali_kbase.h>
 #include <uapi/gpu/arm/bifrost/csf/mali_gpu_csf_registers.h>
-#include "../mali_kbase_gpu_fault.h"
+#include <gpu/mali_kbase_gpu_fault.h>
 
 const char *kbase_gpu_exception_name(u32 const exception_code)
 {

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
@@ -19,7 +19,7 @@
  *
  */
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 
 #include <linux/seq_file.h>
 #include <mali_kbase.h>

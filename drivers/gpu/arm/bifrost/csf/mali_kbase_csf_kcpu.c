@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -26,7 +26,7 @@
 #include "mali_kbase_csf.h"
 #include <linux/export.h>
 
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 #include "mali_kbase_fence.h"
 #include "mali_kbase_sync.h"
 
@@ -758,9 +758,7 @@ static int kbase_kcpu_cqs_wait_process(struct kbase_device *kbdev,
 
 				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_END(
 					kbdev, queue,
-					queue->has_error ?
-						evt[BASEP_EVENT_ERR_INDEX] :
-						0);
+					evt[BASEP_EVENT_ERR_INDEX]);
 				queue->command_started = false;
 			}
 
@@ -1170,7 +1168,7 @@ static int kbase_kcpu_cqs_set_operation_prepare(
 	return 0;
 }
 
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 static void kbase_csf_fence_wait_callback(struct fence *fence,
 			struct fence_cb *cb)
@@ -1549,7 +1547,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			}
 
 			status = 0;
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 			if (ignore_waits) {
 				kbase_kcpu_fence_wait_cancel(queue,
 					&cmd->info.fence);
@@ -1582,7 +1580,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 			status = 0;
 
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 			status = kbase_kcpu_fence_signal_process(
 				queue, &cmd->info.fence);
 
@@ -2021,7 +2019,7 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 		kcpu_cmd->enqueue_ts = kctx->csf.kcpu_queues.num_cmds;
 		switch (command.type) {
 		case BASE_KCPU_COMMAND_TYPE_FENCE_WAIT:
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 			ret = kbase_kcpu_fence_wait_prepare(queue,
 						&command.info.fence, kcpu_cmd);
 #else
@@ -2030,7 +2028,7 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 #endif
 			break;
 		case BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL:
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 			ret = kbase_kcpu_fence_signal_prepare(queue,
 						&command.info.fence, kcpu_cmd);
 #else
@@ -2231,7 +2229,7 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 	queue->kctx = kctx;
 	queue->start_offset = 0;
 	queue->num_pending_cmds = 0;
-#ifdef CONFIG_SYNC_FILE
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	queue->fence_context = dma_fence_context_alloc(1);
 	queue->fence_seqno = 0;
 	queue->fence_wait_processed = false;

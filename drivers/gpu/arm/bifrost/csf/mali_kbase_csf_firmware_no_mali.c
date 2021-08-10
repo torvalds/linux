@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -158,7 +158,7 @@ static int invent_memory_setup_entry(struct kbase_device *kbdev)
 
 	/* Allocate enough memory for the struct dummy_firmware_interface.
 	 */
-	interface = kmalloc(sizeof(*interface), GFP_KERNEL);
+	interface = kzalloc(sizeof(*interface), GFP_KERNEL);
 	if (!interface)
 		return -ENOMEM;
 
@@ -237,8 +237,13 @@ static int invent_capabilities(struct kbase_device *kbdev)
 	iface->kbdev = kbdev;
 	iface->features = 0;
 	iface->prfcnt_size = 64;
-	iface->instr_features =
-		0x81; /* update rate=1, max event size = 1<<8 = 256 */
+
+	if (iface->version >= kbase_csf_interface_version(1, 1, 0)) {
+		/* update rate=1, max event size = 1<<8 = 256 */
+		iface->instr_features = 0x81;
+	} else {
+		iface->instr_features = 0;
+	}
 
 	iface->group_num = ARRAY_SIZE(interface->csg);
 	iface->group_stride = 0;
@@ -375,6 +380,37 @@ u32 kbase_csf_firmware_csg_output(
 	return val;
 }
 
+static void
+csf_firmware_prfcnt_process(const struct kbase_csf_global_iface *const iface,
+			    const u32 glb_req)
+{
+	struct kbase_device *kbdev = iface->kbdev;
+	u32 glb_ack = output_page_read(iface->output, GLB_ACK);
+	/* If the value of GLB_REQ.PRFCNT_SAMPLE is different from the value of
+	 * GLB_ACK.PRFCNT_SAMPLE, the CSF will sample the performance counters.
+	 */
+	if ((glb_req ^ glb_ack) & GLB_REQ_PRFCNT_SAMPLE_MASK) {
+		/* NO_MALI only uses the first buffer in the ring buffer. */
+		input_page_write(iface->input, GLB_PRFCNT_EXTRACT, 0);
+		output_page_write(iface->output, GLB_PRFCNT_INSERT, 1);
+		kbase_reg_write(kbdev, GPU_COMMAND, GPU_COMMAND_PRFCNT_SAMPLE);
+	}
+
+	/* Propagate enable masks to model if request to enable. */
+	if (glb_req & GLB_REQ_PRFCNT_ENABLE_MASK) {
+		u32 tiler_en, l2_en, sc_en;
+
+		tiler_en = input_page_read(iface->input, GLB_PRFCNT_TILER_EN);
+		l2_en = input_page_read(iface->input, GLB_PRFCNT_MMU_L2_EN);
+		sc_en = input_page_read(iface->input, GLB_PRFCNT_SHADER_EN);
+
+		/* NO_MALI platform enabled all CSHW counters by default. */
+		kbase_reg_write(kbdev, PRFCNT_TILER_EN, tiler_en);
+		kbase_reg_write(kbdev, PRFCNT_MMU_L2_EN, l2_en);
+		kbase_reg_write(kbdev, PRFCNT_SHADER_EN, sc_en);
+	}
+}
+
 void kbase_csf_firmware_global_input(
 	const struct kbase_csf_global_iface *const iface, const u32 offset,
 	const u32 value)
@@ -385,6 +421,7 @@ void kbase_csf_firmware_global_input(
 	input_page_write(iface->input, offset, value);
 
 	if (offset == GLB_REQ) {
+		csf_firmware_prfcnt_process(iface, value);
 		/* NO_MALI: Immediately acknowledge requests */
 		output_page_write(iface->output, GLB_ACK, value);
 	}
@@ -854,9 +891,29 @@ u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 
 	return pwroff;
 }
 
+int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
+{
+	init_waitqueue_head(&kbdev->csf.event_wait);
+	kbdev->csf.interrupt_received = false;
+	kbdev->csf.fw_timeout_ms = CSF_FIRMWARE_TIMEOUT_MS;
+
+	INIT_LIST_HEAD(&kbdev->csf.firmware_interfaces);
+	INIT_LIST_HEAD(&kbdev->csf.firmware_config);
+	INIT_LIST_HEAD(&kbdev->csf.firmware_trace_buffers.list);
+	INIT_WORK(&kbdev->csf.firmware_reload_work,
+		  kbase_csf_firmware_reload_worker);
+	INIT_WORK(&kbdev->csf.fw_error_work, firmware_error_worker);
+
+	mutex_init(&kbdev->csf.reg_lock);
+
+	return 0;
+}
+
 int kbase_csf_firmware_init(struct kbase_device *kbdev)
 {
 	int ret;
+
+	lockdep_assert_held(&kbdev->fw_load_lock);
 
 	if (WARN_ON((kbdev->as_free & MCU_AS_BITMASK) == 0))
 		return -EINVAL;
@@ -871,26 +928,14 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 		return ret;
 	}
 
-	init_waitqueue_head(&kbdev->csf.event_wait);
-	kbdev->csf.interrupt_received = false;
-	kbdev->csf.fw_timeout_ms = CSF_FIRMWARE_TIMEOUT_MS;
-
-	INIT_LIST_HEAD(&kbdev->csf.firmware_interfaces);
-	INIT_LIST_HEAD(&kbdev->csf.firmware_config);
-	INIT_LIST_HEAD(&kbdev->csf.firmware_trace_buffers.list);
-	INIT_WORK(&kbdev->csf.firmware_reload_work,
-		  kbase_csf_firmware_reload_worker);
-	INIT_WORK(&kbdev->csf.fw_error_work, firmware_error_worker);
-
-	mutex_init(&kbdev->csf.reg_lock);
-
 	kbdev->csf.gpu_idle_hysteresis_ms = FIRMWARE_IDLE_HYSTERESIS_TIME_MS;
-	kbdev->csf.gpu_idle_dur_count = convert_dur_to_idle_count(kbdev,
-						FIRMWARE_IDLE_HYSTERESIS_TIME_MS);
+	kbdev->csf.gpu_idle_dur_count = convert_dur_to_idle_count(
+		kbdev, FIRMWARE_IDLE_HYSTERESIS_TIME_MS);
 
 	ret = kbase_mcu_shared_interface_region_tracker_init(kbdev);
 	if (ret != 0) {
-		dev_err(kbdev->dev, "Failed to setup the rb tree for managing shared interface segment\n");
+		dev_err(kbdev->dev,
+			"Failed to setup the rb tree for managing shared interface segment\n");
 		goto error;
 	}
 

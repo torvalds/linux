@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -147,7 +147,7 @@ int kbase_csf_timeout_init(struct kbase_device *const kbdev)
 	u64 timeout = DEFAULT_PROGRESS_TIMEOUT;
 	int err;
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 	err = of_property_read_u64(kbdev->dev->of_node,
 		"progress_timeout", &timeout);
 	if (!err)

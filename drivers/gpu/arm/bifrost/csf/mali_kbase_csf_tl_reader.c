@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -35,7 +35,7 @@
 #include <linux/math64.h>
 #include <asm/arch_timer.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include "tl/mali_kbase_timeline_priv.h"
 #include <linux/debugfs.h>
 
@@ -64,7 +64,7 @@ struct kbase_csffw_tl_message {
 	u64 cycle_counter;
 } __packed __aligned(4);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 static int kbase_csf_tl_debugfs_poll_interval_read(void *data, u64 *val)
 {
 	struct kbase_device *kbdev = (struct kbase_device *)data;
@@ -93,11 +93,13 @@ DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_tl_poll_interval_fops,
 		kbase_csf_tl_debugfs_poll_interval_read,
 		kbase_csf_tl_debugfs_poll_interval_write, "%llu\n");
 
+
 void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev)
 {
 	debugfs_create_file("csf_tl_poll_interval_in_ms", S_IRUGO | S_IWUSR,
 		kbdev->debugfs_instr_directory, kbdev,
 		&kbase_csf_tl_poll_interval_fops);
+
 }
 #endif
 
@@ -124,6 +126,7 @@ static void get_cpu_gpu_time(
 	if (cpu_ts)
 		*cpu_ts = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 }
+
 
 /**
  * kbase_ts_converter_init() - Initialize system timestamp converter.
@@ -168,7 +171,7 @@ static int kbase_ts_converter_init(
  *
  * Return: The CPU timestamp.
  */
-void kbase_ts_converter_convert(
+static void kbase_ts_converter_convert(
 	const struct kbase_ts_converter *self,
 	u64 *gpu_ts)
 {
@@ -474,14 +477,7 @@ int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self,
 		return 0;
 
 	if (tl_reader_init_late(self, kbdev)) {
-#if defined(CONFIG_MALI_BIFROST_NO_MALI)
-		dev_warn(
-			kbdev->dev,
-			"CSFFW timeline is not available for MALI_BIFROST_NO_MALI builds!");
-		return 0;
-#else
 		return -EINVAL;
-#endif
 	}
 
 	tl_reader_reset(self);

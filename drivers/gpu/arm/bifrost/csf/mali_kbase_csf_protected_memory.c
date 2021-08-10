@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,7 @@
 #include "mali_kbase_csf_protected_memory.h"
 #include <linux/protected_memory_allocator.h>
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 #include <linux/of_platform.h>
 #endif
 
@@ -30,7 +30,7 @@ int kbase_csf_protected_memory_init(struct kbase_device *const kbdev)
 {
 	int err = 0;
 
-#if CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 	struct device_node *pma_node = of_parse_phandle(kbdev->dev->of_node,
 					"protected-memory-allocator", 0);
 	if (!pma_node) {

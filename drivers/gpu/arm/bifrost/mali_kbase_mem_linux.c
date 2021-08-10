@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -327,7 +327,7 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx,
 		goto bad_flags;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	if (unlikely(kbase_ctx_flag(kctx, KCTX_INFINITE_CACHE))) {
 		/* Mask coherency flags if infinite cache is enabled to prevent
 		 * the skipping of syncs from BASE side.
@@ -636,8 +636,6 @@ unsigned long kbase_mem_evictable_reclaim_count_objects(struct shrinker *s,
 		struct shrink_control *sc)
 {
 	struct kbase_context *kctx;
-	struct kbase_mem_phy_alloc *alloc;
-	unsigned long pages = 0;
 
 	kctx = container_of(s, struct kbase_context, reclaim);
 
@@ -648,13 +646,7 @@ unsigned long kbase_mem_evictable_reclaim_count_objects(struct shrinker *s,
 	     "Shrinker called whilst in atomic context. The caller must switch to using GFP_ATOMIC or similar. gfp_mask==%x\n",
 	     sc->gfp_mask);
 
-	mutex_lock(&kctx->jit_evict_lock);
-
-	list_for_each_entry(alloc, &kctx->evict_list, evict_node)
-		pages += alloc->nents;
-
-	mutex_unlock(&kctx->jit_evict_lock);
-	return pages;
+	return atomic_read(&kctx->evict_nents);
 }
 
 /**
@@ -686,6 +678,7 @@ unsigned long kbase_mem_evictable_reclaim_scan_objects(struct shrinker *s,
 	unsigned long freed = 0;
 
 	kctx = container_of(s, struct kbase_context, reclaim);
+
 	mutex_lock(&kctx->jit_evict_lock);
 
 	list_for_each_entry_safe(alloc, tmp, &kctx->evict_list, evict_node) {
@@ -712,6 +705,7 @@ unsigned long kbase_mem_evictable_reclaim_scan_objects(struct shrinker *s,
 
 		kbase_free_phy_pages_helper(alloc, alloc->evicted);
 		freed += alloc->evicted;
+		WARN_ON(atomic_sub_return(alloc->evicted, &kctx->evict_nents) < 0);
 		list_del_init(&alloc->evict_node);
 
 		/*
@@ -734,6 +728,8 @@ int kbase_mem_evictable_init(struct kbase_context *kctx)
 {
 	INIT_LIST_HEAD(&kctx->evict_list);
 	mutex_init(&kctx->jit_evict_lock);
+
+	atomic_set(&kctx->evict_nents, 0);
 
 	kctx->reclaim.count_objects = kbase_mem_evictable_reclaim_count_objects;
 	kctx->reclaim.scan_objects = kbase_mem_evictable_reclaim_scan_objects;
@@ -818,6 +814,7 @@ int kbase_mem_evictable_make(struct kbase_mem_phy_alloc *gpu_alloc)
 	 * can reclaim it.
 	 */
 	list_add(&gpu_alloc->evict_node, &kctx->evict_list);
+	atomic_add(gpu_alloc->nents, &kctx->evict_nents);
 	mutex_unlock(&kctx->jit_evict_lock);
 	kbase_mem_evictable_mark_reclaim(gpu_alloc);
 
@@ -837,6 +834,7 @@ bool kbase_mem_evictable_unmake(struct kbase_mem_phy_alloc *gpu_alloc)
 	 * First remove the allocation from the eviction list as it's no
 	 * longer eligible for eviction.
 	 */
+	WARN_ON(atomic_sub_return(gpu_alloc->nents, &kctx->evict_nents) < 0);
 	list_del_init(&gpu_alloc->evict_node);
 	mutex_unlock(&kctx->jit_evict_lock);
 
@@ -1408,7 +1406,7 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx,
 	if (*flags & BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP)
 		need_sync = true;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/*
 		 * 64-bit tasks require us to reserve VA on the CPU that we use
@@ -1561,7 +1559,7 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 	if (*flags & BASE_MEM_IMPORT_SHARED)
 		shared_zone = true;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/*
 		 * 64-bit tasks require us to reserve VA on the CPU that we use
@@ -1755,7 +1753,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 	/* calculate the number of pages this alias will cover */
 	*num_pages = nents * stride;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/* 64-bit tasks must MMAP anyway, but not expose this address to
 		 * clients
@@ -1876,7 +1874,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 		}
 	}
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/* Bind to a cookie */
 		if (bitmap_empty(kctx->cookies, BITS_PER_LONG)) {
@@ -1911,7 +1909,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 
 	return gpu_va;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 no_cookie:
 #endif
 no_mmap:
@@ -1999,7 +1997,7 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 				sizeof(user_buffer))) {
 			reg = NULL;
 		} else {
-#ifdef CONFIG_COMPAT
+#if IS_ENABLED(CONFIG_COMPAT)
 			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 				uptr = compat_ptr(user_buffer.ptr);
 			else
@@ -3191,10 +3189,8 @@ static unsigned long get_queue_doorbell_pfn(struct kbase_device *kbdev,
 	 * assigned one, otherwise a dummy page. Always return the
 	 * dummy page in no mali builds.
 	 */
-	if ((queue->doorbell_nr == KBASEP_USER_DB_NR_INVALID) ||
-			IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI))
+	if (queue->doorbell_nr == KBASEP_USER_DB_NR_INVALID)
 		return PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_db_page));
-
 	return (PFN_DOWN(kbdev->reg_start + CSF_HW_DOORBELL_PAGE_OFFSET +
 			 (u64)queue->doorbell_nr * CSF_HW_DOORBELL_PAGE_SIZE));
 }
@@ -3440,7 +3436,7 @@ static vm_fault_t kbase_csf_user_reg_vm_fault(struct vm_fault *vmf)
 	/* Don't map in the actual register page if GPU is powered down.
 	 * Always map in the dummy page in no mali builds.
 	 */
-	if (!kbdev->pm.backend.gpu_powered || IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI))
+	if (!kbdev->pm.backend.gpu_powered)
 		pfn = PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_user_reg_page));
 
 	ret = mgm_dev->ops.mgm_vmf_insert_pfn_prot(mgm_dev,

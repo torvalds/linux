@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
 # (C) COPYRIGHT 2013-2021 ARM Limited. All rights reserved.
 #
@@ -97,6 +97,8 @@ for details.
 	  are used at different points so care should be taken to configure
 	  both power models in the device tree (specifically dynamic-coefficient,
 	  static-coefficient and scale) to best match the platform.
+- power_policy : Sets the GPU power policy at probe time. Available options are
+                 "coarse_demand" and "always_on". If not set, then "coarse_demand" is used.
 - system-coherency : Sets the coherency protocol to be used for coherent
 		     accesses made from the GPU.
 		     If not set then no coherency is used.

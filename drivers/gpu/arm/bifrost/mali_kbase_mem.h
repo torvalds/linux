@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -1517,7 +1517,7 @@ void kbase_sync_single_for_device(struct kbase_device *kbdev, dma_addr_t handle,
 void kbase_sync_single_for_cpu(struct kbase_device *kbdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
  * kbase_jit_debugfs_init - Add per context debugfs entry for JIT.
  * @kctx: kbase context

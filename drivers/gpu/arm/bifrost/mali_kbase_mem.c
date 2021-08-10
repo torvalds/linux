@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -28,7 +28,7 @@
 #include <linux/compat.h>
 #include <linux/version.h>
 #include <linux/log2.h>
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 #include <linux/of_platform.h>
 #endif
 
@@ -89,7 +89,7 @@ static size_t kbase_get_num_cpu_va_bits(struct kbase_context *kctx)
 #error "Unknown CPU VA width for this architecture"
 #endif
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 		cpu_va_bits = 32;
 #endif
@@ -115,11 +115,11 @@ static struct rb_root *kbase_gpu_va_to_rbtree(struct kbase_context *kctx,
 	else {
 		u64 same_va_end;
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 		if (kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 #endif /* CONFIG_64BIT */
 			same_va_end = KBASE_REG_ZONE_CUSTOM_VA_BASE;
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 		} else {
 			struct kbase_reg_zone *same_va_zone =
 				kbase_ctx_reg_zone_get(kctx,
@@ -755,7 +755,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 	kbase_ctx_reg_zone_init(kctx, KBASE_REG_ZONE_SAME_VA, same_va_base,
 				same_va_pages);
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	/* 32-bit clients have custom VA zones */
 	if (kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 #endif
@@ -782,7 +782,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 		kbase_ctx_reg_zone_init(kctx, KBASE_REG_ZONE_CUSTOM_VA,
 					KBASE_REG_ZONE_CUSTOM_VA_BASE,
 					custom_va_size);
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	} else {
 		custom_va_size = 0;
 	}
@@ -901,7 +901,7 @@ static bool kbase_region_tracker_has_allocs(struct kbase_context *kctx)
 	return false;
 }
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 static int kbase_region_tracker_init_jit_64(struct kbase_context *kctx,
 		u64 jit_va_pages)
 {
@@ -1010,7 +1010,7 @@ int kbase_region_tracker_init_jit(struct kbase_context *kctx, u64 jit_va_pages,
 		goto exit_unlock;
 	}
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT))
 		err = kbase_region_tracker_init_jit_64(kctx, jit_va_pages);
 #endif
@@ -1081,12 +1081,12 @@ int kbase_region_tracker_init_exec(struct kbase_context *kctx, u64 exec_va_pages
 		goto exit_unlock;
 	}
 
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	if (kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 #endif
 		/* 32-bit client: take from CUSTOM_VA zone */
 		target_zone_bits = KBASE_REG_ZONE_CUSTOM_VA;
-#ifdef CONFIG_64BIT
+#if IS_ENABLED(CONFIG_64BIT)
 	} else {
 		/* 64-bit client: take from SAME_VA zone */
 		target_zone_bits = KBASE_REG_ZONE_SAME_VA;
@@ -1180,7 +1180,7 @@ int kbase_mem_init(struct kbase_device *kbdev)
 {
 	int err = 0;
 	struct kbasep_mem_device *memdev;
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 	struct device_node *mgm_node = NULL;
 #endif
 
@@ -1208,7 +1208,7 @@ int kbase_mem_init(struct kbase_device *kbdev)
 
 	kbdev->mgm_dev = &kbase_native_mgm_dev;
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 	/* Check to see whether or not a platform-specific memory group manager
 	 * is configured and available.
 	 */
@@ -3163,7 +3163,7 @@ void kbase_gpu_vm_unlock(struct kbase_context *kctx)
 
 KBASE_EXPORT_TEST_API(kbase_gpu_vm_unlock);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 struct kbase_jit_debugfs_data {
 	int (*func)(struct kbase_jit_debugfs_data *);
 	struct mutex lock;
@@ -4269,6 +4269,7 @@ void kbase_jit_free(struct kbase_context *kctx, struct kbase_va_region *reg)
 	/* This allocation can't already be on a list. */
 	WARN_ON(!list_empty(&reg->gpu_alloc->evict_node));
 	list_add(&reg->gpu_alloc->evict_node, &kctx->evict_list);
+	atomic_add(reg->gpu_alloc->nents, &kctx->evict_nents);
 
 	list_move(&reg->jit_node, &kctx->jit_pool_head);
 

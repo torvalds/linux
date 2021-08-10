@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,7 @@
 #ifndef _KBASE_SMC_H_
 #define _KBASE_SMC_H_
 
-#ifdef CONFIG_ARM64
+#if IS_ENABLED(CONFIG_ARM64)
 
 #include <mali_kbase.h>
 

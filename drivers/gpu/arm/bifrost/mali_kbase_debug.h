@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2012-2015, 2017, 2020-2021 ARM Limited. All rights reserved.
@@ -40,7 +40,7 @@
 #endif				/* KBASE_DEBUG_DISABLE_ASSERTS */
 
 /** Function type that is called on an KBASE_DEBUG_ASSERT() or KBASE_DEBUG_ASSERT_MSG() */
-typedef void (kbase_debug_assert_hook) (void *);
+typedef void kbase_debug_assert_hook(void *);
 
 struct kbasep_debug_assert_cb {
 	kbase_debug_assert_hook *func;

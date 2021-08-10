@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -164,7 +164,7 @@ int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self,
  */
 void kbase_csf_tl_reader_stop(struct kbase_csf_tl_reader *self);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
  * kbase_csf_tl_reader_debugfs_init() -
  *	Initialize debugfs for CSFFW Timelime Stream Reader.

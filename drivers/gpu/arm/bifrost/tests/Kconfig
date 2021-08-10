@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2017, 2020 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017, 2020-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -18,6 +18,40 @@
 #
 #
 
-source "drivers/gpu/arm/midgard/tests/kutf/Kconfig"
-source "drivers/gpu/arm/midgard/tests/mali_kutf_irq_test/Kconfig"
-source "drivers/gpu/arm/midgard/tests/mali_kutf_clk_rate_trace/kernel/Kconfig"
+menuconfig MALI_KUTF
+	bool "Build Mali Kernel Unit Test Framework modules"
+	depends on MALI_BIFROST && MALI_BIFROST_DEBUG
+	default y if MALI_BIFROST_DEBUG
+	help
+	  This option will build the Mali testing framework modules.
+
+	  Modules:
+	   - kutf.ko
+	   - kutf_test.ko
+
+config MALI_KUTF_IRQ_TEST
+	bool "Build Mali KUTF IRQ test module"
+	depends on MALI_KUTF
+	default y
+	help
+	  This option will build the IRQ latency measurement test module.
+	  It can determine the latency of the Mali GPU IRQ on your system.
+
+	  Modules:
+	    - mali_kutf_irq_test.ko
+
+config MALI_KUTF_CLK_RATE_TRACE
+	bool "Build Mali KUTF Clock rate trace test module"
+	depends on MALI_KUTF
+	default y
+	help
+	  This option will build the clock rate trace portal test module.
+	  It can test the clocks integration into the platform and exercise some
+	  basic trace test in the system.
+
+	  Modules:
+	    - mali_kutf_clk_rate_trace_test_portal.ko
+
+
+comment "Enable MALI_BIFROST_DEBUG for KUTF modules support"
+	depends on MALI_BIFROST && !MALI_BIFROST_DEBUG && MALI_KUTF

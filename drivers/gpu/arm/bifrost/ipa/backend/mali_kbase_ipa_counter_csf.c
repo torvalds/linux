@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
@@ -24,11 +24,15 @@
 
 /* MEMSYS counter block offsets */
 #define L2_RD_MSG_IN            (16)
+#define L2_WR_MSG_IN            (18)
+#define L2_READ_LOOKUP          (26)
 #define L2_EXT_WRITE_NOSNP_FULL (43)
 
 /* SC counter block offsets */
 #define FRAG_QUADS_EZS_UPDATE   (13)
+#define FULL_QUAD_WARPS         (21)
 #define EXEC_INSTR_FMA          (27)
+#define EXEC_INSTR_CVT          (28)
 #define TEX_FILT_NUM_OPS        (39)
 #define LS_MEM_READ_SHORT       (45)
 #define LS_MEM_WRITE_SHORT      (47)
@@ -38,6 +42,7 @@
 #define IDVS_POS_SHAD_STALL     (23)
 #define PREFETCH_STALL          (25)
 #define VFETCH_POS_READ_WAIT    (29)
+#define VFETCH_VERTEX_WAIT      (30)
 #define IDVS_VAR_SHAD_STALL     (38)
 
 #define COUNTER_DEF(cnt_name, coeff, cnt_idx, block_type)	\
@@ -60,9 +65,9 @@
 #define TILER_COUNTER_DEF(cnt_name, coeff, cnt_idx)	\
 	COUNTER_DEF(cnt_name, coeff, cnt_idx, KBASE_IPA_CORE_TYPE_TILER)
 
-/* Table of description of HW counters used by IPA counter model.
+/* Tables of description of HW counters used by IPA counter model.
  *
- * This table provides a description of each performance counter
+ * These tables provide a description of each performance counter
  * used by the top level counter model for energy estimation.
  */
 static const struct kbase_ipa_counter ipa_top_level_cntrs_def_todx[] = {
@@ -75,10 +80,11 @@ static const struct kbase_ipa_counter ipa_top_level_cntrs_def_todx[] = {
 	TILER_COUNTER_DEF("vfetch_pos_read_wait", -119118, VFETCH_POS_READ_WAIT),
 };
 
- /* This table provides a description of each performance counter
+
+/* These tables provide a description of each performance counter
   * used by the shader cores counter model for energy estimation.
   */
- static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_todx[] = {
+static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_todx[] = {
 	SC_COUNTER_DEF("exec_instr_fma", 505449, EXEC_INSTR_FMA),
 	SC_COUNTER_DEF("tex_filt_num_operations", 574869, TEX_FILT_NUM_OPS),
 	SC_COUNTER_DEF("ls_mem_read_short", 60917, LS_MEM_READ_SHORT),
@@ -86,6 +92,7 @@ static const struct kbase_ipa_counter ipa_top_level_cntrs_def_todx[] = {
 	SC_COUNTER_DEF("ls_mem_write_short", 698290, LS_MEM_WRITE_SHORT),
 	SC_COUNTER_DEF("vary_slot_16", 181069, VARY_SLOT_16),
 };
+
 
 #define IPA_POWER_MODEL_OPS(gpu, init_token) \
 	const struct kbase_ipa_model_ops kbase_ ## gpu ## _ipa_model_ops = { \
@@ -122,12 +129,12 @@ static const struct kbase_ipa_counter ipa_top_level_cntrs_def_todx[] = {
  */
 STANDARD_POWER_MODEL(todx, 750);
 
+
 /* Assuming LODX is an alias of TODX for IPA */
 ALIAS_POWER_MODEL(lodx, todx);
 
 static const struct kbase_ipa_model_ops *ipa_counter_model_ops[] = {
-	&kbase_todx_ipa_model_ops,
-	&kbase_lodx_ipa_model_ops
+	&kbase_todx_ipa_model_ops, &kbase_lodx_ipa_model_ops,
 };
 
 const struct kbase_ipa_model_ops *kbase_ipa_counter_model_ops_find(

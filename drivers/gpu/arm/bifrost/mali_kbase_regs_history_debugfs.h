@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014, 2016, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,7 @@
 
 struct kbase_device;
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI)
+#if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 
 /**
  * kbase_io_history_init - initialize data struct for register access history
@@ -69,16 +69,24 @@ void kbase_io_history_dump(struct kbase_device *kbdev);
  */
 void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev);
 
-#else /* defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI) */
+#else /* defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
+static inline int kbase_io_history_init(struct kbase_io_history *h, u16 n)
+{
+	return 0;
+}
 
-#define kbase_io_history_init(...) ((int)0)
+static inline void kbase_io_history_term(struct kbase_io_history *h)
+{
+}
 
-#define kbase_io_history_term CSTD_NOP
+static inline void kbase_io_history_dump(struct kbase_device *kbdev)
+{
+}
 
-#define kbase_io_history_dump CSTD_NOP
+static inline void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev)
+{
+}
 
-#define kbasep_regs_history_debugfs_init CSTD_NOP
-
-#endif /* defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI) */
+#endif /* defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
 #endif  /*_KBASE_REGS_HISTORY_DEBUGFS_H*/

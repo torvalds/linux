@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -300,7 +300,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 			&kbdev->gpu_props.props.raw_props.js_features[js],
 			"ctx_nr,atom_nr");
 	kbase_kinstr_jm_atom_hw_submit(katom);
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	if (!kbase_backend_nr_atoms_submitted(kbdev, js)) {
 		/* If this is the only job on the slot, trace it as starting */
 		char js_string[16];

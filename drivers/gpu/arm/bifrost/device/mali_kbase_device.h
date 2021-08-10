@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,6 +45,19 @@ void kbase_device_put_list(const struct list_head *dev_list);
  * Used to increment device id on successful initialization of the device.
  */
 void kbase_increment_device_id(void);
+
+/**
+ * kbase_device_firmware_init_once - Initialize firmware and HWC
+ *
+ * @kbdev: An instance of the GPU platform device, allocated from the probe
+ *         method of the driver.
+ *
+ * When a device file is opened for the first time,
+ * load firmware and initialize hardware counter components.
+ *
+ * @return 0 on success. An error code on failure.
+ */
+int kbase_device_firmware_init_once(struct kbase_device *kbdev);
 
 /**
  * kbase_device_init - Device initialisation.

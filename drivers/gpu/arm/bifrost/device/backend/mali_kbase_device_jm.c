@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -19,18 +19,15 @@
  *
  */
 
-#include "../mali_kbase_device_internal.h"
-#include "../mali_kbase_device.h"
-#include "../mali_kbase_hwaccess_instr.h"
+#include <device/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
+#include <mali_kbase_hwaccess_instr.h>
 
 #include <mali_kbase_config_defaults.h>
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-#include <mali_kbase_model_linux.h>
-#endif
 
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 #include <arbiter/mali_kbase_arbiter_pm.h>
@@ -105,6 +102,8 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 	/* Idle the GPU and/or cores, if the policy wants it to */
 	kbase_pm_context_idle(kbdev);
 
+	mutex_init(&kbdev->fw_load_lock);
+
 	return 0;
 
 fail_update_l2_features:
@@ -157,63 +156,54 @@ static void kbase_device_hwcnt_backend_jm_term(struct kbase_device *kbdev)
 }
 
 static const struct kbase_device_init dev_init[] = {
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	{kbase_gpu_device_create, kbase_gpu_device_destroy,
-			"Dummy model initialization failed"},
-#else
-	{assign_irqs, NULL,
-			"IRQ search failed"},
-	{registers_map, registers_unmap,
-			"Register map failed"},
-#endif
-	{kbase_device_io_history_init, kbase_device_io_history_term,
-			"Register access history initialization failed"},
-	{kbase_device_pm_init, kbase_device_pm_term,
-			"Power management initialization failed"},
-	{kbase_device_early_init, kbase_device_early_term,
-			"Early device initialization failed"},
-	{kbase_device_populate_max_freq, NULL,
-			"Populating max frequency failed"},
-	{kbase_device_misc_init, kbase_device_misc_term,
-			"Miscellaneous device initialization failed"},
-	{kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
-			"Priority control manager initialization failed"},
-	{kbase_ctx_sched_init, kbase_ctx_sched_term,
-			"Context scheduler initialization failed"},
-	{kbase_mem_init, kbase_mem_term,
-			"Memory subsystem initialization failed"},
-	{kbase_device_coherency_init, NULL,
-			"Device coherency init failed"},
-	{kbase_protected_mode_init, kbase_protected_mode_term,
-			"Protected mode subsystem initialization failed"},
-	{kbase_device_list_init, kbase_device_list_term,
-			"Device list setup failed"},
-	{kbasep_js_devdata_init, kbasep_js_devdata_term,
-			"Job JS devdata initialization failed"},
-	{kbase_device_timeline_init, kbase_device_timeline_term,
-			"Timeline stream initialization failed"},
-	{kbase_clk_rate_trace_manager_init,
-			kbase_clk_rate_trace_manager_term,
-			"Clock rate trace manager initialization failed"},
-	{kbase_instr_backend_init, kbase_instr_backend_term,
-			"Instrumentation backend initialization failed"},
-	{kbase_device_hwcnt_backend_jm_init,
-			kbase_device_hwcnt_backend_jm_term,
-			"GPU hwcnt backend creation failed"},
-	{kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
-			"GPU hwcnt context initialization failed"},
-	{kbase_device_hwcnt_virtualizer_init,
-			kbase_device_hwcnt_virtualizer_term,
-			"GPU hwcnt virtualizer initialization failed"},
-	{kbase_device_vinstr_init, kbase_device_vinstr_term,
-			"Virtual instrumentation initialization failed"},
-	{kbase_backend_late_init, kbase_backend_late_term,
-			"Late backend initialization failed"},
+	{ assign_irqs, NULL, "IRQ search failed" },
+	{ registers_map, registers_unmap, "Register map failed" },
+	{ kbase_device_io_history_init, kbase_device_io_history_term,
+	  "Register access history initialization failed" },
+	{ kbase_device_pm_init, kbase_device_pm_term,
+	  "Power management initialization failed" },
+	{ kbase_device_early_init, kbase_device_early_term,
+	  "Early device initialization failed" },
+	{ kbase_device_populate_max_freq, NULL,
+	  "Populating max frequency failed" },
+	{ kbase_device_misc_init, kbase_device_misc_term,
+	  "Miscellaneous device initialization failed" },
+	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
+	  "Priority control manager initialization failed" },
+	{ kbase_ctx_sched_init, kbase_ctx_sched_term,
+	  "Context scheduler initialization failed" },
+	{ kbase_mem_init, kbase_mem_term,
+	  "Memory subsystem initialization failed" },
+	{ kbase_device_coherency_init, NULL, "Device coherency init failed" },
+	{ kbase_protected_mode_init, kbase_protected_mode_term,
+	  "Protected mode subsystem initialization failed" },
+	{ kbase_device_list_init, kbase_device_list_term,
+	  "Device list setup failed" },
+	{ kbasep_js_devdata_init, kbasep_js_devdata_term,
+	  "Job JS devdata initialization failed" },
+	{ kbase_device_timeline_init, kbase_device_timeline_term,
+	  "Timeline stream initialization failed" },
+	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
+	  "Clock rate trace manager initialization failed" },
+	{ kbase_instr_backend_init, kbase_instr_backend_term,
+	  "Instrumentation backend initialization failed" },
+	{ kbase_device_hwcnt_backend_jm_init,
+	  kbase_device_hwcnt_backend_jm_term,
+	  "GPU hwcnt backend creation failed" },
+	{ kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
+	  "GPU hwcnt context initialization failed" },
+	{ kbase_device_hwcnt_virtualizer_init,
+	  kbase_device_hwcnt_virtualizer_term,
+	  "GPU hwcnt virtualizer initialization failed" },
+	{ kbase_device_vinstr_init, kbase_device_vinstr_term,
+	  "Virtual instrumentation initialization failed" },
+	{ kbase_backend_late_init, kbase_backend_late_term,
+	  "Late backend initialization failed" },
 #ifdef MALI_KBASE_BUILD
-	{kbase_debug_job_fault_dev_init, kbase_debug_job_fault_dev_term,
-			"Job fault debug initialization failed"},
-	{kbase_device_debugfs_init, kbase_device_debugfs_term,
-			"DebugFS initialization failed"},
+	{ kbase_debug_job_fault_dev_init, kbase_debug_job_fault_dev_term,
+	  "Job fault debug initialization failed" },
+	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
+	  "DebugFS initialization failed" },
 	/* Sysfs init needs to happen before registering the device with
 	 * misc_register(), otherwise it causes a race condition between
 	 * registering the device and a uevent event being generated for
@@ -226,14 +216,15 @@ static const struct kbase_device_init dev_init[] = {
 	 * paragraph that starts with "Word of warning", currently the
 	 * second-last paragraph.
 	 */
-	{kbase_sysfs_init, kbase_sysfs_term, "SysFS group creation failed"},
-	{kbase_device_misc_register, kbase_device_misc_deregister,
-			"Misc device registration failed"},
-	{kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
-			"GPU property population failed"},
+	{ kbase_sysfs_init, kbase_sysfs_term, "SysFS group creation failed" },
+	{ kbase_device_misc_register, kbase_device_misc_deregister,
+	  "Misc device registration failed" },
+	{ kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
+	  "GPU property population failed" },
 #endif
-	{kbase_dummy_job_wa_load, kbase_dummy_job_wa_cleanup,
-			"Dummy job workaround load failed"},
+	{ NULL, kbase_dummy_job_wa_cleanup, NULL },
+	{ kbase_device_late_init, kbase_device_late_term,
+	  "Late device initialization failed" },
 };
 
 static void kbase_device_term_partial(struct kbase_device *kbdev,
@@ -263,15 +254,34 @@ int kbase_device_init(struct kbase_device *kbdev)
 	kbase_disjoint_init(kbdev);
 
 	for (i = 0; i < ARRAY_SIZE(dev_init); i++) {
-		err = dev_init[i].init(kbdev);
-		if (err) {
-			if (err != -EPROBE_DEFER)
-				dev_err(kbdev->dev, "%s error = %d\n",
+		if (dev_init[i].init) {
+			err = dev_init[i].init(kbdev);
+			if (err) {
+				if (err != -EPROBE_DEFER)
+					dev_err(kbdev->dev, "%s error = %d\n",
 						dev_init[i].err_mes, err);
-			kbase_device_term_partial(kbdev, i);
-			break;
+				kbase_device_term_partial(kbdev, i);
+				break;
+			}
 		}
 	}
 
 	return err;
+}
+
+int kbase_device_firmware_init_once(struct kbase_device *kbdev)
+{
+	int ret = 0;
+
+	mutex_lock(&kbdev->fw_load_lock);
+
+	if (!kbdev->dummy_job_wa_loaded) {
+		ret = kbase_dummy_job_wa_load(kbdev);
+		if (!ret)
+			kbdev->dummy_job_wa_loaded = true;
+	}
+
+	mutex_unlock(&kbdev->fw_load_lock);
+
+	return ret;
 }

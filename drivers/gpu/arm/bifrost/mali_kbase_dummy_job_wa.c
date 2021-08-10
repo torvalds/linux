@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -281,6 +281,8 @@ int kbase_dummy_job_wa_load(struct kbase_device *kbdev)
 	int err;
 	struct kbase_context *kctx;
 
+	lockdep_assert_held(&kbdev->fw_load_lock);
+
 	if (!wa_blob_load_needed(kbdev))
 		return 0;
 
@@ -425,6 +427,10 @@ no_ctx:
 void kbase_dummy_job_wa_cleanup(struct kbase_device *kbdev)
 {
 	struct kbase_context *wa_ctx;
+
+	/* return if the dummy job has not been loaded */
+	if (kbdev->dummy_job_wa_loaded == false)
+		return;
 
 	/* Can be safely called even if the file wasn't created on probe */
 	sysfs_remove_file(&kbdev->dev->kobj, &dev_attr_dummy_job_wa_info.attr);

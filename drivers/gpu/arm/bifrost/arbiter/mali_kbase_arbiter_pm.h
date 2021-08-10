@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -168,15 +168,27 @@ extern struct kbase_clk_rate_trace_op_conf arb_clk_rate_trace_ops;
 /**
  * struct kbase_arbiter_freq - Holding the GPU clock frequency data retrieved
  * from arbiter
- * @arb_freq:                 GPU clock frequency value
- * @arb_freq_lock:            Mutex protecting access to arbfreq value
+ * @arb_freq:      GPU clock frequency value
+ * @arb_freq_lock: Mutex protecting access to arbfreq value
+ * @nb:            Notifier block to receive rate change callbacks
+ * @freq_updated:  Flag to indicate whether a frequency changed has just been
+ *                 communicated to avoid "GPU_GRANTED when not expected" warning
  */
 struct kbase_arbiter_freq {
 	uint32_t arb_freq;
 	struct mutex arb_freq_lock;
+	struct notifier_block *nb;
+	bool freq_updated;
 };
 
+/**
+ * kbase_arbiter_pm_update_gpu_freq() - Update GPU frequency
+ * @arb_freq: Pointer to GPU clock frequency data
+ * @freq:     The new frequency
+ *
+ * Updates the GPU frequency and triggers any notifications
+ */
 void kbase_arbiter_pm_update_gpu_freq(struct kbase_arbiter_freq *arb_freq,
-		uint32_t freq);
+	uint32_t freq);
 
 #endif /*_MALI_KBASE_ARBITER_PM_H_ */

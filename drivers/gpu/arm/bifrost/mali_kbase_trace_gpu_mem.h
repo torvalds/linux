@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,7 @@
 #ifndef _KBASE_TRACE_GPU_MEM_H_
 #define _KBASE_TRACE_GPU_MEM_H_
 
-#ifdef CONFIG_TRACE_GPU_MEM
+#if IS_ENABLED(CONFIG_TRACE_GPU_MEM)
 #include <trace/events/gpu_mem.h>
 #endif
 
@@ -31,7 +31,7 @@
 static void kbase_trace_gpu_mem_usage(struct kbase_device *kbdev,
 				      struct kbase_context *kctx)
 {
-#ifdef CONFIG_TRACE_GPU_MEM
+#if IS_ENABLED(CONFIG_TRACE_GPU_MEM)
 	lockdep_assert_held(&kbdev->gpu_mem_usage_lock);
 
 	trace_gpu_mem_total(kbdev->id, DEVICE_TGID,

@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,6 +23,7 @@ bob_kernel_module {
     name: "mali_kutf_irq_test",
     defaults: [
         "mali_kbase_shared_config_defaults",
+        "kernel_test_configs",
         "kernel_test_includes",
     ],
     srcs: [
@@ -34,8 +35,8 @@ bob_kernel_module {
         "kutf",
     ],
     enabled: false,
-    base_build_kutf: {
+    mali_kutf_irq_test: {
+        kbuild_options: ["CONFIG_MALI_KUTF_IRQ_TEST=y"],
         enabled: true,
-        kbuild_options: ["CONFIG_MALI_IRQ_LATENCY=m"],
     },
 }

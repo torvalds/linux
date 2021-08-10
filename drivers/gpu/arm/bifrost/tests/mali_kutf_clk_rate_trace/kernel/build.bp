@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,20 +23,21 @@ bob_kernel_module {
     name: "mali_kutf_clk_rate_trace_test_portal",
     defaults: [
         "mali_kbase_shared_config_defaults",
+        "kernel_test_configs",
         "kernel_test_includes",
     ],
     srcs: [
-        "../mali_kutf_clk_rate_trace_test.h",
-        "Makefile",
+        "Kbuild",
         "mali_kutf_clk_rate_trace_test.c",
+        "../mali_kutf_clk_rate_trace_test.h",
     ],
     extra_symbols: [
         "mali_kbase",
         "kutf",
     ],
     enabled: false,
-    base_build_kutf: {
+    mali_kutf_clk_rate_trace: {
+        kbuild_options: ["CONFIG_MALI_KUTF_CLK_RATE_TRACE=y"],
         enabled: true,
-        kbuild_options: ["CONFIG_MALI_CLK_RATE_TRACE_PORTAL=m"],
     },
 }

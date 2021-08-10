@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2016-2018, 2020 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2016-2018, 2020-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -19,17 +19,17 @@
 #
 
 bifrost_kbase-y += \
-	ipa/mali_kbase_ipa_simple.o \
-	ipa/mali_kbase_ipa.o
+    ipa/mali_kbase_ipa_simple.o \
+    ipa/mali_kbase_ipa.o
 
 bifrost_kbase-$(CONFIG_DEBUG_FS) += ipa/mali_kbase_ipa_debugfs.o
 
 ifeq ($(MALI_USE_CSF),1)
-	bifrost_kbase-y += \
-		ipa/backend/mali_kbase_ipa_counter_csf.o \
-		ipa/backend/mali_kbase_ipa_counter_common_csf.o
+    bifrost_kbase-y += \
+        ipa/backend/mali_kbase_ipa_counter_csf.o \
+        ipa/backend/mali_kbase_ipa_counter_common_csf.o
 else
-	bifrost_kbase-y += \
-		ipa/backend/mali_kbase_ipa_counter_jm.o \
-		ipa/backend/mali_kbase_ipa_counter_common_jm.o
+    bifrost_kbase-y += \
+        ipa/backend/mali_kbase_ipa_counter_jm.o \
+        ipa/backend/mali_kbase_ipa_counter_common_jm.o
 endif

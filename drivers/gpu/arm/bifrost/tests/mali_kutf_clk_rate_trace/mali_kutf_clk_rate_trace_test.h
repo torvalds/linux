@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,6 +30,8 @@
  * enum kbasep_clk_rate_trace_req - request command to the clock rate trace
  *                                  service portal.
  *
+ * @PORTAL_CMD_GET_PLATFORM:       Request the platform that the tests are
+ *                                 to be run on.
  * @PORTAL_CMD_GET_CLK_RATE_MGR:   Request the clock trace manager internal
  *                                 data record. On a positive acknowledgement
  *                                 the prevailing clock rates and the GPU idle
@@ -73,6 +75,7 @@
  */
 /* PORTAL_CMD_INVALID must be the last one, serving the size */
 enum kbasep_clk_rate_trace_req {
+	PORTAL_CMD_GET_PLATFORM,
 	PORTAL_CMD_GET_CLK_RATE_MGR,
 	PORTAL_CMD_GET_CLK_RATE_TRACE,
 	PORTAL_CMD_GET_TRACE_SNAPSHOT,
@@ -121,6 +124,7 @@ enum kbasep_clk_rate_trace_req {
  *    Note, at the close, PM_CTX_CNT is 1. The PM_CTX_CNT will internally be
  *    dropped down to 0 as part of the portal close clean up.
  */
+#define GET_PLATFORM         "GET_PLATFORM"
 #define GET_CLK_RATE_MGR     "GET_CLK_RATE_MGR"
 #define GET_CLK_RATE_TRACE   "GET_CLK_RATE_TRACE"
 #define GET_TRACE_SNAPSHOT   "GET_TRACE_SNAPSHOT"

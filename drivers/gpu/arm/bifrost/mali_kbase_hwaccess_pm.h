@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2014-2015, 2018-2021 ARM Limited. All rights reserved.
@@ -29,7 +29,7 @@
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <linux/atomic.h>
 
-#include <mali_kbase_pm_defs.h>
+#include <backend/gpu/mali_kbase_pm_defs.h>
 
 /* Forward definition - see mali_kbase.h */
 struct kbase_device;

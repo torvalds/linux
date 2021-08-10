@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -39,7 +39,7 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
-#define FIRMWARE_PING_INTERVAL_MS (2000) /* 2 seconds */
+#define FIRMWARE_PING_INTERVAL_MS (4000) /* 4 seconds */
 
 #define FIRMWARE_IDLE_HYSTERESIS_TIME_MS (10) /* Default 10 milliseconds */
 
@@ -211,6 +211,22 @@ void kbase_csf_ctx_term(struct kbase_context *kctx);
  */
 int kbase_csf_queue_register(struct kbase_context *kctx,
 			     struct kbase_ioctl_cs_queue_register *reg);
+
+/**
+ * kbase_csf_queue_register_ex - Register a GPU command queue with
+ *                               extended format.
+ *
+ * @kctx:	Pointer to the kbase context within which the
+ *		queue is to be registered.
+ * @reg:	Pointer to the structure which contains details of the
+ *		queue to be registered within the provided
+ *		context, together with the extended parameter fields
+ *              for supporting cs trace command.
+ *
+ * Return:	0 on success, or negative on failure.
+ */
+int kbase_csf_queue_register_ex(struct kbase_context *kctx,
+			     struct kbase_ioctl_cs_queue_register_ex *reg);
 
 /**
  * kbase_csf_queue_terminate - Terminate a GPU command queue.

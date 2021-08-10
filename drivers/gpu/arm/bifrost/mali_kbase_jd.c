@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -20,7 +20,7 @@
  */
 
 #include <linux/dma-buf.h>
-#ifdef CONFIG_COMPAT
+#if IS_ENABLED(CONFIG_COMPAT)
 #include <linux/compat.h>
 #endif
 #include <mali_kbase.h>
@@ -62,7 +62,7 @@
 static void __user *
 get_compat_pointer(struct kbase_context *kctx, const u64 p)
 {
-#ifdef CONFIG_COMPAT
+#if IS_ENABLED(CONFIG_COMPAT)
 	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 		return compat_ptr(p);
 #endif
@@ -817,7 +817,7 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 
 KBASE_EXPORT_TEST_API(jd_done_nolock);
 
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 enum {
 	CORE_REQ_DEP_ONLY,
 	CORE_REQ_SOFT,
@@ -1172,7 +1172,7 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 		}
 	}
 
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	katom->work_id = atomic_inc_return(&jctx->work_id);
 	trace_gpu_job_enqueue(kctx->id, katom->work_id,
 			kbasep_map_core_reqs_to_string(katom->core_req));
@@ -1675,7 +1675,7 @@ void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr,
 
 	atomic_inc(&kctx->work_count);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	/* a failed job happened and is waiting for dumping*/
 	if (!katom->will_fail_event_code &&
 			kbase_debug_job_fault_process(katom, katom->event_code))
@@ -1754,7 +1754,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	flush_workqueue(kctx->dma_fence.wq);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	kbase_debug_job_fault_kctx_unblock(kctx);
 #endif
 

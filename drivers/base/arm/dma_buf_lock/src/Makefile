@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012, 2020-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -18,10 +18,22 @@
 #
 #
 
+# linux build system bootstrap for out-of-tree module
 
-config MALI_PROTECTED_MEMORY_ALLOCATOR
-	tristate "MALI_PROTECTED_MEMORY_ALLOCATOR"
-	help
-	  This option enables an example implementation of a protected memory allocator
-	  for allocation and release of pages of secure memory intended to be used
-	  by the firmware of Mali GPU device drivers.
+# default to building for the host
+ARCH ?= $(shell uname -m)
+
+# Handle Android Common Kernel source naming
+KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
+KDIR ?= $(KERNEL_SRC)
+
+all: dma_buf_lock
+
+dma_buf_lock:
+	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) EXTRA_CFLAGS="-I$(CURDIR)/../../../../../include"
+
+clean:
+	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean
+
+modules_install:
+	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) modules_install

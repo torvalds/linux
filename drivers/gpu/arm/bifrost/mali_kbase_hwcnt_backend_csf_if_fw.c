@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
@@ -37,9 +37,7 @@
 
 #include <linux/log2.h>
 #include "mali_kbase_ccswe.h"
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif
+
 
 /** The number of nanoseconds in a second. */
 #define NSECS_IN_SEC 1000000000ull /* ns */
@@ -76,6 +74,7 @@ struct kbase_hwcnt_backend_csf_if_fw_ring_buf {
  * @buf_bytes:	        The size in bytes for each buffer in the ring buffer.
  * @clk_cnt:            The number of clock domains in the system.
  *                      The maximum is 64.
+ * @clk_enable_map:     Bitmask of enabled clocks
  * @rate_listener:      Clock rate listener callback state.
  * @ccswe_shader_cores: Shader cores cycle count software estimator.
  */
@@ -160,8 +159,8 @@ static void kbasep_hwcnt_backend_csf_if_fw_on_freq_change(
 /**
  * kbasep_hwcnt_backend_csf_if_fw_cc_enable() - Enable cycle count tracking
  *
- * @fw_ctx:     Non-NULL pointer to CSF firmware interface context.
- * @enable_map: Non-NULL pointer to enable map specifying enabled counters.
+ * @fw_ctx:         Non-NULL pointer to CSF firmware interface context.
+ * @clk_enable_map: Non-NULL pointer to enable map specifying enabled counters.
  */
 static void kbasep_hwcnt_backend_csf_if_fw_cc_enable(
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx, u64 clk_enable_map)
@@ -218,20 +217,13 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_prfcnt_info *prfcnt_info)
 {
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	prfcnt_info->l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
-	prfcnt_info->core_mask =
-		(1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
-	prfcnt_info->dump_bytes = KBASE_DUMMY_MODEL_MAX_NUM_PERF_BLOCKS *
-				  KBASE_DUMMY_MODEL_BLOCK_SIZE;
-	prfcnt_info->clk_cnt = 1;
-	prfcnt_info->clearing_samples = false;
-#else
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx;
 	struct kbase_device *kbdev;
 	u32 prfcnt_size;
 	u32 prfcnt_hw_size = 0;
 	u32 prfcnt_fw_size = 0;
+	u32 prfcnt_block_size = KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK *
+				KBASE_HWCNT_VALUE_BYTES;
 
 	WARN_ON(!ctx);
 	WARN_ON(!prfcnt_info);
@@ -242,15 +234,23 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	prfcnt_hw_size = (prfcnt_size & 0xFF) << 8;
 	prfcnt_fw_size = (prfcnt_size >> 16) << 8;
 	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size;
-	prfcnt_info->dump_bytes = fw_ctx->buf_bytes;
 
+
+	prfcnt_info->dump_bytes = fw_ctx->buf_bytes;
+	prfcnt_info->prfcnt_block_size = prfcnt_block_size;
 	prfcnt_info->l2_count = kbdev->gpu_props.props.l2_props.num_l2_slices;
 	prfcnt_info->core_mask =
 		kbdev->gpu_props.props.coherency_info.group[0].core_mask;
 
 	prfcnt_info->clk_cnt = fw_ctx->clk_cnt;
 	prfcnt_info->clearing_samples = true;
-#endif
+
+	/* Block size must be multiple of counter size. */
+	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_BYTES) !=
+		0);
+	/* Total size must be multiple of block size. */
+	WARN_ON((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) !=
+		0);
 }
 
 static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
@@ -338,6 +338,7 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 	*cpu_dump_base = fw_ring_buf->cpu_dump_base;
 	*out_ring_buf =
 		(struct kbase_hwcnt_backend_csf_if_ring_buf *)fw_ring_buf;
+
 
 	return 0;
 
@@ -682,9 +683,9 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count(
 }
 
 /**
- * @brief Destroy a CSF FW interface context.
+ * kbasep_hwcnt_backedn_csf_if_fw_cts_destroy() - Destroy a CSF FW interface context.
  *
- * @param[in,out] fw_ctx Pointer to context to destroy.
+ * @fw_ctx: Pointer to context to destroy.
  */
 static void kbasep_hwcnt_backend_csf_if_fw_ctx_destroy(
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx)

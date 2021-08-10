@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2015, 2017, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015, 2017, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,7 +19,9 @@
  *
  */
 
+#include <mali_kbase.h>
 #include <mali_kbase_config.h>
+#include <backend/gpu/mali_kbase_pm_internal.h>
 
 static struct kbase_platform_config dummy_platform_config;
 
@@ -38,3 +40,14 @@ void kbase_platform_unregister(void)
 {
 }
 #endif
+
+#ifdef CONFIG_MALI_BIFROST_DVFS
+#if MALI_USE_CSF
+int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation)
+#else
+int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation, u32 util_gl_share, u32 util_cl_share[2])
+#endif
+{
+	return 1;
+}
+#endif /* CONFIG_MALI_BIFROST_DVFS */

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -993,7 +993,12 @@ static int parse_capabilities(struct kbase_device *kbdev)
 
 	iface->group_stride = shared_info[GLB_GROUP_STRIDE/4];
 	iface->prfcnt_size = shared_info[GLB_PRFCNT_SIZE/4];
-	iface->instr_features = shared_info[GLB_INSTR_FEATURES / 4];
+
+	if (iface->version >= kbase_csf_interface_version(1, 1, 0)) {
+		iface->instr_features = shared_info[GLB_INSTR_FEATURES / 4];
+	} else {
+		iface->instr_features = 0;
+	}
 
 	if ((GROUP_CONTROL_0 +
 		(unsigned long)iface->group_num * iface->group_stride) >
@@ -1671,29 +1676,8 @@ u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 
 }
 
 
-int kbase_csf_firmware_init(struct kbase_device *kbdev)
+int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 {
-	const struct firmware *firmware;
-	const u32 magic = FIRMWARE_HEADER_MAGIC;
-	u8 version_major, version_minor;
-	u32 version_hash;
-	u32 entry_end_offset;
-	u32 entry_offset;
-	int ret;
-
-	if (WARN_ON((kbdev->as_free & MCU_AS_BITMASK) == 0))
-		return -EINVAL;
-	kbdev->as_free &= ~MCU_AS_BITMASK;
-
-	ret = kbase_mmu_init(kbdev, &kbdev->csf.mcu_mmu, NULL,
-		BASE_MEM_GROUP_DEFAULT);
-
-	if (ret != 0) {
-		/* Release the address space */
-		kbdev->as_free |= MCU_AS_BITMASK;
-		return ret;
-	}
-
 	init_waitqueue_head(&kbdev->csf.event_wait);
 	kbdev->csf.interrupt_received = false;
 	kbdev->csf.fw_timeout_ms = CSF_FIRMWARE_TIMEOUT_MS;
@@ -1708,17 +1692,46 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 
 	mutex_init(&kbdev->csf.reg_lock);
 
+	return 0;
+}
+
+int kbase_csf_firmware_init(struct kbase_device *kbdev)
+{
+	const struct firmware *firmware;
+	const u32 magic = FIRMWARE_HEADER_MAGIC;
+	u8 version_major, version_minor;
+	u32 version_hash;
+	u32 entry_end_offset;
+	u32 entry_offset;
+	int ret;
+
+	lockdep_assert_held(&kbdev->fw_load_lock);
+
+	if (WARN_ON((kbdev->as_free & MCU_AS_BITMASK) == 0))
+		return -EINVAL;
+	kbdev->as_free &= ~MCU_AS_BITMASK;
+
+	ret = kbase_mmu_init(kbdev, &kbdev->csf.mcu_mmu, NULL,
+		BASE_MEM_GROUP_DEFAULT);
+
+	if (ret != 0) {
+		/* Release the address space */
+		kbdev->as_free |= MCU_AS_BITMASK;
+		return ret;
+	}
+
 	kbdev->csf.gpu_idle_hysteresis_ms = FIRMWARE_IDLE_HYSTERESIS_TIME_MS;
-	kbdev->csf.gpu_idle_dur_count = convert_dur_to_idle_count(kbdev,
-						FIRMWARE_IDLE_HYSTERESIS_TIME_MS);
+	kbdev->csf.gpu_idle_dur_count = convert_dur_to_idle_count(
+		kbdev, FIRMWARE_IDLE_HYSTERESIS_TIME_MS);
 
 	kbdev->csf.mcu_core_pwroff_dur_us = DEFAULT_GLB_PWROFF_TIMEOUT_US;
-	kbdev->csf.mcu_core_pwroff_dur_count =
-		convert_dur_to_core_pwroff_count(kbdev, DEFAULT_GLB_PWROFF_TIMEOUT_US);
+	kbdev->csf.mcu_core_pwroff_dur_count = convert_dur_to_core_pwroff_count(
+		kbdev, DEFAULT_GLB_PWROFF_TIMEOUT_US);
 
 	ret = kbase_mcu_shared_interface_region_tracker_init(kbdev);
 	if (ret != 0) {
-		dev_err(kbdev->dev, "Failed to setup the rb tree for managing shared interface segment\n");
+		dev_err(kbdev->dev,
+			"Failed to setup the rb tree for managing shared interface segment\n");
 		goto error;
 	}
 
@@ -2081,7 +2094,7 @@ int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev)
 	int err = 0;
 
 	/* Ensure GPU is powered-up until we complete config update.*/
-	kbase_pm_context_active(kbdev);
+	kbase_csf_scheduler_pm_active(kbdev);
 
 	/* The 'reg_lock' is also taken and is held till the update is
 	 * complete, to ensure the config update gets serialized.
@@ -2098,7 +2111,7 @@ int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev)
 				      GLB_REQ_FIRMWARE_CONFIG_UPDATE_MASK);
 	mutex_unlock(&kbdev->csf.reg_lock);
 
-	kbase_pm_context_idle(kbdev);
+	kbase_csf_scheduler_pm_idle(kbdev);
 	return err;
 }
 

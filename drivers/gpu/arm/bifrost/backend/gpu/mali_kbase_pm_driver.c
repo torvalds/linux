@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -244,7 +244,7 @@ static u32 core_type_to_reg(enum kbase_pm_core_type core_type,
 	return (u32)core_type + (u32)action;
 }
 
-#ifdef CONFIG_ARM64
+#if IS_ENABLED(CONFIG_ARM64)
 static void mali_cci_flush_l2(struct kbase_device *kbdev)
 {
 	const u32 mask = CLEAN_CACHES_COMPLETED | RESET_COMPLETED;
@@ -1343,6 +1343,12 @@ static int kbase_pm_shaders_update_state(struct kbase_device *kbdev)
 				kbase_pm_invoke(kbdev, KBASE_PM_CORE_SHADER,
 						backend->shaders_avail, ACTION_PWRON);
 
+				if (backend->pm_current_policy &&
+				    backend->pm_current_policy->handle_event)
+					backend->pm_current_policy->handle_event(
+						kbdev,
+						KBASE_PM_POLICY_EVENT_POWER_ON);
+
 				backend->shaders_state = KBASE_SHADERS_PEND_ON_CORESTACK_ON;
 			}
 			break;
@@ -1395,6 +1401,12 @@ static int kbase_pm_shaders_update_state(struct kbase_device *kbdev)
 				/* Wait for being disabled */
 				;
 			} else if (!backend->shaders_desired) {
+				if (backend->pm_current_policy &&
+				    backend->pm_current_policy->handle_event)
+					backend->pm_current_policy->handle_event(
+						kbdev,
+						KBASE_PM_POLICY_EVENT_IDLE);
+
 				if (kbdev->pm.backend.protected_transition_override ||
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 						kbase_pm_is_suspending(kbdev) ||
@@ -1455,9 +1467,21 @@ static int kbase_pm_shaders_update_state(struct kbase_device *kbdev)
 			}
 
 			if (backend->shaders_desired) {
+				if (backend->pm_current_policy &&
+				    backend->pm_current_policy->handle_event)
+					backend->pm_current_policy->handle_event(
+						kbdev,
+						KBASE_PM_POLICY_EVENT_TIMER_HIT);
+
 				stt->remaining_ticks = 0;
 				backend->shaders_state = KBASE_SHADERS_ON_CORESTACK_ON_RECHECK;
 			} else if (stt->remaining_ticks == 0) {
+				if (backend->pm_current_policy &&
+				    backend->pm_current_policy->handle_event)
+					backend->pm_current_policy->handle_event(
+						kbdev,
+						KBASE_PM_POLICY_EVENT_TIMER_MISS);
+
 				backend->shaders_state = KBASE_SHADERS_WAIT_FINISHED_CORESTACK_ON;
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 			} else if (kbase_pm_is_suspending(kbdev) ||
@@ -1776,7 +1800,8 @@ int kbase_pm_state_machine_init(struct kbase_device *kbdev)
 	hrtimer_init(&stt->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	stt->timer.function = shader_tick_timer_callback;
 	stt->configured_interval = HR_TIMER_DELAY_NSEC(DEFAULT_PM_GPU_POWEROFF_TICK_NS);
-	stt->configured_ticks = DEFAULT_PM_POWEROFF_TICK_SHADER;
+	stt->default_ticks = DEFAULT_PM_POWEROFF_TICK_SHADER;
+	stt->configured_ticks = stt->default_ticks;
 
 	return 0;
 }
@@ -1912,24 +1937,43 @@ static void kbase_pm_timed_out(struct kbase_device *kbdev)
 		kbase_reset_gpu(kbdev);
 }
 
-void kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev)
+int kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	unsigned long timeout;
-	int err;
+	long remaining;
+	int err = 0;
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbase_pm_update_state(kbdev);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	timeout = jiffies + msecs_to_jiffies(PM_TIMEOUT_MS);
+#if MALI_USE_CSF
+	timeout = kbase_csf_timeout_in_jiffies(PM_TIMEOUT_MS);
+#else
+	timeout = msecs_to_jiffies(PM_TIMEOUT_MS);
+#endif
 
 	/* Wait for cores */
-	err = wait_event_killable(kbdev->pm.backend.gpu_in_desired_state_wait,
-			kbase_pm_is_in_desired_state_with_l2_powered(kbdev));
+#if KERNEL_VERSION(4, 13, 1) <= LINUX_VERSION_CODE
+	remaining = wait_event_killable_timeout(
+#else
+	remaining = wait_event_timeout(
+#endif
+		kbdev->pm.backend.gpu_in_desired_state_wait,
+		kbase_pm_is_in_desired_state_with_l2_powered(kbdev), timeout);
 
-	if (err < 0 && time_after(jiffies, timeout))
+	if (!remaining) {
 		kbase_pm_timed_out(kbdev);
+		err = -ETIMEDOUT;
+	} else if (remaining < 0) {
+		dev_info(
+			kbdev->dev,
+			"Wait for desired PM state with L2 powered got interrupted");
+		err = (int)remaining;
+	}
+
+	return err;
 }
 
 int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev)
@@ -2044,6 +2088,7 @@ static void update_user_reg_page_mapping(struct kbase_device *kbdev)
 	}
 }
 #endif
+
 
 /*
  * pmu layout:
@@ -2462,7 +2507,7 @@ void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev)
 {
 	if ((kbdev->current_gpu_coherency_mode == COHERENCY_ACE) &&
 		!kbdev->cci_snoop_enabled) {
-#ifdef CONFIG_ARM64
+#if IS_ENABLED(CONFIG_ARM64)
 		if (kbdev->snoop_enable_smc != 0)
 			kbase_invoke_smc_fid(kbdev->snoop_enable_smc, 0, 0, 0);
 #endif /* CONFIG_ARM64 */
@@ -2474,7 +2519,7 @@ void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev)
 void kbase_pm_cache_snoop_disable(struct kbase_device *kbdev)
 {
 	if (kbdev->cci_snoop_enabled) {
-#ifdef CONFIG_ARM64
+#if IS_ENABLED(CONFIG_ARM64)
 		if (kbdev->snoop_disable_smc != 0) {
 			mali_cci_flush_l2(kbdev);
 			kbase_invoke_smc_fid(kbdev->snoop_disable_smc, 0, 0, 0);
@@ -2754,9 +2799,8 @@ kbase_pm_request_gpu_cycle_counter_do_request(struct kbase_device *kbdev)
 		/* This might happen after GPU reset.
 		 * Then counter needs to be kicked.
 		 */
-		if (!IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) &&
-		    (!(kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS)) &
-		       GPU_STATUS_CYCLE_COUNT_ACTIVE))) {
+		if (!(kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS)) &
+		      GPU_STATUS_CYCLE_COUNT_ACTIVE)) {
 			kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_CYCLE_COUNT_START);
 		}

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
 # (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
 #
@@ -18,32 +18,44 @@
 #
 #
 
+menuconfig MALI_KUTF
+	bool "Build Mali Kernel Unit Test Framework modules"
+	depends on MALI_BIFROST && MALI_BIFROST_DEBUG
+	default y if BACKEND_KERNEL && MALI_BIFROST_DEBUG
+	help
+	  This option will build the Mali testing framework modules.
+
+	  Modules:
+	   - kutf.ko
+	   - kutf_test.ko
+
+config MALI_KUTF_IRQ_TEST
+	bool "Build Mali KUTF IRQ test module"
+	depends on MALI_KUTF
+	default y
+	help
+	  This option will build the IRQ latency measurement test module.
+	  It can determine the latency of the Mali GPU IRQ on your system.
+
+	  Modules:
+	    - mali_kutf_irq_test.ko
+
+config MALI_KUTF_CLK_RATE_TRACE
+	bool "Build Mali KUTF Clock rate trace test module"
+	depends on MALI_KUTF
+	default y
+	help
+	  This option will build the clock rate trace portal test module.
+	  It can test the clocks integration into the platform and exercise some
+	  basic trace test in the system.
+
+	  Modules:
+	    - mali_kutf_clk_rate_trace_test_portal.ko
+
+
+# Enable MALI_BIFROST_DEBUG for KUTF modules support
+
 config UNIT_TEST_KERNEL_MODULES
-	bool
-	default y if UNIT_TEST_CODE && BACKEND_KERNEL
-	default n
-
-config BUILD_IPA_TESTS
-	bool
-	default y if UNIT_TEST_KERNEL_MODULES && MALI_BIFROST_DEVFREQ
-	default n
-
-config BUILD_IPA_UNIT_TESTS
-	bool
-	default y if NO_MALI && BUILD_IPA_TESTS
-	default n
-
-config BUILD_CSF_TESTS
-	bool
-	default y if UNIT_TEST_KERNEL_MODULES && GPU_HAS_CSF
-	default n
-
-config BUILD_ARBIF_TESTS
-	bool
-	default y if UNIT_TEST_CODE && MALI_ARBITER_SUPPORT
-	default n
-
-config BUILD_ARBIF_KERNEL_TESTS
-	bool
-	default y if BUILD_KERNEL_MODULES && BUILD_ARBIF_TESTS
-	default n
+       bool
+       default y if UNIT_TEST_CODE && BACKEND_KERNEL
+       default n

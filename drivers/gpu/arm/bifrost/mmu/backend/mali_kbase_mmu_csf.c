@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -28,7 +28,7 @@
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_as_fault_debugfs.h>
-#include "../mali_kbase_mmu_internal.h"
+#include <mmu/mali_kbase_mmu_internal.h>
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut,
 		struct kbase_mmu_setup * const setup)
@@ -483,6 +483,15 @@ static void kbase_mmu_gpu_fault_worker(struct work_struct *data)
 	kbase_ctx_sched_release_ctx_lock(kctx);
 
 	atomic_dec(&kbdev->faults_pending);
+
+	/* A work for GPU fault is complete.
+	 * Till reaching here, no further GPU fault will be reported.
+	 * Now clear the GPU fault to allow next GPU fault interrupt report.
+	 */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
+			GPU_COMMAND_CLEAR_FAULT);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
 /**

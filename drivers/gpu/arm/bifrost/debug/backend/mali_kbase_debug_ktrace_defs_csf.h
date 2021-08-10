@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
@@ -43,9 +43,14 @@
  * ringbuffer RBUF (mali_trace) between csi and info_val, which is empty
  * for non-kcpu related traces, and usually displays the KCPU Queue ID and
  * an extra information value. ftrace also displays these KCPU traces.
+ *
+ * 1.3:
+ * Add a lot of extra new traces. Tweak some existing scheduler related traces
+ * to contain extra information information/happen at slightly different times.
+ * SCHEDULER_EXIT_PROTM now has group information
  */
 #define KBASE_KTRACE_VERSION_MAJOR 1
-#define KBASE_KTRACE_VERSION_MINOR 2
+#define KBASE_KTRACE_VERSION_MINOR 3
 
 /* indicates if the trace message has valid queue-group related info. */
 #define KBASE_KTRACE_FLAG_CSF_GROUP     (((kbase_ktrace_flag_t)1) << 0)

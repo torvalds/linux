@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -27,9 +27,9 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <mali_kbase_hwaccess_jm.h>
-#include <mali_kbase_irq_internal.h>
+#include <backend/gpu/mali_kbase_irq_internal.h>
 #include <mali_kbase_hwcnt_context.h>
-#include <mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_pm_internal.h>
 #include <tl/mali_kbase_tracepoints.h>
 #include <mali_kbase_gpuprops.h>
 
@@ -37,6 +37,7 @@
  * after the following time (in milliseconds) has ellapsed.
  */
 #define GPU_REQUEST_TIMEOUT 1000
+#define KHZ_TO_HZ 1000
 
 #define MAX_L2_SLICES_MASK		0xFF
 
@@ -528,8 +529,16 @@ int kbase_arbiter_pm_gpu_assigned(struct kbase_device *kbdev)
 static void kbase_arbiter_pm_vm_gpu_start(struct kbase_device *kbdev)
 {
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
+	bool freq_updated = false;
 
 	lockdep_assert_held(&arb_vm_state->vm_state_lock);
+	mutex_lock(&kbdev->arb.arb_freq.arb_freq_lock);
+	if (kbdev->arb.arb_freq.freq_updated) {
+		kbdev->arb.arb_freq.freq_updated = false;
+		freq_updated = true;
+	}
+	mutex_unlock(&kbdev->arb.arb_freq.arb_freq_lock);
+
 	cancel_request_timer(kbdev);
 	switch (arb_vm_state->vm_state) {
 	case KBASE_VM_STATE_INITIALIZING:
@@ -555,9 +564,16 @@ static void kbase_arbiter_pm_vm_gpu_start(struct kbase_device *kbdev)
 		kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_SUSPENDED);
 		break;
 	default:
-		dev_warn(kbdev->dev,
-			"GPU_GRANTED when not expected - state %s\n",
-			kbase_arbiter_pm_vm_state_str(arb_vm_state->vm_state));
+		/*
+		 * GPU_GRANTED can be received when there is a frequency update
+		 * Only show a warning if received in an unexpected state
+		 * without a frequency update
+		 */
+		if (!freq_updated)
+			dev_warn(kbdev->dev,
+				"GPU_GRANTED when not expected - state %s\n",
+				kbase_arbiter_pm_vm_state_str(
+					arb_vm_state->vm_state));
 		break;
 	}
 }
@@ -1005,13 +1021,25 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
  * kbase_arbiter_pm_update_gpu_freq() - Updates GPU clock frequency received
  * from arbiter.
  * @arb_freq - Pointer to struchture holding GPU clock frequenecy data
- * @freq - New frequency value
+ * @freq - New frequency value in KHz
  */
 void kbase_arbiter_pm_update_gpu_freq(struct kbase_arbiter_freq *arb_freq,
-		uint32_t freq)
+	uint32_t freq)
 {
+	struct kbase_gpu_clk_notifier_data ndata;
+
 	mutex_lock(&arb_freq->arb_freq_lock);
-	arb_freq->arb_freq = freq;
+	if (arb_freq->arb_freq != freq) {
+		ndata.new_rate = freq * KHZ_TO_HZ;
+		ndata.old_rate = arb_freq->arb_freq * KHZ_TO_HZ;
+		ndata.gpu_clk_handle = arb_freq;
+		arb_freq->arb_freq = freq;
+		arb_freq->freq_updated = true;
+		if (arb_freq->nb)
+			arb_freq->nb->notifier_call(arb_freq->nb,
+						    POST_RATE_CHANGE, &ndata);
+	}
+
 	mutex_unlock(&arb_freq->arb_freq_lock);
 }
 
@@ -1046,14 +1074,64 @@ static unsigned long get_arb_gpu_clk_rate(struct kbase_device *kbdev,
 			(struct kbase_arbiter_freq *) gpu_clk_handle;
 
 	mutex_lock(&arb_dev_freq->arb_freq_lock);
-	freq = arb_dev_freq->arb_freq;
+	/* Convert from KHz to Hz */
+	freq = arb_dev_freq->arb_freq * KHZ_TO_HZ;
 	mutex_unlock(&arb_dev_freq->arb_freq_lock);
 	return freq;
+}
+
+/**
+ * arb_gpu_clk_notifier_register() - Register a clock rate change notifier.
+ * @kbdev          - kbase_device pointer
+ * @gpu_clk_handle - Handle unique to the enumerated GPU clock
+ * @nb             - notifier block containing the callback function pointer
+ *
+ * Returns 0 on success, negative error code otherwise.
+ *
+ * This function registers a callback function that is invoked whenever the
+ * frequency of the clock corresponding to @gpu_clk_handle changes.
+ */
+static int arb_gpu_clk_notifier_register(struct kbase_device *kbdev,
+	void *gpu_clk_handle, struct notifier_block *nb)
+{
+	int ret = 0;
+	struct kbase_arbiter_freq *arb_dev_freq =
+		(struct kbase_arbiter_freq *)gpu_clk_handle;
+
+	if (!arb_dev_freq->nb)
+		arb_dev_freq->nb = nb;
+	else
+		ret = -EBUSY;
+
+	return ret;
+}
+
+/**
+ * gpu_clk_notifier_unregister() - Unregister clock rate change notifier
+ * @kbdev          - kbase_device pointer
+ * @gpu_clk_handle - Handle unique to the enumerated GPU clock
+ * @nb             - notifier block containing the callback function pointer
+ *
+ * This function pointer is used to unregister a callback function that
+ * was previously registered to get notified of a frequency change of the
+ * clock corresponding to @gpu_clk_handle.
+ */
+static void arb_gpu_clk_notifier_unregister(struct kbase_device *kbdev,
+	void *gpu_clk_handle, struct notifier_block *nb)
+{
+	struct kbase_arbiter_freq *arb_dev_freq =
+		(struct kbase_arbiter_freq *)gpu_clk_handle;
+	if (arb_dev_freq->nb == nb) {
+		arb_dev_freq->nb = NULL;
+	} else {
+		dev_err(kbdev->dev, "%s - notifier did not match\n",
+			 __func__);
+	}
 }
 
 struct kbase_clk_rate_trace_op_conf arb_clk_rate_trace_ops = {
 	.get_gpu_clk_rate = get_arb_gpu_clk_rate,
 	.enumerate_gpu_clk = enumerate_arb_gpu_clk,
-	.gpu_clk_notifier_register = NULL,
-	.gpu_clk_notifier_unregister = NULL
+	.gpu_clk_notifier_register = arb_gpu_clk_notifier_register,
+	.gpu_clk_notifier_unregister = arb_gpu_clk_notifier_unregister
 };

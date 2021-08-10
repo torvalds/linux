@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2014-2016, 2018-2021 ARM Limited. All rights reserved.
@@ -76,9 +76,6 @@ void kbase_backend_get_gpu_time_norequest(struct kbase_device *kbdev,
  */
 static bool timedwait_cycle_count_active(struct kbase_device *kbdev)
 {
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	return true;
-#else
 	bool success = false;
 	const unsigned int timeout = 100;
 	const unsigned long remaining = jiffies + msecs_to_jiffies(timeout);
@@ -91,7 +88,6 @@ static bool timedwait_cycle_count_active(struct kbase_device *kbdev)
 		}
 	}
 	return success;
-#endif
 }
 #endif
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -19,9 +19,9 @@
  *
  */
 
-#include "../mali_kbase_tracepoints.h"
-#include "../mali_kbase_timeline.h"
-#include "../mali_kbase_timeline_priv.h"
+#include <tl/mali_kbase_tracepoints.h>
+#include <tl/mali_kbase_timeline.h>
+#include <tl/mali_kbase_timeline_priv.h>
 
 #include <mali_kbase.h>
 

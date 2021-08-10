@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -28,7 +28,7 @@
 #include <mali_kbase_hwaccess_jm.h>
 #include <device/mali_kbase_device.h>
 #include <mali_kbase_as_fault_debugfs.h>
-#include "../mali_kbase_mmu_internal.h"
+#include <mmu/mali_kbase_mmu_internal.h>
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut,
 		struct kbase_mmu_setup * const setup)

@@ -67,6 +67,9 @@
 #define PWR_OVERRIDE1           0x058   /* (RW) Power manager override settings */
 #define GPU_FEATURES_LO         0x060   /* (RO) GPU features, low word */
 #define GPU_FEATURES_HI         0x064   /* (RO) GPU features, high word */
+#define PRFCNT_FEATURES         0x068   /* (RO) Performance counter features */
+#define TIMESTAMP_OFFSET_LO     0x088   /* (RW) Global time stamp offset, low word */
+#define TIMESTAMP_OFFSET_HI     0x08C   /* (RW) Global time stamp offset, high word */
 #define CYCLE_COUNT_LO          0x090   /* (RO) Cycle counter, low word */
 #define CYCLE_COUNT_HI          0x094   /* (RO) Cycle counter, high word */
 #define TIMESTAMP_LO            0x098   /* (RO) Global time stamp counter, low word */
@@ -284,6 +287,13 @@
 #define AS_FAULTSTATUS_SOURCE_ID_MASK (0xFFFF << AS_FAULTSTATUS_SOURCE_ID_SHIFT)
 #define AS_FAULTSTATUS_SOURCE_ID_GET(reg_val) \
 	(((reg_val)&AS_FAULTSTATUS_SOURCE_ID_MASK) >> AS_FAULTSTATUS_SOURCE_ID_SHIFT)
+
+#define PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_SHIFT (0)
+#define PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_MASK                                \
+	((0xFF) << PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_SHIFT)
+#define PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_GET(reg_val)                        \
+	(((reg_val)&PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_MASK) >>                \
+	 PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_SHIFT)
 
 /*
  * Begin MMU TRANSCFG register values

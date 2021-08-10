@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -240,7 +240,7 @@ void kbasep_ktrace_dump(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->ktrace.lock, flags);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 struct trace_seq_state {
 	struct kbase_ktrace_msg trace_buf[KBASE_KTRACE_SIZE];
 	u32 start;
@@ -348,7 +348,7 @@ void kbase_ktrace_debugfs_init(struct kbase_device *kbdev)
 
 #else /* KBASE_KTRACE_TARGET_RBUF  */
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 void kbase_ktrace_debugfs_init(struct kbase_device *kbdev)
 {
 	CSTD_UNUSED(kbdev);

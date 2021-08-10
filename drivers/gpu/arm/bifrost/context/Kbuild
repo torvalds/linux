@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2013, 2016-2017, 2020-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -18,12 +18,10 @@
 #
 #
 
-config CONFIG_MALI_CLK_RATE_TRACE_PORTAL
- tristate "Mali GPU Clock Trace Test portal"
- depends on MALI_BIFROST && MALI_BIFROST_DEBUG && MALI_KUTF
- default m
- help
-   This option will build a test module mali_kutf_clk_rate_trace_test_portal
-   that can test the clocks integration into the platform and exercise some
-   basic trace test in the system. Choosing M here will generate a single
-   module called mali_kutf_clk_rate_trace_test_portal.
+bifrost_kbase-y += context/mali_kbase_context.o
+
+ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
+    bifrost_kbase-y += context/backend/mali_kbase_context_csf.o
+else
+    bifrost_kbase-y += context/backend/mali_kbase_context_jm.o
+endif

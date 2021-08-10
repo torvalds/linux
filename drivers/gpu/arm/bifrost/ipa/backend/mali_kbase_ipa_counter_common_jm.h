@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2017-2018, 2020-2021 ARM Limited. All rights reserved.
@@ -41,7 +41,8 @@
 
 struct kbase_ipa_model_vinstr_data;
 
-typedef u32 (*kbase_ipa_get_active_cycles_callback)(struct kbase_ipa_model_vinstr_data *);
+typedef u32
+kbase_ipa_get_active_cycles_callback(struct kbase_ipa_model_vinstr_data *);
 
 /**
  * struct kbase_ipa_model_vinstr_data - IPA context per device
@@ -73,7 +74,7 @@ struct kbase_ipa_model_vinstr_data {
 	s32 group_values[KBASE_IPA_MAX_GROUP_DEF_NUM];
 	const struct kbase_ipa_group *groups_def;
 	size_t groups_def_num;
-	kbase_ipa_get_active_cycles_callback get_active_cycles;
+	kbase_ipa_get_active_cycles_callback *get_active_cycles;
 	struct kbase_hwcnt_virtualizer_client *hvirt_cli;
 	struct kbase_hwcnt_dump_buffer dump_buf;
 	s32 reference_voltage;
@@ -215,7 +216,7 @@ void kbase_ipa_vinstr_reset_data(struct kbase_ipa_model *model);
 int kbase_ipa_vinstr_common_model_init(struct kbase_ipa_model *model,
 				       const struct kbase_ipa_group *ipa_groups_def,
 				       size_t ipa_group_size,
-				       kbase_ipa_get_active_cycles_callback get_active_cycles,
+				       kbase_ipa_get_active_cycles_callback *get_active_cycles,
 				       s32 reference_voltage);
 
 /**

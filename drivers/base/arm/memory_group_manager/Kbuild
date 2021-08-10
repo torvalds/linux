@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
 # (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
 #
@@ -18,4 +18,6 @@
 #
 #
 
-obj-$(CONFIG_MALI_MEMORY_GROUP_MANAGER) := memory_group_manager.o
+ifeq ($(CONFIG_MALI_MEMORY_GROUP_MANAGER), y)
+obj-m := memory_group_manager.o
+endif

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -19,8 +19,8 @@
  *
  */
 
-#include "../mali_kbase_device_internal.h"
-#include "../mali_kbase_device.h"
+#include <device/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_hwcnt_backend_csf_if_fw.h>
@@ -29,40 +29,33 @@
 #include <csf/mali_kbase_csf.h>
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-#include <mali_kbase_model_linux.h>
-#endif
 
 #include <mali_kbase.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_clk_rate_trace_mgr.h>
+#include <csf/mali_kbase_csf_csg_debugfs.h>
+#include <mali_kbase_hwcnt_virtualizer.h>
+#include <mali_kbase_vinstr.h>
 
-static void kbase_device_csf_firmware_term(struct kbase_device *kbdev)
+/**
+ * kbase_device_firmware_hwcnt_term - Terminate CSF firmware and HWC
+ *
+ * @kbdev: An instance of the GPU platform device, allocated from the probe
+ *         method of the driver.
+ *
+ * When a kbase driver is removed, terminate CSF firmware and hardware counter
+ * components.
+ */
+static void kbase_device_firmware_hwcnt_term(struct kbase_device *kbdev)
 {
-	kbase_csf_firmware_term(kbdev);
-}
-
-static int kbase_device_csf_firmware_init(struct kbase_device *kbdev)
-{
-	int err = kbase_csf_firmware_init(kbdev);
-
-	if (!err) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-		kbdev->pm.backend.mcu_state = KBASE_MCU_ON;
-		kbdev->csf.firmware_inited = true;
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	if (kbdev->csf.firmware_inited) {
+		kbase_vinstr_term(kbdev->vinstr_ctx);
+		kbase_hwcnt_virtualizer_term(kbdev->hwcnt_gpu_virt);
+		kbase_hwcnt_backend_csf_metadata_term(&kbdev->hwcnt_gpu_iface);
+		kbase_csf_firmware_term(kbdev);
 	}
-
-	/* Post firmware init, idle condition is restored. Note this is
-	 * a deferral action step from the late init stage for CSF.
-	 */
-	kbase_pm_context_idle(kbdev);
-
-	return err;
 }
 
 /**
@@ -128,7 +121,9 @@ static int kbase_backend_late_init(struct kbase_device *kbdev)
 
 	init_waitqueue_head(&kbdev->hwaccess.backend.reset_wait);
 
-	/* kbase_pm_context_idle is called after the boot of firmware */
+	kbase_pm_context_idle(kbdev);
+
+	mutex_init(&kbdev->fw_load_lock);
 
 	return 0;
 
@@ -169,6 +164,33 @@ static void kbase_backend_late_term(struct kbase_device *kbdev)
 	kbase_hwaccess_pm_halt(kbdev);
 	kbase_reset_gpu_term(kbdev);
 	kbase_hwaccess_pm_term(kbdev);
+}
+
+/**
+ * kbase_csf_early_init - Early initialization for firmware & scheduler.
+ * @kbdev:	Device pointer
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+static int kbase_csf_early_init(struct kbase_device *kbdev)
+{
+	int err = kbase_csf_firmware_early_init(kbdev);
+
+	if (err)
+		return err;
+
+	err = kbase_csf_scheduler_early_init(kbdev);
+
+	return err;
+}
+
+/**
+ * kbase_csf_early_init - Early termination for firmware & scheduler.
+ * @kbdev:	Device pointer
+ */
+static void kbase_csf_early_term(struct kbase_device *kbdev)
+{
+	kbase_csf_scheduler_early_term(kbdev);
 }
 
 /**
@@ -214,96 +236,52 @@ static void kbase_device_hwcnt_backend_csf_term(struct kbase_device *kbdev)
 	kbase_hwcnt_backend_csf_destroy(&kbdev->hwcnt_gpu_iface);
 }
 
-/**
- * kbase_device_hwcnt_backend_csf_metadata_init - Initialize hardware counter
- *                                                metadata.
- * @kbdev:	Device pointer
- */
-static int
-kbase_device_hwcnt_backend_csf_metadata_init(struct kbase_device *kbdev)
-{
-	/* For CSF GPUs, HWC metadata needs to query information from CSF
-	 * firmware, so the initialization of HWC metadata only can be called
-	 * after firmware initialized, but firmware initialization depends on
-	 * HWC backend initialization, so we need to separate HWC backend
-	 * metadata initialization from HWC backend initialization.
-	 */
-	return kbase_hwcnt_backend_csf_metadata_init(&kbdev->hwcnt_gpu_iface);
-}
-
-/**
- * kbase_device_hwcnt_backend_csf_metadata_term - Terminate hardware counter
- *                                                metadata.
- * @kbdev:	Device pointer
- */
-static void
-kbase_device_hwcnt_backend_csf_metadata_term(struct kbase_device *kbdev)
-{
-	kbase_hwcnt_backend_csf_metadata_term(&kbdev->hwcnt_gpu_iface);
-}
-
 static const struct kbase_device_init dev_init[] = {
-#ifdef CONFIG_MALI_BIFROST_NO_MALI
-	{kbase_gpu_device_create, kbase_gpu_device_destroy,
-			"Dummy model initialization failed"},
-#else
-	{assign_irqs, NULL,
-			"IRQ search failed"},
-	{registers_map, registers_unmap,
-			"Register map failed"},
-#endif
-	{power_control_init, power_control_term,
-			"Power control initialization failed"},
-	{kbase_device_io_history_init, kbase_device_io_history_term,
-			"Register access history initialization failed"},
-	{kbase_device_early_init, kbase_device_early_term,
-			"Early device initialization failed"},
-	{kbase_device_populate_max_freq, NULL,
-			"Populating max frequency failed"},
-	{kbase_device_misc_init, kbase_device_misc_term,
-			"Miscellaneous device initialization failed"},
-	{kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
-			"Priority control manager initialization failed"},
-	{kbase_ctx_sched_init, kbase_ctx_sched_term,
-			"Context scheduler initialization failed"},
-	{kbase_mem_init, kbase_mem_term,
-			"Memory subsystem initialization failed"},
-	{kbase_csf_protected_memory_init, kbase_csf_protected_memory_term,
-			"Protected memory allocator initialization failed"},
-	{kbase_device_coherency_init, NULL,
-			"Device coherency init failed"},
-	{kbase_protected_mode_init, kbase_protected_mode_term,
-			"Protected mode subsystem initialization failed"},
-	{kbase_device_list_init, kbase_device_list_term,
-			"Device list setup failed"},
-	{kbase_device_timeline_init, kbase_device_timeline_term,
-			"Timeline stream initialization failed"},
-	{kbase_clk_rate_trace_manager_init,
-			kbase_clk_rate_trace_manager_term,
-			"Clock rate trace manager initialization failed"},
-	{kbase_device_hwcnt_backend_csf_if_init,
-			kbase_device_hwcnt_backend_csf_if_term,
-			"GPU hwcnt backend CSF interface creation failed"},
-	{kbase_device_hwcnt_backend_csf_init,
-			kbase_device_hwcnt_backend_csf_term,
-			"GPU hwcnt backend creation failed"},
-	{kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
-			"GPU hwcnt context initialization failed"},
-	{kbase_backend_late_init, kbase_backend_late_term,
-			"Late backend initialization failed"},
-	{kbase_device_csf_firmware_init, kbase_device_csf_firmware_term,
-			"Firmware initialization failed"},
-	{kbase_device_hwcnt_backend_csf_metadata_init,
-			kbase_device_hwcnt_backend_csf_metadata_term,
-			"GPU hwcnt backend metadata creation failed"},
-	{kbase_device_hwcnt_virtualizer_init,
-			kbase_device_hwcnt_virtualizer_term,
-			"GPU hwcnt virtualizer initialization failed"},
-	{kbase_device_vinstr_init, kbase_device_vinstr_term,
-			"Virtual instrumentation initialization failed"},
+	{ assign_irqs, NULL, "IRQ search failed" },
+	{ registers_map, registers_unmap, "Register map failed" },
+	{ power_control_init, power_control_term,
+	  "Power control initialization failed" },
+	{ kbase_device_io_history_init, kbase_device_io_history_term,
+	  "Register access history initialization failed" },
+	{ kbase_device_early_init, kbase_device_early_term,
+	  "Early device initialization failed" },
+	{ kbase_device_populate_max_freq, NULL,
+	  "Populating max frequency failed" },
+	{ kbase_device_misc_init, kbase_device_misc_term,
+	  "Miscellaneous device initialization failed" },
+	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
+	  "Priority control manager initialization failed" },
+	{ kbase_ctx_sched_init, kbase_ctx_sched_term,
+	  "Context scheduler initialization failed" },
+	{ kbase_mem_init, kbase_mem_term,
+	  "Memory subsystem initialization failed" },
+	{ kbase_csf_protected_memory_init, kbase_csf_protected_memory_term,
+	  "Protected memory allocator initialization failed" },
+	{ kbase_device_coherency_init, NULL, "Device coherency init failed" },
+	{ kbase_protected_mode_init, kbase_protected_mode_term,
+	  "Protected mode subsystem initialization failed" },
+	{ kbase_device_list_init, kbase_device_list_term,
+	  "Device list setup failed" },
+	{ kbase_device_timeline_init, kbase_device_timeline_term,
+	  "Timeline stream initialization failed" },
+	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
+	  "Clock rate trace manager initialization failed" },
+	{ kbase_device_hwcnt_backend_csf_if_init,
+	  kbase_device_hwcnt_backend_csf_if_term,
+	  "GPU hwcnt backend CSF interface creation failed" },
+	{ kbase_device_hwcnt_backend_csf_init,
+	  kbase_device_hwcnt_backend_csf_term,
+	  "GPU hwcnt backend creation failed" },
+	{ kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
+	  "GPU hwcnt context initialization failed" },
+	{ kbase_backend_late_init, kbase_backend_late_term,
+	  "Late backend initialization failed" },
+	{ kbase_csf_early_init, kbase_csf_early_term,
+	  "Early CSF initialization failed" },
+	{ NULL, kbase_device_firmware_hwcnt_term, NULL },
 #ifdef MALI_KBASE_BUILD
-	{kbase_device_debugfs_init, kbase_device_debugfs_term,
-			"DebugFS initialization failed"},
+	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
+	  "DebugFS initialization failed" },
 	/* Sysfs init needs to happen before registering the device with
 	 * misc_register(), otherwise it causes a race condition between
 	 * registering the device and a uevent event being generated for
@@ -316,12 +294,13 @@ static const struct kbase_device_init dev_init[] = {
 	 * paragraph that starts with "Word of warning", currently the
 	 * second-last paragraph.
 	 */
-	{kbase_sysfs_init, kbase_sysfs_term,
-			"SysFS group creation failed"},
-	{kbase_device_misc_register, kbase_device_misc_deregister,
-			"Misc device registration failed"},
-	{kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
-			"GPU property population failed"},
+	{ kbase_sysfs_init, kbase_sysfs_term, "SysFS group creation failed" },
+	{ kbase_device_misc_register, kbase_device_misc_deregister,
+	  "Misc device registration failed" },
+	{ kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
+	  "GPU property population failed" },
+	{ kbase_device_late_init, kbase_device_late_term,
+	  "Late device initialization failed" },
 #endif
 };
 
@@ -352,14 +331,134 @@ int kbase_device_init(struct kbase_device *kbdev)
 	kbase_disjoint_init(kbdev);
 
 	for (i = 0; i < ARRAY_SIZE(dev_init); i++) {
-		err = dev_init[i].init(kbdev);
-		if (err) {
-			dev_err(kbdev->dev, "%s error = %d\n",
-						dev_init[i].err_mes, err);
-			kbase_device_term_partial(kbdev, i);
-			break;
+		if (dev_init[i].init) {
+			err = dev_init[i].init(kbdev);
+			if (err) {
+				dev_err(kbdev->dev, "%s error = %d\n",
+					dev_init[i].err_mes, err);
+				kbase_device_term_partial(kbdev, i);
+				break;
+			}
 		}
 	}
 
 	return err;
+}
+
+/**
+ * kbase_device_hwcnt_csf_deferred_init - Initialize CSF deferred HWC components
+ *
+ * @kbdev: An instance of the GPU platform device, allocated from the probe
+ *         method of the driver.
+ *
+ * Hardware counter components depending on firmware are initialized after CSF
+ * firmware is loaded.
+ *
+ * @return 0 on success. An error code on failure.
+ */
+static int kbase_device_hwcnt_csf_deferred_init(struct kbase_device *kbdev)
+{
+	int ret = 0;
+
+	/* For CSF GPUs, HWC metadata needs to query information from CSF
+	 * firmware, so the initialization of HWC metadata only can be called
+	 * after firmware initialized, but firmware initialization depends on
+	 * HWC backend initialization, so we need to separate HWC backend
+	 * metadata initialization from HWC backend initialization.
+	 */
+	ret = kbase_hwcnt_backend_csf_metadata_init(&kbdev->hwcnt_gpu_iface);
+	if (ret) {
+		dev_err(kbdev->dev,
+			"GPU hwcnt backend metadata creation failed");
+		return ret;
+	}
+
+	ret = kbase_hwcnt_virtualizer_init(
+		kbdev->hwcnt_gpu_ctx,
+		KBASE_HWCNT_GPU_VIRTUALIZER_DUMP_THRESHOLD_NS,
+		&kbdev->hwcnt_gpu_virt);
+	if (ret) {
+		dev_err(kbdev->dev,
+			"GPU hwcnt virtualizer initialization failed");
+		goto virt_fail;
+	}
+
+	ret = kbase_vinstr_init(kbdev->hwcnt_gpu_virt, &kbdev->vinstr_ctx);
+	if (ret) {
+		dev_err(kbdev->dev,
+			"Virtual instrumentation initialization failed");
+		goto vinstr_fail;
+	}
+
+	return ret;
+
+vinstr_fail:
+	kbase_hwcnt_virtualizer_term(kbdev->hwcnt_gpu_virt);
+
+virt_fail:
+	kbase_hwcnt_backend_csf_metadata_term(&kbdev->hwcnt_gpu_iface);
+	return ret;
+}
+
+/**
+ * kbase_csf_firmware_deferred_init - Load and initialize CSF firmware
+ *
+ * @kbdev: An instance of the GPU platform device, allocated from the probe
+ *         method of the driver.
+ *
+ * Called when a device file is opened for the first time.
+ * To meet Android GKI vendor guideline, firmware load is deferred at
+ * the time when @ref kbase_open is called for the first time.
+ *
+ * @return 0 on success. An error code on failure.
+ */
+static int kbase_csf_firmware_deferred_init(struct kbase_device *kbdev)
+{
+	int err = 0;
+
+	lockdep_assert_held(&kbdev->fw_load_lock);
+
+	kbase_pm_context_active(kbdev);
+
+	err = kbase_csf_firmware_init(kbdev);
+	if (!err) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		kbdev->pm.backend.mcu_state = KBASE_MCU_ON;
+		kbdev->csf.firmware_inited = true;
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	} else {
+		dev_err(kbdev->dev, "Firmware initialization failed");
+	}
+
+	kbase_pm_context_idle(kbdev);
+
+	return err;
+}
+
+int kbase_device_firmware_init_once(struct kbase_device *kbdev)
+{
+	int ret = 0;
+
+	mutex_lock(&kbdev->fw_load_lock);
+
+	if (!kbdev->csf.firmware_inited) {
+		ret = kbase_csf_firmware_deferred_init(kbdev);
+		if (ret)
+			goto out;
+
+		ret = kbase_device_hwcnt_csf_deferred_init(kbdev);
+		if (ret) {
+			kbase_csf_firmware_term(kbdev);
+			goto out;
+		}
+
+		kbase_csf_debugfs_init(kbdev);
+	}
+
+out:
+	mutex_unlock(&kbdev->fw_load_lock);
+
+	return ret;
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
@@ -81,7 +81,7 @@ static int kbase_js_get_slot(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
 
 static void kbase_js_foreach_ctx_job(struct kbase_context *kctx,
-		kbasep_js_ctx_job_cb callback);
+				     kbasep_js_ctx_job_cb *callback);
 
 /* Helper for ktrace */
 #if KBASE_KTRACE_ENABLE
@@ -212,9 +212,8 @@ jsctx_rb_none_to_pull(struct kbase_context *kctx, int js)
  *
  * The HW access lock must always be held when calling this function.
  */
-static void
-jsctx_queue_foreach_prio(struct kbase_context *kctx, int js, int prio,
-		kbasep_js_ctx_job_cb callback)
+static void jsctx_queue_foreach_prio(struct kbase_context *kctx, int js,
+				     int prio, kbasep_js_ctx_job_cb *callback)
 {
 	struct jsctx_queue *queue = &kctx->jsctx_queue[prio][js];
 
@@ -273,9 +272,8 @@ jsctx_queue_foreach_prio(struct kbase_context *kctx, int js, int prio,
  * jsctx_queue_foreach_prio() to iterate over the queue and invoke @callback
  * for each entry, and remove the entry from the queue.
  */
-static inline void
-jsctx_queue_foreach(struct kbase_context *kctx, int js,
-		kbasep_js_ctx_job_cb callback)
+static inline void jsctx_queue_foreach(struct kbase_context *kctx, int js,
+				       kbasep_js_ctx_job_cb *callback)
 {
 	int prio;
 
@@ -3788,7 +3786,7 @@ static inline int trace_get_refcnt(struct kbase_device *kbdev,
  * - it will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  */
 static void kbase_js_foreach_ctx_job(struct kbase_context *kctx,
-		kbasep_js_ctx_job_cb callback)
+				     kbasep_js_ctx_job_cb *callback)
 {
 	struct kbase_device *kbdev;
 	unsigned long flags;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
@@ -30,7 +30,7 @@
 #include <mali_kbase_config_defaults.h>
 #include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 #include <linux/clk.h>
-#include <mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_pm_internal.h>
 #include <linux/of_platform.h>
 #include <linux/moduleparam.h>
 
@@ -531,6 +531,14 @@ static int num_override_l2_hash_values;
 module_param_array(l2_hash_values, uint, &num_override_l2_hash_values, 0000);
 MODULE_PARM_DESC(l2_hash_values, "Override L2 hash values config for testing");
 
+/* Definitions for range of supported user defined hash functions for GPUs
+ * that support L2_CONFIG and not ASN_HASH features. Supported hash function
+ * range from 0b1000-0b1111 inclusive. Selection of any other values will
+ * lead to undefined behavior.
+ */
+#define USER_DEFINED_HASH_LO ((u8)0x08)
+#define USER_DEFINED_HASH_HI ((u8)0x0F)
+
 enum l2_config_override_result {
 	L2_CONFIG_OVERRIDE_FAIL = -1,
 	L2_CONFIG_OVERRIDE_NONE,
@@ -562,7 +570,11 @@ kbase_read_l2_config_from_dt(struct kbase_device *const kbdev)
 	else if (of_property_read_u8(np, "l2-size", &kbdev->l2_size_override))
 		kbdev->l2_size_override = 0;
 
-	if (override_l2_hash)
+	/* Check overriding value is supported, if not will result in
+	 * undefined behavior.
+	 */
+	if (override_l2_hash >= USER_DEFINED_HASH_LO &&
+	    override_l2_hash <= USER_DEFINED_HASH_HI)
 		kbdev->l2_hash_override = override_l2_hash;
 	else if (of_property_read_u8(np, "l2-hash", &kbdev->l2_hash_override))
 		kbdev->l2_hash_override = 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -28,7 +28,7 @@
 
 #include <mali_kbase_hwaccess_pm.h>
 
-#include "mali_kbase_pm_ca.h"
+#include "backend/gpu/mali_kbase_pm_ca.h"
 #include "mali_kbase_pm_policy.h"
 
 
@@ -263,8 +263,10 @@ int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
  * because this function will take that lock itself.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 on success, error code on error
  */
-void kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev);
+int kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_update_dynamic_cores_onoff - Update the L2 and shader power state

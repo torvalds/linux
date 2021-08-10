@@ -15,10 +15,11 @@
 
 What:		/sys/class/misc/mali%u/device/core_mask
 Description:
-		This attribute is used to restrict number of shader core
-		available, is useful for debugging purposes. Reading
-		this attribute provides us mask of cores available.
-		Writing to it will set the current core mask.
+		This attribute is used to restrict the number of shader cores
+		available in this instance, is useful for debugging purposes.
+		Reading this attribute provides us mask of all cores available.
+		Writing to it will set the current core mask. Doesn't
+		allow disabling all the cores present in this instance.
 
 What:		/sys/class/misc/mali%u/device/debug_command
 Description:
@@ -42,6 +43,14 @@ Description:
 
 		Its a readonly attribute and on reading gives details on the
 		options used with the dummy workaround.
+
+What:		/sys/class/misc/mali%u/device/fw_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute is
+		used to set the duration value in milliseconds for the
+		waiting timeout used for a GPU status change request being
+		acknowledged by the FW.
 
 What:		/sys/class/misc/mali%u/device/gpuinfo
 Description:

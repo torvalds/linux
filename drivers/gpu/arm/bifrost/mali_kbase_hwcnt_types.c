@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,20 +22,6 @@
 #include "mali_kbase_hwcnt_types.h"
 
 #include <linux/slab.h>
-
-/* Minimum alignment of each block of hardware counters */
-#define KBASE_HWCNT_BLOCK_BYTE_ALIGNMENT \
-	(KBASE_HWCNT_BITFIELD_BITS * KBASE_HWCNT_VALUE_BYTES)
-
-/**
- * KBASE_HWCNT_ALIGN_UPWARDS() - Align a value to an alignment.
- * @value:     The value to align upwards.
- * @alignment: The alignment.
- *
- * Return: A number greater than or equal to value that is aligned to alignment.
- */
-#define KBASE_HWCNT_ALIGN_UPWARDS(value, alignment) \
-	(value + ((alignment - (value % alignment)) % alignment))
 
 int kbase_hwcnt_metadata_create(
 	const struct kbase_hwcnt_description *desc,

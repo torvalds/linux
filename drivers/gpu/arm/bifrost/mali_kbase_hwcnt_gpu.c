@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -25,13 +25,6 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 
-#define KBASE_HWCNT_V5_BLOCK_TYPE_COUNT 4
-#define KBASE_HWCNT_V5_HEADERS_PER_BLOCK 4
-#define KBASE_HWCNT_V5_COUNTERS_PER_BLOCK 60
-#define KBASE_HWCNT_V5_VALUES_PER_BLOCK \
-	(KBASE_HWCNT_V5_HEADERS_PER_BLOCK + KBASE_HWCNT_V5_COUNTERS_PER_BLOCK)
-/* Index of the PRFCNT_EN header into a V5 counter block */
-#define KBASE_HWCNT_V5_PRFCNT_EN_HEADER 2
 
 static void kbasep_get_fe_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 				     bool is_csf)
@@ -160,19 +153,22 @@ static int kbasep_hwcnt_backend_gpu_metadata_create(
 	kbasep_get_fe_block_type(&blks[0].type, counter_set, is_csf);
 	blks[0].inst_cnt = 1;
 	blks[0].hdr_cnt = KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
-	blks[0].ctr_cnt = KBASE_HWCNT_V5_COUNTERS_PER_BLOCK;
+	blks[0].ctr_cnt = gpu_info->prfcnt_values_per_block -
+			  KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
 
 	/* One Tiler block */
 	kbasep_get_tiler_block_type(&blks[1].type, counter_set);
 	blks[1].inst_cnt = 1;
 	blks[1].hdr_cnt = KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
-	blks[1].ctr_cnt = KBASE_HWCNT_V5_COUNTERS_PER_BLOCK;
+	blks[1].ctr_cnt = gpu_info->prfcnt_values_per_block -
+			  KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
 
 	/* l2_count memsys blks */
 	kbasep_get_memsys_block_type(&blks[2].type, counter_set);
 	blks[2].inst_cnt = gpu_info->l2_count;
 	blks[2].hdr_cnt = KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
-	blks[2].ctr_cnt = KBASE_HWCNT_V5_COUNTERS_PER_BLOCK;
+	blks[2].ctr_cnt = gpu_info->prfcnt_values_per_block -
+			  KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
 
 	/*
 	 * There are as many shader cores in the system as there are bits set in
@@ -193,7 +189,8 @@ static int kbasep_hwcnt_backend_gpu_metadata_create(
 	kbasep_get_sc_block_type(&blks[3].type, counter_set, is_csf);
 	blks[3].inst_cnt = sc_block_count;
 	blks[3].hdr_cnt = KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
-	blks[3].ctr_cnt = KBASE_HWCNT_V5_COUNTERS_PER_BLOCK;
+	blks[3].ctr_cnt = gpu_info->prfcnt_values_per_block -
+			  KBASE_HWCNT_V5_HEADERS_PER_BLOCK;
 
 	WARN_ON(KBASE_HWCNT_V5_BLOCK_TYPE_COUNT != 4);
 
@@ -226,7 +223,7 @@ kbasep_hwcnt_backend_jm_dump_bytes(const struct kbase_hwcnt_gpu_info *gpu_info)
 	WARN_ON(!gpu_info);
 
 	return (2 + gpu_info->l2_count + fls64(gpu_info->core_mask)) *
-	       KBASE_HWCNT_V5_VALUES_PER_BLOCK * KBASE_HWCNT_VALUE_BYTES;
+	       gpu_info->prfcnt_values_per_block * KBASE_HWCNT_VALUE_BYTES;
 }
 
 int kbase_hwcnt_jm_metadata_create(
@@ -303,6 +300,127 @@ void kbase_hwcnt_csf_metadata_destroy(
 		return;
 
 	kbase_hwcnt_metadata_destroy(metadata);
+}
+
+int kbase_hwcnt_gpu_metadata_create_truncate_64(
+	const struct kbase_hwcnt_metadata **dst_md,
+	const struct kbase_hwcnt_metadata *src_md)
+{
+	struct kbase_hwcnt_description desc;
+	struct kbase_hwcnt_group_description group;
+	struct kbase_hwcnt_block_description
+		blks[KBASE_HWCNT_V5_BLOCK_TYPE_COUNT];
+	size_t prfcnt_values_per_block;
+	size_t blk;
+
+	if (!dst_md || !src_md || !src_md->grp_metadata ||
+	    !src_md->grp_metadata[0].blk_metadata)
+		return -EINVAL;
+
+	/* Only support 1 group count and KBASE_HWCNT_V5_BLOCK_TYPE_COUNT block
+	 * count in the metadata.
+	 */
+	if ((kbase_hwcnt_metadata_group_count(src_md) != 1) ||
+	    (kbase_hwcnt_metadata_block_count(src_md, 0) !=
+	     KBASE_HWCNT_V5_BLOCK_TYPE_COUNT))
+		return -EINVAL;
+
+	/* Get the values count in the first block. */
+	prfcnt_values_per_block =
+		kbase_hwcnt_metadata_block_values_count(src_md, 0, 0);
+
+	/* check all blocks should have same values count. */
+	for (blk = 0; blk < KBASE_HWCNT_V5_BLOCK_TYPE_COUNT; blk++) {
+		size_t val_cnt =
+			kbase_hwcnt_metadata_block_values_count(src_md, 0, blk);
+		if (val_cnt != prfcnt_values_per_block)
+			return -EINVAL;
+	}
+
+	/* Only support 64 and 128 entries per block. */
+	if ((prfcnt_values_per_block != 64) && (prfcnt_values_per_block != 128))
+		return -EINVAL;
+
+	if (prfcnt_values_per_block == 64) {
+		/* If the values per block is 64, no need to truncate. */
+		*dst_md = NULL;
+		return 0;
+	}
+
+	/* Truncate from 128 to 64 entries per block to keep API backward
+	 * compatibility.
+	 */
+	prfcnt_values_per_block = 64;
+
+	for (blk = 0; blk < KBASE_HWCNT_V5_BLOCK_TYPE_COUNT; blk++) {
+		blks[blk].type =
+			kbase_hwcnt_metadata_block_type(src_md, 0, blk);
+		blks[blk].inst_cnt = kbase_hwcnt_metadata_block_instance_count(
+			src_md, 0, blk);
+		blks[blk].hdr_cnt = kbase_hwcnt_metadata_block_headers_count(
+			src_md, 0, blk);
+		blks[blk].ctr_cnt = prfcnt_values_per_block - blks[blk].hdr_cnt;
+	}
+
+	group.type = kbase_hwcnt_metadata_group_type(src_md, 0);
+	group.blk_cnt = KBASE_HWCNT_V5_BLOCK_TYPE_COUNT;
+	group.blks = blks;
+
+	desc.grp_cnt = kbase_hwcnt_metadata_group_count(src_md);
+	desc.avail_mask = src_md->avail_mask;
+	desc.clk_cnt = src_md->clk_cnt;
+	desc.grps = &group;
+
+	return kbase_hwcnt_metadata_create(&desc, dst_md);
+}
+
+void kbase_hwcnt_dump_buffer_copy_strict_narrow(
+	struct kbase_hwcnt_dump_buffer *dst,
+	const struct kbase_hwcnt_dump_buffer *src,
+	const struct kbase_hwcnt_enable_map *dst_enable_map)
+{
+	const struct kbase_hwcnt_metadata *metadata;
+	size_t grp, blk, blk_inst;
+	size_t clk;
+
+	if (WARN_ON(!dst) || WARN_ON(!src) || WARN_ON(!dst_enable_map) ||
+	    WARN_ON(dst == src) || WARN_ON(dst->metadata == src->metadata) ||
+	    WARN_ON(dst->metadata->grp_cnt != src->metadata->grp_cnt) ||
+	    WARN_ON(src->metadata->grp_cnt != 1) ||
+	    WARN_ON(dst->metadata->grp_metadata[0].blk_cnt !=
+		    src->metadata->grp_metadata[0].blk_cnt) ||
+	    WARN_ON(dst->metadata->grp_metadata[0].blk_cnt != 4) ||
+	    WARN_ON(dst->metadata->grp_metadata[0].blk_metadata[0].ctr_cnt >
+		    src->metadata->grp_metadata[0].blk_metadata[0].ctr_cnt))
+		return;
+
+	/* Don't use src metadata since src buffer is bigger than dst buffer. */
+	metadata = dst->metadata;
+
+	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
+		u32 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
+			dst, grp, blk, blk_inst);
+		const u32 *src_blk = kbase_hwcnt_dump_buffer_block_instance(
+			src, grp, blk, blk_inst);
+		const u64 *blk_em = kbase_hwcnt_enable_map_block_instance(
+			dst_enable_map, grp, blk, blk_inst);
+		size_t val_cnt = kbase_hwcnt_metadata_block_values_count(
+			metadata, grp, blk);
+		/* Align upwards to include padding bytes */
+		val_cnt = KBASE_HWCNT_ALIGN_UPWARDS(
+			val_cnt, (KBASE_HWCNT_BLOCK_BYTE_ALIGNMENT /
+				  KBASE_HWCNT_VALUE_BYTES));
+
+		kbase_hwcnt_dump_buffer_block_copy_strict(dst_blk, src_blk,
+							  blk_em, val_cnt);
+	}
+
+	kbase_hwcnt_metadata_for_each_clock(metadata, clk) {
+		bool clk_enabled = kbase_hwcnt_clk_enable_map_enabled(
+			dst_enable_map->clk_enable_map, clk);
+
+		dst->clk_cnt_buf[clk] = clk_enabled ? src->clk_cnt_buf[clk] : 0;
+	}
 }
 
 static bool is_block_type_shader(
@@ -594,15 +712,11 @@ void kbase_hwcnt_gpu_enable_map_to_physical(
 			metadata, grp);
 		const u64 blk_type = kbase_hwcnt_metadata_block_type(
 			metadata, grp, blk);
-		const size_t blk_val_cnt =
-			kbase_hwcnt_metadata_block_values_count(
-				metadata, grp, blk);
 		const u64 *blk_map = kbase_hwcnt_enable_map_block_instance(
 			src, grp, blk, blk_inst);
 
 		if ((enum kbase_hwcnt_gpu_group_type)grp_type ==
 		    KBASE_HWCNT_GPU_GROUP_TYPE_V5) {
-			WARN_ON(blk_val_cnt != KBASE_HWCNT_V5_VALUES_PER_BLOCK);
 			switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
 			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
 				/* Nothing to do in this case. */
@@ -692,15 +806,11 @@ void kbase_hwcnt_gpu_enable_map_from_physical(
 			metadata, grp);
 		const u64 blk_type = kbase_hwcnt_metadata_block_type(
 			metadata, grp, blk);
-		const size_t blk_val_cnt =
-			kbase_hwcnt_metadata_block_values_count(
-				metadata, grp, blk);
 		u64 *blk_map = kbase_hwcnt_enable_map_block_instance(
 			dst, grp, blk, blk_inst);
 
 		if ((enum kbase_hwcnt_gpu_group_type)grp_type ==
 		    KBASE_HWCNT_GPU_GROUP_TYPE_V5) {
-			WARN_ON(blk_val_cnt != KBASE_HWCNT_V5_VALUES_PER_BLOCK);
 			switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
 			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
 				/* Nothing to do in this case. */

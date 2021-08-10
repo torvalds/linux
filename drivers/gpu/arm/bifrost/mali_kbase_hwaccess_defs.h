@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2014, 2016-2018, 2020-2021 ARM Limited. All rights reserved.
@@ -26,7 +26,7 @@
 #ifndef _KBASE_HWACCESS_DEFS_H_
 #define _KBASE_HWACCESS_DEFS_H_
 
-#include <mali_kbase_jm_defs.h>
+#include <backend/gpu/mali_kbase_jm_defs.h>
 
 /**
  * struct kbase_hwaccess_data - object encapsulating the GPU backend specific

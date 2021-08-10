@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -314,6 +314,10 @@ struct kbase_csf_notification {
  *                  are non-zero
  * @blocked_reason: Value shows if the queue is blocked, and if so,
  *                  the reason why it is blocked
+ * @trace_buffer_base: CS trace buffer base address.
+ * @trace_offset_ptr:  Pointer to the CS trace buffer offset variable.
+ * @trace_buffer_size: CS trace buffer size for the queue.
+ * @trace_cfg:         CS trace configuration parameters.
  * @error:          GPU command queue fatal information to pass to user space.
  * @fatal_event_work: Work item to handle the CS fatal event reported for this
  *                    queue.
@@ -344,6 +348,10 @@ struct kbase_queue {
 	u32 sync_value;
 	u32 sb_status;
 	u32 blocked_reason;
+	u64 trace_buffer_base;
+	u64 trace_offset_ptr;
+	u32 trace_buffer_size;
+	u32 trace_cfg;
 	struct kbase_csf_notification error;
 	struct work_struct fatal_event_work;
 	u64 cs_fatal_info;
@@ -667,7 +675,7 @@ struct kbase_csf_context {
 	struct vm_area_struct *user_reg_vma;
 	struct kbase_csf_scheduler_context sched;
 	struct list_head error_list;
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct kbase_csf_cpu_queue_context cpu_queue;
 #endif
 };

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -132,6 +132,11 @@ struct arbiter_if_vm_arb_ops {
 	 * @dev: The device structure to supply in the callbacks.
 	 * @ops: The callbacks that the device driver supports
 	 *       (none are optional).
+	 *
+	 * Return:
+	 * * 0			- successful.
+	 * * -EINVAL		- invalid argument.
+	 * * -EPROBE_DEFER	- module dependencies are not yet available.
 	 */
 	int (*vm_arb_register_dev)(struct arbiter_if_dev *arbif_dev,
 		struct device *dev, struct arbiter_if_arb_vm_ops *ops);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
@@ -74,6 +74,12 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	case GPU_ID2_PRODUCT_TODX:
 	case GPU_ID2_PRODUCT_LODX:
 		features = base_hw_features_tODx;
+		break;
+	case GPU_ID2_PRODUCT_TGRX:
+		features = base_hw_features_tGRx;
+		break;
+	case GPU_ID2_PRODUCT_TVAX:
+		features = base_hw_features_tVAx;
 		break;
 	default:
 		features = base_hw_features_generic;
@@ -210,6 +216,14 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 
 		{ GPU_ID2_PRODUCT_LODX,
 		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0 },
+		    { U32_MAX, NULL } } },
+
+		{ GPU_ID2_PRODUCT_TGRX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGRx_r0p0 },
+		    { U32_MAX, NULL } } },
+
+		{ GPU_ID2_PRODUCT_TVAX,
+		  { { GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tVAx_r0p0 },
 		    { U32_MAX, NULL } } },
 	};
 
@@ -359,6 +373,12 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		case GPU_ID2_PRODUCT_TODX:
 		case GPU_ID2_PRODUCT_LODX:
 			issues = base_hw_issues_model_tODx;
+			break;
+		case GPU_ID2_PRODUCT_TGRX:
+			issues = base_hw_issues_model_tGRx;
+			break;
+		case GPU_ID2_PRODUCT_TVAX:
+			issues = base_hw_issues_model_tVAx;
 			break;
 		default:
 			dev_err(kbdev->dev,

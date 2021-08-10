@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -18,20 +18,16 @@
 #
 #
 
-# linux build system bootstrap for out-of-tree module
+bifrost_kbase-y += \
+    device/mali_kbase_device.o \
+    device/mali_kbase_device_hw.o
 
-# default to building for the host
-ARCH ?= $(shell uname -m)
-
-# Handle Android Common Kernel source naming
-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
-KDIR ?= $(KERNEL_SRC)
-
-all:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) EXTRA_CFLAGS="-I$(CURDIR)/../../../../include" modules CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=m
-
-clean:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean
-
-modules_install:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) modules_install
+ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
+    bifrost_kbase-y += \
+        device/backend/mali_kbase_device_csf.o \
+        device/backend/mali_kbase_device_hw_csf.o
+else
+    bifrost_kbase-y += \
+        device/backend/mali_kbase_device_jm.o \
+        device/backend/mali_kbase_device_hw_jm.o
+endif

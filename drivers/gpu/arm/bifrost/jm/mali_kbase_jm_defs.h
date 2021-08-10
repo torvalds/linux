@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -126,7 +126,7 @@
 /* Reset the GPU after each atom completion */
 #define KBASE_SERIALIZE_RESET (1 << 2)
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
  * struct base_job_fault_event - keeps track of the atom which faulted or which
  *                               completed after the faulty atom but before the
@@ -602,7 +602,7 @@ struct kbase_jd_atom {
 
 	wait_queue_head_t completed;
 	enum kbase_jd_atom_state status;
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	int work_id;
 #endif
 	int slot_nr;
@@ -627,7 +627,7 @@ struct kbase_jd_atom {
 
 	u32 flush_id;
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct base_job_fault_event fault_event;
 #endif
 	struct list_head queue;
@@ -804,7 +804,7 @@ struct kbase_jd_context {
 	u32 job_nr;
 	size_t tb_wrap_offset;
 
-#ifdef CONFIG_GPU_TRACEPOINTS
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	atomic_t work_id;
 #endif
 

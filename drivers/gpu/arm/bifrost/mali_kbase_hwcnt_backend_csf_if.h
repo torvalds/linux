@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
@@ -65,6 +65,7 @@ struct kbase_hwcnt_backend_csf_if_enable {
  *                                                 information.
  * @dump_bytes:       Bytes of GPU memory required to perform a performance
  *                    counter dump.
+ * @prfcnt_block_size Bytes of each performance counter block.
  * @l2_count:         The MMU L2 cache count.
  * @core_mask:        Shader core mask.
  * @clk_cnt:          Clock domain count in the system.
@@ -73,6 +74,7 @@ struct kbase_hwcnt_backend_csf_if_enable {
  */
 struct kbase_hwcnt_backend_csf_if_prfcnt_info {
 	size_t dump_bytes;
+	size_t prfcnt_block_size;
 	size_t l2_count;
 	u64 core_mask;
 	u8 clk_cnt;
@@ -85,7 +87,7 @@ struct kbase_hwcnt_backend_csf_if_prfcnt_info {
  *                                                          held.
  * @ctx: Non-NULL pointer to a CSF context.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_assert_lock_held_fn)(
+typedef void kbase_hwcnt_backend_csf_if_assert_lock_held_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx);
 
 /**
@@ -95,8 +97,9 @@ typedef void (*kbase_hwcnt_backend_csf_if_assert_lock_held_fn)(
  * @flags: Pointer to the memory location that would store the previous
  *         interrupt state.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_lock_fn)(
-	struct kbase_hwcnt_backend_csf_if_ctx *ctx, unsigned long *flags);
+typedef void
+kbase_hwcnt_backend_csf_if_lock_fn(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
+				   unsigned long *flags);
 
 /**
  * typedef kbase_hwcnt_backend_csf_if_unlock_fn - Release backend spinlock.
@@ -105,8 +108,9 @@ typedef void (*kbase_hwcnt_backend_csf_if_lock_fn)(
  * @flags: Previously stored interrupt state when Scheduler interrupt
  *         spinlock was acquired.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_unlock_fn)(
-	struct kbase_hwcnt_backend_csf_if_ctx *ctx, unsigned long flags);
+typedef void
+kbase_hwcnt_backend_csf_if_unlock_fn(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
+				     unsigned long flags);
 
 /**
  * typedef kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn - Get performance
@@ -115,7 +119,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_unlock_fn)(
  * @prfcnt_info:  Non-NULL pointer to struct where performance counter
  *                information should be stored.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn)(
+typedef void kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_prfcnt_info *prfcnt_info);
 
@@ -135,7 +139,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn)(
  *
  * Return: 0 on success, else error code.
  */
-typedef int (*kbase_hwcnt_backend_csf_if_ring_buf_alloc_fn)(
+typedef int kbase_hwcnt_backend_csf_if_ring_buf_alloc_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx, u32 buf_count,
 	void **cpu_dump_base,
 	struct kbase_hwcnt_backend_csf_if_ring_buf **ring_buf);
@@ -157,7 +161,7 @@ typedef int (*kbase_hwcnt_backend_csf_if_ring_buf_alloc_fn)(
  * Flush cached HWC dump buffer data to ensure that all writes from GPU and CPU
  * are correctly observed.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_ring_buf_sync_fn)(
+typedef void kbase_hwcnt_backend_csf_if_ring_buf_sync_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_ring_buf *ring_buf,
 	u32 buf_index_first, u32 buf_index_last, bool for_cpu);
@@ -169,7 +173,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_ring_buf_sync_fn)(
  * @ctx:      Non-NULL pointer to a CSF interface context.
  * @ring_buf: Non-NULL pointer to the ring buffer which to be freed.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_ring_buf_free_fn)(
+typedef void kbase_hwcnt_backend_csf_if_ring_buf_free_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_ring_buf *ring_buf);
 
@@ -181,7 +185,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_ring_buf_free_fn)(
  *
  * Return: CSF interface timestamp in nanoseconds.
  */
-typedef u64 (*kbase_hwcnt_backend_csf_if_timestamp_ns_fn)(
+typedef u64 kbase_hwcnt_backend_csf_if_timestamp_ns_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx);
 
 /**
@@ -193,7 +197,7 @@ typedef u64 (*kbase_hwcnt_backend_csf_if_timestamp_ns_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_dump_enable_fn)(
+typedef void kbase_hwcnt_backend_csf_if_dump_enable_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_ring_buf *ring_buf,
 	struct kbase_hwcnt_backend_csf_if_enable *enable);
@@ -205,7 +209,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_dump_enable_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_dump_disable_fn)(
+typedef void kbase_hwcnt_backend_csf_if_dump_disable_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx);
 
 /**
@@ -215,7 +219,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_dump_disable_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_dump_request_fn)(
+typedef void kbase_hwcnt_backend_csf_if_dump_request_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx);
 
 /**
@@ -229,7 +233,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_dump_request_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_get_indexes_fn)(
+typedef void kbase_hwcnt_backend_csf_if_get_indexes_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx, u32 *extract_index,
 	u32 *insert_index);
 
@@ -243,7 +247,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_get_indexes_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_set_extract_index_fn)(
+typedef void kbase_hwcnt_backend_csf_if_set_extract_index_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx, u32 extract_index);
 
 /**
@@ -258,7 +262,7 @@ typedef void (*kbase_hwcnt_backend_csf_if_set_extract_index_fn)(
  *
  * Requires lock to be taken before calling.
  */
-typedef void (*kbase_hwcnt_backend_csf_if_get_gpu_cycle_count_fn)(
+typedef void kbase_hwcnt_backend_csf_if_get_gpu_cycle_count_fn(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx, u64 *cycle_counts,
 	u64 clk_enable_map);
 
@@ -288,20 +292,20 @@ typedef void (*kbase_hwcnt_backend_csf_if_get_gpu_cycle_count_fn)(
  */
 struct kbase_hwcnt_backend_csf_if {
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx;
-	kbase_hwcnt_backend_csf_if_assert_lock_held_fn assert_lock_held;
-	kbase_hwcnt_backend_csf_if_lock_fn lock;
-	kbase_hwcnt_backend_csf_if_unlock_fn unlock;
-	kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn get_prfcnt_info;
-	kbase_hwcnt_backend_csf_if_ring_buf_alloc_fn ring_buf_alloc;
-	kbase_hwcnt_backend_csf_if_ring_buf_sync_fn ring_buf_sync;
-	kbase_hwcnt_backend_csf_if_ring_buf_free_fn ring_buf_free;
-	kbase_hwcnt_backend_csf_if_timestamp_ns_fn timestamp_ns;
-	kbase_hwcnt_backend_csf_if_dump_enable_fn dump_enable;
-	kbase_hwcnt_backend_csf_if_dump_disable_fn dump_disable;
-	kbase_hwcnt_backend_csf_if_dump_request_fn dump_request;
-	kbase_hwcnt_backend_csf_if_get_indexes_fn get_indexes;
-	kbase_hwcnt_backend_csf_if_set_extract_index_fn set_extract_index;
-	kbase_hwcnt_backend_csf_if_get_gpu_cycle_count_fn get_gpu_cycle_count;
+	kbase_hwcnt_backend_csf_if_assert_lock_held_fn *assert_lock_held;
+	kbase_hwcnt_backend_csf_if_lock_fn *lock;
+	kbase_hwcnt_backend_csf_if_unlock_fn *unlock;
+	kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn *get_prfcnt_info;
+	kbase_hwcnt_backend_csf_if_ring_buf_alloc_fn *ring_buf_alloc;
+	kbase_hwcnt_backend_csf_if_ring_buf_sync_fn *ring_buf_sync;
+	kbase_hwcnt_backend_csf_if_ring_buf_free_fn *ring_buf_free;
+	kbase_hwcnt_backend_csf_if_timestamp_ns_fn *timestamp_ns;
+	kbase_hwcnt_backend_csf_if_dump_enable_fn *dump_enable;
+	kbase_hwcnt_backend_csf_if_dump_disable_fn *dump_disable;
+	kbase_hwcnt_backend_csf_if_dump_request_fn *dump_request;
+	kbase_hwcnt_backend_csf_if_get_indexes_fn *get_indexes;
+	kbase_hwcnt_backend_csf_if_set_extract_index_fn *set_extract_index;
+	kbase_hwcnt_backend_csf_if_get_gpu_cycle_count_fn *get_gpu_cycle_count;
 };
 
 #endif /* #define _KBASE_HWCNT_BACKEND_CSF_IF_H_ */
