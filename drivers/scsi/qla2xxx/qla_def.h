@@ -2790,7 +2790,7 @@ static const char * const port_dstate_str[] = {
 /*
  * FDMI HBA attribute types.
  */
-#define FDMI1_HBA_ATTR_COUNT			9
+#define FDMI1_HBA_ATTR_COUNT			10
 #define FDMI2_HBA_ATTR_COUNT			17
 
 #define FDMI_HBA_NODE_NAME			0x1
