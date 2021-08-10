@@ -118,6 +118,7 @@ struct net_bridge_mcast {
 	u32				multicast_last_member_count;
 	u32				multicast_startup_query_count;
 
+	u8				multicast_querier;
 	u8				multicast_igmp_version;
 	u8				multicast_router;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -431,7 +432,6 @@ enum net_bridge_opts {
 	BROPT_NF_CALL_ARPTABLES,
 	BROPT_GROUP_ADDR_SET,
 	BROPT_MULTICAST_ENABLED,
-	BROPT_MULTICAST_QUERIER,
 	BROPT_MULTICAST_QUERY_USE_IFADDR,
 	BROPT_MULTICAST_STATS_ENABLED,
 	BROPT_HAS_IPV6_ADDR,
@@ -1028,7 +1028,7 @@ __br_multicast_querier_exists(struct net_bridge_mcast *brmctx,
 {
 	bool own_querier_enabled;
 
-	if (br_opt_get(brmctx->br, BROPT_MULTICAST_QUERIER)) {
+	if (READ_ONCE(brmctx->multicast_querier)) {
 		if (is_ipv6 && !br_opt_get(brmctx->br, BROPT_HAS_IPV6_ADDR))
 			own_querier_enabled = false;
 		else

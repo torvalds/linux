@@ -1668,7 +1668,7 @@ static void br_multicast_send_query(struct net_bridge_mcast *brmctx,
 
 	if (!br_multicast_ctx_should_use(brmctx, pmctx) ||
 	    !br_opt_get(brmctx->br, BROPT_MULTICAST_ENABLED) ||
-	    !br_opt_get(brmctx->br, BROPT_MULTICAST_QUERIER))
+	    !brmctx->multicast_querier)
 		return;
 
 	memset(&br_group.dst, 0, sizeof(br_group.dst));
@@ -1747,14 +1747,16 @@ static void br_multicast_port_group_rexmit(struct timer_list *t)
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || hlist_unhashed(&pg->mglist) ||
-	    !br_opt_get(br, BROPT_MULTICAST_ENABLED) ||
-	    !br_opt_get(br, BROPT_MULTICAST_QUERIER))
+	    !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		goto out;
 
 	pmctx = br_multicast_pg_to_port_ctx(pg);
 	if (!pmctx)
 		goto out;
 	brmctx = br_multicast_port_ctx_get_global(pmctx);
+	if (!brmctx->multicast_querier)
+		goto out;
+
 	if (pg->key.addr.proto == htons(ETH_P_IP))
 		other_query = &brmctx->ip4_other_query;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1974,8 +1976,7 @@ static void __grp_src_query_marked_and_rexmit(struct net_bridge_mcast *brmctx,
 		if (ent->flags & BR_SGRP_F_SEND) {
 			ent->flags &= ~BR_SGRP_F_SEND;
 			if (ent->timer.expires > lmqt) {
-				if (br_opt_get(brmctx->br,
-					       BROPT_MULTICAST_QUERIER) &&
+				if (brmctx->multicast_querier &&
 				    other_query &&
 				    !timer_pending(&other_query->timer))
 					ent->src_query_rexmit_cnt = lmqc;
@@ -1984,7 +1985,7 @@ static void __grp_src_query_marked_and_rexmit(struct net_bridge_mcast *brmctx,
 		}
 	}
 
-	if (!br_opt_get(brmctx->br, BROPT_MULTICAST_QUERIER) ||
+	if (!brmctx->multicast_querier ||
 	    !other_query || timer_pending(&other_query->timer))
 		return;
 
@@ -2015,7 +2016,7 @@ static void __grp_send_query_and_rexmit(struct net_bridge_mcast *brmctx,
 		other_query = &brmctx->ip6_other_query;
 #endif
 
-	if (br_opt_get(brmctx->br, BROPT_MULTICAST_QUERIER) &&
+	if (brmctx->multicast_querier &&
 	    other_query && !timer_pending(&other_query->timer)) {
 		lmi = now + brmctx->multicast_last_member_interval;
 		pg->grp_query_rexmit_cnt = brmctx->multicast_last_member_count - 1;
@@ -3316,7 +3317,7 @@ br_multicast_leave_group(struct net_bridge_mcast *brmctx,
 	if (timer_pending(&other_query->timer))
 		goto out;
 
-	if (br_opt_get(brmctx->br, BROPT_MULTICAST_QUERIER)) {
+	if (brmctx->multicast_querier) {
 		__br_multicast_send_query(brmctx, pmctx, NULL, NULL, &mp->addr,
 					  false, 0, NULL);
 
@@ -4300,10 +4301,10 @@ int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 	val = !!val;
 
 	spin_lock_bh(&br->multicast_lock);
-	if (br_opt_get(br, BROPT_MULTICAST_QUERIER) == val)
+	if (brmctx->multicast_querier == val)
 		goto unlock;
 
-	br_opt_toggle(br, BROPT_MULTICAST_QUERIER, !!val);
+	WRITE_ONCE(brmctx->multicast_querier, val);
 	if (!val)
 		goto unlock;
 
