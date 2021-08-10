@@ -506,7 +506,11 @@ static inline void set_default_power_values(struct hl_device *hdev)
 
 	if (hdev->card_type == cpucp_card_type_pmc) {
 		prop->max_power_default = MAX_POWER_DEFAULT_PMC;
-		prop->dc_power_default = DC_POWER_DEFAULT_PMC;
+
+		if (prop->fw_security_enabled)
+			prop->dc_power_default = DC_POWER_DEFAULT_PMC_SEC;
+		else
+			prop->dc_power_default = DC_POWER_DEFAULT_PMC;
 	} else {
 		prop->max_power_default = MAX_POWER_DEFAULT_PCI;
 		prop->dc_power_default = DC_POWER_DEFAULT_PCI;
