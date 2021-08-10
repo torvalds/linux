@@ -68,8 +68,8 @@ int walt_pause_cpus(struct cpumask *cpus)
 
 	ret = pause_cpus(cpus);
 	if (ret < 0)
-		printk_deferred("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
-		       cpumask_pr_args(&requested_cpus));
+		pr_debug("pause_cpus failure ret=%d cpus=%*pbl\n", ret,
+			 cpumask_pr_args(&requested_cpus));
 	else
 		update_ref_counts(&requested_cpus, true);
 unlock:
@@ -97,8 +97,8 @@ int walt_resume_cpus(struct cpumask *cpus)
 
 	ret = resume_cpus(cpus);
 	if (ret < 0) {
-		printk_deferred("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
-		       cpumask_pr_args(&requested_cpus));
+		pr_debug("resume_cpus failure ret=%d cpus=%*pbl\n", ret,
+			 cpumask_pr_args(&requested_cpus));
 		/* restore/increment ref counts in case of error */
 		update_ref_counts(&requested_cpus, true);
 	}
