@@ -1875,18 +1875,6 @@ static struct attribute *switch_attrs[] = {
 	NULL,
 };
 
-static bool has_port(const struct tb_switch *sw, enum tb_port_type type)
-{
-	const struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (!port->disabled && port->config.type == type)
-			return true;
-	}
-
-	return false;
-}
-
 static umode_t switch_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
@@ -1895,8 +1883,7 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_authorized.attr) {
 		if (sw->tb->security_level == TB_SECURITY_NOPCIE ||
-		    sw->tb->security_level == TB_SECURITY_DPONLY ||
-		    !has_port(sw, TB_TYPE_PCIE_UP))
+		    sw->tb->security_level == TB_SECURITY_DPONLY)
 			return 0;
 	} else if (attr == &dev_attr_device.attr) {
 		if (!sw->device)

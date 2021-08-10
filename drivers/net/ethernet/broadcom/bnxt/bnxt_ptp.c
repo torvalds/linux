@@ -353,6 +353,12 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 
 	bnxt_ptp_get_current_time(bp);
 	ptp->next_period = now + HZ;
+	if (time_after_eq(now, ptp->next_overflow_check)) {
+		spin_lock_bh(&ptp->ptp_lock);
+		timecounter_read(&ptp->tc);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
+	}
 	return HZ;
 }
 
@@ -423,6 +429,7 @@ int bnxt_ptp_init(struct bnxt *bp)
 	ptp->cc.shift = 0;
 	ptp->cc.mult = 1;
 
+	ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
 
 	ptp->ptp_info = bnxt_ptp_caps;
