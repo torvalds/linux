@@ -311,7 +311,7 @@ u32 get_kvm_ipa_limit(void)
 
 int kvm_set_ipa_limit(void)
 {
-	unsigned int parange, tgran_2;
+	unsigned int parange;
 	u64 mmfr0;
 
 	mmfr0 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
@@ -322,20 +322,7 @@ int kvm_set_ipa_limit(void)
 	 * Check with ARMv8.5-GTG that our PAGE_SIZE is supported at
 	 * Stage-2. If not, things will stop very quickly.
 	 */
-	switch (PAGE_SIZE) {
-	default:
-	case SZ_4K:
-		tgran_2 = ID_AA64MMFR0_TGRAN4_2_SHIFT;
-		break;
-	case SZ_16K:
-		tgran_2 = ID_AA64MMFR0_TGRAN16_2_SHIFT;
-		break;
-	case SZ_64K:
-		tgran_2 = ID_AA64MMFR0_TGRAN64_2_SHIFT;
-		break;
-	}
-
-	switch (cpuid_feature_extract_unsigned_field(mmfr0, tgran_2)) {
+	switch (cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_TGRAN_2_SHIFT)) {
 	case ID_AA64MMFR0_TGRAN_2_SUPPORTED_NONE:
 		kvm_err("PAGE_SIZE not supported at Stage-2, giving up\n");
 		return -EINVAL;
