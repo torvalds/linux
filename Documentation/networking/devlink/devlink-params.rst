@@ -105,6 +105,10 @@ own name.
      - Boolean
      - When enabled, the device driver will instantiate RDMA specific
        auxiliary device of the devlink device.
+   * - ``enable_vnet``
+     - Boolean
+     - When enabled, the device driver will instantiate VDPA networking
+       specific auxiliary device of the devlink device.
    * - ``internal_err_reset``
      - Boolean
      - When enabled, the device driver will reset the device on internal

@@ -4287,6 +4287,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_ENABLE_RDMA_NAME,
 		.type = DEVLINK_PARAM_GENERIC_ENABLE_RDMA_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_VNET_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_VNET_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
