@@ -852,7 +852,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 u8 rtw_init_drv_sw(struct adapter *padapter)
 {
 	u8	ret8 = _SUCCESS;
-	unsigned long flags;
 
 	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL) {
 		ret8 = _FAIL;
