@@ -253,6 +253,21 @@
 		};
 	};
 
+	php_grf: syscon@fd5b0000 {
+		compatible = "rockchip,rk3588-php-grf", "syscon";
+		reg = <0x0 0xfd5b0000 0x0 0x1000>;
+	};
+
+	pipe_phy0_grf: syscon@fd5bc000 {
+		compatible = "rockchip,pipe-phy-grf", "syscon";
+		reg = <0x0 0xfd5bc000 0x0 0x100>;
+	};
+
+	pipe_phy2_grf: syscon@fd5c4000 {
+		compatible = "rockchip,pipe-phy-grf", "syscon";
+		reg = <0x0 0xfd5c4000 0x0 0x100>;
+	};
+
 	syssram: sram@fd600000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0xfd600000 0x0 0x100000>;
@@ -1512,6 +1527,36 @@
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
+	};
+
+	combphy0_ps: phy@fee00000 {
+		compatible = "rockchip,rk3588-naneng-combphy";
+		reg = <0x0 0xfee00000 0x0 0x100>;
+		#phy-cells = <1>;
+		clocks = <&cru CLK_REF_PIPE_PHY0>, <&cru PCLK_PCIE_COMBO_PIPE_PHY0>;
+		clock-names = "refclk", "apbclk";
+		assigned-clocks = <&cru CLK_REF_PIPE_PHY0>;
+		assigned-clock-rates = <100000000>;
+		resets = <&cru SRST_P_PCIE2_PHY0>, <&cru SRST_REF_PIPE_PHY0>;
+		reset-names = "combphy-apb", "combphy";
+		rockchip,pipe-grf = <&php_grf>;
+		rockchip,pipe-phy-grf = <&pipe_phy0_grf>;
+		status = "disabled";
+	};
+
+	combphy2_psu: phy@fee20000 {
+		compatible = "rockchip,rk3588-naneng-combphy";
+		reg = <0x0 0xfee20000 0x0 0x100>;
+		#phy-cells = <1>;
+		clocks = <&cru CLK_REF_PIPE_PHY2>, <&cru PCLK_PCIE_COMBO_PIPE_PHY2>;
+		clock-names = "refclk", "apbclk";
+		assigned-clocks = <&cru CLK_REF_PIPE_PHY2>;
+		assigned-clock-rates = <100000000>;
+		resets = <&cru SRST_P_PCIE2_PHY2>, <&cru SRST_REF_PIPE_PHY2>;
+		reset-names = "combphy-apb", "combphy";
+		rockchip,pipe-grf = <&php_grf>;
+		rockchip,pipe-phy-grf = <&pipe_phy2_grf>;
+		status = "disabled";
 	};
 
 	pinctrl: pinctrl {

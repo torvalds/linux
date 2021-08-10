@@ -6,6 +6,11 @@
 #include "rk3588s.dtsi"
 
 / {
+	pipe_phy1_grf: syscon@fd5c0000 {
+		compatible = "rockchip,pipe-phy-grf", "syscon";
+		reg = <0x0 0xfd5c0000 0x0 0x100>;
+	};
+
 	spdif_tx5: spdif-tx@fddb8000 {
 		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
 		reg = <0x0 0xfddb8000 0x0 0x1000>;
@@ -111,6 +116,21 @@
 		resets = <&cru SRST_M_SPDIFRX2>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	combphy1_ps: phy@fee10000 {
+		compatible = "rockchip,rk3588-naneng-combphy";
+		reg = <0x0 0xfee10000 0x0 0x100>;
+		#phy-cells = <1>;
+		clocks = <&cru CLK_REF_PIPE_PHY1>, <&cru PCLK_PCIE_COMBO_PIPE_PHY1>;
+		clock-names = "refclk", "apbclk";
+		assigned-clocks = <&cru CLK_REF_PIPE_PHY1>;
+		assigned-clock-rates = <100000000>;
+		resets = <&cru SRST_P_PCIE2_PHY1>, <&cru SRST_REF_PIPE_PHY1>;
+		reset-names = "combphy-apb", "combphy";
+		rockchip,pipe-grf = <&php_grf>;
+		rockchip,pipe-phy-grf = <&pipe_phy1_grf>;
 		status = "disabled";
 	};
 };
