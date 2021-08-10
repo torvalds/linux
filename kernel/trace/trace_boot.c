@@ -324,7 +324,7 @@ trace_boot_hist_add_handlers(struct xbc_node *hnode, char **bufp,
 /*
  * Histogram boottime tracing syntax.
  *
- * ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist {
+ * ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist[.N] {
  *	keys = <KEY>[,...]
  *	values = <VAL>[,...]
  *	sort = <SORT-KEY>[,...]
@@ -415,11 +415,37 @@ trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 
 	return 0;
 }
-#else
-static int __init
-trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
+
+static void __init
+trace_boot_init_histograms(struct trace_event_file *file,
+			   struct xbc_node *hnode, char *buf, size_t size)
 {
-	return -EOPNOTSUPP;
+	struct xbc_node *node;
+	const char *p;
+
+	xbc_node_for_each_subkey(hnode, node) {
+		p = xbc_node_get_data(node);
+		if (!isdigit(p[0]))
+			continue;
+		/* All digit started node should be instances. */
+		if (trace_boot_compose_hist_cmd(node, buf, size) == 0) {
+			if (trigger_process_regex(file, buf) < 0)
+				pr_err("Failed to apply hist trigger: %s\n", buf);
+		}
+	}
+
+	if (xbc_node_find_child(hnode, "keys")) {
+		if (trace_boot_compose_hist_cmd(hnode, buf, size) == 0)
+			if (trigger_process_regex(file, buf) < 0)
+				pr_err("Failed to apply hist trigger: %s\n", buf);
+	}
+}
+#else
+static void __init
+trace_boot_init_histograms(struct trace_event_file *file,
+			   struct xbc_node *hnode, char *buf, size_t size)
+{
+	/* do nothing */
 }
 #endif
 
@@ -465,11 +491,8 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 				pr_err("Failed to apply an action: %s\n", buf);
 		}
 		anode = xbc_node_find_child(enode, "hist");
-		if (anode &&
-		    trace_boot_compose_hist_cmd(anode, buf, ARRAY_SIZE(buf)) == 0) {
-			if (trigger_process_regex(file, buf) < 0)
-				pr_err("Failed to apply hist trigger: %s\n", buf);
-		}
+		if (anode)
+			trace_boot_init_histograms(file, anode, buf, ARRAY_SIZE(buf));
 	} else if (xbc_node_find_value(enode, "actions", NULL))
 		pr_err("Failed to apply event actions because CONFIG_HIST_TRIGGERS is not set.\n");
 
