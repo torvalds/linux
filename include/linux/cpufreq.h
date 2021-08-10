@@ -9,10 +9,12 @@
 #define _LINUX_CPUFREQ_H
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
 #include <linux/notifier.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
@@ -373,6 +375,12 @@ struct cpufreq_driver {
 	/* platform specific boost support code */
 	bool		boost_enabled;
 	int		(*set_boost)(struct cpufreq_policy *policy, int state);
+
+	/*
+	 * Set by drivers that want to register with the energy model after the
+	 * policy is properly initialized, but before the governor is started.
+	 */
+	void		(*register_em)(struct cpufreq_policy *policy);
 };
 
 /* flags */
@@ -1046,4 +1054,10 @@ unsigned int cpufreq_generic_get(unsigned int cpu);
 void cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
+
+static inline void cpufreq_register_em_with_opp(struct cpufreq_policy *policy)
+{
+	dev_pm_opp_of_register_em(get_cpu_device(policy->cpu),
+				  policy->related_cpus);
+}
 #endif /* _LINUX_CPUFREQ_H */
