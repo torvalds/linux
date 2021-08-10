@@ -97,6 +97,10 @@ own name.
    * - ``enable_roce``
      - Boolean
      - Enable handling of RoCE traffic in the device.
+   * - ``enable_eth``
+     - Boolean
+     - When enabled, the device driver will instantiate Ethernet specific
+       auxiliary device of the devlink device.
    * - ``internal_err_reset``
      - Boolean
      - When enabled, the device driver will reset the device on internal
