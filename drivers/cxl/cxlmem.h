@@ -99,5 +99,10 @@ struct cxl_mem {
 	u64 volatile_only_bytes;
 	u64 persistent_only_bytes;
 	u64 partition_align_bytes;
+
+	u64 active_volatile_bytes;
+	u64 active_persistent_bytes;
+	u64 next_volatile_bytes;
+	u64 next_persistent_bytes;
 };
 #endif /* __CXL_MEM_H__ */
