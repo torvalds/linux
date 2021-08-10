@@ -582,17 +582,6 @@ void avic_post_state_restore(struct kvm_vcpu *vcpu)
 	avic_handle_ldr_update(vcpu);
 }
 
-void svm_toggle_avic_for_irq_window(struct kvm_vcpu *vcpu, bool activate)
-{
-	if (!enable_apicv || !lapic_in_kernel(vcpu))
-		return;
-
-	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	kvm_request_apicv_update(vcpu->kvm, activate,
-				 APICV_INHIBIT_REASON_IRQWIN);
-	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-}
-
 void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 {
 	return;
