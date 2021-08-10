@@ -273,6 +273,8 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		 "s_stream on:%d\n", on);
 
 	if (on) {
+		dev->is_first = true;
+		dev->first_frame_dma = -1;
 		ispp_sdev->state = ISPP_START;
 		ispp_sdev->frm_sync_seq = -1;
 		ispp_sdev->frame_timestamp = 0;
@@ -457,28 +459,28 @@ static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
 	switch (cmd) {
 	case RKISPP_CMD_GET_FECBUF_INFO:
 		ret = rkispp_ioctl(sd, cmd, &fecbuf);
-		if (!ret)
-			ret = copy_to_user(up, &fecbuf, sizeof(fecbuf));
+		if (!ret && copy_to_user(up, &fecbuf, sizeof(fecbuf)))
+			ret = -EFAULT;
 		break;
 	case RKISPP_CMD_SET_FECBUF_SIZE:
-		ret = copy_from_user(&fecsize, up, sizeof(fecsize));
-		if (!ret)
-			ret = rkispp_ioctl(sd, cmd, &fecsize);
+		if (copy_from_user(&fecsize, up, sizeof(fecsize)))
+			return -EFAULT;
+		ret = rkispp_ioctl(sd, cmd, &fecsize);
 		break;
 	case RKISPP_CMD_TRIGGER_YNRRUN:
-		ret = copy_from_user(&tnr_inf, up, sizeof(tnr_inf));
-		if (!ret)
-			ret = rkispp_ioctl(sd, cmd, &tnr_inf);
+		if (copy_from_user(&tnr_inf, up, sizeof(tnr_inf)))
+			return -EFAULT;
+		ret = rkispp_ioctl(sd, cmd, &tnr_inf);
 		break;
 	case RKISPP_CMD_GET_TNRBUF_FD:
 		ret = rkispp_ioctl(sd, cmd, &idxfd);
-		if (!ret)
-			ret = copy_to_user(up, &idxfd, sizeof(idxfd));
+		if (!ret && copy_to_user(up, &idxfd, sizeof(idxfd)))
+			ret = -EFAULT;
 		break;
 	case RKISPP_CMD_TRIGGER_MODE:
-		ret = copy_from_user(&t_mode, up, sizeof(t_mode));
-		if (!ret)
-			ret = rkispp_ioctl(sd, cmd, &t_mode);
+		if (copy_from_user(&t_mode, up, sizeof(t_mode)))
+			return -EFAULT;
+		ret = rkispp_ioctl(sd, cmd, &t_mode);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

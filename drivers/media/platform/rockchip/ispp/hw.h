@@ -53,7 +53,6 @@ struct rkispp_hw_dev {
 	atomic_t refcnt;
 	const struct vb2_mem_ops *mem_ops;
 	struct rkisp_ispp_reg *reg_buf;
-	u32 first_frame_dma;
 	bool is_mmu;
 	bool is_idle;
 	bool is_single;

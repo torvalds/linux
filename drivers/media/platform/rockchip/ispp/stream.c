@@ -2383,13 +2383,6 @@ static void restart_module(struct rkispp_device *dev)
 		rkispp_set_bits(dev, RKISPP_TNR_CTRL, 0, SW_TNR_1ST_FRM);
 		monitor->tnr.is_err = false;
 	}
-	if (monitor->restart_module & MONITOR_NR && monitor->nr.is_err) {
-		rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y,
-			     readl(base + RKISPP_NR_ADDR_BASE_Y_SHD));
-		rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV,
-			     readl(base + RKISPP_NR_ADDR_BASE_UV_SHD));
-		monitor->nr.is_err = false;
-	}
 	rkispp_soft_reset(dev->hw_dev);
 	rkispp_update_regs(dev, RKISPP_CTRL_QUICK, RKISPP_FEC_CROP);
 	writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -2404,6 +2397,32 @@ static void restart_module(struct rkispp_device *dev)
 			complete(&monitor->tnr.cmpl);
 	}
 	if (monitor->restart_module & MONITOR_NR) {
+		if (monitor->nr.is_err) {
+			struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+			struct v4l2_subdev *sd = dev->ispp_sdev.remote_sd;
+			struct rkispp_buffer *inbuf;
+
+			if (vdev->nr.cur_rd) {
+				if (vdev->nr.cur_rd->is_isp) {
+					v4l2_subdev_call(sd, video, s_rx_buffer,
+							 vdev->nr.cur_rd, NULL);
+				} else if (!vdev->nr.cur_rd->priv) {
+					list_add_tail(&vdev->nr.cur_rd->list,
+						      &vdev->tnr.list_wr);
+				} else {
+					inbuf = vdev->nr.cur_rd->priv;
+					vb2_buffer_done(&inbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+				}
+				vdev->nr.cur_rd = NULL;
+			}
+			rkispp_set_bits(dev, RKISPP_TNR_CTRL, 0, SW_TNR_1ST_FRM);
+			vdev->nr.is_end = true;
+			monitor->nr.is_err = false;
+			monitor->is_restart = false;
+			monitor->restart_module = 0;
+			rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
+			goto end;
+		}
 		val |= NR_SHP_ST;
 		monitor->monitoring_module |= MONITOR_NR;
 		if (!completion_done(&monitor->nr.cmpl))
@@ -2801,9 +2820,10 @@ static void nr_work_event(struct rkispp_device *dev,
 			dbuf = vdev->nr.cur_rd->dbuf[GROUP_BUF_PIC];
 			dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 			val = dummy->dma_addr;
-			if (dev->hw_dev->is_first && dev->hw_dev->first_frame_dma != -1) {
-				val = dev->hw_dev->first_frame_dma;
-				dev->hw_dev->first_frame_dma = -1;
+			if (dev->is_first && dev->first_frame_dma != -1) {
+				val = dev->first_frame_dma;
+				dev->first_frame_dma = -1;
+				dev->is_first = false;
 			}
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			val += vdev->nr.uv_offset;
@@ -3002,10 +3022,11 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (!buf_rd && !buf_wr && is_isr) {
 		vdev->tnr.is_end = true;
 
-		if (dev->hw_dev->is_first && vdev->tnr.nxt_rd) {
+		if (dev->is_first && vdev->tnr.nxt_rd) {
 			struct rkispp_isp_buf_pool *tbuf = get_pool_buf(dev, vdev->tnr.nxt_rd);
 
-			dev->hw_dev->first_frame_dma = tbuf->dma[GROUP_BUF_PIC];
+			dev->first_frame_dma = tbuf->dma[GROUP_BUF_PIC];
+			rkispp_set_bits(dev, RKISPP_TNR_CTRL, 0, SW_TNR_1ST_FRM);
 		}
 
 		if (vdev->tnr.cur_rd) {
@@ -3088,8 +3109,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 		vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 		vdev->tnr.nxt_rd = buf_rd;
 		/* first buf for 3to1 using twice */
-		if (!is_3to1 ||
-		    (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
+		if (!is_3to1 || dev->is_first)
 			vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 	} else if (vdev->tnr.is_end && !list_empty(list)) {
 		/* tnr read buf from list
@@ -3148,7 +3168,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 				val = buf->dma[GROUP_BUF_GAIN];
 				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
 
-				if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
+				if (dev->is_first)
 					vdev->tnr.cur_rd = NULL;
 			}
 		}
@@ -3454,7 +3474,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	    (dev->isp_mode & ISP_ISPP_QUICK))
 		++dev->ispp_sdev.frm_sync_seq;
 
-	if (mis_val & TNR_INT && !dev->hw_dev->is_first)
+	if (mis_val & TNR_INT)
 		if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 			rkispp_clear_bits(dev, RKISPP_TNR_CTRL, SW_TNR_1ST_FRM);
 

@@ -329,7 +329,6 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_dma_sg_ops = false;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_first = true;
-	hw_dev->first_frame_dma = -1;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
