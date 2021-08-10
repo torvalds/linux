@@ -497,14 +497,14 @@ out_unlock:
 	return ret;
 }
 
-int bdev_resize_partition(struct block_device *bdev, int partno,
-		sector_t start, sector_t length)
+int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
+		sector_t length)
 {
 	struct block_device *part = NULL;
 	int ret = -ENXIO;
 
-	mutex_lock(&bdev->bd_disk->open_mutex);
-	part = xa_load(&bdev->bd_disk->part_tbl, partno);
+	mutex_lock(&disk->open_mutex);
+	part = xa_load(&disk->part_tbl, partno);
 	if (!part)
 		goto out_unlock;
 
@@ -513,14 +513,14 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 		goto out_unlock;
 
 	ret = -EBUSY;
-	if (partition_overlaps(bdev->bd_disk, start, length, partno))
+	if (partition_overlaps(disk, start, length, partno))
 		goto out_unlock;
 
 	bdev_set_nr_sectors(part, length);
 
 	ret = 0;
 out_unlock:
-	mutex_unlock(&bdev->bd_disk->open_mutex);
+	mutex_unlock(&disk->open_mutex);
 	return ret;
 }
 

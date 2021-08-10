@@ -43,7 +43,7 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 			return -EINVAL;
 		return bdev_add_partition(disk, p.pno, start, length);
 	case BLKPG_RESIZE_PARTITION:
-		return bdev_resize_partition(bdev, p.pno, start, length);
+		return bdev_resize_partition(disk, p.pno, start, length);
 	default:
 		return -EINVAL;
 	}
