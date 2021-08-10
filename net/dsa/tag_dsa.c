@@ -170,7 +170,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		/* Construct tagged DSA tag from 802.1Q tag. */
-		dsa_header = skb->data + 2 * ETH_ALEN + extra;
+		dsa_header = dsa_etype_header_pos_tx(skb) + extra;
 		dsa_header[0] = (cmd << 6) | 0x20 | tag_dev;
 		dsa_header[1] = tag_port << 3;
 
@@ -184,7 +184,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
 
 		/* Construct untagged DSA tag. */
-		dsa_header = skb->data + 2 * ETH_ALEN + extra;
+		dsa_header = dsa_etype_header_pos_tx(skb) + extra;
 
 		dsa_header[0] = (cmd << 6) | tag_dev;
 		dsa_header[1] = tag_port << 3;
@@ -360,7 +360,7 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!skb)
 		return NULL;
 
-	edsa_header = skb->data + 2 * ETH_ALEN;
+	edsa_header = dsa_etype_header_pos_tx(skb);
 	edsa_header[0] = (ETH_P_EDSA >> 8) & 0xff;
 	edsa_header[1] = ETH_P_EDSA & 0xff;
 	edsa_header[2] = 0x00;

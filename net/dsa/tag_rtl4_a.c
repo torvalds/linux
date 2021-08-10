@@ -48,7 +48,7 @@ static struct sk_buff *rtl4a_tag_xmit(struct sk_buff *skb,
 	skb_push(skb, RTL4_A_HDR_LEN);
 
 	dsa_alloc_etype_header(skb, RTL4_A_HDR_LEN);
-	tag = skb->data + 2 * ETH_ALEN;
+	tag = dsa_etype_header_pos_tx(skb);
 
 	/* Set Ethertype */
 	p = (__be16 *)tag;

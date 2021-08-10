@@ -37,7 +37,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_push(skb, QCA_HDR_LEN);
 
 	dsa_alloc_etype_header(skb, QCA_HDR_LEN);
-	phdr = (__be16 *)(skb->data + 2 * ETH_ALEN);
+	phdr = dsa_etype_header_pos_tx(skb);
 
 	/* Set the version field, and set destination port information */
 	hdr = QCA_HDR_VERSION << QCA_HDR_XMIT_VERSION_S |

@@ -188,7 +188,6 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	struct ethhdr *eth_hdr;
 	__be32 *tx_trailer;
 	__be16 *tx_header;
 	int trailer_pos;
@@ -210,23 +209,20 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 
 	trailer_pos = skb->len;
 
-	/* On TX, skb->data points to skb_mac_header(skb) */
-	eth_hdr = (struct ethhdr *)skb->data;
-	tx_header = (__be16 *)(eth_hdr + 1);
+	tx_header = dsa_etype_header_pos_tx(skb);
 	tx_trailer = skb_put(skb, SJA1110_TX_TRAILER_LEN);
 
-	eth_hdr->h_proto = htons(ETH_P_SJA1110);
-
-	*tx_header = htons(SJA1110_HEADER_HOST_TO_SWITCH |
-			   SJA1110_TX_HEADER_HAS_TRAILER |
-			   SJA1110_TX_HEADER_TRAILER_POS(trailer_pos));
+	tx_header[0] = htons(ETH_P_SJA1110);
+	tx_header[1] = htons(SJA1110_HEADER_HOST_TO_SWITCH |
+			     SJA1110_TX_HEADER_HAS_TRAILER |
+			     SJA1110_TX_HEADER_TRAILER_POS(trailer_pos));
 	*tx_trailer = cpu_to_be32(SJA1110_TX_TRAILER_PRIO(pcp) |
 				  SJA1110_TX_TRAILER_SWITCHID(dp->ds->index) |
 				  SJA1110_TX_TRAILER_DESTPORTS(BIT(dp->index)));
 	if (clone) {
 		u8 ts_id = SJA1105_SKB_CB(clone)->ts_id;
 
-		*tx_header |= htons(SJA1110_TX_HEADER_TAKE_TS);
+		tx_header[1] |= htons(SJA1110_TX_HEADER_TAKE_TS);
 		*tx_trailer |= cpu_to_be32(SJA1110_TX_TRAILER_TSTAMP_ID(ts_id));
 	}
 

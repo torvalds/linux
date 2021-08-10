@@ -44,7 +44,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 		dsa_alloc_etype_header(skb, MTK_HDR_LEN);
 	}
 
-	mtk_tag = skb->data + 2 * ETH_ALEN;
+	mtk_tag = dsa_etype_header_pos_tx(skb);
 
 	/* Mark tag attribute on special tag insertion to notify hardware
 	 * whether that's a combined special tag with 802.1Q header.
