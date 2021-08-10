@@ -427,14 +427,6 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 {
 	int ret;
 
-	/* Get a clock reference to allow initialization.  This reference
-	 * is held after initialization completes, and won't get dropped
-	 * unless/until a system suspend request arrives.
-	 */
-	ret = ipa_clock_get(ipa);
-	if (WARN_ON(ret < 0))
-		goto err_clock_put;
-
 	ipa_hardware_config(ipa, data);
 
 	ret = ipa_mem_config(ipa);
@@ -477,8 +469,6 @@ err_mem_deconfig:
 	ipa_mem_deconfig(ipa);
 err_hardware_deconfig:
 	ipa_hardware_deconfig(ipa);
-err_clock_put:
-	(void)ipa_clock_put(ipa);
 
 	return ret;
 }
@@ -496,7 +486,6 @@ static void ipa_deconfig(struct ipa *ipa)
 	ipa->interrupt = NULL;
 	ipa_mem_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
-	(void)ipa_clock_put(ipa);
 }
 
 static int ipa_firmware_load(struct device *dev)
