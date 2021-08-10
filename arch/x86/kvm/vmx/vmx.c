@@ -5110,6 +5110,12 @@ static void vmx_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
 	exec_controls_setbit(to_vmx(vcpu), CPU_BASED_MOV_DR_EXITING);
+
+	/*
+	 * exc_debug expects dr6 to be cleared after it runs, avoid that it sees
+	 * a stale dr6 from the guest.
+	 */
+	set_debugreg(DR6_RESERVED, 6);
 }
 
 static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
