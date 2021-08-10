@@ -324,12 +324,6 @@ struct io_submit_state {
 	/* inline/task_work completion list, under ->uring_lock */
 	struct list_head	free_list;
 
-	/*
-	 * File reference cache
-	 */
-	struct file		*file;
-	unsigned int		fd;
-	unsigned int		file_refs;
 	unsigned int		ios_left;
 };
 
@@ -1052,7 +1046,6 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
 static struct file *io_file_get(struct io_ring_ctx *ctx,
-				struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
@@ -2583,40 +2576,6 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	}
 }
 
-static inline void io_state_file_put(struct io_submit_state *state)
-{
-	if (state->file_refs) {
-		fput_many(state->file, state->file_refs);
-		state->file_refs = 0;
-	}
-}
-
-/*
- * Get as many references to a file as we have IOs left in this submission,
- * assuming most submissions are for one file, or at least that each file
- * has more than one submission.
- */
-static struct file *__io_file_get(struct io_submit_state *state, int fd)
-{
-	if (!state)
-		return fget(fd);
-
-	if (state->file_refs) {
-		if (state->fd == fd) {
-			state->file_refs--;
-			return state->file;
-		}
-		io_state_file_put(state);
-	}
-	state->file = fget_many(fd, state->ios_left);
-	if (unlikely(!state->file))
-		return NULL;
-
-	state->fd = fd;
-	state->file_refs = state->ios_left - 1;
-	return state->file;
-}
-
 static bool io_bdev_nowait(struct block_device *bdev)
 {
 	return !bdev || blk_queue_nowait(bdev_get_queue(bdev));
@@ -3618,8 +3577,7 @@ static int __io_splice_prep(struct io_kiocb *req,
 	if (unlikely(sp->flags & ~valid_flags))
 		return -EINVAL;
 
-	sp->file_in = io_file_get(req->ctx, NULL, req,
-				  READ_ONCE(sqe->splice_fd_in),
+	sp->file_in = io_file_get(req->ctx, req, READ_ONCE(sqe->splice_fd_in),
 				  (sp->flags & SPLICE_F_FD_IN_FIXED));
 	if (!sp->file_in)
 		return -EBADF;
@@ -6356,10 +6314,9 @@ static inline struct file *io_file_get_fixed(struct io_ring_ctx *ctx,
 }
 
 static struct file *io_file_get_normal(struct io_ring_ctx *ctx,
-				       struct io_submit_state *state,
 				       struct io_kiocb *req, int fd)
 {
-	struct file *file = __io_file_get(state, fd);
+	struct file *file = fget(fd);
 
 	trace_io_uring_file_get(ctx, fd);
 
@@ -6370,13 +6327,12 @@ static struct file *io_file_get_normal(struct io_ring_ctx *ctx,
 }
 
 static inline struct file *io_file_get(struct io_ring_ctx *ctx,
-				       struct io_submit_state *state,
 				       struct io_kiocb *req, int fd, bool fixed)
 {
 	if (fixed)
 		return io_file_get_fixed(ctx, req, fd);
 	else
-		return io_file_get_normal(ctx, state, req, fd);
+		return io_file_get_normal(ctx, req, fd);
 }
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
@@ -6589,7 +6545,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	}
 
 	if (io_op_defs[req->opcode].needs_file) {
-		req->file = io_file_get(ctx, state, req, READ_ONCE(sqe->fd),
+		req->file = io_file_get(ctx, req, READ_ONCE(sqe->fd),
 					(sqe_flags & IOSQE_FIXED_FILE));
 		if (unlikely(!req->file))
 			ret = -EBADF;
@@ -6674,7 +6630,6 @@ static void io_submit_state_end(struct io_submit_state *state,
 		io_submit_flush_completions(ctx);
 	if (state->plug_started)
 		blk_finish_plug(&state->plug);
-	io_state_file_put(state);
 }
 
 /*
