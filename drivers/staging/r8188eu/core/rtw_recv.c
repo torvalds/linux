@@ -1801,8 +1801,6 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, struct recv_frame 
 		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
 	}
 
-_success_exit:
-
 	return _SUCCESS;
 
 _err_exit:
