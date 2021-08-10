@@ -961,13 +961,14 @@ static void binder_restore_priority_hook(void *data,
  */
 static inline int walt_get_mvp_task_prio(struct task_struct *p)
 {
-	if ((per_task_boost(p) == TASK_BOOST_STRICT_MAX) ||
-		task_rtg_high_prio(p) ||
-		walt_procfs_low_latency_task(p))
-		return WALT_RTG_MVP;
+	if (per_task_boost(p) == TASK_BOOST_STRICT_MAX)
+		return WALT_TASK_BOOST_MVP;
 
 	if (walt_binder_low_latency_task(p))
 		return WALT_BINDER_MVP;
+
+	if (task_rtg_high_prio(p) || walt_procfs_low_latency_task(p))
+		return WALT_RTG_MVP;
 
 	return WALT_NOT_MVP;
 }
@@ -1010,15 +1011,6 @@ static void walt_cfs_deactivate_mvp_task(struct task_struct *p)
 
 	list_del_init(&wts->mvp_list);
 	wts->mvp_prio = WALT_NOT_MVP;
-
-	/*
-	 * Reset the exec time during sleep so that it starts
-	 * from scratch upon next wakeup. total_exec should
-	 * be preserved when task is enq/deq while it is on
-	 * runqueue.
-	 */
-	if (p->state != TASK_RUNNING)
-		wts->total_exec = 0;
 }
 
 /*
@@ -1114,6 +1106,15 @@ void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p)
 
 	if (!list_empty(&wts->mvp_list))
 		walt_cfs_deactivate_mvp_task(p);
+
+	/*
+	 * Reset the exec time during sleep so that it starts
+	 * from scratch upon next wakeup. total_exec should
+	 * be preserved when task is enq/deq while it is on
+	 * runqueue.
+	 */
+	if (p->state != TASK_RUNNING)
+		wts->total_exec = 0;
 }
 
 void walt_cfs_tick(struct rq *rq)
