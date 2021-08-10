@@ -452,6 +452,32 @@ static inline void dsa_default_offload_fwd_mark(struct sk_buff *skb)
 	skb->offload_fwd_mark = !!(dp->bridge_dev);
 }
 
+/* Helper for removing DSA header tags from packets in the RX path.
+ * Must not be called before skb_pull(len).
+ *                                                                 skb->data
+ *                                                                         |
+ *                                                                         v
+ * |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ * +-----------------------+-----------------------+---------------+-------+
+ * |    Destination MAC    |      Source MAC       |  DSA header   | EType |
+ * +-----------------------+-----------------------+---------------+-------+
+ *                                                 |               |
+ * <----- len ----->                               <----- len ----->
+ *                 |
+ *       >>>>>>>   v
+ *       >>>>>>>   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ *       >>>>>>>   +-----------------------+-----------------------+-------+
+ *       >>>>>>>   |    Destination MAC    |      Source MAC       | EType |
+ *                 +-----------------------+-----------------------+-------+
+ *                                                                         ^
+ *                                                                         |
+ *                                                                 skb->data
+ */
+static inline void dsa_strip_etype_header(struct sk_buff *skb, int len)
+{
+	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - len, 2 * ETH_ALEN);
+}
+
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);

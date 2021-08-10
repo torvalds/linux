@@ -112,8 +112,9 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 	 * and the current ethertype field.
 	 */
 	skb_pull_rcsum(skb, 2 + 2);
-	memmove(skb->data - ETH_HLEN, skb->data - (ETH_HLEN + LAN9303_TAG_LEN),
-		2 * ETH_ALEN);
+
+	dsa_strip_etype_header(skb, LAN9303_TAG_LEN);
+
 	if (!(lan9303_tag1 & LAN9303_TAG_RX_TRAPPED_TO_CPU))
 		dsa_default_offload_fwd_mark(skb);
 

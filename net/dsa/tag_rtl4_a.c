@@ -108,10 +108,7 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	/* Remove RTL4 tag and recalculate checksum */
 	skb_pull_rcsum(skb, RTL4_A_HDR_LEN);
 
-	/* Move ethernet DA and SA in front of the data */
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - RTL4_A_HDR_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, RTL4_A_HDR_LEN);
 
 	dsa_default_offload_fwd_mark(skb);
 

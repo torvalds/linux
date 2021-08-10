@@ -80,9 +80,7 @@ static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	/* Remove MTK tag and recalculate checksum. */
 	skb_pull_rcsum(skb, MTK_HDR_LEN);
 
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - MTK_HDR_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, MTK_HDR_LEN);
 
 	/* Get source port information */
 	port = (hdr & MTK_HDR_RECV_SOURCE_PORT_MASK);

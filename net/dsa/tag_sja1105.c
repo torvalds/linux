@@ -532,9 +532,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 	/* Advance skb->data past the DSA header */
 	skb_pull_rcsum(skb, SJA1110_HEADER_LEN);
 
-	/* Remove the DSA header */
-	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - SJA1110_HEADER_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, SJA1110_HEADER_LEN);
 
 	/* With skb->data in its final place, update the MAC header
 	 * so that eth_hdr() continues to works properly.

@@ -190,10 +190,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (!nskb)
 		return nskb;
 
-	/* Move the Ethernet DA and SA */
-	memmove(nskb->data - ETH_HLEN,
-		nskb->data - ETH_HLEN - BRCM_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_TAG_LEN);
 
 	return nskb;
 }
@@ -270,10 +267,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 
 	dsa_default_offload_fwd_mark(skb);
 
-	/* Move the Ethernet DA and SA */
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - BRCM_LEG_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	return skb;
 }

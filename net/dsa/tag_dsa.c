@@ -312,14 +312,10 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		memcpy(dsa_header, new_header, DSA_HLEN);
 
 		if (extra)
-			memmove(skb->data - ETH_HLEN,
-				skb->data - ETH_HLEN - extra,
-				2 * ETH_ALEN);
+			dsa_strip_etype_header(skb, extra);
 	} else {
 		skb_pull_rcsum(skb, DSA_HLEN);
-		memmove(skb->data - ETH_HLEN,
-			skb->data - ETH_HLEN - DSA_HLEN - extra,
-			2 * ETH_ALEN);
+		dsa_strip_etype_header(skb, DSA_HLEN + extra);
 	}
 
 	return skb;
