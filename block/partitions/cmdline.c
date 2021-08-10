@@ -380,7 +380,6 @@ static void cmdline_parts_verifier(int slot, struct parsed_partitions *state)
 int cmdline_partition(struct parsed_partitions *state)
 {
 	sector_t disk_size;
-	char bdev[BDEVNAME_SIZE];
 	struct cmdline_parts *parts;
 
 	if (cmdline) {
@@ -397,12 +396,11 @@ int cmdline_partition(struct parsed_partitions *state)
 	if (!bdev_parts)
 		return 0;
 
-	bdevname(state->bdev, bdev);
-	parts = cmdline_parts_find(bdev_parts, bdev);
+	parts = cmdline_parts_find(bdev_parts, state->disk->disk_name);
 	if (!parts)
 		return 0;
 
-	disk_size = get_capacity(state->bdev->bd_disk) << 9;
+	disk_size = get_capacity(state->disk) << 9;
 
 	cmdline_parts_set(parts, disk_size, state);
 	cmdline_parts_verifier(1, state);

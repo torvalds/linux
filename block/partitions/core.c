@@ -135,7 +135,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 	}
 	state->pp_buf[0] = '\0';
 
-	state->bdev = hd->part0;
+	state->disk = hd;
 	snprintf(state->name, BDEVNAME_SIZE, "%s", hd->disk_name);
 	snprintf(state->pp_buf, PAGE_SIZE, " %s:", state->name);
 	if (isdigit(state->name[strlen(state->name)-1]))
@@ -717,10 +717,10 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
-	struct address_space *mapping = state->bdev->bd_inode->i_mapping;
+	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
 	struct page *page;
 
-	if (n >= get_capacity(state->bdev->bd_disk)) {
+	if (n >= get_capacity(state->disk)) {
 		state->access_beyond_eod = true;
 		return NULL;
 	}
