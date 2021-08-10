@@ -256,16 +256,17 @@ static void io_wqe_wake_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 
 		raw_spin_lock_irq(&wqe->lock);
 		if (acct->nr_workers < acct->max_workers) {
-			atomic_inc(&acct->nr_running);
-			atomic_inc(&wqe->wq->worker_refs);
 			if (!acct->nr_workers)
 				first = true;
 			acct->nr_workers++;
 			do_create = true;
 		}
 		raw_spin_unlock_irq(&wqe->lock);
-		if (do_create)
+		if (do_create) {
+			atomic_inc(&acct->nr_running);
+			atomic_inc(&wqe->wq->worker_refs);
 			create_io_worker(wqe->wq, wqe, acct->index, first);
+		}
 	}
 }
 
