@@ -1186,6 +1186,8 @@ br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
 	       brmctx2->multicast_querier_interval &&
 	       brmctx1->multicast_query_interval ==
 	       brmctx2->multicast_query_interval &&
+	       brmctx1->multicast_query_response_interval ==
+	       brmctx2->multicast_query_response_interval &&
 #if IS_ENABLED(CONFIG_IPV6)
 	       brmctx1->multicast_mld_version ==
 	       brmctx2->multicast_mld_version &&
