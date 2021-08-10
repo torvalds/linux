@@ -277,6 +277,50 @@
 		};
 	};
 
+	dmc: dmc {
+		compatible = "rockchip,rk3308-dmc";
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		rockchip,evb-irdrop = <25000>;
+
+		opp-394000000 {
+			opp-hz = /bits/ 64 <394000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-452000000 {
+			opp-hz = /bits/ 64 <452000000>;
+			opp-microvolt = <975000>;
+		};
+		opp-590000000 {
+			opp-hz = /bits/ 64 <590000000>;
+			opp-microvolt = <1000000>;
+		};
+	};
+
+	rk3308bs_dmc_opp_table: rk3308bs-dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-394000000 {
+			opp-hz = /bits/ 64 <394000000>;
+			opp-microvolt = <900000>;
+		};
+		opp-452000000 {
+			opp-hz = /bits/ 64 <452000000>;
+			opp-microvolt = <900000>;
+		};
+		opp-590000000 {
+			opp-hz = /bits/ 64 <590000000>;
+			opp-microvolt = <900000>;
+		};
+	};
+
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
