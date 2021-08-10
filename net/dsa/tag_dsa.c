@@ -166,7 +166,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		if (extra) {
 			skb_push(skb, extra);
-			memmove(skb->data, skb->data + extra, 2 * ETH_ALEN);
+			dsa_alloc_etype_header(skb, extra);
 		}
 
 		/* Construct tagged DSA tag from 802.1Q tag. */
@@ -181,7 +181,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		}
 	} else {
 		skb_push(skb, DSA_HLEN + extra);
-		memmove(skb->data, skb->data + DSA_HLEN + extra, 2 * ETH_ALEN);
+		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
 
 		/* Construct untagged DSA tag. */
 		dsa_header = skb->data + 2 * ETH_ALEN + extra;

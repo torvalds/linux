@@ -41,7 +41,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 	default:
 		xmit_tpid = MTK_HDR_XMIT_UNTAGGED;
 		skb_push(skb, MTK_HDR_LEN);
-		memmove(skb->data, skb->data + MTK_HDR_LEN, 2 * ETH_ALEN);
+		dsa_alloc_etype_header(skb, MTK_HDR_LEN);
 	}
 
 	mtk_tag = skb->data + 2 * ETH_ALEN;

@@ -62,7 +62,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_push(skb, LAN9303_TAG_LEN);
 
 	/* make room between MACs and Ether-Type */
-	memmove(skb->data, skb->data + LAN9303_TAG_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, LAN9303_TAG_LEN);
 
 	lan9303_tag = (__be16 *)(skb->data + 2 * ETH_ALEN);
 	tag = lan9303_xmit_use_arl(dp, skb->data) ?

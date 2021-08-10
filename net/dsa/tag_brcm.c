@@ -99,7 +99,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	skb_push(skb, BRCM_TAG_LEN);
 
 	if (offset)
-		memmove(skb->data, skb->data + BRCM_TAG_LEN, offset);
+		dsa_alloc_etype_header(skb, BRCM_TAG_LEN);
 
 	brcm_tag = skb->data + offset;
 
@@ -228,7 +228,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 
 	skb_push(skb, BRCM_LEG_TAG_LEN);
 
-	memmove(skb->data, skb->data + BRCM_LEG_TAG_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	brcm_tag = skb->data + 2 * ETH_ALEN;
 

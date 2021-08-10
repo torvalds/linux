@@ -206,8 +206,7 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 
 	skb_push(skb, SJA1110_HEADER_LEN);
 
-	/* Move Ethernet header to the left, making space for DSA tag */
-	memmove(skb->data, skb->data + SJA1110_HEADER_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, SJA1110_HEADER_LEN);
 
 	trailer_pos = skb->len;
 
