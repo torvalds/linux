@@ -398,10 +398,11 @@ static int mxic_spi_mem_exec_op(struct spi_mem *mem,
 	if (op->data.nbytes) {
 		ss_ctrl |= OP_DATA_BUSW(fls(op->data.buswidth) - 1) |
 			   (op->data.dtr ? OP_DATA_DDR : 0);
-		if (op->data.dir == SPI_MEM_DATA_IN)
+		if (op->data.dir == SPI_MEM_DATA_IN) {
 			ss_ctrl |= OP_READ;
 			if (op->data.dtr)
 				ss_ctrl |= OP_DQS_EN;
+		}
 	}
 
 	writel(ss_ctrl, mxic->regs + SS_CTRL(mem->spi->chip_select));
