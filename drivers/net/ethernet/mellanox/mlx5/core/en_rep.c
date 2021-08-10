@@ -49,6 +49,7 @@
 #include "en/devlink.h"
 #include "fs_core.h"
 #include "lib/mlx5.h"
+#include "lib/devcom.h"
 #define CREATE_TRACE_POINTS
 #include "diag/en_rep_tracepoint.h"
 #include "en_accel/ipsec.h"
@@ -310,6 +311,8 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 	list_for_each_entry_safe(rep_sq, tmp, &rpriv->vport_sqs_list, list) {
 		mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
+		if (rep_sq->send_to_vport_rule_peer)
+			mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule_peer);
 		list_del(&rep_sq->list);
 		kfree(rep_sq);
 	}
@@ -319,6 +322,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep,
 				 u32 *sqns_array, int sqns_num)
 {
+	struct mlx5_eswitch *peer_esw = NULL;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
@@ -329,6 +333,10 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		return 0;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
+	if (mlx5_devcom_is_paired(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+		peer_esw = mlx5_devcom_get_peer_data(esw->dev->priv.devcom,
+						     MLX5_DEVCOM_ESW_OFFLOADS);
+
 	for (i = 0; i < sqns_num; i++) {
 		rep_sq = kzalloc(sizeof(*rep_sq), GFP_KERNEL);
 		if (!rep_sq) {
@@ -337,7 +345,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		}
 
 		/* Add re-inject rule to the PF/representor sqs */
-		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, rep,
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, esw, rep,
 								sqns_array[i]);
 		if (IS_ERR(flow_rule)) {
 			err = PTR_ERR(flow_rule);
@@ -345,12 +353,34 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 			goto out_err;
 		}
 		rep_sq->send_to_vport_rule = flow_rule;
+		rep_sq->sqn = sqns_array[i];
+
+		if (peer_esw) {
+			flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw,
+									rep, sqns_array[i]);
+			if (IS_ERR(flow_rule)) {
+				err = PTR_ERR(flow_rule);
+				mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
+				kfree(rep_sq);
+				goto out_err;
+			}
+			rep_sq->send_to_vport_rule_peer = flow_rule;
+		}
+
 		list_add(&rep_sq->list, &rpriv->vport_sqs_list);
 	}
+
+	if (peer_esw)
+		mlx5_devcom_release_peer_data(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+
 	return 0;
 
 out_err:
 	mlx5e_sqs2vport_stop(esw, rep);
+
+	if (peer_esw)
+		mlx5_devcom_release_peer_data(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+
 	return err;
 }
 
@@ -1247,10 +1277,64 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 	return rpriv->netdev;
 }
 
+static void mlx5e_vport_rep_event_unpair(struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_rep_sq *rep_sq;
+
+	rpriv = mlx5e_rep_to_rep_priv(rep);
+	list_for_each_entry(rep_sq, &rpriv->vport_sqs_list, list) {
+		if (!rep_sq->send_to_vport_rule_peer)
+			continue;
+		mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule_peer);
+		rep_sq->send_to_vport_rule_peer = NULL;
+	}
+}
+
+static int mlx5e_vport_rep_event_pair(struct mlx5_eswitch *esw,
+				      struct mlx5_eswitch_rep *rep,
+				      struct mlx5_eswitch *peer_esw)
+{
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_rep_sq *rep_sq;
+
+	rpriv = mlx5e_rep_to_rep_priv(rep);
+	list_for_each_entry(rep_sq, &rpriv->vport_sqs_list, list) {
+		if (rep_sq->send_to_vport_rule_peer)
+			continue;
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw, rep, rep_sq->sqn);
+		if (IS_ERR(flow_rule))
+			goto err_out;
+		rep_sq->send_to_vport_rule_peer = flow_rule;
+	}
+
+	return 0;
+err_out:
+	mlx5e_vport_rep_event_unpair(rep);
+	return PTR_ERR(flow_rule);
+}
+
+static int mlx5e_vport_rep_event(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep,
+				 enum mlx5_switchdev_event event,
+				 void *data)
+{
+	int err = 0;
+
+	if (event == MLX5_SWITCHDEV_EVENT_PAIR)
+		err = mlx5e_vport_rep_event_pair(esw, rep, data);
+	else if (event == MLX5_SWITCHDEV_EVENT_UNPAIR)
+		mlx5e_vport_rep_event_unpair(rep);
+
+	return err;
+}
+
 static const struct mlx5_eswitch_rep_ops rep_ops = {
 	.load = mlx5e_vport_rep_load,
 	.unload = mlx5e_vport_rep_unload,
-	.get_proto_dev = mlx5e_vport_rep_get_proto_dev
+	.get_proto_dev = mlx5e_vport_rep_get_proto_dev,
+	.event = mlx5e_vport_rep_event,
 };
 
 static int mlx5e_rep_probe(struct auxiliary_device *adev,

@@ -1458,8 +1458,6 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 
 	esw->mode = mode;
 
-	mlx5_lag_update(esw->dev);
-
 	if (mode == MLX5_ESWITCH_LEGACY) {
 		err = esw_legacy_enable(esw);
 	} else {
@@ -1506,6 +1504,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 	if (!mlx5_esw_allowed(esw))
 		return 0;
 
+	mlx5_lag_disable_change(esw->dev);
 	down_write(&esw->mode_lock);
 	if (esw->mode == MLX5_ESWITCH_NONE) {
 		ret = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY, num_vfs);
@@ -1519,6 +1518,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 			esw->esw_funcs.num_vfs = num_vfs;
 	}
 	up_write(&esw->mode_lock);
+	mlx5_lag_enable_change(esw->dev);
 	return ret;
 }
 
@@ -1550,8 +1550,6 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf)
 	old_mode = esw->mode;
 	esw->mode = MLX5_ESWITCH_NONE;
 
-	mlx5_lag_update(esw->dev);
-
 	if (old_mode == MLX5_ESWITCH_OFFLOADS)
 		mlx5_rescan_drivers(esw->dev);
 
@@ -1567,10 +1565,12 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf)
 	if (!mlx5_esw_allowed(esw))
 		return;
 
+	mlx5_lag_disable_change(esw->dev);
 	down_write(&esw->mode_lock);
 	mlx5_eswitch_disable_locked(esw, clear_vf);
 	esw->esw_funcs.num_vfs = 0;
 	up_write(&esw->mode_lock);
+	mlx5_lag_enable_change(esw->dev);
 }
 
 static int mlx5_query_hca_cap_host_pf(struct mlx5_core_dev *dev, void *out)
@@ -1759,7 +1759,9 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	ida_init(&esw->offloads.vport_metadata_ida);
 	xa_init_flags(&esw->offloads.vhca_map, XA_FLAGS_ALLOC);
 	mutex_init(&esw->state_lock);
+	lockdep_register_key(&esw->mode_lock_key);
 	init_rwsem(&esw->mode_lock);
+	lockdep_set_class(&esw->mode_lock, &esw->mode_lock_key);
 
 	esw->enabled_vports = 0;
 	esw->mode = MLX5_ESWITCH_NONE;
@@ -1793,6 +1795,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
+	lockdep_unregister_key(&esw->mode_lock_key);
 	mutex_destroy(&esw->state_lock);
 	WARN_ON(!xa_empty(&esw->offloads.vhca_map));
 	xa_destroy(&esw->offloads.vhca_map);
@@ -2364,7 +2367,20 @@ int mlx5_esw_try_lock(struct mlx5_eswitch *esw)
  */
 void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 {
+	if (!mlx5_esw_allowed(esw))
+		return;
 	up_write(&esw->mode_lock);
+}
+
+/**
+ * mlx5_esw_lock() - Take write lock on esw mode lock
+ * @esw: eswitch device.
+ */
+void mlx5_esw_lock(struct mlx5_eswitch *esw)
+{
+	if (!mlx5_esw_allowed(esw))
+		return;
+	down_write(&esw->mode_lock);
 }
 
 /**
@@ -2382,3 +2398,15 @@ u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
 	return mlx5_esw_allowed(esw) ? esw->total_vports : 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_eswitch_get_total_vports);
+
+/**
+ * mlx5_eswitch_get_core_dev - Get the mdev device
+ * @esw : eswitch device.
+ *
+ * Return the mellanox core device which manages the eswitch.
+ */
+struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw)
+{
+	return mlx5_esw_allowed(esw) ? esw->dev : NULL;
+}
+EXPORT_SYMBOL(mlx5_eswitch_get_core_dev);
