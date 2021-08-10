@@ -2,15 +2,6 @@ SHELL := /bin/bash
 EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
 EXTRA_CFLAGS += -O1
 
-EXTRA_CFLAGS += -Wno-unused-variable
-EXTRA_CFLAGS += -Wno-unused-value
-EXTRA_CFLAGS += -Wno-unused-label
-EXTRA_CFLAGS += -Wno-unused-parameter
-EXTRA_CFLAGS += -Wno-unused-function
-EXTRA_CFLAGS += -Wno-unused
-
-EXTRA_CFLAGS += -Wno-uninitialized
-
 ccflags-y += -D__CHECK_ENDIAN__
 
 CONFIG_R8188EU = m
