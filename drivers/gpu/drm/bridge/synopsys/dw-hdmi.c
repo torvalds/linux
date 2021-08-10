@@ -281,6 +281,7 @@ struct dw_hdmi {
 	bool sink_has_audio;
 	bool hpd_state;
 	bool support_hdmi;
+	bool force_logo;
 	int force_output;
 
 	struct delayed_work work;
@@ -3734,7 +3735,7 @@ void dw_hdmi_setup_rx_sense(struct dw_hdmi *hdmi, bool hpd, bool rx_sense)
 {
 	mutex_lock(&hdmi->mutex);
 
-	if (!hdmi->force) {
+	if (!hdmi->force && !hdmi->force_logo) {
 		/*
 		 * If the RX sense status indicates we're disconnected,
 		 * clear the software rxsense status.
@@ -4269,6 +4270,42 @@ static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi,
 		hdmi->hdcp = hdmi->hdcp_dev->dev.platform_data;
 }
 
+static int get_force_logo_property(struct dw_hdmi *hdmi)
+{
+	struct device_node *dss;
+	struct device_node *route;
+	struct device_node *route_hdmi;
+
+	dss = of_find_node_by_name(NULL, "display-subsystem");
+	if (!dss) {
+		dev_err(hdmi->dev, "can't find display-subsystem\n");
+		return -ENODEV;
+	}
+
+	route = of_find_node_by_name(dss, "route");
+	if (!route) {
+		dev_err(hdmi->dev, "can't find route\n");
+		of_node_put(dss);
+		return -ENODEV;
+	}
+	of_node_put(dss);
+
+	route_hdmi = of_find_node_by_name(route, "route-hdmi");
+	if (!route_hdmi) {
+		dev_err(hdmi->dev, "can't find route-hdmi\n");
+		of_node_put(route);
+		return -ENODEV;
+	}
+	of_node_put(route);
+
+	hdmi->force_logo =
+		of_property_read_bool(route_hdmi, "force-output");
+
+	of_node_put(route_hdmi);
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * Probe/remove API, used from platforms based on the DRM bridge API.
  */
@@ -4426,10 +4463,14 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
 		 hdmi->phy.name);
 
+	ret = get_force_logo_property(hdmi);
+	if (ret)
+		goto err_iahb;
+
 	hdmi->initialized = false;
 	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
-	if ((ret & HDMI_PHY_TX_PHY_LOCK) && (ret & HDMI_PHY_HPD) &&
-	    hdmi_readb(hdmi, HDMI_FC_EXCTRLDUR)) {
+	if (((ret & HDMI_PHY_TX_PHY_LOCK) && (ret & HDMI_PHY_HPD) &&
+	     hdmi_readb(hdmi, HDMI_FC_EXCTRLDUR)) || hdmi->force_logo) {
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
 		hdmi->disabled = false;
 		hdmi->bridge_is_on = true;
