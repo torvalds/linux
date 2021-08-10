@@ -4,8 +4,6 @@
  * Copyright (C) 2018-2021 Linaro Ltd.
  */
 
-#include <linux/refcount.h>
-#include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interconnect.h>
@@ -58,8 +56,6 @@ enum ipa_power_flag {
 
 /**
  * struct ipa_clock - IPA clocking information
- * @count:		Clocking reference count
- * @mutex:		Protects clock enable/disable
  * @dev:		IPA device pointer
  * @core:		IPA core clock
  * @flags:		Boolean state flags
@@ -67,8 +63,6 @@ enum ipa_power_flag {
  * @interconnect:	Interconnect array
  */
 struct ipa_clock {
-	refcount_t count;
-	struct mutex mutex; /* protects clock enable/disable */
 	struct device *dev;
 	struct clk *core;
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
@@ -276,78 +270,24 @@ static int ipa_runtime_idle(struct device *dev)
  */
 bool ipa_clock_get_additional(struct ipa *ipa)
 {
-	struct device *dev;
-	int ret;
-
-	if (!refcount_inc_not_zero(&ipa->clock->count))
-		return false;
-
-	dev = &ipa->pdev->dev;
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		dev_err(dev, "error %d enabling power\n", ret);
-
-	return true;
+	return pm_runtime_get_if_active(&ipa->pdev->dev, true) > 0;
 }
 
 /* Get an IPA clock reference.  If the reference count is non-zero, it is
- * incremented and return is immediate.  Otherwise it is checked again
- * under protection of the mutex, and if appropriate the IPA clock
- * is enabled.
- *
- * Incrementing the reference count is intentionally deferred until
- * after the clock is running and endpoints are resumed.
+ * incremented and return is immediate.  Otherwise the IPA clock is
+ * enabled.
  */
 int ipa_clock_get(struct ipa *ipa)
 {
-	struct ipa_clock *clock = ipa->clock;
-	struct device *dev;
-	int ret;
-
-	/* If the clock is running, just bump the reference count */
-	if (ipa_clock_get_additional(ipa))
-		return 1;
-
-	/* Otherwise get the mutex and check again */
-	mutex_lock(&clock->mutex);
-
-	/* A reference might have been added before we got the mutex. */
-	if (ipa_clock_get_additional(ipa)) {
-		ret = 1;
-		goto out_mutex_unlock;
-	}
-
-	dev = &ipa->pdev->dev;
-	ret = pm_runtime_get_sync(dev);
-
-	refcount_set(&clock->count, 1);
-
-out_mutex_unlock:
-	mutex_unlock(&clock->mutex);
-
-	return ret;
+	return pm_runtime_get_sync(&ipa->pdev->dev);
 }
 
 /* Attempt to remove an IPA clock reference.  If this represents the
- * last reference, disable the IPA clock under protection of the mutex.
+ * last reference, disable the IPA clock.
  */
 int ipa_clock_put(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
-	struct ipa_clock *clock = ipa->clock;
-	int last;
-	int ret;
-
-	/* If this is not the last reference there's nothing more to do */
-	last = refcount_dec_and_mutex_lock(&clock->count, &clock->mutex);
-
-	ret = pm_runtime_put(dev);
-	if (!last)
-		return ret;
-
-	mutex_unlock(&clock->mutex);
-
-	return ret;
+	return pm_runtime_put(&ipa->pdev->dev);
 }
 
 /* Return the current IPA core clock rate */
@@ -425,9 +365,6 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 	if (ret)
 		goto err_kfree;
 
-	mutex_init(&clock->mutex);
-	refcount_set(&clock->count, 0);
-
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
@@ -446,9 +383,7 @@ void ipa_clock_exit(struct ipa_clock *clock)
 {
 	struct clk *clk = clock->core;
 
-	WARN_ON(refcount_read(&clock->count) != 0);
 	pm_runtime_disable(clock->dev);
-	mutex_destroy(&clock->mutex);
 	ipa_interconnect_exit(clock);
 	kfree(clock);
 	clk_put(clk);
