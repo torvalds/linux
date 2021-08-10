@@ -76,12 +76,7 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, RTL4_A_HDR_LEN)))
 		return NULL;
 
-	/* The RTL4 header has its own custom Ethertype 0x8899 and that
-	 * starts right at the beginning of the packet, after the src
-	 * ethernet addr. Apparently skb->data always points 2 bytes in,
-	 * behind the Ethertype.
-	 */
-	tag = skb->data - 2;
+	tag = dsa_etype_header_pos_rx(skb);
 	p = (__be16 *)tag;
 	etype = ntohs(*p);
 	if (etype != RTL4_A_ETHERTYPE) {

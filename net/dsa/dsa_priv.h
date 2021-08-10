@@ -507,6 +507,20 @@ static inline void dsa_alloc_etype_header(struct sk_buff *skb, int len)
 	memmove(skb->data, skb->data + len, 2 * ETH_ALEN);
 }
 
+/* On RX, eth_type_trans() on the DSA master pulls ETH_HLEN bytes starting from
+ * skb_mac_header(skb), which leaves skb->data pointing at the first byte after
+ * what the DSA master perceives as the EtherType (the beginning of the L3
+ * protocol). Since DSA EtherType header taggers treat the EtherType as part of
+ * the DSA tag itself, and the EtherType is 2 bytes in length, the DSA header
+ * is located 2 bytes behind skb->data. Note that EtherType in this context
+ * means the first 2 bytes of the DSA header, not the encapsulated EtherType
+ * that will become visible after the DSA header is stripped.
+ */
+static inline void *dsa_etype_header_pos_rx(struct sk_buff *skb)
+{
+	return skb->data - 2;
+}
+
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);

@@ -254,7 +254,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, BRCM_LEG_PORT_ID)))
 		return NULL;
 
-	brcm_tag = skb->data - 2;
+	brcm_tag = dsa_etype_header_pos_rx(skb);
 
 	source_port = brcm_tag[5] & BRCM_LEG_PORT_ID;
 

@@ -442,11 +442,11 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 {
+	u8 *buf = dsa_etype_header_pos_rx(skb) + SJA1110_HEADER_LEN;
 	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
 	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
 	struct net_device *master = skb->dev;
 	struct dsa_port *cpu_dp;
-	u8 *buf = skb->data + 2;
 	struct dsa_switch *ds;
 	int i;
 
