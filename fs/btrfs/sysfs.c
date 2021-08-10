@@ -22,6 +22,26 @@
 #include "block-group.h"
 #include "qgroup.h"
 
+/*
+ * Structure name                       Path
+ * --------------------------------------------------------------------------
+ * btrfs_supported_static_feature_attrs /sys/fs/btrfs/features
+ * btrfs_supported_feature_attrs	/sys/fs/btrfs/features and
+ *					/sys/fs/btrfs/<uuid>/features
+ * btrfs_attrs				/sys/fs/btrfs/<uuid>
+ * devid_attrs				/sys/fs/btrfs/<uuid>/devinfo/<devid>
+ * allocation_attrs			/sys/fs/btrfs/<uuid>/allocation
+ * qgroup_attrs				/sys/fs/btrfs/<uuid>/qgroups/<level>_<qgroupid>
+ * space_info_attrs			/sys/fs/btrfs/<uuid>/allocation/<bg-type>
+ * raid_attrs				/sys/fs/btrfs/<uuid>/allocation/<bg-type>/<bg-profile>
+ *
+ * When built with BTRFS_CONFIG_DEBUG:
+ *
+ * btrfs_debug_feature_attrs		/sys/fs/btrfs/debug
+ * btrfs_debug_mount_attrs		/sys/fs/btrfs/<uuid>/debug
+ * discard_debug_attrs			/sys/fs/btrfs/<uuid>/debug/discard
+ */
+
 struct btrfs_feature_attr {
 	struct kobj_attribute kobj_attr;
 	enum btrfs_feature_set feature_set;
@@ -271,6 +291,13 @@ BTRFS_FEAT_ATTR_INCOMPAT(zoned, ZONED);
 BTRFS_FEAT_ATTR_COMPAT_RO(verity, VERITY);
 #endif
 
+/*
+ * Features which depend on feature bits and may differ between each fs.
+ *
+ * /sys/fs/btrfs/features      - all available features implemeted by this version
+ * /sys/fs/btrfs/UUID/features - features of the fs which are enabled or
+ *                               can be changed on a mounted filesystem.
+ */
 static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(mixed_backref),
 	BTRFS_FEAT_ATTR_PTR(default_subvol),
@@ -294,13 +321,6 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	NULL
 };
 
-/*
- * Features which depend on feature bits and may differ between each fs.
- *
- * /sys/fs/btrfs/features lists all available features of this kernel while
- * /sys/fs/btrfs/UUID/features shows features of the fs which are enabled or
- * can be changed online.
- */
 static const struct attribute_group btrfs_feature_attr_group = {
 	.name = "features",
 	.is_visible = btrfs_feature_visible,
@@ -384,6 +404,12 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 BTRFS_ATTR(static_feature, supported_sectorsizes,
 	   supported_sectorsizes_show);
 
+/*
+ * Features which only depend on kernel version.
+ *
+ * These are listed in /sys/fs/btrfs/features along with
+ * btrfs_supported_feature_attrs.
+ */
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
 	BTRFS_ATTR_PTR(static_feature, supported_checksums),
@@ -393,12 +419,6 @@ static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	NULL
 };
 
-/*
- * Features which only depend on kernel version.
- *
- * These are listed in /sys/fs/btrfs/features along with
- * btrfs_feature_attr_group
- */
 static const struct attribute_group btrfs_static_feature_attr_group = {
 	.name = "features",
 	.attrs = btrfs_supported_static_feature_attrs,
@@ -557,6 +577,11 @@ static ssize_t btrfs_discard_max_discard_size_store(struct kobject *kobj,
 BTRFS_ATTR_RW(discard, max_discard_size, btrfs_discard_max_discard_size_show,
 	      btrfs_discard_max_discard_size_store);
 
+/*
+ * Per-filesystem debugging of discard (when mounted with discard=async).
+ *
+ * Path: /sys/fs/btrfs/<uuid>/debug/discard/
+ */
 static const struct attribute *discard_debug_attrs[] = {
 	BTRFS_ATTR_PTR(discard, discardable_bytes),
 	BTRFS_ATTR_PTR(discard, discardable_extents),
@@ -570,15 +595,19 @@ static const struct attribute *discard_debug_attrs[] = {
 };
 
 /*
- * Runtime debugging exported via sysfs
+ * Per-filesystem runtime debugging exported via sysfs.
  *
- * /sys/fs/btrfs/debug - applies to module or all filesystems
- * /sys/fs/btrfs/UUID  - applies only to the given filesystem
+ * Path: /sys/fs/btrfs/UUID/debug/
  */
 static const struct attribute *btrfs_debug_mount_attrs[] = {
 	NULL,
 };
 
+/*
+ * Runtime debugging exported via sysfs, applies to all mounted filesystems.
+ *
+ * Path: /sys/fs/btrfs/debug
+ */
 static struct attribute *btrfs_debug_feature_attrs[] = {
 	NULL
 };
@@ -647,6 +676,11 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
 }
 
+/*
+ * Allocation information about block group profiles.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/allocation/<bg-type>/<bg-profile>/
+ */
 static struct attribute *raid_attrs[] = {
 	BTRFS_ATTR_PTR(raid, total_bytes),
 	BTRFS_ATTR_PTR(raid, used_bytes),
@@ -686,6 +720,11 @@ SPACE_INFO_ATTR(bytes_zone_unusable);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 
+/*
+ * Allocation information about block group types.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/allocation/<bg-type>/
+ */
 static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, flags),
 	BTRFS_ATTR_PTR(space_info, total_bytes),
@@ -713,6 +752,11 @@ static struct kobj_type space_info_ktype = {
 	.default_groups = space_info_groups,
 };
 
+/*
+ * Allocation information about block groups.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/allocation/
+ */
 static const struct attribute *allocation_attrs[] = {
 	BTRFS_ATTR_PTR(allocation, global_rsv_reserved),
 	BTRFS_ATTR_PTR(allocation, global_rsv_size),
@@ -1012,6 +1056,11 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 BTRFS_ATTR_RW(, bg_reclaim_threshold, btrfs_bg_reclaim_threshold_show,
 	      btrfs_bg_reclaim_threshold_store);
 
+/*
+ * Per-filesystem information and stats.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/
+ */
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -1521,6 +1570,11 @@ static ssize_t btrfs_devinfo_error_stats_show(struct kobject *kobj,
 }
 BTRFS_ATTR(devid, error_stats, btrfs_devinfo_error_stats_show);
 
+/*
+ * Information about one device.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/devinfo/<devid>/
+ */
 static struct attribute *devid_attrs[] = {
 	BTRFS_ATTR_PTR(devid, error_stats),
 	BTRFS_ATTR_PTR(devid, in_fs_metadata),
@@ -1810,6 +1864,11 @@ QGROUP_RSV_ATTR(data, BTRFS_QGROUP_RSV_DATA);
 QGROUP_RSV_ATTR(meta_pertrans, BTRFS_QGROUP_RSV_META_PERTRANS);
 QGROUP_RSV_ATTR(meta_prealloc, BTRFS_QGROUP_RSV_META_PREALLOC);
 
+/*
+ * Qgroup information.
+ *
+ * Path: /sys/fs/btrfs/<uuid>/qgroups/<level>_<qgroupid>/
+ */
 static struct attribute *qgroup_attrs[] = {
 	BTRFS_ATTR_PTR(qgroup, referenced),
 	BTRFS_ATTR_PTR(qgroup, exclusive),
