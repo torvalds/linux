@@ -564,7 +564,7 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 
 		bgroup = false;
 	} else {
-		/*  Group key - KeyIndex(BIT30 == 0) */
+		/*  Group key - KeyIndex(BIT(30) == 0) */
 		/*  when add wep key through add key and didn't assigned encryption type before */
 		if ((padapter->securitypriv.ndisauthtype <= 3) &&
 		    (padapter->securitypriv.dot118021XGrpPrivacy == 0)) {

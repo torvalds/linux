@@ -6123,9 +6123,9 @@ static int rtw_mp_reset_stats(struct net_device *dev,
 	pmp_priv->rx_crcerrpktcount = 0;
 
 	/* reset phy counter */
-	write_bbreg(padapter, 0xf14, BIT16, 0x1);
+	write_bbreg(padapter, 0xf14, BIT(16), 0x1);
 	msleep(10);
-	write_bbreg(padapter, 0xf14, BIT16, 0x0);
+	write_bbreg(padapter, 0xf14, BIT(16), 0x0);
 
 	return 0;
 }

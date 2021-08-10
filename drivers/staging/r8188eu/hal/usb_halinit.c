@@ -611,7 +611,7 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 static void _BeaconFunctionEnable(struct adapter *Adapter,
 				  bool Enable, bool Linked)
 {
-	rtw_write8(Adapter, REG_BCN_CTRL, (BIT4 | BIT3 | BIT1));
+	rtw_write8(Adapter, REG_BCN_CTRL, (BIT(4) | BIT(3) | BIT(1)));
 
 	rtw_write8(Adapter, REG_RD_CTRL+1, 0x6F);
 }
@@ -636,8 +636,8 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 		return;
 	DBG_88E("==>  %s ....\n", __func__);
 
-	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0)|BIT23);
-	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT13, 0x01);
+	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0)|BIT(23));
+	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
 
 	if (PHY_QueryBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
 		haldata->CurAntenna = Antenna_A;
@@ -668,13 +668,13 @@ enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
 
 	if (adapt->pwrctrlpriv.bHWPowerdown) {
 		val8 = rtw_read8(adapt, REG_HSISR);
-		DBG_88E("pwrdown, 0x5c(BIT7)=%02x\n", val8);
-		rfpowerstate = (val8 & BIT7) ? rf_off : rf_on;
+		DBG_88E("pwrdown, 0x5c(BIT(7))=%02x\n", val8);
+		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
 	} else { /*  rf on/off */
-		rtw_write8(adapt, REG_MAC_PINMUX_CFG, rtw_read8(adapt, REG_MAC_PINMUX_CFG)&~(BIT3));
+		rtw_write8(adapt, REG_MAC_PINMUX_CFG, rtw_read8(adapt, REG_MAC_PINMUX_CFG)&~(BIT(3)));
 		val8 = rtw_read8(adapt, REG_GPIO_IO_SEL);
 		DBG_88E("GPIO_IN=%02x\n", val8);
-		rfpowerstate = (val8 & BIT3) ? rf_on : rf_off;
+		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
 	}
 	return rfpowerstate;
 }	/*  HalDetectPwrDownMode */
@@ -836,7 +836,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/* Enable TX Report */
 	/* Enable Tx Report Timer */
 	value8 = rtw_read8(Adapter, REG_TX_RPT_CTRL);
-	rtw_write8(Adapter,  REG_TX_RPT_CTRL, (value8|BIT1|BIT0));
+	rtw_write8(Adapter,  REG_TX_RPT_CTRL, (value8|BIT(1)|BIT(0)));
 	/* Set MAX RPT MACID */
 	rtw_write8(Adapter,  REG_TX_RPT_CTRL+1, 2);/* FOR sta mode ,0: bc/mc ,1:AP */
 	/* Tx RPT Timer. Unit: 32us */
@@ -965,7 +965,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/* Stop Tx Report Timer. 0x4EC[Bit1]=b'0 */
 	val8 = rtw_read8(Adapter, REG_TX_RPT_CTRL);
-	rtw_write8(Adapter, REG_TX_RPT_CTRL, val8&(~BIT1));
+	rtw_write8(Adapter, REG_TX_RPT_CTRL, val8&(~BIT(1)));
 
 	/*  stop rx */
 	rtw_write8(Adapter, REG_CR, 0x0);
@@ -989,16 +989,16 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	/* YJ,add,111212 */
 	/* Disable 32k */
 	val8 = rtw_read8(Adapter, REG_32K_CTRL);
-	rtw_write8(Adapter, REG_32K_CTRL, val8&(~BIT0));
+	rtw_write8(Adapter, REG_32K_CTRL, val8&(~BIT(0)));
 
 	/*  Card disable power action flow */
 	HalPwrSeqCmdParsing(Adapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8188E_NIC_DISABLE_FLOW);
 
 	/*  Reset MCU IO Wrapper */
 	val8 = rtw_read8(Adapter, REG_RSV_CTRL+1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, (val8&(~BIT3)));
+	rtw_write8(Adapter, REG_RSV_CTRL+1, (val8&(~BIT(3))));
 	val8 = rtw_read8(Adapter, REG_RSV_CTRL+1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, val8|BIT3);
+	rtw_write8(Adapter, REG_RSV_CTRL+1, val8|BIT(3));
 
 	/* YJ,test add, 111207. For Power Consumption. */
 	val8 = rtw_read8(Adapter, GPIO_IN);
@@ -1016,7 +1016,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 static void rtl8192cu_hw_power_down(struct adapter *adapt)
 {
 	/*  2010/-8/09 MH For power down module, we need to enable register block contrl reg at 0x1c. */
-	/*  Then enable power down control bit of register 0x04 BIT4 and BIT15 as 1. */
+	/*  Then enable power down control bit of register 0x04 BIT(4) and BIT(15) as 1. */
 
 	/*  Enable register area 0x0-0xc. */
 	rtw_write8(adapt, REG_RSV_CTRL, 0x0);
@@ -1235,10 +1235,10 @@ static void ResumeTxBeacon(struct adapter *adapt)
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
 
-	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) | BIT6);
-	haldata->RegFwHwTxQCtrl |= BIT6;
+	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) | BIT(6));
+	haldata->RegFwHwTxQCtrl |= BIT(6);
 	rtw_write8(adapt, REG_TBTT_PROHIBIT+1, 0xff);
-	haldata->RegReg542 |= BIT0;
+	haldata->RegReg542 |= BIT(0);
 	rtw_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
 }
 
@@ -1249,10 +1249,10 @@ static void StopTxBeacon(struct adapter *adapt)
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
 
-	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) & (~BIT6));
-	haldata->RegFwHwTxQCtrl &= (~BIT6);
+	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) & (~BIT(6)));
+	haldata->RegFwHwTxQCtrl &= (~BIT(6));
 	rtw_write8(adapt, REG_TBTT_PROHIBIT+1, 0x64);
-	haldata->RegReg542 &= ~(BIT0);
+	haldata->RegReg542 &= ~(BIT(0));
 	rtw_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
 
 	 /* todo: CheckFwRsvdPageContent(Adapter);  2010.06.23. Added by tynli. */
@@ -1303,7 +1303,7 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 		/* reset TSF */
 		rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(0));
 
-		/* BIT3 - If set 0, hw will clr bcnq when tx becon ok/fail or port 0 */
+		/* BIT(3) - If set 0, hw will clr bcnq when tx becon ok/fail or port 0 */
 		rtw_write8(Adapter, REG_MBID_NUM, rtw_read8(Adapter, REG_MBID_NUM) | BIT(3) | BIT(4));
 
 		/* enable BCN0 Function for if1 */
@@ -1867,8 +1867,8 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		rtl8188e_set_FwMediaStatus_cmd(Adapter, (*(__le16 *)val));
 		break;
 	case HW_VAR_BCN_VALID:
-		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw */
-		rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0);
+		/* BCN_VALID, BIT(16) of REG_TDECTRL = BIT(0) of REG_TDECTRL+2, write 1 to clear, Clear by sw */
+		rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT(0));
 		break;
 	default:
 		break;
@@ -1889,8 +1889,8 @@ static void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		val[0] = rtw_read8(Adapter, REG_TXPAUSE);
 		break;
 	case HW_VAR_BCN_VALID:
-		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2 */
-		val[0] = (BIT0 & rtw_read8(Adapter, REG_TDECTRL+2)) ? true : false;
+		/* BCN_VALID, BIT(16) of REG_TDECTRL = BIT(0) of REG_TDECTRL+2 */
+		val[0] = (BIT(0) & rtw_read8(Adapter, REG_TDECTRL+2)) ? true : false;
 		break;
 	case HW_VAR_DM_FLAG:
 		val[0] = podmpriv->SupportAbility;

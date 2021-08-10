@@ -400,11 +400,11 @@ void Hal_SetAntenna(struct adapter *pAdapter)
 
 		/*  We need to close RFB by SW control */
 		if (pHalData->rf_type == RF_2T2R) {
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 1);
-			PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 1);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(26), 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT(10), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(1), 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(17), 0);
 		}
 		break;
 	case ANTENNA_B:
@@ -425,11 +425,11 @@ void Hal_SetAntenna(struct adapter *pAdapter)
 		/*  2008/10/31 MH From SD3 Willi's suggestion. We must read RF 1T table. */
 		/*  2009/01/08 MH From Sd3 Willis. We need to close RFA by SW control */
 		if (pHalData->rf_type == RF_2T2R || pHalData->rf_type == RF_1T2R) {
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 1);
-			PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT10, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(10), 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT(10), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(1), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(17), 1);
 		}
 		break;
 	case ANTENNA_AB:	/*  For 8192S */
@@ -449,10 +449,10 @@ void Hal_SetAntenna(struct adapter *pAdapter)
 		/* cosa r_ant_select_ofdm_val = 0x3321333; */
 		/*  2009/01/08 MH From Sd3 Willis. We need to enable RFA/B by SW control */
 		if (pHalData->rf_type == RF_2T2R) {
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 1);
-			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(1), 1);
+			PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT(17), 1);
 		}
 		break;
 	default:
@@ -527,7 +527,7 @@ s32 Hal_SetThermalMeter(struct adapter *pAdapter, u8 target_ther)
 
 void Hal_TriggerRFThermalMeter(struct adapter *pAdapter)
 {
-	_write_rfreg(pAdapter, RF_PATH_A, RF_T_METER_88E, BIT17 | BIT16, 0x03);
+	_write_rfreg(pAdapter, RF_PATH_A, RF_T_METER_88E, BIT(17) | BIT(16), 0x03);
 }
 
 u8 Hal_ReadRFThermalMeter(struct adapter *pAdapter)
@@ -617,7 +617,7 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 		PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x0);
 
 		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x01);
+			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT(19), 0x01);
 			rtw_usleep_os(100);
 			if (rfPath == RF_PATH_A)
 				write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x10000); /*  PAD all on. */
@@ -648,7 +648,7 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x1);
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x00);
+			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT(19), 0x00);
 			rtw_usleep_os(100);
 			write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x32d75); /*  PAD all on. */
 			write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x32d75); /*  PAD all on. */

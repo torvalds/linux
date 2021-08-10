@@ -7,10 +7,10 @@
 /*  */
 /*  Define Different SW team support */
 /*  */
-#define	ODM_AP			0x01	 /* BIT0 */
-#define	ODM_ADSL		0x02	/* BIT1 */
-#define	ODM_CE			0x04	/* BIT2 */
-#define	ODM_MP			0x08	/* BIT3 */
+#define	ODM_AP			0x01	 /* BIT(0) */
+#define	ODM_ADSL		0x02	/* BIT(1) */
+#define	ODM_CE			0x04	/* BIT(2) */
+#define	ODM_MP			0x08	/* BIT(3) */
 
 #define		RT_PCI_INTERFACE				1
 #define		RT_USB_INTERFACE				2

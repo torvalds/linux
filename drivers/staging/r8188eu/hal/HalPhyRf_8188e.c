@@ -336,11 +336,11 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 						ODM_SetBBReg(dm_odm, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
 
 						value32 = ((X * ele_D)>>7)&0x01;
-						ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT28, value32);
+						ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(28), value32);
 					} else {
 						ODM_SetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)OFDM_index[1]]);
 						ODM_SetBBReg(dm_odm, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-						ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT28, 0x00);
+						ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(28), 0x00);
 					}
 				}
 			}
@@ -392,7 +392,7 @@ phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
 	regE94 = ODM_GetBBReg(dm_odm, rTx_Power_Before_IQK_A, bMaskDWord);
 	regE9C = ODM_GetBBReg(dm_odm, rTx_Power_After_IQK_A, bMaskDWord);
 
-	if (!(regeac & BIT28) &&
+	if (!(regeac & BIT(28)) &&
 	    (((regE94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regE9C & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
@@ -446,7 +446,7 @@ phy_PathA_RxIQK(struct adapter *adapt, bool configPathB)
 	regE94 = ODM_GetBBReg(dm_odm, rTx_Power_Before_IQK_A, bMaskDWord);
 	regE9C = ODM_GetBBReg(dm_odm, rTx_Power_After_IQK_A, bMaskDWord);
 
-	if (!(regeac & BIT28) &&
+	if (!(regeac & BIT(28)) &&
 	    (((regE94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regE9C & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
@@ -495,7 +495,7 @@ phy_PathA_RxIQK(struct adapter *adapt, bool configPathB)
 	ODM_SetBBReg(dm_odm, rFPGA0_IQK, bMaskDWord, 0x00000000);
 	ODM_SetRFReg(dm_odm, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x180);
 
-	if (!(regeac & BIT27) &&		/* if Tx is OK, check whether Rx is OK */
+	if (!(regeac & BIT(27)) &&		/* if Tx is OK, check whether Rx is OK */
 	    (((regEA4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regeac & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -525,14 +525,14 @@ phy_PathB_IQK_8188E(struct adapter *adapt)
 	regec4 = ODM_GetBBReg(dm_odm, rRx_Power_Before_IQK_B_2, bMaskDWord);
 	regecc = ODM_GetBBReg(dm_odm, rRx_Power_After_IQK_B_2, bMaskDWord);
 
-	if (!(regeac & BIT31) &&
+	if (!(regeac & BIT(31)) &&
 	    (((regeb4 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regebc & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else
 		return result;
 
-	if (!(regeac & BIT30) &&
+	if (!(regeac & BIT(30)) &&
 	    (((regec4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regecc & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -732,9 +732,9 @@ _PHY_MACSettingCalibration(
 	ODM_Write1Byte(dm_odm, MACReg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT(3))));
 	}
-	ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT(5))));
 }
 
 void
@@ -907,15 +907,15 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 	}
 
 	/* BB setting */
-	ODM_SetBBReg(dm_odm, rFPGA0_RFMOD, BIT24, 0x00);
+	ODM_SetBBReg(dm_odm, rFPGA0_RFMOD, BIT(24), 0x00);
 	ODM_SetBBReg(dm_odm, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
 	ODM_SetBBReg(dm_odm, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
 	ODM_SetBBReg(dm_odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22204000);
 
-	ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFInterfaceSW, BIT10, 0x01);
-	ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFInterfaceSW, BIT26, 0x01);
-	ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT10, 0x00);
-	ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT10, 0x00);
+	ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0x01);
+	ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0x01);
+	ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT(10), 0x00);
+	ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT(10), 0x00);
 
 	if (is2t) {
 		ODM_SetBBReg(dm_odm, rFPGA0_XA_LSSIParameter, bMaskDWord, 0x00010000);
@@ -1255,21 +1255,21 @@ static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2
 
 	if (!adapt->hw_init_completed) {
 		u8 u1btmp;
-		u1btmp = ODM_Read1Byte(dm_odm, REG_LEDCFG2) | BIT7;
+		u1btmp = ODM_Read1Byte(dm_odm, REG_LEDCFG2) | BIT(7);
 		ODM_Write1Byte(dm_odm, REG_LEDCFG2, u1btmp);
-		ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFParameter, BIT13, 0x01);
+		ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
 	}
 
 	if (is2t) {	/* 92C */
 		if (main)
-			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT5|BIT6, 0x1);	/* 92C_Path_A */
+			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT(5)|BIT(6), 0x1);	/* 92C_Path_A */
 		else
-			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT5|BIT6, 0x2);	/* BT */
+			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT(5)|BIT(6), 0x2);	/* BT */
 	} else {			/* 88C */
 		if (main)
-			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT8|BIT9, 0x2);	/* Main */
+			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT(8)|BIT(9), 0x2);	/* Main */
 		else
-			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT8|BIT9, 0x1);	/* Aux */
+			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT(8)|BIT(9), 0x1);	/* Aux */
 	}
 }
 
