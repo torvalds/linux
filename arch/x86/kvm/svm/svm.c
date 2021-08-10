@@ -1314,9 +1314,6 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	svm->virt_spec_ctrl = 0;
 
 	init_vmcb(vcpu);
-
-	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
-		avic_update_vapic_bar(svm, APIC_DEFAULT_PHYS_BASE);
 }
 
 void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
@@ -2967,10 +2964,6 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		svm->msr_decfg = data;
 		break;
 	}
-	case MSR_IA32_APICBASE:
-		if (kvm_vcpu_apicv_active(vcpu))
-			avic_update_vapic_bar(to_svm(vcpu), data);
-		fallthrough;
 	default:
 		return kvm_set_msr_common(vcpu, msr);
 	}

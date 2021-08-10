@@ -197,6 +197,8 @@ void avic_init_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
+	vmcb->control.avic_vapic_bar = APIC_DEFAULT_PHYS_BASE & VMCB_AVIC_APIC_BAR_MASK;
+
 	if (kvm_apicv_activated(svm->vcpu.kvm))
 		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
 	else
