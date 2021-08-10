@@ -1358,7 +1358,7 @@ static void _driver_stats_seq_stop(struct seq_file *s, void *v)
 {
 }
 
-static u64 hfi1_sps_ints(void)
+static void hfi1_sps_show_ints(struct seq_file *s)
 {
 	unsigned long index, flags;
 	struct hfi1_devdata *dd;
@@ -1369,24 +1369,19 @@ static u64 hfi1_sps_ints(void)
 		sps_ints += get_all_cpu_total(dd->int_counter);
 	}
 	xa_unlock_irqrestore(&hfi1_dev_table, flags);
-	return sps_ints;
+	seq_write(s, &sps_ints, sizeof(u64));
 }
 
 static int _driver_stats_seq_show(struct seq_file *s, void *v)
 {
 	loff_t *spos = v;
-	char *buffer;
 	u64 *stats = (u64 *)&hfi1_stats;
-	size_t sz = seq_get_buf(s, &buffer);
 
-	if (sz < sizeof(u64))
-		return SEQ_SKIP;
 	/* special case for interrupts */
 	if (*spos == 0)
-		*(u64 *)buffer = hfi1_sps_ints();
+		hfi1_sps_show_ints(s);
 	else
-		*(u64 *)buffer = stats[*spos];
-	seq_commit(s,  sizeof(u64));
+		seq_write(s, stats + *spos, sizeof(u64));
 	return 0;
 }
 
