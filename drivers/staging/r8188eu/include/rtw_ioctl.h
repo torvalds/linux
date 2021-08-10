@@ -76,12 +76,6 @@ struct oid_obj_priv {
 	int (*oidfuns)(struct oid_par_priv *poid_par_priv);
 };
 
-#if defined(_RTW_MP_IOCTL_C_)
-static int oid_null_function(struct oid_par_priv *poid_par_priv) {
-	return NDIS_STATUS_SUCCESS;
-}
-#endif
-
 extern struct iw_handler_def  rtw_handlers_def;
 
 int drv_query_info(struct  net_device *miniportadaptercontext, NDIS_OID oid,
