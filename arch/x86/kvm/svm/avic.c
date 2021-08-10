@@ -940,9 +940,6 @@ void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	int h_physical_id = kvm_cpu_get_apicid(cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (!kvm_vcpu_apicv_active(vcpu))
-		return;
-
 	/*
 	 * Since the host physical APIC id is 8 bits,
 	 * we can support host APIC ID upto 255.
@@ -970,9 +967,6 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	u64 entry;
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (!kvm_vcpu_apicv_active(vcpu))
-		return;
-
 	entry = READ_ONCE(*(svm->avic_physical_id_cache));
 	if (entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK)
 		avic_update_iommu_vcpu_affinity(vcpu, -1, 0);
@@ -989,6 +983,10 @@ static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->avic_is_running = is_run;
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
 	if (is_run)
 		avic_vcpu_load(vcpu, vcpu->cpu);
 	else
