@@ -60,6 +60,7 @@ enum ipa_power_flag {
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
  * @mutex:		Protects clock enable/disable
+ * @dev:		IPA device pointer
  * @core:		IPA core clock
  * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
@@ -68,6 +69,7 @@ enum ipa_power_flag {
 struct ipa_clock {
 	refcount_t count;
 	struct mutex mutex; /* protects clock enable/disable */
+	struct device *dev;
 	struct clk *core;
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
@@ -263,13 +265,29 @@ static int ipa_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int ipa_runtime_idle(struct device *dev)
+{
+	return -EAGAIN;
+}
+
 /* Get an IPA clock reference, but only if the reference count is
  * already non-zero.  Returns true if the additional reference was
  * added successfully, or false otherwise.
  */
 bool ipa_clock_get_additional(struct ipa *ipa)
 {
-	return refcount_inc_not_zero(&ipa->clock->count);
+	struct device *dev;
+	int ret;
+
+	if (!refcount_inc_not_zero(&ipa->clock->count))
+		return false;
+
+	dev = &ipa->pdev->dev;
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		dev_err(dev, "error %d enabling power\n", ret);
+
+	return true;
 }
 
 /* Get an IPA clock reference.  If the reference count is non-zero, it is
@@ -283,6 +301,7 @@ bool ipa_clock_get_additional(struct ipa *ipa)
 int ipa_clock_get(struct ipa *ipa)
 {
 	struct ipa_clock *clock = ipa->clock;
+	struct device *dev;
 	int ret;
 
 	/* If the clock is running, just bump the reference count */
@@ -298,7 +317,8 @@ int ipa_clock_get(struct ipa *ipa)
 		goto out_mutex_unlock;
 	}
 
-	ret = ipa_runtime_resume(&ipa->pdev->dev);
+	dev = &ipa->pdev->dev;
+	ret = pm_runtime_get_sync(dev);
 
 	refcount_set(&clock->count, 1);
 
@@ -313,14 +333,17 @@ out_mutex_unlock:
  */
 int ipa_clock_put(struct ipa *ipa)
 {
+	struct device *dev = &ipa->pdev->dev;
 	struct ipa_clock *clock = ipa->clock;
+	int last;
 	int ret;
 
 	/* If this is not the last reference there's nothing more to do */
-	if (!refcount_dec_and_mutex_lock(&clock->count, &clock->mutex))
-		return 0;
+	last = refcount_dec_and_mutex_lock(&clock->count, &clock->mutex);
 
-	ret = ipa_runtime_suspend(&ipa->pdev->dev);
+	ret = pm_runtime_put(dev);
+	if (!last)
+		return ret;
 
 	mutex_unlock(&clock->mutex);
 
@@ -394,6 +417,7 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 		ret = -ENOMEM;
 		goto err_clk_put;
 	}
+	clock->dev = dev;
 	clock->core = clk;
 	clock->interconnect_count = data->interconnect_count;
 
@@ -403,6 +427,9 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 
 	mutex_init(&clock->mutex);
 	refcount_set(&clock->count, 0);
+
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_enable(dev);
 
 	return clock;
 
@@ -420,43 +447,17 @@ void ipa_clock_exit(struct ipa_clock *clock)
 	struct clk *clk = clock->core;
 
 	WARN_ON(refcount_read(&clock->count) != 0);
+	pm_runtime_disable(clock->dev);
 	mutex_destroy(&clock->mutex);
 	ipa_interconnect_exit(clock);
 	kfree(clock);
 	clk_put(clk);
 }
 
-/**
- * ipa_suspend() - Power management system suspend callback
- * @dev:	IPA device structure
- *
- * Return:	0 on success, or a negative error code
- *
- * Called by the PM framework when a system suspend operation is invoked.
- * Suspends endpoints and releases the clock reference held to keep
- * the IPA clock running until this point.
- */
-static int ipa_suspend(struct device *dev)
-{
-	return ipa_runtime_suspend(dev);
-}
-
-/**
- * ipa_resume() - Power management system resume callback
- * @dev:	IPA device structure
- *
- * Return:	0 on success, or a negative error code
- *
- * Called by the PM framework when a system resume operation is invoked.
- * Takes an IPA clock reference to keep the clock running until suspend,
- * and resumes endpoints.
- */
-static int ipa_resume(struct device *dev)
-{
-	return ipa_runtime_resume(dev);
-}
-
 const struct dev_pm_ops ipa_pm_ops = {
-	.suspend	= ipa_suspend,
-	.resume		= ipa_resume,
+	.suspend		= pm_runtime_force_suspend,
+	.resume			= pm_runtime_force_resume,
+	.runtime_suspend	= ipa_runtime_suspend,
+	.runtime_resume		= ipa_runtime_resume,
+	.runtime_idle		= ipa_runtime_idle,
 };
