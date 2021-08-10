@@ -1176,6 +1176,8 @@ br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
 	       brmctx2->multicast_igmp_version &&
 	       brmctx1->multicast_last_member_count ==
 	       brmctx2->multicast_last_member_count &&
+	       brmctx1->multicast_startup_query_count ==
+	       brmctx2->multicast_startup_query_count &&
 #if IS_ENABLED(CONFIG_IPV6)
 	       brmctx1->multicast_mld_version ==
 	       brmctx2->multicast_mld_version &&
