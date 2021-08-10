@@ -196,8 +196,8 @@ static inline void bpf_cgroup_storage_unset(void)
 {
 	int i;
 
-	for (i = 0; i < BPF_CGROUP_STORAGE_NEST_MAX; i++) {
-		if (unlikely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
+	for (i = BPF_CGROUP_STORAGE_NEST_MAX - 1; i >= 0; i--) {
+		if (likely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
 			continue;
 
 		this_cpu_write(bpf_cgroup_storage_info[i].task, NULL);
