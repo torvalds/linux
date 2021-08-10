@@ -883,9 +883,11 @@ int br_multicast_toggle(struct net_bridge *br, unsigned long val,
 			struct netlink_ext_ack *extack);
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
 int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
-int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val);
+int br_multicast_set_igmp_version(struct net_bridge_mcast *brmctx,
+				  unsigned long val);
 #if IS_ENABLED(CONFIG_IPV6)
-int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val);
+int br_multicast_set_mld_version(struct net_bridge_mcast *brmctx,
+				 unsigned long val);
 #endif
 struct net_bridge_mdb_entry *
 br_mdb_ip_get(struct net_bridge *br, struct br_ip *dst);
@@ -1165,6 +1167,19 @@ br_multicast_port_ctx_state_stopped(const struct net_bridge_mcast_port *pmctx)
 	       (br_multicast_port_ctx_is_vlan(pmctx) &&
 		pmctx->vlan->state == BR_STATE_BLOCKING);
 }
+
+static inline bool
+br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
+			       const struct net_bridge_mcast *brmctx2)
+{
+	return brmctx1->multicast_igmp_version ==
+	       brmctx2->multicast_igmp_version &&
+#if IS_ENABLED(CONFIG_IPV6)
+	       brmctx1->multicast_mld_version ==
+	       brmctx2->multicast_mld_version &&
+#endif
+	       true;
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge_mcast **brmctx,
 				   struct net_bridge_mcast_port **pmctx,
@@ -1329,6 +1344,13 @@ static inline int br_mdb_replay(struct net_device *br_dev,
 				struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool
+br_multicast_ctx_options_equal(const struct net_bridge_mcast *brmctx1,
+			       const struct net_bridge_mcast *brmctx2)
+{
+	return true;
 }
 #endif
 

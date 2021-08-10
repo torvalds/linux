@@ -1380,7 +1380,8 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u8 igmp_version;
 
 		igmp_version = nla_get_u8(data[IFLA_BR_MCAST_IGMP_VERSION]);
-		err = br_multicast_set_igmp_version(br, igmp_version);
+		err = br_multicast_set_igmp_version(&br->multicast_ctx,
+						    igmp_version);
 		if (err)
 			return err;
 	}
@@ -1390,7 +1391,8 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u8 mld_version;
 
 		mld_version = nla_get_u8(data[IFLA_BR_MCAST_MLD_VERSION]);
-		err = br_multicast_set_mld_version(br, mld_version);
+		err = br_multicast_set_mld_version(&br->multicast_ctx,
+						   mld_version);
 		if (err)
 			return err;
 	}

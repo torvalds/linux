@@ -264,7 +264,9 @@ bool br_vlan_global_opts_can_enter_range(const struct net_bridge_vlan *v_curr,
 {
 	return v_curr->vid - r_end->vid == 1 &&
 	       ((v_curr->priv_flags ^ r_end->priv_flags) &
-		BR_VLFLAG_GLOBAL_MCAST_ENABLED) == 0;
+		BR_VLFLAG_GLOBAL_MCAST_ENABLED) == 0 &&
+		br_multicast_ctx_options_equal(&v_curr->br_mcast_ctx,
+					       &r_end->br_mcast_ctx);
 }
 
 bool br_vlan_global_opts_fill(struct sk_buff *skb, u16 vid, u16 vid_range,
@@ -285,8 +287,16 @@ bool br_vlan_global_opts_fill(struct sk_buff *skb, u16 vid, u16 vid_range,
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING,
-		       !!(v_opts->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED)))
+		       !!(v_opts->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED)) ||
+	    nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION,
+		       v_opts->br_mcast_ctx.multicast_igmp_version))
 		goto out_err;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (nla_put_u8(skb, BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION,
+		       v_opts->br_mcast_ctx.multicast_mld_version))
+		goto out_err;
+#endif
 #endif
 
 	nla_nest_end(skb, nest);
@@ -305,6 +315,8 @@ static size_t rtnl_vlan_global_opts_nlmsg_size(void)
 		+ nla_total_size(sizeof(u16)) /* BRIDGE_VLANDB_GOPTS_ID */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING */
+		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION */
+		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION */
 #endif
 		+ nla_total_size(sizeof(u16)); /* BRIDGE_VLANDB_GOPTS_RANGE */
 }
@@ -359,6 +371,8 @@ static int br_vlan_process_global_one_opts(const struct net_bridge *br,
 					   bool *changed,
 					   struct netlink_ext_ack *extack)
 {
+	int err __maybe_unused;
+
 	*changed = false;
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING]) {
@@ -368,6 +382,26 @@ static int br_vlan_process_global_one_opts(const struct net_bridge *br,
 		if (br_multicast_toggle_global_vlan(v, !!mc_snooping))
 			*changed = true;
 	}
+	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION]) {
+		u8 ver;
+
+		ver = nla_get_u8(tb[BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION]);
+		err = br_multicast_set_igmp_version(&v->br_mcast_ctx, ver);
+		if (err)
+			return err;
+		*changed = true;
+	}
+#if IS_ENABLED(CONFIG_IPV6)
+	if (tb[BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION]) {
+		u8 ver;
+
+		ver = nla_get_u8(tb[BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION]);
+		err = br_multicast_set_mld_version(&v->br_mcast_ctx, ver);
+		if (err)
+			return err;
+		*changed = true;
+	}
+#endif
 #endif
 
 	return 0;
@@ -377,6 +411,8 @@ static const struct nla_policy br_vlan_db_gpol[BRIDGE_VLANDB_GOPTS_MAX + 1] = {
 	[BRIDGE_VLANDB_GOPTS_ID]	= { .type = NLA_U16 },
 	[BRIDGE_VLANDB_GOPTS_RANGE]	= { .type = NLA_U16 },
 	[BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING]	= { .type = NLA_U8 },
+	[BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION]	= { .type = NLA_U8 },
+	[BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION]	= { .type = NLA_U8 },
 };
 
 int br_vlan_rtm_process_global_options(struct net_device *dev,

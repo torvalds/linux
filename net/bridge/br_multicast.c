@@ -4327,7 +4327,8 @@ unlock:
 	return 0;
 }
 
-int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val)
+int br_multicast_set_igmp_version(struct net_bridge_mcast *brmctx,
+				  unsigned long val)
 {
 	/* Currently we support only version 2 and 3 */
 	switch (val) {
@@ -4338,15 +4339,16 @@ int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&br->multicast_lock);
-	br->multicast_ctx.multicast_igmp_version = val;
-	spin_unlock_bh(&br->multicast_lock);
+	spin_lock_bh(&brmctx->br->multicast_lock);
+	brmctx->multicast_igmp_version = val;
+	spin_unlock_bh(&brmctx->br->multicast_lock);
 
 	return 0;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val)
+int br_multicast_set_mld_version(struct net_bridge_mcast *brmctx,
+				 unsigned long val)
 {
 	/* Currently we support version 1 and 2 */
 	switch (val) {
@@ -4357,9 +4359,9 @@ int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&br->multicast_lock);
-	br->multicast_ctx.multicast_mld_version = val;
-	spin_unlock_bh(&br->multicast_lock);
+	spin_lock_bh(&brmctx->br->multicast_lock);
+	brmctx->multicast_mld_version = val;
+	spin_unlock_bh(&brmctx->br->multicast_lock);
 
 	return 0;
 }
