@@ -2482,31 +2482,48 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 }
 #endif
 
-static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
-			     unsigned int issue_flags)
+static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 {
-	int cflags = 0;
-
 	if (req->rw.kiocb.ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
 	if (res != req->result) {
 		if ((res == -EAGAIN || res == -EOPNOTSUPP) &&
 		    io_rw_should_reissue(req)) {
 			req->flags |= REQ_F_REISSUE;
-			return;
+			return true;
 		}
 		req_set_fail(req);
+		req->result = res;
 	}
+	return false;
+}
+
+static void io_req_task_complete(struct io_kiocb *req)
+{
+	int cflags = 0;
+
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		cflags = io_put_rw_kbuf(req);
-	__io_req_complete(req, issue_flags, res, cflags);
+	__io_req_complete(req, 0, req->result, cflags);
+}
+
+static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
+			     unsigned int issue_flags)
+{
+	if (__io_complete_rw_common(req, res))
+		return;
+	io_req_task_complete(req);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
-	__io_complete_rw(req, res, res2, 0);
+	if (__io_complete_rw_common(req, res))
+		return;
+	req->result = res;
+	req->io_task_work.func = io_req_task_complete;
+	io_req_task_work_add(req);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
