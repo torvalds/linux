@@ -9800,6 +9800,22 @@ static int devlink_param_verify(const struct devlink_param *param)
 		return devlink_param_driver_verify(param);
 }
 
+static int __devlink_param_register_one(struct devlink *devlink,
+					unsigned int port_index,
+					struct list_head *param_list,
+					const struct devlink_param *param,
+					enum devlink_command reg_cmd)
+{
+	int err;
+
+	err = devlink_param_verify(param);
+	if (err)
+		return err;
+
+	return devlink_param_register_one(devlink, port_index,
+					  param_list, param, reg_cmd);
+}
+
 static int __devlink_params_register(struct devlink *devlink,
 				     unsigned int port_index,
 				     struct list_head *param_list,
@@ -9814,12 +9830,8 @@ static int __devlink_params_register(struct devlink *devlink,
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < params_count; i++, param++) {
-		err = devlink_param_verify(param);
-		if (err)
-			goto rollback;
-
-		err = devlink_param_register_one(devlink, port_index,
-						 param_list, param, reg_cmd);
+		err = __devlink_param_register_one(devlink, port_index,
+						   param_list, param, reg_cmd);
 		if (err)
 			goto rollback;
 	}
