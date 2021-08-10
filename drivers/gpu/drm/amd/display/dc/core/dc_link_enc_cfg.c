@@ -139,7 +139,7 @@ static struct dc_stream_state *get_stream_using_link_enc(
 	for (i = 0; i < state->stream_count; i++) {
 		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
 
-		if (assignment.valid && (assignment.eng_id == eng_id)) {
+		if ((assignment.valid == true) && (assignment.eng_id == eng_id)) {
 			stream_idx = i;
 			break;
 		}
@@ -254,7 +254,7 @@ struct dc_link *link_enc_cfg_get_link_using_link_enc(
 	for (i = 0; i < state->stream_count; i++) {
 		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
 
-		if (assignment.valid && (assignment.eng_id == eng_id)) {
+		if ((assignment.valid == true) && (assignment.eng_id == eng_id)) {
 			stream_idx = i;
 			break;
 		}
@@ -274,7 +274,6 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
 {
 	struct link_encoder *link_enc = NULL;
 	struct display_endpoint_id ep_id;
-	int stream_idx = -1;
 	int i;
 
 	ep_id = (struct display_endpoint_id) {
@@ -283,19 +282,14 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
 
 	for (i = 0; i < state->stream_count; i++) {
 		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
-
-		if (assignment.valid &&
+		if (assignment.valid == true &&
 				assignment.ep_id.link_id.id == ep_id.link_id.id &&
 				assignment.ep_id.link_id.enum_id == ep_id.link_id.enum_id &&
 				assignment.ep_id.link_id.type == ep_id.link_id.type &&
 				assignment.ep_id.ep_type == ep_id.ep_type) {
-			stream_idx = i;
-			break;
+			link_enc = link->dc->res_pool->link_encoders[assignment.eng_id - ENGINE_ID_DIGA];
 		}
 	}
-
-	if (stream_idx != -1)
-		link_enc = state->streams[stream_idx]->link_enc;
 
 	return link_enc;
 }
@@ -310,6 +304,17 @@ struct link_encoder *link_enc_cfg_get_next_avail_link_enc(
 	eng_id = find_first_avail_link_enc(dc->ctx, state);
 	if (eng_id != ENGINE_ID_UNKNOWN)
 		link_enc = dc->res_pool->link_encoders[eng_id - ENGINE_ID_DIGA];
+
+	return link_enc;
+}
+
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
+		struct dc_state *state,
+		const struct dc_stream_state *stream)
+{
+	struct link_encoder *link_enc;
+
+	link_enc = link_enc_cfg_get_link_enc_used_by_link(state, stream->link);
 
 	return link_enc;
 }

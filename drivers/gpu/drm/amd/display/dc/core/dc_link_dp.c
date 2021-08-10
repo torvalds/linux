@@ -2624,13 +2624,27 @@ static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 
 bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
 {
+	struct link_encoder *link_enc = NULL;
+
 	if (!max_link_enc_cap) {
 		DC_LOG_ERROR("%s: Could not return max link encoder caps", __func__);
 		return false;
 	}
 
-	if (link->link_enc->funcs->get_max_link_cap) {
-		link->link_enc->funcs->get_max_link_cap(link->link_enc, max_link_enc_cap);
+	/* Links supporting dynamically assigned link encoder will be assigned next
+	 * available encoder if one not already assigned.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		if (link_enc == NULL)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(link->dc, link->dc->current_state);
+	} else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
+
+	if (link_enc && link_enc->funcs->get_max_link_cap) {
+		link_enc->funcs->get_max_link_cap(link_enc, max_link_enc_cap);
 		return true;
 	}
 
@@ -2646,9 +2660,23 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dc_link_rate lttpr_max_link_rate;
 #endif
+	struct link_encoder *link_enc = NULL;
+
+	/* Links supporting dynamically assigned link encoder will be assigned next
+	 * available encoder if one not already assigned.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		if (link_enc == NULL)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(link->dc, link->dc->current_state);
+	} else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	/* get max link encoder capability */
-	link->link_enc->funcs->get_max_link_cap(link->link_enc, &max_link_cap);
+	if (link_enc)
+		link_enc->funcs->get_max_link_cap(link_enc, &max_link_cap);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (max_link_cap.link_rate >= LINK_RATE_UHBR10 &&
 			!link->hpo_dp_link_enc)
@@ -2867,7 +2895,7 @@ bool dp_verify_link_cap(
 	 * PHY will sometimes be in bad state on hotplugging display from certain USB-C dongle,
 	 * so add extra cycle of enabling and disabling the PHY before first link training.
 	 */
-	if (link->link_enc->features.flags.bits.DP_IS_USB_C &&
+	if (link->link_enc && link->link_enc->features.flags.bits.DP_IS_USB_C &&
 			link->dc->debug.usbc_combo_phy_reset_wa) {
 		dp_enable_link_phy(link, link->connector_signal, dp_cs_id, cur);
 		dp_disable_link_phy(link, link->connector_signal);

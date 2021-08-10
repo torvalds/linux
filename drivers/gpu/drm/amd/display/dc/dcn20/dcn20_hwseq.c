@@ -2381,6 +2381,13 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct link_encoder *link_enc;
+
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = pipe_ctx->stream->link_enc;
+	else
+		link_enc = link->link_enc;
 
 	/* For MST, there are multiply stream go to only one link.
 	 * connect DIG back_end to front_end while enable_stream and
@@ -2397,9 +2404,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 				link->hpo_dp_link_enc->inst);
 	}
 
-	if (!is_dp_128b_132b_signal(pipe_ctx))
-		link->link_enc->funcs->connect_dig_be_to_fe(
-			link->link_enc, pipe_ctx->stream_res.stream_enc->id, true);
+	if (!is_dp_128b_132b_signal(pipe_ctx) && link_enc)
+		link_enc->funcs->connect_dig_be_to_fe(
+			link_enc, pipe_ctx->stream_res.stream_enc->id, true);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
