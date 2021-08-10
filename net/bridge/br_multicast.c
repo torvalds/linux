@@ -4297,14 +4297,13 @@ bool br_multicast_router(const struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(br_multicast_router);
 
-int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
+int br_multicast_set_querier(struct net_bridge_mcast *brmctx, unsigned long val)
 {
-	struct net_bridge_mcast *brmctx = &br->multicast_ctx;
 	unsigned long max_delay;
 
 	val = !!val;
 
-	spin_lock_bh(&br->multicast_lock);
+	spin_lock_bh(&brmctx->br->multicast_lock);
 	if (brmctx->multicast_querier == val)
 		goto unlock;
 
@@ -4327,7 +4326,7 @@ int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 #endif
 
 unlock:
-	spin_unlock_bh(&br->multicast_lock);
+	spin_unlock_bh(&brmctx->br->multicast_lock);
 
 	return 0;
 }

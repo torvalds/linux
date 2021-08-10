@@ -447,13 +447,13 @@ static ssize_t multicast_querier_show(struct device *d,
 				      char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", READ_ONCE(br->multicast_ctx.multicast_querier));
+	return sprintf(buf, "%d\n", br->multicast_ctx.multicast_querier);
 }
 
 static int set_multicast_querier(struct net_bridge *br, unsigned long val,
 				 struct netlink_ext_ack *extack)
 {
-	return br_multicast_set_querier(br, val);
+	return br_multicast_set_querier(&br->multicast_ctx, val);
 }
 
 static ssize_t multicast_querier_store(struct device *d,
