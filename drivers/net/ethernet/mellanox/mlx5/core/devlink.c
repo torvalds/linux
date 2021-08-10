@@ -680,6 +680,42 @@ static void mlx5_devlink_rdma_param_unregister(struct devlink *devlink)
 	devlink_param_unregister(devlink, &enable_rdma_param);
 }
 
+static const struct devlink_param enable_vnet_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_VNET, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL);
+
+static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!mlx5_vnet_supported(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_vnet_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+					   value);
+	devlink_param_publish(devlink, &enable_rdma_param);
+	return 0;
+}
+
+static void mlx5_devlink_vnet_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_vnet_supported(dev))
+		return;
+
+	devlink_param_unpublish(devlink, &enable_vnet_param);
+	devlink_param_unregister(devlink, &enable_vnet_param);
+}
+
 static int mlx5_devlink_auxdev_params_register(struct devlink *devlink)
 {
 	int err;
@@ -692,8 +728,13 @@ static int mlx5_devlink_auxdev_params_register(struct devlink *devlink)
 	if (err)
 		goto rdma_err;
 
+	err = mlx5_devlink_vnet_param_register(devlink);
+	if (err)
+		goto vnet_err;
 	return 0;
 
+vnet_err:
+	mlx5_devlink_rdma_param_unregister(devlink);
 rdma_err:
 	mlx5_devlink_eth_param_unregister(devlink);
 	return err;
@@ -701,6 +742,7 @@ rdma_err:
 
 static void mlx5_devlink_auxdev_params_unregister(struct devlink *devlink)
 {
+	mlx5_devlink_vnet_param_unregister(devlink);
 	mlx5_devlink_rdma_param_unregister(devlink);
 	mlx5_devlink_eth_param_unregister(devlink);
 }

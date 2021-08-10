@@ -116,7 +116,7 @@ static bool is_eth_enabled(struct mlx5_core_dev *dev)
 	return err ? false : val.vbool;
 }
 
-static bool is_vnet_supported(struct mlx5_core_dev *dev)
+bool mlx5_vnet_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_VDPA_NET))
 		return false;
@@ -136,6 +136,17 @@ static bool is_vnet_supported(struct mlx5_core_dev *dev)
 		return false;
 
 	return true;
+}
+
+static bool is_vnet_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+						 &val);
+	return err ? false : val.vbool;
 }
 
 static bool is_ib_rep_supported(struct mlx5_core_dev *dev)
@@ -226,7 +237,8 @@ static const struct mlx5_adev_device {
 	bool (*is_enabled)(struct mlx5_core_dev *dev);
 } mlx5_adev_devices[] = {
 	[MLX5_INTERFACE_PROTOCOL_VNET] = { .suffix = "vnet",
-					   .is_supported = &is_vnet_supported },
+					   .is_supported = &mlx5_vnet_supported,
+					   .is_enabled = &is_vnet_enabled },
 	[MLX5_INTERFACE_PROTOCOL_IB] = { .suffix = "rdma",
 					 .is_supported = &mlx5_rdma_supported,
 					 .is_enabled = &is_ib_enabled },

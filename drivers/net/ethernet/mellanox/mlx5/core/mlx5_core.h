@@ -275,5 +275,6 @@ static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 
 bool mlx5_eth_supported(struct mlx5_core_dev *dev);
 bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
+bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
 
 #endif /* __MLX5_CORE_H__ */
