@@ -4,7 +4,9 @@
  * Infrared Toy and IR Droid RC core driver
  *
  * Copyright (C) 2020 Sean Young <sean@mess.org>
-
+ *
+ * http://dangerousprototypes.com/docs/USB_IR_Toy:_Sampling_mode
+ *
  * This driver is based on the lirc driver which can be found here:
  * https://sourceforge.net/p/lirc/git/ci/master/tree/plugins/irtoy.c
  * Copyright (C) 2011 Peter Kooiman <pkooiman@gmail.com>
@@ -45,7 +47,7 @@ static const u8 COMMAND_TXSTART[] = { 0x26, 0x24, 0x25, 0x03 };
 
 enum state {
 	STATE_IRDATA,
-	STATE_RESET,
+	STATE_COMMAND_NO_RESP,
 	STATE_COMMAND,
 	STATE_TX,
 };
@@ -192,7 +194,7 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			irtoy->tx_len -= buf_len;
 		}
 		break;
-	case STATE_RESET:
+	case STATE_COMMAND_NO_RESP:
 		dev_err(irtoy->dev, "unexpected response to reset: %*phN\n",
 			len, irtoy->in);
 	}
@@ -203,7 +205,7 @@ static void irtoy_out_callback(struct urb *urb)
 	struct irtoy *irtoy = urb->context;
 
 	if (urb->status == 0) {
-		if (irtoy->state == STATE_RESET)
+		if (irtoy->state == STATE_COMMAND_NO_RESP)
 			complete(&irtoy->command_done);
 	} else {
 		dev_warn(irtoy->dev, "out urb status: %d\n", urb->status);
@@ -255,7 +257,7 @@ static int irtoy_setup(struct irtoy *irtoy)
 	int err;
 
 	err = irtoy_command(irtoy, COMMAND_RESET, sizeof(COMMAND_RESET),
-			    STATE_RESET);
+			    STATE_COMMAND_NO_RESP);
 	if (err != 0) {
 		dev_err(irtoy->dev, "could not write reset command: %d\n",
 			err);
@@ -336,6 +338,27 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	}
 
 	return count;
+}
+
+static int irtoy_tx_carrier(struct rc_dev *rc, uint32_t carrier)
+{
+	struct irtoy *irtoy = rc->priv;
+	u8 buf[3];
+	int err;
+
+	if (carrier < 11800)
+		return -EINVAL;
+
+	buf[0] = 0x06;
+	buf[1] = DIV_ROUND_CLOSEST(48000000, 16 * carrier) - 1;
+	buf[2] = 0;
+
+	err = irtoy_command(irtoy, buf, sizeof(buf), STATE_COMMAND_NO_RESP);
+	if (err)
+		dev_err(irtoy->dev, "could not write carrier command: %d\n",
+			err);
+
+	return err;
 }
 
 static int irtoy_probe(struct usb_interface *intf,
@@ -436,6 +459,7 @@ static int irtoy_probe(struct usb_interface *intf,
 	rc->dev.parent = &intf->dev;
 	rc->priv = irtoy;
 	rc->tx_ir = irtoy_tx;
+	rc->s_tx_carrier = irtoy_tx_carrier;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->map_name = RC_MAP_RC6_MCE;
 	rc->rx_resolution = UNIT_US;
