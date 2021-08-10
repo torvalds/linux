@@ -538,6 +538,8 @@ struct io_timeout {
 	struct list_head		list;
 	/* head of the link, used by linked timeouts only */
 	struct io_kiocb			*head;
+	/* for linked completions */
+	struct io_kiocb			*prev;
 };
 
 struct io_timeout_rem {
@@ -1848,6 +1850,7 @@ static inline void io_remove_next_linked(struct io_kiocb *req)
 
 static bool io_kill_linked_timeout(struct io_kiocb *req)
 	__must_hold(&req->ctx->completion_lock)
+	__must_hold(&req->ctx->timeout_lock)
 {
 	struct io_kiocb *link = req->link;
 
@@ -1892,8 +1895,13 @@ static bool io_disarm_next(struct io_kiocb *req)
 {
 	bool posted = false;
 
-	if (likely(req->flags & REQ_F_LINK_TIMEOUT))
+	if (likely(req->flags & REQ_F_LINK_TIMEOUT)) {
+		struct io_ring_ctx *ctx = req->ctx;
+
+		spin_lock_irq(&ctx->timeout_lock);
 		posted = io_kill_linked_timeout(req);
+		spin_unlock_irq(&ctx->timeout_lock);
+	}
 	if (unlikely((req->flags & REQ_F_FAIL) &&
 		     !(req->flags & REQ_F_HARDLINK))) {
 		posted |= (req->link != NULL);
@@ -6359,6 +6367,20 @@ static inline struct file *io_file_get(struct io_ring_ctx *ctx,
 		return io_file_get_normal(ctx, req, fd);
 }
 
+static void io_req_task_link_timeout(struct io_kiocb *req)
+{
+	struct io_kiocb *prev = req->timeout.prev;
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (prev) {
+		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
+		io_put_req(prev);
+		io_put_req(req);
+	} else {
+		io_req_complete_post(req, -ETIME, 0);
+	}
+}
+
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 {
 	struct io_timeout_data *data = container_of(timer,
@@ -6367,7 +6389,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->completion_lock, flags);
+	spin_lock_irqsave(&ctx->timeout_lock, flags);
 	prev = req->timeout.head;
 	req->timeout.head = NULL;
 
@@ -6380,15 +6402,11 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 		if (!req_ref_inc_not_zero(prev))
 			prev = NULL;
 	}
-	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	req->timeout.prev = prev;
+	spin_unlock_irqrestore(&ctx->timeout_lock, flags);
 
-	if (prev) {
-		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
-		io_put_req_deferred(prev, 1);
-		io_put_req_deferred(req, 1);
-	} else {
-		io_req_complete_post(req, -ETIME, 0);
-	}
+	req->io_task_work.func = io_req_task_link_timeout;
+	io_req_task_work_add(req);
 	return HRTIMER_NORESTART;
 }
 
@@ -6396,7 +6414,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	spin_lock_irq(&ctx->completion_lock);
+	spin_lock_irq(&ctx->timeout_lock);
 	/*
 	 * If the back reference is NULL, then our linked request finished
 	 * before we got a chance to setup the timer
@@ -6408,7 +6426,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 		hrtimer_start(&data->timer, timespec64_to_ktime(data->ts),
 				data->mode);
 	}
-	spin_unlock_irq(&ctx->completion_lock);
+	spin_unlock_irq(&ctx->timeout_lock);
 	/* drop submission reference */
 	io_put_req(req);
 }
