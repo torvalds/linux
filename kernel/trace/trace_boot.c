@@ -422,6 +422,7 @@ trace_boot_init_histograms(struct trace_event_file *file,
 {
 	struct xbc_node *node;
 	const char *p;
+	char *tmp;
 
 	xbc_node_for_each_subkey(hnode, node) {
 		p = xbc_node_get_data(node);
@@ -429,15 +430,20 @@ trace_boot_init_histograms(struct trace_event_file *file,
 			continue;
 		/* All digit started node should be instances. */
 		if (trace_boot_compose_hist_cmd(node, buf, size) == 0) {
+			tmp = kstrdup(buf, GFP_KERNEL);
 			if (trigger_process_regex(file, buf) < 0)
-				pr_err("Failed to apply hist trigger: %s\n", buf);
+				pr_err("Failed to apply hist trigger: %s\n", tmp);
+			kfree(tmp);
 		}
 	}
 
 	if (xbc_node_find_child(hnode, "keys")) {
-		if (trace_boot_compose_hist_cmd(hnode, buf, size) == 0)
+		if (trace_boot_compose_hist_cmd(hnode, buf, size) == 0) {
+			tmp = kstrdup(buf, GFP_KERNEL);
 			if (trigger_process_regex(file, buf) < 0)
-				pr_err("Failed to apply hist trigger: %s\n", buf);
+				pr_err("Failed to apply hist trigger: %s\n", tmp);
+			kfree(tmp);
+		}
 	}
 }
 #else
@@ -488,7 +494,7 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 			if (strlcpy(buf, p, ARRAY_SIZE(buf)) >= ARRAY_SIZE(buf))
 				pr_err("action string is too long: %s\n", p);
 			else if (trigger_process_regex(file, buf) < 0)
-				pr_err("Failed to apply an action: %s\n", buf);
+				pr_err("Failed to apply an action: %s\n", p);
 		}
 		anode = xbc_node_find_child(enode, "hist");
 		if (anode)
