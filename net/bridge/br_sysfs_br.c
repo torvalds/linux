@@ -390,7 +390,7 @@ static ssize_t multicast_router_show(struct device *d,
 static int set_multicast_router(struct net_bridge *br, unsigned long val,
 				struct netlink_ext_ack *extack)
 {
-	return br_multicast_set_router(br, val);
+	return br_multicast_set_router(&br->multicast_ctx, val);
 }
 
 static ssize_t multicast_router_store(struct device *d,
@@ -447,13 +447,13 @@ static ssize_t multicast_querier_show(struct device *d,
 				      char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_QUERIER));
+	return sprintf(buf, "%d\n", br->multicast_ctx.multicast_querier);
 }
 
 static int set_multicast_querier(struct net_bridge *br, unsigned long val,
 				 struct netlink_ext_ack *extack)
 {
-	return br_multicast_set_querier(br, val);
+	return br_multicast_set_querier(&br->multicast_ctx, val);
 }
 
 static ssize_t multicast_querier_store(struct device *d,
@@ -520,7 +520,7 @@ static ssize_t multicast_igmp_version_show(struct device *d,
 static int set_multicast_igmp_version(struct net_bridge *br, unsigned long val,
 				      struct netlink_ext_ack *extack)
 {
-	return br_multicast_set_igmp_version(br, val);
+	return br_multicast_set_igmp_version(&br->multicast_ctx, val);
 }
 
 static ssize_t multicast_igmp_version_store(struct device *d,
@@ -757,7 +757,7 @@ static ssize_t multicast_mld_version_show(struct device *d,
 static int set_multicast_mld_version(struct net_bridge *br, unsigned long val,
 				     struct netlink_ext_ack *extack)
 {
-	return br_multicast_set_mld_version(br, val);
+	return br_multicast_set_mld_version(&br->multicast_ctx, val);
 }
 
 static ssize_t multicast_mld_version_store(struct device *d,
