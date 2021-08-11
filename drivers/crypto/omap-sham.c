@@ -2143,9 +2143,9 @@ static int omap_sham_probe(struct platform_device *pdev)
 		(rev & dd->pdata->major_mask) >> dd->pdata->major_shift,
 		(rev & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
 
-	spin_lock(&sham.lock);
+	spin_lock_bh(&sham.lock);
 	list_add_tail(&dd->list, &sham.dev_list);
-	spin_unlock(&sham.lock);
+	spin_unlock_bh(&sham.lock);
 
 	dd->engine = crypto_engine_alloc_init(dev, 1);
 	if (!dd->engine) {
@@ -2193,9 +2193,9 @@ err_algs:
 err_engine_start:
 	crypto_engine_exit(dd->engine);
 err_engine:
-	spin_lock(&sham.lock);
+	spin_lock_bh(&sham.lock);
 	list_del(&dd->list);
-	spin_unlock(&sham.lock);
+	spin_unlock_bh(&sham.lock);
 err_pm:
 	pm_runtime_disable(dev);
 	if (!dd->polling_mode)
@@ -2214,9 +2214,9 @@ static int omap_sham_remove(struct platform_device *pdev)
 	dd = platform_get_drvdata(pdev);
 	if (!dd)
 		return -ENODEV;
-	spin_lock(&sham.lock);
+	spin_lock_bh(&sham.lock);
 	list_del(&dd->list);
-	spin_unlock(&sham.lock);
+	spin_unlock_bh(&sham.lock);
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--) {
 			crypto_unregister_ahash(
