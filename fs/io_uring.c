@@ -1046,7 +1046,6 @@ static bool io_cqring_fill_event(struct io_ring_ctx *ctx, u64 user_data,
 static void io_put_req(struct io_kiocb *req);
 static void io_put_req_deferred(struct io_kiocb *req);
 static void io_dismantle_req(struct io_kiocb *req);
-static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     struct io_uring_rsrc_update2 *up,
@@ -1297,6 +1296,31 @@ static void io_req_track_inflight(struct io_kiocb *req)
 		req->flags |= REQ_F_INFLIGHT;
 		atomic_inc(&current->io_uring->inflight_tracked);
 	}
+}
+
+static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
+{
+	struct io_kiocb *nxt = req->link;
+
+	if (req->flags & REQ_F_LINK_TIMEOUT)
+		return NULL;
+
+	/* linked timeouts should have two refs once prep'ed */
+	io_req_refcount(req);
+	io_req_refcount(nxt);
+	req_ref_get(nxt);
+
+	nxt->timeout.head = req;
+	nxt->flags |= REQ_F_LTIMEOUT_ACTIVE;
+	req->flags |= REQ_F_LINK_TIMEOUT;
+	return nxt;
+}
+
+static inline struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
+{
+	if (likely(!req->link || req->link->opcode != IORING_OP_LINK_TIMEOUT))
+		return NULL;
+	return __io_prep_linked_timeout(req);
 }
 
 static void io_prep_async_work(struct io_kiocb *req)
@@ -6451,25 +6475,6 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 	spin_unlock_irq(&ctx->timeout_lock);
 	/* drop submission reference */
 	io_put_req(req);
-}
-
-static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
-{
-	struct io_kiocb *nxt = req->link;
-
-	if (!nxt || (req->flags & REQ_F_LINK_TIMEOUT) ||
-	    nxt->opcode != IORING_OP_LINK_TIMEOUT)
-		return NULL;
-
-	/* linked timeouts should have two refs once prep'ed */
-	io_req_refcount(req);
-	io_req_refcount(nxt);
-	req_ref_get(nxt);
-
-	nxt->timeout.head = req;
-	nxt->flags |= REQ_F_LTIMEOUT_ACTIVE;
-	req->flags |= REQ_F_LINK_TIMEOUT;
-	return nxt;
 }
 
 static void __io_queue_sqe(struct io_kiocb *req)
