@@ -637,6 +637,13 @@ void queue_iova(struct iova_domain *iovad,
 	unsigned long flags;
 	unsigned idx;
 
+	/*
+	 * Order against the IOMMU driver's pagetable update from unmapping
+	 * @pte, to guarantee that iova_domain_flush() observes that if called
+	 * from a different CPU before we release the lock below.
+	 */
+	smp_wmb();
+
 	spin_lock_irqsave(&fq->lock, flags);
 
 	/*

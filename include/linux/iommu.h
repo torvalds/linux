@@ -161,16 +161,22 @@ enum iommu_dev_features {
  * @start: IOVA representing the start of the range to be flushed
  * @end: IOVA representing the end of the range to be flushed (inclusive)
  * @pgsize: The interval at which to perform the flush
+ * @freelist: Removed pages to free after sync
+ * @queued: Indicates that the flush will be queued
  *
  * This structure is intended to be updated by multiple calls to the
  * ->unmap() function in struct iommu_ops before eventually being passed
- * into ->iotlb_sync().
+ * into ->iotlb_sync(). Drivers can add pages to @freelist to be freed after
+ * ->iotlb_sync() or ->iotlb_flush_all() have cleared all cached references to
+ * them. @queued is set to indicate when ->iotlb_flush_all() will be called
+ * later instead of ->iotlb_sync(), so drivers may optimise accordingly.
  */
 struct iommu_iotlb_gather {
 	unsigned long		start;
 	unsigned long		end;
 	size_t			pgsize;
 	struct page		*freelist;
+	bool			queued;
 };
 
 /**
