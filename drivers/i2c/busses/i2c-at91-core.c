@@ -333,7 +333,7 @@ static int __maybe_unused at91_twi_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops at91_twi_pm = {
+static const struct dev_pm_ops __maybe_unused at91_twi_pm = {
 	.suspend_noirq	= at91_twi_suspend_noirq,
 	.resume_noirq	= at91_twi_resume_noirq,
 	.runtime_suspend	= at91_twi_runtime_suspend,
