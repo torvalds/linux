@@ -21,7 +21,7 @@
 #include "symbol.h"
 #include "srcline.h"
 #include "dlfilter.h"
-#include "perf_dlfilter.h"
+#include "../include/perf/perf_dlfilter.h"
 
 static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 {
