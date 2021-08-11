@@ -27,7 +27,7 @@
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
-	u32 vector;
+	u32 irqn;
 	cpumask_t affinity_hint_mask;
 	char name[EFA_IRQNAME_SIZE];
 };
