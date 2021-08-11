@@ -45,6 +45,8 @@ static int cs8409_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
+static void cs8409_disable_i2c_clock_worker(struct work_struct *work);
+
 static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec;
@@ -53,7 +55,9 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 	if (!spec)
 		return NULL;
 	codec->spec = spec;
+	spec->codec = codec;
 	codec->power_save_node = 1;
+	INIT_DELAYED_WORK(&spec->i2c_clk_work, cs8409_disable_i2c_clock_worker);
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -72,21 +76,58 @@ static inline void cs8409_vendor_coef_set(struct hda_codec *codec, unsigned int 
 	snd_hda_codec_write(codec, CS8409_PIN_VENDOR_WIDGET, 0, AC_VERB_SET_PROC_COEF, coef);
 }
 
-/**
+/*
+ * cs8409_enable_i2c_clock - Disable I2C clocks
+ * @codec: the codec instance
+ * Disable I2C clocks.
+ * This must be called when the i2c mutex is unlocked.
+ */
+static void cs8409_disable_i2c_clock(struct hda_codec *codec)
+{
+	struct cs8409_spec *spec = codec->spec;
+
+	mutex_lock(&spec->cs8409_i2c_mux);
+	if (spec->i2c_clck_enabled) {
+		cs8409_vendor_coef_set(spec->codec, 0x0,
+			       cs8409_vendor_coef_get(spec->codec, 0x0) & 0xfffffff7);
+		spec->i2c_clck_enabled = 0;
+	}
+	mutex_unlock(&spec->cs8409_i2c_mux);
+}
+
+/*
+ * cs8409_disable_i2c_clock_worker - Worker that disable the I2C Clock after 25ms without use
+ */
+static void cs8409_disable_i2c_clock_worker(struct work_struct *work)
+{
+	struct cs8409_spec *spec = container_of(work, struct cs8409_spec, i2c_clk_work.work);
+
+	cs8409_disable_i2c_clock(spec->codec);
+}
+
+/*
  * cs8409_enable_i2c_clock - Enable I2C clocks
  * @codec: the codec instance
- * @enable: Enable or disable I2C clocks
- *
- * Enable or Disable I2C clocks.
+ * Enable I2C clocks.
+ * This must be called when the i2c mutex is locked.
  */
-static void cs8409_enable_i2c_clock(struct hda_codec *codec, unsigned int enable)
+static void cs8409_enable_i2c_clock(struct hda_codec *codec)
 {
-	unsigned int retval;
-	unsigned int newval;
+	struct cs8409_spec *spec = codec->spec;
 
-	retval = cs8409_vendor_coef_get(codec, 0x0);
-	newval = (enable) ? (retval | 0x8) : (retval & 0xfffffff7);
-	cs8409_vendor_coef_set(codec, 0x0, newval);
+	/* Cancel the disable timer, but do not wait for any running disable functions to finish.
+	 * If the disable timer runs out before cancel, the delayed work thread will be blocked,
+	 * waiting for the mutex to become unlocked. This mutex will be locked for the duration of
+	 * any i2c transaction, so the disable function will run to completion immediately
+	 * afterwards in the scenario. The next enable call will re-enable the clock, regardless.
+	 */
+	cancel_delayed_work(&spec->i2c_clk_work);
+
+	if (!spec->i2c_clck_enabled) {
+		cs8409_vendor_coef_set(codec, 0x0, cs8409_vendor_coef_get(codec, 0x0) | 0x8);
+		spec->i2c_clck_enabled = 1;
+	}
+	queue_delayed_work(system_power_efficient_wq, &spec->i2c_clk_work, msecs_to_jiffies(25));
 }
 
 /**
@@ -134,7 +175,7 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 	if (spec->cs42l42_suspended)
 		return -EPERM;
 
-	cs8409_enable_i2c_clock(codec, 1);
+	cs8409_enable_i2c_clock(codec);
 	cs8409_vendor_coef_set(codec, CS8409_I2C_ADDR, i2c_address);
 
 	if (paged) {
@@ -156,8 +197,6 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 
 	/* Register in bits 15-8 and the data in 7-0 */
 	read_data = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD);
-
-	cs8409_enable_i2c_clock(codec, 0);
 
 	return read_data & 0x0ff;
 }
@@ -182,7 +221,7 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 	if (spec->cs42l42_suspended)
 		return -EPERM;
 
-	cs8409_enable_i2c_clock(codec, 1);
+	cs8409_enable_i2c_clock(codec);
 	cs8409_vendor_coef_set(codec, CS8409_I2C_ADDR, i2c_address);
 
 	if (paged) {
@@ -202,8 +241,6 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 			__func__, i2c_address, i2c_reg);
 		return -EIO;
 	}
-
-	cs8409_enable_i2c_clock(codec, 0);
 
 	return 0;
 }
@@ -545,11 +582,26 @@ static int cs8409_suspend(struct hda_codec *codec)
 	/* Assert CS42L42 RTS# line */
 	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
 
+	/* Cancel i2c clock disable timer, and disable clock if left enabled */
+	cancel_delayed_work_sync(&spec->i2c_clk_work);
+	cs8409_disable_i2c_clock(codec);
+
 	snd_hda_shutup_pins(codec);
 
 	return 0;
 }
 #endif
+
+static void cs8409_free(struct hda_codec *codec)
+{
+	struct cs8409_spec *spec = codec->spec;
+
+	/* Cancel i2c clock disable timer, and disable clock if left enabled */
+	cancel_delayed_work_sync(&spec->i2c_clk_work);
+	cs8409_disable_i2c_clock(codec);
+
+	snd_hda_gen_free(codec);
+}
 
 /* Vendor specific HW configuration
  * PLL, ASP, I2C, SPI, GPIOs, DMIC etc...
@@ -633,7 +685,7 @@ static const struct hda_codec_ops cs8409_cs42l42_patch_ops = {
 	.build_controls = cs8409_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cs8409_cs42l42_init,
-	.free = snd_hda_gen_free,
+	.free = cs8409_free,
 	.unsol_event = cs8409_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = cs8409_suspend,
@@ -785,7 +837,7 @@ static int patch_cs8409(struct hda_codec *codec)
 
 	err = cs8409_parse_auto_config(codec);
 	if (err < 0) {
-		snd_hda_gen_free(codec);
+		cs8409_free(codec);
 		return err;
 	}
 
