@@ -11,13 +11,6 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <linux/mutex.h>
-#include <linux/pci.h>
-#include <sound/tlv.h>
-#include <sound/hda_codec.h>
-#include "hda_local.h"
-#include "hda_auto_parser.h"
-#include "hda_jack.h"
-#include "hda_generic.h"
 
 #include "patch_cs8409.h"
 
@@ -52,79 +45,6 @@ static int cs8409_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
-/* Dell Inspiron models with cs8409/cs42l42 */
-static const struct hda_model_fixup cs8409_models[] = {
-	{ .id = CS8409_BULLSEYE, .name = "bullseye" },
-	{ .id = CS8409_WARLOCK, .name = "warlock" },
-	{ .id = CS8409_CYBORG, .name = "cyborg" },
-	{}
-};
-
-/* Dell Inspiron platforms
- * with cs8409 bridge and cs42l42 codec
- */
-static const struct snd_pci_quirk cs8409_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x1028, 0x0A11, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A12, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A23, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A24, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A25, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A29, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A2A, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0A2B, "Bullseye", CS8409_BULLSEYE),
-	SND_PCI_QUIRK(0x1028, 0x0AB0, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AB2, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AB1, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AB3, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AB4, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AB5, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AD9, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0ADA, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0ADB, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0ADC, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AF4, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0AF5, "Warlock", CS8409_WARLOCK),
-	SND_PCI_QUIRK(0x1028, 0x0A77, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A78, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A79, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A7A, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A7D, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A7E, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A7F, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0A80, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0ADF, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AE0, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AE1, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AE2, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AE9, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AEA, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AEB, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AEC, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AED, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AEE, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AEF, "Cyborg", CS8409_CYBORG),
-	SND_PCI_QUIRK(0x1028, 0x0AF0, "Cyborg", CS8409_CYBORG),
-	{} /* terminator */
-};
-
-static const struct hda_verb cs8409_cs42l42_init_verbs[] = {
-	{ 0x01, AC_VERB_SET_GPIO_WAKE_MASK, 0x0018 }, /* WAKE from GPIO 3,4 */
-	{ 0x47, AC_VERB_SET_PROC_STATE, 0x0001 },     /* Enable VPW processing  */
-	{ 0x47, AC_VERB_SET_COEF_INDEX, 0x0002 },     /* Configure GPIO 6,7 */
-	{ 0x47, AC_VERB_SET_PROC_COEF,  0x0080 },     /* I2C mode */
-	{ 0x47, AC_VERB_SET_COEF_INDEX, 0x005b },     /* Set I2C bus speed */
-	{ 0x47, AC_VERB_SET_PROC_COEF,  0x0200 },     /* 100kHz I2C_STO = 2 */
-	{} /* terminator */
-};
-
-static const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
-	{ 0x24, 0x042120f0 }, /* ASP-1-TX */
-	{ 0x34, 0x04a12050 }, /* ASP-1-RX */
-	{ 0x2c, 0x901000f0 }, /* ASP-2-TX */
-	{ 0x44, 0x90a00090 }, /* DMIC-1 */
-	{} /* terminator */
-};
-
 static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec;
@@ -138,117 +58,6 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 
 	return spec;
 }
-
-/* Vendor specific HW configuration for CS42L42 */
-static const struct cs8409_i2c_param cs42l42_init_reg_seq[] = {
-	{ 0x1010, 0xB0 },
-	{ 0x1D01, 0x00 },
-	{ 0x1D02, 0x06 },
-	{ 0x1D03, 0x00 },
-	{ 0x1107, 0x01 },
-	{ 0x1009, 0x02 },
-	{ 0x1007, 0x03 },
-	{ 0x1201, 0x00 },
-	{ 0x1208, 0x13 },
-	{ 0x1205, 0xFF },
-	{ 0x1206, 0x00 },
-	{ 0x1207, 0x20 },
-	{ 0x1202, 0x0D },
-	{ 0x2A02, 0x02 },
-	{ 0x2A03, 0x00 },
-	{ 0x2A04, 0x00 },
-	{ 0x2A05, 0x02 },
-	{ 0x2A06, 0x00 },
-	{ 0x2A07, 0x20 },
-	{ 0x2A08, 0x02 },
-	{ 0x2A09, 0x00 },
-	{ 0x2A0A, 0x80 },
-	{ 0x2A0B, 0x02 },
-	{ 0x2A0C, 0x00 },
-	{ 0x2A0D, 0xA0 },
-	{ 0x2A01, 0x0C },
-	{ 0x2902, 0x01 },
-	{ 0x2903, 0x02 },
-	{ 0x2904, 0x00 },
-	{ 0x2905, 0x00 },
-	{ 0x2901, 0x01 },
-	{ 0x1101, 0x0A },
-	{ 0x1102, 0x84 },
-	{ 0x2301, 0x00 },
-	{ 0x2303, 0x00 },
-	{ 0x2302, 0x3f },
-	{ 0x2001, 0x03 },
-	{ 0x1B75, 0xB6 },
-	{ 0x1B73, 0xC2 },
-	{ 0x1129, 0x01 },
-	{ 0x1121, 0xF3 },
-	{ 0x1103, 0x20 },
-	{ 0x1105, 0x00 },
-	{ 0x1112, 0xC0 },
-	{ 0x1113, 0x80 },
-	{ 0x1C03, 0xC0 },
-	{ 0x1105, 0x00 },
-	{ 0x1112, 0xC0 },
-	{ 0x1101, 0x02 },
-	{} /* Terminator */
-};
-
-/* Vendor specific hw configuration for CS8409 */
-static const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[] = {
-	{ 0x47, 0x00, 0xb008 }, /* +PLL1/2_EN, +I2C_EN */
-	{ 0x47, 0x01, 0x0002 }, /* ASP1/2_EN=0, ASP1_STP=1 */
-	{ 0x47, 0x02, 0x0a80 }, /* ASP1/2_BUS_IDLE=10, +GPIO_I2C */
-	{ 0x47, 0x19, 0x0800 }, /* ASP1.A: TX.LAP=0, TX.LSZ=24 bits, TX.LCS=0 */
-	{ 0x47, 0x1a, 0x0820 }, /* ASP1.A: TX.RAP=0, TX.RSZ=24 bits, TX.RCS=32 */
-	{ 0x47, 0x29, 0x0800 }, /* ASP2.A: TX.LAP=0, TX.LSZ=24 bits, TX.LCS=0 */
-	{ 0x47, 0x2a, 0x2800 }, /* ASP2.A: TX.RAP=1, TX.RSZ=24 bits, TX.RCS=0 */
-	{ 0x47, 0x39, 0x0800 }, /* ASP1.A: RX.LAP=0, RX.LSZ=24 bits, RX.LCS=0 */
-	{ 0x47, 0x3a, 0x0800 }, /* ASP1.A: RX.RAP=0, RX.RSZ=24 bits, RX.RCS=0 */
-	{ 0x47, 0x03, 0x8000 }, /* ASP1: LCHI = 00h */
-	{ 0x47, 0x04, 0x28ff }, /* ASP1: MC/SC_SRCSEL=PLL1, LCPR=FFh */
-	{ 0x47, 0x05, 0x0062 }, /* ASP1: MCEN=0, FSD=011, SCPOL_IN/OUT=0, SCDIV=1:4 */
-	{ 0x47, 0x06, 0x801f }, /* ASP2: LCHI=1Fh */
-	{ 0x47, 0x07, 0x283f }, /* ASP2: MC/SC_SRCSEL=PLL1, LCPR=3Fh */
-	{ 0x47, 0x08, 0x805c }, /* ASP2: 5050=1, MCEN=0, FSD=010, SCPOL_IN/OUT=1, SCDIV=1:16 */
-	{ 0x47, 0x09, 0x0023 }, /* DMIC1_MO=10b, DMIC1/2_SR=1 */
-	{ 0x47, 0x0a, 0x0000 }, /* ASP1/2_BEEP=0 */
-	{ 0x47, 0x01, 0x0062 }, /* ASP1/2_EN=1, ASP1_STP=1 */
-	{ 0x47, 0x00, 0x9008 }, /* -PLL2_EN */
-	{ 0x47, 0x68, 0x0000 }, /* TX2.A: pre-scale att.=0 dB */
-	{ 0x47, 0x82, 0xfc03 }, /* ASP1/2_xxx_EN=1, ASP1/2_MCLK_EN=0, DMIC1_SCL_EN=1 */
-	{ 0x47, 0xc0, 0x9999 }, /* test mode on */
-	{ 0x47, 0xc5, 0x0000 }, /* GPIO hysteresis = 30 us */
-	{ 0x47, 0xc0, 0x0000 }, /* test mode off */
-	{} /* Terminator */
-};
-
-static const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[] = {
-	{ 0x47, 0x65, 0x4000 }, /* EQ_SEL=1, EQ1/2_EN=0 */
-	{ 0x47, 0x64, 0x4000 }, /* +EQ_ACC */
-	{ 0x47, 0x65, 0x4010 }, /* +EQ2_EN */
-	{ 0x47, 0x63, 0x0647 }, /* EQ_DATA_HI=0x0647 */
-	{ 0x47, 0x64, 0xc0c7 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=0, EQ_DATA_LO=0x67 */
-	{ 0x47, 0x63, 0x0647 }, /* EQ_DATA_HI=0x0647 */
-	{ 0x47, 0x64, 0xc1c7 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=1, EQ_DATA_LO=0x67 */
-	{ 0x47, 0x63, 0xf370 }, /* EQ_DATA_HI=0xf370 */
-	{ 0x47, 0x64, 0xc271 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=2, EQ_DATA_LO=0x71 */
-	{ 0x47, 0x63, 0x1ef8 }, /* EQ_DATA_HI=0x1ef8 */
-	{ 0x47, 0x64, 0xc348 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=3, EQ_DATA_LO=0x48 */
-	{ 0x47, 0x63, 0xc110 }, /* EQ_DATA_HI=0xc110 */
-	{ 0x47, 0x64, 0xc45a }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=4, EQ_DATA_LO=0x5a */
-	{ 0x47, 0x63, 0x1f29 }, /* EQ_DATA_HI=0x1f29 */
-	{ 0x47, 0x64, 0xc574 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=5, EQ_DATA_LO=0x74 */
-	{ 0x47, 0x63, 0x1d7a }, /* EQ_DATA_HI=0x1d7a */
-	{ 0x47, 0x64, 0xc653 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=6, EQ_DATA_LO=0x53 */
-	{ 0x47, 0x63, 0xc38c }, /* EQ_DATA_HI=0xc38c */
-	{ 0x47, 0x64, 0xc714 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=7, EQ_DATA_LO=0x14 */
-	{ 0x47, 0x63, 0x1ca3 }, /* EQ_DATA_HI=0x1ca3 */
-	{ 0x47, 0x64, 0xc8c7 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=8, EQ_DATA_LO=0xc7 */
-	{ 0x47, 0x63, 0xc38c }, /* EQ_DATA_HI=0xc38c */
-	{ 0x47, 0x64, 0xc914 }, /* +EQ_WRT, +EQ_ACC, EQ_ADR=9, EQ_DATA_LO=0x14 */
-	{ 0x47, 0x64, 0x0000 }, /* -EQ_ACC, -EQ_WRT */
-	{} /* Terminator */
-};
 
 static inline int cs8409_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
 {
@@ -908,7 +717,7 @@ static int cs8409_cs42l42_exec_verb(struct hdac_device *dev, unsigned int cmd, u
 	return spec->exec_verb(dev, cmd, flags, res);
 }
 
-static void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action)
+void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action)
 {
 	struct cs8409_spec *spec = codec->spec;
 	int caps;
@@ -994,31 +803,6 @@ static void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixu
 		break;
 	}
 }
-
-static const struct hda_fixup cs8409_fixups[] = {
-	[CS8409_BULLSEYE] = {
-		.type = HDA_FIXUP_PINS,
-		.v.pins = cs8409_cs42l42_pincfgs,
-		.chained = true,
-		.chain_id = CS8409_FIXUPS,
-	},
-	[CS8409_WARLOCK] = {
-		.type = HDA_FIXUP_PINS,
-		.v.pins = cs8409_cs42l42_pincfgs,
-		.chained = true,
-		.chain_id = CS8409_FIXUPS,
-	},
-	[CS8409_CYBORG] = {
-		.type = HDA_FIXUP_PINS,
-		.v.pins = cs8409_cs42l42_pincfgs,
-		.chained = true,
-		.chain_id = CS8409_FIXUPS,
-	},
-	[CS8409_FIXUPS] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = cs8409_cs42l42_fixups,
-	},
-};
 
 static int patch_cs8409(struct hda_codec *codec)
 {

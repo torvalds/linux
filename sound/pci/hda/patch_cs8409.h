@@ -9,6 +9,14 @@
 #ifndef __CS8409_PATCH_H
 #define __CS8409_PATCH_H
 
+#include <linux/pci.h>
+#include <sound/tlv.h>
+#include <sound/hda_codec.h>
+#include "hda_local.h"
+#include "hda_auto_parser.h"
+#include "hda_jack.h"
+#include "hda_generic.h"
+
 /* Cirrus Logic CS8409 HDA bridge with
  * companion codec CS42L42
  */
@@ -87,5 +95,16 @@ struct cs8409_spec {
 	int (*exec_verb)(struct hdac_device *dev, unsigned int cmd, unsigned int flags,
 			 unsigned int *res);
 };
+
+extern const struct snd_pci_quirk cs8409_fixup_tbl[];
+extern const struct hda_model_fixup cs8409_models[];
+extern const struct hda_fixup cs8409_fixups[];
+extern const struct hda_verb cs8409_cs42l42_init_verbs[];
+extern const struct hda_pintbl cs8409_cs42l42_pincfgs[];
+extern const struct cs8409_i2c_param cs42l42_init_reg_seq[];
+extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
+extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
+
+void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action);
 
 #endif
