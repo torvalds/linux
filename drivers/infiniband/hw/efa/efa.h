@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -27,7 +27,6 @@
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
-	int cpu;
 	u32 vector;
 	cpumask_t affinity_hint_mask;
 	char name[EFA_IRQNAME_SIZE];

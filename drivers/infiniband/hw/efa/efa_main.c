@@ -109,7 +109,6 @@ static void efa_setup_mgmnt_irq(struct efa_dev *dev)
 	dev->admin_irq.vector =
 		pci_irq_vector(dev->pdev, dev->admin_msix_vector_idx);
 	cpu = cpumask_first(cpu_online_mask);
-	dev->admin_irq.cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&dev->admin_irq.affinity_hint_mask);
 	dev_info(&dev->pdev->dev, "Setup irq:0x%p vector:%d name:%s\n",
