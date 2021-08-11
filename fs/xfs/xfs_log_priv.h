@@ -249,6 +249,7 @@ struct xfs_cil_ctx {
 	struct list_head	iclog_entry;
 	struct list_head	committing;	/* ctx committing list */
 	struct work_struct	discard_endio_work;
+	struct work_struct	push_work;
 };
 
 /*
@@ -282,7 +283,6 @@ struct xfs_cil {
 	wait_queue_head_t	xc_commit_wait;
 	wait_queue_head_t	xc_start_wait;
 	xfs_csn_t		xc_current_sequence;
-	struct work_struct	xc_push_work;
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
 } ____cacheline_aligned_in_smp;
 
