@@ -4,8 +4,6 @@ EXTRA_CFLAGS += -O1
 
 ccflags-y += -D__CHECK_ENDIAN__
 
-CONFIG_USB_HCI = y
-
 CONFIG_BT_COEXIST = n
 CONFIG_WOWLAN = n
 
