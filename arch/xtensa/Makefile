@@ -17,7 +17,6 @@
 variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
 
 VARIANT = $(variant-y)
-export VARIANT
 
 ifneq ($(VARIANT),)
   ifdef cross_compiling
@@ -34,7 +33,6 @@ platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 platform-$(CONFIG_XTENSA_PLATFORM_XTFPGA)	:= xtfpga
 
 PLATFORM = $(platform-y)
-export PLATFORM
 
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
