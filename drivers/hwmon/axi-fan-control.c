@@ -283,18 +283,9 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 	u32 irq_pending = axi_ioread(ADI_REG_IRQ_PENDING, ctl);
 	u32 clear_mask;
 
-	if (irq_pending & ADI_IRQ_SRC_NEW_MEASUR) {
-		if (ctl->update_tacho_params) {
-			u32 new_tach = axi_ioread(ADI_REG_TACH_MEASUR, ctl);
-
-			/* get 25% tolerance */
-			u32 tach_tol = DIV_ROUND_CLOSEST(new_tach * 25, 100);
-			/* set new tacho parameters */
-			axi_iowrite(new_tach, ADI_REG_TACH_PERIOD, ctl);
-			axi_iowrite(tach_tol, ADI_REG_TACH_TOLERANCE, ctl);
-			ctl->update_tacho_params = false;
-		}
-	}
+	if (irq_pending & ADI_IRQ_SRC_TEMP_INCREASE)
+		/* hardware requested a new pwm */
+		ctl->hw_pwm_req = true;
 
 	if (irq_pending & ADI_IRQ_SRC_PWM_CHANGED) {
 		/*
@@ -310,9 +301,18 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 		}
 	}
 
-	if (irq_pending & ADI_IRQ_SRC_TEMP_INCREASE)
-		/* hardware requested a new pwm */
-		ctl->hw_pwm_req = true;
+	if (irq_pending & ADI_IRQ_SRC_NEW_MEASUR) {
+		if (ctl->update_tacho_params) {
+			u32 new_tach = axi_ioread(ADI_REG_TACH_MEASUR, ctl);
+			/* get 25% tolerance */
+			u32 tach_tol = DIV_ROUND_CLOSEST(new_tach * 25, 100);
+
+			/* set new tacho parameters */
+			axi_iowrite(new_tach, ADI_REG_TACH_PERIOD, ctl);
+			axi_iowrite(tach_tol, ADI_REG_TACH_TOLERANCE, ctl);
+			ctl->update_tacho_params = false;
+		}
+	}
 
 	if (irq_pending & ADI_IRQ_SRC_TACH_ERR)
 		ctl->fan_fault = 1;
