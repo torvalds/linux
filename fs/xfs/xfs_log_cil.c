@@ -632,6 +632,38 @@ xlog_cil_process_committed(
 }
 
 /*
+ * Write out the commit record of a checkpoint transaction associated with the
+ * given ticket to close off a running log write. Return the lsn of the commit
+ * record.
+ */
+static int
+xlog_cil_write_commit_record(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket,
+	struct xlog_in_core	**iclog,
+	xfs_lsn_t		*lsn)
+{
+	struct xfs_log_iovec reg = {
+		.i_addr = NULL,
+		.i_len = 0,
+		.i_type = XLOG_REG_TYPE_COMMIT,
+	};
+	struct xfs_log_vec vec = {
+		.lv_niovecs = 1,
+		.lv_iovecp = &reg,
+	};
+	int	error;
+
+	if (xlog_is_shutdown(log))
+		return -EIO;
+
+	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS);
+	if (error)
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+	return error;
+}
+
+/*
  * Push the Committed Item List to the log.
  *
  * If the current sequence is the same as xc_push_seq we need to do a flush. If
@@ -884,7 +916,8 @@ restart:
 	}
 	spin_unlock(&cil->xc_push_lock);
 
-	error = xlog_commit_record(log, tic, &commit_iclog, &commit_lsn);
+	error = xlog_cil_write_commit_record(log, tic, &commit_iclog,
+			&commit_lsn);
 	if (error)
 		goto out_abort_free_ticket;
 
