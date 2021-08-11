@@ -235,17 +235,6 @@ static const struct device_attribute backend_attr = {
 	.show = backend_show,
 };
 
-static void nbd_del_disk(struct nbd_device *nbd)
-{
-	struct gendisk *disk = nbd->disk;
-
-	if (disk) {
-		del_gendisk(disk);
-		blk_cleanup_disk(disk);
-		blk_mq_free_tag_set(&nbd->tag_set);
-	}
-}
-
 /*
  * Place this in the last just before the nbd is freed to
  * make sure that the disk and the related kobject are also
@@ -261,7 +250,11 @@ static void nbd_notify_destroy_completion(struct nbd_device *nbd)
 
 static void nbd_dev_remove(struct nbd_device *nbd)
 {
-	nbd_del_disk(nbd);
+	struct gendisk *disk = nbd->disk;
+
+	del_gendisk(disk);
+	blk_cleanup_disk(disk);
+	blk_mq_free_tag_set(&nbd->tag_set);
 
 	/*
 	 * Remove from idr after del_gendisk() completes, so if the same ID is
