@@ -2838,56 +2838,66 @@ xlog_state_iodone_process_iclog(
 	}
 }
 
+/*
+ * Loop over all the iclogs, running attached callbacks on them. Return true if
+ * we ran any callbacks, indicating that we dropped the icloglock.
+ */
+static bool
+xlog_state_do_iclog_callbacks(
+	struct xlog		*log)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
+{
+	struct xlog_in_core	*first_iclog = log->l_iclog;
+	struct xlog_in_core	*iclog = first_iclog;
+	bool			ran_callback = false;
+
+	do {
+		LIST_HEAD(cb_list);
+
+		if (!xlog_is_shutdown(log)) {
+			if (xlog_state_iodone_process_iclog(log, iclog))
+				break;
+			if (iclog->ic_state != XLOG_STATE_CALLBACK) {
+				iclog = iclog->ic_next;
+				continue;
+			}
+		}
+		list_splice_init(&iclog->ic_callbacks, &cb_list);
+		spin_unlock(&log->l_icloglock);
+
+		trace_xlog_iclog_callbacks_start(iclog, _RET_IP_);
+		xlog_cil_process_committed(&cb_list);
+		trace_xlog_iclog_callbacks_done(iclog, _RET_IP_);
+		ran_callback = true;
+
+		spin_lock(&log->l_icloglock);
+		if (xlog_is_shutdown(log))
+			wake_up_all(&iclog->ic_force_wait);
+		else
+			xlog_state_clean_iclog(log, iclog);
+		iclog = iclog->ic_next;
+	} while (iclog != first_iclog);
+
+	return ran_callback;
+}
+
+
+/*
+ * Loop running iclog completion callbacks until there are no more iclogs in a
+ * state that can run callbacks.
+ */
 STATIC void
 xlog_state_do_callback(
 	struct xlog		*log)
 {
-	struct xlog_in_core	*iclog;
-	struct xlog_in_core	*first_iclog;
-	bool			cycled_icloglock;
 	int			flushcnt = 0;
 	int			repeats = 0;
 
 	spin_lock(&log->l_icloglock);
-	do {
-		/*
-		 * Scan all iclogs starting with the one pointed to by the
-		 * log.  Reset this starting point each time the log is
-		 * unlocked (during callbacks).
-		 *
-		 * Keep looping through iclogs until one full pass is made
-		 * without running any callbacks.
-		 */
-		cycled_icloglock = false;
-		first_iclog = log->l_iclog;
-		iclog = first_iclog;
-
-		do {
-			LIST_HEAD(cb_list);
-
-			if (!xlog_is_shutdown(log)) {
-				if (xlog_state_iodone_process_iclog(log, iclog))
-					break;
-				if (iclog->ic_state != XLOG_STATE_CALLBACK) {
-					iclog = iclog->ic_next;
-					continue;
-				}
-			}
-			list_splice_init(&iclog->ic_callbacks, &cb_list);
-			spin_unlock(&log->l_icloglock);
-
-			trace_xlog_iclog_callbacks_start(iclog, _RET_IP_);
-			xlog_cil_process_committed(&cb_list);
-			trace_xlog_iclog_callbacks_done(iclog, _RET_IP_);
-			cycled_icloglock = true;
-
-			spin_lock(&log->l_icloglock);
-			if (xlog_is_shutdown(log))
-				wake_up_all(&iclog->ic_force_wait);
-			else
-				xlog_state_clean_iclog(log, iclog);
-			iclog = iclog->ic_next;
-		} while (iclog != first_iclog);
+	while (xlog_state_do_iclog_callbacks(log)) {
+		if (xlog_is_shutdown(log))
+			break;
 
 		if (++repeats > 5000) {
 			flushcnt += repeats;
@@ -2896,7 +2906,7 @@ xlog_state_do_callback(
 				"%s: possible infinite loop (%d iterations)",
 				__func__, flushcnt);
 		}
-	} while (!xlog_is_shutdown(log) && cycled_icloglock);
+	}
 
 	if (log->l_iclog->ic_state == XLOG_STATE_ACTIVE ||
 	    xlog_is_shutdown(log))
