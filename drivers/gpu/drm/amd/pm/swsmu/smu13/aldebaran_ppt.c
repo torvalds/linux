@@ -1193,8 +1193,19 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 	uint32_t power_limit = 0;
 	int ret;
 
-	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
-		return -EINVAL;
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+		if (current_power_limit)
+			*current_power_limit = 0;
+		if (default_power_limit)
+			*default_power_limit = 0;
+		if (max_power_limit)
+			*max_power_limit = 0;
+
+		dev_warn(smu->adev->dev,
+			"PPT feature is not enabled, power values can't be fetched.");
+
+		return 0;
+	}
 
 	/* Valid power data is available only from primary die.
 	 * For secondary die show the value as 0.
