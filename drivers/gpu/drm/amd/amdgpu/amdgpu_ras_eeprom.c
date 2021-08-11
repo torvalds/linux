@@ -27,6 +27,7 @@
 #include <linux/bits.h>
 #include "atom.h"
 #include "amdgpu_eeprom.h"
+#include "amdgpu_atomfirmware.h"
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
@@ -115,6 +116,22 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 {
 	if (!control)
 		return false;
+
+	control->i2c_address = 0;
+
+	if (amdgpu_atomfirmware_ras_rom_addr(adev, (uint8_t*)&control->i2c_address))
+	{
+		if (control->i2c_address == 0xA0)
+			control->i2c_address = 0;
+		else if (control->i2c_address == 0xA8)
+			control->i2c_address = 0x40000;
+		else {
+			dev_warn(adev->dev, "RAS EEPROM I2C address not supported");
+			return false;
+		}
+
+		return true;
+	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:

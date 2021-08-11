@@ -1171,8 +1171,8 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_ALDEBARAN:
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_7_TOTAL_CHANNEL_NUM;
-		adev->umc.channel_inst_num = UMC_V6_7_UMC_INSTANCE_NUM;
-		adev->umc.umc_inst_num = UMC_V6_7_CHANNEL_INSTANCE_NUM;
+		adev->umc.channel_inst_num = UMC_V6_7_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V6_7_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_7_PER_CHANNEL_OFFSET;
 		if (!adev->gmc.xgmi.connected_to_cpu)
 			adev->umc.ras_funcs = &umc_v6_7_ras_funcs;

@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,12 +20,15 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
-#ifndef __DCE_VIRTUAL_H__
-#define __DCE_VIRTUAL_H__
+#ifndef __DCN2X_H__
+#define __DCN2X_H__
 
-extern const struct amdgpu_ip_block_version dce_virtual_ip_block;
+void dcn20_populate_dml_writeback_from_context(struct dc *dc,
+					       struct resource_context *res_ctx,
+					       display_e2e_pipe_params_st *pipes);
 
-#endif
-
+#endif /* __DCN2X_H__ */

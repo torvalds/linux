@@ -41,8 +41,6 @@
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_atomfirmware.h"
 
-#include <drm/drm_drv.h>
-
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
@@ -253,6 +251,12 @@ static int psp_sw_init(void *handle)
 	struct psp_runtime_boot_cfg_entry boot_cfg_entry;
 	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
 
+	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!psp->cmd) {
+		DRM_ERROR("Failed to allocate memory to command buffer!\n");
+		ret = -ENOMEM;
+	}
+
 	if (!amdgpu_sriov_vf(adev)) {
 		ret = psp_init_microcode(psp);
 		if (ret) {
@@ -315,24 +319,29 @@ static int psp_sw_init(void *handle)
 static int psp_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
 
-	psp_memory_training_fini(&adev->psp);
-	if (adev->psp.sos_fw) {
-		release_firmware(adev->psp.sos_fw);
-		adev->psp.sos_fw = NULL;
+	psp_memory_training_fini(psp);
+	if (psp->sos_fw) {
+		release_firmware(psp->sos_fw);
+		psp->sos_fw = NULL;
 	}
-	if (adev->psp.asd_fw) {
-		release_firmware(adev->psp.asd_fw);
-		adev->psp.asd_fw = NULL;
+	if (psp->asd_fw) {
+		release_firmware(psp->asd_fw);
+		psp->asd_fw = NULL;
 	}
-	if (adev->psp.ta_fw) {
-		release_firmware(adev->psp.ta_fw);
-		adev->psp.ta_fw = NULL;
+	if (psp->ta_fw) {
+		release_firmware(psp->ta_fw);
+		psp->ta_fw = NULL;
 	}
 
 	if (adev->asic_type == CHIP_NAVI10 ||
 	    adev->asic_type == CHIP_SIENNA_CICHLID)
 		psp_sysfs_fini(adev);
+
+	kfree(cmd);
+	cmd = NULL;
 
 	return 0;
 }
@@ -417,8 +426,6 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	if (!drm_dev_enter(&psp->adev->ddev, &idx))
 		return 0;
 
-	mutex_lock(&psp->mutex);
-
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
@@ -478,9 +485,24 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	}
 
 exit:
-	mutex_unlock(&psp->mutex);
 	drm_dev_exit(idx);
 	return ret;
+}
+
+static struct psp_gfx_cmd_resp *acquire_psp_cmd_buf(struct psp_context *psp)
+{
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+
+	mutex_lock(&psp->mutex);
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	return cmd;
+}
+
+void release_psp_cmd_buf(struct psp_context *psp)
+{
+	mutex_unlock(&psp->mutex);
 }
 
 static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
@@ -517,11 +539,8 @@ static int psp_load_toc(struct psp_context *psp,
 			uint32_t *tmr_size)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
 	/* Copy toc to psp firmware private buffer */
 	psp_copy_fw(psp, psp->toc.start_addr, psp->toc.size_bytes);
 
@@ -531,7 +550,9 @@ static int psp_load_toc(struct psp_context *psp,
 				 psp->fence_buf_mc_addr);
 	if (!ret)
 		*tmr_size = psp->cmd_buf_mem->resp.tmr_size;
-	kfree(cmd);
+
+	release_psp_cmd_buf(psp);
+
 	return ret;
 }
 
@@ -596,9 +617,7 @@ static int psp_tmr_load(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr, psp->tmr_bo);
 	DRM_INFO("reserve 0x%lx from 0x%llx for PSP TMR\n",
@@ -607,13 +626,13 @@ static int psp_tmr_load(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
 
 static void psp_prep_tmr_unload_cmd_buf(struct psp_context *psp,
-					struct psp_gfx_cmd_resp *cmd)
+				        struct psp_gfx_cmd_resp *cmd)
 {
 	if (amdgpu_sriov_vf(psp->adev))
 		cmd->cmd_id = GFX_CMD_ID_DESTROY_VMR;
@@ -624,11 +643,7 @@ static void psp_prep_tmr_unload_cmd_buf(struct psp_context *psp,
 static int psp_tmr_unload(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_tmr_unload_cmd_buf(psp, cmd);
 	DRM_INFO("free PSP TMR buffer\n");
@@ -636,7 +651,7 @@ static int psp_tmr_unload(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -670,9 +685,7 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	cmd->cmd_id = GFX_CMD_ID_GET_FW_ATTESTATION;
 
@@ -684,7 +697,7 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 			      ((uint64_t)cmd->resp.uresp.fwar_db_info.fwar_db_addr_hi << 32);
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -692,13 +705,13 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 static int psp_boot_config_get(struct amdgpu_device *adev, uint32_t *boot_cfg)
 {
 	struct psp_context *psp = &adev->psp;
-	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+	struct psp_gfx_cmd_resp *cmd;
 	int ret;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+	cmd = acquire_psp_cmd_buf(psp);
 
 	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
 	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_GET;
@@ -709,39 +722,47 @@ static int psp_boot_config_get(struct amdgpu_device *adev, uint32_t *boot_cfg)
 			(cmd->resp.uresp.boot_cfg.boot_cfg & BOOT_CONFIG_GECC) ? 1 : 0;
 	}
 
+	release_psp_cmd_buf(psp);
+
 	return ret;
 }
 
 static int psp_boot_config_set(struct amdgpu_device *adev, uint32_t boot_cfg)
 {
+	int ret;
 	struct psp_context *psp = &adev->psp;
-	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+	struct psp_gfx_cmd_resp *cmd;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+	cmd = acquire_psp_cmd_buf(psp);
 
 	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
 	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_SET;
 	cmd->cmd.boot_cfg.boot_config = boot_cfg;
 	cmd->cmd.boot_cfg.boot_config_valid = boot_cfg;
 
-	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	release_psp_cmd_buf(psp);
+
+	return ret;
 }
 
 static int psp_rl_load(struct amdgpu_device *adev)
 {
+	int ret;
 	struct psp_context *psp = &adev->psp;
-	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+	struct psp_gfx_cmd_resp *cmd;
 
 	if (!is_psp_fw_valid(psp->rl))
 		return 0;
 
+	cmd = acquire_psp_cmd_buf(psp);
+
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, psp->rl.start_addr, psp->rl.size_bytes);
-
-	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(psp->fw_pri_mc_addr);
@@ -749,7 +770,11 @@ static int psp_rl_load(struct amdgpu_device *adev)
 	cmd->cmd.cmd_load_ip_fw.fw_size = psp->rl.size_bytes;
 	cmd->cmd.cmd_load_ip_fw.fw_type = GFX_FW_TYPE_REG_LIST;
 
-	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	release_psp_cmd_buf(psp);
+
+	return ret;
 }
 
 static void psp_prep_asd_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
@@ -777,9 +802,7 @@ static int psp_asd_load(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_ucode_size)
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_copy_fw(psp, psp->asd_start_addr, psp->asd_ucode_size);
 
@@ -793,7 +816,7 @@ static int psp_asd_load(struct psp_context *psp)
 		psp->asd_context.session_id = cmd->resp.session_id;
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -816,9 +839,7 @@ static int psp_asd_unload(struct psp_context *psp)
 	if (!psp->asd_context.asd_initialized)
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->asd_context.session_id);
 
@@ -827,7 +848,7 @@ static int psp_asd_unload(struct psp_context *psp)
 	if (!ret)
 		psp->asd_context.asd_initialized = false;
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -843,22 +864,21 @@ static void psp_prep_reg_prog_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 		uint32_t value)
 {
-	struct psp_gfx_cmd_resp *cmd = NULL;
+	struct psp_gfx_cmd_resp *cmd;
 	int ret = 0;
 
 	if (reg >= PSP_REG_LAST)
 		return -EINVAL;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_reg_prog_cmd_buf(cmd, reg, value);
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 	if (ret)
 		DRM_ERROR("PSP failed to program reg id %d", reg);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
+
 	return ret;
 }
 
@@ -909,18 +929,14 @@ static int psp_ta_invoke(struct psp_context *psp,
 		  uint32_t session_id)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_invoke_cmd_buf(cmd, ta_cmd_id, session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -934,9 +950,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 	 * TODO: bypass the loading in sriov for now
 	 */
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_copy_fw(psp, psp->ta_xgmi_start_addr, psp->ta_xgmi_ucode_size);
 
@@ -954,7 +968,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 		psp->xgmi_context.session_id = cmd->resp.session_id;
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -974,16 +988,14 @@ static int psp_xgmi_unload(struct psp_context *psp)
 	 * TODO: bypass the unloading in sriov for now
 	 */
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->xgmi_context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1213,10 +1225,6 @@ static int psp_ras_load(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
 	psp_copy_fw(psp, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
 
 	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
@@ -1225,6 +1233,8 @@ static int psp_ras_load(struct psp_context *psp)
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
 	else
 		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
+
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1244,10 +1254,10 @@ static int psp_ras_load(struct psp_context *psp)
 			dev_warn(psp->adev->dev, "RAS Init Status: 0x%X\n", ras_cmd->ras_status);
 	}
 
+	release_psp_cmd_buf(psp);
+
 	if (ret || ras_cmd->ras_status)
 		amdgpu_ras_fini(psp->adev);
-
-	kfree(cmd);
 
 	return ret;
 }
@@ -1263,16 +1273,14 @@ static int psp_ras_unload(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->ras.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1522,12 +1530,10 @@ static int psp_hdcp_load(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
 	psp_copy_fw(psp, psp->ta_hdcp_start_addr,
 		    psp->ta_hdcp_ucode_size);
+
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1543,7 +1549,7 @@ static int psp_hdcp_load(struct psp_context *psp)
 		mutex_init(&psp->hdcp_context.mutex);
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1587,15 +1593,13 @@ static int psp_hdcp_unload(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->hdcp_context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1673,11 +1677,9 @@ static int psp_dtm_load(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
 	psp_copy_fw(psp, psp->ta_dtm_start_addr, psp->ta_dtm_ucode_size);
+
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1693,7 +1695,7 @@ static int psp_dtm_load(struct psp_context *psp)
 		mutex_init(&psp->dtm_context.mutex);
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1738,15 +1740,13 @@ static int psp_dtm_unload(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->dtm_context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1818,11 +1818,9 @@ static int psp_rap_load(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
 	psp_copy_fw(psp, psp->ta_rap_start_addr, psp->ta_rap_ucode_size);
+
+	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1838,7 +1836,7 @@ static int psp_rap_load(struct psp_context *psp)
 		mutex_init(&psp->rap_context.mutex);
 	}
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1846,17 +1844,13 @@ static int psp_rap_load(struct psp_context *psp)
 static int psp_rap_unload(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->rap_context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -1982,11 +1976,7 @@ static int psp_securedisplay_init_shared_buf(struct psp_context *psp)
 static int psp_securedisplay_load(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, psp->ta_securedisplay_start_addr, psp->ta_securedisplay_ucode_size);
@@ -1999,32 +1989,27 @@ static int psp_securedisplay_load(struct psp_context *psp)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
-	if (ret)
-		goto failed;
+	if (!ret) {
+		psp->securedisplay_context.securedisplay_initialized = true;
+		psp->securedisplay_context.session_id = cmd->resp.session_id;
+		mutex_init(&psp->securedisplay_context.mutex);
+	}
 
-	psp->securedisplay_context.securedisplay_initialized = true;
-	psp->securedisplay_context.session_id = cmd->resp.session_id;
-	mutex_init(&psp->securedisplay_context.mutex);
+	release_psp_cmd_buf(psp);
 
-failed:
-	kfree(cmd);
 	return ret;
 }
 
 static int psp_securedisplay_unload(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_ta_unload_cmd_buf(cmd, psp->securedisplay_context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
-	kfree(cmd);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -2400,8 +2385,6 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 	int ret;
 	uint64_t fw_mem_mc_addr = ucode->mc_addr;
 
-	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
-
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
@@ -2418,13 +2401,15 @@ static int psp_execute_non_psp_fw_load(struct psp_context *psp,
 			          struct amdgpu_firmware_info *ucode)
 {
 	int ret = 0;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
-	ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
-	if (ret)
-		return ret;
+	ret = psp_prep_load_ip_fw_cmd_buf(ucode, cmd);
+	if (!ret) {
+		ret = psp_cmd_submit_buf(psp, ucode, cmd,
+					 psp->fence_buf_mc_addr);
+	}
 
-	ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
-				 psp->fence_buf_mc_addr);
+	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -2579,10 +2564,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 		goto skip_memalloc;
 	}
 
-	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!psp->cmd)
-		return -ENOMEM;
-
 	if (amdgpu_sriov_vf(adev)) {
 		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
 						AMDGPU_GEM_DOMAIN_VRAM,
@@ -2735,9 +2716,6 @@ static int psp_hw_fini(void *handle)
 			      &psp->fence_buf_mc_addr, &psp->fence_buf);
 	amdgpu_bo_free_kernel(&psp->cmd_buf_bo, &psp->cmd_buf_mc_addr,
 			      (void **)&psp->cmd_buf_mem);
-
-	kfree(psp->cmd);
-	psp->cmd = NULL;
 
 	return 0;
 }
@@ -2902,17 +2880,15 @@ int psp_gpu_reset(struct amdgpu_device *adev)
 int psp_rlc_autoload_start(struct psp_context *psp)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	cmd->cmd_id = GFX_CMD_ID_AUTOLOAD_RLC;
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
-	kfree(cmd);
+
+	release_psp_cmd_buf(psp);
+
 	return ret;
 }
 
