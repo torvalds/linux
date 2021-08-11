@@ -130,6 +130,12 @@ static enum dc_status core_link_send_set_config(struct dc_link *link,
 	payload.msg_type = msg_type;
 	payload.msg_data = msg_data;
 
+	if (!link->ddc->ddc_pin && !link->aux_access_disabled &&
+	    (dm_helpers_dmub_set_config_sync(link->ctx, link,
+					     &payload, &set_config_result) == -1)) {
+		return DC_ERROR_UNEXPECTED;
+	}
+
 	/* set_config should return ACK if successful */
 	return (set_config_result == SET_CONFIG_ACK_RECEIVED) ? DC_OK : DC_ERROR_UNEXPECTED;
 }
