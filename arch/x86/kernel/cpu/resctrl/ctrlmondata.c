@@ -427,16 +427,15 @@ out:
 	return ret ?: nbytes;
 }
 
-void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
-			     u32 closid, enum resctrl_conf_type type, u32 *value)
+u32 resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
+			    u32 closid, enum resctrl_conf_type type)
 {
 	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
 	u32 idx = get_config_index(closid, type);
 
 	if (!is_mba_sc(r))
-		*value = hw_dom->ctrl_val[idx];
-	else
-		*value = hw_dom->mbps_val[idx];
+		return hw_dom->ctrl_val[idx];
+	return hw_dom->mbps_val[idx];
 }
 
 static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int closid)
@@ -451,8 +450,8 @@ static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int clo
 		if (sep)
 			seq_puts(s, ";");
 
-		resctrl_arch_get_config(r, dom, closid, schema->conf_type,
-					&ctrl_val);
+		ctrl_val = resctrl_arch_get_config(r, dom, closid,
+						   schema->conf_type);
 		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   ctrl_val);
 		sep = true;

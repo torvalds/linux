@@ -923,8 +923,8 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 		for (i = 0; i < closids_supported(); i++) {
 			if (!closid_allocated(i))
 				continue;
-			resctrl_arch_get_config(r, dom, i, s->conf_type,
-						&ctrl_val);
+			ctrl_val = resctrl_arch_get_config(r, dom, i,
+							   s->conf_type);
 			mode = rdtgroup_mode_by_closid(i);
 			switch (mode) {
 			case RDT_MODE_SHAREABLE:
@@ -1142,7 +1142,7 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
 
 	/* Check for overlap with other resource groups */
 	for (i = 0; i < closids_supported(); i++) {
-		resctrl_arch_get_config(r, d, i, type, (u32 *)&ctrl_b);
+		ctrl_b = resctrl_arch_get_config(r, d, i, type);
 		mode = rdtgroup_mode_by_closid(i);
 		if (closid_allocated(i) && i != closid &&
 		    mode != RDT_MODE_PSEUDO_LOCKSETUP) {
@@ -1222,7 +1222,8 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 			continue;
 		has_cache = true;
 		list_for_each_entry(d, &r->domains, list) {
-			resctrl_arch_get_config(r, d, closid, s->conf_type, &ctrl);
+			ctrl = resctrl_arch_get_config(r, d, closid,
+						       s->conf_type);
 			if (rdtgroup_cbm_overlaps(s, d, ctrl, closid, false)) {
 				rdt_last_cmd_puts("Schemata overlaps\n");
 				return false;
@@ -1395,8 +1396,9 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 			if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 				size = 0;
 			} else {
-				resctrl_arch_get_config(r, d, rdtgrp->closid,
-							schema->conf_type, &ctrl);
+				ctrl = resctrl_arch_get_config(r, d,
+							       rdtgrp->closid,
+							       schema->conf_type);
 				if (r->rid == RDT_RESOURCE_MBA)
 					size = ctrl;
 				else
@@ -2724,10 +2726,12 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 			 * with an exclusive group.
 			 */
 			if (resctrl_arch_get_cdp_enabled(r->rid))
-				resctrl_arch_get_config(r, d, i, peer_type, &peer_ctl);
+				peer_ctl = resctrl_arch_get_config(r, d, i,
+								   peer_type);
 			else
 				peer_ctl = 0;
-			resctrl_arch_get_config(r, d, i, s->conf_type, &ctrl_val);
+			ctrl_val = resctrl_arch_get_config(r, d, i,
+							   s->conf_type);
 			used_b |= ctrl_val | peer_ctl;
 			if (mode == RDT_MODE_SHAREABLE)
 				cfg->new_ctrl |= ctrl_val | peer_ctl;
