@@ -58,9 +58,6 @@ KBUILD_DEFCONFIG := iss_defconfig
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
-core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
-core-y		+= arch/xtensa/platforms/$(platform-y)/
-core-y 		+= arch/xtensa/boot/dts/
 
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
