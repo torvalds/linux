@@ -208,162 +208,97 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 	return 0;
 }
 
-static int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo)
+int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo)
 {
-	u16 nid = get_amp_nid(kctrl);
+	unsigned int ofs = get_amp_offset(kctrl);
 	u8 chs = get_amp_channels(kctrl);
 
-	switch (nid) {
-	case CS8409_CS42L42_HP_PIN_NID:
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->count = chs == 3 ? 2 : 1;
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->value.integer.step = 1;
+	uinfo->count = chs == 3 ? 2 : 1;
+
+	switch (ofs) {
+	case CS42L42_VOL_DAC:
 		uinfo->value.integer.min = CS8409_CS42L42_HP_VOL_REAL_MIN;
 		uinfo->value.integer.max = CS8409_CS42L42_HP_VOL_REAL_MAX;
 		break;
-	case CS8409_CS42L42_AMIC_PIN_NID:
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->count = chs == 3 ? 2 : 1;
+	case CS42L42_VOL_ADC:
 		uinfo->value.integer.min = CS8409_CS42L42_AMIC_VOL_REAL_MIN;
 		uinfo->value.integer.max = CS8409_CS42L42_AMIC_VOL_REAL_MAX;
 		break;
 	default:
 		break;
 	}
+
 	return 0;
 }
 
-static void cs8409_cs42l42_update_volume(struct hda_codec *codec)
-{
-	struct cs8409_spec *spec = codec->spec;
-	int data;
-
-	mutex_lock(&spec->cs8409_i2c_mux);
-	data = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOLUME_CHA, 1);
-	if (data >= 0)
-		spec->cs42l42_hp_volume[0] = -data;
-	else
-		spec->cs42l42_hp_volume[0] = CS8409_CS42L42_HP_VOL_REAL_MIN;
-	data = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOLUME_CHB, 1);
-	if (data >= 0)
-		spec->cs42l42_hp_volume[1] = -data;
-	else
-		spec->cs42l42_hp_volume[1] = CS8409_CS42L42_HP_VOL_REAL_MIN;
-	data = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOLUME, 1);
-	if (data >= 0)
-		spec->cs42l42_hs_mic_volume[0] = -data;
-	else
-		spec->cs42l42_hs_mic_volume[0] = CS8409_CS42L42_AMIC_VOL_REAL_MIN;
-	mutex_unlock(&spec->cs8409_i2c_mux);
-	spec->cs42l42_volume_init = 1;
-}
-
-static int cs8409_cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
+int cs8409_cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kctrl);
 	struct cs8409_spec *spec = codec->spec;
-	hda_nid_t nid = get_amp_nid(kctrl);
 	int chs = get_amp_channels(kctrl);
+	unsigned int ofs = get_amp_offset(kctrl);
 	long *valp = uctrl->value.integer.value;
 
-	if (!spec->cs42l42_volume_init) {
-		snd_hda_power_up(codec);
-		cs8409_cs42l42_update_volume(codec);
-		snd_hda_power_down(codec);
-	}
-	switch (nid) {
-	case CS8409_CS42L42_HP_PIN_NID:
+	switch (ofs) {
+	case CS42L42_VOL_DAC:
 		if (chs & BIT(0))
-			*valp++ = spec->cs42l42_hp_volume[0];
+			*valp++ = spec->vol[ofs];
 		if (chs & BIT(1))
-			*valp++ = spec->cs42l42_hp_volume[1];
+			*valp = spec->vol[ofs+1];
 		break;
-	case CS8409_CS42L42_AMIC_PIN_NID:
+	case CS42L42_VOL_ADC:
 		if (chs & BIT(0))
-			*valp++ = spec->cs42l42_hs_mic_volume[0];
+			*valp = spec->vol[ofs];
 		break;
 	default:
 		break;
 	}
+
 	return 0;
 }
 
-static int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
+int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kctrl);
 	struct cs8409_spec *spec = codec->spec;
-	hda_nid_t nid = get_amp_nid(kctrl);
 	int chs = get_amp_channels(kctrl);
+	unsigned int ofs = get_amp_offset(kctrl);
 	long *valp = uctrl->value.integer.value;
-	int change = 0;
-	char vol;
 
-	snd_hda_power_up(codec);
-	switch (nid) {
-	case CS8409_CS42L42_HP_PIN_NID:
+	switch (ofs) {
+	case CS42L42_VOL_DAC:
 		mutex_lock(&spec->cs8409_i2c_mux);
 		if (chs & BIT(0)) {
-			vol = -(*valp);
-			change = cs8409_i2c_write(codec, CS42L42_I2C_ADDR,
-						  CS8409_CS42L42_REG_HS_VOLUME_CHA, vol, 1);
-			valp++;
+			spec->vol[ofs] = *valp;
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
+					 -(spec->vol[ofs]) & CS8409_CS42L42_REG_HS_VOL_MASK, 1);
 		}
 		if (chs & BIT(1)) {
-			vol = -(*valp);
-			change |= cs8409_i2c_write(codec, CS42L42_I2C_ADDR,
-						   CS8409_CS42L42_REG_HS_VOLUME_CHB, vol, 1);
+			ofs++;
+			valp++;
+			spec->vol[ofs] = *valp;
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
+					 -(spec->vol[ofs]) & CS8409_CS42L42_REG_HS_VOL_MASK, 1);
 		}
 		mutex_unlock(&spec->cs8409_i2c_mux);
 		break;
-	case CS8409_CS42L42_AMIC_PIN_NID:
+	case CS42L42_VOL_ADC:
 		mutex_lock(&spec->cs8409_i2c_mux);
 		if (chs & BIT(0)) {
-			change = cs8409_i2c_write(codec, CS42L42_I2C_ADDR,
-						  CS8409_CS42L42_REG_AMIC_VOLUME, (char)*valp, 1);
-			valp++;
+			spec->vol[ofs] = *valp;
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
+					 spec->vol[ofs] & CS8409_CS42L42_REG_AMIC_VOL_MASK, 1);
 		}
 		mutex_unlock(&spec->cs8409_i2c_mux);
 		break;
 	default:
 		break;
 	}
-	cs8409_cs42l42_update_volume(codec);
-	snd_hda_power_down(codec);
-	return change;
+
+	return 0;
 }
-
-static const DECLARE_TLV_DB_SCALE(cs8409_cs42l42_hp_db_scale,
-				  CS8409_CS42L42_HP_VOL_REAL_MIN * 100, 100, 1);
-
-static const DECLARE_TLV_DB_SCALE(cs8409_cs42l42_amic_db_scale,
-				  CS8409_CS42L42_AMIC_VOL_REAL_MIN * 100, 100, 1);
-
-static const struct snd_kcontrol_new cs8409_cs42l42_hp_volume_mixer = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.index = 0,
-	.name = "Headphone Playback Volume",
-	.subdevice = (HDA_SUBDEV_AMP_FLAG | HDA_SUBDEV_NID_FLAG),
-	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ),
-	.info = cs8409_cs42l42_volume_info,
-	.get = cs8409_cs42l42_volume_get,
-	.put = cs8409_cs42l42_volume_put,
-	.tlv = { .p = cs8409_cs42l42_hp_db_scale },
-	.private_value = HDA_COMPOSE_AMP_VAL(CS8409_CS42L42_HP_PIN_NID, 3, 0, HDA_OUTPUT) |
-			 HDA_AMP_VAL_MIN_MUTE
-};
-
-static const struct snd_kcontrol_new cs8409_cs42l42_amic_volume_mixer = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.index = 0,
-	.name = "Mic Capture Volume",
-	.subdevice = (HDA_SUBDEV_AMP_FLAG | HDA_SUBDEV_NID_FLAG),
-	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ),
-	.info = cs8409_cs42l42_volume_info,
-	.get = cs8409_cs42l42_volume_get,
-	.put = cs8409_cs42l42_volume_put,
-	.tlv = { .p = cs8409_cs42l42_amic_db_scale },
-	.private_value = HDA_COMPOSE_AMP_VAL(CS8409_CS42L42_AMIC_PIN_NID, 1, 0, HDA_INPUT) |
-			 HDA_AMP_VAL_MIN_MUTE
-};
 
 /* Assert/release RTS# line to CS42L42 */
 static void cs8409_cs42l42_reset(struct hda_codec *codec)
@@ -657,18 +592,14 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 	}
 
 	/* Restore Volumes after Resume */
-	if (spec->cs42l42_volume_init) {
-		mutex_lock(&spec->cs8409_i2c_mux);
-		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOLUME_CHA,
-				 -spec->cs42l42_hp_volume[0], 1);
-		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOLUME_CHB,
-				 -spec->cs42l42_hp_volume[1], 1);
-		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOLUME,
-				 spec->cs42l42_hs_mic_volume[0], 1);
-		mutex_unlock(&spec->cs8409_i2c_mux);
-	}
-
-	cs8409_cs42l42_update_volume(codec);
+	mutex_lock(&spec->cs8409_i2c_mux);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
+			 -(spec->vol[1]) & CS8409_CS42L42_REG_HS_VOL_MASK, 1);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
+			 -(spec->vol[2]) & CS8409_CS42L42_REG_HS_VOL_MASK, 1);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
+			 spec->vol[0] & CS8409_CS42L42_REG_AMIC_VOL_MASK, 1);
+	mutex_unlock(&spec->cs8409_i2c_mux);
 
 	cs8409_cs42l42_enable_jack_detect(codec);
 
@@ -811,8 +742,10 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		/* Set initial DMIC volume to -26 dB */
 		snd_hda_codec_amp_init_stereo(codec, CS8409_CS42L42_DMIC_ADC_PIN_NID,
 					      HDA_INPUT, 0, 0xff, 0x19);
-		snd_hda_gen_add_kctl(&spec->gen, NULL, &cs8409_cs42l42_hp_volume_mixer);
-		snd_hda_gen_add_kctl(&spec->gen, NULL, &cs8409_cs42l42_amic_volume_mixer);
+		snd_hda_gen_add_kctl(&spec->gen, "Headphone Playback Volume",
+				&cs42l42_dac_volume_mixer);
+		snd_hda_gen_add_kctl(&spec->gen, "Mic Capture Volume",
+				&cs42l42_adc_volume_mixer);
 		/* Disable Unsolicited Response during boot */
 		cs8409_enable_ur(codec, 0);
 		cs8409_cs42l42_hw_init(codec);
