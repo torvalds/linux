@@ -111,8 +111,8 @@ xfs_fsmap_owner_to_rmap(
 /* Convert an rmapbt owner into an fsmap owner. */
 static int
 xfs_fsmap_owner_from_rmap(
-	struct xfs_fsmap	*dest,
-	struct xfs_rmap_irec	*src)
+	struct xfs_fsmap		*dest,
+	const struct xfs_rmap_irec	*src)
 {
 	dest->fmr_flags = 0;
 	if (!XFS_RMAP_NON_INODE_OWNER(src->rm_owner)) {
@@ -192,7 +192,7 @@ STATIC int
 xfs_getfsmap_is_shared(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	bool				*stat)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
@@ -245,7 +245,7 @@ STATIC int
 xfs_getfsmap_helper(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	xfs_daddr_t			rec_daddr)
 {
 	struct xfs_fsmap		fmr;
@@ -347,7 +347,7 @@ out:
 STATIC int
 xfs_getfsmap_datadev_helper(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
@@ -365,7 +365,7 @@ xfs_getfsmap_datadev_helper(
 STATIC int
 xfs_getfsmap_datadev_bnobt_helper(
 	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
+	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
@@ -451,7 +451,7 @@ xfs_getfsmap_logdev(
 STATIC int
 xfs_getfsmap_rtdev_rtbitmap_helper(
 	struct xfs_trans		*tp,
-	struct xfs_rtalloc_rec		*rec,
+	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
 {
 	struct xfs_mount		*mp = tp->t_mountp;

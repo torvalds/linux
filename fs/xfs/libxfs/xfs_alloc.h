@@ -220,9 +220,9 @@ int xfs_free_extent_fix_freelist(struct xfs_trans *tp, struct xfs_perag *pag,
 xfs_extlen_t xfs_prealloc_blocks(struct xfs_mount *mp);
 
 typedef int (*xfs_alloc_query_range_fn)(
-	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
-	void				*priv);
+	struct xfs_btree_cur			*cur,
+	const struct xfs_alloc_rec_incore	*rec,
+	void					*priv);
 
 int xfs_alloc_query_range(struct xfs_btree_cur *cur,
 		const struct xfs_alloc_rec_incore *low_rec,

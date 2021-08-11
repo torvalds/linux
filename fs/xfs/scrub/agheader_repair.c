@@ -70,7 +70,7 @@ struct xrep_agf_allocbt {
 STATIC int
 xrep_agf_walk_allocbt(
 	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
+	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
 	struct xrep_agf_allocbt		*raa = priv;
@@ -443,7 +443,7 @@ struct xrep_agfl {
 STATIC int
 xrep_agfl_walk_rmap(
 	struct xfs_btree_cur	*cur,
-	struct xfs_rmap_irec	*rec,
+	const struct xfs_rmap_irec *rec,
 	void			*priv)
 {
 	struct xrep_agfl	*ra = priv;

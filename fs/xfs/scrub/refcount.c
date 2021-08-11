@@ -91,7 +91,7 @@ struct xchk_refcnt_check {
 STATIC int
 xchk_refcountbt_rmap_check(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xchk_refcnt_check	*refchk = priv;

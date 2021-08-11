@@ -833,7 +833,7 @@ out:
 STATIC int
 xrep_findroot_rmap(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xrep_findroot		*ri = priv;

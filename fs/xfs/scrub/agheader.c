@@ -357,7 +357,7 @@ out_pag:
 STATIC int
 xchk_agf_record_bno_lengths(
 	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
+	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
 	xfs_extlen_t			*blocks = priv;

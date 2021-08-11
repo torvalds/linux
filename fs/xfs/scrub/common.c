@@ -324,7 +324,7 @@ struct xchk_rmap_ownedby_info {
 STATIC int
 xchk_count_rmap_ownedby_irec(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xchk_rmap_ownedby_info	*sroi = priv;

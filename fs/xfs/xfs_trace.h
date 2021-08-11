@@ -3395,7 +3395,7 @@ DEFINE_INODE_ERROR_EVENT(xfs_swap_extent_rmap_error);
 /* fsmap traces */
 DECLARE_EVENT_CLASS(xfs_fsmap_class,
 	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_agnumber_t agno,
-		 struct xfs_rmap_irec *rmap),
+		 const struct xfs_rmap_irec *rmap),
 	TP_ARGS(mp, keydev, agno, rmap),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -3430,7 +3430,7 @@ DECLARE_EVENT_CLASS(xfs_fsmap_class,
 #define DEFINE_FSMAP_EVENT(name) \
 DEFINE_EVENT(xfs_fsmap_class, name, \
 	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_agnumber_t agno, \
-		 struct xfs_rmap_irec *rmap), \
+		 const struct xfs_rmap_irec *rmap), \
 	TP_ARGS(mp, keydev, agno, rmap))
 DEFINE_FSMAP_EVENT(xfs_fsmap_low_key);
 DEFINE_FSMAP_EVENT(xfs_fsmap_high_key);
