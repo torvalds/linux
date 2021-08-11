@@ -351,6 +351,11 @@ static int axi_fan_control_init(struct axi_fan_control_data *ctl,
 	return ret;
 }
 
+static void axi_fan_control_clk_disable(void *clk)
+{
+	clk_disable_unprepare(clk);
+}
+
 static const struct hwmon_channel_info *axi_fan_control_info[] = {
 	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_INPUT),
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_FAULT | HWMON_F_LABEL),
@@ -405,6 +410,14 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clk_get failed with %ld\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, axi_fan_control_clk_disable, clk);
+	if (ret)
+		return ret;
 
 	ctl->clk_rate = clk_get_rate(clk);
 	if (!ctl->clk_rate)
