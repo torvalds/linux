@@ -10917,6 +10917,7 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 			to_amdgpu_dm_connector(connector);
 	struct dm_connector_state *dm_con_state = NULL;
+	struct dc_sink *sink = amdgpu_dm_connector->dc_sink;
 
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
@@ -10928,28 +10929,31 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 		goto update;
 	}
 
-	if (!edid) {
+	sink = amdgpu_dm_connector->dc_sink ?
+		amdgpu_dm_connector->dc_sink :
+		amdgpu_dm_connector->dc_em_sink;
+
+	if (!edid || !sink) {
 		dm_con_state = to_dm_connector_state(connector->state);
 
 		amdgpu_dm_connector->min_vfreq = 0;
 		amdgpu_dm_connector->max_vfreq = 0;
 		amdgpu_dm_connector->pixel_clock_mhz = 0;
+		connector->display_info.monitor_range.min_vfreq = 0;
+		connector->display_info.monitor_range.max_vfreq = 0;
+		freesync_capable = false;
 
 		goto update;
 	}
 
 	dm_con_state = to_dm_connector_state(connector->state);
 
-	if (!amdgpu_dm_connector->dc_sink) {
-		DRM_ERROR("dc_sink NULL, could not add free_sync module.\n");
-		goto update;
-	}
 	if (!adev->dm.freesync_module)
 		goto update;
 
 
-	if (amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
-		|| amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_EDP) {
+	if (sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
+		|| sink->sink_signal == SIGNAL_TYPE_EDP) {
 		bool edid_check_required = false;
 
 		if (edid) {
@@ -10996,7 +11000,7 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 				freesync_capable = true;
 			}
 		}
-	} else if (edid && amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+	} else if (edid && sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A) {
 		i = parse_hdmi_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
 		if (i >= 0 && vsdb_info.freesync_supported) {
 			timing  = &edid->detailed_timings[i];
