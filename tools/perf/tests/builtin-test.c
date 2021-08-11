@@ -361,6 +361,10 @@ static struct test generic_tests[] = {
 		.is_supported = test__tsc_is_supported,
 	},
 	{
+		.desc = "dlfilter C API",
+		.func = test__dlfilter,
+	},
+	{
 		.func = NULL,
 	},
 };

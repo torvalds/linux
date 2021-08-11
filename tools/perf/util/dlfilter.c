@@ -530,8 +530,8 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	return ret;
 }
 
-static bool get_filter_desc(const char *dirname, const char *name,
-			    char **desc, char **long_desc)
+bool get_filter_desc(const char *dirname, const char *name, char **desc,
+		     char **long_desc)
 {
 	char path[PATH_MAX];
 	void *handle;
