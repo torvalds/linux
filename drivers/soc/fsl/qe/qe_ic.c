@@ -54,8 +54,8 @@ struct qe_ic {
 	struct irq_chip hc_irq;
 
 	/* VIRQ numbers of QE high/low irqs */
-	unsigned int virq_high;
-	unsigned int virq_low;
+	int virq_high;
+	int virq_low;
 };
 
 /*
@@ -435,11 +435,10 @@ static int qe_ic_init(struct platform_device *pdev)
 	qe_ic->virq_high = platform_get_irq(pdev, 0);
 	qe_ic->virq_low = platform_get_irq(pdev, 1);
 
-	if (qe_ic->virq_low < 0) {
+	if (qe_ic->virq_low <= 0)
 		return -ENODEV;
-	}
 
-	if (qe_ic->virq_high != qe_ic->virq_low) {
+	if (qe_ic->virq_high > 0 && qe_ic->virq_high != qe_ic->virq_low) {
 		low_handler = qe_ic_cascade_low;
 		high_handler = qe_ic_cascade_high;
 	} else {
@@ -459,7 +458,7 @@ static int qe_ic_init(struct platform_device *pdev)
 	irq_set_handler_data(qe_ic->virq_low, qe_ic);
 	irq_set_chained_handler(qe_ic->virq_low, low_handler);
 
-	if (qe_ic->virq_high && qe_ic->virq_high != qe_ic->virq_low) {
+	if (high_handler) {
 		irq_set_handler_data(qe_ic->virq_high, qe_ic);
 		irq_set_chained_handler(qe_ic->virq_high, high_handler);
 	}
