@@ -18,6 +18,7 @@
 
 struct drm_i915_gem_object;
 struct intel_fronbuffer;
+struct intel_memory_region;
 
 /*
  * struct i915_lut_handle tracks the fast lookups from handle to vma used
@@ -33,10 +34,9 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_HAS_IOMEM	BIT(1)
-#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(2)
-#define I915_GEM_OBJECT_IS_PROXY	BIT(3)
-#define I915_GEM_OBJECT_NO_MMAP		BIT(4)
+#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
+#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
+#define I915_GEM_OBJECT_NO_MMAP		BIT(3)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -78,10 +78,98 @@ struct drm_i915_gem_object_ops {
 	 * delayed_free - Override the default delayed free implementation
 	 */
 	void (*delayed_free)(struct drm_i915_gem_object *obj);
+
+	/**
+	 * migrate - Migrate object to a different region either for
+	 * pinning or for as long as the object lock is held.
+	 */
+	int (*migrate)(struct drm_i915_gem_object *obj,
+		       struct intel_memory_region *mr);
+
 	void (*release)(struct drm_i915_gem_object *obj);
 
 	const struct vm_operations_struct *mmap_ops;
 	const char *name; /* friendly name for debug, e.g. lockdep classes */
+};
+
+/**
+ * enum i915_cache_level - The supported GTT caching values for system memory
+ * pages.
+ *
+ * These translate to some special GTT PTE bits when binding pages into some
+ * address space. It also determines whether an object, or rather its pages are
+ * coherent with the GPU, when also reading or writing through the CPU cache
+ * with those pages.
+ *
+ * Userspace can also control this through struct drm_i915_gem_caching.
+ */
+enum i915_cache_level {
+	/**
+	 * @I915_CACHE_NONE:
+	 *
+	 * GPU access is not coherent with the CPU cache. If the cache is dirty
+	 * and we need the underlying pages to be coherent with some later GPU
+	 * access then we need to manually flush the pages.
+	 *
+	 * On shared LLC platforms reads and writes through the CPU cache are
+	 * still coherent even with this setting. See also
+	 * &drm_i915_gem_object.cache_coherent for more details. Due to this we
+	 * should only ever use uncached for scanout surfaces, otherwise we end
+	 * up over-flushing in some places.
+	 *
+	 * This is the default on non-LLC platforms.
+	 */
+	I915_CACHE_NONE = 0,
+	/**
+	 * @I915_CACHE_LLC:
+	 *
+	 * GPU access is coherent with the CPU cache. If the cache is dirty,
+	 * then the GPU will ensure that access remains coherent, when both
+	 * reading and writing through the CPU cache. GPU writes can dirty the
+	 * CPU cache.
+	 *
+	 * Not used for scanout surfaces.
+	 *
+	 * Applies to both platforms with shared LLC(HAS_LLC), and snooping
+	 * based platforms(HAS_SNOOP).
+	 *
+	 * This is the default on shared LLC platforms.  The only exception is
+	 * scanout objects, where the display engine is not coherent with the
+	 * CPU cache. For such objects I915_CACHE_NONE or I915_CACHE_WT is
+	 * automatically applied by the kernel in pin_for_display, if userspace
+	 * has not done so already.
+	 */
+	I915_CACHE_LLC,
+	/**
+	 * @I915_CACHE_L3_LLC:
+	 *
+	 * Explicitly enable the Gfx L3 cache, with coherent LLC.
+	 *
+	 * The Gfx L3 sits between the domain specific caches, e.g
+	 * sampler/render caches, and the larger LLC. LLC is coherent with the
+	 * GPU, but L3 is only visible to the GPU, so likely needs to be flushed
+	 * when the workload completes.
+	 *
+	 * Not used for scanout surfaces.
+	 *
+	 * Only exposed on some gen7 + GGTT. More recent hardware has dropped
+	 * this explicit setting, where it should now be enabled by default.
+	 */
+	I915_CACHE_L3_LLC,
+	/**
+	 * @I915_CACHE_WT:
+	 *
+	 * Write-through. Used for scanout surfaces.
+	 *
+	 * The GPU can utilise the caches, while still having the display engine
+	 * be coherent with GPU writes, as a result we don't need to flush the
+	 * CPU caches when moving out of the render domain. This is the default
+	 * setting chosen by the kernel, if supported by the HW, otherwise we
+	 * fallback to I915_CACHE_NONE. On the CPU side writes through the CPU
+	 * cache still need to be flushed, to remain coherent with the display
+	 * engine.
+	 */
+	I915_CACHE_WT,
 };
 
 enum i915_map_type {
@@ -97,6 +185,7 @@ enum i915_mmap_type {
 	I915_MMAP_TYPE_WC,
 	I915_MMAP_TYPE_WB,
 	I915_MMAP_TYPE_UC,
+	I915_MMAP_TYPE_FIXED,
 };
 
 struct i915_mmap_offset {
@@ -201,25 +290,138 @@ struct drm_i915_gem_object {
 	unsigned long flags;
 #define I915_BO_ALLOC_CONTIGUOUS BIT(0)
 #define I915_BO_ALLOC_VOLATILE   BIT(1)
-#define I915_BO_ALLOC_STRUCT_PAGE BIT(2)
-#define I915_BO_ALLOC_CPU_CLEAR  BIT(3)
-#define I915_BO_ALLOC_USER       BIT(4)
+#define I915_BO_ALLOC_CPU_CLEAR  BIT(2)
+#define I915_BO_ALLOC_USER       BIT(3)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
-			     I915_BO_ALLOC_STRUCT_PAGE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
 			     I915_BO_ALLOC_USER)
-#define I915_BO_READONLY         BIT(5)
-#define I915_TILING_QUIRK_BIT    6 /* unknown swizzling; do not release! */
+#define I915_BO_READONLY         BIT(4)
+#define I915_TILING_QUIRK_BIT    5 /* unknown swizzling; do not release! */
 
-	/*
-	 * Is the object to be mapped as read-only to the GPU
-	 * Only honoured if hardware has relevant pte bit
+	/**
+	 * @mem_flags - Mutable placement-related flags
+	 *
+	 * These are flags that indicate specifics of the memory region
+	 * the object is currently in. As such they are only stable
+	 * either under the object lock or if the object is pinned.
+	 */
+	unsigned int mem_flags;
+#define I915_BO_FLAG_STRUCT_PAGE BIT(0) /* Object backed by struct pages */
+#define I915_BO_FLAG_IOMEM       BIT(1) /* Object backed by IO memory */
+	/**
+	 * @cache_level: The desired GTT caching level.
+	 *
+	 * See enum i915_cache_level for possible values, along with what
+	 * each does.
 	 */
 	unsigned int cache_level:3;
-	unsigned int cache_coherent:2;
+	/**
+	 * @cache_coherent:
+	 *
+	 * Track whether the pages are coherent with the GPU if reading or
+	 * writing through the CPU caches. The largely depends on the
+	 * @cache_level setting.
+	 *
+	 * On platforms which don't have the shared LLC(HAS_SNOOP), like on Atom
+	 * platforms, coherency must be explicitly requested with some special
+	 * GTT caching bits(see enum i915_cache_level). When enabling coherency
+	 * it does come at a performance and power cost on such platforms. On
+	 * the flip side the kernel does not need to manually flush any buffers
+	 * which need to be coherent with the GPU, if the object is not coherent
+	 * i.e @cache_coherent is zero.
+	 *
+	 * On platforms that share the LLC with the CPU(HAS_LLC), all GT memory
+	 * access will automatically snoop the CPU caches(even with CACHE_NONE).
+	 * The one exception is when dealing with the display engine, like with
+	 * scanout surfaces. To handle this the kernel will always flush the
+	 * surface out of the CPU caches when preparing it for scanout.  Also
+	 * note that since scanout surfaces are only ever read by the display
+	 * engine we only need to care about flushing any writes through the CPU
+	 * cache, reads on the other hand will always be coherent.
+	 *
+	 * Something strange here is why @cache_coherent is not a simple
+	 * boolean, i.e coherent vs non-coherent. The reasoning for this is back
+	 * to the display engine not being fully coherent. As a result scanout
+	 * surfaces will either be marked as I915_CACHE_NONE or I915_CACHE_WT.
+	 * In the case of seeing I915_CACHE_NONE the kernel makes the assumption
+	 * that this is likely a scanout surface, and will set @cache_coherent
+	 * as only I915_BO_CACHE_COHERENT_FOR_READ, on platforms with the shared
+	 * LLC. The kernel uses this to always flush writes through the CPU
+	 * cache as early as possible, where it can, in effect keeping
+	 * @cache_dirty clean, so we can potentially avoid stalling when
+	 * flushing the surface just before doing the scanout.  This does mean
+	 * we might unnecessarily flush non-scanout objects in some places, but
+	 * the default assumption is that all normal objects should be using
+	 * I915_CACHE_LLC, at least on platforms with the shared LLC.
+	 *
+	 * Supported values:
+	 *
+	 * I915_BO_CACHE_COHERENT_FOR_READ:
+	 *
+	 * On shared LLC platforms, we use this for special scanout surfaces,
+	 * where the display engine is not coherent with the CPU cache. As such
+	 * we need to ensure we flush any writes before doing the scanout. As an
+	 * optimisation we try to flush any writes as early as possible to avoid
+	 * stalling later.
+	 *
+	 * Thus for scanout surfaces using I915_CACHE_NONE, on shared LLC
+	 * platforms, we use:
+	 *
+	 *	cache_coherent = I915_BO_CACHE_COHERENT_FOR_READ
+	 *
+	 * While for normal objects that are fully coherent, including special
+	 * scanout surfaces marked as I915_CACHE_WT, we use:
+	 *
+	 *	cache_coherent = I915_BO_CACHE_COHERENT_FOR_READ |
+	 *			 I915_BO_CACHE_COHERENT_FOR_WRITE
+	 *
+	 * And then for objects that are not coherent at all we use:
+	 *
+	 *	cache_coherent = 0
+	 *
+	 * I915_BO_CACHE_COHERENT_FOR_WRITE:
+	 *
+	 * When writing through the CPU cache, the GPU is still coherent. Note
+	 * that this also implies I915_BO_CACHE_COHERENT_FOR_READ.
+	 */
 #define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
 #define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
+	unsigned int cache_coherent:2;
+
+	/**
+	 * @cache_dirty:
+	 *
+	 * Track if we are we dirty with writes through the CPU cache for this
+	 * object. As a result reading directly from main memory might yield
+	 * stale data.
+	 *
+	 * This also ties into whether the kernel is tracking the object as
+	 * coherent with the GPU, as per @cache_coherent, as it determines if
+	 * flushing might be needed at various points.
+	 *
+	 * Another part of @cache_dirty is managing flushing when first
+	 * acquiring the pages for system memory, at this point the pages are
+	 * considered foreign, so the default assumption is that the cache is
+	 * dirty, for example the page zeroing done by the kernel might leave
+	 * writes though the CPU cache, or swapping-in, while the actual data in
+	 * main memory is potentially stale.  Note that this is a potential
+	 * security issue when dealing with userspace objects and zeroing. Now,
+	 * whether we actually need apply the big sledgehammer of flushing all
+	 * the pages on acquire depends on if @cache_coherent is marked as
+	 * I915_BO_CACHE_COHERENT_FOR_WRITE, i.e that the GPU will be coherent
+	 * for both reads and writes though the CPU cache.
+	 *
+	 * Note that on shared LLC platforms we still apply the heavy flush for
+	 * I915_CACHE_NONE objects, under the assumption that this is going to
+	 * be used for scanout.
+	 *
+	 * Update: On some hardware there is now also the 'Bypass LLC' MOCS
+	 * entry, which defeats our @cache_coherent tracking, since userspace
+	 * can freely bypass the CPU cache when touching the pages with the GPU,
+	 * where the kernel is completely unaware. On such platform we need
+	 * apply the sledgehammer-on-acquire regardless of the @cache_coherent.
+	 */
 	unsigned int cache_dirty:1;
 
 	/**
@@ -265,9 +467,10 @@ struct drm_i915_gem_object {
 		struct intel_memory_region *region;
 
 		/**
-		 * Memory manager node allocated for this object.
+		 * Memory manager resource allocated for this object. Only
+		 * needed for the mock region.
 		 */
-		void *st_mm_node;
+		struct ttm_resource *res;
 
 		/**
 		 * Element within memory_region->objects or region->purgeable

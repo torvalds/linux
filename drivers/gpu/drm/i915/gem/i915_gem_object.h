@@ -12,9 +12,13 @@
 #include <drm/drm_device.h>
 
 #include "display/intel_frontbuffer.h"
+#include "intel_memory_region.h"
 #include "i915_gem_object_types.h"
 #include "i915_gem_gtt.h"
+#include "i915_gem_ww.h"
 #include "i915_vma_types.h"
+
+enum intel_region_id;
 
 /*
  * XXX: There is a prevalence of the assumption that we fit the
@@ -44,6 +48,9 @@ static inline bool i915_gem_object_size_2big(u64 size)
 
 void i915_gem_init__objects(struct drm_i915_private *i915);
 
+void i915_objects_module_exit(void);
+int i915_objects_module_init(void);
+
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 
@@ -57,6 +64,10 @@ i915_gem_object_create_shmem(struct drm_i915_private *i915,
 struct drm_i915_gem_object *
 i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 				       const void *data, resource_size_t size);
+struct drm_i915_gem_object *
+__i915_gem_object_create_user(struct drm_i915_private *i915, u64 size,
+			      struct intel_memory_region **placements,
+			      unsigned int n_placements);
 
 extern const struct drm_i915_gem_object_ops i915_gem_shmem_ops;
 
@@ -147,7 +158,7 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 /*
  * If more than one potential simultaneous locker, assert held.
  */
-static inline void assert_object_held_shared(struct drm_i915_gem_object *obj)
+static inline void assert_object_held_shared(const struct drm_i915_gem_object *obj)
 {
 	/*
 	 * Note mm list lookup is protected by
@@ -169,13 +180,17 @@ static inline int __i915_gem_object_lock(struct drm_i915_gem_object *obj,
 	else
 		ret = dma_resv_lock(obj->base.resv, ww ? &ww->ctx : NULL);
 
-	if (!ret && ww)
+	if (!ret && ww) {
+		i915_gem_object_get(obj);
 		list_add_tail(&obj->obj_link, &ww->obj_list);
+	}
 	if (ret == -EALREADY)
 		ret = 0;
 
-	if (ret == -EDEADLK)
+	if (ret == -EDEADLK) {
+		i915_gem_object_get(obj);
 		ww->contended = obj;
+	}
 
 	return ret;
 }
@@ -261,17 +276,9 @@ i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
 	return obj->ops->flags & flags;
 }
 
-static inline bool
-i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
-{
-	return obj->flags & I915_BO_ALLOC_STRUCT_PAGE;
-}
+bool i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj);
 
-static inline bool
-i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
-{
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM);
-}
+bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj);
 
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
@@ -342,22 +349,22 @@ struct scatterlist *
 __i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 			 struct i915_gem_object_page_iter *iter,
 			 unsigned int n,
-			 unsigned int *offset, bool allow_alloc, bool dma);
+			 unsigned int *offset, bool dma);
 
 static inline struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 		       unsigned int n,
-		       unsigned int *offset, bool allow_alloc)
+		       unsigned int *offset)
 {
-	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset, allow_alloc, false);
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset, false);
 }
 
 static inline struct scatterlist *
 i915_gem_object_get_sg_dma(struct drm_i915_gem_object *obj,
 			   unsigned int n,
-			   unsigned int *offset, bool allow_alloc)
+			   unsigned int *offset)
 {
-	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset, allow_alloc, true);
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset, true);
 }
 
 struct page *
@@ -598,7 +605,18 @@ bool i915_gem_object_evictable(struct drm_i915_gem_object *obj);
 
 bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
 
-bool i915_gem_object_validates_to_lmem(struct drm_i915_gem_object *obj);
+int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    enum intel_region_id id);
+
+bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
+				 enum intel_region_id id);
+
+int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
+				   unsigned int flags);
+
+bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
+					enum intel_memory_type type);
 
 #ifdef CONFIG_MMU_NOTIFIER
 static inline bool
@@ -609,14 +627,12 @@ i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
 
 int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj);
 int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj);
-void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj);
 int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj);
 #else
 static inline bool i915_gem_object_is_userptr(struct drm_i915_gem_object *obj) { return false; }
 
 static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
 static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
-static inline void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); }
 static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
 
 #endif
