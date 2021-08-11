@@ -1266,6 +1266,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 	err = perf_event__synthesize_thread_map(&rec->tool, thread_map,
 						 process_synthesized_event,
 						 &rec->session->machines.host,
+						 true,
 						 rec->opts.sample_address);
 	perf_thread_map__put(thread_map);
 	return err;
@@ -1480,8 +1481,9 @@ static int record__synthesize(struct record *rec, bool tail)
 		f = process_locked_synthesized_event;
 	}
 
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->core.threads,
-					    f, opts->sample_address,
+	err = __machine__synthesize_threads(machine, tool, &opts->target,
+					    rec->evlist->core.threads,
+					    f, true, opts->sample_address,
 					    rec->opts.nr_threads_synthesize);
 
 	if (rec->opts.nr_threads_synthesize > 1)

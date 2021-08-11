@@ -1271,7 +1271,7 @@ static int __cmd_top(struct perf_top *top)
 		pr_debug("Couldn't synthesize cgroup events.\n");
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->core.threads, false,
+				    top->evlist->core.threads, true, false,
 				    top->nr_threads_synthesize);
 
 	if (top->nr_threads_synthesize > 1)
