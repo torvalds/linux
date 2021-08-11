@@ -216,8 +216,8 @@ enum cs8409_coefficient_index_registers {
 
 /* CS42L42 Specific Definitions */
 
+#define CS8409_MAX_CODECS			8
 #define CS42L42_VOLUMES				(4U)
-
 #define CS42L42_HP_VOL_REAL_MIN			(-63)
 #define CS42L42_HP_VOL_REAL_MAX			(0)
 #define CS42L42_AMIC_VOL_REAL_MIN		(-97)
@@ -243,13 +243,15 @@ enum cs8409_coefficient_index_registers {
 #define CS8409_CS42L42_DMIC_PIN_NID		CS8409_PIN_DMIC1_IN
 #define CS8409_CS42L42_DMIC_ADC_PIN_NID		CS8409_PIN_DMIC1
 
-#define CS42L42_INIT_REG_SEQ_SIZE		59
-
 enum {
 	CS8409_BULLSEYE,
 	CS8409_WARLOCK,
 	CS8409_CYBORG,
 	CS8409_FIXUPS,
+};
+
+enum {
+	CS8409_CODEC0,
 };
 
 enum {
@@ -268,25 +270,40 @@ struct cs8409_cir_param {
 	unsigned int coeff;
 };
 
+struct sub_codec {
+	struct hda_codec *codec;
+	unsigned int addr;
+	unsigned int reset_gpio;
+	unsigned int irq_mask;
+	const struct cs8409_i2c_param *init_seq;
+	unsigned int init_seq_num;
+
+	unsigned int hp_jack_in:1;
+	unsigned int mic_jack_in:1;
+	unsigned int suspended:1;
+	unsigned int paged:1;
+	unsigned int last_page;
+	unsigned int hsbias_hiz;
+	unsigned int full_scale_vol:1;
+
+	s8 vol[CS42L42_VOLUMES];
+};
+
 struct cs8409_spec {
 	struct hda_gen_spec gen;
 	struct hda_codec *codec;
+
+	struct sub_codec *scodecs[CS8409_MAX_CODECS];
+	unsigned int num_scodecs;
 
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
 
-	unsigned int cs42l42_hp_jack_in:1;
-	unsigned int cs42l42_mic_jack_in:1;
-	unsigned int cs42l42_suspended:1;
-	s8 vol[CS42L42_VOLUMES];
-
 	struct mutex i2c_mux;
 	unsigned int i2c_clck_enabled;
 	unsigned int dev_addr;
 	struct delayed_work i2c_clk_work;
-	unsigned int paged;
-	unsigned int last_page;
 
 	/* verb exec op override */
 	int (*exec_verb)(struct hdac_device *dev, unsigned int cmd, unsigned int flags,
@@ -305,9 +322,9 @@ extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];
 extern const struct hda_pintbl cs8409_cs42l42_pincfgs[];
-extern const struct cs8409_i2c_param cs42l42_init_reg_seq[CS42L42_INIT_REG_SEQ_SIZE];
 extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
 extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
+extern struct sub_codec cs8409_cs42l42_codec;
 
 void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action);
 
