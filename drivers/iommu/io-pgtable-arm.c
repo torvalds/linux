@@ -638,14 +638,7 @@ static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 				io_pgtable_tlb_flush_walk(iop, iova + i * size, size,
 							  ARM_LPAE_GRANULE(data));
 				__arm_lpae_free_pgtable(data, lvl + 1, iopte_deref(pte, data));
-			} else if (iop->cfg.quirks & IO_PGTABLE_QUIRK_NON_STRICT) {
-				/*
-				 * Order the PTE update against queueing the IOVA, to
-				 * guarantee that a flush callback from a different CPU
-				 * has observed it before the TLBIALL can be issued.
-				 */
-				smp_wmb();
-			} else {
+			} else if (!gather->queued) {
 				io_pgtable_tlb_add_page(iop, gather, iova + i * size, size);
 			}
 
@@ -825,7 +818,6 @@ arm_64_lpae_alloc_pgtable_s1(struct io_pgtable_cfg *cfg, void *cookie)
 	bool tg1;
 
 	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_ARM_NS |
-			    IO_PGTABLE_QUIRK_NON_STRICT |
 			    IO_PGTABLE_QUIRK_ARM_TTBR1 |
 			    IO_PGTABLE_QUIRK_ARM_OUTER_WBWA))
 		return NULL;
@@ -929,7 +921,7 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	typeof(&cfg->arm_lpae_s2_cfg.vtcr) vtcr = &cfg->arm_lpae_s2_cfg.vtcr;
 
 	/* The NS quirk doesn't apply at stage 2 */
-	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_NON_STRICT))
+	if (cfg->quirks)
 		return NULL;
 
 	data = arm_lpae_alloc_pgtable(cfg);
