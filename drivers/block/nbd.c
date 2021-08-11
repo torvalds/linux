@@ -1683,7 +1683,7 @@ static const struct blk_mq_ops nbd_mq_ops = {
 	.timeout	= nbd_xmit_timeout,
 };
 
-static int nbd_dev_add(int index)
+static struct nbd_device *nbd_dev_add(int index)
 {
 	struct nbd_device *nbd;
 	struct gendisk *disk;
@@ -1755,7 +1755,7 @@ static int nbd_dev_add(int index)
 	sprintf(disk->disk_name, "nbd%d", index);
 	add_disk(disk);
 	nbd_total_devices++;
-	return index;
+	return nbd;
 
 out_free_idr:
 	idr_remove(&nbd_index_idr, index);
@@ -1764,7 +1764,7 @@ out_free_tags:
 out_free_nbd:
 	kfree(nbd);
 out:
-	return err;
+	return ERR_PTR(err);
 }
 
 static int find_free_cb(int id, void *ptr, void *data)
@@ -1850,25 +1850,22 @@ again:
 	if (index == -1) {
 		ret = idr_for_each(&nbd_index_idr, &find_free_cb, &nbd);
 		if (ret == 0) {
-			int new_index;
-			new_index = nbd_dev_add(-1);
-			if (new_index < 0) {
+			nbd = nbd_dev_add(-1);
+			if (IS_ERR(nbd)) {
 				mutex_unlock(&nbd_index_mutex);
 				printk(KERN_ERR "nbd: failed to add new device\n");
-				return new_index;
+				return PTR_ERR(nbd);
 			}
-			nbd = idr_find(&nbd_index_idr, new_index);
 		}
 	} else {
 		nbd = idr_find(&nbd_index_idr, index);
 		if (!nbd) {
-			ret = nbd_dev_add(index);
-			if (ret < 0) {
+			nbd = nbd_dev_add(index);
+			if (IS_ERR(nbd)) {
 				mutex_unlock(&nbd_index_mutex);
 				printk(KERN_ERR "nbd: failed to add new device\n");
-				return ret;
+				return PTR_ERR(nbd);
 			}
-			nbd = idr_find(&nbd_index_idr, index);
 		}
 	}
 	if (!nbd) {
