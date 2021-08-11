@@ -726,9 +726,9 @@ int
 xfs_log_mount_finish(
 	struct xfs_mount	*mp)
 {
-	int	error = 0;
-	bool	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
-	bool	recovered = mp->m_log->l_flags & XLOG_RECOVERY_NEEDED;
+	struct xlog		*log = mp->m_log;
+	bool			readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+	int			error = 0;
 
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
@@ -759,7 +759,8 @@ xfs_log_mount_finish(
 	 * mount failure occurs.
 	 */
 	mp->m_super->s_flags |= SB_ACTIVE;
-	error = xlog_recover_finish(mp->m_log);
+	if (log->l_flags & XLOG_RECOVERY_NEEDED)
+		error = xlog_recover_finish(log);
 	if (!error)
 		xfs_log_work_queue(mp);
 	mp->m_super->s_flags &= ~SB_ACTIVE;
@@ -774,17 +775,24 @@ xfs_log_mount_finish(
 	 * Don't push in the error case because the AIL may have pending intents
 	 * that aren't removed until recovery is cancelled.
 	 */
-	if (!error && recovered) {
-		xfs_log_force(mp, XFS_LOG_SYNC);
-		xfs_ail_push_all_sync(mp->m_ail);
+	if (log->l_flags & XLOG_RECOVERY_NEEDED) {
+		if (!error) {
+			xfs_log_force(mp, XFS_LOG_SYNC);
+			xfs_ail_push_all_sync(mp->m_ail);
+		}
+		xfs_notice(mp, "Ending recovery (logdev: %s)",
+				mp->m_logname ? mp->m_logname : "internal");
+	} else {
+		xfs_info(mp, "Ending clean mount");
 	}
 	xfs_buftarg_drain(mp->m_ddev_targp);
 
+	log->l_flags &= ~XLOG_RECOVERY_NEEDED;
 	if (readonly)
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 
 	/* Make sure the log is dead if we're returning failure. */
-	ASSERT(!error || (mp->m_log->l_flags & XLOG_IO_ERROR));
+	ASSERT(!error || xlog_is_shutdown(log));
 
 	return error;
 }
