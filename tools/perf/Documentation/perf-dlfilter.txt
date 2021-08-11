@@ -32,7 +32,7 @@ The API for filtering consists of the following:
 ----
 #include <perf/perf_dlfilter.h>
 
-const struct perf_dlfilter_fns perf_dlfilter_fns;
+struct perf_dlfilter_fns perf_dlfilter_fns;
 
 int start(void **data, void *ctx);
 int stop(void *data, void *ctx);
@@ -214,7 +214,7 @@ Filter out everything except branches from "foo" to "bar":
 #include <perf/perf_dlfilter.h>
 #include <string.h>
 
-const struct perf_dlfilter_fns perf_dlfilter_fns;
+struct perf_dlfilter_fns perf_dlfilter_fns;
 
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx)
 {
