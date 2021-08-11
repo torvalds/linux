@@ -144,10 +144,11 @@ static int __init iommu_subsys_init(void)
 		(iommu_cmd_line & IOMMU_CMD_LINE_DMA_API) ?
 			"(set via kernel command line)" : "");
 
-	pr_info("DMA domain TLB invalidation policy: %s mode %s\n",
-		iommu_dma_strict ? "strict" : "lazy",
-		(iommu_cmd_line & IOMMU_CMD_LINE_STRICT) ?
-			"(set via kernel command line)" : "");
+	if (!iommu_default_passthrough())
+		pr_info("DMA domain TLB invalidation policy: %s mode %s\n",
+			iommu_dma_strict ? "strict" : "lazy",
+			(iommu_cmd_line & IOMMU_CMD_LINE_STRICT) ?
+				"(set via kernel command line)" : "");
 
 	return 0;
 }
