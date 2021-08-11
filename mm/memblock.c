@@ -1685,6 +1685,11 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 	if (!size)
 		return;
 
+	if (memblock.memory.cnt <= 1) {
+		pr_warn("%s: No memory registered yet\n", __func__);
+		return;
+	}
+
 	ret = memblock_isolate_range(&memblock.memory, base, size,
 						&start_rgn, &end_rgn);
 	if (ret)
