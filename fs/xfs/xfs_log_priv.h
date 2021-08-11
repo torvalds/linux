@@ -47,7 +47,6 @@ enum xlog_iclog_state {
 	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
 	XLOG_STATE_CALLBACK,	/* Callback functions now */
 	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
-	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
 };
 
 #define XLOG_STATE_STRINGS \
@@ -56,8 +55,7 @@ enum xlog_iclog_state {
 	{ XLOG_STATE_SYNCING,	"XLOG_STATE_SYNCING" }, \
 	{ XLOG_STATE_DONE_SYNC,	"XLOG_STATE_DONE_SYNC" }, \
 	{ XLOG_STATE_CALLBACK,	"XLOG_STATE_CALLBACK" }, \
-	{ XLOG_STATE_DIRTY,	"XLOG_STATE_DIRTY" }, \
-	{ XLOG_STATE_IOERROR,	"XLOG_STATE_IOERROR" }
+	{ XLOG_STATE_DIRTY,	"XLOG_STATE_DIRTY" }
 
 /*
  * In core log flags

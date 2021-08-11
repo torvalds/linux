@@ -898,7 +898,7 @@ restart:
 	 * callbacks and dropped the icloglock.
 	 */
 	spin_lock(&log->l_icloglock);
-	if (commit_iclog->ic_state == XLOG_STATE_IOERROR) {
+	if (xlog_is_shutdown(log)) {
 		spin_unlock(&log->l_icloglock);
 		goto out_abort;
 	}
