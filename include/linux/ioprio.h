@@ -9,6 +9,16 @@
 #include <uapi/linux/ioprio.h>
 
 /*
+ * Check that a priority value has a valid class.
+ */
+static inline bool ioprio_valid(unsigned short ioprio)
+{
+	unsigned short class = IOPRIO_PRIO_CLASS(ioprio);
+
+	return class > IOPRIO_CLASS_NONE && class <= IOPRIO_CLASS_IDLE;
+}
+
+/*
  * if process has set io priority explicitly, use that. if not, convert
  * the cpu scheduler nice value to an io priority
  */

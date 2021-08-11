@@ -27,8 +27,6 @@ enum {
 	IOPRIO_CLASS_IDLE,
 };
 
-#define ioprio_valid(mask)	(IOPRIO_PRIO_CLASS((mask)) != IOPRIO_CLASS_NONE)
-
 /*
  * 8 best effort priority levels are supported
  */
