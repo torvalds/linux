@@ -4,6 +4,7 @@
  * Author: David Brazdil <dbrazdil@google.com>
  */
 
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/kvm_host.h>
 #include <linux/of_platform.h>
 
@@ -15,6 +16,62 @@
 #define CTX_CFG_ENTRY(ctxid, nr_ctx, vid) \
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
+
+struct s2mpu_irq_info {
+	struct device *dev;
+	void __iomem *va;
+};
+
+static irqreturn_t s2mpu_irq_handler(int irq, void *data)
+{
+	struct s2mpu_irq_info *info = data;
+	unsigned int vid;
+	u32 vid_bmap, fault_info;
+	phys_addr_t fault_pa;
+	const char *fault_type;
+	irqreturn_t ret = IRQ_NONE;
+
+	while ((vid_bmap = readl_relaxed(info->va + REG_NS_FAULT_STATUS))) {
+		WARN_ON_ONCE(vid_bmap & (~ALL_VIDS_BITMAP));
+		vid = __ffs(vid_bmap);
+
+		fault_pa = hi_lo_readq_relaxed(info->va + REG_NS_FAULT_PA_HIGH_LOW(vid));
+		fault_info = readl_relaxed(info->va + REG_NS_FAULT_INFO(vid));
+		WARN_ON(FIELD_GET(FAULT_INFO_VID_MASK, fault_info) != vid);
+
+		switch (FIELD_GET(FAULT_INFO_TYPE_MASK, fault_info)) {
+		case FAULT_INFO_TYPE_MPTW:
+			fault_type = "MPTW fault";
+			break;
+		case FAULT_INFO_TYPE_AP:
+			fault_type = "access permission fault";
+			break;
+		case FAULT_INFO_TYPE_CONTEXT:
+			fault_type = "context fault";
+			break;
+		default:
+			fault_type = "unknown fault";
+			break;
+		}
+
+		dev_err(info->dev, "\n"
+			"============== S2MPU FAULT DETECTED ==============\n"
+			"  PA=0x%pap, FAULT_INFO=0x%08x\n"
+			"  DIRECTION: %s, TYPE: %s\n"
+			"  VID=%u, REQ_LENGTH=%lu, REQ_AXI_ID=%lu\n"
+			"==================================================\n",
+			&fault_pa, fault_info,
+			(fault_info & FAULT_INFO_RW_BIT) ? "write" : "read",
+			fault_type, vid,
+			FIELD_GET(FAULT_INFO_LEN_MASK, fault_info),
+			FIELD_GET(FAULT_INFO_ID_MASK, fault_info));
+
+		writel_relaxed(BIT(vid), info->va + REG_NS_INTERRUPT_CLEAR);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
 
 static u32 gen_ctx_cfg_valid_vid(struct platform_device *pdev,
 				 unsigned int num_ctx, u32 vid_bmap)
@@ -68,6 +125,44 @@ static int s2mpu_probe_v9(struct platform_device *pdev, void __iomem *kaddr)
 	return 0;
 }
 
+/**
+ * Parse interrupt information from DT and if found, register IRQ handler.
+ * This is considered optional and will not fail even if the initialization is
+ * unsuccessful. In that case the IRQ will remain masked.
+ */
+static void s2mpu_probe_irq(struct platform_device *pdev, void __iomem *kaddr)
+{
+	struct s2mpu_irq_info *irq_info;
+	int ret, irq;
+
+	irq = platform_get_irq_optional(pdev, 0);
+
+	if (irq == -ENXIO)
+		return; /* No IRQ specified. */
+
+	if (irq < 0) {
+		/* IRQ specified but failed to parse. */
+		dev_err(&pdev->dev, "failed to parse IRQ, IRQ not enabled");
+		return;
+	}
+
+	irq_info = devm_kmalloc(&pdev->dev, sizeof(*irq_info), GFP_KERNEL);
+	if (!irq_info)
+		return;
+
+	*irq_info = (struct s2mpu_irq_info){
+		.dev = &pdev->dev,
+		.va = kaddr,
+	};
+
+	ret = devm_request_irq(&pdev->dev, irq, s2mpu_irq_handler, 0,
+			       dev_name(&pdev->dev), irq_info);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register IRQ, IRQ not enabled");
+		return;
+	}
+}
+
 static int s2mpu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -113,6 +208,13 @@ static int s2mpu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to parse power-domain-id: %d", ret);
 		return ret;
 	}
+
+	/*
+	 * Try to parse IRQ information. This is optional as it only affects
+	 * runtime fault reporting, and therefore errors do not fail the whole
+	 * driver initialization.
+	 */
+	s2mpu_probe_irq(pdev, kaddr);
 
 	version = readl_relaxed(kaddr + REG_NS_VERSION);
 	switch (version & VERSION_CHECK_MASK) {

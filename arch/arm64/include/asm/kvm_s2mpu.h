@@ -14,8 +14,16 @@
 
 #define ALL_VIDS_BITMAP				GENMASK(NR_VIDS - 1, 0)
 
+#define REG_NS_INTERRUPT_CLEAR			0x2c
 #define REG_NS_VERSION				0x60
 #define REG_NS_NUM_CONTEXT			0x100
+#define REG_NS_FAULT_STATUS			0x2000
+#define REG_NS_FAULT_PA_LOW(vid)		(0x2004 + ((vid) * 0x20))
+#define REG_NS_FAULT_PA_HIGH(vid)		(0x2008 + ((vid) * 0x20))
+#define REG_NS_FAULT_INFO(vid)			(0x2010 + ((vid) * 0x20))
+
+/* For use with hi_lo_readq_relaxed(). */
+#define REG_NS_FAULT_PA_HIGH_LOW(vid)		REG_NS_FAULT_PA_LOW(vid)
 
 #define VERSION_MAJOR_ARCH_VER_MASK		GENMASK(31, 28)
 #define VERSION_MINOR_ARCH_VER_MASK		GENMASK(27, 24)
@@ -32,6 +40,16 @@
 #define CONTEXT_CFG_VALID_VID_CTX_VALID(ctx)	BIT((4 * (ctx)) + 3)
 #define CONTEXT_CFG_VALID_VID_CTX_VID(ctx, vid)	\
 		FIELD_PREP(GENMASK((4 * (ctx) + 2), 4 * (ctx)), (vid))
+
+#define NR_FAULT_INFO_REGS			8
+#define FAULT_INFO_VID_MASK			GENMASK(26, 24)
+#define FAULT_INFO_TYPE_MASK			GENMASK(23, 21)
+#define FAULT_INFO_TYPE_CONTEXT			0x4 /* v9 only */
+#define FAULT_INFO_TYPE_AP			0x2
+#define FAULT_INFO_TYPE_MPTW			0x1
+#define FAULT_INFO_RW_BIT			BIT(20)
+#define FAULT_INFO_LEN_MASK			GENMASK(19, 16)
+#define FAULT_INFO_ID_MASK			GENMASK(15, 0)
 
 enum s2mpu_version {
 	S2MPU_VERSION_8 = 0x11000000,
