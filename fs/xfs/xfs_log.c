@@ -487,6 +487,32 @@ out_error:
 }
 
 /*
+ * Run all the pending iclog callbacks and wake log force waiters and iclog
+ * space waiters so they can process the newly set shutdown state. We really
+ * don't care what order we process callbacks here because the log is shut down
+ * and so state cannot change on disk anymore.
+ */
+static void
+xlog_state_shutdown_callbacks(
+	struct xlog		*log)
+{
+	struct xlog_in_core	*iclog;
+	LIST_HEAD(cb_list);
+
+	spin_lock(&log->l_icloglock);
+	iclog = log->l_iclog;
+	do {
+		list_splice_init(&iclog->ic_callbacks, &cb_list);
+		wake_up_all(&iclog->ic_force_wait);
+	} while ((iclog = iclog->ic_next) != log->l_iclog);
+
+	wake_up_all(&log->l_flush_wait);
+	spin_unlock(&log->l_icloglock);
+
+	xlog_cil_process_committed(&cb_list);
+}
+
+/*
  * Flush iclog to disk if this is the last reference to the given iclog and the
  * it is in the WANT_SYNC state.
  *
@@ -2840,7 +2866,10 @@ xlog_state_iodone_process_iclog(
 
 /*
  * Loop over all the iclogs, running attached callbacks on them. Return true if
- * we ran any callbacks, indicating that we dropped the icloglock.
+ * we ran any callbacks, indicating that we dropped the icloglock. We don't need
+ * to handle transient shutdown state here at all because
+ * xlog_state_shutdown_callbacks() will be run to do the necessary shutdown
+ * cleanup of the callbacks.
  */
 static bool
 xlog_state_do_iclog_callbacks(
@@ -2855,13 +2884,11 @@ xlog_state_do_iclog_callbacks(
 	do {
 		LIST_HEAD(cb_list);
 
-		if (!xlog_is_shutdown(log)) {
-			if (xlog_state_iodone_process_iclog(log, iclog))
-				break;
-			if (iclog->ic_state != XLOG_STATE_CALLBACK) {
-				iclog = iclog->ic_next;
-				continue;
-			}
+		if (xlog_state_iodone_process_iclog(log, iclog))
+			break;
+		if (iclog->ic_state != XLOG_STATE_CALLBACK) {
+			iclog = iclog->ic_next;
+			continue;
 		}
 		list_splice_init(&iclog->ic_callbacks, &cb_list);
 		spin_unlock(&log->l_icloglock);
@@ -2872,10 +2899,7 @@ xlog_state_do_iclog_callbacks(
 		ran_callback = true;
 
 		spin_lock(&log->l_icloglock);
-		if (xlog_is_shutdown(log))
-			wake_up_all(&iclog->ic_force_wait);
-		else
-			xlog_state_clean_iclog(log, iclog);
+		xlog_state_clean_iclog(log, iclog);
 		iclog = iclog->ic_next;
 	} while (iclog != first_iclog);
 
@@ -2908,8 +2932,7 @@ xlog_state_do_callback(
 		}
 	}
 
-	if (log->l_iclog->ic_state == XLOG_STATE_ACTIVE ||
-	    xlog_is_shutdown(log))
+	if (log->l_iclog->ic_state == XLOG_STATE_ACTIVE)
 		wake_up_all(&log->l_flush_wait);
 
 	spin_unlock(&log->l_icloglock);
@@ -3885,7 +3908,7 @@ xlog_force_shutdown(
 	spin_lock(&log->l_cilp->xc_push_lock);
 	wake_up_all(&log->l_cilp->xc_commit_wait);
 	spin_unlock(&log->l_cilp->xc_push_lock);
-	xlog_state_do_callback(log);
+	xlog_state_shutdown_callbacks(log);
 
 	return log_error;
 }
