@@ -140,15 +140,15 @@ struct xfs_btree_ops {
 
 	/* difference between key value and cursor value */
 	int64_t (*key_diff)(struct xfs_btree_cur *cur,
-			      union xfs_btree_key *key);
+			    const union xfs_btree_key *key);
 
 	/*
 	 * Difference between key2 and key1 -- positive if key1 > key2,
 	 * negative if key1 < key2, and zero if equal.
 	 */
 	int64_t (*diff_two_keys)(struct xfs_btree_cur *cur,
-				   union xfs_btree_key *key1,
-				   union xfs_btree_key *key2);
+				 const union xfs_btree_key *key1,
+				 const union xfs_btree_key *key2);
 
 	const struct xfs_buf_ops	*buf_ops;
 

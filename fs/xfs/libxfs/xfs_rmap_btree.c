@@ -219,13 +219,13 @@ xfs_rmapbt_init_ptr_from_cur(
 
 STATIC int64_t
 xfs_rmapbt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
-	struct xfs_rmap_irec	*rec = &cur->bc_rec.r;
-	struct xfs_rmap_key	*kp = &key->rmap;
-	__u64			x, y;
-	int64_t			d;
+	struct xfs_rmap_irec		*rec = &cur->bc_rec.r;
+	const struct xfs_rmap_key	*kp = &key->rmap;
+	__u64				x, y;
+	int64_t				d;
 
 	d = (int64_t)be32_to_cpu(kp->rm_startblock) - rec->rm_startblock;
 	if (d)
@@ -249,14 +249,14 @@ xfs_rmapbt_key_diff(
 
 STATIC int64_t
 xfs_rmapbt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
-	struct xfs_rmap_key	*kp1 = &k1->rmap;
-	struct xfs_rmap_key	*kp2 = &k2->rmap;
-	int64_t			d;
-	__u64			x, y;
+	const struct xfs_rmap_key	*kp1 = &k1->rmap;
+	const struct xfs_rmap_key	*kp2 = &k2->rmap;
+	int64_t				d;
+	__u64				x, y;
 
 	d = (int64_t)be32_to_cpu(kp1->rm_startblock) -
 		       be32_to_cpu(kp2->rm_startblock);

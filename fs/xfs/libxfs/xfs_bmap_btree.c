@@ -387,8 +387,8 @@ xfs_bmbt_init_ptr_from_cur(
 
 STATIC int64_t
 xfs_bmbt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
 	return (int64_t)be64_to_cpu(key->bmbt.br_startoff) -
 				      cur->bc_rec.b.br_startoff;
@@ -396,12 +396,12 @@ xfs_bmbt_key_diff(
 
 STATIC int64_t
 xfs_bmbt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
-	uint64_t		a = be64_to_cpu(k1->bmbt.br_startoff);
-	uint64_t		b = be64_to_cpu(k2->bmbt.br_startoff);
+	uint64_t			a = be64_to_cpu(k1->bmbt.br_startoff);
+	uint64_t			b = be64_to_cpu(k2->bmbt.br_startoff);
 
 	/*
 	 * Note: This routine previously casted a and b to int64 and subtracted

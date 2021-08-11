@@ -177,20 +177,20 @@ xfs_refcountbt_init_ptr_from_cur(
 
 STATIC int64_t
 xfs_refcountbt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
 	struct xfs_refcount_irec	*rec = &cur->bc_rec.rc;
-	struct xfs_refcount_key		*kp = &key->refc;
+	const struct xfs_refcount_key	*kp = &key->refc;
 
 	return (int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
 }
 
 STATIC int64_t
 xfs_refcountbt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
 			  be32_to_cpu(k2->refc.rc_startblock);
