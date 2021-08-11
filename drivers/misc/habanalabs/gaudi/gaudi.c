@@ -7265,7 +7265,7 @@ static void gaudi_print_sw_config_stream_data(struct hl_device *hdev, u32 stream
 
 	cq_ptr = (((u64) RREG32(cq_ptr_hi)) << 32) | RREG32(cq_ptr_lo);
 	size = RREG32(cq_tsize);
-	dev_info(hdev->dev, "stop on err: stream: %u, addr: %#llx, size: %x\n",
+	dev_info(hdev->dev, "stop on err: stream: %u, addr: %#llx, size: %u\n",
 							stream, cq_ptr, size);
 }
 
@@ -7321,7 +7321,7 @@ static void gaudi_print_last_pqes_on_err(struct hl_device *hdev, u32 qid_base,
 
 		addr = le64_to_cpu(bd->ptr);
 
-		dev_info(hdev->dev, "stop on err PQE(stream %u): ci: %u, addr: %#llx, size: %x\n",
+		dev_info(hdev->dev, "stop on err PQE(stream %u): ci: %u, addr: %#llx, size: %u\n",
 							stream, ci, addr, len);
 
 		/* get previous ci, wrap if needed */
