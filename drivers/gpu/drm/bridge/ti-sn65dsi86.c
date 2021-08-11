@@ -739,6 +739,9 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	}
 	pdata->dsi = dsi;
 
+	/* We never want the next bridge to *also* create a connector: */
+	flags |= DRM_BRIDGE_ATTACH_NO_CONNECTOR;
+
 	/* Attach the next bridge */
 	ret = drm_bridge_attach(bridge->encoder, pdata->next_bridge,
 				&pdata->bridge, flags);
