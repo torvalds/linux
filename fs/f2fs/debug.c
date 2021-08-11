@@ -323,22 +323,43 @@ get_cache:
 #endif
 }
 
+static char *s_flag[] = {
+	[SBI_IS_DIRTY]		= " fs_dirty",
+	[SBI_IS_CLOSE]		= " closing",
+	[SBI_NEED_FSCK]		= " need_fsck",
+	[SBI_POR_DOING]		= " recovering",
+	[SBI_NEED_SB_WRITE]	= " sb_dirty",
+	[SBI_NEED_CP]		= " need_cp",
+	[SBI_IS_SHUTDOWN]	= " shutdown",
+	[SBI_IS_RECOVERED]	= " recovered",
+	[SBI_CP_DISABLED]	= " cp_disabled",
+	[SBI_CP_DISABLED_QUICK]	= " cp_disabled_quick",
+	[SBI_QUOTA_NEED_FLUSH]	= " quota_need_flush",
+	[SBI_QUOTA_SKIP_FLUSH]	= " quota_skip_flush",
+	[SBI_QUOTA_NEED_REPAIR]	= " quota_need_repair",
+	[SBI_IS_RESIZEFS]	= " resizefs",
+};
+
 static int stat_show(struct seq_file *s, void *v)
 {
 	struct f2fs_stat_info *si;
-	int i = 0;
-	int j;
+	int i = 0, j = 0;
 
 	mutex_lock(&f2fs_stat_mutex);
 	list_for_each_entry(si, &f2fs_stat_list, stat_list) {
 		update_general_status(si->sbi);
 
-		seq_printf(s, "\n=====[ partition info(%pg). #%d, %s, CP: %s (sbi: 0x%lx)]=====\n",
+		seq_printf(s, "\n=====[ partition info(%pg). #%d, %s, CP: %s]=====\n",
 			si->sbi->sb->s_bdev, i++,
 			f2fs_readonly(si->sbi->sb) ? "RO": "RW",
 			is_set_ckpt_flags(si->sbi, CP_DISABLED_FLAG) ?
-			"Disabled": (f2fs_cp_error(si->sbi) ? "Error": "Good"),
-			si->sbi->s_flag);
+			"Disabled" : (f2fs_cp_error(si->sbi) ? "Error" : "Good"));
+		if (si->sbi->s_flag) {
+			seq_puts(s, "[SBI:");
+			for_each_set_bit(j, &si->sbi->s_flag, 32)
+				seq_puts(s, s_flag[j]);
+			seq_puts(s, "]\n");
+		}
 		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
 			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",
