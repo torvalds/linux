@@ -4277,6 +4277,21 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_ENABLE_REMOTE_DEV_RESET_NAME,
 		.type = DEVLINK_PARAM_GENERIC_ENABLE_REMOTE_DEV_RESET_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_ETH_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_ETH_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_RDMA_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_RDMA_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_VNET_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_VNET_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
@@ -9785,6 +9800,22 @@ static int devlink_param_verify(const struct devlink_param *param)
 		return devlink_param_driver_verify(param);
 }
 
+static int __devlink_param_register_one(struct devlink *devlink,
+					unsigned int port_index,
+					struct list_head *param_list,
+					const struct devlink_param *param,
+					enum devlink_command reg_cmd)
+{
+	int err;
+
+	err = devlink_param_verify(param);
+	if (err)
+		return err;
+
+	return devlink_param_register_one(devlink, port_index,
+					  param_list, param, reg_cmd);
+}
+
 static int __devlink_params_register(struct devlink *devlink,
 				     unsigned int port_index,
 				     struct list_head *param_list,
@@ -9799,12 +9830,8 @@ static int __devlink_params_register(struct devlink *devlink,
 
 	mutex_lock(&devlink->lock);
 	for (i = 0; i < params_count; i++, param++) {
-		err = devlink_param_verify(param);
-		if (err)
-			goto rollback;
-
-		err = devlink_param_register_one(devlink, port_index,
-						 param_list, param, reg_cmd);
+		err = __devlink_param_register_one(devlink, port_index,
+						   param_list, param, reg_cmd);
 		if (err)
 			goto rollback;
 	}
@@ -9877,6 +9904,43 @@ void devlink_params_unregister(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_params_unregister);
 
 /**
+ * devlink_param_register - register one configuration parameter
+ *
+ * @devlink: devlink
+ * @param: one configuration parameter
+ *
+ * Register the configuration parameter supported by the driver.
+ * Return: returns 0 on successful registration or error code otherwise.
+ */
+int devlink_param_register(struct devlink *devlink,
+			   const struct devlink_param *param)
+{
+	int err;
+
+	mutex_lock(&devlink->lock);
+	err = __devlink_param_register_one(devlink, 0, &devlink->param_list,
+					   param, DEVLINK_CMD_PARAM_NEW);
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_param_register);
+
+/**
+ * devlink_param_unregister - unregister one configuration parameter
+ * @devlink: devlink
+ * @param: configuration parameter to unregister
+ */
+void devlink_param_unregister(struct devlink *devlink,
+			      const struct devlink_param *param)
+{
+	mutex_lock(&devlink->lock);
+	devlink_param_unregister_one(devlink, 0, &devlink->param_list, param,
+				     DEVLINK_CMD_PARAM_DEL);
+	mutex_unlock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_param_unregister);
+
+/**
  *	devlink_params_publish - publish configuration parameters
  *
  *	@devlink: devlink
@@ -9917,6 +9981,54 @@ void devlink_params_unpublish(struct devlink *devlink)
 	}
 }
 EXPORT_SYMBOL_GPL(devlink_params_unpublish);
+
+/**
+ * devlink_param_publish - publish one configuration parameter
+ *
+ * @devlink: devlink
+ * @param: one configuration parameter
+ *
+ * Publish previously registered configuration parameter.
+ */
+void devlink_param_publish(struct devlink *devlink,
+			   const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	list_for_each_entry(param_item, &devlink->param_list, list) {
+		if (param_item->param != param || param_item->published)
+			continue;
+		param_item->published = true;
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_NEW);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(devlink_param_publish);
+
+/**
+ * devlink_param_unpublish - unpublish one configuration parameter
+ *
+ * @devlink: devlink
+ * @param: one configuration parameter
+ *
+ * Unpublish previously registered configuration parameter.
+ */
+void devlink_param_unpublish(struct devlink *devlink,
+			     const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	list_for_each_entry(param_item, &devlink->param_list, list) {
+		if (param_item->param != param || !param_item->published)
+			continue;
+		param_item->published = false;
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_DEL);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(devlink_param_unpublish);
 
 /**
  *	devlink_port_params_register - register port configuration parameters

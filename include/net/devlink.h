@@ -519,6 +519,9 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_RESET_DEV_ON_DRV_PROBE,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_REMOTE_DEV_RESET,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -558,6 +561,15 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_ENABLE_REMOTE_DEV_RESET_NAME "enable_remote_dev_reset"
 #define DEVLINK_PARAM_GENERIC_ENABLE_REMOTE_DEV_RESET_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_ETH_NAME "enable_eth"
+#define DEVLINK_PARAM_GENERIC_ENABLE_ETH_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_RDMA_NAME "enable_rdma"
+#define DEVLINK_PARAM_GENERIC_ENABLE_RDMA_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_VNET_NAME "enable_vnet"
+#define DEVLINK_PARAM_GENERIC_ENABLE_VNET_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -1633,8 +1645,16 @@ int devlink_params_register(struct devlink *devlink,
 void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
+int devlink_param_register(struct devlink *devlink,
+			   const struct devlink_param *param);
+void devlink_param_unregister(struct devlink *devlink,
+			      const struct devlink_param *param);
 void devlink_params_publish(struct devlink *devlink);
 void devlink_params_unpublish(struct devlink *devlink);
+void devlink_param_publish(struct devlink *devlink,
+			   const struct devlink_param *param);
+void devlink_param_unpublish(struct devlink *devlink,
+			     const struct devlink_param *param);
 int devlink_port_params_register(struct devlink_port *devlink_port,
 				 const struct devlink_param *params,
 				 size_t params_count);

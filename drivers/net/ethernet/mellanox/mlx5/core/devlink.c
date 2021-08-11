@@ -596,6 +596,157 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 #endif
 }
 
+static const struct devlink_param enable_eth_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_ETH, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL);
+
+static int mlx5_devlink_eth_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!mlx5_eth_supported(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_eth_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+					   value);
+	devlink_param_publish(devlink, &enable_eth_param);
+	return 0;
+}
+
+static void mlx5_devlink_eth_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_eth_supported(dev))
+		return;
+
+	devlink_param_unpublish(devlink, &enable_eth_param);
+	devlink_param_unregister(devlink, &enable_eth_param);
+}
+
+static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
+					     union devlink_param_value val,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	bool new_state = val.vbool;
+
+	if (new_state && !mlx5_rdma_supported(dev))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static const struct devlink_param enable_rdma_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_RDMA, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx5_devlink_enable_rdma_validate);
+
+static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND) || MLX5_ESWITCH_MANAGER(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_rdma_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+					   value);
+	devlink_param_publish(devlink, &enable_rdma_param);
+	return 0;
+}
+
+static void mlx5_devlink_rdma_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND) || MLX5_ESWITCH_MANAGER(dev))
+		return;
+
+	devlink_param_unpublish(devlink, &enable_rdma_param);
+	devlink_param_unregister(devlink, &enable_rdma_param);
+}
+
+static const struct devlink_param enable_vnet_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_VNET, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL);
+
+static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!mlx5_vnet_supported(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_vnet_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+					   value);
+	devlink_param_publish(devlink, &enable_rdma_param);
+	return 0;
+}
+
+static void mlx5_devlink_vnet_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_vnet_supported(dev))
+		return;
+
+	devlink_param_unpublish(devlink, &enable_vnet_param);
+	devlink_param_unregister(devlink, &enable_vnet_param);
+}
+
+static int mlx5_devlink_auxdev_params_register(struct devlink *devlink)
+{
+	int err;
+
+	err = mlx5_devlink_eth_param_register(devlink);
+	if (err)
+		return err;
+
+	err = mlx5_devlink_rdma_param_register(devlink);
+	if (err)
+		goto rdma_err;
+
+	err = mlx5_devlink_vnet_param_register(devlink);
+	if (err)
+		goto vnet_err;
+	return 0;
+
+vnet_err:
+	mlx5_devlink_rdma_param_unregister(devlink);
+rdma_err:
+	mlx5_devlink_eth_param_unregister(devlink);
+	return err;
+}
+
+static void mlx5_devlink_auxdev_params_unregister(struct devlink *devlink)
+{
+	mlx5_devlink_vnet_param_unregister(devlink);
+	mlx5_devlink_rdma_param_unregister(devlink);
+	mlx5_devlink_eth_param_unregister(devlink);
+}
+
 #define MLX5_TRAP_DROP(_id, _group_id)					\
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				\
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id, \
@@ -654,6 +805,10 @@ int mlx5_devlink_register(struct devlink *devlink)
 	mlx5_devlink_set_params_init_values(devlink);
 	devlink_params_publish(devlink);
 
+	err = mlx5_devlink_auxdev_params_register(devlink);
+	if (err)
+		goto auxdev_reg_err;
+
 	err = mlx5_devlink_traps_register(devlink);
 	if (err)
 		goto traps_reg_err;
@@ -661,6 +816,8 @@ int mlx5_devlink_register(struct devlink *devlink)
 	return 0;
 
 traps_reg_err:
+	mlx5_devlink_auxdev_params_unregister(devlink);
+auxdev_reg_err:
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
 params_reg_err:
@@ -671,6 +828,8 @@ params_reg_err:
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
 	mlx5_devlink_traps_unregister(devlink);
+	mlx5_devlink_auxdev_params_unregister(devlink);
+	devlink_params_unpublish(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
 	devlink_unregister(devlink);
