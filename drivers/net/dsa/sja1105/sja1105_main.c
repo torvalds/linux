@@ -3187,6 +3187,7 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	}
 
 	sja1105_devlink_teardown(ds);
+	sja1105_mdiobus_unregister(ds);
 	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
