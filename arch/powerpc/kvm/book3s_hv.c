@@ -2715,6 +2715,8 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 	if (cpu_has_feature(CPU_FTR_TM_COMP))
 		vcpu->arch.hfscr |= HFSCR_TM;
 
+	vcpu->arch.hfscr_permitted = vcpu->arch.hfscr;
+
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;

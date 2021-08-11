@@ -811,6 +811,8 @@ struct kvm_vcpu_arch {
 
 	u32 online;
 
+	u64 hfscr_permitted;	/* A mask of permitted HFSCR facilities */
+
 	/* For support of nested guests */
 	struct kvm_nested_guest *nested;
 	u32 nested_vcpu_id;

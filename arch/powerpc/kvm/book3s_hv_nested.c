@@ -272,10 +272,10 @@ static void load_l2_hv_regs(struct kvm_vcpu *vcpu,
 				      (vc->lpcr & ~mask) | (*lpcr & mask));
 
 	/*
-	 * Don't let L1 enable features for L2 which we've disabled for L1,
+	 * Don't let L1 enable features for L2 which we don't allow for L1,
 	 * but preserve the interrupt cause field.
 	 */
-	vcpu->arch.hfscr = l2_hv->hfscr & (HFSCR_INTR_CAUSE | vcpu->arch.hfscr);
+	vcpu->arch.hfscr = l2_hv->hfscr & (HFSCR_INTR_CAUSE | vcpu->arch.hfscr_permitted);
 
 	/* Don't let data address watchpoint match in hypervisor state */
 	vcpu->arch.dawrx0 = l2_hv->dawrx0 & ~DAWRX_HYP;
@@ -362,6 +362,7 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	/* set L1 state to L2 state */
 	vcpu->arch.nested = l2;
 	vcpu->arch.nested_vcpu_id = l2_hv.vcpu_token;
+	l2->hfscr = l2_hv.hfscr;
 	vcpu->arch.regs = l2_regs;
 
 	/* Guest must always run with ME enabled, HV disabled. */
