@@ -840,6 +840,7 @@ xlog_cil_push_work(
 	xfs_csn_t		push_seq;
 	struct bio		bio;
 	DECLARE_COMPLETION_ONSTACK(bdev_flush);
+	bool			push_commit_stable;
 
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
@@ -850,6 +851,8 @@ xlog_cil_push_work(
 	spin_lock(&cil->xc_push_lock);
 	push_seq = cil->xc_push_seq;
 	ASSERT(push_seq <= ctx->sequence);
+	push_commit_stable = cil->xc_push_commit_stable;
+	cil->xc_push_commit_stable = false;
 
 	/*
 	 * As we are about to switch to a new, empty CIL context, we no longer
@@ -1066,8 +1069,16 @@ xlog_cil_push_work(
 	 * The commit iclog must be written to stable storage to guarantee
 	 * journal IO vs metadata writeback IO is correctly ordered on stable
 	 * storage.
+	 *
+	 * If the push caller needs the commit to be immediately stable and the
+	 * commit_iclog is not yet marked as XLOG_STATE_WANT_SYNC to indicate it
+	 * will be written when released, switch it's state to WANT_SYNC right
+	 * now.
 	 */
 	ctx->commit_iclog->ic_flags |= XLOG_ICL_NEED_FUA;
+	if (push_commit_stable &&
+	    ctx->commit_iclog->ic_state == XLOG_STATE_ACTIVE)
+		xlog_state_switch_iclogs(log, ctx->commit_iclog, 0);
 	xlog_state_release_iclog(log, ctx->commit_iclog, preflush_tail_lsn);
 
 	/* Not safe to reference ctx now! */
@@ -1161,13 +1172,26 @@ xlog_cil_push_background(
 /*
  * xlog_cil_push_now() is used to trigger an immediate CIL push to the sequence
  * number that is passed. When it returns, the work will be queued for
- * @push_seq, but it won't be completed. The caller is expected to do any
- * waiting for push_seq to complete if it is required.
+ * @push_seq, but it won't be completed.
+ *
+ * If the caller is performing a synchronous force, we will flush the workqueue
+ * to get previously queued work moving to minimise the wait time they will
+ * undergo waiting for all outstanding pushes to complete. The caller is
+ * expected to do the required waiting for push_seq to complete.
+ *
+ * If the caller is performing an async push, we need to ensure that the
+ * checkpoint is fully flushed out of the iclogs when we finish the push. If we
+ * don't do this, then the commit record may remain sitting in memory in an
+ * ACTIVE iclog. This then requires another full log force to push to disk,
+ * which defeats the purpose of having an async, non-blocking CIL force
+ * mechanism. Hence in this case we need to pass a flag to the push work to
+ * indicate it needs to flush the commit record itself.
  */
 static void
 xlog_cil_push_now(
 	struct xlog	*log,
-	xfs_lsn_t	push_seq)
+	xfs_lsn_t	push_seq,
+	bool		async)
 {
 	struct xfs_cil	*cil = log->l_cilp;
 
@@ -1177,7 +1201,8 @@ xlog_cil_push_now(
 	ASSERT(push_seq && push_seq <= cil->xc_current_sequence);
 
 	/* start on any pending background push to minimise wait time on it */
-	flush_work(&cil->xc_push_work);
+	if (!async)
+		flush_work(&cil->xc_push_work);
 
 	/*
 	 * If the CIL is empty or we've already pushed the sequence then
@@ -1190,6 +1215,7 @@ xlog_cil_push_now(
 	}
 
 	cil->xc_push_seq = push_seq;
+	cil->xc_push_commit_stable = async;
 	queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
 	spin_unlock(&cil->xc_push_lock);
 }
@@ -1275,11 +1301,26 @@ xlog_cil_commit(
 }
 
 /*
+ * Flush the CIL to stable storage but don't wait for it to complete. This
+ * requires the CIL push to ensure the commit record for the push hits the disk,
+ * but otherwise is no different to a push done from a log force.
+ */
+void
+xlog_cil_flush(
+	struct xlog	*log)
+{
+	xfs_csn_t	seq = log->l_cilp->xc_current_sequence;
+
+	trace_xfs_log_force(log->l_mp, seq, _RET_IP_);
+	xlog_cil_push_now(log, seq, true);
+}
+
+/*
  * Conditionally push the CIL based on the sequence passed in.
  *
- * We only need to push if we haven't already pushed the sequence
- * number given. Hence the only time we will trigger a push here is
- * if the push sequence is the same as the current context.
+ * We only need to push if we haven't already pushed the sequence number given.
+ * Hence the only time we will trigger a push here is if the push sequence is
+ * the same as the current context.
  *
  * We return the current commit lsn to allow the callers to determine if a
  * iclog flush is necessary following this call.
@@ -1295,13 +1336,17 @@ xlog_cil_force_seq(
 
 	ASSERT(sequence <= cil->xc_current_sequence);
 
+	if (!sequence)
+		sequence = cil->xc_current_sequence;
+	trace_xfs_log_force(log->l_mp, sequence, _RET_IP_);
+
 	/*
 	 * check to see if we need to force out the current context.
 	 * xlog_cil_push() handles racing pushes for the same sequence,
 	 * so no need to deal with it here.
 	 */
 restart:
-	xlog_cil_push_now(log, sequence);
+	xlog_cil_push_now(log, sequence, false);
 
 	/*
 	 * See if we can find a previous sequence still committing.
@@ -1325,6 +1370,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
+			XFS_STATS_INC(log->l_mp, xs_log_force_sleep);
 			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
 			goto restart;
 		}

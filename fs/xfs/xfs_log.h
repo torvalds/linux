@@ -104,6 +104,7 @@ struct xlog_ticket;
 struct xfs_log_item;
 struct xfs_item_ops;
 struct xfs_trans;
+struct xlog;
 
 int	  xfs_log_force(struct xfs_mount *mp, uint flags);
 int	  xfs_log_force_seq(struct xfs_mount *mp, xfs_csn_t seq, uint flags,

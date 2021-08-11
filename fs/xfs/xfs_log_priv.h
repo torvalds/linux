@@ -277,6 +277,7 @@ struct xfs_cil {
 
 	spinlock_t		xc_push_lock ____cacheline_aligned_in_smp;
 	xfs_csn_t		xc_push_seq;
+	bool			xc_push_commit_stable;
 	struct list_head	xc_committing;
 	wait_queue_head_t	xc_commit_wait;
 	wait_queue_head_t	xc_start_wait;
@@ -520,6 +521,8 @@ int	xlog_write(struct xlog *log, struct xfs_cil_ctx *ctx,
 void	xfs_log_ticket_ungrant(struct xlog *log, struct xlog_ticket *ticket);
 void	xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
 
+void xlog_state_switch_iclogs(struct xlog *log, struct xlog_in_core *iclog,
+		int eventual_size);
 int xlog_state_release_iclog(struct xlog *log, struct xlog_in_core *iclog,
 		xfs_lsn_t log_tail_lsn);
 
@@ -594,6 +597,7 @@ void	xlog_cil_set_ctx_write_state(struct xfs_cil_ctx *ctx,
 /*
  * CIL force routines
  */
+void xlog_cil_flush(struct xlog *log);
 xfs_lsn_t xlog_cil_force_seq(struct xlog *log, xfs_csn_t sequence);
 
 static inline void
