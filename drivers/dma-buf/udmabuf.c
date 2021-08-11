@@ -227,8 +227,8 @@ static long udmabuf_create(struct miscdevice *device,
 				if (!hpage) {
 					hpage = find_get_page_flags(mapping, pgoff,
 								    FGP_ACCESSED);
-					if (IS_ERR(hpage)) {
-						ret = PTR_ERR(hpage);
+					if (!hpage) {
+						ret = -EINVAL;
 						goto err;
 					}
 				}
