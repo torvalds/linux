@@ -31,8 +31,6 @@ struct task_struct;
 
 #include <asm/types.h>
 
-typedef unsigned long mm_segment_t;
-
 struct cpu_context_save {
 	__u32	r4;
 	__u32	r5;
@@ -54,7 +52,6 @@ struct cpu_context_save {
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
-	mm_segment_t		addr_limit;	/* address limit */
 	struct task_struct	*task;		/* main task structure */
 	__u32			cpu;		/* cpu */
 	__u32			cpu_domain;	/* cpu domain */
@@ -80,7 +77,6 @@ struct thread_info {
 	.task		= &tsk,						\
 	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.addr_limit	= KERNEL_DS,					\
 }
 
 /*
