@@ -418,7 +418,7 @@ xchk_iallocbt_rec_alignment(
 STATIC int
 xchk_iallocbt_rec(
 	struct xchk_btree		*bs,
-	union xfs_btree_rec		*rec)
+	const union xfs_btree_rec	*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
 	struct xchk_iallocbt		*iabt = bs->private;

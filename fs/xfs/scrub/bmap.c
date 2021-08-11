@@ -383,7 +383,7 @@ xchk_bmap_iextent(
 STATIC int
 xchk_bmapbt_rec(
 	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec)
+	const union xfs_btree_rec *rec)
 {
 	struct xfs_bmbt_irec	irec;
 	struct xfs_bmbt_irec	iext_irec;
