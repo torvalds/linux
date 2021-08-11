@@ -29,8 +29,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
-#include "../bridge/analogix/analogix_dp_core.h"
-
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
@@ -169,11 +167,26 @@ static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 	return 0;
 }
 
+static void rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct rockchip_dp_device *dp = to_dp(encoder);
+	struct analogix_dp_plat_data *plat_data = &dp->plat_data;
+
+	if (!on)
+		return;
+
+	if (plat_data->panel)
+		panel_simple_loader_protect(plat_data->panel);
+
+	analogix_dp_loader_protect(dp->adp);
+}
+
 static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 				     struct drm_bridge *bridge,
 				     struct drm_connector *connector)
 {
 	struct rockchip_dp_device *dp = to_dp(plat_data);
+	struct rockchip_drm_sub_dev *sdev = &dp->sub_dev;
 	int ret;
 
 	if (dp->bridge) {
@@ -184,7 +197,24 @@ static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 		}
 	}
 
+	if (connector) {
+		sdev->connector = connector;
+		sdev->of_node = dp->dev->of_node;
+		sdev->loader_protect = rockchip_dp_loader_protect;
+		rockchip_drm_register_sub_dev(sdev);
+	}
+
 	return 0;
+}
+
+static void rockchip_dp_bridge_detach(struct analogix_dp_plat_data *plat_data,
+				      struct drm_bridge *bridge)
+{
+	struct rockchip_dp_device *dp = to_dp(plat_data);
+	struct rockchip_drm_sub_dev *sdev = &dp->sub_dev;
+
+	if (sdev->connector)
+		rockchip_drm_unregister_sub_dev(sdev);
 }
 
 static bool
@@ -390,10 +420,6 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 
 	dp->plat_data.encoder = &dp->encoder;
 
-	ret = analogix_dp_bind(dp->adp, drm_dev);
-	if (ret)
-		goto err_cleanup_encoder;
-
 	if (dp->data->audio) {
 		struct hdmi_codec_pdata codec_data = {
 			.ops = &rockchip_dp_audio_codec_ops,
@@ -413,13 +439,15 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		}
 	}
 
-	dp->sub_dev.connector = &dp->adp->connector;
-	if (dp->sub_dev.connector) {
-		dp->sub_dev.of_node = dev->of_node;
-		rockchip_drm_register_sub_dev(&dp->sub_dev);
-	}
+	ret = analogix_dp_bind(dp->adp, drm_dev);
+	if (ret)
+		goto err_unregister_audio_pdev;
 
 	return 0;
+
+err_unregister_audio_pdev:
+	if (dp->audio_pdev)
+		platform_device_unregister(dp->audio_pdev);
 err_cleanup_encoder:
 	dp->encoder.funcs->destroy(&dp->encoder);
 	return ret;
@@ -430,8 +458,6 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
-	if (dp->sub_dev.connector)
-		rockchip_drm_unregister_sub_dev(&dp->sub_dev);
 	if (dp->audio_pdev)
 		platform_device_unregister(dp->audio_pdev);
 	analogix_dp_unbind(dp->adp);
@@ -474,6 +500,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 	dp->plat_data.attach = rockchip_dp_bridge_attach;
+	dp->plat_data.detach = rockchip_dp_bridge_detach;
 	dp->plat_data.skip_connector = !!bridge;
 	dp->bridge = bridge;
 

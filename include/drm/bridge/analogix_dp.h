@@ -44,6 +44,7 @@ struct analogix_dp_plat_data {
 	int (*power_off)(struct analogix_dp_plat_data *);
 	int (*attach)(struct analogix_dp_plat_data *, struct drm_bridge *,
 		      struct drm_connector *);
+	void (*detach)(struct analogix_dp_plat_data *, struct drm_bridge *);
 	int (*get_modes)(struct analogix_dp_plat_data *,
 			 struct drm_connector *);
 };
@@ -67,5 +68,6 @@ void analogix_dp_audio_shutdown(struct analogix_dp_device *dp);
 int analogix_dp_audio_startup(struct analogix_dp_device *dp);
 int analogix_dp_audio_get_eld(struct analogix_dp_device *dp,
 			      u8 *buf, size_t len);
+int analogix_dp_loader_protect(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_H_ */
