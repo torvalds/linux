@@ -1314,7 +1314,7 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 			dp->index, ERR_PTR(err));
 }
 
-int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid)
+int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast)
 {
 	struct dsa_notifier_tag_8021q_vlan_info info = {
 		.tree_index = dp->ds->dst->index,
@@ -1323,10 +1323,13 @@ int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid)
 		.vid = vid,
 	};
 
-	return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+	if (broadcast)
+		return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+
+	return dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
 }
 
-void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
+void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast)
 {
 	struct dsa_notifier_tag_8021q_vlan_info info = {
 		.tree_index = dp->ds->dst->index,
@@ -1336,7 +1339,10 @@ void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
 	};
 	int err;
 
-	err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+	if (broadcast)
+		err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+	else
+		err = dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
 	if (err)
 		dev_err(dp->ds->dev,
 			"port %d failed to notify tag_8021q VLAN %d deletion: %pe\n",
