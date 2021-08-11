@@ -111,9 +111,6 @@ KBUILD_CFLAGS	+= $(cflags-y)
 LIBGCC		:= $(shell $(CC) -print-libgcc-file-name)
 export LIBGCC
 
-kernel-y			:= mm/ kernel/ math-emu/
-
-core-y	+= $(addprefix arch/parisc/, $(kernel-y))
 libs-y	+= arch/parisc/lib/ $(LIBGCC)
 
 boot	:= arch/parisc/boot
