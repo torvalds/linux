@@ -595,6 +595,7 @@ xlog_cil_committed(
 	 */
 	if (abort) {
 		spin_lock(&ctx->cil->xc_push_lock);
+		wake_up_all(&ctx->cil->xc_start_wait);
 		wake_up_all(&ctx->cil->xc_commit_wait);
 		spin_unlock(&ctx->cil->xc_push_lock);
 	}
@@ -648,7 +649,14 @@ xlog_cil_set_ctx_write_state(
 	ASSERT(!ctx->commit_lsn);
 	if (!ctx->start_lsn) {
 		spin_lock(&cil->xc_push_lock);
+		/*
+		 * The LSN we need to pass to the log items on transaction
+		 * commit is the LSN reported by the first log vector write, not
+		 * the commit lsn. If we use the commit record lsn then we can
+		 * move the tail beyond the grant write head.
+		 */
 		ctx->start_lsn = lsn;
+		wake_up_all(&cil->xc_start_wait);
 		spin_unlock(&cil->xc_push_lock);
 		return;
 	}
@@ -690,10 +698,16 @@ xlog_cil_set_ctx_write_state(
  * relies on the context LSN being zero until the log write has guaranteed the
  * LSN that the log write will start at via xlog_state_get_iclog_space().
  */
+enum _record_type {
+	_START_RECORD,
+	_COMMIT_RECORD,
+};
+
 static int
 xlog_cil_order_write(
 	struct xfs_cil		*cil,
-	xfs_csn_t		sequence)
+	xfs_csn_t		sequence,
+	enum _record_type	record)
 {
 	struct xfs_cil_ctx	*ctx;
 
@@ -716,17 +730,45 @@ restart:
 		 */
 		if (ctx->sequence >= sequence)
 			continue;
-		if (!ctx->commit_lsn) {
-			/*
-			 * It is still being pushed! Wait for the push to
-			 * complete, then start again from the beginning.
-			 */
-			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
-			goto restart;
+
+		/* Wait until the LSN for the record has been recorded. */
+		switch (record) {
+		case _START_RECORD:
+			if (!ctx->start_lsn) {
+				xlog_wait(&cil->xc_start_wait, &cil->xc_push_lock);
+				goto restart;
+			}
+			break;
+		case _COMMIT_RECORD:
+			if (!ctx->commit_lsn) {
+				xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
+				goto restart;
+			}
+			break;
 		}
 	}
 	spin_unlock(&cil->xc_push_lock);
 	return 0;
+}
+
+/*
+ * Write out the log vector change now attached to the CIL context. This will
+ * write a start record that needs to be strictly ordered in ascending CIL
+ * sequence order so that log recovery will always use in-order start LSNs when
+ * replaying checkpoints.
+ */
+static int
+xlog_cil_write_chain(
+	struct xfs_cil_ctx	*ctx,
+	struct xfs_log_vec	*chain)
+{
+	struct xlog		*log = ctx->cil->xc_log;
+	int			error;
+
+	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _START_RECORD);
+	if (error)
+		return error;
+	return xlog_write(log, ctx, chain, ctx->ticket, XLOG_START_TRANS);
 }
 
 /*
@@ -753,6 +795,10 @@ xlog_cil_write_commit_record(
 
 	if (xlog_is_shutdown(log))
 		return -EIO;
+
+	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _COMMIT_RECORD);
+	if (error)
+		return error;
 
 	error = xlog_write(log, ctx, &vec, ctx->ticket, XLOG_COMMIT_TRANS);
 	if (error)
@@ -972,11 +1018,7 @@ xlog_cil_push_work(
 	 */
 	wait_for_completion(&bdev_flush);
 
-	error = xlog_write(log, ctx, &lvhdr, tic, XLOG_START_TRANS);
-	if (error)
-		goto out_abort_free_ticket;
-
-	error = xlog_cil_order_write(ctx->cil, ctx->sequence);
+	error = xlog_cil_write_chain(ctx, &lvhdr);
 	if (error)
 		goto out_abort_free_ticket;
 
@@ -1381,6 +1423,7 @@ xlog_cil_init(
 	spin_lock_init(&cil->xc_push_lock);
 	init_waitqueue_head(&cil->xc_push_wait);
 	init_rwsem(&cil->xc_ctx_lock);
+	init_waitqueue_head(&cil->xc_start_wait);
 	init_waitqueue_head(&cil->xc_commit_wait);
 
 	INIT_LIST_HEAD(&ctx->committing);

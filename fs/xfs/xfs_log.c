@@ -3894,6 +3894,7 @@ xlog_force_shutdown(
 	 * avoid races.
 	 */
 	spin_lock(&log->l_cilp->xc_push_lock);
+	wake_up_all(&log->l_cilp->xc_start_wait);
 	wake_up_all(&log->l_cilp->xc_commit_wait);
 	spin_unlock(&log->l_cilp->xc_push_lock);
 	xlog_state_shutdown_callbacks(log);
