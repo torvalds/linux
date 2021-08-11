@@ -3241,7 +3241,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 }
 
 static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
-			       struct btrfs_inode *inode)
+			       struct btrfs_inode *inode, u64 file_offset)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_io_geometry geom;
@@ -3283,7 +3283,7 @@ static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 	}
 
 	/* Ordered extent not yet created, so we're good */
-	ordered = btrfs_lookup_ordered_extent(inode, logical);
+	ordered = btrfs_lookup_ordered_extent(inode, file_offset);
 	if (!ordered) {
 		bio_ctrl->len_to_oe_boundary = U32_MAX;
 		return 0;
@@ -3300,7 +3300,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 			 struct writeback_control *wbc,
 			 unsigned int opf,
 			 bio_end_io_t end_io_func,
-			 u64 disk_bytenr, u32 offset,
+			 u64 disk_bytenr, u32 offset, u64 file_offset,
 			 unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -3317,13 +3317,13 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 		bio = btrfs_bio_alloc(disk_bytenr + offset);
 	bio_ctrl->bio = bio;
 	bio_ctrl->bio_flags = bio_flags;
-	ret = calc_bio_boundaries(bio_ctrl, inode);
-	if (ret < 0)
-		goto error;
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = &inode->io_tree;
 	bio->bi_write_hint = inode->vfs_inode.i_write_hint;
 	bio->bi_opf = opf;
+	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
+	if (ret < 0)
+		goto error;
 	if (wbc) {
 		struct block_device *bdev;
 
@@ -3398,6 +3398,7 @@ static int submit_extent_page(unsigned int opf,
 		if (!bio_ctrl->bio) {
 			ret = alloc_new_bio(inode, bio_ctrl, wbc, opf,
 					    end_io_func, disk_bytenr, offset,
+					    page_offset(page) + cur,
 					    bio_flags);
 			if (ret < 0)
 				return ret;
