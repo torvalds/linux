@@ -250,6 +250,210 @@ struct sub_codec cs8409_cs42l42_codec = {
 };
 
 /******************************************************************************
+ *                          Dolphin Specific Arrays
+ *                            CS8409/ 2 X CS42L42
+ ******************************************************************************/
+
+const struct hda_verb dolphin_init_verbs[] = {
+	{ 0x01, AC_VERB_SET_GPIO_WAKE_MASK, DOLPHIN_WAKE }, /* WAKE from GPIO 0,4 */
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_PROC_STATE, 0x0001 }, /* Enable VPW processing  */
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_COEF_INDEX, 0x0002 }, /* Configure GPIO 6,7 */
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_PROC_COEF,  0x0080 }, /* I2C mode */
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_COEF_INDEX, 0x005b }, /* Set I2C bus speed */
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_PROC_COEF,  0x0200 }, /* 100kHz I2C_STO = 2 */
+	{} /* terminator */
+};
+
+const struct hda_pintbl dolphin_pincfgs[] = {
+	{ 0x24, 0x022210f0 }, /* ASP-1-TX-A */
+	{ 0x25, 0x010240f0 }, /* ASP-1-TX-B */
+	{ 0x34, 0x02a21050 }, /* ASP-1-RX */
+	{} /* terminator */
+};
+
+/* Vendor specific HW configuration for CS42L42 */
+static const struct cs8409_i2c_param dolphin_c0_init_reg_seq[] = {
+	{ 0x1010, 0xB0 },
+	{ 0x1D01, 0x00 },
+	{ 0x1D02, 0x06 },
+	{ 0x1D03, 0x00 },
+	{ 0x1107, 0x01 },
+	{ 0x1009, 0x02 },
+	{ 0x1007, 0x03 },
+	{ 0x1201, 0x00 },
+	{ 0x1208, 0x13 },
+	{ 0x1205, 0xFF },
+	{ 0x1206, 0x00 },
+	{ 0x1207, 0x20 },
+	{ 0x1202, 0x0D },
+	{ 0x2A02, 0x02 },
+	{ 0x2A03, 0x00 },
+	{ 0x2A04, 0x00 },
+	{ 0x2A05, 0x02 },
+	{ 0x2A06, 0x00 },
+	{ 0x2A07, 0x20 },
+	{ 0x2A01, 0x0C },
+	{ 0x2902, 0x01 },
+	{ 0x2903, 0x02 },
+	{ 0x2904, 0x00 },
+	{ 0x2905, 0x00 },
+	{ 0x2901, 0x01 },
+	{ 0x1101, 0x0A },
+	{ 0x1102, 0x84 },
+	{ 0x2301, 0x00 },
+	{ 0x2303, 0x00 },
+	{ 0x2302, 0x3f },
+	{ 0x2001, 0x03 },
+	{ 0x1B75, 0xB6 },
+	{ 0x1B73, 0xC2 },
+	{ 0x1129, 0x01 },
+	{ 0x1121, 0xF3 },
+	{ 0x1103, 0x20 },
+	{ 0x1105, 0x00 },
+	{ 0x1112, 0x00 },
+	{ 0x1113, 0x80 },
+	{ 0x1C03, 0xC0 },
+	{ 0x1101, 0x02 },
+	{ 0x1316, 0xff },
+	{ 0x1317, 0xff },
+	{ 0x1318, 0xff },
+	{ 0x1319, 0xff },
+	{ 0x131a, 0xff },
+	{ 0x131b, 0xff },
+	{ 0x131c, 0xff },
+	{ 0x131e, 0xff },
+	{ 0x131f, 0xff },
+	{ 0x1320, 0xff },
+	{ 0x1b79, 0xff },
+	{ 0x1b7a, 0xff }
+};
+
+static const struct cs8409_i2c_param dolphin_c1_init_reg_seq[] = {
+	{ 0x1010, 0xB0 },
+	{ 0x1D01, 0x00 },
+	{ 0x1D02, 0x06 },
+	{ 0x1D03, 0x00 },
+	{ 0x1107, 0x01 },
+	{ 0x1009, 0x02 },
+	{ 0x1007, 0x03 },
+	{ 0x1201, 0x00 },
+	{ 0x1208, 0x13 },
+	{ 0x1205, 0xFF },
+	{ 0x1206, 0x00 },
+	{ 0x1207, 0x20 },
+	{ 0x1202, 0x0D },
+	{ 0x2A02, 0x02 },
+	{ 0x2A03, 0x00 },
+	{ 0x2A04, 0x80 },
+	{ 0x2A05, 0x02 },
+	{ 0x2A06, 0x00 },
+	{ 0x2A07, 0xA0 },
+	{ 0x2A01, 0x0C },
+	{ 0x2902, 0x00 },
+	{ 0x2903, 0x02 },
+	{ 0x2904, 0x00 },
+	{ 0x2905, 0x00 },
+	{ 0x2901, 0x00 },
+	{ 0x1101, 0x0E },
+	{ 0x1102, 0x84 },
+	{ 0x2301, 0x00 },
+	{ 0x2303, 0x00 },
+	{ 0x2302, 0x3f },
+	{ 0x2001, 0x03 },
+	{ 0x1B75, 0xB6 },
+	{ 0x1B73, 0xC2 },
+	{ 0x1129, 0x01 },
+	{ 0x1121, 0xF3 },
+	{ 0x1103, 0x20 },
+	{ 0x1105, 0x00 },
+	{ 0x1112, 0x00 },
+	{ 0x1113, 0x80 },
+	{ 0x1C03, 0xC0 },
+	{ 0x1101, 0x02 },
+	{ 0x1316, 0xff },
+	{ 0x1317, 0xff },
+	{ 0x1318, 0xff },
+	{ 0x1319, 0xff },
+	{ 0x131a, 0xff },
+	{ 0x131b, 0xff },
+	{ 0x131c, 0xff },
+	{ 0x131e, 0xff },
+	{ 0x131f, 0xff },
+	{ 0x1320, 0xff },
+	{ 0x1b79, 0xff },
+	{ 0x1b7a, 0xff }
+};
+
+/* Vendor specific hw configuration for CS8409 */
+const struct cs8409_cir_param dolphin_hw_cfg[] = {
+	/* +PLL1/2_EN, +I2C_EN */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG1, 0xb008 },
+	/* ASP1_EN=0, ASP1_STP=1 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG2, 0x0002 },
+	/* ASP1/2_BUS_IDLE=10, +GPIO_I2C */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG3, 0x0a80 },
+	/* ASP1.A: TX.LAP=0, TX.LSZ=24 bits, TX.LCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_A_TX_CTRL1, 0x0800 },
+	/* ASP1.A: TX.RAP=0, TX.RSZ=24 bits, TX.RCS=32 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_A_TX_CTRL2, 0x0820 },
+	/* ASP1.B: TX.LAP=0, TX.LSZ=24 bits, TX.LCS=128 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_B_TX_CTRL1, 0x0880 },
+	/* ASP1.B: TX.RAP=0, TX.RSZ=24 bits, TX.RCS=160 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_B_TX_CTRL2, 0x08a0 },
+	/* ASP1.A: RX.LAP=0, RX.LSZ=24 bits, RX.LCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_A_RX_CTRL1, 0x0800 },
+	/* ASP1.A: RX.RAP=0, RX.RSZ=24 bits, RX.RCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP1_A_RX_CTRL2, 0x0800 },
+	/* ASP1: LCHI = 00h */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL1, 0x8000 },
+	/* ASP1: MC/SC_SRCSEL=PLL1, LCPR=FFh */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL2, 0x28ff },
+	/* ASP1: MCEN=0, FSD=011, SCPOL_IN/OUT=0, SCDIV=1:4 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL3, 0x0062 },
+	/* ASP1/2_BEEP=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_BEEP_CFG, 0x0000 },
+	/* ASP1_EN=1, ASP1_STP=1 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG2, 0x0022 },
+	/* -PLL2_EN */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG1, 0x9008 },
+	/* ASP1_xxx_EN=1, ASP1_MCLK_EN=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_PAD_CFG_SLW_RATE_CTRL, 0x5400 },
+	/* test mode on */
+	{ CS8409_PIN_VENDOR_WIDGET, 0xc0, 0x9999 },
+	/* GPIO hysteresis = 30 us */
+	{ CS8409_PIN_VENDOR_WIDGET, 0xc5, 0x0000 },
+	/* test mode off */
+	{ CS8409_PIN_VENDOR_WIDGET, 0xc0, 0x0000 },
+	{} /* Terminator */
+};
+
+struct sub_codec dolphin_cs42l42_0 = {
+	.addr = DOLPHIN_C0_I2C_ADDR,
+	.reset_gpio = DOLPHIN_C0_RESET,
+	.irq_mask = DOLPHIN_C0_INT,
+	.init_seq = dolphin_c0_init_reg_seq,
+	.init_seq_num = ARRAY_SIZE(dolphin_c0_init_reg_seq),
+	.hp_jack_in = 0,
+	.mic_jack_in = 0,
+	.paged = 1,
+	.suspended = 1,
+	.no_type_dect = 0,
+};
+
+struct sub_codec dolphin_cs42l42_1 = {
+	.addr = DOLPHIN_C1_I2C_ADDR,
+	.reset_gpio = DOLPHIN_C1_RESET,
+	.irq_mask = DOLPHIN_C1_INT,
+	.init_seq = dolphin_c1_init_reg_seq,
+	.init_seq_num = ARRAY_SIZE(dolphin_c1_init_reg_seq),
+	.hp_jack_in = 0,
+	.mic_jack_in = 0,
+	.paged = 1,
+	.suspended = 1,
+	.no_type_dect = 1,
+};
+
+/******************************************************************************
  *                         CS8409 Patch Driver Structs
  *                    Arrays Used for all projects using CS8409
  ******************************************************************************/
@@ -295,6 +499,11 @@ const struct snd_pci_quirk cs8409_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0AEE, "Cyborg", CS8409_CYBORG),
 	SND_PCI_QUIRK(0x1028, 0x0AEF, "Cyborg", CS8409_CYBORG),
 	SND_PCI_QUIRK(0x1028, 0x0AF0, "Cyborg", CS8409_CYBORG),
+	SND_PCI_QUIRK(0x1028, 0x0AD0, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0AD1, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0AD2, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0AD3, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0ACF, "Dolphin", CS8409_DOLPHIN),
 	{} /* terminator */
 };
 
@@ -303,6 +512,7 @@ const struct hda_model_fixup cs8409_models[] = {
 	{ .id = CS8409_BULLSEYE, .name = "bullseye" },
 	{ .id = CS8409_WARLOCK, .name = "warlock" },
 	{ .id = CS8409_CYBORG, .name = "cyborg" },
+	{ .id = CS8409_DOLPHIN, .name = "dolphin" },
 	{}
 };
 
@@ -328,5 +538,15 @@ const struct hda_fixup cs8409_fixups[] = {
 	[CS8409_FIXUPS] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs8409_cs42l42_fixups,
+	},
+	[CS8409_DOLPHIN] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = dolphin_pincfgs,
+		.chained = true,
+		.chain_id = CS8409_DOLPHIN_FIXUPS,
+	},
+	[CS8409_DOLPHIN_FIXUPS] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = dolphin_fixups,
 	},
 };

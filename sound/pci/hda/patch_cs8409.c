@@ -941,6 +941,202 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 	}
 }
 
+/******************************************************************************
+ *                          Dolphin Specific Functions
+ *                               CS8409/ 2 X CS42L42
+ ******************************************************************************/
+
+/*
+ * In the case of CS8409 we do not have unsolicited events when
+ * hs mic and hp are connected. Companion codec CS42L42 will
+ * generate interrupt via irq_mask to notify jack events. We have to overwrite
+ * generic snd_hda_jack_unsol_event(), read CS42L42 jack detect status registers
+ * and then notify status via generic snd_hda_jack_unsol_event() call.
+ */
+static void dolphin_jack_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct cs8409_spec *spec = codec->spec;
+	struct sub_codec *cs42l42;
+	struct hda_jack_tbl *jk;
+
+	cs42l42 = spec->scodecs[CS8409_CODEC0];
+	if (!cs42l42->suspended && (~res & cs42l42->irq_mask) &&
+	    cs42l42_jack_unsol_event(cs42l42)) {
+		jk = snd_hda_jack_tbl_get_mst(codec, DOLPHIN_HP_PIN_NID, 0);
+		if (jk)
+			snd_hda_jack_unsol_event(codec,
+						 (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
+						  AC_UNSOL_RES_TAG);
+
+		jk = snd_hda_jack_tbl_get_mst(codec, DOLPHIN_AMIC_PIN_NID, 0);
+		if (jk)
+			snd_hda_jack_unsol_event(codec,
+						 (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
+						  AC_UNSOL_RES_TAG);
+	}
+
+	cs42l42 = spec->scodecs[CS8409_CODEC1];
+	if (!cs42l42->suspended && (~res & cs42l42->irq_mask) &&
+	    cs42l42_jack_unsol_event(cs42l42)) {
+		jk = snd_hda_jack_tbl_get_mst(codec, DOLPHIN_LO_PIN_NID, 0);
+		if (jk)
+			snd_hda_jack_unsol_event(codec,
+						 (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
+						  AC_UNSOL_RES_TAG);
+	}
+}
+
+/* Vendor specific HW configuration
+ * PLL, ASP, I2C, SPI, GPIOs, DMIC etc...
+ */
+static void dolphin_hw_init(struct hda_codec *codec)
+{
+	const struct cs8409_cir_param *seq = dolphin_hw_cfg;
+	struct cs8409_spec *spec = codec->spec;
+	struct sub_codec *cs42l42;
+	int i;
+
+	if (spec->gpio_mask) {
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_MASK,
+				    spec->gpio_mask);
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DIRECTION,
+				    spec->gpio_dir);
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_data);
+	}
+
+	for (; seq->nid; seq++)
+		cs8409_vendor_coef_set(codec, seq->cir, seq->coeff);
+
+	for (i = 0; i < spec->num_scodecs; i++) {
+		cs42l42 = spec->scodecs[i];
+		cs42l42_resume(cs42l42);
+	}
+
+	/* Enable Unsolicited Response */
+	cs8409_enable_ur(codec, 1);
+}
+
+static const struct hda_codec_ops cs8409_dolphin_patch_ops = {
+	.build_controls = cs8409_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = cs8409_init,
+	.free = cs8409_free,
+	.unsol_event = dolphin_jack_unsol_event,
+#ifdef CONFIG_PM
+	.suspend = cs8409_cs42l42_suspend,
+#endif
+};
+
+static int dolphin_exec_verb(struct hdac_device *dev, unsigned int cmd, unsigned int flags,
+			     unsigned int *res)
+{
+	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
+	struct cs8409_spec *spec = codec->spec;
+	struct sub_codec *cs42l42 = spec->scodecs[CS8409_CODEC0];
+
+	unsigned int nid = ((cmd >> 20) & 0x07f);
+	unsigned int verb = ((cmd >> 8) & 0x0fff);
+
+	/* CS8409 pins have no AC_PINSENSE_PRESENCE
+	 * capabilities. We have to intercept calls for CS42L42 pins
+	 * and return correct pin sense values for read_pin_sense() call from
+	 * hda_jack based on CS42L42 jack detect status.
+	 */
+	switch (nid) {
+	case DOLPHIN_HP_PIN_NID:
+	case DOLPHIN_LO_PIN_NID:
+		if (nid == DOLPHIN_LO_PIN_NID)
+			cs42l42 = spec->scodecs[CS8409_CODEC1];
+		if (verb == AC_VERB_GET_PIN_SENSE) {
+			*res = (cs42l42->hp_jack_in) ? AC_PINSENSE_PRESENCE : 0;
+			return 0;
+		}
+		break;
+	case DOLPHIN_AMIC_PIN_NID:
+		if (verb == AC_VERB_GET_PIN_SENSE) {
+			*res = (cs42l42->mic_jack_in) ? AC_PINSENSE_PRESENCE : 0;
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return spec->exec_verb(dev, cmd, flags, res);
+}
+
+void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action)
+{
+	struct cs8409_spec *spec = codec->spec;
+	struct snd_kcontrol_new *kctrl;
+	int i;
+
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		snd_hda_add_verbs(codec, dolphin_init_verbs);
+		/* verb exec op override */
+		spec->exec_verb = codec->core.exec_verb;
+		codec->core.exec_verb = dolphin_exec_verb;
+
+		spec->scodecs[CS8409_CODEC0] = &dolphin_cs42l42_0;
+		spec->scodecs[CS8409_CODEC0]->codec = codec;
+		spec->scodecs[CS8409_CODEC1] = &dolphin_cs42l42_1;
+		spec->scodecs[CS8409_CODEC1]->codec = codec;
+		spec->num_scodecs = 2;
+
+		codec->patch_ops = cs8409_dolphin_patch_ops;
+
+		/* GPIO 1,5 out, 0,4 in */
+		spec->gpio_dir = spec->scodecs[CS8409_CODEC0]->reset_gpio |
+				 spec->scodecs[CS8409_CODEC1]->reset_gpio;
+		spec->gpio_data = 0;
+		spec->gpio_mask = 0x03f;
+
+		/* Basic initial sequence for specific hw configuration */
+		snd_hda_sequence_write(codec, dolphin_init_verbs);
+
+		snd_hda_jack_add_kctl(codec, DOLPHIN_LO_PIN_NID, "Line Out", true,
+				      SND_JACK_HEADPHONE, NULL);
+
+		cs8409_fix_caps(codec, DOLPHIN_HP_PIN_NID);
+		cs8409_fix_caps(codec, DOLPHIN_LO_PIN_NID);
+		cs8409_fix_caps(codec, DOLPHIN_AMIC_PIN_NID);
+
+		break;
+	case HDA_FIXUP_ACT_PROBE:
+		snd_hda_gen_add_kctl(&spec->gen, "Headphone Playback Volume",
+				     &cs42l42_dac_volume_mixer);
+		snd_hda_gen_add_kctl(&spec->gen, "Mic Capture Volume", &cs42l42_adc_volume_mixer);
+		kctrl = snd_hda_gen_add_kctl(&spec->gen, "Line Out Playback Volume",
+					     &cs42l42_dac_volume_mixer);
+		/* Update Line Out kcontrol template */
+		kctrl->private_value = HDA_COMPOSE_AMP_VAL_OFS(DOLPHIN_HP_PIN_NID, 3, CS8409_CODEC1,
+				       HDA_OUTPUT, CS42L42_VOL_DAC) | HDA_AMP_VAL_MIN_MUTE;
+		cs8409_enable_ur(codec, 0);
+		dolphin_hw_init(codec);
+		snd_hda_codec_set_name(codec, "CS8409/CS42L42");
+		break;
+	case HDA_FIXUP_ACT_INIT:
+		dolphin_hw_init(codec);
+		fallthrough;
+	case HDA_FIXUP_ACT_BUILD:
+		/* Run jack auto detect first time on boot
+		 * after controls have been added, to check if jack has
+		 * been already plugged in.
+		 * Run immediately after init.
+		 */
+		for (i = 0; i < spec->num_scodecs; i++) {
+			cs42l42_run_jack_detect(spec->scodecs[i]);
+			usleep_range(100000, 150000);
+		}
+
+		break;
+	default:
+		break;
+	}
+}
+
 static int patch_cs8409(struct hda_codec *codec)
 {
 	int err;

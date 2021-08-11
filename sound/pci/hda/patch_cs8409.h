@@ -243,15 +243,32 @@ enum cs8409_coefficient_index_registers {
 #define CS8409_CS42L42_DMIC_PIN_NID		CS8409_PIN_DMIC1_IN
 #define CS8409_CS42L42_DMIC_ADC_PIN_NID		CS8409_PIN_DMIC1
 
+/* Dolphin */
+
+#define DOLPHIN_C0_I2C_ADDR			(0x48 << 1)
+#define DOLPHIN_C1_I2C_ADDR			(0x49 << 1)
+#define DOLPHIN_HP_PIN_NID			CS8409_PIN_ASP1_TRANSMITTER_A
+#define DOLPHIN_LO_PIN_NID			CS8409_PIN_ASP1_TRANSMITTER_B
+#define DOLPHIN_AMIC_PIN_NID			CS8409_PIN_ASP1_RECEIVER_A
+
+#define DOLPHIN_C0_INT				GENMASK(4, 4)
+#define DOLPHIN_C1_INT				GENMASK(0, 0)
+#define DOLPHIN_C0_RESET			GENMASK(5, 5)
+#define DOLPHIN_C1_RESET			GENMASK(1, 1)
+#define DOLPHIN_WAKE				(DOLPHIN_C0_INT | DOLPHIN_C1_INT)
+
 enum {
 	CS8409_BULLSEYE,
 	CS8409_WARLOCK,
 	CS8409_CYBORG,
 	CS8409_FIXUPS,
+	CS8409_DOLPHIN,
+	CS8409_DOLPHIN_FIXUPS,
 };
 
 enum {
 	CS8409_CODEC0,
+	CS8409_CODEC1
 };
 
 enum {
@@ -327,6 +344,13 @@ extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
 extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
 extern struct sub_codec cs8409_cs42l42_codec;
 
+extern const struct hda_verb dolphin_init_verbs[];
+extern const struct hda_pintbl dolphin_pincfgs[];
+extern const struct cs8409_cir_param dolphin_hw_cfg[];
+extern struct sub_codec dolphin_cs42l42_0;
+extern struct sub_codec dolphin_cs42l42_1;
+
 void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action);
+void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action);
 
 #endif
