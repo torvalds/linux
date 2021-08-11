@@ -1767,18 +1767,6 @@ out:
 	return ERR_PTR(err);
 }
 
-static int find_free_cb(int id, void *ptr, void *data)
-{
-	struct nbd_device *nbd = ptr;
-	struct nbd_device **found = data;
-
-	if (!refcount_read(&nbd->config_refs)) {
-		*found = nbd;
-		return 1;
-	}
-	return 0;
-}
-
 /* Netlink interface. */
 static const struct nla_policy nbd_attr_policy[NBD_ATTR_MAX + 1] = {
 	[NBD_ATTR_INDEX]		=	{ .type = NLA_U32 },
@@ -1848,31 +1836,26 @@ static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 again:
 	mutex_lock(&nbd_index_mutex);
 	if (index == -1) {
-		ret = idr_for_each(&nbd_index_idr, &find_free_cb, &nbd);
-		if (ret == 0) {
-			nbd = nbd_dev_add(-1);
-			if (IS_ERR(nbd)) {
-				mutex_unlock(&nbd_index_mutex);
-				printk(KERN_ERR "nbd: failed to add new device\n");
-				return PTR_ERR(nbd);
+		struct nbd_device *tmp;
+		int id;
+
+		idr_for_each_entry(&nbd_index_idr, tmp, id) {
+			if (!refcount_read(&tmp->config_refs)) {
+				nbd = tmp;
+				break;
 			}
 		}
 	} else {
 		nbd = idr_find(&nbd_index_idr, index);
-		if (!nbd) {
-			nbd = nbd_dev_add(index);
-			if (IS_ERR(nbd)) {
-				mutex_unlock(&nbd_index_mutex);
-				printk(KERN_ERR "nbd: failed to add new device\n");
-				return PTR_ERR(nbd);
-			}
-		}
 	}
+
 	if (!nbd) {
-		printk(KERN_ERR "nbd: couldn't find device at index %d\n",
-		       index);
-		mutex_unlock(&nbd_index_mutex);
-		return -EINVAL;
+		nbd = nbd_dev_add(index);
+		if (IS_ERR(nbd)) {
+			mutex_unlock(&nbd_index_mutex);
+			pr_err("nbd: failed to add new device\n");
+			return PTR_ERR(nbd);
+		}
 	}
 
 	if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags) &&
