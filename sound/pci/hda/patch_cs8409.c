@@ -86,13 +86,13 @@ static void cs8409_disable_i2c_clock(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 
-	mutex_lock(&spec->cs8409_i2c_mux);
+	mutex_lock(&spec->i2c_mux);
 	if (spec->i2c_clck_enabled) {
 		cs8409_vendor_coef_set(spec->codec, 0x0,
 			       cs8409_vendor_coef_get(spec->codec, 0x0) & 0xfffffff7);
 		spec->i2c_clck_enabled = 0;
 	}
-	mutex_unlock(&spec->cs8409_i2c_mux);
+	mutex_unlock(&spec->i2c_mux);
 }
 
 /*
@@ -195,12 +195,12 @@ static int cs8409_i2c_set_page(struct hda_codec *codec, unsigned int i2c_reg)
  * cs8409_i2c_read - CS8409 I2C Read.
  * @codec: the codec instance
  * @i2c_address: I2C Address
- * @i2c_reg: Register to read
+ * @addr: Register to read
  *
  * CS8409 I2C Read.
  * Returns negative on error, otherwise returns read value in bits 0-7.
  */
-static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, unsigned int i2c_reg)
+static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, unsigned int addr)
 {
 	struct cs8409_spec *spec = codec->spec;
 	unsigned int i2c_reg_data;
@@ -209,41 +209,90 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 	if (spec->cs42l42_suspended)
 		return -EPERM;
 
+	mutex_lock(&spec->i2c_mux);
 	cs8409_enable_i2c_clock(codec);
 	cs8409_set_i2c_dev_addr(codec, i2c_address);
 
-	if (cs8409_i2c_set_page(codec, i2c_reg)) {
+	if (cs8409_i2c_set_page(codec, addr)) {
 		codec_err(codec, "%s() Paged Transaction Failed 0x%02x : 0x%04x\n",
-			__func__, i2c_address, i2c_reg);
+			__func__, i2c_address, addr);
 		return -EIO;
 	}
 
-	i2c_reg_data = (i2c_reg << 8) & 0x0ffff;
+	i2c_reg_data = (addr << 8) & 0x0ffff;
 	cs8409_vendor_coef_set(codec, CS8409_I2C_QREAD, i2c_reg_data);
-	if (cs8409_i2c_wait_complete(codec) < 0) {
-		codec_err(codec, "%s() Transaction Failed 0x%02x : 0x%04x\n",
-			  __func__, i2c_address, i2c_reg);
-		return -EIO;
-	}
+	if (cs8409_i2c_wait_complete(codec) < 0)
+		goto error;
 
 	/* Register in bits 15-8 and the data in 7-0 */
 	read_data = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD);
 
+	mutex_unlock(&spec->i2c_mux);
 	return read_data & 0x0ff;
+
+error:
+	mutex_unlock(&spec->i2c_mux);
+	codec_err(codec, "%s() Failed 0x%02x : 0x%04x\n", __func__, i2c_address, addr);
+	return -EIO;
+}
+
+/**
+ * cs8409_i2c_bulk_read - CS8409 I2C Read Sequence.
+ * @codec: the codec instance
+ * @seq: Register Sequence to read
+ * @count: Number of registeres to read
+ *
+ * Returns negative on error, values are read into value element of cs8409_i2c_param sequence.
+ */
+static int cs8409_i2c_bulk_read(struct hda_codec *codec, unsigned int i2c_address,
+				struct cs8409_i2c_param *seq, int count)
+{
+	struct cs8409_spec *spec = codec->spec;
+	unsigned int i2c_reg_data;
+	int i;
+
+	if (spec->cs42l42_suspended)
+		return -EPERM;
+
+	mutex_lock(&spec->i2c_mux);
+	cs8409_set_i2c_dev_addr(codec, i2c_address);
+
+	for (i = 0; i < count; i++) {
+		cs8409_enable_i2c_clock(codec);
+		if (cs8409_i2c_set_page(codec, seq[i].addr))
+			goto error;
+
+		i2c_reg_data = (seq[i].addr << 8) & 0x0ffff;
+		cs8409_vendor_coef_set(codec, CS8409_I2C_QREAD, i2c_reg_data);
+
+		if (cs8409_i2c_wait_complete(codec) < 0)
+			goto error;
+
+		seq[i].value = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD) & 0xff;
+	}
+
+	mutex_unlock(&spec->i2c_mux);
+
+	return 0;
+
+error:
+	mutex_unlock(&spec->i2c_mux);
+	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", i2c_address);
+	return -EIO;
 }
 
 /**
  * cs8409_i2c_write - CS8409 I2C Write.
  * @codec: the codec instance
  * @i2c_address: I2C Address
- * @i2c_reg: Register to write to
- * @i2c_data: Data to write
+ * @addr: Register to write to
+ * @value: Data to write
  *
  * CS8409 I2C Write.
  * Returns negative on error, otherwise returns 0.
  */
-static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, unsigned int i2c_reg,
-			    unsigned int i2c_data)
+static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, unsigned int addr,
+			    unsigned int value)
 {
 	struct cs8409_spec *spec = codec->spec;
 	unsigned int i2c_reg_data;
@@ -251,25 +300,73 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 	if (spec->cs42l42_suspended)
 		return -EPERM;
 
+	mutex_lock(&spec->i2c_mux);
+
 	cs8409_enable_i2c_clock(codec);
 	cs8409_set_i2c_dev_addr(codec, i2c_address);
 
-	if (cs8409_i2c_set_page(codec, i2c_reg)) {
+	if (cs8409_i2c_set_page(codec, addr)) {
 		codec_err(codec, "%s() Paged Transaction Failed 0x%02x : 0x%04x\n",
-			__func__, i2c_address, i2c_reg);
+			__func__, i2c_address, addr);
 		return -EIO;
 	}
 
-	i2c_reg_data = ((i2c_reg << 8) & 0x0ff00) | (i2c_data & 0x0ff);
+	i2c_reg_data = ((addr << 8) & 0x0ff00) | (value & 0x0ff);
 	cs8409_vendor_coef_set(codec, CS8409_I2C_QWRITE, i2c_reg_data);
 
-	if (cs8409_i2c_wait_complete(codec) < 0) {
-		codec_err(codec, "%s() Transaction Failed 0x%02x : 0x%04x\n",
-			__func__, i2c_address, i2c_reg);
-		return -EIO;
+	if (cs8409_i2c_wait_complete(codec) < 0)
+		goto error;
+
+	mutex_unlock(&spec->i2c_mux);
+	return 0;
+
+error:
+	mutex_unlock(&spec->i2c_mux);
+	codec_err(codec, "%s() Failed 0x%02x : 0x%04x\n", __func__, i2c_address, addr);
+	return -EIO;
+}
+
+/**
+ * cs8409_i2c_bulk_write - CS8409 I2C Write Sequence.
+ * @codec: the codec instance
+ * @seq: Register Sequence to write
+ * @count: Number of registeres to write
+ *
+ * Returns negative on error.
+ */
+static int cs8409_i2c_bulk_write(struct hda_codec *codec, unsigned int i2c_address,
+				 const struct cs8409_i2c_param *seq, int count)
+{
+	struct cs8409_spec *spec = codec->spec;
+	unsigned int i2c_reg_data;
+	int i;
+
+	if (spec->cs42l42_suspended)
+		return -EPERM;
+
+	mutex_lock(&spec->i2c_mux);
+	cs8409_set_i2c_dev_addr(codec, i2c_address);
+
+	for (i = 0; i < count; i++) {
+		cs8409_enable_i2c_clock(codec);
+		if (cs8409_i2c_set_page(codec, seq[i].addr))
+			goto error;
+
+		i2c_reg_data = ((seq[i].addr << 8) & 0x0ff00) | (seq[i].value & 0x0ff);
+		cs8409_vendor_coef_set(codec, CS8409_I2C_QWRITE, i2c_reg_data);
+
+		if (cs8409_i2c_wait_complete(codec) < 0)
+			goto error;
 	}
 
+	mutex_unlock(&spec->i2c_mux);
+
 	return 0;
+
+error:
+	mutex_unlock(&spec->i2c_mux);
+	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", i2c_address);
+	return -EIO;
 }
 
 int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo)
@@ -333,7 +430,6 @@ int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 
 	switch (ofs) {
 	case CS42L42_VOL_DAC:
-		mutex_lock(&spec->cs8409_i2c_mux);
 		if (chs & BIT(0)) {
 			spec->vol[ofs] = *valp;
 			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
@@ -346,16 +442,13 @@ int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
 					 -(spec->vol[ofs]) & CS8409_CS42L42_REG_HS_VOL_MASK);
 		}
-		mutex_unlock(&spec->cs8409_i2c_mux);
 		break;
 	case CS42L42_VOL_ADC:
-		mutex_lock(&spec->cs8409_i2c_mux);
 		if (chs & BIT(0)) {
 			spec->vol[ofs] = *valp;
 			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
 					 spec->vol[ofs] & CS8409_CS42L42_REG_AMIC_VOL_MASK);
 		}
-		mutex_unlock(&spec->cs8409_i2c_mux);
 		break;
 	default:
 		break;
@@ -368,6 +461,12 @@ int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 static void cs8409_cs42l42_reset(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
+	struct cs8409_i2c_param irq_regs[] = {
+		{ 0x1308, 0x00 },
+		{ 0x1309, 0x00 },
+		{ 0x130A, 0x00 },
+		{ 0x130F, 0x00 },
+	};
 
 	/* Assert RTS# line */
 	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
@@ -381,25 +480,13 @@ static void cs8409_cs42l42_reset(struct hda_codec *codec)
 	spec->cs42l42_suspended = 0;
 	spec->last_page = 0;
 
-	mutex_lock(&spec->cs8409_i2c_mux);
-
 	/* Clear interrupts, by reading interrupt status registers */
-	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1308);
-	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1309);
-	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x130A);
-	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x130F);
-
-	mutex_unlock(&spec->cs8409_i2c_mux);
-
+	cs8409_i2c_bulk_read(codec, CS42L42_I2C_ADDR, irq_regs, ARRAY_SIZE(irq_regs));
 }
 
 /* Configure CS42L42 slave codec for jack autodetect */
 static void cs8409_cs42l42_enable_jack_detect(struct hda_codec *codec)
 {
-	struct cs8409_spec *spec = codec->spec;
-
-	mutex_lock(&spec->cs8409_i2c_mux);
-
 	/* Set TIP_SENSE_EN for analog front-end of tip sense.
 	 * Additionally set HSBIAS_SENSE_EN for some variants.
 	 */
@@ -418,17 +505,11 @@ static void cs8409_cs42l42_enable_jack_detect(struct hda_codec *codec)
 	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x130f);
 	/* Enable interrupt */
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1320, 0xF3);
-
-	mutex_unlock(&spec->cs8409_i2c_mux);
 }
 
 /* Enable and run CS42L42 slave codec jack auto detect */
 static void cs8409_cs42l42_run_jack_detect(struct hda_codec *codec)
 {
-	struct cs8409_spec *spec = codec->spec;
-
-	mutex_lock(&spec->cs8409_i2c_mux);
-
 	/* Clear interrupts */
 	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1308);
 	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1b77);
@@ -446,22 +527,6 @@ static void cs8409_cs42l42_run_jack_detect(struct hda_codec *codec)
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1120, 0xc0);
 	/* Wait ~10ms */
 	usleep_range(10000, 25000);
-
-	mutex_unlock(&spec->cs8409_i2c_mux);
-
-}
-
-static void cs8409_cs42l42_reg_setup(struct hda_codec *codec)
-{
-	const struct cs8409_i2c_param *seq = cs42l42_init_reg_seq;
-	struct cs8409_spec *spec = codec->spec;
-
-	mutex_lock(&spec->cs8409_i2c_mux);
-
-	for (; seq->addr; seq++)
-		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, seq->addr, seq->reg);
-
-	mutex_unlock(&spec->cs8409_i2c_mux);
 
 }
 
@@ -490,14 +555,10 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 	if (res & CS8409_CS42L42_INT)
 		return;
 
-	mutex_lock(&spec->cs8409_i2c_mux);
-
 	/* Read jack detect status registers */
 	reg_cdc_status = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1308);
 	reg_hs_status = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1124);
 	reg_ts_status = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x130f);
-
-	mutex_unlock(&spec->cs8409_i2c_mux);
 
 	/* If status values are < 0, read error has occurred. */
 	if (reg_cdc_status < 0 || reg_hs_status < 0 || reg_ts_status < 0)
@@ -506,10 +567,8 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 	/* HSDET_AUTO_DONE */
 	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE) {
 
-		mutex_lock(&spec->cs8409_i2c_mux);
 		/* Disable HSDET_AUTO_DONE */
 		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x131b, 0xFF);
-		mutex_unlock(&spec->cs8409_i2c_mux);
 
 		type = ((reg_hs_status & CS42L42_HSTYPE_MASK) + 1);
 		/* CS42L42 reports optical jack as type 4
@@ -533,10 +592,8 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 			}
 		}
 
-		mutex_lock(&spec->cs8409_i2c_mux);
 		/* Re-Enable Tip Sense Interrupt */
 		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1320, 0xF3);
-		mutex_unlock(&spec->cs8409_i2c_mux);
 
 	} else {
 		/* TIP_SENSE INSERT/REMOVE */
@@ -600,10 +657,8 @@ static int cs8409_suspend(struct hda_codec *codec)
 
 	cs8409_enable_ur(codec, 0);
 
-	mutex_lock(&spec->cs8409_i2c_mux);
 	/* Power down CS42L42 ASP/EQ/MIX/HP */
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1101, 0xfe);
-	mutex_unlock(&spec->cs8409_i2c_mux);
 
 	spec->cs42l42_suspended = 1;
 
@@ -660,26 +715,23 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 	cs8409_cs42l42_reset(codec);
 
 	/* Initialise CS42L42 companion codec */
-	cs8409_cs42l42_reg_setup(codec);
+	cs8409_i2c_bulk_write(codec, CS42L42_I2C_ADDR, cs42l42_init_reg_seq,
+			      CS42L42_INIT_REG_SEQ_SIZE);
 
 	if (codec->fixup_id == CS8409_WARLOCK || codec->fixup_id == CS8409_CYBORG) {
 		/* FULL_SCALE_VOL = 0 for Warlock / Cyborg */
-		mutex_lock(&spec->cs8409_i2c_mux);
 		cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x2001, 0x01);
-		mutex_unlock(&spec->cs8409_i2c_mux);
 		/* DMIC1_MO=00b, DMIC1/2_SR=1 */
 		cs8409_vendor_coef_set(codec, 0x09, 0x0003);
 	}
 
 	/* Restore Volumes after Resume */
-	mutex_lock(&spec->cs8409_i2c_mux);
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
 			 -(spec->vol[1]) & CS8409_CS42L42_REG_HS_VOL_MASK);
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
 			 -(spec->vol[2]) & CS8409_CS42L42_REG_HS_VOL_MASK);
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
 			 spec->vol[0] & CS8409_CS42L42_REG_AMIC_VOL_MASK);
-	mutex_unlock(&spec->cs8409_i2c_mux);
 
 	cs8409_cs42l42_enable_jack_detect(codec);
 
@@ -768,7 +820,7 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		spec->exec_verb = codec->core.exec_verb;
 		codec->core.exec_verb = cs8409_cs42l42_exec_verb;
 
-		mutex_init(&spec->cs8409_i2c_mux);
+		mutex_init(&spec->i2c_mux);
 
 		codec->patch_ops = cs8409_cs42l42_patch_ops;
 

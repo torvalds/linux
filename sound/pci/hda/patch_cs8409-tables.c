@@ -146,7 +146,7 @@ const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 };
 
 /* Vendor specific HW configuration for CS42L42 */
-const struct cs8409_i2c_param cs42l42_init_reg_seq[] = {
+const struct cs8409_i2c_param cs42l42_init_reg_seq[CS42L42_INIT_REG_SEQ_SIZE] = {
 	{ 0x1010, 0xB0 },
 	{ 0x1D01, 0x00 },
 	{ 0x1D02, 0x06 },
@@ -206,7 +206,6 @@ const struct cs8409_i2c_param cs42l42_init_reg_seq[] = {
 	{ 0x1320, 0xff },
 	{ 0x1b79, 0xff },
 	{ 0x1b7a, 0xff },
-	{} /* Terminator */
 };
 
 /* Vendor specific hw configuration for CS8409 */

@@ -243,6 +243,8 @@ enum cs8409_coefficient_index_registers {
 #define CS8409_CS42L42_DMIC_PIN_NID		CS8409_PIN_DMIC1_IN
 #define CS8409_CS42L42_DMIC_ADC_PIN_NID		CS8409_PIN_DMIC1
 
+#define CS42L42_INIT_REG_SEQ_SIZE		59
+
 enum {
 	CS8409_BULLSEYE,
 	CS8409_WARLOCK,
@@ -257,7 +259,7 @@ enum {
 
 struct cs8409_i2c_param {
 	unsigned int addr;
-	unsigned int reg;
+	unsigned int value;
 };
 
 struct cs8409_cir_param {
@@ -279,7 +281,7 @@ struct cs8409_spec {
 	unsigned int cs42l42_suspended:1;
 	s8 vol[CS42L42_VOLUMES];
 
-	struct mutex cs8409_i2c_mux;
+	struct mutex i2c_mux;
 	unsigned int i2c_clck_enabled;
 	unsigned int dev_addr;
 	struct delayed_work i2c_clk_work;
@@ -303,7 +305,7 @@ extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];
 extern const struct hda_pintbl cs8409_cs42l42_pincfgs[];
-extern const struct cs8409_i2c_param cs42l42_init_reg_seq[];
+extern const struct cs8409_i2c_param cs42l42_init_reg_seq[CS42L42_INIT_REG_SEQ_SIZE];
 extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
 extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
 
