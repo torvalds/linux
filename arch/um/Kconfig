@@ -21,6 +21,7 @@ config UML
 	select HAVE_GCC_PLUGINS
 	select SET_FS
 	select TTY # Needed for line.c
+	select HAVE_ARCH_VMAP_STACK
 
 config MMU
 	bool
