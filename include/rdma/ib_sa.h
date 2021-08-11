@@ -366,20 +366,6 @@ struct ib_sa_mcmember_rec {
 
 #define IB_DEFAULT_SERVICE_LEASE 	0xFFFFFFFF
 
-struct ib_sa_service_rec {
-	u64		id;
-	union ib_gid	gid;
-	__be16 		pkey;
-	/* reserved */
-	u32		lease;
-	u8		key[16];
-	u8		name[64];
-	u8		data8[16];
-	u16		data16[8];
-	u32		data32[4];
-	u64		data64[2];
-};
-
 #define IB_SA_GUIDINFO_REC_LID		IB_SA_COMP_MASK(0)
 #define IB_SA_GUIDINFO_REC_BLOCK_NUM	IB_SA_COMP_MASK(1)
 #define IB_SA_GUIDINFO_REC_RES1		IB_SA_COMP_MASK(2)
@@ -429,16 +415,6 @@ int ib_sa_path_rec_get(struct ib_sa_client *client, struct ib_device *device,
 		       void (*callback)(int status, struct sa_path_rec *resp,
 					void *context),
 		       void *context, struct ib_sa_query **query);
-
-int ib_sa_service_rec_query(struct ib_sa_client *client,
-			    struct ib_device *device, u32 port_num, u8 method,
-			    struct ib_sa_service_rec *rec,
-			    ib_sa_comp_mask comp_mask, unsigned long timeout_ms,
-			    gfp_t gfp_mask,
-			    void (*callback)(int status,
-					     struct ib_sa_service_rec *resp,
-					     void *context),
-			    void *context, struct ib_sa_query **sa_query);
 
 struct ib_sa_multicast {
 	struct ib_sa_mcmember_rec rec;

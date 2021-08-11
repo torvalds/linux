@@ -123,12 +123,6 @@ struct ib_sa_query {
 #define IB_SA_CANCEL			0x00000002
 #define IB_SA_QUERY_OPA			0x00000004
 
-struct ib_sa_service_query {
-	void (*callback)(int, struct ib_sa_service_rec *, void *);
-	void *context;
-	struct ib_sa_query sa_query;
-};
-
 struct ib_sa_path_query {
 	void (*callback)(int, struct sa_path_rec *, void *);
 	void *context;
@@ -500,54 +494,6 @@ static const struct ib_field mcmember_rec_table[] = {
 	  .offset_words = 12,
 	  .offset_bits  = 9,
 	  .size_bits    = 23 },
-};
-
-#define SERVICE_REC_FIELD(field) \
-	.struct_offset_bytes = offsetof(struct ib_sa_service_rec, field),	\
-	.struct_size_bytes   = sizeof_field(struct ib_sa_service_rec, field),	\
-	.field_name          = "sa_service_rec:" #field
-
-static const struct ib_field service_rec_table[] = {
-	{ SERVICE_REC_FIELD(id),
-	  .offset_words = 0,
-	  .offset_bits  = 0,
-	  .size_bits    = 64 },
-	{ SERVICE_REC_FIELD(gid),
-	  .offset_words = 2,
-	  .offset_bits  = 0,
-	  .size_bits    = 128 },
-	{ SERVICE_REC_FIELD(pkey),
-	  .offset_words = 6,
-	  .offset_bits  = 0,
-	  .size_bits    = 16 },
-	{ SERVICE_REC_FIELD(lease),
-	  .offset_words = 7,
-	  .offset_bits  = 0,
-	  .size_bits    = 32 },
-	{ SERVICE_REC_FIELD(key),
-	  .offset_words = 8,
-	  .offset_bits  = 0,
-	  .size_bits    = 128 },
-	{ SERVICE_REC_FIELD(name),
-	  .offset_words = 12,
-	  .offset_bits  = 0,
-	  .size_bits    = 64*8 },
-	{ SERVICE_REC_FIELD(data8),
-	  .offset_words = 28,
-	  .offset_bits  = 0,
-	  .size_bits    = 16*8 },
-	{ SERVICE_REC_FIELD(data16),
-	  .offset_words = 32,
-	  .offset_bits  = 0,
-	  .size_bits    = 8*16 },
-	{ SERVICE_REC_FIELD(data32),
-	  .offset_words = 36,
-	  .offset_bits  = 0,
-	  .size_bits    = 4*32 },
-	{ SERVICE_REC_FIELD(data64),
-	  .offset_words = 40,
-	  .offset_bits  = 0,
-	  .size_bits    = 2*64 },
 };
 
 #define CLASSPORTINFO_REC_FIELD(field) \
@@ -1633,129 +1579,6 @@ err1:
 	return ret;
 }
 EXPORT_SYMBOL(ib_sa_path_rec_get);
-
-static void ib_sa_service_rec_callback(struct ib_sa_query *sa_query,
-				    int status,
-				    struct ib_sa_mad *mad)
-{
-	struct ib_sa_service_query *query =
-		container_of(sa_query, struct ib_sa_service_query, sa_query);
-
-	if (mad) {
-		struct ib_sa_service_rec rec;
-
-		ib_unpack(service_rec_table, ARRAY_SIZE(service_rec_table),
-			  mad->data, &rec);
-		query->callback(status, &rec, query->context);
-	} else
-		query->callback(status, NULL, query->context);
-}
-
-static void ib_sa_service_rec_release(struct ib_sa_query *sa_query)
-{
-	kfree(container_of(sa_query, struct ib_sa_service_query, sa_query));
-}
-
-/**
- * ib_sa_service_rec_query - Start Service Record operation
- * @client:SA client
- * @device:device to send request on
- * @port_num: port number to send request on
- * @method:SA method - should be get, set, or delete
- * @rec:Service Record to send in request
- * @comp_mask:component mask to send in request
- * @timeout_ms:time to wait for response
- * @gfp_mask:GFP mask to use for internal allocations
- * @callback:function called when request completes, times out or is
- * canceled
- * @context:opaque user context passed to callback
- * @sa_query:request context, used to cancel request
- *
- * Send a Service Record set/get/delete to the SA to register,
- * unregister or query a service record.
- * The callback function will be called when the request completes (or
- * fails); status is 0 for a successful response, -EINTR if the query
- * is canceled, -ETIMEDOUT is the query timed out, or -EIO if an error
- * occurred sending the query.  The resp parameter of the callback is
- * only valid if status is 0.
- *
- * If the return value of ib_sa_service_rec_query() is negative, it is an
- * error code.  Otherwise it is a request ID that can be used to cancel
- * the query.
- */
-int ib_sa_service_rec_query(struct ib_sa_client *client,
-			    struct ib_device *device, u32 port_num, u8 method,
-			    struct ib_sa_service_rec *rec,
-			    ib_sa_comp_mask comp_mask,
-			    unsigned long timeout_ms, gfp_t gfp_mask,
-			    void (*callback)(int status,
-					     struct ib_sa_service_rec *resp,
-					     void *context),
-			    void *context,
-			    struct ib_sa_query **sa_query)
-{
-	struct ib_sa_service_query *query;
-	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
-	struct ib_sa_port   *port;
-	struct ib_mad_agent *agent;
-	struct ib_sa_mad *mad;
-	int ret;
-
-	if (!sa_dev)
-		return -ENODEV;
-
-	port  = &sa_dev->port[port_num - sa_dev->start_port];
-	agent = port->agent;
-
-	if (method != IB_MGMT_METHOD_GET &&
-	    method != IB_MGMT_METHOD_SET &&
-	    method != IB_SA_METHOD_DELETE)
-		return -EINVAL;
-
-	query = kzalloc(sizeof(*query), gfp_mask);
-	if (!query)
-		return -ENOMEM;
-
-	query->sa_query.port     = port;
-	ret = alloc_mad(&query->sa_query, gfp_mask);
-	if (ret)
-		goto err1;
-
-	ib_sa_client_get(client);
-	query->sa_query.client = client;
-	query->callback        = callback;
-	query->context         = context;
-
-	mad = query->sa_query.mad_buf->mad;
-	init_mad(&query->sa_query, agent);
-
-	query->sa_query.callback = callback ? ib_sa_service_rec_callback : NULL;
-	query->sa_query.release  = ib_sa_service_rec_release;
-	mad->mad_hdr.method	 = method;
-	mad->mad_hdr.attr_id	 = cpu_to_be16(IB_SA_ATTR_SERVICE_REC);
-	mad->sa_hdr.comp_mask	 = comp_mask;
-
-	ib_pack(service_rec_table, ARRAY_SIZE(service_rec_table),
-		rec, mad->data);
-
-	*sa_query = &query->sa_query;
-
-	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
-	if (ret < 0)
-		goto err2;
-
-	return ret;
-
-err2:
-	*sa_query = NULL;
-	ib_sa_client_put(query->sa_query.client);
-	free_mad(&query->sa_query);
-
-err1:
-	kfree(query);
-	return ret;
-}
-EXPORT_SYMBOL(ib_sa_service_rec_query);
 
 static void ib_sa_mcmember_rec_callback(struct ib_sa_query *sa_query,
 					int status,
