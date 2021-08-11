@@ -488,6 +488,8 @@ static int vic_probe(struct platform_device *pdev)
 		if (err < 0)
 			goto unregister_client;
 	}
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
+	pm_runtime_use_autosuspend(&pdev->dev);
 
 	return 0;
 
