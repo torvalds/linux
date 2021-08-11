@@ -72,6 +72,7 @@ struct page_pool;
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
 #define MLX5E_MAX_NUM_TC	8
+#define MLX5E_MAX_NUM_MQPRIO_CH_TC TC_QOPT_MAX_QUEUE
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
 #define MLX5_SKB_FRAG_SZ(len)	(SKB_DATA_ALIGN(len) +	\

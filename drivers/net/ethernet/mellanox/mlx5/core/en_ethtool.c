@@ -467,6 +467,16 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 		goto out;
 	}
 
+	/* Don't allow changing the number of channels if MQPRIO mode channel offload is active,
+	 * because it defines a partition over the channels queues.
+	 */
+	if (cur_params->mqprio.mode == TC_MQPRIO_MODE_CHANNEL) {
+		err = -EINVAL;
+		netdev_err(priv->netdev, "%s: MQPRIO mode channel offload is active, cannot change the number of channels\n",
+			   __func__);
+		goto out;
+	}
+
 	new_params = *cur_params;
 	new_params.num_channels = count;
 
