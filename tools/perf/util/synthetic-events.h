@@ -27,6 +27,18 @@ struct target;
 
 union perf_event;
 
+enum perf_record_synth {
+	PERF_SYNTH_TASK		= 1 << 0,
+	PERF_SYNTH_MMAP		= 1 << 1,
+	PERF_SYNTH_CGROUP	= 1 << 2,
+
+	/* last element */
+	PERF_SYNTH_MAX		= 1 << 3,
+};
+#define PERF_SYNTH_ALL  (PERF_SYNTH_MAX - 1)
+
+int parse_synth_opt(char *str);
+
 typedef int (*perf_event__handler_t)(struct perf_tool *tool, union perf_event *event,
 				     struct perf_sample *sample, struct machine *machine);
 
