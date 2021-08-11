@@ -9,6 +9,11 @@
 #include <uapi/linux/ioprio.h>
 
 /*
+ * Default IO priority.
+ */
+#define IOPRIO_DEFAULT	IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_BE_NORM)
+
+/*
  * Check that a priority value has a valid class.
  */
 static inline bool ioprio_valid(unsigned short ioprio)
@@ -51,7 +56,7 @@ static inline int get_current_ioprio(void)
 
 	if (ioc)
 		return ioc->ioprio;
-	return IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
+	return IOPRIO_DEFAULT;
 }
 
 /*
