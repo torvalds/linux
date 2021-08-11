@@ -1045,7 +1045,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 		if (!hotpluggable)
 			continue;
 
-		if (early_init_dt_mark_hotplug_memory_arch(base, size))
+		if (memblock_mark_hotplug(base, size))
 			pr_warn("failed to mark hotplug range 0x%llx - 0x%llx\n",
 				base, base + size);
 	}
@@ -1156,11 +1156,6 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 		base = phys_offset;
 	}
 	memblock_add(base, size);
-}
-
-int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
-{
-	return memblock_mark_hotplug(base, size);
 }
 
 static void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
