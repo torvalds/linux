@@ -205,7 +205,7 @@ struct iomap_readpage_ctx {
 	struct readahead_control *rac;
 };
 
-static int iomap_read_inline_data(struct inode *inode, struct page *page,
+static loff_t iomap_read_inline_data(struct inode *inode, struct page *page,
 		const struct iomap *iomap)
 {
 	size_t size = i_size_read(inode) - iomap->offset;
@@ -253,7 +253,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	sector_t sector;
 
 	if (iomap->type == IOMAP_INLINE)
-		return iomap_read_inline_data(inode, page, iomap);
+		return min(iomap_read_inline_data(inode, page, iomap), length);
 
 	/* zero post-eof blocks as the page may be mapped */
 	iop = iomap_page_create(inode, page);
