@@ -14,6 +14,10 @@
 
 #include "patch_cs8409.h"
 
+/******************************************************************************
+ *                        CS8409 Specific Functions
+ ******************************************************************************/
+
 static int cs8409_parse_auto_config(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
@@ -57,6 +61,7 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 	codec->power_save_node = 1;
+	mutex_init(&spec->i2c_mux);
 	INIT_DELAYED_WORK(&spec->i2c_clk_work, cs8409_disable_i2c_clock_worker);
 	snd_hda_gen_spec_init(&spec->gen);
 
@@ -369,7 +374,67 @@ error:
 	return -EIO;
 }
 
-int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo)
+static int cs8409_init(struct hda_codec *codec)
+{
+	int ret = snd_hda_gen_init(codec);
+
+	if (!ret)
+		snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_INIT);
+
+	return ret;
+}
+
+static int cs8409_build_controls(struct hda_codec *codec)
+{
+	int err;
+
+	err = snd_hda_gen_build_controls(codec);
+	if (err < 0)
+		return err;
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_BUILD);
+
+	return 0;
+}
+
+/* Enable/Disable Unsolicited Response for gpio(s) 3,4 */
+static void cs8409_enable_ur(struct hda_codec *codec, int flag)
+{
+	/* GPIO4 INT# and GPIO3 WAKE# */
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK,
+			    flag ? CS8409_CS42L42_INT : 0);
+
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_UNSOLICITED_ENABLE,
+			    flag ? AC_UNSOL_ENABLED : 0);
+
+}
+
+static void cs8409_fix_caps(struct hda_codec *codec, unsigned int nid)
+{
+	int caps;
+
+	/* CS8409 is simple HDA bridge and intended to be used with a remote
+	 * companion codec. Most of input/output PIN(s) have only basic
+	 * capabilities. Receive and Transmit NID(s) have only OUTC and INC
+	 * capabilities and no presence detect capable (PDC) and call to
+	 * snd_hda_gen_build_controls() will mark them as non detectable
+	 * phantom jacks. However, a companion codec may be
+	 * connected to these pins which supports jack detect
+	 * capabilities. We have to override pin capabilities,
+	 * otherwise they will not be created as input devices.
+	 */
+	caps = snd_hdac_read_parm(&codec->core, nid, AC_PAR_PIN_CAP);
+	if (caps >= 0)
+		snd_hdac_override_parm(&codec->core, nid, AC_PAR_PIN_CAP,
+				       (caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
+
+	snd_hda_override_wcaps(codec, nid, (get_wcaps(codec, nid) | AC_WCAP_UNSOL_CAP));
+}
+
+/******************************************************************************
+ *                        CS42L42 Specific Functions
+ ******************************************************************************/
+
+int cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo)
 {
 	unsigned int ofs = get_amp_offset(kctrl);
 	u8 chs = get_amp_channels(kctrl);
@@ -380,12 +445,12 @@ int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_i
 
 	switch (ofs) {
 	case CS42L42_VOL_DAC:
-		uinfo->value.integer.min = CS8409_CS42L42_HP_VOL_REAL_MIN;
-		uinfo->value.integer.max = CS8409_CS42L42_HP_VOL_REAL_MAX;
+		uinfo->value.integer.min = CS42L42_HP_VOL_REAL_MIN;
+		uinfo->value.integer.max = CS42L42_HP_VOL_REAL_MAX;
 		break;
 	case CS42L42_VOL_ADC:
-		uinfo->value.integer.min = CS8409_CS42L42_AMIC_VOL_REAL_MIN;
-		uinfo->value.integer.max = CS8409_CS42L42_AMIC_VOL_REAL_MAX;
+		uinfo->value.integer.min = CS42L42_AMIC_VOL_REAL_MIN;
+		uinfo->value.integer.max = CS42L42_AMIC_VOL_REAL_MAX;
 		break;
 	default:
 		break;
@@ -394,7 +459,7 @@ int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_i
 	return 0;
 }
 
-int cs8409_cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
+int cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kctrl);
 	struct cs8409_spec *spec = codec->spec;
@@ -420,7 +485,7 @@ int cs8409_cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 	return 0;
 }
 
-int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
+int cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kctrl);
 	struct cs8409_spec *spec = codec->spec;
@@ -432,22 +497,22 @@ int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 	case CS42L42_VOL_DAC:
 		if (chs & BIT(0)) {
 			spec->vol[ofs] = *valp;
-			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
-					 -(spec->vol[ofs]) & CS8409_CS42L42_REG_HS_VOL_MASK);
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_HS_VOL_CHA,
+					 -(spec->vol[ofs]) & CS42L42_REG_HS_VOL_MASK);
 		}
 		if (chs & BIT(1)) {
 			ofs++;
 			valp++;
 			spec->vol[ofs] = *valp;
-			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
-					 -(spec->vol[ofs]) & CS8409_CS42L42_REG_HS_VOL_MASK);
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_HS_VOL_CHB,
+					 -(spec->vol[ofs]) & CS42L42_REG_HS_VOL_MASK);
 		}
 		break;
 	case CS42L42_VOL_ADC:
 		if (chs & BIT(0)) {
 			spec->vol[ofs] = *valp;
-			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
-					 spec->vol[ofs] & CS8409_CS42L42_REG_AMIC_VOL_MASK);
+			cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_AMIC_VOL,
+					 spec->vol[ofs] & CS42L42_REG_AMIC_VOL_MASK);
 		}
 		break;
 	default:
@@ -457,35 +522,8 @@ int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_va
 	return 0;
 }
 
-/* Assert/release RTS# line to CS42L42 */
-static void cs8409_cs42l42_reset(struct hda_codec *codec)
-{
-	struct cs8409_spec *spec = codec->spec;
-	struct cs8409_i2c_param irq_regs[] = {
-		{ 0x1308, 0x00 },
-		{ 0x1309, 0x00 },
-		{ 0x130A, 0x00 },
-		{ 0x130F, 0x00 },
-	};
-
-	/* Assert RTS# line */
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
-	/* wait ~10ms */
-	usleep_range(10000, 15000);
-	/* Release RTS# line */
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, CS8409_CS42L42_RESET);
-	/* wait ~10ms */
-	usleep_range(10000, 15000);
-
-	spec->cs42l42_suspended = 0;
-	spec->last_page = 0;
-
-	/* Clear interrupts, by reading interrupt status registers */
-	cs8409_i2c_bulk_read(codec, CS42L42_I2C_ADDR, irq_regs, ARRAY_SIZE(irq_regs));
-}
-
 /* Configure CS42L42 slave codec for jack autodetect */
-static void cs8409_cs42l42_enable_jack_detect(struct hda_codec *codec)
+static void cs42l42_enable_jack_detect(struct hda_codec *codec)
 {
 	/* Set TIP_SENSE_EN for analog front-end of tip sense.
 	 * Additionally set HSBIAS_SENSE_EN for some variants.
@@ -508,7 +546,7 @@ static void cs8409_cs42l42_enable_jack_detect(struct hda_codec *codec)
 }
 
 /* Enable and run CS42L42 slave codec jack auto detect */
-static void cs8409_cs42l42_run_jack_detect(struct hda_codec *codec)
+static void cs42l42_run_jack_detect(struct hda_codec *codec)
 {
 	/* Clear interrupts */
 	cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1308);
@@ -530,14 +568,7 @@ static void cs8409_cs42l42_run_jack_detect(struct hda_codec *codec)
 
 }
 
-/*
- * In the case of CS8409 we do not have unsolicited events from NID's 0x24
- * and 0x34 where hs mic and hp are connected. Companion codec CS42L42 will
- * generate interrupt via gpio 4 to notify jack events. We have to overwrite
- * generic snd_hda_jack_unsol_event(), read CS42L42 jack detect status registers
- * and then notify status via generic snd_hda_jack_unsol_event() call.
- */
-static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
+static int cs42l42_jack_unsol_event(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 	int status_changed = 0;
@@ -545,15 +576,6 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 	int reg_hs_status;
 	int reg_ts_status;
 	int type;
-	struct hda_jack_tbl *jk;
-
-	/* jack_unsol_event() will be called every time gpio line changing state.
-	 * In this case gpio4 line goes up as a result of reading interrupt status
-	 * registers in previous cs8409_jack_unsol_event() call.
-	 * We don't need to handle this event, ignoring...
-	 */
-	if (res & CS8409_CS42L42_INT)
-		return;
 
 	/* Read jack detect status registers */
 	reg_cdc_status = cs8409_i2c_read(codec, CS42L42_I2C_ADDR, 0x1308);
@@ -562,7 +584,7 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 
 	/* If status values are < 0, read error has occurred. */
 	if (reg_cdc_status < 0 || reg_hs_status < 0 || reg_ts_status < 0)
-		return;
+		return -EIO;
 
 	/* HSDET_AUTO_DONE */
 	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE) {
@@ -599,7 +621,7 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 		/* TIP_SENSE INSERT/REMOVE */
 		switch (reg_ts_status) {
 		case CS42L42_JACK_INSERTED:
-			cs8409_cs42l42_run_jack_detect(codec);
+			cs42l42_run_jack_detect(codec);
 			break;
 
 		case CS42L42_JACK_REMOVED:
@@ -617,48 +639,105 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 		}
 	}
 
-	if (status_changed) {
-
-		snd_hda_set_pin_ctl(codec, CS8409_CS42L42_SPK_PIN_NID,
-				    spec->cs42l42_hp_jack_in ? 0 : PIN_OUT);
-
-		/* Report jack*/
-		jk = snd_hda_jack_tbl_get_mst(codec, CS8409_CS42L42_HP_PIN_NID, 0);
-		if (jk) {
-			snd_hda_jack_unsol_event(codec, (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
-							AC_UNSOL_RES_TAG);
-		}
-		/* Report jack*/
-		jk = snd_hda_jack_tbl_get_mst(codec, CS8409_CS42L42_AMIC_PIN_NID, 0);
-		if (jk) {
-			snd_hda_jack_unsol_event(codec, (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
-							 AC_UNSOL_RES_TAG);
-		}
-	}
+	return status_changed;
 }
 
-/* Enable/Disable Unsolicited Response for gpio(s) 3,4 */
-static void cs8409_enable_ur(struct hda_codec *codec, int flag)
+/* Assert/release RTS# line to CS42L42 */
+static void cs42l42_reset(struct hda_codec *codec)
 {
-	/* GPIO4 INT# and GPIO3 WAKE# */
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK,
-			    flag ? CS8409_CS42L42_INT : 0);
+	struct cs8409_spec *spec = codec->spec;
+	struct cs8409_i2c_param irq_regs[] = {
+		{ 0x1308, 0x00 },
+		{ 0x1309, 0x00 },
+		{ 0x130A, 0x00 },
+		{ 0x130F, 0x00 },
+	};
 
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_UNSOLICITED_ENABLE,
-			    flag ? AC_UNSOL_ENABLED : 0);
+	/* Assert RTS# line */
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
+	/* wait ~10ms */
+	usleep_range(10000, 15000);
+	/* Release RTS# line */
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, CS8409_CS42L42_RESET);
+	/* wait ~10ms */
+	usleep_range(10000, 15000);
 
+	spec->cs42l42_suspended = 0;
+	spec->last_page = 0;
+
+	/* Clear interrupts, by reading interrupt status registers */
+	cs8409_i2c_bulk_read(codec, CS42L42_I2C_ADDR, irq_regs, ARRAY_SIZE(irq_regs));
+}
+
+#ifdef CONFIG_PM
+static void cs42l42_suspend(struct hda_codec *codec)
+{
+	/* Power down CS42L42 ASP/EQ/MIX/HP */
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1101, 0xfe);
+}
+#endif
+
+static void cs8409_free(struct hda_codec *codec)
+{
+	struct cs8409_spec *spec = codec->spec;
+
+	/* Cancel i2c clock disable timer, and disable clock if left enabled */
+	cancel_delayed_work_sync(&spec->i2c_clk_work);
+	cs8409_disable_i2c_clock(codec);
+
+	snd_hda_gen_free(codec);
+}
+
+/******************************************************************************
+ *                   BULLSEYE / WARLOCK / CYBORG Specific Functions
+ *                               CS8409/CS42L42
+ ******************************************************************************/
+
+/*
+ * In the case of CS8409 we do not have unsolicited events from NID's 0x24
+ * and 0x34 where hs mic and hp are connected. Companion codec CS42L42 will
+ * generate interrupt via gpio 4 to notify jack events. We have to overwrite
+ * generic snd_hda_jack_unsol_event(), read CS42L42 jack detect status registers
+ * and then notify status via generic snd_hda_jack_unsol_event() call.
+ */
+static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct cs8409_spec *spec = codec->spec;
+	struct hda_jack_tbl *jk;
+
+	/* jack_unsol_event() will be called every time gpio line changing state.
+	 * In this case gpio4 line goes up as a result of reading interrupt status
+	 * registers in previous cs8409_jack_unsol_event() call.
+	 * We don't need to handle this event, ignoring...
+	 */
+	if (res & CS8409_CS42L42_INT)
+		return;
+
+	if (cs42l42_jack_unsol_event(codec)) {
+		snd_hda_set_pin_ctl(codec, CS8409_CS42L42_SPK_PIN_NID,
+				    spec->cs42l42_hp_jack_in ? 0 : PIN_OUT);
+		/* Report jack*/
+		jk = snd_hda_jack_tbl_get_mst(codec, CS8409_CS42L42_HP_PIN_NID, 0);
+		if (jk)
+			snd_hda_jack_unsol_event(codec, (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
+							AC_UNSOL_RES_TAG);
+		/* Report jack*/
+		jk = snd_hda_jack_tbl_get_mst(codec, CS8409_CS42L42_AMIC_PIN_NID, 0);
+		if (jk)
+			snd_hda_jack_unsol_event(codec, (jk->tag << AC_UNSOL_RES_TAG_SHIFT) &
+							 AC_UNSOL_RES_TAG);
+	}
 }
 
 #ifdef CONFIG_PM
 /* Manage PDREF, when transition to D3hot */
-static int cs8409_suspend(struct hda_codec *codec)
+static int cs8409_cs42l42_suspend(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 
 	cs8409_enable_ur(codec, 0);
 
-	/* Power down CS42L42 ASP/EQ/MIX/HP */
-	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1101, 0xfe);
+	cs42l42_suspend(codec);
 
 	spec->cs42l42_suspended = 1;
 
@@ -674,17 +753,6 @@ static int cs8409_suspend(struct hda_codec *codec)
 	return 0;
 }
 #endif
-
-static void cs8409_free(struct hda_codec *codec)
-{
-	struct cs8409_spec *spec = codec->spec;
-
-	/* Cancel i2c clock disable timer, and disable clock if left enabled */
-	cancel_delayed_work_sync(&spec->i2c_clk_work);
-	cs8409_disable_i2c_clock(codec);
-
-	snd_hda_gen_free(codec);
-}
 
 /* Vendor specific HW configuration
  * PLL, ASP, I2C, SPI, GPIOs, DMIC etc...
@@ -712,7 +780,7 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 			cs8409_vendor_coef_set(codec, seq_bullseye->cir, seq_bullseye->coeff);
 
 	/* Reset CS42L42 */
-	cs8409_cs42l42_reset(codec);
+	cs42l42_reset(codec);
 
 	/* Initialise CS42L42 companion codec */
 	cs8409_i2c_bulk_write(codec, CS42L42_I2C_ADDR, cs42l42_init_reg_seq,
@@ -726,49 +794,27 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 	}
 
 	/* Restore Volumes after Resume */
-	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHA,
-			 -(spec->vol[1]) & CS8409_CS42L42_REG_HS_VOL_MASK);
-	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_HS_VOL_CHB,
-			 -(spec->vol[2]) & CS8409_CS42L42_REG_HS_VOL_MASK);
-	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS8409_CS42L42_REG_AMIC_VOL,
-			 spec->vol[0] & CS8409_CS42L42_REG_AMIC_VOL_MASK);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_HS_VOL_CHA,
+			 -(spec->vol[1]) & CS42L42_REG_HS_VOL_MASK);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_HS_VOL_CHB,
+			 -(spec->vol[2]) & CS42L42_REG_HS_VOL_MASK);
+	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, CS42L42_REG_AMIC_VOL,
+			 spec->vol[0] & CS42L42_REG_AMIC_VOL_MASK);
 
-	cs8409_cs42l42_enable_jack_detect(codec);
+	cs42l42_enable_jack_detect(codec);
 
 	/* Enable Unsolicited Response */
 	cs8409_enable_ur(codec, 1);
 }
 
-static int cs8409_cs42l42_init(struct hda_codec *codec)
-{
-	int ret = snd_hda_gen_init(codec);
-
-	if (!ret)
-		snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_INIT);
-
-	return ret;
-}
-
-static int cs8409_build_controls(struct hda_codec *codec)
-{
-	int err;
-
-	err = snd_hda_gen_build_controls(codec);
-	if (err < 0)
-		return err;
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_BUILD);
-
-	return 0;
-}
-
 static const struct hda_codec_ops cs8409_cs42l42_patch_ops = {
 	.build_controls = cs8409_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
-	.init = cs8409_cs42l42_init,
+	.init = cs8409_init,
 	.free = cs8409_free,
 	.unsol_event = cs8409_jack_unsol_event,
 #ifdef CONFIG_PM
-	.suspend = cs8409_suspend,
+	.suspend = cs8409_cs42l42_suspend,
 #endif
 };
 
@@ -811,7 +857,6 @@ static int cs8409_cs42l42_exec_verb(struct hdac_device *dev, unsigned int cmd, u
 void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int action)
 {
 	struct cs8409_spec *spec = codec->spec;
-	int caps;
 
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
@@ -819,8 +864,6 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		/* verb exec op override */
 		spec->exec_verb = codec->core.exec_verb;
 		codec->core.exec_verb = cs8409_cs42l42_exec_verb;
-
-		mutex_init(&spec->i2c_mux);
 
 		codec->patch_ops = cs8409_cs42l42_patch_ops;
 
@@ -841,35 +884,9 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		/* Basic initial sequence for specific hw configuration */
 		snd_hda_sequence_write(codec, cs8409_cs42l42_init_verbs);
 
-		/* CS8409 is simple HDA bridge and intended to be used with a remote
-		 * companion codec. Most of input/output PIN(s) have only basic
-		 * capabilities. NID(s) 0x24 and 0x34 have only OUTC and INC
-		 * capabilities and no presence detect capable (PDC) and call to
-		 * snd_hda_gen_build_controls() will mark them as non detectable
-		 * phantom jacks. However, in this configuration companion codec
-		 * CS42L42 is connected to these pins and it has jack detect
-		 * capabilities. We have to override pin capabilities,
-		 * otherwise they will not be created as input devices.
-		 */
-		caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_HP_PIN_NID,
-				AC_PAR_PIN_CAP);
-		if (caps >= 0)
-			snd_hdac_override_parm(&codec->core,
-				CS8409_CS42L42_HP_PIN_NID, AC_PAR_PIN_CAP,
-				(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
+		cs8409_fix_caps(codec, CS8409_CS42L42_HP_PIN_NID);
+		cs8409_fix_caps(codec, CS8409_CS42L42_AMIC_PIN_NID);
 
-		caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_AMIC_PIN_NID,
-				AC_PAR_PIN_CAP);
-		if (caps >= 0)
-			snd_hdac_override_parm(&codec->core,
-				CS8409_CS42L42_AMIC_PIN_NID, AC_PAR_PIN_CAP,
-				(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
-
-		snd_hda_override_wcaps(codec, CS8409_CS42L42_HP_PIN_NID,
-			(get_wcaps(codec, CS8409_CS42L42_HP_PIN_NID) | AC_WCAP_UNSOL_CAP));
-
-		snd_hda_override_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID,
-			(get_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID) | AC_WCAP_UNSOL_CAP));
 		break;
 	case HDA_FIXUP_ACT_PROBE:
 		/* Set initial DMIC volume to -26 dB */
@@ -893,7 +910,7 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		 * been already plugged in.
 		 * Run immediately after init.
 		 */
-		cs8409_cs42l42_run_jack_detect(codec);
+		cs42l42_run_jack_detect(codec);
 		usleep_range(100000, 150000);
 		break;
 	default:

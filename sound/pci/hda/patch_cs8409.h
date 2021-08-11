@@ -218,15 +218,15 @@ enum cs8409_coefficient_index_registers {
 
 #define CS42L42_VOLUMES				(4U)
 
-#define CS8409_CS42L42_HP_VOL_REAL_MIN		(-63)
-#define CS8409_CS42L42_HP_VOL_REAL_MAX		(0)
-#define CS8409_CS42L42_AMIC_VOL_REAL_MIN	(-97)
-#define CS8409_CS42L42_AMIC_VOL_REAL_MAX	(12)
-#define CS8409_CS42L42_REG_HS_VOL_CHA		(0x2301)
-#define CS8409_CS42L42_REG_HS_VOL_CHB		(0x2303)
-#define CS8409_CS42L42_REG_HS_VOL_MASK		(0x003F)
-#define CS8409_CS42L42_REG_AMIC_VOL		(0x1D03)
-#define CS8409_CS42L42_REG_AMIC_VOL_MASK	(0x00FF)
+#define CS42L42_HP_VOL_REAL_MIN			(-63)
+#define CS42L42_HP_VOL_REAL_MAX			(0)
+#define CS42L42_AMIC_VOL_REAL_MIN		(-97)
+#define CS42L42_AMIC_VOL_REAL_MAX		(12)
+#define CS42L42_REG_HS_VOL_CHA			(0x2301)
+#define CS42L42_REG_HS_VOL_CHB			(0x2303)
+#define CS42L42_REG_HS_VOL_MASK			(0x003F)
+#define CS42L42_REG_AMIC_VOL			(0x1D03)
+#define CS42L42_REG_AMIC_VOL_MASK		(0x00FF)
 #define CS42L42_HSDET_AUTO_DONE			(0x02)
 #define CS42L42_HSTYPE_MASK			(0x03)
 #define CS42L42_JACK_INSERTED			(0x0C)
@@ -296,9 +296,9 @@ struct cs8409_spec {
 extern const struct snd_kcontrol_new cs42l42_dac_volume_mixer;
 extern const struct snd_kcontrol_new cs42l42_adc_volume_mixer;
 
-int cs8409_cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo);
-int cs8409_cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl);
-int cs8409_cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl);
+int cs42l42_volume_info(struct snd_kcontrol *kctrl, struct snd_ctl_elem_info *uinfo);
+int cs42l42_volume_get(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl);
+int cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uctrl);
 
 extern const struct snd_pci_quirk cs8409_fixup_tbl[];
 extern const struct hda_model_fixup cs8409_models[];
