@@ -710,7 +710,7 @@ xfs_fs_drop_inode(
 	 * that.  See the comment for this inode flag.
 	 */
 	if (ip->i_flags & XFS_IRECOVERY) {
-		ASSERT(ip->i_mount->m_log->l_flags & XLOG_RECOVERY_NEEDED);
+		ASSERT(xlog_recovery_needed(ip->i_mount->m_log));
 		return 0;
 	}
 

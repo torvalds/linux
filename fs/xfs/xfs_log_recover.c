@@ -3359,7 +3359,7 @@ xlog_do_recover(
 	xlog_recover_check_summary(log);
 
 	/* Normal transactions can now occur */
-	log->l_flags &= ~XLOG_ACTIVE_RECOVERY;
+	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
 	return 0;
 }
 
@@ -3443,7 +3443,7 @@ xlog_recover(
 						     : "internal");
 
 		error = xlog_do_recover(log, head_blk, tail_blk);
-		log->l_flags |= XLOG_RECOVERY_NEEDED;
+		set_bit(XLOG_RECOVERY_NEEDED, &log->l_opstate);
 	}
 	return error;
 }
@@ -3508,7 +3508,7 @@ void
 xlog_recover_cancel(
 	struct xlog	*log)
 {
-	if (log->l_flags & XLOG_RECOVERY_NEEDED)
+	if (xlog_recovery_needed(log))
 		xlog_recover_cancel_intents(log);
 }
 
