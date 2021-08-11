@@ -511,6 +511,11 @@ xfs_fs_goingdown(
  * consistent. We don't do an unmount here; just shutdown the shop, make sure
  * that absolutely nothing persistent happens to this filesystem after this
  * point.
+ *
+ * The shutdown state change is atomic, resulting in the first and only the
+ * first shutdown call processing the shutdown. This means we only shutdown the
+ * log once as it requires, and we don't spam the logs when multiple concurrent
+ * shutdowns race to set the shutdown flags.
  */
 void
 xfs_do_force_shutdown(
@@ -519,48 +524,40 @@ xfs_do_force_shutdown(
 	char		*fname,
 	int		lnnum)
 {
-	bool		logerror = flags & SHUTDOWN_LOG_IO_ERROR;
+	int		tag;
+	const char	*why;
 
-	/*
-	 * No need to duplicate efforts.
-	 */
-	if (XFS_FORCED_SHUTDOWN(mp) && !logerror)
-		return;
-
-	/*
-	 * This flags XFS_MOUNT_FS_SHUTDOWN, makes sure that we don't
-	 * queue up anybody new on the log reservations, and wakes up
-	 * everybody who's sleeping on log reservations to tell them
-	 * the bad news.
-	 */
-	if (xfs_log_force_umount(mp, logerror))
-		return;
-
-	if (flags & SHUTDOWN_FORCE_UMOUNT) {
-		xfs_alert(mp,
-"User initiated shutdown (0x%x) received. Shutting down filesystem",
-				flags);
+	spin_lock(&mp->m_sb_lock);
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		spin_unlock(&mp->m_sb_lock);
 		return;
 	}
+	mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
+	if (mp->m_sb_bp)
+		mp->m_sb_bp->b_flags |= XBF_DONE;
+	spin_unlock(&mp->m_sb_lock);
 
-	if (flags & SHUTDOWN_CORRUPT_INCORE) {
-		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_CORRUPT,
-"Corruption of in-memory data (0x%x) detected at %pS (%s:%d).  Shutting down filesystem",
-				flags, __return_address, fname, lnnum);
-		if (XFS_ERRLEVEL_HIGH <= xfs_error_level)
-			xfs_stack_trace();
-	} else if (logerror) {
-		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
-"Log I/O error (0x%x) detected at %pS (%s:%d). Shutting down filesystem",
-				flags, __return_address, fname, lnnum);
+	if (flags & SHUTDOWN_FORCE_UMOUNT)
+		xfs_alert(mp, "User initiated shutdown received.");
+
+	if (xlog_force_shutdown(mp->m_log, flags)) {
+		tag = XFS_PTAG_SHUTDOWN_LOGERROR;
+		why = "Log I/O Error";
+	} else if (flags & SHUTDOWN_CORRUPT_INCORE) {
+		tag = XFS_PTAG_SHUTDOWN_CORRUPT;
+		why = "Corruption of in-memory data";
 	} else {
-		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
-"I/O error (0x%x) detected at %pS (%s:%d). Shutting down filesystem",
-				flags, __return_address, fname, lnnum);
+		tag = XFS_PTAG_SHUTDOWN_IOERROR;
+		why = "Metadata I/O Error";
 	}
 
+	xfs_alert_tag(mp, tag,
+"%s (0x%x) detected at %pS (%s:%d).  Shutting down filesystem.",
+			why, flags, __return_address, fname, lnnum);
 	xfs_alert(mp,
 		"Please unmount the filesystem and rectify the problem(s)");
+	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
+		xfs_stack_trace();
 }
 
 /*

@@ -3794,76 +3794,66 @@ xlog_verify_iclog(
 #endif
 
 /*
- * This is called from xfs_force_shutdown, when we're forcibly
- * shutting down the filesystem, typically because of an IO error.
+ * Perform a forced shutdown on the log. This should be called once and once
+ * only by the high level filesystem shutdown code to shut the log subsystem
+ * down cleanly.
+ *
  * Our main objectives here are to make sure that:
- *	a. if !logerror, flush the logs to disk. Anything modified
- *	   after this is ignored.
- *	b. the filesystem gets marked 'SHUTDOWN' for all interested
- *	   parties to find out, 'atomically'.
- *	c. those who're sleeping on log reservations, pinned objects and
- *	    other resources get woken up, and be told the bad news.
- *	d. nothing new gets queued up after (b) and (c) are done.
+ *	a. if the shutdown was not due to a log IO error, flush the logs to
+ *	   disk. Anything modified after this is ignored.
+ *	b. the log gets atomically marked 'XLOG_IO_ERROR' for all interested
+ *	   parties to find out. Nothing new gets queued after this is done.
+ *	c. Tasks sleeping on log reservations, pinned objects and
+ *	   other resources get woken up.
  *
- * Note: for the !logerror case we need to flush the regions held in memory out
- * to disk first. This needs to be done before the log is marked as shutdown,
- * otherwise the iclog writes will fail.
- *
- * Return non-zero if log shutdown transition had already happened.
+ * Return true if the shutdown cause was a log IO error and we actually shut the
+ * log down.
  */
-int
-xfs_log_force_umount(
-	struct xfs_mount	*mp,
-	int			logerror)
+bool
+xlog_force_shutdown(
+	struct xlog	*log,
+	int		shutdown_flags)
 {
-	struct xlog	*log;
-	int		retval = 0;
-
-	log = mp->m_log;
+	bool		log_error = (shutdown_flags & SHUTDOWN_LOG_IO_ERROR);
 
 	/*
-	 * If this happens during log recovery, don't worry about
-	 * locking; the log isn't open for business yet.
+	 * If this happens during log recovery then we aren't using the runtime
+	 * log mechanisms yet so there's nothing to shut down.
 	 */
-	if (!log || xlog_in_recovery(log)) {
-		mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
-		if (mp->m_sb_bp)
-			mp->m_sb_bp->b_flags |= XBF_DONE;
-		return 0;
-	}
+	if (!log || xlog_in_recovery(log))
+		return false;
 
-	/*
-	 * Somebody could've already done the hard work for us.
-	 * No need to get locks for this.
-	 */
-	if (logerror && xlog_is_shutdown(log))
-		return 1;
+	ASSERT(!xlog_is_shutdown(log));
 
 	/*
 	 * Flush all the completed transactions to disk before marking the log
-	 * being shut down. We need to do it in this order to ensure that
-	 * completed operations are safely on disk before we shut down, and that
-	 * we don't have to issue any buffer IO after the shutdown flags are set
-	 * to guarantee this.
+	 * being shut down. We need to do this first as shutting down the log
+	 * before the force will prevent the log force from flushing the iclogs
+	 * to disk.
+	 *
+	 * Re-entry due to a log IO error shutdown during the log force is
+	 * prevented by the atomicity of higher level shutdown code.
 	 */
-	if (!logerror)
-		xfs_log_force(mp, XFS_LOG_SYNC);
+	if (!log_error)
+		xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
 	/*
-	 * mark the filesystem and the as in a shutdown state and wake
-	 * everybody up to tell them the bad news.
+	 * Atomically set the shutdown state. If the shutdown state is already
+	 * set, there someone else is performing the shutdown and so we are done
+	 * here. This should never happen because we should only ever get called
+	 * once by the first shutdown caller.
+	 *
+	 * Much of the log state machine transitions assume that shutdown state
+	 * cannot change once they hold the log->l_icloglock. Hence we need to
+	 * hold that lock here, even though we use the atomic test_and_set_bit()
+	 * operation to set the shutdown state.
 	 */
 	spin_lock(&log->l_icloglock);
-	mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
-	if (mp->m_sb_bp)
-		mp->m_sb_bp->b_flags |= XBF_DONE;
-
-	/*
-	 * Mark the log and the iclogs with IO error flags to prevent any
-	 * further log IO from being issued or completed.
-	 */
-	if (!test_and_set_bit(XLOG_IO_ERROR, &log->l_opstate))
-		retval = 1;
+	if (test_and_set_bit(XLOG_IO_ERROR, &log->l_opstate)) {
+		spin_unlock(&log->l_icloglock);
+		ASSERT(0);
+		return false;
+	}
 	spin_unlock(&log->l_icloglock);
 
 	/*
@@ -3887,7 +3877,7 @@ xfs_log_force_umount(
 	spin_unlock(&log->l_cilp->xc_push_lock);
 	xlog_state_do_callback(log);
 
-	return retval;
+	return log_error;
 }
 
 STATIC int
