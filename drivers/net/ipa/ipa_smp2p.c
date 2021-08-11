@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/panic_notifier.h>
+#include <linux/pm_runtime.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
@@ -84,13 +85,15 @@ struct ipa_smp2p {
  */
 static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
 {
+	struct device *dev;
 	u32 value;
 	u32 mask;
 
 	if (smp2p->notified)
 		return;
 
-	smp2p->clock_on = ipa_clock_get_additional(smp2p->ipa);
+	dev = &smp2p->ipa->pdev->dev;
+	smp2p->clock_on = pm_runtime_get_if_active(dev, true) > 0;
 
 	/* Signal whether the clock is enabled */
 	mask = BIT(smp2p->enabled_bit);
@@ -150,24 +153,26 @@ static void ipa_smp2p_panic_notifier_unregister(struct ipa_smp2p *smp2p)
 static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 {
 	struct ipa_smp2p *smp2p = dev_id;
+	int ret;
 
 	mutex_lock(&smp2p->mutex);
 
-	if (!smp2p->disabled) {
-		int ret;
+	if (smp2p->disabled)
+		goto out_mutex_unlock;
+	smp2p->disabled = true;		/* If any others arrive, ignore them */
 
-		/* The clock needs to be active for setup */
-		ipa_clock_get(smp2p->ipa);
+	/* The clock needs to be active for setup */
+	ret = ipa_clock_get(smp2p->ipa);
+	if (WARN_ON(ret < 0))
+		goto out_clock_put;
 
-		ret = ipa_setup(smp2p->ipa);
-		if (ret)
-			dev_err(&smp2p->ipa->pdev->dev,
-				"error %d from ipa_setup()\n", ret);
-		smp2p->disabled = true;
+	/* An error here won't cause driver shutdown, so warn if one occurs */
+	ret = ipa_setup(smp2p->ipa);
+	WARN(ret != 0, "error %d from ipa_setup()\n", ret);
 
-		ipa_clock_put(smp2p->ipa);
-	}
-
+out_clock_put:
+	(void)ipa_clock_put(smp2p->ipa);
+out_mutex_unlock:
 	mutex_unlock(&smp2p->mutex);
 
 	return IRQ_HANDLED;
@@ -206,7 +211,7 @@ static void ipa_smp2p_clock_release(struct ipa *ipa)
 	if (!ipa->smp2p->clock_on)
 		return;
 
-	ipa_clock_put(ipa);
+	(void)ipa_clock_put(ipa);
 	ipa->smp2p->clock_on = false;
 }
 

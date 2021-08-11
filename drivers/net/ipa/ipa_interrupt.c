@@ -83,8 +83,11 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	u32 pending;
 	u32 offset;
 	u32 mask;
+	int ret;
 
-	ipa_clock_get(ipa);
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0))
+		goto out_clock_put;
 
 	/* The status register indicates which conditions are present,
 	 * including conditions whose interrupt is not enabled.  Handle
@@ -112,8 +115,8 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 		offset = ipa_reg_irq_clr_offset(ipa->version);
 		iowrite32(pending, ipa->reg_virt + offset);
 	}
-
-	ipa_clock_put(ipa);
+out_clock_put:
+	(void)ipa_clock_put(ipa);
 
 	return IRQ_HANDLED;
 }
