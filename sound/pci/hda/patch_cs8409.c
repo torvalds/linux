@@ -61,15 +61,15 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 
 static inline int cs8409_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
 {
-	snd_hda_codec_write(codec, CS8409_VENDOR_NID, 0, AC_VERB_SET_COEF_INDEX, idx);
-	return snd_hda_codec_read(codec, CS8409_VENDOR_NID, 0, AC_VERB_GET_PROC_COEF, 0);
+	snd_hda_codec_write(codec, CS8409_PIN_VENDOR_WIDGET, 0, AC_VERB_SET_COEF_INDEX, idx);
+	return snd_hda_codec_read(codec, CS8409_PIN_VENDOR_WIDGET, 0, AC_VERB_GET_PROC_COEF, 0);
 }
 
 static inline void cs8409_vendor_coef_set(struct hda_codec *codec, unsigned int idx,
 					  unsigned int coef)
 {
-	snd_hda_codec_write(codec, CS8409_VENDOR_NID, 0, AC_VERB_SET_COEF_INDEX, idx);
-	snd_hda_codec_write(codec, CS8409_VENDOR_NID, 0, AC_VERB_SET_PROC_COEF, coef);
+	snd_hda_codec_write(codec, CS8409_PIN_VENDOR_WIDGET, 0, AC_VERB_SET_COEF_INDEX, idx);
+	snd_hda_codec_write(codec, CS8409_PIN_VENDOR_WIDGET, 0, AC_VERB_SET_PROC_COEF, coef);
 }
 
 /**
@@ -102,7 +102,7 @@ static int cs8409_i2c_wait_complete(struct hda_codec *codec)
 	unsigned int retval;
 
 	do {
-		retval = cs8409_vendor_coef_get(codec, CIR_I2C_STATUS);
+		retval = cs8409_vendor_coef_get(codec, CS8409_I2C_STS);
 		if ((retval & 0x18) != 0x18) {
 			usleep_range(2000, 4000);
 			--repeat;
@@ -131,10 +131,10 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 	unsigned int read_data;
 
 	cs8409_enable_i2c_clock(codec, 1);
-	cs8409_vendor_coef_set(codec, CIR_I2C_ADDR, i2c_address);
+	cs8409_vendor_coef_set(codec, CS8409_I2C_ADDR, i2c_address);
 
 	if (paged) {
-		cs8409_vendor_coef_set(codec, CIR_I2C_QWRITE, i2c_reg >> 8);
+		cs8409_vendor_coef_set(codec, CS8409_I2C_QWRITE, i2c_reg >> 8);
 		if (cs8409_i2c_wait_complete(codec) < 0) {
 			codec_err(codec, "%s() Paged Transaction Failed 0x%02x : 0x%04x\n",
 				__func__, i2c_address, i2c_reg);
@@ -143,7 +143,7 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 	}
 
 	i2c_reg_data = (i2c_reg << 8) & 0x0ffff;
-	cs8409_vendor_coef_set(codec, CIR_I2C_QREAD, i2c_reg_data);
+	cs8409_vendor_coef_set(codec, CS8409_I2C_QREAD, i2c_reg_data);
 	if (cs8409_i2c_wait_complete(codec) < 0) {
 		codec_err(codec, "%s() Transaction Failed 0x%02x : 0x%04x\n",
 			  __func__, i2c_address, i2c_reg);
@@ -151,7 +151,7 @@ static int cs8409_i2c_read(struct hda_codec *codec, unsigned int i2c_address, un
 	}
 
 	/* Register in bits 15-8 and the data in 7-0 */
-	read_data = cs8409_vendor_coef_get(codec, CIR_I2C_QREAD);
+	read_data = cs8409_vendor_coef_get(codec, CS8409_I2C_QREAD);
 
 	cs8409_enable_i2c_clock(codec, 0);
 
@@ -175,10 +175,10 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 	unsigned int i2c_reg_data;
 
 	cs8409_enable_i2c_clock(codec, 1);
-	cs8409_vendor_coef_set(codec, CIR_I2C_ADDR, i2c_address);
+	cs8409_vendor_coef_set(codec, CS8409_I2C_ADDR, i2c_address);
 
 	if (paged) {
-		cs8409_vendor_coef_set(codec, CIR_I2C_QWRITE, i2c_reg >> 8);
+		cs8409_vendor_coef_set(codec, CS8409_I2C_QWRITE, i2c_reg >> 8);
 		if (cs8409_i2c_wait_complete(codec) < 0) {
 			codec_err(codec, "%s() Paged Transaction Failed 0x%02x : 0x%04x\n",
 				__func__, i2c_address, i2c_reg);
@@ -187,7 +187,7 @@ static int cs8409_i2c_write(struct hda_codec *codec, unsigned int i2c_address, u
 	}
 
 	i2c_reg_data = ((i2c_reg << 8) & 0x0ff00) | (i2c_data & 0x0ff);
-	cs8409_vendor_coef_set(codec, CIR_I2C_QWRITE, i2c_reg_data);
+	cs8409_vendor_coef_set(codec, CS8409_I2C_QWRITE, i2c_reg_data);
 
 	if (cs8409_i2c_wait_complete(codec) < 0) {
 		codec_err(codec, "%s() Transaction Failed 0x%02x : 0x%04x\n",
@@ -363,11 +363,11 @@ static void cs8409_cs42l42_reset(struct hda_codec *codec)
 	struct cs8409_spec *spec = codec->spec;
 
 	/* Assert RTS# line */
-	snd_hda_codec_write(codec, codec->core.afg, 0, AC_VERB_SET_GPIO_DATA, 0);
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
 	/* wait ~10ms */
 	usleep_range(10000, 15000);
 	/* Release RTS# line */
-	snd_hda_codec_write(codec, codec->core.afg, 0, AC_VERB_SET_GPIO_DATA, GPIO5_INT);
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, CS8409_CS42L42_RESET);
 	/* wait ~10ms */
 	usleep_range(10000, 15000);
 
@@ -471,7 +471,7 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 	 * registers in previous cs8409_jack_unsol_event() call.
 	 * We don't need to handle this event, ignoring...
 	 */
-	if ((res & (1 << 4)))
+	if (res & CS8409_CS42L42_INT)
 		return;
 
 	mutex_lock(&spec->cs8409_i2c_mux);
@@ -568,7 +568,7 @@ static int cs8409_suspend(struct hda_codec *codec)
 	cs8409_i2c_write(codec, CS42L42_I2C_ADDR, 0x1101, 0xfe, 1);
 	mutex_unlock(&spec->cs8409_i2c_mux);
 	/* Assert CS42L42 RTS# line */
-	snd_hda_codec_write(codec, codec->core.afg, 0, AC_VERB_SET_GPIO_DATA, 0);
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, 0);
 
 	snd_hda_shutup_pins(codec);
 
@@ -580,10 +580,10 @@ static int cs8409_suspend(struct hda_codec *codec)
 static void cs8409_enable_ur(struct hda_codec *codec, int flag)
 {
 	/* GPIO4 INT# and GPIO3 WAKE# */
-	snd_hda_codec_write(codec, codec->core.afg, 0, AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK,
-			    flag ? (GPIO3_INT | GPIO4_INT) : 0);
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK,
+			    flag ? CS8409_CS42L42_INT : 0);
 
-	snd_hda_codec_write(codec, codec->core.afg, 0, AC_VERB_SET_UNSOLICITED_ENABLE,
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_UNSOLICITED_ENABLE,
 			    flag ? AC_UNSOL_ENABLED : 0);
 
 }
@@ -598,9 +598,12 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 	struct cs8409_spec *spec = codec->spec;
 
 	if (spec->gpio_mask) {
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DIRECTION, spec->gpio_dir);
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, spec->gpio_data);
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_MASK,
+			spec->gpio_mask);
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DIRECTION,
+			spec->gpio_dir);
+		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA,
+			spec->gpio_data);
 	}
 
 	for (; seq->nid; seq++)
@@ -738,7 +741,7 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		spec->gen.suppress_vmaster = 1;
 
 		/* GPIO 5 out, 3,4 in */
-		spec->gpio_dir = GPIO5_INT;
+		spec->gpio_dir = CS8409_CS42L42_RESET;
 		spec->gpio_data = 0;
 		spec->gpio_mask = 0x03f;
 
