@@ -99,7 +99,7 @@ static inline sector_t iomap_sector(const struct iomap *iomap, loff_t pos)
 /*
  * Returns the inline data pointer for logical offset @pos.
  */
-static inline void *iomap_inline_data(struct iomap *iomap, loff_t pos)
+static inline void *iomap_inline_data(const struct iomap *iomap, loff_t pos)
 {
 	return iomap->inline_data + pos - iomap->offset;
 }
