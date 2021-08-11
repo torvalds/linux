@@ -404,7 +404,7 @@ int __pkvm_host_share_hyp(u64 pfn)
 	cur = kvm_pgtable_hyp_pte_prot(pte);
 	prot = pkvm_mkstate(PAGE_HYP, PKVM_PAGE_SHARED_BORROWED);
 	if (!check_prot(cur, prot, ~prot))
-		ret = EPERM;
+		ret = -EPERM;
 	goto unlock;
 
 map_shared:
