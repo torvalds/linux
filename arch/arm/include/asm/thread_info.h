@@ -62,7 +62,7 @@ struct thread_info {
 	unsigned long		stack_canary;
 #endif
 	struct cpu_context_save	cpu_context;	/* cpu context */
-	__u32			syscall;	/* syscall number */
+	__u32			abi_syscall;	/* ABI type and syscall nr */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value[2];	/* TLS registers */
 #ifdef CONFIG_CRUNCH
