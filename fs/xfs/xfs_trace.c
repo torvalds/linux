@@ -33,6 +33,7 @@
 #include "xfs_icache.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_error.h"
 
 /*
  * We include this last to have the helpers above available for the trace

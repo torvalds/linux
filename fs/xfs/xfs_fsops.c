@@ -19,6 +19,7 @@
 #include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_trace.h"
 
 /*
  * Write new AG headers to disk. Non-transactional, but need to be
@@ -550,6 +551,8 @@ xfs_do_force_shutdown(
 		tag = XFS_PTAG_SHUTDOWN_IOERROR;
 		why = "Metadata I/O Error";
 	}
+
+	trace_xfs_force_shutdown(mp, tag, flags, fname, lnnum);
 
 	xfs_alert_tag(mp, tag,
 "%s (0x%x) detected at %pS (%s:%d).  Shutting down filesystem.",

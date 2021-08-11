@@ -331,6 +331,12 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 #define SHUTDOWN_FORCE_UMOUNT	0x0004	/* shutdown from a forced unmount */
 #define SHUTDOWN_CORRUPT_INCORE	0x0008	/* corrupt in-memory data structures */
 
+#define XFS_SHUTDOWN_STRINGS \
+	{ SHUTDOWN_META_IO_ERROR,	"metadata_io" }, \
+	{ SHUTDOWN_LOG_IO_ERROR,	"log_io" }, \
+	{ SHUTDOWN_FORCE_UMOUNT,	"force_umount" }, \
+	{ SHUTDOWN_CORRUPT_INCORE,	"corruption" }
+
 /*
  * Flags for xfs_mountfs
  */

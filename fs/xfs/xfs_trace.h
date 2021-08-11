@@ -4096,6 +4096,33 @@ DEFINE_DAS_STATE_EVENT(xfs_attr_set_iter_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_node_addname_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_remove_iter_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_rmtval_remove_return);
+
+TRACE_EVENT(xfs_force_shutdown,
+	TP_PROTO(struct xfs_mount *mp, int ptag, int flags, const char *fname,
+		 int line_num),
+	TP_ARGS(mp, ptag, flags, fname, line_num),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, ptag)
+		__field(int, flags)
+		__string(fname, fname)
+		__field(int, line_num)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->ptag = ptag;
+		__entry->flags = flags;
+		__assign_str(fname, fname);
+		__entry->line_num = line_num;
+	),
+	TP_printk("dev %d:%d tag %s flags %s file %s line_num %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		__print_flags(__entry->ptag, "|", XFS_PTAG_STRINGS),
+		__print_flags(__entry->flags, "|", XFS_SHUTDOWN_STRINGS),
+		__get_str(fname),
+		__entry->line_num)
+);
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH
