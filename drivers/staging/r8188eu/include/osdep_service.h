@@ -39,6 +39,7 @@
 #include <linux/interrupt.h>	/*  for struct tasklet_struct */
 #include <linux/ip.h>
 #include <linux/kthread.h>
+#include <linux/vmalloc.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
