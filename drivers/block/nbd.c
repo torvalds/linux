@@ -259,48 +259,37 @@ static void nbd_notify_destroy_completion(struct nbd_device *nbd)
 		complete(nbd->destroy_complete);
 }
 
-static void nbd_dev_remove_work(struct work_struct *work)
+static void nbd_dev_remove(struct nbd_device *nbd)
 {
-	struct nbd_device *nbd =
-		container_of(work, struct nbd_device, remove_work);
-
 	nbd_del_disk(nbd);
 
-	mutex_lock(&nbd_index_mutex);
 	/*
-	 * Remove from idr after del_gendisk() completes,
-	 * so if the same id is reused, the following
-	 * add_disk() will succeed.
+	 * Remove from idr after del_gendisk() completes, so if the same ID is
+	 * reused, the following add_disk() will succeed.
 	 */
+	mutex_lock(&nbd_index_mutex);
 	idr_remove(&nbd_index_idr, nbd->index);
-
 	nbd_notify_destroy_completion(nbd);
 	mutex_unlock(&nbd_index_mutex);
 
 	kfree(nbd);
 }
 
-static void nbd_dev_remove(struct nbd_device *nbd)
+static void nbd_dev_remove_work(struct work_struct *work)
 {
-	/* Call del_gendisk() asynchrounously to prevent deadlock */
-	if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags)) {
-		queue_work(nbd_del_wq, &nbd->remove_work);
-		return;
-	}
-
-	nbd_del_disk(nbd);
-	idr_remove(&nbd_index_idr, nbd->index);
-	nbd_notify_destroy_completion(nbd);
-	kfree(nbd);
+	nbd_dev_remove(container_of(work, struct nbd_device, remove_work));
 }
 
 static void nbd_put(struct nbd_device *nbd)
 {
-	if (refcount_dec_and_mutex_lock(&nbd->refs,
-					&nbd_index_mutex)) {
+	if (!refcount_dec_and_test(&nbd->refs))
+		return;
+
+	/* Call del_gendisk() asynchrounously to prevent deadlock */
+	if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags))
+		queue_work(nbd_del_wq, &nbd->remove_work);
+	else
 		nbd_dev_remove(nbd);
-		mutex_unlock(&nbd_index_mutex);
-	}
 }
 
 static int nbd_disconnected(struct nbd_config *config)
