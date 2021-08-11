@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2009-2019 Christoph Hellwig
  *
- * NOTE: none of these tracepoints shall be consider a stable kernel ABI
+ * NOTE: none of these tracepoints shall be considered a stable kernel ABI
  * as they can change at any time.
  */
 #undef TRACE_SYSTEM
