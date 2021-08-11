@@ -1041,7 +1041,7 @@ static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 static bool io_cqring_fill_event(struct io_ring_ctx *ctx, u64 user_data,
 				 long res, unsigned int cflags);
 static void io_put_req(struct io_kiocb *req);
-static void io_put_req_deferred(struct io_kiocb *req, int nr);
+static void io_put_req_deferred(struct io_kiocb *req);
 static void io_dismantle_req(struct io_kiocb *req);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
@@ -1088,12 +1088,6 @@ EXPORT_SYMBOL(io_uring_get_socket);
 static inline bool req_ref_inc_not_zero(struct io_kiocb *req)
 {
 	return atomic_inc_not_zero(&req->refs);
-}
-
-static inline bool req_ref_sub_and_test(struct io_kiocb *req, int refs)
-{
-	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
-	return atomic_sub_and_test(refs, &req->refs);
 }
 
 static inline bool req_ref_put_and_test(struct io_kiocb *req)
@@ -1377,7 +1371,7 @@ static void io_kill_timeout(struct io_kiocb *req, int status)
 			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
 		io_cqring_fill_event(req->ctx, req->user_data, status, 0);
-		io_put_req_deferred(req, 1);
+		io_put_req_deferred(req);
 	}
 }
 
@@ -1862,7 +1856,7 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 		if (hrtimer_try_to_cancel(&io->timer) != -1) {
 			io_cqring_fill_event(link->ctx, link->user_data,
 					     -ECANCELED, 0);
-			io_put_req_deferred(link, 1);
+			io_put_req_deferred(link);
 			return true;
 		}
 	}
@@ -1881,7 +1875,9 @@ static void io_fail_links(struct io_kiocb *req)
 
 		trace_io_uring_fail_link(req, link);
 		io_cqring_fill_event(link->ctx, link->user_data, -ECANCELED, 0);
-		io_put_req_deferred(link, 2);
+
+		io_put_req(link);
+		io_put_req_deferred(link);
 		link = nxt;
 	}
 }
@@ -2163,7 +2159,8 @@ static void io_submit_flush_completions(struct io_ring_ctx *ctx)
 		struct io_kiocb *req = state->compl_reqs[i];
 
 		/* submission and completion refs */
-		if (req_ref_sub_and_test(req, 2))
+		io_put_req(req);
+		if (req_ref_put_and_test(req))
 			io_req_free_batch(&rb, req, &ctx->submit_state);
 	}
 
@@ -2192,9 +2189,9 @@ static inline void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static inline void io_put_req_deferred(struct io_kiocb *req, int refs)
+static inline void io_put_req_deferred(struct io_kiocb *req)
 {
-	if (req_ref_sub_and_test(req, refs)) {
+	if (req_ref_put_and_test(req)) {
 		req->io_task_work.func = io_free_req;
 		io_req_task_work_add(req);
 	}
@@ -5236,7 +5233,6 @@ static bool __io_poll_remove_one(struct io_kiocb *req,
 static bool io_poll_remove_one(struct io_kiocb *req)
 	__must_hold(&req->ctx->completion_lock)
 {
-	int refs;
 	bool do_complete;
 
 	io_poll_remove_double(req);
@@ -5248,8 +5244,9 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 		req_set_fail(req);
 
 		/* non-poll requests have submit ref still */
-		refs = 1 + (req->opcode != IORING_OP_POLL_ADD);
-		io_put_req_deferred(req, refs);
+		if (req->opcode != IORING_OP_POLL_ADD)
+			io_put_req(req);
+		io_put_req_deferred(req);
 	}
 	return do_complete;
 }
@@ -5550,7 +5547,7 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 
 	req_set_fail(req);
 	io_cqring_fill_event(ctx, req->user_data, -ECANCELED, 0);
-	io_put_req_deferred(req, 1);
+	io_put_req_deferred(req);
 	return 0;
 }
 
