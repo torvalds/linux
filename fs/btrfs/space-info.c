@@ -733,7 +733,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 {
 	u64 global_rsv_size = fs_info->global_block_rsv.reserved;
 	u64 ordered, delalloc;
-	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
+	u64 thresh = div_factor_fine(space_info->total_bytes, 90);
 	u64 used;
 
 	/* If we're just plain full then async reclaim just slows us down. */
