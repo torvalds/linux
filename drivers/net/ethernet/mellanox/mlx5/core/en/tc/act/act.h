@@ -36,6 +36,10 @@ struct mlx5e_tc_act {
 			    const struct flow_action_entry *act,
 			    struct mlx5e_priv *priv,
 			    struct mlx5_flow_attr *attr);
+
+	int (*post_parse)(struct mlx5e_tc_act_parse_state *parse_state,
+			  struct mlx5e_priv *priv,
+			  struct mlx5_flow_attr *attr);
 };
 
 extern struct mlx5e_tc_act mlx5e_tc_act_drop;
