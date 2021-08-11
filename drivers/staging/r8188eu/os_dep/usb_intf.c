@@ -250,8 +250,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void chip_by_usb_id(struct adapter *padapter,
-			   const struct usb_device_id *pdid)
+static void chip_by_usb_id(struct adapter *padapter)
 {
 	padapter->chip_type = NULL_CHIP_TYPE;
 	hal_set_hw_type(padapter);
@@ -569,7 +568,7 @@ exit:
  */
 
 static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
-	struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
+	struct usb_interface *pusb_intf)
 {
 	struct adapter *padapter = NULL;
 	struct net_device *pnetdev = NULL;
@@ -587,7 +586,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	/* step 1-1., decide the chip_type via vid/pid */
 	padapter->interface_type = RTW_USB;
-	chip_by_usb_id(padapter, pdid);
+	chip_by_usb_id(padapter);
 
 	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
 		goto free_adapter;
@@ -722,7 +721,7 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	if (!dvobj)
 		goto exit;
 
-	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
+	if1 = rtw_usb_if1_init(dvobj, pusb_intf);
 	if (!if1) {
 		DBG_88E("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
