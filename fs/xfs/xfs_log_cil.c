@@ -632,32 +632,56 @@ xlog_cil_process_committed(
 }
 
 /*
+* Record the LSN of the iclog we were just granted space to start writing into.
+* If the context doesn't have a start_lsn recorded, then this iclog will
+* contain the start record for the checkpoint. Otherwise this write contains
+* the commit record for the checkpoint.
+*/
+void
+xlog_cil_set_ctx_write_state(
+	struct xfs_cil_ctx	*ctx,
+	struct xlog_in_core	*iclog)
+{
+	struct xfs_cil		*cil = ctx->cil;
+	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+
+	ASSERT(!ctx->commit_lsn);
+	spin_lock(&cil->xc_push_lock);
+	if (!ctx->start_lsn)
+		ctx->start_lsn = lsn;
+	else
+		ctx->commit_lsn = lsn;
+	spin_unlock(&cil->xc_push_lock);
+}
+
+
+/*
  * Write out the commit record of a checkpoint transaction associated with the
  * given ticket to close off a running log write. Return the lsn of the commit
  * record.
  */
 static int
 xlog_cil_write_commit_record(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*lsn)
+	struct xfs_cil_ctx	*ctx,
+	struct xlog_in_core	**iclog)
 {
-	struct xfs_log_iovec reg = {
+	struct xlog		*log = ctx->cil->xc_log;
+	struct xfs_log_iovec	reg = {
 		.i_addr = NULL,
 		.i_len = 0,
 		.i_type = XLOG_REG_TYPE_COMMIT,
 	};
-	struct xfs_log_vec vec = {
+	struct xfs_log_vec	vec = {
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
-	int	error;
+	int			error;
 
 	if (xlog_is_shutdown(log))
 		return -EIO;
 
-	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS);
+	error = xlog_write(log, ctx, &vec, ctx->ticket, iclog,
+			XLOG_COMMIT_TRANS);
 	if (error)
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	return error;
@@ -695,7 +719,6 @@ xlog_cil_push_work(
 	struct xfs_log_iovec	lhdr;
 	struct xfs_log_vec	lvhdr = { NULL };
 	xfs_lsn_t		preflush_tail_lsn;
-	xfs_lsn_t		commit_lsn;
 	xfs_csn_t		push_seq;
 	struct bio		bio;
 	DECLARE_COMPLETION_ONSTACK(bdev_flush);
@@ -877,8 +900,7 @@ xlog_cil_push_work(
 	 */
 	wait_for_completion(&bdev_flush);
 
-	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL,
-				XLOG_START_TRANS);
+	error = xlog_write(log, ctx, &lvhdr, tic, NULL, XLOG_START_TRANS);
 	if (error)
 		goto out_abort_free_ticket;
 
@@ -916,8 +938,7 @@ restart:
 	}
 	spin_unlock(&cil->xc_push_lock);
 
-	error = xlog_cil_write_commit_record(log, tic, &commit_iclog,
-			&commit_lsn);
+	error = xlog_cil_write_commit_record(ctx, &commit_iclog);
 	if (error)
 		goto out_abort_free_ticket;
 
@@ -944,7 +965,6 @@ restart:
 	 * and wake up anyone who is waiting for the commit to complete.
 	 */
 	spin_lock(&cil->xc_push_lock);
-	ctx->commit_lsn = commit_lsn;
 	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_push_lock);
 
@@ -960,11 +980,11 @@ restart:
 	 * iclog header lsn and compare it to the commit lsn to determine if we
 	 * need to wait on iclogs or not.
 	 */
-	if (ctx->start_lsn != commit_lsn) {
+	if (ctx->start_lsn != ctx->commit_lsn) {
 		xfs_lsn_t	plsn;
 
 		plsn = be64_to_cpu(commit_iclog->ic_prev->ic_header.h_lsn);
-		if (plsn && XFS_LSN_CMP(plsn, commit_lsn) < 0) {
+		if (plsn && XFS_LSN_CMP(plsn, ctx->commit_lsn) < 0) {
 			/*
 			 * Waiting on ic_force_wait orders the completion of
 			 * iclogs older than ic_prev. Hence we only need to wait
