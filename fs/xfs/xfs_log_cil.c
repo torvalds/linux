@@ -891,11 +891,10 @@ restart:
 	xfs_log_ticket_ungrant(log, tic);
 
 	/*
-	 * Once we attach the ctx to the iclog, a shutdown can process the
-	 * iclog, run the callbacks and free the ctx. The only thing preventing
-	 * this potential UAF situation here is that we are holding the
-	 * icloglock. Hence we cannot access the ctx once we have attached the
-	 * callbacks and dropped the icloglock.
+	 * Once we attach the ctx to the iclog, it is effectively owned by the
+	 * iclog and we can only use it while we still have an active reference
+	 * to the iclog. i.e. once we call xlog_state_release_iclog() we can no
+	 * longer safely reference the ctx.
 	 */
 	spin_lock(&log->l_icloglock);
 	if (xlog_is_shutdown(log)) {
@@ -927,9 +926,6 @@ restart:
 	 * wakeup until this commit_iclog is written to disk.  Hence we use the
 	 * iclog header lsn and compare it to the commit lsn to determine if we
 	 * need to wait on iclogs or not.
-	 *
-	 * NOTE: It is not safe to reference the ctx after this check as we drop
-	 * the icloglock if we have to wait for completion of other iclogs.
 	 */
 	if (ctx->start_lsn != commit_lsn) {
 		xfs_lsn_t	plsn;
@@ -959,6 +955,9 @@ restart:
 	 */
 	commit_iclog->ic_flags |= XLOG_ICL_NEED_FUA;
 	xlog_state_release_iclog(log, commit_iclog, preflush_tail_lsn);
+
+	/* Not safe to reference ctx now! */
+
 	spin_unlock(&log->l_icloglock);
 	return;
 

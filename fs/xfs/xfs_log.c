@@ -41,6 +41,8 @@ xlog_dealloc_log(
 /* local state machine functions */
 STATIC void xlog_state_done_syncing(
 	struct xlog_in_core	*iclog);
+STATIC void xlog_state_do_callback(
+	struct xlog		*log);
 STATIC int
 xlog_state_get_iclog_space(
 	struct xlog		*log,
@@ -491,6 +493,11 @@ out_error:
  * space waiters so they can process the newly set shutdown state. We really
  * don't care what order we process callbacks here because the log is shut down
  * and so state cannot change on disk anymore.
+ *
+ * We avoid processing actively referenced iclogs so that we don't run callbacks
+ * while the iclog owner might still be preparing the iclog for IO submssion.
+ * These will be caught by xlog_state_iclog_release() and call this function
+ * again to process any callbacks that may have been added to that iclog.
  */
 static void
 xlog_state_shutdown_callbacks(
@@ -502,7 +509,12 @@ xlog_state_shutdown_callbacks(
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
 	do {
+		if (atomic_read(&iclog->ic_refcnt)) {
+			/* Reference holder will re-run iclog callbacks. */
+			continue;
+		}
 		list_splice_init(&iclog->ic_callbacks, &cb_list);
+		wake_up_all(&iclog->ic_write_wait);
 		wake_up_all(&iclog->ic_force_wait);
 	} while ((iclog = iclog->ic_next) != log->l_iclog);
 
@@ -546,12 +558,11 @@ xlog_state_release_iclog(
 	xfs_lsn_t		old_tail_lsn)
 {
 	xfs_lsn_t		tail_lsn;
+	bool			last_ref;
+
 	lockdep_assert_held(&log->l_icloglock);
 
 	trace_xlog_iclog_release(iclog, _RET_IP_);
-	if (xlog_is_shutdown(log))
-		return -EIO;
-
 	/*
 	 * Grabbing the current log tail needs to be atomic w.r.t. the writing
 	 * of the tail LSN into the iclog so we guarantee that the log tail does
@@ -569,7 +580,23 @@ xlog_state_release_iclog(
 			iclog->ic_header.h_tail_lsn = cpu_to_be64(tail_lsn);
 	}
 
-	if (!atomic_dec_and_test(&iclog->ic_refcnt))
+	last_ref = atomic_dec_and_test(&iclog->ic_refcnt);
+
+	if (xlog_is_shutdown(log)) {
+		/*
+		 * If there are no more references to this iclog, process the
+		 * pending iclog callbacks that were waiting on the release of
+		 * this iclog.
+		 */
+		if (last_ref) {
+			spin_unlock(&log->l_icloglock);
+			xlog_state_shutdown_callbacks(log);
+			spin_lock(&log->l_icloglock);
+		}
+		return -EIO;
+	}
+
+	if (!last_ref)
 		return 0;
 
 	if (iclog->ic_state != XLOG_STATE_WANT_SYNC) {
