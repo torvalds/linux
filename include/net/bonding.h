@@ -150,11 +150,6 @@ struct bond_params {
 	u8 ad_actor_system[ETH_ALEN + 2];
 };
 
-struct bond_parm_tbl {
-	char *modename;
-	int mode;
-};
-
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct bonding *bond; /* our master */
@@ -755,13 +750,6 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 
 /* exported from bond_main.c */
 extern unsigned int bond_net_id;
-extern const struct bond_parm_tbl bond_lacp_tbl[];
-extern const struct bond_parm_tbl xmit_hashtype_tbl[];
-extern const struct bond_parm_tbl arp_validate_tbl[];
-extern const struct bond_parm_tbl arp_all_targets_tbl[];
-extern const struct bond_parm_tbl fail_over_mac_tbl[];
-extern const struct bond_parm_tbl pri_reselect_tbl[];
-extern struct bond_parm_tbl ad_select_tbl[];
 
 /* exported from bond_netlink.c */
 extern struct rtnl_link_ops bond_link_ops;
