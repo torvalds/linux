@@ -99,7 +99,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	skb_push(skb, BRCM_TAG_LEN);
 
 	if (offset)
-		memmove(skb->data, skb->data + BRCM_TAG_LEN, offset);
+		dsa_alloc_etype_header(skb, BRCM_TAG_LEN);
 
 	brcm_tag = skb->data + offset;
 
@@ -190,10 +190,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (!nskb)
 		return nskb;
 
-	/* Move the Ethernet DA and SA */
-	memmove(nskb->data - ETH_HLEN,
-		nskb->data - ETH_HLEN - BRCM_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_TAG_LEN);
 
 	return nskb;
 }
@@ -231,7 +228,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 
 	skb_push(skb, BRCM_LEG_TAG_LEN);
 
-	memmove(skb->data, skb->data + BRCM_LEG_TAG_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	brcm_tag = skb->data + 2 * ETH_ALEN;
 
@@ -257,7 +254,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, BRCM_LEG_PORT_ID)))
 		return NULL;
 
-	brcm_tag = skb->data - 2;
+	brcm_tag = dsa_etype_header_pos_rx(skb);
 
 	source_port = brcm_tag[5] & BRCM_LEG_PORT_ID;
 
@@ -270,10 +267,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 
 	dsa_default_offload_fwd_mark(skb);
 
-	/* Move the Ethernet DA and SA */
-	memmove(skb->data - ETH_HLEN,
-		skb->data - ETH_HLEN - BRCM_LEG_TAG_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, BRCM_LEG_TAG_LEN);
 
 	return skb;
 }

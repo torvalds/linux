@@ -188,7 +188,6 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	struct ethhdr *eth_hdr;
 	__be32 *tx_trailer;
 	__be16 *tx_header;
 	int trailer_pos;
@@ -206,28 +205,24 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 
 	skb_push(skb, SJA1110_HEADER_LEN);
 
-	/* Move Ethernet header to the left, making space for DSA tag */
-	memmove(skb->data, skb->data + SJA1110_HEADER_LEN, 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, SJA1110_HEADER_LEN);
 
 	trailer_pos = skb->len;
 
-	/* On TX, skb->data points to skb_mac_header(skb) */
-	eth_hdr = (struct ethhdr *)skb->data;
-	tx_header = (__be16 *)(eth_hdr + 1);
+	tx_header = dsa_etype_header_pos_tx(skb);
 	tx_trailer = skb_put(skb, SJA1110_TX_TRAILER_LEN);
 
-	eth_hdr->h_proto = htons(ETH_P_SJA1110);
-
-	*tx_header = htons(SJA1110_HEADER_HOST_TO_SWITCH |
-			   SJA1110_TX_HEADER_HAS_TRAILER |
-			   SJA1110_TX_HEADER_TRAILER_POS(trailer_pos));
+	tx_header[0] = htons(ETH_P_SJA1110);
+	tx_header[1] = htons(SJA1110_HEADER_HOST_TO_SWITCH |
+			     SJA1110_TX_HEADER_HAS_TRAILER |
+			     SJA1110_TX_HEADER_TRAILER_POS(trailer_pos));
 	*tx_trailer = cpu_to_be32(SJA1110_TX_TRAILER_PRIO(pcp) |
 				  SJA1110_TX_TRAILER_SWITCHID(dp->ds->index) |
 				  SJA1110_TX_TRAILER_DESTPORTS(BIT(dp->index)));
 	if (clone) {
 		u8 ts_id = SJA1105_SKB_CB(clone)->ts_id;
 
-		*tx_header |= htons(SJA1110_TX_HEADER_TAKE_TS);
+		tx_header[1] |= htons(SJA1110_TX_HEADER_TAKE_TS);
 		*tx_trailer |= cpu_to_be32(SJA1110_TX_TRAILER_TSTAMP_ID(ts_id));
 	}
 
@@ -443,11 +438,11 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 {
+	u8 *buf = dsa_etype_header_pos_rx(skb) + SJA1110_HEADER_LEN;
 	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
 	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
 	struct net_device *master = skb->dev;
 	struct dsa_port *cpu_dp;
-	u8 *buf = skb->data + 2;
 	struct dsa_switch *ds;
 	int i;
 
@@ -532,9 +527,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 	/* Advance skb->data past the DSA header */
 	skb_pull_rcsum(skb, SJA1110_HEADER_LEN);
 
-	/* Remove the DSA header */
-	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - SJA1110_HEADER_LEN,
-		2 * ETH_ALEN);
+	dsa_strip_etype_header(skb, SJA1110_HEADER_LEN);
 
 	/* With skb->data in its final place, update the MAC header
 	 * so that eth_hdr() continues to works properly.
