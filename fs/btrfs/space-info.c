@@ -741,6 +741,20 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	     global_rsv_size) >= thresh)
 		return false;
 
+	used = space_info->bytes_may_use + space_info->bytes_pinned;
+
+	/* The total flushable belongs to the global rsv, don't flush. */
+	if (global_rsv_size >= used)
+		return false;
+
+	/*
+	 * 128MiB is 1/4 of the maximum global rsv size.  If we have less than
+	 * that devoted to other reservations then there's no sense in flushing,
+	 * we don't have a lot of things that need flushing.
+	 */
+	if (used - global_rsv_size <= SZ_128M)
+		return false;
+
 	/*
 	 * We have tickets queued, bail so we don't compete with the async
 	 * flushers.
