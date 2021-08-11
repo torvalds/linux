@@ -83,6 +83,8 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+#include <asm/syscall.h>
+
 struct oldabi_stat64 {
 	unsigned long long st_dev;
 	unsigned int	__pad1;
@@ -264,87 +266,34 @@ asmlinkage long sys_oabi_epoll_ctl(int epfd, int op, int fd,
 
 	return do_epoll_ctl(epfd, op, fd, &kernel, false);
 }
-
-static long do_oabi_epoll_wait(int epfd, struct oabi_epoll_event __user *events,
-			       int maxevents, int timeout)
-{
-	struct epoll_event *kbuf;
-	struct oabi_epoll_event e;
-	mm_segment_t fs;
-	long ret, err, i;
-
-	if (maxevents <= 0 ||
-			maxevents > (INT_MAX/sizeof(*kbuf)) ||
-			maxevents > (INT_MAX/sizeof(*events)))
-		return -EINVAL;
-	if (!access_ok(events, sizeof(*events) * maxevents))
-		return -EFAULT;
-	kbuf = kmalloc_array(maxevents, sizeof(*kbuf), GFP_KERNEL);
-	if (!kbuf)
-		return -ENOMEM;
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_epoll_wait(epfd, kbuf, maxevents, timeout);
-	set_fs(fs);
-	err = 0;
-	for (i = 0; i < ret; i++) {
-		e.events = kbuf[i].events;
-		e.data = kbuf[i].data;
-		err = __copy_to_user(events, &e, sizeof(e));
-		if (err)
-			break;
-		events++;
-	}
-	kfree(kbuf);
-	return err ? -EFAULT : ret;
-}
 #else
 asmlinkage long sys_oabi_epoll_ctl(int epfd, int op, int fd,
 				   struct oabi_epoll_event __user *event)
 {
 	return -EINVAL;
 }
-
-asmlinkage long sys_oabi_epoll_wait(int epfd,
-				    struct oabi_epoll_event __user *events,
-				    int maxevents, int timeout)
-{
-	return -EINVAL;
-}
 #endif
 
-SYSCALL_DEFINE4(oabi_epoll_wait, int, epfd,
-		struct oabi_epoll_event __user *, events,
-		int, maxevents, int, timeout)
+struct epoll_event __user *
+epoll_put_uevent(__poll_t revents, __u64 data,
+		 struct epoll_event __user *uevent)
 {
-	return do_oabi_epoll_wait(epfd, events, maxevents, timeout);
+	if (in_oabi_syscall()) {
+		struct oabi_epoll_event __user *oevent = (void __user *)uevent;
+
+		if (__put_user(revents, &oevent->events) ||
+		    __put_user(data, &oevent->data))
+			return NULL;
+
+		return (void __user *)(oevent+1);
+	}
+
+	if (__put_user(revents, &uevent->events) ||
+	    __put_user(data, &uevent->data))
+		return NULL;
+
+	return uevent+1;
 }
-
-/*
- * Implement the event wait interface for the eventpoll file. It is the kernel
- * part of the user space epoll_pwait(2).
- */
-SYSCALL_DEFINE6(oabi_epoll_pwait, int, epfd,
-		struct oabi_epoll_event __user *, events, int, maxevents,
-		int, timeout, const sigset_t __user *, sigmask,
-		size_t, sigsetsize)
-{
-	int error;
-
-	/*
-	 * If the caller wants a certain signal mask to be set during the wait,
-	 * we apply it here.
-	 */
-	error = set_user_sigmask(sigmask, sigsetsize);
-	if (error)
-		return error;
-
-	error = do_oabi_epoll_wait(epfd, events, maxevents, timeout);
-	restore_saved_sigmask_unless(error == -EINTR);
-
-	return error;
-}
-#endif
 
 struct oabi_sembuf {
 	unsigned short	sem_num;
