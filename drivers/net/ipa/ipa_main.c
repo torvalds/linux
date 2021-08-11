@@ -253,12 +253,11 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 /* Compute the value to use in the COUNTER_CFG register AGGR_GRANULARITY
  * field to represent the given number of microseconds.  The value is one
  * less than the number of timer ticks in the requested period.  0 is not
- * a valid granularity value.
+ * a valid granularity value (so for example @usec must be at least 16 for
+ * a TIMER_FREQUENCY of 32000).
  */
-static u32 ipa_aggr_granularity_val(u32 usec)
+static __always_inline u32 ipa_aggr_granularity_val(u32 usec)
 {
-	WARN_ON(!usec);
-
 	return DIV_ROUND_CLOSEST(usec * TIMER_FREQUENCY, USEC_PER_SEC) - 1;
 }
 
