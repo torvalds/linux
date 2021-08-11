@@ -370,7 +370,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 
 	init_iova_domain(iovad, 1UL << order, base_pfn);
 
-	if (!cookie->fq_domain && (!dev || !dev_is_untrusted(dev)) &&
+	if (!cookie->fq_domain && !dev_is_untrusted(dev) &&
 	    domain->ops->flush_iotlb_all && !iommu_get_dma_strict(domain)) {
 		if (init_iova_flush_queue(iovad, iommu_dma_flush_iotlb_all,
 					  iommu_dma_entry_dtor))
@@ -378,9 +378,6 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		else
 			cookie->fq_domain = domain;
 	}
-
-	if (!dev)
-		return 0;
 
 	return iova_reserve_iommu_regions(dev, domain);
 }
