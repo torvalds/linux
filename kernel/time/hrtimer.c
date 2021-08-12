@@ -944,10 +944,11 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
  */
 void clock_was_set(unsigned int bases)
 {
+	struct hrtimer_cpu_base *cpu_base = raw_cpu_ptr(&hrtimer_bases);
 	cpumask_var_t mask;
 	int cpu;
 
-	if (!hrtimer_hres_active() && !tick_nohz_active)
+	if (!__hrtimer_hres_active(cpu_base) && !tick_nohz_active)
 		goto out_timerfd;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
@@ -958,9 +959,9 @@ void clock_was_set(unsigned int bases)
 	/* Avoid interrupting CPUs if possible */
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
-		struct hrtimer_cpu_base *cpu_base = &per_cpu(hrtimer_bases, cpu);
 		unsigned long flags;
 
+		cpu_base = &per_cpu(hrtimer_bases, cpu);
 		raw_spin_lock_irqsave(&cpu_base->lock, flags);
 
 		if (update_needs_ipi(cpu_base, bases))
