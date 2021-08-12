@@ -22,6 +22,8 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/pgtable.h>
+#include <linux/debugfs.h>
+
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -39,7 +41,6 @@
 #include <asm/kexec.h>
 #include <asm/fadump.h>
 #include <asm/asm-prototypes.h>
-#include <asm/debugfs.h>
 #include <asm/dtl.h>
 
 #include "pseries.h"
@@ -2019,7 +2020,7 @@ static int __init vpa_debugfs_init(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
-	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
+	vpa_dir = debugfs_create_dir("vpa", arch_debugfs_dir);
 
 	/* set up the per-cpu vpa file*/
 	for_each_possible_cpu(i) {

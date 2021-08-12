@@ -13,11 +13,11 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/crash_dump.h>
+#include <linux/debugfs.h>
 #include <asm/opal.h>
 #include <asm/io.h>
 #include <asm/imc-pmu.h>
 #include <asm/cputhreads.h>
-#include <asm/debugfs.h>
 
 static struct dentry *imc_debugfs_parent;
 
@@ -56,7 +56,7 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 	u32 cb_offset;
 	struct imc_mem_info *ptr = pmu_ptr->mem_info;
 
-	imc_debugfs_parent = debugfs_create_dir("imc", powerpc_debugfs_root);
+	imc_debugfs_parent = debugfs_create_dir("imc", arch_debugfs_dir);
 
 	if (of_property_read_u32(node, "cb_offset", &cb_offset))
 		cb_offset = IMC_CNTL_BLK_OFFSET;

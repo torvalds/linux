@@ -6,7 +6,7 @@
  * This dumps the content of Segment Registers
  */
 
-#include <asm/debugfs.h>
+#include <linux/debugfs.h>
 
 static void seg_show(struct seq_file *m, int i)
 {
@@ -55,7 +55,7 @@ static const struct file_operations sr_fops = {
 
 static int __init sr_init(void)
 {
-	debugfs_create_file("segment_registers", 0400, powerpc_debugfs_root,
+	debugfs_create_file("segment_registers", 0400, arch_debugfs_dir,
 			    NULL, &sr_fops);
 	return 0;
 }

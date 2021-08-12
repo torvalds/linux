@@ -7,7 +7,7 @@
  */
 
 #include <linux/pgtable.h>
-#include <asm/debugfs.h>
+#include <linux/debugfs.h>
 #include <asm/cpu_has_feature.h>
 
 #include "ptdump.h"
@@ -103,7 +103,7 @@ static const struct file_operations bats_fops = {
 static int __init bats_init(void)
 {
 	debugfs_create_file("block_address_translation", 0400,
-			    powerpc_debugfs_root, NULL, &bats_fops);
+			    arch_debugfs_dir, NULL, &bats_fops);
 	return 0;
 }
 device_initcall(bats_init);

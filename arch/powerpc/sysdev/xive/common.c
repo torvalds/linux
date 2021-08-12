@@ -21,7 +21,6 @@
 #include <linux/msi.h>
 #include <linux/vmalloc.h>
 
-#include <asm/debugfs.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -1769,7 +1768,7 @@ DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
 int xive_core_debug_init(void)
 {
 	if (xive_enabled())
-		debugfs_create_file("xive", 0400, powerpc_debugfs_root,
+		debugfs_create_file("xive", 0400, arch_debugfs_dir,
 				    NULL, &xive_core_debug_fops);
 	return 0;
 }

@@ -10,6 +10,7 @@
 #include <linux/memblock.h>
 #include <linux/mmu_context.h>
 #include <linux/sched/mm.h>
+#include <linux/debugfs.h>
 
 #include <asm/ppc-opcode.h>
 #include <asm/tlb.h>
@@ -17,7 +18,6 @@
 #include <asm/trace.h>
 #include <asm/cputhreads.h>
 #include <asm/plpar_wrappers.h>
-#include <asm/debugfs.h>
 
 #include "internal.h"
 
@@ -1529,9 +1529,9 @@ EXPORT_SYMBOL_GPL(do_h_rpt_invalidate_prt);
 static int __init create_tlb_single_page_flush_ceiling(void)
 {
 	debugfs_create_u32("tlb_single_page_flush_ceiling", 0600,
-			   powerpc_debugfs_root, &tlb_single_page_flush_ceiling);
+			   arch_debugfs_dir, &tlb_single_page_flush_ceiling);
 	debugfs_create_u32("tlb_local_single_page_flush_ceiling", 0600,
-			   powerpc_debugfs_root, &tlb_local_single_page_flush_ceiling);
+			   arch_debugfs_dir, &tlb_local_single_page_flush_ceiling);
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);
