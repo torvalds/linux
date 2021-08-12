@@ -88,8 +88,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	hw_data->enable_ints(accel_dev);
-
 	if (adf_ae_init(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to initialise Acceleration Engine\n");
@@ -109,6 +107,8 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
+
+	hw_data->enable_ints(accel_dev);
 
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
