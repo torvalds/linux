@@ -832,11 +832,8 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 		}
 	}
 
-	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags)) {
-		/* can't support alloc cache if we turn off polling */
-		bio_clear_flag(bio, BIO_PERCPU_CACHE);
-		bio->bi_opf &= ~REQ_HIPRI;
-	}
+	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+		bio_clear_hipri(bio);
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
