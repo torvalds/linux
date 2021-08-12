@@ -207,6 +207,8 @@
   cpu_hwcap_keys
   cpu_hwcaps
   cpuidle_get_cpu_driver
+  cpuidle_pause_and_lock
+  cpuidle_resume_and_unlock
   cpumask_next
   cpumask_next_and
   cpu_number
@@ -334,6 +336,7 @@
   devm_gpio_request_one
   devm_hwrng_register
   devm_i2c_new_dummy_device
+  devm_iio_channel_get
   devm_iio_device_alloc
   __devm_iio_device_register
   devm_input_allocate_device
@@ -923,11 +926,14 @@
   ignore_console_lock_warning
   iio_channel_get
   iio_channel_release
+  iio_convert_raw_to_processed
   iio_device_alloc
   iio_device_free
   __iio_device_register
   iio_device_unregister
+  iio_get_channel_type
   iio_read_channel_processed
+  iio_read_channel_raw
   inc_zone_page_state
   inet_csk_get_port
   init_dummy_netdev
@@ -1467,6 +1473,7 @@
   proc_create_data
   proc_create_seq_private
   proc_mkdir
+  proc_mkdir_data
   proc_remove
   proc_set_size
   proc_set_user
@@ -1897,6 +1904,7 @@
   time64_to_tm
   topology_set_thermal_pressure
   _totalram_pages
+  __trace_bprintk
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_ignore_this_pid
