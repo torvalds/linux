@@ -941,7 +941,7 @@ struct mlx5dr_action_dest_tbl {
 
 struct mlx5dr_action_ctr {
 	u32 ctr_id;
-	u32 offeset;
+	u32 offset;
 };
 
 struct mlx5dr_action_vport {
