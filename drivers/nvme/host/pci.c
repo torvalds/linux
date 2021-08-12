@@ -3243,12 +3243,6 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE(0x1b4b, 0x1092),	/* Lexar 256 GB SSD */
 		.driver_data = NVME_QUIRK_NO_NS_DESC_LIST |
 				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
-	{ PCI_DEVICE(0x1d1d, 0x1f1f),	/* LighNVM qemu device */
-		.driver_data = NVME_QUIRK_LIGHTNVM, },
-	{ PCI_DEVICE(0x1d1d, 0x2807),	/* CNEX WL */
-		.driver_data = NVME_QUIRK_LIGHTNVM, },
-	{ PCI_DEVICE(0x1d1d, 0x2601),	/* CNEX Granby */
-		.driver_data = NVME_QUIRK_LIGHTNVM, },
 	{ PCI_DEVICE(0x10ec, 0x5762),   /* ADATA SX6000LNP */
 		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN, },
 	{ PCI_DEVICE(0x1cc1, 0x8201),   /* ADATA SX8200PNP 512GB */

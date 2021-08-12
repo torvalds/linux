@@ -587,9 +587,6 @@ static void nvme_free_ns(struct kref *kref)
 {
 	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
 
-	if (ns->ndev)
-		nvme_nvm_unregister(ns);
-
 	put_disk(ns->disk);
 	nvme_put_ns_head(ns->head);
 	nvme_put_ctrl(ns->ctrl);
@@ -3218,9 +3215,6 @@ static const struct attribute_group nvme_ns_id_attr_group = {
 
 const struct attribute_group *nvme_ns_id_attr_groups[] = {
 	&nvme_ns_id_attr_group,
-#ifdef CONFIG_NVM
-	&nvme_nvm_attr_group,
-#endif
 	NULL,
 };
 
@@ -3766,13 +3760,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 
 	if (nvme_update_ns_info(ns, id))
 		goto out_put_disk;
-
-	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
-		if (nvme_nvm_register(ns, disk->disk_name, node)) {
-			dev_warn(ctrl->device, "LightNVM init failure\n");
-			goto out_put_disk;
-		}
-	}
 
 	down_write(&ctrl->namespaces_rwsem);
 	list_add_tail(&ns->list, &ctrl->namespaces);
