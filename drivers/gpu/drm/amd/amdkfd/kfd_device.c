@@ -32,6 +32,7 @@
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
 #include "kfd_migrate.h"
+#include "amdgpu.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -691,12 +692,14 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
 static int kfd_resume(struct kfd_dev *kfd);
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-	struct pci_dev *pdev, unsigned int asic_type, bool vf)
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 {
 	struct kfd_dev *kfd;
 	const struct kfd_device_info *device_info;
 	const struct kfd2kgd_calls *f2g;
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	unsigned int asic_type = adev->asic_type;
+	struct pci_dev *pdev = adev->pdev;
 
 	if (asic_type >= sizeof(kfd_supported_devices) / (sizeof(void *) * 2)
 		|| asic_type >= sizeof(kfd2kgd_funcs) / sizeof(void *)) {
