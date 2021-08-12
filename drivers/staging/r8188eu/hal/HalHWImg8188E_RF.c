@@ -196,7 +196,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 			} else {
 				odm_ConfigRF_RadioA_8188E(pDM_Odm, v1, v2);
 			}
-		    continue;
+			continue;
 		} else { /*  This line is the start line of branch. */
 			if (!CheckCondition(Array[i], hex)) {
 				/*  Discard the following (offset, data) pairs. */

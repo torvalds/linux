@@ -396,8 +396,8 @@ static void _mgt_dispatcher(struct adapter *padapter, struct mlme_handler *ptabl
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 *pframe = precv_frame->rx_data;
 
-	  if (ptable->func) {
-	 /* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
+	if (ptable->func) {
+	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
 		if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN) &&
 		    memcmp(GetAddr1Ptr(pframe), bc_addr, ETH_ALEN))
 			return;
@@ -3203,8 +3203,9 @@ static u8 is_matched_in_profilelist(u8 *peermacaddr, struct profile_info *profil
 		peermacaddr[0], peermacaddr[1], peermacaddr[2], peermacaddr[3], peermacaddr[4], peermacaddr[5]);
 
 	for (i = 0; i < P2P_MAX_PERSISTENT_GROUP_NUM; i++, profileinfo++) {
-	       DBG_88E("[%s] profileinfo_mac=%.2X %.2X %.2X %.2X %.2X %.2X\n", __func__,
-			    profileinfo->peermac[0], profileinfo->peermac[1], profileinfo->peermac[2], profileinfo->peermac[3], profileinfo->peermac[4], profileinfo->peermac[5]);
+		DBG_88E("[%s] profileinfo_mac=%.2X %.2X %.2X %.2X %.2X %.2X\n", __func__,
+			profileinfo->peermac[0], profileinfo->peermac[1], profileinfo->peermac[2],
+			profileinfo->peermac[3], profileinfo->peermac[4], profileinfo->peermac[5]);
 		if (!memcmp(peermacaddr, profileinfo->peermac, ETH_ALEN)) {
 			match_result = 1;
 			DBG_88E("[%s] Match!\n", __func__);
@@ -4345,7 +4346,7 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	if (ret == _SUCCESS)
 		ret = rtw_sctx_wait(&sctx);
 
-	 return ret;
+	return ret;
 }
 
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmgntframe)
@@ -4368,7 +4369,7 @@ s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmg
 	pxmitpriv->ack_tx = false;
 	_exit_critical_mutex(&pxmitpriv->ack_tx_mutex, NULL);
 
-	 return ret;
+	return ret;
 }
 
 static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
@@ -7367,9 +7368,10 @@ void _linked_rx_signal_strehgth_display(struct adapter *padapter);
 void _linked_rx_signal_strehgth_display(struct adapter *padapter)
 {
 	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
-      struct mlme_ext_info    *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct mlme_ext_info    *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 mac_id;
 	int UndecoratedSmoothedPWDB;
+
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
 		mac_id = 0;
 	else if ((pmlmeinfo->state&0x03) == _HW_STATE_AP_)

@@ -1127,7 +1127,7 @@ u8 process_p2p_group_negotation_req(struct wifidirect_info *pwdinfo, u8 *pframe,
 
 		rtw_p2p_set_state(pwdinfo, P2P_STATE_GONEGO_ING);
 
-			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, &attr_content, &attr_contentlen)) {
+		if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, &attr_content, &attr_contentlen)) {
 			DBG_88E("[%s] GO Intent = %d, tie = %d\n", __func__, attr_content >> 1, attr_content & 0x01);
 			pwdinfo->peer_intent = attr_content;	/*	include both intent and tie breaker values. */
 
@@ -1182,7 +1182,7 @@ u8 process_p2p_group_negotation_req(struct wifidirect_info *pwdinfo, u8 *pframe,
 						peer_operating_ch = operatingch_info[4];
 
 					if (rtw_p2p_is_channel_list_ok(peer_operating_ch,
-								       ch_list_inclusioned, ch_num_inclusioned)) {
+							       ch_list_inclusioned, ch_num_inclusioned)) {
 						/**
 						 *	Change our operating channel as peer's for compatibility.
 						 */

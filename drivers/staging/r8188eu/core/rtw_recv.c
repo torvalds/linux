@@ -185,7 +185,7 @@ int rtw_free_recvframe(struct recv_frame *precvframe, struct __queue *pfree_recv
 				precvpriv->free_recvframe_cnt++;
 	}
 
-      spin_unlock_bh(&pfree_recv_queue->lock);
+	spin_unlock_bh(&pfree_recv_queue->lock);
 
 	return _SUCCESS;
 }
@@ -455,7 +455,7 @@ static struct recv_frame *portctrl(struct adapter *adapter, struct recv_frame *p
 	struct sta_info *psta;
 	struct sta_priv *pstapriv;
 	struct recv_frame *prtnframe;
-	u16	ether_type;
+	u16 ether_type = 0;
 	u16  eapol_type = 0x888e;/* for Funia BD's WPA issue */
 	struct rx_pkt_attrib *pattrib;
 	__be16 be_tmp;
@@ -504,7 +504,7 @@ static struct recv_frame *portctrl(struct adapter *adapter, struct recv_frame *p
 		prtnframe = precv_frame;
 	}
 
-		return prtnframe;
+	return prtnframe;
 }
 
 static int recv_decache(struct recv_frame *precv_frame, u8 bretry, struct stainfo_rxcache *prxcache)
@@ -720,7 +720,7 @@ int sta2sta_data_frame(struct adapter *adapter, struct recv_frame *precv_frame, 
 	if (!*psta) {
 		if (adapter->registrypriv.mp_mode == 1) {
 			if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
-			adapter->mppriv.rx_pktloss++;
+				adapter->mppriv.rx_pktloss++;
 		}
 		ret = _FAIL;
 		goto exit;
@@ -1598,13 +1598,13 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 
 		/* Indicate the packets to upper layer */
 			/*  Insert NAT2.5 RX here! */
-			sub_skb->protocol = eth_type_trans(sub_skb, padapter->pnetdev);
-			sub_skb->dev = padapter->pnetdev;
+		sub_skb->protocol = eth_type_trans(sub_skb, padapter->pnetdev);
+		sub_skb->dev = padapter->pnetdev;
 
-			sub_skb->ip_summed = CHECKSUM_NONE;
+		sub_skb->ip_summed = CHECKSUM_NONE;
 
-			netif_rx(sub_skb);
-		}
+		netif_rx(sub_skb);
+	}
 
 exit:
 

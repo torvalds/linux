@@ -416,7 +416,7 @@ static int is_same_ess(struct wlan_bssid_ex *a, struct wlan_bssid_ex *b)
 
 int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 {
-	 u16 s_cap, d_cap;
+	u16 s_cap, d_cap;
 	__le16 le_scap, le_dcap;
 
 	memcpy((u8 *)&le_scap, rtw_get_capability_from_ie(src->IEs), 2);
@@ -983,7 +983,7 @@ static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, str
 	if (psta) { /* update ptarget_sta */
 		DBG_88E("%s\n", __func__);
 		psta->aid  = pnetwork->join_res;
-			psta->mac_id = 0;
+		psta->mac_id = 0;
 		/* sta mode */
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, true);
 		/* security related */
@@ -1159,10 +1159,10 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 			}
 
 			/* s4. indicate connect */
-				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
-					pmlmepriv->cur_network_scanned = ptarget_wlan;
-					rtw_indicate_connect(adapter);
-				}
+			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
+				pmlmepriv->cur_network_scanned = ptarget_wlan;
+				rtw_indicate_connect(adapter);
+			}
 
 			/* s5. Cancle assoc_timer */
 			_cancel_timer(&pmlmepriv->assoc_timer, &timer_cancelled);
@@ -1738,7 +1738,6 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	INIT_LIST_HEAD(&pcmd->list);
 	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 exit:
-
 	return res;
 }
 
@@ -1833,10 +1832,9 @@ static int rtw_append_pmkid(struct adapter *Adapter, int iEntry, u8 *ie, uint ie
 
 int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_len)
 {
-	u8 authmode;
+	u8 authmode = 0;
 	uint	ielength;
 	int iEntry;
-
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 	uint	ndisauthmode = psecuritypriv->ndisauthtype;

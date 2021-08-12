@@ -803,7 +803,7 @@ s32 rtw_make_wlanhdr (struct adapter *padapter, u8 *hdr, struct pkt_attrib *patt
 			/* check if enable ampdu */
 			if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
 				if (psta->htpriv.agg_enable_bitmap & BIT(pattrib->priority))
-				pattrib->ampdu_en = true;
+					pattrib->ampdu_en = true;
 			}
 
 			/* re-check if enable ampdu by BA_starting_seqctrl */
@@ -1688,7 +1688,7 @@ static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
 	if (memcmp(skb->data+MACADDRLEN, GET_MY_HWADDR(padapter), MACADDRLEN)) {
 		DEBUG_ERR("TX DROP: untransformed frame SA:%02X%02X%02X%02X%02X%02X!\n",
 			  skb->data[6], skb->data[7], skb->data[8], skb->data[9], skb->data[10], skb->data[11]);
-			return -1;
+		return -1;
 	}
 	return 0;
 }

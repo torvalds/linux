@@ -62,9 +62,9 @@ int cckratesonly_included(unsigned char *rate, int ratelen)
 	int	i;
 
 	for (i = 0; i < ratelen; i++) {
-		if  ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-			   (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
-		return false;
+		if ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
+		    (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
+			return false;
 	}
 
 	return true;
@@ -1142,8 +1142,8 @@ unsigned int should_forbid_n_rate(struct adapter *padapter)
 				break;
 			case _RSN_IE_2_:
 				if  ((!memcmp((pIE->data + 8), RSN_CIPHER_SUITE_CCMP, 4))  ||
-				       (!memcmp((pIE->data + 12), RSN_CIPHER_SUITE_CCMP, 4)))
-				return false;
+				     (!memcmp((pIE->data + 12), RSN_CIPHER_SUITE_CCMP, 4)))
+					return false;
 			default:
 				break;
 			}
@@ -1391,10 +1391,10 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				DBG_88E("link to Airgo Cap\n");
 				return HT_IOT_PEER_AIRGO;
 			} else if (!memcmp(pIE->data, EPIGRAM_OUI, 3)) {
-				 epigram_vendor_flag = 1;
+				epigram_vendor_flag = 1;
 				if (ralink_vendor_flag) {
 					DBG_88E("link to Tenda W311R AP\n");
-					 return HT_IOT_PEER_TENDA;
+					return HT_IOT_PEER_TENDA;
 				} else {
 					DBG_88E("Capture EPIGRAM_OUI\n");
 				}

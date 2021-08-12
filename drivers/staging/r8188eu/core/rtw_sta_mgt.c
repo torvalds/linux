@@ -15,7 +15,7 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 
 	memset((u8 *)psta, 0, sizeof (struct sta_info));
 
-	 spin_lock_init(&psta->lock);
+	spin_lock_init(&psta->lock);
 	INIT_LIST_HEAD(&psta->list);
 	INIT_LIST_HEAD(&psta->hash_list);
 	_rtw_init_queue(&psta->sleep_q);
@@ -463,7 +463,7 @@ struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 	struct sta_priv		*pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	 psta = rtw_get_stainfo(pstapriv, bc_addr);
+	psta = rtw_get_stainfo(pstapriv, bc_addr);
 
 	return psta;
 }
@@ -500,7 +500,7 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 	else if (pacl_list->mode == 2)/* deny unless in accept list */
 		res = (match) ? true : false;
 	else
-		 res = true;
+		res = true;
 
 #endif
 

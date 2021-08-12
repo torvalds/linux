@@ -323,7 +323,7 @@ static void SwLedBlink2(struct LED_871x *pLed)
 			if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
 				SwLedOff(padapter, pLed);
 			} else {
-				 if (pLed->bLedOn)
+				if (pLed->bLedOn)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -352,7 +352,7 @@ static void SwLedBlink2(struct LED_871x *pLed)
 			if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
 				SwLedOff(padapter, pLed);
 			} else {
-				 if (pLed->bLedOn)
+				if (pLed->bLedOn)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -531,7 +531,7 @@ static void SwLedBlink4(struct LED_871x *pLed)
 			if (padapter->pwrctrlpriv.rf_pwrstate != rf_on && padapter->pwrctrlpriv.rfoff_reason > RF_CHANGE_BY_PS) {
 				SwLedOff(padapter, pLed);
 			} else {
-				 if (pLed->bLedOn)
+				if (pLed->bLedOn)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -560,7 +560,7 @@ static void SwLedBlink4(struct LED_871x *pLed)
 			if (padapter->pwrctrlpriv.rf_pwrstate != rf_on && padapter->pwrctrlpriv.rfoff_reason > RF_CHANGE_BY_PS) {
 				SwLedOff(padapter, pLed);
 			} else {
-				 if (pLed->bLedOn)
+				if (pLed->bLedOn)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -678,7 +678,7 @@ static void SwLedBlink5(struct LED_871x *pLed)
 			if (padapter->pwrctrlpriv.rf_pwrstate != rf_on && padapter->pwrctrlpriv.rfoff_reason > RF_CHANGE_BY_PS) {
 				SwLedOff(padapter, pLed);
 			} else {
-				 if (pLed->bLedOn)
+				if (pLed->bLedOn)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -768,7 +768,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 			}
 			if (pLed->bLedLinkBlinkInProgress) {
 				_cancel_timer_ex(&pLed->BlinkTimer);
-				 pLed->bLedLinkBlinkInProgress = false;
+				pLed->bLedLinkBlinkInProgress = false;
 			}
 			if (pLed->bLedBlinkInProgress) {
 				_cancel_timer_ex(&pLed->BlinkTimer);
@@ -816,7 +816,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 			}
 			if (pLed->bLedLinkBlinkInProgress) {
 				_cancel_timer_ex(&pLed->BlinkTimer);
-				 pLed->bLedLinkBlinkInProgress = false;
+				pLed->bLedLinkBlinkInProgress = false;
 			}
 			if (pLed->bLedBlinkInProgress) {
 				_cancel_timer_ex(&pLed->BlinkTimer);
@@ -842,7 +842,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		if (pLed->bLedLinkBlinkInProgress) {
 			_cancel_timer_ex(&pLed->BlinkTimer);
-			 pLed->bLedLinkBlinkInProgress = false;
+			pLed->bLedLinkBlinkInProgress = false;
 		}
 		if (pLed->bLedBlinkInProgress) {
 			_cancel_timer_ex(&pLed->BlinkTimer);
@@ -1571,8 +1571,8 @@ void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 	struct led_priv *ledpriv = &padapter->ledpriv;
 	struct registry_priv *registry_par;
 
-       if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
-	   (!padapter->hw_init_completed))
+	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
+	    (!padapter->hw_init_completed))
 		return;
 
 	if (!ledpriv->bRegUseLed)

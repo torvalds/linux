@@ -691,7 +691,7 @@ void SetPacketTx(struct adapter *padapter)
 
 	desc->txdw1 |= cpu_to_le32((0x01 << 26) & 0xff000000);
 	/*  offset 4 */
-		desc->txdw1 |= cpu_to_le32((pattrib->mac_id) & 0x3F); /* CAM_ID(MAC_ID) */
+	desc->txdw1 |= cpu_to_le32((pattrib->mac_id) & 0x3F); /* CAM_ID(MAC_ID) */
 	desc->txdw1 |= cpu_to_le32((pattrib->qsel << QSEL_SHT) & 0x00001F00); /*  Queue Select, TID */
 
 	desc->txdw1 |= cpu_to_le32((pattrib->raid << RATE_ID_SHT) & 0x000F0000); /*  Rate Adaptive ID */
@@ -897,11 +897,11 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 {
 	int i, res;
-	 struct adapter *padapter = pxmitpriv->adapter;
+	struct adapter *padapter = pxmitpriv->adapter;
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
-
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
+
 	if (padapter->registrypriv.mp_mode == 0) {
 		max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 		num_xmit_extbuf = NR_XMIT_EXTBUFF;
