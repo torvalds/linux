@@ -225,7 +225,6 @@ struct adf_fw_loader_data {
 
 struct adf_accel_vf_info {
 	struct adf_accel_dev *accel_dev;
-	struct tasklet_struct vf2pf_bh_tasklet;
 	struct mutex pf2vf_lock; /* protect CSR access for PF2VF messages */
 	struct ratelimit_state vf2pf_ratelimit;
 	u32 vf_nr;

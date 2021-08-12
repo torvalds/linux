@@ -106,9 +106,8 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 			adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
 
 			/*
-			 * Schedule tasklets to handle VF2PF interrupt BHs
-			 * unless the VF is malicious and is attempting to
-			 * flood the host OS with VF2PF interrupts.
+			 * Handle VF2PF interrupt unless the VF is malicious and
+			 * is attempting to flood the host OS with VF2PF interrupts.
 			 */
 			for_each_set_bit(i, &vf_mask, ADF_MAX_NUM_VFS) {
 				vf_info = accel_dev->pf.vf_info + i;
@@ -120,8 +119,7 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 					continue;
 				}
 
-				/* Tasklet will re-enable ints from this VF */
-				tasklet_hi_schedule(&vf_info->vf2pf_bh_tasklet);
+				adf_schedule_vf2pf_handler(vf_info);
 				irq_handled = true;
 			}
 
