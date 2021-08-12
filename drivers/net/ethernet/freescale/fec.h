@@ -492,6 +492,9 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_DELAYED_CLKS_SUPPORT	(1 << 21)
 
+/* i.MX8MQ SoC integration mix wakeup interrupt signal into "int2" interrupt line. */
+#define FEC_QUIRK_WAKEUP_FROM_INT2	(1 << 22)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
@@ -580,6 +583,7 @@ struct fec_enet_private {
 	bool	bufdesc_ex;
 	int	pause_flag;
 	int	wol_flag;
+	int	wake_irq;
 	u32	quirks;
 
 	struct	napi_struct napi;
