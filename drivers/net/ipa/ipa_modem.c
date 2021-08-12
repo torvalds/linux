@@ -65,6 +65,8 @@ static int ipa_open(struct net_device *netdev)
 
 	netif_start_queue(netdev);
 
+	(void)ipa_clock_put(ipa);
+
 	return 0;
 
 err_disable_tx:
@@ -80,12 +82,17 @@ static int ipa_stop(struct net_device *netdev)
 {
 	struct ipa_priv *priv = netdev_priv(netdev);
 	struct ipa *ipa = priv->ipa;
+	int ret;
+
+	ret = ipa_clock_get(ipa);
+	if (WARN_ON(ret < 0))
+		goto out_clock_put;
 
 	netif_stop_queue(netdev);
 
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
-
+out_clock_put:
 	(void)ipa_clock_put(ipa);
 
 	return 0;
@@ -99,7 +106,8 @@ static int ipa_stop(struct net_device *netdev)
  * NETDEV_TX_OK: Success
  * NETDEV_TX_BUSY: Error while transmitting the skb. Try again later
  */
-static int ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t
+ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct net_device_stats *stats = &netdev->stats;
 	struct ipa_priv *priv = netdev_priv(netdev);
