@@ -298,6 +298,34 @@ properties:
           - const: google,veyron
           - const: rockchip,rk3288
 
+      - description: Google Scarlet - Dumo (ASUS Chromebook Tablet CT100)
+        items:
+          - const: google,scarlet-rev15-sku0
+          - const: google,scarlet-rev15
+          - const: google,scarlet-rev14-sku0
+          - const: google,scarlet-rev14
+          - const: google,scarlet-rev13-sku0
+          - const: google,scarlet-rev13
+          - const: google,scarlet-rev12-sku0
+          - const: google,scarlet-rev12
+          - const: google,scarlet-rev11-sku0
+          - const: google,scarlet-rev11
+          - const: google,scarlet-rev10-sku0
+          - const: google,scarlet-rev10
+          - const: google,scarlet-rev9-sku0
+          - const: google,scarlet-rev9
+          - const: google,scarlet-rev8-sku0
+          - const: google,scarlet-rev8
+          - const: google,scarlet-rev7-sku0
+          - const: google,scarlet-rev7
+          - const: google,scarlet-rev6-sku0
+          - const: google,scarlet-rev6
+          - const: google,scarlet-rev5-sku0
+          - const: google,scarlet-rev5
+          - const: google,scarlet
+          - const: google,gru
+          - const: rockchip,rk3399
+
       - description: Google Scarlet - Kingdisplay (Acer Chromebook Tab 10)
         items:
           - const: google,scarlet-rev15-sku7
