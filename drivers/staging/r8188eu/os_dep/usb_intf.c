@@ -704,20 +704,23 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
 {
 	struct adapter *if1 = NULL;
-	int status;
 	struct dvobj_priv *dvobj;
+	int ret;
 
 	/* step 0. */
 	process_spec_devid(pdid);
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
-	if (!dvobj)
-		goto exit;
+	if (!dvobj) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf);
 	if (!if1) {
 		DBG_88E("rtw_init_primarystruct adapter Failed!\n");
+		ret = -ENODEV;
 		goto free_dvobj;
 	}
 
@@ -726,15 +729,12 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		rtw_signal_process(ui_pid[1], SIGUSR2);
 	}
 
-	status = _SUCCESS;
+	return 0;
 
-	if (status != _SUCCESS && if1)
-		rtw_usb_if1_deinit(if1);
 free_dvobj:
-	if (status != _SUCCESS)
-		usb_dvobj_deinit(pusb_intf);
-exit:
-	return status == _SUCCESS ? 0 : -ENODEV;
+	usb_dvobj_deinit(pusb_intf);
+err:
+	return ret;
 }
 
 /*
