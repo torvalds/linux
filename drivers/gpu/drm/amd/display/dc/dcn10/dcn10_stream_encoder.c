@@ -726,6 +726,16 @@ void enc1_stream_encoder_update_dp_info_packets(
 					0,  /* packetIndex */
 					&info_frame->vsc);
 
+	/* VSC SDP at packetIndex 1 is used by PSR in DMCUB FW.
+	 * Note that the enablement of GSP1 is not done below,
+	 * it's done in FW.
+	 */
+	if (info_frame->vsc.valid)
+		enc1_update_generic_info_packet(
+					enc1,
+					1,  /* packetIndex */
+					&info_frame->vsc);
+
 	if (info_frame->spd.valid)
 		enc1_update_generic_info_packet(
 				enc1,
