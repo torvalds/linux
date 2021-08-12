@@ -35,9 +35,15 @@
 #else
 /*
  * No Super page case
- * Default value provides 11:8:13 (8K), 11:9:12 (4K)
+ * Default value provides 11:8:13 (8K), 10:10:12 (4K)
+ * Limits imposed by pgtable_t only PAGE_SIZE long
+ * (so 4K page can only have 1K entries: or 10 bits)
  */
+#ifdef CONFIG_ARC_PAGE_SIZE_4K
+#define PGDIR_SHIFT		22
+#else
 #define PGDIR_SHIFT		21
+#endif
 
 #endif
 

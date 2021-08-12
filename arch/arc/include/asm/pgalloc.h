@@ -45,22 +45,17 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 	set_pmd(pmd, __pmd((unsigned long)pte));
 }
 
-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte_page)
 {
-	set_pmd(pmd, __pmd((unsigned long)pte));
-}
-
-static inline int __get_order_pgd(void)
-{
-	return get_order(PTRS_PER_PGD * sizeof(pgd_t));
+	set_pmd(pmd, __pmd((unsigned long)page_address(pte_page)));
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	int num, num2;
-	pgd_t *ret = (pgd_t *) __get_free_pages(GFP_KERNEL, __get_order_pgd());
+	pgd_t *ret = (pgd_t *) __get_free_page(GFP_KERNEL);
 
 	if (ret) {
+		int num, num2;
 		num = USER_PTRS_PER_PGD + USER_KERNEL_GUTTER / PGDIR_SIZE;
 		memzero(ret, num * sizeof(pgd_t));
 
@@ -76,61 +71,43 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	free_pages((unsigned long)pgd, __get_order_pgd());
-}
-
-
-/*
- * With software-only page-tables, addr-split for traversal is tweakable and
- * that directly governs how big tables would be at each level.
- * Further, the MMU page size is configurable.
- * Thus we need to programatically assert the size constraint
- * All of this is const math, allowing gcc to do constant folding/propagation.
- */
-
-static inline int __get_order_pte(void)
-{
-	return get_order(PTRS_PER_PTE * sizeof(pte_t));
+	free_page((unsigned long)pgd);
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	pte_t *pte;
 
-	pte = (pte_t *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
-					 __get_order_pte());
+	pte = (pte_t *) __get_free_page(GFP_KERNEL | __GFP_ZERO);
 
 	return pte;
 }
 
-static inline pgtable_t
-pte_alloc_one(struct mm_struct *mm)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
-	pgtable_t pte_pg;
 	struct page *page;
 
-	pte_pg = (pgtable_t)__get_free_pages(GFP_KERNEL, __get_order_pte());
-	if (!pte_pg)
-		return 0;
-	memzero((void *)pte_pg, PTRS_PER_PTE * sizeof(pte_t));
-	page = virt_to_page(pte_pg);
+	page = (pgtable_t)alloc_page(GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
+	if (!page)
+		return NULL;
+
 	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
-		return 0;
+		return NULL;
 	}
 
-	return pte_pg;
+	return page;
 }
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	free_pages((unsigned long)pte, __get_order_pte()); /* takes phy addr */
+	free_page((unsigned long)pte);
 }
 
-static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte_page)
 {
-	pgtable_pte_page_dtor(virt_to_page(ptep));
-	free_pages((unsigned long)ptep, __get_order_pte());
+	pgtable_pte_page_dtor(pte_page);
+	__free_page(pte_page);
 }
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
