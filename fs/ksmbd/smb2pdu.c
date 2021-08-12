@@ -106,14 +106,14 @@ int smb2_get_ksmbd_tcon(struct ksmbd_work *work)
 
 	if (xa_empty(&work->sess->tree_conns)) {
 		ksmbd_debug(SMB, "NO tree connected\n");
-		return -1;
+		return -ENOENT;
 	}
 
 	tree_id = le32_to_cpu(req_hdr->Id.SyncId.TreeId);
 	work->tcon = ksmbd_tree_conn_lookup(work->sess, tree_id);
 	if (!work->tcon) {
 		pr_err("Invalid tid %d\n", tree_id);
-		return -1;
+		return -EINVAL;
 	}
 
 	return 1;
