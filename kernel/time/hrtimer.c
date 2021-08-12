@@ -652,24 +652,10 @@ static inline int hrtimer_hres_active(void)
 	return __hrtimer_hres_active(this_cpu_ptr(&hrtimer_bases));
 }
 
-static void
-__hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal,
-		    struct hrtimer *next_timer, ktime_t expires_next)
+static void __hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base,
+				struct hrtimer *next_timer,
+				ktime_t expires_next)
 {
-	/*
-	 * If the hrtimer interrupt is running, then it will reevaluate the
-	 * clock bases and reprogram the clock event device.
-	 */
-	if (cpu_base->in_hrtirq)
-		return;
-
-	if (expires_next > cpu_base->expires_next)
-		return;
-
-	if (skip_equal && expires_next == cpu_base->expires_next)
-		return;
-
-	cpu_base->next_timer = next_timer;
 	cpu_base->expires_next = expires_next;
 
 	/*
@@ -707,8 +693,10 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 
 	expires_next = hrtimer_update_next_event(cpu_base);
 
-	__hrtimer_reprogram(cpu_base, skip_equal, cpu_base->next_timer,
-			    expires_next);
+	if (skip_equal && expires_next == cpu_base->expires_next)
+		return;
+
+	__hrtimer_reprogram(cpu_base, cpu_base->next_timer, expires_next);
 }
 
 /* High resolution timer related functions */
@@ -863,7 +851,19 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 	if (base->cpu_base != cpu_base)
 		return;
 
-	__hrtimer_reprogram(cpu_base, true, timer, expires);
+	if (expires >= cpu_base->expires_next)
+		return;
+
+	/*
+	 * If the hrtimer interrupt is running, then it will reevaluate the
+	 * clock bases and reprogram the clock event device.
+	 */
+	if (cpu_base->in_hrtirq)
+		return;
+
+	cpu_base->next_timer = timer;
+
+	__hrtimer_reprogram(cpu_base, timer, expires);
 }
 
 static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
