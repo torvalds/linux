@@ -31,6 +31,7 @@
 
 #include <linux/mm.h>
 #include <linux/log2.h>
+#include <asm-generic/pgalloc.h>
 
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
@@ -67,47 +68,6 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	}
 	return ret;
-}
-
-static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long)pgd);
-}
-
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
-{
-	pte_t *pte;
-
-	pte = (pte_t *) __get_free_page(GFP_KERNEL | __GFP_ZERO);
-
-	return pte;
-}
-
-static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
-{
-	struct page *page;
-
-	page = (pgtable_t)alloc_page(GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
-	if (!page)
-		return NULL;
-
-	if (!pgtable_pte_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
-	}
-
-	return page;
-}
-
-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-	free_page((unsigned long)pte);
-}
-
-static inline void pte_free(struct mm_struct *mm, pgtable_t pte_page)
-{
-	pgtable_pte_page_dtor(pte_page);
-	__free_page(pte_page);
 }
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
