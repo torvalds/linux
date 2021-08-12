@@ -76,20 +76,20 @@
 	status = "okay";
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	phy0: ethernet-phy@0 {
 		reg = <1>;
 	};
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-mode = "rmii";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 	phy-handle = <&phy0>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 	phy-handle = <&phy1>;
 };
