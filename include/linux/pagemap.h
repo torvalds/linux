@@ -280,6 +280,25 @@ static inline void folio_attach_private(struct folio *folio, void *data)
 }
 
 /**
+ * folio_change_private - Change private data on a folio.
+ * @folio: Folio to change the data on.
+ * @data: Data to set on the folio.
+ *
+ * Change the private data attached to a folio and return the old
+ * data.  The page must previously have had data attached and the data
+ * must be detached before the folio will be freed.
+ *
+ * Return: Data that was previously attached to the folio.
+ */
+static inline void *folio_change_private(struct folio *folio, void *data)
+{
+	void *old = folio_get_private(folio);
+
+	folio->private = data;
+	return old;
+}
+
+/**
  * folio_detach_private - Detach private data from a folio.
  * @folio: Folio to detach data from.
  *
