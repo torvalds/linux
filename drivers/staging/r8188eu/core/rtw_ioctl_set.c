@@ -870,7 +870,7 @@ int rtw_set_channel_plan(struct adapter *adapter, u8 channel_plan)
 */
 int rtw_set_country(struct adapter *adapter, const char *country_code)
 {
-	int channel_plan = RT_CHANNEL_DOMAIN_WORLD_WIDE_5G;
+	int channel_plan = RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G;
 
 	DBG_88E("%s country_code:%s\n", __func__, country_code);
 

@@ -1026,9 +1026,6 @@ _PHY_SetBWMode92C(
 	case RF_8256:
 		/*  Please implement this function in Hal8190PciPhy8256.c */
 		break;
-	case RF_8258:
-		/*  Please implement this function in Hal8190PciPhy8258.c */
-		break;
 	case RF_PSEUDO_11N:
 		break;
 	case RF_6052:

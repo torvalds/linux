@@ -621,15 +621,9 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 				FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_1);
 			}
 		} else {
-			if (*pDM_Odm->pBandType == ODM_BAND_5G) {
-				DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
-				FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-				FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
-			} else {
-				DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_1;
-				FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_1);
-				FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_1);
-			}
+			DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_1;
+			FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_1);
+			FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_1);
 		}
 	} else {
 		DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
@@ -1094,12 +1088,6 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 		else
 			rate_bitmap = 0x0000000f;
 		break;
-	case (ODM_WM_A|ODM_WM_G):
-		if (rssi_level == DM_RATR_STA_HIGH)
-			rate_bitmap = 0x00000f00;
-		else
-			rate_bitmap = 0x00000ff0;
-		break;
 	case (ODM_WM_B|ODM_WM_G):
 		if (rssi_level == DM_RATR_STA_HIGH)
 			rate_bitmap = 0x00000f00;
@@ -1109,7 +1097,6 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 			rate_bitmap = 0x00000ff5;
 		break;
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
-	case (ODM_WM_A|ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
 			if (rssi_level == DM_RATR_STA_HIGH) {
 				rate_bitmap = 0x000f0000;

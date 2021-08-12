@@ -531,17 +531,13 @@ enum odm_wireless_mode {
 	ODM_WM_UNKNOW	= 0x0,
 	ODM_WM_B	= BIT(0),
 	ODM_WM_G	= BIT(1),
-	ODM_WM_A	= BIT(2),
 	ODM_WM_N24G	= BIT(3),
-	ODM_WM_N5G	= BIT(4),
 	ODM_WM_AUTO	= BIT(5),
-	ODM_WM_AC	= BIT(6),
 };
 
 /*  ODM_CMNINFO_BAND */
 enum odm_band_type {
 	ODM_BAND_2_4G	= BIT(0),
-	ODM_BAND_5G	= BIT(1),
 };
 
 /*  ODM_CMNINFO_SEC_CHNL_OFFSET */
@@ -933,7 +929,6 @@ enum odm_bb_config_type {
     CONFIG_BB_PHY_REG,
     CONFIG_BB_AGC_TAB,
     CONFIG_BB_AGC_TAB_2G,
-    CONFIG_BB_AGC_TAB_5G,
     CONFIG_BB_PHY_REG_PG,
 };
 

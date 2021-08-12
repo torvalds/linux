@@ -67,13 +67,10 @@ enum rf_radio_path {
 
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
-	WIRELESS_MODE_A			= BIT(2),
 	WIRELESS_MODE_B			= BIT(0),
 	WIRELESS_MODE_G			= BIT(1),
 	WIRELESS_MODE_AUTO		= BIT(5),
 	WIRELESS_MODE_N_24G		= BIT(3),
-	WIRELESS_MODE_N_5G		= BIT(4),
-	WIRELESS_MODE_AC		= BIT(6)
 };
 
 enum phy_rate_tx_offset_area {
@@ -91,7 +88,6 @@ enum RF_TYPE_8190P {
 	RF_TYPE_MIN,		/*  0 */
 	RF_8225 = 1,		/*  1 11b/g RF for verification only */
 	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_8258 = 3,		/*  3 11a/b/g/n RF */
 	RF_6052 = 4,		/*  4 11b/g/n RF */
 	/*  TODO: We should remove this psudo PHY RF after we get new RF. */
 	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
