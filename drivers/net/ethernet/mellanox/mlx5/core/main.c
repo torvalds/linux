@@ -922,6 +922,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 	dev->hv_vhca = mlx5_hv_vhca_create(dev);
 	dev->rsc_dump = mlx5_rsc_dump_create(dev);
 
+	mlx5_devlink_res_register(dev);
+
 	return 0;
 
 err_sf_table_cleanup:
@@ -957,6 +959,7 @@ err_devcom:
 
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
+	mlx5_devlink_res_unregister(dev);
 	mlx5_rsc_dump_destroy(dev);
 	mlx5_hv_vhca_destroy(dev->hv_vhca);
 	mlx5_fw_tracer_destroy(dev->tracer);

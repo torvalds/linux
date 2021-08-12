@@ -46,6 +46,18 @@ parameters.
 
 The ``mlx5`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
 
+Resources
+=========
+
+.. list-table:: Driver-specific resources implemented
+   :widths: 5 5 5 85
+
+   * - Name
+     - Description
+   * - ``comp_eq_size``
+     - Control the size of I/O completion EQs.
+       * The default value is 1024, and the range is between 64 and 4096.
+
 Info versions
 =============
 

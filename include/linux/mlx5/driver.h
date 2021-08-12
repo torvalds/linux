@@ -798,10 +798,6 @@ struct mlx5_db {
 };
 
 enum {
-	MLX5_COMP_EQ_SIZE = 1024,
-};
-
-enum {
 	MLX5_PTYS_IB = 1 << 0,
 	MLX5_PTYS_EN = 1 << 2,
 };
