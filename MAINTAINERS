@@ -14617,6 +14617,12 @@ F:	Documentation/driver-api/pin-control.rst
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 
+PIN CONTROLLER - AMD
+M:	Basavaraj Natikar <Basavaraj.Natikar@amd.com>
+M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-amd.c
+
 PIN CONTROLLER - FREESCALE
 M:	Dong Aisheng <aisheng.dong@nxp.com>
 M:	Fabio Estevam <festevam@gmail.com>
