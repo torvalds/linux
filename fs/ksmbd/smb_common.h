@@ -498,7 +498,6 @@ bool ksmbd_smb_request(struct ksmbd_conn *conn);
 
 int ksmbd_lookup_dialect_by_id(__le16 *cli_dialects, __le16 dialects_count);
 
-int ksmbd_negotiate_smb_dialect(void *buf);
 int ksmbd_init_smb_server(struct ksmbd_work *work);
 
 bool ksmbd_pdu_size_has_room(unsigned int pdu);

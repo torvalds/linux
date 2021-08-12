@@ -30,7 +30,7 @@ struct smb_protocol {
 	__u16		prot_id;
 };
 
-static struct smb_protocol smb_protos[] = {
+static struct smb_protocol smb1_protos[] = {
 	{
 		SMB21_PROT,
 		"\2SMB 2.1",
@@ -42,6 +42,15 @@ static struct smb_protocol smb_protos[] = {
 		"\2SMB 2.???",
 		"SMB2_22",
 		SMB2X_PROT_ID
+	},
+};
+
+static struct smb_protocol smb2_protos[] = {
+	{
+		SMB21_PROT,
+		"\2SMB 2.1",
+		"SMB2_10",
+		SMB21_PROT_ID
 	},
 	{
 		SMB30_PROT,
@@ -90,14 +99,24 @@ inline int ksmbd_max_protocol(void)
 
 int ksmbd_lookup_protocol_idx(char *str)
 {
-	int offt = ARRAY_SIZE(smb_protos) - 1;
+	int offt = ARRAY_SIZE(smb1_protos) - 1;
 	int len = strlen(str);
 
 	while (offt >= 0) {
-		if (!strncmp(str, smb_protos[offt].prot, len)) {
+		if (!strncmp(str, smb1_protos[offt].prot, len)) {
 			ksmbd_debug(SMB, "selected %s dialect idx = %d\n",
-				    smb_protos[offt].prot, offt);
-			return smb_protos[offt].index;
+				    smb1_protos[offt].prot, offt);
+			return smb1_protos[offt].index;
+		}
+		offt--;
+	}
+
+	offt = ARRAY_SIZE(smb2_protos) - 1;
+	while (offt >= 0) {
+		if (!strncmp(str, smb2_protos[offt].prot, len)) {
+			ksmbd_debug(SMB, "selected %s dialect idx = %d\n",
+				    smb2_protos[offt].prot, offt);
+			return smb2_protos[offt].index;
 		}
 		offt--;
 	}
@@ -169,7 +188,7 @@ static int ksmbd_lookup_dialect_by_name(char *cli_dialects, __le16 byte_count)
 	int i, seq_num, bcount, next;
 	char *dialect;
 
-	for (i = ARRAY_SIZE(smb_protos) - 1; i >= 0; i--) {
+	for (i = ARRAY_SIZE(smb1_protos) - 1; i >= 0; i--) {
 		seq_num = 0;
 		next = 0;
 		dialect = cli_dialects;
@@ -178,14 +197,14 @@ static int ksmbd_lookup_dialect_by_name(char *cli_dialects, __le16 byte_count)
 			dialect = next_dialect(dialect, &next);
 			ksmbd_debug(SMB, "client requested dialect %s\n",
 				    dialect);
-			if (!strcmp(dialect, smb_protos[i].name)) {
-				if (supported_protocol(smb_protos[i].index)) {
+			if (!strcmp(dialect, smb1_protos[i].name)) {
+				if (supported_protocol(smb1_protos[i].index)) {
 					ksmbd_debug(SMB,
 						    "selected %s dialect\n",
-						    smb_protos[i].name);
-					if (smb_protos[i].index == SMB1_PROT)
+						    smb1_protos[i].name);
+					if (smb1_protos[i].index == SMB1_PROT)
 						return seq_num;
-					return smb_protos[i].prot_id;
+					return smb1_protos[i].prot_id;
 				}
 			}
 			seq_num++;
@@ -201,19 +220,19 @@ int ksmbd_lookup_dialect_by_id(__le16 *cli_dialects, __le16 dialects_count)
 	int i;
 	int count;
 
-	for (i = ARRAY_SIZE(smb_protos) - 1; i >= 0; i--) {
+	for (i = ARRAY_SIZE(smb2_protos) - 1; i >= 0; i--) {
 		count = le16_to_cpu(dialects_count);
 		while (--count >= 0) {
 			ksmbd_debug(SMB, "client requested dialect 0x%x\n",
 				    le16_to_cpu(cli_dialects[count]));
 			if (le16_to_cpu(cli_dialects[count]) !=
-					smb_protos[i].prot_id)
+					smb2_protos[i].prot_id)
 				continue;
 
-			if (supported_protocol(smb_protos[i].index)) {
+			if (supported_protocol(smb2_protos[i].index)) {
 				ksmbd_debug(SMB, "selected %s dialect\n",
-					    smb_protos[i].name);
-				return smb_protos[i].prot_id;
+					    smb2_protos[i].name);
+				return smb2_protos[i].prot_id;
 			}
 		}
 	}
@@ -221,7 +240,7 @@ int ksmbd_lookup_dialect_by_id(__le16 *cli_dialects, __le16 dialects_count)
 	return BAD_PROT_ID;
 }
 
-int ksmbd_negotiate_smb_dialect(void *buf)
+static int ksmbd_negotiate_smb_dialect(void *buf)
 {
 	__le32 proto;
 
