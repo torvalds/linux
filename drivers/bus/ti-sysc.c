@@ -100,6 +100,7 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @cookie: data used by legacy platform callbacks
  * @name: name if available
  * @revision: interconnect target module revision
+ * @reserved: target module is reserved and already in use
  * @enabled: sysc runtime enabled status
  * @needs_resume: runtime resume needed on resume from suspend
  * @child_needs_resume: runtime resume needed for child on resume from suspend
@@ -130,6 +131,7 @@ struct sysc {
 	struct ti_sysc_cookie cookie;
 	const char *name;
 	u32 revision;
+	unsigned int reserved:1;
 	unsigned int enabled:1;
 	unsigned int needs_resume:1;
 	unsigned int child_needs_resume:1;
@@ -853,7 +855,7 @@ static int sysc_check_registers(struct sysc *ddata)
 }
 
 /**
- * syc_ioremap - ioremap register space for the interconnect target module
+ * sysc_ioremap - ioremap register space for the interconnect target module
  * @ddata: device driver data
  *
  * Note that the interconnect target module registers can be anywhere
@@ -1499,6 +1501,8 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_MODULE_QUIRK_SGX),
 	SYSC_QUIRK("lcdc", 0, 0, 0x54, -ENODEV, 0x4f201000, 0xffffffff,
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
+	SYSC_QUIRK("mcasp", 0, 0, 0x4, -ENODEV, 0x44306302, 0xffffffff,
+		   SYSC_QUIRK_SWSUP_SIDLE),
 	SYSC_QUIRK("rtc", 0, 0x74, 0x78, -ENODEV, 0x4eb01908, 0xffff00f0,
 		   SYSC_MODULE_QUIRK_RTC_UNLOCK),
 	SYSC_QUIRK("tptc", 0, 0, 0x10, -ENODEV, 0x40006c00, 0xffffefff,
@@ -1555,7 +1559,6 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 	SYSC_QUIRK("hsi", 0, 0, 0x10, 0x14, 0x50043101, 0xffffffff, 0),
 	SYSC_QUIRK("iss", 0, 0, 0x10, -ENODEV, 0x40000101, 0xffffffff, 0),
 	SYSC_QUIRK("keypad", 0x4a31c000, 0, 0x10, 0x14, 0x00000020, 0xffffffff, 0),
-	SYSC_QUIRK("mcasp", 0, 0, 0x4, -ENODEV, 0x44306302, 0xffffffff, 0),
 	SYSC_QUIRK("mcasp", 0, 0, 0x4, -ENODEV, 0x44307b02, 0xffffffff, 0),
 	SYSC_QUIRK("mcbsp", 0, -ENODEV, 0x8c, -ENODEV, 0, 0, 0),
 	SYSC_QUIRK("mcspi", 0, 0, 0x10, -ENODEV, 0x40300a0b, 0xffff00ff, 0),
@@ -3093,8 +3096,8 @@ static int sysc_probe(struct platform_device *pdev)
 		return error;
 
 	error = sysc_check_active_timer(ddata);
-	if (error)
-		return error;
+	if (error == -EBUSY)
+		ddata->reserved = true;
 
 	error = sysc_get_clocks(ddata);
 	if (error)
@@ -3109,9 +3112,8 @@ static int sysc_probe(struct platform_device *pdev)
 		goto unprepare;
 
 	pm_runtime_enable(ddata->dev);
-	error = pm_runtime_get_sync(ddata->dev);
+	error = pm_runtime_resume_and_get(ddata->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
 		pm_runtime_disable(ddata->dev);
 		goto unprepare;
 	}
@@ -3130,11 +3132,15 @@ static int sysc_probe(struct platform_device *pdev)
 	sysc_show_registers(ddata);
 
 	ddata->dev->type = &sysc_device_type;
-	error = of_platform_populate(ddata->dev->of_node, sysc_match_table,
-				     pdata ? pdata->auxdata : NULL,
-				     ddata->dev);
-	if (error)
-		goto err;
+
+	if (!ddata->reserved) {
+		error = of_platform_populate(ddata->dev->of_node,
+					     sysc_match_table,
+					     pdata ? pdata->auxdata : NULL,
+					     ddata->dev);
+		if (error)
+			goto err;
+	}
 
 	INIT_DELAYED_WORK(&ddata->idle_work, ti_sysc_idle);
 
@@ -3165,9 +3171,8 @@ static int sysc_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&ddata->idle_work);
 
-	error = pm_runtime_get_sync(ddata->dev);
+	error = pm_runtime_resume_and_get(ddata->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
 		pm_runtime_disable(ddata->dev);
 		goto unprepare;
 	}
