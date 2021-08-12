@@ -3080,7 +3080,7 @@ static void ingenic_gpio_irq_handler(struct irq_desc *desc)
 		flag = ingenic_gpio_read_reg(jzgc, JZ4730_GPIO_GPFR);
 
 	for_each_set_bit(i, &flag, 32)
-		generic_handle_irq(irq_linear_revmap(gc->irq.domain, i));
+		generic_handle_domain_irq(gc->irq.domain, i);
 	chained_irq_exit(irq_chip, desc);
 }
 
