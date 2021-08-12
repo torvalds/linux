@@ -95,7 +95,7 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_sku = get_sku;
 	hw_data->enable_ints = adf_vf_void_noop;
-	hw_data->enable_vf2pf_comms = adf_enable_vf2pf_comms;
+	hw_data->enable_pfvf_comms = adf_enable_vf2pf_comms;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;
 	hw_data->dev_class->instances++;
 	adf_devmgr_update_class_index(hw_data);

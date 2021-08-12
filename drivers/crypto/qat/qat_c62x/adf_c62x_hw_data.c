@@ -160,7 +160,7 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 		   ADF_C62X_SMIA1_MASK);
 }
 
-static int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
+static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
 {
 	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
 
@@ -213,7 +213,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
 	hw_data->get_pf2vf_offset = get_pf2vf_offset;
-	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
+	hw_data->enable_pfvf_comms = adf_enable_pf2vf_comms;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;
 
