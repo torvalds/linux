@@ -210,6 +210,12 @@
 			AM64X_IOPAD(0x0008, PIN_INPUT, 0) /* (N19) OSPI0_DQS */
 		>;
 	};
+
+	main_ecap0_pins_default: main-ecap0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0270, PIN_INPUT, 0) /* (D18) ECAP0_IN_APWM_OUT */
+		>;
+	};
 };
 
 &mcu_uart0 {
@@ -451,5 +457,63 @@
 };
 
 &pcie0_ep {
+	status = "disabled";
+};
+
+&ecap0 {
+	/* PWM is available on Pin 1 of header J3 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_ecap0_pins_default>;
+};
+
+&ecap1 {
+	status = "disabled";
+};
+
+&ecap2 {
+	status = "disabled";
+};
+
+&epwm0 {
+	status = "disabled";
+};
+
+&epwm1 {
+	status = "disabled";
+};
+
+&epwm2 {
+	status = "disabled";
+};
+
+&epwm3 {
+	status = "disabled";
+};
+
+&epwm4 {
+	/*
+	 * EPWM4_A, EPWM4_B is available on Pin 32 and 33 on J4 (RPi hat)
+	 * But RPi Hat will be used for other use cases, so marking epwm4 as disabled.
+	 */
+	status = "disabled";
+};
+
+&epwm5 {
+	/*
+	 * EPWM5_A, EPWM5_B is available on Pin 29 and 31 on J4 (RPi hat)
+	 * But RPi Hat will be used for other use cases, so marking epwm5 as disabled.
+	 */
+	status = "disabled";
+};
+
+&epwm6 {
+	status = "disabled";
+};
+
+&epwm7 {
+	status = "disabled";
+};
+
+&epwm8 {
 	status = "disabled";
 };
