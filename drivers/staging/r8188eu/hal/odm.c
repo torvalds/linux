@@ -222,7 +222,7 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 		;
 	} else if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES) {
 		ODM_TXPowerTrackingCheck(pDM_Odm);
-	      odm_EdcaTurboCheck(pDM_Odm);
+		odm_EdcaTurboCheck(pDM_Odm);
 		odm_DynamicTxPower(pDM_Odm);
 	}
 	odm_dtc(pDM_Odm);
@@ -482,26 +482,26 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
 		if (pDM_Odm->SupportPlatform & (ODM_CE|ODM_MP)) {
 			ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-				if (pDM_Odm->SupportICType != ODM_RTL8188E)
+			if (pDM_Odm->SupportICType != ODM_RTL8188E)
 				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 		} else if (pDM_Odm->SupportPlatform & (ODM_AP|ODM_ADSL)) {
 			switch (*pDM_Odm->pOnePathCCA) {
 			case ODM_CCA_2R:
 				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
+				if (pDM_Odm->SupportICType != ODM_RTL8188E)
 					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 				break;
 			case ODM_CCA_1R_A:
 				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
+				if (pDM_Odm->SupportICType != ODM_RTL8188E)
 					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
 				break;
 			case ODM_CCA_1R_B:
 				ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), getIGIForDiff(CurrentIGI));
-					if (pDM_Odm->SupportICType != ODM_RTL8188E)
+				if (pDM_Odm->SupportICType != ODM_RTL8188E)
 					ODM_SetBBReg(pDM_Odm, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
-					break;
-				}
+				break;
+			}
 		}
 		/* pDM_DigTable->PreIGValue = pDM_DigTable->CurIGValue; */
 		pDM_DigTable->CurIGValue = CurrentIGI;
@@ -548,9 +548,9 @@ void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm)
 		RSSI_Lower = DM_DIG_MIN_NIC;
 
 	/* Upper and Lower Bound checking */
-	 if (CurrentIGI > DM_DIG_MAX_NIC)
+	if (CurrentIGI > DM_DIG_MAX_NIC)
 		CurrentIGI = DM_DIG_MAX_NIC;
-	 else if (CurrentIGI < RSSI_Lower)
+	else if (CurrentIGI < RSSI_Lower)
 		CurrentIGI = RSSI_Lower;
 
 	ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */

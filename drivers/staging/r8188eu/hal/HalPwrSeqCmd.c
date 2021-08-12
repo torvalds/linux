@@ -60,7 +60,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				poll_bit = false;
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);
 				do {
-						value = rtw_read8(padapter, offset);
+					value = rtw_read8(padapter, offset);
 
 					value &= GET_PWR_CFG_MASK(pwrcfgcmd);
 					if (value == (GET_PWR_CFG_VALUE(pwrcfgcmd) & GET_PWR_CFG_MASK(pwrcfgcmd)))

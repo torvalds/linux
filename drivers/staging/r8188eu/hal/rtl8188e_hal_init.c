@@ -723,7 +723,7 @@ hal_EfusePowerSwitch_RTL8188E(
 		tmpV16 = rtw_read16(pAdapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
-			 rtw_write16(pAdapter, REG_SYS_ISO_CTRL, tmpV16);
+			rtw_write16(pAdapter, REG_SYS_ISO_CTRL, tmpV16);
 		}
 		/*  Reset: 0x0000h[28], default valid */
 		tmpV16 =  rtw_read16(pAdapter, REG_SYS_FUNC_EN);

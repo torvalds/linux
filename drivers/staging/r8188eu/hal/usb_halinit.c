@@ -853,13 +853,13 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	haldata->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum rf_radio_path)0, RF_CHNLBW, bRFRegOffsetMask);
 	haldata->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum rf_radio_path)1, RF_CHNLBW, bRFRegOffsetMask);
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_TURN_ON_BLOCK);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_TURN_ON_BLOCK);
 	_BBTurnOnBlock(Adapter);
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_SECURITY);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_SECURITY);
 	invalidate_cam_all(Adapter);
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	/*  2010/12/17 MH We need to set TX power according to EFUSE content at first. */
 	PHY_SetTxPowerLevel8188E(Adapter, haldata->CurrentChannel);
 
@@ -884,7 +884,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	/* Nav limit , suggest by scott */
 	rtw_write8(Adapter, 0x652, 0x0);
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8188e_InitHalDm(Adapter);
 
 	if (Adapter->registrypriv.mp_mode == 1) {
@@ -912,7 +912,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 		/* enable tx DMA to drop the redundate data of packet */
 		rtw_write16(Adapter, REG_TXDMA_OFFSET_CHK, (rtw_read16(Adapter, REG_TXDMA_OFFSET_CHK) | DROP_DATA_EN));
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
+		HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
 		/*  2010/08/26 MH Merge from 8192CE. */
 		if (pwrctrlpriv->rf_pwrstate == rf_on) {
 			if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
@@ -922,11 +922,11 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
 				haldata->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
 			}
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
+			HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
 
 			ODM_TXPowerTrackingCheck(&haldata->odmpriv);
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
+			HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 			PHY_LCCalibrate_8188E(Adapter);
 		}
 	}
@@ -939,7 +939,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 
 	DBG_88E("%s in %dms\n", __func__, rtw_get_passing_time_ms(init_start_time));
 
@@ -1884,7 +1884,7 @@ static void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
 		*((u16 *)(val)) = haldata->BasicRateSet;
-		__attribute__((__fallthrough__));
+		fallthrough;
 	case HW_VAR_TXPAUSE:
 		val[0] = rtw_read8(Adapter, REG_TXPAUSE);
 		break;

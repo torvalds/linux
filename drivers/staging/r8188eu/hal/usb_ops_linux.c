@@ -260,11 +260,9 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 
 	wvalue = (u16)(addr&0x0000ffff);
 	len = length;
-	 memcpy(buf, pdata, len);
+	memcpy(buf, pdata, len);
 
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, buf, len, requesttype);
-
-
 
 	return ret;
 }
@@ -516,7 +514,6 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		case -EPIPE:
 		case -ENODEV:
 		case -ESHUTDOWN:
-			__attribute__((__fallthrough__));
 		case -ENOENT:
 			adapt->bDriverStopped = true;
 			break;
@@ -565,54 +562,54 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 			precvbuf->reuse = true;
 	}
 
-		rtl8188eu_init_recvbuf(adapter, precvbuf);
+	rtl8188eu_init_recvbuf(adapter, precvbuf);
 
-		/* re-assign for linux based on skb */
-		if (!precvbuf->reuse || !precvbuf->pskb) {
-			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-			if (!precvbuf->pskb) {
-				DBG_88E("#### usb_read_port() alloc_skb fail!#####\n");
-				return _FAIL;
-			}
-
-			tmpaddr = (size_t)precvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
-			skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-
-			precvbuf->phead = precvbuf->pskb->head;
-			precvbuf->pdata = precvbuf->pskb->data;
-			precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-			precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-			precvbuf->pbuf = precvbuf->pskb->data;
-		} else { /* reuse skb */
-			precvbuf->phead = precvbuf->pskb->head;
-			precvbuf->pdata = precvbuf->pskb->data;
-			precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-			precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-			precvbuf->pbuf = precvbuf->pskb->data;
-
-			precvbuf->reuse = false;
+	/* re-assign for linux based on skb */
+	if (!precvbuf->reuse || !precvbuf->pskb) {
+		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		if (!precvbuf->pskb) {
+			DBG_88E("#### usb_read_port() alloc_skb fail!#####\n");
+			return _FAIL;
 		}
 
-		precvpriv->rx_pending_cnt++;
+		tmpaddr = (size_t)precvbuf->pskb->data;
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 
-		purb = precvbuf->purb;
+		precvbuf->phead = precvbuf->pskb->head;
+		precvbuf->pdata = precvbuf->pskb->data;
+		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
+		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
+		precvbuf->pbuf = precvbuf->pskb->data;
+	} else { /* reuse skb */
+		precvbuf->phead = precvbuf->pskb->head;
+		precvbuf->pdata = precvbuf->pskb->data;
+		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
+		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
+		precvbuf->pbuf = precvbuf->pskb->data;
 
-		/* translate DMA FIFO addr to pipehandle */
-		pipe = ffaddr2pipehdl(pdvobj, addr);
+		precvbuf->reuse = false;
+	}
 
-		usb_fill_bulk_urb(purb, pusbd, pipe,
-				  precvbuf->pbuf,
-				  MAX_RECVBUF_SZ,
-				  usb_read_port_complete,
-				  precvbuf);/* context is precvbuf */
+	precvpriv->rx_pending_cnt++;
 
-		err = usb_submit_urb(purb, GFP_ATOMIC);
-		if ((err) && (err != (-EPERM))) {
-			DBG_88E("cannot submit rx in-token(err = 0x%08x),urb_status = %d\n",
-				err, purb->status);
-			ret = _FAIL;
-		}
+	purb = precvbuf->purb;
+
+	/* translate DMA FIFO addr to pipehandle */
+	pipe = ffaddr2pipehdl(pdvobj, addr);
+
+	usb_fill_bulk_urb(purb, pusbd, pipe,
+			  precvbuf->pbuf,
+			  MAX_RECVBUF_SZ,
+			  usb_read_port_complete,
+			  precvbuf);/* context is precvbuf */
+
+	err = usb_submit_urb(purb, GFP_ATOMIC);
+	if ((err) && (err != (-EPERM))) {
+		DBG_88E("cannot submit rx in-token(err = 0x%08x),urb_status = %d\n",
+			err, purb->status);
+		ret = _FAIL;
+	}
 
 	return ret;
 }
