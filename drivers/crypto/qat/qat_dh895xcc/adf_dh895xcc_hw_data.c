@@ -182,6 +182,8 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 
 static int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
 {
+	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
+
 	return 0;
 }
 

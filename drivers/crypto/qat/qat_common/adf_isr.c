@@ -103,7 +103,7 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 			int i;
 
 			/* Disable VF2PF interrupts for VFs with pending ints */
-			adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
+			adf_disable_vf2pf_interrupts_irq(accel_dev, vf_mask);
 
 			/*
 			 * Handle VF2PF interrupt unless the VF is malicious and

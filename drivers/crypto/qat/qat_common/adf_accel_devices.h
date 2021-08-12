@@ -246,6 +246,8 @@ struct adf_accel_dev {
 	struct adf_accel_pci accel_pci_dev;
 	union {
 		struct {
+			/* protects VF2PF interrupts access */
+			spinlock_t vf2pf_ints_lock;
 			/* vf_info is non-zero when SR-IOV is init'ed */
 			struct adf_accel_vf_info *vf_info;
 		} pf;

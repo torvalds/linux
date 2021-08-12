@@ -11,8 +11,8 @@
 #define ADF_DH895XCC_ERRMSK5	(ADF_DH895XCC_EP_OFFSET + 0xDC)
 #define ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask) (vf_mask >> 16)
 
-void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
-				 u32 vf_mask)
+static void __adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+					  u32 vf_mask)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_bar *pmisc =
@@ -35,7 +35,17 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 	}
 }
 
-void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
+	__adf_enable_vf2pf_interrupts(accel_dev, vf_mask);
+	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
+}
+
+static void __adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+					   u32 vf_mask)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_bar *pmisc =
@@ -56,6 +66,22 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 			ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask);
 		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK5, reg);
 	}
+}
+
+void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
+	__adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
+	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
+}
+
+void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev, u32 vf_mask)
+{
+	spin_lock(&accel_dev->pf.vf2pf_ints_lock);
+	__adf_disable_vf2pf_interrupts(accel_dev, vf_mask);
+	spin_unlock(&accel_dev->pf.vf2pf_ints_lock);
 }
 
 static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
@@ -264,6 +290,7 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 
 	/* re-enable interrupt on PF from this VF */
 	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_nr));
+
 	return;
 err:
 	dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x);\n",
