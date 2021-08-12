@@ -640,6 +640,18 @@ config SPI_ROCKCHIP
 	  The main usecase of this controller is to use spi flash as boot
 	  device.
 
+config SPI_ROCKCHIP_SFC
+	tristate "Rockchip Serial Flash Controller (SFC)"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM && HAS_DMA
+	help
+	  This enables support for Rockchip serial flash controller. This
+	  is a specialized controller used to access SPI flash on some
+	  Rockchip SOCs.
+
+	  ROCKCHIP SFC supports DMA and PIO modes. When DMA is not available,
+	  the driver automatically falls back to PIO mode.
+
 config SPI_RB4XX
 	tristate "Mikrotik RB4XX SPI master"
 	depends on SPI_MASTER && ATH79
