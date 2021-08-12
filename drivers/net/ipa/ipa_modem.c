@@ -9,6 +9,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_rmnet.h>
+#include <linux/pm_runtime.h>
 #include <linux/remoteproc/qcom_rproc.h>
 
 #include "ipa.h"
@@ -33,9 +34,14 @@ enum ipa_modem_state {
 	IPA_MODEM_STATE_STOPPING,
 };
 
-/** struct ipa_priv - IPA network device private data */
+/**
+ * struct ipa_priv - IPA network device private data
+ * @ipa:	IPA pointer
+ * @work:	Work structure used to wake the modem netdev TX queue
+ */
 struct ipa_priv {
 	struct ipa *ipa;
+	struct work_struct work;
 };
 
 /** ipa_open() - Opens the modem network interface */
@@ -189,6 +195,21 @@ void ipa_modem_suspend(struct net_device *netdev)
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 }
 
+/**
+ * ipa_modem_wake_queue_work() - enable modem netdev queue
+ * @work:	Work structure
+ *
+ * Re-enable transmit on the modem network device.  This is called
+ * in (power management) work queue context, scheduled when resuming
+ * the modem.
+ */
+static void ipa_modem_wake_queue_work(struct work_struct *work)
+{
+	struct ipa_priv *priv = container_of(work, struct ipa_priv, work);
+
+	netif_wake_queue(priv->ipa->modem_netdev);
+}
+
 /** ipa_modem_resume() - resume callback for runtime_pm
  * @dev: pointer to device
  *
@@ -205,7 +226,8 @@ void ipa_modem_resume(struct net_device *netdev)
 	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 
-	netif_wake_queue(netdev);
+	/* Arrange for the TX queue to be restarted */
+	(void)queue_pm_work(&priv->work);
 }
 
 int ipa_modem_start(struct ipa *ipa)
@@ -233,6 +255,7 @@ int ipa_modem_start(struct ipa *ipa)
 	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
+	INIT_WORK(&priv->work, ipa_modem_wake_queue_work);
 	ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
 	ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
 	ipa->modem_netdev = netdev;
@@ -277,6 +300,9 @@ int ipa_modem_stop(struct ipa *ipa)
 
 	/* Clean up the netdev and endpoints if it was started */
 	if (netdev) {
+		struct ipa_priv *priv = netdev_priv(netdev);
+
+		cancel_work_sync(&priv->work);
 		/* If it was opened, stop it first */
 		if (netdev->flags & IFF_UP)
 			(void)ipa_stop(netdev);
