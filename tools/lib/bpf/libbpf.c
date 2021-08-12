@@ -5277,11 +5277,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 				}
 				insn[1].imm = ext->kcfg.data_off;
 			} else /* EXT_KSYM */ {
-				if (ext->ksym.type_id) { /* typed ksyms */
+				if (ext->ksym.type_id && ext->is_set) { /* typed ksyms */
 					insn[0].src_reg = BPF_PSEUDO_BTF_ID;
 					insn[0].imm = ext->ksym.kernel_btf_id;
 					insn[1].imm = ext->ksym.kernel_btf_obj_fd;
-				} else { /* typeless ksyms */
+				} else { /* typeless ksyms or unresolved typed ksyms */
 					insn[0].imm = (__u32)ext->ksym.addr;
 					insn[1].imm = ext->ksym.addr >> 32;
 				}
@@ -6608,11 +6608,8 @@ static int find_ksym_btf_id(struct bpf_object *obj, const char *ksym_name,
 				break;
 		}
 	}
-	if (id <= 0) {
-		pr_warn("extern (%s ksym) '%s': failed to find BTF ID in kernel BTF(s).\n",
-			__btf_kind_str(kind), ksym_name);
+	if (id <= 0)
 		return -ESRCH;
-	}
 
 	*res_btf = btf;
 	*res_btf_fd = btf_fd;
@@ -6629,8 +6626,13 @@ static int bpf_object__resolve_ksym_var_btf_id(struct bpf_object *obj,
 	struct btf *btf = NULL;
 
 	id = find_ksym_btf_id(obj, ext->name, BTF_KIND_VAR, &btf, &btf_fd);
-	if (id < 0)
+	if (id == -ESRCH && ext->is_weak) {
+		return 0;
+	} else if (id < 0) {
+		pr_warn("extern (var ksym) '%s': not found in kernel BTF\n",
+			ext->name);
 		return id;
+	}
 
 	/* find local type_id */
 	local_type_id = ext->ksym.type_id;
