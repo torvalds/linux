@@ -88,11 +88,11 @@ xfs_inobt_mod_blockcount(
 
 STATIC int
 __xfs_inobt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat,
-	enum xfs_ag_resv_type	resv)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat,
+	enum xfs_ag_resv_type		resv)
 {
 	xfs_alloc_arg_t		args;		/* block allocation args */
 	int			error;		/* error return value */
@@ -127,20 +127,20 @@ __xfs_inobt_alloc_block(
 
 STATIC int
 xfs_inobt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat)
 {
 	return __xfs_inobt_alloc_block(cur, start, new, stat, XFS_AG_RESV_NONE);
 }
 
 STATIC int
 xfs_finobt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat)
 {
 	if (cur->bc_mp->m_finobt_nores)
 		return xfs_inobt_alloc_block(cur, start, new, stat);

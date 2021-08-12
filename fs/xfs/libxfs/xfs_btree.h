@@ -110,7 +110,7 @@ struct xfs_btree_ops {
 
 	/* block allocation / freeing */
 	int	(*alloc_block)(struct xfs_btree_cur *cur,
-			       union xfs_btree_ptr *start_bno,
+			       const union xfs_btree_ptr *start_bno,
 			       union xfs_btree_ptr *new_bno,
 			       int *stat);
 	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);

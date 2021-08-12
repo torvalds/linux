@@ -59,10 +59,10 @@ xfs_btree_fakeroot_dup_cursor(
  */
 STATIC int
 xfs_btree_fakeroot_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start_bno,
-	union xfs_btree_ptr	*new_bno,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start_bno,
+	union xfs_btree_ptr		*new_bno,
+	int				*stat)
 {
 	ASSERT(0);
 	return -EFSCORRUPTED;

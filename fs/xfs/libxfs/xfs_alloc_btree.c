@@ -50,10 +50,10 @@ xfs_allocbt_set_root(
 
 STATIC int
 xfs_allocbt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat)
 {
 	int			error;
 	xfs_agblock_t		bno;
