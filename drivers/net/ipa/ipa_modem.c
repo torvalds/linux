@@ -214,8 +214,6 @@ void ipa_modem_suspend(struct net_device *netdev)
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	netif_stop_queue(netdev);
-
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 }
