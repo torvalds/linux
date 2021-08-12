@@ -752,9 +752,9 @@ struct mlx5dr_esw_caps {
 struct mlx5dr_cmd_vport_cap {
 	u16 vport_gvmi;
 	u16 vhca_gvmi;
+	u16 num;
 	u64 icm_address_rx;
 	u64 icm_address_tx;
-	u32 num;
 };
 
 struct mlx5dr_roce_cap {
@@ -1103,7 +1103,7 @@ mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
 }
 
 static inline struct mlx5dr_cmd_vport_cap *
-mlx5dr_get_vport_cap(struct mlx5dr_cmd_caps *caps, u32 vport)
+mlx5dr_get_vport_cap(struct mlx5dr_cmd_caps *caps, u16 vport)
 {
 	if (!caps->vports_caps ||
 	    (vport >= caps->num_vports && vport != WIRE_PORT))
@@ -1154,7 +1154,7 @@ int mlx5dr_cmd_set_fte_modify_and_vport(struct mlx5_core_dev *mdev,
 					u32 table_id,
 					u32 group_id,
 					u32 modify_header_id,
-					u32 vport_id);
+					u16 vport_id);
 int mlx5dr_cmd_del_flow_table_entry(struct mlx5_core_dev *mdev,
 				    u32 table_type,
 				    u32 table_id);
@@ -1372,11 +1372,11 @@ struct mlx5dr_fw_recalc_cs_ft {
 };
 
 struct mlx5dr_fw_recalc_cs_ft *
-mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u32 vport_num);
+mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u16 vport_num);
 void mlx5dr_fw_destroy_recalc_cs_ft(struct mlx5dr_domain *dmn,
 				    struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft);
 int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
-					      u32 vport_num,
+					      u16 vport_num,
 					      u64 *rx_icm_addr);
 int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_cmd_flow_destination_hw_info *dest,

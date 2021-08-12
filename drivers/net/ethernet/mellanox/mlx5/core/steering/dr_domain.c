@@ -38,7 +38,7 @@ static void dr_domain_uninit_cache(struct mlx5dr_domain *dmn)
 }
 
 int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
-					      u32 vport_num,
+					      u16 vport_num,
 					      u64 *rx_icm_addr)
 {
 	struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft;
