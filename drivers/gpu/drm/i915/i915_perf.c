@@ -1256,7 +1256,6 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 
 	case 8:
 	case 9:
-	case 10:
 		if (intel_engine_uses_guc(ce->engine)) {
 			/*
 			 * When using GuC, the context descriptor we write in
@@ -2589,7 +2588,7 @@ static void gen8_disable_metric_set(struct i915_perf_stream *stream)
 	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_NOA_ENABLE, 0);
 }
 
-static void gen10_disable_metric_set(struct i915_perf_stream *stream)
+static void gen11_disable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
 
@@ -3896,7 +3895,7 @@ static bool gen8_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 	       REG_IN_RANGE(addr, RPM_CONFIG0, NOA_CONFIG(8));
 }
 
-static bool gen10_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
+static bool gen11_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
 	return gen8_is_valid_mux_addr(perf, addr) ||
 	       REG_EQUAL(addr, GEN10_NOA_WRITE_HIGH) ||
@@ -4319,7 +4318,6 @@ static void oa_init_supported_formats(struct i915_perf *perf)
 	case INTEL_GEMINILAKE:
 	case INTEL_COFFEELAKE:
 	case INTEL_COMETLAKE:
-	case INTEL_CANNONLAKE:
 	case INTEL_ICELAKE:
 	case INTEL_ELKHARTLAKE:
 	case INTEL_JASPERLAKE:
@@ -4404,27 +4402,23 @@ void i915_perf_init(struct drm_i915_private *i915)
 
 				perf->gen8_valid_ctx_bit = BIT(16);
 			}
-		} else if (IS_GRAPHICS_VER(i915, 10, 11)) {
+		} else if (GRAPHICS_VER(i915) == 11) {
 			perf->ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			perf->ops.is_valid_mux_reg =
-				gen10_is_valid_mux_addr;
+				gen11_is_valid_mux_addr;
 			perf->ops.is_valid_flex_reg =
 				gen8_is_valid_flex_addr;
 
 			perf->ops.oa_enable = gen8_oa_enable;
 			perf->ops.oa_disable = gen8_oa_disable;
 			perf->ops.enable_metric_set = gen8_enable_metric_set;
-			perf->ops.disable_metric_set = gen10_disable_metric_set;
+			perf->ops.disable_metric_set = gen11_disable_metric_set;
 			perf->ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-			if (GRAPHICS_VER(i915) == 10) {
-				perf->ctx_oactxctrl_offset = 0x128;
-				perf->ctx_flexeu0_offset = 0x3de;
-			} else {
-				perf->ctx_oactxctrl_offset = 0x124;
-				perf->ctx_flexeu0_offset = 0x78e;
-			}
+			perf->ctx_oactxctrl_offset = 0x124;
+			perf->ctx_flexeu0_offset = 0x78e;
+
 			perf->gen8_valid_ctx_bit = BIT(16);
 		} else if (GRAPHICS_VER(i915) == 12) {
 			perf->ops.is_valid_b_counter_reg =

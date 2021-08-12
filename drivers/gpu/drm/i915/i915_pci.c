@@ -782,27 +782,13 @@ static const struct intel_device_info cml_gt2_info = {
 	.gt = 2,
 };
 
-#define GEN10_FEATURES \
-	GEN9_FEATURES, \
-	GEN(10), \
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */ \
-	.display.has_dsc = 1, \
-	.has_coherent_ggtt = false, \
-	GLK_COLORS
-
-static const struct intel_device_info cnl_info = {
-	GEN10_FEATURES,
-	PLATFORM(INTEL_CANNONLAKE),
-	.gt = 2,
-};
-
 #define GEN11_DEFAULT_PAGE_SIZES \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_64K | \
 		      I915_GTT_PAGE_SIZE_2M
 
 #define GEN11_FEATURES \
-	GEN10_FEATURES, \
+	GEN9_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
 	.abox_mask = BIT(0), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
@@ -825,10 +811,12 @@ static const struct intel_device_info cnl_info = {
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
 	GEN(11), \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }, \
 	.dbuf.size = 2048, \
 	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
-	.has_logical_ring_elsq = 1, \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
+	.display.has_dsc = 1, \
+	.has_coherent_ggtt = false, \
+	.has_logical_ring_elsq = 1
 
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
@@ -902,7 +890,6 @@ static const struct intel_device_info rkl_info = {
 
 #define DGFX_FEATURES \
 	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
-	.has_master_unit_irq = 1, \
 	.has_llc = 0, \
 	.has_snoop = 1, \
 	.is_dgfx = 1
@@ -910,6 +897,7 @@ static const struct intel_device_info rkl_info = {
 static const struct intel_device_info dg1_info __maybe_unused = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
+	.graphics_rel = 10,
 	PLATFORM(INTEL_DG1),
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
@@ -942,7 +930,7 @@ static const struct intel_device_info adl_s_info = {
 
 #define XE_LPD_FEATURES \
 	.abox_mask = GENMASK(1, 0),						\
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 },		\
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 0 },		\
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |		\
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),				\
 	.dbuf.size = 4096,							\
@@ -979,8 +967,8 @@ static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,
 	XE_LPD_FEATURES,
 	PLATFORM(INTEL_ALDERLAKE_P),
-	.has_cdclk_crawl = 1,
 	.require_force_probe = 1,
+	.display.has_cdclk_crawl = 1,
 	.display.has_modular_fia = 1,
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
@@ -1120,7 +1108,6 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CML_GT2_IDS(&cml_gt2_info),
 	INTEL_CML_U_GT1_IDS(&cml_gt1_info),
 	INTEL_CML_U_GT2_IDS(&cml_gt2_info),
-	INTEL_CNL_IDS(&cnl_info),
 	INTEL_ICL_11_IDS(&icl_info),
 	INTEL_EHL_IDS(&ehl_info),
 	INTEL_JSL_IDS(&jsl_info),
