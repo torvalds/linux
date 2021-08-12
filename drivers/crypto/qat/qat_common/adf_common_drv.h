@@ -205,10 +205,7 @@ void adf_exit_pf_wq(void);
 int adf_init_vf_wq(void);
 void adf_exit_vf_wq(void);
 #else
-static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
-{
-	return 0;
-}
+#define adf_sriov_configure NULL
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 {
