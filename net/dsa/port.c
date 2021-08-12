@@ -426,7 +426,9 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 
 	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
-		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
+		dev_err(dp->ds->dev,
+			"port %d failed to notify DSA_NOTIFIER_BRIDGE_LEAVE: %pe\n",
+			dp->index, ERR_PTR(err));
 
 	dsa_port_switchdev_unsync_attrs(dp);
 }
@@ -525,8 +527,9 @@ void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag)
 
 	err = dsa_port_notify(dp, DSA_NOTIFIER_LAG_LEAVE, &info);
 	if (err)
-		pr_err("DSA: failed to notify DSA_NOTIFIER_LAG_LEAVE: %d\n",
-		       err);
+		dev_err(dp->ds->dev,
+			"port %d failed to notify DSA_NOTIFIER_LAG_LEAVE: %pe\n",
+			dp->index, ERR_PTR(err));
 
 	dsa_lag_unmap(dp->ds->dst, lag);
 }
@@ -1306,10 +1309,12 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 
 	err = dsa_port_notify(dp, DSA_NOTIFIER_HSR_LEAVE, &info);
 	if (err)
-		pr_err("DSA: failed to notify DSA_NOTIFIER_HSR_LEAVE\n");
+		dev_err(dp->ds->dev,
+			"port %d failed to notify DSA_NOTIFIER_HSR_LEAVE: %pe\n",
+			dp->index, ERR_PTR(err));
 }
 
-int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid)
+int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast)
 {
 	struct dsa_notifier_tag_8021q_vlan_info info = {
 		.tree_index = dp->ds->dst->index,
@@ -1318,10 +1323,13 @@ int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid)
 		.vid = vid,
 	};
 
-	return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+	if (broadcast)
+		return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+
+	return dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
 }
 
-void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
+void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast)
 {
 	struct dsa_notifier_tag_8021q_vlan_info info = {
 		.tree_index = dp->ds->dst->index,
@@ -1331,8 +1339,12 @@ void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
 	};
 	int err;
 
-	err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+	if (broadcast)
+		err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+	else
+		err = dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
 	if (err)
-		pr_err("DSA: failed to notify tag_8021q VLAN deletion: %pe\n",
-		       ERR_PTR(err));
+		dev_err(dp->ds->dev,
+			"port %d failed to notify tag_8021q VLAN %d deletion: %pe\n",
+			dp->index, vid, ERR_PTR(err));
 }
