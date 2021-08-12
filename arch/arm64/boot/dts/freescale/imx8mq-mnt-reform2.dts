@@ -40,6 +40,24 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&reg_main_5v>;
 	};
+
+	sound {
+		compatible = "fsl,imx-audio-wm8960";
+		audio-cpu = <&sai2>;
+		audio-codec = <&wm8960>;
+		audio-routing =
+			"Headphone Jack", "HP_L",
+			"Headphone Jack", "HP_R",
+			"Ext Spk", "SPK_LP",
+			"Ext Spk", "SPK_LN",
+			"Ext Spk", "SPK_RP",
+			"Ext Spk", "SPK_RN",
+			"LINPUT1", "Mic Jack",
+			"Mic Jack", "MICB",
+			"LINPUT2", "Line In Jack",
+			"RINPUT2", "Line In Jack";
+		model = "wm8960-audio";
+	};
 };
 
 &fec1 {
@@ -50,6 +68,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
+
+	wm8960: codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		clocks = <&clk IMX8MQ_CLK_SAI2_ROOT>;
+		clock-names = "mclk";
+		#sound-dai-cells = <0>;
+	};
 
 	rtc@68 {
 		compatible = "nxp,pcf8523";
@@ -87,6 +113,17 @@
 
 &reg_soc_gpu_vpu {
 	vin-supply = <&reg_main_5v>;
+};
+
+&sai2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai2>;
+	assigned-clocks = <&clk IMX8MQ_CLK_SAI2>;
+	assigned-clock-parents = <&clk IMX8MQ_CLK_25M>;
+	assigned-clock-rates = <25000000>;
+	fsl,sai-mclk-direction-output;
+	fsl,sai-asynchronous;
+	status = "okay";
 };
 
 &snvs_rtc {
@@ -141,6 +178,18 @@
 	pinctrl_pcie1: pcie1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI5_RXD2_GPIO3_IO23		0x16
+		>;
+	};
+
+	pinctrl_sai2: sai2grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI2_RXD0_SAI2_RX_DATA0		0xd6
+			MX8MQ_IOMUXC_SAI2_RXFS_SAI2_RX_SYNC		0xd6
+			MX8MQ_IOMUXC_SAI2_TXC_SAI2_TX_BCLK		0xd6
+			MX8MQ_IOMUXC_SAI2_TXFS_SAI2_TX_SYNC		0xd6
+			MX8MQ_IOMUXC_SAI2_RXC_SAI2_RX_BCLK		0xd6
+			MX8MQ_IOMUXC_SAI2_MCLK_SAI2_MCLK		0xd6
+			MX8MQ_IOMUXC_SAI2_TXD0_SAI2_TX_DATA0		0xd6
 		>;
 	};
 
