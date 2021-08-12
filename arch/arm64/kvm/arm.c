@@ -42,10 +42,6 @@
 #include <kvm/arm_pmu.h>
 #include <kvm/arm_psci.h>
 
-#ifdef REQUIRES_VIRT
-__asm__(".arch_extension	virt");
-#endif
-
 static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
 DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
