@@ -110,6 +110,11 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 
 	hw_data->enable_ints(accel_dev);
+	hw_data->enable_error_correction(accel_dev);
+
+	ret = hw_data->enable_vf2pf_comms(accel_dev);
+	if (ret)
+		return ret;
 
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
@@ -127,10 +132,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		set_bit(accel_dev->accel_id, service->init_status);
 	}
 
-	hw_data->enable_error_correction(accel_dev);
-	ret = hw_data->enable_vf2pf_comms(accel_dev);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_dev_init);
 
