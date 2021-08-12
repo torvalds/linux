@@ -503,10 +503,11 @@ union xfs_btree_key *xfs_btree_high_key_addr(struct xfs_btree_cur *cur, int n,
 union xfs_btree_ptr *xfs_btree_ptr_addr(struct xfs_btree_cur *cur, int n,
 		struct xfs_btree_block *block);
 int xfs_btree_lookup_get_block(struct xfs_btree_cur *cur, int level,
-		union xfs_btree_ptr *pp, struct xfs_btree_block **blkp);
+		const union xfs_btree_ptr *pp, struct xfs_btree_block **blkp);
 struct xfs_btree_block *xfs_btree_get_block(struct xfs_btree_cur *cur,
 		int level, struct xfs_buf **bpp);
-bool xfs_btree_ptr_is_null(struct xfs_btree_cur *cur, union xfs_btree_ptr *ptr);
+bool xfs_btree_ptr_is_null(struct xfs_btree_cur *cur,
+		const union xfs_btree_ptr *ptr);
 int64_t xfs_btree_diff_two_ptrs(struct xfs_btree_cur *cur,
 				const union xfs_btree_ptr *a,
 				const union xfs_btree_ptr *b);
@@ -517,8 +518,9 @@ void xfs_btree_get_keys(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, union xfs_btree_key *key);
 union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
 		union xfs_btree_key *key);
-int xfs_btree_has_record(struct xfs_btree_cur *cur, union xfs_btree_irec *low,
-		union xfs_btree_irec *high, bool *exists);
+int xfs_btree_has_record(struct xfs_btree_cur *cur,
+		const union xfs_btree_irec *low,
+		const union xfs_btree_irec *high, bool *exists);
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
 struct xfs_ifork *xfs_btree_ifork_ptr(struct xfs_btree_cur *cur);
 
@@ -541,10 +543,11 @@ xfs_btree_islastblock(
 
 void xfs_btree_set_ptr_null(struct xfs_btree_cur *cur,
 		union xfs_btree_ptr *ptr);
-int xfs_btree_get_buf_block(struct xfs_btree_cur *cur, union xfs_btree_ptr *ptr,
-		struct xfs_btree_block **block, struct xfs_buf **bpp);
+int xfs_btree_get_buf_block(struct xfs_btree_cur *cur,
+		const union xfs_btree_ptr *ptr, struct xfs_btree_block **block,
+		struct xfs_buf **bpp);
 void xfs_btree_set_sibling(struct xfs_btree_cur *cur,
-		struct xfs_btree_block *block, union xfs_btree_ptr *ptr,
+		struct xfs_btree_block *block, const union xfs_btree_ptr *ptr,
 		int lr);
 void xfs_btree_init_block_cur(struct xfs_btree_cur *cur,
 		struct xfs_buf *bp, int level, int numrecs);
@@ -552,7 +555,7 @@ void xfs_btree_copy_ptrs(struct xfs_btree_cur *cur,
 		union xfs_btree_ptr *dst_ptr,
 		const union xfs_btree_ptr *src_ptr, int numptrs);
 void xfs_btree_copy_keys(struct xfs_btree_cur *cur,
-		union xfs_btree_key *dst_key, union xfs_btree_key *src_key,
-		int numkeys);
+		union xfs_btree_key *dst_key,
+		const union xfs_btree_key *src_key, int numkeys);
 
 #endif	/* __XFS_BTREE_H__ */

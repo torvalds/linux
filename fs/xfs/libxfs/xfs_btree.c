@@ -225,10 +225,10 @@ xfs_btree_check_sptr(
  */
 static int
 xfs_btree_check_ptr(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	int			index,
-	int			level)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	int				index,
+	int				level)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
 		if (xfs_btree_check_lptr(cur, be64_to_cpu((&ptr->l)[index]),
@@ -935,9 +935,9 @@ xfs_btree_readahead(
 
 STATIC int
 xfs_btree_ptr_to_daddr(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	xfs_daddr_t		*daddr)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	xfs_daddr_t			*daddr)
 {
 	xfs_fsblock_t		fsbno;
 	xfs_agblock_t		agbno;
@@ -1012,8 +1012,8 @@ xfs_btree_setbuf(
 
 bool
 xfs_btree_ptr_is_null(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		return ptr->l == cpu_to_be64(NULLFSBLOCK);
@@ -1059,10 +1059,10 @@ xfs_btree_get_sibling(
 
 void
 xfs_btree_set_sibling(
-	struct xfs_btree_cur	*cur,
-	struct xfs_btree_block	*block,
-	union xfs_btree_ptr	*ptr,
-	int			lr)
+	struct xfs_btree_cur		*cur,
+	struct xfs_btree_block		*block,
+	const union xfs_btree_ptr	*ptr,
+	int				lr)
 {
 	ASSERT(lr == XFS_BB_LEFTSIB || lr == XFS_BB_RIGHTSIB);
 
@@ -1229,10 +1229,10 @@ xfs_btree_set_refs(
 
 int
 xfs_btree_get_buf_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	struct xfs_btree_block	**block,
-	struct xfs_buf		**bpp)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	struct xfs_btree_block		**block,
+	struct xfs_buf			**bpp)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
 	xfs_daddr_t		d;
@@ -1257,11 +1257,11 @@ xfs_btree_get_buf_block(
  */
 STATIC int
 xfs_btree_read_buf_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	int			flags,
-	struct xfs_btree_block	**block,
-	struct xfs_buf		**bpp)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	int				flags,
+	struct xfs_btree_block		**block,
+	struct xfs_buf			**bpp)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
 	xfs_daddr_t		d;
@@ -1289,10 +1289,10 @@ xfs_btree_read_buf_block(
  */
 void
 xfs_btree_copy_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*dst_key,
-	union xfs_btree_key	*src_key,
-	int			numkeys)
+	struct xfs_btree_cur		*cur,
+	union xfs_btree_key		*dst_key,
+	const union xfs_btree_key	*src_key,
+	int				numkeys)
 {
 	ASSERT(numkeys >= 0);
 	memcpy(dst_key, src_key, numkeys * cur->bc_ops->key_len);
@@ -1713,10 +1713,10 @@ error0:
 
 int
 xfs_btree_lookup_get_block(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	int			level,	/* level in the btree */
-	union xfs_btree_ptr	*pp,	/* ptr to btree block */
-	struct xfs_btree_block	**blkp) /* return btree block */
+	struct xfs_btree_cur		*cur,	/* btree cursor */
+	int				level,	/* level in the btree */
+	const union xfs_btree_ptr	*pp,	/* ptr to btree block */
+	struct xfs_btree_block		**blkp) /* return btree block */
 {
 	struct xfs_buf		*bp;	/* buffer pointer for btree block */
 	xfs_daddr_t		daddr;
@@ -4886,12 +4886,12 @@ xfs_btree_has_record_helper(
 /* Is there a record covering a given range of keys? */
 int
 xfs_btree_has_record(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_irec	*low,
-	union xfs_btree_irec	*high,
-	bool			*exists)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_irec	*low,
+	const union xfs_btree_irec	*high,
+	bool				*exists)
 {
-	int			error;
+	int				error;
 
 	error = xfs_btree_query_range(cur, low, high,
 			&xfs_btree_has_record_helper, NULL);
