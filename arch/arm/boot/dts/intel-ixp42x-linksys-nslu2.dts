@@ -96,16 +96,16 @@
 	};
 
 	soc {
-		bus@50000000 {
+		bus@c4000000 {
 			/* The first 16MB region at CS0 on the expansion bus */
-			flash@0 {
+			flash@0,0 {
 				compatible = "intel,ixp4xx-flash", "cfi-flash";
 				bank-width = <2>;
 				/*
 				 * 8 MB of Flash in 0x20000 byte blocks
 				 * mapped in at CS0.
 				 */
-				reg = <0x00000000 0x800000>;
+				reg = <0 0x00000000 0x800000>;
 
 				partitions {
 					compatible = "redboot-fis";
@@ -124,20 +124,20 @@
 			 */
 			interrupt-map =
 			/* IDSEL 1 */
-			<0x0800 0 0 1 &gpio0 11 3>, /* INT A on slot 1 is irq 11 */
-			<0x0800 0 0 2 &gpio0 10 3>, /* INT B on slot 1 is irq 10 */
-			<0x0800 0 0 3 &gpio0 9  3>, /* INT C on slot 1 is irq 9 */
-			<0x0800 0 0 4 &gpio0 8  3>, /* INT D on slot 1 is irq 8 */
+			<0x0800 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 1 is irq 11 */
+			<0x0800 0 0 2 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 1 is irq 10 */
+			<0x0800 0 0 3 &gpio0 9  IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 1 is irq 9 */
+			<0x0800 0 0 4 &gpio0 8  IRQ_TYPE_LEVEL_LOW>, /* INT D on slot 1 is irq 8 */
 			/* IDSEL 2 */
-			<0x1000 0 0 1 &gpio0 10 3>, /* INT A on slot 2 is irq 10 */
-			<0x1000 0 0 2 &gpio0 9  3>, /* INT B on slot 2 is irq 9 */
-			<0x1000 0 0 3 &gpio0 11 3>, /* INT C on slot 2 is irq 11 */
-			<0x1000 0 0 4 &gpio0 8  3>, /* INT D on slot 2 is irq 8 */
+			<0x1000 0 0 1 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 2 is irq 10 */
+			<0x1000 0 0 2 &gpio0 9  IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 2 is irq 9 */
+			<0x1000 0 0 3 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 2 is irq 11 */
+			<0x1000 0 0 4 &gpio0 8  IRQ_TYPE_LEVEL_LOW>, /* INT D on slot 2 is irq 8 */
 			/* IDSEL 3 */
-			<0x1800 0 0 1 &gpio0 9  3>, /* INT A on slot 3 is irq 9 */
-			<0x1800 0 0 2 &gpio0 11 3>, /* INT B on slot 3 is irq 11 */
-			<0x1800 0 0 3 &gpio0 10 3>, /* INT C on slot 3 is irq 10 */
-			<0x1800 0 0 4 &gpio0 8  3>; /* INT D on slot 3 is irq 8 */
+			<0x1800 0 0 1 &gpio0 9  IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 3 is irq 9 */
+			<0x1800 0 0 2 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 3 is irq 11 */
+			<0x1800 0 0 3 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 3 is irq 10 */
+			<0x1800 0 0 4 &gpio0 8  IRQ_TYPE_LEVEL_LOW>; /* INT D on slot 3 is irq 8 */
 		};
 
 		ethernet@c8009000 {
