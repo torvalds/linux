@@ -35,15 +35,20 @@ static struct workqueue_struct *ufshpb_wq;
 static void ufshpb_update_active_info(struct ufshpb_lu *hpb, int rgn_idx,
 				      int srgn_idx);
 
+static inline struct ufshpb_dev_info *ufs_hba_to_hpb(struct ufs_hba *hba)
+{
+	return &container_of(hba, struct ufs_hba_with_hpb, hba)->hpb_dev;
+}
+
 bool ufshpb_is_allowed(struct ufs_hba *hba)
 {
-	return !(hba->ufshpb_dev.hpb_disabled);
+	return !(ufs_hba_to_hpb(hba)->hpb_disabled);
 }
 
 /* HPB version 1.0 is called as legacy version. */
 bool ufshpb_is_legacy(struct ufs_hba *hba)
 {
-	return hba->ufshpb_dev.is_legacy;
+	return ufs_hba_to_hpb(hba)->is_legacy;
 }
 
 static struct ufshpb_lu *ufshpb_get_hpb_data(struct scsi_device *sdev)
@@ -2743,8 +2748,7 @@ void ufshpb_init_hpb_lu(struct ufs_hba *hba, struct scsi_device *sdev)
 	if (ret)
 		goto out;
 
-	hpb = ufshpb_alloc_hpb_lu(hba, sdev, &hba->ufshpb_dev,
-				  &hpb_lu_info);
+	hpb = ufshpb_alloc_hpb_lu(hba, sdev, ufs_hba_to_hpb(hba), &hpb_lu_info);
 	if (!hpb)
 		goto out;
 
@@ -2753,7 +2757,7 @@ void ufshpb_init_hpb_lu(struct ufs_hba *hba, struct scsi_device *sdev)
 
 out:
 	/* All LUs are initialized */
-	if (atomic_dec_and_test(&hba->ufshpb_dev.slave_conf_cnt))
+	if (atomic_dec_and_test(&ufs_hba_to_hpb(hba)->slave_conf_cnt))
 		ufshpb_hpb_lu_prepared(hba);
 }
 
@@ -2810,7 +2814,7 @@ release_mctx_cache:
 
 void ufshpb_get_geo_info(struct ufs_hba *hba, u8 *geo_buf)
 {
-	struct ufshpb_dev_info *hpb_info = &hba->ufshpb_dev;
+	struct ufshpb_dev_info *hpb_info = ufs_hba_to_hpb(hba);
 	int max_active_rgns = 0;
 	int hpb_num_lu;
 
@@ -2836,7 +2840,7 @@ void ufshpb_get_geo_info(struct ufs_hba *hba, u8 *geo_buf)
 
 void ufshpb_get_dev_info(struct ufs_hba *hba, u8 *desc_buf)
 {
-	struct ufshpb_dev_info *hpb_dev_info = &hba->ufshpb_dev;
+	struct ufshpb_dev_info *hpb_dev_info = ufs_hba_to_hpb(hba);
 	int version, ret;
 	u32 max_hpb_single_cmd = HPB_MULTI_CHUNK_LOW;
 
@@ -2873,7 +2877,7 @@ void ufshpb_get_dev_info(struct ufs_hba *hba, u8 *desc_buf)
 
 void ufshpb_init(struct ufs_hba *hba)
 {
-	struct ufshpb_dev_info *hpb_dev_info = &hba->ufshpb_dev;
+	struct ufshpb_dev_info *hpb_dev_info = ufs_hba_to_hpb(hba);
 	int try;
 	int ret;
 
