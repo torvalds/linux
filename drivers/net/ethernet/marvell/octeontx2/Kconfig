@@ -12,6 +12,7 @@ config OCTEONTX2_AF
 	select NET_DEVLINK
 	depends on (64BIT && COMPILE_TEST) || ARM64
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  This driver supports Marvell's OcteonTX2 Resource Virtualization
 	  Unit's admin function manager which manages all RVU HW resources
@@ -32,6 +33,7 @@ config OCTEONTX2_PF
 	select OCTEONTX2_MBOX
 	depends on (64BIT && COMPILE_TEST) || ARM64
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  This driver supports Marvell's OcteonTX2 NIC physical function.
 
