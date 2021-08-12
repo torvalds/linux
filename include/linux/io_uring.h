@@ -17,7 +17,8 @@ static inline void io_uring_files_cancel(struct files_struct *files)
 }
 static inline void io_uring_task_cancel(void)
 {
-	return io_uring_files_cancel(NULL);
+	if (current->io_uring)
+		__io_uring_cancel(NULL);
 }
 static inline void io_uring_free(struct task_struct *tsk)
 {
