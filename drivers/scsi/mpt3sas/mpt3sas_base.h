@@ -1755,6 +1755,9 @@ do {	ioc_err(ioc, "In func: %s\n", __func__); \
 	status, mpi_request, sz); } while (0)
 
 int mpt3sas_wait_for_ioc(struct MPT3SAS_ADAPTER *ioc, int wait_count);
+int mpt3sas_base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type);
+void mpt3sas_base_free_irq(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_base_disable_msix(struct MPT3SAS_ADAPTER *ioc);
 int mpt3sas_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
 void mpt3sas_base_pause_mq_polling(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_base_resume_mq_polling(struct MPT3SAS_ADAPTER *ioc);

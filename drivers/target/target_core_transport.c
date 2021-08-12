@@ -886,7 +886,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	INIT_WORK(&cmd->work, success ? target_complete_ok_work :
 		  target_complete_failure_work);
 
-	if (wwn->cmd_compl_affinity == SE_COMPL_AFFINITY_CPUID)
+	if (!wwn || wwn->cmd_compl_affinity == SE_COMPL_AFFINITY_CPUID)
 		cpu = cmd->cpuid;
 	else
 		cpu = wwn->cmd_compl_affinity;
