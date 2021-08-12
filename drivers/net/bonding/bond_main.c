@@ -322,9 +322,15 @@ static bool bond_xdp_check(struct bonding *bond)
 	switch (BOND_MODE(bond)) {
 	case BOND_MODE_ROUNDROBIN:
 	case BOND_MODE_ACTIVEBACKUP:
+		return true;
 	case BOND_MODE_8023AD:
 	case BOND_MODE_XOR:
-		return true;
+		/* vlan+srcmac is not supported with XDP as in most cases the 802.1q
+		 * payload is not in the packet due to hardware offload.
+		 */
+		if (bond->params.xmit_policy != BOND_XMIT_POLICY_VLAN_SRCMAC)
+			return true;
+		fallthrough;
 	default:
 		return false;
 	}
@@ -3744,9 +3750,9 @@ static bool bond_flow_ip(struct sk_buff *skb, struct flow_keys *fk, const void *
 
 static u32 bond_vlan_srcmac_hash(struct sk_buff *skb, const void *data, int mhoff, int hlen)
 {
-	struct ethhdr *mac_hdr;
 	u32 srcmac_vendor = 0, srcmac_dev = 0;
-	u16 vlan;
+	struct ethhdr *mac_hdr;
+	u16 vlan = 0;
 	int i;
 
 	data = bond_pull_data(skb, data, hlen, mhoff + sizeof(struct ethhdr));
@@ -3760,10 +3766,8 @@ static u32 bond_vlan_srcmac_hash(struct sk_buff *skb, const void *data, int mhof
 	for (i = 3; i < ETH_ALEN; i++)
 		srcmac_dev = (srcmac_dev << 8) | mac_hdr->h_source[i];
 
-	if (!skb_vlan_tag_present(skb))
-		return srcmac_vendor ^ srcmac_dev;
-
-	vlan = skb_vlan_tag_get(skb);
+	if (skb && skb_vlan_tag_present(skb))
+		vlan = skb_vlan_tag_get(skb);
 
 	return vlan ^ srcmac_vendor ^ srcmac_dev;
 }
