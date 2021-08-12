@@ -81,9 +81,6 @@ extern int gpmc_configure(int cmd, int wval);
 extern void gpmc_read_settings_dt(struct device_node *np,
 				  struct gpmc_settings *p);
 
-extern void omap3_gpmc_save_context(void);
-extern void omap3_gpmc_restore_context(void);
-
 struct gpmc_timings;
 struct omap_nand_platform_data;
 struct omap_onenand_platform_data;
