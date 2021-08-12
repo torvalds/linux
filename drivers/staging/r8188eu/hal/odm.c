@@ -1136,7 +1136,6 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 		break;
 	default:
 		/* case WIRELESS_11_24N: */
-		/* case WIRELESS_11_5N: */
 		if (pDM_Odm->RFType == RF_1T2R)
 			rate_bitmap = 0x000fffff;
 		else

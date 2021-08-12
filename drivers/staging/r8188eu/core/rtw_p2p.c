@@ -1950,7 +1950,7 @@ int rtw_p2p_enable(struct adapter *padapter, enum P2P_ROLE role)
 		/*	Added by Albert 2011/03/22 */
 		/*	In the P2P mode, the driver should not support the b mode. */
 		/*	So, the Tx packet shouldn't use the CCK rate */
-		update_tx_basic_rate(padapter, WIRELESS_11AGN);
+		update_tx_basic_rate(padapter, (WIRELESS_11G | WIRELESS_11_24N));
 
 		/* Enable P2P function */
 		init_wifidirect_info(padapter, role);

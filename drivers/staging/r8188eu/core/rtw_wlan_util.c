@@ -78,7 +78,6 @@ unsigned char networktype_to_raid(unsigned char network_type)
 	case WIRELESS_11B:
 		raid = RATR_INX_WIRELESS_B;
 		break;
-	case WIRELESS_11A:
 	case WIRELESS_11G:
 		raid = RATR_INX_WIRELESS_G;
 		break;
@@ -86,10 +85,8 @@ unsigned char networktype_to_raid(unsigned char network_type)
 		raid = RATR_INX_WIRELESS_GB;
 		break;
 	case WIRELESS_11_24N:
-	case WIRELESS_11_5N:
 		raid = RATR_INX_WIRELESS_N;
 		break;
-	case WIRELESS_11A_5N:
 	case WIRELESS_11G_24N:
 		raid = RATR_INX_WIRELESS_NG;
 		break;
@@ -110,10 +107,7 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
-
-		network_type |= WIRELESS_11A;
+		network_type |= WIRELESS_INVALID;
 	} else {
 		if (pmlmeinfo->HT_enable)
 			network_type = WIRELESS_11_24N;
@@ -1490,8 +1484,6 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 				if (pmlmeinfo->slotTime != NON_SHORT_SLOT_TIME)
 					pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
 			}
-		} else if (pmlmeext->cur_wireless_mode & (WIRELESS_11A | WIRELESS_11_5N)) {
-			pmlmeinfo->slotTime = SHORT_SLOT_TIME;
 		} else {
 			/* B Mode */
 			pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
@@ -1516,10 +1508,7 @@ void update_wireless_mode(struct adapter *padapter)
 		pmlmeinfo->HT_enable = 1;
 
 	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
-
-		network_type |= WIRELESS_11A;
+		network_type |= WIRELESS_INVALID;
 	} else {
 		if (pmlmeinfo->HT_enable)
 			network_type = WIRELESS_11_24N;
