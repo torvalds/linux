@@ -211,6 +211,7 @@ static void adf_remove(struct pci_dev *pdev)
 		pr_err("QAT: Driver removal failed\n");
 		return;
 	}
+	adf_flush_vf_wq(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 	adf_cleanup_accel(accel_dev);

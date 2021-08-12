@@ -48,6 +48,7 @@ void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 
 	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x2);
 }
+EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
@@ -316,6 +317,30 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
 
+/**
+ * adf_flush_vf_wq() - Flush workqueue for VF
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function disables the PF/VF interrupts on the VF so that no new messages
+ * are received and flushes the workqueue 'adf_vf_stop_wq'.
+ *
+ * Return: void.
+ */
+void adf_flush_vf_wq(struct adf_accel_dev *accel_dev)
+{
+	adf_disable_pf2vf_interrupts(accel_dev);
+
+	flush_workqueue(adf_vf_stop_wq);
+}
+EXPORT_SYMBOL_GPL(adf_flush_vf_wq);
+
+/**
+ * adf_init_vf_wq() - Init workqueue for VF
+ *
+ * Function init workqueue 'adf_vf_stop_wq' for VF.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
 int __init adf_init_vf_wq(void)
 {
 	adf_vf_stop_wq = alloc_workqueue("adf_vf_stop_wq", WQ_MEM_RECLAIM, 0);
