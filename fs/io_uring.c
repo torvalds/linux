@@ -9213,9 +9213,9 @@ static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 	}
 }
 
-void __io_uring_cancel(struct files_struct *files)
+void __io_uring_cancel(bool cancel_all)
 {
-	io_uring_cancel_generic(!files, NULL);
+	io_uring_cancel_generic(cancel_all, NULL);
 }
 
 static void *io_uring_validate_mmap_request(struct file *file,
