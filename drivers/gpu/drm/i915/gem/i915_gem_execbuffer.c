@@ -2351,6 +2351,12 @@ static int eb_parse(struct i915_execbuffer *eb)
 		eb->batch_flags |= I915_DISPATCH_SECURE;
 	}
 
+	batch = eb_dispatch_secure(eb, shadow);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto err_trampoline;
+	}
+
 	err = intel_engine_cmd_parser(eb->engine,
 				      eb->batch->vma,
 				      eb->batch_start_offset,
@@ -2377,6 +2383,7 @@ secure_batch:
 err_unpin_batch:
 	if (batch)
 		i915_vma_unpin(batch);
+err_trampoline:
 	if (trampoline)
 		i915_vma_unpin(trampoline);
 err_shadow:
