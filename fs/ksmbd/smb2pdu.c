@@ -2386,11 +2386,14 @@ static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
 	fattr->cf_uid = inode->i_uid;
 	fattr->cf_gid = inode->i_gid;
 	fattr->cf_mode = inode->i_mode;
+	fattr->cf_acls = NULL;
 	fattr->cf_dacls = NULL;
 
-	fattr->cf_acls = get_acl(inode, ACL_TYPE_ACCESS);
-	if (S_ISDIR(inode->i_mode))
-		fattr->cf_dacls = get_acl(inode, ACL_TYPE_DEFAULT);
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL)) {
+		fattr->cf_acls = get_acl(inode, ACL_TYPE_ACCESS);
+		if (S_ISDIR(inode->i_mode))
+			fattr->cf_dacls = get_acl(inode, ACL_TYPE_DEFAULT);
+	}
 }
 
 /**
