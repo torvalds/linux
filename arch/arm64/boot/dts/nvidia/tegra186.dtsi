@@ -903,6 +903,9 @@
 			 <&bpmp TEGRA186_CLK_XUSB_CORE_SS>,
 			 <&bpmp TEGRA186_CLK_XUSB_FS>;
 		clock-names = "dev", "ss", "ss_src", "fs_src";
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_XUSB_DEVR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_XUSB_DEVW &emc>;
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_XUSB_DEV>;
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBB>,
 				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
