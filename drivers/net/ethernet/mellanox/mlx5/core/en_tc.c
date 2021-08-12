@@ -3305,6 +3305,12 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
 	actions = flow->attr->action;
 
+	if (!(actions &
+	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
+		NL_SET_ERR_MSG_MOD(extack, "Rule must have at least one forward/drop action");
+		return false;
+	}
+
 	if (mlx5e_is_eswitch_flow(flow)) {
 		if (flow->attr->esw_attr->split_count && ct_flow &&
 		    !MLX5_CAP_GEN(flow->attr->esw_attr->in_mdev, reg_c_preserve)) {
@@ -4205,13 +4211,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		}
 
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	}
-
-	if (!(attr->action &
-	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Rule must have at least one forward/drop action");
-		return -EOPNOTSUPP;
 	}
 
 	if (esw_attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
