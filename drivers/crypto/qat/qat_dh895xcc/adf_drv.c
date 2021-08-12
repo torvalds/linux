@@ -201,12 +201,12 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state\n");
 		ret = -ENOMEM;
-		goto out_err_free_reg;
+		goto out_err_disable_aer;
 	}
 
 	ret = qat_crypto_dev_config(accel_dev);
 	if (ret)
-		goto out_err_free_reg;
+		goto out_err_disable_aer;
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -222,6 +222,8 @@ out_err_dev_stop:
 	adf_dev_stop(accel_dev);
 out_err_dev_shutdown:
 	adf_dev_shutdown(accel_dev);
+out_err_disable_aer:
+	adf_disable_aer(accel_dev);
 out_err_free_reg:
 	pci_release_regions(accel_pci_dev->pci_dev);
 out_err_disable:
