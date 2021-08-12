@@ -315,17 +315,19 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->channels[0].crop_st_x, dev->channels[0].crop_st_y);
 		seq_printf(f, "\tcompact:%s\n", stream->is_compact ? "enable" : "disabled");
 		seq_printf(f, "\tframe amount:%d\n", stream->frame_idx);
-		time_val = div_u64(stream->readout.early_time, 1000000);
-		seq_printf(f, "\tearly:%u ms\n", time_val);
-		if (dev->hdr.mode == NO_HDR) {
-			time_val = div_u64(stream->readout.readout_time, 1000000);
-			seq_printf(f, "\treadout:%u ms\n", time_val);
-		} else {
-			time_val = div_u64(stream->readout.readout_time, 1000000);
-			seq_printf(f, "\tsingle readout:%u ms\n", time_val);
-			time_val = div_u64(stream->readout.total_time, 1000000);
-			seq_printf(f, "\ttotal readout:%u ms\n", time_val);
+		if (dev->inf_id == RKCIF_MIPI_LVDS) {
+			time_val = div_u64(stream->readout.early_time, 1000000);
+			seq_printf(f, "\tearly:%u ms\n", time_val);
+			if (dev->hdr.mode == NO_HDR) {
+				time_val = div_u64(stream->readout.readout_time, 1000000);
+				seq_printf(f, "\treadout:%u ms\n", time_val);
+			} else {
+				time_val = div_u64(stream->readout.readout_time, 1000000);
+				seq_printf(f, "\tsingle readout:%u ms\n", time_val);
+				time_val = div_u64(stream->readout.total_time, 1000000);
+				seq_printf(f, "\ttotal readout:%u ms\n", time_val);
 
+			}
 		}
 		seq_printf(f, "\trate:%llu ms\n", fps);
 		fps = div_u64(1000, fps);

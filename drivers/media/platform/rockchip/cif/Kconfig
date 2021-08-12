@@ -24,3 +24,17 @@ config ROCKCHIP_CIF_WORKMODE_ONEFRAME
 	bool "interface works in oneframe mode"
 
 endchoice
+
+choice
+	prompt "rockchip rkcif device dummy buffer choice"
+	depends on VIDEO_ROCKCHIP_CIF
+	default ROCKCHIP_CIF_USE_DUMMY_BUF
+
+config ROCKCHIP_CIF_USE_DUMMY_BUF
+	bool "rkcif use dummy buffer"
+
+config ROCKCHIP_CIF_USE_NONE_DUMMY_BUF
+	bool "rkcif not use dummy buffer"
+
+endchoice
+

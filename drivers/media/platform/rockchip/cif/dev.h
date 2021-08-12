@@ -551,6 +551,7 @@ struct rkcif_device {
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;
+	bool				is_use_dummybuf;
 };
 
 extern struct platform_driver rkcif_plat_drv;
