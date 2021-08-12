@@ -5237,13 +5237,10 @@ static int io_arm_poll_handler(struct io_kiocb *req)
 
 	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask,
 					io_async_wake);
-	if (ret || ipt.error) {
-		spin_unlock(&ctx->completion_lock);
-		if (ret)
-			return IO_APOLL_READY;
-		return IO_APOLL_ABORTED;
-	}
 	spin_unlock(&ctx->completion_lock);
+	if (ret || ipt.error)
+		return ret ? IO_APOLL_READY : IO_APOLL_ABORTED;
+
 	trace_io_uring_poll_arm(ctx, req, req->opcode, req->user_data,
 				mask, apoll->poll.events);
 	return IO_APOLL_OK;
