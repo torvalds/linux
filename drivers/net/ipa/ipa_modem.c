@@ -106,6 +106,7 @@ static int ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct ipa_endpoint *endpoint;
 	struct ipa *ipa = priv->ipa;
 	u32 skb_len = skb->len;
+	struct device *dev;
 	int ret;
 
 	if (!skb_len)
@@ -115,7 +116,31 @@ static int ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (endpoint->data->qmap && skb->protocol != htons(ETH_P_MAP))
 		goto err_drop_skb;
 
+	/* The hardware must be powered for us to transmit */
+	dev = &ipa->pdev->dev;
+	ret = pm_runtime_get(dev);
+	if (ret < 1) {
+		/* If a resume won't happen, just drop the packet */
+		if (ret < 0 && ret != -EINPROGRESS) {
+			pm_runtime_put_noidle(dev);
+			goto err_drop_skb;
+		}
+
+		/* No power (yet).  Stop the network stack from transmitting
+		 * until we're resumed; ipa_modem_resume() arranges for the
+		 * TX queue to be started again.
+		 */
+		netif_stop_queue(netdev);
+
+		(void)pm_runtime_put(dev);
+
+		return NETDEV_TX_BUSY;
+	}
+
 	ret = ipa_endpoint_skb_tx(endpoint, skb);
+
+	(void)pm_runtime_put(dev);
+
 	if (ret) {
 		if (ret != -E2BIG)
 			return NETDEV_TX_BUSY;
@@ -201,7 +226,10 @@ void ipa_modem_suspend(struct net_device *netdev)
  *
  * Re-enable transmit on the modem network device.  This is called
  * in (power management) work queue context, scheduled when resuming
- * the modem.
+ * the modem.  We can't enable the queue directly in ipa_modem_resume()
+ * because transmits restart the instant the queue is awakened; but the
+ * device power state won't be ACTIVE until *after* ipa_modem_resume()
+ * returns.
  */
 static void ipa_modem_wake_queue_work(struct work_struct *work)
 {
