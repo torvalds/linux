@@ -85,10 +85,11 @@ struct channel *lookup_chann_list(struct ksmbd_session *sess, struct ksmbd_conn 
 }
 
 /**
- * smb2_get_ksmbd_tcon() - get tree connection information for a tree id
+ * smb2_get_ksmbd_tcon() - get tree connection information using a tree id.
  * @work:	smb work
  *
- * Return:      matching tree connection on success, otherwise error
+ * Return:	0 if there is a tree connection matched or these are
+ *		skipable commands, otherwise error
  */
 int smb2_get_ksmbd_tcon(struct ksmbd_work *work)
 {
