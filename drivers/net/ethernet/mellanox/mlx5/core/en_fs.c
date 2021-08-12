@@ -1255,7 +1255,8 @@ static int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv)
 		return 0;
 
 	mlx5e_set_inner_ttc_params(priv, &ttc_params);
-	priv->fs.inner_ttc = mlx5_create_ttc_table(priv->mdev, &ttc_params);
+	priv->fs.inner_ttc = mlx5_create_inner_ttc_table(priv->mdev,
+							 &ttc_params);
 	if (IS_ERR(priv->fs.inner_ttc))
 		return PTR_ERR(priv->fs.inner_ttc);
 	return 0;

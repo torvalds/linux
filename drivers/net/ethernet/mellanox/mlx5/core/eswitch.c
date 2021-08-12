@@ -1492,7 +1492,7 @@ abort:
 /**
  * mlx5_eswitch_enable - Enable eswitch
  * @esw:	Pointer to eswitch
- * @num_vfs:	Enable eswitch swich for given number of VFs.
+ * @num_vfs:	Enable eswitch switch for given number of VFs.
  *		Caller must pass num_vfs > 0 when enabling eswitch for
  *		vf vports.
  * mlx5_eswitch_enable() returns 0 on success or error code on failure.

@@ -476,7 +476,7 @@ static void mlx5_sf_table_disable(struct mlx5_sf_table *table)
 		return;
 
 	/* Balances with refcount_set; drop the reference so that new user cmd cannot start
-	 * and new vhca event handler cannnot run.
+	 * and new vhca event handler cannot run.
 	 */
 	mlx5_sf_table_put(table);
 	wait_for_completion(&table->disable_complete);
