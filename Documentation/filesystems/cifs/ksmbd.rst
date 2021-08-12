@@ -84,7 +84,8 @@ SMB3 encryption(CCM, GCM)      Supported. (CCM and GCM128 supported, GCM256 in
                                progress)
 SMB direct(RDMA)               Partially Supported. SMB3 Multi-channel is
                                required to connect to Windows client.
-SMB3 Multi-channel             In Progress.
+SMB3 Multi-channel             Partially Supported. Planned to implement
+                               replay/retry mechanisms for future.
 SMB3.1.1 POSIX extension       Supported.
 ACLs                           Partially Supported. only DACLs available, SACLs
                                (auditing) is planned for the future. For
