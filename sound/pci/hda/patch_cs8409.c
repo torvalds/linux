@@ -708,6 +708,10 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 				cs42l42->mic_jack_in = 1;
 			}
 		}
+		/* Configure the HSDET mode. */
+		cs8409_i2c_write(cs42l42, 0x1120, 0x80);
+		/* Enable the HPOUT ground clamp and configure the HP pull-down */
+		cs8409_i2c_write(cs42l42, 0x1F06, 0x02);
 		/* Re-Enable Tip Sense Interrupt */
 		cs8409_i2c_write(cs42l42, 0x1320, 0xF3);
 	} else {
@@ -756,6 +760,8 @@ static void cs42l42_suspend(struct sub_codec *cs42l42)
 	unsigned int gpio_data;
 	int reg_cdc_status = 0;
 	const struct cs8409_i2c_param cs42l42_pwr_down_seq[] = {
+		{ 0x1F06, 0x02 },
+		{ 0x1129, 0x00 },
 		{ 0x2301, 0x3F },
 		{ 0x2302, 0x3F },
 		{ 0x2303, 0x3F },
