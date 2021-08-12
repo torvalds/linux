@@ -310,14 +310,23 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
-void ipa_power_setup(struct ipa *ipa)
+int ipa_power_setup(struct ipa *ipa)
 {
+	int ret;
+
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
 			  ipa_suspend_handler);
+
+	ret = device_init_wakeup(&ipa->pdev->dev, true);
+	if (ret)
+		ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+
+	return ret;
 }
 
 void ipa_power_teardown(struct ipa *ipa)
 {
+	(void)device_init_wakeup(&ipa->pdev->dev, false);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 }
 

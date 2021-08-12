@@ -101,9 +101,7 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		return ret;
 
-	ipa_power_setup(ipa);
-
-	ret = device_init_wakeup(dev, true);
+	ret = ipa_power_setup(ipa);
 	if (ret)
 		goto err_gsi_teardown;
 
@@ -154,7 +152,6 @@ err_command_disable:
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
 	ipa_power_teardown(ipa);
-	(void)device_init_wakeup(dev, false);
 err_gsi_teardown:
 	gsi_teardown(&ipa->gsi);
 
@@ -181,7 +178,6 @@ static void ipa_teardown(struct ipa *ipa)
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
 	ipa_power_teardown(ipa);
-	(void)device_init_wakeup(&ipa->pdev->dev, false);
 	gsi_teardown(&ipa->gsi);
 }
 
