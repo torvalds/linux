@@ -432,9 +432,6 @@ static int query_memregion_info(struct drm_i915_private *i915,
 	u32 total_length;
 	int ret, id, i;
 
-	if (!IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM))
-		return -ENODEV;
-
 	if (query_item->flags != 0)
 		return -EINVAL;
 
