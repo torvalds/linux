@@ -106,6 +106,12 @@ struct ifcvf_lm_cfg {
 	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUE_PAIRS];
 };
 
+struct ifcvf_vdpa_mgmt_dev {
+	struct vdpa_mgmt_dev mdev;
+	struct ifcvf_adapter *adapter;
+	struct pci_dev *pdev;
+};
+
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);
 int ifcvf_start_hw(struct ifcvf_hw *hw);
 void ifcvf_stop_hw(struct ifcvf_hw *hw);

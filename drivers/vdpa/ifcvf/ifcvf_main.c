@@ -218,7 +218,7 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 	int ret;
 
 	vf  = vdpa_to_vf(vdpa_dev);
-	adapter = dev_get_drvdata(vdpa_dev->dev.parent);
+	adapter = vdpa_to_adapter(vdpa_dev);
 	status_old = ifcvf_get_status(vf);
 
 	if (status_old == status)
@@ -458,6 +458,16 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_vq_notification = ifcvf_get_vq_notification,
 };
 
+static struct virtio_device_id id_table_net[] = {
+	{VIRTIO_ID_NET, VIRTIO_DEV_ANY_ID},
+	{0},
+};
+
+static struct virtio_device_id id_table_blk[] = {
+	{VIRTIO_ID_BLOCK, VIRTIO_DEV_ANY_ID},
+	{0},
+};
+
 static u32 get_dev_type(struct pci_dev *pdev)
 {
 	u32 dev_type;
@@ -478,48 +488,30 @@ static u32 get_dev_type(struct pci_dev *pdev)
 	return dev_type;
 }
 
-static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 {
-	struct device *dev = &pdev->dev;
+	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
 	struct ifcvf_adapter *adapter;
+	struct pci_dev *pdev;
 	struct ifcvf_hw *vf;
+	struct device *dev;
 	int ret, i;
 
-	ret = pcim_enable_device(pdev);
-	if (ret) {
-		IFCVF_ERR(pdev, "Failed to enable device\n");
-		return ret;
-	}
+	ifcvf_mgmt_dev = container_of(mdev, struct ifcvf_vdpa_mgmt_dev, mdev);
+	if (ifcvf_mgmt_dev->adapter)
+		return -EOPNOTSUPP;
 
-	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2) | BIT(4),
-				 IFCVF_DRIVER_NAME);
-	if (ret) {
-		IFCVF_ERR(pdev, "Failed to request MMIO region\n");
-		return ret;
-	}
-
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (ret) {
-		IFCVF_ERR(pdev, "No usable DMA configuration\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev, ifcvf_free_irq_vectors, pdev);
-	if (ret) {
-		IFCVF_ERR(pdev,
-			  "Failed for adding devres for freeing irq vectors\n");
-		return ret;
-	}
-
+	pdev = ifcvf_mgmt_dev->pdev;
+	dev = &pdev->dev;
 	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
-				    dev, &ifc_vdpa_ops, NULL);
+				    dev, &ifc_vdpa_ops, name);
 	if (IS_ERR(adapter)) {
 		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
 		return PTR_ERR(adapter);
 	}
 
-	pci_set_master(pdev);
-	pci_set_drvdata(pdev, adapter);
+	ifcvf_mgmt_dev->adapter = adapter;
+	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	vf = &adapter->vf;
 	vf->dev_type = get_dev_type(pdev);
@@ -539,9 +531,10 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	vf->hw_features = ifcvf_get_hw_features(vf);
 
-	ret = vdpa_register_device(&adapter->vdpa, IFCVF_MAX_QUEUE_PAIRS * 2);
+	adapter->vdpa.mdev = &ifcvf_mgmt_dev->mdev;
+	ret = _vdpa_register_device(&adapter->vdpa, IFCVF_MAX_QUEUE_PAIRS * 2);
 	if (ret) {
-		IFCVF_ERR(pdev, "Failed to register ifcvf to vdpa bus");
+		IFCVF_ERR(pdev, "Failed to register to vDPA bus");
 		goto err;
 	}
 
@@ -552,11 +545,100 @@ err:
 	return ret;
 }
 
+static void ifcvf_vdpa_dev_del(struct vdpa_mgmt_dev *mdev, struct vdpa_device *dev)
+{
+	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
+
+	ifcvf_mgmt_dev = container_of(mdev, struct ifcvf_vdpa_mgmt_dev, mdev);
+	_vdpa_unregister_device(dev);
+	ifcvf_mgmt_dev->adapter = NULL;
+}
+
+static const struct vdpa_mgmtdev_ops ifcvf_vdpa_mgmt_dev_ops = {
+	.dev_add = ifcvf_vdpa_dev_add,
+	.dev_del = ifcvf_vdpa_dev_del
+};
+
+static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
+	struct device *dev = &pdev->dev;
+	u32 dev_type;
+	int ret;
+
+	ifcvf_mgmt_dev = kzalloc(sizeof(struct ifcvf_vdpa_mgmt_dev), GFP_KERNEL);
+	if (!ifcvf_mgmt_dev) {
+		IFCVF_ERR(pdev, "Failed to alloc memory for the vDPA management device\n");
+		return -ENOMEM;
+	}
+
+	dev_type = get_dev_type(pdev);
+	switch (dev_type) {
+	case VIRTIO_ID_NET:
+		ifcvf_mgmt_dev->mdev.id_table = id_table_net;
+		break;
+	case VIRTIO_ID_BLOCK:
+		ifcvf_mgmt_dev->mdev.id_table = id_table_blk;
+		break;
+	default:
+		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", dev_type);
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
+
+	ifcvf_mgmt_dev->mdev.ops = &ifcvf_vdpa_mgmt_dev_ops;
+	ifcvf_mgmt_dev->mdev.device = dev;
+	ifcvf_mgmt_dev->pdev = pdev;
+
+	ret = pcim_enable_device(pdev);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to enable device\n");
+		goto err;
+	}
+
+	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2) | BIT(4),
+				 IFCVF_DRIVER_NAME);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to request MMIO region\n");
+		goto err;
+	}
+
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (ret) {
+		IFCVF_ERR(pdev, "No usable DMA configuration\n");
+		goto err;
+	}
+
+	ret = devm_add_action_or_reset(dev, ifcvf_free_irq_vectors, pdev);
+	if (ret) {
+		IFCVF_ERR(pdev,
+			  "Failed for adding devres for freeing irq vectors\n");
+		goto err;
+	}
+
+	pci_set_master(pdev);
+
+	ret = vdpa_mgmtdev_register(&ifcvf_mgmt_dev->mdev);
+	if (ret) {
+		IFCVF_ERR(pdev,
+			  "Failed to initialize the management interfaces\n");
+		goto err;
+	}
+
+	return 0;
+
+err:
+	kfree(ifcvf_mgmt_dev);
+	return ret;
+}
+
 static void ifcvf_remove(struct pci_dev *pdev)
 {
-	struct ifcvf_adapter *adapter = pci_get_drvdata(pdev);
+	struct ifcvf_vdpa_mgmt_dev *ifcvf_mgmt_dev;
 
-	vdpa_unregister_device(&adapter->vdpa);
+	ifcvf_mgmt_dev = pci_get_drvdata(pdev);
+	vdpa_mgmtdev_unregister(&ifcvf_mgmt_dev->mdev);
+	kfree(ifcvf_mgmt_dev);
 }
 
 static struct pci_device_id ifcvf_pci_ids[] = {
