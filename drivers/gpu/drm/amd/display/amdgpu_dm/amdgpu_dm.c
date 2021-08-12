@@ -8643,11 +8643,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	/* Update the planes if changed or disable if we don't have any. */
 	if ((planes_count || acrtc_state->active_planes == 0) &&
 		acrtc_state->stream) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		/*
 		 * If PSR or idle optimizations are enabled then flush out
 		 * any pending work before hardware programming.
 		 */
 		flush_workqueue(dm->vblank_control_workqueue);
+#endif
 
 		bundle->stream_update.stream = acrtc_state->stream;
 		if (new_pcrtc_state->mode_changed) {
@@ -8980,7 +8982,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	if (dc_state) {
 		/* if there mode set or reset, disable eDP PSR */
 		if (mode_set_reset_required) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 			flush_workqueue(dm->vblank_control_workqueue);
+#endif
 			amdgpu_dm_psr_disable_all(dm);
 		}
 
