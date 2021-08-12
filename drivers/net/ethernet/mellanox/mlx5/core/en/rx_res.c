@@ -617,14 +617,11 @@ mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5_traff
 	return rss_tt;
 }
 
+/* Updates the indirection table SW shadow, does not update the HW resources yet */
 void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch)
 {
+	WARN_ON_ONCE(res->rss_active);
 	mlx5e_rss_params_indir_init_uniform(&res->rss_params.indir, nch);
-
-	if (!res->rss_active)
-		return;
-
-	mlx5e_rx_res_rss_enable(res);
 }
 
 void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 *indir, u8 *key, u8 *hfunc)
