@@ -27,6 +27,7 @@
 #ifndef _TTM_TT_H_
 #define _TTM_TT_H_
 
+#include <linux/pagemap.h>
 #include <linux/types.h>
 #include <drm/ttm/ttm_caching.h>
 #include <drm/ttm/ttm_kmap_iter.h>
