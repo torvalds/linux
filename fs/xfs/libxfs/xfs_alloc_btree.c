@@ -103,11 +103,11 @@ xfs_allocbt_free_block(
  */
 STATIC void
 xfs_allocbt_update_lastrec(
-	struct xfs_btree_cur	*cur,
-	struct xfs_btree_block	*block,
-	union xfs_btree_rec	*rec,
-	int			ptr,
-	int			reason)
+	struct xfs_btree_cur		*cur,
+	const struct xfs_btree_block	*block,
+	const union xfs_btree_rec	*rec,
+	int				ptr,
+	int				reason)
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 	struct xfs_perag	*pag;

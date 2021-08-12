@@ -117,8 +117,8 @@ struct xfs_btree_ops {
 
 	/* update last record information */
 	void	(*update_lastrec)(struct xfs_btree_cur *cur,
-				  struct xfs_btree_block *block,
-				  union xfs_btree_rec *rec,
+				  const struct xfs_btree_block *block,
+				  const union xfs_btree_rec *rec,
 				  int ptr, int reason);
 
 	/* records in block/level */
@@ -423,7 +423,7 @@ void xfs_btree_log_recs(struct xfs_btree_cur *, struct xfs_buf *, int, int);
 /*
  * Helpers.
  */
-static inline int xfs_btree_get_numrecs(struct xfs_btree_block *block)
+static inline int xfs_btree_get_numrecs(const struct xfs_btree_block *block)
 {
 	return be16_to_cpu(block->bb_numrecs);
 }
@@ -434,7 +434,7 @@ static inline void xfs_btree_set_numrecs(struct xfs_btree_block *block,
 	block->bb_numrecs = cpu_to_be16(numrecs);
 }
 
-static inline int xfs_btree_get_level(struct xfs_btree_block *block)
+static inline int xfs_btree_get_level(const struct xfs_btree_block *block)
 {
 	return be16_to_cpu(block->bb_level);
 }
