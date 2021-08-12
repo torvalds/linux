@@ -17,6 +17,7 @@
 #include <asm/trace.h>
 #include <asm/cputhreads.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/debugfs.h>
 
 #include "internal.h"
 
@@ -1106,8 +1107,8 @@ EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
  * invalidating a full PID, so it has a far lower threshold to change from
  * individual page flushes to full-pid flushes.
  */
-static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
-static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_TLB_SETS_RADIX * 2;
+static u32 tlb_single_page_flush_ceiling __read_mostly = 33;
+static u32 tlb_local_single_page_flush_ceiling __read_mostly = POWER9_TLB_SETS_RADIX * 2;
 
 static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 					    unsigned long start, unsigned long end)
@@ -1524,3 +1525,14 @@ void do_h_rpt_invalidate_prt(unsigned long pid, unsigned long lpid,
 EXPORT_SYMBOL_GPL(do_h_rpt_invalidate_prt);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
+
+static int __init create_tlb_single_page_flush_ceiling(void)
+{
+	debugfs_create_u32("tlb_single_page_flush_ceiling", 0600,
+			   powerpc_debugfs_root, &tlb_single_page_flush_ceiling);
+	debugfs_create_u32("tlb_local_single_page_flush_ceiling", 0600,
+			   powerpc_debugfs_root, &tlb_local_single_page_flush_ceiling);
+	return 0;
+}
+late_initcall(create_tlb_single_page_flush_ceiling);
+
