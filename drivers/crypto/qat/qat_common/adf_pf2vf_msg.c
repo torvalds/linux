@@ -346,8 +346,10 @@ static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 		break;
 	case ADF_PF2VF_VF_COMPAT_UNKNOWN:
 		/* VF is newer than PF and decides whether it is compatible */
-		if (accel_dev->vf.pf_version >= hw_data->min_iov_compat_ver)
+		if (accel_dev->vf.pf_version >= hw_data->min_iov_compat_ver) {
+			accel_dev->vf.compatible = ADF_PF2VF_VF_COMPATIBLE;
 			break;
+		}
 		fallthrough;
 	case ADF_PF2VF_VF_INCOMPATIBLE:
 		dev_err(&GET_DEV(accel_dev),
