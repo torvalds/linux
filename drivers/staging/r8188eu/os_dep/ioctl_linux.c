@@ -1475,8 +1475,8 @@ static int rtw_wx_set_essid(struct net_device *dev,
 		src_ssid = ndis_ssid.Ssid;
 
 		spin_lock_bh(&queue->lock);
-	       phead = get_list_head(queue);
-	      pmlmepriv->pscanned = phead->next;
+		phead = get_list_head(queue);
+		pmlmepriv->pscanned = phead->next;
 
 		while (phead != pmlmepriv->pscanned) {
 			pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
@@ -1552,7 +1552,7 @@ static int rtw_wx_set_rate(struct net_device *dev,
 	u32	target_rate = wrqu->bitrate.value;
 	u32	fixed = wrqu->bitrate.fixed;
 	u32	ratevalue = 0;
-	 u8 mpdatarate[NumRates] = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0xff};
+	u8 mpdatarate[NumRates] = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0xff};
 
 	if (target_rate == -1) {
 		ratevalue = 11;
@@ -2587,13 +2587,15 @@ static int rtw_wps_start(struct net_device *dev,
 	struct iw_point *pdata = &wrqu->data;
 	u32   u32wps_start = 0;
 
+	if (!pdata)
+		return -EINVAL;
 	ret = copy_from_user((void *)&u32wps_start, pdata->pointer, 4);
 	if (ret) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	if (padapter->bDriverStopped || !pdata) {
+	if (padapter->bDriverStopped) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -2787,8 +2789,8 @@ static int rtw_p2p_profilefound(struct net_device *dev,
 	DBG_88E("[%s] In value = %s, len = %d\n", __func__, extra, wrqu->data.length - 1);
 
 	/*	The upper application should pass the SSID to driver by using this rtw_p2p_profilefound function. */
-		if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
-			if (extra[0] == '0') {
+	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
+		if (extra[0] == '0') {
 			/*	Remove all the profile information of wifidirect_info structure. */
 			memset(&pwdinfo->profileinfo[0], 0x00, sizeof(struct profile_info) * P2P_MAX_PERSISTENT_GROUP_NUM);
 			pwdinfo->profileindex = 0;
@@ -4657,7 +4659,7 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 	if (strcmp(tmp[0], "status") == 0) {
 		sprintf(extra, "Load File efuse =%s, Load File MAC =%s", (pEEPROM->bloadfile_fail_flag ? "FAIL" : "OK"), (pEEPROM->bloadmac_fail_flag ? "FAIL" : "OK"));
 
-		  goto exit;
+		goto exit;
 	} else if (strcmp(tmp[0], "filemap") == 0) {
 		mapLen = EFUSE_MAP_SIZE;
 
@@ -6280,11 +6282,11 @@ static int rtw_mp_set(struct net_device *dev,
 	case MP_START:
 		DBG_88E("set case mp_start\n");
 		rtw_mp_start(dev, info, wrqu, extra);
-		 break;
+		break;
 	case MP_STOP:
 		DBG_88E("set case mp_stop\n");
 		rtw_mp_stop(dev, info, wrqu, extra);
-		 break;
+		break;
 	case MP_BANDWIDTH:
 		DBG_88E("set case mp_bandwidth\n");
 		rtw_mp_bandwidth(dev, info, wrqu, extra);
@@ -6339,7 +6341,7 @@ static int rtw_mp_get(struct net_device *dev,
 	case READ_REG:
 		DBG_88E("mp_get  READ_REG\n");
 		rtw_mp_read_reg(dev, info, wrqu, extra);
-		 break;
+		break;
 	case READ_RF:
 		DBG_88E("mp_get  READ_RF\n");
 		rtw_mp_read_rf(dev, info, wrqu, extra);
@@ -6374,11 +6376,11 @@ static int rtw_mp_get(struct net_device *dev,
 	case EFUSE_GET:
 		DBG_88E("efuse get EFUSE_GET\n");
 		rtw_mp_efuse_get(dev, info, wdata, extra);
-		 break;
+		break;
 	case MP_DUMP:
 		DBG_88E("set case MP_DUMP\n");
 		rtw_mp_dump(dev, info, wrqu, extra);
-		 break;
+		break;
 	case MP_PSD:
 		DBG_88E("set case MP_PSD\n");
 		rtw_mp_psd(dev, info, wrqu, extra);
