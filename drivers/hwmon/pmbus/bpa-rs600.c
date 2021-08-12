@@ -65,6 +65,26 @@ static int bpa_rs600_read_vin(struct i2c_client *client)
 	return ret;
 }
 
+/*
+ * Firmware V5.70 incorrectly reports 1640W for MFR_PIN_MAX.
+ * Deal with this by returning a sensible value.
+ */
+static int bpa_rs600_read_pin_max(struct i2c_client *client)
+{
+	int ret;
+
+	ret = pmbus_read_word_data(client, 0, 0xff, PMBUS_MFR_PIN_MAX);
+	if (ret < 0)
+		return ret;
+
+	/* Detect invalid 1640W (linear encoding) */
+	if (ret == 0x0b34)
+		/* Report 700W (linear encoding) */
+		return 0x095e;
+
+	return ret;
+}
+
 static int bpa_rs600_read_word_data(struct i2c_client *client, int page, int phase, int reg)
 {
 	int ret;
@@ -90,6 +110,9 @@ static int bpa_rs600_read_word_data(struct i2c_client *client, int page, int pha
 		break;
 	case PMBUS_READ_VIN:
 		ret = bpa_rs600_read_vin(client);
+		break;
+	case PMBUS_MFR_PIN_MAX:
+		ret = bpa_rs600_read_pin_max(client);
 		break;
 	default:
 		if (reg >= PMBUS_VIRT_BASE)
