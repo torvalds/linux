@@ -3425,16 +3425,6 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	/* Allocate sample attribute only when there is a sample action and
-	 * no errors after parsing.
-	 */
-	if (flow_flag_test(flow, SAMPLE)) {
-		attr->sample_attr = kzalloc(sizeof(*attr->sample_attr), GFP_KERNEL);
-		if (!attr->sample_attr)
-			return -ENOMEM;
-		*attr->sample_attr = parse_state->sample_attr;
-	}
-
 	return 0;
 }
 

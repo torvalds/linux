@@ -25,7 +25,6 @@ struct mlx5e_tc_act_parse_state {
 	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
 	int if_count;
 	struct mlx5_tc_ct_priv *ct_priv;
-	struct mlx5e_sample_attr sample_attr;
 };
 
 struct mlx5e_tc_act {
