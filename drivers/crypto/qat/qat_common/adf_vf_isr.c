@@ -36,7 +36,7 @@ void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 	void __iomem *pmisc_bar_addr =
 		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
 
-	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_vintmsk_offset(0), 0x0);
+	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x0);
 }
 
 void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
@@ -46,7 +46,7 @@ void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 	void __iomem *pmisc_bar_addr =
 		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
 
-	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_vintmsk_offset(0), 0x2);
+	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x2);
 }
 
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
