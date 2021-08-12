@@ -18,6 +18,7 @@
 #include "adf_pf2vf_msg.h"
 
 #define ADF_VINTSOU_OFFSET	0x204
+#define ADF_VINTMSK_OFFSET	0x208
 #define ADF_VINTSOU_BUN		BIT(0)
 #define ADF_VINTSOU_PF2VF	BIT(1)
 
@@ -161,10 +162,19 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
 	bool handled = false;
-	u32 v_int;
+	u32 v_int, v_mask;
 
 	/* Read VF INT source CSR to determine the source of VF interrupt */
 	v_int = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTSOU_OFFSET);
+
+	/* Read VF INT mask CSR to determine which sources are masked */
+	v_mask = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTMSK_OFFSET);
+
+	/*
+	 * Recompute v_int ignoring sources that are masked. This is to
+	 * avoid rescheduling the tasklet for interrupts already handled
+	 */
+	v_int &= ~v_mask;
 
 	/* Check for PF2VF interrupt */
 	if (v_int & ADF_VINTSOU_PF2VF) {
