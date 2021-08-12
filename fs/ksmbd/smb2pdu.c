@@ -58,18 +58,18 @@ static void __wbuf(struct ksmbd_work *work, void **req, void **rsp)
  *
  * Return:      1 if valid session id, otherwise 0
  */
-static inline int check_session_id(struct ksmbd_conn *conn, u64 id)
+static inline bool check_session_id(struct ksmbd_conn *conn, u64 id)
 {
 	struct ksmbd_session *sess;
 
 	if (id == 0 || id == -1)
-		return 0;
+		return false;
 
 	sess = ksmbd_session_lookup_all(conn, id);
 	if (sess)
-		return 1;
+		return true;
 	pr_err("Invalid user session id: %llu\n", id);
-	return 0;
+	return false;
 }
 
 struct channel *lookup_chann_list(struct ksmbd_session *sess, struct ksmbd_conn *conn)
@@ -145,45 +145,45 @@ void smb2_set_err_rsp(struct ksmbd_work *work)
  * is_smb2_neg_cmd() - is it smb2 negotiation command
  * @work:	smb work containing smb header
  *
- * Return:      1 if smb2 negotiation command, otherwise 0
+ * Return:      true if smb2 negotiation command, otherwise false
  */
-int is_smb2_neg_cmd(struct ksmbd_work *work)
+bool is_smb2_neg_cmd(struct ksmbd_work *work)
 {
 	struct smb2_hdr *hdr = work->request_buf;
 
 	/* is it SMB2 header ? */
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
-		return 0;
+		return false;
 
 	/* make sure it is request not response message */
 	if (hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR)
-		return 0;
+		return false;
 
 	if (hdr->Command != SMB2_NEGOTIATE)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**
  * is_smb2_rsp() - is it smb2 response
  * @work:	smb work containing smb response buffer
  *
- * Return:      1 if smb2 response, otherwise 0
+ * Return:      true if smb2 response, otherwise false
  */
-int is_smb2_rsp(struct ksmbd_work *work)
+bool is_smb2_rsp(struct ksmbd_work *work)
 {
 	struct smb2_hdr *hdr = work->response_buf;
 
 	/* is it SMB2 header ? */
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
-		return 0;
+		return false;
 
 	/* make sure it is response not request message */
 	if (!(hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**
@@ -8291,7 +8291,7 @@ int smb3_encrypt_resp(struct ksmbd_work *work)
 	return rc;
 }
 
-int smb3_is_transform_hdr(void *buf)
+bool smb3_is_transform_hdr(void *buf)
 {
 	struct smb2_transform_hdr *trhdr = buf;
 
