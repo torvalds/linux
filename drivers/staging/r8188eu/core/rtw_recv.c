@@ -495,10 +495,6 @@ static struct recv_frame *portctrl(struct adapter *adapter, struct recv_frame *p
 			/* allowed */
 			/* check decryption status, and decrypt the frame if needed */
 			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
-			if (ether_type == eapol_type)
-				/* check Rekey */
-				prtnframe = precv_frame;
 		}
 	} else {
 		prtnframe = precv_frame;
