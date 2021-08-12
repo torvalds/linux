@@ -97,9 +97,6 @@ enum rf90_radio_path {
 enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_40 = 1,
-	HT_CHANNEL_WIDTH_80 = 2,
-	HT_CHANNEL_WIDTH_160 = 3,
-	HT_CHANNEL_WIDTH_10 = 4,
 };
 
 /*  */

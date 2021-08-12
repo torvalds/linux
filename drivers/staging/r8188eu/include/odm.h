@@ -567,9 +567,6 @@ enum odm_security {
 enum odm_bw {
 	ODM_BW20M		= 0,
 	ODM_BW40M		= 1,
-	ODM_BW80M		= 2,
-	ODM_BW160M		= 3,
-	ODM_BW10M		= 4,
 };
 
 /*  ODM_CMNINFO_BOARD_TYPE */
