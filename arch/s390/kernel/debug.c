@@ -833,16 +833,17 @@ void debug_set_level(debug_info_t *id, int new_level)
 
 	if (!id)
 		return;
-	spin_lock_irqsave(&id->lock, flags);
+
 	if (new_level == DEBUG_OFF_LEVEL) {
-		id->level = DEBUG_OFF_LEVEL;
 		pr_info("%s: switched off\n", id->name);
 	} else if ((new_level > DEBUG_MAX_LEVEL) || (new_level < 0)) {
 		pr_info("%s: level %i is out of range (%i - %i)\n",
 			id->name, new_level, 0, DEBUG_MAX_LEVEL);
-	} else {
-		id->level = new_level;
+		return;
 	}
+
+	spin_lock_irqsave(&id->lock, flags);
+	id->level = new_level;
 	spin_unlock_irqrestore(&id->lock, flags);
 }
 EXPORT_SYMBOL(debug_set_level);
@@ -1208,16 +1209,17 @@ int debug_register_view(debug_info_t *id, struct debug_view *view)
 			break;
 	}
 	if (i == DEBUG_MAX_VIEWS) {
-		pr_err("Registering view %s/%s would exceed the maximum "
-		       "number of views %i\n", id->name, view->name, i);
 		rc = -1;
 	} else {
 		id->views[i] = view;
 		id->debugfs_entries[i] = pde;
 	}
 	spin_unlock_irqrestore(&id->lock, flags);
-	if (rc)
+	if (rc) {
+		pr_err("Registering view %s/%s would exceed the maximum "
+		       "number of views %i\n", id->name, view->name, i);
 		debugfs_remove(pde);
+	}
 out:
 	return rc;
 }
