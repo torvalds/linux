@@ -997,7 +997,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	/* Must be called before register_card, also see declaration comment. */
 	ret_val = byt_rt5651_add_codec_device_props(codec_dev);
 	if (ret_val)
-		goto err;
+		goto err_device;
 
 	/* Cherry Trail devices use an external amplifier enable gpio */
 	if (soc_intel_is_cht() && !byt_rt5651_gpios)
@@ -1125,6 +1125,8 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	return ret_val;
 
 err:
+	device_remove_properties(priv->codec_dev);
+err_device:
 	put_device(priv->codec_dev);
 	return ret_val;
 }
@@ -1134,6 +1136,7 @@ static int snd_byt_rt5651_mc_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
 
+	device_remove_properties(priv->codec_dev);
 	put_device(priv->codec_dev);
 	return 0;
 }
