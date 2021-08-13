@@ -290,11 +290,13 @@ static int snd_dma_vmalloc_mmap(struct snd_dma_buffer *dmab,
 	return remap_vmalloc_range(area, dmab->area, 0);
 }
 
+#define get_vmalloc_page_addr(dmab, offset) \
+	page_to_phys(vmalloc_to_page((dmab)->area + (offset)))
+
 static dma_addr_t snd_dma_vmalloc_get_addr(struct snd_dma_buffer *dmab,
 					   size_t offset)
 {
-	return page_to_phys(vmalloc_to_page(dmab->area + offset)) +
-		offset % PAGE_SIZE;
+	return get_vmalloc_page_addr(dmab, offset) + offset % PAGE_SIZE;
 }
 
 static struct page *snd_dma_vmalloc_get_page(struct snd_dma_buffer *dmab,
@@ -307,11 +309,23 @@ static unsigned int
 snd_dma_vmalloc_get_chunk_size(struct snd_dma_buffer *dmab,
 			       unsigned int ofs, unsigned int size)
 {
-	ofs %= PAGE_SIZE;
-	size += ofs;
-	if (size > PAGE_SIZE)
-		size = PAGE_SIZE;
-	return size - ofs;
+	unsigned int start, end;
+	unsigned long addr;
+
+	start = ALIGN_DOWN(ofs, PAGE_SIZE);
+	end = ofs + size - 1; /* the last byte address */
+	/* check page continuity */
+	addr = get_vmalloc_page_addr(dmab, start);
+	for (;;) {
+		start += PAGE_SIZE;
+		if (start > end)
+			break;
+		addr += PAGE_SIZE;
+		if (get_vmalloc_page_addr(dmab, start) != addr)
+			return start - ofs;
+	}
+	/* ok, all on continuous pages */
+	return size;
 }
 
 static const struct snd_malloc_ops snd_dma_vmalloc_ops = {
