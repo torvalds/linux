@@ -192,6 +192,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	 * when prefixing the hash value with the hash algorithm name. e.g. sha256:<hash_value>.
 	 */
 	const size_t hash_alg_prefix_len = strlen(DM_IMA_TABLE_HASH_ALG) + 1;
+	char table_load_event_name[] = "dm_table_load";
 
 	ima_buf = dm_ima_alloc(DM_IMA_MEASUREMENT_BUF_LEN, GFP_KERNEL, noio);
 	if (!ima_buf)
@@ -271,7 +272,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 		 * targets by prefixing the device metadata again.
 		 */
 		if (unlikely(cur_total_buf_len >= DM_IMA_MEASUREMENT_BUF_LEN)) {
-			dm_ima_measure_data("table_load", ima_buf, l, noio);
+			dm_ima_measure_data(table_load_event_name, ima_buf, l, noio);
 			r = crypto_shash_update(shash, (const u8 *)ima_buf, l);
 			if (r < 0)
 				goto error;
@@ -280,8 +281,8 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 			l = 0;
 
 			/*
-			 * Each new "table_load" entry in IMA log should have device data
-			 * prefix, so that multiple records from the same table_load for
+			 * Each new "dm_table_load" entry in IMA log should have device data
+			 * prefix, so that multiple records from the same "dm_table_load" for
 			 * a given device can be linked together.
 			 */
 			memcpy(ima_buf + l, DM_IMA_VERSION_STR, table->md->ima.dm_version_str_len);
@@ -292,7 +293,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 
 			/*
 			 * If this iteration of the for loop turns out to be the last target
-			 * in the table, dm_ima_measure_data("table_load", ...) doesn't need
+			 * in the table, dm_ima_measure_data("dm_table_load", ...) doesn't need
 			 * to be called again, just the hash needs to be finalized.
 			 * "last_target_measured" tracks this state.
 			 */
@@ -311,7 +312,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	}
 
 	if (!last_target_measured) {
-		dm_ima_measure_data("table_load", ima_buf, l, noio);
+		dm_ima_measure_data(table_load_event_name, ima_buf, l, noio);
 
 		r = crypto_shash_update(shash, (const u8 *)ima_buf, l);
 		if (r < 0)
@@ -460,7 +461,7 @@ void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
-	dm_ima_measure_data("device_resume", device_table_data, l, noio);
+	dm_ima_measure_data("dm_device_resume", device_table_data, l, noio);
 
 	kfree(dev_name);
 	kfree(dev_uuid);
@@ -577,7 +578,7 @@ void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all)
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
-	dm_ima_measure_data("device_remove", device_table_data, l, noio);
+	dm_ima_measure_data("dm_device_remove", device_table_data, l, noio);
 
 error:
 	kfree(device_table_data);
@@ -658,7 +659,7 @@ void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map)
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
-	dm_ima_measure_data("table_clear", device_table_data, l, noio);
+	dm_ima_measure_data("dm_table_clear", device_table_data, l, noio);
 
 	if (new_map) {
 		if (md->ima.inactive_table.hash &&
@@ -733,7 +734,7 @@ void dm_ima_measure_on_device_rename(struct mapped_device *md)
 		  "%s%snew_name=%s,new_uuid=%s;%s", DM_IMA_VERSION_STR, old_device_data,
 		  new_dev_name, new_dev_uuid, capacity_str);
 
-	dm_ima_measure_data("device_rename", combined_device_data, strlen(combined_device_data),
+	dm_ima_measure_data("dm_device_rename", combined_device_data, strlen(combined_device_data),
 			    noio);
 
 	goto exit;
