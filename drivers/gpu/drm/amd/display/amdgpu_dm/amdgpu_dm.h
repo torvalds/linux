@@ -629,6 +629,8 @@ struct dm_crtc_state {
 
 	bool dsc_force_changed;
 	bool vrr_supported;
+
+	bool force_dpms_off;
 	struct mod_freesync_config freesync_config;
 	struct dc_info_packet vrr_infopacket;
 
