@@ -10,6 +10,8 @@
 #include <net/mptcp.h>
 #include "protocol.h"
 
+#include "mib.h"
+
 /* path manager command handlers */
 
 int mptcp_pm_announce_addr(struct mptcp_sock *msk,

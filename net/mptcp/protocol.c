@@ -1397,6 +1397,7 @@ void mptcp_subflow_set_active(struct mptcp_subflow_context *subflow)
 		return;
 
 	subflow->stale = 0;
+	MPTCP_INC_STATS(sock_net(mptcp_subflow_tcp_sock(subflow)), MPTCP_MIB_SUBFLOWRECOVER);
 }
 
 bool mptcp_subflow_active(struct mptcp_subflow_context *subflow)
