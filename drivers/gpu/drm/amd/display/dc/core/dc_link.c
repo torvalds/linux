@@ -1709,9 +1709,9 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-	/* Initialized dummy hpd and hpd rx */
-	link->irq_source_hpd = DC_IRQ_SOURCE_USB4_DMUB_HPD;
-	link->irq_source_hpd_rx = DC_IRQ_SOURCE_USB4_DMUB_HPDRX;
+	/* Initialized irq source for hpd and hpd rx */
+	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
 	link->link_status.dpcd_caps = &link->dpcd_caps;
 
 	link->dc = init_params->dc;

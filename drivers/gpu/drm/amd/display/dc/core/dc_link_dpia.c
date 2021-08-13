@@ -234,7 +234,7 @@ static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
 	}
 
 	status = core_link_write_dpcd(link,
-				      DP_TRAINING_PATTERN_SET,
+				      dpcd_tps_offset,
 				      &dpcd_pattern.raw,
 				      sizeof(dpcd_pattern.raw));
 
@@ -796,7 +796,7 @@ static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
 			((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (hop - 1));
 
 	status = core_link_write_dpcd(link,
-			DP_TRAINING_PATTERN_SET,
+			dpcd_tps_offset,
 			&dpcd_pattern.raw,
 			sizeof(dpcd_pattern.raw));
 
@@ -906,7 +906,7 @@ enum link_training_result dc_link_dpia_perform_link_training(struct dc_link *lin
 	enum link_training_result result;
 	struct link_training_settings lt_settings;
 	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
-	uint8_t repeater_id; /* Current hop. */
+	int8_t repeater_id; /* Current hop. */
 
 	/* Configure link as prescribed in link_setting and set LTTPR mode. */
 	result = dpia_configure_link(link, link_setting, &lt_settings);
