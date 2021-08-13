@@ -362,12 +362,12 @@ int dsa_tag_8021q_bridge_join(struct dsa_switch *ds,
 			continue;
 
 		/* Install the RX VID of the targeted port in our VLAN table */
-		err = dsa_port_tag_8021q_vlan_add(dp, targeted_rx_vid, false);
+		err = dsa_port_tag_8021q_vlan_add(dp, targeted_rx_vid, true);
 		if (err)
 			return err;
 
 		/* Install our RX VID into the targeted port's VLAN table */
-		err = dsa_port_tag_8021q_vlan_add(targeted_dp, rx_vid, false);
+		err = dsa_port_tag_8021q_vlan_add(targeted_dp, rx_vid, true);
 		if (err)
 			return err;
 	}
@@ -451,7 +451,7 @@ static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
 	 * L2 forwarding rules still take precedence when there are no VLAN
 	 * restrictions, so there are no concerns about leaking traffic.
 	 */
-	err = dsa_port_tag_8021q_vlan_add(dp, rx_vid, true);
+	err = dsa_port_tag_8021q_vlan_add(dp, rx_vid, false);
 	if (err) {
 		dev_err(ds->dev,
 			"Failed to apply RX VID %d to port %d: %pe\n",
@@ -463,7 +463,7 @@ static int dsa_tag_8021q_port_setup(struct dsa_switch *ds, int port)
 	vlan_vid_add(master, ctx->proto, rx_vid);
 
 	/* Finally apply the TX VID on this port and on the CPU port */
-	err = dsa_port_tag_8021q_vlan_add(dp, tx_vid, true);
+	err = dsa_port_tag_8021q_vlan_add(dp, tx_vid, false);
 	if (err) {
 		dev_err(ds->dev,
 			"Failed to apply TX VID %d on port %d: %pe\n",
