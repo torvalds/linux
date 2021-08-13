@@ -1777,39 +1777,11 @@ static void pl011_write_lcr_h(struct uart_amba_port *uap, unsigned int lcr_h)
 	}
 }
 
-static void pl011_release_irq(struct uart_amba_port *uap, unsigned int max_cnt)
-{
-	struct amba_device *amba_dev = container_of(uap->port.dev, struct amba_device, dev);
-	int i;
-
-	for (i = 0; i < max_cnt; i++)
-		if (amba_dev->irq[i])
-			free_irq(amba_dev->irq[i], uap);
-}
-
 static int pl011_allocate_irq(struct uart_amba_port *uap)
 {
-	int ret = 0;
-	int i;
-	unsigned int virq;
-	struct amba_device *amba_dev = container_of(uap->port.dev, struct amba_device, dev);
-
 	pl011_write(uap->im, uap, REG_IMSC);
 
-	for (i = 0; i < AMBA_NR_IRQS; i++) {
-		virq = amba_dev->irq[i];
-		if (virq == 0)
-			break;
-
-		ret = request_irq(virq, pl011_int, IRQF_SHARED, dev_name(&amba_dev->dev), uap);
-		if (ret) {
-			dev_err(uap->port.dev, "request %u interrupt failed\n", virq);
-			pl011_release_irq(uap, i - 1);
-			break;
-		}
-	}
-
-	return ret;
+	return request_irq(uap->port.irq, pl011_int, IRQF_SHARED, "uart-pl011", uap);
 }
 
 /*
@@ -1981,7 +1953,7 @@ static void pl011_shutdown(struct uart_port *port)
 	if ((port->rs485.flags & SER_RS485_ENABLED) && uap->rs485_tx_started)
 		pl011_rs485_tx_stop(uap);
 
-	pl011_release_irq(uap, AMBA_NR_IRQS);
+	free_irq(uap->port.irq, uap);
 
 	pl011_disable_uart(uap);
 
@@ -2011,7 +1983,7 @@ static void sbsa_uart_shutdown(struct uart_port *port)
 
 	pl011_disable_interrupts(uap);
 
-	pl011_release_irq(uap, AMBA_NR_IRQS);
+	free_irq(uap->port.irq, uap);
 
 	if (uap->port.ops->flush_buffer)
 		uap->port.ops->flush_buffer(port);
