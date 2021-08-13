@@ -470,8 +470,8 @@ struct ras_debug_if {
  * 8: feature disable
  */
 
-#define amdgpu_ras_get_context(adev)		((adev)->psp.ras.ras)
-#define amdgpu_ras_set_context(adev, ras_con)	((adev)->psp.ras.ras = (ras_con))
+#define amdgpu_ras_get_context(adev)		((adev)->psp.ras_context.ras)
+#define amdgpu_ras_set_context(adev, ras_con)	((adev)->psp.ras_context.ras = (ras_con))
 
 /* check if ras is supported on block, say, sdma, gfx */
 static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,

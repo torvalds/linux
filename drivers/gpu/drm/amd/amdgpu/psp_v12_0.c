@@ -84,23 +84,23 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 
 		ta_hdr = (const struct ta_firmware_header_v1_0 *)
 				 adev->psp.ta_fw->data;
-		adev->psp.ta_hdcp_ucode_version =
-			le32_to_cpu(ta_hdr->ta_hdcp_ucode_version);
-		adev->psp.ta_hdcp_ucode_size =
-			le32_to_cpu(ta_hdr->ta_hdcp_size_bytes);
-		adev->psp.ta_hdcp_start_addr =
+		adev->psp.hdcp.feature_version =
+			le32_to_cpu(ta_hdr->hdcp.fw_version);
+		adev->psp.hdcp.size_bytes =
+			le32_to_cpu(ta_hdr->hdcp.size_bytes);
+		adev->psp.hdcp.start_addr =
 			(uint8_t *)ta_hdr +
 			le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 
 		adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
 
-		adev->psp.ta_dtm_ucode_version =
-			le32_to_cpu(ta_hdr->ta_dtm_ucode_version);
-		adev->psp.ta_dtm_ucode_size =
-			le32_to_cpu(ta_hdr->ta_dtm_size_bytes);
-		adev->psp.ta_dtm_start_addr =
-			(uint8_t *)adev->psp.ta_hdcp_start_addr +
-			le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
+		adev->psp.dtm.feature_version =
+			le32_to_cpu(ta_hdr->dtm.fw_version);
+		adev->psp.dtm.size_bytes =
+			le32_to_cpu(ta_hdr->dtm.size_bytes);
+		adev->psp.dtm.start_addr =
+			(uint8_t *)adev->psp.hdcp.start_addr +
+			le32_to_cpu(ta_hdr->dtm.offset_bytes);
 	}
 
 	return 0;

@@ -327,11 +327,8 @@ struct psp_context
 	uint64_t			tmr_mc_addr;
 
 	/* asd firmware */
-	const struct firmware		*asd_fw;
-	uint32_t			asd_fw_version;
-	uint32_t			asd_feature_version;
-	uint32_t			asd_ucode_size;
-	uint8_t				*asd_start_addr;
+	const struct firmware	*asd_fw;
+	struct psp_bin_desc		asd;
 
 	/* toc firmware */
 	const struct firmware		*toc_fw;
@@ -356,32 +353,16 @@ struct psp_context
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
 	uint32_t			ta_fw_version;
-	uint32_t			ta_xgmi_ucode_version;
-	uint32_t			ta_xgmi_ucode_size;
-	uint8_t				*ta_xgmi_start_addr;
-	uint32_t			ta_ras_ucode_version;
-	uint32_t			ta_ras_ucode_size;
-	uint8_t				*ta_ras_start_addr;
-
-	uint32_t			ta_hdcp_ucode_version;
-	uint32_t			ta_hdcp_ucode_size;
-	uint8_t				*ta_hdcp_start_addr;
-
-	uint32_t			ta_dtm_ucode_version;
-	uint32_t			ta_dtm_ucode_size;
-	uint8_t				*ta_dtm_start_addr;
-
-	uint32_t			ta_rap_ucode_version;
-	uint32_t			ta_rap_ucode_size;
-	uint8_t				*ta_rap_start_addr;
-
-	uint32_t			ta_securedisplay_ucode_version;
-	uint32_t			ta_securedisplay_ucode_size;
-	uint8_t				*ta_securedisplay_start_addr;
+	struct psp_bin_desc		xgmi;
+	struct psp_bin_desc		ras;
+	struct psp_bin_desc		hdcp;
+	struct psp_bin_desc		dtm;
+	struct psp_bin_desc		rap;
+	struct psp_bin_desc		securedisplay;
 
 	struct psp_asd_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
-	struct psp_ras_context		ras;
+	struct psp_ras_context		ras_context;
 	struct psp_hdcp_context 	hdcp_context;
 	struct psp_dtm_context		dtm_context;
 	struct psp_rap_context		rap_context;

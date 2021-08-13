@@ -1866,7 +1866,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_eeprom_control *control =
-		&adev->psp.ras.ras->eeprom_control;
+		&adev->psp.ras_context.ras->eeprom_control;
 	struct eeprom_table_record *bps;
 	int ret;
 
