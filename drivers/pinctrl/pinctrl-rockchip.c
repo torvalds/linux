@@ -3720,7 +3720,7 @@ static struct rockchip_pin_bank px30_pin_banks[] = {
 			    ),
 };
 
-static struct rockchip_pin_ctrl px30_pin_ctrl = {
+static struct rockchip_pin_ctrl px30_pin_ctrl __maybe_unused = {
 		.pin_banks		= px30_pin_banks,
 		.nr_banks		= ARRAY_SIZE(px30_pin_banks),
 		.label			= "PX30-GPIO",
@@ -3745,7 +3745,7 @@ static struct rockchip_pin_bank rv1108_pin_banks[] = {
 	PIN_BANK_IOMUX_FLAGS(3, 32, "gpio3", 0, 0, 0, 0),
 };
 
-static struct rockchip_pin_ctrl rv1108_pin_ctrl = {
+static struct rockchip_pin_ctrl rv1108_pin_ctrl __maybe_unused = {
 	.pin_banks		= rv1108_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rv1108_pin_banks),
 	.label			= "RV1108-GPIO",
@@ -3785,7 +3785,7 @@ static struct rockchip_pin_bank rv1126_pin_banks[] = {
 			     IOMUX_WIDTH_4BIT, 0, 0, 0),
 };
 
-static struct rockchip_pin_ctrl rv1126_pin_ctrl = {
+static struct rockchip_pin_ctrl rv1126_pin_ctrl __maybe_unused = {
 	.pin_banks		= rv1126_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rv1126_pin_banks),
 	.label			= "RV1126-GPIO",
@@ -3824,7 +3824,7 @@ static struct rockchip_pin_bank rk1808_pin_banks[] = {
 					     IOMUX_WIDTH_4BIT),
 };
 
-static struct rockchip_pin_ctrl rk1808_pin_ctrl = {
+static struct rockchip_pin_ctrl rk1808_pin_ctrl __maybe_unused = {
 	.pin_banks		= rk1808_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk1808_pin_banks),
 	.label			= "RK1808-GPIO",
@@ -3846,7 +3846,7 @@ static struct rockchip_pin_bank rk2928_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk2928_pin_ctrl = {
+static struct rockchip_pin_ctrl rk2928_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk2928_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk2928_pin_banks),
 		.label			= "RK2928-GPIO",
@@ -3861,7 +3861,7 @@ static struct rockchip_pin_bank rk3036_pin_banks[] = {
 	PIN_BANK(2, 32, "gpio2"),
 };
 
-static struct rockchip_pin_ctrl rk3036_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3036_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3036_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3036_pin_banks),
 		.label			= "RK3036-GPIO",
@@ -3879,7 +3879,7 @@ static struct rockchip_pin_bank rk3066a_pin_banks[] = {
 	PIN_BANK(6, 16, "gpio6"),
 };
 
-static struct rockchip_pin_ctrl rk3066a_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3066a_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3066a_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3066a_pin_banks),
 		.label			= "RK3066a-GPIO",
@@ -3895,7 +3895,7 @@ static struct rockchip_pin_bank rk3066b_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk3066b_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3066b_pin_ctrl __maybe_unused = {
 		.pin_banks	= rk3066b_pin_banks,
 		.nr_banks	= ARRAY_SIZE(rk3066b_pin_banks),
 		.label		= "RK3066b-GPIO",
@@ -3910,7 +3910,7 @@ static struct rockchip_pin_bank rk3128_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk3128_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3128_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3128_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3128_pin_banks),
 		.label			= "RK3128-GPIO",
@@ -3930,7 +3930,7 @@ static struct rockchip_pin_bank rk3188_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3188_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3188_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3188_pin_banks),
 		.label			= "RK3188-GPIO",
@@ -3948,7 +3948,7 @@ static struct rockchip_pin_bank rk3228_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk3228_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3228_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3228_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3228_pin_banks),
 		.label			= "RK3228-GPIO",
@@ -3992,7 +3992,7 @@ static struct rockchip_pin_bank rk3288_pin_banks[] = {
 	PIN_BANK(8, 16, "gpio8"),
 };
 
-static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3288_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3288_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3288_pin_banks),
 		.label			= "RK3288-GPIO",
@@ -4028,7 +4028,7 @@ static struct rockchip_pin_bank rk3308_pin_banks[] = {
 					     IOMUX_WIDTH_2BIT),
 };
 
-static struct rockchip_pin_ctrl rk3308_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3308_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3308_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3308_pin_banks),
 		.label			= "RK3308-GPIO",
@@ -4058,7 +4058,7 @@ static struct rockchip_pin_bank rk3328_pin_banks[] = {
 			     0),
 };
 
-static struct rockchip_pin_ctrl rk3328_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3328_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3328_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3328_pin_banks),
 		.label			= "RK3328-GPIO",
@@ -4084,7 +4084,7 @@ static struct rockchip_pin_bank rk3368_pin_banks[] = {
 	PIN_BANK(3, 32, "gpio3"),
 };
 
-static struct rockchip_pin_ctrl rk3368_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3368_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3368_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3368_pin_banks),
 		.label			= "RK3368-GPIO",
@@ -4148,7 +4148,7 @@ static struct rockchip_pin_bank rk3399_pin_banks[] = {
 			   ),
 };
 
-static struct rockchip_pin_ctrl rk3399_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3399_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3399_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3399_pin_banks),
 		.label			= "RK3399-GPIO",
@@ -4186,7 +4186,7 @@ static struct rockchip_pin_bank rk3568_pin_banks[] = {
 					     IOMUX_WIDTH_4BIT),
 };
 
-static struct rockchip_pin_ctrl rk3568_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3568_pin_ctrl __maybe_unused = {
 	.pin_banks		= rk3568_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3568_pin_banks),
 	.label			= "RK3568-GPIO",
@@ -4216,7 +4216,7 @@ static struct rockchip_pin_bank rk3588_pin_banks[] = {
 			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
 };
 
-static struct rockchip_pin_ctrl rk3588_pin_ctrl = {
+static struct rockchip_pin_ctrl rk3588_pin_ctrl __maybe_unused = {
 	.pin_banks		= rk3588_pin_banks,
 	.nr_banks		= ARRAY_SIZE(rk3588_pin_banks),
 	.label			= "RK3588-GPIO",
@@ -4227,42 +4227,76 @@ static struct rockchip_pin_ctrl rk3588_pin_ctrl = {
 };
 
 static const struct of_device_id rockchip_pinctrl_dt_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-pinctrl",
 		.data = &px30_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RV1108
 	{ .compatible = "rockchip,rv1108-pinctrl",
 		.data = &rv1108_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-pinctrl",
 		.data = &rv1126_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{ .compatible = "rockchip,rk1808-pinctrl",
 		.data = &rk1808_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK2928
 	{ .compatible = "rockchip,rk2928-pinctrl",
 		.data = &rk2928_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3036
 	{ .compatible = "rockchip,rk3036-pinctrl",
 		.data = &rk3036_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK30XX
 	{ .compatible = "rockchip,rk3066a-pinctrl",
 		.data = &rk3066a_pin_ctrl },
 	{ .compatible = "rockchip,rk3066b-pinctrl",
 		.data = &rk3066b_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK312X
 	{ .compatible = "rockchip,rk3128-pinctrl",
 		.data = (void *)&rk3128_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3188
 	{ .compatible = "rockchip,rk3188-pinctrl",
 		.data = &rk3188_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{ .compatible = "rockchip,rk3228-pinctrl",
 		.data = &rk3228_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{ .compatible = "rockchip,rk3288-pinctrl",
 		.data = &rk3288_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{ .compatible = "rockchip,rk3308-pinctrl",
 		.data = &rk3308_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{ .compatible = "rockchip,rk3328-pinctrl",
 		.data = &rk3328_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{ .compatible = "rockchip,rk3368-pinctrl",
 		.data = &rk3368_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-pinctrl",
 		.data = &rk3399_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-pinctrl",
 		.data = &rk3568_pin_ctrl },
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-pinctrl",
 		.data = &rk3588_pin_ctrl },
+#endif
 	{},
 };
 
