@@ -2060,20 +2060,20 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 	}
 }
 
-static void Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
+static void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
 {
 	if (chnl < 3)			/*  Channel 1-2 */
-		*pGroup = 0;
+		*group = 0;
 	else if (chnl < 6)		/*  Channel 3-5 */
-		*pGroup = 1;
+		*group = 1;
 	else if (chnl < 9)		/*  Channel 6-8 */
-		*pGroup = 2;
+		*group = 2;
 	else if (chnl < 12)		/*  Channel 9-11 */
-		*pGroup = 3;
+		*group = 3;
 	else if (chnl < 14)		/*  Channel 12-13 */
-		*pGroup = 4;
+		*group = 4;
 	else if (chnl == 14)		/*  Channel 14 */
-		*pGroup = 5;
+		*group = 5;
 }
 
 void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
