@@ -139,7 +139,6 @@ struct scsi_cmnd {
 	int flags;		/* Command flags */
 	unsigned long state;	/* Command completion state */
 
-	unsigned char tag;	/* SCSI-II queued command tag */
 	unsigned int extra_len;	/* length of alignment and padding */
 };
 
