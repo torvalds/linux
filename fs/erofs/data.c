@@ -5,7 +5,6 @@
  */
 #include "internal.h"
 #include <linux/prefetch.h>
-#include <linux/iomap.h>
 #include <linux/dax.h>
 #include <trace/events/erofs.h>
 
@@ -151,6 +150,20 @@ static const struct iomap_ops erofs_iomap_ops = {
 	.iomap_begin = erofs_iomap_begin,
 	.iomap_end = erofs_iomap_end,
 };
+
+int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 u64 start, u64 len)
+{
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
+#ifdef CONFIG_EROFS_FS_ZIP
+		return iomap_fiemap(inode, fieinfo, start, len,
+				    &z_erofs_iomap_report_ops);
+#else
+		return -EOPNOTSUPP;
+#endif
+	}
+	return iomap_fiemap(inode, fieinfo, start, len, &erofs_iomap_ops);
+}
 
 /*
  * since we dont have write or truncate flows, so no inode

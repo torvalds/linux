@@ -675,3 +675,41 @@ out:
 	DBG_BUGON(err < 0 && err != -ENOMEM);
 	return err;
 }
+
+static int z_erofs_iomap_begin_report(struct inode *inode, loff_t offset,
+				loff_t length, unsigned int flags,
+				struct iomap *iomap, struct iomap *srcmap)
+{
+	int ret;
+	struct erofs_map_blocks map = { .m_la = offset };
+
+	ret = z_erofs_map_blocks_iter(inode, &map, EROFS_GET_BLOCKS_FIEMAP);
+	if (map.mpage)
+		put_page(map.mpage);
+	if (ret < 0)
+		return ret;
+
+	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->offset = map.m_la;
+	iomap->length = map.m_llen;
+	if (map.m_flags & EROFS_MAP_MAPPED) {
+		iomap->type = IOMAP_MAPPED;
+		iomap->addr = map.m_pa;
+	} else {
+		iomap->type = IOMAP_HOLE;
+		iomap->addr = IOMAP_NULL_ADDR;
+		/*
+		 * No strict rule how to describe extents for post EOF, yet
+		 * we need do like below. Otherwise, iomap itself will get
+		 * into an endless loop on post EOF.
+		 */
+		if (iomap->offset >= inode->i_size)
+			iomap->length = length + map.m_la - offset;
+	}
+	iomap->flags = 0;
+	return 0;
+}
+
+const struct iomap_ops z_erofs_iomap_report_ops = {
+	.iomap_begin = z_erofs_iomap_begin_report,
+};
