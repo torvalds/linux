@@ -363,9 +363,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 {
 	struct list_head *msi_list = dev_to_msi_list(&dev->dev);
 	struct msi_desc *entry, *tmp;
-	struct attribute **msi_attrs;
-	struct device_attribute *dev_attr;
-	int i, count = 0;
+	int i;
 
 	for_each_pci_msi_entry(entry, dev)
 		if (entry->irq)
@@ -385,18 +383,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 	}
 
 	if (dev->msi_irq_groups) {
-		sysfs_remove_groups(&dev->dev.kobj, dev->msi_irq_groups);
-		msi_attrs = dev->msi_irq_groups[0]->attrs;
-		while (msi_attrs[count]) {
-			dev_attr = container_of(msi_attrs[count],
-						struct device_attribute, attr);
-			kfree(dev_attr->attr.name);
-			kfree(dev_attr);
-			++count;
-		}
-		kfree(msi_attrs);
-		kfree(dev->msi_irq_groups[0]);
-		kfree(dev->msi_irq_groups);
+		msi_destroy_sysfs(&dev->dev, dev->msi_irq_groups);
 		dev->msi_irq_groups = NULL;
 	}
 }
@@ -475,102 +462,6 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	__pci_restore_msix_state(dev);
 }
 EXPORT_SYMBOL_GPL(pci_restore_msi_state);
-
-static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	struct msi_desc *entry;
-	unsigned long irq;
-	int retval;
-
-	retval = kstrtoul(attr->attr.name, 10, &irq);
-	if (retval)
-		return retval;
-
-	entry = irq_get_msi_desc(irq);
-	if (!entry)
-		return -ENODEV;
-
-	return sysfs_emit(buf, "%s\n",
-			  entry->msi_attrib.is_msix ? "msix" : "msi");
-}
-
-static int populate_msi_sysfs(struct pci_dev *pdev)
-{
-	struct attribute **msi_attrs;
-	struct attribute *msi_attr;
-	struct device_attribute *msi_dev_attr;
-	struct attribute_group *msi_irq_group;
-	const struct attribute_group **msi_irq_groups;
-	struct msi_desc *entry;
-	int ret = -ENOMEM;
-	int num_msi = 0;
-	int count = 0;
-	int i;
-
-	/* Determine how many msi entries we have */
-	for_each_pci_msi_entry(entry, pdev)
-		num_msi += entry->nvec_used;
-	if (!num_msi)
-		return 0;
-
-	/* Dynamically create the MSI attributes for the PCI device */
-	msi_attrs = kcalloc(num_msi + 1, sizeof(void *), GFP_KERNEL);
-	if (!msi_attrs)
-		return -ENOMEM;
-	for_each_pci_msi_entry(entry, pdev) {
-		for (i = 0; i < entry->nvec_used; i++) {
-			msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
-			if (!msi_dev_attr)
-				goto error_attrs;
-			msi_attrs[count] = &msi_dev_attr->attr;
-
-			sysfs_attr_init(&msi_dev_attr->attr);
-			msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
-							    entry->irq + i);
-			if (!msi_dev_attr->attr.name)
-				goto error_attrs;
-			msi_dev_attr->attr.mode = S_IRUGO;
-			msi_dev_attr->show = msi_mode_show;
-			++count;
-		}
-	}
-
-	msi_irq_group = kzalloc(sizeof(*msi_irq_group), GFP_KERNEL);
-	if (!msi_irq_group)
-		goto error_attrs;
-	msi_irq_group->name = "msi_irqs";
-	msi_irq_group->attrs = msi_attrs;
-
-	msi_irq_groups = kcalloc(2, sizeof(void *), GFP_KERNEL);
-	if (!msi_irq_groups)
-		goto error_irq_group;
-	msi_irq_groups[0] = msi_irq_group;
-
-	ret = sysfs_create_groups(&pdev->dev.kobj, msi_irq_groups);
-	if (ret)
-		goto error_irq_groups;
-	pdev->msi_irq_groups = msi_irq_groups;
-
-	return 0;
-
-error_irq_groups:
-	kfree(msi_irq_groups);
-error_irq_group:
-	kfree(msi_irq_group);
-error_attrs:
-	count = 0;
-	msi_attr = msi_attrs[count];
-	while (msi_attr) {
-		msi_dev_attr = container_of(msi_attr, struct device_attribute, attr);
-		kfree(msi_attr->name);
-		kfree(msi_dev_attr);
-		++count;
-		msi_attr = msi_attrs[count];
-	}
-	kfree(msi_attrs);
-	return ret;
-}
 
 static struct msi_desc *
 msi_setup_entry(struct pci_dev *dev, int nvec, struct irq_affinity *affd)
@@ -667,9 +558,11 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	if (ret)
 		goto err;
 
-	ret = populate_msi_sysfs(dev);
-	if (ret)
+	dev->msi_irq_groups = msi_populate_sysfs(&dev->dev);
+	if (IS_ERR(dev->msi_irq_groups)) {
+		ret = PTR_ERR(dev->msi_irq_groups);
 		goto err;
+	}
 
 	/* Set MSI enabled bits	*/
 	pci_intx_for_msi(dev, 0);
@@ -834,9 +727,11 @@ static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 
 	msix_update_entries(dev, entries);
 
-	ret = populate_msi_sysfs(dev);
-	if (ret)
+	dev->msi_irq_groups = msi_populate_sysfs(&dev->dev);
+	if (IS_ERR(dev->msi_irq_groups)) {
+		ret = PTR_ERR(dev->msi_irq_groups);
 		goto out_free;
+	}
 
 	/* Set MSI-X enabled bits and unmask the function */
 	pci_intx_for_msi(dev, 0);
