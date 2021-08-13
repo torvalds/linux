@@ -396,7 +396,6 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 		to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	bool last_mst_stream;
-	u32 val;
 
 	intel_dp->active_mst_links--;
 	last_mst_stream = intel_dp->active_mst_links == 0;
@@ -412,12 +411,8 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	clear_act_sent(encoder, old_crtc_state);
 
-	val = intel_de_read(dev_priv,
-			    TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
-	val &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	intel_de_write(dev_priv,
-		       TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
-		       val);
+	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
+		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC, 0);
 
 	wait_for_act_sent(encoder, old_crtc_state);
 
