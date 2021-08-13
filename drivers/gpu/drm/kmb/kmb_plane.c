@@ -427,8 +427,14 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 
 	kmb_set_bitmask_lcd(kmb, LCD_CONTROL, ctrl);
 
-	/* FIXME no doc on how to set output format,these values are
-	 * taken from the Myriadx tests
+	/* Enable pipeline AXI read transactions for the DMA
+	 * after setting graphics layers. This must be done
+	 * in a separate write cycle.
+	 */
+	kmb_set_bitmask_lcd(kmb, LCD_CONTROL, LCD_CTRL_PIPELINE_DMA);
+
+	/* FIXME no doc on how to set output format, these values are taken
+	 * from the Myriadx tests
 	 */
 	out_format |= LCD_OUTF_FORMAT_RGB888;
 
@@ -525,6 +531,11 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 			&primary->base_plane);
 		plane->id = i;
 	}
+
+	/* Disable pipeline AXI read transactions for the DMA
+	 * prior to setting graphics layers
+	 */
+	kmb_clr_bitmask_lcd(kmb, LCD_CONTROL, LCD_CTRL_PIPELINE_DMA);
 
 	return primary;
 cleanup:

@@ -917,8 +917,8 @@ static int smc_switch_cursor(struct smc_sock *smc, struct smc_cdc_tx_pend *pend,
 	return rc;
 }
 
-static void smc_switch_link_and_count(struct smc_connection *conn,
-				      struct smc_link *to_lnk)
+void smc_switch_link_and_count(struct smc_connection *conn,
+			       struct smc_link *to_lnk)
 {
 	atomic_dec(&conn->lnk->conn_cnt);
 	conn->lnk = to_lnk;

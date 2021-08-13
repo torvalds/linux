@@ -1362,11 +1362,13 @@ u64 __weak bpf_probe_read_kernel(void *dst, u32 size, const void *unsafe_ptr)
 }
 
 /**
- *	__bpf_prog_run - run eBPF program on a given context
+ *	___bpf_prog_run - run eBPF program on a given context
  *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
  *	@insn: is the array of eBPF instructions
  *
  * Decode and execute eBPF instructions.
+ *
+ * Return: whatever value is in %BPF_R0 at program exit
  */
 static u64 ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn)
 {
@@ -1878,6 +1880,9 @@ static void bpf_prog_select_func(struct bpf_prog *fp)
  *
  * Try to JIT eBPF program, if JIT is not available, use interpreter.
  * The BPF program will be executed via BPF_PROG_RUN() macro.
+ *
+ * Return: the &fp argument along with &err set to 0 for success or
+ * a negative errno code on failure
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {

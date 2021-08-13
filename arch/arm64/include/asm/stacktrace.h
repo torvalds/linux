@@ -35,7 +35,7 @@ struct stack_info {
  * accounting information necessary for robust unwinding.
  *
  * @fp:          The fp value in the frame record (or the real fp)
- * @pc:          The fp value in the frame record (or the real lr)
+ * @pc:          The lr value in the frame record (or the real lr)
  *
  * @stacks_done: Stacks which have been entirely unwound, for which it is no
  *               longer valid to unwind to.

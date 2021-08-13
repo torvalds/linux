@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 14
 SUBLEVEL = 0
-EXTRAVERSION = -rc4
+EXTRAVERSION = -rc5
 NAME = Opossums on Parade
 
 # *DOCUMENTATION*
@@ -1315,6 +1315,16 @@ endif
 PHONY += scripts_unifdef
 scripts_unifdef: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+
+# ---------------------------------------------------------------------------
+# Install
+
+# Many distributions have the custom install script, /sbin/installkernel.
+# If DKMS is installed, 'make install' will eventually recuses back
+# to the this Makefile to build and install external modules.
+# Cancel sub_make_done so that options such as M=, V=, etc. are parsed.
+
+install: sub_make_done :=
 
 # ---------------------------------------------------------------------------
 # Tools
