@@ -120,7 +120,8 @@ static const struct snd_soc_ops max_98373_sdw_ops = {
 	.shutdown = sdw_shutdown,
 };
 
-int sof_sdw_mx8373_init(const struct snd_soc_acpi_link_adr *link,
+int sof_sdw_mx8373_init(struct snd_soc_card *card,
+			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback)

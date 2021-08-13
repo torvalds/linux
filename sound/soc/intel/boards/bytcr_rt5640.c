@@ -90,6 +90,7 @@ enum {
 struct byt_rt5640_private {
 	struct snd_soc_jack jack;
 	struct clk *mclk;
+	struct device *codec_dev;
 };
 static bool is_bytcr;
 
@@ -969,15 +970,13 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int byt_rt5640_add_codec_device_props(const char *i2c_dev_name)
+static int byt_rt5640_add_codec_device_props(struct device *i2c_dev,
+					     struct byt_rt5640_private *priv)
 {
 	struct property_entry props[MAX_NO_PROPS] = {};
-	struct device *i2c_dev;
-	int ret, cnt = 0;
-
-	i2c_dev = bus_find_device_by_name(&i2c_bus_type, NULL, i2c_dev_name);
-	if (!i2c_dev)
-		return -EPROBE_DEFER;
+	struct fwnode_handle *fwnode;
+	int cnt = 0;
+	int ret;
 
 	switch (BYT_RT5640_MAP(byt_rt5640_quirk)) {
 	case BYT_RT5640_DMIC1_MAP:
@@ -1017,8 +1016,15 @@ static int byt_rt5640_add_codec_device_props(const char *i2c_dev_name)
 	if (byt_rt5640_quirk & BYT_RT5640_JD_NOT_INV)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,jack-detect-not-inverted");
 
-	ret = device_add_properties(i2c_dev, props);
-	put_device(i2c_dev);
+	fwnode = fwnode_create_software_node(props, NULL);
+	if (IS_ERR(fwnode)) {
+		/* put_device() is handled in caller */
+		return PTR_ERR(fwnode);
+	}
+
+	ret = device_add_software_node(i2c_dev, to_software_node(fwnode));
+
+	fwnode_handle_put(fwnode);
 
 	return ret;
 }
@@ -1367,6 +1373,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct acpi_device *adev;
+	struct device *codec_dev;
 	bool sof_parent;
 	int ret_val = 0;
 	int dai_index = 0;
@@ -1399,6 +1406,9 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		put_device(&adev->dev);
 		byt_rt5640_dais[dai_index].codecs->name = byt_rt5640_codec_name;
+	} else {
+		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
+		return -ENXIO;
 	}
 
 	/*
@@ -1475,10 +1485,15 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		byt_rt5640_quirk = quirk_override;
 	}
 
+	codec_dev = acpi_get_first_physical_node(adev);
+	if (!codec_dev)
+		return -EPROBE_DEFER;
+	priv->codec_dev = get_device(codec_dev);
+
 	/* Must be called before register_card, also see declaration comment. */
-	ret_val = byt_rt5640_add_codec_device_props(byt_rt5640_codec_name);
+	ret_val = byt_rt5640_add_codec_device_props(codec_dev, priv);
 	if (ret_val)
-		return ret_val;
+		goto err_device;
 
 	log_quirks(&pdev->dev);
 
@@ -1509,7 +1524,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			 * for all other errors, including -EPROBE_DEFER
 			 */
 			if (ret_val != -ENOENT)
-				return ret_val;
+				goto err;
 			byt_rt5640_quirk &= ~BYT_RT5640_MCLK_EN;
 		}
 	}
@@ -1553,7 +1568,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	ret_val = snd_soc_fixup_dai_links_platform_name(&byt_rt5640_card,
 							platform_name);
 	if (ret_val)
-		return ret_val;
+		goto err;
 
 	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
 
@@ -1575,10 +1590,26 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	if (ret_val) {
 		dev_err(&pdev->dev, "devm_snd_soc_register_card failed %d\n",
 			ret_val);
-		return ret_val;
+		goto err;
 	}
 	platform_set_drvdata(pdev, &byt_rt5640_card);
 	return ret_val;
+
+err:
+	device_remove_software_node(priv->codec_dev);
+err_device:
+	put_device(priv->codec_dev);
+	return ret_val;
+}
+
+static int snd_byt_rt5640_mc_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
+
+	device_remove_software_node(priv->codec_dev);
+	put_device(priv->codec_dev);
+	return 0;
 }
 
 static struct platform_driver snd_byt_rt5640_mc_driver = {
@@ -1586,6 +1617,7 @@ static struct platform_driver snd_byt_rt5640_mc_driver = {
 		.name = "bytcr_rt5640",
 	},
 	.probe = snd_byt_rt5640_mc_probe,
+	.remove = snd_byt_rt5640_mc_remove,
 };
 
 module_platform_driver(snd_byt_rt5640_mc_driver);
