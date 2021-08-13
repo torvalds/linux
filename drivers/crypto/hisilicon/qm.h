@@ -433,5 +433,9 @@ int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
 void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
 int hisi_qm_resume(struct device *dev);
 int hisi_qm_suspend(struct device *dev);
+void hisi_qm_pm_uninit(struct hisi_qm *qm);
+void hisi_qm_pm_init(struct hisi_qm *qm);
+int hisi_qm_get_dfx_access(struct hisi_qm *qm);
+void hisi_qm_put_dfx_access(struct hisi_qm *qm);
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
 #endif

@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/topology.h>
 #include <linux/uacce.h>
 #include "hpre.h"
@@ -658,9 +659,14 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 				    size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
+	struct hisi_qm *qm = hpre_file_to_qm(file);
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
 	u32 val;
 	int ret;
+
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
 
 	spin_lock_irq(&file->lock);
 	switch (file->type) {
@@ -671,18 +677,25 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 		val = hpre_cluster_inqry_read(file);
 		break;
 	default:
-		spin_unlock_irq(&file->lock);
-		return -EINVAL;
+		goto err_input;
 	}
 	spin_unlock_irq(&file->lock);
+
+	hisi_qm_put_dfx_access(qm);
 	ret = snprintf(tbuf, HPRE_DBGFS_VAL_MAX_LEN, "%u\n", val);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
+
+err_input:
+	spin_unlock_irq(&file->lock);
+	hisi_qm_put_dfx_access(qm);
+	return -EINVAL;
 }
 
 static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 				     size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
+	struct hisi_qm *qm = hpre_file_to_qm(file);
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
 	unsigned long val;
 	int len, ret;
@@ -702,6 +715,10 @@ static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 	if (kstrtoul(tbuf, 0, &val))
 		return -EFAULT;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	spin_lock_irq(&file->lock);
 	switch (file->type) {
 	case HPRE_CLEAR_ENABLE:
@@ -718,12 +735,12 @@ static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 		ret = -EINVAL;
 		goto err_input;
 	}
-	spin_unlock_irq(&file->lock);
 
-	return count;
+	ret = count;
 
 err_input:
 	spin_unlock_irq(&file->lock);
+	hisi_qm_put_dfx_access(qm);
 	return ret;
 }
 
@@ -818,6 +835,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 	regset->regs = hpre_com_dfx_regs;
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
 	regset->base = qm->io_base;
+	regset->dev = dev;
 
 	debugfs_create_file("regs", 0444, qm->debug.debug_root,
 			    regset, &hpre_com_regs_fops);
@@ -847,6 +865,7 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 		regset->regs = hpre_cluster_dfx_regs;
 		regset->nregs = ARRAY_SIZE(hpre_cluster_dfx_regs);
 		regset->base = qm->io_base + hpre_cluster_offsets[i];
+		regset->dev = dev;
 
 		debugfs_create_file("regs", 0444, tmp_d, regset,
 				    &hpre_cluster_regs_fops);
@@ -1101,6 +1120,8 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_with_alg_register;
 	}
 
+	hisi_qm_pm_init(qm);
+
 	return 0;
 
 err_with_alg_register:
@@ -1124,6 +1145,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int ret;
 
+	hisi_qm_pm_uninit(qm);
 	hisi_qm_wait_task_finish(qm, &hpre_devices);
 	hisi_qm_alg_unregister(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num) {
@@ -1146,6 +1168,10 @@ static void hpre_remove(struct pci_dev *pdev)
 	hisi_qm_uninit(qm);
 }
 
+static const struct dev_pm_ops hpre_pm_ops = {
+	SET_RUNTIME_PM_OPS(hisi_qm_suspend, hisi_qm_resume, NULL)
+};
+
 static const struct pci_error_handlers hpre_err_handler = {
 	.error_detected		= hisi_qm_dev_err_detected,
 	.slot_reset		= hisi_qm_dev_slot_reset,
@@ -1162,6 +1188,7 @@ static struct pci_driver hpre_pci_driver = {
 				  hisi_qm_sriov_configure : NULL,
 	.err_handler		= &hpre_err_handler,
 	.shutdown		= hisi_qm_dev_shutdown,
+	.driver.pm		= &hpre_pm_ops,
 };
 
 static void hpre_register_debugfs(void)

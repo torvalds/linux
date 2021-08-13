@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 #include <linux/log2.h>
+#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uacce.h>
@@ -268,6 +269,8 @@
 #define QM_QOS_MAX_CIR_U		6
 #define QM_QOS_MAX_CIR_S		11
 #define QM_QOS_VAL_MAX_LEN		32
+
+#define QM_AUTOSUSPEND_DELAY		3000
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
 	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
@@ -731,6 +734,34 @@ static u32 qm_get_irq_num_v3(struct hisi_qm *qm)
 		return QM_IRQ_NUM_PF_V2;
 
 	return QM_IRQ_NUM_VF_V3;
+}
+
+static int qm_pm_get_sync(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	int ret;
+
+	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+		return 0;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to get_sync(%d).\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void qm_pm_put_sync(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+		return;
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static struct hisi_qp *qm_to_hisi_qp(struct hisi_qm *qm, struct qm_eqe *eqe)
@@ -1258,9 +1289,14 @@ static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 {
 	struct debugfs_file *file = filp->private_data;
 	enum qm_debug_file index = file->index;
+	struct hisi_qm *qm = file_to_qm(file);
 	char tbuf[QM_DBG_TMP_BUF_LEN];
 	u32 val;
 	int ret;
+
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
 
 	mutex_lock(&file->lock);
 	switch (index) {
@@ -1274,13 +1310,18 @@ static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 		val = clear_enable_read(file);
 		break;
 	default:
-		mutex_unlock(&file->lock);
-		return -EINVAL;
+		goto err_input;
 	}
 	mutex_unlock(&file->lock);
 
+	hisi_qm_put_dfx_access(qm);
 	ret = scnprintf(tbuf, QM_DBG_TMP_BUF_LEN, "%u\n", val);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
+
+err_input:
+	mutex_unlock(&file->lock);
+	hisi_qm_put_dfx_access(qm);
+	return -EINVAL;
 }
 
 static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
@@ -1288,6 +1329,7 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 {
 	struct debugfs_file *file = filp->private_data;
 	enum qm_debug_file index = file->index;
+	struct hisi_qm *qm = file_to_qm(file);
 	unsigned long val;
 	char tbuf[QM_DBG_TMP_BUF_LEN];
 	int len, ret;
@@ -1307,6 +1349,10 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 	if (kstrtoul(tbuf, 0, &val))
 		return -EFAULT;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	mutex_lock(&file->lock);
 	switch (index) {
 	case CURRENT_QM:
@@ -1322,6 +1368,8 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 		ret = -EINVAL;
 	}
 	mutex_unlock(&file->lock);
+
+	hisi_qm_put_dfx_access(qm);
 
 	if (ret)
 		return ret;
@@ -1378,15 +1426,23 @@ static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
  */
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset)
 {
+	struct pci_dev *pdev = to_pci_dev(regset->dev);
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	const struct debugfs_reg32 *regs = regset->regs;
 	int regs_len = regset->nregs;
+	int i, ret;
 	u32 val;
-	int i;
+
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return;
 
 	for (i = 0; i < regs_len; i++) {
 		val = readl(regset->base + regs[i].offset);
 		seq_printf(s, "%s= 0x%08x\n", regs[i].name, val);
 	}
+
+	hisi_qm_put_dfx_access(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_regs_dump);
 
@@ -1404,6 +1460,8 @@ static int qm_regs_show(struct seq_file *s, void *unused)
 	}
 
 	regset.base = qm->io_base;
+	regset.dev = &qm->pdev->dev;
+
 	hisi_qm_regs_dump(s, &regset);
 
 	return 0;
@@ -1835,16 +1893,24 @@ static ssize_t qm_cmd_write(struct file *filp, const char __user *buffer,
 	if (*pos)
 		return 0;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	/* Judge if the instance is being reset. */
 	if (unlikely(atomic_read(&qm->status.flags) == QM_STOP))
 		return 0;
 
-	if (count > QM_DBG_WRITE_LEN)
-		return -ENOSPC;
+	if (count > QM_DBG_WRITE_LEN) {
+		ret = -ENOSPC;
+		goto put_dfx_access;
+	}
 
 	cmd_buf = memdup_user_nul(buffer, count);
-	if (IS_ERR(cmd_buf))
-		return PTR_ERR(cmd_buf);
+	if (IS_ERR(cmd_buf)) {
+		ret = PTR_ERR(cmd_buf);
+		goto put_dfx_access;
+	}
 
 	cmd_buf_tmp = strchr(cmd_buf, '\n');
 	if (cmd_buf_tmp) {
@@ -1855,12 +1921,16 @@ static ssize_t qm_cmd_write(struct file *filp, const char __user *buffer,
 	ret = qm_cmd_write_dump(qm, cmd_buf);
 	if (ret) {
 		kfree(cmd_buf);
-		return ret;
+		goto put_dfx_access;
 	}
 
 	kfree(cmd_buf);
 
-	return count;
+	ret = count;
+
+put_dfx_access:
+	hisi_qm_put_dfx_access(qm);
+	return ret;
 }
 
 static const struct file_operations qm_cmd_fops = {
@@ -2457,10 +2527,18 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 {
 	struct hisi_qp *qp;
+	int ret;
+
+	ret = qm_pm_get_sync(qm);
+	if (ret)
+		return ERR_PTR(ret);
 
 	down_write(&qm->qps_lock);
 	qp = qm_create_qp_nolock(qm, alg_type);
 	up_write(&qm->qps_lock);
+
+	if (IS_ERR(qp))
+		qm_pm_put_sync(qm);
 
 	return qp;
 }
@@ -2487,6 +2565,8 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	idr_remove(&qm->qp_idr, qp->qp_id);
 
 	up_write(&qm->qps_lock);
+
+	qm_pm_put_sync(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
@@ -4069,10 +4149,15 @@ static ssize_t qm_algqos_read(struct file *filp, char __user *buf,
 	u32 qos_val, ir;
 	int ret;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	/* Mailbox and reset cannot be operated at the same time */
 	if (test_and_set_bit(QM_RESETTING, &qm->misc_ctl)) {
 		pci_err(qm->pdev, "dev resetting, read alg qos failed!\n");
-		return  -EAGAIN;
+		ret = -EAGAIN;
+		goto err_put_dfx_access;
 	}
 
 	if (qm->fun_type == QM_HW_PF) {
@@ -4091,6 +4176,8 @@ static ssize_t qm_algqos_read(struct file *filp, char __user *buf,
 
 err_get_status:
 	clear_bit(QM_RESETTING, &qm->misc_ctl);
+err_put_dfx_access:
+	hisi_qm_put_dfx_access(qm);
 	return ret;
 }
 
@@ -4171,15 +4258,23 @@ static ssize_t qm_algqos_write(struct file *filp, const char __user *buf,
 
 	fun_index = device * 8 + function;
 
-	ret = qm_func_shaper_enable(qm, fun_index, val);
+	ret = qm_pm_get_sync(qm);
 	if (ret) {
-		pci_err(qm->pdev, "failed to enable function shaper!\n");
 		ret = -EINVAL;
 		goto err_get_status;
 	}
 
-	ret =  count;
+	ret = qm_func_shaper_enable(qm, fun_index, val);
+	if (ret) {
+		pci_err(qm->pdev, "failed to enable function shaper!\n");
+		ret = -EINVAL;
+		goto err_put_sync;
+	}
 
+	ret = count;
+
+err_put_sync:
+	qm_pm_put_sync(qm);
 err_get_status:
 	clear_bit(QM_RESETTING, &qm->misc_ctl);
 	return ret;
@@ -4299,19 +4394,23 @@ int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int pre_existing_vfs, num_vfs, total_vfs, ret;
 
+	ret = qm_pm_get_sync(qm);
+	if (ret)
+		return ret;
+
 	total_vfs = pci_sriov_get_totalvfs(pdev);
 	pre_existing_vfs = pci_num_vf(pdev);
 	if (pre_existing_vfs) {
 		pci_err(pdev, "%d VFs already enabled. Please disable pre-enabled VFs!\n",
 			pre_existing_vfs);
-		return 0;
+		goto err_put_sync;
 	}
 
 	num_vfs = min_t(int, max_vfs, total_vfs);
 	ret = qm_vf_q_assign(qm, num_vfs);
 	if (ret) {
 		pci_err(pdev, "Can't assign queues for VF!\n");
-		return ret;
+		goto err_put_sync;
 	}
 
 	qm->vfs_num = num_vfs;
@@ -4320,12 +4419,16 @@ int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
 	if (ret) {
 		pci_err(pdev, "Can't enable VF!\n");
 		qm_clear_vft_config(qm);
-		return ret;
+		goto err_put_sync;
 	}
 
 	pci_info(pdev, "VF enabled, vfs_num(=%d)!\n", num_vfs);
 
 	return num_vfs;
+
+err_put_sync:
+	qm_pm_put_sync(qm);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_sriov_enable);
 
@@ -4340,6 +4443,7 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 {
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int total_vfs = pci_sriov_get_totalvfs(qm->pdev);
+	int ret;
 
 	if (pci_vfs_assigned(pdev)) {
 		pci_err(pdev, "Failed to disable VFs as VFs are assigned!\n");
@@ -4355,8 +4459,13 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 	pci_disable_sriov(pdev);
 	/* clear vf function shaper configure array */
 	memset(qm->factor + 1, 0, sizeof(struct qm_shaper_factor) * total_vfs);
+	ret = qm_clear_vft_config(qm);
+	if (ret)
+		return ret;
 
-	return qm_clear_vft_config(qm);
+	qm_pm_put_sync(qm);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_sriov_disable);
 
@@ -5176,11 +5285,18 @@ static void hisi_qm_controller_reset(struct work_struct *rst_work)
 	struct hisi_qm *qm = container_of(rst_work, struct hisi_qm, rst_work);
 	int ret;
 
+	ret = qm_pm_get_sync(qm);
+	if (ret) {
+		clear_bit(QM_RST_SCHED, &qm->misc_ctl);
+		return;
+	}
+
 	/* reset pcie device controller */
 	ret = qm_controller_reset(qm);
 	if (ret)
 		dev_err(&qm->pdev->dev, "controller reset failed (%d)\n", ret);
 
+	qm_pm_put_sync(qm);
 }
 
 static void qm_pf_reset_vf_prepare(struct hisi_qm *qm,
@@ -5692,6 +5808,76 @@ err_pci_init:
 }
 EXPORT_SYMBOL_GPL(hisi_qm_init);
 
+/**
+ * hisi_qm_get_dfx_access() - Try to get dfx access.
+ * @qm: pointer to accelerator device.
+ *
+ * Try to get dfx access, then user can get message.
+ *
+ * If device is in suspended, return failure, otherwise
+ * bump up the runtime PM usage counter.
+ */
+int hisi_qm_get_dfx_access(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	if (pm_runtime_suspended(dev)) {
+		dev_info(dev, "can not read/write - device in suspended.\n");
+		return -EAGAIN;
+	}
+
+	return qm_pm_get_sync(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_dfx_access);
+
+/**
+ * hisi_qm_put_dfx_access() - Put dfx access.
+ * @qm: pointer to accelerator device.
+ *
+ * Put dfx access, drop runtime PM usage counter.
+ */
+void hisi_qm_put_dfx_access(struct hisi_qm *qm)
+{
+	qm_pm_put_sync(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_put_dfx_access);
+
+/**
+ * hisi_qm_pm_init() - Initialize qm runtime PM.
+ * @qm: pointer to accelerator device.
+ *
+ * Function that initialize qm runtime PM.
+ */
+void hisi_qm_pm_init(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+		return;
+
+	pm_runtime_set_autosuspend_delay(dev, QM_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_put_noidle(dev);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_pm_init);
+
+/**
+ * hisi_qm_pm_uninit() - Uninitialize qm runtime PM.
+ * @qm: pointer to accelerator device.
+ *
+ * Function that uninitialize qm runtime PM.
+ */
+void hisi_qm_pm_uninit(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+		return;
+
+	pm_runtime_get_noresume(dev);
+	pm_runtime_dont_use_autosuspend(dev);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_pm_uninit);
 
 static int qm_prepare_for_suspend(struct hisi_qm *qm)
 {
