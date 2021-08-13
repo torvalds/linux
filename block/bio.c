@@ -1692,12 +1692,15 @@ EXPORT_SYMBOL(bioset_init_from_src);
 /**
  * bio_alloc_kiocb - Allocate a bio from bio_set based on kiocb
  * @kiocb:	kiocb describing the IO
+ * @nr_iovecs:	number of iovecs to pre-allocate
  * @bs:		bio_set to allocate from
  *
  * Description:
  *    Like @bio_alloc_bioset, but pass in the kiocb. The kiocb is only
  *    used to check if we should dip into the per-cpu bio_set allocation
- *    cache. The allocation uses GFP_KERNEL internally.
+ *    cache. The allocation uses GFP_KERNEL internally. On return, the
+ *    bio is marked BIO_PERCPU_CACHEABLE, and the final put of the bio
+ *    MUST be done from process context, not hard/soft IRQ.
  *
  */
 struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
