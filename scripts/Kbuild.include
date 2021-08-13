@@ -57,6 +57,7 @@ kecho := $($(quiet)kecho)
 # - If the content differ the new file is used
 # - If they are equal no change, and no timestamp update
 define filechk
+	$(check-FORCE)
 	$(Q)set -e;						\
 	mkdir -p $(dir $@);					\
 	trap "rm -f $(dot-target).tmp" EXIT;			\
@@ -130,7 +131,11 @@ make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1))))
 # PHONY targets skipped in both cases.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
-if-changed-cond = $(newer-prereqs)$(cmd-check)
+# It is a typical mistake to forget the FORCE prerequisite. Check it here so
+# no more breakage will slip in.
+check-FORCE = $(if $(filter FORCE, $^),,$(warning FORCE prerequisite is missing))
+
+if-changed-cond = $(newer-prereqs)$(cmd-check)$(check-FORCE)
 
 # Execute command if command has changed or prerequisite(s) are updated.
 if_changed = $(if $(if-changed-cond),                                        \
