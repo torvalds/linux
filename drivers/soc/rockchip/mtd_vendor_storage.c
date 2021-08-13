@@ -457,6 +457,6 @@ static __exit void vendor_storage_deinit(void)
 	platform_driver_unregister(&vendor_storage_driver);
 }
 
-module_init(vendor_storage_init);
+device_initcall_sync(vendor_storage_init);
 module_exit(vendor_storage_deinit);
 MODULE_LICENSE("GPL");
