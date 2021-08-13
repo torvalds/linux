@@ -12,59 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//build/kleaf:kernel.bzl", "kernel_build")
+load("//build/kleaf:common_kernels.bzl", "define_common_kernels")
 
-common_outs = [
-    "System.map",
-    "modules.builtin",
-    "modules.builtin.modinfo",
-    "vmlinux",
-    "vmlinux.symvers",
-]
-
-aarch64_outs = common_outs + [
-    "Image",
-    "Image.lz4",
-]
-
-x86_64_outs = common_outs + ["bzImage"]
-
-[kernel_build(
-    name = name,
-    srcs = glob(
-        ["**"],
-        exclude = [
-            "android/*",
-            "BUILD.bazel",
-            "**/*.bzl",
-        ],
-    ),
-    outs = outs,
-    build_config = config,
-) for name, config, outs in [
-    (
-        "kernel_aarch64",
-        "build.config.gki.aarch64",
-        aarch64_outs,
-    ),
-    (
-        "kernel_aarch64_debug",
-        "build.config.gki-debug.aarch64",
-        aarch64_outs,
-    ),
-    (
-        "kernel_x86_64",
-        "build.config.gki.x86_64",
-        x86_64_outs,
-    ),
-    (
-        "kernel_x86_64_debug",
-        "build.config.gki-debug.x86_64",
-        x86_64_outs,
-    ),
-]]
-
-alias(
-    name = "kernel",
-    actual = ":kernel_aarch64",
-)
+define_common_kernels()
