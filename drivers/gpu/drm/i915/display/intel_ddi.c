@@ -1388,7 +1388,7 @@ dg2_set_signal_levels(struct intel_dp *intel_dp,
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	int level = intel_ddi_dp_level(intel_dp, crtc_state);
 
-	intel_snps_phy_ddi_vswing_sequence(encoder, level);
+	intel_snps_phy_ddi_vswing_sequence(encoder, crtc_state, level);
 }
 
 static void
@@ -2392,7 +2392,7 @@ static void dg2_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 
 	/* 5.e Configure voltage swing and related IO settings */
-	intel_snps_phy_ddi_vswing_sequence(encoder, level);
+	intel_snps_phy_ddi_vswing_sequence(encoder, crtc_state, level);
 
 	/*
 	 * 5.f Configure and enable DDI_BUF_CTL
@@ -3061,7 +3061,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 			    connector->base.id, connector->name);
 
 	if (IS_DG2(dev_priv))
-		intel_snps_phy_ddi_vswing_sequence(encoder, U32_MAX);
+		intel_snps_phy_ddi_vswing_sequence(encoder, crtc_state, level);
 	else if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_ddi_vswing_sequence(encoder, crtc_state, level);
 	else if (DISPLAY_VER(dev_priv) == 11)

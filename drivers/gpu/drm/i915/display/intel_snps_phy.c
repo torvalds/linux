@@ -5,6 +5,7 @@
 
 #include <linux/util_macros.h>
 
+#include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_snps_phy.h"
@@ -50,58 +51,30 @@ void intel_snps_phy_update_psr_power_state(struct drm_i915_private *dev_priv,
 			 SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
 }
 
-static const u32 dg2_ddi_translations[] = {
-	/* VS 0, pre-emph 0 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 26),
-
-	/* VS 0, pre-emph 1 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 33) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 6),
-
-	/* VS 0, pre-emph 2 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 38) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 12),
-
-	/* VS 0, pre-emph 3 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 43) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 19),
-
-	/* VS 1, pre-emph 0 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 39),
-
-	/* VS 1, pre-emph 1 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 44) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 8),
-
-	/* VS 1, pre-emph 2 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 47) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 15),
-
-	/* VS 2, pre-emph 0 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 52),
-
-	/* VS 2, pre-emph 1 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 51) |
-		REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, 10),
-
-	/* VS 3, pre-emph 0 */
-	REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, 62),
-};
-
 void intel_snps_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-					u32 level)
+					const struct intel_crtc_state *crtc_state,
+					int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	const struct intel_ddi_buf_trans *ddi_translations;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int n_entries, ln;
 
-	n_entries = ARRAY_SIZE(dg2_ddi_translations);
-	if (level >= n_entries)
+	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+		return;
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, level < 0 || level >= n_entries))
 		level = n_entries - 1;
 
-	for (ln = 0; ln < 4; ln++)
-		intel_de_write(dev_priv, SNPS_PHY_TX_EQ(ln, phy),
-			       dg2_ddi_translations[level]);
+	for (ln = 0; ln < 4; ln++) {
+		u32 val = 0;
+
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, ddi_translations->entries[level].snps.snps_vswing);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, ddi_translations->entries[level].snps.snps_pre_cursor);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, ddi_translations->entries[level].snps.snps_post_cursor);
+
+		intel_de_write(dev_priv, SNPS_PHY_TX_EQ(ln, phy), val);
+	}
 }
 
 /*

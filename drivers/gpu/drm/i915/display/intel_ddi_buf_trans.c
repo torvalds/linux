@@ -983,6 +983,25 @@ static const struct intel_ddi_buf_trans adlp_dkl_phy_ddi_translations_dp_hbr2_hb
 	.num_entries = ARRAY_SIZE(_adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3),
 };
 
+static const union intel_ddi_buf_trans_entry _dg2_snps_translations[] = {
+	{ .snps = { 26, 0, 0 } },	/* VS 0, pre-emph 0 */
+	{ .snps = { 33, 0, 6 } },	/* VS 0, pre-emph 1 */
+	{ .snps = { 38, 0, 12 } },	/* VS 0, pre-emph 2 */
+	{ .snps = { 43, 0, 19 } },	/* VS 0, pre-emph 3 */
+	{ .snps = { 39, 0, 0 } },	/* VS 1, pre-emph 0 */
+	{ .snps = { 44, 0, 8 } },	/* VS 1, pre-emph 1 */
+	{ .snps = { 47, 0, 15 } },	/* VS 1, pre-emph 2 */
+	{ .snps = { 52, 0, 0 } },	/* VS 2, pre-emph 0 */
+	{ .snps = { 51, 0, 10 } },	/* VS 2, pre-emph 1 */
+	{ .snps = { 62, 0, 0 } },	/* VS 3, pre-emph 0 */
+};
+
+static const struct intel_ddi_buf_trans dg2_snps_translations = {
+	.entries = _dg2_snps_translations,
+	.num_entries = ARRAY_SIZE(_dg2_snps_translations),
+	.hdmi_default_entry = ARRAY_SIZE(_dg2_snps_translations) - 1,
+};
+
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 {
 	return table == &tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
@@ -1563,6 +1582,14 @@ adlp_get_dkl_buf_trans(struct intel_encoder *encoder,
 		return adlp_get_dkl_buf_trans_dp(encoder, crtc_state, n_entries);
 }
 
+static const struct intel_ddi_buf_trans *
+dg2_get_snps_buf_trans(struct intel_encoder *encoder,
+		       const struct intel_crtc_state *crtc_state,
+		       int *n_entries)
+{
+	return intel_get_buf_trans(&dg2_snps_translations, n_entries);
+}
+
 int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
 			       int *default_entry)
@@ -1588,7 +1615,9 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
-	if (IS_ALDERLAKE_P(i915)) {
+	if (IS_DG2(i915)) {
+		encoder->get_buf_trans = dg2_get_snps_buf_trans;
+	} else if (IS_ALDERLAKE_P(i915)) {
 		if (intel_phy_is_combo(i915, phy))
 			encoder->get_buf_trans = adlp_get_combo_buf_trans;
 		else
