@@ -518,7 +518,7 @@ static void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
 						 obj->ttm.cached_io_st,
 						 src_reg->region.start);
 
-		ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
+		ttm_move_memcpy(clear, dst_mem->num_pages, dst_iter, src_iter);
 	}
 }
 
