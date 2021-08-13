@@ -921,7 +921,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		byt_rt5651_dais[dai_index].codecs->name = byt_rt5651_codec_name;
 	} else {
 		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
-		return -ENODEV;
+		return -ENXIO;
 	}
 
 	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL,
