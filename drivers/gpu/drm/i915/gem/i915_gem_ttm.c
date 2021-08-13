@@ -431,6 +431,7 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 }
 
 static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
+			       bool clear,
 			       struct ttm_resource *dst_mem,
 			       struct sg_table *dst_st)
 {
@@ -449,12 +450,9 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		return -EINVAL;
 
 	dst_level = i915_ttm_cache_level(i915, dst_mem, ttm);
-	if (!ttm || !ttm_tt_is_populated(ttm)) {
+	if (clear) {
 		if (bo->type == ttm_bo_type_kernel)
 			return -EINVAL;
-
-		if (ttm && !(ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC))
-			return 0;
 
 		intel_engine_pm_get(i915->gt.migrate.context->engine);
 		ret = intel_context_migrate_clear(i915->gt.migrate.context, NULL,
@@ -489,6 +487,41 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 	return ret;
 }
 
+static void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
+			    struct ttm_resource *dst_mem,
+			    struct sg_table *dst_st)
+{
+	int ret;
+
+	ret = i915_ttm_accel_move(bo, clear, dst_mem, dst_st);
+	if (ret) {
+		struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+		struct intel_memory_region *dst_reg, *src_reg;
+		union {
+			struct ttm_kmap_iter_tt tt;
+			struct ttm_kmap_iter_iomap io;
+		} _dst_iter, _src_iter;
+		struct ttm_kmap_iter *dst_iter, *src_iter;
+
+		dst_reg = i915_ttm_region(bo->bdev, dst_mem->mem_type);
+		src_reg = i915_ttm_region(bo->bdev, bo->resource->mem_type);
+		GEM_BUG_ON(!dst_reg || !src_reg);
+
+		dst_iter = !cpu_maps_iomem(dst_mem) ?
+			ttm_kmap_iter_tt_init(&_dst_iter.tt, bo->ttm) :
+			ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
+						 dst_st, dst_reg->region.start);
+
+		src_iter = !cpu_maps_iomem(bo->resource) ?
+			ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
+			ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
+						 obj->ttm.cached_io_st,
+						 src_reg->region.start);
+
+		ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
+	}
+}
+
 static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 			 struct ttm_operation_ctx *ctx,
 			 struct ttm_resource *dst_mem,
@@ -497,18 +530,10 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	struct ttm_resource_manager *dst_man =
 		ttm_manager_type(bo->bdev, dst_mem->mem_type);
-	struct intel_memory_region *dst_reg, *src_reg;
-	union {
-		struct ttm_kmap_iter_tt tt;
-		struct ttm_kmap_iter_iomap io;
-	} _dst_iter, _src_iter;
-	struct ttm_kmap_iter *dst_iter, *src_iter;
+	struct ttm_tt *ttm = bo->ttm;
 	struct sg_table *dst_st;
+	bool clear;
 	int ret;
-
-	dst_reg = i915_ttm_region(bo->bdev, dst_mem->mem_type);
-	src_reg = i915_ttm_region(bo->bdev, bo->resource->mem_type);
-	GEM_BUG_ON(!dst_reg || !src_reg);
 
 	/* Sync for now. We could do the actual copy async. */
 	ret = ttm_bo_wait_ctx(bo, ctx);
@@ -526,9 +551,8 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* Populate ttm with pages if needed. Typically system memory. */
-	if (bo->ttm && (dst_man->use_tt ||
-			(bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED))) {
-		ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
+	if (ttm && (dst_man->use_tt || (ttm->page_flags & TTM_PAGE_FLAG_SWAPPED))) {
+		ret = ttm_tt_populate(bo->bdev, ttm, ctx);
 		if (ret)
 			return ret;
 	}
@@ -537,23 +561,10 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	if (IS_ERR(dst_st))
 		return PTR_ERR(dst_st);
 
-	ret = i915_ttm_accel_move(bo, dst_mem, dst_st);
-	if (ret) {
-		/* If we start mapping GGTT, we can no longer use man::use_tt here. */
-		dst_iter = !cpu_maps_iomem(dst_mem) ?
-			ttm_kmap_iter_tt_init(&_dst_iter.tt, bo->ttm) :
-			ttm_kmap_iter_iomap_init(&_dst_iter.io, &dst_reg->iomap,
-						 dst_st, dst_reg->region.start);
+	clear = !cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
+	if (!(clear && ttm && !(ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)))
+		__i915_ttm_move(bo, clear, dst_mem, dst_st);
 
-		src_iter = !cpu_maps_iomem(bo->resource) ?
-			ttm_kmap_iter_tt_init(&_src_iter.tt, bo->ttm) :
-			ttm_kmap_iter_iomap_init(&_src_iter.io, &src_reg->iomap,
-						 obj->ttm.cached_io_st,
-						 src_reg->region.start);
-
-		ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
-	}
-	/* Below dst_mem becomes bo->resource. */
 	ttm_bo_move_sync_cleanup(bo, dst_mem);
 	i915_ttm_adjust_domains_after_move(obj);
 	i915_ttm_free_cached_io_st(obj);
