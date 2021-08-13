@@ -2850,7 +2850,8 @@ update:
 	brmctx->ip4_querier.addr.src.ip4 = saddr;
 
 	/* update protected by general multicast_lock by caller */
-	rcu_assign_pointer(brmctx->ip4_querier.port, port);
+	if (port)
+		brmctx->ip4_querier.port_ifidx = port->dev->ifindex;
 
 	return true;
 }
@@ -2875,7 +2876,8 @@ update:
 	brmctx->ip6_querier.addr.src.ip6 = *saddr;
 
 	/* update protected by general multicast_lock by caller */
-	rcu_assign_pointer(brmctx->ip6_querier.port, port);
+	if (port)
+		brmctx->ip6_querier.port_ifidx = port->dev->ifindex;
 
 	return true;
 }
@@ -3675,7 +3677,7 @@ static void br_multicast_query_expired(struct net_bridge_mcast *brmctx,
 	if (query->startup_sent < brmctx->multicast_startup_query_count)
 		query->startup_sent++;
 
-	RCU_INIT_POINTER(querier->port, NULL);
+	querier->port_ifidx = 0;
 	br_multicast_send_query(brmctx, NULL, query);
 out:
 	spin_unlock(&brmctx->br->multicast_lock);
@@ -3732,12 +3734,12 @@ void br_multicast_ctx_init(struct net_bridge *br,
 	brmctx->multicast_membership_interval = 260 * HZ;
 
 	brmctx->ip4_other_query.delay_time = 0;
-	brmctx->ip4_querier.port = NULL;
+	brmctx->ip4_querier.port_ifidx = 0;
 	brmctx->multicast_igmp_version = 2;
 #if IS_ENABLED(CONFIG_IPV6)
 	brmctx->multicast_mld_version = 1;
 	brmctx->ip6_other_query.delay_time = 0;
-	brmctx->ip6_querier.port = NULL;
+	brmctx->ip6_querier.port_ifidx = 0;
 #endif
 
 	timer_setup(&brmctx->ip4_mc_router_timer,
@@ -4479,6 +4481,7 @@ bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
 	struct net_bridge *br;
 	struct net_bridge_port *port;
 	bool ret = false;
+	int port_ifidx;
 
 	rcu_read_lock();
 	if (!netif_is_bridge_port(dev))
@@ -4493,14 +4496,16 @@ bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
 
 	switch (proto) {
 	case ETH_P_IP:
+		port_ifidx = brmctx->ip4_querier.port_ifidx;
 		if (!timer_pending(&brmctx->ip4_other_query.timer) ||
-		    rcu_dereference(brmctx->ip4_querier.port) == port)
+		    port_ifidx == port->dev->ifindex)
 			goto unlock;
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case ETH_P_IPV6:
+		port_ifidx = brmctx->ip6_querier.port_ifidx;
 		if (!timer_pending(&brmctx->ip6_other_query.timer) ||
-		    rcu_dereference(brmctx->ip6_querier.port) == port)
+		    port_ifidx == port->dev->ifindex)
 			goto unlock;
 		break;
 #endif
