@@ -186,6 +186,11 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	struct crypto_shash *tfm = NULL;
 	u8 *digest = NULL;
 	bool noio = false;
+	/*
+	 * In below hash_alg_prefix_len assignment +1 is for the additional char (':'),
+	 * when prefixing the hash value with the hash algorithm name. e.g. sha256:<hash_value>.
+	 */
+	const size_t hash_alg_prefix_len = strlen(DM_IMA_TABLE_HASH_ALG) + 1;
 
 	ima_buf = dm_ima_alloc(DM_IMA_MEASUREMENT_BUF_LEN, GFP_KERNEL, noio);
 	if (!ima_buf)
@@ -204,7 +209,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (dm_ima_alloc_and_copy_device_data(table->md, &device_data_buf, num_targets, noio))
 		goto error;
 
-	tfm = crypto_alloc_shash("sha256", 0, 0);
+	tfm = crypto_alloc_shash(DM_IMA_TABLE_HASH_ALG, 0, 0);
 	if (IS_ERR(tfm))
 		goto error;
 
@@ -315,12 +320,15 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (r < 0)
 		goto error;
 
-	digest_buf = dm_ima_alloc((digest_size*2)+1, GFP_KERNEL, noio);
+	digest_buf = dm_ima_alloc((digest_size*2) + hash_alg_prefix_len + 1, GFP_KERNEL, noio);
+
 	if (!digest_buf)
 		goto error;
 
+	snprintf(digest_buf, hash_alg_prefix_len + 1, "%s:", DM_IMA_TABLE_HASH_ALG);
+
 	for (i = 0; i < digest_size; i++)
-		snprintf((digest_buf+(i*2)), 3, "%02x", digest[i]);
+		snprintf((digest_buf + hash_alg_prefix_len + (i*2)), 3, "%02x", digest[i]);
 
 	if (table->md->ima.active_table.hash != table->md->ima.inactive_table.hash)
 		kfree(table->md->ima.inactive_table.hash);
