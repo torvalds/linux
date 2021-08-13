@@ -43,15 +43,6 @@ enum xfs_icwalk_goal {
 	XFS_ICWALK_RECLAIM	= XFS_ICI_RECLAIM_TAG,
 };
 
-#define XFS_ICWALK_NULL_TAG	(-1U)
-
-/* Compute the inode radix tree tag for this goal. */
-static inline unsigned int
-xfs_icwalk_tag(enum xfs_icwalk_goal goal)
-{
-	return goal < 0 ? XFS_ICWALK_NULL_TAG : goal;
-}
-
 static int xfs_icwalk(struct xfs_mount *mp,
 		enum xfs_icwalk_goal goal, struct xfs_icwalk *icw);
 static int xfs_icwalk_ag(struct xfs_perag *pag,
@@ -1676,22 +1667,14 @@ restart:
 	nr_found = 0;
 	do {
 		struct xfs_inode *batch[XFS_LOOKUP_BATCH];
-		unsigned int	tag = xfs_icwalk_tag(goal);
 		int		error = 0;
 		int		i;
 
 		rcu_read_lock();
 
-		if (tag == XFS_ICWALK_NULL_TAG)
-			nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
-					(void **)batch, first_index,
-					XFS_LOOKUP_BATCH);
-		else
-			nr_found = radix_tree_gang_lookup_tag(
-					&pag->pag_ici_root,
-					(void **) batch, first_index,
-					XFS_LOOKUP_BATCH, tag);
-
+		nr_found = radix_tree_gang_lookup_tag(&pag->pag_ici_root,
+				(void **) batch, first_index,
+				XFS_LOOKUP_BATCH, goal);
 		if (!nr_found) {
 			done = true;
 			rcu_read_unlock();
@@ -1769,20 +1752,6 @@ restart:
 	return last_error;
 }
 
-/* Fetch the next (possibly tagged) per-AG structure. */
-static inline struct xfs_perag *
-xfs_icwalk_get_perag(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	enum xfs_icwalk_goal	goal)
-{
-	unsigned int		tag = xfs_icwalk_tag(goal);
-
-	if (tag == XFS_ICWALK_NULL_TAG)
-		return xfs_perag_get(mp, agno);
-	return xfs_perag_get_tag(mp, agno, tag);
-}
-
 /* Walk all incore inodes to achieve a given goal. */
 static int
 xfs_icwalk(
@@ -1793,16 +1762,16 @@ xfs_icwalk(
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			last_error = 0;
-	xfs_agnumber_t		agno = 0;
+	xfs_agnumber_t		agno;
 
-	while ((pag = xfs_icwalk_get_perag(mp, agno, goal))) {
-		agno = pag->pag_agno + 1;
+	for_each_perag_tag(mp, agno, pag, goal) {
 		error = xfs_icwalk_ag(pag, goal, icw);
-		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
-			if (error == -EFSCORRUPTED)
+			if (error == -EFSCORRUPTED) {
+				xfs_perag_put(pag);
 				break;
+			}
 		}
 	}
 	return last_error;
