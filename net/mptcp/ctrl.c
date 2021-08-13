@@ -22,6 +22,7 @@ struct mptcp_pernet {
 #endif
 
 	unsigned int add_addr_timeout;
+	unsigned int stale_loss_cnt;
 	u8 mptcp_enabled;
 	u8 checksum_enabled;
 	u8 allow_join_initial_addr_port;
@@ -52,12 +53,18 @@ int mptcp_allow_join_id0(const struct net *net)
 	return mptcp_get_pernet(net)->allow_join_initial_addr_port;
 }
 
+unsigned int mptcp_stale_loss_cnt(const struct net *net)
+{
+	return mptcp_get_pernet(net)->stale_loss_cnt;
+}
+
 static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 {
 	pernet->mptcp_enabled = 1;
 	pernet->add_addr_timeout = TCP_RTO_MAX;
 	pernet->checksum_enabled = 0;
 	pernet->allow_join_initial_addr_port = 1;
+	pernet->stale_loss_cnt = 4;
 }
 
 #ifdef CONFIG_SYSCTL
@@ -95,6 +102,12 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = SYSCTL_ONE
 	},
+	{
+		.procname = "stale_loss_cnt",
+		.maxlen = sizeof(unsigned int),
+		.mode = 0644,
+		.proc_handler = proc_douintvec_minmax,
+	},
 	{}
 };
 
@@ -114,6 +127,7 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 	table[1].data = &pernet->add_addr_timeout;
 	table[2].data = &pernet->checksum_enabled;
 	table[3].data = &pernet->allow_join_initial_addr_port;
+	table[4].data = &pernet->stale_loss_cnt;
 
 	hdr = register_net_sysctl(net, MPTCP_SYSCTL_PATH, table);
 	if (!hdr)
