@@ -40,6 +40,7 @@ Optional properties
 - clock-names: May contain "vpll", external clock for some hdmi phy.
 - phys: from general PHY binding: the phandle for the PHY device.
 - phy-names: Should be "hdmi" if phys references an external phy.
+- skip-check-420-mode: If need skip check yuv420 mode valid, set this property.
 - hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
 - scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 

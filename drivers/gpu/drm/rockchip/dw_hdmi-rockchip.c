@@ -114,6 +114,7 @@ struct rockchip_hdmi {
 	u32 max_tmdsclk;
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
+	bool skip_check_420_mode;
 	bool mode_changed;
 	u8 force_output;
 	u8 id;
@@ -436,6 +437,9 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->hclk_vop);
 	}
 
+	hdmi->skip_check_420_mode =
+		of_property_read_bool(np, "skip-check-420-mode");
+
 	if (of_get_property(np, "rockchip,phy-table", &val)) {
 		phy_config = kmalloc(val, GFP_KERNEL);
 		if (!phy_config) {
@@ -471,6 +475,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector, void *data,
 	struct drm_device *dev = connector->dev;
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc;
+	struct rockchip_hdmi *hdmi;
 
 	/*
 	 * Pixel clocks we support are always < 2GHz and so fit in an
@@ -478,16 +483,6 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector, void *data,
 	 * overflow when we multiply by 1000.
 	 */
 	if (mode->clock > INT_MAX / 1000)
-		return MODE_BAD;
-	/*
-	 * If sink max TMDS clock < 340MHz, we should check the mode pixel
-	 * clock > 340MHz is YCbCr420 or not and whether the platform supports
-	 * YCbCr420.
-	 */
-	if (mode->clock > 340000 &&
-	    connector->display_info.max_tmds_clock < 340000 &&
-	    (!drm_mode_is_420(&connector->display_info, mode) ||
-	     !connector->ycbcr_420_allowed))
 		return MODE_BAD;
 
 	if (!encoder) {
@@ -503,6 +498,29 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector, void *data,
 
 	if (!encoder || !encoder->possible_crtcs)
 		return MODE_BAD;
+
+	hdmi = to_rockchip_hdmi(encoder);
+
+	/*
+	 * If sink max TMDS clock < 340MHz, we should check the mode pixel
+	 * clock > 340MHz is YCbCr420 or not and whether the platform supports
+	 * YCbCr420.
+	 */
+	if (!hdmi->skip_check_420_mode) {
+		if (mode->clock > 340000 &&
+		    connector->display_info.max_tmds_clock < 340000 &&
+		    (!drm_mode_is_420(&connector->display_info, mode) ||
+		     !connector->ycbcr_420_allowed))
+			return MODE_BAD;
+
+		if (hdmi->max_tmdsclk <= 340000 && mode->clock > 340000 &&
+		    !drm_mode_is_420(&connector->display_info, mode))
+			return MODE_BAD;
+	};
+
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, 8);
+
 	/*
 	 * ensure all drm display mode can work, if someone want support more
 	 * resolutions, please limit the possible_crtc, only connect to
