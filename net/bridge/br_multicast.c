@@ -2943,15 +2943,15 @@ int br_multicast_dump_querier_state(struct sk_buff *skb,
 	struct net_bridge_port *p;
 	struct nlattr *nest;
 
-	if (!brmctx->multicast_querier &&
-	    !timer_pending(&brmctx->ip4_other_query.timer))
-		return 0;
-
 	nest = nla_nest_start(skb, nest_attr);
 	if (!nest)
 		return -EMSGSIZE;
 
 	rcu_read_lock();
+	if (!brmctx->multicast_querier &&
+	    !timer_pending(&brmctx->ip4_other_query.timer))
+		goto out_v6;
+
 	br_multicast_read_querier(&brmctx->ip4_querier, &querier);
 	if (nla_put_in_addr(skb, BRIDGE_QUERIER_IP_ADDRESS,
 			    querier.addr.src.ip4)) {
@@ -2968,8 +2968,36 @@ int br_multicast_dump_querier_state(struct sk_buff *skb,
 		rcu_read_unlock();
 		goto out_err;
 	}
+
+out_v6:
+#if IS_ENABLED(CONFIG_IPV6)
+	if (!brmctx->multicast_querier &&
+	    !timer_pending(&brmctx->ip6_other_query.timer))
+		goto out;
+
+	br_multicast_read_querier(&brmctx->ip6_querier, &querier);
+	if (nla_put_in6_addr(skb, BRIDGE_QUERIER_IPV6_ADDRESS,
+			     &querier.addr.src.ip6)) {
+		rcu_read_unlock();
+		goto out_err;
+	}
+
+	p = __br_multicast_get_querier_port(brmctx->br, &querier);
+	if (timer_pending(&brmctx->ip6_other_query.timer) &&
+	    (nla_put_u64_64bit(skb, BRIDGE_QUERIER_IPV6_OTHER_TIMER,
+			       br_timer_value(&brmctx->ip6_other_query.timer),
+			       BRIDGE_QUERIER_PAD) ||
+	     (p && nla_put_u32(skb, BRIDGE_QUERIER_IPV6_PORT,
+			       p->dev->ifindex)))) {
+		rcu_read_unlock();
+		goto out_err;
+	}
+out:
+#endif
 	rcu_read_unlock();
 	nla_nest_end(skb, nest);
+	if (!nla_len(nest))
+		nla_nest_cancel(skb, nest);
 
 	return 0;
 
