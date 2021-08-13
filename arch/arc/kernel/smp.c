@@ -283,7 +283,7 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 	/*
 	 * Call the platform specific IPI kick function, but avoid if possible:
 	 * Only do so if there's no pending msg from other concurrent sender(s).
-	 * Otherwise, recevier will see this msg as well when it takes the
+	 * Otherwise, receiver will see this msg as well when it takes the
 	 * IPI corresponding to that msg. This is true, even if it is already in
 	 * IPI handler, because !@old means it has not yet dequeued the msg(s)
 	 * so @new msg can be a free-loader
