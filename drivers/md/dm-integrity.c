@@ -3328,7 +3328,6 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(",journal_sectors=%u", ic->initial_sectors - SB_SECTORS);
 		DMEMIT(",interleave_sectors=%u", 1U << ic->sb->log2_interleave_sectors);
 		DMEMIT(",buffer_sectors=%u", 1U << ic->log2_buffer_sectors);
-		DMEMIT(",mode=%c", ic->mode);
 		DMEMIT(";");
 		break;
 	}

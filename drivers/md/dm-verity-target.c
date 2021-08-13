@@ -794,6 +794,8 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 
 		DMEMIT(",ignore_zero_blocks=%c", v->zero_digest ? 'y' : 'n');
 		DMEMIT(",check_at_most_once=%c", v->validated_blocks ? 'y' : 'n');
+		if (v->signature_key_desc)
+			DMEMIT(",root_hash_sig_key_desc=%s", v->signature_key_desc);
 
 		if (v->mode != DM_VERITY_MODE_EIO) {
 			DMEMIT(",verity_mode=");
