@@ -449,9 +449,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
 	struct drm_connector_state *conn_state;
 	struct dc_sink *sink = NULL;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 	bool link_is_hdcp14 = false;
-#endif
 
 	if (config->dpms_off) {
 		hdcp_remove_display(hdcp_work, link_index, aconnector);

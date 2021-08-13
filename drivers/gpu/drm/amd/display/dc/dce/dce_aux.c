@@ -689,8 +689,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	enum aux_return_code_type operation_result;
 	bool retry_on_defer = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
-	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
+	struct dce_aux *aux_engine = NULL;
+	struct aux_engine_dce110 *aux110 = NULL;
 	uint32_t defer_time_in_ms = 0;
 
 	int aux_ack_retries = 0,
@@ -698,6 +698,11 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		aux_i2c_defer_retries = 0,
 		aux_timeout_retries = 0,
 		aux_invalid_reply_retries = 0;
+
+	if (ddc_pin) {
+		aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+		aux110 = FROM_AUX_ENGINE(aux_engine);
+	}
 
 	if (!payload->reply) {
 		payload_reply = false;
@@ -765,7 +770,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: AUX_TRANSACTION_REPLY_AUX_DEFER");
 
 				/* polling_timeout_period is in us */
-				defer_time_in_ms += aux110->polling_timeout_period / 1000;
+				if (aux110)
+					defer_time_in_ms += aux110->polling_timeout_period / 1000;
 				++aux_defer_retries;
 				fallthrough;
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
