@@ -2060,7 +2060,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 	}
 }
 
-static void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
+static void hal_get_chnl_group_88e(u8 chnl, u8 *group)
 {
 	if (chnl < 3)			/*  Channel 1-2 */
 		*group = 0;
@@ -2114,7 +2114,7 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 
 	for (rfPath = 0; rfPath < pHalData->NumTotalRFPath; rfPath++) {
 		for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
-			Hal_GetChnlGroup88E(ch, &group);
+			hal_get_chnl_group_88e(ch, &group);
 
 			pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];
 			if (ch == 14)
