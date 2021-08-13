@@ -556,10 +556,10 @@ static inline void mptcp_subflow_delegated_done(struct mptcp_subflow_context *su
 	clear_bit(MPTCP_DELEGATE_SEND, &subflow->delegated_status);
 }
 
-int mptcp_is_enabled(struct net *net);
-unsigned int mptcp_get_add_addr_timeout(struct net *net);
-int mptcp_is_checksum_enabled(struct net *net);
-int mptcp_allow_join_id0(struct net *net);
+int mptcp_is_enabled(const struct net *net);
+unsigned int mptcp_get_add_addr_timeout(const struct net *net);
+int mptcp_is_checksum_enabled(const struct net *net);
+int mptcp_allow_join_id0(const struct net *net);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 				     struct mptcp_options_received *mp_opt);
 bool __mptcp_retransmit_pending_data(struct sock *sk);
