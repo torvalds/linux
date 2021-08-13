@@ -2512,6 +2512,7 @@
   __traceiter_android_rvh_schedule_bug
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_gfp_zone_flags
   __traceiter_android_rvh_set_readahead_gfp_mask
   __traceiter_android_rvh_set_skip_swapcache_flags
@@ -2621,6 +2622,7 @@
   __tracepoint_android_rvh_schedule_bug
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_gfp_zone_flags
   __tracepoint_android_rvh_set_readahead_gfp_mask
   __tracepoint_android_rvh_set_skip_swapcache_flags
