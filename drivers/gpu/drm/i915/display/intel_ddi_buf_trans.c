@@ -1002,6 +1002,30 @@ static const struct intel_ddi_buf_trans dg2_snps_translations = {
 	.hdmi_default_entry = ARRAY_SIZE(_dg2_snps_translations) - 1,
 };
 
+static const union intel_ddi_buf_trans_entry _dg2_snps_translations_uhbr[] = {
+	{ .snps = { 62, 0, 0 } },	/* preset 0 */
+	{ .snps = { 56, 0, 6 } },	/* preset 1 */
+	{ .snps = { 51, 0, 11 } },	/* preset 2 */
+	{ .snps = { 48, 0, 14 } },	/* preset 3 */
+	{ .snps = { 43, 0, 19 } },	/* preset 4 */
+	{ .snps = { 59, 3, 0 } },	/* preset 5 */
+	{ .snps = { 53, 3, 6 } },	/* preset 6 */
+	{ .snps = { 49, 3, 10 } },	/* preset 7 */
+	{ .snps = { 45, 3, 14 } },	/* preset 8 */
+	{ .snps = { 42, 3, 17 } },	/* preset 9 */
+	{ .snps = { 56, 6, 0 } },	/* preset 10 */
+	{ .snps = { 50, 6, 6 } },	/* preset 11 */
+	{ .snps = { 47, 6, 9 } },	/* preset 12 */
+	{ .snps = { 42, 6, 14 } },	/* preset 13 */
+	{ .snps = { 46, 8, 8 } },	/* preset 14 */
+	{ .snps = { 56, 3, 3 } },	/* preset 15 */
+};
+
+static const struct intel_ddi_buf_trans dg2_snps_translations_uhbr = {
+	.entries = _dg2_snps_translations_uhbr,
+	.num_entries = ARRAY_SIZE(_dg2_snps_translations_uhbr),
+};
+
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 {
 	return table == &tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
@@ -1587,7 +1611,10 @@ dg2_get_snps_buf_trans(struct intel_encoder *encoder,
 		       const struct intel_crtc_state *crtc_state,
 		       int *n_entries)
 {
-	return intel_get_buf_trans(&dg2_snps_translations, n_entries);
+	if (crtc_state->port_clock > 1000000)
+		return intel_get_buf_trans(&dg2_snps_translations_uhbr, n_entries);
+	else
+		return intel_get_buf_trans(&dg2_snps_translations, n_entries);
 }
 
 int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
