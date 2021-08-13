@@ -4,6 +4,7 @@
 #define HISI_ACC_QM_H
 
 #include <linux/bitfield.h>
+#include <linux/debugfs.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -430,4 +431,5 @@ void hisi_qm_dev_shutdown(struct pci_dev *pdev);
 void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
 int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
 void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
+void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
 #endif

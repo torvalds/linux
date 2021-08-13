@@ -763,6 +763,24 @@ static int hpre_debugfs_atomic64_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(hpre_atomic64_ops, hpre_debugfs_atomic64_get,
 			 hpre_debugfs_atomic64_set, "%llu\n");
 
+static int hpre_com_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hpre_com_regs);
+
+static int hpre_cluster_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hpre_cluster_regs);
+
 static int hpre_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
@@ -801,7 +819,9 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
 	regset->base = qm->io_base;
 
-	debugfs_create_regset32("regs", 0444,  qm->debug.debug_root, regset);
+	debugfs_create_file("regs", 0444, qm->debug.debug_root,
+			    regset, &hpre_com_regs_fops);
+
 	return 0;
 }
 
@@ -828,7 +848,8 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 		regset->nregs = ARRAY_SIZE(hpre_cluster_dfx_regs);
 		regset->base = qm->io_base + hpre_cluster_offsets[i];
 
-		debugfs_create_regset32("regs", 0444, tmp_d, regset);
+		debugfs_create_file("regs", 0444, tmp_d, regset,
+				    &hpre_cluster_regs_fops);
 		ret = hpre_create_debugfs_file(qm, tmp_d, HPRE_CLUSTER_CTRL,
 					       i + HPRE_CLUSTER_CTRL);
 		if (ret)

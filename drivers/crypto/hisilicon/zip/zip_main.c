@@ -564,6 +564,15 @@ static int zip_debugfs_atomic64_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(zip_atomic64_ops, zip_debugfs_atomic64_get,
 			 zip_debugfs_atomic64_set, "%llu\n");
 
+static int hisi_zip_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hisi_zip_regs);
+
 static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -588,7 +597,8 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 		regset->base = qm->io_base + core_offsets[i];
 
 		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
-		debugfs_create_regset32("regs", 0444, tmp_d, regset);
+		debugfs_create_file("regs", 0444, tmp_d, regset,
+				     &hisi_zip_regs_fops);
 	}
 
 	return 0;

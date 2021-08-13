@@ -4,7 +4,6 @@
 #include <linux/acpi.h>
 #include <linux/aer.h>
 #include <linux/bitmap.h>
-#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
 #include <linux/io.h>
@@ -1337,13 +1336,8 @@ static const struct file_operations qm_debug_fops = {
 	.write = qm_debug_write,
 };
 
-struct qm_dfx_registers {
-	char  *reg_name;
-	u64   reg_offset;
-};
-
 #define CNT_CYC_REGS_NUM		10
-static struct qm_dfx_registers qm_dfx_regs[] = {
+static const struct debugfs_reg32 qm_dfx_regs[] = {
 	/* XXX_CNT are reading clear register */
 	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
 	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
@@ -1369,30 +1363,48 @@ static struct qm_dfx_registers qm_dfx_regs[] = {
 	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
 	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
 	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
-	{ NULL, 0}
 };
 
-static struct qm_dfx_registers qm_vf_dfx_regs[] = {
+static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
 	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-	{ NULL, 0}
 };
+
+/**
+ * hisi_qm_regs_dump() - Dump registers's value.
+ * @s: debugfs file handle.
+ * @regset: accelerator registers information.
+ *
+ * Dump accelerator registers.
+ */
+void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset)
+{
+	const struct debugfs_reg32 *regs = regset->regs;
+	int regs_len = regset->nregs;
+	u32 val;
+	int i;
+
+	for (i = 0; i < regs_len; i++) {
+		val = readl(regset->base + regs[i].offset);
+		seq_printf(s, "%s= 0x%08x\n", regs[i].name, val);
+	}
+}
+EXPORT_SYMBOL_GPL(hisi_qm_regs_dump);
 
 static int qm_regs_show(struct seq_file *s, void *unused)
 {
 	struct hisi_qm *qm = s->private;
-	struct qm_dfx_registers *regs;
-	u32 val;
+	struct debugfs_regset32 regset;
 
-	if (qm->fun_type == QM_HW_PF)
-		regs = qm_dfx_regs;
-	else
-		regs = qm_vf_dfx_regs;
-
-	while (regs->reg_name) {
-		val = readl(qm->io_base + regs->reg_offset);
-		seq_printf(s, "%s= 0x%08x\n", regs->reg_name, val);
-		regs++;
+	if (qm->fun_type == QM_HW_PF) {
+		regset.regs = qm_dfx_regs;
+		regset.nregs = ARRAY_SIZE(qm_dfx_regs);
+	} else {
+		regset.regs = qm_vf_dfx_regs;
+		regset.nregs = ARRAY_SIZE(qm_vf_dfx_regs);
 	}
+
+	regset.base = qm->io_base;
+	hisi_qm_regs_dump(s, &regset);
 
 	return 0;
 }
@@ -4245,7 +4257,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
  */
 void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
 {
-	struct qm_dfx_registers *regs;
+	const struct debugfs_reg32 *regs;
 	int i;
 
 	/* clear current_qm */
@@ -4264,7 +4276,7 @@ void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
 
 	regs = qm_dfx_regs;
 	for (i = 0; i < CNT_CYC_REGS_NUM; i++) {
-		readl(qm->io_base + regs->reg_offset);
+		readl(qm->io_base + regs->offset);
 		regs++;
 	}
 

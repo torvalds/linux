@@ -676,6 +676,15 @@ static int sec_debugfs_atomic64_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
 			 sec_debugfs_atomic64_set, "%lld\n");
 
+static int sec_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(sec_regs);
+
 static int sec_core_debug_init(struct hisi_qm *qm)
 {
 	struct sec_dev *sec = container_of(qm, struct sec_dev, qm);
@@ -696,7 +705,7 @@ static int sec_core_debug_init(struct hisi_qm *qm)
 	regset->base = qm->io_base;
 
 	if (qm->pdev->device == SEC_PF_PCI_DEVICE_ID)
-		debugfs_create_regset32("regs", 0444, tmp_d, regset);
+		debugfs_create_file("regs", 0444, tmp_d, regset, &sec_regs_fops);
 
 	for (i = 0; i < ARRAY_SIZE(sec_dfx_labels); i++) {
 		atomic64_t *data = (atomic64_t *)((uintptr_t)dfx +
