@@ -1908,7 +1908,6 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 		return err;
 
 	skb_put(skb, 1);
-	skb->len = 1;
 	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, 1);
 
 	if (err) {
@@ -1917,11 +1916,19 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	}
 
 	unix_state_lock(other);
+
+	if (sock_flag(other, SOCK_DEAD) ||
+	    (other->sk_shutdown & RCV_SHUTDOWN)) {
+		unix_state_unlock(other);
+		kfree_skb(skb);
+		return -EPIPE;
+	}
+
 	maybe_add_creds(skb, sock, other);
 	skb_get(skb);
 
 	if (ousk->oob_skb)
-		kfree_skb(ousk->oob_skb);
+		consume_skb(ousk->oob_skb);
 
 	ousk->oob_skb = skb;
 
