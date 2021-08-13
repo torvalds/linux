@@ -3956,7 +3956,7 @@ void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason);
 /*
  * It is not allowed to call kfree_skb() or consume_skb() from hardware
  * interrupt context or with hardware interrupts being disabled.
- * (in_irq() || irqs_disabled())
+ * (in_hardirq() || irqs_disabled())
  *
  * We provide four helpers that can be used in following contexts :
  *
