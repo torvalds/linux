@@ -420,7 +420,8 @@ static long mptcp_timeout_from_subflow(const struct mptcp_subflow_context *subfl
 {
 	const struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
-	return inet_csk(ssk)->icsk_pending ? inet_csk(ssk)->icsk_timeout - jiffies : 0;
+	return inet_csk(ssk)->icsk_pending && !subflow->stale_count ?
+	       inet_csk(ssk)->icsk_timeout - jiffies : 0;
 }
 
 static void mptcp_set_timeout(struct sock *sk)
@@ -2100,8 +2101,9 @@ static void mptcp_timeout_timer(struct timer_list *t)
  */
 static struct sock *mptcp_subflow_get_retrans(const struct mptcp_sock *msk)
 {
+	struct sock *backup = NULL, *pick = NULL;
 	struct mptcp_subflow_context *subflow;
-	struct sock *backup = NULL;
+	int min_stale_count = INT_MAX;
 
 	sock_owned_by_me((const struct sock *)msk);
 
@@ -2114,11 +2116,11 @@ static struct sock *mptcp_subflow_get_retrans(const struct mptcp_sock *msk)
 		if (!mptcp_subflow_active(subflow))
 			continue;
 
-		/* still data outstanding at TCP level?  Don't retransmit. */
-		if (!tcp_write_queue_empty(ssk)) {
-			if (inet_csk(ssk)->icsk_ca_state >= TCP_CA_Loss)
-				continue;
-			return NULL;
+		/* still data outstanding at TCP level? skip this */
+		if (!tcp_rtx_and_write_queues_empty(ssk)) {
+			mptcp_pm_subflow_chk_stale(msk, ssk);
+			min_stale_count = min_t(int, min_stale_count, subflow->stale_count);
+			continue;
 		}
 
 		if (subflow->backup) {
@@ -2127,10 +2129,15 @@ static struct sock *mptcp_subflow_get_retrans(const struct mptcp_sock *msk)
 			continue;
 		}
 
-		return ssk;
+		if (!pick)
+			pick = ssk;
 	}
 
-	return backup;
+	if (pick)
+		return pick;
+
+	/* use backup only if there are no progresses anywhere */
+	return min_stale_count > 1 ? backup : NULL;
 }
 
 static void mptcp_dispose_initial_subflow(struct mptcp_sock *msk)

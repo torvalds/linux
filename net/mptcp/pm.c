@@ -308,6 +308,23 @@ int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 	return mptcp_pm_nl_get_local_id(msk, skc);
 }
 
+void mptcp_pm_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+	u32 rcv_tstamp = READ_ONCE(tcp_sk(ssk)->rcv_tstamp);
+
+	/* keep track of rtx periods with no progress */
+	if (!subflow->stale_count) {
+		subflow->stale_rcv_tstamp = rcv_tstamp;
+		subflow->stale_count++;
+	} else if (subflow->stale_rcv_tstamp == rcv_tstamp) {
+		if (subflow->stale_count < U8_MAX)
+			subflow->stale_count++;
+	} else {
+		subflow->stale_count = 0;
+	}
+}
+
 void mptcp_pm_data_init(struct mptcp_sock *msk)
 {
 	msk->pm.add_addr_signaled = 0;
