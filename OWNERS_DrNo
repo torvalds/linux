@@ -11,13 +11,13 @@ adelva@google.com
 maennich@google.com
 saravanak@google.com
 smuckle@google.com
-sspatil@google.com
 tkjos@google.com
 willdeacon@google.com
 
 # GKI Release Team
-howardsoc@google.com
-szuweilin@google.com
+howardsoc@google.com #{LAST_RESORT_SUGGESTION}
+szuweilin@google.com #{LAST_RESORT_SUGGESTION}
 
 # Backup
-malchev@google.com
+sspatil@google.com #{LAST_RESORT_SUGGESTION}
+malchev@google.com #{LAST_RESORT_SUGGESTION}
