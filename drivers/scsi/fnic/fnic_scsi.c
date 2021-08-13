@@ -2213,7 +2213,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 	if (IS_ERR(dummy))
 		return SCSI_NO_TAG;
 
-	sc->tag = rq->tag = dummy->tag;
+	rq->tag = dummy->tag;
 	sc->host_scribble = (unsigned char *)dummy;
 
 	return dummy->tag;
