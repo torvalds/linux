@@ -168,7 +168,6 @@ static const struct hda_codec_ops ad198x_auto_patch_ops = {
 	.check_power_status = snd_hda_gen_check_power_status,
 	.suspend = ad198x_suspend,
 #endif
-	.reboot_notify = ad198x_shutup,
 };
 
 

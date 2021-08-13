@@ -186,15 +186,9 @@ static void cx_auto_shutdown(struct hda_codec *codec)
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
 }
 
-static void cx_auto_reboot_notify(struct hda_codec *codec)
-{
-	cx_auto_shutdown(codec);
-	snd_hda_gen_reboot_notify(codec);
-}
-
 static void cx_auto_free(struct hda_codec *codec)
 {
-	cx_auto_reboot_notify(codec);
+	cx_auto_shutdown(codec);
 	snd_hda_gen_free(codec);
 }
 
@@ -210,7 +204,6 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
-	.reboot_notify = cx_auto_reboot_notify,
 	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
