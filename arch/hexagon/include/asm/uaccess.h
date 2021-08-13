@@ -57,38 +57,7 @@ unsigned long raw_copy_to_user(void __user *to, const void *from,
 __kernel_size_t __clear_user_hexagon(void __user *dest, unsigned long count);
 #define __clear_user(a, s) __clear_user_hexagon((a), (s))
 
-#define __strncpy_from_user(dst, src, n) hexagon_strncpy_from_user(dst, src, n)
-
-/*  get around the ifndef in asm-generic/uaccess.h  */
-#define __strnlen_user __strnlen_user
-
-extern long __strnlen_user(const char __user *src, long n);
-
-static inline long hexagon_strncpy_from_user(char *dst, const char __user *src,
-					     long n);
-
 #include <asm-generic/uaccess.h>
 
-/*  Todo:  an actual accelerated version of this.  */
-static inline long hexagon_strncpy_from_user(char *dst, const char __user *src,
-					     long n)
-{
-	long res = __strnlen_user(src, n);
-
-	if (unlikely(!res))
-		return -EFAULT;
-
-	if (res > n) {
-		long left = raw_copy_from_user(dst, src, n);
-		if (unlikely(left))
-			memset(dst + (n - left), 0, left);
-		return n;
-	} else {
-		long left = raw_copy_from_user(dst, src, res);
-		if (unlikely(left))
-			memset(dst + (res - left), 0, left);
-		return res-1;
-	}
-}
 
 #endif
