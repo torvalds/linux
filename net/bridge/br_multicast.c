@@ -2905,6 +2905,79 @@ update:
 	return true;
 }
 
+static struct net_bridge_port *
+__br_multicast_get_querier_port(struct net_bridge *br,
+				const struct bridge_mcast_querier *querier)
+{
+	int port_ifidx = READ_ONCE(querier->port_ifidx);
+	struct net_bridge_port *p;
+	struct net_device *dev;
+
+	if (port_ifidx == 0)
+		return NULL;
+
+	dev = dev_get_by_index_rcu(dev_net(br->dev), port_ifidx);
+	if (!dev)
+		return NULL;
+	p = br_port_get_rtnl_rcu(dev);
+	if (!p || p->br != br)
+		return NULL;
+
+	return p;
+}
+
+size_t br_multicast_querier_state_size(void)
+{
+	return nla_total_size(sizeof(0)) +      /* nest attribute */
+	       nla_total_size(sizeof(__be32)) + /* BRIDGE_QUERIER_IP_ADDRESS */
+	       nla_total_size(sizeof(int)) +    /* BRIDGE_QUERIER_IP_PORT */
+	       nla_total_size_64bit(sizeof(u64)); /* BRIDGE_QUERIER_IP_OTHER_TIMER */
+}
+
+/* protected by rtnl or rcu */
+int br_multicast_dump_querier_state(struct sk_buff *skb,
+				    const struct net_bridge_mcast *brmctx,
+				    int nest_attr)
+{
+	struct bridge_mcast_querier querier = {};
+	struct net_bridge_port *p;
+	struct nlattr *nest;
+
+	if (!brmctx->multicast_querier &&
+	    !timer_pending(&brmctx->ip4_other_query.timer))
+		return 0;
+
+	nest = nla_nest_start(skb, nest_attr);
+	if (!nest)
+		return -EMSGSIZE;
+
+	rcu_read_lock();
+	br_multicast_read_querier(&brmctx->ip4_querier, &querier);
+	if (nla_put_in_addr(skb, BRIDGE_QUERIER_IP_ADDRESS,
+			    querier.addr.src.ip4)) {
+		rcu_read_unlock();
+		goto out_err;
+	}
+
+	p = __br_multicast_get_querier_port(brmctx->br, &querier);
+	if (timer_pending(&brmctx->ip4_other_query.timer) &&
+	    (nla_put_u64_64bit(skb, BRIDGE_QUERIER_IP_OTHER_TIMER,
+			       br_timer_value(&brmctx->ip4_other_query.timer),
+			       BRIDGE_QUERIER_PAD) ||
+	     (p && nla_put_u32(skb, BRIDGE_QUERIER_IP_PORT, p->dev->ifindex)))) {
+		rcu_read_unlock();
+		goto out_err;
+	}
+	rcu_read_unlock();
+	nla_nest_end(skb, nest);
+
+	return 0;
+
+out_err:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static void
 br_multicast_update_query_timer(struct net_bridge_mcast *brmctx,
 				struct bridge_mcast_other_query *query,

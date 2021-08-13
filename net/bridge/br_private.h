@@ -948,6 +948,10 @@ int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
 		  struct netlink_ext_ack *extack);
 int br_rports_fill_info(struct sk_buff *skb,
 			const struct net_bridge_mcast *brmctx);
+int br_multicast_dump_querier_state(struct sk_buff *skb,
+				    const struct net_bridge_mcast *brmctx,
+				    int nest_attr);
+size_t br_multicast_querier_state_size(void);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
