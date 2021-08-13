@@ -289,8 +289,6 @@ static void rt5682_i2c_shutdown(struct i2c_client *client)
 
 static int rt5682_i2c_remove(struct i2c_client *client)
 {
-	struct rt5682_priv *rt5682 = i2c_get_clientdata(client);
-
 	rt5682_i2c_shutdown(client);
 
 	return 0;
