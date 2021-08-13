@@ -663,7 +663,6 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 		adev->gmc.xgmi.ras_if->block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
 		adev->gmc.xgmi.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->gmc.xgmi.ras_if->sub_block_index = 0;
-		strcpy(adev->gmc.xgmi.ras_if->name, "xgmi_wafl");
 	}
 	ih_info.head = fs_info.head = *adev->gmc.xgmi.ras_if;
 	r = amdgpu_ras_late_init(adev, adev->gmc.xgmi.ras_if,
