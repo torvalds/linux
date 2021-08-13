@@ -136,24 +136,30 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
 
+bool kvm_slot_page_track_is_active(struct kvm_memory_slot *slot, gfn_t gfn,
+				   enum kvm_page_track_mode mode)
+{
+	int index;
+
+	if (WARN_ON(!page_track_mode_is_valid(mode)))
+		return false;
+
+	if (!slot)
+		return false;
+
+	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
+	return !!READ_ONCE(slot->arch.gfn_track[mode][index]);
+}
+
 /*
  * check if the corresponding access on the specified guest page is tracked.
  */
 bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 			      enum kvm_page_track_mode mode)
 {
-	struct kvm_memory_slot *slot;
-	int index;
+	struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
 
-	if (WARN_ON(!page_track_mode_is_valid(mode)))
-		return false;
-
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	if (!slot)
-		return false;
-
-	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
-	return !!READ_ONCE(slot->arch.gfn_track[mode][index]);
+	return kvm_slot_page_track_is_active(slot, gfn, mode);
 }
 
 void kvm_page_track_cleanup(struct kvm *kvm)
