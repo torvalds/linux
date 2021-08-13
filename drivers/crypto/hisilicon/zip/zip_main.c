@@ -450,17 +450,14 @@ static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
 	return &hisi_zip->qm;
 }
 
-static u32 clear_enable_read(struct ctrl_debug_file *file)
+static u32 clear_enable_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	return readl(qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE) &
 		     HZIP_SOFT_CTRL_CNT_CLR_CE_BIT;
 }
 
-static int clear_enable_write(struct ctrl_debug_file *file, u32 val)
+static int clear_enable_write(struct hisi_qm *qm, u32 val)
 {
-	struct hisi_qm *qm = file_to_qm(file);
 	u32 tmp;
 
 	if (val != 1 && val != 0)
@@ -489,7 +486,7 @@ static ssize_t hisi_zip_ctrl_debug_read(struct file *filp, char __user *buf,
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
 	case HZIP_CLEAR_ENABLE:
-		val = clear_enable_read(file);
+		val = clear_enable_read(qm);
 		break;
 	default:
 		goto err_input;
@@ -537,7 +534,7 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
 	case HZIP_CLEAR_ENABLE:
-		ret = clear_enable_write(file, val);
+		ret = clear_enable_write(qm, val);
 		if (ret)
 			goto err_input;
 		break;

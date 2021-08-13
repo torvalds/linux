@@ -1203,16 +1203,13 @@ static struct hisi_qm *file_to_qm(struct debugfs_file *file)
 	return container_of(debug, struct hisi_qm, debug);
 }
 
-static u32 current_q_read(struct debugfs_file *file)
+static u32 current_q_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	return readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) >> QM_DFX_QN_SHIFT;
 }
 
-static int current_q_write(struct debugfs_file *file, u32 val)
+static int current_q_write(struct hisi_qm *qm, u32 val)
 {
-	struct hisi_qm *qm = file_to_qm(file);
 	u32 tmp;
 
 	if (val >= qm->debug.curr_qm_qp_num)
@@ -1229,18 +1226,14 @@ static int current_q_write(struct debugfs_file *file, u32 val)
 	return 0;
 }
 
-static u32 clear_enable_read(struct debugfs_file *file)
+static u32 clear_enable_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	return readl(qm->io_base + QM_DFX_CNT_CLR_CE);
 }
 
 /* rd_clr_ctrl 1 enable read clear, otherwise 0 disable it */
-static int clear_enable_write(struct debugfs_file *file, u32 rd_clr_ctrl)
+static int clear_enable_write(struct hisi_qm *qm, u32 rd_clr_ctrl)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	if (rd_clr_ctrl > 1)
 		return -EINVAL;
 
@@ -1249,16 +1242,13 @@ static int clear_enable_write(struct debugfs_file *file, u32 rd_clr_ctrl)
 	return 0;
 }
 
-static u32 current_qm_read(struct debugfs_file *file)
+static u32 current_qm_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
 }
 
-static int current_qm_write(struct debugfs_file *file, u32 val)
+static int current_qm_write(struct hisi_qm *qm, u32 val)
 {
-	struct hisi_qm *qm = file_to_qm(file);
 	u32 tmp;
 
 	if (val > qm->vfs_num)
@@ -1301,13 +1291,13 @@ static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 	mutex_lock(&file->lock);
 	switch (index) {
 	case CURRENT_QM:
-		val = current_qm_read(file);
+		val = current_qm_read(qm);
 		break;
 	case CURRENT_Q:
-		val = current_q_read(file);
+		val = current_q_read(qm);
 		break;
 	case CLEAR_ENABLE:
-		val = clear_enable_read(file);
+		val = clear_enable_read(qm);
 		break;
 	default:
 		goto err_input;
@@ -1356,13 +1346,13 @@ static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
 	mutex_lock(&file->lock);
 	switch (index) {
 	case CURRENT_QM:
-		ret = current_qm_write(file, val);
+		ret = current_qm_write(qm, val);
 		break;
 	case CURRENT_Q:
-		ret = current_q_write(file, val);
+		ret = current_q_write(qm, val);
 		break;
 	case CLEAR_ENABLE:
-		ret = clear_enable_write(file, val);
+		ret = clear_enable_write(qm, val);
 		break;
 	default:
 		ret = -EINVAL;

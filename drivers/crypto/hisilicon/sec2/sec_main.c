@@ -557,17 +557,14 @@ static void sec_hw_error_disable(struct hisi_qm *qm)
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_NFE_REG);
 }
 
-static u32 sec_clear_enable_read(struct sec_debug_file *file)
+static u32 sec_clear_enable_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file->qm;
-
 	return readl(qm->io_base + SEC_CTRL_CNT_CLR_CE) &
 			SEC_CTRL_CNT_CLR_CE_BIT;
 }
 
-static int sec_clear_enable_write(struct sec_debug_file *file, u32 val)
+static int sec_clear_enable_write(struct hisi_qm *qm, u32 val)
 {
-	struct hisi_qm *qm = file->qm;
 	u32 tmp;
 
 	if (val != 1 && val)
@@ -597,7 +594,7 @@ static ssize_t sec_debug_read(struct file *filp, char __user *buf,
 
 	switch (file->index) {
 	case SEC_CLEAR_ENABLE:
-		val = sec_clear_enable_read(file);
+		val = sec_clear_enable_read(qm);
 		break;
 	default:
 		goto err_input;
@@ -647,7 +644,7 @@ static ssize_t sec_debug_write(struct file *filp, const char __user *buf,
 
 	switch (file->index) {
 	case SEC_CLEAR_ENABLE:
-		ret = sec_clear_enable_write(file, val);
+		ret = sec_clear_enable_write(qm, val);
 		if (ret)
 			goto err_input;
 		break;
