@@ -84,11 +84,6 @@ static u32 rtw_rates[] = {1000000, 2000000, 5500000, 11000000,
 	6000000, 9000000, 12000000, 18000000, 24000000, 36000000,
 	48000000, 54000000};
 
-static const char * const iw_operation_mode[] = {
-	"Auto", "Ad-Hoc", "Managed",  "Master", "Repeater",
-	"Secondary", "Monitor"
-};
-
 void indicate_wx_scan_complete_event(struct adapter *padapter)
 {
 	union iwreq_data wrqu;
@@ -6665,20 +6660,4 @@ struct iw_handler_def rtw_handlers_def = {
 	.num_private = sizeof(rtw_private_handler) / sizeof(iw_handler),
 	.num_private_args = sizeof(rtw_private_args) / sizeof(struct iw_priv_args),
 	.get_wireless_stats = rtw_get_wireless_stats,
-};
-
-/*  copy from net/wireless/wext.c start */
-/* ---------------------------------------------------------------- */
-/*
- * Calculate size of private arguments
- */
-static const char iw_priv_type_size[] = {
-	0,			      /* IW_PRIV_TYPE_NONE */
-	1,			      /* IW_PRIV_TYPE_BYTE */
-	1,			      /* IW_PRIV_TYPE_CHAR */
-	0,			      /* Not defined */
-	sizeof(__u32),		  /* IW_PRIV_TYPE_INT */
-	sizeof(struct iw_freq),	 /* IW_PRIV_TYPE_FLOAT */
-	sizeof(struct sockaddr),	/* IW_PRIV_TYPE_ADDR */
-	0,			      /* Not defined */
 };
