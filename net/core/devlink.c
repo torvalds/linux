@@ -11392,16 +11392,16 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 	 */
 	mutex_lock(&devlink_mutex);
 	list_for_each_entry(devlink, &devlink_list, list) {
-		if (net_eq(devlink_net(devlink), net)) {
-			if (WARN_ON(!devlink_reload_supported(devlink->ops)))
-				continue;
-			err = devlink_reload(devlink, &init_net,
-					     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
-					     DEVLINK_RELOAD_LIMIT_UNSPEC,
-					     &actions_performed, NULL);
-			if (err && err != -EOPNOTSUPP)
-				pr_warn("Failed to reload devlink instance into init_net\n");
-		}
+		if (!net_eq(devlink_net(devlink), net))
+			continue;
+
+		WARN_ON(!devlink_reload_supported(devlink->ops));
+		err = devlink_reload(devlink, &init_net,
+				     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
+				     DEVLINK_RELOAD_LIMIT_UNSPEC,
+				     &actions_performed, NULL);
+		if (err && err != -EOPNOTSUPP)
+			pr_warn("Failed to reload devlink instance into init_net\n");
 	}
 	mutex_unlock(&devlink_mutex);
 }
