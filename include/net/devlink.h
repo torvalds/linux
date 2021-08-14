@@ -32,7 +32,7 @@ struct devlink_dev_stats {
 struct devlink_ops;
 
 struct devlink {
-	struct list_head list;
+	u32 index;
 	struct list_head port_list;
 	struct list_head rate_list;
 	struct list_head sb_list;
