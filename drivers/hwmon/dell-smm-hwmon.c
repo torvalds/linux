@@ -957,7 +957,7 @@ enum i8k_configs {
 	DELL_XPS,
 };
 
-static const struct i8k_config_data i8k_config_data[] = {
+static const struct i8k_config_data i8k_config_data[] __initconst = {
 	[DELL_LATITUDE_D520] = {
 		.fan_mult = 1,
 		.fan_max = I8K_FAN_TURBO,
@@ -1115,7 +1115,7 @@ static const struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initconst
  * support for affected blacklisted Dell machines stay disabled.
  * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=195751
  */
-static struct dmi_system_id i8k_blacklist_fan_support_dmi_table[] __initdata = {
+static const struct dmi_system_id i8k_blacklist_fan_support_dmi_table[] __initconst = {
 	{
 		.ident = "Dell Inspiron 7720",
 		.matches = {
@@ -1156,14 +1156,14 @@ enum i8k_fan_controls {
 	I8K_FAN_34A3_35A3,
 };
 
-static const struct i8k_fan_control_data i8k_fan_control_data[] = {
+static const struct i8k_fan_control_data i8k_fan_control_data[] __initconst = {
 	[I8K_FAN_34A3_35A3] = {
 		.manual_fan = 0x34a3,
 		.auto_fan = 0x35a3,
 	},
 };
 
-static struct dmi_system_id i8k_whitelist_fan_control[] __initdata = {
+static const struct dmi_system_id i8k_whitelist_fan_control[] __initconst = {
 	{
 		.ident = "Dell Latitude 5480",
 		.matches = {
