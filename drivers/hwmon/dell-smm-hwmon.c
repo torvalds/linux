@@ -158,17 +158,12 @@ static inline const char __init *i8k_get_dmi_data(int field)
  */
 static int i8k_smm_func(void *par)
 {
-	int rc;
+	ktime_t calltime = ktime_get();
 	struct smm_regs *regs = par;
 	int eax = regs->eax;
-
-#ifdef DEBUG
 	int ebx = regs->ebx;
-	unsigned long duration;
-	ktime_t calltime, delta, rettime;
-
-	calltime = ktime_get();
-#endif
+	long long duration;
+	int rc;
 
 	/* SMM requires CPU 0 */
 	if (smp_processor_id() != 0)
@@ -230,13 +225,9 @@ static int i8k_smm_func(void *par)
 	if (rc != 0 || (regs->eax & 0xffff) == 0xffff || regs->eax == eax)
 		rc = -EINVAL;
 
-#ifdef DEBUG
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = ktime_to_ns(delta) >> 10;
-	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lu usecs)\n", eax, ebx,
-		(rc ? 0xffff : regs->eax & 0xffff), duration);
-#endif
+	duration = ktime_us_delta(ktime_get(), calltime);
+	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lld usecs)\n", eax, ebx,
+		 (rc ? 0xffff : regs->eax & 0xffff), duration);
 
 	return rc;
 }
