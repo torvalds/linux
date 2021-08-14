@@ -1681,7 +1681,7 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 
 			dev_dbg(ecc->dev, "EMR%d 0x%08x\n", j, val);
 			emr = val;
-			for (i = find_next_bit(&emr, 32, 0); i < 32;
+			for (i = find_first_bit(&emr, 32); i < 32;
 			     i = find_next_bit(&emr, 32, i + 1)) {
 				int k = (j << 5) + i;
 
