@@ -1449,9 +1449,42 @@ static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
 
-static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+static bool pmc_core_pri_verify(u32 lpm_pri, u8 *mode_order)
 {
-	u8 lpm_priority[LPM_MAX_NUM_MODES];
+	int i, j;
+
+	if (!lpm_pri)
+		return false;
+	/*
+	 * Each byte contains the priority level for 2 modes (7:4 and 3:0).
+	 * In a 32 bit register this allows for describing 8 modes. Store the
+	 * levels and look for values out of range.
+	 */
+	for (i = 0; i < 8; i++) {
+		int level = lpm_pri & GENMASK(3, 0);
+
+		if (level >= LPM_MAX_NUM_MODES)
+			return false;
+
+		mode_order[i] = level;
+		lpm_pri >>= 4;
+	}
+
+	/* Check that we have unique values */
+	for (i = 0; i < LPM_MAX_NUM_MODES - 1; i++)
+		for (j = i + 1; j < LPM_MAX_NUM_MODES; j++)
+			if (mode_order[i] == mode_order[j])
+				return false;
+
+	return true;
+}
+
+static void pmc_core_get_low_power_modes(struct platform_device *pdev)
+{
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
+	u8 pri_order[LPM_MAX_NUM_MODES] = LPM_DEFAULT_PRI;
+	u8 mode_order[LPM_MAX_NUM_MODES];
+	u32 lpm_pri;
 	u32 lpm_en;
 	int mode, i, p;
 
@@ -1462,24 +1495,28 @@ static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
 	pmcdev->num_lpm_modes = hweight32(lpm_en);
 
-	/* Each byte contains information for 2 modes (7:4 and 3:0) */
-	for (mode = 0; mode < LPM_MAX_NUM_MODES; mode += 2) {
-		u8 priority = pmc_core_reg_read_byte(pmcdev,
-				pmcdev->map->lpm_priority_offset + (mode / 2));
-		int pri0 = GENMASK(3, 0) & priority;
-		int pri1 = (GENMASK(7, 4) & priority) >> 4;
+	/* Read 32 bit LPM_PRI register */
+	lpm_pri = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_priority_offset);
 
-		lpm_priority[pri0] = mode;
-		lpm_priority[pri1] = mode + 1;
-	}
 
 	/*
-	 * Loop though all modes from lowest to highest priority,
+	 * If lpm_pri value passes verification, then override the default
+	 * modes here. Otherwise stick with the default.
+	 */
+	if (pmc_core_pri_verify(lpm_pri, mode_order))
+		/* Get list of modes in priority order */
+		for (mode = 0; mode < LPM_MAX_NUM_MODES; mode++)
+			pri_order[mode_order[mode]] = mode;
+	else
+		dev_warn(&pdev->dev, "Assuming a default substate order for this platform\n");
+
+	/*
+	 * Loop through all modes from lowest to highest priority,
 	 * and capture all enabled modes in order
 	 */
 	i = 0;
 	for (p = LPM_MAX_NUM_MODES - 1; p >= 0; p--) {
-		int mode = lpm_priority[p];
+		int mode = pri_order[p];
 
 		if (!(BIT(mode) & lpm_en))
 			continue;
@@ -1675,7 +1712,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	mutex_init(&pmcdev->lock);
 
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
-	pmc_core_get_low_power_modes(pmcdev);
+	pmc_core_get_low_power_modes(pdev);
 	pmc_core_do_dmi_quirks(pmcdev);
 
 	if (pmcdev->map == &tgl_reg_map)
