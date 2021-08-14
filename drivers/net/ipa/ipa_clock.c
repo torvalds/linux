@@ -47,10 +47,12 @@ struct ipa_interconnect {
 /**
  * enum ipa_power_flag - IPA power flags
  * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
+ * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
  * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
  */
 enum ipa_power_flag {
 	IPA_POWER_FLAG_RESUMED,
+	IPA_POWER_FLAG_SYSTEM,
 	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
 };
 
@@ -281,6 +283,27 @@ int ipa_clock_put(struct ipa *ipa)
 	return pm_runtime_put(&ipa->pdev->dev);
 }
 
+static int ipa_suspend(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+
+	__set_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags);
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int ipa_resume(struct device *dev)
+{
+	struct ipa *ipa = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+
+	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags);
+
+	return ret;
+}
+
 /* Return the current IPA core clock rate */
 u32 ipa_clock_rate(struct ipa *ipa)
 {
@@ -299,25 +322,35 @@ u32 ipa_clock_rate(struct ipa *ipa)
  */
 static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
-	/* Just report the event, and let system resume handle the rest.
-	 * More than one endpoint could signal this; if so, ignore
-	 * all but the first.
+	/* To handle an IPA interrupt we will have resumed the hardware
+	 * just to handle the interrupt, so we're done.  If we are in a
+	 * system suspend, trigger a system resume.
 	 */
-	if (!test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags))
-		pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
+	if (!__test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags))
+		if (test_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags))
+			pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
-void ipa_power_setup(struct ipa *ipa)
+int ipa_power_setup(struct ipa *ipa)
 {
+	int ret;
+
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
 			  ipa_suspend_handler);
+
+	ret = device_init_wakeup(&ipa->pdev->dev, true);
+	if (ret)
+		ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+
+	return ret;
 }
 
 void ipa_power_teardown(struct ipa *ipa)
 {
+	(void)device_init_wakeup(&ipa->pdev->dev, false);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 }
 
@@ -381,8 +414,8 @@ void ipa_clock_exit(struct ipa_clock *clock)
 }
 
 const struct dev_pm_ops ipa_pm_ops = {
-	.suspend		= pm_runtime_force_suspend,
-	.resume			= pm_runtime_force_resume,
+	.suspend		= ipa_suspend,
+	.resume			= ipa_resume,
 	.runtime_suspend	= ipa_runtime_suspend,
 	.runtime_resume		= ipa_runtime_resume,
 	.runtime_idle		= ipa_runtime_idle,
