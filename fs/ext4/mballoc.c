@@ -2478,6 +2478,12 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
  * This could return negative error code if something goes wrong
  * during ext4_mb_init_group(). This should not be called with
  * ext4_lock_group() held.
+ *
+ * Note: because we are conditionally operating with the group lock in
+ * the EXT4_MB_STRICT_CHECK case, we need to fake out sparse in this
+ * function using __acquire and __release.  This means we need to be
+ * super careful before messing with the error path handling via "goto
+ * out"!
  */
 static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 				     ext4_group_t group, int cr)
@@ -2491,8 +2497,10 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 
 	if (sbi->s_mb_stats)
 		atomic64_inc(&sbi->s_bal_cX_groups_considered[ac->ac_criteria]);
-	if (should_lock)
+	if (should_lock) {
 		ext4_lock_group(sb, group);
+		__release(ext4_group_lock_ptr(sb, group));
+	}
 	free = grp->bb_free;
 	if (free == 0)
 		goto out;
@@ -2500,8 +2508,10 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 		goto out;
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		goto out;
-	if (should_lock)
+	if (should_lock) {
+		__acquire(ext4_group_lock_ptr(sb, group));
 		ext4_unlock_group(sb, group);
+	}
 
 	/* We only do this if the grp has never been initialized */
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
@@ -2528,12 +2538,16 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 			return ret;
 	}
 
-	if (should_lock)
+	if (should_lock) {
 		ext4_lock_group(sb, group);
+		__release(ext4_group_lock_ptr(sb, group));
+	}
 	ret = ext4_mb_good_group(ac, group, cr);
 out:
-	if (should_lock)
+	if (should_lock) {
+		__acquire(ext4_group_lock_ptr(sb, group));
 		ext4_unlock_group(sb, group);
+	}
 	return ret;
 }
 
@@ -2969,6 +2983,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 }
 
 static void *ext4_mb_seq_structs_summary_start(struct seq_file *seq, loff_t *pos)
+__acquires(&EXT4_SB(sb)->s_mb_rb_lock)
 {
 	struct super_block *sb = PDE_DATA(file_inode(seq->file));
 	unsigned long position;
@@ -3041,6 +3056,7 @@ static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 }
 
 static void ext4_mb_seq_structs_summary_stop(struct seq_file *seq, void *v)
+__releases(&EXT4_SB(sb)->s_mb_rb_lock)
 {
 	struct super_block *sb = PDE_DATA(file_inode(seq->file));
 
@@ -6275,6 +6291,8 @@ __acquires(bitlock)
 static int ext4_try_to_trim_range(struct super_block *sb,
 		struct ext4_buddy *e4b, ext4_grpblk_t start,
 		ext4_grpblk_t max, ext4_grpblk_t minblocks)
+__acquires(ext4_group_lock_ptr(sb, e4b->bd_group))
+__releases(ext4_group_lock_ptr(sb, e4b->bd_group))
 {
 	ext4_grpblk_t next, count, free_count;
 	void *bitmap;
