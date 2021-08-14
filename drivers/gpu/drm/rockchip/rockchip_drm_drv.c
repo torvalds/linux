@@ -589,6 +589,8 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_free;
 	}
 
+	mutex_init(&private->ovl_lock);
+
 	drm_dev->dev_private = private;
 
 	INIT_LIST_HEAD(&private->psr_list);

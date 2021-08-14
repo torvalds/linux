@@ -195,6 +195,13 @@ struct rockchip_drm_private {
 
 	struct rockchip_dclk_pll default_pll;
 	struct rockchip_dclk_pll hdmi_pll;
+
+	/*
+	 * protect some shared overlay resource
+	 * OVL_LAYER_SEL/OVL_PORT_SEL
+	 */
+	struct mutex ovl_lock;
+
 	struct rockchip_drm_vcnt vcnt[ROCKCHIP_MAX_CRTC];
 	/**
 	 * @loader_protect
