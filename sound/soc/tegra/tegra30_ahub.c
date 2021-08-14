@@ -518,7 +518,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	void __iomem *regs_apbif, *regs_ahub;
 	int ret = 0;
 
-	match = of_match_device(tegra30_ahub_of_match, &pdev->dev);
+	match = of_device_get_match_data(&pdev->dev);
 	if (!match)
 		return -EINVAL;
 	soc_data = match->data;
