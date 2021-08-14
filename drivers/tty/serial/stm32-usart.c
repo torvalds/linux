@@ -1064,8 +1064,7 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 				      &stm32port->txftcfg);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->membase = devm_ioremap_resource(&pdev->dev, res);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
 	port->mapbase = res->start;
