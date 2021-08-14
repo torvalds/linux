@@ -1177,7 +1177,7 @@ static int stm32_usart_of_dma_rx_probe(struct stm32_port *stm32port,
 	if (uart_console(port))
 		return -ENODEV;
 
-	stm32port->rx_buf = dma_alloc_coherent(&pdev->dev, RX_BUF_L,
+	stm32port->rx_buf = dma_alloc_coherent(dev, RX_BUF_L,
 					       &stm32port->rx_dma_buf,
 					       GFP_KERNEL);
 	if (!stm32port->rx_buf)
@@ -1243,7 +1243,7 @@ static int stm32_usart_of_dma_tx_probe(struct stm32_port *stm32port,
 
 	stm32port->tx_dma_busy = false;
 
-	stm32port->tx_buf = dma_alloc_coherent(&pdev->dev, TX_BUF_L,
+	stm32port->tx_buf = dma_alloc_coherent(dev, TX_BUF_L,
 					       &stm32port->tx_dma_buf,
 					       GFP_KERNEL);
 	if (!stm32port->tx_buf)
