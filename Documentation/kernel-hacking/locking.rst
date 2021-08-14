@@ -1406,7 +1406,7 @@ bh
   half will be running at any time.
 
 Hardware Interrupt / Hardware IRQ
-  Hardware interrupt request. in_irq() returns true in a
+  Hardware interrupt request. in_hardirq() returns true in a
   hardware interrupt handler.
 
 Interrupt Context
@@ -1418,7 +1418,7 @@ SMP
   (``CONFIG_SMP=y``).
 
 Software Interrupt / softirq
-  Software interrupt handler. in_irq() returns false;
+  Software interrupt handler. in_hardirq() returns false;
   in_softirq() returns true. Tasklets and softirqs both
   fall into the category of 'software interrupts'.
 

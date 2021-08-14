@@ -90,7 +90,7 @@ i gestori d'interruzioni devono essere veloci: spesso si limitano
 esclusivamente a notificare la presa in carico dell'interruzione,
 programmare una 'interruzione software' per l'esecuzione e quindi terminare.
 
-Potete dire d'essere in una interruzione hardware perché :c:func:`in_irq()`
+Potete dire d'essere in una interruzione hardware perché in_hardirq()
 ritorna vero.
 
 .. warning::
