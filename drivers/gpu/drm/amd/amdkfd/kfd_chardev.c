@@ -1261,7 +1261,12 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		return -EINVAL;
 
 #if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+	/* Flush pending deferred work to avoid racing with deferred actions
+	 * from previous memory map changes (e.g. munmap).
+	 */
+	svm_range_list_lock_and_flush_work(svms, current->mm);
 	mutex_lock(&svms->lock);
+	mmap_write_unlock(current->mm);
 	if (interval_tree_iter_first(&svms->objects,
 				     args->va_addr >> PAGE_SHIFT,
 				     (args->va_addr + args->size - 1) >> PAGE_SHIFT)) {
