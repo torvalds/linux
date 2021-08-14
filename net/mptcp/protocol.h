@@ -230,12 +230,17 @@ struct mptcp_sock {
 	struct sock	*last_snd;
 	int		snd_burst;
 	int		old_wspace;
+	u64		recovery_snd_nxt;	/* in recovery mode accept up to this seq;
+						 * recovery related fields are under data_lock
+						 * protection
+						 */
 	u64		snd_una;
 	u64		wnd_end;
 	unsigned long	timer_ival;
 	u32		token;
 	int		rmem_released;
 	unsigned long	flags;
+	bool		recovery;		/* closing subflow write queue reinjected */
 	bool		can_ack;
 	bool		fully_established;
 	bool		rcv_data_fin;
@@ -427,7 +432,8 @@ struct mptcp_subflow_context {
 		send_mp_prio : 1,
 		rx_eof : 1,
 		can_ack : 1,        /* only after processing the remote a key */
-		disposable : 1;	    /* ctx can be free at ulp release time */
+		disposable : 1,	    /* ctx can be free at ulp release time */
+		stale : 1;	    /* unable to snd/rcv data, do not use for xmit */
 	enum mptcp_data_avail data_avail;
 	u32	remote_nonce;
 	u64	thmac;
@@ -439,11 +445,13 @@ struct mptcp_subflow_context {
 	u8	reset_seen:1;
 	u8	reset_transient:1;
 	u8	reset_reason:4;
+	u8	stale_count;
 
 	long	delegated_status;
 	struct	list_head delegated_node;   /* link into delegated_action, protected by local BH */
 
-	u32 setsockopt_seq;
+	u32	setsockopt_seq;
+	u32	stale_rcv_tstamp;
 
 	struct	sock *tcp_sock;	    /* tcp sk backpointer */
 	struct	sock *conn;	    /* parent mptcp_sock */
@@ -549,12 +557,15 @@ static inline void mptcp_subflow_delegated_done(struct mptcp_subflow_context *su
 	clear_bit(MPTCP_DELEGATE_SEND, &subflow->delegated_status);
 }
 
-int mptcp_is_enabled(struct net *net);
-unsigned int mptcp_get_add_addr_timeout(struct net *net);
-int mptcp_is_checksum_enabled(struct net *net);
-int mptcp_allow_join_id0(struct net *net);
+int mptcp_is_enabled(const struct net *net);
+unsigned int mptcp_get_add_addr_timeout(const struct net *net);
+int mptcp_is_checksum_enabled(const struct net *net);
+int mptcp_allow_join_id0(const struct net *net);
+unsigned int mptcp_stale_loss_cnt(const struct net *net);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 				     struct mptcp_options_received *mp_opt);
+bool __mptcp_retransmit_pending_data(struct sock *sk);
+void __mptcp_push_pending(struct sock *sk, unsigned int flags);
 bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how);
@@ -573,7 +584,7 @@ void mptcp_info2sockaddr(const struct mptcp_addr_info *info,
 			 struct sockaddr_storage *addr,
 			 unsigned short family);
 
-static inline bool mptcp_subflow_active(struct mptcp_subflow_context *subflow)
+static inline bool __mptcp_subflow_active(struct mptcp_subflow_context *subflow)
 {
 	struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
@@ -584,6 +595,10 @@ static inline bool mptcp_subflow_active(struct mptcp_subflow_context *subflow)
 	/* only send if our side has not closed yet */
 	return ((1 << ssk->sk_state) & (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT));
 }
+
+void mptcp_subflow_set_active(struct mptcp_subflow_context *subflow);
+
+bool mptcp_subflow_active(struct mptcp_subflow_context *subflow);
 
 static inline void mptcp_subflow_tcp_fallback(struct sock *sk,
 					      struct mptcp_subflow_context *ctx)
@@ -690,6 +705,8 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac);
 
 void __init mptcp_pm_init(void);
 void mptcp_pm_data_init(struct mptcp_sock *msk);
+void mptcp_pm_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk);
+void mptcp_pm_nl_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk);
 void mptcp_pm_new_connection(struct mptcp_sock *msk, const struct sock *ssk, int server_side);
 void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, gfp_t gfp);
 bool mptcp_pm_allow_new_subflow(struct mptcp_sock *msk);
