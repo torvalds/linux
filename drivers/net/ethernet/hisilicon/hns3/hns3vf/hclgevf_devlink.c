@@ -120,6 +120,7 @@ int hclgevf_devlink_init(struct hclgevf_dev *hdev)
 
 	priv = devlink_priv(devlink);
 	priv->hdev = hdev;
+	hdev->devlink = devlink;
 
 	ret = devlink_register(devlink);
 	if (ret) {
@@ -127,8 +128,6 @@ int hclgevf_devlink_init(struct hclgevf_dev *hdev)
 			ret);
 		goto out_reg_fail;
 	}
-
-	hdev->devlink = devlink;
 
 	devlink_reload_enable(devlink);
 
@@ -143,14 +142,9 @@ void hclgevf_devlink_uninit(struct hclgevf_dev *hdev)
 {
 	struct devlink *devlink = hdev->devlink;
 
-	if (!devlink)
-		return;
-
 	devlink_reload_disable(devlink);
 
 	devlink_unregister(devlink);
 
 	devlink_free(devlink);
-
-	hdev->devlink = NULL;
 }

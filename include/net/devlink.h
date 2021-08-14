@@ -32,7 +32,7 @@ struct devlink_dev_stats {
 struct devlink_ops;
 
 struct devlink {
-	struct list_head list;
+	u32 index;
 	struct list_head port_list;
 	struct list_head rate_list;
 	struct list_head sb_list;
@@ -56,6 +56,8 @@ struct devlink {
 			    */
 	u8 reload_failed:1,
 	   reload_enabled:1;
+	refcount_t refcount;
+	struct completion comp;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
