@@ -309,7 +309,7 @@ static int i8k_get_fan_type(struct dell_smm_data *data, int fan)
 /*
  * Read the fan nominal rpm for specific fan speed.
  */
-static int i8k_get_fan_nominal_speed(const struct dell_smm_data *data, int fan, int speed)
+static int __init i8k_get_fan_nominal_speed(const struct dell_smm_data *data, int fan, int speed)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_NOM_SPEED, };
 
