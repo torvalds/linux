@@ -401,32 +401,14 @@ static int ad7949_spi_probe(struct spi_device *spi)
 	ret = ad7949_spi_init(ad7949_adc);
 	if (ret) {
 		dev_err(dev, "enable to init this device: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret)
 		dev_err(dev, "fail to register iio device: %d\n", ret);
-		goto err;
-	}
-
-	return 0;
-
-err:
-	mutex_destroy(&ad7949_adc->lock);
 
 	return ret;
-}
-
-static int ad7949_spi_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7949_adc_chip *ad7949_adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	mutex_destroy(&ad7949_adc->lock);
-
-	return 0;
 }
 
 static const struct of_device_id ad7949_spi_of_id[] = {
@@ -451,7 +433,6 @@ static struct spi_driver ad7949_spi_driver = {
 		.of_match_table	= ad7949_spi_of_id,
 	},
 	.probe	  = ad7949_spi_probe,
-	.remove   = ad7949_spi_remove,
 	.id_table = ad7949_spi_id,
 };
 module_spi_driver(ad7949_spi_driver);
