@@ -507,6 +507,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
+	bool write_fault = !!(entry->src_data[1] & 0x20);
 	uint32_t status = 0, cid = 0, rw = 0;
 	struct amdgpu_task_info task_info;
 	struct amdgpu_vmhub *hub;
@@ -537,7 +538,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		/* Try to handle the recoverable page faults by filling page
 		 * tables
 		 */
-		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
 			return 1;
 	}
 

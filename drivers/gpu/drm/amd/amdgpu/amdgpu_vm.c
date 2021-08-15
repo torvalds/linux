@@ -3345,12 +3345,13 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
  * @adev: amdgpu device pointer
  * @pasid: PASID of the VM
  * @addr: Address of the fault
+ * @write_fault: true is write fault, false is read fault
  *
  * Try to gracefully handle a VM fault. Return true if the fault was handled and
  * shouldn't be reported any more.
  */
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    uint64_t addr)
+			    uint64_t addr, bool write_fault)
 {
 	bool is_compute_context = false;
 	struct amdgpu_bo *root;
@@ -3375,7 +3376,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
 	if (is_compute_context &&
-	    !svm_range_restore_pages(adev, pasid, addr)) {
+	    !svm_range_restore_pages(adev, pasid, addr, write_fault)) {
 		amdgpu_bo_unref(&root);
 		return true;
 	}
