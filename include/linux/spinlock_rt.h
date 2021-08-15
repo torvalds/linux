@@ -146,4 +146,6 @@ static inline int spin_is_locked(spinlock_t *lock)
 
 #define assert_spin_locked(lock) BUG_ON(!spin_is_locked(lock))
 
+#include <linux/rwlock_rt.h>
+
 #endif
