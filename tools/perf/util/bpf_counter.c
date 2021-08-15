@@ -127,9 +127,9 @@ static int bpf_program_profiler_load_one(struct evsel *evsel, u32 prog_id)
 
 	skel->rodata->num_cpu = evsel__nr_cpus(evsel);
 
-	bpf_map__resize(skel->maps.events, evsel__nr_cpus(evsel));
-	bpf_map__resize(skel->maps.fentry_readings, 1);
-	bpf_map__resize(skel->maps.accum_readings, 1);
+	bpf_map__set_max_entries(skel->maps.events, evsel__nr_cpus(evsel));
+	bpf_map__set_max_entries(skel->maps.fentry_readings, 1);
+	bpf_map__set_max_entries(skel->maps.accum_readings, 1);
 
 	prog_name = bpf_target_prog_name(prog_fd);
 	if (!prog_name) {
@@ -399,7 +399,7 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 		return -1;
 	}
 
-	bpf_map__resize(skel->maps.events, libbpf_num_possible_cpus());
+	bpf_map__set_max_entries(skel->maps.events, libbpf_num_possible_cpus());
 	err = bperf_leader_bpf__load(skel);
 	if (err) {
 		pr_err("Failed to load leader skeleton\n");
