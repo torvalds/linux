@@ -219,19 +219,54 @@ ww_mutex_lock_acquired(struct ww_mutex *ww, struct ww_acquire_ctx *ww_ctx)
 }
 
 /*
- * Determine if context @a is 'after' context @b. IOW, @a is a younger
- * transaction than @b and depending on algorithm either needs to wait for
- * @b or die.
+ * Determine if @a is 'less' than @b. IOW, either @a is a lower priority task
+ * or, when of equal priority, a younger transaction than @b.
+ *
+ * Depending on the algorithm, @a will either need to wait for @b, or die.
  */
 static inline bool
-__ww_ctx_stamp_after(struct ww_acquire_ctx *a, struct ww_acquire_ctx *b)
+__ww_ctx_less(struct ww_acquire_ctx *a, struct ww_acquire_ctx *b)
 {
+/*
+ * Can only do the RT prio for WW_RT, because task->prio isn't stable due to PI,
+ * so the wait_list ordering will go wobbly. rt_mutex re-queues the waiter and
+ * isn't affected by this.
+ */
+#ifdef WW_RT
+	/* kernel prio; less is more */
+	int a_prio = a->task->prio;
+	int b_prio = b->task->prio;
 
+	if (rt_prio(a_prio) || rt_prio(b_prio)) {
+
+		if (a_prio > b_prio)
+			return true;
+
+		if (a_prio < b_prio)
+			return false;
+
+		/* equal static prio */
+
+		if (dl_prio(a_prio)) {
+			if (dl_time_before(b->task->dl.deadline,
+					   a->task->dl.deadline))
+				return true;
+
+			if (dl_time_before(a->task->dl.deadline,
+					   b->task->dl.deadline))
+				return false;
+		}
+
+		/* equal prio */
+	}
+#endif
+
+	/* FIFO order tie break -- bigger is younger */
 	return (signed long)(a->stamp - b->stamp) > 0;
 }
 
 /*
- * Wait-Die; wake a younger waiter context (when locks held) such that it can
+ * Wait-Die; wake a lesser waiter context (when locks held) such that it can
  * die.
  *
  * Among waiters with context, only the first one can have other locks acquired
@@ -245,8 +280,7 @@ __ww_mutex_die(struct MUTEX *lock, struct MUTEX_WAITER *waiter,
 	if (!ww_ctx->is_wait_die)
 		return false;
 
-	if (waiter->ww_ctx->acquired > 0 &&
-			__ww_ctx_stamp_after(waiter->ww_ctx, ww_ctx)) {
+	if (waiter->ww_ctx->acquired > 0 && __ww_ctx_less(waiter->ww_ctx, ww_ctx)) {
 #ifndef WW_RT
 		debug_mutex_wake_waiter(lock, waiter);
 #endif
@@ -257,10 +291,10 @@ __ww_mutex_die(struct MUTEX *lock, struct MUTEX_WAITER *waiter,
 }
 
 /*
- * Wound-Wait; wound a younger @hold_ctx if it holds the lock.
+ * Wound-Wait; wound a lesser @hold_ctx if it holds the lock.
  *
- * Wound the lock holder if there are waiters with older transactions than
- * the lock holders. Even if multiple waiters may wound the lock holder,
+ * Wound the lock holder if there are waiters with more important transactions
+ * than the lock holders. Even if multiple waiters may wound the lock holder,
  * it's sufficient that only one does.
  */
 static bool __ww_mutex_wound(struct MUTEX *lock,
@@ -287,7 +321,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 	if (!owner)
 		return false;
 
-	if (ww_ctx->acquired > 0 && __ww_ctx_stamp_after(hold_ctx, ww_ctx)) {
+	if (ww_ctx->acquired > 0 && __ww_ctx_less(hold_ctx, ww_ctx)) {
 		hold_ctx->wounded = 1;
 
 		/*
@@ -306,8 +340,8 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 }
 
 /*
- * We just acquired @lock under @ww_ctx, if there are later contexts waiting
- * behind us on the wait-list, check if they need to die, or wound us.
+ * We just acquired @lock under @ww_ctx, if there are more important contexts
+ * waiting behind us on the wait-list, check if they need to die, or wound us.
  *
  * See __ww_mutex_add_waiter() for the list-order construction; basically the
  * list is ordered by stamp, smallest (oldest) first.
@@ -421,7 +455,7 @@ __ww_mutex_check_kill(struct MUTEX *lock, struct MUTEX_WAITER *waiter,
 		return 0;
 	}
 
-	if (hold_ctx && __ww_ctx_stamp_after(ctx, hold_ctx))
+	if (hold_ctx && __ww_ctx_less(ctx, hold_ctx))
 		return __ww_mutex_kill(lock, ctx);
 
 	/*
@@ -479,7 +513,7 @@ __ww_mutex_add_waiter(struct MUTEX_WAITER *waiter,
 		if (!cur->ww_ctx)
 			continue;
 
-		if (__ww_ctx_stamp_after(ww_ctx, cur->ww_ctx)) {
+		if (__ww_ctx_less(ww_ctx, cur->ww_ctx)) {
 			/*
 			 * Wait-Die: if we find an older context waiting, there
 			 * is no point in queueing behind it, as we'd have to
