@@ -1198,12 +1198,12 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		   u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err;
 
 	mutex_lock(&priv->state_lock);
-	mlx5e_rx_res_rss_get_rxfh(priv->rx_res, indir, key, hfunc);
+	err = mlx5e_rx_res_rss_get_rxfh(priv->rx_res, indir, key, hfunc);
 	mutex_unlock(&priv->state_lock);
-
-	return 0;
+	return err;
 }
 
 int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
