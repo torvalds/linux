@@ -154,8 +154,8 @@ allOf:
           minItems: 1
           items:
             - const: mux
-            - const: int_fil_n
-            - const: int_arp_ns_n
+            - const: fil
+            - const: arp_ns
         rx-internal-delay-ps: false
     else:
       properties:
