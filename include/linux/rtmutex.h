@@ -13,6 +13,7 @@
 #ifndef __LINUX_RT_MUTEX_H
 #define __LINUX_RT_MUTEX_H
 
+#include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock_types.h>
@@ -30,6 +31,17 @@ struct rt_mutex_base {
 	.wait_lock = __RAW_SPIN_LOCK_UNLOCKED(rtbasename.wait_lock),	\
 	.waiters = RB_ROOT_CACHED,					\
 	.owner = NULL							\
+}
+
+/**
+ * rt_mutex_base_is_locked - is the rtmutex locked
+ * @lock: the mutex to be queried
+ *
+ * Returns true if the mutex is locked, false if unlocked.
+ */
+static inline bool rt_mutex_base_is_locked(struct rt_mutex_base *lock)
+{
+	return READ_ONCE(lock->owner) != NULL;
 }
 
 extern void rt_mutex_base_init(struct rt_mutex_base *rtb);
