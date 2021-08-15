@@ -796,23 +796,6 @@ static int felix_vlan_del(struct dsa_switch *ds, int port,
 	return ocelot_vlan_del(ocelot, port, vlan->vid);
 }
 
-static int felix_port_enable(struct dsa_switch *ds, int port,
-			     struct phy_device *phy)
-{
-	struct ocelot *ocelot = ds->priv;
-
-	ocelot_port_enable(ocelot, port, phy);
-
-	return 0;
-}
-
-static void felix_port_disable(struct dsa_switch *ds, int port)
-{
-	struct ocelot *ocelot = ds->priv;
-
-	return ocelot_port_disable(ocelot, port);
-}
-
 static void felix_phylink_validate(struct dsa_switch *ds, int port,
 				   unsigned long *supported,
 				   struct phylink_link_state *state)
@@ -1615,8 +1598,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.phylink_mac_config		= felix_phylink_mac_config,
 	.phylink_mac_link_down		= felix_phylink_mac_link_down,
 	.phylink_mac_link_up		= felix_phylink_mac_link_up,
-	.port_enable			= felix_port_enable,
-	.port_disable			= felix_port_disable,
 	.port_fdb_dump			= felix_fdb_dump,
 	.port_fdb_add			= felix_fdb_add,
 	.port_fdb_del			= felix_fdb_del,

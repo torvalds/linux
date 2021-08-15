@@ -514,19 +514,6 @@ void ocelot_adjust_link(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_adjust_link);
 
-void ocelot_port_enable(struct ocelot *ocelot, int port,
-			struct phy_device *phy)
-{
-	/* Enable receiving frames on the port, and activate auto-learning of
-	 * MAC addresses.
-	 */
-	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_LEARNAUTO |
-			 ANA_PORT_PORT_CFG_RECV_ENA |
-			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
-			 ANA_PORT_PORT_CFG, port);
-}
-EXPORT_SYMBOL(ocelot_port_enable);
-
 void ocelot_port_disable(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -1955,6 +1942,15 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 
 	/* Disable source address learning for standalone mode */
 	ocelot_port_set_learning(ocelot, port, false);
+
+	/* Set the port's initial logical port ID value, enable receiving
+	 * frames on it, and configure the MAC address learning type to
+	 * automatic.
+	 */
+	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_LEARNAUTO |
+			 ANA_PORT_PORT_CFG_RECV_ENA |
+			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
+			 ANA_PORT_PORT_CFG, port);
 
 	/* Enable vcap lookups */
 	ocelot_vcap_enable(ocelot, port);

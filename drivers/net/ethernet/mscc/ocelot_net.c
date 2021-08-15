@@ -449,8 +449,6 @@ static int ocelot_port_open(struct net_device *dev)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
-	struct ocelot *ocelot = ocelot_port->ocelot;
-	int port = priv->chip_port;
 	int err;
 
 	if (priv->serdes) {
@@ -473,8 +471,6 @@ static int ocelot_port_open(struct net_device *dev)
 
 	phy_attached_info(priv->phy);
 	phy_start(priv->phy);
-
-	ocelot_port_enable(ocelot, port, priv->phy);
 
 	return 0;
 }
