@@ -1934,13 +1934,6 @@ static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 			return -EINVAL;
 
 		/*
-		 * requeue_pi requires a pi_state, try to allocate it now
-		 * without any locks in case it fails.
-		 */
-		if (refill_pi_state_cache())
-			return -ENOMEM;
-
-		/*
 		 * futex_requeue() allows the caller to define the number
 		 * of waiters to wake up via the @nr_wake argument. With
 		 * REQUEUE_PI, waking up more than one waiter is creating
@@ -1963,6 +1956,13 @@ static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 		 */
 		if (nr_wake != 1)
 			return -EINVAL;
+
+		/*
+		 * requeue_pi requires a pi_state, try to allocate it now
+		 * without any locks in case it fails.
+		 */
+		if (refill_pi_state_cache())
+			return -ENOMEM;
 	}
 
 retry:
