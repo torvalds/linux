@@ -19,6 +19,21 @@
 
 extern int max_lock_depth; /* for sysctl */
 
+struct rt_mutex_base {
+	raw_spinlock_t		wait_lock;
+	struct rb_root_cached   waiters;
+	struct task_struct	*owner;
+};
+
+#define __RT_MUTEX_BASE_INITIALIZER(rtbasename)				\
+{									\
+	.wait_lock = __RAW_SPIN_LOCK_UNLOCKED(rtbasename.wait_lock),	\
+	.waiters = RB_ROOT_CACHED,					\
+	.owner = NULL							\
+}
+
+extern void rt_mutex_base_init(struct rt_mutex_base *rtb);
+
 /**
  * The rt_mutex structure
  *
@@ -28,9 +43,7 @@ extern int max_lock_depth; /* for sysctl */
  * @owner:	the mutex owner
  */
 struct rt_mutex {
-	raw_spinlock_t		wait_lock;
-	struct rb_root_cached   waiters;
-	struct task_struct	*owner;
+	struct rt_mutex_base	rtmutex;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
@@ -63,9 +76,7 @@ do { \
 
 #define __RT_MUTEX_INITIALIZER(mutexname)				\
 {									\
-	.wait_lock = __RAW_SPIN_LOCK_UNLOCKED(mutexname.wait_lock),	\
-	.waiters = RB_ROOT_CACHED,					\
-	.owner = NULL,							\
+	.rtmutex = __RT_MUTEX_BASE_INITIALIZER(mutexname.rtmutex),	\
 	__DEP_MAP_RT_MUTEX_INITIALIZER(mutexname)			\
 }
 

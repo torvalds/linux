@@ -179,7 +179,7 @@ struct futex_pi_state {
 	/*
 	 * The PI object:
 	 */
-	struct rt_mutex pi_mutex;
+	struct rt_mutex_base pi_mutex;
 
 	struct task_struct *owner;
 	refcount_t refcount;
@@ -3254,7 +3254,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 			ret = ret < 0 ? ret : 0;
 		}
 	} else {
-		struct rt_mutex *pi_mutex;
+		struct rt_mutex_base *pi_mutex;
 
 		/*
 		 * We have been woken up by futex_unlock_pi(), a timeout, or a

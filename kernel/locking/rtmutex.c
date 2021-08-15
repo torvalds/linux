@@ -48,7 +48,7 @@
  */
 
 static __always_inline void
-rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner)
+rt_mutex_set_owner(struct rt_mutex_base *lock, struct task_struct *owner)
 {
 	unsigned long val = (unsigned long)owner;
 
@@ -58,13 +58,13 @@ rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner)
 	WRITE_ONCE(lock->owner, (struct task_struct *)val);
 }
 
-static __always_inline void clear_rt_mutex_waiters(struct rt_mutex *lock)
+static __always_inline void clear_rt_mutex_waiters(struct rt_mutex_base *lock)
 {
 	lock->owner = (struct task_struct *)
 			((unsigned long)lock->owner & ~RT_MUTEX_HAS_WAITERS);
 }
 
-static __always_inline void fixup_rt_mutex_waiters(struct rt_mutex *lock)
+static __always_inline void fixup_rt_mutex_waiters(struct rt_mutex_base *lock)
 {
 	unsigned long owner, *p = (unsigned long *) &lock->owner;
 
@@ -139,14 +139,14 @@ static __always_inline void fixup_rt_mutex_waiters(struct rt_mutex *lock)
  * set up.
  */
 #ifndef CONFIG_DEBUG_RT_MUTEXES
-static __always_inline bool rt_mutex_cmpxchg_acquire(struct rt_mutex *lock,
+static __always_inline bool rt_mutex_cmpxchg_acquire(struct rt_mutex_base *lock,
 						     struct task_struct *old,
 						     struct task_struct *new)
 {
 	return try_cmpxchg_acquire(&lock->owner, &old, new);
 }
 
-static __always_inline bool rt_mutex_cmpxchg_release(struct rt_mutex *lock,
+static __always_inline bool rt_mutex_cmpxchg_release(struct rt_mutex_base *lock,
 						     struct task_struct *old,
 						     struct task_struct *new)
 {
@@ -158,7 +158,7 @@ static __always_inline bool rt_mutex_cmpxchg_release(struct rt_mutex *lock,
  * all future threads that attempt to [Rmw] the lock to the slowpath. As such
  * relaxed semantics suffice.
  */
-static __always_inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
+static __always_inline void mark_rt_mutex_waiters(struct rt_mutex_base *lock)
 {
 	unsigned long owner, *p = (unsigned long *) &lock->owner;
 
@@ -174,7 +174,7 @@ static __always_inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
  * 2) Drop lock->wait_lock
  * 3) Try to unlock the lock with cmpxchg
  */
-static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex *lock,
+static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex_base *lock,
 						 unsigned long flags)
 	__releases(lock->wait_lock)
 {
@@ -210,7 +210,7 @@ static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex *lock,
 }
 
 #else
-static __always_inline bool rt_mutex_cmpxchg_acquire(struct rt_mutex *lock,
+static __always_inline bool rt_mutex_cmpxchg_acquire(struct rt_mutex_base *lock,
 						     struct task_struct *old,
 						     struct task_struct *new)
 {
@@ -218,14 +218,14 @@ static __always_inline bool rt_mutex_cmpxchg_acquire(struct rt_mutex *lock,
 
 }
 
-static __always_inline bool rt_mutex_cmpxchg_release(struct rt_mutex *lock,
+static __always_inline bool rt_mutex_cmpxchg_release(struct rt_mutex_base *lock,
 						     struct task_struct *old,
 						     struct task_struct *new)
 {
 	return false;
 }
 
-static __always_inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
+static __always_inline void mark_rt_mutex_waiters(struct rt_mutex_base *lock)
 {
 	lock->owner = (struct task_struct *)
 			((unsigned long)lock->owner | RT_MUTEX_HAS_WAITERS);
@@ -234,7 +234,7 @@ static __always_inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 /*
  * Simple slow path only version: lock->owner is protected by lock->wait_lock.
  */
-static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex *lock,
+static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex_base *lock,
 						 unsigned long flags)
 	__releases(lock->wait_lock)
 {
@@ -295,13 +295,13 @@ static __always_inline bool __waiter_less(struct rb_node *a, const struct rb_nod
 }
 
 static __always_inline void
-rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
+rt_mutex_enqueue(struct rt_mutex_base *lock, struct rt_mutex_waiter *waiter)
 {
 	rb_add_cached(&waiter->tree_entry, &lock->waiters, __waiter_less);
 }
 
 static __always_inline void
-rt_mutex_dequeue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
+rt_mutex_dequeue(struct rt_mutex_base *lock, struct rt_mutex_waiter *waiter)
 {
 	if (RB_EMPTY_NODE(&waiter->tree_entry))
 		return;
@@ -369,7 +369,7 @@ rt_mutex_cond_detect_deadlock(struct rt_mutex_waiter *waiter,
 	return chwalk == RT_MUTEX_FULL_CHAINWALK;
 }
 
-static __always_inline struct rt_mutex *task_blocked_on_lock(struct task_struct *p)
+static __always_inline struct rt_mutex_base *task_blocked_on_lock(struct task_struct *p)
 {
 	return p->pi_blocked_on ? p->pi_blocked_on->lock : NULL;
 }
@@ -439,15 +439,15 @@ static __always_inline struct rt_mutex *task_blocked_on_lock(struct task_struct 
  */
 static int __sched rt_mutex_adjust_prio_chain(struct task_struct *task,
 					      enum rtmutex_chainwalk chwalk,
-					      struct rt_mutex *orig_lock,
-					      struct rt_mutex *next_lock,
+					      struct rt_mutex_base *orig_lock,
+					      struct rt_mutex_base *next_lock,
 					      struct rt_mutex_waiter *orig_waiter,
 					      struct task_struct *top_task)
 {
 	struct rt_mutex_waiter *waiter, *top_waiter = orig_waiter;
 	struct rt_mutex_waiter *prerequeue_top_waiter;
 	int ret = 0, depth = 0;
-	struct rt_mutex *lock;
+	struct rt_mutex_base *lock;
 	bool detect_deadlock;
 	bool requeue = true;
 
@@ -795,7 +795,7 @@ static int __sched rt_mutex_adjust_prio_chain(struct task_struct *task,
  *	    callsite called task_blocked_on_lock(), otherwise NULL
  */
 static int __sched
-try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
+try_to_take_rt_mutex(struct rt_mutex_base *lock, struct task_struct *task,
 		     struct rt_mutex_waiter *waiter)
 {
 	lockdep_assert_held(&lock->wait_lock);
@@ -913,14 +913,14 @@ takeit:
  *
  * This must be called with lock->wait_lock held and interrupts disabled
  */
-static int __sched task_blocks_on_rt_mutex(struct rt_mutex *lock,
+static int __sched task_blocks_on_rt_mutex(struct rt_mutex_base *lock,
 					   struct rt_mutex_waiter *waiter,
 					   struct task_struct *task,
 					   enum rtmutex_chainwalk chwalk)
 {
 	struct task_struct *owner = rt_mutex_owner(lock);
 	struct rt_mutex_waiter *top_waiter = waiter;
-	struct rt_mutex *next_lock;
+	struct rt_mutex_base *next_lock;
 	int chain_walk = 0, res;
 
 	lockdep_assert_held(&lock->wait_lock);
@@ -1003,7 +1003,7 @@ static int __sched task_blocks_on_rt_mutex(struct rt_mutex *lock,
  * Called with lock->wait_lock held and interrupts disabled.
  */
 static void __sched mark_wakeup_next_waiter(struct wake_q_head *wake_q,
-					    struct rt_mutex *lock)
+					    struct rt_mutex_base *lock)
 {
 	struct rt_mutex_waiter *waiter;
 
@@ -1052,12 +1052,12 @@ static void __sched mark_wakeup_next_waiter(struct wake_q_head *wake_q,
  * Must be called with lock->wait_lock held and interrupts disabled. I must
  * have just failed to try_to_take_rt_mutex().
  */
-static void __sched remove_waiter(struct rt_mutex *lock,
+static void __sched remove_waiter(struct rt_mutex_base *lock,
 				  struct rt_mutex_waiter *waiter)
 {
 	bool is_top_waiter = (waiter == rt_mutex_top_waiter(lock));
 	struct task_struct *owner = rt_mutex_owner(lock);
-	struct rt_mutex *next_lock;
+	struct rt_mutex_base *next_lock;
 
 	lockdep_assert_held(&lock->wait_lock);
 
@@ -1115,7 +1115,8 @@ static void __sched remove_waiter(struct rt_mutex *lock,
  *
  * Must be called with lock->wait_lock held and interrupts disabled
  */
-static int __sched __rt_mutex_slowlock(struct rt_mutex *lock, unsigned int state,
+static int __sched __rt_mutex_slowlock(struct rt_mutex_base *lock,
+				       unsigned int state,
 				       struct hrtimer_sleeper *timeout,
 				       struct rt_mutex_waiter *waiter)
 {
@@ -1170,7 +1171,8 @@ static void __sched rt_mutex_handle_deadlock(int res, int detect_deadlock,
 /*
  * Slow path lock function:
  */
-static int __sched rt_mutex_slowlock(struct rt_mutex *lock, unsigned int state,
+static int __sched rt_mutex_slowlock(struct rt_mutex_base *lock,
+				     unsigned int state,
 				     struct hrtimer_sleeper *timeout,
 				     enum rtmutex_chainwalk chwalk)
 {
@@ -1231,7 +1233,7 @@ static int __sched rt_mutex_slowlock(struct rt_mutex *lock, unsigned int state,
 	return ret;
 }
 
-static __always_inline int __rt_mutex_lock(struct rt_mutex *lock,
+static __always_inline int __rt_mutex_lock(struct rt_mutex_base *lock,
 					   unsigned int state)
 {
 	if (likely(rt_mutex_cmpxchg_acquire(lock, NULL, current)))
@@ -1240,7 +1242,7 @@ static __always_inline int __rt_mutex_lock(struct rt_mutex *lock,
 	return rt_mutex_slowlock(lock, state, NULL, RT_MUTEX_MIN_CHAINWALK);
 }
 
-static int __sched __rt_mutex_slowtrylock(struct rt_mutex *lock)
+static int __sched __rt_mutex_slowtrylock(struct rt_mutex_base *lock)
 {
 	int ret = try_to_take_rt_mutex(lock, current, NULL);
 
@@ -1256,7 +1258,7 @@ static int __sched __rt_mutex_slowtrylock(struct rt_mutex *lock)
 /*
  * Slow path try-lock function:
  */
-static int __sched rt_mutex_slowtrylock(struct rt_mutex *lock)
+static int __sched rt_mutex_slowtrylock(struct rt_mutex_base *lock)
 {
 	unsigned long flags;
 	int ret;
@@ -1282,7 +1284,7 @@ static int __sched rt_mutex_slowtrylock(struct rt_mutex *lock)
 	return ret;
 }
 
-static __always_inline int __rt_mutex_trylock(struct rt_mutex *lock)
+static __always_inline int __rt_mutex_trylock(struct rt_mutex_base *lock)
 {
 	if (likely(rt_mutex_cmpxchg_acquire(lock, NULL, current)))
 		return 1;
@@ -1293,7 +1295,7 @@ static __always_inline int __rt_mutex_trylock(struct rt_mutex *lock)
 /*
  * Slow path to release a rt-mutex.
  */
-static void __sched rt_mutex_slowunlock(struct rt_mutex *lock)
+static void __sched rt_mutex_slowunlock(struct rt_mutex_base *lock)
 {
 	DEFINE_WAKE_Q(wake_q);
 	unsigned long flags;
@@ -1354,7 +1356,7 @@ static void __sched rt_mutex_slowunlock(struct rt_mutex *lock)
 	rt_mutex_postunlock(&wake_q);
 }
 
-static __always_inline void __rt_mutex_unlock(struct rt_mutex *lock)
+static __always_inline void __rt_mutex_unlock(struct rt_mutex_base *lock)
 {
 	if (likely(rt_mutex_cmpxchg_release(lock, current, NULL)))
 		return;
