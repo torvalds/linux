@@ -710,6 +710,7 @@ enum {
 	REQ_F_DONT_REISSUE_BIT,
 	REQ_F_CREDS_BIT,
 	REQ_F_REFCOUNT_BIT,
+	REQ_F_ARM_LTIMEOUT_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_NOWAIT_READ_BIT,
 	REQ_F_NOWAIT_WRITE_BIT,
@@ -765,6 +766,8 @@ enum {
 	REQ_F_CREDS		= BIT(REQ_F_CREDS_BIT),
 	/* skip refcounting if not set */
 	REQ_F_REFCOUNT		= BIT(REQ_F_REFCOUNT_BIT),
+	/* there is a linked timeout that has to be armed */
+	REQ_F_ARM_LTIMEOUT	= BIT(REQ_F_ARM_LTIMEOUT_BIT),
 };
 
 struct async_poll {
@@ -1302,23 +1305,18 @@ static void io_req_track_inflight(struct io_kiocb *req)
 
 static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 {
-	struct io_kiocb *nxt = req->link;
-
-	if (req->flags & REQ_F_LINK_TIMEOUT)
-		return NULL;
+	req->flags &= ~REQ_F_ARM_LTIMEOUT;
+	req->flags |= REQ_F_LINK_TIMEOUT;
 
 	/* linked timeouts should have two refs once prep'ed */
 	io_req_set_refcount(req);
-	__io_req_set_refcount(nxt, 2);
-
-	nxt->timeout.head = req;
-	req->flags |= REQ_F_LINK_TIMEOUT;
-	return nxt;
+	__io_req_set_refcount(req->link, 2);
+	return req->link;
 }
 
 static inline struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 {
-	if (likely(!req->link || req->link->opcode != IORING_OP_LINK_TIMEOUT))
+	if (likely(!(req->flags & REQ_F_ARM_LTIMEOUT)))
 		return NULL;
 	return __io_prep_linked_timeout(req);
 }
@@ -5700,6 +5698,8 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			return -EINVAL;
 		if (link->last->opcode == IORING_OP_LINK_TIMEOUT)
 			return -EINVAL;
+		req->timeout.head = link->last;
+		link->last->flags |= REQ_F_ARM_LTIMEOUT;
 	}
 	return 0;
 }
