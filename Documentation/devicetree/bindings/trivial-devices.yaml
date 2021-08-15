@@ -61,6 +61,8 @@ properties:
           - capella,cm32181
             # CM3232: Ambient Light Sensor
           - capella,cm3232
+            # CM3323: Ambient Light Sensor
+          - capella,cm3323
             # High-Precision Digital Thermometer
           - dallas,ds1631
             # Total-Elapsed-Time Recorder with Alarm
@@ -269,6 +271,8 @@ properties:
           - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
           - sensirion,sgp30
+            # Sensirion gas sensor with I2C interface
+          - sensirion,sgp40
             # Sensortek 3 axis accelerometer
           - sensortek,stk8312
             # Sensortek 3 axis accelerometer

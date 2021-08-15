@@ -15,6 +15,5 @@ enum adxl345_device_type {
 
 int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		       enum adxl345_device_type type, const char *name);
-int adxl345_core_remove(struct device *dev);
 
 #endif /* _ADXL345_H_ */

@@ -294,6 +294,11 @@ static const struct iio_info max5821_info = {
 	.write_raw = max5821_write_raw,
 };
 
+static void max5821_regulator_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int max5821_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -306,7 +311,6 @@ static int max5821_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	mutex_init(&data->lock);
 
@@ -321,21 +325,29 @@ static int max5821_probe(struct i2c_client *client,
 		ret = PTR_ERR(data->vref_reg);
 		dev_err(&client->dev,
 			"Failed to get vref regulator: %d\n", ret);
-		goto error_free_reg;
+		return ret;
 	}
 
 	ret = regulator_enable(data->vref_reg);
 	if (ret) {
 		dev_err(&client->dev,
 			"Failed to enable vref regulator: %d\n", ret);
-		goto error_free_reg;
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(&client->dev, max5821_regulator_disable,
+				       data->vref_reg);
+	if (ret) {
+		dev_err(&client->dev,
+			"Failed to add action to managed regulator: %d\n", ret);
+		return ret;
 	}
 
 	ret = regulator_get_voltage(data->vref_reg);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"Failed to get voltage on regulator: %d\n", ret);
-		goto error_disable_reg;
+		return ret;
 	}
 
 	data->vref_mv = ret / 1000;
@@ -346,25 +358,7 @@ static int max5821_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &max5821_info;
 
-	return iio_device_register(indio_dev);
-
-error_disable_reg:
-	regulator_disable(data->vref_reg);
-
-error_free_reg:
-
-	return ret;
-}
-
-static int max5821_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct max5821_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regulator_disable(data->vref_reg);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id max5821_id[] = {
@@ -386,7 +380,6 @@ static struct i2c_driver max5821_driver = {
 		.pm     = &max5821_pm_ops,
 	},
 	.probe		= max5821_probe,
-	.remove		= max5821_remove,
 	.id_table	= max5821_id,
 };
 module_i2c_driver(max5821_driver);

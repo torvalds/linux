@@ -9,11 +9,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/property.h>
 
 #include <linux/iio/common/st_sensors_i2c.h>
 #include "st_accel.h"

@@ -8,6 +8,7 @@ title: Bosch BMA255 and Similar Accelerometers
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
+  - Stephan Gerhold <stephan@gerhold.net>
 
 description:
   3 axis accelerometers with varying range and I2C or SPI
@@ -16,15 +17,24 @@ description:
 properties:
   compatible:
     enum:
-      - bosch,bmc150_accel
-      - bosch,bmi055_accel
+      # bmc150-accel driver in Linux
+      - bosch,bma222
+      - bosch,bma222e
+      - bosch,bma250e
       - bosch,bma253
       - bosch,bma254
       - bosch,bma255
-      - bosch,bma250e
-      - bosch,bma222
-      - bosch,bma222e
       - bosch,bma280
+      - bosch,bmc150_accel
+      - bosch,bmc156_accel
+      - bosch,bmi055_accel
+
+      # bma180 driver in Linux
+      - bosch,bma023
+      - bosch,bma150
+      - bosch,bma180
+      - bosch,bma250
+      - bosch,smb380
 
   reg:
     maxItems: 1
@@ -36,9 +46,21 @@ properties:
     minItems: 1
     maxItems: 2
     description: |
-      The first interrupt listed must be the one connected to the INT1 pin,
-      the second (optional) interrupt listed must be the one connected to the
-      INT2 pin (if available).
+      Without interrupt-names, the first interrupt listed must be the one
+      connected to the INT1 pin, the second (optional) interrupt listed must be
+      the one connected to the INT2 pin (if available). The type should be
+      IRQ_TYPE_EDGE_RISING.
+
+      BMC156 does not have an INT1 pin, therefore the first interrupt pin is
+      always treated as INT2.
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - INT1
+        - INT2
 
   mount-matrix:
     description: an optional 3x3 mounting rotation matrix.
@@ -63,7 +85,22 @@ examples:
             reg = <0x08>;
             vddio-supply = <&vddio>;
             vdd-supply = <&vdd>;
-            interrupts = <57 IRQ_TYPE_EDGE_FALLING>;
+            interrupts = <57 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT1";
+        };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accelerometer@10 {
+            compatible = "bosch,bmc156_accel";
+            reg = <0x10>;
+            vddio-supply = <&vddio>;
+            vdd-supply = <&vdd>;
+            interrupts = <116 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT2";
         };
     };
   - |
