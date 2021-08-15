@@ -1306,8 +1306,16 @@ static void io_req_track_inflight(struct io_kiocb *req)
 	}
 }
 
+static inline void io_unprep_linked_timeout(struct io_kiocb *req)
+{
+	req->flags &= ~REQ_F_LINK_TIMEOUT;
+}
+
 static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 {
+	if (WARN_ON_ONCE(!req->link))
+		return NULL;
+
 	req->flags &= ~REQ_F_ARM_LTIMEOUT;
 	req->flags |= REQ_F_LINK_TIMEOUT;
 
@@ -1932,6 +1940,7 @@ static bool io_disarm_next(struct io_kiocb *req)
 	if (req->flags & REQ_F_ARM_LTIMEOUT) {
 		struct io_kiocb *link = req->link;
 
+		req->flags &= ~REQ_F_ARM_LTIMEOUT;
 		if (link && link->opcode == IORING_OP_LINK_TIMEOUT) {
 			io_remove_next_linked(req);
 			io_cqring_fill_event(link->ctx, link->user_data,
@@ -6485,7 +6494,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 static void __io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
+	struct io_kiocb *linked_timeout;
 	int ret;
 
 issue_sqe:
@@ -6503,10 +6512,19 @@ issue_sqe:
 			state->compl_reqs[state->compl_nr++] = req;
 			if (state->compl_nr == ARRAY_SIZE(state->compl_reqs))
 				io_submit_flush_completions(ctx);
+			return;
 		}
+
+		linked_timeout = io_prep_linked_timeout(req);
+		if (linked_timeout)
+			io_queue_linked_timeout(linked_timeout);
 	} else if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
+		linked_timeout = io_prep_linked_timeout(req);
+
 		switch (io_arm_poll_handler(req)) {
 		case IO_APOLL_READY:
+			if (linked_timeout)
+				io_unprep_linked_timeout(req);
 			goto issue_sqe;
 		case IO_APOLL_ABORTED:
 			/*
@@ -6516,11 +6534,12 @@ issue_sqe:
 			io_queue_async_work(req);
 			break;
 		}
+
+		if (linked_timeout)
+			io_queue_linked_timeout(linked_timeout);
 	} else {
 		io_req_complete_failed(req, ret);
 	}
-	if (linked_timeout)
-		io_queue_linked_timeout(linked_timeout);
 }
 
 static inline void io_queue_sqe(struct io_kiocb *req)
