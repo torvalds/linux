@@ -35,7 +35,11 @@
 
 /* REF: reference/buffer selection */
 #define AD7949_CFG_MASK_REF		GENMASK(5, 3)
-#define AD7949_CFG_VAL_REF_EXT_BUF		7
+#define AD7949_CFG_VAL_REF_EXT_TEMP_BUF		3
+#define AD7949_CFG_VAL_REF_EXT_TEMP		2
+#define AD7949_CFG_VAL_REF_INT_4096		1
+#define AD7949_CFG_VAL_REF_INT_2500		0
+#define AD7949_CFG_VAL_REF_EXTERNAL		BIT(1)
 
 /* SEQ: channel sequencer. Allows for scanning channels */
 #define AD7949_CFG_MASK_SEQ		GENMASK(2, 1)
@@ -66,6 +70,7 @@ static const struct ad7949_adc_spec ad7949_adc_spec[] = {
  * @vref: regulator generating Vref
  * @indio_dev: reference to iio structure
  * @spi: reference to spi structure
+ * @refsel: reference selection
  * @resolution: resolution of the chip
  * @cfg: copy of the configuration register
  * @current_channel: current channel in use
@@ -77,6 +82,7 @@ struct ad7949_adc_chip {
 	struct regulator *vref;
 	struct iio_dev *indio_dev;
 	struct spi_device *spi;
+	u32 refsel;
 	u8 resolution;
 	u16 cfg;
 	unsigned int current_channel;
@@ -221,12 +227,26 @@ static int ad7949_spi_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		ret = regulator_get_voltage(ad7949_adc->vref);
-		if (ret < 0)
-			return ret;
+		switch (ad7949_adc->refsel) {
+		case AD7949_CFG_VAL_REF_INT_2500:
+			*val = 2500;
+			break;
+		case AD7949_CFG_VAL_REF_INT_4096:
+			*val = 4096;
+			break;
+		case AD7949_CFG_VAL_REF_EXT_TEMP:
+		case AD7949_CFG_VAL_REF_EXT_TEMP_BUF:
+			ret = regulator_get_voltage(ad7949_adc->vref);
+			if (ret < 0)
+				return ret;
 
-		*val = ret / 5000;
-		return IIO_VAL_INT;
+			/* convert value back to mV */
+			*val = ret / 1000;
+			break;
+		}
+
+		*val2 = (1 << ad7949_adc->resolution) - 1;
+		return IIO_VAL_FRACTIONAL;
 	}
 
 	return -EINVAL;
@@ -265,7 +285,7 @@ static int ad7949_spi_init(struct ad7949_adc_chip *ad7949_adc)
 		FIELD_PREP(AD7949_CFG_MASK_INCC, AD7949_CFG_VAL_INCC_UNIPOLAR_GND) |
 		FIELD_PREP(AD7949_CFG_MASK_INX, ad7949_adc->current_channel) |
 		FIELD_PREP(AD7949_CFG_MASK_BW_FULL, 1) |
-		FIELD_PREP(AD7949_CFG_MASK_REF, AD7949_CFG_VAL_REF_EXT_BUF) |
+		FIELD_PREP(AD7949_CFG_MASK_REF, ad7949_adc->refsel) |
 		FIELD_PREP(AD7949_CFG_MASK_SEQ, 0x0) |
 		FIELD_PREP(AD7949_CFG_MASK_RBN, 1);
 
@@ -281,6 +301,11 @@ static int ad7949_spi_init(struct ad7949_adc_chip *ad7949_adc)
 	return ret;
 }
 
+static void ad7949_disable_reg(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int ad7949_spi_probe(struct spi_device *spi)
 {
 	u32 spi_ctrl_mask = spi->controller->bits_per_word_mask;
@@ -288,6 +313,7 @@ static int ad7949_spi_probe(struct spi_device *spi)
 	const struct ad7949_adc_spec *spec;
 	struct ad7949_adc_chip *ad7949_adc;
 	struct iio_dev *indio_dev;
+	u32 tmp;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ad7949_adc));
@@ -322,16 +348,52 @@ static int ad7949_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ad7949_adc->vref = devm_regulator_get(dev, "vref");
-	if (IS_ERR(ad7949_adc->vref)) {
-		dev_err(dev, "fail to request regulator\n");
-		return PTR_ERR(ad7949_adc->vref);
+	/* Setup internal voltage reference */
+	tmp = 4096000;
+	device_property_read_u32(dev, "adi,internal-ref-microvolt", &tmp);
+
+	switch (tmp) {
+	case 2500000:
+		ad7949_adc->refsel = AD7949_CFG_VAL_REF_INT_2500;
+		break;
+	case 4096000:
+		ad7949_adc->refsel = AD7949_CFG_VAL_REF_INT_4096;
+		break;
+	default:
+		dev_err(dev, "unsupported internal voltage reference\n");
+		return -EINVAL;
 	}
 
-	ret = regulator_enable(ad7949_adc->vref);
-	if (ret < 0) {
-		dev_err(dev, "fail to enable regulator\n");
-		return ret;
+	/* Setup external voltage reference, buffered? */
+	ad7949_adc->vref = devm_regulator_get_optional(dev, "vrefin");
+	if (IS_ERR(ad7949_adc->vref)) {
+		ret = PTR_ERR(ad7949_adc->vref);
+		if (ret != -ENODEV)
+			return ret;
+		/* unbuffered? */
+		ad7949_adc->vref = devm_regulator_get_optional(dev, "vref");
+		if (IS_ERR(ad7949_adc->vref)) {
+			ret = PTR_ERR(ad7949_adc->vref);
+			if (ret != -ENODEV)
+				return ret;
+		} else {
+			ad7949_adc->refsel = AD7949_CFG_VAL_REF_EXT_TEMP;
+		}
+	} else {
+		ad7949_adc->refsel = AD7949_CFG_VAL_REF_EXT_TEMP_BUF;
+	}
+
+	if (ad7949_adc->refsel & AD7949_CFG_VAL_REF_EXTERNAL) {
+		ret = regulator_enable(ad7949_adc->vref);
+		if (ret < 0) {
+			dev_err(dev, "fail to enable regulator\n");
+			return ret;
+		}
+
+		ret = devm_add_action_or_reset(dev, ad7949_disable_reg,
+					       ad7949_adc->vref);
+		if (ret)
+			return ret;
 	}
 
 	mutex_init(&ad7949_adc->lock);
@@ -352,7 +414,6 @@ static int ad7949_spi_probe(struct spi_device *spi)
 
 err:
 	mutex_destroy(&ad7949_adc->lock);
-	regulator_disable(ad7949_adc->vref);
 
 	return ret;
 }
@@ -364,7 +425,6 @@ static int ad7949_spi_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	mutex_destroy(&ad7949_adc->lock);
-	regulator_disable(ad7949_adc->vref);
 
 	return 0;
 }
