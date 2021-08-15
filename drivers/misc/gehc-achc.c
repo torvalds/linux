@@ -280,7 +280,7 @@ static int ezport_flash_compare(struct spi_device *spi, u32 address,
 	ret = memcmp(payload, buffer + 4 + 1, payload_size);
 	if (ret) {
 		ret = -EBADMSG;
-		dev_dbg(&spi->dev, "Verfication failure @ %06x", address);
+		dev_dbg(&spi->dev, "Verification failure @ %06x", address);
 		print_hex_dump_bytes("fw:  ", DUMP_PREFIX_OFFSET, payload, payload_size);
 		print_hex_dump_bytes("dev: ", DUMP_PREFIX_OFFSET, buffer + 4, payload_size);
 	}
