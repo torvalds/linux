@@ -26,19 +26,43 @@ properties:
   reg:
     maxItems: 1
 
+  vrefin-supply:
+    description:
+      Buffered ADC reference voltage supply.
+
   vref-supply:
     description:
-      ADC reference voltage supply
+      Unbuffered ADC reference voltage supply.
+
+  adi,internal-ref-microvolt:
+    description: |
+      Internal reference voltage selection in microvolts.
+
+      If no internal reference is specified, the channel will default to the
+      external reference defined by vrefin-supply (or vref-supply).
+      vrefin-supply will take precedence over vref-supply if both are defined.
+
+      If no supplies are defined, the reference selection will default to
+      4096mV internal reference.
+
+    enum: [2500000, 4096000]
+    default: 4096000
+
 
   spi-max-frequency: true
 
-  "#io-channel-cells":
+  '#io-channel-cells':
     const: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
 
 required:
   - compatible
   - reg
-  - vref-supply
 
 additionalProperties: false
 
@@ -49,9 +73,30 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
             compatible = "adi,ad7949";
             reg = <0>;
             vref-supply = <&vdd_supply>;
+        };
+
+        adc@1 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            compatible = "adi,ad7949";
+            reg = <1>;
+            vrefin-supply = <&vdd_supply>;
+        };
+
+        adc@2 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            compatible = "adi,ad7949";
+            reg = <2>;
+            adi,internal-ref-microvolt = <4096000>;
         };
     };
 ...
