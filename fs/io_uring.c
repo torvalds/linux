@@ -1312,8 +1312,7 @@ static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 
 	/* linked timeouts should have two refs once prep'ed */
 	io_req_set_refcount(req);
-	io_req_set_refcount(nxt);
-	req_ref_get(nxt);
+	__io_req_set_refcount(nxt, 2);
 
 	nxt->timeout.head = req;
 	nxt->flags |= REQ_F_LTIMEOUT_ACTIVE;
