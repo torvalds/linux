@@ -81,7 +81,42 @@ tc_act_parse_goto(struct mlx5e_tc_act_parse_state *parse_state,
 	return 0;
 }
 
+static int
+tc_act_post_parse_goto(struct mlx5e_tc_act_parse_state *parse_state,
+		       struct mlx5e_priv *priv,
+		       struct mlx5_flow_attr *attr)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
+	struct netlink_ext_ack *extack = parse_state->extack;
+	struct mlx5e_tc_flow *flow = parse_state->flow;
+
+	if (!attr->dest_chain)
+		return 0;
+
+	if (parse_state->decap) {
+		/* It can be supported if we'll create a mapping for
+		 * the tunnel device only (without tunnel), and set
+		 * this tunnel id with this decap flow.
+		 *
+		 * On restore (miss), we'll just set this saved tunnel
+		 * device.
+		 */
+
+		NL_SET_ERR_MSG_MOD(extack, "Decap with goto isn't supported");
+		netdev_warn(priv->netdev, "Decap with goto isn't supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!mlx5e_is_eswitch_flow(flow) && parse_attr->mirred_ifindex[0]) {
+		NL_SET_ERR_MSG_MOD(extack, "Mirroring goto chain rules isn't supported");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 struct mlx5e_tc_act mlx5e_tc_act_goto = {
 	.can_offload = tc_act_can_offload_goto,
 	.parse_action = tc_act_parse_goto,
+	.post_parse = tc_act_post_parse_goto,
 };

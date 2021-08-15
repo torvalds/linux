@@ -3241,11 +3241,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (attr->dest_chain && parse_attr->mirred_ifindex[0]) {
-		NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
-		return -EOPNOTSUPP;
-	}
-
 	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
 	if (err)
 		return err;
@@ -3383,20 +3378,6 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
-
-	if (attr->dest_chain && parse_state->decap) {
-		/* It can be supported if we'll create a mapping for
-		 * the tunnel device only (without tunnel), and set
-		 * this tunnel id with this decap flow.
-		 *
-		 * On restore (miss), we'll just set this saved tunnel
-		 * device.
-		 */
-
-		NL_SET_ERR_MSG(extack, "Decap with goto isn't supported");
-		netdev_warn(priv->netdev, "Decap with goto isn't supported");
-		return -EOPNOTSUPP;
-	}
 
 	return 0;
 }
