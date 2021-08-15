@@ -96,7 +96,9 @@ struct rpmh_ctrlr {
  * Resource State Coordinator controller (RSC)
  *
  * @name:               Controller identifier.
+ * @base:               Base address of the RSC controller.
  * @tcs_base:           Start address of the TCS registers in this controller.
+ * @reg:                Register offsets for RSC controller.
  * @id:                 Instance id in the controller (Direct Resource Voter).
  * @num_tcs:            Number of TCSes in this DRV.
  * @irq:                IRQ at gic.
@@ -123,7 +125,9 @@ struct rpmh_ctrlr {
  */
 struct rsc_drv {
 	const char *name;
+	void __iomem *base;
 	void __iomem *tcs_base;
+	u32 *regs;
 	int id;
 	int num_tcs;
 	int irq;
