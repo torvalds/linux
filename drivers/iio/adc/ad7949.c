@@ -11,12 +11,38 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/bitfield.h>
 
-#define AD7949_MASK_CHANNEL_SEL		GENMASK(9, 7)
-#define AD7949_MASK_TOTAL		GENMASK(13, 0)
-#define AD7949_OFFSET_CHANNEL_SEL	7
-#define AD7949_CFG_READ_BACK		0x1
+#define AD7949_CFG_MASK_TOTAL		GENMASK(13, 0)
 #define AD7949_CFG_REG_SIZE_BITS	14
+
+/* CFG: Configuration Update */
+#define AD7949_CFG_MASK_OVERWRITE	BIT(13)
+
+/* INCC: Input Channel Configuration */
+#define AD7949_CFG_MASK_INCC		GENMASK(12, 10)
+#define AD7949_CFG_VAL_INCC_UNIPOLAR_GND	7
+#define AD7949_CFG_VAL_INCC_UNIPOLAR_COMM	6
+#define AD7949_CFG_VAL_INCC_UNIPOLAR_DIFF	4
+#define AD7949_CFG_VAL_INCC_TEMP		3
+#define AD7949_CFG_VAL_INCC_BIPOLAR		2
+#define AD7949_CFG_VAL_INCC_BIPOLAR_DIFF	0
+
+/* INX: Input channel Selection in a binary fashion */
+#define AD7949_CFG_MASK_INX		GENMASK(9, 7)
+
+/* BW: select bandwidth for low-pass filter. Full or Quarter */
+#define AD7949_CFG_MASK_BW_FULL		BIT(6)
+
+/* REF: reference/buffer selection */
+#define AD7949_CFG_MASK_REF		GENMASK(5, 3)
+#define AD7949_CFG_VAL_REF_EXT_BUF		7
+
+/* SEQ: channel sequencer. Allows for scanning channels */
+#define AD7949_CFG_MASK_SEQ		GENMASK(2, 1)
+
+/* RB: Read back the CFG register */
+#define AD7949_CFG_MASK_RBN		BIT(0)
 
 enum {
 	ID_AD7949 = 0,
@@ -109,8 +135,8 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 	 */
 	for (i = 0; i < 2; i++) {
 		ret = ad7949_spi_write_cfg(ad7949_adc,
-					   channel << AD7949_OFFSET_CHANNEL_SEL,
-					   AD7949_MASK_CHANNEL_SEL);
+					   FIELD_PREP(AD7949_CFG_MASK_INX, channel),
+					   AD7949_CFG_MASK_INX);
 		if (ret)
 			return ret;
 		if (channel == ad7949_adc->current_channel)
@@ -199,8 +225,8 @@ static int ad7949_spi_reg_access(struct iio_dev *indio_dev,
 	if (readval)
 		*readval = ad7949_adc->cfg;
 	else
-		ret = ad7949_spi_write_cfg(ad7949_adc,
-			writeval & AD7949_MASK_TOTAL, AD7949_MASK_TOTAL);
+		ret = ad7949_spi_write_cfg(ad7949_adc, writeval,
+					   AD7949_CFG_MASK_TOTAL);
 
 	return ret;
 }
@@ -214,10 +240,19 @@ static int ad7949_spi_init(struct ad7949_adc_chip *ad7949_adc)
 {
 	int ret;
 	int val;
+	u16 cfg;
 
-	/* Sequencer disabled, CFG readback disabled, IN0 as default channel */
 	ad7949_adc->current_channel = 0;
-	ret = ad7949_spi_write_cfg(ad7949_adc, 0x3C79, AD7949_MASK_TOTAL);
+
+	cfg = FIELD_PREP(AD7949_CFG_MASK_OVERWRITE, 1) |
+		FIELD_PREP(AD7949_CFG_MASK_INCC, AD7949_CFG_VAL_INCC_UNIPOLAR_GND) |
+		FIELD_PREP(AD7949_CFG_MASK_INX, ad7949_adc->current_channel) |
+		FIELD_PREP(AD7949_CFG_MASK_BW_FULL, 1) |
+		FIELD_PREP(AD7949_CFG_MASK_REF, AD7949_CFG_VAL_REF_EXT_BUF) |
+		FIELD_PREP(AD7949_CFG_MASK_SEQ, 0x0) |
+		FIELD_PREP(AD7949_CFG_MASK_RBN, 1);
+
+	ret = ad7949_spi_write_cfg(ad7949_adc, cfg, AD7949_CFG_MASK_TOTAL);
 
 	/*
 	 * Do two dummy conversions to apply the first configuration setting.
