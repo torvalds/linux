@@ -705,7 +705,6 @@ enum {
 	REQ_F_NEED_CLEANUP_BIT,
 	REQ_F_POLLED_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
-	REQ_F_LTIMEOUT_ACTIVE_BIT,
 	REQ_F_COMPLETE_INLINE_BIT,
 	REQ_F_REISSUE_BIT,
 	REQ_F_DONT_REISSUE_BIT,
@@ -750,8 +749,6 @@ enum {
 	REQ_F_POLLED		= BIT(REQ_F_POLLED_BIT),
 	/* buffer already selected */
 	REQ_F_BUFFER_SELECTED	= BIT(REQ_F_BUFFER_SELECTED_BIT),
-	/* linked timeout is active, i.e. prepared by link's head */
-	REQ_F_LTIMEOUT_ACTIVE	= BIT(REQ_F_LTIMEOUT_ACTIVE_BIT),
 	/* completion is deferred through io_comp_state */
 	REQ_F_COMPLETE_INLINE	= BIT(REQ_F_COMPLETE_INLINE_BIT),
 	/* caller should reissue async */
@@ -1315,7 +1312,6 @@ static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 	__io_req_set_refcount(nxt, 2);
 
 	nxt->timeout.head = req;
-	nxt->flags |= REQ_F_LTIMEOUT_ACTIVE;
 	req->flags |= REQ_F_LINK_TIMEOUT;
 	return nxt;
 }
@@ -1895,11 +1891,7 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 {
 	struct io_kiocb *link = req->link;
 
-	/*
-	 * Can happen if a linked timeout fired and link had been like
-	 * req -> link t-out -> link t-out [-> ...]
-	 */
-	if (link && (link->flags & REQ_F_LTIMEOUT_ACTIVE)) {
+	if (link && link->opcode == IORING_OP_LINK_TIMEOUT) {
 		struct io_timeout_data *io = link->async_data;
 
 		io_remove_next_linked(req);
@@ -5700,6 +5692,15 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	data->mode = io_translate_timeout_mode(flags);
 	hrtimer_init(&data->timer, CLOCK_MONOTONIC, data->mode);
+
+	if (is_timeout_link) {
+		struct io_submit_link *link = &req->ctx->submit_state.link;
+
+		if (!link->head)
+			return -EINVAL;
+		if (link->last->opcode == IORING_OP_LINK_TIMEOUT)
+			return -EINVAL;
+	}
 	return 0;
 }
 
