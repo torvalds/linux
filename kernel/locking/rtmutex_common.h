@@ -28,6 +28,7 @@
  * @wake_state:		Wakeup state to use (TASK_NORMAL or TASK_RTLOCK_WAIT)
  * @prio:		Priority of the waiter
  * @deadline:		Deadline of the waiter if applicable
+ * @ww_ctx:		WW context pointer
  */
 struct rt_mutex_waiter {
 	struct rb_node		tree_entry;
@@ -37,6 +38,7 @@ struct rt_mutex_waiter {
 	unsigned int		wake_state;
 	int			prio;
 	u64			deadline;
+	struct ww_acquire_ctx	*ww_ctx;
 };
 
 /**
