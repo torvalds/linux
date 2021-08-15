@@ -559,7 +559,7 @@ void dcn30_init_hw(struct dc *dc)
 
 					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
 						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
 										dc->res_pool->stream_enc[j]);
 							break;
 						}

@@ -165,6 +165,7 @@ enum dpcd_psr_sink_states {
 	PSR_SINK_STATE_SINK_INTERNAL_ERROR = 7,
 };
 
+#define DP_SOURCE_SEQUENCE    		    0x30c
 #define DP_SOURCE_TABLE_REVISION	    0x310
 #define DP_SOURCE_PAYLOAD_SIZE		    0x311
 #define DP_SOURCE_SINK_CAP		    0x317

@@ -1489,7 +1489,7 @@ void dcn10_init_hw(struct dc *dc)
 
 					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
 						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
 										dc->res_pool->stream_enc[j]);
 							break;
 						}
@@ -3678,7 +3678,7 @@ void dcn10_unblank_stream(struct pipe_ctx *pipe_ctx,
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (params.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 			params.timing.pix_clk_100hz /= 2;
-		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
 	}
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {

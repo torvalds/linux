@@ -191,6 +191,22 @@ enum dp_panel_mode {
 	DP_PANEL_MODE_SPECIAL
 };
 
+enum dpcd_source_sequence {
+	DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG = 1, /*done in apply_single_controller_ctx_to_hw */
+	DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR,         /*done in core_link_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME,      /*done in core_link_enable_stream/dcn20_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE,      /*done in perform_link_training_with_retries/dcn20_enable_stream */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY,        /*done in dp_enable_link_phy */
+	DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN,     /*done in dp_set_hw_test_pattern */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_AUDIO_STREAM,    /*done in dce110_enable_audio_stream */
+	DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM,   /*done in enc1_stream_encoder_dp_unblank */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_DP_VID_STREAM,  /*done in enc1_stream_encoder_dp_blank */
+	DPCD_SOURCE_SEQ_AFTER_FIFO_STEER_RESET,       /*done in enc1_stream_encoder_dp_blank */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_AUDIO_STREAM,   /*done in dce110_disable_audio_stream */
+	DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY,       /*done in dp_disable_link_phy */
+	DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE,   /*done in dce110_disable_stream */
+};
+
 /* DPCD_ADDR_TRAINING_LANEx_SET registers value */
 union dpcd_training_lane_set {
 	struct {

@@ -62,6 +62,13 @@ void dp_receiver_power_ctrl(struct dc_link *link, bool on)
 			sizeof(state));
 }
 
+void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
+{
+	if (link->dc->debug.enable_driver_sequence_debug)
+		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,
+					&dp_test_mode, sizeof(dp_test_mode));
+}
+
 void dp_enable_link_phy(
 	struct dc_link *link,
 	enum signal_type signal,
@@ -158,6 +165,7 @@ void dp_enable_link_phy(
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 	dp_receiver_power_ctrl(link, true);
 }
 
@@ -275,6 +283,8 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 		if (dmcu != NULL && dmcu->funcs->unlock_phy)
 			dmcu->funcs->unlock_phy(dmcu);
 	}
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
@@ -407,6 +417,7 @@ void dp_set_hw_test_pattern(
 #else
 	encoder->funcs->dp_set_phy_pattern(encoder, &pattern_param);
 #endif
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #undef DC_LOGGER
@@ -428,7 +439,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			pipes[i].stream->link == link) {
 			udelay(100);
 
-			pipes[i].stream_res.stream_enc->funcs->dp_blank(
+			pipes[i].stream_res.stream_enc->funcs->dp_blank(link,
 					pipes[i].stream_res.stream_enc);
 
 			/* disable any test pattern that might be active */
