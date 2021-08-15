@@ -108,6 +108,23 @@ static struct platform_driver rockchip_cpuinfo_driver = {
 	},
 };
 
+static void px30_init(void)
+{
+	void __iomem *base;
+
+	rockchip_soc_id = ROCKCHIP_SOC_PX30;
+#define PX30_DDR_GRF_BASE	0xFF630000
+#define PX30_DDR_GRF_CON1	0x04
+	base = ioremap(PX30_DDR_GRF_BASE, SZ_4K);
+	if (base) {
+		unsigned int val = readl_relaxed(base + PX30_DDR_GRF_CON1);
+
+		if (((val >> 14) & 0x03) == 0x03)
+			rockchip_soc_id = ROCKCHIP_SOC_PX30S;
+		iounmap(base);
+	}
+}
+
 static void rv1109_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RV1109;
@@ -221,6 +238,8 @@ int __init rockchip_soc_id_init(void)
 		rk3566_init();
 	} else if (cpu_is_rk3568()) {
 		rk3568_init();
+	} else if (cpu_is_px30()) {
+		px30_init();
 	}
 
 	return 0;
