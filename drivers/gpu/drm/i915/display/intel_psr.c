@@ -1487,8 +1487,8 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	const struct drm_rect *clip;
-	u32 val, offset;
-	int ret, x, y;
+	u32 val;
+	int x, y;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
@@ -1508,10 +1508,6 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 	/* TODO: consider auxiliary surfaces */
 	x = plane_state->uapi.src.x1 >> 16;
 	y = (plane_state->uapi.src.y1 >> 16) + clip->y1;
-	ret = skl_calc_main_surface_offset(plane_state, &x, &y, &offset);
-	if (ret)
-		drm_warn_once(&dev_priv->drm, "skl_calc_main_surface_offset() returned %i\n",
-			      ret);
 	val = y << 16 | x;
 	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_OFFSET(pipe, plane->id),
 			  val);
