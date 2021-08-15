@@ -1034,6 +1034,9 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_UNLINKAT] = {},
 };
 
+/* requests with any of those set should undergo io_disarm_next() */
+#define IO_DISARM_MASK (REQ_F_ARM_LTIMEOUT | REQ_F_LINK_TIMEOUT | REQ_F_FAIL)
+
 static bool io_disarm_next(struct io_kiocb *req);
 static void io_uring_del_tctx_node(unsigned long index);
 static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
@@ -1688,7 +1691,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 	 */
 	if (req_ref_put_and_test(req)) {
 		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
-			if (req->flags & (REQ_F_LINK_TIMEOUT | REQ_F_FAIL))
+			if (req->flags & IO_DISARM_MASK)
 				io_disarm_next(req);
 			if (req->link) {
 				io_req_task_queue(req->link);
@@ -1926,7 +1929,17 @@ static bool io_disarm_next(struct io_kiocb *req)
 {
 	bool posted = false;
 
-	if (likely(req->flags & REQ_F_LINK_TIMEOUT)) {
+	if (req->flags & REQ_F_ARM_LTIMEOUT) {
+		struct io_kiocb *link = req->link;
+
+		if (link && link->opcode == IORING_OP_LINK_TIMEOUT) {
+			io_remove_next_linked(req);
+			io_cqring_fill_event(link->ctx, link->user_data,
+					     -ECANCELED, 0);
+			io_put_req_deferred(link);
+			posted = true;
+		}
+	} else if (req->flags & REQ_F_LINK_TIMEOUT) {
 		struct io_ring_ctx *ctx = req->ctx;
 
 		spin_lock_irq(&ctx->timeout_lock);
@@ -1951,7 +1964,7 @@ static struct io_kiocb *__io_req_find_next(struct io_kiocb *req)
 	 * dependencies to the next request. In case of failure, fail the rest
 	 * of the chain.
 	 */
-	if (req->flags & (REQ_F_LINK_TIMEOUT | REQ_F_FAIL)) {
+	if (req->flags & IO_DISARM_MASK) {
 		struct io_ring_ctx *ctx = req->ctx;
 		bool posted;
 
