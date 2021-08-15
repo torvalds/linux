@@ -637,19 +637,7 @@ static unsigned int rtw_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 
-static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0))
-			    ,struct net_device *sb_dev
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
-			    ,struct net_device *sb_dev
-                            ,select_queue_fallback_t fallback
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-			    ,void *unused
-                            ,select_queue_fallback_t fallback
-#elif (LINUX_VERSION_CODE == KERNEL_VERSION(3, 13, 0))
-			    , void *accel
-#endif
-)
+static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct adapter	*padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -706,15 +694,9 @@ int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname)
 	return 0;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,39)
 static const struct device_type wlan_type = {
 	.name = "wlan",
 };
-#else
-static struct device_type wlan_type = {
-	.name = "wlan",
-};
-#endif
 
 struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 {
@@ -992,11 +974,7 @@ void netdev_br_init(struct net_device *netdev)
 
 	rcu_read_lock();
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	if (rcu_dereference(adapter->pnetdev->rx_handler_data)) {
-#else
-	if (rcu_dereference(adapter->pnetdev->br_port)) {
-#endif
 		struct net_device *br_netdev;
 		struct net *devnet = NULL;
 

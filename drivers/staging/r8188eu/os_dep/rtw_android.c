@@ -63,13 +63,8 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 {
 	int cmd_num;
 	for (cmd_num=0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 		if (!strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
 		    strlen(android_wifi_cmd_str[cmd_num])))
-#else
-		if (0 == strnicmp(cmdstr, android_wifi_cmd_str[cmd_num],
-		   strlen(android_wifi_cmd_str[cmd_num])))
-#endif
 			break;
 	return cmd_num;
 }
@@ -162,11 +157,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		ret = -ENOMEM;
 		goto exit;
 	}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
 	if (!access_ok(priv_cmd.buf, priv_cmd.total_len)) {
-#else
-	if (!access_ok(VERIFY_READ, priv_cmd.buf, priv_cmd.total_len)) {
-#endif
 		DBG_88E("%s: failed to access memory\n", __func__);
 		ret = -EFAULT;
 		goto exit;
