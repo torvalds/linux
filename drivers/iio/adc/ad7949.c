@@ -14,7 +14,6 @@
 #include <linux/bitfield.h>
 
 #define AD7949_CFG_MASK_TOTAL		GENMASK(13, 0)
-#define AD7949_CFG_REG_SIZE_BITS	14
 
 /* CFG: Configuration Update */
 #define AD7949_CFG_MASK_OVERWRITE	BIT(13)
@@ -71,6 +70,7 @@ static const struct ad7949_adc_spec ad7949_adc_spec[] = {
  * @cfg: copy of the configuration register
  * @current_channel: current channel in use
  * @buffer: buffer to send / receive data to / from device
+ * @buf8b: be16 buffer to exchange data with the device in 8-bit transfers
  */
 struct ad7949_adc_chip {
 	struct mutex lock;
@@ -81,27 +81,34 @@ struct ad7949_adc_chip {
 	u16 cfg;
 	unsigned int current_channel;
 	u16 buffer ____cacheline_aligned;
+	__be16 buf8b;
 };
 
 static int ad7949_spi_write_cfg(struct ad7949_adc_chip *ad7949_adc, u16 val,
 				u16 mask)
 {
 	int ret;
-	int bits_per_word = ad7949_adc->resolution;
-	int shift = bits_per_word - AD7949_CFG_REG_SIZE_BITS;
-	struct spi_message msg;
-	struct spi_transfer tx[] = {
-		{
-			.tx_buf = &ad7949_adc->buffer,
-			.len = 2,
-			.bits_per_word = bits_per_word,
-		},
-	};
 
 	ad7949_adc->cfg = (val & mask) | (ad7949_adc->cfg & ~mask);
-	ad7949_adc->buffer = ad7949_adc->cfg << shift;
-	spi_message_init_with_transfers(&msg, tx, 1);
-	ret = spi_sync(ad7949_adc->spi, &msg);
+
+	switch (ad7949_adc->spi->bits_per_word) {
+	case 16:
+		ad7949_adc->buffer = ad7949_adc->cfg << 2;
+		ret = spi_write(ad7949_adc->spi, &ad7949_adc->buffer, 2);
+		break;
+	case 14:
+		ad7949_adc->buffer = ad7949_adc->cfg;
+		ret = spi_write(ad7949_adc->spi, &ad7949_adc->buffer, 2);
+		break;
+	case 8:
+		/* Here, type is big endian as it must be sent in two transfers */
+		ad7949_adc->buf8b = cpu_to_be16(ad7949_adc->cfg << 2);
+		ret = spi_write(ad7949_adc->spi, &ad7949_adc->buf8b, 2);
+		break;
+	default:
+		dev_err(&ad7949_adc->indio_dev->dev, "unsupported BPW\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * This delay is to avoid a new request before the required time to
@@ -116,16 +123,6 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 {
 	int ret;
 	int i;
-	int bits_per_word = ad7949_adc->resolution;
-	int mask = GENMASK(ad7949_adc->resolution - 1, 0);
-	struct spi_message msg;
-	struct spi_transfer tx[] = {
-		{
-			.rx_buf = &ad7949_adc->buffer,
-			.len = 2,
-			.bits_per_word = bits_per_word,
-		},
-	};
 
 	/*
 	 * 1: write CFG for sample N and read old data (sample N-2)
@@ -144,9 +141,11 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 	}
 
 	/* 3: write something and read actual data */
-	ad7949_adc->buffer = 0;
-	spi_message_init_with_transfers(&msg, tx, 1);
-	ret = spi_sync(ad7949_adc->spi, &msg);
+	if (ad7949_adc->spi->bits_per_word == 8)
+		ret = spi_read(ad7949_adc->spi, &ad7949_adc->buf8b, 2);
+	else
+		ret = spi_read(ad7949_adc->spi, &ad7949_adc->buffer, 2);
+
 	if (ret)
 		return ret;
 
@@ -158,7 +157,25 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 
 	ad7949_adc->current_channel = channel;
 
-	*val = ad7949_adc->buffer & mask;
+	switch (ad7949_adc->spi->bits_per_word) {
+	case 16:
+		*val = ad7949_adc->buffer;
+		/* Shift-out padding bits */
+		*val >>= 16 - ad7949_adc->resolution;
+		break;
+	case 14:
+		*val = ad7949_adc->buffer & GENMASK(13, 0);
+		break;
+	case 8:
+		/* Here, type is big endian as data was sent in two transfers */
+		*val = be16_to_cpu(ad7949_adc->buf8b);
+		/* Shift-out padding bits */
+		*val >>= 16 - ad7949_adc->resolution;
+		break;
+	default:
+		dev_err(&ad7949_adc->indio_dev->dev, "unsupported BPW\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -266,6 +283,7 @@ static int ad7949_spi_init(struct ad7949_adc_chip *ad7949_adc)
 
 static int ad7949_spi_probe(struct spi_device *spi)
 {
+	u32 spi_ctrl_mask = spi->controller->bits_per_word_mask;
 	struct device *dev = &spi->dev;
 	const struct ad7949_adc_spec *spec;
 	struct ad7949_adc_chip *ad7949_adc;
@@ -291,6 +309,18 @@ static int ad7949_spi_probe(struct spi_device *spi)
 	spec = &ad7949_adc_spec[spi_get_device_id(spi)->driver_data];
 	indio_dev->num_channels = spec->num_channels;
 	ad7949_adc->resolution = spec->resolution;
+
+	/* Set SPI bits per word */
+	if (spi_ctrl_mask & SPI_BPW_MASK(ad7949_adc->resolution)) {
+		spi->bits_per_word = ad7949_adc->resolution;
+	} else if (spi_ctrl_mask == SPI_BPW_MASK(16)) {
+		spi->bits_per_word = 16;
+	} else if (spi_ctrl_mask == SPI_BPW_MASK(8)) {
+		spi->bits_per_word = 8;
+	} else {
+		dev_err(dev, "unable to find common BPW with spi controller\n");
+		return -EINVAL;
+	}
 
 	ad7949_adc->vref = devm_regulator_get(dev, "vref");
 	if (IS_ERR(ad7949_adc->vref)) {
