@@ -8,20 +8,28 @@
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern void __rt_spin_lock_init(spinlock_t *lock, const char *name,
-				struct lock_class_key *key);
+				struct lock_class_key *key, bool percpu);
 #else
 static inline void __rt_spin_lock_init(spinlock_t *lock, const char *name,
-				       struct lock_class_key *key)
+				struct lock_class_key *key, bool percpu)
 {
 }
 #endif
 
-#define spin_lock_init(slock)				\
-do {							\
-	static struct lock_class_key __key;		\
-							\
-	rt_mutex_base_init(&(slock)->lock);		\
-	__rt_spin_lock_init(slock, #slock, &__key);	\
+#define spin_lock_init(slock)					\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	rt_mutex_base_init(&(slock)->lock);			\
+	__rt_spin_lock_init(slock, #slock, &__key, false);	\
+} while (0)
+
+#define local_spin_lock_init(slock)				\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	rt_mutex_base_init(&(slock)->lock);			\
+	__rt_spin_lock_init(slock, #slock, &__key, true);	\
 } while (0)
 
 extern void rt_spin_lock(spinlock_t *lock);

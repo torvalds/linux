@@ -120,10 +120,13 @@ EXPORT_SYMBOL(rt_spin_trylock_bh);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void __rt_spin_lock_init(spinlock_t *lock, const char *name,
-			 struct lock_class_key *key)
+			 struct lock_class_key *key, bool percpu)
 {
+	u8 type = percpu ? LD_LOCK_PERCPU : LD_LOCK_NORMAL;
+
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
-	lockdep_init_map_wait(&lock->dep_map, name, key, 0, LD_WAIT_CONFIG);
+	lockdep_init_map_type(&lock->dep_map, name, key, 0, LD_WAIT_CONFIG,
+			      LD_WAIT_INV, type);
 }
 EXPORT_SYMBOL(__rt_spin_lock_init);
 #endif
