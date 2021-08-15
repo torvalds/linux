@@ -1299,27 +1299,6 @@ static int attach_to_pi_owner(u32 __user *uaddr, u32 uval, union futex_key *key,
 	return 0;
 }
 
-static int lookup_pi_state(u32 __user *uaddr, u32 uval,
-			   struct futex_hash_bucket *hb,
-			   union futex_key *key, struct futex_pi_state **ps,
-			   struct task_struct **exiting)
-{
-	struct futex_q *top_waiter = futex_top_waiter(hb, key);
-
-	/*
-	 * If there is a waiter on that futex, validate it and
-	 * attach to the pi_state when the validation succeeds.
-	 */
-	if (top_waiter)
-		return attach_to_pi_state(uaddr, uval, top_waiter->pi_state, ps);
-
-	/*
-	 * We are the first waiter - try to look up the owner based on
-	 * @uval and attach to it.
-	 */
-	return attach_to_pi_owner(uaddr, uval, key, ps, exiting);
-}
-
 static int lock_pi_update_atomic(u32 __user *uaddr, u32 uval, u32 newval)
 {
 	int err;
@@ -2038,8 +2017,8 @@ retry_private:
 		 * At this point the top_waiter has either taken uaddr2 or is
 		 * waiting on it.  If the former, then the pi_state will not
 		 * exist yet, look it up one more time to ensure we have a
-		 * reference to it. If the lock was taken, ret contains the
-		 * vpid of the top waiter task.
+		 * reference to it. If the lock was taken, @ret contains the
+		 * VPID of the top waiter task.
 		 * If the lock was not taken, we have pi_state and an initial
 		 * refcount on it. In case of an error we have nothing.
 		 */
@@ -2047,19 +2026,25 @@ retry_private:
 			WARN_ON(pi_state);
 			task_count++;
 			/*
-			 * If we acquired the lock, then the user space value
-			 * of uaddr2 should be vpid. It cannot be changed by
-			 * the top waiter as it is blocked on hb2 lock if it
-			 * tries to do so. If something fiddled with it behind
-			 * our back the pi state lookup might unearth it. So
-			 * we rather use the known value than rereading and
-			 * handing potential crap to lookup_pi_state.
+			 * If futex_proxy_trylock_atomic() acquired the
+			 * user space futex, then the user space value
+			 * @uaddr2 has been set to the @hb1's top waiter
+			 * task VPID. This task is guaranteed to be alive
+			 * and cannot be exiting because it is either
+			 * sleeping or blocked on @hb2 lock.
 			 *
-			 * If that call succeeds then we have pi_state and an
-			 * initial refcount on it.
+			 * The @uaddr2 futex cannot have waiters either as
+			 * otherwise futex_proxy_trylock_atomic() would not
+			 * have succeeded.
+			 *
+			 * In order to requeue waiters to @hb2, pi state is
+			 * required. Hand in the VPID value (@ret) and
+			 * allocate PI state with an initial refcount on
+			 * it.
 			 */
-			ret = lookup_pi_state(uaddr2, ret, hb2, &key2,
-					      &pi_state, &exiting);
+			ret = attach_to_pi_owner(uaddr2, ret, &key2, &pi_state,
+						 &exiting);
+			WARN_ON(ret);
 		}
 
 		switch (ret) {
@@ -2183,9 +2168,9 @@ retry_private:
 	}
 
 	/*
-	 * We took an extra initial reference to the pi_state either
-	 * in futex_proxy_trylock_atomic() or in lookup_pi_state(). We
-	 * need to drop it here again.
+	 * We took an extra initial reference to the pi_state either in
+	 * futex_proxy_trylock_atomic() or in attach_to_pi_owner(). We need
+	 * to drop it here again.
 	 */
 	put_pi_state(pi_state);
 
@@ -2364,7 +2349,7 @@ static int __fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 	 * Modifying pi_state _before_ the user space value would leave the
 	 * pi_state in an inconsistent state when we fault here, because we
 	 * need to drop the locks to handle the fault. This might be observed
-	 * in the PID check in lookup_pi_state.
+	 * in the PID checks when attaching to PI state .
 	 */
 retry:
 	if (!argowner) {
