@@ -76,9 +76,9 @@ extern int __rt_mutex_futex_trylock(struct rt_mutex_base *l);
 
 extern void rt_mutex_futex_unlock(struct rt_mutex_base *lock);
 extern bool __rt_mutex_futex_unlock(struct rt_mutex_base *lock,
-				struct wake_q_head *wake_q);
+				struct rt_wake_q_head *wqh);
 
-extern void rt_mutex_postunlock(struct wake_q_head *wake_q);
+extern void rt_mutex_postunlock(struct rt_wake_q_head *wqh);
 
 /*
  * Must be guarded because this header is included from rcu/tree_plugin.h
