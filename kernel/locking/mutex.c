@@ -30,6 +30,7 @@
 #include <linux/debug_locks.h>
 #include <linux/osq_lock.h>
 
+#ifndef CONFIG_PREEMPT_RT
 #include "mutex.h"
 
 #ifdef CONFIG_DEBUG_MUTEXES
@@ -1066,7 +1067,8 @@ ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 }
 EXPORT_SYMBOL(ww_mutex_lock_interruptible);
 
-#endif
+#endif /* !CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* !CONFIG_PREEMPT_RT */
 
 /**
  * atomic_dec_and_mutex_lock - return holding mutex if we dec to 0
