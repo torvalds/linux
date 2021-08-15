@@ -71,8 +71,8 @@ struct mlx5e_rss {
 	struct mlx5e_rss_params_hash hash;
 	struct mlx5e_rss_params_indir indir;
 	u32 rx_hash_fields[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir tir[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir inner_tir[MLX5E_NUM_INDIR_TIRS];
+	struct mlx5e_tir *tir[MLX5E_NUM_INDIR_TIRS];
+	struct mlx5e_tir *inner_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_rqt rqt;
 	struct mlx5_core_dev *mdev;
 	u32 drop_rqn;
@@ -102,6 +102,18 @@ static void mlx5e_rss_params_init(struct mlx5e_rss *rss)
 			mlx5e_rss_get_default_tt_config(tt).rx_hash_fields;
 }
 
+static struct mlx5e_tir **rss_get_tirp(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
+				       bool inner)
+{
+	return inner ? &rss->inner_tir[tt] : &rss->tir[tt];
+}
+
+static struct mlx5e_tir *rss_get_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
+				     bool inner)
+{
+	return *rss_get_tirp(rss, tt, inner);
+}
+
 static struct mlx5e_rss_params_traffic_type
 mlx5e_rss_get_tt_config(struct mlx5e_rss *rss, enum mlx5_traffic_types tt)
 {
@@ -119,6 +131,7 @@ static int mlx5e_rss_create_tir(struct mlx5e_rss *rss,
 {
 	struct mlx5e_rss_params_traffic_type rss_tt;
 	struct mlx5e_tir_builder *builder;
+	struct mlx5e_tir **tir_p;
 	struct mlx5e_tir *tir;
 	u32 rqtn;
 	int err;
@@ -130,11 +143,19 @@ static int mlx5e_rss_create_tir(struct mlx5e_rss *rss,
 		return -EINVAL;
 	}
 
-	tir = inner ? &rss->inner_tir[tt] : &rss->tir[tt];
+	tir_p = rss_get_tirp(rss, tt, inner);
+	if (*tir_p)
+		return -EINVAL;
+
+	tir = kvzalloc(sizeof(*tir), GFP_KERNEL);
+	if (!tir)
+		return -ENOMEM;
 
 	builder = mlx5e_tir_builder_alloc(false);
-	if (!builder)
-		return -ENOMEM;
+	if (!builder) {
+		err = -ENOMEM;
+		goto free_tir;
+	}
 
 	rqtn = mlx5e_rqt_get_rqtn(&rss->rqt);
 	mlx5e_tir_builder_build_rqt(builder, rss->mdev->mlx5e_res.hw_objs.td.tdn,
@@ -145,19 +166,34 @@ static int mlx5e_rss_create_tir(struct mlx5e_rss *rss,
 
 	err = mlx5e_tir_init(tir, builder, rss->mdev, true);
 	mlx5e_tir_builder_free(builder);
-	if (err)
+	if (err) {
 		mlx5e_rss_warn(rss->mdev, "Failed to create %sindirect TIR: err = %d, tt = %d\n",
 			       inner ? "inner " : "", err, tt);
+		goto free_tir;
+	}
+
+	*tir_p = tir;
+	return 0;
+
+free_tir:
+	kvfree(tir);
 	return err;
 }
 
 static void mlx5e_rss_destroy_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 				  bool inner)
 {
+	struct mlx5e_tir **tir_p;
 	struct mlx5e_tir *tir;
 
-	tir = inner ? &rss->inner_tir[tt] : &rss->tir[tt];
+	tir_p = rss_get_tirp(rss, tt, inner);
+	if (!*tir_p)
+		return;
+
+	tir = *tir_p;
 	mlx5e_tir_destroy(tir);
+	kvfree(tir);
+	*tir_p = NULL;
 }
 
 static int mlx5e_rss_create_tirs(struct mlx5e_rss *rss,
@@ -198,7 +234,9 @@ static int mlx5e_rss_update_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types t
 	struct mlx5e_tir *tir;
 	int err;
 
-	tir = inner ? &rss->inner_tir[tt] : &rss->tir[tt];
+	tir = rss_get_tir(rss, tt, inner);
+	if (!tir)
+		return 0;
 
 	builder = mlx5e_tir_builder_alloc(true);
 	if (!builder)
@@ -295,7 +333,8 @@ u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	struct mlx5e_tir *tir;
 
 	WARN_ON(inner && !rss->inner_ft_support);
-	tir = inner ? &rss->inner_tir[tt] : &rss->tir[tt];
+	tir = rss_get_tir(rss, tt, inner);
+	WARN_ON(!tir);
 
 	return mlx5e_tir_get_tirn(tir);
 }
@@ -342,10 +381,13 @@ int mlx5e_rss_lro_set_param(struct mlx5e_rss *rss, struct mlx5e_lro_param *lro_p
 	final_err = 0;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		err = mlx5e_tir_modify(&rss->tir[tt], builder);
+		struct mlx5e_tir *tir;
+
+		tir = rss_get_tir(rss, tt, false);
+		err = mlx5e_tir_modify(tir, builder);
 		if (err) {
 			mlx5e_rss_warn(rss->mdev, "Failed to update LRO state of indirect TIR %#x for traffic type %d: err = %d\n",
-				       mlx5e_tir_get_tirn(&rss->tir[tt]), tt, err);
+				       mlx5e_tir_get_tirn(rss->tir[tt]), tt, err);
 			if (!final_err)
 				final_err = err;
 		}
@@ -353,10 +395,11 @@ int mlx5e_rss_lro_set_param(struct mlx5e_rss *rss, struct mlx5e_lro_param *lro_p
 		if (!rss->inner_ft_support)
 			continue;
 
-		err = mlx5e_tir_modify(&rss->inner_tir[tt], builder);
+		tir = rss_get_tir(rss, tt, true);
+		err = mlx5e_tir_modify(tir, builder);
 		if (err) {
 			mlx5e_rss_warn(rss->mdev, "Failed to update LRO state of inner indirect TIR %#x for traffic type %d: err = %d\n",
-				       mlx5e_tir_get_tirn(&rss->inner_tir[tt]), tt, err);
+				       mlx5e_tir_get_tirn(rss->inner_tir[tt]), tt, err);
 			if (!final_err)
 				final_err = err;
 		}
