@@ -1879,7 +1879,7 @@ static void bpf_prog_select_func(struct bpf_prog *fp)
  *	@err: pointer to error variable
  *
  * Try to JIT eBPF program, if JIT is not available, use interpreter.
- * The BPF program will be executed via BPF_PROG_RUN() macro.
+ * The BPF program will be executed via bpf_prog_run() function.
  *
  * Return: the &fp argument along with &err set to 0 for success or
  * a negative errno code on failure

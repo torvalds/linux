@@ -8616,7 +8616,7 @@ static int __run_one(const struct bpf_prog *fp, const void *data,
 	start = ktime_get_ns();
 
 	for (i = 0; i < runs; i++)
-		ret = BPF_PROG_RUN(fp, data);
+		ret = bpf_prog_run(fp, data);
 
 	finish = ktime_get_ns();
 	migrate_enable();

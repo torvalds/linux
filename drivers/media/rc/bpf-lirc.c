@@ -217,7 +217,7 @@ void lirc_bpf_run(struct rc_dev *rcdev, u32 sample)
 	raw->bpf_sample = sample;
 
 	if (raw->progs)
-		BPF_PROG_RUN_ARRAY(raw->progs, &raw->bpf_sample, BPF_PROG_RUN);
+		BPF_PROG_RUN_ARRAY(raw->progs, &raw->bpf_sample, bpf_prog_run);
 }
 
 /*
