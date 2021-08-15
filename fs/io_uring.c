@@ -5792,32 +5792,24 @@ static int io_async_cancel_one(struct io_uring_task *tctx, u64 user_data,
 	return ret;
 }
 
-static void io_async_find_and_cancel(struct io_ring_ctx *ctx,
-				     struct io_kiocb *req, __u64 sqe_addr,
-				     int success_ret)
+static int io_try_cancel_userdata(struct io_kiocb *req, u64 sqe_addr)
+	__acquires(&req->ctx->completion_lock)
 {
+	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
+
+	WARN_ON_ONCE(req->task != current);
 
 	ret = io_async_cancel_one(req->task->io_uring, sqe_addr, ctx);
 	spin_lock(&ctx->completion_lock);
 	if (ret != -ENOENT)
-		goto done;
+		return ret;
 	spin_lock_irq(&ctx->timeout_lock);
 	ret = io_timeout_cancel(ctx, sqe_addr);
 	spin_unlock_irq(&ctx->timeout_lock);
 	if (ret != -ENOENT)
-		goto done;
-	ret = io_poll_cancel(ctx, sqe_addr, false);
-done:
-	if (!ret)
-		ret = success_ret;
-	io_cqring_fill_event(ctx, req->user_data, ret, 0);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
-
-	if (ret < 0)
-		req_set_fail(req);
+		return ret;
+	return io_poll_cancel(ctx, sqe_addr, false);
 }
 
 static int io_async_cancel_prep(struct io_kiocb *req,
@@ -5841,17 +5833,7 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_tctx_node *node;
 	int ret;
 
-	/* tasks should wait for their io-wq threads, so safe w/o sync */
-	ret = io_async_cancel_one(req->task->io_uring, sqe_addr, ctx);
-	spin_lock(&ctx->completion_lock);
-	if (ret != -ENOENT)
-		goto done;
-	spin_lock_irq(&ctx->timeout_lock);
-	ret = io_timeout_cancel(ctx, sqe_addr);
-	spin_unlock_irq(&ctx->timeout_lock);
-	if (ret != -ENOENT)
-		goto done;
-	ret = io_poll_cancel(ctx, sqe_addr, false);
+	ret = io_try_cancel_userdata(req, sqe_addr);
 	if (ret != -ENOENT)
 		goto done;
 	spin_unlock(&ctx->completion_lock);
@@ -6418,9 +6400,17 @@ static void io_req_task_link_timeout(struct io_kiocb *req)
 {
 	struct io_kiocb *prev = req->timeout.prev;
 	struct io_ring_ctx *ctx = req->ctx;
+	int ret;
 
 	if (prev) {
-		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
+		ret = io_try_cancel_userdata(req, prev->user_data);
+		if (!ret)
+			ret = -ETIME;
+		io_cqring_fill_event(ctx, req->user_data, ret, 0);
+		io_commit_cqring(ctx);
+		spin_unlock(&ctx->completion_lock);
+		io_cqring_ev_posted(ctx);
+
 		io_put_req(prev);
 		io_put_req(req);
 	} else {
