@@ -1115,12 +1115,17 @@ static inline void req_ref_get(struct io_kiocb *req)
 	atomic_inc(&req->refs);
 }
 
-static inline void io_req_refcount(struct io_kiocb *req)
+static inline void __io_req_set_refcount(struct io_kiocb *req, int nr)
 {
 	if (!(req->flags & REQ_F_REFCOUNT)) {
 		req->flags |= REQ_F_REFCOUNT;
-		atomic_set(&req->refs, 1);
+		atomic_set(&req->refs, nr);
 	}
+}
+
+static inline void io_req_set_refcount(struct io_kiocb *req)
+{
+	__io_req_set_refcount(req, 1);
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req)
@@ -1306,8 +1311,8 @@ static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 		return NULL;
 
 	/* linked timeouts should have two refs once prep'ed */
-	io_req_refcount(req);
-	io_req_refcount(nxt);
+	io_req_set_refcount(req);
+	io_req_set_refcount(nxt);
 	req_ref_get(nxt);
 
 	nxt->timeout.head = req;
@@ -5233,7 +5238,7 @@ static int io_arm_poll_handler(struct io_kiocb *req)
 	req->apoll = apoll;
 	req->flags |= REQ_F_POLLED;
 	ipt.pt._qproc = io_async_queue_proc;
-	io_req_refcount(req);
+	io_req_set_refcount(req);
 
 	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask,
 					io_async_wake);
@@ -5421,7 +5426,7 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	if (flags & ~IORING_POLL_ADD_MULTI)
 		return -EINVAL;
 
-	io_req_refcount(req);
+	io_req_set_refcount(req);
 	poll->events = io_poll_parse_events(sqe, flags);
 	return 0;
 }
@@ -6313,9 +6318,11 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	struct io_kiocb *timeout;
 	int ret = 0;
 
-	io_req_refcount(req);
-	/* will be dropped by ->io_free_work() after returning to io-wq */
-	req_ref_get(req);
+	/* one will be dropped by ->io_free_work() after returning to io-wq */
+	if (!(req->flags & REQ_F_REFCOUNT))
+		__io_req_set_refcount(req, 2);
+	else
+		req_ref_get(req);
 
 	timeout = io_prep_linked_timeout(req);
 	if (timeout)
