@@ -193,6 +193,8 @@ enum kern_feature_id {
 	FEAT_MODULE_BTF,
 	/* BTF_KIND_FLOAT support */
 	FEAT_BTF_FLOAT,
+	/* BPF perf link support */
+	FEAT_PERF_LINK,
 	__FEAT_CNT,
 };
 
@@ -4337,6 +4339,37 @@ static int probe_module_btf(void)
 	return !err;
 }
 
+static int probe_perf_link(void)
+{
+	struct bpf_load_program_attr attr;
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int prog_fd, link_fd, err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_TRACEPOINT;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+	prog_fd = bpf_load_program_xattr(&attr, NULL, 0);
+	if (prog_fd < 0)
+		return -errno;
+
+	/* use invalid perf_event FD to get EBADF, if link is supported;
+	 * otherwise EINVAL should be returned
+	 */
+	link_fd = bpf_link_create(prog_fd, -1, BPF_PERF_EVENT, NULL);
+	err = -errno; /* close() can clobber errno */
+
+	if (link_fd >= 0)
+		close(link_fd);
+	close(prog_fd);
+
+	return link_fd < 0 && err == -EBADF;
+}
+
 enum kern_feature_result {
 	FEAT_UNKNOWN = 0,
 	FEAT_SUPPORTED = 1,
@@ -4386,6 +4419,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_BTF_FLOAT] = {
 		"BTF_KIND_FLOAT support", probe_kern_btf_float,
+	},
+	[FEAT_PERF_LINK] = {
+		"BPF perf link support", probe_perf_link,
 	},
 };
 
@@ -8951,23 +8987,38 @@ int bpf_link__unpin(struct bpf_link *link)
 	return 0;
 }
 
-static int bpf_link__detach_perf_event(struct bpf_link *link)
-{
-	int err;
+struct bpf_link_perf {
+	struct bpf_link link;
+	int perf_event_fd;
+};
 
-	err = ioctl(link->fd, PERF_EVENT_IOC_DISABLE, 0);
-	if (err)
+static int bpf_link_perf_detach(struct bpf_link *link)
+{
+	struct bpf_link_perf *perf_link = container_of(link, struct bpf_link_perf, link);
+	int err = 0;
+
+	if (ioctl(perf_link->perf_event_fd, PERF_EVENT_IOC_DISABLE, 0) < 0)
 		err = -errno;
 
+	if (perf_link->perf_event_fd != link->fd)
+		close(perf_link->perf_event_fd);
 	close(link->fd);
+
 	return libbpf_err(err);
+}
+
+static void bpf_link_perf_dealloc(struct bpf_link *link)
+{
+	struct bpf_link_perf *perf_link = container_of(link, struct bpf_link_perf, link);
+
+	free(perf_link);
 }
 
 struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pfd)
 {
 	char errmsg[STRERR_BUFSIZE];
-	struct bpf_link *link;
-	int prog_fd, err;
+	struct bpf_link_perf *link;
+	int prog_fd, link_fd = -1, err;
 
 	if (pfd < 0) {
 		pr_warn("prog '%s': invalid perf event FD %d\n",
@@ -8984,27 +9035,45 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pf
 	link = calloc(1, sizeof(*link));
 	if (!link)
 		return libbpf_err_ptr(-ENOMEM);
-	link->detach = &bpf_link__detach_perf_event;
-	link->fd = pfd;
+	link->link.detach = &bpf_link_perf_detach;
+	link->link.dealloc = &bpf_link_perf_dealloc;
+	link->perf_event_fd = pfd;
 
-	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
-		err = -errno;
-		free(link);
-		pr_warn("prog '%s': failed to attach to pfd %d: %s\n",
-			prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
-		if (err == -EPROTO)
-			pr_warn("prog '%s': try add PERF_SAMPLE_CALLCHAIN to or remove exclude_callchain_[kernel|user] from pfd %d\n",
-				prog->name, pfd);
-		return libbpf_err_ptr(err);
+	if (kernel_supports(prog->obj, FEAT_PERF_LINK)) {
+		link_fd = bpf_link_create(prog_fd, pfd, BPF_PERF_EVENT, NULL);
+		if (link_fd < 0) {
+			err = -errno;
+			pr_warn("prog '%s': failed to create BPF link for perf_event FD %d: %d (%s)\n",
+				prog->name, pfd,
+				err, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+			goto err_out;
+		}
+		link->link.fd = link_fd;
+	} else {
+		if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
+			err = -errno;
+			pr_warn("prog '%s': failed to attach to perf_event FD %d: %s\n",
+				prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+			if (err == -EPROTO)
+				pr_warn("prog '%s': try add PERF_SAMPLE_CALLCHAIN to or remove exclude_callchain_[kernel|user] from pfd %d\n",
+					prog->name, pfd);
+			goto err_out;
+		}
+		link->link.fd = pfd;
 	}
 	if (ioctl(pfd, PERF_EVENT_IOC_ENABLE, 0) < 0) {
 		err = -errno;
-		free(link);
-		pr_warn("prog '%s': failed to enable pfd %d: %s\n",
+		pr_warn("prog '%s': failed to enable perf_event FD %d: %s\n",
 			prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
-		return libbpf_err_ptr(err);
+		goto err_out;
 	}
-	return link;
+
+	return &link->link;
+err_out:
+	if (link_fd >= 0)
+		close(link_fd);
+	free(link);
+	return libbpf_err_ptr(err);
 }
 
 /*
