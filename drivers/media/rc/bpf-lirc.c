@@ -160,7 +160,7 @@ static int lirc_bpf_attach(struct rc_dev *rcdev, struct bpf_prog *prog)
 		goto unlock;
 	}
 
-	ret = bpf_prog_array_copy(old_array, NULL, prog, &new_array);
+	ret = bpf_prog_array_copy(old_array, NULL, prog, 0, &new_array);
 	if (ret < 0)
 		goto unlock;
 
@@ -193,7 +193,7 @@ static int lirc_bpf_detach(struct rc_dev *rcdev, struct bpf_prog *prog)
 	}
 
 	old_array = lirc_rcu_dereference(raw->progs);
-	ret = bpf_prog_array_copy(old_array, prog, NULL, &new_array);
+	ret = bpf_prog_array_copy(old_array, prog, NULL, 0, &new_array);
 	/*
 	 * Do not use bpf_prog_array_delete_safe() as we would end up
 	 * with a dummy entry in the array, and the we would free the

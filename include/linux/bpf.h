@@ -1114,7 +1114,10 @@ u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
  */
 struct bpf_prog_array_item {
 	struct bpf_prog *prog;
-	struct bpf_cgroup_storage *cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE];
+	union {
+		struct bpf_cgroup_storage *cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE];
+		u64 bpf_cookie;
+	};
 };
 
 struct bpf_prog_array {
@@ -1140,6 +1143,7 @@ int bpf_prog_array_copy_info(struct bpf_prog_array *array,
 int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
+			u64 bpf_cookie,
 			struct bpf_prog_array **new_array);
 
 struct bpf_run_ctx {};
@@ -1147,6 +1151,11 @@ struct bpf_run_ctx {};
 struct bpf_cg_run_ctx {
 	struct bpf_run_ctx run_ctx;
 	const struct bpf_prog_array_item *prog_item;
+};
+
+struct bpf_trace_run_ctx {
+	struct bpf_run_ctx run_ctx;
+	u64 bpf_cookie;
 };
 
 static inline struct bpf_run_ctx *bpf_set_run_ctx(struct bpf_run_ctx *new_ctx)
@@ -1239,6 +1248,8 @@ BPF_PROG_RUN_ARRAY(const struct bpf_prog_array __rcu *array_rcu,
 	const struct bpf_prog_array_item *item;
 	const struct bpf_prog *prog;
 	const struct bpf_prog_array *array;
+	struct bpf_run_ctx *old_run_ctx;
+	struct bpf_trace_run_ctx run_ctx;
 	u32 ret = 1;
 
 	migrate_disable();
@@ -1246,11 +1257,14 @@ BPF_PROG_RUN_ARRAY(const struct bpf_prog_array __rcu *array_rcu,
 	array = rcu_dereference(array_rcu);
 	if (unlikely(!array))
 		goto out;
+	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
 	item = &array->items[0];
 	while ((prog = READ_ONCE(item->prog))) {
+		run_ctx.bpf_cookie = item->bpf_cookie;
 		ret &= run_prog(prog, ctx);
 		item++;
 	}
+	bpf_reset_run_ctx(old_run_ctx);
 out:
 	rcu_read_unlock();
 	migrate_enable();

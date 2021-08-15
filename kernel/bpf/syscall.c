@@ -2963,7 +2963,7 @@ static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *pro
 	}
 
 	event = perf_file->private_data;
-	err = perf_event_set_bpf_prog(event, prog);
+	err = perf_event_set_bpf_prog(event, prog, attr->link_create.perf_event.bpf_cookie);
 	if (err) {
 		bpf_link_cleanup(&link_primer);
 		goto out_put_file;

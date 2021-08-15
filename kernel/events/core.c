@@ -5643,7 +5643,7 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 		if (IS_ERR(prog))
 			return PTR_ERR(prog);
 
-		err = perf_event_set_bpf_prog(event, prog);
+		err = perf_event_set_bpf_prog(event, prog, 0);
 		if (err) {
 			bpf_prog_put(prog);
 			return err;
@@ -9936,7 +9936,9 @@ out:
 	event->orig_overflow_handler(event, data, regs);
 }
 
-static int perf_event_set_bpf_handler(struct perf_event *event, struct bpf_prog *prog)
+static int perf_event_set_bpf_handler(struct perf_event *event,
+				      struct bpf_prog *prog,
+				      u64 bpf_cookie)
 {
 	if (event->overflow_handler_context)
 		/* hw breakpoint or kernel counter */
@@ -9966,6 +9968,7 @@ static int perf_event_set_bpf_handler(struct perf_event *event, struct bpf_prog 
 	}
 
 	event->prog = prog;
+	event->bpf_cookie = bpf_cookie;
 	event->orig_overflow_handler = READ_ONCE(event->overflow_handler);
 	WRITE_ONCE(event->overflow_handler, bpf_overflow_handler);
 	return 0;
@@ -9983,7 +9986,9 @@ static void perf_event_free_bpf_handler(struct perf_event *event)
 	bpf_prog_put(prog);
 }
 #else
-static int perf_event_set_bpf_handler(struct perf_event *event, struct bpf_prog *prog)
+static int perf_event_set_bpf_handler(struct perf_event *event,
+				      struct bpf_prog *prog,
+				      u64 bpf_cookie)
 {
 	return -EOPNOTSUPP;
 }
@@ -10011,12 +10016,13 @@ static inline bool perf_event_is_tracing(struct perf_event *event)
 	return false;
 }
 
-int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
+int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
+			    u64 bpf_cookie)
 {
 	bool is_kprobe, is_tracepoint, is_syscall_tp;
 
 	if (!perf_event_is_tracing(event))
-		return perf_event_set_bpf_handler(event, prog);
+		return perf_event_set_bpf_handler(event, prog, bpf_cookie);
 
 	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
 	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
@@ -10042,7 +10048,7 @@ int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
 			return -EACCES;
 	}
 
-	return perf_event_attach_bpf_prog(event, prog);
+	return perf_event_attach_bpf_prog(event, prog, bpf_cookie);
 }
 
 void perf_event_free_bpf_prog(struct perf_event *event)
@@ -10064,7 +10070,8 @@ static void perf_event_free_filter(struct perf_event *event)
 {
 }
 
-int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
+int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
+			    u64 bpf_cookie)
 {
 	return -ENOENT;
 }
