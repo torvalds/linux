@@ -5163,7 +5163,7 @@ static struct bpf_test tests[] = {
 		{ { 0, -1 } }
 	},
 	{
-		"ALU64_ARSH_K: Zero shoft",
+		"ALU64_ARSH_K: Zero shift",
 		.u.insns_int = {
 			BPF_LD_IMM64(R0, 0x8123456789abcdefLL),
 			BPF_ALU64_IMM(BPF_ARSH, R0, 0),
