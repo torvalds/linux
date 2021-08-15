@@ -908,6 +908,20 @@ fmt_str:
 			num_spec++;
 
 			continue;
+		} else if (fmt[i] == 'c') {
+			if (!tmp_buf)
+				goto nocopy_fmt;
+
+			if (tmp_buf_end == tmp_buf) {
+				err = -ENOSPC;
+				goto out;
+			}
+
+			*tmp_buf = raw_args[num_spec];
+			tmp_buf++;
+			num_spec++;
+
+			continue;
 		}
 
 		sizeof_cur_arg = sizeof(int);
