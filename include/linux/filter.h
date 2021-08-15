@@ -723,7 +723,7 @@ static inline void bpf_restore_data_end(
 	cb->data_end = saved_data_end;
 }
 
-static inline u8 *bpf_skb_cb(struct sk_buff *skb)
+static inline u8 *bpf_skb_cb(const struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta
 	 * data between tail calls. Since this also needs to work with
@@ -744,8 +744,9 @@ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 
 /* Must be invoked with migration disabled */
 static inline u32 __bpf_prog_run_save_cb(const struct bpf_prog *prog,
-					 struct sk_buff *skb)
+					 const void *ctx)
 {
+	const struct sk_buff *skb = ctx;
 	u8 *cb_data = bpf_skb_cb(skb);
 	u8 cb_saved[BPF_SKB_CB_LEN];
 	u32 res;
