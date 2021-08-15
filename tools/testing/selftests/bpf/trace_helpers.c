@@ -202,3 +202,24 @@ ssize_t get_base_addr(void)
 	fclose(f);
 	return -EINVAL;
 }
+
+ssize_t get_rel_offset(uintptr_t addr)
+{
+	size_t start, end, offset;
+	char buf[256];
+	FILE *f;
+
+	f = fopen("/proc/self/maps", "r");
+	if (!f)
+		return -errno;
+
+	while (fscanf(f, "%zx-%zx %s %zx %*[^\n]\n", &start, &end, buf, &offset) == 4) {
+		if (addr >= start && addr < end) {
+			fclose(f);
+			return (size_t)addr - start + offset;
+		}
+	}
+
+	fclose(f);
+	return -EINVAL;
+}

@@ -2,20 +2,28 @@
 #include <test_progs.h>
 #include "test_attach_probe.skel.h"
 
+/* this is how USDT semaphore is actually defined, except volatile modifier */
+volatile unsigned short uprobe_ref_ctr __attribute__((unused)) __attribute((section(".probes")));
+
 void test_attach_probe(void)
 {
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
 	int duration = 0;
 	struct bpf_link *kprobe_link, *kretprobe_link;
 	struct bpf_link *uprobe_link, *uretprobe_link;
 	struct test_attach_probe* skel;
 	size_t uprobe_offset;
-	ssize_t base_addr;
+	ssize_t base_addr, ref_ctr_offset;
 
 	base_addr = get_base_addr();
 	if (CHECK(base_addr < 0, "get_base_addr",
 		  "failed to find base addr: %zd", base_addr))
 		return;
 	uprobe_offset = get_uprobe_offset(&get_base_addr, base_addr);
+
+	ref_ctr_offset = get_rel_offset((uintptr_t)&uprobe_ref_ctr);
+	if (!ASSERT_GE(ref_ctr_offset, 0, "ref_ctr_offset"))
+		return;
 
 	skel = test_attach_probe__open_and_load();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
@@ -37,20 +45,28 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_kretprobe = kretprobe_link;
 
-	uprobe_link = bpf_program__attach_uprobe(skel->progs.handle_uprobe,
-						 false /* retprobe */,
-						 0 /* self pid */,
-						 "/proc/self/exe",
-						 uprobe_offset);
+	ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
+
+	uprobe_opts.retprobe = false;
+	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe,
+						      0 /* self pid */,
+						      "/proc/self/exe",
+						      uprobe_offset,
+						      &uprobe_opts);
 	if (!ASSERT_OK_PTR(uprobe_link, "attach_uprobe"))
 		goto cleanup;
 	skel->links.handle_uprobe = uprobe_link;
 
-	uretprobe_link = bpf_program__attach_uprobe(skel->progs.handle_uretprobe,
-						    true /* retprobe */,
-						    -1 /* any pid */,
-						    "/proc/self/exe",
-						    uprobe_offset);
+	ASSERT_GT(uprobe_ref_ctr, 0, "uprobe_ref_ctr_after");
+
+	/* if uprobe uses ref_ctr, uretprobe has to use ref_ctr as well */
+	uprobe_opts.retprobe = true;
+	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uretprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe,
+							 -1 /* any pid */,
+							 "/proc/self/exe",
+							 uprobe_offset, &uprobe_opts);
 	if (!ASSERT_OK_PTR(uretprobe_link, "attach_uretprobe"))
 		goto cleanup;
 	skel->links.handle_uretprobe = uretprobe_link;
@@ -77,4 +93,5 @@ void test_attach_probe(void)
 
 cleanup:
 	test_attach_probe__destroy(skel);
+	ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_cleanup");
 }
