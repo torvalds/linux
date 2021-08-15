@@ -2922,6 +2922,7 @@ static int sysc_init_soc(struct sysc *ddata)
 			break;
 		case SOC_AM3:
 			sysc_add_disabled(0x48310000);  /* rng */
+			break;
 		default:
 			break;
 		};
