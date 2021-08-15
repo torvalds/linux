@@ -1347,6 +1347,7 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 
 #else /* !CONFIG_PREEMPT_RT */
 
+#define RT_MUTEX_BUILD_MUTEX
 #include "rtmutex.c"
 
 #define rwbase_set_and_save_current_state(state)	\
