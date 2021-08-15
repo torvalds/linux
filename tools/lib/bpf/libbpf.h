@@ -284,6 +284,10 @@ bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 struct bpf_uprobe_opts {
 	/* size of this struct, for forward/backward compatiblity */
 	size_t sz;
+	/* offset of kernel reference counted USDT semaphore, added in
+	 * a6ca88b241d5 ("trace_uprobe: support reference counter in fd-based uprobe")
+	 */
+	size_t ref_ctr_offset;
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
 	/* uprobe is return probe, invoked at function return time */
