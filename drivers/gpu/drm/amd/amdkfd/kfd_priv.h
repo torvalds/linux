@@ -877,6 +877,8 @@ struct kfd_process {
 	bool xnack_enabled;
 
 	atomic_t poison;
+	/* Queues are in paused stated because we are in the process of doing a CRIU checkpoint */
+	bool queues_paused;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */

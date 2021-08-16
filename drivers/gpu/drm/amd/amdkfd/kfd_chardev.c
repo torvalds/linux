@@ -2049,6 +2049,14 @@ static int criu_checkpoint(struct file *filep,
 		goto exit_unlock;
 	}
 
+	/* Confirm all process queues are evicted */
+	if (!p->queues_paused) {
+		pr_err("Cannot dump process when queues are not in evicted state\n");
+		/* CRIU plugin did not call op PROCESS_INFO before checkpointing */
+		ret = -EINVAL;
+		goto exit_unlock;
+	}
+
 	criu_get_process_object_info(p, &num_bos, &priv_size);
 
 	if (num_bos != args->num_bos ||
@@ -2388,7 +2396,24 @@ static int criu_unpause(struct file *filep,
 			struct kfd_process *p,
 			struct kfd_ioctl_criu_args *args)
 {
-	return 0;
+	int ret;
+
+	mutex_lock(&p->mutex);
+
+	if (!p->queues_paused) {
+		mutex_unlock(&p->mutex);
+		return -EINVAL;
+	}
+
+	ret = kfd_process_restore_queues(p);
+	if (ret)
+		pr_err("Failed to unpause queues ret:%d\n", ret);
+	else
+		p->queues_paused = false;
+
+	mutex_unlock(&p->mutex);
+
+	return ret;
 }
 
 static int criu_resume(struct file *filep,
@@ -2440,6 +2465,12 @@ static int criu_process_info(struct file *filep,
 		goto err_unlock;
 	}
 
+	ret = kfd_process_evict_queues(p);
+	if (ret)
+		goto err_unlock;
+
+	p->queues_paused = true;
+
 	args->pid = task_pid_nr_ns(p->lead_thread,
 					task_active_pid_ns(p->lead_thread));
 
@@ -2447,6 +2478,10 @@ static int criu_process_info(struct file *filep,
 
 	dev_dbg(kfd_device, "Num of bos:%u\n", args->num_bos);
 err_unlock:
+	if (ret) {
+		kfd_process_restore_queues(p);
+		p->queues_paused = false;
+	}
 	mutex_unlock(&p->mutex);
 	return ret;
 }
