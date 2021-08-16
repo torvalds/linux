@@ -2012,7 +2012,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		unsigned long pos;
 		const unsigned long *bm = resident_data(b);
 
-		nbits = le32_to_cpu(b->res.data_size) * 8;
+		nbits = (size_t)le32_to_cpu(b->res.data_size) * 8;
 
 		if (bit >= nbits)
 			return 0;
