@@ -229,7 +229,6 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	const struct snd_dmaengine_pcm_config *config = pcm->config;
 	struct device *dev = component->dev;
-	struct snd_pcm_substream *substream;
 	size_t prealloc_buffer_size;
 	size_t max_buffer_size;
 	unsigned int i;
@@ -243,7 +242,7 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 	}
 
 	for_each_pcm_streams(i) {
-		substream = rtd->pcm->streams[i].substream;
+		struct snd_pcm_substream *substream = rtd->pcm->streams[i].substream;
 		if (!substream)
 			continue;
 
