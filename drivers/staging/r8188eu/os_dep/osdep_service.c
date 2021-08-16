@@ -61,7 +61,7 @@ void *rtw_malloc2d(int h, int w, int size)
 		return NULL;
 
 	for (j = 0; j < h; j++)
-		a[j] = ((char *)(a+h)) + j*w*size;
+		a[j] = ((char *)(a + h)) + j * w * size;
 
 	return a;
 }
@@ -112,15 +112,15 @@ inline u32 rtw_ms_to_systime(u32 ms)
 /*  the input parameter start use the same unit as jiffies */
 inline s32 rtw_get_passing_time_ms(u32 start)
 {
-	return rtw_systime_to_ms(jiffies-start);
+	return rtw_systime_to_ms(jiffies - start);
 }
 
 void rtw_usleep_os(int us)
 {
-	if (1 < (us/1000))
+	if (1 < (us / 1000))
 		msleep(1);
 	else
-		msleep((us/1000) + 1);
+		msleep((us / 1000) + 1);
 }
 
 #define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
@@ -282,7 +282,7 @@ keep_ori:
  */
 inline bool rtw_cbuf_full(struct rtw_cbuf *cbuf)
 {
-	return (cbuf->write == cbuf->read-1) ? true : false;
+	return (cbuf->write == cbuf->read - 1) ? true : false;
 }
 
 /**
@@ -312,7 +312,7 @@ bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf)
 	if (0)
 		DBG_88E("%s on %u\n", __func__, cbuf->write);
 	cbuf->bufs[cbuf->write] = buf;
-	cbuf->write = (cbuf->write+1)%cbuf->size;
+	cbuf->write = (cbuf->write + 1) % cbuf->size;
 
 	return _SUCCESS;
 }
@@ -333,7 +333,7 @@ void *rtw_cbuf_pop(struct rtw_cbuf *cbuf)
 	if (0)
 		DBG_88E("%s on %u\n", __func__, cbuf->read);
 	buf = cbuf->bufs[cbuf->read];
-	cbuf->read = (cbuf->read+1)%cbuf->size;
+	cbuf->read = (cbuf->read + 1) % cbuf->size;
 
 	return buf;
 }
@@ -348,7 +348,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = kmalloc(sizeof(*cbuf) + sizeof(void *)*size, GFP_KERNEL);
+	cbuf = kmalloc(sizeof(*cbuf) + sizeof(void *) * size, GFP_KERNEL);
 
 	if (cbuf) {
 		cbuf->write = 0;
