@@ -309,10 +309,10 @@ int proc_get_mac_reg_dump1(char *page, char **start,
 	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
 
 	for (i = 0x0; i < 0x300; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 
@@ -332,10 +332,10 @@ int proc_get_mac_reg_dump2(char *page, char **start,
 	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
 	memset(page, 0, count);
 	for (i = 0x300; i < 0x600; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 
@@ -355,10 +355,10 @@ int proc_get_mac_reg_dump3(char *page, char **start,
 	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
 
 	for (i = 0x600; i < 0x800; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 
@@ -377,10 +377,10 @@ int proc_get_bb_reg_dump1(char *page, char **start,
 
 	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");
 	for (i = 0x800; i < 0xB00; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -398,10 +398,10 @@ int proc_get_bb_reg_dump2(char *page, char **start,
 
 	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");
 	for (i = 0xB00; i < 0xE00; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -419,10 +419,10 @@ int proc_get_bb_reg_dump3(char *page, char **start,
 
 	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");
 	for (i = 0xE00; i < 0x1000; i += 4) {
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -444,10 +444,10 @@ int proc_get_rf_reg_dump1(char *page, char **start,
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0; i < 0xC0; i++) {
 		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -469,10 +469,10 @@ int proc_get_rf_reg_dump2(char *page, char **start,
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0xC0; i < 0x100; i++) {
 		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -494,10 +494,10 @@ int proc_get_rf_reg_dump3(char *page, char **start,
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0; i < 0xC0; i++) {
 		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 
@@ -520,10 +520,10 @@ int proc_get_rf_reg_dump4(char *page, char **start,
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0xC0; i < 0x100; i++) {
 		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
-		if (j%4 == 1)
+		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
-		if ((j++)%4 == 0)
+		if ((j++) % 4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
 	*eof = 1;
@@ -801,7 +801,7 @@ int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 
 		if (enable) {
 			DBG_88E("Turn On Rx RSSI Display Function\n");
-			padapter->bRxRSSIDisplay = enable ;
+			padapter->bRxRSSIDisplay = enable;
 		} else {
 			DBG_88E("Turn Off Rx RSSI Display Function\n");
 			padapter->bRxRSSIDisplay = 0;
