@@ -1438,7 +1438,7 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bp = devlink_priv(devlink);
 	err = ptp_ocp_device_init(bp, pdev);
 	if (err)
-		goto out_unregister;
+		goto out_disable;
 
 	/* compat mode.
 	 * Older FPGA firmware only returns 2 irq's.
@@ -1476,8 +1476,9 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 out:
 	ptp_ocp_detach(bp);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+out_disable:
+	pci_disable_device(pdev);
 out_unregister:
 	devlink_unregister(devlink);
 out_free:
@@ -1493,8 +1494,8 @@ ptp_ocp_remove(struct pci_dev *pdev)
 	struct devlink *devlink = priv_to_devlink(bp);
 
 	ptp_ocp_detach(bp);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+	pci_disable_device(pdev);
 
 	devlink_unregister(devlink);
 	devlink_free(devlink);
