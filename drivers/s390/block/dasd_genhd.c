@@ -40,14 +40,14 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	if (base->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
 
-	gdp = __alloc_disk_node(1 << DASD_PARTN_BITS, NUMA_NO_NODE,
-				&dasd_bio_compl_lkclass);
+	gdp = __alloc_disk_node(NUMA_NO_NODE, &dasd_bio_compl_lkclass);
 	if (!gdp)
 		return -ENOMEM;
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
 	gdp->first_minor = base->devindex << DASD_PARTN_BITS;
+	gdp->minors = 1 << DASD_PARTN_BITS;
 	gdp->fops = &dasd_device_operations;
 
 	/*
