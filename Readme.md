@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 05 Aug 2021
+Release Date: 16 Aug 2021
 
-Release Version: V_01-00-08 : Limited-tested version
+Release Version: V_01-00-09 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -89,6 +89,9 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 6. From V_01-00-08 onwards, Port0 ethernet interface will not be created only if there is no ethernet PHY attached to it
 
+7. Enable TC956X_PHY_INTERRUPT_MODE_EMAC0 macro for supporting PORT0 Interrupt mode. Disable the macro if the phy driver supports only polling mode.
+   Enable TC956X_PHY_INTERRUPT_MODE_EMAC1 macro for supporting PORT1 Interrupt mode. Disable the macro if the phy driver supports only polling mode.
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -135,3 +138,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. Store and use Port0 pci_dev for all DMA allocation/mapping for IPA path
 2. Register Port0 as only PCIe device, in case its PHY is not found
+
+## TC956X_Host_Driver_20210816_V_01-00-09:
+
+1. PHY interrupt mode supported through .config_intr and .ack_interrupt API

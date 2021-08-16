@@ -49,6 +49,8 @@
  *  VERSION     : 01-00-07
  *  05 Aug 2021 : 1. Register Port0 as only PCIe device, incase its PHY is not found
  *  VERSION     : 01-00-08
+ *  16 Aug 2021 : 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
+ *  VERSION     : 01-00-09
  */
 
 #include <linux/clk-provider.h>
@@ -78,7 +80,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 8};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 9};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1016,6 +1018,22 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->rx_dma_ch_owner[6] = RX_DMA_CH6_OWNER;
 	plat->rx_dma_ch_owner[7] = RX_DMA_CH7_OWNER;
 
+	/* Configuration of PHY operating mode 1(true): for interrupt mode, 0(false): for polling mode */
+	if (plat->port_num == RM_PF0_ID) {
+#ifdef TC956X_PHY_INTERRUPT_MODE_EMAC0
+		plat->phy_interrupt_mode = true;
+#else
+		plat->phy_interrupt_mode = false;
+#endif
+	}
+
+	if (plat->port_num == RM_PF1_ID) {
+#ifdef TC956X_PHY_INTERRUPT_MODE_EMAC1
+		plat->phy_interrupt_mode = true;
+#else
+		plat->phy_interrupt_mode = false;
+#endif
+	}
 	return 0;
 }
 
@@ -1728,7 +1746,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	struct plat_tc956xmacenet_data *plat;
 	struct tc956xmac_resources res;
 #ifdef TC956X
-	/* use signal from EMSPHY */
+	/* use signal from MSPHY */
 	uint8_t SgmSigPol = 0;
 #ifdef TC956X_PCIE_GEN3_SETTING
 	u32 val;
@@ -2309,7 +2327,7 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
-	/* use signal from EMSPHY */
+	/* use signal from MSPHY */
 	uint8_t SgmSigPol = 0;
 	int ret = 0;
 

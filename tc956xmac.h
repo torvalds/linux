@@ -51,6 +51,8 @@
  *  05 Aug 2021 : 1. Store and use Port0 pci_dev for all DMA allocation/mapping for IPA path
  *		: 2. Register Port0 as only PCIe device, incase its PHY is not found
  *  VERSION     : 01-00-08
+ *  16 Aug 2021 : 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
+ *  VERSION     : 01-00-09
  */
 
 #ifndef __TC956XMAC_H__
@@ -97,7 +99,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-08"
+#define DRV_MODULE_VERSION	"V_01-00-09"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -542,6 +544,9 @@ struct tc956xmac_priv {
 	void *client_priv;
 	struct tc956xmac_cm3_tamap cm3_tamap[MAX_CM3_TAMAP_ENTRIES];
 #endif
+	/* Work struct for handling phy interrupt */
+	struct work_struct emac_phy_work;
+
 };
 
 struct tc956x_version {
