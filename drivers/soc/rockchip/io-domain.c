@@ -610,6 +610,55 @@ static const struct of_device_id rockchip_iodomain_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_iodomain_match);
 
+static int rv1126_iodomain_notify(struct notifier_block *nb,
+				  unsigned long event,
+				  void *data)
+{
+	struct rockchip_iodomain_supply *supply =
+			container_of(nb, struct rockchip_iodomain_supply, nb);
+	int uV;
+	int ret;
+
+	if (event & REGULATOR_EVENT_PRE_VOLTAGE_CHANGE) {
+		struct pre_voltage_change_data *pvc_data = data;
+
+		uV = max_t(unsigned long, pvc_data->old_uV, pvc_data->max_uV);
+	} else if (event & (REGULATOR_EVENT_VOLTAGE_CHANGE |
+			    REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE)) {
+		uV = (unsigned long)data;
+	} else if (event & REGULATOR_EVENT_DISABLE) {
+		uV = MAX_VOLTAGE_3_3;
+	} else if (event & REGULATOR_EVENT_ENABLE) {
+		if (!data)
+			return NOTIFY_BAD;
+
+		uV = (unsigned long)data;
+	} else {
+		return NOTIFY_OK;
+	}
+
+	if (uV <= 0) {
+		dev_err(supply->iod->dev, "Voltage invalid: %d\n", uV);
+		return NOTIFY_BAD;
+	}
+
+	dev_dbg(supply->iod->dev, "Setting to %d\n", uV);
+
+	if (uV > MAX_VOLTAGE_3_3) {
+		dev_err(supply->iod->dev, "Voltage too high: %d\n", uV);
+
+		if (event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
+			return NOTIFY_BAD;
+	}
+
+	ret = supply->iod->write(supply, uV);
+	if (ret && event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
+		return NOTIFY_BAD;
+
+	dev_dbg(supply->iod->dev, "Setting to %d done\n", uV);
+	return NOTIFY_OK;
+}
+
 static int rockchip_iodomain_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -695,6 +744,8 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 		supply->iod = iod;
 		supply->reg = reg;
 		supply->nb.notifier_call = rockchip_iodomain_notify;
+		if (IS_ENABLED(CONFIG_CPU_RV1126))
+			supply->nb.notifier_call = rv1126_iodomain_notify;
 
 		ret = iod->write(supply, uV);
 		if (ret) {
