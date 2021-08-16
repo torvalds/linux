@@ -110,12 +110,14 @@ enum max17042_register {
 	MAX17042_VFSOC		= 0xFF,
 };
 
+/* Registers specific to max17055 only */
 enum max17055_register {
 	MAX17055_QRes		= 0x0C,
+	MAX17055_RCell		= 0x14,
 	MAX17055_TTF		= 0x20,
-	MAX17055_TIMER		= 0x3E,
+	MAX17055_DieTemp	= 0x34,
 	MAX17055_USER_MEM	= 0x40,
-	MAX17055_RGAIN		= 0x42,
+	MAX17055_RGAIN		= 0x43,
 
 	MAX17055_ConvgCfg	= 0x49,
 	MAX17055_VFRemCap	= 0x4A,
@@ -154,13 +156,14 @@ enum max17055_register {
 	MAX17055_AtAvCap	= 0xDF,
 };
 
-/* Registers specific to max17047/50 */
+/* Registers specific to max17047/50/55 */
 enum max17047_register {
 	MAX17047_QRTbl00	= 0x12,
 	MAX17047_FullSOCThr	= 0x13,
 	MAX17047_QRTbl10	= 0x22,
 	MAX17047_QRTbl20	= 0x32,
 	MAX17047_V_empty	= 0x3A,
+	MAX17047_TIMER		= 0x3E,
 	MAX17047_QRTbl30	= 0x42,
 };
 
