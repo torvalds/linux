@@ -20,7 +20,7 @@
 #include "bnxt.h"
 #include "bnxt_ptp.h"
 
-int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id)
+int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off)
 {
 	unsigned int ptp_class;
 	struct ptp_header *hdr;
@@ -34,6 +34,7 @@ int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id)
 		if (!hdr)
 			return -EINVAL;
 
+		*hdr_off = (u8 *)hdr - skb->data;
 		*seq_id	 = ntohs(hdr->sequence_id);
 		return 0;
 	default:
@@ -91,6 +92,7 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
 	    PORT_TS_QUERY_REQ_FLAGS_PATH_TX) {
 		req.enables = cpu_to_le16(BNXT_PTP_QTS_TX_ENABLES);
 		req.ptp_seq_id = cpu_to_le32(bp->ptp_cfg->tx_seqid);
+		req.ptp_hdr_offset = cpu_to_le16(bp->ptp_cfg->tx_hdr_off);
 		req.ts_req_timeout = cpu_to_le16(BNXT_PTP_QTS_TIMEOUT);
 	}
 	mutex_lock(&bp->hwrm_cmd_lock);
@@ -353,6 +355,12 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 
 	bnxt_ptp_get_current_time(bp);
 	ptp->next_period = now + HZ;
+	if (time_after_eq(now, ptp->next_overflow_check)) {
+		spin_lock_bh(&ptp->ptp_lock);
+		timecounter_read(&ptp->tc);
+		spin_unlock_bh(&ptp->ptp_lock);
+		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
+	}
 	return HZ;
 }
 
@@ -423,6 +431,7 @@ int bnxt_ptp_init(struct bnxt *bp)
 	ptp->cc.shift = 0;
 	ptp->cc.mult = 1;
 
+	ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
 
 	ptp->ptp_info = bnxt_ptp_caps;

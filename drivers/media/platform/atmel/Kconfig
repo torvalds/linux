@@ -8,6 +8,7 @@ config VIDEO_ATMEL_ISC
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
 	select V4L2_FWNODE
+	select VIDEO_ATMEL_ISC_BASE
 	help
 	   This module makes the ATMEL Image Sensor Controller available
 	   as a v4l2 device.
@@ -19,9 +20,16 @@ config VIDEO_ATMEL_XISC
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
 	select V4L2_FWNODE
+	select VIDEO_ATMEL_ISC_BASE
 	help
 	   This module makes the ATMEL eXtended Image Sensor Controller
 	   available as a v4l2 device.
+
+config VIDEO_ATMEL_ISC_BASE
+	tristate
+	default n
+	help
+	  ATMEL ISC and XISC common code base.
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"

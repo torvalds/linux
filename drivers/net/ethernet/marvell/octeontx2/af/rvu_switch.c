@@ -71,8 +71,8 @@ static int rvu_switch_install_rules(struct rvu *rvu)
 	struct rvu_switch *rswitch = &rvu->rswitch;
 	u16 start = rswitch->start_entry;
 	struct rvu_hwinfo *hw = rvu->hw;
-	int pf, vf, numvfs, hwvf;
 	u16 pcifunc, entry = 0;
+	int pf, vf, numvfs;
 	int err;
 
 	for (pf = 1; pf < hw->total_pfs; pf++) {
@@ -110,8 +110,8 @@ static int rvu_switch_install_rules(struct rvu *rvu)
 
 		rswitch->entry2pcifunc[entry++] = pcifunc;
 
-		rvu_get_pf_numvfs(rvu, pf, &numvfs, &hwvf);
-		for (vf = 0; vf < numvfs; vf++, hwvf++) {
+		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
+		for (vf = 0; vf < numvfs; vf++) {
 			pcifunc = pf << 10 | ((vf + 1) & 0x3FF);
 			rvu_get_nix_blkaddr(rvu, pcifunc);
 
@@ -198,7 +198,7 @@ void rvu_switch_disable(struct rvu *rvu)
 	struct npc_mcam_free_entry_req free_req = { 0 };
 	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct rvu_hwinfo *hw = rvu->hw;
-	int pf, vf, numvfs, hwvf;
+	int pf, vf, numvfs;
 	struct msg_rsp rsp;
 	u16 pcifunc;
 	int err;
@@ -217,7 +217,8 @@ void rvu_switch_disable(struct rvu *rvu)
 				"Reverting RX rule for PF%d failed(%d)\n",
 				pf, err);
 
-		for (vf = 0; vf < numvfs; vf++, hwvf++) {
+		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
+		for (vf = 0; vf < numvfs; vf++) {
 			pcifunc = pf << 10 | ((vf + 1) & 0x3FF);
 			err = rvu_switch_install_rx_rule(rvu, pcifunc, 0xFFF);
 			if (err)

@@ -426,7 +426,10 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (ptp && ptp->tx_tstamp_en && !skb_is_gso(skb) &&
 		    atomic_dec_if_positive(&ptp->tx_avail) >= 0) {
-			if (!bnxt_ptp_parse(skb, &ptp->tx_seqid)) {
+			if (!bnxt_ptp_parse(skb, &ptp->tx_seqid,
+					    &ptp->tx_hdr_off)) {
+				if (vlan_tag_flags)
+					ptp->tx_hdr_off += VLAN_HLEN;
 				lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
 				skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			} else {
@@ -12131,9 +12134,8 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		/* Make sure fw_reset_state is 0 before clearing the flag */
 		smp_mb__before_atomic();
 		clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-		bnxt_ulp_start(bp, rc);
-		if (!rc)
-			bnxt_reenable_sriov(bp);
+		bnxt_ulp_start(bp, 0);
+		bnxt_reenable_sriov(bp);
 		bnxt_vf_reps_alloc(bp);
 		bnxt_vf_reps_open(bp);
 		bnxt_dl_health_recovery_done(bp);
