@@ -170,10 +170,12 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 		x->normal_irq_n++;
 	if (likely(intr_status & DMA_CHAN_STATUS_RI)) {
 		x->rx_normal_irq_n++;
+		x->rxq_stats[chan].rx_normal_irq_n++;
 		ret |= handle_rx;
 	}
 	if (likely(intr_status & DMA_CHAN_STATUS_TI)) {
 		x->tx_normal_irq_n++;
+		x->txq_stats[chan].tx_normal_irq_n++;
 		ret |= handle_tx;
 	}
 	if (unlikely(intr_status & DMA_CHAN_STATUS_TBU))

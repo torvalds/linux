@@ -60,10 +60,12 @@
 
 struct stmmac_txq_stats {
 	unsigned long tx_pkt_n;
+	unsigned long tx_normal_irq_n;
 };
 
 struct stmmac_rxq_stats {
 	unsigned long rx_pkt_n;
+	unsigned long rx_normal_irq_n;
 };
 
 /* Extra statistic and debug information exposed by ethtool */

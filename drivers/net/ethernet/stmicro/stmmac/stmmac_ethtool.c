@@ -263,11 +263,13 @@ static const struct stmmac_stats stmmac_mmc[] = {
 
 static const char stmmac_qstats_tx_string[][ETH_GSTRING_LEN] = {
 	"tx_pkt_n",
+	"tx_irq_n",
 #define STMMAC_TXQ_STATS ARRAY_SIZE(stmmac_qstats_tx_string)
 };
 
 static const char stmmac_qstats_rx_string[][ETH_GSTRING_LEN] = {
 	"rx_pkt_n",
+	"rx_irq_n",
 #define STMMAC_RXQ_STATS ARRAY_SIZE(stmmac_qstats_rx_string)
 };
 
