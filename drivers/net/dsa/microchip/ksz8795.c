@@ -812,9 +812,11 @@ static bool ksz8795_port_vlan_changes_remove_tag(
 	/* If a VLAN is added with untagged flag different from the
 	 * port's Remove Tag flag, we need to change the latter.
 	 * Ignore VID 0, which is always untagged.
+	 * Ignore CPU port, which will always be tagged.
 	 */
 	return untagged != p->remove_tag &&
-		!(vlan->vid_begin == 0 && vlan->vid_end == 0);
+		!(vlan->vid_begin == 0 && vlan->vid_end == 0) &&
+		port != dev->cpu_port;
 }
 
 int ksz8795_port_vlan_prepare(struct dsa_switch *ds, int port,
@@ -1324,6 +1326,11 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 
 	/* set the real number of ports */
 	dev->ds->num_ports = dev->port_cnt + 1;
+
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	dev->ds->untag_bridge_pvid = true;
 
 	/* VLAN filtering is partly controlled by the global VLAN
 	 * Enable flag
