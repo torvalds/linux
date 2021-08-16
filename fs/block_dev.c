@@ -812,8 +812,11 @@ static void bdev_free_inode(struct inode *inode)
 	free_percpu(bdev->bd_stats);
 	kfree(bdev->bd_meta_info);
 
-	if (!bdev_is_partition(bdev))
+	if (!bdev_is_partition(bdev)) {
+		if (bdev->bd_disk && bdev->bd_disk->bdi)
+			bdi_put(bdev->bd_disk->bdi);
 		kfree(bdev->bd_disk);
+	}
 
 	if (MAJOR(bdev->bd_dev) == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(MINOR(bdev->bd_dev));
@@ -833,8 +836,6 @@ static void bdev_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode); /* is it needed here? */
 	clear_inode(inode);
-	/* Detach inode from wb early as bdi_put() may free bdi->wb */
-	inode_detach_wb(inode);
 }
 
 static const struct super_operations bdev_sops = {

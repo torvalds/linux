@@ -1084,7 +1084,6 @@ static void disk_release(struct device *dev)
 
 	might_sleep();
 
-	bdi_put(disk->bdi);
 	disk_release_events(disk);
 	kfree(disk->random);
 	xa_destroy(&disk->part_tbl);
