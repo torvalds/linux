@@ -240,11 +240,11 @@ void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 
 {
 	struct net *net = nf_ct_exp_net(exp);
-	struct nf_exp_event_notifier *notify;
+	struct nf_ct_event_notifier *notify;
 	struct nf_conntrack_ecache *e;
 
 	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_expect_event_cb);
+	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
 	if (!notify)
 		goto out_unlock;
 
@@ -283,46 +283,9 @@ void nf_conntrack_unregister_notifier(struct net *net)
 	mutex_lock(&nf_ct_ecache_mutex);
 	RCU_INIT_POINTER(net->ct.nf_conntrack_event_cb, NULL);
 	mutex_unlock(&nf_ct_ecache_mutex);
-	/* synchronize_rcu() is called from ctnetlink_exit. */
+	/* synchronize_rcu() is called after netns pre_exit */
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
-
-int nf_ct_expect_register_notifier(struct net *net,
-				   struct nf_exp_event_notifier *new)
-{
-	int ret;
-	struct nf_exp_event_notifier *notify;
-
-	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
-					   lockdep_is_held(&nf_ct_ecache_mutex));
-	if (notify != NULL) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
-	rcu_assign_pointer(net->ct.nf_expect_event_cb, new);
-	ret = 0;
-
-out_unlock:
-	mutex_unlock(&nf_ct_ecache_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_expect_register_notifier);
-
-void nf_ct_expect_unregister_notifier(struct net *net,
-				      struct nf_exp_event_notifier *new)
-{
-	struct nf_exp_event_notifier *notify;
-
-	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
-					   lockdep_is_held(&nf_ct_ecache_mutex));
-	BUG_ON(notify != new);
-	RCU_INIT_POINTER(net->ct.nf_expect_event_cb, NULL);
-	mutex_unlock(&nf_ct_ecache_mutex);
-	/* synchronize_rcu() is called from ctnetlink_exit. */
-}
-EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);
 
 void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 {
