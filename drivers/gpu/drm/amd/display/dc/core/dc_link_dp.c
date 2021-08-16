@@ -1561,7 +1561,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 
 	dp_decide_training_settings(
 			link,
@@ -1707,7 +1707,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	bool skip_video_pattern)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum dp_link_encoding encoding =
 			dp_get_link_encoding_format(link_settings);
 
@@ -1923,7 +1923,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
     struct dc_link_settings *link_settings,
     struct dc_link_training_overrides *lt_overrides)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum link_training_result lt_status = LINK_TRAINING_SUCCESS;
 	enum dp_panel_mode panel_mode = DP_PANEL_MODE_DEFAULT;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
