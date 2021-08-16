@@ -2226,6 +2226,9 @@ static bool underrun_recovery_supported(const struct intel_crtc_state *crtc_stat
 	if (crtc_state->has_psr2)
 		return false;
 
+	if (crtc_state->splitter.enable)
+		return false;
+
 	return true;
 }
 
