@@ -595,12 +595,32 @@ static int validate_hash_algo(struct dentry *dentry,
 {
 	char *path = NULL, *pathbuf = NULL;
 	enum hash_algo xattr_hash_algo;
+	const char *errmsg = "unavailable-hash-algorithm";
+	unsigned int allowed_hashes;
 
 	xattr_hash_algo = ima_get_hash_algo(xattr_value, xattr_value_len);
 
-	if (likely(xattr_hash_algo == ima_hash_algo ||
-		   crypto_has_alg(hash_algo_name[xattr_hash_algo], 0, 0)))
-		return 0;
+	allowed_hashes = atomic_read(&ima_setxattr_allowed_hash_algorithms);
+
+	if (allowed_hashes) {
+		/* success if the algorithm is allowed in the ima policy */
+		if (allowed_hashes & (1U << xattr_hash_algo))
+			return 0;
+
+		/*
+		 * We use a different audit message when the hash algorithm
+		 * is denied by a policy rule, instead of not being built
+		 * in the kernel image
+		 */
+		errmsg = "denied-hash-algorithm";
+	} else {
+		if (likely(xattr_hash_algo == ima_hash_algo))
+			return 0;
+
+		/* allow any xattr using an algorithm built in the kernel */
+		if (crypto_has_alg(hash_algo_name[xattr_hash_algo], 0, 0))
+			return 0;
+	}
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!pathbuf)
@@ -609,8 +629,7 @@ static int validate_hash_algo(struct dentry *dentry,
 	path = dentry_path(dentry, pathbuf, PATH_MAX);
 
 	integrity_audit_msg(AUDIT_INTEGRITY_DATA, d_inode(dentry), path,
-			    "set_data", "unavailable-hash-algorithm",
-			    -EACCES, 0);
+			    "set_data", errmsg, -EACCES, 0);
 
 	kfree(pathbuf);
 

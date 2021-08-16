@@ -53,6 +53,8 @@ int ima_policy_flag;
 static int temp_ima_appraise;
 static int build_ima_appraise __ro_after_init;
 
+atomic_t ima_setxattr_allowed_hash_algorithms;
+
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
 	LSM_SUBJ_USER, LSM_SUBJ_ROLE, LSM_SUBJ_TYPE
@@ -720,24 +722,57 @@ int ima_match_policy(struct user_namespace *mnt_userns, struct inode *inode,
 	return action;
 }
 
-/*
- * Initialize the ima_policy_flag variable based on the currently
- * loaded policy.  Based on this flag, the decision to short circuit
- * out of a function or not call the function in the first place
- * can be made earlier.
+/**
+ * ima_update_policy_flags() - Update global IMA variables
+ *
+ * Update ima_policy_flag and ima_setxattr_allowed_hash_algorithms
+ * based on the currently loaded policy.
+ *
+ * With ima_policy_flag, the decision to short circuit out of a function
+ * or not call the function in the first place can be made earlier.
+ *
+ * With ima_setxattr_allowed_hash_algorithms, the policy can restrict the
+ * set of hash algorithms accepted when updating the security.ima xattr of
+ * a file.
+ *
+ * Context: called after a policy update and at system initialization.
  */
-void ima_update_policy_flag(void)
+void ima_update_policy_flags(void)
 {
 	struct ima_rule_entry *entry;
+	int new_policy_flag = 0;
 
+	rcu_read_lock();
 	list_for_each_entry(entry, ima_rules, list) {
+		/*
+		 * SETXATTR_CHECK rules do not implement a full policy check
+		 * because rule checking would probably have an important
+		 * performance impact on setxattr(). As a consequence, only one
+		 * SETXATTR_CHECK can be active at a given time.
+		 * Because we want to preserve that property, we set out to use
+		 * atomic_cmpxchg. Either:
+		 * - the atomic was non-zero: a setxattr hash policy is
+		 *   already enforced, we do nothing
+		 * - the atomic was zero: no setxattr policy was set, enable
+		 *   the setxattr hash policy
+		 */
+		if (entry->func == SETXATTR_CHECK) {
+			atomic_cmpxchg(&ima_setxattr_allowed_hash_algorithms,
+				       0, entry->allowed_algos);
+			/* SETXATTR_CHECK doesn't impact ima_policy_flag */
+			continue;
+		}
+
 		if (entry->action & IMA_DO_MASK)
-			ima_policy_flag |= entry->action;
+			new_policy_flag |= entry->action;
 	}
+	rcu_read_unlock();
 
 	ima_appraise |= (build_ima_appraise | temp_ima_appraise);
 	if (!ima_appraise)
-		ima_policy_flag &= ~IMA_APPRAISE;
+		new_policy_flag &= ~IMA_APPRAISE;
+
+	ima_policy_flag = new_policy_flag;
 }
 
 static int ima_appraise_flag(enum ima_hooks func)
@@ -903,7 +938,9 @@ void __init ima_init_policy(void)
 			  ARRAY_SIZE(critical_data_rules),
 			  IMA_DEFAULT_POLICY);
 
-	ima_update_policy_flag();
+	atomic_set(&ima_setxattr_allowed_hash_algorithms, 0);
+
+	ima_update_policy_flags();
 }
 
 /* Make sure we have a valid policy, at least containing some rules. */
@@ -943,7 +980,7 @@ void ima_update_policy(void)
 		 */
 		kfree(arch_policy_entry);
 	}
-	ima_update_policy_flag();
+	ima_update_policy_flags();
 
 	/* Custom IMA policy has been loaded */
 	ima_process_queued_keys();
@@ -1177,6 +1214,23 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 			return false;
 
 		break;
+	case SETXATTR_CHECK:
+		/* any action other than APPRAISE is unsupported */
+		if (entry->action != APPRAISE)
+			return false;
+
+		/* SETXATTR_CHECK requires an appraise_algos parameter */
+		if (!(entry->flags & IMA_VALIDATE_ALGOS))
+			return false;
+
+		/*
+		 * full policies are not supported, they would have too
+		 * much of a performance impact
+		 */
+		if (entry->flags & ~(IMA_FUNC | IMA_VALIDATE_ALGOS))
+			return false;
+
+		break;
 	default:
 		return false;
 	}
@@ -1332,6 +1386,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = KEY_CHECK;
 			else if (strcmp(args[0].from, "CRITICAL_DATA") == 0)
 				entry->func = CRITICAL_DATA;
+			else if (strcmp(args[0].from, "SETXATTR_CHECK") == 0)
+				entry->func = SETXATTR_CHECK;
 			else
 				result = -EINVAL;
 			if (!result)
