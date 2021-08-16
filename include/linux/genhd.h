@@ -262,16 +262,6 @@ void blk_drop_partitions(struct gendisk *disk);
 struct gendisk *__alloc_disk_node(int minors, int node_id,
 		struct lock_class_key *lkclass);
 extern void put_disk(struct gendisk *disk);
-
-#define alloc_disk_node(minors, node_id)				\
-({									\
-	static struct lock_class_key __key;				\
-									\
-	__alloc_disk_node(minors, node_id, &__key);			\
-})
-
-#define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
-
 struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass);
 
 /**
