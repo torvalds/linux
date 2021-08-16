@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/log2.h>
 #include <linux/nls.h>
 
 #include "debug.h"
@@ -376,7 +377,7 @@ requires_new_range:
 			if (!used) {
 				bytes = 64;
 			} else if (used <= 16 * PAGE_SIZE) {
-				if (is_power_of2(run->allocated))
+				if (is_power_of_2(run->allocated))
 					bytes = run->allocated << 1;
 				else
 					bytes = (size_t)1

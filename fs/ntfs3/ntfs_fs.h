@@ -972,11 +972,6 @@ static inline struct buffer_head *ntfs_bread(struct super_block *sb,
 	return NULL;
 }
 
-static inline bool is_power_of2(size_t v)
-{
-	return v && !(v & (v - 1));
-}
-
 static inline struct ntfs_inode *ntfs_i(struct inode *inode)
 {
 	return container_of(inode, struct ntfs_inode, vfs_inode);

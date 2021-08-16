@@ -29,6 +29,7 @@
 #include <linux/exportfs.h>
 #include <linux/fs.h>
 #include <linux/iversion.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/nls.h>
 #include <linux/parser.h>
@@ -735,13 +736,13 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 
 	boot_sector_size = (u32)boot->bytes_per_sector[1] << 8;
 	if (boot->bytes_per_sector[0] || boot_sector_size < SECTOR_SIZE ||
-	    !is_power_of2(boot_sector_size)) {
+	    !is_power_of_2(boot_sector_size)) {
 		goto out;
 	}
 
 	/* cluster size: 512, 1K, 2K, 4K, ... 2M */
 	sct_per_clst = true_sectors_per_clst(boot);
-	if (!is_power_of2(sct_per_clst))
+	if (!is_power_of_2(sct_per_clst))
 		goto out;
 
 	mlcn = le64_to_cpu(boot->mft_clst);
@@ -757,14 +758,14 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	/* Check MFT record size */
 	if ((boot->record_size < 0 &&
 	     SECTOR_SIZE > (2U << (-boot->record_size))) ||
-	    (boot->record_size >= 0 && !is_power_of2(boot->record_size))) {
+	    (boot->record_size >= 0 && !is_power_of_2(boot->record_size))) {
 		goto out;
 	}
 
 	/* Check index record size */
 	if ((boot->index_size < 0 &&
 	     SECTOR_SIZE > (2U << (-boot->index_size))) ||
-	    (boot->index_size >= 0 && !is_power_of2(boot->index_size))) {
+	    (boot->index_size >= 0 && !is_power_of_2(boot->index_size))) {
 		goto out;
 	}
 
