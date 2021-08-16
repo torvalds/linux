@@ -5404,6 +5404,44 @@ lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
 	return port_speed;
 }
 
+void
+lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba)
+{
+	struct rxtable_entry *entry;
+	int cnt = 0, head, tail, last, start;
+
+	head = atomic_read(&phba->rxtable_idx_head);
+	tail = atomic_read(&phba->rxtable_idx_tail);
+	if (!phba->rxtable || head == tail) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"4411 Rxtable is empty\n");
+		return;
+	}
+	last = tail;
+	start = head;
+
+	/* Display the last LPFC_MAX_RXMONITOR_DUMP entries from the rxtable */
+	while (start != last) {
+		if (start)
+			start--;
+		else
+			start = LPFC_MAX_RXMONITOR_ENTRY - 1;
+		entry = &phba->rxtable[start];
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"4410 %02d: MBPI %lld Xmit %lld Cmpl %lld "
+				"Lat %lld ASz %lld Info %02d BWUtil %d "
+				"Int %d slot %d\n",
+				cnt, entry->max_bytes_per_interval,
+				entry->total_bytes, entry->rcv_bytes,
+				entry->avg_io_latency, entry->avg_io_size,
+				entry->cmf_info, entry->timer_utilization,
+				entry->timer_interval, start);
+		cnt++;
+		if (cnt >= LPFC_MAX_RXMONITOR_DUMP)
+			return;
+	}
+}
+
 /**
  * lpfc_cgn_update_stat - Save data into congestion stats buffer
  * @phba: pointer to lpfc hba data structure.
