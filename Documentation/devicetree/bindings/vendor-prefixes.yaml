@@ -735,6 +735,8 @@ patternProperties:
     description: MiraMEMS Sensing Technology Co., Ltd.
   "^mitsubishi,.*":
     description: Mitsubishi Electric Corporation
+  "^mntre,.*":
+    description: MNT Research GmbH
   "^modtronix,.*":
     description: Modtronix Engineering
   "^mosaixtech,.*":
@@ -1066,6 +1068,8 @@ patternProperties:
     description: Silicon Integrated Systems Corp.
   "^sitronix,.*":
     description: Sitronix Technology Corporation
+  "^skov,.*":
+    description: SKOV A/S
   "^skyworks,.*":
     description: Skyworks Solutions, Inc.
   "^smartlabs,.*":
@@ -1184,6 +1188,8 @@ patternProperties:
     description: TPO
   "^tq,.*":
     description: TQ-Systems GmbH
+  "^traverse,.*":
+    description: Traverse Technologies Australia Pty Ltd
   "^tronfy,.*":
     description: Tronfy
   "^tronsmart,.*":
