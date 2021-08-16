@@ -35,6 +35,7 @@
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
 #include "internal.h"
+#include "../block/blk.h"
 
 struct bdev_inode {
 	struct block_device bdev;
@@ -813,6 +814,10 @@ static void bdev_free_inode(struct inode *inode)
 
 	if (!bdev_is_partition(bdev))
 		kfree(bdev->bd_disk);
+
+	if (MAJOR(bdev->bd_dev) == BLOCK_EXT_MAJOR)
+		blk_free_ext_minor(MINOR(bdev->bd_dev));
+
 	kmem_cache_free(bdev_cachep, BDEV_I(inode));
 }
 
