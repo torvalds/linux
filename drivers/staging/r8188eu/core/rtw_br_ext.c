@@ -49,7 +49,7 @@
 -----------------------------------------------------------------*/
 
 /* Find a tag in pppoe frame and return the pointer */
-static inline unsigned char *__nat25_find_pppoe_tag(struct pppoe_hdr *ph, unsigned short type)
+static unsigned char *__nat25_find_pppoe_tag(struct pppoe_hdr *ph, unsigned short type)
 {
 	unsigned char *cur_ptr, *start_ptr;
 	unsigned short tagLen, tagType;
@@ -66,7 +66,7 @@ static inline unsigned char *__nat25_find_pppoe_tag(struct pppoe_hdr *ph, unsign
 	return NULL;
 }
 
-static inline int __nat25_add_pppoe_tag(struct sk_buff *skb, struct pppoe_tag *tag)
+static int __nat25_add_pppoe_tag(struct sk_buff *skb, struct pppoe_tag *tag)
 {
 	struct pppoe_hdr *ph = (struct pppoe_hdr *)(skb->data + ETH_HLEN);
 	int data_len;
@@ -106,7 +106,7 @@ static int skb_pull_and_merge(struct sk_buff *skb, unsigned char *src, int len)
 	return 0;
 }
 
-static inline unsigned long __nat25_timeout(struct adapter *priv)
+static unsigned long __nat25_timeout(struct adapter *priv)
 {
 	unsigned long timeout;
 
@@ -115,7 +115,7 @@ static inline unsigned long __nat25_timeout(struct adapter *priv)
 	return timeout;
 }
 
-static inline int  __nat25_has_expired(struct adapter *priv,
+static int  __nat25_has_expired(struct adapter *priv,
 				struct nat25_network_db_entry *fdb)
 {
 	if (time_before_eq(fdb->ageing_timer, __nat25_timeout(priv)))
@@ -124,7 +124,7 @@ static inline int  __nat25_has_expired(struct adapter *priv,
 	return 0;
 }
 
-static inline void __nat25_generate_ipv4_network_addr(unsigned char *networkAddr,
+static void __nat25_generate_ipv4_network_addr(unsigned char *networkAddr,
 				unsigned int *ipAddr)
 {
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
@@ -133,7 +133,7 @@ static inline void __nat25_generate_ipv4_network_addr(unsigned char *networkAddr
 	memcpy(networkAddr+7, (unsigned char *)ipAddr, 4);
 }
 
-static inline void __nat25_generate_ipx_network_addr_with_node(unsigned char *networkAddr,
+static void __nat25_generate_ipx_network_addr_with_node(unsigned char *networkAddr,
 				__be32 *ipxNetAddr, unsigned char *ipxNodeAddr)
 {
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
@@ -143,7 +143,7 @@ static inline void __nat25_generate_ipx_network_addr_with_node(unsigned char *ne
 	memcpy(networkAddr+5, ipxNodeAddr, 6);
 }
 
-static inline void __nat25_generate_ipx_network_addr_with_socket(unsigned char *networkAddr,
+static void __nat25_generate_ipx_network_addr_with_socket(unsigned char *networkAddr,
 				__be32 *ipxNetAddr, __be16 *ipxSocketAddr)
 {
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
@@ -153,7 +153,7 @@ static inline void __nat25_generate_ipx_network_addr_with_socket(unsigned char *
 	memcpy(networkAddr+5, ipxSocketAddr, 2);
 }
 
-static inline void __nat25_generate_apple_network_addr(unsigned char *networkAddr,
+static void __nat25_generate_apple_network_addr(unsigned char *networkAddr,
 				__be16 *network, unsigned char *node)
 {
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
@@ -163,7 +163,7 @@ static inline void __nat25_generate_apple_network_addr(unsigned char *networkAdd
 	networkAddr[3] = *node;
 }
 
-static inline void __nat25_generate_pppoe_network_addr(unsigned char *networkAddr,
+static void __nat25_generate_pppoe_network_addr(unsigned char *networkAddr,
 				unsigned char *ac_mac, __be16 *sid)
 {
 	memset(networkAddr, 0, MAX_NETWORK_ADDR_LEN);
@@ -258,7 +258,7 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 	return 0;
 }
 
-static inline int __nat25_network_hash(unsigned char *networkAddr)
+static int __nat25_network_hash(unsigned char *networkAddr)
 {
 	if (networkAddr[0] == NAT25_IPV4) {
 		unsigned long x;
@@ -305,7 +305,7 @@ static inline int __nat25_network_hash(unsigned char *networkAddr)
 	}
 }
 
-static inline void __network_hash_link(struct adapter *priv,
+static void __network_hash_link(struct adapter *priv,
 				struct nat25_network_db_entry *ent, int hash)
 {
 	/*  Caller must spin_lock already! */
@@ -316,7 +316,7 @@ static inline void __network_hash_link(struct adapter *priv,
 	ent->pprev_hash = &priv->nethash[hash];
 }
 
-static inline void __network_hash_unlink(struct nat25_network_db_entry *ent)
+static void __network_hash_unlink(struct nat25_network_db_entry *ent)
 {
 	/*  Caller must spin_lock already! */
 	*ent->pprev_hash = ent->next_hash;
