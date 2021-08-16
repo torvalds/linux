@@ -245,6 +245,28 @@ int mlx5e_rx_res_rss_cnt(struct mlx5e_rx_res *res)
 	return cnt;
 }
 
+int mlx5e_rx_res_rss_index(struct mlx5e_rx_res *res, struct mlx5e_rss *rss)
+{
+	int i;
+
+	if (!rss)
+		return -EINVAL;
+
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++)
+		if (rss == res->rss[i])
+			return i;
+
+	return -ENOENT;
+}
+
+struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx)
+{
+	if (rss_idx >= MLX5E_MAX_NUM_RSS)
+		return NULL;
+
+	return res->rss[rss_idx];
+}
+
 /* End of API rx_res_rss_* */
 
 struct mlx5e_rx_res *mlx5e_rx_res_alloc(void)

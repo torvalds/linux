@@ -367,6 +367,30 @@ u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	return mlx5e_tir_get_tirn(tir);
 }
 
+/* Fill the "tirn" output parameter.
+ * Create the requested TIR if it's its first usage.
+ */
+int mlx5e_rss_obtain_tirn(struct mlx5e_rss *rss,
+			  enum mlx5_traffic_types tt,
+			  const struct mlx5e_lro_param *init_lro_param,
+			  bool inner, u32 *tirn)
+{
+	struct mlx5e_tir *tir;
+
+	tir = rss_get_tir(rss, tt, inner);
+	if (!tir) { /* TIR doesn't exist, create one */
+		int err;
+
+		err = mlx5e_rss_create_tir(rss, tt, init_lro_param, inner);
+		if (err)
+			return err;
+		tir = rss_get_tir(rss, tt, inner);
+	}
+
+	*tirn = mlx5e_tir_get_tirn(tir);
+	return 0;
+}
+
 static void mlx5e_rss_apply(struct mlx5e_rss *rss, u32 *rqns, unsigned int num_rqns)
 {
 	int err;

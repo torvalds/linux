@@ -28,6 +28,11 @@ unsigned int mlx5e_rss_refcnt_read(struct mlx5e_rss *rss);
 
 u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 		       bool inner);
+int mlx5e_rss_obtain_tirn(struct mlx5e_rss *rss,
+			  enum mlx5_traffic_types tt,
+			  const struct mlx5e_lro_param *init_lro_param,
+			  bool inner, u32 *tirn);
+
 void mlx5e_rss_enable(struct mlx5e_rss *rss, u32 *rqns, unsigned int num_rqns);
 void mlx5e_rss_disable(struct mlx5e_rss *rss);
 
