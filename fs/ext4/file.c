@@ -822,7 +822,8 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	if (IS_ERR(handle))
 		goto out;
 	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
-	err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+	err = ext4_journal_get_write_access(handle, sb, sbi->s_sbh,
+					    EXT4_JTR_NONE);
 	if (err)
 		goto out_journal;
 	lock_buffer(sbi->s_sbh);
