@@ -25,6 +25,7 @@
 
 /* CTRLR specific flags */
 #define SOLVER_PRESENT			1
+#define HW_CHANNEL_PRESENT		2
 
 struct rsc_drv;
 
@@ -179,6 +180,8 @@ void rpmh_rsc_invalidate(struct rsc_drv *drv, int ch);
 void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl);
 int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable);
 int rpmh_rsc_get_channel(struct rsc_drv *drv);
+int rpmh_rsc_switch_channel(struct rsc_drv *drv, int ch);
+int rpmh_rsc_drv_enable(struct rsc_drv *drv, bool enable);
 
 void rpmh_tx_done(const struct tcs_request *msg);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch);

@@ -31,6 +31,9 @@ int rpmh_init_fast_path(const struct device *dev,
 
 int rpmh_update_fast_path(const struct device *dev,
 			  struct tcs_cmd *cmd, int n, u32 update_mask);
+int rpmh_drv_start(const struct device *dev);
+
+int rpmh_drv_stop(const struct device *dev);
 #else
 
 static inline int rpmh_write(const struct device *dev, enum rpmh_state state,
@@ -64,6 +67,12 @@ static inline int rpmh_init_fast_path(const struct device *dev,
 static inline int rpmh_update_fast_path(const struct device *dev,
 					struct tcs_cmd *msg, int n,
 					u32 update_mask)
+{ return -ENODEV; }
+
+int rpmh_drv_start(const struct device *dev)
+{ return -ENODEV; }
+
+int rpmh_drv_stop(const struct device *dev)
 { return -ENODEV; }
 
 #endif /* CONFIG_QCOM_RPMH */
