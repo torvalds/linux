@@ -595,7 +595,7 @@ static int mp_xmit_packet_thread(void *context)
 			}
 		}
 
-		memcpy((u8 *)(pxmitframe->buf_addr+TXDESC_OFFSET), pmptx->buf, pmptx->write_size);
+		memcpy((u8 *)(pxmitframe->buf_addr + TXDESC_OFFSET), pmptx->buf, pmptx->write_size);
 		memcpy(&pxmitframe->attrib, &pmptx->attrib, sizeof(struct pkt_attrib));
 
 		dump_mpframe(padapter, pxmitframe);
@@ -698,7 +698,7 @@ void SetPacketTx(struct adapter *padapter)
 	/*  offset 8 */
 	/*  offset 12 */
 
-	desc->txdw3 |= cpu_to_le32((pattrib->seqnum<<16)&0x0fff0000);
+	desc->txdw3 |= cpu_to_le32((pattrib->seqnum << 16) & 0x0fff0000);
 
 	/*  offset 16 */
 	desc->txdw4 |= cpu_to_le32(HW_SSN);
@@ -882,7 +882,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 	i = psd_start;
 	while (i < psd_stop) {
 		if (i >= psd_pts) {
-			psd_data = rtw_GetPSDData(pAdapter, i-psd_pts);
+			psd_data = rtw_GetPSDData(pAdapter, i - psd_pts);
 		} else {
 			psd_data = rtw_GetPSDData(pAdapter, i);
 		}
@@ -891,7 +891,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 	}
 
 	msleep(100);
-	return strlen(data)+1;
+	return strlen(data) + 1;
 }
 
 void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
@@ -964,7 +964,7 @@ exit:
 	;
 }
 
-void Hal_ProSetCrystalCap (struct adapter *pAdapter, u32 CrystalCapVal)
+void Hal_ProSetCrystalCap(struct adapter *pAdapter, u32 CrystalCapVal)
 {
 	CrystalCapVal = CrystalCapVal & 0x3F;
 
