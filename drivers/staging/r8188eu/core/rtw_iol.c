@@ -46,7 +46,7 @@ int rtw_IOL_append_cmds(struct xmit_frame *xmit_frame, u8 *IOL_cmds, u32 cmd_len
 	u32 ori_len;
 
 	buf_offset = TXDESC_OFFSET;
-	ori_len = buf_offset+pattrib->pktlen;
+	ori_len = buf_offset + pattrib->pktlen;
 
 	/* check if the io_buf can accommodate new cmds */
 	if (ori_len + cmd_len + 8 > MAX_XMITBUF_SZ) {
@@ -128,7 +128,7 @@ int _rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path, u16 addr,
 {
 	struct ioreg_cfg cmd = {8, IOREG_CMD_W_RF, 0x0, 0x0, 0x0};
 
-	cmd.address = cpu_to_le16((rf_path<<8) | ((addr) & 0xFF));
+	cmd.address = cpu_to_le16((rf_path << 8) | ((addr) & 0xFF));
 	cmd.data = cpu_to_le32(value);
 
 	if (mask != 0x000FFFFF) {
@@ -164,9 +164,9 @@ int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame)
 u8 rtw_IOL_cmd_boundary_handle(struct xmit_frame *pxmit_frame)
 {
 	u8 is_cmd_bndy = false;
-	if (((pxmit_frame->attrib.pktlen+32)%256) + 8 >= 256) {
+	if (((pxmit_frame->attrib.pktlen + 32) % 256) + 8 >= 256) {
 		rtw_IOL_append_END_cmd(pxmit_frame);
-		pxmit_frame->attrib.pktlen = ((((pxmit_frame->attrib.pktlen+32)/256)+1)*256);
+		pxmit_frame->attrib.pktlen = ((((pxmit_frame->attrib.pktlen + 32) / 256) + 1) * 256);
 
 		pxmit_frame->attrib.last_txcmdsz = pxmit_frame->attrib.pktlen;
 		is_cmd_bndy = true;
@@ -181,9 +181,9 @@ void rtw_IOL_cmd_buf_dump(struct adapter  *Adapter, int buf_len, u8 *pbuf)
 
 	pr_info("###### %s ######\n", __func__);
 	for (i = 0; i < buf_len; i++) {
-		printk("%02x-", *(pbuf+i));
+		printk("%02x-", *(pbuf + i));
 
-		if (j%32 == 0)
+		if (j % 32 == 0)
 			printk("\n");
 		j++;
 	}
