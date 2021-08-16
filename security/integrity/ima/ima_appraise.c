@@ -171,7 +171,7 @@ static void ima_cache_flags(struct integrity_iint_cache *iint,
 	}
 }
 
-enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
+enum hash_algo ima_get_hash_algo(const struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len)
 {
 	struct signature_v2_hdr *sig;
@@ -575,6 +575,47 @@ static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 		clear_bit(IMA_DIGSIG, &iint->atomic_flags);
 }
 
+/**
+ * validate_hash_algo() - Block setxattr with unsupported hash algorithms
+ * @dentry: object of the setxattr()
+ * @xattr_value: userland supplied xattr value
+ * @xattr_value_len: length of xattr_value
+ *
+ * The xattr value is mapped to its hash algorithm, and this algorithm
+ * must be built in the kernel for the setxattr to be allowed.
+ *
+ * Emit an audit message when the algorithm is invalid.
+ *
+ * Return: 0 on success, else an error.
+ */
+static int validate_hash_algo(struct dentry *dentry,
+			      const struct evm_ima_xattr_data *xattr_value,
+			      size_t xattr_value_len)
+{
+	char *path = NULL, *pathbuf = NULL;
+	enum hash_algo xattr_hash_algo;
+
+	xattr_hash_algo = ima_get_hash_algo(xattr_value, xattr_value_len);
+
+	if (likely(xattr_hash_algo == ima_hash_algo ||
+		   crypto_has_alg(hash_algo_name[xattr_hash_algo], 0, 0)))
+		return 0;
+
+	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!pathbuf)
+		return -EACCES;
+
+	path = dentry_path(dentry, pathbuf, PATH_MAX);
+
+	integrity_audit_msg(AUDIT_INTEGRITY_DATA, d_inode(dentry), path,
+			    "set_data", "unavailable-hash-algorithm",
+			    -EACCES, 0);
+
+	kfree(pathbuf);
+
+	return -EACCES;
+}
+
 int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
@@ -592,9 +633,11 @@ int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		digsig = (xvalue->type == EVM_XATTR_PORTABLE_DIGSIG);
 	}
 	if (result == 1 || evm_revalidate_status(xattr_name)) {
+		result = validate_hash_algo(dentry, xvalue, xattr_value_len);
+		if (result)
+			return result;
+
 		ima_reset_appraise_flags(d_backing_inode(dentry), digsig);
-		if (result == 1)
-			result = 0;
 	}
 	return result;
 }
