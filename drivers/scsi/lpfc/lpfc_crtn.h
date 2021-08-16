@@ -77,6 +77,7 @@ int lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			struct lpfc_queue *drq, int count, int idx);
 void lpfc_init_congestion_stat(struct lpfc_hba *phba);
 void lpfc_init_congestion_buf(struct lpfc_hba *phba);
+int lpfc_sli4_cgn_params_read(struct lpfc_hba *phba);
 int lpfc_config_cgn_signal(struct lpfc_hba *phba);
 
 void lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -219,6 +220,9 @@ irqreturn_t lpfc_sli_sp_intr_handler(int, void *);
 irqreturn_t lpfc_sli_fp_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_hba_intr_handler(int, void *);
+
+int lpfc_read_object(struct lpfc_hba *phba, char *s, uint32_t *datap,
+		     uint32_t len);
 
 void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba);
 int lpfc_sli4_poll_eq(struct lpfc_queue *q, uint8_t path);

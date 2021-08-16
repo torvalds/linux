@@ -114,6 +114,12 @@ struct lpfc_sli2_slim;
 #define LPFC_MBX_NO_WAIT	0
 #define LPFC_MBX_WAIT		1
 
+#define LPFC_CFG_PARAM_MAGIC_NUM 0xFEAA0005
+#define LPFC_PORT_CFG_NAME "/cfg/port.cfg"
+
+#define lpfc_rangecheck(val, min, max) \
+	((uint)(val) >= (uint)(min) && (val) <= (max))
+
 enum lpfc_polling_flags {
 	ENABLE_FCP_RING_POLLING = 0x1,
 	DISABLE_FCP_RING_INT    = 0x2
@@ -401,6 +407,26 @@ struct lpfc_trunk_link  {
 				     link1,
 				     link2,
 				     link3;
+};
+
+/* Format of congestion module parameters */
+struct lpfc_cgn_param {
+	uint32_t cgn_param_magic;
+	uint8_t  cgn_param_version;	/* version 1 */
+	uint8_t  cgn_param_mode;	/* 0=off 1=managed 2=monitor only */
+#define LPFC_CFG_OFF		0
+#define LPFC_CFG_MANAGED	1
+#define LPFC_CFG_MONITOR	2
+	uint8_t  cgn_rsvd1;
+	uint8_t  cgn_rsvd2;
+	uint8_t  cgn_param_level0;
+	uint8_t  cgn_param_level1;
+	uint8_t  cgn_param_level2;
+	uint8_t  byte11;
+	uint8_t  byte12;
+	uint8_t  byte13;
+	uint8_t  byte14;
+	uint8_t  byte15;
 };
 
 /* Max number of days of congestion data */
@@ -1490,6 +1516,9 @@ struct lpfc_hba {
 #define LPFC_FPIN_INIT_FREQ	0xffff
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;
+
+	/* Congestion parameters from flash */
+	struct lpfc_cgn_param cgn_p;
 
 	/* Statistics counter for ACQE cgn alarms and warnings */
 	struct lpfc_cgn_acqe_stat cgn_acqe_stat;

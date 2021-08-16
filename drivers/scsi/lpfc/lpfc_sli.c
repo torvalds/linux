@@ -21706,6 +21706,116 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_read_object - Retrieve object data from HBA
+ * @phba: The HBA for which this call is being executed.
+ * @rdobject: Pathname of object data we want to read.
+ * @datap: Pointer to where data will be copied to.
+ * @datasz: size of data area
+ *
+ * This routine is limited to object sizes of LPFC_BPL_SIZE (1024) or less.
+ * The data will be truncated if datasz is not large enough.
+ * Version 1 is not supported with Embedded mbox cmd, so we must use version 0.
+ * Returns the actual bytes read from the object.
+ */
+int
+lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
+		 uint32_t datasz)
+{
+	struct lpfc_mbx_read_object *read_object;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, eof, j, byte_cnt = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	struct lpfc_dmabuf *pcmd;
+
+	/* sanity check on queue memory */
+	if (!datap)
+		return -ENODEV;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_read_object) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_READ_OBJECT,
+			 length, LPFC_SLI4_MBX_EMBED);
+	read_object = &mbox->u.mqe.un.read_object;
+	shdr = (union lpfc_sli4_cfg_shdr *)&read_object->header.cfg_shdr;
+
+	bf_set(lpfc_mbox_hdr_version, &shdr->request, LPFC_Q_CREATE_VERSION_0);
+	bf_set(lpfc_mbx_rd_object_rlen, &read_object->u.request, datasz);
+	read_object->u.request.rd_object_offset = 0;
+	read_object->u.request.rd_object_cnt = 1;
+
+	memset((void *)read_object->u.request.rd_object_name, 0,
+	       LPFC_OBJ_NAME_SZ);
+	sprintf((uint8_t *)read_object->u.request.rd_object_name, rdobject);
+	for (j = 0; j < strlen(rdobject); j++)
+		read_object->u.request.rd_object_name[j] =
+			cpu_to_le32(read_object->u.request.rd_object_name[j]);
+
+	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
+	if (pcmd)
+		pcmd->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &pcmd->phys);
+	if (!pcmd || !pcmd->virt) {
+		kfree(pcmd);
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+	memset((void *)pcmd->virt, 0, LPFC_BPL_SIZE);
+	read_object->u.request.rd_object_hbuf[0].pa_lo =
+		putPaddrLow(pcmd->phys);
+	read_object->u.request.rd_object_hbuf[0].pa_hi =
+		putPaddrHigh(pcmd->phys);
+	read_object->u.request.rd_object_hbuf[0].length = LPFC_BPL_SIZE;
+
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mbox->ctx_buf = NULL;
+	mbox->ctx_ndlp = NULL;
+
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+
+	if (shdr_status == STATUS_FAILED &&
+	    shdr_add_status == ADD_STATUS_INVALID_OBJECT_NAME) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"4674 No port cfg file in FW.\n");
+		byte_cnt = -ENOENT;
+	} else if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"2625 READ_OBJECT mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		byte_cnt = -ENXIO;
+	} else {
+		/* Success */
+		length = read_object->u.response.rd_object_actual_rlen;
+		eof = bf_get(lpfc_mbx_rd_object_eof, &read_object->u.response);
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_CGN_MGMT,
+				"2626 READ_OBJECT Success len %d:%d, EOF %d\n",
+				length, datasz, eof);
+
+		/* Detect the port config file exists but is empty */
+		if (!length && eof) {
+			byte_cnt = 0;
+			goto exit;
+		}
+
+		byte_cnt = length;
+		lpfc_sli_pcimem_bcopy(pcmd->virt, datap, byte_cnt);
+	}
+
+ exit:
+	lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
+	kfree(pcmd);
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return byte_cnt;
+}
+
+/**
  * lpfc_get_sgl_per_hdwq - Get one SGL chunk from hdwq's pool
  * @phba: The HBA for which this call is being executed.
  * @lpfc_buf: IO buf structure to append the SGL chunk

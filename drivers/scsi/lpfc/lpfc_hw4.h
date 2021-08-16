@@ -1134,6 +1134,12 @@ struct lpfc_mbx_sge {
 	uint32_t length;
 };
 
+struct lpfc_mbx_host_buf {
+	uint32_t length;
+	uint32_t pa_lo;
+	uint32_t pa_hi;
+};
+
 struct lpfc_mbx_nembed_cmd {
 	struct lpfc_sli4_cfg_mhdr cfg_mhdr;
 #define LPFC_SLI4_MBX_SGE_MAX_PAGES	19
@@ -1142,6 +1148,30 @@ struct lpfc_mbx_nembed_cmd {
 
 struct lpfc_mbx_nembed_sge_virt {
 	void *addr[LPFC_SLI4_MBX_SGE_MAX_PAGES];
+};
+
+struct lpfc_mbx_read_object {  /* Version 0 */
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_rd_object_rlen_SHIFT	0
+#define lpfc_mbx_rd_object_rlen_MASK	0x00FFFFFF
+#define lpfc_mbx_rd_object_rlen_WORD	word0
+			uint32_t rd_object_offset;
+			uint32_t rd_object_name[26];
+#define LPFC_OBJ_NAME_SZ 104   /* 26 x sizeof(uint32_t) is 104. */
+			uint32_t rd_object_cnt;
+			struct lpfc_mbx_host_buf rd_object_hbuf[4];
+		} request;
+		struct {
+			uint32_t rd_object_actual_rlen;
+			uint32_t word1;
+#define lpfc_mbx_rd_object_eof_SHIFT	31
+#define lpfc_mbx_rd_object_eof_MASK	0x1
+#define lpfc_mbx_rd_object_eof_WORD	word1
+		} response;
+	} u;
 };
 
 struct lpfc_mbx_eq_create {
@@ -2339,6 +2369,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
 #define ADD_STATUS_INVALID_REQUEST			0x4B
+#define ADD_STATUS_INVALID_OBJECT_NAME			0xA0
 #define ADD_STATUS_FW_DOWNLOAD_HW_DISABLED              0x58
 
 struct lpfc_mbx_sli4_config {
@@ -3893,6 +3924,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_unreg_fcfi unreg_fcfi;
 		struct lpfc_mbx_mq_create mq_create;
 		struct lpfc_mbx_mq_create_ext mq_create_ext;
+		struct lpfc_mbx_read_object read_object;
 		struct lpfc_mbx_eq_create eq_create;
 		struct lpfc_mbx_modify_eq_delay eq_delay;
 		struct lpfc_mbx_cq_create cq_create;

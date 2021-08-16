@@ -6114,6 +6114,194 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_cgn_params_val - Validate FW congestion parameters.
+ * @phba: pointer to lpfc hba data structure.
+ * @p_cfg_param: pointer to FW provided congestion parameters.
+ *
+ * This routine validates the congestion parameters passed
+ * by the FW to the driver via an ACQE event.
+ **/
+static void
+lpfc_cgn_params_val(struct lpfc_hba *phba, struct lpfc_cgn_param *p_cfg_param)
+{
+	spin_lock_irq(&phba->hbalock);
+
+	if (!lpfc_rangecheck(p_cfg_param->cgn_param_mode, LPFC_CFG_OFF,
+			     LPFC_CFG_MONITOR)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"6225 CMF mode param out of range: %d\n",
+				 p_cfg_param->cgn_param_mode);
+		p_cfg_param->cgn_param_mode = LPFC_CFG_OFF;
+	}
+
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
+ * lpfc_cgn_params_parse - Process a FW cong parm change event
+ * @phba: pointer to lpfc hba data structure.
+ * @p_cgn_param: pointer to a data buffer with the FW cong params.
+ * @len: the size of pdata in bytes.
+ *
+ * This routine validates the congestion management buffer signature
+ * from the FW, validates the contents and makes corrections for
+ * valid, in-range values.  If the signature magic is correct and
+ * after parameter validation, the contents are copied to the driver's
+ * @phba structure. If the magic is incorrect, an error message is
+ * logged.
+ **/
+static void
+lpfc_cgn_params_parse(struct lpfc_hba *phba,
+		      struct lpfc_cgn_param *p_cgn_param, uint32_t len)
+{
+	uint32_t oldmode;
+
+	/* Make sure the FW has encoded the correct magic number to
+	 * validate the congestion parameter in FW memory.
+	 */
+	if (p_cgn_param->cgn_param_magic == LPFC_CFG_PARAM_MAGIC_NUM) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+				"4668 FW cgn parm buffer data: "
+				"magic 0x%x version %d mode %d "
+				"level0 %d level1 %d "
+				"level2 %d byte13 %d "
+				"byte14 %d byte15 %d "
+				"byte11 %d byte12 %d activeMode %d\n",
+				p_cgn_param->cgn_param_magic,
+				p_cgn_param->cgn_param_version,
+				p_cgn_param->cgn_param_mode,
+				p_cgn_param->cgn_param_level0,
+				p_cgn_param->cgn_param_level1,
+				p_cgn_param->cgn_param_level2,
+				p_cgn_param->byte13,
+				p_cgn_param->byte14,
+				p_cgn_param->byte15,
+				p_cgn_param->byte11,
+				p_cgn_param->byte12,
+				phba->cmf_active_mode);
+
+		oldmode = phba->cmf_active_mode;
+
+		/* Any parameters out of range are corrected to defaults
+		 * by this routine.  No need to fail.
+		 */
+		lpfc_cgn_params_val(phba, p_cgn_param);
+
+		/* Parameters are verified, move them into driver storage */
+		spin_lock_irq(&phba->hbalock);
+		memcpy(&phba->cgn_p, p_cgn_param,
+		       sizeof(struct lpfc_cgn_param));
+
+		spin_unlock_irq(&phba->hbalock);
+
+		phba->cmf_active_mode = phba->cgn_p.cgn_param_mode;
+
+		switch (oldmode) {
+		case LPFC_CFG_OFF:
+			if (phba->cgn_p.cgn_param_mode != LPFC_CFG_OFF) {
+				/* Turning CMF on */
+
+				if (phba->link_state >= LPFC_LINK_UP) {
+					phba->cgn_reg_fpin =
+						phba->cgn_init_reg_fpin;
+					phba->cgn_reg_signal =
+						phba->cgn_init_reg_signal;
+					lpfc_issue_els_edc(phba->pport, 0);
+				}
+			}
+			break;
+		case LPFC_CFG_MANAGED:
+			switch (phba->cgn_p.cgn_param_mode) {
+			case LPFC_CFG_OFF:
+				/* Turning CMF off */
+				if (phba->link_state >= LPFC_LINK_UP)
+					lpfc_issue_els_edc(phba->pport, 0);
+				break;
+			case LPFC_CFG_MONITOR:
+				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+						"4661 Switch from MANAGED to "
+						"`MONITOR mode\n");
+				break;
+			}
+			break;
+		case LPFC_CFG_MONITOR:
+			switch (phba->cgn_p.cgn_param_mode) {
+			case LPFC_CFG_OFF:
+				/* Turning CMF off */
+				if (phba->link_state >= LPFC_LINK_UP)
+					lpfc_issue_els_edc(phba->pport, 0);
+				break;
+			case LPFC_CFG_MANAGED:
+				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+						"4662 Switch from MONITOR to "
+						"MANAGED mode\n");
+				break;
+			}
+			break;
+		}
+	} else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4669 FW cgn parm buf wrong magic 0x%x "
+				"version %d\n", p_cgn_param->cgn_param_magic,
+				p_cgn_param->cgn_param_version);
+	}
+}
+
+/**
+ * lpfc_sli4_cgn_params_read - Read and Validate FW congestion parameters.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine issues a read_object mailbox command to
+ * get the congestion management parameters from the FW
+ * parses it and updates the driver maintained values.
+ *
+ * Returns
+ *  0     if the object was empty
+ *  -Eval if an error was encountered
+ *  Count if bytes were read from object
+ **/
+int
+lpfc_sli4_cgn_params_read(struct lpfc_hba *phba)
+{
+	int ret = 0;
+	struct lpfc_cgn_param *p_cgn_param = NULL;
+	u32 *pdata = NULL;
+	u32 len = 0;
+
+	/* Find out if the FW has a new set of congestion parameters. */
+	len = sizeof(struct lpfc_cgn_param);
+	pdata = kzalloc(len, GFP_KERNEL);
+	ret = lpfc_read_object(phba, (char *)LPFC_PORT_CFG_NAME,
+			       pdata, len);
+
+	/* 0 means no data.  A negative means error.  A positive means
+	 * bytes were copied.
+	 */
+	if (!ret) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4670 CGN RD OBJ returns no data\n");
+		goto rd_obj_err;
+	} else if (ret < 0) {
+		/* Some error.  Just exit and return it to the caller.*/
+		goto rd_obj_err;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+			"6234 READ CGN PARAMS Successful %d\n", len);
+
+	/* Parse data pointer over len and update the phba congestion
+	 * parameters with values passed back.  The receive rate values
+	 * may have been altered in FW, but take no action here.
+	 */
+	p_cgn_param = (struct lpfc_cgn_param *)pdata;
+	lpfc_cgn_params_parse(phba, p_cgn_param, len);
+
+ rd_obj_err:
+	kfree(pdata);
+	return ret;
+}
+
+/**
  * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
  * @phba: pointer to lpfc hba data structure.
  *

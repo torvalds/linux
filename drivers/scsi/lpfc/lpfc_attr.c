@@ -2248,11 +2248,6 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
 }
 
-static inline bool lpfc_rangecheck(uint val, uint min, uint max)
-{
-	return val >= min && val <= max;
-}
-
 /**
  * lpfc_enable_bbcr_set: Sets an attribute value.
  * @phba: pointer the the adapter structure.
