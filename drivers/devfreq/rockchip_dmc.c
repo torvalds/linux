@@ -117,6 +117,7 @@ struct rockchip_dmcfreq {
 	struct regulator *vdd_center;
 	struct notifier_block status_nb;
 	struct list_head video_info_list;
+	struct freq_map_table *cpu_bw_tbl;
 	struct work_struct boost_work;
 	struct input_handler input_handler;
 	struct monitor_dev_info *mdev_info;
@@ -152,6 +153,7 @@ struct rockchip_dmcfreq {
 	unsigned int refresh;
 	int edev_count;
 	int dfi_id;
+	int nocp_cpu_id;
 
 	bool is_fixed;
 	bool is_set_rate_direct;
@@ -515,32 +517,24 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct devfreq_event_data edata;
-	int i, j, ret = 0;
+	int i, ret = 0;
 
 	if (!dmcfreq->info.auto_freq_en)
 		return -EINVAL;
 
-	if (dmcfreq->dfi_id >= 0) {
-		ret = devfreq_event_get_event(dmcfreq->edev[dmcfreq->dfi_id],
-					      &edata);
-		if (ret < 0) {
-			dev_err(dev, "failed to get dfi event\n");
-			return ret;
-		}
-		stat->busy_time = edata.load_count;
-		stat->total_time = edata.total_count;
-	}
-
-	for (i = 0, j = 0; i < dmcfreq->edev_count; i++) {
-		if (i == dmcfreq->dfi_id)
-			continue;
+	for (i = 0; i < dmcfreq->edev_count; i++) {
 		ret = devfreq_event_get_event(dmcfreq->edev[i], &edata);
 		if (ret < 0) {
 			dev_err(dev, "failed to get event %s\n",
 				dmcfreq->edev[i]->desc->name);
 			return ret;
 		}
-		dmcfreq->nocp_bw[j++] = edata.load_count;
+		if (i == dmcfreq->dfi_id) {
+			stat->busy_time = edata.load_count;
+			stat->total_time = edata.total_count;
+		} else {
+			dmcfreq->nocp_bw[i] = edata.load_count;
+		}
 	}
 
 	return 0;
@@ -2407,6 +2401,25 @@ static ssize_t downdifferential_store(struct device *dev,
 
 static DEVICE_ATTR_RW(downdifferential);
 
+static unsigned long get_nocp_req_rate(struct rockchip_dmcfreq *dmcfreq)
+{
+	unsigned long target = 0, cpu_bw = 0;
+	int i;
+
+	if (!dmcfreq->cpu_bw_tbl || dmcfreq->nocp_cpu_id < 0)
+		goto out;
+
+	cpu_bw = dmcfreq->nocp_bw[dmcfreq->nocp_cpu_id];
+
+	for (i = 0; dmcfreq->cpu_bw_tbl[i].freq != CPUFREQ_TABLE_END; i++) {
+		if (cpu_bw >= dmcfreq->cpu_bw_tbl[i].min)
+			target = dmcfreq->cpu_bw_tbl[i].freq;
+	}
+
+out:
+	return target;
+}
+
 static int devfreq_dmc_ondemand_func(struct devfreq *df,
 				     unsigned long *freq)
 {
@@ -2417,7 +2430,7 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	struct rockchip_dmcfreq_ondemand_data *data = &dmcfreq->ondemand_data;
 	unsigned int upthreshold = data->upthreshold;
 	unsigned int downdifferential = data->downdifferential;
-	unsigned long target_freq = 0;
+	unsigned long target_freq = 0, nocp_req_rate = 0;
 	u64 now;
 
 	if (dmcfreq->info.auto_freq_en && !dmcfreq->is_fixed) {
@@ -2425,14 +2438,12 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 			target_freq = dmcfreq->status_rate;
 		else if (dmcfreq->auto_min_rate)
 			target_freq = dmcfreq->auto_min_rate;
+		nocp_req_rate = get_nocp_req_rate(dmcfreq);
+		target_freq = max3(target_freq, nocp_req_rate,
+				   dmcfreq->info.vop_req_rate);
 		now = ktime_to_us(ktime_get());
 		if (now < dmcfreq->touchboostpulse_endtime)
-			target_freq = max3(target_freq,
-					   dmcfreq->info.vop_req_rate,
-					   dmcfreq->boost_rate);
-		else
-			target_freq = max(target_freq,
-					  dmcfreq->info.vop_req_rate);
+			target_freq = max(target_freq, dmcfreq->boost_rate);
 	} else {
 		if (dmcfreq->status_rate)
 			target_freq = dmcfreq->status_rate;
@@ -2652,10 +2663,7 @@ static int rockchip_dmcfreq_get_event(struct rockchip_dmcfreq *dmcfreq)
 	}
 	dmcfreq->info.auto_freq_en = true;
 	dmcfreq->dfi_id = rockchip_get_edev_id(dmcfreq, "dfi");
-	if (dmcfreq->dfi_id >= 0)
-		available_count--;
-	if (available_count <= 0)
-		return 0;
+	dmcfreq->nocp_cpu_id = rockchip_get_edev_id(dmcfreq, "nocp-cpu");
 	dmcfreq->nocp_bw =
 		devm_kzalloc(dev, sizeof(*dmcfreq->nocp_bw) * available_count,
 			     GFP_KERNEL);
@@ -2728,6 +2736,10 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 	of_property_read_u32(np, "auto-min-freq",
 			     (u32 *)&dmcfreq->auto_min_rate);
 	dmcfreq->auto_min_rate *= 1000;
+
+	if (rockchip_get_freq_map_talbe(np, "cpu-bw-dmc-freq",
+					&dmcfreq->cpu_bw_tbl))
+		dev_dbg(dev, "failed to get cpu bandwidth to dmc rate\n");
 
 	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
 					&dmcfreq->info.vop_bw_tbl))
