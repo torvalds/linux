@@ -259,26 +259,20 @@ static inline sector_t get_capacity(struct gendisk *disk)
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
 void blk_drop_partitions(struct gendisk *disk);
 
-extern struct gendisk *__alloc_disk_node(int minors, int node_id);
+struct gendisk *__alloc_disk_node(int minors, int node_id,
+		struct lock_class_key *lkclass);
 extern void put_disk(struct gendisk *disk);
 
 #define alloc_disk_node(minors, node_id)				\
 ({									\
 	static struct lock_class_key __key;				\
-	const char *__name;						\
-	struct gendisk *__disk;						\
 									\
-	__name = "(gendisk_completion)"#minors"("#node_id")";		\
-									\
-	__disk = __alloc_disk_node(minors, node_id);			\
-									\
-	if (__disk)							\
-		lockdep_init_map(&__disk->lockdep_map, __name, &__key, 0); \
-									\
-	__disk;								\
+	__alloc_disk_node(minors, node_id, &__key);			\
 })
 
 #define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
+
+struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass);
 
 /**
  * blk_alloc_disk - allocate a gendisk structure
@@ -291,15 +285,10 @@ extern void put_disk(struct gendisk *disk);
  */
 #define blk_alloc_disk(node_id)						\
 ({									\
-	struct gendisk *__disk = __blk_alloc_disk(node_id);		\
 	static struct lock_class_key __key;				\
 									\
-	if (__disk)							\
-		lockdep_init_map(&__disk->lockdep_map,			\
-			"(bio completion)", &__key, 0);			\
-	__disk;								\
+	__blk_alloc_disk(node_id, &__key);				\
 })
-struct gendisk *__blk_alloc_disk(int node);
 void blk_cleanup_disk(struct gendisk *disk);
 
 int __register_blkdev(unsigned int major, const char *name,
