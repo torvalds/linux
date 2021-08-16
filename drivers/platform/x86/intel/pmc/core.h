@@ -224,6 +224,18 @@ enum ppfear_regs {
 /* Extended Test Mode Register LPM bits (TGL and later */
 #define ETR3_CLEAR_LPM_EVENTS			BIT(28)
 
+/* Alder Lake Power Management Controller register offsets */
+#define ADL_LPM_EN_OFFSET			0x179C
+#define ADL_LPM_RESIDENCY_OFFSET		0x17A4
+#define ADL_LPM_NUM_MODES			2
+#define ADL_LPM_NUM_MAPS			14
+
+/* Alder Lake Low Power Mode debug registers */
+#define ADL_LPM_STATUS_OFFSET			0x170C
+#define ADL_LPM_PRI_OFFSET			0x17A0
+#define ADL_LPM_STATUS_LATCH_EN_OFFSET		0x1704
+#define ADL_LPM_LIVE_STATUS_OFFSET		0x1764
+
 const char *pmc_lpm_modes[] = {
 	"S0i2.0",
 	"S0i2.1",
@@ -283,6 +295,7 @@ struct pmc_reg_map {
 	const u32 pm_vric1_offset;
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
+	const int lpm_num_modes;
 	const int lpm_res_counter_step_x2;
 	const u32 lpm_sts_latch_en_offset;
 	const u32 lpm_en_offset;
