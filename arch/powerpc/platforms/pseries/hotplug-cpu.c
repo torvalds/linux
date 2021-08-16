@@ -1021,7 +1021,7 @@ static int __init pseries_cpu_hotplug_init(void)
 			/* Record ids of CPU added at boot time */
 			cpumask_or(node_recorded_ids_map[node],
 				   node_recorded_ids_map[node],
-				   node_to_cpumask_map[node]);
+				   cpumask_of_node(node));
 		}
 
 		of_reconfig_notifier_register(&pseries_smp_nb);
