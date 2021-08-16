@@ -801,15 +801,66 @@ static int ksz8795_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static bool ksz8795_port_vlan_changes_remove_tag(
+	struct dsa_switch *ds, int port,
+	const struct switchdev_obj_port_vlan *vlan)
+{
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
+
+	/* If a VLAN is added with untagged flag different from the
+	 * port's Remove Tag flag, we need to change the latter.
+	 * Ignore VID 0, which is always untagged.
+	 */
+	return untagged != p->remove_tag &&
+		!(vlan->vid_begin == 0 && vlan->vid_end == 0);
+}
+
+int ksz8795_port_vlan_prepare(struct dsa_switch *ds, int port,
+			      const struct switchdev_obj_port_vlan *vlan)
+{
+	struct ksz_device *dev = ds->priv;
+
+	/* Reject attempts to add a VLAN that requires the Remove Tag
+	 * flag to be changed, unless there are no other VLANs
+	 * currently configured.
+	 */
+	if (ksz8795_port_vlan_changes_remove_tag(ds, port, vlan)) {
+		unsigned int vid;
+
+		for (vid = 1; vid < dev->num_vlans; ++vid) {
+			u8 fid, member, valid;
+
+			/* Skip the VIDs we are going to add or reconfigure */
+			if (vid == vlan->vid_begin) {
+				vid = vlan->vid_end;
+				continue;
+			}
+
+			ksz8795_from_vlan(dev->vlan_cache[vid].table[0],
+					  &fid, &member, &valid);
+			if (valid && (member & BIT(port)))
+				return -EINVAL;
+		}
+	}
+
+	return ksz_port_vlan_prepare(ds, port, vlan);
+}
+
 static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 				  const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
 	u16 data, vid, new_pvid = 0;
 	u8 fid, member, valid;
 
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+	if (ksz8795_port_vlan_changes_remove_tag(ds, port, vlan)) {
+		ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+		p->remove_tag = untagged;
+	}
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		ksz8795_r_vlan_table(dev, vid, &data);
@@ -1128,7 +1179,7 @@ static const struct dsa_switch_ops ksz8795_switch_ops = {
 	.port_stp_state_set	= ksz8795_port_stp_state_set,
 	.port_fast_age		= ksz_port_fast_age,
 	.port_vlan_filtering	= ksz8795_port_vlan_filtering,
-	.port_vlan_prepare	= ksz_port_vlan_prepare,
+	.port_vlan_prepare	= ksz8795_port_vlan_prepare,
 	.port_vlan_add		= ksz8795_port_vlan_add,
 	.port_vlan_del		= ksz8795_port_vlan_del,
 	.port_fdb_dump		= ksz_port_fdb_dump,
