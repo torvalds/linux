@@ -5,13 +5,15 @@
 #include "channels.h"
 #include "params.h"
 
+#define MLX5E_MAX_NUM_RSS 16
+
 struct mlx5e_rx_res {
 	struct mlx5_core_dev *mdev;
 	enum mlx5e_rx_res_features features;
 	unsigned int max_nch;
 	u32 drop_rqn;
 
-	struct mlx5e_rss *rss;
+	struct mlx5e_rss *rss[MLX5E_MAX_NUM_RSS];
 	bool rss_active;
 	u32 rss_rqns[MLX5E_INDIR_RQT_SIZE];
 	unsigned int rss_nch;
@@ -31,86 +33,194 @@ struct mlx5e_rx_res {
 
 /* API for rx_res_rss_* */
 
-static int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res,
-				 const struct mlx5e_lro_param *init_lro_param,
-				 unsigned int init_nch)
+static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
+				     const struct mlx5e_lro_param *init_lro_param,
+				     unsigned int init_nch)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss *rss;
 	int err;
 
+	if (WARN_ON(res->rss[0]))
+		return -EINVAL;
+
 	rss = mlx5e_rss_alloc();
 	if (!rss)
 		return -ENOMEM;
 
-	res->rss = rss;
-
-	err = mlx5e_rss_init(rss, res->mdev, inner_ft_support, res->drop_rqn, init_lro_param);
+	err = mlx5e_rss_init(rss, res->mdev, inner_ft_support, res->drop_rqn,
+			     init_lro_param);
 	if (err)
 		goto err_rss_free;
 
 	mlx5e_rss_set_indir_uniform(rss, init_nch);
 
+	res->rss[0] = rss;
+
 	return 0;
 
 err_rss_free:
 	mlx5e_rss_free(rss);
-	res->rss = NULL;
 	return err;
 }
 
-static void mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res)
+int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int init_nch)
 {
-	struct mlx5e_rss *rss = res->rss;
+	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
+	struct mlx5e_rss *rss;
+	int err, i;
 
-	mlx5e_rss_cleanup(rss);
+	for (i = 1; i < MLX5E_MAX_NUM_RSS; i++)
+		if (!res->rss[i])
+			break;
+
+	if (i == MLX5E_MAX_NUM_RSS)
+		return -ENOSPC;
+
+	rss = mlx5e_rss_alloc();
+	if (!rss)
+		return -ENOMEM;
+
+	err = mlx5e_rss_init_no_tirs(rss, res->mdev, inner_ft_support, res->drop_rqn);
+	if (err)
+		goto err_rss_free;
+
+	mlx5e_rss_set_indir_uniform(rss, init_nch);
+	if (res->rss_active)
+		mlx5e_rss_enable(rss, res->rss_rqns, res->rss_nch);
+
+	res->rss[i] = rss;
+	*rss_idx = i;
+
+	return 0;
+
+err_rss_free:
 	mlx5e_rss_free(rss);
-	res->rss = NULL;
+	return err;
+}
+
+static int __mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx)
+{
+	struct mlx5e_rss *rss = res->rss[rss_idx];
+	int err;
+
+	err = mlx5e_rss_cleanup(rss);
+	if (err)
+		return err;
+
+	mlx5e_rss_free(rss);
+	res->rss[rss_idx] = NULL;
+
+	return 0;
+}
+
+int mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx)
+{
+	struct mlx5e_rss *rss;
+
+	if (rss_idx >= MLX5E_MAX_NUM_RSS)
+		return -EINVAL;
+
+	rss = res->rss[rss_idx];
+	if (!rss)
+		return -EINVAL;
+
+	return __mlx5e_rx_res_rss_destroy(res, rss_idx);
+}
+
+static void mlx5e_rx_res_rss_destroy_all(struct mlx5e_rx_res *res)
+{
+	int i;
+
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++) {
+		struct mlx5e_rss *rss = res->rss[i];
+		int err;
+
+		if (!rss)
+			continue;
+
+		err = __mlx5e_rx_res_rss_destroy(res, i);
+		if (err) {
+			unsigned int refcount;
+
+			refcount = mlx5e_rss_refcnt_read(rss);
+			mlx5_core_warn(res->mdev,
+				       "Failed to destroy RSS context %d, refcount = %u, err = %d\n",
+				       i, refcount, err);
+		}
+	}
 }
 
 static void mlx5e_rx_res_rss_enable(struct mlx5e_rx_res *res)
 {
-	struct mlx5e_rss *rss = res->rss;
+	int i;
 
 	res->rss_active = true;
 
-	mlx5e_rss_enable(rss, res->rss_rqns, res->rss_nch);
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++) {
+		struct mlx5e_rss *rss = res->rss[i];
+
+		if (!rss)
+			continue;
+		mlx5e_rss_enable(rss, res->rss_rqns, res->rss_nch);
+	}
 }
 
 static void mlx5e_rx_res_rss_disable(struct mlx5e_rx_res *res)
 {
-	struct mlx5e_rss *rss = res->rss;
+	int i;
 
 	res->rss_active = false;
 
-	mlx5e_rss_disable(rss);
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++) {
+		struct mlx5e_rss *rss = res->rss[i];
+
+		if (!rss)
+			continue;
+		mlx5e_rss_disable(rss);
+	}
 }
 
 /* Updates the indirection table SW shadow, does not update the HW resources yet */
 void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch)
 {
 	WARN_ON_ONCE(res->rss_active);
-	mlx5e_rss_set_indir_uniform(res->rss, nch);
+	mlx5e_rss_set_indir_uniform(res->rss[0], nch);
 }
 
-int mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 *indir, u8 *key, u8 *hfunc)
+int mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
+			      u32 *indir, u8 *key, u8 *hfunc)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss;
+
+	if (rss_idx >= MLX5E_MAX_NUM_RSS)
+		return -EINVAL;
+
+	rss = res->rss[rss_idx];
+	if (!rss)
+		return -ENOENT;
 
 	return mlx5e_rss_get_rxfh(rss, indir, key, hfunc);
 }
 
-int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, const u32 *indir,
-			      const u8 *key, const u8 *hfunc)
+int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
+			      const u32 *indir, const u8 *key, const u8 *hfunc)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss;
+
+	if (rss_idx >= MLX5E_MAX_NUM_RSS)
+		return -EINVAL;
+
+	rss = res->rss[rss_idx];
+	if (!rss)
+		return -ENOENT;
 
 	return mlx5e_rss_set_rxfh(rss, indir, key, hfunc, res->rss_rqns, res->rss_nch);
 }
 
 u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss = res->rss[0];
 
 	return mlx5e_rss_get_hash_fields(rss, tt);
 }
@@ -118,9 +228,21 @@ u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_
 int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				     u8 rx_hash_fields)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss = res->rss[0];
 
 	return mlx5e_rss_set_hash_fields(rss, tt, rx_hash_fields);
+}
+
+int mlx5e_rx_res_rss_cnt(struct mlx5e_rx_res *res)
+{
+	int i, cnt;
+
+	cnt = 0;
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++)
+		if (res->rss[i])
+			cnt++;
+
+	return cnt;
 }
 
 /* End of API rx_res_rss_* */
@@ -303,7 +425,7 @@ int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 	res->max_nch = max_nch;
 	res->drop_rqn = drop_rqn;
 
-	err = mlx5e_rx_res_rss_init(res, init_lro_param, init_nch);
+	err = mlx5e_rx_res_rss_init_def(res, init_lro_param, init_nch);
 	if (err)
 		goto err_out;
 
@@ -320,7 +442,7 @@ int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 err_channels_destroy:
 	mlx5e_rx_res_channels_destroy(res);
 err_rss_destroy:
-	mlx5e_rx_res_rss_destroy(res);
+	__mlx5e_rx_res_rss_destroy(res, 0);
 err_out:
 	return err;
 }
@@ -329,7 +451,7 @@ void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res)
 {
 	mlx5e_rx_res_ptp_destroy(res);
 	mlx5e_rx_res_channels_destroy(res);
-	mlx5e_rx_res_rss_destroy(res);
+	mlx5e_rx_res_rss_destroy_all(res);
 }
 
 void mlx5e_rx_res_free(struct mlx5e_rx_res *res)
@@ -351,14 +473,14 @@ u32 mlx5e_rx_res_get_tirn_xsk(struct mlx5e_rx_res *res, unsigned int ix)
 
 u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss = res->rss[0];
 
 	return mlx5e_rss_get_tirn(rss, tt, false);
 }
 
 u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt)
 {
-	struct mlx5e_rss *rss = res->rss;
+	struct mlx5e_rss *rss = res->rss[0];
 
 	return mlx5e_rss_get_tirn(rss, tt, true);
 }
@@ -503,7 +625,6 @@ int mlx5e_rx_res_xsk_deactivate(struct mlx5e_rx_res *res, unsigned int ix)
 
 int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param *lro_param)
 {
-	struct mlx5e_rss *rss = res->rss;
 	struct mlx5e_tir_builder *builder;
 	int err, final_err;
 	unsigned int ix;
@@ -516,9 +637,16 @@ int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param 
 
 	final_err = 0;
 
-	err = mlx5e_rss_lro_set_param(rss, lro_param);
-	if (err)
-		final_err = final_err ? : err;
+	for (ix = 0; ix < MLX5E_MAX_NUM_RSS; ix++) {
+		struct mlx5e_rss *rss = res->rss[ix];
+
+		if (!rss)
+			continue;
+
+		err = mlx5e_rss_lro_set_param(rss, lro_param);
+		if (err)
+			final_err = final_err ? : err;
+	}
 
 	for (ix = 0; ix < res->max_nch; ix++) {
 		err = mlx5e_tir_modify(&res->channels[ix].direct_tir, builder);
@@ -536,5 +664,5 @@ int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param 
 
 struct mlx5e_rss_params_hash mlx5e_rx_res_get_current_hash(struct mlx5e_rx_res *res)
 {
-	return mlx5e_rss_get_hash(res->rss);
+	return mlx5e_rss_get_hash(res->rss[0]);
 }

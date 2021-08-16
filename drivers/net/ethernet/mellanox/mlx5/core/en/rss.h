@@ -18,7 +18,13 @@ void mlx5e_rss_free(struct mlx5e_rss *rss);
 int mlx5e_rss_init(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
 		   bool inner_ft_support, u32 drop_rqn,
 		   const struct mlx5e_lro_param *init_lro_param);
-void mlx5e_rss_cleanup(struct mlx5e_rss *rss);
+int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
+			   bool inner_ft_support, u32 drop_rqn);
+int mlx5e_rss_cleanup(struct mlx5e_rss *rss);
+
+void mlx5e_rss_refcnt_inc(struct mlx5e_rss *rss);
+void mlx5e_rss_refcnt_dec(struct mlx5e_rss *rss);
+unsigned int mlx5e_rss_refcnt_read(struct mlx5e_rss *rss);
 
 u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 		       bool inner);
