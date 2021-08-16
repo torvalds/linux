@@ -17,6 +17,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define EVENT_BYTE		0x08
@@ -30,29 +31,34 @@
 #define PROBE_CFGCTL		0x000c
 #define PROBE_STATPERIOD	0x0024
 #define PROBE_STATGO		0x0028
-#define PROBE_COUNTERS_0_SRC	0x0138
-#define PROBE_COUNTERS_0_VAL	0x013c
-#define PROBE_COUNTERS_1_SRC	0x014c
-#define PROBE_COUNTERS_1_VAL	0x0150
+
+struct nocp_info {
+	u32 counter0_src;
+	u32 counter0_val;
+	u32 counter1_src;
+	u32 counter1_val;
+};
 
 struct rockchip_nocp {
 	void __iomem *reg_base;
 	struct device *dev;
 	struct devfreq_event_dev *edev;
 	struct devfreq_event_desc *desc;
+	const struct nocp_info *info;
 	ktime_t time;
 };
 
 static int rockchip_nocp_enable(struct devfreq_event_dev *edev)
 {
 	struct rockchip_nocp *nocp = devfreq_event_get_drvdata(edev);
+	const struct nocp_info *info = nocp->info;
 	void __iomem *reg_base = nocp->reg_base;
 
 	writel_relaxed(GLOBAL_EN, reg_base + PROBE_CFGCTL);
 	writel_relaxed(START_EN, reg_base + PROBE_MAINCTL);
 	writel_relaxed(0, reg_base + PROBE_STATPERIOD);
-	writel_relaxed(EVENT_BYTE, reg_base + PROBE_COUNTERS_0_SRC);
-	writel_relaxed(EVENT_CHAIN, reg_base + PROBE_COUNTERS_1_SRC);
+	writel_relaxed(EVENT_BYTE, reg_base + info->counter0_src);
+	writel_relaxed(EVENT_CHAIN, reg_base + info->counter1_src);
 	writel_relaxed(START_GO, reg_base + PROBE_STATGO);
 
 	nocp->time = ktime_get();
@@ -63,13 +69,14 @@ static int rockchip_nocp_enable(struct devfreq_event_dev *edev)
 static int rockchip_nocp_disable(struct devfreq_event_dev *edev)
 {
 	struct rockchip_nocp *nocp = devfreq_event_get_drvdata(edev);
+	const struct nocp_info *info = nocp->info;
 	void __iomem *reg_base = nocp->reg_base;
 
 	writel_relaxed(0, reg_base + PROBE_STATGO);
 	writel_relaxed(0, reg_base + PROBE_MAINCTL);
 	writel_relaxed(0, reg_base + PROBE_CFGCTL);
-	writel_relaxed(0, reg_base + PROBE_COUNTERS_0_SRC);
-	writel_relaxed(0, reg_base + PROBE_COUNTERS_1_SRC);
+	writel_relaxed(0, reg_base + info->counter0_src);
+	writel_relaxed(0, reg_base + info->counter1_src);
 
 	return 0;
 }
@@ -78,14 +85,15 @@ static int rockchip_nocp_get_event(struct devfreq_event_dev *edev,
 				   struct devfreq_event_data *edata)
 {
 	struct rockchip_nocp *nocp = devfreq_event_get_drvdata(edev);
+	const struct nocp_info *info = nocp->info;
 	void __iomem *reg_base = nocp->reg_base;
 	u32 counter = 0, counter0 = 0, counter1 = 0;
 	int time_ms = 0;
 
 	time_ms = ktime_to_ms(ktime_sub(ktime_get(), nocp->time));
 
-	counter0 = readl_relaxed(reg_base + PROBE_COUNTERS_0_VAL);
-	counter1 = readl_relaxed(reg_base + PROBE_COUNTERS_1_VAL);
+	counter0 = readl_relaxed(reg_base + info->counter0_val);
+	counter1 = readl_relaxed(reg_base + info->counter1_val);
 	counter = (counter0 & 0xffff) | ((counter1 & 0xffff) << 16);
 	counter = counter / 1000000;
 	if (time_ms > 0)
@@ -109,10 +117,37 @@ static const struct devfreq_event_ops rockchip_nocp_ops = {
 	.set_event = rockchip_nocp_set_event,
 };
 
+static const struct nocp_info rk3288_nocp = {
+	.counter0_src = 0x138,
+	.counter0_val = 0x13c,
+	.counter1_src = 0x14c,
+	.counter1_val = 0x150,
+};
+
+static const struct nocp_info rk3568_nocp = {
+	.counter0_src = 0x204,
+	.counter0_val = 0x20c,
+	.counter1_src = 0x214,
+	.counter1_val = 0x21c,
+};
+
 static const struct of_device_id rockchip_nocp_id_match[] = {
-	{ .compatible = "rockchip,rk3288-nocp" },
-	{ .compatible = "rockchip,rk3368-nocp" },
-	{ .compatible = "rockchip,rk3399-nocp" },
+	{
+		.compatible = "rockchip,rk3288-nocp",
+		.data = (void *)&rk3288_nocp,
+	},
+	{
+		.compatible = "rockchip,rk3368-nocp",
+		.data = (void *)&rk3288_nocp,
+	},
+	{
+		.compatible = "rockchip,rk3399-nocp",
+		.data = (void *)&rk3288_nocp,
+	},
+	{
+		.compatible = "rockchip,rk3568-nocp",
+		.data = (void *)&rk3568_nocp,
+	},
 	{ },
 };
 
@@ -122,10 +157,19 @@ static int rockchip_nocp_probe(struct platform_device *pdev)
 	struct rockchip_nocp *nocp;
 	struct devfreq_event_desc *desc;
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+
+	match = of_match_device(rockchip_nocp_id_match, &pdev->dev);
+	if (!match || !match->data) {
+		dev_err(&pdev->dev, "missing nocp data\n");
+		return -ENODEV;
+	}
 
 	nocp = devm_kzalloc(&pdev->dev, sizeof(*nocp), GFP_KERNEL);
 	if (!nocp)
 		return -ENOMEM;
+
+	nocp->info = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nocp->reg_base = devm_ioremap_resource(&pdev->dev, res);
