@@ -791,67 +791,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 	return -1;
 }
 
-int nat25_handle_frame(struct adapter *priv, struct sk_buff *skb)
-{
-	if (!(skb->data[0] & 1)) {
-		int is_vlan_tag = 0, i, retval = 0;
-		unsigned short vlan_hdr = 0;
-		unsigned short protocol;
-
-		protocol = be16_to_cpu(*((__be16 *)(skb->data + 2 * ETH_ALEN)));
-		if (protocol == ETH_P_8021Q) {
-			is_vlan_tag = 1;
-			vlan_hdr = *((unsigned short *)(skb->data+ETH_ALEN*2+2));
-			for (i = 0; i < 6; i++)
-				*((unsigned short *)(skb->data+ETH_ALEN*2+2-i*2)) = *((unsigned short *)(skb->data+ETH_ALEN*2-2-i*2));
-			skb_pull(skb, 4);
-		}
-
-		if (!priv->ethBrExtInfo.nat25_disable) {
-			spin_lock_bh(&priv->br_ext_lock);
-			/*
-			 *	This function look up the destination network address from
-			 *	the NAT2.5 database. Return value = -1 means that the
-			 *	corresponding network protocol is NOT support.
-			 */
-			if (!priv->ethBrExtInfo.nat25sc_disable &&
-			    (be16_to_cpu(*((__be16 *)(skb->data+ETH_ALEN*2))) == ETH_P_IP) &&
-			    !memcmp(priv->scdb_ip, skb->data+ETH_HLEN+16, 4)) {
-				memcpy(skb->data, priv->scdb_mac, ETH_ALEN);
-
-				spin_unlock_bh(&priv->br_ext_lock);
-			} else {
-				spin_unlock_bh(&priv->br_ext_lock);
-
-				retval = nat25_db_handle(priv, skb, NAT25_LOOKUP);
-			}
-		} else {
-			if (((be16_to_cpu(*((__be16 *)(skb->data+ETH_ALEN*2))) == ETH_P_IP) &&
-			    !memcmp(priv->br_ip, skb->data+ETH_HLEN+16, 4)) ||
-			    ((be16_to_cpu(*((__be16 *)(skb->data+ETH_ALEN*2))) == ETH_P_ARP) &&
-			    !memcmp(priv->br_ip, skb->data+ETH_HLEN+24, 4))) {
-				/*  for traffic to upper TCP/IP */
-				retval = nat25_db_handle(priv, skb, NAT25_LOOKUP);
-			}
-		}
-
-		if (is_vlan_tag) {
-			skb_push(skb, 4);
-			for (i = 0; i < 6; i++)
-				*((unsigned short *)(skb->data+i*2)) = *((unsigned short *)(skb->data+4+i*2));
-			*((__be16 *)(skb->data+ETH_ALEN*2)) = __constant_htons(ETH_P_8021Q);
-			*((unsigned short *)(skb->data+ETH_ALEN*2+2)) = vlan_hdr;
-		}
-
-		if (retval == -1) {
-			/* DEBUG_ERR("NAT25: Lookup fail!\n"); */
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 #define SERVER_PORT			67
 #define CLIENT_PORT			68
 #define DHCP_MAGIC			0x63825363
