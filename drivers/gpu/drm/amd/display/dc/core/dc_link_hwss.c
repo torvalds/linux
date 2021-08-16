@@ -64,7 +64,7 @@ void dp_receiver_power_ctrl(struct dc_link *link, bool on)
 
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
 {
-	if (link->dc->debug.enable_driver_sequence_debug)
+	if (link != NULL && link->dc->debug.enable_driver_sequence_debug)
 		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,
 					&dp_test_mode, sizeof(dp_test_mode));
 }

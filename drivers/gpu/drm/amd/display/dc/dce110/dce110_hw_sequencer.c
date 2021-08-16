@@ -1638,23 +1638,30 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 static void power_down_encoders(struct dc *dc)
 {
-	int i;
-
-	/* do not know BIOS back-front mapping, simply blank all. It will not
-	 * hurt for non-DP
-	 */
-	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
-		dc->res_pool->stream_enc[i]->funcs->dp_blank(dc->links[i],
-					dc->res_pool->stream_enc[i]);
-	}
+	int i, j;
 
 	for (i = 0; i < dc->link_count; i++) {
 		enum signal_type signal = dc->links[i]->connector_signal;
 
 		if ((signal == SIGNAL_TYPE_EDP) ||
-			(signal == SIGNAL_TYPE_DISPLAY_PORT))
+			(signal == SIGNAL_TYPE_DISPLAY_PORT)) {
+			if (dc->links[i]->link_enc->funcs->get_dig_frontend &&
+				dc->links[i]->link_enc->funcs->is_dig_enabled(dc->links[i]->link_enc)) {
+				unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
+									dc->links[i]->link_enc);
+
+				for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+					if (fe == dc->res_pool->stream_enc[j]->id) {
+						dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
+									dc->res_pool->stream_enc[j]);
+						break;
+					}
+				}
+			}
+
 			if (!dc->links[i]->wa_flags.dp_keep_receiver_powered)
 				dp_receiver_power_ctrl(dc->links[i], false);
+		}
 
 		if (signal != SIGNAL_TYPE_EDP)
 			signal = SIGNAL_TYPE_NONE;
