@@ -12350,21 +12350,6 @@ fcponly:
 	else
 		phba->nsler = 0;
 
-	/* Save PB info for use during HBA setup */
-	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
-	sli4_params->mib_bde_cnt = bf_get(cfg_mib_bde_cnt, mbx_sli4_parameters);
-	sli4_params->mib_size = mbx_sli4_parameters->mib_size;
-	sli4_params->mi_value = LPFC_DFLT_MIB_VAL;
-
-	/* Next we check for Vendor MIB support */
-	if (sli4_params->mi_ver && phba->cfg_enable_mi)
-		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"6461 MIB attr %d  enable %d  FDMI %d buf %d:%d\n",
-			sli4_params->mi_ver, phba->cfg_enable_mi,
-			sli4_params->mi_value, sli4_params->mib_bde_cnt,
-			sli4_params->mib_size);
 	return 0;
 }
 

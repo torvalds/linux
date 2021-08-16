@@ -2332,24 +2332,29 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		break;
 	case SLI_MGMT_RPA:
 		if (vport->port_type == LPFC_PHYSICAL_PORT &&
-		    phba->cfg_enable_mi &&
-		    phba->sli4_hba.pc_sli4_params.mi_ver > LPFC_MIB1_SUPPORT) {
+		    phba->sli4_hba.pc_sli4_params.mi_ver) {
 			/* mi is only for the phyical port, no vports */
 			if (phba->link_flag & LS_CT_VEN_RPA) {
 				lpfc_printf_vlog(vport, KERN_INFO,
-						 LOG_DISCOVERY | LOG_ELS,
+						 LOG_DISCOVERY | LOG_ELS |
+						 LOG_CGN_MGMT,
 						 "6449 VEN RPA FDMI Success\n");
 				phba->link_flag &= ~LS_CT_VEN_RPA;
 				break;
 			}
 
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6210 Issue Vendor MI FDMI %x\n",
+					phba->sli4_hba.pc_sli4_params.mi_ver);
+
+			/* CGN is only for the physical port, no vports */
 			if (lpfc_fdmi_cmd(vport, ndlp, cmd,
 					  LPFC_FDMI_VENDOR_ATTR_mi) == 0)
 				phba->link_flag |= LS_CT_VEN_RPA;
 			lpfc_printf_log(phba, KERN_INFO,
 					LOG_DISCOVERY | LOG_ELS,
 					"6458 Send MI FDMI:%x Flag x%x\n",
-					phba->sli4_hba.pc_sli4_params.mi_value,
+					phba->sli4_hba.pc_sli4_params.mi_ver,
 					phba->link_flag);
 		} else {
 			lpfc_printf_log(phba, KERN_INFO,
@@ -3348,7 +3353,7 @@ lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 	memset(ae, 0, 256);
 	sprintf(mibrevision, "ELXE2EM:%04d",
-		phba->sli4_hba.pc_sli4_params.mi_value);
+		phba->sli4_hba.pc_sli4_params.mi_ver);
 	strncpy(ae->un.AttrString, &mibrevision[0], sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;

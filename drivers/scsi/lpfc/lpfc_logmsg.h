@@ -44,6 +44,9 @@
 #define LOG_NVME_DISC   0x00200000      /* NVME Discovery/Connect events. */
 #define LOG_NVME_ABTS   0x00400000      /* NVME ABTS events. */
 #define LOG_NVME_IOERR  0x00800000      /* NVME IO Error events. */
+#define LOG_RSVD1	0x01000000	/* Reserved */
+#define LOG_RSVD2	0x02000000	/* Reserved */
+#define LOG_CGN_MGMT    0x04000000	/* Congestion Mgmt events */
 #define LOG_TRACE_EVENT 0x80000000	/* Dmp the DBG log on this err */
 #define LOG_ALL_MSG	0x7fffffff	/* LOG all messages */
 

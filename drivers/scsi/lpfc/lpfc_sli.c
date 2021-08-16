@@ -6447,6 +6447,14 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_DUAL_DUMP;
 		mbox->u.mqe.un.set_feature.param_len = 4;
 		break;
+	case LPFC_SET_ENABLE_MI:
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_MI;
+		mbox->u.mqe.un.set_feature.param_len = 4;
+		bf_set(lpfc_mbx_set_feature_milunq, &mbox->u.mqe.un.set_feature,
+		       phba->pport->cfg_lun_queue_depth);
+		bf_set(lpfc_mbx_set_feature_mi, &mbox->u.mqe.un.set_feature,
+		       phba->sli4_hba.pc_sli4_params.mi_ver);
+		break;
 	}
 
 	return;
@@ -7499,6 +7507,99 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 	}
 }
 
+/**
+ * lpfc_cmf_setup - Initialize idle_stat tracking
+ * @phba: Pointer to HBA context object.
+ *
+ * This is called from HBA setup during driver load or when the HBA
+ * comes online. this does all the initialization to support CMF and MI.
+ **/
+static int
+lpfc_cmf_setup(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mqe *mqe;
+	struct lpfc_pc_sli4_params *sli4_params;
+	struct lpfc_sli4_parameters *mbx_sli4_parameters;
+	int length;
+	int rc, mi_ver;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+	mqe = &mboxq->u.mqe;
+
+	/* Read the port's SLI4 Config Parameters */
+	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (unlikely(rc)) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return rc;
+	}
+
+	/* Gather info on MI support */
+	sli4_params = &phba->sli4_hba.pc_sli4_params;
+	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
+
+	/* Are we forcing MI off via module parameter? */
+	if (!phba->cfg_enable_mi)
+		sli4_params->mi_ver = 0;
+
+	/* Always try to enable MI feature if we can */
+	if (sli4_params->mi_ver) {
+		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_MI);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		mi_ver = bf_get(lpfc_mbx_set_feature_mi,
+				 &mboxq->u.mqe.un.set_feature);
+
+		if (rc == MBX_SUCCESS) {
+			if (mi_ver) {
+				lpfc_printf_log(phba,
+						KERN_WARNING, LOG_CGN_MGMT,
+						"6215 MI is enabled\n");
+				sli4_params->mi_ver = mi_ver;
+			} else {
+				lpfc_printf_log(phba,
+						KERN_WARNING, LOG_CGN_MGMT,
+						"6338 MI is disabled\n");
+				sli4_params->mi_ver = 0;
+			}
+		} else {
+			/* mi_ver is already set from GET_SLI4_PARAMETERS */
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_CGN_MGMT | LOG_INIT,
+					"6245 Enable MI Mailbox x%x (x%x/x%x) "
+					"failed, rc:x%x mi:x%x\n",
+					bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+					lpfc_sli_config_mbox_subsys_get
+						(phba, mboxq),
+					lpfc_sli_config_mbox_opcode_get
+						(phba, mboxq),
+					rc, sli4_params->mi_ver);
+		}
+	} else {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+				"6217 MI is disabled\n");
+	}
+
+	/* Ensure FDMI is enabled for MI if enable_mi is set */
+	if (sli4_params->mi_ver)
+		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"6470 Setup MI version %d\n",
+			sli4_params->mi_ver);
+
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return 0;
+}
+
 static int
 lpfc_set_host_tm(struct lpfc_hba *phba)
 {
@@ -7636,6 +7737,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_set_host_tm(phba);
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
 			"6468 Set host date / time: Status x%x:\n", rc);
+
+	lpfc_cmf_setup(phba);
 
 	/*
 	 * Continue initialization with default values even if driver failed
