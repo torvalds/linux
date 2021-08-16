@@ -26,6 +26,8 @@ properties:
 
   interrupts:
     maxItems: 1
+    description: |
+      The ALRT pin, an open-drain interrupt.
 
   maxim,rsns-microohm:
     $ref: /schemas/types.yaml#/definitions/uint32
