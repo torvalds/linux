@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
- * useful functions for debuging
+ * useful functions for debugging
  */
 
 // clang-format off

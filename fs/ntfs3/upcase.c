@@ -27,7 +27,7 @@ static inline u16 upcase_unicode_char(const u16 *upcase, u16 chr)
 /*
  * Thanks Kari Argillander <kari.argillander@gmail.com> for idea and implementation 'bothcase'
  *
- * Straigth way to compare names:
+ * Straight way to compare names:
  * - case insensitive
  * - if name equals and 'bothcases' then
  * - case sensitive

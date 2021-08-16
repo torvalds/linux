@@ -124,7 +124,7 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 /*
  * Shared memory struct.
  *
- * on-disk ntfs's upcase table is created by ntfs formater
+ * on-disk ntfs's upcase table is created by ntfs formatter
  * 'upcase' table is 128K bytes of memory
  * we should read it into memory when mounting
  * Several ntfs volumes likely use the same 'upcase' table
@@ -1208,7 +1208,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->def_entries = 1;
 	done = sizeof(struct ATTR_DEF_ENTRY);
 	sbi->reparse.max_size = MAXIMUM_REPARSE_DATA_BUFFER_SIZE;
-	sbi->ea_max_size = 0x10000; /* default formater value */
+	sbi->ea_max_size = 0x10000; /* default formatter value */
 
 	while (done + sizeof(struct ATTR_DEF_ENTRY) <= bytes) {
 		u32 t32 = le32_to_cpu(t->type);

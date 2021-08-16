@@ -292,7 +292,7 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 				 * of as simply the root of the tree.  The
 				 * representation of these internal nodes is
 				 * simply the index of the left child combined
-				 * with the special bits 0xC000 to distingush
+				 * with the special bits 0xC000 to distinguish
 				 * the entry from direct mapping and leaf node
 				 * entries.
 				 */
