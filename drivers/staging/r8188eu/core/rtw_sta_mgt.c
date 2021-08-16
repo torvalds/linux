@@ -13,7 +13,7 @@
 static void _rtw_init_stainfo(struct sta_info *psta)
 {
 
-	memset((u8 *)psta, 0, sizeof (struct sta_info));
+	memset((u8 *)psta, 0, sizeof(struct sta_info));
 
 	spin_lock_init(&psta->lock);
 	INIT_LIST_HEAD(&psta->list);
@@ -111,7 +111,7 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 
 inline int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta)
 {
-	int offset = (((u8 *)sta) - stapriv->pstainfo_buf)/sizeof(struct sta_info);
+	int offset = (((u8 *)sta) - stapriv->pstainfo_buf) / sizeof(struct sta_info);
 
 	if (!stainfo_offset_valid(offset))
 		DBG_88E("%s invalid offset(%d), out of range!!!", __func__, offset);
@@ -196,7 +196,7 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 		list_add_tail(&psta->hash_list, phash_list);
 
-		pstapriv->asoc_sta_count++ ;
+		pstapriv->asoc_sta_count++;
 
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 
