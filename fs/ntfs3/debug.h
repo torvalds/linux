@@ -7,6 +7,9 @@
  */
 
 // clang-format off
+#ifndef _LINUX_NTFS3_DEBUG_H
+#define _LINUX_NTFS3_DEBUG_H
+
 #ifndef Add2Ptr
 #define Add2Ptr(P, I)		((void *)((u8 *)(P) + (I)))
 #define PtrOffset(B, O)		((size_t)((size_t)(O) - (size_t)(B)))
@@ -61,4 +64,6 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 #define ntfs_free(p)		kfree(p)
 #define ntfs_vfree(p)		kvfree(p)
 #define ntfs_memdup(src, len)	kmemdup(src, len, GFP_NOFS)
+
+#endif /* _LINUX_NTFS3_DEBUG_H */
 // clang-format on

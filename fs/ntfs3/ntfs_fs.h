@@ -6,6 +6,9 @@
  */
 
 // clang-format off
+#ifndef _LINUX_NTFS3_NTFS_FS_H
+#define _LINUX_NTFS3_NTFS_FS_H
+
 #define MINUS_ONE_T			((size_t)(-1))
 /* Biggest MFT / smallest cluster */
 #define MAXIMUM_BYTES_PER_MFT		4096
@@ -1085,3 +1088,5 @@ static inline void le64_sub_cpu(__le64 *var, u64 val)
 {
 	*var = cpu_to_le64(le64_to_cpu(*var) - val);
 }
+
+#endif /* _LINUX_NTFS3_NTFS_FS_H */

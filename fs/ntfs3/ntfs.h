@@ -7,6 +7,8 @@
  */
 
 // clang-format off
+#ifndef _LINUX_NTFS3_NTFS_H
+#define _LINUX_NTFS3_NTFS_H
 
 /* TODO:
  * - Check 4K mft record and 512 bytes cluster
@@ -1235,4 +1237,5 @@ struct SID {
 };
 static_assert(offsetof(struct SID, SubAuthority) == 8);
 
+#endif /* _LINUX_NTFS3_NTFS_H */
 // clang-format on
