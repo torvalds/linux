@@ -2500,6 +2500,7 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 			} else {
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
+				priv->xstats.txq_stats[queue].tx_pkt_n++;
 			}
 			if (skb)
 				stmmac_get_tx_hwtstamp(priv, p, skb);
@@ -5000,6 +5001,9 @@ read_again:
 
 	stmmac_finalize_xdp_rx(priv, xdp_status);
 
+	priv->xstats.rx_pkt_n += count;
+	priv->xstats.rxq_stats[queue].rx_pkt_n += count;
+
 	if (xsk_uses_need_wakeup(rx_q->xsk_pool)) {
 		if (failure || stmmac_rx_dirty(priv, queue) > 0)
 			xsk_set_rx_need_wakeup(rx_q->xsk_pool);
@@ -5287,6 +5291,7 @@ drain_data:
 	stmmac_rx_refill(priv, queue);
 
 	priv->xstats.rx_pkt_n += count;
+	priv->xstats.rxq_stats[queue].rx_pkt_n += count;
 
 	return count;
 }
