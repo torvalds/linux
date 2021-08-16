@@ -595,11 +595,11 @@ int snd_soc_pcm_dai_remove(struct snd_soc_pcm_runtime *rtd, int order)
 int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai;
-	int i, ret = 0;
+	int i;
 
 	for_each_rtd_dais(rtd, i, dai) {
 		if (dai->driver->pcm_new) {
-			ret = dai->driver->pcm_new(rtd, dai);
+			int ret = dai->driver->pcm_new(rtd, dai);
 			if (ret < 0)
 				return soc_dai_ret(dai, ret);
 		}
