@@ -225,6 +225,17 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	if (!hpriv)
 		return -ENOMEM;
 
+	/* Prevent other routines from reading partial hpriv data by
+	 * initializing hpriv fields before inserting it to the list
+	 */
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	hpriv->is_control = true;
+	nonseekable_open(inode, filp);
+
+	hpriv->taskpid = find_get_pid(current->pid);
+
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	if (!hl_device_operational(hdev, NULL)) {
@@ -238,19 +249,15 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	hpriv->hdev = hdev;
-	filp->private_data = hpriv;
-	hpriv->filp = filp;
-	hpriv->is_control = true;
-	nonseekable_open(inode, filp);
-
-	hpriv->taskpid = find_get_pid(current->pid);
-
 	return 0;
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
+	filp->private_data = NULL;
+	put_pid(hpriv->taskpid);
+
 	kfree(hpriv);
+
 	return rc;
 }
 
