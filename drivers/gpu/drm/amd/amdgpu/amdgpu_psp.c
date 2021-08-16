@@ -909,9 +909,9 @@ static int psp_xgmi_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_XGMI_SHARED_MEM_SIZE,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->xgmi_context.xgmi_shared_bo,
-				      &psp->xgmi_context.xgmi_shared_mc_addr,
-				      &psp->xgmi_context.xgmi_shared_buf);
+				      &psp->xgmi_context.context.mem_context.shared_bo,
+				      &psp->xgmi_context.context.mem_context.shared_mc_addr,
+				      &psp->xgmi_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -958,15 +958,15 @@ static int psp_xgmi_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->xgmi.size_bytes,
-				 psp->xgmi_context.xgmi_shared_mc_addr,
+				 psp->xgmi_context.context.mem_context.shared_mc_addr,
 				 PSP_XGMI_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->xgmi_context.initialized = 1;
-		psp->xgmi_context.session_id = cmd->resp.session_id;
+		psp->xgmi_context.context.initialized = true;
+		psp->xgmi_context.context.session_id = cmd->resp.session_id;
 	}
 
 	release_psp_cmd_buf(psp);
@@ -991,7 +991,7 @@ static int psp_xgmi_unload(struct psp_context *psp)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->xgmi_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->xgmi_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -1003,26 +1003,26 @@ static int psp_xgmi_unload(struct psp_context *psp)
 
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
-	return psp_ta_invoke(psp, ta_cmd_id, psp->xgmi_context.session_id);
+	return psp_ta_invoke(psp, ta_cmd_id, psp->xgmi_context.context.session_id);
 }
 
 int psp_xgmi_terminate(struct psp_context *psp)
 {
 	int ret;
 
-	if (!psp->xgmi_context.initialized)
+	if (!psp->xgmi_context.context.initialized)
 		return 0;
 
 	ret = psp_xgmi_unload(psp);
 	if (ret)
 		return ret;
 
-	psp->xgmi_context.initialized = 0;
+	psp->xgmi_context.context.initialized = false;
 
 	/* free xgmi shared memory */
-	amdgpu_bo_free_kernel(&psp->xgmi_context.xgmi_shared_bo,
-			&psp->xgmi_context.xgmi_shared_mc_addr,
-			&psp->xgmi_context.xgmi_shared_buf);
+	amdgpu_bo_free_kernel(&psp->xgmi_context.context.mem_context.shared_bo,
+			&psp->xgmi_context.context.mem_context.shared_mc_addr,
+			&psp->xgmi_context.context.mem_context.shared_buf);
 
 	return 0;
 }
@@ -1040,7 +1040,7 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 	if (!load_ta)
 		goto invoke;
 
-	if (!psp->xgmi_context.initialized) {
+	if (!psp->xgmi_context.context.initialized) {
 		ret = psp_xgmi_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -1053,7 +1053,7 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 
 invoke:
 	/* Initialize XGMI session */
-	xgmi_cmd = (struct ta_xgmi_shared_memory *)(psp->xgmi_context.xgmi_shared_buf);
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)(psp->xgmi_context.context.mem_context.shared_buf);
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 	xgmi_cmd->flag_extend_link_record = set_extended_data;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__INITIALIZE;
@@ -1068,7 +1068,7 @@ int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
@@ -1088,7 +1088,7 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
@@ -1169,7 +1169,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 	xgmi_cmd->flag_extend_link_record = get_extended_data;
 
@@ -1249,7 +1249,7 @@ int psp_xgmi_set_topology_info(struct psp_context *psp,
 	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
@@ -1278,9 +1278,9 @@ static int psp_ras_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_RAS_SHARED_MEM_SIZE,
 			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-			&psp->ras_context.ras_shared_bo,
-			&psp->ras_context.ras_shared_mc_addr,
-			&psp->ras_context.ras_shared_buf);
+			&psp->ras_context.context.mem_context.shared_bo,
+			&psp->ras_context.context.mem_context.shared_mc_addr,
+			&psp->ras_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -1299,7 +1299,7 @@ static int psp_ras_load(struct psp_context *psp)
 
 	psp_copy_fw(psp, psp->ras.start_addr, psp->ras.size_bytes);
 
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.ras_shared_buf;
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 
 	if (psp->adev->gmc.xgmi.connected_to_cpu)
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
@@ -1311,17 +1311,17 @@ static int psp_ras_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->ras.size_bytes,
-				 psp->ras_context.ras_shared_mc_addr,
+				 psp->ras_context.context.mem_context.shared_mc_addr,
 				 PSP_RAS_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->ras_context.session_id = cmd->resp.session_id;
+		psp->ras_context.context.session_id = cmd->resp.session_id;
 
 		if (!ras_cmd->ras_status)
-			psp->ras_context.ras_initialized = true;
+			psp->ras_context.context.initialized = true;
 		else
 			dev_warn(psp->adev->dev, "RAS Init Status: 0x%X\n", ras_cmd->ras_status);
 	}
@@ -1347,7 +1347,7 @@ static int psp_ras_unload(struct psp_context *psp)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->ras_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->ras_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
@@ -1362,7 +1362,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	struct ta_ras_shared_memory *ras_cmd;
 	int ret;
 
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.ras_shared_buf;
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 
 	/*
 	 * TODO: bypass the loading in sriov for now
@@ -1370,7 +1370,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	ret = psp_ta_invoke(psp, ta_cmd_id, psp->ras_context.session_id);
+	ret = psp_ta_invoke(psp, ta_cmd_id, psp->ras_context.context.session_id);
 
 	if (amdgpu_ras_intr_triggered())
 		return ret;
@@ -1426,10 +1426,10 @@ int psp_ras_enable_features(struct psp_context *psp,
 	struct ta_ras_shared_memory *ras_cmd;
 	int ret;
 
-	if (!psp->ras_context.ras_initialized)
+	if (!psp->ras_context.context.initialized)
 		return -EINVAL;
 
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.ras_shared_buf;
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
 
 	if (enable)
@@ -1456,19 +1456,19 @@ static int psp_ras_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->ras_context.ras_initialized)
+	if (!psp->ras_context.context.initialized)
 		return 0;
 
 	ret = psp_ras_unload(psp);
 	if (ret)
 		return ret;
 
-	psp->ras_context.ras_initialized = false;
+	psp->ras_context.context.initialized = false;
 
 	/* free ras shared memory */
-	amdgpu_bo_free_kernel(&psp->ras_context.ras_shared_bo,
-			&psp->ras_context.ras_shared_mc_addr,
-			&psp->ras_context.ras_shared_buf);
+	amdgpu_bo_free_kernel(&psp->ras_context.context.mem_context.shared_bo,
+			&psp->ras_context.context.mem_context.shared_mc_addr,
+			&psp->ras_context.context.mem_context.shared_buf);
 
 	return 0;
 }
@@ -1532,7 +1532,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 		}
 	}
 
-	if (!psp->ras_context.ras_initialized) {
+	if (!psp->ras_context.context.initialized) {
 		ret = psp_ras_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -1551,10 +1551,10 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	struct ta_ras_shared_memory *ras_cmd;
 	int ret;
 
-	if (!psp->ras_context.ras_initialized)
+	if (!psp->ras_context.context.initialized)
 		return -EINVAL;
 
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.ras_shared_buf;
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
 
 	ras_cmd->cmd_id = TA_RAS_COMMAND__TRIGGER_ERROR;
@@ -1584,9 +1584,9 @@ static int psp_hdcp_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_HDCP_SHARED_MEM_SIZE,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->hdcp_context.hdcp_shared_bo,
-				      &psp->hdcp_context.hdcp_shared_mc_addr,
-				      &psp->hdcp_context.hdcp_shared_buf);
+				      &psp->hdcp_context.context.mem_context.shared_bo,
+				      &psp->hdcp_context.context.mem_context.shared_mc_addr,
+				      &psp->hdcp_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -1610,14 +1610,14 @@ static int psp_hdcp_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->hdcp.size_bytes,
-				 psp->hdcp_context.hdcp_shared_mc_addr,
+				 psp->hdcp_context.context.mem_context.shared_mc_addr,
 				 PSP_HDCP_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->hdcp_context.hdcp_initialized = true;
-		psp->hdcp_context.session_id = cmd->resp.session_id;
+		psp->hdcp_context.context.initialized = true;
+		psp->hdcp_context.context.session_id = cmd->resp.session_id;
 		mutex_init(&psp->hdcp_context.mutex);
 	}
 
@@ -1641,7 +1641,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 		return 0;
 	}
 
-	if (!psp->hdcp_context.hdcp_initialized) {
+	if (!psp->hdcp_context.context.initialized) {
 		ret = psp_hdcp_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -1667,7 +1667,7 @@ static int psp_hdcp_unload(struct psp_context *psp)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->hdcp_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->hdcp_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
@@ -1684,7 +1684,7 @@ int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	return psp_ta_invoke(psp, ta_cmd_id, psp->hdcp_context.session_id);
+	return psp_ta_invoke(psp, ta_cmd_id, psp->hdcp_context.context.session_id);
 }
 
 static int psp_hdcp_terminate(struct psp_context *psp)
@@ -1697,8 +1697,8 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->hdcp_context.hdcp_initialized) {
-		if (psp->hdcp_context.hdcp_shared_buf)
+	if (!psp->hdcp_context.context.initialized) {
+		if (psp->hdcp_context.context.mem_context.shared_buf)
 			goto out;
 		else
 			return 0;
@@ -1708,13 +1708,13 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	psp->hdcp_context.hdcp_initialized = false;
+	psp->hdcp_context.context.initialized = false;
 
 out:
 	/* free hdcp shared memory */
-	amdgpu_bo_free_kernel(&psp->hdcp_context.hdcp_shared_bo,
-			      &psp->hdcp_context.hdcp_shared_mc_addr,
-			      &psp->hdcp_context.hdcp_shared_buf);
+	amdgpu_bo_free_kernel(&psp->hdcp_context.context.mem_context.shared_bo,
+			      &psp->hdcp_context.context.mem_context.shared_mc_addr,
+			      &psp->hdcp_context.context.mem_context.shared_buf);
 
 	return 0;
 }
@@ -1731,9 +1731,9 @@ static int psp_dtm_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_DTM_SHARED_MEM_SIZE,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->dtm_context.dtm_shared_bo,
-				      &psp->dtm_context.dtm_shared_mc_addr,
-				      &psp->dtm_context.dtm_shared_buf);
+				      &psp->dtm_context.context.mem_context.shared_bo,
+				      &psp->dtm_context.context.mem_context.shared_mc_addr,
+				      &psp->dtm_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -1756,14 +1756,14 @@ static int psp_dtm_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->dtm.size_bytes,
-				 psp->dtm_context.dtm_shared_mc_addr,
+				 psp->dtm_context.context.mem_context.shared_mc_addr,
 				 PSP_DTM_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->dtm_context.dtm_initialized = true;
-		psp->dtm_context.session_id = cmd->resp.session_id;
+		psp->dtm_context.context.initialized = true;
+		psp->dtm_context.context.session_id = cmd->resp.session_id;
 		mutex_init(&psp->dtm_context.mutex);
 	}
 
@@ -1788,7 +1788,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 		return 0;
 	}
 
-	if (!psp->dtm_context.dtm_initialized) {
+	if (!psp->dtm_context.context.initialized) {
 		ret = psp_dtm_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -1814,7 +1814,7 @@ static int psp_dtm_unload(struct psp_context *psp)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->dtm_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->dtm_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
@@ -1831,7 +1831,7 @@ int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	return psp_ta_invoke(psp, ta_cmd_id, psp->dtm_context.session_id);
+	return psp_ta_invoke(psp, ta_cmd_id, psp->dtm_context.context.session_id);
 }
 
 static int psp_dtm_terminate(struct psp_context *psp)
@@ -1844,8 +1844,8 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->dtm_context.dtm_initialized) {
-		if (psp->dtm_context.dtm_shared_buf)
+	if (!psp->dtm_context.context.initialized) {
+		if (psp->dtm_context.context.mem_context.shared_buf)
 			goto out;
 		else
 			return 0;
@@ -1855,13 +1855,13 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	psp->dtm_context.dtm_initialized = false;
+	psp->dtm_context.context.initialized = false;
 
 out:
 	/* free hdcp shared memory */
-	amdgpu_bo_free_kernel(&psp->dtm_context.dtm_shared_bo,
-			      &psp->dtm_context.dtm_shared_mc_addr,
-			      &psp->dtm_context.dtm_shared_buf);
+	amdgpu_bo_free_kernel(&psp->dtm_context.context.mem_context.shared_bo,
+			      &psp->dtm_context.context.mem_context.shared_mc_addr,
+			      &psp->dtm_context.context.mem_context.shared_buf);
 
 	return 0;
 }
@@ -1878,9 +1878,9 @@ static int psp_rap_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_RAP_SHARED_MEM_SIZE,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->rap_context.rap_shared_bo,
-				      &psp->rap_context.rap_shared_mc_addr,
-				      &psp->rap_context.rap_shared_buf);
+				      &psp->rap_context.context.mem_context.shared_bo,
+				      &psp->rap_context.context.mem_context.shared_mc_addr,
+				      &psp->rap_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -1897,14 +1897,14 @@ static int psp_rap_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->rap.size_bytes,
-				 psp->rap_context.rap_shared_mc_addr,
+				 psp->rap_context.context.mem_context.shared_mc_addr,
 				 PSP_RAP_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->rap_context.rap_initialized = true;
-		psp->rap_context.session_id = cmd->resp.session_id;
+		psp->rap_context.context.initialized = true;
+		psp->rap_context.context.session_id = cmd->resp.session_id;
 		mutex_init(&psp->rap_context.mutex);
 	}
 
@@ -1918,7 +1918,7 @@ static int psp_rap_unload(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->rap_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->rap_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
@@ -1944,7 +1944,7 @@ static int psp_rap_initialize(struct psp_context *psp)
 		return 0;
 	}
 
-	if (!psp->rap_context.rap_initialized) {
+	if (!psp->rap_context.context.initialized) {
 		ret = psp_rap_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -1958,11 +1958,11 @@ static int psp_rap_initialize(struct psp_context *psp)
 	if (ret || status != TA_RAP_STATUS__SUCCESS) {
 		psp_rap_unload(psp);
 
-		amdgpu_bo_free_kernel(&psp->rap_context.rap_shared_bo,
-			      &psp->rap_context.rap_shared_mc_addr,
-			      &psp->rap_context.rap_shared_buf);
+		amdgpu_bo_free_kernel(&psp->rap_context.context.mem_context.shared_bo,
+			      &psp->rap_context.context.mem_context.shared_mc_addr,
+			      &psp->rap_context.context.mem_context.shared_buf);
 
-		psp->rap_context.rap_initialized = false;
+		psp->rap_context.context.initialized = false;
 
 		dev_warn(psp->adev->dev, "RAP TA initialize fail (%d) status %d.\n",
 			 ret, status);
@@ -1977,17 +1977,17 @@ static int psp_rap_terminate(struct psp_context *psp)
 {
 	int ret;
 
-	if (!psp->rap_context.rap_initialized)
+	if (!psp->rap_context.context.initialized)
 		return 0;
 
 	ret = psp_rap_unload(psp);
 
-	psp->rap_context.rap_initialized = false;
+	psp->rap_context.context.initialized = false;
 
 	/* free rap shared memory */
-	amdgpu_bo_free_kernel(&psp->rap_context.rap_shared_bo,
-			      &psp->rap_context.rap_shared_mc_addr,
-			      &psp->rap_context.rap_shared_buf);
+	amdgpu_bo_free_kernel(&psp->rap_context.context.mem_context.shared_bo,
+			      &psp->rap_context.context.mem_context.shared_mc_addr,
+			      &psp->rap_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -1997,7 +1997,7 @@ int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id, enum ta_rap_stat
 	struct ta_rap_shared_memory *rap_cmd;
 	int ret = 0;
 
-	if (!psp->rap_context.rap_initialized)
+	if (!psp->rap_context.context.initialized)
 		return 0;
 
 	if (ta_cmd_id != TA_CMD_RAP__INITIALIZE &&
@@ -2007,13 +2007,13 @@ int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id, enum ta_rap_stat
 	mutex_lock(&psp->rap_context.mutex);
 
 	rap_cmd = (struct ta_rap_shared_memory *)
-		  psp->rap_context.rap_shared_buf;
+		  psp->rap_context.context.mem_context.shared_buf;
 	memset(rap_cmd, 0, sizeof(struct ta_rap_shared_memory));
 
 	rap_cmd->cmd_id = ta_cmd_id;
 	rap_cmd->validation_method_id = METHOD_A;
 
-	ret = psp_ta_invoke(psp, rap_cmd->cmd_id, psp->rap_context.session_id);
+	ret = psp_ta_invoke(psp, rap_cmd->cmd_id, psp->rap_context.context.session_id);
 	if (ret)
 		goto out_unlock;
 
@@ -2038,9 +2038,9 @@ static int psp_securedisplay_init_shared_buf(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_SECUREDISPLAY_SHARED_MEM_SIZE,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->securedisplay_context.securedisplay_shared_bo,
-				      &psp->securedisplay_context.securedisplay_shared_mc_addr,
-				      &psp->securedisplay_context.securedisplay_shared_buf);
+				      &psp->securedisplay_context.context.mem_context.shared_bo,
+				      &psp->securedisplay_context.context.mem_context.shared_mc_addr,
+				      &psp->securedisplay_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -2056,14 +2056,14 @@ static int psp_securedisplay_load(struct psp_context *psp)
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->securedisplay.size_bytes,
-				 psp->securedisplay_context.securedisplay_shared_mc_addr,
+				 psp->securedisplay_context.context.mem_context.shared_mc_addr,
 				 PSP_SECUREDISPLAY_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->securedisplay_context.securedisplay_initialized = true;
-		psp->securedisplay_context.session_id = cmd->resp.session_id;
+		psp->securedisplay_context.context.initialized = true;
+		psp->securedisplay_context.context.session_id = cmd->resp.session_id;
 		mutex_init(&psp->securedisplay_context.mutex);
 	}
 
@@ -2077,7 +2077,7 @@ static int psp_securedisplay_unload(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->securedisplay_context.session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, psp->securedisplay_context.context.session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
@@ -2103,7 +2103,7 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 		return 0;
 	}
 
-	if (!psp->securedisplay_context.securedisplay_initialized) {
+	if (!psp->securedisplay_context.context.initialized) {
 		ret = psp_securedisplay_init_shared_buf(psp);
 		if (ret)
 			return ret;
@@ -2120,11 +2120,11 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 	if (ret) {
 		psp_securedisplay_unload(psp);
 
-		amdgpu_bo_free_kernel(&psp->securedisplay_context.securedisplay_shared_bo,
-			      &psp->securedisplay_context.securedisplay_shared_mc_addr,
-			      &psp->securedisplay_context.securedisplay_shared_buf);
+		amdgpu_bo_free_kernel(&psp->securedisplay_context.context.mem_context.shared_bo,
+			      &psp->securedisplay_context.context.mem_context.shared_mc_addr,
+			      &psp->securedisplay_context.context.mem_context.shared_buf);
 
-		psp->securedisplay_context.securedisplay_initialized = false;
+		psp->securedisplay_context.context.initialized = false;
 
 		dev_err(psp->adev->dev, "SECUREDISPLAY TA initialize fail.\n");
 		return -EINVAL;
@@ -2149,19 +2149,19 @@ static int psp_securedisplay_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->securedisplay_context.securedisplay_initialized)
+	if (!psp->securedisplay_context.context.initialized)
 		return 0;
 
 	ret = psp_securedisplay_unload(psp);
 	if (ret)
 		return ret;
 
-	psp->securedisplay_context.securedisplay_initialized = false;
+	psp->securedisplay_context.context.initialized = false;
 
 	/* free securedisplay shared memory */
-	amdgpu_bo_free_kernel(&psp->securedisplay_context.securedisplay_shared_bo,
-			      &psp->securedisplay_context.securedisplay_shared_mc_addr,
-			      &psp->securedisplay_context.securedisplay_shared_buf);
+	amdgpu_bo_free_kernel(&psp->securedisplay_context.context.mem_context.shared_bo,
+			      &psp->securedisplay_context.context.mem_context.shared_mc_addr,
+			      &psp->securedisplay_context.context.mem_context.shared_buf);
 
 	return ret;
 }
@@ -2170,7 +2170,7 @@ int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	int ret;
 
-	if (!psp->securedisplay_context.securedisplay_initialized)
+	if (!psp->securedisplay_context.context.initialized)
 		return -EINVAL;
 
 	if (ta_cmd_id != TA_SECUREDISPLAY_COMMAND__QUERY_TA &&
@@ -2179,7 +2179,7 @@ int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 
 	mutex_lock(&psp->securedisplay_context.mutex);
 
-	ret = psp_ta_invoke(psp, ta_cmd_id, psp->securedisplay_context.session_id);
+	ret = psp_ta_invoke(psp, ta_cmd_id, psp->securedisplay_context.context.session_id);
 
 	mutex_unlock(&psp->securedisplay_context.mutex);
 
@@ -2799,7 +2799,7 @@ static int psp_suspend(void *handle)
 	struct psp_context *psp = &adev->psp;
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
-	    psp->xgmi_context.initialized == 1) {
+	    psp->xgmi_context.context.initialized) {
 		ret = psp_xgmi_terminate(psp);
 		if (ret) {
 			DRM_ERROR("Failed to terminate xgmi ta\n");
