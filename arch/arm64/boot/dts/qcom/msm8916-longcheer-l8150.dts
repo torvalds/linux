@@ -121,8 +121,20 @@
 	status = "okay";
 
 	accelerometer@10 {
-		compatible = "bosch,bmc150_accel";
+		compatible = "bosch,bmc156_accel";
 		reg = <0x10>;
+
+		/*
+		 * For some reason the interrupt line is usually not connected
+		 * to the BMC156. However, there are two pads next to the chip
+		 * that can be shorted to make it work if needed.
+		 *
+		 * interrupt-parent = <&msmgpio>;
+		 * interrupts = <116 IRQ_TYPE_EDGE_RISING>;
+		 */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_int_default>;
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l6>;
@@ -133,8 +145,14 @@
 	};
 
 	magnetometer@12 {
-		compatible = "bosch,bmc150_magn";
+		compatible = "bosch,bmc156_magn";
 		reg = <0x12>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <113 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&magn_int_default>;
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l6>;
@@ -145,7 +163,8 @@
 		reg = <0x68>;
 
 		interrupt-parent = <&msmgpio>;
-		interrupts = <23 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <23 IRQ_TYPE_EDGE_RISING>,
+			     <22 IRQ_TYPE_EDGE_RISING>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&gyro_int_default>;
@@ -336,6 +355,14 @@
 };
 
 &msmgpio {
+	accel_int_default: accel-int-default {
+		pins = "gpio116";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	camera_flash_default: camera-flash-default {
 		pins = "gpio31", "gpio32";
 		function = "gpio";
@@ -361,7 +388,15 @@
 	};
 
 	gyro_int_default: gyro-int-default {
-		pins = "gpio23";
+		pins = "gpio22", "gpio23";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	magn_int_default: magn-int-default {
+		pins = "gpio113";
 		function = "gpio";
 
 		drive-strength = <2>;
