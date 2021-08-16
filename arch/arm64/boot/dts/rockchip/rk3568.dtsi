@@ -1962,6 +1962,31 @@
 		};
 	};
 
+	nocp_cpu: nocp-cpu@fe102000 {
+		compatible = "rockchip,rk3568-nocp";
+		reg = <0x0 0xfe102000 0x0 0x100>;
+	};
+
+	nocp_gpu_vpu_rga_venc: nocp-gpu-vpu-rga-venc@fe102400 {
+		compatible = "rockchip,rk3568-nocp";
+		reg = <0x0 0xfe102400 0x0 0x100>;
+	};
+
+	nocp_npu_vdec: nocp-vdec@fe102800 {
+		compatible = "rockchip,rk3568-nocp";
+		reg = <0x0 0xfe102800 0x0 0x100>;
+	};
+
+	nocp_vi_usb_peri_pipe: nocp-vi-usb-peri-pipe@fe102c00 {
+		compatible = "rockchip,rk3568-nocp";
+		reg = <0x0 0xfe102c00 0x0 0x100>;
+	};
+
+	nocp_vo: nocp-vo@fe103000 {
+		compatible = "rockchip,rk3568-nocp";
+		reg = <0x0 0xfe103000 0x0 0x100>;
+	};
+
 	qos_gpu: qos@fe128000 {
 		compatible = "syscon";
 		reg = <0x0 0xfe128000 0x0 0x20>;
