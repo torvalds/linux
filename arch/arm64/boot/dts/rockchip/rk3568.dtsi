@@ -2148,7 +2148,7 @@
 		compatible = "rockchip,rk3568-dmc";
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "complete";
-		devfreq-events = <&dfi>;
+		devfreq-events = <&dfi>, <&nocp_cpu>;
 		clocks = <&scmi_clk 3>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
@@ -2156,6 +2156,12 @@
 		/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
 			0	572	324000
 			573	99999	528000
+		>;
+		cpu-bw-dmc-freq = <
+		/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
+			0	350	324000
+			351	400	528000
+			401	99999	780000
 		>;
 		upthreshold = <40>;
 		downdifferential = <20>;
